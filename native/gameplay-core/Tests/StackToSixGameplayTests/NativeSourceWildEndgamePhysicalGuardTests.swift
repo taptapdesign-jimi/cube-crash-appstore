@@ -62,6 +62,12 @@ final class NativeSourceWildEndgamePhysicalGuardTests:XCTestCase {
         XCTAssertEqual(e.sourceWildEndgamePhysicalGuardChecks,3)
         XCTAssertFalse(e.hasSettledSourceWildSpawnCoroutine(transactionID:plan.id,generation:plan.generation))
         XCTAssertTrue(e.resumeSourceWildSpawnCoroutine(transactionID:plan.id,generation:plan.generation).accepted)
+        XCTAssertFalse(e.hasSettledSourceWildSpawnCoroutine(transactionID:plan.id,generation:plan.generation))
+        XCTAssertEqual(e.pendingWildSpawnActions.count,3,"Arcade Star keeps Journey's saved extra drops")
+        while let action=e.pendingWildSpawnActions.first {
+            XCTAssertTrue(e.commitWildSpawnAction(transactionID:plan.id,generation:plan.generation,actionID:action.id).accepted)
+            XCTAssertTrue(e.resumeSourceWildSpawnCoroutine(transactionID:plan.id,generation:plan.generation).accepted)
+        }
         XCTAssertTrue(e.hasSettledSourceWildSpawnCoroutine(transactionID:plan.id,generation:plan.generation))
         XCTAssertNil(e.sourceNoMovesRuntimeAuthority)
     }

@@ -193,7 +193,6 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
         // Keep all enlarged islands inside the same viewport. The staggered
         // transparent image envelopes may interleave vertically.
         let arcadeGap = (arcadeBottom-arcadeTop-buttonWidth*ratios.reduce(0,+))/2
-        let visualSize = arcade ? buttonWidth*0.96 : min(width*0.65,254)
         let flagWidth = min(width*0.385,150)
         content.frame = CGRect(x:0,y:0,width:width,height:arcade ? bounds.height : max(bounds.height,hubHeight))
         scrollView.contentSize = content.bounds.size
@@ -213,10 +212,12 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
             // (which jumps every World upward before/during its collapse).
             unit.layer.position = CGPoint(x: rect.minX + rect.width * unit.layer.anchorPoint.x,
                                           y: rect.minY + rect.height * unit.layer.anchorPoint.y)
-            let visualHeight = arcade ? buttonHeight*0.96 : visualSize
+            let artworkScale:CGFloat = arcade && index == 1 ? 1.1 : 1
+            let visualSize = arcade ? buttonWidth*0.96*artworkScale : min(width*0.65,254)
+            let visualHeight = arcade ? buttonHeight*0.96*artworkScale : visualSize
             floats[id]?.bounds = CGRect(x: 0, y: 0, width: visualSize, height: visualHeight)
             // Artwork adjustments are independent of the Unit/cloud motion owner.
-            let artworkShift:CGPoint = arcade ? [CGPoint(x:-5,y:0),CGPoint(x:5,y:16),CGPoint(x:-5,y:15)][index] : .zero
+            let artworkShift:CGPoint = arcade ? [CGPoint(x:-5,y:-4),CGPoint(x:5,y:16),CGPoint(x:-5,y:15)][index] : .zero
             floats[id]?.center = CGPoint(x:buttonWidth/2+artworkShift.x,y:(arcade ? buttonHeight/2 : buttonHeight*0.48)+artworkShift.y)
             tilts[id]?.bounds = CGRect(x: 0, y: 0, width: visualSize, height: visualHeight)
             tilts[id]?.layer.anchorPoint = CGPoint(x: 0.5, y: 0.54)

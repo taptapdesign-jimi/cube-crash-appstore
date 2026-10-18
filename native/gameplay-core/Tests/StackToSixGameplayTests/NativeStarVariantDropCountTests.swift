@@ -4,15 +4,15 @@ import XCTest
 final class NativeStarVariantDropCountTests:XCTestCase {
     private let variants=["fish","kanta","cubero"]
     func testMeterVariantsChooseAllThreeCountsAndBeeRemainsSingle() throws {
-        for variant in variants+["bee"] {
+        for mode in [NativeRunMode.journey,.arcade] {for variant in variants+["bee"] {
             for (roll,count) in [(0.0,1),(0.4,2),(0.99,3)] {
-                let engine=NativeGameplayEngine(state:.init(tiles:[.init(id:"ordinary",cell:.init(column:0,row:0),value:4)],wildMeter:1.25),recordedRandomChoices:[0,0,roll],rewardPicker:{_,_ in .init(.star,variant:variant)})
+                let engine=NativeGameplayEngine(state:.init(tiles:[.init(id:"ordinary",cell:.init(column:0,row:0),value:4)],mode:mode,wildMeter:1.25),recordedRandomChoices:[0,0,roll],rewardPicker:{_,_ in .init(.star,variant:variant)})
                 XCTAssertTrue(engine.claimMeterReward().accepted)
                 let tile=try XCTUnwrap(engine.state.tiles.first{$0.variant==variant})
                 XCTAssertEqual(tile.starOrbitCount,variant == "bee" ? 1:count,variant)
                 XCTAssertEqual(tile.effectiveStarDropCount,tile.starOrbitCount)
             }
-        }
+        }}
     }
     func testHiddenOpenPersistsVariantCountOnceAndPreservesPlainPresentationBoundary() throws {
         for variant in [nil,"fish","kanta","cubero","bee"] as [String?] {
@@ -70,6 +70,52 @@ final class NativeStarVariantDropCountTests:XCTestCase {
                 if final {XCTAssertTrue(actual.state.tiles.isEmpty)}
             }
         }}}
-        XCTAssertEqual(merge(variant:"bee",count:3,mode:.journey,final:false).pendingHUDStars.count,1)
+        for mode in [NativeRunMode.journey,.arcade] {
+            XCTAssertEqual(merge(variant:"bee",count:3,mode:mode,final:false).pendingHUDStars.count,1)
+            let finalBee=merge(variant:"bee",count:3,mode:mode,final:true)
+            XCTAssertEqual(finalBee.pendingHUDStars.count,1)
+            XCTAssertTrue(finalBee.state.tiles.isEmpty)
+            XCTAssertEqual(finalBee.state.terminal?.kind,.complete)
+        }
     }
+    func testArcadeMatchesJourneyForEveryStarVariantSavedCountAndSpawnOwner() throws {
+        for variant in [nil,"fish","kanta","cubero","bee"] as [String?] {
+            for count in 1...3 {for locked in [0,18] {for staged in [false,true] {
+                func run(_ mode:NativeRunMode) throws -> NativeGameplayEngine {
+                    var tiles=[NativeTile(id:"wild",cell:.init(column:0,row:0),value:6,starOrbitCount:count,archetype:.star,variant:variant),NativeTile(id:"destination",cell:.init(column:1,row:0),value:5),NativeTile(id:"survivor",cell:.init(column:4,row:8),value:2)]
+                    tiles += (0..<locked).map{.init(id:"locked\($0)",cell:.init(column:$0%5,row:1+$0/5),value:0,locked:true)}
+                    // Exercise persisted values, including legacy Bee counts, without rerolling.
+                    let saved=try JSONDecoder().decode(NativeBoardState.self,from:JSONEncoder().encode(NativeBoardState(tiles:tiles,mode:mode,board:10)))
+                    let engine=NativeGameplayEngine(state:saved,recordedRandomChoices:Array(repeating:0.2,count:2000))
+                    engine.stagedDirectWildMoves=staged;engine.stagedDirectWildAssignments=staged
+                    XCTAssertTrue(engine.beginDrag(tileID:"wild"));XCTAssertTrue(engine.drop(target:.init(column:1,row:0)).accepted)
+                    if staged {
+                        let plan=try XCTUnwrap(engine.pendingDirectWild)
+                        XCTAssertTrue(engine.commitDirectWildGameplay(transactionID:plan.id).accepted)
+                        var iterations=0
+                        while !engine.pendingWildSpawnActions.isEmpty || !engine.pendingWildSpawnArrivals.isEmpty {
+                            iterations+=1
+                            if iterations>100 {XCTFail("Spawn owner failed to settle");break}
+                            if let action=engine.pendingWildSpawnActions.first {
+                                XCTAssertTrue(engine.commitWildSpawnAction(transactionID:plan.id,generation:plan.generation,actionID:action.id).accepted)
+                            } else if let arrival=engine.pendingWildSpawnArrivals.first {
+                                XCTAssertTrue(engine.finishWildSpawnArrival(transactionID:plan.id,generation:plan.generation,arrivalID:arrival.id).accepted)
+                            }
+                        }
+                        XCTAssertTrue(engine.releaseDirectWildPresentation(transactionID:plan.id,generation:plan.generation).accepted)
+                        XCTAssertNil(engine.pendingDirectWild)
+                    }
+                    return engine
+                }
+                let journey=try run(.journey),arcade=try run(.arcade)
+                let tag="\(variant ?? "star")/\(count)/\(locked)/\(staged)"
+                XCTAssertEqual(arcade.state.tiles,journey.state.tiles,tag)
+                XCTAssertEqual(arcade.pendingHUDStars.count,variant == "bee" ? 1:count,tag)
+                XCTAssertEqual(arcade.state.terminal,journey.state.terminal,tag)
+                XCTAssertTrue(arcade.state.validationIssues().isEmpty,tag)
+                XCTAssertEqual(arcade.state.tiles.filter(\.isActive).count,2+(locked>0 ? 1:0)+(variant == "bee" ? 1:count),tag)
+            }}}
+        }
+    }
+
 }

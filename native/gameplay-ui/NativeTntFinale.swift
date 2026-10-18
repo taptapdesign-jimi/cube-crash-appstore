@@ -7,7 +7,7 @@ import UIKit
 @MainActor
 final class NativeTntFinale: SKNode, NativeSourceAnimationParticipant {
     static let duration: TimeInterval = 4.2
-    static let smokeScale: Double = 1.4
+    static let smokeScale: Double = 1.4 * 1.2
     var onGlyphClock: ((TimeInterval,Bool) -> Void)?
     private struct Frame {
         let sprite: SKSpriteNode

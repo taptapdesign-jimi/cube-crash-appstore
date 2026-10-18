@@ -2909,8 +2909,16 @@ final class NativeBoardScene: SKScene {
                               let claim=self.sourceWildSpawnClaims.removeValue(forKey:transactionID) else {
                             self.onSourcePresentationFailure?("source_wild_finally_owner_missing",generation);return
                         }
-                        if binding.resetSpawn(claim) {self.sourceWildSpawnOwnerResetCount+=1}
-                        else {self.onSourcePresentationFailure?("source_wild_finally_owner_stale",generation)}
+                        if binding.resetSpawn(claim) {
+                            self.sourceWildSpawnOwnerResetCount+=1
+                            // The settled Star replacement may be the first
+                            // board without a legal pair. Its previous check
+                            // can already have returned continue.
+                            if self.sourceAnimationBindingAdmissionOpen,self.engine.state.generation==generation,
+                               self.engine.state.terminal==nil,self.sourceLevelEndCallerGeneration==generation {
+                                self.evaluate()
+                            }
+                        } else {self.onSourcePresentationFailure?("source_wild_finally_owner_stale",generation)}
                         return
                     }
                     self.wildSourceResolution=nil
@@ -8300,6 +8308,13 @@ final class NativeBoardScene: SKScene {
         }
         ordinarySixVisual=nil
         consume(result,previous:previous);finishVisual(owner.receipt)
+        // A replacement can remove the last legal pair after the earlier
+        // check already returned continue. Re-enter the retained guarded caller
+        // only once this exact six handoff has actually released.
+        if sourceAnimationBindingAdmissionOpen,engine.state.generation==owner.generation,
+           engine.state.terminal==nil,sourceLevelEndCallerGeneration==owner.generation {
+            evaluate()
+        }
     }
     private func retireOrdinarySixVisual() {
         if let owner=ordinarySixVisual {ordinarySixVisual=nil;finishSourceGameplay(.mergeSixResolution,id:owner.id,generation:owner.generation);finishVisual(owner.receipt)}

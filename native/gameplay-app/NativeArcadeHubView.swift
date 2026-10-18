@@ -114,6 +114,7 @@ final class NativeArcadeWorldModal: UIView {
     private let backdrop = JimiV9PlainButton(type:.custom), card = UIView(), flip = JimiNativeModalTransformView(), paper = UIImageView()
     private let heading = UILabel(), subtitle = UILabel(), art = UIImageView(), close = JimiV9PlainButton(type:.custom)
     private let play = JimiV9PlainButton(type:.custom), assets: JimiV9Artwork
+    private let modeIndex: Int
     private let idle = UIView(), tilt = UIView()
     private(set) var modalDrag:JimiNativeModalDrag?
     private var foreground = true, entered = false
@@ -123,6 +124,7 @@ final class NativeArcadeWorldModal: UIView {
     }
     init(frame: CGRect, assets: JimiV9Artwork, index: Int,continuing:Bool=false) {
         self.assets = assets
+        self.modeIndex = index
         super.init(frame:frame)
         accessibilityViewIsModal = true; accessibilityIdentifier = "native.arcade-world-modal"
         backdrop.backgroundColor = JimiNativeModalV10.backdropColor
@@ -141,13 +143,13 @@ final class NativeArcadeWorldModal: UIView {
         heading.text = ["Endurance","One Lucky Drop","Slow Burn"][index]
         heading.font = assets.font(size:29,weight:"ExtraBold"); heading.textAlignment = .center
         heading.textColor = UIColor(red:173/255,green:135/255,blue:117/255,alpha:1)
-        subtitle.numberOfLines = index == 1 ? 3 : 2; subtitle.textAlignment = .center
+        subtitle.numberOfLines = index == 0 ? 2 : 3; subtitle.textAlignment = .center
         subtitle.accessibilityIdentifier = "native.arcade-world-modal.description"
         art.accessibilityIdentifier = "native.arcade-world-modal.art"
         subtitle.attributedText = NativeModalTypography.attributedSubtitle([
             "Clear rounds and keep going until you run out of moves.",
-            "Only one random Special die per round.",
-            "Special dice take longer to appear."
+            "Get one lucky Special die\nto help you per round.",
+            "Special dice take longer to drop onto your board."
         ][index],font:assets.font(size:19,weight:"Medium"))
         art.image = assets.image(["assets/arcade/endourance.png","assets/arcade/pure dice.png","assets/arcade/slow burn.png"][index],densityAware:true)
         art.contentMode = .scaleAspectFit
@@ -175,7 +177,7 @@ final class NativeArcadeWorldModal: UIView {
         // and floor-shadow room, rather than centering a fixed tall card.
         let w = min(390,max(0,bounds.width-48))
         heading.frame = CGRect(x:w*0.1,y:28,width:w*0.8,height:38.4)
-        let subtitleWidth = w < 300 ? max(0,w-16):w*0.8
+        let subtitleWidth = modeIndex == 1 ? w*0.8 : (w < 300 ? max(0,w-16):w*0.8)
         let subtitleHeight = ceil(subtitle.sizeThatFits(CGSize(width:subtitleWidth,height:CGFloat.greatestFiniteMagnitude)).height)
         subtitle.frame = CGRect(x:(w-subtitleWidth)/2,y:heading.frame.maxY+12,width:subtitleWidth,height:subtitleHeight)
         let artworkY = subtitle.frame.maxY+24

@@ -36,7 +36,7 @@ final class NativeWildEnginePhaseTests:XCTestCase {
             let first=e.commitDirectWildGameplay(transactionID:p.id);XCTAssertTrue(first.accepted)
             XCTAssertEqual(e.state.moves,49);XCTAssertFalse(e.beginDrag(tileID:"survivor"))
             let pool=e.state.tiles.filter(\.locked).count
-            let sourceMode=mode == .arcade ? "arcade":count==0 ? "endgame":"normal"
+            let sourceMode=mode == .arcade && kind != .star ? "arcade":count==0 ? "endgame":"normal"
             let tag="\(sourceMode):\(kind.rawValue):\(count):\(orbit)"
             capturedInputs.append(["inputTag":tag,"mode":sourceMode,"archetype":kind == .star ? "star":"juice","lockedCount":pool,"multiplier":2,"orbitCount":orbit,"lockedCells":e.state.tiles.filter(\.locked).map{["c":$0.cell.column,"r":$0.cell.row]}])
             let row=try XCTUnwrap(rows.first{$0.inputTag==tag})
@@ -125,6 +125,11 @@ final class NativeWildEnginePhaseTests:XCTestCase {
         XCTAssertFalse(e.beginDrag(tileID:"survivor"));XCTAssertFalse(e.claimMeterReward().accepted)
         let action=try XCTUnwrap(e.pendingWildSpawnActions.first);XCTAssertTrue(e.commitWildSpawnAction(transactionID:p.id,generation:p.generation,actionID:action.id).accepted)
         let arrival=try XCTUnwrap(e.pendingWildSpawnArrivals.first);XCTAssertTrue(e.finishWildSpawnArrival(transactionID:p.id,generation:p.generation,arrivalID:arrival.id).accepted)
+        // Arcade Star now retains its gameplay owner through Journey's extra drops.
+        XCTAssertNotNil(e.pendingDirectWild);XCTAssertFalse(e.claimMeterReward().accepted)
+        while let extra=e.pendingWildSpawnActions.first {
+            XCTAssertTrue(e.commitWildSpawnAction(transactionID:p.id,generation:p.generation,actionID:extra.id).accepted)
+        }
         XCTAssertNil(e.pendingDirectWild);let moves=e.state.moves,surplus=e.state.wildMeter-1
         XCTAssertTrue(e.claimMeterReward().accepted);XCTAssertEqual(e.state.moves,moves);XCTAssertEqual(e.state.wildMeter,surplus,accuracy:0.000001)
         XCTAssertEqual(e.state.tiles.filter(\.isWild).count,1);XCTAssertFalse(e.claimMeterReward().accepted)

@@ -32,7 +32,10 @@ final class NativeWildSourceFrameBoundaryTests:XCTestCase {
    }
    pump();var count=0
    while !timers.isEmpty {timers.sort{$0.at != $1.at ? $0.at<$1.at:$0.order<$1.order};let next=timers.removeFirst();now=next.at;next.fn();count+=1;XCTAssertLessThan(count,100)}
-   XCTAssertEqual(endedAt,row.trace.first{$0.kind=="frame-release"}?.at,"\(row.mode)/\(row.archetype)/\(row.orbitCount)/reject=\(row.rejected)")
+   // User-requested Arcade Star parity uses the immutable Journey endgame trace.
+   let expected = row.mode=="arcade" && archetype == .star
+       ? try XCTUnwrap(rows.first{$0.mode=="endgame" && $0.archetype==row.archetype && $0.orbitCount==row.orbitCount && $0.rejected==row.rejected}) : row
+   XCTAssertEqual(endedAt,expected.trace.first{$0.kind=="frame-release"}?.at,"\(row.mode)/\(row.archetype)/\(row.orbitCount)/reject=\(row.rejected)")
    XCTAssertFalse(engine.hasReachedWildSourceResolutionBoundary(transactionID:plan.id,generation:plan.generation+1))
    XCTAssertFalse(engine.hasReachedWildSourceResolutionBoundary(transactionID:"other",generation:plan.generation))
    engine.restart(state:NativeBoardState(tiles:[]))

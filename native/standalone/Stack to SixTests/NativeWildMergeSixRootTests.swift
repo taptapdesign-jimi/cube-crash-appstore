@@ -53,6 +53,11 @@ final class NativeWildMergeSixRootTests:XCTestCase {
     func testArcadeTutorialResultContinueReplacesSourceGenerationAndAdmitsNextMove()async throws {
         try await exercise(archetype:.star,variant:nil,reverse:true,disposeDuringMain:false,finalOnly:true,starCount:0,tutorialAssist:true,arcadeTutorial:true)
     }
+    func testArcadeStarArchetypesUseJourneyDropsAndAdmitNextActualDrag()async throws {
+        for (index,variant) in ([nil,"fish","kanta","cubero","bee"] as [String?]).enumerated() {
+            try await exercise(archetype:.star,variant:variant,reverse:index%2==1,disposeDuringMain:false,starCount:1+index%3,arcadeRun:true)
+        }
+    }
     func testStarSourceAndDestinationSettleAndAdmitNextActualDrag()async throws {
         try await exercise(archetype:.star,variant:nil,reverse:false,disposeDuringMain:false)
         try await exercise(archetype:.star,variant:nil,reverse:true,disposeDuringMain:false)

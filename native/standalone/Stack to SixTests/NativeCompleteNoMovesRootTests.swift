@@ -15,7 +15,7 @@ import StackToSixNativeState
             directory=FileManager.default.temporaryDirectory.appendingPathComponent("complete-no-moves-"+UUID().uuidString)
             store=NativeSaveStore(directory:directory)
             var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
-            seed.progression.firstPlayTutorialComplete=true;seed.arcadeRun=state;try store.save(seed)
+            seed.progression.firstPlayTutorialComplete=true;seed.activeArcadeVariant=state.effectiveArcadeVariant;seed.arcadeRun=state;try store.save(seed)
             host=NativeStandaloneViewController(resourceRoot:NativeTestResources.root,store:store,sourceVisualRandom:random,completeNativeGameplayEnabled:true)
             previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
             window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=host;window.makeKeyAndVisible();host.loadViewIfNeeded()
@@ -45,6 +45,60 @@ import StackToSixNativeState
         let runtime=try XCTUnwrap(game.engine.sourceNoMovesRuntimeAuthority?.capture())
         XCTAssertEqual(runtime.capabilities,Set(NativeSourceNoMovesRuntimeSnapshot.Capability.allCases))
         return (game,scene)
+    }
+    func testCapturedLuckyDropRunReachesNoMoves() async throws {
+        let board=try JSONDecoder().decode(NativeBoardState.self,from:Data(#"{"tiles":[{"locked":false,"transientSpawn":false,"cell":{"row":0,"column":3},"starOrbitCount":3,"pendingRemoval":false,"sourceWildStateCleared":false,"id":"g3-3","alpha":1,"resolutionOwned":false,"merge6CleanupOwned":false,"visible":true,"value":3,"magnetOwned":false,"stackDepth":1,"sourceResidualWildPresence":false,"nonFinalMerge6":false},{"locked":false,"transientSpawn":false,"cell":{"row":1,"column":3},"starOrbitCount":3,"pendingRemoval":false,"sourceWildStateCleared":false,"id":"g3-8","alpha":1,"resolutionOwned":false,"merge6CleanupOwned":false,"visible":true,"value":3,"magnetOwned":false,"stackDepth":1,"sourceResidualWildPresence":false,"nonFinalMerge6":false},{"locked":false,"transientSpawn":false,"cell":{"row":2,"column":1},"starOrbitCount":3,"pendingRemoval":false,"sourceWildStateCleared":false,"id":"g3-11","alpha":1,"resolutionOwned":false,"merge6CleanupOwned":false,"visible":true,"value":2,"magnetOwned":false,"stackDepth":1,"sourceResidualWildPresence":false,"nonFinalMerge6":false},{"sourceWildStateCleared":false,"visible":true,"id":"g3-15","pendingRemoval":false,"transientSpawn":false,"cell":{"row":3,"column":0},"nonFinalMerge6":false,"starOrbitCount":3,"value":0,"sourceResidualWildPresence":false,"magnetOwned":false,"resolutionOwned":false,"alpha":1,"locked":true,"merge6CleanupOwned":false,"stackDepth":1},{"sourceWildStateCleared":false,"visible":true,"id":"g3-22","pendingRemoval":false,"transientSpawn":false,"cell":{"row":4,"column":2},"nonFinalMerge6":false,"starOrbitCount":3,"value":4,"sourceResidualWildPresence":false,"magnetOwned":false,"resolutionOwned":false,"alpha":1,"locked":false,"merge6CleanupOwned":false,"stackDepth":1},{"sourceWildStateCleared":false,"visible":true,"id":"g3-26","pendingRemoval":false,"transientSpawn":false,"cell":{"row":5,"column":1},"nonFinalMerge6":false,"starOrbitCount":3,"value":2,"sourceResidualWildPresence":false,"magnetOwned":false,"resolutionOwned":false,"alpha":1,"locked":false,"merge6CleanupOwned":false,"stackDepth":1},{"sourceWildStateCleared":false,"visible":true,"id":"g3-35","pendingRemoval":false,"transientSpawn":false,"cell":{"row":7,"column":0},"nonFinalMerge6":false,"starOrbitCount":3,"value":4,"sourceResidualWildPresence":false,"magnetOwned":false,"resolutionOwned":false,"alpha":1,"locked":false,"merge6CleanupOwned":false,"stackDepth":1},{"sourceWildStateCleared":false,"visible":true,"id":"g3-40","pendingRemoval":false,"transientSpawn":false,"cell":{"row":8,"column":0},"nonFinalMerge6":false,"starOrbitCount":3,"value":4,"sourceResidualWildPresence":false,"magnetOwned":false,"resolutionOwned":false,"alpha":1,"locked":false,"merge6CleanupOwned":false,"stackDepth":1},{"sourceWildStateCleared":false,"visible":true,"id":"g3-43","pendingRemoval":false,"transientSpawn":false,"cell":{"row":8,"column":3},"nonFinalMerge6":false,"starOrbitCount":3,"value":1,"sourceResidualWildPresence":false,"magnetOwned":false,"resolutionOwned":false,"alpha":1,"locked":false,"merge6CleanupOwned":false,"stackDepth":1},{"sourceWildStateCleared":false,"visible":true,"id":"g3-24","pendingRemoval":false,"transientSpawn":false,"cell":{"row":4,"column":4},"nonFinalMerge6":false,"starOrbitCount":0,"value":6,"archetype":"wild","sourceResidualWildPresence":false,"magnetOwned":false,"resolutionOwned":false,"alpha":1,"locked":false,"merge6CleanupOwned":false,"stackDepth":1}],"moves":29,"lastWildDropType":"wild","rngState":1,"score":5563,"wildMeter":0,"wildDropTypeStreak":1,"earnedComboBonus":5325,"stage":3,"combo":21,"wildSpawnCount":1,"starsCount":0,"columns":5,"maxStackDepth":3,"longestCombo":21,"arcadeVariant":"pureDice","cubesCracked":14,"maxMoves":50,"bestScore":5563,"generation":3,"revision":21,"luckyDropUsed":true,"mode":"arcade_home","board":3,"rows":9}"#.utf8))
+        let fixture=try Fixture(state:board,random:{0.9});defer{fixture.dispose()}
+        let(game,scene)=try await enter(fixture)
+        var lastContactWasStar=false
+        for _ in 0..<30 {
+            if game.engine.pendingSourceNoMoves != nil || game.engine.completedSourceNoMovesReceipt != nil {break}
+            let tiles=game.engine.state.tiles.filter{!$0.locked && $0.value>0 && !$0.pendingRemoval}
+            var pair:(NativeTile,NativeTile)?
+            for a in tiles where pair==nil {
+                for b in tiles where b.id != a.id {
+                    if !a.isWild && !b.isWild && a.value+b.value<=6 {pair=(a,b);break}
+                }
+            }
+            if pair==nil,let star=tiles.first(where:{$0.isWild}),let target=tiles.first(where:{!$0.isWild}) {pair=(target,star)}
+            guard let(a,b)=pair,let geometry=scene.boardGeometry else{break}
+            lastContactWasStar=a.isWild || b.isWild
+            let start=geometry.center(row:a.cell.row,column:a.cell.column),end=geometry.center(row:b.cell.row,column:b.cell.column)
+            XCTAssertTrue(scene.beginDrag(at:start));scene.moveDrag(to:end,now:CACurrentMediaTime())
+            XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:end,now:CACurrentMediaTime())).accepted)
+            try await Task.sleep(for:.seconds(2))
+        }
+        XCTAssertTrue(lastContactWasStar,"Captured round must end specifically after Star merge-six")
+        do {try await wait("captured-lucky-no-moves") {game.engine.pendingSourceNoMoves != nil || game.engine.completedSourceNoMovesReceipt != nil}}
+        catch {XCTFail("state=\(game.engine.state);"+scene.sourceLevelEndDiagnostic());throw error}
+        try await awaitNoMovesResultWithoutTextRevival(game)
+    }
+    func testLuckyDropRoundThreeStarCleanupStartsNoMoves() async throws {
+        var tiles=[NativeTile(id:"lucky-star",cell:.init(column:0,row:0),value:6,archetype:.star),NativeTile(id:"target",cell:.init(column:1,row:0),value:3),NativeTile(id:"four",cell:.init(column:2,row:0),value:4),NativeTile(id:"five",cell:.init(column:3,row:0),value:5)]
+        tiles[0].starOrbitCount=0
+        var board=NativeBoardState(tiles:tiles,mode:.arcade,board:3,stage:3,generation:3,moves:20,score:7977,wildMeter:0)
+        board.arcadeVariant = .pureDice;board.luckyDropUsed=true
+        let fixture=try Fixture(state:board,random:{0.5});defer{fixture.dispose()}
+        let(game,scene)=try await enter(fixture)
+        // Let the entry check finish with a legal Star contact first. It must
+        // not accidentally supply the missing post-Star check.
+        try await Task.sleep(for:.seconds(2))
+        try drop(scene)
+        do {try await wait("lucky-star-no-moves") {game.engine.pendingSourceNoMoves != nil || game.engine.completedSourceNoMovesReceipt != nil}}
+        catch {XCTFail("state=\(game.engine.state);"+scene.sourceLevelEndDiagnostic());throw error}
+        try await awaitNoMovesResultWithoutTextRevival(game)
+    }
+    func testLuckyDropRoundThreeLastOrdinaryStackStartsNoMoves() async throws {
+        let values=[1,2,4,5]
+        let tiles=values.enumerated().map{NativeTile(id:"lucky-stall-\($0.offset)",cell:.init(column:$0.offset,row:0),value:$0.element)}
+        var board=NativeBoardState(tiles:tiles,mode:.arcade,board:3,stage:3,generation:3,moves:20,score:7977,wildMeter:0)
+        board.arcadeVariant = .pureDice;board.luckyDropUsed=true
+        let fixture=try Fixture(state:board);defer{fixture.dispose()}
+        let(game,scene)=try await enter(fixture)
+        try drop(scene)
+        do {try await wait("lucky-no-moves") {game.engine.pendingSourceNoMoves != nil || game.engine.completedSourceNoMovesReceipt != nil}}
+        catch {XCTFail(scene.sourceLevelEndDiagnostic());throw error}
+        try await awaitNoMovesResultWithoutTextRevival(game)
     }
     func testArcadeRoundFourFinalStackStartsNoMovesWithoutForegroundRecovery() async throws {
         let values=[2,3,3,4,4,5,5]

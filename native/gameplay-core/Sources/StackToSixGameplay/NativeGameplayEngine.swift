@@ -941,7 +941,7 @@ public final class NativeGameplayEngine {
                 retained.merge6CleanupOwned=true;retained.nonFinalMerge6=true
                 state.tiles.append(retained)
                 var detached=state.sourceDetachedGridTileIDs ?? [];detached.insert(retained.id);state.sourceDetachedGridTileIDs=detached
-                sourceRetainedDirectDestination = .init(ownerID:plan.id,generation:plan.generation,tileID:retained.id,endgame:state.mode == .arcade || !state.tiles.contains{$0.locked})
+                sourceRetainedDirectDestination = .init(ownerID:plan.id,generation:plan.generation,tileID:retained.id,endgame:usesSimpleArcadeWildSpawn(archetype:plan.archetype) || !state.tiles.contains{$0.locked})
             }
             if sourceRetainedDirectDestination?.tileID != destination.id {events.append(NativeGameplayEvent(.removed, tileIDs: [destination.id]))}
             if !final.isFinalMerge {
@@ -1148,7 +1148,7 @@ public final class NativeGameplayEngine {
               state.tiles.first(where:{ $0.id == plan.source.id }) == plan.source,
               state.tiles.first(where:{ $0.id == plan.destination.id }) == (sourceDirectWildPrefix.map{sourceDirectWildLiveDestination($0)} ?? plan.destination),
               sourceDirectWildPrefix == nil || (sourceDirectWildPrefix?.id==plan.id && sourceDirectWildPrefix?.generation==state.generation && sourceDirectWildPrefix?.revision==plan.revision) else { return rejected("direct_wild_commit_not_ready") }
-        let normalInitial=state.mode != .arcade && state.tiles.contains(where:{$0.locked})
+        let normalInitial = !usesSimpleArcadeWildSpawn(archetype:plan.archetype) && state.tiles.contains(where:{$0.locked})
         if !plan.isFinal,!flags.busyEnding,
            (normalInitial ? sourceDirectNormalPreSpawnGuardsEnabled || sourceDirectNormalLockedBonusGuardsEnabled:sourceWildEndgamePhysicalGuardsEnabled || sourceDirectEndgameLockedBonusGuardsEnabled) {
             guard sourceWildSpawnBegin != nil,sourceWildCoroutineResume != nil,
@@ -1158,7 +1158,7 @@ public final class NativeGameplayEngine {
             if normalInitial,sourceDirectNormalLockedBonusGuardsEnabled,sourceDirectLockedBonusGuardResume==nil {
                 return rejected("source_direct_normal_outer_dependencies_missing")
             }
-            if !normalInitial,state.mode != .arcade,sourceDirectEndgameLockedBonusGuardsEnabled,
+            if !normalInitial,!usesSimpleArcadeWildSpawn(archetype:plan.archetype),sourceDirectEndgameLockedBonusGuardsEnabled,
                !sourceWildEndgamePhysicalGuardsEnabled || sourceDirectLockedBonusGuardResume==nil {
                 return rejected("source_direct_endgame_outer_dependencies_missing")
             }
@@ -2219,6 +2219,11 @@ public final class NativeGameplayEngine {
         if variant == nil,sourceStarOrbitCountAtPresentationEnabled,sourceMathRandom != nil{return 0}
         return 1+Int(nextRandom()*3)
     }
+    /// Star and every registered Star variant share Journey's full spawn coroutine
+    /// in Arcade too. Other archetypes retain their existing mode-specific rules.
+    private func usesSimpleArcadeWildSpawn(archetype:NativeWildArchetype)->Bool {
+        state.mode == .arcade && archetype != .star
+    }
     private func spawnDirectWildMerge6(at cell: NativeCell, archetype: NativeWildArchetype, depth: Int, avoiding: Int, starOrbitCount: Int, events: inout [NativeGameplayEvent]) {
         let effectiveOrbitCount:Int
         if archetype == .star,committingDirectWild,let plan=pendingDirectWild,
@@ -2232,7 +2237,7 @@ public final class NativeGameplayEngine {
         let lockedCount = state.tiles.filter { $0.locked && !$0.isWild && !$0.pendingRemoval && !$0.resolutionOwned }.count
         let lockedEmptyCount = state.tiles.filter { $0.locked && $0.value <= 0 && !$0.isWild && !$0.pendingRemoval }.count
         let multiplier = NativeSpawnRules.wildEndgameMultiplier(depth,isWild:true,lockedEmptyCount:lockedEmptyCount,isLastMerge:false)
-        let arcadeSimple = state.mode == .arcade && archetype != .magnet
+        let arcadeSimple = usesSimpleArcadeWildSpawn(archetype:archetype) && archetype != .magnet
         let endgame = lockedCount == 0
         let bonus = NativeSpawnRules.wildBonus(archetype:archetype,isLastMerge:false,isArcadeSimpleWild:arcadeSimple,isFinalWildSnapshot:false,starOrbitCount:effectiveOrbitCount)
         // The source creates bonus placeholders while primary-open work yields;
@@ -3049,7 +3054,7 @@ extension NativeGameplayEngine {
             pendingSourceTntLockedBonusGuard=nil;sourceTntLockedBonusGuardContext=nil;sourceTntLockedBonusGuardPhase=nil
             sourceTntLockedBonusGuardMath=nil;sourceTntLockedBonusGuardDispatching=nil;sourceTntLockedBonusGuardRefused=false
         }
-        let mode:NativeWildSpawnPhaseOwner.Mode=state.mode == .arcade ? .arcade:state.tiles.contains{$0.locked} ? .normal:.endgame
+        let mode:NativeWildSpawnPhaseOwner.Mode=usesSimpleArcadeWildSpawn(archetype:plan.archetype) ? .arcade:state.tiles.contains{$0.locked} ? .normal:.endgame
         // The original transient dst placeholder exists when the multiplier law is evaluated.
         let emptyCount=state.tiles.filter{$0.locked && $0.value<=0}.count+1
         let count=NativeSpawnRules.wildEndgameMultiplier(depth,isWild:true,lockedEmptyCount:emptyCount,isLastMerge:false)

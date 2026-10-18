@@ -1,6 +1,37 @@
 # Native Arcade benchmark — 2026-10-18
 
-Immutable Git tag: `benchmark-arcade-native`. Branch: `main`.
+Immutable Git tags: original `benchmark-arcade-native`; continuation
+`benchmark-arcade-native-v2`. Branch: `main`.
+
+## Arcade benchmark v2 continuation — 2026-10-18
+
+User requests saving the complete current working tree online in the Arcade
+benchmark. The original tag remains immutable. V2 includes:
+
+- Lucky Drop round03 missing NO MOVES fix: re-enter the existing guarded endgame
+  caller after exact Direct Wild spawn-finally reset and ordinary-six handoff.
+  Captured-save final-Star continuation and delayed-entry Star cleanup reach
+  visible NO MOVES and the result in mounted Native tests.
+- Arcade Star/Fish/Kanta/Cubero/Bee spawn parity with Journey, preserving saved
+  drop counts, final-pair guards, transaction ownership and other mode rules.
+- Final Arcade description/padding/artwork refinements; BOOM smoke sprites grow
+  twenty percent from the previously accepted scale.
+- All three current Settings slider originals, copied unchanged to Native
+  packaging. Generated packages and temporary saves/logs remain ignored.
+
+Validation: full QA530 suites/4010 tests, gameplay lock330, fast QA and Native
+identity/original-assets checks PASS. Current complete-tree normal Debug build,
+retained Simulator install-over and normal launch are recorded in CURRENT_HANDOFF.
+The captured Lucky Drop durable round is preserved; no phone/PWA/legacy delivery
+is part of this publication.
+
+Known limitation: the separate existing last-two result/Exit Native root test
+still fails in isolation. The expanded Native regression verdict remains FAIL;
+v2 is a requested development checkpoint, not release or physical acceptance.
+All17 Wild/Special identities were checked by shared-owner call sites, but no
+fresh17-variant mounted replay is claimed. Physical acceptance remains
+NEEDS PHYSICAL TEST. The historical scope and open issue below describe v1.
+
 Requested by the user as an important complete working-tree checkpoint, including
 source, tests, documentation, current artwork and development design candidates.
 Active target: `native/standalone/Stack to Six.xcodeproj`, scheme `Stack to Six`,

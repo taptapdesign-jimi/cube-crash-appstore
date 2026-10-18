@@ -54,7 +54,7 @@ final class NativeArcadeHubTests: XCTestCase {
                 let play=try XCTUnwrap(find(view,"native.arcade-world-modal.play"))
                 let measured=text.sizeThatFits(CGSize(width:text.bounds.width,height:CGFloat.greatestFiniteMagnitude))
                 XCTAssertLessThanOrEqual(measured.height,text.bounds.height+0.5,"Full description at \(size), world \(id)")
-                XCTAssertEqual(text.numberOfLines,id == view.hub.worldIDs[1] ? 3 : 2)
+                XCTAssertEqual(text.numberOfLines,id == view.hub.worldIDs[0] ? 2 : 3)
                 let full=try XCTUnwrap(text.attributedText)
                 let uncapped=full.boundingRect(with:CGSize(width:text.bounds.width,height:.greatestFiniteMagnitude),options:[.usesLineFragmentOrigin,.usesFontLeading],context:nil)
                 XCTAssertLessThanOrEqual(ceil(uncapped.height),text.bounds.height+0.5,"Line limit must not truncate copy")
@@ -71,6 +71,11 @@ final class NativeArcadeHubTests: XCTestCase {
                     XCTAssertEqual(close.bounds.size,CGSize(width:52,height:52))
                 }
                 let paper=try XCTUnwrap(find(view,"native.arcade-world-modal.paper"))
+                if id == view.hub.worldIDs[1] {
+                    XCTAssertEqual(text.text,"Get one lucky Special die\nto help you per round.")
+                    XCTAssertEqual(text.frame.minX,paper.bounds.width*0.1,accuracy:0.01)
+                    XCTAssertEqual(text.bounds.width,paper.bounds.width*0.8,accuracy:0.01)
+                }
                 XCTAssertEqual(play.bounds.width,226,accuracy:0.01)
                 XCTAssertEqual(play.bounds.height,64,accuracy:0.01)
                 XCTAssertEqual(play.frame.midX,paper.bounds.midX,accuracy:0.01)
@@ -123,10 +128,11 @@ final class NativeArcadeHubTests: XCTestCase {
                 let available=controller.view.bounds.height-controller.view.safeAreaInsets.bottom-20-(headerFrame.maxY+20)
                 let baseline=min(size.width*0.676,273,max(0,(available-40)/ratios.reduce(0,+)))
                 let enlargedWidth=baseline*1.2
-                XCTAssertEqual(frame.width,enlargedWidth*0.96,accuracy:0.1)
+                XCTAssertEqual(frame.width,enlargedWidth*0.96*(index == 1 ? 1.1 : 1),accuracy:0.1)
                 let originalGap=(available-enlargedWidth*ratios.reduce(0,+))/2
                 let precedingHeight=ratios.prefix(index).reduce(0,+)*enlargedWidth+CGFloat(index)*originalGap
-                let expectedY=headerFrame.maxY+20+precedingHeight+[0,31,49][index]+enlargedWidth*ratios[index]*0.02
+                let artworkScale:CGFloat = index == 1 ? 1.1 : 1
+                let expectedY=headerFrame.maxY+20+precedingHeight+[-4,31,49][index]+enlargedWidth*ratios[index]*(1-0.96*artworkScale)/2
                 XCTAssertEqual(frame.minY,expectedY,accuracy:0.15)
             }
             XCTAssertGreaterThanOrEqual(controller.arcadeHub.hub.scrollView.contentSize.height,controller.arcadeHub.hub.bounds.height)
