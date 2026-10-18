@@ -1,3 +1,7 @@
+## Arcade benchmark v2 online verified — 2026-10-18
+
+Atomic push succeeded to https://github.com/taptapdesign-jimi/cube-crash-appstore. Verified by git ls-remote: online main and peeled annotated benchmark-arcade-native-v2 both at payload035df9c695e8959658d09690f3ca81e31deb0c0a. Complete19-file continuation saved, including current originals, code, tests and benchmark scope. Original benchmark-arcade-native remains at59dae349e57ebe9375a3fb02f055b8ac2ee1f976. This documentation-only receipt follows the payload without moving either tag. Known Exit-test failure and physical acceptance remain open as documented below; no additional app/device operation.
+
 ## Arcade benchmark v2 publication — 2026-10-18
 
 User explicitly requests saving the current work online in the Arcade benchmark. Publish complete tracked working tree on main with a new immutable annotated tag benchmark-arcade-native-v2; preserve benchmark-arcade-native at59dae349e57ebe9375a3fb02f055b8ac2ee1f976. Scope/validation/known Exit-test failure are recorded in NATIVE_ARCADE_BENCHMARK.md and the entries below. Current full530/4010, KING330, fast/Native audits and focused captured-Star root evidence remain current; this Git task adds documentation only and performs no app/device operations. Online publication receipt is added after actual remote verification.
