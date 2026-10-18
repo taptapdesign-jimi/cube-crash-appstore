@@ -1,3 +1,7 @@
+## Native Arcade benchmark online verified — 2026-10-18
+
+Atomic push succeeded to `https://github.com/taptapdesign-jimi/cube-crash-appstore`: online `main` and peeled immutable annotated tag `benchmark-arcade-native` both verified by `git ls-remote` at payload `59dae349e57ebe9375a3fb02f055b8ac2ee1f976`. All96 changed/new files committed, including the detailed benchmark description and design candidates. This documentation-only receipt follows the payload without moving the benchmark tag. Current fullQA/Core/State/KING/Native checks PASS as recorded below; physical acceptance and earlier NO MOVES live investigation remain open.
+
 ## Native Arcade benchmark publication — 2026-10-18
 
 User explicitly requests saving all current work as the important Native Arcade benchmark on online main. Immutable tag: `benchmark-arcade-native`; detailed scope and open acceptance boundaries: [NATIVE_ARCADE_BENCHMARK.md](NATIVE_ARCADE_BENCHMARK.md). Includes all tracked changes and new development artwork/test/source files since Benchmark Backpack. Historical tags and PWA baseline remain unchanged.
