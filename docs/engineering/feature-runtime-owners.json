@@ -957,19 +957,44 @@
         "native/gameplay-app/NativeAppController.swift",
         "native/jimi-2026/JimiV9HubView.swift"
       ],
-      "entryOwner": "NativeAppController generation and existing gameplay preparation/exits admit selected Arcade profile. NativeArcadeHubView finite entrance then explicit input admission; modal single identity gate.",
+      "entryOwner": "NativeAppController generation and existing gameplay preparation/exits admit selected Arcade profile. NativeArcadeHubView finite entrance then explicit input admission; modal single identity gate. Required first-play guide for One Lucky Drop/Slow Burn uses canonical Journey tutorial rather than altered meter rules; selected Arcade profile remains retained. Endurance guide unchanged. Arcade Crate reuses root Backpack route with exact .arcadeHub return; incompatible cached view is retired/recreated between Journey and Crate. Endurance/SlowBurn gameplay reuse paused collection modal with2columns; One Lucky Drop has no icon and rejects collection opening. Existing meter/drop owner charges slowly once per round; persisted luckyDropUsed is consumed atomically with charge before travel, disables further gains and queue admission until a fresh round. No new renderer, timer or resource owner.",
       "exitOwner": "Root route transition hides hub and disposes modal; hidden/background stops existing idle, late modal callback rejects inactive wrapper.",
-      "resourcePolicy": "Three original density-aware assets/arcade world illustrations plus existing Journey cloud assets; bounded three-card viewport content, no asset mutation or new renderer.",
-      "animationPolicy": "Reuse Journey hub island/cloud compositor ownership, visible active only. Existing root finite motion tracks; modal finite UIView presentation, no feature scheduler.",
+      "resourcePolicy": "Three original density-aware assets/arcade world illustrations plus existing Journey cloud assets; bounded three-card viewport content, no asset mutation or new renderer. Crate reuses NativeBackpackView with exactly3 existing Arcade dice in Forest-sized2column cells; selected details alone prepare artwork. Hub crate uses existing HUD original icon.",
+      "animationPolicy": "Reuse Journey hub island/cloud compositor ownership, visible active only. Existing root finite motion tracks; modal finite UIView presentation, no feature scheduler. Arcade modal content has an independent tilt plane sampled once per opening (random half-degree steps -2.5...+2.5degrees including flat0, stable through layout and foreground), preserving existing enter/exit/drag/idle owners. Arcade world artwork contact owns one finite0.25s scale1 to1.12 to1 track, smooth and without compression/overshoot. Journey selection uses only the existing complete Unit route scale/collapse, without an additional child artwork pulse; idle retains its own owner. Hide/background/detach cancel contact and Arcade identity fences modal completion.",
       "audioPolicy": "Existing root CTA/back feedback and Arcade gameplay audio only; no new sources or transport.",
       "hapticPolicy": "Existing semantic root feedback only.",
       "visibilityPolicy": "Covered hub stops idle; background settles modal, suspends root and cancels pending gameplay preparation. Root generation and exact modal identity reject stale completion.",
       "tests": [
         "native/standalone/Stack to SixTests/NativeArcadeHubTests.swift",
         "native/gameplay-core/Tests/StackToSixGameplayTests/NativeArcadeVariantTests.swift",
-        "native/gameplay-state/Tests/StackToSixNativeStateTests/NativeArcadeVariantPersistenceTests.swift"
+        "native/gameplay-state/Tests/StackToSixNativeStateTests/NativeArcadeVariantPersistenceTests.swift",
+        "native/standalone/Stack to SixTests/NativeArcadeNavigationTests.swift",
+        "native/standalone/Stack to SixTests/NativeArcadeGameplayIntegrationTests.swift",
+        "native/standalone/Stack to SixTests/NativeArcadeFooterTests.swift",
+        "native/standalone/Stack to SixTests/NativeArcadeCrateTests.swift",
+        "native/standalone/Stack to SixTests/NativeArcadeCrateNavigationTests.swift"
       ],
       "physicalAcceptance": "NEEDS PHYSICAL TEST: art, clipping, motion, touch, sustained performance and thermal behavior. Shared Simulator preview separately recorded in CURRENT_HANDOFF."
+    },
+    {
+      "id": "native-combo-hud-motion",
+      "surfaces": [
+        "native/gameplay-ui/NativeComboHUDMotion.swift",
+        "native/gameplay-ui/NativeComboNumberMotion.swift"
+      ],
+      "entryOwner": "NativeBoardScene.synchronizeComboHUD reads canonical combo tiers 0-4/5-9/10+ and generation; one weak artwork-child owner. Outer comboArt keeps original HUD layout, hit rectangle and tap bounce. Accepted canonical comboChanged contacts separately trigger weak number-only balloon, explicit merged/special archetype determines stack or mergeSix; no replay on layout, restore, or repeated TNT final bookkeeping.",
+      "exitOwner": "Canonical combo expiry or tier downgrade resets immediately; animateExit and dispose stop idempotently. Generation replacement restarts local phase. No callbacks or queued work.",
+      "resourcePolicy": "Same original three Combo HUD textures through existing NativeDiceArtwork cache; one extra sprite child, no new images/decode/cache or transformed asset bytes.",
+      "animationPolicy": "Existing visible Scene update samples one bounded scalar phase, no new scheduler/actions/timer/random stream. Extra rotates up to +/-15deg with subpoint jitter over0.42s. Mega cycles0.26s with1.4pt jitter and scale1.12-1.145. Tier persists only while canonical combo persists. Parent owns contact/entry/exit; child alone owns decorative pose. Number PWA targets stack1.76/mergeSix2.50, combo10+ bonus20\u201340percent targetcap3.20, back.out3 rise.08\u2013.16s from current scale;2.10s power2.out deflate overlaps rise by10ms. Canonical reset uses1.40s elastic.out(1,.9) to rest. Finite weak label owner samples the same visible Scene clock, no actions/timers/random draws; generation/exit/dispose reset. Unscaled baseline text layout and visual rightedge guard retain original hit geometry.",
+      "audioPolicy": "No new audio or changed existing cue ownership.",
+      "hapticPolicy": "No new haptics or frame-driven feedback.",
+      "visibilityPolicy": "Existing Scene suspension freezes phase, including finite HUD feedback while board is paused. Hidden/unmounted/paused renderer does not advance motion. Reduced Motion keeps still artwork and static Mega1.12 scale. Exit/disposal restore neutral pose.",
+      "tests": [
+        "native/standalone/Stack to SixTests/NativeComboHUDMotionTests.swift",
+        "native/standalone/Stack to SixTests/NativeHUDCloseTests.swift",
+        "native/standalone/Stack to SixTests/NativeComboNumberMotionTests.swift"
+      ],
+      "physicalAcceptance": "NEEDS PHYSICAL TEST for subjective vibration strength, readability and sustained physical frame pacing/thermal behavior; mounted Simulator tests are separate."
     }
   ]
 }

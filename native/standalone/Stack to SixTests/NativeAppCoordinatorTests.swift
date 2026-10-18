@@ -108,7 +108,19 @@ final class NativeAppCoordinatorTests:XCTestCase {
         defer{controller.dispose();window.isHidden=true}
         controller.navigate(.hub,interrupt:true)
         try await waitFor{controller.route == .hub && controller.hub.scrollView.isUserInteractionEnabled}
-        controller.navigate(.world(1))
+        let unit=try XCTUnwrap(controller.hub.worldUnits.first{$0.tag==1})
+        func findArt(_ view:UIView)->UIView? {
+            if view.accessibilityIdentifier=="native.hub.art.1" {return view}
+            return view.subviews.lazy.compactMap{findArt($0)}.first
+        }
+        let art=try XCTUnwrap(findArt(unit))
+        unit.sendActions(for:.touchUpInside)
+        XCTAssertNil(art.layer.animation(forKey:JimiV9HubView.worldTapAnimationKey),"Journey uses one Unit scale, without a second artwork pulse")
+        XCTAssertNil(art.layer.animation(forKey:NativeHubBackpackFeedback.animationKey))
+        if !UIAccessibility.isReduceMotionEnabled {
+            try await Task.sleep(for:.milliseconds(100))
+            XCTAssertGreaterThan(unit.layer.presentation()?.transform.m11 ?? 1,1,"The existing selected Unit scale still paints")
+        }
         XCTAssertEqual(replies.count,1,"Destination work must start at the tap, while Hub exit still owns the screen")
         XCTAssertEqual(controller.route,.hub);XCTAssertFalse(controller.hub.isHidden)
         XCTAssertTrue(try XCTUnwrap(controller.world).isHidden)
@@ -116,6 +128,7 @@ final class NativeAppCoordinatorTests:XCTestCase {
         XCTAssertEqual(controller.route,.hub,"Resource completion cannot replace the actual exit completion")
         try await waitFor{controller.route == .world(1) && controller.world?.isReadyForInput==true}
         XCTAssertEqual(replies.count,1,"Reveal must consume the same prepared destination")
+        XCTAssertNil(art.layer.animation(forKey:NativeHubBackpackFeedback.animationKey),"Hidden hub retires the finite contact")
     }
     func testCancelledHubWorldPreparationCannotRevealAndWarmWorldIsReused()async throws {
         var replies:[()->Void]=[]

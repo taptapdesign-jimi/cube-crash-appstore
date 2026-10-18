@@ -242,6 +242,7 @@ final class JimiNativeEndRunModal: UIViewController {
         subtitle.attributedText=NativeModalTypography.attributedSubtitle(model.subtitle,font:subtitle.font)
         idle.addSubview(heading);idle.addSubview(subtitle)
         for (i,button) in buttons.enumerated() {
+            button.accessibilityIdentifier = i == 0 ? "native.end-run.restart" : "native.end-run.exit"
             button.tag = i;button.setTitle(i == 0 ? model.restartLabel : model.exitLabel,for:.normal)
             button.applyModalCTA(artwork:assets,primary:i == 0)
             button.addTarget(self,action:#selector(pressButton(_:)),for:.touchDown)

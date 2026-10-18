@@ -23,7 +23,7 @@ enum NativeBottleFinaleMotion {
         guard count > 0 else { return [] }
         let levels: [CGFloat] = [0.6,0.7,0.8,0.9]
         // Stratify then shuffle so every wave has variety, keeping RNG draw ownership unchanged.
-        // Trails keep the authored four levels; rising bubbles select a continuous range.
+        // Callers may retain the original levels or request a continuous bounded range.
         var values = (0..<count).map { index in
             let position = (Double(index)+min(1,max(0,random())))/Double(count)
             if let range {return min(range.upperBound,max(range.lowerBound,range.lowerBound+(range.upperBound-range.lowerBound)*CGFloat(position)))}

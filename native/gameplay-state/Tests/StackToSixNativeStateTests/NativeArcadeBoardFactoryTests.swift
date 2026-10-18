@@ -24,4 +24,14 @@ final class NativeArcadeBoardFactoryTests: XCTestCase {
             XCTAssertLessThan(pureTotal,normalTotal)
         }
     }
+    func testLuckyDropNextRoundStartsFreshAndRewardIsRandom() throws {
+        let next=NativeBoardFactory.make(mode:.arcade,board:2,arcadeVariant:.pureDice)
+        XCTAssertFalse(next.luckyDropUsed)
+        XCTAssertEqual(next.wildMeter,0)
+        let first=NativeBoardFactory.make(mode:.arcade,board:1,arcadeVariant:.pureDice)
+        let types=Set([0.0,0.4,0.9].compactMap {
+            NativeWildRewardPolicy.choose(state:first,roll:$0,plainStarUnlocked:false,nextRoll:{0.1})?.archetype
+        })
+        XCTAssertEqual(types,Set([.juice,.magnet,.tnt]))
+    }
 }

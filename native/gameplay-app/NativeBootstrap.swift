@@ -173,6 +173,14 @@ final class NativeBootstrap {
             self?.layouts.nextAmbient(world: world, top: viewport.minY, bottom: viewport.maxY, ids: ids)
         }
         services.bees = { [weak self] ids in self?.layouts.nextBees(ids: ids) }
+        services.canContinueArcade = {[weak self] variant in
+            guard let self,self.envelope.progression.firstPlayTutorialComplete else{return false}
+            var selected=self.envelope
+            selected.activeArcadeVariant=variant
+            if selected.pendingArcadeRound != nil {return true}
+            guard let board=selected.arcadeRun?.board else{return false}
+            return selected.resumedRun(mode:.arcade,board:board) != nil
+        }
         services.requiresTutorial = { [weak self] in self?.envelope.progression.firstPlayTutorialComplete == false }
         services.prepareGameplayEntry = {[weak self] board,completion in
             guard let self else{completion(false);return};self.prepareGameplayEntry(board:board,completion:completion)
@@ -309,7 +317,8 @@ final class NativeBootstrap {
         // Immutable v9 Homepage Play never resumes a saved run while first
         // play is forced. Reading/mounting Home preserves the old document;
         // the user's new Play starts the demo until authored result Continue.
-        let freshEntryGeneration = freshEntry?.generation ?? (needsTutorial ? (state?.generation ?? 1):1)
+        let previousTutorialGeneration = mode == .arcade ? envelope.arcadeRun?.generation : envelope.journeyRuns[number]?.generation
+        let freshEntryGeneration = freshEntry?.generation ?? (needsTutorial ? (max(state?.generation ?? 0,previousTutorialGeneration ?? 0)+1):1)
         if needsTutorial {state=nil}
         var preparedTextures:NativeBoardTextures?
         if let lease=initialTexturePreparation,lease.ready,lease.board==board,lease.freshEntry==freshEntry,

@@ -127,9 +127,14 @@ import StackToSixGameplay
             }
         }else{app.navigate(.gameplay,interrupt:true)}
         try await wait("Actual gameplay admission"){
-            app.children.compactMap{$0 as? NativeGameplayViewController}.first.map{
-                $0.boardScene?.view?.window != nil && $0.boardScene?.isBoardEntryComplete==true &&
-                $0.beforeSourceGameplayAdmission==nil && !$0.engine.hasUnsavableSourceGameplayState
+            app.children.compactMap{$0 as? NativeGameplayViewController}.first.map{ game in
+                guard let scene=game.boardScene,let render=scene.gameplayRenderHost else { return false }
+                // Both the owned Metal renderer and SKView fallback must have
+                // mounted this exact scene before real gameplay is admitted.
+                return game.view.window != nil && render.renderedScene === scene &&
+                    render.renderView.window === game.view.window && !render.renderView.isHidden &&
+                    !render.renderingPaused && scene.isBoardEntryComplete &&
+                    game.beforeSourceGameplayAdmission==nil && !game.engine.hasUnsavableSourceGameplayState
             }==true
         }
         let game=try XCTUnwrap(app.children.compactMap{$0 as? NativeGameplayViewController}.first)

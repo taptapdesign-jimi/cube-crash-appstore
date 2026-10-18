@@ -7,33 +7,34 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
     let header=JimiV9NavigationHeader(frame:.zero),close=JimiV9PlainButton(type:.custom)
     let grid:UICollectionView
     private let title=UILabel()
-    private(set) var includesArcade=true
+    private(set) var includesArcade=false
+    let arcadeCrate:Bool
     private var embedded=false
     func useModalLayout(){embedded=true;header.isHidden=true;setNeedsLayout()}
     private(set) var sections:[NativeBackpackCatalog.Section]=[]
     var onClose:(()->Void)?,onDie:((NativeBackpackCatalog.Die)->Void)?
-    init(frame:CGRect,assets:JimiV9Artwork) {
-        self.assets=assets
+    init(frame:CGRect,assets:JimiV9Artwork,title:String="Backpack",arcadeCrate:Bool=false) {
+        self.assets=assets;self.arcadeCrate=arcadeCrate
         let layout=UICollectionViewFlowLayout();layout.minimumInteritemSpacing=16;layout.minimumLineSpacing=20
         layout.sectionInset=UIEdgeInsets(top:0,left:32,bottom:0,right:32)
         grid=UICollectionView(frame:.zero,collectionViewLayout:layout)
         super.init(frame:frame)
-        accessibilityIdentifier="native.backpack"
+        accessibilityIdentifier=arcadeCrate ? "native.arcade.crate":"native.backpack"
         grid.backgroundColor = .clear;grid.showsVerticalScrollIndicator=false;grid.contentInsetAdjustmentBehavior = .never
         grid.register(NativeBackpackCell.self,forCellWithReuseIdentifier:"die")
         grid.register(NativeBackpackSectionHeader.self,forSupplementaryViewOfKind:UICollectionView.elementKindSectionHeader,withReuseIdentifier:"section")
         grid.dataSource=self;grid.delegate=self;grid.isPrefetchingEnabled=false
         addSubview(grid);addSubview(header)
         header.backgroundColor=UIColor(red:243/255,green:238/255,blue:232/255,alpha:0.8);header.isOpaque=false
-        title.text="Backpack";title.font=assets.font(size:28);title.textColor=NativeBackpackCell.ink;title.textAlignment = .center
-        header.addSubview(title);header.addSubview(close)
+        self.title.text=title;self.title.font=assets.font(size:28);self.title.textColor=NativeBackpackCell.ink;self.title.textAlignment = .center
+        header.addSubview(self.title);header.addSubview(close)
         close.setImage(assets.image("assets/close-icon.png",densityAware:true),for:.normal)
         close.imageView?.contentMode = .scaleAspectFit;close.imageEdgeInsets=UIEdgeInsets(top:10,left:10,bottom:10,right:10)
-        close.accessibilityLabel="Close Backpack";close.accessibilityIdentifier="native.backpack.close"
+        close.accessibilityLabel="Close \(title)";close.accessibilityIdentifier=arcadeCrate ? "native.arcade.crate.close":"native.backpack.close"
         close.addTarget(self,action:#selector(closeTapped),for:.touchUpInside)
     }
     required init?(coder:NSCoder){fatalError("Use assets initializer")}
-    func apply(_ sections:[NativeBackpackCatalog.Section],includesArcade:Bool=true) {self.includesArcade=includesArcade;self.sections=sections;grid.setContentOffset(CGPoint(x:0,y:-grid.contentInset.top),animated:false);grid.reloadData();setNeedsLayout();layoutIfNeeded()}
+    func apply(_ sections:[NativeBackpackCatalog.Section],includesArcade:Bool=false) {self.includesArcade=arcadeCrate || includesArcade;self.sections=arcadeCrate ? []:sections;grid.setContentOffset(CGPoint(x:0,y:-grid.contentInset.top),animated:false);grid.reloadData();setNeedsLayout();layoutIfNeeded()}
     override func layoutSubviews() {
         super.layoutSubviews()
         let row=JimiV9NavigationHeader.RowLayout(bounds:bounds,safeAreaTop:safeAreaInsets.top),height=embedded ? 0:row.top+66
@@ -59,20 +60,21 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
         let cell=collectionView.dequeueReusableCell(withReuseIdentifier:"die",for:indexPath) as! NativeBackpackCell
         let die=includesArcade && indexPath.section==0 ? NativeBackpackCatalog.arcade[indexPath.item]:sections[indexPath.section-(includesArcade ? 1:0)].dice[indexPath.item]
         let unlocked=includesArcade && indexPath.section==0 || sections[indexPath.section-(includesArcade ? 1:0)].unlocked.contains(die.id)
-        cell.apply(die,unlocked:unlocked,right:indexPath.item%2==1,arcade:includesArcade && indexPath.section==0,assets:assets);return cell
+        cell.apply(die,unlocked:unlocked,right:indexPath.item%2==1,arcade:includesArcade && indexPath.section==0 && !arcadeCrate,assets:assets,illustrationScale:arcadeCrate ? (die.id=="wild-magnet" ? 0.8:die.id=="tnt" ? 0.95:1):1);return cell
     }
     func collectionView(_ collectionView:UICollectionView,viewForSupplementaryElementOfKind kind:String,at indexPath:IndexPath)->UICollectionReusableView {
         let header=collectionView.dequeueReusableSupplementaryView(ofKind:kind,withReuseIdentifier:"section",for:indexPath) as! NativeBackpackSectionHeader
-        if includesArcade && indexPath.section==0 {header.apply(title:"Arcade",detail:"Always ready to play! Unlock more dice in Journey for even more fun.",count:nil,assets:assets)}
+        if arcadeCrate {header.apply(title:"Arcade",detail:nil,count:"3 / 3",assets:assets)}
+        else if includesArcade && indexPath.section==0 {header.apply(title:"Arcade",detail:"Always ready to play! Unlock more dice in Journey for even more fun.",count:nil,assets:assets)}
         else {let section=sections[indexPath.section-(includesArcade ? 1:0)];header.apply(title:section.title,detail:nil,count:"\(section.count) / \(section.dice.count)",assets:assets)}
         return header
     }
     func collectionView(_ collectionView:UICollectionView,layout collectionViewLayout:UICollectionViewLayout,sizeForItemAt indexPath:IndexPath)->CGSize {
-        let columns:CGFloat=includesArcade && indexPath.section==0 ? 3:2
+        let columns:CGFloat=includesArcade && indexPath.section==0 && !arcadeCrate ? 3:2
         let side=floor((bounds.width-(embedded ? 48:64)-(columns-1)*(embedded ? 16:columns==3 ? 16:20))/columns)
         return CGSize(width:side,height:side)
     }
-    func collectionView(_ collectionView:UICollectionView,layout collectionViewLayout:UICollectionViewLayout,referenceSizeForHeaderInSection section:Int)->CGSize {CGSize(width:bounds.width,height:embedded ? 0:includesArcade && section==0 ? 156:100)}
+    func collectionView(_ collectionView:UICollectionView,layout collectionViewLayout:UICollectionViewLayout,referenceSizeForHeaderInSection section:Int)->CGSize {CGSize(width:bounds.width,height:embedded ? 0:includesArcade && section==0 && !arcadeCrate ? 156:100)}
     func collectionView(_ collectionView:UICollectionView,didSelectItemAt indexPath:IndexPath) {
         guard isUserInteractionEnabled else{return}
         let die=includesArcade && indexPath.section==0 ? NativeBackpackCatalog.arcade[indexPath.item]:sections[indexPath.section-(includesArcade ? 1:0)].dice[indexPath.item]
@@ -102,7 +104,7 @@ private final class NativeBackpackCell:UICollectionViewCell {
     private var artworkOffset=CGPoint.zero
     override init(frame:CGRect){super.init(frame:frame);for image in [holder,die]{image.contentMode = .scaleAspectFit;contentView.addSubview(image)};isAccessibilityElement=true}
     required init?(coder:NSCoder){fatalError("Use frame")}
-    func apply(_ item:NativeBackpackCatalog.Die,unlocked:Bool,right:Bool,arcade:Bool,assets:JimiV9Artwork) {
+    func apply(_ item:NativeBackpackCatalog.Die,unlocked:Bool,right:Bool,arcade:Bool,assets:JimiV9Artwork,illustrationScale:CGFloat=1) {
         self.arcade=arcade
         let holderSuffix = !unlocked ? " locked" : arcade ? (item.id=="wild-magnet" ? " middle" : item.id=="cubero" ? " desno" : "") : (right ? " desno" : "")
         holder.image=assets.image("assets/backpack/dice holder\(holderSuffix).png",densityAware:true)
@@ -129,6 +131,7 @@ private final class NativeBackpackCell:UICollectionViewCell {
             artworkSize=CGSize(width:artworkSize.width*iconScale,height:artworkSize.height*iconScale)
             artworkOffset=CGPoint(x:artworkOffset.x*iconScale,y:artworkOffset.y*iconScale)
         }
+        if unlocked {artworkSize=CGSize(width:artworkSize.width*illustrationScale,height:artworkSize.height*illustrationScale)}
         die.tag=unlocked ? 1:0;accessibilityLabel=item.title+(unlocked ? "":" Locked");accessibilityTraits=unlocked ? .button:.image
         accessibilityIdentifier="native.backpack.die.\(item.id)";setNeedsLayout()
     }

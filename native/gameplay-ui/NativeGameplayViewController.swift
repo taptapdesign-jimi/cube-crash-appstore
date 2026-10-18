@@ -665,7 +665,10 @@ final class NativeGameplayViewController: UIViewController {
             }
             owner.start(); return true
         }
-        scene.onHelpRequest = { [weak self] in self?.onHelp?() }
+        scene.onHelpRequest = { [weak self] in
+            guard let self,self.engine.state.mode != .arcade || self.engine.state.effectiveArcadeVariant != .pureDice else { return }
+            self.onHelp?()
+        }
         scene.onScoreRequest = { [weak self] in self?.onScore?() }
         scene.onComboRequest = { [weak self] in self?.onCombo?() }
         scene.onPointerState = { [weak self] active in self?.onPointerState?(active) }
@@ -757,10 +760,10 @@ final class NativeGameplayViewController: UIViewController {
         // direct authored media. Only its pointer or route lifecycle hides it.
         scene.onRenderingDemand = { [weak self,weak scene] active in
             guard let self, !self.disposed else { return }
-            // The Scene admits only its finite HUD contact branch while a
+            // The Scene admits its finite HUD entrance/contact feedback while a
             // foreground modal freezes gameplay. Do not override that receipt.
             let paused = !active || self.backgrounded ||
-                (self.explicitlySuspended && !self.exitingBoard && scene?.hasActiveHUDTapFeedback != true)
+                (self.explicitlySuspended && !self.exitingBoard && scene?.hasActiveHUDPresentationFeedback != true)
             if paused {scene?.retireSourceRendererDragTransport()}
             self.spriteView.surfacePaused = paused
         }

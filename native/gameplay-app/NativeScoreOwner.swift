@@ -23,6 +23,7 @@ final class NativeScoreOwner {
         guard let gameplay,backpack==nil,sheet==nil,gameplay.presentedViewController==nil,
               gameplay.boardScene?.navigationLocked != true,gameplay.engine.state.terminal==nil,
               gameplay.engine.state.tutorial?.shouldLockHUD != true,
+              gameplay.engine.state.effectiveArcadeVariant != .pureDice,
               UIApplication.shared.applicationState == .active else{return}
         let state=gameplay.engine.state
         let sections=NativeBackpackCatalog.sections(progression()).filter { section in
@@ -81,7 +82,7 @@ final class NativeGameplayBackpackController:UIViewController {
         paper.image=assets.image("assets/modals/paper.png");paper.layer.cornerRadius=40;paper.clipsToBounds=true
         idle.layer.shadowColor=UIColor(red:185/255,green:145/255,blue:119/255,alpha:1).cgColor
         idle.layer.shadowOpacity=0.8;idle.layer.shadowOffset=CGSize(width:0,height:13);idle.layer.shadowRadius=16.8
-        heading.text="Backpack";heading.textAlignment = .center
+        heading.text=includesArcade ? "Dice Box":"Backpack";heading.textAlignment = .center
         heading.font=assets.font(size:28,weight:"ExtraBold");heading.textColor=UIColor(red:0.68,green:0.53,blue:0.46,alpha:1)
         idle.addSubview(heading)
         let world=sections.first?.title ?? "Arcade"
@@ -92,17 +93,17 @@ final class NativeGameplayBackpackController:UIViewController {
         case "Area 55":copy="Cosmic pals, out-of-this-world surprises!"
         default:copy="Boom, swoop, hop — ready to play!"
         }
-        subtitle.text="\(world) backpack items\n\(copy)";subtitle.numberOfLines=0;subtitle.textAlignment = .center
+        subtitle.text="\(world) \(includesArcade ? "crate":"backpack") items\n\(copy)";subtitle.numberOfLines=0;subtitle.textAlignment = .center
         subtitle.font=assets.font(size:20,weight:"Medium");subtitle.textColor=NativeTextPalette.subtitle
         subtitle.attributedText=NativeModalTypography.attributedSubtitle(subtitle.text ?? "",font:subtitle.font)
         idle.addSubview(subtitle)
-        let screen=NativeBackpackView(frame:.zero,assets:assets);self.screen=screen
+        let screen=NativeBackpackView(frame:.zero,assets:assets,title:includesArcade ? "Dice Box":"Backpack",arcadeCrate:includesArcade);self.screen=screen
         screen.useModalLayout();screen.apply(sections,includesArcade:includesArcade);idle.addSubview(screen)
         screen.onDie={[weak self] die in self?.open(die)}
         closeButton.setBackgroundImage(paper.image,for:.normal);closeButton.layer.cornerRadius=26;closeButton.clipsToBounds=true
         closeButton.setImage(assets.image("assets/close-icon.png"),for:.normal);closeButton.imageView?.contentMode = .scaleAspectFit;closeButton.artworkOpacity = 0.8;closeButton.enableArtworkTapFeedback()
         closeButton.imageEdgeInsets=UIEdgeInsets(top:14,left:14,bottom:14,right:14);closeButton.accessibilityIdentifier="native.gameplay.backpack.close"
-        closeButton.accessibilityLabel="Close Backpack";closeButton.addTarget(self,action:#selector(close),for:.touchUpInside);idle.addSubview(closeButton)
+        closeButton.accessibilityLabel=includesArcade ? "Close Dice Box":"Close Backpack";closeButton.addTarget(self,action:#selector(close),for:.touchUpInside);idle.addSubview(closeButton)
         modalDrag=JimiNativeModalDrag(target:card,idle:idle,viewport:view,canDrag:{[weak self] in
             guard let self else{return false}
             return self.foreground && self.admitted && !self.closing && !self.disposed && !self.switchingDetail && self.detail==nil
@@ -116,7 +117,7 @@ final class NativeGameplayBackpackController:UIViewController {
         let subtitleHeight=ceil(subtitle.sizeThatFits(CGSize(width:max(0,width-48),height:CGFloat.greatestFiniteMagnitude)).height)
         subtitle.frame=CGRect(x:24,y:heading.frame.maxY+12,width:max(0,width-48),height:subtitleHeight)
         let count=includesArcade ? NativeBackpackCatalog.arcade.count:sections.first?.dice.count ?? 0
-        let columns:CGFloat=includesArcade ? 3:2,side=floor((width-48-(columns-1)*16)/columns)
+        let columns:CGFloat=2,side=floor((width-48-(columns-1)*16)/columns)
         let rows=ceil(CGFloat(count)/columns),gridHeight=rows*side+max(0,rows-1)*16
         let height=min(subtitle.frame.maxY+24+gridHeight+32,max(0,view.bounds.height-view.safeAreaInsets.top-view.safeAreaInsets.bottom-48))
         card.bounds=CGRect(x:0,y:0,width:width,height:height);card.center=CGPoint(x:view.bounds.midX,y:view.safeAreaInsets.top+(view.bounds.height-view.safeAreaInsets.top-view.safeAreaInsets.bottom)/2)

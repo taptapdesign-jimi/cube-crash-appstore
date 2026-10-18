@@ -176,8 +176,8 @@ final class NativeBackpackTests:XCTestCase {
             XCTAssertEqual(screen.collectionView(screen.grid,numberOfItemsInSection:0),section.dice.count)
             XCTAssertEqual(screen.collectionView(screen.grid,layout:screen.grid.collectionViewLayout,sizeForItemAt:IndexPath(item:0,section:0)).width,153)
             screen.apply(NativeBackpackCatalog.sections(NativeProgressionState()))
-            XCTAssertEqual(screen.numberOfSections(in:screen.grid),4)
-            XCTAssertEqual(screen.collectionView(screen.grid,numberOfItemsInSection:0),3)
+            XCTAssertEqual(screen.numberOfSections(in:screen.grid),3)
+            XCTAssertEqual(screen.collectionView(screen.grid,numberOfItemsInSection:0),6)
         }
     }
     func testCatalogUsesCanonicalProgressAndExactWorldTotals() {
@@ -196,7 +196,7 @@ final class NativeBackpackTests:XCTestCase {
         var legacy=NativeProgressionState();legacy.unlockedSpecialDice=["flower","juice"]
         XCTAssertEqual(NativeBackpackCatalog.sections(legacy).map(\.count),[1,0,1])
     }
-    func testGridHasThreeArcadeAndTwoWorldColumnsAndLockedTapIsInert() throws {
+    func testGridStartsWithForestAndTwoWorldColumnsAndLockedTapIsInert() throws {
         let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
         let screen=NativeBackpackView(frame:CGRect(x:0,y:0,width:390,height:844),assets:assets)
         var progress=NativeProgressionState();progress.lastOpenedJourneyBoard=1
@@ -216,17 +216,18 @@ final class NativeBackpackTests:XCTestCase {
         try underlap.pngData()?.write(to:URL(fileURLWithPath:"/tmp/backpack-header-underlap.png"))
         screen.apply(NativeBackpackCatalog.sections(progress));screen.grid.layoutIfNeeded()
         XCTAssertEqual(screen.grid.contentOffset.y,-screen.header.bounds.height,accuracy:0.5)
-        XCTAssertEqual(screen.numberOfSections(in:screen.grid),4)
-        XCTAssertEqual(screen.collectionView(screen.grid,numberOfItemsInSection:0),3)
-        let world=screen.collectionView(screen.grid,layout:screen.grid.collectionViewLayout,sizeForItemAt:IndexPath(item:0,section:1))
+        XCTAssertEqual(screen.numberOfSections(in:screen.grid),3)
+        XCTAssertEqual(screen.collectionView(screen.grid,numberOfItemsInSection:0),6)
+        let world=screen.collectionView(screen.grid,layout:screen.grid.collectionViewLayout,sizeForItemAt:IndexPath(item:0,section:0))
         XCTAssertEqual(world.width,153)
         var opened:[String]=[];screen.onDie={opened.append($0.id)}
-        screen.collectionView(screen.grid,didSelectItemAt:IndexPath(item:1,section:1));XCTAssertTrue(opened.isEmpty)
-        screen.collectionView(screen.grid,didSelectItemAt:IndexPath(item:0,section:1));XCTAssertEqual(opened,["wild-star"])
+        screen.collectionView(screen.grid,didSelectItemAt:IndexPath(item:1,section:0));XCTAssertTrue(opened.isEmpty)
+        screen.collectionView(screen.grid,didSelectItemAt:IndexPath(item:0,section:0));XCTAssertEqual(opened,["wild-star"])
     }
     func testSelectedDieFeedbackUsesWholeCardAndReuseRetiresIt() throws {
         let screen=NativeBackpackView(frame:CGRect(x:0,y:0,width:390,height:844),assets:JimiV9Artwork(resourceRoot:NativeTestResources.root))
-        screen.apply(NativeBackpackCatalog.sections(NativeProgressionState()));screen.grid.layoutIfNeeded()
+        var progress=NativeProgressionState();progress.lastOpenedJourneyBoard=1
+        screen.apply(NativeBackpackCatalog.sections(progress));screen.grid.layoutIfNeeded()
         let index=IndexPath(item:0,section:0)
         let cell=try XCTUnwrap(screen.grid.cellForItem(at:index))
         var selected=false
@@ -635,34 +636,21 @@ final class NativeBackpackTests:XCTestCase {
         let image=UIGraphicsImageRenderer(bounds:window.bounds).image{window.layer.render(in:$0.cgContext)}
         try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/backpack-screen.png"))
         XCTAssertGreaterThan(screen.grid.visibleCells.count,3)
-        let arcadeImages=(0...2).compactMap { index in screen.grid.cellForItem(at:IndexPath(item:index,section:0))?.contentView.subviews.last as? UIImageView }
-        XCTAssertEqual(arcadeImages.count,3)
-        let visibleHeights=arcadeImages.compactMap { imageView -> CGFloat? in
-            guard let image=imageView.image else{return nil}
-            return min(imageView.bounds.width/image.size.width,imageView.bounds.height/image.size.height)*image.size.height*NativeBackpackDetail.visibleHeightRatio(image)
-        }
-        if visibleHeights.count==3 {
-            XCTAssertEqual(visibleHeights[0]*0.9,visibleHeights[1],accuracy:0.5)
-            XCTAssertEqual(visibleHeights[1],visibleHeights[2],accuracy:0.5)
-            let cubero=arcadeImages[2],image=try XCTUnwrap(cubero.image)
-            let alpha=NativeBackpackDetail.visibleArtworkBounds(image)
-            let visibleRect=CGRect(x:cubero.frame.minX+alpha.minX*cubero.bounds.width,y:cubero.frame.minY+alpha.minY*cubero.bounds.height,width:alpha.width*cubero.bounds.width,height:alpha.height*cubero.bounds.height)
-            let cellBounds=try XCTUnwrap(cubero.superview).bounds
-            XCTAssertEqual(visibleRect.midX,cellBounds.midX,accuracy:0.5)
-            XCTAssertEqual(visibleRect.midY,cellBounds.midY,accuracy:0.5)
-            XCTAssertTrue(cellBounds.insetBy(dx:4,dy:4).contains(visibleRect))
-            let tnt=try XCTUnwrap(arcadeImages[0].image)
-            let previous=min(60/tnt.size.width,80/tnt.size.height)*tnt.size.height*NativeBackpackDetail.visibleHeightRatio(tnt)
-            XCTAssertEqual(visibleHeights[0],previous*1.10,accuracy:0.5)
-        }
-        screen.grid.scrollToItem(at:IndexPath(item:5,section:1),at:.centeredVertically,animated:false);screen.grid.layoutIfNeeded()
-        let barrelCell=try XCTUnwrap(screen.grid.cellForItem(at:IndexPath(item:5,section:1)))
+        XCTAssertFalse(screen.includesArcade)
+        XCTAssertEqual(screen.numberOfSections(in:screen.grid),3)
+        let sectionHeader=try XCTUnwrap(screen.grid.supplementaryView(forElementKind:UICollectionView.elementKindSectionHeader,at:IndexPath(item:0,section:0)))
+        let texts=sectionHeader.subviews.compactMap{($0 as? UILabel)?.text}
+        XCTAssertTrue(texts.contains("Forest"))
+        XCTAssertFalse(texts.contains("Arcade"))
+        XCTAssertFalse(texts.contains(where:{$0.contains("Always ready to play")}))
+        screen.grid.scrollToItem(at:IndexPath(item:5,section:0),at:.centeredVertically,animated:false);screen.grid.layoutIfNeeded()
+        let barrelCell=try XCTUnwrap(screen.grid.cellForItem(at:IndexPath(item:5,section:0)))
         let barrelView=try XCTUnwrap(barrelCell.contentView.subviews.last as? UIImageView)
         let barrel=try XCTUnwrap(barrelView.image)
         XCTAssertEqual(barrel.size.width/barrel.size.height,1,accuracy:0.001)
         let barrelVisible=barrelView.bounds.height*NativeBackpackDetail.visibleHeightRatio(barrel)
         XCTAssertEqual(barrelVisible,120*0.855,accuracy:0.5,"Retain the accepted grid-only Barrel reductions; modal size is unchanged")
-        screen.grid.scrollToItem(at:IndexPath(item:0,section:2),at:.top,animated:false);screen.grid.layoutIfNeeded()
+        screen.grid.scrollToItem(at:IndexPath(item:0,section:1),at:.top,animated:false);screen.grid.layoutIfNeeded()
         let locked=UIGraphicsImageRenderer(bounds:window.bounds).image{window.layer.render(in:$0.cgContext)}
         try locked.pngData()?.write(to:URL(fileURLWithPath:"/tmp/backpack-locked.png"))
         let cells=screen.grid.visibleCells

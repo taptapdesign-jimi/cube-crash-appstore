@@ -16,13 +16,42 @@ final class NativeArcadeVariantTests: XCTestCase {
         var journey=make(.slowBurn).state;journey.mode = .journey
         XCTAssertEqual(journey.effectiveArcadeVariant,.endurance)
     }
-    func testPureDiceRefusesBothImmediateAndStagedDropsEvenWithFullSavedMeter() {
-        for staged in [false,true] {
-            let engine=make(.pureDice,meter:1)
-            engine.stagedMeterDrops=staged;engine.stagedMeterOpen=staged
-            XCTAssertFalse(engine.claimMeterReward().accepted)
-            XCTAssertNil(engine.pendingMeterOpen)
-            XCTAssertFalse(engine.state.tiles.contains(where: \.isWild))
+    func testLuckyDropConsumesOnceAndSurvivesRestore() throws {
+        let engine=make(.pureDice,meter:1.4)
+        XCTAssertTrue(engine.claimMeterReward().accepted)
+        XCTAssertTrue(engine.state.luckyDropUsed)
+        XCTAssertEqual(engine.state.wildMeter,0)
+        var saved=try JSONDecoder().decode(NativeBoardState.self,from:JSONEncoder().encode(engine.state))
+        XCTAssertTrue(saved.luckyDropUsed)
+        // Even stale surplus cannot admit a second reward after restore.
+        saved.wildMeter=1
+        let restored=NativeGameplayEngine(state:saved,rewardPicker:{_,_ in .init(.tnt)})
+        XCTAssertFalse(restored.claimMeterReward().accepted)
+        XCTAssertEqual(restored.state.wildSpawnCount,1)
+    }
+    func testLuckyDropStagedChargeIsSpentBeforeLanding() {
+        let engine=make(.pureDice,meter:1)
+        engine.stagedMeterDrops=true
+        XCTAssertTrue(engine.claimMeterReward().accepted)
+        XCTAssertTrue(engine.state.luckyDropUsed)
+        XCTAssertEqual(engine.state.wildMeter,0)
+        XCTAssertEqual(engine.meterDropReservations.count,1)
+        XCTAssertFalse(engine.claimMeterReward().accepted)
+    }
+    func testLuckyDropStopsChargingAfterConsumption() {
+        var state=make(.pureDice).state;state.luckyDropUsed=true
+        let engine=NativeGameplayEngine(state:state,rewardPicker:{_,_ in .init(.tnt)})
+        XCTAssertTrue(engine.beginDrag(tileID:"a"))
+        XCTAssertTrue(engine.drop(target:.init(column:1,row:0)).accepted)
+        XCTAssertEqual(engine.state.wildMeter,0)
+    }
+    func testLuckyDropChargeKeepsItsPaceInLaterRounds() {
+        for round in [1,2,4,8,30] {
+            var state=make(.pureDice).state;state.board=round;state.stage=round
+            let engine=NativeGameplayEngine(state:state,rewardPicker:{_,_ in .init(.tnt)})
+            XCTAssertTrue(engine.beginDrag(tileID:"a"))
+            XCTAssertTrue(engine.drop(target:.init(column:1,row:0)).accepted)
+            XCTAssertEqual(engine.state.wildMeter,0.046,accuracy:0.000001)
         }
     }
     func testSlowBurnCompletionKeepsEarnedChargeWithoutFinalReward() {

@@ -1,5 +1,6 @@
 import SpriteKit
 import UIKit
+import StackToSixGameplay
 
 /// Source DOM Round pill is Arcade-only and sits outside the shaken Pixi HUD.
 /// SpriteKit owns these finite actions through the visible board's lifecycle.
@@ -22,6 +23,7 @@ final class NativeRoundIndicator:SKNode {
         lineHeight=font.lineHeight
         super.init()
         name="native-game-round-indicator";zPosition=10001
+        label.name="native-game-round-label"
         label.fontName=font.fontName;label.fontSize=18;label.verticalAlignmentMode = .center
         label.fontColor=UIColor(red:173/255,green:135/255,blue:117/255,alpha:1)
         pill.fillColor=UIColor(red:243/255,green:230/255,blue:220/255,alpha:0.52)
@@ -30,11 +32,11 @@ final class NativeRoundIndicator:SKNode {
         addChild(painted);painted.addChild(lines);painted.addChild(content);content.addChild(pill);content.addChild(label)
     }
     required init?(coder:NSCoder){fatalError("Use preserved source font")}
-    func synchronize(round:Int,arcade:Bool,viewport:CGSize,alpha:CGFloat) {
+    func synchronize(round:Int,arcade:Bool,viewport:CGSize,alpha:CGFloat,variant:NativeArcadeVariant = .endurance) {
         isHidden = !arcade
         guard arcade else {painted.removeAllActions();content.removeAllActions();return}
         let changed=self.round != nil && self.round != round;self.round=round
-        label.text=String(format:"Round %02d",round)
+        label.text=String(format:"%@ - %02d",variant.title,max(1,round))
         let width=label.frame.width+122,height=lineHeight+10
         pill.path=CGPath(roundedRect:CGRect(x:-width/2,y:-height/2,width:width,height:height),cornerWidth:min(32,height/2),cornerHeight:min(32,height/2),transform:nil)
         let path=CGMutablePath(),edge=viewport.width/2-23

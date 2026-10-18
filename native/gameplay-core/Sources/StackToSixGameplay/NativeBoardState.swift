@@ -1,18 +1,5 @@
 import Foundation
 
-/// Separate Arcade rule sets share the existing merge engine and Journey unlocks.
-public enum NativeArcadeVariant: String, Codable, CaseIterable, Sendable {
-    case endurance, pureDice, slowBurn
-    public var title: String { switch self { case .endurance: return "Endurance"; case .pureDice: return "Pure Dice"; case .slowBurn: return "Slow Burn" } }
-    public var meterMultiplier: Double { switch self { case .endurance: return 1; case .pureDice: return 0; case .slowBurn: return 0.5 } }
-    public var allowsSpecials: Bool { self != .pureDice }
-    /// Only initial openings are biased; refills and rounds five onward retain normal rules.
-    public func initialSmallValueBias(round: Int) -> Double {
-        guard self == .pureDice, (1...4).contains(round) else { return 0 }
-        return [0.80, 0.65, 0.50, 0.35][round-1]
-    }
-}
-
 public enum NativeRunMode: String, Codable, Sendable { case arcade = "arcade_home", journey }
 public enum NativeWildArchetype: String, Codable, CaseIterable, Sendable { case star = "wild", juice = "wild-juice", magnet = "wild-magnet", tnt = "wild-tnt" }
 /// Plain Star and these variants share a persisted drop count; Bee remains fixed at one.
@@ -88,6 +75,7 @@ public struct NativeBoardState: Equatable, Codable, Sendable {
     public var combo: Int
     public var earnedComboBonus: Int
     public var wildMeter: Double
+    public var luckyDropUsed: Bool = false
     public var wildSpawnCount: Int
     public var lastWildDropType: NativeWildArchetype?
     public var wildDropTypeStreak: Int
@@ -229,7 +217,7 @@ extension NativeTile {
     }
 }
 extension NativeBoardState {
-    private enum CodingKeys: String, CodingKey { case columns,rows,tiles,mode,board,stage,generation,revision,moves,maxMoves,score,starsCount,bestScore,maxStackDepth,longestCombo,cubesCracked,combo,earnedComboBonus,wildMeter,wildSpawnCount,lastWildDropType,wildDropTypeStreak,rngState,terminal,tutorial,sourceDetachedGridTileIDs,arcadeVariant }
+    private enum CodingKeys: String, CodingKey { case luckyDropUsed,columns,rows,tiles,mode,board,stage,generation,revision,moves,maxMoves,score,starsCount,bestScore,maxStackDepth,longestCombo,cubesCracked,combo,earnedComboBonus,wildMeter,wildSpawnCount,lastWildDropType,wildDropTypeStreak,rngState,terminal,tutorial,sourceDetachedGridTileIDs,arcadeVariant }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy:CodingKeys.self)
         self.init(columns:try c.decode(Int.self,forKey:.columns),rows:try c.decode(Int.self,forKey:.rows),tiles:try c.decode([NativeTile].self,forKey:.tiles),
@@ -242,6 +230,7 @@ extension NativeBoardState {
             wildSpawnCount:try c.decodeIfPresent(Int.self,forKey:.wildSpawnCount) ?? 0,lastWildDropType:try c.decodeIfPresent(NativeWildArchetype.self,forKey:.lastWildDropType),
             wildDropTypeStreak:try c.decodeIfPresent(Int.self,forKey:.wildDropTypeStreak) ?? 0,rngState:try c.decodeIfPresent(UInt64.self,forKey:.rngState) ?? 1,
             terminal:try c.decodeIfPresent(NativeResolution.self,forKey:.terminal),tutorial:try c.decodeIfPresent(NativeTutorialState.self,forKey:.tutorial),sourceDetachedGridTileIDs:try c.decodeIfPresent(Set<String>.self,forKey:.sourceDetachedGridTileIDs),arcadeVariant:try c.decodeIfPresent(NativeArcadeVariant.self,forKey:.arcadeVariant))
+        luckyDropUsed = try c.decodeIfPresent(Bool.self,forKey:.luckyDropUsed) ?? false
     }
 }
 

@@ -17,6 +17,7 @@ struct NativeAppServices {
     var prepareGameplayEntry:(Int?,@escaping(Bool)->Void)->Void = {_,completion in completion(true)}
     var cancelGameplayEntry:()->Void = {}
     var selectArcadeVariant:(NativeArcadeVariant)throws->Void = {_ in}
+    var canContinueArcade:(NativeArcadeVariant)->Bool = {_ in false}
     var flush: () throws -> Void
     var ambient: (Int, CGRect, [Int]) -> [[String:Any]]? = {_,_,_ in nil}
     var bees: ([Int]) -> [[String:Any]]? = {_ in nil}
@@ -101,6 +102,10 @@ final class NativeAppController: UIViewController {
         hub = JimiV9HubView(frame:view.bounds,assets:artwork)
         settingsView = JimiNativeSettingsView(frame:view.bounds,assets:artwork)
         arcadeHub = NativeArcadeHubView(frame:view.bounds,assets:artwork)
+        arcadeHub.canContinue = {[weak self] identifier in
+            guard let self,let variant=NativeArcadeVariant(rawValue:identifier) else{return false}
+            return self.services.canContinueArcade(variant)
+        }
         for surface in [home as UIView,hub as UIView,arcadeHub as UIView,settingsView as UIView] {
             surface.autoresizingMask = [.flexibleWidth,.flexibleHeight];surface.isHidden = true;view.addSubview(surface)
         }
@@ -118,13 +123,19 @@ final class NativeAppController: UIViewController {
             self.motion.cancel();self.home.pauseHeroIdle();return true
         }
         home.onPanEnded = { [weak self] index,_ in self?.selectSlide(index,feedback:"tab-swipe") }
+        arcadeHub.onCrate = {[weak self] in
+            guard let self,!self.disposed,!self.suspended,!self.transitioning,self.route == .arcadeHub else{return}
+            self.navigate(.backpack)
+        }
         arcadeHub.onClose = {[weak self] in self?.navigate(.home,interrupt:true)}
         arcadeHub.onPlay = {[weak self] identifier in
             guard let self,!self.disposed,!self.suspended,!self.transitioning,self.route == .arcadeHub,
                   let variant=NativeArcadeVariant(rawValue:identifier) else{return}
             do {try self.services.selectArcadeVariant(variant)} catch {self.showFault(error);return}
             self.transitioning=true;self.arcadeHub.setContentInteractionEnabled(false);self.arcadeHub.suspend()
-            self.prepareGameplayLaunch(boardID:nil,exit:{[weak self] done in
+            // New variant rules must never alter the required authored tutorial.
+            let tutorialBoard:Int? = self.services.requiresTutorial() && variant != .endurance ? 1:nil
+            self.prepareGameplayLaunch(boardID:tutorialBoard,exit:{[weak self] done in
                 guard let self else{return};self.motion.animate(self.arcadeHub.tracks(enter:false),completion:done)
             })
         }
@@ -188,7 +199,7 @@ final class NativeAppController: UIViewController {
     func navigate(_ next:Route,interrupt:Bool = false) {
         guard studioIntro == nil,route != next,(!transitioning || interrupt),route != .gameplay else{return}
         if next == .backpack {
-            if case .world = route {backpackReturnRoute=route}else{backpackReturnRoute = .hub}
+            if case .world = route {backpackReturnRoute=route}else{backpackReturnRoute = route == .arcadeHub ? .arcadeHub:.hub}
         }
         retireDeveloperPresentation()
         cancelWorldEntryPreparation()
@@ -211,6 +222,8 @@ final class NativeAppController: UIViewController {
                 transitioning=false;hub.setContentInteractionEnabled(true);hub.startIdle();showFault(error);return
             }
         }
+        // Journey hubTracks owns the selected World scale and collapse.
+        // An additional artwork pulse compounds that same visible tap.
         onFeedback?(route == .backpack || next == .home || next == .hub && route != .home ? "back" : "cta")
         let complete:()->Void = { [weak self] in
             guard let self,self.generation == owner else{return}
@@ -253,14 +266,18 @@ final class NativeAppController: UIViewController {
         }
         switch next {
         case .backpack:
+            let crate = backpackReturnRoute == .arcadeHub
+            if let current=backpackView,current.arcadeCrate != crate {
+                retireBackpackDetail();current.onClose=nil;current.onDie=nil;current.removeFromSuperview();backpackView=nil
+            }
             if backpackView == nil {
-                let screen=NativeBackpackView(frame:view.bounds,assets:JimiV9Artwork(resourceRoot:resourceRoot))
+                let screen=NativeBackpackView(frame:view.bounds,assets:JimiV9Artwork(resourceRoot:resourceRoot),title:crate ? "Dice Box":"Backpack",arcadeCrate:crate)
                 screen.autoresizingMask=[.flexibleWidth,.flexibleHeight];view.addSubview(screen);backpackView=screen
-                screen.onClose={[weak self] in guard let self else{return};self.navigate(self.backpackReturnRoute)}
+                screen.onClose={[weak self] in guard let self,!self.disposed,!self.suspended,!self.transitioning,self.route == .backpack else{return};self.navigate(self.backpackReturnRoute)}
                 screen.onDie={[weak self] die in self?.openBackpackDetail(die)}
             }
             backpackView?.isHidden=false;backpackView?.isUserInteractionEnabled=false
-            backpackView?.apply(NativeBackpackCatalog.sections(services.journeyProgression()))
+            backpackView?.apply(crate ? []:NativeBackpackCatalog.sections(services.journeyProgression()))
             motion.animate(backpackView?.tracks(enter:true) ?? [],completion:admitted)
         case .home:
             home.isHidden = false;home.selectSlide(home.selectedSlide,animated:false)
@@ -550,7 +567,7 @@ final class NativeAppController: UIViewController {
     private func retireBackpackDetail(){backpackDetail?.dispose();backpackDetail?.dismiss(animated:false);backpackDetail=nil}
     private func showFault(_ error:Error) {fault.text = error.localizedDescription;fault.isHidden = false;view.bringSubviewToFront(fault)}
     private func suspend() {
-        suspended = true;motion.suspend();backpackDetail?.setForeground(false)
+        suspended = true;motion.suspend();backpackView?.isUserInteractionEnabled=false;backpackDetail?.setForeground(false)
         if let launch=gameplayLaunchPreparation {
             deferredReveal=launch.board.map{.world(($0-1)/10+1)} ?? .arcadeHub
             generation+=1;transitioning=false
@@ -586,7 +603,7 @@ final class NativeAppController: UIViewController {
         cancelGameplayLaunchPreparation()
         cancelWorldEntryPreparation()
         generation += 1;transitioning = true;suspended = true;deferredReveal = nil
-        arcadeHub?.hide();arcadeHub?.onClose=nil;arcadeHub?.onPlay=nil
+        arcadeHub?.hide();arcadeHub?.onClose=nil;arcadeHub?.onPlay=nil;arcadeHub?.onCrate=nil;arcadeHub?.canContinue=nil
         motion?.cancel();home?.stopHeroIdle(preservePaintedPose:false);hub?.stopIdle()
         retireBackpackDetail();backpackView?.onClose=nil;backpackView?.onDie=nil;backpackView?.removeFromSuperview();backpackView=nil
         backpack?.dispose();backpack=nil;hub?.onBackpack=nil

@@ -56,19 +56,19 @@ final class NativeBottleFinaleTests: XCTestCase {
     func testRisingBubbleOpacityHasContinuousVarietyAndPreservesRandomDrawCount() {
         for roll in [0.0,0.5,1.0] {
             var draws=0
-            let values=NativeBottleFinaleMotion.mixedOpacities(count:40,range:0.3...0.9,random:{draws+=1;return roll})
+            let values=NativeBottleFinaleMotion.mixedOpacities(count:40,range:0.3...0.8,random:{draws+=1;return roll})
             XCTAssertEqual(values.count,40);XCTAssertEqual(Set(values).count,40)
-            XCTAssertTrue(values.allSatisfy{(0.3...0.9).contains($0)})
+            XCTAssertTrue(values.allSatisfy{(0.3...0.8).contains($0)})
             XCTAssertEqual(draws,79,"Opacity changes must preserve subsequent authored motion draws")
             for (index,value) in values.sorted().enumerated() {
-                XCTAssertEqual(value,0.3+0.6*(CGFloat(index)+CGFloat(roll))/40,accuracy:0.000001)
+                XCTAssertEqual(value,0.3+0.5*(CGFloat(index)+CGFloat(roll))/40,accuracy:0.000001)
             }
         }
-        let first=NativeBottleFinaleMotion.mixedOpacities(count:40,range:0.3...0.9,random:{0})
-        let second=NativeBottleFinaleMotion.mixedOpacities(count:40,range:0.3...0.9,random:{1})
+        let first=NativeBottleFinaleMotion.mixedOpacities(count:40,range:0.3...0.8,random:{0})
+        let second=NativeBottleFinaleMotion.mixedOpacities(count:40,range:0.3...0.8,random:{1})
         XCTAssertNotEqual(first,second)
     }
-    func testActualRisingBubblesStayBelowNinetyPercentIncludingPopOvershoot() {
+    func testActualBottleBubblesStayBelowEightyPercentIncludingPopOvershoot() {
         let owner=NativeBottleFinalePresentation(resourceRoot:root,viewport:.init(width:390,height:844),random:{0.5})
         defer{owner.dispose()}
         owner.layoutIfNeeded()
@@ -78,14 +78,14 @@ final class NativeBottleFinaleTests: XCTestCase {
         var brightest:CGFloat=0
         for frame in 0...684 {
             owner.paint(seconds:Double(frame)/120)
-            for image in rising {
+            for image in images {
                 XCTAssertGreaterThanOrEqual(image.alpha,0)
-                XCTAssertLessThanOrEqual(image.alpha,0.9+0.000001)
+                XCTAssertLessThanOrEqual(image.alpha,0.8+0.000001)
                 brightest=max(brightest,image.alpha)
             }
         }
-        XCTAssertEqual(brightest,0.9,accuracy:0.000001)
-        XCTAssertTrue(rising.allSatisfy{$0.alpha==0},"Authored final fade must still reach transparent")
+        XCTAssertEqual(brightest,0.8,accuracy:0.000001)
+        XCTAssertTrue(images.allSatisfy{$0.alpha==0},"Authored final fade must still reach transparent")
     }
     func testDisposedSuspendedOwnerReleasesItsClockAndCannotFinishTwice() async {
         let window = UIWindow(frame: CGRect(x: 0,y: 0,width: 390,height: 844)),controller = UIViewController()

@@ -57,6 +57,7 @@ import StackToSixNativeState
                 if let button=root as? UIButton,button.accessibilityIdentifier == "native.arcade-world-modal.play" { return button }
                 return root.subviews.lazy.compactMap { findPlay($0) }.first
             }
+            try await waitUntil { findPlay(app.arcadeHub) != nil }
             let play=try XCTUnwrap(findPlay(app.arcadeHub))
             try await waitUntil { play.isEnabled }
             play.sendActions(for:.touchUpInside)

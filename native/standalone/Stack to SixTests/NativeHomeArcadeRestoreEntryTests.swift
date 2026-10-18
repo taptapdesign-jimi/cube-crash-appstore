@@ -12,6 +12,35 @@ import StackToSixNativeState
     func testLaterSavedRoundReentryPreservesItsRoundScoreMovesAndDice()async throws {
         try await exercise(round:4)
     }
+    func testModalCTAUsesEachProfileFreshSavedPendingExpiredAndTutorialState()async throws {
+        for scenario in 0..<3 {
+            let directory=FileManager.default.temporaryDirectory.appendingPathComponent("arcade-cta-profile-"+UUID().uuidString)
+            let store=NativeSaveStore(directory:directory)
+            var envelope=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
+            envelope.progression.firstPlayTutorialComplete=scenario != 2
+            envelope.arcadeVariantRuns[NativeArcadeVariant.pureDice.rawValue]=NativeBoardFactory.make(mode:.arcade,board:1,generation:1,seed:17,arcadeVariant:.pureDice)
+            envelope.arcadeVariantPendingRounds[NativeArcadeVariant.slowBurn.rawValue] = .init(round:2,score:100)
+            if scenario==1 {envelope.arcadeVariantRunSavedAt[NativeArcadeVariant.pureDice.rawValue]=Date().timeIntervalSince1970-8*24*60*60}
+            try store.save(envelope)
+            let host=NativeStandaloneViewController(resourceRoot:NativeTestResources.root,store:store,sourceVisualRandom:{0.1},completeNativeGameplayEnabled:true)
+            let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=host;window.makeKeyAndVisible()
+            defer{host.dispose();window.isHidden=true;try? FileManager.default.removeItem(at:directory)}
+            host.loadViewIfNeeded();let app=try XCTUnwrap(host.children.first as? NativeAppController)
+            try await wait("Home ready, scenario \(scenario)"){app.route == .home && !app.home.isHidden && app.home.isUserInteractionEnabled}
+            app.home.onActivate?(1)
+            try await wait("Hub ready"){app.route == .arcadeHub && app.arcadeHub.hub.scrollView.isUserInteractionEnabled}
+            for (index,id) in app.arcadeHub.hub.worldIDs.enumerated() {
+                app.arcadeHub.hub.onWorld?(id)
+                try await wait("Modal ready"){self.button(app.view,id:"native.arcade-world-modal.play")?.isEnabled == true}
+                let play=try XCTUnwrap(button(app.view,id:"native.arcade-world-modal.play"))
+                let expected=scenario==2 || index==0 || scenario==1 && index==1 ? "Play":"Continue"
+                XCTAssertEqual(play.title(for:.normal),expected,"scenario \(scenario), profile \(index)")
+                XCTAssertEqual(try store.load()?.activeArcadeVariant,.endurance,"Opening a modal must not change the selected save profile")
+                try XCTUnwrap(button(app.view,id:"native.arcade-world-modal.close")).sendActions(for:.touchUpInside)
+                try await wait("Modal closed"){self.button(app.view,id:"native.arcade-world-modal.play")==nil}
+            }
+        }
+    }
     private func wait(_ label:String,_ predicate:()->Bool)async throws {
         let deadline=Date().addingTimeInterval(40)
         while !predicate(){guard Date()<deadline else{XCTFail(label);throw CancellationError()};try await Task.sleep(for:.milliseconds(10))}
@@ -67,8 +96,10 @@ import StackToSixNativeState
         }
         let endurance = try XCTUnwrap(app.arcadeHub.hub.worldUnits.first { $0.tag == 1 })
         endurance.sendActions(for:.touchUpInside)
+        try await wait("World bounce reaches modal") { self.button(app.arcadeHub,id:"native.arcade-world-modal.play") != nil }
         let play = try XCTUnwrap(button(app.arcadeHub,id:"native.arcade-world-modal.play"))
         try await wait("Endurance modal ready") { play.isEnabled }
+        XCTAssertEqual(play.title(for:.normal),"Continue","Existing Round1 is still a saved run, not a fresh start")
         play.sendActions(for:.touchUpInside)
         try await wait("Home Arcade controller mounted"){app.children.contains{$0 is NativeGameplayViewController}}
         let game=try XCTUnwrap(app.children.compactMap{$0 as? NativeGameplayViewController}.first)

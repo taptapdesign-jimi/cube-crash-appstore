@@ -270,3 +270,7 @@ A gameplay cleanup is done only when:
 ## 10. Changing this contract
 
 Automated cleanup, refactoring, dependency upgrades, linting and agent preference may not silently change this document. A behavioral clause changes only when the user explicitly requests the gameplay change and the same change updates tests and the contract.
+
+### Native Arcade variants — user requested 2026-10-17
+
+Arcade Home opens a dedicated three-world Hub with individual information/Play modals. Endurance retains the existing Arcade rules and legacy durable slot. One Lucky Drop (save identifier pureDice) slowly charges the meter at40percent first-round gain (4.6percent per ordinary merge,10.12percent per nonfinal six; same pace in later rounds), allows one random Special meter drop per round, then keeps meter at zero until the next round. The additive luckyDropUsed save flag is consumed with charge before travel and survives restore; rounds1–4 use small-value opening bias80/65/50/35percent and round5+ uses existing Arcade random draws. Slow Burn uses half normal meter gains across all merge paths and carries completed-round charge into the next round; explicit restart starts fresh. Existing special eligibility/unlocks, final reward veto, transactions, drag and scoring remain canonical. Each variant owns independent durable run, pending round and score/combo/stage records, encoded additively in the Native document; absent variant means Endurance. Journey progression/rules and preserved PWA remain separate.

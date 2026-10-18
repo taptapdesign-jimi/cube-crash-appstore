@@ -14,6 +14,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
     let scrollView: UIScrollView = JimiV9HubScrollView()
     let header = JimiV9NavigationHeader(frame:.zero)
     private let navigationTarget = UIButton(type:.custom)
+    private let crateNavigationTarget = UIButton(type:.custom)
     let backButton = JimiV9PlainButton(type: .custom)
     let backpackButton = JimiV9PlainButton(type: .custom)
     private let content = UIView()
@@ -53,6 +54,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
         // Header CA motion changes its model geometry; the navigation target stays
         // at its authored position while content remains gated independently.
         if navigationTarget.frame.contains(point), backButton.isEnabled { return navigationTarget }
+        if arcade,crateNavigationTarget.frame.contains(point),backpackButton.isEnabled { return crateNavigationTarget }
         return super.hitTest(point,with:event)
     }
 
@@ -64,6 +66,10 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
         navigationTarget.isAccessibilityElement = false
         navigationTarget.addTarget(self,action:#selector(back),for:.touchUpInside)
         addSubview(navigationTarget)
+        crateNavigationTarget.isAccessibilityElement = false
+        crateNavigationTarget.isHidden = !arcade
+        crateNavigationTarget.addTarget(self,action:#selector(backpack),for:.touchUpInside)
+        addSubview(crateNavigationTarget)
         accessibilityIdentifier = "native.hub"
         scrollView.contentInsetAdjustmentBehavior = .never
         scrollView.alwaysBounceVertical = true
@@ -75,7 +81,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
         let paths = arcade ? ["assets/arcade/endourance.png", "assets/arcade/pure dice.png", "assets/arcade/slow burn.png"] : ["assets/journey assets/forest/forest world/1Forest main.png",
                      "assets/journey assets/robo/robo world/robo-main.png",
                      "assets/journey assets/beach/Beacj world/beach-main.png"]
-        let names = arcade ? ["Endurance", "Pure Dice", "Slow Burn"] : ["Forest", "Area 55", "Beach"]
+        let names = arcade ? ["Endurance", "One Lucky Drop", "Slow Burn"] : ["Forest", "Area 55", "Beach"]
         let cloudPaths = ["oblak-forest1", "oblak-forest2", "oblak+srednji", "oblak mali ljevo", "oblak mali desno", "oblak veliki ljevo dole"]
         let clouds: [(Int, CGFloat, CGFloat, CGFloat, CGFloat)] = [
             (5,-70,-6,272,0.78),(1,-92,58,188,0.74),(5,100,6,248,0.76),(2,200,138,166,0.72),
@@ -127,23 +133,25 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
             revealShell.isHidden = arcade
             let artwork = UIImageView(image: assets.image(paths[index], densityAware: arcade || id == 1))
             artwork.frame = CGRect(x: 0, y: 0, width: 273, height: 190)
-            artwork.contentMode = .scaleAspectFit; tilt.addSubview(artwork)
+            artwork.contentMode = .scaleAspectFit
+            artwork.accessibilityIdentifier = arcade ? "native.arcade-hub.art.\(id)" : "native.hub.art.\(id)"
+            tilt.addSubview(artwork)
             artworkViews[id] = artwork
             content.addSubview(button); worldUnits.append(button)
         }
         header.backgroundColor = UIColor(red: 243/255, green: 238/255, blue: 232/255, alpha: 0.8)
         addSubview(header)
-        backButton.setImage(assets.image(arcade ? "assets/close-icon.png" : "assets/chevron-back.png"), for: .normal)
+        backButton.setImage(assets.image("assets/chevron-back.png"), for: .normal)
         backButton.imageView?.contentMode = .scaleAspectFit
         backButton.imageEdgeInsets = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
         backButton.accessibilityLabel = "Back to slider"; backButton.accessibilityIdentifier = "native.hub.back"
         backButton.addTarget(self, action: #selector(back), for: .touchUpInside)
-        backpackButton.setImage(assets.image("assets/nav/stats-nav.png", densityAware: true), for: .normal)
+        backpackButton.setImage(assets.image(arcade ? "assets/hud/crate - hud.png" : "assets/nav/stats-nav.png", densityAware: true), for: .normal)
         backpackButton.imageView?.contentMode = .scaleAspectFit
-        backpackButton.imageEdgeInsets = UIEdgeInsets(top: 4, left: 0, bottom: 4, right: 0)
-        backpackButton.accessibilityLabel = "Backpack"; backpackButton.accessibilityIdentifier = "native.hub.backpack"
+        backpackButton.imageEdgeInsets = arcade ? UIEdgeInsets(top:4.8,left:0.8,bottom:4.8,right:0.8) : UIEdgeInsets(top:4,left:0,bottom:4,right:0)
+        backpackButton.accessibilityLabel = arcade ? "Dice Box" : "Backpack"; backpackButton.accessibilityIdentifier = arcade ? "native.arcade-hub.crate" : "native.hub.backpack"
         backpackButton.addTarget(self, action: #selector(backpack), for: .touchUpInside)
-        backpackButton.isHidden = arcade
+        backpackButton.isHidden = false
         title.text = arcade ? "Arcade" : "Journey"; title.font = assets.font(size: 32, weight: "ExtraBold")
         title.textColor = UIColor(red: 173/255, green: 135/255, blue: 117/255, alpha: 1)
         title.textAlignment = .center
@@ -172,14 +180,30 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
         let width = bounds.width, top = safeAreaInsets.top
         scrollView.frame = bounds
         let hubHeight = top + 747 + 128 - min(bounds.height*0.08, 68) - min(bounds.height*0.062, 53) + safeAreaInsets.bottom
-        content.frame = CGRect(x: 0, y: 0, width: width, height: max(bounds.height, arcade ? top + 930 + safeAreaInsets.bottom : hubHeight))
+        let row=JimiV9NavigationHeader.RowLayout(bounds:bounds,safeAreaTop:top)
+        let arcadeTop = row.top+66+20
+        let arcadeBottom = bounds.height-safeAreaInsets.bottom-20
+        let baselineArcadeGap:CGFloat = 20
+        let ratios = worldIDs.map { id -> CGFloat in
+            guard let image=artworkViews[id]?.image else { return 1 }
+            return image.size.height/max(1,image.size.width)
+        }
+        let fittedWidth = max(0,(arcadeBottom-arcadeTop-baselineArcadeGap*2)/max(1,ratios.reduce(0,+)))
+        let buttonWidth = arcade ? min(width*0.676,273,fittedWidth)*1.2 : min(width*0.676,273)
+        // Keep all enlarged islands inside the same viewport. The staggered
+        // transparent image envelopes may interleave vertically.
+        let arcadeGap = (arcadeBottom-arcadeTop-buttonWidth*ratios.reduce(0,+))/2
+        let visualSize = arcade ? buttonWidth*0.96 : min(width*0.65,254)
+        let flagWidth = min(width*0.385,150)
+        content.frame = CGRect(x:0,y:0,width:width,height:arcade ? bounds.height : max(bounds.height,hubHeight))
         scrollView.contentSize = content.bounds.size
-        let buttonWidth = arcade ? min(width*0.82,330) : min(width*0.676, 273), buttonHeight = arcade ? min(width*0.60,240) : min(width*0.468, 190)
-        let visualSize = arcade ? min(width*0.82, 330) : min(width*0.65, 254), flagWidth = min(width*0.385, 150)
+        var arcadeY = arcadeTop
         let flagHeight = flagWidth*49/105
         for (index, unit) in worldUnits.enumerated() {
             let id = worldIDs[index]
-            let y: CGFloat = arcade ? [140,390,640][index] : [118,323,557][index]
+            let y: CGFloat = arcade ? arcadeY-top+[0,15,34][index] : [118,323,557][index]
+            let buttonHeight = arcade ? buttonWidth*ratios[index] : min(width*0.468,190)
+            if arcade { arcadeY += buttonHeight+arcadeGap }
             let originalX: CGFloat = id == 3 ? width+8-buttonWidth : (id == 1 ? -2 : -6)
             let x: CGFloat = id == 3 ? width-16-buttonWidth : 16
             let rect = CGRect(x: x, y: top+y, width: buttonWidth, height: buttonHeight)
@@ -189,11 +213,14 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
             // (which jumps every World upward before/during its collapse).
             unit.layer.position = CGPoint(x: rect.minX + rect.width * unit.layer.anchorPoint.x,
                                           y: rect.minY + rect.height * unit.layer.anchorPoint.y)
-            floats[id]?.bounds = CGRect(x: 0, y: 0, width: visualSize, height: visualSize)
-            floats[id]?.center = CGPoint(x: arcade ? (id == 3 ? buttonWidth-visualSize/2 : visualSize/2) : buttonWidth/2, y: buttonHeight*0.48)
-            tilts[id]?.bounds = CGRect(x: 0, y: 0, width: visualSize, height: visualSize)
+            let visualHeight = arcade ? buttonHeight*0.96 : visualSize
+            floats[id]?.bounds = CGRect(x: 0, y: 0, width: visualSize, height: visualHeight)
+            // Artwork adjustments are independent of the Unit/cloud motion owner.
+            let artworkShift:CGPoint = arcade ? [CGPoint(x:-5,y:0),CGPoint(x:5,y:16),CGPoint(x:-5,y:15)][index] : .zero
+            floats[id]?.center = CGPoint(x:buttonWidth/2+artworkShift.x,y:(arcade ? buttonHeight/2 : buttonHeight*0.48)+artworkShift.y)
+            tilts[id]?.bounds = CGRect(x: 0, y: 0, width: visualSize, height: visualHeight)
             tilts[id]?.layer.anchorPoint = CGPoint(x: 0.5, y: 0.54)
-            tilts[id]?.layer.position = CGPoint(x: visualSize*0.5, y: visualSize*0.54)
+            tilts[id]?.layer.position = CGPoint(x: visualSize*0.5, y: visualHeight*0.54)
             bannerRevealShells[id]?.bounds = CGRect(x: 0,y: 0,width: visualSize,height: visualSize)
             bannerRevealShells[id]?.center = CGPoint(x: visualSize/2,y: visualSize/2)
             if let art = artworkViews[id] {
@@ -212,13 +239,19 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
             }
             var overflow = rect
             for (cloud, authored) in cloudViews where cloudWorldID(authored.minY) == id {
-                let cloudRect = authored.offsetBy(dx: x-originalX, dy: top+82 + (arcade ? y - [118,323,557][index] : 0))
+                // Endurance moves its complete cloud group; the other worlds
+                // move only their upper cloud row, preserving lower clouds.
+                let cloudShift:CGFloat = !arcade ? 0 : id == 1 ? 40 : (id == 3 && authored.minY < 400 || id == 2 && authored.minY < 632) ? 24 : 0
+                let cloudRect = authored.offsetBy(dx: x-originalX+(arcade && id == 3 ? 40:0), dy: top+82 + (arcade ? y - [118,323,557][index] : 0)+cloudShift)
                 cloud.frame = cloudRect.offsetBy(dx: -rect.minX, dy: -rect.minY)
                 overflow = overflow.union(cloudRect)
             }
             visualBounds[id] = overflow.insetBy(dx: -12, dy: -12)
         }
-        let row=JimiV9NavigationHeader.RowLayout(bounds:bounds,safeAreaTop:top)
+        if arcade,let last=worldUnits.last {
+            content.frame.size.height = max(bounds.height,last.frame.maxY+20+safeAreaInsets.bottom)
+            scrollView.contentSize = content.bounds.size
+        }
         let headerTop=row.top
         // Header is a route-motion target with a top-center animation pivot.
         // frame is undefined under its collapsed model transform; retain the
@@ -229,6 +262,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
         backButton.frame = row.buttonFrame(x:24)
         navigationTarget.frame = backButton.frame
         backpackButton.frame = row.buttonFrame(x:width-64,width:40,height:48)
+        crateNavigationTarget.frame = backpackButton.frame.insetBy(dx:-2,dy:0)
         title.frame = row.titleFrame
         updateIdleAdmission()
     }
@@ -252,6 +286,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
 
     /// Parent calls while Hub is hidden, before priming route-enter transforms.
     func resetIdlePose() {
+        cancelWorldTap()
         stopIdle()
         idleClocks.removeAll()
         pausedIdleOffsets.removeAll()
@@ -265,10 +300,10 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
         CATransaction.commit()
     }
 
-    override var isHidden: Bool { didSet { if isHidden { stopIdle() } } }
+    override var isHidden: Bool { didSet { if isHidden { cancelWorldTap();stopIdle() } } }
     override func didMoveToWindow() {
         super.didMoveToWindow()
-        if window == nil { stopIdle() }
+        if window == nil { cancelWorldTap();stopIdle() }
     }
     func scrollViewDidScroll(_ scrollView: UIScrollView) { updateIdleAdmission() }
 
@@ -371,6 +406,26 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
             keys.forEach { layer.removeAnimation(forKey: $0) }
         }
         CATransaction.commit()
+    }
+    /// Artwork-only finite contact; the Unit route shell and shared idle
+    /// transforms keep their own owners. No timer or recurring observer.
+    static let worldTapAnimationKey="native.hub.world-scale-up"
+    func playWorldTap(_ id:Int,completion:@escaping()->Void) {
+        guard let target=artworkViews[id],window != nil,!UIAccessibility.isReduceMotionEnabled else { completion();return }
+        CATransaction.begin();CATransaction.setCompletionBlock(completion)
+        // A gentle enlargement and return, without the navigation icon's
+        // compressed first frame or elastic overshoot. Child artwork keeps
+        // this independent of the Unit's authored idle and route exit.
+        let animation=CAKeyframeAnimation(keyPath:"transform.scale")
+        animation.values=[1,1.12,1];animation.keyTimes=[0,0.6,1]
+        animation.duration=0.25
+        animation.timingFunctions=Array(repeating:CAMediaTimingFunction(name:.easeInEaseOut),count:2)
+        animation.beginTime=target.layer.convertTime(CACurrentMediaTime(),from:nil)
+        target.layer.add(animation,forKey:Self.worldTapAnimationKey)
+        CATransaction.commit()
+    }
+    func cancelWorldTap() {
+        for target in artworkViews.values { target.layer.removeAnimation(forKey:Self.worldTapAnimationKey) }
     }
     @objc private func back() { onBack?() }
     @objc private func backpack() { onBackpack?() }

@@ -40,6 +40,33 @@ final class NativeArcadeNavigationTests: XCTestCase {
             XCTAssertFalse(root.arcadeHub.isHidden)
         }
     }
+    func testRequiredTutorialUsesCanonicalJourneyForNewVariants() async throws {
+        for variant in NativeArcadeVariant.allCases {
+            let expectedBoard: Int? = variant == .endurance ? nil : 1
+            var events: [String] = []
+            var selectedVariant: NativeArcadeVariant?
+            var source = services { board, _ in
+                XCTAssertEqual(board, expectedBoard)
+                XCTAssertEqual(selectedVariant, variant)
+                events.append("make")
+                return UIViewController()
+            }
+            source.requiresTutorial = { true }
+            source.selectArcadeVariant = { selectedVariant = $0; events.append("select") }
+            source.prepareGameplayEntry = { board, ready in
+                XCTAssertEqual(board, expectedBoard)
+                events.append("prepare"); ready(true)
+            }
+            let (root, window) = mount(source)
+            defer { root.dispose(); window.isHidden = true }
+            root.navigate(.arcadeHub, interrupt: true)
+            try await waitFor { root.route == .arcadeHub && root.arcadeHub.hub.scrollView.isUserInteractionEnabled }
+            root.arcadeHub.onPlay?(variant.rawValue)
+            try await waitFor { root.route == .gameplay }
+            XCTAssertEqual(events, ["select", "prepare", "make"])
+            XCTAssertEqual(selectedVariant, variant)
+        }
+    }
     func testBackgroundRejectsLateArcadePreparationAndRestoresHub()async throws {
         var replies:[(Bool)->Void]=[],made=0,selected=0
         var source=services{_,_ in made += 1;return UIViewController()}

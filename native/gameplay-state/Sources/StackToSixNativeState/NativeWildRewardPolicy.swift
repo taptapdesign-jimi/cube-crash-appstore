@@ -4,6 +4,10 @@ import StackToSixGameplay
 /// Additional random draws are requested only at the same source decision boundaries.
 public enum NativeWildRewardPolicy {
     public static func choose(state:NativeBoardState,roll:Double,plainStarUnlocked:Bool,nextRoll:()->Double) -> NativeWildRewardChoice? {
+        if state.mode == .arcade && state.effectiveArcadeVariant == .pureDice {
+            let pool: [NativeWildArchetype] = plainStarUnlocked ? [.star,.juice,.magnet,.tnt] : [.juice,.magnet,.tnt]
+            return NativeWildRewardChoice(pool[min(pool.count-1,Int(bound(roll)*Double(pool.count)))])
+        }
         let board = state.board,count = state.wildSpawnCount
         if state.mode == .journey && ((1...10).contains(board) || (21...30).contains(board)) {
             guard let reward = NativeJourneyContent.reward(board:board,wildSpawnCount:count,roll:roll,previous:state.lastWildDropType) else {return nil}

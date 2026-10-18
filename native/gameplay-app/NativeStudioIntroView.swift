@@ -134,7 +134,7 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
         .init("lik-kauc",1.1475,0,40),.init("lik-gitara",1.1,0,16),.init("lik-slikanje",1.08,20,10),
         .init("lik-cvijet",1.08,0,8),.init("lik-board",1.04,0,16),.init("lik-game",1.08),
         .init("lik-laptop",1.452,0,8),.init("lik-pas-SVG",1.12,0,0,true),.init("lik-speceraj",1.21,0,20),
-        .init("lik-nogomet",1.1),.init("pas-novine",1.1,0,16)]
+        .init("pas-novine",1.1,0,16)]
     static let duration=4.33
     let character:Character
     private let artwork:JimiV9Artwork,logoUnit=UIView(),logo=UIImageView(),sheen=UIImageView(),label=UILabel(),characterView=UIView(),fallback=UIImageView()

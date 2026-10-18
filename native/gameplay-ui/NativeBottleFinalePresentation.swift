@@ -38,8 +38,8 @@ final class NativeBottleFinalePresentation: NativeFinitePresentation {
         // Source particle completion 0.30 + 5.35, followed by 0.05 cleanup.
         super.init(viewport: viewport,duration: 5.70)
         clipsToBounds = true; accessibilityIdentifier = "native-bottle-finale"
-        let trailAlpha = NativeBottleFinaleMotion.mixedOpacities(count: 60,random: random)
-        let mainAlpha = NativeBottleFinaleMotion.mixedOpacities(count: 40,range: 0.3...0.9,random: random)
+        let trailAlpha = NativeBottleFinaleMotion.mixedOpacities(count: 60,range: 0.3...0.8,random: random)
+        let mainAlpha = NativeBottleFinaleMotion.mixedOpacities(count: 40,range: 0.3...0.8,random: random)
         for (index,spec) in NativeBottleFinaleMotion.layers.enumerated() {
             let mover = UIView(); mover.backgroundColor = .clear; mover.layer.zPosition = spec.z; addSubview(mover)
             let image = UIImageView(image: artwork.image(pack+spec.asset+".png",densityAware: true))
@@ -131,7 +131,7 @@ final class NativeBottleFinalePresentation: NativeFinitePresentation {
                 let collapse = NativeBoardMotion.Ease.backIn(3).sample((local-popStart)/0.08)
                 scale = initial*(1-collapse); alpha = trail.alpha*(1-collapse)
             }
-            pose(trail.image,size: trail.size,center: CGPoint(x: origin.x+x,y: origin.y+y),scale: scale,alpha: alpha)
+            pose(trail.image,size: trail.size,center: CGPoint(x: origin.x+x,y: origin.y+y),scale: scale,alpha: min(0.8,alpha))
         }
         for (index,bubble) in bubbles.enumerated() where !retiredBubbles.contains(index) {
             let local = time-bubble.delay
@@ -142,7 +142,7 @@ final class NativeBottleFinalePresentation: NativeFinitePresentation {
             let x = NativeBottleFinaleMotion.keyframes([0,bubble.direction*bubble.weave*0.55,-bubble.direction*bubble.weave*0.8,bubble.direction*bubble.weave,-bubble.direction*bubble.weave*0.7,bubble.direction*bubble.weave*0.3],progress: p)
             let y = NativeBottleFinaleMotion.keyframes([0,-bubble.rise*0.18,-bubble.rise*(bubble.pause ? 0.43 : 0.38),-bubble.rise*(bubble.pause ? 0.49 : 0.6),-bubble.rise*(bubble.pause ? 0.7 : 0.8),-bubble.rise],progress: p)
             var scale = bubble.startScale*grow,alpha = bubble.alpha*min(1,max(0,grow))
-            let popAlpha = min(0.9,bubble.alpha+0.06)
+            let popAlpha = min(0.8,bubble.alpha+0.06)
             if local >= bubble.pop && local < bubble.pop+0.06 {
                 let p = NativeBoardMotion.Ease.power2Out.sample((local-bubble.pop)/0.06)
                 scale = bubble.startScale+(1.2-bubble.startScale)*p; alpha = bubble.alpha+(popAlpha-bubble.alpha)*p
@@ -151,7 +151,7 @@ final class NativeBottleFinalePresentation: NativeFinitePresentation {
                 scale = 1.2*(1-p); alpha = popAlpha*(1-p)
             }
             // The authored back-in pop may overshoot; keep its scale but cap opacity.
-            pose(bubble.image,size: bubble.size,center: CGPoint(x: bubble.origin.x+x,y: bubble.origin.y+y),scale: scale,alpha: min(0.9,alpha))
+            pose(bubble.image,size: bubble.size,center: CGPoint(x: bubble.origin.x+x,y: bubble.origin.y+y),scale: scale,alpha: min(0.8,alpha))
         }
         glyphs.paint(seconds: seconds)
     }

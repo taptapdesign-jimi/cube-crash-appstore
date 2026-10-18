@@ -627,6 +627,28 @@ public final class NativeGameplayEngine {
     public let sourceMathRandom:NativeSourceMathRandomStream?
     private var randomChoices: [Double]
     private let rewardPicker: ((NativeBoardState, Double, () -> Double) -> NativeWildRewardChoice?)?
+    private var meterDropAllowed: Bool {
+        state.effectiveArcadeVariant != .pureDice || !state.luckyDropUsed
+    }
+    private var arcadeChargeMultiplier: Double {
+        guard meterDropAllowed else { return 0 }
+        let variant = state.effectiveArcadeVariant
+        // Keep the single drop near the same part of every round, rather than
+        // inheriting Endurance's progressively slower stage/spawn modifiers.
+        if variant == .pureDice {
+            let normalGain = NativeWildMeterRules.increment(base:1,mode:.arcade,board:state.stage,spawnCount:state.wildSpawnCount)
+            return variant.meterMultiplier * 1.15 / normalGain
+        }
+        return variant.meterMultiplier
+    }
+    private func consumeMeterCharge() {
+        if state.effectiveArcadeVariant == .pureDice {
+            state.luckyDropUsed = true
+            state.wildMeter = 0
+        } else {
+            state.wildMeter = max(0,state.wildMeter-1)
+        }
+    }
     private func resetMeterAfterRound() {
         if state.effectiveArcadeVariant != .slowBurn { state.wildMeter = 0 }
     }
@@ -758,7 +780,7 @@ public final class NativeGameplayEngine {
     public func commitMeterReward(receiptID: String,generation: UInt64) -> NativeMoveResult {
         guard state.terminal == nil,generation == state.generation,let index = pendingMeterRewards.firstIndex(where: { $0.id == receiptID && $0.generation == generation }) else { return rejected("stale_or_duplicate_meter_reward") }
         let receipt = pendingMeterRewards.remove(at:index)
-        state.wildMeter += state.effectiveArcadeVariant.meterMultiplier * NativeWildMeterRules.increment(base:receipt.base,mode:state.mode,board:state.mode == .arcade ? state.stage : state.board,spawnCount:state.wildSpawnCount,tutorialSlow:state.tutorial?.completionAssist == true)
+        state.wildMeter += arcadeChargeMultiplier * NativeWildMeterRules.increment(base:receipt.base,mode:state.mode,board:state.mode == .arcade ? state.stage : state.board,spawnCount:state.wildSpawnCount,tutorialSlow:state.tutorial?.completionAssist == true)
         var events = [NativeGameplayEvent(.meterRewardCommitted,value:receipt.impactIndex,reason:receipt.id)]
         let resolution = settleDeferredFinalMerge(events:&events)
         return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolution)
@@ -776,7 +798,7 @@ public final class NativeGameplayEngine {
         if state.terminal == nil && directWildSpawnPhase != nil {return NativeResolution(.wait,reason:"direct_wild_spawn_continuation_pending")}
         if state.terminal == nil && (pendingOrdinaryStack != nil || pendingOrdinarySix != nil || !pendingOrdinaryPostchecks.isEmpty) { return NativeResolution(.wait,reason:"ordinary_mutation_pending") }
         if state.terminal == nil && !pendingMeterRewards.isEmpty { return NativeResolution(.wait,reason:"captured_meter_reward_pending") }
-        if state.effectiveArcadeVariant.allowsSpecials && state.terminal == nil && state.wildMeter >= 1-0.000001 && !flags.isWaiting { return NativeResolution(.wait,reason:"wild_continuation_pending") }
+        if meterDropAllowed && state.terminal == nil && state.wildMeter >= 1-0.000001 && !flags.isWaiting { return NativeResolution(.wait,reason:"wild_continuation_pending") }
         let resolution = NativeGameplayResolver.resolve(state: state, flags: resolutionRuntimeFlags)
         if resolution.kind == .fail && state.tutorial?.completionAssist == true { return NativeResolution(.wait,reason:"tutorial_final_chance_pending") }
         return resolution
@@ -858,7 +880,7 @@ public final class NativeGameplayEngine {
         // Meter reward can create a Special die. Never discard the reward or substitute a regular die.
         let arcadeStage = max(1, state.stage)
         let arcadeMeterMultiplier: Double = state.mode != .arcade ? 1 : arcadeStage == 1 ? 1.15 : arcadeStage == 2 ? 1 : arcadeStage == 3 ? 0.9 : arcadeStage == 4 ? 0.8 : arcadeStage < 8 ? 0.7 : 0.6
-        let meterIncrement = (effectiveSum == 6 ? 0.22 : 0.10) * (state.wildSpawnCount >= 2 ? 0.6 : 1) * arcadeMeterMultiplier * (state.tutorial?.meterMultiplier ?? 1) * state.effectiveArcadeVariant.meterMultiplier
+        let meterIncrement = (effectiveSum == 6 ? 0.22 : 0.10) * (state.wildSpawnCount >= 2 ? 0.6 : 1) * arcadeMeterMultiplier * (state.tutorial?.meterMultiplier ?? 1) * arcadeChargeMultiplier
         if pendingSpecial == nil && !final.isFinalMerge && state.wildMeter + meterIncrement >= 1 - 0.000001 && rewardPicker == nil && state.tutorial?.waitingForWild != true && state.tutorial?.specialBarDefersReward != true { return rejected("native_wild_meter_spawn_pending") }
         if stagedDirectWildMoves && !committingDirectWild,let gameplayArchetype,
            final.isFinalMerge || gameplayArchetype == .star || gameplayArchetype == .juice || sourceMagnetWithoutPull {
@@ -1306,7 +1328,7 @@ public final class NativeGameplayEngine {
         let multiplier = visual == .star || visual == .juice ? 2 : plan.source.stackDepth+plan.destination.stackDepth
         state.score = min(999999,state.score+6*multiplier*max(1,state.combo)); state.bestScore = max(state.bestScore,state.score)
         state.moves = max(0,state.moves-1); state.cubesCracked += 1
-        state.wildMeter += state.effectiveArcadeVariant.meterMultiplier * NativeWildMeterRules.increment(base:0.22,mode:state.mode,board:state.mode == .arcade ? state.stage : state.board,spawnCount:state.wildSpawnCount,tutorialSlow:state.tutorial?.completionAssist == true)
+        state.wildMeter += arcadeChargeMultiplier * NativeWildMeterRules.increment(base:0.22,mode:state.mode,board:state.mode == .arcade ? state.stage : state.board,spawnCount:state.wildSpawnCount,tutorialSlow:state.tutorial?.completionAssist == true)
         var events = [NativeGameplayEvent(.comboChanged,value:state.combo)]
         state.tiles.removeAll { $0.id == plan.destination.id }
         if stagedTntWildSpawnAssignments {
@@ -1370,7 +1392,7 @@ public final class NativeGameplayEngine {
         let impactIndex = specialImpactIndex
         var meterEvents: [NativeGameplayEvent] = []
         if impactIndex < 2 {
-            state.wildMeter += state.effectiveArcadeVariant.meterMultiplier * NativeWildMeterRules.increment(base:0.05,mode:state.mode,board:state.mode == .arcade ? state.stage : state.board,spawnCount:state.wildSpawnCount,tutorialSlow:state.tutorial?.completionAssist == true)
+            state.wildMeter += arcadeChargeMultiplier * NativeWildMeterRules.increment(base:0.05,mode:state.mode,board:state.mode == .arcade ? state.stage : state.board,spawnCount:state.wildSpawnCount,tutorialSlow:state.tutorial?.completionAssist == true)
         } else {
             let receipt = NativeMeterRewardReceipt(id:"\(plan.id):meter:\(impactIndex)",generation:state.generation,transactionID:plan.id,impactIndex:impactIndex,base:0.05,delay:0.4+Double(impactIndex-2)*0.1)
             pendingMeterRewards.append(receipt)
@@ -1664,7 +1686,7 @@ public final class NativeGameplayEngine {
             let holder = NativeTile(id:plan.destination.id,cell:plan.destination.cell,value:6)
             let unpulled = pre.activeTiles.filter { $0.id != plan.source.id && $0.id != plan.destination.id && !ownedIDs.contains($0.id) }
             let progress = NativeMagnetRules.pullProgress(activeBeforePull:[holder]+unpulled,mergeTile:holder,pulledCount:plan.targets.count)
-            if progress.addProgress { state.wildMeter += state.effectiveArcadeVariant.meterMultiplier * NativeWildMeterRules.increment(base:0.22,mode:state.mode,board:state.mode == .arcade ? state.stage : state.board,spawnCount:state.wildSpawnCount,tutorialSlow:state.tutorial?.completionAssist == true) }
+            if progress.addProgress { state.wildMeter += arcadeChargeMultiplier * NativeWildMeterRules.increment(base:0.22,mode:state.mode,board:state.mode == .arcade ? state.stage : state.board,spawnCount:state.wildSpawnCount,tutorialSlow:state.tutorial?.completionAssist == true) }
             else if progress.isLastMergeBeforePull { resetMeterAfterRound() }
         } else if plan.archetype != .tnt {
             state.tiles.removeAll { $0.id == plan.destination.id }
@@ -1673,7 +1695,7 @@ public final class NativeGameplayEngine {
             let multiplier = plan.archetype == .magnet || visualFx == .star || visualFx == .juice ? 2 : plan.source.stackDepth+plan.destination.stackDepth
             state.score = min(999999,state.score+6*multiplier*max(1,state.combo))
             spawnDirectWildMerge6(at:plan.destination.cell,archetype:plan.archetype,depth:multiplier,avoiding:avoiding,starOrbitCount:3,events:&events)
-            state.wildMeter += state.effectiveArcadeVariant.meterMultiplier * NativeWildMeterRules.increment(base:0.22,mode:state.mode,board:state.mode == .arcade ? state.stage : state.board,spawnCount:state.wildSpawnCount,tutorialSlow:state.tutorial?.completionAssist == true)
+            state.wildMeter += arcadeChargeMultiplier * NativeWildMeterRules.increment(base:0.22,mode:state.mode,board:state.mode == .arcade ? state.stage : state.board,spawnCount:state.wildSpawnCount,tutorialSlow:state.tutorial?.completionAssist == true)
         }
         if plan.archetype != .tnt { state.moves = max(0,state.moves-1) }
         state.longestCombo = max(state.longestCombo,state.combo)
@@ -2102,7 +2124,7 @@ public final class NativeGameplayEngine {
     }
     public func claimMeterReward() -> NativeMoveResult {claimMeterReward(sourceQueueOwned:false)}
     private func claimMeterReward(sourceQueueOwned:Bool)->NativeMoveResult {
-        guard state.effectiveArcadeVariant.allowsSpecials else { return rejected("pure_dice_no_specials") }
+        guard meterDropAllowed else { return rejected("one_lucky_drop_already_used") }
         guard state.tutorial?.specialBarDefersReward != true else { return rejected("tutorial_special_bar_reward_deferred") }
         // Only the captured queue's own progress writer is excluded. Every
         // independent mutation/end-game owner remains a claim veto.
@@ -2239,7 +2261,7 @@ public final class NativeGameplayEngine {
         return [drag.origin]
     }
     private func spawnMeterReward(events: inout [NativeGameplayEvent]) -> Bool {
-        guard state.effectiveArcadeVariant.allowsSpecials else { return true }
+        guard meterDropAllowed else { return true }
         if state.tutorial?.specialBarDefersReward == true { return true }
         // Existing Source wildSpawnInProgress blocks only another meter spawn;
         // ordinary moves/charge credit remain valid while the first die flies.
@@ -2261,7 +2283,7 @@ public final class NativeGameplayEngine {
             // Source openAtCell(skipSpawnAnimation:true) creates a hidden die,
             // then consumeWildCharge subtracts exactly one, retaining surplus.
             tile.visible=false;tile.alpha=0
-            state.tiles.append(tile);state.wildMeter=max(0,state.wildMeter-1)
+            state.tiles.append(tile);consumeMeterCharge()
             meterDropSequence &+= 1
             let drop=NativeMeterDropReservation(id:"native-meter-drop:\(state.generation):\(meterDropSequence)",
                 generation:state.generation,tileID:tile.id,cell:tile.cell,archetype:reward.archetype,variant:reward.variant)
@@ -2269,7 +2291,7 @@ public final class NativeGameplayEngine {
             events.append(NativeGameplayEvent(.meterDropReserved,tileIDs:[tile.id],value:6,archetype:reward.archetype,reason:drop.id,variant:reward.variant))
             return true
         }
-        state.tiles.append(tile); state.wildMeter = max(0,state.wildMeter-1); state.wildSpawnCount += 1
+        state.tiles.append(tile); consumeMeterCharge(); state.wildSpawnCount += 1
         if state.lastWildDropType == reward.archetype { state.wildDropTypeStreak += 1 } else { state.lastWildDropType = reward.archetype; state.wildDropTypeStreak = 1 }
         if state.tutorial?.waitingForWild == true {
             state.tutorial?.waitingForWild = false; state.tutorial?.step = .special; state.tutorial?.wildTileID = tile.id
@@ -2561,7 +2583,7 @@ extension NativeGameplayEngine {
             if let index=state.tiles.firstIndex(where:{$0.id==plan.destination.id}) {
                 state.tiles[index].locked=false;state.tiles[index].visible=true;state.tiles[index].alpha=1
             }
-            state.wildMeter += state.effectiveArcadeVariant.meterMultiplier * NativeWildMeterRules.increment(base:0.22,mode:state.mode,board:state.mode == .arcade ? state.stage:state.board,spawnCount:state.wildSpawnCount,tutorialSlow:state.tutorial?.completionAssist == true)
+            state.wildMeter += arcadeChargeMultiplier * NativeWildMeterRules.increment(base:0.22,mode:state.mode,board:state.mode == .arcade ? state.stage:state.board,spawnCount:state.wildSpawnCount,tutorialSlow:state.tutorial?.completionAssist == true)
             let caller=prepareSourceNoMovesCaller(ownerID:plan.id,kind:.mergeMovesDepleted)
             sourceNoMovesMergeContinuations[caller.id]=holdsEndgameDestination
             return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolve())
@@ -2575,7 +2597,7 @@ extension NativeGameplayEngine {
             spawnRegularMerge6(at:plan.destination.cell,depth:depth,events:&events)
             pendingOrdinarySpawns.formUnion(events.filter{$0.kind == .spawned}.flatMap(\.tileIDs))
         }
-        state.wildMeter += state.effectiveArcadeVariant.meterMultiplier * NativeWildMeterRules.increment(base:0.22,mode:state.mode,board:state.mode == .arcade ? state.stage:state.board,spawnCount:state.wildSpawnCount,tutorialSlow:state.tutorial?.completionAssist == true)
+        state.wildMeter += arcadeChargeMultiplier * NativeWildMeterRules.increment(base:0.22,mode:state.mode,board:state.mode == .arcade ? state.stage:state.board,spawnCount:state.wildSpawnCount,tutorialSlow:state.tutorial?.completionAssist == true)
         return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolve())
     }
 }
@@ -3914,7 +3936,7 @@ extension NativeGameplayEngine {
         var result=NativeNoMovesCandidateOwner.Guard(initialSignature:initial,currentSignature:sourceGameplaySignature.key)
         result.freshEndgameType = fresh.kind == .fail ? "stuck" : fresh.kind == .complete ? "clean":"continue"
         result.freshCheckFailed = !state.validationIssues(allowSourceDetachedGridReferences:sourceTutorialSubsequentPresentationEnabled).isEmpty
-        result.wildContinuation=sourceMeterSpawnInProgress || (state.effectiveArcadeVariant.allowsSpecials && state.wildMeter>=1-0.000001) || flags.wildSpawnInProgress || sourceSaveRuntime.wildSpawnInProgress || sourceWildRetryPending || sourceSaveRuntime.wildDropInProgress
+        result.wildContinuation=sourceMeterSpawnInProgress || (meterDropAllowed && state.wildMeter>=1-0.000001) || flags.wildSpawnInProgress || sourceSaveRuntime.wildSpawnInProgress || sourceWildRetryPending || sourceSaveRuntime.wildDropInProgress
         result.gameplayTransaction=hasPendingSourceOrdinaryStackFace || sourceMeterSpawnInProgress || flags.wildSpawnInProgress || flags.merge6SpawnInProgress || flags.wildMagnetPullInProgress || sourceSaveRuntime.wildSpawnInProgress || sourceSaveRuntime.merge6SpawnInProgress || sourceSaveRuntime.wildMagnetPullInProgress || sourceSaveRuntime.specialTransactionActive || sourceSaveRuntime.regularHandoffActive || pendingOrdinaryStack != nil || pendingOrdinarySix != nil || directWildSpawnPhase != nil || pendingSpecial != nil || (pendingDirectWild != nil && !directWildGameplayCommitted)
         result.activeDrag=drag != nil || sourceSaveRuntime.activeDrag
         result.endgameGuard=flags.endgameGuardActive
@@ -4300,7 +4322,7 @@ extension NativeGameplayEngine {
             prepareCommitted?(opened)
             meterOpenCommitting=false
             guard generation==state.generation,meterOpenFlow?.id==flow.id else{return rejected("stale_meter_committed_preparation")}
-            state.wildMeter=max(0,state.wildMeter-1)
+            consumeMeterCharge()
             events.append(NativeGameplayEvent(.meterDropChargeConsumed,tileIDs:[opened.id],reason:id))
             if meterOpenCancelled {
                 state.tiles.removeAll{$0.id==opened.id}
@@ -4482,7 +4504,7 @@ extension NativeGameplayEngine {
         return nil
     }
     public func meterSourceQueuePermission(environment e:NativeSourceMeterQueueEnvironment)->NativeWildMeterRules.Permission {
-        guard state.effectiveArcadeVariant.allowsSpecials else{return .init(.block,"pure-dice-no-specials")}
+        guard meterDropAllowed else{return .init(.block,"one-lucky-drop-already-used")}
         guard e.generation==state.generation else{return .init(.block,"obsolete-generation")}
         guard state.tutorial?.specialBarDefersReward != true else{return .init(.block,"tutorial-special-bar")}
         guard state.tiles.allSatisfy({tile in e.tiles.filter{$0.tileID==tile.id}.count==1}) else{return .init(.block,"source-meter-markers-unavailable")}

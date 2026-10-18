@@ -140,7 +140,7 @@ final class NativeBackpackDetail:UIViewController {
         if selected.ready {selected.onReady?()}
     }
     @objc func closeTapped(){
-        guard !closing,!disposed,card.isUserInteractionEnabled else{return}
+        guard foreground,!closing,!disposed,card.isUserInteractionEnabled else{return}
         close.playArtworkTapFeedback()
         modalDrag?.cancel(preservePose:true);closing=true;card.isUserInteractionEnabled=false;hero.layer.removeAllAnimations();preview?.setActive(false,retainMediaUntilDisposal:true);onCloseRequested?()
         if UIAccessibility.isReduceMotionEnabled {finishClose();return}
