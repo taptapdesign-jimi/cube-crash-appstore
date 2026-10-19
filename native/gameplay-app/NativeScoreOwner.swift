@@ -31,8 +31,8 @@ final class NativeScoreOwner {
         }
         guard let app=gameplay.parent as? NativeAppController else{return}
         let controller=NativeGameplayBackpackController(root:root,sections:sections,includesArcade:state.mode == .arcade,motion:NativeRouteMotion(home:app.home,hub:app.hub))
-        backpack=controller;lease += 1;let token=lease;gameplay.setSuspended(true);onFeedback?("hud-modal-open")
-        controller.onClosed={[weak self] in guard let self,self.lease==token else{return};self.backpack=nil;self.onFeedback?("back");self.gameplay?.setSuspended(false)}
+        backpack=controller;lease += 1;let token=lease;gameplay.setSuspended(true);onFeedback?("exit-modal")
+        controller.onClosed={[weak self] in guard let self,self.lease==token else{return};self.backpack=nil;self.gameplay?.setSuspended(false)}
         controller.onFeedback={[weak self] cue in self?.onFeedback?(cue)}
         gameplay.present(controller,animated:false)
     }
@@ -137,6 +137,7 @@ final class NativeGameplayBackpackController:UIViewController {
     private func completeEnter(){guard !closing,!disposed else{return};admitted=true;JimiNativeModalV10.startIdle(on:idle,key:"backpack.collection.idle");view.isUserInteractionEnabled=foreground && !switchingDetail;screen?.isUserInteractionEnabled=foreground && !switchingDetail}
     private func open(_ die:NativeBackpackCatalog.Die) {
         guard foreground,admitted,!closing,!disposed,!switchingDetail,detail==nil,presentedViewController==nil else{return}
+        onFeedback?("tab")
         modalDrag?.cancel()
         idle.layer.removeAnimation(forKey:"backpack.collection.idle")
         let detail=NativeBackpackDetail(die:die,assets:assets,motion:motion)
@@ -145,7 +146,7 @@ final class NativeGameplayBackpackController:UIViewController {
         detail.onPresentationStarted={[weak self] in self?.onFeedback?("exit-modal")}
         detail.onCloseRequested={[weak self,weak detail] in
             guard let self,self.detail === detail,!self.disposed else{return}
-            self.onFeedback?("back")
+            self.onFeedback?("exit-modal")
             self.scheduleExchange(after:0.65*0.4){[weak self] in self?.enterCollection()}
         }
         detail.onClose={[weak self,weak detail] in
@@ -205,6 +206,7 @@ final class NativeGameplayBackpackController:UIViewController {
     }
     @objc private func close(){
         guard admitted,!closing,!disposed,foreground,detail==nil else{return};closeButton.playArtworkTapFeedback();modalDrag?.cancel(preservePose:true);closing=true;view.isUserInteractionEnabled=false
+        onFeedback?("exit-modal")
         if UIAccessibility.isReduceMotionEnabled {finishClose();return}
         CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in self?.finishClose()}
         JimiNativeModalV10.exit(card,flip:false,releaseY:card.layer.presentation()?.transform.m42 ?? 0,key:"gameplay.backpack.exit")

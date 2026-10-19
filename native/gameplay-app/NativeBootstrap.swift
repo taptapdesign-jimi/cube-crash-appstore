@@ -359,6 +359,7 @@ final class NativeBootstrap {
         if consumedPending, let pending = envelope.pendingArcadeRound {
             state = try freshForInitialEntry(boardNumber:pending.round,generation:freshEntry?.generation ?? ((envelope.arcadeRun?.generation ?? 0)+1))
             state?.score = pending.score
+            state?.lastSpecialMergeWorld = pending.lastSpecialMergeWorld
             state?.wildMeter = envelope.activeArcadeVariant == .pureDice ? 0 : (pending.meterProgress ?? 0.25)
             envelope.pendingArcadeRound = nil
         }
@@ -392,6 +393,7 @@ final class NativeBootstrap {
             NativeWildRewardPolicy.choose(state:state,roll:roll,plainStarUnlocked:plainStarUnlocked,nextRoll:nextRoll)
         }, sourceMathRandom:sourceLogicalMathRandomEnabled && (!sourceTutorialEarnedMeterEnabled || needsTutorial ||
             (sourceConstruction != nil && (sourceFreshOrdinaryPresentationEnabled || sourceRestoredOrdinaryPresentationEnabled))) ? sourceContext.mathRandom:nil)
+        engine.comboHUDCoinRewardsEnabled=true
         if needsTutorial,engine.state.tutorial == nil {
             if sourceTutorialActivationEnabled {
                 guard sourceConstruction != nil else{throw NativeSaveError.invalidState(["source-tutorial-constructor-unavailable"])}
@@ -1289,6 +1291,11 @@ final class NativeBootstrap {
                 _=gameplay.sourceConfirmedFailFinalCleanup(receipt:receipt,endpoint:endpoint)
             }
         }
+        let resultAmbientGeneration=routeLease
+        resultOwner?.onForestAmbience = { [weak self] active,suspended in
+            guard let self,self.routeLease==resultAmbientGeneration else{return}
+            self.ambient?.setForestResult(active:active,suspended:suspended,generation:resultAmbientGeneration)
+        }
         resultOwner?.onMoment = { [weak self] kind,index,duration in self?.resultMoment(kind,index:index,duration:duration) }
         resultOwner?.prepareExit = { [weak self] completion in
             guard let self,!self.disposed,let controller=self.controller else {completion(false);return}
@@ -1316,7 +1323,7 @@ final class NativeBootstrap {
         if state.mode == .journey { next.journeyRuns.removeValue(forKey: state.board); next.journeyRunSavedAt.removeValue(forKey: state.board) }
         else {
             next.arcadeRun = nil; next.arcadeRunSavedAt = nil
-            if clean { next.pendingArcadeRound = .init(round:state.board+1,score:score,ownerID:"native-\(state.generation)-\(state.revision)",meterProgress:state.effectiveArcadeVariant == .slowBurn ? state.wildMeter:nil) }
+            if clean { next.pendingArcadeRound = .init(round:state.board+1,score:score,ownerID:"native-\(state.generation)-\(state.revision)",meterProgress:state.effectiveArcadeVariant == .slowBurn ? state.wildMeter:nil,lastSpecialMergeWorld:state.lastSpecialMergeWorld) }
         }
         next.savedAt = Date().timeIntervalSince1970
         try store.save(next); envelope = next; attemptCommitted = true;committedScore=score
@@ -1390,6 +1397,7 @@ final class NativeBootstrap {
             return
         }
         var state = fresh(mode: .arcade, board: pending.round, generation: gameplay.engine.state.generation + 1)
+        state.lastSpecialMergeWorld = pending.lastSpecialMergeWorld
         state.score = pending.score; state.wildMeter = envelope.activeArcadeVariant == .pureDice ? 0 : (pending.meterProgress ?? 0.25)
         gameplay.engine.restart(state: state); attemptCommitted = false
         audio?.beginGeneration(gameplay.engine.state.generation)
@@ -1596,8 +1604,8 @@ final class NativeBootstrap {
             presenter.present(picker,animated: false)
         case .newCard:
             presentDeveloperReward(board: board,score: envelope.progression.boardStats[board]?.highScore ?? 0,presenter: presenter)
-        case .newDice:
-            let preview = NativeSpecialDiceUnlockController(root: root,diceType: .juice,generation: UInt64(epoch))
+        case .newDice, .forestUnlock:
+            let preview = NativeSpecialDiceUnlockController(root: root,diceType: action == .forestUnlock ? .flower : .juice,generation: UInt64(epoch))
             preview.onUnlock = { _ in } // A preview never grants a real unlock.
             let host = NativeDeveloperPreviewHost(preview: preview,release: { [weak preview] in preview?.dispose() })
             preview.onFinish = { [weak host] _ in host?.finish() }
@@ -1639,7 +1647,7 @@ final class NativeBootstrap {
                 next.progression.boardStats.removeValue(forKey: board)
                 if next.progression.lastOpenedJourneyBoard == board {next.progression.lastOpenedJourneyBoard=nil}
                 if board == 3 {next.progression.unlockedSpecialDice.remove("flower")}
-                if board == 12 {next.progression.unlockedSpecialDice.remove("juice")}
+                if board == 11 {next.progression.unlockedSpecialDice.remove("juice")}
             case .reset:
                 next.progression.boardStats.removeValue(forKey: board); next.journeyRuns.removeValue(forKey: board)
                 next.journeyRunSavedAt.removeValue(forKey: board)

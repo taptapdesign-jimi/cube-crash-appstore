@@ -13,6 +13,20 @@ final class NativeArcadeModalMotionTests: XCTestCase {
         if view.accessibilityIdentifier == id { return view }
         return view.subviews.lazy.compactMap { self.descendant($0, id: id) }.first
     }
+    func testCloseSharesGameplayBoardXSoundOnceAtAcceptedExit() async throws {
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible();host.loadViewIfNeeded()
+        let modal=NativeArcadeWorldModal(frame:window.bounds,assets:JimiV9Artwork(resourceRoot:NativeTestResources.root),index:0)
+        defer{modal.dispose();window.isHidden=true}
+        var cues:[String]=[];modal.onFeedback={cues.append($0)}
+        host.view.addSubview(modal);modal.reveal()
+        try await wait{modal.accessibilityValue == "ready"}
+        let close=try XCTUnwrap(descendant(modal,id:"native.arcade-world-modal.close") as? UIButton)
+        close.sendActions(for:.touchUpInside);close.sendActions(for:.touchUpInside)
+        XCTAssertEqual(cues,["exit-modal"])
+        modal.dispose();close.sendActions(for:.touchUpInside)
+        XCTAssertEqual(cues,["exit-modal"])
+    }
     func testPlayAndPaperExitTogetherWithoutRelayoutJumpAndDisposalCancels() async throws {
         let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
         window.rootViewController=host;window.makeKeyAndVisible();host.loadViewIfNeeded()

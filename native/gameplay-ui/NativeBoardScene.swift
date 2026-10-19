@@ -4993,8 +4993,12 @@ final class NativeBoardScene: SKScene {
                 let blastIDs=Set(self.engine.state.tiles.filter{$0.id != plan.destination.id && ($0.value>0 || $0.isWild) && !$0.locked}.map(\.id))
                 let previous=self.engine.state,activated=self.engine.commitSpecialActivation(transactionID:plan.id)
                 guard activated.accepted else{self.onSourcePresentationFailure?("source_tnt_main_activation_refused",plan.generation);return}
-                guard let host=self.gameplayRenderHost,entry.destination.parent === self.canvasRoot,
-                      let hud=self.captureSourceHUDOrigins(activated,screenOrigin:host.scenePointToView(entry.destination.convert(CGPoint.zero,to:self),scene:self)) else {
+                guard let host=self.gameplayRenderHost,entry.destination.parent === self.canvasRoot else {
+                    self.onSourcePresentationFailure?("source_tnt_main_hud_origin_not_admitted",plan.generation);return
+                }
+                let coinOrigin=host.scenePointToView(entry.destination.convert(CGPoint.zero,to:self),scene:self)
+                self.sourceTntCoinOrigin=(plan.id,plan.generation,coinOrigin)
+                guard let hud=self.captureSourceHUDOrigins(activated,screenOrigin:coinOrigin) else {
                     self.onSourcePresentationFailure?("source_tnt_main_hud_origin_not_admitted",plan.generation);return
                 }
                 self.consume(activated,previous:previous)
@@ -6395,7 +6399,9 @@ final class NativeBoardScene: SKScene {
         roundIndicator.synchronize(round:state.stage,arcade:state.mode == .arcade && state.tutorial?.shouldLockHUD != true,viewport:size,alpha:(!tutorialSpecialBarFocus.isEmpty || sourceTutorialHUD?.owns(roundIndicator)==true) ? roundIndicator.alpha:tutorialHUDAlpha,variant:state.effectiveArcadeVariant)
         layoutHUD()
         applyBoardShake(boardShake)
-        for child in hud.children where child !== noMoves && sourceTutorialHUD?.owns(child) != true && tutorialSpecialBarFocus.isEmpty {child.alpha = tutorialHUDAlpha}
+        // Smoke is mounted as HUD siblings, but its animation owns opacity.
+        // Resetting it here flashes every live particle between Source frames.
+        for child in hud.children where child !== noMoves && sourceTutorialHUD?.owns(child) != true && sourceTutorialMeterHUD?.ownsSmoke(child) != true && tutorialSpecialBarFocus.isEmpty {child.alpha = tutorialHUDAlpha}
         if animateEntry && !UIAccessibility.isReduceMotionEnabled {
             animateBoardEntry(tiles: live,geometry: geometry)
         } else if !entryInProgress { inputAdmitted = state.terminal == nil && pendingTerminal == nil;roundIndicator.enter(animated:false) }
@@ -9046,6 +9052,16 @@ final class NativeBoardScene: SKScene {
     private var sourceHUDStarCapture:(([NativeHUDStarReceipt])->SourceHUDStarCallCapture?)?
     private var sourceHUDStarEpoch:UInt64=0
     private var sourceCapturedHUDOrigins:[String:(UInt64,CGPoint)]=[:]
+    private var sourceTntCoinOrigin:(id:String,generation:UInt64,point:CGPoint)?
+    private func consumeTntReservation(_ result:NativeMoveResult,previous:NativeBoardState,plan:NativeSpecialMovePlan)->Bool {
+        defer{sourceTntCoinOrigin=nil}
+        guard result.accepted else{consume(result,previous:previous);return false}
+        guard result.events.contains(where:{$0.kind == .hudStarsPrepared && !$0.tileIDs.isEmpty}) else {
+            consume(result,previous:previous);return true
+        }
+        let origin=sourceTntCoinOrigin.flatMap{$0.id==plan.id && $0.generation==plan.generation ? $0.point:nil}
+        return consumeSourceSpecialHUDCall(result,previous:previous,origin:origin)
+    }
     /// Actual retained main/impact callers publish screen origins before their
     /// nodes retire. No family's origin is reconstructed from a Core cell.
     private func captureSourceHUDOrigins(_ result:NativeMoveResult,screenOrigin:CGPoint)->[String]? {
@@ -9191,7 +9207,7 @@ final class NativeBoardScene: SKScene {
     }
     func retireSourceHUDStarJobs() {
         sourceHUDStarEpoch &+= 1
-        sourceCapturedHUDOrigins=[:]
+        sourceCapturedHUDOrigins=[:];sourceTntCoinOrigin=nil
         let owner=sourceHUDStarOwner;sourceHUDStarOwner=nil;sourceHUDStarCapture=nil
         let feedback=sourceHUDStarFeedback;sourceHUDStarFeedback=nil
         let scales=sourceHUDStarScaleFeedback;sourceHUDStarScaleFeedback=nil
@@ -9545,7 +9561,7 @@ final class NativeBoardScene: SKScene {
     private func startLaserImpacts(_ initial:NativeSpecialMovePlan,receipt:UInt64) {
         guard specialIsCurrent(initial),let geometry,let onAuthoredLaserImpact else {return}
         let previous=engine.state,reserved=engine.reserveTntTargets(transactionID:initial.id)
-        consume(reserved,previous:previous)
+        guard consumeTntReservation(reserved,previous:previous,plan:initial) else{return}
         guard reserved.accepted,let plan=engine.pendingSpecial else {return}
         let targets=engine.pendingLaserShots.compactMap {shot->NativeLaserVisualTarget? in
             guard let tile=plan.targets.first(where:{$0.id == shot.tileID}) else {return nil}
@@ -9651,7 +9667,7 @@ final class NativeBoardScene: SKScene {
         }
         let beforeReserve=engine.state
         let reserved=engine.reserveTntTargets(transactionID:initial.id)
-        consume(reserved,previous:beforeReserve)
+        guard consumeTntReservation(reserved,previous:beforeReserve,plan:initial) else{return}
         guard reserved.accepted,let plan=engine.pendingSpecial else {return}
         specialPresentationIDs=Set(plan.targets.map(\.id))
         let beforeRelease = engine.state
@@ -9899,6 +9915,7 @@ final class NativeBoardScene: SKScene {
             comboHUDMotion.advance(delta:delta,visible:!exitInProgress && engine.state.terminal == nil && !hud.isHidden && hud.alpha>0 && gameplayRenderHost?.renderView.window != nil && sourceShimmerCanvasPaintable,reducedMotion:UIAccessibility.isReduceMotionEnabled)
         }
         let comboVisible = !exitInProgress && engine.state.terminal == nil && !hud.isHidden && hud.alpha>0 && gameplayRenderHost?.renderView.window != nil && sourceShimmerCanvasPaintable
+        sourceTutorialMeterHUD?.advanceGradient(delta:delta,visible:comboVisible,reducedMotion:UIAccessibility.isReduceMotionEnabled)
         if comboNumberMotion.advance(delta:elapsedDelta>0.5 ? 0.033:elapsedDelta,visible:comboVisible,reducedMotion:UIAccessibility.isReduceMotionEnabled) {
             layoutComboValue(top:comboArt.position.y)
         }

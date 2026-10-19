@@ -149,17 +149,72 @@ final class NativeStateTests: XCTestCase {
             XCTAssertEqual(NativeJourneyContent.earnedStars(score:6500,board:board),3)
         }
         XCTAssertEqual(NativeJourneyContent.earnedStars(score:9499,board:30),2)
-        XCTAssertEqual(NativeJourneyContent.cardAsset(board:21,score:6500),"./assets/colelctibles/Area55/legendary/04-gold.png")
-        XCTAssertEqual(NativeJourneyContent.cardAsset(board:2,score:0),"./assets/colelctibles/Forest/common/03.png")
+        XCTAssertEqual(NativeJourneyContent.cardAsset(board:21,score:6500),"./assets/colelctibles/Area55/legendary/01-gold.png")
+        XCTAssertEqual(NativeJourneyContent.cardAsset(board:2,score:0),"./assets/colelctibles/Forest/common/01.png")
     }
-    func testIntroRewardsAndCumulativePools() {
-        for (board,variant) in [(2,"bee"),(3,"flower"),(4,"honey"),(6,"mushroom"),(7,"barell"),(21,"kanta"),(22,"robo-cube"),(23,"spaceship"),(24,"laser-gun")] {
-            XCTAssertEqual(NativeJourneyContent.reward(board:board,wildSpawnCount:0,roll:0.99)?.variant,variant)
+    func testBeachUnlocksOneAdditionalDiePerUnitUntilFour() {
+        let order=["wild-juice","fish","beach-ball","bottle"]
+        for unit in 1...10 {
+            XCTAssertEqual(Set(NativeJourneyContent.rewardPool(board:10+unit)),Set(order.prefix(min(unit,4))))
         }
-        XCTAssertEqual(NativeJourneyContent.reward(board:12,wildSpawnCount:0,roll:0)?.archetype,.juice)
-        XCTAssertEqual(NativeJourneyContent.reward(board:11,wildSpawnCount:1,roll:0.9,previous:.juice)?.variant,"fish")
+    }
+    func testEveryJourneyPoolContainsOnlyItsWorldDiceAndNeverArcadeOnlyDice() {
+        let worlds:[Set<String>]=[
+            ["bee","wild-star","flower","honey","mushroom","barell"],
+            ["wild-juice","fish","beach-ball","bottle"],
+            ["robo-cube","kanta","spaceship","laser-gun"]]
+        for board in 1...30 {
+            let pool=Set(NativeJourneyContent.rewardPool(board:board))
+            XCTAssertFalse(pool.isEmpty)
+            XCTAssertTrue(pool.isSubset(of:worlds[(board-1)/10]),"World isolation at board \(board)")
+            XCTAssertTrue(pool.isDisjoint(with:["tnt","wild-tnt","wild-magnet","cubero"]))
+            for index in 0..<1000 {
+                let reward=NativeWildRewardPolicy.choose(state:.init(tiles:[],mode:.journey,board:board,wildSpawnCount:index%9),roll:(Double(index)+0.5)/1000,plainStarUnlocked:true,nextRoll:{XCTFail("Journey cannot reroll or force a sequence");return 0})
+                let id=reward?.variant ?? (reward?.archetype == .star ? "wild-star":reward?.archetype == .juice ? "wild-juice":"ARCADE")
+                XCTAssertTrue(pool.contains(id),"board \(board), \(id)")
+            }
+        }
+    }
+    func testLegacyForestTntResumeRepairsOnlyVariantWithoutRerollingOrChangingGameplay() throws {
+        for board in 7...10 {
+            var envelope=NativeSaveEnvelope()
+            let tile=NativeTile(id:"legacy-tnt",cell:.init(column:0,row:0),value:6,archetype:.tnt)
+            let run=NativeBoardState(tiles:[tile],mode:.journey,board:board,moves:20,score:1080,wildMeter:0.12,rngState:765)
+            envelope.journeyRuns[board]=run;envelope.journeyRunSavedAt[board]=100
+            let resumed=try XCTUnwrap(envelope.resumedRun(mode:.journey,board:board,now:101))
+            var expected=tile;expected.variant="barell"
+            XCTAssertEqual(resumed.tiles,[expected]);XCTAssertEqual(resumed.rngState,run.rngState)
+            XCTAssertEqual(resumed.score,run.score);XCTAssertEqual(resumed.moves,run.moves);XCTAssertEqual(resumed.wildMeter,run.wildMeter)
+        }
+    }
+    func testJourneyPoolsHaveNoForcedFirstDropOrHistoryOverrideOnAllThirtyBoards() throws {
+        for board in 1...30 {
+            let pool = NativeJourneyContent.rewardPool(board:board)
+            for (index,name) in pool.enumerated() {
+                let roll = (Double(index)+0.5)/Double(pool.count)
+                for count in [0,1,2,8] {for previous in NativeWildArchetype.allCases {
+                    let state = NativeBoardState(tiles:[],mode:.journey,board:board,wildSpawnCount:count,lastWildDropType:previous,wildDropTypeStreak:8)
+                    let restored = try JSONDecoder().decode(NativeBoardState.self,from:JSONEncoder().encode(state))
+                    let choice = NativeWildRewardPolicy.choose(state:restored,roll:roll,plainStarUnlocked:false,nextRoll:{XCTFail("Unexpected override draw");return 0})
+                    let expected:NativeWildArchetype? = name == "wild-star" ? .star : name == "wild-juice" ? .juice : name == "tnt" ? .tnt : NativeSpecialDiceRegistry.variants[name]?.archetype
+                    XCTAssertEqual(choice?.archetype,expected,"board \(board)")
+                    XCTAssertEqual(choice?.variant,NativeSpecialDiceRegistry.variants[name] == nil ? nil:name,"board \(board)")
+                }}
+            }
+        }
+        XCTAssertEqual(NativeJourneyContent.rewardPool(board:1),["bee"])
+        XCTAssertEqual(NativeJourneyContent.rewardPool(board:11),["wild-juice"])
+        XCTAssertEqual(NativeJourneyContent.rewardPool(board:21),["robo-cube"])
         XCTAssertFalse(NativeJourneyContent.rewardPool(board:4).contains("mushroom"))
-        XCTAssertEqual(NativeJourneyContent.reward(board:25,wildSpawnCount:8,roll:0.99)?.variant,"laser-gun")
+    }
+    func testFirstTwoCardsSwapInEveryWorldAndDensity() {
+        for (board,world,number) in [(1,"Forest","03"),(2,"Forest","01"),(11,"beach","02"),(12,"beach","01"),(21,"Area55","01"),(22,"Area55","04")] {
+            for density in [false,true] {for score in [0,6500] {
+                let rarity = score == 0 ? "common":"legendary"
+                let suffix = score == 0 ? "":"-gold"
+                XCTAssertEqual(NativeJourneyContent.cardAsset(board:board,score:score,doubleDensity:density),"./assets/colelctibles/\(world)/\(rarity)/\(number)\(suffix)\(density ? "@2x":"").png")
+            }}
+        }
     }
     func testIndependentJourneyInterimsAndArcadeIsolation() {
         var state=NativeProgressionState()

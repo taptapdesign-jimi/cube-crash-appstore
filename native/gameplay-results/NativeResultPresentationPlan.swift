@@ -4,6 +4,7 @@ import CoreGraphics
 /// Read-only projection of clean-board-modal / board-fail-modal. The terminal owner
 /// supplies time and persisted values; this module never commits a result or route.
 enum NativeResultPresentationPlan {
+    static let cleanPrimaryCTAStart=6.62
     struct Pose: Equatable {
         var opacity:Double=1,scale:Double=1,y:Double=0,scaleBeforeTranslation=false
         /// CSS function order matters: Clean uses scale() translateY(), Fail
@@ -60,7 +61,7 @@ enum NativeResultPresentationPlan {
             scoreLabel:enter(t,at:0.32,duration:0.65,y:-15,clean:true),score:main,
             combo:arcadeReached ? Pose(opacity:0):bonus(t,at:1.35,hide:3.65),efficiency:arcadeReached ? Pose(opacity:0):bonus(t,at:3.97,hide:6.1),
             status:Pose(opacity:bezier(bounded((t-(arcadeReached ? 1.45:6.42))/0.4),0.25,0.1,0.25,1)),
-            primary:cta(t,at:arcadeReached ? 2.05:6.62),secondary:cta(t,at:arcadeReached ? 2.40:6.97),displayedScore:shown,
+            primary:cta(t,at:arcadeReached ? 2.05:cleanPrimaryCTAStart),secondary:cta(t,at:arcadeReached ? 2.40:6.97),displayedScore:shown,
             displayedCombo:combo-counter(from:0,to:combo,age:t-2.15,duration:1.4),
             displayedEfficiency:efficiency-counter(from:0,to:efficiency,age:t-4.6,duration:1.4))
     }

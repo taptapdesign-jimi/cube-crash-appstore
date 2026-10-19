@@ -7,12 +7,14 @@ import Foundation
     private let drawWidth: (Double) -> Void, drawBounce: (Double) -> Void
     private let startSmoke: () -> Void, stopEmission: () -> Void
     private var cancelGain: (() -> Void)?, cancelSpring: (() -> Void)?
+    private let verticalBounceEnabled:Bool
     private var closed=false
     private var generation: UInt64 = 0
     private(set) var width: Double
     init(driver: any NativeWildMeterHUDDriving, initialWidth: Double,
          drawWidth: @escaping(Double) -> Void, drawBounce: @escaping(Double) -> Void,
-         startSmoke: @escaping() -> Void, stopEmission: @escaping() -> Void) {
+         startSmoke: @escaping() -> Void, stopEmission: @escaping() -> Void,verticalBounceEnabled:Bool=true) {
+        self.verticalBounceEnabled=verticalBounceEnabled
         self.driver = driver; width = initialWidth; self.drawWidth = drawWidth
         self.drawBounce = drawBounce; self.startSmoke = startSmoke; self.stopEmission = stopEmission
     }
@@ -47,7 +49,7 @@ import Foundation
         if generation == captured { cancelGain = receipt } else { receipt?() }
     }
     private func spring(_ plan: NativeWildMeterGainPlan, captured: UInt64) {
-        guard !closed else{return}
+        guard verticalBounceEnabled,!closed else{return}
         let old = cancelSpring; cancelSpring = nil; old?()
         guard generation == captured else { return }
         let receipt = driver.start(duration: 0.58, paint: { [weak self] seconds in

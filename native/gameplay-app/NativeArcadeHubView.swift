@@ -8,6 +8,7 @@ final class NativeArcadeHubView: UIView {
     var onClose: (() -> Void)?
     var onCrate: (() -> Void)?
     var onPlay: ((String) -> Void)?
+    var onFeedback:((String)->Void)?
     var canContinue:((String)->Bool)?
     private let assets: JimiV9Artwork
     private var modal: NativeArcadeWorldModal?
@@ -44,6 +45,7 @@ final class NativeArcadeHubView: UIView {
             guard let self, self.active, self.foreground, !self.crateRequested, !self.closeRequested, self.modal == nil, self.pendingWorldTap == nil,
                   let index = self.hub.worldIDs.firstIndex(of: id) else { return }
             let token=UUID();self.pendingWorldTap=token
+            self.onFeedback?("cta")
             self.hub.playWorldTap(id) { [weak self] in
                 guard let self,self.pendingWorldTap == token else { return }
                 self.pendingWorldTap=nil
@@ -77,12 +79,17 @@ final class NativeArcadeHubView: UIView {
         let sheet = NativeArcadeWorldModal(frame: bounds, assets: assets, index: index,continuing:canContinue?(identifiers[index]) ?? false)
         sheet.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         modal = sheet; addSubview(sheet)
+        sheet.onFeedback = {[weak self,weak sheet] cue in
+            guard let self,self.modal === sheet,self.active,self.foreground else{return}
+            self.onFeedback?(cue)
+        }
         sheet.onFinish = { [weak self, weak sheet] play in
             guard let self, self.modal === sheet else { return }
             self.modal?.dispose(); self.modal = nil; self.hub.accessibilityElementsHidden = false
             if play && self.active && self.foreground { self.onPlay?(self.identifiers[index]) }
             else if self.active && self.foreground { self.hub.startIdle() }
         }
+        onFeedback?("exit-modal")
         sheet.reveal()
     }
 
@@ -111,6 +118,7 @@ final class NativeArcadeHubView: UIView {
 @MainActor
 final class NativeArcadeWorldModal: UIView {
     var onFinish: ((Bool) -> Void)?
+    var onFeedback:((String)->Void)?
     private let backdrop = JimiV9PlainButton(type:.custom), card = UIView(), flip = JimiNativeModalTransformView(), paper = UIImageView()
     private let heading = UILabel(), subtitle = UILabel(), art = UIImageView(), close = JimiV9PlainButton(type:.custom)
     private let play = JimiV9PlainButton(type:.custom), assets: JimiV9Artwork
@@ -295,7 +303,7 @@ final class NativeArcadeWorldModal: UIView {
         }
     }
     func dispose() {
-        guard !disposed else { return }; modalDrag?.dispose();modalDrag=nil;disposed = true; onFinish = nil
+        guard !disposed else { return }; modalDrag?.dispose();modalDrag=nil;disposed = true; onFinish = nil;onFeedback=nil
         for target in [self,card,flip,tilt,idle,art,backdrop,close,play]+clouds { target.layer.removeAllAnimations() }
         clouds.forEach{$0.image=nil}
         removeFromSuperview()
@@ -312,7 +320,7 @@ final class NativeArcadeWorldModal: UIView {
         idle.layer.transform=idlePose;art.layer.transform=artPose
         idle.layer.removeAllAnimations();art.layer.removeAllAnimations()
         freezeClouds()
-        if !play {close.playArtworkTapFeedback()}
+        if !play {close.playArtworkTapFeedback();onFeedback?("exit-modal")}
         if UIAccessibility.isReduceMotionEnabled {
             if play {exitAcceptedPlay()}
             CATransaction.commit();onFinish?(play);return

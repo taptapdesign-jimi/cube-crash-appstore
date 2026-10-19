@@ -1,6 +1,6 @@
 import UIKit
 
-/// Preserved Honey bees follow their own exact finite routes and spacing.
+/// Honey keeps its finite scatter/spacing with the accepted curved hover motion.
 @MainActor
 final class NativeHoneyFinalePresentation: NativeFinitePresentation {
     private let plans: [NativeHoneyFinaleMotion.Plan]
@@ -26,7 +26,7 @@ final class NativeHoneyFinalePresentation: NativeFinitePresentation {
     override func layoutSubviews() { super.layoutSubviews(); glyphs.frame = bounds }
     override func paint(seconds: TimeInterval) {
         if !emittedPost { emittedPost = true; onCue?("post",0) }
-        let poses = plans.map { $0.sample(seconds: seconds) }
+        let poses = plans.map { $0.sample(seconds: seconds,hovering:true) }
         NativeHoneyFinaleMotion.relax(plans: plans,poses: poses,offsets: &offsets)
         for (index,pose) in poses.enumerated() {
             let offset = offsets[index]

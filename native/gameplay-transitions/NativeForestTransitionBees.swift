@@ -36,7 +36,7 @@ struct NativeForestTransitionBeeMotion {
         let p=clamp(distance/total),envelope=pow(sin(.pi*p),1.35),va=(p*plan.verticalCycles+plan.phase)*2 * .pi,ha=(p*plan.horizontalCycles+plan.phase*0.73)*2 * .pi
         return CGPoint(x:point.x+cos(ha)*plan.horizontal*envelope,y:point.y+sin(va)*plan.vertical*envelope)
     }
-    static func make(viewport:CGSize,digitCenters:[CGPoint],initialDigitHeights:[CGFloat],random:()->Double)->[Plan] {
+    static func make(viewport:CGSize,digitCenters:[CGPoint],initialDigitHeights:[CGFloat],randomizeRoutes:Bool=false,random:()->Double)->[Plan] {
         guard !digitCenters.isEmpty else {return []}
         let centers=[digitCenters[0],digitCenters.count>1 ? digitCenters[1]:digitCenters[0]],center=CGPoint(x:(centers[0].x+centers[1].x)*0.5,y:(centers[0].y+centers[1].y)*0.5),width=Double(viewport.width),height=Double(viewport.height)
         let rx=max(76,abs(centers[1].x-centers[0].x)*0.5+24),ry=max(34,(initialDigitHeights.max() ?? 0)*0.3),sx=min(width*0.38,rx*1.72),sy=min(height*0.27,max(62,ry*1.68)*1.48)
@@ -67,8 +67,28 @@ struct NativeForestTransitionBeeMotion {
         }
         let intro=min(3,Int(floor(roll()*4)))
         return drafts.enumerated().map {index,p in
-            let samples=arc(p.points),base=0.78*0.85*p.scale,knots=p.points.indices.map {samples[Int((Double($0)/Double(p.points.count-1)*Double(samples.count-1)).rounded())].distance}
-            return Plan(role:p.role,mode:p.mode,initialDirection:p.direction,scaleMultiplier:p.scale,vertical:p.v,verticalCycles:p.vc,horizontal:p.h,horizontalCycles:p.hc,phase:p.phase,scaleStart:p.start,scaleEnd:p.end,lifetimeScale:p.lifetime,times:p.times,waves:p.waves,points:p.points,samples:samples,knotDistances:knots,baseScale:base,introScale:(1+160/(beeWidth*base))*(index==intro ? 1:0.70))
+            var points=p.points
+            if randomizeRoutes {
+                // Capture a different loop for each bee once per transition.
+                // Keep offscreen entry and the authored final approach/exit.
+                // Derive the private route stream from the captured bee seed;
+                // surrounding scene randomness keeps its original draw boundary.
+                var routeState=UInt32(p.phase*Double(UInt32.max)) ^ UInt32(index+1)
+                func routeRoll()->Double {routeState=1664525 &* routeState &+ 1013904223;return Double(routeState)/4294967296}
+                func routeBetween(_ lo:Double,_ hi:Double)->Double {lo+routeRoll()*(hi-lo)}
+                let rotation=routeBetween(-0.70,0.70),mirror=routeRoll()<0.5 ? -1.0:1.0
+                let spread=routeBetween(0.78,1.18),offsetX=routeBetween(-width*0.10,width*0.10),offsetY=routeBetween(-height*0.07,height*0.07)
+                let reverse=routeRoll()<0.5,interior=Array(points[1..<points.count-2])
+                for knot in 1..<points.count-2 {
+                    let source=interior[reverse ? interior.count-knot:knot-1]
+                    let dx=(source.x-center.x)*mirror*spread,dy=(source.y-center.y)*spread
+                    let x=center.x+dx*cos(rotation)-dy*sin(rotation)+offsetX+routeBetween(-width*0.06,width*0.06)
+                    let y=center.y+dx*sin(rotation)+dy*cos(rotation)+offsetY+routeBetween(-height*0.035,height*0.035)
+                    points[knot]=CGPoint(x:clamp(x,-beeWidth*0.25,width-beeWidth*0.25),y:clamp(y,height*0.035,height*0.74))
+                }
+            }
+            let samples=arc(points),base=0.78*0.85*p.scale,knots=points.indices.map {samples[Int((Double($0)/Double(points.count-1)*Double(samples.count-1)).rounded())].distance}
+            return Plan(role:p.role,mode:p.mode,initialDirection:p.direction,scaleMultiplier:p.scale,vertical:p.v,verticalCycles:p.vc,horizontal:p.h,horizontalCycles:p.hc,phase:p.phase,scaleStart:p.start,scaleEnd:p.end,lifetimeScale:p.lifetime,times:p.times,waves:p.waves,points:points,samples:samples,knotDistances:knots,baseScale:base,introScale:(1+160/(beeWidth*base))*(index==intro ? 1:0.70))
         }
     }
     struct Runtime {
@@ -84,7 +104,7 @@ struct NativeForestTransitionBeeMotion {
             if vx>0 {if vy < -steep {return 2};if vy>steep {return 6};return 1}
             if vy < -steep {return abs(vy)>abs(vx)*1.35 ? 5:4};if vy>steep {return 7};return 3
         }
-        mutating func sample(seconds:Double,mountainBounds:CGRect?)->Pose {
+        mutating func sample(seconds:Double,mountainBounds:CGRect?,hideAt:Double=3.55+1.0/60)->Pose {
             let t=max(0,seconds),total=plan.samples.last!.distance
             let segment=(0..<plan.times.count-1).first {t<plan.times[$0+1]} ?? plan.times.count-2
             let p=clamp((t-plan.times[segment])/(plan.times[segment+1]-plan.times[segment])),wave=plan.waves[segment],warped=p+wave/(2 * .pi)*sin(2 * .pi*p),travel=plan.knotDistances[segment]+(plan.knotDistances[segment+1]-plan.knotDistances[segment])*warped
@@ -120,7 +140,7 @@ struct NativeForestTransitionBeeMotion {
             else {pendingSeconds+=delta;if pendingSeconds>=0.05 {currentAsset=candidate;pendingAsset=nil;pendingSeconds=0}}
             previousClock=t
             let base=plan.baseScale*intro*lifetime*procedural*exitScale
-            return Pose(point:point,rotation:bank,scaleX:base*(1+stretch+breath),scaleY:base*(1-stretch*0.65-breath*0.5),asset:currentAsset,behindMountain:behind,hidden:travel>=total || t>=3.55+1.0/60)
+            return Pose(point:point,rotation:bank,scaleX:base*(1+stretch+breath),scaleY:base*(1-stretch*0.65-breath*0.5),asset:currentAsset,behindMountain:behind,hidden:travel>=total || t>=hideAt)
         }
         private static func index(_ role:String)->Int {role=="left" ? 0:role=="right" ? 1:role=="high-scout" ? 2:3}
     }
@@ -130,38 +150,268 @@ struct NativeForestTransitionBeeMotion {
 final class NativeForestTransitionBees: UIView {
     let needsNativeParityReady:Bool
     let duration:Double
+    let numberBeeCount:Int
     private let behindLayer=UIView(),rearLayer=UIView(),frontLayer=UIView()
-    private var flights:[NativeForestTransitionBeeMotion.Runtime]
+    private(set) var flights:[NativeResultForestBees.Plan]
     private var sprites:[UIImageView]=[],assets:[Int:UIImage],disposed=false
+    private var facing:[Int]=[]
     init(viewport:CGSize,digitCenters:[CGPoint],initialDigitHeights:[CGFloat]=[0,0],images:[String:UIImage],random:()->Double={Double.random(in:0..<1)}) {
-        let plans=NativeForestTransitionBeeMotion.make(viewport:viewport,digitCenters:digitCenters,initialDigitHeights:initialDigitHeights,random:random)
-        flights=plans.map(NativeForestTransitionBeeMotion.Runtime.init)
+        // Preserve the transition's151 external RNG draws so scenery does not change.
+        let source=NativeForestTransitionBeeMotion.make(viewport:viewport,digitCenters:digitCenters,initialDigitHeights:initialDigitHeights,random:random)
+        let flightDuration=(source.map(\.end).max() ?? 0)+1.0/60
+        duration=flightDuration
+        var seed=UInt32(truncatingIfNeeded:UInt64(abs(source.first?.phase ?? 0)*1_000_000)+UInt64(abs(source.dropFirst().first?.points.first?.y ?? 0)*1000))
+        func roll()->Double {seed=1664525 &* seed &+ 1013904223;return Double(seed)/4294967296}
+        let numberCount=roll()<0.5 ? 2:3
+        numberBeeCount=numberCount
+        let scattered=[0]+Array((numberCount+1)..<6)
+        let top=viewport.height*0.09,bottom=viewport.height*0.91
+        let spacing=(bottom-top)/6
+        let numberCenter=CGPoint(x:digitCenters.isEmpty ? viewport.width/2:digitCenters.map(\.x).reduce(0,+)/Double(digitCenters.count),
+                                 y:digitCenters.isEmpty ? viewport.height*0.285:digitCenters.map(\.y).reduce(0,+)/Double(digitCenters.count))
+        let beeSeeds=(0..<6).map {_ in UInt32(roll()*Double(UInt32.max))}
+        flights=(0..<6).map { index in
+            var beeSeed=beeSeeds[index]
+            func roll()->Double {beeSeed=1664525 &* beeSeed &+ 1013904223;return Double(beeSeed)/4294967296}
+            let aroundNumber=(1...numberCount).contains(index)
+            let scatteredIndex=scattered.firstIndex(of:index) ?? 0
+            let row=scatteredIndex==0 ? top:viewport.height*(0.62+0.29*Double(scatteredIndex-1)/Double(max(1,scattered.count-2)))
+            // Separate nearby stations, never angular/orbit waypoints.
+            let stationX=(roll()-0.5)*230
+            let stationY=[-90.0,30.0,150.0][max(0,min(2,index-1))]
+            @MainActor func destination()->CGPoint {
+                if aroundNumber {
+                    return CGPoint(x:min(viewport.width-45,max(45,numberCenter.x+stationX+(roll()-0.5)*36)),
+                                   y:min(bottom,max(top,numberCenter.y+stationY+(roll()-0.5)*24)))
+                }
+                return CGPoint(x:viewport.width*(0.12+roll()*0.76),
+                    y:min(bottom,max(top,row+(roll()-0.5)*spacing*0.70)))
+            }
+            let anchor=destination(),original=source.isEmpty ? nil:source[index%source.count]
+            // All bees use the Clean Board travel and hover recipe.
+            // Independent spaced regions replace circular NN destinations.
+            // All flights retain the transition deadline.
+            let speed=(original.map {$0.samples.last!.distance/$0.end} ?? 600)*(0.85+roll()*0.30)
+            let arrival=roll()*0.38,entryDuration=0.68+roll()*0.18
+            // Pick only an edge near this bee's own flight region. A lower
+            // bee must never dive in from the opposite end of the screen.
+            let origins=[CGPoint(x:-100,y:anchor.y),CGPoint(x:viewport.width+100,y:anchor.y),
+                CGPoint(x:anchor.x,y:-100),CGPoint(x:anchor.x,y:viewport.height+100)]
+            let distances=origins.map {hypot($0.x-anchor.x,$0.y-anchor.y)}
+            let nearest=distances.min() ?? 0
+            let nearby=origins.indices.filter {distances[$0]<=nearest+40}
+            var from=origins[nearby[min(nearby.count-1,Int(roll()*Double(nearby.count)))]]
+            var moves:[NativeResultForestBees.Move]=[]
+            @MainActor func move(to:CGPoint,start:Double,duration:Double,enters:Bool=false,exits:Bool=false)->NativeResultForestBees.Move {
+                let dx=to.x-from.x,dy=to.y-from.y
+                let bend=(roll()<0.5 ? -1.0:1.0)*(35+roll()*55)
+                return .init(start:start,duration:duration,from:from,to:to,
+                    control1:CGPoint(x:from.x+dx*0.25+(roll()-0.5)*45,y:from.y+dy*0.25+bend),
+                    control2:CGPoint(x:from.x+dx*0.75+(roll()-0.5)*45,y:from.y+dy*0.75-bend*0.65),exits:exits,enters:enters)
+            }
+            moves.append(move(to:anchor,start:arrival,duration:entryDuration,enters:true));from=anchor
+            var time=arrival+entryDuration+(0.38+roll()*0.20)
+            let exitStart=flightDuration-1.05-roll()*0.15
+            for _ in 0..<5 {
+                let candidate=aroundNumber ? CGPoint(x:min(viewport.width-45,max(45,anchor.x+(roll()-0.5)*200)),y:anchor.y+(roll()-0.5)*90):destination()
+                let reach=aroundNumber ? 150.0:90.0
+                let target=CGPoint(x:candidate.x,y:min(anchor.y+reach,max(anchor.y-reach,candidate.y)))
+                let travel=max(0.28,hypot(target.x-from.x,target.y-from.y)/speed)
+                guard time+travel<exitStart else {break}
+                moves.append(move(to:target,start:time,duration:travel));from=target
+                time += travel+(0.38+roll()*0.38)
+            }
+            let outside=CGPoint(x:from.x<viewport.width/2 ? -120:viewport.width+120,y:from.y+(roll()-0.5)*70)
+            moves.append(move(to:outside,start:exitStart,duration:flightDuration-0.01-exitStart,exits:true))
+            return NativeResultForestBees.Plan(anchor:anchor,moves:moves,phase:roll()*2 * .pi,
+                scale:(original?.baseScale ?? 0.55)*(0.90+roll()*0.30),travelSpeed:speed,
+                startsBehind:roll()<0.5,distantScale:0.55+roll()*0.40,lifetime:flightDuration,hoverRate:0.85+roll()*0.30,hoverStrength:2,hoverHorizontalPhase:roll()*2 * .pi)
+        }
+        facing=flights.map {$0.startsBehind ? 3:1}
         assets=Dictionary(uniqueKeysWithValues:(1...7).compactMap {index in images["bee\(index)"].map {(index,$0)}})
-        needsNativeParityReady=plans.count==4 && assets.count==7
-        duration=(plans.map(\.end).max() ?? 0)+1.0/60
+        needsNativeParityReady=source.count==4 && flights.count==6 && assets.count==7
         super.init(frame:CGRect(origin:.zero,size:viewport));isUserInteractionEnabled=false;isOpaque=false;backgroundColor = .clear
         for (layer,z) in [(behindLayer,3),(rearLayer,9),(frontLayer,11)] {layer.frame=bounds;layer.isUserInteractionEnabled=false;layer.isOpaque=false;layer.backgroundColor = .clear;layer.clipsToBounds=false;layer.layer.zPosition=CGFloat(z)}
-        for plan in plans {
-            let sprite=UIImageView(image:assets[plan.initialDirection<0 ? 3:1]);sprite.isUserInteractionEnabled=false;sprite.contentMode = .scaleAspectFit
-            let width=NativeForestTransitionBeeMotion.beeWidth,height=width*Double(sprite.image?.size.height ?? 1)/max(1,Double(sprite.image?.size.width ?? 1))
-            sprite.bounds=CGRect(x:0,y:0,width:width,height:height);sprite.layer.position=CGPoint(x:plan.samples[0].point.x+width/2,y:plan.samples[0].point.y+height/2)
-            sprite.transform=CGAffineTransform(scaleX:plan.baseScale*plan.introScale,y:plan.baseScale*plan.introScale)
-            (plan.role=="left" ? frontLayer:rearLayer).addSubview(sprite);sprites.append(sprite)
+        for index in flights.indices {
+            let sprite=UIImageView();sprite.isUserInteractionEnabled=false;sprite.contentMode = .scaleAspectFit
+            sprite.accessibilityIdentifier="native.transition.forest.bee.\(index)"
+            frontLayer.addSubview(sprite);sprites.append(sprite)
         }
+        paint(seconds:0,mountainBounds:nil)
     }
     required init?(coder:NSCoder) {fatalError("init(coder:) has not been implemented")}
     func mountLayers(in parent:UIView) {guard !disposed,needsNativeParityReady else {return};for layer in [behindLayer,rearLayer,frontLayer] {parent.addSubview(layer)}}
     func paint(seconds:Double,mountainBounds:CGRect?) {
         guard !disposed,needsNativeParityReady else {return}
         for index in flights.indices {
-            let pose=flights[index].sample(seconds:seconds,mountainBounds:mountainBounds),sprite=sprites[index]
-            let home=flights[index].plan.role=="left" ? frontLayer:rearLayer,target=pose.behindMountain ? behindLayer:home
-            if sprite.superview !== target {target.addSubview(sprite)}
-            sprite.image=assets[pose.asset]
+            let plan=flights[index],pose=plan.sample(seconds),sprite=sprites[index]
+            let before=plan.sample(max(0,seconds-0.025)).point,after=plan.sample(seconds+0.025).point
+            let dx=after.x-before.x,dy=after.y-before.y
+            let aroundNumber=(1...numberBeeCount).contains(index)
+            if pose.moving {
+                facing[index]=NativeForestTransitionBeeMotion.Runtime.asset(vx:dx,vy:dy,fallback:facing[index])
+            } else if abs(dx)>0.35 {facing[index]=dx>0 ? 1:3}
+            sprite.image=assets[facing[index]]
             let width=NativeForestTransitionBeeMotion.beeWidth,height=width*Double(sprite.image?.size.height ?? 1)/max(1,Double(sprite.image?.size.width ?? 1))
-            sprite.bounds=CGRect(x:0,y:0,width:width,height:height);sprite.layer.position=CGPoint(x:pose.point.x+width/2,y:pose.point.y+height/2)
-            sprite.transform=CGAffineTransform(rotationAngle:pose.rotation * .pi/180).scaledBy(x:pose.scaleX,y:pose.scaleY);sprite.isHidden=pose.hidden
+            sprite.bounds=CGRect(x:0,y:0,width:width,height:height);sprite.center=pose.point
+            let scale=plan.renderedScale(seconds)
+            let bank = !pose.moving ? sin(seconds*3.2+plan.phase)*0.035:max(-0.16,min(0.16,atan2(dy,max(0.01,abs(dx)))*0.16))
+            sprite.transform=CGAffineTransform(rotationAngle:bank).scaledBy(x:scale,y:scale)
+            // Change depth during curved relocations, never by a free-running blink.
+            let crossings=plan.moves.filter {!$0.enters && seconds >= $0.start+$0.duration*0.5}.count
+            let depth=(index+crossings)%3
+            let intersectsMountain=mountainBounds?.intersects(CGRect(x:pose.point.x-width*scale/2,y:pose.point.y-height*scale/2,width:width*scale,height:height*scale)) ?? false
+            let target=aroundNumber ? ((index+crossings)%2==0 ? frontLayer:rearLayer):depth==2 && intersectsMountain ? behindLayer:rearLayer
+            if sprite.superview !== target {target.addSubview(sprite)}
+            sprite.alpha=1;sprite.isHidden=seconds<plan.moves[0].start || seconds>=duration
         }
     }
-    func dispose() {guard !disposed else {return};disposed=true;for layer in [behindLayer,rearLayer,frontLayer] {layer.removeFromSuperview();layer.subviews.forEach {$0.removeFromSuperview()}};sprites.removeAll();assets.removeAll();flights.removeAll();removeFromSuperview()}
+
+    func dispose() {guard !disposed else {return};disposed=true;for layer in [behindLayer,rearLayer,frontLayer] {layer.removeFromSuperview();layer.subviews.forEach {$0.removeFromSuperview()}};sprites.removeAll();assets.removeAll();flights.removeAll();facing.removeAll();removeFromSuperview()}
+}
+
+
+/// Four finite hover flights reuse transition artwork, facing and travel pace.
+/// The result clock owns pause/resume; this object owns only views and route state.
+@MainActor
+final class NativeResultForestBees {
+    static let departureTime=NativeResultPresentationPlan.cleanPrimaryCTAStart-0.02
+    struct Move {
+        let start,duration:Double
+        let from,to,control1,control2:CGPoint
+        let exits:Bool
+        var enters:Bool=false
+        var distance:Double {hypot(to.x-from.x,to.y-from.y)}
+    }
+    struct Plan {
+        let anchor:CGPoint,moves:[Move],phase,scale,travelSpeed:Double
+        let startsBehind:Bool
+        let distantScale:Double
+        var lifetime=NativeResultForestBees.departureTime
+        var hoverRate=1.0
+        var hoverStrength=1.0
+        var hoverHorizontalPhase=0.0
+        func renderedScale(_ seconds:Double)->Double {
+            let progress=min(1,max(0,(seconds-moves[0].start)/(lifetime-moves[0].start)))
+            let eased=progress*progress*(3-2*progress)
+            return scale*(1.45+(distantScale-1.45)*eased)*(startsBehind ? 0.8:1)
+        }
+        func sample(_ seconds:Double)->(point:CGPoint,behind:Bool,moving:Bool) {
+            var center=moves[0].from,behind=startsBehind,moving=false,envelope=seconds<moves[0].start ? 0.0:1.0
+            for move in moves {
+                if seconds<move.start {break}
+                let p=min(1,max(0,(seconds-move.start)/move.duration))
+                let eased=p*p*(3-2*p)
+                let q=1-eased
+                center=CGPoint(x:q*q*q*move.from.x+3*q*q*eased*move.control1.x+3*q*eased*eased*move.control2.x+eased*eased*eased*move.to.x,
+                    y:q*q*q*move.from.y+3*q*q*eased*move.control1.y+3*q*eased*eased*move.control2.y+eased*eased*eased*move.to.y)
+                if !move.enters && !startsBehind && move.distance>200 && p>=0.5 {behind.toggle()}
+                if move.enters {envelope=p}
+                if move.exits {envelope=1-p}
+                if p<1 {moving=true;break}
+            }
+            let hoverSeconds=seconds*hoverRate
+            center.x += (sin(hoverSeconds*2.9+phase+hoverHorizontalPhase)*28+sin(hoverSeconds*5.3+phase*0.7+hoverHorizontalPhase)*12)*envelope*hoverStrength
+            center.y += (sin(hoverSeconds*3.7+phase)*55+sin(hoverSeconds*6.1+phase*1.3)*25)*envelope*hoverStrength
+            return (center,behind,moving)
+        }
+    }
+    /// Four independent continuous hover paths with curved relocations and exits.
+    /// All randomness and shifts are captured once under the result clock.
+    static func plans(viewport:CGSize,random:()->Double)->[Plan] {
+        typealias Motion=NativeForestTransitionBeeMotion
+        let source=Motion.make(viewport:viewport,
+            digitCenters:[CGPoint(x:viewport.width*0.28,y:viewport.height*0.36),CGPoint(x:viewport.width*0.62,y:viewport.height*0.46)],
+            initialDigitHeights:[120,120],random:random)
+        // Broad, irregular regions rather than aligned central stations.
+        let top=max(80,viewport.height*0.12),bottom=viewport.height-100
+        let rows=[0.0,1.0/3,2.0/3,1.0].map {top+(bottom-top)*$0}
+        func roll()->Double {let value=random();return value.isFinite ? min(1,max(0,value)):0.5}
+        return (0..<4).map {index in
+            let original=source[index%source.count]
+            let left=index%2==0
+            let anchor=CGPoint(x:viewport.width*(left ? 0.17+roll()*0.16:0.67+roll()*0.16),y:rows[index]+(roll()-0.5)*32)
+            let speed=original.samples.last!.distance/original.end
+            let arrival=0.08+Double(index)*0.36+roll()*0.12
+            let arrivalDuration=0.68+roll()*0.18
+            let origins=[CGPoint(x:-180,y:anchor.y-35),CGPoint(x:viewport.width+180,y:anchor.y+30),
+                CGPoint(x:anchor.x,y:viewport.height+180),CGPoint(x:anchor.x,y:-180)]
+            var time=arrival+arrivalDuration+0.38+roll()*0.20
+            var from=origins[index%4],moves:[Move]=[]
+            @MainActor func move(to:CGPoint,start:Double,duration:Double,exits:Bool=false)->Move {
+                let dx=to.x-from.x,dy=to.y-from.y,bend=(roll()<0.5 ? -1.0:1.0)*(35+roll()*55)
+                return Move(start:start,duration:duration,from:from,to:to,
+                    control1:CGPoint(x:from.x+dx*0.25+(roll()-0.5)*45,y:from.y+dy*0.25+bend),
+                    control2:CGPoint(x:from.x+dx*0.75+(roll()-0.5)*45,y:from.y+dy*0.75-bend*0.65),exits:exits)
+            }
+            var entrance=move(to:anchor,start:arrival,duration:arrivalDuration)
+            entrance.enters=true;moves.append(entrance);from=anchor
+            for _ in 0..<5 {
+                let towardRight=from.x<viewport.width/2
+                let x=towardRight ? viewport.width*(0.62+roll()*0.22):viewport.width*(0.16+roll()*0.22)
+                let to=CGPoint(x:x,y:rows[index]+(roll()-0.5)*56)
+                let duration=max(0.28,hypot(to.x-from.x,to.y-from.y)/speed)
+                if time+duration>5.2 {break}
+                moves.append(move(to:to,start:time,duration:duration))
+                time += duration+0.38+roll()*0.38;from=to
+            }
+            let exitX=index==1 ? -160.0:viewport.width+160
+            let outside=CGPoint(x:exitX,y:rows[index]+(roll()-0.5)*140)
+            let exitStart=min(5.45+Double(index)*0.10,time)
+            moves.append(move(to:outside,start:exitStart,duration:departureTime-0.02-exitStart,exits:true))
+            let sizes=[1.00,1.05,1.16,1.08]
+            let distant=[0.95,0.62,0.86,0.55]
+            return Plan(anchor:anchor,moves:moves,phase:roll()*2 * .pi,scale:original.baseScale*sizes[index],travelSpeed:speed,startsBehind:index==1 || index==3,distantScale:distant[index])
+        }
+    }
+    private var flights:[Plan]
+    private var facing:[Int]=[]
+    private var sprites:[UIImageView]=[]
+    private var images:[Int:UIImage]=[:]
+    private var disposed=false
+    init(viewport:CGSize,artwork:JimiV9Artwork,random:()->Double={Double.random(in:0..<1)}) {
+        flights=Self.plans(viewport:viewport,random:random)
+        facing=flights.map {$0.startsBehind ? 3:1}
+        for index in 1...7 {images[index]=artwork.image("assets/shop/honey/bee\(index).png",densityAware:true)}
+        guard images.count==7 else {flights=[];images=[:];return}
+        for index in flights.indices {
+            let sprite=UIImageView();sprite.isUserInteractionEnabled=false;sprite.contentMode = .scaleAspectFit
+            sprite.accessibilityIdentifier="native.result.forest.bee.\(index)"
+            sprites.append(sprite)
+        }
+    }
+    func mount(in parent:UIView) {guard !disposed else{return};for sprite in sprites {parent.addSubview(sprite)};paint(seconds:0)}
+    func paint(seconds:Double) {
+        guard !disposed else{return}
+        if seconds>=Self.departureTime {dispose();return}
+        for index in flights.indices {
+            let clock=max(0,seconds)
+            let flight=flights[index],pose=flight.sample(clock),sprite=sprites[index]
+            let before=flight.sample(max(0,clock-0.025)).point,after=flight.sample(clock+0.025).point
+            let dx=after.x-before.x,dy=after.y-before.y
+            if pose.moving {
+                facing[index]=NativeForestTransitionBeeMotion.Runtime.asset(vx:dx,vy:dy,fallback:facing[index])
+            } else if abs(dx)>0.35 {
+                // Slow hover direction changes do not flicker between wing poses.
+                facing[index]=dx>0 ? 1:3
+            }
+            sprite.image=images[facing[index]]
+            let width=NativeForestTransitionBeeMotion.beeWidth
+            let height=width*Double(sprite.image?.size.height ?? 1)/max(1,Double(sprite.image?.size.width ?? 1))
+            sprite.bounds=CGRect(x:0,y:0,width:width,height:height)
+            sprite.center=pose.point
+            let bank=pose.moving ? max(-0.16,min(0.16,atan2(dy,max(0.01,abs(dx)))*0.16)):sin(clock*3.2+flight.phase)*0.035
+            let scale=flight.renderedScale(clock)
+            sprite.transform=CGAffineTransform(rotationAngle:bank).scaledBy(x:scale,y:scale)
+            // Only a long relocation crosses the content plane; hovering stays put.
+            sprite.layer.zPosition=pose.behind ? 0.5:2
+            sprite.alpha=1
+            sprite.isHidden=clock<flight.moves[0].start
+        }
+    }
+    func dispose() {
+        guard !disposed else{return};disposed=true
+        for sprite in sprites {sprite.image=nil;sprite.removeFromSuperview()}
+        sprites=[];flights=[];facing=[];images=[:]
+    }
 }

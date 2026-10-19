@@ -35,13 +35,18 @@ import StackToSixGameplay
             observed.append(value);onFrameScale.append(label.xScale);XCTAssertEqual(label.text,String(value))
         }))
         XCTAssertTrue(scene.startSourceHUDStarJobs(ids:engine.pendingHUDStars.map(\.id)))
-        for value in stride(from:0.0,through:1800,by:10){wall=value;service.deliver(wallMilliseconds:value)}
+        for value in stride(from:0.0,through:5000,by:10) {
+            wall=value;service.deliver(wallMilliseconds:value)
+            if !observed.isEmpty {break}
+        }
+        let arrival=wall
+        for value in stride(from:arrival+10,through:arrival+200,by:10){wall=value;service.deliver(wallMilliseconds:value)}
         XCTAssertEqual(engine.state.score,scoreBefore+100);XCTAssertEqual(observed,[scoreBefore+100]);XCTAssertEqual(onFrameScale,[1]) // no synchronous count-up or creation paint.
         XCTAssertEqual(label.text,String(scoreBefore+100));XCTAssertGreaterThan(label.xScale,1)
-        XCTAssertEqual(icon.xScale,base,accuracy:0.000001);XCTAssertEqual(label.position,originalPosition);XCTAssertEqual(label.fontName,font);XCTAssertEqual(label.fontColor,color)
-        for value in stride(from:1810.0,through:3000,by:10){wall=value;service.deliver(wallMilliseconds:value)}
-        XCTAssertEqual(label.xScale,1,accuracy:0.000001);XCTAssertEqual(observed.count,1)
-        scene.retireSourceHUDStarJobs();let scale=label.xScale;wall=4000;service.deliver(wallMilliseconds:wall);XCTAssertEqual(label.xScale,scale)
+        XCTAssertEqual(label.position,originalPosition);XCTAssertEqual(label.fontName,font);XCTAssertEqual(label.fontColor,color)
+        for value in stride(from:arrival+210,through:arrival+1500,by:10){wall=value;service.deliver(wallMilliseconds:value)}
+        XCTAssertEqual(label.xScale,1,accuracy:0.000001);XCTAssertEqual(icon.xScale,base,accuracy:0.000001);XCTAssertEqual(observed.count,1)
+        scene.retireSourceHUDStarJobs();let scale=label.xScale;wall=arrival+2000;service.deliver(wallMilliseconds:wall);XCTAssertEqual(label.xScale,scale)
     }
     func testBorrowedClockGlobalPauseKeepsHeldFeedbackAndCapturedDisposeCancelsOnlyItsRoots() throws {
         var wall=0.0;let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{wall},sourceFrameTransportEnabled:true),adapter=NativeSourceHUDStarScaleClockAdapter(service:service)

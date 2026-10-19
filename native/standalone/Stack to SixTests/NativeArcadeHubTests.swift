@@ -54,8 +54,13 @@ final class NativeArcadeHubTests: XCTestCase {
     }
     func testWorldSelectionUsesMatchingModalAndCleanupRejectsStalePlay() {
         let view = make(); view.present(); view.layoutIfNeeded()
+        var cues:[String]=[];view.onFeedback={cues.append($0)}
         for (index,title) in ["Endurance","One Lucky Drop","Slow Burn"].enumerated() {
             view.hub.onWorld?(view.hub.worldIDs[index])
+            XCTAssertEqual(Array(cues.suffix(2)),["cta","exit-modal"])
+            let count=cues.count
+            view.hub.onWorld?(view.hub.worldIDs[index])
+            XCTAssertEqual(cues.count,count,"An already-open modal cannot replay selection sounds")
             let modal = view.subviews.last!
             XCTAssertEqual(modal.accessibilityIdentifier,"native.arcade-world-modal")
             func labels(_ root:UIView)->[UILabel] { root.subviews.flatMap { ($0 as? UILabel).map {[$0]} ?? labels($0) } }

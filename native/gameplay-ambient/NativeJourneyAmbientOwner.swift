@@ -46,6 +46,8 @@ final class NativeJourneyAmbientOwner {
     private var foreground=true
     private var interrupted=false
     private var disposed=false
+    private var resultActive=false,resultSuspended=false
+    static let resultBees="clean-board-forest-soft-bees-ambient"
     static let worlds="journey-worlds-ambient-loop"
     static let bees="journey-forest-soft-bees-ambient"
     static let nature="journey-forest-nature-ambient"
@@ -59,8 +61,9 @@ final class NativeJourneyAmbientOwner {
     func setEnabled(_ value:Bool) {
         guard !disposed,enabled != value else{return};enabled=value
         if !value {stopAll();return}
-        let current=route,gen=generation,end=worldVisitEnd
+        let current=route,gen=generation,end=worldVisitEnd,result=resultActive,paused=resultSuspended
         route = .none;setRoute(current,generation:gen)
+        setForestResult(active:result,suspended:paused,generation:gen)
         if case .world=current,let end {
             worldVisitEnd=end;tasks.removeValue(forKey:Self.worlds)?.cancel();deadlines[Self.worlds]=end
             if end<=now() {stop(Self.worlds)}else{scheduleWorldDeadline()}
@@ -69,6 +72,7 @@ final class NativeJourneyAmbientOwner {
     func setRoute(_ value:Route,generation:UInt64) {
         guard !disposed else{return}
         if value==route && self.generation==generation {return} // Duplicate enter never extends World lifetime.
+        resultActive=false;resultSuspended=false;stop(Self.resultBees)
         let old=route;route=value;self.generation=generation;lease &+= 1
         cancelTasks()
         switch value {
@@ -96,6 +100,20 @@ final class NativeJourneyAmbientOwner {
             } else {stop(Self.gameplay)}
         }
     }
+    /// Result controller owns this one overlay loop; it shares Settings/session
+    /// and transport with Journey, but never replaces existing route ambience.
+    func setForestResult(active:Bool,suspended:Bool,generation:UInt64) {
+        guard !disposed,self.generation==generation else{return}
+        guard case .gameplay(.journey,let board)=route,(1...10).contains(board) else{return}
+        let wasSuspended=resultSuspended
+        resultActive=active;resultSuspended=suspended
+        guard active else {stop(Self.resultBees);return}
+        guard enabled else{return}
+        if suspended {if loops[Self.resultBees] != nil {transport.pause(id:Self.resultBees)};return}
+        let existed=loops[Self.resultBees] != nil
+        retain(Self.resultBees,source:"assets/sound/worlds/Forest/soft bees ambiance.wav",gain:0.20)
+        if existed,wasSuspended,foreground,!interrupted {transport.resume(id:Self.resultBees,gain:0.20)}
+    }
     /// Exact Cleared residual visual completion calls this; entering a modal is not
     /// a substitute. Ordinary exit/reset stops immediately through route retirement.
     func cleanResidualFinished(generation:UInt64) {
@@ -106,6 +124,7 @@ final class NativeJourneyAmbientOwner {
         if !value {for id in loops.keys {transport.pause(id:id)}}
         else if enabled,!interrupted {
             for (id,loop) in loops {
+                if id==Self.resultBees && resultSuspended {continue}
                 if let deadline=deadlines[id],deadline<=now() {stop(id);continue}
                 if loop.started {transport.resume(id:id,gain:loop.gain)}else{transport.start(id:id,source:loop.source,gain:loop.gain);loops[id]?.started=true}
             }
@@ -153,7 +172,7 @@ final class NativeJourneyAmbientOwner {
             interrupted=type == .began
             if interrupted {lease &+= 1;cancelTasks();for id in loops.keys {transport.pause(id:id)}}
             else if foreground {setForeground(true)}
-        } else {let current=route,gen=generation;stopAll();route = .none;setRoute(current,generation:gen)}
+        } else {let current=route,gen=generation,result=resultActive,paused=resultSuspended;stopAll();route = .none;setRoute(current,generation:gen);setForestResult(active:result,suspended:paused,generation:gen)}
     }
 }
 

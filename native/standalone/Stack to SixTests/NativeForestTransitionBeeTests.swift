@@ -49,14 +49,134 @@ final class NativeForestTransitionBeeTests: XCTestCase {
         let images=Dictionary(uniqueKeysWithValues:(1...7).compactMap {index in artwork.image("assets/shop/honey/bee\(index).png",densityAware:true).map {("bee\(index)",$0)}})
         let owner=NativeForestTransitionBees(viewport:CGSize(width:390,height:844),digitCenters:[CGPoint(x:175.5,y:240.76),CGPoint(x:214.5,y:240.76)],images:images,random:{0.5}),parent=UIView(frame:CGRect(x:0,y:0,width:390,height:844))
         XCTAssertTrue(owner.needsNativeParityReady);XCTAssertEqual(owner.duration,3.55+1.0/60,accuracy:0.000001)
+        let original=NativeForestTransitionBeeMotion.make(viewport:CGSize(width:390,height:844),digitCenters:[CGPoint(x:175.5,y:240.76),CGPoint(x:214.5,y:240.76)],initialDigitHeights:[0,0],random:{0.5})
+        XCTAssertEqual(owner.flights.count,6)
+        XCTAssertEqual(Set(owner.flights.map(\.hoverRate)).count,6)
+        XCTAssertEqual(Set(owner.flights.map(\.hoverHorizontalPhase)).count,6)
+        for (index,flight) in owner.flights.enumerated() {
+            let old=original[index%4]
+            XCTAssertGreaterThanOrEqual(flight.travelSpeed,old.samples.last!.distance/old.end*0.85)
+            XCTAssertLessThanOrEqual(flight.travelSpeed,old.samples.last!.distance/old.end*1.15)
+            XCTAssertGreaterThanOrEqual(flight.hoverRate,0.85);XCTAssertLessThanOrEqual(flight.hoverRate,1.15)
+            XCTAssertEqual(flight.hoverStrength,2)
+            if (1...owner.numberBeeCount).contains(index) {
+                XCTAssertLessThanOrEqual(abs(flight.anchor.x-195),140)
+                XCTAssertLessThanOrEqual(abs(flight.anchor.y-240.76),165)
+                XCTAssertTrue(flight.moves.filter {!$0.enters && !$0.exits}.allSatisfy {$0.duration>=0.28})
+            }
+        }
         owner.mountLayers(in:parent);XCTAssertEqual(parent.subviews.map {$0.layer.zPosition},[3,9,11])
-        XCTAssertEqual(parent.subviews.flatMap(\.subviews).count,4)
+        XCTAssertEqual(parent.subviews.flatMap(\.subviews).count,6)
         for frame in 0...220 {owner.paint(seconds:Double(frame)/60,mountainBounds:CGRect(x:0,y:489.52,width:390,height:328))}
         XCTAssertTrue(parent.subviews.flatMap(\.subviews).allSatisfy(\.isHidden))
         owner.dispose();owner.mountLayers(in:parent);owner.paint(seconds:1,mountainBounds:nil)
         XCTAssertTrue(parent.subviews.isEmpty)
     }
+    func testTransitionRandomRoutesVaryEveryBeeWithoutChangingEntryExitOrLifetime() {
+        for viewport in [CGSize(width:390,height:844),CGSize(width:320,height:568)] {
+            func plans(seed:UInt32,randomized:Bool)->[NativeForestTransitionBeeMotion.Plan] {
+                var rng=seed
+                return NativeForestTransitionBeeMotion.make(viewport:viewport,digitCenters:[CGPoint(x:viewport.width*0.45,y:viewport.height*0.285),CGPoint(x:viewport.width*0.55,y:viewport.height*0.285)],initialDigitHeights:[0,0],randomizeRoutes:randomized,random:{rng=1664525 &* rng &+ 1013904223;return Double(rng)/4294967296})
+            }
+            let first=plans(seed:17,randomized:true),second=plans(seed:39,randomized:true),original=plans(seed:17,randomized:false)
+            XCTAssertEqual(first.count,4)
+            for index in first.indices {
+                XCTAssertNotEqual(first[index].points,second[index].points)
+                XCTAssertNotEqual(first[index].points,original[index].points)
+                XCTAssertEqual(first[index].points.first,original[index].points.first)
+                XCTAssertEqual(Array(first[index].points.suffix(2)),Array(original[index].points.suffix(2)))
+                XCTAssertEqual(first[index].times,original[index].times)
+                XCTAssertEqual(first[index].mode,original[index].mode)
+                var runtime=NativeForestTransitionBeeMotion.Runtime(first[index])
+                for frame in 0...216 {
+                    let pose=runtime.sample(seconds:Double(frame)/60,mountainBounds:CGRect(x:0,y:viewport.height*0.58,width:viewport.width,height:328))
+                    XCTAssertTrue(pose.point.x.isFinite && pose.point.y.isFinite && pose.scaleX.isFinite && pose.scaleY.isFinite)
+                    if frame==216 {XCTAssertTrue(pose.hidden)}
+                }
+            }
+        }
+    }
+    func testMountedTransitionCapturesFreshRoutesAndDoesNotRerollWhilePainting() {
+        let root=Bundle.main.bundleURL.appendingPathComponent("NativeAssets.bundle"),artwork=JimiV9Artwork(resourceRoot:root)
+        let images=Dictionary(uniqueKeysWithValues:(1...7).compactMap {index in artwork.image("assets/shop/honey/bee\(index).png",densityAware:true).map {("bee\(index)",$0)}})
+        var rng:UInt32=17,draws=0
+        func roll()->Double {draws+=1;rng=1664525 &* rng &+ 1013904223;return Double(rng)/4294967296}
+        var poses:[[CGPoint]]=[]
+        for iteration in 0..<2 {
+            let owner=NativeForestTransitionBees(viewport:CGSize(width:390,height:844),digitCenters:[CGPoint(x:175.5,y:240.76),CGPoint(x:214.5,y:240.76)],images:images,random:roll)
+            let parent=UIView(frame:CGRect(x:0,y:0,width:390,height:844))
+            owner.mountLayers(in:parent);let captured=draws
+            XCTAssertEqual(captured,(iteration+1)*151)
+            for frame in 0...60 {owner.paint(seconds:Double(frame)/60,mountainBounds:nil)}
+            poses.append(parent.subviews.flatMap(\.subviews).map(\.center))
+            XCTAssertEqual(draws,captured)
+            owner.dispose();owner.dispose();XCTAssertTrue(parent.subviews.isEmpty)
+        }
+        XCTAssertNotEqual(poses[0],poses[1])
+    }
+
+    func testMountedHoverUsesNNAndMountainDepthAndOpaqueOffscreenExit() {
+        let root=Bundle.main.bundleURL.appendingPathComponent("NativeAssets.bundle"),artwork=JimiV9Artwork(resourceRoot:root)
+        let images=Dictionary(uniqueKeysWithValues:(1...7).compactMap {index in artwork.image("assets/shop/honey/bee\(index).png",densityAware:true).map {("bee\(index)",$0)}})
+        var rng:UInt32=17
+        let owner=NativeForestTransitionBees(viewport:CGSize(width:390,height:844),digitCenters:[CGPoint(x:175.5,y:240.76),CGPoint(x:214.5,y:240.76)],images:images,
+            random:{rng=1664525 &* rng &+ 1013904223;return Double(rng)/4294967296})
+        let parent=UIView(frame:CGRect(x:0,y:0,width:390,height:844));owner.mountLayers(in:parent)
+        XCTAssertTrue(parent.subviews.flatMap(\.subviews).allSatisfy(\.isHidden))
+        var usedDepths=Set<CGFloat>(),positions:[String:Set<CGFloat>]=[:],beeDepths:[String:Set<CGFloat>]=[:]
+        for frame in 0...212 {
+            owner.paint(seconds:Double(frame)/60,mountainBounds:CGRect(x:0,y:489.52,width:390,height:328))
+            for layer in parent.subviews {for bee in layer.subviews where !bee.isHidden {
+                usedDepths.insert(layer.layer.zPosition)
+                beeDepths[bee.accessibilityIdentifier!,default:[]].insert(layer.layer.zPosition)
+                positions[bee.accessibilityIdentifier!,default:[]].insert(bee.center.y)
+                XCTAssertEqual(bee.alpha,1)
+                XCTAssertTrue(bee.center.x.isFinite && bee.center.y.isFinite)
+            }}
+        }
+        XCTAssertEqual(usedDepths,Set([CGFloat(3),CGFloat(9),CGFloat(11)]))
+        XCTAssertEqual(positions.count,6)
+        for index in 1...owner.numberBeeCount {XCTAssertEqual(beeDepths["native.transition.forest.bee.\(index)"],Set([CGFloat(9),CGFloat(11)]))}
+        XCTAssertTrue(positions.values.allSatisfy {$0.count>80})
+        owner.paint(seconds:owner.duration-0.001,mountainBounds:nil)
+        XCTAssertTrue(parent.subviews.flatMap(\.subviews).allSatisfy {$0.center.x < -100 || $0.center.x > 490})
+        owner.paint(seconds:owner.duration,mountainBounds:nil)
+        XCTAssertTrue(parent.subviews.flatMap(\.subviews).allSatisfy(\.isHidden))
+        owner.dispose();XCTAssertTrue(parent.subviews.isEmpty)
+    }
+
+    func testEntranceStaysNearFlightRegionAcrossSeedsAndViewports() {
+        var counts=Set<Int>()
+        for viewport in [CGSize(width:390,height:844),CGSize(width:320,height:568)] {
+            for seed in 1...24 {
+                var rng=UInt32(seed)
+                let owner=NativeForestTransitionBees(viewport:viewport,digitCenters:[CGPoint(x:viewport.width/2,y:viewport.height*0.285)],images:[:],random:{rng=1664525 &* rng &+ 1013904223;return Double(rng)/4294967296})
+                counts.insert(owner.numberBeeCount)
+                XCTAssertLessThan(owner.flights[0].anchor.y,viewport.height*0.15)
+                XCTAssertGreaterThan(owner.flights[5].anchor.y,viewport.height*0.85)
+                for index in 1...owner.numberBeeCount {
+                    XCTAssertLessThanOrEqual(abs(owner.flights[index].anchor.y-viewport.height*0.285),165)
+                }
+                for (index,plan) in owner.flights.enumerated() {
+                    let entry=plan.moves[0],anchor=plan.anchor
+                    let nearest=min(anchor.x,viewport.width-anchor.x,anchor.y,viewport.height-anchor.y)+100
+                    XCTAssertLessThanOrEqual(entry.distance,nearest+40.000001)
+                    if entry.from.y<0 {XCTAssertLessThan(anchor.y,viewport.height/2)}
+                    if entry.from.y>viewport.height {XCTAssertGreaterThan(anchor.y,viewport.height/2)}
+                    for move in plan.moves where !move.enters && !move.exits {
+                        XCTAssertLessThanOrEqual(abs(move.to.y-anchor.y),(1...owner.numberBeeCount).contains(index) ? 150.000001:90.000001)
+                    }
+                }
+                owner.dispose()
+            }
+        }
+        XCTAssertEqual(counts,Set([2,3]))
+    }
+
     func testIncompleteAssetLeaseCannotMountAnApproximateForestField() {
+        let noDigits=NativeForestTransitionBees(viewport:CGSize(width:390,height:844),digitCenters:[],images:[:],random:{0.5})
+        XCTAssertFalse(noDigits.needsNativeParityReady);noDigits.dispose()
+
         let owner=NativeForestTransitionBees(viewport:CGSize(width:390,height:844),digitCenters:[CGPoint(x:195,y:240)],images:[:],random:{0.5}),parent=UIView()
         XCTAssertFalse(owner.needsNativeParityReady);owner.mountLayers(in:parent);owner.paint(seconds:2,mountainBounds:nil);XCTAssertTrue(parent.subviews.isEmpty);owner.dispose()
     }

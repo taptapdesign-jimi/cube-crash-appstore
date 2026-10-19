@@ -1,5 +1,22 @@
 import Foundation
 
+/// One reward per Wild/Special merge-six, using the resulting combo.
+public enum NativeComboCoinPolicy {
+    public static let maximumCount=7
+    public static func count(combo:Int,mergeSix:Bool=true)->Int {
+        guard mergeSix else{return 1}
+        switch combo {
+        case ..<3:return 1
+        case 3..<5:return 2
+        case 5..<10:return 3
+        case 10..<15:return 4
+        case 15..<20:return 5
+        case 20..<25:return 6
+        default:return maximumCount
+        }
+    }
+}
+
 public enum NativeRunMode: String, Codable, Sendable { case arcade = "arcade_home", journey }
 public enum NativeWildArchetype: String, Codable, CaseIterable, Sendable { case star = "wild", juice = "wild-juice", magnet = "wild-magnet", tnt = "wild-tnt" }
 /// Plain Star and these variants share a persisted drop count; Bee remains fixed at one.
@@ -77,14 +94,17 @@ public struct NativeBoardState: Equatable, Codable, Sendable {
     public var wildMeter: Double
     public var luckyDropUsed: Bool = false
     public var wildSpawnCount: Int
+    /// Last committed Wild/Special merge-six presentation world; ordinary merges retain it.
+    public var lastSpecialMergeWorld: String?
     public var lastWildDropType: NativeWildArchetype?
     public var wildDropTypeStreak: Int
     public var rngState: UInt64
     public var tutorial: NativeTutorialState?
     public var terminal: NativeResolution?
-    public init(columns: Int = 5, rows: Int = 9, tiles: [NativeTile], mode: NativeRunMode = .journey, board: Int = 1, stage: Int = 1, generation: UInt64 = 1, revision: UInt64 = 0, moves: Int = 50, maxMoves: Int = 50, score: Int = 0, starsCount: Int = 0, bestScore: Int = 0, maxStackDepth: Int = 1, longestCombo: Int = 0, cubesCracked: Int = 0, combo: Int = 0, earnedComboBonus: Int = 0, wildMeter: Double = 0, wildSpawnCount: Int = 0, lastWildDropType: NativeWildArchetype? = nil, wildDropTypeStreak: Int = 0, rngState: UInt64 = 1, terminal: NativeResolution? = nil, tutorial: NativeTutorialState? = nil, sourceDetachedGridTileIDs:Set<String>? = nil, arcadeVariant: NativeArcadeVariant? = nil) {
+    public init(columns: Int = 5, rows: Int = 9, tiles: [NativeTile], mode: NativeRunMode = .journey, board: Int = 1, stage: Int = 1, generation: UInt64 = 1, revision: UInt64 = 0, moves: Int = 50, maxMoves: Int = 50, score: Int = 0, starsCount: Int = 0, bestScore: Int = 0, maxStackDepth: Int = 1, longestCombo: Int = 0, cubesCracked: Int = 0, combo: Int = 0, earnedComboBonus: Int = 0, wildMeter: Double = 0, wildSpawnCount: Int = 0, lastWildDropType: NativeWildArchetype? = nil, wildDropTypeStreak: Int = 0, rngState: UInt64 = 1, terminal: NativeResolution? = nil, tutorial: NativeTutorialState? = nil, sourceDetachedGridTileIDs:Set<String>? = nil, arcadeVariant: NativeArcadeVariant? = nil, lastSpecialMergeWorld: String? = nil) {
         self.arcadeVariant=arcadeVariant
         self.sourceDetachedGridTileIDs=sourceDetachedGridTileIDs
+        self.lastSpecialMergeWorld = lastSpecialMergeWorld
         self.columns = columns; self.rows = rows; self.tiles = tiles; self.mode = mode; self.board = board; self.stage = stage; self.generation = generation; self.revision = revision; self.moves = moves; self.maxMoves = maxMoves; self.score = score; self.starsCount = starsCount; self.bestScore = bestScore; self.maxStackDepth = maxStackDepth; self.longestCombo = longestCombo; self.cubesCracked = cubesCracked; self.combo = combo; self.earnedComboBonus = earnedComboBonus; self.wildMeter = wildMeter; self.wildSpawnCount = wildSpawnCount; self.lastWildDropType = lastWildDropType; self.wildDropTypeStreak = wildDropTypeStreak; self.rngState = rngState; self.terminal = terminal; self.tutorial = tutorial
     }
     public var activeTiles: [NativeTile] { tiles.filter(\.isActive) }
@@ -217,7 +237,7 @@ extension NativeTile {
     }
 }
 extension NativeBoardState {
-    private enum CodingKeys: String, CodingKey { case luckyDropUsed,columns,rows,tiles,mode,board,stage,generation,revision,moves,maxMoves,score,starsCount,bestScore,maxStackDepth,longestCombo,cubesCracked,combo,earnedComboBonus,wildMeter,wildSpawnCount,lastWildDropType,wildDropTypeStreak,rngState,terminal,tutorial,sourceDetachedGridTileIDs,arcadeVariant }
+    private enum CodingKeys: String, CodingKey { case lastSpecialMergeWorld,luckyDropUsed,columns,rows,tiles,mode,board,stage,generation,revision,moves,maxMoves,score,starsCount,bestScore,maxStackDepth,longestCombo,cubesCracked,combo,earnedComboBonus,wildMeter,wildSpawnCount,lastWildDropType,wildDropTypeStreak,rngState,terminal,tutorial,sourceDetachedGridTileIDs,arcadeVariant }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy:CodingKeys.self)
         self.init(columns:try c.decode(Int.self,forKey:.columns),rows:try c.decode(Int.self,forKey:.rows),tiles:try c.decode([NativeTile].self,forKey:.tiles),
@@ -230,6 +250,7 @@ extension NativeBoardState {
             wildSpawnCount:try c.decodeIfPresent(Int.self,forKey:.wildSpawnCount) ?? 0,lastWildDropType:try c.decodeIfPresent(NativeWildArchetype.self,forKey:.lastWildDropType),
             wildDropTypeStreak:try c.decodeIfPresent(Int.self,forKey:.wildDropTypeStreak) ?? 0,rngState:try c.decodeIfPresent(UInt64.self,forKey:.rngState) ?? 1,
             terminal:try c.decodeIfPresent(NativeResolution.self,forKey:.terminal),tutorial:try c.decodeIfPresent(NativeTutorialState.self,forKey:.tutorial),sourceDetachedGridTileIDs:try c.decodeIfPresent(Set<String>.self,forKey:.sourceDetachedGridTileIDs),arcadeVariant:try c.decodeIfPresent(NativeArcadeVariant.self,forKey:.arcadeVariant))
+        lastSpecialMergeWorld = try c.decodeIfPresent(String.self,forKey:.lastSpecialMergeWorld)
         luckyDropUsed = try c.decodeIfPresent(Bool.self,forKey:.luckyDropUsed) ?? false
     }
 }

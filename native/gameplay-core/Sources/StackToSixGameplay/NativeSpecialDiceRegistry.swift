@@ -26,6 +26,29 @@ public enum NativeSpecialDiceRegistry {
         Variant("cubero", .star, "assets/shop/cubero/cubero.png"),
         Variant("beach-ball", .tnt, "assets/shop/ball/ball.png", visualFinale: .juice, ratio: 0.30)
     ].map { ($0.id, $0) })
+    /// Mirrors NativeBackpackCatalog world membership. Arcade-only originals use
+    /// the existing neutral Area55 celebration, not the current round number.
+    public static func celebrationWorld(for tile:NativeTile)->String? {
+        guard tile.isWild else{return nil}
+        if let variant=tile.variant {
+            switch variant {
+            case "bee","flower","honey","mushroom","barell":return "forest"
+            case "fish","beach-ball","bottle":return "beach"
+            case "kanta","robo-cube","spaceship","laser-gun","cubero":return "area55"
+            default:return nil
+            }
+        }
+        switch tile.gameplayArchetype {
+        case .star:return "forest"
+        case .juice:return "beach"
+        case .magnet,.tnt:return "area55"
+        case nil:return nil
+        }
+    }
+    public static func celebrationWorld(source:NativeTile,destination:NativeTile)->String? {
+        let owner=finale(source:source,destination:destination,gameplay:true)
+        return [source,destination].first(where:{$0.gameplayArchetype==owner && $0.isWild}).flatMap{celebrationWorld(for:$0)}
+    }
     public static func compatibleVariant(_ id: String, core: NativeWildArchetype) -> Variant? {
         guard let variant = variants[id] else { return nil }
         if variant.archetype == core { return variant }

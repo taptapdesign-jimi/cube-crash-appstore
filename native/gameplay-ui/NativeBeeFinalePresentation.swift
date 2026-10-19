@@ -38,7 +38,7 @@ final class NativeBeeFinalePresentation: NativeFinitePresentation {
             host.isUserInteractionEnabled=false;host.layer.zPosition=1;host.alpha=0;image.frame=host.bounds;image.contentMode = .scaleAspectFit;host.addSubview(image);field.addSubview(host);leafHosts.append(host);leafImages.append(image)
         }
         for plan in NativeBeeFinaleMotion.ambient {
-            let size=42*plan.scale,host=UIView(frame:CGRect(x:0,y:0,width:size,height:size));host.layer.zPosition=4;field.addSubview(host)
+            let size=42*1.5*plan.scale,host=UIView(frame:CGRect(x:0,y:0,width:size,height:size));host.layer.zPosition=4;field.addSubview(host)
             let frames=[1,3].map {index->UIImageView in let image=UIImageView(image:artwork.image("assets/shop/honey/bee\(index).png",densityAware:true));image.frame=host.bounds;image.contentMode = .scaleAspectFit;host.addSubview(image);return image}
             ambient.append(AmbientOwner(host:host,frames:frames))
         }
@@ -50,7 +50,7 @@ final class NativeBeeFinalePresentation: NativeFinitePresentation {
     private func rounded(_ value:Double,_ digits:Int)->CGFloat {CGFloat(NativeFinaleDecimal.rounded(value,digits:digits))}
     override func paint(seconds time:TimeInterval) {
         guard !cancelled,assetReady else {return}
-        let t=min(4,time),pose=route.sample(seconds:t),delta=max(0,t-priorTime);priorTime=t
+        let t=min(4,time),pose=route.sample(seconds:t,hovering:true),delta=max(0,t-priorTime);priorTime=t
         if pose.facing != facing {
             if pose.facing != candidateFacing {candidateFacing=pose.facing;candidateSince=0}
             else {candidateSince+=delta;if candidateSince>=0.05 {facing=candidateFacing}}
@@ -60,7 +60,7 @@ final class NativeBeeFinalePresentation: NativeFinitePresentation {
         hero.layer.position=CGPoint(x:rounded(pose.point.x,2)+hero.bounds.width*0.1,y:rounded(pose.point.y,2)+hero.bounds.height*0.02)
         hero.transform=CGAffineTransform(rotationAngle:rounded(pose.rotation,2) * .pi/180).scaledBy(x:rounded(pose.scale*Double(facing),4),y:rounded(pose.scale,4))
         for index in ambient.indices {
-            let sample=route.sampleAmbient(NativeBeeFinaleMotion.ambient[index],seconds:t)
+            let sample=route.sampleAmbient(NativeBeeFinaleMotion.ambient[index],seconds:t,hovering:true)
             let candidate=abs(sample.vx)<0.01 || !sample.vx.isFinite ? ambient[index].current:sample.vx<0 ? 1:0
             if candidate==ambient[index].current {ambient[index].pending=nil;ambient[index].pendingSeconds=0}
             else if candidate != ambient[index].pending {ambient[index].pending=candidate;ambient[index].pendingSeconds=0}
@@ -83,7 +83,7 @@ final class NativeBeeFinalePresentation: NativeFinitePresentation {
             let skew=tan(rounded(pose.skewX,2) * .pi/180),sx=rounded(pose.imageScaleX,3),sy=rounded(pose.imageScaleY,3)
             image.transform=CGAffineTransform(a:sx,b:0,c:skew*sy,d:sy,tx:0,ty:0)
         }
-        field.alpha=t<=3.88 ? 1:CGFloat(cos(NativeBeeFinaleMotion.clamp((t-3.88)/0.12) * .pi/2))
+        field.alpha=1 // Companions fly fully offscreen by3.9s; no field fade.
         if t>=1.6 {fire("finale") {onCue?("finale",0)}}
         for beat in Self.hapticBeats where t>=beat.at {fire(beat.key) {onHaptic?("light")}}
         glyphs.paint(seconds:time)

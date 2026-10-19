@@ -7,7 +7,7 @@ struct NativeHoneyFinaleMotion {
         let assetIndex: Int,birth: CGPoint,size: CGFloat,delay: TimeInterval,enter: TimeInterval,travel: TimeInterval,exit: TimeInterval
         let startRotation: CGFloat,buzzA: CGFloat,buzzB: CGFloat,waypoints: [Pose],edge: CGPoint,outside: CGPoint
         var end: TimeInterval { delay+enter+0.08+travel+0.09+exit }
-        func sample(seconds: TimeInterval) -> Pose {
+        func sample(seconds: TimeInterval,hovering:Bool=false) -> Pose {
             let t = seconds-delay
             guard t >= 0,t < end-delay else { return Pose(point: birth,scale: 0,alpha: 0,rotation: 0) }
             func interpolate(_ a: Pose,_ b: Pose,_ p: CGFloat) -> Pose {
@@ -22,6 +22,24 @@ struct NativeHoneyFinaleMotion {
             } else if t < enter+0.08+travel {
                 let clock = NativeBoardMotion.Ease.sineInOut.sample(CGFloat((t-enter-0.08)/travel))*5
                 let index = min(4,Int(clock)); pose = interpolate(waypoints[index],waypoints[index+1],clock-CGFloat(index))
+                if hovering {
+                    // Keep the captured Honey scatter destinations, but curve the
+                    // flight between them and add the accepted independent hover.
+                    let p=clock-CGFloat(index),u=p*p*(3-2*p)
+                    let a=waypoints[index].point,b=waypoints[index+1].point
+                    let previous=waypoints[max(0,index-1)].point,next=waypoints[min(5,index+2)].point
+                    let u2=u*u,u3=u2*u
+                    func axis(_ a:CGFloat,_ b:CGFloat,_ before:CGFloat,_ after:CGFloat)->CGFloat {
+                        (2*u3-3*u2+1)*a+(u3-2*u2+u)*(b-before)*0.5+(-2*u3+3*u2)*b+(u3-u2)*(after-a)*0.5
+                    }
+                    pose.point=CGPoint(x:axis(a.x,b.x,previous.x,next.x),y:axis(a.y,b.y,previous.y,next.y))
+                    let age=CGFloat(t-enter-0.08),progress=age/CGFloat(travel)
+                    let envelope=sin(.pi*progress)*sin(.pi*progress)
+                    let phase=(birth.x*0.017+birth.y*0.023+size*0.11+CGFloat(assetIndex)*1.73)
+                    pose.point.x += (sin(age*2.9+phase)*28+sin(age*5.3+phase*0.7)*12)*envelope
+                    pose.point.y += (sin(age*3.7+phase)*55+sin(age*6.1+phase*1.3)*25)*envelope
+                    pose.rotation += sin(age*3.2+phase)*4*envelope
+                }
             } else if t < enter+0.08+travel+0.09 {
                 pose = interpolate(waypoints[5],Pose(point: CGPoint(x: edge.x*0.96,y: edge.y*0.96),scale: 1.16,alpha: 1,rotation: buzzB),NativeBoardMotion.Ease.power2Out.sample(CGFloat((t-enter-0.08-travel)/0.09)))
             } else {

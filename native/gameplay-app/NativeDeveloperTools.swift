@@ -5,7 +5,7 @@ import StackToSixNativeState
 /// Matches the preserved Settings DEV menu. Commands are admitted by the app
 /// route owner; the panel itself has no save or gameplay authority.
 enum NativeDeveloperAction: String, CaseIterable {
-    case show, hide, legendary, reset, newCard = "new-card", newDice = "new-dice", clean = "clean-board", lastMerge = "last-merge"
+    case show, hide, legendary, reset, newCard = "new-card", newDice = "new-dice", forestUnlock = "forest-unlock", clean = "clean-board", lastMerge = "last-merge"
     var title: String {
         switch self {
         case .show: return "Show Card"
@@ -14,6 +14,7 @@ enum NativeDeveloperAction: String, CaseIterable {
         case .reset: return "Reset Stage"
         case .newCard: return "New Card"
         case .newDice: return "New Dice"
+        case .forestUnlock: return "Forest 2 Unlock"
         case .clean: return "Clean Stage"
         case .lastMerge: return "LAST MERGE"
         }

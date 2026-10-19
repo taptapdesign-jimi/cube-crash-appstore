@@ -33,7 +33,8 @@ nonisolated final class NativeSourceSpecialAbsorbInterruptionTests:XCTestCase {
   }
  }
  func testActualMainEnteredReceiptClosesMagnetWindowBeforeConvergenceWithoutLogicalCommit()throws {
-  let e=engine(.init(.magnet)),plan=try reserve(e),receipt=try register(e,plan),before=e.state
+  let e=engine(.init(.magnet)),plan=try reserve(e),receipt=try register(e,plan)
+  var before=e.state;before.lastSpecialMergeWorld="area55" // Presentation provenance only; gameplay accounting remains unchanged.
   XCTAssertNil(e.pendingMagnetRespawn);XCTAssertFalse(e.sourceSpecialAbsorbMainEntered)
   XCTAssertTrue(e.commitSourceSpecialAbsorbMain(receiptID:receipt.id,generation:receipt.generation).accepted)
   XCTAssertEqual(e.state,before);XCTAssertTrue(e.sourceSpecialAbsorbMainEntered);XCTAssertNil(e.pendingMagnetRespawn)
@@ -98,8 +99,10 @@ extension NativeSourceSpecialAbsorbInterruptionTests {
   XCTAssertEqual(gold.mainRows.count,27)
   for row in gold.mainRows {
    let magnet=["magnet","spaceship","bottle","honey"].contains(row.family)
-   let e=engine(.init(magnet ? .magnet:.tnt,variant:["magnet","tnt"].contains(row.family) ? nil:row.family)),plan=try reserve(e),receipt=try register(e,plan),before=e.state
+   let e=engine(.init(magnet ? .magnet:.tnt,variant:["magnet","tnt"].contains(row.family) ? nil:row.family)),plan=try reserve(e),receipt=try register(e,plan)
+   var before=e.state
    if row.mainEntered {
+    if magnet {before.lastSpecialMergeWorld=NativeSpecialDiceRegistry.celebrationWorld(source:plan.source,destination:plan.destination)}
     XCTAssertTrue(e.commitSourceSpecialAbsorbMain(receiptID:receipt.id,generation:receipt.generation).accepted)
     XCTAssertTrue(e.sourceSpecialAbsorbMainEntered);XCTAssertNil(e.pendingMagnetRespawn);XCTAssertFalse(e.specialActivationCommitted)
     XCTAssertFalse(e.cancelSourceSpecialAbsorb(receiptID:receipt.id,generation:receipt.generation).accepted);XCTAssertEqual(e.state,before)

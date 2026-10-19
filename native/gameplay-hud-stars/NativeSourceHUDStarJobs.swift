@@ -42,10 +42,10 @@ import Foundation
         let valid=hooks.current()
         return valid && !disposed && jobs[job.id] === job && !job.retired
     }
-    /// IDs are one genuine original call group (max3); callers must never
+    /// IDs are one reward group (Native coins max7, Source reference max3); callers must never
     /// flatten several Core batches and cap their combined earned debt.
-    @discardableResult func start(jobID:UUID,ids:[String],origin:CGPoint,target:CGPoint,textureWidth:Double,random:()->Double)->Bool {
-        guard !disposed,!ids.isEmpty,ids.count<=3,Set(ids).count==ids.count,jobs[jobID]==nil,
+    @discardableResult func start(jobID:UUID,ids:[String],origin:CGPoint,target:CGPoint,textureWidth:Double,viewport:CGSize?=nil,gentleLaunch:Bool=false,random:()->Double)->Bool {
+        guard !disposed,!ids.isEmpty,ids.count <= (readableCoins ? 7 : 3),Set(ids).count==ids.count,jobs[jobID]==nil,
               origin.x.isFinite,origin.y.isFinite,target.x.isFinite,target.y.isFinite,textureWidth.isFinite,textureWidth>0 else{return false}
         let valid=hooks.current();guard valid,!disposed else{return false}
         let job=Job(id:jobID,ids:ids);jobs[jobID]=job;order.append(jobID)
@@ -66,7 +66,7 @@ import Foundation
         for (ordinal,id) in ids.enumerated() {
             guard current(job) else{retire(job);return false}
             let sourcePlan=NativeSourceHUDStarPlan.construct(ordinal:ordinal,sizes:sizes,origin:origin,target:target,textureWidth:textureWidth,previousArrival:&previous,random:random)
-            let plan=readableCoins ? sourcePlan.readableCoin(ordinal:ordinal,previousEnd:&previousCoinEnd):sourcePlan
+            let plan=readableCoins ? sourcePlan.readableCoin(ordinal:ordinal,previousEnd:&previousCoinEnd,viewport:viewport,gentleLaunch:gentleLaunch):sourcePlan
             guard current(job) else{retire(job);return false}
             let flight=Flight(id:id,plan:plan);job.flights.append(flight);maxEnd=max(maxEnd,plan.end)
             guard hooks.mountStar(id,plan),current(job),flight.alive else{retire(job);return false}

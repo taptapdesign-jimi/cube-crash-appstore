@@ -7,7 +7,8 @@ public struct NativePendingArcadeRound: Codable, Equatable, Sendable {
     public var score: Int
     public var ownerID: String?
     public var meterProgress: Double?
-    public init(round:Int,score:Int,ownerID:String?=nil,meterProgress:Double?=nil) {self.round=round;self.score=score;self.ownerID=ownerID;self.meterProgress=meterProgress}
+    public var lastSpecialMergeWorld: String?
+    public init(round:Int,score:Int,ownerID:String?=nil,meterProgress:Double?=nil,lastSpecialMergeWorld:String?=nil) {self.round=round;self.score=score;self.ownerID=ownerID;self.meterProgress=meterProgress;self.lastSpecialMergeWorld=lastSpecialMergeWorld}
 }
 public struct NativeSaveEnvelope: Codable, Equatable, Sendable {
     public static let currentVersion = 1
@@ -130,7 +131,7 @@ public struct NativeSaveEnvelope: Codable, Equatable, Sendable {
         } else {
             arcadeRun=played ? state:nil
             arcadeRunSavedAt=played ? now:nil
-            pendingArcadeRound=played ? nil:.init(round:state.board,score:state.score,meterProgress:state.wildMeter)
+            pendingArcadeRound=played ? nil:.init(round:state.board,score:state.score,meterProgress:state.wildMeter,lastSpecialMergeWorld:state.lastSpecialMergeWorld)
         }
     }
     /// Discard legacy entry-only layouts without losing earned Arcade progression.
@@ -142,7 +143,7 @@ public struct NativeSaveEnvelope: Codable, Equatable, Sendable {
         for variant in NativeArcadeVariant.allCases {
             activeArcadeVariant=variant
             if let run=arcadeRun,!Self.hasRecordedMove(run) {
-                if pendingArcadeRound==nil {pendingArcadeRound = .init(round:run.board,score:run.score,meterProgress:run.wildMeter)}
+                if pendingArcadeRound==nil {pendingArcadeRound = .init(round:run.board,score:run.score,meterProgress:run.wildMeter,lastSpecialMergeWorld:run.lastSpecialMergeWorld)}
                 arcadeRun=nil;arcadeRunSavedAt=nil
             }
         }
@@ -152,6 +153,14 @@ public struct NativeSaveEnvelope: Codable, Equatable, Sendable {
         let timestamp = mode == .journey ? (journeyRunSavedAt[board] ?? savedAt) : (arcadeRunSavedAt ?? savedAt)
         guard now - timestamp < 7 * 24 * 60 * 60, now >= timestamp - 60 else { return nil }
         guard var run = mode == .journey ? journeyRuns[board] : arcadeRun, run.board == board, Self.hasRecordedMove(run) else { return nil }
+        // Old Forest7–10 pools accidentally admitted Arcade-only OG TNT.
+        // Barrel is the same gameplay archetype and already unlocked here:
+        // preserve the board, score and RNG while repairing only its artwork identity.
+        if mode == .journey,(7...10).contains(board) {
+            for index in run.tiles.indices where run.tiles[index].archetype == .tnt && run.tiles[index].variant == nil {
+                run.tiles[index].variant="barell"
+            }
+        }
         run.combo = 0 // Earned current-attempt reward survives; live timing streak does not.
         run.generation &+= 1; run.revision &+= 1
         return run

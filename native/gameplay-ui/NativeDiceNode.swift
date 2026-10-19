@@ -395,6 +395,9 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         let id=UUID(),generation=sourceGeneration
         kind=core;variant=nil;value=6;depth=1;locked=false;definition=requested
         sourceWildStateCleared=false;sourceResidualWildPresence=false;sourceEventMode="static";alpha=1
+        // A reused Magnet-family empty holder has dimmed inner artwork.
+        // The admitted reward owns full opacity; its carrier animates root alpha.
+        visual.alpha=1
         stack.removeAllChildren();pips.removeAllChildren();pips.isHidden=true
         sourceWildSkinRevision &+= 1
         sourceOpenedWildParent=capturedParent;sourceOpenedWildIdentity=(id,generation,core,nil)
@@ -1746,7 +1749,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
     /// Direct SVG/atlas artwork keeps its authored phase under registry pressure,
     /// just like the preserved direct-artwork owners. Actual lifecycle suspension
     /// and pointer-only visibility remain independent controls.
-    var keepsDirectArtworkDuringRegistryPressure:Bool {definition.idleSheet != nil || variant=="flower"}
+    var keepsDirectArtworkDuringRegistryPressure:Bool {definition.idleSheet != nil || variant=="flower" || variant=="bee"}
     var hasAnimatedArtwork: Bool {
         if let sheet=sourceStarSheet,sheet.isCurrent {return true}
         if let honey=sourceHoneyIdle {return !disposed && !sourceWildStateCleared && !sourceIdleDeferred && honey.isCurrent}

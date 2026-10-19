@@ -73,6 +73,7 @@ import StackToSixGameplay
         let initial=variant.map{coinAnimations[$0].texture(at:0)} ?? texture
         let star=SKSpriteNode(texture:initial,size:pixelSize);star.name="source-hud-star:\(id)";star.anchorPoint = .init(x:0.5,y:0.5)
         star.position = .init(x:plan.points[0].x,y:height-plan.points[0].y);star.setScale(plan.size/plan.textureWidth)
+        star.alpha=0
         sprites[id]=star;container.addChild(star)
         return current() && sprites[id] === star && star.parent === container
     }
@@ -82,6 +83,7 @@ import StackToSixGameplay
             let frame=coinAnimations[variant].texture(at:pose.elapsed)
             if star.texture !== frame {star.texture=frame}
         }
+        star.alpha=1
         star.position = .init(x:pose.point.x,y:height-pose.point.y);star.setScale(pose.scale);star.zRotation = -pose.rotation
     }
     private func timeline(_ plan:NativeSourceHUDStarPlan,_ update:@escaping(Double)->Void,_ complete:@escaping()->Void)->NativeSourceHUDStarJobs.Cancel? {
@@ -97,7 +99,7 @@ import StackToSixGameplay
         guard current(),selectedAssetsReady else{return false}
         guard let capture=engine.registerSourceHUDStarJob(receiptIDs:receiptIDs,generation:generation) else{return false}
         let id=UUID();jobCaptures[id]=capture
-        let started=jobs.start(jobID:id,ids:receiptIDs,origin:screenOrigin,target:hudTarget,textureWidth:pixelSize.width,random:bindings.random)
+        let started=jobs.start(jobID:id,ids:receiptIDs,origin:screenOrigin,target:hudTarget,textureWidth:pixelSize.width,viewport:stage?.scene?.size,gentleLaunch:receiptIDs.allSatisfy {id in engine.pendingHUDStars.first{$0.id==id}?.variant=="laser-gun"},random:bindings.random)
         if !started {retire(id)}
         return started
     }

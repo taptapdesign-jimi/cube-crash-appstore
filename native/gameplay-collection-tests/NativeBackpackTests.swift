@@ -1,3 +1,4 @@
+import StackToSixGameplay
 import XCTest
 import UIKit
 import SpriteKit
@@ -55,7 +56,7 @@ final class NativeBackpackTests:XCTestCase {
             XCTAssertEqual(animation.keyTimes,[0,0.18,0.38,0.58,0.76,0.84,0.89,0.94,1])
         }
         XCTAssertEqual(JimiNativeModalV10.backdropColor.cgColor.alpha,0.5,accuracy:0.00001)
-        controller.screen?.onDie?(NativeBackpackCatalog.forest[1])
+        controller.screen?.onDie?(NativeBackpackCatalog.forest.first{$0.id=="bee"}!)
         XCTAssertTrue(controller.switchingDetail)
         XCTAssertNil(collectionIdle.layer.animation(forKey:"backpack.collection.idle"),"Hidden collection must retire idle during detail exchange")
         XCTAssertFalse(controller.view.isUserInteractionEnabled)
@@ -125,7 +126,7 @@ final class NativeBackpackTests:XCTestCase {
         XCTAssertTrue(CATransform3DEqualToTransform(controller.card.layer.transform,CATransform3DIdentity))
         XCTAssertTrue(controller.screen?.isUserInteractionEnabled == true)
         // Retiring during the next exit must not publish a late detail.
-        controller.screen?.onDie?(NativeBackpackCatalog.forest[1])
+        controller.screen?.onDie?(NativeBackpackCatalog.forest.first{$0.id=="bee"}!)
         controller.dispose();controller.dispose()
         XCTAssertNil(collectionIdle.layer.animation(forKey:"backpack.collection.idle"))
         try await Task.sleep(for:.milliseconds(850))
@@ -178,6 +179,20 @@ final class NativeBackpackTests:XCTestCase {
             screen.apply(NativeBackpackCatalog.sections(NativeProgressionState()))
             XCTAssertEqual(screen.numberOfSections(in:screen.grid),3)
             XCTAssertEqual(screen.collectionView(screen.grid,numberOfItemsInSection:0),6)
+        }
+    }
+    func testReorderedFirstUnitsMatchBackpackUnlocks() {
+        for (board,title,first,second) in [(1,"Forest","bee","wild-star"),(11,"Beach","wild-juice","fish"),(21,"Area 55","robo-cube","kanta")] {
+            var progress=NativeProgressionState()
+            progress.beginAttempt(mode:.journey,board:board)
+            let section=NativeBackpackCatalog.sections(progress).first{$0.title==title}!
+            XCTAssertEqual(Array(section.dice.prefix(2).map(\.id)),[first,second])
+            XCTAssertEqual(section.dice[0].board,board)
+            XCTAssertEqual(section.dice[1].board,board+1)
+            XCTAssertEqual(section.unlocked,[first])
+            progress.finishAttempt(mode:.journey,board:board,score:100,longestCombo:1,cubesCracked:2,clean:true)
+            let next=NativeBackpackCatalog.sections(progress).first{$0.title==title}!
+            XCTAssertTrue(next.unlocked.contains(first));XCTAssertTrue(next.unlocked.contains(second))
         }
     }
     func testCatalogUsesCanonicalProgressAndExactWorldTotals() {
@@ -272,7 +287,7 @@ final class NativeBackpackTests:XCTestCase {
         XCTAssertNotNil(app.settingsView.back.imageView?.layer.animation(forKey:NativeHubBackpackFeedback.animationKey))
     }
     func testMainBackpackDetailHasNoBottomHUDOrFooterAnimation() async throws {
-        for die in [NativeBackpackCatalog.forest[1],NativeBackpackCatalog.beach[1],NativeBackpackCatalog.area[1]] {
+        for die in [NativeBackpackCatalog.forest.first{$0.id=="bee"}!,NativeBackpackCatalog.beach[1],NativeBackpackCatalog.area[1]] {
             let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
             let detail=NativeBackpackDetail(die:die,assets:assets,motion:NativeRouteMotion(home:JimiV9HomeView(frame:.zero,assets:assets),hub:JimiV9HubView(frame:.zero,assets:assets)))
             let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
@@ -299,7 +314,7 @@ final class NativeBackpackTests:XCTestCase {
         let motion=NativeRouteMotion(home:JimiV9HomeView(frame:.zero,assets:assets),hub:JimiV9HubView(frame:.zero,assets:assets))
         let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
         window.rootViewController=host;window.makeKeyAndVisible()
-        let detail=NativeBackpackDetail(die:NativeBackpackCatalog.forest[1],assets:assets,motion:motion)
+        let detail=NativeBackpackDetail(die:NativeBackpackCatalog.forest.first{$0.id=="bee"}!,assets:assets,motion:motion)
         var closed=0,opened=0;detail.onClose={closed += 1};detail.onPresentationStarted={opened += 1}
         defer{detail.dispose();window.isHidden=true}
         host.present(detail,animated:false)
@@ -659,7 +674,7 @@ final class NativeBackpackTests:XCTestCase {
         XCTAssertEqual(images.first?.bounds.size,CGSize(width:155,height:153))
         XCTAssertEqual(images.last?.bounds.size,CGSize(width:70,height:80))
         screen.grid.setContentOffset(CGPoint(x:0,y:-screen.grid.contentInset.top),animated:false);screen.grid.layoutIfNeeded()
-        let detail=NativeBackpackDetail(die:NativeBackpackCatalog.forest[1],assets:assets,motion:NativeRouteMotion(home:JimiV9HomeView(frame:.zero,assets:assets),hub:JimiV9HubView(frame:.zero,assets:assets)))
+        let detail=NativeBackpackDetail(die:NativeBackpackCatalog.forest.first{$0.id=="bee"}!,assets:assets,motion:NativeRouteMotion(home:JimiV9HomeView(frame:.zero,assets:assets),hub:JimiV9HubView(frame:.zero,assets:assets)))
         host.addChild(detail);detail.view.frame=window.bounds;host.view.addSubview(detail.view);detail.didMove(toParent:host);detail.card.alpha=1;detail.view.layoutIfNeeded()
         let modal=UIGraphicsImageRenderer(bounds:window.bounds).image{window.layer.render(in:$0.cgContext)}
         try modal.pngData()?.write(to:URL(fileURLWithPath:"/tmp/backpack-detail.png"));detail.dispose()
@@ -709,7 +724,7 @@ final class NativeBackpackTests:XCTestCase {
     func testDetailCleanupTwiceAndBackgroundRetiresArtwork() {
         let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
         let motion=NativeRouteMotion(home:JimiV9HomeView(frame:.zero,assets:assets),hub:JimiV9HubView(frame:.zero,assets:assets))
-        let detail=NativeBackpackDetail(die:NativeBackpackCatalog.forest[1],assets:assets,motion:motion)
+        let detail=NativeBackpackDetail(die:NativeBackpackCatalog.forest.first{$0.id=="bee"}!,assets:assets,motion:motion)
         detail.loadViewIfNeeded();detail.setForeground(false);detail.setForeground(true);detail.dispose();detail.dispose()
         XCTAssertNil(detail.hero.image);XCTAssertNil(detail.hero.layer.animationKeys())
     }

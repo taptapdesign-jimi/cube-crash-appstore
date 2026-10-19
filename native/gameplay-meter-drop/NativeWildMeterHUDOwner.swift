@@ -6,6 +6,7 @@ import Foundation
     private let driver: any NativeWildMeterHUDDriving
     private var maximum: Double
     private let isPad: Bool
+    private let verticalBounceEnabled:Bool
     private let draw: (NativeWildMeterConsumptionPlan.Pose) -> Void, drawBounce: (Double) -> Void
     private let stopSmoke: () -> Void, stopEmission: () -> Void, startSmoke: () -> Void
     private(set) var width: Double
@@ -14,7 +15,7 @@ import Foundation
     private var mutation:UInt64=0
     private lazy var gain = NativeWildMeterGainOwner(driver: driver, initialWidth: width,
         drawWidth: { [weak self] width in self?.paint(.init(left: 0, width: width)) },
-        drawBounce: drawBounce, startSmoke: startSmoke, stopEmission: stopEmission)
+        drawBounce: drawBounce, startSmoke: startSmoke, stopEmission: stopEmission,verticalBounceEnabled:verticalBounceEnabled)
     private lazy var consumption = NativeWildMeterConsumptionOwner(driver: driver, maximum: maximum, initialWidth: width,
         draw: { [weak self] pose in self?.paint(pose) },
         prepareConsume: { [weak self] _ in self?.gain.retireForConsumption(reducedMotion: true) },
@@ -24,7 +25,8 @@ import Foundation
         bounce: { [weak self] in guard let self else { return }; self.gain.playVerticalBounce(maximum: self.maximum) })
     init(driver: any NativeWildMeterHUDDriving, maximum: Double, initialWidth: Double, isPad: Bool,
          draw: @escaping(NativeWildMeterConsumptionPlan.Pose) -> Void, drawBounce: @escaping(Double) -> Void,
-         stopSmoke: @escaping() -> Void, stopEmission: @escaping() -> Void, startSmoke: @escaping() -> Void) {
+         stopSmoke: @escaping() -> Void, stopEmission: @escaping() -> Void, startSmoke: @escaping() -> Void,verticalBounceEnabled:Bool=true) {
+        self.verticalBounceEnabled=verticalBounceEnabled
         self.driver = driver; self.maximum = maximum; width = initialWidth; self.isPad = isPad
         self.draw = draw; self.drawBounce = drawBounce; self.stopSmoke = stopSmoke
         self.stopEmission = stopEmission; self.startSmoke = startSmoke

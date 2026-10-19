@@ -771,6 +771,13 @@ final class NativeGameplayViewController: UIViewController {
         scene.onSourcePresentationFailure = {[weak self,weak scene] reason,generation in
             guard let self,let scene,!self.disposed,self.boardScene === scene,let scope=self.sourceScope,scope.current,
                 self.engine.state.generation==generation,self.sourcePresentationFailureGeneration != generation else{return}
+            NativeSourceRejectionDiagnostics.record(.init(reason:reason,generation:generation,
+                board:self.engine.state.board,mode:self.engine.state.mode.rawValue,
+                phase:self.backgrounded ? "background":self.explicitlySuspended ? "suspended":"foreground",
+                counters:["revision":Int(clamping:self.engine.state.revision),"moves":self.engine.state.moves,
+                    "pendingHUDCoins":self.engine.pendingHUDStars.count],
+                details:["impact":scene.sourceSpecialImpactParticleRejection ?? "none",
+                    "spawnSafety":scene.sourceSpawnSafetyDiagnostic,"tnt":scene.sourceTntMainDiagnostic()]))
             self.finaleArtworkOwner?.dispose();self.finaleArtworkOwner=nil
             self.sourcePresentationFailureGeneration=generation
             self.sourcePresentationFailure = .init(reason:reason,generation:generation,boardState:self.engine.state)

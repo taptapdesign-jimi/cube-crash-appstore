@@ -125,7 +125,15 @@ import StackToSixNativeState
         XCTAssertTrue(scene.sourceBoardEntryAdmissionOpen)
         XCTAssertNotNil(game.engine.pendingSourceTutorialDemoActivation)
         XCTAssertFalse(game.view.subviews.contains{$0 is NativeTutorialOverlay})
-        XCTAssertTrue(scene.sourceTutorialHUDAlphas.allSatisfy{abs($0-1)<1e-6})
+        // Construction synchronizes the locked tutorial HUD before the Source
+        // fade owner is installed. The whole HUD remains primed offscreen;
+        // children can retain that initial lock dim until the entry refresh.
+        XCTAssertTrue(scene.isHUDRevealPending)
+        XCTAssertEqual(scene.boardChromeReceipt.alpha,0,accuracy:1e-6)
+        XCTAssertEqual(scene.boardChromeReceipt.offset,140,accuracy:1e-6)
+        let initialHUDAlphas=scene.sourceTutorialHUDAlphas
+        XCTAssertFalse(initialHUDAlphas.isEmpty)
+        XCTAssertTrue(initialHUDAlphas.allSatisfy{abs($0-0.2)<1e-6 || abs($0-1)<1e-6},"Unexpected pre-entry child alphas: \(initialHUDAlphas)")
         XCTAssertFalse(scene.sourceTutorialHUDActive)
         let initialTiles=game.engine.state.tiles
         let deadline=Date().addingTimeInterval(10);var wall=0.0
@@ -192,16 +200,42 @@ import StackToSixNativeState
         }
         if failure {
             let file=directory.appendingPathComponent("state-v1.json"),bytes=try Data(contentsOf:file)
+            let diagnostics=NativeSourceRejectionDiagnostics.fileURL
+            let priorDiagnostics=try? Data(contentsOf:diagnostics)
+            defer {
+                if let priorDiagnostics {try? priorDiagnostics.write(to:diagnostics,options:.atomic)}
+                else {try? FileManager.default.removeItem(at:diagnostics)}
+            }
             let callback=try XCTUnwrap(scene.onSourcePresentationFailure),generation=game.engine.state.generation
+            let before=game.engine.state
+            let expectedDetails=["impact":scene.sourceSpecialImpactParticleRejection ?? "none",
+                "spawnSafety":scene.sourceSpawnSafetyDiagnostic,"tnt":scene.sourceTntMainDiagnostic()]
             callback("qa-stale-transaction",generation+1)
             XCTAssertNil(game.sourcePresentationFailureGeneration);XCTAssertEqual(try Data(contentsOf:file),bytes)
+            XCTAssertEqual(try? Data(contentsOf:diagnostics),priorDiagnostics,"Stale callbacks cannot publish incident evidence")
             callback("qa-captured-transaction",generation)
             XCTAssertEqual(game.sourcePresentationFailureGeneration,generation)
             XCTAssertFalse(scene.sourceAnimationBindingAdmissionOpen)
+            let evidence=try XCTUnwrap(NativeSourceRejectionDiagnostics.read(from:diagnostics).last)
+            XCTAssertEqual(evidence.reason,"qa-captured-transaction")
+            XCTAssertEqual(evidence.generation,generation);XCTAssertEqual(evidence.board,before.board)
+            XCTAssertEqual(evidence.mode,before.mode.rawValue)
+            XCTAssertEqual(evidence.phase,"foreground")
+            XCTAssertEqual(evidence.details,expectedDetails.mapValues{String($0.prefix(1024))})
+            XCTAssertEqual(evidence.counters["revision"],Int(clamping:before.revision))
+            XCTAssertEqual(evidence.counters["moves"],before.moves)
+            let capturedDiagnostics=try Data(contentsOf:diagnostics)
+            let recovery=try XCTUnwrap(bootstrap.sourceFailureModal)
+            XCTAssertTrue(app.children.contains{$0 === game},"Failure retains its sealed board until an explicit choice")
+            XCTAssertEqual(try Data(contentsOf:file),bytes)
+            callback("qa-duplicate-transaction",generation)
+            XCTAssertEqual(try Data(contentsOf:diagnostics),capturedDiagnostics)
+            recovery.onAction?("exit")
             try await waitUntil{!app.children.contains{$0 === game}}
             XCTAssertEqual(try Data(contentsOf:file),bytes)
             callback("qa-duplicate-transaction",generation)
             XCTAssertEqual(try Data(contentsOf:file),bytes)
+            XCTAssertEqual(try Data(contentsOf:diagnostics),capturedDiagnostics,"Disposal and stale callbacks preserve the original incident")
             XCTAssertFalse(app.children.contains{$0 === game})
             return
         }

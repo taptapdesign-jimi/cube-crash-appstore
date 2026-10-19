@@ -510,6 +510,8 @@ public final class NativeGameplayEngine {
     public private(set) var pendingHUDStars: [NativeHUDStarReceipt] = []
     /// Opt-in only after genuine Source flight/job bindings are mounted.
     public var sourceHUDStarJobsEnabled=false
+    /// Enabled by the Native composition root; reference/oracle callers retain captured Source rules.
+    public var comboHUDCoinRewardsEnabled=false
     public private(set) var sourceHUDStarJobs:[NativeSourceHUDStarJob]=[]
     private var sourceHUDStarJobSequence:UInt64=0
     public private(set) var pendingMeterRewards: [NativeMeterRewardReceipt] = []
@@ -603,6 +605,8 @@ public final class NativeGameplayEngine {
     public var sourceMagnetPullSelection:NativeSourceMagnetPullSelectionOwner?
     private var sourceSpecialAbsorbSequence:UInt64=0
     private var tntTargetsReserved = false
+    private var tntComboCoinReward = 0
+    private var tntCoinCounts:[String:Int]=[:]
     private var tntReservationReleased = false
     private var deferredFinalMerge: NativeResolution?
     private var hudStarSequence: UInt64 = 0
@@ -704,7 +708,7 @@ public final class NativeGameplayEngine {
         pendingSourceSpecialAbsorb=nil;sourceSpecialAbsorbMainEntered=false
         pendingSourceSpecialWildDestinationFace=nil;completedSourceSpecialWildDestinationFace=nil
         pendingOrdinaryStack = nil; pendingOrdinarySix = nil; ordinarySixGameplayCommitted = false; pendingOrdinaryPostchecks.removeAll(); pendingOrdinarySpawns.removeAll(); ordinarySpawnPreparationPending=false;pendingOrdinaryAssignments.removeAll();pendingSourceOrdinaryLockedSettlement=nil;pendingSourceOrdinaryMinimumPhase=nil;sourceOrdinaryMinimumRescueStage=nil;sourceOrdinaryMinimumRuntime=nil;sourceOrdinaryMinimumRescueOpened=0;sourceOrdinaryMinimumPhaseEligible=false;pendingOrdinaryPrimaryArrival=nil;pendingOrdinaryDestinationCleanup=nil;ordinaryRefillRemaining=0;ordinaryRequestedOpenings=0;ordinarySuccessfulOpenings=0;ordinaryForcedCandidates=[];ordinaryForcedPass=false; committingOrdinaryStack = false
-        drag = nil; sourceHUDStarJobs.removeAll(); sourceHUDStarJobSequence=0; pendingHUDStars.removeAll(); pendingMeterRewards.removeAll(); tntReservationReleased = false; specialActivationCommitted = false; tntTargetsReserved = false; deferredFinalMerge = nil; locks.removeAll(); flags = NativeGameplayRuntimeFlags(); noMovesSignature = nil; comboLastMutationTime = nil
+        drag = nil; sourceHUDStarJobs.removeAll(); sourceHUDStarJobSequence=0; pendingHUDStars.removeAll(); pendingMeterRewards.removeAll(); tntReservationReleased = false; specialActivationCommitted = false; tntTargetsReserved = false;tntComboCoinReward = 0;tntCoinCounts.removeAll(); deferredFinalMerge = nil; locks.removeAll(); flags = NativeGameplayRuntimeFlags(); noMovesSignature = nil; comboLastMutationTime = nil
     }
     public func cancelForBackground() {
         pendingWildRecoveryChecks=[];pendingWildSpawnPresentations=[]
@@ -896,11 +900,11 @@ public final class NativeGameplayEngine {
         let initialRandomChoices = randomChoices
         let initialComboTime = comboLastMutationTime
         let initialComboWindow = comboWindow
-        let hudStars = captureHUDStars(source:source,destination:destination,starOrbitCapture:committingDirectWild ? pendingDirectWild?.sourceStarOrbitCapture:nil,finalMerge:final.isFinalMerge)
         expireCombo(now: now)
         let oldCombo = state.combo
         let isMagnet = source.gameplayArchetype == .magnet || destination.gameplayArchetype == .magnet
         state.combo = min(99, oldCombo + 1)
+        let hudStars = captureHUDStars(source:source,destination:destination,starOrbitCapture:committingDirectWild ? pendingDirectWild?.sourceStarOrbitCapture:nil,finalMerge:final.isFinalMerge)
         state.longestCombo = max(state.longestCombo,state.combo)
         let deltaBonus = NativeRewardMath.streakBonus(state.combo) - NativeRewardMath.streakBonus(oldCombo)
         state.earnedComboBonus = min(999999, state.earnedComboBonus + max(0, deltaBonus))
@@ -921,6 +925,7 @@ public final class NativeGameplayEngine {
         if !hudStars.isEmpty { events.append(NativeGameplayEvent(.hudStarsPrepared,tileIDs:hudStars.map(\.id),value:hudStars.count,archetype:source.isWild ? source.archetype : destination.archetype,variant:source.variant ?? destination.variant)) }
         if effectiveSum < 6 { state.tiles.append(merged) }
         if effectiveSum == 6 {
+            if let world=NativeSpecialDiceRegistry.celebrationWorld(source:source,destination:destination) {state.lastSpecialMergeWorld=world}
             state.cubesCracked += 1
             let finale = NativeSpecialDiceRegistry.finale(source: source, destination: destination)
             let multiplier = isMagnet || finale == .star || finale == .juice ? 2 : source.stackDepth + destination.stackDepth
@@ -1251,10 +1256,10 @@ public final class NativeGameplayEngine {
             let byID=Dictionary(uniqueKeysWithValues:candidates.map{($0.id,$0)})
             capturedMagnetTargets=ids.prefix(4).compactMap{byID[$0]}
         }
-        pendingLaserShots = []
+        pendingLaserShots = [];tntComboCoinReward = 0;tntCoinCounts.removeAll()
         expireCombo(now:now)
         let pre = state
-        let hudStars = captureHUDStars(source:source,destination:destination,starOrbitCapture:capturedSpecialClaim?.starOrbitCapture)
+        let hudStars = comboHUDCoinRewardsEnabled ? [] : captureHUDStars(source:source,destination:destination,starOrbitCapture:capturedSpecialClaim?.starOrbitCapture)
         var targets: [NativeTile]
         let variant = source.variant ?? destination.variant
         if archetype == .magnet { targets = capturedMagnetTargets ?? NativeMagnetRules.nearestPullTargets(state:state,source:source,destination:destination) }
@@ -1327,6 +1332,7 @@ public final class NativeGameplayEngine {
         let visual = NativeSpecialDiceRegistry.finale(source:plan.source,destination:plan.destination)
         let multiplier = visual == .star || visual == .juice ? 2 : plan.source.stackDepth+plan.destination.stackDepth
         state.score = min(999999,state.score+6*multiplier*max(1,state.combo)); state.bestScore = max(state.bestScore,state.score)
+        state.lastSpecialMergeWorld=NativeSpecialDiceRegistry.celebrationWorld(source:plan.source,destination:plan.destination) ?? state.lastSpecialMergeWorld
         state.moves = max(0,state.moves-1); state.cubesCracked += 1
         state.wildMeter += arcadeChargeMultiplier * NativeWildMeterRules.increment(base:0.22,mode:state.mode,board:state.mode == .arcade ? state.stage : state.board,spawnCount:state.wildSpawnCount,tutorialSlow:state.tutorial?.completionAssist == true)
         var events = [NativeGameplayEvent(.comboChanged,value:state.combo)]
@@ -1341,6 +1347,10 @@ public final class NativeGameplayEngine {
             spawnDirectWildMerge6(at:plan.destination.cell,archetype:plan.archetype,depth:multiplier,avoiding:plan.source.isWild ? plan.destination.value : plan.source.value,starOrbitCount:3,events:&events)
         }
         guard state.generation==plan.generation,pendingSpecial?.id==plan.id else{return rejected("stale_tnt_spawn_entry")}
+        if comboHUDCoinRewardsEnabled {
+            tntComboCoinReward=NativeComboCoinPolicy.count(combo:state.combo)
+            if tntTargetsReserved {distributeTntCoins(plan:plan,events:&events)}
+        }
         specialActivationCommitted = true
         return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolve())
     }
@@ -1361,7 +1371,27 @@ public final class NativeGameplayEngine {
         plan.sourceStarOrbitCapture=initial.sourceStarOrbitCapture
         pendingSpecial = plan; tntTargetsReserved = true
         for tile in targets { if let index = state.tiles.firstIndex(where: { $0.id == tile.id }) { state.tiles[index].resolutionOwned = true } }
-        return NativeMoveResult(accepted:true,state:state,events:[NativeGameplayEvent(.specialReserved,tileIDs:targets.map(\.id),archetype:.tnt,reason:plan.id,variant:plan.variant)],resolution:resolve())
+        var events=[NativeGameplayEvent(.specialReserved,tileIDs:targets.map(\.id),archetype:.tnt,reason:plan.id,variant:plan.variant)]
+        if comboHUDCoinRewardsEnabled {
+            distributeTntCoins(plan:plan,events:&events)
+        }
+        return NativeMoveResult(accepted:true,state:state,events:events,resolution:resolve())
+    }
+    private func distributeTntCoins(plan:NativeSpecialMovePlan,events:inout [NativeGameplayEvent]) {
+        tntCoinCounts.removeAll()
+        guard !plan.targets.isEmpty else {
+            let coins=prepareHUDStars(count:tntComboCoinReward,origin:plan.destination.cell,variant:plan.variant)
+            if !coins.isEmpty {events.append(NativeGameplayEvent(.hudStarsPrepared,tileIDs:coins.map(\.id),value:coins.count,archetype:.tnt,variant:plan.variant))}
+            return
+        }
+        let total=max(tntComboCoinReward,plan.targets.count),base=total/plan.targets.count
+        var ids=plan.targets.map(\.id),seed=state.rngState ^ UInt64(state.combo) ^ plan.generation
+        // Private reward-placement shuffle never consumes board/value randomness.
+        for i in stride(from:ids.count-1,through:1,by:-1) {
+            seed=seed &* 6364136223846793005 &+ 1442695040888963407
+            ids.swapAt(i,Int((seed >> 32)%UInt64(i+1)))
+        }
+        for (index,id) in ids.enumerated() {tntCoinCounts[id]=base+(index<total%ids.count ? 1:0)}
     }
     /// Commit a captured TNT target in source order. No callback may select a new target or face.
     public func commitSpecialImpact(transactionID: String, tileID: String) -> NativeMoveResult {
@@ -1399,7 +1429,7 @@ public final class NativeGameplayEngine {
             meterEvents.append(NativeGameplayEvent(.meterRewardPrepared,tileIDs:[receipt.id],value:impactIndex,archetype:.tnt,reason:plan.id,variant:plan.variant))
         }
         specialImpactIndex += 1
-        let stars = prepareHUDStars(count:1,origin:target.cell,variant:plan.variant)
+        let stars = prepareHUDStars(count:comboHUDCoinRewardsEnabled ? (tntCoinCounts.removeValue(forKey:target.id) ?? 1):1,origin:target.cell,variant:plan.variant)
         let impactedIDs = replacement.id == tileID ? [tileID] : [tileID,replacement.id]
         return NativeMoveResult(accepted:true,state:state,events:[NativeGameplayEvent(.specialImpact,tileIDs:impactedIDs,value:value,archetype:.tnt,reason:plan.id,variant:plan.variant),NativeGameplayEvent(.hudStarsPrepared,tileIDs:stars.map(\.id),value:stars.count,archetype:.tnt,variant:plan.variant)]+meterEvents,resolution:NativeResolution(.wait,reason:"special_gameplay_mutation_active"))
     }
@@ -1469,7 +1499,8 @@ public final class NativeGameplayEngine {
             slots:slots,reserved:reserved,destinationID:special.destination.id,avoiding:special.destination.value)
         sourceMagnetLazyOpens=[:];sourceMagnetLazyValueCommits=[];sourceMagnetLazySettled=[];sourceMagnetLazyReserveFill=nil;sourceMagnetLazyReserveCommits=[];sourceMagnetLazyConversion=nil;sourceMagnetLazyConversionCommitted=false;sourceMagnetLazyResolutionReleased=false
         let pulledStar=special.targets.first{$0.gameplayArchetype == .star && NativeStarDropCountPolicy.usesRandomCount(variant:$0.variant)}
-        let stars=prepareHUDStars(count:min(3,max(0,pulledStar.map{$0.effectiveStarDropCount} ?? 0)+count),origin:special.destination.cell,variant:nil)
+        let rewardCount=comboHUDCoinRewardsEnabled ? NativeComboCoinPolicy.count(combo:(specialPreBoard?.combo ?? state.combo)+1+count) : min(3,max(0,pulledStar.map{$0.effectiveStarDropCount} ?? 0)+count)
+        let stars=prepareHUDStars(count:rewardCount,origin:special.destination.cell,variant:nil)
         return NativeMoveResult(accepted:true,state:state,events:[NativeGameplayEvent(.removed,tileIDs:special.targets.map(\.id),archetype:.magnet,reason:transactionID),NativeGameplayEvent(.hudStarsPrepared,tileIDs:stars.map(\.id),value:stars.count,archetype:.magnet)],resolution:NativeResolution(.wait,reason:"source_magnet_lazy_respawn_pending"))
     }
     private func sourceMagnetLazyCurrent(_ transactionID:String,_ generation:UInt64,sourceCurrent:()->Bool)->Bool {
@@ -1622,7 +1653,8 @@ public final class NativeGameplayEngine {
         }
         let pulledCoreStar = plan.targets.first { $0.gameplayArchetype == .star && NativeStarDropCountPolicy.usesRandomCount(variant:$0.variant) }
         let orbitCount = pulledCoreStar.map { $0.effectiveStarDropCount } ?? 0
-        let stars = prepareHUDStars(count:min(3,orbitCount+plan.targets.count),origin:plan.destination.cell,variant:plan.variant)
+        let rewardCount=comboHUDCoinRewardsEnabled ? NativeComboCoinPolicy.count(combo:(specialPreBoard?.combo ?? state.combo)+1+plan.targets.count) : min(3,orbitCount+plan.targets.count)
+        let stars = prepareHUDStars(count:rewardCount,origin:plan.destination.cell,variant:plan.variant)
         return NativeMoveResult(accepted:true,state:state,events:[NativeGameplayEvent(.removed,tileIDs:plan.targets.map(\.id),archetype:.magnet,reason:plan.id,variant:plan.variant),NativeGameplayEvent(.hudStarsPrepared,tileIDs:stars.map(\.id),value:stars.count,archetype:.magnet,variant:plan.variant)],resolution:NativeResolution(.wait,reason:"magnet_respawn_pending"))
     }
     /// The native cascade invokes this at each authored 0/150/300/450ms open boundary.
@@ -1696,6 +1728,9 @@ public final class NativeGameplayEngine {
             state.score = min(999999,state.score+6*multiplier*max(1,state.combo))
             spawnDirectWildMerge6(at:plan.destination.cell,archetype:plan.archetype,depth:multiplier,avoiding:avoiding,starOrbitCount:3,events:&events)
             state.wildMeter += arcadeChargeMultiplier * NativeWildMeterRules.increment(base:0.22,mode:state.mode,board:state.mode == .arcade ? state.stage : state.board,spawnCount:state.wildSpawnCount,tutorialSlow:state.tutorial?.completionAssist == true)
+        }
+        if plan.archetype == .magnet,!sourceSpecialAbsorbMainEntered {
+            state.lastSpecialMergeWorld=NativeSpecialDiceRegistry.celebrationWorld(source:plan.source,destination:plan.destination) ?? state.lastSpecialMergeWorld
         }
         if plan.archetype != .tnt { state.moves = max(0,state.moves-1) }
         state.longestCombo = max(state.longestCombo,state.combo)
@@ -2047,6 +2082,11 @@ public final class NativeGameplayEngine {
         guard let wild = [source,destination].first(where: { $0.isWild }) else {
             return finalMerge ? prepareHUDStars(count:1,origin:destination.cell,variant:nil):[]
         }
+        if comboHUDCoinRewardsEnabled {
+            // Keep the existing Juice selection draw so the board RNG stream is unchanged.
+            if wild.archetype == .juice {_ = nextRandom()}
+            return prepareHUDStars(count:NativeComboCoinPolicy.count(combo:state.combo),origin:destination.cell,variant:wild.variant)
+        }
         let count: Int
         // Final TNT gameplay, including legacy variant provenance, earns three
         // HUD coins without entering the nonfinal target/respawn graph.
@@ -2073,10 +2113,10 @@ public final class NativeGameplayEngine {
         pendingHUDStars += receipts
         return receipts
     }
-    /// Adopts one original animateStarsToHudIcon call group (cap3), never a
+    /// Adopts one reward group (Native cap7, Source reference cap3), never a
     /// flattened set of several independent earned batches. No score mutation.
     public func registerSourceHUDStarJob(receiptIDs:[String],generation:UInt64)->NativeSourceHUDStarJob? {
-        guard sourceHUDStarJobsEnabled,generation==state.generation,!receiptIDs.isEmpty,receiptIDs.count<=3,
+        guard sourceHUDStarJobsEnabled,generation==state.generation,!receiptIDs.isEmpty,receiptIDs.count <= (comboHUDCoinRewardsEnabled ? NativeComboCoinPolicy.maximumCount : 3),
             Set(receiptIDs).count==receiptIDs.count else{return nil}
         let ordered=receiptIDs.compactMap{id in pendingHUDStars.first{$0.id==id && $0.generation==generation}}
         guard ordered.count==receiptIDs.count,let first=ordered.first,
@@ -4407,6 +4447,7 @@ extension NativeGameplayEngine {
    !specialActivationCommitted,pendingMagnetRespawn==nil else{return rejected("stale_source_special_absorb_main")}
   guard !plan.destination.isWild || completedSourceSpecialWildDestinationFace?.transactionID==plan.id else{return rejected("source_special_first_face_not_delivered")}
   sourceSpecialAbsorbMainEntered=true
+  if plan.archetype == .magnet {state.lastSpecialMergeWorld=NativeSpecialDiceRegistry.celebrationWorld(source:plan.source,destination:plan.destination) ?? state.lastSpecialMergeWorld}
   return NativeMoveResult(accepted:true,state:state,events:[],resolution:resolve())
  }
  /// Destructive pre-main callback only. Actual Source pull timeline interrupts

@@ -10,9 +10,12 @@ import StackToSixGameplay
         let timeouts=NativeSourceAppTimeoutOwner()
         var wall=0.0,seed:UInt32=1,acquires=0,releases=0,arrivals=0,retired=0,current=true
         var owner:NativeSourceHUDStarPresentation?
-        init(count:Int=3,sourceFrameTransportEnabled:Bool=false) {
+        init(count:Int=3,sourceFrameTransportEnabled:Bool=false,combo:Int?=nil) {
             var star=NativeTile(id:"s",cell:.init(column:0,row:0),value:6,archetype:.star);star.starOrbitCount=count
-            engine=NativeGameplayEngine(state:.init(tiles:[star,.init(id:"d",cell:.init(column:1,row:0),value:2)]))
+            var state=NativeBoardState(tiles:[star,.init(id:"d",cell:.init(column:1,row:0),value:2)])
+            state.combo=combo ?? 0
+            engine=NativeGameplayEngine(state:state)
+            engine.comboHUDCoinRewardsEnabled=combo != nil
             XCTAssertTrue(engine.beginDrag(tileID:"s"));XCTAssertTrue(engine.drop(target:.init(column:1,row:0)).accepted)
             engine.sourceHUDStarJobsEnabled=true
             service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0},sourceFrameTransportEnabled:sourceFrameTransportEnabled)
@@ -32,6 +35,17 @@ import StackToSixGameplay
         await fulfillment(of:[ready],timeout:20)
         return try XCTUnwrap(receipt)
     }
+    func testSevenComboCoinsMountArriveExactlyOnceAndDispose()async throws {
+        let textures=NativeSourceHUDStarTexturePreparation(),prepared=try await prepare(textures),f=Fixture(combo:24)
+        defer{f.dispose();textures.dispose()}
+        let score=f.engine.state.score
+        XCTAssertTrue(f.mount(prepared));XCTAssertEqual(f.owner?.mountedContainer?.children.count,7)
+        for ms in stride(from:0.0,through:8000,by:10){f.deliver(ms)}
+        XCTAssertEqual(f.arrivals,7);XCTAssertEqual(f.engine.state.score,score+700)
+        XCTAssertTrue(f.engine.pendingHUDStars.isEmpty)
+        f.owner?.dispose();XCTAssertTrue(f.engine.sourceHUDStarJobs.isEmpty)
+        XCTAssertEqual(f.releases,1)
+    }
     func testOriginalTextureMountedProtectedStagePathAndGenuine98ArrivalOnce()async throws {
         let textures=NativeSourceHUDStarTexturePreparation(),prepared=try await prepare(textures),f=Fixture();defer{f.dispose();textures.dispose()}
         let coin=try XCTUnwrap(UIImage(contentsOfFile:NativeTestResources.root.appendingPathComponent("assets/hud/coin-hud.png").path))
@@ -47,10 +61,10 @@ import StackToSixGameplay
             XCTAssertGreaterThan(sprite.xScale*prepared.pixelSize.width,34)
         }
         XCTAssertEqual(f.arrivals,0,"Larger staggered coins must still be visible at350ms")
-        for ms in stride(from:360.0,through:2800,by:10){f.deliver(ms)}
+        for ms in stride(from:360.0,through:5000,by:10){f.deliver(ms)}
         XCTAssertEqual(f.arrivals,3);XCTAssertEqual(f.engine.state.score,score+300);XCTAssertTrue(f.engine.pendingHUDStars.isEmpty)
         XCTAssertEqual(f.owner?.pendingJobCount,1);XCTAssertEqual(f.releases,0) // wall is independent of this manually delivered Source phase.
-        f.deliver(3000);XCTAssertEqual(f.arrivals,3);XCTAssertEqual(f.engine.state.score,score+300)
+        f.deliver(5200);XCTAssertEqual(f.arrivals,3);XCTAssertEqual(f.engine.state.score,score+300)
     }
     func testActualAppRAFTransportPaintsEvery60HzFlightSampleWithoutAlternatingFrozenFrames()async throws {
         let textures=NativeSourceHUDStarTexturePreparation(),prepared=try await prepare(textures)
@@ -89,7 +103,7 @@ import StackToSixGameplay
         f.deliver(650);XCTAssertEqual(f.arrivals,0);XCTAssertEqual(f.engine.pendingHUDStars.count,3)
         f.engine.cancelForBackground();XCTAssertEqual(f.engine.state.score,score);XCTAssertEqual(f.engine.pendingHUDStars.count,3)
         let wall=expectation(description:"Actual independent job wall + empty container120")
-        DispatchQueue.main.asyncAfter(deadline:.now()+3){wall.fulfill()};await fulfillment(of:[wall],timeout:4)
+        DispatchQueue.main.asyncAfter(deadline:.now()+5){wall.fulfill()};await fulfillment(of:[wall],timeout:6)
         XCTAssertEqual(f.arrivals,0);XCTAssertEqual(f.engine.state.score,score);XCTAssertTrue(f.engine.pendingHUDStars.isEmpty)
         XCTAssertEqual(f.retired,1);XCTAssertEqual(f.releases,1);XCTAssertNil(f.owner?.mountedContainer)
         XCTAssertEqual(f.service.source60HzRenderDemandCount,0)
@@ -97,7 +111,7 @@ import StackToSixGameplay
     func testExplicitDisposalAndLateSourceDeliveryNeverAwardOrAffectNewGeneration()async throws {
         let textures=NativeSourceHUDStarTexturePreparation(),prepared=try await prepare(textures),f=Fixture();defer{f.dispose();textures.dispose()}
         XCTAssertTrue(f.mount(prepared));f.deliver(300);f.owner?.dispose();f.engine.restart(state:.init(tiles:[]))
-        let state=f.engine.state;f.deliver(3000);XCTAssertEqual(f.engine.state,state);XCTAssertEqual(f.arrivals,0)
+        let state=f.engine.state;f.deliver(5200);XCTAssertEqual(f.engine.state,state);XCTAssertEqual(f.arrivals,0)
         XCTAssertTrue(f.scene.children.isEmpty);XCTAssertTrue(f.engine.sourceHUDStarJobs.isEmpty)
     }
     func testAppTextureCacheOriginalIdentityAndDisposeReentryRejectsLaterWaiter()async throws {
@@ -173,9 +187,9 @@ import StackToSixGameplay
         XCTAssertTrue(f.service.setSourceGlobalPaused(true));f.deliver(450)
         XCTAssertTrue(first.texture === paused)
         XCTAssertTrue(f.service.setSourceGlobalPaused(false))
-        for ms in stride(from:460.0,through:3100,by:10){f.deliver(ms)}
+        for ms in stride(from:460.0,through:5200,by:10){f.deliver(ms)}
         XCTAssertEqual(f.arrivals,3);XCTAssertEqual(choices,3)
-        f.owner?.dispose();f.owner?.dispose();f.deliver(4000)
+        f.owner?.dispose();f.owner?.dispose();f.deliver(6000)
         XCTAssertTrue(container.children.isEmpty);XCTAssertTrue(f.engine.sourceHUDStarJobs.isEmpty)
     }
 

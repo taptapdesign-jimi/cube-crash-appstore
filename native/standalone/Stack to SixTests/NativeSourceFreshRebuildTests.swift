@@ -78,7 +78,13 @@ import StackToSixNativeState
     func testJourneyBackpackDropKeepsExclusiveMotionDuringFlowerMergeSix()async throws {
         try await exerciseAuthoredTntReplacementSize(variant:"flower",meter:0.95,overlapMode:.journey)
     }
-    private func exerciseAuthoredTntReplacementSize(variant:String,meter:Double=0,reuseMeterHolder:Bool=false,overlapMode:NativeRunMode?=nil)async throws {
+    func testJourneyFlowerAfterRepeatedBackpackDetailReturnKeepsSourceTransaction()async throws {
+        try await exerciseAuthoredTntReplacementSize(variant:"flower",backpackReturns:true)
+    }
+    func testJourneyRegularOntoFlowerAfterRepeatedBackpackDetailReturnKeepsSourceTransaction()async throws {
+        try await exerciseAuthoredTntReplacementSize(variant:"flower",backpackReturns:true,reversed:true)
+    }
+    private func exerciseAuthoredTntReplacementSize(variant:String,meter:Double=0,reuseMeterHolder:Bool=false,overlapMode:NativeRunMode?=nil,backpackReturns:Bool=false,reversed:Bool=false)async throws {
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("native-flower-size-"+UUID().uuidString)
         let store=NativeSaveStore(directory:directory)
         var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
@@ -91,7 +97,7 @@ import StackToSixNativeState
         seed.arcadeRun = .init(tiles:tiles,mode:.arcade,board:3,stage:3,generation:9,moves:37,score:123)
         seed.arcadeRun?.wildMeter=meter
         seed.arcadeRunSavedAt=Date().timeIntervalSince1970
-        if overlapMode == .journey {
+        if overlapMode == .journey || backpackReturns {
             seed.journeyRuns[3]=seed.arcadeRun!
             seed.journeyRuns[3]?.mode = .journey
             seed.journeyRunSavedAt[3]=Date().timeIntervalSince1970
@@ -105,13 +111,36 @@ import StackToSixNativeState
         defer{observeTransitionPaint=nil;host.dispose();window.isHidden=true;previous?.makeKeyAndVisible();try? FileManager.default.removeItem(at:directory)}
         host.loadViewIfNeeded();let app=try XCTUnwrap(host.children.first as? NativeAppController)
         try await wait{!app.home.isHidden}
-        if overlapMode == .journey {
+        if overlapMode == .journey || backpackReturns {
             app.navigate(.world(1),interrupt:true)
             try await wait{if app.children.contains(where:{$0 is NativeGameplayViewController}){return true};app.world?.onRequest?("continue",3);return false}
         }else{app.navigate(.gameplay,interrupt:true)}
         try await wait{app.children.compactMap{$0 as? NativeGameplayViewController}.first?.boardScene?.isBoardEntryComplete==true}
         let gameplay=try XCTUnwrap(app.children.compactMap{$0 as? NativeGameplayViewController}.first),scene=try XCTUnwrap(gameplay.boardScene)
+        XCTAssertTrue(gameplay.engine.comboHUDCoinRewardsEnabled)
         try await wait{!gameplay.engine.hasUnsavableSourceGameplayState && gameplay.beforeSourceGameplayAdmission==nil}
+        if backpackReturns {
+            let original=gameplay.engine.state
+            for opening in 0..<3 {
+                let help=try XCTUnwrap(scene.childNode(withName:"//native-game-help"))
+                XCTAssertTrue(scene.handleHUDContact(at:help.convert(CGPoint.zero,to:scene)))
+                try await wait{gameplay.presentedViewController?.view.isUserInteractionEnabled==true}
+                let backpack=try XCTUnwrap(gameplay.presentedViewController as? NativeGameplayBackpackController)
+                XCTAssertTrue(scene.isPaused)
+                backpack.screen?.onDie?(try XCTUnwrap(NativeBackpackCatalog.forest.first{$0.id=="flower"}))
+                try await wait{backpack.detail?.card.isUserInteractionEnabled==true}
+                let detail=try XCTUnwrap(backpack.detail)
+                // Dwell through APP wall callbacks while the real scene stays paused.
+                try await Task.sleep(for:.milliseconds(opening==0 ? 1300:650))
+                detail.closeTapped()
+                try await wait{backpack.detail==nil && backpack.view.isUserInteractionEnabled}
+                try XCTUnwrap(button(backpack.view,id:"native.gameplay.backpack.close")).sendActions(for:.touchUpInside)
+                try await wait{gameplay.presentedViewController==nil && !scene.isPaused}
+                XCTAssertTrue(gameplay.boardScene === scene)
+                XCTAssertEqual(gameplay.engine.state,original)
+                XCTAssertNil(gameplay.sourcePresentationFailure,"Backpack return failure: \(String(describing:gameplay.sourcePresentationFailure))")
+            }
+        }
         var carrier:NativeDiceNode?,carrierCell:NativeCell?,carrierSamples=0
         if overlapMode != nil {
             let sn=try XCTUnwrap(scene.sourceNativeTileNode("ordinary-three-a")),dn=try XCTUnwrap(scene.sourceNativeTileNode("ordinary-three-b"))
@@ -128,14 +157,14 @@ import StackToSixNativeState
                 XCTAssertNil(carrier.action(forKey:"tnt-return"),"Flower rewound the landed carrier")
             }
         }
-        let a=try XCTUnwrap(scene.sourceNativeTileNode("flower")),b=try XCTUnwrap(scene.sourceNativeTileNode("destination"))
+        let a=try XCTUnwrap(scene.sourceNativeTileNode(reversed ? "destination":"flower")),b=try XCTUnwrap(scene.sourceNativeTileNode(reversed ? "flower":"destination"))
         let from=scene.convert(a.position,from:try XCTUnwrap(a.parent)),to=scene.convert(b.position,from:try XCTUnwrap(b.parent))
         XCTAssertTrue(scene.beginDrag(at:from));scene.moveDrag(to:to,now:CACurrentMediaTime())
         try await Task.sleep(for:.milliseconds(160))
         XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:to,now:CACurrentMediaTime())).accepted)
         try await wait{
             if gameplay.sourcePresentationFailure != nil {
-                XCTFail("Barrel subsequent reward failure: \(gameplay.sourcePresentationFailure!)")
+                XCTFail("Authored TNT subsequent reward failure: \(gameplay.sourcePresentationFailure!)")
                 return true
             }
             return gameplay.engine.pendingSpecial==nil && !gameplay.engine.hasUnsavableSourceGameplayState

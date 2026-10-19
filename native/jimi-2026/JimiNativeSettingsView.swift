@@ -74,7 +74,7 @@ final class JimiNativeSettingsView: UIView {
             case .legendary: palette = (0xD6A13D,0xA87824)
             case .reset: palette = (0x735C4C,0x5A4639)
             case .newCard: palette = (0xF35F37,0xC64A2A)
-            case .newDice: palette = (0x4FAE8A,0x34785F)
+            case .newDice, .forestUnlock: palette = (0x4FAE8A,0x34785F)
             case .clean: palette = (0xE9A03A,0xBD7627)
             default: palette = (0xE8744A,0xC95E39)
             }

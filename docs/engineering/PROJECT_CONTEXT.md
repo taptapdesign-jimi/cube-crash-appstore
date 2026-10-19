@@ -87,7 +87,7 @@ Native Area55 Unit beam policy (user request2026-10-14): `NativeWorldLayouts` ca
 Native Wild Star availability (user decision2026-10-16): plain Star meter rewards
 are Forest-only in Journey. Native Beach/Area55 pools omit plain Star while their
 Star-archetype variants remain unchanged. Arcade eligibility derives from existing
-Forest Unit1 unlock evidence via NativeProgressionState.hasUnlockedWildStar,
+Forest Unit2 unlock evidence (including completed Unit1) via NativeProgressionState.hasUnlockedWildStar,
 captured at engine construction. An additive optional wildStarUnlocked Bool latches
 legacy evidence before World changes; older saves default false, with no format-version
 change or reset. Existing saved tiles and

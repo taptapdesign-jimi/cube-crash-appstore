@@ -313,6 +313,33 @@ final class JimiNativeWorldTests: XCTestCase {
         effects.cleanup();effects.cleanup();XCTAssertTrue(overlay.subviews.isEmpty)
     }
 
+    func testLegendaryFoilFollowsDragAndRetiresWithoutCommonShine() throws {
+        let overlay=UIView(frame:CGRect(x:0,y:0,width:390,height:844)),impact=UIView()
+        let front=UIImageView(frame:CGRect(x:0,y:0,width:280,height:400))
+        front.image=art.image("assets/colelctibles/Forest/legendary/01-gold.png")
+        let resources=JimiNativeWorldResources(root:root)
+        let effects=JimiNativeWorldCardEffects(front:front,impact:impact,overlay:overlay,assets:art,resources:resources,boardID:1,rarity:"legendary")
+        defer{effects.cleanup();resources.cleanup()}
+        effects.layout();effects.present(frontFacing:true)
+        let foil=try XCTUnwrap(front.layer.sublayers?.first{$0.name=="modal.legendary.foil"})
+        let rainbow=try XCTUnwrap(foil.sublayers?.first{$0.name=="modal.legendary.rainbow"})
+        XCTAssertNotNil(foil.mask?.contents)
+        XCTAssertEqual(foil.animation(forKey:"modal.holo.alpha")?.duration,6.8)
+        XCTAssertNotNil(rainbow.animation(forKey:"modal.holo.rainbow"))
+        effects.cancel();effects.dragReflection(angle:24)
+        XCTAssertGreaterThan(foil.opacity,0.4)
+        let positive=(rainbow.value(forKeyPath:"transform.translation.x") as? NSNumber)?.doubleValue ?? 0
+        effects.dragReflection(angle:-24)
+        let negative=(rainbow.value(forKeyPath:"transform.translation.x") as? NSNumber)?.doubleValue ?? 0
+        XCTAssertGreaterThan(positive,0);XCTAssertLessThan(negative,0)
+        effects.dragReflection(angle:180);XCTAssertEqual(foil.opacity,0)
+        effects.present(frontFacing:true);effects.setActive(false)
+        XCTAssertNil(foil.animationKeys());XCTAssertEqual(foil.opacity,0)
+        effects.setActive(true);XCTAssertNotNil(foil.animation(forKey:"modal.holo.alpha"))
+        effects.present(frontFacing:false);XCTAssertNil(foil.animationKeys());XCTAssertEqual(foil.opacity,0)
+        effects.cleanup();effects.cleanup();XCTAssertNil(foil.superlayer);XCTAssertTrue(overlay.subviews.isEmpty)
+    }
+
     func testCloseDuringFlipIsAcceptedAndCleanupRetiresOldCompletion() async throws {
         let unit = try XCTUnwrap(JimiNativeWorldSnapshot(fixture())).units[0]
         let card = JimiNativeWorldCardView(unit:unit,assets:art,resources:JimiNativeWorldResources(root:root))
@@ -742,6 +769,22 @@ final class JimiNativeWorldTests: XCTestCase {
         let screenshot = UIGraphicsImageRenderer(bounds:world.bounds).image { _ in world.drawHierarchy(in:world.bounds,afterScreenUpdates:true) }
         let attachment = XCTAttachment(image:screenshot);attachment.name = "rendering-fixture-only-forest-\(rarity)-original-card-back";attachment.lifetime = .keepAlways;add(attachment)
         play.sendActions(for:.touchUpInside);XCTAssertEqual(actions,["play"],"Fixture emits semantic action, never starts real gameplay")
+        if rarity == "legendary" {
+            let card=try XCTUnwrap(modal as? JimiNativeWorldCardView)
+            func find(_ layer:CALayer,_ name:String)->CALayer? {
+                if layer.name==name{return layer}
+                return layer.sublayers?.lazy.compactMap{find($0,name)}.first
+            }
+            let foil=try XCTUnwrap(find(card.layer,"modal.legendary.foil"))
+            XCTAssertNil(foil.animationKeys())
+            card.tapToFlip();try await settle(0.65)
+            XCTAssertEqual(card.stableFaceAngle,0)
+            XCTAssertNotNil(foil.animation(forKey:"modal.holo.alpha"))
+            XCTAssertGreaterThan(foil.presentation()?.opacity ?? 0,0)
+            card.tapToFlip();try await settle(0.65)
+            XCTAssertNil(foil.animationKeys());XCTAssertEqual(foil.opacity,0)
+        }
+
         close.sendActions(for:.touchUpInside);XCTAssertEqual(actions,["play","close"])
         let closed = expectation(description:"Actual card return fixture landed")
         world.closeCard {closed.fulfill()};await fulfillment(of:[closed],timeout:5)

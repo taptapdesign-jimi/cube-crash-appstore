@@ -92,39 +92,28 @@ Regular tiles use a stable parent hit area and child visuals do not intercept th
 
 New visual variants must map to an existing gameplay archetype unless the user explicitly requests a new gameplay rule.
 
-Forest Journey Stages use one cumulative authored reward pool and do not emit
-generic Juice or Magnet dice. Stage 01 contains Wild Star only. The first
-wild-meter reward on Stage 02/03/04/06/07 respectively guarantees Bee,
-Flower, Honey, Mushroom, and Barrel as that Stage's introduction; TNT is also
-unlocked in Stage 07's later cumulative pool. Subsequent rewards use
-only Wild Star plus the Forest rewards introduced up to that Stage. Mushroom
-uses Juice gameplay, Honey uses Magnet gameplay, and Flower and Barrel use TNT gameplay;
-Bee retains Wild Star gameplay while suppressing the orbiting-star presentation,
-and every authored visual remains player-facing.
-
-Area 55 uses one cumulative player-facing reward pool. Cjelina 01 contains only
-Wild Star and Robo Cube: Star is the first Wild Meter reward and Robo Cube is
-guaranteed immediately after it. Cjelina 02 adds LaserGun and guarantees it on
-that Cjelina's first reward. Cjelina 03 adds Spaceship and guarantees it on that
-Cjelina's first reward. Cjelina 04 adds Kanta and guarantees it on that Cjelina's
-first reward. Later Area 55 rewards use only Wild Star plus the Area 55 rewards
-introduced up to that Cjelina. LaserGun and Spaceship retain their canonical Wild
-TNT and Wild Magnet gameplay archetypes respectively; Kanta retains canonical
-Wild Star gameplay. The per-board `wildSpawnCount` remains persisted across
-reloads.
+Native Journey order (user decision 2026-10-18) swaps the first two dice and
+cards in each World: Forest Bee then Star; Beach Juice then Fishy; Area 55
+Bibi Ribi (Robo Cube) then Kanta. Common/legendary and both card densities use
+the same mapping. Existing later cumulative unlock thresholds remain unchanged.
+All 30 Native Journey boards choose uniformly from their current cumulative
+pool, including the first meter reward. No forced introduction, fallback-first
+die, Beach alternation, history/streak override or extra weighted draw is allowed.
+The persisted wildSpawnCount and existing saved dice remain valid; this changes
+new reward selection only. Tutorial demonstration remains separate; Arcade now also uses random selection from its first drop. NativeJourneyContent owns this policy;
+preserved PWA rules and assets are unchanged.
 
 **Native Wild Star availability override (user decision2026-10-16):**
 Plain Wild Star (Star archetype with no visual variant) is a Forest-only Journey
-reward: boards1–10 retain their existing cumulative pool and Unit1 introduction;
+reward: boards2–10 include Star in their cumulative pool;
 Beach11–20 and Area55 21–30 never select plain Star. This overrides plain-Star
 membership in the historical Area55/PWA description above for Native only.
 Fish, Bee, Kanta and Cubero retain Star gameplay and their original visuals.
-Forest Unit1 unlock uses the existing Backpack milestone (a real Forest attempt
-opened/played or durable Forest completion/legacy progress); the default unplayed
+Forest Unit2 unlock uses the existing Backpack milestone (Unit2 or later opened/played,
+or Unit1 completed, or equivalent durable Forest progress); the default unplayed
 interim1, other Worlds and tutorial completion alone grant nothing. Once unlocked,
 plain Star is eligible for normal Arena/Arcade rewards. Before unlock, Arcade
-normal pools exclude it and remain nonempty. Arcade01 authored Magnet → Bottle →
-Cubero → Barrel sequence and existing World-specific first rewards stay intact.
+normal pools exclude it and remain nonempty. Arcade uses random selection from the first drop; its former introductory sequence is removed (2026-10-19). Journey forced-first rewards are removed.
 Existing saved tiles, scripted tutorial demonstration, final-merge behavior and
 save format version are preserved. An additive optional wildStarUnlocked Bool
 latches existing Forest evidence before World changes; old saves decode without it.
@@ -282,3 +271,23 @@ All Native Arcade variants use Journey's complete Star spawn rules for plain Sta
 ## Native final merge HUD coins (user decision 2026-10-18)
 
 A confirmed final merge-six earns visible upward coin flights to the trophy HUD before the result handoff, including ordinary, Wild and every Special variant in Journey and Arcade. This is an explicit Native reward-policy addition: final ordinary/Magnet receive one coin; final TNT gameplay archetype (all variants, including legacy Beach Ball provenance) receives three coins, only in this endgame branch; Star-family retains its saved effective1–3 count (Bee one), independent of missing board-local orbit artwork; Juice-family retains its existing1–3 selection. Each genuine HUD arrival credits the existing100 points once. Finality still vetoes every board die/meter spawn. Existing pending-HUD gates must hold terminal publication until those flights complete, then resume the exact captured final transaction/terminal once. Generation replacement/disposal cannot award stale arrivals. Nonfinal reward policy and preserved PWA behavior are unchanged.
+
+### Native combo coin rewards — user decision 2026-10-19
+
+Supersedes the family-specific Native coin counts above. The active Native composition root enables one total reward per Wild/Special merge-six for every original and variant, including Bee: resulting combo0–2 =>1 coin,3–4 =>2,5–9 =>3,10–14 =>4,15–19 =>5,20–24 =>6,25+ =>7. TNT archetype (original, Flower, Barrel, Laser and other compatible variants) distributes total max(combo reward, actual impact count) across actual changed dice, at least one per affected die. Extras are balanced with a private seeded shuffle:7 coins over4 targets is2+2+2+1; counts differ by at most1. No excess coin launches from merge center when impact targets exist. Allocation is captured once after actual target reservation, and each target emits its full assigned batch at impact. With zero targets, the merge center remains the fallback; final-merge policy stays separate. Duplicate/stale callbacks cannot earn twice. Magnet uses the resulting combo including its existing pull increments. Final ordinary merges retain one coin. Each arrival still credits100 points exactly once. Current Wild contact always resolves as an effective merge-six; any future non-six reward must remain one coin. Bounded existing HUD jobs admit up to7 for Native readable coins, recycle the existing three size choices and retain arrival/retirement/generation ownership. The preserved Source oracle defaults and PWA remain unchanged. No save schema or assets change.
+
+### Arcade reached-stage result — user requested 2026-10-19
+
+A terminal loss on Arcade Stage 2 or later presents the Clean Board run summary with accumulated score and the reached round, across all Arcade variants. Stage 1 loss remains Fail. This is presentation success only: the lost round remains logically failed, grants no Journey bonuses/progression, and cannot queue or open another round. Play Again starts the same variant at Stage 1. Genuine cleared rounds retain their existing automatic continuation and meter carry rules.
+
+Arcade Clean Board celebration uses the world of the last committed Wild/Special merge-six in that run, preserved through saves and genuine round continuation. Ordinary merges retain it; rejected or cancelled-before-commit actions cannot replace it. A fresh run resets it. Missing provenance and Arcade-only original dice use neutral Area55. Journey retains its board-world presentation.
+
+### Journey world-only random drop isolation — user clarification 2026-10-19
+
+All Journey meter rewards must come exclusively from that board's unlocked cumulative World pool, with one uniform draw and no count/history/first-drop override. Original TNT, original Magnet and Cubero are Arcade-only; Forest7–10 excludes original TNT and retains Barrel. Legacy Forest7–10 saved original TNT resumes as gameplay-equivalent Barrel without changing score, moves, charge, RNG or tile identity. A singleton eligible pool naturally always selects its one die. The separate tutorial remains unchanged; Arcade random-drop policy is defined below.
+
+Beach eligibility follows local Units1=Juice,2=Fishy,3=Beach Ball,4=Bottle (global boards11–14). Each addition stays in the cumulative same-World random pool; Backpack unlock labels use the same thresholds. Existing saved dice are preserved.
+
+### Arcade random from first drop — user decision 2026-10-19
+
+All active Native Arcade variants select identity using one uniform pool draw, independent of round, numbered drop, previous identity or streak. No forced opening sequence or anti-repeat reroll. Endurance/Slow Burn retain previously available identities (plain Star when unlocked, Juice, OG Magnet, OG TNT, Bottle, Cubero, Barrel), now randomly eligible from the first drop. Pure Dice/One Lucky Drop retains its original core-only pool and one-drop-per-round rule. Plain Star unlock eligibility and separate onboarding tutorial remain unchanged. This supersedes older Arcade authored-sequence decisions; preserved PWA oracle/assets stay immutable.

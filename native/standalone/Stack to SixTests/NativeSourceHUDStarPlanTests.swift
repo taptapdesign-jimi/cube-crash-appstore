@@ -36,18 +36,85 @@ nonisolated final class NativeSourceHUDStarPlanTests:XCTestCase {
         }
         XCTAssertGreaterThan(comparisons,10000)
     }
-    func testReadableCoinsKeepCapturedGeometryAndIncreaseDurationSizeAndSpacing() {
+    func testLaserCoinsStartSlowerAndStillFinishAtSameTrophy() {
+        var previous=0.0,normalEnd=0.0,laserEnd=0.0
+        let source=NativeSourceHUDStarPlan.construct(ordinal:0,sizes:[56,42,30],origin:CGPoint(x:195,y:500),target:CGPoint(x:195,y:60),textureWidth:28,previousArrival:&previous,random:{0.5})
+        let normal=source.readableCoin(ordinal:0,previousEnd:&normalEnd)
+        let laser=source.readableCoin(ordinal:0,previousEnd:&laserEnd,gentleLaunch:true)
+        let origin=laser.points[0]
+        func distance(_ p:CGPoint)->Double {hypot(p.x-origin.x,p.y-origin.y)}
+        XCTAssertEqual(normal.points,laser.points)
+        XCTAssertLessThan(distance(laser.sample(localSeconds:0.10,previousScale:1).point),distance(normal.sample(localSeconds:0.10,previousScale:1).point))
+        XCTAssertTrue(laser.sample(localSeconds:laser.duration,previousScale:1).arrived)
+        XCTAssertEqual(laser.sample(localSeconds:laser.duration,previousScale:1).point,laser.points.last!)
+    }
+    func testCoinsApproachTrophyFromAboveBelowAndBothSides() {
+        var previous=0.0,end=0.0,left=false,right=false,above=false,below=false
+        let target=CGPoint(x:195,y:90)
+        for ordinal in 0..<7 {
+            let source=NativeSourceHUDStarPlan.construct(ordinal:ordinal,sizes:[56,42,30],origin:CGPoint(x:195,y:600),target:target,textureWidth:28,previousArrival:&previous,random:{0.5})
+            let coin=source.readableCoin(ordinal:ordinal,previousEnd:&end,viewport:CGSize(width:390,height:844))
+            let near=coin.points[62]
+            left = left || near.x<target.x-1;right = right || near.x>target.x+1
+            above = above || near.y<target.y-1;below = below || near.y>target.y+1
+            XCTAssertEqual(coin.points.last,target)
+            XCTAssertFalse(coin.sample(localSeconds:coin.duration-0.05,previousScale:1).arrived)
+        }
+        XCTAssertTrue(left && right && above && below)
+    }
+    func testMagneticCoinsRemainInsideViewportFromEdgeOrigins() {
+        for viewport in [CGSize(width:320,height:568),CGSize(width:390,height:844)] {
+            for origin in [CGPoint(x:8,y:300),CGPoint(x:viewport.width-8,y:300),CGPoint(x:100,y:viewport.height-8)] {
+                var previous=0.0,end=0.0
+                for ordinal in 0..<7 {
+                    let source=NativeSourceHUDStarPlan.construct(ordinal:ordinal,sizes:[56,42,30],origin:origin,target:CGPoint(x:viewport.width/2,y:60),textureWidth:28,previousArrival:&previous,random:{0.5})
+                    let coin=source.readableCoin(ordinal:ordinal,previousEnd:&end,viewport:viewport)
+                    var scale=coin.size/28
+                    for frame in 0...240 {
+                        let pose=coin.sample(localSeconds:coin.duration*Double(frame)/240,previousScale:scale);scale=pose.scale
+                        let radius=28*scale*0.71
+                        XCTAssertGreaterThanOrEqual(pose.point.x-radius,-1)
+                        XCTAssertLessThanOrEqual(pose.point.x+radius,viewport.width+1)
+                        XCTAssertGreaterThanOrEqual(pose.point.y-radius,-1)
+                        XCTAssertLessThanOrEqual(pose.point.y+radius,viewport.height+1)
+                    }
+                    XCTAssertEqual(coin.points.last,CGPoint(x:viewport.width/2,y:60))
+                }
+            }
+        }
+    }
+    func testReadableCoinsBurstInDiverseDirectionsAndRetainArrivalOwnership() {
         var previous=0.0,previousCoinEnd=0.0
-        for ordinal in 0..<3 {
+        var left=false,right=false,down=false
+        var earlyDistances:[Double]=[]
+        for ordinal in 0..<7 {
             let original=NativeSourceHUDStarPlan.construct(ordinal:ordinal,sizes:[56,42,30],origin:.init(x:195,y:430),target:.init(x:37,y:76),textureWidth:28,previousArrival:&previous,random:{0.5})
             let priorEnd=previousCoinEnd
+            let variation=abs(sin(original.rotation*17.13+original.size*0.731+Double(ordinal)*2.399))
             let coin=original.readableCoin(ordinal:ordinal,previousEnd:&previousCoinEnd)
-            XCTAssertEqual(coin.points,original.points);XCTAssertEqual(coin.rotation,original.rotation)
+            XCTAssertEqual(coin.points.first,original.points.first);XCTAssertEqual(coin.points.last,original.points.last);XCTAssertEqual(coin.rotation,original.rotation)
             XCTAssertEqual(coin.size,original.size*1.2,accuracy:1e-10)
-            XCTAssertGreaterThanOrEqual(coin.duration,original.duration*1.25)
-            XCTAssertEqual(coin.delay-original.delay,Double(ordinal)*0.12,accuracy:1e-10)
-            if ordinal>0 {XCTAssertGreaterThanOrEqual(coin.end-priorEnd,0.24-1e-10)}
+            XCTAssertEqual(coin.duration,max(original.duration*1.25*1.30/(0.60*1.20*2*0.90)*(0.82+abs(sin(original.rotation*17.13+original.size*0.731+Double(ordinal)*2.399))*0.36)+0.28,priorEnd+0.32+variation*0.12-coin.delay),accuracy:1e-10)
+            XCTAssertEqual(coin.delay,variation*0.025,accuracy:1e-10)
+            XCTAssertGreaterThan(coin.burstProgress,0)
+            let early=coin.sample(localSeconds:coin.duration*0.08,previousScale:1).point
+            let dx=early.x-coin.points[0].x,dy=early.y-coin.points[0].y
+            left = left || dx < -5;right = right || dx > 5;down = down || dy > 5
+            earlyDistances.append(hypot(dx,dy))
+            XCTAssertGreaterThan(hypot(dx,dy),5)
+            XCTAssertFalse(coin.sample(localSeconds:coin.duration-0.12,previousScale:1).arrived)
+            let before=coin.sample(localSeconds:coin.duration-0.10,previousScale:1).point
+            let near=coin.sample(localSeconds:coin.duration-0.05,previousScale:1).point
+            let end=coin.sample(localSeconds:coin.duration,previousScale:1)
+            XCTAssertLessThan(hypot(end.point.x-near.x,end.point.y-near.y),hypot(near.x-before.x,near.y-before.y))
+            XCTAssertTrue(end.arrived)
+            XCTAssertEqual(end.point.x,coin.points.last!.x,accuracy:0.001)
+            XCTAssertEqual(end.point.y,coin.points.last!.y,accuracy:0.001)
+            if ordinal>0 {XCTAssertGreaterThanOrEqual(coin.end-priorEnd,0.32-1e-10)}
         }
+        XCTAssertTrue(left || right)
+        _=down
+        XCTAssertGreaterThan((earlyDistances.max() ?? 0)-(earlyDistances.min() ?? 0),10)
     }
 
 }

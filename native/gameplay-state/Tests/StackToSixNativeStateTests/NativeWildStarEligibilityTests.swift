@@ -8,39 +8,35 @@ final class NativeWildStarEligibilityTests:XCTestCase {
         let rolls = [0.0,0.199999,0.2,0.249999,0.25,0.499999,0.5,0.749999,0.75,0.999999]
         for board in 1...30 {
             XCTAssertFalse(NativeJourneyContent.rewardPool(board:board).isEmpty)
-            XCTAssertEqual(NativeJourneyContent.rewardPool(board:board).contains("wild-star"),board <= 10)
+            XCTAssertEqual(NativeJourneyContent.rewardPool(board:board).contains("wild-star"),(2...10).contains(board))
             for count in [0,1,4] {for previous in NativeWildArchetype.allCases {for roll in rolls {
                 let state=NativeBoardState(tiles:[],mode:.journey,board:board,wildSpawnCount:count,lastWildDropType:previous,wildDropTypeStreak:3)
                 for unlocked in [false,true] {
                     let reward=NativeWildRewardPolicy.choose(state:state,roll:roll,plainStarUnlocked:unlocked,nextRoll:{roll})
                     XCTAssertNotNil(reward,"board \(board), roll \(roll)")
                     if board > 10 {XCTAssertFalse(plainStar(reward),"board \(board)")}
-                    if board == 1 {XCTAssertTrue(plainStar(reward))}
-                    if board == 21 {XCTAssertEqual(reward?.variant,"kanta")}
+                    if board == 1 {XCTAssertEqual(reward?.variant,"bee")}
+                    if board == 21 {XCTAssertEqual(reward?.variant,"robo-cube")}
                 }
             }}}
         }
     }
-    func testLockedArcadeHasNonemptyFallbackWithoutPlainStarAndKeepsAuthoredFirstFour() {
-        for board in [1,2,10,11,20,21,24,30,31,50] {for count in [0,1,2,3,4,12] {for roll in [0.0,0.24,0.5,0.74,0.999999] {
-            let state=NativeBoardState(tiles:[],mode:.arcade,board:board,wildSpawnCount:count,lastWildDropType:.star,wildDropTypeStreak:3)
-            let reward=NativeWildRewardPolicy.choose(state:state,roll:roll,plainStarUnlocked:false,nextRoll:{roll})
-            XCTAssertNotNil(reward);XCTAssertFalse(plainStar(reward),"board \(board), count \(count)")
-        }}}
-        for unlocked in [false,true] {
-            let firstFour:[(Int,NativeWildArchetype,String?)] = [(0,.magnet,nil),(1,.magnet,"bottle"),(2,.star,"cubero"),(3,.tnt,"barell")]
-            for (count,kind,variant) in firstFour {
-                let state=NativeBoardState(tiles:[],mode:.arcade,board:1,wildSpawnCount:count)
-                let reward=NativeWildRewardPolicy.choose(state:state,roll:0,plainStarUnlocked:unlocked,nextRoll:{0})
-                XCTAssertEqual(reward?.archetype,kind);XCTAssertEqual(reward?.variant,variant)
+    func testArcadeRespectsPlainStarUnlockWithoutForcingIntroVariants() {
+        for variant in NativeArcadeVariant.allCases {for unlocked in [false,true] {
+            var foundStar=false
+            for index in 0..<100 {
+                let state=NativeBoardState(tiles:[],mode:.arcade,board:1,arcadeVariant:variant)
+                let reward=NativeWildRewardPolicy.choose(state:state,roll:Double(index)/100,plainStarUnlocked:unlocked,nextRoll:{XCTFail("No history reroll");return 0})
+                XCTAssertNotNil(reward)
+                foundStar = foundStar || plainStar(reward)
+                if !unlocked {XCTAssertFalse(plainStar(reward))}
             }
-        }
-        let ordinary=NativeBoardState(tiles:[],mode:.arcade,board:2,wildSpawnCount:4)
-        XCTAssertTrue(plainStar(NativeWildRewardPolicy.choose(state:ordinary,roll:0,plainStarUnlocked:true,nextRoll:{0})))
+            XCTAssertEqual(foundStar,unlocked)
+        }}
     }
     func testForestEvidenceUnlocksStarAndUnrelatedWorldEvidenceDoesNot() throws {
         XCTAssertFalse(NativeProgressionState().hasUnlockedWildStar)
-        for board in 1...10 {
+        for board in 2...10 {
             var completed=NativeProgressionState();completed.completedJourneyBoards=[board]
             var played=NativeProgressionState();var stats=NativeBoardStats();stats.timesPlayed=1;played.boardStats[board]=stats
             var opened=NativeProgressionState();opened.lastOpenedJourneyBoard=board
@@ -56,7 +52,8 @@ final class NativeWildStarEligibilityTests:XCTestCase {
         }
         for board in 2...10 {var legacy=NativeProgressionState();legacy.highestUnlockedJourneyBoard=board;XCTAssertTrue(legacy.hasUnlockedWildStar)}
         var emptyStats=NativeProgressionState();emptyStats.boardStats[1]=NativeBoardStats();XCTAssertFalse(emptyStats.hasUnlockedWildStar)
-        var begun=NativeProgressionState();begun.beginAttempt(mode:.journey,board:1,now:1000);XCTAssertTrue(begun.hasUnlockedWildStar)
+        var begun=NativeProgressionState();begun.beginAttempt(mode:.journey,board:1,now:1000);XCTAssertFalse(begun.hasUnlockedWildStar)
+        begun.finishAttempt(mode:.journey,board:1,score:100,longestCombo:1,cubesCracked:1,clean:true,now:1001);XCTAssertTrue(begun.hasUnlockedWildStar)
     }
     func testExistingPlainStarsInOtherWorldSavesRemainUsableWithoutSchemaMigration() throws {
         for board in [11,21] {
@@ -71,7 +68,7 @@ final class NativeWildStarEligibilityTests:XCTestCase {
         }
     }
     func testLegacyForestEvidenceIsLatchedBeforeUnrelatedRouteChanges() throws {
-        var opened=NativeProgressionState();opened.lastOpenedJourneyBoard=1
+        var opened=NativeProgressionState();opened.lastOpenedJourneyBoard=2
         opened.beginAttempt(mode:.journey,board:11,now:1000)
         XCTAssertEqual(opened.lastOpenedJourneyBoard,11)
         XCTAssertTrue(opened.hasUnlockedWildStar)
@@ -89,7 +86,7 @@ final class NativeWildStarEligibilityTests:XCTestCase {
         XCTAssertFalse(unrelated.hasUnlockedWildStar)
     }
     func testOldSaveWithoutLatchPreservesForestUnlockAfterRouteChangesAndRejectsMalformedLatch() throws {
-        var original=NativeProgressionState();original.lastOpenedJourneyBoard=1
+        var original=NativeProgressionState();original.lastOpenedJourneyBoard=2
         var payload=try XCTUnwrap(JSONSerialization.jsonObject(with:JSONEncoder().encode(original)) as? [String:Any])
         payload.removeValue(forKey:"wildStarUnlocked")
         var decoded=try JSONDecoder().decode(NativeProgressionState.self,from:JSONSerialization.data(withJSONObject:payload))

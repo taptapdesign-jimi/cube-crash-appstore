@@ -1,22 +1,39 @@
 import UIKit
 
-/// Finite modal flip coach; card artwork has no added shine overlay.
-/// Flight, pointer and flip keep their existing transform owners.
+/// Authored finite modal-only effects. No display link, recurring timer, bitmap
+/// snapshot or alternate rotor. Flight, pointer and flip keep their own layers.
 @MainActor
 final class JimiNativeWorldCardEffects {
+    private weak var front: UIImageView?
     private weak var impact: UIView?
     private weak var overlay: UIView?
+    private let foil = CALayer(), gold = CAGradientLayer(), rainbow = CAGradientLayer()
     private let hand = UIImageView(), copy = UIView()
     private var letters: [UILabel] = []
     private let assets: JimiV9Artwork
+    private let rarity: String
     private var active = true, ended = false, nextDrag = true
+    private var frontFacing = false
     private var permitted = false
     private var coachScheduledAt: Double?
+    private var originalGold: [CGColor] = [], originalRainbow: [CGColor] = []
 
-    init(impact: UIView, overlay: UIView, assets: JimiV9Artwork,
-         resources: JimiNativeWorldResources, boardID: Int) {
-        self.impact = impact; self.overlay = overlay
-        self.assets = assets
+    init(front: UIImageView? = nil, impact: UIView, overlay: UIView, assets: JimiV9Artwork,
+         resources: JimiNativeWorldResources, boardID: Int, rarity: String = "common") {
+        self.front = front; self.impact = impact; self.overlay = overlay
+        self.assets = assets; self.rarity = rarity
+        foil.name = "modal.legendary.foil";rainbow.name = "modal.legendary.rainbow";gold.name = "modal.legendary.gold"
+        foil.opacity = 0; foil.masksToBounds = true; foil.isDoubleSided = false
+        foil.transform = CATransform3DMakeTranslation(0, 0, 1.2)
+        gold.colors = [color(255,197,69,0),color(255,204,112,0.16),color(255,249,218,0.44),color(255,255,248,0.38),color(255,213,128,0.22),color(255,190,86,0.14),color(255,197,69,0)]
+        originalGold = gold.colors as? [CGColor] ?? []
+        gold.locations = [0.16,0.32,0.43,0.50,0.60,0.67,0.82]
+        gold.startPoint = CGPoint(x:0,y:0.38); gold.endPoint = CGPoint(x:1,y:0.62)
+        rainbow.colors = [color(128,224,255,0),color(128,224,255,0.32),color(169,139,255,0.32),color(255,137,211,0.36),color(255,232,116,0.23),color(124,255,190,0.34),color(128,224,255,0)]
+        originalRainbow = rainbow.colors as? [CGColor] ?? []
+        rainbow.locations = [0.08,0.24,0.37,0.49,0.61,0.73,0.91]
+        rainbow.startPoint = CGPoint(x:0,y:0.62); rainbow.endPoint = CGPoint(x:1,y:0.38)
+        foil.addSublayer(rainbow); foil.addSublayer(gold); if rarity == "legendary" {front?.layer.addSublayer(foil)}
         resources.prepare(["assets/hand-pointer.png"],owner:boardID) { [weak self,weak resources] accepted in
             guard accepted,let self,!self.ended else{return}
             self.hand.image = resources?.image("assets/hand-pointer.png",owner:boardID)
@@ -30,6 +47,12 @@ final class JimiNativeWorldCardEffects {
     func layout() {
         guard let overlay else {return}
         CATransaction.begin();CATransaction.setDisableActions(true)
+        if let front {
+            foil.frame = front.bounds
+            gold.frame = CGRect(x:-front.bounds.width*0.9,y:0,width:front.bounds.width*2.8,height:front.bounds.height)
+            rainbow.frame = CGRect(x:-front.bounds.width*0.6,y:-front.bounds.height*0.225,width:front.bounds.width*2.2,height:front.bounds.height*1.45)
+            let mask = CALayer();mask.frame = front.bounds;mask.contents = front.image?.cgImage;mask.contentsGravity = .resizeAspect;foil.mask = mask
+        }
         let width = min(overlay.bounds.width*0.36,168), aspect = (hand.image?.size.height ?? 1)/max(1,hand.image?.size.width ?? 1)
         hand.bounds = CGRect(x:0,y:0,width:width,height:width*aspect);hand.center = CGPoint(x:overlay.bounds.midX,y:overlay.bounds.height*0.56)
         copy.frame = CGRect(x:0,y:overlay.bounds.height-overlay.safeAreaInsets.bottom-72,width:overlay.bounds.width,height:38)
@@ -41,10 +64,45 @@ final class JimiNativeWorldCardEffects {
         animation.timingFunctions = Array(repeating:CAMediaTimingFunction(controlPoints:0.22,1,0.36,1),count:max(0,times.count-1))
         animation.isRemovedOnCompletion = true;layer.add(animation,forKey:key)
     }
-    func present() {
-        cancel(handoff:false);permitted = true
+    func present(frontFacing:Bool = false) {
+        cancel(handoff:false);self.frontFacing = frontFacing;permitted = true
         guard active,!ended,!UIAccessibility.isReduceMotionEnabled else {return}
+        if frontFacing {
+            if rarity == "legendary" {holo()}
+        }
         coach(drag:nextDrag)
+    }
+    private func smooth(_ t:Double)->Double {let p=min(1,max(0,t));return p*p*(3-2*p)}
+    private func reflection(_ degrees:Double)->(Double,Double,Double) {
+        let normalized = degrees.truncatingRemainder(dividingBy:360);let angle = normalized < -180 ? normalized+360 : normalized > 180 ? normalized-360 : normalized
+        guard abs(angle)<88 else{return (0,50,50)}
+        return ((0.104+0.39*smooth(abs(angle)/18))*smooth((88-abs(angle))/20),50+angle/72*60,50-angle/72*48)
+    }
+    private func strengthen(_ color: CGColor) -> CGColor {
+        var r:CGFloat = 0,g:CGFloat = 0,b:CGFloat = 0,a:CGFloat = 0
+        UIColor(cgColor:color).getRed(&r,green:&g,blue:&b,alpha:&a)
+        let luminance = 0.213*r+0.715*g+0.072*b
+        func channel(_ value:CGFloat)->CGFloat {min(1,max(0,(luminance+1.72*(value-luminance)-0.5)*1.06+0.5))}
+        return UIColor(red:channel(r),green:channel(g),blue:channel(b),alpha:a).cgColor
+    }
+    private func holo() {
+        guard let front else {return}
+        gold.colors = originalGold.map(strengthen);rainbow.colors = originalRainbow.map(strengthen)
+        let angles = [0.0,-21.6,0,21.6,0],times = [0.0,0.25,0.5,0.75,1]
+        let states = angles.map{reflection($0)}
+        let alphas = zip(angles,states).map{angle,state in max(0.13,state.0*0.68)*(angle<0 ? 1.12 : 1)}
+        animate(foil,key:"modal.holo.alpha",values:alphas,times:times,duration:6.8,path:"opacity")
+        animate(gold,key:"modal.holo.gold",values:states.map{-(($0.1-50)/100)*front.bounds.width*1.8},times:times,duration:6.8,path:"transform.translation.x")
+        animate(rainbow,key:"modal.holo.rainbow",values:states.map{-(($0.2-50)/100)*front.bounds.width*1.2},times:times,duration:6.8,path:"transform.translation.x")
+        // The canonical 6.8s automatic foil pass keeps the physical rotor neutral.
+    }
+    func dragReflection(angle:Double) {
+        guard active,!ended,rarity == "legendary",!UIAccessibility.isReduceMotionEnabled,let front else {return}
+        foil.removeAllAnimations();gold.removeAllAnimations();rainbow.removeAllAnimations();gold.colors = originalGold;rainbow.colors = originalRainbow
+        let state = reflection(angle)
+        CATransaction.begin();CATransaction.setDisableActions(true);foil.opacity = Float(state.0)
+        gold.setValue(-((state.1-50)/100)*front.bounds.width*1.8,forKeyPath:"transform.translation.x")
+        rainbow.setValue(-((state.2-50)/100)*front.bounds.width*1.2,forKeyPath:"transform.translation.x");CATransaction.commit()
     }
     private func coach(drag:Bool) {
         guard let impact else {return}
@@ -82,14 +140,14 @@ final class JimiNativeWorldCardEffects {
         if let impact {let pose = impact.layer.presentation()?.transform ?? impact.layer.transform;let coached = impact.layer.animation(forKey:"modal.coach.impact") != nil;impact.layer.removeAnimation(forKey:"modal.coach.impact")
             if handoff,coached,active,!UIAccessibility.isReduceMotionEnabled {animate(impact.layer,key:"modal.coach.handoff",values:[NSValue(caTransform3D:pose),NSValue(caTransform3D:CATransform3DIdentity)],times:[0,1],duration:0.16,path:"transform")}
             else {impact.layer.removeAllAnimations()}}
-        hand.layer.removeAllAnimations()
+        for layer in [foil,gold,rainbow,hand.layer] {layer.removeAllAnimations()}
         letters.forEach{$0.layer.removeAllAnimations()}
-
+        CATransaction.begin();CATransaction.setDisableActions(true);foil.opacity = 0;gold.colors = originalGold;rainbow.colors = originalRainbow;gold.transform = CATransform3DIdentity;rainbow.transform = CATransform3DIdentity;CATransaction.commit()
     }
     func setActive(_ value:Bool) {
         guard active != value,!ended else{return};let wasPermitted = permitted;active = value
         if !value {cancel(handoff:false);permitted = wasPermitted}
-        else if wasPermitted {present()}
+        else if wasPermitted {present(frontFacing:frontFacing)}
     }
-    func cleanup(){guard !ended else{return};ended = true;cancel(handoff:false);hand.removeFromSuperview();copy.removeFromSuperview()}
+    func cleanup(){guard !ended else{return};ended = true;cancel(handoff:false);foil.removeFromSuperlayer();hand.removeFromSuperview();copy.removeFromSuperview()}
 }

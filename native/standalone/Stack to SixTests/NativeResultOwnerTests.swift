@@ -5,6 +5,121 @@ import StackToSixGameplay
 
 @MainActor
 final class NativeResultOwnerTests:XCTestCase {
+    func testForestAmbienceFollowsActualResultMountPauseAndDisposeOnly() {
+        for board in [1,11,21] {
+            let result=controller(board:board)
+            var events:[(Bool,Bool)]=[]
+            result.onForestAmbience={events.append(($0,$1))}
+            result.loadViewIfNeeded()
+            if board==1 {
+                XCTAssertTrue(events.last?.0 == true)
+                result.setSuspended(true);XCTAssertTrue(events.last?.1 == true)
+                result.setSuspended(false);XCTAssertTrue(events.last?.1 == false)
+            } else {XCTAssertTrue(events.isEmpty)}
+            result.dispose()
+            XCTAssertFalse(events.last!.0)
+            let count=events.count;result.dispose();result.setSuspended(false)
+            XCTAssertEqual(events.count,count)
+        }
+    }
+
+    func testForestCelebrationRetainsOriginalLeavesAndFourPausedFlightsBeforeCTA() async throws {
+        let result=controller(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=result;window.makeKeyAndVisible();result.loadViewIfNeeded()
+        defer {result.dispose();window.isHidden=true;window.rootViewController=nil}
+        result.view.frame=window.bounds;result.view.layoutIfNeeded()
+        let canvas=try XCTUnwrap(result.view.subviews.compactMap {$0 as? NativeResultConfettiCanvas}.first)
+        XCTAssertEqual(canvas.plannedParticleCount,42)
+        result.setSuspended(true)
+        for _ in 0..<80 {
+            if canvas.assetsReady {break}
+            try await Task.sleep(nanoseconds:25_000_000)
+        }
+        XCTAssertTrue(canvas.assetsReady)
+        result.setSuspended(false)
+        func bees()->[UIView] {result.view.subviews.filter {$0.accessibilityIdentifier?.hasPrefix("native.result.forest.bee.")==true}}
+        XCTAssertEqual(bees().count,4)
+        result.tick(0)
+        XCTAssertTrue(bees().allSatisfy {$0.isHidden})
+        for frame in 1...60 {result.tick(Double(frame)/60)}
+        XCTAssertEqual(Set(bees().map {$0.center.x}).count,4)
+        XCTAssertEqual(Set(bees().map {$0.layer.zPosition}),Set([CGFloat(0.5),CGFloat(2)]))
+        let renderer=UIGraphicsImageRenderer(bounds:result.view.bounds)
+        try renderer.image {_ in result.view.drawHierarchy(in:result.view.bounds,afterScreenUpdates:true)}.pngData()?.write(to:URL(fileURLWithPath:"/tmp/forest-leaf-random-preview.png"))
+        let positions=bees().map(\.center)
+        result.setSuspended(true);result.tick(50)
+        XCTAssertEqual(bees().map(\.center),positions)
+        result.setSuspended(false);result.tick(50)
+        for frame in 1...330 {result.tick(50+Double(frame)/60)}
+        XCTAssertEqual(bees().count,4)
+        XCTAssertTrue(bees().allSatisfy {$0.alpha==1},"Departure must fly out without fading")
+
+        for frame in 331...336 {result.tick(50+Double(frame)/60)}
+        result.tick(55.61)
+        XCTAssertTrue(bees().isEmpty,"Bees must retire before the first CTA frame")
+        XCTAssertEqual(button(in:result.view,id:"native.result.play-again")!.alpha,0)
+        for frame in 337...340 {result.tick(50+Double(frame)/60)}
+        XCTAssertTrue(bees().isEmpty)
+        XCTAssertGreaterThan(result.elapsed,6.62)
+        XCTAssertGreaterThan(button(in:result.view,id:"native.result.play-again")!.alpha,0)
+        result.dispose();result.dispose()
+        XCTAssertTrue(bees().isEmpty)
+    }
+
+    func testForestBeesContinuouslyHoverOnCurvedRoutesWithOpaqueOffscreenDeparture() {
+        for viewport in [CGSize(width:390,height:844),CGSize(width:320,height:568)] {
+            func plans(_ seed:UInt32)->[NativeResultForestBees.Plan] {
+                var rng=seed
+                return NativeResultForestBees.plans(viewport:viewport,random:{rng=1664525 &* rng &+ 1013904223;return Double(rng)/4294967296})
+            }
+            let first=plans(17),second=plans(39)
+            XCTAssertEqual(first.count,4)
+            XCTAssertNotEqual(first[0].phase,second[0].phase)
+            XCTAssertLessThan(NativeResultForestBees.departureTime,NativeResultPresentationPlan.cleanPrimaryCTAStart)
+            for (index,plan) in first.enumerated() {
+                if index>0 && index<4 {XCTAssertGreaterThan(plan.anchor.y-first[index-1].anchor.y,80)}
+                let entry=plan.moves[0]
+                XCTAssertTrue(entry.enters)
+                XCTAssertGreaterThan(entry.start,0)
+                if index>0 {XCTAssertGreaterThan(entry.start-first[index-1].moves[0].start,0.2)}
+                let origin=plan.sample(entry.start).point
+                switch index%4 {
+                case 0:XCTAssertLessThan(origin.x,-100)
+                case 1:XCTAssertGreaterThan(origin.x,viewport.width+100)
+                case 2:XCTAssertGreaterThan(origin.y,viewport.height+100)
+                default:XCTAssertLessThan(origin.y,-100)
+                }
+                XCTAssertGreaterThan(plan.renderedScale(entry.start),plan.renderedScale(5.5))
+                XCTAssertNotEqual(plan.anchor.x,viewport.width/2)
+                for frame in 1...18 {
+                    let pose=plan.sample(entry.start+entry.duration+Double(frame)/60)
+                    XCTAssertFalse(pose.moving)
+                    XCTAssertLessThanOrEqual(abs(pose.point.x-plan.anchor.x),40.01)
+                    XCTAssertLessThanOrEqual(abs(pose.point.y-plan.anchor.y),80.01)
+                    XCTAssertEqual(pose.behind,plan.startsBehind)
+                }
+                XCTAssertGreaterThanOrEqual(plan.moves.count,index<4 ? 4:3)
+                for (moveIndex,move) in plan.moves.enumerated() {
+                    XCTAssertLessThan(move.start+move.duration,NativeResultForestBees.departureTime)
+                    XCTAssertNotEqual(move.control1.y,move.from.y+(move.to.y-move.from.y)*0.25)
+                    if moveIndex>0 {
+                        let previous=plan.moves[moveIndex-1]
+                        XCTAssertLessThanOrEqual(move.start-previous.start-previous.duration,1.01)
+                    }
+                }
+                let exit=plan.moves.last!
+                XCTAssertTrue(exit.exits)
+                let endpoint=plan.sample(exit.start+exit.duration).point
+                XCTAssertTrue(endpoint.x < -100 || endpoint.x > viewport.width+100)
+                for frame in 0..<396 {
+                    let pose=plan.sample(Double(frame)/60)
+                    XCTAssertTrue(pose.point.x.isFinite && pose.point.y.isFinite)
+                    if plan.startsBehind {XCTAssertTrue(pose.behind)}
+                }
+            }
+        }
+    }
+
     func testSharedModalCTAPaintsHardEdgeAndSoftShadowWithoutDuplicatingLayers()throws {
         let root=Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle")!
         let artwork=JimiV9Artwork(resourceRoot:root)

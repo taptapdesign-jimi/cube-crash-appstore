@@ -69,7 +69,7 @@ final class JimiNativeSettingsTests: XCTestCase {
         for button in settings.developerButtons { button.sendActions(for: .touchUpInside) }
         XCTAssertTrue(actions.isEmpty)
         settings.setDeveloperPanelVisible(true); settings.layoutSubviews()
-        XCTAssertEqual(settings.developerButtons.compactMap { $0.title(for: .normal) },["Show Card","Hide Card","Legendary Card","Reset Stage","New Card","New Dice","Clean Stage","LAST MERGE"])
+        XCTAssertEqual(settings.developerButtons.compactMap { $0.title(for: .normal) },["Show Card","Hide Card","Legendary Card","Reset Stage","New Card","New Dice","Forest 2 Unlock","Clean Stage","LAST MERGE"])
         for button in settings.developerButtons {
             XCTAssertFalse(button.isHidden); XCTAssertGreaterThanOrEqual(button.frame.minX,24)
             XCTAssertLessThanOrEqual(button.frame.maxX,296); XCTAssertGreaterThanOrEqual(button.bounds.height,44)
@@ -80,7 +80,7 @@ final class JimiNativeSettingsTests: XCTestCase {
         XCTAssertLessThanOrEqual(settings.firstPlay.frame.maxY,settings.scroll.contentSize.height)
         settings.back.sendActions(for: .touchUpInside)
         for button in settings.developerButtons { XCTAssertTrue(button.isHidden); button.sendActions(for: .touchUpInside) }
-        XCTAssertEqual(actions.count,8)
+        XCTAssertEqual(actions.count,9)
     }
 
     func testDeveloperPreviewCloseReleasesOnceEvenBeforeAssetsAreReady() {
@@ -143,6 +143,46 @@ final class JimiNativeSettingsTests: XCTestCase {
         try owner.applyDeveloperProgress(.reset,values: ["arcade"])
         saved = try XCTUnwrap(store.load()); XCTAssertNil(saved.arcadeRun)
         XCTAssertEqual(saved.progression.completedJourneyBoards,[1,2,11])
+    }
+
+    func testForestUnlockPreviewReopensWithoutChangingProfile() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("native-dev-root-\(UUID().uuidString)")
+        let store = NativeSaveStore(directory: directory)
+        var profile = NativeSaveEnvelope(); profile.progression.firstPlayTutorialComplete = true
+        profile.progression.completedJourneyBoards = [1,2]; profile.progression.lastOpenedJourneyBoard = 3
+        try store.save(profile)
+        let host = NativeStandaloneViewController(resourceRoot: root,store: store,completeNativeGameplayEnabled: true)
+        let previous = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.flatMap(\.windows).first(where: \.isKeyWindow)
+        let window = UIWindow(frame: CGRect(x: 0,y: 0,width: 390,height: 844))
+        window.windowScene = previous?.windowScene; window.rootViewController = host; window.makeKeyAndVisible()
+        defer { host.dispose(); window.isHidden = true; previous?.makeKeyAndVisible(); try? FileManager.default.removeItem(at: directory) }
+        func wait(_ label: String,_ predicate: () -> Bool) async throws {
+            let deadline = Date().addingTimeInterval(40)
+            while !predicate() {
+                guard Date() < deadline else { XCTFail(label); throw NSError(domain: label,code: 1) }
+                try await Task.sleep(for: .milliseconds(20))
+            }
+        }
+        host.loadViewIfNeeded(); let app = try XCTUnwrap(host.children.first as? NativeAppController)
+        try await wait("home") { !app.home.isHidden }
+        app.navigate(.settings,interrupt: true)
+        try await wait("settings") { app.route == .settings && app.settingsView.isUserInteractionEnabled }
+        app.settingsView.developer.sendActions(for: .touchUpInside)
+        let before = try store.load()
+        for _ in 0..<2 {
+            let unlockButton = try XCTUnwrap(app.settingsView.developerButtons.first {
+                $0.accessibilityIdentifier == "native.settings.developer.forest-unlock"
+            })
+            unlockButton.sendActions(for: .touchUpInside)
+            let preview = try XCTUnwrap(app.presentedViewController as? NativeDeveloperPreviewHost)
+            preview.loadViewIfNeeded()
+            let unlock = try XCTUnwrap(preview.children.first as? NativeSpecialDiceUnlockController)
+            XCTAssertEqual(unlock.diceType, .flower)
+            try unlock.onUnlock?("flower")
+            XCTAssertEqual(try store.load(), before)
+            preview.finish()
+            try await wait("unlock preview dismissed") { app.presentedViewController == nil }
+        }
     }
 
     func testActualDeveloperLastMergeReopensSharedSourceAndPreservesNormalProfile() async throws {

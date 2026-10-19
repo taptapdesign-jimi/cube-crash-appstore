@@ -6,6 +6,58 @@ import UIKit
 /// uses its separate captured app timeout registry. No assets or common smoke.
 @MainActor final class NativeWildMeterHUDPresentation {
     let container=SKNode(),background=SKShapeNode(),fillSpatialLayer=SKNode(),fillBounceLayer=SKNode(),fill=SKShapeNode()
+    private let gradientCrop=SKCropNode(),gradientMask=SKShapeNode(),gradientFill=SKSpriteNode(),gradientSheen=SKSpriteNode()
+    private let gradientOrangeBlend=SKSpriteNode()
+    private var gradientPhase=0.0,gradientMaximum=0.0,gradientPaintedWidth=0.0
+    /// One fixed-width gradient; the current fill only reveals its occupied portion.
+    /// No gradient image is rebuilt during fill, consumption or layout animation.
+    private static let fillGradient:SKTexture = {
+        let format=UIGraphicsImageRendererFormat();format.scale=1;format.opaque=true
+        let image=UIGraphicsImageRenderer(size:CGSize(width:256,height:4),format:format).image { renderer in
+            let colors=[UIColor(red:231/255,green:116/255,blue:74/255,alpha:1).cgColor,
+                        UIColor(red:255/255,green:180/255,blue:110/255,alpha:1).cgColor]
+            guard let gradient=CGGradient(colorsSpace:CGColorSpaceCreateDeviceRGB(),colors:colors as CFArray,locations:[0,1]) else{return}
+            renderer.cgContext.drawLinearGradient(gradient,start:.init(x:128,y:0),end:.init(x:256,y:0),options:[.drawsBeforeStartLocation])
+        }
+        let texture=SKTexture(image:image);texture.filteringMode = .linear;return texture
+    }()
+    private static let sheenTexture:SKTexture = {
+        let format=UIGraphicsImageRendererFormat();format.scale=1
+        let image=UIGraphicsImageRenderer(size:CGSize(width:128,height:4),format:format).image { renderer in
+            // Opaque orange pigment, not a transparent white highlight.
+            let dark=UIColor(red:231/255,green:116/255,blue:74/255,alpha:1).cgColor
+            let light=UIColor(red:255/255,green:180/255,blue:110/255,alpha:1).cgColor
+            let colors=[dark,light,dark]
+            guard let gradient=CGGradient(colorsSpace:CGColorSpaceCreateDeviceRGB(),colors:colors as CFArray,locations:[0,0.5,1]) else{return}
+            renderer.cgContext.drawLinearGradient(gradient,start:.zero,end:CGPoint(x:128,y:0),options:[])
+        }
+        let texture=SKTexture(image:image);texture.filteringMode = .linear;return texture
+    }()
+    /// A soft orange overlay, rather than a crop edge, blends the moving color
+    /// gradually into the solid first half. Shared raster; resize only scales it.
+    private static let orangeBlendTexture:SKTexture = {
+        let format=UIGraphicsImageRendererFormat();format.scale=1
+        let image=UIGraphicsImageRenderer(size:CGSize(width:256,height:4),format:format).image { renderer in
+            for x in 0..<256 {
+                let t=max(0,min(1,(Double(x)/255-0.5)*2))
+                let opacity=1-t*t*(3-2*t)
+                renderer.cgContext.setFillColor(UIColor(red:231/255,green:116/255,blue:74/255,alpha:opacity).cgColor)
+                renderer.cgContext.fill(CGRect(x:x,y:0,width:1,height:4))
+            }
+        }
+        let texture=SKTexture(image:image);texture.filteringMode = .linear;return texture
+    }()
+    /// Sampled only by the existing visible Scene clock; no ticker, action or timer.
+    func advanceGradient(delta:Double,visible:Bool,reducedMotion:Bool) {
+        guard !closed else{return}
+        guard gradientMaximum>0,gradientPaintedWidth>=gradientMaximum*0.5 else {
+            gradientPhase=0;gradientSheen.isHidden=true;return
+        }
+        guard visible,current(),!reducedMotion,container.parent != nil else{gradientSheen.isHidden=true;return}
+        gradientPhase=(gradientPhase+max(0,min(0.05,delta))).truncatingRemainder(dividingBy:8)
+        gradientSheen.position=CGPoint(x:gradientPaintedWidth*(0.5-0.58*cos(gradientPhase*2*Double.pi/8)),y:-5)
+        gradientSheen.isHidden=false
+    }
     private final class SmokeResources:NativeWildMeterSmokeResources {
         weak var hudStage:SKNode?
         let sourceToNative:(CGPoint)->CGPoint
@@ -114,7 +166,18 @@ import UIKit
         background.fillColor=SKColor(red:234/255,green:223/255,blue:214/255,alpha:1)
         fillSpatialLayer.name="wildMeterFillSpatialLayer";fillSpatialLayer.zPosition=5000
         fillBounceLayer.name="wildMeterFillBounceLayer";fill.zPosition=0;fill.strokeColor = .clear;fill.lineWidth=0
-        fill.fillColor=SKColor(red:231/255,green:116/255,blue:74/255,alpha:1)
+        fill.fillColor = .clear
+        gradientMask.fillColor = .white;gradientMask.strokeColor = .clear;gradientMask.lineWidth=0
+        gradientCrop.maskNode=gradientMask
+        gradientFill.texture=Self.fillGradient;gradientFill.anchorPoint = .zero
+        gradientFill.position=CGPoint(x:0,y:-10)
+        gradientCrop.addChild(gradientFill)
+        gradientSheen.name="wild-meter-gradient-sheen";gradientSheen.texture=Self.sheenTexture
+        gradientSheen.alpha=1;gradientSheen.zPosition=1;gradientSheen.isHidden=true
+        gradientCrop.addChild(gradientSheen)
+        gradientOrangeBlend.texture=Self.orangeBlendTexture;gradientOrangeBlend.anchorPoint = .zero
+        gradientOrangeBlend.position=CGPoint(x:0,y:-10);gradientOrangeBlend.zPosition=2
+        gradientCrop.addChild(gradientOrangeBlend);fill.addChild(gradientCrop)
         fillBounceLayer.addChild(fill);fillSpatialLayer.addChild(fillBounceLayer);container.addChild(background);container.addChild(fillSpatialLayer)
         hudStage.addChild(container)
         smoke=NativeWildMeterSmokeOwner(driver:driver,wall:wall,resources:smokeResources,geometry:{[weak self] in
@@ -129,8 +192,12 @@ import UIKit
             return .init(x:Double(source.x),y:Double(source.y),left:self.owner?.left ?? 0,width:self.owner?.width ?? 0,fillAlive:!self.closed,parentAttached:self.container.parent === self.stage,maximum:Double(self.background.path?.boundingBox.width ?? 0))
         },disabled:smokeDisabled,current:{[weak self] in guard let self else{return false};return !self.closed && self.current()},random:visualRandom)
         owner=NativeWildMeterHUDOwner(driver:driver,maximum:maximum,initialWidth:0,isPad:isPad,draw:{[weak self] pose in
-            self?.fill.path=Self.barPath(left:pose.left,width:pose.width)
-        },drawBounce:{[weak self] y in self?.fillBounceLayer.position.y = -CGFloat(y)},stopSmoke:{[weak self] in self?.smoke.stopSmoke()},stopEmission:{[weak self] in self?.smoke.stopEmission()},startSmoke:{[weak self] in self?.smoke.startEmission()})
+            guard let self else{return}
+            let path=Self.barPath(left:pose.left,width:pose.width)
+            self.fill.path=path;self.gradientMask.path=path
+            self.gradientPaintedWidth=pose.width
+            if pose.width<self.gradientMaximum*0.5 {self.gradientPhase=0;self.gradientSheen.isHidden=true}
+        },drawBounce:{[weak self] y in self?.fillBounceLayer.position.y = -CGFloat(y)},stopSmoke:{[weak self] in self?.smoke.stopSmoke()},stopEmission:{[weak self] in self?.smoke.stopEmission()},startSmoke:{[weak self] in self?.smoke.startEmission()},verticalBounceEnabled:false)
         resize(maximum:maximum,sourceOrigin:sourceOrigin)
     }
     private static func barPath(left:Double,width:Double)->CGPath {
@@ -142,18 +209,24 @@ import UIKit
     /// Cancel only the board canvas translation; HUD enter/exit still owns its parent.
     func setCanvasShakeOffset(_ offset:CGPoint){guard !closed else{return};smokeResources.setCanvasShakeOffset(offset)}
     var activeSmokeCount:Int{smoke.activeBubbleCount}
+    /// Sibling particles retain their own flight/fade opacity during HUD refresh.
+    func ownsSmoke(_ node:SKNode)->Bool{smokeResources.nodes.values.contains{$0 === node}}
     var fillPose:NativeWildMeterConsumptionPlan.Pose{.init(left:owner.left,width:owner.width)}
     var consumeActive:Bool{owner.consumeActive}
     func setProgress(_ ratio:Double,animated:Bool){guard !closed else{return};owner.setProgress(ratio,animated:animated)}
     func consume(_ ratio:Double,reducedMotion:Bool){guard !closed else{return};owner.consume(ratio,reducedMotion:reducedMotion)}
     func resize(maximum:Double,sourceOrigin:CGPoint){
         guard !closed else{return};container.position=sourceToNative(sourceOrigin)
+        gradientMaximum=max(0,maximum);gradientPhase=0;gradientSheen.isHidden=true
+        gradientFill.size=CGSize(width:gradientMaximum,height:10)
+        gradientOrangeBlend.size=CGSize(width:gradientMaximum,height:10)
+        gradientSheen.size=CGSize(width:gradientMaximum*3,height:10)
         if let base=tutorialPulseBase {tutorialPulseBase=(container.position,base.1,base.2)}
         owner.setWidth(maximum){[weak self] width in self?.background.path=Self.barPath(left:0,width:width)}
     }
     func stopSmoke(){smoke.stopSmoke()}
     func dispose(){
-        guard !closed else{return};stopTutorialPulse();closed=true
+        guard !closed else{return};stopTutorialPulse();closed=true;gradientSheen.isHidden=true
         owner.dispose();smoke.dispose();container.removeFromParent()
     }
     isolated deinit {stopTutorialPulse();owner?.dispose();smoke?.dispose();container.removeFromParent()}

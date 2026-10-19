@@ -18,22 +18,24 @@ public enum NativeJourneyContent {
     public static func cardAsset(board: Int, score: Int, doubleDensity: Bool = false) -> String {
         let safe = (1...30).contains(board) ? board : 1
         let world = (safe-1)/10, stage = (safe-1)%10
-        let maps = [[1,3,9,4,5,6,7,8,2,10], [1,2,3,4,6,5,7,9,8,10], [4,1,3,2,5,6,7,8,9,10]]
+        let maps = [[3,1,9,4,5,6,7,8,2,10], [2,1,3,4,6,5,7,9,8,10], [1,4,3,2,5,6,7,8,9,10]]
         let rarity = earnedStars(score: score, board: safe) == 3 ? "legendary" : "common"
         let number = String(format: "%02d",maps[world][stage])
         return "./assets/colelctibles/\(["Forest","beach","Area55"][world])/\(rarity)/\(number)\(rarity == "legendary" ? "-gold" : "")\(doubleDensity ? "@2x" : "").png"
     }
     public static func rewardPool(board: Int) -> [String] {
         switch board {
-        case 1: return ["wild-star"]
+        case 1: return ["bee"]
         case 2: return ["wild-star","bee"]
         case 3: return ["wild-star","bee","flower"]
         case 4...5: return ["wild-star","bee","flower","honey"]
         case 6: return ["wild-star","bee","flower","honey","mushroom"]
-        case 7...10: return ["wild-star","bee","flower","honey","mushroom","tnt","barell"]
-        case 11: return ["fish","wild-juice"]
-        case 12...20: return ["fish","wild-juice","beach-ball","bottle"]
-        case 21: return ["kanta"]
+        case 7...10: return ["wild-star","bee","flower","honey","mushroom","barell"]
+        case 11: return ["wild-juice"]
+        case 12: return ["fish","wild-juice"]
+        case 13: return ["fish","wild-juice","beach-ball"]
+        case 14...20: return ["fish","wild-juice","beach-ball","bottle"]
+        case 21: return ["robo-cube"]
         case 22: return ["kanta","robo-cube"]
         case 23: return ["kanta","robo-cube","spaceship"]
         case 24...30: return ["kanta","robo-cube","spaceship","laser-gun"]
@@ -44,13 +46,7 @@ public enum NativeJourneyContent {
         let pool = rewardPool(board: board)
         guard !pool.isEmpty else { return nil }
         let bounded = roll.isFinite ? max(0,min(1-Double.ulpOfOne,roll)) : 0
-        let intro: [Int:String] = [1:"wild-star",2:"bee",3:"flower",4:"honey",6:"mushroom",7:"barell",11:"fish",12:"wild-juice",21:"kanta",22:"robo-cube",23:"spaceship",24:"laser-gun"]
-        let name: String
-        if max(0,wildSpawnCount) == 0 && board <= 24 { name = intro[board] ?? pool[0] }
-        else if board == 11 {
-            // journey-world-intro-wild: theme alternates after each core Star reward.
-            name = previous == .star || bounded < 0.60 ? "wild-juice" : "fish"
-        } else { name = pool[min(pool.count-1,Int(bounded*Double(pool.count)))] }
+        let name = pool[min(pool.count-1,Int(bounded*Double(pool.count)))]
         switch name {
         case "wild-star": return NativeWildReward(.star)
         case "wild-juice": return NativeWildReward(.juice)

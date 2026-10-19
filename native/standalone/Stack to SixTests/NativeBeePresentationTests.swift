@@ -80,6 +80,31 @@ final class NativeBeePresentationTests: XCTestCase {
             XCTAssertTrue(leftViewport)
         }
     }
+    func testHoverStrengthAndFinaleDepartureRemainBounded() {
+        let route=NativeBeeFinaleMotion(width:390,height:844,origin:.init(x:70,y:170),seed:0.4)
+        for frame in 0...240 {
+            let t=Double(frame)/60,full=NativeBeeFinaleMotion.hover(seconds:t),hero=NativeBeeFinaleMotion.hover(seconds:t,strength:0.8)
+            XCTAssertEqual(hero.x,full.x*0.8,accuracy:1e-9);XCTAssertEqual(hero.y,full.y*0.8,accuracy:1e-9)
+            XCTAssertLessThanOrEqual(abs(full.x),40);XCTAssertLessThanOrEqual(abs(full.y),80)
+            let old=route.sample(seconds:t),hover=route.sample(seconds:t,hovering:true)
+            XCTAssertTrue(hover.point.x.isFinite && hover.point.y.isFinite)
+            if t==0 || t>=2.28 {XCTAssertEqual(old.point.x,hover.point.x);XCTAssertEqual(old.point.y,hover.point.y)}
+        }
+        for plan in NativeBeeFinaleMotion.ambient {
+            let old=route.sampleAmbient(plan,seconds:2),hover=route.sampleAmbient(plan,seconds:2,hovering:true)
+            for t in [3.9,3.95,4.0] {
+                let departure=route.sampleAmbient(plan,seconds:t,hovering:true)
+                XCTAssertTrue(departure.point.x < -100 || departure.point.x > 490)
+            }
+            let offset=NativeBeeFinaleMotion.hover(seconds:2,phase:plan.phase)
+            XCTAssertEqual(hover.point.x-old.point.x,offset.x,accuracy:1e-9)
+            XCTAssertEqual(hover.point.y-old.point.y,offset.y,accuracy:1e-9)
+            for t in [0.0] {
+                let a=route.sampleAmbient(plan,seconds:t),b=route.sampleAmbient(plan,seconds:t,hovering:true)
+                XCTAssertEqual(a.point.x,b.point.x,accuracy:1e-9);XCTAssertEqual(a.point.y,b.point.y,accuracy:1e-9)
+            }
+        }
+    }
     func testBeeNativeClockOwnsFortyTwoLeavesAndFinaleCueOnce() async {
         let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),controller=UIViewController()
         window.rootViewController=controller;window.makeKeyAndVisible()
@@ -95,6 +120,16 @@ final class NativeBeePresentationTests: XCTestCase {
         await fulfillment(of:[finished],timeout:7)
         XCTAssertEqual(cueCount,1);XCTAssertEqual(finishes,1);XCTAssertEqual(haptics,13);XCTAssertFalse(owner.hasActiveClock)
         owner.dispose();owner.paint(seconds:5);XCTAssertEqual(cueCount,1);XCTAssertEqual(finishes,1)
+    }
+    func testCompanionsLeaveOpaqueWithoutFieldFade() {
+        let owner=NativeBeeFinalePresentation(resourceRoot:root,viewport:CGSize(width:390,height:844),origin:nil,random:{0.5})
+        defer {owner.dispose()}
+        owner.paint(seconds:3.95)
+        let field=owner.subviews[0]
+        XCTAssertEqual(field.alpha,1)
+        let companions=field.subviews.filter {$0.layer.zPosition==4}
+        XCTAssertEqual(companions.count,6)
+        XCTAssertTrue(companions.allSatisfy {$0.alpha==1 && ($0.frame.maxX<0 || $0.frame.minX>390)})
     }
     func testBackgroundAndExplicitCoverageCannotReviveDisposedBee() {
         let owner=NativeBeeFinalePresentation(resourceRoot:root,viewport:CGSize(width:390,height:844),origin:nil,random:{0.5})

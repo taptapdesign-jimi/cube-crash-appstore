@@ -680,7 +680,11 @@ import StackToSixNativeState
             try await runTntResumeRoot(cancelBeforeMain:false,noTargets:variant=="laser-gun",variant:variant,wildDestination:true,complete:true)
         }
     }
-    private func runTntResumeRoot(cancelBeforeMain:Bool,pauseDuringBonus:Bool=false,noTargets:Bool=false,variant:String?=nil,wildDestination:Bool=false,complete:Bool=false)async throws {
+    func testTntComboCoinsReachTrophyFromMainAndEachImpact()async throws {
+        try await runTntResumeRoot(cancelBeforeMain:false,complete:true,coinCombo:0)
+        try await runTntResumeRoot(cancelBeforeMain:false,noTargets:true,complete:true,coinCombo:0)
+    }
+    private func runTntResumeRoot(cancelBeforeMain:Bool,pauseDuringBonus:Bool=false,noTargets:Bool=false,variant:String?=nil,wildDestination:Bool=false,complete:Bool=false,coinCombo:Int?=nil)async throws {
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("native-tnt-source-main-"+UUID().uuidString)
         let store=NativeSaveStore(directory:directory)
         var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
@@ -691,6 +695,7 @@ import StackToSixNativeState
             .init(id:"other",cell:.init(column:2,row:0),value:noTargets ? 6:1,archetype:noTargets ? .star:nil),
             .init(id:"far",cell:.init(column:4,row:8),value:noTargets ? 6:1,archetype:noTargets ? .juice:nil),
             .init(id:"locked",cell:.init(column:0,row:1),value:0,locked:true)],mode:.journey,moves:37,score:123,wildMeter:0.4)
+        if let coinCombo {seed.journeyRuns[1]?.combo=coinCombo}
         try store.save(seed)
         let host=NativeStandaloneViewController(resourceRoot:NativeTestResources.root,store:store,
             sourceOrdinaryPresentationEnabled:true,sourceDirectPresentationEnabled:true,sourceOrdinaryResumeEnabled:true,sourceTntPresentationEnabled:true,completeNativeGameplayEnabled:complete)
@@ -714,12 +719,39 @@ import StackToSixNativeState
         }
         try await wait("entry"){
             guard let game=app.children.compactMap({$0 as? NativeGameplayViewController}).first,
-                  let scene=game.boardScene,scene.view != nil,scene.isBoardEntryComplete else{return false}
-            return !complete || (game.beforeSourceGameplayAdmission==nil && game.engine.sourceNoMovesRuntimeAuthority?.isCurrent()==true)
+                  let scene=game.boardScene,scene.gameplayRenderHost?.renderView.window != nil,scene.isBoardEntryComplete else{return false}
+            return !complete || (game.beforeSourceGameplayAdmission==nil && scene.sourceAnimationBindingAdmissionOpen && game.sourcePresentationFailureGeneration==nil)
         }
         let game=try XCTUnwrap(app.children.compactMap{$0 as? NativeGameplayViewController}.first),scene=try XCTUnwrap(game.boardScene)
         XCTAssertTrue(game.engine.sourceTntMain80Enabled);XCTAssertTrue(game.engine.stagedTntWildSpawnAssignments)
         XCTAssertTrue(scene.sourceHUDStarJobsAdmissionOpen)
+        var preparedCoins:[NativeHUDStarReceipt]=[],impacts=0
+        var mainScore:Int?,reward=0
+        let oldEvent=scene.onGameplayEvent
+        if coinCombo != nil {
+            scene.onGameplayEvent={[weak game] event in
+                oldEvent?(event)
+                guard let game else{return}
+                if event.kind == .hudStarsPrepared {
+                    preparedCoins += event.tileIDs.compactMap{id in game.engine.pendingHUDStars.first{$0.id==id}}
+                }
+                if event.kind == .comboChanged {
+                    mainScore=game.engine.state.score
+                    reward=NativeComboCoinPolicy.count(combo:game.engine.state.combo)
+                }
+                if event.kind == .specialImpact {impacts+=1}
+            }
+        }
+        func checkCoins() {
+            guard coinCombo != nil else{return}
+            let total=max(reward,impacts)
+            XCTAssertEqual(preparedCoins.count,total)
+            XCTAssertEqual(Set(preparedCoins.map(\.id)).count,total)
+            XCTAssertNotNil(mainScore)
+            XCTAssertEqual(game.engine.state.score,(mainScore ?? 0)+total*100)
+            XCTAssertTrue(game.engine.pendingHUDStars.isEmpty)
+            if impacts>0 {XCTAssertGreaterThan(Set(preparedCoins.map(\.origin)).count,1)}
+        }
         if noTargets {game.engine.wildSpawnPermitAdmission={_ in false}} // actual refused-admission branch, no fake arrival or completion
         var outerBonusConstructors=0
         let originalOuterBonus=try XCTUnwrap(game.engine.sourceWildLockedBonusConstruct)
@@ -847,8 +879,10 @@ import StackToSixNativeState
             XCTAssertTrue(game.engine.pendingWildSpawnArrivals.isEmpty)
             try await wait("actual no-target visual transaction release"){scene.sourceTntTransactionCaptureCount==0}
             try await wait("actual main HUD jobs collect"){game.engine.pendingHUDStars.isEmpty && game.engine.sourceHUDStarJobs.isEmpty}
-            XCTAssertNil(game.sourcePresentationFailureGeneration);XCTAssertNil(game.engine.sourceNoMovesRuntimeAuthority)
-            XCTAssertNil(scene.captureSourceMergeSixSpawnInProgress())
+            checkCoins()
+            XCTAssertNil(game.sourcePresentationFailureGeneration)
+            if complete {XCTAssertNotNil(game.engine.sourceNoMovesRuntimeAuthority);XCTAssertEqual(scene.captureSourceMergeSixSpawnInProgress(),false)}
+            else {XCTAssertNil(game.engine.sourceNoMovesRuntimeAuthority);XCTAssertNil(scene.captureSourceMergeSixSpawnInProgress())}
             return
         }
         XCTAssertEqual(scene.sourceTntCompletion80ScheduledCount,1,"Actual nonempty impact sequence schedules its authored complete80 exactly once")
@@ -856,6 +890,7 @@ import StackToSixNativeState
         XCTAssertEqual(scene.sourceTntBonusSharedFxCount,scene.sourceTntBonusConstructorCount,"Each actual impact constructs the original shared shards and target smoke before replacement")
         try await wait("actual independent visual and gameplay transaction release"){scene.sourceTntTransactionCaptureCount==0}
         try await wait("all actual TNT main and bonus HUD jobs collect"){game.engine.pendingHUDStars.isEmpty && game.engine.sourceHUDStarJobs.isEmpty}
+        checkCoins()
         let fresh=try XCTUnwrap(game.engine.state.tiles.first{tile in
             tile.value>0 && tile.value<6 && !tile.isWild && tile.id != "other" && tile.id != "far"
         })
@@ -865,8 +900,8 @@ import StackToSixNativeState
         XCTAssertTrue(scene.beginDrag(at:scene.convert(freshNode.position,from:try XCTUnwrap(freshNode.parent))))
         scene.cancelDrag(pointerCancelled:true)
         XCTAssertNil(game.sourcePresentationFailureGeneration)
-        XCTAssertNil(game.engine.sourceNoMovesRuntimeAuthority)
-        XCTAssertNil(scene.captureSourceMergeSixSpawnInProgress(),"Incomplete global coverage remains unknown")
+        if complete {XCTAssertNotNil(game.engine.sourceNoMovesRuntimeAuthority);XCTAssertEqual(scene.captureSourceMergeSixSpawnInProgress(),false)}
+        else {XCTAssertNil(game.engine.sourceNoMovesRuntimeAuthority);XCTAssertNil(scene.captureSourceMergeSixSpawnInProgress(),"Incomplete global coverage remains unknown")}
         host.dispose()
         XCTAssertNil(game.engine.sourceTntSpawnBegin);XCTAssertNil(game.engine.sourceTntCoroutineFinally)
         XCTAssertNil(game.engine.sourceTntLockedBonusGuardResume);XCTAssertNil(game.engine.pendingSourceTntLockedBonusGuard)

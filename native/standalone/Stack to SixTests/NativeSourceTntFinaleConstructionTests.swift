@@ -75,6 +75,9 @@ import StackToSixGameplay
 }
 
 @MainActor final class NativeFlowerReplacementInteractionTests:XCTestCase {
+ func testControllerModalPauseRetainsFlowerClearedSixThroughBothWallSafetyDeadlines()async throws {
+  try await runFlower(reversed:true,mergeSix:false,sweepRace:"flower",controllerModalPause:true)
+ }
  func testDelayedOpacitySweepUsesRetainedBeeDestinationCleanupAfterMainRetiresFaceOwner()async throws {
   try await runFlower(reversed:true,mergeSix:false,sweepRace:"bee",retainedCleanupSweep:true)
  }
@@ -111,7 +114,7 @@ import StackToSixGameplay
   try await runFlower(reversed:false,mergeSix:true)
   try await runFlower(reversed:true,mergeSix:true)
  }
- private func runFlower(reversed:Bool,mergeSix:Bool,sweepRace:String?=nil,hideDuringSweep:Bool=false,retainedCleanupSweep:Bool=false)async throws {
+ private func runFlower(reversed:Bool,mergeSix:Bool,sweepRace:String?=nil,hideDuringSweep:Bool=false,retainedCleanupSweep:Bool=false,controllerModalPause:Bool=false)async throws {
   let root=NativeTestResources.root,fifo=NativeSourceMicrotaskFIFO(),tasks=NativeSourceMicrotaskAdapters(fifo:fifo)
   let origin=Date().timeIntervalSince1970*1000
   let service=NativeSourceAnimationClockService(wallOriginMilliseconds:origin,sourceFrameTransportEnabled:true)
@@ -208,8 +211,8 @@ import StackToSixGameplay
     await wait("actual second pull consumes six",timeout:20){engine.pendingSourceMagnetLazyRespawn != nil}
     XCTAssertTrue(scene.sourceNativeTileNode(flower.id)?.isHidden==true)
    }
-   service.setSourceGlobalPaused(true)
-   defer {service.setSourceGlobalPaused(false)}
+   if controllerModalPause {game.setSuspended(true)}else{service.setSourceGlobalPaused(true)}
+   defer {if controllerModalPause {game.setSuspended(false)}else{service.setSourceGlobalPaused(false)}}
    if hideDuringSweep {XCTAssertTrue(scene.scheduleSourceSpawnVisualSafetySweep())}
    await wait("genuine cleared residual six"){scene.sourceNativeTileNode(flower.id)?.sourceResidualWildPresence==true}
    let node=try XCTUnwrap(scene.sourceNativeTileNode(flower.id))
@@ -225,6 +228,11 @@ import StackToSixGameplay
     XCTAssertFalse(engine.state.tile(at:flower.cell)?.visible ?? true)
    }
    XCTAssertTrue(failures.isEmpty,variant+":"+failures.joined(separator:","))
+   if controllerModalPause {
+    game.setSuspended(false)
+    await wait("Flower transaction resumes after both paused wall safety checks",timeout:20){engine.pendingSpecial==nil}
+    XCTAssertTrue(failures.isEmpty,failures.joined(separator:","))
+   }
    return
   }
   await wait("Flower board mutation complete",timeout:20){engine.pendingSpecial==nil && engine.state.tiles.contains{$0.id.hasPrefix("native:") && !$0.isWild && $0.value>0}}

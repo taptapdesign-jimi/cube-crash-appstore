@@ -5026,7 +5026,7 @@ final class NativeStarPresentationTests: XCTestCase {
         f.node.dragInnerTilt=0.07;f.node.sourceInnerPosition=CGPoint(x:3,y:-5);host.xScale=1.03;host.yScale=1.02
         try await prepareActualSourceBeeForHostMotion(f)
         f.node.tick(0.04,suspended:false,viewportCenter:1000)
-        // Golden numbers executed from original bee-dice-idle.ts sample(.04).
+        // Original bee-dice-idle.ts sample(.04), restored board idle bounds.
         XCTAssertEqual(f.node.sourceInnerPosition.x,3.593619907781753,accuracy:0.000001)
         XCTAssertEqual(f.node.sourceInnerPosition.y,-9.917226024976649,accuracy:0.000001)
         XCTAssertEqual(f.node.dragInnerTilt,0.0890610627752862,accuracy:0.000001)
@@ -5036,6 +5036,9 @@ final class NativeStarPresentationTests: XCTestCase {
         let face=try XCTUnwrap(host.children.compactMap{$0 as? SKSpriteNode}.first{$0.texture === f.node.sourcePaintedNumbersTexture})
         XCTAssertEqual(face.position,.zero);XCTAssertEqual(face.zRotation,0)
         XCTAssertEqual(abs(face.size.width),128,accuracy:0.001);XCTAssertEqual(abs(face.size.height),128,accuracy:0.001)
+        let pausedPosition=f.node.sourceInnerPosition
+        f.node.tick(1,suspended:true,viewportCenter:1000)
+        XCTAssertEqual(f.node.sourceInnerPosition,pausedPosition)
         f.node.setDragging(true,sourceOuterTransform:true)
         XCTAssertEqual(f.node.sourceInnerPosition.x,3,accuracy:0.00001);XCTAssertEqual(f.node.sourceInnerPosition.y,-5,accuracy:0.00001);XCTAssertEqual(f.node.dragInnerTilt,0.07,accuracy:0.000001)
         XCTAssertEqual(host.xScale,1.03,accuracy:0.000001);XCTAssertEqual(host.yScale,1.02,accuracy:0.000001)
@@ -5179,7 +5182,7 @@ final class NativeStarPresentationTests: XCTestCase {
         f.scene.update(2)
         let release=try XCTUnwrap(f.scene.acquireSourceSpecialIdle(reason:"startup-pause"))
         let texture=f.node.sourcePaintedNumbersTexture
-        f.node.tick(2,suspended:false,viewportCenter:1000)
+        f.node.tick(2,suspended:true,viewportCenter:1000)
         XCTAssertTrue(f.node.sourcePaintedNumbersTexture === texture)
         XCTAssertEqual(f.scope.specialIdle.snapshot.paused,1)
         release();release()
@@ -5191,21 +5194,28 @@ final class NativeStarPresentationTests: XCTestCase {
 
     func testActualSceneSourceBeeRegistryPauseResumeRetainsPhaseAndHasSingleRegistration()async throws {
         let f=try SourceWildSkinFixture(root:root,archetype:.star,variant:"bee");defer{f.dispose()}
+        f.view.isPaused=true
         XCTAssertTrue(f.node.configureSourceSpecialIdle(f.scope.specialIdle))
         try await prepareActualSourceBeeForHostMotion(f)
         f.node.tick(0.04,suspended:false,viewportCenter:1000)
-        let host=f.node.sourceStarOrbitHost,position=f.node.sourceInnerPosition,rotation=f.node.dragInnerTilt,x=host.xScale,y=host.yScale,path=f.node.sourceWildSkinAssetPath
-        let release=try XCTUnwrap(f.scope.specialIdle.acquire(reason:"actual-Bee-pause-QA"))
+        let position=f.node.sourceInnerPosition,path=f.node.sourceWildSkinAssetPath
+        let release=try XCTUnwrap(f.scope.specialIdle.acquire(reason:"merge6-resolution"))
         XCTAssertEqual(f.scope.specialIdle.snapshot.registered,1);XCTAssertEqual(f.scope.specialIdle.snapshot.paused,1)
-        XCTAssertFalse(f.node.hasAnimatedArtwork)
-        f.node.tick(2,suspended:false,viewportCenter:1000)
-        XCTAssertEqual(f.node.sourceInnerPosition,position);XCTAssertEqual(f.node.dragInnerTilt,rotation)
-        XCTAssertEqual(host.xScale,x);XCTAssertEqual(host.yScale,y);XCTAssertEqual(f.node.sourceWildSkinAssetPath,path)
+        XCTAssertTrue(f.node.hasAnimatedArtwork)
+        XCTAssertTrue(f.node.keepsDirectArtworkDuringRegistryPressure)
+        f.node.tick(0.04,suspended:false,viewportCenter:1000)
+        XCTAssertNotEqual(f.node.sourceInnerPosition,position)
+        XCTAssertNotEqual(f.node.sourceWildSkinAssetPath,path)
+        let pausedPosition=f.node.sourceInnerPosition,pausedPath=f.node.sourceWildSkinAssetPath
+        f.node.tick(2,suspended:true,viewportCenter:1000)
+        XCTAssertEqual(f.node.sourceInnerPosition,pausedPosition)
+        XCTAssertEqual(f.node.sourceWildSkinAssetPath,pausedPath)
         release();release()
         XCTAssertEqual(f.scope.specialIdle.snapshot.registered,1);XCTAssertEqual(f.scope.specialIdle.snapshot.running,1)
         XCTAssertTrue(f.node.hasAnimatedArtwork)
+        XCTAssertEqual(f.node.sourceInnerPosition,pausedPosition)
         f.node.tick(0.04,suspended:false,viewportCenter:1000)
-        XCTAssertEqual(f.node.sourceWildSkinAssetPath,"assets/shop/bee/bee3@2x.png")
+        XCTAssertEqual(f.node.sourceWildSkinAssetPath,"assets/shop/bee/bee4@2x.png")
     }
     func testActualSceneSourceBeeActiveRetirementRestoresOwnedStaticSkinAndRestartUsesFreshCohort()async throws {
         let f=try SourceWildSkinFixture(root:root,archetype:.star,variant:"bee");defer{f.dispose()}

@@ -74,7 +74,23 @@ struct NativeBeeFinaleMotion {
         let accelerated=(cubed-2*squared+t)*slope+(-2*cubed+3*squared)+(cubed-squared)*2
         return Point(x:gate.x+(exit.x-gate.x)*accelerated,y:gate.y+(exit.y-gate.y)*accelerated)
     }
-    func sample(seconds:Double)->Pose {
+    static func hover(seconds:Double,phase:Double=0,strength:Double=1)->Point {
+        let t=max(0,seconds)*0.6
+        return Point(x:(sin(t*2.9+phase)*28+sin(t*5.3+phase*0.7)*12)*strength,
+                     y:(sin(t*3.7+phase)*55+sin(t*6.1+phase*1.3)*25)*strength)
+    }
+    func sample(seconds:Double,hovering:Bool=false)->Pose {
+        func position(_ time:Double)->Point {
+            let base=self.position(time)
+            guard hovering,time>0,time<2.28 else{return base}
+            // Hero-only restless hover: slightly faster drift plus small,
+            // irregular corrections, smoothly retired before the exit corridor.
+            let hover=Self.hover(seconds:time*1.25,phase:seed,strength:0.8)
+            let twitchX=sin(time*9.1+seed)*6+sin(time*14.3+seed*1.7)*3
+            let twitchY=sin(time*10.7+seed*0.8)*9+sin(time*16.1+seed*1.3)*4
+            let envelope=pow(sin(.pi*time/2.28),2)
+            return contain(Point(x:base.x+(hover.x+twitchX)*envelope,y:base.y+(hover.y+twitchY)*envelope))
+        }
         let time=Self.clamp(seconds,0,4),current=position(time),before=position(max(0,time-0.004)),after=position(min(4,time+0.004)),vx=after.x-before.x,vy=after.y-before.y,facing=vx < -0.01 ? -1:1
         let heading=atan2(vy,vx)*180 / .pi,relative=facing==1 ? heading:heading>=0 ? heading-180:heading+180
         return Pose(point:current,vx:vx,vy:vy,rotation:Self.clamp(relative*0.55+sin(time * .pi*3.5+seed)*4+sin(time * .pi*7+seed),-20,20),scale:0.86+sin(time * .pi*6+seed)*0.055,facing:facing,phase:time<=0.9 ? "orbit":time<=1.8 ? "right-feint":time<=2.65 ? "left-charge":"flyby")
@@ -83,12 +99,24 @@ struct NativeBeeFinaleMotion {
         let frame=max(0,seconds)/(1.0/960),index=Int(floor(frame))%4,local=frame-floor(frame),mix=local<=0.62 ? 0:sine((local-0.62)/0.38)
         var result=Array(repeating:0.0,count:4);result[index]=1-mix;result[(index+1)%4]+=mix;return result
     }
-    func sampleAmbient(_ plan:Ambient,seconds:Double)->AmbientPose {
-        func position(_ time:Double)->Point {
+    func sampleAmbient(_ plan:Ambient,seconds:Double,hovering:Bool=false)->AmbientPose {
+        func basePosition(_ time:Double)->Point {
             let base=Self.sine(Self.clamp(time/4)),envelope=sin(base * .pi),surge=sin(base * .pi*(plan.frequency*2.15+1.35)+plan.phase*1.41)*0.052*envelope,p=Self.clamp(base+surge)
             let x=(plan.startX+(plan.endX-plan.startX)*p)*width,y=(plan.startY+(plan.endY-plan.startY)*p)*height
             let primary=sin(p * .pi*(plan.frequency+0.9)+plan.phase)*plan.wave,nervous=sin(p * .pi*(plan.frequency*3.2+1.1)+plan.phase*1.73)*plan.wave*0.56,cross=cos(p * .pi*(plan.frequency*2.55+0.7)+plan.phase*1.19)*plan.wave*0.68,launch=Self.sine(Self.clamp(time/0.55))
-            return Point(x:origin.x+(x+cross*envelope-origin.x)*launch,y:origin.y+(y+(primary+nervous)*envelope-origin.y)*launch)
+            let hover=Self.hover(seconds:time,phase:plan.phase)
+            let hoverEnvelope=hovering ? pow(sin(.pi*Self.clamp(time/4)),2):0
+            return Point(x:origin.x+(x+cross*envelope-origin.x)*launch+hover.x*hoverEnvelope,
+                         y:origin.y+(y+(primary+nervous)*envelope-origin.y)*launch+hover.y*hoverEnvelope)
+        }
+        func position(_ time:Double)->Point {
+            guard hovering,time>3 else{return basePosition(time)}
+            let start=basePosition(3),before=basePosition(2.99)
+            let right=plan.endX>=0.5
+            let outside=Point(x:right ? width+110:-110,y:plan.endY*height)
+            let first=Point(x:start.x+(start.x-before.x)*20,y:start.y+(start.y-before.y)*20)
+            let second=Point(x:outside.x+(right ? -70:70),y:outside.y)
+            return Self.cubic(Self.clamp((time-3)/0.9),start,first,second,outside)
         }
         let current=position(seconds),before=position(max(0,seconds-0.004)),after=position(min(4,seconds+0.004)),bounce=sin(seconds * .pi*7.4+plan.phase)*0.064+sin(seconds * .pi*12.6+plan.phase*1.67)*0.026
         return AmbientPose(point:current,vx:after.x-before.x,vy:after.y-before.y,rotation:sin(seconds * .pi*5.2+plan.phase)*9+sin(seconds * .pi*10.8+plan.phase*1.43)*4,scaleX:1+bounce,scaleY:1-bounce*0.78)

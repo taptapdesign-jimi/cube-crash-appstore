@@ -9,7 +9,7 @@ import StackToSixNativeState
     @MainActor private final class Fixture {
         let directory:URL,store:NativeSaveStore,host:NativeStandaloneViewController,window:UIWindow
         let previous:UIWindow?
-        init(variant:NativeArcadeVariant,tiles:[NativeTile],meter:Double,random:Double=0.1,board:Int=3,luckyDropUsed:Bool=false) throws {
+        init(variant:NativeArcadeVariant,tiles:[NativeTile],meter:Double,random:Double=0.1,board:Int=3,luckyDropUsed:Bool=false,lastSpecialMergeWorld:String?=nil) throws {
             directory=FileManager.default.temporaryDirectory.appendingPathComponent("arcade-integration-"+UUID().uuidString)
             store=NativeSaveStore(directory:directory)
             var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
@@ -17,6 +17,7 @@ import StackToSixNativeState
             seed.activeArcadeVariant=variant
             seed.arcadeRun = .init(tiles:tiles,mode:.arcade,board:board,stage:board,generation:9,moves:37,score:123,wildMeter:meter,arcadeVariant:variant)
             seed.arcadeRun?.luckyDropUsed=luckyDropUsed
+            seed.arcadeRun?.lastSpecialMergeWorld=lastSpecialMergeWorld
             seed.arcadeRunSavedAt=Date().timeIntervalSince1970
             try store.save(seed)
             host=NativeStandaloneViewController(resourceRoot:NativeTestResources.root,store:store,sourceVisualRandom:{random},completeNativeGameplayEnabled:true)
@@ -56,6 +57,61 @@ import StackToSixNativeState
         try await Task.sleep(for:.seconds(7))
         try await wait("Fail result: " + scene.sourceLevelEndDiagnostic()){game.presentedViewController is NativeResultController}
         XCTAssertFalse(try XCTUnwrap(game.presentedViewController as? NativeResultController).clean)
+    }
+    func testArcadeLossAfterClearedRoundPresentsCleanRunSummaryWithoutAdvancing() async throws {
+        for variant in [NativeArcadeVariant.slowBurn,.pureDice] {
+            for board in [1,2,5] {
+                let f=try Fixture(variant:variant,tiles:[
+                    .init(id:"five-a",cell:.init(column:2,row:4),value:5,stackDepth:2),
+                    .init(id:"two",cell:.init(column:0,row:6),value:2),
+                    .init(id:"five-b",cell:.init(column:4,row:8),value:5)
+                ],meter:0,board:board)
+                defer{f.dispose()}
+                let game=try await enter(f),scene=try XCTUnwrap(game.boardScene)
+                try await wait("Terminal summary \(variant.rawValue) stage \(board): " + scene.sourceLevelEndDiagnostic()){
+                    game.presentedViewController is NativeResultController
+                }
+                let result=try XCTUnwrap(game.presentedViewController as? NativeResultController)
+                XCTAssertEqual(result.clean,board>1,"Only a run with a cleared round earns the clean summary")
+                XCTAssertEqual(result.finalScore,123)
+                XCTAssertEqual(result.combo,0)
+                XCTAssertEqual(result.efficiency,0)
+                XCTAssertNotEqual(game.engine.state.terminal?.kind,.complete,"Presentation cannot turn a loss into a completed round")
+                XCTAssertFalse(result.view.subviews.contains{$0 is NativeArcadeRoundPresentation})
+                // Exercise the full finite result timeline; it must expose run-end CTAs,
+                // never the automatic next-round handoff used by a genuine clear.
+                result.tick(0)
+                for frame in 1...600 {result.tick(Double(frame)/60)}
+                XCTAssertTrue(f.game === game)
+                XCTAssertEqual(game.engine.state.board,board)
+                let saved=try XCTUnwrap(f.store.load())
+                XCTAssertNil(saved.pendingArcadeRound)
+                XCTAssertNil(saved.arcadeRun)
+                XCTAssertEqual(saved.progression.arcadeStats(for:variant).highScore,123)
+                XCTAssertLessThanOrEqual(saved.progression.arcadeStats(for:variant).highestStageOpened,board)
+                XCTAssertTrue(saved.progression.completedJourneyBoards.isEmpty)
+                XCTAssertTrue(saved.progression.boardStats.isEmpty)
+                XCTAssertEqual(saved.progression.highestUnlockedJourneyBoard,1)
+            }
+        }
+    }
+    func testArcadeCleanRunThemeUsesLastSpecialWorldInsteadOfRoundNumber() async throws {
+        let cases:[(String?,NativeResultCelebrationTheme)]=[(nil,.area55),("forest",.forest),("beach",.beach),("area55",.area55)]
+        for (world,expected) in cases {
+            let f=try Fixture(variant:.slowBurn,tiles:[
+                .init(id:"five-a",cell:.init(column:2,row:4),value:5,stackDepth:2),
+                .init(id:"two",cell:.init(column:0,row:6),value:2),
+                .init(id:"five-b",cell:.init(column:4,row:8),value:5)
+            ],meter:0,board:2,lastSpecialMergeWorld:world)
+            defer{f.dispose()}
+            let game=try await enter(f)
+            try await wait("Last-special-world clean summary"){game.presentedViewController is NativeResultController}
+            let result=try XCTUnwrap(game.presentedViewController as? NativeResultController)
+            XCTAssertTrue(result.clean)
+            XCTAssertEqual(result.celebrationTheme,expected)
+            XCTAssertEqual(result.finalScore,123)
+            XCTAssertEqual(game.engine.state.lastSpecialMergeWorld,world)
+        }
     }
     func testPureDiceMergeSixRefillToFivePresentsNoMoves() async throws {
         let f=try Fixture(variant:.pureDice,tiles:[
@@ -110,7 +166,7 @@ import StackToSixNativeState
         }
     }
     func testSlowBurnActualFinalMergePersistsChargeAndNextSourceRoundRestoresIt() async throws {
-        let f=try Fixture(variant:.slowBurn,tiles:[.init(id:"a",cell:.init(column:0,row:0),value:3),.init(id:"b",cell:.init(column:1,row:0),value:3)],meter:0.63)
+        let f=try Fixture(variant:.slowBurn,tiles:[.init(id:"a",cell:.init(column:0,row:0),value:3),.init(id:"b",cell:.init(column:1,row:0),value:3)],meter:0.63,lastSpecialMergeWorld:"beach")
         defer{f.dispose()}
         let old=try await enter(f),scene=try XCTUnwrap(old.boardScene)
         XCTAssertTrue(scene.sourceTutorialMeterHUDReady)
@@ -122,17 +178,27 @@ import StackToSixNativeState
         let pending=try XCTUnwrap(f.store.load()?.pendingArcadeRound)
         XCTAssertEqual(try XCTUnwrap(pending.meterProgress),0.63,accuracy:0.000001)
         XCTAssertEqual(pending.score,result.finalScore)
+        XCTAssertEqual(pending.lastSpecialMergeWorld,"beach")
         try await wait("Next Source controller"){f.game.map{$0 !== old}==true}
         let next=try XCTUnwrap(f.game)
         XCTAssertNotNil(next.sourceInitialConstruction)
         XCTAssertEqual(next.engine.state.effectiveArcadeVariant,.slowBurn)
         XCTAssertEqual(next.engine.state.board,4)
+        XCTAssertEqual(next.engine.state.lastSpecialMergeWorld,"beach")
         XCTAssertEqual(next.engine.state.wildMeter,0.63,accuracy:0.000001)
         try await wait("Next Source canonical save"){next.sourceInitialBoardSaveAccepted && next.boardScene?.isBoardEntryComplete==true && next.beforeSourceGameplayAdmission==nil}
         let persisted=try XCTUnwrap(f.store.load())
-        XCTAssertNil(persisted.pendingArcadeRound)
-        XCTAssertEqual(persisted.arcadeRun?.effectiveArcadeVariant,.slowBurn)
-        XCTAssertEqual(try XCTUnwrap(persisted.arcadeRun?.wildMeter),0.63,accuracy:0.000001)
+        // A newly entered round is not a played layout. The canonical save
+        // retains earned carry metadata until its first committed move.
+        XCTAssertFalse(NativeSaveEnvelope.hasRecordedMove(next.engine.state))
+        XCTAssertNil(persisted.arcadeRun)
+        XCTAssertEqual(persisted.activeArcadeVariant,.slowBurn)
+        let untouched=try XCTUnwrap(persisted.pendingArcadeRound)
+        XCTAssertEqual(untouched.round,4)
+        XCTAssertEqual(untouched.score,next.engine.state.score)
+        XCTAssertNil(untouched.ownerID)
+        XCTAssertEqual(untouched.lastSpecialMergeWorld,"beach")
+        XCTAssertEqual(try XCTUnwrap(untouched.meterProgress),0.63,accuracy:0.000001)
     }
     func testLuckyDropNextActualRoundStartsChargingAgain() async throws {
         let f=try Fixture(variant:.pureDice,tiles:[.init(id:"a",cell:.init(column:0,row:0),value:3),.init(id:"b",cell:.init(column:1,row:0),value:3)],meter:0,luckyDropUsed:true)

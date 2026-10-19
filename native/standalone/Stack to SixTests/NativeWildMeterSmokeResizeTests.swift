@@ -102,6 +102,31 @@ import SpriteKit
         smoke.dispose();service.dispose()
         XCTAssertEqual(resources.created,resources.destroyed);XCTAssertNil(wall.callback)
     }
+    func testProductionSmokeNeverFlashesAtBirthAcrossFillLevels() {
+        for fps in [60.0,120] { for width in [6.0,30,59,60,100,200] {
+            var now=0.0,draws=0
+            let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{now})
+            let wall=Wall(),resources=Resources()
+            let smoke=NativeWildMeterSmokeOwner(driver:NativeWildMeterSourceDriver(service:service),wall:wall,resources:resources,
+                geometry:{.init(x:24,y:52,left:0,width:width,fillAlive:true,parentAttached:true,maximum:200)},
+                disabled:{false},current:{true},random:{draws+=1;return 0.5})
+            smoke.startEmission();wall.deliver(100);smoke.stopEmission()
+            XCTAssertEqual(resources.created,1)
+            XCTAssertEqual(draws,6)
+            XCTAssertEqual(resources.circles[1]?.pose.alpha,0,"No full-opacity birth at width \(width)")
+            var previous=0.0,peak=0.0
+            for frame in 1...Int(fps*3) {
+                now=Double(frame)*1000/fps;service.deliver(wallMilliseconds:now)
+                let alpha=resources.circles[1]?.pose.alpha ?? 0
+                XCTAssertLessThanOrEqual(abs(alpha-previous),0.15,"No one-frame opacity flash at width \(width), frame \(frame)")
+                peak=max(peak,alpha);previous=alpha
+            }
+            XCTAssertGreaterThan(peak,0.1,"Keep the moving particles visible")
+            XCTAssertEqual(smoke.activeBubbleCount,0);XCTAssertEqual(resources.created,resources.destroyed)
+            smoke.dispose();smoke.dispose();service.dispose();XCTAssertNil(wall.callback)
+        }}
+    }
+
     func testLowFillFadeIsContinuousAndFullFillKeepsOriginalOpacity() {
         let low=NativeWildMeterSmokePlan(x:0,y:0,radius:2,intensity:0.1,random:{0.5})
         XCTAssertEqual(low.sample(seconds:0).alpha,0)

@@ -112,7 +112,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         cta.addTarget(self,action:#selector(releaseCTA),for:[.touchUpInside,.touchUpOutside,.touchCancel,.touchDragExit])
         var perspective = CATransform3DIdentity; perspective.m34 = -1/1050; cameraStage.layer.sublayerTransform = perspective
         for face in [front as UIView,back] {face.layer.shadowColor = UIColor(red:165/255,green:124/255,blue:98/255,alpha:1).cgColor;face.layer.shadowOpacity = 0.86;face.layer.shadowRadius = 18;face.layer.shadowOffset = CGSize(width:0,height:14)}
-        effects = JimiNativeWorldCardEffects(impact:effectShell,overlay:self,assets:assets,resources:resources,boardID:boardID)
+        effects = JimiNativeWorldCardEffects(front:front,impact:effectShell,overlay:self,assets:assets,resources:resources,boardID:boardID,rarity:unit.cardRarity)
 
     }
     required init?(coder:NSCoder) {fatalError("init(coder:) has not been implemented")}
@@ -235,7 +235,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         animateBackStats(entering:true,delay:duration*0.5)
         angle = -.pi;rotate(from:0,to:-.pi,duration:duration,flight:true)
         fly(from:origin,to:base,returning:false) { [weak self] in
-            guard let self,!self.disposed,!self.closing else {return};CATransaction.begin();CATransaction.setDisableActions(true);self.carrier.layer.transform = CATransform3DMakeRotation(self.backTilt,0,0,1);self.carrier.layer.removeAnimation(forKey:"card.flight");CATransaction.commit();self.cta.isEnabled = self.stableCTAEnabled;self.effects?.present()
+            guard let self,!self.disposed,!self.closing else {return};CATransaction.begin();CATransaction.setDisableActions(true);self.carrier.layer.transform = CATransform3DMakeRotation(self.backTilt,0,0,1);self.carrier.layer.removeAnimation(forKey:"card.flight");CATransaction.commit();self.cta.isEnabled = self.stableCTAEnabled;self.effects?.present(frontFacing:!self.isBackFacing)
             if let path = self.cardArt2x,let resources = self.resources {let token = self.generation;resources.prepare([path],owner:self.boardID,required:false) { [weak self,weak resources] accepted in guard accepted,let self,self.generation == token else {return};if let image = resources?.image(path,owner:self.boardID) {self.front.image = image;self.effects?.layout()} } }
         }
     }
@@ -337,7 +337,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         animation.keyTimes = [0.0,0.20/0.46,(0.20+0.26*0.38)/0.46,1].map {NSNumber(value:$0)}
         animation.timingFunctions = [.init(name:.linear),.init(controlPoints:0.45,0,0.55,1),.init(controlPoints:0.22,1,0.36,1)]
         animation.duration = UIAccessibility.isReduceMotionEnabled ? 0.001 : 0.46
-        CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in guard let self,self.flipGeneration == token,!self.disposed,!self.closing else{return};self.rotor.removeAnimation(forKey:"card.flip");self.angle = canonical;CATransaction.begin();CATransaction.setDisableActions(true);self.rotor.transform = CATransform3DMakeRotation(canonical,0,1,0);CATransaction.commit();self.animating = false;self.manualFlipInFlight = false;self.cta.isEnabled = self.stableCTAEnabled && self.isBackFacing;self.effects?.present()}
+        CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in guard let self,self.flipGeneration == token,!self.disposed,!self.closing else{return};self.rotor.removeAnimation(forKey:"card.flip");self.angle = canonical;CATransaction.begin();CATransaction.setDisableActions(true);self.rotor.transform = CATransform3DMakeRotation(canonical,0,1,0);CATransaction.commit();self.animating = false;self.manualFlipInFlight = false;self.cta.isEnabled = self.stableCTAEnabled && self.isBackFacing;self.effects?.present(frontFacing:!self.isBackFacing)}
         CATransaction.setDisableActions(true);rotor.transform = CATransform3DMakeRotation(to,0,1,0);rotor.add(animation,forKey:"card.flip");CATransaction.commit()
     }
     private func animateFaceTilt(_ target:CGFloat) {
@@ -369,13 +369,13 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
                 setDrag(limit > 0 ? (delta.y < 0 ? -1 : 1)*limit*resisted/(limit+resisted) : 0)
             } else if dragAxis == "horizontal" {
                 let scrub = dragStartAngle+min(180,max(-180,Double(delta.x/bounds.width)*180)) * .pi/180
-                CATransaction.begin();CATransaction.setDisableActions(true);rotor.transform = CATransform3DMakeRotation(scrub,0,1,0);CATransaction.commit()
+                CATransaction.begin();CATransaction.setDisableActions(true);rotor.transform = CATransform3DMakeRotation(scrub,0,1,0);CATransaction.commit();effects?.dragReflection(angle:scrub*180 / .pi)
             }
         case .ended,.cancelled:
             let delta = pan.translation(in:self)
             if dragAxis == "vertical",pan.state == .ended,abs(delta.y)>max(88,min(140,base.height*0.22)) {onRequest?("close")}
             else if dragAxis == "horizontal",pan.state == .ended,abs(delta.x)>=bounds.width*0.1 {let current = (rotor.value(forKeyPath:"transform.rotation.y") as? NSNumber)?.doubleValue ?? dragStartAngle;frontDrag = false;interactiveFlip(from:current)}
-            else {frontDrag = false;rotate(from:(rotor.value(forKeyPath:"transform.rotation.y") as? NSNumber)?.doubleValue ?? angle,to:angle,duration:0.18);settleDrag();effects?.present()}
+            else {frontDrag = false;rotate(from:(rotor.value(forKeyPath:"transform.rotation.y") as? NSNumber)?.doubleValue ?? angle,to:angle,duration:0.18);settleDrag();effects?.present(frontFacing:!isBackFacing)}
         default:break
         }
     }
@@ -400,7 +400,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
             CATransaction.begin();CATransaction.setDisableActions(true);pinchShell.layer.transform = CATransform3DMakeScale(scale,scale,1);CATransaction.commit()
         case .ended,.cancelled:
             pinching = false;let from = pinchShell.layer.transform;let animation = CABasicAnimation(keyPath:"transform");animation.fromValue = NSValue(caTransform3D:from);animation.toValue = NSValue(caTransform3D:CATransform3DIdentity);animation.duration = 0.36;animation.timingFunction = CAMediaTimingFunction(controlPoints:0.22,1,0.36,1)
-            CATransaction.begin();CATransaction.setDisableActions(true);pinchShell.layer.transform = CATransform3DIdentity;pinchShell.layer.add(animation,forKey:"card.pinch.return");CATransaction.commit();effects?.present()
+            CATransaction.begin();CATransaction.setDisableActions(true);pinchShell.layer.transform = CATransform3DIdentity;pinchShell.layer.add(animation,forKey:"card.pinch.return");CATransaction.commit();effects?.present(frontFacing:!isBackFacing)
         default:break
         }
     }

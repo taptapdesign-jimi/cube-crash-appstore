@@ -52,6 +52,23 @@ import StackToSixGameplay
    }
   }
  }
+ func testOpenedWildFromMagnetReservedPlaceholderNeverInheritsDimInnerArtwork()throws {
+  let choices:[(String,String?)]=NativeWildArchetype.allCases.map{($0.rawValue,nil)}+NativeSpecialDiceRegistry.variants.keys.sorted().map{(NativeSpecialDiceRegistry.variants[$0]!.archetype.rawValue,Optional($0))}
+  for (core,variant) in choices {
+   let f=try Fixture(saved());defer{f.dispose()};f.service.deliver(wallMilliseconds:16)
+   let node=try XCTUnwrap(f.construction.nodes["zero"])
+   XCTAssertTrue(node.prepareSourceMagnetReservedHolder(rotation:0,generation:f.scene.engine.state.generation,cell:.init(column:0,row:0)))
+   let visual=try XCTUnwrap(node.childNode(withName:"die-visual"))
+   XCTAssertEqual(visual.alpha,0.2,accuracy:1e-6)
+   node.setSourceIdleDeferred(true)
+   XCTAssertTrue(node.openSourceWildCore(core,selectedVariant:variant,service:f.service,current:{true},onCancelled:{}))
+   XCTAssertTrue(node.applySourceOpenedWildVariant(variant))
+   f.service.deliver(wallMilliseconds:32)
+   XCTAssertEqual(node.alpha,1,accuracy:1e-6)
+   XCTAssertEqual(visual.alpha,1,accuracy:1e-6,"Reused placeholder opacity must not dim \(variant ?? core)")
+   XCTAssertTrue(node.sourceOpenedWildFaceCurrent)
+  }
+ }
  func testOpenedWildDisposeCancelsCapturedRawFrameImmediately()throws {
   let state=saved()
   let f=try Fixture(state);defer{f.dispose()};f.service.deliver(wallMilliseconds:16)

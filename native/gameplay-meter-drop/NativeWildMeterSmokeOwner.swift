@@ -93,10 +93,13 @@ import Foundation
         bubbles[bubble.id]=bubble
         resources.create(id:bubble.id,x:x,y:y,radius:radius)
         guard valid(),bubbles[bubble.id] === bubble,!bubble.retired else{finish(bubble);return}
-        if intensity<1 {resources.paint(id:bubble.id,.init(x:x,y:y,alpha:0))}
+        if intensity<1 || g.maximum>0 {resources.paint(id:bubble.id,.init(x:x,y:y,alpha:0))}
         guard valid(),bubbles[bubble.id] === bubble,!bubble.retired else{finish(bubble);return}
         // Literal source evaluates these three vars AFTER adding the Graphics.
-        let plan=NativeWildMeterSmokePlan(x:x,y:y,radius:radius,intensity:intensity,random:random)
+        // Native HUD particles always enter softly. The old intensity-based
+        // fade collapsed to zero above30% charge, flashing at the first moving frame.
+        // Geometry without a live maximum retains the immutable Source oracle.
+        let plan=NativeWildMeterSmokePlan(x:x,y:y,radius:radius,intensity:intensity,minimumFadeIn:g.maximum>0 ? 0.18:0,random:random)
         guard valid(),bubbles[bubble.id] === bubble else{finish(bubble);return}
         let lease=driver.start(duration:plan.duration,family:.defaultLazyTween,paint:{[weak self,weak bubble] seconds in
             guard let self,let bubble,self.valid(),self.bubbles[bubble.id] === bubble else{return}

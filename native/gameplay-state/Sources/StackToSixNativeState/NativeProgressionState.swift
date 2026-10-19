@@ -62,13 +62,13 @@ public struct NativeProgressionState: Codable, Equatable, Sendable {
         unlockedSpecialDice=try fields.decodeIfPresent(Set<String>.self,forKey:.unlockedSpecialDice) ?? []
         wildStarUnlocked=try fields.decodeIfPresent(Bool.self,forKey:.wildStarUnlocked) ?? false
     }
-    /// Same durable Forest evidence used by Backpack. Default interim Unit1,
+    /// Star begins at Forest Unit2; completing Unit1 reaches that unlock. Default interim Unit1,
     /// tutorial completion, Arcade progress and other Worlds do not grant Star.
     /// The optional latch preserves legacy evidence across later World changes.
     public var hasUnlockedWildStar:Bool {
         wildStarUnlocked || completedJourneyBoards.contains(where:{(1...10).contains($0)}) ||
-        boardStats.contains(where:{(1...10).contains($0.key) && $0.value.timesPlayed>0}) ||
-        lastOpenedJourneyBoard.map{(1...10).contains($0)} == true ||
+        boardStats.contains(where:{(2...10).contains($0.key) && $0.value.timesPlayed>0}) ||
+        lastOpenedJourneyBoard.map{(2...10).contains($0)} == true ||
         (2...10).contains(highestUnlockedJourneyBoard)
     }
     /// DEV card removal revokes the latch too; normal progression never does.
@@ -92,7 +92,7 @@ public struct NativeProgressionState: Codable, Equatable, Sendable {
         guard board >= 1 else { return }
         if mode == .journey {
             guard isPlayable(board: board) else { return }
-            wildStarUnlocked = hasUnlockedWildStar || (1...10).contains(board)
+            wildStarUnlocked = hasUnlockedWildStar || (2...10).contains(board)
             lastOpenedJourneyBoard = board
             var stats = boardStats[board] ?? NativeBoardStats()
             stats.timesPlayed += 1; stats.lastPlayed = now; boardStats[board] = stats
@@ -118,7 +118,7 @@ public struct NativeProgressionState: Codable, Equatable, Sendable {
             return
         }
         guard (1...30).contains(board) else { return }
-        wildStarUnlocked = hasUnlockedWildStar || (1...10).contains(board)
+        wildStarUnlocked = hasUnlockedWildStar || (2...10).contains(board)
         var stats = boardStats[board] ?? NativeBoardStats()
         stats.highScore = max(stats.highScore, score); stats.longestCombo = max(stats.longestCombo, longestCombo)
         stats.cubesCracked += cubesCracked; stats.lastPlayed = now; boardStats[board] = stats

@@ -102,6 +102,7 @@ final class NativeAppController: UIViewController {
         hub = JimiV9HubView(frame:view.bounds,assets:artwork)
         settingsView = JimiNativeSettingsView(frame:view.bounds,assets:artwork)
         arcadeHub = NativeArcadeHubView(frame:view.bounds,assets:artwork)
+        arcadeHub.onFeedback = {[weak self] cue in self?.onFeedback?(cue)}
         arcadeHub.canContinue = {[weak self] identifier in
             guard let self,let variant=NativeArcadeVariant(rawValue:identifier) else{return false}
             return self.services.canContinueArcade(variant)
@@ -557,10 +558,11 @@ final class NativeAppController: UIViewController {
     }
     private func openBackpackDetail(_ die:NativeBackpackCatalog.Die) {
         guard !disposed,!suspended,!transitioning,route == .backpack,presentedViewController == nil else{return}
+        onFeedback?("tab")
         let detail=NativeBackpackDetail(die:die,assets:JimiV9Artwork(resourceRoot:resourceRoot),motion:NativeRouteMotion(home:home,hub:hub))
         backpackDetail=detail;backpackView?.isUserInteractionEnabled=false
         detail.onPresentationStarted={[weak self] in self?.onFeedback?("exit-modal")}
-        detail.onCloseRequested={[weak self] in self?.onFeedback?("back")}
+        detail.onCloseRequested={[weak self] in self?.onFeedback?("exit-modal")}
         detail.onClose={[weak self] in guard let self else{return};self.backpackDetail=nil;self.backpackView?.isUserInteractionEnabled = self.route == .backpack && !self.transitioning && !self.suspended}
         present(detail,animated:false)
     }

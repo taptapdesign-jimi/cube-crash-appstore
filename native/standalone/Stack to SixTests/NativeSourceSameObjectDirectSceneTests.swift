@@ -9,14 +9,16 @@ import StackToSixGameplay
  @MainActor private final class Fixture {
   let clock:Clock,service:NativeSourceAnimationClockService,context:NativeGameplaySourceContext,scope:NativeGameplaySourceContext.Scope,scene:NativeBoardScene,view:SKView
   var failures:[String]=[]
-  init(final:Bool=true,magnetNoPull:Bool=false,finalArchetype:NativeWildArchetype?=nil,count:Int=1)throws {
+  init(final:Bool=true,magnetNoPull:Bool=false,finalArchetype:NativeWildArchetype?=nil,count:Int=1,combo:Int?=nil)throws {
    let c=Clock();clock=c
    service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{c.wall},sourceFrameTransportEnabled:true)
    context=NativeGameplaySourceContext(service:service,appOriginMilliseconds:0,visualRandom:{c.next()},sourceDateMilliseconds:{c.date})
    var tiles:[NativeTile]=[.init(id:"wild",cell:.init(column:0,row:0),value:6,starOrbitCount:count,archetype:magnetNoPull ? .magnet:(finalArchetype ?? .star)),.init(id:"regular",cell:.init(column:1,row:0),value:4)]
    if !final {tiles.append(.init(id:"other",cell:.init(column:4,row:8),value:3,merge6CleanupOwned:magnetNoPull))}
    if magnetNoPull {tiles.append(.init(id:"locked",cell:.init(column:3,row:0),value:0,locked:true))}
-   let e=NativeGameplayEngine(state:.init(tiles:tiles),sourceMathRandom:context.mathRandom)
+   var state=NativeBoardState(tiles:tiles);state.combo=combo ?? 0
+   let e=NativeGameplayEngine(state:state,sourceMathRandom:context.mathRandom)
+   e.comboHUDCoinRewardsEnabled=combo != nil
    e.stagedOrdinaryMoves=true;e.stagedOrdinaryAssignments=true;e.stagedDirectWildMoves=true;e.stagedDirectWildAssignments=true
    scene=NativeBoardScene(engine:e,resourceRoot:NativeTestResources.root,size:.init(width:390,height:844))
    let captured=scene
@@ -120,9 +122,15 @@ import StackToSixGameplay
   XCTAssertEqual(f.scene.engine.state,before);XCTAssertNil(f.scene.engine.pendingDirectWild);XCTAssertNil(f.scene.engine.sourceDirectWildPrefix);XCTAssertEqual(f.clock.draws,draws);XCTAssertEqual(f.context.contactMutations.revision,0)
  }
  func testActualLastPairCoinsReachHUDThenReleaseFinalTransactionAndTerminalOnce()async throws {
+  try await exerciseFinalCoins()
+ }
+ func testSevenComboCoinsHoldFinalTransactionForEveryArchetype()async throws {
+  try await exerciseFinalCoins(combo:24)
+ }
+ private func exerciseFinalCoins(combo:Int?=nil)async throws {
   for archetype in [NativeWildArchetype.star,.juice,.magnet,.tnt] {
-   let count=archetype == .star || archetype == .tnt ? 3:archetype == .juice ? 2:1
-   let f=try Fixture(finalArchetype:archetype,count:count);defer{f.dispose()}
+   let count=combo != nil ? 7:(archetype == .star || archetype == .tnt ? 3:archetype == .juice ? 2:1)
+   let f=try Fixture(finalArchetype:archetype,count:count,combo:combo);defer{f.dispose()}
    try await f.readyHUD(self)
    let window=UIWindow(frame:f.view.bounds),host=UIViewController()
    host.view=f.view;window.rootViewController=host;window.makeKeyAndVisible()

@@ -19,6 +19,7 @@ final class NativeResultOwner {
     private let interimJourney:Bool
     private let continueJourney:(()->Void)?
     private let rewardScore:Int?
+    var onForestAmbience:((Bool,Bool)->Void)?
     var onMoment:((String,Int,Double?)->Void)?
     var onHaptic:((String)->Void)?
     var onError:((Error)->Void)?
@@ -57,7 +58,10 @@ final class NativeResultOwner {
         // mounts the existing result sheet directly; it never replays text/exit.
         started=true;lease += 1;let token=lease
         let state=gameplay.engine.state
-        let clean=resolution.kind == .complete
+        // Reached-run success is presentation only; the captured terminal resolution
+        // still commits a loss, so it cannot queue an uncleared next round.
+        let arcadeReached=resolution.kind == .fail && state.mode == .arcade && state.board>=2
+        let clean=resolution.kind == .complete || arcadeReached
         let arcadeCue=clean && state.mode == .arcade
         let efficiency=clean && !arcadeCue ? NativeRewardMath.efficiencyBonus(baseBonus:500+(state.board-1)*200,
             remainingMoves:state.moves,maxMoves:state.maxMoves,maxStackDepth:state.maxStackDepth) : 0
@@ -65,7 +69,7 @@ final class NativeResultOwner {
         let score=Self.finalScore(state:state,clean:clean)
         let showResult:()->Void = { [weak self,weak gameplay] in
             guard let self,let gameplay,!self.disposed,self.lease==token else{return}
-            self.presentResult(gameplay:gameplay,state:state,clean:clean,combo:combo,efficiency:efficiency,score:score)
+            self.presentResult(gameplay:gameplay,state:state,clean:clean,combo:combo,efficiency:efficiency,score:score,arcadeReached:arcadeReached)
         }
         if clean,interimJourney,state.mode == .journey {
             do {try commit(score)} catch {
@@ -104,8 +108,9 @@ final class NativeResultOwner {
             }
         } else {showResult()}
     }
-    private func presentResult(gameplay:NativeGameplayViewController,state:NativeBoardState,clean:Bool,combo:Int,efficiency:Int,score:Int) {
-        let sheet=NativeResultController(root:root,state:state,clean:clean,combo:combo,efficiency:efficiency,finalScore:score,interimJourney:interimJourney)
+    private func presentResult(gameplay:NativeGameplayViewController,state:NativeBoardState,clean:Bool,combo:Int,efficiency:Int,score:Int,arcadeReached:Bool) {
+        let sheet=NativeResultController(root:root,state:state,clean:clean,combo:combo,efficiency:efficiency,finalScore:score,interimJourney:interimJourney,arcadeReached:arcadeReached)
+        sheet.onForestAmbience=onForestAmbience
         sheet.onMoment=onMoment
         sheet.onHaptic=onHaptic
         sheet.onCommit = { [weak self] in try self?.commit(score) }
@@ -130,7 +135,7 @@ final class NativeResultOwner {
         let callback=onSourceFinalCleanup;onSourceFinalCleanup=nil
         if let receipt=sourceNoMovesReceipt {callback?(receipt)}
     }
-    func dispose() {disposed=true;lease += 1;finishSourceFinalCleanup();let card=reward;reward=nil;card?.dispose(notify:false);if let card {Self.removeReward(card,completion:{})};modal?.dispose();modal?.dismiss(animated:false);modal=nil;onMoment=nil;onHaptic=nil;onError=nil;afterReward=nil;prepareExit=nil}
+    func dispose() {disposed=true;lease += 1;finishSourceFinalCleanup();let card=reward;reward=nil;card?.dispose(notify:false);if let card {Self.removeReward(card,completion:{})};modal?.dispose();modal?.dismiss(animated:false);modal=nil;onMoment=nil;onForestAmbience=nil;onHaptic=nil;onError=nil;afterReward=nil;prepareExit=nil}
 }
 
 /// Authored stars/text/score/result CTA layout; its native clock pauses with the app.
@@ -140,6 +145,7 @@ final class NativeResultController:UIViewController {
     enum Action {case restart,exit,nextRound,nextJourney}
     let state:NativeBoardState
     let clean:Bool
+    let arcadeReached:Bool
     let combo:Int
     let efficiency:Int
     let finalScore:Int
@@ -162,6 +168,7 @@ final class NativeResultController:UIViewController {
     private(set) var elapsed=0.0
     private var confetti:NativeResultConfettiCanvas?
     private var area55Flybys:NativeResultArea55Flybys?
+    private var forestBees:NativeResultForestBees?
     private var clickedPrimary=true
     private var capturedStarScales:[Double]=[]
     private var closingAt:Double?
@@ -180,12 +187,17 @@ final class NativeResultController:UIViewController {
     private var commitFault:Error?
     var onCommit:(() throws -> Void)?
     var onAction:((Action)->Void)?
+    var onForestAmbience:((Bool,Bool)->Void)?
     var onMoment:((String,Int,Double?)->Void)?
     var onHaptic:((String)->Void)?
     private var sentMoments:Set<String>=[]
-    private var arcadeCue:Bool {clean && state.mode == .arcade}
-    init(root:URL,state:NativeBoardState,clean:Bool,combo:Int,efficiency:Int,finalScore:Int,interimJourney:Bool=false,headlineRandom:Double=Double.random(in:0..<1)) {
-        assets=JimiV9Artwork(resourceRoot:root);self.state=state;self.clean=clean
+    var celebrationTheme:NativeResultCelebrationTheme {
+        if state.mode == .arcade {return state.lastSpecialMergeWorld.flatMap(NativeResultCelebrationTheme.init(rawValue:)) ?? .area55}
+        return state.board>20 ? .area55:state.board>10 ? .beach:.forest
+    }
+    private var arcadeCue:Bool {clean && state.mode == .arcade && !arcadeReached}
+    init(root:URL,state:NativeBoardState,clean:Bool,combo:Int,efficiency:Int,finalScore:Int,interimJourney:Bool=false,arcadeReached:Bool=false,headlineRandom:Double=Double.random(in:0..<1)) {
+        assets=JimiV9Artwork(resourceRoot:root);self.state=state;self.clean=clean;self.arcadeReached=arcadeReached
         paperSurface=NativeAppPaperSurface(artwork:assets)
         resourceRoot=root
         self.combo=combo;self.efficiency=efficiency;self.finalScore=finalScore
@@ -234,7 +246,7 @@ final class NativeResultController:UIViewController {
             scoreLabel.attributedText=label
         } else {scoreLabel.text="Your score"}
         score.accessibilityIdentifier="native.result.score"
-        status.text="\(state.mode == .arcade ? String(format:"Round %02d",state.stage) : String(format:"Stage %02d",(state.board-1)%10+1)) \(clean ? "cleared" : "not cleared")"
+        status.text="\(state.mode == .arcade ? String(format:"Round %02d",state.stage) : String(format:"Stage %02d",(state.board-1)%10+1)) \(arcadeReached ? "reached" : clean ? "cleared" : "not cleared")"
         for (index,button) in buttons.enumerated() {
             button.setTitle(index == 0 ? (clean && interimJourney ? "Continue" : "Play Again") : "Exit",for:.normal)
             button.applyModalCTA(artwork:assets,primary:index == 0)
@@ -270,9 +282,15 @@ final class NativeResultController:UIViewController {
             presentation.start();return
         }
         if clean {
-            let theme:NativeResultCelebrationTheme=state.board>20 ? .area55:state.board>10 ? .beach:.forest
+            let theme=celebrationTheme
             let canvas=NativeResultConfettiCanvas(root:resourceRoot,theme:theme,viewport:view.bounds.size,generation:state.generation)
             canvas.autoresizingMask=[.flexibleWidth,.flexibleHeight];canvas.layer.zPosition=3;view.addSubview(canvas);confetti=canvas
+            if theme == .forest {
+                content.layer.zPosition=1
+                let bees=NativeResultForestBees(viewport:view.bounds.size,artwork:assets)
+                bees.mount(in:view);forestBees=bees
+                onForestAmbience?(true,suspended)
+            }
             if theme == .area55 {
                 let ships=NativeResultArea55Flybys(root:resourceRoot,viewport:view.bounds.size,generation:state.generation)
                 ships.mount(overlay:view,content:content);area55Flybys=ships
@@ -380,12 +398,12 @@ final class NativeResultController:UIViewController {
             };return
         }
         commitOnce();thumb.isHidden=true;scoreLabel.isHidden = !clean;score.isHidden = !clean
-        let plan=NativeResultPresentationPlan.sample(seconds:elapsed,clean:clean,baseScore:state.score,combo:combo,efficiency:efficiency)
+        let plan=NativeResultPresentationPlan.sample(seconds:elapsed,clean:clean,baseScore:state.score,combo:combo,efficiency:efficiency,arcadeReached:arcadeReached)
         for (target,pose) in [(stars,plan.hero),(headlineContent,plan.title),(scoreLabel,plan.scoreLabel),(score,plan.score),(status,plan.status),(buttons[0],plan.primary),(buttons[1],plan.secondary)] {apply(pose,to:target)}
         moment(clean ? "clean-applause":"fail-sax",at:0)
         if clean {
             moment("clean-hero",at:0.1);moment("clean-sax",at:0);moment("clean-count",at:0.47,duration:NativeResultPresentationPlan.counterDuration(from:0,to:state.score))
-            moment("clean-bonus",at:2.15,duration:combo>0 ? 1.4:0.8);moment("clean-bonus",at:4.6,duration:efficiency>0 ? 1.4:0.8)
+            if !arcadeReached {moment("clean-bonus",at:2.15,duration:combo>0 ? 1.4:0.8);moment("clean-bonus",at:4.6,duration:efficiency>0 ? 1.4:0.8)}
         }
         for index in 0..<3 {
             if clean {
@@ -409,16 +427,17 @@ final class NativeResultController:UIViewController {
                 }
             }
             let comboVisible=elapsed<3.97
-            bonus.isHidden=false;bonusLabel.isHidden=false
+            bonus.isHidden=arcadeReached;bonusLabel.isHidden=arcadeReached
             bonus.text="+\(comboVisible ? plan.displayedCombo:plan.displayedEfficiency)"
             bonusLabel.text=comboVisible ? "Combo bonus":"Efficiency"
             let pose=comboVisible ? plan.combo:plan.efficiency
             apply(pose,to:bonusContent)
             confetti?.paint(seconds:elapsed,generation:state.generation)
             area55Flybys?.paint(seconds:elapsed,generation:state.generation)
+            forestBees?.paint(seconds:elapsed)
         } else {bonus.isHidden=true;bonusLabel.isHidden=true}
         for index in 0..<2 {
-            let begin=clean ? 6.62+Double(index)*0.35:0.64+Double(index)*0.18
+            let begin=clean ? (arcadeReached ? 2.05:NativeResultPresentationPlan.cleanPrimaryCTAStart)+Double(index)*0.35:0.64+Double(index)*0.18
             moment(clean ? "clean-cta":"fail-cta",at:begin,index:index)
             buttons[index].isUserInteractionEnabled=elapsed>=begin+0.34 && committed
         }
@@ -440,7 +459,8 @@ final class NativeResultController:UIViewController {
         guard closingAt == nil,!disposed else {return}
         if arcadeCue {dispose();dismiss(animated:false,completion:completion);return}
         capturedStarScales=(0..<3).map{NativeResultPresentationPlan.filledStarScale(seconds:elapsed,index:$0)}
-        confetti?.dispose();confetti=nil;area55Flybys?.dispose();area55Flybys=nil;closingAt=elapsed;closed=completion
+        onForestAmbience?(false,false)
+        confetti?.dispose();confetti=nil;area55Flybys?.dispose();area55Flybys=nil;forestBees?.dispose();forestBees=nil;closingAt=elapsed;closed=completion
         destinationPreparation=prepareDestination;self.paperFadeDuration=max(0.001,paperFadeDuration)
         preparationFrames=prepareDestination == nil ? 0:2
     }
@@ -454,6 +474,7 @@ final class NativeResultController:UIViewController {
     }
     private func finishClose() {let completion=closed;closed=nil;dispose();dismiss(animated:false,completion:completion)}
     func setSuspended(_ value:Bool) {
+        if clean,state.mode == .journey,(1...10).contains(state.board),closingAt == nil,!disposed {onForestAmbience?(true,value)}
         suspended=value;lastTime=nil;link?.isPaused=value;arcadePresentation?.setSuspended(value);confetti?.setForeground(!value);area55Flybys?.setForeground(!value)
         if destinationPreparation != nil {
             if value {destinationLease &+= 1;destinationReady=false;destinationPending=false;paperFadeAt=nil;view.alpha=1}
@@ -461,8 +482,8 @@ final class NativeResultController:UIViewController {
         }
     }
     func dispose() {
-        guard !disposed else {return};disposed=true;link?.invalidate();link=nil;clockTarget=nil
-        arcadePresentation?.dispose();arcadePresentation=nil;confetti?.dispose();confetti=nil;area55Flybys?.dispose();area55Flybys=nil
+        guard !disposed else {return};disposed=true;onForestAmbience?(false,false);onForestAmbience=nil;link?.invalidate();link=nil;clockTarget=nil
+        arcadePresentation?.dispose();arcadePresentation=nil;confetti?.dispose();confetti=nil;area55Flybys?.dispose();area55Flybys=nil;forestBees?.dispose();forestBees=nil
         for observer in observations {NotificationCenter.default.removeObserver(observer)};observations.removeAll()
         destinationLease &+= 1;destinationPreparation=nil;destinationPending=false
         closed=nil;onAction=nil;onCommit=nil;onHaptic=nil;onMoment=nil

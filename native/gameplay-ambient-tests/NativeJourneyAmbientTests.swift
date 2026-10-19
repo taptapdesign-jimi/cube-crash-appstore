@@ -23,6 +23,34 @@ final class NativeJourneyAmbientTests:XCTestCase {
         var jobs:[Job]=[]
         func after(_ seconds:Double,_ callback:@escaping ()->Void)->any NativeMusicCancellation{let job=Job(seconds,callback);jobs.append(job);return job}
     }
+    func testForestResultBeesUseTwentyPercentGainAndOwnedPauseMuteRouteCleanup() {
+        let transport=Transport(),scheduler=Scheduler()
+        let owner=NativeJourneyAmbientOwner(root:URL(fileURLWithPath:"/unused"),enabled:true,transport:transport,scheduler:scheduler)
+        let id=NativeJourneyAmbientOwner.resultBees
+        owner.setRoute(.gameplay(.journey,3),generation:3)
+        owner.setForestResult(active:true,suspended:false,generation:2)
+        XCTAssertFalse(transport.commands.contains {$0.id==id})
+        owner.setForestResult(active:true,suspended:false,generation:3)
+        owner.setForestResult(active:true,suspended:false,generation:3)
+        XCTAssertEqual(transport.commands.filter {$0.id==id && $0.op=="start"}.count,1)
+        XCTAssertEqual(transport.commands.first {$0.id==id && $0.op=="start"}?.gain,0.20)
+        owner.setForestResult(active:true,suspended:true,generation:3)
+        XCTAssertEqual(transport.commands.last?.op,"pause")
+        owner.setForeground(false);owner.setForeground(true)
+        XCTAssertFalse(transport.commands.contains {$0.id==id && $0.op=="resume"})
+        owner.setForestResult(active:true,suspended:false,generation:3)
+        XCTAssertEqual(transport.commands.last?.op,"resume")
+        owner.setEnabled(false);XCTAssertEqual(transport.commands.last?.op,"stop")
+        owner.setEnabled(true)
+        XCTAssertEqual(transport.commands.filter {$0.id==id && $0.op=="start"}.count,2)
+        owner.setForestResult(active:false,suspended:false,generation:3)
+        XCTAssertEqual(transport.commands.last?.id,id);XCTAssertEqual(transport.commands.last?.op,"stop")
+        owner.setRoute(.gameplay(.journey,11),generation:4)
+        let count=transport.commands.count
+        owner.setForestResult(active:true,suspended:false,generation:4)
+        XCTAssertEqual(transport.commands.count,count)
+        owner.dispose();owner.dispose()
+    }
     func testWorldHoldHasOneDeadlineAndForestUsesExactAuthoredLayerGains() {
         let transport=Transport(),scheduler=Scheduler();var time=100.0
         let owner=NativeJourneyAmbientOwner(root:URL(fileURLWithPath:"/unused"),enabled:true,transport:transport,scheduler:scheduler,now:{time})
