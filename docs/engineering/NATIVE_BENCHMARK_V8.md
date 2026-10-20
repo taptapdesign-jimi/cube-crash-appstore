@@ -2,7 +2,7 @@
 
 User-requested complete current working-tree checkpoint on main, 2026-10-20.
 Repository: https://github.com/taptapdesign-jimi/cube-crash-appstore
-Immutable recovery tag: `native-benchmark-v8`. Previous Native and PWA tags remain unchanged.
+Immutable recovery tag: `native-benchmark-v8`. Payload commit: `660cca64c422649aa7f4227a8d44256d7eff44ea`. Atomic GitHub push and remote tag/main hashes verified; the later documentation receipt on main leaves this payload tag unchanged. Previous Native and PWA tags remain unchanged.
 
 ## Included state
 
