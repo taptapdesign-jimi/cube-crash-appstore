@@ -5,6 +5,8 @@ import AVFoundation
 struct NativeFishIdleFrame {
     struct Bubble {
         let id:Int,slot:Int,radius:CGFloat,color:UInt32,point:CGPoint,scale:CGPoint,alpha:CGFloat
+        var showsHighlight=true
+        var behindArtwork=false
     }
     let point:CGPoint,transform:CGAffineTransform,alpha:CGFloat,dragging:Bool,phaseStarted:Bool,visible:Bool,bubbles:[Bubble]
     let depth:CGFloat,paintOrder:Int
@@ -27,7 +29,7 @@ final class NativeFishIdlePresentation:UIView {
     private let allowHEVC:Bool
     private weak var svgResources:NativeFishSVGResourceLease?
     private var svgRequest:UUID?,svgView:NativeFishSVGFallbackView?,svgStart:Double?,mediaEpoch:UInt64=0
-    private let video=UIView(),bubbleHost=UIView(),mediaLayer=AVPlayerLayer()
+    private let video=UIView(),rearBubbleHost=UIView(),bubbleHost=UIView(),mediaLayer=AVPlayerLayer()
     private let player=AVQueuePlayer()
     private var looper:AVPlayerLooper?
     private var readiness:[NSKeyValueObservation]=[]
@@ -44,6 +46,7 @@ final class NativeFishIdlePresentation:UIView {
         super.init(frame:CGRect(origin:.zero,size:Self.logicalMediaSize))
         accessibilityIdentifier="native-fish-idle-original-hevc"
         isOpaque=false;backgroundColor = .clear;isUserInteractionEnabled=false;clipsToBounds=false
+        rearBubbleHost.frame = .zero;addSubview(rearBubbleHost)
         video.frame=bounds;video.clipsToBounds=true;video.backgroundColor = .clear;addSubview(video)
         video.layer.addSublayer(mediaLayer);mediaLayer.frame=video.bounds;mediaLayer.videoGravity = .resizeAspect
         mediaLayer.backgroundColor=UIColor.clear.cgColor;mediaLayer.player=player
@@ -90,7 +93,7 @@ final class NativeFishIdlePresentation:UIView {
         if !force,let lastPaint,now-lastPaint<minimumPaintInterval {return};lastPaint=now
         CATransaction.begin();CATransaction.setDisableActions(true)
         center=frame.point;transform=frame.transform;alpha=frame.alpha
-        bubbleHost.center=CGPoint(x:bounds.midX,y:bounds.midY)
+        bubbleHost.center=CGPoint(x:bounds.midX,y:bounds.midY);rearBubbleHost.center=bubbleHost.center
         CATransaction.commit()
         if let svgView {
             if frame.phaseStarted,svgStart==nil {svgStart=now}
@@ -120,7 +123,9 @@ final class NativeFishIdlePresentation:UIView {
         carriers.forEach {$0.isHidden=true}
         for bubble in bubbles where carriers.indices.contains(bubble.slot) {
             let carrier=carriers[bubble.slot]
-            if carrier.paint(bubble) {bubbleHost.bringSubviewToFront(carrier)}
+            let host=bubble.behindArtwork ? rearBubbleHost:bubbleHost
+            if carrier.superview !== host {host.addSubview(carrier)}
+            if carrier.paint(bubble) {host.bringSubviewToFront(carrier)}
         }
     }
     func setSuspended(_ value:Bool) {
@@ -182,6 +187,7 @@ private final class NativeFishIdleBubbleCarrier:UIView {
         func color(_ alpha:CGFloat)->CGColor {UIColor(red:CGFloat((bubble.color>>16)&255)/255,green:CGFloat((bubble.color>>8)&255)/255,blue:CGFloat(bubble.color&255)/255,alpha:alpha).cgColor}
         func circle(_ radius:CGFloat)->CGPath {CGPath(ellipseIn:CGRect(x:-radius,y:-radius,width:radius*2,height:radius*2),transform:nil)}
         CATransaction.begin();CATransaction.setDisableActions(true)
+        highlight.isHidden = !bubble.showsHighlight
         center=bubble.point;transform=CGAffineTransform(scaleX:bubble.scale.x,y:bubble.scale.y);alpha=bubble.alpha
         let newBirth=paintedID != bubble.id
         if newBirth {

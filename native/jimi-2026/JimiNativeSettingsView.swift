@@ -5,6 +5,7 @@ import UIKit
 @MainActor
 final class JimiNativeSettingsView: UIView {
     var onBack: (() -> Void)?
+    var onDeveloperClose: (() -> Void)?
     var onPreference: ((String, Bool, Int) -> Void)?
     var onPrivacy: (() -> Void)?
     var onDeveloper: ((Int) -> Void)?
@@ -74,7 +75,6 @@ final class JimiNativeSettingsView: UIView {
             case .legendary: palette = (0xD6A13D,0xA87824)
             case .reset: palette = (0x735C4C,0x5A4639)
             case .newCard: palette = (0xF35F37,0xC64A2A)
-            case .newDice, .forestUnlock: palette = (0x4FAE8A,0x34785F)
             case .clean: palette = (0xE9A03A,0xBD7627)
             default: palette = (0xE8744A,0xC95E39)
             }
@@ -214,7 +214,7 @@ final class JimiNativeSettingsView: UIView {
     }
     @objc private func goBack() {
         NativeHubBackpackFeedback.play(on:back.imageView ?? back)
-        if developerPanelVisible { setDeveloperPanelVisible(false) } else { onBack?() }
+        if developerPanelVisible { onDeveloperClose?();setDeveloperPanelVisible(false) } else { onBack?() }
     }
     @objc private func openPrivacy() { onPrivacy?() }
     @objc private func openDeveloper() { NativeHubBackpackFeedback.play(on:developer.imageView ?? developer);onDeveloper?(presentationEpoch) }
@@ -232,6 +232,7 @@ final class JimiNativeSettingsView: UIView {
 /// Native v10 centered paper modal; each transform has a separate lifecycle owner.
 @MainActor
 final class JimiNativePrivacyController: UIViewController {
+    var onCloseRequested:(()->Void)?
     private let assets: JimiV9Artwork
     let card = UIView(), flip = JimiNativeModalTransformView(), idle = UIView(), paper = UIImageView()
     let copy = UITextView(), close = JimiV9PlainButton(type: .custom), backdrop = UIButton(type: .custom)
@@ -318,7 +319,7 @@ final class JimiNativePrivacyController: UIViewController {
         idle.layer.add(float,forKey:"privacy-idle")
     }
     @objc private func closeSheet() {
-        guard !closing else{return};close.playArtworkTapFeedback();modalDrag?.cancel(preservePose:true);closing = true;view.isUserInteractionEnabled = false
+        guard !closing else{return};close.playArtworkTapFeedback();modalDrag?.cancel(preservePose:true);closing = true;view.isUserInteractionEnabled = false;onCloseRequested?()
         guard !UIAccessibility.isReduceMotionEnabled else{dismiss(animated:false);return}
         let releaseY = card.layer.presentation()?.transform.m42 ?? card.layer.transform.m42
         CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in self?.dismiss(animated:false)}
@@ -331,7 +332,7 @@ final class JimiNativePrivacyController: UIViewController {
     }
     override func viewDidDisappear(_ animated:Bool) {
         super.viewDidDisappear(animated)
-        modalDrag?.dispose();modalDrag = nil
+        modalDrag?.dispose();modalDrag = nil;onCloseRequested=nil
         for target in [card,flip,idle] {target.layer.removeAllAnimations()}
     }
 }

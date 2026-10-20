@@ -124,6 +124,12 @@ final class NativeSourceWildConstructorIntegrationTests:XCTestCase {
         }
         XCTAssertEqual(arrivals,1);XCTAssertEqual(finallys,1)
         XCTAssertTrue(engine.hasSettledSourceWildSpawnCoroutine(transactionID:plan.id,generation:plan.generation))
+        XCTAssertEqual(engine.pendingDirectWild?.id,plan.id,"Visual release still owns the pending Direct identity")
+        XCTAssertTrue(engine.hasSourceWildSpawnCoroutine(transactionID:plan.id,generation:plan.generation),"Finally ownership must remain visible to the Scene cleanup caller")
+        XCTAssertFalse(engine.canResumeSourceDirectWildCoroutine(transactionID:plan.id,generation:plan.generation),"A retained visual lease does not own another coroutine resume")
+        let settled=engine.state
+        XCTAssertFalse(engine.resumeSourceWildSpawnCoroutine(transactionID:plan.id,generation:plan.generation).accepted)
+        XCTAssertEqual(engine.state,settled);XCTAssertEqual(finallys,1)
         engine.restart(state:.init(tiles:[.init(id:"successor",cell:.init(column:0,row:0),value:3)]))
         XCTAssertFalse(engine.hasSettledSourceWildSpawnCoroutine(transactionID:plan.id,generation:plan.generation))
         XCTAssertFalse(engine.hasSourceWildSpawnCoroutine(transactionID:plan.id,generation:plan.generation))
@@ -145,6 +151,8 @@ final class NativeSourceWildConstructorIntegrationTests:XCTestCase {
         XCTAssertFalse(engine.finishWildSpawnArrival(transactionID:plan.id,generation:plan.generation,arrivalID:arrival.id,interrupted:true).accepted)
         XCTAssertEqual(scheduled,1)
         XCTAssertEqual(engine.pendingDirectWild?.id,plan.id,"Rejected primary retains captured lifecycle abort authority")
+        XCTAssertTrue(engine.hasSourceWildSpawnCoroutine(transactionID:plan.id,generation:plan.generation))
+        XCTAssertFalse(engine.canResumeSourceDirectWildCoroutine(transactionID:plan.id,generation:plan.generation),"Cancelled primary keeps abort authority without admitting queued coroutine work")
     }
     func testReentrantFinallyCannotRetireReplacementGeneration()throws {
         let engine=makeAwaitedSourceEngine()
@@ -159,6 +167,47 @@ final class NativeSourceWildConstructorIntegrationTests:XCTestCase {
         XCTAssertEqual(engine.state.generation,plan.generation+1)
         XCTAssertNil(engine.pendingDirectWild)
         XCTAssertFalse(engine.hasSettledSourceWildSpawnCoroutine(transactionID:plan.id,generation:plan.generation))
+    }
+    func testQueuedDirectPrimaryReactionRetiresAfterInterruptedArrivalInJourneyAndArcade()throws {
+        for mode in [NativeRunMode.journey,.arcade] {
+            for archetype in [NativeWildArchetype.star,.juice] {
+                let engine=NativeGameplayEngine(state:.init(tiles:[
+                    .init(id:"wild",cell:.init(column:0,row:0),value:6,archetype:archetype),
+                    .init(id:"dst",cell:.init(column:1,row:0),value:5),
+                    .init(id:"locked",cell:.init(column:0,row:1),value:0,locked:true),
+                    .init(id:"other",cell:.init(column:4,row:8),value:2)],mode:mode,board:10),recordedRandomChoices:Array(repeating:0.2,count:400))
+                engine.stagedDirectWildMoves=true;engine.stagedDirectWildAssignments=true
+                var queued:[(String,UInt64)]=[],finallys=0
+                engine.sourceWildCoroutineResume={queued.append(($0,$1));return true}
+                engine.sourceWildCoroutineFinally={_,_ in finallys+=1;return true}
+                XCTAssertTrue(engine.beginDrag(tileID:"wild"));XCTAssertTrue(engine.drop(target:.init(column:1,row:0)).accepted)
+                let plan=try XCTUnwrap(engine.pendingDirectWild)
+                XCTAssertTrue(engine.commitDirectWildGameplay(transactionID:plan.id).accepted)
+                for _ in 0..<20 where engine.pendingWildSpawnArrivals.isEmpty {
+                    if let action=engine.pendingWildSpawnActions.first {
+                        XCTAssertTrue(engine.commitWildSpawnAction(transactionID:plan.id,generation:plan.generation,actionID:action.id).accepted)
+                    } else if !queued.isEmpty {
+                        let (id,g)=queued.removeFirst()
+                        XCTAssertTrue(engine.resumeSourceWildSpawnCoroutine(transactionID:id,generation:g).accepted)
+                    }
+                }
+                let arrival=try XCTUnwrap(engine.pendingWildSpawnArrivals.first)
+                XCTAssertFalse(queued.isEmpty,"The actual primary assignment queues a coroutine reaction")
+                XCTAssertTrue(engine.canResumeSourceDirectWildCoroutine(transactionID:plan.id,generation:plan.generation))
+                XCTAssertTrue(engine.finishWildSpawnArrival(transactionID:plan.id,generation:plan.generation,arrivalID:arrival.id,interrupted:true).accepted)
+                let captured=engine.state
+                XCTAssertEqual(finallys,1);XCTAssertEqual(engine.pendingDirectWild?.id,plan.id)
+                var retired=0
+                for (id,g) in queued {
+                    if engine.canResumeSourceDirectWildCoroutine(transactionID:id,generation:g) {
+                        XCTFail("A retained abort identity admitted a retired primary reaction: \(mode)/\(archetype)")
+                    } else {retired+=1}
+                }
+                XCTAssertGreaterThan(retired,0)
+                XCTAssertTrue(engine.hasSourceWildSpawnCoroutine(transactionID:plan.id,generation:plan.generation))
+                XCTAssertEqual(engine.state,captured);XCTAssertEqual(finallys,1)
+            }
+        }
     }
     private func makeAwaitedSourceEngine()->NativeGameplayEngine {
         let engine=NativeGameplayEngine(state:.init(tiles:[

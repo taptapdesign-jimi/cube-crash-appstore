@@ -187,12 +187,12 @@ final class NativeStateTests: XCTestCase {
             XCTAssertEqual(resumed.score,run.score);XCTAssertEqual(resumed.moves,run.moves);XCTAssertEqual(resumed.wildMeter,run.wildMeter)
         }
     }
-    func testJourneyPoolsHaveNoForcedFirstDropOrHistoryOverrideOnAllThirtyBoards() throws {
+    func testJourneyLaterDropsAndNonUnlockUnitsRemainUniformWithoutHistoryOverride() throws {
         for board in 1...30 {
             let pool = NativeJourneyContent.rewardPool(board:board)
             for (index,name) in pool.enumerated() {
                 let roll = (Double(index)+0.5)/Double(pool.count)
-                for count in [0,1,2,8] {for previous in NativeWildArchetype.allCases {
+                for count in [0,1,2,8] where count > 0 || NativeJourneyContent.unlockReward(board:board) == nil {for previous in NativeWildArchetype.allCases {
                     let state = NativeBoardState(tiles:[],mode:.journey,board:board,wildSpawnCount:count,lastWildDropType:previous,wildDropTypeStreak:8)
                     let restored = try JSONDecoder().decode(NativeBoardState.self,from:JSONEncoder().encode(state))
                     let choice = NativeWildRewardPolicy.choose(state:restored,roll:roll,plainStarUnlocked:false,nextRoll:{XCTFail("Unexpected override draw");return 0})
@@ -206,6 +206,24 @@ final class NativeStateTests: XCTestCase {
         XCTAssertEqual(NativeJourneyContent.rewardPool(board:11),["wild-juice"])
         XCTAssertEqual(NativeJourneyContent.rewardPool(board:21),["robo-cube"])
         XCTAssertFalse(NativeJourneyContent.rewardPool(board:4).contains("mushroom"))
+    }
+    func testEveryJourneyCardTitleFollowsItsAuthoredArtworkAcrossRarityAndDensity() {
+        let worlds=["Forest","beach","Area55"]
+        let expected:[[(Int,String)]] = [
+            [(3,"Weee - Beee"),(1,"Star Is Out"),(9,"Final Gate"),(4,"Honey Splat"),(5,"Dreamy"),(6,"Shroomy"),(7,"Kaboom"),(8,"Break Out"),(2,"Flying Tent"),(10,"Winner")],
+            [(2,"Fresh Juice"),(1,"Fishy"),(3,"Bouncy Day"),(4,"Bottle Tips"),(6,"Castle Ruins"),(5,"Star Below"),(7,"Looky Here"),(9,"Playtime"),(8,"The Letter"),(10,"Life Saver")],
+            [(1,"Bibi - Ribi"),(4,"The Bloob"),(3,"Woombuu"),(2,"Zap - Zap"),(5,"Beam Up"),(6,"Bloob Spill"),(7,"Team Party"),(8,"Transport"),(9,"Fixer Upper"),(10,"Take Over")]
+        ]
+        for world in 0..<3 {for stage in 0..<10 {
+            let board=world*10+stage+1,(art,name)=expected[world][stage]
+            XCTAssertEqual(NativeJourneyContent.cardName(board:board),name,"board \(board)")
+            for density in [false,true] {for legendary in [false,true] {
+                let path="./assets/colelctibles/\(worlds[world])/\(legendary ? "legendary":"common")/\(String(format:"%02d",art))\(legendary ? "-gold":"")\(density ? "@2x":"").png"
+                XCTAssertEqual(NativeJourneyContent.cardAsset(board:board,score:legendary ? 10000:0,doubleDensity:density),path)
+            }}
+        }}
+        XCTAssertEqual(NativeJourneyContent.cardName(board:0),NativeJourneyContent.cardName(board:1))
+        XCTAssertEqual(NativeJourneyContent.cardName(board:31),NativeJourneyContent.cardName(board:1))
     }
     func testFirstTwoCardsSwapInEveryWorldAndDensity() {
         for (board,world,number) in [(1,"Forest","03"),(2,"Forest","01"),(11,"beach","02"),(12,"beach","01"),(21,"Area55","01"),(22,"Area55","04")] {

@@ -8,10 +8,10 @@ import StackToSixGameplay
     @MainActor private final class Fixture {
         let engine:NativeGameplayEngine,service:NativeSourceAnimationClockService,scene:SKScene,view:SKView
         let timeouts=NativeSourceAppTimeoutOwner()
-        var wall=0.0,seed:UInt32=1,acquires=0,releases=0,arrivals=0,retired=0,current=true
+        var wall=0.0,seed:UInt32=1,acquires=0,releases=0,arrivals=0,retired=0,launches=0,current=true
         var owner:NativeSourceHUDStarPresentation?
-        init(count:Int=3,sourceFrameTransportEnabled:Bool=false,combo:Int?=nil) {
-            var star=NativeTile(id:"s",cell:.init(column:0,row:0),value:6,archetype:.star);star.starOrbitCount=count
+        init(count:Int=3,sourceFrameTransportEnabled:Bool=false,combo:Int?=nil,archetype:NativeWildArchetype = .star,variant:String?=nil) {
+            var star=NativeTile(id:"s",cell:.init(column:0,row:0),value:6,archetype:archetype,variant:variant);star.starOrbitCount=count
             var state=NativeBoardState(tiles:[star,.init(id:"d",cell:.init(column:1,row:0),value:2)])
             state.combo=combo ?? 0
             engine=NativeGameplayEngine(state:state)
@@ -22,7 +22,7 @@ import StackToSixGameplay
             scene=SKScene(size:.init(width:390,height:844));view=SKView(frame:.init(x:0,y:0,width:390,height:844));view.ignoresSiblingOrder=false;view.presentScene(scene);view.isPaused=true
         }
         func mount(_ prepared:NativeSourceHUDStarTexturePreparation.Prepared)->Bool {
-            owner=NativeSourceHUDStarPresentation(stage:scene,viewportHeight:844,texture:prepared.texture,pixelSize:prepared.pixelSize,selectedAssetsReady:prepared.current,service:service,timeouts:timeouts,engine:engine,bindings:.init(current:{[weak self] in self?.current==true},random:{[unowned self] in self.seed=self.seed &* 1664525 &+ 1013904223;return Double(self.seed)/4294967296},acquireCadence:{[unowned self] in self.acquires += 1;return{self.releases += 1}},onArrival:{[unowned self] result in XCTAssertTrue(result.accepted);self.arrivals += 1},onRetired:{[unowned self] _ in self.retired += 1}))
+            owner=NativeSourceHUDStarPresentation(stage:scene,viewportHeight:844,texture:prepared.texture,pixelSize:prepared.pixelSize,selectedAssetsReady:prepared.current,service:service,timeouts:timeouts,engine:engine,bindings:.init(current:{[weak self] in self?.current==true},random:{[unowned self] in self.seed=self.seed &* 1664525 &+ 1013904223;return Double(self.seed)/4294967296},acquireCadence:{[unowned self] in self.acquires += 1;return{self.releases += 1}},onArrival:{[unowned self] result in XCTAssertTrue(result.accepted);self.arrivals += 1},onRetired:{[unowned self] _ in self.retired += 1},onTntCoinLaunch:{[unowned self] in self.launches += 1}))
             return owner?.start(receiptIDs:engine.pendingHUDStars.map(\.id),screenOrigin:.init(x:195,y:430),hudTarget:.init(x:37,y:76))==true
         }
         func deliver(_ wall:Double){self.wall=wall;service.deliver(wallMilliseconds:wall)}
@@ -35,12 +35,33 @@ import StackToSixGameplay
         await fulfillment(of:[ready],timeout:20)
         return try XCTUnwrap(receipt)
     }
+    func testAllTntFamiliesSoundOnlyOnFirstVisibleCoinFrameAndCancelSilently()async throws {
+        let textures=NativeSourceHUDStarTexturePreparation(),prepared=try await prepare(textures)
+        defer{textures.dispose()}
+        for variant in [nil,"flower","barell","laser-gun","beach-ball"] as [String?] {
+            let f=Fixture(combo:24,archetype:.tnt,variant:variant)
+            XCTAssertTrue(f.mount(prepared));XCTAssertEqual(f.launches,0)
+            for ms in stride(from:0.0,through:5000,by:10){f.deliver(ms)}
+            XCTAssertEqual(f.launches,1,"\(variant ?? "tnt") must sound once for the batch")
+            XCTAssertEqual(f.arrivals,7);f.dispose()
+            let cancelled=Fixture(combo:24,archetype:.tnt,variant:variant)
+            XCTAssertTrue(cancelled.mount(prepared));cancelled.owner?.dispose();cancelled.deliver(1000)
+            XCTAssertEqual(cancelled.launches,0);cancelled.dispose()
+        }
+        let star=Fixture(combo:24);XCTAssertTrue(star.mount(prepared));star.deliver(100)
+        XCTAssertEqual(star.launches,0);star.dispose()
+    }
+
     func testSevenComboCoinsMountArriveExactlyOnceAndDispose()async throws {
         let textures=NativeSourceHUDStarTexturePreparation(),prepared=try await prepare(textures),f=Fixture(combo:24)
         defer{f.dispose();textures.dispose()}
         let score=f.engine.state.score
         XCTAssertTrue(f.mount(prepared));XCTAssertEqual(f.owner?.mountedContainer?.children.count,7)
-        for ms in stride(from:0.0,through:8000,by:10){f.deliver(ms)}
+        for ms in stride(from:0.0,through:100,by:10){f.deliver(ms)}
+        let sprites=try XCTUnwrap(f.owner?.mountedContainer).children
+        XCTAssertEqual(sprites.filter{$0.alpha>0}.count,1,"Only the first coin launches; the rest wait invisibly at source")
+        XCTAssertEqual(sprites.filter{$0.alpha==0}.count,6)
+        for ms in stride(from:110.0,through:8000,by:10){f.deliver(ms)}
         XCTAssertEqual(f.arrivals,7);XCTAssertEqual(f.engine.state.score,score+700)
         XCTAssertTrue(f.engine.pendingHUDStars.isEmpty)
         f.owner?.dispose();XCTAssertTrue(f.engine.sourceHUDStarJobs.isEmpty)

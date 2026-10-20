@@ -8,6 +8,8 @@ import StackToSixGameplay
 final class NativeGameplayViewController: UIViewController {
     let engine: NativeGameplayEngine
     var onExit: (() -> Void)?
+    var unreadJourneyDice:()->Set<String> = {[]}
+    var onJourneyDieLanded:((String,Int,UInt64)->Void)?
     var onStateChange: ((NativeBoardState) -> Void)?
     var onTerminal: ((NativeResolution) -> Void)?
     var prepareJourneyRewardController:((NativeResolution)->NativeJourneyRewardController?)?
@@ -206,7 +208,10 @@ final class NativeGameplayViewController: UIViewController {
          renderSurfaceFactory:(()->(UIView & NativeGameplaySurfaceControl))?=nil) {
         self.engine = engine; self.resourceRoot = resourceRoot
         spriteView=renderSurfaceFactory?() ?? Self.makeRenderSurface()
-        fishIdleOwner=NativeFishIdleOwner(resourceRoot:resourceRoot)
+        // Original frame strip avoids the transparent frame at HEVC queue
+        // loop boundaries. Reuse the route lease and accepted board clock;
+        // preserve 1x motion and sample every rendered frame like the movie.
+        fishIdleOwner=NativeFishIdleOwner(resourceRoot:resourceRoot,preferOriginalSVG:true,minimumPaintInterval:0)
         paperSurface=NativeAppPaperSurface(artwork:JimiV9Artwork(resourceRoot:resourceRoot))
         super.init(nibName: nil, bundle: nil)
     }
@@ -665,6 +670,9 @@ final class NativeGameplayViewController: UIViewController {
             }
             owner.start(); return true
         }
+        scene.unreadJourneyDice = {[weak self] in self?.unreadJourneyDice() ?? []}
+        scene.onJourneyDieLanded = {[weak self] id,board,generation in self?.onJourneyDieLanded?(id,board,generation)}
+        scene.refreshBackpackAlert()
         scene.onHelpRequest = { [weak self] in
             guard let self,self.engine.state.mode != .arcade || self.engine.state.effectiveArcadeVariant != .pureDice else { return }
             self.onHelp?()
@@ -777,7 +785,10 @@ final class NativeGameplayViewController: UIViewController {
                 counters:["revision":Int(clamping:self.engine.state.revision),"moves":self.engine.state.moves,
                     "pendingHUDCoins":self.engine.pendingHUDStars.count],
                 details:["impact":scene.sourceSpecialImpactParticleRejection ?? "none",
-                    "spawnSafety":scene.sourceSpawnSafetyDiagnostic,"tnt":scene.sourceTntMainDiagnostic()]))
+                    "spawnSafety":scene.sourceSpawnSafetyDiagnostic,"tnt":scene.sourceTntMainDiagnostic(),
+                    "tntResume":scene.sourceTntSpawnResumeRejection ?? "none",
+                    "physical":scene.sourcePhysicalBoardCaptureDiagnostic,
+                    "minimum":scene.sourceMinimumCaptureDiagnostic]))
             self.finaleArtworkOwner?.dispose();self.finaleArtworkOwner=nil
             self.sourcePresentationFailureGeneration=generation
             self.sourcePresentationFailure = .init(reason:reason,generation:generation,boardState:self.engine.state)
@@ -829,7 +840,10 @@ final class NativeGameplayViewController: UIViewController {
             }
             return
         }
-        let preparedSourceSave = !hasPresentedScene && beforeSourceInitialBoardReveal != nil
+        // Only Arcade's prepared snapshot needs animation suppression before
+        // its save receipt. Journey's prior-attempt retirement is metadata-only;
+        // keep its entry running so Wild idle remains deferred until entry ends.
+        let preparedSourceSave = !hasPresentedScene && engine.state.mode == .arcade && beforeSourceInitialBoardReveal != nil
         boardScene.layout(size: spriteView.bounds.size,insets: view.safeAreaInsets,animateEntry: !hasPresentedScene && !preparedSourceSave)
         if sourceDirectPresentationEnabled,!sourceDirectHUDInstalled {
             guard installSourceDirectHUDPresentation(scene:boardScene) else {
@@ -1502,7 +1516,7 @@ final class NativeGameplayViewController: UIViewController {
         beforeSourceGameplayAdmission=nil
         guard !disposed else { return }
         incomingOriginalCoverCompletion=nil;incomingOriginalCoverGeneration=nil
-        disposed = true;nativeNoMovesUIKit?.dispose();nativeNoMovesUIKit=nil;endgameHint?.dispose();endgameHint=nil;endgameHintSourceScope=nil;firstBoardFrameWaiters.removeAll();laserResources=nil;beforeInitialBoardEntry = nil
+        disposed = true;onJourneyDieLanded=nil;unreadJourneyDice={[]};nativeNoMovesUIKit?.dispose();nativeNoMovesUIKit=nil;endgameHint?.dispose();endgameHint=nil;endgameHintSourceScope=nil;firstBoardFrameWaiters.removeAll();laserResources=nil;beforeInitialBoardEntry = nil
         sourceDirectHUDPrepared=nil
         finaleArtworkOwner?.dispose();finaleArtworkOwner=nil
         retireSourceNoMovesUIKit();sourceNoMovesBindings=nil

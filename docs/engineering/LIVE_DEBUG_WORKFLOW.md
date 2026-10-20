@@ -1,13 +1,13 @@
 # Stack to Six Live Debug Workflow
 
-This is the authoritative workflow whenever the user asks to connect to the phone, observe one or more problems, reproduce an issue, or compare a physical build with the web build.
+This is the authoritative workflow whenever the user asks to connect to the phone, observe one or more problems, reproduce an issue, or review a Native fix in the dedicated Simulator. User decision 2026-10-19 replaces the former web-first workflow: all Native checks and reviews use the dedicated Simulator, with no web approval step.
 
 ## Fixed targets
 
-- Web test server: `http://localhost:5174`.
-- Web source: `/Users/user/cube-crash`.
+- Dedicated Native Simulator: `Jimi 2026 QA iPhone 13`, UUID `1018BE2D-491B-465F-8F75-3E5BEB38C22A`.
+- Native project: `/Users/user/cube-crash/native/standalone/Stack to Six.xcodeproj`, scheme `Stack to Six`.
 - Physical device: `iPhone 13 blue`.
-- Native app: Stack to Six, bundle ID `com.taptapdesign.stacktosix.Stack-to-Six`.
+- Native app: Stack to Six, bundle ID `com.taptapdesign.stacktosix.native`.
 - Never use or modify the legacy Kockice Crash shell.
 
 ## Capture protocol
@@ -26,11 +26,11 @@ This is the authoritative workflow whenever the user asks to connect to the phon
 
 1. Diagnose from the complete capture.
 2. Implement the smallest owner-level fix with regression coverage.
-3. Make the fix visible first on `http://localhost:5174` and prove that Vite is serving the current source.
-4. Ask the user to test the natural flow on the web.
-5. Do not sync, build, or install the fix on the phone until the user explicitly says the web result is satisfactory (for example **RADI**, **ZADOVOLJAN**, or an equally clear approval).
-6. After approval, run the required deterministic and iOS gates, sync only Stack to Six `Web.bundle`, verify the final `.app` bundle ID and packaged source, and install over the existing app without uninstalling.
-7. Repeat the same physical capture. Completion requires the user to confirm the phone behavior and the trace to agree.
+3. Run the applicable deterministic and Native regression checks.
+4. Build the normal Debug scheme from the complete current working tree, verify the Native bundle ID, install over the retained dedicated Simulator app, and launch normally for user review. Preserve data; do not leave a test runner as the preview.
+5. Use this Simulator for all Native fix reviews. Do not require localhost, web approval, or a Web.bundle sync.
+6. Install on the physical phone only when authorized by the user. Verify the final Native app identity and install over the existing app without uninstalling or resetting saves. Simulator approval is not physical acceptance.
+7. When physical verification is requested, repeat the same physical capture. Physical completion requires the user to confirm phone behavior and the trace to agree.
 
 If the user explicitly asks to skip or reorder a step, follow that instruction while preserving native identity and destructive-action safeguards.
 
@@ -43,7 +43,7 @@ After a live-debug session or meaningful fix, update `CURRENT_HANDOFF.md` with a
 - local date/time for **GOTOVO**;
 - relevant trace prefix and evidence;
 - diagnosis and changed files;
-- web URL and user approval state;
+- dedicated Simulator build/install/launch evidence and user review state;
 - whether `dist`, Stack to Six `Web.bundle`, the built `.app`, or the phone changed;
 - the remaining next step and QA verdict.
 

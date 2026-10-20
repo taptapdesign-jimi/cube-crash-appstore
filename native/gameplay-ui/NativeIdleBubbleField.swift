@@ -9,6 +9,20 @@ final class NativeIdleBubbleField:SKNode {
         var color:UInt32?
     }
     private let runtime:NativeIdleBubbleMotion.Runtime?
+    private var collectionStyle=false
+    func useCollectionStyle(){
+        collectionStyle=true
+        for (slot,carrier) in carriers.enumerated() {
+            carrier.highlight.isHidden=true
+            // SpriteKit sums ancestor depth: rear carriers sit below the die
+            // artwork at0, while front carriers retain the accepted fizz depth.
+            carrier.node.zPosition=slot.isMultiple(of:2) ? -zPosition-1:0
+        }
+        paint()
+    }
+    private func collectionPose(_ pose:NativeIdleBubbleMotion.Pose,age:Double)->NativeIdleBubbleMotion.Pose {
+        collectionStyle ? NativeIdleBubbleMotion.collectionPose(pose,seconds:age):pose
+    }
     private var collectionHoney=false,collectionElapsed=0.0
     func useCollectionHoneyBubbles(){collectionHoney=true;runtime?.stopForPointer();paint()}
     private struct SourceBubble {
@@ -106,13 +120,13 @@ final class NativeIdleBubbleField:SKNode {
             return (0..<2).map {slot in
                 let duration=4.8,age=(collectionElapsed+Double(slot)*2.4).truncatingRemainder(dividingBy:duration)
                 let plan=NativeIdleBubbleMotion.Plan(family:.honey,radius:slot==0 ? 7:9,color:0xF7D58A,startX:Double(slot)*8-4,startScale:0.2,startAlpha:0.65,duration:duration,scaleX:0.8,scaleY:0.9,nextDelay:0,points:[CGPoint(x:slot==0 ? -12:14,y:4)])
-                let pose=plan.sample(seconds:age)
+                let pose=collectionPose(plan.sample(seconds:age),age:age)
                 // Original Honey bubble coordinates start at the bottom (64).
                 // Move the bounded pair to the jar mouth, then rise slowly.
                 return .init(id:slot,slot:slot,plan:plan,pose:.init(x:pose.x,y:pose.y-108,scaleX:pose.scaleX,scaleY:pose.scaleY,alpha:pose.alpha,tint:pose.tint))
             }
         }
-        if let runtime{return runtime.bubbles.map{.init(id:$0.id,slot:$0.slot,plan:$0.plan,pose:$0.plan.sample(seconds:runtime.elapsed-$0.born))}}
+        if let runtime{return runtime.bubbles.map{.init(id:$0.id,slot:$0.slot,plan:$0.plan,pose:collectionPose($0.plan.sample(seconds:runtime.elapsed-$0.born),age:runtime.elapsed-$0.born))}}
         return sourceBubbles.map{.init(id:$0.id,slot:$0.slot,plan:$0.plan,pose:$0.pose)}
     }
     private func paint() {
@@ -150,7 +164,7 @@ final class NativeIdleBubbleField:SKNode {
         guard !disposed else {return []}
         return paintedBubbles.map {bubble in
             let pose=bubble.pose
-            return NativeFishIdleFrame.Bubble(id:bubble.id,slot:bubble.slot,radius:bubble.plan.radius,color:bubble.plan.color,point:CGPoint(x:pose.x,y:pose.y),scale:CGPoint(x:pose.scaleX,y:pose.scaleY),alpha:pose.alpha)
+            return NativeFishIdleFrame.Bubble(id:bubble.id,slot:bubble.slot,radius:bubble.plan.radius,color:bubble.plan.color,point:CGPoint(x:pose.x,y:pose.y),scale:CGPoint(x:pose.scaleX,y:pose.scaleY),alpha:pose.alpha,showsHighlight:!collectionStyle,behindArtwork:collectionStyle && bubble.slot.isMultiple(of:2))
         }
     }
     var activeCount:Int {disposed ? 0:collectionHoney ? 2:runtime?.bubbles.count ?? sourceBubbles.count}

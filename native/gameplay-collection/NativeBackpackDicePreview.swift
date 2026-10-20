@@ -127,6 +127,7 @@ import StackToSixGameplay
     }
     private func finishPreparation(_ node:NativeDiceNode){
         guard !disposed,preparationForeground,dieNode === node else{return}
+        node.configureCollectionBubbles()
         node.setSourceIdleDeferred(false)
         if identity.id=="honey" {node.configureCollectionHoney()}
         if identity.id=="fish" {node.prepareFishMediaPhase()}

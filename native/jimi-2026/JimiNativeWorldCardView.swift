@@ -348,7 +348,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         animation.timingFunction = CAMediaTimingFunction(controlPoints:0.22,1,0.36,1)
         CATransaction.begin();CATransaction.setDisableActions(true);carrier.layer.transform = final;carrier.layer.add(animation,forKey:"card.face.tilt");CATransaction.commit()
     }
-    @objc private func requestClose() {guard active,!disposed,!closing else{return};closeButton.playArtworkTapFeedback();onRequest?("close")}
+    @objc private func requestClose() {guard active,!disposed,!closing else{return};closeButton.playArtworkTapFeedback();onFeedback?("back");onRequest?("close")}
     private func setDrag(_ y:CGFloat) {CATransaction.begin();CATransaction.setDisableActions(true);dragShell.layer.transform = CATransform3DMakeTranslation(0,y,0);CATransaction.commit()}
     private func settleDrag() {
         let from = dragShell.layer.presentation()?.transform ?? dragShell.layer.transform
@@ -373,7 +373,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
             }
         case .ended,.cancelled:
             let delta = pan.translation(in:self)
-            if dragAxis == "vertical",pan.state == .ended,abs(delta.y)>max(88,min(140,base.height*0.22)) {onRequest?("close")}
+            if dragAxis == "vertical",pan.state == .ended,abs(delta.y)>max(88,min(140,base.height*0.22)) {onFeedback?("back");onRequest?("close")}
             else if dragAxis == "horizontal",pan.state == .ended,abs(delta.x)>=bounds.width*0.1 {let current = (rotor.value(forKeyPath:"transform.rotation.y") as? NSNumber)?.doubleValue ?? dragStartAngle;frontDrag = false;interactiveFlip(from:current)}
             else {frontDrag = false;rotate(from:(rotor.value(forKeyPath:"transform.rotation.y") as? NSNumber)?.doubleValue ?? angle,to:angle,duration:0.18);settleDrag();effects?.present(frontFacing:!isBackFacing)}
         default:break
@@ -441,7 +441,7 @@ enum JimiNativeWorldRibbon {
     static func make(image:UIImage?,assets:JimiV9Artwork,cardSize:CGSize,scale:CGFloat,portal:Bool,compact:Bool = true)->UIImageView {
         let ribbon = JimiNativeNewRibbonView(image:image);ribbon.layer.opacity=0;ribbon.contentMode = .scaleAspectFit
         ribbon.accessibilityIdentifier = "native.world.ribbon";ribbon.isUserInteractionEnabled = false
-        if portal {ribbon.layer.shadowColor = UIColor(red:226/255,green:119/255,blue:74/255,alpha:1).cgColor;ribbon.layer.shadowOpacity = 1;ribbon.layer.shadowOffset = CGSize(width:0,height:5);ribbon.layer.shadowRadius = 2.85}
+        if portal {ribbon.layer.shadowColor = UIColor(red:226/255,green:119/255,blue:74/255,alpha:1).cgColor;ribbon.layer.shadowOpacity = 0.2;ribbon.layer.shadowOffset = CGSize(width:0,height:5);ribbon.layer.shadowRadius = 2.85}
         let label = UILabel();label.tag = 991;label.textAlignment = .center;ribbon.addSubview(label)
         let fontSize = cardSize.width*(portal ? 0.083 : 0.13)
         let shadow = NSShadow();shadow.shadowOffset = CGSize(width:0,height:0.6*scale);shadow.shadowBlurRadius = scale;shadow.shadowColor = UIColor(red:146/255,green:73/255,blue:58/255,alpha:0.2)

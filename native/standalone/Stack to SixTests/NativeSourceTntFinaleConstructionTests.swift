@@ -2,6 +2,7 @@ import XCTest
 import SpriteKit
 import UIKit
 import StackToSixGameplay
+import StackToSixNativeState
 @testable import Stack_to_Six
 
 @MainActor final class NativeSourceTntFinaleConstructionTests:XCTestCase {
@@ -75,6 +76,163 @@ import StackToSixGameplay
 }
 
 @MainActor final class NativeFlowerReplacementInteractionTests:XCTestCase {
+ func testActualJourneyFlowerOnLastMoveDoesNotRejectSpawnResume()async throws {
+  try await runLastMoveFlower(reversed:false,locked:true)
+ }
+ func testActualJourneyFlowerDestinationOnLastMoveDoesNotRejectSpawnResume()async throws {
+  try await runLastMoveFlower(reversed:true,locked:true)
+ }
+ func testActualJourneyFlowerWithoutLockedTilesOnLastMoveDoesNotRejectSpawnResume()async throws {
+  try await runLastMoveFlower(reversed:false,locked:false)
+ }
+ func testActualJourneyFlowerDestinationWithoutLockedTilesOnLastMoveDoesNotRejectSpawnResume()async throws {
+  try await runLastMoveFlower(reversed:true,locked:false)
+ }
+ func testActualSettledFlowerDuplicateResumeDoesNotRetireGameplay()async throws {
+  try await runLastMoveFlower(reversed:false,locked:true,moves:4,duplicateResume:true)
+ }
+ func testActualSettledStarAndJuiceDuplicateResumeDoesNotRetireGameplay()async throws {
+  for archetype in [NativeWildArchetype.star,.juice] {
+   try await runLastMoveFlower(reversed:false,locked:true,moves:4,duplicateResume:true,archetype:archetype)
+  }
+ }
+ func testPhoneShapedLockedHeavyFlowerLastMoveAcrossDirectionsAndRandomBranches()async throws {
+  for random in [0.2,0.8,0.99] {
+   for reversed in [false,true] {try await runLastMoveFlower(reversed:reversed,locked:true,phoneShape:true,random:random)}
+  }
+ }
+ func testPhoneShapedFourMovesEarnFlowerThenUseItOnLastMove()async throws {
+  try await runLastMoveFlower(reversed:false,locked:true,moves:4,phoneShape:true,random:0.8,earnFlower:true)
+ }
+ func testPhoneShapedRapidEarnedFlowerOverlapSettlesWithoutRecovery()async throws {
+  try await runLastMoveFlower(reversed:false,locked:true,moves:4,phoneShape:true,random:0.8,earnFlower:true,waitForDebit:false)
+ }
+ private func runLastMoveFlower(reversed:Bool,locked:Bool,moves:Int=1,duplicateResume:Bool=false,phoneShape:Bool=false,random:Double=0.2,earnFlower:Bool=false,archetype:NativeWildArchetype = .tnt,waitForDebit:Bool=true)async throws {
+  let directory=FileManager.default.temporaryDirectory.appendingPathComponent("flower-last-move-"+UUID().uuidString)
+  let store=NativeSaveStore(directory:directory)
+  var envelope=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
+  envelope.progression.firstPlayTutorialComplete=true
+  envelope.progression.completedJourneyBoards=[1,2]
+  var tiles:[NativeTile]=[
+   .init(id:"flower",cell:.init(column:0,row:0),value:6,archetype:archetype,variant:archetype == .tnt ? "flower":nil),
+   .init(id:"destination",cell:.init(column:1,row:0),value:2),
+   .init(id:"other",cell:.init(column:4,row:8),value:3)]
+  if locked {tiles.append(.init(id:"locked",cell:.init(column:0,row:1),value:0,locked:true))}
+  if phoneShape {
+   // Shape/value distribution from the read-only pre-incident board3 save;
+   // this is a constructed last-move case, not the missing revision51 state.
+   tiles=[.init(id:"flower",cell:.init(column:0,row:8),value:6,archetype:.tnt,variant:"flower"),
+          .init(id:"destination",cell:.init(column:0,row:5),value:2),
+          .init(id:"active-one-a",cell:.init(column:2,row:2),value:1),
+          .init(id:"active-three",cell:.init(column:1,row:4),value:3),
+          .init(id:"active-one-b",cell:.init(column:0,row:7),value:1),
+          .init(id:"active-two",cell:.init(column:3,row:2),value:2)]
+   for (index,cell) in [(0,0),(2,3),(1,7),(2,6),(1,2),(2,4),(3,0),(4,2)].enumerated() {
+    tiles.append(.init(id:"locked-\(index)",cell:.init(column:cell.0,row:cell.1),value:0,locked:true,alpha:0.2))
+   }
+  }
+  if earnFlower {tiles[0] = .init(id:"flower",cell:.init(column:0,row:8),value:4)}
+  envelope.journeyRuns[3] = .init(tiles:tiles,mode:.journey,board:3,generation:2,moves:moves)
+  if earnFlower {
+   envelope.journeyRuns[3]?.revision=47
+   envelope.journeyRuns[3]?.wildMeter=0.8640000000000002
+   envelope.journeyRuns[3]?.wildSpawnCount=5
+   envelope.journeyRuns[3]?.combo=26
+   envelope.journeyRuns[3]?.longestCombo=26
+  }
+  envelope.journeyRunSavedAt[3]=Date().timeIntervalSince1970
+  try store.save(envelope)
+  let host=NativeStandaloneViewController(resourceRoot:NativeTestResources.root,store:store,sourceVisualRandom:{random},completeNativeGameplayEnabled:true)
+  let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+  let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=host;window.makeKeyAndVisible()
+  defer {host.dispose();window.isHidden=true;window.rootViewController=nil;previous?.makeKeyAndVisible();try? FileManager.default.removeItem(at:directory)}
+  func wait(_ label:String,_ predicate:@escaping @MainActor()->Bool)async {
+   let deadline=Date().addingTimeInterval(20)
+   while !predicate(),Date()<deadline {try? await Task.sleep(for:.milliseconds(20))}
+   XCTAssertTrue(predicate(),label)
+  }
+  host.loadViewIfNeeded();let app=try XCTUnwrap(host.children.first as? NativeAppController)
+  await wait("Home ready"){!app.home.isHidden}
+  app.navigate(.world(1),interrupt:true)
+  await wait("Journey route ready") {
+   if app.children.contains(where:{$0 is NativeGameplayViewController}) {return true}
+   app.world?.onRequest?("continue",3);return false
+  }
+  let game=try XCTUnwrap(app.children.compactMap{$0 as? NativeGameplayViewController}.first)
+  await wait("Board ready"){game.boardScene?.isBoardEntryComplete==true && !game.engine.hasUnsavableSourceGameplayState && game.beforeSourceGameplayAdmission==nil}
+  let scene=try XCTUnwrap(game.boardScene)
+  var directDuplicateEnqueued=false,directLeaseAtSettlement=false
+  if duplicateResume,archetype != .tnt {
+   let finally=try XCTUnwrap(game.engine.sourceWildCoroutineFinally)
+   let resume=try XCTUnwrap(game.engine.sourceWildCoroutineResume)
+   game.engine.sourceWildCoroutineFinally={[weak game] id,generation in
+    guard let game else{return false}
+    let accepted=finally(id,generation)
+    if accepted {
+     directLeaseAtSettlement=game.engine.pendingDirectWild?.id==id
+     directDuplicateEnqueued=resume(id,generation)
+    }
+    return accepted
+   }
+  }
+  var flowerID="flower",targetID="destination"
+  func drag(_ a:String,_ b:String)async throws {
+   let source=try XCTUnwrap(scene.sourceNativeTileNode(a)),destination=try XCTUnwrap(scene.sourceNativeTileNode(b))
+   let from=scene.convert(source.position,from:try XCTUnwrap(source.parent)),to=scene.convert(destination.position,from:try XCTUnwrap(destination.parent))
+   XCTAssertTrue(scene.beginDrag(at:from));scene.moveDrag(to:to,now:CACurrentMediaTime())
+   try await Task.sleep(for:.milliseconds(160))
+   XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:to,now:CACurrentMediaTime())).accepted)
+  }
+  if earnFlower {
+   try await drag("flower","active-two")
+   await wait("First merge-six committed"){game.engine.state.moves==3}
+   try await drag("active-one-a","active-three")
+   await wait("First following stack committed"){game.engine.state.tiles.first{$0.id=="active-three"}?.value==4 && (!waitForDebit || game.engine.state.moves==2)}
+   await wait("Earned Flower landed") {
+    game.sourcePresentationFailure != nil || (game.engine.state.tiles.contains{$0.variant=="flower" && $0.isPlayable} && !game.engine.sourceMeterHandoffInProgress && !game.engine.sourceMeterSpawnInProgress)
+   }
+   flowerID=try XCTUnwrap(game.engine.state.tiles.first{$0.variant=="flower"}).id
+   try await drag("active-one-b","active-three")
+   await wait("Second following stack committed"){game.engine.state.tiles.first{$0.id=="active-three"}?.value==5 && (!waitForDebit || game.engine.state.moves==1)}
+   targetID="active-three"
+  }
+  let source=try XCTUnwrap(scene.sourceNativeTileNode(reversed ? targetID:flowerID)),destination=try XCTUnwrap(scene.sourceNativeTileNode(reversed ? flowerID:targetID))
+  let from=scene.convert(source.position,from:try XCTUnwrap(source.parent)),to=scene.convert(destination.position,from:try XCTUnwrap(destination.parent))
+  XCTAssertTrue(scene.beginDrag(at:from));scene.moveDrag(to:to,now:CACurrentMediaTime())
+  try await Task.sleep(for:.milliseconds(160))
+  XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:to,now:CACurrentMediaTime())).accepted)
+  let transactionID=try XCTUnwrap(game.engine.pendingSpecial?.id ?? game.engine.pendingDirectWild?.id)
+  let transactionGeneration=game.engine.state.generation
+  await wait("Last-move transaction settles or reports exact rejection") {
+   game.sourcePresentationFailure != nil || (game.engine.pendingSpecial==nil && game.engine.pendingDirectWild==nil && (!waitForDebit || game.engine.state.moves==(earnFlower ? 0:moves-1)) && !game.engine.hasUnsavableSourceGameplayState)
+  }
+  try await Task.sleep(for:.milliseconds(250))
+  if waitForDebit {XCTAssertEqual(game.engine.state.moves,earnFlower ? 0:moves-1)}
+  else {XCTAssertTrue((0...1).contains(game.engine.state.moves),"Rapid source predebit return can skip one debit; it cannot leak a transaction")}
+  XCTAssertNil(game.engine.pendingSpecial)
+  XCTAssertFalse(game.engine.hasUnsavableSourceGameplayState)
+  XCTAssertNil(game.sourcePresentationFailure,"Last-move Flower: \(String(describing:game.sourcePresentationFailure)); resume=\(String(describing:scene.sourceTntSpawnResumeRejection)); \(scene.sourceTntMainDiagnostic())")
+  if duplicateResume {
+   XCTAssertTrue(archetype == .tnt ? game.engine.hasSettledSourceTntSpawnCoroutine(transactionID:transactionID,generation:transactionGeneration):game.engine.hasSettledSourceWildSpawnCoroutine(transactionID:transactionID,generation:transactionGeneration))
+   if archetype != .tnt {
+    XCTAssertTrue(directLeaseAtSettlement,"Actual finally retains the direct visual lease")
+    XCTAssertTrue(directDuplicateEnqueued,"Late resume queued inside genuine finally task")
+    XCTAssertNil(game.sourcePresentationFailure)
+    return
+   }
+   let before=game.engine.state
+   let resume=try XCTUnwrap(archetype == .tnt ? game.engine.sourceTntCoroutineResume:game.engine.sourceWildCoroutineResume)
+   let tasks=try XCTUnwrap(game.sourceScope?.sourceMicrotaskTasks)
+   XCTAssertTrue(tasks.inputTask {XCTAssertTrue(resume(transactionID,transactionGeneration))})
+   XCTAssertEqual(game.engine.state,before,"Queued duplicate drains at the input checkpoint without mutation")
+   try await Task.sleep(for:.milliseconds(250))
+   XCTAssertNil(game.sourcePresentationFailure,"Settled duplicate callback must not show Replay Board")
+   XCTAssertEqual(game.engine.state.moves,before.moves)
+   XCTAssertEqual(game.engine.state.revision,before.revision)
+   XCTAssertEqual(game.engine.state.generation,before.generation)
+   XCTAssertTrue(game.boardScene === scene)
+  }
+ }
  func testControllerModalPauseRetainsFlowerClearedSixThroughBothWallSafetyDeadlines()async throws {
   try await runFlower(reversed:true,mergeSix:false,sweepRace:"flower",controllerModalPause:true)
  }

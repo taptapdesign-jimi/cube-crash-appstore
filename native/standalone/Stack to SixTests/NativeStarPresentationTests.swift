@@ -4560,6 +4560,37 @@ final class NativeStarPresentationTests: XCTestCase {
         struct Frame:Decodable {let draws:Int,bubbles:[Bubble]}
         let family:String,seed:UInt32,frames:[Frame]
     }
+    func testDeferredDynamicSkinCompletionReadsLiveAnchorAfterEntryOrLandingRelease()async throws {
+        for (core,variant) in [(NativeWildArchetype.magnet,"bottle"),(.star,"kanta")] {
+            let f=try SourceWildSkinFixture(root:root,archetype:core,variant:variant)
+            defer{f.dispose()}
+            // Keep the actual asynchronous texture transport live, but prevent
+            // unrelated Raw SKView ticks from changing Bottle's pivot afterwards.
+            f.view.isPaused=true
+            var failures:[String]=[],idleStarts=0
+            f.scene.onSourcePresentationFailure={reason,_ in failures.append(reason)}
+            let ready=expectation(description:"deferred \(variant) skin finishes after release")
+            var delivered=false
+            f.node.onResourceReady={if f.node.sourceWildSkinReceiptCurrent,!delivered {delivered=true;ready.fulfill()}}
+            XCTAssertTrue(f.node.sourceIdleDeferred)
+            XCTAssertTrue(f.scene.repairSourceWildSkin(tileID:"skin",scope:f.scope,startSourceIdle:{idleStarts+=1;return true}))
+            XCTAssertFalse(delivered,"The real texture upload is still pending")
+            f.node.setSourceIdleDeferred(false)
+            let texture=try XCTUnwrap(f.node.sourcePaintedNumbersTexture)
+            let artwork=try XCTUnwrap(f.node.sourceStarOrbitHost.children.compactMap{$0 as? SKSpriteNode}.first{$0.texture === texture})
+            XCTAssertEqual(artwork.anchorPoint,CGPoint(x:f.node.sourceBaseAnchorX,y:1-f.node.sourceBaseAnchorY))
+            artwork.anchorPoint=CGPoint(x:0.43,y:0.19)
+            XCTAssertEqual(f.node.sourceBaseAnchorX,Double(artwork.anchorPoint.x),accuracy:1e-6)
+            XCTAssertEqual(1-f.node.sourceBaseAnchorY,Double(artwork.anchorPoint.y),accuracy:1e-6)
+            let currentAnchor=artwork.anchorPoint,state=f.scene.engine.state
+            await fulfillment(of:[ready],timeout:5)
+            XCTAssertTrue(failures.isEmpty,"A deferred request remains valid after its idle handoff: \(failures)")
+            XCTAssertEqual(artwork.anchorPoint,currentAnchor,"Async paint reads the actual live anchor, not the authored/request-time default")
+            XCTAssertEqual(idleStarts,0,"Late skin receipt must not replay the idle prefix")
+            XCTAssertEqual(f.scene.engine.state,state)
+            XCTAssertTrue(f.node.sourceWildSkinReceiptCurrent)
+        }
+    }
     func testSpawnSafetySkinPaintBorrowsCurrentReceiptWithoutRestartingIdleOrDrawingRandom()async throws {
         for (archetype,variant) in NativeSpecialDiceRegistry.variants.values.sorted(by:{$0.id<$1.id}).map({($0.archetype,$0.id)}) {
             var draws=0

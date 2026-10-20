@@ -49,7 +49,6 @@ final class NativeBootstrap {
     private var attemptCommitted = false
     private var interimJourney=false
     private var committedScore:Int?
-    private var specialUnlock:NativeSpecialDiceUnlockController?
     private var boardEntryHaptics:NativeBoardEntryHaptics?
     private lazy var haptics=NativeHapticRuntime(enabled:{[weak self] in self?.disposed==false && self?.envelope.settings.hapticsEnabled==true})
     var hapticOutputObserver:((NativeHapticRuntime.Output)->Void)? {get {haptics.onOutput} set {haptics.onOutput=newValue}}
@@ -161,6 +160,7 @@ final class NativeBootstrap {
             guard let self else{throw CancellationError()}
             self.cancelGameplayEntryPreparation();self.envelope.activeArcadeVariant=variant
         }
+        services.readJourneyDie = {[weak self] id in self?.readJourneyDie(id) ?? false}
         services.journeyProgression = { [weak self] in self?.envelope.progression ?? NativeProgressionState() }
         services.developerAction = { [weak self] action, presenter in
             try self?.openDeveloperAction(action, presenter: presenter)
@@ -198,6 +198,7 @@ final class NativeBootstrap {
         soundtrack?.onError = { [weak self] detail in self?.showError(detail) }
         soundtrack?.apply(enabled: envelope.settings.musicEnabled)
         arcadeMusic?.apply(enabled:envelope.settings.musicEnabled)
+        controller.onShipVisibility = {[weak self] visible in self?.ambient?.setSpaceshipVisible(visible)}
         controller.onRoute = { [weak self] route in
             guard let self else { return }
             self.routeLease &+= 1
@@ -394,6 +395,7 @@ final class NativeBootstrap {
         }, sourceMathRandom:sourceLogicalMathRandomEnabled && (!sourceTutorialEarnedMeterEnabled || needsTutorial ||
             (sourceConstruction != nil && (sourceFreshOrdinaryPresentationEnabled || sourceRestoredOrdinaryPresentationEnabled))) ? sourceContext.mathRandom:nil)
         engine.comboHUDCoinRewardsEnabled=true
+        engine.comboWindowExtension=1.5
         if needsTutorial,engine.state.tutorial == nil {
             if sourceTutorialActivationEnabled {
                 guard sourceConstruction != nil else{throw NativeSaveError.invalidState(["source-tutorial-constructor-unavailable"])}
@@ -491,6 +493,29 @@ final class NativeBootstrap {
                     self.saveSourcePreparedArcadeEntry(gameplay:gameplay):self.savePreparedSourceArcadeEntry(gameplay)
             }
         }
+        if freshOrdinarySource,mode == .journey {
+            let generation=initial.generation
+            gameplay.beforeSourceInitialBoardReveal = { [weak self,weak gameplay] in
+                guard let self,let gameplay,!self.disposed,self.gameplay === gameplay,
+                      gameplay.engine.state.generation==generation,gameplay.sourceScope?.current==true,
+                      gameplay.sourceInitialConstruction?.isCurrent==true,
+                      !NativeSaveEnvelope.hasRecordedMove(gameplay.engine.state),
+                      NativeSaveEnvelope.isCoherentRun(gameplay.engine.state) else{
+                    #if DEBUG
+                    if let gameplay {print("[JourneyFreshReveal] rejected generation=\(gameplay.engine.state.generation) expected=\(generation) scope=\(gameplay.sourceScope?.current==true) construction=\(gameplay.sourceInitialConstruction?.isCurrent==true) moved=\(NativeSaveEnvelope.hasRecordedMove(gameplay.engine.state)) coherent=\(NativeSaveEnvelope.isCoherentRun(gameplay.engine.state)) entry=\(gameplay.sourceEntryDiagnostic())")}
+                    #endif
+                    return false
+                }
+                // Fresh entry retires the previous attempt only when this exact
+                // board is ready to reveal. Canonical move-save producers remain
+                // responsible for the new run after its first committed move.
+                let previous=self.envelope
+                self.envelope.journeyRuns.removeValue(forKey:number)
+                self.envelope.journeyRunSavedAt.removeValue(forKey:number)
+                do {try self.flush();return true}
+                catch {self.envelope=previous;self.showError(error.localizedDescription);return false}
+            }
+        }
         if sourceTutorialEarnedMeterEnabled,gameplay.sourceTutorialActivationEnabled {
             gameplay.beforeInitialBoardEntry = { [weak self,weak gameplay] release in
                 guard let self,let gameplay else{return}
@@ -545,6 +570,17 @@ final class NativeBootstrap {
         haptics.cancelSequences();failHapticGeneration=nil;ordinarySixHapticContact=nil;specialHapticTargetCounts.removeAll()
         lastReturnBoard = mode == .journey ? number : nil
         if !resumed || consumedPending { envelope.progression.beginAttempt(mode: mode, board: number,arcadeVariant:envelope.activeArcadeVariant) }
+        gameplay.unreadJourneyDice = {[weak self] in self?.envelope.progression.unreadJourneyDice ?? []}
+        gameplay.onJourneyDieLanded = {[weak self,weak gameplay] id,board,generation in
+            guard let self,let gameplay,self.gameplay === gameplay,!self.disposed,
+                  gameplay.engine.state.mode == .journey,gameplay.engine.state.board==board,
+                  gameplay.engine.state.generation==generation else{return}
+            let previous=self.envelope
+            guard self.envelope.progression.announceJourneyDie(id,board:board) else{return}
+            self.envelope.savedAt=Date().timeIntervalSince1970
+            do {try self.store.save(self.envelope)}catch{self.envelope=previous;self.showError(error.localizedDescription)}
+            gameplay.boardScene?.refreshBackpackAlert()
+        }
         gameplay.onStateChange = { [weak self] state in self?.record(state);self?.tutorialOwner?.refresh(state) }
         gameplay.onSourceGuidedSnapBack={ [weak self] node in self?.tutorialOwner?.sourceSnapBackCompleted(node) }
         gameplay.onGameplayEvent = { [weak self] event in self?.tutorialOwner?.gameplayEvent(event) }
@@ -601,6 +637,7 @@ final class NativeBootstrap {
             exit: { [weak self] in self?.finishGameplayExit() })
         endRun?.onFeedback = { [weak self] kind in self?.routeFeedback(kind,haptic:kind == "cta" ? "selection":"light") }
         scoreOwner=NativeScoreOwner(gameplay:gameplay,root:root,progression:{[weak self] in self?.envelope.progression ?? NativeProgressionState()})
+        scoreOwner?.onReadDie = {[weak self] id in self?.readJourneyDie(id) ?? false}
         scoreOwner?.onFeedback = { [weak self] kind in self?.routeFeedback(kind) }
         installTutorial(gameplay)
         record(engine.state); try flush()
@@ -965,6 +1002,14 @@ final class NativeBootstrap {
         }
         catch {envelope=previous;showError(error.localizedDescription);return false}
     }
+    private func readJourneyDie(_ id:String)->Bool {
+        guard !disposed else{return false}
+        guard envelope.progression.unreadJourneyDice.contains(id) else{return true}
+        let previous=envelope
+        envelope.progression.readJourneyDie(id);envelope.savedAt=Date().timeIntervalSince1970
+        do {try store.save(envelope);gameplay?.boardScene?.refreshBackpackAlert();return true}
+        catch {envelope=previous;showError(error.localizedDescription);return false}
+    }
     private func record(_ state: NativeBoardState) {
         guard gameplay?.sourcePresentationFailureGeneration != state.generation else{return}
         // Installed Source producers own gameplay snapshot writes. Settings and
@@ -1088,6 +1133,7 @@ final class NativeBootstrap {
                 }
             }
         }
+        ambient?.beginJourneyTransition(board:board,generation:routeLease)
         gameplay.addChild(carrier);carrier.view.frame=gameplay.view.bounds;carrier.view.autoresizingMask=[.flexibleWidth,.flexibleHeight]
         gameplay.view.addSubview(carrier.view);carrier.didMove(toParent:gameplay);carrier.start()
     }
@@ -1306,10 +1352,6 @@ final class NativeBootstrap {
         }
         resultOwner?.onError = { [weak self] error in self?.showError(error.localizedDescription) }
         resultOwner?.onHaptic = { [weak self] style in self?.impactFeedback(style) }
-        if interimJourney,gameplay.engine.state.mode == .journey,gameplay.engine.state.board==2,
-            !envelope.progression.unlockedSpecialDice.contains("flower") {
-            resultOwner?.afterReward = { [weak self] next in self?.presentFlowerUnlock(next:next) }
-        }
         if gameplay.engine.state.mode == .arcade {arcadeMusic?.setResultMix(generation:gameplay.engine.state.generation)}
         resultOwner?.present()
     }
@@ -1320,6 +1362,11 @@ final class NativeBootstrap {
         var next = envelope
         next.progression.finishAttempt(mode: state.mode, board: state.board, score: score,
             longestCombo: state.longestCombo, cubesCracked: state.cubesCracked, clean: clean,arcadeVariant:state.effectiveArcadeVariant)
+        // The existing Flower grant commits with the completed board, independently
+        // of card presentation or acknowledgement.
+        if clean,interimJourney,state.mode == .journey,state.board == 2 {
+            next.progression.unlockedSpecialDice.insert("flower")
+        }
         if state.mode == .journey { next.journeyRuns.removeValue(forKey: state.board); next.journeyRunSavedAt.removeValue(forKey: state.board) }
         else {
             next.arcadeRun = nil; next.arcadeRunSavedAt = nil
@@ -1336,7 +1383,7 @@ final class NativeBootstrap {
         controller.addChild(sheet);sheet.view.frame=controller.view.bounds;sheet.view.autoresizingMask=[.flexibleWidth,.flexibleHeight]
         controller.view.addSubview(sheet.view);sheet.didMove(toParent:controller)
         sheet.onMoment = { [weak self] kind,_ in
-            if kind == "tutorial-complete-selection" {self?.selectionFeedback()}
+            if kind == "tutorial-complete-selection" {self?.routeFeedback("cta",includesHaptic:false);self?.selectionFeedback()}
             else {self?.impactFeedback(kind.hasSuffix("medium") ? "medium" : "light")}
         }
         sheet.onContinue = { [weak self,weak sheet] in
@@ -1371,24 +1418,6 @@ final class NativeBootstrap {
                 }
             }
         }
-    }
-    private func presentFlowerUnlock(next:@escaping ()->Void) {
-        guard !disposed,let gameplay,gameplay.presentedViewController==nil else{return}
-        let generation=gameplay.engine.state.generation
-        let sheet=NativeSpecialDiceUnlockController(root:root,diceType:.flower,generation:generation)
-        specialUnlock=sheet
-        sheet.onUnlock = { [weak self] kind in
-            guard let self,!self.disposed,self.gameplay?.engine.state.generation==generation else{throw CancellationError()}
-            var value=self.envelope;value.progression.unlockedSpecialDice.insert(kind);value.savedAt=Date().timeIntervalSince1970
-            try self.store.save(value);self.envelope=value
-        }
-        sheet.onHaptic = { [weak self] kind in self?.impactFeedback(kind) }
-        sheet.onFeedback = { [weak self] kind in self?.routeFeedback(kind,includesHaptic:false) }
-        sheet.onFinish = { [weak self,weak sheet] action in
-            guard let self,let sheet,!self.disposed,self.specialUnlock === sheet,self.gameplay?.engine.state.generation==generation else{return}
-            self.specialUnlock=nil;sheet.dismiss(animated:false) {if action == .continue {next()}}
-        }
-        gameplay.present(sheet,animated:false)
     }
     private func continueArcade() {
         guard let gameplay, let pending = envelope.pendingArcadeRound else { return }
@@ -1464,6 +1493,7 @@ final class NativeBootstrap {
                 guard self.controller?.canReplaceGameplay(captured)==true,captured.sourceScope?.current==true,
                     captured.sourceInitialConstruction != nil else{sheet.buttons[0].isEnabled=false;sheet.actionRejected();return}
             }
+            self.routeFeedback(action == "restart" ? "cta":"back")
             sheet.onClosed={ [weak self,weak captured,weak sheet] in
                 guard let self,let captured,let sheet,!self.disposed,self.gameplay === captured,
                     captured.engine.state.generation==generation,self.sourceFailureModalEpoch==epoch,
@@ -1498,7 +1528,6 @@ final class NativeBootstrap {
         cancelGameplayEntryPreparation()
         retireSourceTutorialMeterRequest()
         endRun?.dispose();endRun=nil;scoreOwner?.dispose();scoreOwner=nil;tutorialOwner?.dispose();tutorialOwner=nil;resultOwner?.dispose();resultOwner=nil
-        specialUnlock?.dispose();specialUnlock?.dismiss(animated:false);specialUnlock=nil
         boardEntryHaptics?.dispose();boardEntryHaptics=nil
         tutorialComplete?.dispose();tutorialComplete?.view.removeFromSuperview();tutorialComplete?.removeFromParent();tutorialComplete=nil
         arcadeEntryCue?.dispose();arcadeEntryCue=nil
@@ -1522,7 +1551,7 @@ final class NativeBootstrap {
     }
     private func resultMoment(_ kind:String,index:Int,duration:Double?) {
         audioReceipt &+= 1
-        if kind == "cta" {
+        if kind == "cta" || kind == "back" {
             audio?.routeFeedback(kind,receipt:audioReceipt,generation:audio?.generation ?? 1);return
         }
         if ["clean-star","clean-hero","clean-cta"].contains(kind) {impactFeedback("medium")}
@@ -1604,12 +1633,6 @@ final class NativeBootstrap {
             presenter.present(picker,animated: false)
         case .newCard:
             presentDeveloperReward(board: board,score: envelope.progression.boardStats[board]?.highScore ?? 0,presenter: presenter)
-        case .newDice, .forestUnlock:
-            let preview = NativeSpecialDiceUnlockController(root: root,diceType: action == .forestUnlock ? .flower : .juice,generation: UInt64(epoch))
-            preview.onUnlock = { _ in } // A preview never grants a real unlock.
-            let host = NativeDeveloperPreviewHost(preview: preview,release: { [weak preview] in preview?.dispose() })
-            preview.onFinish = { [weak host] _ in host?.finish() }
-            presenter.present(host,animated: false)
         case .clean:
             let state = NativeBoardState(tiles: [],board: board,stage: board,score: 2500)
             let preview = NativeResultController(root: root,state: state,clean: true,combo: 0,efficiency: 500,finalScore: 3000)
@@ -1643,6 +1666,7 @@ final class NativeBootstrap {
             switch action {
             case .show: next.progression.completedJourneyBoards.insert(board)
             case .hide:
+                next.progression.resetDeveloperJourneyDieAnnouncement(board:board)
                 next.progression.completedJourneyBoards.remove(board); next.progression.viewedJourneyBoards.remove(board)
                 next.progression.boardStats.removeValue(forKey: board)
                 if next.progression.lastOpenedJourneyBoard == board {next.progression.lastOpenedJourneyBoard=nil}
@@ -1667,10 +1691,12 @@ final class NativeBootstrap {
     func makeDeveloperLastMerge(board: Int, choice: String) throws -> UIViewController {
         let variant = NativeSpecialDiceRegistry.variants[choice]
         guard let archetype = variant?.archetype ?? NativeWildArchetype(rawValue: choice) else { throw NativeSaveError.invalidState(["developer-wild-choice"]) }
+        // This synthetic final pair represents an already-played run.
+        // Preserve it through the normal untouched-layout admission policy.
         let state = NativeBoardState(tiles: [
             NativeTile(id: "dev-regular",cell: .init(column: 2,row: 4),value: 5),
             NativeTile(id: "dev-wild",cell: .init(column: 3,row: 4),value: 6,archetype: archetype,variant: variant?.id)
-        ],board: board,stage: board)
+        ],board: board,stage: board,moves:49)
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("stacktosix-dev-\(UUID().uuidString)",isDirectory: true)
         let previewStore = NativeSaveStore(directory: directory)
         do {
@@ -1710,7 +1736,6 @@ final class NativeBootstrap {
         sourceCanonicalSaveEpoch &+= 1;let save=sourceCanonicalSaveBinding;sourceCanonicalSaveBinding=nil;save?.retire()
         exporter?.cancel();exporter = nil;endRun?.dispose();endRun = nil
         scoreOwner?.dispose();scoreOwner=nil;tutorialOwner?.dispose();tutorialOwner=nil
-        specialUnlock?.dispose();specialUnlock?.dismiss(animated:false);specialUnlock=nil
         boardEntryHaptics?.dispose();boardEntryHaptics=nil
         tutorialComplete?.dispose();tutorialComplete?.view.removeFromSuperview();tutorialComplete?.removeFromParent();tutorialComplete=nil
         arcadeEntryCue?.dispose();arcadeEntryCue=nil

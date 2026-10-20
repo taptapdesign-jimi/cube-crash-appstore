@@ -1346,10 +1346,20 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         let accepted=textures.prepareSourceSpecialTexture(assetPath:requestedPath,assetTasks:assetTasks,
             reactionScope:reactionScope,current:valid) {[weak self] handle in
                 guard let self,valid() else{return}
-                guard let handle,handle.assetPath==requestedPath,self.textures.isSourceTextureHandleCurrent(handle) else{completion(false);return}
+                guard let handle,handle.assetPath==requestedPath,self.textures.isSourceTextureHandleCurrent(handle) else{
+                    #if DEBUG
+                    print("[WildSkinReceipt] texture rejected tile=\(self.tileID) kind=\(capturedKind) variant=\(capturedVariant ?? "nil") handle=\(handle != nil)")
+                    #endif
+                    completion(false);return
+                }
                 let anchor:CGPoint
                 if dynamicAnchor,!self.sourceIdleDeferred {
-                    guard let reader=currentSourceFaceAnchor,let live=reader(),valid(),live.x.isFinite,live.y.isFinite else{completion(false);return}
+                    guard let reader=currentSourceFaceAnchor,let live=reader(),valid(),live.x.isFinite,live.y.isFinite else{
+                        #if DEBUG
+                        print("[WildSkinReceipt] live anchor rejected tile=\(self.tileID) variant=\(capturedVariant ?? "nil") reader=\(currentSourceFaceAnchor != nil) deferred=\(self.sourceIdleDeferred)")
+                        #endif
+                        completion(false);return
+                    }
                     anchor=live // actual live idle owner, captured at texture paint, not request
                 } else {anchor=requested.anchor}
                 // Normalize before size: repeated async skin receipts must not
@@ -1465,6 +1475,8 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
     private var mushroomSmoke:NativeMushroomDiceSmoke?
     private var spaceshipEngine:NativeSpaceshipDiceIdle?
     /// Selected collection presentation only; normal board owners keep authored defaults.
+    private var collectionBubbleStyle=false
+    func configureCollectionBubbles() {collectionBubbleStyle=true;idleFizz?.useCollectionStyle()}
     func configureCollectionHoney() {
         guard variant == "honey" else{return}
         honeyIdle?.collectionPresentation=true
@@ -1826,7 +1838,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
 
     private func rebuild() {
         if !sourceIdleDeferred && !sourceRegistryPending,idleFizz==nil,let family=NativeIdleBubbleMotion.family(kind:kind,variant:variant) {
-            let field=NativeIdleBubbleField(family:family);idleFizz=field;visual.addChild(field)
+            let field=NativeIdleBubbleField(family:family);if collectionBubbleStyle {field.useCollectionStyle()};idleFizz=field;visual.addChild(field)
         }
         // Idle allocation may rebuild its hierarchy, but the admitted Source
         // skin owns the static face even while its real upload is pending.

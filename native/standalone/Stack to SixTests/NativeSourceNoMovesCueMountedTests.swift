@@ -62,14 +62,15 @@ import UIKit
         func stopAll(){stops += 1}
         func dispose(){stopAll()}
     }
-    func testCapturedOriginalCueUsesExistingVoiceGainAndConsumesNoVisualRandom() {
+    func testReplacementCueUsesExistingVoiceGainAndConsumesNoVisualRandom() {
         let transport=Transport();var randomCalls=0
         let audio=NativeGameplayAudioOwner(root:NativeTestResources.root,enabled:true,transport:transport,random:{randomCalls += 1;return 0.5})
         audio.beginGeneration(7)
         audio.resultMoment("no-moves",receipt:1,generation:7)
         XCTAssertEqual(transport.cues.count,1)
-        XCTAssertEqual(transport.cues.first?.source,"assets/sound/grandpa - no moves left.mp3")
-        XCTAssertEqual(transport.cues.first?.voice,"no-moves-grandpa")
+        XCTAssertEqual(transport.cues.first?.source,"assets/sound/fail board/wah wah.wav")
+        XCTAssertEqual(transport.cues.first?.voice,"no-moves-wah-wah")
+        XCTAssertTrue(transport.cues.allSatisfy{$0.delay==0})
         XCTAssertEqual(transport.cues.first?.gain,0.42);XCTAssertEqual(randomCalls,0)
         audio.resultMoment("no-moves",receipt:1,generation:7)
         XCTAssertEqual(transport.cues.count,1);audio.dispose()

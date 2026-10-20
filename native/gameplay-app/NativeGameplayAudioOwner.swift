@@ -102,7 +102,7 @@ final class NativeGameplayAudioOwner {
         guard admit("studio-intro",receipt:receipt,generation:generation) else{return}
         let selections:[String:[String]]=["lik-gitara":["guitar1","guitar2"],"lik-laptop":["chair"],"lik-nogomet":["nogomet"],"lik-board":["kokcice"],"lik-slikanje":["camera"],"lik-cvijet":["watering"],"lik-pas-SVG":["nala1","nala2","nala3"],"lik-speceraj":["paperbag"]]
         func cue(_ key:String,_ gain:Double=0.42,_ delay:Double=0){transport.play(NativeAudioCue(source:"assets/sound/logo transitions/\(key).wav",voice:"native-studio-\(key)",gain:gain,delay:delay))}
-        if ["lik-speceraj","lik-game","lik-pas-SVG","pas-novine","lik-laptop"].contains(character){cue("smile",0.63)}
+        if ["lik-speceraj","lik-game","lik-pas-SVG","pas-novine","lik-laptop"].contains(character){cue("smile",0.882)}
         if ["lik-pas-SVG","pas-novine","lik-speceraj"].contains(character){cue(["nala1","nala2","nala3"].randomElement()!)}
         if character == "lik-game" {cue("gamer",0.6);cue("gemer2");return}
         if character == "lik-kauc" {cue("sleepy2",0.336);cue("sleepy1",0.336,1.44);return}
@@ -193,7 +193,8 @@ final class NativeGameplayAudioOwner {
     }
     func routeFeedback(_ kind:String,receipt:UInt64,generation:UInt64,duration:Double?=nil) {
         guard admit("route",receipt:receipt,generation:generation) else{return}
-        let mapping=["cta":"cta","card-tap":"cardTap","tab":"tab","back":"back","close":"back","swipe":"swipe","exit-modal":"exitModal","card-flip":"flip","card-entry-flip":"flip","card-manual-flip":"manualFlip","card-return-flip":"returnFlip","manual-flip":"manualFlip","return-flip":"returnFlip","home-enter":"homeEnter","home-exit":"homeExit","hub-exit":"hubExit","board-enter":"boardEnter","board-exit":"boardExit","backpack":"backpack","crate":"crate","area55-start":"area55Start","forest-transition":"forestTransition"]
+        // Native UI remap: CTA borrows Home icon audio; close/back borrows the authored CTA package.
+        let mapping=["cta":"tab","card-tap":"cardTap","tab":"tab","back":"cta","close":"cta","swipe":"swipe","exit-modal":"exitModal","card-flip":"flip","card-entry-flip":"flip","card-manual-flip":"manualFlip","card-return-flip":"returnFlip","manual-flip":"manualFlip","return-flip":"returnFlip","home-enter":"homeEnter","home-exit":"homeExit","hub-exit":"hubExit","board-enter":"boardEnter","board-exit":"boardExit","backpack":"backpack","crate":"crate","area55-start":"area55Start","forest-transition":"forestTransition"]
         if let group=mapping[kind] {if group=="boardEnter" || group=="boardExit" {sourceBoardEntryOwner=nil};play(group,duration:duration)}
     }
     /// Board Transition has its own voice identities and contact receipts. The
@@ -240,6 +241,8 @@ final class NativeGameplayAudioOwner {
         case "no-moves":group="noMoves"
         case "clean-applause":beginHarpSequence();group="cleanApplause"
         case "clean-sax":group="cleanSax"
+        case "clean-score-stop":
+            transport.play(NativeAudioCue(source:"assets/sound/coins/final score.wav",voice:"clean-board-final-score",gain:0.84));onFinished?();return
         case "clean-count":group="cleanCount"
         case "clean-bonus":group="cleanBonus"
         case "clean-star":
@@ -270,6 +273,13 @@ final class NativeGameplayAudioOwner {
             if !enabled || !foreground || interrupted {magnetPullSilentGeneration=generation}
         }
         guard admit("special",receipt:receipt,generation:generation) else{return}
+        if moment=="hud-star-arrived" {
+            transport.play(NativeAudioCue(source:"assets/sound/coins/hud coin.wav",voice:"native-hud-coin-\(generation)-\(receipt)",gain:0.6))
+            return
+        }
+        if moment=="tnt-coin-launch" {
+            transport.play(NativeAudioCue(source:"assets/sound/coins/tnt coin.wav",voice:"native-tnt-coin-\(generation)-\(receipt)",gain:0.6));return
+        }
         if moment=="landing" {play("landing");return}
         let group:String?
         switch (variant,moment) {

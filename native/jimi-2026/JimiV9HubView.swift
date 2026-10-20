@@ -16,6 +16,8 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
     private let navigationTarget = UIButton(type:.custom)
     private let crateNavigationTarget = UIButton(type:.custom)
     let backButton = JimiV9PlainButton(type: .custom)
+    let backpackAlert=NativeBackpackAlertView()
+    func setBackpackUnread(_ unread:Bool){backpackAlert.isHidden = !unread || arcade;backpackAlert.setActive(unread && !arcade && idleRequested && !isHidden)}
     let backpackButton = JimiV9PlainButton(type: .custom)
     private let content = UIView()
     private let arcade: Bool
@@ -152,6 +154,8 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
         backpackButton.accessibilityLabel = arcade ? "Dice Box" : "Backpack"; backpackButton.accessibilityIdentifier = arcade ? "native.arcade-hub.crate" : "native.hub.backpack"
         backpackButton.addTarget(self, action: #selector(backpack), for: .touchUpInside)
         backpackButton.isHidden = false
+        backpackAlert.image=assets.image("assets/nav/alsert@2x.png") ?? assets.image("assets/nav/alert.png")
+        backpackButton.addSubview(backpackAlert)
         title.text = arcade ? "Arcade" : "Journey"; title.font = assets.font(size: 32, weight: "ExtraBold")
         title.textColor = UIColor(red: 173/255, green: 135/255, blue: 117/255, alpha: 1)
         title.textAlignment = .center
@@ -266,6 +270,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
                                         y: header.bounds.height * header.layer.anchorPoint.y)
         backButton.frame = row.buttonFrame(x:24)
         navigationTarget.frame = backButton.frame
+        backpackAlert.frame=CGRect(x:21,y:1,width:28,height:28)
         backpackButton.frame = row.buttonFrame(x:width-64,width:40,height:48)
         crateNavigationTarget.frame = backpackButton.frame.insetBy(dx:-2,dy:0)
         title.frame = row.titleFrame
@@ -276,6 +281,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
     /// Call only after the complete incoming cascade settles. The controller
     /// calls stopIdle before route exit/background; no polling/RAF is created.
     func startIdle() {
+        backpackAlert.setActive(!backpackAlert.isHidden && !isHidden && window != nil)
         guard window != nil, !isHidden, alpha > 0, !UIAccessibility.isReduceMotionEnabled else { return }
         idleRequested = true
         updateIdleAdmission()
@@ -284,6 +290,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
     /// Freeze currently painted inner poses before removing all idle owners so
     /// an outgoing Unit does not jump back to its neutral art underneath it.
     func stopIdle() {
+        backpackAlert.setActive(false)
         idleRequested = false
         for id in worldIDs { removeIdle(id, freeze: true) }
         admittedWorlds.removeAll()

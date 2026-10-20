@@ -13,7 +13,7 @@ final class NativeArcadeModalMotionTests: XCTestCase {
         if view.accessibilityIdentifier == id { return view }
         return view.subviews.lazy.compactMap { self.descendant($0, id: id) }.first
     }
-    func testCloseSharesGameplayBoardXSoundOnceAtAcceptedExit() async throws {
+    func testCloseEmitsSemanticBackOnceAtAcceptedExit() async throws {
         let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
         window.rootViewController=host;window.makeKeyAndVisible();host.loadViewIfNeeded()
         let modal=NativeArcadeWorldModal(frame:window.bounds,assets:JimiV9Artwork(resourceRoot:NativeTestResources.root),index:0)
@@ -23,9 +23,9 @@ final class NativeArcadeModalMotionTests: XCTestCase {
         try await wait{modal.accessibilityValue == "ready"}
         let close=try XCTUnwrap(descendant(modal,id:"native.arcade-world-modal.close") as? UIButton)
         close.sendActions(for:.touchUpInside);close.sendActions(for:.touchUpInside)
-        XCTAssertEqual(cues,["exit-modal"])
+        XCTAssertEqual(cues,["back"])
         modal.dispose();close.sendActions(for:.touchUpInside)
-        XCTAssertEqual(cues,["exit-modal"])
+        XCTAssertEqual(cues,["back"])
     }
     func testPlayAndPaperExitTogetherWithoutRelayoutJumpAndDisposalCancels() async throws {
         let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
@@ -33,7 +33,9 @@ final class NativeArcadeModalMotionTests: XCTestCase {
         defer {window.isHidden=true}
         for background in [false,true] {
             let modal=NativeArcadeWorldModal(frame:window.bounds,assets:JimiV9Artwork(resourceRoot:NativeTestResources.root),index:0)
-            var completed=0
+            var completed=0,exitStarts=0,cues:[String]=[]
+            modal.onFeedback={cues.append($0)}
+            modal.onPlayExitStart={exitStarts += 1}
             modal.onFinish={play in XCTAssertTrue(play);completed += 1}
             host.view.addSubview(modal);modal.reveal()
             defer {modal.dispose()}
@@ -48,6 +50,7 @@ final class NativeArcadeModalMotionTests: XCTestCase {
             button.sendActions(for:.touchDown)
             XCTAssertNotNil(button.layer.animation(forKey:"arcade.cta.press"))
             button.sendActions(for:.touchUpInside)
+            XCTAssertEqual(exitStarts,1);XCTAssertEqual(completed,0);XCTAssertEqual(cues,["cta"])
             XCTAssertNotNil(button.layer.animation(forKey:"arcade.cta.exit"))
             XCTAssertNotNil(card.layer.animation(forKey:"arcade.modal.exit"))
             XCTAssertNil(button.layer.animation(forKey:"arcade.cta.release"))
@@ -65,7 +68,7 @@ final class NativeArcadeModalMotionTests: XCTestCase {
             let close=try XCTUnwrap(descendant(modal,id:"native.arcade-world-modal.close") as? UIButton)
             close.sendActions(for:.touchUpInside)
             try await Task.sleep(for:.milliseconds(150))
-            XCTAssertEqual(completed,0)
+            XCTAssertEqual(completed,0);XCTAssertEqual(cues,["cta"])
             if background {
                 modal.setForeground(false)
                 try await Task.sleep(for:.milliseconds(350))

@@ -13,6 +13,8 @@ import StackToSixGameplay
     var trace:[String]=[]
     var fresh:((NativeSourceOrdinaryPreDebitFlow.FreshRequest)->NativeResolution?)?
     var admitted:((UInt64)->Bool)?
+    var refuseContactCapture=false
+    var onContactCapture:(()->Void)?
     init()throws {
         fifo=NativeSourceMicrotaskFIFO();tasks=NativeSourceMicrotaskAdapters(fifo:fifo)
         service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0},sourceFrameTransportEnabled:true);service.sourceMicrotaskTasks=tasks
@@ -45,7 +47,7 @@ import StackToSixGameplay
         return .init(tiles:tiles,moves:game.engine.state.moves,complete:true)
     }
     func bindings(capabilities:Set<NativeSourceNoMovesRuntimeSnapshot.Capability>=Set(NativeSourceNoMovesRuntimeSnapshot.Capability.allCases))->NativeSourceOrdinaryPreDebitBindings {
-        .init(markerCapabilities:capabilities,admitted:{[weak self] gen in self?.admitted?(gen) ?? (self?.game.engine.state.generation==gen)},captureBefore:{[weak self] in self?.roster()},stateRoster:{[weak self] in self?.trace.append("STATE");return self?.roster()},reread:{[weak self] held in guard let self,let node=held.object as? NativeDiceNode else{return nil};return self.observation(node)},busyEnding:{[weak self] in self?.trace.append("busy");return self?.game.engine.flags.busyEnding},forceFresh:{[weak self] request in self?.trace.append(request.kind == .active ? "fresh-active":"fresh-STATE");return self?.fresh?(request) ?? NativeResolution(.continue,reason:"controlled-physical-STATE-fixture")},clearEndGameCache:{[weak self] in self?.trace.append("clear")},resetHint:{},deferStackWild:{_ in false},ensureTutorialSingleTile:{_,done in done(false)},tutorialFinalChance:{_,done in done(false)})
+        .init(markerCapabilities:capabilities,admitted:{[weak self] gen in self?.admitted?(gen) ?? (self?.game.engine.state.generation==gen)},captureBefore:{[weak self] in guard let self else{return nil};self.onContactCapture?();guard !self.refuseContactCapture else{return nil};return self.roster()},stateRoster:{[weak self] in self?.trace.append("STATE");return self?.roster()},reread:{[weak self] held in guard let self,let node=held.object as? NativeDiceNode else{return nil};return self.observation(node)},busyEnding:{[weak self] in self?.trace.append("busy");return self?.game.engine.flags.busyEnding},forceFresh:{[weak self] request in self?.trace.append(request.kind == .active ? "fresh-active":"fresh-STATE");return self?.fresh?(request) ?? NativeResolution(.continue,reason:"controlled-physical-STATE-fixture")},clearEndGameCache:{[weak self] in self?.trace.append("clear")},resetHint:{},deferStackWild:{_ in false},ensureTutorialSingleTile:{_,done in done(false)},tutorialFinalChance:{_,done in done(false)})
     }
     func drop()throws {
         let geometry=try XCTUnwrap(scene.boardGeometry),source=geometry.center(row:0,column:0),destination=geometry.center(row:0,column:1)
@@ -53,6 +55,52 @@ import StackToSixGameplay
         XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:destination,now:0.025)).accepted)
     }
     func dispose(){game.dispose();context.dispose();service.dispose();fifo.dispose();window.isHidden=true;window.rootViewController=nil}
+ }
+ func testRefusedContactCaptureReturnsActualDraggedNodeAndAllowsRetry()throws {
+    let f=try Fixture();defer{f.dispose()}
+    f.scene.sourceOrdinaryPreDebitPresentationEnabled=true
+    XCTAssertTrue(f.scene.configureSourceOrdinaryPreDebit(f.bindings()))
+    let geometry=try XCTUnwrap(f.scene.boardGeometry),start=geometry.center(row:0,column:0),end=geometry.center(row:0,column:1)
+    let node=try XCTUnwrap(f.nodes()["s"]),origin=node.position,before=f.game.engine.state
+    XCTAssertTrue(f.scene.beginDrag(at:start));f.service.deliver(wallMilliseconds:25)
+    f.scene.moveDrag(to:end,now:0.025)
+    XCTAssertNotEqual(node.position,origin)
+    f.refuseContactCapture=true
+    let result=try XCTUnwrap(f.scene.finishDrag(at:end,now:0.025))
+    XCTAssertFalse(result.accepted)
+    XCTAssertTrue(result.events.contains{$0.reason=="source_predebit_contact_not_admitted"})
+    XCTAssertEqual(f.game.engine.state,before);XCTAssertFalse(f.game.engine.isDragging)
+    f.service.deliver(wallMilliseconds:400)
+    XCTAssertEqual(node.position.x,origin.x,accuracy:0.001)
+    XCTAssertEqual(node.position.y,origin.y,accuracy:0.001)
+    XCTAssertTrue(f.nodes()["s"] === node)
+    f.refuseContactCapture=false
+    XCTAssertTrue(f.scene.beginDrag(at:start));f.scene.moveDrag(to:end,now:0.4)
+    XCTAssertTrue(try XCTUnwrap(f.scene.finishDrag(at:end,now:0.4)).accepted)
+ }
+ func testReentrantContactCaptureMutationDoesNotReturnObsoletePointerPose()throws {
+    let f=try Fixture();defer{f.dispose()}
+    f.scene.sourceOrdinaryPreDebitPresentationEnabled=true
+    XCTAssertTrue(f.scene.configureSourceOrdinaryPreDebit(f.bindings()))
+    let geometry=try XCTUnwrap(f.scene.boardGeometry),start=geometry.center(row:0,column:0),end=geometry.center(row:0,column:1)
+    let node=try XCTUnwrap(f.nodes()["s"]),before=f.game.engine.state
+    XCTAssertTrue(f.scene.beginDrag(at:start));f.service.deliver(wallMilliseconds:25)
+    f.scene.moveDrag(to:end,now:0.025)
+    let capturedPose=node.position
+    var committed:NativeBoardState?
+    f.onContactCapture={
+        f.onContactCapture=nil
+        let result=f.game.engine.drop(target:.init(column:1,row:0),pointerID:1,now:0.025)
+        XCTAssertTrue(result.accepted);committed=f.game.engine.state
+    }
+    let result=try XCTUnwrap(f.scene.finishDrag(at:end,now:0.025))
+    XCTAssertFalse(result.accepted);XCTAssertNotEqual(f.game.engine.state,before)
+    XCTAssertEqual(f.game.engine.state.generation,before.generation)
+    XCTAssertTrue(f.nodes()["s"] === node)
+    f.service.deliver(wallMilliseconds:400)
+    XCTAssertEqual(f.game.engine.state,try XCTUnwrap(committed))
+    XCTAssertEqual(node.position.x,capturedPose.x,accuracy:0.001)
+    XCTAssertEqual(node.position.y,capturedPose.y,accuracy:0.001)
  }
  func testDefaultOffAndMissingMarkerCapabilityRefuseBeforeCorePublication()throws {
     let f=try Fixture();defer{f.dispose()};XCTAssertFalse(f.scene.sourceOrdinaryPreDebitPresentationEnabled);XCTAssertFalse(f.scene.configureSourceOrdinaryPreDebit(f.bindings()))

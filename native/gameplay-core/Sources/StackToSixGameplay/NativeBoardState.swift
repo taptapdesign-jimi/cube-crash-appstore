@@ -221,6 +221,7 @@ public struct NativeHUDStarReceipt: Equatable, Sendable {
     public let ordinal: Int
     public let batchCount: Int
     public let variant: String?
+    public let archetype: NativeWildArchetype?
 }
 
 extension NativeTile {

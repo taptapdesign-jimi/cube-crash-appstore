@@ -5,6 +5,42 @@ import StackToSixGameplay
 
 @MainActor
 final class NativeIdleBubbleTests:XCTestCase {
+    func testCollectionBubblesRemoveDotsAndSquashWithoutChangingBoardMotionOrLifecycle() throws {
+        for family in [NativeIdleBubbleMotion.Family.fish,.honey,.bottle,.juice,.beachBall] {
+            let modal=NativeIdleBubbleField(family:family,random:{0.5})
+            let board=NativeIdleBubbleField(family:family,random:{0.5})
+            modal.useCollectionStyle()
+            modal.tick(0.2);board.tick(0.2)
+            let a=try XCTUnwrap(modal.fishBubbleSnapshots.first),b=try XCTUnwrap(board.fishBubbleSnapshots.first)
+            XCTAssertFalse(a.showsHighlight);XCTAssertTrue(b.showsHighlight)
+            XCTAssertNotEqual(a.scale,b.scale);XCTAssertEqual(a.alpha,b.alpha)
+            XCTAssertEqual(a.radius,b.radius);XCTAssertEqual(a.color,b.color)
+            for carrier in modal.children where !carrier.isHidden {
+                XCTAssertTrue(carrier.children[1].isHidden,"No inner dot on any modal family")
+            }
+            for carrier in board.children where !carrier.isHidden {XCTAssertFalse(carrier.children[1].isHidden)}
+            XCTAssertEqual(modal.children.filter{$0.zPosition+modal.zPosition<0}.count,3)
+            XCTAssertEqual(modal.children.filter{$0.zPosition+modal.zPosition>0}.count,3)
+            var depths:[Int:Bool]=[:]
+            for _ in 0..<120 {
+                modal.tick(0.05)
+                for bubble in modal.fishBubbleSnapshots {depths[bubble.slot]=bubble.behindArtwork}
+            }
+            XCTAssertEqual(depths.count,6)
+            XCTAssertEqual(depths.values.filter{$0}.count,3)
+            XCTAssertTrue(board.fishBubbleSnapshots.allSatisfy{!$0.behindArtwork})
+            modal.stopForPointer();XCTAssertEqual(modal.activeCount,0)
+            modal.restartAfterLanding();XCTAssertTrue(modal.fishBubbleSnapshots.allSatisfy{!$0.showsHighlight})
+            modal.dispose();modal.dispose();modal.tick(10)
+            XCTAssertEqual(modal.activeCount,0);XCTAssertTrue(modal.children.isEmpty)
+            board.dispose()
+        }
+        let base=NativeIdleBubbleMotion.Pose(x:0,y:0,scaleX:1,scaleY:1,alpha:0.5,tint:0xFFFFFF)
+        let poses=(0...120).map{NativeIdleBubbleMotion.collectionPose(base,seconds:Double($0)/60)}
+        XCTAssertTrue(poses.contains{$0.scaleX>1.08 && $0.scaleY<0.95})
+        XCTAssertTrue(poses.contains{$0.scaleX<0.95 && $0.scaleY>1.08})
+        XCTAssertTrue(poses.allSatisfy{$0.scaleX>0.75 && $0.scaleX<1.3 && $0.scaleY>0.75 && $0.scaleY<1.3 && abs($0.y)<=2.2})
+    }
     private struct Frame:Decodable {let time:Double,frame:Int,draws:Int,bubbles:[Bubble]}
     private struct Bubble:Decodable {let id:Int,x:Double,y:Double,scaleX:Double,scaleY:Double,alpha:Double,tint:UInt32}
     private struct Fixture:Decodable {let family:String,seed:UInt32,frames:[Frame]}
@@ -301,7 +337,9 @@ final class NativeIdleBubbleTests:XCTestCase {
             let particles=Set(trail.live.map(ObjectIdentifier.init))
             trail.end();trail.emit(at:CGPoint(x:200,y:0),time:32,scale:scale,style:style)
             XCTAssertEqual(Set(trail.live.map(ObjectIdentifier.init)),particles,f.id)
-            trail.clear();XCTAssertFalse(trail.hasTail);XCTAssertTrue(trail.children.isEmpty)
+            trail.clear();XCTAssertFalse(trail.hasTail);XCTAssertTrue(trail.live.isEmpty)
+            XCTAssertTrue(trail.children.allSatisfy(\.isHidden),"clear retains only hidden reusable carriers")
+            trail.dispose();XCTAssertTrue(trail.children.isEmpty)
         }
     }
     private static let trailOracleJSON = #"""

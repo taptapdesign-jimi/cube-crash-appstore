@@ -151,7 +151,11 @@ public final class NativeGameplayEngine {
             currentWildSpawnContext?.isDirect==false && currentWildSpawnContext?.id==receipt.ownerID
     }
     public func hasSourceTntSpawnCoroutine(transactionID:String,generation:UInt64)->Bool {
-        state.generation==generation && ((currentWildSpawnContext?.isDirect==false && currentWildSpawnContext?.id==transactionID) || hasSettledSourceTntSpawnCoroutine(transactionID:transactionID,generation:generation))
+        // A finally receipt owns cleanup and the independent outer bonus, not
+        // another resume. Queued callbacks must still own the actual phase.
+        // A complete phase remains resumable until its finally is published.
+        state.generation==generation && currentWildSpawnContext?.isDirect==false &&
+            currentWildSpawnContext?.id==transactionID && directWildSpawnPhase?.cancelled==false
     }
     public func hasSettledSourceTntSpawnCoroutine(transactionID:String,generation:UInt64)->Bool {
         state.generation==generation && sourceTntCoroutineSettled?.id==transactionID && sourceTntCoroutineSettled?.generation==generation
@@ -287,7 +291,7 @@ public final class NativeGameplayEngine {
               let result=NativeSourceFinalMergeBlockers.finalSnapshot(tiles:paint.physicalTiles,runtime:paint.runtime,
                 source:source,destination:destination,effectiveSum:effectiveSum,
                 magnetWillPull:(source.gameplayArchetype == .magnet || destination.gameplayArchetype == .magnet) &&
-                    !NativeGameplayResolver.magnetCandidates(paint.physicalTiles,source:source,destination:destination).isEmpty),current() else{return nil}
+                    !magnetPullCandidates(paint.physicalTiles,source:source,destination:destination).isEmpty),current() else{return nil}
         if countAcceptedCapture {sourceDirectPhysicalFinalCaptureCount+=1}
         return result
     }
@@ -387,8 +391,17 @@ public final class NativeGameplayEngine {
             ($0.assetsPrepared && !$0.landed) || $0.handoffLocked
         }
     }
+    /// A meter carrier is owned through its real Promise bookkeeping and wall
+    /// handoff. Visibility/landing alone cannot transfer it to a Magnet pull:
+    /// removing it would strand the pending carrier receipts and physical node.
+    public func magnetPullCandidates(_ tiles:[NativeTile],source:NativeTile,destination:NativeTile)->[NativeTile] {
+        let protected=Set(meterDropReservations.values.filter {
+            $0.generation==state.generation && (!$0.bookkeepingCommitted || $0.handoffLocked)
+        }.map(\.tileID))
+        return NativeGameplayResolver.magnetCandidates(tiles,source:source,destination:destination).filter{!protected.contains($0.id)}
+    }
     private func meterDropBlocksTile(_ id:String)->Bool {
-        meterDropReservations.values.contains {$0.tileID==id && (!$0.landed || $0.handoffLocked || !$0.warmupCompleted)}
+        meterDropReservations.values.contains {$0.generation==state.generation && $0.tileID==id && (!$0.landed || $0.handoffLocked || !$0.bookkeepingCommitted)}
     }
     public private(set) var flags = NativeGameplayRuntimeFlags()
     public private(set) var noMovesSignature: String?
@@ -523,6 +536,12 @@ public final class NativeGameplayEngine {
     public func hasSourceWildSpawnCoroutine(transactionID:String,generation:UInt64)->Bool {
         state.generation==generation && ((directWildSpawnPhase?.id==transactionID && directWildSpawnPhase?.generation==generation) || hasSettledSourceWildSpawnCoroutine(transactionID:transactionID,generation:generation))
     }
+    public func canResumeSourceDirectWildCoroutine(transactionID:String,generation:UInt64)->Bool {
+        // Visual/abort and finally receipts can outlive their coroutine phase.
+        // Keep the broader lifecycle query above for cleanup callers only.
+        state.generation==generation && currentWildSpawnContext?.isDirect==true &&
+            currentWildSpawnContext?.id==transactionID && directWildSpawnPhase?.cancelled==false
+    }
     public func hasSettledSourceWildSpawnCoroutine(transactionID:String,generation:UInt64)->Bool {
         state.generation==generation && sourceWildCoroutineSettled?.id==transactionID && sourceWildCoroutineSettled?.generation==generation
     }
@@ -627,6 +646,7 @@ public final class NativeGameplayEngine {
     private var drag: Drag?
     private var locks: [String: Bool] = [:] // true = wild-only; false = entire gameplay
     private var comboLastMutationTime: Double?
+    public var comboWindowExtension:Double=0
     private var comboWindow: Double = 2
     public let sourceMathRandom:NativeSourceMathRandomStream?
     private var randomChoices: [Double]
@@ -808,7 +828,7 @@ public final class NativeGameplayEngine {
         return resolution
     }
     public func expireCombo(now: Double) {
-        guard let last = comboLastMutationTime, now - last >= comboWindow else { return }
+        guard let last = comboLastMutationTime, now - last >= comboWindow+max(0,comboWindowExtension) else { return }
         state.combo = 0; comboLastMutationTime = nil
     }
     public func drop(target: NativeCell?, pointerID: Int = 0, now: Double = 0) -> NativeMoveResult {
@@ -842,7 +862,7 @@ public final class NativeGameplayEngine {
         // The production canDrop permits lingering regular six + 1...5. Its recovery
         // continuation is a distinct source branch; fail closed until that port exists.
         guard effectiveSum <= 6 else { return rejected("native_lingering_six_continuation_pending") }
-        let pull = (source.gameplayArchetype == .magnet || destination.gameplayArchetype == .magnet) && !NativeGameplayResolver.magnetCandidates(decisionTiles, source: source, destination: destination).isEmpty
+        let pull = (source.gameplayArchetype == .magnet || destination.gameplayArchetype == .magnet) && !magnetPullCandidates(decisionTiles,source:source,destination:destination).isEmpty
         let final:NativeFinalMergeSnapshot
         var sourceDirectEntrySnapshot:NativeFinalMergeSnapshot?
         let directPhysicalPair=(source.isWild || destination.isWild) &&
@@ -1243,7 +1263,7 @@ public final class NativeGameplayEngine {
         if archetype == .magnet,let owner=sourceMagnetPullSelection {
             let captured=state,capturedFlags=flags,capturedLocks=locks
             let capturedOpen=pendingMeterOpen,capturedStack=pendingOrdinaryStack,capturedSix=pendingOrdinarySix,claimHook=sourceSpecialContactHook
-            let candidates=NativeGameplayResolver.magnetCandidates(captured.tiles,source:source,destination:destination)
+            let candidates=magnetPullCandidates(captured.tiles,source:source,destination:destination)
             let ids=owner.capture(captured,source,destination,candidates)
             let alive=capturedSpecialClaim?.isCurrent() ?? true
             guard alive,sourceMagnetPullSelection === owner,sourceSpecialContactHook === claimHook,
@@ -1262,7 +1282,11 @@ public final class NativeGameplayEngine {
         let hudStars = comboHUDCoinRewardsEnabled ? [] : captureHUDStars(source:source,destination:destination,starOrbitCapture:capturedSpecialClaim?.starOrbitCapture)
         var targets: [NativeTile]
         let variant = source.variant ?? destination.variant
-        if archetype == .magnet { targets = capturedMagnetTargets ?? NativeMagnetRules.nearestPullTargets(state:state,source:source,destination:destination) }
+        if archetype == .magnet {
+            var eligible=state
+            eligible.tiles=magnetPullCandidates(state.tiles,source:source,destination:destination)
+            targets=capturedMagnetTargets ?? NativeMagnetRules.nearestPullTargets(state:eligible,source:source,destination:destination)
+        }
         else if stagedTntActivation {targets=[]}
         else {
             guard let selected=selectTntTargets(source:source,destination:destination,variant:variant) else {
@@ -1380,7 +1404,7 @@ public final class NativeGameplayEngine {
     private func distributeTntCoins(plan:NativeSpecialMovePlan,events:inout [NativeGameplayEvent]) {
         tntCoinCounts.removeAll()
         guard !plan.targets.isEmpty else {
-            let coins=prepareHUDStars(count:tntComboCoinReward,origin:plan.destination.cell,variant:plan.variant)
+            let coins=prepareHUDStars(count:tntComboCoinReward,origin:plan.destination.cell,variant:plan.variant,archetype:plan.archetype)
             if !coins.isEmpty {events.append(NativeGameplayEvent(.hudStarsPrepared,tileIDs:coins.map(\.id),value:coins.count,archetype:.tnt,variant:plan.variant))}
             return
         }
@@ -1429,7 +1453,7 @@ public final class NativeGameplayEngine {
             meterEvents.append(NativeGameplayEvent(.meterRewardPrepared,tileIDs:[receipt.id],value:impactIndex,archetype:.tnt,reason:plan.id,variant:plan.variant))
         }
         specialImpactIndex += 1
-        let stars = prepareHUDStars(count:comboHUDCoinRewardsEnabled ? (tntCoinCounts.removeValue(forKey:target.id) ?? 1):1,origin:target.cell,variant:plan.variant)
+        let stars = prepareHUDStars(count:comboHUDCoinRewardsEnabled ? (tntCoinCounts.removeValue(forKey:target.id) ?? 1):1,origin:target.cell,variant:plan.variant,archetype:.tnt)
         let impactedIDs = replacement.id == tileID ? [tileID] : [tileID,replacement.id]
         return NativeMoveResult(accepted:true,state:state,events:[NativeGameplayEvent(.specialImpact,tileIDs:impactedIDs,value:value,archetype:.tnt,reason:plan.id,variant:plan.variant),NativeGameplayEvent(.hudStarsPrepared,tileIDs:stars.map(\.id),value:stars.count,archetype:.tnt,variant:plan.variant)]+meterEvents,resolution:NativeResolution(.wait,reason:"special_gameplay_mutation_active"))
     }
@@ -1500,7 +1524,7 @@ public final class NativeGameplayEngine {
         sourceMagnetLazyOpens=[:];sourceMagnetLazyValueCommits=[];sourceMagnetLazySettled=[];sourceMagnetLazyReserveFill=nil;sourceMagnetLazyReserveCommits=[];sourceMagnetLazyConversion=nil;sourceMagnetLazyConversionCommitted=false;sourceMagnetLazyResolutionReleased=false
         let pulledStar=special.targets.first{$0.gameplayArchetype == .star && NativeStarDropCountPolicy.usesRandomCount(variant:$0.variant)}
         let rewardCount=comboHUDCoinRewardsEnabled ? NativeComboCoinPolicy.count(combo:(specialPreBoard?.combo ?? state.combo)+1+count) : min(3,max(0,pulledStar.map{$0.effectiveStarDropCount} ?? 0)+count)
-        let stars=prepareHUDStars(count:rewardCount,origin:special.destination.cell,variant:nil)
+        let stars=prepareHUDStars(count:rewardCount,origin:special.destination.cell,variant:nil,archetype:.magnet)
         return NativeMoveResult(accepted:true,state:state,events:[NativeGameplayEvent(.removed,tileIDs:special.targets.map(\.id),archetype:.magnet,reason:transactionID),NativeGameplayEvent(.hudStarsPrepared,tileIDs:stars.map(\.id),value:stars.count,archetype:.magnet)],resolution:NativeResolution(.wait,reason:"source_magnet_lazy_respawn_pending"))
     }
     private func sourceMagnetLazyCurrent(_ transactionID:String,_ generation:UInt64,sourceCurrent:()->Bool)->Bool {
@@ -1654,7 +1678,7 @@ public final class NativeGameplayEngine {
         let pulledCoreStar = plan.targets.first { $0.gameplayArchetype == .star && NativeStarDropCountPolicy.usesRandomCount(variant:$0.variant) }
         let orbitCount = pulledCoreStar.map { $0.effectiveStarDropCount } ?? 0
         let rewardCount=comboHUDCoinRewardsEnabled ? NativeComboCoinPolicy.count(combo:(specialPreBoard?.combo ?? state.combo)+1+plan.targets.count) : min(3,orbitCount+plan.targets.count)
-        let stars = prepareHUDStars(count:rewardCount,origin:plan.destination.cell,variant:plan.variant)
+        let stars = prepareHUDStars(count:rewardCount,origin:plan.destination.cell,variant:plan.variant,archetype:plan.archetype)
         return NativeMoveResult(accepted:true,state:state,events:[NativeGameplayEvent(.removed,tileIDs:plan.targets.map(\.id),archetype:.magnet,reason:plan.id,variant:plan.variant),NativeGameplayEvent(.hudStarsPrepared,tileIDs:stars.map(\.id),value:stars.count,archetype:.magnet,variant:plan.variant)],resolution:NativeResolution(.wait,reason:"magnet_respawn_pending"))
     }
     /// The native cascade invokes this at each authored 0/150/300/450ms open boundary.
@@ -2085,7 +2109,7 @@ public final class NativeGameplayEngine {
         if comboHUDCoinRewardsEnabled {
             // Keep the existing Juice selection draw so the board RNG stream is unchanged.
             if wild.archetype == .juice {_ = nextRandom()}
-            return prepareHUDStars(count:NativeComboCoinPolicy.count(combo:state.combo),origin:destination.cell,variant:wild.variant)
+            return prepareHUDStars(count:NativeComboCoinPolicy.count(combo:state.combo),origin:destination.cell,variant:wild.variant,archetype:wild.gameplayArchetype)
         }
         let count: Int
         // Final TNT gameplay, including legacy variant provenance, earns three
@@ -2104,12 +2128,12 @@ public final class NativeGameplayEngine {
         else if wild.archetype == .juice { count = 1+Int(nextRandom()*3) }
         else if finalMerge {count=1}
         else { return [] }
-        return prepareHUDStars(count:count,origin:destination.cell,variant:wild.variant)
+        return prepareHUDStars(count:count,origin:destination.cell,variant:wild.variant,archetype:wild.gameplayArchetype)
     }
-    private func prepareHUDStars(count: Int, origin: NativeCell, variant: String?) -> [NativeHUDStarReceipt] {
+    private func prepareHUDStars(count: Int, origin: NativeCell, variant: String?, archetype: NativeWildArchetype? = nil) -> [NativeHUDStarReceipt] {
         hudStarSequence &+= 1
         let batch = "native-hud-star:\(state.generation):\(hudStarSequence)"
-        let receipts = (0..<count).map { NativeHUDStarReceipt(id:"\(batch):\($0)",generation:state.generation,origin:origin,ordinal:$0,batchCount:count,variant:variant) }
+        let receipts = (0..<count).map { NativeHUDStarReceipt(id:"\(batch):\($0)",generation:state.generation,origin:origin,ordinal:$0,batchCount:count,variant:variant,archetype:archetype) }
         pendingHUDStars += receipts
         return receipts
     }

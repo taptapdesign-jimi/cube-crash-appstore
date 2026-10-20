@@ -31,12 +31,12 @@ import StackToSixNativeState
         XCTAssertTrue(game.view.subviews.contains{$0 is NativeArcadeRoundPresentation})
         XCTAssertFalse(game.sourceSmallStackPresentationEnabled)
         for holder in construction.recipe?.holders ?? [] {XCTAssertTrue(scene.sourceNativeTileNode(holder.tileID) === construction.nodes[holder.tileID])}
-        let saved=try XCTUnwrap(store.load()?.arcadeRun)
-        XCTAssertEqual(saved.tiles,game.engine.state.tiles)
+        let opening=game.engine.state.tiles
+        XCTAssertNil(try store.load()?.arcadeRun,"An untouched fresh board must remain Play, not Continue")
         // Actual APP callbacks may already have arrived by this awaited test
         // task. No fabricated arrival, fixed sleep or extra face draw is used.
         service.deliver(wallMilliseconds:16)
-        XCTAssertEqual(construction.pendingFaceCount,0);XCTAssertEqual(game.engine.state.tiles,saved.tiles)
+        XCTAssertEqual(construction.pendingFaceCount,0);XCTAssertEqual(game.engine.state.tiles,opening)
     }
     func testDefaultBootstrapAndVCFlagsDoNotCreateSourceConstructorForFreshRoute() async throws {
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("source-initial-default-\(UUID().uuidString)")

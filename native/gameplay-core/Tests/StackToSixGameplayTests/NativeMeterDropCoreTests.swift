@@ -50,6 +50,21 @@ nonisolated final class NativeMeterDropCoreTests:XCTestCase {
         // Literal original canDrop/target candidate does NOT reject handoff on destination.
         XCTAssertTrue(engine.drop(target:drop.cell).accepted)
     }
+    func testPickupWaitsForActualPromiseEvenAfterWarmupAndWallRelease()throws {
+        let engine=makeEngine(),drop=try reserve(engine)
+        for value:NativeMeterDropReceipt in [.assetsPrepared,.revealed,.impact,.boardFallbackRestored,.selectedWarmupCompleted,.wallHandoffUnlocked] {
+            receipt(value,drop,engine)
+        }
+        XCTAssertFalse(engine.canBeginDrag(tileID:drop.tileID),"A released wall does not transfer the pending travel Promise")
+        XCTAssertFalse(engine.beginDrag(tileID:drop.tileID))
+        engine.cancelDrag()
+        XCTAssertTrue(engine.beginDrag(tileID:"a"),"Unrelated input remains available")
+        engine.cancelDrag()
+        receipt(.dropPromiseCompleted,drop,engine)
+        XCTAssertTrue(engine.meterDropReservations.isEmpty)
+        XCTAssertTrue(engine.beginDrag(tileID:drop.tileID))
+    }
+
     func testWarmupAndWallReceiptsHaveIndependentCapturedLifetimes()throws {
         let engine=makeEngine(),drop=try reserve(engine)
         receipt(.assetsPrepared,drop,engine);receipt(.revealed,drop,engine);receipt(.impact,drop,engine)

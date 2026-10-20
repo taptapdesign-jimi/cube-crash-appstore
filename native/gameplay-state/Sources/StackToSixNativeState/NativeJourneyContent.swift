@@ -15,13 +15,29 @@ public enum NativeJourneyContent {
         let three = stage <= 3 ? 6500 : stage <= 6 ? 8000 : 9500
         return score < two ? 1 : score < three ? 2 : 3
     }
-    public static func cardAsset(board: Int, score: Int, doubleDensity: Bool = false) -> String {
+    // Titles belong to authored artwork, never to its current progression slot.
+    // Keep this identity resolver shared by artwork, reveal copy and accessibility.
+    private static let cardArtNumbers = [[3,1,9,4,5,6,7,8,2,10], [2,1,3,4,6,5,7,9,8,10], [1,4,3,2,5,6,7,8,9,10]]
+    private static let cardNamesByArt = [
+        ["Star Is Out","Flying Tent","Weee - Beee","Honey Splat","Dreamy","Shroomy","Kaboom","Break Out","Final Gate","Winner"],
+        ["Fishy","Fresh Juice","Bouncy Day","Bottle Tips","Star Below","Castle Ruins","Looky Here","The Letter","Playtime","Life Saver"],
+        ["Bibi - Ribi","Zap - Zap","Woombuu","The Bloob","Beam Up","Bloob Spill","Team Party","Transport","Fixer Upper","Take Over"]
+    ]
+    private static func cardIdentity(board:Int)->(world:Int,art:Int) {
         let safe = (1...30).contains(board) ? board : 1
         let world = (safe-1)/10, stage = (safe-1)%10
-        let maps = [[3,1,9,4,5,6,7,8,2,10], [2,1,3,4,6,5,7,9,8,10], [1,4,3,2,5,6,7,8,9,10]]
+        return (world,cardArtNumbers[world][stage])
+    }
+    public static func cardName(board:Int)->String {
+        let identity=cardIdentity(board:board)
+        return cardNamesByArt[identity.world][identity.art-1]
+    }
+    public static func cardAsset(board: Int, score: Int, doubleDensity: Bool = false) -> String {
+        let safe = (1...30).contains(board) ? board : 1
+        let identity=cardIdentity(board:safe)
         let rarity = earnedStars(score: score, board: safe) == 3 ? "legendary" : "common"
-        let number = String(format: "%02d",maps[world][stage])
-        return "./assets/colelctibles/\(["Forest","beach","Area55"][world])/\(rarity)/\(number)\(rarity == "legendary" ? "-gold" : "")\(doubleDensity ? "@2x" : "").png"
+        let number = String(format: "%02d",identity.art)
+        return "./assets/colelctibles/\(["Forest","beach","Area55"][identity.world])/\(rarity)/\(number)\(rarity == "legendary" ? "-gold" : "")\(doubleDensity ? "@2x" : "").png"
     }
     public static func rewardPool(board: Int) -> [String] {
         switch board {
@@ -42,11 +58,31 @@ public enum NativeJourneyContent {
         default: return []
         }
     }
+    /// The new die introduced by this exact Unit, independent of profile progress.
+    /// Derive it from the cumulative World pool so unlock and reward eligibility
+    /// cannot silently acquire separate threshold tables.
+    public static func introductionID(board:Int)->String? {
+        guard (1...30).contains(board) else{return nil}
+        let prior=(board-1)%10 == 0 ? []:rewardPool(board:board-1)
+        return rewardPool(board:board).first{!prior.contains($0)}
+    }
+    public static func unlockReward(board: Int) -> NativeWildReward? {
+        guard (1...30).contains(board) else { return nil }
+        let prior = (board-1)%10 == 0 ? [] : rewardPool(board:board-1)
+        guard let name = rewardPool(board:board).first(where:{!prior.contains($0)}) else { return nil }
+        return reward(named:name)
+    }
     public static func reward(board: Int, wildSpawnCount: Int, roll: Double, previous: NativeWildArchetype? = nil) -> NativeWildReward? {
+        // Introduce this Unit's die only when its first earned Backpack drop
+        // commits. The persisted drop count preserves this boundary on Continue.
+        if wildSpawnCount == 0, let introduction = unlockReward(board:board) { return introduction }
         let pool = rewardPool(board: board)
         guard !pool.isEmpty else { return nil }
         let bounded = roll.isFinite ? max(0,min(1-Double.ulpOfOne,roll)) : 0
         let name = pool[min(pool.count-1,Int(bounded*Double(pool.count)))]
+        return reward(named:name)
+    }
+    private static func reward(named name:String) -> NativeWildReward? {
         switch name {
         case "wild-star": return NativeWildReward(.star)
         case "wild-juice": return NativeWildReward(.juice)

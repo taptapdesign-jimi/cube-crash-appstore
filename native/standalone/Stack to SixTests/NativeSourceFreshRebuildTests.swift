@@ -7,9 +7,10 @@ import StackToSixNativeState
 
 @MainActor final class NativeSourceFreshRebuildTests:XCTestCase {
     private var observeTransitionPaint:(()->Void)?
+    private var timeoutDiagnostic:(()->String)?
     private func wait(file:StaticString = #filePath,line:UInt = #line,_ predicate:()->Bool)async throws {
         let deadline=Date().addingTimeInterval(35)
-        while !predicate(){observeTransitionPaint?();guard Date()<deadline else{XCTFail("Actual fresh rebuild boundary timed out",file:file,line:line);throw CancellationError()};try await Task.sleep(for:.milliseconds(20))}
+        while !predicate(){observeTransitionPaint?();guard Date()<deadline else{XCTFail("Actual fresh rebuild boundary timed out: \(timeoutDiagnostic?() ?? "unavailable")",file:file,line:line);throw CancellationError()};try await Task.sleep(for:.milliseconds(20))}
     }
     private func button(_ root:UIView,id:String)->UIButton? {
         if let value=root as? UIButton,value.accessibilityIdentifier==id{return value}
@@ -26,6 +27,59 @@ import StackToSixNativeState
     }
     func testActualBeachExitRestartSkipsAnnouncementAndKeepsSelectedUnit()async throws {
         try await exerciseRestart(board:11)
+    }
+    func testBottleUnlockUnitRestartStartsOrdinaryBeforeFirstBackpackDrop()async throws {
+        try await exerciseRestart(board:14)
+    }
+    func testNormalBottleUnlockPlayReachesPlayableBoardWithoutPresentationFailure()async throws {
+        try await exerciseBottleEntry(continueSaved:false)
+    }
+    func testNormalSavedBottleContinueKeepsExistingDieAndReachesPlayableBoard()async throws {
+        try await exerciseBottleEntry(continueSaved:true)
+    }
+    private func exerciseBottleEntry(continueSaved:Bool)async throws {
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent("native-bottle-entry-"+UUID().uuidString)
+        let store=NativeSaveStore(directory:directory)
+        var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
+        seed.progression.firstPlayTutorialComplete=true;seed.progression.completedJourneyBoards=Set(1...13)
+        var saved=NativeBoardFactory.make(mode:.journey,board:14,generation:9,seed:17)
+        saved.moves=49
+        if continueSaved {
+            let index=try XCTUnwrap(saved.tiles.firstIndex(where:{$0.isPlayable}))
+            saved.tiles[index].value=6;saved.tiles[index].archetype = .magnet;saved.tiles[index].variant="bottle"
+            saved.wildSpawnCount=1
+        }
+        if continueSaved {seed.journeyRuns[14]=saved;seed.journeyRunSavedAt[14]=Date().timeIntervalSince1970}
+        try store.save(seed)
+        let host=NativeStandaloneViewController(resourceRoot:NativeTestResources.root,store:store,sourceVisualRandom:{0.1},completeNativeGameplayEnabled:true)
+        let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+        let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=host;window.makeKeyAndVisible()
+        defer{timeoutDiagnostic=nil;host.dispose();window.isHidden=true;previous?.makeKeyAndVisible();try? FileManager.default.removeItem(at:directory)}
+        host.loadViewIfNeeded();let app=try XCTUnwrap(host.children.first as? NativeAppController)
+        try await wait{!app.home.isHidden && app.home.isUserInteractionEnabled}
+        app.navigate(.world(2),interrupt:true)
+        try await wait{if app.children.contains(where:{$0 is NativeGameplayViewController}){return true};app.world?.onRequest?(continueSaved ? "continue":"play",14);return false}
+        let game=try XCTUnwrap(app.children.compactMap{$0 as? NativeGameplayViewController}.first)
+        timeoutDiagnostic = {[weak game] in game.map{"\($0.sourceEntryDiagnostic());failure=\(String(describing:$0.sourcePresentationFailureGeneration))"} ?? "game released"}
+        try await wait{game.beforeSourceGameplayAdmission==nil && game.boardScene?.isBoardEntryComplete==true && game.boardScene?.gameplayRenderHost?.renderView.window != nil}
+        let scene=try XCTUnwrap(game.boardScene)
+        let bottles=game.engine.state.tiles.filter{$0.variant=="bottle"}
+        XCTAssertNil(game.sourcePresentationFailureGeneration);XCTAssertNil(game.presentedViewController)
+        XCTAssertEqual(app.route,.gameplay)
+        if continueSaved {
+            XCTAssertEqual(bottles.count,1)
+            let tile=try XCTUnwrap(bottles.first),node=try XCTUnwrap(scene.sourceNativeTileNode(tile.id))
+            try await wait{node.hasSourceBottleIdle && node.sourceWildSkinReceiptCurrent}
+            XCTAssertFalse(node.isHidden);XCTAssertEqual(node.alpha,1,accuracy:0.001)
+            XCTAssertTrue(tile.isPlayable)
+            XCTAssertEqual(tile.id,saved.tiles.first(where:{$0.variant=="bottle"})?.id)
+            XCTAssertEqual(game.engine.state.moves,49)
+            XCTAssertNotNil(try store.load()?.journeyRuns[14])
+        } else {
+            XCTAssertTrue(bottles.isEmpty);XCTAssertFalse(game.engine.state.tiles.contains(where: \.isWild))
+            XCTAssertEqual(game.engine.state.moves,50)
+            XCTAssertNil(try store.load()?.journeyRuns[14])
+        }
     }
     func testExitRestartAnnouncementPolicyCoversEveryAuthoredWorldAndUnitWhileResultIsUnchanged()throws {
         let layouts=try NativeWorldLayouts()
@@ -306,6 +360,9 @@ import StackToSixNativeState
     }
     func testDisposalAtActualRestartPreparationCannotConstructOrWriteSuccessor()async throws {
         try await exerciseRestart(board:nil,disposeAtPreparation:true)
+    }
+    func testJourneyDisposalAtRestartPreparationPreservesPreviousAttempt()async throws {
+        try await exerciseRestart(board:14,disposeAtPreparation:true)
     }
     func testActualSourceBoardEntryWarmsExistingSmokePoolThroughAllTenBatches()async throws {
         try await exerciseRestart(board:nil,warmupOnly:true)
@@ -592,6 +649,11 @@ import StackToSixNativeState
         }
         try await wait{app.children.compactMap{$0 as? NativeGameplayViewController}.first.map{$0 !== old}==true}
         let fresh=try XCTUnwrap(app.children.compactMap{$0 as? NativeGameplayViewController}.first)
+        timeoutDiagnostic = {[weak fresh] in
+            guard let fresh else{return "fresh released"}
+            return "\(fresh.sourceEntryDiagnostic());failure=\(String(describing:fresh.sourcePresentationFailureGeneration));construction=\(fresh.sourceInitialConstruction?.isCurrent == true);faces=\(fresh.sourceInitialConstruction?.pendingFaceCount ?? -1);entry=\(fresh.boardScene?.isBoardEntryComplete == true);completed=\(fresh.boardScene?.completedSourceBoardEntry != nil);stateIssues=\(fresh.engine.state.validationIssues())"
+        }
+        defer{timeoutDiagnostic=nil}
         XCTAssertFalse(containsAnnouncement(fresh),"Exit Restart must not mount an announcement before the fresh board's entry")
         XCTAssertFalse(fresh.incomingOriginalThemedCoverExpected)
         XCTAssertTrue(fresh.keepsGameplayChromeVisibleOnEntry)
@@ -610,6 +672,8 @@ import StackToSixNativeState
         }
         XCTAssertFalse(sawAnnouncement,"Journey/Arcade Exit Restart must stay announcement-free throughout actual entry readiness")
         XCTAssertFalse(sawChromeReplay,"Exit Restart must keep the top HUD settled while dice enter")
+        XCTAssertFalse(fresh.engine.state.tiles.contains(where: \.isWild),"Restart must wait for the earned Backpack drop")
+
         if let footer=fresh.journeyBottomDecor {
             XCTAssertEqual(footer.phase,.visible);XCTAssertFalse(footer.hasActiveClock)
         }
@@ -620,5 +684,156 @@ import StackToSixNativeState
         XCTAssertTrue(durable.progression.firstPlayTutorialComplete)
         if let board {XCTAssertNil(durable.journeyRuns[board])}
         else {XCTAssertNil(durable.arcadeRun)}
+    }
+}
+
+/// Incident board captured before the 2026-10-19 Spaceship freeze. This mounts
+/// the normal standalone graph, including physical verification and UIKit finale.
+@MainActor final class NativeSpaceshipPostMergeInputTests:XCTestCase {
+    func testSavedJourney24SpaceshipIntoLowerDieThenActualOrdinaryStack()async throws {
+        try await exercise(reversed:false)
+    }
+    func testSavedJourney24LowerDieIntoSpaceshipThenActualOrdinaryStack()async throws {
+        try await exercise(reversed:true)
+    }
+    func testActualLandedLaserCarrierSurvivesOverlappingSpaceshipAndNextStack()async throws {
+        try await exercise(reversed:false,overlappingCarrier:true)
+    }
+    func testBookkeptLaserAcceptsOrdinaryBeforeWallUnlockWithoutGhostOrFrozenStack()async throws {
+        try await exercise(reversed:false,overlappingCarrier:true,consumeBookkeptCarrier:true)
+    }
+    private func incidentBoard()->NativeBoardState {
+        let rows:[(String,Int,Int,Int)]=[
+            ("g1-0",0,0,4),("g1-5",0,1,1),("g1-7",2,1,2),("g1-10",0,2,0),
+            ("g1-11",1,2,2),("g1-12",2,2,0),("g1-17",2,3,0),("g1-19",4,3,0),
+            ("g1-21",1,4,5),("g1-22",2,4,3),("g1-23",3,4,0),("g1-25",0,5,0),
+            ("g1-26",1,5,0),("g1-30",0,6,2),("g1-33",3,6,0),("g1-36",1,7,1),
+            ("g1-15",0,3,6),("native:1:18:2:5:die:3",2,5,3),
+            ("native:1:18:1:0:die:4:locked",1,0,0),("native:1:18:0:8:die:5:locked",0,8,0),
+            ("native:1:18:4:0:die:6:locked",4,0,0),("native:1:18:3:3:die:7:locked",3,3,0),
+            ("native:1:18:4:6:die:8:locked",4,6,0),("native:1:18:4:8:die:9:locked",4,8,0),
+            ("native:1:18:2:8:die:10:locked",2,8,0),("native:1:18:1:8:die:11:locked",1,8,0),
+            ("native:1:18:2:0:die:12:locked",2,0,0)]
+        let tiles=rows.map{id,x,y,value in NativeTile(id:id,cell:.init(column:x,row:y),value:value,
+            archetype:id=="g1-15" ? .magnet:nil,variant:id=="g1-15" ? "spaceship":nil,
+            locked:value==0,alpha:value==0 && id.hasPrefix("native:") ? 0.25:1)}
+        return NativeBoardState(tiles:tiles,mode:.journey,board:24,stage:24,generation:1,revision:18,
+            moves:32,score:1996,bestScore:49045,maxStackDepth:3,longestCombo:18,cubesCracked:10,
+            combo:18,earnedComboBonus:3900,wildMeter:0.864,wildSpawnCount:2,
+            lastWildDropType:.magnet,wildDropTypeStreak:1,lastSpecialMergeWorld:"area55")
+    }
+    private func diagnostic(_ game:NativeGameplayViewController)->String {
+        guard let scene=game.boardScene else{return "no scene"}
+        let tiles=game.engine.state.tiles.map{tile -> String in
+            guard let node=scene.sourceNativeTileNode(tile.id) else{return "\(tile.id):missing"}
+            return "\(tile.id):core=\(tile.value)/\(tile.stackDepth)/\(tile.locked),node=\(node.sourceValue)/\(node.sourceStackDepth)/\(node.sourceEventMode),point=\(node.position),stackFrames=\(node.sourcePendingStackFrameCount)"
+        }.joined(separator:";")
+        return "failure=\(String(describing:game.sourcePresentationFailure));flags=\(game.engine.flags);special=\(String(describing:game.engine.pendingSpecial?.id));unsavable=\(game.engine.hasUnsavableSourceGameplayState);survivorInput=\(scene.sourceMagnetSurvivorPendingInputIDs);\(tiles)"
+    }
+    private func wait(_ label:String,game:NativeGameplayViewController?=nil,seconds:Double=15,_ condition:()->Bool)async throws {
+        let deadline=Date().addingTimeInterval(seconds)
+        while !condition() {
+            if Date()>deadline {XCTFail("\(label): \(game.map{diagnostic($0)} ?? "route not ready")");throw NSError(domain:"SpaceshipPostMergeTimeout",code:1)}
+            try await Task.sleep(for:.milliseconds(20))
+        }
+    }
+    private func move(_ source:String,onto destination:String,game:NativeGameplayViewController)async throws {
+        let scene=try XCTUnwrap(game.boardScene),a=try XCTUnwrap(scene.sourceNativeTileNode(source)),b=try XCTUnwrap(scene.sourceNativeTileNode(destination))
+        let from=scene.convert(a.position,from:try XCTUnwrap(a.parent)),to=scene.convert(b.position,from:try XCTUnwrap(b.parent))
+        guard scene.beginDrag(at:from) else{XCTFail("pickup rejected: \(diagnostic(game))");throw NSError(domain:"SpaceshipPickupRejected",code:1)}
+        scene.moveDrag(to:to,now:CACurrentMediaTime())
+        try await Task.sleep(for:.milliseconds(160))
+        let result=try XCTUnwrap(scene.finishDrag(at:to,now:CACurrentMediaTime()))
+        XCTAssertTrue(result.accepted,"\(result.resolution.reason): \(diagnostic(game))")
+        guard result.accepted else{throw NSError(domain:"SpaceshipDropRejected",code:1)}
+    }
+    private func exercise(reversed:Bool,overlappingCarrier:Bool=false,consumeBookkeptCarrier:Bool=false)async throws {
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent("native-spaceship-incident-"+UUID().uuidString)
+        let store=NativeSaveStore(directory:directory)
+        var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
+        seed.progression.firstPlayTutorialComplete=true;seed.progression.completedJourneyBoards=Set(1...23)
+        var saved=incidentBoard();if overlappingCarrier {saved.wildMeter=0.95};seed.journeyRuns[24]=saved;seed.journeyRunSavedAt[24]=Date().timeIntervalSince1970;try store.save(seed)
+        let host=NativeStandaloneViewController(resourceRoot:NativeTestResources.root,store:store,sourceVisualRandom:{overlappingCarrier ? 0.99:0.1},completeNativeGameplayEnabled:true)
+        let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+        let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=host;window.makeKeyAndVisible()
+        defer{host.dispose();window.isHidden=true;previous?.makeKeyAndVisible();try? FileManager.default.removeItem(at:directory)}
+        host.loadViewIfNeeded();let app=try XCTUnwrap(host.children.first as? NativeAppController)
+        try await wait("Home"){!app.home.isHidden}
+        app.navigate(.world(3),interrupt:true)
+        try await wait("Journey Continue"){
+            if app.children.contains(where:{$0 is NativeGameplayViewController}){return true}
+            app.world?.onRequest?("continue",24);return false
+        }
+        let game=try XCTUnwrap(app.children.compactMap{$0 as? NativeGameplayViewController}.first)
+        try await wait("real entry",game:game){game.beforeSourceGameplayAdmission==nil && game.boardScene?.isBoardEntryComplete==true && !game.engine.hasUnsavableSourceGameplayState}
+        let scene=try XCTUnwrap(game.boardScene)
+        var survivorID=reversed ? "g1-15":"g1-36"
+        var carrierID:String?,overlapAccepted=false,magnetCommitted=false
+        let receiptObserver=scene.onGameplayReceipt
+        scene.onGameplayReceipt={event,source,destination,generation in
+            receiptObserver?(event,source,destination,generation)
+            if event.kind == .specialBoardCommitted && event.archetype == (consumeBookkeptCarrier ? .tnt:.magnet) {magnetCommitted=true}
+        }
+        defer{scene.onGameplayReceipt=receiptObserver}
+        if overlappingCarrier {
+            let original=scene.onGameplayReceipt
+            scene.onGameplayReceipt={event,source,destination,generation in
+                original?(event,source,destination,generation)
+                guard event.kind == (consumeBookkeptCarrier ? .meterDropCompleted:.meterDropLanded),carrierID==nil,
+                      let drop=game.engine.meterDropReservations.values.first(where:{$0.tileID==event.tileIDs.first}) else{return}
+                carrierID=drop.tileID
+                XCTAssertEqual(drop.variant,"laser-gun")
+                XCTAssertTrue(drop.landed);XCTAssertEqual(drop.bookkeepingCommitted,consumeBookkeptCarrier);XCTAssertTrue(drop.handoffLocked)
+                let candidates=game.engine.state.tiles.filter{$0.isPlayable && !$0.isWild && $0.id != drop.tileID}
+                let target=candidates.min{a,b in
+                    let ax=a.cell.column-drop.cell.column,ay=a.cell.row-drop.cell.row,bx=b.cell.column-drop.cell.column,by=b.cell.row-drop.cell.row
+                    return ax*ax+ay*ay < bx*bx+by*by
+                }
+                guard let target,let ship=scene.sourceNativeTileNode(consumeBookkeptCarrier ? target.id:"g1-15"),let dst=scene.sourceNativeTileNode(consumeBookkeptCarrier ? drop.tileID:target.id),let sp=ship.parent,let dp=dst.parent else{XCTFail("missing overlap nodes");return}
+                survivorID=consumeBookkeptCarrier ? drop.tileID:target.id
+                let from=scene.convert(ship.position,from:sp),to=scene.convert(dst.position,from:dp)
+                guard scene.beginDrag(at:from) else{XCTFail("landed carrier overlap pickup: \(self.diagnostic(game))");return}
+                scene.moveDrag(to:to,now:CACurrentMediaTime())
+                overlapAccepted=scene.finishDrag(at:to,now:CACurrentMediaTime())?.accepted==true
+                XCTAssertTrue(overlapAccepted,self.diagnostic(game))
+                XCTAssertEqual(game.engine.pendingSpecial?.archetype,consumeBookkeptCarrier ? .tnt:.magnet,self.diagnostic(game))
+                XCTAssertFalse(game.engine.pendingSpecial?.targets.contains{$0.id==drop.tileID} ?? false,"Carrier is not a collateral target")
+            }
+            defer{scene.onGameplayReceipt=original}
+            try await move("g1-5",onto:"g1-7",game:game)
+            try await wait("real landed Laser overlap",game:game){carrierID != nil}
+            XCTAssertTrue(overlapAccepted,diagnostic(game))
+        } else {
+            try await move(reversed ? "g1-36":"g1-15",onto:survivorID,game:game)
+        }
+        try await wait("Magnet board commit",game:game){magnetCommitted || game.sourcePresentationFailure != nil}
+        XCTAssertNil(game.sourcePresentationFailure,diagnostic(game))
+        // Use the actual survivor while decorative/helper tails may still run.
+        if let carrierID {
+            try await wait("real Laser finally",game:game){!game.engine.meterDropReservations.values.contains{$0.tileID==carrierID}}
+            if !consumeBookkeptCarrier {
+                XCTAssertNotNil(game.engine.state.tiles.first{$0.id==carrierID},diagnostic(game))
+                XCTAssertNotNil(scene.sourceNativeTileNode(carrierID),diagnostic(game))
+            }
+            XCTAssertNotNil(scene.captureSourceMagnetPhysicalTiles(),diagnostic(game))
+        }
+        if overlappingCarrier {
+            let ordinary=game.engine.state.tiles.filter{!$0.isWild && $0.isPlayable}
+            if let destination=ordinary.first(where:{a in ordinary.contains{b in a.id != b.id && a.value+b.value<6}}) {survivorID=destination.id}
+        }
+        let survivor=try XCTUnwrap(game.engine.state.tiles.first{$0.id==survivorID},diagnostic(game))
+        let other=try XCTUnwrap(game.engine.state.tiles.first{$0.id != survivorID && !$0.isWild && $0.isPlayable && $0.value+survivor.value<6},diagnostic(game))
+        let expected=other.value+survivor.value
+        try await move(other.id,onto:survivorID,game:game)
+        try await wait("post-Spaceship stack settles",game:game){
+            guard let node=scene.sourceNativeTileNode(survivorID) else{return false}
+            return node.sourceValue==expected && node.sourcePendingStackFrameCount==0 && !game.engine.hasUnsavableSourceGameplayState
+        }
+        XCTAssertNil(game.sourcePresentationFailure,diagnostic(game))
+        XCTAssertFalse(game.engine.flags.wildMagnetPullInProgress,diagnostic(game))
+        XCTAssertNotNil(scene.captureSourcePhysicalBoard(),"\(scene.sourcePhysicalBoardCaptureDiagnostic);\(diagnostic(game))")
+        XCTAssertTrue(scene.sourceMagnetSurvivorPendingInputIDs.isEmpty,diagnostic(game))
+        XCTAssertEqual(game.engine.state.tiles.first{$0.id==survivorID}?.value,expected)
+        try await wait("durable post-Spaceship stack",game:game){(try? store.load()?.journeyRuns[24]?.tiles.first{$0.id==survivorID}?.value)==expected}
     }
 }

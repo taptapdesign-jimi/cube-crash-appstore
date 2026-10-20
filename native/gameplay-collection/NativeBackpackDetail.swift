@@ -21,6 +21,8 @@ final class NativeBackpackDetail:UIViewController {
     var entersImmediately=false
     var onPresentationStarted:(()->Void)?
     var onClose:(()->Void)?
+    var onExitSelection:((CGPoint)->Void)?
+    private(set) var exitSelectionPress:UILongPressGestureRecognizer?
     var onCloseRequested:(()->Void)?
     init(die:NativeBackpackCatalog.Die,assets:JimiV9Artwork,motion:NativeRouteMotion,fishOwnerFactory:((URL)->NativeFishIdleOwner)?=nil){self.die=die;self.assets=assets;self.motion=motion;self.fishOwnerFactory=fishOwnerFactory;super.init(nibName:nil,bundle:nil);modalPresentationStyle = .overFullScreen}
     required init?(coder:NSCoder){fatalError("Use die initializer")}
@@ -56,6 +58,8 @@ final class NativeBackpackDetail:UIViewController {
         close.setBackgroundImage(paper.image,for:.normal);close.clipsToBounds=true;close.layer.cornerRadius=26;close.setImage(assets.image("assets/close-icon.png"),for:.normal);close.imageView?.contentMode = .scaleAspectFit;close.artworkOpacity = 0.8;close.enableArtworkTapFeedback();close.imageEdgeInsets=UIEdgeInsets(top:14,left:14,bottom:14,right:14);close.addTarget(self,action:#selector(closeTapped),for:.touchUpInside);close.accessibilityLabel="Close dice details";close.accessibilityIdentifier="native.backpack.detail.close"
         modalDrag=JimiNativeModalDrag(target:card,idle:idle,viewport:view,canDrag:{[weak self] in guard let self else{return false};return self.foreground && self.entered && self.card.isUserInteractionEnabled && !self.closing && !self.disposed},onDismiss:{[weak self] in self?.closeTapped()})
         card.accessibilityIdentifier="native.backpack.detail";card.alpha=0;card.isUserInteractionEnabled=false;view.accessibilityViewIsModal=true
+        let exitTap=UILongPressGestureRecognizer(target:self,action:#selector(exitSelectionPressed(_:)))
+        exitTap.minimumPressDuration=0;exitTap.isEnabled=false;view.addGestureRecognizer(exitTap);exitSelectionPress=exitTap
         prepareArtwork()
     }
     override func viewDidLayoutSubviews(){
@@ -142,7 +146,7 @@ final class NativeBackpackDetail:UIViewController {
     @objc func closeTapped(){
         guard foreground,!closing,!disposed,card.isUserInteractionEnabled else{return}
         close.playArtworkTapFeedback()
-        modalDrag?.cancel(preservePose:true);closing=true;card.isUserInteractionEnabled=false;hero.layer.removeAllAnimations();preview?.setActive(false,retainMediaUntilDisposal:true);onCloseRequested?()
+        modalDrag?.cancel(preservePose:true);closing=true;exitSelectionPress?.isEnabled=true;card.isUserInteractionEnabled=false;hero.layer.removeAllAnimations();preview?.setActive(false,retainMediaUntilDisposal:true);onCloseRequested?()
         if UIAccessibility.isReduceMotionEnabled {finishClose();return}
         CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in self?.finishClose()}
         let painted=card.layer.presentation()?.transform ?? card.layer.transform
@@ -151,11 +155,21 @@ final class NativeBackpackDetail:UIViewController {
         let fade=CAKeyframeAnimation(keyPath:"opacity");fade.values=[1,1,0];fade.keyTimes=[0,0.18,1];fade.duration=0.65;card.layer.opacity=0;card.layer.add(fade,forKey:"backpack.detail.fade")
         CATransaction.commit();UIView.animate(withDuration:0.2){self.backdrop.alpha=0;if self.usesForestWorldIllustration {self.worldIllustration.alpha=0}}
     }
+    @objc private func exitSelectionPressed(_ gesture:UILongPressGestureRecognizer){
+        guard gesture.state == .began else{return}
+        captureExitSelection(atWindowPoint:gesture.location(in:view.window))
+    }
+    func captureExitSelection(atWindowPoint point:CGPoint){
+        guard closing,foreground,!disposed,let window=view.window else{return}
+        if let painted=card.layer.presentation(),painted.opacity>0.05,
+           painted.bounds.contains(painted.convert(point,from:window.layer.presentation() ?? window.layer)) {return}
+        onExitSelection?(point)
+    }
     private func finishClose(){guard !disposed else{return};let callback=onClose;dispose();dismiss(animated:false,completion:callback)}
     func setForeground(_ active:Bool){
         guard !disposed else{return}
         if !active {modalDrag?.cancel()}
-        foreground=active
+        foreground=active;exitSelectionPress?.isEnabled=active && closing
         preview?.setPreparationForeground(active)
         let layer=view.layer
         if active {
@@ -166,6 +180,6 @@ final class NativeBackpackDetail:UIViewController {
             motion.suspend();hero.layer.removeAllAnimations();preview?.setActive(false)
         }
     }
-    func dispose(){guard !disposed else{return};modalDrag?.dispose();modalDrag=nil;disposed=true;motion.cancel();[card,flip,idle,hero,worldIllustration].forEach{$0.layer.removeAllAnimations()};hero.image=nil;worldIllustration.image=nil;worldIllustration.removeFromSuperview();preview?.dispose();preview?.removeFromSuperview();preview=nil;assets.retireImagePreparation();onClose=nil;onCloseRequested=nil;onPresentationStarted=nil}
+    func dispose(){guard !disposed else{return};modalDrag?.dispose();modalDrag=nil;disposed=true;exitSelectionPress.map{view.removeGestureRecognizer($0)};exitSelectionPress=nil;onExitSelection=nil;motion.cancel();[card,flip,idle,hero,worldIllustration].forEach{$0.layer.removeAllAnimations()};hero.image=nil;worldIllustration.image=nil;worldIllustration.removeFromSuperview();preview?.dispose();preview?.removeFromSuperview();preview=nil;assets.retireImagePreparation();onClose=nil;onCloseRequested=nil;onPresentationStarted=nil}
 }
 private enum NativeBackpackCellPalette {static let ink=UIColor(red:173/255,green:134/255,blue:117/255,alpha:1)}

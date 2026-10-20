@@ -17,6 +17,56 @@ final class NativeGameplayAudioTests:XCTestCase {
         func stopAll() {stops += 1;let callbacks=Array(finishes.values);finishes.removeAll();callbacks.forEach{$0(.stopped)}}
         func dispose() {disposals += 1;stopAll()}
     }
+    func testCoinContactsAndFinalScoreUseSelectedFilesOnceAndRespectSettings() {
+        let transport=Transport(),owner=NativeGameplayAudioOwner(root:URL(fileURLWithPath:"/unused"),enabled:true,transport:transport)
+        defer{owner.dispose()}
+        owner.specialMoment(variant:"star",moment:"hud-star-arrived",receipt:1,generation:1)
+        XCTAssertEqual(transport.cues.map(\.source),["assets/sound/coins/hud coin.wav"])
+        XCTAssertEqual(transport.cues.last?.gain,0.6)
+        owner.specialMoment(variant:"star",moment:"hud-star-arrived",receipt:1,generation:1)
+        XCTAssertEqual(transport.cues.count,1)
+        owner.specialMoment(variant:"tnt",moment:"tnt-coin-launch",receipt:2,generation:1)
+        XCTAssertEqual(transport.cues.last?.source,"assets/sound/coins/tnt coin.wav")
+        for index in 0..<3 {owner.resultMoment("clean-score-stop",index:index,receipt:UInt64(index+1),generation:1)}
+        XCTAssertEqual(transport.cues.filter{$0.source.hasSuffix("final score.wav")}.count,3)
+        XCTAssertEqual(transport.cues.last?.gain,0.84)
+        owner.setEnabled(false)
+        owner.specialMoment(variant:"tnt",moment:"tnt-coin-launch",receipt:3,generation:1)
+        owner.resultMoment("clean-score-stop",receipt:4,generation:1)
+        owner.setEnabled(true)
+        owner.specialMoment(variant:"tnt",moment:"tnt-coin-launch",receipt:3,generation:1)
+        owner.resultMoment("clean-score-stop",receipt:4,generation:1)
+        XCTAssertEqual(transport.cues.count,5)
+    }
+
+    func testConsecutiveCoinContactsOwnIndependentNaturalTails() {
+        let transport=Transport(),owner=NativeGameplayAudioOwner(root:URL(fileURLWithPath:"/unused"),enabled:true,transport:transport)
+        defer{owner.dispose()}
+        for receipt in 1...4 {
+            owner.specialMoment(variant:"tnt",moment:receipt<3 ? "hud-star-arrived":"tnt-coin-launch",receipt:UInt64(receipt),generation:1)
+        }
+        XCTAssertEqual(Set(transport.cues.map(\.voice)).count,4)
+        XCTAssertTrue(transport.cues.allSatisfy{$0.stopAfter == nil && $0.fadeOut == 0})
+        XCTAssertEqual(transport.stops,0)
+    }
+
+    func testCTAUsesHomeIconSoundAndCloseBackUseFormerCTAOnce() {
+        let transport=Transport(),owner=NativeGameplayAudioOwner(root:URL(fileURLWithPath:"/unused"),enabled:true,transport:transport)
+        defer{owner.dispose()}
+        for (index,pair) in [("cta","tab"),("tab","tab"),("back","cta"),("close","cta"),("exit-modal","exitModal")].enumerated() {
+            transport.cues=[]
+            let receipt=UInt64(index+1)
+            owner.routeFeedback(pair.0,receipt:receipt,generation:1)
+            XCTAssertEqual(transport.cues,NativeAuthoredAudioCatalog.groups[pair.1])
+            let count=transport.cues.count
+            owner.routeFeedback(pair.0,receipt:receipt,generation:1)
+            XCTAssertEqual(transport.cues.count,count)
+        }
+        transport.cues=[];owner.setEnabled(false)
+        owner.routeFeedback("cta",receipt:6,generation:1);owner.routeFeedback("back",receipt:7,generation:1)
+        XCTAssertTrue(transport.cues.isEmpty)
+    }
+
     func testForegroundRecoversMissingInterruptionEndWithoutReplayingContacts() {
         let transport=Transport(),owner=NativeGameplayAudioOwner(root:URL(fileURLWithPath:"/unused"),enabled:true,transport:transport)
         defer{owner.dispose()}
@@ -29,7 +79,7 @@ final class NativeGameplayAudioTests:XCTestCase {
         owner.studioIntro(character:"lik-game",receipt:1,generation:1)
         XCTAssertTrue(transport.cues.isEmpty)
         owner.studioIntro(character:"lik-game",receipt:2,generation:1)
-        XCTAssertEqual(transport.cues.first{$0.voice=="native-studio-smile"}?.gain,0.63)
+        XCTAssertEqual(transport.cues.first{$0.voice=="native-studio-smile"}?.gain,0.882)
         owner.setEnabled(false)
         NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
         let count=transport.cues.count

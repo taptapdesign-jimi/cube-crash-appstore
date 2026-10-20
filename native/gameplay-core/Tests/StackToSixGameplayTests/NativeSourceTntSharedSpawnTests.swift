@@ -89,6 +89,9 @@ final class NativeSourceTntSharedSpawnTests:XCTestCase {
         e.sourceTntCoroutineFinally={_,_ in finally+=1;return true}
         e.sourceWildLockedBonusConstruct={_,_ in constructors+=1;return true}
         try releaseTwoInitialGuards(e,plan:plan)
+        XCTAssertTrue(e.hasSourceTntSpawnCoroutine(transactionID:plan.id,generation:plan.generation))
+        XCTAssertFalse(e.hasSourceTntSpawnCoroutine(transactionID:plan.id,generation:plan.generation+1))
+        XCTAssertFalse(e.hasSourceTntSpawnCoroutine(transactionID:"retired",generation:plan.generation))
         for _ in 0..<20 where finally==0 {
             let result:NativeMoveResult
             if let arrival=e.pendingWildSpawnArrivals.first {result=e.finishWildSpawnArrival(transactionID:plan.id,generation:plan.generation,arrivalID:arrival.id)}
@@ -97,6 +100,11 @@ final class NativeSourceTntSharedSpawnTests:XCTestCase {
             XCTAssertTrue(result.accepted)
         }
         XCTAssertEqual(finally,1);XCTAssertTrue(e.hasSettledSourceTntSpawnCoroutine(transactionID:plan.id,generation:plan.generation))
+        XCTAssertFalse(e.hasSourceTntSpawnCoroutine(transactionID:plan.id,generation:plan.generation),"A settled primary cannot admit a queued coroutine resume; its independent outer bonus keeps its own receipt")
+        let settledState=e.state
+        let late=e.resumeSourceWildSpawnCoroutine(transactionID:plan.id,generation:plan.generation)
+        XCTAssertFalse(late.accepted);XCTAssertEqual(late.resolution.reason,"stale_source_wild_coroutine_resume")
+        XCTAssertEqual(e.state,settledState);XCTAssertEqual(finally,1)
         XCTAssertEqual(constructors,0);XCTAssertNotNil(e.pendingSpecial)
         XCTAssertTrue(e.resumeSourceTntLockedBonusGuard(try XCTUnwrap(queued.first)).accepted)
         XCTAssertTrue(e.resumeSourceTntLockedBonusGuard(queued[1]).accepted)
@@ -116,6 +124,42 @@ final class NativeSourceTntSharedSpawnTests:XCTestCase {
         XCTAssertEqual(enqueues,0);XCTAssertEqual(constructors,0)
         XCTAssertNil(e.pendingSourceTntLockedBonusGuard);XCTAssertTrue(e.pendingWildLockedBonusPresentations.isEmpty)
         XCTAssertEqual(e.pendingWildSpawnArrivals.count,1,"Primary remains its own genuine awaited owner")
+    }
+    func testQueuedPrimaryResumeRetiresAfterInterruptedArrivalPublishesFinally()throws {
+        let e=make(sourceMath:NativeSourceMathRandomStream{0.2}),plan=try reserve(e)
+        var queued:[()->Void]=[],outer:[NativeSourceTntLockedBonusGuardReceipt]=[]
+        var finally=0,retired=0,rejected=0,constructors=0
+        defer {e.sourceTntCoroutineResume=nil;queued.removeAll()}
+        bindInitialAndOuterGuards(e,outer:{outer.append($0);return true})
+        e.sourceTntCoroutineFinally={_,_ in finally+=1;return true}
+        e.sourceWildLockedBonusConstruct={_,_ in constructors+=1;return true}
+        e.sourceTntCoroutineResume={id,generation in
+            // Same ownership boundary as the Scene FIFO: admission is checked
+            // when the queued reaction executes, not when it was scheduled.
+            queued.append {
+                guard e.hasSourceTntSpawnCoroutine(transactionID:id,generation:generation) else{retired+=1;return}
+                if !e.resumeSourceWildSpawnCoroutine(transactionID:id,generation:generation).accepted {rejected+=1}
+            }
+            return true
+        }
+        XCTAssertTrue(e.commitSpecialActivation(transactionID:plan.id).accepted)
+        XCTAssertTrue(e.releaseSourceTntInitialAwait(try XCTUnwrap(e.sourceTntSpawnBeginReceipt)))
+        for _ in 0..<8 where e.pendingWildSpawnArrivals.isEmpty && !queued.isEmpty {queued.removeFirst()()}
+        let arrival=try XCTUnwrap(e.pendingWildSpawnArrivals.first)
+        XCTAssertFalse(queued.isEmpty,"Actual primary assignment must have queued its next coroutine reaction")
+        let bonus=try XCTUnwrap(outer.first)
+        XCTAssertTrue(e.finishWildSpawnArrival(transactionID:plan.id,generation:plan.generation,arrivalID:arrival.id,interrupted:true).accepted)
+        XCTAssertEqual(finally,1);XCTAssertTrue(e.hasSettledSourceTntSpawnCoroutine(transactionID:plan.id,generation:plan.generation))
+        let interruptedState=e.state
+        for _ in 0..<8 where !queued.isEmpty {queued.removeFirst()()}
+        XCTAssertTrue(queued.isEmpty);XCTAssertEqual(retired,1);XCTAssertEqual(rejected,0)
+        XCTAssertEqual(e.state,interruptedState);XCTAssertEqual(finally,1);XCTAssertEqual(constructors,0)
+        // Cancellation cannot turn the independent outer receipt into a fresh
+        // allocation. Its exact owner still retires it once without state writes.
+        XCTAssertFalse(e.resumeSourceTntLockedBonusGuard(bonus).accepted)
+        XCTAssertTrue(e.retireSourceTntLockedBonusGuard(bonus))
+        XCTAssertFalse(e.retireSourceTntLockedBonusGuard(bonus))
+        XCTAssertEqual(e.state,interruptedState);XCTAssertEqual(constructors,0)
     }
     func testOuterEnqueueRestartCannotPublishOldRefusalIntoSuccessor()throws {
         let e=make(sourceMath:NativeSourceMathRandomStream{0.2}),plan=try reserve(e)

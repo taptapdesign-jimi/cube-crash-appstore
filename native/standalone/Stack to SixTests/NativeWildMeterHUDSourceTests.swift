@@ -3,7 +3,7 @@ import SpriteKit
 @testable import Stack_to_Six
 
 @MainActor final class NativeWildMeterHUDSourceTests: XCTestCase {
-    func testRenderedGradientStartsAtHalfOfFullTrackAndSurvivesResizeAndRefill() throws {
+    func testRenderedSolidOrangeSurvivesResizeAndRefill() throws {
         let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0})
         let timeouts=NativeSourceAppTimeoutOwner(),scene=SKScene(size:CGSize(width:440,height:40))
         let view=SKView(frame:CGRect(x:0,y:0,width:440,height:40));view.presentScene(scene)
@@ -25,73 +25,13 @@ import SpriteKit
                 let data=try pixels(width)
                 func green(_ fraction:Double)->Double {Double(data[(5*width+Int(Double(width)*fraction))*4+1])}
                 XCTAssertEqual(green(0.1),116,accuracy:3)
-                if ratio<=0.5 {XCTAssertEqual(green(ratio-0.05),green(0.1),accuracy:3)}
-                else {XCTAssertGreaterThan(green(ratio-0.05),green(0.1)+5)}
+                XCTAssertEqual(green(ratio-0.05),green(0.1),accuracy:3)
                 XCTAssertEqual(Int(data[(5*width+Int(Double(width)*0.1))*4+3]),255)
             }
-            var animatedGreens:[Int]=[]
-            for _ in 0..<5 {
-                for _ in 0..<20 {hud.advanceGradient(delta:0.05,visible:true,reducedMotion:false)}
-                let data=try pixels(width)
-                for fraction in [0.1,0.25,0.49] {
-                    XCTAssertEqual(Double(data[(5*width+Int(Double(width)*fraction))*4+1]),116,accuracy:3)
-                }
-                // A color step at50percent is visible even though both halves
-                // individually have the right colors. Inspect every neighbor.
-                for x in (width/2-4)..<(width-8) {
-                    let previous=Int(data[(5*width+x)*4+1])
-                    let next=Int(data[(5*width+x+1)*4+1])
-                    XCTAssertLessThanOrEqual(abs(next-previous),3,"hard color edge at \(x)/\(width)")
-                }
-                animatedGreens.append(Int(data[(5*width+Int(Double(width)*0.75))*4+1]))
-            }
-            XCTAssertGreaterThan((animatedGreens.max() ?? 0)-(animatedGreens.min() ?? 0),5)
             hud.consume(0.25,reducedMotion:true)
             let data=try pixels(width)
             XCTAssertEqual(Double(data[(5*width+Int(Double(width)*0.2))*4+1]),116,accuracy:3)
         }
-    }
-    func testGradientSheenUsesVisibleClockOnlyAboveHalfAndRetires() throws {
-        var current=true
-        let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0})
-        let timeouts=NativeSourceAppTimeoutOwner(),stage=SKNode()
-        let hud=NativeWildMeterHUDPresentation(hudStage:stage,service:service,timeouts:timeouts,generation:1,maximum:200,isPad:false,sourceOrigin:.zero,sourceToNative:{$0},nativeToSource:{$0},smokeDisabled:{true},current:{current},visualRandom:{0.5})
-        defer{hud.dispose();timeouts.cancelAll();service.dispose()}
-        let sheen=try XCTUnwrap(hud.fill.childNode(withName:"//wild-meter-gradient-sheen"))
-        for ratio in [0.25,0.49] {
-            hud.setProgress(ratio,animated:false)
-            hud.advanceGradient(delta:0.05,visible:true,reducedMotion:false)
-            XCTAssertTrue(sheen.isHidden)
-        }
-        hud.setProgress(0.5,animated:false)
-        hud.advanceGradient(delta:0,visible:true,reducedMotion:false)
-        XCTAssertFalse(sheen.isHidden)
-        hud.setProgress(0.9,animated:false)
-        hud.advanceGradient(delta:0,visible:true,reducedMotion:false)
-        XCTAssertEqual(sheen.alpha,1)
-        XCTAssertGreaterThanOrEqual((sheen as? SKSpriteNode)?.size.width ?? 0,600)
-        let start=sheen.position
-        XCTAssertFalse(sheen.isHidden)
-        XCTAssertLessThanOrEqual(start.x,0)
-        for _ in 0..<80 {hud.advanceGradient(delta:0.05,visible:true,reducedMotion:false)}
-        XCTAssertGreaterThan(sheen.position.x,start.x+60)
-        let right=sheen.position
-        XCTAssertGreaterThanOrEqual(right.x,180)
-        for _ in 0..<20 {hud.advanceGradient(delta:0.05,visible:false,reducedMotion:false)}
-        XCTAssertEqual(sheen.position,right);XCTAssertTrue(sheen.isHidden)
-        hud.advanceGradient(delta:0.05,visible:true,reducedMotion:true)
-        XCTAssertEqual(sheen.position,right);XCTAssertTrue(sheen.isHidden)
-        current=false;hud.advanceGradient(delta:0.05,visible:true,reducedMotion:false)
-        XCTAssertEqual(sheen.position,right);XCTAssertTrue(sheen.isHidden)
-        current=true
-        for _ in 0..<80 {hud.advanceGradient(delta:0.05,visible:true,reducedMotion:false)}
-        XCTAssertEqual(sheen.position.x,start.x,accuracy:0.001)
-        hud.consume(0.25,reducedMotion:true);XCTAssertTrue(sheen.isHidden)
-        hud.advanceGradient(delta:0.05,visible:true,reducedMotion:false);XCTAssertTrue(sheen.isHidden)
-        hud.setProgress(0.8,animated:false);hud.advanceGradient(delta:0.05,visible:true,reducedMotion:false)
-        hud.dispose();let stopped=sheen.position
-        hud.advanceGradient(delta:4,visible:true,reducedMotion:false)
-        XCTAssertEqual(sheen.position,stopped);XCTAssertTrue(sheen.isHidden);XCTAssertNil(hud.container.parent)
     }
     func testGameplayFillAndFullCompletionStayOnHorizontalBaseline() throws {
         var wall=0.0

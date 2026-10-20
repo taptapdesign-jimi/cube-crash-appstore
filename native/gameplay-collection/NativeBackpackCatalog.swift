@@ -13,6 +13,7 @@ struct NativeBackpackCatalog {
     }
     struct Section {
         let title:String,dice:[Die],unlocked:Set<String>
+        var unread:Set<String> = []
         var count:Int {dice.filter{unlocked.contains($0.id)}.count}
     }
     static let arcade:[Die] = [
@@ -49,7 +50,9 @@ struct NativeBackpackCatalog {
             if title=="Forest",progression.hasUnlockedWildStar {eligible.insert("wild-star")}
             if title=="Forest",progression.unlockedSpecialDice.contains("flower") {eligible.insert("flower")}
             if title=="Beach",progression.unlockedSpecialDice.contains("juice") {eligible.insert("wild-juice")}
-            return Section(title:title,dice:dice,unlocked:eligible)
+            // Acknowledging an alert never removes a discovered die from the collection.
+            let discovered=progression.announcedJourneyDice.intersection(Set(dice.map(\.id)))
+            return Section(title:title,dice:dice,unlocked:eligible.union(discovered),unread:progression.unreadJourneyDice)
         }
     }
 }

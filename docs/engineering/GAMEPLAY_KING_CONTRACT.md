@@ -284,10 +284,35 @@ Arcade Clean Board celebration uses the world of the last committed Wild/Special
 
 ### Journey world-only random drop isolation — user clarification 2026-10-19
 
-All Journey meter rewards must come exclusively from that board's unlocked cumulative World pool, with one uniform draw and no count/history/first-drop override. Original TNT, original Magnet and Cubero are Arcade-only; Forest7–10 excludes original TNT and retains Barrel. Legacy Forest7–10 saved original TNT resumes as gameplay-equivalent Barrel without changing score, moves, charge, RNG or tile identity. A singleton eligible pool naturally always selects its one die. The separate tutorial remains unchanged; Arcade random-drop policy is defined below.
+All Journey meter rewards must come exclusively from that board's unlocked cumulative World pool. The first earned drop on an exact introduction Unit follows the later first-Backpack-drop rule below; other drops use one uniform draw with no history override. Original TNT, original Magnet and Cubero are Arcade-only; Forest7–10 excludes original TNT and retains Barrel. Legacy Forest7–10 saved original TNT resumes as gameplay-equivalent Barrel without changing score, moves, charge, RNG or tile identity. A singleton eligible pool naturally always selects its one die. The separate tutorial remains unchanged; Arcade random-drop policy is defined below.
 
 Beach eligibility follows local Units1=Juice,2=Fishy,3=Beach Ball,4=Bottle (global boards11–14). Each addition stays in the cumulative same-World random pool; Backpack unlock labels use the same thresholds. Existing saved dice are preserved.
 
 ### Arcade random from first drop — user decision 2026-10-19
 
 All active Native Arcade variants select identity using one uniform pool draw, independent of round, numbered drop, previous identity or streak. No forced opening sequence or anti-repeat reroll. Endurance/Slow Burn retain previously available identities (plain Star when unlocked, Juice, OG Magnet, OG TNT, Bottle, Cubero, Barrel), now randomly eligible from the first drop. Pure Dice/One Lucky Drop retains its original core-only pool and one-drop-per-round rule. Plain Star unlock eligibility and separate onboarding tutorial remain unchanged. This supersedes older Arcade authored-sequence decisions; preserved PWA oracle/assets stay immutable.
+
+### Native combo grace extension — 2026-10-19
+
+Active NativeBootstrap adds1.5s to the canonical combo window: ordinary2→3.5s and Wild/Special4→5.5s, preserving each existing last-mutation anchor. The same expireCombo gate owns HUD and gameplay expiry. Source-reference default remains0 extension; no change to earned rewards, combo thresholds or save format.
+
+### Exact Journey unlock Unit first Backpack drop — user correction 2026-10-19
+
+Every fresh attempt and Restart begins with ordinary opening dice only. The newly introduced Wild/Special die must not be placed on the opening board. Instead, the first earned Backpack drop on its exact introduction Unit always selects that die, even after permanent unlock. Canonical cumulative World-pool differences define the introduction. Later drops and Units without a new introduction retain uniform same-World random selection. Existing persisted wildSpawnCount owns first-drop eligibility across Continue; Restart resets it with the fresh run. Do not add a second latch or change meter charge, arrival, final-merge veto, saves or artwork. Existing saved dice remain intact. Arcade and the scripted first-play tutorial remain separate. Both Source construction and fallback factory start ordinary; the existing reward picker owns the guaranteed first drop.
+
+### Pending Backpack carrier and Magnet ownership — 2026-10-19
+
+Every Magnet-archetype pull (OG Magnet, Honey, Bottle and Spaceship) must exclude a current-generation Backpack/crate carrier until its real drop bookkeeping completes and its independent handoff lock releases. A painted or landed carrier alone is not an available pull donor. The same rule governs pull routing, physical selection and Scene readiness; other available dice remain playable. The pending die remains an actual finality blocker and its existing drop, warmup, cancellation and save ownership stay authoritative. Once released it becomes eligible normally. A rejected ordinary contact must return its exact captured dragged node through the existing return animation, without admitting the move, changing saves or releasing another transaction's input authority.
+
+A carrier pickup also waits for genuine drop bookkeeping, even if selected warmup and the independent wall unlock arrive first. After bookkeeping and wall release, a retained foreground-paint owner must transfer its exact node non-destructively to an accepted pickup or accepted Wild/Special transaction before that transaction consumes it. This does not invent a paint receipt, erase a pending reservation, cancel another drop, or globally lock input. Ordinary contact onto a bookkept destination during its remaining wall handoff retains its existing admission behavior.
+
+### Gameplay Backpack notification is manual — user decision 2026-10-20
+
+The first landed, previously unseen Journey die changes only the current World
+HUD icon from stats-nav to stats-nav-open through its existing fade/bounce
+exit/enter, with a persistent alert. It must not navigate, replace the board,
+or automatically open a collection/detail modal. Only the player's HUD tap
+opens Backpack; details require another explicit selection. On completed
+Backpack dismissal back to the same board, acknowledge that visit's current
+World notifications and animate the HUD back to stats-nav. Other Worlds'
+notifications, board state and existing saves remain preserved.

@@ -158,7 +158,12 @@ final class NativeJourneyRewardTests:XCTestCase {
             XCTAssertEqual(NativeRewardPresentation.dragTilt(start:input[0],deltaX:input[1],width:input[2]),angle,accuracy:0.0000001)
             XCTAssertEqual(NativeRewardPresentation.collectDrag(deltaX:input[1],deltaY:input[3],cardHeight:input[4]),collect)
         }
-        XCTAssertEqual(NativeRewardPresentation.names,NativeRewardOracleFixtures.names)
+        // Native progression swaps the first two authored cards in each World;
+        // keep the immutable PWA oracle, applying only the Native order here.
+        var nativeNames=NativeRewardOracleFixtures.names
+        for start in [0,10,20] {nativeNames.swapAt(start,start+1)}
+        XCTAssertEqual(NativeRewardPresentation.names,nativeNames)
+        for board in 1...30 {XCTAssertEqual(NativeRewardPresentation.name(board:board),nativeNames[board-1])}
     }
     func testComponentExitRetainsAuthoredAnglesAtZeroScaleAndCorrectCSSRotationOrder() {
         let start=NativeRewardMotion.pose(scaleX:1.3806,scaleY:1.3455,y:40,z:3,x:-2,ry:2.5)

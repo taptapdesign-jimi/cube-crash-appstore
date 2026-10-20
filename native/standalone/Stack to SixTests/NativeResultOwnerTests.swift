@@ -5,6 +5,33 @@ import StackToSixGameplay
 
 @MainActor
 final class NativeResultOwnerTests:XCTestCase {
+    func testCleanScoreRegisterLeadsFinalCounterCompletionByHalfSecond() {
+        let result=controller();var stops:[Int]=[];var cueTimes:[Double]=[]
+        result.onMoment={kind,index,_ in if kind=="clean-score-stop" {stops.append(index);cueTimes.append(result.elapsed)}}
+        result.loadViewIfNeeded();defer{result.dispose()}
+        result.tick(0)
+        XCTAssertTrue(stops.isEmpty)
+        for frame in 1...275 {result.tick(Double(frame)/60)}
+        XCTAssertTrue(stops.isEmpty)
+        for frame in 276...420 {result.tick(Double(frame)/60)}
+        XCTAssertEqual(stops,[2])
+        XCTAssertEqual(cueTimes.first ?? 0,5.1,accuracy:1.0/60+0.001)
+        result.tick(7.1);XCTAssertEqual(stops,[2])
+    }
+
+    func testJourneyResultUsesWorldAndLocalUnitWhileArcadeKeepsRound() throws {
+        func find(_ view:UIView)->UILabel? {
+            if view.accessibilityIdentifier=="native.result.status" {return view as? UILabel}
+            return view.subviews.lazy.compactMap{find($0)}.first
+        }
+        for (board,title) in [(2,"Forest 02 cleared"),(12,"Beach 02 cleared"),(22,"Area 02 cleared")] {
+            let result=controller(board:board);result.loadViewIfNeeded()
+            XCTAssertEqual(find(result.view)?.text,title);result.dispose()
+        }
+        let arcade=controller(mode:.arcade,board:2);arcade.loadViewIfNeeded()
+        XCTAssertTrue(try XCTUnwrap(find(arcade.view)?.text).hasPrefix("Round "));arcade.dispose()
+    }
+
     func testForestAmbienceFollowsActualResultMountPauseAndDisposeOnly() {
         for board in [1,11,21] {
             let result=controller(board:board)
@@ -184,6 +211,18 @@ final class NativeResultOwnerTests:XCTestCase {
         let root=Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle")!
         let state=NativeBoardState(tiles:[],mode:mode,board:board,score:100)
         return NativeResultController(root:root,state:state,clean:clean,combo:50,efficiency:500,finalScore:650,headlineRandom:headlineRandom)
+    }
+    func testResultPrimaryAndExitEmitDistinctAcceptedActionCues() throws {
+        for (id,cue) in [("native.result.play-again","cta"),("native.result.exit","back")] {
+            let result=controller(clean:false),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+            window.rootViewController=result;window.makeKeyAndVisible();result.loadViewIfNeeded()
+            defer{result.dispose();window.isHidden=true;window.rootViewController=nil}
+            result.tick(0);for index in 1...20 {result.tick(Double(index)/10)}
+            var cues:[String]=[];result.onMoment={kind,_,_ in cues.append(kind)}
+            let action=try XCTUnwrap(button(in:result.view,id:id))
+            action.sendActions(for:.touchUpInside);action.sendActions(for:.touchUpInside)
+            XCTAssertEqual(cues,[cue])
+        }
     }
     func testResultCommitsOnceBeforeActionsAndBackgroundFreezesClock() {
         let result=controller();var commits=0;var actions=0

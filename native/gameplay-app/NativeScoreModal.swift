@@ -27,7 +27,7 @@ struct NativeScoreModalModel {
 /// Its only decision is dismissal; pause and persistence belong to the owner.
 @MainActor
 final class NativeScoreModal:UIViewController {
-    var onClosed:(()->Void)?
+    var onClosed:(()->Void)?,onCloseRequested:(()->Void)?
     private let model:NativeScoreModalModel,assets:JimiV9Artwork
     private let backdrop=JimiV9PlainButton(type:.custom),card=UIView(),flip=JimiNativeModalTransformView(),idle=UIView(),paper=UIImageView()
     private let heading=UILabel(),subtitle=UILabel(),close=JimiV9PlainButton(type:.custom)
@@ -104,7 +104,7 @@ final class NativeScoreModal:UIViewController {
         }
     }
     @objc func requestClose() {
-        guard ready,!disposed,!closing else{return};close.playArtworkTapFeedback();closing=true;view.isUserInteractionEnabled=false;drag?.cancel(preservePose:true)
+        guard ready,!disposed,!closing else{return};close.playArtworkTapFeedback();closing=true;view.isUserInteractionEnabled=false;drag?.cancel(preservePose:true);onCloseRequested?()
         if UIAccessibility.isReduceMotionEnabled {finishClose();return}
         CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in self?.finishClose()};animateStats(enter:false)
         JimiNativeModalV10.exit(card,flip:false,releaseY:card.layer.presentation()?.transform.m42 ?? 0,key:"score.exit")
@@ -118,6 +118,6 @@ final class NativeScoreModal:UIViewController {
         if value,layer.speed != 0 {drag?.cancel(preservePose:true);layer.timeOffset=layer.convertTime(CACurrentMediaTime(),from:nil);layer.speed=0;view.isUserInteractionEnabled=false}
         else if !value,layer.speed==0,!disposed {let t=layer.timeOffset;layer.speed=1;layer.timeOffset=0;layer.beginTime=0;layer.beginTime=layer.convertTime(CACurrentMediaTime(),from:nil)-t;view.isUserInteractionEnabled=ready && !closing}
     }
-    func dispose() {guard !disposed else{return};disposed=true;onClosed=nil;drag?.dispose();drag=nil;for target in [card,flip,idle,close]+statTracks {target.layer.removeAllAnimations()};viewIfLoaded?.layer.removeAllAnimations()}
+    func dispose() {guard !disposed else{return};disposed=true;onClosed=nil;onCloseRequested=nil;drag?.dispose();drag=nil;for target in [card,flip,idle,close]+statTracks {target.layer.removeAllAnimations()};viewIfLoaded?.layer.removeAllAnimations()}
     override func viewDidDisappear(_ animated:Bool) {super.viewDidDisappear(animated);dispose()}
 }

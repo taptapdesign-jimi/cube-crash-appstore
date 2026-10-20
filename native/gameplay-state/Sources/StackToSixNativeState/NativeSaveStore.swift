@@ -89,6 +89,8 @@ public struct NativeSaveEnvelope: Codable, Equatable, Sendable {
         guard product == "com.taptapdesign.stacktosix.native" else { throw NativeSaveError.wrongProduct }
         guard version == Self.currentVersion else { throw NativeSaveError.unsupportedVersion(version) }
         var issues: [String] = []
+        let knownDice=Set((1...30).flatMap{NativeJourneyContent.rewardPool(board:$0)})
+        if !progression.announcedJourneyDice.isSubset(of:knownDice) || !progression.unreadJourneyDice.isSubset(of:progression.announcedJourneyDice) {issues.append("invalid-backpack-alert-state")}
         if !progression.unlockedSpecialDice.allSatisfy({["flower","juice"].contains($0)}) {issues.append("invalid-special-unlock")}
         if !savedAt.isFinite || !journeyRunSavedAt.allSatisfy({(1...30).contains($0.key) && $0.value.isFinite && $0.value >= 0}) || enduranceRunSavedAt.map({!$0.isFinite || $0 < 0}) == true || !progression.completedJourneyBoards.allSatisfy({(1...30).contains($0)}) || !progression.viewedJourneyBoards.allSatisfy({(1...30).contains($0)}) { issues.append("invalid-progression") }
         for (key, board) in journeyRuns {

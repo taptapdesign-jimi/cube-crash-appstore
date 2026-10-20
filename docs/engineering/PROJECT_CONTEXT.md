@@ -47,6 +47,14 @@ in the parity checklist; native implementation alone is not visual acceptance.
 - Historical hardware destination `00008110-001E39961AFA801E`, CoreDevice `0F62B71E-0B04-53C3-906E-EC28F5D2390B`; these are mutable, verify live.
 - Dedicated isolated Native QA Simulator: `1018BE2D-491B-465F-8F75-3E5BEB38C22A`. DEBUG-only named temporary QA profile requires exact Simulator/bundle/UUID; no normal profile fallback or migration, excluded from Release.
 
+## Native reward flow (2026-10-20)
+
+New Card Unlocked continues directly to Clean Board. New Dice Reveal and its
+animations, presentation owners and DEV launch actions are removed from Native.
+Existing progression unlocks persist with the successful result transaction;
+no unlock depends on a reveal screen. Original assets and the separate preserved
+PWA product remain unchanged.
+
 ## Mobile-first thermal and stability policy
 
 - Navigation queues, background tickers, resource preparation and startup import changes follow [`BACKGROUND_WORK_CONTRACT.md`](BACKGROUND_WORK_CONTRACT.md). Keep timer ownership explicit, use renderer-matched resource preparation and verify the built dependency graph before claiming lazy loading.
@@ -101,6 +109,14 @@ maximum line heights, no extra paragraph spacing and `NativeTextPalette.subtitle
 (current #BD9788). Retain each owner’s alignment, wrapping, font size and measured
 content layout. Fullscreen reward/round/title typography remains separately owned.
 
+Native Journey introduction policy (user correction 2026-10-19): fresh Play and
+Restart open ordinary dice only. On an exact introduction Unit, the first earned
+Backpack drop always selects its newly introduced die; later drops and Units
+without introductions use the cumulative same-World random pool. Existing saved
+wildSpawnCount owns eligibility across Continue; no extra save latch. Existing
+saved Wild dice, Arcade and scripted onboarding remain intact. See
+GAMEPLAY_KING_CONTRACT.md for the current contract.
+
 ## Current launch/preloader design
 
 - First-frame markup and fallback assets: `index.html`.
@@ -146,7 +162,7 @@ content layout. Fullscreen reward/round/title typography remains separately owne
 - Journey hub/world screens: `collectibles-manager.ts` and `journey-boards-manager.ts`.
 - Journey motion contract: [`JOURNEY_ANIMATION_CONTRACT.md`](JOURNEY_ANIMATION_CONTRACT.md).
 - Physical iOS performance workflow: [`IOS_LIVE_PERFORMANCE_INVESTIGATION.md`](IOS_LIVE_PERFORMANCE_INVESTIGATION.md).
-- Interactive phone-to-web debugging workflow: [`LIVE_DEBUG_WORKFLOW.md`](LIVE_DEBUG_WORKFLOW.md). `http://localhost:5174` is the authoritative Stack to Six web test server. For live captures, say **KRENI** only after the exact app console is connected, retain all user problem markers until **GOTOVO**, validate the fix on web first, and install on the phone only after explicit web approval.
+- Native debugging workflow (user decision 2026-10-19): [`LIVE_DEBUG_WORKFLOW.md`](LIVE_DEBUG_WORKFLOW.md). All Native fixes and reviews use the dedicated `Jimi 2026 QA iPhone 13` Simulator (`1018BE2D-491B-465F-8F75-3E5BEB38C22A`); no web checks or web approval. For live phone captures, say **KRENI** only after the exact app console is connected and retain all problem markers until **GOTOVO**. Physical installation remains separately authorized and preserves saves.
 
 Journey Worlds hub and an individual Journey world are different surfaces. Every Journey Worlds hub entry starts at the absolute top, including returns from Forest/Beach/Area 55; the user scrolls the hub manually from there. Auto-scroll to an active interim card belongs only to individual Forest/Beach/Area 55 screens.
 
@@ -163,3 +179,12 @@ Journey Worlds hub and an individual Journey world are different surfaces. Every
 - Never claim a phone has the latest change merely because web build passed; verify sync, final `.app`, install result, and launched bundle separately.
 - Run `npm run qa:gameplay-lock` for gameplay changes and gameplay-adjacent legacy cleanup. Do not add a second decision owner for final merge, end-game, active-tile filtering, input gating or run origin.
 - Assets are intentionally excluded from the current cleanup program. Do not optimize, deduplicate, rename, relocate, replace or delete them without a later explicit user request.
+
+## Dedicated Simulator audio policy — 2026-10-19
+
+User decides audibility by task: explicit audio work/review uses Silent Mode OFF;
+other development/review uses Silent Mode ON, unless explicitly directed otherwise.
+Recheck actual iOS state after boot/restart and final app launch; toolbar Mute can
+disagree with SpringBoard. Use Simulator UI, verify the iOS Silent Mode banner,
+and leave game Sounds/Music settings, host output and production session policy
+unchanged. The policy applies only to retained Native QA Simulator, not iPhone.

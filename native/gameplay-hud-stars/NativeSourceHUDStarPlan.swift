@@ -4,7 +4,6 @@ import Foundation
 /// comparison order is pinned by the original function running in JavaScriptCore.
 nonisolated struct NativeSourceHUDStarPlan {
     let points:[CGPoint],delay:Double,duration:Double,size:Double,rotation:Double,textureWidth:Double
-    var burstProgress:Double=0
     var arrivalEaseDuration:Double=0
     var launchPower:Double=0
     var end:Double {delay+duration}
@@ -47,38 +46,34 @@ nonisolated struct NativeSourceHUDStarPlan {
         let rotation=(12+random()*20)*direction*Double.pi/180
         return Self(points:points,delay:delay,duration:duration,size:size,rotation:rotation,textureWidth:textureWidth)
     }
-    /// Native coin burst reuses captured randomness; Source plans stay literal.
+    /// Native coin fan reuses captured randomness; Source plans stay literal.
     /// All displacement is finite and the existing job still owns HUD arrival.
-    func readableCoin(ordinal:Int,previousEnd:inout Double,viewport:CGSize?=nil,gentleLaunch:Bool=false)->Self {
+    func readableCoin(ordinal:Int,previousEnd:inout Double,viewport:CGSize?=nil,gentleLaunch:Bool=false,launchInterval:Double?=nil)->Self {
         let variation=abs(sin(rotation*17.13+size*0.731+Double(ordinal)*2.399))
-        let launch=variation*0.025
-        let flight=max(duration*1.25*1.30/(0.60*1.20*2*0.90)*(0.82+variation*0.36)+0.28,previousEnd+0.32+variation*0.12-launch)
-        previousEnd=launch+flight
-        let start=points[0],target=points[points.count-1]
-        let phase=rotation*11.7+Double(ordinal)*2.399+size*0.017
+        let baseFlight=duration*1.25*1.30/(0.60*1.20*2*0.90)*(0.82+variation*0.36)
+        let flight=baseFlight*(gentleLaunch ? 1:0.82)+0.28
+        // One group captures the first flight's 20% spacing. Later coins stay
+        // invisible at their source until launch, rather than waiting in a cluster.
+        let launch=Double(ordinal)*(launchInterval ?? (flight-0.28)*0.20)
+        previousEnd=max(previousEnd,launch+flight)
+        var start=points[0]
+        let target=points[points.count-1]
+        if let viewport,viewport.width>0,viewport.height>0 {
+            let margin=min(min(viewport.width,viewport.height)/2,size*1.2*0.75+2)
+            start.x=min(viewport.width-margin,max(margin,start.x))
+            start.y=min(viewport.height-margin,max(margin,start.y))
+        }
         let dx=target.x-start.x,dy=target.y-start.y,distance=max(1,hypot(dx,dy))
-        let amplitude=min(110,distance*0.32)*(0.65+variation*0.35)
+        // Alternating wide lanes fan left/right while every center keeps moving
+        // upward. No radial kick, shared waiting point or spring around the HUD.
+        let side=ordinal.isMultiple(of:2) ? -1.0:1.0
+        let lane=side*min(150,distance*0.42)*(0.70+variation*0.30)*1.20
+        let bend=0.75+variation*0.50
         let burstPoints:[CGPoint]=(0...64).map {i in
             let t=Double(i)/64
-            // Damped lateral spring around a continuously HUD-bound center.
-            // The envelope vanishes at both endpoints; no outward launch leg.
-            let envelope=sin(.pi*t)*pow(1-t,0.7)
-            let wave=sin(t*(3.2+variation*2.0)*Double.pi+phase)*amplitude*envelope
-            let along=sin(t*5*Double.pi+phase*0.7)*min(24,distance*0.06)*envelope
-            let burstAngle=Double(ordinal)*2.399+rotation*2
-            let burst=sin(min(1,t/0.38)*Double.pi)*(65+variation*30)
-            var point=CGPoint(x:start.x+dx*t-dy/distance*wave+dx/distance*along+cos(burstAngle)*burst,
-                              y:start.y+dy*t+dx/distance*wave+dy/distance*along+sin(burstAngle)*burst)
-            if t>0.7 {
-                let q=(t-0.7)/0.3,blend=q*q*(3-2*q)
-                let approach=phase+Double(ordinal)*1.71
-                let radius=(55+variation*35)*(1-q)
-                let capture=CGPoint(x:target.x+cos(approach)*radius,y:target.y+sin(approach)*radius)
-                point=CGPoint(x:point.x+(capture.x-point.x)*blend,y:point.y+(capture.y-point.y)*blend)
-            }
+            let fan=sin(.pi*pow(t,bend))*pow(1-t,0.35)
+            var point=CGPoint(x:start.x+dx*t+lane*fan,y:start.y+dy*t)
             if let viewport,viewport.width>0,viewport.height>0 {
-                // Reserve the rotated artwork footprint, shrinking only with
-                // the same final scale envelope sampled by the sprite.
                 let shrink=min(1,max(0,(t-0.7)/0.3))
                 let margin=min(min(viewport.width,viewport.height)/2,(size*1.2+(28-size*1.2)*shrink)*0.75+2)
                 point.x=min(viewport.width-margin,max(margin,point.x))
@@ -88,7 +83,7 @@ nonisolated struct NativeSourceHUDStarPlan {
             return point
         }
         return Self(points:burstPoints,delay:launch,duration:flight,size:size*1.20,
-            rotation:rotation,textureWidth:textureWidth,burstProgress:0.12+variation*0.20,arrivalEaseDuration:0.28,launchPower:gentleLaunch ? 1.8:0)
+            rotation:rotation,textureWidth:textureWidth,arrivalEaseDuration:0.28,launchPower:gentleLaunch ? 1.8:1.35)
     }
     static func round7(_ x:Double)->Double {(x*1e7).rounded()/1e7}
     static func round6(_ x:Double)->Double {(x*1e6).rounded()/1e6}
@@ -105,19 +100,16 @@ nonisolated struct NativeSourceHUDStarPlan {
         let raw=Self.round6(min(1,max(0,localSeconds/(arrivalEaseDuration>0 ? flightDuration:sourceDuration))))
         let t:Double
         if arrivalEaseDuration>0,localSeconds>=flightDuration*0.90 {
-            let start=launchPower>0 ? pow(0.90,launchPower):burstProgress+(1-burstProgress)*pow((0.90-0.20)/0.80,2)
+            let start=pow(0.90,launchPower)
             let tail=flightDuration*0.10+arrivalEaseDuration
             let q=min(1,max(0,(localSeconds-flightDuration*0.90)/tail))
-            let velocity=launchPower>0 ? launchPower*pow(0.90,launchPower-1):(1-burstProgress)*2*((0.90-0.20)/0.80)/0.80
+            let velocity=launchPower*pow(0.90,launchPower-1)
             let slope=min(3,velocity/flightDuration*tail/(1-start))
             // Monotone Hermite arrival: retain incoming velocity, then gently
             // decelerate to zero at the trophy on the existing flight clock.
             t=start+(1-start)*(slope*q+(3-2*slope)*q*q+(slope-2)*q*q*q)
         } else if launchPower>0 {t=pow(raw,launchPower)}
-        else if burstProgress>0 {
-            if raw<0.20 {let q=raw/0.20;t=burstProgress*(1-pow(1-q,2))}
-            else {let q=(raw-0.20)/0.80;t=burstProgress+(1-burstProgress)*q*q}
-        } else {t=Self.pathProgress(raw)}
+        else {t=Self.pathProgress(raw)}
         let position=t*Double(points.count-1),i=min(points.count-1,Int(floor(position)))
         let next=min(i+1,points.count-1),mix=position-Double(i)
         let point=CGPoint(x:Double(points[i].x)+(Double(points[next].x)-Double(points[i].x))*mix,y:Double(points[i].y)+(Double(points[next].y)-Double(points[i].y))*mix)

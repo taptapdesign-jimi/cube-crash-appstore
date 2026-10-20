@@ -130,6 +130,19 @@ import StackToSixGameplay
     func owns(_ node:NativeDiceNode)->Bool {
         retainedNodeIDs.contains(node.tileID) && hooks.node(node.tileID) === node
     }
+    /// A genuine accepted pickup/contact takes over an already-bookkept
+    /// carrier. Retire only its finite transport; preserve the exact board node.
+    @discardableResult func transferSettledGameplay(_ node:NativeDiceNode,generation:UInt64)->Bool {
+        guard let drop=drops.values.first(where:{$0.captured.lease.node === node}) else{return !owns(node)}
+        guard generation==engine.state.generation,drop.runtime.generation==generation,valid(drop) else{return false}
+        // Before the actual wall handoff the existing carrier remains owner;
+        // destination admission policy is not changed by this visual transfer.
+        guard engine.meterDropReservations[drop.runtime.id]==nil else{return true}
+        guard drop.sourceBookkeepingSucceeded,core.releaseToScene(dropID:drop.runtime.id) else{return false}
+        drops.removeValue(forKey:drop.runtime.id)
+        let owner=drop.owner;drop.owner=nil;owner?.dispose()
+        return valid() && engine.state.generation==generation && hooks.node(node.tileID) === node
+    }
     /// Called for ACTUAL Scene nodes after their canonical cell binding. Existing
     /// deferred/carrier node epochs are preserved, not replaced each synchronize.
     func bind(_ node:NativeDiceNode,cell:NativeCell,generation:UInt64){
@@ -151,9 +164,33 @@ import StackToSixGameplay
                 if let request=engine.pendingMeterOpen,event.reason==request.id {_=core.begin(request)}
             case .meterDropCanceled:
                 if let id=event.reason,let drop=drops[id]{retire(drop)}
+            case .specialReserved:
+                guard let plan=engine.pendingSpecial,plan.id==event.reason,plan.generation==result.state.generation else{continue}
+                let captured=engine.state
+                guard transferSelectedNodes([plan.source.id,plan.destination.id]+plan.targets.map(\.id),generation:plan.generation,
+                    current:{self.engine.state==captured && self.engine.pendingSpecial==plan}) else{return}
+            case .directWildReserved:
+                guard let plan=engine.pendingDirectWild,plan.id==event.reason,plan.generation==result.state.generation else{continue}
+                let captured=engine.state
+                guard transferSelectedNodes([plan.source.id,plan.destination.id],generation:plan.generation,
+                    current:{self.engine.state==captured && self.engine.pendingDirectWild==plan}) else{return}
             default:break
             }
         }
+    }
+    private func transferSelectedNodes(_ ids:[String],generation:UInt64,current:()->Bool)->Bool {
+        var seen=Set<String>()
+        for id in ids where seen.insert(id).inserted {
+            guard valid(),current() else{return false}
+            guard let node=hooks.node(id) else{continue}
+            guard valid(),current() else{return false}
+            guard transferSettledGameplay(node,generation:generation) else{
+                if valid(),current(){hooks.fault("source_meter_settled_contact_transfer_refused")}
+                return false
+            }
+            guard valid(),current() else{return false}
+        }
+        return true
     }
     /// Plain v9 wildDropSmokeOrigin was captured before staging. Actual object
     /// identity remains required at impact; the flying pose is never substituted.

@@ -7,6 +7,237 @@ import StackToSixNativeState
 
 @MainActor
 final class NativeBackpackTests:XCTestCase {
+    func testEveryDiscoveredIntroductionStaysUnlockedAfterReadingAndReloadingUntilDeveloperHide() throws {
+        let introductions=(1...30).compactMap{board -> (Int,String)? in
+            NativeJourneyContent.introductionID(board:board).map{(board,$0)}
+        }
+        XCTAssertEqual(introductions.count,14)
+        for (board,id) in introductions {
+            // DEV Hide can leave a retained board without ordinary progression evidence.
+            var progression=NativeProgressionState()
+            XCTAssertTrue(NativeBackpackCatalog.sections(progression).allSatisfy{!$0.unlocked.contains(id)},id)
+            XCTAssertTrue(progression.announceJourneyDie(id,board:board),id)
+            let discovered=NativeBackpackCatalog.sections(progression)
+            let section=try XCTUnwrap(discovered.first{$0.dice.contains{$0.id==id}})
+            XCTAssertTrue(section.unlocked.contains(id),id)
+            XCTAssertTrue(section.unread.contains(id),id)
+            XCTAssertEqual(discovered.filter{$0.unlocked.contains(id)}.count,1,id)
+
+            progression.readJourneyDie(id)
+            progression=try JSONDecoder().decode(NativeProgressionState.self,from:JSONEncoder().encode(progression))
+            let reopened=try XCTUnwrap(NativeBackpackCatalog.sections(progression).first{$0.title==section.title})
+            XCTAssertTrue(reopened.unlocked.contains(id),"Reading and reopening must retain \(id)")
+            XCTAssertFalse(reopened.unread.contains(id),id)
+            XCTAssertFalse(progression.announceJourneyDie(id,board:board),"Reading must not re-arm \(id)")
+
+            progression.resetDeveloperJourneyDieAnnouncement(board:board)
+            progression=try JSONDecoder().decode(NativeProgressionState.self,from:JSONEncoder().encode(progression))
+            XCTAssertTrue(NativeBackpackCatalog.sections(progression).allSatisfy{!$0.unlocked.contains(id)},"DEV Hide must clear discovery eligibility for \(id)")
+            XCTAssertTrue(progression.announceJourneyDie(id,board:board),"DEV Hide must re-arm \(id)")
+        }
+    }
+
+    func testHUDAlertScopesToCurrentWorldAndClearsWithoutMutatingBoard() throws {
+        let engine=NativeGameplayEngine(state:NativeBoardFactory.make(mode:.journey,board:2))
+        let scene=NativeBoardScene(engine:engine,resourceRoot:NativeTestResources.root,size:CGSize(width:390,height:844))
+        let view=SKView(frame:CGRect(x:0,y:0,width:390,height:844));view.presentScene(scene);view.isPaused=true
+        defer{scene.dispose();view.presentScene(nil)}
+        var unread:Set<String>=[];scene.unreadJourneyDice={unread};let state=engine.state
+        let help=try XCTUnwrap(scene.childNode(withName:"//native-game-help") as? SKSpriteNode),closed=help.texture
+        unread=["fish"];scene.refreshBackpackAlert();XCTAssertNil(help.childNode(withName:"native-game-backpack-alert"))
+        unread.insert("wild-star");scene.refreshBackpackAlert()
+        let badge=try XCTUnwrap(help.childNode(withName:"native-game-backpack-alert"))
+        XCTAssertTrue(help.texture !== closed);XCTAssertGreaterThan(badge.position.x,0);XCTAssertGreaterThan(badge.position.y,0)
+        scene.refreshBackpackAlert();XCTAssertTrue(help.childNode(withName:"native-game-backpack-alert") === badge)
+        unread.remove("wild-star");scene.refreshBackpackAlert();XCTAssertNil(badge.parent);XCTAssertTrue(help.texture === closed)
+        XCTAssertEqual(engine.state,state)
+    }
+    func testHUDAlertSwapBothDirectionsDefersWhileBackpackIsOpen() async throws {
+        let engine=NativeGameplayEngine(state:NativeBoardFactory.make(mode:.journey,board:2))
+        let scene=NativeBoardScene(engine:engine,resourceRoot:NativeTestResources.root,size:CGSize(width:390,height:844))
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        let view=SKView(frame:window.bounds);host.view=view;window.rootViewController=host;window.makeKeyAndVisible();view.presentScene(scene)
+        defer{scene.dispose();view.presentScene(nil);window.isHidden=true}
+        var unread:Set<String>=[];scene.unreadJourneyDice={unread}
+        try await Task.sleep(for:.seconds(1))
+        let help=try XCTUnwrap(scene.childNode(withName:"//native-game-help") as? SKSpriteNode)
+        let originalSize=help.size,originalPosition=help.position
+        unread=["wild-star"];scene.refreshBackpackAlert()
+        XCTAssertNotNil(help.action(forKey:"backpack-icon-swap"))
+        try await Task.sleep(for:.milliseconds(600))
+        let badge=try XCTUnwrap(help.childNode(withName:"native-game-backpack-alert"))
+        XCTAssertLessThan(badge.zRotation,0);XCTAssertNil(help.action(forKey:"backpack-icon-swap"))
+        XCTAssertEqual(help.size.width,originalSize.width,accuracy:0.001)
+        XCTAssertEqual(help.size.height,originalSize.height,accuracy:0.001)
+        XCTAssertEqual(help.position,originalPosition)
+        XCTAssertLessThan(help.frame.width,40,"HUD icon must never inflate over the game board")
+        scene.setSuspended(true);unread=[];scene.refreshBackpackAlert()
+        XCTAssertNotNil(badge.parent);XCTAssertNil(help.action(forKey:"backpack-icon-swap"))
+        scene.setSuspended(false)
+        try await Task.sleep(for:.milliseconds(80))
+        XCTAssertNotNil(help.action(forKey:"backpack-icon-swap"))
+        try await Task.sleep(for:.milliseconds(550))
+        XCTAssertNil(badge.parent);XCTAssertEqual(help.xScale,1,accuracy:0.001);XCTAssertEqual(help.alpha,1)
+        XCTAssertEqual(help.size.width,originalSize.width,accuracy:0.001)
+        XCTAssertEqual(help.size.height,originalSize.height,accuracy:0.001)
+        XCTAssertEqual(help.position,originalPosition)
+        XCTAssertNil(help.action(forKey:"backpack-icon-swap"))
+    }
+    func testHubAndWorldHeaderPreserveClosedArtworkAndRetireAlert() async throws {
+        let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root),host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible();defer{window.isHidden=true}
+        let hub=JimiV9HubView(frame:window.bounds,assets:assets);host.view.addSubview(hub);hub.layoutIfNeeded()
+        let original=hub.backpackButton.image(for:.normal)
+        hub.setBackpackUnread(true);hub.startIdle()
+        XCTAssertFalse(hub.backpackAlert.isHidden);XCTAssertTrue(hub.backpackButton.image(for:.normal) === original)
+        XCTAssertGreaterThan(hub.backpackAlert.frame.midX,hub.backpackButton.bounds.midX)
+        XCTAssertNotNil(hub.backpackAlert.layer.animation(forKey:NativeBackpackAlertView.motionKey))
+        hub.stopIdle();XCTAssertNil(hub.backpackAlert.layer.animation(forKey:NativeBackpackAlertView.motionKey));hub.removeFromSuperview()
+        let data:[String:Any]=["version":1,"worldID":1,"requestID":"1","routeGeneration":1,"stateRevision":1,"title":"Forest","contentHeight":1000,"mainFrame":["x":0,"y":100,"width":390,"height":300],"mainParts":[],"units":[["id":"board-2","boardID":2,"frame":["x":30,"y":400,"width":150,"height":200],"cardArt":"assets/colelctibles/Forest/common/02.png","locked":false,"interim":false,"newRibbon":false,"stars":0,"allowedActions":["openCard","play"],"stats":[],"parts":[["asset":"assets/colelctibles/Forest/common/02.png","role":"card","x":20,"y":10,"width":90,"height":133,"rotation":0,"opacity":1,"zIndex":2]]]]]
+        let world=try XCTUnwrap(JimiNativeWorldView(snapshot:data,assets:assets))
+        world.frame=window.bounds;host.view.addSubview(world);world.layoutIfNeeded();defer{world.cleanup()}
+        let worldImage=world.backpackButton.image(for:.normal)
+        world.setBackpackUnread(true)
+        let prepared=expectation(description:"World prepared");world.prepare{prepared.fulfill()};await fulfillment(of:[prepared],timeout:5)
+        let entered=expectation(description:"World entered");world.enter{entered.fulfill()};await fulfillment(of:[entered],timeout:5);world.finishPresentationAdmission()
+        XCTAssertTrue(world.backpackButton.image(for:.normal) === worldImage);XCTAssertFalse(world.backpackAlert.isHidden)
+        XCTAssertNotNil(world.backpackAlert.layer.animation(forKey:NativeBackpackAlertView.motionKey))
+        world.park();XCTAssertNil(world.backpackAlert.layer.animation(forKey:NativeBackpackAlertView.motionKey))
+    }
+
+    func testUnreadGridCornersAndVisibilityLifecycle() throws {
+        var progression=NativeProgressionState();progression.lastOpenedJourneyBoard=2
+        progression.announceJourneyDie("bee",board:1);progression.announceJourneyDie("wild-star",board:2)
+        let screen=NativeBackpackView(frame:CGRect(x:0,y:0,width:390,height:844),assets:JimiV9Artwork(resourceRoot:NativeTestResources.root))
+        let host=UIViewController(),window=UIWindow(frame:screen.bounds);window.rootViewController=host;window.makeKeyAndVisible();host.view.addSubview(screen)
+        defer{screen.setAlertsActive(false);window.isHidden=true}
+        screen.apply(NativeBackpackCatalog.sections(progression));screen.setAlertsActive(true);screen.layoutIfNeeded();screen.grid.layoutIfNeeded()
+        func badge(_ index:Int)throws->NativeBackpackAlertView {
+            let cell=try XCTUnwrap(screen.grid.cellForItem(at:IndexPath(item:index,section:0)))
+            return try XCTUnwrap(cell.contentView.subviews.compactMap{$0 as? NativeBackpackAlertView}.first)
+        }
+        let image=UIGraphicsImageRenderer(bounds:screen.bounds).image{context in screen.layer.render(in:context.cgContext)}
+        try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/backpack-alert-grid.png"))
+        let left=try badge(0),right=try badge(1)
+        XCTAssertFalse(left.isHidden);XCTAssertFalse(right.isHidden)
+        XCTAssertLessThan(left.center.x,40);XCTAssertGreaterThan(right.center.x,100)
+        XCTAssertNotNil(left.layer.animation(forKey:NativeBackpackAlertView.motionKey))
+        XCTAssertGreaterThanOrEqual(left.cycleRotation,-10 * .pi/180);XCTAssertLessThanOrEqual(left.cycleRotation,-5 * .pi/180)
+        XCTAssertGreaterThanOrEqual(right.cycleRotation,5 * .pi/180);XCTAssertLessThanOrEqual(right.cycleRotation,10 * .pi/180)
+        screen.setAlertsActive(false);XCTAssertNil(left.layer.animation(forKey:NativeBackpackAlertView.motionKey));XCTAssertNil(right.layer.animation(forKey:NativeBackpackAlertView.motionKey))
+        screen.setAlertsActive(true);screen.markRead("bee")
+        XCTAssertTrue(left.isHidden);XCTAssertNil(left.layer.animation(forKey:NativeBackpackAlertView.motionKey));XCTAssertFalse(right.isHidden)
+        screen.isHidden=true;XCTAssertNil(right.layer.animation(forKey:NativeBackpackAlertView.motionKey))
+        screen.isHidden=false;XCTAssertNotNil(right.layer.animation(forKey:NativeBackpackAlertView.motionKey))
+        screen.removeFromSuperview();XCTAssertNil(right.layer.animation(forKey:NativeBackpackAlertView.motionKey))
+    }
+    func testMainBackpackOpeningDetailReadsOnlySelectedAlert() async throws {
+        var progression=NativeProgressionState();progression.lastOpenedJourneyBoard=2
+        progression.announceJourneyDie("bee",board:1);progression.announceJourneyDie("wild-star",board:2)
+        var services=NativeAppServices(settings:{[:]},setPreference:{_,_ in},worldSnapshot:{_,_,_ in throw CancellationError()},markViewed:{_ in},makeGameplay:{_,_ in UIViewController()},flush:{})
+        services.journeyProgression={progression};services.readJourneyDie={id in progression.readJourneyDie(id);return true}
+        let app=NativeAppController(resourceRoot:NativeTestResources.root,services:services),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=app;window.makeKeyAndVisible();defer{app.dispose();window.isHidden=true}
+        try await Task.sleep(for:.seconds(1));app.navigate(.backpack)
+        try await waitForRetap{app.backpackView?.isUserInteractionEnabled==true}
+        XCTAssertEqual(progression.unreadJourneyDice,["bee","wild-star"],"Opening collection does not mark details read")
+        app.backpackView?.onDie?(NativeBackpackCatalog.forest[1])
+        try await waitForRetap{!progression.unreadJourneyDice.contains("wild-star")}
+        XCTAssertEqual(progression.unreadJourneyDice,["bee"])
+        XCTAssertEqual(app.backpackView?.sections.first?.unread,["bee"])
+    }
+    func testGameplayBackpackDetailConsumesOnlySelectedAlert() async throws {
+        var progression=NativeProgressionState();progression.lastOpenedJourneyBoard=2
+        progression.announceJourneyDie("bee",board:1);progression.announceJourneyDie("wild-star",board:2)
+        let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+        let controller=NativeGameplayBackpackController(root:NativeTestResources.root,sections:[NativeBackpackCatalog.sections(progression)[0]],includesArcade:false,motion:NativeRouteMotion(home:JimiV9HomeView(frame:.zero,assets:assets),hub:JimiV9HubView(frame:.zero,assets:assets)))
+        controller.onReadDie={id in progression.readJourneyDie(id);return true}
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=host;window.makeKeyAndVisible()
+        defer{controller.dispose();window.isHidden=true}
+        host.present(controller,animated:false)
+        try await waitForRetap{controller.screen?.isUserInteractionEnabled==true && controller.view.isUserInteractionEnabled}
+        XCTAssertEqual(progression.unreadJourneyDice,["bee","wild-star"])
+        controller.screen?.onDie?(NativeBackpackCatalog.forest[1])
+        try await waitForRetap{!progression.unreadJourneyDice.contains("wild-star")}
+        XCTAssertEqual(progression.unreadJourneyDice,["bee"])
+        XCTAssertEqual(controller.screen?.sections.first?.unread,["bee"])
+        controller.setForeground(false)
+        let badges=controller.screen?.grid.visibleCells.flatMap{$0.contentView.subviews.compactMap{$0 as? NativeBackpackAlertView}} ?? []
+        XCTAssertTrue(badges.allSatisfy{$0.layer.animation(forKey:NativeBackpackAlertView.motionKey)==nil})
+    }
+
+    private func waitForRetap(_ condition:()->Bool) async throws {
+        let deadline=Date().addingTimeInterval(8)
+        while !condition(),Date()<deadline {try await Task.sleep(for:.milliseconds(10))}
+        XCTAssertTrue(condition())
+    }
+    private func retapPoint(_ screen:NativeBackpackView,window:UIWindow) throws -> CGPoint {
+        screen.layoutIfNeeded();screen.grid.layoutIfNeeded()
+        let cell=try XCTUnwrap(screen.grid.cellForItem(at:IndexPath(item:1,section:0)))
+        let layer=cell.layer.presentation() ?? cell.layer
+        return layer.convert(CGPoint(x:layer.bounds.midX,y:layer.bounds.midY),to:window.layer.presentation() ?? window.layer)
+    }
+    func testMainBackpackLatePressReopensOnceAndBackgroundCancelsPendingSelection() async throws {
+        var progression=NativeProgressionState();progression.lastOpenedJourneyBoard=2
+        var services=NativeAppServices(settings:{[:]},setPreference:{_,_ in},worldSnapshot:{_,_,_ in throw CancellationError()},markViewed:{_ in},makeGameplay:{_,_ in UIViewController()},flush:{})
+        services.journeyProgression={progression}
+        let app=NativeAppController(resourceRoot:NativeTestResources.root,services:services)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=app;window.makeKeyAndVisible()
+        defer{app.dispose();window.isHidden=true}
+        try await Task.sleep(for:.seconds(1));app.navigate(.backpack)
+        try await waitForRetap{app.backpackView?.isUserInteractionEnabled==true}
+        let screen=try XCTUnwrap(app.backpackView)
+        let star=try XCTUnwrap(screen.revealedDie(atWindowPoint:retapPoint(screen,window:window)))
+        screen.onDie?(star)
+        let old=try XCTUnwrap(app.presentedViewController as? NativeBackpackDetail)
+        try await waitForRetap{old.card.isUserInteractionEnabled}
+        old.closeTapped()
+        XCTAssertEqual(old.exitSelectionPress?.minimumPressDuration,0,"Capture contact before dismissal can swallow touch-up")
+        try await Task.sleep(for:.milliseconds(480))
+        let point=try retapPoint(screen,window:window)
+        old.captureExitSelection(atWindowPoint:point);old.captureExitSelection(atWindowPoint:point)
+        XCTAssertTrue(app.presentedViewController === old,"Exit keeps ownership until dismissal")
+        try await waitForRetap{(app.presentedViewController as? NativeBackpackDetail).map{$0 !== old} ?? false}
+        let next=try XCTUnwrap(app.presentedViewController as? NativeBackpackDetail)
+        XCTAssertEqual(next.die.id,star.id);XCTAssertNil(old.preview);XCTAssertNil(old.exitSelectionPress)
+        try await waitForRetap{next.card.isUserInteractionEnabled}
+        next.closeTapped();try await Task.sleep(for:.milliseconds(480))
+        next.captureExitSelection(atWindowPoint:point)
+        NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
+        NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
+        try await waitForRetap{app.presentedViewController==nil}
+        try await Task.sleep(for:.milliseconds(150))
+        XCTAssertNil(app.presentedViewController,"Background cancels queued intent")
+    }
+    func testGameplayBackpackReturnTailAcceptsOnePressBeforeEnterFinishes() async throws {
+        let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+        let controller=NativeGameplayBackpackController(root:NativeTestResources.root,sections:[NativeBackpackCatalog.Section(title:"Forest",dice:NativeBackpackCatalog.forest,unlocked:["wild-star"])],includesArcade:false,motion:NativeRouteMotion(home:JimiV9HomeView(frame:.zero,assets:assets),hub:JimiV9HubView(frame:.zero,assets:assets)))
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=host;window.makeKeyAndVisible()
+        defer{controller.dispose();host.dismiss(animated:false);window.isHidden=true}
+        host.present(controller,animated:false)
+        try await waitForRetap{controller.view.isUserInteractionEnabled}
+        let screen=try XCTUnwrap(controller.screen),star=NativeBackpackCatalog.forest[1]
+        screen.onDie?(star)
+        let old=try XCTUnwrap(controller.detail)
+        try await waitForRetap{old.card.isUserInteractionEnabled}
+        old.closeTapped()
+        try await waitForRetap{controller.detail==nil}
+        if !UIAccessibility.isReduceMotionEnabled {
+            XCTAssertTrue(controller.returnSelectionPress?.isEnabled==true)
+            XCTAssertTrue(controller.view.isUserInteractionEnabled)
+            XCTAssertFalse(controller.card.isUserInteractionEnabled,"Only selection capture opens before full admission")
+            let point=try retapPoint(screen,window:window)
+            XCTAssertEqual(screen.revealedDie(atWindowPoint:point)?.id,star.id)
+            controller.captureReturnSelection(atWindowPoint:point);controller.captureReturnSelection(atWindowPoint:point)
+            XCTAssertNil(controller.detail)
+            try await waitForRetap{controller.detail != nil}
+            XCTAssertEqual(controller.detail?.die.id,star.id)
+            XCTAssertFalse(controller.returnSelectionPress?.isEnabled ?? true)
+        }
+        controller.dispose();controller.captureReturnSelection(atWindowPoint:.zero)
+        XCTAssertNil(controller.detail);XCTAssertNil(controller.returnSelectionPress)
+    }
+
     func testGameplayBackpackDragReturnsSuspendsAndDismisses() async throws {
         let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
         let controller=NativeGameplayBackpackController(root:NativeTestResources.root,sections:[NativeBackpackCatalog.sections(NativeProgressionState())[0]],includesArcade:false,motion:NativeRouteMotion(home:JimiV9HomeView(frame:.zero,assets:assets),hub:JimiV9HubView(frame:.zero,assets:assets)))
@@ -117,7 +348,7 @@ final class NativeBackpackTests:XCTestCase {
         }
         XCTAssertFalse(controller.view.isUserInteractionEnabled,"Overlapping modals must not admit another selection")
         let returnDeadline=Date().addingTimeInterval(5)
-        while !controller.view.isUserInteractionEnabled,Date()<returnDeadline {try await Task.sleep(for:.milliseconds(20))}
+        while controller.screen?.isUserInteractionEnabled != true,Date()<returnDeadline {try await Task.sleep(for:.milliseconds(20))}
         XCTAssertNil(controller.detail);XCTAssertNil(controller.presentedViewController)
         XCTAssertNil(detail.worldIllustration.superview,"Selected scenery must retire with its detail owner")
         XCTAssertFalse(controller.switchingDetail)
@@ -131,6 +362,58 @@ final class NativeBackpackTests:XCTestCase {
         XCTAssertNil(collectionIdle.layer.animation(forKey:"backpack.collection.idle"))
         try await Task.sleep(for:.milliseconds(850))
         XCTAssertNil(controller.detail);XCTAssertNil(controller.presentedViewController)
+    }
+
+    func testModalFirstRowAlertsKeepEveryAnimatedPoseOutsideUnclippedGrid() throws {
+        var progression=NativeProgressionState()
+        progression.announceJourneyDie("bee",board:1);progression.announceJourneyDie("wild-star",board:2)
+        let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+        let screen=NativeBackpackView(frame:CGRect(x:24,y:180,width:342,height:470),assets:assets)
+        screen.useModalLayout();screen.apply([NativeBackpackCatalog.sections(progression)[0]])
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible();host.view.addSubview(screen)
+        defer{screen.setAlertsActive(false);window.isHidden=true}
+        screen.layoutIfNeeded();screen.grid.layoutIfNeeded();screen.setAlertsActive(true)
+        XCTAssertFalse(screen.grid.isScrollEnabled);XCTAssertFalse(screen.grid.bounces)
+        XCTAssertFalse(screen.grid.clipsToBounds,"Modal decoration must paint beyond the collection viewport")
+        var posed:[(NativeBackpackAlertView,CATransform3D)]=[]
+        for item in 0...1 {
+            let cell=try XCTUnwrap(screen.grid.cellForItem(at:IndexPath(item:item,section:0)))
+            cell.layoutIfNeeded()
+            let alert=try XCTUnwrap(cell.contentView.subviews.compactMap{$0 as? NativeBackpackAlertView}.first)
+            XCTAssertFalse(alert.isHidden)
+            let scale=cell.contentView.bounds.width/153
+            XCTAssertEqual(alert.bounds.width,63.8*scale,accuracy:0.001)
+            XCTAssertEqual(alert.bounds.height,63.8*scale,accuracy:0.001)
+            XCTAssertEqual(alert.center.x,item==0 ? 14*scale:cell.contentView.bounds.width-14*scale,accuracy:0.001)
+            XCTAssertEqual(alert.center.y,14*scale,accuracy:0.001)
+            let motion=try XCTUnwrap(alert.layer.animation(forKey:NativeBackpackAlertView.motionKey) as? CAKeyframeAnimation)
+            let values=try XCTUnwrap(motion.values as? [NSValue]);XCTAssertEqual(values.count,7)
+            let bounds=alert.bounds,center=alert.center,cellFrame=cell.frame
+            alert.setActive(false)
+            var extendsAboveViewport=false
+            for value in values {
+                alert.layer.transform=value.caTransform3DValue
+                let painted=alert.convert(alert.bounds,to:screen.grid)
+                extendsAboveViewport = extendsAboveViewport || painted.minY<screen.grid.bounds.minY
+                var ancestor=alert.superview
+                while let current=ancestor {
+                    if current.clipsToBounds || current.layer.masksToBounds {
+                        XCTAssertTrue(current.bounds.contains(alert.convert(alert.bounds,to:current)),"Clipping ancestor \(type(of:current)) cuts off first-row alert \(item)")
+                    }
+                    ancestor=current.superview
+                }
+                XCTAssertEqual(alert.bounds,bounds);XCTAssertEqual(alert.center,center);XCTAssertEqual(cell.frame,cellFrame)
+            }
+            XCTAssertTrue(extendsAboveViewport,"Exercise an alert pose beyond the actual viewport")
+            posed.append((alert,values[2].caTransform3DValue))
+        }
+        for (alert,transform) in posed {alert.layer.transform=transform}
+        let image=UIGraphicsImageRenderer(bounds:host.view.bounds).image{context in host.view.layer.render(in:context.cgContext)}
+        try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/backpack-alert-unclipped.png"))
+        let main=NativeBackpackView(frame:window.bounds,assets:assets)
+        XCTAssertTrue(main.grid.isScrollEnabled)
+        XCTAssertTrue(main.grid.clipsToBounds,"Main scrolling collection retains viewport clipping")
     }
 
     func testGameplayBackpackModalFitsWithPaddingAndScopedTitle() throws {
@@ -155,8 +438,13 @@ final class NativeBackpackTests:XCTestCase {
             XCTAssertTrue(screen.header.isHidden)
             XCTAssertEqual(screen.numberOfSections(in:screen.grid),1)
             XCTAssertEqual(screen.collectionView(screen.grid,layout:screen.grid.collectionViewLayout,referenceSizeForHeaderInSection:0).height,0)
-            XCTAssertEqual((screen.grid.collectionViewLayout as? UICollectionViewFlowLayout)?.sectionInset.left,24)
-            XCTAssertEqual(screen.collectionView(screen.grid,layout:screen.grid.collectionViewLayout,sizeForItemAt:IndexPath(item:0,section:0)).width,139)
+            XCTAssertFalse(screen.grid.isScrollEnabled)
+            XCTAssertFalse(screen.grid.bounces)
+            XCTAssertLessThanOrEqual(screen.grid.collectionViewLayout.collectionViewContentSize.height+screen.grid.contentInset.top+screen.grid.contentInset.bottom,screen.grid.bounds.height)
+            for item in section.dice.indices {
+                let attributes=try XCTUnwrap(screen.grid.layoutAttributesForItem(at:IndexPath(item:item,section:0)))
+                XCTAssertLessThanOrEqual(attributes.frame.maxY+screen.grid.contentInset.top,screen.grid.bounds.height-screen.grid.contentInset.bottom)
+            }
             controller.setForeground(false);XCTAssertEqual(controller.view.layer.speed,0)
             controller.setForeground(true);XCTAssertEqual(controller.view.layer.speed,1)
             if section.title=="Forest" {
@@ -631,6 +919,18 @@ final class NativeBackpackTests:XCTestCase {
         fish.paint(frame,now:100+1.125/1.625+0.00001)
         XCTAssertEqual(fish.originalSVGFrame,0)
         XCTAssertFalse(fish.isHidden)
+        let bubbles=(0..<6).map {NativeFishIdleFrame.Bubble(id:$0,slot:$0,radius:12,color:0xFFE6E1,point:.zero,scale:CGPoint(x:1,y:1),alpha:1,showsHighlight:false,behindArtwork:$0.isMultiple(of:2))}
+        let layered=NativeFishIdleFrame.project(center:CGPoint(x:195,y:420),horizontalUnit:CGPoint(x:196,y:420),verticalUnit:CGPoint(x:195,y:419),sceneHeight:844,alpha:1,dragging:false,phaseStarted:true,visible:true,bubbles:bubbles)
+        fish.paint(layered,now:102,force:true)
+        XCTAssertEqual(fish.subviews.count,3,"Two bubble planes surround the original media plane")
+        XCTAssertEqual(fish.subviews.first?.subviews.count,3)
+        XCTAssertEqual(fish.subviews.last?.subviews.count,3)
+        let rear=try XCTUnwrap(fish.subviews.first),front=try XCTUnwrap(fish.subviews.last)
+        XCTAssertTrue((rear.subviews+front.subviews).allSatisfy{$0.layer.sublayers?[1].isHidden==true})
+        fish.setSuspended(true);XCTAssertTrue(fish.isHidden)
+        fish.setSuspended(false)
+        XCTAssertEqual(rear.subviews.count,3);XCTAssertEqual(front.subviews.count,3)
+        XCTAssertEqual(fish.bubbleCarrierCount,6,"Rear/front split reuses the same bounded carriers")
     }
     func testDisposedModalRejectsPendingBoardPreparation() async throws {
         let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)

@@ -1,7 +1,8 @@
 import UIKit
 
 /// Finite canonical bubble/ship projections, renewed only by the current World receipt.
-/// Core Animation interpolates the trajectories; no display link, timers or web renderer.
+/// Core Animation interpolates trajectories. One finite visibility-boundary receipt
+/// per ship drives audio; no display link or frame polling.
 @MainActor
 final class JimiNativeWorldAmbient {
     struct Frame {
@@ -10,6 +11,33 @@ final class JimiNativeWorldAmbient {
     }
     struct Plan {
         let id:Int,worldID:Int,duration:Double,frames:[Frame],assets:[String],visualBounds:CGRect
+        func shipVisible(at time:Double,viewport:CGRect,scale:CGFloat)->Bool {
+            guard worldID == 3,time>=0,time<duration,frames.count>1 else{return false}
+            let upper=frames.firstIndex{$0.time>time} ?? frames.count-1
+            let a=frames[max(0,upper-1)],b=frames[upper]
+            let t=CGFloat(max(0,min(1,(time-a.time)/max(0.000001,b.time-a.time))))
+            func mix(_ x:CGFloat,_ y:CGFloat)->CGFloat{x+(y-x)*t}
+            guard mix(CGFloat(a.opacity),CGFloat(b.opacity))>0.01 else{return false}
+            let w=mix(a.width,b.width)*scale,h=mix(a.height,b.height)*scale,r=mix(a.rotation,b.rotation)
+            let cx=(mix(a.x,b.x)+mix(a.width,b.width)/2)*scale,cy=(mix(a.y,b.y)+mix(a.height,b.height)/2)*scale
+            let bw=abs(cos(r))*w+abs(sin(r))*h,bh=abs(sin(r))*w+abs(cos(r))*h
+            return CGRect(x:cx-bw/2,y:cy-bh/2,width:bw,height:bh).intersects(viewport)
+        }
+        /// Finite authored samples bracket crossings; bisection locates the edge.
+        func nextShipVisibilityBoundary(after time:Double,viewport:CGRect,scale:CGFloat)->Double? {
+            guard worldID == 3,time<duration else{return nil}
+            var previous=time
+            let initial=shipVisible(at:time,viewport:viewport,scale:scale)
+            for frame in frames where frame.time>time {
+                if shipVisible(at:frame.time,viewport:viewport,scale:scale) != initial {
+                    var lo=previous,hi=frame.time
+                    for _ in 0..<16 {let mid=(lo+hi)/2;if shipVisible(at:mid,viewport:viewport,scale:scale)==initial {lo=mid}else{hi=mid}}
+                    return hi
+                }
+                previous=frame.time
+            }
+            return nil
+        }
         static func parse(_ raw:[String:Any],worldID:Int)->Plan? {
             guard raw["worldID"] as? Int == worldID,(2...3).contains(worldID),let id = raw["id"] as? Int,(0..<(worldID == 2 ? 8 : 2)).contains(id),
                   let duration = raw["duration"] as? Double,duration.isFinite,duration>0,duration<=11,
@@ -38,12 +66,17 @@ final class JimiNativeWorldAmbient {
         var plan:Plan,elapsed:Double = 0,start:Double = 0,epoch = 0,preparing = false,playing = false,complete = false
         let layers = [CALayer(),CALayer()]
         var receipt:Receipt?
+        var visibilityTimer:Timer?
+        var audible=false
         init(_ plan:Plan) {self.plan = plan}
     }
     private let resources:JimiNativeWorldResources
     private weak var content:UIView?
     private var sprites:[Int:Sprite] = [:],epoch = 0,requesting = false,enabled = false
+    private var shipViewport = CGRect.zero
     private var viewport = CGRect.zero,scale:CGFloat = 1
+    var onShipVisibility:((Bool)->Void)?
+    private var reportedVisible=false
     var onRequest: ((CGRect,[Int],@escaping ([[String:Any]]?)->Void)->Void)?
     var activeCount:Int {sprites.values.filter {$0.playing}.count}
     var layerCount:Int {sprites.values.reduce(0) {$0+$1.layers.filter {$0.superlayer != nil}.count}}
@@ -58,9 +91,10 @@ final class JimiNativeWorldAmbient {
         guard left>0 else {completion(true);return}
         for sprite in targets {resources.prepare(sprite.plan.assets,owner:-400-sprite.plan.id) {ok in accepted = accepted && ok;left -= 1;if left == 0 {completion(accepted)}}}
     }
-    func update(enabled:Bool,viewport:CGRect,scale:CGFloat) {
-        self.enabled = enabled && !UIAccessibility.isReduceMotionEnabled;self.viewport = viewport;self.scale = scale
+    func update(enabled:Bool,viewport:CGRect,scale:CGFloat,shipViewport:CGRect?=nil) {
+        self.enabled = enabled && !UIAccessibility.isReduceMotionEnabled;self.viewport = viewport;self.scale = scale;self.shipViewport=shipViewport ?? viewport
         for sprite in sprites.values {if self.enabled && visible(sprite) && !sprite.complete {start(sprite)} else {pause(sprite)}}
+        refreshShipVisibility()
         renew()
     }
     private func start(_ sprite:Sprite) {
@@ -92,11 +126,28 @@ final class JimiNativeWorldAmbient {
             let art = CAKeyframeAnimation(keyPath:"contents");art.values = frames.map {images[$0.asset]!};art.keyTimes = times;art.calculationMode = .discrete
             let alpha = CAKeyframeAnimation(keyPath:"opacity");alpha.values = frames.map {$0.behind == (index == 1) ? $0.opacity : 0};alpha.keyTimes = times
             let group = CAAnimationGroup();group.animations = [motion,art,alpha];group.duration = duration;group.beginTime = layer.convertTime(sprite.start,from:nil);group.fillMode = .both;group.isRemovedOnCompletion = false
-            if index == 0 {let receipt = Receipt();receipt.finish = { [weak self,weak sprite] in guard let self,let sprite,sprite.epoch == token else {return};sprite.playing = false;sprite.complete = true;sprite.elapsed = duration;self.renew()};sprite.receipt = receipt;group.delegate = receipt}
+            if index == 0 {let receipt = Receipt();receipt.finish = { [weak self,weak sprite] in guard let self,let sprite,sprite.epoch == token else {return};sprite.playing = false;sprite.complete = true;sprite.elapsed = duration;self.refreshShipVisibility();self.renew()};sprite.receipt = receipt;group.delegate = receipt}
             layer.add(group,forKey:"world.ambient.flight")
         }
+        refreshShipVisibility()
+    }
+    private func refreshShipVisibility() {
+        for sprite in sprites.values where sprite.plan.worldID == 3 {
+            sprite.visibilityTimer?.invalidate();sprite.visibilityTimer=nil
+            let elapsed=min(sprite.plan.duration,max(0,CACurrentMediaTime()-sprite.start))
+            sprite.audible=enabled && sprite.playing && sprite.plan.shipVisible(at:elapsed,viewport:shipViewport,scale:scale)
+            guard enabled,sprite.playing,let boundary=sprite.plan.nextShipVisibilityBoundary(after:elapsed,viewport:shipViewport,scale:scale) else{continue}
+            let token=sprite.epoch
+            let timer=Timer(timeInterval:max(0.001,boundary-elapsed+0.001),repeats:false) { [weak self,weak sprite] _ in
+                MainActor.assumeIsolated {guard let self,let sprite,sprite.epoch==token else{return};self.refreshShipVisibility()}
+            }
+            sprite.visibilityTimer=timer;RunLoop.main.add(timer,forMode:.common)
+        }
+        let visible=enabled && sprites.values.contains{$0.audible}
+        if visible != reportedVisible {reportedVisible=visible;onShipVisibility?(visible)}
     }
     private func pause(_ sprite:Sprite) {
+        sprite.visibilityTimer?.invalidate();sprite.visibilityTimer=nil;sprite.audible=false
         guard sprite.playing || sprite.preparing || sprite.layers.contains(where:{$0.superlayer != nil}) else {return}
         if sprite.playing {sprite.elapsed = min(sprite.plan.duration,max(0,CACurrentMediaTime()-sprite.start))}
         sprite.epoch += 1;sprite.playing = false;sprite.preparing = false;sprite.receipt = nil
@@ -114,8 +165,9 @@ final class JimiNativeWorldAmbient {
             let plans = rows.compactMap {Plan.parse($0,worldID:worldID)}
             guard plans.count == ids.count,Set(plans.map {$0.id}) == Set(ids) else {return}
             for plan in plans {guard let sprite = self.sprites[plan.id] else {continue};self.pause(sprite);sprite.plan = plan;sprite.elapsed = 0;sprite.complete = false;if self.enabled && self.visible(sprite) {self.start(sprite)}}
+            self.refreshShipVisibility()
         }
     }
-    func replacePlans(_ plans:[Plan]) {let callback = onRequest;cleanup();onRequest = callback;for plan in plans {sprites[plan.id] = Sprite(plan)}}
-    func cleanup() {epoch += 1;enabled = false;requesting = false;sprites.values.forEach(pause);sprites.removeAll();onRequest = nil}
+    func replacePlans(_ plans:[Plan]) {let callback = onRequest,visibility = onShipVisibility;cleanup();onRequest = callback;onShipVisibility=visibility;for plan in plans {sprites[plan.id] = Sprite(plan)}}
+    func cleanup() {epoch += 1;enabled = false;requesting = false;sprites.values.forEach(pause);sprites.removeAll();refreshShipVisibility();onRequest = nil;onShipVisibility=nil}
 }

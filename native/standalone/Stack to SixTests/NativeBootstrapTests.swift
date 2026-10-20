@@ -7,6 +7,57 @@ import StackToSixNativeState
 
 @MainActor
 final class NativeBootstrapTests:XCTestCase {
+    func testNewJourneyDieOnlySwapsHUDUntilManualBackpackVisitReturns() async throws {
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent("native-backpack-manual-\(UUID().uuidString)")
+        defer {try? FileManager.default.removeItem(at:directory)}
+        let store=NativeSaveStore(directory:directory)
+        let tiles=[NativeTile(id:"left",cell:.init(column:0,row:0),value:2),NativeTile(id:"right",cell:.init(column:1,row:0),value:3),NativeTile(id:"other",cell:.init(column:2,row:0),value:1)]
+        let state=NativeBoardState(tiles:tiles,mode:.journey,board:2,moves:10,score:123)
+        var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false),journeyRuns:[2:state])
+        seed.progression.firstPlayTutorialComplete=true;seed.progression.completedJourneyBoards=[1]
+        seed.progression.announceJourneyDie("bee",board:1)
+        seed.progression.readJourneyDie("bee")
+        seed.progression.announceJourneyDie("fish",board:12)
+        seed.journeyRunSavedAt[2]=Date().timeIntervalSince1970;try store.save(seed)
+        let bootstrap=try NativeBootstrap(root:NativeTestResources.root,store:store,showStudioIntro:false)
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        let previousWindow=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+        window.rootViewController=host;window.makeKeyAndVisible();bootstrap.start(in:host)
+        defer {bootstrap.dispose();window.isHidden=true;previousWindow?.makeKeyAndVisible()}
+        let app=try XCTUnwrap(host.children.first as? NativeAppController)
+        app.navigate(.world(1),interrupt:true);try await waitUntil {app.world?.isReadyForInput == true}
+        app.world?.onRequest?("continue",2);try await waitUntil {app.route == .gameplay}
+        let game=try XCTUnwrap(app.children.first as? NativeGameplayViewController)
+        try await waitUntil(timeout:12) {game.boardScene?.boardGeometry != nil && game.boardScene?.navigationLocked == false}
+        let scene=try XCTUnwrap(game.boardScene)
+        try await Task.sleep(for:.seconds(1))
+        let help=try XCTUnwrap(scene.childNode(withName:"//native-game-help") as? SKSpriteNode)
+        let closed=help.texture,before=game.engine.state
+        game.onJourneyDieLanded?("wild-star",2,before.generation)
+        for _ in 0..<16 {
+            try await Task.sleep(for:.milliseconds(50))
+            XCTAssertNil(game.presentedViewController,"First discovery cannot open a modal")
+            XCTAssertEqual(app.route,.gameplay);XCTAssertTrue(game.boardScene === scene)
+            XCTAssertEqual(game.engine.state,before);XCTAssertNil(game.sourcePresentationFailureGeneration)
+        }
+        XCTAssertNotNil(help.childNode(withName:"native-game-backpack-alert"));XCTAssertTrue(help.texture !== closed)
+        XCTAssertEqual(try store.load()?.progression.unreadJourneyDice,["wild-star","fish"])
+        game.onHelp?()
+        let backpack=try XCTUnwrap(game.presentedViewController as? NativeGameplayBackpackController)
+        try await waitUntil {backpack.screen?.isUserInteractionEnabled == true && backpack.view.isUserInteractionEnabled}
+        XCTAssertNil(backpack.detail,"Manual HUD tap opens collection, never second-level detail")
+        XCTAssertNotNil(help.childNode(withName:"native-game-backpack-alert"))
+        let close=try XCTUnwrap(button(in:backpack.view,id:"native.gameplay.backpack.close"))
+        close.sendActions(for:.touchUpInside)
+        XCTAssertEqual(try store.load()?.progression.unreadJourneyDice,["wild-star","fish"],"Exit animation cannot acknowledge early")
+        try await waitUntil {game.presentedViewController == nil}
+        try await waitUntil {help.action(forKey:"backpack-icon-swap") == nil && help.childNode(withName:"native-game-backpack-alert") == nil}
+        XCTAssertTrue(help.texture === closed);XCTAssertEqual(game.engine.state,before)
+        XCTAssertEqual(try store.load()?.progression.unreadJourneyDice,["fish"],"Other Worlds retain their notifications")
+        game.onJourneyDieLanded?("wild-star",2,before.generation)
+        try await Task.sleep(for:.milliseconds(500))
+        XCTAssertNil(help.childNode(withName:"native-game-backpack-alert"));XCTAssertNil(game.presentedViewController)
+    }
     func testCanonicalRewardChildMountsAfterCommitAndDisposesWithOwner() async throws {
         let state=NativeBoardState(tiles:[],mode:.journey,board:1,moves:2,score:1000)
         let game=NativeGameplayViewController(engine:NativeGameplayEngine(state:state),resourceRoot:NativeTestResources.root)
@@ -230,12 +281,12 @@ final class NativeBootstrapTests:XCTestCase {
         XCTAssertEqual(try XCTUnwrap(store.load()?.arcadeRun),before)
         XCTAssertFalse(containsWeb(game.view))
     }
-    func testInterimJourneyRewardThenFlowerUnlockCommitsBeforeCleanBoard() async throws {
+    func testInterimJourneyCardCollectGoesDirectlyToResultAndPreservesUnlock() async throws {
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("native-bootstrap-reward-unlock-\(UUID().uuidString)")
         defer {try? FileManager.default.removeItem(at:directory)}
         let store=NativeSaveStore(directory:directory)
         let tiles=[NativeTile(id:"left",cell:.init(column:0,row:0),value:3),NativeTile(id:"right",cell:.init(column:1,row:0),value:3)]
-        var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false),journeyRuns:[2:NativeBoardState(tiles:tiles,mode:.journey,board:2,score:123)])
+        var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false),journeyRuns:[2:NativeBoardState(tiles:tiles,mode:.journey,board:2,moves:49,score:123)])
         seed.progression.firstPlayTutorialComplete=true;seed.progression.completedJourneyBoards=[1]
         seed.journeyRunSavedAt[2]=Date().timeIntervalSince1970;try store.save(seed)
         let bootstrap=try NativeBootstrap(root:NativeTestResources.root,store:store,showStudioIntro:false)
@@ -263,19 +314,11 @@ final class NativeBootstrapTests:XCTestCase {
         XCTAssertTrue(try XCTUnwrap(store.load()).progression.completedJourneyBoards.contains(2),"Reward only mounts after canonical exit and commit")
         XCTAssertEqual(scene.boardChromeReceipt.alpha,0,"Top HUD exit must finish before reward appears")
         if let footer=game.journeyBottomDecor {XCTAssertEqual(footer.phase,.hidden,"Bottom decoration exit must finish before reward appears")}
-        var saved=try XCTUnwrap(store.load())
+        let saved=try XCTUnwrap(store.load())
         XCTAssertTrue(saved.progression.completedJourneyBoards.contains(2));XCTAssertNil(saved.journeyRuns[2])
-        XCTAssertFalse(saved.progression.unlockedSpecialDice.contains("flower"))
+        XCTAssertTrue(saved.progression.unlockedSpecialDice.contains("flower"))
         try await waitUntil {reward.phase == "interim"};reward.activate()
         try await waitUntil {reward.phase == "unlocked"};reward.activate()
-        try await waitUntil {game.presentedViewController is NativeSpecialDiceUnlockController}
-        let unlock=try XCTUnwrap(game.presentedViewController as? NativeSpecialDiceUnlockController)
-        XCTAssertFalse(try XCTUnwrap(store.load()).progression.unlockedSpecialDice.contains("flower"))
-        try await waitUntil {unlock.phase == "ready"};unlock.activateHero()
-        try await waitUntil {unlock.phase == "unlocked"}
-        saved=try XCTUnwrap(store.load());XCTAssertTrue(saved.progression.unlockedSpecialDice.contains("flower"))
-        XCTAssertFalse(game.presentedViewController is NativeResultController)
-        unlock.activateContinue();unlock.activateContinue()
         try await waitUntil {game.presentedViewController is NativeResultController}
         XCTAssertEqual(try XCTUnwrap(store.load()).progression.unlockedSpecialDice,["flower"])
         XCTAssertEqual(try XCTUnwrap(store.load()).progression.boardStats[2],saved.progression.boardStats[2])
@@ -284,15 +327,16 @@ final class NativeBootstrapTests:XCTestCase {
         let carriedScore=result.finalScore,previousGeneration=game.engine.state.generation
         try await waitUntil(timeout:12) {self.button(in:result.view,id:"native.result.play-again")?.isUserInteractionEnabled == true}
         let next=try XCTUnwrap(button(in:result.view,id:"native.result.play-again"));next.sendActions(for:.touchUpInside);next.sendActions(for:.touchUpInside)
+        try await waitUntil {game.engine.state.board == 3}
+        XCTAssertEqual(game.engine.state.generation,previousGeneration+1)
+        XCTAssertEqual(game.engine.state.score,carriedScore)
         try await waitUntil {game.children.contains{$0 is NativeThemedBoardTransitionController}}
         let transition=try XCTUnwrap(game.children.first{$0 is NativeThemedBoardTransitionController} as? NativeThemedBoardTransitionController)
-        XCTAssertEqual(transition.board,3);XCTAssertEqual(game.engine.state.generation,previousGeneration+1)
-        XCTAssertEqual(game.engine.state.score,carriedScore);XCTAssertEqual(try XCTUnwrap(store.load()?.journeyRuns[3]).score,carriedScore)
-        let firstCell=try XCTUnwrap(game.engine.state.tiles.first?.cell)
-        let nextGeometry=try XCTUnwrap(scene.boardGeometry)
-        XCTAssertFalse(scene.beginDrag(at:nextGeometry.center(row:firstCell.row,column:firstCell.column)))
+        XCTAssertEqual(transition.board,3)
         try await waitUntil(timeout:12) {!game.children.contains{$0 is NativeThemedBoardTransitionController}}
-        XCTAssertFalse(transition.hasActiveClock);XCTAssertEqual(game.engine.state.score,carriedScore)
+        XCTAssertFalse(transition.hasActiveClock)
+        XCTAssertEqual(game.engine.state.score,carriedScore)
+        XCTAssertNil(try store.load()?.journeyRuns[3],"An untouched next board retains the current Play policy")
         XCTAssertEqual(try XCTUnwrap(store.load()).progression.boardStats[2],saved.progression.boardStats[2])
     }
     func testForcedFirstPlayIgnoresOldArcadeAndPreservesTutorialUntilAcknowledged() async throws {

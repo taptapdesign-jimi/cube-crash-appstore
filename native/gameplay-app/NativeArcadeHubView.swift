@@ -8,6 +8,7 @@ final class NativeArcadeHubView: UIView {
     var onClose: (() -> Void)?
     var onCrate: (() -> Void)?
     var onPlay: ((String) -> Void)?
+    var onPlayExit: ((@escaping ()->Void)->Void)?
     var onFeedback:((String)->Void)?
     var canContinue:((String)->Bool)?
     private let assets: JimiV9Artwork
@@ -17,6 +18,7 @@ final class NativeArcadeHubView: UIView {
     private var crateRequested = false
     private var foreground = true
     private var pendingWorldTap:UUID?
+    private var pendingPlayExit:UUID?
     private let identifiers = ["endurance", "pureDice", "slowBurn"]
 
     init(frame: CGRect, assets: JimiV9Artwork) {
@@ -68,7 +70,7 @@ final class NativeArcadeHubView: UIView {
     }
     func suspend() { foreground = false; cancelWorldTap(); hub.stopIdle(); modal?.setForeground(false) }
     func hide() {
-        active = false; cancelWorldTap(); hub.stopIdle(); modal?.dispose(); modal = nil; hub.accessibilityElementsHidden = false; isHidden = true
+        active = false;pendingPlayExit=nil; cancelWorldTap(); hub.stopIdle(); modal?.dispose(); modal = nil; hub.accessibilityElementsHidden = false; isHidden = true
     }
     private func cancelWorldTap() { pendingWorldTap=nil;hub.cancelWorldTap() }
     override var isHidden: Bool { didSet { if isHidden { cancelWorldTap();hub.stopIdle();modal?.setForeground(false) } } }
@@ -83,10 +85,23 @@ final class NativeArcadeHubView: UIView {
             guard let self,self.modal === sheet,self.active,self.foreground else{return}
             self.onFeedback?(cue)
         }
+        let playExitID=UUID()
+        var modalFinished=false,islandsFinished=false,delivered=false
+        let complete:()->Void = {[weak self] in
+            guard let self,self.pendingPlayExit==playExitID,modalFinished,islandsFinished,!delivered,self.active,self.foreground else{return}
+            delivered=true;self.pendingPlayExit=nil;self.onPlay?(self.identifiers[index])
+        }
+        sheet.onPlayExitStart = {[weak self,weak sheet] in
+            guard let self,self.modal === sheet,self.active,self.foreground else{return}
+            self.pendingPlayExit=playExitID
+            self.hub.setContentInteractionEnabled(false)
+            if let exit=self.onPlayExit {exit{islandsFinished=true;complete()}}
+            else {islandsFinished=true;complete()}
+        }
         sheet.onFinish = { [weak self, weak sheet] play in
             guard let self, self.modal === sheet else { return }
             self.modal?.dispose(); self.modal = nil; self.hub.accessibilityElementsHidden = false
-            if play && self.active && self.foreground { self.onPlay?(self.identifiers[index]) }
+            if play {modalFinished=true;complete()}
             else if self.active && self.foreground { self.hub.startIdle() }
         }
         onFeedback?("exit-modal")
@@ -102,9 +117,9 @@ final class NativeArcadeHubView: UIView {
                     from: .scale(reduced ? 0.96 : 0.65, y: reduced ? 8 : 30, opacity: 0), to: .scale(1), ease: reduced ? .powerOut(1) : .backOut(1.8))]))
             }
             if reduced {
-                return (unit, .init(tweens: [.init(begin: Double(i)*0.012, duration: 0.16, from: .scale(1), to: .scale(0.96,y:8,opacity:0), ease: .powerIn(1))]))
+                return (unit, .init(tweens: [.init(begin: 0, duration: 0.16, from: .scale(1), to: .scale(0.96,y:8,opacity:0), ease: .powerIn(1))]))
             }
-            let peak = JimiV9Motion.Pose(scaleX:1.144,scaleY:1.12), delay = Double(i)*0.045
+            let peak = JimiV9Motion.Pose(scaleX:1.144,scaleY:1.12), delay = 0.0
             return (unit,.init(tweens:[.init(begin:delay,duration:0.18,from:.scale(1),to:peak,ease:.powerIn(2)),
                 .init(begin:delay+0.18,duration:0.336,from:peak,to:.scale(0),ease:.backIn(1.7))],anchorY:0.54))
         }
@@ -118,6 +133,7 @@ final class NativeArcadeHubView: UIView {
 @MainActor
 final class NativeArcadeWorldModal: UIView {
     var onFinish: ((Bool) -> Void)?
+    var onPlayExitStart:(()->Void)?
     var onFeedback:((String)->Void)?
     private let backdrop = JimiV9PlainButton(type:.custom), card = UIView(), flip = JimiNativeModalTransformView(), paper = UIImageView()
     private let heading = UILabel(), subtitle = UILabel(), art = UIImageView(), close = JimiV9PlainButton(type:.custom)
@@ -303,7 +319,7 @@ final class NativeArcadeWorldModal: UIView {
         }
     }
     func dispose() {
-        guard !disposed else { return }; modalDrag?.dispose();modalDrag=nil;disposed = true; onFinish = nil;onFeedback=nil
+        guard !disposed else { return }; modalDrag?.dispose();modalDrag=nil;disposed = true; onFinish = nil;onFeedback=nil;onPlayExitStart=nil
         for target in [self,card,flip,tilt,idle,art,backdrop,close,play]+clouds { target.layer.removeAllAnimations() }
         clouds.forEach{$0.image=nil}
         removeFromSuperview()
@@ -316,11 +332,12 @@ final class NativeArcadeWorldModal: UIView {
         let artPose=art.layer.presentation()?.transform ?? art.layer.transform
         modalDrag?.cancel(preservePose:true);closing=true
         isUserInteractionEnabled=false;self.play.isEnabled=false
+        if play {onFeedback?("cta");onPlayExitStart?()}
         CATransaction.begin();CATransaction.setDisableActions(true)
         idle.layer.transform=idlePose;art.layer.transform=artPose
         idle.layer.removeAllAnimations();art.layer.removeAllAnimations()
         freezeClouds()
-        if !play {close.playArtworkTapFeedback();onFeedback?("exit-modal")}
+        if !play {close.playArtworkTapFeedback();onFeedback?("back")}
         if UIAccessibility.isReduceMotionEnabled {
             if play {exitAcceptedPlay()}
             CATransaction.commit();onFinish?(play);return

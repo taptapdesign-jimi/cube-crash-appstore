@@ -42,6 +42,16 @@ enum NativeIdleBubbleMotion {
             return Pose(x:x,y:y,scaleX:startScale+(scaleX-startScale)*growth,scaleY:startScale+(scaleY-startScale)*growth,alpha:alpha,tint:tint)
         }
     }
+    /// Selected Backpack only: small spring overshoot and reciprocal squash,
+    /// sampled from the existing bubble age without another animation owner.
+    static func collectionPose(_ pose:Pose,seconds:Double)->Pose {
+        let t=max(0,seconds),admission=min(1,t/0.12)
+        let squash=0.14*sin(t * .pi * 3.2)*admission
+        let spring=1+0.12*exp(-3.5*t)*sin(t * .pi * 5)
+        return Pose(x:pose.x,y:pose.y-2.2*sin(t * .pi * 3.2)*admission,
+                    scaleX:pose.scaleX*(1+squash)*spring,
+                    scaleY:pose.scaleY/(1+squash)*spring,alpha:pose.alpha,tint:pose.tint)
+    }
     static func make(family:Family,random:()->Double,includeNextDelay:Bool=true)->Plan {
         let radius=(15+random()*25)/2,color=family == .bottle ? UInt32(0xFFFFFF):family.colors[min(family.colors.count-1,Int(floor(random()*Double(family.colors.count))))]
         let startX=(random()-0.5)*128*0.8,startScale=0.2+random()*0.2,startAlpha=0.7+random()*0.3,endX=startX+(random()-0.5)*20,duration=(0.8+random()*0.7)*family.motionScale

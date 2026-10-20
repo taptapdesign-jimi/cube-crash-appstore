@@ -38,6 +38,7 @@ final class NativeJourneyAmbientOwner {
     private var loops:[String:Loop]=[:]
     private var deadlines:[String:Double]=[:]
     private var worldVisitEnd:Double?
+    private var taskEpochs:[String:UInt64]=[:]
     private var tasks:[String:any NativeMusicCancellation]=[:]
     private var lease:UInt64=1
     private var generation:UInt64=1
@@ -52,6 +53,11 @@ final class NativeJourneyAmbientOwner {
     static let bees="journey-forest-soft-bees-ambient"
     static let nature="journey-forest-nature-ambient"
     static let gameplay="journey-forest-gameplay-loop"
+    static let beach="journey-beach-ambient-loop"
+    static let gull="journey-beach-gull-loop"
+    private var spaceshipVisible=false
+    static let spaceship="journey-area55-visible-ufo"
+    static let area55="journey-area55-ambient-loop"
     init(root:URL,enabled:Bool,transport:(any NativeAmbientLoopTransport)?=nil,scheduler:(any NativeMusicScheduler)?=nil,now:@escaping ()->Double={ProcessInfo.processInfo.systemUptime}) {
         self.transport=transport ?? NativeFileAmbientLoopTransport(root:root);self.enabled=enabled;self.scheduler=scheduler ?? AmbientScheduler();self.now=now
         for name in [UIApplication.willResignActiveNotification,UIApplication.didBecomeActiveNotification,AVAudioSession.interruptionNotification,AVAudioSession.mediaServicesWereResetNotification] {
@@ -75,6 +81,21 @@ final class NativeJourneyAmbientOwner {
         resultActive=false;resultSuspended=false;stop(Self.resultBees)
         let old=route;route=value;self.generation=generation;lease &+= 1
         cancelTasks()
+        if value != .world(3) {spaceshipVisible=false;stop(Self.spaceship)}
+        let beachActive:Bool
+        switch value {
+        case .world(2):beachActive=true
+        case .gameplay(.journey,let board):beachActive=(11...20).contains(board)
+        default:beachActive=false
+        }
+        if !beachActive {stop(Self.beach);stop(Self.gull)}
+        let area55Active:Bool
+        switch value {
+        case .world(3):area55Active=true
+        case .gameplay(.journey,let board):area55Active=(21...30).contains(board)
+        default:area55Active=false
+        }
+        if !area55Active {stop(Self.area55)}
         switch value {
         case .none:worldVisitEnd=nil;stopAll()
         case .hub:
@@ -99,6 +120,36 @@ final class NativeJourneyAmbientOwner {
                 retain(Self.gameplay,source:"assets/sound/worlds/Forest/gameplay/forest-gameplay-sound.wav",gain:0.54)
             } else {stop(Self.gameplay)}
         }
+        if area55Active {
+            retain(Self.area55,source:"assets/sound/Board transitions/Area 55/area ambient day at a park.wav",gain:0.6)
+        }
+        if beachActive {
+            retain(Self.beach,source:"assets/sound/Board transitions/Beach/beach ambiance.wav",gain:0.28)
+            retain(Self.gull,source:"assets/sound/Board transitions/Beach/galeb.wav",gain:0.36)
+        }
+    }
+    /// One authored pass per aggregate visible interval, never one voice per ship.
+    func setSpaceshipVisible(_ visible:Bool) {
+        let accepted=visible && route == .world(3) && !disposed
+        guard accepted != spaceshipVisible else{return};spaceshipVisible=accepted
+        if accepted {
+            stop(Self.spaceship)
+            guard enabled else{return}
+            retain(Self.spaceship,source:"assets/sound/Board transitions/Area 55/ufo movement.wav",gain:0)
+            loops[Self.spaceship]?.gain=0.35
+            transport.gain(id:Self.spaceship,to:0.35,duration:0.25)
+        }else{fadeAndStop(Self.spaceship,duration:0.3)}
+    }
+    /// A visible transition can cross a World boundary without changing the
+    /// controller's gameplay route. Keep Beach/Area55 loops continuous through entry.
+    func beginJourneyTransition(board:Int,generation:UInt64) {
+        let leavingAmbientWorld:Bool
+        switch route {
+        case .world(2),.world(3):leavingAmbientWorld=true
+        case .gameplay(.journey,let previous):leavingAmbientWorld=(11...30).contains(previous)
+        default:leavingAmbientWorld=false
+        }
+        if (11...30).contains(board) || leavingAmbientWorld {setRoute(.gameplay(.journey,board),generation:generation)}
     }
     /// Result controller owns this one overlay loop; it shares Settings/session
     /// and transport with Journey, but never replaces existing route ambience.
@@ -124,9 +175,10 @@ final class NativeJourneyAmbientOwner {
         if !value {for id in loops.keys {transport.pause(id:id)}}
         else if enabled,!interrupted {
             for (id,loop) in loops {
+                if id==Self.spaceship && !spaceshipVisible {stop(id);continue}
                 if id==Self.resultBees && resultSuspended {continue}
                 if let deadline=deadlines[id],deadline<=now() {stop(id);continue}
-                if loop.started {transport.resume(id:id,gain:loop.gain)}else{transport.start(id:id,source:loop.source,gain:loop.gain);loops[id]?.started=true}
+                if loop.started {transport.resume(id:id,gain:loop.gain)}else{transport.start(id:id,source:loop.source,gain:id==Self.spaceship ? 0:loop.gain);loops[id]?.started=true;if id==Self.spaceship {transport.gain(id:id,to:loop.gain,duration:0.25)}}
             }
             restoreDeadlines()
         }
@@ -158,9 +210,10 @@ final class NativeJourneyAmbientOwner {
     }
     private func arm(_ id:String,after seconds:Double,_ callback:@escaping ()->Void) {
         tasks[id]?.cancel();let current=lease
-        tasks[id]=scheduler.after(seconds) { [weak self] in guard let self,!self.disposed,self.lease==current,self.enabled,self.foreground,!self.interrupted else{return};self.tasks.removeValue(forKey:id);callback() }
+        taskEpochs[id,default:0] &+= 1;let token=taskEpochs[id]
+        tasks[id]=scheduler.after(seconds) { [weak self] in guard let self,!self.disposed,self.lease==current,self.taskEpochs[id]==token,self.enabled,self.foreground,!self.interrupted else{return};self.tasks.removeValue(forKey:id);callback() }
     }
-    private func stop(_ id:String) {tasks.removeValue(forKey:id)?.cancel();deadlines.removeValue(forKey:id);if loops.removeValue(forKey:id) != nil {transport.stop(id:id)}}
+    private func stop(_ id:String) {taskEpochs[id,default:0] &+= 1;tasks.removeValue(forKey:id)?.cancel();deadlines.removeValue(forKey:id);if loops.removeValue(forKey:id) != nil {transport.stop(id:id)}}
     private func cancelTasks() {for task in tasks.values {task.cancel()};tasks.removeAll()}
     func stopAll() {lease &+= 1;cancelTasks();for id in Array(loops.keys) {stop(id)}}
     func dispose() {guard !disposed else{return};disposed=true;stopAll();transport.dispose();for observer in observers {NotificationCenter.default.removeObserver(observer)};observers.removeAll()}
@@ -176,6 +229,17 @@ final class NativeJourneyAmbientOwner {
     }
 }
 
+/// Sample-clock loop placement; silence is a gap between file segments, never
+/// a modified asset or a wall timer that could replay after leaving the route.
+struct NativeAmbientLoopTiming {
+    let fileDuration:Double,gap:Double
+    var duration:Double {fileDuration+gap}
+    func segment(from position:Double)->(offset:Double,delay:Double) {
+        let phase=max(0,position).truncatingRemainder(dividingBy:duration)
+        return phase<fileDuration ? (phase,0):(0,duration-phase)
+    }
+}
+
 /// Streaming PCM file loops: four retained voices maximum, only two bounded
 /// scheduled segments per voice, no whole-file PCM cache or settled polling.
 @MainActor
@@ -184,25 +248,30 @@ final class NativeFileAmbientLoopTransport:NativeAmbientLoopTransport {
         let node=AVAudioPlayerNode(),file:AVAudioFile
         var generation=0,position=0.0,anchor=0.0,playing=false
         var fade:Timer?
-        init(file:AVAudioFile){self.file=file}
-        var duration:Double {Double(file.length)/file.processingFormat.sampleRate}
+        let gap:Double
+        let once:Bool
+        var nextSegmentFrame:AVAudioFramePosition=0
+        init(file:AVAudioFile,gap:Double=0,once:Bool=false){self.file=file;self.gap=gap;self.once=once}
+        var timing:NativeAmbientLoopTiming {.init(fileDuration:Double(file.length)/file.processingFormat.sampleRate,gap:gap)}
+        var duration:Double {timing.duration}
         var currentTime:Double {
             guard playing,let time=node.lastRenderTime,let player=node.playerTime(forNodeTime:time) else{return position}
-            return (anchor+Double(player.sampleTime)/player.sampleRate).truncatingRemainder(dividingBy:duration)
+            let elapsed=anchor+Double(player.sampleTime)/player.sampleRate
+            return once ? min(duration,elapsed):elapsed.truncatingRemainder(dividingBy:duration)
         }
     }
     private let root:URL
-    private let engine=AVAudioEngine()
+    private let engine:AVAudioEngine
     private var voices:[String:Voice]=[:]
     private var disposed=false
-    private static let sources:Set<String>=["assets/sound/worlds/crumbleworlds.wav","assets/sound/worlds/Forest/soft bees ambiance.wav","assets/sound/worlds/Forest/forest nature sounds.wav","assets/sound/worlds/Forest/gameplay/forest-gameplay-sound.wav"]
+    private static let sources:Set<String>=["assets/sound/Board transitions/Area 55/ufo movement.wav","assets/sound/Board transitions/Area 55/area ambient day at a park.wav","assets/sound/Board transitions/Beach/beach ambiance.wav","assets/sound/Board transitions/Beach/galeb.wav","assets/sound/worlds/crumbleworlds.wav","assets/sound/worlds/Forest/soft bees ambiance.wav","assets/sound/worlds/Forest/forest nature sounds.wav","assets/sound/worlds/Forest/gameplay/forest-gameplay-sound.wav"]
     var onError:((String)->Void)?
-    init(root:URL){self.root=root}
+    init(root:URL,engine:AVAudioEngine=AVAudioEngine()){self.root=root;self.engine=engine}
     func start(id:String,source:String,gain:Double) {
         guard !disposed,Self.sources.contains(source),voices.count<4 || voices[id] != nil else{return}
         do {
             if let voice=voices[id] {voice.node.volume=Float(gain);if !voice.playing {try start(voice)};return}
-            let voice=Voice(file:try AVAudioFile(forReading:root.appendingPathComponent(source)))
+            let voice=Voice(file:try AVAudioFile(forReading:root.appendingPathComponent(source)),gap:source=="assets/sound/Board transitions/Beach/galeb.wav" ? 15:0,once:source=="assets/sound/Board transitions/Area 55/ufo movement.wav")
             guard voice.file.length>0,voice.file.length<=Int64(UInt32.max) else {throw NSError(domain:"NativeAmbient",code:1,userInfo:[NSLocalizedDescriptionKey:"Unsupported authored loop duration"])}
             engine.attach(voice.node);engine.connect(voice.node,to:engine.mainMixerNode,format:voice.file.processingFormat);voices[id]=voice
             voice.node.volume=Float(max(0,min(1,gain)));try start(voice)
@@ -210,8 +279,9 @@ final class NativeFileAmbientLoopTransport:NativeAmbientLoopTransport {
     }
     private func start(_ voice:Voice) throws {
         voice.generation += 1;let generation=voice.generation
-        voice.node.stop();voice.anchor=max(0,voice.position).truncatingRemainder(dividingBy:voice.duration)
-        schedule(voice,from:voice.anchor,generation:generation);schedule(voice,from:0,generation:generation)
+        voice.node.stop();voice.nextSegmentFrame=0;voice.anchor=voice.once ? min(voice.duration,max(0,voice.position)):max(0,voice.position).truncatingRemainder(dividingBy:voice.duration)
+        guard !voice.once || voice.anchor<voice.duration else{voice.playing=false;return}
+        schedule(voice,from:voice.anchor,generation:generation);if !voice.once {schedule(voice,from:0,generation:generation)}
         if !engine.isRunning {try engine.start()};voice.playing=true;voice.node.play()
     }
     /// A constant actor-isolated receipt crosses the AV render callback. Mutable
@@ -221,13 +291,17 @@ final class NativeFileAmbientLoopTransport:NativeAmbientLoopTransport {
         private weak var voice:Voice?
         private let generation:Int
         init(owner:NativeFileAmbientLoopTransport,voice:Voice,generation:Int){self.owner=owner;self.voice=voice;self.generation=generation}
-        func consumed(){guard let owner,let voice,voice.generation==generation,voice.playing,!owner.disposed else{return};owner.schedule(voice,from:0,generation:generation)}
+        func consumed(){guard let owner,let voice,voice.generation==generation,voice.playing,!voice.once,!owner.disposed else{return};owner.schedule(voice,from:0,generation:generation)}
     }
     private func schedule(_ voice:Voice,from seconds:Double,generation:Int) {
-        let frame=AVAudioFramePosition((seconds*voice.file.processingFormat.sampleRate).rounded())
+        let rate=voice.file.processingFormat.sampleRate,placement=voice.timing.segment(from:seconds)
+        let frame=AVAudioFramePosition((placement.offset*rate).rounded())
         let count=AVAudioFrameCount(max(0,voice.file.length-frame));guard count>0 else{return}
+        let start=voice.nextSegmentFrame+AVAudioFramePosition((placement.delay*rate).rounded())
+        voice.nextSegmentFrame=start+AVAudioFramePosition(count)+AVAudioFramePosition((voice.gap*rate).rounded())
+        let time=voice.gap>0 ? AVAudioTime(sampleTime:start,atRate:rate):nil
         let receipt=SegmentReceipt(owner:self,voice:voice,generation:generation)
-        voice.node.scheduleSegment(voice.file,startingFrame:frame,frameCount:count,at:nil,completionCallbackType:.dataConsumed) { _ in
+        voice.node.scheduleSegment(voice.file,startingFrame:frame,frameCount:count,at:time,completionCallbackType:.dataConsumed) { _ in
             Task { @MainActor [receipt] in receipt.consumed() }
         }
     }

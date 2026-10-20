@@ -980,8 +980,8 @@
     ],
     "noMoves": [
       {
-        "source": "assets/sound/grandpa - no moves left.mp3",
-        "voice": "no-moves-grandpa",
+        "source": "assets/sound/fail board/wah wah.wav",
+        "voice": "no-moves-wah-wah",
         "gain": 0.42,
         "rate": 1,
         "delay": 0,

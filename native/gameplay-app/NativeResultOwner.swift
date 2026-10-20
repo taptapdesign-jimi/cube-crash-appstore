@@ -23,7 +23,6 @@ final class NativeResultOwner {
     var onMoment:((String,Int,Double?)->Void)?
     var onHaptic:((String)->Void)?
     var onError:((Error)->Void)?
-    var afterReward:((@escaping ()->Void)->Void)?
     var onSourceFinalCleanup:((NativeSourceNoMovesCompletedReceipt)->Void)?
     var prepareExit:((@escaping (Bool)->Void)->Void)?
     static func finalScore(state:NativeBoardState,clean:Bool)->Int {
@@ -96,7 +95,7 @@ final class NativeResultOwner {
                 self.reward=nil
                 Self.removeReward(card) {
                     guard !self.disposed,self.lease==token,gameplay.engine.state.generation==state.generation else{return}
-                    if action == .collect {if let next=self.afterReward {next(showResult)} else {showResult()}}
+                    if action == .collect {showResult()}
                 }
             }
             card.loadViewIfNeeded()
@@ -135,7 +134,7 @@ final class NativeResultOwner {
         let callback=onSourceFinalCleanup;onSourceFinalCleanup=nil
         if let receipt=sourceNoMovesReceipt {callback?(receipt)}
     }
-    func dispose() {disposed=true;lease += 1;finishSourceFinalCleanup();let card=reward;reward=nil;card?.dispose(notify:false);if let card {Self.removeReward(card,completion:{})};modal?.dispose();modal?.dismiss(animated:false);modal=nil;onMoment=nil;onForestAmbience=nil;onHaptic=nil;onError=nil;afterReward=nil;prepareExit=nil}
+    func dispose() {disposed=true;lease += 1;finishSourceFinalCleanup();let card=reward;reward=nil;card?.dispose(notify:false);if let card {Self.removeReward(card,completion:{})};modal?.dispose();modal?.dismiss(animated:false);modal=nil;onMoment=nil;onForestAmbience=nil;onHaptic=nil;onError=nil;prepareExit=nil}
 }
 
 /// Authored stars/text/score/result CTA layout; its native clock pauses with the app.
@@ -246,7 +245,8 @@ final class NativeResultController:UIViewController {
             scoreLabel.attributedText=label
         } else {scoreLabel.text="Your score"}
         score.accessibilityIdentifier="native.result.score"
-        status.text="\(state.mode == .arcade ? String(format:"Round %02d",state.stage) : String(format:"Stage %02d",(state.board-1)%10+1)) \(arcadeReached ? "reached" : clean ? "cleared" : "not cleared")"
+        status.accessibilityIdentifier="native.result.status"
+        status.text="\(state.mode == .arcade ? String(format:"Round %02d",state.stage) : String(format:"%@ %02d",state.board>20 ? "Area":state.board>10 ? "Beach":"Forest",(state.board-1)%10+1)) \(arcadeReached ? "reached" : clean ? "cleared" : "not cleared")"
         for (index,button) in buttons.enumerated() {
             button.setTitle(index == 0 ? (clean && interimJourney ? "Continue" : "Play Again") : "Exit",for:.normal)
             button.applyModalCTA(artwork:assets,primary:index == 0)
@@ -420,6 +420,12 @@ final class NativeResultController:UIViewController {
         }
         if clean {
             score.text=String(plan.displayedScore)
+            // The final total owns one register cue, leading its stop by500ms.
+            if arcadeReached {
+                moment("clean-score-stop",at:0.47+NativeResultPresentationPlan.counterDuration(from:0,to:state.score)-0.5,index:0)
+            } else {
+                moment("clean-score-stop",at:4.6+NativeResultPresentationPlan.counterDuration(from:state.score+combo,to:state.score+combo+efficiency)-0.5,index:2)
+            }
             if lastCounterValue != plan.displayedScore {
                 let previous=lastCounterValue;lastCounterValue=plan.displayedScore
                 if previous != nil,elapsed-lastCounterHapticAt>=0.05 {
@@ -451,7 +457,7 @@ final class NativeResultController:UIViewController {
     @objc private func activate(_ sender:UIButton) {
         guard !disposed,committed,closingAt == nil,!suspended,sender.isUserInteractionEnabled else {return}
         clickedPrimary=sender.tag==0
-        onMoment?("cta",sender.tag,nil);onHaptic?("selection")
+        onMoment?(sender.tag == 0 ? "cta":"back",sender.tag,nil);onHaptic?("selection")
         for button in buttons {button.isUserInteractionEnabled=false}
         onAction?(sender.tag == 0 ? (clean && interimJourney ? .nextJourney : .restart) : .exit);onAction=nil
     }

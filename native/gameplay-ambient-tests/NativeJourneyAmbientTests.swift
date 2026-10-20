@@ -1,4 +1,5 @@
 import XCTest
+import AVFAudio
 import StackToSixGameplay
 @testable import Stack_to_Six
 
@@ -22,6 +23,230 @@ final class NativeJourneyAmbientTests:XCTestCase {
     private final class Scheduler:NativeMusicScheduler {
         var jobs:[Job]=[]
         func after(_ seconds:Double,_ callback:@escaping ()->Void)->any NativeMusicCancellation{let job=Job(seconds,callback);jobs.append(job);return job}
+    }
+    func testUFOVisiblePassDeduplicatesFadesAndRejectsStaleExitAndOtherRoutes() {
+        let transport=Transport(),scheduler=Scheduler()
+        let owner=NativeJourneyAmbientOwner(root:URL(fileURLWithPath:"/unused"),enabled:true,transport:transport,scheduler:scheduler)
+        defer{owner.dispose()}
+        let id=NativeJourneyAmbientOwner.spaceship
+        owner.setSpaceshipVisible(true)
+        XCTAssertFalse(transport.commands.contains{$0.id==id})
+        owner.setRoute(.world(3),generation:1)
+        owner.setSpaceshipVisible(true);owner.setSpaceshipVisible(true)
+        XCTAssertEqual(transport.commands.filter{$0.id==id && $0.op=="start"}.count,1)
+        XCTAssertEqual(transport.commands.last?.duration,0.25)
+        XCTAssertEqual(transport.commands.last?.gain,0.35)
+        owner.setSpaceshipVisible(false)
+        XCTAssertEqual(transport.commands.last?.duration ?? 0,0.3,accuracy:0.001)
+        let old=scheduler.jobs.last!
+        owner.setSpaceshipVisible(true)
+        let count=transport.commands.count;old.callback()
+        XCTAssertTrue(old.cancelled);XCTAssertEqual(transport.commands.count,count)
+        owner.setForeground(false);owner.setSpaceshipVisible(false);owner.setForeground(true)
+        XCTAssertFalse(transport.commands.contains{$0.id==id && $0.op=="resume"})
+        owner.setSpaceshipVisible(true);owner.setEnabled(false)
+        XCTAssertEqual(transport.commands.last{$0.id==id}?.op,"stop")
+        owner.setEnabled(true)
+        owner.beginJourneyTransition(board:21,generation:2)
+        let before=transport.commands.count;owner.setSpaceshipVisible(true)
+        XCTAssertEqual(transport.commands.count,before)
+    }
+    func testShipVisibilityUsesCurrentBoundsOpacityAndScrolledViewport() throws {
+        let frames=(0...120).map {index -> JimiNativeWorldAmbient.Frame in
+            .init(time:Double(index)/30,x:CGFloat(index)*5-100,y:200,width:50,height:30,rotation:0,opacity:1,asset:"ship",behind:false)
+        }
+        let plan=JimiNativeWorldAmbient.Plan(id:0,worldID:3,duration:4,frames:frames,assets:["ship"],visualBounds:CGRect(x:-100,y:200,width:650,height:30))
+        let viewport=CGRect(x:0,y:100,width:390,height:700)
+        XCTAssertFalse(plan.shipVisible(at:0,viewport:viewport,scale:1))
+        XCTAssertTrue(plan.shipVisible(at:1,viewport:viewport,scale:1))
+        XCTAssertFalse(plan.shipVisible(at:3.9,viewport:viewport,scale:1))
+        XCTAssertFalse(plan.shipVisible(at:1,viewport:viewport.offsetBy(dx:0,dy:400),scale:1))
+        XCTAssertFalse(plan.shipVisible(at:1,viewport:CGRect(x:0,y:240,width:390,height:600),scale:1),"Header occlusion must be silent")
+        XCTAssertEqual(try XCTUnwrap(plan.nextShipVisibilityBoundary(after:0,viewport:viewport,scale:1)),1.0/3,accuracy:0.001)
+        XCTAssertEqual(try XCTUnwrap(plan.nextShipVisibilityBoundary(after:1,viewport:viewport,scale:1)),490.0/150,accuracy:0.001)
+    }
+    func testMountedShipVisibilityAggregatesBothShipsAndCancelsOnScrollParkCleanup() async throws {
+        let root=try XCTUnwrap(Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle"))
+        let content=UIView(frame:CGRect(x:0,y:0,width:390,height:844)),resources=JimiNativeWorldResources(root:root)
+        let asset="./assets/journey assets/robo/ship1@2x.png"
+        let frames=(0...60).map {index -> JimiNativeWorldAmbient.Frame in
+            .init(time:Double(index)/30,x:CGFloat(index)*10-100,y:300,width:50,height:30,rotation:0,opacity:1,asset:asset,behind:false)
+        }
+        let plans=(0...1).map{JimiNativeWorldAmbient.Plan(id:$0,worldID:3,duration:2,frames:frames,assets:[asset],visualBounds:CGRect(x:-100,y:300,width:650,height:30))}
+        let owner=JimiNativeWorldAmbient(plans:plans,content:content,resources:resources)
+        defer{owner.cleanup();resources.cleanup()}
+        let ready=expectation(description:"Ship resources")
+        owner.prepareVisible(viewport:content.bounds,scale:1){ok in XCTAssertTrue(ok);ready.fulfill()}
+        await fulfillment(of:[ready],timeout:5)
+        var reports:[Bool]=[];let entered=expectation(description:"Actual visible crossing")
+        owner.onShipVisibility={value in reports.append(value);if reports.count==1 {XCTAssertTrue(value);entered.fulfill()}}
+        owner.update(enabled:true,viewport:content.bounds,scale:1)
+        XCTAssertTrue(reports.isEmpty,"Trajectory overlap alone must not emit audio")
+        await fulfillment(of:[entered],timeout:2)
+        XCTAssertEqual(reports,[true],"Two overlapping ships share one receipt")
+        owner.update(enabled:true,viewport:content.bounds.offsetBy(dx:0,dy:500),scale:1)
+        XCTAssertEqual(reports,[true,false])
+        owner.update(enabled:true,viewport:content.bounds,scale:1)
+        try await Task.sleep(for:.milliseconds(80))
+        XCTAssertEqual(reports,[true,false,true])
+        owner.update(enabled:false,viewport:content.bounds,scale:1)
+        XCTAssertEqual(reports.last,false)
+        let count=reports.count;owner.cleanup()
+        try await Task.sleep(for:.milliseconds(150))
+        XCTAssertEqual(reports.count,count);XCTAssertEqual(owner.layerCount,0)
+    }
+    func testActualUFOFilePlaysOnceAndDoesNotLoopOrReplayAfterExhaustedResume()throws {
+        let root=try XCTUnwrap(Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle"))
+        let engine=AVAudioEngine(),format=try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate:48000,channels:2))
+        try engine.enableManualRenderingMode(.offline,format:format,maximumFrameCount:480)
+        let transport=NativeFileAmbientLoopTransport(root:root,engine:engine)
+        defer{transport.dispose()}
+        var errors:[String]=[];transport.onError={errors.append($0)}
+        let id=NativeJourneyAmbientOwner.spaceship
+        transport.start(id:id,source:"assets/sound/Board transitions/Area 55/ufo movement.wav",gain:1)
+        XCTAssertTrue(errors.isEmpty)
+        let buffer=try XCTUnwrap(AVAudioPCMBuffer(pcmFormat:format,frameCapacity:480))
+        var first:Float=0,tail:Float=0
+        for block in 0..<1000 {
+            XCTAssertEqual(try engine.renderOffline(480,to:buffer),.success)
+            let samples=try XCTUnwrap(buffer.floatChannelData)
+            for channel in 0..<2 {for index in 0..<Int(buffer.frameLength) {
+                let value=abs(samples[channel][index]);if block<456 {first=max(first,value)}else{tail=max(tail,value)}
+            }}
+        }
+        XCTAssertGreaterThan(first,0.01);XCTAssertLessThan(tail,0.000001)
+        transport.pause(id:id);transport.resume(id:id,gain:1)
+        // Exhausted one-shot remains stopped; resuming it must not queue a new segment.
+        XCTAssertFalse(engine.isRunning)
+    }
+    func testArea55LoopIsContinuousAcrossWorldAndEveryBoardAndReleasesOutsideWorld() {
+        let transport=Transport(),scheduler=Scheduler()
+        let owner=NativeJourneyAmbientOwner(root:URL(fileURLWithPath:"/unused"),enabled:true,transport:transport,scheduler:scheduler)
+        let id=NativeJourneyAmbientOwner.area55
+        owner.setRoute(.world(3),generation:1)
+        XCTAssertEqual(transport.commands.first{$0.id==id && $0.op=="start"}?.source,"assets/sound/Board transitions/Area 55/area ambient day at a park.wav")
+        XCTAssertEqual(transport.commands.first{$0.id==id && $0.op=="start"}?.gain,0.6)
+        for board in 21...30 {
+            owner.beginJourneyTransition(board:board,generation:UInt64(board))
+            owner.setRoute(.gameplay(.journey,board),generation:UInt64(board))
+        }
+        XCTAssertEqual(transport.commands.filter{$0.id==id && $0.op=="start"}.count,1)
+        XCTAssertFalse(transport.commands.contains{$0.id==id && $0.op=="stop"})
+        owner.setForeground(false);owner.setForeground(true)
+        XCTAssertEqual(transport.commands.filter{$0.id==id && $0.op=="resume"}.count,1)
+        owner.setEnabled(false);owner.setEnabled(true)
+        XCTAssertEqual(transport.commands.filter{$0.id==id && $0.op=="start"}.count,2)
+        owner.beginJourneyTransition(board:11,generation:31)
+        XCTAssertEqual(transport.commands.filter{$0.id==id && $0.op=="stop"}.count,2)
+        owner.setRoute(.gameplay(.arcade,21),generation:32)
+        owner.setRoute(.world(1),generation:33)
+        XCTAssertEqual(transport.commands.filter{$0.id==id && $0.op=="start"}.count,2)
+        owner.beginJourneyTransition(board:21,generation:34)
+        XCTAssertEqual(transport.commands.filter{$0.id==id && $0.op=="start"}.count,3)
+        owner.dispose();let count=transport.commands.count
+        owner.beginJourneyTransition(board:22,generation:35)
+        XCTAssertEqual(transport.commands.count,count)
+    }
+    func testArea55OriginalFileIsAdmittedAndRendersAcrossLoopBoundary()throws {
+        let root=try XCTUnwrap(Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle"))
+        let source="assets/sound/Board transitions/Area 55/area ambient day at a park.wav"
+        let file=try AVAudioFile(forReading:root.appendingPathComponent(source))
+        XCTAssertEqual(Double(file.length)/file.processingFormat.sampleRate,30,accuracy:0.001)
+        let engine=AVAudioEngine(),format=try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate:48000,channels:2))
+        try engine.enableManualRenderingMode(.offline,format:format,maximumFrameCount:480)
+        let transport=NativeFileAmbientLoopTransport(root:root,engine:engine)
+        defer{transport.dispose()}
+        var errors:[String]=[];transport.onError={errors.append($0)}
+        transport.start(id:NativeJourneyAmbientOwner.area55,source:source,gain:1)
+        XCTAssertTrue(errors.isEmpty,"\(errors)")
+        let buffer=try XCTUnwrap(AVAudioPCMBuffer(pcmFormat:format,frameCapacity:480))
+        var first:Float=0,second:Float=0
+        for block in 0..<3100 {
+            XCTAssertEqual(try engine.renderOffline(480,to:buffer),.success)
+            let samples=try XCTUnwrap(buffer.floatChannelData)
+            for channel in 0..<2 {for index in 0..<Int(buffer.frameLength) {
+                let value=abs(samples[channel][index])
+                if block<3000 {first=max(first,value)}else{second=max(second,value)}
+            }}
+        }
+        XCTAssertGreaterThan(first,0.01);XCTAssertGreaterThan(second,0.01)
+    }
+    func testActualGullFileRenderingHasSilentGapBeforeSecondCall()throws {
+        let root=try XCTUnwrap(Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle"))
+        let engine=AVAudioEngine(),format=try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate:48000,channels:2))
+        try engine.enableManualRenderingMode(.offline,format:format,maximumFrameCount:480)
+        let transport=NativeFileAmbientLoopTransport(root:root,engine:engine)
+        defer{transport.dispose()}
+        var errors:[String]=[];transport.onError={errors.append($0)}
+        transport.start(id:NativeJourneyAmbientOwner.gull,source:"assets/sound/Board transitions/Beach/galeb.wav",gain:0.36)
+        XCTAssertTrue(errors.isEmpty,"\(errors)")
+        let buffer=try XCTUnwrap(AVAudioPCMBuffer(pcmFormat:format,frameCapacity:480))
+        var first:Float=0,gap:Float=0,second:Float=0
+        for block in 0..<2252 {
+            XCTAssertEqual(try engine.renderOffline(480,to:buffer),.success)
+            let samples=try XCTUnwrap(buffer.floatChannelData)
+            for channel in 0..<2 {for index in 0..<Int(buffer.frameLength) {
+                let peak=abs(samples[channel][index])
+                if block<376 {first=max(first,peak)}
+                else if block<1876 {gap=max(gap,peak)}
+                else {second=max(second,peak)}
+            }}
+        }
+        XCTAssertGreaterThan(first,0.01);XCTAssertLessThanOrEqual(first,0.361)
+        XCTAssertLessThan(gap,0.000001,"All15 seconds between calls must be silent")
+        XCTAssertGreaterThan(second,0.01);XCTAssertLessThanOrEqual(second,0.361)
+    }
+    func testGullSampleClockGapAndResumePreserveFifteenSecondsOfSilence() {
+        let timing=NativeAmbientLoopTiming(fileDuration:3.76,gap:15)
+        XCTAssertEqual(timing.duration,18.76,accuracy:0.000001)
+        XCTAssertEqual(timing.segment(from:0).offset,0)
+        XCTAssertEqual(timing.segment(from:0).delay,0)
+        XCTAssertEqual(timing.segment(from:2).offset,2)
+        XCTAssertEqual(timing.segment(from:3.76).delay,15,accuracy:0.000001)
+        XCTAssertEqual(timing.segment(from:8.76).delay,10,accuracy:0.000001)
+        XCTAssertEqual(timing.segment(from:18.76).delay,0,accuracy:0.000001)
+        XCTAssertEqual(timing.segment(from:18.76).offset,0,accuracy:0.000001)
+        let sea=NativeAmbientLoopTiming(fileDuration:30,gap:0)
+        XCTAssertEqual(sea.segment(from:35).offset,5)
+        XCTAssertEqual(sea.segment(from:35).delay,0)
+    }
+    func testBeachLoopsKeepExactGainsAcrossWorldTransitionAndEveryBeachBoard() {
+        let transport=Transport(),scheduler=Scheduler()
+        let owner=NativeJourneyAmbientOwner(root:URL(fileURLWithPath:"/unused"),enabled:true,transport:transport,scheduler:scheduler)
+        defer{owner.dispose()}
+        let ids=[NativeJourneyAmbientOwner.beach,NativeJourneyAmbientOwner.gull]
+        owner.setRoute(.world(2),generation:2)
+        XCTAssertEqual(transport.commands.filter{ids.contains($0.id) && $0.op=="start"}.map(\.gain),[0.28,0.36])
+        for board in 11...20 {
+            owner.beginJourneyTransition(board:board,generation:UInt64(board))
+            owner.setRoute(.gameplay(.journey,board),generation:UInt64(board))
+        }
+        XCTAssertEqual(transport.commands.filter{ids.contains($0.id) && $0.op=="start"}.count,2)
+        XCTAssertFalse(transport.commands.contains{ids.contains($0.id) && $0.op=="stop"})
+        owner.beginJourneyTransition(board:21,generation:21)
+        XCTAssertEqual(transport.commands.filter{ids.contains($0.id) && $0.op=="stop"}.count,2)
+        let count=transport.commands.filter{ids.contains($0.id) && $0.op=="start"}.count
+        owner.setRoute(.gameplay(.arcade,12),generation:22)
+        owner.setRoute(.world(3),generation:23)
+        XCTAssertEqual(transport.commands.filter{ids.contains($0.id) && $0.op=="start"}.count,count)
+    }
+    func testBeachTransitionColdEntryPauseSettingsAndExitReleaseExactLoops() {
+        let transport=Transport(),scheduler=Scheduler()
+        let owner=NativeJourneyAmbientOwner(root:URL(fileURLWithPath:"/unused"),enabled:true,transport:transport,scheduler:scheduler)
+        let ids=[NativeJourneyAmbientOwner.beach,NativeJourneyAmbientOwner.gull]
+        owner.beginJourneyTransition(board:11,generation:1)
+        XCTAssertEqual(transport.commands.filter{ids.contains($0.id) && $0.op=="start"}.count,2)
+        owner.setForeground(false);owner.setForeground(true)
+        XCTAssertEqual(transport.commands.filter{ids.contains($0.id) && $0.op=="resume"}.count,2)
+        owner.setEnabled(false)
+        XCTAssertEqual(transport.commands.filter{ids.contains($0.id) && $0.op=="stop"}.count,2)
+        owner.setEnabled(true)
+        XCTAssertEqual(transport.commands.filter{ids.contains($0.id) && $0.op=="start"}.count,4)
+        owner.setRoute(.hub,generation:2)
+        XCTAssertEqual(transport.commands.filter{ids.contains($0.id) && $0.op=="stop"}.count,4)
+        owner.dispose();let count=transport.commands.count
+        owner.beginJourneyTransition(board:12,generation:3)
+        XCTAssertEqual(transport.commands.count,count)
     }
     func testForestResultBeesUseTwentyPercentGainAndOwnedPauseMuteRouteCleanup() {
         let transport=Transport(),scheduler=Scheduler()

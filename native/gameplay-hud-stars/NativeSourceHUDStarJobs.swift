@@ -63,10 +63,12 @@ import Foundation
         }
         let sizes=NativeSourceHUDStarPlan.sizeOrder(random:random);guard current(job) else{retire(job);return false}
         var previous=0.0,previousCoinEnd=0.0,maxEnd=0.0
+        var coinLaunchInterval:Double?
         for (ordinal,id) in ids.enumerated() {
             guard current(job) else{retire(job);return false}
             let sourcePlan=NativeSourceHUDStarPlan.construct(ordinal:ordinal,sizes:sizes,origin:origin,target:target,textureWidth:textureWidth,previousArrival:&previous,random:random)
-            let plan=readableCoins ? sourcePlan.readableCoin(ordinal:ordinal,previousEnd:&previousCoinEnd,viewport:viewport,gentleLaunch:gentleLaunch):sourcePlan
+            let plan=readableCoins ? sourcePlan.readableCoin(ordinal:ordinal,previousEnd:&previousCoinEnd,viewport:viewport,gentleLaunch:gentleLaunch,launchInterval:coinLaunchInterval):sourcePlan
+            if readableCoins,coinLaunchInterval==nil {coinLaunchInterval=(plan.duration-plan.arrivalEaseDuration)*0.20}
             guard current(job) else{retire(job);return false}
             let flight=Flight(id:id,plan:plan);job.flights.append(flight);maxEnd=max(maxEnd,plan.end)
             guard hooks.mountStar(id,plan),current(job),flight.alive else{retire(job);return false}

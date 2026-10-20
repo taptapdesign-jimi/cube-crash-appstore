@@ -34,6 +34,29 @@ import StackToSixNativeState
             else {XCTAssertEqual(pure.count,normal.count+b.openings.count)}
         }
     }
+    func testEveryJourneyUnitOpensOnlyOrdinaryHoldersWithExistingEntryOwnership() throws {
+        for board in 1...30 {
+            let counter=Counter()
+            let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0},sourceFrameTransportEnabled:true)
+            let construction=try XCTUnwrap(NativeSourceInitialBoardConstruction.make(root:NativeTestResources.root,service:service,mode:.journey,board:board,random:{counter.next()}))
+            let state=try XCTUnwrap(construction.recipe?.state)
+            XCTAssertFalse(state.tiles.contains(where: \.isWild))
+            XCTAssertEqual(state.tiles.filter{!$0.locked}.count,14)
+            let scene=NativeBoardScene(engine:NativeGameplayEngine(state:state),resourceRoot:NativeTestResources.root,size:CGSize(width:390,height:844),sourceInitialConstruction:construction)
+            scene.synchronize()
+            XCTAssertTrue(scene.sourceInitialStartupReady)
+            for tile in state.tiles {
+                let node=try XCTUnwrap(scene.sourceNativeTileNode(tile.id))
+                XCTAssertEqual(node.kind,"regular");XCTAssertNil(node.variant)
+                XCTAssertTrue(node.isHidden,"Normal board entry owns visibility release")
+            }
+            service.deliver(wallMilliseconds:16)
+            XCTAssertEqual(construction.pendingFaceCount,0)
+            XCTAssertEqual(scene.engine.state,state)
+            scene.dispose();construction.dispose();service.dispose()
+            XCTAssertEqual(service.pendingSourceAnimationFrameCount,0)
+        }
+    }
     func testExactSameObjectsAndTextureOwnerReachSceneWithOriginalTiltAndHiddenBase() throws {
         let f=try Fixture();defer{f.dispose()}
         let recipe=try XCTUnwrap(f.construction.recipe)

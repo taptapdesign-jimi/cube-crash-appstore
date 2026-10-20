@@ -1,10 +1,23 @@
 import XCTest
+import UIKit
 import StackToSixGameplay
 import StackToSixNativeState
 @testable import Stack_to_Six
 
 @MainActor
 final class NativeScoreModalTests:XCTestCase {
+    func testScoreCloseRequestFeedbackPrecedesExitAndCannotRepeat() async throws {
+        let state=NativeBoardFactory.make(mode:.journey,board:1)
+        let modal=NativeScoreModal(model:NativeScoreModalModel(state:state,progression:NativeProgressionState(),combo:false),root:NativeTestResources.root)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=modal;window.makeKeyAndVisible()
+        defer{modal.dispose();window.isHidden=true;window.rootViewController=nil}
+        try await Task.sleep(for:.milliseconds(850))
+        var requested=0,closed=0
+        modal.onCloseRequested={requested += 1};modal.onClosed={closed += 1}
+        modal.requestClose();modal.requestClose()
+        XCTAssertEqual(requested,1);XCTAssertEqual(closed,0)
+        modal.dispose();modal.requestClose();XCTAssertEqual(requested,1)
+    }
     func testCommittedStatisticsStayScopedToModeAndBoard() {
         var progression=NativeProgressionState(),board=NativeBoardStats()
         board.highScore=1234;board.longestCombo=7;progression.boardStats[11]=board

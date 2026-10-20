@@ -42,7 +42,7 @@ final class NativeEndRunOwner {
         sheet.onAction = { [weak self,weak sheet] action in
             guard let self,let sheet,self.generation == owner,self.modal === sheet else{return}
             guard ["close","restart","exit"].contains(action) else{return}
-            self.onFeedback?(action == "close" ? "back" : "cta")
+            self.onFeedback?(action == "restart" ? "cta" : "back")
             sheet.onClosed = { [weak self] in
                 guard let self,self.generation == owner else{return}
                 self.modal = nil

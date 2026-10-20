@@ -203,6 +203,18 @@ final class NativeGameplayTests: XCTestCase {
             XCTAssertNil(result.state.tile(at:b.cell))
         }
     }
+    func testNativeComboExtensionAddsOneAndHalfSecondsToOrdinaryAndWildWindows() {
+        for wild in [false,true] {
+            let a=tile("a",wild ? 6:1,0,wild:wild ? .star:nil),b=tile("b",1,1),c=tile("c",2,2)
+            let engine=NativeGameplayEngine(state:NativeBoardState(tiles:[a,b,c]),recordedRandomChoices:Array(repeating:0.2,count:100))
+            engine.comboWindowExtension=1.5
+            XCTAssertTrue(move(engine,"a",b,now:10).accepted)
+            XCTAssertGreaterThan(engine.state.combo,0)
+            let deadline=10+(wild ? 5.5:3.5)
+            engine.expireCombo(now:deadline-0.001);XCTAssertGreaterThan(engine.state.combo,0)
+            engine.expireCombo(now:deadline);XCTAssertEqual(engine.state.combo,0)
+        }
+    }
     func testComboCreditDecayAndCaps() {
         XCTAssertEqual(NativeRewardMath.streakBonus(2),0); XCTAssertEqual(NativeRewardMath.streakBonus(3),150); XCTAssertEqual(NativeRewardMath.streakBonus(4),225); XCTAssertEqual(NativeRewardMath.streakBonus(5),325)
         let engine = NativeGameplayEngine(state:NativeBoardState(tiles:[tile("a",1,0),tile("b",1,1),tile("c",1,2),tile("d",1,3)]))

@@ -2,7 +2,8 @@ import UIKit
 import QuartzCore
 
 /// A route-scoped media lease. Accepted die poses remain owned by SpriteKit;
-/// AVFoundation plays the unchanged original Fish movie without a second clock.
+/// selected original SVG frames share that clock and one immutable route lease.
+/// The optional original movie transport remains available to explicit callers.
 @MainActor
 final class NativeFishIdleOwner:UIView {
     var onPrepared:((String,UInt64)->Void)?

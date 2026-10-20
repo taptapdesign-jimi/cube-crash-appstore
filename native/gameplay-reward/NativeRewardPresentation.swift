@@ -1,7 +1,8 @@
 import UIKit
+import StackToSixNativeState
 
 struct NativeRewardPresentation {
-    static let names=["Star Is Out","Weee - Beee","Final Gate","Honey Splat","Dreamy","Shroomy","Kaboom","Break Out","Flying Tent","Winner","Fishy","Fresh Juice","Bouncy Day","Bottle Tips","Castle Ruins","Star Below","Looky Here","Playtime","The Letter","Life Saver","The Bloob","Bibi - Ribi","Woombuu","Zap - Zap","Beam Up","Bloob Spill","Team Party","Transport","Fixer Upper","Take Over"]
+    static let names=(1...30).map {NativeJourneyContent.cardName(board:$0)}
     static let inflateDuration=0.12,collapseDuration=0.224,unlockedEnterDuration=0.28
     static let surfaceScale=1.17,surfaceY=40.0
     static let frontArtworkScale=0.95
@@ -9,7 +10,7 @@ struct NativeRewardPresentation {
     static func tapAction(revealed:Bool,revealRunning:Bool,resolved:Bool,disposed:Bool)->TapAction {
         if resolved || disposed{return .ignore};if revealed && !revealRunning{return .collect};if revealRunning{return .queueCollect};return .reveal
     }
-    static func name(board:Int)->String {names[min(29,max(0,board-1))]}
+    static func name(board:Int)->String {NativeJourneyContent.cardName(board:board)}
     static func dragTilt(start:Double,deltaX:Double,width:Double)->Double {max(-28.8,min(28.8,start+deltaX/max(1,abs(width)*0.4)*28.8))}
     static func collectDrag(deltaX:Double,deltaY:Double,cardHeight:Double)->Bool {abs(deltaY)>=min(96,max(48,abs(cardHeight)*0.12)) && abs(deltaY)>abs(deltaX)*1.15}
     struct Layout {

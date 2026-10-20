@@ -41,7 +41,7 @@ When creating a new screen, modal, overlay, collection, reward flow, animated UI
 
 For navigation queues, background animation work, resource preparation, startup imports, or dead-code cleanup, follow [`docs/engineering/BACKGROUND_WORK_CONTRACT.md`](docs/engineering/BACKGROUND_WORK_CONTRACT.md).
 
-When the user asks to connect to the phone, observe or collect problems, reproduce a physical issue, use **KRENI/GOTOVO**, compare phone and web behavior, or test on `localhost:5174`, read and follow [`docs/engineering/LIVE_DEBUG_WORKFLOW.md`](docs/engineering/LIVE_DEBUG_WORKFLOW.md). The required order is capture through the user's explicit **GOTOVO**, fix and show it on `http://localhost:5174`, obtain explicit web approval, and only then install on `iPhone 13 blue`.
+When the user asks to connect to the phone, observe or collect problems, reproduce a physical issue, use **KRENI/GOTOVO**, compare phone and web behavior, or test on `localhost:5174`, read and follow [`docs/engineering/LIVE_DEBUG_WORKFLOW.md`](docs/engineering/LIVE_DEBUG_WORKFLOW.md). User decision 2026-10-19: all Native fixes and reviews use the dedicated Native Simulator; no web check or web approval is required. For live phone incidents, capture through the user's explicit **GOTOVO**, implement and validate, then refresh the dedicated Simulator for review. Physical installation remains a separately authorized step; preserve existing saves.
 
 The terms **standard enter**, **standard exit**, and **cjelina / Unit** always refer to that contract unless the user explicitly requests different motion.
 
@@ -61,6 +61,19 @@ Coordinate concurrent builds so the last preview includes the latest completed
 changes. Record actual build/install/launch evidence in `CURRENT_HANDOFF.md`.
 This standing preview request applies only to this Simulator; physical phone,
 preserved PWA and legacy shell retain their existing separate boundaries.
+
+## Simulator audio mode follows the task (user decision 2026-10-19)
+
+The user controls when the dedicated Native Simulator is audible. For an explicit
+audio task/review, turn Silent Mode OFF; for non-audio development/review, turn
+Silent Mode ON. Explicit user direction overrides this default. Check the actual
+iOS Silent Mode state after every Simulator boot/restart and final preview launch;
+the Simulator toolbar Mute value alone can disagree with SpringBoard. If needed,
+toggle toolbar Mute ON then OFF for audio review and verify the visible iOS
+“Silent Mode Off” banner. For non-audio review verify “Silent Mode On”. Do not
+change the game's Sounds/Music preferences, macOS volume/output or production
+audio-session policy to work around Simulator state. This is a standing review
+workflow, not permission to force physical iPhone audio settings.
 
 ## Persistent game art direction (user decision 2026-10-17)
 

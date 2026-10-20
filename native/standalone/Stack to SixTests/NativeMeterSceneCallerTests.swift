@@ -22,8 +22,8 @@ nonisolated final class NativeMeterSceneCallerTests:XCTestCase {
         var current=true,results:[NativeGameplayEvent.Kind]=[],activity=0,releases=0,audio=0,stops=0,masks=0,unmasks=0
         var onResult:((NativeGameplayEvent)->Void)?
         var startedDropIDs:[String]=[],selectedAudioCalls=0
-        init(root:URL,sourceConstructor:Bool=false,initialMeter:Double=1.25){
-            engine=NativeGameplayEngine(state:.init(tiles:[.init(id:"a",cell:.init(column:0,row:0),value:2),.init(id:"b",cell:.init(column:1,row:0),value:3)],wildMeter:initialMeter),recordedRandomChoices:Array(repeating:0,count:100),rewardPicker:{_,_ in .init(.star,variant:"cubero")})
+        init(root:URL,sourceConstructor:Bool=false,initialMeter:Double=1.25,magnetSource:Bool=false){
+            engine=NativeGameplayEngine(state:.init(tiles:[.init(id:"a",cell:.init(column:0,row:0),value:magnetSource ? 6:2,archetype:magnetSource ? .magnet:nil),.init(id:"b",cell:.init(column:1,row:0),value:3)],wildMeter:initialMeter),recordedRandomChoices:Array(repeating:0,count:100),rewardPicker:{_,_ in .init(.star,variant:"cubero")})
             engine.stagedMeterOpen=true;engine.stagedMeterDrops=true
             textures=NativeBoardTextures(root:root);resources=NativeWildMeterDropResources(root:root)
             // Shared injected wall freezes during async assets: actual displaylink cannot
@@ -58,6 +58,100 @@ nonisolated final class NativeMeterSceneCallerTests:XCTestCase {
         func dispose(){current=false;caller.dispose();scene.receipt=nil;onRendered=nil;onReleased=nil;service.dispose();timeouts.cancelAll();resources.dispose();textures.dispose();nodes.values.forEach{$0.dispose()};nodes.removeAll();view.presentScene(nil);window.isHidden=true;window.rootViewController=nil}
     }
     @MainActor private func root()->URL {Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle") ?? Bundle.main.bundleURL.appendingPathComponent("NativeAssets.bundle")}
+    @MainActor func testAcceptedPullTransfersSettledCarrierStillAwaitingForegroundPaint()async throws {
+        try await exerciseSettledCarrierPull(sourceConstructor:false)
+    }
+    @MainActor func testSourceConstructorPullTransfersSettledCarrierStillAwaitingForegroundPaint()async throws {
+        try await exerciseSettledCarrierPull(sourceConstructor:true)
+    }
+    @MainActor private func exerciseSettledCarrierPull(sourceConstructor:Bool)async throws {
+        let ready=expectation(description:"carrier prepared"),completed=expectation(description:"bookkeeping"),unlocked=expectation(description:"wall handoff")
+        let f=Fixture(root:root(),sourceConstructor:sourceConstructor,magnetSource:true);defer{f.dispose()}
+        f.scene.receipt=nil // Genuine foreground proof remains outstanding.
+        f.onResult={event in
+            if event.kind == .meterDropPrepared{ready.fulfill()}
+            if event.kind == .meterDropCompleted{completed.fulfill()}
+            if event.kind == .meterDropHandoffUnlocked{unlocked.fulfill()}
+        }
+        f.start();await fulfillment(of:[ready],timeout:10)
+        let reservation=try XCTUnwrap(f.engine.meterDropReservations.values.first),node=try XCTUnwrap(f.nodes[reservation.tileID])
+        let pending=f.engine.meterDropReservations
+        XCTAssertTrue(f.caller.transferSettledGameplay(node,generation:f.engine.state.generation))
+        XCTAssertEqual(f.engine.meterDropReservations,pending);XCTAssertTrue(f.caller.owns(node))
+        if sourceConstructor {f.service.setSourceForeground(true)}
+        f.advance(to:3000);await fulfillment(of:[completed,unlocked],timeout:10)
+        XCTAssertTrue(f.engine.meterDropReservations.isEmpty)
+        XCTAssertFalse(f.caller.transferSettledGameplay(node,generation:f.engine.state.generation+1))
+        XCTAssertTrue(f.caller.owns(node))
+        let foreign=NativeDiceNode(id:node.tileID,value:1,kind:"regular",variant:nil,depth:1,locked:false,textures:f.textures)
+        XCTAssertTrue(f.caller.transferSettledGameplay(foreign,generation:f.engine.state.generation))
+        XCTAssertTrue(f.caller.owns(node));foreign.dispose()
+        XCTAssertTrue(f.caller.owns(node))
+        XCTAssertTrue(f.engine.beginDrag(tileID:"a"))
+        let contact=f.engine.drop(target:.init(column:1,row:0))
+        XCTAssertTrue(contact.accepted)
+        let plan=try XCTUnwrap(f.engine.pendingSpecial)
+        XCTAssertTrue(plan.targets.contains{$0.id==node.tileID})
+        f.caller.receive(contact)
+        XCTAssertFalse(f.caller.owns(node))
+        XCTAssertFalse(f.caller.retainedNodeIDs.contains(node.tileID))
+        XCTAssertTrue(f.nodes[node.tileID] === node);XCTAssertTrue(node.sourceContactNodeAlive)
+        XCTAssertEqual(f.activity,f.releases);XCTAssertEqual(f.audio,f.stops);XCTAssertEqual(f.masks,f.unmasks)
+        XCTAssertEqual(f.timeouts.pendingCount,0);XCTAssertEqual(f.service.activeParticipantCount,0)
+        XCTAssertTrue(f.engine.commitSpecialBoard(transactionID:plan.id).accepted)
+        XCTAssertFalse(f.engine.state.tiles.contains{$0.id==node.tileID})
+        let newPose=CGPoint(x:222,y:333);node.position=newPose
+        f.caller.painted(epoch:100,onscreen:true,contains:{_ in true})
+        XCTAssertEqual(node.position,newPose)
+        XCTAssertFalse(f.caller.retainedNodeIDs.contains(node.tileID))
+    }
+    @MainActor func testSettledForegroundCarrierTransfersAtActualPickup()async throws {
+        try await exerciseSettledDirectCarrier(pickup:true)
+    }
+    @MainActor func testSettledForegroundCarrierTransfersToAcceptedDirectDestination()async throws {
+        try await exerciseSettledDirectCarrier(pickup:false)
+    }
+    @MainActor private func exerciseSettledDirectCarrier(pickup:Bool)async throws {
+        let ready=expectation(description:"carrier prepared"),completed=expectation(description:"bookkeeping"),unlocked=expectation(description:"wall handoff")
+        let f=Fixture(root:root(),sourceConstructor:true);defer{f.dispose()}
+        f.engine.stagedDirectWildMoves=true
+        f.scene.receipt=nil
+        f.onResult={event in
+            if event.kind == .meterDropPrepared{ready.fulfill()}
+            if event.kind == .meterDropCompleted{completed.fulfill()}
+            if event.kind == .meterDropHandoffUnlocked{unlocked.fulfill()}
+        }
+        f.start();await fulfillment(of:[ready],timeout:10)
+        let drop=try XCTUnwrap(f.engine.meterDropReservations.values.first),node=try XCTUnwrap(f.nodes[drop.tileID])
+        let pending=f.engine.meterDropReservations
+        XCTAssertTrue(f.caller.transferSettledGameplay(node,generation:drop.generation))
+        XCTAssertEqual(f.engine.meterDropReservations,pending);XCTAssertTrue(f.caller.owns(node))
+        f.service.setSourceForeground(true);f.advance(to:3000)
+        await fulfillment(of:[completed,unlocked],timeout:10)
+        XCTAssertTrue(f.engine.meterDropReservations.isEmpty);XCTAssertTrue(f.caller.owns(node))
+        if pickup {
+            let before=f.engine.state
+            XCTAssertTrue(f.engine.beginDrag(tileID:node.tileID))
+            XCTAssertTrue(f.caller.transferSettledGameplay(node,generation:drop.generation))
+            XCTAssertTrue(f.engine.isDragging);XCTAssertEqual(f.engine.state,before)
+            f.engine.cancelDrag()
+        } else {
+            XCTAssertTrue(f.engine.beginDrag(tileID:"a"))
+            let result=f.engine.drop(target:drop.cell)
+            XCTAssertTrue(result.accepted)
+            let plan=try XCTUnwrap(f.engine.pendingDirectWild)
+            XCTAssertEqual(plan.destination.id,node.tileID)
+            f.caller.receive(result)
+            XCTAssertTrue(f.engine.commitDirectWildGameplay(transactionID:plan.id).accepted)
+        }
+        XCTAssertFalse(f.caller.owns(node));XCTAssertTrue(f.caller.retainedNodeIDs.isEmpty)
+        XCTAssertTrue(f.nodes[node.tileID] === node);XCTAssertTrue(node.sourceContactNodeAlive)
+        XCTAssertEqual(f.activity,f.releases);XCTAssertEqual(f.audio,f.stops);XCTAssertEqual(f.masks,f.unmasks)
+        XCTAssertEqual(f.timeouts.pendingCount,0);XCTAssertEqual(f.service.activeParticipantCount,0)
+        let newPose=CGPoint(x:210,y:320);node.position=newPose
+        f.caller.painted(epoch:100,onscreen:true,contains:{_ in true})
+        XCTAssertEqual(node.position,newPose)
+    }
     @MainActor func testSecondSameSelectionCanOpenWhileFirstAwaitsActualForegroundRelease() async throws {
         let firstReady=expectation(description:"first prepared"),firstCompleted=expectation(description:"first completed"),firstUnlocked=expectation(description:"first wall unlocked")
         let f=Fixture(root:root(),initialMeter:2.25);defer{f.dispose()}

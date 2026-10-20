@@ -39,7 +39,6 @@ foreground. UIKit generators are reused and no new recurring primitive is added.
 | clean-board-modal | NativeResultController / Bootstrap | hero and earned stars medium; changed score counter protected light50ms; CTA entrance medium and actions selection |
 | app-core fail/Arcade summary | Bootstrap terminal receipt | error notification, or medium for Arcade round2+ summary; one terminal pulse per generation |
 | journey-new-card-screen | NativeJourneyRewardController | existing reveal/contact schedule; Collect selection |
-| journey-special-dice-screen | NativeSpecialDiceUnlockController | existing unlock schedule and selection; feedback audio callback cannot duplicate the owned pulse |
 | tutorial-complete-modal | NativeTutorialCompleteController | existing authored light/medium/selection schedule |
 
 Existing source guards still admit each authored callback. New delayed merge/Home/

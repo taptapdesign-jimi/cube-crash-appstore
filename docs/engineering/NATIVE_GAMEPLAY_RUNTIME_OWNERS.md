@@ -19,7 +19,7 @@ This is implementation work in progress, not physical parity acceptance.
 | Result geometry / themed confetti / Area55 flybys | NativeResultPresentationPlan + NativeResultExitPlan + parent-clock-driven NativeResultConfettiCanvas / NativeResultArea55Flybys | A second clock, result commit or route resolver |
 | Result-to-World opaque handoff | NativeResultController + NativeAppController.prepareGameplayReturn / captured parked World | Fading before resources/prime are ready; repeating cold destination preparation; old background receipt publishing input |
 | Next-board entry receipt | NativeGameplayViewController.prepareNextBoardEntry + generation-bound NativeBoardScene wave | An expired transition starting another board or input admitted under opaque coverage |
-| Journey reward / Flower unlock | NativeJourneyRewardController + NativeSpecialDiceUnlockPresentation + native save | Revealing an unprepared card; local-only unlock flag |
+| Journey card reward / persisted unlock | NativeJourneyRewardController + NativeBootstrap.commitResult + native save | Revealing an unprepared card; UI-dependent unlock persistence |
 | Gameplay semantic sound / ambient / Arcade mix | NativeGameplayAudioOwner + NativeJourneyAmbientOwner + NativeArcadeMusicOwner | Generic tap replacing authored special cues; new audio transport |
 | Native finite special presentation | NativeFinitePresentation + typed Fish/Bottle/Honey/Juice/Area55/TNT-variant carriers | UIKit timers deciding board legality; stale-generation completion |
 | Source asset identity / skin runtime inventory | native-special-dice-performance-owners.json + qa:native:admission | Registering a skin without preload/cleanup/test ownership |

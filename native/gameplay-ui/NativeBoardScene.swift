@@ -1,6 +1,7 @@
 import SpriteKit
 import UIKit
 import StackToSixGameplay
+import StackToSixNativeState
 
 /// Opt-in aggregates compare actual Source paints to existing Scene handoffs.
 /// A handoff is not proof that Metal presented a drawable.
@@ -207,6 +208,101 @@ final class NativeBoardScene: SKScene {
         let ticker=sourceStarHaloTicker;sourceStarHaloTicker=nil;ticker?.dispose()
         nodesByID.values.forEach{$0.retireSourceStarHalo()}
         sourceStarHaloLayer?.removeFromParent();sourceStarHaloLayer=nil
+    }
+    var unreadJourneyDice:()->Set<String> = {[]}
+    var onJourneyDieLanded:((String,Int,UInt64)->Void)?
+    private var backpackAlert:SKSpriteNode?
+    private var backpackAlertElapsed:TimeInterval=0
+    private static let backpackAlertTimes:[Double]=[0,0.10,0.22,0.34,0.46,0.58,1]
+    private static let backpackAlertPoses:[(Double,Double,Double)]=[(1,1,0),(1.16,0.82,-1.2),(0.88,1.14,2.8),(1.08,0.92,-0.4),(0.97,1.03,0.8),(1,1,0),(1,1,0)]
+    private static let backpackAlertAngles:[CGFloat]=[0,0.35,1,0.55,0.2,0,0]
+    private var backpackAlertCycle = -1
+    private var backpackAlertRotation:CGFloat=0
+    private var backpackAlertLastFrame:TimeInterval?
+    private var backpackAlertRefreshPending=false
+    func refreshBackpackAlert(){
+        guard !disposed,!sourceDisposalInProgress,let help=hud.childNode(withName:"native-game-help") as? SKSpriteNode else{return}
+        let worldStart=((engine.state.board-1)/10)*10+1
+        let pool=Set(NativeJourneyContent.rewardPool(board:worldStart+9))
+        let wanted=engine.state.mode == .journey && !unreadJourneyDice().intersection(pool).isEmpty
+        guard !suspended,help.action(forKey:"backpack-icon-swap")==nil else{backpackAlertRefreshPending=true;return}
+        backpackAlertRefreshPending=false
+        guard wanted != (backpackAlert != nil) else{return}
+        let apply:()->Void = {[weak self,weak help] in
+            guard let self,let help,!self.disposed else{return}
+            self.applyBackpackAlert(wanted,to:help)
+        }
+        guard gameplayRenderHost?.renderView.window != nil,!exitInProgress,!hud.isHidden,hud.alpha>0.01,!UIAccessibility.isReduceMotionEnabled else{apply();return}
+        help.removeAction(forKey:"hud-tap-bounce")
+        let base=hudTapFeedbackBases.removeValue(forKey:ObjectIdentifier(help)) ?? CGPoint(x:1,y:1)
+        help.xScale=base.x;help.yScale=base.y
+        let exit=SKAction.customAction(withDuration:0.16){node,elapsed in
+            let t=min(1,Double(elapsed)/0.16),fade=t*t*(3-2*t)
+            let scale=CGFloat(1-JimiV9Motion.Ease.backIn(1.7).value(t))
+            node.xScale=base.x*scale;node.yScale=base.y*scale;node.alpha=1-fade
+        }
+        let enter=SKAction.customAction(withDuration:0.24){node,elapsed in
+            let t=min(1,Double(elapsed)/0.24),fade=min(1,t/0.65)
+            let scale=CGFloat(JimiV9Motion.Ease.backOut(1.65).value(t))
+            node.xScale=base.x*scale;node.yScale=base.y*scale;node.alpha=fade*fade*(3-2*fade)
+        }
+        help.run(.sequence([exit,.run(apply),enter,.run{[weak self,weak help] in
+            help?.xScale=base.x;help?.yScale=base.y;help?.alpha=1
+            help?.removeAction(forKey:"backpack-icon-swap")
+            self?.refreshBackpackAlert()
+        }]),withKey:"backpack-icon-swap")
+        requestRendering(true)
+    }
+    private func applyBackpackAlert(_ wanted:Bool,to help:SKSpriteNode){
+        let path=engine.state.mode == .arcade ? "assets/hud/crate - hud.png":wanted ? "assets/nav/stats-nav-open.png":"assets/nav/stats-nav.png"
+        help.texture=textures.texture(path)
+        // Keep the authored 34pt HUD geometry. Reassigning size while the
+        // exit action has collapsed scale makes SpriteKit inflate the sprite
+        // when enter restores scale, covering the board with backpack artwork.
+        backpackAlert?.removeFromParent();backpackAlert=nil;backpackAlertElapsed=0;backpackAlertCycle = -1;backpackAlertLastFrame=nil
+        if wanted {
+            let badge=SKSpriteNode(texture:textures.texture("assets/nav/alsert@2x.png"))
+            badge.name="native-game-backpack-alert";badge.size=CGSize(width:23,height:23*46/48);badge.position=CGPoint(x:12,y:13);badge.zPosition=2
+            badge.zRotation = -.pi/18
+            help.addChild(badge);backpackAlert=badge;requestRendering(!suspended)
+        }
+    }
+    /// Runs on the existing board frame owner, never on a second display link or timer.
+    private func updateBackpackAlert(_ time:TimeInterval){
+        guard let badge=backpackAlert,!exitInProgress,!hud.isHidden,hud.alpha>0.01,!UIAccessibility.isReduceMotionEnabled else{backpackAlertLastFrame=nil;backpackAlert?.setScale(1);backpackAlert?.zRotation = -.pi/18;backpackAlert?.position.y=13;return}
+        if let last=backpackAlertLastFrame {backpackAlertElapsed += min(0.05,max(0,time-last))}
+        backpackAlertLastFrame=time
+        let cycle=Int(backpackAlertElapsed/2.4)
+        if cycle != backpackAlertCycle {backpackAlertCycle=cycle;backpackAlertRotation=NativeBackpackAlertView.randomRotation()}
+        let phase=backpackAlertElapsed.truncatingRemainder(dividingBy:2.4)/2.4
+        let times=Self.backpackAlertTimes
+        let poses=Self.backpackAlertPoses
+        let i=(0..<6).first{phase<times[$0+1]} ?? 5
+        let t=(phase-times[i])/(times[i+1]-times[i]),ease=t*t*(3-2*t)
+        let angles=Self.backpackAlertAngles
+        badge.zRotation = -(.pi/18 + (backpackAlertRotation - .pi/18)*(angles[i]+(angles[i+1]-angles[i])*ease))
+        badge.xScale=poses[i].0+(poses[i+1].0-poses[i].0)*ease
+        badge.yScale=poses[i].1+(poses[i+1].1-poses[i].1)*ease
+        badge.position.y=13+poses[i].2+(poses[i+1].2-poses[i].2)*ease
+    }
+    private func announceLandedJourneyDie(_ node:NativeDiceNode){
+        guard engine.state.mode == .journey,!disposed,!sourceDisposalInProgress,!exitInProgress,
+              nodesByID[node.tileID] === node,
+              let tile=engine.state.tiles.first(where:{$0.id==node.tileID}),tile.visible,!tile.pendingRemoval,
+              let archetype=tile.archetype else{return}
+        let id=tile.variant ?? (archetype == .star ? "wild-star":archetype.rawValue)
+        onJourneyDieLanded?(id,engine.state.board,engine.state.generation)
+    }
+    /// Restored dice have already landed and do not pass through the drop owner.
+    /// Reconcile only after the actual board-entry owner admits the painted board.
+    private func announceRestoredJourneyIntroduction(){
+        guard isBoardEntryComplete,engine.state.mode == .journey,
+              let introduction=NativeJourneyContent.introductionID(board:engine.state.board),
+              let tile=engine.state.tiles.first(where:{tile in
+                  !tile.locked && tile.visible && !tile.pendingRemoval &&
+                  (tile.variant ?? (tile.archetype == .star ? "wild-star":tile.archetype?.rawValue)) == introduction
+              }),let node=nodesByID[tile.id] else{return}
+        announceLandedJourneyDie(node)
     }
     var onStateChange: ((NativeBoardState) -> Void)?
     var onTerminal: ((NativeResolution) -> Void)?
@@ -422,7 +518,7 @@ final class NativeBoardScene: SKScene {
             self.onSpecialIdleSuspended?(snapshot.suspended || self.sourceFrames.isSpecialIdleSuspended)
         }
         for node in engine.state.tiles.compactMap({nodesByID[$0.id]}) {
-            let startupVariant=sourceMicrotaskInstallation != nil && (node.variant=="bottle" || node.variant=="honey" || node.variant=="cubero" || node.kind=="wild-tnt" && node.variant==nil) && (!node.sourceIdleDeferred || node.sourceRestoredWildConstructorCurrent)
+            let startupVariant=sourceMicrotaskInstallation != nil && (node.variant=="bottle" || node.variant=="honey" || node.variant=="cubero" || node.variant=="fish" || node.kind=="wild-tnt" && node.variant==nil) && (!node.sourceIdleDeferred || node.sourceRestoredWildConstructorCurrent)
             if startupVariant {
                 node.setSourceIdleDeferred(true)
                 sourceEntryDeferredVariants.append(node)
@@ -513,7 +609,7 @@ final class NativeBoardScene: SKScene {
         let captured=sourceEntryDeferredVariants.filter{only==nil || $0 === only};sourceEntryDeferredVariants.removeAll{only==nil || $0 === only}
         for node in captured {
             guard sourceSpecialIdleAdmissionOpen,nodesByID[node.tileID] === node,
-                  node.sourceGeneration==engine.state.generation,node.variant=="bottle" || node.variant=="honey" || node.variant=="cubero" || node.kind=="wild-tnt" && node.variant==nil else{continue}
+                  node.sourceGeneration==engine.state.generation,node.variant=="bottle" || node.variant=="honey" || node.variant=="cubero" || node.variant=="fish" || node.kind=="wild-tnt" && node.variant==nil else{continue}
             let variant=node.variant
             if node.sourceRestoreWildFacePending {sourceEntryDeferredVariants.append(node);continue}
             node.setSourceIdleDeferred(false,preserveSourceBottleBase:variant=="bottle",preserveSourceHoneyIdle:variant=="honey")
@@ -524,7 +620,7 @@ final class NativeBoardScene: SKScene {
                     node.sourceGeneration==self.engine.state.generation && node.variant==variant
             }
             guard repairSourceWildSkin(tileID:node.tileID,scope:scope,startSourceIdle:{
-                if variant==nil || variant=="cubero" {return node.configureSourceSpecialIdle(scope.specialIdle)}
+                if variant==nil || variant=="cubero" || variant=="fish" {return node.configureSourceSpecialIdle(scope.specialIdle)}
                 if variant=="honey" {
                     guard let tasks=scope.sourceMicrotaskTasks else{return false}
                     return node.beginSourceHoneyIdle(service:scope.service,scope:scope.specialIdle,assetTasks:tasks,
@@ -992,6 +1088,7 @@ final class NativeBoardScene: SKScene {
                         }
                         self.sourceBoardEntryCompleted?(completion)
                         guard current(),self.sourceBoardEntryEpoch==epoch else{return}
+                        self.announceRestoredJourneyIntroduction()
                         self.evaluate()
                     }) else{self.inputAdmitted=false;return}
             }),current() else{return false}
@@ -2948,7 +3045,8 @@ final class NativeBoardScene: SKScene {
                     guard let scope,let installation,self.sourceAnimationBindingAdmissionOpen,scope.current,
                           self.sourceDirectScope === scope,self.sourceMicrotaskInstallation === installation,
                           installation.isCurrent,self.engine.state.generation==generation,
-                          self.engine.pendingDirectWild?.id==transactionID else{return}
+                          self.engine.pendingDirectWild?.id==transactionID,
+                          self.engine.canResumeSourceDirectWildCoroutine(transactionID:transactionID,generation:generation) else{return}
                     let previous=self.engine.state
                     let result=self.engine.commitSourceLateFinalMergeGuard(ownerID:transactionID,generation:generation) ??
                         self.engine.resumeSourceWildSpawnCoroutine(transactionID:transactionID,generation:generation)
@@ -3280,7 +3378,7 @@ final class NativeBoardScene: SKScene {
                   dst.sourceWildDestinationFaceReady(service:scope.service) else{return false}
         } else {guard dst.sourceMergeSixFaceReady(service:scope.service) else{return false}}
         let archetype=source.gameplayArchetype ?? destination.gameplayArchetype
-        let pull=archetype == .magnet && !NativeGameplayResolver.magnetCandidates(engine.state.tiles,source:source,destination:destination).isEmpty
+        let pull=archetype == .magnet && !engine.magnetPullCandidates(engine.state.tiles,source:source,destination:destination).isEmpty
         let final:NativeFinalMergeSnapshot
         if archetype != nil,engine.sourceDirectPhysicalFinalSnapshotEnabled {
             guard let captured=engine.sourceDirectTntFinalAdmission(source:source,destination:destination) else{return false}
@@ -4833,6 +4931,7 @@ final class NativeBoardScene: SKScene {
         let objects=nodesByID.keys.sorted().map {id in let node=nodesByID[id]!;return "\(id):alive=\(node.sourceContactNodeAlive),parent=\(node.parent === canvasRoot),gen=\(node.sourceGeneration),cell=\(String(describing:node.sourceGridCell))"}.joined(separator:"|")
         return "admission=\(sourceAnimationBindingAdmissionOpen);entries=\(entries);coreMain=\(engine.sourceSpecialAbsorbMainEntered);face=\(String(describing:engine.pendingSourceSpecialWildDestinationFace));objects=\(objects)"
     }
+    private(set) var sourceTntSpawnResumeRejection:String?
     @discardableResult func configureSourceTntMain80(scope:NativeGameplaySourceContext.Scope)->Bool {
         guard sourceAnimationBindingAdmissionOpen,scope.current,sourceTntMainScope==nil,
               sourceSixScope === scope,sourceDirectScope === scope,sourceSpecialTransactions != nil,
@@ -4871,7 +4970,11 @@ final class NativeBoardScene: SKScene {
                 guard let self,self.sourceTntResumes.remove(id) != nil,current(),let fifo,
                       self.sourceMicrotaskInstallation === fifo,fifo.isCurrent,self.engine.hasSourceTntSpawnCoroutine(transactionID:id,generation:g) else{return}
                 let previous=self.engine.state,result=self.engine.resumeSourceWildSpawnCoroutine(transactionID:id,generation:g)
-                guard result.accepted else{self.onSourcePresentationFailure?("source_tnt_spawn_resume_refused",g);return}
+                guard result.accepted else{
+                    self.sourceTntSpawnResumeRejection=String(("transaction="+id+";reason="+result.resolution.reason).prefix(1024))
+                    NSLog("[NativeSourceTntCoroutine] rejected=%@ physical=%@ minimum=%@",self.sourceTntSpawnResumeRejection ?? "unknown",self.sourcePhysicalBoardCaptureDiagnostic,self.sourceMinimumCaptureDiagnostic)
+                    self.onSourcePresentationFailure?("source_tnt_spawn_resume_refused",g);return
+                }
                 self.consume(result,previous:previous)
             }
             if !accepted {self.sourceTntResumes.remove(id)}
@@ -5245,7 +5348,7 @@ final class NativeBoardScene: SKScene {
                     else{self.onPresentationFailure?(reason)}
                 },consume:{[weak self] result,previous in guard admitted() else{return};self?.consume(result,previous:previous)},
                 onDropStarted:{[weak self] node in guard let self,admitted() else{return};self.onTutorialSpecialDropStarted?(node)},
-                onDropLanded:{[weak self] node in guard let self,admitted() else{return};self.onTutorialSpecialDropLanded?(node)},
+                onDropLanded:{[weak self] node in guard let self,admitted() else{return};self.onTutorialSpecialDropLanded?(node);self.announceLandedJourneyDie(node)},
                 sourceSkin:microtasks == nil ? nil:{[weak self] node in
                     guard let self,admitted(),self.nodesByID[node.tileID] === node else{return false}
                     return self.repairSourceWildSkin(tileID:node.tileID,scope:scope,startSourceIdle:{false},allowPendingMeter:true)
@@ -6244,6 +6347,7 @@ final class NativeBoardScene: SKScene {
         onRenderingDemand?(true)
         guard !sourceDisposalInProgress else {return}
         let state = engine.state
+        refreshBackpackAlert()
         if sourceTutorialHUD != nil,(state.tutorial?.active != true || (state.tutorial?.step != .stack && state.tutorial?.step != .mergeSix && !sourceTutorialSecondPresentationActive && !sourceTutorialThirdPresentationActive)){retireSourceTutorialHUD()}
         if sourceTutorialPreparation != nil,state.tutorial?.step != .stack,!sourceTutorialFirstStepPresentationActive {retireSourceTutorialActivation()}
         if sourceTutorialSecondPreparation != nil,state.tutorial?.step != .mergeSix,!sourceTutorialSecondPresentationActive {retireSourceTutorialActivation()}
@@ -6497,7 +6601,7 @@ final class NativeBoardScene: SKScene {
         run(.sequence([.wait(forDuration:0.03),.run { [weak self] in
             guard let self,!self.disposed,self.entryInProgress,self.hudEntryReceipt==receipt,self.engine.state.generation==receipt.generation else{return}
             self.finishSourceEntry()
-            self.entryInProgress=false;self.inputAdmitted=true;self.resumeSourceEntryDeferredIdle();self.evaluate()
+            self.entryInProgress=false;self.inputAdmitted=true;self.resumeSourceEntryDeferredIdle();self.announceRestoredJourneyIntroduction();self.evaluate()
         }]),withKey:"entry-admission")
     }
 
@@ -6674,6 +6778,18 @@ final class NativeBoardScene: SKScene {
                   node.sourceGeneration==generation,node.kind==kind,node.variant==variant else{return false}
             return modelCurrent()
         }
+        // A static skin request may finish after entry or meter landing releases
+        // deferIdle. Read the exact current face anchor then; a request-time
+        // anchor or missing reader would overwrite/reject Bottle/Kanta's live pose.
+        // Already-active requests still require their explicit idle-owner reader.
+        let liveAnchor:(()->CGPoint?)?
+        if let currentSourceFaceAnchor {liveAnchor=currentSourceFaceAnchor}
+        else if node.sourceIdleDeferred && (variant=="bottle" || variant=="kanta") {
+            liveAnchor = {[weak node] in
+                guard current(),let node else{return nil}
+                return CGPoint(x:node.sourceBaseAnchorX,y:1-node.sourceBaseAnchorY)
+            }
+        } else {liveAnchor=nil}
         return node.repairSourceWildSkin(generation:generation,assetTasks:installation.tasks,reactionScope:reactions,
             current:current,startSourceIdle:startSourceIdle,startSourceTntFuse:kind=="wild-tnt" && variant==nil ? {
                 node.beginSourceTntFuse(service:scope.service,current:current,paintable:{[weak self] in
@@ -6693,7 +6809,7 @@ final class NativeBoardScene: SKScene {
                             canvasPaintable:paintable,current:current) else{field.dispose();return nil}
                     }
                     return field
-                }:nil,currentSourceFaceAnchor:currentSourceFaceAnchor,completion:{[weak self] accepted in
+                }:nil,currentSourceFaceAnchor:liveAnchor,completion:{[weak self] accepted in
                 guard current() else{return}
                 if !accepted {self?.onSourcePresentationFailure?("source_wild_skin_texture_rejected",generation)}
             })
@@ -6753,6 +6869,11 @@ final class NativeBoardScene: SKScene {
               let node = nodesByID[tile.id],(!node.sourceOuterDriven || node.sourceEventMode == "static"), !sourceMagnetSurvivorEntries.values.contains(where:{$0.node === node && sourceMagnetSurvivorCurrent($0) && $0.owner?.inputBound != true}),
               (sourceOuterTimelineDriver==nil || engine.state.generation==node.sourceGeneration),
               engine.beginDrag(tileID: tile.id, pointerID: 1) else { return false }
+        let pickupGeneration=engine.state.generation
+        if sourceMeterCaller?.transferSettledGameplay(node,generation:pickupGeneration)==false {
+            if engine.state.generation==pickupGeneration {engine.cancelDrag()}
+            return false
+        }
         if tutorialSpecialBarFocus.isEmpty{sourceRegularIdleOwner?.interact()}
         shortWildBoardBlast?.interrupt(node)
         guard sourceAnimationBindingAdmissionOpen,
@@ -7038,6 +7159,22 @@ final class NativeBoardScene: SKScene {
                 engine.state==oldState,sourceOrdinaryPreDebitPresentationEnabled else {
                 let rejected=NativeMoveResult(accepted:false,state:engine.state,events:[.init(.blocked,tileIDs:[id],reason:"source_predebit_contact_not_admitted")],resolution:engine.resolve())
                 if engine.state.generation==oldState.generation {engine.cancelDrag()}
+                // A refused physical roster still owns the captured pointer
+                // release. Return that exact die without admitting the move or
+                // releasing another transaction's gameplay authority.
+                if sourceAnimationBindingAdmissionOpen,engine.state==oldState,
+                   let source,let heldOrigin,heldOrigin.tileID==id,heldOrigin.generation==oldState.generation,
+                   nodesByID[id] === source,source.parent === canvasRoot,
+                   source.sourceContactNodeAlive,source.sourceGeneration==oldState.generation {
+                    let generation=oldState.generation
+                    _ = source.beginSourceReturn(to:heldOrigin.position,onCompleted:{[weak self,weak source] in
+                        guard let self,let source,self.sourceAnimationBindingAdmissionOpen,
+                              self.engine.state.generation==generation,self.nodesByID[id] === source,
+                              source.parent === self.canvasRoot,source.sourceGeneration==generation else{return}
+                        source.sourceSnapBackCompleted();source.resumeIdleAfterLanding()
+                        if self.sourceTutorialTargetCurrent(source){self.onSourceGuidedSnapBack?(source)}
+                    })
+                }
                 traceSourceMagnetContact("drop_predebit_refused",id:id,target:target,result:rejected)
                 return rejected
             }
@@ -9168,10 +9305,14 @@ final class NativeBoardScene: SKScene {
                 // Original CC mutation already happened in Core. Do NOT route
                 // through Raw consume/redraw/save/resolver per arriving star.
                 guard self.sourceHUDStarFeedback?.scoreChanged()==true else{self.onPresentationFailure?("source_hud_star_feedback_frame_unbound");return}
+                self.onSpecialMoment?(nil,"hud-star-arrived",0)
                 self.releaseFinalDirectIfReady();self.publishPendingTerminal()
             },onRetired:{ [weak self] _ in
                 guard let self,current() else{return}
                 self.releaseFinalDirectIfReady();self.publishPendingTerminal()
+            },onTntCoinLaunch:{[weak self] in
+                guard let self,current() else{return}
+                self.onSpecialMoment?("tnt","tnt-coin-launch",0)
             }),coinAnimations:prepared.coinAnimations),current(),sourceHUDStarOwner==nil else{scales.dispose();scaleClock.dispose();return false}
         let feedback=NativeSourceHUDStarFeedback(current:current,schedule:{callback in
             guard current(),let frame=scope.service.requestSourceAnimationFrame(ownerID:"source-hud-star-feedback",generation:generation,callback:callback) else{return nil}
@@ -9234,6 +9375,7 @@ final class NativeBoardScene: SKScene {
         }
         let target = CGPoint(x: scoreArt.position.x,y: size.height-scoreArt.position.y)
         let plans = NativeHUDStarMotion.batch(origins: origins,target: target)
+        var launchSoundPlayed=false
         for (receipt,plan) in zip(receipts,plans) {
             hudStarIDs.insert(receipt.id)
             let star = SKSpriteNode(texture: textures.texture("assets/hud/coin-hud.png"))
@@ -9245,6 +9387,9 @@ final class NativeBoardScene: SKScene {
             star.run(.sequence([.wait(forDuration: lead),.customAction(withDuration: plan.end) { [weak self,weak star] _,elapsed in
                 guard let self,!self.disposed,self.engine.state.generation == receipt.generation,!arrived,let star,self.hudStarNodes[receipt.id] === star,self.hudStarIDs.contains(receipt.id),star.parent === self.hudStarFlights else { return }
                 let pose = plan.sample(seconds: Double(elapsed))
+                if !launchSoundPlayed,receipt.archetype == .tnt {
+                    launchSoundPlayed=true;self.onSpecialMoment?(receipt.variant,"tnt-coin-launch",0)
+                }
                 star.position = CGPoint(x: pose.point.x,y: self.size.height-pose.point.y)
                 star.size = CGSize(width: pose.size,height: pose.size); star.zRotation = -pose.rotation
                 if pose.arrived {
@@ -9253,7 +9398,7 @@ final class NativeBoardScene: SKScene {
                     let previous = self.engine.state
                     let result = self.engine.commitHUDStarArrival(receiptID: receipt.id,generation: receipt.generation)
                     self.consume(result,previous: previous)
-                    self.onSpecialMoment?(receipt.variant,"hud-star-arrived",receipt.ordinal)
+                    if result.accepted {self.onSpecialMoment?(receipt.variant,"hud-star-arrived",receipt.ordinal)}
                     self.hudStarVisualReceipts.removeValue(forKey: receipt.id)
                     self.finishVisual(visualReceipt)
                 }
@@ -9855,7 +10000,9 @@ final class NativeBoardScene: SKScene {
 
     override func update(_ currentTime: TimeInterval) {
         guard !sourceDisposalInProgress else {return}
-        guard !disposed, !suspended else { lastFrame = nil; return }
+        guard !disposed, !suspended else { lastFrame = nil;backpackAlertLastFrame=nil; return }
+        if backpackAlertRefreshPending {refreshBackpackAlert()}
+        updateBackpackAlert(currentTime)
         defer {if onTutorialSpecialBarSettled != nil,tutorialSpecialBarSettled {onTutorialSpecialBarSettled?()}}
         if frameDiagnosticsEnabled {
             if let previous=diagnosticDragInput.sceneTime,draggedID != nil {
@@ -9915,7 +10062,6 @@ final class NativeBoardScene: SKScene {
             comboHUDMotion.advance(delta:delta,visible:!exitInProgress && engine.state.terminal == nil && !hud.isHidden && hud.alpha>0 && gameplayRenderHost?.renderView.window != nil && sourceShimmerCanvasPaintable,reducedMotion:UIAccessibility.isReduceMotionEnabled)
         }
         let comboVisible = !exitInProgress && engine.state.terminal == nil && !hud.isHidden && hud.alpha>0 && gameplayRenderHost?.renderView.window != nil && sourceShimmerCanvasPaintable
-        sourceTutorialMeterHUD?.advanceGradient(delta:delta,visible:comboVisible,reducedMotion:UIAccessibility.isReduceMotionEnabled)
         if comboNumberMotion.advance(delta:elapsedDelta>0.5 ? 0.033:elapsedDelta,visible:comboVisible,reducedMotion:UIAccessibility.isReduceMotionEnabled) {
             layoutComboValue(top:comboArt.position.y)
         }
@@ -10010,6 +10156,7 @@ final class NativeBoardScene: SKScene {
         restoreHUDFeedbackPause();requestRendering(false)
     }
     private func playHUDTapFeedback(on node:SKNode) {
+        guard node.action(forKey:"backpack-icon-swap")==nil else{return}
         let key=ObjectIdentifier(node),base=hudTapFeedbackBases[key] ?? CGPoint(x:node.xScale,y:node.yScale)
         requestRendering(true)
         hudTapFeedbackBases[key]=base;node.removeAction(forKey:"hud-tap-bounce")
@@ -10097,6 +10244,7 @@ final class NativeBoardScene: SKScene {
         if sourceMagnetFallbackScope?.current == true || sourceSixScope?.current == true {
             paths.formUnion(NativeRegularStackLayout.Skin.allCases.map{String($0.rawValue.dropFirst(2))})
         }
+        if backpackAlert != nil {paths.formUnion(["assets/nav/stats-nav-open.png","assets/nav/alsert@2x.png"])}
         textures.purgeUnused(retaining: paths)
     }
 
@@ -10229,7 +10377,7 @@ final class NativeBoardScene: SKScene {
         restoreHUDFeedbackPause()
         guard !disposed,!sourceDisposalInProgress else {return}
         comboHUDMotion.stop();comboNumberMotion.stop()
-        onTutorialSpecialDropStarted=nil;onTutorialSpecialDropLanded=nil
+        onTutorialSpecialDropStarted=nil;onTutorialSpecialDropLanded=nil;onJourneyDieLanded=nil;unreadJourneyDice={[]};backpackAlertRefreshPending=false;hud.childNode(withName:"native-game-help")?.removeAction(forKey:"backpack-icon-swap");backpackAlert?.removeFromParent();backpackAlert=nil
         renderPipelineProbe?.cancel(scene:self,reason:"disposed")
         retireSourceWildSkinAssets()
         retireSourceSpawnVisualSafety()

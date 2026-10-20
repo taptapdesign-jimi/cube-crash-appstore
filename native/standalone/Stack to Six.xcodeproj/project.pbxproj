@@ -90,8 +90,6 @@
         AA2026100700000000000017 = {isa = PBXFileSystemSynchronizedRootGroup; path = "../gameplay-area55-tests"; sourceTree = "<group>"; };
         AA2026100700000000000014 = {isa = PBXFileSystemSynchronizedRootGroup; path = "../gameplay-tutorial-complete"; sourceTree = "<group>"; };
         AA2026100700000000000015 = {isa = PBXFileSystemSynchronizedRootGroup; path = "../gameplay-tutorial-complete-tests"; sourceTree = "<group>"; };
-        AA2026100700000000000012 = {isa = PBXFileSystemSynchronizedRootGroup; path = "../gameplay-unlock"; sourceTree = "<group>"; };
-        AA2026100700000000000013 = {isa = PBXFileSystemSynchronizedRootGroup; path = "../gameplay-unlock-tests"; sourceTree = "<group>"; };
         AA2026100700000000000010 = {isa = PBXFileSystemSynchronizedRootGroup; path = "../gameplay-collection"; sourceTree = "<group>"; };
         AA2026100700000000000011 = {isa = PBXFileSystemSynchronizedRootGroup; path = "../gameplay-collection-tests"; sourceTree = "<group>"; };
         AA202610070000000000000E = {isa = PBXFileSystemSynchronizedRootGroup; path = "../gameplay-reward"; sourceTree = "<group>"; };
@@ -155,7 +153,6 @@
                 AA202610070000000000000C,
                 AA202610070000000000000E,
                 AA2026100700000000000010,
-                AA2026100700000000000012,
                 AA2026100700000000000014,
                 AA2026100700000000000016,
                 AA2026100700000000000018,
@@ -175,7 +172,6 @@
                 AA202610070000000000000D,
                 AA202610070000000000000F,
                 AA2026100700000000000011,
-                AA2026100700000000000013,
                 AA2026100700000000000015,
                 AA2026100700000000000017,
                 AA2026100700000000000019,
@@ -224,7 +220,6 @@
                 AA202610070000000000000C,
                 AA202610070000000000000E,
                 AA2026100700000000000010,
-                AA2026100700000000000012,
                 AA2026100700000000000014,
                 AA2026100700000000000016,
                 AA2026100700000000000018,
@@ -267,7 +262,6 @@
                 AA202610070000000000000D,
                 AA202610070000000000000F,
                 AA2026100700000000000011,
-                AA2026100700000000000013,
                 AA2026100700000000000015,
                 AA2026100700000000000017,
                 AA2026100700000000000019,

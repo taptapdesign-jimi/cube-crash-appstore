@@ -46,9 +46,24 @@ public struct NativeProgressionState: Codable, Equatable, Sendable {
     public var lastOpenedJourneyBoard: Int?
     public var firstPlayTutorialComplete = false
     public var unlockedSpecialDice: Set<String> = []
+    public private(set) var announcedJourneyDice: Set<String> = []
+    public private(set) var unreadJourneyDice: Set<String> = []
+    /// A landed introduction is the only producer; opening its detail is the consumer.
+    @discardableResult public mutating func announceJourneyDie(_ id:String,board:Int)->Bool {
+        guard NativeJourneyContent.introductionID(board:board)==id,
+              announcedJourneyDice.insert(id).inserted else{return false}
+        unreadJourneyDice.insert(id);return true
+    }
+    public mutating func readJourneyDie(_ id:String){unreadJourneyDice.remove(id)}
+    /// DEV Hide re-arms only the die introduced by the selected Unit.
+    public mutating func resetDeveloperJourneyDieAnnouncement(board:Int) {
+        guard let id=NativeJourneyContent.introductionID(board:board) else{return}
+        announcedJourneyDice.remove(id)
+        unreadJourneyDice.remove(id)
+    }
     public private(set) var wildStarUnlocked = false
     public init() {}
-    private enum CodingKeys:String,CodingKey {case completedJourneyBoards,viewedJourneyBoards,boardStats,arcadeStats,arcadeVariantStats,highestUnlockedJourneyBoard,lastOpenedJourneyBoard,firstPlayTutorialComplete,unlockedSpecialDice,wildStarUnlocked}
+    private enum CodingKeys:String,CodingKey {case completedJourneyBoards,viewedJourneyBoards,boardStats,arcadeStats,arcadeVariantStats,highestUnlockedJourneyBoard,lastOpenedJourneyBoard,firstPlayTutorialComplete,unlockedSpecialDice,wildStarUnlocked,announcedJourneyDice,unreadJourneyDice}
     public init(from decoder:Decoder) throws {
         let fields=try decoder.container(keyedBy:CodingKeys.self)
         completedJourneyBoards=try fields.decode(Set<Int>.self,forKey:.completedJourneyBoards)
@@ -61,6 +76,18 @@ public struct NativeProgressionState: Codable, Equatable, Sendable {
         firstPlayTutorialComplete=try fields.decode(Bool.self,forKey:.firstPlayTutorialComplete)
         unlockedSpecialDice=try fields.decodeIfPresent(Set<String>.self,forKey:.unlockedSpecialDice) ?? []
         wildStarUnlocked=try fields.decodeIfPresent(Bool.self,forKey:.wildStarUnlocked) ?? false
+        unreadJourneyDice=try fields.decodeIfPresent(Set<String>.self,forKey:.unreadJourneyDice) ?? []
+        if let known=try fields.decodeIfPresent(Set<String>.self,forKey:.announcedJourneyDice) {announcedJourneyDice=known}
+        else {
+            // Existing profiles keep their previously available collection read; no retroactive alert flood.
+            var boards=completedJourneyBoards.union(boardStats.filter{$0.value.timesPlayed>0}.keys)
+            if let lastOpenedJourneyBoard {boards.insert(lastOpenedJourneyBoard)}
+            if highestUnlockedJourneyBoard>1 {boards.insert(highestUnlockedJourneyBoard)}
+            announcedJourneyDice=Set(boards.flatMap{NativeJourneyContent.rewardPool(board:$0)})
+            if hasUnlockedWildStar {announcedJourneyDice.insert("wild-star")}
+            if unlockedSpecialDice.contains("flower") {announcedJourneyDice.insert("flower")}
+            if unlockedSpecialDice.contains("juice") {announcedJourneyDice.insert("wild-juice")}
+        }
     }
     /// Star begins at Forest Unit2; completing Unit1 reaches that unlock. Default interim Unit1,
     /// tutorial completion, Arcade progress and other Worlds do not grant Star.

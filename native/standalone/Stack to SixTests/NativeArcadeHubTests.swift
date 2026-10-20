@@ -31,16 +31,22 @@ final class NativeArcadeHubTests: XCTestCase {
                 XCTAssertGreaterThan(bottom,1,"The regression must start at a genuinely scrollable bottom")
                 scroll.setContentOffset(CGPoint(x:0,y:bottom),animated:false)
                 let offset=scroll.contentOffset
-                var played=false,finished=false
+                var played=false,finished=false,exitStarted=false
+                view.canContinue={_ in index == 1}
+                view.onPlayExit={done in
+                    exitStarted=true
+                    motion.animate(view.tracks(enter:false)){finished=true;done()}
+                }
                 view.onPlay={_ in
+                    XCTAssertTrue(finished)
                     played=true;view.setContentInteractionEnabled(false);view.suspend()
-                    motion.animate(view.tracks(enter:false)){finished=true}
                     view.hub.setNeedsLayout();view.hub.layoutIfNeeded()
                 }
                 view.hub.onWorld?(view.hub.worldIDs[index])
                 try await wait{(find(view,"native.arcade-world-modal.play") as? UIButton)?.isEnabled==true}
                 let play=try XCTUnwrap(find(view,"native.arcade-world-modal.play") as? UIButton)
                 play.sendActions(for:.touchUpInside)
+                XCTAssertTrue(exitStarted);XCTAssertFalse(played)
                 try await wait{played}
                 for _ in 0..<8 {
                     view.hub.setNeedsLayout();view.hub.layoutIfNeeded();scroll.layoutIfNeeded()
@@ -75,6 +81,7 @@ final class NativeArcadeHubTests: XCTestCase {
         let view = make(); view.present(); view.layoutIfNeeded()
         XCTAssertEqual(view.tracks(enter:true).count,4)
         XCTAssertEqual(view.tracks(enter:false).count,4)
+        for (_,track) in view.tracks(enter:false).prefix(3) {XCTAssertEqual(track.tweens.first?.begin,0)}
         view.suspend(); view.resume(); view.hide(); view.resume()
         for unit in view.hub.worldUnits {
             XCTAssertNil(unit.layer.animationKeys())

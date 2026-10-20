@@ -158,7 +158,7 @@ enum NativeAuthoredAudioCatalog {
             NativeAudioCue(source:"assets/sound/UI /sliders/super swoosh.mp3",voice:"homepage-slider-super-swoosh",gain:0.3,rate:1,delay:0,stopAfter:nil,fadeOut:0),
         ],
         "noMoves": [
-            NativeAudioCue(source:"assets/sound/grandpa - no moves left.mp3",voice:"no-moves-grandpa",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/fail board/wah wah.wav",voice:"no-moves-wah-wah",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
         ],
         "exitModal": [
             NativeAudioCue(source:"assets/sound/UI /modal/modal enter.wav",voice:"gameplay-exit-modal-enter",gain:0.6,rate:1,delay:0,stopAfter:nil,fadeOut:0),

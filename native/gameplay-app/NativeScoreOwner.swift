@@ -9,6 +9,7 @@ final class NativeScoreOwner {
     private var sheet:NativeScoreModal?,lease=0
     private var backpack:NativeGameplayBackpackController?
     private var observers:[NSObjectProtocol]=[]
+    var onReadDie:((String)->Bool)?
     var onFeedback:((String)->Void)?
     init(gameplay:NativeGameplayViewController,root:URL,progression:@escaping ()->NativeProgressionState) {
         self.gameplay=gameplay;self.root=root;self.progression=progression
@@ -32,7 +33,19 @@ final class NativeScoreOwner {
         guard let app=gameplay.parent as? NativeAppController else{return}
         let controller=NativeGameplayBackpackController(root:root,sections:sections,includesArcade:state.mode == .arcade,motion:NativeRouteMotion(home:app.home,hub:app.hub))
         backpack=controller;lease += 1;let token=lease;gameplay.setSuspended(true);onFeedback?("exit-modal")
-        controller.onClosed={[weak self] in guard let self,self.lease==token else{return};self.backpack=nil;self.gameplay?.setSuspended(false)}
+        // A collection visit acknowledges only the notifications it displayed, and
+        // only after dismissal returns to this exact board. Discovery never opens UI.
+        let visitedUnread=Set(sections.flatMap { section in
+            section.dice.map(\.id).filter {section.unread.contains($0)}
+        })
+        controller.onClosed={[weak self,weak gameplay] in
+            guard let self,let gameplay,self.lease==token,self.gameplay === gameplay,
+                  gameplay.engine.state.generation==state.generation else{return}
+            self.backpack=nil
+            for id in visitedUnread.sorted() {_ = self.onReadDie?(id)}
+            gameplay.setSuspended(false)
+        }
+        controller.onReadDie={[weak self] id in self?.onReadDie?(id) ?? false}
         controller.onFeedback={[weak self] cue in self?.onFeedback?(cue)}
         gameplay.present(controller,animated:false)
     }
@@ -44,10 +57,11 @@ final class NativeScoreOwner {
         gameplay.setSuspended(true);lease += 1;let token=lease
         let modal=NativeScoreModal(model:.init(state:gameplay.engine.state,progression:progression(),combo:combo),root:root)
         sheet=modal;onFeedback?("hud-modal-open")
-        modal.onClosed = { [weak self] in guard let self,self.lease==token else{return};self.sheet=nil;self.onFeedback?("back");self.gameplay?.setSuspended(false) }
+        modal.onCloseRequested = { [weak self] in guard let self,self.lease==token else{return};self.onFeedback?("back") }
+        modal.onClosed = { [weak self] in guard let self,self.lease==token else{return};self.sheet=nil;self.gameplay?.setSuspended(false) }
         gameplay.present(modal,animated:false)
     }
-    func dispose() {lease += 1;backpack?.dispose();backpack?.dismiss(animated:false);backpack=nil;sheet?.dispose();sheet?.dismiss(animated:false);sheet=nil;for token in observers {NotificationCenter.default.removeObserver(token)};observers.removeAll();gameplay?.onHelp=nil;gameplay?.onScore=nil;gameplay?.onCombo=nil;gameplay=nil;onFeedback=nil}
+    func dispose() {lease += 1;backpack?.dispose();backpack?.dismiss(animated:false);backpack=nil;sheet?.dispose();sheet?.dismiss(animated:false);sheet=nil;for token in observers {NotificationCenter.default.removeObserver(token)};observers.removeAll();gameplay?.onHelp=nil;gameplay?.onScore=nil;gameplay?.onCombo=nil;gameplay=nil;onFeedback=nil;onReadDie=nil}
 }
 
 /// Gameplay retains its exact paused generation while the scoped collection modal is visible.
@@ -62,8 +76,12 @@ final class NativeGameplayBackpackController:UIViewController {
     private(set) var modalDrag:JimiNativeModalDrag?
     private let exchangeMarker=CALayer()
     private var exchangeGeneration=0
+    private var pendingDie:NativeBackpackCatalog.Die?
+    private var returningDetail=false
+    private(set) var returnSelectionPress:UILongPressGestureRecognizer?
     private(set) var switchingDetail=false
     private var foreground=true,closing=false,entered=false,admitted=false,disposed=false
+    var onReadDie:((String)->Bool)?
     var onClosed:(()->Void)?,onFeedback:((String)->Void)?
     init(root:URL,sections:[NativeBackpackCatalog.Section],includesArcade:Bool,motion:NativeRouteMotion) {
         assets=JimiV9Artwork(resourceRoot:root);self.sections=sections;self.includesArcade=includesArcade;self.motion=motion
@@ -108,6 +126,8 @@ final class NativeGameplayBackpackController:UIViewController {
             guard let self else{return false}
             return self.foreground && self.admitted && !self.closing && !self.disposed && !self.switchingDetail && self.detail==nil
         },onDismiss:{[weak self] in self?.close()})
+        let tap=UILongPressGestureRecognizer(target:self,action:#selector(returnSelectionPressed(_:)))
+        tap.minimumPressDuration=0;tap.isEnabled=false;view.addGestureRecognizer(tap);returnSelectionPress=tap
         view.isUserInteractionEnabled=false
     }
     override func viewDidLayoutSubviews() {
@@ -134,25 +154,57 @@ final class NativeGameplayBackpackController:UIViewController {
         JimiNativeModalV10.enter(card:card,flip:flip,key:"gameplay.backpack.enter");CATransaction.commit()
         UIView.animate(withDuration:0.5){self.backdrop.alpha=1}
     }
-    private func completeEnter(){guard !closing,!disposed else{return};admitted=true;JimiNativeModalV10.startIdle(on:idle,key:"backpack.collection.idle");view.isUserInteractionEnabled=foreground && !switchingDetail;screen?.isUserInteractionEnabled=foreground && !switchingDetail}
+    private func completeEnter(){
+        guard !closing,!disposed else{return};admitted=true
+        JimiNativeModalV10.startIdle(on:idle,key:"backpack.collection.idle")
+        view.isUserInteractionEnabled=foreground && !switchingDetail;screen?.isUserInteractionEnabled=foreground && !switchingDetail
+        screen?.setAlertsActive(foreground && !switchingDetail)
+        guard !switchingDetail else{return}
+        returningDetail=false;returnSelectionPress?.isEnabled=false;card.isUserInteractionEnabled=true
+        let next=pendingDie;pendingDie=nil
+        if let next,foreground {open(next)}
+    }
+    @objc private func returnSelectionPressed(_ gesture:UILongPressGestureRecognizer){
+        guard gesture.state == .began else{return}
+        captureReturnSelection(atWindowPoint:gesture.location(in:view.window))
+    }
+    func captureReturnSelection(atWindowPoint point:CGPoint){
+        guard returningDetail,foreground,!closing,!disposed else{return}
+        if let die=screen?.revealedDie(atWindowPoint:point){pendingDie=die}
+    }
+    private func admitReturnTap(){
+        guard returningDetail,detail==nil,foreground,!closing,!disposed else{return}
+        view.isUserInteractionEnabled=true;card.isUserInteractionEnabled=false;screen?.isUserInteractionEnabled=false;returnSelectionPress?.isEnabled=true
+    }
     private func open(_ die:NativeBackpackCatalog.Die) {
         guard foreground,admitted,!closing,!disposed,!switchingDetail,detail==nil,presentedViewController==nil else{return}
+        screen?.setAlertsActive(false)
+        pendingDie=nil;returningDetail=false;returnSelectionPress?.isEnabled=false
         onFeedback?("tab")
         modalDrag?.cancel()
         idle.layer.removeAnimation(forKey:"backpack.collection.idle")
         let detail=NativeBackpackDetail(die:die,assets:assets,motion:motion)
         detail.usesParentBackdrop=true;detail.entersImmediately=true
         self.detail=detail;switchingDetail=true;admitted=false;view.isUserInteractionEnabled=false
-        detail.onPresentationStarted={[weak self] in self?.onFeedback?("exit-modal")}
+        detail.onPresentationStarted={[weak self,weak detail] in
+            guard let self,let detail,self.detail === detail,!self.disposed,self.foreground else{return}
+            self.onFeedback?("exit-modal")
+            if self.onReadDie?(die.id)==true {self.screen?.markRead(die.id)}
+        }
         detail.onCloseRequested={[weak self,weak detail] in
             guard let self,self.detail === detail,!self.disposed else{return}
-            self.onFeedback?("exit-modal")
+            self.returningDetail=true;self.pendingDie=nil
+            self.onFeedback?("back")
             self.scheduleExchange(after:0.65*0.4){[weak self] in self?.enterCollection()}
         }
         detail.onClose={[weak self,weak detail] in
             guard let self,!self.disposed,!self.closing,self.detail === detail else{return}
             self.detail=nil;self.switchingDetail=false
-            if self.admitted {self.completeEnter()}
+            if self.admitted {self.completeEnter()}else{self.admitReturnTap()}
+        }
+        detail.onExitSelection={[weak self,weak detail] point in
+            guard let self,let detail,self.detail === detail else{return}
+            self.captureReturnSelection(atWindowPoint:point)
         }
         // Prepare only the selected detail while the collection starts its exit.
         detail.loadViewIfNeeded()
@@ -197,16 +249,18 @@ final class NativeGameplayBackpackController:UIViewController {
         CATransaction.commit()
     }
     func setForeground(_ value:Bool){
-        guard !disposed else{return};foreground=value;detail?.setForeground(value)
+        guard !disposed else{return};foreground=value;screen?.setAlertsActive(value && admitted && detail==nil && !closing && !switchingDetail);detail?.setForeground(value)
+        if !value {pendingDie=nil;returnSelectionPress?.isEnabled=false}
         if !value,admitted,!switchingDetail,!closing {modalDrag?.cancel()}
         let layer=view.layer
         if !value,layer.speed != 0 {layer.timeOffset=layer.convertTime(CACurrentMediaTime(),from:nil);layer.speed=0}
         else if value,layer.speed==0 {let t=layer.timeOffset;layer.speed=1;layer.timeOffset=0;layer.beginTime=0;layer.beginTime=layer.convertTime(CACurrentMediaTime(),from:nil)-t}
-        view.isUserInteractionEnabled=value && admitted && !closing && !switchingDetail;screen?.isUserInteractionEnabled=value && detail==nil
+        view.isUserInteractionEnabled=value && admitted && !closing && !switchingDetail;screen?.isUserInteractionEnabled=value && admitted && detail==nil
+        if value,!admitted {admitReturnTap()}
     }
     @objc private func close(){
         guard admitted,!closing,!disposed,foreground,detail==nil else{return};closeButton.playArtworkTapFeedback();modalDrag?.cancel(preservePose:true);closing=true;view.isUserInteractionEnabled=false
-        onFeedback?("exit-modal")
+        screen?.setAlertsActive(false);onFeedback?("back")
         if UIAccessibility.isReduceMotionEnabled {finishClose();return}
         CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in self?.finishClose()}
         JimiNativeModalV10.exit(card,flip:false,releaseY:card.layer.presentation()?.transform.m42 ?? 0,key:"gameplay.backpack.exit")
@@ -215,5 +269,5 @@ final class NativeGameplayBackpackController:UIViewController {
         CATransaction.commit();UIView.animate(withDuration:0.2){self.backdrop.alpha=0}
     }
     private func finishClose(){guard !disposed else{return};let completed=onClosed;dispose();dismiss(animated:false,completion:completed)}
-    func dispose(){guard !disposed else{return};modalDrag?.dispose();modalDrag=nil;disposed=true;exchangeGeneration += 1;exchangeMarker.removeAllAnimations();exchangeMarker.removeFromSuperlayer();motion.cancel();detail?.dispose();detail?.dismiss(animated:false);detail=nil;screen?.onClose=nil;screen?.onDie=nil;[card,flip,idle,backdrop].forEach{$0.layer.removeAllAnimations()};onClosed=nil;onFeedback=nil}
+    func dispose(){guard !disposed else{return};screen?.setAlertsActive(false);onReadDie=nil;modalDrag?.dispose();modalDrag=nil;disposed=true;pendingDie=nil;returningDetail=false;returnSelectionPress.map{view.removeGestureRecognizer($0)};returnSelectionPress=nil;exchangeGeneration += 1;exchangeMarker.removeAllAnimations();exchangeMarker.removeFromSuperlayer();motion.cancel();detail?.dispose();detail?.dismiss(animated:false);detail=nil;screen?.onClose=nil;screen?.onDie=nil;[card,flip,idle,backdrop].forEach{$0.layer.removeAllAnimations()};onClosed=nil;onFeedback=nil}
 }

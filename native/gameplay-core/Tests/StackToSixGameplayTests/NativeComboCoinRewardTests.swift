@@ -19,6 +19,7 @@ final class NativeComboCoinRewardTests:XCTestCase {
             let e=engine(type,variant,combo:combo-1,mode:mode)
             XCTAssertTrue(e.beginDrag(tileID:reverse ? "d":"s"));XCTAssertTrue(e.drop(target:.init(column:reverse ? 0:1,row:0)).accepted)
             XCTAssertEqual(e.state.combo,combo);XCTAssertEqual(e.pendingHUDStars.count,count,"\(mode) \(variant ?? type.rawValue) combo \(combo)")
+            XCTAssertTrue(e.pendingHUDStars.allSatisfy{$0.archetype == type})
             e.sourceHUDStarJobsEnabled=true
             let ids=e.pendingHUDStars.map(\.id),job=try XCTUnwrap(e.registerSourceHUDStarJob(receiptIDs:ids,generation:e.state.generation)),score=e.state.score
             for id in ids {XCTAssertTrue(e.commitSourceHUDStarArrival(job:job,receiptID:id).accepted);XCTAssertFalse(e.commitSourceHUDStarArrival(job:job,receiptID:id).accepted)}
@@ -57,6 +58,7 @@ final class NativeComboCoinRewardTests:XCTestCase {
                             XCTAssertFalse(e.commitSpecialImpact(transactionID:plan.id,tileID:target.id).accepted)
                         }
                         XCTAssertEqual(e.pendingHUDStars.count,max(reward,plan.targets.count))
+                        XCTAssertTrue(e.pendingHUDStars.allSatisfy{$0.archetype == .tnt})
                         let counts=plan.targets.map {target in e.pendingHUDStars.filter{$0.origin==target.cell}.count}
                         XCTAssertTrue(counts.allSatisfy{$0>=1})
                         XCTAssertLessThanOrEqual((counts.max() ?? 0)-(counts.min() ?? 0),1)

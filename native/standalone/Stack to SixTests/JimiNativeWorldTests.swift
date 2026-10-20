@@ -72,6 +72,49 @@ final class JimiNativeWorldTests: XCTestCase {
         XCTAssertEqual(ribbon.layer.animation(forKey:"ribbon.motion")?.duration,0.24)
         await fulfillment(of:[returned],timeout:5);XCTAssertNil(ribbon.superview);XCTAssertNil(ribbon.layer.animationKeys())
     }
+    func testCardCloseResumesExistingUnitWaveClockWithoutNewOnset() async throws {
+        let world=try XCTUnwrap(JimiNativeWorldView(snapshot:fixture(),assets:art));world.frame=CGRect(x:0,y:0,width:390,height:844);world.layoutIfNeeded()
+        let scene=try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.first),previous=scene.windows.first{$0.isKeyWindow}
+        let window=UIWindow(windowScene:scene),host=UIViewController();window.frame=world.frame;window.rootViewController=host;host.view.addSubview(world);window.makeKeyAndVisible()
+        defer{world.cleanup();window.isHidden=true;window.rootViewController=nil;previous?.makeKey()}
+        let prepared=expectation(description:"World ready");world.prepare{prepared.fulfill()};await fulfillment(of:[prepared],timeout:10)
+        let entered=expectation(description:"World entered");world.enter{entered.fulfill()};await fulfillment(of:[entered],timeout:5);world.finishPresentationAdmission()
+        try await settle(0.4)
+        let unit=try XCTUnwrap(descendant(world,"native.world.card.1"))
+        let original=try XCTUnwrap(unit.layer.animation(forKey:"world.idle.y"))
+        let paintedBefore=try XCTUnwrap(unit.layer.presentation()).transform.m42
+        world.openCard(boardID:1)
+        let paused=try XCTUnwrap(unit.layer.animation(forKey:"world.idle.y"))
+        XCTAssertEqual(paused.speed,0)
+        try await settle(0.08)
+        let paintedPaused=try XCTUnwrap(unit.layer.presentation()).transform.m42
+        XCTAssertEqual(paintedPaused,paintedBefore,accuracy:0.6,"Opening the modal preserves the last painted Unit pose")
+        try await settle(0.72)
+        XCTAssertEqual(try XCTUnwrap(unit.layer.presentation()).transform.m42,paintedPaused,accuracy:0.01,"The visible Unit does not drift behind its modal")
+        XCTAssertEqual(unit.layer.animation(forKey:"world.idle.y")?.timeOffset,paused.timeOffset)
+        world.setActive(false);world.setActive(true)
+        XCTAssertEqual(unit.layer.animation(forKey:"world.idle.y")?.timeOffset,paused.timeOffset,"Background/resume keeps the modal's paused phase")
+        let returned=expectation(description:"Card returned");world.closeCard{returned.fulfill()}
+        for _ in 0..<2500 where !world.hasPendingCardLanding {try await settle(0.001)}
+        XCTAssertTrue(world.hasPendingCardLanding,"Catch the return before its two-paint landing barrier")
+        world.setActive(false)
+        try await settle(0.12)
+        XCTAssertTrue(world.hasActiveCard)
+        XCTAssertEqual(unit.layer.animation(forKey:"world.idle.y")?.speed,0,"Background during close keeps Unit waves paused")
+        XCTAssertEqual(try XCTUnwrap(unit.layer.presentation()).transform.m42,paintedPaused,accuracy:0.01)
+        world.setActive(true)
+        await fulfillment(of:[returned],timeout:5)
+        XCTAssertFalse(world.hasActiveCard)
+        XCTAssertFalse(world.hasPendingCardLanding)
+        let resumed=try XCTUnwrap(unit.layer.animation(forKey:"world.idle.y"))
+        XCTAssertEqual(resumed.speed,original.speed)
+        XCTAssertEqual(resumed.duration,original.duration)
+        XCTAssertGreaterThan(resumed.beginTime-original.beginTime,0.8)
+        XCTAssertEqual((resumed as? CAKeyframeAnimation)?.values as? [Double],(original as? CAKeyframeAnimation)?.values as? [Double])
+        world.openCard(boardID:1)
+        XCTAssertEqual(unit.layer.animation(forKey:"world.idle.y")?.speed,0)
+        world.park();XCTAssertNil(unit.layer.animation(forKey:"world.idle.y"),"Park must retire even a modal-frozen wave")
+    }
     func testAreaCardUsesUnitNumberWithoutRepeatingWorld55()throws {
         var progression=NativeProgressionState();progression.completedJourneyBoards=Set(1...30)
         let raw=try NativeWorldLayouts().snapshot(world:3,width:390,height:844,generation:1,progression:progression)
@@ -345,11 +388,12 @@ final class JimiNativeWorldTests: XCTestCase {
         let card = JimiNativeWorldCardView(unit:unit,assets:art,resources:JimiNativeWorldResources(root:root))
         card.frame = CGRect(x:0,y:0,width:390,height:844)
         card.enter(from:CGRect(x:30,y:400,width:90,height:120)); try await settle()
-        var closes = 0; card.onRequest = { if $0 == "close" { closes += 1 } }
+        var closes = 0,cues:[String]=[];card.onFeedback={cues.append($0)}; card.onRequest = { if $0 == "close" { closes += 1 } }
         card.perform(NSSelectorFromString("tapped:"),with:UITapGestureRecognizer())
         let close = try XCTUnwrap(descendant(card,"native.world.card.close") as? UIButton)
         close.sendActions(for:.touchUpInside)
         XCTAssertEqual(closes,1,"Close during flip must interrupt its owned motion")
+        XCTAssertEqual(cues.filter{$0 == "back"},["back"])
         var lateClose = false
         card.close(to:CGRect(x:30,y:400,width:90,height:120)) { lateClose = true }
         card.cleanup(); card.cleanup(); try await settle()

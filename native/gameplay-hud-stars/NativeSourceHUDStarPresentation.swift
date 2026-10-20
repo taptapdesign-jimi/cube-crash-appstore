@@ -16,6 +16,7 @@ import StackToSixGameplay
         let acquireCadence:()->()->Void
         let onArrival:(NativeMoveResult)->Void
         let onRetired:(NativeSourceHUDStarJob)->Void
+        var onTntCoinLaunch:()->Void = {}
     }
     private weak var stage:SKNode?
     private let height:CGFloat,texture:SKTexture,pixelSize:CGSize
@@ -25,6 +26,7 @@ import StackToSixGameplay
     private let coinAnimations:[NativeHUDCoinAnimation],selectCoinVariant:()->Int
     private var coinVariants:[String:Int]=[:]
     private var sprites:[String:SKSpriteNode]=[:],roots:[UUID:FlightRoot]=[:],jobCaptures:[UUID:NativeSourceHUDStarJob]=[:]
+    private var soundedLaunches=Set<UUID>()
     private var disposed=false
     private(set) var selectedAssetsReady:Bool
     var admissionOpen:Bool{current() && selectedAssetsReady}
@@ -83,6 +85,12 @@ import StackToSixGameplay
             let frame=coinAnimations[variant].texture(at:pose.elapsed)
             if star.texture !== frame {star.texture=frame}
         }
+        if let (jobID,_)=jobCaptures.first(where:{$0.value.receiptIDs.contains(id)}),
+           !soundedLaunches.contains(jobID),
+           engine.pendingHUDStars.contains(where:{$0.id==id && $0.archetype == .tnt}) {
+            soundedLaunches.insert(jobID);bindings.onTntCoinLaunch()
+            guard current() else{return}
+        }
         star.alpha=1
         star.position = .init(x:pose.point.x,y:height-pose.point.y);star.setScale(pose.scale);star.zRotation = -pose.rotation
     }
@@ -99,7 +107,7 @@ import StackToSixGameplay
         guard current(),selectedAssetsReady else{return false}
         guard let capture=engine.registerSourceHUDStarJob(receiptIDs:receiptIDs,generation:generation) else{return false}
         let id=UUID();jobCaptures[id]=capture
-        let started=jobs.start(jobID:id,ids:receiptIDs,origin:screenOrigin,target:hudTarget,textureWidth:pixelSize.width,viewport:stage?.scene?.size,gentleLaunch:receiptIDs.allSatisfy {id in engine.pendingHUDStars.first{$0.id==id}?.variant=="laser-gun"},random:bindings.random)
+        let started=jobs.start(jobID:id,ids:receiptIDs,origin:screenOrigin,target:hudTarget,textureWidth:pixelSize.width,viewport:stage?.scene?.size,gentleLaunch:receiptIDs.allSatisfy {id in engine.pendingHUDStars.first{$0.id==id}?.archetype == .tnt},random:bindings.random)
         if !started {retire(id)}
         return started
     }
@@ -110,6 +118,7 @@ import StackToSixGameplay
     }
     private func retire(_ id:UUID) {
         guard let capture=jobCaptures.removeValue(forKey:id) else{return}
+        soundedLaunches.remove(id)
         // Actual captured cleanup may still retire Core after UI admission closed;
         // generation guards inside Core prevent touching replacement state.
         let retired=engine.retireSourceHUDStarJob(job:capture)
@@ -120,7 +129,7 @@ import StackToSixGameplay
         sprites.values.forEach{$0.removeFromParent()};sprites.removeAll();coinVariants.removeAll();container.removeFromParent()
         let remaining=jobCaptures;jobCaptures.removeAll()
         for capture in remaining.values {_=engine.retireSourceHUDStarJob(job:capture)}
-        roots.removeAll();selectedAssetsReady=false
+        roots.removeAll();soundedLaunches.removeAll();selectedAssetsReady=false
     }
 }
 #endif

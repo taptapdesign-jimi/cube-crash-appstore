@@ -16,6 +16,17 @@ private final class SettingsRouteWebView: WKWebView {
 
 @MainActor
 final class JimiNativeSettingsTests: XCTestCase {
+    func testPrivacyCloseAndDeveloperBackEmitOnceAtActivation() {
+        let art=JimiV9Artwork(resourceRoot:NativeTestResources.root),settings=JimiNativeSettingsView(frame:.zero,assets:JimiV9Artwork(resourceRoot:NativeTestResources.root))
+        var developerBack=0;settings.onDeveloperClose={developerBack += 1}
+        settings.setDeveloperPanelVisible(true);settings.back.sendActions(for:.touchUpInside)
+        XCTAssertEqual(developerBack,1)
+        let privacy=JimiNativePrivacyController(assets:art);privacy.loadViewIfNeeded()
+        var closes=0;privacy.onCloseRequested={closes += 1}
+        privacy.close.sendActions(for:.touchUpInside);privacy.close.sendActions(for:.touchUpInside)
+        XCTAssertEqual(closes,1)
+        privacy.viewDidDisappear(false);XCTAssertNil(privacy.onCloseRequested)
+    }
     override func setUpWithError() throws {
         #if !targetEnvironment(simulator)
         throw XCTSkip("Simulator only; never drive the physical phone")
@@ -61,7 +72,7 @@ final class JimiNativeSettingsTests: XCTestCase {
         XCTAssertTrue(settings.apply(value));XCTAssertFalse(settings.developerPanelVisible)
     }
 
-    func testEveryPWADeveloperButtonDispatchesOnlyWhilePanelIsVisibleAndFitsSmallPhone() {
+    func testEveryNativeDeveloperButtonDispatchesOnlyWhilePanelIsVisibleAndFitsSmallPhone() {
         let settings = JimiNativeSettingsView(frame: CGRect(x: 0,y: 0,width: 320,height: 568),assets: JimiV9Artwork(resourceRoot: root))
         XCTAssertTrue(settings.apply(preferences))
         var actions: [NativeDeveloperAction] = []
@@ -69,7 +80,7 @@ final class JimiNativeSettingsTests: XCTestCase {
         for button in settings.developerButtons { button.sendActions(for: .touchUpInside) }
         XCTAssertTrue(actions.isEmpty)
         settings.setDeveloperPanelVisible(true); settings.layoutSubviews()
-        XCTAssertEqual(settings.developerButtons.compactMap { $0.title(for: .normal) },["Show Card","Hide Card","Legendary Card","Reset Stage","New Card","New Dice","Forest 2 Unlock","Clean Stage","LAST MERGE"])
+        XCTAssertEqual(settings.developerButtons.compactMap { $0.title(for: .normal) },["Show Card","Hide Card","Legendary Card","Reset Stage","New Card","Clean Stage","LAST MERGE"])
         for button in settings.developerButtons {
             XCTAssertFalse(button.isHidden); XCTAssertGreaterThanOrEqual(button.frame.minX,24)
             XCTAssertLessThanOrEqual(button.frame.maxX,296); XCTAssertGreaterThanOrEqual(button.bounds.height,44)
@@ -80,7 +91,7 @@ final class JimiNativeSettingsTests: XCTestCase {
         XCTAssertLessThanOrEqual(settings.firstPlay.frame.maxY,settings.scroll.contentSize.height)
         settings.back.sendActions(for: .touchUpInside)
         for button in settings.developerButtons { XCTAssertTrue(button.isHidden); button.sendActions(for: .touchUpInside) }
-        XCTAssertEqual(actions.count,9)
+        XCTAssertEqual(actions.count,7)
     }
 
     func testDeveloperPreviewCloseReleasesOnceEvenBeforeAssetsAreReady() {
@@ -103,6 +114,12 @@ final class JimiNativeSettingsTests: XCTestCase {
         profile.progression.beginAttempt(mode:.journey,board:24)
         profile.progression.highestUnlockedJourneyBoard=30
         profile.progression.unlockedSpecialDice=["flower","juice"]
+        for board in 1...30 {
+            if let id=NativeJourneyContent.introductionID(board:board) {
+                XCTAssertTrue(profile.progression.announceJourneyDie(id,board:board))
+            }
+        }
+        profile.progression.readJourneyDie("bee")
         try store.save(profile)
         let owner=try NativeBootstrap(root:root,store:store,showStudioIntro:false)
         defer {owner.dispose()}
@@ -110,6 +127,11 @@ final class JimiNativeSettingsTests: XCTestCase {
         let saved=try XCTUnwrap(store.load())
         XCTAssertEqual(NativeBackpackCatalog.sections(saved.progression).map(\.count),[0,0,0])
         XCTAssertFalse(saved.progression.hasUnlockedWildStar)
+        XCTAssertTrue(saved.progression.announcedJourneyDice.isEmpty)
+        XCTAssertTrue(saved.progression.unreadJourneyDice.isEmpty)
+        var replay=saved.progression
+        XCTAssertTrue(replay.announceJourneyDie("bee",board:1))
+        XCTAssertEqual(replay.unreadJourneyDice,["bee"])
         XCTAssertNil(saved.progression.lastOpenedJourneyBoard)
         XCTAssertEqual((1...3).compactMap{saved.progression.interimBoard(world:$0)},[1,11,21])
     }
@@ -123,8 +145,8 @@ final class JimiNativeSettingsTests: XCTestCase {
         profile.progression.completedJourneyBoards = [1,2,11]
         var stats = NativeBoardStats(); stats.highScore = 7777
         profile.progression.boardStats = [1:stats,2:stats,11:stats]
-        let run = NativeBoardState(tiles: [NativeTile(id: "keep",cell: .init(column: 0,row: 0),value: 2)],mode: .arcade)
-        profile.arcadeRun = run; profile.journeyRuns[2] = NativeBoardState(tiles: run.tiles,board: 2)
+        let run = NativeBoardState(tiles: [NativeTile(id: "keep",cell: .init(column: 0,row: 0),value: 2)],mode: .arcade,moves:49)
+        profile.arcadeRun = run; profile.journeyRuns[2] = NativeBoardState(tiles: run.tiles,board: 2,moves:49)
         try store.save(profile)
         let owner = try NativeBootstrap(root: root,store: store,showStudioIntro: false)
         let host = UIViewController(); host.loadViewIfNeeded(); owner.start(in: host)
@@ -145,44 +167,13 @@ final class JimiNativeSettingsTests: XCTestCase {
         XCTAssertEqual(saved.progression.completedJourneyBoards,[1,2,11])
     }
 
-    func testForestUnlockPreviewReopensWithoutChangingProfile() async throws {
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("native-dev-root-\(UUID().uuidString)")
-        let store = NativeSaveStore(directory: directory)
-        var profile = NativeSaveEnvelope(); profile.progression.firstPlayTutorialComplete = true
-        profile.progression.completedJourneyBoards = [1,2]; profile.progression.lastOpenedJourneyBoard = 3
-        try store.save(profile)
-        let host = NativeStandaloneViewController(resourceRoot: root,store: store,completeNativeGameplayEnabled: true)
-        let previous = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.flatMap(\.windows).first(where: \.isKeyWindow)
-        let window = UIWindow(frame: CGRect(x: 0,y: 0,width: 390,height: 844))
-        window.windowScene = previous?.windowScene; window.rootViewController = host; window.makeKeyAndVisible()
-        defer { host.dispose(); window.isHidden = true; previous?.makeKeyAndVisible(); try? FileManager.default.removeItem(at: directory) }
-        func wait(_ label: String,_ predicate: () -> Bool) async throws {
-            let deadline = Date().addingTimeInterval(40)
-            while !predicate() {
-                guard Date() < deadline else { XCTFail(label); throw NSError(domain: label,code: 1) }
-                try await Task.sleep(for: .milliseconds(20))
-            }
-        }
-        host.loadViewIfNeeded(); let app = try XCTUnwrap(host.children.first as? NativeAppController)
-        try await wait("home") { !app.home.isHidden }
-        app.navigate(.settings,interrupt: true)
-        try await wait("settings") { app.route == .settings && app.settingsView.isUserInteractionEnabled }
-        app.settingsView.developer.sendActions(for: .touchUpInside)
-        let before = try store.load()
-        for _ in 0..<2 {
-            let unlockButton = try XCTUnwrap(app.settingsView.developerButtons.first {
-                $0.accessibilityIdentifier == "native.settings.developer.forest-unlock"
-            })
-            unlockButton.sendActions(for: .touchUpInside)
-            let preview = try XCTUnwrap(app.presentedViewController as? NativeDeveloperPreviewHost)
-            preview.loadViewIfNeeded()
-            let unlock = try XCTUnwrap(preview.children.first as? NativeSpecialDiceUnlockController)
-            XCTAssertEqual(unlock.diceType, .flower)
-            try unlock.onUnlock?("flower")
-            XCTAssertEqual(try store.load(), before)
-            preview.finish()
-            try await wait("unlock preview dismissed") { app.presentedViewController == nil }
-        }
+    func testDeveloperMenuHasNoRetiredDiceRevealCommands() {
+        XCTAssertNil(NativeDeveloperAction(rawValue: "new-dice"))
+        XCTAssertNil(NativeDeveloperAction(rawValue: "forest-unlock"))
+        let settings = JimiNativeSettingsView(frame: .zero, assets: JimiV9Artwork(resourceRoot: root))
+        let identifiers = settings.developerButtons.compactMap(\.accessibilityIdentifier)
+        XCTAssertFalse(identifiers.contains("native.settings.developer.new-dice"))
+        XCTAssertFalse(identifiers.contains("native.settings.developer.forest-unlock"))
     }
 
     func testActualDeveloperLastMergeReopensSharedSourceAndPreservesNormalProfile() async throws {
@@ -226,6 +217,7 @@ final class JimiNativeSettingsTests: XCTestCase {
             try await wait("last merge entry") { game()?.boardScene?.isBoardEntryComplete == true && game()?.beforeSourceGameplayAdmission == nil }
             let gameplay = try XCTUnwrap(game()), scene = try XCTUnwrap(gameplay.boardScene)
             XCTAssertEqual(gameplay.engine.state.activeTiles.count,2)
+            XCTAssertTrue(NativeSaveEnvelope.hasRecordedMove(gameplay.engine.state),"Synthetic final pair must survive normal resume admission")
             XCTAssertEqual(gameplay.engine.state.tiles.first { $0.id == "dev-wild" }?.variant,choice == "flower" ? "flower" : nil)
             XCTAssertTrue(try XCTUnwrap(gameplay.sourceScope).current)
             if choice == "flower" {

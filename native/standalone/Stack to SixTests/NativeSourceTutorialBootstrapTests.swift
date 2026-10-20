@@ -209,7 +209,10 @@ import StackToSixNativeState
             let callback=try XCTUnwrap(scene.onSourcePresentationFailure),generation=game.engine.state.generation
             let before=game.engine.state
             let expectedDetails=["impact":scene.sourceSpecialImpactParticleRejection ?? "none",
-                "spawnSafety":scene.sourceSpawnSafetyDiagnostic,"tnt":scene.sourceTntMainDiagnostic()]
+                "spawnSafety":scene.sourceSpawnSafetyDiagnostic,"tnt":scene.sourceTntMainDiagnostic(),
+                "tntResume":scene.sourceTntSpawnResumeRejection ?? "none",
+                "physical":scene.sourcePhysicalBoardCaptureDiagnostic,
+                "minimum":scene.sourceMinimumCaptureDiagnostic]
             callback("qa-stale-transaction",generation+1)
             XCTAssertNil(game.sourcePresentationFailureGeneration);XCTAssertEqual(try Data(contentsOf:file),bytes)
             XCTAssertEqual(try? Data(contentsOf:diagnostics),priorDiagnostics,"Stale callbacks cannot publish incident evidence")
