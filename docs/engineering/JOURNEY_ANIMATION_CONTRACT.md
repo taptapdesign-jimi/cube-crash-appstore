@@ -358,3 +358,17 @@ other Units, enter/exit curves and existing visibility/cleanup remain unchanged.
 Accepted World selection composes the shared0.40s Cartoon Bounce on its artwork child, beneath the existing idle and complete Unit route exit. Preserve the current exit timings, destination preparation overlap and actual-completion input gate. Start only after successful destination preparation admission; hide, detach and route reset remove contact. No added wait or recurring owner. This explicit user addition supersedes the prior Native single-pulse restriction; the authored Unit exit remains unchanged.
 
 The same approved contact also composes on all three Arcade island artwork shells and Home slider hero shells, retaining their original contact/idle/route transforms and completion gates. Interim Unit gameplay launch multiplies the shared recipe into its existing inflate/collapse samples under one card transform owner; it does not replace card rotation or introduce a delay. Hidden/background/reset paths retire finite contacts.
+
+## Native interim gameplay contact continuity (2026-10-22)
+
+Explicit user update applies globally to Forest, Beach and Area55. Interim
+card contact locks card/scroll input immediately but keeps the existing visible
+World idle/ambient clocks running during the unchanged0.10s punch+0.40s collapse.
+Only the selected card's interim effect retires before its contact transform.
+World exit then transfers the painted pose into its existing finite tracks;
+child cloud/beam poses use a finite1s compositor bridge until their parent hides;
+the actual World exit completion explicitly removes the remaining bridges.
+This supersedes stopping the whole World idle at the interim tap. Regular modal
+pause policy,card choreography,route completion and Reduced Motion stay intact.
+No new recurring clock,decode work or persistent pose mutation. Background,
+park,replacement and cleanup retire the bridges through existing World ownership.

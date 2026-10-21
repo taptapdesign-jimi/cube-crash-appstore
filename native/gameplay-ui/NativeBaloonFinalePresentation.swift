@@ -10,7 +10,7 @@ final class NativeBaloonFinalePresentation: NativeFinitePresentation {
         let color: String, birth: Double, width: CGFloat, height: CGFloat, phase: CGFloat
         let riseSpeed: CGFloat, depth: CGFloat
         let launch: CGPoint, lane: CGFloat, amplitude: CGFloat, arcCount: Int
-        let travelDuration: Double, squeezeCount: Int
+        let travelDuration: Double, squeezeCount: Int, launchArcOffset: CGFloat
         var point: CGPoint, velocity: CGPoint
         var contactOffset: CGFloat = 0, contactVelocity: CGFloat = 0
         var radius: CGFloat { width * 0.36 }
@@ -32,6 +32,8 @@ final class NativeBaloonFinalePresentation: NativeFinitePresentation {
         assetReady = art.allSatisfy { $0 != nil } && resources.frames.count == 32
         super.init(viewport: viewport, duration: 5.4)
         accessibilityIdentifier = "native-baloon-finale"; clipsToBounds = true
+        let maxRatio=art.compactMap {$0.map {$0.size.height / $0.size.width}}.max() ?? 1.1
+        let finalBatchY=viewport.height+170*min(1,viewport.width/390)*maxRatio*0.65+40
         for index in 0..<24 {
             // Capture randomness once. Each balloon owns its complete path; no
             // shared gust or collision solver may replace its rise/arc timing.
@@ -52,22 +54,24 @@ final class NativeBaloonFinalePresentation: NativeFinitePresentation {
             let amplitude = viewport.width * CGFloat(0.17 + random() * 0.14)
             let margin = width * 0.12 + amplitude
             let laneDraw = (Double((index * 11) % 24) + random()) / 24
-            let lane = margin + CGFloat(laneDraw) * max(0,viewport.width - 2 * margin)
+            let lane = wave == 2 ? viewport.width*(0.20+0.30*CGFloat((index-16)%3)) : margin + CGFloat(laneDraw) * max(0,viewport.width - 2 * margin)
             let phase = CGFloat(random() * 2 * .pi) + CGFloat(index) * 2.399963
             let arcCount = 2 + min(2,Int(random() * 3))
             let durationDraw = (Double((index * 13) % 24) + random()) / 24
-            let travelDuration = min(5.25 - originalBirth,2.65 + durationDraw * 1.65) / 1.30
+            let travelDuration = min(5.25 - originalBirth,2.65 + durationDraw * 1.65) / 1.30 / (wave == 2 ? 1.15:1)
             // Distinct four-balloon pockets have roughly100pt vertical gaps;
             // wider wave delays keep the faster population from leaving as one sheet.
             let clusterOffset=CGFloat(wave + (index % 8)/4) * 100
-            let launchY=viewport.height + height * 0.65 + clusterOffset + CGFloat((index * 47) % 110) + CGFloat(random() * 42)
+            let launchJitter=CGFloat(random() * 42)
+            let launchY=wave == 2 ? finalBatchY+CGFloat((index-16)/3)*viewport.height*0.30 : viewport.height + height * 0.65 + clusterOffset + CGFloat((index * 47) % 110) + launchJitter
             let startArc=(viewport.height + height * 0.6 - launchY) / (viewport.height + height * 1.2)
-            let launch = CGPoint(x:lane + sin(startArc * CGFloat(arcCount) * .pi + phase) * amplitude,y:launchY)
+            let arcOffset=sin(startArc * CGFloat(arcCount) * .pi + phase) * amplitude
+            let launch = CGPoint(x:wave == 2 ? lane:lane+arcOffset,y:launchY)
             let distance = launch.y + height * 1.2 + 40
             balloons.append(Balloon(color: Self.colors[color], birth: birth, width: width, height: height,
                 phase:phase,riseSpeed:distance / CGFloat(travelDuration),depth:depth,
                 launch:launch,lane:lane,amplitude:amplitude,arcCount:arcCount,
-                travelDuration:travelDuration,squeezeCount:2 + min(2,Int(random() * 3)),
+                travelDuration:travelDuration,squeezeCount:2 + min(2,Int(random() * 3)),launchArcOffset:wave == 2 ? arcOffset:0,
                 point:launch,velocity:.zero))
         }
         initial = balloons
@@ -169,7 +173,7 @@ final class NativeBaloonFinalePresentation: NativeFinitePresentation {
             let y=b.launch.y - distance * pow(progress,1.42)
                 + sin(progress * 4 * .pi + b.phase) * sin(progress * .pi) * 14
             let arcProgress=(bounds.height + b.height * 0.6 - y) / (bounds.height + b.height * 1.2)
-            let x=b.lane + sin(arcProgress * CGFloat(b.arcCount) * .pi + b.phase) * b.amplitude
+            let x=b.lane + sin(arcProgress * CGFloat(b.arcCount) * .pi + b.phase) * b.amplitude - b.launchArcOffset*(1-progress)
             b.contactVelocity += (-b.contactOffset * 28 - b.contactVelocity * 9) * dt
             b.contactOffset=max(-24,min(24,b.contactOffset + b.contactVelocity * dt))
             b.point=CGPoint(x:x+b.contactOffset,y:y)

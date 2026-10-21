@@ -25,6 +25,7 @@ private final class NativeMusicTimerScheduler:NativeMusicScheduler {
 /// file transport/session as the menu theme, with one bounded outgoing overlap.
 @MainActor
 final class NativeArcadeMusicOwner {
+    private static let calmGain=0.3696,activeGain=0.4158,resultGain=0.07
     static let barSeconds=60.0/116.6*4
     static let barCrossfadeSeconds=(barSeconds*1000).rounded()/1000
     enum Layer:String {case calm,active}
@@ -41,7 +42,7 @@ final class NativeArcadeMusicOwner {
     private var prepared:Set<Layer>=[]
     private var current:Layer?
     private var requested:Layer = .calm
-    private var target=0.528
+    private var target=NativeArcadeMusicOwner.calmGain
     private var resultMix=false
     private var resultHook:UInt64=0
     private var promotion:(any NativeMusicCancellation)?
@@ -55,13 +56,13 @@ final class NativeArcadeMusicOwner {
     }
     func apply(enabled:Bool) {
         guard !disposed else{return};self.enabled=enabled
-        if !enabled {invalidate();resultHook &+= 1;if resultMix {target=0.528};retireAll()}
+        if !enabled {invalidate();resultHook &+= 1;if resultMix {target=Self.calmGain};retireAll()}
         else if admitted && foreground && !interrupted {switchLayer(requested,duration:0.42)}
     }
     /// Call after the authored Round cue, or immediately for Play Again.
     func enterRound(generation:UInt64,immediate:Bool=false) {
         guard !disposed else{return};invalidate();roundGeneration=generation;admitted=true
-        requested = .calm;target=0.528;resultMix=false;resultHook &+= 1
+        requested = .calm;target=Self.calmGain;resultMix=false;resultHook &+= 1
         guard enabled,foreground,!interrupted else{return}
         switchLayer(.calm,duration:immediate ? 0 : 1.25)
     }
@@ -81,7 +82,7 @@ final class NativeArcadeMusicOwner {
     }
     func setResultMix(generation:UInt64) {
         guard !disposed,admitted,generation==roundGeneration else{return}
-        invalidate();requested=current ?? .calm;resultMix=true;target=0.10;resultHook &+= 1
+        invalidate();requested=current ?? .calm;resultMix=true;target=Self.resultGain;resultHook &+= 1
         if let current,enabled,foreground,!interrupted {discardNonCurrent();gain(current,to:target,duration:0.42)}
     }
     /// The actual authored result voice releases this receipt on end/stop, never
@@ -94,7 +95,7 @@ final class NativeArcadeMusicOwner {
         var released=false
         return { [weak self] in
             guard let self,!released,!self.disposed,self.admitted,self.roundGeneration==round,self.resultHook==hook else{return}
-            released=true;self.target=0.528
+            released=true;self.target=Self.calmGain
             if let current=self.current,self.enabled,self.foreground,!self.interrupted {self.gain(current,to:self.target,duration:1)}
         }
     }
@@ -117,7 +118,7 @@ final class NativeArcadeMusicOwner {
         guard !disposed,admitted,enabled,foreground,!interrupted else{return}
         promotion?.cancel();promotion=nil;retirement?.cancel();retirement=nil;discardNonCurrent()
         let lease=epoch,outgoing=current
-        let desired=resultMix ? target : incoming == .calm ? 0.528 : 0.594
+        let desired=resultMix ? target : incoming == .calm ? Self.calmGain : Self.activeGain
         target=desired
         if outgoing==incoming,prepared.contains(incoming) {
             command(incoming,"resume",body:["volume":desired]) { [weak self] in guard let self,self.isCurrent(lease) else{return};self.gain(incoming,to:desired,duration:duration) }

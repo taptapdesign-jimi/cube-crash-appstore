@@ -104,12 +104,12 @@ import StackToSixGameplay
         XCTAssertEqual(owner.flightSnapshot.map(\.point),first,"Seeking never rerolls motion or leaves collision residue")
     }
 
-    func testFasterFlightKeepsSeparatedWavesAndHundredPointPockets() throws {
+    func testFirstTwoBatchesKeepOriginalFasterFlightAndHundredPointPockets() throws {
         let resources=try NativeBaloonResources.load(root:root),artwork=JimiV9Artwork(resourceRoot:root)
         let owner=NativeBaloonFinalePresentation(viewport:CGSize(width:390,height:844),origin:CGPoint(x:210,y:430),resources:resources,artwork:artwork,random:{0.5})
         defer{owner.dispose()}
         let plans=owner.flightSnapshot
-        for i in plans.indices {
+        for i in 0..<16 {
             let wave=i/8,stagger=Double((i*7)%8)/8*0.28
             let oldBirth=i == 0 ? 0:[0.0,0.40,0.90][wave]+stagger+0.08
             let draw=(Double((i*13)%24)+0.5)/24
@@ -125,6 +125,27 @@ import StackToSixGameplay
         XCTAssertEqual(owner.flightSnapshot.filter{$0.birth<=1.4}.count,16)
         owner.paint(seconds:5.4)
         XCTAssertTrue(owner.flightSnapshot.allSatisfy{$0.point.y+$0.height<0})
+    }
+
+    func testFinalBatchHasThirtyPercentViewportGridAndFifteenPercentFasterTravelOnly() throws {
+        let resources=try NativeBaloonResources.load(root:root),artwork=JimiV9Artwork(resourceRoot:root)
+        for viewport in [CGSize(width:320,height:568),CGSize(width:390,height:844),CGSize(width:430,height:932)] {
+            let owner=NativeBaloonFinalePresentation(viewport:viewport,origin:.zero,resources:resources,artwork:artwork,random:{0.5})
+            defer{owner.dispose()}
+            let plans=owner.flightSnapshot
+            for i in 0..<24 {
+                let wave=i/8,stagger=Double((i*7)%8)/8*0.28
+                let originalBirth=i == 0 ? 0:[0.0,0.4,0.9][wave]+stagger+0.08
+                let durationDraw=(Double((i*13)%24)+0.5)/24
+                let previous=min(5.25-originalBirth,2.65+durationDraw*1.65)/1.30
+                XCTAssertEqual(plans[i].travelDuration,previous/(wave == 2 ? 1.15:1),accuracy:1e-10)
+                if wave == 2 {
+                    XCTAssertEqual(plans[i].launch.x,viewport.width*(0.2+0.3*CGFloat((i-16)%3)),accuracy:1e-6)
+                    XCTAssertEqual(plans[i].launch.y-plans[16].launch.y,CGFloat((i-16)/3)*viewport.height*0.3,accuracy:1e-6)
+                } else {XCTAssertEqual(plans[i].launchArcOffset,0)}
+            }
+            owner.paint(seconds:5.4);XCTAssertTrue(owner.flightSnapshot.allSatisfy{$0.point.y+$0.height<0})
+        }
     }
 
     func testBalooneyCaptionUsesReferenceColorsAndSharedFiniteGlyphMotion() throws {

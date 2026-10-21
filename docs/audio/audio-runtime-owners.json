@@ -617,7 +617,7 @@
       "tests": [
         "native/standalone/Stack to SixTests/NativeArcadeMusicTests.swift"
       ],
-      "physicalAcceptance": "NEEDS PHYSICAL TEST for phase, next-bar contact, exact loop seam/crossfade, interruption recovery and sustained native audio heat. Source gains.528/.594/result.10,entry1.25s,bar116.6BPM retained; theme route coordination and result callbacks are integration checks."
+      "physicalAcceptance": "NEEDS PHYSICAL TEST for phase, next-bar contact, exact loop seam/crossfade, interruption recovery and sustained native audio heat. Latest user global music reduction includes Arcade: gains0.3696/0.4158/result0.07 (30percent below previous0.528/0.594/0.10),entry1.25s,bar116.6BPM retained; theme route coordination and result callbacks are integration checks."
     },
     {
       "id": "native-swift-journey-ambient",

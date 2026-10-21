@@ -331,30 +331,75 @@ final class JimiNativeWorldTests: XCTestCase {
         world.cleanup(); world.cleanup(); XCTAssertFalse(world.isReadyForInput)
     }
 
-    func testInterimTapDiagnosticImmediatelyRetiresWorldIdleBeforeHalfSecondCardExit() async throws {
+    func testInterimTapKeepsWorldMovingThenTransfersPaintedPoseIntoFiniteExit() async throws {
         guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Authored motion")}
-        var raw=fixture();var definitions=try XCTUnwrap(raw["units"] as? [[String:Any]])
-        definitions[0]["interim"]=true;definitions[0]["allowedActions"]=["continue"];raw["units"]=definitions
+        for worldID in 1...3 {
+        let first=(worldID-1)*10+1
+        var raw=fixture();raw["worldID"]=worldID;var definitions=try XCTUnwrap(raw["units"] as? [[String:Any]])
+        for i in definitions.indices {definitions[i]["boardID"]=first+i;definitions[i]["id"]="board-\(first+i)"}
+        definitions[0]["interim"]=true;definitions[0]["allowedActions"]=["continue"]
+        var parts=definitions[0]["parts"] as! [[String:Any]]
+        parts.append(["asset":"assets/close-icon.png","role":"cloud","x":0,"y":0,"width":100,"height":50,"rotation":0,"opacity":1,"zIndex":1])
+        definitions[0]["parts"]=parts;raw["units"]=definitions
         let world=try XCTUnwrap(JimiNativeWorldView(snapshot:raw,assets:art))
         let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
         window.rootViewController=host;window.makeKeyAndVisible();world.frame=window.bounds;host.view.addSubview(world)
         defer{world.cleanup();window.isHidden=true}
         world.layoutIfNeeded();world.enter{};try await settle();world.finishPresentationAdmission()
-        let unit=try XCTUnwrap(descendant(world,"native.world.card.1") as? UIButton)
+        let unit=try XCTUnwrap(descendant(world,"native.world.card.\(first)") as? UIButton)
         let card=try XCTUnwrap(unit.subviews.first{$0.accessibilityIdentifier?.hasSuffix(".card")==true})
-        XCTAssertNotNil(unit.layer.animation(forKey:"world.idle.y"))
+        let cloud=try XCTUnwrap(descendant(world,"native.world.part.\(first).cloud"))
+        let wave=try XCTUnwrap(unit.layer.animation(forKey:"world.idle.y"))
         let before=try XCTUnwrap(unit.layer.presentation()).transform.m42
-        let model=unit.layer.transform.m42
-        world.onRequest={_,id in world.prepareGameplayExit(boardID:id){}}
-        unit.sendActions(for:.touchUpInside)
-        XCTAssertNil(unit.layer.animation(forKey:"world.idle.y"),"Current shipping policy stops World idle synchronously")
-        XCTAssertNotNil(card.layer.animation(forKey:"card.tap.exit"))
-        XCTAssertNil(unit.layer.animation(forKey:"world.exit"),"World exit waits for the half-second card contact")
+        var requests=0,completed=0
+        world.onRequest={ [weak world] _,id in requests+=1;world?.prepareGameplayExit(boardID:id){completed+=1}}
+        unit.sendActions(for:.touchUpInside);unit.sendActions(for:.touchUpInside)
+        XCTAssertEqual(requests,1);XCTAssertFalse(world.isReadyForInput);XCTAssertFalse(world.scrollView.isScrollEnabled)
+        XCTAssertEqual(unit.layer.animation(forKey:"world.idle.y")?.beginTime,wave.beginTime)
+        XCTAssertNotNil(card.layer.animation(forKey:"card.tap.exit"));XCTAssertNil(unit.layer.animation(forKey:"world.exit"))
         try await Task.sleep(for:.milliseconds(70))
-        let after=try XCTUnwrap(unit.layer.presentation()).transform.m42
-        print("[InterimStopDiagnostic] beforeY=\(before) modelY=\(model) after70msY=\(after) displacement=\(after-before)")
-        XCTAssertEqual(after,model,accuracy:0.01,"Removing the wave returns to its neutral model pose")
-        XCTAssertNil(unit.layer.animation(forKey:"world.exit"))
+        let moving=try XCTUnwrap(unit.layer.presentation()).transform.m42
+        XCTAssertGreaterThan(abs(moving-before),0.01,"World continues at its existing clock during the card contact")
+        XCTAssertNotNil(unit.layer.animation(forKey:"world.idle.y"))
+        try await Task.sleep(for:.milliseconds(550))
+        let exit=try XCTUnwrap(unit.layer.animation(forKey:"world.exit") as? CAAnimationGroup)
+        let track=try XCTUnwrap(exit.animations?.first as? CAKeyframeAnimation)
+        let initial=try XCTUnwrap(track.values?.first as? NSValue).caTransform3DValue
+        XCTAssertGreaterThan(abs(initial.m42),0.1,"World exit begins from painted idle offset, not neutral")
+        XCTAssertNil(unit.layer.animation(forKey:"world.idle.y"));XCTAssertNil(unit.layer.animation(forKey:"world.idle.exit-pose"))
+        let bridge=try XCTUnwrap(cloud.layer.animation(forKey:"world.idle.exit-pose"))
+        XCTAssertEqual(bridge.duration,1);XCTAssertEqual(bridge.repeatCount,0);XCTAssertTrue(bridge.isRemovedOnCompletion)
+        XCTAssertEqual(unit.layer.transform.m42,0,"Exit never bakes a pose into the reusable model")
+        let remaining=max(0,bridge.beginTime+bridge.duration-cloud.layer.convertTime(CACurrentMediaTime(),from:nil))
+        try await settle(remaining+0.15);XCTAssertEqual(completed,1)
+        XCTAssertNil(cloud.layer.animation(forKey:"world.idle.exit-pose"),"World exit completion explicitly retires hidden child poses")
+        world.park()
+        XCTAssertNil(unit.layer.animation(forKey:"world.exit"));XCTAssertNil(card.layer.animation(forKey:"card.tap.exit"))
+        }
+    }
+
+    func testInterimExitInterruptionReleasesWorldAndLeavesNoIdleOrBridgeAnimations() async throws {
+        for interruptAfter in [0.07,0.62] {
+            var raw=fixture();var definitions=try XCTUnwrap(raw["units"] as? [[String:Any]])
+            definitions[0]["interim"]=true;definitions[0]["allowedActions"]=["continue"];raw["units"]=definitions
+            var world:JimiNativeWorldView?=try XCTUnwrap(JimiNativeWorldView(snapshot:raw,assets:art))
+            weak var released=world
+            let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+            window.rootViewController=host;window.makeKeyAndVisible();world!.frame=window.bounds;host.view.addSubview(world!)
+            world!.layoutIfNeeded();world!.enter{};try await settle();world!.finishPresentationAdmission()
+            let unit=try XCTUnwrap(descendant(world!,"native.world.card.1") as? UIButton)
+            world!.prepareGameplayExit(boardID:1){}
+            try await settle(interruptAfter)
+            world!.setActive(false);world!.park();world!.cleanup();world!.cleanup()
+            func assertQuiescent(_ view:UIView) {
+                XCTAssertFalse((view.layer.animationKeys() ?? []).contains {$0.hasPrefix("world.idle.") || $0=="card.tap.exit"})
+                view.subviews.forEach {assertQuiescent($0)}
+            }
+            assertQuiescent(world!);XCTAssertNil(unit.layer.animation(forKey:"world.exit"))
+            world!.removeFromSuperview();world=nil;window.isHidden=true
+            try await settle(0.8)
+            XCTAssertNil(released,"Cancelled card/exit completions must release the World")
+        }
     }
 
     func testInterimLaunchComposesCartoonWithExistingCollapseAndCancelsOnPark() async throws {
