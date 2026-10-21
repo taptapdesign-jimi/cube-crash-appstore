@@ -1,0 +1,37 @@
+{
+  "source": "arcade speaking.mp3",
+  "sourceSHA256": "f42751d6901c2c4ef96f49da9d89e137e07a925ee4c0f119aa67360d1ce2142e",
+  "sampleRate": 44100,
+  "channels": 1,
+  "edgeFadeSeconds": 0.005,
+  "boundaryEvidence": "Local SpeechAnalyzer and waveform silence; internal pauses/laughter retained, short natural safety tails, original speed.",
+  "cuts": [
+    {
+      "file": "arcade-01.wav",
+      "text": "Ready, buddy? Let’s stack some dice!",
+      "start": 0.07,
+      "end": 2.98,
+      "duration": 2.91,
+      "peakDBFS": -3.1598309862936413,
+      "dc": -0.0006348080016075374
+    },
+    {
+      "file": "arcade-02.wav",
+      "text": "So many ways to play! What shall we try?",
+      "start": 2.98,
+      "end": 6.43,
+      "duration": 3.45,
+      "peakDBFS": -3.093723380111269,
+      "dc": -0.00041546570082969783
+    },
+    {
+      "file": "arcade-03.wav",
+      "text": "Whoa! Now this is how we roll!",
+      "start": 6.63,
+      "end": 9.95,
+      "duration": 3.32,
+      "peakDBFS": -1.6585918720157684,
+      "dc": -0.0008168467126237731
+    }
+  ]
+}

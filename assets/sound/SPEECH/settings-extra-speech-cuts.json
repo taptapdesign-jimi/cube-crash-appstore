@@ -1,0 +1,28 @@
+{
+  "source": "settings fix it .mp3",
+  "sourceSHA256": "cb484f049eb248d51ad270574c2163c9b15c854885c754d23f8f58da9bcd944a",
+  "sampleRate": 44100,
+  "channels": 1,
+  "edgeFadeSeconds": 0.005,
+  "boundaryEvidence": "Local SpeechAnalyzer and waveform silence; complete phrase with associated character laughter; original tempo.",
+  "cuts": [
+    {
+      "file": "settings-fix-fetch.wav",
+      "text": "I fix it, you fetch it. Deal?",
+      "start": 0,
+      "end": 3.1,
+      "duration": 3.1,
+      "peakDBFS": -2.9399137658133667,
+      "dc": -0.00032269855449320185
+    },
+    {
+      "file": "settings-best-helper.wav",
+      "text": "Best helper ever! Aren’t you!",
+      "start": 3.1,
+      "end": 6.844081632653062,
+      "duration": 3.744081632653061,
+      "peakDBFS": -2.9726977759174034,
+      "dc": -0.0004758153865709828
+    }
+  ]
+}

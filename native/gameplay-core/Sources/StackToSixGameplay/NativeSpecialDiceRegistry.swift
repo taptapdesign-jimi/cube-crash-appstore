@@ -12,6 +12,7 @@ public enum NativeSpecialDiceRegistry {
         public init(_ id: String, _ archetype: NativeWildArchetype, _ texture: String, visualFinale: NativeWildArchetype? = nil, ratio: Double = 0.25) { self.id = id; self.archetype = archetype; self.visualFinale = visualFinale ?? archetype; self.texture = texture; self.inputReleaseRatio = ratio }
     }
     public static let variants: [String: Variant] = Dictionary(uniqueKeysWithValues: [
+        Variant("baloon", .juice, "assets/shop/baloon/baloon.png", ratio: 0.30),
         Variant("fish", .star, "assets/shop/fish/fish.png"),
         Variant("kanta", .star, "assets/shop/kanta/04.png"),
         Variant("bee", .star, "assets/shop/bee/bee1@2x.png"),
@@ -33,7 +34,7 @@ public enum NativeSpecialDiceRegistry {
         if let variant=tile.variant {
             switch variant {
             case "bee","flower","honey","mushroom","barell":return "forest"
-            case "fish","beach-ball","bottle":return "beach"
+            case "baloon","fish","beach-ball","bottle":return "beach"
             case "kanta","robo-cube","spaceship","laser-gun","cubero":return "area55"
             default:return nil
             }

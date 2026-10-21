@@ -24,6 +24,7 @@ struct NativeDragTrailCadence {
 struct NativeDragTrailStyle:Equatable {
     let wild:Bool,round:Bool,colors:[UInt32]
     private static let variants:[String:[UInt32]]=[
+            "baloon":[0xF4E2CD,0x95D0F9,0x5BB6F9],
             "fish":[0xF5D8BF,0xFDAC78,0xFDA458,0xFD7C41],
             "kanta":[0xEBC29B,0xDDAD7F,0xDCFEFB,0x9CFDFC],
             "bee":[0xFAF4ED,0xFAE0BB,0xDB8265,0xD68E62],
@@ -45,7 +46,7 @@ struct NativeDragTrailStyle:Equatable {
         let core=variant.flatMap{NativeSpecialDiceRegistry.variants[$0]?.archetype} ?? core
         var colors=variant.flatMap{variants[$0]} ?? core.flatMap{defaults[$0]} ?? [0xF4EEE7,0xFBE3C5,0xECD7C2,0xE5C7AD,0xFADEC0]
         if core == .tnt {colors += [0xFFD966,0xFFE699]}
-        let round=core != .tnt && (variant.map{["fish","beach-ball","bottle"].contains($0)} ?? (core == .juice))
+        let round=core != .tnt && (variant.map{["baloon","fish","beach-ball","bottle"].contains($0)} ?? (core == .juice))
         return Self(wild:core != nil,round:round,colors:colors)
     }
 }

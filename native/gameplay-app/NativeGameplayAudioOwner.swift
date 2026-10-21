@@ -48,6 +48,20 @@ extension NativeGameplayAudioTransport {
 final class NativeGameplayAudioOwner {
     private let transport:any NativeGameplayAudioTransport
     private let rewardTailFactory:()->any NativeGameplayAudioTransport
+    private let navigationSpeechFactory:()->any NativeGameplayAudioTransport
+    private var navigationHumanVoices:Set<String>=[]
+    private var previousSpeechSelections:[String:Int]=[:]
+    private var navigationSpeech:(id:UUID,transport:any NativeGameplayAudioTransport)?
+    var activeNavigationSpeechCount:Int {navigationSpeech == nil ? 0:1}
+    private let worldTailFactory:()->any NativeGameplayAudioTransport
+    private var worldTail:(id:UUID,transport:any NativeGameplayAudioTransport)?
+    var activeWorldTailCount:Int {worldTail == nil ? 0:1}
+    private let roundWonTailFactory:()->any NativeGameplayAudioTransport
+    private var roundWonTail:(id:UUID,transport:any NativeGameplayAudioTransport)?
+    var activeRoundWonTailCount:Int {roundWonTail == nil ? 0:1}
+    private let arcadeTailFactory:()->any NativeGameplayAudioTransport
+    private var arcadeTail:(id:UUID,transport:any NativeGameplayAudioTransport)?
+    var activeArcadeTailCount:Int {arcadeTail == nil ? 0:1}
     private var rewardTail:(id:UUID,transport:any NativeGameplayAudioTransport)?
     var activeRewardTailCount:Int {rewardTail == nil ? 0:1}
     private let random:()->Double
@@ -70,8 +84,12 @@ final class NativeGameplayAudioOwner {
     private var magnetPullSilentGeneration:UInt64?
     private var magnetPullStopCapture:(generation:UInt64,receipt:UInt64,stop:()->Void)?
     private var observers:[NSObjectProtocol]=[]
-    init(root:URL,enabled:Bool,transport:(any NativeGameplayAudioTransport)?=nil,rewardTailFactory:(()->any NativeGameplayAudioTransport)?=nil,random:@escaping ()->Double={Double.random(in:0..<1)}) {
+    init(root:URL,enabled:Bool,transport:(any NativeGameplayAudioTransport)?=nil,rewardTailFactory:(()->any NativeGameplayAudioTransport)?=nil,arcadeTailFactory:(()->any NativeGameplayAudioTransport)?=nil,roundWonTailFactory:(()->any NativeGameplayAudioTransport)?=nil,worldTailFactory:(()->any NativeGameplayAudioTransport)?=nil,navigationSpeechFactory:(()->any NativeGameplayAudioTransport)?=nil,random:@escaping ()->Double={Double.random(in:0..<1)}) {
         self.transport=transport ?? NativeAVGameplayAudioTransport(root:root);self.enabled=enabled;self.random=random
+        self.navigationSpeechFactory=navigationSpeechFactory ?? {NativeAVGameplayAudioTransport(root:root)}
+        self.worldTailFactory=worldTailFactory ?? {NativeAVGameplayAudioTransport(root:root)}
+        self.roundWonTailFactory=roundWonTailFactory ?? {NativeAVGameplayAudioTransport(root:root)}
+        self.arcadeTailFactory=arcadeTailFactory ?? {NativeAVGameplayAudioTransport(root:root)}
         self.rewardTailFactory=rewardTailFactory ?? {NativeAVGameplayAudioTransport(root:root)}
         self.transport.setSelectedPreparationEnabled(enabled)
         for name in [UIApplication.willResignActiveNotification,UIApplication.didBecomeActiveNotification,AVAudioSession.interruptionNotification,AVAudioSession.mediaServicesWereResetNotification] {
@@ -87,8 +105,8 @@ final class NativeGameplayAudioOwner {
         guard !disposed,value != generation else{return}
         sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.stopAll();generation=value;meterCarrierVoices.removeAll();receipts.removeAll();harpSequenceReady=false;ordinarySixContact=nil;transitionVoices.removeAll();transitionDigitVoices.removeAll()
     }
-    func setEnabled(_ value:Bool) {guard !disposed else{return};enabled=value;transport.setSelectedPreparationEnabled(value);if !value {finishRewardTail();sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.stopAll()}}
-    func setForeground(_ value:Bool) {guard !disposed else{return};foreground=value;transport.setSelectedPreparationForeground(value && !interrupted);if !value {finishRewardTail();sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.stopAll()}}
+    func setEnabled(_ value:Bool) {guard !disposed else{return};enabled=value;transport.setSelectedPreparationEnabled(value);if !value {finishRewardTail();finishArcadeTail();finishRoundWonTail();finishWorldTail();finishNavigationSpeech();sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.stopAll()}}
+    func setForeground(_ value:Bool) {guard !disposed else{return};foreground=value;transport.setSelectedPreparationForeground(value && !interrupted);if !value {finishRewardTail();finishArcadeTail();finishRoundWonTail();finishWorldTail();finishNavigationSpeech();sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.stopAll()}}
     /// Called only for the actually-created committed meter tile after Source's
     /// open/token recheck. Preparation never plays or substitutes a generic cue.
     func prepareSelectedSpecial(special:String,variant:String?,capture:String,generation:UInt64)->Bool {
@@ -138,6 +156,7 @@ final class NativeGameplayAudioOwner {
             let types=tiles.compactMap(\.archetype)+(event.archetype.map{[$0]} ?? [])
             if variants.isEmpty && types.isEmpty {play("regular6");return}
             play("poof")
+            if variants.contains("baloon") {play("foundation");play("baloonMerge")}
             if types.contains(.tnt) || !variants.isDisjoint(with:["flower","beach-ball","laser-gun","barell"]) {tntOrder=shuffle([0,1,2,3,4])}
             if variants.isEmpty && types.contains(.star) {play("star\(pick(4))")}
             if variants.isEmpty && types.contains(.tnt) && tiles.filter({$0.archetype != nil}).count<=1 {play("tnt")}
@@ -197,9 +216,66 @@ final class NativeGameplayAudioOwner {
     }
     func routeFeedback(_ kind:String,receipt:UInt64,generation:UInt64,duration:Double?=nil) {
         guard admit("route",receipt:receipt,generation:generation) else{return}
+        if kind == "high-score-modal-speech" || kind == "combo-modal-speech" {
+            startScoreModalSpeech(combo:kind == "combo-modal-speech");return
+        }
+        if let world=["world-hub-forest":1,"world-hub-space":3,"world-hub-beach":2][kind] {
+            startWorldTail(world:world);return
+        }
+        if ["arcade-island-endurance","arcade-island-pureDice","arcade-island-slowBurn"].contains(kind) {
+            let speech=kind == "arcade-island-slowBurn" && pick(2) == 1 ? "arcadeSlowBurnTea":kind
+            startArcadeTail(groups:[speech,"arcadeIslandDog\(pick(3))"]);return
+        }
+        if kind == "home-settings-character-tap" {
+            startNavigationSpeech(group:["homeSettingsSpeech","settingsSpeech0","settingsSpeech1"][pick(3)]);return
+        }
+        if kind == "collection-icon-speech" {startNavigationSpeech(group:"collectionSpeech\(pick(7))");return}
+        if kind == "home-arcade-character-tap" {
+            let choice=chooseNonRepeatingSpeech("arcade-home")
+            stopCharacterSpeechForReplacement()
+            startNavigationSpeech(group:String(format:"arcade-%02d",choice+1))
+            // Preserve Nala, excluding the retired smile/old human choice.
+            let dog=(NativeAuthoredAudioCatalog.groups["homeCharacter\(pick(3))"] ?? []).filter{$0.voice != "native-home-human"}
+            playNavigationCues(dog,receipt:receipt);return
+        }
+        if ["home-character-tap","home-journey-character-tap"].contains(kind) {
+            // Select each character once for this committed contact. Speech replaces
+            // only the human layer; Nala and finite natural-tail ownership stay intact.
+            finishNavigationSpeech()
+            var cues=NativeAuthoredAudioCatalog.groups["homeCharacter\(pick(3))"] ?? []
+            let options=["smile","lets-go","come-here-look-at-this","treasure"]
+            let human=kind == "home-character-tap" ? "smile" : options[pick(options.count)]
+            if human != "smile",let speech=NativeAuthoredAudioCatalog.groups["homeSpeech-"+human]?.first {
+                cues.removeAll{$0.voice == "native-home-human"};cues.insert(speech,at:0)
+            }
+            playNavigationCues(cues,receipt:receipt);return
+        }
+        if ["exit-modal","hud-modal-open","modal-open","modal-exit","modal-close"].contains(kind) {
+            playNavigationLayer("modalWhoosh",receipt:receipt)
+        }
+        if kind == "modal-close" {play("back");return}
         // Native CTA retains Home icon audio; all Back/Close contacts share their selected cue.
         let mapping=["cta":"tab","card-tap":"cardTap","tab":"tab","hud-icon-tap":"tab","back":"back","close":"back","swipe":"swipe","exit-modal":"exitModal","card-flip":"flip","card-entry-flip":"flip","card-manual-flip":"manualFlip","card-return-flip":"returnFlip","manual-flip":"manualFlip","return-flip":"returnFlip","home-enter":"homeEnter","home-exit":"homeExit","hub-exit":"hubExit","board-enter":"boardEnter","board-exit":"boardExit","backpack":"backpack","crate":"crate","area55-start":"area55Start","forest-transition":"forestTransition"]
         if let group=mapping[kind] {if group=="boardEnter" || group=="boardExit" {sourceBoardEntryOwner=nil};play(group,duration:duration)}
+    }
+    /// Independent finite voices retain natural tails across accepted contacts;
+    /// the existing transport still enforces its32-voice and Settings budgets.
+    private func playNavigationLayer(_ group:String,receipt:UInt64) {
+        playNavigationCues(NativeAuthoredAudioCatalog.groups[group] ?? [],receipt:receipt)
+    }
+    private func playNavigationCues(_ cues:[NativeAudioCue],receipt:UInt64) {
+        for cue in cues {
+            let delivered=NativeAudioCue(source:cue.source,voice:"\(cue.voice)-\(generation)-\(receipt)",
+                gain:cue.gain,rate:cue.rate,delay:cue.delay,stopAfter:cue.stopAfter,fadeOut:cue.fadeOut)
+            if cue.voice == "native-home-human" {
+                navigationHumanVoices.insert(delivered.voice)
+                transport.play(delivered){[weak self] _ in self?.navigationHumanVoices.remove(delivered.voice)}
+            }else{transport.play(delivered)}
+        }
+    }
+    private func stopNavigationHumanVoices() {
+        let ids=navigationHumanVoices;navigationHumanVoices.removeAll()
+        if !ids.isEmpty {transport.stopVoices(ids)}
     }
     /// Board Transition has its own voice identities and contact receipts. The
     /// first digit's exit accent is authored at ENTER, independently of Arcade.
@@ -256,7 +332,9 @@ final class NativeGameplayAudioOwner {
         case "fail-sax":group="failSax"
         case "fail-cta":group="failCTA\(max(0,min(1,index)))"
         case "arcade-victory":group="arcadeVictory"
-        case "arcade-thumb":group="arcadeThumb"
+        case "arcade-thumb":
+            startArcadeTail(groups:[index == 1 ? "arcadeThumbDog\(pick(3))":"arcadeThumbSmile"])
+            group="arcadeThumb"
         case "arcade-digit":group="digit\(max(0,min(1,index)))"
         case "new-card-opening-puff":group="newCardOpeningPuff"
         case "new-card-unlocked-enter":group="newCardUnlockedEnter"
@@ -290,11 +368,12 @@ final class NativeGameplayAudioOwner {
             return
         }
         if moment=="tnt-coin-launch" {
-            transport.play(NativeAudioCue(source:"assets/sound/coins/tnt coin.wav",voice:"native-tnt-coin-\(generation)-\(receipt)",gain:0.3));return
+            transport.play(NativeAudioCue(source:"assets/sound/coins/tnt coin.wav",voice:"native-tnt-coin-\(generation)-\(receipt)",gain:0.12));return
         }
         if moment=="landing" {play("landing");return}
         let group:String?
         switch (variant,moment) {
+        case ("baloon","start"):group="baloonStart"
         case ("juice",_),("mushroom",_):group="juice-\(moment)"
         case ("bottle","pull"):playCapturedMagnetForce("bottleForce",receipt:receipt,generation:generation);group="bottlePull"
         case ("bottle",_):group="bottle-\(moment)"
@@ -406,6 +485,96 @@ final class NativeGameplayAudioOwner {
         }
     }
 
+    /// Bounded independent histories for High Score, Combo and Arcade Home.
+    /// Muted/rejected contacts never enter this selection path.
+    private func chooseNonRepeatingSpeech(_ pool:String)->Int {
+        let choice:Int
+        if let previous=previousSpeechSelections[pool] {
+            let draw=pick(2);choice=draw >= previous ? draw+1:draw
+        }else{choice=pick(3)}
+        previousSpeechSelections[pool]=choice
+        return choice
+    }
+    private func stopCharacterSpeechForReplacement() {
+        stopNavigationHumanVoices();finishWorldTail();finishArcadeTail();finishRoundWonTail()
+    }
+    private func startScoreModalSpeech(combo:Bool) {
+        let pool=combo ? "combo":"high-score"
+        let choice=chooseNonRepeatingSpeech(pool)
+        stopCharacterSpeechForReplacement()
+        startNavigationSpeech(group:String(format:"%@-%02d",pool,choice+1))
+    }
+
+    /// One selected Settings/collection human line owns its natural navigation
+    /// tail. Replacement is bounded; route/generation changes never replay it.
+    private func startNavigationSpeech(group:String) {
+        finishNavigationSpeech()
+        guard let cue=NativeAuthoredAudioCatalog.groups[group]?.first else{return}
+        let id=UUID(),tail=navigationSpeechFactory();navigationSpeech=(id,tail)
+        tail.play(cue){[weak self] _ in
+            guard let self,self.navigationSpeech?.id==id else{return}
+            self.finishNavigationSpeech()
+        }
+    }
+    private func finishNavigationSpeech() {
+        let old=navigationSpeech;navigationSpeech=nil
+        old?.transport.dispose()
+    }
+
+    /// Only the accepted Worlds Hub tap selects a line. Its selected-file
+    /// transport retains a finite natural tail through World/Play navigation.
+    private func startWorldTail(world:Int) {
+        finishNavigationSpeech();finishWorldTail()
+        let count=world == 1 ? 5:4
+        guard let cue=NativeAuthoredAudioCatalog.groups["worldSpeech-\(world)-\(pick(count))"]?.first else{return}
+        let id=UUID(),tail=worldTailFactory();worldTail=(id,tail)
+        tail.play(cue){[weak self] _ in
+            guard let self,self.worldTail?.id==id else{return}
+            self.finishWorldTail()
+        }
+    }
+    private func finishWorldTail() {
+        let old=worldTail;worldTail=nil
+        old?.transport.dispose()
+    }
+
+    /// Confirmed complete board, before board exit/result admission. Receipts are
+    /// consumed while muted; a result generation never replays the selection.
+    func roundWon(receipt:UInt64,generation:UInt64) {
+        guard admit("round-won",receipt:receipt,generation:generation) else{return}
+        finishNavigationSpeech();finishRoundWonTail()
+        guard let cue=NativeAuthoredAudioCatalog.groups["roundWon\(pick(10))"]?.first else{return}
+        let id=UUID(),tail=roundWonTailFactory();roundWonTail=(id,tail)
+        tail.play(cue){[weak self] _ in
+            guard let self,self.roundWonTail?.id==id else{return}
+            self.finishRoundWonTail()
+        }
+    }
+    private func finishRoundWonTail() {
+        let old=roundWonTail;roundWonTail=nil
+        old?.transport.dispose()
+    }
+
+    // One selected Arcade character package survives Play/Continue and stage generations.
+    // A new character contact replaces it; actual completion releases players/cache.
+    private func startArcadeTail(groups:[String]) {
+        finishNavigationSpeech();finishArcadeTail()
+        let cues=groups.flatMap {NativeAuthoredAudioCatalog.groups[$0] ?? []}
+        guard !cues.isEmpty else{return}
+        let id=UUID(),tail=arcadeTailFactory();arcadeTail=(id,tail)
+        var pending=Set(cues.map(\.voice))
+        for cue in cues {
+            tail.play(cue){[weak self] _ in
+                guard let self,self.arcadeTail?.id==id,pending.remove(cue.voice) != nil else{return}
+                if pending.isEmpty {self.finishArcadeTail()}
+            }
+        }
+    }
+    private func finishArcadeTail() {
+        let old=arcadeTail;arcadeTail=nil
+        old?.transport.dispose()
+    }
+
     private func finishRewardTail() {
         let old=rewardTail;rewardTail=nil
         old?.transport.dispose()
@@ -419,14 +588,14 @@ final class NativeGameplayAudioOwner {
         transport.stopVoices(voices)
     }
     func stop() {sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.stopAll();meterCarrierVoices.removeAll();generation &+= 1;receipts.removeAll();harpSequenceReady=false;ordinarySixContact=nil}
-    func dispose() {guard !disposed else{return};disposed=true;finishRewardTail();sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;meterCarrierVoices.removeAll();transport.dispose();for observer in observers {NotificationCenter.default.removeObserver(observer)};observers.removeAll();receipts.removeAll()}
+    func dispose() {guard !disposed else{return};disposed=true;finishRewardTail();finishArcadeTail();finishRoundWonTail();finishWorldTail();finishNavigationSpeech();sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;meterCarrierVoices.removeAll();transport.dispose();for observer in observers {NotificationCenter.default.removeObserver(observer)};observers.removeAll();receipts.removeAll()}
     private func notification(name:String,interruption:UInt?) {
         if name==UIApplication.willResignActiveNotification.rawValue {setForeground(false)}
         else if name==UIApplication.didBecomeActiveNotification.rawValue {interrupted=false;setForeground(true)}
         else if name==AVAudioSession.interruptionNotification.rawValue {
             guard let raw=interruption,let type=AVAudioSession.InterruptionType(rawValue:raw) else{return}
-            interrupted=type == .began;transport.setSelectedPreparationForeground(foreground && !interrupted);if interrupted {finishRewardTail();sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.stopAll()}
-        } else {finishRewardTail();interrupted=false;sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.setSelectedPreparationEnabled(false);transport.stopAll();transport.setSelectedPreparationEnabled(enabled);transport.setSelectedPreparationForeground(foreground)}
+            interrupted=type == .began;transport.setSelectedPreparationForeground(foreground && !interrupted);if interrupted {finishRewardTail();finishArcadeTail();finishRoundWonTail();finishWorldTail();finishNavigationSpeech();sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.stopAll()}
+        } else {finishRewardTail();finishArcadeTail();finishRoundWonTail();finishWorldTail();finishNavigationSpeech();interrupted=false;sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.setSelectedPreparationEnabled(false);transport.stopAll();transport.setSelectedPreparationEnabled(enabled);transport.setSelectedPreparationForeground(foreground)}
     }
 }
 

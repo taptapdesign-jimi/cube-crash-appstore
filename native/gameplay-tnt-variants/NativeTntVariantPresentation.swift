@@ -17,6 +17,8 @@ final class NativeTntVariantPresentation: NativeFinitePresentation {
     private let effectCenter: CGPoint
     private var clouds: [Cloud] = [],petals: [Petal] = [],debris: [Debris] = []
     private var receipts = Set<String>()
+    private var finishedClouds=Set<Int>(),finishedPetals=Set<Int>(),finishedDebris=Set<Int>()
+    private var lastPaintTime:TimeInterval?
     private var cancelled = false
     static func assets(_ variant: Variant) -> [String] {
         if variant == .flower {
@@ -74,6 +76,12 @@ final class NativeTntVariantPresentation: NativeFinitePresentation {
     private func fire(_ name:String,_ callback:(() -> Void)?) { if receipts.insert(name).inserted { callback?() } }
     override func paint(seconds time: TimeInterval) {
         guard !cancelled,assetsReady else { return }
+        // Retain final hidden poses but stop evaluating/mutating retired art.
+        // Explicit backward sampling restores the original authored pose.
+        if let previous=lastPaintTime,time<previous {
+            finishedClouds.removeAll();finishedPetals.removeAll();finishedDebris.removeAll()
+        }
+        lastPaintTime=time
         glyphs.paint(seconds:time)
         if time>=0.51 { fire("frame6",onSprite6Entered) }
         let sequenceEnd=1.01+Double(clouds.count-1)*0.04+0.30
@@ -83,10 +91,10 @@ final class NativeTntVariantPresentation: NativeFinitePresentation {
         }
         if variant == .barell,time>=0.91,receipts.insert("poof").inserted { onCue?("smoke",0) }
         if variant == .flower,time>=sequenceEnd*0.9,receipts.insert("leaves").inserted { onCue?("leaves",0) }
-        for cloud in clouds {
+        for cloud in clouds where !finishedClouds.contains(cloud.index) {
             let enter=0.07+Double(cloud.index)*0.04,settle=enter+0.24,exit=1.01+Double(cloud.index)*0.04
             if time<enter { continue }
-            if time>=exit+0.30 || (variant == .flower && cloud.index<2 && time>=1.01) { cloud.view.alpha=0;continue }
+            if time>=exit+0.30 || (variant == .flower && cloud.index<2 && time>=1.01) { cloud.view.alpha=0;finishedClouds.insert(cloud.index);continue }
             var scale:Double=0,alpha:Double=1,y:Double=0
             if time<settle { let p=Double(NativeBoardMotion.Ease.backOut(2).sample((time-enter)/0.24));scale=cloud.size*1.2*p;alpha=p }
             else if time<settle+0.1 { let p=Double(NativeBoardMotion.Ease.power2Out.sample((time-settle)/0.1));scale=cloud.size*(1.2-0.2*p) }
@@ -99,19 +107,23 @@ final class NativeTntVariantPresentation: NativeFinitePresentation {
             cloud.view.center=CGPoint(x:effectCenter.x,y:effectCenter.y+CGFloat(y));cloud.view.alpha=CGFloat(min(1,max(0,alpha)))
             cloud.view.transform=CGAffineTransform(rotationAngle:cloud.rotation).scaledBy(x:CGFloat(scale)*(variant == .flower ? 0.84:1),y:CGFloat(scale)*(variant == .flower ? 1:1.4))
         }
-        for petal in petals {
+        for (index,petal) in petals.enumerated() where !finishedPetals.contains(index) {
+            if time<petal.plan.delay {if petal.view.alpha != 0 {petal.view.alpha=0};continue}
             let pose=NativeTntVariantPlanning.flowerPose(petal.plan,time:time)
             let extent=max(1,max(petal.view.bounds.width,petal.view.bounds.height))
             let scale=CGFloat(petal.plan.size*pose.scale)/extent
             petal.view.center=CGPoint(x:effectCenter.x+CGFloat(pose.x),y:effectCenter.y+CGFloat(pose.y));petal.view.alpha=CGFloat(pose.alpha)
             petal.view.transform=CGAffineTransform(rotationAngle:pose.rotation).scaledBy(x:scale,y:scale);petal.view.layer.zPosition=pose.depth
+            if time>=petal.plan.delay+petal.plan.duration {finishedPetals.insert(index)}
         }
-        for item in debris {
+        for (index,item) in debris.enumerated() where !finishedDebris.contains(index) {
+            if time<item.plan.delay {if item.view.alpha != 0 {item.view.alpha=0};continue}
             let plan=item.plan,p=min(1,max(0,(time-plan.delay)/plan.duration)),point=NativeTntVariantPlanning.point(plan,p)
             let extent=max(1,max(item.view.bounds.width,item.view.bounds.height))
             let scale=CGFloat(plan.size*item.sizeScale*NativeTntVariantPlanning.scale(plan,p))/extent
             item.view.center=CGPoint(x:effectCenter.x+CGFloat(point.0),y:effectCenter.y+CGFloat(point.1));item.view.alpha=CGFloat(min(1,p/0.12)*(1-max(0,(p-0.78)/0.22)))
             item.view.transform=CGAffineTransform(rotationAngle:plan.startRotation+plan.rotationTravel*(1-pow(1-p,2.35))).scaledBy(x:scale,y:scale)
+            if time>=plan.delay+plan.duration {finishedDebris.insert(index)}
         }
     }
     private static func elastic(_ p:Double)->Double {

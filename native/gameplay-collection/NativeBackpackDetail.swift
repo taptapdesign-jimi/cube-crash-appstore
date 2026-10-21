@@ -44,7 +44,7 @@ final class NativeBackpackDetail:UIViewController {
         backdrop.accessibilityIdentifier="native.backpack.detail.backdrop"
         backdrop.alpha=0;backdrop.backgroundColor=usesParentBackdrop ? .clear:JimiNativeModalV10.backdropColor;backdrop.addTarget(self,action:#selector(closeTapped),for:.touchUpInside);view.addSubview(backdrop);view.addSubview(card)
         paper.image=assets.image("assets/modals/paper.png");paper.layer.cornerRadius=40;paper.clipsToBounds=true;paper.accessibilityIdentifier="native.backpack.detail.paper";idle.addSubview(paper)
-        idle.layer.shadowColor=UIColor(red:185/255,green:145/255,blue:119/255,alpha:1).cgColor;idle.layer.shadowOpacity=0.8;idle.layer.shadowOffset=CGSize(width:0,height:13);idle.layer.shadowRadius=16.8
+        idle.layer.shadowColor=UIColor(red:185/255,green:145/255,blue:119/255,alpha:1).cgColor;idle.layer.shadowOpacity=die.id=="baloon" ? 0:0.8;idle.layer.shadowOffset=CGSize(width:0,height:13);idle.layer.shadowRadius=16.8
         heading.textAlignment = .center;heading.font=assets.font(size:30,weight:"ExtraBold");heading.textColor=NativeBackpackCellPalette.ink
         let title=NSMutableAttributedString(string:die.title)
         if let space=die.title.firstIndex(of:" ") {

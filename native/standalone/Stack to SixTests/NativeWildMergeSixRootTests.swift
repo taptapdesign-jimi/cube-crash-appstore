@@ -10,11 +10,26 @@ import StackToSixGameplay
 @MainActor
 final class NativeWildMergeSixRootTests:XCTestCase {
     private var timeoutDiagnostic:(()->String)?
+    private var boardScaleAudit:(()->Void)?
     private func wait(_ label:String,_ predicate:()->Bool)async throws {
         let deadline=Date().addingTimeInterval(40)
         while !predicate(){
+            boardScaleAudit?()
             guard Date()<deadline else{XCTFail("WildMergeSixRoot timeout=\(label) \(timeoutDiagnostic?() ?? "")");throw NSError(domain:label,code:1)}
             try await Task.sleep(for:.milliseconds(20))
+        }
+        boardScaleAudit?()
+    }
+    func testBeachBallMergeKeepsUnrelatedBoardDiceFullSize()async throws {
+        try await exercise(archetype:.tnt,variant:"beach-ball",reverse:false,disposeDuringMain:false,moves:49,verifyBoardScale:true)
+    }
+    func testAllArchetypesAndVariantsKeepUnrelatedBoardDiceFullSizeBothDirections()async throws {
+        let choices=NativeWildArchetype.allCases.map{($0,Optional<String>.none)} +
+            NativeSpecialDiceRegistry.variants.values.sorted{$0.id<$1.id}.map{($0.archetype,Optional($0.id))}
+        for (archetype,variant) in choices {
+            for reverse in [false,true] {
+                try await exercise(archetype:archetype,variant:variant,reverse:reverse,disposeDuringMain:false,moves:49,verifyBoardScale:true)
+            }
         }
     }
     func testAllSeventeenCoreAndVariantWildsUseActualSourceMainPullAndImpactParticlesInBothDirections()async throws {
@@ -24,6 +39,33 @@ final class NativeWildMergeSixRootTests:XCTestCase {
             try await exercise(archetype:archetype,variant:variant,reverse:false)
             try await exercise(archetype:archetype,variant:variant,reverse:true)
         }
+    }
+    func testBaloonJourneyBlockerSource()async throws {
+        try await exercise(archetype:.juice,variant:"baloon",reverse:false,disposeDuringMain:false,moves:49,finalOnly:false,arcadeRun:false)
+    }
+    func testBaloonJourneyBlockerDestination()async throws {
+        try await exercise(archetype:.juice,variant:"baloon",reverse:true,disposeDuringMain:false,moves:49,finalOnly:false,arcadeRun:false)
+    }
+    func testBaloonJourneyFinalSource()async throws {
+        try await exercise(archetype:.juice,variant:"baloon",reverse:false,disposeDuringMain:false,moves:49,finalOnly:true,arcadeRun:false)
+    }
+    func testBaloonJourneyFinalDestination()async throws {
+        try await exercise(archetype:.juice,variant:"baloon",reverse:true,disposeDuringMain:false,moves:49,finalOnly:true,arcadeRun:false)
+    }
+    func testBaloonArcadeBlockerSource()async throws {
+        try await exercise(archetype:.juice,variant:"baloon",reverse:false,disposeDuringMain:false,moves:49,finalOnly:false,arcadeRun:true)
+    }
+    func testBaloonArcadeBlockerDestination()async throws {
+        try await exercise(archetype:.juice,variant:"baloon",reverse:true,disposeDuringMain:false,moves:49,finalOnly:false,arcadeRun:true)
+    }
+    func testBaloonArcadeFinalSource()async throws {
+        try await exercise(archetype:.juice,variant:"baloon",reverse:false,disposeDuringMain:false,moves:49,finalOnly:true,arcadeRun:true)
+    }
+    func testBaloonArcadeFinalDestination()async throws {
+        try await exercise(archetype:.juice,variant:"baloon",reverse:true,disposeDuringMain:false,moves:49,finalOnly:true,arcadeRun:true)
+    }
+    func testSoleBaloonDestinationActualArcadeMergeMountsSVGAndBalloons()async throws {
+        try await exercise(archetype:.juice,variant:"baloon",reverse:true,disposeDuringMain:false,moves:49,arcadeRun:true,verifyBaloonRetirement:true)
     }
     func testSpaceshipDestinationActualSourceParticlesSettleAndContinue()async throws {
         try await exercise(archetype:.magnet,variant:"spaceship",reverse:true)
@@ -44,8 +86,13 @@ final class NativeWildMergeSixRootTests:XCTestCase {
         try await exercise(archetype:.tnt,variant:"laser-gun",reverse:false,disposeDuringMain:false,laserInterveningStack:true,initialMeter:0.8)
         try await exercise(archetype:.tnt,variant:"laser-gun",reverse:true,disposeDuringMain:false,laserInterveningStack:true,arcadeRun:true,initialMeter:0.8)
     }
+    func testCoreTNTArcadeDestinationActualImpactSharedLayersSettleAndContinue()async throws {
+        try await exercise(archetype:.tnt,variant:nil,reverse:true,disposeDuringMain:false,moves:49,arcadeRun:true)
+    }
     func testCoreTNTDestinationActualImpactSharedLayersSettleAndContinue()async throws {
-        try await exercise(archetype:.tnt,variant:nil,reverse:true,disposeDuringMain:false)
+        // A restored fixture must contain a committed move;50/50 is correctly
+        // treated as unplayed and replaced before any TNT presentation exists.
+        try await exercise(archetype:.tnt,variant:nil,reverse:true,disposeDuringMain:false,moves:49)
     }
     func testTutorialAssistFinalStarMergeShowsCompletionAndContinue()async throws {
         try await exercise(archetype:.star,variant:nil,reverse:true,disposeDuringMain:false,finalOnly:true,starCount:0,tutorialAssist:true)
@@ -86,8 +133,8 @@ final class NativeWildMergeSixRootTests:XCTestCase {
         try await exercise(archetype:.star,variant:nil,reverse:true,disposeDuringMain:false,starCount:0,freshStar:true)
     }
     func testBeeSourceAndDestinationSettleAndAdmitNextActualDrag()async throws {
-        try await exercise(archetype:.star,variant:"bee",reverse:false,disposeDuringMain:false)
-        try await exercise(archetype:.star,variant:"bee",reverse:true,disposeDuringMain:false)
+        try await exercise(archetype:.star,variant:"bee",reverse:false,disposeDuringMain:false,moves:49)
+        try await exercise(archetype:.star,variant:"bee",reverse:true,disposeDuringMain:false,moves:49)
     }
     func testHiddenVariantDropCountsSettleWithoutOrbitPresentation()async throws {
         for (variant,count) in [("fish",1),("kanta",2),("cubero",3)] {
@@ -125,7 +172,7 @@ final class NativeWildMergeSixRootTests:XCTestCase {
     func testMagnetDestinationPullsVisibleKantaAndCompletesItsActualRestoredMove()async throws {
         try await exercise(archetype:.magnet,variant:nil,reverse:true,disposeDuringMain:false,pulledKanta:true,moves:34)
     }
-    private func exercise(archetype:NativeWildArchetype,variant:String?,reverse:Bool,disposeDuringMain:Bool=true,pulledKanta:Bool=false,moves:Int=50,finalOnly:Bool=false,starCount:Int=3,capturedBoard:NativeBoardState?=nil,freshStar:Bool=false,verifyStarTail:Bool=false,interveningOrdinary:Bool=false,interveningSix:Bool=false,heldOrdinaryMilliseconds:Int=160,rapidOrdinaryContacts:Int=0,tutorialAssist:Bool=false,arcadeTutorial:Bool=false,laserInterveningStack:Bool=false,arcadeRun:Bool=false,initialMeter:Double?=nil)async throws {
+    private func exercise(archetype:NativeWildArchetype,variant:String?,reverse:Bool,disposeDuringMain:Bool=true,pulledKanta:Bool=false,moves:Int=50,finalOnly:Bool=false,starCount:Int=3,capturedBoard:NativeBoardState?=nil,freshStar:Bool=false,verifyStarTail:Bool=false,interveningOrdinary:Bool=false,interveningSix:Bool=false,heldOrdinaryMilliseconds:Int=160,rapidOrdinaryContacts:Int=0,tutorialAssist:Bool=false,arcadeTutorial:Bool=false,laserInterveningStack:Bool=false,arcadeRun:Bool=false,initialMeter:Double?=nil,verifyBaloonRetirement:Bool=false,verifyBoardScale:Bool=false)async throws {
         let label=(variant ?? archetype.rawValue)+(reverse ? ":destination":":source")
         print("[WildMergeSixRoot] start \(label)")
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("wild-six-particles-"+UUID().uuidString)
@@ -165,7 +212,7 @@ final class NativeWildMergeSixRootTests:XCTestCase {
         let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844))
         if interveningOrdinary {window.windowScene=try XCTUnwrap(previous?.windowScene,"Overlap fixture must mount on the actual Simulator UIWindowScene")}
         window.rootViewController=host;window.makeKeyAndVisible()
-        defer{host.dispose();window.isHidden=true;previous?.makeKeyAndVisible();try? FileManager.default.removeItem(at:directory);timeoutDiagnostic=nil}
+        defer{host.dispose();window.isHidden=true;previous?.makeKeyAndVisible();try? FileManager.default.removeItem(at:directory);timeoutDiagnostic=nil;boardScaleAudit=nil}
         host.loadViewIfNeeded();let app=try XCTUnwrap(host.children.first as? NativeAppController)
         func game()->NativeGameplayViewController? {app.children.compactMap{$0 as? NativeGameplayViewController}.first}
         timeoutDiagnostic={"route=\(app.route) homeHidden=\(app.home.isHidden) worldReady=\(app.world?.isReadyForInput==true) gameplay=\(game() != nil)"}
@@ -185,6 +232,31 @@ final class NativeWildMergeSixRootTests:XCTestCase {
             XCTAssertEqual(gameplay.engine.state.tiles.first{$0.id==wildID}?.variant,variant)
             XCTAssertEqual(gameplay.engine.state.tiles.first{$0.id==wildID}?.gameplayArchetype,archetype)
         }
+        if verifyBoardScale {
+            let mergedPair=Set(board.tiles.prefix(2).map(\.id))
+            var reported=Set<String>()
+            boardScaleAudit={
+                for tile in gameplay.engine.state.tiles where !mergedPair.contains(tile.id) && !tile.isWild {
+                    guard !tile.magnetOwned,!tile.pendingRemoval,!tile.resolutionOwned,
+                          let node=scene.sourceNativeTileNode(tile.id),!node.isSpecial,!node.sourceMagnetPullProtected,node.parent != nil,
+                          !node.isHidden,node.alpha>0.01,!node.visual.isHidden,
+                          let face=node.visual.children.compactMap({$0 as? SKSpriteNode}).first(where:{$0.texture === node.sourcePaintedNumbersTexture}) else{continue}
+                    let message="\(label) tile=\(tile.id) value=\(tile.value) locked=\(tile.locked) face=\(face.frame.size) outer=\(node.sourceLocalScale) visual=\(node.visual.xScale),\(node.visual.yScale) owners=\(node.sourceOuterOwners) appBounce=\(node.sourceAppSpawnOwnsOuterScale)"
+                    if abs(face.frame.width-128)>0.001 || abs(face.frame.height-128)>0.001 {
+                        if reported.insert(tile.id+":face").inserted {XCTFail(message)}
+                    }
+                    if scene.sourceOwnsNewFaceEntry(tile.id) {
+                        XCTAssertGreaterThanOrEqual(min(node.sourceLocalScale.x*node.visual.xScale,node.sourceLocalScale.y*node.visual.yScale),0.699,"Entry must not compound outer and inner scaling: "+message)
+                    }
+                    if !node.sourceOuterOwners.competes && !node.sourceIsBeingSpawned && !node.sourceSkipIdleScaleReset && !scene.sourceOwnsNewFaceEntry(tile.id) && !node.visual.hasActions() {
+                        if min(node.sourceLocalScale.x,node.sourceLocalScale.y)<0.94 || min(node.visual.xScale,node.visual.yScale)<0.94 {
+                            if reported.insert(tile.id+":scale").inserted {XCTFail(message)}
+                        }
+                    }
+                }
+            }
+            boardScaleAudit?()
+        }
         var failure:String?
         let original=scene.onSourcePresentationFailure
         scene.onSourcePresentationFailure={reason,generation in failure=reason;print("[WildMergeSixRoot] \(label) failure=\(reason)");original?(reason,generation)}
@@ -193,6 +265,21 @@ final class NativeWildMergeSixRootTests:XCTestCase {
             failure="plain:"+reason
             print("[WildMergeSixRoot] \(label) failure=\(reason) \(self.timeoutDiagnostic?() ?? "")")
             originalPlainFailure?(reason)
+        }
+        var baloonDestinationPrefixObservations=0
+        if variant=="baloon" {
+            let originalStateChange=scene.onStateChange
+            scene.onStateChange={ [weak gameplay,weak scene] state in
+                originalStateChange?(state)
+                guard let gameplay,let scene,
+                      let plan=gameplay.engine.pendingDirectWild,plan.generation==state.generation,plan.variant=="baloon",
+                      let prefix=gameplay.engine.sourceDirectWildPrefix,prefix.id==plan.id,prefix.generation==state.generation,
+                      let destination=state.tiles.first(where:{$0.id==plan.destination.id}),
+                      destination.variant=="baloon",!destination.isWild else{return}
+                baloonDestinationPrefixObservations+=1
+                XCTAssertTrue(scene.authoredFinalePresentationReady?("baloon")==true,
+                    "Cleared destination prefix must retain transaction-owned Baloon resources: "+label)
+            }
         }
         func drag(_ source:String,_ target:String,holdMilliseconds:Int=160)async throws {
             let inputTasks=try XCTUnwrap(scope.sourceMicrotaskTasks)
@@ -248,6 +335,31 @@ final class NativeWildMergeSixRootTests:XCTestCase {
         let encoder=JSONEncoder();encoder.outputFormatting=[.sortedKeys]
         XCTAssertEqual(try scene.sourceWildOrdinaryMergeSixSmokeRecipes[mainKey]?.map{try encoder.encode($0)},
             [try encoder.encode(ordinarySmoke)],"Every actual Wild/Special main borrows ordinary merge6 clouds: "+label)
+        weak var mountedBaloon:NativeBaloonFinalePresentation?
+        if variant=="baloon" {
+            if reverse {
+                XCTAssertGreaterThan(baloonDestinationPrefixObservations,0,
+                    "Actual ordinary-to-Baloon merge must observe its Wild-clearing prefix: "+label)
+            }
+            // Main particles can succeed while the selected UIKit resources have
+            // been retired by the destination's earlier Wild-clearing prefix.
+            // Require the actual merge to mount and paint the complete finale.
+            let baloon=try XCTUnwrap(gameplay.view.subviews.compactMap{$0 as? NativeBaloonFinalePresentation}.first,
+                "Actual Baloon merge must mount its SVG and balloon finale: "+label)
+            mountedBaloon=baloon
+            XCTAssertTrue(baloon.assetReady,label)
+            XCTAssertTrue(baloon.hasActiveClock,label)
+            XCTAssertEqual(baloon.flightSnapshot.count,24,label)
+            let bodies=baloon.subviews.compactMap{$0 as? UIImageView}
+            XCTAssertEqual(bodies.count,24,label)
+            XCTAssertTrue(bodies.allSatisfy{$0.image != nil},label)
+            XCTAssertNotNil(baloon.subviews.first{$0.accessibilityIdentifier=="native-baloon-caption"},label)
+            let hero=try XCTUnwrap(baloon.subviews.last,label)
+            try await wait(label+":baloon-SVG-painted") {hero.layer.sublayers?.first?.contents != nil}
+            XCTAssertTrue(baloon.superview === gameplay.view,label)
+            XCTAssertFalse(hero.isHidden,label)
+            XCTAssertGreaterThan(hero.alpha,0,label)
+        }
         if variant=="spaceship" {
             let ship=try XCTUnwrap(gameplay.view.subviews.compactMap{$0 as? NativeSpaceshipFinalePresentation}.first,
                 "The actual Magnet main must mount WOOMBUU's ship, beams and debris")
@@ -312,6 +424,23 @@ final class NativeWildMergeSixRootTests:XCTestCase {
             XCTAssertEqual(scope.smoke.activeOwnerCount,0,label)
             print("[WildMergeSixRoot] active disposal PASS \(label)")
             return
+        }
+        if verifyBaloonRetirement {
+            var retiringBaloon:NativeBaloonFinalePresentation?=try XCTUnwrap(mountedBaloon,label)
+            try await wait(label+":baloon-natural-retirement") {
+                retiringBaloon?.superview == nil && retiringBaloon?.hasActiveClock == false
+            }
+            XCTAssertNil(retiringBaloon?.superview,label)
+            XCTAssertFalse(retiringBaloon?.hasActiveClock ?? true,label)
+            XCTAssertFalse(gameplay.engine.state.tiles.contains{$0.isWild && $0.variant=="baloon"},label)
+            XCTAssertNil(gameplay.engine.pendingDirectWild,label)
+            XCTAssertNil(gameplay.engine.pendingSpecial,label)
+            XCTAssertNil(gameplay.engine.pendingSourceLateFinalMerge,label)
+            XCTAssertFalse(scene.authoredFinalePresentationReady?("baloon") ?? true,
+                "Completed transaction and finite finale must retire selected Baloon resources: "+label)
+            retiringBaloon=nil
+            try await wait(label+":baloon-deallocated") {mountedBaloon == nil}
+            XCTAssertNil(mountedBaloon,label)
         }
         if verifyStarTail {
             try await Task.sleep(for:.milliseconds(1500))

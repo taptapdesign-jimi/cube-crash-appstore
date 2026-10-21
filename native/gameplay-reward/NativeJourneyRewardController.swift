@@ -167,6 +167,7 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
     override func viewDidAppear(_ animated:Bool) {super.viewDidAppear(animated);start()}
     func start() {
         guard !started,!disposed,!revealRunning,!revealed,!resolved else{return};started=true;phase="entering"
+        onSoundMoment?("modal-open",0,generation)
         onSoundMoment?("new-card-happy",0,generation);onHaptic?("medium")
         animate(headingLabel.layer,"transform",from:NSValue(caTransform3D:spatial(scale:0,y:-28)),to:NSValue(caTransform3D:CATransform3DIdentity),duration:0.24,ease:.backOut(1.65))
         animate(headingLabel.layer,"opacity",from:0,to:1,duration:0.24)
@@ -264,6 +265,7 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
     }
     private func collect() {
         guard !disposed,!resolved,!revealRunning,revealed else{return};resolved=true;phase="exiting";epoch &+= 1;cancelTasks();removeAnimations();hand.alpha=0;coach.alpha=0
+        onSoundMoment?("modal-exit",0,generation)
         onSoundMoment?("cta",0,generation);onHaptic?("selection")
         let inflation=reducedMotion ? 0 : 0.12,collapse=reducedMotion ? 0.16 : 0.224
         if inflation>0 {animate(pose.layer,"transform",from:NSValue(caTransform3D:CATransform3DIdentity),to:NSValue(caTransform3D:spatial(scaleX:1.18,scaleY:1.15)),duration:inflation,ease:.powerIn(2))}

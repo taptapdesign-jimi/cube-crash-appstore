@@ -40,8 +40,8 @@ final class NativeOwnedMetalGameplayView: MTKView, @preconcurrency MTKViewDelega
         isOpaque=false;backgroundColor = .clear;clearColor=MTLClearColorMake(0,0,0,0)
         colorPixelFormat = .bgra8Unorm;framebufferOnly=true
         depthStencilPixelFormat = .invalid;sampleCount=1
-        contentScaleFactor=1;autoResizeDrawable=false
-        drawableSize=CGSize(width:max(1,bounds.width),height:max(1,bounds.height))
+        contentScaleFactor=UIScreen.main.scale;autoResizeDrawable=false
+        updateDrawableResolution()
         preferredFramesPerSecond=60;enableSetNeedsDisplay=false;isPaused=true
         ownedRenderer.ignoresSiblingOrder=false
         delegate=self
@@ -88,11 +88,18 @@ final class NativeOwnedMetalGameplayView: MTKView, @preconcurrency MTKViewDelega
     func retirePresentation(){_ = presentScene(nil)}
     override func layoutSubviews(){
         super.layoutSubviews()
-        let desired=CGSize(width:max(1,bounds.width),height:max(1,bounds.height))
+        updateDrawableResolution()
+    }
+    private func updateDrawableResolution() {
+        let scale=window?.screen.scale ?? UIScreen.main.scale
+        if contentScaleFactor != scale {contentScaleFactor=scale}
+        let desired=CGSize(width:max(1,(bounds.width*scale).rounded(.up)),
+                           height:max(1,(bounds.height*scale).rounded(.up)))
         if drawableSize != desired {drawableSize=desired}
     }
     override func didMoveToWindow(){
         super.didMoveToWindow()
+        updateDrawableResolution()
         guard window == nil,let scene=ownedRenderer.scene as? NativeBoardScene else{return}
         let epoch=presentationEpoch
         scene.renderPipelineProbe?.cancel(scene:scene,reason:"window-detached")

@@ -26,7 +26,7 @@ final class NativeGameplayTests: XCTestCase {
             let result = move(engine,"a",b)
             XCTAssertEqual(result.resolution.reason,"final_wild_merge6",wild.rawValue); XCTAssertTrue(result.state.tiles.isEmpty); XCTAssertEqual(result.state.wildMeter,0)
         }
-        XCTAssertEqual(NativeSpecialDiceRegistry.variants.count,13)
+        XCTAssertEqual(NativeSpecialDiceRegistry.variants.count,14)
         for variant in NativeSpecialDiceRegistry.variants.values {
             let a = tile("a",6,0,wild:variant.archetype,variant:variant.id), b = tile("b",1,1)
             let engine = NativeGameplayEngine(state:NativeBoardState(tiles:[a,b]))

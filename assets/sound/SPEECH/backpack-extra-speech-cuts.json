@@ -1,0 +1,73 @@
+{
+  "source": "backpack i box ikone.mp3",
+  "sourceSHA256": "93efd1d25d1fbb38e2723a09afc7ca01afe10abceb79692cd7c9d325583428ac",
+  "sampleRate": 44100,
+  "channels": 1,
+  "edgeFadeSeconds": 0.005,
+  "boundaryEvidence": "Local SpeechAnalyzer and waveform silence; complete phrase with associated character laughter; original tempo.",
+  "cuts": [
+    {
+      "file": "collection-see-what-weve-got.wav",
+      "text": "Let’s see what we’ve got here!",
+      "start": 0,
+      "end": 1.8,
+      "duration": 1.8,
+      "peakDBFS": -2.8806216569921164,
+      "dc": -0.0005312157686425265
+    },
+    {
+      "file": "collection-little-look.wav",
+      "text": "Let’s have a little look!",
+      "start": 1.8,
+      "end": 3.32,
+      "duration": 1.52,
+      "peakDBFS": -2.397928099776294,
+      "dc": -0.00043295334341247465
+    },
+    {
+      "file": "collection-what-in-here.wav",
+      "text": "Hmm... what have we got in here?",
+      "start": 3.32,
+      "end": 5.91,
+      "duration": 2.59,
+      "peakDBFS": -5.689297264923276,
+      "dc": -0.00014424878652796383
+    },
+    {
+      "file": "collection-every-adventure.wav",
+      "text": "A little something for every adventure!",
+      "start": 5.91,
+      "end": 8.3,
+      "duration": 2.39,
+      "peakDBFS": -1.4518808956932352,
+      "dc": -0.0007045553556641014
+    },
+    {
+      "file": "collection-packed-ready.wav",
+      "text": "All packed and ready!",
+      "start": 8.3,
+      "end": 10.28,
+      "duration": 1.98,
+      "peakDBFS": -2.805972667788777,
+      "dc": -0.0005378584218567478
+    },
+    {
+      "file": "collection-goodies.wav",
+      "text": "Goodies!",
+      "start": 10.28,
+      "end": 11.96,
+      "duration": 1.68,
+      "peakDBFS": -4.336303036705647,
+      "dc": -0.0005172846474589339
+    },
+    {
+      "file": "collection-little-helpers.wav",
+      "text": "Let’s get to know these little helpers!",
+      "start": 11.96,
+      "end": 14.210612244897959,
+      "duration": 2.250612244897959,
+      "peakDBFS": -3.7112825981058544,
+      "dc": -0.00047252158302304363
+    }
+  ]
+}

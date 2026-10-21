@@ -126,7 +126,7 @@ final class NativeJourneyAmbientOwner {
             } else {stop(Self.gameplay)}
         }
         if area55Active {
-            retain(Self.area55,source:"assets/sound/Board transitions/Area 55/area ambient day at a park.wav",gain:0.6)
+            retain(Self.area55,source:"assets/sound/worlds/Area55/area55-ambient-loop-v1.wav",gain:0.6)
         }
         if beachActive {
             retain(Self.beach,source:"assets/sound/Board transitions/Beach/beach ambiance.wav",gain:0.28)
@@ -267,7 +267,7 @@ final class NativeFileAmbientLoopTransport:NativeAmbientLoopTransport {
     private let engine:AVAudioEngine
     private var voices:[String:Voice]=[:]
     private var disposed=false
-    private static let sources:Set<String>=["assets/sound/Board transitions/Area 55/ufo movement.wav","assets/sound/Board transitions/Area 55/area ambient day at a park.wav","assets/sound/Board transitions/Beach/beach ambiance.wav","assets/sound/Board transitions/Beach/galeb.wav","assets/sound/worlds/crumbleworlds.wav","assets/sound/worlds/Forest/soft bees ambiance.wav","assets/sound/worlds/Forest/forest nature sounds.wav","assets/sound/worlds/Forest/gameplay/forest-gameplay-sound.wav"]
+    private static let sources:Set<String>=["assets/sound/Board transitions/Area 55/ufo movement.wav","assets/sound/worlds/Area55/area55-ambient-loop-v1.wav","assets/sound/Board transitions/Beach/beach ambiance.wav","assets/sound/Board transitions/Beach/galeb.wav","assets/sound/worlds/crumbleworlds.wav","assets/sound/worlds/Forest/soft bees ambiance.wav","assets/sound/worlds/Forest/forest nature sounds.wav","assets/sound/worlds/Forest/gameplay/forest-gameplay-sound.wav"]
     var onError:((String)->Void)?
     init(root:URL,engine:AVAudioEngine=AVAudioEngine()){self.root=root;self.engine=engine}
     func start(id:String,source:String,gain:Double) {

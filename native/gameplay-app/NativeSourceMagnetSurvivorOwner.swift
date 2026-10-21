@@ -72,7 +72,7 @@ import StackToSixGameplay
                     self.finish(self.inputBound && self.current() ? .completed:.interrupted)
                 case .unavailable:self.finish(.unavailable)
                 }
-            }))
+            }),preservesBoardSize:true)
         bounce=tail
         guard node.bindSourceAppSpawnInterruption(id:ownerID,pickup:{[weak tail] in tail?.removeChildrenForPickup()},
             interrupted:{[weak tail] in tail?.interrupt()}),current(),tail.start(),current() else {

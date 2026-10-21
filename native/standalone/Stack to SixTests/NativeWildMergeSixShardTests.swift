@@ -1219,8 +1219,11 @@ function wildTntMerge6ShardsTemplated(board, tile, opts = {}) {
 }
 
 """#
-    func testAllThirteenVariantProfilesMatchImmutableV9ConstructionAndRandomOrder()throws {
+    func testAllRegisteredVariantProfilesMatchV9GeometryAndDeclaredPalette()throws {
         let context=try XCTUnwrap(JSContext());context.evaluateScript(Self.sourceOracle)
+        // New Native-only Baloon reuses immutable Juice geometry/RNG with the
+        // user's explicit blue palette; it has no historical v9 palette entry.
+        context.evaluateScript("variantPalettes.baloon=[0x8DCCF9,0x47A5EC];")
         XCTAssertNil(context.exception)
         let variants:[String?]=[nil]+NativeSpecialDiceRegistry.variants.keys.sorted().map{Optional($0)}
         for variant in variants {

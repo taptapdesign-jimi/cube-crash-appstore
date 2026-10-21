@@ -2239,7 +2239,7 @@
       {
         "source": "assets/sound/card reveal/crumble.wav",
         "voice": "journey-new-card-intro",
-        "gain": 0.42,
+        "gain": 0.2898,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -2250,7 +2250,7 @@
       {
         "source": "assets/sound/card reveal/interim crumble.wav",
         "voice": "journey-new-card-crumble",
-        "gain": 0.42,
+        "gain": 0.2898,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -2261,7 +2261,7 @@
       {
         "source": "assets/sound/card reveal/new reward.wav",
         "voice": "journey-new-card-reveal",
-        "gain": 0.6,
+        "gain": 0.2484,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -2270,7 +2270,7 @@
       {
         "source": "assets/sound/card reveal/card reveal.wav",
         "voice": "journey-new-card-reveal-layer",
-        "gain": 0.6,
+        "gain": 0.4968,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -2923,7 +2923,7 @@
       {
         "source": "assets/sound/card reveal/max poof.wav",
         "voice": "journey-new-card-enter-0",
-        "gain": 0.42,
+        "gain": 0.23184,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -2934,6 +2934,762 @@
       {
         "source": "assets/sound/card reveal/puf.wav",
         "voice": "journey-new-card-opening-puff",
+        "gain": 0.2898,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "modalWhoosh": [
+      {
+        "source": "assets/sound/cjelina flip/menu flip.wav",
+        "voice": "native-modal-whoosh",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "homeCharacter0": [
+      {
+        "source": "assets/sound/logo transitions/smile.wav",
+        "voice": "native-home-human",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/logo transitions/nala1.wav",
+        "voice": "native-home-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "homeCharacter1": [
+      {
+        "source": "assets/sound/logo transitions/smile.wav",
+        "voice": "native-home-human",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/logo transitions/nala2.wav",
+        "voice": "native-home-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "homeCharacter2": [
+      {
+        "source": "assets/sound/logo transitions/smile.wav",
+        "voice": "native-home-human",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/logo transitions/nala3.wav",
+        "voice": "native-home-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "homeSpeech-lets-go": [
+      {
+        "source": "assets/sound/SPEECH/lets-go.wav",
+        "voice": "native-home-human",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "homeSpeech-come-here-look-at-this": [
+      {
+        "source": "assets/sound/SPEECH/come-here-look-at-this.wav",
+        "voice": "native-home-human",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "homeSpeech-ready-for-an-adventure": [
+      {
+        "source": "assets/sound/SPEECH/ready-for-an-adventure.wav",
+        "voice": "native-home-human",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "baloonMerge": [
+      {
+        "source": "assets/sound/Wild and special kockice/ baloon/happy people.wav",
+        "voice": "native-baloon-happy-people",
+        "gain": 0.546,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/ baloon/baloni zvuk.wav",
+        "voice": "native-baloon-flight-1",
+        "gain": 0.72,
+        "rate": 1,
+        "delay": 1,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "baloonStart": [
+      {
+        "source": "assets/sound/Wild and special kockice/ baloon/prvi swosh.wav",
+        "voice": "native-baloon-swoosh",
+        "gain": 0.6,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/ baloon/prvi pop.wav",
+        "voice": "native-baloon-pop",
+        "gain": 0.6,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/ baloon/hiss.wav",
+        "voice": "native-baloon-hiss",
+        "gain": 0.144,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": 2.2,
+        "fadeOut": 1.2
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/ baloon/baloni.wav",
+        "voice": "native-baloon-flight-0",
+        "gain": 0.18,
+        "rate": 1,
+        "delay": 0.3,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "homeSpeech-treasure": [
+      {
+        "source": "assets/sound/SPEECH/treasure.mp3",
+        "voice": "native-home-human",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "homeSettingsSpeech": [
+      {
+        "source": "assets/sound/SPEECH/settings guy.mp3",
+        "voice": "native-home-settings-human",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "arcadeIslandDog0": [
+      {
+        "source": "assets/sound/logo transitions/nala1.wav",
+        "voice": "native-arcade-island-dog",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 1,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "arcadeIslandDog1": [
+      {
+        "source": "assets/sound/logo transitions/nala2.wav",
+        "voice": "native-arcade-island-dog",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 1,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "arcadeIslandDog2": [
+      {
+        "source": "assets/sound/logo transitions/nala3.wav",
+        "voice": "native-arcade-island-dog",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 1,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "arcade-island-endurance": [
+      {
+        "source": "assets/sound/SPEECH/arcade-endurance.wav",
+        "voice": "native-arcade-island-speech",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "arcade-island-pureDice": [
+      {
+        "source": "assets/sound/SPEECH/arcade-lucky-drop.wav",
+        "voice": "native-arcade-island-speech",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "arcade-island-slowBurn": [
+      {
+        "source": "assets/sound/SPEECH/arcade-slow-burn.wav",
+        "voice": "native-arcade-island-speech",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "arcadeSlowBurnTea": [
+      {
+        "source": "assets/sound/SPEECH/my tea.mp3",
+        "voice": "native-arcade-island-speech",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "arcadeThumbSmile": [
+      {
+        "source": "assets/sound/logo transitions/smile.wav",
+        "voice": "arcade-stage-clear-character",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "arcadeThumbDog0": [
+      {
+        "source": "assets/sound/logo transitions/nala1.wav",
+        "voice": "arcade-stage-clear-character",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "arcadeThumbDog1": [
+      {
+        "source": "assets/sound/logo transitions/nala2.wav",
+        "voice": "arcade-stage-clear-character",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "arcadeThumbDog2": [
+      {
+        "source": "assets/sound/logo transitions/nala3.wav",
+        "voice": "arcade-stage-clear-character",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "roundWon0": [
+      {
+        "source": "assets/sound/SPEECH/round won/good-job.wav",
+        "voice": "native-round-won-speech",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "roundWon1": [
+      {
+        "source": "assets/sound/SPEECH/round won/youre-on-your-way.wav",
+        "voice": "native-round-won-speech",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "roundWon2": [
+      {
+        "source": "assets/sound/SPEECH/round won/great-job.wav",
+        "voice": "native-round-won-speech",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "roundWon3": [
+      {
+        "source": "assets/sound/SPEECH/round won/you-got-it.wav",
+        "voice": "native-round-won-speech",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "roundWon4": [
+      {
+        "source": "assets/sound/SPEECH/round won/yay.wav",
+        "voice": "native-round-won-speech",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "roundWon5": [
+      {
+        "source": "assets/sound/SPEECH/round won/congratulations.wav",
+        "voice": "native-round-won-speech",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "roundWon6": [
+      {
+        "source": "assets/sound/SPEECH/round won/great-work.wav",
+        "voice": "native-round-won-speech",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "roundWon7": [
+      {
+        "source": "assets/sound/SPEECH/round won/wow-that-was-amazing.wav",
+        "voice": "native-round-won-speech",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "roundWon8": [
+      {
+        "source": "assets/sound/SPEECH/round won/whoa-so-cool.wav",
+        "voice": "native-round-won-speech",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "roundWon9": [
+      {
+        "source": "assets/sound/SPEECH/round won/super-awesome.wav",
+        "voice": "native-round-won-speech",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "worldSpeech-1-0": [
+      {
+        "source": "assets/sound/SPEECH/world hub /forest-camping.wav",
+        "voice": "native-world-hub-speech",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "worldSpeech-1-1": [
+      {
+        "source": "assets/sound/SPEECH/world hub /forest-calling.wav",
+        "voice": "native-world-hub-speech",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "worldSpeech-1-2": [
+      {
+        "source": "assets/sound/SPEECH/world hub /forest-snacks-packed.wav",
+        "voice": "native-world-hub-speech",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "worldSpeech-1-3": [
+      {
+        "source": "assets/sound/SPEECH/world hub /forest-marshmallow.wav",
+        "voice": "native-world-hub-speech",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "worldSpeech-3-0": [
+      {
+        "source": "assets/sound/SPEECH/world hub /space-adventure.wav",
+        "voice": "native-world-hub-speech",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "worldSpeech-3-1": [
+      {
+        "source": "assets/sound/SPEECH/world hub /space-spaceship.wav",
+        "voice": "native-world-hub-speech",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "worldSpeech-3-2": [
+      {
+        "source": "assets/sound/SPEECH/world hub /space-in-peace.wav",
+        "voice": "native-world-hub-speech",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "worldSpeech-3-3": [
+      {
+        "source": "assets/sound/SPEECH/world hub /space-blue-goo.wav",
+        "voice": "native-world-hub-speech",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "worldSpeech-2-0": [
+      {
+        "source": "assets/sound/SPEECH/world hub /beach-splash.wav",
+        "voice": "native-world-hub-speech",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "worldSpeech-2-1": [
+      {
+        "source": "assets/sound/SPEECH/world hub /beach-no-plans.wav",
+        "voice": "native-world-hub-speech",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "worldSpeech-2-2": [
+      {
+        "source": "assets/sound/SPEECH/world hub /beach-soggy-biscuit.wav",
+        "voice": "native-world-hub-speech",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "worldSpeech-2-3": [
+      {
+        "source": "assets/sound/SPEECH/world hub /beach-adventure.wav",
+        "voice": "native-world-hub-speech",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "worldSpeech-1-4": [
+      {
+        "source": "assets/sound/SPEECH/world hub /whats wit hthe bees.mp3",
+        "voice": "native-world-hub-speech",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "settingsSpeech0": [
+      {
+        "source": "assets/sound/SPEECH/settings-fix-fetch.wav",
+        "voice": "native-home-settings-human",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "settingsSpeech1": [
+      {
+        "source": "assets/sound/SPEECH/settings-best-helper.wav",
+        "voice": "native-home-settings-human",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "collectionSpeech0": [
+      {
+        "source": "assets/sound/SPEECH/collection-see-what-weve-got.wav",
+        "voice": "native-collection-icon-human",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "collectionSpeech1": [
+      {
+        "source": "assets/sound/SPEECH/collection-little-look.wav",
+        "voice": "native-collection-icon-human",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "collectionSpeech2": [
+      {
+        "source": "assets/sound/SPEECH/collection-what-in-here.wav",
+        "voice": "native-collection-icon-human",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "collectionSpeech3": [
+      {
+        "source": "assets/sound/SPEECH/collection-every-adventure.wav",
+        "voice": "native-collection-icon-human",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "collectionSpeech4": [
+      {
+        "source": "assets/sound/SPEECH/collection-packed-ready.wav",
+        "voice": "native-collection-icon-human",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "collectionSpeech5": [
+      {
+        "source": "assets/sound/SPEECH/collection-goodies.wav",
+        "voice": "native-collection-icon-human",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "collectionSpeech6": [
+      {
+        "source": "assets/sound/SPEECH/collection-little-helpers.wav",
+        "voice": "native-collection-icon-human",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "high-score-01": [
+      {
+        "source": "assets/sound/SPEECH/high-score-01.wav",
+        "voice": "native-score-combo-human",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "high-score-02": [
+      {
+        "source": "assets/sound/SPEECH/high-score-02.wav",
+        "voice": "native-score-combo-human",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "high-score-03": [
+      {
+        "source": "assets/sound/SPEECH/high-score-03.wav",
+        "voice": "native-score-combo-human",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "combo-01": [
+      {
+        "source": "assets/sound/SPEECH/combo-01.wav",
+        "voice": "native-score-combo-human",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "combo-02": [
+      {
+        "source": "assets/sound/SPEECH/combo-02.wav",
+        "voice": "native-score-combo-human",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "combo-03": [
+      {
+        "source": "assets/sound/SPEECH/combo-03.wav",
+        "voice": "native-score-combo-human",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "arcade-01": [
+      {
+        "source": "assets/sound/SPEECH/arcade-01.wav",
+        "voice": "native-arcade-home-human",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "arcade-02": [
+      {
+        "source": "assets/sound/SPEECH/arcade-02.wav",
+        "voice": "native-arcade-home-human",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "arcade-03": [
+      {
+        "source": "assets/sound/SPEECH/arcade-03.wav",
+        "voice": "native-arcade-home-human",
         "gain": 0.42,
         "rate": 1,
         "delay": 0,

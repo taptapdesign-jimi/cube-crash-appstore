@@ -25,7 +25,7 @@ final class NativeWildStarEligibilityTests:XCTestCase {
         for variant in NativeArcadeVariant.allCases {for unlocked in [false,true] {
             var foundStar=false
             for index in 0..<100 {
-                let state=NativeBoardState(tiles:[],mode:.arcade,board:1,arcadeVariant:variant)
+                let state=NativeBoardState(tiles:[],mode:.arcade,board:2,arcadeVariant:variant)
                 let reward=NativeWildRewardPolicy.choose(state:state,roll:Double(index)/100,plainStarUnlocked:unlocked,nextRoll:{XCTFail("No history reroll");return 0})
                 XCTAssertNotNil(reward)
                 foundStar = foundStar || plainStar(reward)

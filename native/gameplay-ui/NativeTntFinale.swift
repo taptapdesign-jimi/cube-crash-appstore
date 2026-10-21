@@ -131,18 +131,30 @@ final class NativeTntFinale: SKNode, NativeSourceAnimationParticipant {
         }
         }
         let tileTexture = textures.texture("assets/tile.png")
-        let maps = [1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]]
         for plan in sourceConstruction?.dice ?? Self.makeDiePlans(random: random) {
             let die = SKNode(); die.zPosition = plan.depth; die.alpha = 0
             let face = SKSpriteNode(texture: tileTexture); face.size = CGSize(width: 64,height: 64); die.addChild(face)
-            for index in maps[plan.value] ?? [] {
-                let x = CGFloat(index%3-1)*15, y = -CGFloat(index/3-1)*15
-                let pip = SKShapeNode(rect: CGRect(x: x-3.75,y: y-3.75,width: 7.5,height: 7.5),cornerRadius: 2.2)
-                pip.fillColor = UIColor(red: 129.0/255,green: 90.0/255,blue: 66.0/255,alpha: 0.9); pip.strokeColor = .clear
-                die.addChild(pip)
-            }
+            die.addChild(Self.makeDiePips(value:plan.value))
             addChild(die); dice.append(Die(node: die,plan: plan))
         }
+    }
+    /// Disjoint original rounded paths share one material and local transform.
+    /// One shape per die avoids rebuilding a separate render group per pip.
+    /// Keep original geometry/color/antialiasing; no raster cache or new assets.
+    static func makeDiePips(value:Int)->SKShapeNode {
+        let maps = [1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]]
+        let path=CGMutablePath()
+        for index in maps[value] ?? [] {
+            let x=CGFloat(index%3-1)*15,y = -CGFloat(index/3-1)*15
+            // Borrow SpriteKit's exact original corner path (its rounding is
+            // not identical to CGPath.addRoundedRect at these dimensions).
+            let original=SKShapeNode(rect:CGRect(x:x-3.75,y:y-3.75,width:7.5,height:7.5),cornerRadius:2.2)
+            if let originalPath=original.path {path.addPath(originalPath)}
+        }
+        let pips=SKShapeNode(path:path)
+        pips.fillColor=UIColor(red:129.0/255,green:90.0/255,blue:66.0/255,alpha:0.9)
+        pips.strokeColor = .clear
+        return pips
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 

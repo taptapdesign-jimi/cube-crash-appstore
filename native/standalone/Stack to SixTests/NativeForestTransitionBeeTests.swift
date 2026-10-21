@@ -6,6 +6,57 @@ import UIKit
 final class NativeForestTransitionBeeTests: XCTestCase {
     // Original source executed withLCGseed17, digit rectangles already scale0;
     // the mountain remains live until each route captures its late peak.
+    func testTransitionUsesCleanBoardHoverAtThirtyPercentFasterWithIndependentRoutes() {
+        var seed:UInt32=73
+        let owner=NativeForestTransitionBees(viewport:CGSize(width:390,height:844),digitCenters:[CGPoint(x:170,y:240)],images:[:],random:{seed=1664525 &* seed &+ 1013904223;return Double(seed)/4294967296})
+        XCTAssertEqual(Set(owner.flights.map(\.phase)).count,6)
+        XCTAssertEqual(Set(owner.flights.map{$0.moves[0].start}).count,6)
+        XCTAssertTrue(owner.flights.allSatisfy{$0.honeyAccent != nil})
+        for original in owner.flights {
+            let p=original.anchor
+            let plan=NativeResultForestBees.Plan(anchor:p,moves:[.init(start:0,duration:0.1,from:p,to:p,control1:p,control2:p,exits:false)],phase:original.phase,scale:original.scale,travelSpeed:original.travelSpeed,startsBehind:original.startsBehind,distantScale:original.distantScale,lifetime:original.lifetime,hoverRate:1.30,flightRegion:original.flightRegion)
+            var clean=plan;clean.hoverRate=1
+            for frame in 20...300 {
+                let time=Double(frame)/120
+                let actual=plan.sample(time).point,expected=clean.sample(time*1.30).point
+                XCTAssertEqual(actual.x,expected.x,accuracy:0.000001)
+                XCTAssertEqual(actual.y,expected.y,accuracy:0.000001)
+            }
+        }
+        for plan in owner.flights {
+            for move in plan.moves {
+                let direction=move.to.x>=move.from.x ? 1.0:-1.0
+                var last=plan.sample(move.start,includeHover:false).point.x
+                for step in 1...100 {
+                    let x=plan.sample(move.start+move.duration*Double(step)/100,includeHover:false).point.x
+                    XCTAssertGreaterThanOrEqual((x-last)*direction,-0.000001)
+                    last=x
+                }
+            }
+        }
+        owner.dispose()
+    }
+    func testTransitionHoneyAccentUsesExactHoneyProfileAndDoesNotReroll() throws {
+        var seed:UInt32=91,draws=0
+        let owner=NativeForestTransitionBees(viewport:CGSize(width:390,height:844),digitCenters:[CGPoint(x:170,y:240)],images:[:],random:{draws+=1;seed=1664525 &* seed &+ 1013904223;return Double(seed)/4294967296})
+        let captured=draws
+        XCTAssertEqual(Set(owner.flights.compactMap{$0.honeyAccent?.wobblePhase}).count,6)
+        for original in owner.flights {
+            let profile=try XCTUnwrap(original.honeyAccent)
+            let p=original.anchor
+            var plan=NativeResultForestBees.Plan(anchor:p,moves:[.init(start:0,duration:0.1,from:p,to:p,control1:p,control2:p,exits:false)],phase:original.phase,scale:original.scale,travelSpeed:original.travelSpeed,startsBehind:original.startsBehind,distantScale:original.distantScale,hoverRate:1.30,honeyAccent:profile)
+            plan.flightRegion=nil
+            var clean=plan;clean.honeyAccent=nil
+            for frame in 20...300 {
+                let time=Double(frame)/120
+                let actual=plan.sample(time).point,base=clean.sample(time).point
+                let accent=NativeHoneyIdleMotion.flightAccent(profile,seconds:time*1.30)
+                XCTAssertEqual(actual.x-base.x,accent.x,accuracy:0.000001)
+                XCTAssertEqual(actual.y-base.y,accent.y,accuracy:0.000001)
+            }
+        }
+        XCTAssertEqual(draws,captured);owner.dispose()
+    }
     func testFourExactRoutesAndStatefulDepthFacingMatchExecutedOriginalOwner() {
         var rng:UInt32=17,draws=0
         let plans=NativeForestTransitionBeeMotion.make(viewport:CGSize(width:390,height:844),digitCenters:[CGPoint(x:175.5,y:240.76),CGPoint(x:214.5,y:240.76)],initialDigitHeights:[0,0],random:{draws+=1;rng=1664525 &* rng &+ 1013904223;return Double(rng)/4294967296})
@@ -51,21 +102,20 @@ final class NativeForestTransitionBeeTests: XCTestCase {
         XCTAssertTrue(owner.needsNativeParityReady);XCTAssertEqual(owner.duration,3.55+1.0/60,accuracy:0.000001)
         let original=NativeForestTransitionBeeMotion.make(viewport:CGSize(width:390,height:844),digitCenters:[CGPoint(x:175.5,y:240.76),CGPoint(x:214.5,y:240.76)],initialDigitHeights:[0,0],random:{0.5})
         XCTAssertEqual(owner.flights.count,6)
-        XCTAssertEqual(Set(owner.flights.map(\.hoverRate)).count,6)
-        XCTAssertEqual(Set(owner.flights.map(\.hoverXRate)).count,6)
-        XCTAssertEqual(Set(owner.flights.map(\.hoverYRate)).count,6)
+        XCTAssertEqual(Set(owner.flights.map(\.phase)).count,6)
+        XCTAssertTrue(owner.flights.allSatisfy{$0.hoverXRate == 1})
+        XCTAssertTrue(owner.flights.allSatisfy{$0.hoverYRate == 1})
         XCTAssertEqual(Set(owner.flights.map { $0.moves[0].start }).count,6)
         XCTAssertEqual(Set(owner.flights.map { $0.moves.last!.start }).count,6)
-        XCTAssertEqual(Set(owner.flights.map(\.hoverHorizontalPhase)).count,6)
+        XCTAssertEqual(Set(owner.flights.map(\.phase)).count,6)
         for (index,flight) in owner.flights.enumerated() {
             let old=original[index%4]
-            XCTAssertGreaterThanOrEqual(flight.travelSpeed,old.samples.last!.distance/old.end*0.35)
-            XCTAssertLessThanOrEqual(flight.travelSpeed,old.samples.last!.distance/old.end*0.85)
-            XCTAssertGreaterThanOrEqual(flight.hoverRate,0.30);XCTAssertLessThanOrEqual(flight.hoverRate,0.80)
-            XCTAssertGreaterThanOrEqual(flight.hoverStrength,1.1);XCTAssertLessThanOrEqual(flight.hoverStrength,2.3)
+            XCTAssertEqual(flight.travelSpeed,old.samples.last!.distance/old.end*1.30,accuracy:0.000001)
+            XCTAssertEqual(flight.hoverRate,1.30)
+            XCTAssertEqual(flight.hoverStrength,1)
             if (1...owner.numberBeeCount).contains(index) {
                 XCTAssertNotNil(flight.flightRegion)
-                XCTAssertTrue(flight.moves.filter {!$0.enters && !$0.exits}.allSatisfy {$0.duration>=0.18})
+                XCTAssertTrue(flight.moves.filter {!$0.enters && !$0.exits}.allSatisfy {$0.duration>=0.28/1.30})
             }
         }
         owner.mountLayers(in:parent);XCTAssertEqual(parent.subviews.map {$0.layer.zPosition},[3,9,11])
@@ -227,30 +277,15 @@ final class NativeForestTransitionBeeTests: XCTestCase {
         }
     }
 
-    func testTransitionRatesOscillateSmoothlyWithinFortyPercentIndependently() {
-        var rng:UInt32=17
-        let owner=NativeForestTransitionBees(viewport:CGSize(width:390,height:844),digitCenters:[CGPoint(x:195,y:240)],images:[:],random:{rng=1664525 &* rng &+ 1013904223;return Double(rng)/4294967296})
-        XCTAssertEqual(Set(owner.flights.map(\.flightRatePhase)).count,6)
-        XCTAssertEqual(Set(owner.flights.map(\.hoverRatePhase)).count,6)
-        XCTAssertEqual(Set(owner.flights.map(\.hoverModulationRate)).count,6)
+    func testTransitionKeepsCleanBoardUnmodulatedClock() {
+        var seed:UInt32=17
+        let owner=NativeForestTransitionBees(viewport:CGSize(width:390,height:844),digitCenters:[CGPoint(x:195,y:240)],images:[:],random:{seed=1664525 &* seed &+ 1013904223;return Double(seed)/4294967296})
         for plan in owner.flights {
-            XCTAssertEqual(plan.motionVariation,0.4,accuracy:0.000001)
-            var flightRates:[Double]=[],hoverRates:[Double]=[]
-            for step in 0...1000 {
-                let progress=Double(step)/1000,time=progress*owner.duration
-                let flight=plan.flightRateMultiplier(progress),hover=plan.hoverRateMultiplier(time)
-                for rate in [flight,hover] {
-                    XCTAssertTrue(rate.isFinite)
-                    XCTAssertGreaterThanOrEqual(rate,0.6-0.000001)
-                    XCTAssertLessThanOrEqual(rate,1.4+0.000001)
-                }
-                if let last=flightRates.last {XCTAssertLessThan(abs(flight-last),0.003)}
-                if let last=hoverRates.last {XCTAssertLessThan(abs(hover-last),0.005)}
-                flightRates.append(flight);hoverRates.append(hover)
+            XCTAssertEqual(plan.motionVariation,0)
+            for step in 0...100 {
+                XCTAssertEqual(plan.flightRateMultiplier(Double(step)/100),1)
+                XCTAssertEqual(plan.hoverRateMultiplier(Double(step)/30),1)
             }
-            XCTAssertLessThan(flightRates.min()!,0.601)
-            XCTAssertGreaterThan(flightRates.max()!,1.399)
-            XCTAssertGreaterThan(hoverRates.max()!-hoverRates.min()!,0.1)
         }
         owner.dispose()
     }

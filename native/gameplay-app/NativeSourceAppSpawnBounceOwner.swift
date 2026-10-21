@@ -3,6 +3,7 @@ import Foundation
 /// The exact app-spawn.ts regular open timeline. The injected app union service
 /// owns delivery; this owner creates neither a renderer clock nor a timer.
 @MainActor final class NativeSourceAppSpawnBounceOwner {
+    static let nativeEntryScale=0.70
     enum Completion: Equatable { case completed, interrupted, unavailable }
     struct Hooks {
         let current: () -> Bool
@@ -21,14 +22,15 @@ import Foundation
     private let service: NativeSourceAnimationClockService
     private let hooks: Hooks
     private let timeScale:Double,capturedDirection:Int?
+    private let initialScale:Double
     private var participant: Participant?
     private var lease: NativeSourceAnimationClockService.Lease?
     private var releaseFrames: (() -> Void)?
     private var initialRotation: Double?
     private var direction = 1.0
     private var begun = false, closed = false, childrenRemoved = false
-    init(service: NativeSourceAnimationClockService, hooks: Hooks,timeScale:Double=1,capturedDirection:Int?=nil) {
-        self.service = service; self.hooks = hooks;self.timeScale=timeScale;self.capturedDirection=capturedDirection
+    init(service: NativeSourceAnimationClockService, hooks: Hooks,timeScale:Double=1,capturedDirection:Int?=nil,preservesBoardSize:Bool=false,initialScale:Double?=nil) {
+        self.service = service; self.hooks = hooks;self.timeScale=timeScale;self.capturedDirection=capturedDirection;self.initialScale=initialScale ?? (preservesBoardSize ? 1:0.30)
     }
     var active: Bool { begun && !closed }
     private func current() -> Bool {
@@ -37,13 +39,14 @@ import Foundation
         return accepted && !closed
     }
     @discardableResult func start() -> Bool {
-        guard !begun,timeScale.isFinite,timeScale>0,
+        guard !begun,timeScale.isFinite,timeScale>0,initialScale.isFinite,initialScale>0,initialScale<=1,
               capturedDirection == nil || capturedDirection == 1 || capturedDirection == -1,
               current(), service.sourceFrameTransportAdmissionOpen else { return false }
         begun = true
-        // Source scale.set(.30) and opacity writes precede direction Math.random.
+        // New faces use the selected entry scale; existing survivors retain full size.
+        // Source-reference defaults and write/draw order remain unchanged.
         hooks.ensureFullOpacity(); guard current() else { finish(.unavailable); return false }
-        hooks.paintScale(0.30); guard current() else { finish(.unavailable); return false }
+        hooks.paintScale(initialScale); guard current() else { finish(.unavailable); return false }
         if let capturedDirection {direction=Double(capturedDirection)}
         else {
             let roll = hooks.random()
@@ -85,7 +88,7 @@ import Foundation
             initialRotation = captured
         }
         guard let initialRotation else { return }
-        hooks.paintScale(Self.scale(seconds*timeScale)); guard current() else { interrupt(); return }
+        hooks.paintScale(Self.scale(seconds*timeScale,initialScale:initialScale)); guard current() else { interrupt(); return }
         hooks.paintRotation(Self.rotation(seconds*timeScale, initial: initialRotation, direction: direction))
         guard current() else { interrupt(); return }
         hooks.ensureFullOpacity(); if !current() { interrupt() }
@@ -116,12 +119,12 @@ import Foundation
 
     private static func sine(_ t: Double) -> Double { -(cos(.pi*t)-1)/2 }
     private static func mix(_ a: Double, _ b: Double, _ t: Double) -> Double { floor((a+(b-a)*t)*1_000_000+0.5)/1_000_000 }
-    static func scale(_ seconds: Double) -> Double {
+    static func scale(_ seconds: Double,preservesBoardSize:Bool=false,initialScale:Double?=nil) -> Double {
         let t = max(0, seconds)
         if t < 0.18 {
             let u = min(1,t/0.18)-1
             let ease = 1+u*u*(2.7*u+1.7)
-            return mix(0.30,1.08,ease)
+            return mix(initialScale ?? (preservesBoardSize ? 1:0.30),1.08,ease)
         }
         if t < 0.30 { return mix(1.08,0.96,sine((t-0.18)/0.12)) }
         if t < 0.42 { return mix(0.96,1.02,sine((t-0.30)/0.12)) }

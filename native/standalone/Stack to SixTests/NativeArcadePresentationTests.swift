@@ -4,6 +4,37 @@ import UIKit
 
 @MainActor
 final class NativeArcadePresentationTests: XCTestCase {
+    func testThumbVariantCapturedOnceAtEqualProbabilityBoundary() {
+        for (sample,puppy) in [(0.0,true),(0.499999,true),(0.5,false),(0.999999,false)] {
+            let owner=NativeArcadeRoundPresentation(resourceRoot:root,clearedRound:1,nextRound:2,random:{sample})
+            XCTAssertEqual(owner.isPuppyThumb,puppy)
+            XCTAssertEqual(owner.thumbAssetPath,puppy ? "assets/puppy thumbs up@2x.png":"assets/thumbs-up@2x.png")
+            XCTAssertNotNil(JimiV9Artwork(resourceRoot:root).image(owner.thumbAssetPath,densityAware:false))
+            owner.setSuspended(true);owner.setSuspended(false)
+            XCTAssertEqual(owner.isPuppyThumb,puppy)
+            owner.dispose();owner.dispose()
+        }
+    }
+    func testSelectedThumbEmitsOneContactThroughSuspendAndReleases() async {
+        for sample in [0.0,0.99] {
+            let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+            let controller=UIViewController();window.rootViewController=controller;window.makeKeyAndVisible()
+            var owner:NativeArcadeRoundPresentation?=NativeArcadeRoundPresentation(resourceRoot:root,clearedRound:1,nextRound:2,random:{sample})
+            weak var released=owner
+            owner!.frame=window.bounds;controller.view.addSubview(owner!)
+            var contacts=0
+            let contact=expectation(description:"Actual thumb contact")
+            owner!.onCue={cue in if case .thumbWhoosh=cue {contacts += 1;contact.fulfill()}}
+            owner!.start()
+            await fulfillment(of:[contact],timeout:2)
+            owner!.setSuspended(true);owner!.setSuspended(false);owner!.start()
+            XCTAssertEqual(contacts,1)
+            owner!.dispose();owner=nil
+            // UIKit/display-link autorelease drains at the next run-loop boundary.
+            try? await Task.sleep(for:.milliseconds(150))
+            XCTAssertNil(released);window.isHidden=true
+        }
+    }
     func testThumbShadowPaintHasTransparentCornersAndPwaBlurredCenter() {
         // Actual iPhone13 thumb shadow dimensions: 58vw * 74%, 58vw * 15%.
         let size = CGSize(width: 390*0.58*0.74,height: 390*0.58*0.15)

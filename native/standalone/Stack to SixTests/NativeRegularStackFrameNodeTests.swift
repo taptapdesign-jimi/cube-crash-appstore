@@ -29,6 +29,28 @@ import SpriteKit
   f.service.deliver(wallMilliseconds:16)
   XCTAssertEqual(face.frame.width,128,accuracy:1e-5,"after face RAF size=\(face.size), scale=\(face.xScale)")
  }
+ func testLogicalRefreshCannotCompoundSourceFaceScaleForEmptyAndNumberedHolders()throws {
+  for value in [0,1,3,5] {
+   let f=Fixture(depth:1);defer{f.dispose()}
+   let node=NativeDiceNode(id:"refresh-\(value)",value:0,kind:"regular",variant:nil,depth:1,locked:true,textures:f.textures)
+   f.canvas.addChild(node);defer{node.dispose()}
+   XCTAssertTrue(node.prepareSourceInitialHolder(rotation:0,generation:1))
+   node.installSourceOuterDriver(f.outer,generation:1,geometryScale:0.475)
+   if value>0 {
+    XCTAssertTrue(node.openSourceInitialHolder(value,service:f.service,random:{0.5},current:{true},onFinished:{},onCancelled:{}))
+    f.service.deliver(wallMilliseconds:16)
+   }
+   let face=try XCTUnwrap(node.visual.children.compactMap{$0 as? SKSpriteNode}.first{$0.texture === node.sourcePaintedNumbersTexture})
+   let outer=node.sourceLocalScale
+   XCTAssertEqual(face.frame.width,128,accuracy:1e-5)
+   for depth in [2,1,3,1] {
+    node.update(value:value,kind:"regular",variant:nil,depth:depth,locked:value==0)
+    XCTAssertEqual(face.frame.width,128,accuracy:1e-5,"value=\(value), depth=\(depth), size=\(face.size), scale=\(face.xScale)")
+    XCTAssertEqual(face.frame.height,128,accuracy:1e-5)
+    XCTAssertEqual(node.sourceLocalScale,outer)
+   }
+  }
+ }
  func testActualSelectedOriginalTexturePipsAndLayerContainersCommitInOneFaceRAF()throws {
   let f=Fixture();defer{f.dispose()};let oldTexture=f.node.sourcePaintedNumbersTexture,old=f.node.sourceStackLayerNodes
   XCTAssertTrue(f.queue());XCTAssertEqual(f.node.value,5);XCTAssertEqual(f.node.depth,2);XCTAssertEqual(f.draws,0);XCTAssertTrue(f.node.sourcePaintedNumbersTexture === oldTexture)

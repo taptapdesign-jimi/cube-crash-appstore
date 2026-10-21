@@ -1,0 +1,23 @@
+{
+  "source": "lets go, come here ready for anadventure.mp3",
+  "sampleRate": 44100,
+  "channels": 1,
+  "edgeFadeSeconds": 0.005,
+  "cuts": [
+    {
+      "file": "lets-go.wav",
+      "start": 0.045,
+      "end": 1.16
+    },
+    {
+      "file": "come-here-look-at-this.wav",
+      "start": 1.165,
+      "end": 3.34
+    },
+    {
+      "file": "ready-for-an-adventure.wav",
+      "start": 3.47,
+      "end": 4.86
+    }
+  ]
+}

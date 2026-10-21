@@ -29,6 +29,31 @@ final class NativeSpecialIdleTests:XCTestCase {
         die.setDragging(true);XCTAssertTrue(sheet.isHidden)
         die.setDragging(false);XCTAssertFalse(sheet.isHidden);XCTAssertEqual(sheet.position,.zero)
     }
+    func testBaloonGentleStretchPausesResetsAndReleasesWithNode() throws {
+        let textures=NativeBoardTextures(root:root)
+        defer{textures.dispose()}
+        weak var released:NativeDiceNode?
+        do {
+            let die=NativeDiceNode(id:"baloon-breathe",value:6,kind:"wild-juice",variant:"baloon",depth:1,locked:false,textures:textures)
+            released=die
+            let art=try XCTUnwrap(die.visual.children.compactMap{$0 as? SKSpriteNode}.first)
+            die.tick(0.75/1.3,suspended:false,viewportCenter:195)
+            XCTAssertEqual(art.yScale,1.03042,accuracy:1e-6)
+            let fasterPose=NativeBottleIdleMotion.sample(seconds:0.75)
+            XCTAssertEqual(art.position.y,11-fasterPose.y,accuracy:1e-6)
+            XCTAssertEqual(art.zRotation,-fasterPose.rotation,accuracy:1e-6)
+            XCTAssertEqual(art.xScale*art.yScale,1,accuracy:1e-6)
+            let scale=art.yScale,point=art.position
+            die.tick(10,suspended:true,viewportCenter:195)
+            XCTAssertEqual(art.yScale,scale);XCTAssertEqual(art.position,point)
+            die.setDragging(true);XCTAssertEqual(art.xScale,1);XCTAssertEqual(art.yScale,1)
+            die.setDragging(false);XCTAssertEqual(art.yScale,scale,accuracy:1e-6)
+            die.setSourceIdleDeferred(true);XCTAssertEqual(art.xScale,1);XCTAssertEqual(art.yScale,1)
+            die.dispose();die.dispose()
+            let held=art.yScale;die.tick(2,suspended:false,viewportCenter:195);XCTAssertEqual(art.yScale,held)
+        }
+        XCTAssertNil(released)
+    }
     func testBottleRetainsExecutedSourceRepeatGapAndGroundedPivot() throws {
         XCTAssertEqual(NativeBottleIdleMotion.duration,7.32)
         for cycle in [0.0,7.32,21.96] {

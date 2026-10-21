@@ -36,6 +36,7 @@ final class NativeFishIdlePresentation:UIView {
     private var itemObservation:NSKeyValueObservation?
     private var notifiedPrepared=false,prepared=false,started=false,seeking=false,ready=false,disposed=false,suspended=false,failed=false
     private var displayedFrame:NativeFishIdleFrame?
+    private var reportedPaintReady=false
     private var lastPaint:Double?,lastAcceptedTime:Double?
     private let assetURL:URL
     private var carriers:[NativeFishIdleBubbleCarrier]=[]
@@ -105,6 +106,13 @@ final class NativeFishIdlePresentation:UIView {
             if svgView==nil,player.rate != 1 {player.playImmediately(atRate:1)}
             paintBubbles(frame.bubbles)
         } else {player.pause();carriers.forEach {$0.isHidden=true}}
+        // Hand the SpriteKit fallback off only after the replacement has its
+        // current geometry, SVG contents and a visible window. Decode != paint.
+        if visible {publishPaintReady(true)}
+    }
+    private func publishPaintReady(_ value:Bool) {
+        guard reportedPaintReady != value else{return}
+        reportedPaintReady=value;onMediaReady?(value)
     }
     private func startAdmittedMedia() {
         guard mediaLayer.isReadyForDisplay,!failed else {return};seeking=true
@@ -114,7 +122,7 @@ final class NativeFishIdlePresentation:UIView {
                 guard let self,!self.disposed,!self.failed,self.seeking,self.mediaEpoch==acceptedEpoch else {return}
                 self.seeking=false
                 guard success else {self.fail(markUnavailable:false);return}
-                self.started=true;self.ready=true;self.onMediaReady?(true)
+                self.started=true;self.ready=true
                 if let frame=self.displayedFrame {self.paint(frame,now:self.lastPaint ?? 0,force:true)}
             }
         }
@@ -143,7 +151,7 @@ final class NativeFishIdlePresentation:UIView {
         if markUnavailable {onVideoSourceError?()}
         itemObservation?.invalidate();itemObservation=nil
         readiness.forEach {$0.invalidate()};readiness.removeAll();looper?.disableLooping();looper=nil
-        player.removeAllItems();mediaLayer.player=nil;mediaLayer.removeFromSuperlayer();onMediaReady?(false)
+        player.removeAllItems();mediaLayer.player=nil;mediaLayer.removeFromSuperlayer();publishPaintReady(false)
         guard let svgResources else {return}
         let acceptedEpoch=mediaEpoch
         svgRequest=svgResources.request { [weak self] resources in
@@ -151,7 +159,7 @@ final class NativeFishIdlePresentation:UIView {
             self.svgRequest=nil
             let view=NativeFishSVGFallbackView(resources:resources);self.svgView=view;self.video.addSubview(view)
             self.started=false;self.svgStart=nil;self.onPrepared?()
-            self.ready=true;self.onMediaReady?(true)
+            self.ready=true
             if let frame=self.displayedFrame {self.paint(frame,now:CACurrentMediaTime(),force:true)}
         }
     }

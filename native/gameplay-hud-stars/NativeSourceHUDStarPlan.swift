@@ -4,7 +4,6 @@ import Foundation
 /// comparison order is pinned by the original function running in JavaScriptCore.
 nonisolated struct NativeSourceHUDStarPlan {
     let points:[CGPoint],delay:Double,duration:Double,size:Double,rotation:Double,textureWidth:Double
-    var arrivalEaseDuration:Double=0
     var launchPower:Double=0
     var originalMotionDuration:Double=0
     var accelerationStart:Double=0
@@ -59,14 +58,15 @@ nonisolated struct NativeSourceHUDStarPlan {
     func readableCoin(ordinal:Int,previousEnd:inout Double,viewport:CGSize?=nil,gentleLaunch:Bool=false,launchInterval:Double?=nil)->Self {
         let variation=abs(sin(rotation*17.13+size*0.731+Double(ordinal)*2.399))
         let baseFlight=duration*1.25*1.30/(0.60*1.20*2*0.90)*(0.82+variation*0.36)
-        let flight=baseFlight*(gentleLaunch ? 1:0.82)+0.28
-        // One group captures the first flight's 20% spacing. Later coins stay
-        // invisible at their source until launch, rather than waiting in a cluster.
-        let launch=Double(ordinal)*(launchInterval ?? (flight-0.28)*0.20)
+        let flight=baseFlight*(gentleLaunch ? 1:0.82)
+        // Compact irregular pairs, captured from the existing visual variation.
+        // No fixed train cadence or extra random draw/scheduler.
+        let interval=launchInterval ?? flight*0.20
+        let launch=ordinal == 0 ? 0:Double(ordinal/2)*interval*0.60+Double(ordinal%2)*0.028+variation*0.04
         let power=gentleLaunch ? 1.8:1.35
-        let accelerationStart=(flight-0.28)*pow(0.5,1/power)
-        // Quadratic ease-in playback speed: 1x at halfway, 1.25x at arrival.
-        let acceleratedDuration=accelerationStart+(flight-accelerationStart)/(1+0.25/3)
+        let accelerationStart=flight*pow(0.8,1/power)
+        // Magnetic trophy pull: smooth 1x→1.4x playback over the final20% of the path.
+        let acceleratedDuration=accelerationStart+(flight-accelerationStart)/(1+0.40/3)
         previousEnd=max(previousEnd,launch+acceleratedDuration)
         var start=points[0]
         let target=points[points.count-1]
@@ -95,7 +95,13 @@ nonisolated struct NativeSourceHUDStarPlan {
             return point
         }
         return Self(points:burstPoints,delay:launch,duration:acceleratedDuration,size:size*1.20,
-            rotation:rotation,textureWidth:textureWidth,arrivalEaseDuration:0.28,launchPower:power,originalMotionDuration:flight,accelerationStart:accelerationStart)
+            rotation:rotation,textureWidth:textureWidth,launchPower:power,originalMotionDuration:flight,accelerationStart:accelerationStart)
+    }
+    /// Compress every flight clock, including launch stagger and magnetic pull.
+    /// Geometry, captured randomness, reward identity and ordinary speed are unchanged.
+    func finalMergeCoin()->Self {
+        Self(points:points,delay:delay/3,duration:duration/3,size:size,rotation:rotation,textureWidth:textureWidth,
+             launchPower:launchPower,originalMotionDuration:originalMotionDuration/3,accelerationStart:accelerationStart/3)
     }
     static func round7(_ x:Double)->Double {(x*1e7).rounded()/1e7}
     static func round6(_ x:Double)->Double {(x*1e6).rounded()/1e6}
@@ -111,36 +117,28 @@ nonisolated struct NativeSourceHUDStarPlan {
         guard originalMotionDuration>0,elapsed>accelerationStart else{return elapsed}
         let tail=duration-accelerationStart
         let q=min(1,max(0,(elapsed-accelerationStart)/tail))
-        return min(originalMotionDuration,accelerationStart+tail*(q+0.25*q*q*q/3))
+        return min(originalMotionDuration,accelerationStart+tail*(q+0.40*q*q*q/3))
     }
     func sample(localSeconds elapsedSeconds:Double,previousScale:Double)->Pose {
         let localSeconds=motionSeconds(elapsedSeconds)
         let sourceDuration=Self.round7(originalMotionDuration>0 ? originalMotionDuration:duration)
-        let flightDuration=sourceDuration-arrivalEaseDuration
-        let raw=Self.round6(min(1,max(0,localSeconds/(arrivalEaseDuration>0 ? flightDuration:sourceDuration))))
+        let raw=Self.round6(min(1,max(0,localSeconds/sourceDuration)))
         let t:Double
-        if arrivalEaseDuration>0,localSeconds>=flightDuration*0.90 {
-            let start=pow(0.90,launchPower)
-            let tail=flightDuration*0.10+arrivalEaseDuration
-            let q=min(1,max(0,(localSeconds-flightDuration*0.90)/tail))
-            let velocity=launchPower*pow(0.90,launchPower-1)
-            let slope=min(3,velocity/flightDuration*tail/(1-start))
-            // Monotone Hermite arrival: retain incoming velocity, then gently
-            // decelerate to zero at the trophy on the existing flight clock.
-            t=start+(1-start)*(slope*q+(3-2*slope)*q*q+(slope-2)*q*q*q)
-        } else if launchPower>0 {t=pow(raw,launchPower)}
+        // Readable coins keep incoming speed all the way into the trophy.
+        // Arrival owns retirement; no lingering ease-out or extra settling tail.
+        if launchPower>0 {t=pow(raw,launchPower)}
         else {t=Self.pathProgress(raw)}
         let position=t*Double(points.count-1),i=min(points.count-1,Int(floor(position)))
         let next=min(i+1,points.count-1),mix=position-Double(i)
         let point=CGPoint(x:Double(points[i].x)+(Double(points[next].x)-Double(points[i].x))*mix,y:Double(points[i].y)+(Double(points[next].y)-Double(points[i].y))*mix)
         var scale=previousScale
-        let shrinkStart=arrivalEaseDuration>0 ? 0.7:0.9
-        if t>=shrinkStart && (t<0.98 || arrivalEaseDuration>0) {
+        let shrinkStart=originalMotionDuration>0 ? 0.7:0.9
+        if t>=shrinkStart && (t<0.98 || originalMotionDuration>0) {
             let target=28/textureWidth,current=size/textureWidth+(target-size/textureWidth)*(t-shrinkStart)/(1-shrinkStart)
             if abs(previousScale-current)>0.01 {scale=current}
         }
         let rotationDuration=Self.round7((originalMotionDuration>0 ? originalMotionDuration:duration)*0.98),q=min(1,max(0,localSeconds/rotationDuration))
         let rotated=Self.round6(rotation*(-(cos(Double.pi*q)-1)/2))
-        return Pose(point:point,scale:scale,rotation:rotated,arrived:arrivalEaseDuration>0 ? localSeconds>=sourceDuration-0.000001:t>=0.98,elapsed:elapsedSeconds)
+        return Pose(point:point,scale:scale,rotation:rotated,arrived:originalMotionDuration>0 ? localSeconds>=sourceDuration-0.000001:t>=0.98,elapsed:elapsedSeconds)
     }
 }

@@ -215,6 +215,8 @@ public struct NativeMagnetRespawnPlan: Equatable, Sendable {
 
 /// One captured HUD flight awards score once at its authored arrival boundary.
 public struct NativeHUDStarReceipt: Equatable, Sendable {
+    /// Captured resolver finality; transient visual policy, never inferred from an empty board.
+    public let isFinalMerge:Bool
     public let id: String
     public let generation: UInt64
     public let origin: NativeCell

@@ -115,7 +115,7 @@ import StackToSixGameplay
                 guard let self,self.nodes[index] === node else{return}
                 self.bounces.removeValue(forKey:index);node?.unbindSourceAppSpawnInterruption(id:ownerID)
                 guard self.current() else{return};done(outcome == .completed)
-            }))
+            }),initialScale:NativeSourceAppSpawnBounceOwner.nativeEntryScale)
         bounces[index]=bounce
         guard node.bindSourceAppSpawnInterruption(id:ownerID,pickup:{[weak bounce] in bounce?.removeChildrenForPickup()},interrupted:{[weak bounce] in bounce?.interrupt()}),alive(),bounce.start(),alive() else{
             bounce.interrupt();return .unavailable

@@ -52,12 +52,13 @@ final class NativeBackpackTests:XCTestCase {
             func artwork(_ cell:UICollectionViewCell)throws->UIImageView {try XCTUnwrap(cell.contentView.subviews.flatMap{[$0]+$0.subviews}.first{$0.accessibilityIdentifier=="native.backpack.idle-artwork"} as? UIImageView)}
             let beeCell=try cell(0),beeArt=try artwork(beeCell),starArt=try artwork(cell(1)),lockedArt=try artwork(cell(2))
             let bee=try XCTUnwrap(beeArt.superview),star=try XCTUnwrap(starArt.superview),locked=try XCTUnwrap(lockedArt.superview)
-            for image in [bee,star] {
+            for (image,id) in [(bee,"bee"),(star,"wild-star")] {
                 let motion=try XCTUnwrap(image.layer.animation(forKey:key) as? CAKeyframeAnimation)
-                XCTAssertEqual(motion.keyPath,"transform");XCTAssertTrue([4.4,4.85,5.2].contains(motion.duration))
+                XCTAssertEqual(motion.keyPath,"transform");XCTAssertEqual(motion.duration,NativeBackpackArtworkIdleMotion(id:id).baseDuration/1.4,accuracy:1e-9)
                 XCTAssertGreaterThan(motion.repeatCount,100)
                 let peak=(motion.values![1] as! NSValue).caTransform3DValue
-                XCTAssertLessThan(peak.m42,0);XCTAssertGreaterThan(peak.m11,1)
+                XCTAssertLessThan(peak.m42,0);XCTAssertGreaterThan(abs(peak.m13)+abs(peak.m23),0.05)
+                XCTAssertNotEqual(peak.m41,0)
             }
             XCTAssertNil(locked.layer.animationKeys())
             XCTAssertTrue(bee.subviews.filter{!($0 is NativeBackpackAlertView)}.allSatisfy{$0.layer.animationKeys()==nil},"Holder and die share their moving parent")
@@ -75,6 +76,56 @@ final class NativeBackpackTests:XCTestCase {
             beeCell.prepareForReuse();XCTAssertNil(bee.layer.animationKeys());XCTAssertTrue(CATransform3DIsIdentity(bee.layer.transform))
             screen.removeFromSuperview();XCTAssertNil(star.layer.animationKeys());XCTAssertNil(locked.layer.animationKeys())
         }
+    }
+
+    func testEveryCollectionIconHasDistinctBoundedThreeDimensionalIdle() {
+        let items=NativeBackpackCatalog.arcade+NativeBackpackCatalog.forest+NativeBackpackCatalog.area+NativeBackpackCatalog.beach
+        XCTAssertEqual(items.count,18)
+        var durations=Set<Double>(),directions=Set<Bool>()
+        for item in items {
+            let motion=NativeBackpackArtworkIdleMotion(id:item.id)
+            XCTAssertEqual(motion.duration*1.4,motion.baseDuration,accuracy:1e-9)
+            durations.insert(motion.duration);directions.insert(motion.drift.x>0)
+            let poses=motion.poses(scale:1)
+            XCTAssertTrue(CATransform3DEqualToTransform(poses[0],poses[4]),"Loop closes without a jump")
+            for pose in poses {
+                XCTAssertTrue(pose.m11.isFinite && pose.m22.isFinite && pose.m34.isFinite)
+                XCTAssertLessThan(abs(pose.m41),5);XCTAssertLessThan(abs(pose.m42),10)
+                XCTAssertGreaterThan(pose.m11*pose.m22-pose.m12*pose.m21,0.9,"No edge-on/card collapse")
+            }
+            XCTAssertLessThan(poses[1].m34,0)
+            XCTAssertGreaterThan(abs(poses[1].m13)+abs(poses[1].m23),0.05)
+            XCTAssertLessThan(poses[1].m13*poses[2].m13,0,"Yaw reverses through the cycle")
+        }
+        XCTAssertEqual(durations.count,items.count);XCTAssertEqual(directions.count,2)
+    }
+    func testArcadeIconsHaveIndependentMountedPosesAndStopOffWindow() async throws {
+        guard !UIAccessibility.isReduceMotionEnabled else {throw XCTSkip("Authored idle motion")}
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible();defer{window.isHidden=true}
+        let screen=NativeBackpackView(frame:window.bounds,assets:JimiV9Artwork(resourceRoot:NativeTestResources.root),arcadeCrate:true)
+        host.view.addSubview(screen);screen.apply([]);screen.grid.layoutIfNeeded();screen.setAlertsActive(true)
+        let cells=screen.grid.visibleCells
+        XCTAssertEqual(cells.count,4)
+        let groups=try cells.map {cell in try XCTUnwrap(cell.contentView.subviews.first{$0.accessibilityIdentifier=="native.backpack.idle-group"})}
+        let animations=try groups.map {try XCTUnwrap($0.layer.animation(forKey:"backpack.artwork.idle") as? CAKeyframeAnimation)}
+        XCTAssertEqual(Set(animations.map(\.duration)).count,4)
+        try await Task.sleep(for:.milliseconds(350))
+        for group in groups {
+            let painted=try XCTUnwrap(group.layer.presentation()).transform
+            XCTAssertGreaterThan(abs(painted.m41),0.01)
+            XCTAssertGreaterThan(abs(painted.m13)+abs(painted.m23),0.002,"Mounted artwork turns in3D")
+        }
+        // Render the real four-card layout for visual review at this active pose.
+        let renderer=UIGraphicsImageRenderer(bounds:screen.bounds)
+        let png=renderer.image {_ in screen.drawHierarchy(in:screen.bounds,afterScreenUpdates:false)}.pngData()
+        try png?.write(to:URL(fileURLWithPath:"/tmp/backpack-idle40-arcade.png"))
+        screen.setAlertsActive(false)
+        XCTAssertTrue(groups.allSatisfy{$0.layer.animation(forKey:"backpack.artwork.idle")==nil})
+        screen.setAlertsActive(true)
+        XCTAssertTrue(groups.allSatisfy{($0.layer.animation(forKey:"backpack.artwork.idle")?.timeOffset ?? 0)>0})
+        screen.removeFromSuperview()
+        XCTAssertTrue(groups.allSatisfy{$0.layer.animation(forKey:"backpack.artwork.idle")==nil})
     }
 
     func testOpeningEveryIntroductionUnitDoesNotRevealItsDieBeforeLandedDrop() throws {
@@ -634,7 +685,7 @@ final class NativeBackpackTests:XCTestCase {
         }
     }
     func testCatalogUsesCanonicalProgressAndExactWorldTotals() {
-        XCTAssertEqual(NativeBackpackCatalog.arcade.map(\.id),["tnt","wild-magnet","cubero"])
+        XCTAssertEqual(NativeBackpackCatalog.arcade.map(\.id),["tnt","wild-magnet","cubero","baloon"])
         XCTAssertEqual(NativeBackpackCatalog.beach.first{$0.id=="wild-juice"}?.title,"JUICE")
         var progress=NativeProgressionState()
         var sections=NativeBackpackCatalog.sections(progress)

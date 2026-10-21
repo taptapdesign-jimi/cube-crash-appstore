@@ -32,7 +32,7 @@ final class NativeScoreOwner {
         }
         guard let app=gameplay.parent as? NativeAppController else{return}
         let controller=NativeGameplayBackpackController(root:root,sections:sections,includesArcade:state.mode == .arcade,motion:NativeRouteMotion(home:app.home,hub:app.hub))
-        backpack=controller;lease += 1;let token=lease;gameplay.boardScene?.setBackpackPresented(true);gameplay.setSuspended(true);onFeedback?("exit-modal")
+        backpack=controller;lease += 1;let token=lease;gameplay.boardScene?.setBackpackPresented(true);gameplay.setSuspended(true);onFeedback?("exit-modal");onFeedback?("collection-icon-speech")
         // A collection visit acknowledges only the notifications it displayed, and
         // only after dismissal returns to this exact board. Discovery never opens UI.
         controller.onHUDCloseRequested={[weak self,weak gameplay] in
@@ -62,8 +62,8 @@ final class NativeScoreOwner {
             UIApplication.shared.applicationState == .active else{return}
         gameplay.setSuspended(true);lease += 1;let token=lease
         let modal=NativeScoreModal(model:.init(state:gameplay.engine.state,progression:progression(),combo:combo),root:root)
-        sheet=modal;onFeedback?("hud-modal-open")
-        modal.onCloseRequested = { [weak self] in guard let self,self.lease==token else{return};self.onFeedback?("back") }
+        sheet=modal;onFeedback?("hud-modal-open");onFeedback?(combo ? "combo-modal-speech":"high-score-modal-speech")
+        modal.onCloseRequested = { [weak self] in guard let self,self.lease==token else{return};self.onFeedback?("modal-close") }
         modal.onClosed = { [weak self] in guard let self,self.lease==token else{return};self.sheet=nil;self.gameplay?.setSuspended(false) }
         gameplay.present(modal,animated:false)
     }
@@ -202,7 +202,7 @@ final class NativeGameplayBackpackController:UIViewController {
         detail.onCloseRequested={[weak self,weak detail] in
             guard let self,self.detail === detail,!self.disposed else{return}
             self.returningDetail=true;self.pendingDie=nil
-            self.onFeedback?("back")
+            self.onFeedback?("modal-close")
             self.scheduleExchange(after:0.65*0.4){[weak self] in self?.enterCollection()}
         }
         detail.onClose={[weak self,weak detail] in
@@ -268,7 +268,7 @@ final class NativeGameplayBackpackController:UIViewController {
     }
     @objc private func close(){
         guard admitted,!closing,!disposed,foreground,detail==nil else{return};closeButton.playArtworkTapFeedback();modalDrag?.cancel(preservePose:true);closing=true;view.isUserInteractionEnabled=false
-        screen?.setAlertsActive(false);onCloseRequested?();onFeedback?("back")
+        screen?.setAlertsActive(false);onCloseRequested?();onFeedback?("modal-close")
         if UIAccessibility.isReduceMotionEnabled {onHUDCloseRequested?();finishClose();return}
         CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in self?.finishClose()}
         JimiNativeModalV10.exit(card,flip:false,releaseY:card.layer.presentation()?.transform.m42 ?? 0,key:"gameplay.backpack.exit")

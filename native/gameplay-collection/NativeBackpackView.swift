@@ -118,7 +118,7 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
     }
     func collectionView(_ collectionView:UICollectionView,viewForSupplementaryElementOfKind kind:String,at indexPath:IndexPath)->UICollectionReusableView {
         let header=collectionView.dequeueReusableSupplementaryView(ofKind:kind,withReuseIdentifier:"section",for:indexPath) as! NativeBackpackSectionHeader
-        if arcadeCrate {header.apply(title:"Arcade",detail:nil,count:"3 / 3",assets:assets)}
+        if arcadeCrate {header.apply(title:"Arcade",detail:nil,count:"\(NativeBackpackCatalog.arcade.count) / \(NativeBackpackCatalog.arcade.count)",assets:assets)}
         else if includesArcade && indexPath.section==0 {header.apply(title:"Arcade",detail:"Always ready to play! Unlock more dice in Journey for even more fun.",count:nil,assets:assets)}
         else {let section=sections[indexPath.section-(includesArcade ? 1:0)];header.apply(title:section.title,detail:nil,count:"\(section.count) / \(section.dice.count)",assets:assets)}
         return header
@@ -167,6 +167,62 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
     @objc private func closeTapped(){close.playArtworkTapFeedback();onClose?()}
 }
 
+/// Per-character Worlds-Hub-style pose recipes; one existing layer loop per visible card.
+struct NativeBackpackArtworkIdleMotion {
+    static let playbackRate=1.4
+    let baseDuration:Double
+    let drift:CGPoint,tilt:CGPoint
+    let roll:CGFloat,depth:CGFloat
+    private let pathStyle:Int
+    init(id:String) {
+        let recipe:(Double,CGFloat,CGFloat,CGFloat,CGFloat,CGFloat,CGFloat)
+        switch id {
+        case "tnt":recipe=(4.40,-2.8,-7.2,-1.7,6.2,1.1,8)
+        case "wild-magnet":recipe=(4.64,3.4,-5.8,1.8,-7.2,-1.3,7)
+        case "cubero":recipe=(4.83,-1.8,-8.4,-2.1,-5.8,1.5,10)
+        case "baloon":recipe=(5.06,2.6,-9.0,1.5,5.4,-0.9,9)
+        case "bee":recipe=(4.42,3.2,-7.8,-1.6,6.8,1.2,8)
+        case "wild-star":recipe=(4.91,-3.1,-6.2,2.0,-6.4,-1.4,10)
+        case "flower":recipe=(5.18,2.1,-5.8,-1.8,5.9,1.3,7)
+        case "honey":recipe=(4.73,-2.5,-6.8,1.4,-5.6,-1.0,8)
+        case "mushroom":recipe=(4.58,1.8,-8.1,-2.2,6.1,1.1,9)
+        case "barell":recipe=(5.11,-3.4,-5.4,1.7,-7.0,-1.5,7)
+        case "robo-cube":recipe=(4.69,2.7,-6.4,-1.5,-6.2,1.4,9)
+        case "kanta":recipe=(4.98,-2.3,-7.4,2.1,5.8,-1.2,8)
+        case "spaceship":recipe=(5.23,3.6,-8.6,-1.3,7.1,0.9,11)
+        case "laser-gun":recipe=(4.53,-3.0,-5.9,1.9,-6.7,-1.1,7)
+        case "wild-juice":recipe=(4.77,2.4,-7.1,-2.0,5.7,1.0,8)
+        case "fish":recipe=(5.02,-3.7,-6.6,1.6,-7.3,-1.3,10)
+        case "beach-ball":recipe=(4.87,3.0,-8.3,-1.9,6.5,1.6,9)
+        case "bottle":recipe=(5.16,-2.0,-6.0,1.8,-5.9,-1.0,8)
+        default:recipe=(4.85,2,-7,-1.7,6,1.1,8)
+        }
+        let styles=[["tnt","bee","honey","laser-gun"],["wild-magnet","flower","barell","fish"],["cubero","mushroom","robo-cube","beach-ball"],["baloon","wild-star","kanta","spaceship","wild-juice","bottle"]]
+        pathStyle=styles.firstIndex{$0.contains(id)} ?? 0
+        baseDuration=recipe.0;drift=CGPoint(x:recipe.1,y:recipe.2)
+        tilt=CGPoint(x:recipe.3,y:recipe.4);roll=recipe.5;depth=recipe.6
+    }
+    var duration:Double {baseDuration/Self.playbackRate}
+    func poses(scale:CGFloat)->[CATransform3D] {
+        // Neutral → forward lean → opposite lean → soft return, like Worlds Hub.
+        let weights:[(CGFloat,CGFloat,CGFloat,CGFloat)]
+        switch pathStyle {
+        case 1:weights=[(0,0,0,0),(1,0.55,1,0.6),(-1,0.25,-1,1),(-0.25,-0.1,-0.2,0.3),(0,0,0,0)]
+        case 2:weights=[(0,0,0,0),(0.4,1,0.6,1),(1,-0.22,-1,0.35),(-0.6,0.45,0.35,0.65),(0,0,0,0)]
+        case 3:weights=[(0,0,0,0),(1,0.65,1,0.7),(-0.2,1,-0.75,1),(-0.85,0.12,0.3,0.4),(0,0,0,0)]
+        default:weights=[(0,0,0,0),(1,1,1,1),(-0.65,0.35,-0.8,0.7),(0.25,-0.15,0.25,0.3),(0,0,0,0)]
+        }
+        return weights.map {side,lift,turn,forward in
+            var t=CATransform3DIdentity;t.m34 = -1/(720*max(0.01,scale))
+            t=CATransform3DTranslate(t,drift.x*side*scale,drift.y*lift*scale,depth*forward*scale)
+            t=CATransform3DRotate(t,tilt.x*turn * .pi/180,1,0,0)
+            t=CATransform3DRotate(t,tilt.y*turn * .pi/180,0,1,0)
+            t=CATransform3DRotate(t,roll*turn * .pi/180,0,0,1)
+            return CATransform3DScale(t,1+0.012*forward,1+0.012*forward,1)
+        }
+    }
+}
+
 @MainActor
 private final class NativeBackpackCell:UICollectionViewCell {
     static let ink=UIColor(red:0.68,green:0.53,blue:0.46,alpha:1)
@@ -180,7 +236,7 @@ private final class NativeBackpackCell:UICollectionViewCell {
     private var artworkActive=false
     private var artworkIdentity:String?
     private var artworkIdleOffset:CFTimeInterval=0
-    private var artworkIdleDuration:CFTimeInterval=4.4
+    private var artworkIdleMotion=NativeBackpackArtworkIdleMotion(id:"")
     private static let artworkIdleKey="backpack.artwork.idle"
     override func didMoveToWindow(){super.didMoveToWindow();reconcileArtworkIdle()}
     private func stopArtworkIdle(reset:Bool=false){
@@ -196,16 +252,13 @@ private final class NativeBackpackCell:UICollectionViewCell {
     private func reconcileArtworkIdle(){
         guard artworkActive,die.tag==1,window != nil,contentView.bounds.width>0,!UIAccessibility.isReduceMotionEnabled else{stopArtworkIdle();return}
         guard artworkGroup.layer.animation(forKey:Self.artworkIdleKey)==nil else{return}
-        // Same neutral → raised/softly tilted → neutral float as Worlds Hub.
-        // Holder, die and corner alert float as one card; selection/route own parents.
+        // One selected recipe owns perspective, float and local tilt together.
+        // Holder, die and corner alert remain one card; parent owns tap/route motion.
         let scale=contentView.bounds.width/(arcade ? 98:153)
-        var peak=CATransform3DMakeTranslation(0,-8*scale,0)
-        peak=CATransform3DScale(peak,1.018,1.018,1)
-        peak=CATransform3DRotate(peak,0.7 * .pi/180,0,0,1)
         let motion=CAKeyframeAnimation(keyPath:"transform")
-        motion.values=[CATransform3DIdentity,peak,CATransform3DIdentity].map{NSValue(caTransform3D:$0)}
-        motion.keyTimes=[0,0.5,1];motion.duration=artworkIdleDuration
-        motion.timingFunctions=Array(repeating:CAMediaTimingFunction(name:.easeInEaseOut),count:2)
+        motion.values=artworkIdleMotion.poses(scale:scale).map{NSValue(caTransform3D:$0)}
+        motion.keyTimes=[0,0.28,0.58,0.78,1];motion.duration=artworkIdleMotion.duration
+        motion.timingFunctions=Array(repeating:CAMediaTimingFunction(name:.easeInEaseOut),count:4)
         motion.repeatCount = .infinity
         motion.beginTime=artworkGroup.layer.convertTime(CACurrentMediaTime(),from:nil);motion.timeOffset=artworkIdleOffset
         artworkGroup.layer.add(motion,forKey:Self.artworkIdleKey)
@@ -214,7 +267,7 @@ private final class NativeBackpackCell:UICollectionViewCell {
     required init?(coder:NSCoder){fatalError("Use frame")}
     func apply(_ item:NativeBackpackCatalog.Die,unlocked:Bool,right:Bool,arcade:Bool,assets:JimiV9Artwork,illustrationScale:CGFloat=1) {
         if artworkIdentity != item.id {stopArtworkIdle(reset:true);artworkIdentity=item.id}
-        artworkIdleDuration=[4.4,4.85,5.2][max(0,item.board)%3]
+        artworkIdleMotion=NativeBackpackArtworkIdleMotion(id:item.id)
         self.arcade=arcade;alertRight=right;alert.clockwise=right
         alert.image=assets.image("assets/nav/new.png",densityAware:true)
         let holderSuffix = !unlocked ? " locked" : arcade ? (item.id=="wild-magnet" ? " middle" : item.id=="cubero" ? " desno" : "") : (right ? " desno" : "")

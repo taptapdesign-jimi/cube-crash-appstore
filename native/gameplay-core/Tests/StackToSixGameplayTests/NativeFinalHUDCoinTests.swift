@@ -28,6 +28,7 @@ final class NativeFinalHUDCoinTests:XCTestCase {
             XCTAssertEqual(count,first.gameplayArchetype == .tnt ? 3:archetype == .star ? (variant == "bee" ? 1:3):archetype == .juice ? 2:1,tag)
             XCTAssertTrue(engine.state.tiles.isEmpty,tag);XCTAssertTrue(engine.pendingMeterRewards.isEmpty,tag)
             XCTAssertFalse(result.events.contains{$0.kind == .spawned},tag)
+            XCTAssertTrue(engine.pendingHUDStars.allSatisfy(\.isFinalMerge),tag)
             let score=engine.state.score,receipts=engine.pendingHUDStars.map(\.id)
             let job=try XCTUnwrap(engine.registerSourceHUDStarJob(receiptIDs:receipts,generation:engine.state.generation),tag)
             for id in receipts {
@@ -39,6 +40,18 @@ final class NativeFinalHUDCoinTests:XCTestCase {
             if let plan=engine.pendingDirectWild {XCTAssertTrue(engine.releaseDirectWildPresentation(transactionID:plan.id,generation:plan.generation).accepted,tag)}
             XCTAssertEqual(engine.state.terminal?.kind,.complete,tag)
         }}}
+    }
+    func testNonFinalWildCoinsDoNotCarryFinalSpeedAdmission() {
+        for archetype in [NativeWildArchetype.star,.juice] {
+            let engine=NativeGameplayEngine(state:.init(tiles:[
+                .init(id:"s",cell:.init(column:0,row:0),value:6,archetype:archetype),
+                .init(id:"d",cell:.init(column:1,row:0),value:2),
+                .init(id:"other",cell:.init(column:2,row:0),value:1)]),recordedRandomChoices:[0.5])
+            XCTAssertTrue(engine.beginDrag(tileID:"s"))
+            XCTAssertTrue(engine.drop(target:.init(column:1,row:0)).accepted)
+            XCTAssertFalse(engine.pendingHUDStars.isEmpty)
+            XCTAssertTrue(engine.pendingHUDStars.allSatisfy{!$0.isFinalMerge})
+        }
     }
     func testFinalLegacyBeachBallGetsThreeCoinsWithoutSkippingItsExistingMathDraw() {
         var draws=0

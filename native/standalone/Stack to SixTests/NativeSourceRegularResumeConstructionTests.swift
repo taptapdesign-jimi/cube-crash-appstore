@@ -186,6 +186,28 @@ import StackToSixGameplay
   XCTAssertTrue(zero.repairSourceRegularSpawnOpacity(wildDropping:false));XCTAssertEqual(zero.alpha,0.2,accuracy:1e-6)
   node.isHidden=true;node.alpha=0.01;XCTAssertTrue(node.repairSourceRegularSpawnOpacity(wildDropping:false));XCTAssertEqual(node.alpha,1)
  }
+ func testLockedBonusSevenPercentOpacityRemainsStableAcrossSafetyAndOwnerRepairs()throws {
+  let f=try Fixture(saved(),sourceOuterForRepair:true);defer{f.dispose()};f.service.deliver(wallMilliseconds:16)
+  let zero=try XCTUnwrap(f.construction.nodes["zero"]),node=try XCTUnwrap(f.construction.nodes["five"])
+  let before=f.scene.engine.state,draws=f.counter.count
+  zero.isHidden=false;zero.prepareSourceLockedBonus(alpha:0.07)
+  for _ in 0..<20 {
+   XCTAssertTrue(zero.repairSourceRegularSpawnOpacity(wildDropping:false,lockedAlpha:0.07))
+   XCTAssertEqual(zero.alpha,0.07,accuracy:1e-6)
+   zero.repairSourceLockedBonus(alpha:0.07)
+   XCTAssertEqual(zero.alpha,0.07,accuracy:1e-6)
+  }
+  zero.alpha=0
+  XCTAssertTrue(zero.repairSourceRegularSpawnOpacity(wildDropping:false,lockedAlpha:0.07))
+  XCTAssertEqual(zero.alpha,0.07,accuracy:1e-6,"stranded bonus restores its own opacity")
+  zero.alpha=0.01
+  XCTAssertTrue(zero.repairSourceRegularSpawnOpacity(wildDropping:false,lockedAlpha:1))
+  XCTAssertEqual(zero.alpha,0.2,accuracy:1e-6,"ordinary empty-holder safety remains")
+  node.isHidden=false;node.alpha=0.07
+  XCTAssertTrue(node.repairSourceRegularSpawnOpacity(wildDropping:false,lockedAlpha:0.07))
+  XCTAssertEqual(node.alpha,1,"positive-value dice still recover full opacity")
+  XCTAssertEqual(f.scene.engine.state,before);XCTAssertEqual(f.counter.count,draws)
+ }
  func testActualInnerRepairMissingRetirementAuthorityRefusesInsteadOfPaintingOverOrphan()throws {
   let f=try Fixture(saved(),sourceOuterForRepair:true);defer{f.dispose()};f.service.deliver(wallMilliseconds:16)
   let node=try XCTUnwrap(f.construction.nodes["five"]);node.isHidden=false;node.visual.setScale(1.4)

@@ -30,6 +30,7 @@ final class NativeDeveloperPicker: UIViewController {
     private var buttons: [JimiV9PlainButton] = []
     private var resolved = false
     var onSelect: ((Set<String>) -> Void)?
+    var onCloseRequested:(()->Void)?
     init(root: URL, title: String, choices: [Choice], multiple: Bool) {
         self.choices = choices; self.multiple = multiple; artwork = JimiV9Artwork(resourceRoot: root)
         super.init(nibName: nil, bundle: nil); heading.text = title; modalPresentationStyle = .overFullScreen
@@ -96,10 +97,11 @@ final class NativeDeveloperPicker: UIViewController {
     @objc private func commit() {
         guard !resolved, !selected.isEmpty else { return }; resolved = true
         let callback = onSelect, values = selected; onSelect = nil
+        onCloseRequested?();onCloseRequested=nil
         dismiss(animated: false) { callback?(values) }
     }
-    @objc private func close() { dispose() }
-    func dispose() { guard !resolved else { return }; resolved = true; onSelect = nil; dismiss(animated: false) }
+    @objc private func close() {guard !resolved else{return};onCloseRequested?();dispose()}
+    func dispose() { guard !resolved else { return }; resolved = true; onSelect = nil;onCloseRequested=nil; dismiss(animated: false) }
 }
 
 /// An isolated Native profile hosts LAST MERGE through the shipping gameplay

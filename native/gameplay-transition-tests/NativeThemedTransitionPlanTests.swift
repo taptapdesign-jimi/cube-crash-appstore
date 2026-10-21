@@ -47,22 +47,20 @@ final class NativeThemedTransitionPlanTests:XCTestCase {
         XCTAssertEqual(robo.first {$0.definition.key=="robo-walker"}!.left,78)
         XCTAssertEqual(robo.first {$0.definition.key=="robo-fence-static-left"}!.bottom,331.00278032,accuracy:0.000001)
     }
-    func testEveryCloudUsesTheFullSourceBounceExitIncludingRearForestClouds() {
+    func testEveryThemeUsesForestContinuousCloudExitFromItsOwnRandomSize() {
         for theme in [NativeBoardTransitionPlan.Theme.forest,.beach,.area55] {
             let plans=NativeTransitionCloudPlan.make(theme:theme,width:390,random:{0.37})
             for cloud in plans {
                 for row in NativeThemedCloudExitOracle.samples {
                     let rest=row[0],age=row[1]
-                    let adjusted=NativeTransitionCloudPlan.Cloud(asset:cloud.asset,depth:cloud.depth,width:cloud.width,height:cloud.height,xPercent:cloud.xPercent,yPercent:cloud.yPercent,baseScale:rest,rotation:cloud.rotation,bounceAmount:cloud.bounceAmount,bounceSpeed:cloud.bounceSpeed,windDuration:cloud.windDuration,driftDistance:cloud.driftDistance,initialY:cloud.initialY,enterDelay:cloud.enterDelay,preservesAspectDuringExit:cloud.preservesAspectDuringExit)
+                    let adjusted=NativeTransitionCloudPlan.Cloud(asset:cloud.asset,depth:cloud.depth,width:cloud.width,height:cloud.height,xPercent:cloud.xPercent,yPercent:cloud.yPercent,baseScale:rest,rotation:cloud.rotation,bounceAmount:cloud.bounceAmount,bounceSpeed:cloud.bounceSpeed,windDuration:cloud.windDuration,driftDistance:cloud.driftDistance,initialY:cloud.initialY,enterDelay:cloud.enterDelay)
                     let pose=adjusted.sample(seconds:2.65+age,exitAt:2.65)
-                    if theme == .forest {
-                        XCTAssertEqual(pose.scaleX,pose.scaleY,accuracy:0.000002)
-                        XCTAssertGreaterThanOrEqual(pose.scaleX,0)
-                        XCTAssertLessThanOrEqual(pose.scaleX,rest+0.000002)
-                    } else {
-                        XCTAssertEqual(pose.scaleX,row[2],accuracy:0.000002)
-                        XCTAssertEqual(pose.scaleY,row[3],accuracy:0.000002)
-                    }
+                    XCTAssertEqual(pose.scaleX,pose.scaleY,accuracy:0.000002)
+                    XCTAssertGreaterThanOrEqual(pose.scaleX,0)
+                    XCTAssertLessThanOrEqual(pose.scaleX,rest+0.000002)
+                    let reference=NativeTransitionCloudPlan.make(theme:.forest,width:390,random:{0.37})[0]
+                    let forest=NativeTransitionCloudPlan.Cloud(asset:reference.asset,depth:reference.depth,width:reference.width,height:reference.height,xPercent:reference.xPercent,yPercent:reference.yPercent,baseScale:rest,rotation:reference.rotation,bounceAmount:reference.bounceAmount,bounceSpeed:reference.bounceSpeed,windDuration:reference.windDuration,driftDistance:reference.driftDistance,initialY:reference.initialY,enterDelay:reference.enterDelay).sample(seconds:2.65+age,exitAt:2.65)
+                    XCTAssertEqual(pose.scaleX,forest.scaleX,accuracy:0.000002)
                     XCTAssertEqual(pose.opacity,age>=0.595 ? 0:1)
                 }
                 // Mountain withdrawal must not hard-hide a rear cloud.

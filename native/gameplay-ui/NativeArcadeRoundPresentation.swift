@@ -20,6 +20,8 @@ final class NativeArcadeRoundPresentation: UIView {
     private let nextCard = UIView()
     private let stage = UIView()
     private let thumb = UIImageView()
+    let isPuppyThumb: Bool
+    var thumbAssetPath: String { isPuppyThumb ? "assets/puppy thumbs up@2x.png" : "assets/thumbs-up@2x.png" }
     private let shadow = NativeArcadeThumbShadow()
     private var titleGlyphs: [UILabel] = [], subtitleGlyphs: [UILabel] = [], roundGlyphs: [UILabel] = [], digits: [UILabel] = []
     private var exitAngles: [CGFloat] = [], digitAngles: [CGFloat] = []
@@ -52,6 +54,7 @@ final class NativeArcadeRoundPresentation: UIView {
         artwork = JimiV9Artwork(resourceRoot: resourceRoot)
         self.clearedRound = max(1,clearedRound); self.nextRound = max(1,nextRound); self.continuationOnly = continuationOnly
         headline = Self.headlines[min(Self.headlines.count-1,max(0,Int(random()*Double(Self.headlines.count))))]
+        isPuppyThumb = !continuationOnly && random() < 0.5
         super.init(frame: .zero)
         isUserInteractionEnabled = false; clipsToBounds = true; backgroundColor = .clear
         accessibilityIdentifier = "native-arcade-round-presentation"
@@ -63,7 +66,7 @@ final class NativeArcadeRoundPresentation: UIView {
         for character in headline { titleFactors.append(character == " " ? 1 : CGFloat((85+random()*30).rounded())/100) }
         exitAngles = (titleGlyphs+subtitleGlyphs+roundGlyphs).indices.map { CGFloat(($0 % 2 == 0 ? 1 : -1)*(12+random()*8)) }
         digitAngles = digits.indices.map { CGFloat(-8+random()*16)*($0 % 2 == 0 ? 1 : -1) }
-        thumb.image = artwork.image("assets/thumbs-up@2x.png",densityAware: false)
+        thumb.image = artwork.image(thumbAssetPath,densityAware: false)
         thumb.contentMode = .scaleAspectFit; clearCard.addSubview(shadow); clearCard.addSubview(thumb)
         thumb.layer.anchorPoint = CGPoint(x: 0.5,y: 0.74)
         clockTarget.owner = self

@@ -6,6 +6,31 @@ import StackToSixNativeState
 
 @MainActor
 final class NativeHapticRuntimeTests:XCTestCase {
+    func testAcceptedHomeNavigationContactsSurviveHomePatternAndRepeatedTaps()async throws {
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let store=NativeSaveStore(directory:directory)
+        var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:true))
+        seed.progression.firstPlayTutorialComplete=true;try store.save(seed)
+        let bootstrap=try NativeBootstrap(root:NativeTestResources.root,store:store,showStudioIntro:false)
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible()
+        var outputs:[NativeHapticRuntime.Output]=[];bootstrap.hapticOutputObserver={outputs.append($0)}
+        bootstrap.start(in:host)
+        defer{bootstrap.dispose();window.isHidden=true;try? FileManager.default.removeItem(at:directory)}
+        let app=try XCTUnwrap(host.children.first as? NativeAppController)
+        try await wait{app.home.isUserInteractionEnabled}
+        try await Task.sleep(for:.milliseconds(600));outputs.removeAll()
+        for index in 0..<16 {
+            app.home.navigationButtonViews[index%3].sendActions(for:.touchUpInside)
+            try await Task.sleep(for:.milliseconds(30))
+        }
+        XCTAssertEqual(outputs.filter{$0 == .impact("light")}.count,16)
+        outputs.removeAll();app.navigate(.world(1),interrupt:true)
+        try await wait{app.world?.isReadyForInput==true}
+        XCTAssertEqual(outputs.filter{$0 == .impact("light")}.count,1)
+        outputs.removeAll();app.world?.onRequest?("back",nil)
+        XCTAssertEqual(outputs.filter{$0 == .impact("light")}.count,1)
+    }
     func testStackActuatorReusesGeneratorAndPreparesEverySubtleContact() {
         final class Generator:NativeStackImpactGenerator {
             var calls:[String]=[]

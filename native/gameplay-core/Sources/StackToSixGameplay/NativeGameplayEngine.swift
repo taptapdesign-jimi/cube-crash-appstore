@@ -2104,12 +2104,12 @@ public final class NativeGameplayEngine {
 
     private func captureHUDStars(source: NativeTile, destination: NativeTile,starOrbitCapture:NativeSourceStarOrbitCapture?=nil,finalMerge:Bool=false) -> [NativeHUDStarReceipt] {
         guard let wild = [source,destination].first(where: { $0.isWild }) else {
-            return finalMerge ? prepareHUDStars(count:1,origin:destination.cell,variant:nil):[]
+            return finalMerge ? prepareHUDStars(count:1,origin:destination.cell,variant:nil,finalMerge:true):[]
         }
         if comboHUDCoinRewardsEnabled {
             // Keep the existing Juice selection draw so the board RNG stream is unchanged.
             if wild.archetype == .juice {_ = nextRandom()}
-            return prepareHUDStars(count:NativeComboCoinPolicy.count(combo:state.combo),origin:destination.cell,variant:wild.variant,archetype:wild.gameplayArchetype)
+            return prepareHUDStars(count:NativeComboCoinPolicy.count(combo:state.combo),origin:destination.cell,variant:wild.variant,archetype:wild.gameplayArchetype,finalMerge:finalMerge)
         }
         let count: Int
         // Final TNT gameplay, including legacy variant provenance, earns three
@@ -2128,12 +2128,12 @@ public final class NativeGameplayEngine {
         else if wild.archetype == .juice { count = 1+Int(nextRandom()*3) }
         else if finalMerge {count=1}
         else { return [] }
-        return prepareHUDStars(count:count,origin:destination.cell,variant:wild.variant,archetype:wild.gameplayArchetype)
+        return prepareHUDStars(count:count,origin:destination.cell,variant:wild.variant,archetype:wild.gameplayArchetype,finalMerge:finalMerge)
     }
-    private func prepareHUDStars(count: Int, origin: NativeCell, variant: String?, archetype: NativeWildArchetype? = nil) -> [NativeHUDStarReceipt] {
+    private func prepareHUDStars(count: Int, origin: NativeCell, variant: String?, archetype: NativeWildArchetype? = nil, finalMerge:Bool=false) -> [NativeHUDStarReceipt] {
         hudStarSequence &+= 1
         let batch = "native-hud-star:\(state.generation):\(hudStarSequence)"
-        let receipts = (0..<count).map { NativeHUDStarReceipt(id:"\(batch):\($0)",generation:state.generation,origin:origin,ordinal:$0,batchCount:count,variant:variant,archetype:archetype) }
+        let receipts = (0..<count).map { NativeHUDStarReceipt(isFinalMerge:finalMerge,id:"\(batch):\($0)",generation:state.generation,origin:origin,ordinal:$0,batchCount:count,variant:variant,archetype:archetype) }
         pendingHUDStars += receipts
         return receipts
     }

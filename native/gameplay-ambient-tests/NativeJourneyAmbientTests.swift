@@ -142,7 +142,7 @@ final class NativeJourneyAmbientTests:XCTestCase {
         let owner=NativeJourneyAmbientOwner(root:URL(fileURLWithPath:"/unused"),enabled:true,transport:transport,scheduler:scheduler)
         let id=NativeJourneyAmbientOwner.area55
         owner.setRoute(.world(3),generation:1)
-        XCTAssertEqual(transport.commands.first{$0.id==id && $0.op=="start"}?.source,"assets/sound/Board transitions/Area 55/area ambient day at a park.wav")
+        XCTAssertEqual(transport.commands.first{$0.id==id && $0.op=="start"}?.source,"assets/sound/worlds/Area55/area55-ambient-loop-v1.wav")
         XCTAssertEqual(transport.commands.first{$0.id==id && $0.op=="start"}?.gain,0.6)
         for board in 21...30 {
             owner.beginJourneyTransition(board:board,generation:UInt64(board))
@@ -165,11 +165,11 @@ final class NativeJourneyAmbientTests:XCTestCase {
         owner.beginJourneyTransition(board:22,generation:35)
         XCTAssertEqual(transport.commands.count,count)
     }
-    func testArea55OriginalFileIsAdmittedAndRendersAcrossLoopBoundary()throws {
+    func testArea55SeamlessDerivedFileIsAdmittedAndRendersAcrossTwoLoopBoundaries() async throws {
         let root=try XCTUnwrap(Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle"))
-        let source="assets/sound/Board transitions/Area 55/area ambient day at a park.wav"
+        let source="assets/sound/worlds/Area55/area55-ambient-loop-v1.wav"
         let file=try AVAudioFile(forReading:root.appendingPathComponent(source))
-        XCTAssertEqual(Double(file.length)/file.processingFormat.sampleRate,30,accuracy:0.001)
+        XCTAssertEqual(Double(file.length)/file.processingFormat.sampleRate,9.5,accuracy:0.001)
         let engine=AVAudioEngine(),format=try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate:48000,channels:2))
         try engine.enableManualRenderingMode(.offline,format:format,maximumFrameCount:480)
         let transport=NativeFileAmbientLoopTransport(root:root,engine:engine)
@@ -178,16 +178,17 @@ final class NativeJourneyAmbientTests:XCTestCase {
         transport.start(id:NativeJourneyAmbientOwner.area55,source:source,gain:1)
         XCTAssertTrue(errors.isEmpty,"\(errors)")
         let buffer=try XCTUnwrap(AVAudioPCMBuffer(pcmFormat:format,frameCapacity:480))
-        var first:Float=0,second:Float=0
-        for block in 0..<3100 {
+        var peaks=[Float](repeating:0,count:3)
+        for block in 0..<2000 {
+            if block%50==0 {await Task.yield()}
             XCTAssertEqual(try engine.renderOffline(480,to:buffer),.success)
             let samples=try XCTUnwrap(buffer.floatChannelData)
             for channel in 0..<2 {for index in 0..<Int(buffer.frameLength) {
                 let value=abs(samples[channel][index])
-                if block<3000 {first=max(first,value)}else{second=max(second,value)}
+                let cycle=min(2,block/950);peaks[cycle]=max(peaks[cycle],value)
             }}
         }
-        XCTAssertGreaterThan(first,0.01);XCTAssertGreaterThan(second,0.01)
+        for peak in peaks {XCTAssertGreaterThan(peak,0.01)}
     }
     func testActualGullFileRenderingHasSilentGapBeforeSecondCall()throws {
         let root=try XCTUnwrap(Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle"))

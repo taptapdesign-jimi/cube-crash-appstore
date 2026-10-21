@@ -20,17 +20,23 @@ for (const file of files) {
 }
 const sourceIDs = [...read('src/modules/special-dice-registry.ts').matchAll(/^\s+id: '([^']+)'/gm)].map(match => match[1]).sort();
 const nativeIDs = [...read('native/gameplay-core/Sources/StackToSixGameplay/NativeSpecialDiceRegistry.swift').matchAll(/Variant\("([^"]+)"/g)].map(match => match[1]).sort();
-if (JSON.stringify(sourceIDs) !== JSON.stringify(nativeIDs)) errors.push('Native Special registry identity differs from canonical registry');
+const nativeManifest = JSON.parse(read('docs/engineering/native-special-dice-performance-owners.json'));
+const additions = nativeManifest.nativeOnlyVariants ?? {};
+for (const [id,record] of Object.entries(additions)) {
+  if (sourceIDs.includes(id) || !record.reason?.trim() || !['wild-star','wild-juice','wild-magnet','wild-tnt'].includes(record.archetype)) errors.push(`${id}: invalid Native-only identity declaration`);
+}
+const expectedIDs = [...sourceIDs,...Object.keys(additions)].sort();
+if (JSON.stringify(expectedIDs) !== JSON.stringify(nativeIDs)) errors.push('Native Special registry differs from preserved registry plus declared Native-only identities');
 const sourcePerformance = JSON.parse(read('docs/engineering/special-dice-performance-owners.json'));
 const nativePerformance = JSON.parse(read('docs/engineering/native-special-dice-performance-owners.json')).variants;
-for (const id of sourceIDs) {
+for (const id of expectedIDs) {
   const record = nativePerformance[id];
   if (!record) {errors.push(`${id}: missing native performance owner`);continue;}
-  if (record.archetype !== sourcePerformance[id]?.archetype) errors.push(`${id}: native performance archetype mismatch`);
+  if (record.archetype !== (sourcePerformance[id] ?? additions[id])?.archetype) errors.push(`${id}: native performance archetype mismatch`);
   for (const key of ['warmupPolicy','cleanupPolicy','hudDepthPolicy','physicalAcceptance']) if (!record[key]?.trim()) errors.push(`${id}: missing native ${key}`);
   for (const file of [record.idleOwner,record.finaleOwner,...record.tests ?? []]) if (!file?.startsWith('native/') || !fs.existsSync(path.join(root,file))) errors.push(`${id}: missing native performance owner/test ${file}`);
 }
-for (const id of Object.keys(nativePerformance)) if (!sourceIDs.includes(id)) errors.push(`${id}: stale native performance owner`);
+for (const id of Object.keys(nativePerformance)) if (!expectedIDs.includes(id)) errors.push(`${id}: stale native performance owner`);
 const project = read('native/standalone/Stack to Six.xcodeproj/project.pbxproj');
 if (!project.includes('com.taptapdesign.stacktosix.native')) errors.push('Separate Native target identity missing');
 for (const product of ['StackToSixGameplay','StackToSixNativeState']) if (!project.includes(`productName = ${product}`)) errors.push(`Native target does not link ${product}`);

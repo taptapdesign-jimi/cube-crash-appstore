@@ -6,6 +6,24 @@ import StackToSixNativeState
 
 @MainActor
 final class NativeScoreModalTests:XCTestCase {
+    func testActualHighScoreAndComboModalAdmissionSpeaksOnceAndRejectedRepeatIsSilent() async throws {
+        enum Unused:Error {case unavailable}
+        for mode in [NativeRunMode.journey,.arcade] {for combo in [false,true] {
+            let services=NativeAppServices(settings:{[:]},setPreference:{_,_ in},worldSnapshot:{_,_,_ in throw Unused.unavailable},markViewed:{_ in},makeGameplay:{_,_ in throw Unused.unavailable},flush:{})
+            let root=NativeAppController(resourceRoot:NativeTestResources.root,services:services)
+            let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=root;window.makeKeyAndVisible()
+            let game=NativeGameplayViewController(engine:NativeGameplayEngine(state:NativeBoardFactory.make(mode:mode,board:1)),resourceRoot:NativeTestResources.root)
+            root.addChild(game);game.view.frame=root.view.bounds;root.view.addSubview(game.view);game.didMove(toParent:root)
+            game.boardScene?.layout(size:game.view.bounds.size,insets:.zero,animateEntry:false)
+            let owner=NativeScoreOwner(gameplay:game,root:NativeTestResources.root,progression:{NativeProgressionState()})
+            defer{owner.dispose();game.dispose();root.dispose();window.isHidden=true}
+            var cues:[String]=[];owner.onFeedback={cues.append($0)}
+            owner.present(combo:combo);owner.present(combo:!combo)
+            XCTAssertNotNil(game.presentedViewController)
+            XCTAssertEqual(cues,["hud-modal-open",combo ? "combo-modal-speech":"high-score-modal-speech"])
+            try await Task.sleep(for:.milliseconds(100))
+        }}
+    }
     func testScoreCloseRequestFeedbackPrecedesExitAndCannotRepeat() async throws {
         let state=NativeBoardFactory.make(mode:.journey,board:1)
         let modal=NativeScoreModal(model:NativeScoreModalModel(state:state,progression:NativeProgressionState(),combo:false),root:NativeTestResources.root)
@@ -49,7 +67,9 @@ final class NativeScoreModalTests:XCTestCase {
         let game=NativeGameplayViewController(engine:engine,resourceRoot:NativeTestResources.root)
         game.loadViewIfNeeded()
         let snapshot=engine.state,owner=NativeScoreOwner(gameplay:game,root:NativeTestResources.root,progression:{NativeProgressionState()})
+        var cues:[String]=[];owner.onFeedback={cues.append($0)}
         owner.present(combo:false);owner.present(combo:true)
+        XCTAssertTrue(cues.isEmpty)
         XCTAssertNil(game.presentedViewController);XCTAssertEqual(engine.state,snapshot)
         owner.dispose();game.dispose()
     }

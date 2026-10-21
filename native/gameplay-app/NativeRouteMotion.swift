@@ -225,7 +225,11 @@ final class NativeRouteMotion {
         generation += 1
         for layer in animatedLayers {
             if let painted = layer.presentation() {
-                layer.transform = painted.transform; layer.opacity = painted.opacity
+                // Selection owns geometry only. Sampling an icon's independent
+                // contact bounce into the model would permanently freeze its squash.
+                if layer.animation(forKey:"native-route") != nil {
+                    layer.transform = painted.transform; layer.opacity = painted.opacity
+                }
                 if layer.animation(forKey: "native-slide-selection") != nil {
                     layer.position = painted.position; layer.bounds = painted.bounds
                 }

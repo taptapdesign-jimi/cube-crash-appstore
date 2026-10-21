@@ -44,6 +44,10 @@ import StackToSixGameplay
         let owned=try XCTUnwrap(actual.gameplayRenderHost as? NativeOwnedMetalGameplayView,
             "Normal standalone controller construction must not require a delivery launch flag")
         XCTAssertTrue(owned.renderedScene === actual)
+        let scale=window.screen.scale
+        XCTAssertEqual(owned.contentScaleFactor,scale)
+        XCTAssertEqual(owned.drawableSize,CGSize(width:390*scale,height:844*scale),
+            "Controller layout must not restore a one-pixel-per-point surface")
         XCTAssertNil(actual.view)
         XCTAssertEqual(actual.scaleMode,.fill)
         let census=NativeDiagnosticsRenderCensus.capture(root:controller.view)
@@ -98,7 +102,7 @@ import StackToSixGameplay
             let node=try XCTUnwrap(actual.sourceNativeTileNode("source")),expected=geometry.center(row:0,column:0)
             XCTAssertEqual(node.position.x,expected.x,accuracy:0.001)
             XCTAssertEqual(node.position.y,expected.y,accuracy:0.001)
-            XCTAssertEqual(owned.drawableSize,size,"The retained one-pixel-per-point budget is not multiplied on resize")
+            XCTAssertEqual(owned.drawableSize,CGSize(width:size.width*UIScreen.main.scale,height:size.height*UIScreen.main.scale),"Resize must retain display-density pixels while scene geometry stays in points")
             for anchor in [CGPoint.zero,CGPoint(x:0.5,y:0.5)] {
                 actual.anchorPoint=anchor;reference.anchorPoint=anchor
                 for point in [CGPoint.zero,CGPoint(x:37.25,y:83.5),CGPoint(x:-15,y:20)] {

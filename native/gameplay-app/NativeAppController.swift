@@ -123,6 +123,10 @@ final class NativeAppController: UIViewController {
             self.navigate(self.homeJourneyTutorial ? .gameplay : index == 0 ? .hub : index == 1 ? .arcadeHub : .settings)
         }
         home.onSlideSelected = { [weak self] index in self?.selectSlide(index) }
+        home.onHeroContact = {[weak self] in
+            guard let self,!self.disposed,!self.suspended,!self.transitioning,self.route == .home else{return}
+            self.onFeedback?(self.home.selectedSlide == 0 ? "home-journey-character-tap" : self.home.selectedSlide == 1 ? "home-arcade-character-tap" : "home-settings-character-tap")
+        }
         home.onPanBegan = { [weak self] in
             guard let self,!self.transitioning,self.route == .home else{return false}
             self.motion.cancel();self.home.pauseHeroIdle();return true
@@ -147,13 +151,22 @@ final class NativeAppController: UIViewController {
             self.prepareGameplayLaunch(boardID:tutorialBoard)
         }
         hub.onBack = { [weak self] in self?.navigate(.home,interrupt:true) }
-        hub.onWorld = { [weak self] id in self?.navigate(.world(id)) }
+        hub.onWorld = { [weak self] id in
+            guard let self,!self.disposed,!self.suspended,!self.transitioning,self.route == .hub,
+                  self.hub.scrollView.isUserInteractionEnabled,!self.hub.scrollView.isDragging,
+                  !self.hub.scrollView.isDecelerating,
+                  let cue=[1:"world-hub-forest",2:"world-hub-beach",3:"world-hub-space"][id] else{return}
+            let previous=self.generation
+            self.navigate(.world(id))
+            guard self.generation != previous,self.transitioning else{return}
+            self.onFeedback?(cue)
+        }
         settingsView.onBack = { [weak self] in self?.navigate(.home) }
-        settingsView.onDeveloperClose = {[weak self] in self?.onFeedback?("back")}
+        settingsView.onDeveloperClose = {[weak self] in self?.onFeedback?("modal-close")}
         settingsView.onDeveloper = { [weak self] epoch in
             guard let self,!self.disposed,!self.suspended,!self.transitioning,
                   self.route == .settings,epoch == self.generation else{return}
-            self.onFeedback?("cta");self.settingsView.setDeveloperPanelVisible(true)
+            self.onFeedback?("cta");self.onFeedback?("modal-open");self.settingsView.setDeveloperPanelVisible(true)
         }
         settingsView.onDeveloperAction = { [weak self] action, epoch in
             guard let self, !self.disposed, !self.suspended, !self.transitioning,
@@ -170,7 +183,8 @@ final class NativeAppController: UIViewController {
             guard let self,self.presentedViewController == nil else{return}
             self.onFeedback?("cta")
             let privacy = JimiNativePrivacyController(assets:self.artwork);privacy.modalPresentationStyle = .overFullScreen
-            privacy.onCloseRequested={[weak self] in self?.onFeedback?("back")}
+            privacy.onCloseRequested={[weak self] in self?.onFeedback?("modal-close")}
+            self.onFeedback?("modal-open")
             self.present(privacy,animated:false)
         }
         fault.numberOfLines = 0;fault.textAlignment = .center;fault.font = artwork.font(size:17,weight:"Medium")
@@ -200,8 +214,10 @@ final class NativeAppController: UIViewController {
         _ = settingsView.apply(value)
     }
     private func selectSlide(_ index:Int,feedback:String="tab") {
-        guard !transitioning,route == .home else{return}
-        onFeedback?(feedback)
+        guard !disposed,!suspended,!transitioning,route == .home,home.navigationButtonViews.indices.contains(index) else{return}
+        let changed=index != home.selectedSlide
+        if feedback != "tab-swipe" {onFeedback?(feedback)}
+        if changed {onFeedback?("swipe")}
         motion.selectSlide(index) { [weak self] in
             guard let self,self.route == .home,!self.suspended,!self.transitioning else{return}
             self.home.startHeroIdle()
@@ -246,6 +262,7 @@ final class NativeAppController: UIViewController {
                 transitioning=false;hub.setContentInteractionEnabled(true);hub.startIdle();showFault(error);return
             }
         }
+        if next == .backpack {onFeedback?("collection-icon-speech")}
         // Unit exit remains authoritative; finite artwork contact composes below it.
         onFeedback?(route == .backpack || next == .home || next == .hub && route != .home ? "back" : "cta")
         let complete:()->Void = { [weak self] in
@@ -639,7 +656,7 @@ final class NativeAppController: UIViewController {
             self.onFeedback?("exit-modal")
             if self.services.readJourneyDie(die.id){self.backpackView?.markRead(die.id)}
         }
-        detail.onCloseRequested={[weak self] in self?.onFeedback?("back")}
+        detail.onCloseRequested={[weak self] in self?.onFeedback?("modal-close")}
         detail.onExitSelection={[weak self,weak detail] point in
             guard let self,let detail,self.backpackDetail === detail,self.route == .backpack,!self.transitioning,!self.suspended,!self.disposed else{return}
             if let die=self.backpackView?.revealedDie(atWindowPoint:point){self.pendingBackpackDie=die}

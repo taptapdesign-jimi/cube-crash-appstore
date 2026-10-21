@@ -19,21 +19,22 @@ import Foundation
     }
     private let service:NativeSourceAnimationClockService,timeouts:NativeSourceAppTimeoutOwner
     private let generation:UInt64,delay:Double,direction:Double,hooks:Hooks
+    private let initialScale:Double
     private var scaleLease:NativeSourceAnimationClockService.Lease?,rotationLease:NativeSourceAnimationClockService.Lease?
     private var scaleParticipant:Participant?,rotationParticipant:Participant?
     private var repairReceipt:NativeSourceAppTimeoutOwner.Receipt?
     private var release:(()->Void)?,initialRotation:Double?
     private var started=false,closed=false,scaleDone=false,rotationDone=false
     init(service:NativeSourceAnimationClockService,timeouts:NativeSourceAppTimeoutOwner,generation:UInt64,
-         delayMilliseconds:Int,direction:Int,hooks:Hooks){
+         delayMilliseconds:Int,direction:Int,hooks:Hooks,preservesBoardSize:Bool=false,initialScale:Double?=nil){
         self.service=service;self.timeouts=timeouts;self.generation=generation
-        delay=Double(delayMilliseconds)/1000;self.direction=Double(direction);self.hooks=hooks
+        delay=Double(delayMilliseconds)/1000;self.direction=Double(direction);self.hooks=hooks;self.initialScale=initialScale ?? (preservesBoardSize ? 1:0.30)
     }
     var active:Bool{started && !closed}
     private func current()->Bool{guard !closed else{return false};let value=hooks.current();return value && !closed}
     @discardableResult func start()->Bool {
-        guard !started,current(),delay>=0,abs(direction)==1,service.sourceFrameTransportAdmissionOpen else{return false}
-        started=true;hooks.scale(0.30)
+        guard !started,current(),initialScale.isFinite,initialScale>0,initialScale<=1,delay>=0,abs(direction)==1,service.sourceFrameTransportAdmissionOpen else{return false}
+        started=true;hooks.scale(initialScale)
         guard current(),let frames=hooks.acquire() else{dispose();return false}
         guard current() else{frames();dispose();return false};release=frames
         let scale=Participant();scaleParticipant=scale
@@ -52,7 +53,7 @@ import Foundation
     }
     private func paintScale(_ seconds:Double){
         guard current() else{dispose();return};guard seconds>=delay else{return}
-        hooks.scale(Self.scale(seconds-delay));if !current(){dispose()}
+        hooks.scale(Self.scale(seconds-delay,initialScale:initialScale));if !current(){dispose()}
     }
     private func paintRotation(_ seconds:Double){
         guard current() else{dispose();return};guard seconds>=delay else{return}
@@ -86,9 +87,9 @@ import Foundation
     isolated deinit{dispose()}
     private static func mix(_ a:Double,_ b:Double,_ t:Double)->Double{floor((a+(b-a)*t)*1_000_000+0.5)/1_000_000}
     private static func back(_ t:Double,_ overshoot:Double)->Double{let u=t-1;return 1+u*u*((overshoot+1)*u+overshoot)}
-    static func scale(_ seconds:Double)->Double{
+    static func scale(_ seconds:Double,preservesBoardSize:Bool=false,initialScale:Double?=nil)->Double{
         let t=max(0,seconds)
-        if t<0.16{return mix(0.30,1.08,back(t/0.16,2.1))}
+        if t<0.16{return mix(initialScale ?? (preservesBoardSize ? 1:0.30),1.08,back(t/0.16,2.1))}
         if t<0.26{let u=(t-0.16)/0.10;return mix(1.08,0.96,u<0.5 ? 4*u*u*u:1-pow(-2*u+2,3)/2)}
         if t<0.36{return mix(0.96,1.02,1-pow(1-(t-0.26)/0.10,3))}
         if t<0.48{return mix(1.02,1,back((t-0.36)/0.12,2))};return 1

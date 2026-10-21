@@ -9,6 +9,59 @@ final class NativeAppCoordinatorTests:XCTestCase {
     private func resources()->URL {
         Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle")!
     }
+    func testArcadeCTAAndMainHeroShareExactlyOneAcceptedSpeechContact() async throws {
+        for cta in [false,true] {
+            let services=NativeAppServices(settings:{[:]},setPreference:{_,_ in},worldSnapshot:{_,_,_ in throw FixtureError.unavailable},markViewed:{_ in},makeGameplay:{_,_ in throw FixtureError.unavailable},flush:{})
+            let root=NativeAppController(resourceRoot:resources(),services:services)
+            let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=root;window.makeKeyAndVisible()
+            defer{root.dispose();window.isHidden=true}
+            try await waitFor{root.home.isUserInteractionEnabled}
+            root.home.selectSlide(1,animated:false)
+            var cues:[String]=[];root.onFeedback={cues.append($0)}
+            let hero=try XCTUnwrap(root.home.heroView as? UIButton)
+            let button=cta ? root.home.ctaView:hero
+            button.sendActions(for:.touchUpInside);button.sendActions(for:.touchUpInside)
+            XCTAssertEqual(cues.filter{$0 == "home-arcade-character-tap"}.count,1)
+            try await waitFor{root.route == .arcadeHub && root.arcadeHub.hub.scrollView.isUserInteractionEnabled}
+            root.home.onHeroContact?()
+            XCTAssertEqual(cues.filter{$0 == "home-arcade-character-tap"}.count,1,"Hidden Home cannot emit")
+        }
+    }
+    func testWorldHubSpeechOnlyFollowsAcceptedWorldButtonOnce() async throws {
+        let (controller,window)=try worldEntryFixture(prepare:{_,ready in ready()})
+        defer{controller.dispose();window.isHidden=true}
+        var cues:[String]=[];controller.onFeedback={cues.append($0)}
+        controller.hub.onWorld?(1)
+        XCTAssertFalse(cues.contains{$0.hasPrefix("world-hub-")},"Hidden hub cannot speak")
+        controller.navigate(.hub,interrupt:true)
+        try await waitFor{controller.route == .hub && controller.hub.scrollView.isUserInteractionEnabled}
+        for (id,cue) in [(1,"world-hub-forest"),(3,"world-hub-space"),(2,"world-hub-beach")] {
+            cues.removeAll();controller.hub.setContentInteractionEnabled(false);controller.hub.onWorld?(id)
+            XCTAssertTrue(cues.isEmpty);controller.hub.setContentInteractionEnabled(true)
+            controller.hub.onWorld?(99);XCTAssertTrue(cues.isEmpty)
+            let button=try XCTUnwrap(controller.hub.worldUnits.first{$0.tag==id})
+            button.sendActions(for:.touchUpInside)
+            XCTAssertEqual(cues.filter{$0.hasPrefix("world-hub-")},[cue])
+            button.sendActions(for:.touchUpInside)
+            XCTAssertEqual(cues.filter{$0.hasPrefix("world-hub-")},[cue])
+            try await waitFor{controller.route == .world(id) && controller.world?.isReadyForInput == true}
+            button.sendActions(for:.touchUpInside)
+            XCTAssertEqual(cues.filter{$0.hasPrefix("world-hub-")},[cue])
+            controller.navigate(.hub)
+            try await waitFor{controller.route == .hub && controller.hub.scrollView.isUserInteractionEnabled}
+        }
+    }
+    func testWorldHubSpeechDoesNotPlayOnFailedWorldPreparation() async throws {
+        let services=NativeAppServices(settings:{[:]},setPreference:{_,_ in},worldSnapshot:{_,_,_ in throw FixtureError.unavailable},markViewed:{_ in},makeGameplay:{_,_ in throw FixtureError.unavailable},flush:{})
+        let controller=NativeAppController(resourceRoot:resources(),services:services)
+        let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=controller;window.makeKeyAndVisible()
+        defer{controller.dispose();window.isHidden=true}
+        controller.navigate(.hub,interrupt:true)
+        try await waitFor{controller.route == .hub && controller.hub.scrollView.isUserInteractionEnabled}
+        var cues:[String]=[];controller.onFeedback={cues.append($0)}
+        controller.hub.worldUnits.first{$0.tag==1}?.sendActions(for:.touchUpInside)
+        XCTAssertFalse(cues.contains{$0.hasPrefix("world-hub-")});XCTAssertEqual(controller.route,.hub)
+    }
     func testHubFlagsReadCanonicalUniqueWinsAndRefreshWhenRetainedHubReturns() async throws {
         var progression=NativeProgressionState()
         func finish(_ board:Int,clean:Bool=true,mode:NativeRunMode = .journey) {
@@ -50,8 +103,13 @@ final class NativeAppCoordinatorTests:XCTestCase {
         while !controller.home.isUserInteractionEnabled,Date()<deadline {try await Task.sleep(for:.milliseconds(20))}
         XCTAssertTrue(controller.home.isUserInteractionEnabled)
         XCTAssertEqual(controller.route,.home)
+        var cues:[String]=[];controller.onFeedback={cues.append($0)}
         controller.home.navigationButtonViews[1].sendActions(for:.touchUpInside)
-        XCTAssertEqual(controller.home.selectedSlide,1)
+        XCTAssertEqual(controller.home.selectedSlide,1);XCTAssertEqual(cues,["tab","swipe"])
+        cues=[];controller.home.navigationButtonViews[1].sendActions(for:.touchUpInside)
+        XCTAssertEqual(cues,["tab"],"The selected icon has contact, but no slider whoosh")
+        cues=[];controller.home.onHeroContact?()
+        XCTAssertEqual(cues,["home-arcade-character-tap"])
     }
     func testNativeHomeNeverRequestsWebDataAndRetainsAuthoredViews() {
         var writes = 0
@@ -248,8 +306,10 @@ final class NativeAppCoordinatorTests:XCTestCase {
             XCTAssertEqual(world.backpackButton.accessibilityIdentifier,"native.world.backpack")
             XCTAssertNotNil(world.backpackButton.image(for:.normal))
             XCTAssertTrue(world.hitTest(world.backpackButton.convert(CGPoint(x:20,y:24),to:world),with:nil)?.isDescendant(of:world.backpackButton)==true)
+            cues.removeAll()
             world.backpackButton.sendActions(for:.touchUpInside)
             world.backpackButton.sendActions(for:.touchUpInside)
+            XCTAssertEqual(cues.filter{$0 == "collection-icon-speech"}.count,1)
             try await waitFor{controller.route == .backpack && controller.backpackView?.isUserInteractionEnabled==true}
             XCTAssertTrue(controller.world === world)
             XCTAssertFalse(world.isReadyForInput)

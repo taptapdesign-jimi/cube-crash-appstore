@@ -153,7 +153,7 @@ nonisolated final class NativeMeterHiddenHolderTests:XCTestCase {
  }
  func testReusedHolderIdentityFlowsThroughActualOpenChargeAndDropForAllSelections()throws {
   let choices:[NativeWildRewardChoice]=[.init(.star),.init(.juice),.init(.magnet),.init(.tnt)]+NativeSpecialDiceRegistry.variants.values.map{.init($0.archetype,variant:$0.id)}
-  XCTAssertEqual(choices.count,17)
+  XCTAssertEqual(choices.count,18)
   for choice in choices {
    let e=engine(choice:choice),r=try request(e),actual=try XCTUnwrap(r.expectedHolderID)
    XCTAssertNotEqual(r.tile.id,actual);let count=e.state.tiles.count

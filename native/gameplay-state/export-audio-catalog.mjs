@@ -58,12 +58,66 @@ catalog.noMoves=[{source:'assets/sound/fail board/wah wah.wav',voice:'no-moves-w
 catalog.cta=catalog.cta.filter(c=>c.voice==='cta-activation-splat');
 // Native Back/Close selection; same bounded shared transport and existing gain.
 catalog.back=[{source:'assets/sound/UI /tap effect back i close.wav',voice:'native-navigation-back-close',gain:0.3,rate:1,delay:0,stopAfter:null,fadeOut:0}];
-// Native-only reward choice: preserve PWA reference sources and original assets.
+// Current Native Card Unlocked mix; preserve PWA sources and original assets.
 catalog.newCardHappy=[];
-catalog.newCardUnlockedEnter=[{"source":"assets/sound/card reveal/max poof.wav","voice":"journey-new-card-enter-0","gain":0.42,"rate":1,"delay":0,"stopAfter":null,"fadeOut":0}];
-catalog.newCardOpeningPuff=[{"source":"assets/sound/card reveal/puf.wav","voice":"journey-new-card-opening-puff","gain":0.42,"rate":1,"delay":0,"stopAfter":null,"fadeOut":0}];
-catalog.newCardReveal=catalog.newCardReveal.map(c=>({...c,source:'assets/sound/card reveal/new reward.wav'}));
-catalog.newCardReveal.push({"source":"assets/sound/card reveal/card reveal.wav","voice":"journey-new-card-reveal-layer","gain":0.6,"rate":1,"delay":0,"stopAfter":null,"fadeOut":0});
+catalog.newCardUnlockedEnter=[{source:'assets/sound/card reveal/max poof.wav',voice:'journey-new-card-enter-0',gain:0.23184,rate:1,delay:0,stopAfter:null,fadeOut:0}];
+catalog.newCardOpeningPuff=[{source:'assets/sound/card reveal/puf.wav',voice:'journey-new-card-opening-puff',gain:0.2898,rate:1,delay:0,stopAfter:null,fadeOut:0}];
+for(const group of ['newCardIntro','newCardCrumble'])catalog[group]=catalog[group].map(c=>({...c,gain:0.2898}));
+catalog.newCardReveal=catalog.newCardReveal.map(c=>({...c,source:'assets/sound/card reveal/new reward.wav',gain:0.2484}));
+catalog.newCardReveal.push({source:'assets/sound/card reveal/card reveal.wav',voice:'journey-new-card-reveal-layer',gain:0.4968,rate:1,delay:0,stopAfter:null,fadeOut:0});
+// Native user-requested shared modal air layer borrows the exact Journey card
+// menu-flip source; existing card entry/return already contain it (no duplicate).
+catalog.modalWhoosh=[{source:'assets/sound/cjelina flip/menu flip.wav',voice:'native-modal-whoosh',gain:0.42,rate:1,delay:0,stopAfter:null,fadeOut:0}];
+for(let i=0;i<3;i++)catalog['homeCharacter'+i]=[
+ {source:'assets/sound/logo transitions/smile.wav',voice:'native-home-human',gain:0.42,rate:1,delay:0,stopAfter:null,fadeOut:0},
+ {source:`assets/sound/logo transitions/nala${i+1}.wav`,voice:'native-home-nala',gain:0.42,rate:1,delay:0,stopAfter:null,fadeOut:0}
+];
+// Home human speech variants; originals and Nala layers remain independent.
+for(const name of ['lets-go','come-here-look-at-this','ready-for-an-adventure'])catalog['homeSpeech-'+name]=[
+ {source:`assets/sound/SPEECH/${name}.wav`,voice:'native-home-human',gain:0.42,rate:1,delay:0,stopAfter:null,fadeOut:0}
+];
+// Native Baloon finale: exact original sources, shared finite transport envelope.
+catalog.baloonMerge=[
+ {source:'assets/sound/Wild and special kockice/ baloon/happy people.wav',voice:'native-baloon-happy-people',gain:0.546,rate:1,delay:0,stopAfter:null,fadeOut:0},
+ {source:'assets/sound/Wild and special kockice/ baloon/baloni zvuk.wav',voice:'native-baloon-flight-1',gain:0.72,rate:1,delay:1,stopAfter:null,fadeOut:0}
+];
+catalog.baloonStart=[
+ {source:'assets/sound/Wild and special kockice/ baloon/prvi swosh.wav',voice:'native-baloon-swoosh',gain:0.6,rate:1,delay:0,stopAfter:null,fadeOut:0},
+ {source:'assets/sound/Wild and special kockice/ baloon/prvi pop.wav',voice:'native-baloon-pop',gain:0.6,rate:1,delay:0,stopAfter:null,fadeOut:0},
+ {source:'assets/sound/Wild and special kockice/ baloon/hiss.wav',voice:'native-baloon-hiss',gain:0.144,rate:1,delay:0,stopAfter:2.2,fadeOut:1.2},
+ {source:'assets/sound/Wild and special kockice/ baloon/baloni.wav',voice:'native-baloon-flight-0',gain:0.18,rate:1,delay:0.3,stopAfter:null,fadeOut:0}
+];
+catalog['homeSpeech-treasure']=[{source:'assets/sound/SPEECH/treasure.mp3',voice:'native-home-human',gain:0.42,rate:1,delay:0,stopAfter:null,fadeOut:0}];
+// Settings entry speech belongs to the accepted Home image/CTA contact.
+catalog.homeSettingsSpeech=[{source:'assets/sound/SPEECH/settings guy.mp3',voice:'native-home-settings-human',gain:0.42,rate:1,delay:0,stopAfter:null,fadeOut:0}];
+// A captured Nala variant accompanies every Arcade island, one second later.
+for(let i=0;i<3;i++)catalog['arcadeIslandDog'+i]=[
+ {source:`assets/sound/logo transitions/nala${i+1}.wav`,voice:'native-arcade-island-dog',gain:0.42,rate:1,delay:1,stopAfter:null,fadeOut:0}
+];
+// Each accepted Arcade island tap owns one exact authored speech line.
+for(const [id,file] of [['endurance','arcade-endurance'],['pureDice','arcade-lucky-drop'],['slowBurn','arcade-slow-burn']])catalog['arcade-island-'+id]=[
+ {source:`assets/sound/SPEECH/${file}.wav`,voice:'native-arcade-island-speech',gain:0.42,rate:1,delay:0,stopAfter:null,fadeOut:0}
+];
+// Slow Burn chooses one human line per accepted island contact.
+catalog.arcadeSlowBurnTea=[{source:'assets/sound/SPEECH/my tea.mp3',voice:'native-arcade-island-speech',gain:0.42,rate:1,delay:0,stopAfter:null,fadeOut:0}];
+// Stage-clear thumb character layer is additional to the authored whoosh.
+catalog.arcadeThumbSmile=[{source:'assets/sound/logo transitions/smile.wav',voice:'arcade-stage-clear-character',gain:0.42,rate:1,delay:0,stopAfter:null,fadeOut:0}];
+for(let i=0;i<3;i++)catalog['arcadeThumbDog'+i]=[
+ {source:`assets/sound/logo transitions/nala${i+1}.wav`,voice:'arcade-stage-clear-character',gain:0.42,rate:1,delay:0,stopAfter:null,fadeOut:0}
+];
+// One selected final-merge speech line retains its own natural laugh/tail.
+for(const [i,name] of ["good-job", "youre-on-your-way", "great-job", "you-got-it", "yay", "congratulations", "great-work", "wow-that-was-amazing", "whoa-so-cool", "super-awesome"].entries())catalog['roundWon'+i]=[{source:`assets/sound/SPEECH/round won/${name}.wav`,voice:'native-round-won-speech',gain:0.42,rate:1,delay:0,stopAfter:null,fadeOut:0}];
+// Worlds Hub spoken pools: canonical IDs Forest1, Beach2, Area55/Space3.
+for(const [world,names] of [[1, ["forest-camping", "forest-calling", "forest-snacks-packed", "forest-marshmallow"]], [3, ["space-adventure", "space-spaceship", "space-in-peace", "space-blue-goo"]], [2, ["beach-splash", "beach-no-plans", "beach-soggy-biscuit", "beach-adventure"]]])for(const [i,name] of names.entries())catalog[`worldSpeech-${world}-${i}`]=[{source:`assets/sound/SPEECH/world hub /${name}.wav`,voice:'native-world-hub-speech',gain:0.42,rate:1,delay:0,stopAfter:null,fadeOut:0}];
+// User-added fifth Forest Hub line; keep supplied MP3 byte-exact.
+catalog['worldSpeech-1-4']=[{source:'assets/sound/SPEECH/world hub /whats wit hthe bees.mp3',voice:'native-world-hub-speech',gain:0.42,rate:1,delay:0,stopAfter:null,fadeOut:0}];
+// Additional Settings and collection-icon human lines; existing original remains.
+for(const [i,name] of ["settings-fix-fetch", "settings-best-helper"].entries())catalog['settingsSpeech'+i]=[{source:`assets/sound/SPEECH/${name}.wav`,voice:'native-home-settings-human',gain:0.42,rate:1,delay:0,stopAfter:null,fadeOut:0}];
+for(const [i,name] of ["collection-see-what-weve-got", "collection-little-look", "collection-what-in-here", "collection-every-adventure", "collection-packed-ready", "collection-goodies", "collection-little-helpers"].entries())catalog['collectionSpeech'+i]=[{source:`assets/sound/SPEECH/${name}.wav`,voice:'native-collection-icon-human',gain:0.42,rate:1,delay:0,stopAfter:null,fadeOut:0}];
+// Authored High Score/Combo modal speech, native-only non-repeating pools.
+for(const name of ["high-score-01", "high-score-02", "high-score-03", "combo-01", "combo-02", "combo-03"])catalog[name]=[{source:`assets/sound/SPEECH/${name}.wav`,voice:'native-score-combo-human',gain:0.42,rate:1,delay:0,stopAfter:null,fadeOut:0}];
+// Arcade Home CTA/hero share one authored non-repeating three-line pool.
+for(const name of ['arcade-01','arcade-02','arcade-03'])catalog[name]=[{source:`assets/sound/SPEECH/${name}.wav`,voice:'native-arcade-home-human',gain:0.42,rate:1,delay:0,stopAfter:null,fadeOut:0}];
 fs.writeFileSync('native/gameplay-state/NativeAudioCatalog.json',JSON.stringify({source:'canonical TS cue owner execution; captured original decoded/media transport only',catalog},null,2));
 const swift='// Generated by native/gameplay-state/export-audio-catalog.mjs from canonical cue owners.\nimport Foundation\n\n@MainActor\nenum NativeAuthoredAudioCatalog {\n    static let groups: [String: [NativeAudioCue]] = [\n'+Object.entries(catalog).map(([key,list])=>'        '+JSON.stringify(key)+': [\n'+list.map(c=>'            NativeAudioCue(source:'+JSON.stringify(c.source)+',voice:'+JSON.stringify(c.voice)+',gain:'+c.gain+',rate:'+c.rate+',delay:'+c.delay+',stopAfter:'+(c.stopAfter??'nil')+',fadeOut:'+c.fadeOut+'),').join('\n')+'\n        ],').join('\n')+'\n    ]\n}\n';fs.writeFileSync('native/gameplay-app/NativeAuthoredAudioCatalog.swift',swift);
 console.log(`${Object.keys(catalog).length} cue groups; ${Object.values(catalog).flat().length} layers`);console.log(failures.join('\n'));

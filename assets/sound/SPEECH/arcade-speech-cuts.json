@@ -1,0 +1,28 @@
+{
+  "source": "arcade.mp3",
+  "sourceSHA256": "c1e6d24ad9eb19083844a5f5cd451e72396625bca892f8aea79331522d6bd17a",
+  "sampleRate": 44100,
+  "channels": 1,
+  "edgeFadeSeconds": 0.005,
+  "boundaryEvidence": "On-device SpeechAnalyzer word timing plus waveform silence; preserve Lucky Drop laugh within full phrase.",
+  "cuts": [
+    {
+      "file": "arcade-endurance.wav",
+      "start": 9.59,
+      "end": 13.05,
+      "text": "Wait... where\u2019s the finish line?!"
+    },
+    {
+      "file": "arcade-lucky-drop.wav",
+      "start": 13.1,
+      "end": 19.18,
+      "text": "You won AGAIN?! [laughs] You sneaky little fluffball!"
+    },
+    {
+      "file": "arcade-slow-burn.wav",
+      "start": 19.2,
+      "end": 22.65,
+      "text": "Any day now, any day ..."
+    }
+  ]
+}

@@ -110,7 +110,7 @@ import StackToSixGameplay
             ensureFullOpacity: { [weak holder] in holder?.ensureSourceAppSpawnFullOpacity() },
             random: hooks.random,
             acquireFrames: { [hooks] in hooks.acquireFrames(captured.id,captured.generation) },
-            finished: { [weak self] outcome in self?.bounceFinished(outcome,open:captured) }))
+            finished: { [weak self] outcome in self?.bounceFinished(outcome,open:captured) }),initialScale:NativeSourceAppSpawnBounceOwner.nativeEntryScale)
         bounce = owner
         guard holder.bindSourceAppSpawnInterruption(id: captured.id, pickup: { [weak owner] in owner?.removeChildrenForPickup() }, interrupted: { [weak owner] in owner?.interrupt() }) else { finish(.unavailable); return }
         guard current(),open == captured,owner.start(),current(),open == captured else { finish(.unavailable); return }

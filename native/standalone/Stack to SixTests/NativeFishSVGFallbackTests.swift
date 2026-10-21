@@ -4,6 +4,57 @@ import UIKit
 
 @MainActor
 final class NativeFishSVGFallbackTests:XCTestCase {
+    private final class DecodeGate:@unchecked Sendable {
+        let semaphore=DispatchSemaphore(value:0)
+        private let lock=NSLock()
+        private var active=0,started=0,maximum=0
+        func begin(){lock.lock();active+=1;started+=1;maximum=max(maximum,active);lock.unlock()}
+        func end(){lock.lock();active-=1;lock.unlock()}
+        var counts:(Int,Int){lock.lock();defer{lock.unlock()};return(started,maximum)}
+    }
+    func testCancelledDecodeDrainsBeforeForegroundCanStartAnotherWorker()async throws {
+        let gate=DecodeGate()
+        let lease=NativeFishSVGResourceLease(resourceRoot:root,load:{url,measure in
+            gate.begin();defer{gate.end()}
+            _=gate.semaphore.wait(timeout:.now()+5)
+            return try NativeFishSVGFallbackResources.load(resourceRoot:url,measureBodyBounds:measure)
+        })
+        defer{lease.dispose();gate.semaphore.signal();gate.semaphore.signal()}
+        let ready=expectation(description:"Only latest foreground request publishes")
+        lease.request{resource in XCTAssertNotNil(resource);ready.fulfill()}
+        let firstDeadline=Date().addingTimeInterval(3)
+        while gate.counts.0==0,Date()<firstDeadline {try await Task.sleep(for:.milliseconds(5))}
+        XCTAssertEqual(gate.counts.0,1)
+        for _ in 0..<30 {lease.setSuspended(true);lease.setSuspended(false)}
+        XCTAssertEqual(gate.counts.0,1,"Cancellation retains the occupied worker slot")
+        gate.semaphore.signal()
+        let secondDeadline=Date().addingTimeInterval(3)
+        while gate.counts.0<2,Date()<secondDeadline {try await Task.sleep(for:.milliseconds(5))}
+        XCTAssertEqual(gate.counts.0,2);XCTAssertEqual(gate.counts.1,1)
+        gate.semaphore.signal();await fulfillment(of:[ready],timeout:5)
+        XCTAssertEqual(gate.counts.1,1);XCTAssertEqual(lease.pendingRequestCount,0)
+    }
+    func testDecodedFishDoesNotHideFallbackUntilItsReplacementIsVisible()async throws {
+        let lease=NativeFishSVGResourceLease(resourceRoot:root)
+        let view=NativeFishIdlePresentation(resourceRoot:root,svgResources:lease,allowHEVC:false)
+        defer{view.dispose();lease.dispose()}
+        let prepared=expectation(description:"Decoded offscreen SVG")
+        view.onPrepared={prepared.fulfill()}
+        var readyCount=0
+        view.onMediaReady={ready in
+            if ready {readyCount+=1;XCTAssertFalse(view.isHidden);XCTAssertNotNil(view.window);XCTAssertNotNil(view.originalSVGFrame)}
+        }
+        view.paint(frame(),now:0,force:true);view.prepare()
+        await fulfillment(of:[prepared],timeout:5)
+        XCTAssertEqual(readyCount,0,"Decode readiness is not a painted replacement")
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),host=UIViewController()
+        window.rootViewController=host;window.makeKeyAndVisible();host.view.addSubview(view)
+        view.paint(frame(),now:0.1,force:true)
+        XCTAssertEqual(readyCount,1)
+        view.setSuspended(true);view.setSuspended(false)
+        XCTAssertEqual(readyCount,1,"Pause does not reset/re-admit the Fish phase")
+        window.isHidden=true
+    }
     private var root:URL {Bundle.main.bundleURL.appendingPathComponent("NativeAssets.bundle")}
     private struct Fixture:Decodable {
         struct Sample:Decodable {let requested,time:Double,frame:Int,matrix:[Double]}

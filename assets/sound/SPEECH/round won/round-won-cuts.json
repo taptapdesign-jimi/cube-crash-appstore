@@ -1,0 +1,100 @@
+{
+  "source": "round won.mp3",
+  "sourceSHA256": "0c2ebbbfe1247dfcd74761016d57ff45c55e7ec9b1b2ad9e77dccb359656cda0",
+  "sampleRate": 44100,
+  "channels": 1,
+  "edgeFadeSeconds": 0.005,
+  "boundaryEvidence": "Local SpeechAnalyzer phrase timing plus waveform gaps; trailing character laughter stays with preceding phrase, no time stretching.",
+  "cuts": [
+    {
+      "file": "good-job.wav",
+      "start": 0,
+      "end": 1.42,
+      "text": "Good job!",
+      "duration": 1.42,
+      "peakDBFS": -2.0766045799297554,
+      "dc": -0.0010420767061134165
+    },
+    {
+      "file": "youre-on-your-way.wav",
+      "start": 1.42,
+      "end": 2.97,
+      "text": "You’re on your way!",
+      "duration": 1.55,
+      "peakDBFS": -3.1873337162484905,
+      "dc": -0.0006616249332814443
+    },
+    {
+      "file": "great-job.wav",
+      "start": 2.97,
+      "end": 4.25,
+      "text": "Great job!",
+      "duration": 1.28,
+      "peakDBFS": -2.7745404218786653,
+      "dc": -0.0009244812859429254
+    },
+    {
+      "file": "you-got-it.wav",
+      "start": 4.25,
+      "end": 5.43,
+      "text": "You got it!",
+      "duration": 1.18,
+      "peakDBFS": -3.1324150653278755,
+      "dc": -0.0008177957938339531
+    },
+    {
+      "file": "yay.wav",
+      "start": 5.43,
+      "end": 7.43,
+      "text": "YAAAY!",
+      "duration": 2.0,
+      "peakDBFS": -2.868811650141091,
+      "dc": -0.0005764514464640022
+    },
+    {
+      "file": "congratulations.wav",
+      "start": 7.43,
+      "end": 9.73,
+      "text": "Congratulations!",
+      "duration": 2.3,
+      "peakDBFS": -2.4592805248128977,
+      "dc": -0.0005299227155196318
+    },
+    {
+      "file": "great-work.wav",
+      "start": 9.73,
+      "end": 12.0,
+      "text": "Great work!",
+      "duration": 2.27,
+      "peakDBFS": -2.2188241171283716,
+      "dc": -0.00032386854854368324
+    },
+    {
+      "file": "wow-that-was-amazing.wav",
+      "start": 12.0,
+      "end": 14.57,
+      "text": "Wow! That was amazing!",
+      "duration": 2.57,
+      "peakDBFS": -2.672623266679672,
+      "dc": -0.0005787442728185633
+    },
+    {
+      "file": "whoa-so-cool.wav",
+      "start": 14.57,
+      "end": 17.5,
+      "text": "Whoa! So cool!",
+      "duration": 2.93,
+      "peakDBFS": -2.265835269139598,
+      "dc": -0.00039783596552422164
+    },
+    {
+      "file": "super-awesome.wav",
+      "start": 17.5,
+      "end": 19.879183673469388,
+      "text": "Super awesome!",
+      "duration": 2.3791836734693876,
+      "peakDBFS": -2.2586126477093726,
+      "dc": -0.0004740579213569068
+    }
+  ]
+}

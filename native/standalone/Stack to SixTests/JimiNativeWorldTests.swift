@@ -22,7 +22,7 @@ final class JimiNativeWorldTests: XCTestCase {
         #if !targetEnvironment(simulator)
         throw XCTSkip("Simulator only")
         #endif
-        let isolatedQADevices:Set<String> = ["1018BE2D-491B-465F-8F75-3E5BEB38C22A", "8787CAC9-BA3D-4D0A-B62B-7418DE4BCCE7"]
+        let isolatedQADevices:Set<String> = ["1018BE2D-491B-465F-8F75-3E5BEB38C22A", "8787CAC9-BA3D-4D0A-B62B-7418DE4BCCE7", "307A050F-B708-45CC-BA31-8769809284D8"]
         guard let device=ProcessInfo.processInfo.environment["SIMULATOR_UDID"],isolatedQADevices.contains(device) else { throw XCTSkip("Isolated QA Simulator only") }
     }
     private var root: URL { NativeTestResources.root }
@@ -329,6 +329,32 @@ final class JimiNativeWorldTests: XCTestCase {
         XCTAssertTrue(world.scrollView.touchesShouldCancel(in:unlocked), "Vertical scroll must cancel a pending button touch")
         world.park(); unlocked.sendActions(for:.touchUpInside); XCTAssertEqual(requests.count,1)
         world.cleanup(); world.cleanup(); XCTAssertFalse(world.isReadyForInput)
+    }
+
+    func testInterimTapDiagnosticImmediatelyRetiresWorldIdleBeforeHalfSecondCardExit() async throws {
+        guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Authored motion")}
+        var raw=fixture();var definitions=try XCTUnwrap(raw["units"] as? [[String:Any]])
+        definitions[0]["interim"]=true;definitions[0]["allowedActions"]=["continue"];raw["units"]=definitions
+        let world=try XCTUnwrap(JimiNativeWorldView(snapshot:raw,assets:art))
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible();world.frame=window.bounds;host.view.addSubview(world)
+        defer{world.cleanup();window.isHidden=true}
+        world.layoutIfNeeded();world.enter{};try await settle();world.finishPresentationAdmission()
+        let unit=try XCTUnwrap(descendant(world,"native.world.card.1") as? UIButton)
+        let card=try XCTUnwrap(unit.subviews.first{$0.accessibilityIdentifier?.hasSuffix(".card")==true})
+        XCTAssertNotNil(unit.layer.animation(forKey:"world.idle.y"))
+        let before=try XCTUnwrap(unit.layer.presentation()).transform.m42
+        let model=unit.layer.transform.m42
+        world.onRequest={_,id in world.prepareGameplayExit(boardID:id){}}
+        unit.sendActions(for:.touchUpInside)
+        XCTAssertNil(unit.layer.animation(forKey:"world.idle.y"),"Current shipping policy stops World idle synchronously")
+        XCTAssertNotNil(card.layer.animation(forKey:"card.tap.exit"))
+        XCTAssertNil(unit.layer.animation(forKey:"world.exit"),"World exit waits for the half-second card contact")
+        try await Task.sleep(for:.milliseconds(70))
+        let after=try XCTUnwrap(unit.layer.presentation()).transform.m42
+        print("[InterimStopDiagnostic] beforeY=\(before) modelY=\(model) after70msY=\(after) displacement=\(after-before)")
+        XCTAssertEqual(after,model,accuracy:0.01,"Removing the wave returns to its neutral model pose")
+        XCTAssertNil(unit.layer.animation(forKey:"world.exit"))
     }
 
     func testInterimLaunchComposesCartoonWithExistingCollapseAndCancelsOnPark() async throws {

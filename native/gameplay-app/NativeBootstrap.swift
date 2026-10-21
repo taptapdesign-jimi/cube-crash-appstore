@@ -599,6 +599,12 @@ final class NativeBootstrap {
         gameplay.onGameplayEvent = { [weak self] event in self?.tutorialOwner?.gameplayEvent(event) }
         gameplay.onHaptic = { [weak self] kind in self?.impactFeedback(kind) }
         gameplay.onPointerState = { [weak self] dragging in self?.tutorialOwner?.pointerState(dragging) }
+        gameplay.onRoundWon = { [weak self,weak gameplay] generation in
+            guard let self,let gameplay,!self.disposed,self.gameplay === gameplay,
+                  gameplay.engine.state.generation==generation else{return}
+            self.audioReceipt &+= 1
+            self.audio?.roundWon(receipt:self.audioReceipt,generation:generation)
+        }
         gameplay.onTerminal = { [weak self,weak gameplay] result in
             guard let self,let gameplay,self.gameplay === gameplay else{return}
             self.terminal(result)
@@ -1407,12 +1413,14 @@ final class NativeBootstrap {
         let sheet=NativeTutorialCompleteController(resourceRoot:root);tutorialComplete=sheet
         controller.addChild(sheet);sheet.view.frame=controller.view.bounds;sheet.view.autoresizingMask=[.flexibleWidth,.flexibleHeight]
         controller.view.addSubview(sheet.view);sheet.didMove(toParent:controller)
+        routeFeedback("modal-open")
         sheet.onMoment = { [weak self] kind,_ in
             if kind == "tutorial-complete-selection" {self?.routeFeedback("cta",includesHaptic:false);self?.selectionFeedback()}
             else {self?.impactFeedback(kind.hasSuffix("medium") ? "medium" : "light")}
         }
         sheet.onContinue = { [weak self,weak sheet] in
             guard let self,let sheet,!self.disposed,self.tutorialComplete === sheet,self.gameplay?.engine.state.generation==generation else{return}
+            self.routeFeedback("modal-exit")
             do {
                 var next=self.envelope;next.progression.firstPlayTutorialComplete=true
                 next.progression.boardStats.removeValue(forKey:gameplay.engine.state.board);next.progression.resetArcadeStats(for:next.activeArcadeVariant)
@@ -1519,6 +1527,7 @@ final class NativeBootstrap {
                     captured.sourceInitialConstruction != nil else{sheet.buttons[0].isEnabled=false;sheet.actionRejected();return}
             }
             self.routeFeedback(action == "restart" ? "cta":"back")
+            self.routeFeedback("modal-exit")
             sheet.onClosed={ [weak self,weak captured,weak sheet] in
                 guard let self,let captured,let sheet,!self.disposed,self.gameplay === captured,
                     captured.engine.state.generation==generation,self.sourceFailureModalEpoch==epoch,
@@ -1536,9 +1545,10 @@ final class NativeBootstrap {
             presented.dismiss(animated:false){[weak self,weak captured,weak sheet] in
                 guard let self,let captured,let sheet,!self.disposed,self.gameplay === captured,
                     self.sourceFailureModal === sheet,captured.engine.state.generation==generation else{return}
+                self.routeFeedback("modal-open")
                 (self.host ?? captured).present(sheet,animated:false)
             }
-        } else {presenter.present(sheet,animated:false)}
+        } else {routeFeedback("modal-open");presenter.present(sheet,animated:false)}
     }
     private func retireSourceFailureRecovery() {
         sourceFailureModalEpoch += 1
@@ -1562,21 +1572,24 @@ final class NativeBootstrap {
     private func routeFeedback(_ kind:String,haptic:String?=nil,includesHaptic:Bool=true) {
         audioReceipt &+= 1
         if kind != "home-haptic-enter" {audio?.routeFeedback(kind == "tab-swipe" ? "tab":kind,receipt:audioReceipt,generation:audio?.generation ?? 1)}
+        if kind == "modal-open" || kind == "modal-exit" {return}
         guard includesHaptic else{return}
-        if let haptic {impactFeedback(haptic)}
+        if let haptic {impactFeedback(haptic == "selection" || haptic.hasPrefix("protected-") ? haptic:"protected-\(haptic)")}
         else if kind == "home-haptic-enter",let controller {
             let capturedRoute=routeLease
             haptics.play(NativeHapticPatterns.home,in:controller.view) {[weak self,weak controller] in
                 self?.disposed==false && self?.routeLease==capturedRoute && self?.controller === controller && controller?.route == .home
             }
-        } else if ["cta","tab","back","card-tap","card-manual-flip","hud-modal-open","exit-modal"].contains(kind) {
-            if kind == "cta",case .world = controller?.route {impactFeedback("medium")}
-            else {impactFeedback("light")}
+        } else if ["cta","tab","back","modal-close","card-tap","card-manual-flip","hud-modal-open","exit-modal"].contains(kind) {
+            // Accepted navigation is a human contact, not a decorative burst.
+            // Home enter/merge beats must not exhaust later World/Back/Close taps.
+            if kind == "cta",case .world = controller?.route {impactFeedback("protected-medium")}
+            else {impactFeedback("protected-light")}
         }
     }
     private func resultMoment(_ kind:String,index:Int,duration:Double?) {
         audioReceipt &+= 1
-        if kind == "cta" || kind == "back" {
+        if ["cta","back","modal-open","modal-exit","modal-close"].contains(kind) {
             audio?.routeFeedback(kind,receipt:audioReceipt,generation:audio?.generation ?? 1);return
         }
         if ["clean-star","clean-hero","clean-cta"].contains(kind) {impactFeedback("medium")}
@@ -1655,7 +1668,8 @@ final class NativeBootstrap {
                     } else { try self.applyDeveloperProgress(action, values: values) }
                 } catch { self.showError(error.localizedDescription) }
             }
-            presenter.present(picker,animated: false)
+            picker.onCloseRequested = {[weak self] in self?.routeFeedback("modal-close")}
+            routeFeedback("modal-open");presenter.present(picker,animated: false)
         case .newCard:
             presentDeveloperReward(board: board,score: envelope.progression.boardStats[board]?.highScore ?? 0,presenter: presenter)
         case .clean:
@@ -1674,7 +1688,8 @@ final class NativeBootstrap {
                 do { presenter.present(try self.makeDeveloperLastMerge(board: board,choice: choice),animated: false) }
                 catch { self.showError(error.localizedDescription) }
             }
-            presenter.present(picker,animated: false)
+            picker.onCloseRequested = {[weak self] in self?.routeFeedback("modal-close")}
+            routeFeedback("modal-open");presenter.present(picker,animated: false)
         }
     }
     private func presentDeveloperReward(board: Int, score: Int, presenter: UIViewController) {

@@ -2,6 +2,25 @@ import XCTest
 @testable import Stack_to_Six
 
 nonisolated final class NativeSourceLockedBonusPopTests:XCTestCase {
+    @MainActor func testBalancedLockedBonusEntryRetainsOriginalSettleAndNoMiniatureStart() {
+        XCTAssertEqual(NativeSourceLockedBonusPopOwner.scale(0,initialScale:0.70),0.70)
+        XCTAssertGreaterThan(NativeSourceLockedBonusPopOwner.scale(0.025,initialScale:0.70),0.70)
+        for time in [0.16,0.20,0.26,0.30,0.36,0.44,0.48] {
+            XCTAssertEqual(NativeSourceLockedBonusPopOwner.scale(time,initialScale:0.70),NativeSourceLockedBonusPopOwner.scale(time),accuracy:1e-9)
+        }
+    }
+    @MainActor func testNativeBoardLockedBonusStaysFullSizeThroughoutStaggerAndPop() {
+        let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0},sourceFrameTransportEnabled:true)
+        let timeouts=NativeSourceAppTimeoutOwner();defer{service.dispose();timeouts.cancelAll()}
+        var scales:[Double]=[],finished=0,released=0
+        let owner=NativeSourceLockedBonusPopOwner(service:service,timeouts:timeouts,generation:7,delayMilliseconds:250,direction:1,hooks:.init(current:{true},locked:{false},readRotation:{0},scale:{scales.append($0)},rotation:{_ in},repair:{XCTFail("Unlocked tile must not be repaired")},acquire:{return{released+=1}},finished:{finished+=1}),preservesBoardSize:true)
+        XCTAssertTrue(owner.start());XCTAssertEqual(scales,[1])
+        for wall in stride(from:5.0,through:750.0,by:5){service.deliver(wallMilliseconds:wall)}
+        XCTAssertTrue(scales.allSatisfy{$0>=0.95999 && $0<1.10})
+        XCTAssertEqual(scales.last,1);XCTAssertEqual(finished,1);XCTAssertEqual(released,1)
+        XCTAssertEqual(service.activeParticipantCount,0);XCTAssertEqual(timeouts.pendingCount,0)
+        owner.dispose();XCTAssertEqual(finished,1)
+    }
     @MainActor func testTwoActualAPPRootsAndGuardedRepairAfterUnlock()async {
         let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0},sourceFrameTransportEnabled:true)
         let timeouts=NativeSourceAppTimeoutOwner()

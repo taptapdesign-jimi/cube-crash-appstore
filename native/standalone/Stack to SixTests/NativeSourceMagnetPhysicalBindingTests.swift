@@ -16,6 +16,27 @@ nonisolated final class NativeSourceMagnetPhysicalBindingTests:XCTestCase {
   node.installSourceOuterDriver(adapter,generation:1,geometryScale:1)
   return(textures,canvas,node,service,adapter)
  }
+ @MainActor func testNewFaceEnterDoesNotResizeExistingNeighbour()throws {
+  let (textures,canvas,node,service,adapter)=try fixture(value:3,locked:false)
+  let neighbour=NativeDiceNode(id:"neighbour",value:4,kind:"regular",variant:nil,depth:1,locked:false,textures:textures)
+  canvas.addChild(neighbour)
+  defer{node.dispose();neighbour.dispose();adapter.dispose();textures.dispose();service.dispose()}
+  let owner=NativeSourceAppSpawnBounceOwner(service:service,hooks:.init(current:{node.parent === canvas},readRotation:{0},paintScale:{node.paintSourceOuterScale(.init(x:$0,y:$0))},paintRotation:{node.dragInnerTilt=CGFloat($0)},ensureFullOpacity:{node.ensureSourceAppSpawnFullOpacity()},random:{0.5},acquireFrames:{{}},finished:{_ in node.unbindSourceAppSpawnInterruption(id:"new-entry")}),initialScale:NativeSourceAppSpawnBounceOwner.nativeEntryScale)
+  XCTAssertTrue(node.bindSourceAppSpawnInterruption(id:"new-entry",pickup:{},interrupted:{}))
+  XCTAssertTrue(owner.start());XCTAssertEqual(node.sourceLocalScale.x,0.70,accuracy:1e-6)
+  for wall in stride(from:0.0,through:600,by:5) {
+   service.deliver(wallMilliseconds:wall)
+   let before=node.sourceLocalScale
+   XCTAssertTrue(node.repairSourceRegularBoardVisuals(outerTransformOwned:false,activeDrag:false,innerImpactOwned:false,wildDropping:false,retireUnownedInnerTransform:{true},current:{true}))
+   XCTAssertEqual(node.sourceLocalScale.x,before.x,accuracy:1e-6)
+   XCTAssertEqual(neighbour.xScale,1);XCTAssertEqual(neighbour.yScale,1)
+   XCTAssertEqual(neighbour.visual.xScale,1);XCTAssertEqual(neighbour.visual.yScale,1)
+  }
+  XCTAssertEqual(node.sourceLocalScale.x,1,accuracy:1e-6)
+  node.paintSourceOuterScale(.init(x:0.7,y:0.7))
+  XCTAssertTrue(node.repairSourceRegularBoardVisuals(outerTransformOwned:false,activeDrag:false,innerImpactOwned:false,wildDropping:false,retireUnownedInnerTransform:{true},current:{true}))
+  XCTAssertEqual(node.sourceLocalScale.x,1,accuracy:1e-6,"After genuine completion repair must recover a stale small pose")
+ }
  @MainActor func testPhysicalSnapshotReadsActualObjectNotStoredCorePaintOrActiveFilter()throws {
   let (textures,canvas,node,service,adapter)=try fixture(value:5,locked:true)
   defer{withExtendedLifetime(canvas){};node.dispose();adapter.dispose();textures.dispose();service.dispose()}

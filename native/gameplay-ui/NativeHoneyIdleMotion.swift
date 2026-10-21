@@ -20,11 +20,22 @@ enum NativeHoneyIdleMotion {
             return Profile(phase:Double(i)/3*tau+r(-0.24,0.24),turnProgressOffset:turn[i]+r(-0.035,0.035),direction:random()>0.5 ? 1:-1,revolutionsPerSecond:r(0.19,0.31),radiusX:128*r(x.0,x.1),radiusY:128*r(y.0,y.1),centerY:128*r(-0.015,0.015),wobblePhase:r(0,tau),wobbleAmount:128*r(0.009,0.016),bounceAmount:128*r(0.008,0.016),cutMix:r(0.08,0.14),reverseAfterLaps:r(2.2,4.2),trailStrength:r(0.58+Double(i)*0.17,0.70+Double(i)*0.17),trailSpring:r(19+Double(i)*3,25+Double(i)*3),trailDamping:r(7.2,9.4),chaseLaneX:128*(laneX[i]+r(-0.035,0.035)),chaseLaneY:128*(laneY[i]+r(-0.04,0.04)),chaseFanDistance:128*(fan[i]+r(-0.04,0.04)),chaseDistancePulseRate:r(0.72,1.28),chaseDelaySeconds:r(delay.0,delay.1),chaseCurveAmount:128*r(0.16+Double(i)*0.035,0.24+Double(i)*0.045),chaseCurveRate:r(0.52+Double(i)*0.12,0.78+Double(i)*0.16),chaseCurvePhase:r(0,tau),chaseCurveDirection:i==1 ? 1:-1,entranceDelay:Double(i)*0.055+r(0,0.025),entranceDuration:r(0.30,0.40),sizeScale:r(0.86,1.14))
         }
     }
+    /// Shared authored Honey flight texture; immutable profiles, no runtime RNG.
+    static func wobble(_ p:Profile,angle:Double)->CGPoint {
+        CGPoint(x:sin(angle*2.3+p.wobblePhase)*p.wobbleAmount,
+                y:sin(angle*3.35+p.wobblePhase)*p.bounceAmount)
+    }
+    static func flightAccent(_ p:Profile,seconds:Double)->CGPoint {
+        let angle=p.phase+seconds*tau*p.revolutionsPerSecond*p.direction
+        let flutter=wobble(p,angle:angle)
+        return CGPoint(x:(cos(angle*2.15+p.wobblePhase)-cos(angle))*p.cutMix*p.radiusX+flutter.x,
+                       y:(sin(angle*1.72-p.wobblePhase)-sin(angle))*p.cutMix*p.radiusY+flutter.y)
+    }
     static func orbit(_ p:Profile,seconds:Double)->Orbit {
         let half=p.reverseAfterLaps/p.revolutionsPerSecond,position=p.turnProgressOffset+max(0,seconds)/half,index=floor(position),progress=position-index,eased=0.5-0.5*cos(Double.pi*progress),forward=Int(index)%2==0
         let travel=forward ? eased:1-eased,angle=p.phase+travel*tau*p.reverseAfterLaps*p.direction,velocity=sin(Double.pi*progress)*(forward ? 1:-1)*p.direction
-        let wobble=sin(angle*2.3+p.wobblePhase)*p.wobbleAmount,cutX=cos(angle)*(1-p.cutMix)+cos(angle*2.15+p.wobblePhase)*p.cutMix,cutY=sin(angle)*(1-p.cutMix)+sin(angle*1.72-p.wobblePhase)*p.cutMix
-        return Orbit(x:cutX*p.radiusX+wobble,y:p.centerY+cutY*p.radiusY+sin(angle*3.35+p.wobblePhase)*p.bounceAmount,velocityX:velocity * -sin(angle)*p.radiusX,velocityY:velocity*cos(angle)*p.radiusY,front:sin(angle)>=0)
+        let flutter=wobble(p,angle:angle),cutX=cos(angle)*(1-p.cutMix)+cos(angle*2.15+p.wobblePhase)*p.cutMix,cutY=sin(angle)*(1-p.cutMix)+sin(angle*1.72-p.wobblePhase)*p.cutMix
+        return Orbit(x:cutX*p.radiusX+flutter.x,y:p.centerY+cutY*p.radiusY+flutter.y,velocityX:velocity * -sin(angle)*p.radiusX,velocityY:velocity*cos(angle)*p.radiusY,front:sin(angle)>=0)
     }
     static func advance(_ state:inout Trail,targetX:Double,targetY:Double,delta:Double,spring:Double,damping:Double,maxDistance:Double) {
         let dt=min(0.05,max(1/240,delta))

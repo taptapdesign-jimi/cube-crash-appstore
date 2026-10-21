@@ -257,6 +257,7 @@ final class NativeJourneyRewardTests:XCTestCase {
         clock.advance(3);XCTAssertEqual(outcomes.count,0);XCTAssertEqual(view.phase,"unlocked")
         view.activate();clock.advance(1);XCTAssertEqual(outcomes.count,1);XCTAssertEqual(view.phase,"disposed")
         XCTAssertTrue(sounds.contains("new-card-crumble"));XCTAssertEqual(sounds.filter{$0=="new-card-reveal"}.count,1);XCTAssertEqual(sounds.filter{$0=="new-card-unlocked-enter"}.count,1)
+        XCTAssertEqual(sounds.filter{$0=="modal-open"}.count,1);XCTAssertEqual(sounds.filter{$0=="modal-exit"}.count,1)
         view.activate();view.dispose();for job in clock.history {job.callback()};XCTAssertEqual(outcomes.count,1);XCTAssertEqual(clock.activeCount,0)
     }
     func testColdEarlyRevealWaitsForRequiredArtworkAndKeepsSecondTapWithoutInvisibleCollect() {

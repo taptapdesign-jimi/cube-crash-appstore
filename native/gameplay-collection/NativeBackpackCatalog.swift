@@ -19,7 +19,8 @@ struct NativeBackpackCatalog {
     static let arcade:[Die] = [
         Die(id:"tnt",title:"TNT",copy:"Boom-boom, merge me! I blast max 4 dice and rebuild each with a new number!",board:0),
         Die(id:"wild-magnet",title:"MAGNET",copy:"Swoop-swoop! Merge me to pull in max 4 dice and swap each for another!",board:0),
-        Die(id:"cubero",title:"CUBERO",copy:"Hop-hop, merge me! I’ll bounce 1–3 bonus dice into play!",board:0)]
+        Die(id:"cubero",title:"CUBERO",copy:"Hop-hop, merge me! I’ll bounce 1–3 bonus dice into play!",board:0),
+        Die(id:"baloon",title:"BALLOON",copy:"Whoosh-whoosh! Merge me and I’ll float a fresh number die onto your board!",board:0)]
     static let forest:[Die] = [
         Die(id:"bee",title:"Wee Bee",copy:"Bzz-bzz, merge me and I’ll drop 2 new dice onto your board!",board:1),
         Die(id:"wild-star",title:"STAR",copy:"Twinkle-twinkle! Merge me to sprinkle 1–3 bonus dice onto your board!",board:2),

@@ -1,0 +1,64 @@
+{
+  "source": "combo i highscore.mp3",
+  "sourceSHA256": "bcbf680c2dc54743f2db6ccc35b769409c497afb23ecf4fd4eeecebdf77c1623",
+  "sampleRate": 44100,
+  "channels": 1,
+  "edgeFadeSeconds": 0.005,
+  "boundaryEvidence": "Local SpeechAnalyzer plus waveform silence; short safety handles retain complete speech/laughter, trim only inter-line silence, original speed.",
+  "cuts": [
+    {
+      "file": "high-score-01.wav",
+      "text": "Your best score so far! Let’s beat it!",
+      "start": 0.06,
+      "end": 2.98,
+      "duration": 2.92,
+      "peakDBFS": -2.9224546852856585,
+      "dc": -0.000599972855821481
+    },
+    {
+      "file": "high-score-02.wav",
+      "text": "Your personal best! Think you can top it?",
+      "start": 3.24,
+      "end": 6.3,
+      "duration": 3.06,
+      "peakDBFS": -2.730870698729124,
+      "dc": -0.0005643994794098195
+    },
+    {
+      "file": "high-score-03.wav",
+      "text": "That’s the score to beat! You set it!",
+      "start": 6.55,
+      "end": 9.23,
+      "duration": 2.68,
+      "peakDBFS": -2.594728827849721,
+      "dc": -0.0006367573702755355
+    },
+    {
+      "file": "combo-01.wav",
+      "text": "Hey, think you can stack to six faster?",
+      "start": 9.49,
+      "end": 12.26,
+      "duration": 2.77,
+      "peakDBFS": -2.8434008336444387,
+      "dc": -0.00044032505580357144
+    },
+    {
+      "file": "combo-02.wav",
+      "text": "Keep stacking to six! Faster means more points!",
+      "start": 12.6,
+      "end": 15.9,
+      "duration": 3.3,
+      "peakDBFS": -2.614047507935782,
+      "dc": -0.0006510460703575938
+    },
+    {
+      "file": "combo-03.wav",
+      "text": "Go on, keep the momentum and speed!",
+      "start": 16.08,
+      "end": 18.55,
+      "duration": 2.47,
+      "peakDBFS": -2.7949950074345944,
+      "dc": -0.0006721683802569611
+    }
+  ]
+}

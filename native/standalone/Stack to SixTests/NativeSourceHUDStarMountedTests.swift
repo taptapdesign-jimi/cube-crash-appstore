@@ -11,9 +11,10 @@ import StackToSixGameplay
         var wall=0.0,seed:UInt32=1,acquires=0,releases=0,arrivals=0,retired=0,launches=0,current=true
         var arrivalSizes:[Double]=[]
         var owner:NativeSourceHUDStarPresentation?
-        init(count:Int=3,sourceFrameTransportEnabled:Bool=false,combo:Int?=nil,archetype:NativeWildArchetype = .star,variant:String?=nil) {
+        init(count:Int=3,sourceFrameTransportEnabled:Bool=false,combo:Int?=nil,archetype:NativeWildArchetype = .star,variant:String?=nil,finalMerge:Bool=true) {
             var star=NativeTile(id:"s",cell:.init(column:0,row:0),value:6,archetype:archetype,variant:variant);star.starOrbitCount=count
             var state=NativeBoardState(tiles:[star,.init(id:"d",cell:.init(column:1,row:0),value:2)])
+            if !finalMerge {state.tiles.append(.init(id:"other",cell:.init(column:2,row:0),value:1))}
             state.combo=combo ?? 0
             engine=NativeGameplayEngine(state:state)
             engine.comboHUDCoinRewardsEnabled=combo != nil
@@ -35,6 +36,27 @@ import StackToSixGameplay
         owner.prepare(root:NativeTestResources.root,current:{true}){receipt=$0;ready.fulfill()}
         await fulfillment(of:[ready],timeout:20)
         return try XCTUnwrap(receipt)
+    }
+    func testFinalAndNonfinalMountedCoinClocksDifferExactlyThreefoldAndCreditOnce() async throws {
+        let textures=NativeSourceHUDStarTexturePreparation(),prepared=try await prepare(textures)
+        let normal=Fixture(finalMerge:false),fast=Fixture(finalMerge:true)
+        defer{normal.dispose();fast.dispose();textures.dispose()}
+        XCTAssertTrue(normal.engine.pendingHUDStars.allSatisfy{!$0.isFinalMerge})
+        XCTAssertTrue(fast.engine.pendingHUDStars.allSatisfy(\.isFinalMerge))
+        XCTAssertTrue(normal.mount(prepared));XCTAssertTrue(fast.mount(prepared))
+        let normalScore=normal.engine.state.score,fastScore=fast.engine.state.score
+        // Source clock uses integer Date.now milliseconds; both deliveries stay integral.
+        for ms in stride(from:0.0,through:3990,by:30) {
+            normal.deliver(ms);fast.deliver(ms/3)
+            XCTAssertEqual(normal.arrivals,fast.arrivals)
+            let a=normal.owner?.mountedContainer?.children ?? [],b=fast.owner?.mountedContainer?.children ?? []
+            XCTAssertEqual(a.count,b.count)
+            for (x,y) in zip(a,b) {XCTAssertEqual(x.position.x,y.position.x,accuracy:0.01);XCTAssertEqual(x.position.y,y.position.y,accuracy:0.01)}
+        }
+        XCTAssertEqual(fast.arrivals,3);XCTAssertEqual(normal.arrivals,3)
+        fast.deliver(5000);normal.deliver(5000)
+        XCTAssertEqual(fast.engine.state.score,fastScore+300);XCTAssertEqual(normal.engine.state.score,normalScore+300)
+        XCTAssertTrue(fast.engine.pendingHUDStars.isEmpty)
     }
     func testArrivalCarriesActualFlightSizeBeforeCommonTrophyShrink() async throws {
         let textures=NativeSourceHUDStarTexturePreparation(),prepared=try await prepare(textures),f=Fixture()
@@ -69,14 +91,14 @@ import StackToSixGameplay
     }
 
     func testSevenComboCoinsMountArriveExactlyOnceAndDispose()async throws {
-        let textures=NativeSourceHUDStarTexturePreparation(),prepared=try await prepare(textures),f=Fixture(combo:24)
+        let textures=NativeSourceHUDStarTexturePreparation(),prepared=try await prepare(textures),f=Fixture(combo:24,finalMerge:false)
         defer{f.dispose();textures.dispose()}
         let score=f.engine.state.score
         XCTAssertTrue(f.mount(prepared));XCTAssertEqual(f.owner?.mountedContainer?.children.count,7)
         for ms in stride(from:0.0,through:100,by:10){f.deliver(ms)}
         let sprites=try XCTUnwrap(f.owner?.mountedContainer).children
-        XCTAssertEqual(sprites.filter{$0.alpha>0}.count,1,"Only the first coin launches; the rest wait invisibly at source")
-        XCTAssertEqual(sprites.filter{$0.alpha==0}.count,6)
+        XCTAssertEqual(sprites.filter{$0.alpha>0}.count,2,"The first compact pair launches while later pairs remain at source")
+        XCTAssertEqual(sprites.filter{$0.alpha==0}.count,5)
         for ms in stride(from:110.0,through:8000,by:10){f.deliver(ms)}
         XCTAssertEqual(f.arrivals,7);XCTAssertEqual(f.engine.state.score,score+700)
         XCTAssertTrue(f.engine.pendingHUDStars.isEmpty)
@@ -105,7 +127,7 @@ import StackToSixGameplay
     }
     func testActualAppRAFTransportPaintsEvery60HzFlightSampleWithoutAlternatingFrozenFrames()async throws {
         let textures=NativeSourceHUDStarTexturePreparation(),prepared=try await prepare(textures)
-        let f=Fixture(count:1,sourceFrameTransportEnabled:true)
+        let f=Fixture(count:1,sourceFrameTransportEnabled:true,finalMerge:false)
         defer{f.dispose();textures.dispose()}
         XCTAssertEqual(f.service.source60HzRenderDemandCount,0)
         XCTAssertTrue(f.mount(prepared))

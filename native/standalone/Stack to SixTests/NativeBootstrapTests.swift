@@ -7,6 +7,41 @@ import StackToSixNativeState
 
 @MainActor
 final class NativeBootstrapTests:XCTestCase {
+    func testMountedBackpackIconRefreshSurvivesRepeatedOpenCloseAndSuspension()async throws {
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent("backpack-refresh-\(UUID().uuidString)")
+        let store=NativeSaveStore(directory:directory)
+        let state=NativeBoardFactory.make(mode:.journey,board:4)
+        var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false),journeyRuns:[4:state])
+        seed.progression.firstPlayTutorialComplete=true;seed.progression.completedJourneyBoards=[1,2,3]
+        seed.journeyRunSavedAt[4]=Date().timeIntervalSince1970;try store.save(seed)
+        let bootstrap=try NativeBootstrap(root:NativeTestResources.root,store:store,showStudioIntro:false)
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible();bootstrap.start(in:host)
+        defer{bootstrap.dispose();window.isHidden=true;try? FileManager.default.removeItem(at:directory)}
+        let app=try XCTUnwrap(host.children.first as? NativeAppController)
+        app.navigate(.world(1),interrupt:true);try await waitUntil{app.world?.isReadyForInput==true}
+        app.world?.onRequest?("continue",4);try await waitUntil{app.route == .gameplay}
+        let game=try XCTUnwrap(app.children.first as? NativeGameplayViewController)
+        try await waitUntil(timeout:12){game.boardScene?.boardGeometry != nil && game.boardScene?.navigationLocked==false}
+        let scene=try XCTUnwrap(game.boardScene)
+        XCTAssertNotNil(scene.gameplayRenderHost?.renderView.window)
+        let help=try XCTUnwrap(scene.childNode(withName:"//native-game-help") as? SKSpriteNode)
+        try await waitUntil(timeout:12){scene.isBoardEntryComplete && help.parent?.isHidden==false && (help.parent?.alpha ?? 0)>0.01}
+        let before=game.engine.state,size=help.size
+        for _ in 0..<8 {
+            game.onHelp?()
+            let backpack=try XCTUnwrap(game.presentedViewController as? NativeGameplayBackpackController)
+            XCTAssertTrue(scene.backpackPresented)
+            if !UIAccessibility.isReduceMotionEnabled {XCTAssertNotNil(help.action(forKey:"backpack-icon-swap"))}
+            try await waitUntil{backpack.screen?.isUserInteractionEnabled==true && backpack.view.isUserInteractionEnabled}
+            let close=try XCTUnwrap(button(in:backpack.view,id:"native.gameplay.backpack.close"))
+            close.sendActions(for:.touchUpInside)
+            try await waitUntil{game.presentedViewController==nil && help.action(forKey:"backpack-icon-swap")==nil}
+            XCTAssertFalse(scene.backpackPresented);XCTAssertEqual(help.size,size)
+            XCTAssertEqual(help.xScale,1,accuracy:0.001);XCTAssertEqual(help.yScale,1,accuracy:0.001)
+            XCTAssertEqual(game.engine.state,before)
+        }
+    }
     func testNewJourneyDieOnlySwapsHUDUntilManualBackpackVisitReturns() async throws {
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("native-backpack-manual-\(UUID().uuidString)")
         defer {try? FileManager.default.removeItem(at:directory)}

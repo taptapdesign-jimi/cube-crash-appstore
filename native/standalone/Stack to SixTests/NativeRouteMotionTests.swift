@@ -4,6 +4,29 @@ import UIKit
 
 @MainActor
 final class NativeRouteMotionTests:XCTestCase {
+    func testRapidMountedSliderSelectionNeverCommitsIconContactSquashIntoLayout()async throws {
+        let motion=owner(),host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.windowScene=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.first
+        window.rootViewController=host;window.makeKeyAndVisible()
+        host.view.addSubview(motion.home);motion.home.frame=window.bounds;motion.home.layoutIfNeeded()
+        CATransaction.flush();try await Task.sleep(for:.milliseconds(100))
+        defer{motion.cancel();motion.home.stopHeroIdle();window.isHidden=true}
+        for i in 0..<18 {
+            motion.selectSlide(i%3){}
+            try await Task.sleep(for:.milliseconds(25))
+            for icon in motion.home.navigationIconViews {
+                XCTAssertTrue(CATransform3DEqualToTransform(icon.layer.transform,CATransform3DIdentity),"Contact paint is never a layout/model transform")
+            }
+        }
+        motion.suspend();motion.resume();motion.cancel()
+        try await Task.sleep(for:.milliseconds(450))
+        for icon in motion.home.navigationIconViews {
+            XCTAssertTrue(CATransform3DEqualToTransform(icon.layer.transform,CATransform3DIdentity))
+            let painted=icon.layer.presentation()?.transform ?? icon.layer.transform
+            XCTAssertEqual(painted.m11,1,accuracy:0.001);XCTAssertEqual(painted.m22,1,accuracy:0.001)
+            XCTAssertEqual(painted.m42,0,accuracy:0.001,"Settled artwork must not retain a visual squash or offset")
+        }
+    }
     private final class WeakLayer {weak var value:CALayer?;init(_ value:CALayer){self.value=value}}
     private func owner()->NativeRouteMotion {
         let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)

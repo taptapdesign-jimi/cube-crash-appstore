@@ -1,5 +1,6 @@
 import XCTest
 import UIKit
+import SpriteKit
 @testable import Stack_to_Six
 
 @MainActor
@@ -77,6 +78,73 @@ final class NativeTntVariantTests: XCTestCase {
         let cancelled=NativeBeachBallPresentation(resourceRoot:resourceRoot(),viewport:CGSize(width:390,height:844),random:{0.5})
         cancelled.onGameplayReady={ XCTFail("disposed owner cannot release gameplay") }
         cancelled.dispose();cancelled.paint(seconds:1)
+    }
+    func testCombinedTntPipsMatchOriginalRenderedShapesForEveryFace() throws {
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),host=UIViewController()
+        window.rootViewController=host;window.makeKeyAndVisible();defer{window.isHidden=true}
+        let preview=SKView(frame:CGRect(x:0,y:0,width:192,height:192));host.view.addSubview(preview)
+        let scene=SKScene(size:CGSize(width:192,height:192));scene.backgroundColor = .clear
+        preview.presentScene(scene);preview.isPaused=true
+        let maps=[1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]]
+        func pixels(_ node:SKNode)throws->Data {
+            scene.removeAllChildren();node.position=CGPoint(x:96,y:96);node.setScale(3);scene.addChild(node)
+            let image=try XCTUnwrap(preview.texture(from:scene,crop:CGRect(origin:.zero,size:scene.size))).cgImage()
+            let bytes=UnsafeMutablePointer<UInt8>.allocate(capacity:192*192*4);defer{bytes.deallocate()}
+            bytes.initialize(repeating:0,count:192*192*4)
+            let context=try XCTUnwrap(CGContext(data:bytes,width:192,height:192,bitsPerComponent:8,bytesPerRow:192*4,space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue))
+            context.draw(image,in:CGRect(x:0,y:0,width:192,height:192))
+            return Data(bytes:bytes,count:192*192*4)
+        }
+        for value in 1...6 {
+            let original=SKNode()
+            for index in maps[value]! {
+                let x=CGFloat(index%3-1)*15,y = -CGFloat(index/3-1)*15
+                let pip=SKShapeNode(rect:CGRect(x:x-3.75,y:y-3.75,width:7.5,height:7.5),cornerRadius:2.2)
+                pip.fillColor=UIColor(red:129.0/255,green:90.0/255,blue:66.0/255,alpha:0.9);pip.strokeColor = .clear;original.addChild(pip)
+            }
+            let combined=NativeTntFinale.makeDiePips(value:value)
+            let before=try pixels(original),after=try pixels(combined)
+            XCTAssertTrue(before.contains{$0>0},"fixture must render visible art")
+            // Same disjoint paths/material at3x must preserve raster output.
+            let differences=zip(before,after).filter{$0 != $1}
+            XCTAssertEqual(differences.count,0,"face \(value), max channel delta \(differences.map{abs(Int($0.0)-Int($0.1))}.max() ?? 0)")
+            XCTAssertEqual(combined.children.count,0)
+        }
+        preview.presentScene(nil)
+    }
+    func testFinishedVariantParticlesStopWritingAndBackwardSeekRestoresVisiblePose() throws {
+        for variant in [NativeTntVariantPresentation.Variant.flower,.barell] {
+            let owner=NativeTntVariantPresentation(resourceRoot:resourceRoot(),variant:variant,viewport:CGSize(width:390,height:844),random:{0.5})
+            let reference=NativeTntVariantPresentation(resourceRoot:resourceRoot(),variant:variant,viewport:CGSize(width:390,height:844),random:{0.5})
+            let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+            window.rootViewController=host;window.makeKeyAndVisible();host.view.addSubview(owner);host.view.addSubview(reference)
+            defer{owner.dispose();owner.dispose();reference.dispose();window.isHidden=true}
+            owner.layoutIfNeeded();reference.layoutIfNeeded()
+            // Fully retired objects must neither recompute nor overwrite pose.
+            owner.paint(seconds:4)
+            let particles=owner.subviews.filter{!($0 is NativeSplashGlyphField)}
+            XCTAssertFalse(particles.isEmpty)
+            for view in particles {
+                XCTAssertEqual(view.alpha,0,accuracy:0.000001)
+                view.center=CGPoint(x:123,y:456);view.transform=CGAffineTransform(rotationAngle:0.123)
+            }
+            owner.paint(seconds:4.1);owner.paint(seconds:4.2)
+            for view in particles {
+                XCTAssertEqual(view.center,CGPoint(x:123,y:456));XCTAssertEqual(view.transform,CGAffineTransform(rotationAngle:0.123))
+                XCTAssertEqual(view.alpha,0,accuracy:0.000001)
+            }
+            // Backward seek revives exactly the same visible authored sample.
+            for time in [0.5,1.1,1.9,2.3] {
+                owner.paint(seconds:time);reference.paint(seconds:time)
+                for (actual,expected) in zip(owner.subviews,reference.subviews) where !(actual is NativeSplashGlyphField) {
+                    XCTAssertEqual(actual.alpha,expected.alpha,accuracy:0.000001)
+                    if expected.alpha>0 {
+                        XCTAssertEqual(actual.center,expected.center);XCTAssertEqual(actual.transform,expected.transform)
+                        XCTAssertEqual(actual.layer.zPosition,expected.layer.zPosition)
+                    }
+                }
+            }
+        }
     }
     func testSelectedVariantArtworkFamiliesPreserveOriginalFilesAndBoundedInventory() {
         XCTAssertEqual(NativeTntVariantPresentation.assets(.flower).count,15)

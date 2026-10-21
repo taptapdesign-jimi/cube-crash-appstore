@@ -62,6 +62,7 @@ final class NativeArcadeHubView: UIView {
             let token=UUID();self.pendingWorldTap=token
             self.recordInputDiagnostic("world.accepted id=\(id)")
             self.onFeedback?("cta")
+            self.onFeedback?("arcade-island-"+self.identifiers[index])
             self.recordInputDiagnostic("world.feedback-returned id=\(id)")
             self.hub.playWorldTap(id) { [weak self] in
                 self?.recordInputDiagnostic("world.animation-completion id=\(id)")
@@ -353,12 +354,12 @@ final class NativeArcadeWorldModal: UIView {
         let artPose=art.layer.presentation()?.transform ?? art.layer.transform
         modalDrag?.cancel(preservePose:true);closing=true
         isUserInteractionEnabled=false;self.play.isEnabled=false
-        if play {onFeedback?("cta");onPlayExitStart?()}
+        if play {onFeedback?("cta");onFeedback?("modal-exit");onPlayExitStart?()}
         CATransaction.begin();CATransaction.setDisableActions(true)
         idle.layer.transform=idlePose;art.layer.transform=artPose
         idle.layer.removeAllAnimations();art.layer.removeAllAnimations()
         freezeClouds()
-        if !play {close.playArtworkTapFeedback();onFeedback?("back")}
+        if !play {close.playArtworkTapFeedback();onFeedback?("modal-close")}
         if UIAccessibility.isReduceMotionEnabled {
             if play {exitAcceptedPlay()}
             CATransaction.commit();onFinish?(play);return

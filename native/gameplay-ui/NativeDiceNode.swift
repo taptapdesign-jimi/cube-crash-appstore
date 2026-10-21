@@ -562,6 +562,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
     // Captured app-spawn bounce cancellation is a real timeline interruption,
     // not a synthetic Source `_isBeingSpawned`/`_spawnTween` marker.
     private var sourceAppSpawnInterruption:(id:String,pickup:()->Void,interrupted:()->Void)?
+    var sourceAppSpawnOwnsOuterScale:Bool {sourceAppSpawnInterruption != nil}
     @discardableResult func bindSourceAppSpawnInterruption(id:String,pickup:@escaping()->Void,interrupted:@escaping()->Void)->Bool {
         guard !disposed,sourceAppSpawnInterruption==nil else{return false}
         sourceAppSpawnInterruption=(id,pickup,interrupted);return true
@@ -590,7 +591,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         guard valid() else{return false}
         func outerOwned()->Bool {
             outerTransformOwned || activeDrag || dragging || sourceIdleTimelinePresent ||
-                sourceOuterOwners.competes || sourceSkipIdleScaleReset || !sourceLockedSpawnMarkers.isEmpty
+                sourceOuterOwners.competes || sourceSkipIdleScaleReset || !sourceLockedSpawnMarkers.isEmpty || sourceAppSpawnOwnsOuterScale
         }
         var local=sourceLocalScale
         let sx=local.x.isFinite ? local.x:1,sy=local.y.isFinite ? local.y:1
@@ -626,11 +627,18 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
     }
     /// Local second pass at each spawn safety deadline. Unlike the full
     /// prepass, regular opacity/pips repair also applies to hidden roots.
-    @discardableResult func repairSourceRegularSpawnOpacity(wildDropping:Bool)->Bool {
+    @discardableResult func repairSourceRegularSpawnOpacity(wildDropping:Bool,lockedAlpha:Double?=nil)->Bool {
         guard sourcePhysicalMarkersCovered,parent != nil,kind=="regular",variant==nil,
               !sourceResidualWildPresence else{return false}
         if wildDropping {return true}
-        if locked,value<=0,!isHidden,alpha<0.08 {alpha=0.2}
+        // A locked bonus can intentionally be dimmer than the generic safety
+        // threshold (for example 0.07). Borrow its canonical opacity instead
+        // of alternating 0.20 with synchronize/locked-pop repair.
+        if locked,value<=0,!isHidden,alpha<0.08 {
+            if let lockedAlpha,lockedAlpha.isFinite,lockedAlpha>0,lockedAlpha<0.08 {
+                alpha=CGFloat(lockedAlpha)
+            } else {alpha=0.2}
+        }
         if locked || value<=0 {return true}
         if alpha<0.99 {ensureSourceAppSpawnFullOpacity()}
         if pips.isHidden {pips.isHidden=false}
@@ -1771,7 +1779,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
             guard let cohort=sourceBeeFrames,cohort.generation==sourceGeneration,cohort.handles.count>=2,
                   cohort.handles.allSatisfy({textures.isSourceTextureHandleCurrent($0)}) else{return false}
         }
-        return !disposed && !sourceWildStateCleared && (!sourceRegistryPaused || keepsDirectArtworkDuringRegistryPressure) && !sourceIdleDeferred && !sourceRegistryPending && ((!frames.isEmpty && definition.idleSheet != nil) || variant == "bee" || variant == "flower" || variant == "cubero" || variant == "bottle" || variant == "spaceship" || variant == "fish" && artworkPhaseID != nil && !artworkRunning || honeyIdle?.hasActiveMotion==true || idleFizz?.isRunning==true || mushroomSmoke != nil || kantaIdle?.assetReady == true)
+        return !disposed && !sourceWildStateCleared && (!sourceRegistryPaused || keepsDirectArtworkDuringRegistryPressure) && !sourceIdleDeferred && !sourceRegistryPending && ((!frames.isEmpty && definition.idleSheet != nil) || variant == "bee" || variant == "flower" || variant == "cubero" || variant == "bottle" || variant == "baloon" || variant == "spaceship" || variant == "fish" && artworkPhaseID != nil && !artworkRunning || honeyIdle?.hasActiveMotion==true || idleFizz?.isRunning==true || mushroomSmoke != nil || kantaIdle?.assetReady == true)
     }
     var authoredArtworkReceipt:(frame:Int,elapsed:Double,running:Bool,pending:Bool,paused:Bool) {(paintedFrame,artworkElapsed,artworkRunning,sourceRegistryPending,sourceRegistryPaused)}
     var hasPresentationActions: Bool { hasActions() || visual.hasActions() || shadow.hasActions() }
@@ -2045,7 +2053,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         sourceBottlePreservingBase=preserveSourceBottleBase && !active && variant=="bottle"
         sourceHoneyPreparing=preserveSourceHoneyIdle && !active && variant=="honey"
         defer{sourceBottlePreservingBase=false;sourceHoneyPreparing=false}
-        sourceIdleDeferred=active;artworkGeneration+=1;cuberoCarrierArtwork=false
+        sourceIdleDeferred=active;paintBaloonIdle();artworkGeneration+=1;cuberoCarrierArtwork=false
         if active {
             retireTntFuse()
             retireSourceStarSheet()
@@ -2270,6 +2278,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
             motion.lastPaint=nil;sourceBeeHostMotion=motion
         }
         dragging = active
+        paintBaloonIdle()
         reconcileTntFuseVisibility()
         sourceHoneyIdle?.setDragging(active || sourceRegistryPaused)
         reconcileSourceBottleIdleVisibility()
@@ -2351,6 +2360,8 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
                 let scale = 1 + sin(time * .pi * 2.6 + .pi * 0.6) * 0.018
                 face.yScale = scale; face.xScale *= scale
             } else { face.position = .zero; face.zRotation = 0; face.yScale = 1 }
+        } else if variant == "baloon" {
+            paintBaloonIdle()
         } else if variant == "cubero" {
             paintArtwork()
         } else if variant == "bottle" {
@@ -2420,6 +2431,19 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         artworkPhaseID=phase.id;artworkRunning=phase.running;artworkElapsed=0
     }
 
+    private func paintBaloonIdle() {
+        guard variant=="baloon" else{return}
+        let active = !dragging && !sourceIdleDeferred && !sourceRegistryPending && !sourceWildStateCleared
+        guard active else {face.position = .zero;face.zRotation=0;face.setScale(1);return}
+        let idleTime=elapsed*1.3
+        let pose=NativeBottleIdleMotion.sample(seconds:idleTime)
+        let lift=sin(idleTime*2 * .pi/3)*4
+        face.position=CGPoint(x:0,y:7-pose.y+lift);face.zRotation = -pose.rotation
+        // Absolute, area-preserving breathing on the existing board idle clock.
+        // Pointer/deferral reset this inner face; outer hit/drag scale stays owned above.
+        let stretch=1 + sin(idleTime*2 * .pi/3)*0.03042
+        face.yScale=stretch;face.xScale=1/stretch
+    }
     private func paintBottle() {
         guard variant == "bottle",sourceBottleIdle==nil,!sourceBottlePreservingBase else {return}
         if dragging || sourceIdleDeferred || sourceRegistryPending {face.anchorPoint=definition.anchor;face.position = .zero;face.zRotation=0;return}

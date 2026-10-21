@@ -1079,7 +1079,7 @@ import StackToSixNativeState
             XCTAssertEqual(bonusSourceIDs.last,bonus.tileID,"Each constructor is followed by its own direction/pop before the next constructor")
             XCTAssertNotNil(game.engine.state.tiles.first{$0.id==bonus.tileID},"Original constructor publishes grid/tiles before pop")
             let accepted=originalPop(bonus)
-            XCTAssertTrue(accepted);XCTAssertEqual(Double(scene.sourceNativeTileNode(bonus.tileID)?.sourceLocalScale.x ?? 0),0.30,accuracy:0.000001)
+            XCTAssertTrue(accepted);XCTAssertEqual(Double(scene.sourceNativeTileNode(bonus.tileID)?.sourceLocalScale.x ?? 0),1,accuracy:0.000001)
             publishedBonusIDs.append(bonus.tileID);return accepted
         }
         if locked || (archetype == .star && endgame) {

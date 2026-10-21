@@ -1,0 +1,23 @@
+{
+  "source": "ambient area 55.wav",
+  "sourceSHA256": "353bf8d254516011cdf4de143c36132a4492ccd93e627cf49805650aca8eb10b",
+  "output": "area55-ambient-loop-v1.wav",
+  "outputSHA256": "c8847cce0d186100cd428b3ba0d2ac82cf62e0193a01e2a3b1f8efb700180a65",
+  "sampleRate": 48000,
+  "channels": 2,
+  "bits": 16,
+  "sourceDuration": 14.8,
+  "trimStart": 1.5,
+  "trimEnd": 12.5,
+  "overlapSeconds": 1.5,
+  "method": "Circular complementary raised-cosine crossfade, original speed/pitch, no normalization.",
+  "duration": 9.5,
+  "peakDBFS": -10.111486024951155,
+  "rmsDBFS": -26.750504344232308,
+  "dc": -4.923402217396519e-06,
+  "seamStepPCM": [
+    17,
+    56
+  ],
+  "interiorStep99PercentilePCM": 101
+}

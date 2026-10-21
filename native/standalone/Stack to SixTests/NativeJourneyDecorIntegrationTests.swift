@@ -104,7 +104,7 @@ final class NativeJourneyDecorIntegrationTests:XCTestCase {
         let window=mount(controller)
         defer{controller.dispose();window.isHidden=true}
         resources.finish(0);controller.view.setNeedsLayout();controller.view.layoutIfNeeded()
-        let scene=try XCTUnwrap(controller.view.subviews.compactMap{$0 as? SKView}.first?.scene as? NativeBoardScene)
+        let scene=try XCTUnwrap(controller.boardScene)
         let footer=try XCTUnwrap(controller.journeyBottomDecor)
         try await waitForActualDecorEntry(controller)
         let entryDeadline=Date().addingTimeInterval(4)
@@ -120,6 +120,11 @@ final class NativeJourneyDecorIntegrationTests:XCTestCase {
         scene.enumerateChildNodes(withName:"//native-ghost-*"){node,_ in ghosts.append(node)}
         XCTAssertFalse(ghosts.isEmpty)
         let done=expectation(description:"Clean callback follows residual, HUD and footer exit")
+        var roundWon=0
+        controller.onRoundWon={generation in
+            roundWon += 1;XCTAssertEqual(generation,controller.engine.state.generation)
+            XCTAssertNil(tile.action(forKey:"board-exit"),"Speech admission precedes board exit")
+        }
         var callbacks=0
         controller.onTerminal={result in
             callbacks += 1;XCTAssertEqual(result.kind,.complete)
@@ -131,7 +136,9 @@ final class NativeJourneyDecorIntegrationTests:XCTestCase {
             done.fulfill()
         }
         scene.onTerminal?(NativeResolution(.complete,reason:"final_regular_merge6"))
-        XCTAssertEqual(callbacks,0)
+        XCTAssertEqual(callbacks,0);XCTAssertEqual(roundWon,1)
+        scene.onTerminal?(NativeResolution(.complete,reason:"final_regular_merge6"))
+        XCTAssertEqual(roundWon,1,"Duplicate terminal cannot select another phrase")
         XCTAssertNotEqual(footer.phase,.exiting,"Footer must wait for board residual pop-out")
         XCTAssertNotNil(tile.action(forKey:"board-exit"))
         XCTAssertNotNil(closed.action(forKey:"board-exit"))

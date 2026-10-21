@@ -12,7 +12,7 @@ enum NativeIdleBubbleMotion {
         case "bottle":return .bottle
         case "fish":return .fish
         case "beach-ball":return .beachBall
-        case "mushroom","robo-cube":return nil
+        case "baloon","mushroom","robo-cube":return nil
         default:return kind=="juice" || kind=="wild-juice" ? .juice:nil
         }
     }

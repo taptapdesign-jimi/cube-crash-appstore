@@ -115,45 +115,47 @@ final class NativeThemedBoardTransitionLifecycleTests:XCTestCase {
             XCTAssertEqual(frozen.count,clouds.count)
         }
     }
-    func testForestCloudExitShrinksContinuouslyFromActualSizeAtBothDisplayRates()throws {
-        for randomValue in [0.0,0.999999] {
-            for fps in [60.0,120.0] {
-                let resources=DepthResources()
-                let owner=NativeThemedBoardTransitionController(root:URL(fileURLWithPath:"/unused"),board:2,viewport:CGSize(width:390,height:844),generation:9,resources:resources,font:.systemFont(ofSize:166),random:{randomValue})
-                owner.start();defer{owner.dispose()}
-                func images(_ view:UIView)->[UIImageView] {view.subviews.flatMap{child in (child as? UIImageView).map{[$0]} ?? images(child)}}
-                let clouds=images(owner.view).filter{$0.image === resources.cloud}
-                XCTAssertEqual(clouds.count,8)
-                func scales(_ sprite:UIImageView)->(CGFloat,CGFloat) {
-                    let t=sprite.transform
-                    return (hypot(t.a,t.b),hypot(t.c,t.d))
-                }
-                let exit=2.65,duration=0.595
-                owner.paint(seconds:exit-0.000001,generation:9)
-                let initial=clouds.map{scales($0).0}
-                owner.paint(seconds:exit,generation:9)
-                for (index,sprite) in clouds.enumerated() {
-                    XCTAssertEqual(scales(sprite).0,initial[index],accuracy:0.000001,"Exit must capture each cloud's actual rest size")
-                }
-                var previous=initial
-                for frame in 1...Int(ceil(duration*fps))-1 {
-                    owner.paint(seconds:exit+Double(frame)/fps,generation:9)
-                    for (index,sprite) in clouds.enumerated() {
-                        let (x,y)=scales(sprite)
-                        XCTAssertNotNil(sprite.image);XCTAssertFalse(sprite.superview!.isHidden)
-                        XCTAssertEqual(x,y,accuracy:0.000001,"Forest must preserve aspect ratio")
-                        XCTAssertLessThanOrEqual(x,previous[index]+0.000001,"Final exit must never rebound or flash larger")
-                        XCTAssertLessThanOrEqual(previous[index]-x,initial[index]*CGFloat(1.6/(duration*fps)),"A single frame must not normalize the cloud to a fixed scale")
-                        XCTAssertGreaterThan(x,0)
-                        previous[index]=x
+    func testAllThemeCloudExitsShrinkContinuouslyFromActualSizeAtBothDisplayRates()throws {
+        for board in [2,11,21] {
+            for randomValue in [0.0,0.999999] {
+                for fps in [60.0,120.0] {
+                    let resources=DepthResources()
+                    let owner=NativeThemedBoardTransitionController(root:URL(fileURLWithPath:"/unused"),board:board,viewport:CGSize(width:390,height:844),generation:9,resources:resources,font:.systemFont(ofSize:166),random:{randomValue})
+                    owner.start();defer{owner.dispose()}
+                    func images(_ view:UIView)->[UIImageView] {view.subviews.flatMap{child in (child as? UIImageView).map{[$0]} ?? images(child)}}
+                    let clouds=images(owner.view).filter{$0.image === resources.cloud}
+                    XCTAssertEqual(clouds.count,board==11 ? 6:8)
+                    func scales(_ sprite:UIImageView)->(CGFloat,CGFloat) {
+                        let t=sprite.transform
+                        return (hypot(t.a,t.b),hypot(t.c,t.d))
                     }
-                }
-                owner.paint(seconds:exit+duration-0.000001,generation:9)
-                for sprite in clouds {XCTAssertNotNil(sprite.image);XCTAssertFalse(sprite.superview!.isHidden)}
-                owner.paint(seconds:exit+duration,generation:9)
-                for sprite in clouds {
-                    XCTAssertNil(sprite.image);XCTAssertEqual(sprite.alpha,0);XCTAssertTrue(sprite.superview!.isHidden)
-                    XCTAssertGreaterThan(scales(sprite).0,0,"Retirement must preserve the last nonsingular transform")
+                    let exit=board==21 ? 2.35+NativeBoardTransitionPlan.airCombatHold(minimum:0,duration:3.001,elapsed:2.35)+0.9:2.65,duration=0.595
+                    owner.paint(seconds:exit-0.000001,generation:9)
+                    let initial=clouds.map{scales($0).0}
+                    owner.paint(seconds:exit,generation:9)
+                    for (index,sprite) in clouds.enumerated() {
+                        XCTAssertEqual(scales(sprite).0,initial[index],accuracy:0.000001,"Exit must capture each cloud's actual rest size")
+                    }
+                    var previous=initial
+                    for frame in 1...Int(ceil(duration*fps))-1 {
+                        owner.paint(seconds:exit+Double(frame)/fps,generation:9)
+                        for (index,sprite) in clouds.enumerated() {
+                            let (x,y)=scales(sprite)
+                            XCTAssertNotNil(sprite.image);XCTAssertFalse(sprite.superview!.isHidden)
+                            XCTAssertEqual(x,y,accuracy:0.000001,"Every theme must preserve aspect ratio")
+                            XCTAssertLessThanOrEqual(x,previous[index]+0.000001,"Final exit must never rebound or flash larger")
+                            XCTAssertLessThanOrEqual(previous[index]-x,initial[index]*CGFloat(1.6/(duration*fps)),"A single frame must not normalize the cloud to a fixed scale")
+                            XCTAssertGreaterThan(x,0)
+                            previous[index]=x
+                        }
+                    }
+                    owner.paint(seconds:exit+duration-0.000001,generation:9)
+                    for sprite in clouds {XCTAssertNotNil(sprite.image);XCTAssertFalse(sprite.superview!.isHidden)}
+                    owner.paint(seconds:exit+duration,generation:9)
+                    for sprite in clouds {
+                        XCTAssertNil(sprite.image);XCTAssertEqual(sprite.alpha,0);XCTAssertTrue(sprite.superview!.isHidden)
+                        XCTAssertGreaterThan(scales(sprite).0,0,"Retirement must preserve the last nonsingular transform")
+                    }
                 }
             }
         }

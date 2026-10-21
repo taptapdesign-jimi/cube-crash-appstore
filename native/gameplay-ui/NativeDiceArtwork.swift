@@ -47,6 +47,7 @@ struct NativeDiceArtwork {
         return Self(path:path,size:size,anchor:raw.anchor,idleSheet:sheet)
     }
     static let variants: [String: Self] = [
+        "baloon": Self(path: "assets/shop/baloon/baloon.png"),
         "fish": Self(path: "assets/shop/fish/fish.png"),
         "kanta": Self(path: "assets/shop/kanta/04.png", size: CGSize(width: 128.0 * 128.0 / 171.0, height: 128)),
         "bee": Self(path: "assets/shop/bee/bee1.png"),

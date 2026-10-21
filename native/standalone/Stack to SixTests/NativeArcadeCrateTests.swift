@@ -133,13 +133,50 @@ final class NativeArcadeCrateTests: XCTestCase {
         XCTAssertFalse(scene.backpackPresented);XCTAssertTrue(help.texture === closed);XCTAssertEqual(engine.state,before)
     }
 
+    func testArcadeHubBoxSpeechOnceAtAcceptedIconOpen() async throws {
+        enum Unused:Error {case unavailable}
+        let services=NativeAppServices(settings:{[:]},setPreference:{_,_ in},worldSnapshot:{_,_,_ in throw Unused.unavailable},markViewed:{_ in},makeGameplay:{_,_ in throw Unused.unavailable},flush:{})
+        let root=NativeAppController(resourceRoot:NativeTestResources.root,services:services)
+        let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=root;window.makeKeyAndVisible()
+        defer{root.dispose();window.isHidden=true}
+        root.navigate(.arcadeHub,interrupt:true)
+        let deadline=Date().addingTimeInterval(8)
+        while !(root.route == .arcadeHub && root.arcadeHub.hub.scrollView.isUserInteractionEnabled),Date()<deadline {try await Task.sleep(for:.milliseconds(20))}
+        XCTAssertEqual(root.route,.arcadeHub);XCTAssertTrue(root.arcadeHub.hub.scrollView.isUserInteractionEnabled)
+        var speech=0;root.onFeedback={if $0 == "collection-icon-speech" {speech += 1}}
+        root.arcadeHub.hub.backpackButton.sendActions(for:.touchUpInside)
+        root.arcadeHub.hub.backpackButton.sendActions(for:.touchUpInside)
+        XCTAssertEqual(speech,1)
+        let finish=Date().addingTimeInterval(8)
+        while root.route != .backpack,Date()<finish {try await Task.sleep(for:.milliseconds(20))}
+        XCTAssertEqual(root.route,.backpack)
+    }
+    func testAcceptedGameplayCollectionOpensSpeakOnceForBackpackAndBox() async throws {
+        enum Unused:Error {case unavailable}
+        for mode in [NativeRunMode.journey,.arcade] {
+            let services=NativeAppServices(settings:{[:]},setPreference:{_,_ in},worldSnapshot:{_,_,_ in throw Unused.unavailable},markViewed:{_ in},makeGameplay:{_,_ in throw Unused.unavailable},flush:{})
+            let root=NativeAppController(resourceRoot:NativeTestResources.root,services:services)
+            let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=root;window.makeKeyAndVisible()
+            let game=NativeGameplayViewController(engine:NativeGameplayEngine(state:NativeBoardFactory.make(mode:mode,board:1)),resourceRoot:NativeTestResources.root)
+            root.addChild(game);game.view.frame=root.view.bounds;root.view.addSubview(game.view);game.didMove(toParent:root)
+            game.boardScene?.layout(size:game.view.bounds.size,insets:.zero,animateEntry:false)
+            let owner=NativeScoreOwner(gameplay:game,root:NativeTestResources.root,progression:{NativeProgressionState()})
+            defer{owner.dispose();game.dispose();root.dispose();window.isHidden=true}
+            var speech=0;owner.onFeedback={if $0 == "collection-icon-speech" {speech += 1}}
+            owner.presentBackpack();owner.presentBackpack()
+            XCTAssertEqual(speech,1);XCTAssertNotNil(game.presentedViewController)
+            try await Task.sleep(for:.milliseconds(100))
+        }
+    }
     func testPureDiceRejectsProgrammaticGameplayCrateWithoutChangingBoard() {
         let engine = NativeGameplayEngine(state: NativeBoardFactory.make(mode: .arcade, board: 1, arcadeVariant: .pureDice))
         let gameplay = NativeGameplayViewController(engine: engine, resourceRoot: NativeTestResources.root)
         gameplay.loadViewIfNeeded()
         let before = engine.state
         let owner = NativeScoreOwner(gameplay: gameplay, root: NativeTestResources.root, progression: { NativeProgressionState() })
+        var cues:[String]=[];owner.onFeedback={cues.append($0)}
         owner.presentBackpack()
+        XCTAssertTrue(cues.isEmpty)
         XCTAssertNil(gameplay.presentedViewController)
         XCTAssertEqual(engine.state, before)
         owner.dispose(); gameplay.dispose()

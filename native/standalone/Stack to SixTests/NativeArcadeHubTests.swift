@@ -63,7 +63,7 @@ final class NativeArcadeHubTests: XCTestCase {
         var cues:[String]=[];view.onFeedback={cues.append($0)}
         for (index,title) in ["Endurance","One Lucky Drop","Slow Burn"].enumerated() {
             view.hub.onWorld?(view.hub.worldIDs[index])
-            XCTAssertEqual(Array(cues.suffix(2)),["cta","exit-modal"])
+            XCTAssertEqual(Array(cues.suffix(3)),["cta","arcade-island-"+["endurance","pureDice","slowBurn"][index],"exit-modal"])
             let count=cues.count
             view.hub.onWorld?(view.hub.worldIDs[index])
             XCTAssertEqual(cues.count,count,"An already-open modal cannot replay selection sounds")

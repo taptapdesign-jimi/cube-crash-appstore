@@ -128,7 +128,7 @@ final class NativeResultOwner {
                 switch action {case .restart:self.restart();case .exit:self.exit();case .nextRound:self.continueArcade();case .nextJourney:self.continueJourney?()}
             }
         }
-        modal=sheet;gameplay.setSuspended(true);gameplay.present(sheet,animated:false)
+        modal=sheet;gameplay.setSuspended(true);onMoment?("modal-open",0,nil);gameplay.present(sheet,animated:false)
         if let receipt=sourceNoMovesReceipt {
             gameplay.boardScene?.traceNoMovesHandoff("result-mount",token:receipt.planToken,owner:sheet,mounted:sheet.view.window != nil)
         }
@@ -272,7 +272,7 @@ final class NativeResultController:UIViewController {
                 guard let self else{return}
                 switch cue {
                 case .celebrationStarted:self.onMoment?("arcade-victory",0,nil)
-                case .thumbWhoosh:self.onMoment?("arcade-thumb",0,nil)
+                case .thumbWhoosh:self.onMoment?("arcade-thumb",self.arcadePresentation?.isPuppyThumb == true ? 1:0,nil)
                 case .digitEntered(let index):self.onMoment?("arcade-digit",index,nil)
                 case .heavyHaptic:self.onHaptic?("heavy")
                 default:break
@@ -462,6 +462,7 @@ final class NativeResultController:UIViewController {
     }
     func close(prepareDestination:((@escaping (Bool)->Void)->Void)?=nil,paperFadeDuration:Double=0.14,completion:@escaping ()->Void) {
         guard closingAt == nil,!disposed else {return}
+        onMoment?("modal-exit",0,nil)
         if arcadeCue {dispose();dismiss(animated:false,completion:completion);return}
         capturedStarScales=(0..<3).map{NativeResultPresentationPlan.filledStarScale(seconds:elapsed,index:$0)}
         onForestAmbience?(false,false)

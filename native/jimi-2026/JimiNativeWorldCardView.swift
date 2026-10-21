@@ -410,6 +410,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         cancelGameplayPreparation()
         guard !disposed,!closing else {completion();return};closing = true;flipGeneration += 1;effects?.cancel(handoff:false)
         (newRibbon as? JimiNativeNewRibbonView)?.exit(fadeOnly:true);newRibbon = nil
+        if frontDrag {onFeedback?("modal-exit")}
         onFeedback?(frontDrag ? "card-manual-flip" : "card-return-flip")
         transitionBackdrop(to:0,duration:gameplay ? 0.600/0.98 : duration)
         closeButton.isEnabled = false;cta.isEnabled = false;isUserInteractionEnabled = false;animateBackStats(entering:false,delay:max(0,duration*0.5-0.225))

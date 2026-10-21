@@ -14,8 +14,8 @@ final class NativeSoundtrackRouteOwner {
     private let transport:any NativeSoundtrackTransport
     private let isApplicationActive:@MainActor ()->Bool
     private var enabled = true
-    private static let menuGain = 0.578 * 0.8
-    private static let journeyGain = 0.19074 * 0.8
+    private static let menuGain = 0.578 * 0.8 * 0.7
+    private static let journeyGain = 0.19074 * 0.8 * 0.7
     private var target = NativeSoundtrackRouteOwner.menuGain
     private var themePrepared = false
     private var foreground = true

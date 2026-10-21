@@ -130,6 +130,7 @@ private final class JimiV9OverflowView: UIView {
 final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
     var onSlideSelected: ((Int) -> Void)?
     var onActivate: ((Int) -> Void)?
+    var onHeroContact:(()->Void)?
     var onNavigation: ((String) -> Void)?
     var onPanBegan: (() -> Bool)?
     var onPanEnded: ((Int, Bool) -> Void)?
@@ -440,8 +441,10 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         guard !dragging, !ctaActivationPending, button.tag == selectedSlide else { return }
         guard button === ctas[selectedSlide] else {
             NativeHubBackpackFeedback.play(on:heroCartoonShells[selectedSlide])
+            onHeroContact?()
             onActivate?(selectedSlide);return
         }
+        onHeroContact?()
         ctaActivationPending = true
         animateCTA(button.tag, pressed: false) { [weak self] in
             self?.ctaActivationPending = false
