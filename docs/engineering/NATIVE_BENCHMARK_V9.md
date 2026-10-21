@@ -4,10 +4,13 @@ User-requested complete current working-tree checkpoint on `main`, 2026-10-21.
 Repository: https://github.com/taptapdesign-jimi/cube-crash-appstore
 Immutable recovery tag: `native-benchmark-v9`.
 
-Publication is prepared; the verified payload/remote receipt will be recorded
-after commit, annotated tag creation and atomic push. Existing Native/PWA tags
-remain unchanged. This is a Native development checkpoint; it is distinct from
-the preserved PWA `production-benchmark-v9`.
+Payload commit: `53abff4fd87c688151083b3e915a3f22f1595b9c`.
+Annotated tag object: `cacc88c39a74623f2b169750a59473c1eb527a3a`.
+Atomic main/tag GitHub push succeeded; `git ls-remote` verified main and the
+dereferenced v9 tag at the exact payload. The later documentation-only receipt
+on main leaves the immutable tag unchanged. Native v8 remains at its previous
+annotated object/payload; no previous Native/PWA tag was moved. This is a Native
+development checkpoint, distinct from preserved PWA `production-benchmark-v9`.
 
 ## Included state
 
