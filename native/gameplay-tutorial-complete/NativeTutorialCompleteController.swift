@@ -51,7 +51,7 @@ final class NativeTutorialCompleteController: UIViewController {
         button.setTitle("Continue",for:.normal);button.applyModalCTA(artwork:artwork)
         button.accessibilityIdentifier = "native.tutorial-complete.continue"
         button.addTarget(self,action:#selector(continueTapped),for:.touchUpInside)
-        for item in [shadow,thumb,titleLabel,subtitleLabel,button] { visualUnit.addSubview(item) }
+        for item in [shadow,thumb,titleLabel,subtitleLabel,button] { visualUnit.addSubview(item) };button.enableCartoonBounce()
         button.isUserInteractionEnabled = false
         for (name,value) in [(UIApplication.willResignActiveNotification,true),(UIApplication.didBecomeActiveNotification,false)] {
             observations.append(NotificationCenter.default.addObserver(forName:name,object:nil,queue:.main) { [weak self] _ in MainActor.assumeIsolated { self?.setSuspended(value) } })
@@ -94,8 +94,8 @@ final class NativeTutorialCompleteController: UIViewController {
 
         let gap = compact ? CGFloat(30) : min(82,max(44,height*0.07))
         let buttonWidth = min(width*0.68,408), bottom = heroTop+heroSize+gap+48
-        button.bounds = CGRect(x:0,y:0,width:buttonWidth,height:64)
-        button.center = CGPoint(x:width/2,y:min(bottom+32,height-max(42,view.safeAreaInsets.bottom)-32))
+        button.cartoonBounceLayoutView.bounds = CGRect(x:0,y:0,width:buttonWidth,height:64)
+        button.cartoonBounceLayoutView.center = CGPoint(x:width/2,y:min(bottom+32,height-max(42,view.safeAreaInsets.bottom)-32));button.layoutCartoonContent()
     }
     /// The pure sampled enter timeline is shared by runtime and deterministic UIKit tests.
     func sampleEnter(seconds: Double) {

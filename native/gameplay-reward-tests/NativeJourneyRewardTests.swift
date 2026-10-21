@@ -4,6 +4,18 @@ import UIKit
 
 @MainActor
 final class NativeJourneyRewardTests:XCTestCase {
+    func testExplicitCompletionAwardOwnsRewardRarityInsteadOfStatisticalHighScore() {
+        for board in [1,11,21] {for (score,stars,rarity) in [(1000,3,"legendary"),(999999,1,"common")] {
+            let clock=Clock(),resources=Resources()
+            let controller=NativeJourneyRewardController(root:NativeTestResources.root,board:board,
+                score:score,generation:77,awardedStars:stars,resources:resources,scheduler:clock)
+            controller.prepareMagicCard={_,_,_ in}
+            controller.loadViewIfNeeded()
+            XCTAssertTrue(resources.requested.contains{$0.contains("/\(rarity)/")})
+            XCTAssertFalse(resources.requested.contains{$0.contains("/\(rarity == "legendary" ? "common":"legendary")/")})
+            controller.dispose(notify:false)
+        }}
+    }
     func testDetachedMagicPreparationDoesNotPlayAndDisposedWaiterCannotAdmit() throws {
         let controller=NativeJourneyRewardController(root:NativeTestResources.root,board:1,score:1000,generation:77)
         var finish:((NativeMagicCardSource.Node?)->Void)?
@@ -215,6 +227,28 @@ final class NativeJourneyRewardTests:XCTestCase {
         view.view.setNeedsLayout();view.view.layoutIfNeeded();XCTAssertEqual(resources.reads.count,reads)
         view.dispose();XCTAssertEqual(resources.releases.count,1)
     }
+    func testOpeningCrumbsAtTwentyPercentPuffAtFiftyAndDisposeCancels() {
+        for reduced in [false,true] {
+            let clock=Clock(),resources=Resources(),view=screen(clock,resources,reduced:reduced);resources.finish()
+            var moments:[(String,Double)]=[]
+            view.onSoundMoment={kind,_,_ in moments.append((kind,clock.time))}
+            view.start()
+            let duration=reduced ? 0.16:NativeMagicCardSource.hold
+            clock.advance(duration*0.20-0.001)
+            XCTAssertFalse(moments.contains{$0.0=="new-card-intro" || $0.0=="new-card-crumble"})
+            clock.advance(0.0011)
+            XCTAssertEqual(moments.first{$0.0=="new-card-intro"}?.1 ?? -1,duration*0.20,accuracy:0.00001)
+            XCTAssertEqual(moments.first{$0.0=="new-card-crumble"}?.1 ?? -1,duration*0.20,accuracy:0.00001)
+            clock.advance(duration*0.30-0.0002)
+            XCTAssertFalse(moments.contains{$0.0=="new-card-opening-puff"})
+            clock.advance(0.0002)
+            XCTAssertEqual(moments.first{$0.0=="new-card-opening-puff"}?.1 ?? -1,duration*0.50,accuracy:0.00001)
+            view.dispose();let count=moments.count
+            for job in clock.history {job.callback()}
+            XCTAssertEqual(moments.count,count)
+        }
+    }
+
     func testEarlyTapCannotSkipOpeningOrQueueInvisibleCollect() {
         let clock=Clock(),resources=Resources(),view=screen(clock,resources);resources.finish()
         var outcomes:[NativeJourneyRewardController.Action]=[],sounds:[String]=[]
@@ -222,7 +256,7 @@ final class NativeJourneyRewardTests:XCTestCase {
         view.start();view.activate();view.activate();XCTAssertEqual(view.phase,"opening")
         clock.advance(3);XCTAssertEqual(outcomes.count,0);XCTAssertEqual(view.phase,"unlocked")
         view.activate();clock.advance(1);XCTAssertEqual(outcomes.count,1);XCTAssertEqual(view.phase,"disposed")
-        XCTAssertTrue(sounds.contains("new-card-crumble"));XCTAssertEqual(sounds.filter{$0=="new-card-reveal"}.count,1)
+        XCTAssertTrue(sounds.contains("new-card-crumble"));XCTAssertEqual(sounds.filter{$0=="new-card-reveal"}.count,1);XCTAssertEqual(sounds.filter{$0=="new-card-unlocked-enter"}.count,1)
         view.activate();view.dispose();for job in clock.history {job.callback()};XCTAssertEqual(outcomes.count,1);XCTAssertEqual(clock.activeCount,0)
     }
     func testColdEarlyRevealWaitsForRequiredArtworkAndKeepsSecondTapWithoutInvisibleCollect() {

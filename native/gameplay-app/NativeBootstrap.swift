@@ -32,6 +32,8 @@ final class NativeBootstrap {
     private var audioReceipt: UInt64 = 0
     private var ambient: NativeJourneyAmbientOwner?
     private var routeLease: UInt64 = 0
+    private var currentAmbientRoute:NativeJourneyAmbientOwner.Route = .none
+    private var backpackPreservesAudio=false
     private var endRun: NativeEndRunOwner?
     private(set) var sourceFailureModal:JimiNativeEndRunModal?
     private var sourceFailureModalEpoch=0
@@ -202,6 +204,11 @@ final class NativeBootstrap {
         controller.onRoute = { [weak self] route in
             guard let self else { return }
             self.routeLease &+= 1
+            if route == .backpack {
+                self.backpackPreservesAudio=true
+                self.ambient?.continueCurrentRoute(generation:self.routeLease)
+                return
+            }
             let ambientRoute:NativeJourneyAmbientOwner.Route
             switch route {
             case .hub:ambientRoute = .hub
@@ -210,6 +217,12 @@ final class NativeBootstrap {
                 if let state=self.gameplay?.engine.state {ambientRoute = .gameplay(state.mode,state.board)} else {ambientRoute = .none}
             default:ambientRoute = .none
             }
+            if self.backpackPreservesAudio,ambientRoute==self.currentAmbientRoute {
+                self.backpackPreservesAudio=false
+                self.ambient?.continueCurrentRoute(generation:self.routeLease)
+                return
+            }
+            self.backpackPreservesAudio=false;self.currentAmbientRoute=ambientRoute
             self.ambient?.setRoute(ambientRoute,generation:self.routeLease)
             if route == .gameplay,let state=self.gameplay?.engine.state {
                 if state.mode == .journey {
@@ -285,7 +298,7 @@ final class NativeBootstrap {
         let lease=InitialTexturePreparation(board:board,number:number,tutorial:tutorial,saved:saved,textures:textures,
             freshEntry:freshEntry,callerCurrent:callerCurrent)
         initialTexturePreparation=lease
-        var additional:[String]=[]
+        var additional:[String]=[NativeComboHUDMotion.atlasPath]
         for tile in saved?.tiles ?? [] where tile.isWild {
             guard let core=tile.gameplayArchetype,let face=NativeDiceArtwork.sourceWildSkinDefinition(kind:core.rawValue,variant:tile.variant) else{cancelGameplayEntryPreparation();completion(false);return}
             additional.append(face.path)
@@ -597,7 +610,13 @@ final class NativeBootstrap {
                   gameplay.sourcePresentationFailureGeneration != gameplay.engine.state.generation else{return nil}
             let state=gameplay.engine.state
             let score=max(NativeResultOwner.finalScore(state:state,clean:true),self.envelope.progression.boardStats[state.board]?.highScore ?? 0)
-            return NativeJourneyRewardController(root:self.root,board:state.board,score:score,generation:state.generation)
+            let stars=max(self.envelope.progression.journeyStars(board:state.board),
+                NativeJourneyContent.earnedStars(score:NativeResultOwner.finalScore(state:state,clean:true),board:state.board))
+            return NativeJourneyRewardController(root:self.root,board:state.board,score:score,generation:state.generation,awardedStars:stars)
+        }
+        gameplay.onHUDTapContact = {[weak self,weak gameplay] kind in
+            guard let self,let gameplay,self.gameplay === gameplay else{return}
+            self.routeFeedback(kind,includesHaptic:false)
         }
         gameplay.onGameplayReceipt = { [weak self] event,source,destination,generation in
             guard let self else{return};self.audioReceipt &+= 1
@@ -608,6 +627,11 @@ final class NativeBootstrap {
         }
         gameplay.onSpecialFadeCapture = { [weak self] variant,generation in
             self?.audio?.captureSpecialFade(variant:variant,generation:generation)
+        }
+        gameplay.onHUDCoinArrival = { [weak self,weak gameplay] relativeSize in
+            guard let self,let gameplay,self.gameplay === gameplay,!self.disposed else{return}
+            self.audioReceipt &+= 1
+            self.audio?.specialMoment(variant:"coin",moment:"hud-star-arrived",coinSizeFraction:relativeSize,receipt:self.audioReceipt,generation:gameplay.engine.state.generation)
         }
         gameplay.onSpecialMoment = { [weak self] variant,moment,index in
             guard let self,let state=self.gameplay?.engine.state else{return};self.audioReceipt &+= 1
@@ -1330,7 +1354,8 @@ final class NativeBootstrap {
             continueArcade: { [weak self] in self?.continueArcade() },
             exit: { [weak self] in self?.exitGameplay() },
             interimJourney:interimJourney,rewardScore:envelope.progression.boardStats[gameplay.engine.state.board]?.highScore,
-            continueJourney:{[weak self] in self?.continueJourney()},sourceNoMovesReceipt:sourceReceipt)
+            continueJourney:{[weak self] in self?.continueJourney()},sourceNoMovesReceipt:sourceReceipt,
+            previousRewardStars:envelope.progression.journeyStars(board:gameplay.engine.state.board))
         if let sourceReceipt,let endpoint=gameplay.sourceNoMovesTerminalRegistry {
             resultOwner?.onSourceFinalCleanup={ [weak gameplay,weak endpoint] receipt in
                 guard receipt==sourceReceipt,let gameplay,let endpoint else{return}
@@ -1653,8 +1678,17 @@ final class NativeBootstrap {
         }
     }
     private func presentDeveloperReward(board: Int, score: Int, presenter: UIViewController) {
-        let preview = NativeJourneyRewardController(root: root,board: board,score: score,generation: routeLease)
-        let host = NativeDeveloperPreviewHost(preview: preview,release: { [weak preview] in preview?.dispose(notify: false) })
+        let stars=envelope.progression.completedJourneyBoards.contains(board) ? envelope.progression.journeyStars(board:board):NativeJourneyContent.earnedStars(score:score,board:board)
+        let preview = NativeJourneyRewardController(root: root,board: board,score: score,generation: routeLease,awardedStars:stars)
+        // DEV previews use the same semantic audio/settings owner as real rewards.
+        preview.onSoundMoment = { [weak self] kind,index,_ in
+            guard let self,!self.disposed else{return}
+            self.resultMoment(kind,index:index,duration:nil)
+        }
+        let host = NativeDeveloperPreviewHost(preview: preview,release: { [weak self,weak preview] in
+            preview?.dispose(notify:false)
+            self?.audio?.stopRewardPreviewSounds()
+        })
         preview.onFinish = { [weak host] _ in host?.finish() }
         presenter.present(host,animated: false)
     }

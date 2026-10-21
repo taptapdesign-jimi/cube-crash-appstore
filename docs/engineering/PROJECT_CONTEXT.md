@@ -49,6 +49,13 @@ in the parity checklist; native implementation alone is not visual acceptance.
 
 ## Native reward flow (2026-10-20)
 
+Journey level-star ranking v1 (2026-10-21) uses one global ten-row threshold table
+by local Unit number in Forest/Beach/Area55. Completed attempts earn1/2/3 stars
+from their existing final score;3 grants Legendary. Persisted best completion
+awards preserve old cards and cannot be promoted by a failed high score.
+Retuning owner, rationale, save compatibility and exact thresholds:
+[`JOURNEY_LEVEL_STAR_RANKING.md`](JOURNEY_LEVEL_STAR_RANKING.md).
+
 New Card Unlocked continues directly to Clean Board. New Dice Reveal and its
 animations, presentation owners and DEV launch actions are removed from Native.
 Existing progression unlocks persist with the successful result transaction;

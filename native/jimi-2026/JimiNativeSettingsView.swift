@@ -64,7 +64,7 @@ final class JimiNativeSettingsView: UIView {
         firstPlay.titleLabel?.font = assets.font(size: 20,weight: "Medium"); firstPlay.setTitleColor(accent,for: .normal)
         firstPlay.accessibilityIdentifier = "native.settings.developer.first-play"
         firstPlay.addTarget(self,action: #selector(toggleFirstPlay),for: .touchUpInside)
-        firstPlay.isHidden = true; scroll.addSubview(firstPlay)
+        firstPlay.isHidden = true; scroll.addSubview(firstPlay);firstPlay.enableCartoonBounce()
         for action in NativeDeveloperAction.allCases {
             let button = JimiV9PlainButton(type: .custom)
             button.setTitle(action.title, for: .normal)
@@ -82,11 +82,12 @@ final class JimiNativeSettingsView: UIView {
             button.tag = developerButtons.count
             button.accessibilityIdentifier = "native.settings.developer.\(action.rawValue)"
             button.addTarget(self, action: #selector(activateDeveloperAction(_:)), for: .touchUpInside)
-            button.isHidden = true; scroll.addSubview(button); developerButtons.append(button)
+            button.isHidden = true; scroll.addSubview(button);button.enableCartoonBounce(); developerButtons.append(button)
         }
         for i in keys.indices {
             let row = UIView(); scroll.addSubview(row); rows.append(row)
             let status = UILabel(); status.font = assets.font(size: 32, weight: "ExtraBold"); status.textColor = UIColor(red: 232/255, green: 116/255, blue: 74/255, alpha: 1)
+            status.accessibilityIdentifier = "native.settings.status.\(keys[i])"
             row.addSubview(status); statuses.append(status)
             let label = UILabel(); label.text = labels[i]; label.font = assets.font(size: 20, weight: "Medium"); label.textColor = NativeTextPalette.subtitle
             row.addSubview(label); descriptions.append(label)
@@ -105,7 +106,7 @@ final class JimiNativeSettingsView: UIView {
         footer.addSubview(footerCopy)
         privacy.setTitle("Privacy Policy", for: .normal); privacy.titleLabel?.font = assets.font(size: 14)
         privacy.setTitleColor(ink, for: .normal); privacy.accessibilityIdentifier = "native.settings.privacy"
-        privacy.addTarget(self, action: #selector(openPrivacy), for: .touchUpInside); footer.addSubview(privacy)
+        privacy.addTarget(self, action: #selector(openPrivacy), for: .touchUpInside); footer.addSubview(privacy);privacy.enableCartoonBounce()
     }
     required init?(coder: NSCoder) { fatalError("Use init(frame:assets:)") }
 
@@ -113,10 +114,17 @@ final class JimiNativeSettingsView: UIView {
         guard let epoch = value["presentationEpoch"] as? Int, epoch >= 0,
               let sounds = value[keys[0]] as? Bool, let music = value[keys[1]] as? Bool,
               let haptics = value[keys[2]] as? Bool else { return false }
+        let animateChanges = presentationEpoch == epoch && window != nil && !isHidden && !developerPanelVisible
         presentationEpoch = epoch; snapshot = value
+        var changedStatuses: [UILabel] = []
         for (i, enabled) in [sounds, music, haptics].enumerated() {
             switches[i].setOn(enabled, animated: false)
-            statuses[i].text = enabled ? "ON" : "OFF"
+            let text = enabled ? "ON" : "OFF"
+            if statuses[i].text != text {
+                if animateChanges && statuses[i].text != nil { changedStatuses.append(statuses[i]) }
+                else { statuses[i].layer.removeAnimation(forKey: NativeHubBackpackFeedback.animationKey) }
+                statuses[i].text = text
+            }
         }
         developerSummary.attributedText = NSAttributedString(string: "DEV\nJourney card tools",attributes: [.font: assets.font(size: 18),.foregroundColor: NativeTextPalette.subtitle])
         let summary = NSMutableAttributedString(attributedString: developerSummary.attributedText!)
@@ -126,9 +134,15 @@ final class JimiNativeSettingsView: UIView {
         styleDeveloperButton(firstPlay,fill: firstPlayEnabled ? 0xF35F37 : 0xAD8775,depth: firstPlayEnabled ? 0xC64A2A : 0x8D6E61)
         firstPlay.setTitle("First Time Run \(value["firstPlayRequired"] as? Bool == true ? "ON" : "OFF")",for: .normal)
         setDeveloperPanelVisible(developerPanelVisible && value["developerToolsAvailable"] as? Bool == true)
+        setNeedsLayout(); layoutIfNeeded()
+        for label in changedStatuses {
+            if UIAccessibility.isReduceMotionEnabled { label.layer.removeAnimation(forKey: NativeHubBackpackFeedback.animationKey) }
+            else { NativeHubBackpackFeedback.play(on: label) }
+        }
         return true
     }
     func setDeveloperPanelVisible(_ visible: Bool) {
+        if visible { cancelStatusBounces() }
         developerPanelVisible = visible
         scroll.clipsToBounds = visible
         title.text = visible ? "Developer" : "Settings"
@@ -154,29 +168,30 @@ final class JimiNativeSettingsView: UIView {
         let footerHeight: CGFloat = min(165, max(110,bounds.height*0.2))
         place(footer, in: CGRect(x: 24, y: bounds.height-safeAreaInsets.bottom-footerHeight, width: max(0,bounds.width-48), height: footerHeight))
         footerCopy.frame = CGRect(x: 0, y: 0, width: footer.bounds.width, height: footerHeight-40)
-        privacy.frame = CGRect(x: 0, y: footerHeight-44, width: footer.bounds.width, height: 44)
+        privacy.setCartoonBounceFrame(CGRect(x: 0, y: footerHeight-44, width: footer.bounds.width, height: 44))
         scroll.frame = CGRect(x: 0, y: header.center.y+header.bounds.height/2, width: bounds.width, height: max(0,(footer.center.y-footer.bounds.height/2)-(header.center.y+header.bounds.height/2)))
         developerSummary.frame = CGRect(x: 24,y: 20,width: max(0,bounds.width-48),height: 64)
         let columns = bounds.width <= 374 ? 1 : 3
         let buttonWidth = max(0,(bounds.width-48-CGFloat(columns-1)*10)/CGFloat(columns))
         for (index,button) in developerButtons.enumerated() {
             button.titleLabel?.font = assets.font(size: columns == 1 ? 18 : 16,weight: "ExtraBold")
-            button.frame = CGRect(x: 24+CGFloat(index%columns)*(buttonWidth+10),y: 100+CGFloat(index/columns)*64,width: buttonWidth,height: 48)
+            button.setCartoonBounceFrame(CGRect(x: 24+CGFloat(index%columns)*(buttonWidth+10),y: 100+CGFloat(index/columns)*64,width: buttonWidth,height: 48))
             button.layer.shadowPath = UIBezierPath(roundedRect: button.bounds,cornerRadius: 18).cgPath
         }
         let firstPlayY = 100+CGFloat((developerButtons.count+columns-1)/columns)*64
-        firstPlay.frame = CGRect(x: 24,y: firstPlayY,width: max(0,bounds.width-48),height: 48)
+        firstPlay.setCartoonBounceFrame(CGRect(x: 24,y: firstPlayY,width: max(0,bounds.width-48),height: 48))
         firstPlay.titleLabel?.font = assets.font(size: columns == 1 ? 18 : 16,weight: "ExtraBold")
         firstPlay.layer.shadowPath = UIBezierPath(roundedRect: firstPlay.bounds,cornerRadius: 18).cgPath
         for i in rows.indices {
             let rowWidth = max(0,scroll.bounds.width-48)
             place(rows[i], in: CGRect(x: 24, y: CGFloat(i)*126, width: rowWidth, height: 124))
-            statuses[i].frame = CGRect(x: 0, y: 31, width: max(0,rowWidth-83), height: 36)
+            let statusWidth = min(max(0,rowWidth-83),ceil(statuses[i].sizeThatFits(CGSize(width: max(0,rowWidth-83),height: 36)).width))
+            place(statuses[i], in: CGRect(x: 0, y: 31, width: statusWidth, height: 36))
             descriptions[i].frame = CGRect(x: 0, y: 67, width: max(0,rowWidth-83), height: 28)
             switches[i].frame = CGRect(x: max(0,rowWidth-67), y: 43, width: 67, height: 45)
             if i < dividers.count { place(dividers[i], in: CGRect(x: 24, y: CGFloat(i+1)*126-1, width: rowWidth, height: 2)) }
         }
-        scroll.contentSize = CGSize(width: scroll.bounds.width, height: developerPanelVisible ? firstPlay.frame.maxY+32 : 378)
+        scroll.contentSize = CGSize(width: scroll.bounds.width, height: developerPanelVisible ? firstPlay.cartoonBounceFrame.maxY+32 : 378)
     }
     private func styleDeveloperButton(_ button: UIButton, fill: UInt32, depth: UInt32) {
         func color(_ value: UInt32) -> UIColor {
@@ -193,7 +208,18 @@ final class JimiNativeSettingsView: UIView {
         target.bounds = CGRect(origin: .zero, size: rect.size)
         target.center = CGPoint(x: rect.midX, y: rect.midY)
     }
+    private func cancelStatusBounces() {
+        for label in statuses { label.layer.removeAnimation(forKey: NativeHubBackpackFeedback.animationKey) }
+    }
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if window == nil { cancelStatusBounces() }
+    }
+    override var isHidden: Bool {
+        didSet { if isHidden { cancelStatusBounces() } }
+    }
     func tracks(enter: Bool) -> [(UIView, JimiV9Motion.Track)] {
+        if !enter { cancelStatusBounces() }
         var ordered: [UIView] = []
         for i in rows.indices { ordered.append(rows[i]); if i < dividers.count { ordered.append(dividers[i]) } }
         if enter { ordered.insert(header, at: 0); ordered.append(footer) }
@@ -378,13 +404,7 @@ final class JimiNativeSettingsToggle: UIControl {
     }
     @objc private func toggleValue() {
         setOn(!isOn, animated: true)
-        if !UIAccessibility.isReduceMotionEnabled {
-            let bounce = CAKeyframeAnimation(keyPath: "transform.scale")
-            bounce.values = [1,1.18,0.93,1]
-            bounce.keyTimes = [0,NSNumber(value: 0.12/0.38),NSNumber(value: 0.21/0.38),1]
-            bounce.duration = 0.38
-            pill.layer.add(bounce,forKey: "settings-toggle-bounce")
-        }
+        NativeHubBackpackFeedback.play(on:pill)
         sendActions(for: .valueChanged)
     }
     override func accessibilityActivate() -> Bool { toggleValue(); return true }

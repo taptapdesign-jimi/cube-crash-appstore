@@ -15,6 +15,9 @@ public struct NativeBoardStats: Codable, Equatable, Sendable {
     public var cubesCracked = 0
     public var timesPlayed = 0
     public var lastPlayed: TimeInterval = 0
+    /// Durable best COMPLETION award. Nil identifies pre-ranking saves only.
+    public var awardedStars: Int?
+    public var starRankingVersion: Int?
     public init() {}
 }
 public struct NativeArcadeStats: Codable, Equatable, Sendable {
@@ -48,9 +51,9 @@ public struct NativeProgressionState: Codable, Equatable, Sendable {
     public var unlockedSpecialDice: Set<String> = []
     public private(set) var announcedJourneyDice: Set<String> = []
     public private(set) var unreadJourneyDice: Set<String> = []
-    /// A landed introduction is the only producer; opening its detail is the consumer.
+    /// A landed eligible Journey die is the only producer; detail opening or a completed collection visit to its visible card consumes unread state.
     @discardableResult public mutating func announceJourneyDie(_ id:String,board:Int)->Bool {
-        guard NativeJourneyContent.introductionID(board:board)==id,
+        guard NativeJourneyContent.rewardPool(board:board).contains(id),
               announcedJourneyDice.insert(id).inserted else{return false}
         unreadJourneyDice.insert(id);return true
     }
@@ -79,15 +82,26 @@ public struct NativeProgressionState: Codable, Equatable, Sendable {
         unreadJourneyDice=try fields.decodeIfPresent(Set<String>.self,forKey:.unreadJourneyDice) ?? []
         if let known=try fields.decodeIfPresent(Set<String>.self,forKey:.announcedJourneyDice) {announcedJourneyDice=known}
         else {
-            // Existing profiles keep their previously available collection read; no retroactive alert flood.
-            var boards=completedJourneyBoards.union(boardStats.filter{$0.value.timesPlayed>0}.keys)
-            if let lastOpenedJourneyBoard {boards.insert(lastOpenedJourneyBoard)}
-            if highestUnlockedJourneyBoard>1 {boards.insert(highestUnlockedJourneyBoard)}
-            announcedJourneyDice=Set(boards.flatMap{NativeJourneyContent.rewardPool(board:$0)})
-            if hasUnlockedWildStar {announcedJourneyDice.insert("wild-star")}
-            if unlockedSpecialDice.contains("flower") {announcedJourneyDice.insert("flower")}
-            if unlockedSpecialDice.contains("juice") {announcedJourneyDice.insert("wild-juice")}
+            // Older progression fields describe eligibility, never an actual drop.
+            // Retain any explicit unread receipt, but do not invent discoveries
+            // from opened/completed Units or legacy special-die unlock thresholds.
+            announcedJourneyDice=unreadJourneyDice
         }
+        // Freeze old earned stars before the new score thresholds can reinterpret
+        // a collection. Never infer an award for an unfinished/failed board.
+        for board in completedJourneyBoards where (1...30).contains(board) {
+            var stats=boardStats[board] ?? NativeBoardStats()
+            if stats.awardedStars == nil {
+                stats.awardedStars=max(1,NativeJourneyContent.legacyEarnedStars(score:stats.highScore,board:board))
+                stats.starRankingVersion=0
+                boardStats[board]=stats
+            }
+        }
+    }
+    public func journeyStars(board:Int)->Int {
+        guard (1...30).contains(board),completedJourneyBoards.contains(board) else{return 0}
+        let stats=boardStats[board] ?? NativeBoardStats()
+        return max(1,min(3,stats.awardedStars ?? NativeJourneyContent.legacyEarnedStars(score:stats.highScore,board:board)))
     }
     /// Star begins at Forest Unit2; completing Unit1 reaches that unlock. Default interim Unit1,
     /// tutorial completion, Arcade progress and other Worlds do not grant Star.
@@ -145,8 +159,11 @@ public struct NativeProgressionState: Codable, Equatable, Sendable {
             return
         }
         guard (1...30).contains(board) else { return }
+        let previousStars=journeyStars(board:board)
         wildStarUnlocked = hasUnlockedWildStar || (2...10).contains(board)
         var stats = boardStats[board] ?? NativeBoardStats()
+        stats.awardedStars=max(previousStars,NativeJourneyContent.earnedStars(score:score,board:board,completed:clean))
+        stats.starRankingVersion=NativeJourneyContent.starRankingVersion
         stats.highScore = max(stats.highScore, score); stats.longestCombo = max(stats.longestCombo, longestCombo)
         stats.cubesCracked += cubesCracked; stats.lastPlayed = now; boardStats[board] = stats
         if clean {

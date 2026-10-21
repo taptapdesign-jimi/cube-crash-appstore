@@ -70,6 +70,25 @@ nonisolated final class NativeSourceHUDStarPlanTests:XCTestCase {
             }
         }
     }
+    func testSecondHalfClockAcceleratesSmoothlyToTwentyFivePercent() {
+        for gentle in [false,true] {
+            var arrival=0.0,end=0.0
+            let source=NativeSourceHUDStarPlan.construct(ordinal:0,sizes:[56,42,30],origin:.init(x:195,y:600),target:.init(x:195,y:76),textureWidth:28,previousArrival:&arrival,random:{0.5})
+            let coin=source.readableCoin(ordinal:0,previousEnd:&end,gentleLaunch:gentle)
+            let start=coin.accelerationStart,tail=coin.duration-start
+            XCTAssertEqual(coin.motionSeconds(start),start,accuracy:1e-10)
+            XCTAssertEqual(coin.motionSeconds(start/2),start/2,accuracy:1e-10)
+            XCTAssertLessThan(coin.duration,coin.originalMotionDuration)
+            XCTAssertEqual(coin.motionSeconds(coin.duration),coin.originalMotionDuration,accuracy:1e-10)
+            let epsilon=0.00001
+            for fraction in [0.0,0.25,0.5,0.75,0.99] {
+                let time=start+tail*fraction
+                let speed=(coin.motionSeconds(time+epsilon)-coin.motionSeconds(time))/epsilon
+                XCTAssertEqual(speed,1+0.25*fraction*fraction,accuracy:0.0001)
+            }
+            XCTAssertEqual(end,coin.end,accuracy:1e-10)
+        }
+    }
     func testCoinsStaggerTwentyPercentFanBothWaysAndAccelerateWithoutSpawnPause() {
         for gentle in [false,true] {
             var previous=0.0,end=0.0,interval:Double?,lastDelay:Double?
@@ -77,7 +96,7 @@ nonisolated final class NativeSourceHUDStarPlanTests:XCTestCase {
             for ordinal in 0..<7 {
                 let original=NativeSourceHUDStarPlan.construct(ordinal:ordinal,sizes:[56,42,30],origin:.init(x:195,y:600),target:.init(x:195,y:76),textureWidth:28,previousArrival:&previous,random:{0.5})
                 let coin=original.readableCoin(ordinal:ordinal,previousEnd:&end,viewport:CGSize(width:390,height:844),gentleLaunch:gentle,launchInterval:interval)
-                if interval==nil {interval=(coin.duration-coin.arrivalEaseDuration)*0.20}
+                if interval==nil {interval=(coin.originalMotionDuration-coin.arrivalEaseDuration)*0.20}
                 if let lastDelay {XCTAssertEqual(coin.delay-lastDelay,interval!,accuracy:1e-10)}
                 lastDelay=coin.delay
                 XCTAssertEqual(coin.points.first,original.points.first);XCTAssertEqual(coin.points.last,original.points.last)

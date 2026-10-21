@@ -16,6 +16,12 @@ final class NativeKantaDiceIdle: SKNode {
     private var elapsed:Double=0,rearElapsed:Double=0,nextBubble:Double=0.7,pendingDouble:Double=0
     private var dragging=false,disposed=false,rearSettled=false
     private var facing:CGFloat = -1,facingCaptured=false
+    private var collectionSingleCan=false
+    func configureCollectionSingleCan(){
+        collectionSingleCan=true;rear.isHidden=true;rearBubbles.isHidden=true
+        for index in bubbles.indices where bubbles[index].rear {bubbles[index].active=false;bubbles[index].node.isHidden=true}
+        paint()
+    }
     init(textures:NativeBoardTextures,size:CGSize,random:@escaping ()->Double={Double.random(in:0..<1)}) {
         width=size.width;height=size.height;correction=NativeKantaIdleMotion.centerCorrection(width:size.width);self.random=random
         motion=NativeKantaIdleMotion(squash:random()>=0.5);tilt=CGFloat(3+random()*7) * .pi/180
@@ -42,7 +48,7 @@ final class NativeKantaDiceIdle: SKNode {
         guard !disposed else {return false}
         for offset in 0..<bubbles.count {
             let index=(cursor+offset)%bubbles.count
-            guard !bubbles[index].active else {continue}
+            guard !bubbles[index].active, !collectionSingleCan || !bubbles[index].rear else {continue}
             cursor=(index+1)%bubbles.count
             var bubble=bubbles[index];bubble.active=true;bubble.age=0;bubble.duration=1.1+roll()*0.4
             bubble.startX=CGFloat(roll()-0.5)*width*(bubble.rear ? 0.7:1)*0.62
@@ -78,11 +84,12 @@ final class NativeKantaDiceIdle: SKNode {
     }
     private func paint() {
         let pose=dragging ? CGPoint(x:1,y:1):motion.sample(seconds:elapsed),oppx=max(0.8,2-pose.x),oppy=max(0.8,2-pose.y)
-        front.position=CGPoint(x:8+correction,y:-height/2);front.xScale=pose.x;front.yScale=pose.y
+        let frontX:CGFloat=collectionSingleCan ? 0:8+correction
+        front.position=CGPoint(x:frontX,y:-height/2);front.xScale=pose.x;front.yScale=pose.y
         let reveal=rearSettled ? 1:NativeKantaIdleMotion.rearReveal(seconds:rearElapsed)
         rear.position=CGPoint(x:correction-width*0.4*oppx,y:-height/2+height*0.14);rear.xScale=oppx*reveal;rear.yScale=oppy*reveal;rear.zRotation = -facing*tilt
         rear.alpha=rearSettled || rearElapsed>=0.12 ? 1:0
-        frontBubbles.position=CGPoint(x:8+correction,y:-height/2+height*0.75*pose.y-3)
+        frontBubbles.position=CGPoint(x:frontX,y:-height/2+height*0.75*pose.y-3)
         rearBubbles.position=CGPoint(x:correction-width*0.4*oppx,y:-height/2+height*0.14+height*0.7*0.75*oppy-3)
     }
     func setDragging(_ active:Bool) {

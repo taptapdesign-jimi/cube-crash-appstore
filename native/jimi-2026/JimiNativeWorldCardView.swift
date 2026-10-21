@@ -68,6 +68,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         front.image = resources.image(unit.cardArt,owner:boardID); front.contentMode = .scaleAspectFit
         if presentationHasNewRibbon ?? unit.newRibbon {
             let ribbon = JimiNativeWorldRibbon.make(image:resources.image("assets/journey assets/orange-ribbon.png",owner:boardID),assets:assets,cardSize:.zero,scale:1,portal:true)
+            (ribbon as? JimiNativeNewRibbonView)?.setCardRotation(tilt)
             newRibbon = ribbon; front.addSubview(ribbon)
         }
         front.layer.isDoubleSided = false; back.layer.isDoubleSided = false
@@ -100,7 +101,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         cta.accessibilityIdentifier = "native.world.card.\(action)"
         cta.setTitle(action == "continue" ? "Continue" : "Play",for:.normal)
         cta.applyModalCTA(artwork:assets)
-        stableCTAEnabled = unit.actions.contains(action);cta.isEnabled = stableCTAEnabled; cta.addAction(UIAction { [weak self] _ in guard let self,self.active,!self.disposed,!self.closing,!self.animating,!self.pinching else {return}; self.onFeedback?("cta"); self.onRequest?(action) },for:.touchUpInside); back.addSubview(cta)
+        stableCTAEnabled = unit.actions.contains(action);cta.isEnabled = stableCTAEnabled; cta.addAction(UIAction { [weak self] _ in guard let self,self.active,!self.disposed,!self.closing,!self.animating,!self.pinching else {return}; self.onFeedback?("cta"); self.onRequest?(action) },for:.touchUpInside); back.addSubview(cta);cta.enableCartoonBounce()
         closePaper.backgroundColor = UIColor(red:1,green:250/255,blue:244/255,alpha:1);closePaper.layer.cornerRadius = 28;closePaper.clipsToBounds = true;closePaper.isUserInteractionEnabled = false
         closeTexture.image = paper.image;closeTexture.contentMode = .scaleToFill;closePaper.addSubview(closeTexture);closeButton.addSubview(closePaper)
         closeIcon.image = assets.image("assets/close-icon.png");closeIcon.contentMode = .scaleAspectFit;closeIcon.alpha = 0.8;closeIcon.isUserInteractionEnabled = false;closeButton.addSubview(closeIcon);closeButton.enableArtworkTapFeedback(on:closeIcon)
@@ -131,10 +132,10 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         let ctaWidth:CGFloat = bounds.width < 768 ? 226 : 250
         // Preserve a 40pt paper inset while giving the stat copy 16pt more
         // breathing room; the PWA stack also reserves a 24pt stats margin.
-        cta.frame = CGRect(x:(size.width-ctaWidth)/2,y:size.height-104,width:ctaWidth,height:64)
+        cta.setCartoonBounceFrame(CGRect(x:(size.width-ctaWidth)/2,y:size.height-104,width:ctaWidth,height:64))
         // The original 112pt rows fit the larger portal, but overlap Play on
         // narrow phones. Compress row padding and artwork before reducing type.
-        let rowHeight=min(112,max(56,(cta.frame.minY-15-120-18)/2))
+        let rowHeight=min(112,max(56,(cta.cartoonBounceFrame.minY-15-120-18)/2))
         stats.frame=CGRect(x:24,y:120,width:size.width-48,height:rowHeight*2+18)
         for (index,row) in stats.arrangedSubviews.enumerated() {
             if let divider=row.subviews.first(where:{$0.tag == 701}) {
@@ -235,7 +236,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         animateBackStats(entering:true,delay:duration*0.5)
         angle = -.pi;rotate(from:0,to:-.pi,duration:duration,flight:true)
         fly(from:origin,to:base,returning:false) { [weak self] in
-            guard let self,!self.disposed,!self.closing else {return};CATransaction.begin();CATransaction.setDisableActions(true);self.carrier.layer.transform = CATransform3DMakeRotation(self.backTilt,0,0,1);self.carrier.layer.removeAnimation(forKey:"card.flight");CATransaction.commit();self.cta.isEnabled = self.stableCTAEnabled;self.effects?.present(frontFacing:!self.isBackFacing)
+            guard let self,!self.disposed,!self.closing else {return};CATransaction.begin();CATransaction.setDisableActions(true);self.carrier.layer.transform = CATransform3DMakeRotation(self.backTilt,0,0,1);self.carrier.layer.removeAnimation(forKey:"card.flight");CATransaction.commit();self.cta.isEnabled = self.stableCTAEnabled;self.effects?.present(frontFacing:!self.isBackFacing);(self.newRibbon as? JimiNativeNewRibbonView)?.setForeground(self.active && !self.isBackFacing)
             if let path = self.cardArt2x,let resources = self.resources {let token = self.generation;resources.prepare([path],owner:self.boardID,required:false) { [weak self,weak resources] accepted in guard accepted,let self,self.generation == token else {return};if let image = resources?.image(path,owner:self.boardID) {self.front.image = image;self.effects?.layout()} } }
         }
     }
@@ -331,13 +332,14 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         let choices = directed.isEmpty ? candidates : directed
         let to = choices.dropFirst().reduce(choices.first ?? canonical) {nearest,candidate in abs(candidate-from)<abs(nearest-from) ? candidate : nearest}
         angle = to
+        (newRibbon as? JimiNativeNewRibbonView)?.setCardRotation(canonical < 0 ? backTilt:tilt)
         animateFaceTilt(canonical < 0 ? backTilt : tilt)
         let animation = CAKeyframeAnimation(keyPath:"transform.rotation.y")
         animation.values = [from,to,to+(to>=from ? 1 : -1)*12 * .pi/180,to]
         animation.keyTimes = [0.0,0.20/0.46,(0.20+0.26*0.38)/0.46,1].map {NSNumber(value:$0)}
         animation.timingFunctions = [.init(name:.linear),.init(controlPoints:0.45,0,0.55,1),.init(controlPoints:0.22,1,0.36,1)]
         animation.duration = UIAccessibility.isReduceMotionEnabled ? 0.001 : 0.46
-        CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in guard let self,self.flipGeneration == token,!self.disposed,!self.closing else{return};self.rotor.removeAnimation(forKey:"card.flip");self.angle = canonical;CATransaction.begin();CATransaction.setDisableActions(true);self.rotor.transform = CATransform3DMakeRotation(canonical,0,1,0);CATransaction.commit();self.animating = false;self.manualFlipInFlight = false;self.cta.isEnabled = self.stableCTAEnabled && self.isBackFacing;self.effects?.present(frontFacing:!self.isBackFacing)}
+        CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in guard let self,self.flipGeneration == token,!self.disposed,!self.closing else{return};self.rotor.removeAnimation(forKey:"card.flip");self.angle = canonical;CATransaction.begin();CATransaction.setDisableActions(true);self.rotor.transform = CATransform3DMakeRotation(canonical,0,1,0);CATransaction.commit();self.animating = false;self.manualFlipInFlight = false;self.cta.isEnabled = self.stableCTAEnabled && self.isBackFacing;self.effects?.present(frontFacing:!self.isBackFacing);(self.newRibbon as? JimiNativeNewRibbonView)?.setForeground(self.active && !self.isBackFacing)}
         CATransaction.setDisableActions(true);rotor.transform = CATransform3DMakeRotation(to,0,1,0);rotor.add(animation,forKey:"card.flip");CATransaction.commit()
     }
     private func animateFaceTilt(_ target:CGFloat) {
@@ -423,7 +425,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         let painted = CGRect(x:base.midX+transform.m41-base.width*hypot(transform.m11,transform.m12)/2,y:base.midY+transform.m42-base.height*hypot(transform.m21,transform.m22)/2,width:base.width*hypot(transform.m11,transform.m12),height:base.height*hypot(transform.m21,transform.m22))
         fly(from:painted,to:destination,returning:true,gameplay:gameplay) { [weak self] in self?.backdrop.alpha = 0; completion() }
     }
-    func setActive(_ value:Bool) {if !value {front.subviews.compactMap{$0 as? JimiNativeNewRibbonView}.forEach{$0.quiesce()}};
+    func setActive(_ value:Bool) {front.subviews.compactMap{$0 as? JimiNativeNewRibbonView}.forEach{$0.setForeground(value && !isBackFacing)};
         guard !disposed,active != value else{return};active = value;effects?.setActive(value)
         if value {scheduleGameplayPreparation()}else{cancelGameplayPreparation()}
         if !value {CATransaction.begin();CATransaction.setDisableActions(true);cta.layer.removeAllAnimations();cta.layer.transform = CATransform3DIdentity;CATransaction.commit()}
@@ -435,31 +437,43 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
 }
 
 
-/// Original NEW artwork and lettering remain attached to the physical card face.
+/// Canonical new-card eligibility now paints the shared alert on the physical face.
 @MainActor
 enum JimiNativeWorldRibbon {
     static func make(image:UIImage?,assets:JimiV9Artwork,cardSize:CGSize,scale:CGFloat,portal:Bool,compact:Bool = true)->UIImageView {
-        let ribbon = JimiNativeNewRibbonView(image:image);ribbon.layer.opacity=0;ribbon.contentMode = .scaleAspectFit
-        ribbon.accessibilityIdentifier = "native.world.ribbon";ribbon.isUserInteractionEnabled = false
-        if portal {ribbon.layer.shadowColor = UIColor(red:226/255,green:119/255,blue:74/255,alpha:1).cgColor;ribbon.layer.shadowOpacity = 0.2;ribbon.layer.shadowOffset = CGSize(width:0,height:5);ribbon.layer.shadowRadius = 2.85}
-        let label = UILabel();label.tag = 991;label.textAlignment = .center;ribbon.addSubview(label)
-        let fontSize = cardSize.width*(portal ? 0.083 : 0.13)
-        let shadow = NSShadow();shadow.shadowOffset = CGSize(width:0,height:0.6*scale);shadow.shadowBlurRadius = scale;shadow.shadowColor = UIColor(red:146/255,green:73/255,blue:58/255,alpha:0.2)
-        label.attributedText = NSAttributedString(string:"New",attributes:[.font:assets.font(size:max(1,fontSize),weight:portal ? "ExtraBold" : "Bold"),.foregroundColor:UIColor(red:1,green:243/255,blue:220/255,alpha:0.9),.kern:fontSize*0.015,.shadow:shadow])
+        let ribbon = JimiNativeNewRibbonView(image:opaqueAlert(assets.image("assets/nav/new.png",densityAware:true)))
+        // Legendary foil is at local Z1.2. Keep the entire alert in front.
+        ribbon.layer.zPosition=3;ribbon.layer.isDoubleSided=false
+        ribbon.layer.opacity=0;ribbon.contentMode = .scaleAspectFit
+        ribbon.accessibilityIdentifier = "native.world.ribbon";ribbon.accessibilityLabel="New card";ribbon.isUserInteractionEnabled=false
         layout(ribbon,cardSize:cardSize,scale:scale,portal:portal,compact:compact)
         return ribbon
     }
-    static func layout(_ ribbon:UIImageView,cardSize:CGSize,scale:CGFloat,portal:Bool,compact:Bool = true) {
-        let width = portal ? cardSize.width*(compact ? 0.5904 : 0.648) : (compact ? 63 : 75)*scale
-        let height = width*(ribbon.image?.size.height ?? 131)/max(1,ribbon.image?.size.width ?? 137)
-        ribbon.frame = CGRect(x:cardSize.width-width,y:0,width:width,height:height)
-        guard let label = ribbon.viewWithTag(991) as? UILabel else {return}
-        if let attributed = label.attributedText,attributed.length>0,let font = attributed.attribute(.font,at:0,effectiveRange:nil) as? UIFont {
-            let next = NSMutableAttributedString(attributedString:attributed),size = cardSize.width*(portal ? 0.083 : 0.13)
-            next.addAttributes([.font:font.withSize(max(1,size)),.kern:size*0.015],range:NSRange(location:0,length:next.length));label.attributedText = next
+    /// Original PNG body is alpha253; normalize only its solid interior.
+    /// Preserve the authored antialiased transparent silhouette and source bytes.
+    static func opaqueAlert(_ source:UIImage?)->UIImage? {
+        guard let source,let image=source.cgImage else{return source}
+        let width=image.width,height=image.height,stride=width*4
+        var pixels=[UInt8](repeating:0,count:stride*height)
+        let result:CGImage?=pixels.withUnsafeMutableBytes { bytes in
+            guard let context=CGContext(data:bytes.baseAddress,width:width,height:height,bitsPerComponent:8,bytesPerRow:stride,space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue) else{return nil}
+            context.draw(image,in:CGRect(x:0,y:0,width:width,height:height))
+            let data=bytes.bindMemory(to:UInt8.self)
+            for offset in Swift.stride(from:0,to:data.count,by:4) {
+                let alpha=Int(data[offset+3])
+                guard alpha>=250 else{continue}
+                for channel in 0..<3 {data[offset+channel]=UInt8(min(255,(Int(data[offset+channel])*255+alpha/2)/alpha))}
+                data[offset+3]=255
+            }
+            return context.makeImage()
         }
-        label.transform = .identity;label.sizeToFit();label.center = CGPoint(x:width*0.45,y:height*0.55)
-        label.transform = CGAffineTransform(translationX:(portal ? 32 : 11)*scale,y:(portal ? -33 : -10)*scale).rotated(by:41 * .pi/180)
+        return result.map{UIImage(cgImage:$0,scale:source.scale,orientation:source.imageOrientation)} ?? source
+    }
+    static func layout(_ ribbon:UIImageView,cardSize:CGSize,scale:CGFloat,portal:Bool,compact:Bool = true) {
+        let side=portal ? cardSize.width*0.44*0.60:56*scale
+        ribbon.bounds=CGRect(x:0,y:0,width:side,height:side)
+        (ribbon as? JimiNativeNewRibbonView)?.layoutOnCard(width:cardSize.width,portal:portal)
+
     }
 }
 
@@ -467,6 +481,22 @@ enum JimiNativeWorldRibbon {
 /// clocks; replacing/removing the view invalidates its completion receipt.
 @MainActor
 final class JimiNativeNewRibbonView:UIImageView,CAAnimationDelegate {
+    let alert=NativeBackpackAlertView()
+    private var foreground=true
+    convenience init(){self.init(image:nil)}
+    override init(image:UIImage?){
+        super.init(image:nil);alert.image=image;alert.isHidden=false;alert.alpha=1;addSubview(alert)
+    }
+    required init?(coder:NSCoder){fatalError("Use alert image")}
+    override func layoutSubviews(){super.layoutSubviews();alert.bounds=bounds;alert.center=CGPoint(x:bounds.midX,y:bounds.midY)}
+    private var cardWidth:CGFloat=0,portal=false,leftEdge=false
+    func layoutOnCard(width:CGFloat,portal:Bool){cardWidth=width;self.portal=portal;positionOnEdge()}
+    private func positionOnEdge(){
+        let side=bounds.width,right=portal ? cardWidth-side*0.5+min(20,side*0.25):cardWidth-side*0.25
+        center=CGPoint(x:leftEdge ? cardWidth-right:right,y:side*0.25)
+    }
+    func setCardRotation(_ angle:CGFloat){leftEdge=angle>0;alert.clockwise = !leftEdge;positionOnEdge()}
+    func setForeground(_ value:Bool){foreground=value;alert.setActive(value && entered && !removing && layer.animation(forKey:"ribbon.motion")==nil)}
     private var epoch=0,entered=false,removing=false
     func enter(delay:Double=0,replay:Bool=false) {
         if replay {entered=false}
@@ -475,11 +505,12 @@ final class JimiNativeNewRibbonView:UIImageView,CAAnimationDelegate {
     }
     func exit(remove:Bool=true,delay:Double=0,fadeOnly:Bool=false){removing=remove;entered=false;play(entering:false,delay:delay,remove:remove,fadeOnly:fadeOnly)}
     private func play(entering:Bool,delay:Double,remove:Bool,fadeOnly:Bool=false) {
+        alert.setActive(false)
         epoch += 1;let receipt=epoch
         let reduced=UIAccessibility.isReduceMotionEnabled,duration=reduced ? 0.12 : entering ? 0.36:0.24
         let visible=layer.presentation() ?? layer
-        let startScale=entering ? 0.72:(visible.value(forKeyPath:"transform.scale") as? NSNumber)?.doubleValue ?? 1
-        let startY=entering ? -10.0:Double(visible.transform.m42),startAlpha=entering ? 0.0:Double(visible.opacity)
+        let startScale=entering ? 0.0:(visible.value(forKeyPath:"transform.scale") as? NSNumber)?.doubleValue ?? 1
+        let startY=entering ? 0.0:Double(visible.transform.m42),startAlpha=entering ? 0.0:Double(visible.opacity)
         layer.removeAnimation(forKey:"ribbon.motion")
         let transform=CAKeyframeAnimation(keyPath:"transform"),opacity=CAKeyframeAnimation(keyPath:"opacity")
         let times=(0...60).map{Double($0)/60}
@@ -490,7 +521,7 @@ final class JimiNativeNewRibbonView:UIImageView,CAAnimationDelegate {
             var pose=CATransform3DMakeTranslation(0,startY+((entering ? 0:-8)-startY)*p,0)
             pose=CATransform3DScale(pose,scale,scale,1);return NSValue(caTransform3D:pose)
         }
-        opacity.values=times.map{t in startAlpha+((entering ? 1:0)-startAlpha)*JimiV9Motion.Ease.powerOut(1).value(t)}
+        opacity.values=times.map{t in entering ? 1:startAlpha*(1-JimiV9Motion.Ease.powerOut(1).value(t))}
         for animation in [transform,opacity] {animation.keyTimes=times.map{NSNumber(value:$0)};animation.duration=duration}
         let group=CAAnimationGroup();group.animations=[transform,opacity];group.duration=duration;group.beginTime=layer.convertTime(CACurrentMediaTime(),from:nil)+delay;group.fillMode = .backwards;group.delegate=self
         group.setValue(receipt,forKey:"ribbonEpoch");group.setValue(remove,forKey:"ribbonRemove")
@@ -500,10 +531,13 @@ final class JimiNativeNewRibbonView:UIImageView,CAAnimationDelegate {
     nonisolated func animationDidStop(_ animation:CAAnimation,finished:Bool) {
         MainActor.assumeIsolated {
             guard finished,(animation.value(forKey:"ribbonEpoch") as? Int)==epoch else{return}
-            if animation.value(forKey:"ribbonRemove") as? Bool == true {epoch += 1;layer.removeAllAnimations();removeFromSuperview()}
+            if animation.value(forKey:"ribbonRemove") as? Bool == true {epoch += 1;alert.setActive(false);layer.removeAllAnimations();removeFromSuperview()}
+            else if entered && !removing {alert.setActive(foreground)}
         }
     }
+    func deferUntilReturn(){alert.setActive(false);epoch += 1;entered=false;removing=false;layer.removeAllAnimations();layer.opacity=0}
     func quiesce() {
+        alert.setActive(false)
         epoch += 1;layer.removeAllAnimations()
         CATransaction.begin();CATransaction.setDisableActions(true);layer.transform=CATransform3DIdentity;layer.opacity=entered && !removing ? 1:0;CATransaction.commit()
         if removing,superview != nil {removeFromSuperview()}

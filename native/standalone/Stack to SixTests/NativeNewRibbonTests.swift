@@ -11,11 +11,25 @@ final class NativeNewRibbonTests:XCTestCase {
         let group=try XCTUnwrap(ribbon.layer.animation(forKey:"ribbon.motion") as? CAAnimationGroup)
         XCTAssertEqual(group.duration,0.36);XCTAssertEqual(group.repeatCount,0);XCTAssertEqual(group.fillMode,.backwards)
         let opacity=try XCTUnwrap(group.animations?.last as? CAKeyframeAnimation)
-        XCTAssertEqual((opacity.values?.first as? NSNumber)?.doubleValue,0);XCTAssertEqual((opacity.values?.last as? NSNumber)?.doubleValue,1)
+        XCTAssertEqual((opacity.values?.first as? NSNumber)?.doubleValue,1);XCTAssertEqual((opacity.values?.last as? NSNumber)?.doubleValue,1)
         let poses=try XCTUnwrap((group.animations?.first as? CAKeyframeAnimation)?.values as? [NSValue]).map{$0.caTransform3DValue}
         XCTAssertGreaterThan(poses.map{$0.m11}.max()!,1);XCTAssertEqual(poses.last!.m42,0)
-        XCTAssertEqual(ribbon.frame,frame);XCTAssertEqual(ribbon.viewWithTag(991).map{($0 as? UILabel)?.attributedText?.string},"New")
+        XCTAssertEqual(ribbon.frame,frame);XCTAssertNil(ribbon.viewWithTag(991))
     }
+    func testAlertBodyIsOpaqueAboveLegendaryFoilWithoutChangingTransparentCorners() throws {
+        let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+        let ribbon=try XCTUnwrap(JimiNativeWorldRibbon.make(image:nil,assets:assets,cardSize:CGSize(width:326,height:480),scale:1,portal:true) as? JimiNativeNewRibbonView)
+        XCTAssertGreaterThan(ribbon.layer.zPosition,1.2)
+        XCTAssertFalse(ribbon.layer.isDoubleSided)
+        let image=try XCTUnwrap(ribbon.alert.image?.cgImage)
+        let data=try XCTUnwrap(image.dataProvider?.data)
+        let bytes=CFDataGetBytePtr(data)!
+        XCTAssertEqual(bytes[image.bytesPerRow*(image.height/2)+(image.width/2)*4+3],255)
+        XCTAssertEqual(bytes[3],0,"Transparent PNG corner stays transparent")
+        ribbon.enter()
+        XCTAssertEqual(ribbon.alpha,1);XCTAssertEqual(ribbon.alert.alpha,1)
+    }
+
     func testExitRemovesOnlyAtOwnedCompletionAndStaleEnterCannotRemoveReplacement() throws {
         let parent=UIView(),ribbon=JimiNativeNewRibbonView();parent.addSubview(ribbon)
         ribbon.enter();let enter=try XCTUnwrap(ribbon.layer.animation(forKey:"ribbon.motion"))

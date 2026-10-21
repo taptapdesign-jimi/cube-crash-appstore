@@ -12,6 +12,7 @@ final class NativeHUDCloseNode:SKNode {
     var onTapFinished:(()->Void)?
     var isTapAnimating:Bool {action(forKey:"hud-tap-bounce") != nil}
     private var tapBase:CGPoint?
+    private var tapPosition:CGPoint?
     init(texture:SKTexture?,stageFont:UIFont) {
         stageAdvance=("Stage" as NSString).size(withAttributes:[.font:stageFont]).width
         let path=CGMutablePath(),circumference=2*CGFloat.pi*Self.radius
@@ -36,15 +37,17 @@ final class NativeHUDCloseNode:SKNode {
     func playTapBounce() {
         // Repeat starts from the first captured base, as the original owner.
         let base=tapBase ?? CGPoint(x:xScale,y:yScale);tapBase=base
+        let origin=tapPosition ?? position;tapPosition=origin
         removeAction(forKey:"hud-tap-bounce");xScale=base.x;yScale=base.y
         run(.sequence([.customAction(withDuration:NativeHUDTapMotion.duration) { node,elapsed in
-            let value=CGFloat(NativeHUDTapMotion.scale(at:Double(elapsed)))
-            node.xScale=base.x*value;node.yScale=base.y*value
-        },.run { [weak self] in self?.xScale=base.x;self?.yScale=base.y;self?.onTapFinished?() }]),withKey:"hud-tap-bounce")
+            let pose=NativeHUDTapMotion.pose(at:Double(elapsed))
+            node.xScale=base.x*pose.x;node.yScale=base.y*pose.y;node.position.y=origin.y-pose.offset
+        },.run { [weak self] in self?.xScale=base.x;self?.yScale=base.y;self?.position=origin;self?.tapPosition=nil;self?.onTapFinished?() }]),withKey:"hud-tap-bounce")
     }
     func cancelTapBounce() {
         removeAction(forKey:"hud-tap-bounce")
         if let base=tapBase {xScale=base.x;yScale=base.y}
+        if let origin=tapPosition{position=origin};tapPosition=nil
     }
     var hitRect:CGRect {
         let circle=CGRect(x:position.x-22,y:position.y-22,width:44,height:44)

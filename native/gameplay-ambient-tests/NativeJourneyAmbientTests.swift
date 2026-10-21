@@ -24,6 +24,24 @@ final class NativeJourneyAmbientTests:XCTestCase {
         var jobs:[Job]=[]
         func after(_ seconds:Double,_ callback:@escaping ()->Void)->any NativeMusicCancellation{let job=Job(seconds,callback);jobs.append(job);return job}
     }
+    func testBackpackContinuationKeepsEveryWorldVoiceGainAndDeadlineWithoutRestart() {
+        for world in 1...3 {
+            let transport=Transport(),scheduler=Scheduler()
+            var time=100.0
+            let owner=NativeJourneyAmbientOwner(root:URL(fileURLWithPath:"/unused"),enabled:true,transport:transport,scheduler:scheduler,now:{time})
+            owner.setRoute(.world(world),generation:1)
+            let commands=transport.commands.count,jobs=scheduler.jobs.count
+            time=102;owner.continueCurrentRoute(generation:2)
+            time=104;owner.continueCurrentRoute(generation:3)
+            XCTAssertEqual(transport.commands.count,commands,"Backpack and return must not start/stop/retune any voice")
+            XCTAssertEqual(scheduler.jobs.count,jobs,"Collection visit must not extend existing World fade deadline")
+            XCTAssertTrue(scheduler.jobs.allSatisfy{!$0.cancelled})
+            owner.setRoute(.none,generation:4)
+            XCTAssertTrue(transport.commands.contains{$0.op=="stop"})
+            owner.dispose()
+        }
+    }
+
     func testUFOVisiblePassDeduplicatesFadesAndRejectsStaleExitAndOtherRoutes() {
         let transport=Transport(),scheduler=Scheduler()
         let owner=NativeJourneyAmbientOwner(root:URL(fileURLWithPath:"/unused"),enabled:true,transport:transport,scheduler:scheduler)
@@ -301,6 +319,29 @@ final class NativeJourneyAmbientTests:XCTestCase {
         owner.cleanResidualFinished(generation:3)
         XCTAssertEqual(transport.commands.last?.duration,2)
         owner.dispose()
+    }
+    func testForestContinueReacquiresAmbientBeforeAndAfterResidualFadeCompletes() {
+        for fadeCompleted in [false,true] {
+            let transport=Transport(),scheduler=Scheduler();var time=100.0
+            let owner=NativeJourneyAmbientOwner(root:URL(fileURLWithPath:"/unused"),enabled:true,transport:transport,scheduler:scheduler,now:{time})
+            defer {owner.dispose()}
+            let id=NativeJourneyAmbientOwner.gameplay
+            owner.setRoute(.gameplay(.journey,2),generation:3)
+            owner.cleanResidualFinished(generation:3)
+            let oldFade=scheduler.jobs.last!
+            if fadeCompleted {time=102;oldFade.callback()}
+            owner.beginJourneyTransition(board:3,generation:3)
+            XCTAssertEqual(transport.commands.last?.id,id)
+            XCTAssertEqual(transport.commands.last?.gain,0.54)
+            XCTAssertEqual(transport.commands.last?.op,fadeCompleted ? "start":"gain")
+            let count=transport.commands.count
+            time=104;oldFade.callback()
+            XCTAssertEqual(transport.commands.count,count,"Old board completion cannot stop the new board")
+            owner.setForeground(false);owner.setForeground(true)
+            XCTAssertEqual(transport.commands.last?.op,"resume")
+            XCTAssertEqual(transport.commands.last?.id,id,"No expired residual deadline may retire the new board on foreground")
+            XCTAssertEqual(transport.commands.last?.gain,0.54)
+        }
     }
     func testBackgroundKeepsAbsoluteDeadlineAndResumesCurrentFileVoicesOnly() {
         let transport=Transport(),scheduler=Scheduler();var time=100.0

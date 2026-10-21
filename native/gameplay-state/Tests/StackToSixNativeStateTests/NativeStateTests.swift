@@ -69,7 +69,10 @@ final class NativeStateTests: XCTestCase {
         var oldProgression=try XCTUnwrap(payload["progression"] as? [String:Any]);oldProgression.removeValue(forKey:"unlockedSpecialDice");payload["progression"]=oldProgression
         try JSONSerialization.data(withJSONObject:payload).write(to:dir.appendingPathComponent("state-v1.json"))
         let loaded=try XCTUnwrap(store.load())
-        XCTAssertEqual(loaded.settings,original.settings);XCTAssertEqual(loaded.progression,original.progression)
+        var expectedProgression=original.progression
+        var legacyAward=NativeBoardStats();legacyAward.awardedStars=1;legacyAward.starRankingVersion=0
+        expectedProgression.boardStats[1]=legacyAward
+        XCTAssertEqual(loaded.settings,original.settings);XCTAssertEqual(loaded.progression,expectedProgression)
         XCTAssertEqual(loaded.journeyRuns,original.journeyRuns);XCTAssertTrue(loaded.journeyRunSavedAt.isEmpty)
         XCTAssertNil(loaded.pendingArcadeRound);XCTAssertNil(loaded.arcadeRunSavedAt)
         XCTAssertNotNil(loaded.resumedRun(mode:.journey,board:2,now:1100))
@@ -144,12 +147,12 @@ final class NativeStateTests: XCTestCase {
     func testWorldStarThresholdsRestartInEveryWorld() {
         for board in [1,11,21] {
             XCTAssertEqual(NativeJourneyContent.smallValueBias(board:board),0.75)
-            XCTAssertEqual(NativeJourneyContent.earnedStars(score:2499,board:board),1)
-            XCTAssertEqual(NativeJourneyContent.earnedStars(score:2500,board:board),2)
-            XCTAssertEqual(NativeJourneyContent.earnedStars(score:6500,board:board),3)
+            XCTAssertEqual(NativeJourneyContent.earnedStars(score:14499,board:board),1)
+            XCTAssertEqual(NativeJourneyContent.earnedStars(score:14500,board:board),2)
+            XCTAssertEqual(NativeJourneyContent.earnedStars(score:35000,board:board),3)
         }
-        XCTAssertEqual(NativeJourneyContent.earnedStars(score:9499,board:30),2)
-        XCTAssertEqual(NativeJourneyContent.cardAsset(board:21,score:6500),"./assets/colelctibles/Area55/legendary/01-gold.png")
+        XCTAssertEqual(NativeJourneyContent.earnedStars(score:51999,board:30),2)
+        XCTAssertEqual(NativeJourneyContent.cardAsset(board:21,score:35000),"./assets/colelctibles/Area55/legendary/01-gold.png")
         XCTAssertEqual(NativeJourneyContent.cardAsset(board:2,score:0),"./assets/colelctibles/Forest/common/01.png")
     }
     func testBeachUnlocksOneAdditionalDiePerUnitUntilFour() {
@@ -219,7 +222,7 @@ final class NativeStateTests: XCTestCase {
             XCTAssertEqual(NativeJourneyContent.cardName(board:board),name,"board \(board)")
             for density in [false,true] {for legendary in [false,true] {
                 let path="./assets/colelctibles/\(worlds[world])/\(legendary ? "legendary":"common")/\(String(format:"%02d",art))\(legendary ? "-gold":"")\(density ? "@2x":"").png"
-                XCTAssertEqual(NativeJourneyContent.cardAsset(board:board,score:legendary ? 10000:0,doubleDensity:density),path)
+                XCTAssertEqual(NativeJourneyContent.cardAsset(board:board,score:legendary ? 100000:0,doubleDensity:density),path)
             }}
         }}
         XCTAssertEqual(NativeJourneyContent.cardName(board:0),NativeJourneyContent.cardName(board:1))
@@ -227,7 +230,7 @@ final class NativeStateTests: XCTestCase {
     }
     func testFirstTwoCardsSwapInEveryWorldAndDensity() {
         for (board,world,number) in [(1,"Forest","03"),(2,"Forest","01"),(11,"beach","02"),(12,"beach","01"),(21,"Area55","01"),(22,"Area55","04")] {
-            for density in [false,true] {for score in [0,6500] {
+            for density in [false,true] {for score in [0,100000] {
                 let rarity = score == 0 ? "common":"legendary"
                 let suffix = score == 0 ? "":"-gold"
                 XCTAssertEqual(NativeJourneyContent.cardAsset(board:board,score:score,doubleDensity:density),"./assets/colelctibles/\(world)/\(rarity)/\(number)\(suffix)\(density ? "@2x":"").png")

@@ -880,45 +880,9 @@
     ],
     "cta": [
       {
-        "source": "assets/sound/CTA/deeper.wav",
-        "voice": "cta-activation-deeper",
-        "gain": 0.18,
-        "rate": 1,
-        "delay": 0,
-        "stopAfter": null,
-        "fadeOut": 0
-      },
-      {
-        "source": "assets/sound/CTA/pumb.wav",
-        "voice": "cta-activation-pumb",
-        "gain": 0.3,
-        "rate": 1,
-        "delay": 0,
-        "stopAfter": null,
-        "fadeOut": 0
-      },
-      {
         "source": "assets/sound/CTA/cta-splat.wav",
         "voice": "cta-activation-splat",
         "gain": 0.3,
-        "rate": 1,
-        "delay": 0,
-        "stopAfter": null,
-        "fadeOut": 0
-      },
-      {
-        "source": "assets/sound/CTA/cta squishy.wav",
-        "voice": "cta-activation-squishy",
-        "gain": 0.3,
-        "rate": 1,
-        "delay": 0,
-        "stopAfter": null,
-        "fadeOut": 0
-      },
-      {
-        "source": "assets/sound/card reveal/klik plop.wav",
-        "voice": "cta-activation-plop",
-        "gain": 0.6,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -958,9 +922,9 @@
     ],
     "back": [
       {
-        "source": "assets/sound/CTA/deppimpact.wav",
-        "voice": "navigation-back-close-deep-impact",
-        "gain": 0.36,
+        "source": "assets/sound/UI /tap effect back i close.wav",
+        "voice": "native-navigation-back-close",
+        "gain": 0.3,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -2295,8 +2259,17 @@
     ],
     "newCardReveal": [
       {
-        "source": "assets/sound/card reveal/pufreveal.wav",
+        "source": "assets/sound/card reveal/new reward.wav",
         "voice": "journey-new-card-reveal",
+        "gain": 0.6,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/card reveal/card reveal.wav",
+        "voice": "journey-new-card-reveal-layer",
         "gain": 0.6,
         "rate": 1,
         "delay": 0,
@@ -2304,17 +2277,7 @@
         "fadeOut": 0
       }
     ],
-    "newCardHappy": [
-      {
-        "source": "assets/sound/card reveal/happy sound.wav",
-        "voice": "journey-new-card-happy",
-        "gain": 0.3,
-        "rate": 1,
-        "delay": 0,
-        "stopAfter": null,
-        "fadeOut": 0
-      }
-    ],
+    "newCardHappy": [],
     "homeEnter": [
       {
         "source": "assets/sound/Board transitions/elements down1.wav",
@@ -2950,6 +2913,28 @@
         "source": "assets/sound/Wild and special kockice/kanta/kanta3.wav",
         "voice": "kanta-exit-10-exit",
         "gain": 0.273,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "newCardUnlockedEnter": [
+      {
+        "source": "assets/sound/card reveal/max poof.wav",
+        "voice": "journey-new-card-enter-0",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "newCardOpeningPuff": [
+      {
+        "source": "assets/sound/card reveal/puf.wav",
+        "voice": "journey-new-card-opening-puff",
+        "gain": 0.42,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,

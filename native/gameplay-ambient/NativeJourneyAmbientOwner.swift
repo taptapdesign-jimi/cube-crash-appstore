@@ -75,6 +75,11 @@ final class NativeJourneyAmbientOwner {
             if end<=now() {stop(Self.worlds)}else{scheduleWorldDeadline()}
         }
     }
+    /// A collection overlay changes UI ownership, not the underlying soundscape.
+    /// Keep live voices, gains, phases and already armed fade/deadline receipts.
+    func continueCurrentRoute(generation:UInt64) {
+        guard !disposed else{return};self.generation=generation
+    }
     func setRoute(_ value:Route,generation:UInt64) {
         guard !disposed else{return}
         if value==route && self.generation==generation {return} // Duplicate enter never extends World lifetime.
@@ -140,16 +145,10 @@ final class NativeJourneyAmbientOwner {
             transport.gain(id:Self.spaceship,to:0.35,duration:0.25)
         }else{fadeAndStop(Self.spaceship,duration:0.3)}
     }
-    /// A visible transition can cross a World boundary without changing the
-    /// controller's gameplay route. Keep Beach/Area55 loops continuous through entry.
+    /// Every next board reacquires its ambient route, including Forest where
+    /// Clean Board retired the preceding board's gameplay loop.
     func beginJourneyTransition(board:Int,generation:UInt64) {
-        let leavingAmbientWorld:Bool
-        switch route {
-        case .world(2),.world(3):leavingAmbientWorld=true
-        case .gameplay(.journey,let previous):leavingAmbientWorld=(11...30).contains(previous)
-        default:leavingAmbientWorld=false
-        }
-        if (11...30).contains(board) || leavingAmbientWorld {setRoute(.gameplay(.journey,board),generation:generation)}
+        setRoute(.gameplay(.journey,board),generation:generation)
     }
     /// Result controller owns this one overlay loop; it shares Settings/session
     /// and transport with Journey, but never replaces existing route ambience.
@@ -185,6 +184,10 @@ final class NativeJourneyAmbientOwner {
     }
     private func retain(_ id:String,source:String,gain:Double,ramp:Double=0) {
         guard enabled else{return}
+        // Reacquiring a live route revokes its previous result/exit fade.
+        // Invalidate the stop receipt even if it already entered the run loop.
+        taskEpochs[id,default:0] &+= 1
+        tasks.removeValue(forKey:id)?.cancel();deadlines.removeValue(forKey:id)
         if var loop=loops[id] {loop.gain=gain;loops[id]=loop;if foreground,!interrupted {transport.gain(id:id,to:gain,duration:ramp)}}
         else {loops[id]=Loop(source:source,gain:gain,started:foreground && !interrupted);if foreground,!interrupted {transport.start(id:id,source:source,gain:gain)}}
     }

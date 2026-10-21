@@ -5048,6 +5048,25 @@ final class NativeStarPresentationTests: XCTestCase {
         XCTAssertTrue(f.scene.prepareSourceBeeIdleFrames(tileID:"skin",scope:f.scope,completion:{value in XCTAssertTrue(value);frames.fulfill()}))
         await fulfillment(of:[frames],timeout:5)
     }
+    func testActualSceneSourceBeeSettledFacingSurvivesCenterCrossingsPauseAndDrag()async throws {
+        let f=try SourceWildSkinFixture(root:root,archetype:.star,variant:"bee");defer{f.dispose()}
+        f.view.isPaused=true
+        try await prepareActualSourceBeeForHostMotion(f)
+        f.node.position.x=195
+        f.node.tick(0.04,suspended:false,viewportCenter:195)
+        let facing=f.node.sourceBaseScaleX < 0 ? -1.0:1.0
+        for frame in 0..<180 {
+            f.node.position.x=frame%2==0 ? 194:196
+            f.node.tick(1.0/60,suspended:false,viewportCenter:195)
+            XCTAssertEqual(f.node.sourceBaseScaleX < 0 ? -1.0:1.0,facing)
+        }
+        f.node.tick(1,suspended:true,viewportCenter:195)
+        f.node.setDragging(true,sourceOuterTransform:true)
+        f.node.position.x=300;f.node.tick(0.04,suspended:false,viewportCenter:195)
+        f.node.setDragging(false,sourceOuterTransform:true)
+        f.node.tick(0.04,suspended:false,viewportCenter:195)
+        XCTAssertEqual(f.node.sourceBaseScaleX < 0 ? -1.0:1.0,facing)
+    }
     func testActualSceneSourceBeeMotionPaintsCapturedHostAndDragRestoresItsPose()async throws {
         let f=try SourceWildSkinFixture(root:root,archetype:.star,variant:"bee");defer{f.dispose()}
         // This golden sample owns its explicit 40ms tick; texture upload must

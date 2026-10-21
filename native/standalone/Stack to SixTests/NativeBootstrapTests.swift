@@ -40,15 +40,35 @@ final class NativeBootstrapTests:XCTestCase {
             XCTAssertEqual(app.route,.gameplay);XCTAssertTrue(game.boardScene === scene)
             XCTAssertEqual(game.engine.state,before);XCTAssertNil(game.sourcePresentationFailureGeneration)
         }
-        XCTAssertNotNil(help.childNode(withName:"native-game-backpack-alert"));XCTAssertTrue(help.texture !== closed)
+        XCTAssertNotNil(help.childNode(withName:"native-game-backpack-alert"));XCTAssertTrue(help.texture === closed)
         XCTAssertEqual(try store.load()?.progression.unreadJourneyDice,["wild-star","fish"])
         game.onHelp?()
         let backpack=try XCTUnwrap(game.presentedViewController as? NativeGameplayBackpackController)
+        XCTAssertTrue(scene.hasActiveHUDPresentationFeedback)
+        // Exercise the real controller callback used by late resource readiness:
+        // relinquishing board demand cannot cancel an admitted finite HUD swap.
+        scene.onRenderingDemand?(false)
+        XCTAssertEqual(scene.gameplayRenderHost?.renderingPaused,false,"Foreground modal keeps the actual mounted host alive through its finite HUD swap")
         try await waitUntil {backpack.screen?.isUserInteractionEnabled == true && backpack.view.isUserInteractionEnabled}
         XCTAssertNil(backpack.detail,"Manual HUD tap opens collection, never second-level detail")
+        try await waitUntil {help.action(forKey:"backpack-icon-swap") == nil}
+        XCTAssertEqual(scene.gameplayRenderHost?.renderingPaused,true,"The paused board becomes quiet once the finite HUD swap settles")
+        XCTAssertTrue(help.texture !== closed);XCTAssertTrue(scene.backpackPresented)
         XCTAssertNotNil(help.childNode(withName:"native-game-backpack-alert"))
         let close=try XCTUnwrap(button(in:backpack.view,id:"native.gameplay.backpack.close"))
         close.sendActions(for:.touchUpInside)
+        XCTAssertTrue(scene.backpackPresented,"HUD stays open until60percent of modal exit")
+        XCTAssertNil(help.action(forKey:"backpack-icon-swap"))
+        XCTAssertTrue(game.presentedViewController === backpack)
+        if !UIAccessibility.isReduceMotionEnabled {
+            try await Task.sleep(for:.milliseconds(300))
+            XCTAssertTrue(scene.backpackPresented)
+            XCTAssertNil(help.action(forKey:"backpack-icon-swap"))
+            try await waitUntil {!scene.backpackPresented}
+            XCTAssertTrue(game.presentedViewController === backpack,"HUD closes at60percent before modal dismissal")
+            XCTAssertNotNil(help.action(forKey:"backpack-icon-swap"))
+        }
+        XCTAssertEqual(game.engine.state,before,"Starting the HUD close cannot resume or mutate gameplay")
         XCTAssertEqual(try store.load()?.progression.unreadJourneyDice,["wild-star","fish"],"Exit animation cannot acknowledge early")
         try await waitUntil {game.presentedViewController == nil}
         try await waitUntil {help.action(forKey:"backpack-icon-swap") == nil && help.childNode(withName:"native-game-backpack-alert") == nil}

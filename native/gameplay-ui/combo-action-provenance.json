@@ -1,0 +1,19 @@
+{
+  "source": "combo action.svg",
+  "sha256": "a0b62379972a690d0485d1e2b704060aa0c6d637a2a8b4b4360db525ef79d46b",
+  "atlas": "combo-action-native.png",
+  "frameSize": 128,
+  "columns": 12,
+  "rows": 9,
+  "frameCount": 108,
+  "sourceFPS": 60,
+  "sourceDuration": 1.8,
+  "settledFrames": [
+    0,
+    60,
+    100
+  ],
+  "renderCommand": "node scripts/render-animated-svg-frames.mjs 'assets/hud/combo action.svg' /tmp/combo-native-frames 128 128 60 1.8",
+  "packing": "RGBA PNG; paste frame-NNNN.png at ((index % 12) * 128, floor(index / 12) * 128); preserve source SVG bytes",
+  "runtime": "Canonical tiers 0-4/5-9/10+; finite forward transition at90 source frames/s; never loop"
+}

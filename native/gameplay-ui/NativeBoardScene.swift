@@ -220,14 +220,36 @@ final class NativeBoardScene: SKScene {
     private var backpackAlertRotation:CGFloat=0
     private var backpackAlertLastFrame:TimeInterval?
     private var backpackAlertRefreshPending=false
-    func refreshBackpackAlert(){
+    private(set) var backpackPresented=false
+    private var backpackPaintedOpen=false
+    private var backpackAlertDismissed=false
+    func setBackpackPresented(_ value:Bool) {
+        if backpackPresented && !value {
+            backpackAlertDismissed=true
+            if let badge=backpackAlert {
+                let x=badge.xScale,y=badge.yScale
+                badge.run(.sequence([.customAction(withDuration:0.16){node,elapsed in
+                    let t=min(1,Double(elapsed)/0.16)
+                    let scale=CGFloat(1-JimiV9Motion.Ease.backIn(1.7).value(t))
+                    node.xScale=x*scale;node.yScale=y*scale;node.alpha=1-t*t*(3-2*t)
+                },.removeFromParent()]),withKey:"backpack-alert-exit")
+            }
+        }else if value {backpackAlertDismissed=false}
+        backpackPresented=value;refreshBackpackAlert(allowSuspendedPresentation:true)
+    }
+    func completeBackpackVisit(){backpackAlertDismissed=false;refreshBackpackAlert(allowSuspendedPresentation:true)}
+    func refreshBackpackAlert(allowSuspendedPresentation:Bool=false){
         guard !disposed,!sourceDisposalInProgress,let help=hud.childNode(withName:"native-game-help") as? SKSpriteNode else{return}
         let worldStart=((engine.state.board-1)/10)*10+1
         let pool=Set(NativeJourneyContent.rewardPool(board:worldStart+9))
-        let wanted=engine.state.mode == .journey && !unreadJourneyDice().intersection(pool).isEmpty
-        guard !suspended,help.action(forKey:"backpack-icon-swap")==nil else{backpackAlertRefreshPending=true;return}
+        let unread=engine.state.mode == .journey && !unreadJourneyDice().intersection(pool).isEmpty
+        if !unread {backpackAlertDismissed=false}
+        let wanted=unread && !backpackAlertDismissed
+        guard (!suspended || allowSuspendedPresentation),help.action(forKey:"backpack-icon-swap")==nil else{backpackAlertRefreshPending=true;return}
         backpackAlertRefreshPending=false
-        guard wanted != (backpackAlert != nil) else{return}
+        guard wanted != (backpackAlert != nil) || backpackPaintedOpen != backpackPresented else{return}
+        // Notification ownership is independent of the closed/open presentation.
+        if backpackPaintedOpen == backpackPresented {applyBackpackAlert(wanted,to:help);return}
         let apply:()->Void = {[weak self,weak help] in
             guard let self,let help,!self.disposed else{return}
             self.applyBackpackAlert(wanted,to:help)
@@ -236,30 +258,27 @@ final class NativeBoardScene: SKScene {
         help.removeAction(forKey:"hud-tap-bounce")
         let base=hudTapFeedbackBases.removeValue(forKey:ObjectIdentifier(help)) ?? CGPoint(x:1,y:1)
         help.xScale=base.x;help.yScale=base.y
-        let exit=SKAction.customAction(withDuration:0.16){node,elapsed in
-            let t=min(1,Double(elapsed)/0.16),fade=t*t*(3-2*t)
-            let scale=CGFloat(1-JimiV9Motion.Ease.backIn(1.7).value(t))
-            node.xScale=base.x*scale;node.yScale=base.y*scale;node.alpha=1-fade
-        }
-        let enter=SKAction.customAction(withDuration:0.24){node,elapsed in
-            let t=min(1,Double(elapsed)/0.24),fade=min(1,t/0.65)
-            let scale=CGFloat(JimiV9Motion.Ease.backOut(1.65).value(t))
-            node.xScale=base.x*scale;node.yScale=base.y*scale;node.alpha=fade*fade*(3-2*fade)
-        }
-        help.run(.sequence([exit,.run(apply),enter,.run{[weak self,weak help] in
-            help?.xScale=base.x;help?.yScale=base.y;help?.alpha=1
+        let origin=hudTapFeedbackPositions.removeValue(forKey:ObjectIdentifier(help)) ?? help.position
+        apply()
+        help.run(.sequence([.customAction(withDuration:NativeHUDTapMotion.duration){node,elapsed in
+            let pose=NativeHUDTapMotion.pose(at:Double(elapsed))
+            node.xScale=base.x*pose.x;node.yScale=base.y*pose.y
+            node.position.y=origin.y-pose.offset
+        },.run{[weak self,weak help] in
+            help?.xScale=base.x;help?.yScale=base.y;help?.alpha=1;help?.position=origin
             help?.removeAction(forKey:"backpack-icon-swap")
-            self?.refreshBackpackAlert()
+            self?.refreshBackpackAlert();self?.finishHUDTapFeedback()
         }]),withKey:"backpack-icon-swap")
         requestRendering(true)
     }
     private func applyBackpackAlert(_ wanted:Bool,to help:SKSpriteNode){
-        let path=engine.state.mode == .arcade ? "assets/hud/crate - hud.png":wanted ? "assets/nav/stats-nav-open.png":"assets/nav/stats-nav.png"
+        backpackPaintedOpen=backpackPresented
+        let path=engine.state.mode == .arcade ? (backpackPresented ? "assets/hud/crate-open.png":"assets/hud/crate - hud.png"):backpackPresented ? "assets/nav/stats-nav-open.png":"assets/nav/stats-nav.png"
         help.texture=textures.texture(path)
         // Keep the authored 34pt HUD geometry. Reassigning size while the
         // exit action has collapsed scale makes SpriteKit inflate the sprite
         // when enter restores scale, covering the board with backpack artwork.
-        backpackAlert?.removeFromParent();backpackAlert=nil;backpackAlertElapsed=0;backpackAlertCycle = -1;backpackAlertLastFrame=nil
+        if backpackAlert?.action(forKey:"backpack-alert-exit")==nil {backpackAlert?.removeFromParent()};backpackAlert=nil;backpackAlertElapsed=0;backpackAlertCycle = -1;backpackAlertLastFrame=nil
         if wanted {
             let badge=SKSpriteNode(texture:textures.texture("assets/nav/alsert@2x.png"))
             badge.name="native-game-backpack-alert";badge.size=CGSize(width:23,height:23*46/48);badge.position=CGPoint(x:12,y:13);badge.zPosition=2
@@ -269,6 +288,7 @@ final class NativeBoardScene: SKScene {
     }
     /// Runs on the existing board frame owner, never on a second display link or timer.
     private func updateBackpackAlert(_ time:TimeInterval){
+        if backpackAlert?.action(forKey:"backpack-alert-exit") != nil {return}
         guard let badge=backpackAlert,!exitInProgress,!hud.isHidden,hud.alpha>0.01,!UIAccessibility.isReduceMotionEnabled else{backpackAlertLastFrame=nil;backpackAlert?.setScale(1);backpackAlert?.zRotation = -.pi/18;backpackAlert?.position.y=13;return}
         if let last=backpackAlertLastFrame {backpackAlertElapsed += min(0.05,max(0,time-last))}
         backpackAlertLastFrame=time
@@ -295,14 +315,15 @@ final class NativeBoardScene: SKScene {
     }
     /// Restored dice have already landed and do not pass through the drop owner.
     /// Reconcile only after the actual board-entry owner admits the painted board.
-    private func announceRestoredJourneyIntroduction(){
-        guard isBoardEntryComplete,engine.state.mode == .journey,
-              let introduction=NativeJourneyContent.introductionID(board:engine.state.board),
-              let tile=engine.state.tiles.first(where:{tile in
-                  !tile.locked && tile.visible && !tile.pendingRemoval &&
-                  (tile.variant ?? (tile.archetype == .star ? "wild-star":tile.archetype?.rawValue)) == introduction
-              }),let node=nodesByID[tile.id] else{return}
-        announceLandedJourneyDie(node)
+    private func announceRestoredJourneyDice(){
+        guard isBoardEntryComplete,engine.state.mode == .journey else{return}
+        let eligible=Set(NativeJourneyContent.rewardPool(board:engine.state.board))
+        for tile in engine.state.tiles where !tile.locked && tile.visible && !tile.pendingRemoval {
+            guard let archetype=tile.archetype,
+                  eligible.contains(tile.variant ?? (archetype == .star ? "wild-star":archetype.rawValue)),
+                  let node=nodesByID[tile.id] else{continue}
+            announceLandedJourneyDie(node)
+        }
     }
     var onStateChange: ((NativeBoardState) -> Void)?
     var onTerminal: ((NativeResolution) -> Void)?
@@ -320,6 +341,7 @@ final class NativeBoardScene: SKScene {
     var onGameplayEvent: ((NativeGameplayEvent) -> Void)?
     var onGameplayReceipt: ((NativeGameplayEvent,NativeTile?,NativeTile?,UInt64) -> Void)?
     var onSpecialMoment: ((String?,String,Int) -> Void)?
+    var onHUDCoinArrival:((Double)->Void)?
     var onTntGlyphClock: ((String,TimeInterval,Bool) -> Void)?
     var onSplashGlyphClock: ((String,String,TimeInterval,Bool) -> Void)?
     var onHaptic: ((String) -> Void)?
@@ -330,6 +352,7 @@ final class NativeBoardScene: SKScene {
     var onAuthoredTntPresentation: ((String,CGPoint,UInt64,@escaping () -> Void,@escaping () -> Void) -> Bool)?
     var onAuthoredFinale: ((String,CGPoint,UInt64,@escaping () -> Void) -> Bool)?
     var onExitRequest: (() -> Void)?
+    var onHUDTapContact:((String)->Void)?
     var onHelpRequest: (() -> Void)?
     var onScoreRequest: (() -> Void)?
     var onComboRequest: (() -> Void)?
@@ -1088,7 +1111,7 @@ final class NativeBoardScene: SKScene {
                         }
                         self.sourceBoardEntryCompleted?(completion)
                         guard current(),self.sourceBoardEntryEpoch==epoch else{return}
-                        self.announceRestoredJourneyIntroduction()
+                        self.announceRestoredJourneyDice()
                         self.evaluate()
                     }) else{self.inputAdmitted=false;return}
             }),current() else{return false}
@@ -5737,6 +5760,7 @@ final class NativeBoardScene: SKScene {
         scoreArt.name = "native-game-score-art"; hud.addChild(scoreArt)
         comboArt.name = "native-game-combo-art";comboArt.color = .clear; hud.addChild(comboArt)
         comboArtImage.name = "native-game-combo-image";comboArt.addChild(comboArtImage)
+        comboHUDMotion.configure(atlas:textures.texture(NativeComboHUDMotion.atlasPath,densityAware:false))
         meterBackground.name = "native-game-wild-meter-track"
         meterBackground.fillColor = UIColor(red:234.0/255,green:223.0/255,blue:214.0/255,alpha:1)
         meterBackground.strokeColor = .clear;hud.addChild(meterBackground)
@@ -5755,11 +5779,11 @@ final class NativeBoardScene: SKScene {
         let scoreX = size.width-24-62-spacing-shift
         hud.childNode(withName: "native-game-help")?.position = CGPoint(x: size.width >= 768 ? scoreX-spacing : 118, y: top)
         for icon in [scoreArt,comboArt] {
-            let dimensions = (icon === comboArt ? comboArtImage.texture:icon.texture)?.size() ?? CGSize(width: 28,height: 28)
+            let dimensions = (icon === comboArt ? textures.texture("assets/hud/combo-hud.png"):icon.texture)?.size() ?? CGSize(width: 28,height: 28)
             let scale = 28/max(1,max(dimensions.width,dimensions.height))
             icon.size = CGSize(width: dimensions.width*scale,height: dimensions.height*scale)
         }
-        comboArtImage.size=comboArt.size
+        comboHUDMotion.layoutArtwork(fallbackSize:comboArt.size)
         scoreArt.position = CGPoint(x: scoreX,y: top)
         score.position = CGPoint(x: scoreX+scoreArt.size.width/2+6,y: top)
         layoutComboValue(top:top)
@@ -6531,8 +6555,11 @@ final class NativeBoardScene: SKScene {
         comboNumber.text = String(combo)
         if exitInProgress || engine.state.terminal != nil {comboNumberMotion.stop()}
         else {comboNumberMotion.synchronize(combo:combo,generation:engine.state.generation,reducedMotion:UIAccessibility.isReduceMotionEnabled)}
-        comboArtImage.texture = textures.texture(combo >= 10 ? "assets/hud/mega-combo-hud.png" : combo >= 5 ? "assets/hud/extra-combo-hud.png" : "assets/hud/combo-hud.png")
-        comboHUDMotion.synchronize(combo:exitInProgress || engine.state.terminal != nil ? 0:combo,generation:engine.state.generation)
+        if !comboHUDMotion.usesAuthoredFrames {
+            comboArtImage.texture = textures.texture(combo >= 10 ? "assets/hud/mega-combo-hud.png" : combo >= 5 ? "assets/hud/extra-combo-hud.png" : "assets/hud/combo-hud.png")
+        }
+        if exitInProgress || engine.state.terminal != nil {comboHUDMotion.stop()}
+        else {comboHUDMotion.synchronize(combo:combo,generation:engine.state.generation)}
     }
 
     private func presentationAlpha(_ tile: NativeTile,state: NativeBoardState) -> CGFloat {
@@ -6601,7 +6628,7 @@ final class NativeBoardScene: SKScene {
         run(.sequence([.wait(forDuration:0.03),.run { [weak self] in
             guard let self,!self.disposed,self.entryInProgress,self.hudEntryReceipt==receipt,self.engine.state.generation==receipt.generation else{return}
             self.finishSourceEntry()
-            self.entryInProgress=false;self.inputAdmitted=true;self.resumeSourceEntryDeferredIdle();self.announceRestoredJourneyIntroduction();self.evaluate()
+            self.entryInProgress=false;self.inputAdmitted=true;self.resumeSourceEntryDeferredIdle();self.announceRestoredJourneyDice();self.evaluate()
         }]),withKey:"entry-admission")
     }
 
@@ -6712,17 +6739,20 @@ final class NativeBoardScene: SKScene {
         let canvasPoint=canvasRoot.convert(point,from:self)
         if closeButton?.hitRect.contains(canvasPoint)==true {
             guard inputAdmitted,!navigationLocked,engine.state.tutorial?.shouldLockHUD != true else{return true}
+            onHUDTapContact?("close")
             closeButton?.playTapBounce();requestRendering(true)
             onExitRequest?();return true
         }
         if gameplayHelpAllowed,nodes(at:point).contains(where:{$0.name == "native-game-help"}) {
             guard inputAdmitted,!navigationLocked,engine.state.tutorial?.shouldLockHUD != true else {return true}
+            onHUDTapContact?("hud-icon-tap")
             if let icon=hud.childNode(withName:"native-game-help") {playHUDTapFeedback(on:icon)}
             onHelpRequest?()
             return true
         }
         if scoreHitRect.contains(canvasPoint) || comboHitRect.contains(canvasPoint) {
             guard inputAdmitted,!navigationLocked,engine.state.tutorial?.shouldLockHUD != true else { return true }
+            onHUDTapContact?("hud-icon-tap")
             if comboHitRect.contains(canvasPoint) {playHUDTapFeedback(on:comboArt);onComboRequest?()}
             else {playHUDTapFeedback(on:scoreArt);onScoreRequest?()}
             return true
@@ -9300,12 +9330,12 @@ final class NativeBoardScene: SKScene {
             bindings:.init(current:current,random:{scope.smokeSession.nextVisualRandom()},acquireCadence:{[weak self] in
                 guard let self,current() else{return{}}
                 return self.beginSourceMotion(.hudStarFlight,id:UUID().uuidString,generation:generation) ?? {}
-            },onArrival:{[weak self] result in
+            },onArrival:{[weak self] result,relativeSize in
                 guard let self,current() else{return}
                 // Original CC mutation already happened in Core. Do NOT route
                 // through Raw consume/redraw/save/resolver per arriving star.
                 guard self.sourceHUDStarFeedback?.scoreChanged()==true else{self.onPresentationFailure?("source_hud_star_feedback_frame_unbound");return}
-                self.onSpecialMoment?(nil,"hud-star-arrived",0)
+                self.onHUDCoinArrival?(relativeSize)
                 self.releaseFinalDirectIfReady();self.publishPendingTerminal()
             },onRetired:{ [weak self] _ in
                 guard let self,current() else{return}
@@ -9398,7 +9428,7 @@ final class NativeBoardScene: SKScene {
                     let previous = self.engine.state
                     let result = self.engine.commitHUDStarArrival(receiptID: receipt.id,generation: receipt.generation)
                     self.consume(result,previous: previous)
-                    if result.accepted {self.onSpecialMoment?(receipt.variant,"hud-star-arrived",receipt.ordinal)}
+                    if result.accepted {self.onHUDCoinArrival?(NativeSourceHUDStarPlan.relativeCoinSize(Double(plan.size)))}
                     self.hudStarVisualReceipts.removeValue(forKey: receipt.id)
                     self.finishVisual(visualReceipt)
                 }
@@ -10142,6 +10172,7 @@ final class NativeBoardScene: SKScene {
         // actions/resources do not create fabricated generic activity marks.
     }
 
+    private var hudTapFeedbackPositions:[ObjectIdentifier:CGPoint]=[:]
     private var hudTapFeedbackBases:[ObjectIdentifier:CGPoint]=[:]
     private var hudTapFeedbackNodes:[SKNode] {
         hud.children.filter {$0 === closeButton || $0.name == "native-game-help" || $0 === scoreArt || $0 === comboArt}
@@ -10149,7 +10180,7 @@ final class NativeBoardScene: SKScene {
     var hasActiveHUDTapFeedback:Bool {hudTapFeedbackNodes.contains {$0.action(forKey:"hud-tap-bounce") != nil}}
     /// Foreground sheets freeze the board, while an already-visible HUD may
     /// finish its finite entrance and contact feedback on the existing Scene clock.
-    var hasActiveHUDPresentationFeedback:Bool {hasActiveHUDTapFeedback || hud.action(forKey:"hud-enter") != nil}
+    var hasActiveHUDPresentationFeedback:Bool {hasActiveHUDTapFeedback || hud.action(forKey:"hud-enter") != nil || hud.childNode(withName:"native-game-help")?.action(forKey:"backpack-icon-swap") != nil}
     private func finishHUDTapFeedback() {
         guard suspended,!hasActiveHUDPresentationFeedback else{return}
         isPaused=true;canvasRoot.isPaused=true
@@ -10159,13 +10190,16 @@ final class NativeBoardScene: SKScene {
         guard node.action(forKey:"backpack-icon-swap")==nil else{return}
         let key=ObjectIdentifier(node),base=hudTapFeedbackBases[key] ?? CGPoint(x:node.xScale,y:node.yScale)
         requestRendering(true)
+        let origin=hudTapFeedbackPositions[key] ?? node.position
+        hudTapFeedbackPositions[key]=origin
         hudTapFeedbackBases[key]=base;node.removeAction(forKey:"hud-tap-bounce")
         node.xScale=base.x;node.yScale=base.y
         node.run(.sequence([.customAction(withDuration:NativeHUDTapMotion.duration) { node,elapsed in
-            let scale=CGFloat(NativeHUDTapMotion.scale(at:Double(elapsed)))
-            node.xScale=base.x*scale;node.yScale=base.y*scale
+            let pose=NativeHUDTapMotion.pose(at:Double(elapsed))
+            node.xScale=base.x*pose.x;node.yScale=base.y*pose.y;node.position.y=origin.y-pose.offset
         },.run {[weak self,weak node] in
-            node?.xScale=base.x;node?.yScale=base.y
+            node?.xScale=base.x;node?.yScale=base.y;node?.position=origin
+            self?.hudTapFeedbackPositions.removeValue(forKey:key)
             self?.hudTapFeedbackBases.removeValue(forKey:key)
             // Completion runs inside the keyed action; the node is already at rest.
             node?.removeAction(forKey:"hud-tap-bounce")
@@ -10192,6 +10226,7 @@ final class NativeBoardScene: SKScene {
             for node in hudTapFeedbackNodes where node !== closeButton {
                 node.removeAction(forKey:"hud-tap-bounce")
                 if let base=hudTapFeedbackBases.removeValue(forKey:ObjectIdentifier(node)) {node.xScale=base.x;node.yScale=base.y}
+                if let origin=hudTapFeedbackPositions.removeValue(forKey:ObjectIdentifier(node)){node.position=origin}
             }
         }
         suspended=value;lastFrame=nil
@@ -10214,7 +10249,7 @@ final class NativeBoardScene: SKScene {
         let keepTap=value && allowHUDFeedback && hasActiveHUDPresentationFeedback
         isPaused=value && !keepTap
         canvasRoot.isPaused=value && !keepTap;effects.isPaused=value;ghosts.isPaused=value;hudStarFlights.isPaused=value;roundIndicator.isPaused=value
-        for child in hud.children {child.isPaused=value && !(keepTap && child.action(forKey:"hud-tap-bounce") != nil)}
+        for child in hud.children {child.isPaused=value && !(keepTap && (child.action(forKey:"hud-tap-bounce") != nil || child.action(forKey:"backpack-icon-swap") != nil))}
         if keepTap {
             // An unpaused Scene cannot advance an action beneath a paused
             // canvas ancestor. Keep only HUD entrance/contact feedback ticking;
@@ -10238,13 +10273,13 @@ final class NativeBoardScene: SKScene {
         guard !sourceDisposalInProgress else {return}
         guard !disposed, activeTouch == nil, !hasActions(), effects.children.isEmpty,
               !nodesByID.values.contains(where: { $0.hasPresentationActions }) else { return }
-        var paths: Set<String> = ["assets/ghost-placeholder.png", "assets/tile.png", "assets/shadow.png", "assets/paper-bg.png", "assets/close-icon.png", "assets/hud/help.png", "assets/hud/score-hud.png","assets/hud/combo-hud.png","assets/hud/extra-combo-hud.png","assets/hud/mega-combo-hud.png"]
-        if gameplayHelpAllowed { paths.insert(engine.state.mode == .arcade ? "assets/hud/crate - hud.png":"assets/nav/stats-nav.png") }
+        var paths: Set<String> = [NativeComboHUDMotion.atlasPath,"assets/ghost-placeholder.png", "assets/tile.png", "assets/shadow.png", "assets/paper-bg.png", "assets/close-icon.png", "assets/hud/help.png", "assets/hud/score-hud.png","assets/hud/combo-hud.png","assets/hud/extra-combo-hud.png","assets/hud/mega-combo-hud.png"]
+        if gameplayHelpAllowed { paths.formUnion(engine.state.mode == .arcade ? ["assets/hud/crate - hud.png","assets/hud/crate-open.png"]:["assets/nav/stats-nav.png","assets/nav/stats-nav-open.png"]) }
         for node in nodesByID.values { paths.formUnion(node.resourcePaths) }
         if sourceMagnetFallbackScope?.current == true || sourceSixScope?.current == true {
             paths.formUnion(NativeRegularStackLayout.Skin.allCases.map{String($0.rawValue.dropFirst(2))})
         }
-        if backpackAlert != nil {paths.formUnion(["assets/nav/stats-nav-open.png","assets/nav/alsert@2x.png"])}
+        if backpackAlert != nil || backpackPresented {paths.formUnion(["assets/nav/stats-nav-open.png","assets/nav/alsert@2x.png"])}
         textures.purgeUnused(retaining: paths)
     }
 
@@ -10376,8 +10411,8 @@ final class NativeBoardScene: SKScene {
     func dispose() {
         restoreHUDFeedbackPause()
         guard !disposed,!sourceDisposalInProgress else {return}
-        comboHUDMotion.stop();comboNumberMotion.stop()
-        onTutorialSpecialDropStarted=nil;onTutorialSpecialDropLanded=nil;onJourneyDieLanded=nil;unreadJourneyDice={[]};backpackAlertRefreshPending=false;hud.childNode(withName:"native-game-help")?.removeAction(forKey:"backpack-icon-swap");backpackAlert?.removeFromParent();backpackAlert=nil
+        comboHUDMotion.dispose();comboNumberMotion.stop()
+        onTutorialSpecialDropStarted=nil;onTutorialSpecialDropLanded=nil;onJourneyDieLanded=nil;onHUDCoinArrival=nil;unreadJourneyDice={[]};backpackAlertRefreshPending=false;hud.childNode(withName:"native-game-help")?.removeAction(forKey:"backpack-icon-swap");backpackAlert?.removeFromParent();backpackAlert=nil
         renderPipelineProbe?.cancel(scene:self,reason:"disposed")
         retireSourceWildSkinAssets()
         retireSourceSpawnVisualSafety()
@@ -10424,6 +10459,6 @@ final class NativeBoardScene: SKScene {
         onFishIdleFrames?([:],engine.state.generation,true);onFishIdleFrames=nil
         onNativeNoMovesShow=nil;onNativeNoMovesExit=nil;onNativeNoMovesClear=nil;onJourneyBottomDecorShake=nil;captureSourceScreenOverlayShake=nil;sourceCoreTntShakeTargets.removeAll();sourceScreenShakeTargets.removeAll();onPresentationFailure=nil;onSourcePresentationFailure=nil;onStateChange = nil; onTerminal = nil; onGameplayEvent = nil; onGameplayReceipt = nil; onSpecialMoment = nil; onAuthoredFinale = nil;onAuthoredTntPresentation = nil;onAuthoredLaserImpact=nil;authoredTntPresentationReady = nil;authoredFinalePresentationReady=nil;onSpecialPresentationCancelled = nil; onTntGlyphClock = nil; onSplashGlyphClock = nil; onHaptic = nil
         onRenderSurfacePreparation=nil
-        hudTapFeedbackBases.removeAll();onSourceGuidedSnapBack=nil;onSourceTutorialRetired=nil;onLevelFlowBounceCompletion=nil;onExitRequest = nil; onHelpRequest = nil; onScoreRequest = nil; onComboRequest = nil; onPointerState = nil; onRenderingDemand = nil; onBoardEntry = nil; onBoardExit = nil; onHUDDrop = nil
+        hudTapFeedbackBases.removeAll();hudTapFeedbackPositions.removeAll();onSourceGuidedSnapBack=nil;onSourceTutorialRetired=nil;onLevelFlowBounceCompletion=nil;onExitRequest = nil; onHUDTapContact=nil; onHelpRequest = nil; onScoreRequest = nil; onComboRequest = nil; onPointerState = nil; onRenderingDemand = nil; onBoardEntry = nil; onBoardExit = nil; onHUDDrop = nil
     }
 }

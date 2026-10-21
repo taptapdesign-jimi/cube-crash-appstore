@@ -1,0 +1,3468 @@
+[
+  {
+    "actions": 56,
+    "base": 20412,
+    "board": 1,
+    "cap": 99,
+    "capOvershoots": 0,
+    "comboBonus": 38575,
+    "drops": 6,
+    "efficiency": 197,
+    "final": 59184,
+    "movesLeft": 0,
+    "outcome": "complete",
+    "peakCombo": 56,
+    "policy": "continuous-v2",
+    "reason": "final_regular_merge6",
+    "seed": 110,
+    "trace": [
+      {
+        "destination": "g1-22",
+        "source": "g1-0"
+      },
+      {
+        "destination": "g1-25",
+        "source": "g1-19"
+      },
+      {
+        "destination": "g1-34",
+        "source": "g1-23"
+      },
+      {
+        "destination": "g1-25",
+        "source": "g1-22"
+      },
+      {
+        "destination": "native:1:4:0:1:die:1",
+        "source": "g1-29"
+      },
+      {
+        "destination": "native:1:4:0:1:die:1",
+        "source": "g1-34"
+      },
+      {
+        "destination": "native:1:6:1:7:die:4",
+        "source": "native:1:4:2:0:die:3"
+      },
+      {
+        "destination": "native:1:6:1:7:die:4",
+        "source": "g1-15"
+      },
+      {
+        "destination": "native:1:8:3:0:die:9",
+        "source": "native:1:8:2:3:die:7"
+      },
+      {
+        "destination": "native:1:9:3:0:die:15",
+        "source": "native:1:6:2:6:die:5"
+      },
+      {
+        "destination": "native:1:9:3:0:die:15",
+        "source": "g1-37"
+      },
+      {
+        "destination": "native:1:11:3:2:die:18",
+        "source": "g1-21"
+      },
+      {
+        "destination": "native:1:8:4:7:die:8",
+        "source": "native:1:12:1:5:die:20"
+      },
+      {
+        "destination": "native:1:8:4:7:die:8",
+        "source": "native:1:13:1:4:die:22"
+      },
+      {
+        "destination": "native:1:9:1:3:die:17",
+        "source": "native:1:14:0:5:die:30"
+      },
+      {
+        "destination": "native:1:9:1:3:die:17",
+        "source": "g1-40"
+      },
+      {
+        "destination": "g1-43",
+        "source": "g1-41"
+      },
+      {
+        "destination": "native:1:11:0:0:die:19",
+        "source": "g1-9"
+      },
+      {
+        "destination": "native:1:18:3:5:die:36",
+        "source": "native:1:14:2:5:die:29"
+      },
+      {
+        "destination": "native:1:18:4:8:die:35",
+        "source": "native:1:14:4:7:die:28"
+      },
+      {
+        "destination": "native:1:18:4:8:die:35",
+        "source": "native:1:18:3:5:die:36"
+      },
+      {
+        "destination": "native:1:21:2:4:die:38",
+        "source": "native:1:16:0:2:die:32"
+      },
+      {
+        "destination": "native:1:21:2:4:die:38",
+        "source": "native:1:17:3:3:die:33"
+      },
+      {
+        "destination": "native:1:23:0:2:die:42",
+        "source": "native:1:12:4:5:die:21"
+      },
+      {
+        "destination": "native:1:23:2:1:die:40",
+        "source": "native:1:16:2:8:die:31"
+      },
+      {
+        "destination": "native:1:24:0:2:die:48",
+        "source": "native:1:23:3:0:die:41"
+      },
+      {
+        "destination": "native:1:24:0:2:die:48",
+        "source": "native:1:23:2:1:die:40"
+      },
+      {
+        "destination": "native:1:27:2:7:die:51",
+        "source": "native:1:27:1:6:die:53"
+      },
+      {
+        "destination": "native:1:27:2:7:die:51",
+        "source": "native:1:21:3:1:die:37"
+      },
+      {
+        "destination": "native:1:29:0:4:die:55",
+        "source": "native:1:27:4:7:die:52"
+      },
+      {
+        "destination": "native:1:29:0:4:die:55",
+        "source": "native:1:21:3:4:die:39"
+      },
+      {
+        "destination": "native:1:31:0:1:die:57",
+        "source": "native:1:17:1:1:die:34"
+      },
+      {
+        "destination": "native:1:29:4:6:die:54",
+        "source": "native:1:24:3:7:die:49"
+      },
+      {
+        "destination": "native:1:33:0:0:die:62",
+        "source": "native:1:24:4:2:die:50"
+      },
+      {
+        "destination": "native:1:34:0:0:die:68",
+        "source": "native:1:33:0:6:die:60"
+      },
+      {
+        "destination": "native:1:34:0:0:die:68",
+        "source": "native:1:32:0:3:die:58"
+      },
+      {
+        "destination": "native:1:36:1:6:die:72",
+        "source": "native:1:31:1:0:die:56"
+      },
+      {
+        "destination": "native:1:34:2:3:die:69",
+        "source": "native:1:32:1:4:die:59"
+      },
+      {
+        "destination": "native:1:36:2:4:die:71",
+        "source": "native:1:33:3:8:die:61"
+      },
+      {
+        "destination": "native:1:39:0:1:die:77",
+        "source": "native:1:37:2:2:die:73"
+      },
+      {
+        "destination": "native:1:39:0:1:die:77",
+        "source": "native:1:37:4:5:die:74"
+      },
+      {
+        "destination": "native:1:38:4:3:die:75",
+        "source": "native:1:34:4:0:die:70"
+      },
+      {
+        "destination": "native:1:42:3:3:die:81",
+        "source": "native:1:41:0:1:die:79"
+      },
+      {
+        "destination": "native:1:43:0:8:die:88",
+        "source": "native:1:38:4:4:die:76"
+      },
+      {
+        "destination": "native:1:4:3:6:die:2",
+        "source": "native:1:44:3:7:die:90"
+      },
+      {
+        "destination": "native:1:42:4:3:die:80",
+        "source": "native:1:39:2:8:die:78"
+      },
+      {
+        "destination": "native:1:43:3:3:die:87",
+        "source": "native:1:42:4:3:die:80"
+      },
+      {
+        "destination": "native:1:47:3:3:die:93",
+        "source": "native:1:44:4:5:die:89"
+      },
+      {
+        "destination": "native:1:47:3:3:die:93",
+        "source": "native:1:45:4:7:die:92"
+      },
+      {
+        "destination": "native:1:9:1:2:die:16",
+        "source": "native:1:6:0:7:die:6"
+      },
+      {
+        "destination": "native:1:50:2:7:die:96",
+        "source": "native:1:45:1:6:die:91"
+      },
+      {
+        "destination": "native:1:51:2:7:die:102",
+        "source": "native:1:51:2:4:die:103"
+      },
+      {
+        "destination": "native:1:52:4:5:die:105",
+        "source": "native:1:49:3:3:die:94"
+      },
+      {
+        "destination": "native:1:53:3:6:die:106",
+        "source": "native:1:53:3:2:die:107"
+      },
+      {
+        "destination": "native:1:54:3:6:die:108",
+        "source": "native:1:52:3:8:die:104"
+      },
+      {
+        "destination": "native:1:55:3:6:die:109",
+        "source": "native:1:50:1:2:die:95"
+      }
+    ],
+    "traceMatched": true,
+    "validationErrors": 0
+  },
+  {
+    "actions": 83,
+    "base": 37597,
+    "board": 2,
+    "cap": 99,
+    "capOvershoots": 0,
+    "comboBonus": 85150,
+    "drops": 8,
+    "efficiency": 406,
+    "final": 123153,
+    "movesLeft": 0,
+    "outcome": "complete",
+    "peakCombo": 83,
+    "policy": "continuous-v2",
+    "reason": "final_regular_merge6",
+    "seed": 39,
+    "trace": [
+      {
+        "destination": "g1-32",
+        "source": "g1-16"
+      },
+      {
+        "destination": "g1-32",
+        "source": "g1-0"
+      },
+      {
+        "destination": "native:1:2:3:0:die:2",
+        "source": "g1-34"
+      },
+      {
+        "destination": "native:1:2:3:0:die:2",
+        "source": "g1-10"
+      },
+      {
+        "destination": "g1-12",
+        "source": "g1-1"
+      },
+      {
+        "destination": "g1-19",
+        "source": "g1-14"
+      },
+      {
+        "destination": "native:1:6:0:6:die:9",
+        "source": "g1-18"
+      },
+      {
+        "destination": "native:1:6:1:5:die:8",
+        "source": "g1-36"
+      },
+      {
+        "destination": "native:1:7:2:0:die:23",
+        "source": "g1-4"
+      },
+      {
+        "destination": "native:1:7:4:3:die:22",
+        "source": "g1-40"
+      },
+      {
+        "destination": "native:1:4:4:7:die:4",
+        "source": "native:1:4:2:5:die:3"
+      },
+      {
+        "destination": "native:1:5:2:8:die:5",
+        "source": "native:1:4:4:7:die:4"
+      },
+      {
+        "destination": "native:1:12:3:2:die:24",
+        "source": "native:1:12:0:3:die:25"
+      },
+      {
+        "destination": "native:1:6:1:5:die:8",
+        "source": "native:1:13:3:7:die:26"
+      },
+      {
+        "destination": "native:1:14:2:7:die:34",
+        "source": "g1-6"
+      },
+      {
+        "destination": "native:1:14:1:5:die:32",
+        "source": "native:1:12:3:2:die:24"
+      },
+      {
+        "destination": "native:1:14:3:0:die:33",
+        "source": "native:1:14:1:5:die:32"
+      },
+      {
+        "destination": "native:1:6:0:7:die:7",
+        "source": "native:1:17:1:7:die:35"
+      },
+      {
+        "destination": "native:1:17:0:1:die:37",
+        "source": "native:1:14:2:7:die:34"
+      },
+      {
+        "destination": "native:1:6:0:7:die:7",
+        "source": "native:1:17:2:6:die:36"
+      },
+      {
+        "destination": "native:1:7:2:0:die:23",
+        "source": "native:1:19:4:5:die:39"
+      },
+      {
+        "destination": "native:1:21:4:1:die:42",
+        "source": "native:1:19:2:2:die:38"
+      },
+      {
+        "destination": "native:1:21:4:1:die:42",
+        "source": "native:1:20:1:0:die:41"
+      },
+      {
+        "destination": "native:1:7:4:3:die:22",
+        "source": "native:1:23:2:8:die:46"
+      },
+      {
+        "destination": "native:1:21:2:1:die:43",
+        "source": "native:1:20:1:3:die:40"
+      },
+      {
+        "destination": "native:1:7:3:6:die:20",
+        "source": "native:1:24:4:0:die:59"
+      },
+      {
+        "destination": "native:1:2:3:5:die:1",
+        "source": "native:1:23:2:4:die:45"
+      },
+      {
+        "destination": "native:1:23:3:3:die:44",
+        "source": "native:1:21:2:1:die:43"
+      },
+      {
+        "destination": "native:1:5:3:8:die:6",
+        "source": "native:1:28:2:3:die:61"
+      },
+      {
+        "destination": "native:1:2:3:5:die:1",
+        "source": "native:1:24:0:2:die:57"
+      },
+      {
+        "destination": "native:1:5:3:8:die:6",
+        "source": "native:1:24:4:3:die:56"
+      },
+      {
+        "destination": "native:1:7:3:6:die:20",
+        "source": "native:1:24:4:4:die:58"
+      },
+      {
+        "destination": "native:1:32:3:1:die:67",
+        "source": "native:1:24:4:7:die:60"
+      },
+      {
+        "destination": "native:1:33:1:3:die:69",
+        "source": "native:1:32:3:1:die:67"
+      },
+      {
+        "destination": "native:1:32:1:0:die:68",
+        "source": "native:1:31:4:8:die:66"
+      },
+      {
+        "destination": "native:1:32:1:0:die:68",
+        "source": "native:1:30:3:7:die:64"
+      },
+      {
+        "destination": "native:1:32:1:0:die:68",
+        "source": "native:1:31:1:2:die:65"
+      },
+      {
+        "destination": "native:1:37:1:8:die:84",
+        "source": "native:1:34:1:4:die:81"
+      },
+      {
+        "destination": "native:1:34:1:5:die:83",
+        "source": "native:1:34:1:3:die:79"
+      },
+      {
+        "destination": "native:1:34:4:2:die:82",
+        "source": "native:1:34:1:6:die:80"
+      },
+      {
+        "destination": "native:1:37:2:5:die:85",
+        "source": "native:1:34:4:2:die:82"
+      },
+      {
+        "destination": "native:1:37:4:0:die:86",
+        "source": "native:1:37:2:5:die:85"
+      },
+      {
+        "destination": "native:1:42:0:7:die:88",
+        "source": "native:1:42:0:1:die:89"
+      },
+      {
+        "destination": "native:1:42:0:7:die:88",
+        "source": "native:1:34:1:5:die:83"
+      },
+      {
+        "destination": "native:1:42:4:5:die:87",
+        "source": "native:1:37:1:8:die:84"
+      },
+      {
+        "destination": "native:1:45:4:0:die:95",
+        "source": "native:1:44:0:0:die:92"
+      },
+      {
+        "destination": "native:1:7:0:5:die:21",
+        "source": "native:1:46:0:1:die:109"
+      },
+      {
+        "destination": "native:1:7:0:6:die:19",
+        "source": "native:1:46:0:7:die:106"
+      },
+      {
+        "destination": "native:1:7:0:6:die:19",
+        "source": "native:1:7:0:5:die:21"
+      },
+      {
+        "destination": "native:1:49:1:0:die:112",
+        "source": "native:1:46:4:0:die:105"
+      },
+      {
+        "destination": "native:1:49:1:0:die:112",
+        "source": "native:1:44:2:6:die:90"
+      },
+      {
+        "destination": "native:1:46:4:1:die:108",
+        "source": "native:1:44:2:7:die:91"
+      },
+      {
+        "destination": "native:1:45:3:5:die:93",
+        "source": "native:1:45:2:0:die:94"
+      },
+      {
+        "destination": "native:1:49:3:6:die:110",
+        "source": "native:1:46:4:5:die:107"
+      },
+      {
+        "destination": "native:1:54:2:7:die:121",
+        "source": "native:1:28:0:8:die:62"
+      },
+      {
+        "destination": "native:1:54:1:8:die:119",
+        "source": "native:1:49:0:3:die:111"
+      },
+      {
+        "destination": "native:1:55:2:6:die:132",
+        "source": "native:1:51:0:4:die:114"
+      },
+      {
+        "destination": "native:1:55:2:7:die:131",
+        "source": "native:1:55:0:6:die:134"
+      },
+      {
+        "destination": "native:1:55:2:6:die:132",
+        "source": "native:1:54:1:8:die:119"
+      },
+      {
+        "destination": "native:1:55:2:7:die:131",
+        "source": "native:1:51:2:2:die:113"
+      },
+      {
+        "destination": "native:1:60:4:8:die:138",
+        "source": "native:1:59:1:3:die:135"
+      },
+      {
+        "destination": "native:1:60:4:8:die:138",
+        "source": "native:1:52:2:1:die:115"
+      },
+      {
+        "destination": "native:1:53:1:4:die:118",
+        "source": "native:1:52:3:1:die:116"
+      },
+      {
+        "destination": "native:1:54:0:2:die:120",
+        "source": "native:1:53:4:6:die:117"
+      },
+      {
+        "destination": "native:1:64:0:4:die:143",
+        "source": "native:1:30:3:4:die:63"
+      },
+      {
+        "destination": "native:1:65:0:8:die:155",
+        "source": "native:1:59:4:1:die:137"
+      },
+      {
+        "destination": "native:1:65:3:8:die:154",
+        "source": "native:1:60:2:8:die:139"
+      },
+      {
+        "destination": "native:1:65:3:8:die:154",
+        "source": "native:1:65:0:8:die:155"
+      },
+      {
+        "destination": "native:1:68:1:0:die:159",
+        "source": "native:1:62:1:2:die:140"
+      },
+      {
+        "destination": "native:1:68:3:0:die:157",
+        "source": "native:1:65:0:5:die:156"
+      },
+      {
+        "destination": "native:1:68:3:0:die:157",
+        "source": "native:1:68:1:0:die:159"
+      },
+      {
+        "destination": "native:1:59:3:2:die:136",
+        "source": "native:1:55:2:3:die:133"
+      },
+      {
+        "destination": "native:1:72:3:2:die:163",
+        "source": "native:1:68:4:3:die:158"
+      },
+      {
+        "destination": "native:1:72:3:2:die:163",
+        "source": "native:1:63:1:4:die:141"
+      },
+      {
+        "destination": "native:1:74:2:2:die:165",
+        "source": "native:1:64:0:2:die:142"
+      },
+      {
+        "destination": "native:1:71:0:1:die:162",
+        "source": "native:1:65:0:4:die:153"
+      },
+      {
+        "destination": "native:1:71:4:7:die:161",
+        "source": "native:1:71:0:7:die:160"
+      },
+      {
+        "destination": "native:1:77:4:4:die:176",
+        "source": "native:1:77:4:0:die:175"
+      },
+      {
+        "destination": "native:1:77:4:4:die:176",
+        "source": "native:1:74:3:2:die:164"
+      },
+      {
+        "destination": "native:1:79:4:4:die:177",
+        "source": "native:1:75:2:2:die:171"
+      },
+      {
+        "destination": "native:1:79:4:4:die:177",
+        "source": "native:1:75:2:7:die:172"
+      },
+      {
+        "destination": "native:1:79:4:4:die:177",
+        "source": "native:1:76:1:1:die:173"
+      },
+      {
+        "destination": "native:1:79:4:4:die:177",
+        "source": "native:1:76:4:5:die:174"
+      }
+    ],
+    "traceMatched": true,
+    "validationErrors": 0
+  },
+  {
+    "actions": 97,
+    "base": 54262,
+    "board": 3,
+    "cap": 99,
+    "capOvershoots": 0,
+    "comboBonus": 116475,
+    "drops": 11,
+    "efficiency": 438,
+    "final": 171175,
+    "movesLeft": 0,
+    "outcome": "complete",
+    "peakCombo": 97,
+    "policy": "continuous-v0",
+    "reason": "final_regular_merge6",
+    "seed": 129,
+    "trace": [
+      {
+        "destination": "g1-21",
+        "source": "g1-16"
+      },
+      {
+        "destination": "g1-3",
+        "source": "g1-2"
+      },
+      {
+        "destination": "g1-39",
+        "source": "g1-29"
+      },
+      {
+        "destination": "g1-21",
+        "source": "g1-18"
+      },
+      {
+        "destination": "g1-3",
+        "source": "g1-19"
+      },
+      {
+        "destination": "native:1:5:1:0:die:3",
+        "source": "g1-26"
+      },
+      {
+        "destination": "g1-39",
+        "source": "g1-36"
+      },
+      {
+        "destination": "native:1:7:0:8:die:6",
+        "source": "g1-9"
+      },
+      {
+        "destination": "native:1:5:1:0:die:3",
+        "source": "g1-41"
+      },
+      {
+        "destination": "native:1:7:0:8:die:6",
+        "source": "g1-42"
+      },
+      {
+        "destination": "native:1:10:4:4:die:11",
+        "source": "g1-8"
+      },
+      {
+        "destination": "native:1:10:4:4:die:11",
+        "source": "native:1:10:2:7:die:10"
+      },
+      {
+        "destination": "native:1:4:0:7:die:2",
+        "source": "native:1:12:3:5:die:13"
+      },
+      {
+        "destination": "native:1:4:0:7:die:2",
+        "source": "native:1:12:1:6:die:12"
+      },
+      {
+        "destination": "native:1:7:2:2:die:5",
+        "source": "native:1:5:2:4:die:4"
+      },
+      {
+        "destination": "native:1:9:0:1:die:8",
+        "source": "native:1:7:2:2:die:5"
+      },
+      {
+        "destination": "native:1:16:3:4:die:18",
+        "source": "native:1:16:2:1:die:17"
+      },
+      {
+        "destination": "native:1:17:2:5:die:19",
+        "source": "native:1:17:0:0:die:20"
+      },
+      {
+        "destination": "native:1:17:2:5:die:19",
+        "source": "native:1:14:1:2:die:16"
+      },
+      {
+        "destination": "native:1:9:0:6:die:9",
+        "source": "native:1:19:0:2:die:21"
+      },
+      {
+        "destination": "native:1:9:0:6:die:9",
+        "source": "native:1:14:2:3:die:15"
+      },
+      {
+        "destination": "native:1:21:4:2:die:24",
+        "source": "native:1:19:4:6:die:22"
+      },
+      {
+        "destination": "native:1:21:4:2:die:24",
+        "source": "native:1:13:4:1:die:14"
+      },
+      {
+        "destination": "native:1:23:4:3:die:37",
+        "source": "native:1:23:2:7:die:39"
+      },
+      {
+        "destination": "native:1:4:3:8:die:1",
+        "source": "native:1:23:4:0:die:38"
+      },
+      {
+        "destination": "native:1:25:1:7:die:44",
+        "source": "native:1:23:4:2:die:40"
+      },
+      {
+        "destination": "native:1:25:1:7:die:44",
+        "source": "native:1:24:3:3:die:42"
+      },
+      {
+        "destination": "native:1:27:4:8:die:46",
+        "source": "native:1:27:3:7:die:47"
+      },
+      {
+        "destination": "native:1:25:4:7:die:45",
+        "source": "native:1:24:4:1:die:43"
+      },
+      {
+        "destination": "native:1:25:4:7:die:45",
+        "source": "native:1:23:1:3:die:41"
+      },
+      {
+        "destination": "native:1:30:3:0:die:62",
+        "source": "native:1:28:3:1:die:49"
+      },
+      {
+        "destination": "native:1:30:3:0:die:62",
+        "source": "native:1:28:3:2:die:48"
+      },
+      {
+        "destination": "native:1:32:2:1:die:66",
+        "source": "native:1:30:3:6:die:60"
+      },
+      {
+        "destination": "native:1:32:2:1:die:66",
+        "source": "native:1:30:1:3:die:61"
+      },
+      {
+        "destination": "native:1:32:3:3:die:65",
+        "source": "native:1:30:3:8:die:63"
+      },
+      {
+        "destination": "native:1:35:1:0:die:70",
+        "source": "native:1:34:2:3:die:67"
+      },
+      {
+        "destination": "native:1:36:4:0:die:72",
+        "source": "native:1:36:0:3:die:71"
+      },
+      {
+        "destination": "native:1:36:4:0:die:72",
+        "source": "native:1:30:4:7:die:59"
+      },
+      {
+        "destination": "native:1:35:2:8:die:69",
+        "source": "native:1:34:0:4:die:68"
+      },
+      {
+        "destination": "native:1:35:2:8:die:69",
+        "source": "native:1:31:0:8:die:64"
+      },
+      {
+        "destination": "native:1:40:2:6:die:87",
+        "source": "native:1:40:0:5:die:89"
+      },
+      {
+        "destination": "native:1:41:0:3:die:92",
+        "source": "native:1:40:1:1:die:88"
+      },
+      {
+        "destination": "native:1:40:2:8:die:84",
+        "source": "native:1:40:1:8:die:90"
+      },
+      {
+        "destination": "native:1:43:2:2:die:97",
+        "source": "native:1:42:0:0:die:94"
+      },
+      {
+        "destination": "native:1:43:2:2:die:97",
+        "source": "native:1:41:3:7:die:93"
+      },
+      {
+        "destination": "native:1:45:4:7:die:99",
+        "source": "native:1:45:3:0:die:98"
+      },
+      {
+        "destination": "native:1:46:2:5:die:101",
+        "source": "native:1:43:1:3:die:96"
+      },
+      {
+        "destination": "native:1:46:2:5:die:101",
+        "source": "native:1:40:0:8:die:91"
+      },
+      {
+        "destination": "native:1:48:4:7:die:115",
+        "source": "native:1:48:0:2:die:112"
+      },
+      {
+        "destination": "native:1:49:4:1:die:127",
+        "source": "native:1:48:0:4:die:113"
+      },
+      {
+        "destination": "native:1:50:0:1:die:130",
+        "source": "native:1:49:4:7:die:125"
+      },
+      {
+        "destination": "native:1:50:0:1:die:130",
+        "source": "native:1:48:2:5:die:114"
+      },
+      {
+        "destination": "native:1:49:1:7:die:128",
+        "source": "native:1:49:0:8:die:129"
+      },
+      {
+        "destination": "native:1:53:0:6:die:134",
+        "source": "native:1:49:3:3:die:126"
+      },
+      {
+        "destination": "native:1:52:2:7:die:133",
+        "source": "native:1:52:2:4:die:132"
+      },
+      {
+        "destination": "native:1:52:2:7:die:133",
+        "source": "native:1:50:3:5:die:131"
+      },
+      {
+        "destination": "native:1:56:0:0:die:139",
+        "source": "native:1:53:3:1:die:135"
+      },
+      {
+        "destination": "native:1:56:0:0:die:139",
+        "source": "native:1:54:1:3:die:137"
+      },
+      {
+        "destination": "native:1:56:2:0:die:140",
+        "source": "native:1:56:0:0:die:139"
+      },
+      {
+        "destination": "native:1:59:2:0:die:157",
+        "source": "native:1:59:1:6:die:155"
+      },
+      {
+        "destination": "native:1:59:3:6:die:154",
+        "source": "native:1:59:2:3:die:156"
+      },
+      {
+        "destination": "native:1:59:4:8:die:153",
+        "source": "native:1:59:3:4:die:152"
+      },
+      {
+        "destination": "native:1:60:1:8:die:158",
+        "source": "native:1:59:4:8:die:153"
+      },
+      {
+        "destination": "native:1:7:4:5:die:7",
+        "source": "native:1:60:1:8:die:158"
+      },
+      {
+        "destination": "native:1:64:3:0:die:173",
+        "source": "native:1:64:0:1:die:175"
+      },
+      {
+        "destination": "native:1:64:4:4:die:178",
+        "source": "native:1:64:4:0:die:176"
+      },
+      {
+        "destination": "native:1:64:4:4:die:178",
+        "source": "native:1:61:2:8:die:160"
+      },
+      {
+        "destination": "native:1:67:0:4:die:183",
+        "source": "native:1:65:4:6:die:179"
+      },
+      {
+        "destination": "native:1:67:0:4:die:183",
+        "source": "native:1:64:3:3:die:172"
+      },
+      {
+        "destination": "native:1:69:4:3:die:184",
+        "source": "native:1:69:0:5:die:185"
+      },
+      {
+        "destination": "native:1:69:4:3:die:184",
+        "source": "native:1:65:2:2:die:181"
+      },
+      {
+        "destination": "native:1:71:1:2:die:197",
+        "source": "native:1:71:0:2:die:198"
+      },
+      {
+        "destination": "native:1:71:1:8:die:196",
+        "source": "native:1:71:1:0:die:200"
+      },
+      {
+        "destination": "native:1:72:4:1:die:202",
+        "source": "native:1:72:3:2:die:203"
+      },
+      {
+        "destination": "native:1:74:1:4:die:208",
+        "source": "native:1:71:4:5:die:199"
+      },
+      {
+        "destination": "native:1:74:1:4:die:208",
+        "source": "native:1:71:4:3:die:201"
+      },
+      {
+        "destination": "native:1:76:0:0:die:209",
+        "source": "native:1:73:0:8:die:204"
+      },
+      {
+        "destination": "native:1:76:0:0:die:209",
+        "source": "native:1:73:1:1:die:206"
+      },
+      {
+        "destination": "native:1:78:1:6:die:225",
+        "source": "native:1:73:2:8:die:205"
+      },
+      {
+        "destination": "native:1:79:0:1:die:227",
+        "source": "native:1:78:0:7:die:226"
+      },
+      {
+        "destination": "native:1:80:3:1:die:229",
+        "source": "native:1:78:0:0:die:224"
+      },
+      {
+        "destination": "native:1:80:3:1:die:229",
+        "source": "native:1:74:2:3:die:207"
+      },
+      {
+        "destination": "native:1:80:3:1:die:229",
+        "source": "native:1:80:1:1:die:231"
+      },
+      {
+        "destination": "native:1:83:3:1:die:237",
+        "source": "native:1:83:2:4:die:239"
+      },
+      {
+        "destination": "native:1:84:3:2:die:241",
+        "source": "native:1:83:1:4:die:238"
+      },
+      {
+        "destination": "native:1:84:3:2:die:241",
+        "source": "native:1:78:4:1:die:223"
+      },
+      {
+        "destination": "native:1:84:3:2:die:241",
+        "source": "native:1:79:1:5:die:228"
+      },
+      {
+        "destination": "native:1:87:3:4:die:242",
+        "source": "native:1:80:1:8:die:230"
+      },
+      {
+        "destination": "native:1:88:4:4:die:245",
+        "source": "native:1:88:2:0:die:246"
+      },
+      {
+        "destination": "native:1:88:4:4:die:245",
+        "source": "native:1:84:0:6:die:240"
+      },
+      {
+        "destination": "native:1:90:3:5:die:247",
+        "source": "native:1:90:3:3:die:248"
+      },
+      {
+        "destination": "native:1:91:3:0:die:250",
+        "source": "native:1:87:2:2:die:244"
+      },
+      {
+        "destination": "native:1:92:3:0:die:263",
+        "source": "native:1:92:0:3:die:261"
+      },
+      {
+        "destination": "native:1:93:3:6:die:265",
+        "source": "native:1:92:2:8:die:262"
+      },
+      {
+        "destination": "native:1:94:1:2:die:267",
+        "source": "native:1:93:3:7:die:264"
+      },
+      {
+        "destination": "native:1:95:4:7:die:269",
+        "source": "native:1:95:1:3:die:268"
+      },
+      {
+        "destination": "native:1:95:4:7:die:269",
+        "source": "native:1:94:3:3:die:266"
+      }
+    ],
+    "traceMatched": true,
+    "validationErrors": 0
+  },
+  {
+    "actions": 70,
+    "base": 34348,
+    "board": 4,
+    "cap": 99,
+    "capOvershoots": 0,
+    "comboBonus": 67600,
+    "drops": 9,
+    "efficiency": 433,
+    "final": 102381,
+    "movesLeft": 0,
+    "outcome": "complete",
+    "peakCombo": 74,
+    "policy": "continuous-v2",
+    "reason": "final_wild_merge6",
+    "seed": 10,
+    "trace": [
+      {
+        "destination": "g1-25",
+        "source": "g1-1"
+      },
+      {
+        "destination": "g1-37",
+        "source": "g1-12"
+      },
+      {
+        "destination": "g1-37",
+        "source": "g1-25"
+      },
+      {
+        "destination": "g1-24",
+        "source": "g1-15"
+      },
+      {
+        "destination": "g1-38",
+        "source": "g1-26"
+      },
+      {
+        "destination": "g1-34",
+        "source": "g1-27"
+      },
+      {
+        "destination": "native:1:6:4:4:die:10",
+        "source": "native:1:3:3:3:die:2"
+      },
+      {
+        "destination": "native:1:7:0:0:die:14",
+        "source": "g1-42"
+      },
+      {
+        "destination": "native:1:7:1:0:die:13",
+        "source": "g1-8"
+      },
+      {
+        "destination": "native:1:4:1:3:die:4",
+        "source": "g1-31"
+      },
+      {
+        "destination": "native:1:4:1:3:die:4",
+        "source": "g1-39"
+      },
+      {
+        "destination": "native:1:7:0:0:die:14",
+        "source": "native:1:4:1:2:die:5"
+      },
+      {
+        "destination": "native:1:7:1:0:die:13",
+        "source": "native:1:12:2:3:die:21"
+      },
+      {
+        "destination": "native:1:13:1:0:die:31",
+        "source": "native:1:11:4:1:die:18"
+      },
+      {
+        "destination": "native:1:13:1:8:die:35",
+        "source": "native:1:12:0:8:die:19"
+      },
+      {
+        "destination": "native:1:13:1:0:die:31",
+        "source": "native:1:13:0:6:die:34"
+      },
+      {
+        "destination": "native:1:16:4:2:die:38",
+        "source": "native:1:13:3:2:die:33"
+      },
+      {
+        "destination": "native:1:7:2:0:die:12",
+        "source": "native:1:13:1:8:die:35"
+      },
+      {
+        "destination": "native:1:18:0:7:die:40",
+        "source": "native:1:18:0:4:die:41"
+      },
+      {
+        "destination": "native:1:18:0:7:die:40",
+        "source": "native:1:16:4:2:die:38"
+      },
+      {
+        "destination": "native:1:20:4:7:die:44",
+        "source": "native:1:20:1:1:die:43"
+      },
+      {
+        "destination": "native:1:20:4:7:die:44",
+        "source": "native:1:13:4:5:die:36"
+      },
+      {
+        "destination": "native:1:22:2:2:die:47",
+        "source": "native:1:13:4:4:die:37"
+      },
+      {
+        "destination": "native:1:23:3:8:die:61",
+        "source": "native:1:23:0:2:die:59"
+      },
+      {
+        "destination": "native:1:7:3:5:die:11",
+        "source": "native:1:23:2:2:die:57"
+      },
+      {
+        "destination": "native:1:7:3:5:die:11",
+        "source": "native:1:23:3:8:die:61"
+      },
+      {
+        "destination": "native:1:26:2:1:die:64",
+        "source": "native:1:26:1:7:die:65"
+      },
+      {
+        "destination": "native:1:26:2:1:die:64",
+        "source": "native:1:13:4:8:die:32"
+      },
+      {
+        "destination": "native:1:23:2:5:die:62",
+        "source": "native:1:22:1:2:die:45"
+      },
+      {
+        "destination": "native:1:26:3:2:die:63",
+        "source": "native:1:23:3:3:die:60"
+      },
+      {
+        "destination": "native:1:30:3:5:die:72",
+        "source": "native:1:23:2:7:die:58"
+      },
+      {
+        "destination": "native:1:31:4:6:die:85",
+        "source": "native:1:29:1:4:die:68"
+      },
+      {
+        "destination": "native:1:31:0:0:die:84",
+        "source": "native:1:29:1:6:die:69"
+      },
+      {
+        "destination": "native:1:31:3:5:die:82",
+        "source": "native:1:31:3:2:die:83"
+      },
+      {
+        "destination": "native:1:33:0:2:die:91",
+        "source": "native:1:31:3:6:die:86"
+      },
+      {
+        "destination": "native:1:33:4:2:die:90",
+        "source": "native:1:32:4:8:die:88"
+      },
+      {
+        "destination": "native:1:36:2:7:die:97",
+        "source": "native:1:34:1:8:die:92"
+      },
+      {
+        "destination": "native:1:37:0:2:die:98",
+        "source": "native:1:36:2:7:die:97"
+      },
+      {
+        "destination": "native:1:38:0:2:die:111",
+        "source": "native:1:31:1:0:die:87"
+      },
+      {
+        "destination": "native:1:39:4:1:die:116",
+        "source": "native:1:38:4:2:die:109"
+      },
+      {
+        "destination": "native:1:39:4:1:die:116",
+        "source": "native:1:34:0:3:die:93"
+      },
+      {
+        "destination": "native:1:38:2:5:die:114",
+        "source": "native:1:35:4:4:die:94"
+      },
+      {
+        "destination": "native:1:42:2:0:die:119",
+        "source": "native:1:41:3:0:die:117"
+      },
+      {
+        "destination": "native:1:42:2:0:die:119",
+        "source": "native:1:38:0:4:die:113"
+      },
+      {
+        "destination": "native:1:44:1:7:die:121",
+        "source": "native:1:36:2:6:die:96"
+      },
+      {
+        "destination": "native:1:45:2:6:die:125",
+        "source": "native:1:38:2:4:die:112"
+      },
+      {
+        "destination": "native:1:46:2:6:die:131",
+        "source": "native:1:39:0:5:die:115"
+      },
+      {
+        "destination": "native:1:42:3:7:die:120",
+        "source": "native:1:41:1:5:die:118"
+      },
+      {
+        "destination": "native:1:44:2:2:die:122",
+        "source": "native:1:42:3:7:die:120"
+      },
+      {
+        "destination": "native:1:45:4:0:die:123",
+        "source": "native:1:45:0:0:die:124"
+      },
+      {
+        "destination": "native:1:47:3:1:die:134",
+        "source": "native:1:46:3:3:die:132"
+      },
+      {
+        "destination": "native:1:50:3:5:die:139",
+        "source": "native:1:46:4:7:die:133"
+      },
+      {
+        "destination": "native:1:51:1:8:die:141",
+        "source": "native:1:47:1:1:die:135"
+      },
+      {
+        "destination": "native:1:51:1:8:die:141",
+        "source": "native:1:49:3:0:die:137"
+      },
+      {
+        "destination": "native:1:54:0:7:die:145",
+        "source": "native:1:49:3:4:die:136"
+      },
+      {
+        "destination": "native:1:55:0:1:die:159",
+        "source": "native:1:54:0:3:die:144"
+      },
+      {
+        "destination": "native:1:56:3:1:die:161",
+        "source": "native:1:51:4:3:die:140"
+      },
+      {
+        "destination": "native:1:56:1:0:die:160",
+        "source": "native:1:55:2:3:die:158"
+      },
+      {
+        "destination": "native:1:56:1:0:die:160",
+        "source": "native:1:55:0:7:die:156"
+      },
+      {
+        "destination": "native:1:57:1:1:die:163",
+        "source": "native:1:55:0:8:die:157"
+      },
+      {
+        "destination": "native:1:59:4:4:die:164",
+        "source": "native:1:57:1:6:die:162"
+      },
+      {
+        "destination": "native:1:61:0:7:die:169",
+        "source": "native:1:59:4:8:die:165"
+      },
+      {
+        "destination": "native:1:61:1:8:die:168",
+        "source": "native:1:60:3:4:die:167"
+      },
+      {
+        "destination": "native:1:61:1:8:die:168",
+        "source": "native:1:60:2:6:die:166"
+      },
+      {
+        "destination": "native:1:64:0:1:die:181",
+        "source": "native:1:62:0:7:die:177"
+      },
+      {
+        "destination": "native:1:62:4:2:die:178",
+        "source": "native:1:62:3:8:die:179"
+      },
+      {
+        "destination": "native:1:65:1:5:die:182",
+        "source": "native:1:65:0:3:die:183"
+      },
+      {
+        "destination": "native:1:67:1:5:die:185",
+        "source": "native:1:64:4:5:die:180"
+      },
+      {
+        "destination": "native:1:68:1:5:die:186",
+        "source": "native:1:66:1:6:die:184"
+      },
+      {
+        "destination": "native:1:69:4:5:die:187",
+        "source": "native:1:68:1:5:die:186"
+      }
+    ],
+    "traceMatched": true,
+    "validationErrors": 0
+  },
+  {
+    "actions": 84,
+    "base": 45049,
+    "board": 5,
+    "cap": 99,
+    "capOvershoots": 0,
+    "comboBonus": 93600,
+    "drops": 11,
+    "efficiency": 511,
+    "final": 139160,
+    "movesLeft": 0,
+    "outcome": "complete",
+    "peakCombo": 87,
+    "policy": "continuous-v0",
+    "reason": "final_wild_merge6",
+    "seed": 83,
+    "trace": [
+      {
+        "destination": "g1-14",
+        "source": "g1-11"
+      },
+      {
+        "destination": "g1-5",
+        "source": "g1-21"
+      },
+      {
+        "destination": "g1-5",
+        "source": "g1-14"
+      },
+      {
+        "destination": "native:1:3:0:7:die:2",
+        "source": "g1-9"
+      },
+      {
+        "destination": "native:1:3:0:7:die:2",
+        "source": "g1-1"
+      },
+      {
+        "destination": "g1-29",
+        "source": "g1-18"
+      },
+      {
+        "destination": "native:1:6:0:6:die:7",
+        "source": "native:1:3:1:3:die:1"
+      },
+      {
+        "destination": "native:1:6:0:6:die:7",
+        "source": "g1-37"
+      },
+      {
+        "destination": "native:1:8:1:8:die:10",
+        "source": "g1-20"
+      },
+      {
+        "destination": "native:1:8:3:6:die:9",
+        "source": "g1-23"
+      },
+      {
+        "destination": "native:1:9:1:6:die:12",
+        "source": "native:1:10:1:7:die:13"
+      },
+      {
+        "destination": "native:1:9:1:6:die:12",
+        "source": "g1-43"
+      },
+      {
+        "destination": "native:1:3:4:6:die:3",
+        "source": "g1-24"
+      },
+      {
+        "destination": "native:1:5:2:3:die:4",
+        "source": "native:1:12:0:0:die:16"
+      },
+      {
+        "destination": "native:1:5:2:3:die:4",
+        "source": "native:1:10:0:2:die:14"
+      },
+      {
+        "destination": "native:1:15:2:0:die:20",
+        "source": "native:1:13:0:8:die:18"
+      },
+      {
+        "destination": "native:1:16:3:5:die:22",
+        "source": "native:1:13:4:3:die:19"
+      },
+      {
+        "destination": "native:1:17:0:3:die:24",
+        "source": "native:1:16:4:8:die:23"
+      },
+      {
+        "destination": "native:1:18:2:2:die:27",
+        "source": "g1-8"
+      },
+      {
+        "destination": "native:1:18:0:5:die:26",
+        "source": "native:1:17:1:1:die:25"
+      },
+      {
+        "destination": "native:1:20:4:7:die:30",
+        "source": "native:1:12:2:4:die:15"
+      },
+      {
+        "destination": "native:1:20:1:5:die:31",
+        "source": "native:1:19:2:1:die:28"
+      },
+      {
+        "destination": "native:1:22:1:5:die:34",
+        "source": "native:1:15:3:7:die:21"
+      },
+      {
+        "destination": "native:1:9:2:5:die:11",
+        "source": "native:1:19:4:0:die:29"
+      },
+      {
+        "destination": "native:1:6:2:6:die:6",
+        "source": "native:1:21:4:7:die:33"
+      },
+      {
+        "destination": "native:1:5:3:2:die:5",
+        "source": "native:1:23:1:5:die:35"
+      },
+      {
+        "destination": "native:1:26:3:2:die:38",
+        "source": "native:1:25:2:6:die:37"
+      },
+      {
+        "destination": "native:1:27:3:2:die:39",
+        "source": "native:1:12:3:0:die:17"
+      },
+      {
+        "destination": "native:1:28:4:6:die:52",
+        "source": "native:1:24:2:5:die:36"
+      },
+      {
+        "destination": "native:1:29:4:4:die:54",
+        "source": "native:1:28:1:1:die:50"
+      },
+      {
+        "destination": "native:1:30:3:3:die:57",
+        "source": "native:1:28:1:8:die:51"
+      },
+      {
+        "destination": "native:1:29:2:6:die:55",
+        "source": "native:1:28:3:2:die:49"
+      },
+      {
+        "destination": "native:1:32:2:6:die:60",
+        "source": "native:1:31:2:0:die:58"
+      },
+      {
+        "destination": "native:1:31:0:5:die:59",
+        "source": "native:1:30:0:1:die:56"
+      },
+      {
+        "destination": "native:1:32:2:6:die:60",
+        "source": "native:1:20:0:4:die:32"
+      },
+      {
+        "destination": "native:1:31:0:5:die:59",
+        "source": "native:1:28:3:8:die:53"
+      },
+      {
+        "destination": "native:1:36:3:6:die:80",
+        "source": "native:1:36:0:5:die:81"
+      },
+      {
+        "destination": "native:1:36:2:6:die:83",
+        "source": "native:1:36:2:5:die:82"
+      },
+      {
+        "destination": "native:1:38:1:4:die:87",
+        "source": "native:1:36:4:8:die:78"
+      },
+      {
+        "destination": "native:1:38:1:7:die:88",
+        "source": "native:1:37:2:0:die:86"
+      },
+      {
+        "destination": "native:1:38:1:7:die:88",
+        "source": "native:1:37:0:4:die:85"
+      },
+      {
+        "destination": "native:1:39:0:7:die:89",
+        "source": "native:1:36:1:5:die:84"
+      },
+      {
+        "destination": "native:1:42:0:6:die:104",
+        "source": "native:1:41:3:7:die:92"
+      },
+      {
+        "destination": "native:1:43:3:8:die:108",
+        "source": "native:1:42:0:7:die:106"
+      },
+      {
+        "destination": "native:1:43:4:2:die:109",
+        "source": "native:1:42:3:1:die:105"
+      },
+      {
+        "destination": "native:1:44:4:7:die:111",
+        "source": "native:1:42:3:2:die:107"
+      },
+      {
+        "destination": "native:1:44:4:7:die:111",
+        "source": "native:1:44:3:4:die:112"
+      },
+      {
+        "destination": "native:1:47:4:5:die:116",
+        "source": "native:1:45:1:8:die:114"
+      },
+      {
+        "destination": "native:1:48:2:1:die:118",
+        "source": "native:1:47:2:4:die:115"
+      },
+      {
+        "destination": "native:1:48:4:3:die:117",
+        "source": "native:1:43:1:1:die:110"
+      },
+      {
+        "destination": "native:1:7:2:8:die:8",
+        "source": "native:1:50:4:0:die:130"
+      },
+      {
+        "destination": "native:1:51:1:8:die:139",
+        "source": "native:1:50:4:3:die:132"
+      },
+      {
+        "destination": "native:1:52:1:6:die:142",
+        "source": "native:1:50:1:4:die:131"
+      },
+      {
+        "destination": "native:1:52:0:2:die:143",
+        "source": "native:1:51:2:8:die:138"
+      },
+      {
+        "destination": "native:1:54:0:3:die:147",
+        "source": "native:1:51:2:0:die:140"
+      },
+      {
+        "destination": "native:1:55:2:5:die:149",
+        "source": "native:1:55:0:5:die:148"
+      },
+      {
+        "destination": "native:1:55:2:5:die:149",
+        "source": "native:1:51:3:3:die:141"
+      },
+      {
+        "destination": "native:1:57:4:4:die:164",
+        "source": "native:1:57:0:4:die:160"
+      },
+      {
+        "destination": "native:1:57:2:5:die:159",
+        "source": "native:1:57:1:3:die:165"
+      },
+      {
+        "destination": "native:1:58:3:4:die:167",
+        "source": "native:1:57:4:2:die:162"
+      },
+      {
+        "destination": "native:1:60:2:7:die:171",
+        "source": "native:1:59:1:5:die:169"
+      },
+      {
+        "destination": "native:1:60:2:7:die:171",
+        "source": "native:1:57:3:2:die:163"
+      },
+      {
+        "destination": "native:1:62:0:0:die:173",
+        "source": "native:1:59:4:7:die:170"
+      },
+      {
+        "destination": "native:1:62:0:0:die:173",
+        "source": "native:1:58:0:8:die:168"
+      },
+      {
+        "destination": "native:1:64:3:1:die:176",
+        "source": "native:1:64:0:8:die:175"
+      },
+      {
+        "destination": "native:1:65:2:0:die:185",
+        "source": "native:1:64:0:0:die:178"
+      },
+      {
+        "destination": "native:1:65:2:0:die:185",
+        "source": "native:1:64:3:2:die:177"
+      },
+      {
+        "destination": "native:1:67:4:6:die:189",
+        "source": "native:1:67:3:4:die:187"
+      },
+      {
+        "destination": "native:1:68:0:8:die:201",
+        "source": "native:1:65:0:2:die:186"
+      },
+      {
+        "destination": "native:1:68:1:8:die:200",
+        "source": "native:1:68:0:8:die:201"
+      },
+      {
+        "destination": "native:1:70:3:0:die:205",
+        "source": "native:1:68:0:0:die:203"
+      },
+      {
+        "destination": "native:1:70:3:0:die:205",
+        "source": "native:1:68:2:0:die:202"
+      },
+      {
+        "destination": "native:1:68:4:6:die:199",
+        "source": "native:1:67:1:4:die:188"
+      },
+      {
+        "destination": "native:1:72:0:7:die:206",
+        "source": "native:1:70:1:6:die:204"
+      },
+      {
+        "destination": "native:1:74:1:5:die:211",
+        "source": "native:1:72:2:4:die:207"
+      },
+      {
+        "destination": "native:1:75:4:7:die:213",
+        "source": "native:1:74:4:0:die:210"
+      },
+      {
+        "destination": "native:1:76:4:7:die:225",
+        "source": "native:1:76:0:3:die:224"
+      },
+      {
+        "destination": "native:1:77:3:4:die:228",
+        "source": "native:1:76:1:3:die:226"
+      },
+      {
+        "destination": "native:1:78:3:3:die:230",
+        "source": "native:1:76:4:3:die:227"
+      },
+      {
+        "destination": "native:1:79:3:1:die:233",
+        "source": "native:1:78:4:1:die:231"
+      },
+      {
+        "destination": "native:1:79:2:5:die:232",
+        "source": "native:1:77:4:8:die:229"
+      },
+      {
+        "destination": "native:1:80:0:2:die:235",
+        "source": "native:1:79:2:5:die:232"
+      },
+      {
+        "destination": "native:1:82:1:0:die:236",
+        "source": "native:1:80:0:8:die:234"
+      },
+      {
+        "destination": "native:1:83:4:5:die:237",
+        "source": "native:1:82:1:0:die:236"
+      }
+    ],
+    "traceMatched": true,
+    "validationErrors": 0
+  },
+  {
+    "actions": 72,
+    "base": 32870,
+    "board": 6,
+    "cap": 99,
+    "capOvershoots": 0,
+    "comboBonus": 71325,
+    "drops": 9,
+    "efficiency": 730,
+    "final": 104925,
+    "movesLeft": 0,
+    "outcome": "complete",
+    "peakCombo": 76,
+    "policy": "continuous-v1",
+    "reason": "final_wild_merge6",
+    "seed": 251,
+    "trace": [
+      {
+        "destination": "g1-16",
+        "source": "g1-11"
+      },
+      {
+        "destination": "g1-43",
+        "source": "g1-19"
+      },
+      {
+        "destination": "g1-16",
+        "source": "g1-0"
+      },
+      {
+        "destination": "native:1:3:0:4:die:1",
+        "source": "g1-2"
+      },
+      {
+        "destination": "g1-43",
+        "source": "g1-1"
+      },
+      {
+        "destination": "native:1:5:1:4:die:3",
+        "source": "native:1:3:0:5:die:2"
+      },
+      {
+        "destination": "native:1:3:0:4:die:1",
+        "source": "g1-17"
+      },
+      {
+        "destination": "native:1:7:3:1:die:7",
+        "source": "native:1:5:1:4:die:3"
+      },
+      {
+        "destination": "native:1:7:1:1:die:6",
+        "source": "native:1:5:1:6:die:4"
+      },
+      {
+        "destination": "native:1:8:3:4:die:12",
+        "source": "native:1:8:3:1:die:11"
+      },
+      {
+        "destination": "native:1:7:1:1:die:6",
+        "source": "g1-18"
+      },
+      {
+        "destination": "native:1:8:3:4:die:12",
+        "source": "g1-33"
+      },
+      {
+        "destination": "g1-5",
+        "source": "g1-4"
+      },
+      {
+        "destination": "native:1:13:3:1:die:19",
+        "source": "g1-7"
+      },
+      {
+        "destination": "native:1:11:2:2:die:14",
+        "source": "g1-41"
+      },
+      {
+        "destination": "native:1:14:0:5:die:24",
+        "source": "native:1:12:2:5:die:15"
+      },
+      {
+        "destination": "native:1:14:0:5:die:24",
+        "source": "native:1:11:2:2:die:14"
+      },
+      {
+        "destination": "native:1:13:0:7:die:17",
+        "source": "native:1:11:4:1:die:13"
+      },
+      {
+        "destination": "native:1:17:3:2:die:25",
+        "source": "native:1:12:2:8:die:16"
+      },
+      {
+        "destination": "native:1:19:1:0:die:31",
+        "source": "native:1:18:2:0:die:28"
+      },
+      {
+        "destination": "native:1:19:1:0:die:31",
+        "source": "native:1:13:4:2:die:18"
+      },
+      {
+        "destination": "native:1:19:0:6:die:30",
+        "source": "native:1:17:1:7:die:26"
+      },
+      {
+        "destination": "native:1:22:3:0:die:36",
+        "source": "native:1:14:3:1:die:23"
+      },
+      {
+        "destination": "native:1:23:4:7:die:50",
+        "source": "native:1:21:3:5:die:33"
+      },
+      {
+        "destination": "native:1:23:4:7:die:50",
+        "source": "native:1:22:1:1:die:35"
+      },
+      {
+        "destination": "native:1:25:0:4:die:52",
+        "source": "native:1:22:4:5:die:34"
+      },
+      {
+        "destination": "native:1:25:0:4:die:52",
+        "source": "native:1:23:2:2:die:47"
+      },
+      {
+        "destination": "native:1:23:2:7:die:49",
+        "source": "native:1:23:1:2:die:51"
+      },
+      {
+        "destination": "native:1:28:2:6:die:57",
+        "source": "native:1:23:3:0:die:46"
+      },
+      {
+        "destination": "native:1:29:2:2:die:60",
+        "source": "native:1:28:0:1:die:56"
+      },
+      {
+        "destination": "native:1:25:2:1:die:53",
+        "source": "native:1:23:4:6:die:48"
+      },
+      {
+        "destination": "native:1:30:1:7:die:73",
+        "source": "native:1:29:3:7:die:59"
+      },
+      {
+        "destination": "native:1:30:1:7:die:73",
+        "source": "native:1:25:2:1:die:53"
+      },
+      {
+        "destination": "native:1:27:0:8:die:54",
+        "source": "native:1:27:0:0:die:55"
+      },
+      {
+        "destination": "native:1:30:4:4:die:71",
+        "source": "native:1:29:1:5:die:58"
+      },
+      {
+        "destination": "native:1:30:4:2:die:74",
+        "source": "native:1:30:2:2:die:70"
+      },
+      {
+        "destination": "native:1:35:1:3:die:81",
+        "source": "native:1:30:4:8:die:72"
+      },
+      {
+        "destination": "native:1:35:2:4:die:80",
+        "source": "native:1:33:0:1:die:77"
+      },
+      {
+        "destination": "native:1:38:4:3:die:88",
+        "source": "native:1:33:0:3:die:75"
+      },
+      {
+        "destination": "native:1:38:3:4:die:87",
+        "source": "native:1:34:2:0:die:78"
+      },
+      {
+        "destination": "native:1:39:0:5:die:101",
+        "source": "native:1:34:3:3:die:79"
+      },
+      {
+        "destination": "native:1:41:4:5:die:106",
+        "source": "native:1:39:4:3:die:98"
+      },
+      {
+        "destination": "native:1:41:4:5:die:106",
+        "source": "native:1:36:4:1:die:83"
+      },
+      {
+        "destination": "native:1:38:0:2:die:86",
+        "source": "native:1:37:0:7:die:84"
+      },
+      {
+        "destination": "native:1:44:4:8:die:109",
+        "source": "native:1:41:1:3:die:105"
+      },
+      {
+        "destination": "native:1:44:4:8:die:109",
+        "source": "native:1:39:1:6:die:102"
+      },
+      {
+        "destination": "native:1:39:3:8:die:100",
+        "source": "native:1:39:3:7:die:99"
+      },
+      {
+        "destination": "native:1:47:1:3:die:112",
+        "source": "native:1:33:3:0:die:76"
+      },
+      {
+        "destination": "native:1:48:2:7:die:123",
+        "source": "native:1:36:3:6:die:82"
+      },
+      {
+        "destination": "native:1:49:3:7:die:128",
+        "source": "native:1:37:3:1:die:85"
+      },
+      {
+        "destination": "native:1:50:4:1:die:129",
+        "source": "native:1:50:0:8:die:130"
+      },
+      {
+        "destination": "native:1:50:4:1:die:129",
+        "source": "native:1:40:1:0:die:103"
+      },
+      {
+        "destination": "native:1:52:4:0:die:132",
+        "source": "native:1:52:2:4:die:131"
+      },
+      {
+        "destination": "native:1:52:4:0:die:132",
+        "source": "native:1:46:4:8:die:110"
+      },
+      {
+        "destination": "native:1:54:0:7:die:135",
+        "source": "native:1:48:3:5:die:124"
+      },
+      {
+        "destination": "native:1:55:2:8:die:137",
+        "source": "native:1:48:3:2:die:125"
+      },
+      {
+        "destination": "native:1:55:2:5:die:139",
+        "source": "native:1:49:3:3:die:127"
+      },
+      {
+        "destination": "native:1:56:4:3:die:147",
+        "source": "native:1:55:0:7:die:140"
+      },
+      {
+        "destination": "native:1:56:3:6:die:148",
+        "source": "native:1:55:3:0:die:138"
+      },
+      {
+        "destination": "native:1:58:1:8:die:152",
+        "source": "native:1:55:3:1:die:136"
+      },
+      {
+        "destination": "native:1:57:2:2:die:150",
+        "source": "native:1:57:0:3:die:149"
+      },
+      {
+        "destination": "native:1:61:2:2:die:155",
+        "source": "native:1:60:1:8:die:154"
+      },
+      {
+        "destination": "native:1:62:3:2:die:157",
+        "source": "native:1:59:2:1:die:153"
+      },
+      {
+        "destination": "native:1:63:2:6:die:170",
+        "source": "native:1:62:2:2:die:156"
+      },
+      {
+        "destination": "native:1:64:4:2:die:172",
+        "source": "native:1:63:1:1:die:168"
+      },
+      {
+        "destination": "native:1:65:1:4:die:173",
+        "source": "native:1:58:4:7:die:151"
+      },
+      {
+        "destination": "native:1:66:1:2:die:175",
+        "source": "native:1:64:1:3:die:171"
+      },
+      {
+        "destination": "native:1:67:1:2:die:177",
+        "source": "native:1:63:4:1:die:169"
+      },
+      {
+        "destination": "native:1:67:1:2:die:177",
+        "source": "native:1:63:3:2:die:167"
+      },
+      {
+        "destination": "native:1:66:3:7:die:176",
+        "source": "native:1:65:4:0:die:174"
+      },
+      {
+        "destination": "native:1:69:1:2:die:178",
+        "source": "native:1:66:3:7:die:176"
+      },
+      {
+        "destination": "native:1:71:1:0:die:179",
+        "source": "native:1:69:1:2:die:178"
+      }
+    ],
+    "traceMatched": true,
+    "validationErrors": 0
+  },
+  {
+    "actions": 88,
+    "base": 53665,
+    "board": 7,
+    "cap": 99,
+    "capOvershoots": 0,
+    "comboBonus": 104725,
+    "drops": 11,
+    "efficiency": 669,
+    "final": 159059,
+    "movesLeft": 0,
+    "outcome": "complete",
+    "peakCombo": 92,
+    "policy": "continuous-v0",
+    "reason": "final_regular_merge6",
+    "seed": 222,
+    "trace": [
+      {
+        "destination": "g1-31",
+        "source": "g1-17"
+      },
+      {
+        "destination": "g1-42",
+        "source": "g1-35"
+      },
+      {
+        "destination": "g1-10",
+        "source": "g1-1"
+      },
+      {
+        "destination": "g1-18",
+        "source": "g1-10"
+      },
+      {
+        "destination": "native:1:4:2:2:die:1",
+        "source": "g1-8"
+      },
+      {
+        "destination": "g1-31",
+        "source": "g1-2"
+      },
+      {
+        "destination": "g1-42",
+        "source": "g1-3"
+      },
+      {
+        "destination": "native:1:7:0:3:die:6",
+        "source": "native:1:6:0:6:die:3"
+      },
+      {
+        "destination": "native:1:4:2:2:die:1",
+        "source": "g1-38"
+      },
+      {
+        "destination": "native:1:7:0:3:die:6",
+        "source": "g1-9"
+      },
+      {
+        "destination": "native:1:10:3:4:die:11",
+        "source": "g1-22"
+      },
+      {
+        "destination": "native:1:4:2:7:die:2",
+        "source": "g1-41"
+      },
+      {
+        "destination": "native:1:9:2:1:die:8",
+        "source": "native:1:11:0:5:die:13"
+      },
+      {
+        "destination": "native:1:6:4:7:die:4",
+        "source": "native:1:11:3:5:die:12"
+      },
+      {
+        "destination": "native:1:14:4:4:die:20",
+        "source": "native:1:10:3:8:die:10"
+      },
+      {
+        "destination": "native:1:9:1:5:die:9",
+        "source": "native:1:12:2:5:die:15"
+      },
+      {
+        "destination": "native:1:16:4:2:die:24",
+        "source": "native:1:14:4:0:die:19"
+      },
+      {
+        "destination": "native:1:12:3:6:die:14",
+        "source": "native:1:12:2:8:die:16"
+      },
+      {
+        "destination": "native:1:18:3:6:die:38",
+        "source": "native:1:13:1:2:die:17"
+      },
+      {
+        "destination": "native:1:19:2:6:die:43",
+        "source": "native:1:15:0:8:die:21"
+      },
+      {
+        "destination": "native:1:20:1:1:die:46",
+        "source": "native:1:13:3:2:die:18"
+      },
+      {
+        "destination": "native:1:18:1:4:die:39",
+        "source": "native:1:17:4:3:die:26"
+      },
+      {
+        "destination": "native:1:18:4:6:die:37",
+        "source": "native:1:18:1:7:die:41"
+      },
+      {
+        "destination": "native:1:20:2:4:die:45",
+        "source": "native:1:19:0:1:die:42"
+      },
+      {
+        "destination": "native:1:24:0:4:die:53",
+        "source": "native:1:23:0:2:die:51"
+      },
+      {
+        "destination": "native:1:25:3:7:die:56",
+        "source": "native:1:23:4:4:die:52"
+      },
+      {
+        "destination": "native:1:25:3:7:die:56",
+        "source": "native:1:19:0:7:die:44"
+      },
+      {
+        "destination": "native:1:27:3:1:die:60",
+        "source": "native:1:21:0:0:die:47"
+      },
+      {
+        "destination": "native:1:27:3:7:die:61",
+        "source": "native:1:21:4:0:die:48"
+      },
+      {
+        "destination": "native:1:29:0:8:die:72",
+        "source": "native:1:27:4:2:die:59"
+      },
+      {
+        "destination": "native:1:29:0:8:die:72",
+        "source": "native:1:27:1:2:die:58"
+      },
+      {
+        "destination": "native:1:31:1:6:die:73",
+        "source": "native:1:22:3:4:die:50"
+      },
+      {
+        "destination": "native:1:28:3:0:die:70",
+        "source": "native:1:27:3:2:die:57"
+      },
+      {
+        "destination": "native:1:33:3:0:die:76",
+        "source": "native:1:22:4:1:die:49"
+      },
+      {
+        "destination": "native:1:29:4:6:die:71",
+        "source": "native:1:28:2:2:die:69"
+      },
+      {
+        "destination": "native:1:32:1:6:die:75",
+        "source": "native:1:31:0:6:die:74"
+      },
+      {
+        "destination": "native:1:36:1:6:die:80",
+        "source": "native:1:34:3:0:die:77"
+      },
+      {
+        "destination": "native:1:36:1:6:die:80",
+        "source": "native:1:27:2:4:die:68"
+      },
+      {
+        "destination": "native:1:38:4:1:die:86",
+        "source": "native:1:35:4:6:die:78"
+      },
+      {
+        "destination": "native:1:38:4:5:die:85",
+        "source": "native:1:38:1:6:die:84"
+      },
+      {
+        "destination": "native:1:40:2:8:die:89",
+        "source": "native:1:35:2:5:die:79"
+      },
+      {
+        "destination": "native:1:41:2:8:die:99",
+        "source": "native:1:39:1:7:die:88"
+      },
+      {
+        "destination": "native:1:41:2:1:die:102",
+        "source": "native:1:39:3:2:die:87"
+      },
+      {
+        "destination": "native:1:43:0:8:die:105",
+        "source": "native:1:41:0:3:die:101"
+      },
+      {
+        "destination": "native:1:44:1:6:die:109",
+        "source": "native:1:41:4:0:die:100"
+      },
+      {
+        "destination": "native:1:44:1:5:die:108",
+        "source": "native:1:43:4:3:die:106"
+      },
+      {
+        "destination": "native:1:46:1:5:die:111",
+        "source": "native:1:45:1:6:die:110"
+      },
+      {
+        "destination": "native:1:47:1:5:die:112",
+        "source": "native:1:43:3:1:die:107"
+      },
+      {
+        "destination": "native:1:7:1:3:die:7",
+        "source": "native:1:48:1:5:die:123"
+      },
+      {
+        "destination": "native:1:49:0:4:die:140",
+        "source": "native:1:49:0:0:die:138"
+      },
+      {
+        "destination": "native:1:50:2:0:die:143",
+        "source": "native:1:49:4:7:die:139"
+      },
+      {
+        "destination": "native:1:51:1:8:die:157",
+        "source": "native:1:51:1:3:die:158"
+      },
+      {
+        "destination": "native:1:51:4:8:die:156",
+        "source": "native:1:51:2:0:die:155"
+      },
+      {
+        "destination": "native:1:53:4:6:die:162",
+        "source": "native:1:52:3:5:die:159"
+      },
+      {
+        "destination": "native:1:53:4:6:die:162",
+        "source": "native:1:51:2:2:die:154"
+      },
+      {
+        "destination": "native:1:53:4:2:die:161",
+        "source": "native:1:52:4:7:die:160"
+      },
+      {
+        "destination": "native:1:55:3:3:die:163",
+        "source": "native:1:53:4:2:die:161"
+      },
+      {
+        "destination": "native:1:57:4:8:die:167",
+        "source": "native:1:57:0:3:die:165"
+      },
+      {
+        "destination": "native:1:58:1:8:die:174",
+        "source": "native:1:55:4:1:die:164"
+      },
+      {
+        "destination": "native:1:59:0:2:die:176",
+        "source": "native:1:58:4:8:die:173"
+      },
+      {
+        "destination": "native:1:60:1:2:die:178",
+        "source": "native:1:57:2:8:die:166"
+      },
+      {
+        "destination": "native:1:60:1:6:die:179",
+        "source": "native:1:59:4:3:die:177"
+      },
+      {
+        "destination": "native:1:62:2:7:die:182",
+        "source": "native:1:58:3:5:die:175"
+      },
+      {
+        "destination": "native:1:63:3:0:die:184",
+        "source": "native:1:61:0:1:die:181"
+      },
+      {
+        "destination": "native:1:64:3:4:die:187",
+        "source": "native:1:63:4:4:die:185"
+      },
+      {
+        "destination": "native:1:65:1:5:die:188",
+        "source": "native:1:64:3:4:die:187"
+      },
+      {
+        "destination": "native:1:66:1:5:die:204",
+        "source": "native:1:64:4:0:die:186"
+      },
+      {
+        "destination": "native:1:67:3:0:die:205",
+        "source": "native:1:66:2:4:die:203"
+      },
+      {
+        "destination": "native:1:66:3:8:die:199",
+        "source": "native:1:66:2:6:die:201"
+      },
+      {
+        "destination": "native:1:68:0:8:die:207",
+        "source": "native:1:67:2:1:die:206"
+      },
+      {
+        "destination": "native:1:70:2:7:die:211",
+        "source": "native:1:66:0:4:die:202"
+      },
+      {
+        "destination": "native:1:70:4:3:die:212",
+        "source": "native:1:69:0:2:die:210"
+      },
+      {
+        "destination": "native:1:71:1:7:die:214",
+        "source": "native:1:69:3:5:die:209"
+      },
+      {
+        "destination": "native:1:72:1:4:die:217",
+        "source": "native:1:71:1:7:die:214"
+      },
+      {
+        "destination": "native:1:74:1:0:die:231",
+        "source": "native:1:72:3:1:die:215"
+      },
+      {
+        "destination": "native:1:74:2:2:die:229",
+        "source": "native:1:74:1:1:die:233"
+      },
+      {
+        "destination": "native:1:74:2:7:die:230",
+        "source": "native:1:74:1:4:die:227"
+      },
+      {
+        "destination": "native:1:77:0:2:die:238",
+        "source": "native:1:74:2:5:die:232"
+      },
+      {
+        "destination": "native:1:75:2:1:die:234",
+        "source": "native:1:75:0:7:die:235"
+      },
+      {
+        "destination": "native:1:77:1:7:die:239",
+        "source": "native:1:76:3:4:die:237"
+      },
+      {
+        "destination": "native:1:77:1:7:die:239",
+        "source": "native:1:76:4:7:die:236"
+      },
+      {
+        "destination": "native:1:79:0:2:die:243",
+        "source": "native:1:78:1:3:die:240"
+      },
+      {
+        "destination": "native:1:82:0:2:die:250",
+        "source": "native:1:78:0:5:die:241"
+      },
+      {
+        "destination": "native:1:83:3:3:die:252",
+        "source": "native:1:82:2:0:die:251"
+      },
+      {
+        "destination": "native:1:84:2:8:die:255",
+        "source": "native:1:83:2:4:die:253"
+      },
+      {
+        "destination": "native:1:85:2:8:die:256",
+        "source": "native:1:81:1:7:die:244"
+      },
+      {
+        "destination": "native:1:84:1:0:die:254",
+        "source": "native:1:79:2:1:die:242"
+      },
+      {
+        "destination": "native:1:86:2:8:die:257",
+        "source": "native:1:84:1:0:die:254"
+      }
+    ],
+    "traceMatched": true,
+    "validationErrors": 0
+  },
+  {
+    "actions": 88,
+    "base": 53665,
+    "board": 8,
+    "cap": 99,
+    "capOvershoots": 0,
+    "comboBonus": 104725,
+    "drops": 11,
+    "efficiency": 747,
+    "final": 159137,
+    "movesLeft": 0,
+    "outcome": "complete",
+    "peakCombo": 92,
+    "policy": "continuous-v0",
+    "reason": "final_regular_merge6",
+    "seed": 222,
+    "trace": [
+      {
+        "destination": "g1-31",
+        "source": "g1-17"
+      },
+      {
+        "destination": "g1-42",
+        "source": "g1-35"
+      },
+      {
+        "destination": "g1-10",
+        "source": "g1-1"
+      },
+      {
+        "destination": "g1-18",
+        "source": "g1-10"
+      },
+      {
+        "destination": "native:1:4:2:2:die:1",
+        "source": "g1-8"
+      },
+      {
+        "destination": "g1-31",
+        "source": "g1-2"
+      },
+      {
+        "destination": "g1-42",
+        "source": "g1-3"
+      },
+      {
+        "destination": "native:1:7:0:3:die:6",
+        "source": "native:1:6:0:6:die:3"
+      },
+      {
+        "destination": "native:1:4:2:2:die:1",
+        "source": "g1-38"
+      },
+      {
+        "destination": "native:1:7:0:3:die:6",
+        "source": "g1-9"
+      },
+      {
+        "destination": "native:1:10:3:4:die:11",
+        "source": "g1-22"
+      },
+      {
+        "destination": "native:1:4:2:7:die:2",
+        "source": "g1-41"
+      },
+      {
+        "destination": "native:1:9:2:1:die:8",
+        "source": "native:1:11:0:5:die:13"
+      },
+      {
+        "destination": "native:1:6:4:7:die:4",
+        "source": "native:1:11:3:5:die:12"
+      },
+      {
+        "destination": "native:1:14:4:4:die:20",
+        "source": "native:1:10:3:8:die:10"
+      },
+      {
+        "destination": "native:1:9:1:5:die:9",
+        "source": "native:1:12:2:5:die:15"
+      },
+      {
+        "destination": "native:1:16:4:2:die:24",
+        "source": "native:1:14:4:0:die:19"
+      },
+      {
+        "destination": "native:1:12:3:6:die:14",
+        "source": "native:1:12:2:8:die:16"
+      },
+      {
+        "destination": "native:1:18:3:6:die:38",
+        "source": "native:1:13:1:2:die:17"
+      },
+      {
+        "destination": "native:1:19:2:6:die:43",
+        "source": "native:1:15:0:8:die:21"
+      },
+      {
+        "destination": "native:1:20:1:1:die:46",
+        "source": "native:1:13:3:2:die:18"
+      },
+      {
+        "destination": "native:1:18:1:4:die:39",
+        "source": "native:1:17:4:3:die:26"
+      },
+      {
+        "destination": "native:1:18:4:6:die:37",
+        "source": "native:1:18:1:7:die:41"
+      },
+      {
+        "destination": "native:1:20:2:4:die:45",
+        "source": "native:1:19:0:1:die:42"
+      },
+      {
+        "destination": "native:1:24:0:4:die:53",
+        "source": "native:1:23:0:2:die:51"
+      },
+      {
+        "destination": "native:1:25:3:7:die:56",
+        "source": "native:1:23:4:4:die:52"
+      },
+      {
+        "destination": "native:1:25:3:7:die:56",
+        "source": "native:1:19:0:7:die:44"
+      },
+      {
+        "destination": "native:1:27:3:1:die:60",
+        "source": "native:1:21:0:0:die:47"
+      },
+      {
+        "destination": "native:1:27:3:7:die:61",
+        "source": "native:1:21:4:0:die:48"
+      },
+      {
+        "destination": "native:1:29:0:8:die:72",
+        "source": "native:1:27:4:2:die:59"
+      },
+      {
+        "destination": "native:1:29:0:8:die:72",
+        "source": "native:1:27:1:2:die:58"
+      },
+      {
+        "destination": "native:1:31:1:6:die:73",
+        "source": "native:1:22:3:4:die:50"
+      },
+      {
+        "destination": "native:1:28:3:0:die:70",
+        "source": "native:1:27:3:2:die:57"
+      },
+      {
+        "destination": "native:1:33:3:0:die:76",
+        "source": "native:1:22:4:1:die:49"
+      },
+      {
+        "destination": "native:1:29:4:6:die:71",
+        "source": "native:1:28:2:2:die:69"
+      },
+      {
+        "destination": "native:1:32:1:6:die:75",
+        "source": "native:1:31:0:6:die:74"
+      },
+      {
+        "destination": "native:1:36:1:6:die:80",
+        "source": "native:1:34:3:0:die:77"
+      },
+      {
+        "destination": "native:1:36:1:6:die:80",
+        "source": "native:1:27:2:4:die:68"
+      },
+      {
+        "destination": "native:1:38:4:1:die:86",
+        "source": "native:1:35:4:6:die:78"
+      },
+      {
+        "destination": "native:1:38:4:5:die:85",
+        "source": "native:1:38:1:6:die:84"
+      },
+      {
+        "destination": "native:1:40:2:8:die:89",
+        "source": "native:1:35:2:5:die:79"
+      },
+      {
+        "destination": "native:1:41:2:8:die:99",
+        "source": "native:1:39:1:7:die:88"
+      },
+      {
+        "destination": "native:1:41:2:1:die:102",
+        "source": "native:1:39:3:2:die:87"
+      },
+      {
+        "destination": "native:1:43:0:8:die:105",
+        "source": "native:1:41:0:3:die:101"
+      },
+      {
+        "destination": "native:1:44:1:6:die:109",
+        "source": "native:1:41:4:0:die:100"
+      },
+      {
+        "destination": "native:1:44:1:5:die:108",
+        "source": "native:1:43:4:3:die:106"
+      },
+      {
+        "destination": "native:1:46:1:5:die:111",
+        "source": "native:1:45:1:6:die:110"
+      },
+      {
+        "destination": "native:1:47:1:5:die:112",
+        "source": "native:1:43:3:1:die:107"
+      },
+      {
+        "destination": "native:1:7:1:3:die:7",
+        "source": "native:1:48:1:5:die:123"
+      },
+      {
+        "destination": "native:1:49:0:4:die:140",
+        "source": "native:1:49:0:0:die:138"
+      },
+      {
+        "destination": "native:1:50:2:0:die:143",
+        "source": "native:1:49:4:7:die:139"
+      },
+      {
+        "destination": "native:1:51:1:8:die:157",
+        "source": "native:1:51:1:3:die:158"
+      },
+      {
+        "destination": "native:1:51:4:8:die:156",
+        "source": "native:1:51:2:0:die:155"
+      },
+      {
+        "destination": "native:1:53:4:6:die:162",
+        "source": "native:1:52:3:5:die:159"
+      },
+      {
+        "destination": "native:1:53:4:6:die:162",
+        "source": "native:1:51:2:2:die:154"
+      },
+      {
+        "destination": "native:1:53:4:2:die:161",
+        "source": "native:1:52:4:7:die:160"
+      },
+      {
+        "destination": "native:1:55:3:3:die:163",
+        "source": "native:1:53:4:2:die:161"
+      },
+      {
+        "destination": "native:1:57:4:8:die:167",
+        "source": "native:1:57:0:3:die:165"
+      },
+      {
+        "destination": "native:1:58:1:8:die:174",
+        "source": "native:1:55:4:1:die:164"
+      },
+      {
+        "destination": "native:1:59:0:2:die:176",
+        "source": "native:1:58:4:8:die:173"
+      },
+      {
+        "destination": "native:1:60:1:2:die:178",
+        "source": "native:1:57:2:8:die:166"
+      },
+      {
+        "destination": "native:1:60:1:6:die:179",
+        "source": "native:1:59:4:3:die:177"
+      },
+      {
+        "destination": "native:1:62:2:7:die:182",
+        "source": "native:1:58:3:5:die:175"
+      },
+      {
+        "destination": "native:1:63:3:0:die:184",
+        "source": "native:1:61:0:1:die:181"
+      },
+      {
+        "destination": "native:1:64:3:4:die:187",
+        "source": "native:1:63:4:4:die:185"
+      },
+      {
+        "destination": "native:1:65:1:5:die:188",
+        "source": "native:1:64:3:4:die:187"
+      },
+      {
+        "destination": "native:1:66:1:5:die:204",
+        "source": "native:1:64:4:0:die:186"
+      },
+      {
+        "destination": "native:1:67:3:0:die:205",
+        "source": "native:1:66:2:4:die:203"
+      },
+      {
+        "destination": "native:1:66:3:8:die:199",
+        "source": "native:1:66:2:6:die:201"
+      },
+      {
+        "destination": "native:1:68:0:8:die:207",
+        "source": "native:1:67:2:1:die:206"
+      },
+      {
+        "destination": "native:1:70:2:7:die:211",
+        "source": "native:1:66:0:4:die:202"
+      },
+      {
+        "destination": "native:1:70:4:3:die:212",
+        "source": "native:1:69:0:2:die:210"
+      },
+      {
+        "destination": "native:1:71:1:7:die:214",
+        "source": "native:1:69:3:5:die:209"
+      },
+      {
+        "destination": "native:1:72:1:4:die:217",
+        "source": "native:1:71:1:7:die:214"
+      },
+      {
+        "destination": "native:1:74:1:0:die:231",
+        "source": "native:1:72:3:1:die:215"
+      },
+      {
+        "destination": "native:1:74:2:2:die:229",
+        "source": "native:1:74:1:1:die:233"
+      },
+      {
+        "destination": "native:1:74:2:7:die:230",
+        "source": "native:1:74:1:4:die:227"
+      },
+      {
+        "destination": "native:1:77:0:2:die:238",
+        "source": "native:1:74:2:5:die:232"
+      },
+      {
+        "destination": "native:1:75:2:1:die:234",
+        "source": "native:1:75:0:7:die:235"
+      },
+      {
+        "destination": "native:1:77:1:7:die:239",
+        "source": "native:1:76:3:4:die:237"
+      },
+      {
+        "destination": "native:1:77:1:7:die:239",
+        "source": "native:1:76:4:7:die:236"
+      },
+      {
+        "destination": "native:1:79:0:2:die:243",
+        "source": "native:1:78:1:3:die:240"
+      },
+      {
+        "destination": "native:1:82:0:2:die:250",
+        "source": "native:1:78:0:5:die:241"
+      },
+      {
+        "destination": "native:1:83:3:3:die:252",
+        "source": "native:1:82:2:0:die:251"
+      },
+      {
+        "destination": "native:1:84:2:8:die:255",
+        "source": "native:1:83:2:4:die:253"
+      },
+      {
+        "destination": "native:1:85:2:8:die:256",
+        "source": "native:1:81:1:7:die:244"
+      },
+      {
+        "destination": "native:1:84:1:0:die:254",
+        "source": "native:1:79:2:1:die:242"
+      },
+      {
+        "destination": "native:1:86:2:8:die:257",
+        "source": "native:1:84:1:0:die:254"
+      }
+    ],
+    "traceMatched": true,
+    "validationErrors": 0
+  },
+  {
+    "actions": 88,
+    "base": 53665,
+    "board": 9,
+    "cap": 99,
+    "capOvershoots": 0,
+    "comboBonus": 104725,
+    "drops": 11,
+    "efficiency": 826,
+    "final": 159216,
+    "movesLeft": 0,
+    "outcome": "complete",
+    "peakCombo": 92,
+    "policy": "continuous-v0",
+    "reason": "final_regular_merge6",
+    "seed": 222,
+    "trace": [
+      {
+        "destination": "g1-31",
+        "source": "g1-17"
+      },
+      {
+        "destination": "g1-42",
+        "source": "g1-35"
+      },
+      {
+        "destination": "g1-10",
+        "source": "g1-1"
+      },
+      {
+        "destination": "g1-18",
+        "source": "g1-10"
+      },
+      {
+        "destination": "native:1:4:2:2:die:1",
+        "source": "g1-8"
+      },
+      {
+        "destination": "g1-31",
+        "source": "g1-2"
+      },
+      {
+        "destination": "g1-42",
+        "source": "g1-3"
+      },
+      {
+        "destination": "native:1:7:0:3:die:6",
+        "source": "native:1:6:0:6:die:3"
+      },
+      {
+        "destination": "native:1:4:2:2:die:1",
+        "source": "g1-38"
+      },
+      {
+        "destination": "native:1:7:0:3:die:6",
+        "source": "g1-9"
+      },
+      {
+        "destination": "native:1:10:3:4:die:11",
+        "source": "g1-22"
+      },
+      {
+        "destination": "native:1:4:2:7:die:2",
+        "source": "g1-41"
+      },
+      {
+        "destination": "native:1:9:2:1:die:8",
+        "source": "native:1:11:0:5:die:13"
+      },
+      {
+        "destination": "native:1:6:4:7:die:4",
+        "source": "native:1:11:3:5:die:12"
+      },
+      {
+        "destination": "native:1:14:4:4:die:20",
+        "source": "native:1:10:3:8:die:10"
+      },
+      {
+        "destination": "native:1:9:1:5:die:9",
+        "source": "native:1:12:2:5:die:15"
+      },
+      {
+        "destination": "native:1:16:4:2:die:24",
+        "source": "native:1:14:4:0:die:19"
+      },
+      {
+        "destination": "native:1:12:3:6:die:14",
+        "source": "native:1:12:2:8:die:16"
+      },
+      {
+        "destination": "native:1:18:3:6:die:38",
+        "source": "native:1:13:1:2:die:17"
+      },
+      {
+        "destination": "native:1:19:2:6:die:43",
+        "source": "native:1:15:0:8:die:21"
+      },
+      {
+        "destination": "native:1:20:1:1:die:46",
+        "source": "native:1:13:3:2:die:18"
+      },
+      {
+        "destination": "native:1:18:1:4:die:39",
+        "source": "native:1:17:4:3:die:26"
+      },
+      {
+        "destination": "native:1:18:4:6:die:37",
+        "source": "native:1:18:1:7:die:41"
+      },
+      {
+        "destination": "native:1:20:2:4:die:45",
+        "source": "native:1:19:0:1:die:42"
+      },
+      {
+        "destination": "native:1:24:0:4:die:53",
+        "source": "native:1:23:0:2:die:51"
+      },
+      {
+        "destination": "native:1:25:3:7:die:56",
+        "source": "native:1:23:4:4:die:52"
+      },
+      {
+        "destination": "native:1:25:3:7:die:56",
+        "source": "native:1:19:0:7:die:44"
+      },
+      {
+        "destination": "native:1:27:3:1:die:60",
+        "source": "native:1:21:0:0:die:47"
+      },
+      {
+        "destination": "native:1:27:3:7:die:61",
+        "source": "native:1:21:4:0:die:48"
+      },
+      {
+        "destination": "native:1:29:0:8:die:72",
+        "source": "native:1:27:4:2:die:59"
+      },
+      {
+        "destination": "native:1:29:0:8:die:72",
+        "source": "native:1:27:1:2:die:58"
+      },
+      {
+        "destination": "native:1:31:1:6:die:73",
+        "source": "native:1:22:3:4:die:50"
+      },
+      {
+        "destination": "native:1:28:3:0:die:70",
+        "source": "native:1:27:3:2:die:57"
+      },
+      {
+        "destination": "native:1:33:3:0:die:76",
+        "source": "native:1:22:4:1:die:49"
+      },
+      {
+        "destination": "native:1:29:4:6:die:71",
+        "source": "native:1:28:2:2:die:69"
+      },
+      {
+        "destination": "native:1:32:1:6:die:75",
+        "source": "native:1:31:0:6:die:74"
+      },
+      {
+        "destination": "native:1:36:1:6:die:80",
+        "source": "native:1:34:3:0:die:77"
+      },
+      {
+        "destination": "native:1:36:1:6:die:80",
+        "source": "native:1:27:2:4:die:68"
+      },
+      {
+        "destination": "native:1:38:4:1:die:86",
+        "source": "native:1:35:4:6:die:78"
+      },
+      {
+        "destination": "native:1:38:4:5:die:85",
+        "source": "native:1:38:1:6:die:84"
+      },
+      {
+        "destination": "native:1:40:2:8:die:89",
+        "source": "native:1:35:2:5:die:79"
+      },
+      {
+        "destination": "native:1:41:2:8:die:99",
+        "source": "native:1:39:1:7:die:88"
+      },
+      {
+        "destination": "native:1:41:2:1:die:102",
+        "source": "native:1:39:3:2:die:87"
+      },
+      {
+        "destination": "native:1:43:0:8:die:105",
+        "source": "native:1:41:0:3:die:101"
+      },
+      {
+        "destination": "native:1:44:1:6:die:109",
+        "source": "native:1:41:4:0:die:100"
+      },
+      {
+        "destination": "native:1:44:1:5:die:108",
+        "source": "native:1:43:4:3:die:106"
+      },
+      {
+        "destination": "native:1:46:1:5:die:111",
+        "source": "native:1:45:1:6:die:110"
+      },
+      {
+        "destination": "native:1:47:1:5:die:112",
+        "source": "native:1:43:3:1:die:107"
+      },
+      {
+        "destination": "native:1:7:1:3:die:7",
+        "source": "native:1:48:1:5:die:123"
+      },
+      {
+        "destination": "native:1:49:0:4:die:140",
+        "source": "native:1:49:0:0:die:138"
+      },
+      {
+        "destination": "native:1:50:2:0:die:143",
+        "source": "native:1:49:4:7:die:139"
+      },
+      {
+        "destination": "native:1:51:1:8:die:157",
+        "source": "native:1:51:1:3:die:158"
+      },
+      {
+        "destination": "native:1:51:4:8:die:156",
+        "source": "native:1:51:2:0:die:155"
+      },
+      {
+        "destination": "native:1:53:4:6:die:162",
+        "source": "native:1:52:3:5:die:159"
+      },
+      {
+        "destination": "native:1:53:4:6:die:162",
+        "source": "native:1:51:2:2:die:154"
+      },
+      {
+        "destination": "native:1:53:4:2:die:161",
+        "source": "native:1:52:4:7:die:160"
+      },
+      {
+        "destination": "native:1:55:3:3:die:163",
+        "source": "native:1:53:4:2:die:161"
+      },
+      {
+        "destination": "native:1:57:4:8:die:167",
+        "source": "native:1:57:0:3:die:165"
+      },
+      {
+        "destination": "native:1:58:1:8:die:174",
+        "source": "native:1:55:4:1:die:164"
+      },
+      {
+        "destination": "native:1:59:0:2:die:176",
+        "source": "native:1:58:4:8:die:173"
+      },
+      {
+        "destination": "native:1:60:1:2:die:178",
+        "source": "native:1:57:2:8:die:166"
+      },
+      {
+        "destination": "native:1:60:1:6:die:179",
+        "source": "native:1:59:4:3:die:177"
+      },
+      {
+        "destination": "native:1:62:2:7:die:182",
+        "source": "native:1:58:3:5:die:175"
+      },
+      {
+        "destination": "native:1:63:3:0:die:184",
+        "source": "native:1:61:0:1:die:181"
+      },
+      {
+        "destination": "native:1:64:3:4:die:187",
+        "source": "native:1:63:4:4:die:185"
+      },
+      {
+        "destination": "native:1:65:1:5:die:188",
+        "source": "native:1:64:3:4:die:187"
+      },
+      {
+        "destination": "native:1:66:1:5:die:204",
+        "source": "native:1:64:4:0:die:186"
+      },
+      {
+        "destination": "native:1:67:3:0:die:205",
+        "source": "native:1:66:2:4:die:203"
+      },
+      {
+        "destination": "native:1:66:3:8:die:199",
+        "source": "native:1:66:2:6:die:201"
+      },
+      {
+        "destination": "native:1:68:0:8:die:207",
+        "source": "native:1:67:2:1:die:206"
+      },
+      {
+        "destination": "native:1:70:2:7:die:211",
+        "source": "native:1:66:0:4:die:202"
+      },
+      {
+        "destination": "native:1:70:4:3:die:212",
+        "source": "native:1:69:0:2:die:210"
+      },
+      {
+        "destination": "native:1:71:1:7:die:214",
+        "source": "native:1:69:3:5:die:209"
+      },
+      {
+        "destination": "native:1:72:1:4:die:217",
+        "source": "native:1:71:1:7:die:214"
+      },
+      {
+        "destination": "native:1:74:1:0:die:231",
+        "source": "native:1:72:3:1:die:215"
+      },
+      {
+        "destination": "native:1:74:2:2:die:229",
+        "source": "native:1:74:1:1:die:233"
+      },
+      {
+        "destination": "native:1:74:2:7:die:230",
+        "source": "native:1:74:1:4:die:227"
+      },
+      {
+        "destination": "native:1:77:0:2:die:238",
+        "source": "native:1:74:2:5:die:232"
+      },
+      {
+        "destination": "native:1:75:2:1:die:234",
+        "source": "native:1:75:0:7:die:235"
+      },
+      {
+        "destination": "native:1:77:1:7:die:239",
+        "source": "native:1:76:3:4:die:237"
+      },
+      {
+        "destination": "native:1:77:1:7:die:239",
+        "source": "native:1:76:4:7:die:236"
+      },
+      {
+        "destination": "native:1:79:0:2:die:243",
+        "source": "native:1:78:1:3:die:240"
+      },
+      {
+        "destination": "native:1:82:0:2:die:250",
+        "source": "native:1:78:0:5:die:241"
+      },
+      {
+        "destination": "native:1:83:3:3:die:252",
+        "source": "native:1:82:2:0:die:251"
+      },
+      {
+        "destination": "native:1:84:2:8:die:255",
+        "source": "native:1:83:2:4:die:253"
+      },
+      {
+        "destination": "native:1:85:2:8:die:256",
+        "source": "native:1:81:1:7:die:244"
+      },
+      {
+        "destination": "native:1:84:1:0:die:254",
+        "source": "native:1:79:2:1:die:242"
+      },
+      {
+        "destination": "native:1:86:2:8:die:257",
+        "source": "native:1:84:1:0:die:254"
+      }
+    ],
+    "traceMatched": true,
+    "validationErrors": 0
+  },
+  {
+    "actions": 88,
+    "base": 53665,
+    "board": 10,
+    "cap": 99,
+    "capOvershoots": 0,
+    "comboBonus": 104725,
+    "drops": 11,
+    "efficiency": 905,
+    "final": 159295,
+    "movesLeft": 0,
+    "outcome": "complete",
+    "peakCombo": 92,
+    "policy": "continuous-v0",
+    "reason": "final_regular_merge6",
+    "seed": 222,
+    "trace": [
+      {
+        "destination": "g1-31",
+        "source": "g1-17"
+      },
+      {
+        "destination": "g1-42",
+        "source": "g1-35"
+      },
+      {
+        "destination": "g1-10",
+        "source": "g1-1"
+      },
+      {
+        "destination": "g1-18",
+        "source": "g1-10"
+      },
+      {
+        "destination": "native:1:4:2:2:die:1",
+        "source": "g1-8"
+      },
+      {
+        "destination": "g1-31",
+        "source": "g1-2"
+      },
+      {
+        "destination": "g1-42",
+        "source": "g1-3"
+      },
+      {
+        "destination": "native:1:7:0:3:die:6",
+        "source": "native:1:6:0:6:die:3"
+      },
+      {
+        "destination": "native:1:4:2:2:die:1",
+        "source": "g1-38"
+      },
+      {
+        "destination": "native:1:7:0:3:die:6",
+        "source": "g1-9"
+      },
+      {
+        "destination": "native:1:10:3:4:die:11",
+        "source": "g1-22"
+      },
+      {
+        "destination": "native:1:4:2:7:die:2",
+        "source": "g1-41"
+      },
+      {
+        "destination": "native:1:9:2:1:die:8",
+        "source": "native:1:11:0:5:die:13"
+      },
+      {
+        "destination": "native:1:6:4:7:die:4",
+        "source": "native:1:11:3:5:die:12"
+      },
+      {
+        "destination": "native:1:14:4:4:die:20",
+        "source": "native:1:10:3:8:die:10"
+      },
+      {
+        "destination": "native:1:9:1:5:die:9",
+        "source": "native:1:12:2:5:die:15"
+      },
+      {
+        "destination": "native:1:16:4:2:die:24",
+        "source": "native:1:14:4:0:die:19"
+      },
+      {
+        "destination": "native:1:12:3:6:die:14",
+        "source": "native:1:12:2:8:die:16"
+      },
+      {
+        "destination": "native:1:18:3:6:die:38",
+        "source": "native:1:13:1:2:die:17"
+      },
+      {
+        "destination": "native:1:19:2:6:die:43",
+        "source": "native:1:15:0:8:die:21"
+      },
+      {
+        "destination": "native:1:20:1:1:die:46",
+        "source": "native:1:13:3:2:die:18"
+      },
+      {
+        "destination": "native:1:18:1:4:die:39",
+        "source": "native:1:17:4:3:die:26"
+      },
+      {
+        "destination": "native:1:18:4:6:die:37",
+        "source": "native:1:18:1:7:die:41"
+      },
+      {
+        "destination": "native:1:20:2:4:die:45",
+        "source": "native:1:19:0:1:die:42"
+      },
+      {
+        "destination": "native:1:24:0:4:die:53",
+        "source": "native:1:23:0:2:die:51"
+      },
+      {
+        "destination": "native:1:25:3:7:die:56",
+        "source": "native:1:23:4:4:die:52"
+      },
+      {
+        "destination": "native:1:25:3:7:die:56",
+        "source": "native:1:19:0:7:die:44"
+      },
+      {
+        "destination": "native:1:27:3:1:die:60",
+        "source": "native:1:21:0:0:die:47"
+      },
+      {
+        "destination": "native:1:27:3:7:die:61",
+        "source": "native:1:21:4:0:die:48"
+      },
+      {
+        "destination": "native:1:29:0:8:die:72",
+        "source": "native:1:27:4:2:die:59"
+      },
+      {
+        "destination": "native:1:29:0:8:die:72",
+        "source": "native:1:27:1:2:die:58"
+      },
+      {
+        "destination": "native:1:31:1:6:die:73",
+        "source": "native:1:22:3:4:die:50"
+      },
+      {
+        "destination": "native:1:28:3:0:die:70",
+        "source": "native:1:27:3:2:die:57"
+      },
+      {
+        "destination": "native:1:33:3:0:die:76",
+        "source": "native:1:22:4:1:die:49"
+      },
+      {
+        "destination": "native:1:29:4:6:die:71",
+        "source": "native:1:28:2:2:die:69"
+      },
+      {
+        "destination": "native:1:32:1:6:die:75",
+        "source": "native:1:31:0:6:die:74"
+      },
+      {
+        "destination": "native:1:36:1:6:die:80",
+        "source": "native:1:34:3:0:die:77"
+      },
+      {
+        "destination": "native:1:36:1:6:die:80",
+        "source": "native:1:27:2:4:die:68"
+      },
+      {
+        "destination": "native:1:38:4:1:die:86",
+        "source": "native:1:35:4:6:die:78"
+      },
+      {
+        "destination": "native:1:38:4:5:die:85",
+        "source": "native:1:38:1:6:die:84"
+      },
+      {
+        "destination": "native:1:40:2:8:die:89",
+        "source": "native:1:35:2:5:die:79"
+      },
+      {
+        "destination": "native:1:41:2:8:die:99",
+        "source": "native:1:39:1:7:die:88"
+      },
+      {
+        "destination": "native:1:41:2:1:die:102",
+        "source": "native:1:39:3:2:die:87"
+      },
+      {
+        "destination": "native:1:43:0:8:die:105",
+        "source": "native:1:41:0:3:die:101"
+      },
+      {
+        "destination": "native:1:44:1:6:die:109",
+        "source": "native:1:41:4:0:die:100"
+      },
+      {
+        "destination": "native:1:44:1:5:die:108",
+        "source": "native:1:43:4:3:die:106"
+      },
+      {
+        "destination": "native:1:46:1:5:die:111",
+        "source": "native:1:45:1:6:die:110"
+      },
+      {
+        "destination": "native:1:47:1:5:die:112",
+        "source": "native:1:43:3:1:die:107"
+      },
+      {
+        "destination": "native:1:7:1:3:die:7",
+        "source": "native:1:48:1:5:die:123"
+      },
+      {
+        "destination": "native:1:49:0:4:die:140",
+        "source": "native:1:49:0:0:die:138"
+      },
+      {
+        "destination": "native:1:50:2:0:die:143",
+        "source": "native:1:49:4:7:die:139"
+      },
+      {
+        "destination": "native:1:51:1:8:die:157",
+        "source": "native:1:51:1:3:die:158"
+      },
+      {
+        "destination": "native:1:51:4:8:die:156",
+        "source": "native:1:51:2:0:die:155"
+      },
+      {
+        "destination": "native:1:53:4:6:die:162",
+        "source": "native:1:52:3:5:die:159"
+      },
+      {
+        "destination": "native:1:53:4:6:die:162",
+        "source": "native:1:51:2:2:die:154"
+      },
+      {
+        "destination": "native:1:53:4:2:die:161",
+        "source": "native:1:52:4:7:die:160"
+      },
+      {
+        "destination": "native:1:55:3:3:die:163",
+        "source": "native:1:53:4:2:die:161"
+      },
+      {
+        "destination": "native:1:57:4:8:die:167",
+        "source": "native:1:57:0:3:die:165"
+      },
+      {
+        "destination": "native:1:58:1:8:die:174",
+        "source": "native:1:55:4:1:die:164"
+      },
+      {
+        "destination": "native:1:59:0:2:die:176",
+        "source": "native:1:58:4:8:die:173"
+      },
+      {
+        "destination": "native:1:60:1:2:die:178",
+        "source": "native:1:57:2:8:die:166"
+      },
+      {
+        "destination": "native:1:60:1:6:die:179",
+        "source": "native:1:59:4:3:die:177"
+      },
+      {
+        "destination": "native:1:62:2:7:die:182",
+        "source": "native:1:58:3:5:die:175"
+      },
+      {
+        "destination": "native:1:63:3:0:die:184",
+        "source": "native:1:61:0:1:die:181"
+      },
+      {
+        "destination": "native:1:64:3:4:die:187",
+        "source": "native:1:63:4:4:die:185"
+      },
+      {
+        "destination": "native:1:65:1:5:die:188",
+        "source": "native:1:64:3:4:die:187"
+      },
+      {
+        "destination": "native:1:66:1:5:die:204",
+        "source": "native:1:64:4:0:die:186"
+      },
+      {
+        "destination": "native:1:67:3:0:die:205",
+        "source": "native:1:66:2:4:die:203"
+      },
+      {
+        "destination": "native:1:66:3:8:die:199",
+        "source": "native:1:66:2:6:die:201"
+      },
+      {
+        "destination": "native:1:68:0:8:die:207",
+        "source": "native:1:67:2:1:die:206"
+      },
+      {
+        "destination": "native:1:70:2:7:die:211",
+        "source": "native:1:66:0:4:die:202"
+      },
+      {
+        "destination": "native:1:70:4:3:die:212",
+        "source": "native:1:69:0:2:die:210"
+      },
+      {
+        "destination": "native:1:71:1:7:die:214",
+        "source": "native:1:69:3:5:die:209"
+      },
+      {
+        "destination": "native:1:72:1:4:die:217",
+        "source": "native:1:71:1:7:die:214"
+      },
+      {
+        "destination": "native:1:74:1:0:die:231",
+        "source": "native:1:72:3:1:die:215"
+      },
+      {
+        "destination": "native:1:74:2:2:die:229",
+        "source": "native:1:74:1:1:die:233"
+      },
+      {
+        "destination": "native:1:74:2:7:die:230",
+        "source": "native:1:74:1:4:die:227"
+      },
+      {
+        "destination": "native:1:77:0:2:die:238",
+        "source": "native:1:74:2:5:die:232"
+      },
+      {
+        "destination": "native:1:75:2:1:die:234",
+        "source": "native:1:75:0:7:die:235"
+      },
+      {
+        "destination": "native:1:77:1:7:die:239",
+        "source": "native:1:76:3:4:die:237"
+      },
+      {
+        "destination": "native:1:77:1:7:die:239",
+        "source": "native:1:76:4:7:die:236"
+      },
+      {
+        "destination": "native:1:79:0:2:die:243",
+        "source": "native:1:78:1:3:die:240"
+      },
+      {
+        "destination": "native:1:82:0:2:die:250",
+        "source": "native:1:78:0:5:die:241"
+      },
+      {
+        "destination": "native:1:83:3:3:die:252",
+        "source": "native:1:82:2:0:die:251"
+      },
+      {
+        "destination": "native:1:84:2:8:die:255",
+        "source": "native:1:83:2:4:die:253"
+      },
+      {
+        "destination": "native:1:85:2:8:die:256",
+        "source": "native:1:81:1:7:die:244"
+      },
+      {
+        "destination": "native:1:84:1:0:die:254",
+        "source": "native:1:79:2:1:die:242"
+      },
+      {
+        "destination": "native:1:86:2:8:die:257",
+        "source": "native:1:84:1:0:die:254"
+      }
+    ],
+    "traceMatched": true,
+    "validationErrors": 0
+  }
+]

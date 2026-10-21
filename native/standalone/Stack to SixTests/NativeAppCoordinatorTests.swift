@@ -115,9 +115,11 @@ final class NativeAppCoordinatorTests:XCTestCase {
         }
         let art=try XCTUnwrap(findArt(unit))
         unit.sendActions(for:.touchUpInside)
-        XCTAssertNil(art.layer.animation(forKey:JimiV9HubView.worldTapAnimationKey),"Journey uses one Unit scale, without a second artwork pulse")
-        XCTAssertNil(art.layer.animation(forKey:NativeHubBackpackFeedback.animationKey))
+        XCTAssertNil(art.layer.animation(forKey:JimiV9HubView.worldTapAnimationKey),"Journey retains its existing Unit exit without the Arcade pulse")
         if !UIAccessibility.isReduceMotionEnabled {
+            let bounce=try XCTUnwrap(art.superview?.layer.animation(forKey:NativeHubBackpackFeedback.animationKey) as? CAKeyframeAnimation)
+            XCTAssertEqual(bounce.duration,0.4,accuracy:0.0001)
+            XCTAssertEqual(bounce.keyTimes,NativeHUDTapMotion.phases.map{NSNumber(value:$0)})
             try await Task.sleep(for:.milliseconds(100))
             XCTAssertGreaterThan(unit.layer.presentation()?.transform.m11 ?? 1,1,"The existing selected Unit scale still paints")
         }
@@ -128,7 +130,7 @@ final class NativeAppCoordinatorTests:XCTestCase {
         XCTAssertEqual(controller.route,.hub,"Resource completion cannot replace the actual exit completion")
         try await waitFor{controller.route == .world(1) && controller.world?.isReadyForInput==true}
         XCTAssertEqual(replies.count,1,"Reveal must consume the same prepared destination")
-        XCTAssertNil(art.layer.animation(forKey:NativeHubBackpackFeedback.animationKey),"Hidden hub retires the finite contact")
+        XCTAssertNil(art.superview?.layer.animation(forKey:NativeHubBackpackFeedback.animationKey),"Hidden hub retires the finite contact")
     }
     func testCancelledHubWorldPreparationCannotRevealAndWarmWorldIsReused()async throws {
         var replies:[()->Void]=[]
@@ -320,14 +322,17 @@ final class NativeAppCoordinatorTests:XCTestCase {
         let controller=NativeAppController(resourceRoot:resources(),services:services)
         let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=controller;window.makeKeyAndVisible()
         defer{controller.dispose();window.isHidden=true}
-        controller.navigate(.gameplay,interrupt:true)
+        try await waitFor{controller.home.isUserInteractionEnabled}
+        controller.navigate(.arcadeHub)
+        try await waitFor{controller.route == .arcadeHub && controller.arcadeHub.hub.scrollView.isUserInteractionEnabled}
+        controller.arcadeHub.onPlay?("endurance")
         try await waitFor{replies.count==1}
         let oldCancels=cancels
         NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
         XCTAssertGreaterThan(cancels,oldCancels)
         replies[0](true);XCTAssertEqual(made,0)
         NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
-        try await waitFor{controller.route == .home && controller.home.isUserInteractionEnabled}
+        try await waitFor{controller.route == .arcadeHub && controller.arcadeHub.hub.scrollView.isUserInteractionEnabled}
         replies[0](true);XCTAssertEqual(made,0)
     }
     private func containsWebView(_ view:UIView)->Bool {

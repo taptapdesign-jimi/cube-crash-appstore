@@ -9,6 +9,7 @@ import StackToSixGameplay
         let engine:NativeGameplayEngine,service:NativeSourceAnimationClockService,scene:SKScene,view:SKView
         let timeouts=NativeSourceAppTimeoutOwner()
         var wall=0.0,seed:UInt32=1,acquires=0,releases=0,arrivals=0,retired=0,launches=0,current=true
+        var arrivalSizes:[Double]=[]
         var owner:NativeSourceHUDStarPresentation?
         init(count:Int=3,sourceFrameTransportEnabled:Bool=false,combo:Int?=nil,archetype:NativeWildArchetype = .star,variant:String?=nil) {
             var star=NativeTile(id:"s",cell:.init(column:0,row:0),value:6,archetype:archetype,variant:variant);star.starOrbitCount=count
@@ -22,7 +23,7 @@ import StackToSixGameplay
             scene=SKScene(size:.init(width:390,height:844));view=SKView(frame:.init(x:0,y:0,width:390,height:844));view.ignoresSiblingOrder=false;view.presentScene(scene);view.isPaused=true
         }
         func mount(_ prepared:NativeSourceHUDStarTexturePreparation.Prepared)->Bool {
-            owner=NativeSourceHUDStarPresentation(stage:scene,viewportHeight:844,texture:prepared.texture,pixelSize:prepared.pixelSize,selectedAssetsReady:prepared.current,service:service,timeouts:timeouts,engine:engine,bindings:.init(current:{[weak self] in self?.current==true},random:{[unowned self] in self.seed=self.seed &* 1664525 &+ 1013904223;return Double(self.seed)/4294967296},acquireCadence:{[unowned self] in self.acquires += 1;return{self.releases += 1}},onArrival:{[unowned self] result in XCTAssertTrue(result.accepted);self.arrivals += 1},onRetired:{[unowned self] _ in self.retired += 1},onTntCoinLaunch:{[unowned self] in self.launches += 1}))
+            owner=NativeSourceHUDStarPresentation(stage:scene,viewportHeight:844,texture:prepared.texture,pixelSize:prepared.pixelSize,selectedAssetsReady:prepared.current,service:service,timeouts:timeouts,engine:engine,bindings:.init(current:{[weak self] in self?.current==true},random:{[unowned self] in self.seed=self.seed &* 1664525 &+ 1013904223;return Double(self.seed)/4294967296},acquireCadence:{[unowned self] in self.acquires += 1;return{self.releases += 1}},onArrival:{[unowned self] result,size in XCTAssertTrue(result.accepted);self.arrivalSizes.append(size);self.arrivals += 1},onRetired:{[unowned self] _ in self.retired += 1},onTntCoinLaunch:{[unowned self] in self.launches += 1}))
             return owner?.start(receiptIDs:engine.pendingHUDStars.map(\.id),screenOrigin:.init(x:195,y:430),hudTarget:.init(x:37,y:76))==true
         }
         func deliver(_ wall:Double){self.wall=wall;service.deliver(wallMilliseconds:wall)}
@@ -35,6 +36,21 @@ import StackToSixGameplay
         await fulfillment(of:[ready],timeout:20)
         return try XCTUnwrap(receipt)
     }
+    func testArrivalCarriesActualFlightSizeBeforeCommonTrophyShrink() async throws {
+        let textures=NativeSourceHUDStarTexturePreparation(),prepared=try await prepare(textures),f=Fixture()
+        defer{f.dispose();textures.dispose()}
+        XCTAssertTrue(f.mount(prepared))
+        let expected=try XCTUnwrap(f.owner?.mountedContainer).children.compactMap{$0 as? SKSpriteNode}.map {
+            NativeSourceHUDStarPlan.relativeCoinSize(Double($0.frame.width),enlargement:1.2)
+        }.sorted()
+        XCTAssertEqual(expected.count,3);XCTAssertGreaterThan(expected.last!-expected.first!,0.8)
+        for ms in stride(from:0.0,through:8000,by:10){f.deliver(ms)}
+        XCTAssertEqual(f.arrivals,3);XCTAssertEqual(f.arrivalSizes.count,3)
+        // SpriteKit frame bounds quantize to float;0.0001 fraction is under0.004pt.
+        for (actual,size) in zip(f.arrivalSizes.sorted(),expected){XCTAssertEqual(actual,size,accuracy:0.0001)}
+        f.owner?.dispose();f.deliver(9000);XCTAssertEqual(f.arrivalSizes.count,3,"Retired flights cannot replay coin contact")
+    }
+
     func testAllTntFamiliesSoundOnlyOnFirstVisibleCoinFrameAndCancelSilently()async throws {
         let textures=NativeSourceHUDStarTexturePreparation(),prepared=try await prepare(textures)
         defer{textures.dispose()}
@@ -193,7 +209,7 @@ import StackToSixGameplay
         f.owner=NativeSourceHUDStarPresentation(stage:f.scene,viewportHeight:844,texture:prepared.texture,
             pixelSize:prepared.pixelSize,selectedAssetsReady:true,service:f.service,timeouts:f.timeouts,engine:f.engine,
             bindings:.init(current:{f.current},random:{0.5},acquireCadence:{ {} },
-                onArrival:{_ in f.arrivals+=1},onRetired:{_ in}),coinAnimations:prepared.coinAnimations,
+                onArrival:{_,_ in f.arrivals+=1},onRetired:{_ in}),coinAnimations:prepared.coinAnimations,
             selectCoinVariant:{defer{choices+=1};return choices})
         XCTAssertTrue(f.owner!.start(receiptIDs:f.engine.pendingHUDStars.map(\.id),screenOrigin:.init(x:195,y:430),hudTarget:.init(x:37,y:76)))
         XCTAssertEqual(choices,3)

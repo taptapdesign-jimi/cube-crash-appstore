@@ -68,7 +68,7 @@ import Foundation
             guard current(job) else{retire(job);return false}
             let sourcePlan=NativeSourceHUDStarPlan.construct(ordinal:ordinal,sizes:sizes,origin:origin,target:target,textureWidth:textureWidth,previousArrival:&previous,random:random)
             let plan=readableCoins ? sourcePlan.readableCoin(ordinal:ordinal,previousEnd:&previousCoinEnd,viewport:viewport,gentleLaunch:gentleLaunch,launchInterval:coinLaunchInterval):sourcePlan
-            if readableCoins,coinLaunchInterval==nil {coinLaunchInterval=(plan.duration-plan.arrivalEaseDuration)*0.20}
+            if readableCoins,coinLaunchInterval==nil {coinLaunchInterval=((plan.originalMotionDuration>0 ? plan.originalMotionDuration:plan.duration)-plan.arrivalEaseDuration)*0.20}
             guard current(job) else{retire(job);return false}
             let flight=Flight(id:id,plan:plan);job.flights.append(flight);maxEnd=max(maxEnd,plan.end)
             guard hooks.mountStar(id,plan),current(job),flight.alive else{retire(job);return false}

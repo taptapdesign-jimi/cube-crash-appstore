@@ -24,6 +24,7 @@ import UIKit
             XCTAssertEqual((animation.values as? [NSNumber])?.map(\.doubleValue),[1,1.12,1])
             XCTAssertEqual(animation.duration,0.25)
             XCTAssertNil(art.layer.animation(forKey:NativeHubBackpackFeedback.animationKey))
+            if arcade {XCTAssertEqual(art.superview?.layer.animation(forKey:NativeHubBackpackFeedback.animationKey)?.duration,0.4)}
             XCTAssertEqual(completions,0)
             try await Task.sleep(for:.milliseconds(75))
             let painted=try XCTUnwrap(art.layer.presentation()).transform.m11

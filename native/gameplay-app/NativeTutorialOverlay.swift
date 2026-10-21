@@ -23,7 +23,7 @@ final class NativeTutorialOverlay:UIView {
     private let sourceCTAVisual=JimiV9PlainButton(type:.custom),sourceCTATitle=UILabel()
     private var sourceCTACaptured=false
     var sourceCTAState:NativeSourceTutorialCTAOwner.State?{sourceCTA?.state}
-    var sourceCTAHitFrame:CGRect{button.frame}
+    var sourceCTAHitFrame:CGRect{button.cartoonBounceFrame}
     var sourceCTAVisualTransform:CGAffineTransform{sourceCTAVisual.transform}
     private var sourceFreeHint:NativeSourceTutorialFreePlayHintOwner?
     private var sourceFourthPointer:NativeSourceTutorialFourthPointerOwner?
@@ -56,7 +56,7 @@ final class NativeTutorialOverlay:UIView {
         sheetSurface.addSubview(paper);sheet.addSubview(sheetSurface);sheet.addSubview(heading);sheet.addSubview(subtitle);sheet.addSubview(button);addSubview(sheet)
         heading.textAlignment = .center;heading.numberOfLines=0
         subtitle.numberOfLines=0;subtitle.textAlignment = .center;subtitle.textColor=NativeTextPalette.subtitle
-        button.setTitle("Got it!",for:.normal);button.applyModalCTA(artwork:assets)
+        button.setTitle("Got it!",for:.normal);button.applyModalCTA(artwork:assets);button.enableCartoonBounce()
         button.accessibilityIdentifier="native.tutorial.got-it";button.addTarget(self,action:#selector(gotIt),for:.touchUpInside)
         button.addTarget(self,action:#selector(sourceCTADown),for:.touchDown)
         button.addTarget(self,action:#selector(sourceCTAOutside),for:[.touchUpOutside,.touchCancel])
@@ -92,7 +92,7 @@ final class NativeTutorialOverlay:UIView {
         heading.frame=CGRect(x:28,y:top,width:max(0,bounds.width-56),height:headingHeight)
         subtitle.frame=CGRect(x:(bounds.width-min(280,bounds.width-56))/2,y:heading.frame.maxY+12,width:min(280,bounds.width-56),height:subtitleHeight)
         let width=min(bounds.width-56,bounds.width <= 428 || UIDevice.current.userInterfaceIdiom == .pad ? 249 : 310)
-        button.frame=CGRect(x:(bounds.width-width)/2,y:subtitle.frame.maxY+34,width:width,height:64)
+        button.setCartoonBounceFrame(CGRect(x:(bounds.width-width)/2,y:subtitle.frame.maxY+34,width:width,height:64))
         sourceCTAVisual.bounds=button.bounds;sourceCTAVisual.center=CGPoint(x:button.bounds.midX,y:button.bounds.midY);sourceCTATitle.frame=sourceCTAVisual.bounds
         if sourceCTA != nil{let radius=min(40,sourceCTAVisual.bounds.height/2);sourceCTAVisual.layer.cornerRadius=radius;sourceCTAVisual.layer.shadowPath=UIBezierPath(roundedRect:sourceCTAVisual.bounds,cornerRadius:radius).cgPath}
         let pointerWidth=min(bounds.width*0.34,190)
@@ -382,7 +382,7 @@ final class NativeTutorialOverlay:UIView {
     private func retireSourceCTA(){
         let old=sourceCTA;sourceCTA=nil;sourceCTACaptured=false;old?.dispose();sourceCTAVisual.removeFromSuperview()
         button.setTitle("Got it!",for:.normal);button.backgroundColor=UIColor(red:233/255,green:122/255,blue:85/255,alpha:1)
-        button.applyModalCTA(artwork:assets);button.isEnabled=true
+        button.applyModalCTA(artwork:assets);button.enableCartoonBounce();button.isEnabled=true
     }
     @objc private func sourceCTADown(){guard !disposed,!suspended,!sourceCTACaptured,step==3,let owner=sourceCTA,owner.enabled else{return};sourceCTACaptured=true;owner.pointerDown()}
     @objc private func sourceCTAOutside(){guard sourceCTACaptured else{return};sourceCTACaptured=false;sourceCTA?.pointerCancel()}

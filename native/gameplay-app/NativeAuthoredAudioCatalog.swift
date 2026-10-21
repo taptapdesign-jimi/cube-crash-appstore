@@ -138,11 +138,7 @@ enum NativeAuthoredAudioCatalog {
             NativeAudioCue(source:"assets/sound/sfx/bag drop.wav",voice:"wild-special-landing",gain:0.3,rate:1,delay:0,stopAfter:nil,fadeOut:0),
         ],
         "cta": [
-            NativeAudioCue(source:"assets/sound/CTA/deeper.wav",voice:"cta-activation-deeper",gain:0.18,rate:1,delay:0,stopAfter:nil,fadeOut:0),
-            NativeAudioCue(source:"assets/sound/CTA/pumb.wav",voice:"cta-activation-pumb",gain:0.3,rate:1,delay:0,stopAfter:nil,fadeOut:0),
             NativeAudioCue(source:"assets/sound/CTA/cta-splat.wav",voice:"cta-activation-splat",gain:0.3,rate:1,delay:0,stopAfter:nil,fadeOut:0),
-            NativeAudioCue(source:"assets/sound/CTA/cta squishy.wav",voice:"cta-activation-squishy",gain:0.3,rate:1,delay:0,stopAfter:nil,fadeOut:0),
-            NativeAudioCue(source:"assets/sound/card reveal/klik plop.wav",voice:"cta-activation-plop",gain:0.6,rate:1,delay:0,stopAfter:nil,fadeOut:0),
         ],
         "cardTap": [
             NativeAudioCue(source:"assets/sound/card reveal/klik plop.wav",voice:"cta-activation-plop",gain:0.6,rate:1,delay:0,stopAfter:nil,fadeOut:0),
@@ -152,7 +148,7 @@ enum NativeAuthoredAudioCatalog {
             NativeAudioCue(source:"assets/sound/CTA/wood click.wav",voice:"navigation-icon-wood-click",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
         ],
         "back": [
-            NativeAudioCue(source:"assets/sound/CTA/deppimpact.wav",voice:"navigation-back-close-deep-impact",gain:0.36,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/UI /tap effect back i close.wav",voice:"native-navigation-back-close",gain:0.3,rate:1,delay:0,stopAfter:nil,fadeOut:0),
         ],
         "swipe": [
             NativeAudioCue(source:"assets/sound/UI /sliders/super swoosh.mp3",voice:"homepage-slider-super-swoosh",gain:0.3,rate:1,delay:0,stopAfter:nil,fadeOut:0),
@@ -424,11 +420,18 @@ enum NativeAuthoredAudioCatalog {
         "newCardCrumble": [
             NativeAudioCue(source:"assets/sound/card reveal/interim crumble.wav",voice:"journey-new-card-crumble",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
         ],
+        "newCardUnlockedEnter": [
+            NativeAudioCue(source:"assets/sound/card reveal/max poof.wav",voice:"journey-new-card-enter-0",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "newCardOpeningPuff": [
+            NativeAudioCue(source:"assets/sound/card reveal/puf.wav",voice:"journey-new-card-opening-puff",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
         "newCardReveal": [
-            NativeAudioCue(source:"assets/sound/card reveal/pufreveal.wav",voice:"journey-new-card-reveal",gain:0.6,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/card reveal/new reward.wav",voice:"journey-new-card-reveal",gain:0.6,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/card reveal/card reveal.wav",voice:"journey-new-card-reveal-layer",gain:0.6,rate:1,delay:0,stopAfter:nil,fadeOut:0),
         ],
         "newCardHappy": [
-            NativeAudioCue(source:"assets/sound/card reveal/happy sound.wav",voice:"journey-new-card-happy",gain:0.3,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+
         ],
         "homeEnter": [
             NativeAudioCue(source:"assets/sound/Board transitions/elements down1.wav",voice:"homepage-slider-enter-elements-down1",gain:0.3,rate:1,delay:0,stopAfter:0.65,fadeOut:0.05),

@@ -32,18 +32,24 @@ final class NativeScoreOwner {
         }
         guard let app=gameplay.parent as? NativeAppController else{return}
         let controller=NativeGameplayBackpackController(root:root,sections:sections,includesArcade:state.mode == .arcade,motion:NativeRouteMotion(home:app.home,hub:app.hub))
-        backpack=controller;lease += 1;let token=lease;gameplay.setSuspended(true);onFeedback?("exit-modal")
+        backpack=controller;lease += 1;let token=lease;gameplay.boardScene?.setBackpackPresented(true);gameplay.setSuspended(true);onFeedback?("exit-modal")
         // A collection visit acknowledges only the notifications it displayed, and
         // only after dismissal returns to this exact board. Discovery never opens UI.
-        let visitedUnread=Set(sections.flatMap { section in
-            section.dice.map(\.id).filter {section.unread.contains($0)}
-        })
-        controller.onClosed={[weak self,weak gameplay] in
+        controller.onHUDCloseRequested={[weak self,weak gameplay] in
             guard let self,let gameplay,self.lease==token,self.gameplay === gameplay,
                   gameplay.engine.state.generation==state.generation else{return}
+            gameplay.boardScene?.setBackpackPresented(false)
+            gameplay.setSuspended(true)
+        }
+        controller.onClosed={[weak self,weak gameplay,weak controller] in
+            guard let self,let gameplay,self.lease==token,self.gameplay === gameplay,
+                  gameplay.engine.state.generation==state.generation else{return}
+            let seen=controller?.seenUnreadDice ?? []
             self.backpack=nil
-            for id in visitedUnread.sorted() {_ = self.onReadDie?(id)}
+            for id in seen.sorted() {_ = self.onReadDie?(id)}
             gameplay.setSuspended(false)
+            gameplay.boardScene?.setBackpackPresented(false)
+            gameplay.boardScene?.completeBackpackVisit()
         }
         controller.onReadDie={[weak self] id in self?.onReadDie?(id) ?? false}
         controller.onFeedback={[weak self] cue in self?.onFeedback?(cue)}
@@ -67,6 +73,7 @@ final class NativeScoreOwner {
 /// Gameplay retains its exact paused generation while the scoped collection modal is visible.
 @MainActor
 final class NativeGameplayBackpackController:UIViewController {
+    private(set) var seenUnreadDice=Set<String>()
     private let assets:JimiV9Artwork,sections:[NativeBackpackCatalog.Section],includesArcade:Bool
     private let motion:NativeRouteMotion
     let card=UIView(),heading=UILabel(),subtitle=UILabel()
@@ -82,7 +89,8 @@ final class NativeGameplayBackpackController:UIViewController {
     private(set) var switchingDetail=false
     private var foreground=true,closing=false,entered=false,admitted=false,disposed=false
     var onReadDie:((String)->Bool)?
-    var onClosed:(()->Void)?,onFeedback:((String)->Void)?
+    var onHUDCloseRequested:(()->Void)?
+    var onCloseRequested:(()->Void)?,onClosed:(()->Void)?,onFeedback:((String)->Void)?
     init(root:URL,sections:[NativeBackpackCatalog.Section],includesArcade:Bool,motion:NativeRouteMotion) {
         assets=JimiV9Artwork(resourceRoot:root);self.sections=sections;self.includesArcade=includesArcade;self.motion=motion
         super.init(nibName:nil,bundle:nil);modalPresentationStyle = .overFullScreen
@@ -100,7 +108,7 @@ final class NativeGameplayBackpackController:UIViewController {
         paper.image=assets.image("assets/modals/paper.png");paper.layer.cornerRadius=40;paper.clipsToBounds=true
         idle.layer.shadowColor=UIColor(red:185/255,green:145/255,blue:119/255,alpha:1).cgColor
         idle.layer.shadowOpacity=0.8;idle.layer.shadowOffset=CGSize(width:0,height:13);idle.layer.shadowRadius=16.8
-        heading.text=includesArcade ? "Dice Box":"Backpack";heading.textAlignment = .center
+        heading.text=includesArcade ? "Box":"Backpack";heading.textAlignment = .center
         heading.font=assets.font(size:28,weight:"ExtraBold");heading.textColor=UIColor(red:0.68,green:0.53,blue:0.46,alpha:1)
         idle.addSubview(heading)
         let world=sections.first?.title ?? "Arcade"
@@ -115,13 +123,13 @@ final class NativeGameplayBackpackController:UIViewController {
         subtitle.font=assets.font(size:20,weight:"Medium");subtitle.textColor=NativeTextPalette.subtitle
         subtitle.attributedText=NativeModalTypography.attributedSubtitle(subtitle.text ?? "",font:subtitle.font)
         idle.addSubview(subtitle)
-        let screen=NativeBackpackView(frame:.zero,assets:assets,title:includesArcade ? "Dice Box":"Backpack",arcadeCrate:includesArcade);self.screen=screen
+        let screen=NativeBackpackView(frame:.zero,assets:assets,title:includesArcade ? "Box":"Backpack",arcadeCrate:includesArcade);self.screen=screen
         screen.useModalLayout();screen.apply(sections,includesArcade:includesArcade);idle.addSubview(screen)
         screen.onDie={[weak self] die in self?.open(die)}
         closeButton.setBackgroundImage(paper.image,for:.normal);closeButton.layer.cornerRadius=26;closeButton.clipsToBounds=true
         closeButton.setImage(assets.image("assets/close-icon.png"),for:.normal);closeButton.imageView?.contentMode = .scaleAspectFit;closeButton.artworkOpacity = 0.8;closeButton.enableArtworkTapFeedback()
         closeButton.imageEdgeInsets=UIEdgeInsets(top:14,left:14,bottom:14,right:14);closeButton.accessibilityIdentifier="native.gameplay.backpack.close"
-        closeButton.accessibilityLabel=includesArcade ? "Close Dice Box":"Close Backpack";closeButton.addTarget(self,action:#selector(close),for:.touchUpInside);idle.addSubview(closeButton)
+        closeButton.accessibilityLabel=includesArcade ? "Close Box":"Close Backpack";closeButton.addTarget(self,action:#selector(close),for:.touchUpInside);idle.addSubview(closeButton)
         modalDrag=JimiNativeModalDrag(target:card,idle:idle,viewport:view,canDrag:{[weak self] in
             guard let self else{return false}
             return self.foreground && self.admitted && !self.closing && !self.disposed && !self.switchingDetail && self.detail==nil
@@ -260,14 +268,18 @@ final class NativeGameplayBackpackController:UIViewController {
     }
     @objc private func close(){
         guard admitted,!closing,!disposed,foreground,detail==nil else{return};closeButton.playArtworkTapFeedback();modalDrag?.cancel(preservePose:true);closing=true;view.isUserInteractionEnabled=false
-        screen?.setAlertsActive(false);onFeedback?("back")
-        if UIAccessibility.isReduceMotionEnabled {finishClose();return}
+        screen?.setAlertsActive(false);onCloseRequested?();onFeedback?("back")
+        if UIAccessibility.isReduceMotionEnabled {onHUDCloseRequested?();finishClose();return}
         CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in self?.finishClose()}
         JimiNativeModalV10.exit(card,flip:false,releaseY:card.layer.presentation()?.transform.m42 ?? 0,key:"gameplay.backpack.exit")
         JimiNativeModalV10.exit(flip,flip:true,key:"gameplay.backpack.exit")
         let fade=CAKeyframeAnimation(keyPath:"opacity");fade.values=[1,1,0];fade.keyTimes=[0,0.18,1];fade.duration=0.65;card.layer.opacity=0;card.layer.add(fade,forKey:"gameplay.backpack.fade")
         CATransaction.commit();UIView.animate(withDuration:0.2){self.backdrop.alpha=0}
+        scheduleExchange(after:0.65*0.60){[weak self] in
+            guard let self,self.closing,!self.disposed else{return}
+            self.onHUDCloseRequested?()
+        }
     }
-    private func finishClose(){guard !disposed else{return};let completed=onClosed;dispose();dismiss(animated:false,completion:completed)}
-    func dispose(){guard !disposed else{return};screen?.setAlertsActive(false);onReadDie=nil;modalDrag?.dispose();modalDrag=nil;disposed=true;pendingDie=nil;returningDetail=false;returnSelectionPress.map{view.removeGestureRecognizer($0)};returnSelectionPress=nil;exchangeGeneration += 1;exchangeMarker.removeAllAnimations();exchangeMarker.removeFromSuperlayer();motion.cancel();detail?.dispose();detail?.dismiss(animated:false);detail=nil;screen?.onClose=nil;screen?.onDie=nil;[card,flip,idle,backdrop].forEach{$0.layer.removeAllAnimations()};onClosed=nil;onFeedback=nil}
+    private func finishClose(){guard !disposed else{return};seenUnreadDice=screen?.seenUnreadDice ?? [];let completed=onClosed;dispose();dismiss(animated:false,completion:completed)}
+    func dispose(){guard !disposed else{return};screen?.setAlertsActive(false);onReadDie=nil;modalDrag?.dispose();modalDrag=nil;disposed=true;pendingDie=nil;returningDetail=false;returnSelectionPress.map{view.removeGestureRecognizer($0)};returnSelectionPress=nil;exchangeGeneration += 1;exchangeMarker.removeAllAnimations();exchangeMarker.removeFromSuperlayer();motion.cancel();detail?.dispose();detail?.dismiss(animated:false);detail=nil;screen?.onClose=nil;screen?.onDie=nil;[card,flip,idle,backdrop].forEach{$0.layer.removeAllAnimations()};onHUDCloseRequested=nil;onCloseRequested=nil;onClosed=nil;onFeedback=nil}
 }

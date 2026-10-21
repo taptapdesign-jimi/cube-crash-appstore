@@ -1,0 +1,14 @@
+{
+  "durationSeconds": 4,
+  "base": "Accepted v6 composition; same opening, join and gain",
+  "outroSourceSeconds": [
+    6.02,
+    7.87
+  ],
+  "fadeOutputSeconds": [
+    3.64,
+    4.0
+  ],
+  "processing": "Original pitch/speed,12ms transition; previous fade delayed exactly1second.",
+  "acceptance": "v6 accepted; extension pending user audition."
+}

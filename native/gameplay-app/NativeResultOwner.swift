@@ -19,6 +19,7 @@ final class NativeResultOwner {
     private let interimJourney:Bool
     private let continueJourney:(()->Void)?
     private let rewardScore:Int?
+    private let previousRewardStars:Int
     var onForestAmbience:((Bool,Bool)->Void)?
     var onMoment:((String,Int,Double?)->Void)?
     var onHaptic:((String)->Void)?
@@ -41,7 +42,8 @@ final class NativeResultOwner {
          commit: @escaping (Int) throws -> Void, restart: @escaping () -> Void,
          continueArcade: @escaping () -> Void, exit: @escaping () -> Void,
          interimJourney:Bool=false,rewardScore:Int?=nil,continueJourney:(()->Void)?=nil,
-         sourceNoMovesReceipt:NativeSourceNoMovesCompletedReceipt?=nil) {
+         sourceNoMovesReceipt:NativeSourceNoMovesCompletedReceipt?=nil,previousRewardStars:Int=0) {
+        self.previousRewardStars=previousRewardStars
         self.gameplay=gameplay;self.root=root;self.resolution=resolution;self.sourceNoMovesReceipt=sourceNoMovesReceipt
         self.commit=commit;self.restart=restart;self.continueArcade=continueArcade;self.exit=exit
         self.interimJourney=interimJourney;self.rewardScore=rewardScore;self.continueJourney=continueJourney
@@ -77,7 +79,8 @@ final class NativeResultOwner {
             }
             gameplay.setSuspended(true)
             let prepared=gameplay.takePreparedJourneyReward(generation:state.generation)
-            let card=prepared ?? NativeJourneyRewardController(root:root,board:state.board,score:max(score,rewardScore ?? 0),generation:state.generation)
+            let stars=max(previousRewardStars,NativeJourneyContent.earnedStars(score:score,board:state.board))
+            let card=prepared ?? NativeJourneyRewardController(root:root,board:state.board,score:max(score,rewardScore ?? 0),generation:state.generation,awardedStars:stars)
             reward=card;card.onSoundMoment = { [weak self] kind,index,_ in self?.onMoment?(kind,index,nil) };card.onHaptic=onHaptic
             card.onAssetFailure = { [weak self,weak card,weak gameplay] message in
                 guard let self,let card,let gameplay,!self.disposed,self.lease==token,self.reward === card,
@@ -251,7 +254,7 @@ final class NativeResultController:UIViewController {
             button.setTitle(index == 0 ? (clean && interimJourney ? "Continue" : "Play Again") : "Exit",for:.normal)
             button.applyModalCTA(artwork:assets,primary:index == 0)
             button.tag=index;button.accessibilityIdentifier=index == 0 ? "native.result.play-again" : "native.result.exit"
-            button.addTarget(self,action:#selector(activate(_:)),for:.touchUpInside);content.addSubview(button)
+            button.addTarget(self,action:#selector(activate(_:)),for:.touchUpInside);content.addSubview(button);button.enableCartoonBounce()
         }
         thumb.image=assets.image("assets/thumbs-up@2x.png");thumb.contentMode = .scaleAspectFit;content.addSubview(thumb)
         observations=[NotificationCenter.default.addObserver(forName:UIApplication.willResignActiveNotification,object:nil,queue:.main) { [weak self] _ in MainActor.assumeIsolated{self?.setSuspended(true)} },
@@ -330,7 +333,7 @@ final class NativeResultController:UIViewController {
         place(bonusContent,in:CGRect(x:0,y:statusContent.bounds.midY-30,width:statusContent.bounds.width,height:60))
         bonus.frame=CGRect(x:0,y:0,width:bonusContent.bounds.width,height:36)
         bonusLabel.frame=CGRect(x:0,y:42,width:bonusContent.bounds.width,height:18)
-        place(buttons[0],in:layout.primary);place(buttons[1],in:layout.secondary)
+        place(buttons[0].cartoonBounceLayoutView,in:layout.primary);place(buttons[1].cartoonBounceLayoutView,in:layout.secondary);buttons.forEach{$0.layoutCartoonContent()}
         // CSS reduces overlapping uniform40px corners to half the shortest
         // side. Use that painted radius for both authored result CTAs.
         for button in buttons {
@@ -420,12 +423,6 @@ final class NativeResultController:UIViewController {
         }
         if clean {
             score.text=String(plan.displayedScore)
-            // The final total owns one register cue, leading its stop by500ms.
-            if arcadeReached {
-                moment("clean-score-stop",at:0.47+NativeResultPresentationPlan.counterDuration(from:0,to:state.score)-0.5,index:0)
-            } else {
-                moment("clean-score-stop",at:4.6+NativeResultPresentationPlan.counterDuration(from:state.score+combo,to:state.score+combo+efficiency)-0.5,index:2)
-            }
             if lastCounterValue != plan.displayedScore {
                 let previous=lastCounterValue;lastCounterValue=plan.displayedScore
                 if previous != nil,elapsed-lastCounterHapticAt>=0.05 {
@@ -444,6 +441,8 @@ final class NativeResultController:UIViewController {
         } else {bonus.isHidden=true;bonusLabel.isHidden=true}
         for index in 0..<2 {
             let begin=clean ? (arcadeReached ? 2.05:NativeResultPresentationPlan.cleanPrimaryCTAStart)+Double(index)*0.35:0.64+Double(index)*0.18
+            // The register accent belongs to the first visible CTA, once.
+            if clean,index == 0 {moment("clean-score-stop",at:begin)}
             moment(clean ? "clean-cta":"fail-cta",at:begin,index:index)
             buttons[index].isUserInteractionEnabled=elapsed>=begin+0.34 && committed
         }

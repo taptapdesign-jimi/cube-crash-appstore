@@ -7,6 +7,46 @@ import StackToSixGameplay
 
 @MainActor
 final class NativeComboHUDMotionTests: XCTestCase {
+    func testAuthoredSVGTransitionsHoldCanonicalTiersAndRetireOnReplacement() throws {
+        let artwork = SKSpriteNode()
+        let motion = NativeComboHUDMotion(artwork: artwork)
+        let image = try XCTUnwrap(UIImage(contentsOfFile:NativeTestResources.root.appendingPathComponent(NativeComboHUDMotion.atlasPath).path))
+        XCTAssertEqual(image.size,CGSize(width:1536,height:1152))
+        motion.configure(atlas:SKTexture(image:image))
+        motion.layoutArtwork(fallbackSize:CGSize(width:28,height:28))
+        XCTAssertEqual(artwork.size.height,28*336/216,accuracy:0.001)
+        motion.synchronize(combo:0,generation:1)
+        XCTAssertEqual(motion.displayedFrame,0)
+        motion.synchronize(combo:5,generation:1)
+        XCTAssertTrue(motion.isTransitioning)
+        for _ in 0..<12 {motion.advance(delta:1.0/60,visible:true,reducedMotion:false)}
+        let intermediate=motion.displayedFrame
+        XCTAssertGreaterThan(intermediate,0);XCTAssertLessThan(intermediate,60)
+        let texture=artwork.texture
+        motion.advance(delta:5,visible:false,reducedMotion:false)
+        XCTAssertEqual(motion.displayedFrame,intermediate);XCTAssertTrue(artwork.texture === texture)
+        motion.synchronize(combo:6,generation:1)
+        XCTAssertEqual(motion.displayedFrame,intermediate,"Repeated synchronization cannot restart transition")
+        motion.synchronize(combo:10,generation:1)
+        XCTAssertEqual(motion.displayedFrame,intermediate,"Rapid tier increase continues current painted frame")
+        for _ in 0..<120 {motion.advance(delta:1.0/60,visible:true,reducedMotion:false)}
+        XCTAssertEqual(motion.displayedFrame,100);XCTAssertFalse(motion.isTransitioning)
+        for _ in 0..<180 {motion.advance(delta:1.0/60,visible:true,reducedMotion:false)}
+        XCTAssertEqual(motion.displayedFrame,100,"SVG must not loop back to wood")
+        motion.synchronize(combo:0,generation:1)
+        XCTAssertEqual(motion.displayedFrame,0)
+        motion.synchronize(combo:5,generation:2)
+        XCTAssertEqual(motion.displayedFrame,60);XCTAssertFalse(motion.isTransitioning)
+        motion.synchronize(combo:10,generation:2)
+        motion.advance(delta:0.01,visible:true,reducedMotion:true)
+        XCTAssertEqual(motion.displayedFrame,100);XCTAssertFalse(motion.isTransitioning)
+        let finalTexture=artwork.texture
+        motion.stop()
+        XCTAssertTrue(artwork.texture === finalTexture,"Exit cannot flash settled bolt back to wood")
+        motion.synchronize(combo:10,generation:2)
+        motion.dispose();motion.dispose()
+        XCTAssertNil(artwork.texture);XCTAssertFalse(motion.usesAuthoredFrames)
+    }
     private func state(combo:Int,mode:NativeRunMode = .journey)->NativeBoardState {
         .init(tiles:[.init(id:"a",cell:.init(column:0,row:0),value:1),
                      .init(id:"b",cell:.init(column:1,row:0),value:1),
@@ -56,6 +96,11 @@ final class NativeComboHUDMotionTests: XCTestCase {
             XCTAssertGreaterThan(angles.count,3,"Actual visible Scene must paint the motion")
             if combo>=10 {XCTAssertGreaterThan(art.xScale,1.1)} else {XCTAssertEqual(art.xScale,1)}
             XCTAssertEqual(carrier.xScale,1)
+            let snapshot=UIGraphicsImageRenderer(bounds:controller.view.bounds).image { _ in
+                controller.view.drawHierarchy(in:controller.view.bounds,afterScreenUpdates:true)
+            }
+            let attachment=XCTAttachment(image:snapshot)
+            attachment.name="combo-svg-tier-\(combo)";attachment.lifetime = .keepAlways;add(attachment)
             let before=engine.state
             controller.setSuspended(true)
             let frozen=art.position,angle=art.zRotation,scale=art.xScale
@@ -70,7 +115,7 @@ final class NativeComboHUDMotionTests: XCTestCase {
             XCTAssertEqual(requests,1)
             let tapFrozen=art.position,tapAngle=art.zRotation
             var bouncePainted=false
-            for _ in 0..<16 {
+            for _ in 0..<30 {
                 try await Task.sleep(for:.milliseconds(20))
                 if abs(carrier.xScale-1)>0.005 {bouncePainted=true}
                 XCTAssertEqual(art.position,tapFrozen);XCTAssertEqual(art.zRotation,tapAngle)

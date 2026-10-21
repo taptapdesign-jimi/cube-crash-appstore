@@ -125,12 +125,20 @@ import StackToSixNativeState
         XCTAssertTrue(scene.sourceBoardEntryAdmissionOpen)
         XCTAssertNotNil(game.engine.pendingSourceTutorialDemoActivation)
         XCTAssertFalse(game.view.subviews.contains{$0 is NativeTutorialOverlay})
-        // Construction synchronizes the locked tutorial HUD before the Source
-        // fade owner is installed. The whole HUD remains primed offscreen;
-        // children can retain that initial lock dim until the entry refresh.
-        XCTAssertTrue(scene.isHUDRevealPending)
-        XCTAssertEqual(scene.boardChromeReceipt.alpha,0,accuracy:1e-6)
-        XCTAssertEqual(scene.boardChromeReceipt.offset,140,accuracy:1e-6)
+        // Awaiting mounted adoption may yield past the initial HUD drop.
+        // Check the coherent painted phase rather than assuming no first frame
+        // has run; later assertions still verify actual tutorial admission.
+        let initialChrome=scene.boardChromeReceipt
+        if scene.isHUDRevealPending {
+            XCTAssertEqual(initialChrome.alpha,0,accuracy:1e-6)
+            XCTAssertEqual(initialChrome.offset,140,accuracy:1e-6)
+        }else if initialChrome.entering {
+            XCTAssertTrue(initialChrome.alpha.isFinite);XCTAssertTrue(initialChrome.offset.isFinite)
+            XCTAssertGreaterThanOrEqual(initialChrome.alpha,0);XCTAssertLessThanOrEqual(initialChrome.alpha,1)
+        }else {
+            XCTAssertEqual(initialChrome.alpha,1,accuracy:1e-6)
+            XCTAssertEqual(initialChrome.offset,0,accuracy:1e-6)
+        }
         let initialHUDAlphas=scene.sourceTutorialHUDAlphas
         XCTAssertFalse(initialHUDAlphas.isEmpty)
         XCTAssertTrue(initialHUDAlphas.allSatisfy{abs($0-0.2)<1e-6 || abs($0-1)<1e-6},"Unexpected pre-entry child alphas: \(initialHUDAlphas)")
@@ -369,7 +377,7 @@ import StackToSixNativeState
                 XCTAssertNil(game.engine.pendingSourceTutorialPresentationBarrier)
                 XCTAssertTrue(overlay.sourceIntroOwner === intro)
                 for _ in 0..<110{wall+=16;service.deliver(wallMilliseconds:wall)}
-                let specialButton=try XCTUnwrap(overlay.subviews.flatMap{$0.subviews}.compactMap{$0 as? UIButton}.first)
+                let specialButton=try XCTUnwrap(overlay.subviews.flatMap{ $0.subviews.flatMap{[$0]+$0.subviews} }.compactMap{$0 as? UIButton}.first{$0.accessibilityIdentifier=="native.tutorial.got-it"})
                 let specialFocusDeadline=Date().addingTimeInterval(5)
                 while (!overlay.specialBarVisible || scene.tutorialSpecialBarFocusValue<1 || abs(overlay.sourceSheetTranslation)>1e-6 || !specialButton.isEnabled) && Date()<specialFocusDeadline {
                     wall+=16;service.deliver(wallMilliseconds:wall);try await Task.sleep(for:.milliseconds(40))
@@ -459,7 +467,7 @@ import StackToSixNativeState
                 XCTAssertNotEqual(overlay.sourceHintTransform,thirdHintPose)
                 if let dismiss {
                     XCTAssertEqual(overlay.sourceCTAState,.idle)
-                    let button=try XCTUnwrap(overlay.subviews.flatMap{$0.subviews}.compactMap{$0 as? UIButton}.first)
+                    let button=try XCTUnwrap(overlay.subviews.flatMap{ $0.subviews.flatMap{[$0]+$0.subviews} }.compactMap{$0 as? UIButton}.first{$0.accessibilityIdentifier=="native.tutorial.got-it"})
                     let hit=overlay.sourceCTAHitFrame
                     _=service.setSourceGlobalPaused(true)
                     if dismiss=="drag" {

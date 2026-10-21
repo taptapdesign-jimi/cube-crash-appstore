@@ -42,7 +42,7 @@ final class NativeHUDCloseTests:XCTestCase {
                 if abs(value-1)>0.005 {changed=true}
             }
             XCTAssertTrue(changed,"Tab \(index) must paint contact while visible")
-            try await Task.sleep(for:.milliseconds(300))
+            try await Task.sleep(for:.milliseconds(1100))
             let icon=home.navigationIconViews[index]
             let layer=icon.layer,now=CACurrentMediaTime()
             let contact=layer.animation(forKey:NativeHubBackpackFeedback.animationKey)
@@ -75,7 +75,8 @@ final class NativeHUDCloseTests:XCTestCase {
             // Admit the real retained board without waiting for unrelated entry art.
             scene.layout(size:scene.size,insets:.zero,animateEntry:false)
             try await Task.sleep(for:.milliseconds(200))
-            var requests=0
+            var requests=0,tapCues=0;var cueKinds:[String]=[]
+            controller.onHUDTapContact={kind in tapCues += 1;cueKinds.append(kind)}
             let pause={requests += 1;controller.setSuspended(true)}
             scene.onExitRequest=pause;scene.onHelpRequest=pause;scene.onScoreRequest=pause;scene.onComboRequest=pause
             let die=try XCTUnwrap(scene.sourceNativeTileNode("one"))
@@ -84,12 +85,17 @@ final class NativeHUDCloseTests:XCTestCase {
                 let icon=try XCTUnwrap(scene.childNode(withName:"//"+name))
                 let base=icon.xScale,start=die.position
                 die.run(.moveBy(x:100,y:0,duration:1),withKey:"pause-regression")
-                let before=requests
+                let before=requests,beforeCues=tapCues
                 XCTAssertTrue(scene.handleHUDContact(at:icon.convert(.zero,to:scene)))
                 XCTAssertEqual(requests,before+1,name)
+                XCTAssertEqual(tapCues,beforeCues+1,"Exactly one cue at accepted contact: \(name)")
+                XCTAssertEqual(cueKinds.last,name == "native-game-close" ? "close":"hud-icon-tap")
+                XCTAssertFalse(scene.handleHUDContact(at:icon.convert(.zero,to:scene)),"Suspended modal blocks repeat contact")
+                XCTAssertEqual(tapCues,beforeCues+1)
                 XCTAssertFalse(try XCTUnwrap(scene.gameplayRenderHost).renderingPaused,"Modal must admit the finite contact tail: \(name), metal=\(metal)")
                 var changed=false
-                for _ in 0..<22 {
+                let tailDeadline=Date().addingTimeInterval(2)
+                while scene.hasActiveHUDTapFeedback,Date()<tailDeadline {
                     try await Task.sleep(for:.milliseconds(20))
                     if abs(icon.xScale-base)>0.005 {changed=true}
                     XCTAssertEqual(die.position.x,start.x,accuracy:0.001,"Gameplay stays frozen")
@@ -233,7 +239,7 @@ final class NativeHUDCloseTests:XCTestCase {
         close.playTapBounce();scene.setSuspended(true,allowHUDFeedback:true)
         XCTAssertTrue(die.isPaused,"The actual dice child must own the feedback-only pause")
         var paintedScales:[CGFloat]=[]
-        for _ in 0..<20 {
+        for _ in 0..<25 {
             try await Task.sleep(for:.milliseconds(20));paintedScales.append(close.xScale)
             XCTAssertTrue(die.isPaused || scene.isPaused,"The feedback interval must retain either child or whole-scene pause")
             XCTAssertEqual(die.position.x,start.x,accuracy:0.001,"Feedback cannot resume a gameplay action")
@@ -258,13 +264,11 @@ final class NativeHUDCloseTests:XCTestCase {
         XCTAssertNotNil(close.action(forKey:"hud-tap-bounce"))
         XCTAssertFalse(renderingDemands.contains(false),"Quiet-board ownership must retain the finite child action")
     }
-    func testExactTapCurveMatchesExecutedImmutableV9GSAPTimeline() {
-        for row in NativeHUDTapSourceOracle.rows {
-            let multiplier=NativeHUDTapMotion.scale(at:row[0])
-            // GSAP rounds generic object-property values to six decimals.
-            XCTAssertEqual(row[1]*multiplier,row[1]+(row[3]-row[1])*1.3,accuracy:0.000002)
-            XCTAssertEqual(row[2]*multiplier,row[2]+(row[4]-row[2])*1.3,accuracy:0.000002)
-        }
+    func testTapCurveUsesSharedAnisotropicBounceAndReturnsToNeutral() {
+        let peak=NativeHUDTapMotion.pose(at:NativeHUDTapMotion.phases[2]*0.4)
+        XCTAssertEqual(peak.x,0.88,accuracy:0.00001);XCTAssertEqual(peak.y,1.14,accuracy:0.00001);XCTAssertEqual(peak.offset,-7,accuracy:0.00001)
+        let end=NativeHUDTapMotion.pose(at:0.4)
+        XCTAssertEqual(end.x,1,accuracy:0.00001);XCTAssertEqual(end.y,1,accuracy:0.00001);XCTAssertEqual(end.offset,0,accuracy:0.00001)
     }
     func testRealTapActionFreezesWithGameplayPauseAndFinishesAfterResume() async throws {
         let artwork=JimiV9Artwork(resourceRoot:NativeTestResources.root)

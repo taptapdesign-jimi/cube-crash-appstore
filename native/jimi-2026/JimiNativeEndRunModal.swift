@@ -247,7 +247,7 @@ final class JimiNativeEndRunModal: UIViewController {
             button.applyModalCTA(artwork:assets,primary:i == 0)
             button.addTarget(self,action:#selector(pressButton(_:)),for:.touchDown)
             button.addTarget(self,action:#selector(releaseButton(_:)),for:[.touchCancel,.touchUpOutside])
-            button.addTarget(self,action:#selector(requestButton(_:)),for:.touchUpInside);idle.addSubview(button)
+            button.addTarget(self,action:#selector(requestButton(_:)),for:.touchUpInside);idle.addSubview(button);button.enableCartoonBounce()
         }
         close.setBackgroundImage(paper.image,for:.normal);close.layer.cornerRadius = 26;close.clipsToBounds = true
         close.setImage(assets.image("assets/close-icon.png"),for:.normal);close.imageView?.contentMode = .scaleAspectFit;close.artworkOpacity = 0.8;close.enableArtworkTapFeedback()
@@ -266,7 +266,7 @@ final class JimiNativeEndRunModal: UIViewController {
         idle.bounds = card.bounds;idle.center = CGPoint(x:width/2,y:height*0.52);JimiNativeModalV10.paperLayout(paper,bounds:idle.bounds)
         heading.frame = CGRect(x:24,y:52,width:width-48,height:32)
         subtitle.frame = CGRect(x:24,y:96,width:width-48,height:52)
-        for (i,button) in buttons.enumerated() {button.bounds = CGRect(x:0,y:0,width:249,height:64);button.center = CGPoint(x:width/2,y:216+CGFloat(i)*80)}
+        for (i,button) in buttons.enumerated() {button.cartoonBounceLayoutView.bounds = CGRect(x:0,y:0,width:249,height:64);button.cartoonBounceLayoutView.center = CGPoint(x:width/2,y:216+CGFloat(i)*80);button.layoutCartoonContent()}
         close.frame = CGRect(x:width-42,y:-10,width:52,height:52)
     }
     private func pose(_ y:CGFloat,_ z:CGFloat,_ rx:CGFloat,_ ry:CGFloat,_ scale:CGFloat,_ rz:CGFloat = 0)->CATransform3D {

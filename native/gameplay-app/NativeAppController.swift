@@ -30,6 +30,7 @@ struct NativeAppServices {
 @MainActor
 final class NativeAppController: UIViewController {
     enum Route: Equatable {case home, hub, arcadeHub, settings, backpack, world(Int), gameplay}
+    private var backpackReturnWorldClose=false
     private let services: NativeAppServices
     private let artwork: JimiV9Artwork
     private let resourceRoot:URL
@@ -209,6 +210,15 @@ final class NativeAppController: UIViewController {
     func navigate(_ next:Route,interrupt:Bool = false) {
         guard studioIntro == nil,route != next,(!transitioning || interrupt),route != .gameplay else{return}
         if next == .backpack {
+            // The visible source must have completed its real entry admission.
+            // An early header tap cannot claim navigation while its parent rejects it.
+            guard !disposed,!suspended,!transitioning else{return}
+            switch route {
+            case .hub:guard hub.scrollView.isUserInteractionEnabled else{return}
+            case .arcadeHub:guard arcadeHub.hub.scrollView.isUserInteractionEnabled else{return}
+            case .world:guard world?.isReadyForInput == true else{return}
+            default:return
+            }
             if case .world = route {backpackReturnRoute=route}else{backpackReturnRoute = route == .arcadeHub ? .arcadeHub:.hub}
         }
         retireDeveloperPresentation()
@@ -223,6 +233,10 @@ final class NativeAppController: UIViewController {
             if let button {NativeHubBackpackFeedback.play(on:button.imageView ?? button)}
         }
 
+        if next == .backpack {
+            let button: UIButton? = route == .arcadeHub ? arcadeHub.hub.backpackButton:route == .hub ? hub.backpackButton:world?.backpackButton
+            if let button {NativeHubBackpackFeedback.switchArtwork(on:button,open:true,assets:artwork,crate:route == .arcadeHub)}
+        }
         home.stopHeroIdle(preservePaintedPose:true);hub.stopIdle();arcadeHub.suspend()
         home.isUserInteractionEnabled = false;hub.setContentInteractionEnabled(false);settingsView.isUserInteractionEnabled = false
         // v9 starts the exact destination preparation under the Hub exit.
@@ -232,8 +246,7 @@ final class NativeAppController: UIViewController {
                 transitioning=false;hub.setContentInteractionEnabled(true);hub.startIdle();showFault(error);return
             }
         }
-        // Journey hubTracks owns the selected World scale and collapse.
-        // An additional artwork pulse compounds that same visible tap.
+        // Unit exit remains authoritative; finite artwork contact composes below it.
         onFeedback?(route == .backpack || next == .home || next == .hub && route != .home ? "back" : "cta")
         let complete:()->Void = { [weak self] in
             guard let self,self.generation == owner else{return}
@@ -247,6 +260,7 @@ final class NativeAppController: UIViewController {
         case .home:motion.animate(motion.homeTracks(enter:false),completion:complete)
         case .hub:
             let id:Int? = {if case .world(let id) = next{return id};return nil}()
+            if let id {hub.playJourneyWorldContact(id)}
             motion.animate(motion.hubTracks(enter:false,selectedWorldID:id),completion:complete)
         case .arcadeHub:motion.animate(arcadeHub.tracks(enter:false),completion:complete)
         case .settings:motion.animate(settingsView.tracks(enter:false),completion:complete)
@@ -256,11 +270,31 @@ final class NativeAppController: UIViewController {
     }
     private func reveal(_ next:Route) {
         guard !suspended else {deferredReveal = next;return}
+        if route == .backpack,next != .backpack {
+            for id in (backpackView?.seenUnreadDice ?? []).sorted() {_ = services.readJourneyDie(id)}
+        }
         if route == .backpack || next == .backpack {motion.cancel()}
         home.isUserInteractionEnabled=false
         home.isHidden = true;hub.isHidden = true;arcadeHub.hide();settingsView.isHidden = true;world?.isHidden = true
         backpackView?.isHidden=true
+        let returningFromBackpack = route == .backpack
+        backpackReturnWorldClose=returningFromBackpack && {if case .world = next{return true};return false}()
         route = next;onRoute?(next);fault.isHidden = true
+        let journeyDestination:Bool = {if next == .hub{return true};if case .world = next{return true};return false}()
+        if journeyDestination {
+            let button:UIButton? = next == .hub ? hub.backpackButton:world?.backpackButton
+            if let button {
+                if returningFromBackpack {
+                    if next == .hub {closeReturningBackpack(button:button,badge:hub.backpackAlert,lead:0)}
+                }
+                else {
+                    // An interrupted outgoing Backpack request cannot leave a
+                    // retained Journey header open on a later ordinary visit.
+                    button.imageView?.layer.removeAnimation(forKey:NativeHubBackpackFeedback.switchKey)
+                    button.setImage(artwork.image("assets/nav/stats-nav.png",densityAware:true),for:.normal)
+                }
+            }
+        }
         let owner = generation
         let admitted:()->Void = { [weak self] in
             guard let self,self.generation == owner else{return}
@@ -282,7 +316,7 @@ final class NativeAppController: UIViewController {
                 retireBackpackDetail();current.onClose=nil;current.onDie=nil;current.removeFromSuperview();backpackView=nil
             }
             if backpackView == nil {
-                let screen=NativeBackpackView(frame:view.bounds,assets:JimiV9Artwork(resourceRoot:resourceRoot),title:crate ? "Dice Box":"Backpack",arcadeCrate:crate)
+                let screen=NativeBackpackView(frame:view.bounds,assets:JimiV9Artwork(resourceRoot:resourceRoot),title:crate ? "Box":"Backpack",arcadeCrate:crate)
                 screen.autoresizingMask=[.flexibleWidth,.flexibleHeight];view.addSubview(screen);backpackView=screen
                 screen.onClose={[weak self] in guard let self,!self.disposed,!self.suspended,!self.transitioning,self.route == .backpack else{return};self.navigate(self.backpackReturnRoute)}
                 screen.onDie={[weak self] die in self?.openBackpackDetail(die)}
@@ -307,6 +341,14 @@ final class NativeAppController: UIViewController {
             motion.animate(motion.hubTracks(enter:true),completion:admitted)
         case .arcadeHub:
             arcadeHub.present()
+            let crateButton=arcadeHub.hub.backpackButton
+            if returningFromBackpack {
+                let delay=(UIAccessibility.isReduceMotionEnabled ? 0.20:0.56)*0.4
+                NativeHubBackpackFeedback.switchArtwork(on:crateButton,open:false,assets:artwork,delay:delay,crate:true)
+            }else{
+                crateButton.imageView?.layer.removeAnimation(forKey:NativeHubBackpackFeedback.switchKey)
+                crateButton.setImage(artwork.image("assets/hud/crate - hud.png",densityAware:true),for:.normal)
+            }
             motion.animate(arcadeHub.tracks(enter:true),completion:admitted)
         case .settings:
             settingsView.isHidden = false;applySettings();settingsView.layoutIfNeeded()
@@ -334,7 +376,7 @@ final class NativeAppController: UIViewController {
         }
         guard let incoming=world else{throw NativeAppError.invalidWorld}
         incoming.isHidden=true;incoming.setActive(false);configureWorld(incoming,id:id)
-        incoming.setBackpackUnread(!services.journeyProgression().unreadJourneyDice.isEmpty)
+        if route != .backpack {incoming.setBackpackUnread(!services.journeyProgression().unreadJourneyDice.isEmpty)}
         let lease=WorldEntryPreparation(generation:owner,id:id,world:incoming);worldEntryPreparation=lease
         services.prepareWorldEntry(incoming){[weak self,weak lease] in
             guard let self,let lease,!self.disposed,!self.suspended,self.generation==lease.generation,
@@ -342,11 +384,21 @@ final class NativeAppController: UIViewController {
             lease.ready=true;self.finishPreparedWorldEntry()
         }
     }
+    private func closeReturningBackpack(button:UIButton,badge:NativeBackpackAlertView,lead:TimeInterval){
+        let reduced=UIAccessibility.isReduceMotionEnabled
+        let delay=lead + (reduced ? 0.20:0.56)*0.4
+        badge.setUnreadVisible(!services.journeyProgression().unreadJourneyDice.isEmpty,delay:delay)
+        NativeHubBackpackFeedback.switchArtwork(on:button,open:false,assets:artwork,delay:delay)
+    }
     private func finishPreparedWorldEntry(){
         guard let lease=worldEntryPreparation,lease.ready,!disposed,!suspended,
               generation==lease.generation,route == .world(lease.id),world === lease.world else{return}
         worldEntryPreparation=nil
         let incoming=lease.world;incoming.isHidden=false
+        if backpackReturnWorldClose {
+            backpackReturnWorldClose=false
+            closeReturningBackpack(button:incoming.backpackButton,badge:incoming.backpackAlert,lead:UIAccessibility.isReduceMotionEnabled ? 0:0.08)
+        }
         incoming.enter{[weak self,weak incoming] in
             guard let self,let incoming,!self.disposed,self.generation==lease.generation,
                   self.route == .world(lease.id),self.world === incoming else{return}
@@ -605,6 +657,8 @@ final class NativeAppController: UIViewController {
     private func retireBackpackDetail(){pendingBackpackDie=nil;backpackDetail?.dispose();backpackDetail?.dismiss(animated:false);backpackDetail=nil}
     private func showFault(_ error:Error) {fault.text = error.localizedDescription;fault.isHidden = false;view.bringSubviewToFront(fault)}
     private func suspend() {
+        hub.backpackButton.imageView?.layer.removeAnimation(forKey:NativeHubBackpackFeedback.switchKey)
+        world?.backpackButton.imageView?.layer.removeAnimation(forKey:NativeHubBackpackFeedback.switchKey)
         suspended = true;backpackView?.setAlertsActive(false);pendingBackpackDie=nil;motion.suspend();backpackView?.isUserInteractionEnabled=false;backpackDetail?.setForeground(false)
         if let launch=gameplayLaunchPreparation {
             deferredReveal=launch.board.map{.world(($0-1)/10+1)} ?? .arcadeHub
@@ -636,6 +690,8 @@ final class NativeAppController: UIViewController {
     }
     func dispose() {
         guard !disposed else{return}
+        hub?.backpackButton.imageView?.layer.removeAnimation(forKey:NativeHubBackpackFeedback.switchKey)
+        world?.backpackButton.imageView?.layer.removeAnimation(forKey:NativeHubBackpackFeedback.switchKey)
         studioIntro?.dispose();studioIntro=nil
         disposed=true;backpackView?.setAlertsActive(false);retireDeveloperPresentation();cancelGameplayReturnPreparation()
         cancelGameplayLaunchPreparation()

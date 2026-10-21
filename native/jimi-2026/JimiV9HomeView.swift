@@ -39,6 +39,29 @@ final class JimiV9PlainButton: UIButton {
         if artworkContactStarted {artworkContactStarted=false;return}
         NativeHubBackpackFeedback.play(on:tapFeedbackArtwork ?? imageView ?? self)
     }
+    private weak var cartoonSurface:NativeCartoonBounceSurface?
+    var cartoonBounceLayoutView:UIView {cartoonSurface ?? self}
+    var cartoonBounceFrame:CGRect {cartoonSurface?.frame ?? frame}
+    /// Separate compositor shell: authored press/release/route transforms stay on the button.
+    func enableCartoonBounce(){
+        guard cartoonSurface==nil,let parent=superview else{return}
+        let original=CGRect(origin:CGPoint(x:center.x-bounds.width/2,y:center.y-bounds.height/2),size:bounds.size)
+        let surface=NativeCartoonBounceSurface();parent.insertSubview(surface,aboveSubview:self)
+        removeFromSuperview();surface.addSubview(self);cartoonSurface=surface
+        surface.isHidden=isHidden;setCartoonBounceFrame(original)
+        addTarget(self,action:#selector(cartoonContact),for:.touchDown)
+    }
+    @objc private func cartoonContact(){
+        guard isEnabled,isUserInteractionEnabled,!isHidden,let cartoonSurface else{return}
+        NativeHubBackpackFeedback.play(on:cartoonSurface)
+    }
+    func setCartoonBounceFrame(_ rect:CGRect){
+        guard let surface=cartoonSurface else{bounds=CGRect(origin:.zero,size:rect.size);center=CGPoint(x:rect.midX,y:rect.midY);return}
+        surface.bounds=CGRect(origin:.zero,size:rect.size);surface.center=CGPoint(x:rect.midX,y:rect.midY);layoutCartoonContent()
+    }
+    func layoutCartoonContent(){guard let surface=cartoonSurface else{return};bounds=surface.bounds;center=CGPoint(x:bounds.midX,y:bounds.midY)}
+    override var isHidden:Bool {didSet{cartoonSurface?.isHidden=isHidden;if isHidden{cartoonSurface?.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey)}}}
+    override func didMoveToWindow(){super.didMoveToWindow();if window==nil{cartoonSurface?.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey)}}
     private var ctaSoftShadow: CALayer?
     private let ctaShadowCaster = CALayer()
     private let ctaShadowMask = CAShapeLayer()
@@ -123,11 +146,13 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
     private var panels: [UIView] = []
     private var heroes: [UIButton] = []
     private(set) var heroImages: [UIImageView] = []
+    private var heroCartoonShells:[UIView]=[]
     static let heroArtworkScale: CGFloat = 1.05
     private var idleSlide: Int?
     private var ctas: [UIButton] = []
     private var ctaContainers: [UIView] = []
     private var ctaPressShells: [UIView] = []
+    private var ctaCartoonShells: [UIView] = []
     private var ctaPressGeneration = [0, 0, 0]
     private var ctaActivationPending = false
     private var navButtons: [UIButton] = []
@@ -201,7 +226,8 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             hero.addTarget(self, action: #selector(activate(_:)), for: .touchUpInside)
             let art = UIImageView(image: assets.image("assets/\(paths[index]).png", densityAware: true))
             art.contentMode = .scaleAspectFit
-            hero.addSubview(art)
+            let cartoon=UIView();cartoon.isUserInteractionEnabled=false
+            hero.addSubview(cartoon);cartoon.addSubview(art);heroCartoonShells.append(cartoon)
             panel.addSubview(hero)
             heroes.append(hero)
             heroImages.append(art)
@@ -225,7 +251,9 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             cta.addTarget(self, action: #selector(cancelCTA(_:)), for: [.touchCancel, .touchUpOutside, .touchDragExit])
             let ctaContainer = JimiV9OverflowView()
             let pressShell = JimiV9OverflowView()
-            pressShell.addSubview(cta)
+            let previewShell=JimiV9OverflowView()
+            previewShell.addSubview(cta);pressShell.addSubview(previewShell)
+            ctaCartoonShells.append(previewShell)
             ctaContainer.addSubview(pressShell)
             panel.addSubview(ctaContainer)
             ctaPressShells.append(pressShell)
@@ -332,12 +360,15 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
                 y: heroTop + heroes[i].layer.anchorPoint.y * 336)
             let artSize = 336 * Self.heroArtworkScale
             heroImages[i].bounds = CGRect(x:0,y:0,width:artSize,height:artSize)
+            heroCartoonShells[i].bounds=CGRect(x:0,y:0,width:336,height:336)
+            heroCartoonShells[i].center=CGPoint(x:168,y:168)
             heroImages[i].center = CGPoint(x:168,y:168)
             ctaContainers[i].bounds = CGRect(x: 0, y: 0, width: width, height: 104)
             ctaContainers[i].center = CGPoint(x: width/2, y: heroTop + 360)
             ctas[i].bounds = CGRect(x: 0, y: 0, width: 226, height: 64)
             ctaPressShells[i].bounds = ctas[i].bounds
             ctaPressShells[i].center = CGPoint(x: width/2, y: 72 + height*0.0225)
+            ctaCartoonShells[i].bounds=ctas[i].bounds;ctaCartoonShells[i].center=CGPoint(x:113,y:32)
             ctas[i].center = CGPoint(x: 113, y: 32)
             ctas[i].layer.shadowPath = UIBezierPath(roundedRect: ctas[i].bounds, cornerRadius: 32).cgPath
         }
@@ -387,11 +418,13 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         layer.add(animation,forKey:"native-hero-idle");idleSlide = selectedSlide
     }
     func pauseHeroIdle() {
+        heroCartoonShells.forEach{$0.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey)}
         guard let i = idleSlide else{return};let layer = heroImages[i].layer
         guard layer.speed != 0 else{return}
         let time = layer.convertTime(CACurrentMediaTime(),from:nil);layer.speed = 0;layer.timeOffset = time
     }
     func stopHeroIdle(preservePaintedPose:Bool = false) {
+        if !preservePaintedPose {heroCartoonShells.forEach{$0.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey)}}
         CATransaction.begin();CATransaction.setDisableActions(true)
         for image in heroImages {
             let layer = image.layer
@@ -405,7 +438,10 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
 
     @objc private func activate(_ button: UIButton) {
         guard !dragging, !ctaActivationPending, button.tag == selectedSlide else { return }
-        guard button === ctas[selectedSlide] else { onActivate?(selectedSlide); return }
+        guard button === ctas[selectedSlide] else {
+            NativeHubBackpackFeedback.play(on:heroCartoonShells[selectedSlide])
+            onActivate?(selectedSlide);return
+        }
         ctaActivationPending = true
         animateCTA(button.tag, pressed: false) { [weak self] in
             self?.ctaActivationPending = false
@@ -417,6 +453,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
 
     @objc private func pressCTA(_ button: UIButton) {
         guard !dragging, !ctaActivationPending else { return }
+        NativeHubBackpackFeedback.play(on:ctaCartoonShells[button.tag])
         animateCTA(button.tag, pressed: true)
     }
 
@@ -456,6 +493,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
     private func resetCTAFeedback() {
         ctaActivationPending = false
         CATransaction.begin(); CATransaction.setDisableActions(true)
+        for shell in ctaCartoonShells {shell.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey)}
         for (index, shell) in ctaPressShells.enumerated() {
             ctaPressGeneration[index] += 1
             shell.layer.removeAnimation(forKey: "cta-press")

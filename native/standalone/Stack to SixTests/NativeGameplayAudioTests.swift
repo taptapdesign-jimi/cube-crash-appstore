@@ -17,16 +17,134 @@ final class NativeGameplayAudioTests:XCTestCase {
         func stopAll() {stops += 1;let callbacks=Array(finishes.values);finishes.removeAll();callbacks.forEach{$0(.stopped)}}
         func dispose() {disposals += 1;stopAll()}
     }
+    func testDeveloperRewardCloseStopsOnlyRewardVoices() {
+        final class ScopedTransport:NativeGameplayAudioTransport {
+            var stopped:Set<String>=[];var allStops=0
+            func play(_ cue:NativeAudioCue) {}
+            func stopVoices(_ ids:Set<String>) {stopped.formUnion(ids)}
+            func stopAll(){allStops+=1}
+            func dispose(){}
+        }
+        let transport=ScopedTransport(),owner=NativeGameplayAudioOwner(root:NativeTestResources.root,enabled:true,transport:transport)
+        defer{owner.dispose()}
+        owner.stopRewardPreviewSounds()
+        XCTAssertEqual(transport.stopped,["journey-new-card-intro","journey-new-card-crumble","journey-new-card-enter-0","journey-new-card-opening-puff"])
+        XCTAssertEqual(transport.allStops,0)
+    }
+    func testRevealTailSurvivesCollectRouteAndGenerationThenReleases() {
+        let main=Transport(),tail=Transport()
+        let owner=NativeGameplayAudioOwner(root:NativeTestResources.root,enabled:true,transport:main,rewardTailFactory:{tail})
+        defer{owner.dispose()}
+        owner.resultMoment("new-card-reveal",receipt:1,generation:1)
+        XCTAssertEqual(owner.activeRewardTailCount,1)
+        owner.stopRewardPreviewSounds();owner.routeFeedback("cta",receipt:2,generation:1)
+        owner.stop();owner.beginGeneration(7)
+        XCTAssertEqual(tail.disposals,0);XCTAssertEqual(tail.stops,0)
+        owner.resultMoment("new-card-reveal",receipt:3,generation:7)
+        XCTAssertEqual(tail.cues.count,2,"An active reveal package cannot be replaced or accumulated")
+        tail.finish("journey-new-card-reveal",.ended)
+        XCTAssertEqual(owner.activeRewardTailCount,1,"Longer card reveal layer must retain its tail")
+        tail.finish("journey-new-card-reveal-layer",.ended)
+        XCTAssertEqual(owner.activeRewardTailCount,0);XCTAssertEqual(tail.disposals,1)
+        owner.dispose();XCTAssertEqual(tail.disposals,1)
+    }
+    func testCompletedRevealTailReleasesItsTransportReference() {
+        weak var released:Transport?
+        let owner=NativeGameplayAudioOwner(root:NativeTestResources.root,enabled:true,transport:Transport(),rewardTailFactory:{
+            let tail=Transport();released=tail;return tail
+        })
+        defer{owner.dispose()}
+        owner.resultMoment("new-card-reveal",receipt:1,generation:1)
+        XCTAssertNotNil(released)
+        released?.finish("journey-new-card-reveal",.ended)
+        XCTAssertNotNil(released)
+        released?.finish("journey-new-card-reveal-layer",.ended)
+        XCTAssertNil(released)
+    }
+    func testRevealTailHonorsMuteBackgroundAndOwnerDisposal() {
+        for action in 0..<3 {
+            let main=Transport(),tail=Transport()
+            let owner=NativeGameplayAudioOwner(root:NativeTestResources.root,enabled:true,transport:main,rewardTailFactory:{tail})
+            owner.resultMoment("new-card-reveal",receipt:1,generation:1)
+            if action==0 {owner.setEnabled(false)}else if action==1 {owner.setForeground(false)}else{owner.dispose()}
+            XCTAssertEqual(owner.activeRewardTailCount,0);XCTAssertEqual(tail.disposals,1)
+            owner.dispose()
+        }
+    }
+    func testRewardHappyIsSilentAndRevealUsesNewFileAtExistingGain() {
+        let transport=Transport(),owner=NativeGameplayAudioOwner(root:NativeTestResources.root,enabled:true,transport:transport,rewardTailFactory:{transport})
+        defer{owner.dispose()}
+        owner.resultMoment("new-card-happy",receipt:1,generation:1)
+        XCTAssertTrue(transport.cues.isEmpty)
+        owner.resultMoment("new-card-reveal",receipt:2,generation:1)
+        XCTAssertEqual(transport.cues.count,2)
+        XCTAssertEqual(transport.cues.first?.source,"assets/sound/card reveal/new reward.wav")
+        XCTAssertEqual(transport.cues.map(\.source),["assets/sound/card reveal/new reward.wav","assets/sound/card reveal/card reveal.wav"])
+        XCTAssertEqual(transport.cues.first?.gain,0.6)
+        owner.setEnabled(false)
+        owner.resultMoment("new-card-reveal",receipt:3,generation:1)
+        XCTAssertEqual(transport.cues.count,2)
+    }
+    func testUnlockedCardEnterLayersSelectedPoofsOnceAndObeysMute() {
+        let transport=Transport(),owner=NativeGameplayAudioOwner(root:NativeTestResources.root,enabled:true,transport:transport)
+        defer{owner.dispose()}
+        owner.resultMoment("new-card-unlocked-enter",receipt:1,generation:1)
+        owner.resultMoment("new-card-unlocked-enter",receipt:1,generation:1)
+        XCTAssertEqual(transport.cues.map(\.source),["assets/sound/card reveal/max poof.wav"])
+        owner.resultMoment("new-card-opening-puff",receipt:2,generation:1)
+        owner.resultMoment("new-card-opening-puff",receipt:2,generation:1)
+        XCTAssertEqual(transport.cues.map(\.source),["assets/sound/card reveal/max poof.wav","assets/sound/card reveal/puf.wav"])
+        XCTAssertEqual(Set(transport.cues.map(\.voice)).count,2)
+        owner.setEnabled(false);owner.resultMoment("new-card-opening-puff",receipt:3,generation:1)
+        XCTAssertEqual(transport.cues.count,2)
+    }
+    func testHUDIconTapUsesSameNavigationPackageAndSettingsReceiptGate() {
+        let nav=Transport(),hud=Transport()
+        let a=NativeGameplayAudioOwner(root:NativeTestResources.root,enabled:true,transport:nav,random:{0})
+        let b=NativeGameplayAudioOwner(root:NativeTestResources.root,enabled:true,transport:hud,random:{0})
+        defer{a.dispose();b.dispose()}
+        a.routeFeedback("tab",receipt:1,generation:1)
+        b.routeFeedback("hud-icon-tap",receipt:1,generation:1)
+        XCTAssertFalse(nav.cues.isEmpty)
+        XCTAssertEqual(nav.cues.map(\.source),hud.cues.map(\.source))
+        XCTAssertEqual(nav.cues.map(\.gain),hud.cues.map(\.gain))
+        let count=hud.cues.count
+        b.routeFeedback("hud-icon-tap",receipt:1,generation:1)
+        b.setEnabled(false);b.routeFeedback("hud-icon-tap",receipt:2,generation:1)
+        b.setEnabled(true);b.routeFeedback("hud-icon-tap",receipt:2,generation:1)
+        XCTAssertEqual(hud.cues.count,count)
+    }
+    func testHUDCoinGainTracksCapturedSizeFromFiveToTwentyFivePercentAndKeepsAdmission() {
+        let transport=Transport(),owner=NativeGameplayAudioOwner(root:URL(fileURLWithPath:"/unused"),enabled:true,transport:transport)
+        defer{owner.dispose()}
+        for (i,pair) in [(0.0,0.63),(0.5,0.69),(1.0,0.75),(-1.0,0.63),(2.0,0.75),(Double.nan,0.63)].enumerated() {
+            owner.specialMoment(variant:"coin",moment:"hud-star-arrived",coinSizeFraction:pair.0,receipt:UInt64(i+1),generation:1)
+            XCTAssertEqual(transport.cues.last!.gain,pair.1,accuracy:0.000001)
+            XCTAssertEqual(transport.cues.last!.source,"assets/sound/coins/hud coin.wav")
+        }
+        let count=transport.cues.count
+        owner.specialMoment(variant:"coin",moment:"hud-star-arrived",coinSizeFraction:1,receipt:6,generation:1)
+        owner.setEnabled(false)
+        owner.specialMoment(variant:"coin",moment:"hud-star-arrived",coinSizeFraction:1,receipt:7,generation:1)
+        owner.setEnabled(true)
+        owner.specialMoment(variant:"coin",moment:"hud-star-arrived",coinSizeFraction:1,receipt:7,generation:1)
+        XCTAssertEqual(transport.cues.count,count,"Repeat and Sounds-OFF receipts cannot replay at a new size")
+        XCTAssertEqual(NativeSourceHUDStarPlan.relativeCoinSize(34.5,enlargement:1.2),0,accuracy:0.000001)
+        XCTAssertEqual(NativeSourceHUDStarPlan.relativeCoinSize(68.7,enlargement:1.2),1,accuracy:0.000001)
+        XCTAssertEqual(NativeSourceHUDStarPlan.relativeCoinSize(43),0.5,accuracy:0.000001)
+    }
+
     func testCoinContactsAndFinalScoreUseSelectedFilesOnceAndRespectSettings() {
         let transport=Transport(),owner=NativeGameplayAudioOwner(root:URL(fileURLWithPath:"/unused"),enabled:true,transport:transport)
         defer{owner.dispose()}
         owner.specialMoment(variant:"star",moment:"hud-star-arrived",receipt:1,generation:1)
         XCTAssertEqual(transport.cues.map(\.source),["assets/sound/coins/hud coin.wav"])
-        XCTAssertEqual(transport.cues.last?.gain,0.6)
+        XCTAssertEqual(transport.cues.last?.gain,0.63)
         owner.specialMoment(variant:"star",moment:"hud-star-arrived",receipt:1,generation:1)
         XCTAssertEqual(transport.cues.count,1)
         owner.specialMoment(variant:"tnt",moment:"tnt-coin-launch",receipt:2,generation:1)
         XCTAssertEqual(transport.cues.last?.source,"assets/sound/coins/tnt coin.wav")
+        XCTAssertEqual(transport.cues.last?.gain,0.3)
         for index in 0..<3 {owner.resultMoment("clean-score-stop",index:index,receipt:UInt64(index+1),generation:1)}
         XCTAssertEqual(transport.cues.filter{$0.source.hasSuffix("final score.wav")}.count,3)
         XCTAssertEqual(transport.cues.last?.gain,0.84)
@@ -50,10 +168,15 @@ final class NativeGameplayAudioTests:XCTestCase {
         XCTAssertEqual(transport.stops,0)
     }
 
-    func testCTAUsesHomeIconSoundAndCloseBackUseFormerCTAOnce() {
+    func testCTAUsesHomeIconSoundAndCloseBackUseSelectedTapOnce() {
         let transport=Transport(),owner=NativeGameplayAudioOwner(root:URL(fileURLWithPath:"/unused"),enabled:true,transport:transport)
         defer{owner.dispose()}
-        for (index,pair) in [("cta","tab"),("tab","tab"),("back","cta"),("close","cta"),("exit-modal","exitModal")].enumerated() {
+        XCTAssertEqual(NativeAuthoredAudioCatalog.groups["cta"]?.count,1)
+        XCTAssertEqual(NativeAuthoredAudioCatalog.groups["cta"]?.first?.source,"assets/sound/CTA/cta-splat.wav")
+        XCTAssertEqual(NativeAuthoredAudioCatalog.groups["cta"]?.first?.gain,0.3)
+        XCTAssertEqual(NativeAuthoredAudioCatalog.groups["back"]?.count,1)
+        XCTAssertEqual(NativeAuthoredAudioCatalog.groups["back"]?.first?.source,"assets/sound/UI /tap effect back i close.wav")
+        for (index,pair) in [("cta","tab"),("tab","tab"),("back","back"),("close","back"),("exit-modal","exitModal")].enumerated() {
             transport.cues=[]
             let receipt=UInt64(index+1)
             owner.routeFeedback(pair.0,receipt:receipt,generation:1)

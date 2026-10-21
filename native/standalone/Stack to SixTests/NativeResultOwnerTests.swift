@@ -5,18 +5,18 @@ import StackToSixGameplay
 
 @MainActor
 final class NativeResultOwnerTests:XCTestCase {
-    func testCleanScoreRegisterLeadsFinalCounterCompletionByHalfSecond() {
+    func testCleanRegisterStartsOnceWithPrimaryCTAInsteadOfCounter() {
         let result=controller();var stops:[Int]=[];var cueTimes:[Double]=[]
         result.onMoment={kind,index,_ in if kind=="clean-score-stop" {stops.append(index);cueTimes.append(result.elapsed)}}
         result.loadViewIfNeeded();defer{result.dispose()}
         result.tick(0)
         XCTAssertTrue(stops.isEmpty)
-        for frame in 1...275 {result.tick(Double(frame)/60)}
+        for frame in 1...396 {result.tick(Double(frame)/60)}
         XCTAssertTrue(stops.isEmpty)
-        for frame in 276...420 {result.tick(Double(frame)/60)}
-        XCTAssertEqual(stops,[2])
-        XCTAssertEqual(cueTimes.first ?? 0,5.1,accuracy:1.0/60+0.001)
-        result.tick(7.1);XCTAssertEqual(stops,[2])
+        for frame in 397...420 {result.tick(Double(frame)/60)}
+        XCTAssertEqual(stops,[0])
+        XCTAssertEqual(cueTimes.first ?? 0,NativeResultPresentationPlan.cleanPrimaryCTAStart,accuracy:1.0/60+0.001)
+        result.tick(7.1);XCTAssertEqual(stops,[0])
     }
 
     func testJourneyResultUsesWorldAndLocalUnitWhileArcadeKeepsRound() throws {
@@ -270,7 +270,7 @@ final class NativeResultOwnerTests:XCTestCase {
         XCTAssertEqual(primary.bounds.size,CGSize(width:249,height:64))
         XCTAssertEqual(secondary.bounds.size,CGSize(width:249,height:64))
         XCTAssertEqual(primary.layer.cornerRadius,32);XCTAssertEqual(secondary.layer.cornerRadius,32)
-        XCTAssertEqual(primary.center.x,195);XCTAssertEqual(secondary.center.y-primary.center.y,80)
+        XCTAssertEqual((primary as! JimiV9PlainButton).cartoonBounceLayoutView.center.x,195);XCTAssertEqual((secondary as! JimiV9PlainButton).cartoonBounceLayoutView.center.y-(primary as! JimiV9PlainButton).cartoonBounceLayoutView.center.y,80)
         XCTAssertEqual(primary.transform.a,0)
         result.tick(0)
         for index in 1...80 {result.tick(Double(index)/10)}

@@ -6,9 +6,17 @@ nonisolated struct NativeSourceHUDStarPlan {
     let points:[CGPoint],delay:Double,duration:Double,size:Double,rotation:Double,textureWidth:Double
     var arrivalEaseDuration:Double=0
     var launchPower:Double=0
+    var originalMotionDuration:Double=0
+    var accelerationStart:Double=0
     var end:Double {delay+duration}
     var sourceDuration:Double {Self.round7(duration)}
     struct Pose {let point:CGPoint,scale:Double,rotation:Double,arrived:Bool,elapsed:Double}
+    /// Normalize the authored30...56pt width plus +/-1.25pt variation.
+    /// Capture before the common28pt trophy shrink; readable Native coins are1.2x.
+    static func relativeCoinSize(_ width:Double,enlargement:Double=1)->Double {
+        guard width.isFinite,enlargement.isFinite,enlargement>0 else{return 0}
+        return min(1,max(0,(width/enlargement-28.75)/(57.25-28.75)))
+    }
     static func sizeOrder(random:()->Double)->[Double] {
         var sizes:[Double]=[56,42,30]
         // Literal JSC stable insertion-sort for this exact immutable length3.
@@ -55,7 +63,11 @@ nonisolated struct NativeSourceHUDStarPlan {
         // One group captures the first flight's 20% spacing. Later coins stay
         // invisible at their source until launch, rather than waiting in a cluster.
         let launch=Double(ordinal)*(launchInterval ?? (flight-0.28)*0.20)
-        previousEnd=max(previousEnd,launch+flight)
+        let power=gentleLaunch ? 1.8:1.35
+        let accelerationStart=(flight-0.28)*pow(0.5,1/power)
+        // Quadratic ease-in playback speed: 1x at halfway, 1.25x at arrival.
+        let acceleratedDuration=accelerationStart+(flight-accelerationStart)/(1+0.25/3)
+        previousEnd=max(previousEnd,launch+acceleratedDuration)
         var start=points[0]
         let target=points[points.count-1]
         if let viewport,viewport.width>0,viewport.height>0 {
@@ -82,8 +94,8 @@ nonisolated struct NativeSourceHUDStarPlan {
             if i==64 {return target}
             return point
         }
-        return Self(points:burstPoints,delay:launch,duration:flight,size:size*1.20,
-            rotation:rotation,textureWidth:textureWidth,arrivalEaseDuration:0.28,launchPower:gentleLaunch ? 1.8:1.35)
+        return Self(points:burstPoints,delay:launch,duration:acceleratedDuration,size:size*1.20,
+            rotation:rotation,textureWidth:textureWidth,arrivalEaseDuration:0.28,launchPower:power,originalMotionDuration:flight,accelerationStart:accelerationStart)
     }
     static func round7(_ x:Double)->Double {(x*1e7).rounded()/1e7}
     static func round6(_ x:Double)->Double {(x*1e6).rounded()/1e6}
@@ -95,7 +107,15 @@ nonisolated struct NativeSourceHUDStarPlan {
     }
     /// Source onUpdate retained-scale hysteresis; do not paint a freshly sampled
     /// scale on every frame. GSAP numeric-property writes round to six decimals.
-    func sample(localSeconds:Double,previousScale:Double)->Pose {
+    func motionSeconds(_ elapsed:Double)->Double {
+        guard originalMotionDuration>0,elapsed>accelerationStart else{return elapsed}
+        let tail=duration-accelerationStart
+        let q=min(1,max(0,(elapsed-accelerationStart)/tail))
+        return min(originalMotionDuration,accelerationStart+tail*(q+0.25*q*q*q/3))
+    }
+    func sample(localSeconds elapsedSeconds:Double,previousScale:Double)->Pose {
+        let localSeconds=motionSeconds(elapsedSeconds)
+        let sourceDuration=Self.round7(originalMotionDuration>0 ? originalMotionDuration:duration)
         let flightDuration=sourceDuration-arrivalEaseDuration
         let raw=Self.round6(min(1,max(0,localSeconds/(arrivalEaseDuration>0 ? flightDuration:sourceDuration))))
         let t:Double
@@ -119,8 +139,8 @@ nonisolated struct NativeSourceHUDStarPlan {
             let target=28/textureWidth,current=size/textureWidth+(target-size/textureWidth)*(t-shrinkStart)/(1-shrinkStart)
             if abs(previousScale-current)>0.01 {scale=current}
         }
-        let rotationDuration=Self.round7(duration*0.98),q=min(1,max(0,localSeconds/rotationDuration))
+        let rotationDuration=Self.round7((originalMotionDuration>0 ? originalMotionDuration:duration)*0.98),q=min(1,max(0,localSeconds/rotationDuration))
         let rotated=Self.round6(rotation*(-(cos(Double.pi*q)-1)/2))
-        return Pose(point:point,scale:scale,rotation:rotated,arrived:arrivalEaseDuration>0 ? localSeconds>=sourceDuration-0.000001:t>=0.98,elapsed:localSeconds)
+        return Pose(point:point,scale:scale,rotation:rotated,arrived:arrivalEaseDuration>0 ? localSeconds>=sourceDuration-0.000001:t>=0.98,elapsed:elapsedSeconds)
     }
 }

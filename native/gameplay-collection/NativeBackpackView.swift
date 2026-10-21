@@ -1,6 +1,7 @@
 import UIKit
 
-/// Static, reusable cells load only when they intersect the scroll viewport.
+/// Reusable cells load only when they intersect the scroll viewport.
+/// The existing visible presentation lease also owns unlocked artwork idle.
 @MainActor
 final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionViewDelegateFlowLayout {
     private let assets:JimiV9Artwork
@@ -10,6 +11,7 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
     private(set) var includesArcade=false
     let arcadeCrate:Bool
     private var alertsActive=false
+    private(set) var seenUnreadDice=Set<String>()
     func setAlertsActive(_ active:Bool){alertsActive=active;refreshVisibleAlerts()}
     func markRead(_ id:String){for i in sections.indices {sections[i].unread.remove(id)};refreshVisibleAlerts()}
     private func refreshVisibleAlerts(){
@@ -19,12 +21,33 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
             let unread=section>=0 && sections.indices.contains(section) && sections[section].unread.contains(sections[section].dice[path.item].id)
             cell.setAlert(unread:unread,active:alertsActive && !isHidden)
         }
+        recordSeenUnread()
     }
+    /// Admit actual visible cards only, excluding the pinned header and mere edge slivers.
+    private func recordSeenUnread(){
+        for path in grid.indexPathsForVisibleItems {
+            if let cell=grid.cellForItem(at:path){recordSeenUnread(at:path,cell:cell)}
+        }
+    }
+    private func recordSeenUnread(at path:IndexPath,cell:UICollectionViewCell){
+        guard alertsActive,!isHidden,window != nil,alpha>0.01 else{return}
+        let section=path.section-(includesArcade ? 1:0)
+        guard sections.indices.contains(section),sections[section].dice.indices.contains(path.item) else{return}
+        let die=sections[section].dice[path.item]
+        guard sections[section].unlocked.contains(die.id),sections[section].unread.contains(die.id) else{return}
+        var viewport=convert(grid.bounds,from:grid).intersection(bounds)
+        if !header.isHidden {viewport=viewport.intersection(CGRect(x:0,y:header.frame.maxY,width:bounds.width,height:max(0,bounds.height-header.frame.maxY)))}
+        let card=convert(cell.frame,from:grid),intersection=card.intersection(viewport)
+        if !intersection.isNull,card.width>0,card.height>0,
+           intersection.width*intersection.height >= card.width*card.height*0.5 {seenUnreadDice.insert(die.id)}
+    }
+    func scrollViewDidScroll(_ scrollView:UIScrollView){recordSeenUnread()}
     override var isHidden:Bool {didSet{refreshVisibleAlerts()}}
     func collectionView(_ collectionView:UICollectionView,willDisplay cell:UICollectionViewCell,forItemAt indexPath:IndexPath){
         let section=indexPath.section-(includesArcade ? 1:0)
         let unread=section>=0 && sections.indices.contains(section) && sections[section].unread.contains(sections[section].dice[indexPath.item].id)
         (cell as? NativeBackpackCell)?.setAlert(unread:unread,active:alertsActive && !isHidden)
+        recordSeenUnread(at:indexPath,cell:cell)
     }
     func collectionView(_ collectionView:UICollectionView,didEndDisplaying cell:UICollectionViewCell,forItemAt indexPath:IndexPath){(cell as? NativeBackpackCell)?.setAlert(unread:false,active:false)}
     private var embedded=false
@@ -49,11 +72,11 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
         header.addSubview(self.title);header.addSubview(close)
         close.setImage(assets.image("assets/close-icon.png",densityAware:true),for:.normal)
         close.imageView?.contentMode = .scaleAspectFit;close.imageEdgeInsets=UIEdgeInsets(top:10,left:10,bottom:10,right:10)
-        close.accessibilityLabel="Close \(title)";close.accessibilityIdentifier=arcadeCrate ? "native.arcade.crate.close":"native.backpack.close"
+        close.enableArtworkTapFeedback();close.accessibilityLabel="Close \(title)";close.accessibilityIdentifier=arcadeCrate ? "native.arcade.crate.close":"native.backpack.close"
         close.addTarget(self,action:#selector(closeTapped),for:.touchUpInside)
     }
     required init?(coder:NSCoder){fatalError("Use assets initializer")}
-    func apply(_ sections:[NativeBackpackCatalog.Section],includesArcade:Bool=false) {self.includesArcade=arcadeCrate || includesArcade;self.sections=arcadeCrate ? []:sections;grid.setContentOffset(CGPoint(x:0,y:-grid.contentInset.top),animated:false);grid.reloadData();setNeedsLayout();layoutIfNeeded()}
+    func apply(_ sections:[NativeBackpackCatalog.Section],includesArcade:Bool=false) {self.includesArcade=arcadeCrate || includesArcade;self.sections=arcadeCrate ? []:sections;seenUnreadDice.removeAll();grid.setContentOffset(CGPoint(x:0,y:-grid.contentInset.top),animated:false);grid.reloadData();setNeedsLayout();layoutIfNeeded()}
     override func layoutSubviews() {
         super.layoutSubviews()
         let row=JimiV9NavigationHeader.RowLayout(bounds:bounds,safeAreaTop:safeAreaInsets.top),height=embedded ? 16:row.top+66
@@ -141,23 +164,59 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
             return (target,.init(tweens:[.init(begin:delay,duration:reduced ? 0.16:enter ? 0.56:0.40,from:.scale(enter ? 0:1),to:.scale(enter ? 1:0),ease:enter ? .backOut(1.8):.backIn(1.7))]))
         }
     }
-    @objc private func closeTapped(){NativeHubBackpackFeedback.play(on:close.imageView ?? close);onClose?()}
+    @objc private func closeTapped(){close.playArtworkTapFeedback();onClose?()}
 }
 
 @MainActor
 private final class NativeBackpackCell:UICollectionViewCell {
     static let ink=UIColor(red:0.68,green:0.53,blue:0.46,alpha:1)
+    private let artworkGroup=UIView()
     private let holder=UIImageView(),die=UIImageView()
     let alert=NativeBackpackAlertView()
     private var alertRight=false
     private var arcade=false
     private var artworkSize=CGSize(width:80,height:80)
     private var artworkOffset=CGPoint.zero
-    override init(frame:CGRect){super.init(frame:frame);for image in [holder,die]{image.contentMode = .scaleAspectFit;contentView.addSubview(image)};contentView.addSubview(alert);isAccessibilityElement=true}
+    private var artworkActive=false
+    private var artworkIdentity:String?
+    private var artworkIdleOffset:CFTimeInterval=0
+    private var artworkIdleDuration:CFTimeInterval=4.4
+    private static let artworkIdleKey="backpack.artwork.idle"
+    override func didMoveToWindow(){super.didMoveToWindow();reconcileArtworkIdle()}
+    private func stopArtworkIdle(reset:Bool=false){
+        if let motion=artworkGroup.layer.animation(forKey:Self.artworkIdleKey) {
+            artworkIdleOffset=(artworkGroup.layer.convertTime(CACurrentMediaTime(),from:nil)-motion.beginTime+motion.timeOffset).truncatingRemainder(dividingBy:motion.duration)
+            CATransaction.begin();CATransaction.setDisableActions(true)
+            artworkGroup.layer.transform=artworkGroup.layer.presentation()?.transform ?? artworkGroup.layer.transform
+            artworkGroup.layer.removeAnimation(forKey:Self.artworkIdleKey)
+            CATransaction.commit()
+        }
+        if reset {artworkIdleOffset=0;artworkGroup.layer.transform=CATransform3DIdentity}
+    }
+    private func reconcileArtworkIdle(){
+        guard artworkActive,die.tag==1,window != nil,contentView.bounds.width>0,!UIAccessibility.isReduceMotionEnabled else{stopArtworkIdle();return}
+        guard artworkGroup.layer.animation(forKey:Self.artworkIdleKey)==nil else{return}
+        // Same neutral → raised/softly tilted → neutral float as Worlds Hub.
+        // Holder, die and corner alert float as one card; selection/route own parents.
+        let scale=contentView.bounds.width/(arcade ? 98:153)
+        var peak=CATransform3DMakeTranslation(0,-8*scale,0)
+        peak=CATransform3DScale(peak,1.018,1.018,1)
+        peak=CATransform3DRotate(peak,0.7 * .pi/180,0,0,1)
+        let motion=CAKeyframeAnimation(keyPath:"transform")
+        motion.values=[CATransform3DIdentity,peak,CATransform3DIdentity].map{NSValue(caTransform3D:$0)}
+        motion.keyTimes=[0,0.5,1];motion.duration=artworkIdleDuration
+        motion.timingFunctions=Array(repeating:CAMediaTimingFunction(name:.easeInEaseOut),count:2)
+        motion.repeatCount = .infinity
+        motion.beginTime=artworkGroup.layer.convertTime(CACurrentMediaTime(),from:nil);motion.timeOffset=artworkIdleOffset
+        artworkGroup.layer.add(motion,forKey:Self.artworkIdleKey)
+    }
+    override init(frame:CGRect){super.init(frame:frame);for image in [holder,die]{image.contentMode = .scaleAspectFit;artworkGroup.addSubview(image)};artworkGroup.addSubview(alert);contentView.addSubview(artworkGroup);artworkGroup.accessibilityIdentifier="native.backpack.idle-group";isAccessibilityElement=true}
     required init?(coder:NSCoder){fatalError("Use frame")}
     func apply(_ item:NativeBackpackCatalog.Die,unlocked:Bool,right:Bool,arcade:Bool,assets:JimiV9Artwork,illustrationScale:CGFloat=1) {
+        if artworkIdentity != item.id {stopArtworkIdle(reset:true);artworkIdentity=item.id}
+        artworkIdleDuration=[4.4,4.85,5.2][max(0,item.board)%3]
         self.arcade=arcade;alertRight=right;alert.clockwise=right
-        alert.image=assets.image("assets/nav/alsert@2x.png") ?? assets.image("assets/nav/alert.png")
+        alert.image=assets.image("assets/nav/new.png",densityAware:true)
         let holderSuffix = !unlocked ? " locked" : arcade ? (item.id=="wild-magnet" ? " middle" : item.id=="cubero" ? " desno" : "") : (right ? " desno" : "")
         holder.image=assets.image("assets/backpack/dice holder\(holderSuffix).png",densityAware:true)
         die.image=assets.image(unlocked ? item.artwork.path:"assets/backpack/lokot.png",densityAware:true)
@@ -184,15 +243,17 @@ private final class NativeBackpackCell:UICollectionViewCell {
             artworkOffset=CGPoint(x:artworkOffset.x*iconScale,y:artworkOffset.y*iconScale)
         }
         if unlocked {artworkSize=CGSize(width:artworkSize.width*illustrationScale,height:artworkSize.height*illustrationScale)}
+        if !unlocked {stopArtworkIdle(reset:true)}
         die.tag=unlocked ? 1:0;accessibilityLabel=item.title+(unlocked ? "":" Locked");accessibilityTraits=unlocked ? .button:.image
-        accessibilityIdentifier="native.backpack.die.\(item.id)";setNeedsLayout()
+        accessibilityIdentifier="native.backpack.die.\(item.id)";die.accessibilityIdentifier="native.backpack.idle-artwork";reconcileArtworkIdle();setNeedsLayout()
     }
-    func setAlert(unread:Bool,active:Bool){alert.isHidden = !unread;alert.setActive(unread && active)}
-    override func layoutSubviews(){super.layoutSubviews();let scale=contentView.bounds.width/(arcade ? 98:153);holder.bounds=CGRect(x:0,y:0,width:contentView.bounds.width+(die.tag==0 ? 2*scale:0),height:contentView.bounds.height);holder.center=CGPoint(x:contentView.bounds.midX,y:contentView.bounds.midY);let size=die.tag==0 ? CGSize(width:70*scale,height:80*scale):CGSize(width:artworkSize.width*scale,height:artworkSize.height*scale);die.bounds=CGRect(origin:.zero,size:size);die.center=CGPoint(x:contentView.bounds.midX-artworkOffset.x*scale,y:contentView.bounds.midY-artworkOffset.y*scale)
+    func setAlert(unread:Bool,active:Bool){alert.isHidden = !unread;alert.setActive(unread && active);artworkActive=active;layoutIfNeeded();reconcileArtworkIdle()}
+    override func layoutSubviews(){super.layoutSubviews();artworkGroup.bounds=contentView.bounds;artworkGroup.center=CGPoint(x:contentView.bounds.midX,y:contentView.bounds.midY);let scale=contentView.bounds.width/(arcade ? 98:153);holder.bounds=CGRect(x:0,y:0,width:contentView.bounds.width+(die.tag==0 ? 2*scale:0),height:contentView.bounds.height);holder.center=CGPoint(x:contentView.bounds.midX,y:contentView.bounds.midY);let size=die.tag==0 ? CGSize(width:70*scale,height:80*scale):CGSize(width:artworkSize.width*scale,height:artworkSize.height*scale);die.bounds=CGRect(origin:.zero,size:size);die.center=CGPoint(x:contentView.bounds.midX-artworkOffset.x*scale,y:contentView.bounds.midY-artworkOffset.y*scale)
         alert.bounds=CGRect(x:0,y:0,width:58*1.1*scale,height:58*1.1*scale);alert.center=CGPoint(x:alertRight ? contentView.bounds.width-14*scale:14*scale,y:14*scale)
+        reconcileArtworkIdle()
     }
     func playSelectionFeedback(){NativeHubBackpackFeedback.play(on:contentView)}
-    override func prepareForReuse(){super.prepareForReuse();alert.setActive(false);alert.isHidden=true;holder.image=nil;die.image=nil;contentView.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey);layer.removeAllAnimations();layer.transform=CATransform3DIdentity;layer.opacity=1}
+    override func prepareForReuse(){super.prepareForReuse();artworkActive=false;stopArtworkIdle(reset:true);artworkIdentity=nil;alert.setActive(false);alert.isHidden=true;holder.image=nil;die.image=nil;contentView.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey);layer.removeAllAnimations();layer.transform=CATransform3DIdentity;layer.opacity=1}
 }
 @MainActor
 private final class NativeBackpackSectionHeader:UICollectionReusableView {
@@ -207,20 +268,54 @@ private final class NativeBackpackSectionHeader:UICollectionReusableView {
 @MainActor
 final class NativeBackpackAlertView:UIImageView,CAAnimationDelegate {
     static let motionKey="backpack.alert.idle"
+    static let exitKey="backpack.alert.exit"
+    private var exiting=false
     static func randomRotation(clockwise:Bool=true)->CGFloat {CGFloat.random(in:5...10) * (clockwise ? 1:-1) * .pi/180}
-    var clockwise=true
+    var clockwise=true {
+        didSet {
+            guard clockwise != oldValue else{return}
+            epoch += 1;layer.removeAnimation(forKey:Self.motionKey)
+            layer.transform=restingTransform;reconcile()
+        }
+    }
+    private var restingRotation:CGFloat {(clockwise ? 1:-1) * .pi/18}
+    private var restingTransform:CATransform3D {CATransform3DMakeRotation(restingRotation,0,0,1)}
     private var active=false
     private var epoch=0
     private(set) var cycleRotation:CGFloat=0
-    init(){super.init(frame:.zero);contentMode = .scaleAspectFit;isUserInteractionEnabled=false;isHidden=true;accessibilityIdentifier="native.backpack.alert"}
+    init(){super.init(frame:.zero);contentMode = .scaleAspectFit;isUserInteractionEnabled=false;isHidden=true;accessibilityIdentifier="native.backpack.alert";layer.transform=restingTransform}
     required init?(coder:NSCoder){fatalError("Use init")}
     override func didMoveToWindow(){super.didMoveToWindow();reconcile()}
     func setActive(_ value:Bool){active=value;reconcile()}
+    /// Finite badge exit starts in the same transaction as the backpack switch.
+    func setUnreadVisible(_ visible:Bool,delay:TimeInterval=0){
+        if visible {
+            exiting=false;layer.removeAnimation(forKey:Self.exitKey);layer.opacity=1;isHidden=false;reconcile();return
+        }
+        guard !isHidden,!exiting else{return}
+        active=false;epoch += 1;exiting=true
+        let painted=layer.presentation()?.transform ?? layer.transform
+        layer.removeAnimation(forKey:Self.motionKey)
+        guard !UIAccessibility.isReduceMotionEnabled else{exiting=false;isHidden=true;return}
+        let scale=CAKeyframeAnimation(keyPath:"transform")
+        scale.values=(0...32).map { step in
+            let t=Double(step)/32,s=CGFloat(1-JimiV9Motion.Ease.backIn(1.7).value(t))
+            return NSValue(caTransform3D:CATransform3DScale(painted,s,s,1))
+        }
+        let fade=CABasicAnimation(keyPath:"opacity");fade.fromValue=layer.presentation()?.opacity ?? 1;fade.toValue=0
+        let group=CAAnimationGroup();group.animations=[scale,fade];group.duration=0.16
+        group.delegate=self;group.setValue(true,forKey:"alertExit");group.setValue(epoch,forKey:"alertEpoch")
+        group.fillMode = .backwards;group.beginTime=layer.convertTime(CACurrentMediaTime(),from:nil)+max(0,delay)
+        layer.opacity=0;layer.add(group,forKey:Self.exitKey)
+    }
     func animationDidStop(_ animation:CAAnimation,finished flag:Bool){
-        guard flag,(animation.value(forKey:"alertEpoch") as? Int)==epoch,active,window != nil,!isHidden else{return}
+        guard flag,(animation.value(forKey:"alertEpoch") as? Int)==epoch else{return}
+        if animation.value(forKey:"alertExit") as? Bool == true {exiting=false;isHidden=true;return}
+        guard active,window != nil,!isHidden else{return}
         layer.removeAnimation(forKey:Self.motionKey);reconcile()
     }
     private func reconcile(){
+        guard !exiting else{return}
         guard active,window != nil,!isHidden,!UIAccessibility.isReduceMotionEnabled else {epoch += 1;layer.removeAnimation(forKey:Self.motionKey);return}
         guard layer.animation(forKey:Self.motionKey)==nil else{return}
         epoch += 1;cycleRotation=Self.randomRotation(clockwise:clockwise)
@@ -228,7 +323,10 @@ final class NativeBackpackAlertView:UIImageView,CAAnimationDelegate {
         let motion=CAKeyframeAnimation(keyPath:"transform")
         motion.values=poses.enumerated().map{index,pose in
             let (x,y,offset)=pose,weights:[CGFloat]=[0,0.35,1,0.55,0.2,0,0]
-            let transform=CATransform3DRotate(CATransform3DMakeTranslation(0,offset,0),cycleRotation*weights[index],0,0,1)
+            // Keep the badge tilted at rest as well as during its bounce.
+            // Interpolation between the 10° rest and 5–10° peak stays bounded.
+            let angle=restingRotation+(cycleRotation-restingRotation)*weights[index]
+            let transform=CATransform3DRotate(CATransform3DMakeTranslation(0,offset,0),angle,0,0,1)
             return NSValue(caTransform3D:CATransform3DScale(transform,x,y,1))
         }
         motion.keyTimes=[0,0.10,0.22,0.34,0.46,0.58,1];motion.duration=2.4

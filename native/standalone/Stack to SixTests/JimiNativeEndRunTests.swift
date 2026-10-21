@@ -36,11 +36,11 @@ final class JimiNativeEndRunTests: XCTestCase {
             modal.loadViewIfNeeded();modal.view.frame = CGRect(x:0,y:0,width:width,height:844);modal.viewDidLayoutSubviews()
             for (i,button) in modal.buttons.enumerated() {
                 XCTAssertEqual(button.bounds.size,CGSize(width:249,height:64))
-                XCTAssertEqual(button.center.x,modal.card.bounds.midX)
-                XCTAssertEqual(button.frame.minY,184+CGFloat(i)*80)
+                XCTAssertEqual(button.cartoonBounceLayoutView.center.x,modal.card.bounds.midX)
+                XCTAssertEqual(button.cartoonBounceFrame.minY,184+CGFloat(i)*80)
             }
-            XCTAssertEqual(modal.buttons[1].frame.minY-modal.buttons[0].frame.maxY,16)
-            XCTAssertEqual(modal.card.bounds.height-modal.buttons[1].frame.maxY,36)
+            XCTAssertEqual(modal.buttons[1].cartoonBounceFrame.minY-modal.buttons[0].cartoonBounceFrame.maxY,16)
+            XCTAssertEqual(modal.card.bounds.height-modal.buttons[1].cartoonBounceFrame.maxY,36)
             modal.dispose()
         }
     }

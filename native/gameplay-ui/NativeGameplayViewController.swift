@@ -45,6 +45,8 @@ final class NativeGameplayViewController: UIViewController {
     var onGameplayReceipt: ((NativeGameplayEvent,NativeTile?,NativeTile?,UInt64) -> Void)?
     var onSpecialFadeCapture: ((String,UInt64) -> ((Double) -> Void)?)?
     var onSpecialMoment: ((String?,String,Int) -> Void)?
+    var onHUDCoinArrival:((Double)->Void)?
+    var onHUDTapContact:((String)->Void)?
     var onHelp: (() -> Void)?
     var onScore: (() -> Void)?
     var onCombo: (() -> Void)?
@@ -673,6 +675,7 @@ final class NativeGameplayViewController: UIViewController {
         scene.unreadJourneyDice = {[weak self] in self?.unreadJourneyDice() ?? []}
         scene.onJourneyDieLanded = {[weak self] id,board,generation in self?.onJourneyDieLanded?(id,board,generation)}
         scene.refreshBackpackAlert()
+        scene.onHUDTapContact = {[weak self] kind in self?.onHUDTapContact?(kind)}
         scene.onHelpRequest = { [weak self] in
             guard let self,self.engine.state.mode != .arcade || self.engine.state.effectiveArcadeVariant != .pureDice else { return }
             self.onHelp?()
@@ -753,6 +756,7 @@ final class NativeGameplayViewController: UIViewController {
         }
         scene.onGameplayReceipt = { [weak self] event,source,destination,generation in self?.onGameplayReceipt?(event,source,destination,generation) }
         scene.onSpecialMoment = { [weak self] variant,moment,index in self?.onSpecialMoment?(variant,moment,index) }
+        scene.onHUDCoinArrival = { [weak self] relativeSize in self?.onHUDCoinArrival?(relativeSize) }
         scene.onGameplayEvent = { [weak self] event in self?.onGameplayEvent?(event) }
         scene.onFrameTarget={ [weak self,weak scene] fps in
             guard let self,!self.disposed,self.spriteView.surfaceFrameRate != fps else{return}
@@ -770,8 +774,12 @@ final class NativeGameplayViewController: UIViewController {
             guard let self, !self.disposed else { return }
             // The Scene admits its finite HUD entrance/contact feedback while a
             // foreground modal freezes gameplay. Do not override that receipt.
-            let paused = !active || self.backgrounded ||
-                (self.explicitlySuspended && !self.exitingBoard && scene?.hasActiveHUDPresentationFeedback != true)
+            // Late resource completions may relinquish normal board rendering
+            // while a foreground sheet still owns finite HUD presentation.
+            // Its existing scene receipt wins until that exact feedback settles.
+            let hudFeedback=scene?.hasActiveHUDPresentationFeedback == true
+            let paused = self.backgrounded ||
+                ((!active || self.explicitlySuspended && !self.exitingBoard) && !hudFeedback)
             if paused {scene?.retireSourceRendererDragTransport()}
             self.spriteView.surfacePaused = paused
         }
@@ -1535,7 +1543,7 @@ final class NativeGameplayViewController: UIViewController {
         sourceTntGlyphScopes.removeAll();sourceTntGlyphOwnerIDs.removeAll();tntGlyphs.values.forEach { $0.removeFromSuperview() }; tntGlyphs.removeAll(); spriteView.presentGameplayScene(nil); spriteView.surfacePaused = true
         onSourceGuidedSnapBack=nil;onSourceTutorialRetired=nil;onSourceTutorialPrepared=nil
         onSourceBoardEntrySound=nil;onSourceBoardEntryCompleted=nil
-        onExit = nil; onStateChange = nil; onTerminal = nil; onGameplayEvent = nil; onHelp = nil; onScore = nil; onCombo = nil; onPointerState = nil; onHaptic = nil; onBoardEntry = nil; onBoardExit = nil; onGameplayReceipt = nil; onSpecialMoment = nil; onSpecialFadeCapture = nil
+        onExit = nil; onStateChange = nil; onTerminal = nil; onGameplayEvent = nil; onHUDTapContact=nil; onHelp = nil; onScore = nil; onCombo = nil; onPointerState = nil; onHaptic = nil; onBoardEntry = nil; onBoardExit = nil; onGameplayReceipt = nil; onSpecialMoment = nil; onHUDCoinArrival = nil; onSpecialFadeCapture = nil
     }
 }
 

@@ -17,7 +17,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
     private let crateNavigationTarget = UIButton(type:.custom)
     let backButton = JimiV9PlainButton(type: .custom)
     let backpackAlert=NativeBackpackAlertView()
-    func setBackpackUnread(_ unread:Bool){backpackAlert.isHidden = !unread || arcade;backpackAlert.setActive(unread && !arcade && idleRequested && !isHidden)}
+    func setBackpackUnread(_ unread:Bool){backpackAlert.setUnreadVisible(unread && !arcade);backpackAlert.setActive(unread && !arcade && idleRequested && !isHidden)}
     let backpackButton = JimiV9PlainButton(type: .custom)
     private let content = UIView()
     private let arcade: Bool
@@ -30,6 +30,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
     private var banners: [Int: UIView] = [:]
     private var bannerRevealShells: [Int: UIView] = [:]
     private var artworkViews: [Int: UIImageView] = [:]
+    private var cartoonShells:[Int:UIView]=[:]
     private var flagViews: [Int: UIImageView] = [:]
     private var visualBounds: [Int: CGRect] = [:]
     private var admittedWorlds = Set<Int>()
@@ -48,6 +49,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
     var onBack: (() -> Void)?
     var onWorld: ((Int) -> Void)?
     var onBackpack: (() -> Void)?
+    var onInputDiagnostic:((String)->Void)?
     var bannerRevealTargets: [(worldID: Int, view: UIView)] {
         worldIDs.compactMap { id in bannerRevealShells[id].map { (id, $0) } }
     }
@@ -55,9 +57,14 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
         guard !isHidden, isUserInteractionEnabled, alpha > 0.01 else { return nil }
         // Header CA motion changes its model geometry; the navigation target stays
         // at its authored position while content remains gated independently.
-        if navigationTarget.frame.contains(point), backButton.isEnabled { return navigationTarget }
-        if arcade,crateNavigationTarget.frame.contains(point),backpackButton.isEnabled { return crateNavigationTarget }
-        return super.hitTest(point,with:event)
+        let target:UIView?
+        if navigationTarget.frame.contains(point), backButton.isEnabled {target=navigationTarget}
+        else if arcade,crateNavigationTarget.frame.contains(point),backpackButton.isEnabled {target=crateNavigationTarget}
+        else {target=super.hitTest(point,with:event)}
+        if let onInputDiagnostic {
+            onInputDiagnostic("hit x=\(Int(point.x)) y=\(Int(point.y)) target=\(target.map{String(describing:type(of:$0))} ?? "nil") tag=\(target?.tag ?? -1)")
+        }
+        return target
     }
 
     func bannerWidth(for worldID: Int) -> CGFloat { banners[worldID]?.bounds.width ?? 0 }
@@ -137,7 +144,8 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
             artwork.frame = CGRect(x: 0, y: 0, width: 273, height: 190)
             artwork.contentMode = .scaleAspectFit
             artwork.accessibilityIdentifier = arcade ? "native.arcade-hub.art.\(id)" : "native.hub.art.\(id)"
-            tilt.addSubview(artwork)
+            let cartoon=UIView();cartoon.isUserInteractionEnabled=false
+            tilt.addSubview(cartoon);cartoon.addSubview(artwork);cartoonShells[id]=cartoon
             artworkViews[id] = artwork
             content.addSubview(button); worldUnits.append(button)
         }
@@ -151,7 +159,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
         backpackButton.setImage(assets.image(arcade ? "assets/hud/crate - hud.png" : "assets/nav/stats-nav.png", densityAware: true), for: .normal)
         backpackButton.imageView?.contentMode = .scaleAspectFit
         backpackButton.imageEdgeInsets = arcade ? UIEdgeInsets(top:4.8,left:0.8,bottom:4.8,right:0.8) : UIEdgeInsets(top:4,left:0,bottom:4,right:0)
-        backpackButton.accessibilityLabel = arcade ? "Dice Box" : "Backpack"; backpackButton.accessibilityIdentifier = arcade ? "native.arcade-hub.crate" : "native.hub.backpack"
+        backpackButton.accessibilityLabel = arcade ? "Box" : "Backpack"; backpackButton.accessibilityIdentifier = arcade ? "native.arcade-hub.crate" : "native.hub.backpack"
         backpackButton.addTarget(self, action: #selector(backpack), for: .touchUpInside)
         backpackButton.isHidden = false
         backpackAlert.image=assets.image("assets/nav/alsert@2x.png") ?? assets.image("assets/nav/alert.png")
@@ -234,7 +242,10 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
             bannerRevealShells[id]?.center = CGPoint(x: visualSize/2,y: visualSize/2)
             if let art = artworkViews[id] {
                 let ratio = (art.image?.size.height ?? 1)/(art.image?.size.width ?? 1)
-                art.frame = CGRect(x: 0, y: 0, width: visualSize, height: visualSize*ratio)
+                let rect=CGRect(x:0,y:0,width:visualSize,height:visualSize*ratio)
+                cartoonShells[id]?.bounds=CGRect(origin:.zero,size:rect.size)
+                cartoonShells[id]?.center=CGPoint(x:rect.midX,y:rect.midY)
+                art.frame=CGRect(origin:.zero,size:rect.size)
             }
             if let banner = banners[id], let flag = flagViews[id] {
                 let edge = max(-width*0.128, -50)
@@ -290,6 +301,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
     /// Freeze currently painted inner poses before removing all idle owners so
     /// an outgoing Unit does not jump back to its neutral art underneath it.
     func stopIdle() {
+        cancelWorldTap()
         backpackAlert.setActive(false)
         idleRequested = false
         for id in worldIDs { removeIdle(id, freeze: true) }
@@ -424,6 +436,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
     static let worldTapAnimationKey="native.hub.world-scale-up"
     func playWorldTap(_ id:Int,completion:@escaping()->Void) {
         guard let target=artworkViews[id],window != nil,!UIAccessibility.isReduceMotionEnabled else { completion();return }
+        if arcade,let shell=cartoonShells[id] {NativeHubBackpackFeedback.play(on:shell)}
         CATransaction.begin();CATransaction.setCompletionBlock(completion)
         // A gentle enlargement and return, without the navigation icon's
         // compressed first frame or elastic overshoot. Child artwork keeps
@@ -436,10 +449,19 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
         target.layer.add(animation,forKey:Self.worldTapAnimationKey)
         CATransaction.commit()
     }
-    func cancelWorldTap() {
-        for target in artworkViews.values { target.layer.removeAnimation(forKey:Self.worldTapAnimationKey) }
+    /// Contact composes beneath the existing Unit exit and idle parents.
+    func playJourneyWorldContact(_ id:Int) {
+        guard !arcade,window != nil,let shell=cartoonShells[id] else{return}
+        NativeHubBackpackFeedback.play(on:shell)
     }
-    @objc private func back() { onBack?() }
-    @objc private func backpack() { onBackpack?() }
-    @objc private func openWorld(_ sender: UIButton) { onWorld?(sender.tag) }
+    func cancelWorldTap() {
+        for shell in cartoonShells.values {shell.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey)}
+        for target in artworkViews.values {
+            target.layer.removeAnimation(forKey:Self.worldTapAnimationKey)
+            target.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey)
+        }
+    }
+    @objc private func back() { onInputDiagnostic?("back.action");onBack?() }
+    @objc private func backpack() { onInputDiagnostic?("crate.action");onBackpack?() }
+    @objc private func openWorld(_ sender: UIButton) { onInputDiagnostic?("world.action id=\(sender.tag)");onWorld?(sender.tag) }
 }

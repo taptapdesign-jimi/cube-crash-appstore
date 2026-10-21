@@ -7,9 +7,36 @@ public struct NativeWildReward: Equatable, Sendable {
     public init(_ archetype: NativeWildArchetype, variant: String? = nil) { self.archetype = archetype; self.variant = variant }
 }
 public enum NativeJourneyContent {
+    /// Journey LEVEL ranking for completion stars, v1 (2026-10-21).
+    /// Global across all three Worlds by local Unit 01...10. Calibrated from
+    /// Forest paired-combo experiments, explicitly adopted globally by user.
+    /// See docs/engineering/JOURNEY_LEVEL_STAR_RANKING.md before retuning.
+    public static let starRankingVersion = 1
+    public struct StarThresholds: Equatable, Sendable {
+        public let two: Int
+        public let three: Int
+    }
+    private static let levelStarThresholds: [StarThresholds] = [
+        .init(two:14500,three:35000), .init(two:19500,three:48000),
+        .init(two:25500,three:62500), .init(two:15500,three:37000),
+        .init(two:20000,three:48000), .init(two:16000,three:38000),
+        .init(two:22000,three:54000), .init(two:21000,three:52000),
+        .init(two:21000,three:52000), .init(two:21500,three:52000)
+    ]
+    public static func starThresholds(board:Int)->StarThresholds {
+        levelStarThresholds[(max(1,board)-1)%10]
+    }
     public static func smallValueBias(board: Int) -> Double { let stage = (max(1,board)-1)%10+1; return stage <= 3 ? 0.75 : stage <= 6 ? 0.4 : 0 }
-    public static func earnedStars(score: Int, board: Int) -> Int {
-        guard score > 0 else { return 0 }
+    /// The caller supplies this completed attempt's final score, already including
+    /// combo and efficiency. No additional combo requirement or double counting.
+    public static func earnedStars(score: Int, board: Int, completed:Bool=true) -> Int {
+        guard completed,(1...30).contains(board),score>=0 else {return 0}
+        let thresholds=starThresholds(board:board)
+        return score < thresholds.two ? 1 : score < thresholds.three ? 2 : 3
+    }
+    /// Frozen pre-v1 rule, exclusively for preserving awards in old saves.
+    static func legacyEarnedStars(score:Int,board:Int)->Int {
+        guard score>0 else{return 0}
         let stage = (max(1,board)-1)%10+1
         let two = stage <= 3 ? 2500 : stage <= 6 ? 3000 : 3500
         let three = stage <= 3 ? 6500 : stage <= 6 ? 8000 : 9500
@@ -33,9 +60,13 @@ public enum NativeJourneyContent {
         return cardNamesByArt[identity.world][identity.art-1]
     }
     public static func cardAsset(board: Int, score: Int, doubleDensity: Bool = false) -> String {
+        cardAsset(board:board,stars:earnedStars(score:score,board:board),doubleDensity:doubleDensity)
+    }
+    /// Persisted best stars choose collection art independently of future tuning.
+    public static func cardAsset(board: Int, stars: Int, doubleDensity: Bool = false) -> String {
         let safe = (1...30).contains(board) ? board : 1
         let identity=cardIdentity(board:safe)
-        let rarity = earnedStars(score: score, board: safe) == 3 ? "legendary" : "common"
+        let rarity = stars >= 3 ? "legendary" : "common"
         let number = String(format: "%02d",identity.art)
         return "./assets/colelctibles/\(["Forest","beach","Area55"][identity.world])/\(rarity)/\(number)\(rarity == "legendary" ? "-gold" : "")\(doubleDensity ? "@2x" : "").png"
     }

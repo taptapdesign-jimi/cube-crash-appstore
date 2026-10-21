@@ -1,5 +1,13 @@
 # Stack to Six Gameplay KING Contract
 
+Native Journey level-star ranking override (user decision2026-10-21): all30
+Journey boards share the v1 ten-row score table by local Unit01–10 in
+`NativeJourneyContent`. Clean completion earns at least1 star, threshold2/3
+earns2/3;3 grants Legendary. Existing combo/efficiency scoring is unchanged.
+Persist best successful awards, preserve legacy stars/cards and never promote
+from a failed high score. Full rationale, retuning/version and exact table:
+[`JOURNEY_LEVEL_STAR_RANKING.md`](JOURNEY_LEVEL_STAR_RANKING.md).
+
 Status: **ULTIMATE BEHAVIORAL AUTHORITY**
 Established: 2026-08-27
 Behavioral reference: Git commit `17d42949225380ac8a3ee8cef9045af10d2a74ff` (`v2.0.653`)
@@ -308,11 +316,25 @@ A carrier pickup also waits for genuine drop bookkeeping, even if selected warmu
 
 ### Gameplay Backpack notification is manual — user decision 2026-10-20
 
-The first landed, previously unseen Journey die changes only the current World
-HUD icon from stats-nav to stats-nav-open through its existing fade/bounce
-exit/enter, with a persistent alert. It must not navigate, replace the board,
-or automatically open a collection/detail modal. Only the player's HUD tap
-opens Backpack; details require another explicit selection. On completed
-Backpack dismissal back to the same board, acknowledge that visit's current
-World notifications and animate the HUD back to stats-nav. Other Worlds'
-notifications, board state and existing saves remain preserved.
+The first landed, previously unseen Journey die adds a persistent current-World
+HUD alert while the backpack artwork remains closed. It must not navigate,
+replace the board, or automatically open a collection/detail modal. Only the
+player's HUD tap opens Backpack and runs the existing finite closed-to-open
+fade/bounce; the icon stays open throughout the modal. Details require another
+explicit selection. Accepted gameplay Backpack close (including X) immediately
+starts the reverse open-to-closed animation alongside the modal exit, while the
+board remains paused. Completed dismissal back to the same board acknowledges
+that visit's current World notifications. Other Worlds' notifications, board state and existing
+saves remain preserved. Journey navigation uses the same finite switch on its
+image child during outgoing Journey exit and closes on return with the incoming
+Journey header; source artwork and canonical route completion remain unchanged.
+
+### Backpack collection discovery — user correction 2026-10-20
+
+Journey reward-pool eligibility and reached/completed Units do not discover a
+collection die. Every World collection and gameplay Backpack modal unlocks a
+die only after its actual landed drop is durably announced. Already discovered
+dice remain unlocked after reading, dismissal and save reload. Restored visible
+eligible Wild/Special dice reconcile after actual board-entry admission; old
+progression thresholds must not fabricate discovery. This collection policy
+preserves reward eligibility, first-drop selection, Arcade pools and gameplay.

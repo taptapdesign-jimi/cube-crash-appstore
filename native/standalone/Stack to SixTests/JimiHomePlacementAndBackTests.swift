@@ -36,6 +36,22 @@ final class JimiHomePlacementAndBackTests: XCTestCase {
         }
     }
 
+    func testEveryHeroTapAddsIndependentCartoonAndHiddenCancelsIt() throws {
+        guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Reduced Motion")}
+        let home=JimiV9HomeView(frame:CGRect(x:0,y:0,width:390,height:844),assets:JimiV9Artwork(resourceRoot:NativeTestResources.root))
+        var requests:[Int]=[];home.onActivate={requests.append($0)}
+        for index in 0..<3 {
+            home.isHidden=false;home.selectSlide(index,animated:false);home.layoutSubviews()
+            let image=home.heroImages[index],shell=try XCTUnwrap(image.superview)
+            let hero=try XCTUnwrap(home.heroView as? UIButton)
+            hero.sendActions(for:.touchUpInside)
+            XCTAssertEqual(shell.layer.animation(forKey:NativeHubBackpackFeedback.animationKey)?.duration,0.4)
+            XCTAssertNil(image.layer.animation(forKey:NativeHubBackpackFeedback.animationKey))
+            home.isHidden=true;XCTAssertNil(shell.layer.animation(forKey:NativeHubBackpackFeedback.animationKey))
+        }
+        XCTAssertEqual(requests,[0,1,2])
+    }
+
     func testBackInterruptsHubEnterOnceAndCannotBeResurrectedByOldCompletion() async throws {
         let web = RouteTestWebView(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
         let controller = JimiHomeHubController(web: web, resourceRoot: NativeTestResources.root)

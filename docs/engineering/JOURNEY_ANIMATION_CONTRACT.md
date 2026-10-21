@@ -343,3 +343,18 @@ authored hidden pose once. Adopting a ready return does not traverse/decode all
 World images again or require three full-alpha paint frames. Preparation cannot
 write root visibility. Manual Exit Game retains board-exit completion ownership
 but does not add the generic non-Journey two-frame/settle delay.
+
+## Native main illustration opposite motion (2026-10-20)
+
+The main illustration in each individual World moves opposite to the first two
+complete Units on one shared vertical idle clock. This supersedes the earlier
+main-art upward-direction exception only; keep its early enter-to-idle admission.
+Use a continuous onset from the painted pose, retain the clock across admission,
+shift it with modal pause/resume, and reuse it on viewport reentry. Main clouds,
+other Units, enter/exit curves and existing visibility/cleanup remain unchanged.
+
+## Native Journey World contact addition — 2026-10-20
+
+Accepted World selection composes the shared0.40s Cartoon Bounce on its artwork child, beneath the existing idle and complete Unit route exit. Preserve the current exit timings, destination preparation overlap and actual-completion input gate. Start only after successful destination preparation admission; hide, detach and route reset remove contact. No added wait or recurring owner. This explicit user addition supersedes the prior Native single-pulse restriction; the authored Unit exit remains unchanged.
+
+The same approved contact also composes on all three Arcade island artwork shells and Home slider hero shells, retaining their original contact/idle/route transforms and completion gates. Interim Unit gameplay launch multiplies the shared recipe into its existing inflate/collapse samples under one card transform owner; it does not replace card rotation or introduce a delay. Hidden/background/reset paths retire finite contacts.

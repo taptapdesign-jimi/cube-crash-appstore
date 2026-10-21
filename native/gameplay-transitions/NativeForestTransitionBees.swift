@@ -164,27 +164,34 @@ final class NativeForestTransitionBees: UIView {
         func roll()->Double {seed=1664525 &* seed &+ 1013904223;return Double(seed)/4294967296}
         let numberCount=roll()<0.5 ? 2:3
         numberBeeCount=numberCount
-        // Reserve the largest rotated sprite footprint before sampling the shared viewport.
+        // Free shared field: no rows, columns, paired sides or fixed stations.
+        // Use the actual maximum bank angle, rather than a diagonal-radius inset
+        // that unnecessarily squeezed every route into the vertical centre.
         let aspect=images.values.map {Double($0.size.height)/max(1,Double($0.size.width))}.max() ?? 1
-        let margin=NativeForestTransitionBeeMotion.beeWidth*0.663*1.2*1.45*sqrt(1+aspect*aspect)/2+2
-        // Every bee samples the same viewport. No assigned rows, columns,
-        // mirrored pairs or private stations constrain the captured routes.
-        let region=CGRect(x:margin,y:margin,width:max(1,viewport.width-2*margin),
-                          height:max(1,viewport.height-2*margin))
-        let beeSeeds=(0..<6).map {_ in UInt32(roll()*Double(UInt32.max))}
+        func mixed(_ value:UInt32)->UInt32 {
+            var x=value;x ^= x >> 16;x = x &* 0x7feb352d;x ^= x >> 15;x = x &* 0x846ca68b;x ^= x >> 16;return x
+        }
+        let beeSeeds=(0..<6).map {mixed(UInt32(roll()*Double(UInt32.max)) ^ UInt32($0+1))}
         flights=(0..<6).map { index in
             var beeSeed=beeSeeds[index]
             func roll()->Double {beeSeed=1664525 &* beeSeed &+ 1013904223;return Double(beeSeed)/4294967296}
+            let original=source.isEmpty ? nil:source[index%source.count]
+            let scale=(original?.baseScale ?? 0.55)*(0.85+roll()*0.25)
+            let extent=NativeForestTransitionBeeMotion.beeWidth*scale*1.45/2
+            let marginX=extent*(cos(0.16)+aspect*sin(0.16))+3
+            let marginY=extent*(aspect*cos(0.16)+sin(0.16))+3
+            let region=CGRect(x:marginX,y:marginY,width:max(1,viewport.width-2*marginX),height:max(1,viewport.height-2*marginY))
             @MainActor func destination()->CGPoint {
                 CGPoint(x:region.minX+region.width*roll(),
                         y:region.minY+region.height*roll())
             }
-            let anchor=destination(),original=source.isEmpty ? nil:source[index%source.count]
-            let speed=(original.map {$0.samples.last!.distance/$0.end} ?? 600)*(0.60+roll()*0.80)
-            let arrival=roll()*0.65,entryDuration=0.38+roll()*0.62
+            let anchor=destination()
+            let speed=(original.map {$0.samples.last!.distance/$0.end} ?? 600)*(0.35+roll()*0.50)
+            let arrival=roll()*0.55,entryDuration=0.65+roll()*0.50
             let entryY=region.minY+roll()*region.height
             let origins=[CGPoint(x:-100,y:entryY),CGPoint(x:viewport.width+100,y:entryY)]
-            var from=origins[roll()<0.5 ? 0:1]
+            let side=roll()<0.5 ? 0:1
+            var from=origins[side]
             var moves:[NativeResultForestBees.Move]=[]
             @MainActor func move(to:CGPoint,start:Double,duration:Double,enters:Bool=false,exits:Bool=false)->NativeResultForestBees.Move {
                 let dx=to.x-from.x,dy=to.y-from.y
@@ -200,11 +207,11 @@ final class NativeForestTransitionBees: UIView {
                     control1:control(0.25,bend),control2:control(0.75,-bend*0.65),exits:exits,enters:enters)
             }
             moves.append(move(to:anchor,start:arrival,duration:entryDuration,enters:true));from=anchor
-            var time=arrival+entryDuration+(0.06+roll()*0.52)
+            var time=arrival+entryDuration+(0.15+roll()*0.65)
             let exitStart=flightDuration-0.55-roll()*0.65
             for _ in 0..<5 {
                 let target=destination()
-                let travel=max(0.18+roll()*0.16,hypot(target.x-from.x,target.y-from.y)/(speed*(0.60+roll()*0.80)))
+                let travel=max(0.18+roll()*0.16,hypot(target.x-from.x,target.y-from.y)/(speed*(0.35+roll()*0.50)))
                 guard time+travel<exitStart else {break}
                 moves.append(move(to:target,start:time,duration:travel));from=target
                 time += travel+(0.04+roll()*0.68)
@@ -212,13 +219,14 @@ final class NativeForestTransitionBees: UIView {
             let outside=CGPoint(x:roll()<0.5 ? -120:viewport.width+120,y:region.minY+roll()*region.height)
             moves.append(move(to:outside,start:exitStart,duration:flightDuration-0.01-exitStart,exits:true))
             return NativeResultForestBees.Plan(anchor:anchor,moves:moves,phase:roll()*2 * .pi,
-                scale:(original?.baseScale ?? 0.55)*(0.90+roll()*0.30),travelSpeed:speed,
-                startsBehind:roll()<0.5,distantScale:0.55+roll()*0.40,lifetime:flightDuration,hoverRate:0.55+roll()*1.10,hoverStrength:1.1+roll()*1.2,hoverHorizontalPhase:roll()*2 * .pi,
+                scale:scale,travelSpeed:speed,
+                startsBehind:roll()<0.5,distantScale:0.55+roll()*0.40,lifetime:flightDuration,hoverRate:0.30+roll()*0.50,hoverStrength:1.1+roll()*1.2,hoverHorizontalPhase:roll()*2 * .pi,
                 hoverXRate:0.65+roll()*0.85,hoverYRate:0.65+roll()*0.85,
                 hoverXStretch:0.55+roll()*1.05,hoverYStretch:0.55+roll()*0.65,flightRegion:region,
                 motionVariation:0.40,flightRatePhase:roll()*2 * .pi,
                 hoverRatePhase:roll()*2 * .pi,hoverModulationRate:0.85+roll()*2.0)
         }
+        // Do not rearrange individual bees after capture or during paint.
         facing=flights.map {$0.startsBehind ? 3:1}
         assets=Dictionary(uniqueKeysWithValues:(1...7).compactMap {index in images["bee\(index)"].map {(index,$0)}})
         needsNativeParityReady=source.count==4 && flights.count==6 && assets.count==7
@@ -326,7 +334,7 @@ final class NativeResultForestBees {
             var hoverY=(sin(ySeconds*3.7+phase)*55+sin(ySeconds*6.1+phase*1.3)*25)*envelope*hoverStrength*hoverYStretch
             if let region=flightRegion {
                 // Reduce only hover's edge-facing footprint. Route positions
-                // stay untouched, including chance overlaps and random clusters.
+                // stay untouched inside the shared field; overlaps are intentionally allowed.
                 // The rational envelope is smooth, bounded and has no attractor.
                 let availableX=max(0,(center.x-region.minX)*(region.maxX-center.x)/region.width)
                 let availableY=max(0,(center.y-region.minY)*(region.maxY-center.y)/region.height)
@@ -394,6 +402,7 @@ final class NativeResultForestBees {
     private var disposed=false
     init(viewport:CGSize,artwork:JimiV9Artwork,random:()->Double={Double.random(in:0..<1)}) {
         flights=Self.plans(viewport:viewport,random:random)
+        // Do not rearrange individual bees after capture or during paint.
         facing=flights.map {$0.startsBehind ? 3:1}
         for index in 1...7 {images[index]=artwork.image("assets/shop/honey/bee\(index).png",densityAware:true)}
         guard images.count==7 else {flights=[];images=[:];return}

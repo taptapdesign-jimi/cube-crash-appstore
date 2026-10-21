@@ -1109,6 +1109,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
     private var sourceBeeHostMotion:SourceBeeHostMotion?
     private var sourceBeeOriginalSkin:(generation:UInt64,kind:String,variant:String?,handle:NativeBoardTextures.SourceTextureHandle)?
     private var sourceBeeOriginalFacing:CGFloat=1
+    private var beeSettledFacing:CGFloat?
 
     private var sourceBeeHostPose:SourceBeeHostPose {
         .init(position:sourceInnerPosition,rotation:dragInnerTilt,x:visual.xScale,y:visual.yScale)
@@ -1694,6 +1695,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         let b=sprite.convert(CGPoint(x:(bounds.maxX-sprite.anchorPoint.x)*size.width,y:(1-bounds.minY-sprite.anchorPoint.y)*size.height),to:self)
         return CGRect(x:min(a.x,b.x),y:min(a.y,b.y),width:abs(b.x-a.x),height:abs(b.y-a.y))
     }
+    func configureCollectionSingleCan(){kantaIdle?.configureCollectionSingleCan()}
     func collectionRearCanCenter(in destination:SKNode)->CGPoint? {
         guard let kanta=kantaIdle,let center=kanta.rearBodyCenter else{return nil}
         return kanta.convert(center,to:destination)
@@ -1823,6 +1825,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         // This applies while its real texture request is pending as well.
         if sourceSkinOwnsUnchangedIdentity {return}
         if identityChanged {
+            beeSettledFacing=nil
             cuberoCarrierArtwork=false
             if let id=artworkPhaseID {textures.releaseIdlePhase(id)}
             fishMediaReady=false
@@ -2331,12 +2334,17 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
                 }
                 paintedFrame = index
             }
-            face.xScale = position.x > viewportCenter ? -1 : 1
+            // Hover crosses the center line, so geometry must not repeatedly
+            // change the settled Bee's gaze. One roll belongs to this identity.
+            if beeSettledFacing == nil {beeSettledFacing=Bool.random() ? -1:1}
+            face.xScale = dragging ? (position.x > viewportCenter ? -1:1):(beeSettledFacing ?? 1)
             if sourceSkinHitArea != nil {
                 paintSourceBeeHostMotion(seconds:time)
-                let globalX=scene.map{face.convert(.zero,to:$0).x} ?? .nan
-                let flip=globalX.isFinite && viewportCenter.isFinite && viewportCenter>0 && globalX>viewportCenter
-                face.xScale=flip ? -abs(face.xScale):abs(face.xScale)
+                if dragging {
+                    let globalX=scene.map{face.convert(.zero,to:$0).x} ?? .nan
+                    let flip=globalX.isFinite && viewportCenter.isFinite && viewportCenter>0 && globalX>viewportCenter
+                    face.xScale=flip ? -abs(face.xScale):abs(face.xScale)
+                }
             } else if !dragging {
                 face.position = CGPoint(x: sin(time * .pi * 1.7) * 2.8, y: -sin(time * .pi * 2.3 + .pi * 0.35) * 5)
                 face.zRotation = -sin(time * .pi * 1.9 + .pi * 0.2) * 0.025

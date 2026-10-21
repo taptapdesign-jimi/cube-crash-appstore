@@ -1,27 +1,17 @@
 import Foundation
 
-/// Authored NAV_ICON_TAP_BOUNCE timing, with user-selected 30% stronger amplitude. Caller owns the clock.
+/// Cartoon Bounce: shared0.40s alert-derived contact recipe. Callers own existing UIKit/Scene clocks.
 enum NativeHUDTapMotion {
-    static let duration=0.22
-    static let squeezeScale=1-0.08*1.3
-    static let popScale=1+0.06*1.3
-    static func ease(_ progress:Double)->Double {
-        if progress<=0{return 0};if progress>=1{return 1}
-        func coordinate(_ t:Double,_ a:Double,_ b:Double)->Double {
-            let inverse=1-t
-            return 3*inverse*inverse*t*a+3*inverse*t*t*b+t*t*t
-        }
-        var lower=0.0,upper=1.0
-        for _ in 0..<12 {
-            let candidate=(lower+upper)/2
-            if coordinate(candidate,0.34,0.64)<progress {lower=candidate}else{upper=candidate}
-        }
-        return coordinate((lower+upper)/2,1.56,1)
-    }
-    static func scale(at elapsed:Double)->Double {
-        if elapsed<=0{return 1};if elapsed>=duration{return 1}
-        if elapsed<0.077{return 1+(squeezeScale-1)*ease(elapsed/0.077)}
-        if elapsed<0.154{return squeezeScale+(popScale-squeezeScale)*ease((elapsed-0.077)/0.077)}
-        return popScale+(1-popScale)*ease((elapsed-0.154)/0.066)
+    static let duration=0.4
+    struct Pose {let x:Double,y:Double,offset:Double}
+    static let poses:[Pose]=[.init(x:1,y:1,offset:0),.init(x:1.16,y:0.82,offset:3),.init(x:0.88,y:1.14,offset:-7),.init(x:1.08,y:0.92,offset:1),.init(x:0.97,y:1.03,offset:-2),.init(x:1,y:1,offset:0)]
+    static let phases:[Double]=[0,0.10/0.58,0.22/0.58,0.34/0.58,0.46/0.58,1]
+    static func pose(at elapsed:Double)->Pose {
+        let phase=min(1,max(0,elapsed/duration))
+        let i=(0..<5).first{phase<phases[$0+1]} ?? 4
+        let t=(phase-phases[i])/(phases[i+1]-phases[i])
+        let e=JimiV9Motion.Ease.cubicBezier(0.42,0,0.58,1).value(t)
+        let a=poses[i],b=poses[i+1]
+        return .init(x:a.x+(b.x-a.x)*e,y:a.y+(b.y-a.y)*e,offset:a.offset+(b.offset-a.offset)*e)
     }
 }

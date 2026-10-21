@@ -36,8 +36,8 @@ final class JimiNativeWorldRibbonTests:XCTestCase {
         let world = try XCTUnwrap(host.worldView)
         let prepared = expectation(description:"Visible original ribbon prepared");world.prepare {prepared.fulfill()};await fulfillment(of:[prepared],timeout:5)
         let small = try XCTUnwrap(find(world,"native.world.ribbon"))
-        XCTAssertEqual(small.frame.minY,0,accuracy:0.001)
-        XCTAssertEqual(small.frame.maxX,try XCTUnwrap(small.superview).bounds.width,accuracy:0.001)
+        XCTAssertLessThan(small.frame.minY,0)
+        XCTAssertGreaterThan(small.frame.maxX,try XCTUnwrap(small.superview).bounds.width)
         let entered = expectation(description:"World enter completes");host.enter(terminal:false) {entered.fulfill()};await fulfillment(of:[entered],timeout:5);world.finishPresentationAdmission()
         attach(container,name:"Original Forest 02 — small NEW top aligned")
         let unitButton = try XCTUnwrap(find(world,"native.world.card.2") as? UIButton)
@@ -48,9 +48,10 @@ final class JimiNativeWorldRibbonTests:XCTestCase {
         let large = try XCTUnwrap(find(modal,"native.world.ribbon"))
         let front = try XCTUnwrap(large.superview as? UIImageView)
         XCTAssertFalse(front.layer.isDoubleSided)
-        XCTAssertEqual(large.frame.minY,0,accuracy:0.001)
-        XCTAssertEqual(large.frame.maxX,front.bounds.width,accuracy:0.001)
-        XCTAssertEqual(large.frame.width,front.bounds.width*0.5904,accuracy:0.001)
+        XCTAssertLessThan(large.frame.minY,0)
+        XCTAssertTrue(large.center.x<front.bounds.width*0.3 || large.center.x>front.bounds.width*0.7)
+        XCTAssertEqual(large.bounds.width,front.bounds.width*0.44*0.60,accuracy:0.001)
+        XCTAssertNil(large.viewWithTag(991),"Alert replaces NEW lettering")
         XCTAssertEqual(world.snapshot.units[0].newRibbon,false,"Only canonical receipt owns viewed state")
         let faded=Date().addingTimeInterval(3)
         while small.superview != nil,Date()<faded {try await Task.sleep(for:.milliseconds(20))}
@@ -71,6 +72,39 @@ final class JimiNativeWorldRibbonTests:XCTestCase {
         XCTAssertNil(modal.superview);XCTAssertNil(find(world,"native.world.ribbon"))
         XCTAssertFalse(world.hasActiveCard)
     }
+    func testReturnReminderFinishesBeforeAlertBouncesFromZero() async throws {
+        guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Reduced Motion")}
+        var raw=snapshot(new:true,revision:1);raw["returnBoardID"]=2
+        let world=try XCTUnwrap(JimiNativeWorldView(snapshot:raw,assets:JimiV9Artwork(resourceRoot:NativeTestResources.root)))
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible();world.frame=window.bounds;host.view.addSubview(world)
+        defer{world.cleanup();window.isHidden=true}
+        let prepared=expectation(description:"prepared");world.prepare{prepared.fulfill()};await fulfillment(of:[prepared],timeout:10)
+        let entered=expectation(description:"entered");world.enter(terminal:true){entered.fulfill()};await fulfillment(of:[entered],timeout:5)
+        world.finishPresentationAdmission()
+        let alert=try XCTUnwrap(find(world,"native.world.ribbon") as? UIImageView)
+        XCTAssertNotNil(find(world,"native.world.return-reminder"))
+        XCTAssertEqual(alert.layer.opacity,0);XCTAssertNil(alert.layer.animation(forKey:"ribbon.motion"))
+        let deadline=Date().addingTimeInterval(6)
+        while find(world,"native.world.return-reminder") != nil,Date()<deadline {try await Task.sleep(for:.milliseconds(10))}
+        XCTAssertNil(find(world,"native.world.return-reminder"))
+        let motion=try XCTUnwrap(alert.layer.animation(forKey:"ribbon.motion") as? CAAnimationGroup)
+        let transform=try XCTUnwrap(motion.animations?.first as? CAKeyframeAnimation)
+        let first=try XCTUnwrap((transform.values as? [NSValue])?.first).caTransform3DValue
+        XCTAssertEqual(first.m11,0,accuracy:0.001);XCTAssertEqual(alert.layer.opacity,1)
+        try await Task.sleep(for:.milliseconds(450))
+        let notification=try XCTUnwrap(alert as? JimiNativeNewRibbonView)
+        XCTAssertNotNil(notification.alert.image)
+        XCTAssertEqual(notification.alpha,1);XCTAssertEqual(notification.alert.alpha,1)
+        XCTAssertNotNil(notification.alert.layer.animation(forKey:NativeBackpackAlertView.motionKey))
+        XCTAssertTrue((5...10).contains(Double(abs(notification.alert.cycleRotation)*180 / .pi)))
+        notification.setCardRotation(0.1);XCTAssertFalse(notification.alert.clockwise);XCTAssertLessThan(notification.center.x,try XCTUnwrap(notification.superview).bounds.midX)
+        notification.setCardRotation(-0.1);XCTAssertTrue(notification.alert.clockwise);XCTAssertGreaterThan(notification.center.x,try XCTUnwrap(notification.superview).bounds.midX)
+        host.view.backgroundColor=NativeAppPaperSurface.base
+        let image=UIGraphicsImageRenderer(bounds:window.bounds).image{_ in window.drawHierarchy(in:window.bounds,afterScreenUpdates:true)}
+        try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/world-card-alert.png"))
+    }
+
     func testNativeViewedProjectionClearsRetainedWorldAndModalReopen() async throws {
         var viewed=false
         let services=NativeAppServices(settings:{[:]},setPreference:{_,_ in},worldSnapshot:{[self] _,_,generation in

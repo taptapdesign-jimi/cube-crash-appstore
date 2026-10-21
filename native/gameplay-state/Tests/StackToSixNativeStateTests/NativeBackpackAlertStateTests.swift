@@ -38,16 +38,30 @@ final class NativeBackpackAlertStateTests:XCTestCase {
         }
         XCTAssertEqual(state.announcedJourneyDice.count,14)
     }
-    func testOldProfileMigrationDoesNotCreateRetroactiveAlerts() throws {
+    func testOldProfileProgressionNeverInventsLandedDiscovery() throws {
         var state=NativeProgressionState();state.lastOpenedJourneyBoard=4;state.completedJourneyBoards=[1,2,3]
         var json=try XCTUnwrap(JSONSerialization.jsonObject(with:JSONEncoder().encode(state)) as? [String:Any])
         json.removeValue(forKey:"announcedJourneyDice");json.removeValue(forKey:"unreadJourneyDice")
         var migrated=try JSONDecoder().decode(NativeProgressionState.self,from:JSONSerialization.data(withJSONObject:json))
         XCTAssertTrue(migrated.unreadJourneyDice.isEmpty)
-        XCTAssertFalse(migrated.announceJourneyDie("honey",board:4))
+        XCTAssertTrue(migrated.announcedJourneyDice.isEmpty)
+        XCTAssertTrue(migrated.announceJourneyDie("honey",board:4))
+        migrated.readJourneyDie("honey")
         XCTAssertTrue(migrated.announceJourneyDie("mushroom",board:6))
         XCTAssertTrue(migrated.announceJourneyDie("fish",board:12))
         migrated.readJourneyDie("mushroom");XCTAssertEqual(migrated.unreadJourneyDice,["fish"])
+    }
+    func testFirstLandedEligibleDieCanBeDiscoveredOnLaterUnit() throws {
+        var state=NativeProgressionState()
+        XCTAssertFalse(state.announceJourneyDie("fish",board:10))
+        XCTAssertFalse(state.announceJourneyDie("bee",board:11))
+        XCTAssertTrue(state.announceJourneyDie("bee",board:5))
+        XCTAssertTrue(state.announceJourneyDie("fish",board:20))
+        XCTAssertTrue(state.announceJourneyDie("robo-cube",board:30))
+        state.readJourneyDie("bee")
+        state=try JSONDecoder().decode(NativeProgressionState.self,from:JSONEncoder().encode(state))
+        XCTAssertEqual(state.announcedJourneyDice,["bee","fish","robo-cube"])
+        XCTAssertFalse(state.announceJourneyDie("bee",board:10))
     }
     func testUnreadMetadataDoesNotMutateRunAndSurvivesAtomicStore() throws {
         let dir=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

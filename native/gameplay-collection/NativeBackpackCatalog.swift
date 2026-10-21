@@ -38,21 +38,11 @@ struct NativeBackpackCatalog {
         Die(id:"beach-ball",title:"BEACH BALL",copy:"Boing-boing! Merge me to bounce through max 4 dice and reroll each one!",board:13),
         Die(id:"bottle",title:"BOTTLE",copy:"Glug-glug, merge me! I wash away max 4 dice, then send back just as many!",board:14)]
     static func sections(_ progression:NativeProgressionState)->[Section] {
-        [("Forest",forest,1...10),("Area 55",area,21...30),("Beach",beach,11...20)].map {title,dice,range in
-            // Each World progresses independently. A high Area55 board must
-            // never unlock the unrelated Forest or Beach collection.
-            var reached=progression.completedJourneyBoards.filter(range.contains).max().map{min(range.upperBound,$0+1)}
-            let played=progression.boardStats.filter{range.contains($0.key) && $0.value.timesPlayed>0}.keys.max()
-            let opened=progression.lastOpenedJourneyBoard.flatMap{range.contains($0) ? $0:nil}
-            let legacy=progression.highestUnlockedJourneyBoard>1 && range.contains(progression.highestUnlockedJourneyBoard) ? progression.highestUnlockedJourneyBoard:nil
-            reached=[reached,played,opened,legacy].compactMap{$0}.max()
-            var eligible=reached.map{Set(NativeJourneyContent.rewardPool(board:$0))} ?? []
-            if title=="Forest",progression.hasUnlockedWildStar {eligible.insert("wild-star")}
-            if title=="Forest",progression.unlockedSpecialDice.contains("flower") {eligible.insert("flower")}
-            if title=="Beach",progression.unlockedSpecialDice.contains("juice") {eligible.insert("wild-juice")}
-            // Acknowledging an alert never removes a discovered die from the collection.
+        [("Forest",forest),("Area 55",area),("Beach",beach)].map {title,dice in
+            // Reward eligibility and card progression do not prove a die landed.
+            // Both the gameplay modal and collection screen use this durable receipt.
             let discovered=progression.announcedJourneyDice.intersection(Set(dice.map(\.id)))
-            return Section(title:title,dice:dice,unlocked:eligible.union(discovered),unread:progression.unreadJourneyDice)
+            return Section(title:title,dice:dice,unlocked:discovered,unread:progression.unreadJourneyDice.intersection(discovered))
         }
     }
 }

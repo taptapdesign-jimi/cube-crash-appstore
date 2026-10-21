@@ -33,6 +33,35 @@ final class JimiNativeSettingsTests: XCTestCase {
         #endif
         guard ["1018BE2D-491B-465F-8F75-3E5BEB38C22A", "8EB29A64-6C35-4FB7-A749-DE12906E3899"].contains(ProcessInfo.processInfo.environment["SIMULATOR_UDID"] ?? "") else { throw XCTSkip("Isolated Settings/Developer QA Simulator only") }
     }
+    func testAcceptedStatusChangesBounceOnlyChangedVisibleLabelsAndCancelOnExit() throws {
+        let view = JimiNativeSettingsView(frame: CGRect(x:0,y:0,width:390,height:844), assets:JimiV9Artwork(resourceRoot:root))
+        let window = UIWindow(frame:view.bounds); let host = UIViewController()
+        window.rootViewController = host; host.view.addSubview(view); window.isHidden = false
+        defer { window.isHidden = true }
+        var value = preferences
+        XCTAssertTrue(view.apply(value))
+        let labels = try view.rows.map { row in try XCTUnwrap(row.subviews.compactMap { $0 as? UILabel }.first { $0.accessibilityIdentifier?.hasPrefix("native.settings.status.") == true }) }
+        let key = NativeHubBackpackFeedback.animationKey
+        XCTAssertTrue(labels.allSatisfy { $0.layer.animation(forKey:key) == nil })
+        value["musicEnabled"] = false
+        XCTAssertTrue(view.apply(value)); XCTAssertEqual(labels[1].text,"OFF")
+        XCTAssertEqual(labels[1].frame.minX,0,accuracy:0.001)
+        XCTAssertLessThan(labels[1].bounds.width,100,"Text bounces around its own glyphs, not the wide row")
+        if !UIAccessibility.isReduceMotionEnabled {
+            XCTAssertNotNil(labels[1].layer.animation(forKey:key))
+            let animation = labels[1].layer.animation(forKey:key)
+            XCTAssertTrue(view.apply(value))
+            XCTAssertEqual(labels[1].layer.animation(forKey:key)?.beginTime,animation?.beginTime,"Unchanged snapshots do not replay")
+            XCTAssertNil(labels[0].layer.animation(forKey:key)); XCTAssertNil(labels[2].layer.animation(forKey:key))
+            value["musicEnabled"] = true
+            XCTAssertTrue(view.apply(value)); XCTAssertEqual(labels[1].text,"ON")
+            XCTAssertEqual(labels[1].layer.animationKeys()?.filter { $0 == key }.count,1,"Rapid changes replace one finite animation")
+        }
+        _ = view.tracks(enter:false)
+        XCTAssertTrue(labels.allSatisfy { $0.layer.animation(forKey:key) == nil })
+        view.removeFromSuperview()
+        XCTAssertTrue(labels.allSatisfy { $0.layer.animation(forKey:key) == nil })
+    }
     private var root: URL { NativeTestResources.root }
     private var preferences: [String: Any] { ["presentationEpoch": 10, "gameSoundsEnabled": false, "musicEnabled": true, "hapticsEnabled": true, "developerToolsAvailable": true] }
 
@@ -82,8 +111,8 @@ final class JimiNativeSettingsTests: XCTestCase {
         settings.setDeveloperPanelVisible(true); settings.layoutSubviews()
         XCTAssertEqual(settings.developerButtons.compactMap { $0.title(for: .normal) },["Show Card","Hide Card","Legendary Card","Reset Stage","New Card","Clean Stage","LAST MERGE"])
         for button in settings.developerButtons {
-            XCTAssertFalse(button.isHidden); XCTAssertGreaterThanOrEqual(button.frame.minX,24)
-            XCTAssertLessThanOrEqual(button.frame.maxX,296); XCTAssertGreaterThanOrEqual(button.bounds.height,44)
+            XCTAssertFalse(button.isHidden); XCTAssertGreaterThanOrEqual(button.cartoonBounceFrame.minX,24)
+            XCTAssertLessThanOrEqual(button.cartoonBounceFrame.maxX,296); XCTAssertGreaterThanOrEqual(button.bounds.height,44)
             button.sendActions(for: .touchUpInside)
         }
         XCTAssertEqual(actions,NativeDeveloperAction.allCases)

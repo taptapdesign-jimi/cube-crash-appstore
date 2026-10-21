@@ -5,6 +5,8 @@ description: Design, generate, audit, name, mix, or integrate sound effects for 
 
 # Stack to Six Sound Design
 
+For theme song key, musical mood and the Clean Board victory sax reference, read [Tone of the Game](../tone-of-the-game/SKILL.md). Its tonal labels are audio-analysis estimates, not a verified score.
+
 Create sound that feels inseparable from the game's visual motion: fast, happy, cartoony, bouncy, tactile and rich, with a warm wooden toy-box core. Read [references/sound-identity.md](references/sound-identity.md) before generating or selecting sounds. Read [references/module-boundaries.md](references/module-boundaries.md) before inventory or integration work. Before runtime integration, also read [`docs/audio/AUDIO_RUNTIME_ARCHITECTURE.md`](../../../docs/audio/AUDIO_RUNTIME_ARCHITECTURE.md). For an external sound model or a fresh generation pass, adapt [references/generation-prompts.md](references/generation-prompts.md).
 
 ## Working contract

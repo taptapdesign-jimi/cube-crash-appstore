@@ -20,6 +20,13 @@ final class NativeArcadeHubView: UIView {
     private var pendingWorldTap:UUID?
     private var pendingPlayExit:UUID?
     private let identifiers = ["endurance", "pureDice", "slowBurn"]
+    private var inputDiagnosticCount=0
+    private let inputDiagnosticsEnabled=ProcessInfo.processInfo.arguments.contains("--cc-arcade-input-diagnostics")
+    func recordInputDiagnostic(_ event:String) {
+        guard inputDiagnosticsEnabled,inputDiagnosticCount<160 else{return}
+        inputDiagnosticCount+=1
+        NSLog("[ARCADE_INPUT] n=%d event=%@ active=%d foreground=%d close=%d crate=%d modal=%d pendingTap=%d pendingPlay=%d hidden=%d window=%d scrollEnabled=%d pan=%ld",inputDiagnosticCount,String(event.prefix(240)),active ? 1:0,foreground ? 1:0,closeRequested ? 1:0,crateRequested ? 1:0,modal == nil ? 0:1,pendingWorldTap == nil ? 0:1,pendingPlayExit == nil ? 0:1,isHidden ? 1:0,window == nil ? 0:1,hub.scrollView.isUserInteractionEnabled ? 1:0,hub.scrollView.panGestureRecognizer.state.rawValue)
+    }
 
     init(frame: CGRect, assets: JimiV9Artwork) {
         self.assets = assets
@@ -31,12 +38,17 @@ final class NativeArcadeHubView: UIView {
         addSubview(paper)
         hub.frame = bounds; hub.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         addSubview(hub)
+        if inputDiagnosticsEnabled {hub.onInputDiagnostic={[weak self] in self?.recordInputDiagnostic($0)}}
         hub.onBack = { [weak self] in
+            self?.recordInputDiagnostic("back.callback")
             guard let self,self.active,self.foreground,!self.closeRequested,!self.crateRequested else { return }
+            NativeHubBackpackFeedback.play(on:self.hub.backButton.imageView ?? self.hub.backButton)
             self.closeRequested = true; self.onClose?()
         }
         hub.onBackpack = { [weak self] in
+            self?.recordInputDiagnostic("crate.callback")
             guard let self,self.active,self.foreground,!self.closeRequested,!self.crateRequested,
+                  self.hub.scrollView.isUserInteractionEnabled,
                   self.modal == nil,self.pendingWorldTap == nil,let onCrate=self.onCrate else { return }
             self.crateRequested = true
             self.hub.backpackButton.playArtworkTapFeedback()
@@ -44,11 +56,15 @@ final class NativeArcadeHubView: UIView {
             onCrate()
         }
         hub.onWorld = { [weak self] id in
+            self?.recordInputDiagnostic("world.callback id=\(id)")
             guard let self, self.active, self.foreground, !self.crateRequested, !self.closeRequested, self.modal == nil, self.pendingWorldTap == nil,
                   let index = self.hub.worldIDs.firstIndex(of: id) else { return }
             let token=UUID();self.pendingWorldTap=token
+            self.recordInputDiagnostic("world.accepted id=\(id)")
             self.onFeedback?("cta")
+            self.recordInputDiagnostic("world.feedback-returned id=\(id)")
             self.hub.playWorldTap(id) { [weak self] in
+                self?.recordInputDiagnostic("world.animation-completion id=\(id)")
                 guard let self,self.pendingWorldTap == token else { return }
                 self.pendingWorldTap=nil
                 guard self.active,self.foreground,!self.closeRequested,!self.crateRequested,self.modal == nil else { return }
@@ -58,11 +74,13 @@ final class NativeArcadeHubView: UIView {
     }
     required init?(coder: NSCoder) { fatalError("Use init(frame:assets:)") }
     func present() {
+        recordInputDiagnostic("present")
         active = true; foreground = true; closeRequested = false; crateRequested = false; isHidden = false; hub.accessibilityElementsHidden = false; hub.resetIdlePose(); hub.resetScroll()
         hub.setContentInteractionEnabled(false)
     }
     func setContentInteractionEnabled(_ enabled: Bool) { hub.setContentInteractionEnabled(enabled) }
     func resume() {
+        recordInputDiagnostic("resume")
         foreground = true
         guard active else { return }
         modal?.setForeground(true)
@@ -77,8 +95,10 @@ final class NativeArcadeHubView: UIView {
     override func didMoveToWindow() { super.didMoveToWindow(); if window == nil { cancelWorldTap();hub.stopIdle();modal?.setForeground(false) } }
 
     private func open(_ index: Int) {
+        recordInputDiagnostic("modal.construct-start index=\(index)")
         hub.stopIdle(); hub.accessibilityElementsHidden = true
         let sheet = NativeArcadeWorldModal(frame: bounds, assets: assets, index: index,continuing:canContinue?(identifiers[index]) ?? false)
+        recordInputDiagnostic("modal.construct-finished index=\(index)")
         sheet.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         modal = sheet; addSubview(sheet)
         sheet.onFeedback = {[weak self,weak sheet] cue in
@@ -106,6 +126,7 @@ final class NativeArcadeHubView: UIView {
         }
         onFeedback?("exit-modal")
         sheet.reveal()
+        recordInputDiagnostic("modal.reveal-returned index=\(index)")
     }
 
     func tracks(enter: Bool) -> [(UIView, JimiV9Motion.Track)] {
@@ -198,7 +219,7 @@ final class NativeArcadeWorldModal: UIView {
             cloud.accessibilityIdentifier="native.arcade-world-modal.cloud.\(ordinal)"
             cloudStage.addSubview(cloud);clouds.append(cloud)
         }
-        [heading,subtitle,art,play,close].forEach { idle.addSubview($0) }
+        [heading,subtitle,art,play,close].forEach { idle.addSubview($0) };play.enableCartoonBounce()
         modalDrag=JimiNativeModalDrag(target:card,idle:idle,viewport:self,canDrag:{[weak self] in
             guard let self else{return false}
             return self.ready && self.foreground && !self.closing && !self.disposed
@@ -265,8 +286,8 @@ final class NativeArcadeWorldModal: UIView {
             cloud.center=center
         }
         let playY=artworkY+artworkHeight+32
-        play.bounds=CGRect(x:0,y:0,width:ctaWidth,height:64)
-        play.center=CGPoint(x:w/2,y:playY+32)
+        play.cartoonBounceLayoutView.bounds=CGRect(x:0,y:0,width:ctaWidth,height:64)
+        play.cartoonBounceLayoutView.center=CGPoint(x:w/2,y:playY+32);play.layoutCartoonContent()
         let h=playY+64+40
         card.bounds = CGRect(x:0,y:0,width:w,height:h)
         card.center = CGPoint(x:bounds.midX,y:safeTop+availableHeight/2)

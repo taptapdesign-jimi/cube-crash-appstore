@@ -14,7 +14,7 @@ import StackToSixGameplay
         let current:()->Bool
         let random:()->Double
         let acquireCadence:()->()->Void
-        let onArrival:(NativeMoveResult)->Void
+        let onArrival:(NativeMoveResult,Double)->Void
         let onRetired:(NativeSourceHUDStarJob)->Void
         var onTntCoinLaunch:()->Void = {}
     }
@@ -25,6 +25,7 @@ import StackToSixGameplay
     private let container=SKNode()
     private let coinAnimations:[NativeHUDCoinAnimation],selectCoinVariant:()->Int
     private var coinVariants:[String:Int]=[:]
+    private var coinSoundSizes:[String:Double]=[:]
     private var sprites:[String:SKSpriteNode]=[:],roots:[UUID:FlightRoot]=[:],jobCaptures:[UUID:NativeSourceHUDStarJob]=[:]
     private var soundedLaunches=Set<UUID>()
     private var disposed=false
@@ -68,6 +69,7 @@ import StackToSixGameplay
     }
     private func mountStar(_ id:String,_ plan:NativeSourceHUDStarPlan)->Bool {
         guard current(),sprites[id]==nil,container.parent === stage else{return false}
+        coinSoundSizes[id]=NativeSourceHUDStarPlan.relativeCoinSize(plan.size,enlargement:1.2)
         let selected=coinAnimations.isEmpty ? nil:selectCoinVariant()
         guard current() else{return false}
         let variant=selected.map{min(5,max(0,$0))}
@@ -113,12 +115,14 @@ import StackToSixGameplay
     }
     private func arrive(_ id:String) {
         guard current(),let capture=jobCaptures.values.first(where:{$0.receiptIDs.contains(id)}) else{return}
+        let relativeSize=coinSoundSizes.removeValue(forKey:id) ?? 0
         let result=engine.commitSourceHUDStarArrival(job:capture,receiptID:id)
-        guard result.accepted,current() else{return};bindings.onArrival(result)
+        guard result.accepted,current() else{return};bindings.onArrival(result,relativeSize)
     }
     private func retire(_ id:UUID) {
         guard let capture=jobCaptures.removeValue(forKey:id) else{return}
         soundedLaunches.remove(id)
+        for coinID in capture.receiptIDs {coinSoundSizes.removeValue(forKey:coinID)}
         // Actual captured cleanup may still retire Core after UI admission closed;
         // generation guards inside Core prevent touching replacement state.
         let retired=engine.retireSourceHUDStarJob(job:capture)
@@ -126,7 +130,7 @@ import StackToSixGameplay
     }
     func dispose() {
         guard !disposed else{return};disposed=true;jobs.dispose()
-        sprites.values.forEach{$0.removeFromParent()};sprites.removeAll();coinVariants.removeAll();container.removeFromParent()
+        sprites.values.forEach{$0.removeFromParent()};sprites.removeAll();coinVariants.removeAll();coinSoundSizes.removeAll();container.removeFromParent()
         let remaining=jobCaptures;jobCaptures.removeAll()
         for capture in remaining.values {_=engine.retireSourceHUDStarJob(job:capture)}
         roots.removeAll();soundedLaunches.removeAll();selectedAssetsReady=false

@@ -1,5 +1,6 @@
 import XCTest
 import UIKit
+import SpriteKit
 import StackToSixGameplay
 import StackToSixNativeState
 @testable import Stack_to_Six
@@ -57,7 +58,7 @@ final class NativeArcadeCrateTests: XCTestCase {
             root.present(modal, animated: false)
             try await waitFor { modal.view.window != nil && modal.view.isUserInteractionEnabled && modal.card.alpha == 1 }
             let embedded = try XCTUnwrap(modal.screen)
-            XCTAssertEqual(modal.heading.text, "Dice Box")
+            XCTAssertEqual(modal.heading.text, "Box")
             try verifyCells(embedded, in: modal.view)
             try capture(modal.view, "arcade-gameplay-crate-modal" + suffix + ".png")
             modal.dispose(); root.dismiss(animated: false)
@@ -66,7 +67,7 @@ final class NativeArcadeCrateTests: XCTestCase {
 
     func testFullscreenCrateReusesArcadeSectionHeadingAndCountWithoutDescription() throws {
         let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
-        let screen=NativeBackpackView(frame:.init(x:0,y:0,width:390,height:844),assets:assets,title:"Dice Box",arcadeCrate:true)
+        let screen=NativeBackpackView(frame:.init(x:0,y:0,width:390,height:844),assets:assets,title:"Box",arcadeCrate:true)
         screen.apply([]);screen.layoutIfNeeded();screen.grid.layoutIfNeeded()
         let header=screen.collectionView(screen.grid,viewForSupplementaryElementOfKind:UICollectionView.elementKindSectionHeader,at:.init(item:0,section:0))
         func labels(_ view:UIView)->[UILabel] {view.subviews.flatMap{($0 as? UILabel).map{[$0]} ?? labels($0)}}
@@ -77,7 +78,7 @@ final class NativeArcadeCrateTests: XCTestCase {
         XCTAssertEqual(screen.collectionView(screen.grid,layout:screen.grid.collectionViewLayout,referenceSizeForHeaderInSection:0).height,0)
     }
 
-    func testGameplayCrateMatchesJourneyEmbeddedCellSizes() throws {
+    func testGameplayCrateAndJourneyEmbeddedCellsFitTheirOwnViewport() throws {
         let assets = JimiV9Artwork(resourceRoot: NativeTestResources.root)
         let sections = NativeBackpackCatalog.sections(NativeProgressionState())
         func modal(arcade: Bool) -> NativeGameplayBackpackController {
@@ -90,12 +91,19 @@ final class NativeArcadeCrateTests: XCTestCase {
             controller.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
             controller.view.setNeedsLayout(); controller.view.layoutIfNeeded()
         }
-        XCTAssertEqual(crate.heading.text, "Dice Box")
+        XCTAssertEqual(crate.heading.text, "Box")
         XCTAssertEqual(journey.heading.text, "Backpack")
         let crateScreen = try XCTUnwrap(crate.screen), journeyScreen = try XCTUnwrap(journey.screen)
         let path = IndexPath(item: 0, section: 0)
         XCTAssertEqual(crateScreen.collectionView(crateScreen.grid, numberOfItemsInSection: 0), 3)
-        XCTAssertEqual(crateScreen.collectionView(crateScreen.grid, layout: crateScreen.grid.collectionViewLayout, sizeForItemAt: path), journeyScreen.collectionView(journeyScreen.grid, layout: journeyScreen.grid.collectionViewLayout, sizeForItemAt: path))
+        // Each modal fits its own subtitle/available height; the cell size may differ.
+        for screen in [crateScreen,journeyScreen] {
+            let size=screen.collectionView(screen.grid,layout:screen.grid.collectionViewLayout,sizeForItemAt:path)
+            let rows=ceil(CGFloat(screen.collectionView(screen.grid,numberOfItemsInSection:0))/2)
+            XCTAssertGreaterThan(size.width,0);XCTAssertEqual(size.width,size.height)
+            XCTAssertLessThanOrEqual(rows*size.height+max(0,rows-1)*16,screen.bounds.height-32+0.1)
+            XCTAssertLessThanOrEqual(size.width*2+16,screen.bounds.width-48)
+        }
         XCTAssertLessThan(crate.card.bounds.height, journey.card.bounds.height)
         var selected: [NativeBackpackCatalog.Die] = []
         crateScreen.onDie = { selected.append($0) }
@@ -103,6 +111,26 @@ final class NativeArcadeCrateTests: XCTestCase {
             crateScreen.collectionView(crateScreen.grid, didSelectItemAt: IndexPath(item: index, section: 0))
         }
         XCTAssertEqual(selected, NativeBackpackCatalog.arcade)
+    }
+
+    func testArcadeHUDCrateStaysOpenUntilExplicitCloseWithoutChangingBoard() async throws {
+        let engine=NativeGameplayEngine(state:NativeBoardFactory.make(mode:.arcade,board:1,arcadeVariant:.endurance))
+        let scene=NativeBoardScene(engine:engine,resourceRoot:NativeTestResources.root,size:CGSize(width:390,height:844))
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),view=SKView(frame:CGRect(x:0,y:0,width:390,height:844))
+        host.view=view;window.rootViewController=host;window.makeKeyAndVisible();view.presentScene(scene)
+        defer{scene.dispose();view.presentScene(nil);window.isHidden=true}
+        try await Task.sleep(for:.seconds(1))
+        let help=try XCTUnwrap(scene.childNode(withName:"//native-game-help") as? SKSpriteNode)
+        let closed=help.texture,size=help.size,before=engine.state
+        scene.setBackpackPresented(true);scene.setSuspended(true,allowHUDFeedback:true)
+        let open=help.texture
+        XCTAssertTrue(scene.backpackPresented);XCTAssertFalse(open === closed);XCTAssertEqual(help.size,size)
+        scene.refreshBackpackAlert(allowSuspendedPresentation:true)
+        XCTAssertTrue(help.texture === open);XCTAssertNil(help.childNode(withName:"native-game-backpack-alert"))
+        try await Task.sleep(for:.milliseconds(550))
+        scene.setBackpackPresented(false);scene.setSuspended(true,allowHUDFeedback:true)
+        try await Task.sleep(for:.milliseconds(550))
+        XCTAssertFalse(scene.backpackPresented);XCTAssertTrue(help.texture === closed);XCTAssertEqual(engine.state,before)
     }
 
     func testPureDiceRejectsProgrammaticGameplayCrateWithoutChangingBoard() {
@@ -120,7 +148,7 @@ final class NativeArcadeCrateTests: XCTestCase {
     func testCrateKeepsArcadeIdentityWithForestCellGeometry() throws {
         let assets = JimiV9Artwork(resourceRoot: NativeTestResources.root)
         let frame = CGRect(x: 0, y: 0, width: 390, height: 844)
-        let crate = NativeBackpackView(frame: frame, assets: assets, title: "Dice Box", arcadeCrate: true)
+        let crate = NativeBackpackView(frame: frame, assets: assets, title: "Box", arcadeCrate: true)
         let forest = NativeBackpackView(frame: frame, assets: assets)
         let items = NativeBackpackCatalog.arcade
         // Matching content in a normal Journey-style section isolates the
@@ -133,8 +161,8 @@ final class NativeArcadeCrateTests: XCTestCase {
         XCTAssertEqual(crate.numberOfSections(in: crate.grid), 1)
         XCTAssertEqual(crate.collectionView(crate.grid, numberOfItemsInSection: 0), 3)
         XCTAssertTrue(crate.sections.isEmpty)
-        XCTAssertEqual(crate.close.accessibilityLabel, "Close Dice Box")
-        XCTAssertTrue(crate.header.subviews.compactMap { $0 as? UILabel }.contains { $0.text == "Dice Box" })
+        XCTAssertEqual(crate.close.accessibilityLabel, "Close Box")
+        XCTAssertTrue(crate.header.subviews.compactMap { $0 as? UILabel }.contains { $0.text == "Box" })
         var selected: [NativeBackpackCatalog.Die] = []
         crate.onDie = { selected.append($0) }
         for index in items.indices {
@@ -147,8 +175,8 @@ final class NativeArcadeCrateTests: XCTestCase {
             crateCell.frame = CGRect(origin: .zero, size: crateSize)
             forestCell.frame = CGRect(origin: .zero, size: forestSize)
             crateCell.layoutIfNeeded(); forestCell.layoutIfNeeded()
-            let crateImages = crateCell.contentView.subviews.compactMap { $0 as? UIImageView }
-            let forestImages = forestCell.contentView.subviews.compactMap { $0 as? UIImageView }
+            let crateImages = crateCell.contentView.subviews.flatMap{[$0]+$0.subviews}.compactMap { $0 as? UIImageView }.filter{!($0 is NativeBackpackAlertView)}
+            let forestImages = forestCell.contentView.subviews.flatMap{[$0]+$0.subviews}.compactMap { $0 as? UIImageView }.filter{!($0 is NativeBackpackAlertView)}
             XCTAssertEqual(crateImages.first?.bounds,forestImages.first?.bounds)
             let ratio:CGFloat=items[index].id=="wild-magnet" ? 0.8:items[index].id=="tnt" ? 0.95:1
             XCTAssertEqual(try XCTUnwrap(crateImages.last).bounds.width,try XCTUnwrap(forestImages.last).bounds.width*ratio,accuracy:0.01)

@@ -74,11 +74,6 @@ import StackToSixGameplay
         let shadow=NativeArcadeThumbShadow(frame:.zero,alphaGain:Self.selectedShadowAlphaGain);shadow.isHidden=true
         shadow.layer.actions=["position":NSNull(),"transform":NSNull(),"opacity":NSNull()]
         groundShadow=shadow;addSubview(shadow)
-        if die.id=="kanta" {
-            let rear=NativeArcadeThumbShadow(frame:.zero,alphaGain:Self.selectedShadowAlphaGain)
-            rear.isHidden=true;rear.layer.actions=shadow.layer.actions
-            rearCanShadow=rear;addSubview(rear)
-        }
         prepare()
     }
     required init?(coder:NSCoder){fatalError("Use selected die")}
@@ -133,6 +128,7 @@ import StackToSixGameplay
         if identity.id=="fish" {node.prepareFishMediaPhase()}
         textures.advanceIdlePhases();node.tick(0,suspended:false,viewportCenter:0)
         node.paintCollectionPreview(seconds:0)
+        if identity.id=="kanta" {node.configureCollectionSingleCan()}
         if identity.id=="flower" {
             // Three overlapping four-grain bursts; one selected-scene clock.
             for index in 0..<12 {
@@ -241,7 +237,7 @@ import StackToSixGameplay
         }else{pose=target}
         shadowSample=(seconds,pose)
         // Action-disabled layer writes join SpriteKit's existing frame commit.
-        shadow.layer.position=CGPoint(x:pose.x+(identity.id=="kanta" ? 34:0),y:shadowFloorCenter(slot:slot,height:shadow.bounds.height))
+        shadow.layer.position=CGPoint(x:pose.x,y:shadowFloorCenter(slot:slot,height:shadow.bounds.height))
         shadow.layer.setAffineTransform(CGAffineTransform(scaleX:pose.sx,y:pose.sy))
         shadow.layer.opacity=Float(pose.alpha)
         if let rear=rearCanShadow {

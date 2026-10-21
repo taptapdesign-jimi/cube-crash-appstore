@@ -53,11 +53,12 @@ public final class NativeWorldLayouts {
             let interim=progression.interimBoard(world:world)==board
             let allowed=completed || interim
             let viewed=progression.viewedJourneyBoards.contains(board)
-            let card=interim ? "./assets/colelctibles/interim.png" : NativeJourneyContent.cardAsset(board:board,score:stats.highScore)
-            let card2x=interim ? "./assets/colelctibles/interim@2x.png" : NativeJourneyContent.cardAsset(board:board,score:stats.highScore,doubleDensity:true)
+            let stars=progression.journeyStars(board:board)
+            let card=interim ? "./assets/colelctibles/interim.png" : NativeJourneyContent.cardAsset(board:board,stars:stars)
+            let card2x=interim ? "./assets/colelctibles/interim@2x.png" : NativeJourneyContent.cardAsset(board:board,stars:stars,doubleDensity:true)
             units[index]["boardID"]=board; units[index]["locked"] = !allowed;units[index]["interim"]=interim;units[index]["completed"]=completed
-            units[index]["stars"]=completed ? NativeJourneyContent.earnedStars(score:stats.highScore,board:board) : 0
-            units[index]["cardRarity"]=NativeJourneyContent.earnedStars(score:stats.highScore,board:board)==3 ? "legendary" : "common"
+            units[index]["stars"]=stars
+            units[index]["cardRarity"]=stars==3 ? "legendary" : "common"
             units[index]["viewed"]=viewed;units[index]["newRibbon"]=completed && !viewed && board != 1
             units[index]["allowedActions"]=allowed ? (interim ? ["continue","continue"] : ["openCard",resumableBoards.contains(board) ? "continue" : "play"]) : []
             units[index]["stats"]=[["label":"High Score","value":stats.highScore.formatted()],["label":"Longest Combo","value":stats.longestCombo.formatted()]]
@@ -66,7 +67,6 @@ public final class NativeWorldLayouts {
             for part in parts.indices {
                 if parts[part]["role"] as? String == "card" { parts[part]["asset"]=card }
                 if parts[part]["role"] as? String == "star",let asset=parts[part]["asset"] as? String {
-                    let stars=completed ? NativeJourneyContent.earnedStars(score:stats.highScore,board:board) : 0
                     let ordinal=asset.contains("left") ? 1 : asset.contains("center") ? 2 : 3
                     let side=ordinal==1 ? "left" : ordinal==2 ? "center" : "right"
                     let state=stars>=ordinal ? "filled" : "empty"

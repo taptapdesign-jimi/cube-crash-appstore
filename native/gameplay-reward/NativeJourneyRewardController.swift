@@ -26,6 +26,7 @@ private final class RewardScheduler:NativeMusicScheduler {
 final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDelegate {
     enum Action {case collect,cancelled}
     let board:Int,score:Int
+    private let awardedStars:Int
     private var borrowsGameplayPaper=false,rewardActionsAdmitted=true
     private let resourceRoot:URL
     private let magic=NativeMagicCardReveal()
@@ -76,10 +77,11 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
     /// Tests can accept already prepared immutable carriers without invoking CI.
     var prepareFilteredFrames:(([String:UIImage],NativeRewardPreparationLease,@escaping ([String:UIImage])->Void)->Void)=NativeRewardFilteredFrames.prepare
     private var resourceOwner:Int {-50000-board}
-    private var rarity:String {NativeJourneyContent.earnedStars(score:score,board:board)==3 ? "legendary":"common"}
-    private var cardPath:String {NativeJourneyContent.cardAsset(board:board,score:score,doubleDensity:true)}
-    private var maskPath:String {NativeJourneyContent.cardAsset(board:board,score:score)}
-    init(root:URL,board:Int,score:Int,generation:UInt64,resources:(any NativeRewardResources)?=nil,scheduler:(any NativeMusicScheduler)?=nil,reducedMotion:Bool?=nil,random:@escaping ()->Double={Double.random(in:0..<1)},now:@escaping ()->Double={ProcessInfo.processInfo.systemUptime}) {
+    private var rarity:String {awardedStars==3 ? "legendary":"common"}
+    private var cardPath:String {NativeJourneyContent.cardAsset(board:board,stars:awardedStars,doubleDensity:true)}
+    private var maskPath:String {NativeJourneyContent.cardAsset(board:board,stars:awardedStars)}
+    init(root:URL,board:Int,score:Int,generation:UInt64,awardedStars:Int?=nil,resources:(any NativeRewardResources)?=nil,scheduler:(any NativeMusicScheduler)?=nil,reducedMotion:Bool?=nil,random:@escaping ()->Double={Double.random(in:0..<1)},now:@escaping ()->Double={ProcessInfo.processInfo.systemUptime}) {
+        self.awardedStars=max(0,min(3,awardedStars ?? NativeJourneyContent.earnedStars(score:score,board:board)))
         self.resourceRoot=root;self.board=max(1,min(30,board));self.score=score;self.generation=generation;self.resources=resources ?? JimiNativeWorldResources(root:root)
         self.scheduler=scheduler ?? RewardScheduler();self.random=random;self.now=now;self.reducedMotion=reducedMotion ?? UIAccessibility.isReduceMotionEnabled;tilt=NativeRewardPresentation.Tilt(random:random);assets=JimiV9Artwork(resourceRoot:root)
         super.init(nibName:nil,bundle:nil);modalPresentationStyle = .overFullScreen
@@ -173,7 +175,6 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         // opacity ramp, fixed lead-in or unlocked-art filter gates its start.
         CATransaction.begin();CATransaction.setDisableActions(true)
         pose.layer.transform=CATransform3DIdentity;pose.layer.opacity=1;CATransaction.commit()
-        onSoundMoment?("new-card-intro",0,generation)
         later("intro-haptic",after:0.12){ [weak self] in self?.onHaptic?("light")}
         later("intro-haptic2",after:0.24){ [weak self] in self?.onHaptic?("medium")}
         if magicPrepared {crumble()}else{waitingCrumble=true}
@@ -201,8 +202,17 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         magicOpening=true;phase="opening"
         // SVG owns the whole card opening, dust, bounce and angular motion.
         // Start at visible admission or immediately upon selected SVG readiness.
-        waitingCrumble=false;onSoundMoment?("new-card-crumble",0,generation)
+        waitingCrumble=false
         magic.play(from:0,to:NativeMagicCardSource.hold,reduced:reducedMotion)
+        let openingDuration=reducedMotion ? 0.16:NativeMagicCardSource.hold
+        later("opening-crumbs",after:openingDuration*0.20){[weak self] in
+            guard let self else{return}
+            self.onSoundMoment?("new-card-intro",0,self.generation)
+            self.onSoundMoment?("new-card-crumble",0,self.generation)
+        }
+        later("opening-puff",after:openingDuration*0.50){[weak self] in
+            guard let self else{return};self.onSoundMoment?("new-card-opening-puff",0,self.generation)
+        }
         later("magic-opened",after:reducedMotion ? 0.16:NativeMagicCardSource.hold) { [weak self] in
             guard let self,self.phase != "asset-failed",!self.revealRunning,!self.revealed else{return}
             self.magic.settle(at:NativeMagicCardSource.hold);self.magicOpening=false;self.magicOpened=true;self.phase="interim";self.onHaptic?("medium")
@@ -233,6 +243,7 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         interim.layer.opacity=1
         let closedExit=reducedMotion ? 0.16:(NativeMagicCardSource.end-NativeMagicCardSource.hold)*1.3
         let unlockedDelay=0.300
+        later("unlocked-enter-sound",after:unlockedDelay){[weak self] in guard let self else{return};self.onSoundMoment?("new-card-unlocked-enter",0,self.generation)}
         magic.play(from:NativeMagicCardSource.hold,to:NativeMagicCardSource.end,reduced:reducedMotion,durationScale:1.3)
         headingLabel.layer.opacity=0;subtitle.layer.opacity=0
         animate(unlocked.layer,"opacity",from:0,to:1,duration:0.001,delay:unlockedDelay)

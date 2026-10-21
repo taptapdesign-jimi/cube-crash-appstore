@@ -44,6 +44,82 @@ final class JimiNativeWorldTests: XCTestCase {
     }
     private func settle(_ seconds: Double = 1.3) async throws { try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000)) }
 
+    func testMainArtworkOpposesFirstTwoUnitsOnOneContinuousClockInEveryWorld() async throws {
+        guard !UIAccessibility.isReduceMotionEnabled else {throw XCTSkip("Authored motion")}
+        for worldID in 1...3 {
+            var value=fixture();value["worldID"]=worldID
+            value["mainParts"]=[["asset":"assets/close-icon.png","role":"hero","x":0,"y":0,"width":200,"height":200,"rotation":0,"opacity":1,"zIndex":3]]
+            var definitions=value["units"] as! [[String:Any]]
+            for i in definitions.indices {let id=(worldID-1)*10+i+1;definitions[i]["boardID"]=id;definitions[i]["id"]="board-\(id)"}
+            value["units"]=definitions
+            let world=try XCTUnwrap(JimiNativeWorldView(snapshot:value,assets:art))
+            world.frame=CGRect(x:0,y:0,width:390,height:844);world.layoutIfNeeded()
+            defer {world.cleanup()}
+            let ready=expectation(description:"World artwork ready");world.prepare{ready.fulfill()};await fulfillment(of:[ready],timeout:5)
+            let entered=expectation(description:"Enter handoff");world.enter{entered.fulfill()};await fulfillment(of:[entered],timeout:5);world.finishPresentationAdmission()
+            let hero=try XCTUnwrap(descendant(world,"native.world.part.0.hero"))
+            let first=(worldID-1)*10+1
+            let units=try (first...first+1).map {try XCTUnwrap(descendant(world,"native.world.card.\($0)"))}
+            let mainLoop=try XCTUnwrap(hero.layer.animation(forKey:"world.idle.y") as? CAKeyframeAnimation)
+            func sample(_ animation:CAKeyframeAnimation,_ time:Double)->Double {
+                let values=animation.values as! [Double],period=animation.duration
+                let elapsed=(time-animation.beginTime).truncatingRemainder(dividingBy:period)
+                let x=(elapsed < 0 ? elapsed+period : elapsed)/period*Double(values.count-1)
+                let i=min(values.count-2,Int(x));return values[i]+(values[i+1]-values[i])*(x-Double(i))
+            }
+            for unit in units {
+                let loop=try XCTUnwrap(unit.layer.animation(forKey:"world.idle.y") as? CAKeyframeAnimation)
+                XCTAssertEqual(loop.duration,mainLoop.duration,accuracy:0.0001)
+                let ramp=try XCTUnwrap(unit.layer.animation(forKey:"world.idle.y.onset") as? CAKeyframeAnimation)
+                XCTAssertEqual((ramp.values as! [Double]).last!,sample(loop,loop.beginTime),accuracy:0.001,"Onset joins loop without a jump")
+                for step in 0...80 {let time=max(loop.beginTime,mainLoop.beginTime)+Double(step)*0.1;XCTAssertEqual(sample(loop,time),-sample(mainLoop,time),accuracy:0.025)}
+            }
+            world.finishPresentationAdmission()
+            XCTAssertEqual(hero.layer.animation(forKey:"world.idle.y")?.beginTime,mainLoop.beginTime,"Admission cannot restart main art")
+            world.park();XCTAssertNil(hero.layer.animationKeys());for unit in units {XCTAssertNil(unit.layer.animationKeys())}
+        }
+    }
+
+    func testMainOppositionSurvivesModalPauseAndUnitViewportReentry() async throws {
+        guard !UIAccessibility.isReduceMotionEnabled else {throw XCTSkip("Authored motion")}
+        var value=fixture()
+        value["mainParts"]=[
+            ["asset":"assets/close-icon.png","role":"hero","x":0,"y":0,"width":200,"height":200,"rotation":0,"opacity":1,"zIndex":3],
+            ["asset":"assets/close-icon.png","role":"cloud","x":0,"y":0,"width":80,"height":80,"rotation":0,"opacity":1,"zIndex":2]]
+        let world=try XCTUnwrap(JimiNativeWorldView(snapshot:value,assets:art))
+        world.frame=CGRect(x:0,y:0,width:390,height:844);world.layoutIfNeeded()
+        let scene=try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.first),previous=scene.windows.first{$0.isKeyWindow}
+        let window=UIWindow(windowScene:scene),host=UIViewController();window.frame=world.frame;window.rootViewController=host;host.view.addSubview(world);window.makeKeyAndVisible()
+        defer {world.cleanup();window.isHidden=true;window.rootViewController=nil;previous?.makeKey()}
+        let ready=expectation(description:"Artwork ready");world.prepare{ready.fulfill()};await fulfillment(of:[ready],timeout:10)
+        let entered=expectation(description:"World entered");world.enter{entered.fulfill()};await fulfillment(of:[entered],timeout:5);world.finishPresentationAdmission()
+        let hero=try XCTUnwrap(descendant(world,"native.world.part.0.hero"))
+        let cloud=try XCTUnwrap(descendant(world,"native.world.part.0.cloud"))
+        let second=try XCTUnwrap(descendant(world,"native.world.card.2"))
+        XCTAssertEqual(try XCTUnwrap(cloud.layer.animation(forKey:"world.idle.y")).duration,3.43,accuracy:0.0001,"Cloud retains its independent authored period")
+        world.openCard(boardID:1)
+        try await settle(0.8)
+        let returned=expectation(description:"Modal return");world.closeCard{returned.fulfill()};await fulfillment(of:[returned],timeout:5)
+        let retained=try XCTUnwrap(hero.layer.animation(forKey:"world.idle.y") as? CAKeyframeAnimation)
+        // Keep the main art visible while taking Unit2 outside the viewport.
+        world.scrollView.contentOffset=CGPoint(x:0,y:-300);world.scrollViewDidScroll(world.scrollView)
+        XCTAssertNil(second.layer.animation(forKey:"world.idle.y"))
+        world.scrollView.contentOffset = .zero;world.scrollViewDidScroll(world.scrollView)
+        try await settle(0.3)
+        let reentered=try XCTUnwrap(second.layer.animation(forKey:"world.idle.y") as? CAKeyframeAnimation)
+        XCTAssertEqual(hero.layer.animation(forKey:"world.idle.y")?.beginTime,retained.beginTime,"Main clock survives Unit reentry")
+        func sample(_ animation:CAKeyframeAnimation,_ time:Double)->Double {
+            let values=animation.values as! [Double],period=animation.duration
+            let elapsed=(time-animation.beginTime).truncatingRemainder(dividingBy:period)
+            let x=(elapsed < 0 ? elapsed+period : elapsed)/period*Double(values.count-1)
+            let i=min(values.count-2,Int(x));return values[i]+(values[i+1]-values[i])*(x-Double(i))
+        }
+        for step in 0...60 {
+            let time=max(retained.beginTime,reentered.beginTime)+Double(step)*0.1
+            XCTAssertEqual(sample(retained,time),-sample(reentered,time),accuracy:0.025,"Reentered Unit uses the modal-adjusted common clock")
+        }
+    }
+
     func testNEWFlagWaitsForVisibleEntryThenAnimatesRemovalAndParkQuiescesIt() async throws {
         var initial=fixture();var unit=(initial["units"] as! [[String:Any]])[0];unit["newRibbon"]=true;initial["units"]=[unit]
         let world=try XCTUnwrap(JimiNativeWorldView(snapshot:initial,assets:art));world.frame=CGRect(x:0,y:0,width:390,height:844);world.layoutIfNeeded()
@@ -151,16 +227,17 @@ final class JimiNativeWorldTests: XCTestCase {
             try screenshot.pngData()?.write(to:URL(fileURLWithPath:"/tmp/native-card-back-\(Int(width)).png"))
             let attachment=XCTAttachment(image:screenshot);attachment.name="native-card-back-\(Int(width))";attachment.lifetime = .keepAlways;add(attachment)
             let cta=try XCTUnwrap(descendant(card,"native.world.card.play"))
-            let back=try XCTUnwrap(cta.superview)
+            let ctaLayout=(cta as? JimiV9PlainButton)?.cartoonBounceLayoutView ?? cta
+            let back=try XCTUnwrap(ctaLayout.superview)
             let stats=try XCTUnwrap(back.subviews.compactMap{$0 as? UIStackView}.first{$0.axis == .vertical})
-            XCTAssertGreaterThanOrEqual(cta.frame.minY-stats.frame.maxY,15,"Stats/CTA gap at \(width)")
-            XCTAssertEqual(back.bounds.maxY-cta.frame.maxY,40,accuracy:0.1)
+            XCTAssertGreaterThanOrEqual(ctaLayout.frame.minY-stats.frame.maxY,15,"Stats/CTA gap at \(width)")
+            XCTAssertEqual(back.bounds.maxY-ctaLayout.frame.maxY,40,accuracy:0.1)
             for row in stats.arrangedSubviews {
                 for label in row.subviews.compactMap({$0 as? UILabel}) {
                     XCTAssertGreaterThanOrEqual(label.font.pointSize,16)
                     XCTAssertGreaterThanOrEqual(label.bounds.width,label.intrinsicContentSize.width,"Unclipped stat label at \(width)")
                     let rect=label.convert(label.bounds,to:back)
-                    XCTAssertLessThan(rect.maxY,cta.frame.minY-15)
+                    XCTAssertLessThan(rect.maxY,ctaLayout.frame.minY-15)
                 }
             }
         }
@@ -252,6 +329,30 @@ final class JimiNativeWorldTests: XCTestCase {
         XCTAssertTrue(world.scrollView.touchesShouldCancel(in:unlocked), "Vertical scroll must cancel a pending button touch")
         world.park(); unlocked.sendActions(for:.touchUpInside); XCTAssertEqual(requests.count,1)
         world.cleanup(); world.cleanup(); XCTAssertFalse(world.isReadyForInput)
+    }
+
+    func testInterimLaunchComposesCartoonWithExistingCollapseAndCancelsOnPark() async throws {
+        guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Reduced Motion")}
+        var raw=fixture();var definitions=try XCTUnwrap(raw["units"] as? [[String:Any]])
+        definitions[0]["interim"]=true;definitions[0]["allowedActions"]=["continue"]
+        raw["units"]=definitions
+        let world=try XCTUnwrap(JimiNativeWorldView(snapshot:raw,assets:art))
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible();world.frame=window.bounds;host.view.addSubview(world)
+        defer{world.cleanup();window.isHidden=true}
+        world.layoutIfNeeded();world.enter{};try await settle();world.finishPresentationAdmission()
+        let unit=try XCTUnwrap(descendant(world,"native.world.card.1") as? UIButton)
+        let card=try XCTUnwrap(unit.subviews.first{$0.accessibilityIdentifier?.hasSuffix(".card")==true})
+        var requests=0
+        world.onRequest={action,id in XCTAssertEqual(action,"continue");requests+=1;world.prepareGameplayExit(boardID:id){}}
+        unit.sendActions(for:.touchUpInside)
+        XCTAssertNil(card.layer.animation(forKey:NativeHubBackpackFeedback.animationKey),"One composed transform owns both effects")
+        XCTAssertNotNil(card.layer.animation(forKey:"card.tap.exit"));XCTAssertEqual(requests,1)
+        try await Task.sleep(for:.milliseconds(70))
+        let painted=try XCTUnwrap(card.layer.presentation()).transform
+        print("[InterimCartoon] keys=\(card.layer.animationKeys() ?? []) scaleX=\(painted.m11) scaleY=\(painted.m22)")
+        XCTAssertGreaterThan(abs(painted.m11-painted.m22),0.12,"The rendered card must visibly squash/stretch, not only scale uniformly")
+        world.park();XCTAssertNil(card.layer.animation(forKey:NativeHubBackpackFeedback.animationKey))
     }
 
     func testResourceLeasesUseDecodedRGBAAndDoubleCleanupRejectsLatePrepare() async throws {
@@ -777,7 +878,7 @@ final class JimiNativeWorldTests: XCTestCase {
     private func renderOriginalRegularCardFixture(rarity:String,path:String) async throws {
         var projection = fixture(),units = fixture()["units"] as! [[String:Any]]
         units[0]["frame"] = ["x":30,"y":400,"width":90,"height":133]
-        units[0]["cardArt"] = path;units[0]["cardRarity"] = rarity;units[0]["stars"] = 2
+        units[0]["cardArt"] = path;units[0]["cardRarity"] = rarity;units[0]["stars"] = 2;units[0]["newRibbon"] = rarity=="legendary"
         units[0]["stats"] = [["label":"High Score","value":"1,234"],["label":"Longest Combo","value":"12"]]
         units[0]["parts"] = [["asset":path,"role":"card","x":0,"y":0,"width":90,"height":133,"rotation":-4,"opacity":1,"zIndex":8]]
         projection["units"] = units
@@ -825,6 +926,10 @@ final class JimiNativeWorldTests: XCTestCase {
             XCTAssertEqual(card.stableFaceAngle,0)
             XCTAssertNotNil(foil.animation(forKey:"modal.holo.alpha"))
             XCTAssertGreaterThan(foil.presentation()?.opacity ?? 0,0)
+            let badge=try XCTUnwrap(descendant(card,"native.world.ribbon") as? JimiNativeNewRibbonView)
+            XCTAssertGreaterThan(badge.layer.zPosition,CGFloat(foil.transform.m43))
+            let image=UIGraphicsImageRenderer(bounds:window.bounds).image{_ in window.drawHierarchy(in:window.bounds,afterScreenUpdates:true)}
+            try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/legendary-alert-opaque.png"))
             card.tapToFlip();try await settle(0.65)
             XCTAssertNil(foil.animationKeys());XCTAssertEqual(foil.opacity,0)
         }

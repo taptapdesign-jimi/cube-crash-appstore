@@ -48,11 +48,11 @@ final class NativeDeveloperPicker: UIViewController {
             button.layer.cornerRadius = 12; button.layer.borderWidth = 1
             button.accessibilityIdentifier = "native.developer.choice.\(choice.value)"
             button.addTarget(self, action: #selector(selectChoice(_:)), for: .touchUpInside)
-            scroll.addSubview(button); buttons.append(button)
+            scroll.addSubview(button);button.enableCartoonBounce(); buttons.append(button)
         }
         confirm.setTitle("OK", for: .normal); cancel.setTitle("Cancel", for: .normal)
         for button in [confirm, cancel] {
-            button.titleLabel?.font = artwork.font(size: 18, weight: "Medium"); card.addSubview(button)
+            button.titleLabel?.font = artwork.font(size: 18, weight: "Medium"); card.addSubview(button);button.enableCartoonBounce()
             button.layer.cornerRadius = 12; button.backgroundColor = UIColor.white.withAlphaComponent(0.7)
             button.setTitleColor(heading.textColor, for: .normal)
         }
@@ -69,11 +69,11 @@ final class NativeDeveloperPicker: UIViewController {
         scroll.frame = CGRect(x: 16, y: 72, width: card.bounds.width-32, height: height-152)
         let width = (scroll.bounds.width-8)/2
         for (index, button) in buttons.enumerated() {
-            button.frame = CGRect(x: CGFloat(index%2)*(width+8), y: CGFloat(index/2)*52, width: width, height: 44)
+            button.setCartoonBounceFrame(CGRect(x: CGFloat(index%2)*(width+8), y: CGFloat(index/2)*52, width: width, height: 44))
         }
         scroll.contentSize = CGSize(width: scroll.bounds.width, height: CGFloat((buttons.count+1)/2)*52)
-        confirm.frame = CGRect(x: 16,y: height-64,width: width,height: 48)
-        cancel.frame = CGRect(x: 24+width,y: height-64,width: width,height: 48)
+        confirm.setCartoonBounceFrame(CGRect(x: 16,y: height-64,width: width,height: 48))
+        cancel.setCartoonBounceFrame(CGRect(x: 24+width,y: height-64,width: width,height: 48))
     }
     @objc private func selectChoice(_ sender: JimiV9PlainButton) {
         guard !resolved, choices.indices.contains(sender.tag) else { return }
@@ -120,11 +120,11 @@ final class NativeDeveloperGameplayHost: UIViewController {
         close.setTitle("Close DEV", for: .normal); close.setTitleColor(.white, for: .normal)
         close.backgroundColor = UIColor(red: 232/255,green: 116/255,blue: 74/255,alpha: 1); close.layer.cornerRadius = 12
         close.accessibilityIdentifier = "native.developer.close-gameplay"
-        close.addTarget(self, action: #selector(finish), for: .touchUpInside); view.addSubview(close)
+        close.addTarget(self, action: #selector(finish), for: .touchUpInside); view.addSubview(close);close.enableCartoonBounce()
     }
     override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews(); close.frame = CGRect(x: view.bounds.width-124, y: view.safeAreaInsets.top+8, width: 112, height: 40)
-        view.bringSubviewToFront(close)
+        super.viewDidLayoutSubviews(); close.setCartoonBounceFrame(CGRect(x: view.bounds.width-124, y: view.safeAreaInsets.top+8, width: 112, height: 40))
+        view.bringSubviewToFront(close.cartoonBounceLayoutView)
     }
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
@@ -159,10 +159,10 @@ final class NativeDeveloperPreviewHost: UIViewController {
         close.setTitle("Close DEV",for: .normal); close.setTitleColor(.white,for: .normal)
         close.backgroundColor = UIColor(red: 232/255,green: 116/255,blue: 74/255,alpha: 1); close.layer.cornerRadius = 12
         close.accessibilityIdentifier = "native.developer.close-preview"
-        close.addTarget(self,action: #selector(finish),for: .touchUpInside); view.addSubview(close)
+        close.addTarget(self,action: #selector(finish),for: .touchUpInside); view.addSubview(close);close.enableCartoonBounce()
     }
     override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews(); close.frame = CGRect(x: view.bounds.width-124,y: view.safeAreaInsets.top+8,width: 112,height: 40)
+        super.viewDidLayoutSubviews(); close.setCartoonBounceFrame(CGRect(x: view.bounds.width-124,y: view.safeAreaInsets.top+8,width: 112,height: 40))
     }
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated); if isBeingDismissed { cleanup() }

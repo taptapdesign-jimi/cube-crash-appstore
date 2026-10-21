@@ -1,0 +1,1148 @@
+{
+  "verdict": "PASS for paired synchronous-core experiment; NOT calibrated for production Source runtime",
+  "total_runs": 36000,
+  "unique_opening_seeds": 3000,
+  "training_seed_limit": 180,
+  "action_paths": 9000,
+  "outcomes": {
+    "complete": 9248,
+    "fail": 26752
+  },
+  "validation_errors": 0,
+  "paired_trace_mismatches": 0,
+  "raw_sha256": "4e5e11687c4467d48d582cee7e5c9710f5b476935f9f8c39a6a6665bc17606c7",
+  "summaries": [
+    {
+      "board": 1,
+      "style": "continuous",
+      "attempts": 900,
+      "completed": 346,
+      "completion_percent": 38.4,
+      "median": 46059.5,
+      "p10": 32544,
+      "p90": 50804,
+      "maximum": 59184,
+      "peak_combo_median": 50.0,
+      "base_median": 15107.0,
+      "combo_bonus_median": 30700.0,
+      "efficiency_median": 255.0,
+      "actions_median": 50.0,
+      "runs_above_nominal_combo_cap": 0
+    },
+    {
+      "board": 1,
+      "style": "half",
+      "attempts": 900,
+      "completed": 346,
+      "completion_percent": 38.4,
+      "median": 23574.5,
+      "p10": 16678,
+      "p90": 26412,
+      "maximum": 30429,
+      "peak_combo_median": 25.0,
+      "base_median": 8237.5,
+      "combo_bonus_median": 15150.0,
+      "efficiency_median": 255.0,
+      "actions_median": 50.0,
+      "runs_above_nominal_combo_cap": 0
+    },
+    {
+      "board": 1,
+      "style": "cap4",
+      "attempts": 900,
+      "completed": 346,
+      "completion_percent": 38.4,
+      "median": 5068.5,
+      "p10": 4361,
+      "p90": 5429,
+      "maximum": 6029,
+      "peak_combo_median": 4.0,
+      "base_median": 2063.0,
+      "combo_bonus_median": 2700.0,
+      "efficiency_median": 255.0,
+      "actions_median": 50.0,
+      "runs_above_nominal_combo_cap": 0
+    },
+    {
+      "board": 1,
+      "style": "single",
+      "attempts": 900,
+      "completed": 346,
+      "completion_percent": 38.4,
+      "median": 1387.0,
+      "p10": 1306,
+      "p90": 1453,
+      "maximum": 1565,
+      "peak_combo_median": 1.0,
+      "base_median": 1136.0,
+      "combo_bonus_median": 0.0,
+      "efficiency_median": 255.0,
+      "actions_median": 50.0,
+      "runs_above_nominal_combo_cap": 0
+    },
+    {
+      "board": 2,
+      "style": "continuous",
+      "attempts": 900,
+      "completed": 370,
+      "completion_percent": 41.1,
+      "median": 62791.0,
+      "p10": 46687,
+      "p90": 83974,
+      "maximum": 123153,
+      "peak_combo_median": 58.0,
+      "base_median": 20257.5,
+      "combo_bonus_median": 41400.0,
+      "efficiency_median": 341.0,
+      "actions_median": 58.0,
+      "runs_above_nominal_combo_cap": 0
+    },
+    {
+      "board": 2,
+      "style": "half",
+      "attempts": 900,
+      "completed": 370,
+      "completion_percent": 41.1,
+      "median": 32559.0,
+      "p10": 23937,
+      "p90": 43849,
+      "maximum": 62394,
+      "peak_combo_median": 29.0,
+      "base_median": 11295.0,
+      "combo_bonus_median": 20450.0,
+      "efficiency_median": 341.0,
+      "actions_median": 58.0,
+      "runs_above_nominal_combo_cap": 0
+    },
+    {
+      "board": 2,
+      "style": "cap4",
+      "attempts": 900,
+      "completed": 370,
+      "completion_percent": 41.1,
+      "median": 6050.5,
+      "p10": 5235,
+      "p90": 7003,
+      "maximum": 8477,
+      "peak_combo_median": 4.0,
+      "base_median": 2428.0,
+      "combo_bonus_median": 3150.0,
+      "efficiency_median": 341.0,
+      "actions_median": 58.0,
+      "runs_above_nominal_combo_cap": 0
+    },
+    {
+      "board": 2,
+      "style": "single",
+      "attempts": 900,
+      "completed": 370,
+      "completion_percent": 41.1,
+      "median": 1678.0,
+      "p10": 1508,
+      "p90": 1893,
+      "maximum": 2191,
+      "peak_combo_median": 1.0,
+      "base_median": 1329.5,
+      "combo_bonus_median": 0.0,
+      "efficiency_median": 341.0,
+      "actions_median": 58.0,
+      "runs_above_nominal_combo_cap": 0
+    },
+    {
+      "board": 3,
+      "style": "continuous",
+      "attempts": 900,
+      "completed": 392,
+      "completion_percent": 43.6,
+      "median": 80511.5,
+      "p10": 50497,
+      "p90": 115257,
+      "maximum": 171175,
+      "peak_combo_median": 66.0,
+      "base_median": 26150.5,
+      "combo_bonus_median": 53700.0,
+      "efficiency_median": 438.0,
+      "actions_median": 66.0,
+      "runs_above_nominal_combo_cap": 0
+    },
+    {
+      "board": 3,
+      "style": "half",
+      "attempts": 900,
+      "completed": 392,
+      "completion_percent": 43.6,
+      "median": 41784.5,
+      "p10": 25875,
+      "p90": 59640,
+      "maximum": 89212,
+      "peak_combo_median": 33.0,
+      "base_median": 14722.5,
+      "combo_bonus_median": 26550.0,
+      "efficiency_median": 438.0,
+      "actions_median": 66.0,
+      "runs_above_nominal_combo_cap": 0
+    },
+    {
+      "board": 3,
+      "style": "cap4",
+      "attempts": 900,
+      "completed": 392,
+      "completion_percent": 43.6,
+      "median": 7620.0,
+      "p10": 6036,
+      "p90": 9351,
+      "maximum": 11956,
+      "peak_combo_median": 4.0,
+      "base_median": 3514.0,
+      "combo_bonus_median": 3600.0,
+      "efficiency_median": 438.0,
+      "actions_median": 66.0,
+      "runs_above_nominal_combo_cap": 0
+    },
+    {
+      "board": 3,
+      "style": "single",
+      "attempts": 900,
+      "completed": 392,
+      "completion_percent": 43.6,
+      "median": 2813.0,
+      "p10": 2163,
+      "p90": 3685,
+      "maximum": 4926,
+      "peak_combo_median": 1.0,
+      "base_median": 2393.0,
+      "combo_bonus_median": 0.0,
+      "efficiency_median": 438.0,
+      "actions_median": 66.0,
+      "runs_above_nominal_combo_cap": 0
+    },
+    {
+      "board": 4,
+      "style": "continuous",
+      "attempts": 900,
+      "completed": 244,
+      "completion_percent": 27.1,
+      "median": 46493.5,
+      "p10": 28216,
+      "p90": 75914,
+      "maximum": 102381,
+      "peak_combo_median": 51.5,
+      "base_median": 13983.0,
+      "combo_bonus_median": 32587.5,
+      "efficiency_median": 658.0,
+      "actions_median": 43.0,
+      "runs_above_nominal_combo_cap": 0
+    },
+    {
+      "board": 4,
+      "style": "half",
+      "attempts": 900,
+      "completed": 244,
+      "completion_percent": 27.1,
+      "median": 24040.0,
+      "p10": 15107,
+      "p90": 38991,
+      "maximum": 53101,
+      "peak_combo_median": 26.0,
+      "base_median": 7929.0,
+      "combo_bonus_median": 15775.0,
+      "efficiency_median": 658.0,
+      "actions_median": 43.0,
+      "runs_above_nominal_combo_cap": 0
+    },
+    {
+      "board": 4,
+      "style": "cap4",
+      "attempts": 900,
+      "completed": 244,
+      "completion_percent": 27.1,
+      "median": 5761.0,
+      "p10": 4548,
+      "p90": 7531,
+      "maximum": 9208,
+      "peak_combo_median": 5.0,
+      "base_median": 2168.0,
+      "combo_bonus_median": 2900.0,
+      "efficiency_median": 658.0,
+      "actions_median": 43.0,
+      "runs_above_nominal_combo_cap": 739
+    },
+    {
+      "board": 4,
+      "style": "single",
+      "attempts": 900,
+      "completed": 244,
+      "completion_percent": 27.1,
+      "median": 2787.0,
+      "p10": 2040,
+      "p90": 3766,
+      "maximum": 4281,
+      "peak_combo_median": 5.0,
+      "base_median": 1528.5,
+      "combo_bonus_median": 550.0,
+      "efficiency_median": 658.0,
+      "actions_median": 43.0,
+      "runs_above_nominal_combo_cap": 900
+    },
+    {
+      "board": 5,
+      "style": "continuous",
+      "attempts": 900,
+      "completed": 259,
+      "completion_percent": 28.8,
+      "median": 64808,
+      "p10": 32405,
+      "p90": 96456,
+      "maximum": 139160,
+      "peak_combo_median": 59,
+      "base_median": 19945,
+      "combo_bonus_median": 42850,
+      "efficiency_median": 633,
+      "actions_median": 55,
+      "runs_above_nominal_combo_cap": 0
+    },
+    {
+      "board": 5,
+      "style": "half",
+      "attempts": 900,
+      "completed": 259,
+      "completion_percent": 28.8,
+      "median": 33194,
+      "p10": 17351,
+      "p90": 50284,
+      "maximum": 73047,
+      "peak_combo_median": 30,
+      "base_median": 11365,
+      "combo_bonus_median": 21175,
+      "efficiency_median": 633,
+      "actions_median": 55,
+      "runs_above_nominal_combo_cap": 0
+    },
+    {
+      "board": 5,
+      "style": "cap4",
+      "attempts": 900,
+      "completed": 259,
+      "completion_percent": 28.8,
+      "median": 6658,
+      "p10": 4892,
+      "p90": 8576,
+      "maximum": 10783,
+      "peak_combo_median": 5,
+      "base_median": 2789,
+      "combo_bonus_median": 3300,
+      "efficiency_median": 633,
+      "actions_median": 55,
+      "runs_above_nominal_combo_cap": 593
+    },
+    {
+      "board": 5,
+      "style": "single",
+      "attempts": 900,
+      "completed": 259,
+      "completion_percent": 28.8,
+      "median": 2944,
+      "p10": 2202,
+      "p90": 3731,
+      "maximum": 4787,
+      "peak_combo_median": 5,
+      "base_median": 1842,
+      "combo_bonus_median": 325,
+      "efficiency_median": 633,
+      "actions_median": 55,
+      "runs_above_nominal_combo_cap": 777
+    },
+    {
+      "board": 6,
+      "style": "continuous",
+      "attempts": 900,
+      "completed": 288,
+      "completion_percent": 32.0,
+      "median": 50519.0,
+      "p10": 31238,
+      "p90": 72415,
+      "maximum": 104925,
+      "peak_combo_median": 52.0,
+      "base_median": 15969.5,
+      "combo_bonus_median": 33225.0,
+      "efficiency_median": 730.0,
+      "actions_median": 48.5,
+      "runs_above_nominal_combo_cap": 0
+    },
+    {
+      "board": 6,
+      "style": "half",
+      "attempts": 900,
+      "completed": 288,
+      "completion_percent": 32.0,
+      "median": 26062.0,
+      "p10": 16797,
+      "p90": 37812,
+      "maximum": 54904,
+      "peak_combo_median": 26.0,
+      "base_median": 8887.5,
+      "combo_bonus_median": 16400.0,
+      "efficiency_median": 730.0,
+      "actions_median": 48.5,
+      "runs_above_nominal_combo_cap": 0
+    },
+    {
+      "board": 6,
+      "style": "cap4",
+      "attempts": 900,
+      "completed": 288,
+      "completion_percent": 32.0,
+      "median": 6093.0,
+      "p10": 5099,
+      "p90": 7352,
+      "maximum": 8719,
+      "peak_combo_median": 5.0,
+      "base_median": 2401.0,
+      "combo_bonus_median": 2925.0,
+      "efficiency_median": 730.0,
+      "actions_median": 48.5,
+      "runs_above_nominal_combo_cap": 425
+    },
+    {
+      "board": 6,
+      "style": "single",
+      "attempts": 900,
+      "completed": 288,
+      "completion_percent": 32.0,
+      "median": 2586.0,
+      "p10": 2060,
+      "p90": 3350,
+      "maximum": 4018,
+      "peak_combo_median": 5.0,
+      "base_median": 1488.5,
+      "combo_bonus_median": 325.0,
+      "efficiency_median": 730.0,
+      "actions_median": 48.5,
+      "runs_above_nominal_combo_cap": 581
+    },
+    {
+      "board": 7,
+      "style": "continuous",
+      "attempts": 900,
+      "completed": 101,
+      "completion_percent": 11.2,
+      "median": 69933,
+      "p10": 39685,
+      "p90": 103652,
+      "maximum": 159059,
+      "peak_combo_median": 61,
+      "base_median": 22980,
+      "combo_bonus_median": 45825,
+      "efficiency_median": 736,
+      "actions_median": 56,
+      "runs_above_nominal_combo_cap": 0
+    },
+    {
+      "board": 7,
+      "style": "half",
+      "attempts": 900,
+      "completed": 101,
+      "completion_percent": 11.2,
+      "median": 35746,
+      "p10": 20943,
+      "p90": 55011,
+      "maximum": 81198,
+      "peak_combo_median": 31,
+      "base_median": 12881,
+      "combo_bonus_median": 22650,
+      "efficiency_median": 736,
+      "actions_median": 56,
+      "runs_above_nominal_combo_cap": 0
+    },
+    {
+      "board": 7,
+      "style": "cap4",
+      "attempts": 900,
+      "completed": 101,
+      "completion_percent": 11.2,
+      "median": 7438,
+      "p10": 5489,
+      "p90": 9530,
+      "maximum": 11582,
+      "peak_combo_median": 5,
+      "base_median": 3353,
+      "combo_bonus_median": 3375,
+      "efficiency_median": 736,
+      "actions_median": 56,
+      "runs_above_nominal_combo_cap": 487
+    },
+    {
+      "board": 7,
+      "style": "single",
+      "attempts": 900,
+      "completed": 101,
+      "completion_percent": 11.2,
+      "median": 3484,
+      "p10": 2728,
+      "p90": 4392,
+      "maximum": 5270,
+      "peak_combo_median": 5,
+      "base_median": 2332,
+      "combo_bonus_median": 325,
+      "efficiency_median": 736,
+      "actions_median": 56,
+      "runs_above_nominal_combo_cap": 570
+    },
+    {
+      "board": 8,
+      "style": "continuous",
+      "attempts": 900,
+      "completed": 104,
+      "completion_percent": 11.6,
+      "median": 69082.0,
+      "p10": 38428,
+      "p90": 115792,
+      "maximum": 159137,
+      "peak_combo_median": 60.0,
+      "base_median": 22646.5,
+      "combo_bonus_median": 44325.0,
+      "efficiency_median": 794.5,
+      "actions_median": 56.5,
+      "runs_above_nominal_combo_cap": 0
+    },
+    {
+      "board": 8,
+      "style": "half",
+      "attempts": 900,
+      "completed": 104,
+      "completion_percent": 11.6,
+      "median": 34718.0,
+      "p10": 20375,
+      "p90": 60728,
+      "maximum": 81276,
+      "peak_combo_median": 30.0,
+      "base_median": 12726.5,
+      "combo_bonus_median": 21175.0,
+      "efficiency_median": 794.5,
+      "actions_median": 56.5,
+      "runs_above_nominal_combo_cap": 0
+    },
+    {
+      "board": 8,
+      "style": "cap4",
+      "attempts": 900,
+      "completed": 104,
+      "completion_percent": 11.6,
+      "median": 7385.5,
+      "p10": 5513,
+      "p90": 9628,
+      "maximum": 11660,
+      "peak_combo_median": 5.0,
+      "base_median": 3217.0,
+      "combo_bonus_median": 3375.0,
+      "efficiency_median": 794.5,
+      "actions_median": 56.5,
+      "runs_above_nominal_combo_cap": 572
+    },
+    {
+      "board": 8,
+      "style": "single",
+      "attempts": 900,
+      "completed": 104,
+      "completion_percent": 11.6,
+      "median": 3464.5,
+      "p10": 2691,
+      "p90": 4579,
+      "maximum": 5201,
+      "peak_combo_median": 5.0,
+      "base_median": 2113.0,
+      "combo_bonus_median": 325.0,
+      "efficiency_median": 794.5,
+      "actions_median": 56.5,
+      "runs_above_nominal_combo_cap": 638
+    },
+    {
+      "board": 9,
+      "style": "continuous",
+      "attempts": 900,
+      "completed": 104,
+      "completion_percent": 11.6,
+      "median": 69161.0,
+      "p10": 38540,
+      "p90": 115871,
+      "maximum": 159216,
+      "peak_combo_median": 60.0,
+      "base_median": 22646.5,
+      "combo_bonus_median": 44325.0,
+      "efficiency_median": 878.0,
+      "actions_median": 56.5,
+      "runs_above_nominal_combo_cap": 0
+    },
+    {
+      "board": 9,
+      "style": "half",
+      "attempts": 900,
+      "completed": 104,
+      "completion_percent": 11.6,
+      "median": 34797.0,
+      "p10": 20487,
+      "p90": 60807,
+      "maximum": 81355,
+      "peak_combo_median": 30.0,
+      "base_median": 12726.5,
+      "combo_bonus_median": 21175.0,
+      "efficiency_median": 878.0,
+      "actions_median": 56.5,
+      "runs_above_nominal_combo_cap": 0
+    },
+    {
+      "board": 9,
+      "style": "cap4",
+      "attempts": 900,
+      "completed": 104,
+      "completion_percent": 11.6,
+      "median": 7470.5,
+      "p10": 5708,
+      "p90": 9725,
+      "maximum": 11739,
+      "peak_combo_median": 5.0,
+      "base_median": 3217.0,
+      "combo_bonus_median": 3375.0,
+      "efficiency_median": 878.0,
+      "actions_median": 56.5,
+      "runs_above_nominal_combo_cap": 572
+    },
+    {
+      "board": 9,
+      "style": "single",
+      "attempts": 900,
+      "completed": 104,
+      "completion_percent": 11.6,
+      "median": 3572.0,
+      "p10": 2796,
+      "p90": 4658,
+      "maximum": 5280,
+      "peak_combo_median": 5.0,
+      "base_median": 2113.0,
+      "combo_bonus_median": 325.0,
+      "efficiency_median": 878.0,
+      "actions_median": 56.5,
+      "runs_above_nominal_combo_cap": 638
+    },
+    {
+      "board": 10,
+      "style": "continuous",
+      "attempts": 900,
+      "completed": 104,
+      "completion_percent": 11.6,
+      "median": 69240.0,
+      "p10": 38653,
+      "p90": 115950,
+      "maximum": 159295,
+      "peak_combo_median": 60.0,
+      "base_median": 22646.5,
+      "combo_bonus_median": 44325.0,
+      "efficiency_median": 962.0,
+      "actions_median": 56.5,
+      "runs_above_nominal_combo_cap": 0
+    },
+    {
+      "board": 10,
+      "style": "half",
+      "attempts": 900,
+      "completed": 104,
+      "completion_percent": 11.6,
+      "median": 34876.0,
+      "p10": 20600,
+      "p90": 60886,
+      "maximum": 81434,
+      "peak_combo_median": 30.0,
+      "base_median": 12726.5,
+      "combo_bonus_median": 21175.0,
+      "efficiency_median": 962.0,
+      "actions_median": 56.5,
+      "runs_above_nominal_combo_cap": 0
+    },
+    {
+      "board": 10,
+      "style": "cap4",
+      "attempts": 900,
+      "completed": 104,
+      "completion_percent": 11.6,
+      "median": 7555.5,
+      "p10": 5848,
+      "p90": 9822,
+      "maximum": 11818,
+      "peak_combo_median": 5.0,
+      "base_median": 3217.0,
+      "combo_bonus_median": 3375.0,
+      "efficiency_median": 962.0,
+      "actions_median": 56.5,
+      "runs_above_nominal_combo_cap": 572
+    },
+    {
+      "board": 10,
+      "style": "single",
+      "attempts": 900,
+      "completed": 104,
+      "completion_percent": 11.6,
+      "median": 3718.5,
+      "p10": 2901,
+      "p90": 4737,
+      "maximum": 5383,
+      "peak_combo_median": 5.0,
+      "base_median": 2113.0,
+      "combo_bonus_median": 325.0,
+      "efficiency_median": 962.0,
+      "actions_median": 56.5,
+      "runs_above_nominal_combo_cap": 638
+    }
+  ],
+  "candidate_thresholds": [
+    {
+      "board": 1,
+      "status": "experimental_not_production",
+      "two": 14500,
+      "three": 35000,
+      "anchors": {
+        "cap4": 5080,
+        "half": 23689,
+        "continuous": 46179
+      },
+      "held_out": {
+        "continuous": {
+          "n": 121,
+          "stars": [
+            0,
+            16,
+            105
+          ]
+        },
+        "half": {
+          "n": 121,
+          "stars": [
+            2,
+            119,
+            0
+          ]
+        },
+        "cap4": {
+          "n": 121,
+          "stars": [
+            121,
+            0,
+            0
+          ]
+        },
+        "single": {
+          "n": 121,
+          "stars": [
+            121,
+            0,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "board": 2,
+      "status": "experimental_not_production",
+      "two": 19500,
+      "three": 48000,
+      "anchors": {
+        "cap4": 6055.5,
+        "half": 32793.0,
+        "continuous": 62971.5
+      },
+      "held_out": {
+        "continuous": {
+          "n": 152,
+          "stars": [
+            0,
+            13,
+            139
+          ]
+        },
+        "half": {
+          "n": 152,
+          "stars": [
+            2,
+            147,
+            3
+          ]
+        },
+        "cap4": {
+          "n": 152,
+          "stars": [
+            152,
+            0,
+            0
+          ]
+        },
+        "single": {
+          "n": 152,
+          "stars": [
+            152,
+            0,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "board": 3,
+      "status": "experimental_not_production",
+      "two": 25500,
+      "three": 62500,
+      "anchors": {
+        "cap4": 7668.5,
+        "half": 42461.5,
+        "continuous": 81752.5
+      },
+      "held_out": {
+        "continuous": {
+          "n": 142,
+          "stars": [
+            0,
+            28,
+            114
+          ]
+        },
+        "half": {
+          "n": 142,
+          "stars": [
+            17,
+            118,
+            7
+          ]
+        },
+        "cap4": {
+          "n": 142,
+          "stars": [
+            142,
+            0,
+            0
+          ]
+        },
+        "single": {
+          "n": 142,
+          "stars": [
+            142,
+            0,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "board": 4,
+      "status": "experimental_not_production",
+      "two": 15500,
+      "three": 37000,
+      "anchors": {
+        "cap4": 5836,
+        "half": 24672,
+        "continuous": 48883
+      },
+      "held_out": {
+        "continuous": {
+          "n": 89,
+          "stars": [
+            0,
+            33,
+            56
+          ]
+        },
+        "half": {
+          "n": 89,
+          "stars": [
+            10,
+            68,
+            11
+          ]
+        },
+        "cap4": {
+          "n": 89,
+          "stars": [
+            89,
+            0,
+            0
+          ]
+        },
+        "single": {
+          "n": 89,
+          "stars": [
+            89,
+            0,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "board": 5,
+      "status": "experimental_not_production",
+      "two": 20000,
+      "three": 48000,
+      "anchors": {
+        "cap4": 6642.5,
+        "half": 32473.0,
+        "continuous": 62936.0
+      },
+      "held_out": {
+        "continuous": {
+          "n": 99,
+          "stars": [
+            0,
+            26,
+            73
+          ]
+        },
+        "half": {
+          "n": 99,
+          "stars": [
+            15,
+            71,
+            13
+          ]
+        },
+        "cap4": {
+          "n": 99,
+          "stars": [
+            99,
+            0,
+            0
+          ]
+        },
+        "single": {
+          "n": 99,
+          "stars": [
+            99,
+            0,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "board": 6,
+      "status": "experimental_not_production",
+      "two": 16000,
+      "three": 38000,
+      "anchors": {
+        "cap4": 6076.0,
+        "half": 25722.0,
+        "continuous": 49608.0
+      },
+      "held_out": {
+        "continuous": {
+          "n": 120,
+          "stars": [
+            0,
+            27,
+            93
+          ]
+        },
+        "half": {
+          "n": 120,
+          "stars": [
+            11,
+            99,
+            10
+          ]
+        },
+        "cap4": {
+          "n": 120,
+          "stars": [
+            120,
+            0,
+            0
+          ]
+        },
+        "single": {
+          "n": 120,
+          "stars": [
+            120,
+            0,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "board": 7,
+      "status": "experimental_not_production",
+      "two": 22000,
+      "three": 54000,
+      "anchors": {
+        "cap4": 7467.0,
+        "half": 36492.5,
+        "continuous": 70587.0
+      },
+      "held_out": {
+        "continuous": {
+          "n": 41,
+          "stars": [
+            0,
+            12,
+            29
+          ]
+        },
+        "half": {
+          "n": 41,
+          "stars": [
+            7,
+            28,
+            6
+          ]
+        },
+        "cap4": {
+          "n": 41,
+          "stars": [
+            41,
+            0,
+            0
+          ]
+        },
+        "single": {
+          "n": 41,
+          "stars": [
+            41,
+            0,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "board": 8,
+      "status": "experimental_not_production",
+      "two": 21000,
+      "three": 52000,
+      "anchors": {
+        "cap4": 7361,
+        "half": 34455,
+        "continuous": 69072
+      },
+      "held_out": {
+        "continuous": {
+          "n": 43,
+          "stars": [
+            0,
+            13,
+            30
+          ]
+        },
+        "half": {
+          "n": 43,
+          "stars": [
+            5,
+            29,
+            9
+          ]
+        },
+        "cap4": {
+          "n": 43,
+          "stars": [
+            43,
+            0,
+            0
+          ]
+        },
+        "single": {
+          "n": 43,
+          "stars": [
+            43,
+            0,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "board": 9,
+      "status": "experimental_not_production",
+      "two": 21000,
+      "three": 52000,
+      "anchors": {
+        "cap4": 7440,
+        "half": 34534,
+        "continuous": 69151
+      },
+      "held_out": {
+        "continuous": {
+          "n": 43,
+          "stars": [
+            0,
+            13,
+            30
+          ]
+        },
+        "half": {
+          "n": 43,
+          "stars": [
+            5,
+            29,
+            9
+          ]
+        },
+        "cap4": {
+          "n": 43,
+          "stars": [
+            43,
+            0,
+            0
+          ]
+        },
+        "single": {
+          "n": 43,
+          "stars": [
+            43,
+            0,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "board": 10,
+      "status": "experimental_not_production",
+      "two": 21500,
+      "three": 52000,
+      "anchors": {
+        "cap4": 7519,
+        "half": 34613,
+        "continuous": 69230
+      },
+      "held_out": {
+        "continuous": {
+          "n": 43,
+          "stars": [
+            0,
+            13,
+            30
+          ]
+        },
+        "half": {
+          "n": 43,
+          "stars": [
+            7,
+            27,
+            9
+          ]
+        },
+        "cap4": {
+          "n": 43,
+          "stars": [
+            43,
+            0,
+            0
+          ]
+        },
+        "single": {
+          "n": 43,
+          "stars": [
+            43,
+            0,
+            0
+          ]
+        }
+      }
+    }
+  ]
+}

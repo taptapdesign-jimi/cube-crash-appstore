@@ -40,7 +40,7 @@ import UIKit
   XCTAssertTrue(overlay.transitionSourceSheetToThirdStep(entered:{}))
   for t in stride(from:16.0,through:1100,by:16){f.deliver(t)}
   XCTAssertEqual(overlay.sourceCTAState,.idle)
-  let button=try XCTUnwrap(overlay.subviews.flatMap{ $0.subviews }.compactMap{$0 as? UIButton}.first)
+  let button=try XCTUnwrap(overlay.subviews.flatMap{ $0.subviews.flatMap{[$0]+$0.subviews} }.compactMap{$0 as? UIButton}.first{$0.accessibilityIdentifier=="native.tutorial.got-it"})
   for width in [390.0,430.0] {
    overlay.frame=CGRect(x:0,y:0,width:width,height:844);overlay.setNeedsLayout();overlay.layoutIfNeeded()
    let size=overlay.bounds.size

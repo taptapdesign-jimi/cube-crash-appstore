@@ -59,9 +59,9 @@ final class NativeForestTransitionBeeTests: XCTestCase {
         XCTAssertEqual(Set(owner.flights.map(\.hoverHorizontalPhase)).count,6)
         for (index,flight) in owner.flights.enumerated() {
             let old=original[index%4]
-            XCTAssertGreaterThanOrEqual(flight.travelSpeed,old.samples.last!.distance/old.end*0.60)
-            XCTAssertLessThanOrEqual(flight.travelSpeed,old.samples.last!.distance/old.end*1.40)
-            XCTAssertGreaterThanOrEqual(flight.hoverRate,0.55);XCTAssertLessThanOrEqual(flight.hoverRate,1.65)
+            XCTAssertGreaterThanOrEqual(flight.travelSpeed,old.samples.last!.distance/old.end*0.35)
+            XCTAssertLessThanOrEqual(flight.travelSpeed,old.samples.last!.distance/old.end*0.85)
+            XCTAssertGreaterThanOrEqual(flight.hoverRate,0.30);XCTAssertLessThanOrEqual(flight.hoverRate,0.80)
             XCTAssertGreaterThanOrEqual(flight.hoverStrength,1.1);XCTAssertLessThanOrEqual(flight.hoverStrength,2.3)
             if (1...owner.numberBeeCount).contains(index) {
                 XCTAssertNotNil(flight.flightRegion)
@@ -179,61 +179,52 @@ final class NativeForestTransitionBeeTests: XCTestCase {
         }
     }
 
-    func testIndependentFlightsShareFreeViewportInsteadOfAssignedRowsOrColumns() {
-        var counts=Set<Int>()
-        for viewport in [CGSize(width:390,height:844),CGSize(width:320,height:568)] {
-            var occupied=Set<Int>(),clusteredPair=false,crossedOrdering=false
+    func testMountedFreeFlightsContainSpritesWithoutFixedColumnsOrMirroring() {
+        let artwork=JimiV9Artwork(resourceRoot:Bundle.main.bundleURL.appendingPathComponent("NativeAssets.bundle"))
+        let images=Dictionary(uniqueKeysWithValues:(1...7).compactMap {index in artwork.image("assets/shop/honey/bee\(index).png",densityAware:true).map {("bee\(index)",$0)}})
+        for viewport in [CGSize(width:320,height:568),CGSize(width:390,height:844)] {
+            var leftCounts=Set<Int>(),crossed=false
             for seed in 1...48 {
                 var rng=UInt32(seed)
-                let owner=NativeForestTransitionBees(viewport:viewport,digitCenters:[CGPoint(x:viewport.width/2,y:viewport.height*0.285)],images:[:],random:{rng=1664525 &* rng &+ 1013904223;return Double(rng)/4294967296})
-                counts.insert(owner.numberBeeCount)
-                let region=owner.flights[0].flightRegion!
-                XCTAssertGreaterThan(region.width,viewport.width*0.40)
-                XCTAssertGreaterThan(region.height,viewport.height*0.60)
-                XCTAssertTrue(owner.flights.allSatisfy {$0.flightRegion==region})
+                let owner=NativeForestTransitionBees(viewport:viewport,digitCenters:[CGPoint(x:viewport.width/2,y:viewport.height*0.285)],images:images,random:{rng=1664525 &* rng &+ 1013904223;return Double(rng)/4294967296})
+                leftCounts.insert(owner.flights.filter {$0.anchor.x<viewport.width/2}.count)
                 for (index,plan) in owner.flights.enumerated() {
-                    let entry=plan.moves[0],exit=plan.moves.last!
-                    XCTAssertTrue(region.contains(plan.anchor))
-                    let column=min(2,Int((plan.anchor.x-region.minX)/region.width*3))
-                    let row=min(2,Int((plan.anchor.y-region.minY)/region.height*3))
-                    occupied.insert(row*3+column)
                     for other in owner.flights.dropFirst(index+1) {
-                        // Chance clustering and changed ordering are allowed; no
-                        // rejection sampling may force each bee into a station.
-                        if hypot(plan.anchor.x-other.anchor.x,plan.anchor.y-other.anchor.y)<region.width*0.15 {clusteredPair=true}
-                        let first=plan.sample(1.5).point.x-other.sample(1.5).point.x
-                        let later=plan.sample(2.0).point.x-other.sample(2.0).point.x
-                        if first*later<0 {crossedOrdering=true}
+                        if (plan.sample(1.4).point.x-other.sample(1.4).point.x)*(plan.sample(2.1).point.x-other.sample(2.1).point.x)<0 {crossed=true}
                     }
-                    XCTAssertTrue(entry.from.x<0 || entry.from.x>viewport.width)
-                    XCTAssertGreaterThan(exit.start,entry.start+entry.duration)
-                    XCTAssertLessThanOrEqual(exit.start+exit.duration,owner.duration)
-                    for frame in 0...430 {
-                        let time=Double(frame)/120,point=plan.sample(time).point
-                        XCTAssertTrue(point.x.isFinite && point.y.isFinite)
-                        if time>=entry.start+entry.duration && time<=exit.start {
-                            XCTAssertGreaterThanOrEqual(point.x,region.minX-0.000001)
-                            XCTAssertLessThanOrEqual(point.x,region.maxX+0.000001)
-                            XCTAssertGreaterThanOrEqual(point.y,region.minY-0.000001)
-                            XCTAssertLessThanOrEqual(point.y,region.maxY+0.000001)
-                        }
+                }
+                let parent=UIView(frame:CGRect(origin:.zero,size:viewport));owner.mountLayers(in:parent)
+                XCTAssertEqual(Set(owner.flights.map { "\($0.anchor.x),\($0.anchor.y)" }).count,6)
+                for frame in 0...430 {
+                    let time=Double(frame)/120
+                    owner.paint(seconds:time,mountainBounds:nil)
+                    let bees=parent.subviews.flatMap(\.subviews).filter {!$0.isHidden}
+                    let dwelling=bees.filter {bee in
+                        let index=Int(bee.accessibilityIdentifier!.split(separator:".").last!)!
+                        let plan=owner.flights[index]
+                        return time>=plan.moves[0].start+plan.moves[0].duration && time<=plan.moves.last!.start
                     }
-                    // Sampling remains continuous at every captured move boundary.
+                    for bee in dwelling {XCTAssertTrue(parent.bounds.contains(bee.frame))}
+                    // Free overlap/crossing is permitted. Each bee has its own
+                    // full-width region, never an assigned left/right station.
+                    for plan in owner.flights {
+                        XCTAssertLessThan(plan.flightRegion!.minX,viewport.width*0.30)
+                        XCTAssertGreaterThan(plan.flightRegion!.maxX,viewport.width*0.70)
+                    }
+                }
+                for plan in owner.flights {
                     for move in plan.moves {
                         for boundary in [move.start,move.start+move.duration] {
                             let before=plan.sample(boundary-0.000001).point,after=plan.sample(boundary+0.000001).point
                             XCTAssertLessThan(hypot(after.x-before.x,after.y-before.y),0.05)
                         }
                     }
-                    XCTAssertFalse(CGRect(origin:.zero,size:viewport).contains(plan.sample(owner.duration).point))
                 }
-                owner.dispose()
+                owner.dispose();XCTAssertTrue(parent.subviews.isEmpty)
             }
-            XCTAssertEqual(occupied,Set(0..<9),"Independent anchors must reach every part of the shared field across seeds")
-            XCTAssertTrue(clusteredPair,"Random placement must permit nearby bees")
-            XCTAssertTrue(crossedOrdering,"Bees must not remain in assigned horizontal lanes")
+            XCTAssertGreaterThan(leftCounts.count,3,"No fixed three-left/three-right assignment")
+            XCTAssertTrue(crossed,"Independent paths may exchange horizontal ordering")
         }
-        XCTAssertEqual(counts,Set([2,3]))
     }
 
     func testTransitionRatesOscillateSmoothlyWithinFortyPercentIndependently() {

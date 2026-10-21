@@ -7,6 +7,99 @@ import StackToSixNativeState
 
 @MainActor
 final class NativeBackpackTests:XCTestCase {
+    func testOnlyViewportSeenUnreadCardsAreAdmittedWhileCollectionIsActive() throws {
+        var progress=NativeProgressionState();progress.announceJourneyDie("bee",board:1);progress.announceJourneyDie("fish",board:12)
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible();defer{window.isHidden=true}
+        let screen=NativeBackpackView(frame:window.bounds,assets:JimiV9Artwork(resourceRoot:NativeTestResources.root))
+        host.view.addSubview(screen);screen.apply(NativeBackpackCatalog.sections(progress));screen.grid.layoutIfNeeded()
+        XCTAssertTrue(screen.seenUnreadDice.isEmpty,"Preparation cannot read alerts")
+        screen.setAlertsActive(true)
+        XCTAssertEqual(screen.seenUnreadDice,["bee"],"Unscrolled Beach remains unread")
+        let section=try XCTUnwrap(screen.sections.firstIndex{$0.dice.contains{$0.id=="fish"}})
+        let item=try XCTUnwrap(screen.sections[section].dice.firstIndex{$0.id=="fish"})
+        screen.setAlertsActive(false)
+        screen.grid.scrollToItem(at:IndexPath(item:item,section:section),at:.centeredVertically,animated:false);screen.grid.layoutIfNeeded();screen.scrollViewDidScroll(screen.grid)
+        XCTAssertEqual(screen.seenUnreadDice,["bee"],"Covered/background collection cannot read")
+        screen.setAlertsActive(true)
+        XCTAssertEqual(screen.seenUnreadDice,["bee","fish"])
+        XCTAssertEqual(progress.unreadJourneyDice,["bee","fish"],"Visibility only records a receipt; durable read waits for close")
+        screen.apply(NativeBackpackCatalog.sections(progress));screen.grid.layoutIfNeeded()
+        XCTAssertFalse(screen.seenUnreadDice.contains("fish"),"New visit cannot inherit old viewport receipts")
+        let fishPath=IndexPath(item:item,section:section)
+        let frame=try XCTUnwrap(screen.grid.layoutAttributesForItem(at:fishPath)).frame
+        screen.grid.setContentOffset(CGPoint(x:0,y:frame.minY-screen.bounds.height+4),animated:false)
+        screen.grid.layoutIfNeeded();screen.scrollViewDidScroll(screen.grid)
+        XCTAssertFalse(screen.seenUnreadDice.contains("fish"),"A four-point edge sliver is not a viewed card")
+        screen.grid.scrollToItem(at:fishPath,at:.centeredVertically,animated:false);screen.grid.layoutIfNeeded()
+        XCTAssertTrue(screen.seenUnreadDice.contains("fish"),"Visible-cell admission also records cards on active scroll")
+        screen.setAlertsActive(false)
+    }
+    func testUnlockedArtworkUsesWorldsFloatWhileLockedCellsStayStillAndLifecycleRetiresIt() async throws {
+        guard !UIAccessibility.isReduceMotionEnabled else {throw XCTSkip("Authored idle motion")}
+        let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible();defer{window.isHidden=true}
+        for embedded in [false,true] {
+            let screen=NativeBackpackView(frame:embedded ? CGRect(x:24,y:80,width:342,height:650):window.bounds,assets:assets)
+            if embedded {screen.useModalLayout()}
+            host.view.addSubview(screen)
+            var progress=NativeProgressionState();progress.announceJourneyDie("bee",board:1);progress.announceJourneyDie("wild-star",board:2)
+            let sections=NativeBackpackCatalog.sections(progress)
+            screen.apply(embedded ? [sections[0]]:sections);screen.grid.layoutIfNeeded();screen.setAlertsActive(true)
+            let key="backpack.artwork.idle"
+            func cell(_ i:Int)throws->UICollectionViewCell {try XCTUnwrap(screen.grid.cellForItem(at:IndexPath(item:i,section:0)))}
+            func artwork(_ cell:UICollectionViewCell)throws->UIImageView {try XCTUnwrap(cell.contentView.subviews.flatMap{[$0]+$0.subviews}.first{$0.accessibilityIdentifier=="native.backpack.idle-artwork"} as? UIImageView)}
+            let beeCell=try cell(0),beeArt=try artwork(beeCell),starArt=try artwork(cell(1)),lockedArt=try artwork(cell(2))
+            let bee=try XCTUnwrap(beeArt.superview),star=try XCTUnwrap(starArt.superview),locked=try XCTUnwrap(lockedArt.superview)
+            for image in [bee,star] {
+                let motion=try XCTUnwrap(image.layer.animation(forKey:key) as? CAKeyframeAnimation)
+                XCTAssertEqual(motion.keyPath,"transform");XCTAssertTrue([4.4,4.85,5.2].contains(motion.duration))
+                XCTAssertGreaterThan(motion.repeatCount,100)
+                let peak=(motion.values![1] as! NSValue).caTransform3DValue
+                XCTAssertLessThan(peak.m42,0);XCTAssertGreaterThan(peak.m11,1)
+            }
+            XCTAssertNil(locked.layer.animationKeys())
+            XCTAssertTrue(bee.subviews.filter{!($0 is NativeBackpackAlertView)}.allSatisfy{$0.layer.animationKeys()==nil},"Holder and die share their moving parent")
+            try await Task.sleep(for:.milliseconds(350))
+            XCTAssertLessThan(try XCTUnwrap(bee.layer.presentation()).transform.m42,-0.02,"Actual mounted holder and die float together")
+            let begin=try XCTUnwrap(bee.layer.animation(forKey:key)).beginTime
+            screen.markRead("bee");screen.layoutIfNeeded();XCTAssertEqual(bee.layer.animation(forKey:key)?.beginTime,begin)
+            let painted=try XCTUnwrap(bee.layer.presentation()).transform.m42
+            screen.setAlertsActive(false);XCTAssertNil(bee.layer.animationKeys());XCTAssertNil(star.layer.animationKeys())
+            XCTAssertEqual(bee.layer.transform.m42,painted,accuracy:0.5,"Exit/detail pause freezes the painted pose without snapping")
+            screen.setAlertsActive(true);XCTAssertGreaterThan(try XCTUnwrap(bee.layer.animation(forKey:key)).timeOffset,0,"Resume retains its paused phase")
+            screen.isHidden=true;XCTAssertNil(bee.layer.animationKeys());screen.isHidden=false;XCTAssertNotNil(bee.layer.animation(forKey:key))
+            screen.collectionView(screen.grid,didEndDisplaying:beeCell,forItemAt:IndexPath(item:0,section:0));XCTAssertNil(bee.layer.animationKeys())
+            screen.collectionView(screen.grid,willDisplay:beeCell,forItemAt:IndexPath(item:0,section:0));XCTAssertNotNil(bee.layer.animation(forKey:key))
+            beeCell.prepareForReuse();XCTAssertNil(bee.layer.animationKeys());XCTAssertTrue(CATransform3DIsIdentity(bee.layer.transform))
+            screen.removeFromSuperview();XCTAssertNil(star.layer.animationKeys());XCTAssertNil(locked.layer.animationKeys())
+        }
+    }
+
+    func testOpeningEveryIntroductionUnitDoesNotRevealItsDieBeforeLandedDrop() throws {
+        for board in 1...30 {
+            var progression=NativeProgressionState()
+            progression.completedJourneyBoards=Set(1..<board)
+            progression.highestUnlockedJourneyBoard=board
+            progression.lastOpenedJourneyBoard=board
+            progression.unlockedSpecialDice=["flower","juice"]
+            var stats=NativeBoardStats();stats.timesPlayed=3;progression.boardStats[board]=stats
+            XCTAssertTrue(NativeBackpackCatalog.sections(progression).allSatisfy{$0.unlocked.isEmpty},"Unit \(board) is eligibility only")
+            if let id=NativeJourneyContent.introductionID(board:board) {
+                XCTAssertTrue(progression.announceJourneyDie(id,board:board))
+                let sections=NativeBackpackCatalog.sections(progression)
+                XCTAssertEqual(sections.reduce(0){$0+$1.count},1)
+                XCTAssertTrue(sections.contains{$0.unlocked==[id]})
+            }
+        }
+        var progression=NativeProgressionState()
+        progression.announceJourneyDie("bee",board:1)
+        progression.completedJourneyBoards=[1];progression.beginAttempt(mode:.journey,board:2)
+        let forest=try XCTUnwrap(NativeBackpackCatalog.sections(progression).first)
+        XCTAssertEqual(forest.unlocked,["bee"])
+        XCTAssertFalse(forest.unlocked.contains("wild-star"))
+    }
     func testEveryDiscoveredIntroductionStaysUnlockedAfterReadingAndReloadingUntilDeveloperHide() throws {
         let introductions=(1...30).compactMap{board -> (Int,String)? in
             NativeJourneyContent.introductionID(board:board).map{(board,$0)}
@@ -47,7 +140,7 @@ final class NativeBackpackTests:XCTestCase {
         unread=["fish"];scene.refreshBackpackAlert();XCTAssertNil(help.childNode(withName:"native-game-backpack-alert"))
         unread.insert("wild-star");scene.refreshBackpackAlert()
         let badge=try XCTUnwrap(help.childNode(withName:"native-game-backpack-alert"))
-        XCTAssertTrue(help.texture !== closed);XCTAssertGreaterThan(badge.position.x,0);XCTAssertGreaterThan(badge.position.y,0)
+        XCTAssertTrue(help.texture === closed);XCTAssertGreaterThan(badge.position.x,0);XCTAssertGreaterThan(badge.position.y,0)
         scene.refreshBackpackAlert();XCTAssertTrue(help.childNode(withName:"native-game-backpack-alert") === badge)
         unread.remove("wild-star");scene.refreshBackpackAlert();XCTAssertNil(badge.parent);XCTAssertTrue(help.texture === closed)
         XCTAssertEqual(engine.state,state)
@@ -62,22 +155,26 @@ final class NativeBackpackTests:XCTestCase {
         try await Task.sleep(for:.seconds(1))
         let help=try XCTUnwrap(scene.childNode(withName:"//native-game-help") as? SKSpriteNode)
         let originalSize=help.size,originalPosition=help.position
+        let closed=help.texture
         unread=["wild-star"];scene.refreshBackpackAlert()
+        let badge=try XCTUnwrap(help.childNode(withName:"native-game-backpack-alert"))
+        XCTAssertTrue(help.texture === closed);XCTAssertNil(help.action(forKey:"backpack-icon-swap"))
+        scene.setBackpackPresented(true)
+        scene.setSuspended(true,allowHUDFeedback:true)
         XCTAssertNotNil(help.action(forKey:"backpack-icon-swap"))
         try await Task.sleep(for:.milliseconds(600))
-        let badge=try XCTUnwrap(help.childNode(withName:"native-game-backpack-alert"))
-        XCTAssertLessThan(badge.zRotation,0);XCTAssertNil(help.action(forKey:"backpack-icon-swap"))
-        XCTAssertEqual(help.size.width,originalSize.width,accuracy:0.001)
-        XCTAssertEqual(help.size.height,originalSize.height,accuracy:0.001)
-        XCTAssertEqual(help.position,originalPosition)
-        XCTAssertLessThan(help.frame.width,40,"HUD icon must never inflate over the game board")
-        scene.setSuspended(true);unread=[];scene.refreshBackpackAlert()
-        XCTAssertNotNil(badge.parent);XCTAssertNil(help.action(forKey:"backpack-icon-swap"))
-        scene.setSuspended(false)
-        try await Task.sleep(for:.milliseconds(80))
-        XCTAssertNotNil(help.action(forKey:"backpack-icon-swap"))
+        XCTAssertTrue(help.texture !== closed);XCTAssertNil(help.action(forKey:"backpack-icon-swap"))
+        XCTAssertNil(badge.parent,"The finite swap replaces the old badge with the current presentation badge")
+        XCTAssertEqual(help.size,originalSize);XCTAssertEqual(help.position,originalPosition)
+        XCTAssertLessThan(help.frame.width,40)
+        XCTAssertTrue(scene.backpackPresented)
+        let openBadge=try XCTUnwrap(help.childNode(withName:"native-game-backpack-alert"))
+        unread=[];scene.refreshBackpackAlert()
+        XCTAssertNotNil(openBadge.parent)
+        scene.setSuspended(false);scene.setBackpackPresented(false)
         try await Task.sleep(for:.milliseconds(550))
-        XCTAssertNil(badge.parent);XCTAssertEqual(help.xScale,1,accuracy:0.001);XCTAssertEqual(help.alpha,1)
+        XCTAssertTrue(help.texture === closed);XCTAssertFalse(scene.backpackPresented)
+        XCTAssertNil(openBadge.parent);XCTAssertEqual(help.xScale,1,accuracy:0.001);XCTAssertEqual(help.alpha,1)
         XCTAssertEqual(help.size.width,originalSize.width,accuracy:0.001)
         XCTAssertEqual(help.size.height,originalSize.height,accuracy:0.001)
         XCTAssertEqual(help.position,originalPosition)
@@ -92,6 +189,14 @@ final class NativeBackpackTests:XCTestCase {
         XCTAssertFalse(hub.backpackAlert.isHidden);XCTAssertTrue(hub.backpackButton.image(for:.normal) === original)
         XCTAssertGreaterThan(hub.backpackAlert.frame.midX,hub.backpackButton.bounds.midX)
         XCTAssertNotNil(hub.backpackAlert.layer.animation(forKey:NativeBackpackAlertView.motionKey))
+        hub.setBackpackUnread(false)
+        XCTAssertNotNil(hub.backpackAlert.layer.animation(forKey:NativeBackpackAlertView.exitKey))
+        XCTAssertNil(hub.backpackAlert.layer.animation(forKey:NativeBackpackAlertView.motionKey))
+        try await Task.sleep(for:.milliseconds(250))
+        XCTAssertTrue(hub.backpackAlert.isHidden)
+        hub.setBackpackUnread(true)
+        XCTAssertFalse(hub.backpackAlert.isHidden)
+        XCTAssertEqual(hub.backpackAlert.layer.opacity,1)
         hub.stopIdle();XCTAssertNil(hub.backpackAlert.layer.animation(forKey:NativeBackpackAlertView.motionKey));hub.removeFromSuperview()
         let data:[String:Any]=["version":1,"worldID":1,"requestID":"1","routeGeneration":1,"stateRevision":1,"title":"Forest","contentHeight":1000,"mainFrame":["x":0,"y":100,"width":390,"height":300],"mainParts":[],"units":[["id":"board-2","boardID":2,"frame":["x":30,"y":400,"width":150,"height":200],"cardArt":"assets/colelctibles/Forest/common/02.png","locked":false,"interim":false,"newRibbon":false,"stars":0,"allowedActions":["openCard","play"],"stats":[],"parts":[["asset":"assets/colelctibles/Forest/common/02.png","role":"card","x":20,"y":10,"width":90,"height":133,"rotation":0,"opacity":1,"zIndex":2]]]]]
         let world=try XCTUnwrap(JimiNativeWorldView(snapshot:data,assets:assets))
@@ -105,6 +210,36 @@ final class NativeBackpackTests:XCTestCase {
         world.park();XCTAssertNil(world.backpackAlert.layer.animation(forKey:NativeBackpackAlertView.motionKey))
     }
 
+    func testMountedAlertKeepsBoundedTiltThroughBounceRestAndPause() async throws {
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible()
+        let left=NativeBackpackAlertView(),right=NativeBackpackAlertView()
+        left.clockwise=false
+        for (index,badge) in [left,right].enumerated() {
+            badge.bounds=CGRect(x:0,y:0,width:48,height:46);badge.center=CGPoint(x:CGFloat(100+100*index),y:200)
+            host.view.addSubview(badge);badge.setUnreadVisible(true);badge.setActive(true)
+        }
+        defer{left.setActive(false);right.setActive(false);window.isHidden=true}
+        // Include the whole 2.4s cycle: its long resting tail used to be flat.
+        for _ in 0..<28 {
+            try await Task.sleep(for:.milliseconds(100))
+            for (badge,direction) in [(left,CGFloat(-1)),(right,CGFloat(1))] {
+                let painted=try XCTUnwrap(badge.layer.presentation()).transform
+                let angle=atan2(painted.m12,painted.m11)*direction
+                XCTAssertGreaterThanOrEqual(angle,5 * .pi/180-0.001)
+                XCTAssertLessThanOrEqual(angle,10 * .pi/180+0.001)
+            }
+        }
+        right.clockwise=false
+        let changed=try XCTUnwrap(right.layer.animation(forKey:NativeBackpackAlertView.motionKey) as? CAKeyframeAnimation)
+        XCTAssertTrue(try XCTUnwrap(changed.values as? [NSValue]).allSatisfy{atan2($0.caTransform3DValue.m12,$0.caTransform3DValue.m11)<0},"Reuse changes direction immediately")
+        for badge in [left,right] {
+            badge.setActive(false)
+            XCTAssertNil(badge.layer.animation(forKey:NativeBackpackAlertView.motionKey))
+            XCTAssertEqual(atan2(badge.layer.transform.m12,badge.layer.transform.m11),-.pi/18,accuracy:0.000001)
+        }
+    }
+
     func testUnreadGridCornersAndVisibilityLifecycle() throws {
         var progression=NativeProgressionState();progression.lastOpenedJourneyBoard=2
         progression.announceJourneyDie("bee",board:1);progression.announceJourneyDie("wild-star",board:2)
@@ -114,7 +249,7 @@ final class NativeBackpackTests:XCTestCase {
         screen.apply(NativeBackpackCatalog.sections(progression));screen.setAlertsActive(true);screen.layoutIfNeeded();screen.grid.layoutIfNeeded()
         func badge(_ index:Int)throws->NativeBackpackAlertView {
             let cell=try XCTUnwrap(screen.grid.cellForItem(at:IndexPath(item:index,section:0)))
-            return try XCTUnwrap(cell.contentView.subviews.compactMap{$0 as? NativeBackpackAlertView}.first)
+            return try XCTUnwrap(cell.contentView.subviews.flatMap{[$0]+$0.subviews}.compactMap{$0 as? NativeBackpackAlertView}.first)
         }
         let image=UIGraphicsImageRenderer(bounds:screen.bounds).image{context in screen.layer.render(in:context.cgContext)}
         try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/backpack-alert-grid.png"))
@@ -124,6 +259,17 @@ final class NativeBackpackTests:XCTestCase {
         XCTAssertNotNil(left.layer.animation(forKey:NativeBackpackAlertView.motionKey))
         XCTAssertGreaterThanOrEqual(left.cycleRotation,-10 * .pi/180);XCTAssertLessThanOrEqual(left.cycleRotation,-5 * .pi/180)
         XCTAssertGreaterThanOrEqual(right.cycleRotation,5 * .pi/180);XCTAssertLessThanOrEqual(right.cycleRotation,10 * .pi/180)
+        for (badge,direction) in [(left,CGFloat(-1)),(right,CGFloat(1))] {
+            let motion=try XCTUnwrap(badge.layer.animation(forKey:NativeBackpackAlertView.motionKey) as? CAKeyframeAnimation)
+            for value in try XCTUnwrap(motion.values as? [NSValue]) {
+                let pose=value.caTransform3DValue
+                let angle=atan2(pose.m12,pose.m11)*direction
+                XCTAssertGreaterThanOrEqual(angle,5 * .pi/180-0.000001)
+                XCTAssertLessThanOrEqual(angle,10 * .pi/180+0.000001)
+            }
+            let rest=badge.layer.transform
+            XCTAssertEqual(atan2(rest.m12,rest.m11),direction * .pi/18,accuracy:0.000001,"A stopped or paused badge keeps its tilt")
+        }
         screen.setAlertsActive(false);XCTAssertNil(left.layer.animation(forKey:NativeBackpackAlertView.motionKey));XCTAssertNil(right.layer.animation(forKey:NativeBackpackAlertView.motionKey))
         screen.setAlertsActive(true);screen.markRead("bee")
         XCTAssertTrue(left.isHidden);XCTAssertNil(left.layer.animation(forKey:NativeBackpackAlertView.motionKey));XCTAssertFalse(right.isHidden)
@@ -162,7 +308,7 @@ final class NativeBackpackTests:XCTestCase {
         XCTAssertEqual(progression.unreadJourneyDice,["bee"])
         XCTAssertEqual(controller.screen?.sections.first?.unread,["bee"])
         controller.setForeground(false)
-        let badges=controller.screen?.grid.visibleCells.flatMap{$0.contentView.subviews.compactMap{$0 as? NativeBackpackAlertView}} ?? []
+        let badges=controller.screen?.grid.visibleCells.flatMap{$0.contentView.subviews.flatMap{[$0]+$0.subviews}.compactMap{$0 as? NativeBackpackAlertView}} ?? []
         XCTAssertTrue(badges.allSatisfy{$0.layer.animation(forKey:NativeBackpackAlertView.motionKey)==nil})
     }
 
@@ -179,6 +325,7 @@ final class NativeBackpackTests:XCTestCase {
     }
     func testMainBackpackLatePressReopensOnceAndBackgroundCancelsPendingSelection() async throws {
         var progression=NativeProgressionState();progression.lastOpenedJourneyBoard=2
+        progression.announceJourneyDie("wild-star",board:2)
         var services=NativeAppServices(settings:{[:]},setPreference:{_,_ in},worldSnapshot:{_,_,_ in throw CancellationError()},markViewed:{_ in},makeGameplay:{_,_ in UIViewController()},flush:{})
         services.journeyProgression={progression}
         let app=NativeAppController(resourceRoot:NativeTestResources.root,services:services)
@@ -380,7 +527,7 @@ final class NativeBackpackTests:XCTestCase {
         for item in 0...1 {
             let cell=try XCTUnwrap(screen.grid.cellForItem(at:IndexPath(item:item,section:0)))
             cell.layoutIfNeeded()
-            let alert=try XCTUnwrap(cell.contentView.subviews.compactMap{$0 as? NativeBackpackAlertView}.first)
+            let alert=try XCTUnwrap(cell.contentView.subviews.flatMap{[$0]+$0.subviews}.compactMap{$0 as? NativeBackpackAlertView}.first)
             XCTAssertFalse(alert.isHidden)
             let scale=cell.contentView.bounds.width/153
             XCTAssertEqual(alert.bounds.width,63.8*scale,accuracy:0.001)
@@ -477,10 +624,13 @@ final class NativeBackpackTests:XCTestCase {
             XCTAssertEqual(Array(section.dice.prefix(2).map(\.id)),[first,second])
             XCTAssertEqual(section.dice[0].board,board)
             XCTAssertEqual(section.dice[1].board,board+1)
-            XCTAssertEqual(section.unlocked,[first])
+            XCTAssertTrue(section.unlocked.isEmpty)
+            XCTAssertTrue(progress.announceJourneyDie(first,board:board))
             progress.finishAttempt(mode:.journey,board:board,score:100,longestCombo:1,cubesCracked:2,clean:true)
             let next=NativeBackpackCatalog.sections(progress).first{$0.title==title}!
-            XCTAssertTrue(next.unlocked.contains(first));XCTAssertTrue(next.unlocked.contains(second))
+            XCTAssertTrue(next.unlocked.contains(first));XCTAssertFalse(next.unlocked.contains(second))
+            XCTAssertTrue(progress.announceJourneyDie(second,board:board+1))
+            XCTAssertTrue(NativeBackpackCatalog.sections(progress).first{$0.title==title}!.unlocked.contains(second))
         }
     }
     func testCatalogUsesCanonicalProgressAndExactWorldTotals() {
@@ -490,19 +640,22 @@ final class NativeBackpackTests:XCTestCase {
         var sections=NativeBackpackCatalog.sections(progress)
         XCTAssertEqual(sections.map{ $0.dice.count },[6,4,4]);XCTAssertEqual(sections.map(\.count),[0,0,0])
         progress.highestUnlockedJourneyBoard=7
-        sections=NativeBackpackCatalog.sections(progress);XCTAssertEqual(sections.map(\.count),[6,0,0])
+        sections=NativeBackpackCatalog.sections(progress);XCTAssertEqual(sections.map(\.count),[0,0,0])
         progress.highestUnlockedJourneyBoard=24
-        XCTAssertEqual(NativeBackpackCatalog.sections(progress).map(\.count),[0,4,0])
+        XCTAssertEqual(NativeBackpackCatalog.sections(progress).map(\.count),[0,0,0])
         progress.completedJourneyBoards=Set(1...23)
+        XCTAssertEqual(NativeBackpackCatalog.sections(progress).map(\.count),[0,0,0])
+        for die in NativeBackpackCatalog.forest+NativeBackpackCatalog.area+NativeBackpackCatalog.beach {progress.announceJourneyDie(die.id,board:die.board)}
         XCTAssertEqual(NativeBackpackCatalog.sections(progress).map(\.count),[6,4,4])
         XCTAssertEqual(progress.completedJourneyBoards,Set(1...23));XCTAssertTrue(progress.unlockedSpecialDice.isEmpty)
         var legacy=NativeProgressionState();legacy.unlockedSpecialDice=["flower","juice"]
-        XCTAssertEqual(NativeBackpackCatalog.sections(legacy).map(\.count),[1,0,1])
+        XCTAssertEqual(NativeBackpackCatalog.sections(legacy).map(\.count),[0,0,0])
     }
     func testGridStartsWithForestAndTwoWorldColumnsAndLockedTapIsInert() throws {
         let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
         let screen=NativeBackpackView(frame:CGRect(x:0,y:0,width:390,height:844),assets:assets)
         var progress=NativeProgressionState();progress.lastOpenedJourneyBoard=1
+        progress.announceJourneyDie("bee",board:1)
         screen.apply(NativeBackpackCatalog.sections(progress));screen.layoutIfNeeded()
         XCTAssertEqual(screen.grid.frame,screen.bounds)
         XCTAssertEqual(screen.grid.contentOffset.y,-screen.header.bounds.height,accuracy:0.5)
@@ -525,11 +678,12 @@ final class NativeBackpackTests:XCTestCase {
         XCTAssertEqual(world.width,153)
         var opened:[String]=[];screen.onDie={opened.append($0.id)}
         screen.collectionView(screen.grid,didSelectItemAt:IndexPath(item:1,section:0));XCTAssertTrue(opened.isEmpty)
-        screen.collectionView(screen.grid,didSelectItemAt:IndexPath(item:0,section:0));XCTAssertEqual(opened,["wild-star"])
+        screen.collectionView(screen.grid,didSelectItemAt:IndexPath(item:0,section:0));XCTAssertEqual(opened,["bee"])
     }
     func testSelectedDieFeedbackUsesWholeCardAndReuseRetiresIt() throws {
         let screen=NativeBackpackView(frame:CGRect(x:0,y:0,width:390,height:844),assets:JimiV9Artwork(resourceRoot:NativeTestResources.root))
         var progress=NativeProgressionState();progress.lastOpenedJourneyBoard=1
+        progress.announceJourneyDie("bee",board:1)
         screen.apply(NativeBackpackCatalog.sections(progress));screen.grid.layoutIfNeeded()
         let index=IndexPath(item:0,section:0)
         let cell=try XCTUnwrap(screen.grid.cellForItem(at:index))
@@ -537,7 +691,7 @@ final class NativeBackpackTests:XCTestCase {
         screen.onDie={_ in selected=true}
         screen.collectionView(screen.grid,didSelectItemAt:index)
         XCTAssertTrue(selected)
-        let artwork=try XCTUnwrap(cell.contentView.subviews.last)
+        let artwork=try XCTUnwrap(cell.contentView.subviews.flatMap{[$0]+$0.subviews}.last)
         XCTAssertNotNil(cell.contentView.layer.animation(forKey:NativeHubBackpackFeedback.animationKey))
         XCTAssertNil(artwork.layer.animation(forKey:NativeHubBackpackFeedback.animationKey))
         XCTAssertNil(cell.layer.animation(forKey:NativeHubBackpackFeedback.animationKey))
@@ -554,7 +708,7 @@ final class NativeBackpackTests:XCTestCase {
         try await Task.sleep(for:.seconds(1.6));XCTAssertEqual(app.route,.hub)
         app.hub.backpackButton.sendActions(for:.touchUpInside)
         XCTAssertEqual(app.route,.hub);XCTAssertNil(app.backpackView)
-        XCTAssertNotNil(app.hub.backpackButton.imageView?.layer.animation(forKey:NativeHubBackpackFeedback.animationKey))
+        XCTAssertNotNil(app.hub.backpackButton.imageView?.layer.animation(forKey:NativeHubBackpackFeedback.switchKey))
         let entryDeadline=Date().addingTimeInterval(6)
         while app.backpackView?.isUserInteractionEnabled != true,Date()<entryDeadline {try await Task.sleep(for:.milliseconds(20))}
         XCTAssertEqual(app.route,.backpack);XCTAssertTrue(app.backpackView?.isUserInteractionEnabled == true)
@@ -947,6 +1101,7 @@ final class NativeBackpackTests:XCTestCase {
         let paper=NativeAppPaperSurface(artwork:assets);paper.frame=window.bounds;host.view.addSubview(paper)
         let screen=NativeBackpackView(frame:window.bounds,assets:assets);host.view.addSubview(screen)
         var progress=NativeProgressionState();progress.highestUnlockedJourneyBoard=7
+        for die in NativeBackpackCatalog.forest {progress.announceJourneyDie(die.id,board:die.board)}
         screen.apply(NativeBackpackCatalog.sections(progress));host.view.layoutIfNeeded();screen.grid.layoutIfNeeded()
         let image=UIGraphicsImageRenderer(bounds:window.bounds).image{window.layer.render(in:$0.cgContext)}
         try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/backpack-screen.png"))
@@ -960,7 +1115,7 @@ final class NativeBackpackTests:XCTestCase {
         XCTAssertFalse(texts.contains(where:{$0.contains("Always ready to play")}))
         screen.grid.scrollToItem(at:IndexPath(item:5,section:0),at:.centeredVertically,animated:false);screen.grid.layoutIfNeeded()
         let barrelCell=try XCTUnwrap(screen.grid.cellForItem(at:IndexPath(item:5,section:0)))
-        let barrelView=try XCTUnwrap(barrelCell.contentView.subviews.last as? UIImageView)
+        let barrelView=try XCTUnwrap(barrelCell.contentView.subviews.flatMap{[$0]+$0.subviews}.compactMap{$0 as? UIImageView}.filter{!($0 is NativeBackpackAlertView)}.last)
         let barrel=try XCTUnwrap(barrelView.image)
         XCTAssertEqual(barrel.size.width/barrel.size.height,1,accuracy:0.001)
         let barrelVisible=barrelView.bounds.height*NativeBackpackDetail.visibleHeightRatio(barrel)
@@ -970,7 +1125,7 @@ final class NativeBackpackTests:XCTestCase {
         try locked.pngData()?.write(to:URL(fileURLWithPath:"/tmp/backpack-locked.png"))
         let cells=screen.grid.visibleCells
         let lockCell=try XCTUnwrap(cells.first)
-        let images=lockCell.contentView.subviews.compactMap{$0 as? UIImageView}
+        let images=lockCell.contentView.subviews.flatMap{[$0]+$0.subviews}.compactMap{$0 as? UIImageView}.filter{!($0 is NativeBackpackAlertView)}
         XCTAssertEqual(images.first?.bounds.size,CGSize(width:155,height:153))
         XCTAssertEqual(images.last?.bounds.size,CGSize(width:70,height:80))
         screen.grid.setContentOffset(CGPoint(x:0,y:-screen.grid.contentInset.top),animated:false);screen.grid.layoutIfNeeded()
@@ -1242,16 +1397,8 @@ final class NativeBackpackTests:XCTestCase {
                 XCTAssertEqual(shadow.bounds,rasterBounds,"\(die.id): animated size must reuse the same cached raster")
             }
             preview.setActive(false)
-            if die.id=="kanta" {
-                let rear=try XCTUnwrap(preview.rearCanShadow)
-                XCTAssertFalse(rear.isHidden)
-                XCTAssertLessThan(rear.center.x,shadow.center.x)
-                XCTAssertEqual(rear.center.y,shadow.center.y-16,accuracy:0.001)
-                let rearBody=try XCTUnwrap(node.collectionRearCanCenter(in:try XCTUnwrap(preview.scene)))
-                XCTAssertEqual(rear.center.x,rearBody.x,accuracy:0.001)
-                XCTAssertEqual(rear.bounds.width,228*0.7*0.8,accuracy:0.001)
-                XCTAssertEqual(rear.transform,shadow.transform)
-            }else{XCTAssertNil(preview.rearCanShadow)}
+            XCTAssertNil(preview.rearCanShadow)
+            if die.id=="kanta" {XCTAssertNil(node.collectionRearCanCenter(in:try XCTUnwrap(preview.scene)))}
             let transform=shadow.transform,elapsed=preview.playbackElapsed
             try await Task.sleep(for:.milliseconds(60))
             XCTAssertEqual(shadow.transform,transform,"\(die.id): background must not animate shadow independently")
@@ -1496,7 +1643,7 @@ final class NativeBackpackTests:XCTestCase {
             if die.id=="kanta" {
                 let body=node.collectionAnimatedBodyBounds(normalizedBounds:CGRect(x:0,y:0,width:1,height:1))
                 let center=node.convert(CGPoint(x:body.midX,y:body.midY),to:try XCTUnwrap(preview.scene))
-                XCTAssertEqual(shadow.center.x,center.x+34,accuracy:0.001)
+                XCTAssertEqual(shadow.center.x,center.x,accuracy:0.001)
             }
             for fps in [60,120] {
                 var previous=base,previousAngle:CGFloat=0

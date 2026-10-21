@@ -207,14 +207,11 @@ enum JimiV9Motion {
 
     // nav-icon-bounce.ts:4–11,75–93. Parent may combine this visual track
     // with the separate 380ms size/offset selection track on its outer shell.
-    static let navigationTapBounce = Track(tweens: [
-        Tween(begin: 0, duration: 0.077, from: .scale(1), to: .scale(NativeHUDTapMotion.squeezeScale),
-              ease: .cubicBezier(0.34, 1.56, 0.64, 1)),
-        Tween(begin: 0.077, duration: 0.077, from: .scale(NativeHUDTapMotion.squeezeScale), to: .scale(NativeHUDTapMotion.popScale),
-              ease: .cubicBezier(0.34, 1.56, 0.64, 1)),
-        Tween(begin: 0.154, duration: 0.066, from: .scale(NativeHUDTapMotion.popScale), to: .scale(1),
-              ease: .cubicBezier(0.34, 1.56, 0.64, 1)),
-    ])
+    static let navigationTapBounce = Track(tweens:(0..<5).map{i in
+        let a=NativeHUDTapMotion.poses[i],b=NativeHUDTapMotion.poses[i+1]
+        return Tween(begin:NativeHUDTapMotion.phases[i]*NativeHUDTapMotion.duration,duration:(NativeHUDTapMotion.phases[i+1]-NativeHUDTapMotion.phases[i])*NativeHUDTapMotion.duration,
+            from:Pose(scaleX:a.x,scaleY:a.y,y:a.offset),to:Pose(scaleX:b.x,scaleY:b.y,y:b.offset),ease:.cubicBezier(0.42,0,0.58,1))
+    })
 
     private static func one(delay: Double, duration: Double, from: Pose, to: Pose, ease: Ease) -> Track {
         Track(tweens: [Tween(begin: delay, duration: duration, from: from, to: to, ease: ease)])
