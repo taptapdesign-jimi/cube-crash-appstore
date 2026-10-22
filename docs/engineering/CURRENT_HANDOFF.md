@@ -1,14 +1,17 @@
 ## Native benchmark v11 publication — 2026-10-22
 
 User requests a new online Git benchmark of the complete current Native tree.
-Prepared immutable annotated native-benchmark-v11 on main; payload and validation
+Published immutable annotated native-benchmark-v11 on main; payload and validation
 scope are in NATIVE_BENCHMARK_V11.md. Includes all tracked/non-ignored current
 Native changes, not just the latest Journey rule. Latest full/current-source
 QA,522Core/86State/3mounted tests, native audit and normal Simulator preview
 receipts are above/below; no new gameplay code in this publication task.
 Changed-file credential-pattern scan and diff hygiene PASS. Remote main matched
 local pre-checkpoint40e353ae; earlier benchmark tags remain untouched. Atomic
-main+v11push and exact remote payload verification are the publication steps.
+main+v11push succeeded. Remote main and peeled v11tag verified at payload
+1a6d001807fd26a671a03d3d6d3573313d9c0999; annotated tag object
+1ccd2f77664dd431c7ee1f92a9a3129f6a548c0c. A documentation-only receipt
+commit follows on main without moving the immutable tag.
 Physical acceptance remains separate; no phone/PWA/legacy operation.
 
 ## All-World Journey replay discoveries and first-three introductions — 2026-10-22

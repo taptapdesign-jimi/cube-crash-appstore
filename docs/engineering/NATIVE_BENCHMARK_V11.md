@@ -38,3 +38,11 @@ Git-only checkpoint. Changed-file credential-pattern scan and diff hygiene passe
 The annotated tag identifies the complete payload. Publication is verified by
 comparing the online main and peeled tag with the local payload commit; older
 Native/PWA benchmark tags are not moved.
+
+## Verified online publication
+
+Atomic push of main and native-benchmark-v11 succeeded. Online main and peeled
+tag both verified at payload commit
+`1a6d001807fd26a671a03d3d6d3573313d9c0999`. Annotated tag object:
+`1ccd2f77664dd431c7ee1f92a9a3129f6a548c0c`. This documentation-only receipt
+follows on main; the benchmark tag stays on the complete payload.
