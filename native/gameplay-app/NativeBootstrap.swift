@@ -403,8 +403,10 @@ final class NativeBootstrap {
         // Progression cannot change Worlds while this engine owns its run.
         // Forest entry records the existing unlock evidence for later Arcade entry.
         let plainStarUnlocked=envelope.progression.hasUnlockedWildStar
+        let mushroomUnlocked=envelope.progression.unlockedSpecialDice.contains("mushroom") || envelope.progression.announcedJourneyDice.contains("mushroom")
+        let unlockedJourneyDice=envelope.progression.announcedJourneyDice
         let engine = NativeGameplayEngine(state: initial, rewardPicker: { state, roll, nextRoll in
-            NativeWildRewardPolicy.choose(state:state,roll:roll,plainStarUnlocked:plainStarUnlocked,nextRoll:nextRoll)
+            NativeWildRewardPolicy.choose(state:state,roll:roll,plainStarUnlocked:plainStarUnlocked,mushroomUnlocked:mushroomUnlocked,unlockedJourneyDice:unlockedJourneyDice,nextRoll:nextRoll)
         }, sourceMathRandom:sourceLogicalMathRandomEnabled && (!sourceTutorialEarnedMeterEnabled || needsTutorial ||
             (sourceConstruction != nil && (sourceFreshOrdinaryPresentationEnabled || sourceRestoredOrdinaryPresentationEnabled))) ? sourceContext.mathRandom:nil)
         engine.comboHUDCoinRewardsEnabled=true

@@ -266,10 +266,25 @@ final class NativeFileAmbientLoopTransport:NativeAmbientLoopTransport {
     private let root:URL
     private let engine:AVAudioEngine
     private var voices:[String:Voice]=[:]
-    private var disposed=false
+    private var disposed=false,recoveringConfiguration=false
+    private var configurationObserver:NSObjectProtocol?
     private static let sources:Set<String>=["assets/sound/Board transitions/Area 55/ufo movement.wav","assets/sound/worlds/Area55/area55-ambient-loop-v1.wav","assets/sound/Board transitions/Beach/beach ambiance.wav","assets/sound/Board transitions/Beach/galeb.wav","assets/sound/worlds/crumbleworlds.wav","assets/sound/worlds/Forest/soft bees ambiance.wav","assets/sound/worlds/Forest/forest nature sounds.wav","assets/sound/worlds/Forest/gameplay/forest-gameplay-sound.wav"]
     var onError:((String)->Void)?
-    init(root:URL,engine:AVAudioEngine=AVAudioEngine()){self.root=root;self.engine=engine}
+    init(root:URL,engine:AVAudioEngine=AVAudioEngine()){
+        self.root=root;self.engine=engine
+        configurationObserver=NotificationCenter.default.addObserver(forName:.AVAudioEngineConfigurationChange,object:engine,queue:.main){[weak self] _ in
+            MainActor.assumeIsolated {self?.recoverConfiguration()}
+        }
+    }
+    private func recoverConfiguration(){
+        guard !disposed,!recoveringConfiguration,(!engine.isRunning || voices.values.contains(where:{$0.playing && !$0.node.isPlaying})) else{return}
+        recoveringConfiguration=true;defer{recoveringConfiguration=false}
+        // iOS may reset the graph after foreground admission. Logical playing
+        // flags alone cannot prove that its nodes are still rendering.
+        let active=voices.filter{$0.value.playing}
+        for (id,_) in active {pause(id:id)}
+        for (id,voice) in active {resume(id:id,gain:Double(voice.node.volume))}
+    }
     func start(id:String,source:String,gain:Double) {
         guard !disposed,Self.sources.contains(source),voices.count<4 || voices[id] != nil else{return}
         do {
@@ -281,6 +296,14 @@ final class NativeFileAmbientLoopTransport:NativeAmbientLoopTransport {
         } catch {onError?(error.localizedDescription);stop(id:id)}
     }
     private func start(_ voice:Voice) throws {
+        voice.fade?.invalidate();voice.fade=nil
+        // Ambient has its own engine and may resume before the music owner.
+        // Reacquire the shared session before scheduling/restarting file voices.
+        if !engine.isInManualRenderingMode {
+            let session=AVAudioSession.sharedInstance()
+            try session.setCategory(JimiNativeMusic.sessionCategory)
+            try session.setActive(true)
+        }
         voice.generation += 1;let generation=voice.generation
         voice.node.stop();voice.nextSegmentFrame=0;voice.anchor=voice.once ? min(voice.duration,max(0,voice.position)):max(0,voice.position).truncatingRemainder(dividingBy:voice.duration)
         guard !voice.once || voice.anchor<voice.duration else{voice.playing=false;return}
@@ -313,14 +336,21 @@ final class NativeFileAmbientLoopTransport:NativeAmbientLoopTransport {
         let target=Float(max(0,min(1,value))),from=voice.node.volume
         guard duration>0,voice.playing else {voice.node.volume=target;return}
         let began=ProcessInfo.processInfo.systemUptime,generation=voice.generation
-        voice.fade=Timer.scheduledTimer(withTimeInterval:1/30,repeats:true) { [weak voice] _ in MainActor.assumeIsolated {
-            guard let voice,voice.generation==generation else{return}
+        voice.fade=Timer.scheduledTimer(withTimeInterval:1/30,repeats:true) { [weak voice] timer in MainActor.assumeIsolated {
+            guard let voice,voice.generation==generation else{timer.invalidate();return}
             let progress=min(1,max(0,(ProcessInfo.processInfo.systemUptime-began)/duration));voice.node.volume=from+(target-from)*Float(progress)
             if progress>=1 {voice.fade?.invalidate();voice.fade=nil}
         } }
     }
-    func pause(id:String) {guard let voice=voices[id] else{return};voice.fade?.invalidate();voice.fade=nil;voice.position=voice.currentTime;voice.playing=false;voice.generation += 1;voice.node.stop();if !voices.values.contains(where:{$0.playing}) {engine.pause()}}
-    func resume(id:String,gain:Double) {guard let voice=voices[id],!disposed else{return};voice.node.volume=Float(max(0,min(1,gain)));if !voice.playing {do {try start(voice)}catch {onError?(error.localizedDescription);stop(id:id)}}}
+    func pause(id:String) {guard let voice=voices[id],voice.playing else{return};voice.fade?.invalidate();voice.fade=nil;voice.position=voice.currentTime;voice.playing=false;voice.generation += 1;voice.node.stop();if !voices.values.contains(where:{$0.playing}) {engine.pause()}}
+    func resume(id:String,gain:Double) {guard let voice=voices[id],!disposed else{return};voice.node.volume=Float(max(0,min(1,gain)));if !voice.playing || !engine.isRunning || !voice.node.isPlaying {
+        if voice.playing {voice.position=voice.currentTime;voice.playing=false}
+        do {try start(voice)}catch {onError?(error.localizedDescription)}
+    }}
     func stop(id:String) {guard let voice=voices[id] else{return};pause(id:id);engine.detach(voice.node);voices.removeValue(forKey:id)}
-    func dispose() {guard !disposed else{return};disposed=true;for id in Array(voices.keys) {stop(id:id)};engine.stop()}
+    func dispose() {guard !disposed else{return};disposed=true
+        if let configurationObserver {NotificationCenter.default.removeObserver(configurationObserver)}
+        configurationObserver=nil
+        for id in Array(voices.keys) {stop(id:id)};engine.stop()
+    }
 }

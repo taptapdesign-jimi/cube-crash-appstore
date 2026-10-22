@@ -270,11 +270,11 @@ private final class NativeBackpackCell:UICollectionViewCell {
         artworkIdleMotion=NativeBackpackArtworkIdleMotion(id:item.id)
         self.arcade=arcade;alertRight=right;alert.clockwise=right
         alert.image=assets.image("assets/nav/new.png",densityAware:true)
-        let holderSuffix = !unlocked ? " locked" : arcade ? (item.id=="wild-magnet" ? " middle" : item.id=="cubero" ? " desno" : "") : (right ? " desno" : "")
+        let holderSuffix = !unlocked ? " locked" : arcade ? (item.id=="baloon" ? " middle" : item.id=="tnt" ? " desno" : "") : (right ? " desno" : "")
         holder.image=assets.image("assets/backpack/dice holder\(holderSuffix).png",densityAware:true)
         die.image=assets.image(unlocked ? item.artwork.path:"assets/backpack/lokot.png",densityAware:true)
         artworkSize=arcade ? CGSize(width:80,height:80):CGSize(width:120,height:120);artworkOffset = arcade ? .zero:CGPoint(x:-0.5,y:-0.5)
-        if arcade,unlocked,let image=die.image,let tnt=assets.image(NativeBackpackCatalog.arcade[0].artwork.path,densityAware:true) {
+        if arcade,unlocked,let image=die.image,let tntDie=NativeBackpackCatalog.arcade.first(where:{$0.id=="tnt"}),let tnt=assets.image(tntDie.artwork.path,densityAware:true) {
             let originalTntHeight=min(60/tnt.size.width,80/tnt.size.height)*tnt.size.height
             let targetHeight=originalTntHeight*NativeBackpackDetail.visibleHeightRatio(tnt)*1.10
             let visible=NativeBackpackDetail.visibleArtworkBounds(image)

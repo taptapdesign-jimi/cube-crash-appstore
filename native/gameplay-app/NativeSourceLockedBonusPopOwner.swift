@@ -20,21 +20,25 @@ import Foundation
     private let service:NativeSourceAnimationClockService,timeouts:NativeSourceAppTimeoutOwner
     private let generation:UInt64,delay:Double,direction:Double,hooks:Hooks
     private let initialScale:Double
+    private let hidesUntilStart:Bool
     private var scaleLease:NativeSourceAnimationClockService.Lease?,rotationLease:NativeSourceAnimationClockService.Lease?
     private var scaleParticipant:Participant?,rotationParticipant:Participant?
     private var repairReceipt:NativeSourceAppTimeoutOwner.Receipt?
     private var release:(()->Void)?,initialRotation:Double?
     private var started=false,closed=false,scaleDone=false,rotationDone=false
     init(service:NativeSourceAnimationClockService,timeouts:NativeSourceAppTimeoutOwner,generation:UInt64,
-         delayMilliseconds:Int,direction:Int,hooks:Hooks,preservesBoardSize:Bool=false,initialScale:Double?=nil){
+         delayMilliseconds:Int,direction:Int,hooks:Hooks,preservesBoardSize:Bool=false,initialScale:Double?=nil,hidesUntilStart:Bool=false){
         self.service=service;self.timeouts=timeouts;self.generation=generation
         delay=Double(delayMilliseconds)/1000;self.direction=Double(direction);self.hooks=hooks;self.initialScale=initialScale ?? (preservesBoardSize ? 1:0.30)
+        self.hidesUntilStart=hidesUntilStart
     }
     var active:Bool{started && !closed}
     private func current()->Bool{guard !closed else{return false};let value=hooks.current();return value && !closed}
     @discardableResult func start()->Bool {
         guard !started,current(),initialScale.isFinite,initialScale>0,initialScale<=1,delay>=0,abs(direction)==1,service.sourceFrameTransportAdmissionOpen else{return false}
-        started=true;hooks.scale(initialScale)
+        // The queued Native carrier is not an in-progress pop. Reveal its
+        // accepted entry pose only when this die's own stagger actually starts.
+        started=true;hooks.scale(hidesUntilStart && delay>0 ? 0:initialScale)
         guard current(),let frames=hooks.acquire() else{dispose();return false}
         guard current() else{frames();dispose();return false};release=frames
         let scale=Participant();scaleParticipant=scale

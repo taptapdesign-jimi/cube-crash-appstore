@@ -498,6 +498,13 @@ final class NativeGameplayViewController: UIViewController {
         scene.onAuthoredTntPresentation = { [weak self] variant,_,generation,ready,completion in
             self?.presentTntVariant(variant,generation:generation,onGameplayReady:ready,completion:completion) == true
         }
+        scene.onFinalHUDCoinDuration = { [weak self] variant in
+            guard let self,!self.disposed,let variant else{return nil}
+            if variant=="fish" {return self.fishFinale?.presentationDuration}
+            if variant=="bottle" {return self.bottleFinale?.duration}
+            if variant=="honey" {return self.honeyFinale?.duration}
+            return self.area55Finales[variant]?.duration
+        }
         scene.onAuthoredFinale = { [weak self] variant,origin,generation,completion in
             guard let self,!self.disposed,self.engine.state.generation == generation else { return false }
             if ["flower","barell","beach-ball"].contains(variant) {

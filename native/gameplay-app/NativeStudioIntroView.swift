@@ -138,7 +138,8 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
     static let duration=4.33
     let character:Character
     private let artwork:JimiV9Artwork,logoUnit=UIView(),logo=UIImageView(),sheen=UIImageView(),label=UILabel(),characterView=UIView(),fallback=UIImageView()
-    private let sheenMask=CAGradientLayer(),resourceRoot:URL
+    private let sheenMask=CALayer(),sheenRows=[CALayer(),CALayer()],sheenBands=[CAGradientLayer(),CAGradientLayer()]
+    private let resourceRoot:URL
     private let decodedPublicationGate:((@escaping ()->Void)->Void)?
     private var preparedLoop:NativeStudioPreparedLoop?,preparationToken:NativeStudioPreparationToken?,mediaEpoch:UInt64=0
     private let notificationOwners=NativeStudioNotificationOwners()
@@ -173,11 +174,19 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
         sheen.contentMode = .scaleAspectFit;sheen.isUserInteractionEnabled=false;sheen.layer.opacity=0
         if let image=logo.image,let cg=image.cgImage {
             let input=CIImage(cgImage:cg).applyingFilter("CIColorControls",parameters:[kCIInputSaturationKey:1.06])
-                .applyingFilter("CIColorMatrix",parameters:["inputRVector":CIVector(x:1.32,y:0,z:0,w:0),"inputGVector":CIVector(x:0,y:1.32,z:0,w:0),"inputBVector":CIVector(x:0,y:0,z:1.32,w:0)])
+                .applyingFilter("CIColorMatrix",parameters:["inputRVector":CIVector(x:1.65,y:0,z:0,w:0),"inputGVector":CIVector(x:0,y:1.65,z:0,w:0),"inputBVector":CIVector(x:0,y:0,z:1.65,w:0)])
             if let bright=CIContext().createCGImage(input,from:input.extent){sheen.image=UIImage(cgImage:bright,scale:image.scale,orientation:image.imageOrientation)}
         }
-        sheenMask.colors=[UIColor.clear.cgColor,UIColor.black.cgColor,UIColor.black.cgColor,UIColor.clear.cgColor]
-        sheenMask.locations=[0.38,0.48,0.52,0.62];sheen.layer.mask=sheenMask
+        // One original bright logo, two isolated rows. Soft specular shoulders
+        // retain the wood grain; the narrow core supplies the moving glint.
+        for (row,band) in zip(sheenRows,sheenBands) {
+            row.masksToBounds=true;sheenMask.addSublayer(row);row.addSublayer(band)
+            band.colors=[0.0,0.06,0.35,1,0.35,0.06,0].map{UIColor(white:1,alpha:$0).cgColor}
+            band.locations=[0,0.18,0.38,0.5,0.62,0.82,1]
+            band.startPoint=CGPoint(x:0,y:0.2);band.endPoint=CGPoint(x:1,y:0.8)
+            band.opacity=0
+        }
+        sheen.layer.mask=sheenMask
         label.attributedText=NSAttributedString(string:"PRESENTS",attributes:[.font:artwork.font(size:15),.kern:0.9,.foregroundColor:UIColor(red:184.0/255,green:121.0/255,blue:96.0/255,alpha:1)])
         label.textAlignment = .center
         let png=self.character.key == "lik-slikanje" ? "lik slikanje":self.character.key == "pas-novine" ? "pas novine":self.character.key == "lik-pas-SVG" ? "lik-pas":self.character.key
@@ -202,11 +211,15 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
         logoUnit.bounds=CGRect(x:0,y:0,width:width,height:logoHeight);logoUnit.center=CGPoint(x:bounds.midX,y:top+logoHeight/2)
         logo.frame=CGRect(x:0,y:0,width:width,height:imageHeight);sheen.frame=logo.frame;label.frame=CGRect(x:0,y:imageHeight+14,width:width,height:15)
         CATransaction.begin();CATransaction.setDisableActions(true)
-        sheenMask.bounds=CGRect(x:0,y:0,width:width*2.6,height:imageHeight)
-        sheenMask.position=CGPoint(x:width*1.3-width*1.6*1.45,y:imageHeight/2)
-        let angle=110.0*Double.pi/180,dx=sin(angle),dy = -cos(angle),length=Double(width*2.6)*abs(dx)+Double(imageHeight)*abs(dy)
-        sheenMask.startPoint=CGPoint(x:0.5-dx*length/Double(width*2.6)/2,y:0.5-dy*length/Double(max(1,imageHeight))/2)
-        sheenMask.endPoint=CGPoint(x:1-sheenMask.startPoint.x,y:1-sheenMask.startPoint.y)
+        sheenMask.frame=sheen.bounds
+        // Split in the original artwork's gap, between TAP TAP and DESIGN.
+        let split=imageHeight*0.49
+        sheenRows[0].frame=CGRect(x:0,y:0,width:width,height:split)
+        sheenRows[1].frame=CGRect(x:0,y:split,width:width,height:imageHeight-split)
+        for (row,band) in zip(sheenRows,sheenBands) {
+            band.bounds=CGRect(x:0,y:0,width:width*0.48,height:row.bounds.height)
+            band.position=CGPoint(x:-width*0.26,y:row.bounds.midY)
+        }
         CATransaction.commit()
         characterView.bounds=CGRect(x:0,y:0,width:charWidth,height:charHeight)
         characterView.layer.position=CGPoint(x:bounds.midX+character.x,y:top+logoHeight+20+charHeight*characterView.layer.anchorPoint.y+character.y)
@@ -278,14 +291,20 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
         CATransaction.begin();CATransaction.setDisableActions(true)
         for target in [logoUnit,characterView]{target.layer.transform=CATransform3DMakeScale(0,0,1);target.layer.opacity=0}
         CATransaction.commit()
-        let sheenOpacity=CAKeyframeAnimation(keyPath:"opacity"),maskPosition=CAKeyframeAnimation(keyPath:"position.x")
-        let times:[NSNumber]=[0,0.04,0.10,0.31,0.37,1]
-        sheenOpacity.values=[0,0,0.24,0.24,0,0];sheenOpacity.keyTimes=times;sheenOpacity.duration=6;sheenOpacity.beginTime=CACurrentMediaTime()+0.2
-        maskPosition.values=[145.0,145,-145,-145].map{Double(logo.bounds.width)*1.3-Double(logo.bounds.width)*1.6*$0/100}
-        maskPosition.keyTimes=[0,0.04,0.37,1];maskPosition.duration=6;maskPosition.beginTime=sheenOpacity.beginTime
-        sheenOpacity.timingFunctions=Array(repeating:CAMediaTimingFunction(name:.easeInEaseOut),count:5)
-        maskPosition.timingFunctions=Array(repeating:CAMediaTimingFunction(name:.easeInEaseOut),count:3)
-        sheen.layer.add(sheenOpacity,forKey:"native-studio-sheen");sheenMask.add(maskPosition,forKey:"native-studio-sheen")
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        sheen.layer.opacity=0.72
+        CATransaction.commit()
+        for (index,band) in sheenBands.enumerated() {
+            let sweep=CABasicAnimation(keyPath:"position.x")
+            sweep.fromValue = -logo.bounds.width*0.26;sweep.toValue=logo.bounds.width*1.26;sweep.duration=1.05
+            sweep.timingFunction=CAMediaTimingFunction(name:.easeInEaseOut)
+            let glow=CAKeyframeAnimation(keyPath:"opacity")
+            glow.values=[0,1,1,0];glow.keyTimes=[0,0.12,0.86,1];glow.duration=1.05
+            let pass=CAAnimationGroup();pass.animations=[sweep,glow];pass.duration=1.05
+            pass.beginTime=band.convertTime(CACurrentMediaTime(),from:nil)+0.65+Double(index)*1.15
+            pass.fillMode = .both;pass.isRemovedOnCompletion=false
+            band.add(pass,forKey:"native-studio-sheen")
+        }
         for (target,isCharacter) in [(logoUnit,false),(characterView,true)] {
             let scale=CAKeyframeAnimation(keyPath:"transform"),opacity=CAKeyframeAnimation(keyPath:"opacity")
             let samples=1040
@@ -322,7 +341,7 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
         for target in [logoUnit,characterView]{target.layer.opacity=0;target.layer.transform=CATransform3DMakeScale(0,0,1)}
         sheen.layer.opacity=0;CATransaction.commit()
         for target in [logoUnit,characterView]{target.layer.removeAllAnimations()}
-        sheen.layer.removeAllAnimations();sheenMask.removeAllAnimations()
+        sheen.layer.removeAllAnimations();sheenMask.removeAllAnimations();sheenBands.forEach{$0.removeAllAnimations()}
         notificationOwners.removeAll();removeFromSuperview()
     }
 }

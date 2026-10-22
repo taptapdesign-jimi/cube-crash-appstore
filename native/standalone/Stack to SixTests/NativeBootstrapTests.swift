@@ -7,6 +7,38 @@ import StackToSixNativeState
 
 @MainActor
 final class NativeBootstrapTests:XCTestCase {
+    func testReplayForestOneUsesDiscoveredWholeWorldPoolThroughActualBootstrap() async throws {
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent("journey-replay-pool-\(UUID().uuidString)")
+        let store=NativeSaveStore(directory:directory)
+        let initial=NativeBoardState(tiles:[.init(id:"a",cell:.init(column:0,row:0),value:1),.init(id:"b",cell:.init(column:1,row:0),value:2)],mode:.journey,board:1,moves:49)
+        var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false),journeyRuns:[1:initial])
+        seed.progression.firstPlayTutorialComplete=true;seed.progression.completedJourneyBoards=Set(1...7)
+        for id in NativeJourneyContent.worldRewardPool(board:1) {XCTAssertTrue(seed.progression.announceJourneyDie(id,board:7))}
+        XCTAssertTrue(seed.progression.announceJourneyDie("bottle",board:14))
+        seed.journeyRunSavedAt[1]=Date().timeIntervalSince1970;try store.save(seed)
+        let bootstrap=try NativeBootstrap(root:NativeTestResources.root,store:store,showStudioIntro:false)
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible();bootstrap.start(in:host)
+        defer{bootstrap.dispose();window.isHidden=true;window.rootViewController=nil;try? FileManager.default.removeItem(at:directory)}
+        let app=try XCTUnwrap(host.children.first as? NativeAppController)
+        app.navigate(.world(1),interrupt:true);try await waitUntil{app.world?.isReadyForInput==true}
+        app.world?.onRequest?("continue",1);try await waitUntil{app.route == .gameplay}
+        let game=try XCTUnwrap(app.children.first as? NativeGameplayViewController)
+        try await waitUntil(timeout:12){game.boardScene?.isBoardEntryComplete==true}
+        var selected=Set<String>()
+        // Exercise the reward picker captured by actual Bootstrap, with profile
+        // discoveries supplied by the real save path, after the guarantee window.
+        for seedValue in UInt64(1)...256 {
+            var state=initial;state.wildSpawnCount=8;state.wildMeter=1.25;state.rngState=seedValue
+            state.earnedJourneyDice=["bee"]
+            game.engine.restart(state:state);game.engine.stagedMeterDrops=false
+            XCTAssertTrue(game.engine.claimMeterReward().accepted)
+            let tile=try XCTUnwrap(game.engine.state.tiles.first{$0.isWild})
+            selected.insert(tile.variant ?? "wild-star")
+        }
+        XCTAssertEqual(selected,Set(NativeJourneyContent.worldRewardPool(board:1)))
+        XCTAssertTrue(selected.contains("barell"));XCTAssertFalse(selected.contains("bottle"))
+    }
     func testMountedBackpackIconRefreshSurvivesRepeatedOpenCloseAndSuspension()async throws {
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("backpack-refresh-\(UUID().uuidString)")
         let store=NativeSaveStore(directory:directory)

@@ -18,6 +18,11 @@ enum NativeResultExitPlan {
         if age<0.5 {return Pose(scale:1.22*(1-backIn((age-0.1)/0.4,strength:1.7)))}
         return Pose(opacity:0,scale:0)
     }
+    static func cleanEmptyStar(seconds:Double,index:Int,earned:Int)->Pose {
+        guard index>=earned else{return Pose(opacity:0,scale:0)}
+        // Exit the complete three-star row right to left on the existing clock.
+        return cleanStar(seconds:seconds,index:index,earned:3,capturedScale:1)
+    }
     static func clean(seconds:Double,earned:Int,path:CleanPath,clickedPrimary:Bool)->Sample {
         let t=max(0,seconds),starEnd=earned==0 ? 0:0.5+Double(max(0,earned-1))*0.07
         let journey=path == .journeyReturn,start=journey ? 0:max(0.38,starEnd)
@@ -32,7 +37,7 @@ enum NativeResultExitPlan {
         let fadeDuration=journey ? 0.14:0.3
         let p=NativeResultPresentationPlan.bezier(bound((t-cardStart)/cardDuration),0.68,-0.8,0.265,1.8)
         let fade=NativeResultPresentationPlan.bezier(bound((t-collapse)/fadeDuration),0.25,0.1,0.25,1)
-        return Sample(hero:Pose(opacity:earned==0 ? 0:1),card:Pose(opacity:1-fade,scale:1-0.14*p),
+        return Sample(hero:Pose(opacity:1),card:Pose(opacity:1-fade,scale:1-0.14*p),
             primary:cta(seconds:t,delay:clickedPrimary ? 0:0.07),secondary:cta(seconds:t,delay:clickedPrimary ? 0.07:0),
             content:content,paperOpacity:1-fade,completionSeconds:collapse+fadeDuration)
     }

@@ -165,6 +165,39 @@ final class NativeJourneyAmbientTests:XCTestCase {
         owner.beginJourneyTransition(board:22,generation:35)
         XCTAssertEqual(transport.commands.count,count)
     }
+    func testActualForestTransportRecoversStoppedEngineOnRepeatedResume() async throws {
+        let root=try XCTUnwrap(Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle"))
+        let engine=AVAudioEngine(),format=try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate:48000,channels:2))
+        try engine.enableManualRenderingMode(.offline,format:format,maximumFrameCount:480)
+        let transport=NativeFileAmbientLoopTransport(root:root,engine:engine)
+        defer{transport.dispose()}
+        var errors:[String]=[];transport.onError={errors.append($0)}
+        let id=NativeJourneyAmbientOwner.gameplay
+        transport.start(id:id,source:"assets/sound/worlds/Forest/gameplay/forest-gameplay-sound.wav",gain:0.54)
+        let buffer=try XCTUnwrap(AVAudioPCMBuffer(pcmFormat:format,frameCapacity:480))
+        for cycle in 0..<3 {
+            var peak:Float=0
+            for block in 0..<100 {
+                if block%10==0 {await Task.yield()}
+                XCTAssertEqual(try engine.renderOffline(480,to:buffer),.success)
+                let samples=try XCTUnwrap(buffer.floatChannelData)
+                for channel in 0..<2 {for index in 0..<Int(buffer.frameLength) {peak=max(peak,abs(samples[channel][index]))}}
+            }
+            XCTAssertGreaterThan(peak,0.00001,"Forest ambient audible after recovery \(cycle)")
+            if cycle==0 {
+                engine.stop()
+                NotificationCenter.default.post(name:.AVAudioEngineConfigurationChange,object:engine)
+                XCTAssertTrue(engine.isRunning,"Configuration reset recovers the requested live voice")
+            }else{
+                transport.pause(id:id);transport.pause(id:id)
+                NotificationCenter.default.post(name:.AVAudioEngineConfigurationChange,object:engine)
+                XCTAssertFalse(engine.isRunning,"A paused/background voice must remain silent")
+            }
+            transport.resume(id:id,gain:0.54)
+            XCTAssertTrue(engine.isRunning)
+        }
+        XCTAssertTrue(errors.isEmpty,errors.joined(separator:","))
+    }
     func testArea55SeamlessDerivedFileIsAdmittedAndRendersAcrossTwoLoopBoundaries() async throws {
         let root=try XCTUnwrap(Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle"))
         let source="assets/sound/worlds/Area55/area55-ambient-loop-v1.wav"

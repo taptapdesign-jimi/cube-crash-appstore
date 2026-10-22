@@ -185,7 +185,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         }
         return 1
     }
-    private func fly(from:CGRect,to:CGRect,returning:Bool,gameplay:Bool = false,completion:@escaping () -> Void) {
+    private func fly(from:CGRect,to:CGRect,returning:Bool,gameplay:Bool = false,returnOffset:((Double)->CGPoint)? = nil,completion:@escaping () -> Void) {
         generation += 1; let token = generation; animating = true
         let launch = gameplay ? 0.100/0.98 : 0, travel = gameplay ? 0.500/0.98 : duration, total = launch+travel
         let startPose = carrier.layer.presentation()?.transform ?? carrier.layer.transform
@@ -198,7 +198,8 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
             // landing punch/collapse. Back-in belongs to that later collapse,
             // not the portal's spatial return.
             let p = gameplay ? progress*progress*(3-2*progress) : spatialProgress(progress,returning:returning)
-            let dx = to.midX-from.midX,dy = to.midY-from.midY,distance = hypot(dx,dy)
+            let offset=returnOffset?(time) ?? .zero
+            let dx = to.midX+offset.x-from.midX,dy = to.midY+offset.y-from.midY,distance = hypot(dx,dy)
             let arcProgress = gameplay ? p : min(1,max(0,p))
             let arc = distance < 1 ? 0 : min(34,max(14,distance*0.075))*sin(.pi*arcProgress)
             let direction:CGFloat = dx >= 0 ? 1 : -1
@@ -406,7 +407,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         default:break
         }
     }
-    func close(to destination:CGRect,gameplay:Bool = false,completion:@escaping () -> Void) {
+    func close(to destination:CGRect,gameplay:Bool = false,returnOffset:((Double)->CGPoint)? = nil,completion:@escaping () -> Void) {
         cancelGameplayPreparation()
         guard !disposed,!closing else {completion();return};closing = true;flipGeneration += 1;effects?.cancel(handoff:false)
         (newRibbon as? JimiNativeNewRibbonView)?.exit(fadeOnly:true);newRibbon = nil
@@ -424,7 +425,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         }
         let transform = carrier.layer.presentation()?.transform ?? carrier.layer.transform
         let painted = CGRect(x:base.midX+transform.m41-base.width*hypot(transform.m11,transform.m12)/2,y:base.midY+transform.m42-base.height*hypot(transform.m21,transform.m22)/2,width:base.width*hypot(transform.m11,transform.m12),height:base.height*hypot(transform.m21,transform.m22))
-        fly(from:painted,to:destination,returning:true,gameplay:gameplay) { [weak self] in self?.backdrop.alpha = 0; completion() }
+        fly(from:painted,to:destination,returning:true,gameplay:gameplay,returnOffset:returnOffset) { [weak self] in self?.backdrop.alpha = 0; completion() }
     }
     func setActive(_ value:Bool) {front.subviews.compactMap{$0 as? JimiNativeNewRibbonView}.forEach{$0.setForeground(value && !isBackFacing)};
         guard !disposed,active != value else{return};active = value;effects?.setActive(value)

@@ -1,10 +1,39 @@
 import XCTest
 import UIKit
 import StackToSixGameplay
+import StackToSixNativeState
 @testable import Stack_to_Six
 
 @MainActor
 final class NativeResultOwnerTests:XCTestCase {
+    func testArcadeReachedExitKeepsGreyStarsVisibleThenAnimatesThemOut() throws {
+        func find(_ view:UIView,_ id:String)->UIView? {
+            if view.accessibilityIdentifier==id{return view}
+            return view.subviews.lazy.compactMap{find($0,id)}.first
+        }
+        let thresholds=NativeJourneyContent.starThresholds(board:2)
+        for score in [1500,thresholds.two,thresholds.three] {
+            let state=NativeBoardState(tiles:[],mode:.arcade,board:2,stage:2,score:score)
+            let result=NativeResultController(root:NativeTestResources.root,state:state,clean:true,combo:0,efficiency:0,finalScore:score,arcadeReached:true)
+            result.loadViewIfNeeded();defer{result.dispose()}
+            result.tick(0)
+            for frame in 1...480 {result.tick(Double(frame)/60)}
+            let earned=NativeJourneyContent.earnedStars(score:score,board:2)
+            let grey=try (0..<3).map{try XCTUnwrap(find(result.view,"native.result.star.empty.\($0)"))}
+            let before=grey.map(\.alpha)
+            result.close(completion:{})
+            result.tick(8+1.0/60)
+            for index in 0..<3 {XCTAssertEqual(grey[index].alpha,before[index],accuracy:0.001,"Exit must not instantly hide a grey star")}
+            for frame in 482...496 {result.tick(Double(frame)/60)}
+            for index in earned..<3 {
+                XCTAssertGreaterThan(grey[index].alpha,0)
+                XCTAssertNotEqual(grey[index].transform,.identity)
+            }
+            for frame in 497...535 {result.tick(Double(frame)/60)}
+            for index in earned..<3 {XCTAssertEqual(grey[index].alpha,0)}
+        }
+    }
+
     func testCleanRegisterStartsOnceWithPrimaryCTAInsteadOfCounter() {
         let result=controller();var stops:[Int]=[];var cueTimes:[Double]=[]
         result.onMoment={kind,index,_ in if kind=="clean-score-stop" {stops.append(index);cueTimes.append(result.elapsed)}}

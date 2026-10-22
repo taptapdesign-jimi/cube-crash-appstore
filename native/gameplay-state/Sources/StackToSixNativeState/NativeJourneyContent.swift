@@ -89,9 +89,17 @@ public enum NativeJourneyContent {
         default: return []
         }
     }
-    /// The new die introduced by this exact Unit, independent of profile progress.
-    /// Derive it from the cumulative World pool so unlock and reward eligibility
-    /// cannot silently acquire separate threshold tables.
+    /// Full authored World membership; profile discoveries never cross Worlds.
+    public static func worldRewardPool(board:Int)->[String] {
+        guard (1...30).contains(board) else{return []}
+        return rewardPool(board:((board-1)/10)*10+10)
+    }
+    /// Forward progression retains its pool; replay also admits landed discoveries.
+    public static func availableRewardPool(board:Int,unlockedDice:Set<String>)->[String] {
+        let eligible=Set(rewardPool(board:board)).union(unlockedDice)
+        return worldRewardPool(board:board).filter{eligible.contains($0)}
+    }
+    /// The die introduced by this Unit, derived from the authored cumulative pool.
     public static func introductionID(board:Int)->String? {
         guard (1...30).contains(board) else{return nil}
         let prior=(board-1)%10 == 0 ? []:rewardPool(board:board-1)
@@ -103,13 +111,34 @@ public enum NativeJourneyContent {
         guard let name = rewardPool(board:board).first(where:{!prior.contains($0)}) else { return nil }
         return reward(named:name)
     }
-    public static func reward(board: Int, wildSpawnCount: Int, roll: Double, previous: NativeWildArchetype? = nil) -> NativeWildReward? {
-        // Introduce this Unit's die only when its first earned Backpack drop
-        // commits. The persisted drop count preserves this boundary on Continue.
-        if wildSpawnCount == 0, let introduction = unlockReward(board:board) { return introduction }
-        let pool = rewardPool(board: board)
+    public static func reward(board: Int, wildSpawnCount: Int, roll: Double, previous: NativeWildArchetype? = nil,mushroomIntroduced:Bool=false,unlockedDice:Set<String>=[],introducedDice:Set<String>?=nil) -> NativeWildReward? {
+        // First two earned drops use the normal pool. If this Unit's die
+        // has not actually completed a drop, the third guarantees it.
+        // Legacy runs already introduced their non-Mushroom die on drop one.
+        if let id=introductionID(board:board),id != "mushroom",wildSpawnCount>=2,
+           !(introducedDice?.contains(id) ?? (wildSpawnCount>0)) {
+            return reward(named:id)
+        }
+        let pool = availableRewardPool(board:board,unlockedDice:unlockedDice)
         guard !pool.isEmpty else { return nil }
         let bounded = roll.isFinite ? max(0,min(1-Double.ulpOfOne,roll)) : 0
+        if board==6,!mushroomIntroduced {
+            // Uniform introduction slot among the first three earned drops:
+            //1/3 now,1/2 if still absent next time, guaranteed on the third.
+            let chance=1/Double(max(1,3-wildSpawnCount))
+            if bounded<chance {return reward(named:"mushroom")}
+            let others=pool.filter{$0 != "mushroom"}
+            let adjusted=(bounded-chance)/(1-chance)
+            return reward(named:others[min(others.count-1,Int(adjusted*Double(others.count)))])
+        }
+        if pool.contains("mushroom") {
+            let probability=NativeWildRewardPolicy.mushroomProbability
+            if bounded<probability {return reward(named:"mushroom")}
+            let others=pool.filter{$0 != "mushroom"}
+            guard !others.isEmpty else{return reward(named:"mushroom")}
+            let adjusted=(bounded-probability)/(1-probability)
+            return reward(named:others[min(others.count-1,Int(adjusted*Double(others.count)))])
+        }
         let name = pool[min(pool.count-1,Int(bounded*Double(pool.count)))]
         return reward(named:name)
     }

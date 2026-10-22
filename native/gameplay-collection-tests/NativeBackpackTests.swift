@@ -181,6 +181,40 @@ final class NativeBackpackTests:XCTestCase {
         }
     }
 
+    func testEveryJourneyIntroductionHasMatchingCollectionAndHUDAlert() throws {
+        for board in 1...30 {
+            guard let id=NativeJourneyContent.introductionID(board:board) else{continue}
+            var progression=NativeProgressionState()
+            XCTAssertTrue(progression.announceJourneyDie(id,board:board))
+            let engine=NativeGameplayEngine(state:NativeBoardFactory.make(mode:.journey,board:board))
+            let scene=NativeBoardScene(engine:engine,resourceRoot:NativeTestResources.root,size:CGSize(width:390,height:844))
+            let view=SKView(frame:CGRect(x:0,y:0,width:390,height:844));view.presentScene(scene);view.isPaused=true
+            scene.unreadJourneyDice={progression.unreadJourneyDice};scene.refreshBackpackAlert()
+            let help=try XCTUnwrap(scene.childNode(withName:"//native-game-help"))
+            XCTAssertNotNil(help.childNode(withName:"native-game-backpack-alert"),id)
+            XCTAssertTrue(NativeBackpackCatalog.sections(progression).contains{$0.unread.contains(id)},id)
+            progression.readJourneyDie(id);scene.refreshBackpackAlert()
+            XCTAssertNil(help.childNode(withName:"native-game-backpack-alert"),id)
+            scene.dispose();view.presentScene(nil)
+        }
+    }
+    func testHUDRepairsDetachedBadgeAndDoesNotDismissAnotherDiscovery() throws {
+        let engine=NativeGameplayEngine(state:NativeBoardFactory.make(mode:.journey,board:7))
+        let scene=NativeBoardScene(engine:engine,resourceRoot:NativeTestResources.root,size:CGSize(width:390,height:844))
+        let view=SKView(frame:CGRect(x:0,y:0,width:390,height:844));view.presentScene(scene);view.isPaused=true
+        defer{scene.dispose();view.presentScene(nil)}
+        var unread:Set<String>=["mushroom"];scene.unreadJourneyDice={unread};scene.refreshBackpackAlert()
+        let help=try XCTUnwrap(scene.childNode(withName:"//native-game-help"))
+        let old=try XCTUnwrap(help.childNode(withName:"native-game-backpack-alert"))
+        old.removeFromParent();scene.refreshBackpackAlert()
+        XCTAssertNotNil(help.childNode(withName:"native-game-backpack-alert"))
+        scene.setBackpackPresented(true);scene.setBackpackPresented(false)
+        unread.insert("barell");scene.refreshBackpackAlert()
+        XCTAssertTrue(help.children.contains{$0.name=="native-game-backpack-alert" && $0.action(forKey:"backpack-alert-exit")==nil},"A different landed reward cannot inherit the previous visit's dismissal")
+        unread.remove("mushroom");scene.completeBackpackVisit()
+        XCTAssertNotNil(help.childNode(withName:"native-game-backpack-alert"))
+    }
+
     func testHUDAlertScopesToCurrentWorldAndClearsWithoutMutatingBoard() throws {
         let engine=NativeGameplayEngine(state:NativeBoardFactory.make(mode:.journey,board:2))
         let scene=NativeBoardScene(engine:engine,resourceRoot:NativeTestResources.root,size:CGSize(width:390,height:844))
@@ -335,7 +369,8 @@ final class NativeBackpackTests:XCTestCase {
         services.journeyProgression={progression};services.readJourneyDie={id in progression.readJourneyDie(id);return true}
         let app=NativeAppController(resourceRoot:NativeTestResources.root,services:services),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
         window.rootViewController=app;window.makeKeyAndVisible();defer{app.dispose();window.isHidden=true}
-        try await Task.sleep(for:.seconds(1));app.navigate(.backpack)
+        app.navigate(.hub,interrupt:true)
+        try await waitForRetap{app.hub.scrollView.isUserInteractionEnabled};app.navigate(.backpack)
         try await waitForRetap{app.backpackView?.isUserInteractionEnabled==true}
         XCTAssertEqual(progression.unreadJourneyDice,["bee","wild-star"],"Opening collection does not mark details read")
         app.backpackView?.onDie?(NativeBackpackCatalog.forest[1])
@@ -382,7 +417,8 @@ final class NativeBackpackTests:XCTestCase {
         let app=NativeAppController(resourceRoot:NativeTestResources.root,services:services)
         let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=app;window.makeKeyAndVisible()
         defer{app.dispose();window.isHidden=true}
-        try await Task.sleep(for:.seconds(1));app.navigate(.backpack)
+        app.navigate(.hub,interrupt:true)
+        try await waitForRetap{app.hub.scrollView.isUserInteractionEnabled};app.navigate(.backpack)
         try await waitForRetap{app.backpackView?.isUserInteractionEnabled==true}
         let screen=try XCTUnwrap(app.backpackView)
         let star=try XCTUnwrap(screen.revealedDie(atWindowPoint:retapPoint(screen,window:window)))
@@ -685,7 +721,7 @@ final class NativeBackpackTests:XCTestCase {
         }
     }
     func testCatalogUsesCanonicalProgressAndExactWorldTotals() {
-        XCTAssertEqual(NativeBackpackCatalog.arcade.map(\.id),["tnt","wild-magnet","cubero","baloon"])
+        XCTAssertEqual(NativeBackpackCatalog.arcade.map(\.id),["cubero","baloon","tnt","wild-magnet"])
         XCTAssertEqual(NativeBackpackCatalog.beach.first{$0.id=="wild-juice"}?.title,"JUICE")
         var progress=NativeProgressionState()
         var sections=NativeBackpackCatalog.sections(progress)
@@ -839,7 +875,7 @@ final class NativeBackpackTests:XCTestCase {
     }
     func testCuberoBoardPreviewRunsFromFirstVisibleFrameAndResumes() async throws {
         let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
-        let detail=NativeBackpackDetail(die:NativeBackpackCatalog.arcade[2],assets:assets,motion:NativeRouteMotion(home:JimiV9HomeView(frame:.zero,assets:assets),hub:JimiV9HubView(frame:.zero,assets:assets)))
+        let detail=NativeBackpackDetail(die:try XCTUnwrap(NativeBackpackCatalog.arcade.first{$0.id=="cubero"}),assets:assets,motion:NativeRouteMotion(home:JimiV9HomeView(frame:.zero,assets:assets),hub:JimiV9HubView(frame:.zero,assets:assets)))
         let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=host;window.makeKeyAndVisible()
         defer{detail.dispose();host.dismiss(animated:false);window.isHidden=true}
         host.present(detail,animated:false)
@@ -863,7 +899,7 @@ final class NativeBackpackTests:XCTestCase {
         let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
         let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
         window.rootViewController=host;window.makeKeyAndVisible();defer{window.isHidden=true}
-        for die in [NativeBackpackCatalog.arcade[2],NativeBackpackCatalog.forest[5]] {
+        for die in [try XCTUnwrap(NativeBackpackCatalog.arcade.first{$0.id=="cubero"}),NativeBackpackCatalog.forest[5]] {
             let detail=NativeBackpackDetail(die:die,assets:assets,motion:NativeRouteMotion(home:JimiV9HomeView(frame:.zero,assets:assets),hub:JimiV9HubView(frame:.zero,assets:assets)))
             host.addChild(detail);detail.view.frame=window.bounds;host.view.addSubview(detail.view);detail.didMove(toParent:host)
             detail.view.layoutIfNeeded()
@@ -1139,7 +1175,7 @@ final class NativeBackpackTests:XCTestCase {
     }
     func testDisposedModalRejectsPendingBoardPreparation() async throws {
         let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
-        let detail=NativeBackpackDetail(die:NativeBackpackCatalog.arcade[2],assets:assets,motion:NativeRouteMotion(home:JimiV9HomeView(frame:.zero,assets:assets),hub:JimiV9HubView(frame:.zero,assets:assets)))
+        let detail=NativeBackpackDetail(die:try XCTUnwrap(NativeBackpackCatalog.arcade.first{$0.id=="cubero"}),assets:assets,motion:NativeRouteMotion(home:JimiV9HomeView(frame:.zero,assets:assets),hub:JimiV9HubView(frame:.zero,assets:assets)))
         detail.loadViewIfNeeded();let preview=try XCTUnwrap(detail.preview)
         XCTAssertEqual(detail.card.alpha,0);XCTAssertFalse(detail.card.isUserInteractionEnabled)
         detail.dispose();try await Task.sleep(for:.milliseconds(200))
@@ -1287,13 +1323,13 @@ final class NativeBackpackTests:XCTestCase {
         XCTAssertEqual(fish?.activeMediaCount ?? 0,0,die.id)
         return objects
     }
-    func testMountedAllSeventeenBackpackDetailsRetireAndHeavyReopensDoNotRetainOwners() async throws {
+    func testMountedAllEighteenBackpackDetailsRetireAndHeavyReopensDoNotRetainOwners() async throws {
         let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
         let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
         window.rootViewController=host;window.makeKeyAndVisible()
         defer{host.dismiss(animated:false);window.isHidden=true;window.rootViewController=nil}
         let all=NativeBackpackCatalog.arcade+NativeBackpackCatalog.forest+NativeBackpackCatalog.area+NativeBackpackCatalog.beach
-        XCTAssertEqual(all.count,17)
+        XCTAssertEqual(all.count,18)
         let heavy=all.filter{["fish","cubero","beach-ball"].contains($0.id)}
         for (index,die) in (all+heavy+heavy).enumerated() {
             let objects=try await exerciseMountedBackpackLifecycle(die,host:host,assets:assets)
@@ -1414,13 +1450,16 @@ final class NativeBackpackTests:XCTestCase {
     }
 
     func testEveryBackpackShadowUsesContactFloorWithFishAndSpaceshipExceptions() async throws {
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible();defer{window.isHidden=true;window.rootViewController=nil}
         let all=NativeBackpackCatalog.arcade+NativeBackpackCatalog.forest+NativeBackpackCatalog.area+NativeBackpackCatalog.beach
-        XCTAssertEqual(all.count,17)
+        XCTAssertEqual(all.count,18)
         for die in all {
             let preview=NativeBackpackDicePreview(die:die,root:NativeTestResources.root)
-            defer{preview.dispose()}
+            defer{preview.dispose();preview.removeFromSuperview()}
             preview.frame=CGRect(x:0,y:0,width:342,height:360)
             preview.artworkFrame=CGRect(x:0,y:48,width:342,height:216)
+            host.view.addSubview(preview)
             let deadline=Date().addingTimeInterval(15)
             while !preview.ready,Date()<deadline {try await Task.sleep(for:.milliseconds(20))}
             XCTAssertTrue(preview.ready,die.id)
@@ -1575,7 +1614,7 @@ final class NativeBackpackTests:XCTestCase {
     }
 
     func testBackpackBallAndTNTShadowsTrackActualBodyHeightWithoutIndependentPulse() async throws {
-        let dice=[NativeBackpackCatalog.arcade[0]]+NativeBackpackCatalog.beach.filter{$0.id=="beach-ball"}
+        let dice=[try XCTUnwrap(NativeBackpackCatalog.arcade.first{$0.id=="tnt"})]+NativeBackpackCatalog.beach.filter{$0.id=="beach-ball"}
         for die in dice {
             let preview=NativeBackpackDicePreview(die:die,root:NativeTestResources.root)
             defer{preview.dispose()}

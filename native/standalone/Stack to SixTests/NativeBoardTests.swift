@@ -391,6 +391,81 @@ final class NativeBoardTests: XCTestCase {
     func testRealTntReturnReleasesOrdinaryDragBeforeCapturedImpactsAndMeterFinish() async throws {
         try await assertRealTntReturn(variant:nil)
     }
+    func testBarrelWholeBoardUsesActualAuthoredFxAndSettlesBeyondFourTargets() async throws {
+        try await assertBarrelEarlyImpacts(ordinaryCount:18,protectWild:false)
+    }
+    func testBarrelEarlyImpactsWaitForProtectedWildReturnOnSmallBoard() async throws {
+        try await assertBarrelEarlyImpacts(ordinaryCount:1,protectWild:true)
+    }
+    private func assertBarrelEarlyImpacts(ordinaryCount:Int,protectWild:Bool) async throws {
+        let barrel=NativeTile(id:"barrel",cell:.init(column:0,row:0),value:6,archetype:.tnt,variant:"barell")
+        let destination=tile("destination",1,2)
+        let ordinary=(0..<ordinaryCount).map { index in
+            NativeTile(id:"ordinary-\(index)",cell:.init(column:index%5,row:1+index/5),value:index%5+1)
+        }
+        let protected=NativeTile(id:"protected",cell:.init(column:4,row:8),value:6,archetype:.star)
+        let engine=NativeGameplayEngine(state:.init(tiles:[barrel,destination]+ordinary+(protectWild ? [protected]:[])),recordedRandomChoices:Array(repeating:0.2,count:3000))
+        let controller=NativeGameplayViewController(engine:engine,resourceRoot:root)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=controller;window.makeKeyAndVisible()
+        controller.view.layoutIfNeeded()
+        defer {controller.dispose();window.isHidden=true;window.rootViewController=nil}
+        let scene=try XCTUnwrap(controller.boardScene)
+        let deadline=Date().addingTimeInterval(8)
+        while !scene.isBoardEntryComplete && Date()<deadline {try await Task.sleep(for:.milliseconds(20))}
+        XCTAssertTrue(scene.isBoardEntryComplete)
+        var captured:NativeSpecialMovePlan?,impacts=Set<String>(),failures=[String](),sawActualFx=false
+        var boomStarted:CFTimeInterval?,firstImpact:CFTimeInterval?
+        let priorPresentation=scene.onAuthoredTntPresentation
+        scene.onAuthoredTntPresentation={variant,origin,generation,ready,finished in
+            boomStarted=CACurrentMediaTime()
+            return priorPresentation?(variant,origin,generation,ready,finished) ?? false
+        }
+        let priorEvent=scene.onGameplayEvent
+        scene.onGameplayEvent={event in
+            priorEvent?(event)
+            if event.kind == .specialReserved,let plan=engine.pendingSpecial,!plan.targets.isEmpty {captured=plan}
+            if event.kind == .specialImpact,let id=event.tileIDs.first {
+                if firstImpact==nil {firstImpact=CACurrentMediaTime()}
+                XCTAssertTrue(impacts.insert(id).inserted)
+                XCTAssertNil(engine.state.terminal)
+            }
+        }
+        scene.onPresentationFailure={failures.append($0)}
+        let geometry=try XCTUnwrap(scene.boardGeometry)
+        XCTAssertTrue(scene.beginDrag(at:geometry.center(row:0,column:0)))
+        scene.moveDrag(to:geometry.center(row:0,column:1),now:CACurrentMediaTime())
+        XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:geometry.center(row:0,column:1),now:CACurrentMediaTime())).accepted)
+        let finishDeadline=Date().addingTimeInterval(16)
+        func containsBarrelFx(_ view:UIView)->Bool {
+            view.accessibilityIdentifier=="native-barell-finale" || view.subviews.contains(where:containsBarrelFx)
+        }
+        while Date()<finishDeadline {
+            sawActualFx = sawActualFx || containsBarrelFx(controller.view)
+            if let captured,!captured.targets.isEmpty,engine.pendingSpecial==nil,impacts.count==captured.targets.count,engine.pendingMeterRewards.isEmpty {break}
+            try await Task.sleep(for:.milliseconds(20))
+        }
+        let plan=try XCTUnwrap(captured)
+        if ordinaryCount>4 {XCTAssertGreaterThan(plan.targets.count,4)}
+        let impactDelay = try XCTUnwrap(firstImpact)-XCTUnwrap(boomStarted)
+        XCTAssertGreaterThanOrEqual(impactDelay,0.95,"No impact before the one-second BOOM delay")
+        XCTAssertLessThan(impactDelay,1.5,"First impact follows the one-second BOOM delay")
+        XCTAssertTrue(Set(ordinary.map(\.id)).isSubset(of:Set(plan.targets.map(\.id))))
+        XCTAssertEqual(impacts,Set(plan.targets.map(\.id)))
+        XCTAssertTrue(sawActualFx,"Mount the real Barrel smoke/wood owner, not a stubbed callback")
+        XCTAssertTrue(failures.isEmpty,failures.joined(separator:","))
+        XCTAssertNil(engine.pendingSpecial)
+        XCTAssertTrue(engine.pendingMeterRewards.isEmpty)
+        XCTAssertTrue(engine.state.validationIssues().isEmpty)
+        for target in ordinary {XCTAssertNotEqual(engine.state.tile(at:target.cell)?.value,target.value)}
+        if protectWild {
+            let node=try XCTUnwrap(scene.sourceNativeTileNode(protected.id))
+            let rest=geometry.center(row:protected.cell.row,column:protected.cell.column)
+            XCTAssertEqual(node.position.x,rest.x,accuracy:0.001)
+            XCTAssertEqual(node.position.y,rest.y,accuracy:0.001)
+            XCTAssertNil(node.action(forKey:"tnt-blast"));XCTAssertNil(node.action(forKey:"tnt-return"))
+        }
+    }
     func testBeachBallEarlyVisualCommitWaitsForOriginalOutwardWaveThenReleasesOrdinaryDrag() async throws {
         try await assertRealTntReturn(variant:"beach-ball")
     }

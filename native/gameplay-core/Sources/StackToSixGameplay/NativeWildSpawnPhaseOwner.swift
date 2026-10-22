@@ -19,6 +19,7 @@ final class NativeWildSpawnPhaseOwner {
     let archetype:NativeWildArchetype
     let spawnCount:Int
     let orbitCount:Int
+    let mushroomBonusCount:Int?
     private let sourceExtraGuardAwaits:Bool
     private let sourceEndgameGuardAwaits:Bool
     private let tntOwnerCaptured:Bool
@@ -42,12 +43,13 @@ final class NativeWildSpawnPhaseOwner {
     private var waitingSingleArrival:String?
     private var primaryCommand:Command?
 
-    init(id:String,generation:UInt64,mode:Mode,archetype:NativeWildArchetype,spawnCount:Int,orbitCount:Int,tntOwner:NativeSpecialMovePlan?=nil,sourceExtraGuardAwaits:Bool=false,sourceEndgameGuardAwaits:Bool=false) {
+    init(id:String,generation:UInt64,mode:Mode,archetype:NativeWildArchetype,spawnCount:Int,orbitCount:Int,mushroomBonusCount:Int?=nil,tntOwner:NativeSpecialMovePlan?=nil,sourceExtraGuardAwaits:Bool=false,sourceEndgameGuardAwaits:Bool=false) {
         self.id=id;self.generation=generation;self.mode=mode;self.archetype=archetype
         self.sourceExtraGuardAwaits=sourceExtraGuardAwaits
         self.sourceEndgameGuardAwaits=sourceEndgameGuardAwaits
         self.tntOwnerCaptured=tntOwner?.id==id && tntOwner?.generation==generation && tntOwner?.archetype == .tnt
         self.spawnCount=max(0,spawnCount);self.orbitCount=max(1,min(3,orbitCount))
+        self.mushroomBonusCount=archetype == .juice ? mushroomBonusCount.map{max(4,min(6,$0))}:nil
     }
     @discardableResult func begin()->Command? {
         guard !cancelled,stage == .idle,(archetype == .star || archetype == .juice || archetype == .magnet || archetype == .tnt && tntOwnerCaptured),spawnCount>0 else{return nil}
@@ -209,7 +211,7 @@ final class NativeWildSpawnPhaseOwner {
     private func advanceAfterEndgameGuard() {
         if mode == .arcade {finish()}
         else if mode == .normal {stage = .base;issue(.baseLocked,count:max(0,spawnCount-opened))}
-        else if archetype == .juice {endgameExtras=2;stage = .endgameJuice;issue(.juiceExtra)}
+        else if archetype == .juice && mushroomBonusCount == nil {endgameExtras=2;stage = .endgameJuice;issue(.juiceExtra)}
         else {startExtra()}
     }
     private func finishRemainderIteration() {
@@ -227,7 +229,8 @@ final class NativeWildSpawnPhaseOwner {
         else {startExtraAfterGuards()}
     }
     private func startExtraAfterGuards(){
-        if archetype == .star && mode != .arcade {stage = .extra;issue(.extraLocked,count:orbitCount)}
+        if let mushroomBonusCount {stage = .extra;issue(.extraLocked,count:mushroomBonusCount)}
+        else if archetype == .star && mode != .arcade {stage = .extra;issue(.extraLocked,count:orbitCount)}
         else if mode == .normal {startMinimum()}
         else {finish()}
     }

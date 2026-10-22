@@ -970,7 +970,7 @@ public final class NativeGameplayEngine {
             }
             if sourceRetainedDirectDestination?.tileID != destination.id {events.append(NativeGameplayEvent(.removed, tileIDs: [destination.id]))}
             if !final.isFinalMerge {
-                if let gameplayArchetype { spawnDirectWildMerge6(at: destination.cell, archetype: gameplayArchetype, depth: multiplier, avoiding: source.isWild ? destination.value : source.value, starOrbitCount: (source.isWild ? (source.variant == nil ? source.starOrbitCount:source.effectiveStarDropCount) : (destination.variant == nil ? destination.starOrbitCount:destination.effectiveStarDropCount)), events: &events) }
+                if let gameplayArchetype { spawnDirectWildMerge6(at: destination.cell, archetype: gameplayArchetype, depth: multiplier, avoiding: source.isWild ? destination.value : source.value, starOrbitCount: (source.isWild ? (source.variant == nil ? source.starOrbitCount:source.effectiveStarDropCount) : (destination.variant == nil ? destination.starOrbitCount:destination.effectiveStarDropCount)), variant:source.variant ?? destination.variant, events: &events) }
                 else { spawnRegularMerge6(at: destination.cell, depth: multiplier, events: &events) }
             }
         }
@@ -1328,6 +1328,9 @@ public final class NativeGameplayEngine {
     }
     private func selectTntTargets(source: NativeTile,destination: NativeTile,variant: String?) -> [NativeTile]? {
         let candidates = NativeTntRules.eligibleTargets(state.tiles,excluding:[source.id,destination.id])
+        // Barrel whole-board experiment: retain the existing ordinary-target
+        // eligibility and transaction, but capture every eligible die once.
+        if variant == "barell" { return candidates }
         if variant == "beach-ball" || variant == "laser-gun" { return NativeTntRules.separatedTargets(candidates,count:4,random:{ self.nextRandom() }) }
         var captured=state
         let capturedFlags=flags,capturedLocks=locks
@@ -2297,30 +2300,32 @@ public final class NativeGameplayEngine {
     private func usesSimpleArcadeWildSpawn(archetype:NativeWildArchetype)->Bool {
         state.mode == .arcade && archetype != .star
     }
-    private func spawnDirectWildMerge6(at cell: NativeCell, archetype: NativeWildArchetype, depth: Int, avoiding: Int, starOrbitCount: Int, events: inout [NativeGameplayEvent]) {
+    private func spawnDirectWildMerge6(at cell: NativeCell, archetype: NativeWildArchetype, depth: Int, avoiding: Int, starOrbitCount: Int, variant:String?=nil, events: inout [NativeGameplayEvent]) {
+        // One captured draw per genuine non-final Mushroom merge.
+        let mushroomBonusCount = variant == "mushroom" ? 4+min(2,max(0,Int(nextRandom()*3))) : nil
         let effectiveOrbitCount:Int
         if archetype == .star,committingDirectWild,let plan=pendingDirectWild,
             let capture=plan.sourceStarOrbitCapture,capture.generation==state.generation {
             effectiveOrbitCount=NativeSpawnRules.sourceStarOrbitCountForSpawn(savedPositions:capture.savedPositions,savedSystem:capture.savedSystem,liveSystem:0)
         } else {effectiveOrbitCount=starOrbitCount}
         if stagedDirectWildAssignments,committingDirectWild,let plan=pendingDirectWild,!plan.isFinal,(archetype == .star || archetype == .juice || archetype == .magnet) {
-            beginDirectWildSpawnPhases(plan:plan,depth:depth,avoiding:avoiding,orbitCount:effectiveOrbitCount,events:&events)
+            beginDirectWildSpawnPhases(plan:plan,depth:depth,avoiding:avoiding,orbitCount:effectiveOrbitCount,mushroomBonusCount:mushroomBonusCount,events:&events)
             return
         }
         let lockedCount = state.tiles.filter { $0.locked && !$0.isWild && !$0.pendingRemoval && !$0.resolutionOwned }.count
         let lockedEmptyCount = state.tiles.filter { $0.locked && $0.value <= 0 && !$0.isWild && !$0.pendingRemoval }.count
         let multiplier = NativeSpawnRules.wildEndgameMultiplier(depth,isWild:true,lockedEmptyCount:lockedEmptyCount,isLastMerge:false)
-        let arcadeSimple = usesSimpleArcadeWildSpawn(archetype:archetype) && archetype != .magnet
+        let arcadeSimple = mushroomBonusCount == nil && usesSimpleArcadeWildSpawn(archetype:archetype) && archetype != .magnet
         let endgame = lockedCount == 0
-        let bonus = NativeSpawnRules.wildBonus(archetype:archetype,isLastMerge:false,isArcadeSimpleWild:arcadeSimple,isFinalWildSnapshot:false,starOrbitCount:effectiveOrbitCount)
+        let bonus = NativeSpawnRules.wildBonus(archetype:archetype,isLastMerge:false,isArcadeSimpleWild:arcadeSimple,isFinalWildSnapshot:false,starOrbitCount:effectiveOrbitCount,mushroomBonusCount:mushroomBonusCount)
         // The source creates bonus placeholders while primary-open work yields;
         // freeze its final logical allocation before visual spawning begins.
         let primaryValue = randomValue(excluding:avoiding)
         createLockedBonus(count:bonus.locked,excluding:cell,events:&events)
         let primary = freshTile(cell:cell,value:primaryValue); state.tiles.append(primary)
         events.append(NativeGameplayEvent(.spawned,tileIDs:[primary.id],value:primary.value))
-        if !endgame && !arcadeSimple { openLocked(count:max(0,multiplier-1),avoiding:avoiding,events:&events) }
-        if endgame && !arcadeSimple && archetype == .juice {
+        if mushroomBonusCount == nil && !endgame && !arcadeSimple { openLocked(count:max(0,multiplier-1),avoiding:avoiding,events:&events) }
+        if mushroomBonusCount == nil && endgame && !arcadeSimple && archetype == .juice {
             for _ in 0..<2 {
                 let available = NativeMagnetRules.emptyCells(state:state,excluding:[cell])
                 guard !available.isEmpty else { break }
@@ -2369,7 +2374,10 @@ public final class NativeGameplayEngine {
             events.append(NativeGameplayEvent(.meterDropReserved,tileIDs:[tile.id],value:6,archetype:reward.archetype,reason:drop.id,variant:reward.variant))
             return true
         }
-        state.tiles.append(tile); consumeMeterCharge(); state.wildSpawnCount += 1
+        state.tiles.append(tile); consumeMeterCharge(); recordEarnedJourneyDie(archetype:reward.archetype,variant:reward.variant); state.wildSpawnCount += 1
+        if state.mode == .journey,state.board==6 {
+            state.forestMushroomIntroduced=(state.forestMushroomIntroduced ?? (state.wildSpawnCount>1)) || reward.variant=="mushroom"
+        }
         if state.lastWildDropType == reward.archetype { state.wildDropTypeStreak += 1 } else { state.lastWildDropType = reward.archetype; state.wildDropTypeStreak = 1 }
         if state.tutorial?.waitingForWild == true {
             state.tutorial?.waitingForWild = false; state.tutorial?.step = .special; state.tutorial?.wildTileID = tile.id
@@ -2377,6 +2385,14 @@ public final class NativeGameplayEngine {
         }
         events.append(NativeGameplayEvent(.spawned,tileIDs:[tile.id],value:6,archetype:reward.archetype,variant:reward.variant))
         return true
+    }
+
+    private func recordEarnedJourneyDie(archetype:NativeWildArchetype,variant:String?) {
+        guard state.mode == .journey else{return}
+        // A missing receipt on an already-running legacy save stays legacy;
+        // creating an empty set there would forget its former first-drop guarantee.
+        if state.earnedJourneyDice == nil,state.wildSpawnCount==0 {state.earnedJourneyDice=[]}
+        state.earnedJourneyDice?.insert(variant ?? (archetype == .star ? "wild-star":archetype == .juice ? "wild-juice":archetype.rawValue))
     }
 
     /// This is an explicit Source owner request, never a background/pause hook.
@@ -2444,7 +2460,10 @@ public final class NativeGameplayEngine {
             return retireCanceledMeterDrop(drop,events:events)
         }
         if drop.dropCompleted && drop.warmupCompleted && !drop.bookkeepingCommitted {
-            drop.bookkeepingCommitted=true;state.wildSpawnCount += 1
+            drop.bookkeepingCommitted=true;recordEarnedJourneyDie(archetype:drop.archetype,variant:drop.variant);state.wildSpawnCount += 1
+            if state.mode == .journey,state.board==6 {
+                state.forestMushroomIntroduced=(state.forestMushroomIntroduced ?? (state.wildSpawnCount>1)) || drop.variant=="mushroom"
+            }
             if state.lastWildDropType==drop.archetype {state.wildDropTypeStreak += 1}
             else {state.lastWildDropType=drop.archetype;state.wildDropTypeStreak=1}
             if state.tutorial?.waitingForWild==true {
@@ -2498,8 +2517,13 @@ public enum NativeSpawnRules {
     public static func regularMerge6SpawnCount(_ multiplier: Int) -> Int { min(3, max(2, multiplier - 1)) }
     public static func shouldSpawnAtDestination(isLastMerge: Bool, isFinalMerge: Bool, multiplier: Int, isEndgameMode: Bool, isArcadeSimpleWild: Bool) -> Bool { !isLastMerge && !isFinalMerge && multiplier > 0 && (isEndgameMode || isArcadeSimpleWild) }
     public static func wildEndgameMultiplier(_ multiplier: Int, isWild: Bool, lockedEmptyCount: Int, isLastMerge: Bool) -> Int { isWild && lockedEmptyCount <= 0 && multiplier > 1 && !isLastMerge ? 1 : multiplier }
-    public static func wildBonus(archetype: NativeWildArchetype?, isLastMerge: Bool, isArcadeSimpleWild: Bool, isFinalWildSnapshot: Bool, starOrbitCount: Int = 3) -> (locked: Int, active: Int) {
-        guard let archetype, !isLastMerge, !isArcadeSimpleWild, !isFinalWildSnapshot else { return (0, 0) }
+    public static func wildBonus(archetype: NativeWildArchetype?, isLastMerge: Bool, isArcadeSimpleWild: Bool, isFinalWildSnapshot: Bool, starOrbitCount: Int = 3,mushroomBonusCount:Int?=nil) -> (locked: Int, active: Int) {
+        guard let archetype, !isLastMerge, !isFinalWildSnapshot else { return (0, 0) }
+        if archetype == .juice,let mushroomBonusCount {
+            let count=max(4,min(6,mushroomBonusCount))
+            return (3+2*count,count)
+        }
+        guard !isArcadeSimpleWild else{return (0,0)}
         switch archetype {
         case .juice: return (3, 0)
         case .magnet, .tnt: return (9, 0)
@@ -3106,10 +3130,10 @@ extension NativeGameplayEngine {
 }
 
 extension NativeGameplayEngine {
-    private func beginDirectWildSpawnPhases(plan:NativeDirectWildMovePlan,depth:Int,avoiding:Int,orbitCount:Int,events:inout [NativeGameplayEvent]) {
-        beginWildSpawnPhases(context:.direct(plan),depth:depth,avoiding:avoiding,orbitCount:orbitCount,events:&events)
+    private func beginDirectWildSpawnPhases(plan:NativeDirectWildMovePlan,depth:Int,avoiding:Int,orbitCount:Int,mushroomBonusCount:Int?=nil,events:inout [NativeGameplayEvent]) {
+        beginWildSpawnPhases(context:.direct(plan),depth:depth,avoiding:avoiding,orbitCount:orbitCount,mushroomBonusCount:mushroomBonusCount,events:&events)
     }
-    private func beginWildSpawnPhases(context plan:NativeWildSpawnPhaseContext,depth:Int,avoiding:Int,orbitCount:Int,events:inout [NativeGameplayEvent]) {
+    private func beginWildSpawnPhases(context plan:NativeWildSpawnPhaseContext,depth:Int,avoiding:Int,orbitCount:Int,mushroomBonusCount:Int?=nil,events:inout [NativeGameplayEvent]) {
         wildSpawnContext=plan
         pendingSourceDirectInitialAwait=nil;sourceDirectInitialMath=nil;sourceDirectInitialReady=false
         sourceDirectInitialGuardPass=0;sourceDirectInitialEnqueueReceipt=nil;sourceDirectNormalPreSpawnChecks=0;sourceDirectInitialRefused=false
@@ -3127,11 +3151,11 @@ extension NativeGameplayEngine {
             pendingSourceTntLockedBonusGuard=nil;sourceTntLockedBonusGuardContext=nil;sourceTntLockedBonusGuardPhase=nil
             sourceTntLockedBonusGuardMath=nil;sourceTntLockedBonusGuardDispatching=nil;sourceTntLockedBonusGuardRefused=false
         }
-        let mode:NativeWildSpawnPhaseOwner.Mode=usesSimpleArcadeWildSpawn(archetype:plan.archetype) ? .arcade:state.tiles.contains{$0.locked} ? .normal:.endgame
+        let mode:NativeWildSpawnPhaseOwner.Mode=mushroomBonusCount == nil && usesSimpleArcadeWildSpawn(archetype:plan.archetype) ? .arcade:state.tiles.contains{$0.locked} ? .normal:.endgame
         // The original transient dst placeholder exists when the multiplier law is evaluated.
         let emptyCount=state.tiles.filter{$0.locked && $0.value<=0}.count+1
-        let count=NativeSpawnRules.wildEndgameMultiplier(depth,isWild:true,lockedEmptyCount:emptyCount,isLastMerge:false)
-        let phase=NativeWildSpawnPhaseOwner(id:plan.id,generation:plan.generation,mode:mode,archetype:plan.archetype,spawnCount:count,orbitCount:orbitCount,tntOwner:plan.tntOwner,sourceExtraGuardAwaits:sourceWildExtraFinalGuardsEnabled,sourceEndgameGuardAwaits:sourceWildEndgamePhysicalGuardsEnabled)
+        let count=mushroomBonusCount == nil ? NativeSpawnRules.wildEndgameMultiplier(depth,isWild:true,lockedEmptyCount:emptyCount,isLastMerge:false):1
+        let phase=NativeWildSpawnPhaseOwner(id:plan.id,generation:plan.generation,mode:mode,archetype:plan.archetype,spawnCount:count,orbitCount:orbitCount,mushroomBonusCount:mushroomBonusCount,tntOwner:plan.tntOwner,sourceExtraGuardAwaits:sourceWildExtraFinalGuardsEnabled,sourceEndgameGuardAwaits:sourceWildEndgamePhysicalGuardsEnabled)
         directWildPrimaryRecovery=NativeWildPrimaryRecoveryOwner(id:plan.id,generation:plan.generation,mode:mode == .normal ? .normal:.endgame);_=directWildPrimaryRecovery?.begin()
         directWildSpawnPhase=phase;directWildSpawnAvoiding=avoiding;directWildSpawnRevision=state.revision;directWildVisualReleased=false
         wildPhaseScheduledID=nil;wildPhaseOpened=0;wildActionSequence=0;wildRemainderExcluded=[plan.destination.cell]
@@ -3173,7 +3197,7 @@ extension NativeGameplayEngine {
             events += result.events
         }
         guard state.generation==plan.generation,currentWildSpawnContext?.id==plan.id,directWildSpawnPhase === phase else{return}
-        let bonus=NativeSpawnRules.wildBonus(archetype:plan.archetype,isLastMerge:false,isArcadeSimpleWild:phase.mode == .arcade,isFinalWildSnapshot:false,starOrbitCount:phase.orbitCount)
+        let bonus=NativeSpawnRules.wildBonus(archetype:plan.archetype,isLastMerge:false,isArcadeSimpleWild:phase.mode == .arcade,isFinalWildSnapshot:false,starOrbitCount:phase.orbitCount,mushroomBonusCount:phase.mushroomBonusCount)
         if plan.isDirect,sourceDirectLockedBonusGuardAdmission(phase),bonus.locked>0 {
             sourceDirectLockedBonusContext=plan;sourceDirectLockedBonusPhase=phase;sourceDirectLockedBonusMath=sourceMathRandom
             guard sourceDirectLockedBonusGuardResume != nil,
@@ -3203,7 +3227,7 @@ extension NativeGameplayEngine {
         allocateWildLockedBonus(plan:plan,phase:phase,events:&events)
     }
     private func allocateWildLockedBonus(plan:NativeWildSpawnPhaseContext,phase:NativeWildSpawnPhaseOwner,events:inout [NativeGameplayEvent]) {
-        let bonus=NativeSpawnRules.wildBonus(archetype:plan.archetype,isLastMerge:false,isArcadeSimpleWild:phase.mode == .arcade,isFinalWildSnapshot:false,starOrbitCount:phase.orbitCount)
+        let bonus=NativeSpawnRules.wildBonus(archetype:plan.archetype,isLastMerge:false,isArcadeSimpleWild:phase.mode == .arcade,isFinalWildSnapshot:false,starOrbitCount:phase.orbitCount,mushroomBonusCount:phase.mushroomBonusCount)
         func current()->Bool {
             guard state.generation==plan.generation,state.revision==directWildSpawnRevision else{return false}
             if plan.isDirect,sourceDirectLockedBonusGuardAdmission(phase) {

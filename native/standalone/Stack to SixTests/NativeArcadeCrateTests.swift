@@ -26,8 +26,8 @@ final class NativeArcadeCrateTests: XCTestCase {
         func verifyCells(_ screen: NativeBackpackView, in viewport: UIView) throws {
             screen.layoutIfNeeded(); screen.grid.layoutIfNeeded()
             XCTAssertEqual(screen.grid.numberOfSections, 1)
-            XCTAssertEqual(screen.grid.numberOfItems(inSection: 0), 3)
-            for item in 0..<3 {
+            XCTAssertEqual(screen.grid.numberOfItems(inSection: 0), 4)
+            for item in 0..<4 {
                 let path = IndexPath(item: item, section: 0)
                 let cell = try XCTUnwrap(screen.grid.cellForItem(at: path))
                 let frame = cell.convert(cell.bounds, to: viewport)
@@ -72,7 +72,7 @@ final class NativeArcadeCrateTests: XCTestCase {
         let header=screen.collectionView(screen.grid,viewForSupplementaryElementOfKind:UICollectionView.elementKindSectionHeader,at:.init(item:0,section:0))
         func labels(_ view:UIView)->[UILabel] {view.subviews.flatMap{($0 as? UILabel).map{[$0]} ?? labels($0)}}
         let text=labels(header).compactMap(\.text).filter{!$0.isEmpty}
-        XCTAssertEqual(Set(text),Set(["Arcade","3 / 3"]))
+        XCTAssertEqual(Set(text),Set(["Arcade","4 / 4"]))
         XCTAssertEqual(screen.collectionView(screen.grid,layout:screen.grid.collectionViewLayout,referenceSizeForHeaderInSection:0).height,100)
         screen.useModalLayout()
         XCTAssertEqual(screen.collectionView(screen.grid,layout:screen.grid.collectionViewLayout,referenceSizeForHeaderInSection:0).height,0)
@@ -95,7 +95,7 @@ final class NativeArcadeCrateTests: XCTestCase {
         XCTAssertEqual(journey.heading.text, "Backpack")
         let crateScreen = try XCTUnwrap(crate.screen), journeyScreen = try XCTUnwrap(journey.screen)
         let path = IndexPath(item: 0, section: 0)
-        XCTAssertEqual(crateScreen.collectionView(crateScreen.grid, numberOfItemsInSection: 0), 3)
+        XCTAssertEqual(crateScreen.collectionView(crateScreen.grid, numberOfItemsInSection: 0), 4)
         // Each modal fits its own subtitle/available height; the cell size may differ.
         for screen in [crateScreen,journeyScreen] {
             let size=screen.collectionView(screen.grid,layout:screen.grid.collectionViewLayout,sizeForItemAt:path)
@@ -188,6 +188,7 @@ final class NativeArcadeCrateTests: XCTestCase {
         let crate = NativeBackpackView(frame: frame, assets: assets, title: "Box", arcadeCrate: true)
         let forest = NativeBackpackView(frame: frame, assets: assets)
         let items = NativeBackpackCatalog.arcade
+        XCTAssertEqual(items.map(\.id),["cubero","baloon","tnt","wild-magnet"])
         // Matching content in a normal Journey-style section isolates the
         // visual recipe from item identity and per-item artwork proportions.
         let section = NativeBackpackCatalog.Section(title: "Forest", dice: items, unlocked: Set(items.map(\.id)))
@@ -196,7 +197,7 @@ final class NativeArcadeCrateTests: XCTestCase {
         crate.layoutIfNeeded(); forest.layoutIfNeeded()
         crate.grid.layoutIfNeeded(); forest.grid.layoutIfNeeded()
         XCTAssertEqual(crate.numberOfSections(in: crate.grid), 1)
-        XCTAssertEqual(crate.collectionView(crate.grid, numberOfItemsInSection: 0), 3)
+        XCTAssertEqual(crate.collectionView(crate.grid, numberOfItemsInSection: 0), 4)
         XCTAssertTrue(crate.sections.isEmpty)
         XCTAssertEqual(crate.close.accessibilityLabel, "Close Box")
         XCTAssertTrue(crate.header.subviews.compactMap { $0 as? UILabel }.contains { $0.text == "Box" })

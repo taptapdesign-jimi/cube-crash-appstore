@@ -28,28 +28,36 @@ final class NativeJourneyUnlockAppearanceTests: XCTestCase {
             }
         }
     }
-    func testFirstEarnedDropIntroducesExactUnitDieAcrossRandomDrawsAndSaveResume() throws {
+    func testThirdEarnedDropGuaranteesExactUnitDieAcrossRandomDrawsAndSaveResume() throws {
         for board in 1...30 {
-            guard let expected=NativeJourneyContent.unlockReward(board:board) else{continue}
+            guard let expected=NativeJourneyContent.unlockReward(board:board),board != 6 else{continue}
             for roll in [0.0,0.2,0.5,0.999999] {
                 var state=NativeBoardFactory.make(mode:.journey,board:board,seed:18)
-                state.moves=49;state.wildMeter=0.9
+                state.wildSpawnCount=2;state.earnedJourneyDice=[]
                 let resumed=try JSONDecoder().decode(NativeBoardState.self,from:JSONEncoder().encode(state))
                 let choice=try XCTUnwrap(NativeWildRewardPolicy.choose(state:resumed,roll:roll,plainStarUnlocked:false,nextRoll:{XCTFail("No reroll");return 0}))
                 XCTAssertEqual(choice.archetype,expected.archetype);XCTAssertEqual(choice.variant,expected.variant)
-                state.wildSpawnCount=1
-                let afterDrop=try JSONDecoder().decode(NativeBoardState.self,from:JSONEncoder().encode(state))
-                XCTAssertEqual(afterDrop.wildSpawnCount,1)
-                XCTAssertEqual(NativeWildRewardPolicy.choose(state:afterDrop,roll:roll,plainStarUnlocked:false,nextRoll:{0}),NativeWildRewardPolicy.choose(state:state,roll:roll,plainStarUnlocked:false,nextRoll:{0}))
             }
         }
     }
     func testEarnedDropArrivalCommitsIntroductionOnceAndCancellationPreservesEligibility() throws {
         for board in 1...30 {
             guard let expected=NativeJourneyContent.unlockReward(board:board) else{continue}
+            let pool=NativeJourneyContent.rewardPool(board:board)
+            let id=try XCTUnwrap(NativeJourneyContent.introductionID(board:board))
+            let others=pool.filter{$0 != "mushroom"}
+            let roll:Double
+            if id == "mushroom" {roll=0}
+            else if pool.contains("mushroom") {
+                let index=try XCTUnwrap(others.firstIndex(of:id))
+                roll=0.05+0.95*(Double(index)+0.5)/Double(others.count)
+            } else {
+                let index=try XCTUnwrap(pool.firstIndex(of:id))
+                roll=(Double(index)+0.5)/Double(pool.count)
+            }
             for cancel in [false,true] {
                 let tiles=[NativeTile(id:"a",cell:.init(column:0,row:0),value:2),NativeTile(id:"b",cell:.init(column:1,row:0),value:3),NativeTile(id:"c",cell:.init(column:2,row:0),value:1)]
-                let engine=NativeGameplayEngine(state:.init(tiles:tiles,mode:.journey,board:board,wildMeter:1.25),recordedRandomChoices:[0,0,0],rewardPicker:{state,roll in
+                let engine=NativeGameplayEngine(state:.init(tiles:tiles,mode:.journey,board:board,wildMeter:1.25),recordedRandomChoices:[0,0,0],rewardPicker:{state,_ in
                     NativeWildRewardPolicy.choose(state:state,roll:roll,plainStarUnlocked:false,nextRoll:{0})
                 })
                 engine.stagedMeterDrops=true
@@ -78,9 +86,11 @@ final class NativeJourneyUnlockAppearanceTests: XCTestCase {
                 XCTAssertTrue(engine.meterDropReservations.isEmpty)
                 let resumed=try JSONDecoder().decode(NativeBoardState.self,from:JSONEncoder().encode(engine.state))
                 XCTAssertEqual(resumed.wildSpawnCount,cancel ? 0:1)
+                if board==6 {XCTAssertEqual(resumed.forestMushroomIntroduced,cancel ? nil:true)}
                 if cancel {
                     let next=NativeWildRewardPolicy.choose(state:resumed,roll:0.99,plainStarUnlocked:false,nextRoll:{0})
-                    XCTAssertEqual(next?.archetype,expected.archetype);XCTAssertEqual(next?.variant,expected.variant)
+                    let retryExpected=try XCTUnwrap(NativeJourneyContent.reward(board:board,wildSpawnCount:0,roll:0.99))
+                    XCTAssertEqual(next?.archetype,retryExpected.archetype);XCTAssertEqual(next?.variant,retryExpected.variant)
                 }
             }
         }

@@ -18,6 +18,8 @@ final class NativeBaloonFinalePresentation: NativeFinitePresentation {
     let assetReady: Bool
     private let resources: NativeBaloonResources
     private let origin: CGPoint, heroScale: CGFloat
+    let heroDirection: CGAffineTransform
+    let heroArtworkDirection: CGAffineTransform
     private let hero = UIView(), heroImage = CALayer(), heroNextImage = CALayer(), jet = CAShapeLayer()
     private var glyphs:NativeSplashGlyphField!
     private var images: [UIImageView] = [], balloons: [Balloon] = [], initial: [Balloon] = []
@@ -27,6 +29,21 @@ final class NativeBaloonFinalePresentation: NativeFinitePresentation {
     var flightSnapshot: [Balloon] { balloons }
     init(viewport: CGSize, origin: CGPoint, resources: NativeBaloonResources, artwork: JimiV9Artwork, random: () -> Double = { Double.random(in: 0..<1) }) {
         self.resources = resources; self.origin = origin
+        // Reorient the original SVG about its birth pivot. Mirror its facing
+        // on the left, then align its main outward leg toward the board centre.
+        let inward=CGPoint(x:viewport.width/2-origin.x,y:viewport.height/2-origin.y)
+        if hypot(inward.x,inward.y)<1 {heroDirection = .identity;heroArtworkDirection = .identity}
+        else {
+            let mirror:CGFloat=origin.x<viewport.width/2 ? -1:1
+            let leg=resources.translation.sample(0.6)
+            let angle=atan2(inward.y,inward.x)-atan2(CGFloat(leg[1]-440),CGFloat(leg[0]-405)*mirror)
+            heroDirection=CGAffineTransform(scaleX:mirror,y:1).concatenating(CGAffineTransform(rotationAngle:angle))
+            // The right-hand jet pushes local -X. Capture a separate artwork
+            // orientation: mirroring the left births and rotating that visible
+            // thrust axis directly inward. Travel curvature must not choose it.
+            let facingAngle=atan2(inward.y,inward.x)-(mirror<0 ? 0:CGFloat.pi)
+            heroArtworkDirection=CGAffineTransform(scaleX:mirror,y:1).concatenating(CGAffineTransform(rotationAngle:facingAngle))
+        }
         heroScale = min(0.52, viewport.width / 750)
         let art = Self.assets.map { artwork.image($0, densityAware: true) }
         assetReady = art.allSatisfy { $0 != nil } && resources.frames.count == 32
@@ -137,7 +154,7 @@ final class NativeBaloonFinalePresentation: NativeFinitePresentation {
         guard !hero.isHidden else { return }
         let rawUnit = min(1,time / heroDuration)
         let unit = rawUnit * rawUnit * (3 - 2 * rawUnit)
-        let t = resources.translation.sample(unit), r = resources.rotation.sample(unit), s = resources.scale.sample(unit)
+        let t = resources.translation.sample(unit), s = resources.scale.sample(unit)
         let keys=resources.cells.times
         var cellIndex=0
         while cellIndex+1<keys.count && keys[cellIndex+1]<=unit {cellIndex+=1}
@@ -156,8 +173,12 @@ final class NativeBaloonFinalePresentation: NativeFinitePresentation {
         heroNextImage.opacity=blend
         let fade=min(1,max(0,(rawUnit-0.90)/0.10))
         hero.alpha=1-CGFloat(fade*fade*(3-2*fade))
-        hero.layer.position = CGPoint(x: origin.x + CGFloat(t[0] - 405) * heroScale, y: origin.y + CGFloat(t[1] - 440) * heroScale)
-        hero.transform = CGAffineTransform(rotationAngle: CGFloat(r[0]) * .pi / 180).scaledBy(x: CGFloat(s[0]) * heroScale, y: CGFloat(s[1]) * heroScale)
+        let displacement=CGPoint(x:CGFloat(t[0]-405)*heroScale,y:CGFloat(t[1]-440)*heroScale).applying(heroDirection)
+        hero.layer.position = CGPoint(x:origin.x+displacement.x,y:origin.y+displacement.y)
+        // Keep the jet facing inward throughout the active SVG release. The
+        // authored global turns follow its original leftward flight and would
+        // turn the mirrored jet outward again; atlas deformation/scale stay exact.
+        hero.transform = CGAffineTransform(scaleX: CGFloat(s[0]) * heroScale, y: CGFloat(s[1]) * heroScale).concatenating(heroArtworkDirection)
         jet.isHidden = unit < 0.20219769 || unit >= 0.64859013
         jet.setAffineTransform(CGAffineTransform(translationX: sin(CGFloat(time / 0.0625) * .pi) * 9, y: 0))
     }

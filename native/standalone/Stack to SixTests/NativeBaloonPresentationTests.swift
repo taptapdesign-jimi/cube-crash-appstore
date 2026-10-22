@@ -26,6 +26,46 @@ import StackToSixGameplay
         XCTAssertEqual(hero.layer.anchorPoint.x, 140.0 / 320, accuracy: 0.000001)
         owner.dispose()
     }
+    func testOriginalSVGMirrorsBirthAndFlightTowardBoardInteriorAtEveryEdge() throws {
+        let resources=try NativeBaloonResources.load(root:root),artwork=JimiV9Artwork(resourceRoot:root)
+        let viewport=CGSize(width:390,height:844)
+        for x:CGFloat in [30,195,360] {for y:CGFloat in [100,422,740] {
+            let origin=CGPoint(x:x,y:y)
+            let owner=NativeBaloonFinalePresentation(viewport:viewport,origin:origin,resources:resources,artwork:artwork,random:{0.5})
+            defer{owner.dispose()}
+            owner.paint(seconds:0)
+            let hero=try XCTUnwrap(owner.subviews.last)
+            XCTAssertEqual(hero.layer.position,origin)
+            let inwardFacing=CGPoint(x:195-x,y:422-y)
+            if inwardFacing != .zero {
+                // Check the actual rendered SVG thrust, independently of its
+                // flight transform. Original right-hand jet pushes local -X.
+                let thrust=CGPoint(x:-1,y:0).applying(hero.transform)
+                XCTAssertGreaterThan(thrust.x*inwardFacing.x+thrust.y*inwardFacing.y,0)
+                XCTAssertEqual(hero.transform.a*hero.transform.d-hero.transform.b*hero.transform.c < 0,x<195)
+            }
+            // Inverse smoothstep of0.6, so the original main leg is sampled.
+            var lo=0.0,hi=1.0
+            for _ in 0..<40 {let mid=(lo+hi)/2;if mid*mid*(3-2*mid)<0.6 {lo=mid}else{hi=mid}}
+            owner.paint(seconds:resources.duration*1.22*(lo+hi)/2)
+            if inwardFacing != .zero {
+                let thrust=CGPoint(x:-1,y:0).applying(hero.transform)
+                XCTAssertGreaterThan(thrust.x*inwardFacing.x+thrust.y*inwardFacing.y,0)
+                if inwardFacing.x != 0 {XCTAssertGreaterThan(thrust.x*inwardFacing.x,0)}
+                if inwardFacing.y != 0 {XCTAssertGreaterThan(thrust.y*inwardFacing.y,0)}
+            }
+            let leg=resources.translation.sample(0.6)
+            let expected=CGPoint(x:CGFloat(leg[0]-405)*0.52,y:CGFloat(leg[1]-440)*0.52).applying(owner.heroDirection)
+            XCTAssertEqual(hero.layer.position.x,origin.x+expected.x,accuracy:0.001)
+            XCTAssertEqual(hero.layer.position.y,origin.y+expected.y,accuracy:0.001)
+            let inward=CGPoint(x:195-x,y:422-y)
+            if inward != .zero {
+                XCTAssertGreaterThan(expected.x*inward.x+expected.y*inward.y,0)
+                XCTAssertEqual(expected.x*inward.y-expected.y*inward.x,0,accuracy:0.01)
+            }
+            XCTAssertEqual(owner.flightSnapshot.count,24)
+        }}
+    }
     func testTwentyFourBalloonsHaveVariedFlightsCollideRiseTiltAndRetireOnce() throws {
         let resources = try NativeBaloonResources.load(root: root), artwork = JimiV9Artwork(resourceRoot: root)
         weak var weakOwner: NativeBaloonFinalePresentation?

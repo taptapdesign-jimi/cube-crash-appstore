@@ -53,7 +53,7 @@ public struct NativeProgressionState: Codable, Equatable, Sendable {
     public private(set) var unreadJourneyDice: Set<String> = []
     /// A landed eligible Journey die is the only producer; detail opening or a completed collection visit to its visible card consumes unread state.
     @discardableResult public mutating func announceJourneyDie(_ id:String,board:Int)->Bool {
-        guard NativeJourneyContent.rewardPool(board:board).contains(id),
+        guard NativeJourneyContent.worldRewardPool(board:board).contains(id),
               announcedJourneyDice.insert(id).inserted else{return false}
         unreadJourneyDice.insert(id);return true
     }

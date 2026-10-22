@@ -383,7 +383,11 @@ final class NativeResultController:UIViewController {
             for index in 0..<3 {
                 if clean {
                     let pose=NativeResultExitPlan.cleanStar(seconds:age,index:index,earned:earned,capturedScale:capturedStarScales.indices.contains(index) ? capturedStarScales[index]:1)
-                    apply(pose,to:filled[index]);empty[index].alpha=0
+                    apply(pose,to:filled[index])
+                    // Unearned grey stars are visible result components too.
+                    // Preserve their entry opacity while sharing the authored exit.
+                    let emptyPose=NativeResultExitPlan.cleanEmptyStar(seconds:age,index:index,earned:earned)
+                    apply(emptyPose,to:empty[index])
                 } else {apply(NativeResultExitPlan.failedEmptyStar(seconds:age,index:index),to:empty[index])}
             }
             if !clean,destinationPreparation != nil,destinationReady {view.alpha=CGFloat(plan.paperOpacity)}

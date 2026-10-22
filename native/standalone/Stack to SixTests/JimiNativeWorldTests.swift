@@ -44,6 +44,38 @@ final class JimiNativeWorldTests: XCTestCase {
     }
     private func settle(_ seconds: Double = 1.3) async throws { try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000)) }
 
+    func testEveryWorldEndsScrollAtLastArtworkWithSmallBottomClearance() async throws {
+        for width:CGFloat in [390,768] {for id in 1...3 {
+            let raw=try NativeWorldLayouts().snapshot(world:id,width:Double(width),height:844,generation:1,progression:NativeProgressionState())
+            let world=try XCTUnwrap(JimiNativeWorldView(snapshot:raw,assets:art))
+            world.frame=CGRect(x:0,y:0,width:width,height:844);world.layoutIfNeeded()
+            defer{world.cleanup()}
+            let scroll=try XCTUnwrap(world.subviews.compactMap{$0 as? UIScrollView}.first)
+            let exported=(raw["contentHeight"] as! Double)*Double(width/390)
+            if width==390 {XCTAssertLessThan(scroll.contentSize.height,exported,"Remove the phone export's excess trailing spacer")}
+            // Tablet export can already be shorter than its final cloud artwork;
+            // the actual artwork clearance below remains the authoritative check.
+            let bottom=max(0,scroll.contentSize.height-scroll.bounds.height)
+            scroll.contentOffset=CGPoint(x:0,y:bottom)
+            let ready=expectation(description:"last Unit prepared")
+            world.prepare{ready.fulfill()};await fulfillment(of:[ready],timeout:10)
+            world.layoutIfNeeded()
+            let lastID=id*10
+            let unit=try XCTUnwrap(descendant(world,"native.world.card.\(lastID)"))
+            // Include the independent depth planes used by Beach and Area55.
+            let content=try XCTUnwrap(unit.superview)
+            let peers=content.subviews.filter{$0.frame==unit.frame}
+            let visualBottom=peers.flatMap(\.subviews).map{$0.frame.maxY+unit.frame.minY}.max() ?? unit.frame.maxY
+            XCTAssertEqual(scroll.contentSize.height-visualBottom,24*width/390-40,accuracy:0.5,
+                           "Every World removes another40 viewport points from its previous trailing extent")
+            if width==390 {
+                world.alpha=1
+                let image=UIGraphicsImageRenderer(bounds:world.bounds).image{world.layer.render(in:$0.cgContext)}
+                try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/todo7-world-\(id)-bottom.png"))
+            }
+        }}
+    }
+
     func testMainArtworkOpposesFirstTwoUnitsOnOneContinuousClockInEveryWorld() async throws {
         guard !UIAccessibility.isReduceMotionEnabled else {throw XCTSkip("Authored motion")}
         for worldID in 1...3 {
@@ -171,13 +203,15 @@ final class JimiNativeWorldTests: XCTestCase {
         world.setActive(false);world.setActive(true)
         XCTAssertEqual(unit.layer.animation(forKey:"world.idle.y")?.timeOffset,paused.timeOffset,"Background/resume keeps the modal's paused phase")
         let returned=expectation(description:"Card returned");world.closeCard{returned.fulfill()}
+        XCTAssertEqual(unit.layer.animation(forKey:"world.idle.y")?.speed,1,"Return flight resumes the existing Unit wave immediately")
         for _ in 0..<2500 where !world.hasPendingCardLanding {try await settle(0.001)}
         XCTAssertTrue(world.hasPendingCardLanding,"Catch the return before its two-paint landing barrier")
+        let returningPose=try XCTUnwrap(unit.layer.presentation()).transform.m42
         world.setActive(false)
         try await settle(0.12)
         XCTAssertTrue(world.hasActiveCard)
         XCTAssertEqual(unit.layer.animation(forKey:"world.idle.y")?.speed,0,"Background during close keeps Unit waves paused")
-        XCTAssertEqual(try XCTUnwrap(unit.layer.presentation()).transform.m42,paintedPaused,accuracy:0.01)
+        XCTAssertEqual(try XCTUnwrap(unit.layer.presentation()).transform.m42,returningPose,accuracy:0.1)
         world.setActive(true)
         await fulfillment(of:[returned],timeout:5)
         XCTAssertFalse(world.hasActiveCard)

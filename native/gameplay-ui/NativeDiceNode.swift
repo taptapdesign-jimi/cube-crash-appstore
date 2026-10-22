@@ -904,8 +904,22 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         if model.visible,!isHidden {alpha=1;visual.alpha=1;face.alpha=1}
         return sourceClearedWildSixPresentationCurrent(model:model)
     }
+    /// The consumed six remains a reserved grid carrier until conversion, but
+    /// none of its old artwork/idle receipts may reveal it during respawn.
+    func hideSourceConsumedMagnetSix() {
+        guard !disposed,sourceWildStateCleared else{return}
+        retireSourceBottleIdle(restoring:false)
+        retireSourceHoneyIdle()
+        sourceWildSkinRevision &+= 1
+        sourceSkinHitArea=nil;sourceWildSkinTexture=nil
+        sourceSpecialIdle?.retire(self)
+        visual.isHidden=true;shadow.isHidden=true
+        isHidden=true;alpha=0;sourceEventMode="none"
+    }
     func hideSourceWildDestinationFinalChildren() {
         guard !disposed,sourceWildStateCleared else{return}
+        retireSourceBottleIdle(restoring:false)
+        sourceWildSkinRevision &+= 1
         depth=1;stack.removeAllChildren();pips.removeAllChildren();pips.isHidden=true
         visual.isHidden=true;shadow.isHidden=true
         sourceSpecialIdle?.retire(self)
@@ -1572,6 +1586,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         }
     }
     func retireSourceAnimationBindingsPreservingPaint() {
+        retireSourceBottleIdle(restoring:false)
         retireSourceHoneyIdle()
         retireSourceOpenedWildFrame()
         retireSourceWildShimmer()
@@ -2435,7 +2450,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         guard variant=="baloon" else{return}
         let active = !dragging && !sourceIdleDeferred && !sourceRegistryPending && !sourceWildStateCleared
         guard active else {face.position = .zero;face.zRotation=0;face.setScale(1);return}
-        let idleTime=elapsed*1.3
+        let idleTime=elapsed*(1.3*1.4*1.2)
         let pose=NativeBottleIdleMotion.sample(seconds:idleTime)
         let lift=sin(idleTime*2 * .pi/3)*4
         face.position=CGPoint(x:0,y:7-pose.y+lift);face.zRotation = -pose.rotation

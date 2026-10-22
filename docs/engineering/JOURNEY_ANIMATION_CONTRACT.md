@@ -58,7 +58,7 @@ Do not regress these rules:
   the whole flight, with no flip or `cardflip` image. At return-flight start it
   plays the existing single manual `flip soft.wav` whoosh, then uses the
   established landing and cleanup owners.
-- Automatic native post-game return flip leaves visible Unit/cloud/ambient motion running. Its depth9 carrier inherits the exact source Unit compositor wave clock; completion must not stop/restart the World idle owner. Modal card presentation keeps its existing pause policy.
+- Automatic native post-game return flip leaves visible Unit/cloud/ambient motion running. Its depth9 carrier inherits the exact source Unit compositor wave clock; completion must not stop/restart the World idle owner. Modal card presentation keeps its existing pause policy while open. On an accepted return flight, resume the exact paused Unit/cloud/ambient clocks immediately; sample the live Unit wave into the finite card flight so it lands without restarting or freezing the World idle owner. Background still pauses both owners.
 - Keep the automatic post-game return reminder attached to its exact live Unit while the World screen scrolls. Launch, outbound flip, return and landing impact must all inherit the Unit's live viewport displacement, and the reminder must scroll out of view with that Unit instead of floating above unrelated content. Scrolling never blocks or recentres the player. An accepted World X/back action atomically cancels both a visible reminder and any still-waiting reminder receipt before World-to-Hub exit paint, so no reminder layer may survive onto Journey Worlds.
 - Avoid old/new animation conflicts. Before adding a helper, search existing helpers/classes/listeners and remove or reuse stale paths.
 

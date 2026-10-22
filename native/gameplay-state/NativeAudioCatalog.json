@@ -2956,7 +2956,7 @@
       {
         "source": "assets/sound/logo transitions/smile.wav",
         "voice": "native-home-human",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -2976,7 +2976,7 @@
       {
         "source": "assets/sound/logo transitions/smile.wav",
         "voice": "native-home-human",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -2996,7 +2996,7 @@
       {
         "source": "assets/sound/logo transitions/smile.wav",
         "voice": "native-home-human",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3016,7 +3016,7 @@
       {
         "source": "assets/sound/SPEECH/lets-go.wav",
         "voice": "native-home-human",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3027,7 +3027,7 @@
       {
         "source": "assets/sound/SPEECH/come-here-look-at-this.wav",
         "voice": "native-home-human",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3038,7 +3038,7 @@
       {
         "source": "assets/sound/SPEECH/ready-for-an-adventure.wav",
         "voice": "native-home-human",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3107,7 +3107,7 @@
       {
         "source": "assets/sound/SPEECH/treasure.mp3",
         "voice": "native-home-human",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3118,7 +3118,7 @@
       {
         "source": "assets/sound/SPEECH/settings guy.mp3",
         "voice": "native-home-settings-human",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3162,7 +3162,7 @@
       {
         "source": "assets/sound/SPEECH/arcade-endurance.wav",
         "voice": "native-arcade-island-speech",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3173,7 +3173,7 @@
       {
         "source": "assets/sound/SPEECH/arcade-lucky-drop.wav",
         "voice": "native-arcade-island-speech",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3184,7 +3184,7 @@
       {
         "source": "assets/sound/SPEECH/arcade-slow-burn.wav",
         "voice": "native-arcade-island-speech",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3195,7 +3195,7 @@
       {
         "source": "assets/sound/SPEECH/my tea.mp3",
         "voice": "native-arcade-island-speech",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3206,7 +3206,7 @@
       {
         "source": "assets/sound/logo transitions/smile.wav",
         "voice": "arcade-stage-clear-character",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3250,7 +3250,7 @@
       {
         "source": "assets/sound/SPEECH/round won/good-job.wav",
         "voice": "native-round-won-speech",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3261,7 +3261,7 @@
       {
         "source": "assets/sound/SPEECH/round won/youre-on-your-way.wav",
         "voice": "native-round-won-speech",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3272,7 +3272,7 @@
       {
         "source": "assets/sound/SPEECH/round won/great-job.wav",
         "voice": "native-round-won-speech",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3283,7 +3283,7 @@
       {
         "source": "assets/sound/SPEECH/round won/you-got-it.wav",
         "voice": "native-round-won-speech",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3294,7 +3294,7 @@
       {
         "source": "assets/sound/SPEECH/round won/yay.wav",
         "voice": "native-round-won-speech",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3305,7 +3305,7 @@
       {
         "source": "assets/sound/SPEECH/round won/congratulations.wav",
         "voice": "native-round-won-speech",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3316,7 +3316,7 @@
       {
         "source": "assets/sound/SPEECH/round won/great-work.wav",
         "voice": "native-round-won-speech",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3327,7 +3327,7 @@
       {
         "source": "assets/sound/SPEECH/round won/wow-that-was-amazing.wav",
         "voice": "native-round-won-speech",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3338,7 +3338,7 @@
       {
         "source": "assets/sound/SPEECH/round won/whoa-so-cool.wav",
         "voice": "native-round-won-speech",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3349,7 +3349,7 @@
       {
         "source": "assets/sound/SPEECH/round won/super-awesome.wav",
         "voice": "native-round-won-speech",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3360,7 +3360,7 @@
       {
         "source": "assets/sound/SPEECH/world hub /forest-camping.wav",
         "voice": "native-world-hub-speech",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3371,7 +3371,7 @@
       {
         "source": "assets/sound/SPEECH/world hub /forest-calling.wav",
         "voice": "native-world-hub-speech",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3382,7 +3382,7 @@
       {
         "source": "assets/sound/SPEECH/world hub /forest-snacks-packed.wav",
         "voice": "native-world-hub-speech",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3393,7 +3393,7 @@
       {
         "source": "assets/sound/SPEECH/world hub /forest-marshmallow.wav",
         "voice": "native-world-hub-speech",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3404,7 +3404,7 @@
       {
         "source": "assets/sound/SPEECH/world hub /space-adventure.wav",
         "voice": "native-world-hub-speech",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3415,7 +3415,7 @@
       {
         "source": "assets/sound/SPEECH/world hub /space-spaceship.wav",
         "voice": "native-world-hub-speech",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3426,7 +3426,7 @@
       {
         "source": "assets/sound/SPEECH/world hub /space-in-peace.wav",
         "voice": "native-world-hub-speech",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3437,7 +3437,7 @@
       {
         "source": "assets/sound/SPEECH/world hub /space-blue-goo.wav",
         "voice": "native-world-hub-speech",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3448,7 +3448,7 @@
       {
         "source": "assets/sound/SPEECH/world hub /beach-splash.wav",
         "voice": "native-world-hub-speech",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3459,7 +3459,7 @@
       {
         "source": "assets/sound/SPEECH/world hub /beach-no-plans.wav",
         "voice": "native-world-hub-speech",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3470,7 +3470,7 @@
       {
         "source": "assets/sound/SPEECH/world hub /beach-soggy-biscuit.wav",
         "voice": "native-world-hub-speech",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3481,7 +3481,7 @@
       {
         "source": "assets/sound/SPEECH/world hub /beach-adventure.wav",
         "voice": "native-world-hub-speech",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3492,7 +3492,7 @@
       {
         "source": "assets/sound/SPEECH/world hub /whats wit hthe bees.mp3",
         "voice": "native-world-hub-speech",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3503,7 +3503,7 @@
       {
         "source": "assets/sound/SPEECH/settings-fix-fetch.wav",
         "voice": "native-home-settings-human",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3514,7 +3514,7 @@
       {
         "source": "assets/sound/SPEECH/settings-best-helper.wav",
         "voice": "native-home-settings-human",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3525,7 +3525,7 @@
       {
         "source": "assets/sound/SPEECH/collection-see-what-weve-got.wav",
         "voice": "native-collection-icon-human",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3536,7 +3536,7 @@
       {
         "source": "assets/sound/SPEECH/collection-little-look.wav",
         "voice": "native-collection-icon-human",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3547,7 +3547,7 @@
       {
         "source": "assets/sound/SPEECH/collection-what-in-here.wav",
         "voice": "native-collection-icon-human",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3558,7 +3558,7 @@
       {
         "source": "assets/sound/SPEECH/collection-every-adventure.wav",
         "voice": "native-collection-icon-human",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3569,7 +3569,7 @@
       {
         "source": "assets/sound/SPEECH/collection-packed-ready.wav",
         "voice": "native-collection-icon-human",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3580,7 +3580,7 @@
       {
         "source": "assets/sound/SPEECH/collection-goodies.wav",
         "voice": "native-collection-icon-human",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3591,7 +3591,7 @@
       {
         "source": "assets/sound/SPEECH/collection-little-helpers.wav",
         "voice": "native-collection-icon-human",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3602,7 +3602,7 @@
       {
         "source": "assets/sound/SPEECH/high-score-01.wav",
         "voice": "native-score-combo-human",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3613,7 +3613,7 @@
       {
         "source": "assets/sound/SPEECH/high-score-02.wav",
         "voice": "native-score-combo-human",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3624,7 +3624,7 @@
       {
         "source": "assets/sound/SPEECH/high-score-03.wav",
         "voice": "native-score-combo-human",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3635,7 +3635,7 @@
       {
         "source": "assets/sound/SPEECH/combo-01.wav",
         "voice": "native-score-combo-human",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3646,7 +3646,7 @@
       {
         "source": "assets/sound/SPEECH/combo-02.wav",
         "voice": "native-score-combo-human",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3657,7 +3657,7 @@
       {
         "source": "assets/sound/SPEECH/combo-03.wav",
         "voice": "native-score-combo-human",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3668,7 +3668,7 @@
       {
         "source": "assets/sound/SPEECH/arcade-01.wav",
         "voice": "native-arcade-home-human",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3679,7 +3679,7 @@
       {
         "source": "assets/sound/SPEECH/arcade-02.wav",
         "voice": "native-arcade-home-human",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3690,7 +3690,7 @@
       {
         "source": "assets/sound/SPEECH/arcade-03.wav",
         "voice": "native-arcade-home-human",
-        "gain": 0.42,
+        "gain": 0.72,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,

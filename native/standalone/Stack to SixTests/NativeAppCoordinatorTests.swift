@@ -328,6 +328,34 @@ final class NativeAppCoordinatorTests:XCTestCase {
         controller.backpackView?.close.sendActions(for:.touchUpInside)
         try await waitFor{controller.route == .hub && controller.hub.scrollView.isUserInteractionEnabled}
     }
+    func testPreparedWorldReturnReadsLatestUnreadDiscoveries() async throws {
+        for (worldID,board,id) in [(1,6,"mushroom"),(1,7,"barell"),(2,12,"fish"),(3,23,"spaceship")] {
+            let layouts=try NativeWorldLayouts()
+            var progression=NativeProgressionState();progression.firstPlayTutorialComplete=true
+            var exit:(()->Void)?
+            var services=NativeAppServices(settings:{[:]},setPreference:{_,_ in},worldSnapshot:{world,size,generation in
+                try layouts.snapshot(world:world,width:size.width,height:size.height,generation:generation,progression:progression)
+            },markViewed:{_ in},makeGameplay:{_,onExit in exit=onExit;return UIViewController()},flush:{})
+            services.journeyProgression={progression}
+            services.prepareReturnWorld={_,done in done()}
+            let controller=NativeAppController(resourceRoot:resources(),services:services)
+            let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=controller;window.makeKeyAndVisible()
+            defer{controller.dispose();window.isHidden=true}
+            controller.navigate(.world(worldID),interrupt:true)
+            try await waitFor{controller.world?.isReadyForInput==true}
+            let retained=try XCTUnwrap(controller.world)
+            XCTAssertTrue(retained.backpackAlert.isHidden)
+            retained.onRequest?("play",(worldID-1)*10+1)
+            try await waitFor{controller.route == .gameplay}
+            var ready=false;controller.prepareGameplayReturn{ready=$0}
+            try await waitFor{ready}
+            XCTAssertTrue(progression.announceJourneyDie(id,board:board))
+            try XCTUnwrap(exit)()
+            try await waitFor{controller.route == .world(worldID) && controller.world?.isReadyForInput==true}
+            XCTAssertTrue(controller.world === retained)
+            XCTAssertFalse(retained.backpackAlert.isHidden,id)
+        }
+    }
     private func worldEntryFixture(prepare:@escaping(JimiNativeWorldView,@escaping()->Void)->Void)throws->(NativeAppController,UIWindow){
         let layouts=try NativeWorldLayouts()
         var progression=NativeProgressionState();progression.firstPlayTutorialComplete=true

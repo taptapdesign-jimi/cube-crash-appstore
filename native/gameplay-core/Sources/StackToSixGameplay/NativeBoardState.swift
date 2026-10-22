@@ -94,6 +94,10 @@ public struct NativeBoardState: Equatable, Codable, Sendable {
     public var wildMeter: Double
     public var luckyDropUsed: Bool = false
     public var wildSpawnCount: Int
+    /// Completed Journey drops in this run; nil preserves legacy first-drop guarantees.
+    public var earnedJourneyDice: Set<String>? = nil
+    /// Per-run Unit6 introduction receipt. Missing in legacy saves is valid.
+    public var forestMushroomIntroduced: Bool? = nil
     /// Last committed Wild/Special merge-six presentation world; ordinary merges retain it.
     public var lastSpecialMergeWorld: String?
     public var lastWildDropType: NativeWildArchetype?
@@ -240,7 +244,7 @@ extension NativeTile {
     }
 }
 extension NativeBoardState {
-    private enum CodingKeys: String, CodingKey { case lastSpecialMergeWorld,luckyDropUsed,columns,rows,tiles,mode,board,stage,generation,revision,moves,maxMoves,score,starsCount,bestScore,maxStackDepth,longestCombo,cubesCracked,combo,earnedComboBonus,wildMeter,wildSpawnCount,lastWildDropType,wildDropTypeStreak,rngState,terminal,tutorial,sourceDetachedGridTileIDs,arcadeVariant }
+    private enum CodingKeys: String, CodingKey { case earnedJourneyDice,forestMushroomIntroduced,lastSpecialMergeWorld,luckyDropUsed,columns,rows,tiles,mode,board,stage,generation,revision,moves,maxMoves,score,starsCount,bestScore,maxStackDepth,longestCombo,cubesCracked,combo,earnedComboBonus,wildMeter,wildSpawnCount,lastWildDropType,wildDropTypeStreak,rngState,terminal,tutorial,sourceDetachedGridTileIDs,arcadeVariant }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy:CodingKeys.self)
         self.init(columns:try c.decode(Int.self,forKey:.columns),rows:try c.decode(Int.self,forKey:.rows),tiles:try c.decode([NativeTile].self,forKey:.tiles),
@@ -255,6 +259,8 @@ extension NativeBoardState {
             terminal:try c.decodeIfPresent(NativeResolution.self,forKey:.terminal),tutorial:try c.decodeIfPresent(NativeTutorialState.self,forKey:.tutorial),sourceDetachedGridTileIDs:try c.decodeIfPresent(Set<String>.self,forKey:.sourceDetachedGridTileIDs),arcadeVariant:try c.decodeIfPresent(NativeArcadeVariant.self,forKey:.arcadeVariant))
         lastSpecialMergeWorld = try c.decodeIfPresent(String.self,forKey:.lastSpecialMergeWorld)
         luckyDropUsed = try c.decodeIfPresent(Bool.self,forKey:.luckyDropUsed) ?? false
+        earnedJourneyDice = try c.decodeIfPresent(Set<String>.self,forKey:.earnedJourneyDice)
+        forestMushroomIntroduced = try c.decodeIfPresent(Bool.self,forKey:.forestMushroomIntroduced)
     }
 }
 

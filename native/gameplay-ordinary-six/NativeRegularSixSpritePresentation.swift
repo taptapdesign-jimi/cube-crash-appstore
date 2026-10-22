@@ -5,6 +5,7 @@ import SpriteKit
 /// its clock. Core and Scene retain absorb, spawn, input and endgame ownership.
 @MainActor
 final class NativeRegularSixSpritePresentation:SKNode {
+    static let presentationDuration:TimeInterval=1.0
     enum AdmissionError:Error {case missingSourceFont,missingSourceSlot}
     struct ShakeReceipt {let canvas,indicator,bottomDecor:CGPoint}
     var onShake:((ShakeReceipt,UInt64)->Void)?
@@ -98,7 +99,7 @@ final class NativeRegularSixSpritePresentation:SKNode {
             return
         }
         paint(seconds:0)
-        let paintAction=SKAction.customAction(withDuration:1){[weak self] _,time in MainActor.assumeIsolated {self?.paint(seconds:Double(time))}}
+        let paintAction=SKAction.customAction(withDuration:Self.presentationDuration){[weak self] _,time in MainActor.assumeIsolated {self?.paint(seconds:Double(time))}}
         run(.sequence([paintAction,.run{[weak self] in MainActor.assumeIsolated{self?.finish(true)}}]),withKey:Self.clockKey)
         isPaused=suspended
     }

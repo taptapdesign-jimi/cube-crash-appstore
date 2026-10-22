@@ -23,9 +23,9 @@ import StackToSixGameplay
             service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0},sourceFrameTransportEnabled:sourceFrameTransportEnabled)
             scene=SKScene(size:.init(width:390,height:844));view=SKView(frame:.init(x:0,y:0,width:390,height:844));view.ignoresSiblingOrder=false;view.presentScene(scene);view.isPaused=true
         }
-        func mount(_ prepared:NativeSourceHUDStarTexturePreparation.Prepared)->Bool {
+        func mount(_ prepared:NativeSourceHUDStarTexturePreparation.Prepared,finalMergeDuration:Double?=nil)->Bool {
             owner=NativeSourceHUDStarPresentation(stage:scene,viewportHeight:844,texture:prepared.texture,pixelSize:prepared.pixelSize,selectedAssetsReady:prepared.current,service:service,timeouts:timeouts,engine:engine,bindings:.init(current:{[weak self] in self?.current==true},random:{[unowned self] in self.seed=self.seed &* 1664525 &+ 1013904223;return Double(self.seed)/4294967296},acquireCadence:{[unowned self] in self.acquires += 1;return{self.releases += 1}},onArrival:{[unowned self] result,size in XCTAssertTrue(result.accepted);self.arrivalSizes.append(size);self.arrivals += 1},onRetired:{[unowned self] _ in self.retired += 1},onTntCoinLaunch:{[unowned self] in self.launches += 1}))
-            return owner?.start(receiptIDs:engine.pendingHUDStars.map(\.id),screenOrigin:.init(x:195,y:430),hudTarget:.init(x:37,y:76))==true
+            return owner?.start(receiptIDs:engine.pendingHUDStars.map(\.id),screenOrigin:.init(x:195,y:430),hudTarget:.init(x:37,y:76),finalMergeDuration:finalMergeDuration)==true
         }
         func deliver(_ wall:Double){self.wall=wall;service.deliver(wallMilliseconds:wall)}
         func dispose(){owner?.dispose();owner=nil;timeouts.cancelAll();service.dispose();view.presentScene(nil)}
@@ -37,26 +37,21 @@ import StackToSixGameplay
         await fulfillment(of:[ready],timeout:20)
         return try XCTUnwrap(receipt)
     }
-    func testFinalAndNonfinalMountedCoinClocksDifferExactlyThreefoldAndCreditOnce() async throws {
+    func testFinalMountedCoinsRemainVisibleThroughAnimationAndCreditOnce() async throws {
         let textures=NativeSourceHUDStarTexturePreparation(),prepared=try await prepare(textures)
-        let normal=Fixture(finalMerge:false),fast=Fixture(finalMerge:true)
-        defer{normal.dispose();fast.dispose();textures.dispose()}
-        XCTAssertTrue(normal.engine.pendingHUDStars.allSatisfy{!$0.isFinalMerge})
-        XCTAssertTrue(fast.engine.pendingHUDStars.allSatisfy(\.isFinalMerge))
-        XCTAssertTrue(normal.mount(prepared));XCTAssertTrue(fast.mount(prepared))
-        let normalScore=normal.engine.state.score,fastScore=fast.engine.state.score
-        // Source clock uses integer Date.now milliseconds; both deliveries stay integral.
-        for ms in stride(from:0.0,through:3990,by:30) {
-            normal.deliver(ms);fast.deliver(ms/3)
-            XCTAssertEqual(normal.arrivals,fast.arrivals)
-            let a=normal.owner?.mountedContainer?.children ?? [],b=fast.owner?.mountedContainer?.children ?? []
-            XCTAssertEqual(a.count,b.count)
-            for (x,y) in zip(a,b) {XCTAssertEqual(x.position.x,y.position.x,accuracy:0.01);XCTAssertEqual(x.position.y,y.position.y,accuracy:0.01)}
-        }
-        XCTAssertEqual(fast.arrivals,3);XCTAssertEqual(normal.arrivals,3)
-        fast.deliver(5000);normal.deliver(5000)
-        XCTAssertEqual(fast.engine.state.score,fastScore+300);XCTAssertEqual(normal.engine.state.score,normalScore+300)
-        XCTAssertTrue(fast.engine.pendingHUDStars.isEmpty)
+        let final=Fixture(finalMerge:true)
+        defer{final.dispose();textures.dispose()}
+        XCTAssertTrue(final.engine.pendingHUDStars.allSatisfy(\.isFinalMerge))
+        XCTAssertTrue(final.mount(prepared,finalMergeDuration:5.4))
+        let score=final.engine.state.score
+        for ms in stride(from:0.0,through:5300,by:10){final.deliver(ms)}
+        XCTAssertGreaterThan(final.owner?.mountedContainer?.children.count ?? 0,0)
+        XCTAssertFalse(final.engine.pendingHUDStars.isEmpty)
+        for ms in stride(from:5310.0,through:5500,by:10){final.deliver(ms)}
+        XCTAssertEqual(final.arrivals,3)
+        XCTAssertEqual(final.engine.state.score,score+300)
+        XCTAssertTrue(final.engine.pendingHUDStars.isEmpty)
+        final.deliver(8000);XCTAssertEqual(final.arrivals,3)
     }
     func testArrivalCarriesActualFlightSizeBeforeCommonTrophyShrink() async throws {
         let textures=NativeSourceHUDStarTexturePreparation(),prepared=try await prepare(textures),f=Fixture()

@@ -116,13 +116,18 @@ maximum line heights, no extra paragraph spacing and `NativeTextPalette.subtitle
 (current #BD9788). Retain each owner’s alignment, wrapping, font size and measured
 content layout. Fullscreen reward/round/title typography remains separately owned.
 
-Native Journey introduction policy (user correction 2026-10-19): fresh Play and
-Restart open ordinary dice only. On an exact introduction Unit, the first earned
-Backpack drop always selects its newly introduced die; later drops and Units
-without introductions use the cumulative same-World random pool. Existing saved
-wildSpawnCount owns eligibility across Continue; no extra save latch. Existing
-saved Wild dice, Arcade and scripted onboarding remain intact. See
-GAMEPLAY_KING_CONTRACT.md for the current contract.
+Native Journey reward policy (user correction 2026-10-22): fresh Play and
+Restart open ordinary dice only. Each exact introduction Unit guarantees its
+assigned die within its first three earned Special drops, on first play and
+replay; first two remain random, third supplies it if still missing. Units
+without a new introduction retain random selection. Same-World landed Backpack
+discoveries expand the cumulative pool even when replaying earlier Units; never
+cross Worlds. Per-run earnedJourneyDice commits only on completed drops and
+survives Continue/consumption; cancelled drops consume neither count nor guarantee.
+Legacy active saves retain their earlier first-drop guarantee. Mushroom keeps
+its separate existing Unit6 introduction and5percent rarity rules. No extension
+of a level ending before three drops. Arcade and scripted tutorial stay separate.
+See GAMEPLAY_KING_CONTRACT.md for the current contract.
 
 ## Current launch/preloader design
 

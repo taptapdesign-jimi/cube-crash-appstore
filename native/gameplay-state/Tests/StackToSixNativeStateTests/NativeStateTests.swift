@@ -190,13 +190,18 @@ final class NativeStateTests: XCTestCase {
             XCTAssertEqual(resumed.score,run.score);XCTAssertEqual(resumed.moves,run.moves);XCTAssertEqual(resumed.wildMeter,run.wildMeter)
         }
     }
-    func testJourneyLaterDropsAndNonUnlockUnitsRemainUniformWithoutHistoryOverride() throws {
+    func testJourneyLaterDropsRetainEqualNonMushroomWeightsWithoutHistoryOverride() throws {
         for board in 1...30 {
             let pool = NativeJourneyContent.rewardPool(board:board)
             for (index,name) in pool.enumerated() {
-                let roll = (Double(index)+0.5)/Double(pool.count)
+                let roll:Double
+                if pool.contains("mushroom") {
+                    let others=pool.filter{$0 != "mushroom"}
+                    roll=name == "mushroom" ? 0.025:0.05+0.95*(Double(try XCTUnwrap(others.firstIndex(of:name)))+0.5)/Double(others.count)
+                } else {roll=(Double(index)+0.5)/Double(pool.count)}
                 for count in [0,1,2,8] where count > 0 || NativeJourneyContent.unlockReward(board:board) == nil {for previous in NativeWildArchetype.allCases {
-                    let state = NativeBoardState(tiles:[],mode:.journey,board:board,wildSpawnCount:count,lastWildDropType:previous,wildDropTypeStreak:8)
+                    var state = NativeBoardState(tiles:[],mode:.journey,board:board,wildSpawnCount:count,lastWildDropType:previous,wildDropTypeStreak:8)
+                    if board==6 {state.forestMushroomIntroduced=true}
                     let restored = try JSONDecoder().decode(NativeBoardState.self,from:JSONEncoder().encode(state))
                     let choice = NativeWildRewardPolicy.choose(state:restored,roll:roll,plainStarUnlocked:false,nextRoll:{XCTFail("Unexpected override draw");return 0})
                     let expected:NativeWildArchetype? = name == "wild-star" ? .star : name == "wild-juice" ? .juice : name == "tnt" ? .tnt : NativeSpecialDiceRegistry.variants[name]?.archetype

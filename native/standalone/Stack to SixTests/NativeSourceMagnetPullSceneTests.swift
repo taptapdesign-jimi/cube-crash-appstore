@@ -218,6 +218,22 @@ import StackToSixGameplay
    XCTAssertTrue(f.failures.isEmpty,f.failures.joined(separator:","))
   }
  }
+ func testBottleWithActualIdleLeavesNoBottleAfterMergeAndRepeatedSynchronize()async throws {
+  let f=try await makeFixture(variant:"bottle",pulledMagnetVariant:"bottle",includePulledMagnet:true)
+  defer{f.dispose()};try await f.prepare()
+  try f.contact()
+  let plan=try XCTUnwrap(f.scene.engine.pendingSpecial)
+  let destination=try XCTUnwrap(f.scene.sourceNativeTileNode(plan.destination.id))
+  await awaitCondition("Bottle six is consumed",timeout:8){f.scene.engine.pendingSourceMagnetLazyRespawn != nil}
+  XCTAssertTrue(destination.isHidden);XCTAssertEqual(destination.alpha,0)
+  for _ in 0..<3 {f.scene.synchronize();XCTAssertTrue(destination.isHidden);XCTAssertEqual(destination.alpha,0)}
+  await awaitCondition("Bottle commits ordinary survivor",timeout:10){f.events.contains{$0.kind == .specialBoardCommitted}}
+  XCTAssertEqual(destination.kind,"regular");XCTAssertNil(destination.variant)
+  XCTAssertFalse(destination.hasSourceBottleIdle)
+  XCTAssertNil(f.scene.sourceNativeTileNode(plan.source.id))
+  for _ in 0..<5 {f.scene.synchronize();try? await Task.sleep(for:.milliseconds(30));XCTAssertNil(destination.variant);XCTAssertFalse(destination.hasSourceBottleIdle)}
+  XCTAssertTrue(f.failures.isEmpty,f.failures.joined(separator:","))
+ }
  func testActualSourcePullUsesLivePaintedOrderAndSameDestinationNextMove()async throws {
   let f=try await makeFixture();defer{f.dispose()};try await f.prepare()
   let destination=try XCTUnwrap(f.scene.sourceNativeTileNode("d"))

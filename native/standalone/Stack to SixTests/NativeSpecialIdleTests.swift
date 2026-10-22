@@ -37,7 +37,7 @@ final class NativeSpecialIdleTests:XCTestCase {
             let die=NativeDiceNode(id:"baloon-breathe",value:6,kind:"wild-juice",variant:"baloon",depth:1,locked:false,textures:textures)
             released=die
             let art=try XCTUnwrap(die.visual.children.compactMap{$0 as? SKSpriteNode}.first)
-            die.tick(0.75/1.3,suspended:false,viewportCenter:195)
+            die.tick(0.75/(1.3*1.4*1.2),suspended:false,viewportCenter:195)
             XCTAssertEqual(art.yScale,1.03042,accuracy:1e-6)
             let fasterPose=NativeBottleIdleMotion.sample(seconds:0.75)
             XCTAssertEqual(art.position.y,11-fasterPose.y,accuracy:1e-6)
@@ -53,6 +53,29 @@ final class NativeSpecialIdleTests:XCTestCase {
             let held=art.yScale;die.tick(2,suspended:false,viewportCenter:195);XCTAssertEqual(art.yScale,held)
         }
         XCTAssertNil(released)
+    }
+    func testSelectedBoxBaloonUsesSameFasterIdlePose() async throws {
+        let item=try XCTUnwrap(NativeBackpackCatalog.arcade.first{$0.id=="baloon"})
+        let preview=NativeBackpackDicePreview(die:item,root:root)
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible()
+        host.view.addSubview(preview)
+        defer{preview.dispose();window.isHidden=true;window.rootViewController=nil}
+        preview.frame=CGRect(x:0,y:0,width:342,height:380)
+        preview.artworkFrame=CGRect(x:0,y:48,width:342,height:240)
+        let deadline=Date().addingTimeInterval(8)
+        while !preview.ready,Date()<deadline {try await Task.sleep(for:.milliseconds(20))}
+        XCTAssertTrue(preview.ready)
+        preview.layoutArtwork();preview.setActive(true);preview.isPaused=true
+        let node=try XCTUnwrap(preview.dieNode)
+        let art=try XCTUnwrap(node.visual.children.compactMap{$0 as? SKSpriteNode}.first)
+        node.tick(0.75/(1.3*1.4*1.2),suspended:false,viewportCenter:171)
+        node.paintCollectionPreview(seconds:0.75/(1.3*1.4*1.2))
+        let pose=NativeBottleIdleMotion.sample(seconds:0.75)
+        XCTAssertEqual(art.yScale,1.03042,accuracy:1e-6)
+        XCTAssertEqual(art.xScale*art.yScale,1,accuracy:1e-6)
+        XCTAssertEqual(art.position.y,11-pose.y,accuracy:1e-6)
+        XCTAssertEqual(art.zRotation,-pose.rotation,accuracy:1e-6)
     }
     func testBottleRetainsExecutedSourceRepeatGapAndGroundedPivot() throws {
         XCTAssertEqual(NativeBottleIdleMotion.duration,7.32)

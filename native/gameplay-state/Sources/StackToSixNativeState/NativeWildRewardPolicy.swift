@@ -2,12 +2,16 @@ import StackToSixGameplay
 
 /// One random draw per committed reward; count, round and history never force Arcade identity.
 public enum NativeWildRewardPolicy {
+    public static let mushroomProbability=0.05
     // Explicit user trial2026-10-21. Keep enabled until the user requests removal.
     // First special drop of a NEW Endurance run only; no save/schema mutation.
     static let enduranceBaloonFirstDropTrialEnabled = true
-    public static func choose(state:NativeBoardState,roll:Double,plainStarUnlocked:Bool,nextRoll:()->Double) -> NativeWildRewardChoice? {
+    public static func choose(state:NativeBoardState,roll:Double,plainStarUnlocked:Bool,mushroomUnlocked:Bool=false,unlockedJourneyDice:Set<String>=[],nextRoll:()->Double) -> NativeWildRewardChoice? {
         if state.mode == .journey {
-            guard let reward=NativeJourneyContent.reward(board:state.board,wildSpawnCount:state.wildSpawnCount,roll:roll,previous:state.lastWildDropType) else {return nil}
+            // Before this marker existed, Unit6's very first committed drop
+            // was always Mushroom. Preserve that evidence in legacy saves.
+            let introduced=(state.forestMushroomIntroduced ?? (state.wildSpawnCount>0)) || state.lastWildDropType == .juice || state.tiles.contains{$0.variant=="mushroom"}
+            guard let reward=NativeJourneyContent.reward(board:state.board,wildSpawnCount:state.wildSpawnCount,roll:roll,previous:state.lastWildDropType,mushroomIntroduced:introduced,unlockedDice:unlockedJourneyDice,introducedDice:state.earnedJourneyDice) else {return nil}
             return NativeWildRewardChoice(reward.archetype,variant:reward.variant)
         }
         if enduranceBaloonFirstDropTrialEnabled,state.effectiveArcadeVariant == .endurance,
@@ -19,7 +23,13 @@ public enum NativeWildRewardPolicy {
         if state.effectiveArcadeVariant != .pureDice {
             pool += [.init(.magnet,variant:"bottle"),.init(.star,variant:"cubero"),.init(.tnt,variant:"barell")]
         }
-        return pool[min(pool.count-1,Int(bound(roll)*Double(pool.count)))]
+        let draw=bound(roll)
+        if mushroomUnlocked,state.effectiveArcadeVariant != .pureDice {
+            if draw < mushroomProbability {return .init(.juice,variant:"mushroom")}
+            let remaining=(draw-mushroomProbability)/(1-mushroomProbability)
+            return pool[min(pool.count-1,Int(remaining*Double(pool.count)))]
+        }
+        return pool[min(pool.count-1,Int(draw*Double(pool.count)))]
     }
     private static func bound(_ value:Double)->Double {value.isFinite ? max(0,min(1-Double.ulpOfOne,value)) : 0}
 }

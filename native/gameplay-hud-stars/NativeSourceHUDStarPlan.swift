@@ -97,11 +97,11 @@ nonisolated struct NativeSourceHUDStarPlan {
         return Self(points:burstPoints,delay:launch,duration:acceleratedDuration,size:size*1.20,
             rotation:rotation,textureWidth:textureWidth,launchPower:power,originalMotionDuration:flight,accelerationStart:accelerationStart)
     }
-    /// Compress every flight clock, including launch stagger and magnetic pull.
-    /// Geometry, captured randomness, reward identity and ordinary speed are unchanged.
-    func finalMergeCoin()->Self {
-        Self(points:points,delay:delay/3,duration:duration/3,size:size,rotation:rotation,textureWidth:textureWidth,
-             launchPower:launchPower,originalMotionDuration:originalMotionDuration/3,accelerationStart:accelerationStart/3)
+    /// Rescale the complete batch clock to its actual finale lifetime.
+    /// The caller supplies one common ratio, preserving stagger and trajectories.
+    func finalMergeCoin(timeScale:Double)->Self {
+        Self(points:points,delay:delay*timeScale,duration:duration*timeScale,size:size,rotation:rotation,textureWidth:textureWidth,
+             launchPower:launchPower,originalMotionDuration:originalMotionDuration*timeScale,accelerationStart:accelerationStart*timeScale)
     }
     static func round7(_ x:Double)->Double {(x*1e7).rounded()/1e7}
     static func round6(_ x:Double)->Double {(x*1e6).rounded()/1e6}

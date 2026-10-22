@@ -20,8 +20,43 @@ final class NativeWildMergeSixRootTests:XCTestCase {
         }
         boardScaleAudit?()
     }
+    func testBottleBothDirectionsRetireArtworkInNormalAndFinalActualAppFlows()async throws {
+        for final in [false,true] {for reverse in [false,true] {
+            try await exercise(archetype:.magnet,variant:"bottle",reverse:reverse,disposeDuringMain:false,moves:49,finalOnly:final)
+        }}
+    }
     func testBeachBallMergeKeepsUnrelatedBoardDiceFullSize()async throws {
         try await exercise(archetype:.tnt,variant:"beach-ball",reverse:false,disposeDuringMain:false,moves:49,verifyBoardScale:true)
+    }
+    func testMushroomFourToSixBonusDiceSettleInActualJourneyAndArcadeSourceRoots()async throws {
+        for arcade in [false,true] {for reverse in [false,true] {
+            try await exercise(archetype:.juice,variant:"mushroom",reverse:reverse,disposeDuringMain:false,moves:49,arcadeRun:arcade)
+        }}
+    }
+    func testMushroomQueuedClosedDiceStayInvisibleBeforeTheirOwnPop()async throws {
+        let sparse=NativeBoardState(tiles:[
+            .init(id:"m",cell:.init(column:0,row:0),value:6,archetype:.juice,variant:"mushroom"),
+            .init(id:"d",cell:.init(column:1,row:0),value:2),
+            .init(id:"other",cell:.init(column:4,row:8),value:3)
+        ],mode:.journey,board:6,generation:9,moves:49)
+        try await exercise(archetype:.juice,variant:"mushroom",reverse:false,disposeDuringMain:false,moves:49,capturedBoard:sparse,verifyQueuedBonus:true)
+    }
+    func testEveryTntAndStarQueuedClosedPopUsesTheSameHiddenWaitingPose()async throws {
+        let choices:[(NativeWildArchetype,String?)]=[(.tnt,nil),(.tnt,"barell"),(.tnt,"flower"),(.tnt,"laser-gun"),(.tnt,"beach-ball"),(.star,nil)]
+        for (archetype,variant) in choices {
+            let sparse=NativeBoardState(tiles:[
+                .init(id:"wild",cell:.init(column:0,row:0),value:6,archetype:archetype,variant:variant),
+                .init(id:"d",cell:.init(column:1,row:0),value:2),
+                .init(id:"other",cell:.init(column:4,row:8),value:3)
+            ],mode:.journey,board:7,generation:9,moves:49)
+            // Plain TNT's actual Arcade route has no closed bonus batch.
+            // Check its real replacement path; all other rows audit the queue.
+            let plainTnt=archetype == .tnt && variant == nil
+            try await exercise(archetype:archetype,variant:variant,reverse:false,disposeDuringMain:false,moves:49,capturedBoard:sparse,arcadeRun:plainTnt,verifyQueuedBonus:!plainTnt)
+        }
+    }
+    func testBarrelImmediateImpactsSettleInActualSourceRoot()async throws {
+        try await exercise(archetype:.tnt,variant:"barell",reverse:false,disposeDuringMain:false,moves:49)
     }
     func testAllArchetypesAndVariantsKeepUnrelatedBoardDiceFullSizeBothDirections()async throws {
         let choices=NativeWildArchetype.allCases.map{($0,Optional<String>.none)} +
@@ -115,8 +150,8 @@ final class NativeWildMergeSixRootTests:XCTestCase {
     }
     func testFinalOnlyStarSourceAndDestinationCompleteInsteadOfReturningToMenu()async throws {
         for count in [0,3] {
-            try await exercise(archetype:.star,variant:nil,reverse:false,disposeDuringMain:false,finalOnly:true,starCount:count)
-            try await exercise(archetype:.star,variant:nil,reverse:true,disposeDuringMain:false,finalOnly:true,starCount:count)
+            try await exercise(archetype:.star,variant:nil,reverse:false,disposeDuringMain:false,moves:49,finalOnly:true,starCount:count)
+            try await exercise(archetype:.star,variant:nil,reverse:true,disposeDuringMain:false,moves:49,finalOnly:true,starCount:count)
         }
     }
     func testZeroOrbitStarDestinationNonFinalRetainsGameplayAndContinues()async throws {
@@ -172,7 +207,7 @@ final class NativeWildMergeSixRootTests:XCTestCase {
     func testMagnetDestinationPullsVisibleKantaAndCompletesItsActualRestoredMove()async throws {
         try await exercise(archetype:.magnet,variant:nil,reverse:true,disposeDuringMain:false,pulledKanta:true,moves:34)
     }
-    private func exercise(archetype:NativeWildArchetype,variant:String?,reverse:Bool,disposeDuringMain:Bool=true,pulledKanta:Bool=false,moves:Int=50,finalOnly:Bool=false,starCount:Int=3,capturedBoard:NativeBoardState?=nil,freshStar:Bool=false,verifyStarTail:Bool=false,interveningOrdinary:Bool=false,interveningSix:Bool=false,heldOrdinaryMilliseconds:Int=160,rapidOrdinaryContacts:Int=0,tutorialAssist:Bool=false,arcadeTutorial:Bool=false,laserInterveningStack:Bool=false,arcadeRun:Bool=false,initialMeter:Double?=nil,verifyBaloonRetirement:Bool=false,verifyBoardScale:Bool=false)async throws {
+    private func exercise(archetype:NativeWildArchetype,variant:String?,reverse:Bool,disposeDuringMain:Bool=true,pulledKanta:Bool=false,moves:Int=50,finalOnly:Bool=false,starCount:Int=3,capturedBoard:NativeBoardState?=nil,freshStar:Bool=false,verifyStarTail:Bool=false,interveningOrdinary:Bool=false,interveningSix:Bool=false,heldOrdinaryMilliseconds:Int=160,rapidOrdinaryContacts:Int=0,tutorialAssist:Bool=false,arcadeTutorial:Bool=false,laserInterveningStack:Bool=false,arcadeRun:Bool=false,initialMeter:Double?=nil,verifyBaloonRetirement:Bool=false,verifyBoardScale:Bool=false,verifyQueuedBonus:Bool=false)async throws {
         let label=(variant ?? archetype.rawValue)+(reverse ? ":destination":":source")
         print("[WildMergeSixRoot] start \(label)")
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("wild-six-particles-"+UUID().uuidString)
@@ -257,6 +292,28 @@ final class NativeWildMergeSixRootTests:XCTestCase {
             }
             boardScaleAudit?()
         }
+        var queuedBonus:[String:(TimeInterval,Int)]=[:],queuedSamples=0
+        if verifyQueuedBonus {
+            let originalBonus=gameplay.engine.sourceWildLockedBonusPop
+            gameplay.engine.sourceWildLockedBonusPop={bonus in
+                let accepted=originalBonus?(bonus) ?? false
+                guard accepted,let node=scene.sourceNativeTileNode(bonus.tileID) else{return false}
+                print("[LockedPopDiag] prepare id=\(bonus.tileID) delay=\(bonus.delayMilliseconds) scale=\(node.sourceLocalScale.x)")
+                if bonus.delayMilliseconds>0 {
+                    queuedBonus[bonus.tileID]=(CACurrentMediaTime(),bonus.delayMilliseconds)
+                    XCTAssertEqual(node.sourceLocalScale.x,0,"Queued real holder must not show a partial pop")
+                }
+                return true
+            }
+            boardScaleAudit={
+                let now=CACurrentMediaTime()
+                for (id,(start,delay)) in queuedBonus where now-start<Double(delay)/1000-0.04 {
+                    guard let node=scene.sourceNativeTileNode(id),node.locked,node.sourceValue==0 else{continue}
+                    queuedSamples+=1
+                    XCTAssertEqual(node.sourceLocalScale.x,0,"Waiting rendered holder: \(id)")
+                }
+            }
+        }
         var failure:String?
         let original=scene.onSourcePresentationFailure
         scene.onSourcePresentationFailure={reason,generation in failure=reason;print("[WildMergeSixRoot] \(label) failure=\(reason)");original?(reason,generation)}
@@ -324,7 +381,7 @@ final class NativeWildMergeSixRootTests:XCTestCase {
         }
         try await drag(reverse ? targetID:wildID,reverse ? wildID:targetID)
         if interveningOrdinary {print("[SpaceshipOverlap] visible-scene-entry direction=\(reverse ? "destination":"source")")}
-        let pulledNodes=archetype == .magnet ? try XCTUnwrap(gameplay.engine.pendingSpecial).targets.compactMap{scene.sourceNativeTileNode($0.id)}:[]
+        let pulledNodes=archetype == .magnet && !finalOnly ? try XCTUnwrap(gameplay.engine.pendingSpecial).targets.compactMap{scene.sourceNativeTileNode($0.id)}:[]
         let pulledPositions=pulledNodes.map(\.position)
         let mainKey=(variant ?? archetype.rawValue)+":main"
         try await wait(label+":main"){failure != nil || scene.sourceWildSixParticleAdmissions[mainKey]==1}
@@ -359,6 +416,9 @@ final class NativeWildMergeSixRootTests:XCTestCase {
             XCTAssertTrue(baloon.superview === gameplay.view,label)
             XCTAssertFalse(hero.isHidden,label)
             XCTAssertGreaterThan(hero.alpha,0,label)
+            if finalOnly {
+                XCTAssertEqual(scene.onFinalHUDCoinDuration?("baloon"),baloon.duration)
+            }
         }
         if variant=="spaceship" {
             let ship=try XCTUnwrap(gameplay.view.subviews.compactMap{$0 as? NativeSpaceshipFinalePresentation}.first,
@@ -391,6 +451,12 @@ final class NativeWildMergeSixRootTests:XCTestCase {
         }
         XCTAssertGreaterThan(scene.sourceWildSixShardOwnerCount,0,label)
         XCTAssertGreaterThan(scope.smoke.activeOwnerCount,0,label)
+        if finalOnly,variant=="baloon" {
+            try await Task.sleep(for:.seconds(2))
+            XCTAssertFalse(gameplay.engine.pendingHUDStars.isEmpty,
+                "Final coins must still be flying during the5.4s Baloon finale: "+label)
+            XCTAssertEqual(app.route,.gameplay,label)
+        }
         if interveningOrdinary {
             let farID=board.tiles[40].id
             XCTAssertFalse(try XCTUnwrap(gameplay.engine.pendingSpecial).targets.contains{$0.id==farID})
@@ -507,11 +573,31 @@ final class NativeWildMergeSixRootTests:XCTestCase {
             if let reward=gameplay.visibleJourneyRewardController {reward.activate()}
             XCTAssertEqual(try store.load()?.progression.completedJourneyBoards.contains(boardNumber),true,label)
             XCTAssertEqual(app.route,.gameplay,label)
+            if variant=="bottle",let retained=scene.sourceNativeTileNode(wildID) {
+                XCTAssertTrue(retained.isHidden || retained.sourceFinalResultChildrenHidden,"Final Bottle must not retain visible old artwork")
+                XCTAssertFalse(retained.hasSourceBottleIdle)
+            }
             return
         }
         try await wait(label+":gameplay-settled") {
             failure != nil || (!gameplay.engine.hasUnsavableSourceGameplayState && gameplay.engine.pendingHUDStars.isEmpty &&
                 scene.sourceMagnetActualPullOwnerCount==0 && scene.sourceMagnetSurvivorPendingInputIDs.isEmpty)
+        }
+        if verifyQueuedBonus {
+            XCTAssertGreaterThan(queuedBonus.count,variant=="mushroom" ? 5:0)
+            XCTAssertGreaterThan(queuedSamples,0)
+            print("[LockedPopDiag] settled queued=\(queuedBonus.count) samples=\(queuedSamples)")
+        }
+        if variant=="mushroom" {
+            let before=board.activeTiles.count
+            XCTAssertTrue((before+3...before+5).contains(gameplay.engine.state.activeTiles.count),"One primary plus4–6 extras replaces the consumed pair: "+label)
+        }
+        if variant=="bottle" {
+            if let retained=scene.sourceNativeTileNode(wildID) {
+                XCTAssertNil(retained.variant,"Consumed Bottle becomes ordinary or is removed")
+                XCTAssertFalse(retained.hasSourceBottleIdle)
+            }
+            XCTAssertFalse(gameplay.engine.state.activeTiles.contains{$0.variant=="bottle"})
         }
         if laserInterveningStack {XCTAssertTrue(laserOverlapAccepted,"Must exercise replacement interruption")}
         if initialMeter != nil {

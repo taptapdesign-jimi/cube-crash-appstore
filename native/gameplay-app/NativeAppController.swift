@@ -529,6 +529,8 @@ final class NativeAppController: UIViewController {
         if let prepared,let incoming=prepared.world,case .world(let id)=prepared.target {
             let owner=generation
             home.isHidden=true;hub.isHidden=true;settingsView.isHidden=true
+            // Preparation can precede a landed reward. Read live unread state at admission.
+            incoming.setBackpackUnread(!services.journeyProgression().unreadJourneyDice.isEmpty)
             route = .world(id);fault.isHidden=true;onRoute?(route);incoming.isHidden=false
             incoming.enter(terminal:true){[weak self,weak incoming] in
                 guard let self,let incoming,!self.disposed,self.generation==owner,self.world===incoming else{return}

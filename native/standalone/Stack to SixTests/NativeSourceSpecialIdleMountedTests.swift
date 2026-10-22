@@ -153,6 +153,25 @@ import StackToSixGameplay
   XCTAssertEqual(art.position,originalPosition);XCTAssertEqual(art.anchorPoint,originalAnchor);XCTAssertEqual(art.zRotation,originalRotation)
   XCTAssertEqual(service.activeParticipantCount,0)
  }
+ func testBottleConsumedOwnerRetiresBeforeCapturedFaceCanBeReused()throws {
+  let registry=NativeSourceSpecialIdleRegistry(),scope=NativeSourceSpecialIdleScope(registry:registry,current:{true}),textures=NativeBoardTextures(root:root)
+  let die=NativeDiceNode(id:"consumed-bottle",value:6,kind:"wild-magnet",variant:"bottle",depth:1,locked:false,textures:textures,sourceSpecialIdle:scope)
+  let parent=SKNode();parent.addChild(die)
+  let fifo=NativeSourceMicrotaskFIFO(),service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0},sourceFrameTransportEnabled:true)
+  service.sourceMicrotaskTasks=NativeSourceMicrotaskAdapters(fifo:fifo)
+  defer{die.dispose();scope.dispose();registry.dispose();textures.dispose();service.dispose();fifo.dispose()}
+  let face=try XCTUnwrap(die.visual.children.compactMap{$0 as? SKSpriteNode}.first)
+  XCTAssertTrue(die.beginSourceBottleIdle(service:service,scope:scope,current:{true},paintable:{true}))
+  service.deliver(wallMilliseconds:400)
+  let pose=face.position
+  die.retireSourceAnimationBindingsPreservingPaint()
+  XCTAssertFalse(die.hasSourceBottleIdle)
+  XCTAssertEqual(service.activeParticipantCount,0)
+  service.deliver(wallMilliseconds:1200)
+  XCTAssertEqual(face.position,pose,"A consumed Bottle owner cannot move a reused face")
+  die.retireSourceAnimationBindingsPreservingPaint()
+  XCTAssertFalse(die.hasSourceBottleIdle)
+ }
  func testSourceBottleVisibilityTracksRotGThresholdAndIgnoresHiddenBaseFace()throws {
   let registry=NativeSourceSpecialIdleRegistry(),scope=NativeSourceSpecialIdleScope(registry:registry,current:{true}),textures=NativeBoardTextures(root:root)
   let die=NativeDiceNode(id:"visible-bottle",value:6,kind:"wild-magnet",variant:"bottle",depth:1,locked:false,textures:textures,sourceSpecialIdle:scope)

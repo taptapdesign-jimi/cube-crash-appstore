@@ -6,6 +6,7 @@ import AVFoundation
 /// and first-ready-frame acceptance remain Simulator/physical QA obligations.
 @MainActor
 final class NativeFishFinalePresentation: UIView {
+    var presentationDuration:TimeInterval{max(NativeFishFinaleMotion.duration,glyphs.duration)}
     var onFinished: ((Bool) -> Void)?
     private let swimmer = UIView(),bubbles = UIView()
     private let swimmerLayer = AVPlayerLayer(),bubblesLayer = AVPlayerLayer()
@@ -82,7 +83,7 @@ final class NativeFishFinalePresentation: UIView {
         let delta = lastFrame.map { max(0,clock.timestamp-$0) } ?? 0; lastFrame = clock.timestamp
         if ready {
             elapsed += delta; paint()
-            if elapsed >= max(NativeFishFinaleMotion.duration,glyphs.duration) { finish(true) }
+            if elapsed >= presentationDuration { finish(true) }
         } else {
             preparing += delta
             if swimmerPlayer.status == .failed || bubblesPlayer.status == .failed || preparing >= 4 { finish(false) }

@@ -23,7 +23,8 @@ final class NativeGameplayAudioTests:XCTestCase {
             }
             XCTAssertEqual(main.cues.count,12,"Nala once per accepted contact")
             XCTAssertTrue(main.cues.allSatisfy{$0.voice.hasPrefix("native-home-nala-")})
-            XCTAssertTrue(cues.allSatisfy{$0.gain==0.42 && $0.rate==1 && $0.stopAfter==nil})
+            XCTAssertTrue(main.cues.allSatisfy{$0.gain==0.42},"Nala retains the original mix")
+            XCTAssertTrue(cues.allSatisfy{$0.gain==0.72 && $0.rate==1 && $0.stopAfter==nil})
             for cue in cues {XCTAssertTrue(FileManager.default.fileExists(atPath:NativeTestResources.root.appendingPathComponent(cue.source).path))}
             let previous=cues.last!.source;owner.stop();owner.beginGeneration(7)
             owner.routeFeedback("high-score-modal-speech",receipt:1,generation:7)
@@ -77,7 +78,7 @@ final class NativeGameplayAudioTests:XCTestCase {
                 let previous=played.last!.source
                 subject.stop();subject.beginGeneration(7);subject.routeFeedback(kind,receipt:1,generation:7)
                 XCTAssertNotEqual(played.last?.source,previous)
-                XCTAssertTrue(played.allSatisfy{$0.gain==0.42 && $0.rate==1 && $0.stopAfter==nil})
+                XCTAssertTrue(played.allSatisfy{$0.gain==0.72 && $0.rate==1 && $0.stopAfter==nil})
                 for cue in played {XCTAssertTrue(FileManager.default.fileExists(atPath:NativeTestResources.root.appendingPathComponent(cue.source).path))}
                 subject.dispose()
             }
@@ -333,7 +334,7 @@ final class NativeGameplayAudioTests:XCTestCase {
                 owner.routeFeedback(kind,receipt:1,generation:1)
                 XCTAssertEqual(transport.cues.count,2)
                 XCTAssertEqual(transport.cues.first?.source,id == "slowBurn" && choice == 2 ? "assets/sound/SPEECH/my tea.mp3":"assets/sound/SPEECH/\(file).wav")
-                XCTAssertEqual(transport.cues.first?.gain,0.42);XCTAssertEqual(transport.cues.first?.delay,0)
+                XCTAssertEqual(transport.cues.first?.gain,0.72);XCTAssertEqual(transport.cues.first?.delay,0)
                 XCTAssertNil(transport.cues.first?.stopAfter)
                 XCTAssertEqual(transport.cues.last?.source,"assets/sound/logo transitions/nala\(choice+1).wav")
                 XCTAssertEqual(transport.cues.last?.delay,1);XCTAssertEqual(transport.cues.last?.gain,0.42)
@@ -388,7 +389,7 @@ final class NativeGameplayAudioTests:XCTestCase {
                 owner.resultMoment("arcade-thumb",index:puppy ? 1:0,receipt:1,generation:1)
                 XCTAssertEqual(transport.cues.count,1);XCTAssertEqual(tail.cues.count,1)
                 XCTAssertEqual(tail.cues.first?.source,"assets/sound/logo transitions/"+(puppy ? "nala\(choice+1)":"smile")+".wav")
-                XCTAssertEqual(tail.cues.first?.gain,0.42)
+                XCTAssertEqual(tail.cues.first?.gain,puppy ? 0.42:0.72)
                 XCTAssertEqual(transport.cues.last?.voice,"arcade-stage-clear-thumb-whoosh")
                 owner.resultMoment("arcade-thumb",index:puppy ? 1:0,receipt:1,generation:1)
                 owner.stop();owner.beginGeneration(7)
@@ -410,7 +411,7 @@ final class NativeGameplayAudioTests:XCTestCase {
                 let cue=NativeAuthoredAudioCatalog.groups[groups[choice]]!.first!
                 XCTAssertEqual(tail.cues,[cue]);XCTAssertTrue(main.cues.isEmpty)
                 XCTAssertTrue(FileManager.default.fileExists(atPath:NativeTestResources.root.appendingPathComponent(cue.source).path))
-                XCTAssertEqual(cue.gain,0.42);XCTAssertEqual(cue.rate,1);XCTAssertNil(cue.stopAfter)
+                XCTAssertEqual(cue.gain,0.72);XCTAssertEqual(cue.rate,1);XCTAssertNil(cue.stopAfter)
                 owner.routeFeedback(kind,receipt:1,generation:1);owner.routeFeedback(kind,receipt:2,generation:99)
                 owner.stop();owner.beginGeneration(7)
                 XCTAssertEqual(tail.cues.count,1);XCTAssertEqual(tail.disposals,0)
@@ -453,7 +454,7 @@ final class NativeGameplayAudioTests:XCTestCase {
         owner.routeFeedback("home-settings-character-tap",receipt:1,generation:1)
         XCTAssertEqual(transport.cues.count,1)
         XCTAssertEqual(transport.cues.first?.source,"assets/sound/SPEECH/settings guy.mp3")
-        XCTAssertEqual(transport.cues.first?.gain,0.42)
+        XCTAssertEqual(transport.cues.first?.gain,0.72)
         XCTAssertNil(transport.cues.first?.stopAfter)
         owner.routeFeedback("home-settings-character-tap",receipt:1,generation:1)
         owner.setEnabled(false);owner.routeFeedback("home-settings-character-tap",receipt:2,generation:1)

@@ -222,10 +222,10 @@ final class NativeBoardScene: SKScene {
     private var backpackAlertRefreshPending=false
     private(set) var backpackPresented=false
     private var backpackPaintedOpen=false
-    private var backpackAlertDismissed=false
+    private var backpackAlertDismissed:Set<String>=[]
     func setBackpackPresented(_ value:Bool) {
         if backpackPresented && !value {
-            backpackAlertDismissed=true
+            backpackAlertDismissed=unreadJourneyDice()
             if let badge=backpackAlert {
                 let x=badge.xScale,y=badge.yScale
                 badge.run(.sequence([.customAction(withDuration:0.16){node,elapsed in
@@ -234,20 +234,23 @@ final class NativeBoardScene: SKScene {
                     node.xScale=x*scale;node.yScale=y*scale;node.alpha=1-t*t*(3-2*t)
                 },.removeFromParent()]),withKey:"backpack-alert-exit")
             }
-        }else if value {backpackAlertDismissed=false}
+        }else if value {backpackAlertDismissed.removeAll()}
         backpackPresented=value;refreshBackpackAlert(allowSuspendedPresentation:true)
     }
-    func completeBackpackVisit(){backpackAlertDismissed=false;refreshBackpackAlert(allowSuspendedPresentation:true)}
+    func completeBackpackVisit(){backpackAlertDismissed.removeAll();refreshBackpackAlert(allowSuspendedPresentation:true)}
     func refreshBackpackAlert(allowSuspendedPresentation:Bool=false){
         guard !disposed,!sourceDisposalInProgress,let help=hud.childNode(withName:"native-game-help") as? SKSpriteNode else{return}
         let worldStart=((engine.state.board-1)/10)*10+1
         let pool=Set(NativeJourneyContent.rewardPool(board:worldStart+9))
-        let unread=engine.state.mode == .journey && !unreadJourneyDice().intersection(pool).isEmpty
-        if !unread {backpackAlertDismissed=false}
-        let wanted=unread && !backpackAlertDismissed
+        let unread=engine.state.mode == .journey ? unreadJourneyDice().intersection(pool):[]
+        // A closing visit suppresses only its captured notifications. A newly
+        // landed die must never inherit another die's transient dismissal.
+        backpackAlertDismissed.formIntersection(unread)
+        let wanted = !unread.subtracting(backpackAlertDismissed).isEmpty
         guard (!suspended || allowSuspendedPresentation),help.action(forKey:"backpack-icon-swap")==nil else{backpackAlertRefreshPending=true;return}
         backpackAlertRefreshPending=false
-        guard wanted != (backpackAlert != nil) || backpackPaintedOpen != backpackPresented else{return}
+        let badgeCurrent = wanted ? backpackAlert?.parent === help : backpackAlert == nil
+        guard !badgeCurrent || backpackPaintedOpen != backpackPresented else{return}
         // Notification ownership is independent of the closed/open presentation.
         if backpackPaintedOpen == backpackPresented {applyBackpackAlert(wanted,to:help);return}
         // This update is synchronous. Keep the node's strong local ownership:
@@ -316,7 +319,7 @@ final class NativeBoardScene: SKScene {
     /// Reconcile only after the actual board-entry owner admits the painted board.
     private func announceRestoredJourneyDice(){
         guard isBoardEntryComplete,engine.state.mode == .journey else{return}
-        let eligible=Set(NativeJourneyContent.rewardPool(board:engine.state.board))
+        let eligible=Set(NativeJourneyContent.worldRewardPool(board:engine.state.board))
         for tile in engine.state.tiles where !tile.locked && tile.visible && !tile.pendingRemoval {
             guard let archetype=tile.archetype,
                   eligible.contains(tile.variant ?? (archetype == .star ? "wild-star":archetype.rawValue)),
@@ -349,6 +352,7 @@ final class NativeBoardScene: SKScene {
     var authoredTntPresentationReady: ((String) -> Bool)?
     var onAuthoredLaserImpact: (([NativeLaserVisualTarget],UInt64,@escaping (Int,String) -> Bool,@escaping () -> Void,@escaping () -> Void) -> Bool)?
     var onAuthoredTntPresentation: ((String,CGPoint,UInt64,@escaping () -> Void,@escaping () -> Void) -> Bool)?
+    var onFinalHUDCoinDuration:((String?)->TimeInterval?)?
     var onAuthoredFinale: ((String,CGPoint,UInt64,@escaping () -> Void) -> Bool)?
     var onExitRequest: (() -> Void)?
     var onHUDTapContact:((String)->Void)?
@@ -4582,8 +4586,8 @@ final class NativeBoardScene: SKScene {
         sourceMagnetImpacts.removeValue(forKey:plan.id)?.dispose()
         // A retained hidden carrier, never a removed/free spawn cell. Its
         // ordinary conversion explicitly restores visibility at real commit.
-        entry.destination.isHidden=true;entry.destination.alpha=0;entry.destination.sourceEventMode="none"
-        return true
+        entry.destination.hideSourceConsumedMagnetSix()
+        return entry.destination.isHidden && entry.destination.alpha==0
     }
     private func startSourceMagnetPull(_ plan:NativeSpecialMovePlan,receipt:UInt64)->Bool {
         guard sourceAnimationBindingAdmissionOpen,let scope=sourceMagnetPullScope,scope.current,sourceMagnetMainScope === scope,
@@ -8894,12 +8898,13 @@ final class NativeBoardScene: SKScene {
                         finished:{[weak self] in
                             guard let self else{return};self.sourceWildBonusPops.removeValue(forKey:bonus.tileID)
                             if let pending=self.wildBonusVisuals.removeValue(forKey:bonus.tileID){self.finishVisual(pending.0)}
-                        }),initialScale:NativeSourceAppSpawnBounceOwner.nativeEntryScale)
+                        }),initialScale:NativeSourceAppSpawnBounceOwner.nativeEntryScale,hidesUntilStart:true)
                 sourceWildBonusPops[bonus.tileID]=owner
                 if !owner.start(){owner.dispose();onSourcePresentationFailure?("source_wild_bonus_pop_refused",bonus.generation)}
                 continue
             }
             prepareInnerSpawnEntry(node)
+            if bonus.delayMilliseconds>0 {node.visual.setScale(0)}
             let scale=SKAction.sequence([
                 NativeBoardMotion.scale(from:.init(x:CGFloat(NativeSourceAppSpawnBounceOwner.nativeEntryScale),y:CGFloat(NativeSourceAppSpawnBounceOwner.nativeEntryScale)),to:.init(x:1.08,y:1.08),duration:0.16,ease:.backOut(2.1)),
                 NativeBoardMotion.scale(from:.init(x:1.08,y:1.08),to:.init(x:0.96,y:0.96),duration:0.10,ease:.power2InOut),
@@ -9370,6 +9375,17 @@ final class NativeBoardScene: SKScene {
         sourceHUDStarOwner=owner;sourceHUDStarFeedback=feedback;sourceHUDStarScaleFeedback=scales;sourceHUDStarScaleClock=scaleClock;sourceHUDStarCapture=capture;engine.sourceHUDStarJobsEnabled=true;sourceDisposalSealingEnabled=true
         return true
     }
+    private func finalHUDCoinDuration(variant:String?,archetype:NativeWildArchetype?)->TimeInterval {
+        var durations=effects.children.compactMap {node->TimeInterval? in
+            if variant==nil,archetype == .tnt,node is NativeTntFinale {return NativeTntFinale.duration}
+            if variant==nil,archetype == .star,let owner=node as? NativeStarFinale {return owner.duration}
+            if variant==nil,archetype == .juice,let owner=node as? NativeJuiceFinale {return owner.maximumDuration}
+            if variant==nil,archetype == .magnet,let owner=node as? NativeMagnetFinalePresentation {return owner.duration}
+            return nil
+        }
+        if let external=onFinalHUDCoinDuration?(variant),external.isFinite,external>0 {durations.append(external)}
+        return durations.max() ?? NativeRegularSixSpritePresentation.presentationDuration
+    }
     func startSourceHUDStarJobs(ids:[String])->Bool {
         guard let owner=sourceHUDStarOwner,let capture=sourceHUDStarCapture,sourceAnimationBindingAdmissionOpen else{return false}
         let epoch=sourceHUDStarEpoch,generation=engine.state.generation
@@ -9386,7 +9402,7 @@ final class NativeBoardScene: SKScene {
             let sourceOrigins=group.compactMap{sourceCapturedHUDOrigins[$0.id]}.filter{$0.0==generation}
             guard sourceOrigins.isEmpty || (sourceOrigins.count==group.count && sourceOrigins.allSatisfy{$0.1==sourceOrigins[0].1}) else{return false}
             let origin=sourceOrigins.first?.1 ?? call.screenOrigin // unchanged genuine supplier for other family calls.
-            guard owner.start(receiptIDs:group.map(\.id),screenOrigin:origin,hudTarget:call.hudTarget) else{return false}
+            guard owner.start(receiptIDs:group.map(\.id),screenOrigin:origin,hudTarget:call.hudTarget,finalMergeDuration:group.allSatisfy(\.isFinalMerge) ? finalHUDCoinDuration(variant:group.first?.variant,archetype:group.first?.archetype):nil) else{return false}
         }
         return true
     }
@@ -9428,7 +9444,7 @@ final class NativeBoardScene: SKScene {
             hudStarFlights.addChild(star);hudStarNodes[receipt.id]=star
             let visualReceipt = beginVisual(); hudStarVisualReceipts[receipt.id] = visualReceipt; var arrived = false
             requestRendering(true)
-            let coinRate=receipt.isFinalMerge ? 3.0:1.0
+            let coinRate=receipt.isFinalMerge ? (lead+(plans.map(\.end).max() ?? plan.end))/finalHUDCoinDuration(variant:receipt.variant,archetype:receipt.archetype):1.0
             star.run(.sequence([.wait(forDuration: lead/coinRate),.customAction(withDuration: plan.end/coinRate) { [weak self,weak star] _,elapsed in
                 guard let self,!self.disposed,self.engine.state.generation == receipt.generation,!arrived,let star,self.hudStarNodes[receipt.id] === star,self.hudStarIDs.contains(receipt.id),star.parent === self.hudStarFlights else { return }
                 let pose = plan.sample(seconds: Double(elapsed)*coinRate)
@@ -9567,6 +9583,10 @@ final class NativeBoardScene: SKScene {
         let blastNodes = engine.state.tiles.compactMap { tile -> NativeDiceNode? in
             guard blastIDs.contains(tile.id),tile.id != plan.source.id,tile.id != plan.destination.id,tile.value > 0 || tile.isWild,
                   !tile.locked else { return nil }
+            // Barrel replaces ordinary holders immediately under its BOOM.
+            // Their impact/spawn owns motion; a delayed return must not borrow
+            // a holder that is about to be retired by that same transaction.
+            if plan.variant == "barell", !tile.isWild { return nil }
             guard let node=nodesByID[tile.id],shortWildBoardBlast?.owns(node) != true,
                   sourceMeterCaller?.owns(node) != true else{return nil}
             return node
@@ -9630,7 +9650,16 @@ final class NativeBoardScene: SKScene {
         if let sourceBlast,returnPlans.count != blastNodes.count {
             sourceTntBoardBlast=nil;sourceBlast.dispose();return
         }
-        var returned = false
+        var returned = false,barrelReturnComplete = false
+        var barrelImpactsComplete: (() -> Void)?
+        let boardReturned: () -> Void = { [weak self] in
+            guard let self,self.specialIsCurrent(plan) else{return}
+            if plan.variant == "barell" {
+                barrelReturnComplete=true
+                let completion=barrelImpactsComplete;barrelImpactsComplete=nil
+                completion?()
+            } else {self.startCoreTntImpacts(plan,receipt:receipt)}
+        }
         let beginReturn: () -> Void = { [weak self] in
             guard let self,self.specialIsCurrent(plan),!returned else { return }; returned = true
             if let sourceBlast {
@@ -9655,9 +9684,9 @@ final class NativeBoardScene: SKScene {
             let returnFinished: () -> Void = { [weak self] in
                 guard let self,self.specialIsCurrent(plan) else { return }
                 pending -= 1
-                if pending <= 0 { self.specialPresentationIDs.removeAll(); self.startCoreTntImpacts(plan,receipt: receipt) }
+                if pending <= 0 { if plan.variant != "barell" {self.specialPresentationIDs.removeAll()};boardReturned() }
             }
-            if returnPlans.isEmpty { self.specialPresentationIDs.removeAll(); self.startCoreTntImpacts(plan,receipt: receipt) }
+            if returnPlans.isEmpty { if plan.variant != "barell" {self.specialPresentationIDs.removeAll()};boardReturned() }
             for (node,rest,duration,elastic,amplitude,notBefore,z) in returnPlans {
                 guard self.specialIsCurrent(plan),self.nodesByID[node.tileID] === node,node.parent === self.canvasRoot else{return}
                 let delay:Double
@@ -9691,7 +9720,14 @@ final class NativeBoardScene: SKScene {
             // Admission rejects this path before reservation; defensive failure
             // remains observable until background settlement cancels its plan.
             if !accepted { NSLog("[NativeTNT] authored owner unavailable %@",variant) }
-            if accepted { releaseSourceAuthoredTntInitialAwait(plan) }
+            if accepted {
+                releaseSourceAuthoredTntInitialAwait(plan)
+                if plan.variant == "barell" {
+                    startCoreTntImpacts(plan,receipt:receipt,waitForBoardReturn:{completion in
+                        if barrelReturnComplete {completion()} else {barrelImpactsComplete=completion}
+                    })
+                }
+            }
         } else {
             let clockID=UUID().uuidString
             var sourceConstruction:NativeTntFinale.SourceConstruction?
@@ -9850,7 +9886,8 @@ final class NativeBoardScene: SKScene {
         }
     }
 
-    private func startCoreTntImpacts(_ initial: NativeSpecialMovePlan,receipt: UInt64) {
+    private func startCoreTntImpacts(_ initial: NativeSpecialMovePlan,receipt: UInt64,
+                                   waitForBoardReturn: ((@escaping () -> Void) -> Void)? = nil) {
         guard specialIsCurrent(initial) else { return }
         if let scope=sourceTntMainScope,initial.variant==nil {
             guard scope.current,scope.extendTntBonusGuard(milliseconds:2500),specialIsCurrent(initial) else{return}
@@ -9869,7 +9906,8 @@ final class NativeBoardScene: SKScene {
         }
         let owner = SKNode(); effects.addChild(owner)
         let delays = plan.variant == "beach-ball" ? [0.0,0.26,0.56,0.9] : [0.0,0.2,0.4,0.6]
-        let initialDelay = plan.variant == "flower" ? 0.7 : plan.variant == "barell" ? 0.2 : 0
+        // Barrel impacts begin one second after its authored BOOM starts.
+        let initialDelay = plan.variant == "barell" ? 1.0 : plan.variant == "flower" ? 0.7 : 0
         let capturedMicrotasks=sourceMicrotaskInstallation
         let renderAction: (@escaping ()->Void)->()->Void = {[weak self,capturedMicrotasks] body in
             return {[weak self,capturedMicrotasks] in
@@ -9882,7 +9920,12 @@ final class NativeBoardScene: SKScene {
         }
         var actions: [SKAction] = initialDelay > 0 ? [.wait(forDuration:initialDelay)] : []
         for (index,tile) in plan.targets.enumerated() {
-            if index > 0 { actions.append(.wait(forDuration:delays[index]-delays[index-1])) }
+            if index > 0 {
+                // Authored four-shot timings stay intact; Barrel can now
+                // continue across the full board at the same 200ms cadence.
+                let interval = index < delays.count ? delays[index]-delays[index-1] : 0.2
+                actions.append(.wait(forDuration:interval))
+            }
             actions.append(.run(renderAction { [weak self] in
                 guard let self,self.specialIsCurrent(plan) else { return }
                 let origin=self.nodesByID[tile.id].flatMap{self.sourceSpecialHUDScreenOrigin(node:$0,generation:plan.generation)}
@@ -9903,17 +9946,20 @@ final class NativeBoardScene: SKScene {
             }))
         }
         actions += [.wait(forDuration: 0.56+0.08),.run(renderAction { [weak self,weak owner] in
-            guard let self,self.specialIsCurrent(plan) else { owner?.removeFromParent(); return }
-            let previous = self.engine.state
-            let result = self.engine.commitSpecialBoard(transactionID: plan.id)
-            if result.accepted {self.sourceSpecialTransactions?.tntGameplayComplete(id:plan.id,generation:plan.generation)}
-            self.specialPresentationID = nil; self.specialPresentationIDs.removeAll()
-            self.consume(result,previous: previous)
-            self.navigationLocked = self.engine.state.terminal != nil || self.pendingTerminal != nil
-            self.finishVisual(receipt); owner?.removeFromParent()
-            // Source app-core markBreakComplete: onComplete, then checkLevelEnd.
-            // Keep its existing authored completion clock; no extra timer.
-            if result.accepted,self.engine.state.generation==plan.generation {self.evaluate()}
+            let complete: () -> Void = { [weak self,weak owner] in
+                guard let self,self.specialIsCurrent(plan) else { owner?.removeFromParent(); return }
+                let previous = self.engine.state
+                let result = self.engine.commitSpecialBoard(transactionID: plan.id)
+                if result.accepted {self.sourceSpecialTransactions?.tntGameplayComplete(id:plan.id,generation:plan.generation)}
+                self.specialPresentationID = nil; self.specialPresentationIDs.removeAll()
+                self.consume(result,previous: previous)
+                self.navigationLocked = self.engine.state.terminal != nil || self.pendingTerminal != nil
+                self.finishVisual(receipt); owner?.removeFromParent()
+                // Source app-core markBreakComplete: onComplete, then checkLevelEnd.
+                // Barrel additionally awaits surviving Specials' actual return.
+                if result.accepted,self.engine.state.generation==plan.generation {self.evaluate()}
+            }
+            if let waitForBoardReturn {waitForBoardReturn(complete)} else {complete()}
         })]
         owner.run(.sequence(actions),withKey: "tnt-captured-impacts")
     }
@@ -10472,7 +10518,7 @@ final class NativeBoardScene: SKScene {
         removeAllActions(); retireEffects(); nodesByID.values.forEach { $0.dispose() }
         retireSourcePhysicalObservers();nodesByID.removeAll();meterTimeoutIDs.removeAll();ghostNodesByCell.removeAll();ghosts.removeAllChildren(); removeAllChildren(); textures.dispose()
         onFishIdleFrames?([:],engine.state.generation,true);onFishIdleFrames=nil
-        onNativeNoMovesShow=nil;onNativeNoMovesExit=nil;onNativeNoMovesClear=nil;onJourneyBottomDecorShake=nil;captureSourceScreenOverlayShake=nil;sourceCoreTntShakeTargets.removeAll();sourceScreenShakeTargets.removeAll();onPresentationFailure=nil;onSourcePresentationFailure=nil;onStateChange = nil; onTerminal = nil; onGameplayEvent = nil; onGameplayReceipt = nil; onSpecialMoment = nil; onAuthoredFinale = nil;onAuthoredTntPresentation = nil;onAuthoredLaserImpact=nil;authoredTntPresentationReady = nil;authoredFinalePresentationReady=nil;onSpecialPresentationCancelled = nil; onTntGlyphClock = nil; onSplashGlyphClock = nil; onHaptic = nil
+        onNativeNoMovesShow=nil;onNativeNoMovesExit=nil;onNativeNoMovesClear=nil;onJourneyBottomDecorShake=nil;captureSourceScreenOverlayShake=nil;sourceCoreTntShakeTargets.removeAll();sourceScreenShakeTargets.removeAll();onPresentationFailure=nil;onSourcePresentationFailure=nil;onStateChange = nil; onTerminal = nil; onGameplayEvent = nil; onGameplayReceipt = nil; onSpecialMoment = nil; onAuthoredFinale = nil;onFinalHUDCoinDuration=nil;onAuthoredTntPresentation = nil;onAuthoredLaserImpact=nil;authoredTntPresentationReady = nil;authoredFinalePresentationReady=nil;onSpecialPresentationCancelled = nil; onTntGlyphClock = nil; onSplashGlyphClock = nil; onHaptic = nil
         onRenderSurfacePreparation=nil
         hudTapFeedbackBases.removeAll();hudTapFeedbackPositions.removeAll();onSourceGuidedSnapBack=nil;onSourceTutorialRetired=nil;onLevelFlowBounceCompletion=nil;onExitRequest = nil; onHUDTapContact=nil; onHelpRequest = nil; onScoreRequest = nil; onComboRequest = nil; onPointerState = nil; onRenderingDemand = nil; onBoardEntry = nil; onBoardExit = nil; onHUDDrop = nil
     }

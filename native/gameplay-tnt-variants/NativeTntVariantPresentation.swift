@@ -5,6 +5,7 @@ import UIKit
 /// this owner never decides targets, replacements, score or input admission.
 @MainActor
 final class NativeTntVariantPresentation: NativeFinitePresentation {
+    static let animationDuration: TimeInterval = 4.2
     enum Variant: String { case flower,barell }
     var onSprite6Entered: (() -> Void)?
     var onVisualSequenceComplete: (() -> Void)?
@@ -31,7 +32,7 @@ final class NativeTntVariantPresentation: NativeFinitePresentation {
         let artwork = preparedArtwork ?? JimiV9Artwork(resourceRoot:resourceRoot)
         let colors: [UIColor] = variant == .flower ? [UIColor(red:1,green:254.0/255,blue:250.0/255,alpha:1),UIColor(red:254.0/255,green:248.0/255,blue:234.0/255,alpha:1)] : [UIColor(red:244.0/255,green:141.0/255,blue:89.0/255,alpha:1)]
         glyphs = NativeSplashGlyphField(artwork:artwork,text:variant == .flower ? "BLOOMING!":"POOOF",colors:colors,splitIndex:variant == .flower ? 3.5:0,letterOpacityRange:variant == .barell ? 1...1:nil,random:random)
-        super.init(viewport:viewport,duration:4.2)
+        super.init(viewport:viewport,duration:Self.animationDuration)
         accessibilityIdentifier = "native-\(variant.rawValue)-finale"
         assetsReady = Self.assets(variant).allSatisfy { artwork.image($0.replacingOccurrences(of:"@2x.png",with:".png"),densityAware:true) != nil }
         // Source native-skin burst/debris is allocated before the smoke clock.

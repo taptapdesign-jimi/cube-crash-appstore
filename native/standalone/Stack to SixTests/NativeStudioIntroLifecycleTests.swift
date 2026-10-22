@@ -63,11 +63,32 @@ import ImageIO
         let unit=try XCTUnwrap(view.subviews.first)
         XCTAssertEqual(unit.layer.transform.m11,0)
         let sheen=try XCTUnwrap(unit.subviews.compactMap{$0 as? UIImageView}.first{$0.layer.mask != nil})
-        let animation=try XCTUnwrap(sheen.layer.animation(forKey:"native-studio-sheen") as? CAKeyframeAnimation)
-        XCTAssertEqual(animation.duration,6);XCTAssertEqual(animation.keyTimes,[0,0.04,0.10,0.31,0.37,1])
+        let rows=try XCTUnwrap(sheen.layer.mask?.sublayers)
+        XCTAssertEqual(rows.count,2)
+        XCTAssertTrue(rows.allSatisfy{$0.masksToBounds})
+        XCTAssertEqual(rows[0].frame.maxY,rows[1].frame.minY,accuracy:0.001)
+        let bands=try rows.map{try XCTUnwrap($0.sublayers?.first)}
+        let passes=try bands.map{try XCTUnwrap($0.animation(forKey:"native-studio-sheen") as? CAAnimationGroup)}
+        XCTAssertEqual(passes[0].duration,1.05);XCTAssertEqual(passes[1].duration,1.05)
+        XCTAssertEqual(passes[1].beginTime-passes[0].beginTime,1.15,accuracy:0.01)
+        func capture(_ name:String)throws {
+            let image=UIGraphicsImageRenderer(bounds:view.bounds).image{_ in
+                XCTAssertTrue(view.drawHierarchy(in:view.bounds,afterScreenUpdates:true))
+            }
+            try XCTUnwrap(image.pngData()).write(to:URL(fileURLWithPath:"/tmp/"+name+".png"))
+        }
+        try await Task.sleep(for:.milliseconds(1150))
+        XCTAssertGreaterThan(try XCTUnwrap(bands[0].presentation()).opacity,0.9)
+        XCTAssertLessThan(try XCTUnwrap(bands[1].presentation()).opacity,0.01)
+        try capture("native-studio-sheen-tap-tap")
+        try await Task.sleep(for:.milliseconds(1150))
+        XCTAssertLessThan(try XCTUnwrap(bands[0].presentation()).opacity,0.01)
+        XCTAssertGreaterThan(try XCTUnwrap(bands[1].presentation()).opacity,0.9)
+        try capture("native-studio-sheen-design")
         view.start{XCTFail("Repeated start cannot replace the original handoff")}
         view.animationDidStop(CAAnimation(),finished:true)
         XCTAssertEqual(handoffs,1);XCTAssertTrue(view.isRetired);assertReleased(view)
+        XCTAssertTrue(bands.allSatisfy{($0.animationKeys() ?? []).isEmpty})
         view.animationDidStop(CAAnimation(),finished:true)
         XCTAssertEqual(cues,1);XCTAssertEqual(handoffs,1)
     }
