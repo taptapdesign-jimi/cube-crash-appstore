@@ -113,6 +113,15 @@ final class NativeWildMergeSixRootTests:XCTestCase {
         try await exercise(archetype:.tnt,variant:"laser-gun",reverse:false,disposeDuringMain:false,laserInterveningStack:true)
         try await exercise(archetype:.tnt,variant:"laser-gun",reverse:true,disposeDuringMain:false,laserInterveningStack:true)
     }
+    func testLaserReplacementMergeSixDuringBounceSettlesAndAdmitsNextMove()async throws {
+        try await exercise(archetype:.tnt,variant:"laser-gun",reverse:false,disposeDuringMain:false,moves:49,laserInterveningStack:true,laserInterveningSix:true)
+        try await exercise(archetype:.tnt,variant:"laser-gun",reverse:true,disposeDuringMain:false,moves:49,laserInterveningStack:true,laserInterveningSix:true)
+    }
+    func testLaserLastMoveReplacementMergeSixSettlesAndAdmitsNextMove()async throws {
+        for arcade in [false,true] {for reverse in [false,true] {
+            try await exercise(archetype:.tnt,variant:"laser-gun",reverse:reverse,disposeDuringMain:false,moves:1,laserInterveningStack:true,laserInterveningSix:true,arcadeRun:arcade)
+        }}
+    }
     func testArcadeLaserReplacementStackDuringBounceSettlesAndAdmitsNextMove()async throws {
         try await exercise(archetype:.tnt,variant:"laser-gun",reverse:false,disposeDuringMain:false,laserInterveningStack:true,arcadeRun:true)
         try await exercise(archetype:.tnt,variant:"laser-gun",reverse:true,disposeDuringMain:false,laserInterveningStack:true,arcadeRun:true)
@@ -220,7 +229,7 @@ final class NativeWildMergeSixRootTests:XCTestCase {
             try await exercise(archetype:.star,variant:"bloob-ball",reverse:arcade,disposeDuringMain:false,moves:49,finalOnly:final,arcadeRun:arcade)
         }}
     }
-    private func exercise(archetype:NativeWildArchetype,variant:String?,reverse:Bool,disposeDuringMain:Bool=true,pulledKanta:Bool=false,moves:Int=50,finalOnly:Bool=false,starCount:Int=3,capturedBoard:NativeBoardState?=nil,freshStar:Bool=false,verifyStarTail:Bool=false,interveningOrdinary:Bool=false,interveningSix:Bool=false,heldOrdinaryMilliseconds:Int=160,rapidOrdinaryContacts:Int=0,tutorialAssist:Bool=false,arcadeTutorial:Bool=false,laserInterveningStack:Bool=false,arcadeRun:Bool=false,initialMeter:Double?=nil,verifyBaloonRetirement:Bool=false,verifyBoardScale:Bool=false,verifyQueuedBonus:Bool=false)async throws {
+    private func exercise(archetype:NativeWildArchetype,variant:String?,reverse:Bool,disposeDuringMain:Bool=true,pulledKanta:Bool=false,moves:Int=50,finalOnly:Bool=false,starCount:Int=3,capturedBoard:NativeBoardState?=nil,freshStar:Bool=false,verifyStarTail:Bool=false,interveningOrdinary:Bool=false,interveningSix:Bool=false,heldOrdinaryMilliseconds:Int=160,rapidOrdinaryContacts:Int=0,tutorialAssist:Bool=false,arcadeTutorial:Bool=false,laserInterveningStack:Bool=false,laserInterveningSix:Bool=false,arcadeRun:Bool=false,initialMeter:Double?=nil,verifyBaloonRetirement:Bool=false,verifyBoardScale:Bool=false,verifyQueuedBonus:Bool=false)async throws {
         let label=(variant ?? archetype.rawValue)+(reverse ? ":destination":":source")
         print("[WildMergeSixRoot] start \(label)")
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("wild-six-particles-"+UUID().uuidString)
@@ -236,9 +245,12 @@ final class NativeWildMergeSixRootTests:XCTestCase {
             for i in [2,3,4,5,40,41] {board.tiles[i].value=1;board.tiles[i].locked=false;board.tiles[i].alpha=1}
             if interveningSix {board.tiles[40].value=3;board.tiles[41].value=3}
         }
+        if laserInterveningSix {
+            for i in 2..<25 {board.tiles[i].value=1+(i % 5);board.tiles[i].locked=false;board.tiles[i].alpha=1}
+        }
         board.tiles[0].archetype=archetype;board.tiles[0].variant=variant;board.tiles[0].starOrbitCount=starCount
         if tutorialAssist {var tutorial=NativeTutorialState();tutorial.active=false;tutorial.guideCompleted=true;tutorial.completionAssist=true;tutorial.step = .freePlay;board.tutorial=tutorial}
-        board.moves=moves
+        board.moves=laserInterveningStack ? min(moves,49):moves
         if let initialMeter {board.wildMeter=initialMeter}
         if freshStar {board.tiles[0].archetype=nil;board.tiles[0].variant=nil;board.tiles[0].value=1;board.wildMeter=0.99}
         if pulledKanta {board.tiles[2].value=6;board.tiles[2].archetype = .star;board.tiles[2].variant="kanta"}
@@ -371,7 +383,7 @@ final class NativeWildMergeSixRootTests:XCTestCase {
                 guard kind=="laser-gun",moment=="impact",index==0,
                       let plan=gameplay.engine.pendingSpecial,let hit=plan.targets.first,
                       let source=gameplay.engine.state.tiles.first(where:{$0.id==hit.id}),
-                      let target=gameplay.engine.state.activeTiles.first(where:{$0.id != hit.id && !$0.isWild && !$0.resolutionOwned && $0.value+source.value<6}) else{return}
+                      let target=gameplay.engine.state.activeTiles.first(where:{$0.id != hit.id && !$0.isWild && !$0.resolutionOwned && (laserInterveningSix ? $0.value+source.value==6:$0.value+source.value<6)}) else{return}
                 Task { @MainActor in
                     do {
                         try await drag(source.id,target.id,holdMilliseconds:20)
@@ -651,7 +663,7 @@ final class NativeWildMergeSixRootTests:XCTestCase {
             }
         } else {XCTAssertEqual(scene.sourceWildScreenShakeInvocations.count,1,label)}
         try await wait(label+":shards-retired"){scene.sourceWildSixShardOwnerCount==0}
-        if laserInterveningStack {
+        if laserInterveningStack && !laserInterveningSix {
             let playable=gameplay.engine.state.activeTiles.filter{!$0.isWild && !$0.locked && $0.value>0 && $0.value<6}
             let six=try XCTUnwrap(playable.lazy.flatMap{a in playable.filter{$0.id != a.id && a.value+$0.value==6}.map{(a,$0)}}.first,
                 "Laser interruption fixture must retain a real merge-six pair")

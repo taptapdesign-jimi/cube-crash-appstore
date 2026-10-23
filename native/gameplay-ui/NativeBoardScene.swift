@@ -1976,9 +1976,11 @@ final class NativeBoardScene: SKScene {
         }
         let wild:(String)->Bool? = {[weak self] _ in guard let snapshot=fresh() else{return nil};if snapshot.wildContinuationPending {self?.requestSourceMeterQueueAfterGuardRelease(scope:scope,generation:generation)};return snapshot.wildContinuationPending}
         sourceNoMovesDepletedCallersEnabled=true;sourceOrdinaryPreDebitPresentationEnabled=true
-        guard configureSourceNoMovesDepletedCallers(.init(kinds:[.ordinaryMovesDepleted,.mergeMovesDepleted],admitted:{gen,_ in gen==generation && current()},busyEnding:{[weak self] in current() ? self?.engine.flags.busyEnding:nil},ensureTutorialSingleTile:{receipt,reply in repair("moves_depleted_single_regular_tile",true,reply)},forceFresh:{_ in
-            guard let snapshot=fresh() else{return nil};var state=snapshot.state;state.moves=0
-            return NativeSourceEndgameChecker.check(state:state,runtime:snapshot.tiles,endgameGuard:snapshot.endgameGuardActive,nonFinalGuard:snapshot.nonFinalMergeSixGuardActive)
+        guard configureSourceNoMovesDepletedCallers(.init(kinds:[.ordinaryMovesDepleted,.mergeMovesDepleted],admitted:{gen,_ in gen==generation && current()},busyEnding:{[weak self] in current() ? self?.engine.flags.busyEnding:nil},ensureTutorialSingleTile:{receipt,reply in repair("moves_depleted_single_regular_tile",true,reply)},forceFresh:{[weak self,weak scope] _ in
+            guard let self,let scope,current(),let guardState=scope.registries.snapshot(isWild:false),current(),
+                  let physical=self.captureSourceNoMovesPhysical(requirePaintedReceipt:false,current:current),current() else{return nil}
+            var state=physical.state;state.moves=0
+            return NativeSourceEndgameChecker.check(state:state,runtime:physical.tiles,endgameGuard:guardState.endgameGuard.active,nonFinalGuard:physical.nonFinalMergeSixGuardActive)
         },resetHint:{[weak self] in self?.sourceNoMovesBindings?.resetHint()},deferWild:wild,tutorialFinalChance:{reason,reply in repair(reason,false,reply)},cleanVisibility:{[weak self] in guard current(),let self else{return nil};guard let host=self.gameplayRenderHost?.renderView,host.window != nil,!host.isHidden,host.alpha>0.01,!self.suspended,!self.exitInProgress,self.isBoardEntryComplete else{return nil};return (false,false)},clean:{[weak self] reason in self?.handleResolution(NativeResolution(.complete,reason:reason))})) else{return false}
         let roster:()->NativeSourcePostcheckRoster? = {[weak self] in guard current(),let self,let board=self.captureSourcePhysicalBoard() else{return nil};var values:[NativeSourcePostcheckTile]=[]
             guard self.scanSourceSynchronousPhysicalBoard(board,current:current,readsExternalOwner:{$0.isSpecial || $0.sourceResidualWildPresence},read:{model,node in
@@ -6191,9 +6193,32 @@ final class NativeBoardScene: SKScene {
         guard sourceAnimationBindingAdmissionOpen,sourceCanonicalSaveBinding?.current==true else{return}
         sourceMeterQueue?.guardReleased()
     }
-    /// Ordered getNoMovesCommitBlockReason authority. Physical observations
-    /// do not call the global producer because that would eagerly query Date
-    /// and Special ahead of Source's forced current checker.
+    /// The caller's forced checker precedes commit-authority global/queue reads.
+    /// Reuse the exact physical roster without requiring later spawn capabilities.
+    private func captureSourceNoMovesPhysical(requirePaintedReceipt:Bool=true,current:@escaping()->Bool)->NativeSourceNoMovesRuntimeAuthority.PhysicalCapture? {
+        guard current(),let board=self.captureSourcePhysicalBoard(),board.isStillCurrent(),
+              let nonfinal=self.captureSourceNonFinalMergeSixGuardActive() else{return nil}
+        var state=board.observedState,runtime:[String:NativeNoMovesTileRuntime]=[:],index=0
+        guard self.scanSourceSynchronousPhysicalBoard(board,current:current,readsExternalOwner:{$0.isSpecial || $0.sourceResidualWildPresence},read:{model,_ in
+            let id=model.id
+            guard index<state.tiles.count,state.tiles[index].id==id,
+                  let tile=board.tiles[id],let marker=self.captureSourceGameplayTileMarkers(id) else{return nil}
+            state.tiles[index].pendingRemoval=marker.pendingRemoval
+            state.tiles[index].magnetOwned=marker.magnetAffected
+            state.tiles[index].resolutionOwned=marker.resolutionOwned
+            state.tiles[index].merge6CleanupOwned=marker.mergeSixCleanupOwned
+            state.tiles[index].nonFinalMerge6=marker.nonFinalMergeSix
+            state.tiles[index].transientSpawn=marker.ccSpawnAnimating
+            runtime[id]=marker.noMovesRuntime(eventMode:tile.eventMode)
+            index+=1;return false
+        }) != nil else{return nil}
+        guard current() else{return nil}
+        // Forced checker observes real lifecycle markers during the accepted
+        // merge. Only commit authority requires canonical logical equivalence.
+        let receipt=NativeSourceNoMovesRuntimeSnapshot.PaintedStateReceipt(canonicalState:board.canonicalState,paintedState:state)
+        guard !requirePaintedReceipt || receipt != nil else{return nil}
+        return .init(state:state,tiles:runtime,nonFinalMergeSixGuardActive:nonfinal,paintedStateReceipt:receipt)
+    }
     func makeSourceNoMovesRuntimeAuthority(scope:NativeGameplaySourceContext.Scope)->NativeSourceNoMovesRuntimeAuthority? {
         let generation=engine.state.generation
         let current:()->Bool = {[weak self,weak scope] in
@@ -6216,25 +6241,8 @@ final class NativeBoardScene: SKScene {
                     guard current(),let value=scope?.registries.snapshot(isWild:false),current() else{return nil}
                     return value.endgameGuard.active
                 },physical:{[weak self] in
-                    guard current(),let self,let board=self.captureSourcePhysicalBoard(),board.isStillCurrent(),
-                          let nonfinal=self.captureSourceNonFinalMergeSixGuardActive() else{return nil}
-                    var state=board.observedState,runtime:[String:NativeNoMovesTileRuntime]=[:],index=0
-                    guard self.scanSourceSynchronousPhysicalBoard(board,current:current,readsExternalOwner:{$0.isSpecial || $0.sourceResidualWildPresence},read:{model,_ in
-                        let id=model.id
-                        guard index<state.tiles.count,state.tiles[index].id==id,
-                              let tile=board.tiles[id],let marker=self.captureSourceGameplayTileMarkers(id) else{return nil}
-                        state.tiles[index].pendingRemoval=marker.pendingRemoval
-                        state.tiles[index].magnetOwned=marker.magnetAffected
-                        state.tiles[index].resolutionOwned=marker.resolutionOwned
-                        state.tiles[index].merge6CleanupOwned=marker.mergeSixCleanupOwned
-                        state.tiles[index].nonFinalMerge6=marker.nonFinalMergeSix
-                        state.tiles[index].transientSpawn=marker.ccSpawnAnimating
-                        runtime[id]=marker.noMovesRuntime(eventMode:tile.eventMode)
-                        index+=1;return false
-                    }) != nil else{return nil}
-                    guard current(),let receipt=NativeSourceNoMovesRuntimeSnapshot.PaintedStateReceipt(
-                        canonicalState:board.canonicalState,paintedState:state) else{return nil}
-                    return .init(state:state,tiles:runtime,nonFinalMergeSixGuardActive:nonfinal,paintedStateReceipt:receipt)
+                    guard let self else{return nil}
+                    return self.captureSourceNoMovesPhysical(current:current)
                 },fresh:{physical,guardActive in
                     guard current() else{return nil}
                     return NativeSourceEndgameChecker.check(state:physical.state,runtime:physical.tiles,
@@ -7150,6 +7158,25 @@ final class NativeBoardScene: SKScene {
         finishDrag(at:touchLocationInGameplayScene(touch),now:CACurrentMediaTime())
     }
 
+    /// Failure-only evidence for the physical post-Laser rejection incident.
+    /// Bounded diagnostics are separate from saves and never alter admission.
+    private func recordLaserDropRejection(_ result:NativeMoveResult,sourceID:String,target:NativeCell?) {
+        guard !result.accepted,specialPresentationVariant == "laser-gun",let target else{return}
+        let source=engine.state.tiles.first{$0.id==sourceID},destination=engine.state.tile(at:target)
+        func physical(_ tile:NativeTile?)->String {
+            guard let tile else{return "missing"}
+            let node=nodesByID[tile.id]
+            return "id=\(tile.id);value=\(tile.value);depth=\(tile.stackDepth);locked=\(tile.locked);owned=\(tile.resolutionOwned);nodeValue=\(node?.value.description ?? "nil");nodeDepth=\(node?.depth.description ?? "nil");event=\(node?.sourceEventMode ?? "nil");framePending=\(node?.sourceRegularFramePending == true)"
+        }
+        NativeSourceRejectionDiagnostics.record(.init(reason:result.events.compactMap(\.reason).joined(separator:"|"),
+            generation:engine.state.generation,board:engine.state.board,mode:engine.state.mode.rawValue,phase:"laser-drop-rejected",
+            counters:["revision":Int(clamping:engine.state.revision),"moves":engine.state.moves,
+                "pendingSpawns":sourceSpawns.count,"laserCallbacks":laserSpawnCallbacks.count],
+            details:["source":physical(source),"destination":physical(destination),"flags":String(describing:engine.flags),
+                "special":engine.pendingSpecial?.id ?? "none","tnt":sourceTntMainDiagnostic(),
+                "admission":"input=\(inputAdmitted);navigation=\(navigationLocked);sixContacts=\(sourceSixContacts.count);sixPrepared=\(sourceSixPrepared != nil)"]))
+    }
+
     @discardableResult
     func finishDrag(at point: CGPoint, now: TimeInterval) -> NativeMoveResult? {
         guard !sourceDisposalInProgress else {return nil }
@@ -7191,6 +7218,7 @@ final class NativeBoardScene: SKScene {
                     _ = source.beginSourceReturn(to:heldOrigin.position,onCompleted:{[weak self,weak source] in guard let self,!self.disposed,self.engine.state.generation==generation else{return};source?.sourceSnapBackCompleted();if let source,self.sourceTutorialTargetCurrent(source){self.onSourceGuidedSnapBack?(source)}})
                 }
                 traceSourceMagnetContact("drop_presentation_refused",id:id,target:target,result:rejection)
+                recordLaserDropRejection(rejection,sourceID:id,target:target)
                 consume(rejection,previous:oldState,preserveRejectedPosition:id);return rejection
             }
         }
@@ -7220,12 +7248,14 @@ final class NativeBoardScene: SKScene {
                         if self.sourceTutorialTargetCurrent(source){self.onSourceGuidedSnapBack?(source)}
                     })
                 }
+                recordLaserDropRejection(rejected,sourceID:id,target:target)
                 traceSourceMagnetContact("drop_predebit_refused",id:id,target:target,result:rejected)
                 return rejected
             }
             preDebitContact=contact
         }
         let result = engine.drop(target: target, pointerID: 1, now: now)
+        recordLaserDropRejection(result,sourceID:id,target:target)
         if result.accepted,let target,let destination=oldState.tile(at:target),let node=nodesByID[destination.id] {
             shortWildBoardBlast?.interrupt(node)
         }
