@@ -35,3 +35,13 @@ and needs no additional installation.
 The annotated tag identifies the payload; existing recovery tags remain fixed.
 Online main and the peeled tag are compared with the local payload commit after
 an atomic push. Any later publication receipt is documentation-only.
+
+## Verified online publication
+
+Atomic push of main and native-benchmark-v12 succeeded. Online main and peeled
+benchmark tag verified at payload commit
+`7aecef08ad197a65f114a13d7db1fcc92b40afe8`.
+Annotated tag object: `f33e807f55f92a7a1a6eb7742f94a01a13221355`.
+This documentation-only receipt follows on main; the tag stays on the payload.
+Six excluded local soundtrack deletions and newer concurrent incident notes are
+left untouched outside this checkpoint.
