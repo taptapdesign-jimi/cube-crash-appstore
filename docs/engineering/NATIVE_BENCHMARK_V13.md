@@ -36,3 +36,13 @@ remains NEEDS PHYSICAL TEST.
 The annotated tag identifies the payload. Existing benchmark/recovery tags stay
 fixed. Online main and peeled tag will be verified after an atomic push; any
 later publication receipt is documentation-only and does not move the tag.
+
+## Verified online publication
+
+Atomic push of main and native-benchmark-v13 succeeded. Independent ls-remote
+verified online main and peeled tag at payload commit
+`901fcaf52564cce6fb081bcb0b935f0f11d79662`. Annotated tag object:
+`64ac6a4dadc953b19aaae4d68993cf7a64a4d265`.
+This verification receipt is a later documentation-only commit on main;the
+benchmark tag and its payload manifest remain fixed at the payload commit.
+Six excluded local soundtrack deletions remain untouched.
