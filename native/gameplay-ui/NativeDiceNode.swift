@@ -562,15 +562,38 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
     // Captured app-spawn bounce cancellation is a real timeline interruption,
     // not a synthetic Source `_isBeingSpawned`/`_spawnTween` marker.
     private var sourceAppSpawnInterruption:(id:String,pickup:()->Void,interrupted:()->Void)?
-    var sourceAppSpawnOwnsOuterScale:Bool {sourceAppSpawnInterruption != nil}
+    // A presentation receipt, deliberately separate from Source gameplay flags.
+    // It protects the hidden face between assignment and bounce admission.
+    private var sourceFreshFaceEntryPending:UUID?
+    var sourcePendingFreshFaceEntryID:UUID? {sourceFreshFaceEntryPending}
+    var sourceFreshFaceRenderSerial:UInt64? {
+        guard !disposed else{return nil}
+        return (scene as? NativeBoardScene)?.freshFaceRenderSerial
+    }
+    var sourceAppSpawnOwnsOuterScale:Bool {sourceAppSpawnInterruption != nil || sourceFreshFaceEntryPending != nil}
+    func prepareSourceFreshFaceEntry() {
+        guard !disposed else{return}
+        sourceFreshFaceEntryPending=UUID()
+        paintSourceOuterScale(.zero)
+    }
+    func retireSourcePendingFreshFaceEntry(expected:UUID?=nil) {
+        if let expected,sourceFreshFaceEntryPending != expected {return}
+        guard sourceFreshFaceEntryPending != nil else{return}
+        sourceFreshFaceEntryPending=nil
+        if !disposed {paintSourceOuterScale(.init(x:1,y:1))}
+    }
     @discardableResult func bindSourceAppSpawnInterruption(id:String,pickup:@escaping()->Void,interrupted:@escaping()->Void)->Bool {
         guard !disposed,sourceAppSpawnInterruption==nil else{return false}
-        sourceAppSpawnInterruption=(id,pickup,interrupted);return true
+        sourceAppSpawnInterruption=(id,pickup,interrupted)
+        sourceFreshFaceEntryPending=nil // Atomic handoff to the actual bounce.
+        return true
     }
     func unbindSourceAppSpawnInterruption(id:String) {
         guard sourceAppSpawnInterruption?.id==id else{return};sourceAppSpawnInterruption=nil
+        if !disposed,sourceFreshFaceEntryPending==nil {paintSourceOuterScale(.init(x:1,y:1))}
     }
     private func interruptSourceAppSpawn() {
+        retireSourcePendingFreshFaceEntry()
         let captured=sourceAppSpawnInterruption;sourceAppSpawnInterruption=nil
         captured?.interrupted()
     }
@@ -1623,6 +1646,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         paintSourceOuterScale(CGPoint(x:pose.x,y:pose.y));zRotation = -pose.rotation
     }
     func beginSourcePickup()->Bool {
+        retireSourcePendingFreshFaceEntry()
         sourceAppSpawnInterruption?.pickup()
         guard !disposed else{return false}
         return sourceOuterBridge?.pickup() ?? false
@@ -2566,6 +2590,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
 
     func dispose() {
         guard !disposed else { return }
+        sourceFreshFaceEntryPending=nil
         sourceGridCell=nil
         retireTntFuse()
         retireSourceBottleIdle(restoring:false)

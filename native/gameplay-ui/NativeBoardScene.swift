@@ -31,6 +31,9 @@ struct NativeSourceDragRenderDiagnostics {
 /// animation completion never computes a merge, spawn, reward or terminal.
 @MainActor
 final class NativeBoardScene: SKScene {
+    // Advances only when SpriteKit actually admits a scene update. Source CAD
+    // callbacks during a busy Metal flight cannot consume fresh-face motion.
+    private(set) var freshFaceRenderSerial:UInt64=0
     private weak var ownedRenderHost:(any NativeGameplayRenderHost)?
     private weak var mountedLifecycleHost:(any NativeGameplayRenderHost)?
     var renderPipelineProbe:NativeRenderPipelineProbe? = Bundle.main.bundleIdentifier=="com.taptapdesign.stacktosix.native" && ProcessInfo.processInfo.arguments.contains("--cc-render-pipeline-probe") ? NativeRenderPipelineProbe():nil
@@ -958,10 +961,12 @@ final class NativeBoardScene: SKScene {
     /// Fallback owns the inner carrier only; never multiply its entry by an
     /// already prepainted Source outer entry on the same newly opened face.
     private func prepareInnerSpawnEntry(_ node:NativeDiceNode) {
+        node.retireSourcePendingFreshFaceEntry()
         if node.sourceOuterDriven {node.paintSourceOuterScale(.init(x:1,y:1))}
         node.visual.setScale(CGFloat(NativeSourceAppSpawnBounceOwner.nativeEntryScale))
     }
     private func retireSourceOrdinaryOpenBounces() {
+        nodesByID.values.forEach{$0.retireSourcePendingFreshFaceEntry()}
         let captured=sourceOrdinaryOpenBounces;sourceOrdinaryOpenBounces.removeAll()
         for entry in captured.values {
             entry.node.unbindSourceAppSpawnInterruption(id:entry.id)
@@ -972,6 +977,9 @@ final class NativeBoardScene: SKScene {
     /// Independent raw setValue RAF was already queued by its assignment.
     /// Native SKAction spawn and other family paths keep their existing owners.
     private func startSourceOrdinaryOpenBounce(_ node:NativeDiceNode,timeScale:Double=1,completed:@escaping()->Void)->Bool {
+        var admitted=false
+        let pendingEntry=node.sourcePendingFreshFaceEntryID
+        defer {if !admitted,let pendingEntry {node.retireSourcePendingFreshFaceEntry(expected:pendingEntry)}}
         guard sourceAnimationBindingAdmissionOpen,sourceStackCoreFaceReceiptsEnabled,
             engine.sourceOrdinaryLockedSettlementsEnabled,let scope=sourceSixScope,scope.current,
             node.sourceOuterDriven,node.sourceContactNodeAlive,node.parent === canvasRoot,
@@ -1001,13 +1009,14 @@ final class NativeBoardScene: SKScene {
                 guard wasCurrent else{return}
                 if outcome == .unavailable {self.onSourcePresentationFailure?("source_ordinary_open_bounce_unavailable",generation)}
                 else {completed()}
-            }),timeScale:timeScale,initialScale:NativeSourceAppSpawnBounceOwner.nativeEntryScale)
+            }),timeScale:1,initialScale:NativeSourceAppSpawnBounceOwner.nativeEntryScale,nativeFreshFace:true,nativeFrameSerial:{[weak node] in node?.sourceFreshFaceRenderSerial})
         sourceOrdinaryOpenBounces[node.tileID] = .init(id:id,node:node,owner:owner)
         guard node.bindSourceAppSpawnInterruption(id:id,pickup:{[weak owner] in owner?.removeChildrenForPickup()},
             interrupted:{[weak owner] in owner?.interrupt()}),current(),owner.start(),current() else {
             sourceOrdinaryOpenBounces.removeValue(forKey:node.tileID)
             node.unbindSourceAppSpawnInterruption(id:id);owner.interrupt();return false
         }
+        admitted=true
         return true
     }
     var onBoardEntry: ((TimeInterval, [TimeInterval]) -> Void)?
@@ -2145,14 +2154,14 @@ final class NativeBoardScene: SKScene {
                 }),board.isStillCurrent(),current() {_=owner.verifiedActive(claim)}
             evaluate()
         }
-        if let node=construct(),current(),startSourceOrdinaryOpenBounce(node,timeScale:2,completed:confirmed){
+        if let node=construct(),current(),startSourceOrdinaryOpenBounce(node,timeScale:1,completed:confirmed){
             onStateChange?(engine.state);return
         }
         guard current() else{return}
         // Source hardFallbackSpawnAtCell creates a SECOND fresh zero, then
         // performs the ordinary replacement bounce without awaiting it. Its
-        // options equal this authored owner at timeScale1 (.30/1.08/.96/1.02,
-        // wiggle .035, full opacity), rather than the normal repair's scale2.
+        // Native fresh faces use the full zero/1.08/.96/1.02 entry with
+        // wiggle .035 and full opacity, including this non-awaited fallback.
         if let node=construct(),current(),startSourceOrdinaryOpenBounce(node,timeScale:1,completed:{}) {
             onStateChange?(engine.state);confirmed();return
         }
@@ -2170,7 +2179,7 @@ final class NativeBoardScene: SKScene {
         guard let result=engine.openSourceLingeringSixRepair(tileID:holder.id,generation:generation),
             prepareSourceOrdinaryFreshOpenFace(result,id:holder.id,generation:generation) else{return}
         synchronize()
-        _=startSourceOrdinaryOpenBounce(node,timeScale:2,completed:{[weak self] in
+        _=startSourceOrdinaryOpenBounce(node,timeScale:1,completed:{[weak self] in
             guard let self,scope.current,self.engine.state.generation==generation else{return}
             _=self.sourceAppTimeouts.schedule(sourceID:"lingering-repair140:"+UUID().uuidString,generation:generation,delayMilliseconds:140,elapsed:{[weak self] in self?.evaluate()})
         })
@@ -2196,7 +2205,7 @@ final class NativeBoardScene: SKScene {
             _=engine.rollbackSourceTutorialRepair(generation:generation,tileID:tile.id);reply(nil);return
         }
         synchronize()
-        guard startSourceOrdinaryOpenBounce(node,timeScale:2,completed:{[weak self] in
+        guard startSourceOrdinaryOpenBounce(node,timeScale:1,completed:{[weak self] in
             guard let self,self.sourceAnimationBindingAdmissionOpen,scope.current,self.engine.state.generation==generation else{reply(nil);return}
             _=self.sourceAppTimeouts.schedule(sourceID:"tutorial-repair140:"+UUID().uuidString,generation:generation,delayMilliseconds:140,elapsed:{[weak self] in
                 guard let self,scope.current,self.engine.state.generation==generation else{reply(nil);return}
@@ -3248,11 +3257,15 @@ final class NativeBoardScene: SKScene {
                     self.engine.state.generation==generation && self.nodesByID[tile.id] === node &&
                     node.parent === self.canvasRoot && node.sourceGeneration==generation && node.sourceContactNodeAlive
             }
+            node.prepareSourceFreshFaceEntry()
+            let pendingEntry=node.sourcePendingFreshFaceEntryID
+            var facePrepared=false
+            defer {if !facePrepared,let pendingEntry {node.retireSourcePendingFreshFaceEntry(expected:pendingEntry)}}
             guard node.openSourceAppSpawnHolder(tile.value,service:scope.service,random:{scope.mathRandom.next()},
                 current:current,frameCurrent:current,beforeSetValue:{current() && self.engine.state==captured},
                 onCancelled:{[weak self] in if current(){self?.onSourcePresentationFailure?("source_wild_hard_face_cancelled",generation)}}),
                 current(),engine.state==captured else{return false}
-            sourceWildHardPrimaryFaceActionIDs.insert(action.id);return true
+            sourceWildHardPrimaryFaceActionIDs.insert(action.id);facePrepared=true;return true
         }
         guard sourceAnimationBindingAdmissionOpen,scope.current,sourceDirectScope === scope,
               sourceSixScope === scope,action.kind == .primary,action.cell==tile.cell,
@@ -3300,12 +3313,16 @@ final class NativeBoardScene: SKScene {
             guard current(),engine.state==captured,sourceWildConstructorEpoch==epoch,let frame else{frame?.cancel();return false}
             sourceWildConstructorBatch=frame
         }
+        node.prepareSourceFreshFaceEntry()
+        let pendingEntry=node.sourcePendingFreshFaceEntryID
+        var facePrepared=false
+        defer {if !facePrepared,let pendingEntry {node.retireSourcePendingFreshFaceEntry(expected:pendingEntry)}}
         guard current(),node.openSourceAppSpawnHolder(tile.value,service:scope.service,random:{scope.mathRandom.next()},
             current:current,frameCurrent:current,beforeSetValue:{current() && self.engine.state==captured},
             onCancelled:{[weak self] in if current(){self?.onSourcePresentationFailure?("source_wild_primary_face_cancelled",generation)}}),
             current(),engine.state==captured else{return false}
-        node.paintSourceOuterScale(.init(x:NativeSourceAppSpawnBounceOwner.nativeEntryScale,y:NativeSourceAppSpawnBounceOwner.nativeEntryScale))
         sourceWildPrimaryFaceActionIDs.insert(action.id)
+        facePrepared=true
         return current() && engine.state==captured
     }
     private func commitSourceWildLockedFace(_ action:NativeWildSpawnAction,tile:NativeTile,
@@ -3319,6 +3336,10 @@ final class NativeBoardScene: SKScene {
                 self.engine.state.generation==generation && self.nodesByID[id] === node && node.parent === self.canvasRoot &&
                 node.sourceContactNodeAlive && node.sourceGeneration==generation
         }
+        node.prepareSourceFreshFaceEntry()
+        let pendingEntry=node.sourcePendingFreshFaceEntryID
+        var facePrepared=false
+        defer {if !facePrepared,let pendingEntry {node.retireSourcePendingFreshFaceEntry(expected:pendingEntry)}}
         guard current(),action.kind == .locked,action.tileID==id,
               node.value==0,node.locked,
               node.openSourceAppSpawnHolder(tile.value,service:scope.service,random:{scope.mathRandom.next()},
@@ -3328,9 +3349,9 @@ final class NativeBoardScene: SKScene {
             onSourcePresentationFailure?("source_wild_locked_face_not_admitted",generation);return false
         }
         // Selected Native entry pose is painted before direction Math.
-        node.paintSourceOuterScale(.init(x:NativeSourceAppSpawnBounceOwner.nativeEntryScale,y:NativeSourceAppSpawnBounceOwner.nativeEntryScale))
         guard current(),engine.state==captured else{return false}
         sourceWildLockedFaceActionIDs.insert(action.id)
+        facePrepared=true
         return true
     }
     private func startSourceLateFinalVisual(_ receipt:NativeSourceLateFinalMergeReceipt)->Bool {
@@ -6035,6 +6056,7 @@ final class NativeBoardScene: SKScene {
             eligible.owners.pendingRemoval=markers.pendingRemoval
             eligible.owners.beingRemoved=markers.beingRemoved;eligible.owners.cleanupQueued=markers.cleanupQueued
             eligible.owners.wildSpawnDropping=markers.wildDropping
+            if sourceOwnsNewFaceEntry(model.id) {continue}
             eligible.owners.isBeingSpawned=node.sourceIsBeingSpawned || markers.ccSpawnAnimating || markers.spawnAnimating || markers.isSpawning || markers.spawnTweenActive
             eligible.owners.skipIdleScaleReset=node.sourceSkipIdleScaleReset
             if eligible.canBeginOuterIdle {ids.append(model.id)}
@@ -7130,7 +7152,7 @@ final class NativeBoardScene: SKScene {
         }
         if source.isWild {
             let policy:NativeSpecialDropTarget.Policy = source.gameplayArchetype == .magnet ? .magnet:
-                source.variant == "barell" ? .barrel:.direct
+                NativeSpecialDiceRegistry.usesBarrelFlow(source.variant) ? .barrel:.direct
             let bounds:CGRect
             if policy == .barrel {
                 // v9 deliberately excludes the Barrel's transparent jump canvas.
@@ -7743,7 +7765,7 @@ final class NativeBoardScene: SKScene {
                         continue
                     }
                     if sourceStackCoreFaceReceiptsEnabled,node.sourceOuterDriven,
-                       let variant=event.variant,["flower","barell","beach-ball"].contains(variant) {
+                       let variant=event.variant,["flower","barell","beach-ball","bloob-ball"].contains(variant) {
                         // These replacements borrow the Source fresh constructor,
                         // whose new-face entry lives on the outer carrier.
                         // An inner SKAction cannot settle that captured scale.
@@ -7770,6 +7792,7 @@ final class NativeBoardScene: SKScene {
                         // A source fallback value assignment without a bounce
                         // receipt is plain logical normalization, never generic FX.
                         finishWildSpawnVisual(id,interrupted:true)
+                        node.retireSourcePendingFreshFaceEntry()
                         node.visual.setScale(1);node.visual.zRotation=0
                         continue
                     }
@@ -8396,11 +8419,16 @@ final class NativeBoardScene: SKScene {
         // app-spawn setValue owns immediate value and the independent raw face
         // RAF before publication/bounce. Retained node/scope lifetime guards
         // later merge-six/Direct frames after the assignment Promise retires.
+        node.prepareSourceFreshFaceEntry()
+        let pendingEntry=node.sourcePendingFreshFaceEntryID
+        var facePrepared=false
+        defer {if !facePrepared,let pendingEntry {node.retireSourcePendingFreshFaceEntry(expected:pendingEntry)}}
         guard node.openSourceAppSpawnHolder(tile.value,service:scope.service,random:{scope.mathRandom.next()},
             current:current,frameCurrent:current,beforeSetValue:{current() && self.engine.state==result.state},
             onCancelled:{[weak self] in if current(){self?.onSourcePresentationFailure?("source_ordinary_open_face_cancelled",generation)}}) else {
             onSourcePresentationFailure?("source_ordinary_open_face_not_admitted",generation);return false
         }
+        facePrepared=true
         return true
     }
     private func constructSourceOrdinaryZeroHolder(tile:NativeTile,generation:UInt64)->NativeDiceNode? {
@@ -8462,10 +8490,14 @@ final class NativeBoardScene: SKScene {
                 self.engine.state.generation==generation && self.nodesByID[id] === node && node.parent === self.canvasRoot &&
                 node.sourceContactNodeAlive && node.sourceGeneration==generation
         }
+        node.prepareSourceFreshFaceEntry()
+        let pendingEntry=node.sourcePendingFreshFaceEntryID
+        var facePrepared=false
+        defer {if !facePrepared,let pendingEntry {node.retireSourcePendingFreshFaceEntry(expected:pendingEntry)}}
         guard node.openSourceAppSpawnHolder(tile.value,service:scope.service,random:{scope.mathRandom.next()},
             current:current,frameCurrent:current,beforeSetValue:{current() && self.engine.state==result.state},
             onCancelled:{[weak self] in if current(){self?.onSourcePresentationFailure?("source_ordinary_fresh_face_cancelled",generation)}}),current() else{return false}
-        node.paintSourceOuterScale(.init(x:NativeSourceAppSpawnBounceOwner.nativeEntryScale,y:NativeSourceAppSpawnBounceOwner.nativeEntryScale))
+        facePrepared=true
         return true
     }
     private func startOrdinaryAssignments(ids:[String]) {
@@ -8806,6 +8838,9 @@ final class NativeBoardScene: SKScene {
     }
     private func startSourceWildLockedBounce(_ presentation:StackToSixGameplay.NativeWildSpawnPresentation,
         node:NativeDiceNode,actionID:String,primary:Bool=false)->Bool {
+        var admitted=false
+        let pendingEntry=node.sourcePendingFreshFaceEntryID
+        defer {if !admitted,let pendingEntry {node.retireSourcePendingFreshFaceEntry(expected:pendingEntry)}}
         guard let scope=sourceDirectScope,scope.current,sourceSixScope === scope,
               sourceAnimationBindingAdmissionOpen,node.sourceOuterDriven,node.sourceContactNodeAlive,
               node.sourceGeneration==presentation.generation,nodesByID[node.tileID] === node,
@@ -8834,7 +8869,7 @@ final class NativeBoardScene: SKScene {
                     }
                 })
                 if accepted,outcome == .unavailable {self.onSourcePresentationFailure?("source_wild_locked_bounce_unavailable",generation)}
-            }),timeScale:primary || presentation.sourceLevelFlowReinforcement ? 2:1,capturedDirection:presentation.direction,initialScale:NativeSourceAppSpawnBounceOwner.nativeEntryScale)
+            }),timeScale:1,capturedDirection:presentation.direction,initialScale:NativeSourceAppSpawnBounceOwner.nativeEntryScale,nativeFreshFace:true,nativeFrameSerial:{[weak node] in node?.sourceFreshFaceRenderSerial})
         sourceWildOpenBounces[tileID] = .init(id:id,node:node,owner:owner)
         let arrival=primary ? engine.pendingWildSpawnArrivals.first{$0.tileID==tileID && $0.generation==generation}:nil
         wildSpawnVisuals[tileID]=(beginVisual(),generation,arrival,nil)
@@ -8842,6 +8877,7 @@ final class NativeBoardScene: SKScene {
             interrupted:{[weak owner] in owner?.interrupt()}),current(),owner.start(),current() else {
             finishWildSpawnVisual(tileID,interrupted:true);return false
         }
+        admitted=true
         return true
     }
     private func completeSourceLevelFlowBounce(_ node:NativeDiceNode,generation:UInt64) {
@@ -8862,7 +8898,13 @@ final class NativeBoardScene: SKScene {
         }
         nodesByID[id]?.visual.removeAction(forKey:"native-wild-spawn")
         nodesByID[id]?.visual.removeAction(forKey:"native-wild-locked-bonus")
-        sourceWildBonusPops.removeValue(forKey:id)?.dispose()
+        if let bonus=sourceWildBonusPops[id] {
+            let node=nodesByID[id]
+            bonus.dispose()
+            if sourceWildBonusPops[id] === bonus {sourceWildBonusPops.removeValue(forKey:id)}
+            if sourceWildBonusPops[id]==nil,let node,nodesByID[id] === node,
+               !node.sourceAppSpawnOwnsOuterScale {node.paintSourceOuterScale(.init(x:1,y:1))}
+        }
         if let bonus=wildBonusVisuals.removeValue(forKey:id) {finishVisual(bonus.0)}
         guard let captured=wildSpawnVisuals.removeValue(forKey:id) else{return}
         // Original wrapped bounce releases its single100ms frame lease before
@@ -8928,7 +8970,7 @@ final class NativeBoardScene: SKScene {
                         finished:{[weak self] in
                             guard let self else{return};self.sourceWildBonusPops.removeValue(forKey:bonus.tileID)
                             if let pending=self.wildBonusVisuals.removeValue(forKey:bonus.tileID){self.finishVisual(pending.0)}
-                        }),initialScale:NativeSourceAppSpawnBounceOwner.nativeEntryScale,hidesUntilStart:true)
+                        }),initialScale:NativeSourceAppSpawnBounceOwner.nativeEntryScale,hidesUntilStart:true,nativeFreshFace:true,nativeFrameSerial:{[weak node] in node?.sourceFreshFaceRenderSerial})
                 sourceWildBonusPops[bonus.tileID]=owner
                 if !owner.start(){owner.dispose();onSourcePresentationFailure?("source_wild_bonus_pop_refused",bonus.generation)}
                 continue
@@ -8961,8 +9003,15 @@ final class NativeBoardScene: SKScene {
         finishSourceGameplay(.mergeSixResolution,id:captured.id,generation:captured.generation)
     }
     private func invalidateWildTransports() {
-        let bonusPops=sourceWildBonusPops;sourceWildBonusPops.removeAll()
-        for owner in bonusPops.values{owner.dispose()}
+        nodesByID.values.forEach{$0.retireSourcePendingFreshFaceEntry()}
+        let bonusPops=sourceWildBonusPops
+        for (id,owner) in bonusPops {
+            let node=nodesByID[id]
+            owner.dispose()
+            if sourceWildBonusPops[id] === owner {sourceWildBonusPops.removeValue(forKey:id)}
+            if sourceWildBonusPops[id]==nil,let node,nodesByID[id] === node,
+               !node.sourceAppSpawnOwnsOuterScale {node.paintSourceOuterScale(.init(x:1,y:1))}
+        }
         sourceWildLockedFaceActionIDs.removeAll()
         sourceWildPrimaryFaceActionIDs.removeAll()
         sourceWildHardPrimaryFaceActionIDs.removeAll()
@@ -9405,16 +9454,6 @@ final class NativeBoardScene: SKScene {
         sourceHUDStarOwner=owner;sourceHUDStarFeedback=feedback;sourceHUDStarScaleFeedback=scales;sourceHUDStarScaleClock=scaleClock;sourceHUDStarCapture=capture;engine.sourceHUDStarJobsEnabled=true;sourceDisposalSealingEnabled=true
         return true
     }
-    @discardableResult func launchBloobBallCoin(receiptID:String,screenOrigin:CGPoint,generation:UInt64)->Bool {
-        guard generation==engine.state.generation,screenOrigin.x.isFinite,screenOrigin.y.isFinite,
-              let receipt=engine.pendingHUDStars.first(where:{$0.id==receiptID && $0.variant=="bloob-ball" && $0.generation==generation}) else{return false}
-        if sourceHUDStarJobsPresentationEnabled {
-            guard let owner=sourceHUDStarOwner,let target=sourceHUDStarTargetScreen else{return false}
-            return owner.start(receiptIDs:[receipt.id],screenOrigin:screenOrigin,hudTarget:target)
-        }
-        startHUDStarFlights(ids:[receipt.id],screenOrigin:screenOrigin)
-        return hudStarIDs.contains(receipt.id)
-    }
     func startSourceHUDStarJobs(ids:[String])->Bool {
         guard let owner=sourceHUDStarOwner,let capture=sourceHUDStarCapture,sourceAnimationBindingAdmissionOpen else{return false}
         let epoch=sourceHUDStarEpoch,generation=engine.state.generation
@@ -9447,8 +9486,6 @@ final class NativeBoardScene: SKScene {
     }
 
     private func startHUDStarFlights(ids: [String],lead: TimeInterval = 0,screenOrigin:CGPoint?=nil) {
-        // Bloob receipts remain canonical pending debt until their actual explosion.
-        let ids=ids.filter {id in screenOrigin != nil || !engine.pendingHUDStars.contains{$0.id==id && $0.variant=="bloob-ball"}}
         guard !ids.isEmpty else{return}
         if sourceHUDStarJobsPresentationEnabled {
             guard startSourceHUDStarJobs(ids:ids) else{
@@ -9618,7 +9655,7 @@ final class NativeBoardScene: SKScene {
             // Barrel replaces ordinary holders immediately under its BOOM.
             // Their impact/spawn owns motion; a delayed return must not borrow
             // a holder that is about to be retired by that same transaction.
-            if plan.variant == "barell", !tile.isWild { return nil }
+            if NativeSpecialDiceRegistry.usesBarrelFlow(plan.variant), !tile.isWild { return nil }
             guard let node=nodesByID[tile.id],shortWildBoardBlast?.owns(node) != true,
                   sourceMeterCaller?.owns(node) != true else{return nil}
             return node
@@ -9686,7 +9723,7 @@ final class NativeBoardScene: SKScene {
         var barrelImpactsComplete: (() -> Void)?
         let boardReturned: () -> Void = { [weak self] in
             guard let self,self.specialIsCurrent(plan) else{return}
-            if plan.variant == "barell" {
+            if NativeSpecialDiceRegistry.usesBarrelFlow(plan.variant) {
                 barrelReturnComplete=true
                 let completion=barrelImpactsComplete;barrelImpactsComplete=nil
                 completion?()
@@ -9716,9 +9753,9 @@ final class NativeBoardScene: SKScene {
             let returnFinished: () -> Void = { [weak self] in
                 guard let self,self.specialIsCurrent(plan) else { return }
                 pending -= 1
-                if pending <= 0 { if plan.variant != "barell" {self.specialPresentationIDs.removeAll()};boardReturned() }
+                if pending <= 0 { if !NativeSpecialDiceRegistry.usesBarrelFlow(plan.variant) {self.specialPresentationIDs.removeAll()};boardReturned() }
             }
-            if returnPlans.isEmpty { if plan.variant != "barell" {self.specialPresentationIDs.removeAll()};boardReturned() }
+            if returnPlans.isEmpty { if !NativeSpecialDiceRegistry.usesBarrelFlow(plan.variant) {self.specialPresentationIDs.removeAll()};boardReturned() }
             for (node,rest,duration,elastic,amplitude,notBefore,z) in returnPlans {
                 guard self.specialIsCurrent(plan),self.nodesByID[node.tileID] === node,node.parent === self.canvasRoot else{return}
                 let delay:Double
@@ -9754,7 +9791,7 @@ final class NativeBoardScene: SKScene {
             if !accepted { NSLog("[NativeTNT] authored owner unavailable %@",variant) }
             if accepted {
                 releaseSourceAuthoredTntInitialAwait(plan)
-                if plan.variant == "barell" {
+                if NativeSpecialDiceRegistry.usesBarrelFlow(plan.variant) {
                     startCoreTntImpacts(plan,receipt:receipt,waitForBoardReturn:{completion in
                         if barrelReturnComplete {completion()} else {barrelImpactsComplete=completion}
                     })
@@ -9939,7 +9976,7 @@ final class NativeBoardScene: SKScene {
         let owner = SKNode(); effects.addChild(owner)
         let delays = plan.variant == "beach-ball" ? [0.0,0.26,0.56,0.9] : [0.0,0.2,0.4,0.6]
         // Barrel impacts begin one second after its authored BOOM starts.
-        let initialDelay = plan.variant == "barell" ? 1.0 : plan.variant == "flower" ? 0.7 : 0
+        let initialDelay = NativeSpecialDiceRegistry.usesBarrelFlow(plan.variant) ? 1.0 : plan.variant == "flower" ? 0.7 : 0
         let capturedMicrotasks=sourceMicrotaskInstallation
         let renderAction: (@escaping ()->Void)->()->Void = {[weak self,capturedMicrotasks] body in
             return {[weak self,capturedMicrotasks] in
@@ -10124,6 +10161,7 @@ final class NativeBoardScene: SKScene {
     override func update(_ currentTime: TimeInterval) {
         guard !sourceDisposalInProgress else {return}
         guard !disposed, !suspended else { lastFrame = nil;backpackAlertLastFrame=nil; return }
+        freshFaceRenderSerial &+= 1
         if backpackAlertRefreshPending {refreshBackpackAlert()}
         updateBackpackAlert(currentTime)
         defer {if onTutorialSpecialBarSettled != nil,tutorialSpecialBarSettled {onTutorialSpecialBarSettled?()}}

@@ -1,0 +1,544 @@
+{
+  "benchmark": "native-benchmark-v13",
+  "title": "BLOB POD Gas and Native fresh-face entry",
+  "baseCommit": "7f31bfdbed0a63b8f1d5e9dd8ce9eb8a68479aed",
+  "manifestSelfPolicy": "This file is included in the commit; its own recursive SHA256 is excluded. Entries cover every other changed file.",
+  "excludedLocalDeletions": [
+    "assets/sound/soundtrack/adaptive-music-v1/README.md",
+    "assets/sound/soundtrack/adaptive-music-v1/analysis.json",
+    "assets/sound/soundtrack/adaptive-music-v1/gameplay-bed-active-01.wav",
+    "assets/sound/soundtrack/adaptive-music-v1/gameplay-bed-calm-01.wav",
+    "assets/sound/soundtrack/stack to six theme copy.wav",
+    "assets/sound/soundtrack/stack to six theme.wav"
+  ],
+  "files": [
+    {
+      "path": "assets/shop/bloog ball/gas animation/gas1.png",
+      "status": "??",
+      "bytes": 9959,
+      "sha256": "bdbb08d7c0862f07899a907df86bedb1b50541cd8021d6cc4ecf5e5f3c17d25c"
+    },
+    {
+      "path": "assets/shop/bloog ball/gas animation/gas10.png",
+      "status": "??",
+      "bytes": 44983,
+      "sha256": "5e12657f329aded90bf115f555783bed0eb63032c547acdf1b3a007117db4bd4"
+    },
+    {
+      "path": "assets/shop/bloog ball/gas animation/gas10@2x.png",
+      "status": "??",
+      "bytes": 140514,
+      "sha256": "0ba0202b0c21fceff20b7275a9c2f91471f96c409b8c5196d86f9675325f580b"
+    },
+    {
+      "path": "assets/shop/bloog ball/gas animation/gas11.png",
+      "status": "??",
+      "bytes": 22221,
+      "sha256": "d2b2a054f945b7f861b39c81139fcb711173557db93dcecc8f45dafd06e2c07a"
+    },
+    {
+      "path": "assets/shop/bloog ball/gas animation/gas11@2x.png",
+      "status": "??",
+      "bytes": 70777,
+      "sha256": "5fa12f5d6c2e5248be53a49b0942a2b468a513b3a03ab2f4df5cdb112f4a4f35"
+    },
+    {
+      "path": "assets/shop/bloog ball/gas animation/gas12.png",
+      "status": "??",
+      "bytes": 10004,
+      "sha256": "a11024e46153d07fdc5c5857c8c71fc2b94dcce714b352153df724c726df8d78"
+    },
+    {
+      "path": "assets/shop/bloog ball/gas animation/gas12@2x.png",
+      "status": "??",
+      "bytes": 34523,
+      "sha256": "345abebe3d5ac90249ebd808f670411af5a662f600e56be01e446e15010d5142"
+    },
+    {
+      "path": "assets/shop/bloog ball/gas animation/gas1@2x.png",
+      "status": "??",
+      "bytes": 34681,
+      "sha256": "661819848af3d92e8203b3b5769f1b641ce3d173e24b9e293fa2b7b1bd5a509f"
+    },
+    {
+      "path": "assets/shop/bloog ball/gas animation/gas2.png",
+      "status": "??",
+      "bytes": 22214,
+      "sha256": "90eff9f21905e07d6c76b1de68c435d9c9e43dd8e314a007d0068c19996a1f16"
+    },
+    {
+      "path": "assets/shop/bloog ball/gas animation/gas2@2x.png",
+      "status": "??",
+      "bytes": 70938,
+      "sha256": "ce0b9393336efd3e2a8ca4fcf8d17cc54c3b37a141397ddaf0aa0bc3beeff08b"
+    },
+    {
+      "path": "assets/shop/bloog ball/gas animation/gas3.png",
+      "status": "??",
+      "bytes": 45066,
+      "sha256": "8d8c6b20080179124acdf858579c19c8bacdb6f39fb71af8bb9872ac888efb2b"
+    },
+    {
+      "path": "assets/shop/bloog ball/gas animation/gas3@2x.png",
+      "status": "??",
+      "bytes": 140714,
+      "sha256": "da14b95b0ff8757a363e5d3a7d4092d4d0f94c04063670cfd5566f454a888a2c"
+    },
+    {
+      "path": "assets/shop/bloog ball/gas animation/gas4.png",
+      "status": "??",
+      "bytes": 171317,
+      "sha256": "c1d536856b1f009f713211496822dea5079c6a230fe63792fba155d87f948b23"
+    },
+    {
+      "path": "assets/shop/bloog ball/gas animation/gas4@2x.png",
+      "status": "??",
+      "bytes": 571266,
+      "sha256": "1d3dcb768948c8d94c8e3a497b7241c0e2a225d362543a174530db3b51f43149"
+    },
+    {
+      "path": "assets/shop/bloog ball/gas animation/gas5.png",
+      "status": "??",
+      "bytes": 131157,
+      "sha256": "bbb8d992732d057bc5d544d00ca12358389d95fe3c8f5bf9d9a41883c9a3f7c9"
+    },
+    {
+      "path": "assets/shop/bloog ball/gas animation/gas5@2x.png",
+      "status": "??",
+      "bytes": 424869,
+      "sha256": "ceaa74f612e7ab69dea6013a1a50ca50ae5f6c5068dac6a8dbb2ed44363f010e"
+    },
+    {
+      "path": "assets/shop/bloog ball/gas animation/gas6.png",
+      "status": "??",
+      "bytes": 201353,
+      "sha256": "16d8a125c710f0fe5c5485bb3f678e677b6ca66b894a90d3833dd0517d7243de"
+    },
+    {
+      "path": "assets/shop/bloog ball/gas animation/gas6@2x.png",
+      "status": "??",
+      "bytes": 668019,
+      "sha256": "791e37ded8b216dc7cc01d8bd99fbe27625429bef1e4812c0ec648477c59c628"
+    },
+    {
+      "path": "assets/shop/bloog ball/gas animation/gas7.png",
+      "status": "??",
+      "bytes": 193604,
+      "sha256": "66afce6d2a0b81f1fc1636dec27dd85f9dda2fb079852c57f1819a5ce1b24d23"
+    },
+    {
+      "path": "assets/shop/bloog ball/gas animation/gas7@2x.png",
+      "status": "??",
+      "bytes": 632789,
+      "sha256": "533c342f26cc8fb00993b962b8676640285427e9500caf38e79d0a744c908ed9"
+    },
+    {
+      "path": "assets/shop/bloog ball/gas animation/gas8.png",
+      "status": "??",
+      "bytes": 175918,
+      "sha256": "c1771e5a4fea4724a893395904264a6e7ee5a3061446c29bf5eb7757e9e5d3fc"
+    },
+    {
+      "path": "assets/shop/bloog ball/gas animation/gas8@2x.png",
+      "status": "??",
+      "bytes": 586850,
+      "sha256": "bb6de430088fdadf1efa7889de3e03963cda78ed378c2f4707160dc4a74658ad"
+    },
+    {
+      "path": "assets/shop/bloog ball/gas animation/gas9.png",
+      "status": "??",
+      "bytes": 172122,
+      "sha256": "b9a4751f67dedd71e74de9fc1f0d0dc40a068c70553c6c7a1e51272d837597b9"
+    },
+    {
+      "path": "assets/shop/bloog ball/gas animation/gas9@2x.png",
+      "status": "??",
+      "bytes": 572579,
+      "sha256": "c70bc3fe289d64a150d0f32e5871c4ba59f32da61383531b52ba4c2e3d68b2fc"
+    },
+    {
+      "path": "assets/sound/Wild and special kockice/bloob ball/massive gas leak.wav",
+      "status": "??",
+      "bytes": 444882,
+      "sha256": "c87a1883caf39311cfe518b4c5a12a32e9241b12203f5bdc8ebf15571425b8ab"
+    },
+    {
+      "path": "docs/audio/STACK_TO_SIX_INTERACTION_SOUND_INVENTORY.md",
+      "status": "M",
+      "bytes": 58027,
+      "sha256": "9894d6550367dabeaf35f87eb7f5e23d7bdda15944b9bb18be2c2f9f3727cbe4"
+    },
+    {
+      "path": "docs/audio/audio-runtime-owners.json",
+      "status": "M",
+      "bytes": 78275,
+      "sha256": "d44bd3985fa161a6d68b448ea441eda9a0f736130a3196fdc7389b718b852b1e"
+    },
+    {
+      "path": "docs/engineering/ANIMATION_RECIPES.md",
+      "status": "??",
+      "bytes": 568,
+      "sha256": "85f2b47188a13f982670e526fae604e2cdf5c81d85e951af83bc5fb2b80c4505"
+    },
+    {
+      "path": "docs/engineering/BLOOB_GAS_BARREL_2026-10-23_TODO.md",
+      "status": "??",
+      "bytes": 3286,
+      "sha256": "c258393a7cf24ca506172718084c7afe54a64bd23c4c1716c3937af4cc7b383f"
+    },
+    {
+      "path": "docs/engineering/CURRENT_HANDOFF.md",
+      "status": "M",
+      "bytes": 1457365,
+      "sha256": "6c7ffed6f7fcbc0ac5f2c8593bcc672f9c4356b40c7b877cf5fbf852740bda57"
+    },
+    {
+      "path": "docs/engineering/GAMEPLAY_KING_CONTRACT.md",
+      "status": "M",
+      "bytes": 33391,
+      "sha256": "f93d6255848dc92e6f9aa8d3a3d9aa056e0f33c9da741181f19a57561b78a4dc"
+    },
+    {
+      "path": "docs/engineering/NATIVE_BENCHMARK_V13.md",
+      "status": "??",
+      "bytes": 2698,
+      "sha256": "739358e3ad34c6b933e8e3c896fbe8f82f24cc1d792512deb883f19d4b526be1"
+    },
+    {
+      "path": "docs/engineering/NATIVE_ONE_FRAME_FLASH_2026-10-23.md",
+      "status": "??",
+      "bytes": 5397,
+      "sha256": "862808be00cd63b4dde3ebc118b79f4f1114e404911bf503298b1041c2c0ff40"
+    },
+    {
+      "path": "docs/engineering/PROJECT_CONTEXT.md",
+      "status": "M",
+      "bytes": 42575,
+      "sha256": "d7cfafbc2312f387c543884a70f23453822d2e230fff5711d9913ad67729222a"
+    },
+    {
+      "path": "docs/engineering/animation-recipes/BLOOB_ANIMATION_SHARDS_FLOAT_HOVERING.md",
+      "status": "??",
+      "bytes": 13182,
+      "sha256": "8987ef61dc0535d143c1924c01bd93c0308da4b0533e43e70eac9a193d4df56e"
+    },
+    {
+      "path": "docs/engineering/animation-recipes/BLOOB_SHARDS_FLOAT_HOVERING_V1.manifest.json",
+      "status": "??",
+      "bytes": 5724,
+      "sha256": "3872bb16c3ccab366d97020e18373f32e378a043d0fc157678a42f9347ca1c96"
+    },
+    {
+      "path": "docs/engineering/animation-recipes/BLOOB_SHARDS_FLOAT_HOVERING_V1.samples.json",
+      "status": "??",
+      "bytes": 165247,
+      "sha256": "feffd144b41ace7c529ba5621f37b837b8f69417e7f0f08e85fbfa5216088bfc"
+    },
+    {
+      "path": "docs/engineering/feature-runtime-owners.json",
+      "status": "M",
+      "bytes": 237637,
+      "sha256": "e4b6320979edb19be11fb8e67b6b40b87ad00c924e7817d5554c96bf5d2ba04c"
+    },
+    {
+      "path": "docs/engineering/native-special-dice-performance-owners.json",
+      "status": "M",
+      "bytes": 127309,
+      "sha256": "ed3e3c54f7647b2e3ae40889f29133ee0517e08339cbef9cce07d3c030763128"
+    },
+    {
+      "path": "docs/engineering/special-dice-archetype-owners.json",
+      "status": "M",
+      "bytes": 10876,
+      "sha256": "5d542e1bde9731dd7d03139c3cf57bec51f15753bb4a65792f7af9ca22a01026"
+    },
+    {
+      "path": "native/gameplay-app/NativeBloobBallAudio.swift",
+      "status": "M",
+      "bytes": 2159,
+      "sha256": "213197c522609f584ffdc97a8cb5627e661deb5f4477ffcc32517f163c495dee"
+    },
+    {
+      "path": "native/gameplay-app/NativeGameplayAudioOwner.swift",
+      "status": "M",
+      "bytes": 50216,
+      "sha256": "42baa5b043816ab9b3c1e2ef41dcbf9a02f4b54e0722edd1392dffcb0ae00696"
+    },
+    {
+      "path": "native/gameplay-app/NativeMeterSelectedAudioCatalog.swift",
+      "status": "M",
+      "bytes": 9827,
+      "sha256": "7059af4f064e5a1439fe3ba690d76c54425aabe6bf0916b20b6526b6bfbbf262"
+    },
+    {
+      "path": "native/gameplay-app/NativeSourceAppSpawnBounceOwner.swift",
+      "status": "M",
+      "bytes": 7629,
+      "sha256": "2f006b429fa36d170c4b2ff7aeb99375a90e3a84dcddbac2711c10f6f36d9f0e"
+    },
+    {
+      "path": "native/gameplay-app/NativeSourceLockedBonusPopOwner.swift",
+      "status": "M",
+      "bytes": 8121,
+      "sha256": "b0bad192276cfe3b17ba30637886c8a17bf715dbb83794126ca4d1ab1e663131"
+    },
+    {
+      "path": "native/gameplay-app/NativeSourceMagnetFallbackCaller.swift",
+      "status": "M",
+      "bytes": 9460,
+      "sha256": "e8247da621b6729d6595d24e044c858cff4b7301e63d84046a874d78d6480b95"
+    },
+    {
+      "path": "native/gameplay-app/NativeSourceMagnetNormalCaller.swift",
+      "status": "M",
+      "bytes": 10089,
+      "sha256": "0bb6a5eabde644b9b92e25eb0612c6dd1bf24547b01e2e9a1d1733d27cff5abe"
+    },
+    {
+      "path": "native/gameplay-app/NativeStudioIntroView.swift",
+      "status": "M",
+      "bytes": 24875,
+      "sha256": "471770067db07db8e1f60af44b5e9921a65e83ad55229e8a829435456ca27b28"
+    },
+    {
+      "path": "native/gameplay-collection/NativeBackpackCatalog.swift",
+      "status": "M",
+      "bytes": 4256,
+      "sha256": "bd18325059cb26f38723c3ce75e39237ba2d9a7749774de50351b0b86f69beb9"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeBloobBallRewardPolicy.swift",
+      "status": "D",
+      "bytes": null,
+      "sha256": null
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeBoardState.swift",
+      "status": "M",
+      "bytes": 20862,
+      "sha256": "6d09b1a7b971405cd5f466d0e778c01af08c6fb88f1729d4e4844ff44e79d607"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeGameplayEngine.swift",
+      "status": "M",
+      "bytes": 388201,
+      "sha256": "3bee0877b92d24be5592a01a94647d13922811c2b5cd3bedfd0f406db7dd32bc"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeSpecialDiceRegistry.swift",
+      "status": "M",
+      "bytes": 4824,
+      "sha256": "82c24b33571a447df993027c6cfba9c3b35824c05d05cb0cefbde698cb73df4e"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeBloobBallTests.swift",
+      "status": "M",
+      "bytes": 4401,
+      "sha256": "f5414ee28c9024381c4e88d0b57c2f64667641a79fde3330d1f76eda633f6b1e"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeComboCoinRewardTests.swift",
+      "status": "M",
+      "bytes": 8592,
+      "sha256": "75906af71a656db5ac0bdc695a6e5a00ff2e2feecec38b89b024ece3dc05d578"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeFinalHUDCoinTests.swift",
+      "status": "M",
+      "bytes": 5743,
+      "sha256": "165f56e3eab60e47eb347898161263f8e91a2a98b4e6b5fe5f1a0dc1a52c0078"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceSpecialAbsorbInterruptionTests.swift",
+      "status": "M",
+      "bytes": 11474,
+      "sha256": "527e9e32d70678dfab433c09cc23ff360f06cf2ad0c5ac87afe8cec8cf2dd70c"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceVariantMainAdmissionTests.swift",
+      "status": "M",
+      "bytes": 2562,
+      "sha256": "8c37d119947765cf4b1516104ceb4264b2d797ede2b36158da4379b38aa7fe92"
+    },
+    {
+      "path": "native/gameplay-hud-stars/NativeSourceHUDStarJobs.swift",
+      "status": "M",
+      "bytes": 8546,
+      "sha256": "a009a19d2c0d0736adaab91b82e8119a1e6b65b0a42132da1343476b72e1ce65"
+    },
+    {
+      "path": "native/gameplay-hud-stars/NativeSourceHUDStarPlan.swift",
+      "status": "M",
+      "bytes": 8937,
+      "sha256": "1a394ba7ec5190e0b9291df3880f6508db069c6685b084dc28273fc81d29b3eb"
+    },
+    {
+      "path": "native/gameplay-hud-stars/NativeSourceHUDStarPresentation.swift",
+      "status": "M",
+      "bytes": 9911,
+      "sha256": "c29c5911daef65085d540da8fa6e8b7fa23fc96f34d35c110d17a471751c3edb"
+    },
+    {
+      "path": "native/gameplay-meter-drop/NativeMeterSelectedWarmupCatalog.swift",
+      "status": "M",
+      "bytes": 9450,
+      "sha256": "0ae5844cad2026d2dc66203574d6a6a757c9c83118e12d4ba9ab26c19b6e6826"
+    },
+    {
+      "path": "native/gameplay-state/Tests/StackToSixNativeStateTests/NativeJourneyUnlockAppearanceTests.swift",
+      "status": "M",
+      "bytes": 6711,
+      "sha256": "22e888f7467f97ccec59ab60aad25bba65169f039c17a5539af13b861a1997d7"
+    },
+    {
+      "path": "native/gameplay-tnt-variants/NativeTntVariantPresentation.swift",
+      "status": "M",
+      "bytes": 12846,
+      "sha256": "8388af68e8b00fcddf50faf873fa1e0ee12f00d4809f88e8ec44954b66ecc873"
+    },
+    {
+      "path": "native/gameplay-ui/NativeArcadeRoundPresentation.swift",
+      "status": "M",
+      "bytes": 24089,
+      "sha256": "041c0ca7ad649e6b87398ba2500b3bb66eda1e93e342176eb3776969712a46a9"
+    },
+    {
+      "path": "native/gameplay-ui/NativeBloobBallArt.swift",
+      "status": "M",
+      "bytes": 10138,
+      "sha256": "434f4277512b048a5cbd185c52c18f14a402b880e4c51ea368f70754bdbea8e9"
+    },
+    {
+      "path": "native/gameplay-ui/NativeBloobBallFinaleMotion.swift",
+      "status": "D",
+      "bytes": null,
+      "sha256": null
+    },
+    {
+      "path": "native/gameplay-ui/NativeBloobBallFinalePresentation.swift",
+      "status": "D",
+      "bytes": null,
+      "sha256": null
+    },
+    {
+      "path": "native/gameplay-ui/NativeBoardScene.swift",
+      "status": "M",
+      "bytes": 816752,
+      "sha256": "06c8b3188eb01e1a0b686dea140a4343975de8d5fcd81025bcd33053a5333932"
+    },
+    {
+      "path": "native/gameplay-ui/NativeDiceNode.swift",
+      "status": "M",
+      "bytes": 175927,
+      "sha256": "ca8ea1d7c6390022b794dad220b87c816520f5c3a417e15b1e34a6ae600d13f7"
+    },
+    {
+      "path": "native/gameplay-ui/NativeGameplayViewController.swift",
+      "status": "M",
+      "bytes": 115469,
+      "sha256": "ec6cde3262658e1abbcd0436728d4f666fffd98827b1893011b43e0657bf17ec"
+    },
+    {
+      "path": "native/gameplay-ui/NativeKantaFinalePresentation.swift",
+      "status": "M",
+      "bytes": 4396,
+      "sha256": "96a31d9c2259b84bb276c485bc3bcc7fda734ca59a64cff08aecb7b1e4b3b6bc"
+    },
+    {
+      "path": "native/gameplay-ui/NativeOwnedMetalGameplayView.swift",
+      "status": "M",
+      "bytes": 13318,
+      "sha256": "788e3130777b5616bafa016e830e88128647b1e1444508a0524a5057bb8f90b1"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceAnimationClockService.swift",
+      "status": "M",
+      "bytes": 45631,
+      "sha256": "fb16632c035230eb16209f002ea4a19419350c619550fb9e457ae026af8a2904"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceAnimationRuntime.swift",
+      "status": "M",
+      "bytes": 12112,
+      "sha256": "c3d584e5b8893331d032b5ff290e4c7165b1e8547579725599ca8a475367b384"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeBloobBallTests.swift",
+      "status": "M",
+      "bytes": 10867,
+      "sha256": "401c6a1d61c0e5412ff9b2128fd69cf821811df12fd91a3bd13ee3c37c665518"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeBoardTests.swift",
+      "status": "M",
+      "bytes": 59728,
+      "sha256": "c63e2474f0bffc01542a08c7f4c261252c4e74785349afa07d1caf3003e645b2"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeKantaPresentationTests.swift",
+      "status": "M",
+      "bytes": 8051,
+      "sha256": "7d16cac55d1c3bb2e11734320d8b3b454632caf134b37d231f4c6107aada1385"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeOwnedGameplayRenderHostTests.swift",
+      "status": "M",
+      "bytes": 24577,
+      "sha256": "5613907cd41c76b8b0cc701b150b0a283cbd02641ab44a48877c9263cc4a5ff2"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeOwnedMetalProjectionTests.swift",
+      "status": "M",
+      "bytes": 16370,
+      "sha256": "09f510dfaaad83b53cefd76e153765fd8e6bb15bac26ef97c7b3d807118e7393"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceLockedBonusPopTests.swift",
+      "status": "M",
+      "bytes": 11372,
+      "sha256": "f1e96216ff31b8d53fb07ad4f8d0d77221544c4dea9786c2ae4ed89790140944"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceMagnetFallbackCallerTests.swift",
+      "status": "M",
+      "bytes": 9304,
+      "sha256": "b5015f437664d5ad6cf277d1ea842230d0532d87c721b7ea8a32118445df7f77"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceMagnetNormalCallerTests.swift",
+      "status": "M",
+      "bytes": 7562,
+      "sha256": "10b5ce8019f77f4f8b4db8c4cfdf9e0e38a3ac97322d1d64d4d308e7980db883"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceMagnetPhysicalBindingTests.swift",
+      "status": "M",
+      "bytes": 18579,
+      "sha256": "82dfbd7e8fe6e36a4e046ea5cba82b00af14769f206649d69893d6c1318b5327"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceWildBounceTransportTests.swift",
+      "status": "M",
+      "bytes": 11165,
+      "sha256": "596e7c987968b35370523bdb52a4422945ad01e4693f6402c5653387a8fb2b6d"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeStandaloneRootTests.swift",
+      "status": "M",
+      "bytes": 152945,
+      "sha256": "001d583d6932886af8a169139d110665496e1281e8c61ff7127c5c52284edaa1"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeStudioIntroLifecycleTests.swift",
+      "status": "M",
+      "bytes": 18863,
+      "sha256": "9ba8d1e316e5a3e829c7682da451e2b4433dfdd2195e0994c161cdd58e6dc458"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeWildMergeSixRootTests.swift",
+      "status": "M",
+      "bytes": 53098,
+      "sha256": "3169f762153cc3412f568493209b0cd048a91d388243ae1227ba90751db8cfce"
+    }
+  ]
+}

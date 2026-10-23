@@ -222,3 +222,18 @@ Bloob cue timing/mix update (2026-10-23):radio break.wav moves from committed me
 Bloob merge beam layer (2026-10-23):committed merge6 adds existing gun/beam1.wav at0.357 (same authored Gun gain),delay0/rate1 with dedicated bloob-ball-merge-beam1 voice alongside mini2. Bloob selected preload includes beam1;shared transport/Sounds/lifecycle ownership retained. No source byte changes.
 
 Bloob merge mix follow-up (2026-10-23):remove Juice mini2 only from committed merge6;retain burst mini2 at0.39/90ms. Increase Bloob-owned beam1 gain20percent relative0.357→0.4284;Gun and transition beam owners unchanged. Existing source/preload/transport/lifecycle retained.
+
+
+### Bloob Gas replacement — 2026-10-23
+
+Bloob uses canonical TNT/Barrel merge and whole-board impact cues. NativeBloobBallAudio borrows Barrel merge/smoke/impact layer at gain0.5 through unique bloob-gas voices,then overlays existing Bloob mergebeam,rise and burst audio. Barrel itself remains unchanged. Gas smoke at0.91s fires retained Bloob burst plus borrowed poof;hover stops2.9s/fade0.12s. Existing Settings/background/generation/full-stop gates and selected preload own every source. Physical speaker mix NEEDS PHYSICAL TEST.
+
+2026-10-23 Bloob Gas override: merge6 boom.mp3 gain0.1521 →0.50 absolute;other borrowed Barrel layers retain half-gain and original Barrel is unchanged.
+
+2026-10-23 Bloob Gas tnt3.wav: +6dB from gain0.1092 to0.217882644 (multiply10^(6/20));original Barrel0.2184 unchanged,delay0.5s retained.
+
+2026-10-23 latest Bloob Gas tnt3.wav override: absolute gain0.80,replaces previous +6dB setting;original Barrel and all other layers unchanged.
+
+2026-10-23 latest Bloob Gas tnt3.wav: gain0.65,delay0 immediately on committed merge6;replaces gain0.80/delay0.5. Original Barrel and remaining cues unchanged.
+
+2026-10-23 latest Bloob Gas mix: remove Bloob crash.wav,hovering.wav,hovering 2.wav and borrowed tnt3.wav;massive gas leak.wav once at committed merge6,gain0.60/delay0,natural2.316688s. Selected-only preload and existing Settings/background/generation/full-stop owner. Original assets/Barrel retained;merge6 crash.mp3 remains a distinct inherited layer.

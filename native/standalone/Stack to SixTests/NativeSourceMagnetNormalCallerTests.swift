@@ -59,11 +59,23 @@ import StackToSixGameplay
   XCTAssertEqual(f.nodes.count,0);f.deliver(50);XCTAssertEqual(f.nodes.count,1)
   f.deliver(200);XCTAssertEqual(f.nodes.count,2);XCTAssertEqual(f.acquired,2)
   f.deliver(600);XCTAssertEqual(f.released,0);XCTAssertTrue(f.outcomes.isEmpty)
-  f.deliver(610);XCTAssertEqual(f.released,1);XCTAssertTrue(f.verified.isEmpty)
-  f.deliver(660);XCTAssertEqual(f.verified,[660]);XCTAssertTrue(f.outcomes.isEmpty)
-  f.deliver(810);XCTAssertEqual(f.verified,[660,810]);XCTAssertEqual(f.outcomes,[.completed(successes:2)]);XCTAssertTrue(f.checkpoint)
+  f.deliver(620);XCTAssertEqual(f.released,1);XCTAssertTrue(f.verified.isEmpty)
+  f.deliver(670);XCTAssertEqual(f.verified,[670]);XCTAssertTrue(f.outcomes.isEmpty)
+  f.deliver(820);XCTAssertEqual(f.verified,[670,820]);XCTAssertEqual(f.outcomes,[.completed(successes:2)]);XCTAssertTrue(f.checkpoint)
   XCTAssertEqual(f.released,2);XCTAssertEqual(f.service.activeParticipantCount,0)
   XCTAssertTrue(f.nodes.values.allSatisfy{$0.sourceValue>0 && !$0.sourceLocked && $0.sourcePendingStackFrameCount==0})
+ }
+ func testFreshReplacementStartsHiddenAndGrowsWithoutTouchingNeighbours()throws {
+  let f=try Fixture(root:root());defer{f.dispose()};f.start();f.deliver(50)
+  let first=try XCTUnwrap(f.nodes.values.first)
+  XCTAssertEqual(first.sourceLocalScale.x,0)
+  XCTAssertTrue(first.sourceAppSpawnOwnsOuterScale)
+  f.deliver(60);XCTAssertEqual(first.sourceLocalScale.x,0)
+  f.deliver(100);XCTAssertGreaterThan(first.sourceLocalScale.x,0);XCTAssertLessThan(first.sourceLocalScale.x,1)
+  f.caller?.retire()
+  XCTAssertEqual(first.sourceLocalScale.x,1)
+  XCTAssertFalse(first.sourceAppSpawnOwnsOuterScale)
+  XCTAssertNil(first.sourcePendingFreshFaceEntryID)
  }
  func testDestroyedCapturedObjectCancelsActualArrivalAndCannotPublishLaterSlots()throws {
   let f=try Fixture(root:root());defer{f.dispose()};f.start();f.deliver(80)
@@ -78,7 +90,7 @@ import StackToSixGameplay
   XCTAssertEqual(f.nodes.count,2);XCTAssertEqual(f.released,0);XCTAssertTrue(f.verified.isEmpty)
   f.service.setSourceGlobalPaused(false);f.deliver(1500)
   XCTAssertEqual(f.released,0);XCTAssertTrue(f.outcomes.isEmpty)
-  f.deliver(1510);XCTAssertEqual(f.released,1);XCTAssertTrue(f.outcomes.isEmpty)
-  f.deliver(1610);XCTAssertEqual(f.released,2);XCTAssertEqual(f.verified.count,2);XCTAssertEqual(f.outcomes,[.completed(successes:2)])
+  f.deliver(1520);XCTAssertEqual(f.released,1);XCTAssertTrue(f.outcomes.isEmpty)
+  f.deliver(1620);XCTAssertEqual(f.released,2);XCTAssertEqual(f.verified.count,2);XCTAssertEqual(f.outcomes,[.completed(successes:2)])
  }
 }

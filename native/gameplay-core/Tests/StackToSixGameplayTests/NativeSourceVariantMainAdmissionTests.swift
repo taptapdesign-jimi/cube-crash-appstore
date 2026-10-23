@@ -4,7 +4,7 @@ import XCTest
 nonisolated final class NativeSourceVariantMainAdmissionTests:XCTestCase {
     func testAuthoredSpecialVariantsKeepProtectedDestinationAndCancelOnlyCapturedSetup()throws {
         let variants=NativeSpecialDiceRegistry.variants.values.filter{$0.archetype == .magnet || $0.archetype == .tnt}
-        XCTAssertEqual(variants.count,7)
+        XCTAssertEqual(variants.count,8)
         for variant in variants {
             let source=NativeTile(id:"source",cell:.init(column:0,row:0),value:6,stackDepth:2,
                                   archetype:variant.archetype,variant:variant.id)

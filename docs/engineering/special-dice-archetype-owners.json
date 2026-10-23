@@ -135,9 +135,12 @@
       "tests": [
         "native/gameplay-core/Tests/StackToSixGameplayTests/NativeGameplayTests.swift",
         "native/standalone/Stack to SixTests/NativeBoardTests.swift",
-        "native/gameplay-state/Tests/StackToSixNativeStateTests/NativeStateTests.swift"
+        "native/gameplay-state/Tests/StackToSixNativeStateTests/NativeStateTests.swift",
+        "native/gameplay-core/Tests/StackToSixGameplayTests/NativeBloobBallTests.swift",
+        "native/standalone/Stack to SixTests/NativeBloobBallTests.swift"
       ],
-      "acceptance": "Implementation in progress; variant continuations and presentation parity require complete independent traces and Simulator/physical acceptance."
+      "acceptance": "Implementation in progress; variant continuations and presentation parity require complete independent traces and Simulator/physical acceptance.",
+      "nativeVariantsPolicy": "Barrel and Bloob Gas reuse whole-board eligible ordinary targets via shared TNT transaction. Bloob stable bloob-ball ID accepts historical Star-tagged saves;no parallel resolver or save reset. Gas presentation and half-gain borrowed audio are variant-owned;original Barrel unchanged."
     }
   ]
 }

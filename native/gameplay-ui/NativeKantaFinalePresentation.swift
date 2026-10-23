@@ -13,7 +13,7 @@ final class NativeKantaFinalePresentation: NativeFinitePresentation {
     init(resourceRoot:URL,viewport:CGSize,preparedArtwork:JimiV9Artwork?=nil,random:()->Double={Double.random(in:0..<1)}) {
         motion=NativeKantaFinaleMotion.make(viewport:viewport,random:random)
         let artwork=preparedArtwork ?? JimiV9Artwork(resourceRoot:resourceRoot)
-        glyphs=NativeSplashGlyphField.clankStyle(artwork:artwork,text:"CLAAANK!",random:random)
+        glyphs=NativeSplashGlyphField.clankStyle(artwork:artwork,text:"CLANK",random:random)
         let sources=Set(motion.robots.map(\.source)+motion.cans.map(\.source)+motion.composites.map(\.source))
         assetReady=sources.allSatisfy {artwork.image($0,densityAware:true) != nil}
         super.init(viewport:viewport,duration:max(glyphs.duration,NativeKantaFinaleMotion.sceneDuration+0.05))

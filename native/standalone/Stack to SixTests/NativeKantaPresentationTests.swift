@@ -49,7 +49,7 @@ final class NativeKantaPresentationTests: XCTestCase {
         field.layoutIfNeeded()
         let container=try XCTUnwrap(field.subviews.first)
         let letters=container.subviews.compactMap{$0 as? UILabel}
-        XCTAssertEqual(letters.compactMap(\.text).joined(),"CLAAANK!")
+        XCTAssertEqual(letters.compactMap(\.text).joined(),"CLANK")
         XCTAssertLessThanOrEqual(container.frame.width,350)
         field.paint(seconds:0.6)
         XCTAssertTrue(letters.contains{$0.alpha>0})

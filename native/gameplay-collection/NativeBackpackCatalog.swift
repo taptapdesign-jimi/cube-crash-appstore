@@ -30,10 +30,10 @@ struct NativeBackpackCatalog {
         Die(id:"barell",title:"BARREL",copy:"Merge me to explode across the whole board! Every ordinary die is replaced with a different number.",board:7)]
     static let area:[Die] = [
         Die(id:"robo-cube",title:"BIBI RIBI",copy:"Merge me to build a fresh number die. The new die lands where the merge happened.",board:21),
-        Die(id:"kanta",title:"BLOOB",copy:"Merge me to release 1–3 bonus dice, plus the main merge die. Closed dice appear for later moves.",board:22),
+        Die(id:"kanta",title:"BLOB BARREL",copy:"Merge me to release 1–3 bonus dice, plus the main merge die. Closed dice appear for later moves.",board:22),
         Die(id:"spaceship",title:"SPACESHIP",copy:"Merge me to beam up to 4 dice aboard, then beam the same number of replacements back down.",board:23),
         Die(id:"laser-gun",title:"LASER GUN",copy:"Merge me to shoot up to 4 ordinary dice. Each target stays in place and gets a different number.",board:24),
-        Die(id:"bloob-ball",title:"BLOOB POD",copy:"Merge me to create the main die and 2 bonus dice. Closed dice appear for later moves.",board:27)]
+        Die(id:"bloob-ball",title:"BLOB POD",copy:"Gassy fumes sweep the board, changing every ordinary die to a different number!",board:27)]
     static let beach:[Die] = [
         Die(id:"wild-juice",title:"JUICE",copy:"Merge me to pour a fresh number die onto the board. It appears where the merge happened.",board:11),
         Die(id:"fish",title:"FISHY",copy:"Merge me to bring in 1–3 bonus dice, plus the main merge die. Closed dice appear for later moves.",board:12),

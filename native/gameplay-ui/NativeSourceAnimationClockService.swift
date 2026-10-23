@@ -297,6 +297,12 @@ final class NativeSourceAnimationClockService {
                   delay:Double=0,wallMilliseconds:Double?=nil,initiallySuspended:Bool=false,cleanup:@escaping(Bool)->Void)->Lease? {
         registerImpl(participant:participant,duration:duration,domain:domain,delay:delay,wallMilliseconds:wallMilliseconds,initiallySuspended:initiallySuspended,cleanup:cleanup)
     }
+    /// Finite Native fresh-face presentation on the existing Source transport.
+    /// Source delay is honored; visible elapsed starts at its first real paint.
+    func registerFreshFace(participant:any NativeSourceAnimationParticipant,duration:Double,delay:Double=0,frameSerial:(()->UInt64?)?=nil,cleanup:@escaping(Bool)->Void)->Lease? {
+        guard sourceFrameTransportAdmissionOpen else{return nil}
+        return registerImpl(participant:participant,duration:duration,domain:.sourceGSAP(.timeline),delay:delay,freshFace:true,freshFrameSerial:frameSerial,cleanup:cleanup)
+    }
     /// One captured visible first-step pointer. Its Source repeat/yoyo root
     /// shares APP ordering/lag/pause; the UI owner cancels on hide/replacement.
     /// General finite registration still rejects infinity.
@@ -319,7 +325,7 @@ final class NativeSourceAnimationClockService {
             initiallySuspended:initiallySuspended,bottleIdleRepeat:true,cleanup:cleanup)
     }
     private func registerImpl(participant:any NativeSourceAnimationParticipant,duration:Double,domain:Domain,
-                  delay:Double=0,wallMilliseconds:Double?=nil,initiallySuspended:Bool=false,tutorialGuidedHint:Bool=false,bottleIdleRepeat:Bool=false,tutorialFreePlayMoves:Int?=nil,cleanup:@escaping(Bool)->Void)->Lease? {
+                  delay:Double=0,wallMilliseconds:Double?=nil,initiallySuspended:Bool=false,tutorialGuidedHint:Bool=false,bottleIdleRepeat:Bool=false,tutorialFreePlayMoves:Int?=nil,freshFace:Bool=false,freshFrameSerial:(()->UInt64?)?=nil,cleanup:@escaping(Bool)->Void)->Lease? {
         guard !disposed,duration>=0,delay>=0,delay.isFinite else{return nil}
         sequence += 1
         switch domain {
@@ -340,7 +346,7 @@ final class NativeSourceAnimationClockService {
             } else if !sourceFrameTransportEnabled && sourceForeground && link==nil {source.deliver(wallMilliseconds:wallMilliseconds ?? sourceWallMillisecondsNow())}
             guard !disposed else{sourceTickerWakeInProgress=false;return nil}
             defer {if waking {sourceTickerWakeInProgress=false;refreshSourceTickerToken();refreshDemand()}}
-            guard let receipt=source.attach(participant:participant,family:family,duration:duration,delay:delay,initiallySuspended:initiallySuspended,tutorialGuidedHint:tutorialGuidedHint,bottleIdleRepeat:bottleIdleRepeat,tutorialFreePlayMoves:tutorialFreePlayMoves,cleanup:cleanup) else{return nil}
+            guard let receipt=source.attach(participant:participant,family:family,duration:duration,delay:delay,initiallySuspended:initiallySuspended,tutorialGuidedHint:tutorialGuidedHint,bottleIdleRepeat:bottleIdleRepeat,tutorialFreePlayMoves:tutorialFreePlayMoves,freshFace:freshFace,freshFrameSerial:freshFrameSerial,cleanup:cleanup) else{return nil}
             refreshDemand();return Lease(service:self,id:sequence,source:receipt)
         }
     }

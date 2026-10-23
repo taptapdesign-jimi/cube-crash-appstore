@@ -1,5 +1,6 @@
 import Foundation
 import StackToSixGameplay
+import SpriteKit
 
 /// Literal sequential await openAtCell continuation. Core allocates every cell,
 /// value and holder. Actual Scene callbacks construct/bind the captured object;
@@ -85,6 +86,10 @@ import StackToSixGameplay
         let frameCurrent:(()->Bool)? = hooks.frameCurrent.map{callback in
             {[weak holder] in guard let holder else{return false};return callback(holder,captured)}
         }
+        holder.prepareSourceFreshFaceEntry()
+        let pendingEntry=holder.sourcePendingFreshFaceEntryID
+        var bounceAdmitted=false
+        defer {if !bounceAdmitted,let pendingEntry {holder.retireSourcePendingFreshFaceEntry(expected:pendingEntry)}}
         let admitted = holder.openSourceAppSpawnHolder(captured.value,service: service,random: hooks.random,
             current: { [weak self,weak holder] in
                 guard let self,let holder,self.current(),self.open == captured,self.node === holder else { return false }
@@ -110,10 +115,11 @@ import StackToSixGameplay
             ensureFullOpacity: { [weak holder] in holder?.ensureSourceAppSpawnFullOpacity() },
             random: hooks.random,
             acquireFrames: { [hooks] in hooks.acquireFrames(captured.id,captured.generation) },
-            finished: { [weak self] outcome in self?.bounceFinished(outcome,open:captured) }),initialScale:NativeSourceAppSpawnBounceOwner.nativeEntryScale)
+            finished: { [weak self] outcome in self?.bounceFinished(outcome,open:captured) }),initialScale:NativeSourceAppSpawnBounceOwner.nativeEntryScale,nativeFreshFace:true,nativeFrameSerial:holder.scene is NativeBoardScene ? {[weak holder] in holder?.sourceFreshFaceRenderSerial}:nil)
         bounce = owner
         guard holder.bindSourceAppSpawnInterruption(id: captured.id, pickup: { [weak owner] in owner?.removeChildrenForPickup() }, interrupted: { [weak owner] in owner?.interrupt() }) else { finish(.unavailable); return }
         guard current(),open == captured,owner.start(),current(),open == captured else { finish(.unavailable); return }
+        bounceAdmitted=true
     }
     private func bounceFinished(_ outcome: NativeSourceAppSpawnBounceOwner.Completion,open captured: NativeSourceMagnetFallbackOpen) {
         guard !closed,open == captured,let plan else { return }

@@ -99,4 +99,38 @@ nonisolated final class NativeSourceLockedBonusPopTests:XCTestCase {
         XCTAssertEqual(timeouts.pendingCount,0);XCTAssertEqual(service.activeParticipantCount,0)
         XCTAssertEqual(finished,1);XCTAssertEqual(released,1)
     }
+    @MainActor func testFreshLockedStaggerAnchorsLatePaintAndSynchronizesChildren() {
+        let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0},sourceFrameTransportEnabled:true)
+        let timeouts=NativeSourceAppTimeoutOwner();defer{service.dispose();timeouts.cancelAll()}
+        var scale=1.0,rotation=0.0,finished=0,released=0,repairs=0
+        let owner=NativeSourceLockedBonusPopOwner(service:service,timeouts:timeouts,generation:7,delayMilliseconds:250,direction:1,
+            hooks:.init(current:{true},locked:{true},readRotation:{0},scale:{scale=$0},rotation:{rotation=$0},repair:{repairs+=1},acquire:{return{released+=1}},finished:{finished+=1}),nativeFreshFace:true)
+        XCTAssertTrue(owner.start());XCTAssertEqual(scale,0);XCTAssertEqual(service.activeParticipantCount,1)
+        service.deliver(wallMilliseconds:200);XCTAssertEqual(scale,0)
+        service.deliver(wallMilliseconds:400)
+        XCTAssertEqual(scale,0);XCTAssertEqual(rotation,0);XCTAssertEqual(finished,0)
+        service.deliver(wallMilliseconds:416)
+        XCTAssertGreaterThan(scale,0);XCTAssertLessThan(scale,0.6);XCTAssertNotEqual(rotation,0)
+        service.deliver(wallMilliseconds:816)
+        XCTAssertEqual(scale,NativeSourceLockedBonusPopOwner.scale(0.0493333,initialScale:0),accuracy:0.00001);XCTAssertEqual(repairs,0);XCTAssertEqual(finished,0)
+        for wall in stride(from:832.0,through:1456.0,by:16){service.deliver(wallMilliseconds:wall)}
+        XCTAssertEqual(scale,1);XCTAssertEqual(rotation,0);XCTAssertEqual(repairs,1)
+        XCTAssertEqual(timeouts.pendingCount,1)
+        owner.dispose();owner.dispose()
+        XCTAssertEqual(finished,1);XCTAssertEqual(released,1)
+        XCTAssertEqual(service.activeParticipantCount,0);XCTAssertEqual(timeouts.pendingCount,0)
+    }
+    @MainActor func testFreshLockedCancellationRestoresCurrentFaceButNeverRetiredFace() {
+        for remainsCurrent in [true,false] {
+            let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0},sourceFrameTransportEnabled:true)
+            let timeouts=NativeSourceAppTimeoutOwner();defer{service.dispose();timeouts.cancelAll()}
+            var alive=true,scale=1.0,finished=0,released=0
+            let owner=NativeSourceLockedBonusPopOwner(service:service,timeouts:timeouts,generation:7,delayMilliseconds:500,direction:1,
+                hooks:.init(current:{alive},locked:{true},readRotation:{0},scale:{scale=$0},rotation:{_ in},repair:{XCTFail("No stale repair")},acquire:{return{released+=1}},finished:{finished+=1}),nativeFreshFace:true)
+            XCTAssertTrue(owner.start());XCTAssertEqual(scale,0)
+            alive=remainsCurrent;owner.dispose();owner.dispose()
+            XCTAssertEqual(scale,remainsCurrent ? 1:0);XCTAssertEqual(finished,1);XCTAssertEqual(released,1)
+            XCTAssertEqual(service.activeParticipantCount,0);XCTAssertEqual(timeouts.pendingCount,0)
+        }
+    }
 }

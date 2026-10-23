@@ -25,6 +25,8 @@ final class NativeSourceAnimationRuntime {
         var next:Entry?
         var birth:Double,active=true,initialized=false,suspended=false,suspendedAt=0.0
         var lastDelivered:Double?
+        var freshFace=false,freshElapsed=0.0,freshPrevious:Double?
+        var freshFrameSerial:(()->UInt64?)?,freshLastSerial:UInt64?
         var cleanup:((Bool)->Void)?
         init(id:UInt64,family:RootFamily,duration:Double,birth:Double,tutorialGuidedHint:Bool,bottleIdleRepeat:Bool,tutorialFreePlayMoves:Int?,participant:any NativeSourceAnimationParticipant,cleanup:@escaping(Bool)->Void){self.id=id;self.family=family;self.duration=duration;self.tutorialGuidedHint=tutorialGuidedHint;self.bottleIdleRepeat=bottleIdleRepeat;self.tutorialFreePlayMoves=tutorialFreePlayMoves;self.birth=birth;self.participant=participant;self.cleanup=cleanup}
     }
@@ -43,8 +45,9 @@ final class NativeSourceAnimationRuntime {
     var hasSourceTickerDemand:Bool{entries.values.contains{$0.active && !$0.suspended && $0.participant != nil}}
     var hasRunnableParticipants:Bool{!globallyPaused && hasSourceTickerDemand}
     init(wallOriginMilliseconds:Double){startWall=floor(wallOriginMilliseconds);lastWall=floor(wallOriginMilliseconds)}
-    func attach(participant:any NativeSourceAnimationParticipant,family:RootFamily,duration:Double,delay:Double=0,initiallySuspended:Bool=false,tutorialGuidedHint:Bool=false,bottleIdleRepeat:Bool=false,tutorialFreePlayMoves:Int?=nil,cleanup:@escaping(Bool)->Void)->Lease? {
+    func attach(participant:any NativeSourceAnimationParticipant,family:RootFamily,duration:Double,delay:Double=0,initiallySuspended:Bool=false,tutorialGuidedHint:Bool=false,bottleIdleRepeat:Bool=false,tutorialFreePlayMoves:Int?=nil,freshFace:Bool=false,freshFrameSerial:(()->UInt64?)?=nil,cleanup:@escaping(Bool)->Void)->Lease? {
         guard !disposed else{return nil}
+        guard !freshFace || (family == .timeline && duration.isFinite && duration>=0 && delay.isFinite && delay>=0 && !tutorialGuidedHint && !bottleIdleRepeat && tutorialFreePlayMoves==nil) else{return nil}
         guard !bottleIdleRepeat || (!tutorialGuidedHint && tutorialFreePlayMoves==nil && family == .timeline && duration==7.2 && delay==0) else{return nil}
         guard !tutorialGuidedHint || (family == .defaultLazyTween && duration==1.18 && delay==0) else{return nil}
         if let count=tutorialFreePlayMoves {guard !tutorialGuidedHint,(1...4).contains(count),family == .timeline,delay==0,duration==Double(count-1)*1.08+1 else{return nil}}
@@ -53,6 +56,7 @@ final class NativeSourceAnimationRuntime {
         let entry=Entry(id:sequence,family:family,duration:round7(duration),birth:round7(animationSeconds+delay),tutorialGuidedHint:tutorialGuidedHint,bottleIdleRepeat:bottleIdleRepeat,tutorialFreePlayMoves:tutorialFreePlayMoves,participant:participant,cleanup:cleanup)
         // Source creates paused linked roots before entry/cloud siblings.
         // Atomic suspension must precede demand publication, not wake+pause.
+        entry.freshFace=freshFace;entry.freshFrameSerial=freshFrameSerial
         entry.suspended=initiallySuspended;entry.suspendedAt=animationSeconds
         if let last{entry.previous=last;last.next=entry}else{first=entry}
         last=entry;entries[entry.id]=entry;onDemandChanged?();return Lease(self,entry.id)
@@ -122,10 +126,28 @@ final class NativeSourceAnimationRuntime {
     }
     private func render(_ entry:Entry){
         guard entry.active,let participant=entry.participant else{return}
-        let local=round7(max(0,animationSeconds-entry.birth)),clamped=(entry.tutorialGuidedHint || entry.bottleIdleRepeat || entry.tutorialFreePlayMoves != nil) ? local:min(local,entry.duration)
+        let local:Double
+        if entry.freshFace {
+            if let serialReader=entry.freshFrameSerial {
+                let serial=serialReader()
+                // Reading a mounted generation predicate may retire this root.
+                guard !disposed,entry.active,entries[entry.id] === entry else{return}
+                guard let serial else{cancel(id:entry.id,success:false);return}
+                guard entry.freshLastSerial != serial else{return}
+                entry.freshLastSerial=serial
+            }
+            // A fresh face begins on its actual first admitted paint, after the
+            // Source stagger. Delayed deliveries cannot consume unseen growth.
+            if let previous=entry.freshPrevious {
+                entry.freshElapsed=round7(entry.freshElapsed+min(1.0/30,max(0,animationSeconds-previous)))
+            }
+            entry.freshPrevious=animationSeconds
+            local=entry.freshElapsed
+        } else {local=round7(max(0,animationSeconds-entry.birth))}
+        let clamped=(entry.tutorialGuidedHint || entry.bottleIdleRepeat || entry.tutorialFreePlayMoves != nil) ? local:min(local,entry.duration)
         // New grouped root can be visited at0 without onUpdate. No eager copy
         // of the currently painted carrier and no fabricated callback.
-        let emits=local>0 || entry.family == .eagerTween || entry.duration==0
+        let emits=entry.freshFace || local>0 || entry.family == .eagerTween || entry.duration==0
         if emits && (entry.lastDelivered != clamped || !entry.initialized) {
             entry.initialized=true;entry.lastDelivered=clamped
             let diagnosticStart=diagnosticMillisecondsNow?()
@@ -141,7 +163,7 @@ final class NativeSourceAnimationRuntime {
         entry.active=false
         if let previous=entry.previous{previous.next=entry.next}else{first=entry.next}
         if let next=entry.next{next.previous=entry.previous}else{last=entry.previous}
-        entry.previous=nil;entry.next=nil
+        entry.previous=nil;entry.next=nil;entry.freshFrameSerial=nil
         let cleanup=entry.cleanup;entry.cleanup=nil
         // Captured cleanup executes even after participant deallocation or
         // generation replacement. It never looks up a latest same-label owner.
@@ -154,7 +176,7 @@ final class NativeSourceAnimationRuntime {
         onWillChangeSuspension?(value)
         guard !disposed,entries[id] === entry,entry.active,entry.suspended != value else{return}
         entry.suspended=value
-        if value{entry.suspendedAt=animationSeconds}else{entry.birth=round7(entry.birth+animationSeconds-entry.suspendedAt)}
+        if value{entry.suspendedAt=animationSeconds}else{entry.birth=round7(entry.birth+animationSeconds-entry.suspendedAt);if entry.freshFace{entry.freshPrevious=nil}}
         onDemandChanged?()
     }
     func dispose(){

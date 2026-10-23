@@ -1330,7 +1330,7 @@ public final class NativeGameplayEngine {
         let candidates = NativeTntRules.eligibleTargets(state.tiles,excluding:[source.id,destination.id])
         // Barrel whole-board experiment: retain the existing ordinary-target
         // eligibility and transaction, but capture every eligible die once.
-        if variant == "barell" { return candidates }
+        if NativeSpecialDiceRegistry.usesBarrelFlow(variant) { return candidates }
         if variant == "beach-ball" || variant == "laser-gun" { return NativeTntRules.separatedTargets(candidates,count:4,random:{ self.nextRandom() }) }
         var captured=state
         let capturedFlags=flags,capturedLocks=locks
@@ -2109,9 +2109,7 @@ public final class NativeGameplayEngine {
         guard let wild = [source,destination].first(where: { $0.isWild }) else {
             return finalMerge ? prepareHUDStars(count:1,origin:destination.cell,variant:nil,finalMerge:true):[]
         }
-        if wild.variant == "bloob-ball" {
-            return prepareHUDStars(count:NativeBloobBallRewardPolicy.ballCount,origin:destination.cell,variant:wild.variant,archetype:.star,finalMerge:finalMerge)
-        }
+
         if comboHUDCoinRewardsEnabled {
             // Keep the existing Juice selection draw so the board RNG stream is unchanged.
             if wild.archetype == .juice {_ = nextRandom()}
@@ -2125,7 +2123,7 @@ public final class NativeGameplayEngine {
             count=3
         }
         // Nonfinal Source keeps its saved core-special reward provenance.
-        else if wild.archetype == .star {
+        else if wild.archetype == .star && wild.variant != "bloob-ball" {
             if wild.variant==nil,let capture=starOrbitCapture,capture.tileID==wild.id,capture.generation==state.generation {
                 count=finalMerge ? wild.effectiveStarDropCount:max(0,min(3,capture.savedPositions))
                 if count==0 {return []} // Original missing texture poses skips HUD call.
@@ -2150,12 +2148,8 @@ public final class NativeGameplayEngine {
             Set(receiptIDs).count==receiptIDs.count else{return nil}
         let ordered=receiptIDs.compactMap{id in pendingHUDStars.first{$0.id==id && $0.generation==generation}}
         guard ordered.count==receiptIDs.count,let first=ordered.first else{return nil}
-        // Bloob's canonical six-coin batch is consumed one explosion at a time.
-        // Other families still require their entire ordered reward group.
-        let bloobSingle=ordered.count==1 && first.variant=="bloob-ball" &&
-            first.batchCount==NativeBloobBallRewardPolicy.ballCount && (0..<NativeBloobBallRewardPolicy.ballCount).contains(first.ordinal)
-        guard ordered.allSatisfy({(bloobSingle || $0.batchCount==ordered.count) && $0.variant==first.variant && $0.origin==first.origin}),
-            (bloobSingle || ordered.map(\.ordinal)==Array(0..<ordered.count)),
+        guard ordered.allSatisfy({$0.batchCount==ordered.count && $0.variant==first.variant && $0.origin==first.origin}),
+            ordered.map(\.ordinal)==Array(0..<ordered.count),
             ordered.allSatisfy({$0.id.dropLast(2)==first.id.dropLast(2)}),
             sourceHUDStarJobs.allSatisfy({Set($0.receiptIDs).isDisjoint(with:receiptIDs)}) else{return nil}
         sourceHUDStarJobSequence &+= 1

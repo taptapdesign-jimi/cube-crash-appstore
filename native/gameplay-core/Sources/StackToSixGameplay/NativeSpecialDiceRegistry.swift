@@ -16,7 +16,7 @@ public enum NativeSpecialDiceRegistry {
         Variant("fish", .star, "assets/shop/fish/fish.png"),
         Variant("kanta", .star, "assets/shop/kanta/04.png"),
         Variant("bee", .star, "assets/shop/bee/bee1@2x.png"),
-        Variant("bloob-ball", .star, "assets/shop/bloog ball/bloob-ball@2x.png"),
+        Variant("bloob-ball", .tnt, "assets/shop/bloog ball/bloob-ball@2x.png", ratio: 0.7),
         Variant("laser-gun", .tnt, "assets/shop/gun/right gun@2x.png", ratio: 0.7),
         Variant("spaceship", .magnet, "assets/shop/spaceship/spaceship@2x.png"),
         Variant("bottle", .magnet, "assets/shop/bottle/glass bottle@2x.png"),
@@ -51,9 +51,11 @@ public enum NativeSpecialDiceRegistry {
         let owner=finale(source:source,destination:destination,gameplay:true)
         return [source,destination].first(where:{$0.gameplayArchetype==owner && $0.isWild}).flatMap{celebrationWorld(for:$0)}
     }
+    public static func usesBarrelFlow(_ variant:String?)->Bool {variant == "barell" || variant == "bloob-ball"}
     public static func compatibleVariant(_ id: String, core: NativeWildArchetype) -> Variant? {
         guard let variant = variants[id] else { return nil }
         if variant.archetype == core { return variant }
+        if id == "bloob-ball" && core == .star { return variant } // Preserve historical saved Bloob identity.
         if id == "beach-ball" && (core == .juice || core == .magnet) { return variant }
         return nil
     }

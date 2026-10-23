@@ -44,7 +44,7 @@ import Foundation
     }
     /// IDs are one reward group (Native coins max7, Source reference max3); callers must never
     /// flatten several Core batches and cap their combined earned debt.
-    @discardableResult func start(jobID:UUID,ids:[String],origin:CGPoint,target:CGPoint,textureWidth:Double,viewport:CGSize?=nil,gentleLaunch:Bool=false,bloobOrdinal:Int?=nil,random:()->Double)->Bool {
+    @discardableResult func start(jobID:UUID,ids:[String],origin:CGPoint,target:CGPoint,textureWidth:Double,viewport:CGSize?=nil,gentleLaunch:Bool=false,random:()->Double)->Bool {
         guard !disposed,!ids.isEmpty,ids.count <= (readableCoins ? 7 : 3),Set(ids).count==ids.count,jobs[jobID]==nil,
               origin.x.isFinite,origin.y.isFinite,target.x.isFinite,target.y.isFinite,textureWidth.isFinite,textureWidth>0 else{return false}
         let valid=hooks.current();guard valid,!disposed else{return false}
@@ -70,7 +70,7 @@ import Foundation
             let sourcePlan=NativeSourceHUDStarPlan.construct(ordinal:ordinal,sizes:sizes,origin:origin,target:target,textureWidth:textureWidth,previousArrival:&previous,random:random)
             let baseline=readableCoins ? sourcePlan.readableCoin(ordinal:ordinal,previousEnd:&previousCoinEnd,viewport:viewport,gentleLaunch:gentleLaunch,launchInterval:coinLaunchInterval):sourcePlan
             if readableCoins,coinLaunchInterval==nil {coinLaunchInterval=(baseline.originalMotionDuration>0 ? baseline.originalMotionDuration:baseline.duration)*0.20}
-            plans.append(bloobOrdinal.map{baseline.bloobScatter(ordinal:$0+ordinal,origin:origin,viewport:viewport)} ?? baseline)
+            plans.append(baseline)
         }
         for (id,plan) in zip(ids,plans) {
             guard current(job) else{retire(job);return false}

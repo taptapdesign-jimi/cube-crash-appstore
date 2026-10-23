@@ -18,18 +18,18 @@ final class NativeComboCoinRewardTests:XCTestCase {
         for mode in [NativeRunMode.journey,.arcade] {for (type,variant) in families {for (combo,count) in thresholds where combo>0 {for reverse in [false,true] {
             let e=engine(type,variant,combo:combo-1,mode:mode)
             XCTAssertTrue(e.beginDrag(tileID:reverse ? "d":"s"));XCTAssertTrue(e.drop(target:.init(column:reverse ? 0:1,row:0)).accepted)
-            XCTAssertEqual(e.state.combo,combo);XCTAssertEqual(e.pendingHUDStars.count,variant=="bloob-ball" ? 6:count,"\(mode) \(variant ?? type.rawValue) combo \(combo)")
+            XCTAssertEqual(e.state.combo,combo);XCTAssertEqual(e.pendingHUDStars.count,count,"\(mode) \(variant ?? type.rawValue) combo \(combo)")
             XCTAssertTrue(e.pendingHUDStars.allSatisfy{$0.archetype == type})
             e.sourceHUDStarJobsEnabled=true
             let ids=e.pendingHUDStars.map(\.id),job=try XCTUnwrap(e.registerSourceHUDStarJob(receiptIDs:ids,generation:e.state.generation)),score=e.state.score
             for id in ids {XCTAssertTrue(e.commitSourceHUDStarArrival(job:job,receiptID:id).accepted);XCTAssertFalse(e.commitSourceHUDStarArrival(job:job,receiptID:id).accepted)}
-            XCTAssertEqual(e.state.score,score+100*(variant=="bloob-ball" ? 6:count));XCTAssertTrue(e.retireSourceHUDStarJob(job:job));XCTAssertTrue(e.pendingHUDStars.isEmpty)
+            XCTAssertEqual(e.state.score,score+100*(count));XCTAssertTrue(e.retireSourceHUDStarJob(job:job));XCTAssertTrue(e.pendingHUDStars.isEmpty)
         }}}}
     }
     func testTntSplitsComboBudgetBetweenCenterAndEveryActualImpact()throws {
         for mode in [NativeRunMode.journey,.arcade] {
             for staged in [false,true] {
-                for variant in [nil,"flower","barell","laser-gun","beach-ball"] as [String?] {
+                for variant in [nil,"flower","barell","laser-gun","beach-ball","bloob-ball"] as [String?] {
                     for extra in 1...6 {for (combo,reward) in thresholds where combo>0 {
                         let e=engine(.tnt,variant,combo:combo-1,extra:extra,mode:mode)
                         e.stagedTntActivation=staged

@@ -179,32 +179,33 @@ final class NativeArcadeRoundPresentation: UIView {
         catch { finish(completed: false); return false }
     }
 
-    private struct Pose {
+    struct Pose {
         var scale: CGFloat = 1, alpha: CGFloat = 1, rotation: CGFloat = 0, rotationX: CGFloat = 0, rotationY: CGFloat = 0, z: CGFloat = 0
         static let hidden = Pose(scale: 0,alpha: 0)
-        @MainActor func apply(_ view: UIView) {
+        var transform:CATransform3D {
             var transform = CATransform3DMakeTranslation(0,0,z)
             transform = CATransform3DRotate(transform,rotation * .pi/180,0,0,1)
             transform = CATransform3DRotate(transform,rotationY * .pi/180,0,1,0)
             transform = CATransform3DRotate(transform,rotationX * .pi/180,1,0,0)
             transform = CATransform3DScale(transform,scale,scale,1)
-            view.layer.transform = transform; view.alpha = max(0,min(1,alpha))
+            return transform
         }
+        @MainActor func apply(_ view: UIView) {view.layer.transform=transform;view.alpha=max(0,min(1,alpha))}
     }
-    private static func entry(_ local: TimeInterval,digit: Bool = false,rotation: CGFloat = 0) -> Pose {
+    static func entry(_ local: TimeInterval,digit: Bool = false,rotation: CGFloat = 0,overshoot:CGFloat=1.2,dip:CGFloat=0.95) -> Pose {
         guard local >= 0 else { return .hidden }
         let grow = digit ? 0.4 : 0.24,settle = digit ? 0.15 : 0.1,rebound = digit ? 0.2 : 0.1
         if local < grow {
             let p = NativeBoardMotion.Ease.backOut(2).sample(CGFloat(local/grow))
-            return Pose(scale: 1.2*p,alpha: p,rotation: rotation,rotationX: -5*p,z: 20*p)
+            return Pose(scale: overshoot*p,alpha: p,rotation: rotation,rotationX: -5*p,z: 20*p)
         }
         if local < grow+settle {
             let p = NativeBoardMotion.Ease.power2Out.sample(CGFloat((local-grow)/settle))
-            return Pose(scale: 1.2-0.25*p,rotation: rotation,rotationX: -5*(1-p),z: 20*(1-p))
+            return Pose(scale: overshoot+(dip-overshoot)*p,rotation: rotation,rotationX: -5*(1-p),z: 20*(1-p))
         }
         if local < grow+settle+rebound {
             let p = NativeBoardMotion.Ease.backOut(1.5).sample(CGFloat((local-grow-settle)/rebound))
-            return Pose(scale: 0.95+0.05*p,rotation: rotation)
+            return Pose(scale: dip+(1-dip)*p,rotation: rotation)
         }
         return Pose(rotation: rotation)
     }

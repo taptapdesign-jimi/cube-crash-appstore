@@ -397,8 +397,14 @@ final class NativeBoardTests: XCTestCase {
     func testBarrelEarlyImpactsWaitForProtectedWildReturnOnSmallBoard() async throws {
         try await assertBarrelEarlyImpacts(ordinaryCount:1,protectWild:true)
     }
-    private func assertBarrelEarlyImpacts(ordinaryCount:Int,protectWild:Bool) async throws {
-        let barrel=NativeTile(id:"barrel",cell:.init(column:0,row:0),value:6,archetype:.tnt,variant:"barell")
+    func testBloobGasWholeBoardUsesActualFxBeyondFourTargets()async throws {
+        try await assertBarrelEarlyImpacts(ordinaryCount:18,protectWild:false,variant:"bloob-ball")
+    }
+    func testBloobGasWaitsForProtectedWildReturn()async throws {
+        try await assertBarrelEarlyImpacts(ordinaryCount:1,protectWild:true,variant:"bloob-ball")
+    }
+    private func assertBarrelEarlyImpacts(ordinaryCount:Int,protectWild:Bool,variant:String="barell") async throws {
+        let barrel=NativeTile(id:"barrel",cell:.init(column:0,row:0),value:6,archetype:.tnt,variant:variant)
         let destination=tile("destination",1,2)
         let ordinary=(0..<ordinaryCount).map { index in
             NativeTile(id:"ordinary-\(index)",cell:.init(column:index%5,row:1+index/5),value:index%5+1)
@@ -438,7 +444,7 @@ final class NativeBoardTests: XCTestCase {
         XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:geometry.center(row:0,column:1),now:CACurrentMediaTime())).accepted)
         let finishDeadline=Date().addingTimeInterval(16)
         func containsBarrelFx(_ view:UIView)->Bool {
-            view.accessibilityIdentifier=="native-barell-finale" || view.subviews.contains(where:containsBarrelFx)
+            view.accessibilityIdentifier=="native-\(variant)-finale" || view.subviews.contains(where:containsBarrelFx)
         }
         while Date()<finishDeadline {
             sawActualFx = sawActualFx || containsBarrelFx(controller.view)

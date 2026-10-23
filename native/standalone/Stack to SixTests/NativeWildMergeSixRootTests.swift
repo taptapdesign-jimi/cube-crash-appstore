@@ -150,8 +150,10 @@ final class NativeWildMergeSixRootTests:XCTestCase {
         }
     }
     func testStarSourceAndDestinationSettleAndAdmitNextActualDrag()async throws {
-        try await exercise(archetype:.star,variant:nil,reverse:false,disposeDuringMain:false)
-        try await exercise(archetype:.star,variant:nil,reverse:true,disposeDuringMain:false)
+        // A restored fixture must contain a committed move; untouched50/50
+        // layouts correctly restart with ordinary opening dice.
+        try await exercise(archetype:.star,variant:nil,reverse:false,disposeDuringMain:false,moves:49)
+        try await exercise(archetype:.star,variant:nil,reverse:true,disposeDuringMain:false,moves:49)
     }
     func testActualStarFinaleKeepsSixtyHzAfterMainParticlesRetire()async throws {
         try await exercise(archetype:.star,variant:nil,reverse:false,disposeDuringMain:false,verifyStarTail:true)
@@ -176,12 +178,12 @@ final class NativeWildMergeSixRootTests:XCTestCase {
     func testFreshMeterStarDestinationAfterOrdinaryMergeRetainsGameplay()async throws {
         try await exercise(archetype:.star,variant:nil,reverse:true,disposeDuringMain:false,starCount:0,freshStar:true)
     }
-    func testBloobPodFixedTwoBonusSettlesBothDirectionsAndModes()async throws {
+    func testBloobGasBarrelSettlesBothDirectionsAndModes()async throws {
         for arcade in [false,true] {for reverse in [false,true] {
-            try await exercise(archetype:.star,variant:"bloob-ball",reverse:reverse,disposeDuringMain:false,moves:49,starCount:2,arcadeRun:arcade)
+            try await exercise(archetype:.tnt,variant:"bloob-ball",reverse:reverse,disposeDuringMain:false,moves:49,starCount:2,arcadeRun:arcade)
         }}
         for reverse in [false,true] {
-            try await exercise(archetype:.star,variant:"bloob-ball",reverse:reverse,disposeDuringMain:false,moves:49,finalOnly:true,starCount:2)
+            try await exercise(archetype:.tnt,variant:"bloob-ball",reverse:reverse,disposeDuringMain:false,moves:49,finalOnly:true,starCount:2)
         }
     }
     func testBeeSourceAndDestinationSettleAndAdmitNextActualDrag()async throws {
@@ -226,7 +228,7 @@ final class NativeWildMergeSixRootTests:XCTestCase {
     }
     func testBloobBallActualSourceBothModesFinalAndNonfinal()async throws {
         for arcade in [false,true] {for final in [false,true] {
-            try await exercise(archetype:.star,variant:"bloob-ball",reverse:arcade,disposeDuringMain:false,moves:49,finalOnly:final,arcadeRun:arcade)
+            try await exercise(archetype:.tnt,variant:"bloob-ball",reverse:arcade,disposeDuringMain:false,moves:49,finalOnly:final,arcadeRun:arcade)
         }}
     }
     private func exercise(archetype:NativeWildArchetype,variant:String?,reverse:Bool,disposeDuringMain:Bool=true,pulledKanta:Bool=false,moves:Int=50,finalOnly:Bool=false,starCount:Int=3,capturedBoard:NativeBoardState?=nil,freshStar:Bool=false,verifyStarTail:Bool=false,interveningOrdinary:Bool=false,interveningSix:Bool=false,heldOrdinaryMilliseconds:Int=160,rapidOrdinaryContacts:Int=0,tutorialAssist:Bool=false,arcadeTutorial:Bool=false,laserInterveningStack:Bool=false,laserInterveningSix:Bool=false,arcadeRun:Bool=false,initialMeter:Double?=nil,verifyBaloonRetirement:Bool=false,verifyBoardScale:Bool=false,verifyQueuedBonus:Bool=false)async throws {
@@ -262,6 +264,14 @@ final class NativeWildMergeSixRootTests:XCTestCase {
         try store.save(envelope)
         weak var drawingScene:NativeBoardScene?
         var drawPhases:[String]=[],drawCount=0
+        if variant=="bloob-ball" {
+            // Component rendering can let the ordinary test-host intro begin.
+            // Wait for its finite shared clock; never bypass transport ownership.
+            try await wait(label+":host-transport-idle") {
+                let clock=NativeSourceAnimationClockService.shared
+                return clock.activeParticipantCount==0 && clock.pendingSourceAnimationFrameCount==0 && clock.sourceTickerListenerCount==0
+            }
+        }
         let host=NativeStandaloneViewController(resourceRoot:NativeTestResources.root,store:store,
             sourceVisualRandom:{
                 if let phase=drawingScene?.sourceWildFXDrawingPhase {drawPhases.append(phase)}
@@ -306,7 +316,11 @@ final class NativeWildMergeSixRootTests:XCTestCase {
                         if reported.insert(tile.id+":face").inserted {XCTFail(message)}
                     }
                     if scene.sourceOwnsNewFaceEntry(tile.id) {
-                        XCTAssertGreaterThanOrEqual(min(node.sourceLocalScale.x*node.visual.xScale,node.sourceLocalScale.y*node.visual.yScale),0.699,"Entry must not compound outer and inner scaling: "+message)
+                        let outerUnit=abs(node.sourceLocalScale.x-1)<0.001 && abs(node.sourceLocalScale.y-1)<0.001
+                        let innerUnit=abs(node.visual.xScale-1)<0.001 && abs(node.visual.yScale-1)<0.001
+                        XCTAssertTrue(outerUnit || innerUnit,"Exactly one carrier may scale a fresh face: "+message)
+                        let effective=min(node.sourceLocalScale.x*node.visual.xScale,node.sourceLocalScale.y*node.visual.yScale)
+                        XCTAssertTrue(effective.isFinite && effective>=0 && effective<1.3,"Fresh entry must remain bounded: "+message)
                     }
                     if !node.sourceOuterOwners.competes && !node.sourceIsBeingSpawned && !node.sourceSkipIdleScaleReset && !scene.sourceOwnsNewFaceEntry(tile.id) && !node.visual.hasActions() {
                         if min(node.sourceLocalScale.x,node.sourceLocalScale.y)<0.94 || min(node.visual.xScale,node.visual.yScale)<0.94 {

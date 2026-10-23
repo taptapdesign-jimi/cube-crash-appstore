@@ -2,12 +2,10 @@ import UIKit
 import ImageIO
 
 /// Original SVG embedded pixels, decoded once by the existing selected texture queue.
-/// Route-scoped atlases:32 composited256px idle,40 full256px floating or six640px finale poses.
+/// Only the32 composited256px board/Backpack idle frames remain in runtime.
 nonisolated enum NativeBloobBallArt {
     static let idlePath="assets/shop/bloog ball/bloob ball.svg"
-    static let floatingPath="assets/shop/bloog ball/bloob.svg"
-    static let finalePath="assets/shop/bloog ball/bloob animation.svg"
-    static func isSource(_ path:String)->Bool {path==idlePath || path==finalePath || path==floatingPath}
+    static func isSource(_ path:String)->Bool {path==idlePath}
     struct Pose {let x,y,rotation,sx,sy:CGFloat}
     private static let frameStarts:[Double]=[0.0,0.017919921875,0.047265625,0.084228515625,0.125,0.165771484375,0.202734375,0.232080078125,0.25,0.267919921875,0.297265625,0.334228515625,0.375,0.415771484375,0.452734375,0.482080078125,0.5,0.517919921875,0.547265625,0.584228515625,0.625,0.665771484375,0.702734375,0.732080078125,0.75,0.767919921875,0.797265625,0.834228515625,0.875,0.915771484375,0.952734375,0.982080078125]
     private static let translations:[[Double]]=[[0.310296,-10.894726],[0.830991,-10.939485],[1.342503,-10.950674],[1.841089,-10.927113],[2.323191,-10.867566],[2.785462,-10.770765],[3.224814,-10.635441],[3.638443,-10.460361],[4.023861,-10.244364],[4.378913,-9.986397],[4.701803,-9.685554],[4.991099,-9.341115],[5.245744,-8.952583],[5.465058,-8.519721],[5.648733,-8.042582],[5.796819,-7.521543],[5.909718,-6.957331],[5.988156,-6.351048],[6.033167,-5.70418],[6.046057,-5.01862],[6.028382,-4.296673],[5.981907,-3.541052],[5.908569,-2.754873],[5.810443,-1.94165],[5.689704,-1.105274],[5.548581,-0.249984],[5.389324,0.619649],[5.214165,1.498773],[5.025279,2.382285],[4.824756,3.264878],[4.614564,4.141087],[4.396524,5.005351],[4.172292,5.85206],[3.943326,6.675604],[3.710886,7.47045],[3.476016,8.231187],[3.239538,8.952583],[3.002055,9.629649],[2.763956,10.257686],[2.525419,10.832335],[2.286435,11.349638],[2.046813,11.806056],[1.806211,12.198533],[1.564161,12.524509],[1.320087,12.781956],[1.073348,12.969392],[0.823258,13.085897],[0.569129,13.13112],[0.310296,13.105273],[0.046154,13.00913],[-0.223812,12.844003],[-0.499995,12.611735],[-0.782639,12.314653],[-1.071811,11.955558],[-1.367387,11.537669],[-1.66902,11.064585],[-1.976139,10.540246],[-2.287929,9.968874],[-2.603334,9.354927],[-2.921052,8.703041],[-3.239538,8.01798],[-3.557019,7.304578],[-3.871508,6.567693],[-4.180817,5.812143],[-4.482588,5.042668],[-4.774317,4.26388],[-5.053389,3.480222],[-5.317104,2.695926],[-5.562728,1.914983],[-5.787517,1.141116],[-5.98877,0.377755],[-6.163865,-0.371974],[-6.310296,-1.105274],[-6.425727,-1.81966],[-6.508014,-2.51298],[-6.55526,-3.183394],[-6.565831,-3.829372],[-6.538405,-4.44967],[-6.471991,-5.043315],[-6.365948,-5.609577],[-6.220014,-6.14794],[-6.034309,-6.658081],[-5.809354,-7.139825],[-5.546062,-7.593113],[-5.245744,-8.01798],[-4.910094,-8.414506],[-4.541181,-8.782796],[-4.141424,-9.122936],[-3.713565,-9.434973],[-3.26065,-9.71889],[-2.785989,-9.974576],[-2.293113,-10.201814],[-1.785741,-10.400263],[-1.267737,-10.569456],[-0.743057,-10.70878],[-0.215709,-10.817494],[0.310296,-10.894726]]
@@ -25,11 +23,6 @@ nonisolated enum NativeBloobBallArt {
         }
         return Pose(x:value(translations,0),y:value(translations,1),rotation:value(rotations,0),sx:value(scales,0),sy:value(scales,1))
     }
-    static func floatingFrame(seconds:Double)->Int {
-        let starts:[Double]=[0,0.03125,0.046875,0.078125,0.09375,0.125,0.15625,0.171875,0.203125,0.21875,0.25,0.28125,0.296875,0.328125,0.34375,0.375,0.40625,0.421875,0.453125,0.46875,0.5,0.53125,0.546875,0.578125,0.59375,0.625,0.65625,0.671875,0.703125,0.71875,0.75,0.78125,0.796875,0.828125,0.84375,0.875,0.90625,0.921875,0.953125,0.96875]
-        let phase=max(0,seconds).truncatingRemainder(dividingBy:1.635865961197037)/1.635865961197037
-        return starts.lastIndex(where:{$0<=phase}) ?? 0
-    }
     private final class Parser:NSObject,XMLParserDelegate {
         var images:[String:String]=[:],base:String?
         func parser(_ parser:XMLParser,didStartElement name:String,namespaceURI:String?,qualifiedName:String?,attributes:[String:String]) {
@@ -37,32 +30,23 @@ nonisolated enum NativeBloobBallArt {
         }
     }
     static func decode(_ url:URL)->CGImage? {
-        guard let data=try? Data(contentsOf:url),data.count<5_000_000 else{return nil}
+        guard url.lastPathComponent=="bloob ball.svg",let data=try? Data(contentsOf:url),data.count<5_000_000 else{return nil}
         let delegate=Parser(),parser=XMLParser(data:data);parser.delegate=delegate;parser.shouldResolveExternalEntities=false
-        guard parser.parse() else{return nil}
-        let idle=url.lastPathComponent=="bloob ball.svg",floating=url.lastPathComponent=="bloob.svg"
-        let count=idle ? 32:floating ? 40:6
-        let w=(idle || floating) ? 256:640,h=(idle || floating) ? 256:640,columns=(idle || floating) ? 8:3,rows=idle ? 4:floating ? 5:2
-        guard delegate.images.count==count,let context=CGContext(data:nil,width:w*columns,height:h*rows,bitsPerComponent:8,bytesPerRow:w*columns*4,space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue) else{return nil}
+        guard parser.parse(),delegate.images.count==32,
+              let context=CGContext(data:nil,width:2048,height:1024,bitsPerComponent:8,bytesPerRow:2048*4,
+                space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue) else{return nil}
         func bitmap(_ encoded:String?)->CGImage? {
-            guard let encoded=encoded?.split(separator:",",maxSplits:1).last,let bytes=Data(base64Encoded:String(encoded)),let source=CGImageSourceCreateWithData(bytes as CFData,nil) else{return nil}
+            guard let encoded=encoded?.split(separator:",",maxSplits:1).last,let bytes=Data(base64Encoded:String(encoded)),
+                  let source=CGImageSourceCreateWithData(bytes as CFData,nil) else{return nil}
             return CGImageSourceCreateImageAtIndex(source,0,nil)
         }
-        let base=idle ? bitmap(delegate.base):nil
-        if idle && base==nil {return nil}
-        for index in 0..<count {
-            let id="f\((idle || floating) ? index:index*6)"
-            guard let encoded=delegate.images[id]?.split(separator:",",maxSplits:1).last,
-                  let bytes=Data(base64Encoded:String(encoded)),let source=CGImageSourceCreateWithData(bytes as CFData,nil),
-                  let image=CGImageSourceCreateImageAtIndex(source,0,nil) else{return nil}
-            let rect=CGRect(x:(index%columns)*w,y:(rows-1-index/columns)*h,width:w,height:h)
+        guard let base=bitmap(delegate.base) else{return nil}
+        for index in 0..<32 {
+            guard let image=bitmap(delegate.images["f\(index)"]) else{return nil}
+            let rect=CGRect(x:(index%8)*256,y:(3-index/8)*256,width:256,height:256)
             context.saveGState();context.clip(to:rect)
-            if idle,let base {
-                // Crop only transparent64px margins and render at2x of128pt.
-                // The full stone shell plus animated core are both authored SVG layers.
-                context.draw(base,in:CGRect(x:rect.minX-32,y:rect.minY-32,width:320,height:320))
-                context.draw(image,in:CGRect(x:rect.minX+43,y:rect.minY+60,width:119.5,height:131))
-            } else {context.draw(image,in:rect)}
+            context.draw(base,in:CGRect(x:rect.minX-32,y:rect.minY-32,width:320,height:320))
+            context.draw(image,in:CGRect(x:rect.minX+43,y:rect.minY+60,width:119.5,height:131))
             context.restoreGState()
         }
         return context.makeImage()

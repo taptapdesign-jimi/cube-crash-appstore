@@ -1,9 +1,9 @@
 import Foundation
 
-/// The exact app-spawn.ts regular open timeline. The injected app union service
-/// owns delivery; this owner creates neither a renderer clock nor a timer.
+/// Source app-spawn.ts regular open timeline, with an explicit Native fresh-face
+/// timing policy. The injected app union service owns every delivery; no extra clock.
 @MainActor final class NativeSourceAppSpawnBounceOwner {
-    static let nativeEntryScale=0.70
+    static let nativeEntryScale=0.0
     enum Completion: Equatable { case completed, interrupted, unavailable }
     struct Hooks {
         let current: () -> Bool
@@ -23,14 +23,16 @@ import Foundation
     private let hooks: Hooks
     private let timeScale:Double,capturedDirection:Int?
     private let initialScale:Double
+    private let nativeFreshFace:Bool
+    private let nativeFrameSerial:(()->UInt64?)?
     private var participant: Participant?
     private var lease: NativeSourceAnimationClockService.Lease?
     private var releaseFrames: (() -> Void)?
     private var initialRotation: Double?
     private var direction = 1.0
     private var begun = false, closed = false, childrenRemoved = false
-    init(service: NativeSourceAnimationClockService, hooks: Hooks,timeScale:Double=1,capturedDirection:Int?=nil,preservesBoardSize:Bool=false,initialScale:Double?=nil) {
-        self.service = service; self.hooks = hooks;self.timeScale=timeScale;self.capturedDirection=capturedDirection;self.initialScale=initialScale ?? (preservesBoardSize ? 1:0.30)
+    init(service: NativeSourceAnimationClockService, hooks: Hooks,timeScale:Double=1,capturedDirection:Int?=nil,preservesBoardSize:Bool=false,initialScale:Double?=nil,nativeFreshFace:Bool=false,nativeFrameSerial:(()->UInt64?)?=nil) {
+        self.service = service; self.hooks = hooks;self.nativeFreshFace=nativeFreshFace;self.nativeFrameSerial=nativeFrameSerial;self.timeScale=nativeFreshFace ? 1:timeScale;self.capturedDirection=capturedDirection;self.initialScale=nativeFreshFace ? 0:(initialScale ?? (preservesBoardSize ? 1:0.30))
     }
     var active: Bool { begun && !closed }
     private func current() -> Bool {
@@ -39,7 +41,7 @@ import Foundation
         return accepted && !closed
     }
     @discardableResult func start() -> Bool {
-        guard !begun,timeScale.isFinite,timeScale>0,initialScale.isFinite,initialScale>0,initialScale<=1,
+        guard !begun,timeScale.isFinite,timeScale>0,initialScale.isFinite,(initialScale>0 || nativeFreshFace),initialScale<=1,
               capturedDirection == nil || capturedDirection == 1 || capturedDirection == -1,
               current(), service.sourceFrameTransportAdmissionOpen else { return false }
         begun = true
@@ -61,10 +63,10 @@ import Foundation
         let participant = Participant()
         self.participant = participant
         participant.advance = { [weak self] seconds in self?.paint(seconds) }
-        let registered = service.register(participant: participant, duration: 0.56/timeScale,
-            domain: .sourceGSAP(.timeline), cleanup: { [weak self] success in
-                self?.finish(success ? .completed : .interrupted)
-            })
+        let cleanup:(Bool)->Void = { [weak self] success in self?.finish(success ? .completed : .interrupted) }
+        let registered = nativeFreshFace
+            ? service.registerFreshFace(participant:participant,duration:0.56,frameSerial:nativeFrameSerial,cleanup:cleanup)
+            : service.register(participant:participant,duration:0.56/timeScale,domain:.sourceGSAP(.timeline),cleanup:cleanup)
         guard current(), let registered else {
             registered?.cancel(); finish(.unavailable); return false
         }

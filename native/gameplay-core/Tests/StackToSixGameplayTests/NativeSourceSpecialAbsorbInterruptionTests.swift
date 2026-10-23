@@ -17,9 +17,9 @@ nonisolated final class NativeSourceSpecialAbsorbInterruptionTests:XCTestCase {
   XCTAssertFalse(e.cancelSourceMergeSixAbsorb(receiptID:plan.id,generation:plan.generation).accepted)
   XCTAssertNil(e.registerSourceSpecialAbsorbOwner(transactionID:"foreign",generation:plan.generation));XCTAssertNil(e.registerSourceSpecialAbsorbOwner(transactionID:plan.id,generation:plan.generation+1))
  }
- func testAllNineOriginalNonfinalMagnetTntSelectionsCancelOnlyRegisteredPremainPair()throws {
+ func testAllNonfinalMagnetTntSelectionsIncludingBloobCancelOnlyRegisteredPremainPair()throws {
   let choices:[NativeWildRewardChoice]=[.init(.magnet),.init(.tnt)]+NativeSpecialDiceRegistry.variants.values.filter{[NativeWildArchetype.magnet,.tnt].contains($0.archetype)}.sorted{$0.id<$1.id}.map{.init($0.archetype,variant:$0.id)}
-  XCTAssertEqual(choices.count,9)
+  XCTAssertEqual(choices.count,10)
   for choice in choices {
    let e=engine(choice),plan=try reserve(e),receipt=try register(e,plan),before=e.state
    XCTAssertEqual(receipt.transactionID,plan.id);XCTAssertEqual(receipt.sourceID,"src");XCTAssertEqual(receipt.destinationID,"dst")

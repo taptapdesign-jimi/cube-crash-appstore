@@ -356,4 +356,38 @@ import StackToSixGameplay
         XCTAssertNil(controller.sourceNoMovesUIKit?.presentation)
         XCTAssertNil(scene.gameplayRenderHost)
     }
+
+    func testGPUAdmissionPreservesEachSubmissionUntilSuccessOrFailureCompletion() {
+        let flights=NativeOwnedMetalGameplayView.Flights()
+        XCTAssertEqual(NativeOwnedMetalGameplayView.maximumInFlightFrames,1)
+        XCTAssertTrue(flights.acquire())
+        flights.recordSubmission()
+        // Repeated display ticks must not let the mutable renderer overwrite
+        // resources still consumed by the first command buffer.
+        for _ in 0..<10 {XCTAssertFalse(flights.acquire())}
+        XCTAssertEqual(flights.outstanding,1)
+        flights.completeSubmission(status:.completed,error:nil,epoch:7,generation:41)
+        XCTAssertEqual(flights.outstanding,0)
+        XCTAssertTrue(flights.acquire())
+        flights.recordSubmission()
+        let error=NSError(domain:"test.render",code:9,userInfo:[NSLocalizedDescriptionKey:String(repeating:"x",count:600)])
+        flights.completeSubmission(status:.error,error:error,epoch:8,generation:42)
+        XCTAssertEqual(flights.outstanding,0,"Failed GPU work must not permanently freeze rendering")
+        let snapshot=flights.completionSnapshot
+        XCTAssertEqual(snapshot["submittedFrames"] as? Int,2)
+        XCTAssertEqual(snapshot["completedFrames"] as? Int,1)
+        XCTAssertEqual(snapshot["failedFrames"] as? Int,1)
+        let failure=snapshot["lastRenderFailure"] as? [String:Any]
+        XCTAssertEqual(failure?["presentationEpoch"] as? UInt64,8)
+        XCTAssertEqual(failure?["generation"] as? UInt64,42)
+        XCTAssertEqual((failure?["message"] as? String)?.count,256)
+        XCTAssertTrue(flights.acquire())
+        // Mirrors draw's defer when drawable/command acquisition or scene
+        // admission fails before commit: no GPU callback will arrive.
+        flights.release()
+        XCTAssertTrue(flights.acquire(),"A precommit return must leave the next display tick available")
+        flights.release()
+        XCTAssertEqual(flights.outstanding,0)
+    }
+
 }

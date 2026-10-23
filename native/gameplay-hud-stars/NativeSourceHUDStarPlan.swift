@@ -99,34 +99,6 @@ nonisolated struct NativeSourceHUDStarPlan {
     }
     /// Bloob-only radial departure and crossing lanes, captured from the existing plan.
     /// Per-flight timing stays bounded by the existing job and canonical HUD arrival.
-    func bloobScatter(ordinal:Int,origin:CGPoint,viewport:CGSize?=nil)->Self {
-        let target=points[points.count-1]
-        // Independent channels from already captured visual entropy: no Core RNG draws.
-        func noise(_ salt:Double)->Double {
-            let v=sin(rotation*73.17+size*1.731+Double(ordinal)*17.399+salt*41.13)*43758.5453
-            return v-floor(v)
-        }
-        let angle=noise(1)*2 * .pi,radius=45+noise(2)*100
-        let dx=cos(angle)*radius,dy=sin(angle)*radius
-        let c1=CGPoint(x:origin.x+dx*1.8,y:origin.y+dy*1.8)
-        let c2=CGPoint(x:origin.x+(target.x-origin.x)*0.3-dx*0.8+(noise(3)-0.5)*100,
-            y:origin.y+(target.y-origin.y)*0.3-dy*0.8)
-        let path:[CGPoint]=(0...64).map {i in
-            if i==0{return origin};if i==64{return target}
-            let t=Double(i)/64,u=1-t
-            var p=CGPoint(x:u*u*u*origin.x+3*u*u*t*c1.x+3*u*t*t*c2.x+t*t*t*target.x,
-                y:u*u*u*origin.y+3*u*u*t*c1.y+3*u*t*t*c2.y+t*t*t*target.y)
-            if let viewport,viewport.width>0,viewport.height>0 {
-                let margin=min(min(viewport.width,viewport.height)/2,size*0.6+2)
-                p.x=min(viewport.width-margin,max(margin,p.x));p.y=min(viewport.height-margin,max(margin,p.y))
-            }
-            return p
-        }
-        let tempo=0.65+noise(4)*0.6
-        return Self(points:path,delay:noise(5)*0.48,duration:duration*tempo,size:size,rotation:rotation,
-            textureWidth:textureWidth,launchPower:0.85+noise(6)*0.35,
-            originalMotionDuration:originalMotionDuration*tempo,accelerationStart:accelerationStart*tempo)
-    }
     static func round7(_ x:Double)->Double {(x*1e7).rounded()/1e7}
     static func round6(_ x:Double)->Double {(x*1e6).rounded()/1e6}
     static func pathProgress(_ raw:Double)->Double {

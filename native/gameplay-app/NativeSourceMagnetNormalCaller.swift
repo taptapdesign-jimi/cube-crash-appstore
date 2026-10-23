@@ -1,5 +1,6 @@
 import Foundation
 import StackToSixGameplay
+import SpriteKit
 
 /// Actual normal replacement caller, distinct from zero-active post-check
 /// fallback. Core owns planned cells/faces; each captured object follows the
@@ -93,6 +94,10 @@ import StackToSixGameplay
         let frameCurrent:(()->Bool)? = hooks.frameCurrent.map{callback in
             {[weak node] in guard let node else{return false};return callback(node,tile)}
         }
+        node.prepareSourceFreshFaceEntry()
+        let pendingEntry=node.sourcePendingFreshFaceEntryID
+        var bounceAdmitted=false
+        defer {if !bounceAdmitted,let pendingEntry {node.retireSourcePendingFreshFaceEntry(expected:pendingEntry)}}
         let admitted=node.openSourceAppSpawnHolder(value,service:service,random:random,current:alive,frameCurrent:frameCurrent,
             beforeSetValue:{[weak self] in
                 guard let self,alive() else{return false}
@@ -115,11 +120,12 @@ import StackToSixGameplay
                 guard let self,self.nodes[index] === node else{return}
                 self.bounces.removeValue(forKey:index);node?.unbindSourceAppSpawnInterruption(id:ownerID)
                 guard self.current() else{return};done(outcome == .completed)
-            }),initialScale:NativeSourceAppSpawnBounceOwner.nativeEntryScale)
+            }),initialScale:NativeSourceAppSpawnBounceOwner.nativeEntryScale,nativeFreshFace:true,nativeFrameSerial:node.scene is NativeBoardScene ? {[weak node] in node?.sourceFreshFaceRenderSerial}:nil)
         bounces[index]=bounce
         guard node.bindSourceAppSpawnInterruption(id:ownerID,pickup:{[weak bounce] in bounce?.removeChildrenForPickup()},interrupted:{[weak bounce] in bounce?.interrupt()}),alive(),bounce.start(),alive() else{
             bounce.interrupt();return .unavailable
         }
+        bounceAdmitted=true
         return .started
     }
     private func verify(_ index:Int)->Bool {

@@ -427,6 +427,71 @@ import StackToSixNativeState
     func testRootSourceDirectEarnedStarUsesActualHUDAndSpecialOwners()async throws {
         try await runRootGuidedDrags(ordinary:true,direct:true)
     }
+    /// Samples only after the mounted Metal host submits a new frame. This is
+    /// physical node state from real draws, never synthetic owner tick samples.
+    @MainActor private final class FreshEntryFrames {
+        let scene:NativeBoardScene,game:NativeGameplayViewController,host:NativeOwnedMetalGameplayView
+        let existing:Set<String>
+        var frames:[String:[Double]]=[:],lastSubmission = -1
+        init?(scene:NativeBoardScene,game:NativeGameplayViewController) {
+            guard let host=scene.gameplayRenderHost as? NativeOwnedMetalGameplayView else{return nil}
+            self.scene=scene;self.game=game;self.host=host
+            existing=Set(game.engine.state.tiles.filter{!$0.locked}.map(\.id))
+            host.diagnosticsEnabled=true
+        }
+        func sample() {
+            guard let submission=host.diagnosticSnapshot()["submittedFrames"] as? Int,submission != lastSubmission else{return}
+            lastSubmission=submission
+            for tile in game.engine.state.tiles where !existing.contains(tile.id) && !tile.locked && tile.value>0 && tile.value<6 && !tile.isWild {
+                guard let node=scene.sourceNativeTileNode(tile.id) else{continue}
+                let scale=Double(node.sourceLocalScale.x*node.visual.xScale)
+                if frames[tile.id,default:[]].count<180 {frames[tile.id,default:[]].append(scale)}
+            }
+        }
+        func verify(name:String,file:StaticString=#filePath,line:UInt=#line) throws {
+            sample()
+            let attachment=XCTAttachment(data:try JSONSerialization.data(withJSONObject:frames,options:[.prettyPrinted,.sortedKeys]),uniformTypeIdentifier:"public.json")
+            attachment.name=name+"-draw-admitted-entry-scales";attachment.lifetime = .keepAlways
+            XCTContext.runActivity(named:name){$0.add(attachment)}
+            XCTAssertFalse(frames.isEmpty,"Actual draw must observe a fresh numbered face",file:file,line:line)
+            for (id,values) in frames {
+                XCTAssertLessThan(values.first ?? 1,0.70,"\(id) must not flash full-size before its enter: \(values)",file:file,line:line)
+                // Real mounted cadence may vary between30–60Hz; a97percent growth pose is still below full size.
+                XCTAssertGreaterThanOrEqual(Set(values.filter{$0>0 && $0<1}.map{Int($0*1000)}).count,2,"\(id) needs several painted growth poses: \(values)",file:file,line:line)
+                XCTAssertGreaterThan(values.max() ?? 0,1.04,"\(id) needs visible overshoot",file:file,line:line)
+                XCTAssertEqual(values.last ?? 0,1,accuracy:0.025,"\(id) must settle",file:file,line:line)
+            }
+        }
+    }
+    private func awaitMountedApp(_ host:NativeStandaloneViewController)async throws -> NativeAppController {
+        host.loadViewIfNeeded()
+        let deadline=Date().addingTimeInterval(10)
+        while host.children.compactMap({$0 as? NativeAppController}).first == nil {
+            func labels(_ view:UIView)->[String] {
+                (view as? UILabel).flatMap(\.text).map{[$0]} ?? view.subviews.flatMap(labels)
+            }
+            let errors=labels(host.view).filter{!$0.isEmpty}
+            // Startup errors are synchronous; fail with the actual surfaced reason.
+            if !errors.isEmpty {
+                throw NSError(domain:"NativeMountedApp.bootstrap",code:1,userInfo:[NSLocalizedDescriptionKey:errors.joined(separator:" | ")])
+            }
+            guard Date()<deadline else{throw NSError(domain:"NativeMountedApp.timeout",code:1)}
+            try await Task.sleep(for:.milliseconds(20))
+        }
+        return try XCTUnwrap(host.children.compactMap{$0 as? NativeAppController}.first)
+    }
+    func testMountedOrdinaryLockedFaceHasSmoothDrawAdmittedEntry()async throws {
+        try await runOrdinaryResumeRoot(noLocked:false,observeFreshEntry:true)
+    }
+    func testMountedLaserForwardReplacementHasSmoothDrawAdmittedEntry()async throws {
+        try await runTntResumeRoot(cancelBeforeMain:false,variant:"laser-gun",complete:true,observeFreshEntry:true)
+    }
+    func testMountedLaserReverseReplacementHasSmoothDrawAdmittedEntry()async throws {
+        try await runTntResumeRoot(cancelBeforeMain:false,variant:"laser-gun",wildDestination:true,complete:true,observeFreshEntry:true)
+    }
+    func testMountedBloobGasReplacementsHaveSmoothDrawAdmittedEntry()async throws {
+        try await runTntResumeRoot(cancelBeforeMain:false,variant:"bloob-ball",complete:true,observeFreshEntry:true)
+    }
     func testExplicitOrdinaryResumeRootRestoresSavedRegularAndStarWithoutTutorialOrNewRound()async throws {
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("native-source-resume-app-"+UUID().uuidString)
         let store=NativeSaveStore(directory:directory)
@@ -528,7 +593,7 @@ import StackToSixNativeState
     func testActualJuiceCoroutineLateRetainedDestinationGuardReachesRewardAndResult()async throws {
         try await runOrdinaryResumeRoot(noLocked:false,physicalFinal:true,directFinal:true,coroutineLate:true)
     }
-    private func runOrdinaryResumeRoot(noLocked:Bool,physicalFinal:Bool=false,directFinal:Bool=false,directArchetype:NativeWildArchetype = .juice,wildDestination:Bool=false,directVariant:String?=nil,lateFinal:Bool=false,coroutineLate:Bool=false)async throws {
+    private func runOrdinaryResumeRoot(noLocked:Bool,physicalFinal:Bool=false,directFinal:Bool=false,directArchetype:NativeWildArchetype = .juice,wildDestination:Bool=false,directVariant:String?=nil,lateFinal:Bool=false,coroutineLate:Bool=false,observeFreshEntry:Bool=false)async throws {
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("native-normal-ordinary-"+UUID().uuidString)
         let store=NativeSaveStore(directory:directory)
         var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
@@ -545,10 +610,11 @@ import StackToSixNativeState
         let oldWindow=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
         let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=host;window.makeKeyAndVisible()
         defer{host.dispose();window.isHidden=true;oldWindow?.makeKeyAndVisible();try? FileManager.default.removeItem(at:directory)}
-        host.loadViewIfNeeded();let app=try XCTUnwrap(host.children.first as? NativeAppController)
+        let app=try await awaitMountedApp(host)
+        var entryFrames:FreshEntryFrames?
         func wait(_ predicate:()->Bool)async throws {
             let deadline=Date().addingTimeInterval(30)
-            while !predicate(){guard Date()<deadline else{throw NSError(domain:"NativeNormalOrdinaryRoot",code:1)};try await Task.sleep(for:.milliseconds(20))}
+            while !predicate(){entryFrames?.sample();guard Date()<deadline else{throw NSError(domain:"NativeNormalOrdinaryRoot",code:1)};try await Task.sleep(for:.milliseconds(observeFreshEntry ? 8:20))}
         }
         try await wait{!app.home.isHidden}
         app.navigate(.world(1),interrupt:true)
@@ -562,6 +628,7 @@ import StackToSixNativeState
             return scene.gameplayRenderHost?.renderedScene === scene && game.view.window != nil && scene.isBoardEntryComplete
         }
         let game=try XCTUnwrap(app.children.compactMap{$0 as? NativeGameplayViewController}.first),scene=try XCTUnwrap(game.boardScene)
+        if observeFreshEntry {entryFrames=try XCTUnwrap(FreshEntryFrames(scene:scene,game:game))}
         XCTAssertEqual(game.engine.sourceOrdinarySixSpawnNormalOnly,!noLocked)
         XCTAssertNotNil(game.engine.sourceOrdinaryMinimumTileAuthority)
         XCTAssertEqual(game.engine.sourceOrdinaryPhysicalFinalCaptureCount,0,"Entry cannot manufacture a final decision before an accepted drop")
@@ -654,6 +721,7 @@ import StackToSixNativeState
             scene.cancelDrag(pointerCancelled:true)
             XCTAssertNil(game.sourcePresentationFailureGeneration)
         } else {XCTAssertFalse(try XCTUnwrap(game.engine.state.tiles.first{$0.id=="locked"}).locked)}
+        if let entryFrames {try await Task.sleep(for:.milliseconds(100));try entryFrames.verify(name:"ordinary-locked")}
         XCTAssertNil(scene.captureSourceMergeSixSpawnInProgress(),"Incomplete global writer coverage stays unknown after real finally")
         XCTAssertNil(game.engine.sourceNoMovesRuntimeAuthority)
         host.dispose()
@@ -690,7 +758,7 @@ import StackToSixNativeState
         try await runTntResumeRoot(cancelBeforeMain:false,complete:true,coinCombo:0)
         try await runTntResumeRoot(cancelBeforeMain:false,noTargets:true,complete:true,coinCombo:0)
     }
-    private func runTntResumeRoot(cancelBeforeMain:Bool,pauseDuringBonus:Bool=false,noTargets:Bool=false,variant:String?=nil,wildDestination:Bool=false,complete:Bool=false,coinCombo:Int?=nil)async throws {
+    private func runTntResumeRoot(cancelBeforeMain:Bool,pauseDuringBonus:Bool=false,noTargets:Bool=false,variant:String?=nil,wildDestination:Bool=false,complete:Bool=false,coinCombo:Int?=nil,observeFreshEntry:Bool=false)async throws {
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("native-tnt-source-main-"+UUID().uuidString)
         let store=NativeSaveStore(directory:directory)
         var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
@@ -708,14 +776,15 @@ import StackToSixNativeState
         let oldWindow=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
         let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=host;window.makeKeyAndVisible()
         defer{host.dispose();window.isHidden=true;oldWindow?.makeKeyAndVisible();try? FileManager.default.removeItem(at:directory)}
-        host.loadViewIfNeeded();let app=try XCTUnwrap(host.children.first as? NativeAppController)
+        let app=try await awaitMountedApp(host)
+        var entryFrames:FreshEntryFrames?
         func wait(_ name:String,_ predicate:()->Bool)async throws {
             let deadline=Date().addingTimeInterval(30)
-            while !predicate(){guard Date()<deadline else {
+            while !predicate(){entryFrames?.sample();guard Date()<deadline else {
                 let active=app.children.compactMap{$0 as? NativeGameplayViewController}.first
                 XCTFail("NativeTntSourceRoot timeout=\(name) variant=\(variant ?? "core") admission=\(active?.sourceEntryDiagnostic() ?? "none") pending=\(String(describing:active?.engine.pendingSpecial)) main=\(active?.boardScene?.sourceTntMainDeliveredCount ?? -1) finally=\(active?.boardScene?.sourceTntSpawnFinallyCount ?? -1) tntMain=\(active?.boardScene?.sourceTntMainDiagnostic() ?? "none") levelEnd=\(active?.boardScene?.sourceLevelEndDiagnostic() ?? "none")")
                 throw NSError(domain:"NativeTntSourceRoot."+name,code:1)
-            };try await Task.sleep(for:.milliseconds(20))}
+            };try await Task.sleep(for:.milliseconds(observeFreshEntry ? 8:20))}
         }
         try await wait("home"){!app.home.isHidden}
         app.navigate(.world(1),interrupt:true)
@@ -729,6 +798,7 @@ import StackToSixNativeState
             return !complete || (game.beforeSourceGameplayAdmission==nil && scene.sourceAnimationBindingAdmissionOpen && game.sourcePresentationFailureGeneration==nil)
         }
         let game=try XCTUnwrap(app.children.compactMap{$0 as? NativeGameplayViewController}.first),scene=try XCTUnwrap(game.boardScene)
+        if observeFreshEntry {entryFrames=try XCTUnwrap(FreshEntryFrames(scene:scene,game:game))}
         XCTAssertTrue(game.engine.sourceTntMain80Enabled);XCTAssertTrue(game.engine.stagedTntWildSpawnAssignments)
         if variant=="laser-gun" {print("[LaserIncidentTest] entry ready reverse=\(wildDestination) targets=\(!noTargets)")}
         XCTAssertTrue(scene.sourceHUDStarJobsAdmissionOpen)
@@ -851,6 +921,14 @@ import StackToSixNativeState
                     XCTAssertEqual(afterExit.settings,committed.settings)
                     XCTAssertEqual(afterExit.journeyRuns,committed.journeyRuns)
                 }
+            }
+            if let entryFrames {
+                try await Task.sleep(for:.milliseconds(100));try entryFrames.verify(name:variant+(wildDestination ? "-reverse":"-forward"))
+                let fresh=try XCTUnwrap(entryFrames.frames.keys.sorted().compactMap{scene.sourceNativeTileNode($0)}.first)
+                XCTAssertTrue(scene.beginDrag(at:scene.convert(fresh.position,from:try XCTUnwrap(fresh.parent))),"Completed fresh entry must allow the next drag")
+                scene.cancelDrag(pointerCancelled:true)
+                XCTAssertEqual(scene.sourceTntSpawnFinallyCount,1,"Entry tail cannot deliver a duplicate finally")
+                XCTAssertNil(game.sourcePresentationFailureGeneration)
             }
             return
         }

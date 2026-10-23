@@ -1,15 +1,49 @@
 import UIKit
 import SpriteKit
 import MetalKit
+import StackToSixGameplay
 
 /// Standalone Native presentation owner. MTKView supplies the only frame scheduler;
 /// SKRenderer borrows the existing Scene and canonical Source delivery.
 @MainActor
 final class NativeOwnedMetalGameplayView: MTKView, @preconcurrency MTKViewDelegate, NativeGameplayRenderHost {
-    private final class Flights: @unchecked Sendable {
+    // Overlapping SKRenderer updates/encodes reproduce wrong texture sampling.
+    // Admit the next update only after the prior GPU submission completes.
+    // A busy GPU skips this display tick; the main thread never waits.
+    nonisolated static let maximumInFlightFrames=1
+    final class Flights: @unchecked Sendable {
         private let lock=NSLock()
         private var count=0
-        func acquire()->Bool {lock.lock();defer{lock.unlock()};guard count<3 else{return false};count+=1;return true}
+        private var submitted=0,completed=0,failed=0
+        private var lastFailure:[String:Any]=[:]
+        func recordSubmission(){lock.lock();submitted+=1;lock.unlock()}
+        /// Only immutable frame identifiers cross the GPU completion boundary.
+        /// Keep one bounded failure record rather than retaining command buffers.
+        func completeSubmission(status:MTLCommandBufferStatus,error:Error?,epoch:UInt64,generation:UInt64) {
+            defer{release()}
+            let failure=status != .completed
+            let detail=error as NSError?
+            let domain=String((detail?.domain ?? "").prefix(128))
+            let message=String((detail?.localizedDescription ?? "").prefix(256))
+            lock.lock()
+            if failure {
+                failed+=1
+                lastFailure=["status":status.rawValue,"errorDomain":domain,"errorCode":detail?.code ?? 0,
+                    "message":message,"presentationEpoch":epoch,"generation":generation]
+            } else {completed+=1}
+            let shouldLog=failure && failed<=4
+            lock.unlock()
+            if shouldLog {
+                NSLog("[CC_NATIVE_RENDER_FAILURE] status=%lu domain=%@ code=%ld epoch=%llu generation=%llu message=%@",
+                    status.rawValue,domain,detail?.code ?? 0,epoch,generation,message)
+            }
+        }
+        var completionSnapshot:[String:Any] {
+            lock.lock();defer{lock.unlock()}
+            return ["submittedFrames":submitted,"completedFrames":completed,"failedFrames":failed,
+                "lastRenderFailure":lastFailure]
+        }
+        func acquire()->Bool {lock.lock();defer{lock.unlock()};guard count<NativeOwnedMetalGameplayView.maximumInFlightFrames else{return false};count+=1;return true}
         func release(){lock.lock();count-=1;lock.unlock()}
         var outstanding:Int {lock.lock();defer{lock.unlock()};return count}
     }
@@ -26,7 +60,7 @@ final class NativeOwnedMetalGameplayView: MTKView, @preconcurrency MTKViewDelega
     private var pausePolicyRevision:UInt64=0
     private var mountedScaleMode:SKSceneScaleMode?
     var diagnosticsEnabled=false
-    private var frames=0,unavailable=0,inFlightSkips=0
+    private var unavailable=0,inFlightSkips=0
     private var acquireWorst=0.0,updateWorst=0.0,encodeWorst=0.0,submitWorst=0.0
     var renderView:UIView {self}
     var renderedScene:SKScene? {ownedRenderer.scene}
@@ -132,11 +166,14 @@ final class NativeOwnedMetalGameplayView: MTKView, @preconcurrency MTKViewDelega
         let encodeStart=diagnosticsEnabled ? CACurrentMediaTime():nil
         ownedRenderer.render(withViewport:CGRect(origin:.zero,size:drawableSize),commandBuffer:command,renderPassDescriptor:pass)
         if let encodeStart {encodeWorst=max(encodeWorst,(CACurrentMediaTime()-encodeStart)*1000)}
-        let pool=flights,resources=SubmittedResources(ownedRenderer)
-        command.addCompletedHandler{_ in _ = resources.renderer;pool.release()}
+        let pool=flights,resources=SubmittedResources(ownedRenderer),generation=scene.engine.state.generation
+        command.addCompletedHandler{completed in
+            _ = resources.renderer
+            pool.completeSubmission(status:completed.status,error:completed.error,epoch:epoch,generation:generation)
+        }
         let submitStart=diagnosticsEnabled ? CACurrentMediaTime():nil
-        command.present(drawable);submitted=true;command.commit()
-        if let submitStart {submitWorst=max(submitWorst,(CACurrentMediaTime()-submitStart)*1000);frames+=1}
+        command.present(drawable);submitted=true;pool.recordSubmission();command.commit()
+        if let submitStart {submitWorst=max(submitWorst,(CACurrentMediaTime()-submitStart)*1000)}
     }
     private var frameAdmissionVisible:Bool {
         guard !isPaused,let window,UIApplication.shared.applicationState == .active else{return false}
@@ -179,8 +216,10 @@ final class NativeOwnedMetalGameplayView: MTKView, @preconcurrency MTKViewDelega
     override func touchesCancelled(_ touches:Set<UITouch>,with event:UIEvent?){(ownedRenderer.scene as? NativeBoardScene)?.touchesCancelled(touches,with:event)}
     func diagnosticSnapshot()->[String:Any] {
         guard diagnosticsEnabled else{return[:]}
-        return ["submittedFrames":frames,"drawableUnavailable":unavailable,"inFlightSkips":inFlightSkips,
+        var snapshot=flights.completionSnapshot
+        snapshot.merge(["drawableUnavailable":unavailable,"inFlightSkips":inFlightSkips,
                 "inFlight":flights.outstanding,"presentationEpoch":presentationEpoch,
-                "acquireWorstMs":acquireWorst,"updateWorstMs":updateWorst,"encodeWorstMs":encodeWorst,"submitWorstMs":submitWorst]
+                "acquireWorstMs":acquireWorst,"updateWorstMs":updateWorst,"encodeWorstMs":encodeWorst,"submitWorstMs":submitWorst]) { _,new in new }
+        return snapshot
     }
 }

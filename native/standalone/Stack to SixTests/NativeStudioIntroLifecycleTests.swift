@@ -48,6 +48,38 @@ import ImageIO
         XCTAssertNil(view.animatedCharacterLayer.contents,file:file,line:line)
         XCTAssertNil(view.displayedFallbackImage,file:file,line:line)
         XCTAssertTrue(view.terminalCompositionHidden,file:file,line:line)
+        for glyph in view.presentsGlyphs {
+            XCTAssertNil(glyph.layer.animation(forKey:"native-studio-presents"),file:file,line:line)
+            XCTAssertEqual(glyph.layer.opacity,0,file:file,line:line)
+        }
+    }
+    func testPresentsUsesArcadeLetterEntryStretchedByExactlyOneSecond()async throws {
+        XCTAssertEqual(NativeStudioIntroView.presentsEntryDuration,1.58,accuracy:0.000001)
+        XCTAssertEqual(NativeStudioIntroView.presentsEntryStart,0.95,accuracy:0.000001)
+        let stretch=(1.58-7*0.12)/0.44
+        for index in 0..<8 {for local in [-0.1,0,0.12,0.24,0.34,0.44,0.7] {
+            let actual=NativeStudioIntroView.presentsPose(at:0.95+Double(index)*0.12+local*stretch,index:index)
+            let reference=NativeArcadeRoundPresentation.entry(local,overshoot:1.32,dip:0.90)
+            XCTAssertEqual(actual.scale,reference.scale,accuracy:0.000001)
+            XCTAssertEqual(actual.alpha,reference.alpha,accuracy:0.000001)
+            XCTAssertEqual(actual.rotationX,reference.rotationX,accuracy:0.000001)
+            XCTAssertEqual(actual.z,reference.z,accuracy:0.000001)
+        }}
+        let(controller,window,prior)=mount(),view=intro()
+        controller.view.addSubview(view)
+        defer{view.dispose();window.isHidden=true;prior?.makeKeyAndVisible()}
+        XCTAssertEqual(view.presentsGlyphs.compactMap(\.text).joined(),"PRESENTS")
+        XCTAssertTrue(view.presentsGlyphs.allSatisfy{$0.layer.opacity==0})
+        view.start{}
+        try await wait{view.timelineStarted}
+        XCTAssertTrue(view.presentsGlyphs.allSatisfy{$0.layer.animation(forKey:"native-studio-presents") != nil})
+        try await Task.sleep(for:.milliseconds(500))
+        XCTAssertTrue(view.presentsGlyphs.allSatisfy{($0.layer.presentation()?.opacity ?? 0)==0},"Anticipation remains blank after the logo settles")
+        try await Task.sleep(for:.milliseconds(650))
+        let first=try XCTUnwrap(view.presentsGlyphs.first?.layer.presentation())
+        let last=try XCTUnwrap(view.presentsGlyphs.last?.layer.presentation())
+        XCTAssertGreaterThan(first.opacity,last.opacity,"Real mounted letters must reveal in order")
+        view.dispose();view.dispose();assertReleased(view)
     }
     func testCompleteDecodedLoopStartsOnceAndTerminalModelCannotFlashAfterHandoff()async throws {
         let(controller,window,prior)=mount(),view=intro();var cues=0,handoffs=0
@@ -92,8 +124,8 @@ import ImageIO
         view.animationDidStop(CAAnimation(),finished:true)
         XCTAssertEqual(cues,1);XCTAssertEqual(handoffs,1)
     }
-    func testAllElevenMountedProductionSelectionsUsePreparedPixelsOriginalTimingAndBoundedMemory()async throws {
-        XCTAssertEqual(NativeStudioIntroView.characters.count,11)
+    func testAllMountedProductionSelectionsUsePreparedPixelsOriginalTimingAndBoundedMemory()async throws {
+        XCTAssertEqual(NativeStudioIntroView.characters.count,10)
         let(controller,window,prior)=mount()
         defer{window.isHidden=true;prior?.makeKeyAndVisible()}
         for character in NativeStudioIntroView.characters {

@@ -500,7 +500,7 @@ final class NativeGameplayViewController: UIViewController {
         }
         scene.onAuthoredFinale = { [weak self] variant,origin,generation,completion in
             guard let self,!self.disposed,self.engine.state.generation == generation else { return false }
-            if ["flower","barell","beach-ball"].contains(variant) {
+            if ["flower","barell","beach-ball","bloob-ball"].contains(variant) {
                 return self.presentTntVariant(variant,generation:generation,onGameplayReady:nil,completion:completion)
             }
             if variant == "spaceship" || variant == "laser-gun" {
@@ -591,30 +591,6 @@ final class NativeGameplayViewController: UIViewController {
                 owner.onFinished={ [weak self,weak owner] _ in
                     owner?.onHaptic=nil
                     if self?.area55Finales[variant] === owner {self?.area55Finales.removeValue(forKey:variant);self?.area55Generations.removeValue(forKey:variant)}
-                    if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
-                    completion()
-                }
-                owner.start();return true
-            }
-            if variant == "bloob-ball" {
-                let owner=NativeBloobBallFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.view.bounds.size,origin:origin,preparedArtwork:self.selectedFinaleArtwork())
-                guard owner.assetReady else{owner.dispose();return false}
-                let key="bloob-ball-"+UUID().uuidString
-                let coinIDs=self.engine.pendingHUDStars.filter{$0.variant==variant && $0.generation==generation}.suffix(NativeBloobBallRewardPolicy.ballCount).map(\.id)
-                self.area55Finales[key]=owner;self.area55Generations[key]=generation
-                self.area55SourceOwnerIDs[key]=self.engine.pendingDirectWild?.id ?? self.engine.pendingSourceLateFinalMerge?.ownerID
-                owner.autoresizingMask=[.flexibleWidth,.flexibleHeight];self.view.addSubview(owner)
-                owner.onCue={ [weak self,weak owner] moment,index in
-                    guard let self,!self.disposed,self.engine.state.generation==generation,self.area55Finales[key] === owner else{return}
-                    self.onSpecialMoment?(variant,moment,index)
-                }
-                owner.onExplosion={ [weak self,weak owner] index,point in
-                    guard let self,!self.disposed,self.engine.state.generation==generation,self.area55Finales[key] === owner,index<coinIDs.count else{return}
-                    _=self.boardScene?.launchBloobBallCoin(receiptID:coinIDs[index],screenOrigin:point,generation:generation)
-                }
-                owner.onFinished={ [weak self,weak owner] _ in
-                    owner?.onExplosion=nil
-                    if self?.area55Finales[key] === owner {self?.area55Finales.removeValue(forKey:key);self?.area55Generations.removeValue(forKey:key);self?.area55SourceOwnerIDs.removeValue(forKey:key)}
                     if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
                     completion()
                 }
@@ -783,7 +759,7 @@ final class NativeGameplayViewController: UIViewController {
                 })
             }
             guard let variant,
-                  ["flower","barell","beach-ball","laser-gun"].contains(variant),
+                  ["flower","barell","beach-ball","laser-gun","bloob-ball"].contains(variant),
                   self.area55SourceOwnerIDs[variant]==ownerID,self.area55Generations[variant]==generation,
                   let owner=self.area55Finales[variant],owner.superview != nil else{return nil}
             return NativeSourceScreenShakeOverlayTarget(read:{[weak owner] in
@@ -1149,7 +1125,6 @@ final class NativeGameplayViewController: UIViewController {
         if let plan=engine.pendingSpecial,plan.generation==state.generation,let variant=plan.variant {variants.insert(variant)}
         if let receipt=engine.pendingSourceLateFinalMerge,receipt.generation==state.generation,let variant=receipt.variant {variants.insert(variant)}
         if state.tiles.contains(where:{$0.gameplayArchetype == .magnet && $0.variant==nil}) {boardScene?.preparePlainMagnetFinaleTextures()}
-        if area55Finales.keys.contains(where:{$0.hasPrefix("bloob-ball-")}) {variants.insert("bloob-ball")}
         if bottleFinale != nil {variants.insert("bottle")}
         if honeyFinale != nil {variants.insert("honey")}
         if fishFinale != nil {variants.insert("fish")}
@@ -1159,7 +1134,7 @@ final class NativeGameplayViewController: UIViewController {
     }
     private func finaleArtworkReady(_ variant:String)->Bool {
         guard !disposed,let artwork=selectedFinaleArtwork() else{return false}
-        if ["flower","barell","beach-ball","laser-gun"].contains(variant) {return tntArtworkReady(variant)}
+        if ["flower","barell","beach-ball","laser-gun","bloob-ball"].contains(variant) {return tntArtworkReady(variant)}
         if variant=="baloon",finaleArtworkOwner?.baloonResources==nil {return false}
         if variant=="fish" {
             return ["assets/shop/fish/fish-mobile-hevc.mov","assets/shop/fish/bubbly-fast-hevc.mov"].allSatisfy{FileManager.default.fileExists(atPath:resourceRoot.appendingPathComponent($0).path)}
@@ -1172,7 +1147,7 @@ final class NativeGameplayViewController: UIViewController {
         if variant=="laser-gun" {
             return laserResources.map{NativeLaserGunImpactPresentation.resourcesReady($0)}==true
         }
-        guard ["flower","barell","beach-ball"].contains(variant),
+        guard ["flower","barell","beach-ball","bloob-ball"].contains(variant),
               let specs=NativeSelectedUIKitFinaleArtworkOwner.assets(variant) else{return false}
         return specs.allSatisfy{artwork.image($0.path,densityAware:$0.densityAware) != nil}
     }
@@ -1185,12 +1160,12 @@ final class NativeGameplayViewController: UIViewController {
             guard ball.assetsReady else { ball.dispose(); return false }
             ball.onGameplayReady = onGameplayReady; owner = ball
         } else {
-            let tnt = NativeTntVariantPresentation(resourceRoot:resourceRoot,variant:variant == "flower" ? .flower:.barell,viewport:view.bounds.size,preparedArtwork:selectedFinaleArtwork())
+            let tnt = NativeTntVariantPresentation(resourceRoot:resourceRoot,variant:variant == "flower" ? .flower:variant == "bloob-ball" ? .bloobGas:.barell,viewport:view.bounds.size,preparedArtwork:selectedFinaleArtwork())
             guard tnt.assetsReady else { tnt.dispose(); return false }
             tnt.onSprite6Entered = onGameplayReady; owner = tnt
         }
         // These variants share their source TNT/Flower visual owner.
-        for key in ["flower","barell","beach-ball"] { area55Finales[key]?.dispose() }
+        for key in ["flower","barell","beach-ball","bloob-ball"] { area55Finales[key]?.dispose() }
         area55Finales[variant] = owner;area55Generations[variant] = generation
         area55SourceOwnerIDs[variant]=engine.pendingDirectWild?.id ?? engine.pendingSpecial?.id ?? engine.pendingSourceLateFinalMerge?.ownerID
         owner.autoresizingMask = [.flexibleWidth,.flexibleHeight];view.addSubview(owner)
@@ -1633,7 +1608,7 @@ final class NativeGameplayViewController: UIViewController {
         case "robo-cube":paths=NativeRoboFinalePresentation.assets
         case "baloon":paths=NativeBaloonFinalePresentation.assets
         case "cubero":paths=(1...7).map{"assets/shop/cubero/krpa\($0).png"}
-        case "bloob-ball":paths=NativeBloobBallFinalePresentation.assets
+        case "bloob-ball":paths=NativeTntVariantPresentation.assets(.bloobGas).map{$0.replacingOccurrences(of:"@2x.png",with:".png")}
         case "bee":paths=(1...4).map{"assets/shop/bee/bee\($0).png"}+(1...6).map{"assets/shop/bee/leaf\($0).png"}+["assets/shop/honey/bee1.png","assets/shop/honey/bee3.png"]
         case "honey":paths=(1...7).map{"assets/shop/honey/bee\($0).png"}
         case "bottle":paths=NativeBottleFinaleMotion.layers.map{"assets/shop/bottle/bottle animation pack/\($0.asset).png"}+(1...6).map{"assets/shop/bottle/bottle animation pack/bubble\($0).png"}
@@ -1644,7 +1619,7 @@ final class NativeGameplayViewController: UIViewController {
         }
         // Authored explicit @2x callers keep their scale1 UIImage semantics;
         // density-aware callers keep the same canonical high-density selector.
-        return paths.map{Asset(path:$0,densityAware:variant != "spaceship" && variant != "laser-gun" && variant != "bloob-ball")}
+        return paths.map{Asset(path:$0,densityAware:variant != "spaceship" && variant != "laser-gun")}
     }
     private func prepareBaloon() {
         guard !disposed,!suspended,current(),baloonResources==nil,baloonTask==nil else{return}

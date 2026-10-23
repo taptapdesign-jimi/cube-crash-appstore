@@ -1,0 +1,159 @@
+{
+  "recipe": "Bloob Animation — Shards Float Hovering v1",
+  "recordedDate": "2026-10-23",
+  "sourceCommit": "7f31bfdbed0a63b8f1d5e9dd8ce9eb8a68479aed",
+  "sources": [
+    {
+      "path": "native/gameplay-ui/NativeBloobBallFinaleMotion.swift",
+      "sha256": "f7ac9a34309972fc982d8cb9e7c94f411ff9c7d4a26957ed3b8144059b674f8f",
+      "bytes": 5275
+    },
+    {
+      "path": "native/gameplay-ui/NativeBloobBallFinalePresentation.swift",
+      "sha256": "13000d6faddd4d50344959395e07e9d61666d7454fc1b3b1b1a02b0a1fd2a5a3",
+      "bytes": 8923
+    },
+    {
+      "path": "native/gameplay-ui/NativeBloobBallArt.swift",
+      "sha256": "6ddf810480890bc56e2def8726857c128428e38e815f15689ebbf59679627f81",
+      "bytes": 11709
+    },
+    {
+      "path": "native/gameplay-ui/NativeFinitePresentation.swift",
+      "sha256": "701ac140e4c51e28241887b74dee4b67b2f4f18748dc38340dffa94354d768a0",
+      "bytes": 4546
+    },
+    {
+      "path": "native/gameplay-ui/NativeSplashGlyphField.swift",
+      "sha256": "ef59323b6fdca0dd399f146eb0ba8bc8cea94d7be278059dfbfc88b773197f37",
+      "bytes": 12201
+    },
+    {
+      "path": "native/gameplay-ui/NativeGameplayViewController.swift",
+      "sha256": "858a395d8dce3d1e3e7e0b79e3d9f70cd799de4056a413bdd56342476c770c65",
+      "bytes": 117450
+    },
+    {
+      "path": "native/gameplay-app/NativeBloobBallAudio.swift",
+      "sha256": "f2d7858991ea16bc7803524aad6767518b63f316a853f7cafe924ffbbca5bd53",
+      "bytes": 1667
+    },
+    {
+      "path": "native/gameplay-hud-stars/NativeSourceHUDStarPlan.swift",
+      "sha256": "bb77897b372746035b60e4411a3f0f0097c173fbd7ca2e1ba5950427fc9e52da",
+      "bytes": 10565
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeBloobBallRewardPolicy.swift",
+      "sha256": "9f3fdf69647a69b527b989fa136e107b2c222b05008bb6b1fb4a696dcd64f5e3",
+      "bytes": 212
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeBloobBallTests.swift",
+      "sha256": "e3206c4657cf53b627d7adbb1bade9fa0669d1f9f5484af4c1e0003e458ba518",
+      "bytes": 17863
+    }
+  ],
+  "assets": [
+    {
+      "path": "assets/shop/bloog ball/bloob animation.svg",
+      "sha256": "75492f2c8ba21ef244f9991d0eec40ce88b98e16b9991a850a9dfccf8b064f01",
+      "bytes": 498061
+    },
+    {
+      "path": "assets/shop/bloog ball/bloob.svg",
+      "sha256": "6cd8bbed0721ea8914f4a004641621ddb08856fb2b0b76e06bbf93c82d623372",
+      "bytes": 758046
+    },
+    {
+      "path": "assets/shop/bloog ball/bloob ball.svg",
+      "sha256": "538207a07d1bad7377fb632a7d4328ccdca5a3194ba64cc445c8d708ad583683",
+      "bytes": 780116
+    },
+    {
+      "path": "assets/shop/spaceship/rock1@2x.png",
+      "sha256": "e5e1933ee17e6f768bcdb2752e28660ba6cf6d428f5ce7927faf3542d1fced7b",
+      "bytes": 8596
+    },
+    {
+      "path": "assets/shop/spaceship/rock2@2x.png",
+      "sha256": "342e5deeb587b9a6d48e71a349749e92a8a0da90d438f9e28a20170e7b3dbed5",
+      "bytes": 41912
+    },
+    {
+      "path": "assets/shop/spaceship/rock3@2x.png",
+      "sha256": "f30e14a66ec83fe24a9abc83d344949fde8e0f207940c1e943505a5b1cafc780",
+      "bytes": 16346
+    },
+    {
+      "path": "assets/shop/spaceship/rock4@2x.png",
+      "sha256": "5838e19c6f58e40d74ab3586caea60689174dfa43928f53d7910b8ed4af13740",
+      "bytes": 8621
+    },
+    {
+      "path": "assets/shop/spaceship/rock5@2x.png",
+      "sha256": "986b5b43b51d91a1debbcdd8b0393074b2d4d1efb402c85fcd4b5dd558c06c00",
+      "bytes": 44766
+    },
+    {
+      "path": "assets/shop/spaceship/rock6@2x.png",
+      "sha256": "04b828f81824ed024a157d3419f6cdeb292c542b1c4009b21831337ea0c58fb8",
+      "bytes": 26770
+    },
+    {
+      "path": "assets/shop/spaceship/rock7@2x.png",
+      "sha256": "3fc1ef0c58e9cd1db91487046ec6162b15ee6900e045bc6648d993ed4486cf1c",
+      "bytes": 20857
+    },
+    {
+      "path": "assets/sound/Wild and special kockice/bloob ball/splat.wav",
+      "sha256": "bb38bdf8499fd26baeab7af3c9ff215b62b06af223bafd3a211de4a28659e4dc",
+      "bytes": 384078
+    },
+    {
+      "path": "assets/sound/Wild and special kockice/bloob ball/radio break.wav",
+      "sha256": "3b611b2653522acc693f81fdb5dd8c70affe8e4601a2a3183da0334270d8b38e",
+      "bytes": 384078
+    },
+    {
+      "path": "assets/sound/Wild and special kockice/bloob ball/air.wav",
+      "sha256": "f6c4b26956c0a39ae507d520b2ee7b5b0905016d8db93ed41caa9c1252f4194f",
+      "bytes": 576078
+    },
+    {
+      "path": "assets/sound/Wild and special kockice/bloob ball/hovering.wav",
+      "sha256": "d72fea6ca3706f134357b2dfe5ff28cb3a2276c6d09e731a932cbfbb4733f071",
+      "bytes": 399438
+    },
+    {
+      "path": "assets/sound/Wild and special kockice/bloob ball/hovering 2.wav",
+      "sha256": "3d2d186800830b8c5e7aff3e0dacbecac93de7c5156b08011e0a1628bb7fa796",
+      "bytes": 399438
+    },
+    {
+      "path": "assets/sound/Wild and special kockice/bloob ball/bum puf.wav",
+      "sha256": "485bda43342cec3148c2f2f0edb8d385082f2231ac26eee90e72e3231c49a687",
+      "bytes": 384078
+    },
+    {
+      "path": "assets/sound/Wild and special kockice/bloob ball/crash.wav",
+      "sha256": "b070d63fe6d2b2db239531033a8dcf62638b33140ea24773fc89054517c7f5d5",
+      "bytes": 384078
+    },
+    {
+      "path": "assets/sound/Wild and special kockice/juice/mini2.mp3",
+      "sha256": "3fbca6ea392b682bf5f2a19a2571e714fdb880ceff457233e19bd752b56f4d9c",
+      "bytes": 25389
+    },
+    {
+      "path": "assets/sound/Wild and special kockice/gun/beam1.wav",
+      "sha256": "da4ce88eebb7f4d1fe008d96e64707826625f097ad7b7db0c34614878e84e5a4",
+      "bytes": 192078
+    },
+    {
+      "path": "assets/sound/CTA/poping.wav",
+      "sha256": "4acf33d06dfd4044ee80abc90ec7bbbbb53ce31b13a2ff7d62fc1fcd8e48a9d4",
+      "bytes": 52914
+    }
+  ]
+}

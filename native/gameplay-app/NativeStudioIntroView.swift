@@ -137,7 +137,16 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
         .init("pas-novine",1.1,0,16)]
     static let duration=4.33
     let character:Character
-    private let artwork:JimiV9Artwork,logoUnit=UIView(),logo=UIImageView(),sheen=UIImageView(),label=UILabel(),characterView=UIView(),fallback=UIImageView()
+    private let artwork:JimiV9Artwork,logoUnit=UIView(),logo=UIImageView(),sheen=UIImageView(),label=UIView(),characterView=UIView(),fallback=UIImageView()
+    private(set) var presentsGlyphs:[UILabel]=[]
+    static let presentsEntryDuration=0.44+7*0.02+1.0
+    static let presentsEntryStart=0.95
+    static let presentsLetterStagger=0.12
+    static func presentsPose(at seconds:Double,index:Int)->NativeArcadeRoundPresentation.Pose {
+        let letterDuration=presentsEntryDuration-7*presentsLetterStagger
+        let local=(seconds-presentsEntryStart-Double(index)*presentsLetterStagger)*0.44/letterDuration
+        return NativeArcadeRoundPresentation.entry(local,overshoot:1.32,dip:0.90)
+    }
     private let sheenMask=CALayer(),sheenRows=[CALayer(),CALayer()],sheenBands=[CAGradientLayer(),CAGradientLayer()]
     private let resourceRoot:URL
     private let decodedPublicationGate:((@escaping ()->Void)->Void)?
@@ -187,8 +196,13 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
             band.opacity=0
         }
         sheen.layer.mask=sheenMask
-        label.attributedText=NSAttributedString(string:"PRESENTS",attributes:[.font:artwork.font(size:15),.kern:0.9,.foregroundColor:UIColor(red:184.0/255,green:121.0/255,blue:96.0/255,alpha:1)])
-        label.textAlignment = .center
+        label.accessibilityLabel="PRESENTS";label.isAccessibilityElement=true
+        presentsGlyphs="PRESENTS".map {character in
+            let glyph=UILabel();glyph.text=String(character);glyph.font=artwork.font(size:15)
+            glyph.textColor=UIColor(red:184.0/255,green:121.0/255,blue:96.0/255,alpha:1)
+            glyph.textAlignment = .center;glyph.layer.isDoubleSided=false;glyph.layer.opacity=0
+            label.addSubview(glyph);return glyph
+        }
         let png=self.character.key == "lik-slikanje" ? "lik slikanje":self.character.key == "pas-novine" ? "pas novine":self.character.key == "lik-pas-SVG" ? "lik-pas":self.character.key
         fallback.image=artwork.image("assets/logo addons/\(png).png");fallback.contentMode = .scaleAspectFit
         if self.character.topPivot {characterView.layer.anchorPoint=CGPoint(x:0.5,y:0)}
@@ -210,6 +224,12 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
         let top=(bounds.height-total)/2
         logoUnit.bounds=CGRect(x:0,y:0,width:width,height:logoHeight);logoUnit.center=CGPoint(x:bounds.midX,y:top+logoHeight/2)
         logo.frame=CGRect(x:0,y:0,width:width,height:imageHeight);sheen.frame=logo.frame;label.frame=CGRect(x:0,y:imageHeight+14,width:width,height:15)
+        let advances=presentsGlyphs.map{($0.text! as NSString).size(withAttributes:[.font:$0.font as Any]).width}
+        var glyphX=(width-advances.reduce(0,+)-0.9*CGFloat(max(0,advances.count-1)))/2
+        for (index,glyph) in presentsGlyphs.enumerated(){
+            glyph.bounds=CGRect(x:0,y:0,width:advances[index],height:15)
+            glyph.center=CGPoint(x:glyphX+advances[index]/2,y:7.5);glyphX+=advances[index]+0.9
+        }
         CATransaction.begin();CATransaction.setDisableActions(true)
         sheenMask.frame=sheen.bounds
         // Split in the original artwork's gap, between TAP TAP and DESIGN.
@@ -274,6 +294,16 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
         guard !timelineStarted,!disposed else{return}
         guard !backgrounded else{return}
         timelineStarted=true
+        for (index,glyph) in presentsGlyphs.enumerated(){
+            let samples=Int(ceil(Self.duration*60))
+            let poses=(0...samples).map{Self.presentsPose(at:Self.duration*Double($0)/Double(samples),index:index)}
+            let scale=CAKeyframeAnimation(keyPath:"transform"),opacity=CAKeyframeAnimation(keyPath:"opacity")
+            scale.values=poses.map{NSValue(caTransform3D:$0.transform)}
+            opacity.values=poses.map{NSNumber(value:Double(max(0,min(1,$0.alpha))))}
+            let group=CAAnimationGroup();group.animations=[scale,opacity];group.duration=Self.duration
+            group.isRemovedOnCompletion=false;group.fillMode = .both
+            glyph.layer.add(group,forKey:"native-studio-presents")
+        }
         if let loop=preparedLoop,let first=loop.frames.first{
             let frames=CAKeyframeAnimation(keyPath:"contents")
             // Each authored image owns its cumulative hold interval; the first
@@ -342,6 +372,7 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
         sheen.layer.opacity=0;CATransaction.commit()
         for target in [logoUnit,characterView]{target.layer.removeAllAnimations()}
         sheen.layer.removeAllAnimations();sheenMask.removeAllAnimations();sheenBands.forEach{$0.removeAllAnimations()}
+        presentsGlyphs.forEach{$0.layer.removeAllAnimations();$0.layer.opacity=0}
         notificationOwners.removeAll();removeFromSuperview()
     }
 }

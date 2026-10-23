@@ -49,6 +49,12 @@ in the parity checklist; native implementation alone is not visual acceptance.
 
 ## Native reward flow (2026-10-20)
 
+Native Backpack player-facing name for internal die `kanta` is **BLOB BARREL**
+(user decision2026-10-23),replacing BLOOB. This is distinct from `bloob-ball`
+(**BLOB POD**,previously BLOOB GAS;user decision2026-10-23) and `barell`
+(**BARREL**). Display names do not rename save IDs,
+artwork paths or gameplay archetypes.
+
 Journey level-star ranking v1 (2026-10-21) uses one global ten-row threshold table
 by local Unit number in Forest/Beach/Area55. Completed attempts earn1/2/3 stars
 from their existing final score;3 grants Legendary. Persisted best completion
@@ -201,6 +207,8 @@ disagree with SpringBoard. Use Simulator UI, verify the iOS Silent Mode banner,
 and leave game Sounds/Music settings, host output and production session policy
 unchanged. The policy applies only to retained Native QA Simulator, not iPhone.
 
-Official player-facing name for Native special die `bloob-ball` is **Bloob Pod** (2026-10-23). Keep stable internal IDs, save keys and original asset paths unchanged.
+Official player-facing name for Native special die `bloob-ball` is **BLOB POD** (2026-10-23),replacing BLOOB GAS. Keep stable internal IDs, save keys and original asset paths unchanged.
 
-Bloob Pod Special nonfinal merge gives primary + exactly2bonus dice (3fresh total),with standard shared closed-dice formula3+2*2=7before bonus opening. Existing final-merge suppression and six-coin reward remain. Internal Star-family routing remains shared;Bee stays fixed1bonus.
+Blob Pod (previously Bloob Gas) uses Barrel whole-board TNT gameplay (2026-10-23): all eligible ordinary targets change through the existing TNT transaction. Stable bloob-ball identity accepts historical Star-tagged saves. Finale uses supplied gas1..12 PNGs with Barrel smoke/wood/die timing and Bloob white/cyan GASSS! caption. Inherited Barrel audio layer is50percent gain plus original Bloob sounds,with merge6 boom explicitly overridden to gain0.50;Bloob tnt3,crash.wav and both hovering layers removed,massive gas leak.wav starts immediately at gain0.60;original Barrel unchanged. Previous Star two-bonus/six-coin and floating finale runtime are retired. Immutable old animation recipe lives in ANIMATION_RECIPES.md.
+
+Native new numbered-die enter (user correction2026-10-23): hidden zero-scale pending presentation receipt before value assignment; nativeFreshFace owner starts full0.56s bounce from first actual delivered frame,with at most1/30s visual progress per actual NativeBoardScene render-serial change;independent Source callbacks during skipped GPU frames cannot consume entry. Locked bonus uses its0.48s recipe after stagger. Idle/repair cannot overwrite pending/active entry. Existing survivors and moving Special/Six meter carriers remain full-size under their own owners; source-reference defaults unchanged. Real arrival continues on actual bounce completion,with existing cancellation/generation cleanup.
