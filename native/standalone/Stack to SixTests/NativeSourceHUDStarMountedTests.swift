@@ -23,9 +23,9 @@ import StackToSixGameplay
             service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0},sourceFrameTransportEnabled:sourceFrameTransportEnabled)
             scene=SKScene(size:.init(width:390,height:844));view=SKView(frame:.init(x:0,y:0,width:390,height:844));view.ignoresSiblingOrder=false;view.presentScene(scene);view.isPaused=true
         }
-        func mount(_ prepared:NativeSourceHUDStarTexturePreparation.Prepared,finalMergeDuration:Double?=nil)->Bool {
+        func mount(_ prepared:NativeSourceHUDStarTexturePreparation.Prepared)->Bool {
             owner=NativeSourceHUDStarPresentation(stage:scene,viewportHeight:844,texture:prepared.texture,pixelSize:prepared.pixelSize,selectedAssetsReady:prepared.current,service:service,timeouts:timeouts,engine:engine,bindings:.init(current:{[weak self] in self?.current==true},random:{[unowned self] in self.seed=self.seed &* 1664525 &+ 1013904223;return Double(self.seed)/4294967296},acquireCadence:{[unowned self] in self.acquires += 1;return{self.releases += 1}},onArrival:{[unowned self] result,size in XCTAssertTrue(result.accepted);self.arrivalSizes.append(size);self.arrivals += 1},onRetired:{[unowned self] _ in self.retired += 1},onTntCoinLaunch:{[unowned self] in self.launches += 1}))
-            return owner?.start(receiptIDs:engine.pendingHUDStars.map(\.id),screenOrigin:.init(x:195,y:430),hudTarget:.init(x:37,y:76),finalMergeDuration:finalMergeDuration)==true
+            return owner?.start(receiptIDs:engine.pendingHUDStars.map(\.id),screenOrigin:.init(x:195,y:430),hudTarget:.init(x:37,y:76))==true
         }
         func deliver(_ wall:Double){self.wall=wall;service.deliver(wallMilliseconds:wall)}
         func dispose(){owner?.dispose();owner=nil;timeouts.cancelAll();service.dispose();view.presentScene(nil)}
@@ -37,19 +37,24 @@ import StackToSixGameplay
         await fulfillment(of:[ready],timeout:20)
         return try XCTUnwrap(receipt)
     }
-    func testFinalMountedCoinsRemainVisibleThroughAnimationAndCreditOnce() async throws {
+    func testFinalMountedCoinsUseNormalFlightSpeedAndCreditOnce() async throws {
         let textures=NativeSourceHUDStarTexturePreparation(),prepared=try await prepare(textures)
-        let final=Fixture(finalMerge:true)
-        defer{final.dispose();textures.dispose()}
+        let final=Fixture(finalMerge:true),normal=Fixture(finalMerge:false)
+        defer{final.dispose();normal.dispose();textures.dispose()}
         XCTAssertTrue(final.engine.pendingHUDStars.allSatisfy(\.isFinalMerge))
-        XCTAssertTrue(final.mount(prepared,finalMergeDuration:5.4))
+        XCTAssertTrue(final.mount(prepared));XCTAssertTrue(normal.mount(prepared))
         let score=final.engine.state.score
-        for ms in stride(from:0.0,through:5300,by:10){final.deliver(ms)}
-        XCTAssertGreaterThan(final.owner?.mountedContainer?.children.count ?? 0,0)
-        XCTAssertFalse(final.engine.pendingHUDStars.isEmpty)
-        for ms in stride(from:5310.0,through:5500,by:10){final.deliver(ms)}
-        XCTAssertEqual(final.arrivals,3)
-        XCTAssertEqual(final.engine.state.score,score+300)
+        for ms in stride(from:0.0,through:3000,by:10) {
+            final.deliver(ms);normal.deliver(ms)
+            XCTAssertEqual(final.arrivals,normal.arrivals,"Final coins share the normal arrival clock")
+            let a=final.owner?.mountedContainer?.children ?? [],b=normal.owner?.mountedContainer?.children ?? []
+            XCTAssertEqual(a.count,b.count)
+            for (x,y) in zip(a,b) {
+                XCTAssertEqual(x.position.x,y.position.x,accuracy:0.001)
+                XCTAssertEqual(x.position.y,y.position.y,accuracy:0.001)
+            }
+        }
+        XCTAssertEqual(final.arrivals,3);XCTAssertEqual(final.engine.state.score,score+300)
         XCTAssertTrue(final.engine.pendingHUDStars.isEmpty)
         final.deliver(8000);XCTAssertEqual(final.arrivals,3)
     }

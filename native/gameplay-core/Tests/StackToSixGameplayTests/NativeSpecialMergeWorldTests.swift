@@ -6,7 +6,7 @@ final class NativeSpecialMergeWorldTests:XCTestCase {
         .init(id:id,cell:.init(column:x,row:0),value:archetype == nil ? 2:6,archetype:archetype,variant:variant)
     }
     func testCatalogMembershipAllVariantsAndOriginals() {
-        let worlds=["baloon":"beach","bee":"forest","flower":"forest","honey":"forest","mushroom":"forest","barell":"forest","fish":"beach","beach-ball":"beach","bottle":"beach","kanta":"area55","robo-cube":"area55","spaceship":"area55","laser-gun":"area55","cubero":"area55"]
+        let worlds=["bloob-ball":"area55","baloon":"beach","bee":"forest","flower":"forest","honey":"forest","mushroom":"forest","barell":"forest","fish":"beach","beach-ball":"beach","bottle":"beach","kanta":"area55","robo-cube":"area55","spaceship":"area55","laser-gun":"area55","cubero":"area55"]
         XCTAssertEqual(Set(worlds.keys),Set(NativeSpecialDiceRegistry.variants.keys))
         for (id,definition) in NativeSpecialDiceRegistry.variants {
             XCTAssertEqual(NativeSpecialDiceRegistry.celebrationWorld(for:tile("s",0,definition.archetype,id)),worlds[id])

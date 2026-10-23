@@ -105,12 +105,12 @@ import StackToSixGameplay
         guard current(),roots[id] === root else{roots.removeValue(forKey:id);lease.cancel();return nil}
         return{[weak self] in self?.roots.removeValue(forKey:id);lease.cancel()}
     }
-    @discardableResult func start(receiptIDs:[String],screenOrigin:CGPoint,hudTarget:CGPoint,finalMergeDuration:Double?=nil)->Bool {
+    @discardableResult func start(receiptIDs:[String],screenOrigin:CGPoint,hudTarget:CGPoint)->Bool {
         guard current(),selectedAssetsReady else{return false}
         guard let capture=engine.registerSourceHUDStarJob(receiptIDs:receiptIDs,generation:generation) else{return false}
-        let finalMerge=receiptIDs.allSatisfy {id in engine.pendingHUDStars.first{$0.id==id}?.isFinalMerge == true}
         let id=UUID();jobCaptures[id]=capture
-        let started=jobs.start(jobID:id,ids:receiptIDs,origin:screenOrigin,target:hudTarget,textureWidth:pixelSize.width,viewport:stage?.scene?.size,gentleLaunch:receiptIDs.allSatisfy {id in engine.pendingHUDStars.first{$0.id==id}?.archetype == .tnt},finalMerge:finalMerge,finalMergeDuration:finalMergeDuration,random:bindings.random)
+        let bloobOrdinal=receiptIDs.count==1 ? engine.pendingHUDStars.first{$0.id==receiptIDs[0] && $0.variant=="bloob-ball"}?.ordinal:nil
+        let started=jobs.start(jobID:id,ids:receiptIDs,origin:screenOrigin,target:hudTarget,textureWidth:pixelSize.width,viewport:stage?.scene?.size,gentleLaunch:receiptIDs.allSatisfy {id in engine.pendingHUDStars.first{$0.id==id}?.archetype == .tnt},bloobOrdinal:bloobOrdinal,random:bindings.random)
         if !started {retire(id)}
         return started
     }

@@ -8,7 +8,7 @@ final class NativeJourneyUnlockAppearanceTests: XCTestCase {
             1:.init(.star,variant:"bee"),2:.init(.star),3:.init(.tnt,variant:"flower"),
             4:.init(.magnet,variant:"honey"),6:.init(.juice,variant:"mushroom"),7:.init(.tnt,variant:"barell"),
             11:.init(.juice),12:.init(.star,variant:"fish"),13:.init(.tnt,variant:"beach-ball"),14:.init(.magnet,variant:"bottle"),
-            21:.init(.juice,variant:"robo-cube"),22:.init(.star,variant:"kanta"),23:.init(.magnet,variant:"spaceship"),24:.init(.tnt,variant:"laser-gun")]
+            21:.init(.juice,variant:"robo-cube"),22:.init(.star,variant:"kanta"),23:.init(.magnet,variant:"spaceship"),24:.init(.tnt,variant:"laser-gun"),27:.init(.star,variant:"bloob-ball")]
         for board in 0...31 {
             XCTAssertEqual(NativeJourneyContent.unlockReward(board:board),expected[board],"Unit \(board)")
         }
@@ -43,18 +43,7 @@ final class NativeJourneyUnlockAppearanceTests: XCTestCase {
     func testEarnedDropArrivalCommitsIntroductionOnceAndCancellationPreservesEligibility() throws {
         for board in 1...30 {
             guard let expected=NativeJourneyContent.unlockReward(board:board) else{continue}
-            let pool=NativeJourneyContent.rewardPool(board:board)
-            let id=try XCTUnwrap(NativeJourneyContent.introductionID(board:board))
-            let others=pool.filter{$0 != "mushroom"}
-            let roll:Double
-            if id == "mushroom" {roll=0}
-            else if pool.contains("mushroom") {
-                let index=try XCTUnwrap(others.firstIndex(of:id))
-                roll=0.05+0.95*(Double(index)+0.5)/Double(others.count)
-            } else {
-                let index=try XCTUnwrap(pool.firstIndex(of:id))
-                roll=(Double(index)+0.5)/Double(pool.count)
-            }
+            let roll=0.0 // First introduction slot for this receipt/cancellation fixture.
             for cancel in [false,true] {
                 let tiles=[NativeTile(id:"a",cell:.init(column:0,row:0),value:2),NativeTile(id:"b",cell:.init(column:1,row:0),value:3),NativeTile(id:"c",cell:.init(column:2,row:0),value:1)]
                 let engine=NativeGameplayEngine(state:.init(tiles:tiles,mode:.journey,board:board,wildMeter:1.25),recordedRandomChoices:[0,0,0],rewardPicker:{state,_ in

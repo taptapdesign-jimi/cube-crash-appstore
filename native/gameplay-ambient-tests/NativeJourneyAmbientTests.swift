@@ -143,7 +143,7 @@ final class NativeJourneyAmbientTests:XCTestCase {
         let id=NativeJourneyAmbientOwner.area55
         owner.setRoute(.world(3),generation:1)
         XCTAssertEqual(transport.commands.first{$0.id==id && $0.op=="start"}?.source,"assets/sound/worlds/Area55/area55-ambient-loop-v1.wav")
-        XCTAssertEqual(transport.commands.first{$0.id==id && $0.op=="start"}?.gain,0.6)
+        XCTAssertEqual(transport.commands.first{$0.id==id && $0.op=="start"}?.gain,0.36)
         for board in 21...30 {
             owner.beginJourneyTransition(board:board,generation:UInt64(board))
             owner.setRoute(.gameplay(.journey,board),generation:UInt64(board))
@@ -152,6 +152,7 @@ final class NativeJourneyAmbientTests:XCTestCase {
         XCTAssertFalse(transport.commands.contains{$0.id==id && $0.op=="stop"})
         owner.setForeground(false);owner.setForeground(true)
         XCTAssertEqual(transport.commands.filter{$0.id==id && $0.op=="resume"}.count,1)
+        XCTAssertEqual(transport.commands.last{$0.id==id && $0.op=="resume"}?.gain,0.36)
         owner.setEnabled(false);owner.setEnabled(true)
         XCTAssertEqual(transport.commands.filter{$0.id==id && $0.op=="start"}.count,2)
         owner.beginJourneyTransition(board:11,generation:31)

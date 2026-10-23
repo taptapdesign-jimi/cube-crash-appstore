@@ -7,6 +7,69 @@ import StackToSixNativeState
 
 @MainActor
 final class NativeBackpackTests:XCTestCase {
+    func testMountedCollectionArtworkResolutionAndRetinaSnapshot() throws {
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible();defer{window.isHidden=true}
+        host.view.backgroundColor = .white
+        let screen=NativeBackpackView(frame:CGRect(x:0,y:80,width:390,height:680),assets:JimiV9Artwork(resourceRoot:NativeTestResources.root))
+        screen.useModalLayout();host.view.addSubview(screen)
+        screen.apply([.init(title:"Forest",dice:NativeBackpackCatalog.forest,unlocked:Set(NativeBackpackCatalog.forest.map(\.id)))])
+        screen.layoutIfNeeded();screen.grid.layoutIfNeeded()
+        for cell in screen.grid.visibleCells {
+            let group=try XCTUnwrap(cell.contentView.subviews.first{$0.accessibilityIdentifier=="native.backpack.idle-group"})
+            let art=try XCTUnwrap(group.subviews.first{$0.accessibilityIdentifier=="native.backpack.idle-artwork"} as? UIImageView)
+            let pixels=try XCTUnwrap(art.image?.cgImage)
+            let frame=try XCTUnwrap(group.subviews.first{$0.accessibilityIdentifier=="native.backpack.frame"})
+            XCTAssertEqual(frame.layer.contentsScale,window.screen.scale)
+            XCTAssertEqual(group.layer.contentsScale,window.screen.scale)
+            XCTAssertTrue(frame.layer.allowsEdgeAntialiasing)
+            XCTAssertTrue(art.layer.allowsEdgeAntialiasing)
+            XCTAssertFalse(group.layer.shouldRasterize,"No low-resolution flattened cache or per-frame CPU raster")
+            print("[BackpackRaster] \(cell.accessibilityIdentifier ?? "?") pixels=\(pixels.width)x\(pixels.height) imageScale=\(art.image!.scale) bounds=\(art.bounds) contentsScale=\(art.layer.contentsScale) groupScale=\(group.layer.contentsScale)")
+            let id=(cell.accessibilityIdentifier ?? "").replacingOccurrences(of:"native.backpack.die.",with:"")
+            group.layer.transform=NativeBackpackArtworkIdleMotion(id:id).poses(scale:1)[1]
+        }
+        CATransaction.flush()
+        let format=UIGraphicsImageRendererFormat();format.scale=3
+        let image=UIGraphicsImageRenderer(bounds:window.bounds,format:format).image{_ in window.drawHierarchy(in:window.bounds,afterScreenUpdates:true)}
+        try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/backpack-quality-current.png"))
+    }
+    func testLiveCompositorCardEdgeComparison() async throws {
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.windowLevel = .alert+1;window.rootViewController=host;window.makeKeyAndVisible();defer{window.isHidden=true}
+        host.view.backgroundColor = .white
+        let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+        let screen=NativeBackpackView(frame:CGRect(x:0,y:80,width:390,height:680),assets:assets)
+        screen.useModalLayout();host.view.addSubview(screen)
+        screen.apply([.init(title:"Forest",dice:NativeBackpackCatalog.forest,unlocked:Set(NativeBackpackCatalog.forest.map(\.id)))])
+        screen.layoutIfNeeded();screen.grid.layoutIfNeeded()
+        var replacements:[UIView]=[]
+        for cell in screen.grid.visibleCells {
+            let group=try XCTUnwrap(cell.contentView.subviews.first{$0.accessibilityIdentifier=="native.backpack.idle-group"})
+            let frame=try XCTUnwrap(group.subviews.first{$0.accessibilityIdentifier=="native.backpack.frame"})
+            let index=try XCTUnwrap(screen.grid.indexPath(for:cell))
+            let replacement=UIImageView(image:assets.image("assets/backpack/dice holder\(index.item%2==1 ? " desno":"").png",densityAware:true))
+            replacement.contentMode = .scaleAspectFit;replacement.bounds=frame.bounds;replacement.center=frame.center
+            frame.isHidden=true;group.insertSubview(replacement,at:0);replacements.append(replacement)
+            group.layer.contentsScale=1;group.layer.allowsEdgeAntialiasing=false
+            for child in group.subviews {child.layer.allowsEdgeAntialiasing=false;child.layer.minificationFilter = .linear}
+            group.layer.transform=NativeBackpackArtworkIdleMotion(id:NativeBackpackCatalog.forest[index.item].id).poses(scale:1)[1]
+        }
+        CATransaction.flush()
+        try "before".write(toFile:"/tmp/backpack-quality-live-phase",atomically:true,encoding:.utf8)
+        try await Task.sleep(for:.seconds(8))
+        replacements.forEach{$0.removeFromSuperview()}
+        for cell in screen.grid.visibleCells {
+            let group=try XCTUnwrap(cell.contentView.subviews.first{$0.accessibilityIdentifier=="native.backpack.idle-group"})
+            group.layer.contentsScale=window.screen.scale;group.layer.allowsEdgeAntialiasing=true
+            for child in group.subviews {child.isHidden=false;child.layer.allowsEdgeAntialiasing=true;child.layer.minificationFilter = .trilinear}
+            // Alerts were not requested for this deterministic visual fixture.
+            group.subviews.compactMap{$0 as? NativeBackpackAlertView}.forEach{$0.isHidden=true}
+        }
+        CATransaction.flush()
+        try "after".write(toFile:"/tmp/backpack-quality-live-phase",atomically:true,encoding:.utf8)
+        try await Task.sleep(for:.seconds(8))
+    }
     func testOnlyViewportSeenUnreadCardsAreAdmittedWhileCollectionIsActive() throws {
         var progress=NativeProgressionState();progress.announceJourneyDie("bee",board:1);progress.announceJourneyDie("fish",board:12)
         let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
@@ -1213,7 +1276,8 @@ final class NativeBackpackTests:XCTestCase {
         let cells=screen.grid.visibleCells
         let lockCell=try XCTUnwrap(cells.first)
         let images=lockCell.contentView.subviews.flatMap{[$0]+$0.subviews}.compactMap{$0 as? UIImageView}.filter{!($0 is NativeBackpackAlertView)}
-        XCTAssertEqual(images.first?.bounds.size,CGSize(width:155,height:153))
+        let frame=lockCell.contentView.subviews.flatMap{[$0]+$0.subviews}.first{$0.accessibilityIdentifier=="native.backpack.frame"}
+        XCTAssertEqual(frame?.bounds.size,CGSize(width:155,height:153))
         XCTAssertEqual(images.last?.bounds.size,CGSize(width:70,height:80))
         screen.grid.setContentOffset(CGPoint(x:0,y:-screen.grid.contentInset.top),animated:false);screen.grid.layoutIfNeeded()
         let detail=NativeBackpackDetail(die:NativeBackpackCatalog.forest.first{$0.id=="bee"}!,assets:assets,motion:NativeRouteMotion(home:JimiV9HomeView(frame:.zero,assets:assets),hub:JimiV9HubView(frame:.zero,assets:assets)))
@@ -1329,7 +1393,7 @@ final class NativeBackpackTests:XCTestCase {
         window.rootViewController=host;window.makeKeyAndVisible()
         defer{host.dismiss(animated:false);window.isHidden=true;window.rootViewController=nil}
         let all=NativeBackpackCatalog.arcade+NativeBackpackCatalog.forest+NativeBackpackCatalog.area+NativeBackpackCatalog.beach
-        XCTAssertEqual(all.count,18)
+        XCTAssertEqual(all.count,19)
         let heavy=all.filter{["fish","cubero","beach-ball"].contains($0.id)}
         for (index,die) in (all+heavy+heavy).enumerated() {
             let objects=try await exerciseMountedBackpackLifecycle(die,host:host,assets:assets)
@@ -1453,7 +1517,7 @@ final class NativeBackpackTests:XCTestCase {
         let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
         window.rootViewController=host;window.makeKeyAndVisible();defer{window.isHidden=true;window.rootViewController=nil}
         let all=NativeBackpackCatalog.arcade+NativeBackpackCatalog.forest+NativeBackpackCatalog.area+NativeBackpackCatalog.beach
-        XCTAssertEqual(all.count,18)
+        XCTAssertEqual(all.count,19)
         for die in all {
             let preview=NativeBackpackDicePreview(die:die,root:NativeTestResources.root)
             defer{preview.dispose();preview.removeFromSuperview()}
@@ -1469,15 +1533,20 @@ final class NativeBackpackTests:XCTestCase {
             XCTAssertFalse(shadow.isHidden,die.id)
             XCTAssertNotNil((shadow.subviews.first as? UIImageView)?.image,"\(die.id): original Arcade shadow must contain painted pixels")
             let rasterBounds=shadow.bounds
-            let widthFactor:CGFloat=die.id=="kanta" ? 0.7:die.id=="spaceship" ? 0.96:die.id=="bottle" ? 0.8*0.85:["beach-ball","wild-juice"].contains(die.id) ? 0.8:1
-            XCTAssertEqual(rasterBounds.width,228*widthFactor,accuracy:0.01,"Sequential per-die width adjustments retain the shared Laser profile")
+            let widthFactor:CGFloat=die.id=="kanta" ? 1:die.id=="wild-star" ? 0.81:die.id=="spaceship" ? 0.96:die.id=="bottle" ? 0.8*0.85*0.7:die.id=="bloob-ball" ? 0.85:["beach-ball","wild-juice","robo-cube"].contains(die.id) ? 0.8:1
+            let measuredNode=try XCTUnwrap(preview.dieNode)
+            let expectedWidth=die.id=="kanta" ? measuredNode.collectionBodyBounds.width*measuredNode.xScale*1.595:228*widthFactor
+            XCTAssertEqual(rasterBounds.width,expectedWidth,accuracy:0.01,"Body-relative Bloob footprint; other profiles retain their dimensions")
             XCTAssertEqual(rasterBounds.height,228/1.11*0.15,accuracy:0.01)
             XCTAssertGreaterThan(rasterBounds.width,0)
             XCTAssertGreaterThan(rasterBounds.height,0)
+            if die.id=="barell" {
+                XCTAssertEqual(shadow.layer.opacity,Float(0.9392857143),accuracy:0.0001,"Barrel matches Flower grounded darkness")
+            }
             if ["fish","spaceship","bee","flower","laser-gun"].contains(die.id) {
                 XCTAssertEqual(shadow.center.y-rasterBounds.height/2,272,accuracy:0.01,"\(die.id): retained floor264 + gap8")
             }else{
-                XCTAssertEqual(shadow.center.y,["honey","kanta"].contains(die.id) ? 260:264,accuracy:0.01,"\(die.id): shadow overlaps the body floor without a gap")
+                XCTAssertEqual(shadow.center.y,die.id=="bloob-ball" ? 280:["honey","kanta"].contains(die.id) ? 260:264,accuracy:0.01,"\(die.id): authored shadow floor")
             }
             preview.setActive(true);preview.isPaused=true
             let node=try XCTUnwrap(preview.dieNode)
@@ -1595,6 +1664,48 @@ final class NativeBackpackTests:XCTestCase {
         XCTAssertGreaterThan(shadow.transform.d,minimum+0.05,"Landing grows the shadow again")
     }
 
+    func testBloobShadowCoversBaseAndFollowsActualRockAndFloat() async throws {
+        let die=try XCTUnwrap(NativeBackpackCatalog.area.first{$0.id=="kanta"})
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible();defer{window.isHidden=true}
+        let preview=NativeBackpackDicePreview(die:die,root:NativeTestResources.root)
+        defer{preview.dispose()}
+        preview.frame=CGRect(x:0,y:0,width:342,height:380)
+        preview.artworkFrame=CGRect(x:0,y:48,width:342,height:240);host.view.addSubview(preview)
+        let deadline=Date().addingTimeInterval(15)
+        while !preview.ready,Date()<deadline {try await Task.sleep(for:.milliseconds(20))}
+        XCTAssertTrue(preview.ready);preview.layoutArtwork()
+        let shadow=try XCTUnwrap(preview.groundShadow),node=try XCTUnwrap(preview.dieNode)
+        XCTAssertEqual(shadow.bounds.width,node.collectionBodyBounds.width*node.xScale*1.595,accuracy:0.001)
+        XCTAssertGreaterThan(shadow.bounds.width,190,"Visible soft footprint must not become a tiny spot")
+        let raster=shadow.bounds,floor=shadow.center.y
+        for hz in [60,120] {
+            preview.paintSelectedBounce(seconds:0);preview.paintGroundShadow(seconds:0)
+            var previous=shadow.transform.d,previousX=shadow.center.x
+            var minScale:CGFloat=1,maxScale:CGFloat=0,minX=previousX,maxX=previousX
+            for frame in 1...hz*8 {
+                let t=Double(frame)/Double(hz)
+                preview.paintSelectedBounce(seconds:t);preview.paintGroundShadow(seconds:t)
+                let current=shadow.transform.d,x=shadow.center.x
+                XCTAssertLessThan(abs(current-previous),0.008)
+                XCTAssertLessThan(abs(x-previousX),1.5,"Smoothly follows the bottom pivot")
+                XCTAssertGreaterThan(current,0.78,"Never collapse the grounded ellipse")
+                XCTAssertEqual(shadow.bounds,raster);XCTAssertEqual(shadow.center.y,floor)
+                minScale=min(minScale,current);maxScale=max(maxScale,current)
+                minX=min(minX,x);maxX=max(maxX,x);previous=current;previousX=x
+            }
+            XCTAssertGreaterThan(maxScale-minScale,0.15,"Float response must be visible")
+            XCTAssertGreaterThan(maxX-minX,30,"Rocking must actually move the shadow")
+        }
+        // Prove the real mounted preview clock also drives UIKit shadow updates.
+        preview.setActive(true)
+        var samples:[CGFloat]=[]
+        for _ in 0..<65 {try await Task.sleep(for:.milliseconds(33));samples.append(shadow.center.x)}
+        XCTAssertGreaterThan((samples.max() ?? 0)-(samples.min() ?? 0),15)
+        preview.setActive(false);let stopped=shadow.center
+        try await Task.sleep(for:.milliseconds(80));XCTAssertEqual(shadow.center,stopped)
+        preview.dispose();XCTAssertNil(shadow.superview)
+    }
     func testJuiceMinimumShadowStopsHorizontalTravel() async throws {
         let die=try XCTUnwrap(NativeBackpackCatalog.beach.first{$0.id=="wild-juice"})
         let preview=NativeBackpackDicePreview(die:die,root:NativeTestResources.root)
@@ -1751,12 +1862,47 @@ final class NativeBackpackTests:XCTestCase {
             }
             preview.paintSelectedBounce(seconds:0.9);XCTAssertEqual(node.zRotation,14*CGFloat.pi/180,accuracy:0.000001)
             preview.paintSelectedBounce(seconds:2.7);XCTAssertEqual(node.zRotation,-14*CGFloat.pi/180,accuracy:0.000001)
-            preview.paintSelectedBounce(seconds:1.8);preview.refreshGroundShadow()
+            preview.paintSelectedBounce(seconds:1.8);preview.paintGroundShadow(seconds:1.8)
             XCTAssertEqual(node.position.y-base.y,20,accuracy:0.000001)
-            XCTAssertLessThan(shadow.transform.d,rest.d)
+            XCTAssertLessThan(shadow.transform.d,rest.d,die.id)
             preview.paintSelectedBounce(seconds:3.6);XCTAssertEqual(node.position,base)
             preview.dispose();XCTAssertNil(preview.scene);XCTAssertNil(shadow.superview)
         }
+    }
+    func testSelectedBloobBallFloatPreservesSizeAndGroundedShadow() async throws {
+        let die=try XCTUnwrap(NativeBackpackCatalog.area.first{$0.id=="bloob-ball"})
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible()
+        let preview=NativeBackpackDicePreview(die:die,root:NativeTestResources.root)
+        defer{preview.dispose();window.isHidden=true;window.rootViewController=nil}
+        preview.frame=CGRect(x:0,y:0,width:342,height:360)
+        preview.artworkFrame=CGRect(x:0,y:48,width:342,height:216);host.view.addSubview(preview)
+        let deadline=Date().addingTimeInterval(15)
+        while !preview.ready,Date()<deadline {try await Task.sleep(for:.milliseconds(20))}
+        XCTAssertTrue(preview.ready);preview.layoutArtwork();preview.setActive(true);preview.isPaused=true
+        let node=try XCTUnwrap(preview.dieNode),shadow=try XCTUnwrap(preview.groundShadow)
+        preview.paintSelectedBounce(seconds:0);preview.paintGroundShadow(seconds:0)
+        let base=node.position,scale=node.xScale,raster=shadow.bounds,floor=shadow.center.y
+        let lowWidth=shadow.transform.a,lowAlpha=shadow.layer.opacity
+        var previous=base,peak:CGFloat=0,highWidth:CGFloat=1,highAlpha:Float=1
+        for frame in 1...456 {
+            let t=Double(frame)/120
+            preview.paintSelectedBounce(seconds:t);preview.paintGroundShadow(seconds:t)
+            peak=max(peak,node.position.y-base.y)
+            XCTAssertLessThan(abs(node.position.y-previous.y),0.4)
+            XCTAssertLessThanOrEqual(abs(node.position.x-base.x),2.401)
+            XCTAssertLessThanOrEqual(abs(node.zRotation),5*CGFloat.pi/180+0.00001)
+            XCTAssertEqual(node.xScale,scale,accuracy:0.000001);XCTAssertEqual(node.yScale,scale,accuracy:0.000001)
+            XCTAssertEqual(shadow.bounds,raster);XCTAssertEqual(shadow.center.y,floor,accuracy:0.001)
+            if frame==228 {highWidth=shadow.transform.a;highAlpha=shadow.layer.opacity}
+            previous=node.position
+        }
+        XCTAssertEqual(peak,24,accuracy:0.01)
+        XCTAssertEqual(node.position.x,base.x,accuracy:0.0001);XCTAssertEqual(node.position.y,base.y,accuracy:0.0001)
+        XCTAssertEqual(raster.width,193.8,accuracy:0.001);XCTAssertEqual(floor,280,accuracy:0.001)
+        XCTAssertLessThan(highWidth,lowWidth);XCTAssertLessThan(highAlpha,lowAlpha)
+        XCTAssertGreaterThan(highWidth,lowWidth*0.65)
+        preview.dispose();XCTAssertNil(preview.scene);XCTAssertNil(shadow.superview)
     }
     func testSelectedShadowFortyPercentGainIsAppliedAfterBlur() throws {
         func peakAlpha(_ gain:CGFloat)throws->Double {

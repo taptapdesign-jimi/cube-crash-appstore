@@ -164,6 +164,13 @@ final class NativeWildMeterDropSceneOwner {
         guard !disposed,valid() else{return}
         presentation?.painted(renderEpoch:epoch,onscreen:onscreen,includesReplacement:includesReplacement)
     }
+    @discardableResult func transferRestoredTileToGameplay()->Bool {
+        guard !disposed,valid(),restored,let presentation,presentation.runtime.spawnCompleted else{return false}
+        // The captured merge now paints/retires this exact node. Only the
+        // original finite wall timeout remains owned by this carrier.
+        presentation.onTilePose=nil;handoff?.dispose();handoff=nil
+        return presentation.runtime.transferRestoredForeground(capture)
+    }
     func setCapturedChildSuspended(_ value:Bool) {guard !disposed else{return};suspended=value;clock?.suspend(value)}
     /// Explicit Source kill is distinct from global pause/visibility.
     func interruptAcceptedAnimation() {

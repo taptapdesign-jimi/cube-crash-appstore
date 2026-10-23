@@ -51,6 +51,7 @@ struct NativeDiceArtwork {
         "fish": Self(path: "assets/shop/fish/fish.png"),
         "kanta": Self(path: "assets/shop/kanta/04.png", size: CGSize(width: 128.0 * 128.0 / 171.0, height: 128)),
         "bee": Self(path: "assets/shop/bee/bee1.png"),
+        "bloob-ball": Self(path:"assets/shop/bloog ball/bloob-ball.png",idleSheet:.bloobBall),
         "laser-gun": Self(path: "assets/shop/gun/right gun.png", size: CGSize(width: 184.32, height: 184.32)),
         "spaceship": Self(path: "assets/shop/spaceship/spaceship.png", size: CGSize(width: 147.456, height: 147.456)),
         "bottle": Self(path: "assets/shop/bottle/glass bottle.png"),
@@ -83,6 +84,7 @@ struct NativeDiceSheet {
     var animateDuringDrag = false
 
     func frame(at elapsed: TimeInterval) -> Int {
+        if path==NativeBloobBallArt.idlePath {return NativeBloobBallArt.idleFrame(seconds:elapsed)}
         if NativeCuberoIdleMotion.isSVGSource(path) {return NativeCuberoIdleMotion.frame(seconds:elapsed)}
         let sequence = cycle * Double(activeLoops) + restingDuration
         let time = max(0, elapsed).truncatingRemainder(dividingBy: sequence)
@@ -539,7 +541,8 @@ final class NativeBoardTextures {
         enqueuePreparation { [weak self] in
             guard lifetime.isCurrent else{return}
             let cgImage:CGImage?
-            if NativeCuberoIdleMotion.isSVGSource(spec.path) {cgImage=NativeCuberoSVGAtlas.decode(url)}
+            if NativeBloobBallArt.isSource(spec.path) {cgImage=NativeBloobBallArt.decode(url)}
+            else if NativeCuberoIdleMotion.isSVGSource(spec.path) {cgImage=NativeCuberoSVGAtlas.decode(url)}
             else if includeMotionBounds {
                 // The selected atlas crosses to SpriteKit as raw pixels, never
                 // as an encoded WebP provider that can decode on MainActor.

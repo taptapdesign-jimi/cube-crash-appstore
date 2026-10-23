@@ -167,6 +167,14 @@ final class NativeWildMergeSixRootTests:XCTestCase {
     func testFreshMeterStarDestinationAfterOrdinaryMergeRetainsGameplay()async throws {
         try await exercise(archetype:.star,variant:nil,reverse:true,disposeDuringMain:false,starCount:0,freshStar:true)
     }
+    func testBloobPodFixedTwoBonusSettlesBothDirectionsAndModes()async throws {
+        for arcade in [false,true] {for reverse in [false,true] {
+            try await exercise(archetype:.star,variant:"bloob-ball",reverse:reverse,disposeDuringMain:false,moves:49,starCount:2,arcadeRun:arcade)
+        }}
+        for reverse in [false,true] {
+            try await exercise(archetype:.star,variant:"bloob-ball",reverse:reverse,disposeDuringMain:false,moves:49,finalOnly:true,starCount:2)
+        }
+    }
     func testBeeSourceAndDestinationSettleAndAdmitNextActualDrag()async throws {
         try await exercise(archetype:.star,variant:"bee",reverse:false,disposeDuringMain:false,moves:49)
         try await exercise(archetype:.star,variant:"bee",reverse:true,disposeDuringMain:false,moves:49)
@@ -207,14 +215,19 @@ final class NativeWildMergeSixRootTests:XCTestCase {
     func testMagnetDestinationPullsVisibleKantaAndCompletesItsActualRestoredMove()async throws {
         try await exercise(archetype:.magnet,variant:nil,reverse:true,disposeDuringMain:false,pulledKanta:true,moves:34)
     }
+    func testBloobBallActualSourceBothModesFinalAndNonfinal()async throws {
+        for arcade in [false,true] {for final in [false,true] {
+            try await exercise(archetype:.star,variant:"bloob-ball",reverse:arcade,disposeDuringMain:false,moves:49,finalOnly:final,arcadeRun:arcade)
+        }}
+    }
     private func exercise(archetype:NativeWildArchetype,variant:String?,reverse:Bool,disposeDuringMain:Bool=true,pulledKanta:Bool=false,moves:Int=50,finalOnly:Bool=false,starCount:Int=3,capturedBoard:NativeBoardState?=nil,freshStar:Bool=false,verifyStarTail:Bool=false,interveningOrdinary:Bool=false,interveningSix:Bool=false,heldOrdinaryMilliseconds:Int=160,rapidOrdinaryContacts:Int=0,tutorialAssist:Bool=false,arcadeTutorial:Bool=false,laserInterveningStack:Bool=false,arcadeRun:Bool=false,initialMeter:Double?=nil,verifyBaloonRetirement:Bool=false,verifyBoardScale:Bool=false,verifyQueuedBonus:Bool=false)async throws {
         let label=(variant ?? archetype.rawValue)+(reverse ? ":destination":":source")
         print("[WildMergeSixRoot] start \(label)")
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("wild-six-particles-"+UUID().uuidString)
         let store=NativeSaveStore(directory:directory)
         var envelope=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
-        envelope.progression.firstPlayTutorialComplete=true;envelope.progression.completedJourneyBoards=Set(1..<26)
-        var board=NativeBoardFactory.make(mode:.journey,board:26,generation:9,seed:7)
+        envelope.progression.firstPlayTutorialComplete=true;envelope.progression.completedJourneyBoards=Set(1..<(variant=="bloob-ball" ? 27:26))
+        var board=NativeBoardFactory.make(mode:.journey,board:variant=="bloob-ball" ? 27:26,generation:9,seed:7)
         for i in board.tiles.indices {board.tiles[i].value=0;board.tiles[i].locked=true;board.tiles[i].alpha=0.25}
         for (i,value) in (finalOnly ? [(0,6),(1,2)]:[(0,6),(1,2),(2,1),(3,1),(40,1)]) {
             board.tiles[i].value=value;board.tiles[i].locked=false;board.tiles[i].alpha=1
@@ -416,9 +429,6 @@ final class NativeWildMergeSixRootTests:XCTestCase {
             XCTAssertTrue(baloon.superview === gameplay.view,label)
             XCTAssertFalse(hero.isHidden,label)
             XCTAssertGreaterThan(hero.alpha,0,label)
-            if finalOnly {
-                XCTAssertEqual(scene.onFinalHUDCoinDuration?("baloon"),baloon.duration)
-            }
         }
         if variant=="spaceship" {
             let ship=try XCTUnwrap(gameplay.view.subviews.compactMap{$0 as? NativeSpaceshipFinalePresentation}.first,
@@ -453,8 +463,8 @@ final class NativeWildMergeSixRootTests:XCTestCase {
         XCTAssertGreaterThan(scope.smoke.activeOwnerCount,0,label)
         if finalOnly,variant=="baloon" {
             try await Task.sleep(for:.seconds(2))
-            XCTAssertFalse(gameplay.engine.pendingHUDStars.isEmpty,
-                "Final coins must still be flying during the5.4s Baloon finale: "+label)
+            XCTAssertTrue(gameplay.engine.pendingHUDStars.isEmpty,
+                "Final coins arrive at normal speed while the5.4s Baloon finale continues: "+label)
             XCTAssertEqual(app.route,.gameplay,label)
         }
         if interveningOrdinary {

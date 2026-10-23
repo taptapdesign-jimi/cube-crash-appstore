@@ -352,7 +352,6 @@ final class NativeBoardScene: SKScene {
     var authoredTntPresentationReady: ((String) -> Bool)?
     var onAuthoredLaserImpact: (([NativeLaserVisualTarget],UInt64,@escaping (Int,String) -> Bool,@escaping () -> Void,@escaping () -> Void) -> Bool)?
     var onAuthoredTntPresentation: ((String,CGPoint,UInt64,@escaping () -> Void,@escaping () -> Void) -> Bool)?
-    var onFinalHUDCoinDuration:((String?)->TimeInterval?)?
     var onAuthoredFinale: ((String,CGPoint,UInt64,@escaping () -> Void) -> Bool)?
     var onExitRequest: (() -> Void)?
     var onHUDTapContact:((String)->Void)?
@@ -4966,7 +4965,8 @@ final class NativeBoardScene: SKScene {
             "plan=\(entry.plan?.id ?? "none");phase=\(String(describing:entry.capture?.phase));core=\(String(describing:entry.capture?.coreReceipt));retired=\(entry.retired);source=\(sourceMagnetMainNodeCurrent(entry.source,generation:entry.generation));destination=\(sourceMagnetMainNodeCurrent(entry.destination,generation:entry.generation))"
         }.joined(separator:"|")
         let objects=nodesByID.keys.sorted().map {id in let node=nodesByID[id]!;return "\(id):alive=\(node.sourceContactNodeAlive),parent=\(node.parent === canvasRoot),gen=\(node.sourceGeneration),cell=\(String(describing:node.sourceGridCell))"}.joined(separator:"|")
-        return "admission=\(sourceAnimationBindingAdmissionOpen);entries=\(entries);coreMain=\(engine.sourceSpecialAbsorbMainEntered);face=\(String(describing:engine.pendingSourceSpecialWildDestinationFace));objects=\(objects)"
+        let pair=engine.pendingSpecial.map{"\($0.variant ?? "core"):source=\($0.source.id),destination=\($0.destination.id)"} ?? "none"
+        return "pair=\(pair);meter=\((sourceMeterCaller?.retainedNodeIDs ?? []).sorted());admission=\(sourceAnimationBindingAdmissionOpen);entries=\(entries);coreMain=\(engine.sourceSpecialAbsorbMainEntered);face=\(String(describing:engine.pendingSourceSpecialWildDestinationFace));objects=\(objects)"
     }
     private(set) var sourceTntSpawnResumeRejection:String?
     @discardableResult func configureSourceTntMain80(scope:NativeGameplaySourceContext.Scope)->Bool {
@@ -7666,7 +7666,7 @@ final class NativeBoardScene: SKScene {
                         playShortWildBoardBlast(sourceID:sourceID,destinationID:destinationID,
                             center:geometry.center(row:tile.cell.row,column:tile.cell.column))
                     }
-                    if let variant = event.variant,["baloon","fish","bottle","honey","spaceship","laser-gun","flower","barell","beach-ball","kanta","bee","cubero","mushroom","robo-cube"].contains(variant),let tile,let geometry,
+                    if let variant = event.variant,["baloon","fish","bottle","honey","spaceship","laser-gun","flower","barell","beach-ball","kanta","bee","bloob-ball","cubero","mushroom","robo-cube"].contains(variant),let tile,let geometry,
                        authoredFinale(variant,at: geometry.center(row: tile.cell.row,column: tile.cell.column)) {
                         // Native media/glyph owner holds its own visible receipt.
                     } else if event.archetype == .tnt && carrier?.variant == nil {
@@ -9375,16 +9375,15 @@ final class NativeBoardScene: SKScene {
         sourceHUDStarOwner=owner;sourceHUDStarFeedback=feedback;sourceHUDStarScaleFeedback=scales;sourceHUDStarScaleClock=scaleClock;sourceHUDStarCapture=capture;engine.sourceHUDStarJobsEnabled=true;sourceDisposalSealingEnabled=true
         return true
     }
-    private func finalHUDCoinDuration(variant:String?,archetype:NativeWildArchetype?)->TimeInterval {
-        var durations=effects.children.compactMap {node->TimeInterval? in
-            if variant==nil,archetype == .tnt,node is NativeTntFinale {return NativeTntFinale.duration}
-            if variant==nil,archetype == .star,let owner=node as? NativeStarFinale {return owner.duration}
-            if variant==nil,archetype == .juice,let owner=node as? NativeJuiceFinale {return owner.maximumDuration}
-            if variant==nil,archetype == .magnet,let owner=node as? NativeMagnetFinalePresentation {return owner.duration}
-            return nil
+    @discardableResult func launchBloobBallCoin(receiptID:String,screenOrigin:CGPoint,generation:UInt64)->Bool {
+        guard generation==engine.state.generation,screenOrigin.x.isFinite,screenOrigin.y.isFinite,
+              let receipt=engine.pendingHUDStars.first(where:{$0.id==receiptID && $0.variant=="bloob-ball" && $0.generation==generation}) else{return false}
+        if sourceHUDStarJobsPresentationEnabled {
+            guard let owner=sourceHUDStarOwner,let target=sourceHUDStarTargetScreen else{return false}
+            return owner.start(receiptIDs:[receipt.id],screenOrigin:screenOrigin,hudTarget:target)
         }
-        if let external=onFinalHUDCoinDuration?(variant),external.isFinite,external>0 {durations.append(external)}
-        return durations.max() ?? NativeRegularSixSpritePresentation.presentationDuration
+        startHUDStarFlights(ids:[receipt.id],screenOrigin:screenOrigin)
+        return hudStarIDs.contains(receipt.id)
     }
     func startSourceHUDStarJobs(ids:[String])->Bool {
         guard let owner=sourceHUDStarOwner,let capture=sourceHUDStarCapture,sourceAnimationBindingAdmissionOpen else{return false}
@@ -9402,7 +9401,7 @@ final class NativeBoardScene: SKScene {
             let sourceOrigins=group.compactMap{sourceCapturedHUDOrigins[$0.id]}.filter{$0.0==generation}
             guard sourceOrigins.isEmpty || (sourceOrigins.count==group.count && sourceOrigins.allSatisfy{$0.1==sourceOrigins[0].1}) else{return false}
             let origin=sourceOrigins.first?.1 ?? call.screenOrigin // unchanged genuine supplier for other family calls.
-            guard owner.start(receiptIDs:group.map(\.id),screenOrigin:origin,hudTarget:call.hudTarget,finalMergeDuration:group.allSatisfy(\.isFinalMerge) ? finalHUDCoinDuration(variant:group.first?.variant,archetype:group.first?.archetype):nil) else{return false}
+            guard owner.start(receiptIDs:group.map(\.id),screenOrigin:origin,hudTarget:call.hudTarget) else{return false}
         }
         return true
     }
@@ -9417,7 +9416,10 @@ final class NativeBoardScene: SKScene {
         feedback?.dispose();scales?.dispose();scaleClock?.dispose();owner?.dispose() // remove caller fields before external Core/job cleanup
     }
 
-    private func startHUDStarFlights(ids: [String],lead: TimeInterval = 0) {
+    private func startHUDStarFlights(ids: [String],lead: TimeInterval = 0,screenOrigin:CGPoint?=nil) {
+        // Bloob receipts remain canonical pending debt until their actual explosion.
+        let ids=ids.filter {id in screenOrigin != nil || !engine.pendingHUDStars.contains{$0.id==id && $0.variant=="bloob-ball"}}
+        guard !ids.isEmpty else{return}
         if sourceHUDStarJobsPresentationEnabled {
             guard startSourceHUDStarJobs(ids:ids) else{
                 onSourcePresentationFailure?("source_hud_star_actual_call_capture_not_bound",engine.state.generation)
@@ -9430,6 +9432,7 @@ final class NativeBoardScene: SKScene {
         guard !receipts.isEmpty else { return }
         if sourceStars==nil {sourceCallbackTime();sourceStars=sourceFrames.begin(.init(kind:.hudStarFlight,generation:engine.state.generation,id:UUID().uuidString))}
         let origins = receipts.map { receipt -> CGPoint in
+            if let screenOrigin {return screenOrigin}
             let point = geometry.center(row: receipt.origin.row,column: receipt.origin.column)
             return CGPoint(x: point.x,y: size.height-point.y)
         }
@@ -9444,10 +9447,9 @@ final class NativeBoardScene: SKScene {
             hudStarFlights.addChild(star);hudStarNodes[receipt.id]=star
             let visualReceipt = beginVisual(); hudStarVisualReceipts[receipt.id] = visualReceipt; var arrived = false
             requestRendering(true)
-            let coinRate=receipt.isFinalMerge ? (lead+(plans.map(\.end).max() ?? plan.end))/finalHUDCoinDuration(variant:receipt.variant,archetype:receipt.archetype):1.0
-            star.run(.sequence([.wait(forDuration: lead/coinRate),.customAction(withDuration: plan.end/coinRate) { [weak self,weak star] _,elapsed in
+            star.run(.sequence([.wait(forDuration: lead),.customAction(withDuration: plan.end) { [weak self,weak star] _,elapsed in
                 guard let self,!self.disposed,self.engine.state.generation == receipt.generation,!arrived,let star,self.hudStarNodes[receipt.id] === star,self.hudStarIDs.contains(receipt.id),star.parent === self.hudStarFlights else { return }
-                let pose = plan.sample(seconds: Double(elapsed)*coinRate)
+                let pose = plan.sample(seconds: Double(elapsed))
                 if !launchSoundPlayed,receipt.archetype == .tnt {
                     launchSoundPlayed=true;self.onSpecialMoment?(receipt.variant,"tnt-coin-launch",0)
                 }
@@ -10518,7 +10520,7 @@ final class NativeBoardScene: SKScene {
         removeAllActions(); retireEffects(); nodesByID.values.forEach { $0.dispose() }
         retireSourcePhysicalObservers();nodesByID.removeAll();meterTimeoutIDs.removeAll();ghostNodesByCell.removeAll();ghosts.removeAllChildren(); removeAllChildren(); textures.dispose()
         onFishIdleFrames?([:],engine.state.generation,true);onFishIdleFrames=nil
-        onNativeNoMovesShow=nil;onNativeNoMovesExit=nil;onNativeNoMovesClear=nil;onJourneyBottomDecorShake=nil;captureSourceScreenOverlayShake=nil;sourceCoreTntShakeTargets.removeAll();sourceScreenShakeTargets.removeAll();onPresentationFailure=nil;onSourcePresentationFailure=nil;onStateChange = nil; onTerminal = nil; onGameplayEvent = nil; onGameplayReceipt = nil; onSpecialMoment = nil; onAuthoredFinale = nil;onFinalHUDCoinDuration=nil;onAuthoredTntPresentation = nil;onAuthoredLaserImpact=nil;authoredTntPresentationReady = nil;authoredFinalePresentationReady=nil;onSpecialPresentationCancelled = nil; onTntGlyphClock = nil; onSplashGlyphClock = nil; onHaptic = nil
+        onNativeNoMovesShow=nil;onNativeNoMovesExit=nil;onNativeNoMovesClear=nil;onJourneyBottomDecorShake=nil;captureSourceScreenOverlayShake=nil;sourceCoreTntShakeTargets.removeAll();sourceScreenShakeTargets.removeAll();onPresentationFailure=nil;onSourcePresentationFailure=nil;onStateChange = nil; onTerminal = nil; onGameplayEvent = nil; onGameplayReceipt = nil; onSpecialMoment = nil; onAuthoredFinale = nil;onAuthoredTntPresentation = nil;onAuthoredLaserImpact=nil;authoredTntPresentationReady = nil;authoredFinalePresentationReady=nil;onSpecialPresentationCancelled = nil; onTntGlyphClock = nil; onSplashGlyphClock = nil; onHaptic = nil
         onRenderSurfacePreparation=nil
         hudTapFeedbackBases.removeAll();hudTapFeedbackPositions.removeAll();onSourceGuidedSnapBack=nil;onSourceTutorialRetired=nil;onLevelFlowBounceCompletion=nil;onExitRequest = nil; onHUDTapContact=nil; onHelpRequest = nil; onScoreRequest = nil; onComboRequest = nil; onPointerState = nil; onRenderingDemand = nil; onBoardEntry = nil; onBoardExit = nil; onHUDDrop = nil
     }

@@ -119,7 +119,7 @@ content layout. Fullscreen reward/round/title typography remains separately owne
 Native Journey reward policy (user correction 2026-10-22): fresh Play and
 Restart open ordinary dice only. Each exact introduction Unit guarantees its
 assigned die within its first three earned Special drops, on first play and
-replay; first two remain random, third supplies it if still missing. Units
+replay; its first appearance is uniformly distributed over drops1/2/3 (1/3 now,1/2 if absent on drop2,guaranteed drop3),using the existing draw. Singleton pools necessarily select their only die. Units
 without a new introduction retain random selection. Same-World landed Backpack
 discoveries expand the cumulative pool even when replaying earlier Units; never
 cross Worlds. Per-run earnedJourneyDice commits only on completed drops and
@@ -200,3 +200,7 @@ Recheck actual iOS state after boot/restart and final app launch; toolbar Mute c
 disagree with SpringBoard. Use Simulator UI, verify the iOS Silent Mode banner,
 and leave game Sounds/Music settings, host output and production session policy
 unchanged. The policy applies only to retained Native QA Simulator, not iPhone.
+
+Official player-facing name for Native special die `bloob-ball` is **Bloob Pod** (2026-10-23). Keep stable internal IDs, save keys and original asset paths unchanged.
+
+Bloob Pod Special nonfinal merge gives primary + exactly2bonus dice (3fresh total),with standard shared closed-dice formula3+2*2=7before bonus opening. Existing final-merge suppression and six-coin reward remain. Internal Star-family routing remains shared;Bee stays fixed1bonus.

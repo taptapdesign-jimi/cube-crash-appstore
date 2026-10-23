@@ -165,7 +165,7 @@ final class NativeStateTests: XCTestCase {
         let worlds:[Set<String>]=[
             ["bee","wild-star","flower","honey","mushroom","barell"],
             ["wild-juice","fish","beach-ball","bottle"],
-            ["robo-cube","kanta","spaceship","laser-gun"]]
+            ["robo-cube","kanta","spaceship","laser-gun","bloob-ball"]]
         for board in 1...30 {
             let pool=Set(NativeJourneyContent.rewardPool(board:board))
             XCTAssertFalse(pool.isEmpty)

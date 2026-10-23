@@ -25,18 +25,21 @@ final class NativeFinalHUDCoinTests:XCTestCase {
             if let plan=engine.pendingDirectWild {XCTAssertTrue(plan.isFinal,tag);result=engine.commitDirectWildGameplay(transactionID:plan.id)}
             XCTAssertTrue(result.accepted,tag)
             let count=try XCTUnwrap(result.events.first{$0.kind == .hudStarsPrepared},tag).tileIDs.count
-            XCTAssertEqual(count,first.gameplayArchetype == .tnt ? 3:archetype == .star ? (variant == "bee" ? 1:3):archetype == .juice ? 2:1,tag)
+            XCTAssertEqual(count,variant=="bloob-ball" ? 6:first.gameplayArchetype == .tnt ? 3:archetype == .star ? (variant == "bee" ? 1:3):archetype == .juice ? 2:1,tag)
             XCTAssertTrue(engine.state.tiles.isEmpty,tag);XCTAssertTrue(engine.pendingMeterRewards.isEmpty,tag)
             XCTAssertFalse(result.events.contains{$0.kind == .spawned},tag)
             XCTAssertTrue(engine.pendingHUDStars.allSatisfy(\.isFinalMerge),tag)
             let score=engine.state.score,receipts=engine.pendingHUDStars.map(\.id)
-            let job=try XCTUnwrap(engine.registerSourceHUDStarJob(receiptIDs:receipts,generation:engine.state.generation),tag)
-            for id in receipts {
+            let groups=variant=="bloob-ball" ? receipts.map{[$0]}:[receipts]
+            for group in groups {
+            let job=try XCTUnwrap(engine.registerSourceHUDStarJob(receiptIDs:group,generation:engine.state.generation),tag)
+            for id in group {
                 XCTAssertTrue(engine.commitSourceHUDStarArrival(job:job,receiptID:id).accepted,tag)
                 XCTAssertFalse(engine.commitSourceHUDStarArrival(job:job,receiptID:id).accepted,tag)
             }
-            XCTAssertEqual(engine.state.score,score+count*100,tag)
             XCTAssertTrue(engine.retireSourceHUDStarJob(job:job),tag)
+            }
+            XCTAssertEqual(engine.state.score,score+count*100,tag)
             if let plan=engine.pendingDirectWild {XCTAssertTrue(engine.releaseDirectWildPresentation(transactionID:plan.id,generation:plan.generation).accepted,tag)}
             XCTAssertEqual(engine.state.terminal?.kind,.complete,tag)
         }}}

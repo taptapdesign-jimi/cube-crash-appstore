@@ -5,6 +5,12 @@ import StackToSixGameplay
 /// Every letter keeps its original font, per-letter size, palette and 3D pose.
 @MainActor
 final class NativeSplashGlyphField: UIView {
+    /// Shared authored Kanta treatment, also requested for Bloob and Woombuu.
+    static func clankStyle(artwork:JimiV9Artwork,text:String,random:()->Double={Double.random(in:0..<1)})->NativeSplashGlyphField {
+        NativeSplashGlyphField(artwork:artwork,text:text,
+            colors:[.white],
+            splitIndex:0,letterOpacityRange:0.8...1.0,fitToWidth:true,neonGlow:true,random:random)
+    }
     private struct Glyph { let label: UILabel; let index: Int; let bounce: CGFloat; var exitRotation: CGFloat; let splitLabels: [UILabel]; let glowLabels:[UILabel] }
     private var glyphs: [Glyph] = []
     private var finishedGlyphs = Set<Int>()

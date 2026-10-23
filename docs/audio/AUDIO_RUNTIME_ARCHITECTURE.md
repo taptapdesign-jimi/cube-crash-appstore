@@ -19,8 +19,9 @@ one. The soundtrack manager still owns Music, route, intro/loop points, Arcade
 mix and result envelopes. This is not SFX and must not be stopped by Sounds OFF.
 
 `native/jimi-2026/JimiNativeMusic.swift` owns one AVAudioEngine, at most four file
-players and two queued file segments per loop. Only the three existing theme and
-Arcade sources are admitted. Native background/interruption pauses all players;
+players and two queued file segments per loop. The three preserved theme/Arcade sources and the registered TapTapDesign
+gameplay derivative are admitted. Standalone Native routes select the new file
+for Journey and Arcade; preserved web selection remains unchanged. Native background/interruption pauses all players;
 only the current web music owner may request resume. Each gain fade has one
 finite timer canceled on replacement/pause/dispose; there is no settled timer.
 Per-voice disposal releases node/file resources. Swift file-player memory is NOT
@@ -230,3 +231,9 @@ Required source checks are focused owner/engine/registry regressions, type/unuse
 checks, lint, Gameplay KING and full QA. A successful source gate does not validate
 iPhone media gain/fades, route continuity, decode CPU cost or sustained heat.
 Those remain **NEEDS PHYSICAL TEST** on the authorized Stack to Six app.
+
+### Native route handoff — 2026-10-23
+
+The existing file transport now permits one finite `-outgoing` slot per source-replacing route,within its4player ceiling. Open/validate/start the incoming file first;the old source remains audible through failure or setup. Source replacement uses1.25s native gain fades and retires the old node/file on the actual fade completion. Rapid replacement,pause,Music OFF,background and disposal cancel/release outgoing ownership. No additional transport,engine,cache or recurring clock is introduced.
+
+Arcade starts its existing gameplay voice at NN presentation start. `onPlaybackReady` is emitted only after successful current play;the main route owner then fades the still-playing menu for the matching incoming duration,and pauses it only on fade completion with a current route lease. Returning to menu resumes its saved phase with preserved initial gain and overlaps the existing Arcade exit fade. Gameplay settles at0.11 in both modes.

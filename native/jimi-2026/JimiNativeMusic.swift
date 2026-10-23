@@ -10,6 +10,7 @@ final class JimiNativeMusic: NSObject {
     @MainActor private final class Voice {
         let node = AVAudioPlayerNode()
         let file: AVAudioFile
+        let source:String
         var position = 0.0
         var anchor = 0.0
         var loopStart = 0.0
@@ -19,7 +20,7 @@ final class JimiNativeMusic: NSObject {
         var generation = 0
         var fade: Timer?
         var fadeCompletion:((Bool)->Void)?
-        init(file: AVAudioFile) { self.file = file }
+        init(file: AVAudioFile,source:String) { self.file = file;self.source=source }
         var duration: Double { Double(file.length) / file.processingFormat.sampleRate }
         var currentTime: Double {
             guard playing, let time = node.lastRenderTime, let player = node.playerTime(forNodeTime: time) else { return position }
@@ -33,6 +34,7 @@ final class JimiNativeMusic: NSObject {
     private var voices: [String: Voice] = [:]
     private var observers: [NSObjectProtocol] = []
     private static let sources: Set<String> = [
+        "assets/sound/soundtrack/taptap-gameplay-v1/taptap-gameplay-intro-loop.wav",
         "assets/sound/soundtrack/theme-loop-v1/SIx-theme-runtime-intro-loop.wav",
         "assets/sound/soundtrack/adaptive-music-v3/gameplay-bed-calm-01.wav",
         "assets/sound/soundtrack/adaptive-music-v3/gameplay-bed-active-01.wav"
@@ -89,28 +91,13 @@ final class JimiNativeMusic: NSObject {
             replyHandler(nil, "Invalid native music voice"); return
         }
         do {
-            if op == "play", voices[id] == nil {
-                guard voices.count < 4, let source = body["source"] as? String else { throw failure("Voice limit") }
-                let path = source.hasPrefix("./") ? String(source.dropFirst(2)) : source
-                guard Self.sources.contains(path) else { throw failure("Unregistered music source") }
-                let voice = Voice(file: try AVAudioFile(forReading: root.appendingPathComponent(path)))
-                engine.attach(voice.node)
-                engine.connect(voice.node, to: engine.mainMixerNode, format: voice.file.processingFormat)
-                voices[id] = voice
-            }
+            if op == "play" {try play(id:id,body:body)}
             guard let voice = voices[id] else { replyHandler(["position": 0, "duration": 0], nil); return }
             switch op {
-            case "play":
-                voice.looping = body["loop"] as? Bool ?? true
-                voice.loopStart = min(max(0, number(body, "loopStart")), voice.duration)
-                let requestedEnd = number(body, "loopEnd")
-                voice.loopEnd = requestedEnd > 0 ? min(requestedEnd, voice.duration) : voice.duration
-                guard voice.loopEnd > voice.loopStart else { throw failure("Invalid loop region") }
-                voice.node.volume = Float(min(1, max(0, number(body, "volume"))))
-                try start(voice, at: number(body, "position"))
-            case "pause": pause(voice)
+            case "play": break
+            case "pause": retireVoice(id+"-outgoing");pause(voice)
             case "resume":
-                voice.node.volume = Float(min(1, max(0, number(body, "volume"))))
+                if body["volume"] != nil {voice.node.volume = Float(min(1, max(0, number(body, "volume"))))}
                 if !voice.playing || !engine.isRunning || !voice.node.isPlaying { try start(voice, at: voice.currentTime) }
             case "seek": try start(voice, at: number(body, "position"))
             case "state": break // Read-only phase receipt for Swift soundtrack scheduling.
@@ -124,7 +111,7 @@ final class JimiNativeMusic: NSObject {
                 }
                 fade(voice,to:Float(min(1,max(0,number(body,"volume")))),duration:number(body,"duration"))
             case "dispose":
-                pause(voice); engine.detach(voice.node); voices[id] = nil
+                retireVoice(id+"-outgoing");retireVoice(id)
             default: throw failure("Unknown native music operation")
             }
             if !voices.values.contains(where: { $0.playing }) { engine.pause() }
@@ -141,6 +128,53 @@ final class JimiNativeMusic: NSObject {
             NSLog("[JIMI_NATIVE_MUSIC] failure op=%@ reason=%@", op, error.localizedDescription)
             replyHandler(nil, error.localizedDescription)
         }
+    }
+    /// Open and start the incoming file before retiring the audible source.
+    /// A single finite outgoing slot per route bounds rapid replacements.
+    private func play(id:String,body:[String:Any]) throws {
+        guard let source=body["source"] as? String else{throw failure("Missing music source")}
+        let path=source.hasPrefix("./") ? String(source.dropFirst(2)):source
+        guard Self.sources.contains(path) else{throw failure("Unregistered music source")}
+        let previous=voices[id],replacement=previous != nil && previous?.source != path
+        let outgoingID=id+"-outgoing"
+        let needsFile=previous?.source != path
+        if needsFile,voices.count>=4,voices[outgoingID] != nil {retireVoice(outgoingID)}
+        if needsFile,voices.count>=4 {throw failure("Voice limit")}
+        let voice:Voice
+        if !needsFile,let previous {voice=previous}
+        else {
+            voice=Voice(file:try AVAudioFile(forReading:root.appendingPathComponent(path)),source:path)
+            engine.attach(voice.node);engine.connect(voice.node,to:engine.mainMixerNode,format:voice.file.processingFormat)
+        }
+        let duration=replacement ? min(2,max(0,number(body,"crossfadeDuration"))):0
+        do {
+            voice.looping=body["loop"] as? Bool ?? true
+            voice.loopStart=min(max(0,number(body,"loopStart")),voice.duration)
+            let end=number(body,"loopEnd");voice.loopEnd=end>0 ? min(end,voice.duration):voice.duration
+            guard voice.loopEnd>voice.loopStart else{throw failure("Invalid loop region")}
+            voice.node.volume=duration>0 ? 0:Float(min(1,max(0,number(body,"volume"))))
+            try start(voice,at:number(body,"position"))
+        } catch {
+            if needsFile {pause(voice);engine.detach(voice.node)}
+            if !voices.values.contains(where:{$0.playing}) {engine.pause()}
+            throw error // The previous source remains live when opening/starting fails.
+        }
+        if replacement,let previous {
+            retireVoice(outgoingID);voices[outgoingID]=previous
+            voices[id]=voice
+            if duration>0 {
+                fade(voice,to:Float(min(1,max(0,number(body,"volume")))),duration:duration)
+                fade(previous,to:0,duration:duration){[weak self,weak previous] completed in
+                    guard let self,let previous,completed,self.voices[outgoingID] === previous else{return}
+                    self.retireVoice(outgoingID)
+                }
+            } else {retireVoice(outgoingID)}
+        } else {voices[id]=voice}
+    }
+    private func retireVoice(_ id:String) {
+        guard let voice=voices.removeValue(forKey:id) else{return}
+        pause(voice);engine.detach(voice.node)
+        if !voices.values.contains(where:{$0.playing}) {engine.pause()}
     }
     private func start(_ voice: Voice, at position: Double) throws {
         guard UIApplication.shared.applicationState == .active else { throw failure("App inactive") }
@@ -206,7 +240,8 @@ final class JimiNativeMusic: NSObject {
         RunLoop.main.add(timer, forMode: .common)
     }
     private func suspend() {
-        voices.values.forEach(pause)
+        for id in Array(voices.keys) where id.hasSuffix("-outgoing") {retireVoice(id)}
+        Array(voices.values).forEach(pause)
         engine.pause()
     }
     func dispose() {

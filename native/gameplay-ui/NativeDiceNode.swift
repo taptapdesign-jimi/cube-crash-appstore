@@ -2511,6 +2511,15 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         if artwork.xScale != 1 || artwork.yScale != 1 {artwork.setScale(1)}
         artwork.size = CGSize(width: sheet.cell.width * sheet.displayScale, height: sheet.cell.height * sheet.displayScale)
         artwork.position.y = sheet.offsetY
+        if variant == "bloob-ball" {
+            let pose=NativeBloobBallArt.idlePose(seconds:time)
+            // Enlarge only settled board idle; drag and collection keep the original SVG pose.
+            let boardIdle = !dragging && scene is NativeBoardScene
+            artwork.position=CGPoint(x:pose.x*0.5*sheet.displayScale*(boardIdle ? 2.5:1),
+                y:-pose.y*0.5*sheet.displayScale*(boardIdle ? 3.9:1))
+            artwork.zRotation = -pose.rotation * .pi/180
+            artwork.xScale=boardIdle ? 1:pose.sx;artwork.yScale=boardIdle ? 1:pose.sy
+        }
         if variant == "cubero" {
             let pose=NativeCuberoIdleMotion.sample(seconds:time)
             // Keep the enlarged SVG's resting foot aligned with ordinary dice.

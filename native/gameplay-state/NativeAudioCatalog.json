@@ -3047,6 +3047,15 @@
     ],
     "baloonMerge": [
       {
+        "source": "assets/sound/Wild and special kockice/juice/mini2.mp3",
+        "voice": "native-baloon-mini2",
+        "gain": 0.39,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
         "source": "assets/sound/Wild and special kockice/ baloon/happy people.wav",
         "voice": "native-baloon-happy-people",
         "gain": 0.546,

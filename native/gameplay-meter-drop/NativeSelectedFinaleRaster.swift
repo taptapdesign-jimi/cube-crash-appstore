@@ -12,6 +12,10 @@ nonisolated struct NativeSelectedFinaleRaster:@unchecked Sendable {
   for path in candidates {
    let relative=path.hasPrefix("./") ? String(path.dropFirst(2)):path
    guard !relative.hasPrefix("/"),!relative.split(separator:"/").contains("..") else{continue}
+   if NativeBloobBallArt.isSource(relative) {
+    if let image=NativeBloobBallArt.decode(root.appendingPathComponent(relative)) {return Self(path:relative,image:image)}
+    continue
+   }
    if NativeCuberoIdleMotion.isSVGSource(relative) {
     if let image=NativeCuberoSVGAtlas.decode(root.appendingPathComponent(relative)) {return Self(path:relative,image:image)}
     continue

@@ -223,11 +223,31 @@ struct NativeBackpackArtworkIdleMotion {
     }
 }
 
+/// Paint the original frame once at the actual display density. UIKit's
+/// high-quality resampling preserves the thin painted alpha edge before the
+/// card's Core Animation perspective is applied; idle never redraws this view.
+@MainActor
+private final class NativeBackpackFrameView:UIView {
+    var image:UIImage? {didSet{if oldValue !== image {setNeedsDisplay()}}}
+    override init(frame:CGRect){
+        super.init(frame:frame);isOpaque=false;isUserInteractionEnabled=false
+        contentMode = .redraw;accessibilityIdentifier="native.backpack.frame"
+    }
+    required init?(coder:NSCoder){fatalError("Use frame")}
+    override func draw(_ rect:CGRect){
+        guard let image,let context=UIGraphicsGetCurrentContext(),image.size.width>0,image.size.height>0 else{return}
+        context.interpolationQuality = .high
+        context.setAllowsAntialiasing(true);context.setShouldAntialias(true)
+        let factor=min(bounds.width/image.size.width,bounds.height/image.size.height)
+        let size=CGSize(width:image.size.width*factor,height:image.size.height*factor)
+        image.draw(in:CGRect(x:bounds.midX-size.width/2,y:bounds.midY-size.height/2,width:size.width,height:size.height))
+    }
+}
 @MainActor
 private final class NativeBackpackCell:UICollectionViewCell {
     static let ink=UIColor(red:0.68,green:0.53,blue:0.46,alpha:1)
     private let artworkGroup=UIView()
-    private let holder=UIImageView(),die=UIImageView()
+    private let holder=NativeBackpackFrameView(frame:.zero),die=UIImageView()
     let alert=NativeBackpackAlertView()
     private var alertRight=false
     private var arcade=false
@@ -238,7 +258,19 @@ private final class NativeBackpackCell:UICollectionViewCell {
     private var artworkIdleOffset:CFTimeInterval=0
     private var artworkIdleMotion=NativeBackpackArtworkIdleMotion(id:"")
     private static let artworkIdleKey="backpack.artwork.idle"
-    override func didMoveToWindow(){super.didMoveToWindow();reconcileArtworkIdle()}
+    override func didMoveToWindow(){super.didMoveToWindow();configureArtworkSampling();reconcileArtworkIdle()}
+    private func configureArtworkSampling(){
+        let scale=window?.screen.scale ?? traitCollection.displayScale
+        artworkGroup.layer.contentsScale=max(1,scale)
+        if holder.contentScaleFactor != max(1,scale) {holder.contentScaleFactor=max(1,scale)}
+        artworkGroup.layer.allowsEdgeAntialiasing=true
+        for image in [holder as UIView,die] {
+            image.layer.allowsEdgeAntialiasing=true
+            image.layer.edgeAntialiasingMask=[.layerLeftEdge,.layerRightEdge,.layerTopEdge,.layerBottomEdge]
+            image.layer.minificationFilter = .trilinear
+            image.layer.magnificationFilter = .linear
+        }
+    }
     private func stopArtworkIdle(reset:Bool=false){
         if let motion=artworkGroup.layer.animation(forKey:Self.artworkIdleKey) {
             artworkIdleOffset=(artworkGroup.layer.convertTime(CACurrentMediaTime(),from:nil)-motion.beginTime+motion.timeOffset).truncatingRemainder(dividingBy:motion.duration)
@@ -263,7 +295,7 @@ private final class NativeBackpackCell:UICollectionViewCell {
         motion.beginTime=artworkGroup.layer.convertTime(CACurrentMediaTime(),from:nil);motion.timeOffset=artworkIdleOffset
         artworkGroup.layer.add(motion,forKey:Self.artworkIdleKey)
     }
-    override init(frame:CGRect){super.init(frame:frame);for image in [holder,die]{image.contentMode = .scaleAspectFit;artworkGroup.addSubview(image)};artworkGroup.addSubview(alert);contentView.addSubview(artworkGroup);artworkGroup.accessibilityIdentifier="native.backpack.idle-group";isAccessibilityElement=true}
+    override init(frame:CGRect){super.init(frame:frame);for image in [holder as UIView,die]{artworkGroup.addSubview(image)};die.contentMode = .scaleAspectFit;artworkGroup.addSubview(alert);contentView.addSubview(artworkGroup);artworkGroup.accessibilityIdentifier="native.backpack.idle-group";isAccessibilityElement=true}
     required init?(coder:NSCoder){fatalError("Use frame")}
     func apply(_ item:NativeBackpackCatalog.Die,unlocked:Bool,right:Bool,arcade:Bool,assets:JimiV9Artwork,illustrationScale:CGFloat=1) {
         if artworkIdentity != item.id {stopArtworkIdle(reset:true);artworkIdentity=item.id}
@@ -291,7 +323,7 @@ private final class NativeBackpackCell:UICollectionViewCell {
             artworkOffset=CGPoint(x:(visible.midX-0.5)*artworkSize.width,y:(visible.midY-0.5)*height)
         }
         if unlocked {
-            let iconScale:CGFloat=item.id=="barell" ? 0.855:item.id=="mushroom" ? 0.95:item.id=="honey" ? 0.85:["wild-star","wild-juice","beach-ball"].contains(item.id) ? 0.9:1
+            let iconScale:CGFloat=item.id=="barell" ? 0.855:item.id=="mushroom" ? 0.95:["honey","bloob-ball"].contains(item.id) ? 0.85:["wild-star","wild-juice","beach-ball"].contains(item.id) ? 0.9:1
             artworkSize=CGSize(width:artworkSize.width*iconScale,height:artworkSize.height*iconScale)
             artworkOffset=CGPoint(x:artworkOffset.x*iconScale,y:artworkOffset.y*iconScale)
         }
@@ -301,7 +333,7 @@ private final class NativeBackpackCell:UICollectionViewCell {
         accessibilityIdentifier="native.backpack.die.\(item.id)";die.accessibilityIdentifier="native.backpack.idle-artwork";reconcileArtworkIdle();setNeedsLayout()
     }
     func setAlert(unread:Bool,active:Bool){alert.isHidden = !unread;alert.setActive(unread && active);artworkActive=active;layoutIfNeeded();reconcileArtworkIdle()}
-    override func layoutSubviews(){super.layoutSubviews();artworkGroup.bounds=contentView.bounds;artworkGroup.center=CGPoint(x:contentView.bounds.midX,y:contentView.bounds.midY);let scale=contentView.bounds.width/(arcade ? 98:153);holder.bounds=CGRect(x:0,y:0,width:contentView.bounds.width+(die.tag==0 ? 2*scale:0),height:contentView.bounds.height);holder.center=CGPoint(x:contentView.bounds.midX,y:contentView.bounds.midY);let size=die.tag==0 ? CGSize(width:70*scale,height:80*scale):CGSize(width:artworkSize.width*scale,height:artworkSize.height*scale);die.bounds=CGRect(origin:.zero,size:size);die.center=CGPoint(x:contentView.bounds.midX-artworkOffset.x*scale,y:contentView.bounds.midY-artworkOffset.y*scale)
+    override func layoutSubviews(){super.layoutSubviews();configureArtworkSampling();artworkGroup.bounds=contentView.bounds;artworkGroup.center=CGPoint(x:contentView.bounds.midX,y:contentView.bounds.midY);let scale=contentView.bounds.width/(arcade ? 98:153);holder.bounds=CGRect(x:0,y:0,width:contentView.bounds.width+(die.tag==0 ? 2*scale:0),height:contentView.bounds.height);holder.center=CGPoint(x:contentView.bounds.midX,y:contentView.bounds.midY);let size=die.tag==0 ? CGSize(width:70*scale,height:80*scale):CGSize(width:artworkSize.width*scale,height:artworkSize.height*scale);die.bounds=CGRect(origin:.zero,size:size);die.center=CGPoint(x:contentView.bounds.midX-artworkOffset.x*scale,y:contentView.bounds.midY-artworkOffset.y*scale)
         alert.bounds=CGRect(x:0,y:0,width:58*1.1*scale,height:58*1.1*scale);alert.center=CGPoint(x:alertRight ? contentView.bounds.width-14*scale:14*scale,y:14*scale)
         reconcileArtworkIdle()
     }

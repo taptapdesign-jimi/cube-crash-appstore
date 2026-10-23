@@ -245,6 +245,11 @@ final class NativeGameplayAudioTests:XCTestCase {
         defer{owner.dispose()}
         let event=NativeGameplayEvent(.merged,value:6,archetype:.juice,variant:"baloon")
         owner.onGameplayEvent(event,generation:1,receipt:1)
+        let mini=transport.cues.filter{$0.voice=="native-baloon-mini2"}
+        XCTAssertEqual(mini.count,1)
+        XCTAssertEqual(mini.first?.source,"assets/sound/Wild and special kockice/juice/mini2.mp3")
+        XCTAssertEqual(mini.first?.gain,NativeAuthoredAudioCatalog.groups["juice-straw"]?.first?.gain)
+        XCTAssertEqual(mini.first?.gain,0.39);XCTAssertEqual(mini.first?.delay,0)
         let happy=transport.cues.filter{$0.source.hasSuffix("/happy people.wav")}
         XCTAssertEqual(happy.count,1);XCTAssertEqual(happy.first?.gain,0.546)
         XCTAssertEqual(happy.first?.delay,0);XCTAssertNil(happy.first?.stopAfter)

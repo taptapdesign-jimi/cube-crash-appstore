@@ -165,6 +165,29 @@ final class JimiNativeSettingsTests: XCTestCase {
         XCTAssertEqual((1...3).compactMap{saved.progression.interimBoard(world:$0)},[1,11,21])
     }
 
+    func testDeveloperShowRevealsMatchingBackpackDiceAndHideRearmsThem() throws {
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent("dev-backpack-\(UUID().uuidString)")
+        defer{try? FileManager.default.removeItem(at:directory)}
+        let store=NativeSaveStore(directory:directory)
+        let owner=try NativeBootstrap(root:root,store:store,showStudioIntro:false)
+        defer{owner.dispose()}
+        try owner.applyDeveloperProgress(.show,values:["22"])
+        var saved=try XCTUnwrap(store.load())
+        XCTAssertEqual(saved.progression.announcedJourneyDice,["kanta"])
+        XCTAssertTrue(NativeBackpackCatalog.sections(saved.progression).contains{$0.unlocked.contains("kanta")})
+        try owner.applyDeveloperProgress(.show,values:Set((1...30).map(String.init)))
+        saved=try XCTUnwrap(store.load())
+        let expected=Set((NativeBackpackCatalog.forest+NativeBackpackCatalog.area+NativeBackpackCatalog.beach).map(\.id))
+        XCTAssertEqual(saved.progression.announcedJourneyDice,expected)
+        XCTAssertEqual(NativeBackpackCatalog.sections(saved.progression).reduce(0){$0+$1.count},15)
+        try owner.applyDeveloperProgress(.hide,values:["22"])
+        saved=try XCTUnwrap(store.load())
+        XCTAssertFalse(saved.progression.announcedJourneyDice.contains("kanta"))
+        XCTAssertEqual(saved.progression.announcedJourneyDice.count,14)
+        try owner.applyDeveloperProgress(.show,values:["22"])
+        XCTAssertEqual(try store.load()?.progression.announcedJourneyDice,expected)
+    }
+
     func testDeveloperProgressCommitsOnlySelectedStagesAndExplicitArcadeReset() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("native-dev-test-\(UUID().uuidString)")
         let store = NativeSaveStore(directory: directory)
@@ -172,7 +195,7 @@ final class JimiNativeSettingsTests: XCTestCase {
         var profile = NativeSaveEnvelope()
         profile.progression.firstPlayTutorialComplete = true
         profile.progression.completedJourneyBoards = [1,2,11]
-        var stats = NativeBoardStats(); stats.highScore = 7777
+        var stats = NativeBoardStats(); stats.highScore = 7777; stats.awardedStars=3; stats.starRankingVersion=0
         profile.progression.boardStats = [1:stats,2:stats,11:stats]
         let run = NativeBoardState(tiles: [NativeTile(id: "keep",cell: .init(column: 0,row: 0),value: 2)],mode: .arcade,moves:49)
         profile.arcadeRun = run; profile.journeyRuns[2] = NativeBoardState(tiles: run.tiles,board: 2,moves:49)
@@ -188,7 +211,9 @@ final class JimiNativeSettingsTests: XCTestCase {
         XCTAssertEqual(try store.load()?.progression.completedJourneyBoards,profile.progression.completedJourneyBoards)
         try owner.applyDeveloperProgress(.reset,values: ["2"])
         saved = try XCTUnwrap(store.load())
-        XCTAssertNil(saved.journeyRuns[2]); XCTAssertNil(saved.progression.boardStats[2])
+        XCTAssertNil(saved.journeyRuns[2])
+        XCTAssertEqual(saved.progression.boardStats[2]?.highScore,0)
+        XCTAssertEqual(saved.progression.boardStats[2]?.awardedStars,1,"Completed stages retain the existing minimum-star normalization")
         XCTAssertEqual(saved.progression.boardStats[11],stats); XCTAssertEqual(saved.arcadeRun,run)
         XCTAssertEqual(saved.settings,profile.settings); XCTAssertTrue(saved.progression.firstPlayTutorialComplete)
         try owner.applyDeveloperProgress(.reset,values: ["arcade"])

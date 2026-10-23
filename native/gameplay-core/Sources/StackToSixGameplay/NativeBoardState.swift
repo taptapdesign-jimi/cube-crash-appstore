@@ -25,7 +25,8 @@ public enum NativeStarDropCountPolicy {
         variant == nil || variant == "fish" || variant == "kanta" || variant == "cubero"
     }
     public static func effectiveCount(variant:String?,savedCount:Int)->Int {
-        usesRandomCount(variant:variant) ? max(1,min(3,savedCount)) : 1
+        if variant == "bloob-ball" {return NativeBloobBallRewardPolicy.bonusDiceCount}
+        return usesRandomCount(variant:variant) ? max(1,min(3,savedCount)) : 1
     }
 }
 public struct NativeCell: Hashable, Codable, Sendable {

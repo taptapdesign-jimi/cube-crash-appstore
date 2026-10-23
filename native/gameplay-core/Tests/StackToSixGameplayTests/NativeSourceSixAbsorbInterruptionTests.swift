@@ -110,7 +110,7 @@ nonisolated final class NativeSourceSixAbsorbInterruptionTests:XCTestCase {
  }
  func testEveryOriginalSelectedFinalFamilyExplicitInterruptHasNoArtificialCompletion()throws {
   let choices:[NativeWildRewardChoice]=[.init(.star),.init(.juice),.init(.magnet),.init(.tnt)]+NativeSpecialDiceRegistry.variants.values.sorted{$0.id<$1.id}.map{.init($0.archetype,variant:$0.id)}
-  XCTAssertEqual(choices.count,18)
+  XCTAssertEqual(choices.count,19)
   for choice in choices {
    let e=direct(choice),(id,gen)=try reserve(e),before=e.state
    XCTAssertTrue(e.hasUnsavableSourceGameplayState);let result=e.cancelSourceMergeSixAbsorb(receiptID:id,generation:gen)

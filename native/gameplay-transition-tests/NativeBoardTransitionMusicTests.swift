@@ -17,16 +17,18 @@ final class NativeBoardTransitionMusicTests:XCTestCase {
         owner.boardTransitionPhase("begin",ratio:0.62,duration:row.phases[0].duration,generation:9)
         owner.boardTransitionPhase("hold",ratio:0.5,duration:row.phases[1].duration,generation:9)
         owner.boardTransitionPhase("exit",ratio:0.2,duration:row.phases[2].duration-0.32,generation:9)
-        XCTAssertEqual(transport.commands.map(\.op),["volume","volume","volume"])
-        for (command,expected) in zip(transport.commands,row.phases) {
+        XCTAssertEqual(transport.commands.filter{$0.op=="play"}.first?.body["source"] as? String,NativeSoundtrackRouteOwner.gameplaySource)
+        let volumes=transport.commands.filter{$0.op=="volume"}
+        XCTAssertEqual(volumes.count,3)
+        for (command,expected) in zip(volumes,row.phases) {
             XCTAssertEqual(command.body["volume"] as! Double,expected.gain*0.8*0.7,accuracy:0.00000001,row.theme)
             XCTAssertEqual(command.body["duration"] as! Double,expected.duration,accuracy:0.00000001,row.theme)
         }
         XCTAssertEqual(transport.callbacks.count,1)
         owner.boardTransitionPhase("complete",ratio:0.33,duration:0.32,generation:9)
-        owner.setJourneyGameplay();XCTAssertEqual(transport.commands.count,3);XCTAssertTrue(owner.hasBoardTransitionEnvelope)
+        owner.setJourneyGameplay();XCTAssertEqual(transport.commands.filter{$0.op=="volume"}.count,3);XCTAssertTrue(owner.hasBoardTransitionEnvelope)
         transport.callbacks.removeFirst()([:],nil)
-        XCTAssertEqual(transport.commands.last!.body["volume"] as! Double,row.phases[3].gain*0.8*0.7,accuracy:0.00000001)
+        XCTAssertEqual(transport.commands.last!.body["volume"] as! Double,0.11,accuracy:0.00000001)
         XCTAssertEqual(transport.commands.last!.body["duration"] as! Double,row.phases[3].duration)
         XCTAssertTrue(owner.hasBoardTransitionEnvelope)
         transport.callbacks.removeFirst()([:],nil);XCTAssertFalse(owner.hasBoardTransitionEnvelope);owner.dispose()
@@ -56,7 +58,7 @@ final class NativeBoardTransitionMusicTests:XCTestCase {
         XCTAssertEqual(transport.commands.count,count)
         NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
         XCTAssertEqual(transport.commands.suffix(2).map(\.op),["resume","volume"])
-        XCTAssertEqual(transport.commands.last!.body["volume"] as! Double,0.19074*0.8*0.7,accuracy:0.00000001)
+        XCTAssertEqual(transport.commands.last!.body["volume"] as! Double,0.11,accuracy:0.00000001)
         XCTAssertEqual(transport.commands.last!.body["duration"] as! Double,0.42)
         owner.dispose()
     }

@@ -35,6 +35,7 @@ import StackToSixGameplay
         var owner:NativeWildMeterDropSceneOwner?
         var landingOrigin:NativeMeterLandingSourceOwner.Origin?
         var spawned=false,foreground=false,wallUnlocked=false
+        var gameplayTransferred=false
         var sourceTravelReactionScheduled=false,sourceSpawnEventPending=false,sourceBookkeepingSucceeded=false
         init(_ captured:Core.Captured,epoch:UInt64){self.captured=captured;runtime = .init(id:captured.drop.id,generation:captured.drop.generation,epoch:epoch)}
     }
@@ -152,7 +153,7 @@ import StackToSixGameplay
     }
     /// Before canonical map removal, revoke only the captured actual object.
     func remove(_ node:NativeDiceNode){
-        for drop in Array(drops.values) where drop.captured.lease.node === node {retire(drop)}
+        for drop in Array(drops.values) where drop.captured.lease.node === node && !drop.gameplayTransferred {retire(drop)}
         store.remove(node:node)
     }
     func receive(_ result:NativeMoveResult){
@@ -184,13 +185,29 @@ import StackToSixGameplay
             guard valid(),current() else{return false}
             guard let node=hooks.node(id) else{continue}
             guard valid(),current() else{return false}
-            guard transferSettledGameplay(node,generation:generation) else{
+            guard transferAcceptedGameplay(node,generation:generation) else{
                 if valid(),current(){hooks.fault("source_meter_settled_contact_transfer_refused")}
                 return false
             }
             guard valid(),current() else{return false}
         }
         return true
+    }
+    /// Called only for nodes captured by an actually accepted transaction.
+    /// Unlike pickup, a destination is legal during the real140ms handoff.
+    private func transferAcceptedGameplay(_ node:NativeDiceNode,generation:UInt64)->Bool {
+        guard let drop=drops.values.first(where:{$0.captured.lease.node === node}) else{return !owns(node)}
+        if drop.gameplayTransferred {return generation==engine.state.generation && valid(drop)}
+        guard let reservation=engine.meterDropReservations[drop.runtime.id] else{
+            return transferSettledGameplay(node,generation:generation)
+        }
+        guard generation==engine.state.generation,drop.runtime.generation==generation,valid(drop),
+              reservation.landed,reservation.bookkeepingCommitted,drop.sourceBookkeepingSucceeded,
+              let owner=drop.owner,owner.restored,core.releaseToScene(dropID:drop.runtime.id) else{return false}
+        // Release the node lease before external foreground callbacks. The
+        // original wall timeout can now outlive canonical removal of this die.
+        drop.gameplayTransferred=true
+        return owner.transferRestoredTileToGameplay() && valid() && engine.state.generation==generation
     }
     /// Plain v9 wildDropSmokeOrigin was captured before staging. Actual object
     /// identity remains required at impact; the flying pose is never substituted.
@@ -234,6 +251,7 @@ import StackToSixGameplay
     private func valid()->Bool {guard !closed else{return false};let answer=hooks.current();return answer && !closed}
     private func valid(_ drop:Drop)->Bool {
         guard valid(),drops[drop.runtime.id] === drop,engine.state.generation==drop.runtime.generation else{return false}
+        if drop.gameplayTransferred {return true}
         let owned=drop.captured.lease.isOwned()
         return owned && !closed && drops[drop.runtime.id] === drop
     }
@@ -391,7 +409,7 @@ import StackToSixGameplay
         if drop.spawned && drop.foreground && drop.wallUnlocked {
             // Preserve same board node/idle; close transport captures only after
             // actual paint + wall unlock + selected Promise bookkeeping.
-            guard core.releaseToScene(dropID:drop.runtime.id) else{return}
+            guard drop.gameplayTransferred || core.releaseToScene(dropID:drop.runtime.id) else{return}
             drops.removeValue(forKey:drop.runtime.id);drop.owner?.dispose();drop.owner=nil
             guard valid() else{return};hooks.ownershipReleased()
         }

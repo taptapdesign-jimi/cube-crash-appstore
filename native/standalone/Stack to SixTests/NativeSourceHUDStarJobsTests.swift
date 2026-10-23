@@ -9,28 +9,20 @@ import XCTest
         var timers:[Int:(Double,()->Void)]=[:],ids:[String]=[],owner:NativeSourceHUDStarJobs!
         var onCurrent:(()->Bool)?,onMount:(()->Void)?,onRetire:(()->Void)?
         init(readableCoins:Bool=false){owner=NativeSourceHUDStarJobs(hooks:.init(current:{[unowned self] in self.onCurrent?() ?? self.valid},acquireCadence:{[unowned self] in guard self.cadenceAdmitted else{return nil};self.events.append("acquire60");return{self.events.append("release60")}},mountContainer:{[unowned self] in self.events.append("container+");return true},removeContainer:{[unowned self] in self.events.append("container-")},mountStar:{[unowned self] id,plan in self.plans[id]=plan;self.ids.append(id);self.events.append("mount:\(id)");self.onMount?();return true},paintStar:{_,_ in},removeStar:{[unowned self] id in self.events.append("remove:\(id)")},timeline:{[unowned self] _,update,complete in let id=self.ids.last!;self.roots[id]=update;self.completions[id]=complete;self.events.append("root:\(id)");return{self.roots.removeValue(forKey:id);self.completions.removeValue(forKey:id);self.events.append("kill:\(id)")}},wall:{[unowned self] delay,fn in self.sequence += 1;let id=self.sequence;self.timers[id]=(self.time+delay,fn);return{self.timers.removeValue(forKey:id)}},arrive:{[unowned self] id in self.events.append("score:\(id)")},retire:{[unowned self] _,_ in self.events.append("retire");self.onRetire?()}),readableCoins:readableCoins)}
-        func start(_ ids:[String],finalMerge:Bool=false,finalMergeDuration:Double?=nil)->Bool {var seed:UInt32=1;return owner.start(jobID:UUID(),ids:ids,origin:.init(x:195,y:430),target:.init(x:37,y:76),textureWidth:64,finalMerge:finalMerge,finalMergeDuration:finalMergeDuration,random:{seed=seed &* 1664525 &+ 1013904223;return Double(seed)/4294967296})}
+        func start(_ ids:[String])->Bool {var seed:UInt32=1;return owner.start(jobID:UUID(),ids:ids,origin:.init(x:195,y:430),target:.init(x:37,y:76),textureWidth:64,random:{seed=seed &* 1664525 &+ 1013904223;return Double(seed)/4294967296})}
         func wall(_ now:Double){time=now;let due=timers.sorted{$0.value.0<$1.value.0}.filter{$0.value.0<=now};for (id,record) in due where timers[id] != nil {timers.removeValue(forKey:id);record.1()}}
     }
-    func testFinalCoinJobsFillActualAnimationLifetimeAndKeepCleanupMargin() {
-        for lifetime in [0.9,2.15,4.2,5.4,6.0] {
-            let normal=Host(readableCoins:true),paced=Host(readableCoins:true)
-            XCTAssertTrue(normal.start(["a","b","c"]))
-            XCTAssertTrue(paced.start(["a","b","c"],finalMerge:true,finalMergeDuration:lifetime))
-            let normalEnd=normal.plans.values.map(\.end).max()!
-            XCTAssertEqual(paced.plans.values.map(\.end).max()!,lifetime,accuracy:1e-9)
-            for id in normal.ids {
-                XCTAssertEqual(paced.plans[id]!.end,normal.plans[id]!.end*lifetime/normalEnd,accuracy:1e-9)
-                XCTAssertEqual(paced.plans[id]!.points,normal.plans[id]!.points)
-            }
-            let deadline=paced.timers.values.first!.0
-            XCTAssertEqual(deadline,lifetime*1000+80,accuracy:1e-6)
-            paced.wall(deadline-0.001);XCTAssertEqual(paced.owner.jobCount,1)
-            paced.wall(deadline);XCTAssertEqual(paced.owner.jobCount,0)
-            XCTAssertEqual(normal.owner.jobCount,1)
-            XCTAssertEqual(paced.events.filter{$0=="retire"}.count,1)
-            normal.owner.dispose();paced.owner.dispose()
-        }
+    func testNativeCoinJobsKeepNormalBatchCleanupDeadline() {
+        let host=Host(readableCoins:true)
+        XCTAssertTrue(host.start(["a","b","c"]))
+        let normalEnd=host.plans.values.map(\.end).max()!
+        XCTAssertLessThan(normalEnd,3)
+        let deadline=host.timers.values.first!.0
+        XCTAssertEqual(deadline,normalEnd*1000+80,accuracy:1e-6)
+        host.wall(deadline-0.001);XCTAssertEqual(host.owner.jobCount,1)
+        host.wall(deadline);XCTAssertEqual(host.owner.jobCount,0)
+        XCTAssertEqual(host.events.filter{$0=="retire"}.count,1)
+        host.owner.dispose()
     }
     func testRefusedActualFlightCadenceRetiresJobBeforeAnyStarOrTimeline() {
         let h=Host();h.cadenceAdmitted=false

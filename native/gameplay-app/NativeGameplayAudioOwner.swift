@@ -157,6 +157,7 @@ final class NativeGameplayAudioOwner {
             if variants.isEmpty && types.isEmpty {play("regular6");return}
             play("poof")
             if variants.contains("baloon") {play("foundation");play("baloonMerge")}
+            if variants.contains("bloob-ball") {play("foundation");for cue in NativeBloobBallAudio.cues("merge"){transport.play(cue)}}
             if types.contains(.tnt) || !variants.isDisjoint(with:["flower","beach-ball","laser-gun","barell"]) {tntOrder=shuffle([0,1,2,3,4])}
             if variants.isEmpty && types.contains(.star) {play("star\(pick(4))")}
             if variants.isEmpty && types.contains(.tnt) && tiles.filter({$0.archetype != nil}).count<=1 {play("tnt")}
@@ -371,6 +372,7 @@ final class NativeGameplayAudioOwner {
             transport.play(NativeAudioCue(source:"assets/sound/coins/tnt coin.wav",voice:"native-tnt-coin-\(generation)-\(receipt)",gain:0.12));return
         }
         if moment=="landing" {play("landing");return}
+        if variant=="bloob-ball" {for cue in NativeBloobBallAudio.cues(moment,index:index){transport.play(cue)};return}
         let group:String?
         switch (variant,moment) {
         case ("baloon","start"):group="baloonStart"

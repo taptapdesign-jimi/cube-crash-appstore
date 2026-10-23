@@ -1,6 +1,6 @@
 import UIKit
 
-/// Source-authored 3.8-second saucer, beams and 25 individual debris owners.
+/// Source-authored 3.8-second saucer, beams and 46 individual debris owners.
 /// A single finite clock samples all tracks. Retired debris/beam owners stop receiving paint work.
 @MainActor
 final class NativeSpaceshipFinalePresentation: NativeFinitePresentation {
@@ -27,13 +27,12 @@ final class NativeSpaceshipFinalePresentation: NativeFinitePresentation {
         frames = (1...4).compactMap { artwork.image("assets/shop/spaceship/saucer\($0)@2x.png") }
         leftBeam.image = artwork.image("assets/shop/spaceship/leftbeam@2x.png")
         rightBeam.image = artwork.image("assets/shop/spaceship/rightbeam@2x.png")
-        glyphs = NativeSplashGlyphField(artwork: artwork,text: "WOOMBUU",
-            colors: [UIColor(red: 117/255,green: 196/255,blue: 195/255,alpha: 1),UIColor(red: 88/255,green: 217/255,blue: 234/255,alpha: 1)],
-            splitIndex: 3,letterOpacityRange: 0.8...1,random: random)
+        glyphs = NativeSplashGlyphField.clankStyle(artwork:artwork,text:"WOOMBUU",random:random)
         var prepared: [Debris] = [],allAssets = frames.count == 4 && leftBeam.image != nil && rightBeam.image != nil
-        for plan in NativeArea55Motion.debris {
+        func prepare(_ plan:NativeArea55Motion.DebrisPlan) {
             let mover = UIView(),visual: UIView
             mover.isUserInteractionEnabled = false; mover.layer.zPosition = plan.z
+            mover.isHidden = plan.isSideIntake
             if plan.value > 0 {
                 let die = UIView(),base = UIImageView(image: artwork.image("assets/tile@2x.png"))
                 allAssets = allAssets && base.image != nil
@@ -52,11 +51,13 @@ final class NativeSpaceshipFinalePresentation: NativeFinitePresentation {
             }
             mover.bounds = CGRect(x: 0,y: 0,width: plan.size,height: plan.size)
             visual.frame = mover.bounds; mover.addSubview(visual)
-            prepared.append(.init(plan: plan,scatter: NativeArea55Motion.scatter(plan,random: random),mover: mover,visual: visual))
+            prepared.append(.init(plan: plan,scatter: NativeArea55Motion.scatter(plan,random: random),mover: mover,visual: visual,retired:plan.isSideIntake))
         }
-        debris = prepared
+        for plan in NativeArea55Motion.debris {prepare(plan)}
         // The source schedules the right lead and its shuffled cycles before left shimmer.
         rightSteps = Self.makeBeamSteps(left: false,random: random); leftSteps = Self.makeBeamSteps(left: true,random: random)
+        for plan in NativeArea55Motion.additionalSideDebris {prepare(plan)}
+        debris = prepared
         assetReady = allAssets && FileManager.default.fileExists(atPath: resourceRoot.appendingPathComponent("assets/fonts/Baloo2-ExtraBold.ttf").path)
         super.init(viewport: viewport,duration: 3.8)
         clipsToBounds = true
@@ -94,22 +95,32 @@ final class NativeSpaceshipFinalePresentation: NativeFinitePresentation {
         }
         let frame = seconds < 0.20 ? 0 : Int(floor((seconds-0.20)/0.11))%4
         if frame != bitmapIndex && frames.indices.contains(frame) { saucer.image = frames[frame]; bitmapIndex = frame }
+        // Lead the debris track by250ms while preserving saucer,beam and cue timing.
+        let debrisSeconds = seconds+0.25
         for i in debris.indices {
             let item = debris[i],plan = item.plan,s = item.scatter
-            if seconds >= plan.arrival+0.01 {
+            let trackSeconds = debrisSeconds
+            if trackSeconds < plan.delay {
+                item.mover.isHidden = true; debris[i].retired = true
+                continue
+            }
+            if trackSeconds >= plan.arrival+0.01 {
                 if !item.retired { item.mover.isHidden = true; debris[i].retired = true }
                 continue
             }
             if item.retired { item.mover.isHidden = false; debris[i].retired = false }
-            let elapsed = max(0,seconds-plan.delay),p = NativeArea55Motion.clamp(elapsed/(1.95+plan.order*0.04)),m = NativeArea55Motion.magnetic(p)
+            let elapsed = max(0,trackSeconds-plan.delay),p = NativeArea55Motion.clamp(elapsed/plan.travelDuration),m = NativeArea55Motion.magnetic(p)
             let target = NativeArea55Motion.intake(pose: pose,order: plan.order,viewport: bounds.size)
             let wobble = sin(p * .pi*2*(2.2+plan.order.truncatingRemainder(dividingBy: 4)*0.32))*sin(.pi*m)
-            item.mover.center = CGPoint(x: NativeArea55Motion.bezier(Double(bounds.width)*s.x/100,Double(bounds.width)*s.c1/100,Double(bounds.width)*s.c2/100,Double(target.x),m),y: Double(bounds.height)*s.y/100+(Double(target.y)-Double(bounds.height)*s.y/100)*m)
+            // Include rotated artwork radius and maximum lateral wobble in the offscreen margin.
+            let margin = plan.size+66
+            let startX = plan.isSideIntake ? (plan.x<50 ? -margin:Double(bounds.width)+margin):Double(bounds.width)*s.x/100
+            item.mover.center = CGPoint(x: NativeArea55Motion.bezier(startX,Double(bounds.width)*s.c1/100,Double(bounds.width)*s.c2/100,Double(target.x),m),y: Double(bounds.height)*s.y/100+(Double(target.y)-Double(bounds.height)*s.y/100)*m)
             let scale = 1.4-0.8*pow(m,1.18); item.mover.transform = CGAffineTransform(scaleX: scale,y: scale)
-            var rotation = s.rotation*(1-m)+plan.wobble*wobble
+            var rotation = s.rotation*(1-m)+plan.wobble*wobble+plan.spin*sin(.pi*m)
             if plan.value > 0 { rotation = NativeArea55Motion.clamp(rotation,-60,60) }
             item.visual.transform = CGAffineTransform(translationX: s.drift*wobble,y: 0).rotated(by: rotation * .pi/180)
-            item.mover.alpha = seconds < plan.delay ? 0 : plan.delay > 0 ? CGFloat(1-pow(1-min(1,elapsed/0.12),2)) : 1
+            item.mover.alpha = plan.isSideIntake ? 1:plan.delay > 0 ? CGFloat(1-pow(1-min(1,elapsed/0.12),2)):1
         }
         glyphs.paint(seconds: seconds)
         for (time,name) in [(0.0,"spaceship-start"),(0.34,"spaceship-beam"),(2.62,"spaceship-exit")] where seconds >= time && !deliveredCues.contains(name) {

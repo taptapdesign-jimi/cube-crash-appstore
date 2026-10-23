@@ -85,7 +85,8 @@ public enum NativeJourneyContent {
         case 21: return ["robo-cube"]
         case 22: return ["kanta","robo-cube"]
         case 23: return ["kanta","robo-cube","spaceship"]
-        case 24...30: return ["kanta","robo-cube","spaceship","laser-gun"]
+        case 24...26: return ["kanta","robo-cube","spaceship","laser-gun"]
+        case 27...30: return ["kanta","robo-cube","spaceship","laser-gun","bloob-ball"]
         default: return []
         }
     }
@@ -112,16 +113,23 @@ public enum NativeJourneyContent {
         return reward(named:name)
     }
     public static func reward(board: Int, wildSpawnCount: Int, roll: Double, previous: NativeWildArchetype? = nil,mushroomIntroduced:Bool=false,unlockedDice:Set<String>=[],introducedDice:Set<String>?=nil) -> NativeWildReward? {
-        // First two earned drops use the normal pool. If this Unit's die
-        // has not actually completed a drop, the third guarantees it.
-        // Legacy runs already introduced their non-Mushroom die on drop one.
-        if let id=introductionID(board:board),id != "mushroom",wildSpawnCount>=2,
-           !(introducedDice?.contains(id) ?? (wildSpawnCount>0)) {
-            return reward(named:id)
-        }
-        let pool = availableRewardPool(board:board,unlockedDice:unlockedDice)
+        var pool = availableRewardPool(board:board,unlockedDice:unlockedDice)
         guard !pool.isEmpty else { return nil }
-        let bounded = roll.isFinite ? max(0,min(1-Double.ulpOfOne,roll)) : 0
+        var bounded = roll.isFinite ? max(0,min(1-Double.ulpOfOne,roll)) : 0
+        var mushroomProbability=NativeWildRewardPolicy.mushroomProbability
+        // Uniform first-appearance slot: 1/3 now, 1/2 if still absent on
+        // drop two, then guaranteed. Reuse the same draw for the other pool.
+        // Legacy runs retain evidence of their former first-drop guarantee.
+        if let id=introductionID(board:board),id != "mushroom",
+           !(introducedDice?.contains(id) ?? (wildSpawnCount>0)) {
+            let chance=1/Double(max(1,3-wildSpawnCount))
+            if bounded<chance {return reward(named:id)}
+            pool.removeAll{$0==id}
+            guard !pool.isEmpty else{return reward(named:id)}
+            bounded=(bounded-chance)/(1-chance)
+            // Preserve Mushroom's 5% absolute weight on non-forced drops.
+            mushroomProbability=min(1,mushroomProbability/(1-chance))
+        }
         if board==6,!mushroomIntroduced {
             // Uniform introduction slot among the first three earned drops:
             //1/3 now,1/2 if still absent next time, guaranteed on the third.
@@ -132,7 +140,7 @@ public enum NativeJourneyContent {
             return reward(named:others[min(others.count-1,Int(adjusted*Double(others.count)))])
         }
         if pool.contains("mushroom") {
-            let probability=NativeWildRewardPolicy.mushroomProbability
+            let probability=mushroomProbability
             if bounded<probability {return reward(named:"mushroom")}
             let others=pool.filter{$0 != "mushroom"}
             guard !others.isEmpty else{return reward(named:"mushroom")}

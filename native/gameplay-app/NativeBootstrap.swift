@@ -194,6 +194,7 @@ final class NativeBootstrap {
         let transport = JimiNativeMusic(root:root)
         soundtrack = NativeSoundtrackRouteOwner(root: root,transport:transport)
         arcadeMusic = NativeArcadeMusicOwner(transport:transport)
+        arcadeMusic?.onPlaybackReady = { [weak self] duration in self?.soundtrack?.arcadePlaybackReady(duration:duration) }
         audio = NativeGameplayAudioOwner(root:root,enabled:envelope.settings.gameSoundsEnabled,
             random:{[sourceContext] in sourceContext.smokeSession.nextVisualRandom()})
         ambient = NativeJourneyAmbientOwner(root:root,enabled:envelope.settings.gameSoundsEnabled)
@@ -1189,6 +1190,8 @@ final class NativeBootstrap {
             self.arcadeEntryCue=nil
             if success {release()}
         }
+        soundtrack?.setArcadeGameplay()
+        arcadeMusic?.enterRound(generation:generation)
         cue.start()
     }
     private func rebuildSourceGameplay(_ previous:NativeGameplayViewController,board:Int?,entry:FreshGameplayEntry,onReplaced:(()->Void)?=nil) {
@@ -1715,7 +1718,12 @@ final class NativeBootstrap {
         var next = envelope
         for board in values.compactMap(Int.init) where (1...30).contains(board) {
             switch action {
-            case .show: next.progression.completedJourneyBoards.insert(board)
+            case .show:
+                next.progression.completedJourneyBoards.insert(board)
+                // Explicit DEV reveal also exposes this Unit's collection reward.
+                if let id=NativeJourneyContent.introductionID(board:board) {
+                    next.progression.announceJourneyDie(id,board:board)
+                }
             case .hide:
                 next.progression.resetDeveloperJourneyDieAnnouncement(board:board)
                 next.progression.completedJourneyBoards.remove(board); next.progression.viewedJourneyBoards.remove(board)

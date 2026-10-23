@@ -11,12 +11,31 @@ struct NativeLaserVisualTarget {
 /// One eligible controller owns preparation and retains these bitmaps through its exact presentation lease.
 @MainActor
 final class NativeLaserGunResources {
+    let artwork:JimiV9Artwork
     let frames: [UIImage]
     let leftBeam: UIImage?
     let rightBeam: UIImage?
     var assetReady: Bool { frames.count == 6 && leftBeam != nil && rightBeam != nil }
+    init(artwork:JimiV9Artwork,frames:[UIImage],leftBeam:CGImage,rightBeam:CGImage) {
+        self.artwork=artwork
+        self.frames=frames
+        self.leftBeam=UIImage(cgImage:leftBeam,scale:2,orientation:.up)
+        self.rightBeam=UIImage(cgImage:rightBeam,scale:2,orientation:.up)
+    }
+    nonisolated struct BeamPixels:@unchecked Sendable {
+        let left,right:CGImage
+        func prepare() throws -> Self {
+            try Task.checkCancellation()
+            guard let l=NativeLaserGunImpactPresentation.prepareBeamPixels(left) else {throw CancellationError()}
+            try Task.checkCancellation()
+            guard let r=NativeLaserGunImpactPresentation.prepareBeamPixels(right) else {throw CancellationError()}
+            try Task.checkCancellation()
+            return Self(left:l,right:r)
+        }
+    }
     init(resourceRoot: URL,preparedArtwork:JimiV9Artwork?=nil) {
         let artwork = preparedArtwork ?? JimiV9Artwork(resourceRoot:resourceRoot)
+        self.artwork=artwork
         frames = (1...6).compactMap{artwork.image("assets/shop/gun/lasergun\($0)@2x.png")}
         leftBeam = artwork.image("assets/shop/gun/left laser@2x.png").flatMap(NativeLaserGunImpactPresentation.prepareBeam)
         rightBeam = artwork.image("assets/shop/gun/right laser@2x.png").flatMap(NativeLaserGunImpactPresentation.prepareBeam)
@@ -41,9 +60,11 @@ final class NativeLaserGunImpactPresentation: NativeFinitePresentation {
         var frameSixPainted = false,contact = false,retired = false,bitmap = -1
         init(target: NativeLaserVisualTarget,pose: NativeLaserGunGeometry.Pose) { self.target = target; self.pose = pose }
     }
+    private let glyphs:NativeSplashGlyphField
+    private var captionAt:Double?
     private let shots: [Shot]
     private var scenePaints = 0,nextIndex = 0,earliestFire = 0.0,preflightAt = 0.0,completedImpacts = false
-    private static let entry = 0.325,firstLead = 0.621,flight = 0.095,exitDelay = 0.405,exitDuration = 0.273
+    private static let entry = 0.325,flight = 0.095,exitDelay = 0.405,exitDuration = 0.273
     convenience init(resourceRoot: URL,viewport: CGSize,targets: [NativeLaserVisualTarget],generation: UInt64,
          random: () -> Double = { Double.random(in:0..<1) }) {
         self.init(resources:NativeLaserGunResources(resourceRoot:resourceRoot),viewport:viewport,targets:targets,generation:generation,random:random)
@@ -64,7 +85,10 @@ final class NativeLaserGunImpactPresentation: NativeFinitePresentation {
             if target.shooter == .left { y = leftY[leftUsed]; leftUsed += 1 } else { y = rightY[rightUsed]; rightUsed += 1 }
             return Shot(target:target,pose:NativeLaserGunGeometry.solve(side:target.shooter,target:target.point,viewport:viewport,scale:scales[index%3],nominalY:y))
         }
+        glyphs=NativeSplashGlyphField(artwork:resources.artwork,text:"ZAP - ZAP",
+            colors:[UIColor(red:243.0/255,green:166.0/255,blue:84.0/255,alpha:1),UIColor(red:238.0/255,green:147.0/255,blue:67.0/255,alpha:1)],splitIndex:4,fitToWidth:true,random:random)
         super.init(viewport:viewport,duration:.infinity)
+        glyphs.layer.zPosition=10;addSubview(glyphs)
         clipsToBounds = false
         for shot in shots {
             addSubview(shot.beam); shot.beam.addSubview(shot.stretch); shot.stretch.addSubview(shot.beamImage)
@@ -80,7 +104,10 @@ final class NativeLaserGunImpactPresentation: NativeFinitePresentation {
     override func start() { guard assetReady else { dispose(); return }; super.start() }
     override func dispose() { onImpact = nil; onImpactsComplete = nil; super.dispose() }
     fileprivate static func prepareBeam(_ image: UIImage) -> UIImage? {
-        guard let cg = image.cgImage else { return nil }
+        guard let cg = image.cgImage,let rendered=prepareBeamPixels(cg) else { return nil }
+        return UIImage(cgImage:rendered,scale:2,orientation:.up)
+    }
+    nonisolated fileprivate static func prepareBeamPixels(_ cg:CGImage)->CGImage? {
         let original = CIImage(cgImage:cg),factor = 1.416
         let bright = original.applyingFilter("CIColorMatrix",parameters:["inputRVector":CIVector(x:factor,y:0,z:0,w:0),"inputGVector":CIVector(x:0,y:factor,z:0,w:0),"inputBVector":CIVector(x:0,y:0,z:factor,w:0)])
         let vivid = bright.applyingFilter("CIColorControls",parameters:[kCIInputSaturationKey:1.344])
@@ -89,10 +116,11 @@ final class NativeLaserGunImpactPresentation: NativeFinitePresentation {
             .applyingFilter("CIGaussianBlur",parameters:[kCIInputRadiusKey:8.4])
         let output = vivid.composited(over:shadow),extent = original.extent.insetBy(dx:-26,dy:-26)
         guard let rendered = CIContext(options:[.cacheIntermediates:false]).createCGImage(output,from:extent) else { return nil }
-        return UIImage(cgImage:rendered,scale:2,orientation:.up)
+        return rendered
     }
     override func layoutSubviews() {
         super.layoutSubviews()
+        glyphs.frame=bounds;glyphs.layoutIfNeeded()
         for shot in shots {
             let p = shot.pose,size = CGSize(width:p.width,height:p.width*183/200)
             shot.gun.bounds = CGRect(origin:.zero,size:size)
@@ -119,10 +147,14 @@ final class NativeLaserGunImpactPresentation: NativeFinitePresentation {
         guard assetReady else { return }
         // Two distinct mounted samples provide the source's initial paint barrier.
         if scenePaints < 2 { scenePaints += 1; return }
-        if nextIndex == 0 && shots[0].entryAt == nil { earliestFire = seconds+Self.firstLead; preflightAt = seconds }
+        if nextIndex == 0 && shots[0].entryAt == nil { earliestFire = seconds; preflightAt = seconds }
         if nextIndex < shots.count {
             let shot = shots[nextIndex]
-            if shot.entryAt == nil && seconds >= preflightAt { shot.entryAt = seconds; onCue?("laser-gun-prepare",nextIndex) }
+            if shot.entryAt == nil && seconds >= preflightAt {
+                shot.entryAt = seconds
+                if nextIndex == 0 {shot.fireAt=seconds}
+                onCue?("laser-gun-prepare",nextIndex)
+            }
             if let entryAt = shot.entryAt,shot.fireAt == nil,seconds-entryAt >= Self.entry {
                 if !shot.entryCompleted { shot.entryCompleted = true }
                 else { shot.posePaints += 1 }
@@ -133,25 +165,37 @@ final class NativeLaserGunImpactPresentation: NativeFinitePresentation {
             guard !shot.retired,let entryAt = shot.entryAt else { continue }
             let p = shot.pose,entryProgress = min(1,max(0,(seconds-entryAt)/Self.entry))
             let entryEase = Double(NativeBoardMotion.Ease.backOut(2.35).sample(CGFloat(entryProgress)))
-            var translation = p.offscreen*(1-entryEase),scale = 0.65+(p.scale-0.65)*entryEase,opacity = min(1,max(0,entryEase))
+            var translation = p.offscreen*(1-entryEase),opacity = min(1,max(0,entryEase))
+            let scale = 0.65+(p.scale-0.65)*entryEase
             let elasticP = max(0,min(1,(seconds-entryAt-0.091)/0.221)),period = 0.30,amplitude = 1.05,shift = period/(2 * .pi)*asin(1/amplitude)
             let elastic = elasticP == 0 ? 0 : elasticP == 1 ? 1 : amplitude*pow(2,-10*elasticP)*sin((elasticP-shift)*2 * .pi/period)+1
             shot.image.transform = CGAffineTransform(scaleX:0.88+0.12*elastic,y:0.88+0.12*elastic)
             var frame = 0
             if let fire = shot.fireAt {
+                // First gun cocks during entry and fires at 90% of arrival.
+                // Later relay shots retain authored pacing.
                 let t = seconds-fire
                 if t < 0.2833333333333333 { frame = min(4,max(0,Int(t/0.06))) }
                 else if t < 0.36 { frame = 5 }
                 else { frame = max(0,4-Int((t-0.36)/0.06)) }
-                if t >= 0.3 && shot.launchAt == nil {
+                if t >= (index == 0 ? Self.entry*0.9:0.3) && shot.launchAt == nil {
                     if !shot.frameSixPainted { frame = 5; shot.frameSixPainted = true }
-                    else { shot.launchAt = seconds; onCue?("laser-gun-beam",index) }
+                    else { shot.launchAt = seconds; if captionAt == nil {captionAt=seconds}; onCue?("laser-gun-beam",index) }
                 } else if frame == 5 { shot.frameSixPainted = true }
             }
             if let launch = shot.launchAt {
                 let t = seconds-launch,travel = min(1,max(0,t/Self.flight)),left = shot.target.shooter == .left
                 let baseline = hypot(left ? 280.5 : -294.5,left ? 188.5 : -170)
-                let length = max(1,hypot(Double(shot.target.point.x-p.barrel.x),Double(shot.target.point.y-p.barrel.y))),long = length/baseline
+                let exit = max(0,min(1,(t-Self.exitDelay)/Self.exitDuration)),exitEase = pow(exit,3)
+                translation += p.offscreen*exitEase;opacity *= 1-exitEase
+                // Analytic marker follows the same moving UIKit hierarchy,
+                // without transform writes followed by geometry/layout reads.
+                let barrel=NativeLaserGunGeometry.marker(CGPoint(x:0.24,y:0.32),side:shot.target.shooter,
+                    center:CGPoint(x:p.center.x+translation,y:p.center.y),width:p.width,scale:scale,aim:p.aim)
+                let dx=Double(shot.target.point.x-barrel.x),dy=Double(shot.target.point.y-barrel.y)
+                let length = max(1,hypot(dx,dy)),long = length/baseline
+                shot.beam.layer.position=barrel
+                shot.beam.transform=CGAffineTransform(rotationAngle:atan2(dy,dx))
                 shot.stretch.transform = CGAffineTransform(scaleX:long*(0.06+0.94*(1-pow(1-travel,3))),y:long*2.34)
                 shot.beam.isHidden = shot.contact
                 if !shot.contact && t >= Self.flight {
@@ -160,8 +204,6 @@ final class NativeLaserGunImpactPresentation: NativeFinitePresentation {
                     nextIndex += 1; earliestFire = seconds+0.3; preflightAt = earliestFire-0.154
                     if nextIndex == shots.count && !completedImpacts { completedImpacts = true; let done = onImpactsComplete; onImpactsComplete = nil; done?() }
                 }
-                let exit = max(0,min(1,(t-Self.exitDelay)/Self.exitDuration)),exitEase = pow(exit,3)
-                translation = p.offscreen*exitEase; scale = p.scale; opacity = 1-exitEase
                 shot.gun.isHidden = exit >= 1; shot.retired = exit >= 1
             } else { shot.gun.isHidden = false }
             shot.gun.center = CGPoint(x:p.center.x+translation,y:p.center.y)
@@ -169,6 +211,7 @@ final class NativeLaserGunImpactPresentation: NativeFinitePresentation {
             shot.gun.alpha = opacity
             if frame != shot.bitmap { shot.image.image = frames[frame]; shot.bitmap = frame }
         }
-        if completedImpacts && shots.allSatisfy({$0.gun.isHidden}) { onImpact = nil; completePresentation() }
+        glyphs.paint(seconds:captionAt.map{max(0,seconds-$0)} ?? 0)
+        if completedImpacts && captionAt.map({seconds-$0>=glyphs.duration}) == true && shots.allSatisfy({$0.gun.isHidden}) { onImpact = nil; completePresentation() }
     }
 }

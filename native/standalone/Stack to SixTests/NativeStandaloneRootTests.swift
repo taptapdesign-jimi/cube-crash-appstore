@@ -675,6 +675,12 @@ import StackToSixNativeState
     func testActualCompleteLaserReverseNoTargetOwnerBoundary()async throws {
         try await runTntResumeRoot(cancelBeforeMain:false,noTargets:true,variant:"laser-gun",wildDestination:true,complete:true)
     }
+    func testActualCompleteLaserForwardWithTargets()async throws {
+        try await runTntResumeRoot(cancelBeforeMain:false,variant:"laser-gun",complete:true)
+    }
+    func testActualCompleteLaserReverseWithTargets()async throws {
+        try await runTntResumeRoot(cancelBeforeMain:false,variant:"laser-gun",wildDestination:true,complete:true)
+    }
     func testAuthoredTntReverseDestinationAndLaserNoTargetActualOwners()async throws {
         for variant in ["flower","barell","beach-ball","laser-gun"] {
             try await runTntResumeRoot(cancelBeforeMain:false,noTargets:variant=="laser-gun",variant:variant,wildDestination:true,complete:true)
@@ -724,6 +730,7 @@ import StackToSixNativeState
         }
         let game=try XCTUnwrap(app.children.compactMap{$0 as? NativeGameplayViewController}.first),scene=try XCTUnwrap(game.boardScene)
         XCTAssertTrue(game.engine.sourceTntMain80Enabled);XCTAssertTrue(game.engine.stagedTntWildSpawnAssignments)
+        if variant=="laser-gun" {print("[LaserIncidentTest] entry ready reverse=\(wildDestination) targets=\(!noTargets)")}
         XCTAssertTrue(scene.sourceHUDStarJobsAdmissionOpen)
         var preparedCoins:[NativeHUDStarReceipt]=[],impacts=0
         var mainScore:Int?,reward=0
@@ -770,6 +777,7 @@ import StackToSixNativeState
         XCTAssertTrue(scene.beginDrag(at:start));scene.moveDrag(to:end,now:Date().timeIntervalSince1970)
         try await Task.sleep(for:.milliseconds(160))
         let result=try XCTUnwrap(scene.finishDrag(at:end,now:Date().timeIntervalSince1970));XCTAssertTrue(result.accepted)
+        if variant=="laser-gun" {print("[LaserIncidentTest] contact accepted=\(result.accepted) diagnostic=\(scene.sourceTntMainDiagnostic())")}
         XCTAssertTrue(scene.sourceNativeTileNode("source") === source)
         XCTAssertTrue(scene.sourceNativeTileNode("destination") === destination)
         XCTAssertNil(game.engine.pendingDirectWild)

@@ -202,3 +202,23 @@ All other user-supplied audio remains preserved but is not newly wired.
 The assistant-generated Gameplay, Navigation and prior Merge-6 candidate/runtime packages and their runtime modules were removed permanently.
 
 Beyond the integrations listed above, no other sound family is currently approved for a new integration. Future work should begin from a separately auditioned cue and keep Gameplay, Navigation/CTA, Journey, Settings, Wild/Special and Board Transition ownership independent.
+
+### Native gameplay theme replacement — 2026-10-23
+
+Standalone Native Journey and Arcade now use `assets/sound/soundtrack/taptap-gameplay-v1/taptap-gameplay-intro-loop.wav`, derived without changing `TapTapDesign-Stacktosixtheme.wav`. Two-bar one-time opening (80ms entrance),32-bar loop,estimated118.08BPM; exact48kHz loop frames195122–3317074. Two-bar complementary-cosine musical return excludes the supplied ending/fade. Journey gain0.11; Arcade gain0.11 with no Merge6 Active promotion. Existing result silence/release and Arcade Stage Clear0.07 remain. Menu retains the old SIx theme at0.32368; preserved web manager and old audio assets are unchanged by this task. Rebuild/measurement report lives beside the new asset; listening acceptance remains required.
+
+Native route handoff update2026-10-23: Menu↔Journey source changes overlap for1.25s instead of disposing before new file setup. Arcade gameplay begins during NN;menu remains audible until actual incoming play readiness and then fades out over the incoming envelope. Final gameplay levels remain11percent;result/NN SFX and source assets are unchanged.
+
+- Native Baloon Merge-6 adds Juice `mini2.mp3` at gain `0.39`, rate `1`, immediate, once per accepted merge receipt; existing Baloon layers remain. Uses the same level as Juice straw finale.
+
+- Area55 continuous World/gameplay ambient loop gain is now `0.36`, a further 40percent reduction from `0.60`. Other ambient voices unchanged.
+
+Bloob Ball travel update (2026-10-23): merge keeps radio break; splat.wav moves to the first actual burst frame alongside bum puf.wav, after0.6s frozen-frame travel plus0.25s SVG anticipation. Existing crash/Juice mini2, gains, Settings/foreground guards and bounded transport retained. Coins start only after the entire burst disappears.
+
+Bloob polish (2026-10-23): central burst adds existing CTA/poping.wav (0.275187s,48kHz stereo PCM16) as a Bloob-owned voice at0.6,retaining Juice mini2.mp3 at0.39. Three blue exit carriers inflate140ms then emit one indexed pop at0.6 on disappearance. Same Sounds/foreground/generation gates and bounded transport;no audio source changes.
+
+Bloob cue timing/mix update (2026-10-23):radio break.wav moves from committed merge to the first visible finale/rise sample,gain0.18. Committed merge now adds Juice mini2.mp3 at0.39 with no delay;existing burst mini2 remains0.39 at90ms after burst. Bloob burst crash.wav gain0.6→0.3 (50percent reduction),55ms offset unchanged. Same bounded transport,Settings/lifecycle guards and preserved originals.
+
+Bloob merge beam layer (2026-10-23):committed merge6 adds existing gun/beam1.wav at0.357 (same authored Gun gain),delay0/rate1 with dedicated bloob-ball-merge-beam1 voice alongside mini2. Bloob selected preload includes beam1;shared transport/Sounds/lifecycle ownership retained. No source byte changes.
+
+Bloob merge mix follow-up (2026-10-23):remove Juice mini2 only from committed merge6;retain burst mini2 at0.39/90ms. Increase Bloob-owned beam1 gain20percent relative0.357→0.4284;Gun and transition beam owners unchanged. Existing source/preload/transport/lifecycle retained.

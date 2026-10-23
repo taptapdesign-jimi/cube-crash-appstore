@@ -18,12 +18,12 @@ final class NativeComboCoinRewardTests:XCTestCase {
         for mode in [NativeRunMode.journey,.arcade] {for (type,variant) in families {for (combo,count) in thresholds where combo>0 {for reverse in [false,true] {
             let e=engine(type,variant,combo:combo-1,mode:mode)
             XCTAssertTrue(e.beginDrag(tileID:reverse ? "d":"s"));XCTAssertTrue(e.drop(target:.init(column:reverse ? 0:1,row:0)).accepted)
-            XCTAssertEqual(e.state.combo,combo);XCTAssertEqual(e.pendingHUDStars.count,count,"\(mode) \(variant ?? type.rawValue) combo \(combo)")
+            XCTAssertEqual(e.state.combo,combo);XCTAssertEqual(e.pendingHUDStars.count,variant=="bloob-ball" ? 6:count,"\(mode) \(variant ?? type.rawValue) combo \(combo)")
             XCTAssertTrue(e.pendingHUDStars.allSatisfy{$0.archetype == type})
             e.sourceHUDStarJobsEnabled=true
             let ids=e.pendingHUDStars.map(\.id),job=try XCTUnwrap(e.registerSourceHUDStarJob(receiptIDs:ids,generation:e.state.generation)),score=e.state.score
             for id in ids {XCTAssertTrue(e.commitSourceHUDStarArrival(job:job,receiptID:id).accepted);XCTAssertFalse(e.commitSourceHUDStarArrival(job:job,receiptID:id).accepted)}
-            XCTAssertEqual(e.state.score,score+100*count);XCTAssertTrue(e.retireSourceHUDStarJob(job:job));XCTAssertTrue(e.pendingHUDStars.isEmpty)
+            XCTAssertEqual(e.state.score,score+100*(variant=="bloob-ball" ? 6:count));XCTAssertTrue(e.retireSourceHUDStarJob(job:job));XCTAssertTrue(e.pendingHUDStars.isEmpty)
         }}}}
     }
     func testTntSplitsComboBudgetBetweenCenterAndEveryActualImpact()throws {

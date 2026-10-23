@@ -16,6 +16,7 @@ public enum NativeSpecialDiceRegistry {
         Variant("fish", .star, "assets/shop/fish/fish.png"),
         Variant("kanta", .star, "assets/shop/kanta/04.png"),
         Variant("bee", .star, "assets/shop/bee/bee1@2x.png"),
+        Variant("bloob-ball", .star, "assets/shop/bloog ball/bloob-ball@2x.png"),
         Variant("laser-gun", .tnt, "assets/shop/gun/right gun@2x.png", ratio: 0.7),
         Variant("spaceship", .magnet, "assets/shop/spaceship/spaceship@2x.png"),
         Variant("bottle", .magnet, "assets/shop/bottle/glass bottle@2x.png"),
@@ -35,7 +36,7 @@ public enum NativeSpecialDiceRegistry {
             switch variant {
             case "bee","flower","honey","mushroom","barell":return "forest"
             case "baloon","fish","beach-ball","bottle":return "beach"
-            case "kanta","robo-cube","spaceship","laser-gun","cubero":return "area55"
+            case "bloob-ball","kanta","robo-cube","spaceship","laser-gun","cubero":return "area55"
             default:return nil
             }
         }

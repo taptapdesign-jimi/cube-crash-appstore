@@ -8,8 +8,12 @@ final class NativeArcadeMusicTests:XCTestCase {
     private final class Transport:NativeSoundtrackTransport {
         struct Command {let id:String,op:String,body:[String:Any]}
         var commands:[Command]=[];var position=1.1
+        var deferPlay=false
+        var playReply:((Any?,String?)->Void)?
         func perform(id:String,op:String,body:[String:Any],replyHandler:@escaping (Any?,String?)->Void) {
-            commands.append(Command(id:id,op:op,body:body));replyHandler(["position":position,"duration":49.399658],nil)
+            commands.append(Command(id:id,op:op,body:body))
+            if op=="play",deferPlay {playReply=replyHandler;return}
+            replyHandler(["position":position,"duration":49.399658],nil)
         }
     }
     private final class Job:NativeMusicCancellation {
@@ -21,6 +25,18 @@ final class NativeArcadeMusicTests:XCTestCase {
     private final class Scheduler:NativeMusicScheduler {
         var jobs:[Job]=[]
         func after(_ seconds:Double,_ callback:@escaping ()->Void)->any NativeMusicCancellation {let job=Job(seconds,callback);jobs.append(job);return job}
+    }
+    func testOutgoingThemeIsReleasedOnlyAfterIncomingPlaybackSucceeds() {
+        let transport=Transport(),owner=NativeArcadeMusicOwner(transport:transport,scheduler:Scheduler())
+        defer{owner.dispose()}
+        transport.deferPlay=true;var readiness:[Double]=[]
+        owner.onPlaybackReady={readiness.append($0)}
+        owner.enterRound(generation:1);XCTAssertTrue(readiness.isEmpty)
+        transport.playReply?([:],nil)
+        XCTAssertEqual(readiness,[1.25]);XCTAssertEqual(transport.commands.last?.body["volume"] as? Double,0.11)
+        owner.apply(enabled:false);owner.apply(enabled:true)
+        let pending=transport.playReply;owner.leave();pending?([:],nil)
+        XCTAssertEqual(readiness.count,1,"Retired entry cannot release another route's music")
     }
     func testForegroundRecoversMissingInterruptionEndForCurrentArcadeLayer() {
         let transport=Transport(),scheduler=Scheduler(),owner=NativeArcadeMusicOwner(transport:transport,scheduler:scheduler)
@@ -36,58 +52,63 @@ final class NativeArcadeMusicTests:XCTestCase {
         NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
         XCTAssertEqual(transport.commands.count,muted)
     }
-    func testFirstMergeWaitsForActualNextBarAndInheritsNativePhase() {
+    func testEveryMergeKeepsOneGameplayThemeAndRoundResumePreservesItsClock() {
         let transport=Transport(),scheduler=Scheduler(),owner=NativeArcadeMusicOwner(transport:transport,scheduler:scheduler)
+        defer{owner.dispose()}
         owner.enterRound(generation:9)
-        XCTAssertEqual(transport.commands.first{$0.op=="play"}?.body["source"] as? String,"./assets/sound/soundtrack/adaptive-music-v3/gameplay-bed-calm-01.wav")
-        XCTAssertEqual(transport.commands.last?.body["volume"] as? Double,0.3696)
-        XCTAssertEqual(transport.commands.last?.body["duration"] as? Double,1.25)
-        owner.committedMerge6(generation:9);owner.committedMerge6(generation:9)
-        XCTAssertEqual(scheduler.jobs.count,1)
-        XCTAssertEqual(scheduler.jobs[0].duration,((NativeArcadeMusicOwner.barSeconds-1.1)*1000).rounded()/1000,accuracy:0.000001)
-        transport.position=2.058;scheduler.jobs[0].fireEvenIfCancelled()
-        let active=transport.commands.last{$0.op=="play" && $0.id.hasSuffix("active")}
-        XCTAssertEqual(active?.body["position"] as? Double,2.058)
-        XCTAssertTrue(transport.commands.contains{$0.id.hasSuffix("active") && $0.op=="volume" && $0.body["volume"] as? Double==0.4158 && $0.body["duration"] as? Double==NativeArcadeMusicOwner.barCrossfadeSeconds})
-        owner.dispose()
+        let play=transport.commands.first{$0.op=="play"}!
+        XCTAssertEqual(play.body["source"] as? String,NativeSoundtrackRouteOwner.gameplaySource)
+        XCTAssertEqual(play.body["loopStart"] as? Double,NativeSoundtrackRouteOwner.gameplayLoopStart)
+        XCTAssertEqual(play.body["loopEnd"] as? Double,NativeSoundtrackRouteOwner.gameplayLoopEnd)
+        XCTAssertEqual(transport.commands.last?.body["volume"] as? Double,0.11)
+        let count=transport.commands.count
+        for _ in 0..<20 {owner.committedMerge6(generation:9)}
+        XCTAssertEqual(transport.commands.count,count);XCTAssertTrue(scheduler.jobs.isEmpty)
+        owner.enterRound(generation:10)
+        XCTAssertEqual(transport.commands.filter{$0.op=="play"}.count,1)
+        XCTAssertTrue(transport.commands.contains{$0.op=="resume"})
+        owner.apply(enabled:false);let muted=transport.commands.count
+        owner.committedMerge6(generation:10);owner.setForeground(false);owner.setForeground(true)
+        XCTAssertEqual(transport.commands.count,muted)
+        owner.apply(enabled:true)
+        XCTAssertEqual(transport.commands.last{$0.op=="play"}?.body["source"] as? String,NativeSoundtrackRouteOwner.gameplaySource)
     }
-    func testMusicOffRejectsStaleBarAndDisposeDoesNotRestartVoice() {
+    func testPendingLeaveCannotDisposeReenteredRoundAndDisposalRevokesRecovery() {
         let transport=Transport(),scheduler=Scheduler(),owner=NativeArcadeMusicOwner(transport:transport,scheduler:scheduler)
-        owner.enterRound(generation:1);owner.committedMerge6(generation:1)
-        let pending=scheduler.jobs[0];owner.apply(enabled:false)
+        owner.enterRound(generation:1);owner.leave()
+        let pending=scheduler.jobs[0];owner.enterRound(generation:2)
         XCTAssertTrue(pending.cancelled);let count=transport.commands.count;pending.fireEvenIfCancelled()
         XCTAssertEqual(transport.commands.count,count)
-        owner.dispose();owner.dispose();owner.apply(enabled:true);owner.enterRound(generation:2)
-        XCTAssertEqual(transport.commands.count,count)
+        owner.dispose();let disposed=transport.commands.count
+        owner.dispose();owner.apply(enabled:true);owner.enterRound(generation:3);owner.setForeground(true)
+        XCTAssertEqual(transport.commands.count,disposed)
     }
-    func testPromotionIntentSurvivesBackgroundWithoutLatePlay() {
+    func testBackgroundDuringLeaveReleasesOtherwiseOrphanedVoice() {
         let transport=Transport(),scheduler=Scheduler(),owner=NativeArcadeMusicOwner(transport:transport,scheduler:scheduler)
-        owner.enterRound(generation:1);owner.committedMerge6(generation:1);let pending=scheduler.jobs[0]
-        owner.setForeground(false);let count=transport.commands.count;pending.fireEvenIfCancelled()
+        defer{owner.dispose()}
+        owner.enterRound(generation:1);owner.leave();owner.setForeground(false)
+        XCTAssertEqual(transport.commands.last?.op,"dispose")
+        let count=transport.commands.count;owner.setForeground(true)
         XCTAssertEqual(transport.commands.count,count)
-        owner.setForeground(true)
-        XCTAssertTrue(transport.commands.contains{$0.op=="play" && $0.id.hasSuffix("active")})
-        owner.dispose()
     }
     func testSaxStopDuringBackgroundRetainsStableRestoreWithoutPlayingHiddenMusic() {
         let transport=Transport(),scheduler=Scheduler(),owner=NativeArcadeMusicOwner(transport:transport,scheduler:scheduler)
         owner.enterRound(generation:7);owner.setResultMix(generation:7);let release=owner.beginResultHook(generation:7)
         owner.setForeground(false);let hiddenCount=transport.commands.count;release();release();XCTAssertEqual(transport.commands.count,hiddenCount)
-        owner.setForeground(true);XCTAssertEqual(transport.commands.last?.body["volume"] as? Double,0.3696)
+        owner.setForeground(true);XCTAssertEqual(transport.commands.last?.body["volume"] as? Double,0.11)
         let completed=transport.commands.count;release();XCTAssertEqual(transport.commands.count,completed)
         let old=owner.beginResultHook(generation:7);owner.apply(enabled:false);owner.apply(enabled:true)
         let afterOn=transport.commands.count;old();XCTAssertEqual(transport.commands.count,afterOn)
-        XCTAssertEqual(transport.commands.last?.body["volume"] as? Double,0.3696);owner.dispose()
+        XCTAssertEqual(transport.commands.last?.body["volume"] as? Double,0.11);owner.dispose()
     }
-    func testResultMixCancelsPromotionAndOldResultReleaseCannotOwnNewRound() {
+    func testResultAndOldReleaseCannotOwnNewRound() {
         let transport=Transport(),scheduler=Scheduler(),owner=NativeArcadeMusicOwner(transport:transport,scheduler:scheduler)
-        owner.enterRound(generation:1);owner.committedMerge6(generation:1);let pending=scheduler.jobs[0]
-        owner.setResultMix(generation:1)
-        XCTAssertTrue(pending.cancelled)
+        defer{owner.dispose()}
+        owner.enterRound(generation:1);owner.setResultMix(generation:1)
         XCTAssertEqual(transport.commands.last?.body["volume"] as? Double,0.07)
-        let count=transport.commands.count;pending.fireEvenIfCancelled();XCTAssertEqual(transport.commands.count,count)
-        let release=owner.beginResultHook(generation:1);owner.enterRound(generation:2)
-        let nextCount=transport.commands.count;release();XCTAssertEqual(transport.commands.count,nextCount)
-        owner.dispose()
+        let release=owner.beginResultHook(generation:1)
+        XCTAssertEqual(transport.commands.last?.body["volume"] as? Double,0)
+        owner.enterRound(generation:2);let count=transport.commands.count;release()
+        XCTAssertEqual(transport.commands.count,count)
     }
 }

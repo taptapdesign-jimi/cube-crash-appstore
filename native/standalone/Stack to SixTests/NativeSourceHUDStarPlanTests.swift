@@ -6,29 +6,6 @@ nonisolated final class NativeSourceHUDStarPlanTests:XCTestCase {
     struct Sample:Decodable {let wall:Double,localTimes:[Double],children:[Child],jobs:Int,destroyed:Bool}
     struct Descriptor:Decodable {let delay,duration:Double}
     struct Row:Decodable {let seed:Int?,count:Int?,draws:Int,plans:[Descriptor]?,samples:[Sample]?}
-    func testFinalMergeCoinRescalesEveryClockWithoutChangingTrajectory() {
-        for gentle in [false,true] {
-            var previous=0.0,end=0.0,interval:Double?
-            for ordinal in 0..<7 {
-                let source=NativeSourceHUDStarPlan.construct(ordinal:ordinal,sizes:[56,42,30],origin:.init(x:195,y:600),target:.init(x:195,y:76),textureWidth:64,previousArrival:&previous,random:{0.5})
-                let normal=source.readableCoin(ordinal:ordinal,previousEnd:&end,gentleLaunch:gentle,launchInterval:interval)
-                if interval==nil {interval=normal.originalMotionDuration*0.20}
-                let fast=normal.finalMergeCoin(timeScale:1.7)
-                XCTAssertEqual(fast.delay,normal.delay*1.7,accuracy:1e-10)
-                XCTAssertEqual(fast.duration,normal.duration*1.7,accuracy:1e-10)
-                XCTAssertEqual(fast.accelerationStart,normal.accelerationStart*1.7,accuracy:1e-10)
-                XCTAssertEqual(fast.originalMotionDuration,normal.originalMotionDuration*1.7,accuracy:1e-10)
-                XCTAssertEqual(fast.points,normal.points);XCTAssertEqual(fast.size,normal.size)
-                for fraction in [0.0,0.2,0.5,0.8,0.95,1.0] {
-                    let a=normal.sample(localSeconds:normal.duration*fraction,previousScale:normal.size/64)
-                    let b=fast.sample(localSeconds:fast.duration*fraction,previousScale:fast.size/64)
-                    XCTAssertEqual(a.point.x,b.point.x,accuracy:0.003);XCTAssertEqual(a.point.y,b.point.y,accuracy:0.003)
-                    XCTAssertEqual(a.rotation,b.rotation,accuracy:0.00001)
-                    XCTAssertEqual(a.arrived,b.arrived)
-                }
-            }
-        }
-    }
     func testExecutedJSCOriginalFullGSAPPlansAndEveryDeliveredChildPose()throws {
         let url=try XCTUnwrap(Bundle(for:NativeSourceHUDStarPlanTests.self).url(forResource:"NativeSourceHUDStarSourceOracle",withExtension:"json"))
         let rows=try JSONDecoder().decode([Row].self,from:Data(contentsOf:url));var comparisons=0

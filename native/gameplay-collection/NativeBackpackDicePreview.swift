@@ -7,7 +7,7 @@ import StackToSixGameplay
     // Keep flying/floating previews on the lowered floor plane.
     private var preservesShadowFloor:Bool {["fish","spaceship","bee","flower","laser-gun"].contains(identity.id)}
     private func shadowFloorCenter(slot:CGRect,height:CGFloat)->CGFloat {
-        (preservesShadowFloor ? slot.maxY+8+height/2:slot.maxY) - (["honey","kanta"].contains(identity.id) ? 4:0)
+        (preservesShadowFloor ? slot.maxY+8+height/2:slot.maxY) - (["honey","kanta"].contains(identity.id) ? 4:0) + (identity.id=="bloob-ball" ? 16:0)
     }
     private final class PreviewScene:SKScene {
         weak var owner:NativeBackpackDicePreview?
@@ -19,21 +19,27 @@ import StackToSixGameplay
     private(set) var groundShadow:NativeArcadeThumbShadow?
     private(set) var rearCanShadow:NativeArcadeThumbShadow?
     // Laser's accepted modal footprint, shared independently of die silhouette.
-    static func shadowSize(slotWidth:CGFloat,id:String,rear:Bool=false)->CGSize {
+    static func shadowSize(slotWidth:CGFloat,id:String,bodyWidth:CGFloat?=nil,rear:Bool=false)->CGSize {
         let width=228*slotWidth/342
-        let factor:CGFloat=id=="kanta" ? (rear ? 0.7*0.8:0.7):id=="spaceship" ? 0.8*1.2:id=="bottle" ? 0.8*0.85:["beach-ball","wild-juice"].contains(id) ? 0.8:1
-        return CGSize(width:width*factor,height:width/1.11*0.15*(rear ? 0.7:1))
+        let factor:CGFloat=id=="kanta" ? (rear ? 0.8:1):id=="wild-star" ? 0.81:id=="spaceship" ? 0.8*1.2:id=="bottle" ? 0.8*0.85*0.7:id=="bloob-ball" ? 0.85:["beach-ball","wild-juice","robo-cube"].contains(id) ? 0.8:1
+        // The blurred radial raster has generous transparent margins. Fit its
+        // visible footprint to the can base rather than a fixed slot fraction.
+        let footprintWidth=id=="kanta" ? (bodyWidth ?? width)*1.595*factor:width*factor
+        return CGSize(width:footprintWidth,height:width/1.11*0.15*(rear ? 0.7:1))
     }
     static let selectedShadowAlphaGain:CGFloat=4.2*0.8*0.8
     // Each response keeps that die's original pose/timing; only small extrema
     // and high-frequency silhouette changes are softened.
     private var shadowResponse:(motion:CGFloat,width:CGFloat,opacity:CGFloat,follow:CGFloat,lag:Double) {
         switch identity.id {
+        case "kanta":return (0.5,0,0.5,1,0.06)
         case "wild-star":return (0.85,0.35,0.75,0.65,0.045)
         case "flower":return (0.75,0,0.85,0,0.065)
+        case "barell":return (1,1,0.85,1,0)
         case "bee":return (0.85,0.3,0.75,0.45,0.075)
         case "fish":return (0.8,0.25,0.5,0.45,0.09)
         case "laser-gun":return (0.9,0.4,0.65,0.8,0.04)
+        case "bloob-ball":return (0.7,0,0.65,0.6,0.08)
         default:return (1,1,1,1,0)
         }
     }
@@ -186,12 +192,12 @@ import StackToSixGameplay
         fishOwner?.frame=bounds;paintFish(force:true)
         if let shadow=groundShadow {
             let width=bodyRect.width*scale
-            shadow.bounds=CGRect(origin:.zero,size:Self.shadowSize(slotWidth:slot.width,id:identity.id))
+            shadow.bounds=CGRect(origin:.zero,size:Self.shadowSize(slotWidth:slot.width,id:identity.id,bodyWidth:width))
             shadow.center=CGPoint(x:slot.midX,y:shadowFloorCenter(slot:slot,height:shadow.bounds.height))
             shadow.isHidden = !ready || width<=0
             shadow.setNeedsLayout();shadow.layoutIfNeeded()
             if let rear=rearCanShadow {
-                rear.bounds=CGRect(origin:.zero,size:Self.shadowSize(slotWidth:slot.width,id:identity.id,rear:true))
+                rear.bounds=CGRect(origin:.zero,size:Self.shadowSize(slotWidth:slot.width,id:identity.id,bodyWidth:width,rear:true))
                 rear.setNeedsLayout();rear.layoutIfNeeded()
             }
         }
@@ -204,7 +210,18 @@ import StackToSixGameplay
         let slot=artworkFrame ?? bounds.insetBy(dx:0,dy:48)
         guard !slot.isNull,!slot.isInfinite,slot.width>0,slot.height>0,bounds.height>0 else{return}
         let lift:CGFloat,footprint:CGFloat,bodyCenterX:CGFloat
-        if identity.id=="flower" {
+        if identity.id=="kanta" {
+            // Project the actual bottom pivot: rocking moves the shadow under
+            // the tilted can, while vertical float softens its grounded footprint.
+            let base=node.convert(CGPoint(x:bodyRect.midX,y:bodyRect.minY),to:canvas)
+            lift=slot.maxY-(bounds.height-base.y)
+            footprint=1;bodyCenterX=base.x
+        }else if identity.id=="bloob-ball" {
+            // The selected whole-ball float owns height; inner SVG rotation
+            // and squash must not pump the grounded footprint.
+            lift=node.position.y-layoutNodePosition.y
+            footprint=1;bodyCenterX=node.position.x+bodyRect.midX*layoutNodeScale
+        }else if identity.id=="flower" {
             // Follow only authored up/down translation, never the rotating
             // petal bounds, squash/stretch or lateral movement.
             lift=(node.collectionFlowerVerticalLift(in:canvas) ?? 0)+node.position.y-layoutNodePosition.y
@@ -226,9 +243,13 @@ import StackToSixGameplay
             follow=t*t*(3-2*t)
         }
         let height=1+(proximity-1)*response.motion
-        let rawAlpha=max(0.5,min(1,0.5+(proximity-0.4)/0.7*0.5))
+        // Barrel keeps Flower's grounded darkness while its rest footprint narrows.
+        let alphaProximity:CGFloat=identity.id=="barell" ? 1:proximity
+        let rawAlpha=max(0.5,min(1,0.5+(alphaProximity-0.4)/0.7*0.5))
+        let contact=max(0,min(1,(proximity-0.4)/0.6))
+        let restWidth:CGFloat=["barell","wild-juice"].contains(identity.id) ? 1-0.2*contact*contact*(3-2*contact):1
         let target=ShadowPose(x:slot.midX+(bodyCenterX-slot.midX)*follow,
-            sx:height*(1+(footprint-1)*response.width),sy:height,alpha:1+(rawAlpha-1)*response.opacity)
+            sx:height*(1+(footprint-1)*response.width)*restWidth,sy:height,alpha:1+(rawAlpha-1)*response.opacity)
         let pose:ShadowPose
         if response.lag>0,let previous=shadowSample,seconds>=previous.time {
             // Repeated layout/paint at the same selected time is idempotent.
@@ -252,6 +273,14 @@ import StackToSixGameplay
     /// Selected-only whole-body float; authored inner artwork keeps its own motion.
     func paintSelectedBounce(seconds:Double){
         guard !disposed,let node=dieNode else{return}
+        if identity.id=="bloob-ball" {
+            let phase=max(0,seconds).truncatingRemainder(dividingBy:3.8)/3.8*2*Double.pi
+            node.position=CGPoint(x:layoutNodePosition.x+CGFloat(2.4*sin(phase)),
+                y:layoutNodePosition.y+CGFloat(12*(1-cos(phase))))
+            node.xScale=layoutNodeScale;node.yScale=layoutNodeScale
+            node.zRotation=CGFloat(sin(phase)*5*Double.pi/180)
+            return
+        }
         if ["kanta","tnt","wild-magnet","bottle"].contains(identity.id) {
             let phase=max(0,seconds).truncatingRemainder(dividingBy:3.6)/3.6*2*Double.pi
             node.position=CGPoint(x:layoutNodePosition.x,y:layoutNodePosition.y+CGFloat(10*(1-cos(phase))))

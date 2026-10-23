@@ -78,6 +78,7 @@ for(const name of ['lets-go','come-here-look-at-this','ready-for-an-adventure'])
 ];
 // Native Baloon finale: exact original sources, shared finite transport envelope.
 catalog.baloonMerge=[
+ {source:'assets/sound/Wild and special kockice/juice/mini2.mp3',voice:'native-baloon-mini2',gain:0.39,rate:1,delay:0,stopAfter:null,fadeOut:0},
  {source:'assets/sound/Wild and special kockice/ baloon/happy people.wav',voice:'native-baloon-happy-people',gain:0.546,rate:1,delay:0,stopAfter:null,fadeOut:0},
  {source:'assets/sound/Wild and special kockice/ baloon/baloni zvuk.wav',voice:'native-baloon-flight-1',gain:0.72,rate:1,delay:1,stopAfter:null,fadeOut:0}
 ];

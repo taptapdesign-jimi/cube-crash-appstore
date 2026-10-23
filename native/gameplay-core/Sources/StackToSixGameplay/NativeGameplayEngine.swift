@@ -2109,6 +2109,9 @@ public final class NativeGameplayEngine {
         guard let wild = [source,destination].first(where: { $0.isWild }) else {
             return finalMerge ? prepareHUDStars(count:1,origin:destination.cell,variant:nil,finalMerge:true):[]
         }
+        if wild.variant == "bloob-ball" {
+            return prepareHUDStars(count:NativeBloobBallRewardPolicy.ballCount,origin:destination.cell,variant:wild.variant,archetype:.star,finalMerge:finalMerge)
+        }
         if comboHUDCoinRewardsEnabled {
             // Keep the existing Juice selection draw so the board RNG stream is unchanged.
             if wild.archetype == .juice {_ = nextRandom()}
@@ -2146,9 +2149,13 @@ public final class NativeGameplayEngine {
         guard sourceHUDStarJobsEnabled,generation==state.generation,!receiptIDs.isEmpty,receiptIDs.count <= (comboHUDCoinRewardsEnabled ? NativeComboCoinPolicy.maximumCount : 3),
             Set(receiptIDs).count==receiptIDs.count else{return nil}
         let ordered=receiptIDs.compactMap{id in pendingHUDStars.first{$0.id==id && $0.generation==generation}}
-        guard ordered.count==receiptIDs.count,let first=ordered.first,
-            ordered.allSatisfy({$0.batchCount==ordered.count && $0.variant==first.variant && $0.origin==first.origin}),
-            ordered.map(\.ordinal)==Array(0..<ordered.count),
+        guard ordered.count==receiptIDs.count,let first=ordered.first else{return nil}
+        // Bloob's canonical six-coin batch is consumed one explosion at a time.
+        // Other families still require their entire ordered reward group.
+        let bloobSingle=ordered.count==1 && first.variant=="bloob-ball" &&
+            first.batchCount==NativeBloobBallRewardPolicy.ballCount && (0..<NativeBloobBallRewardPolicy.ballCount).contains(first.ordinal)
+        guard ordered.allSatisfy({(bloobSingle || $0.batchCount==ordered.count) && $0.variant==first.variant && $0.origin==first.origin}),
+            (bloobSingle || ordered.map(\.ordinal)==Array(0..<ordered.count)),
             ordered.allSatisfy({$0.id.dropLast(2)==first.id.dropLast(2)}),
             sourceHUDStarJobs.allSatisfy({Set($0.receiptIDs).isDisjoint(with:receiptIDs)}) else{return nil}
         sourceHUDStarJobSequence &+= 1
@@ -2289,7 +2296,7 @@ public final class NativeGameplayEngine {
         }
     }
     private func initialStarDropCount(variant:String?)->Int {
-        guard NativeStarDropCountPolicy.usesRandomCount(variant:variant) else{return 1}
+        guard NativeStarDropCountPolicy.usesRandomCount(variant:variant) else{return NativeStarDropCountPolicy.effectiveCount(variant:variant,savedCount:1)}
         // Preserve plain Star's original Source presentation draw boundary. Variant
         // drop counts use this committed reward draw and never reroll during rendering.
         if variant == nil,sourceStarOrbitCountAtPresentationEnabled,sourceMathRandom != nil{return 0}
@@ -2421,21 +2428,25 @@ public final class NativeGameplayEngine {
 
     /// None of these callbacks is inferred from a generic spawn bounce/input permit.
     public func applyMeterDropReceipt(id:String,generation:UInt64,receipt:NativeMeterDropReceipt)->NativeMoveResult {
-        guard generation==state.generation,var drop=meterDropReservations[id],drop.generation==generation,
-              let index=state.tiles.firstIndex(where:{$0.id==drop.tileID}) else {return rejected("stale_meter_drop_receipt")}
+        guard generation==state.generation,var drop=meterDropReservations[id],drop.generation==generation else {return rejected("stale_meter_drop_receipt")}
+        let index=state.tiles.firstIndex(where:{$0.id==drop.tileID})
+        // Accepted destination contact may consume the landed die before the
+        // independent wall marker ends. That genuine receipt retires only its
+        // ledger; it must never recreate or mutate the consumed/replacement die.
+        guard index != nil || receipt == .wallHandoffUnlocked && drop.bookkeepingCommitted else {return rejected("stale_meter_drop_receipt")}
         let kind:NativeGameplayEvent.Kind
         switch receipt {
         case .assetsPrepared:
             guard !drop.assetsPrepared,!drop.dropCompleted else {return rejected("duplicate_meter_drop_prepare")}
             drop.assetsPrepared=true;kind = .meterDropPrepared
         case .revealed:
-            guard drop.assetsPrepared,!drop.revealed,!drop.dropCompleted else {return rejected("duplicate_meter_drop_reveal")}
+            guard let index,drop.assetsPrepared,!drop.revealed,!drop.dropCompleted else {return rejected("duplicate_meter_drop_reveal")}
             drop.revealed=true;state.tiles[index].visible=true;state.tiles[index].alpha=1;kind = .meterDropRevealed
         case .impact:
             guard drop.assetsPrepared,drop.revealed,!drop.impactOccurred,!drop.dropCompleted else {return rejected("duplicate_meter_drop_impact")}
             drop.impactOccurred=true;kind = .meterDropImpact
         case .boardFallbackRestored:
-            guard drop.assetsPrepared,!drop.landed,!drop.dropCompleted else {return rejected("duplicate_meter_drop_restore")}
+            guard let index,drop.assetsPrepared,!drop.landed,!drop.dropCompleted else {return rejected("duplicate_meter_drop_restore")}
             drop.landed=true;drop.handoffLocked=true
             state.tiles[index].visible=true;state.tiles[index].alpha=1;kind = .meterDropLanded
         case .dropPromiseCompleted:

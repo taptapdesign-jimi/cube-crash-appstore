@@ -126,7 +126,7 @@ final class NativeJourneyAmbientOwner {
             } else {stop(Self.gameplay)}
         }
         if area55Active {
-            retain(Self.area55,source:"assets/sound/worlds/Area55/area55-ambient-loop-v1.wav",gain:0.6)
+            retain(Self.area55,source:"assets/sound/worlds/Area55/area55-ambient-loop-v1.wav",gain:0.36)
         }
         if beachActive {
             retain(Self.beach,source:"assets/sound/Board transitions/Beach/beach ambiance.wav",gain:0.28)

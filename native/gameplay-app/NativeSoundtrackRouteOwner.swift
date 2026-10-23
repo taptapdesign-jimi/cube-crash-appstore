@@ -15,8 +15,15 @@ final class NativeSoundtrackRouteOwner {
     private let isApplicationActive:@MainActor ()->Bool
     private var enabled = true
     private static let menuGain = 0.578 * 0.8 * 0.7
-    private static let journeyGain = 0.19074 * 0.8 * 0.7
+    private static let journeyGain = 0.11
     private var target = NativeSoundtrackRouteOwner.menuGain
+    static let gameplaySource = "assets/sound/soundtrack/taptap-gameplay-v1/taptap-gameplay-intro-loop.wav"
+    static let gameplayLoopStart = 195122.0 / 48000
+    static let gameplayLoopEnd = 3317074.0 / 48000
+    private static let menuSource = "assets/sound/soundtrack/theme-loop-v1/SIx-theme-runtime-intro-loop.wav"
+    private var gameplay = false
+    private var preparedSource:String?
+    private var positions:[String:Double] = [:]
     private var themePrepared = false
     private var foreground = true
     private var arcade = false
@@ -46,15 +53,24 @@ final class NativeSoundtrackRouteOwner {
         if !enabled {lease &+= 1;if transition != nil{target=Self.journeyGain};transition=nil;command("dispose");themePrepared = false}
         else if foreground,!arcade {resume()}
     }
-    func setMenu() {guard !disposed else{return};lease &+= 1;transition=nil;arcade = false;target = Self.menuGain;resume();setGain(duration:0.42)}
-    func setJourneyGameplay() {guard !disposed,transition==nil else{return};lease &+= 1;arcade = false;target = Self.journeyGain;setGain(duration:0.32)}
-    func setArcadeGameplay() {guard !disposed else{return};lease &+= 1;transition=nil;arcade = true;command("pause")}
+    func setMenu() {guard !disposed else{return};lease &+= 1;transition=nil;arcade = false;gameplay=false;target = Self.menuGain;setGain(duration:0.42)}
+    func setJourneyGameplay() {guard !disposed,transition==nil else{return};lease &+= 1;arcade = false;gameplay=true;target = Self.journeyGain;setGain(duration:0.32)}
+    func setArcadeGameplay() {guard !disposed,!arcade else{return};lease &+= 1;transition=nil;arcade = true}
+    /// Arcade readiness owns the outgoing fade: NN never creates a silent gap.
+    func arcadePlaybackReady(duration:Double) {
+        guard !disposed,enabled,foreground,arcade else{return}
+        let token=lease
+        transport.perform(id:"soundtrack-native-main",op:"volume",body:["volume":0,"duration":duration,"replyOnFadeFinished":true]){[weak self] _,error in
+            guard let self,error==nil,!self.disposed,self.enabled,self.foreground,self.arcade,self.lease==token else{return}
+            self.command("pause")
+        }
+    }
     /// Authored controller phase contacts use the one existing theme voice.
     /// The transport's actual fade-end receipt owns the320ms soft tail; no
     /// second route timer or a visual duration releases the gameplay lift.
     func boardTransitionPhase(_ phase:String,ratio:Double,duration:Double,generation:UInt64) {
         guard !disposed,ratio.isFinite,duration.isFinite,duration>=0 else{return}
-        if phase=="begin" {lease &+= 1;arcade=false;transition=Transition(generation:generation,lease:lease)}
+        if phase=="begin" {lease &+= 1;arcade=false;gameplay=true;transition=Transition(generation:generation,lease:lease);if themePrepared {resume()}}
         guard let current=transition,current.generation==generation,current.lease==lease,!current.settling else{return}
         if phase=="complete" {
             transition?.completionRequested=true
@@ -95,22 +111,38 @@ final class NativeSoundtrackRouteOwner {
     }
     private func setGain(duration:Double) {
         guard enabled,foreground else{return}
-        if !themePrepared {resume()}
-        command("volume",extra:["volume":target,"duration":duration])
+        let replacing=themePrepared && preparedSource != (gameplay ? Self.gameplaySource : Self.menuSource)
+        if !themePrepared || replacing {resume()}
+        else {command("resume")} // Preserve current gain while ensuring a paused route is live.
+        command("volume",extra:["volume":target,"duration":replacing ? max(1.25,duration):duration])
     }
     private func resume(fadeIn:Bool=false) {
         guard enabled,foreground,!arcade,isApplicationActive() else{return}
         do {try AVAudioSession.sharedInstance().setCategory(JimiNativeMusic.sessionCategory);try AVAudioSession.sharedInstance().setActive(true)}
         catch {onError?(error.localizedDescription);return}
+        let source=gameplay ? Self.gameplaySource : Self.menuSource
+        if themePrepared,preparedSource != source {
+            // Direct Native transport state receipts are synchronous and read-only.
+            // Retain each file's phase across route replacement; never overlap two clocks.
+            if let previous=preparedSource {
+                transport.perform(id:"soundtrack-native-main",op:"state",body:[:]) { [weak self] value,_ in
+                    if let position=(value as? [String:Any])?["position"] as? Double,position.isFinite {self?.positions[previous]=max(0,position)}
+                }
+            }
+            // The transport retains the outgoing file until the incoming file is playing.
+            themePrepared=false
+        }
         if themePrepared {command("resume",extra:["volume":fadeIn ? 0:target]);if fadeIn{command("volume",extra:["volume":target,"duration":0.42])};return}
-        command("play",extra:["source":"assets/sound/soundtrack/theme-loop-v1/SIx-theme-runtime-intro-loop.wav",
-            "volume":target,"position":0,"loop":true,"loopStart":2.0583125,"loopEnd":59.6910625])
+        command("play",extra:["source":source,"crossfadeDuration":1.25,
+            "volume":fadeIn ? 0:target,"position":positions[source] ?? 0,"loop":true,
+            "loopStart":gameplay ? Self.gameplayLoopStart:2.0583125,"loopEnd":gameplay ? Self.gameplayLoopEnd:59.6910625])
+        if fadeIn {command("volume",extra:["volume":target,"duration":0.42])}
     }
     private func command(_ op:String,extra:[String:Any] = [:]) {
         transport.perform(id:"soundtrack-native-main",op:op,body:extra) { [weak self] _,error in
             guard let self else{return}
             if let error {self.onError?(error);return}
-            if op == "play" {self.themePrepared = true}
+            if op == "play" {self.themePrepared = true;self.preparedSource=extra["source"] as? String}
         }
     }
     private func notification(_ notice:Notification) {

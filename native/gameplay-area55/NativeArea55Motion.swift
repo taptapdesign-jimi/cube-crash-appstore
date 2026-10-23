@@ -9,7 +9,10 @@ enum NativeArea55Motion {
         let id: String, source: String?; let value: Int
         let x,y: Double; let curve: (Double,Double); let size,order,delay,rotation,wobble,drift: Double
         let below,foreground: Bool
-        var arrival: Double { delay+1.95+order*0.04 }
+        var spin: Double = 0
+        var isSideIntake: Bool { id.hasPrefix("sideCopy") }
+        var travelDuration: Double { 1.95+order*0.04 }
+        var arrival: Double { delay+travelDuration }
         var z: CGFloat { CGFloat(foreground ? 4 : value > 0 ? 0 : below ? 1 : 3) }
     }
     struct Scatter { let x,y,c1,c2,drift,rotation: Double }
@@ -45,6 +48,22 @@ enum NativeArea55Motion {
         let q = 1-p; return q*q*q*a+3*q*q*p*b+3*q*p*p*c+p*p*p*d
     }
     static func magnetic(_ progress: Double) -> Double { let p = clamp(progress); return 0.14*p+0.86*p*p }
+    /// Additive lower-field intake; original25 plans and their oracle remain unchanged.
+    static let additionalSideDebris:[DebrisPlan] = {
+        let rocks=debris.filter{$0.source?.contains("/rock")==true}
+        let count=Int((Double(debris.count)*0.85).rounded())
+        return (0..<count).map {i in
+            let p=rocks[i%rocks.count],left=i.isMultiple(of:2)
+            let inset=24+Double((i*2)%3)*5
+            let x=left ? inset:100-inset
+            return DebrisPlan(id:"sideCopy\(i)",source:p.source,value:0,
+                x:x,y:62+Double(i/7)*18+Double((i*11)%13),curve:(left ? 18:82,left ? 36:64),
+                size:p.size*(0.40+Double((i*5)%11)*0.05),order:Double((i*7)%15),delay:0,
+                rotation:Double((i*37)%190)-95,wobble:left ? 24:-24,drift:left ? 28:-28,
+                below:i%3==0,foreground:i%5==0,
+                spin:i%5<2 ? (left ? 1:-1)*(120+Double((i*17)%100)):0)
+        }
+    }()
     static func scatter(_ plan: DebrisPlan,random: () -> Double) -> Scatter {
         let x = clamp(50+(plan.x-50)*1.5+(random()*2-1)*3,-6,106)
         let c1 = clamp(50+(plan.curve.0-50)*1.5+(random()*2-1)*5,-15,115)

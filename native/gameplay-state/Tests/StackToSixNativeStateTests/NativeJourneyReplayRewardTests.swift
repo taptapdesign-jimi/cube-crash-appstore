@@ -10,6 +10,41 @@ final class NativeJourneyReplayRewardTests:XCTestCase {
     private func choose(_ state:NativeBoardState,_ roll:Double,_ unlocked:Set<String>)->NativeWildRewardChoice? {
         NativeWildRewardPolicy.choose(state:state,roll:roll,plainStarUnlocked:true,unlockedJourneyDice:unlocked,nextRoll:{XCTFail("No extra random draw");return 0})
     }
+    func testIntroductionSlotsAreUniformAcrossEveryNonMushroomUnitAndReplayPool() throws {
+        for board in 1...30 {
+            guard let expected=NativeJourneyContent.introductionID(board:board),expected != "mushroom" else{continue}
+            for replay in [false,true] {
+                let unlocked=replay ? Set(NativeJourneyContent.worldRewardPool(board:board)):[]
+                let alternatives=NativeJourneyContent.availableRewardPool(board:board,unlockedDice:unlocked).filter{$0 != expected}
+                guard !alternatives.isEmpty else{continue} // Singleton pool necessarily drops its only die.
+                var hits=[0,0,0]
+                for count in 0...2 {
+                    var state=NativeBoardState(tiles:[],mode:.journey,board:board,wildSpawnCount:count)
+                    state.earnedJourneyDice=[]
+                    for draw in 0..<600 {
+                        let chosen=try XCTUnwrap(id(choose(state,(Double(draw)+0.5)/600,unlocked)))
+                        if chosen==expected {hits[count]+=1}
+                        else {XCTAssertTrue(alternatives.contains(chosen))}
+                    }
+                }
+                XCTAssertEqual(hits,[200,300,600],"Unit \(board), replay \(replay): 1/3, then1/2 of remaining, then all")
+                // First appearance mass: 1/3; (2/3)*(1/2); (2/3)*(1/2)*1.
+            }
+        }
+    }
+    func testUniformIntroductionPreservesMushroomFivePercentOnFirstTwoDrops() {
+        for board in 1...10 {
+            guard let intro=NativeJourneyContent.introductionID(board:board),intro != "mushroom" else{continue}
+            let pool=NativeJourneyContent.worldRewardPool(board:board)
+            guard pool.contains("mushroom"),pool.count>2 else{continue}
+            for count in 0...1 {
+                var state=NativeBoardState(tiles:[],mode:.journey,board:board,wildSpawnCount:count)
+                state.earnedJourneyDice=[];state.forestMushroomIntroduced=true
+                let hits=(0..<6000).filter{id(choose(state,(Double($0)+0.5)/6000,Set(pool)))=="mushroom"}.count
+                XCTAssertEqual(hits,300,"Unit \(board), prior drops \(count)")
+            }
+        }
+    }
     func testEveryWorldReplayIncludesAllDiscoveredDiceWithoutLeakingWorldsOrFutureLockedDice() {
         let all=Set((1...30).flatMap{NativeJourneyContent.rewardPool(board:$0)})
         for board in 1...30 {
@@ -57,11 +92,11 @@ final class NativeJourneyReplayRewardTests:XCTestCase {
     }
     func testEarlyDropsAreRandomAndThirdGuaranteeDoesNotRepeatAfterReceiptOrLegacyResume() throws {
         var state=NativeBoardState(tiles:[],mode:.journey,board:7)
-        XCTAssertNotEqual(id(choose(state,0.1,[])),"barell")
+        XCTAssertNotEqual(id(choose(state,0.9,[])),"barell")
         state.wildSpawnCount=1;state.earnedJourneyDice=["bee"]
-        XCTAssertNotEqual(id(choose(state,0.1,[])),"barell")
+        XCTAssertNotEqual(id(choose(state,0.9,[])),"barell")
         state.wildSpawnCount=2
-        XCTAssertEqual(id(choose(state,0.1,[])),"barell")
+        XCTAssertEqual(id(choose(state,0.9,[])),"barell")
         state.earnedJourneyDice=["barell"]
         XCTAssertNotEqual(id(choose(state,0.1,[])),"barell")
         state.earnedJourneyDice=nil

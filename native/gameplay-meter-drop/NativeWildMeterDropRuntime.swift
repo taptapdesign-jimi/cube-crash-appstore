@@ -84,6 +84,13 @@ final class NativeWildMeterDropRuntime {
               let captured=handoffPaintAfter,renderEpoch>captured else {return}
         foregroundReleased=true;handoffPaintAfter=nil;emit(.foregroundReleased)
     }
+    /// A genuine accepted merge borrows the restored die before its separate
+    /// wall marker expires. Ownership transfer replaces foreground paint proof;
+    /// it never advances or fabricates the still-pending140ms wall receipt.
+    @discardableResult func transferRestoredForeground(_ receipt:Capture)->Bool {
+        guard matches(receipt),restored,dropCompleted,spawnCompleted else{return false}
+        releaseForeground();return matches(receipt)
+    }
     /// Literal finish()/restoreTile interruption. This is an explicit kill,
     /// never called by pure pause/background. It restores the original parent
     /// and creates the same140ms lock; Source does not invoke onLanded here.

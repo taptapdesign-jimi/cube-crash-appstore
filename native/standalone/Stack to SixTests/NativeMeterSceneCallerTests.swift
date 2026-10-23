@@ -22,8 +22,8 @@ nonisolated final class NativeMeterSceneCallerTests:XCTestCase {
         var current=true,results:[NativeGameplayEvent.Kind]=[],activity=0,releases=0,audio=0,stops=0,masks=0,unmasks=0
         var onResult:((NativeGameplayEvent)->Void)?
         var startedDropIDs:[String]=[],selectedAudioCalls=0
-        init(root:URL,sourceConstructor:Bool=false,initialMeter:Double=1.25,magnetSource:Bool=false){
-            engine=NativeGameplayEngine(state:.init(tiles:[.init(id:"a",cell:.init(column:0,row:0),value:magnetSource ? 6:2,archetype:magnetSource ? .magnet:nil),.init(id:"b",cell:.init(column:1,row:0),value:3)],wildMeter:initialMeter),recordedRandomChoices:Array(repeating:0,count:100),rewardPicker:{_,_ in .init(.star,variant:"cubero")})
+        init(root:URL,sourceConstructor:Bool=false,initialMeter:Double=1.25,magnetSource:Bool=false,reward:NativeWildRewardChoice = .init(.star,variant:"cubero"),mode:NativeRunMode = .journey){
+            engine=NativeGameplayEngine(state:.init(tiles:[.init(id:"a",cell:.init(column:0,row:0),value:magnetSource ? 6:2,archetype:magnetSource ? .magnet:nil),.init(id:"b",cell:.init(column:1,row:0),value:3)],mode:mode,wildMeter:initialMeter),recordedRandomChoices:Array(repeating:0,count:100),rewardPicker:{_,_ in reward})
             engine.stagedMeterOpen=true;engine.stagedMeterDrops=true
             textures=NativeBoardTextures(root:root);resources=NativeWildMeterDropResources(root:root)
             // Shared injected wall freezes during async assets: actual displaylink cannot
@@ -36,7 +36,7 @@ nonisolated final class NativeMeterSceneCallerTests:XCTestCase {
                 current:{[weak self] in self?.current==true},viewport:{.init(width:390,height:844)},renderEpoch:{[weak self] in self?.epoch ?? 0},node:{[weak self] in self?.nodes[$0]},install:{[weak self] node,_ in self?.nodes[node.tileID]=node},retire:{[weak self] id,node in
                     guard let self,self.nodes[id] === node else{return};self.nodes.removeValue(forKey:id);node.dispose()
                 },cellPose:{_ in (.init(x:164,y:500),0.4)},enqueue:{action in DispatchQueue.main.async{action()}},sourceActivity:{[weak self] _,_ in self?.activity+=1;return{[weak self] in self?.releases+=1}},carrierAudio:{[weak self] _,_,_ in self?.audio+=1;return{[weak self] in self?.stops+=1}},dividerMask:{[weak self] in self?.masks+=1;return{[weak self] in self?.unmasks+=1}},selectedAudio:{[weak self] tile,_ in
-                    guard let self else{return};XCTAssertEqual(self.engine.state.wildMeter,initialMeter-Double(self.selectedAudioCalls),accuracy:0.000001);self.selectedAudioCalls+=1;XCTAssertEqual(self.nodes[tile.id]?.variant,"cubero");XCTAssertTrue(self.nodes[tile.id]?.sourceIdleDeferred==true)
+                    guard let self else{return};XCTAssertEqual(self.engine.state.wildMeter,initialMeter-Double(self.selectedAudioCalls),accuracy:0.000001);self.selectedAudioCalls+=1;XCTAssertEqual(self.nodes[tile.id]?.variant,reward.variant);XCTAssertTrue(self.nodes[tile.id]?.sourceIdleDeferred==true)
                 },texturesCurrent:{true},onImpact:{_,_ in},onHaptic:{},idleAdmitted:{_ in},ownershipReleased:{[weak self] in self?.onReleased?()},fault:{XCTFail($0)},consume:{[weak self] result,_ in
                     guard let self else{return};self.caller.receive(result);for event in result.events{self.results.append(event.kind);self.onResult?(event)}
                 },onDropStarted:{[weak self] node in
@@ -58,6 +58,60 @@ nonisolated final class NativeMeterSceneCallerTests:XCTestCase {
         func dispose(){current=false;caller.dispose();scene.receipt=nil;onRendered=nil;onReleased=nil;service.dispose();timeouts.cancelAll();resources.dispose();textures.dispose();nodes.values.forEach{$0.dispose()};nodes.removeAll();view.presentScene(nil);window.isHidden=true;window.rootViewController=nil}
     }
     @MainActor private func root()->URL {Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle") ?? Bundle.main.bundleURL.appendingPathComponent("NativeAssets.bundle")}
+    @MainActor func testAcceptedLaserDestinationDuringActualWallHandoffReleasesConsumedRoster()async throws {
+        try await exerciseAcceptedDestinationHandoff(reward:.init(.tnt,variant:"laser-gun"),mode:.journey)
+    }
+    @MainActor func testAcceptedArcadeLaserDestinationDuringHandoffKeepsOriginalWallReceipt()async throws {
+        try await exerciseAcceptedDestinationHandoff(reward:.init(.tnt,variant:"laser-gun"),mode:.arcade)
+    }
+    @MainActor func testAcceptedDirectDestinationDuringHandoffKeepsOriginalWallReceipt()async throws {
+        try await exerciseAcceptedDestinationHandoff(reward:.init(.star,variant:"cubero"),mode:.journey)
+    }
+    @MainActor private func exerciseAcceptedDestinationHandoff(reward:NativeWildRewardChoice,mode:NativeRunMode)async throws {
+        let prepared=expectation(description:"prepared"),contacted=expectation(description:"contact during wall handoff"),unlocked=expectation(description:"original wall receipt after consumption")
+        let f=Fixture(root:root(),sourceConstructor:true,reward:reward,mode:mode);defer{f.dispose()}
+        f.engine.stagedTntActivation=true;f.engine.stagedDirectWildMoves=true
+        f.engine.laserViewportWidth=390;f.engine.laserTargetX={_ in 180}
+        f.scene.receipt=nil
+        var drop:NativeMeterDropReservation?
+        var consumedNode:NativeDiceNode?
+        f.onResult={event in
+            if event.kind == .meterDropPrepared {drop=f.engine.meterDropReservations.values.first;prepared.fulfill()}
+            if event.kind == .meterDropHandoffUnlocked {unlocked.fulfill()}
+            guard event.kind == .meterDropCompleted,let drop,let node=f.nodes[drop.tileID] else{return}
+            XCTAssertTrue(f.engine.sourceMeterHandoffInProgress)
+            XCTAssertTrue(f.caller.owns(node))
+            XCTAssertTrue(f.engine.beginDrag(tileID:"a"))
+            let result=f.engine.drop(target:drop.cell);XCTAssertTrue(result.accepted)
+            let special=f.engine.pendingSpecial,direct=f.engine.pendingDirectWild
+            XCTAssertTrue(special != nil || direct != nil)
+            f.caller.receive(result)
+            XCTAssertFalse(f.caller.owns(node),"Accepted Laser destination must transfer the landed carrier before main80 consumes it")
+            let activation:NativeMoveResult
+            if let special {activation=f.engine.commitSpecialActivation(transactionID:special.id)}
+            else if let direct {activation=f.engine.commitDirectWildGameplay(transactionID:direct.id)}
+            else {contacted.fulfill();return}
+            XCTAssertTrue(activation.accepted)
+            XCTAssertFalse(f.engine.state.tiles.contains{$0.id==drop.tileID})
+            XCTAssertFalse(f.caller.retainedNodeIDs.contains(drop.tileID),"Consumed destination cannot remain node-only in the physical roster")
+            XCTAssertTrue(node.sourceContactNodeAlive,"Contact owner, not carrier disposal, retires its captured node")
+            XCTAssertTrue(f.engine.sourceMeterHandoffInProgress,"Accepted contact must not fabricate early wall completion")
+            node.position=CGPoint(x:222,y:333)
+            consumedNode=node
+            f.caller.remove(node);f.nodes.removeValue(forKey:node.tileID);node.dispose()
+            contacted.fulfill()
+        }
+        f.start();await fulfillment(of:[prepared],timeout:10)
+        f.service.setSourceForeground(true);f.advance(to:3000)
+        await fulfillment(of:[contacted],timeout:10)
+        await fulfillment(of:[unlocked],timeout:10)
+        XCTAssertTrue(f.engine.meterDropReservations.isEmpty)
+        XCTAssertTrue(f.caller.retainedNodeIDs.isEmpty)
+        if let drop {XCTAssertNil(f.nodes[drop.tileID])}
+        XCTAssertEqual(consumedNode?.position,CGPoint(x:222,y:333))
+        XCTAssertEqual(f.activity,f.releases);XCTAssertEqual(f.audio,f.stops);XCTAssertEqual(f.masks,f.unmasks)
+        XCTAssertEqual(f.timeouts.pendingCount,0);XCTAssertEqual(f.service.activeParticipantCount,0)
+    }
     @MainActor func testAcceptedPullTransfersSettledCarrierStillAwaitingForegroundPaint()async throws {
         try await exerciseSettledCarrierPull(sourceConstructor:false)
     }

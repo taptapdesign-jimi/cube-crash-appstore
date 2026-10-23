@@ -611,6 +611,7 @@ enum NativeAuthoredAudioCatalog {
             NativeAudioCue(source:"assets/sound/SPEECH/ready-for-an-adventure.wav",voice:"native-home-human",gain:0.72,rate:1,delay:0,stopAfter:nil,fadeOut:0),
         ],
         "baloonMerge": [
+            NativeAudioCue(source:"assets/sound/Wild and special kockice/juice/mini2.mp3",voice:"native-baloon-mini2",gain:0.39,rate:1,delay:0,stopAfter:nil,fadeOut:0),
             NativeAudioCue(source:"assets/sound/Wild and special kockice/ baloon/happy people.wav",voice:"native-baloon-happy-people",gain:0.546,rate:1,delay:0,stopAfter:nil,fadeOut:0),
             NativeAudioCue(source:"assets/sound/Wild and special kockice/ baloon/baloni zvuk.wav",voice:"native-baloon-flight-1",gain:0.72,rate:1,delay:1,stopAfter:nil,fadeOut:0),
         ],

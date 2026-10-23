@@ -50,6 +50,23 @@ nonisolated final class NativeMeterDropCoreTests:XCTestCase {
         // Literal original canDrop/target candidate does NOT reject handoff on destination.
         XCTAssertTrue(engine.drop(target:drop.cell).accepted)
     }
+    func testOriginalWallReceiptRetiresConsumedDestinationWithoutRecreatingIt()throws {
+        let engine=makeEngine(),drop=try reserve(engine)
+        for value:NativeMeterDropReceipt in [.selectedWarmupCompleted,.assetsPrepared,.revealed,.impact,.boardFallbackRestored,.dropPromiseCompleted] {
+            receipt(value,drop,engine)
+        }
+        XCTAssertTrue(engine.beginDrag(tileID:"a"));XCTAssertTrue(engine.drop(target:drop.cell).accepted)
+        let plan=try XCTUnwrap(engine.pendingDirectWild)
+        XCTAssertTrue(engine.commitDirectWildGameplay(transactionID:plan.id).accepted)
+        XCTAssertFalse(engine.state.tiles.contains{$0.id==drop.tileID})
+        XCTAssertTrue(engine.sourceMeterHandoffInProgress)
+        let before=engine.state
+        XCTAssertFalse(engine.applyMeterDropReceipt(id:drop.id,generation:drop.generation,receipt:.revealed).accepted)
+        receipt(.wallHandoffUnlocked,drop,engine)
+        XCTAssertEqual(engine.state,before,"Wall retirement cannot repaint/recreate or charge the consumed die")
+        XCTAssertFalse(engine.sourceMeterHandoffInProgress);XCTAssertTrue(engine.meterDropReservations.isEmpty)
+        XCTAssertFalse(engine.applyMeterDropReceipt(id:drop.id,generation:drop.generation,receipt:.wallHandoffUnlocked).accepted)
+    }
     func testPickupWaitsForActualPromiseEvenAfterWarmupAndWallRelease()throws {
         let engine=makeEngine(),drop=try reserve(engine)
         for value:NativeMeterDropReceipt in [.assetsPrepared,.revealed,.impact,.boardFallbackRestored,.selectedWarmupCompleted,.wallHandoffUnlocked] {
