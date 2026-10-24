@@ -19,116 +19,114 @@ import StackToSixNativeState
         XCTAssertEqual(NativeDragTrailStyle.resolve(core:.star,variant:"bloob").colors,[0xDAFCEF,0xA5F8ED,0x6CDDE8,0x57C8DA])
         XCTAssertEqual(NativeWildMergeSixShardProfile.make(archetype:.star,variant:"bloob")?.colors,[0xA5F8ED,0x67D7E5])
     }
-    func testArchivedHoverPopulationAndGravityAreFinite() {
-        var state:UInt64=123
-        let motion=NativeBloobFinaleMotion(viewport:.init(width:390,height:844),random:{state=state &* 6364136223846793005 &+ 1;return Double(state>>11)/Double(UInt64.max>>11)})
-        XCTAssertEqual(motion.balls.count,22);XCTAssertEqual(motion.shards.count,29)
-        XCTAssertGreaterThan(Set(motion.balls.map{Int($0.size)}).count,6)
-        XCTAssertTrue(motion.balls.contains{$0.baseRotation>180})
-        XCTAssertEqual(motion.balls.prefix(14).filter{$0.sizeMultiplier>=1.4 && $0.sizeMultiplier<=1.6}.count,7)
-        XCTAssertEqual(motion.balls.filter{$0.sizeMultiplier==1}.count,7)
-        let added=Array(motion.balls.suffix(8))
-        XCTAssertTrue(added.allSatisfy{$0.sizeMultiplier==1.5})
-        XCTAssertGreaterThan(Set(added.map{Int($0.x*1000)}).count,6)
-        XCTAssertGreaterThan(Set(added.map{Int($0.size)}).count,4)
-        XCTAssertTrue(motion.shards.allSatisfy{$0.sizeMultiplier==0.8})
-        let originalX=[0.25,0.76,0.47,0.20,0.79,0.36,0.65,0.51,0.15,0.88,0.42,0.67,0.24,0.82]
-        let originalY=[0.76,0.69,0.56,0.43,0.31,0.20,0.86,0.40,0.60,0.49,0.33,0.16,0.88,0.80]
-        for i in 0..<14 {
-            XCTAssertEqual(motion.balls[i].y,0.5+(originalY[i]-0.5)*0.8,accuracy:0.000001)
-            XCTAssertLessThanOrEqual(abs(motion.balls[i].x-originalX[i]),0.035)
+    func testBloobShardReductionPreservesRandomConsumption()throws {
+        let reduced=try XCTUnwrap(NativeWildMergeSixShardProfile.make(archetype:.star,variant:"bloob"))
+        var original=reduced;original.retainedFraction=1
+        for pattern in original.patterns.indices {
+            var reducedDraws=0,originalDraws=0,acquired=0,registered=0
+            let full=try NativeWildMergeSixShardPlan(profile:original,pattern:pattern,random:{originalDraws+=1;return 0.5},current:{true},acquire:{_ in},materialize:{_,_ in},register:{_,_ in})
+            let small=try NativeWildMergeSixShardPlan(profile:reduced,pattern:pattern,random:{reducedDraws+=1;return 0.5},current:{true},acquire:{_ in acquired+=1},materialize:{_,_ in},register:{_,_ in registered+=1})
+            XCTAssertEqual(reducedDraws,originalDraws)
+            XCTAssertEqual(small.shards.count,max(1,Int((Double(full.shards.count)*0.15).rounded())))
+            XCTAssertEqual(acquired,small.shards.count);XCTAssertEqual(registered,small.shards.count)
         }
-        let xs=motion.balls.map(\.x)
-        XCTAssertGreaterThan((xs.max() ?? 0)-(xs.min() ?? 0),0.65)
-        for i in motion.balls.indices {
-            let p=motion.balls[i],a=motion.ballPose(i,seconds:p.fallStart),b=motion.ballPose(i,seconds:p.fallStart+0.7)
-            XCTAssertGreaterThan(b.center.y,a.center.y)
-            XCTAssertTrue(motion.ballPose(i,seconds:motion.duration).hidden)
+    }
+    func testHeroArtworkBoostIsContinuousAndBurstStaysSynchronized() {
+        XCTAssertEqual(NativeBloobFinaleMotion.heroArtworkClock(0.5),0.85,accuracy:0.000001)
+        XCTAssertEqual(NativeBloobFinaleMotion.heroArtworkClock(1),1.7,accuracy:0.000001)
+        XCTAssertEqual(NativeBloobFinaleMotion.heroArtworkClock(1.2),1.9,accuracy:0.000001)
+        XCTAssertEqual(NativeBloobFinaleMotion.heroReverseSeconds(NativeBloobFinaleMotion.scatterStart),NativeBloobReverseArt.burstOffset,accuracy:0.000001)
+    }
+    func testExperimentalOrdinaryEscapesAreVariedFiniteAndFullyOffscreen() {
+        var state:UInt64=8257
+        let size=CGSize(width:390,height:844),origin=CGPoint(x:40,y:700)
+        let motion=NativeBloobFinaleMotion(viewport:size,origin:origin,random:{state=state &* 6364136223846793005 &+ 1;return Double(state>>11)/Double(UInt64.max>>11)})
+        XCTAssertEqual(motion.reverseBalls.count,67);XCTAssertEqual(motion.fakeDice.count,24)
+        XCTAssertEqual(motion.heroSize,320)
+        XCTAssertEqual(motion.reversePose(0,seconds:0).center,origin)
+        XCTAssertEqual(motion.reversePose(0,seconds:motion.reverseStart+0.1).scale,1.5,accuracy:0.000001)
+        XCTAssertEqual(NativeBloobFinaleMotion.scatterStart,motion.popStart(0))
+        let children=Array(motion.reverseBalls.dropFirst())
+        XCTAssertEqual(Set(children.map(\.asset)),Set(0..<5))
+        XCTAssertTrue(children.contains{$0.size<48});XCTAssertTrue(children.contains{$0.size>150})
+        var edges=Set<String>()
+        for i in 1..<motion.reverseBalls.count {
+            XCTAssertTrue(motion.reversePose(i,seconds:NativeBloobFinaleMotion.scatterStart-0.001).hidden)
+            XCTAssertFalse(motion.reversePose(i,seconds:NativeBloobFinaleMotion.scatterStart+0.01).hidden)
+            XCTAssertFalse(motion.reverseAnimationStart(i).isFinite)
+            let exit=motion.exitTimes[i],pose=motion.reversePose(i,seconds:exit)
+            let radius=motion.reverseBalls[i].size*0.86+4
+            XCTAssertTrue(pose.hidden)
+            XCTAssertTrue(pose.center.x+radius<0 || pose.center.y+radius<0 || pose.center.x-radius>size.width || pose.center.y-radius>size.height)
+            XCTAssertFalse(motion.reversePose(i,seconds:exit-0.001).hidden)
+            XCTAssertTrue(motion.reversePose(i,seconds:motion.duration).hidden)
+            if pose.center.x<0 {edges.insert("left")};if pose.center.x>size.width {edges.insert("right")}
+            if pose.center.y<0 {edges.insert("top")};if pose.center.y>size.height {edges.insert("bottom")}
         }
-        let original=NativeBloobBallArt.idlePose(seconds:0.8),new=NativeBloobArt.idlePose(seconds:0.4)
-        XCTAssertEqual(new.x,original.x*1.4,accuracy:0.000001)
-        XCTAssertEqual(new.y,14-original.y*1.15,accuracy:0.000001)
+        XCTAssertEqual(edges,Set(["left","right","top","bottom"]))
+    }
+    func testDecorativeDicePullFromOutsideBoardAndEscapeIndependently() {
+        let board=CGRect(x:24,y:150,width:342,height:640)
+        var state:UInt64=727
+        let motion=NativeBloobFinaleMotion(viewport:CGSize(width:390,height:844),boardRect:board,random:{state=state &* 6364136223846793005 &+ 1;return Double(state>>11)/Double(UInt64.max>>11)})
+        XCTAssertEqual(motion.fakeDice.count,24)
+        for (i,die) in motion.fakeDice.enumerated() {
+            XCTAssertFalse(board.contains(die.incoming))
+            XCTAssertTrue((1...6).contains(die.value))
+            let pulled=motion.fakeDiePose(i,seconds:NativeBloobFinaleMotion.scatterStart-0.001)
+            XCTAssertLessThan(hypot(pulled.center.x-motion.heroDestination.x,pulled.center.y-motion.heroDestination.y),40)
+            XCTAssertEqual(pulled.scale,1,accuracy:0.000001)
+            let exit=motion.fakeDiePose(i,seconds:die.exit)
+            let radius=die.flight.size*0.86+4
+            XCTAssertTrue(exit.hidden)
+            XCTAssertTrue(exit.center.x+radius<0 || exit.center.y+radius<0 || exit.center.x-radius>390 || exit.center.y-radius>844)
+            XCTAssertTrue(motion.fakeDiePose(i,seconds:motion.duration).hidden)
+            XCTAssertFalse(motion.reverseBalls.dropFirst().contains{$0.x==die.flight.x && $0.y==die.flight.y && $0.bendX==die.flight.bendX})
+        }
     }
     func testActualSelectedPreparationFinaleReceiptsAndRelease()async throws {
-        XCTAssertFalse(NativeBloobFinalePresentation.assets.contains{$0.hasSuffix("bloob animation.svg") || $0==NativeBloobArt.splashPath})
         let selected=NativeSelectedUIKitFinaleArtworkOwner(root:NativeTestResources.root,generation:9,current:{true})
         selected.prepare(variant:"bloob")
         let deadline=Date().addingTimeInterval(20)
         while !selected.readyFamilies.contains("bloob"),Date()<deadline {try await Task.sleep(for:.milliseconds(10))}
         XCTAssertTrue(selected.readyFamilies.contains("bloob"))
-        var state:UInt64=123
-        var cues:[String]=[]
-        weak var weakFinale:NativeBloobFinalePresentation?
+        weak var released:NativeBloobFinalePresentation?
         autoreleasepool {
             let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.isHidden=false
-            let owner=NativeBloobFinalePresentation(resourceRoot:NativeTestResources.root,viewport:window.bounds.size,preparedArtwork:selected.artwork,random:{state=state &* 6364136223846793005 &+ 1;return Double(state>>11)/Double(UInt64.max>>11)})
-            weakFinale=owner;window.addSubview(owner);XCTAssertTrue(owner.assetReady)
-            owner.onCue={moment,_ in cues.append(moment)}
-            owner.paint(seconds:0);owner.paint(seconds:owner.motion.reverseStart-0.01)
-            let regular=owner.subviews.filter{$0.accessibilityIdentifier?.hasPrefix("native-bloob-regular-")==true}
-            let reverse=owner.subviews.filter{$0.accessibilityIdentifier?.hasPrefix("native-bloob-reverse-")==true}
-            XCTAssertEqual(regular.count,22);XCTAssertEqual(reverse.count,5)
-            let capturedRandom=state
-            var forwardFrames=0,reverseFrames=0
-            var lastPhase:[Int:Double]=[:]
-            for step in 1...30 {
-                let time=Double(step)*0.06;owner.paint(seconds:time)
-                for (i,ball) in regular.enumerated() where !ball.isHidden {
-                    let plan=owner.motion.balls[i]
-                    let phase=plan.playbackRoute!.seconds(at:time*plan.playbackRate+plan.playbackPhase)
-                    let frame=NativeBloobArt.frame(seconds:phase)
-                    XCTAssertEqual(ball.layer.contentsRect,CGRect(x:Double(frame%8)/8,y:Double(frame/8)/5,width:1.0/8,height:0.2))
-                    if let previous=lastPhase[i] {
-                        if phase>previous {forwardFrames+=1}else if phase<previous {reverseFrames+=1}
-                    }
-                    lastPhase[i]=phase
-                }
-            }
-            XCTAssertGreaterThan(forwardFrames,20);XCTAssertGreaterThan(reverseFrames,20)
-            XCTAssertEqual(state,capturedRandom)
-            owner.paint(seconds:owner.motion.reverseStart-0.01)
-            XCTAssertTrue(regular.allSatisfy{$0.subviews.isEmpty && $0.layer.contents != nil})
-            XCTAssertTrue(reverse.allSatisfy{$0.subviews.first?.isHidden==true && $0.layer.contents != nil})
-            owner.paint(seconds:owner.motion.reverseAnimationStart(0)+0.08)
-            XCTAssertFalse(reverse[0].subviews.first?.isHidden ?? true)
-            XCTAssertTrue(reverse.dropFirst().allSatisfy{$0.subviews.first?.isHidden==true})
-            owner.paint(seconds:(owner.motion.reverseBalls.map(\.fallStart).max() ?? 0)+0.01)
-            XCTAssertTrue(regular.allSatisfy{$0.layer.contents != nil})
-            XCTAssertTrue(reverse.allSatisfy{$0.subviews.first?.isHidden==false && $0.layer.contents==nil})
-            owner.paint(seconds:owner.motion.reverseStart-0.01)
-            XCTAssertTrue(reverse.allSatisfy{$0.subviews.first?.isHidden==true && $0.layer.contents != nil})
-            XCTAssertNil(selected.artwork.preparedBloobSplash)
-            XCTAssertNotNil(selected.artwork.preparedBloobReverse)
-            XCTAssertFalse(owner.subviews.contains{$0 is NativeBloobSplashSVGView})
-            XCTAssertEqual(owner.subviews.compactMap{$0 as? UIImageView}.count,29)
-            let image=UIGraphicsImageRenderer(bounds:window.bounds).image{window.layer.render(in:$0.cgContext)}
-            try? image.pngData()?.write(to:FileManager.default.temporaryDirectory.appendingPathComponent("native-bloob-finale.png"))
-            owner.paint(seconds:owner.motion.reverseStart+0.82)
-            let burst=UIGraphicsImageRenderer(bounds:window.bounds).image{window.layer.render(in:$0.cgContext)}
-            try? burst.pngData()?.write(to:FileManager.default.temporaryDirectory.appendingPathComponent("native-bloob-reverse-finale.png"))
-            owner.paint(seconds:owner.duration);owner.paint(seconds:owner.duration);owner.paint(seconds:0)
-            XCTAssertEqual(cues.filter{$0=="rise"}.count,1);XCTAssertFalse(cues.contains("burst"))
-            let glyphs=try? XCTUnwrap(owner.subviews.compactMap{$0 as? NativeSplashGlyphField}.first)
-            let letters=glyphs?.subviews.first?.subviews.compactMap{$0 as? UILabel} ?? []
-            XCTAssertEqual(letters.compactMap(\.text).joined(),"BLOOB")
-            XCTAssertTrue(letters.allSatisfy{$0.textColor.withAlphaComponent(1)==UIColor.white && $0.subviews.count==4})
+            let owner=NativeBloobFinalePresentation(resourceRoot:NativeTestResources.root,viewport:window.bounds.size,origin:CGPoint(x:60,y:700),preparedArtwork:selected.artwork,random:{0.5})
+            released=owner;window.addSubview(owner);XCTAssertTrue(owner.assetReady)
+            func ordinary()->[UIView] {owner.subviews.filter{$0.accessibilityIdentifier?.hasPrefix("native-bloob-ordinary-")==true}}
+            XCTAssertEqual(ordinary().count,66);XCTAssertTrue(ordinary().allSatisfy{$0.subviews.isEmpty})
+            func dice()->[UIView] {owner.subviews.filter{$0.accessibilityIdentifier?.hasPrefix("native-bloob-fake-die-")==true}}
+            XCTAssertEqual(dice().count,24)
+            weak var fakeDie=dice().first
+            owner.paint(seconds:owner.duration);XCTAssertTrue(dice().isEmpty);XCTAssertNil(fakeDie)
+            owner.paint(seconds:0);XCTAssertEqual(dice().count,24)
+            owner.paint(seconds:NativeBloobFinaleMotion.scatterStart+0.02)
+            XCTAssertTrue(ordinary().allSatisfy{!$0.isHidden && $0.layer.contents != nil})
+            let index=1,exit=owner.motion.exitTimes[index]
+            weak var escaped=ordinary().first{$0.accessibilityIdentifier=="native-bloob-ordinary-1"}
+            owner.paint(seconds:exit+0.001)
+            XCTAssertNil(escaped,"Escaped sprite must be detached and released,not merely hidden")
+            owner.paint(seconds:owner.duration);XCTAssertTrue(ordinary().isEmpty)
+            owner.paint(seconds:NativeBloobFinaleMotion.scatterStart+0.02)
+            XCTAssertEqual(ordinary().count,66)
             let clock=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0})
-            owner.configureAnimationDelivery(clock)
-            owner.start();owner.setSuspended(true)
-            func nested(_ view:UIView)->[UIView] {[view]+view.subviews.flatMap{nested($0)}}
-            let nestedViews=nested(owner)
-            let nestedTransforms=nestedViews.map{NSValue(cgAffineTransform:$0.transform)}
-            let held=owner.subviews.map{ $0.center }
-            clock.deliver(wallMilliseconds:1000)
-            XCTAssertEqual(owner.subviews.map{$0.center},held)
-            XCTAssertEqual(nestedViews.map{NSValue(cgAffineTransform:$0.transform)},nestedTransforms)
-            owner.setSuspended(false);clock.deliver(wallMilliseconds:1016);clock.deliver(wallMilliseconds:1200)
-            XCTAssertNotEqual(nestedViews.map{NSValue(cgAffineTransform:$0.transform)},nestedTransforms)
-            clock.dispose()
-            owner.dispose();owner.dispose();XCTAssertNil(owner.onCue)
-            window.isHidden=true
+            owner.configureAnimationDelivery(clock);owner.start();owner.setSuspended(true)
+            let held=ordinary().map(\.center);clock.deliver(wallMilliseconds:1000)
+            XCTAssertEqual(ordinary().map(\.center),held)
+            clock.dispose();owner.dispose();owner.dispose();XCTAssertTrue(ordinary().isEmpty)
+            XCTAssertNil(owner.onCue);window.isHidden=true
         }
-        selected.dispose();XCTAssertNil(selected.artwork.preparedBloobSplash);XCTAssertNil(selected.artwork.preparedBloobReverse);try await Task.sleep(for:.milliseconds(50));XCTAssertNil(weakFinale)
+        selected.dispose();try await Task.sleep(for:.milliseconds(50));XCTAssertNil(released)
+    }
+    func testModalPeriodicBoostPreservesContinuousPhase() {
+        XCTAssertEqual(NativeBloobArt.modalArtworkTime(2),2,accuracy:0.000001)
+        XCTAssertEqual(NativeBloobArt.modalArtworkTime(2.5),2.85,accuracy:0.000001)
+        XCTAssertEqual(NativeBloobArt.modalArtworkTime(3),3.7,accuracy:0.000001)
+        XCTAssertEqual(NativeBloobArt.modalArtworkTime(3.5),4.2,accuracy:0.000001)
+        XCTAssertEqual(NativeBloobArt.modalArtworkTime(4),4.7,accuracy:0.000001)
+        XCTAssertEqual(NativeBloobArt.modalArtworkTime(4.5),5.55,accuracy:0.000001)
     }
     func testModalMixedDirectionRouteIsContinuousUnitSpeedAndCapturedOnce() {
         var draws=0
@@ -309,19 +307,10 @@ import StackToSixNativeState
         }
         XCTAssertNil(released)
         let motion=NativeBloobFinaleMotion(viewport:CGSize(width:390,height:844),random:{0.5})
-        XCTAssertEqual(motion.reverseBalls.count,5)
-        XCTAssertEqual(motion.reverseStart,motion.shards.map(\.fallStart).min())
-        XCTAssertTrue(motion.reverseBalls.allSatisfy{$0.sizeMultiplier==1.4 && $0.settled<$0.fallStart})
-        for i in motion.reverseBalls.indices {
-            XCTAssertGreaterThanOrEqual(motion.reverseBalls[i].fallStart,motion.reverseStart)
-            if i>0 {XCTAssertGreaterThanOrEqual(motion.reverseBalls[i].fallStart-motion.reverseBalls[i-1].fallStart,0.16)}
-            let start=motion.reverseAnimationStart(i)
-            XCTAssertEqual(motion.reverseBalls[i].fallStart-start,0.12,accuracy:0.000001)
-            XCTAssertEqual(motion.popStart(i),start+NativeBloobReverseArt.burstOffset)
-            XCTAssertFalse(motion.reversePose(i,seconds:start+0.82).hidden)
-            XCTAssertTrue(motion.reversePose(i,seconds:start+NativeBloobReverseArt.duration).hidden)
-            XCTAssertGreaterThanOrEqual(motion.duration,start+NativeBloobReverseArt.duration)
-        }
+        XCTAssertEqual(motion.popStart(0),NativeBloobFinaleMotion.scatterStart)
+        XCTAssertFalse(motion.reversePose(0,seconds:motion.reverseStart+0.2).hidden)
+        XCTAssertTrue(motion.reversePose(0,seconds:motion.exitTimes[0]).hidden)
+        XCTAssertTrue(motion.reverseBalls.indices.dropFirst().allSatisfy{!motion.reverseAnimationStart($0).isFinite})
     }
     private final class AudioTransport:NativeGameplayAudioTransport {
         var cues:[NativeAudioCue]=[],stops=0
@@ -335,23 +324,48 @@ import StackToSixNativeState
         owner.specialMoment(variant:"bloob",moment:"rise",receipt:1,generation:1)
         XCTAssertEqual(transport.cues,NativeBloobAudio.cues("rise"))
         owner.specialMoment(variant:"bloob",moment:"rise",receipt:1,generation:1)
-        XCTAssertEqual(transport.cues.count,2)
+        XCTAssertEqual(transport.cues.count,1)
         owner.setEnabled(false);owner.specialMoment(variant:"bloob",moment:"rise",receipt:2,generation:1)
         owner.setEnabled(true);owner.setForeground(false)
         owner.specialMoment(variant:"bloob",moment:"rise",receipt:3,generation:1)
-        XCTAssertEqual(transport.cues.count,2);XCTAssertGreaterThanOrEqual(transport.stops,2)
+        XCTAssertEqual(transport.cues.count,1);XCTAssertGreaterThanOrEqual(transport.stops,2)
         owner.setForeground(true);owner.beginGeneration(2)
         owner.specialMoment(variant:"bloob",moment:"rise",receipt:4,generation:1)
-        XCTAssertEqual(transport.cues.count,2)
+        XCTAssertEqual(transport.cues.count,1)
         owner.specialMoment(variant:"bloob",moment:"rise",receipt:5,generation:2)
-        XCTAssertEqual(transport.cues.count,4)
+        XCTAssertEqual(transport.cues.count,2)
+    }
+    func testRepeatedBluubSourceGetsIndependentNaturalTailVoices() {
+        let transport=AudioTransport()
+        let owner=NativeGameplayAudioOwner(root:NativeTestResources.root,enabled:true,transport:transport,random:{0})
+        defer{owner.dispose()}
+        let tile=NativeTile(id:"bloob-audio",cell:.init(column:0,row:0),value:0,archetype:.star,variant:"bloob")
+        owner.onGameplayEvent(.init(.merged,value:6),source:tile,generation:1,receipt:1)
+        owner.onGameplayEvent(.init(.merged,value:6),source:tile,generation:1,receipt:2)
+        let voices=transport.cues.filter{$0.source.hasSuffix("/bluub1.wav")}
+        XCTAssertEqual(voices.count,2);XCTAssertEqual(Set(voices.map(\.voice)).count,2)
+        XCTAssertTrue(voices.allSatisfy{$0.delay==0 && $0.stopAfter==nil && $0.fadeOut==0 && !$0.looping})
+        XCTAssertEqual(transport.stops,0)
+    }
+    func testBluubPoolSelectsExactlyOneOriginalDelayedVoice() {
+        for index in 0..<4 {
+            let cues=NativeBloobAudio.cues("bluub",index:index)
+            XCTAssertEqual(cues.count,1)
+            XCTAssertTrue(cues[0].source.hasSuffix("/bluub\(index+1).wav"))
+            XCTAssertEqual(cues[0].delay,0);XCTAssertEqual(cues[0].gain,0.6)
+            XCTAssertNil(cues[0].stopAfter);XCTAssertEqual(cues[0].fadeOut,0);XCTAssertFalse(cues[0].looping)
+            XCTAssertTrue(NativeBloobAudio.sources.contains(cues[0].source))
+        }
     }
     func testExactAudioGainsAndDelayedSequence() {
         let merge=NativeBloobAudio.cues("merge"),rise=NativeBloobAudio.cues("rise")
-        XCTAssertEqual(merge.map(\.gain),[0.504,0.6])
+        XCTAssertEqual(merge.map(\.gain),[0.504,0.84])
+        XCTAssertEqual(merge.map(\.delay),[0.5,0])
+        XCTAssertTrue(NativeBloobAudio.cues("pop").isEmpty)
+        XCTAssertFalse(NativeBloobAudio.sources.contains{$0.hasSuffix("djeca.wav")})
         XCTAssertFalse(NativeBloobAudio.sources.contains{$0.hasSuffix("bibice.wav") || $0.hasSuffix("ufo movement.wav")})
-        XCTAssertEqual(rise.map(\.gain),[0.84,0.45])
-        XCTAssertEqual(rise.map(\.delay),[0,0.4])
+        XCTAssertEqual(rise.map(\.gain),[0.45])
+        XCTAssertEqual(rise.map(\.delay),[0.4])
         XCTAssertTrue(Set(NativeBloobAudio.sources.map{"./"+$0}).isSubset(of:Set(NativeMeterSelectedAudioCatalog.sources(special:"wild",variant:"bloob") ?? [])))
     }
 }

@@ -232,3 +232,7 @@ Fishy ready SVG remains the same visible animated carrier through board drag and
 BONKERS green glow fades smoothly with Coconut palm exit1.40–1.97s;white faces keep their authored exit. Shared splash field defaults remain fully opaque for other callers.
 
 Native Bottle glass-crack latency policy:prepare only its original glass crack.wav when a Bottle is present on the current/restored board (and retry on pickup),using the existing selected SFX cache/Settings/lifecycle gates. Pull dispatch gives the crack first position among the8unchanged layers,at the existing convergence/smoke event;no early timer or asset edits.
+
+## Accepted BLOOB finale (2026-10-24)
+
+The accepted Native BLOOB finale replaces the previous floating/shard composition:320pt hero with enlarged reverse,66random ordinary offscreen flights and24decorative Barrel-style dice magnetically pulled from outside board bounds,then independently scattered offscreen. Retire each fully escaped carrier;only hero uses reverse layers. Intake dice match canonical board tile size and render behind hero;outgoing dice mix random depth with BLOOBs. Selected modal has periodic1.7x artwork acceleration. Normal reward selection applies;temporary all-BLOOB test override removed. Original assets/history remain protected. User visual acceptance does not certify physical performance.

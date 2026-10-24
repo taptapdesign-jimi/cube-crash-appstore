@@ -52,6 +52,14 @@ nonisolated enum NativeBloobArt {
             return min(Self.cycle.nextDown,max(0,segment.from+(segment.to>segment.from ? 1:-1)*(time-segment.begin)))
         }
     }
+    /// Selected modal only: first boost at2s, then1s at1.7x every2s.
+    /// Integrating the rate preserves source phase across both boundaries.
+    static func modalArtworkTime(_ seconds:Double)->Double {
+        let t=max(0,seconds)
+        guard t>2 else{return t}
+        let elapsed=t-2,cycles=floor(elapsed/2),phase=elapsed-cycles*2
+        return 2+cycles*2.7+min(phase,1)*1.7+max(0,phase-1)
+    }
     struct Playback {
         static let cycle=PlaybackRoute.cycle
         private let route:PlaybackRoute

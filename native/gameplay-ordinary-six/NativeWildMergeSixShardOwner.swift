@@ -7,6 +7,7 @@ import StackToSixGameplay
 struct NativeWildMergeSixShardProfile {
     enum Family:String {case star,juice,tnt,magnet,magnetPull}
     let family:Family,colors:[UInt32],sizeScale:Double
+    var retainedFraction:Double=1
     var ttl:Double {family == .magnet || family == .magnetPull ? 1:1.2}
     static func make(archetype:NativeWildArchetype,variant:String?,pull:Bool=false)->Self? {
         let palette:[String:[UInt32]]=[
@@ -24,7 +25,7 @@ struct NativeWildMergeSixShardProfile {
         let visual=variant.flatMap{NativeSpecialDiceRegistry.variants[$0]?.visualFinale} ?? archetype
         let family:Family=archetype == .magnet ? (pull ? .magnetPull:.magnet):visual == .juice ? .juice:visual == .tnt ? .tnt:.star
         let defaults:UInt32=family == .magnet || family == .magnetPull ? 0xF26034:family == .juice ? 0xF99D77:family == .tnt ? 0xE85C3A:0xFFCB47
-        return .init(family:family,colors:variant.flatMap{palette[$0]} ?? [defaults],sizeScale:variant == "barell" ? 0.7:1)
+        return .init(family:family,colors:variant.flatMap{palette[$0]} ?? [defaults],sizeScale:variant == "barell" ? 0.7:1,retainedFraction:variant == "bloob" ? 0.15:1)
     }
     var patterns:[[NativeRegularShardTemplates.Definition]] {
         switch family {
@@ -51,8 +52,11 @@ struct NativeWildMergeSixShardPlan {
         }
         var result:[Shard]=[]
         let magnet=profile.family == .magnet || profile.family == .magnetPull
-        for (index,d) in profile.patterns[pattern % profile.patterns.count].enumerated() {
-            guard current() else{throw AdmissionError.staleRandomOrResources};acquire(index);guard current() else{throw AdmissionError.staleRandomOrResources}
+        let definitions=profile.patterns[pattern % profile.patterns.count]
+        let retained=max(1,Int((Double(definitions.count)*profile.retainedFraction).rounded()))
+        for (index,d) in definitions.enumerated() {
+            let emit=(index*retained/definitions.count) != ((index+1)*retained/definitions.count)
+            guard current() else{throw AdmissionError.staleRandomOrResources};if emit {acquire(index)};guard current() else{throw AdmissionError.staleRandomOrResources}
             let brown=try magnet && draw()<0.38
             let color:UInt32=magnet ? (brown ? (profile.colors.count>1 ? profile.colors[1]:0xD4A584):profile.colors[0]):profile.colors[index % profile.colors.count]
             let width=((magnet ? 8:6)+(try draw())*(magnet ? 10:8))*d.size*2.4*profile.sizeScale
@@ -69,7 +73,9 @@ struct NativeWildMergeSixShardPlan {
             let distance=(d.distance+distanceOffset)*96*(magnet ? 6.888:6.72)
             let shard=Shard(points:points,rotation:rotation,alpha:d.alpha,dx:cos(angle)*distance,dy:sin(angle)*distance,
                 travelDuration:(magnet ? 0.35:0.4)*d.speed,travelDelay:delay,fadeDelay:0.15+0.1*(try draw()),color:color,depth:brown ? -1:0)
-            guard current() else{throw AdmissionError.staleRandomOrResources};result.append(shard);materialize(index,shard)
+            guard current() else{throw AdmissionError.staleRandomOrResources}
+            guard emit else{continue}
+            result.append(shard);materialize(index,shard)
             guard current() else{throw AdmissionError.staleRandomOrResources};register(index,shard)
         }
         shards=result

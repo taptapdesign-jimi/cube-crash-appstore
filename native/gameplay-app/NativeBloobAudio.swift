@@ -11,10 +11,11 @@ nonisolated enum NativeBloobAudio {
         switch moment {
         // Standard committed Star/merge-six layers are already played by the
         // shared owner. Splat uses120percent of its existing0.42 gain.
-        case "merge":return [cue(base+"splat.wav",0.504),cue(base+"paint splat.wav",0.6)]
-        case "rise":return [cue(area+"djeca.wav",0.84),cue(area+"beams.wav",0.45,0.4)]
+        case "merge":return [cue(base+"splat.wav",0.504,0.5),cue(base+"paint splat.wav",0.84)]
+        case "bluub":return [cue(base+"bluub\(min(3,max(0,index))+1).wav",0.6)]
+        case "rise":return [cue(area+"beams.wav",0.45,0.4)]
         default:return []
         }
     }
-    static var sources:[String] {cues("merge").map(\.source)+cues("rise").map(\.source)}
+    static var sources:[String] {cues("merge").map(\.source)+cues("rise").map(\.source)+(0..<4).flatMap{cues("bluub",index:$0).map(\.source)}}
 }

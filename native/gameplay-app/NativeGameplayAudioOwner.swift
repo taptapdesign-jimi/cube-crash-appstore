@@ -177,7 +177,16 @@ final class NativeGameplayAudioOwner {
             if variants.isEmpty && types.isEmpty {play("regular6");return}
             play("poof")
             if variants.contains("baloon") {play("foundation");play("baloonMerge")}
-            if variants.contains("bloob") {play("foundation");for cue in NativeBloobAudio.cues("merge"){transport.play(cue)}}
+            if variants.contains("bloob") {
+                play("foundation")
+                for cue in NativeBloobAudio.cues("merge"){transport.play(cue)}
+                // A fresh receipt voice may outlive its visual finale and overlap
+                // a later merge choosing the same source. Transport retires it at natural end.
+                for cue in NativeBloobAudio.cues("bluub",index:pick(4)) {
+                    transport.play(NativeAudioCue(source:cue.source,voice:"\(cue.voice)-g\(generation)-r\(receipt)",
+                        gain:cue.gain,rate:cue.rate,delay:0,stopAfter:nil,fadeOut:0))
+                }
+            }
             if variants.contains("bloob-ball") {for cue in NativeBloobBallAudio.cues("merge"){transport.play(cue)}}
             if types.contains(.tnt) || !variants.isDisjoint(with:["flower","beach-ball","laser-gun","barell","bloob-ball"]) {tntOrder=shuffle([0,1,2,3,4])}
             if variants.isEmpty && types.contains(.star) {play("star\(pick(4))")}

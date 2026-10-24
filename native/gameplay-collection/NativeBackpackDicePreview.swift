@@ -331,8 +331,9 @@ import StackToSixGameplay
         guard active,ready,!disposed,!UIAccessibility.isReduceMotionEnabled else{return}
         let delta=lastTime.map{min(1.0/15,max(0,time-$0))} ?? 0;lastTime=time
         textures.advanceIdlePhases()
-        // BLOOB changes direction along its captured route at original1x speed.
-        let bloobTime=bloobPlayback?.advance(delta)
+        // Only the selected BLOOB modal artwork accelerates; hover keeps its clock.
+        let bloobDelta=NativeBloobArt.modalArtworkTime(previewElapsed+delta)-NativeBloobArt.modalArtworkTime(previewElapsed)
+        let bloobTime=bloobPlayback?.advance(bloobDelta)
         let artworkRate=identity.id=="bee" ? 0.4356:1
         dieNode?.tick(delta*artworkRate,suspended:false,viewportCenter:canvas.size.width/2,
                       beeFrameOrder:identity.id=="bee" ? [1,2,4,3]:nil,selectedBloobTime:bloobTime)

@@ -697,7 +697,7 @@
       "family": "Wild/Special BLOOB",
       "eventOwner": "Committed BLOOB merge and once-only first visible rise via NativeGameplayAudioOwner.",
       "transport": "Existing NativeGameplayAudioTransport and shared bounded SFX engine; no new media owner.",
-      "voicePolicy": "Standard merge layers retained;splat0.504,paint splat0.6;rise djeca0.84,beams0.45 at400ms. User removes Area55 bibice and ufo movement from BLOOB playback and selected preload;other families unchanged. Distinct BLOOB voices through existing transport.",
+      "voicePolicy": "Standard merge layers retained;splat0.504 at committed merge6 with fixed500ms delay(user listening preference supersedes actual-pop experiment),paint splat0.84(+40percent linear gain,about+2.92dB);rise beams0.45 at400ms,djeca removed from BLOOB playback/selected preload. User removes Area55 bibice and ufo movement from BLOOB playback and selected preload;other families unchanged. Committed merge additionally draws exactly one bluub1\u20134.wav through existing owner RNG,delay0/gain0.6/rate1;all4selected sources prepared,distinct generation+merge-receipt BLOOB voice allows repeated-source overlap without replacement;no stopAfter/fade/loop and finale completion does not stop it;natural end retires voice/player through existing transport,Settings/background/generation cleanup through existing transport. Distinct BLOOB voices through existing transport.",
       "preloadPolicy": "NativeMeterSelectedAudioCatalog selected/restored Bloob only; no eager all-family decode.",
       "settingsPolicy": "Existing NativeGameplayAudioOwner Sounds enabled admission and full-stop.",
       "interruptionPolicy": "Existing Settings/background/interruption/generation/route cancellation retires queued and playing transport voices.",
@@ -706,7 +706,10 @@
       "sources": [
         "./assets/sound/Wild and special kockice/bloob ball/splat.wav",
         "./assets/sound/Wild and special kockice/bloob ball/paint splat.wav",
-        "./assets/sound/Board transitions/Area 55/djeca.wav",
+        "./assets/sound/Wild and special kockice/bloob ball/bluub1.wav",
+        "./assets/sound/Wild and special kockice/bloob ball/bluub2.wav",
+        "./assets/sound/Wild and special kockice/bloob ball/bluub3.wav",
+        "./assets/sound/Wild and special kockice/bloob ball/bluub4.wav",
         "./assets/sound/Board transitions/Area 55/beams.wav"
       ],
       "tests": [

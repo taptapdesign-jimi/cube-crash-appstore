@@ -597,7 +597,11 @@ final class NativeGameplayViewController: UIViewController {
                 owner.start();return true
             }
             if variant == "bloob" {
-                let owner=NativeBloobFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.view.bounds.size,preparedArtwork:self.selectedFinaleArtwork())
+                let geometry=NativeBoardGeometry(columns:self.engine.state.columns,rows:self.engine.state.rows,viewport:self.view.bounds.size,safeInsets:self.view.safeAreaInsets)
+                let width=CGFloat(geometry.columns-1)*geometry.stride+geometry.tileSize
+                let height=CGFloat(geometry.rows-1)*geometry.stride+geometry.tileSize
+                let boardRect=CGRect(x:geometry.origin.x,y:self.view.bounds.height-geometry.origin.y-height,width:width,height:height)
+                let owner=NativeBloobFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.view.bounds.size,origin:origin,boardRect:boardRect,boardTileSize:geometry.tileSize,preparedArtwork:self.selectedFinaleArtwork())
                 guard owner.assetReady else {owner.dispose();return false}
                 self.area55Finales[variant]?.dispose()
                 self.area55Finales[variant]=owner;self.area55Generations[variant]=generation
