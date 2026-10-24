@@ -33,3 +33,10 @@ FPS and thermal behavior remain NEEDS PHYSICAL TEST.
 
 The annotated tag identifies the immutable payload. Online publication receipt
 will be a separate documentation commit without moving the benchmark tag.
+
+## Verified online publication
+
+Atomic main/tag push succeeded. Independent ls-remote confirms online main
+and peeled tag at payload `628b3fb8e745ddccb2c34a2d12668119464d8d44`. Annotated tag object
+`61bb543a2c824602bed7dbcaa6e863d1db232f4f`. This later documentation receipt
+does not move the immutable payload tag.

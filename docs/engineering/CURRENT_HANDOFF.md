@@ -1,3 +1,7 @@
+## Verified Native benchmark v14 online — 2026-10-24
+
+User-requested Nove kockice published:atomic origin main/native-benchmark-v14 push PASS. Independent ls-remote main and peeled tag match payload 628b3fb8e745ddccb2c34a2d12668119464d8d44;exact100-file manifest,credential-pattern scan,no staged deletions,diffcheck,full QA PASS. Seven preexisting local asset deletions remain untouched/excluded. Separate documentation receipt commit keeps immutable payload tag fixed. Phone installation remains next authorized step;current signed Release/audit already PASS.
+
 ## Native benchmark v14 validation — 2026-10-24
 
 Final no-sync qa:full PASS /tmp/native-benchmark-v14-full.log:530 suites/4010tests,KING330 and selected deterministic gates. Signed Native Release/audit PASS as recorded below. Preparing immutable payload tag native-benchmark-v14,Nove kockice,then atomic online push. Seven local original asset deletions excluded;credential-pattern scan/diffcheck PASS. Physical installation deliberately deferred until online checkpoint is verified.
