@@ -81,3 +81,34 @@ import StackToSixGameplay
   XCTAssertTrue(t.voices.isEmpty);XCTAssertEqual(t.stops,0);XCTAssertNil(a.captureMagnetPullStop(generation:1))
  }
 }
+
+@MainActor private final class BottlePriorityAuditTransport:NativeGameplayAudioTransport {
+ var played:[NativeAudioCue]=[],prepared:[[String]]=[]
+ func play(_ cue:NativeAudioCue){played.append(cue)}
+ func prepareSelectedSources(_ sources:[String],capture:String,generation:UInt64)->Bool {prepared.append(sources);return true}
+ func stopAll(){}
+ func dispose(){}
+}
+extension NativeMagnetForceCapturedStopTests {
+ func testPresentBottleWarmsOnlyCrackOnceAndPrioritizesItWithoutChangingLayers()throws {
+  let t=BottlePriorityAuditTransport(),a=NativeGameplayAudioOwner(root:URL(fileURLWithPath:"/unused"),enabled:true,transport:t)
+  defer{a.dispose()}
+  let tile=NativeTile(id:"bottle",cell:.init(column:0,row:0),value:6,archetype:.magnet,variant:"bottle")
+  let state=NativeBoardState(tiles:[tile])
+  a.prepareBottleOnBoard(.init(tiles:[]));XCTAssertTrue(t.prepared.isEmpty)
+  a.prepareBottleOnBoard(state);a.prepareBottleOnBoard(state)
+  XCTAssertEqual(t.prepared,[["assets/sound/Wild and special kockice/bottle/glass crack.wav"]]);XCTAssertTrue(t.played.isEmpty)
+  a.specialMoment(variant:"bottle",moment:"pull",index:4,receipt:1,generation:1)
+  XCTAssertEqual(t.played.first?.voice,"bottle-pull-merge-glass-crack")
+  let expected=(NativeAuthoredAudioCatalog.groups["bottleForce"] ?? [])+(NativeAuthoredAudioCatalog.groups["bottlePull"] ?? [])
+  XCTAssertEqual(t.played.count,8);XCTAssertEqual(Set(t.played.map(\.voice)),Set(expected.map(\.voice)))
+  for cue in expected {XCTAssertEqual(t.played.first(where:{$0.voice==cue.voice})?.gain,cue.gain)}
+  a.setEnabled(false);a.prepareBottleOnBoard(state);XCTAssertEqual(t.prepared.count,1)
+  a.setEnabled(true);a.prepareBottleOnBoard(state);XCTAssertEqual(t.prepared.count,2)
+  a.setForeground(false);a.prepareBottleOnBoard(state);XCTAssertEqual(t.prepared.count,2)
+  a.setForeground(true);a.prepareBottleOnBoard(state);XCTAssertEqual(t.prepared.count,3)
+  a.beginGeneration(2);a.prepareBottleOnBoard(state);XCTAssertEqual(t.prepared.count,3)
+  a.prepareBottleOnBoard(.init(tiles:[tile],generation:2));XCTAssertEqual(t.prepared.count,4)
+  a.dispose();a.prepareBottleOnBoard(.init(tiles:[tile],generation:2));XCTAssertEqual(t.prepared.count,4)
+ }
+}

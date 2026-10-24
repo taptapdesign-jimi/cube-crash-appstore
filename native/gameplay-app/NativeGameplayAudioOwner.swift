@@ -10,8 +10,9 @@ struct NativeAudioCue:Equatable {
     let delay:Double
     let stopAfter:Double?
     let fadeOut:Double
-    init(source:String,voice:String,gain:Double,rate:Double=1,delay:Double=0,stopAfter:Double?=nil,fadeOut:Double=0) {
-        self.source=source;self.voice=voice;self.gain=gain;self.rate=rate;self.delay=delay;self.stopAfter=stopAfter;self.fadeOut=fadeOut
+    let looping:Bool
+    init(source:String,voice:String,gain:Double,rate:Double=1,delay:Double=0,stopAfter:Double?=nil,fadeOut:Double=0,looping:Bool=false) {
+        self.source=source;self.voice=voice;self.gain=gain;self.rate=rate;self.delay=delay;self.stopAfter=stopAfter;self.fadeOut=fadeOut;self.looping=looping
     }
 }
 enum NativeAudioCompletion:Equatable {case ended,stopped,unavailable}
@@ -80,6 +81,9 @@ final class NativeGameplayAudioOwner {
     private var transitionDigitVoices:Set<String>=[]
     private var harpSequenceReady=false
     private var sourceBoardEntryOwner:UUID?
+    private var bottleBoardWarmupCapture:String?
+    private static let bottleGlassVoice="bottle-pull-merge-glass-crack"
+    private var coconutLoopVoices:Set<String>=[]
     private var ordinarySixContact:String?
     private var magnetPullSilentGeneration:UInt64?
     private var magnetPullStopCapture:(generation:UInt64,receipt:UInt64,stop:()->Void)?
@@ -103,16 +107,30 @@ final class NativeGameplayAudioOwner {
     }
     func beginGeneration(_ value:UInt64) {
         guard !disposed,value != generation else{return}
-        sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.stopAll();generation=value;meterCarrierVoices.removeAll();receipts.removeAll();harpSequenceReady=false;ordinarySixContact=nil;transitionVoices.removeAll();transitionDigitVoices.removeAll()
+        bottleBoardWarmupCapture=nil;sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.stopAll();coconutLoopVoices.removeAll();generation=value;meterCarrierVoices.removeAll();receipts.removeAll();harpSequenceReady=false;ordinarySixContact=nil;transitionVoices.removeAll();transitionDigitVoices.removeAll()
     }
-    func setEnabled(_ value:Bool) {guard !disposed else{return};enabled=value;transport.setSelectedPreparationEnabled(value);if !value {finishRewardTail();finishArcadeTail();finishRoundWonTail();finishWorldTail();finishNavigationSpeech();sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.stopAll()}}
-    func setForeground(_ value:Bool) {guard !disposed else{return};foreground=value;transport.setSelectedPreparationForeground(value && !interrupted);if !value {finishRewardTail();finishArcadeTail();finishRoundWonTail();finishWorldTail();finishNavigationSpeech();sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.stopAll()}}
+    func setEnabled(_ value:Bool) {guard !disposed else{return};enabled=value;transport.setSelectedPreparationEnabled(value);if !value {finishRewardTail();finishArcadeTail();finishRoundWonTail();finishWorldTail();finishNavigationSpeech();bottleBoardWarmupCapture=nil;sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.stopAll();coconutLoopVoices.removeAll()}}
+    func setForeground(_ value:Bool) {guard !disposed else{return};foreground=value;transport.setSelectedPreparationForeground(value && !interrupted);if !value {finishRewardTail();finishArcadeTail();finishRoundWonTail();finishWorldTail();finishNavigationSpeech();bottleBoardWarmupCapture=nil;sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.stopAll();coconutLoopVoices.removeAll()}}
     /// Called only for the actually-created committed meter tile after Source's
     /// open/token recheck. Preparation never plays or substitutes a generic cue.
     func prepareSelectedSpecial(special:String,variant:String?,capture:String,generation:UInt64)->Bool {
         guard !disposed,enabled,foreground,!interrupted,generation==self.generation,
               let sources=NativeMeterSelectedAudioCatalog.sources(special:special,variant:variant) else{return false}
         return transport.prepareSelectedSources(sources,capture:capture,generation:generation)
+    }
+
+    /// Only an actually present Bottle borrows the existing selected SFX cache.
+    /// No scheduler, playback or future-family preparation is admitted here.
+    func prepareBottleOnBoard(_ state:NativeBoardState) {
+        guard !disposed,state.generation==generation else{return}
+        let ids=state.tiles.filter{$0.variant=="bottle"}.map(\.id).sorted()
+        guard !ids.isEmpty else{bottleBoardWarmupCapture=nil;return}
+        prepareBottleGlass(capture:"bottle-board-\(generation)-\(ids.joined(separator:","))")
+    }
+    private func prepareBottleGlass(capture:String) {
+        guard !disposed,enabled,foreground,!interrupted,bottleBoardWarmupCapture != capture,
+              let cue=NativeAuthoredAudioCatalog.groups["bottlePull"]?.first(where:{$0.voice==Self.bottleGlassVoice}) else{return}
+        if transport.prepareSelectedSources([cue.source],capture:capture,generation:generation) {bottleBoardWarmupCapture=capture}
     }
 
     private func admit(_ category:String,receipt:UInt64,generation:UInt64)->Bool {
@@ -145,7 +163,9 @@ final class NativeGameplayAudioOwner {
         }
         guard audible else{return}
         switch event.kind {
-        case .dragBegan:play("pickup")
+        case .dragBegan:
+            if source?.variant=="bottle" || destination?.variant=="bottle" {prepareBottleGlass(capture:"bottle-drag-\(generation)-\(source?.id ?? destination?.id ?? "current")")}
+            play("pickup")
         case .dragCancelled:play("return")
         case .noMovesCandidate:break // NO MOVES sound belongs to its visible confirmed modal.
         case .merged:
@@ -157,11 +177,12 @@ final class NativeGameplayAudioOwner {
             if variants.isEmpty && types.isEmpty {play("regular6");return}
             play("poof")
             if variants.contains("baloon") {play("foundation");play("baloonMerge")}
+            if variants.contains("bloob") {play("foundation");for cue in NativeBloobAudio.cues("merge"){transport.play(cue)}}
             if variants.contains("bloob-ball") {for cue in NativeBloobBallAudio.cues("merge"){transport.play(cue)}}
             if types.contains(.tnt) || !variants.isDisjoint(with:["flower","beach-ball","laser-gun","barell","bloob-ball"]) {tntOrder=shuffle([0,1,2,3,4])}
             if variants.isEmpty && types.contains(.star) {play("star\(pick(4))")}
             if variants.isEmpty && types.contains(.tnt) && tiles.filter({$0.archetype != nil}).count<=1 {play("tnt")}
-            for (variant,group) in [("fish","fish"),("beach-ball","ball"),("barell","barrel"),("flower","flower"),("bee","bee"),("kanta","kanta"),("laser-gun","laser"),("spaceship","spaceship"),("robo-cube","robo")] where variants.contains(variant) {play(group)}
+            for (variant,group) in [("fish","fish"),("beach-ball","ball"),("barell","barrel"),("flower","flower"),("coconut","coconut"),("bee","bee"),("kanta","kanta"),("laser-gun","laser"),("spaceship","spaceship"),("robo-cube","robo")] where variants.contains(variant) {play(group)}
             if types.contains(.magnet) || !variants.isDisjoint(with:["bottle","honey","spaceship"]) {play("magnet")}
             if variants.contains("honey") {play("honey")}
         default:break // Spawn landing and special tails belong to visual contact owners.
@@ -371,7 +392,31 @@ final class NativeGameplayAudioOwner {
         if moment=="tnt-coin-launch" {
             transport.play(NativeAudioCue(source:"assets/sound/coins/tnt coin.wav",voice:"native-tnt-coin-\(generation)-\(receipt)",gain:0.12));return
         }
+        if variant=="coconut" {
+            if moment=="coconut-palm-shards" {
+                let voice="coconut-loop-coconut shards";coconutLoopVoices.insert(voice)
+                transport.stopVoices([voice])
+                transport.play(NativeAudioCue(source:"assets/sound/Wild and special kockice/coconut/coconut shards.wav",voice:voice,gain:0.51,stopAfter:max(0.05,min(12,Double(index)/1000))+0.25,fadeOut:0.25,looping:true))
+                return
+            }
+            if moment=="coconut-loop" {
+                let seconds=max(0.05,min(12,Double(index)/1000))
+                for name in ["coconut1","coconut2"] {
+                    let voice="coconut-loop-\(name)";coconutLoopVoices.insert(voice)
+                    transport.play(NativeAudioCue(source:"assets/sound/Wild and special kockice/coconut/\(name).wav",voice:voice,gain:0.30,stopAfter:seconds+0.25,fadeOut:0.25,looping:true))
+                }
+                return
+            }
+            if moment=="coconut-stop" {if !coconutLoopVoices.isEmpty {transport.stopVoices(coconutLoopVoices)};coconutLoopVoices.removeAll();return}
+            if moment=="coconut-contact" {
+                for (name,ext) in [("mini2","mp3"),("mini3","wav")] {
+                    transport.play(NativeAudioCue(source:"assets/sound/mini explozije/\(name).\(ext)",voice:"coconut-contact-\(index)-\(name)",gain:0.30))
+                }
+                return
+            }
+        }
         if moment=="landing" {play("landing");return}
+        if variant=="bloob" {for cue in NativeBloobAudio.cues(moment,index:index){transport.play(cue)};return}
         if variant=="bloob-ball" {
             let cues:[NativeAudioCue]
             if moment=="impact" {let slot=max(0,min(3,index));cues=NativeBloobBallAudio.barrelLayer("tntImpact-\(slot)-\(tntOrder[slot])")}
@@ -382,16 +427,21 @@ final class NativeGameplayAudioOwner {
         switch (variant,moment) {
         case ("baloon","start"):group="baloonStart"
         case ("juice",_),("mushroom",_):group="juice-\(moment)"
-        case ("bottle","pull"):playCapturedMagnetForce("bottleForce",receipt:receipt,generation:generation);group="bottlePull"
+        case ("bottle","pull"):
+            let cues=NativeAuthoredAudioCatalog.groups["bottlePull"] ?? []
+            for cue in cues where cue.voice==Self.bottleGlassVoice {transport.play(cue)}
+            playCapturedMagnetForce("bottleForce",receipt:receipt,generation:generation)
+            for cue in cues where cue.voice != Self.bottleGlassVoice {transport.play(cue)}
+            return
         case ("bottle",_):group="bottle-\(moment)"
         case ("honey","pull"):playCapturedMagnetForce("honeyForce",receipt:receipt,generation:generation);group="honeyPull"
         case ("honey","post"):group="honeyPost"
         case ("magnet","pull"),("spaceship","pull"):group="magnetPull"
         case ("bee","finale"):group="beeFinale"
-        case ("flower","leaves"):group="flowerLeaves"
-        case ("flower","spark"):group="flowerSpark"
+        case ("coconut","leaves"),("flower","leaves"):group="flowerLeaves"
+        case ("coconut","spark"),("flower","spark"):group="flowerSpark"
         case ("barell","smoke"):group="barrelSmoke"
-        case ("tnt","impact"),("flower","impact"),("beach-ball","impact"),("barell","impact"):
+        case ("coconut","impact"),("tnt","impact"),("flower","impact"),("beach-ball","impact"),("barell","impact"):
             let slot=max(0,min(3,index));group="tntImpact-\(slot)-\(tntOrder[slot])"
         case ("laser-gun","impact"):
             let slot=max(0,min(3,index));play("tntImpact-\(slot)-\(tntOrder[slot])")
@@ -594,15 +644,15 @@ final class NativeGameplayAudioOwner {
         })
         transport.stopVoices(voices)
     }
-    func stop() {sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.stopAll();meterCarrierVoices.removeAll();generation &+= 1;receipts.removeAll();harpSequenceReady=false;ordinarySixContact=nil}
-    func dispose() {guard !disposed else{return};disposed=true;finishRewardTail();finishArcadeTail();finishRoundWonTail();finishWorldTail();finishNavigationSpeech();sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;meterCarrierVoices.removeAll();transport.dispose();for observer in observers {NotificationCenter.default.removeObserver(observer)};observers.removeAll();receipts.removeAll()}
+    func stop() {bottleBoardWarmupCapture=nil;sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.stopAll();coconutLoopVoices.removeAll();meterCarrierVoices.removeAll();generation &+= 1;receipts.removeAll();harpSequenceReady=false;ordinarySixContact=nil}
+    func dispose() {guard !disposed else{return};disposed=true;bottleBoardWarmupCapture=nil;finishRewardTail();finishArcadeTail();finishRoundWonTail();finishWorldTail();finishNavigationSpeech();sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;meterCarrierVoices.removeAll();coconutLoopVoices.removeAll();transport.dispose();for observer in observers {NotificationCenter.default.removeObserver(observer)};observers.removeAll();receipts.removeAll()}
     private func notification(name:String,interruption:UInt?) {
         if name==UIApplication.willResignActiveNotification.rawValue {setForeground(false)}
         else if name==UIApplication.didBecomeActiveNotification.rawValue {interrupted=false;setForeground(true)}
         else if name==AVAudioSession.interruptionNotification.rawValue {
             guard let raw=interruption,let type=AVAudioSession.InterruptionType(rawValue:raw) else{return}
-            interrupted=type == .began;transport.setSelectedPreparationForeground(foreground && !interrupted);if interrupted {finishRewardTail();finishArcadeTail();finishRoundWonTail();finishWorldTail();finishNavigationSpeech();sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.stopAll()}
-        } else {finishRewardTail();finishArcadeTail();finishRoundWonTail();finishWorldTail();finishNavigationSpeech();interrupted=false;sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.setSelectedPreparationEnabled(false);transport.stopAll();transport.setSelectedPreparationEnabled(enabled);transport.setSelectedPreparationForeground(foreground)}
+            interrupted=type == .began;transport.setSelectedPreparationForeground(foreground && !interrupted);if interrupted {finishRewardTail();finishArcadeTail();finishRoundWonTail();finishWorldTail();finishNavigationSpeech();bottleBoardWarmupCapture=nil;sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.stopAll()}
+        } else {finishRewardTail();finishArcadeTail();finishRoundWonTail();finishWorldTail();finishNavigationSpeech();interrupted=false;bottleBoardWarmupCapture=nil;sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.setSelectedPreparationEnabled(false);transport.stopAll();transport.setSelectedPreparationEnabled(enabled);transport.setSelectedPreparationForeground(foreground)}
     }
 }
 
@@ -657,7 +707,7 @@ final class NativeAVGameplayAudioTransport:NSObject,NativeGameplayAudioTransport
     func play(_ cue:NativeAudioCue){play(cue,completion:nil)}
     func play(_ cue:NativeAudioCue,onFinished:@escaping (NativeAudioCompletion)->Void){play(cue,completion:onFinished)}
     private func play(_ cue:NativeAudioCue,completion:((NativeAudioCompletion)->Void)?) {
-        guard !disposed,NativeSelectedAudioFile.canonicalPath(cue.source) != nil,cue.gain.isFinite,cue.rate.isFinite,cue.delay.isFinite,cue.rate>0,cue.delay>=0 else{completion?(.unavailable);return}
+        guard !disposed,(!cue.looping || (cue.stopAfter.map{$0.isFinite && $0>0} ?? false)),NativeSelectedAudioFile.canonicalPath(cue.source) != nil,cue.gain.isFinite,cue.rate.isFinite,cue.delay.isFinite,cue.rate>0,cue.delay>=0 else{completion?(.unavailable);return}
         // SFX must recover with Music OFF as well as on a cold launch. Activation
         // is retried after a failed attempt and invalidated by background/reset.
         if !sessionActivated {sessionActivated=activateSession()}
@@ -708,7 +758,7 @@ final class NativeAVGameplayAudioTransport:NSObject,NativeGameplayAudioTransport
             if self.voices[cue.voice]===voice {self.stop(cue.voice,reason:success ? .ended:.unavailable)}
         }
         voice.completionReceipt=completion
-        file.start(voice.control,rate:cue.rate,gain:voice.gain,completion:completion){[weak self,weak voice] success in
+        file.start(voice.control,rate:cue.rate,gain:voice.gain,looping:cue.looping,completion:completion){[weak self,weak voice] success in
             guard let self,let voice,self.voices[cue.voice]===voice,!self.disposed else{return}
             guard success else {
                 self.onError?("Cannot start selected authored SFX")

@@ -162,7 +162,7 @@ final class NativeFishSVGFallbackTests:XCTestCase {
         let body=try XCTUnwrap(host.currentBodyFrame(tileID:"f"))
         XCTAssertGreaterThan(body.width,0);XCTAssertGreaterThan(body.height,0)
         XCTAssertLessThan(body.width,NativeFishIdlePresentation.logicalMediaSize.width)
-        host.paint(["f":frame(dragging:true)],generation:1,force:true);XCTAssertTrue(owner.isHidden)
+        host.paint(["f":frame(dragging:true)],generation:1,force:true);XCTAssertFalse(owner.isHidden)
         host.paint(["f":frame()],generation:1,force:true);XCTAssertFalse(owner.isHidden)
         // Paint from the accepted board clock before suspension. Foreground
         // must preserve that receipt until the next native board paint, rather

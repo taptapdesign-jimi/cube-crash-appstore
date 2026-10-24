@@ -59,6 +59,8 @@ final class JimiV9Artwork {
     private var images: [String: UIImage] = [:]
     private var resolvedImages:[String:UIImage]=[:]
     private var resolvedImagePaths:[String:String]=[:]
+    private(set) var preparedBloobSplash:NativeBloobSplashScene?
+    private(set) var preparedBloobReverse:NativeBloobReverseArt?
     private var materializedPaths:Set<String>=[]
     private var fontNames: [String: String] = [:]
     private var pendingImages:[String:[(UIImage?)->Void]]=[:]
@@ -157,6 +159,8 @@ final class JimiV9Artwork {
                         self.resolvedImages[alias]=UIImage(cgImage:raster.image,scale:existing.scale,orientation:existing.imageOrientation)
                     }
                     self.images[absolute]=prepared;self.resolvedImages[key]=prepared;self.resolvedImagePaths[key]=absolute;self.materializedPaths.insert(absolute)
+                    if let reverse=raster.bloobReverse {self.preparedBloobReverse=reverse}
+                    if let scene=raster.bloobSplash {self.preparedBloobSplash=scene}
                     self.preparedImageCount += 1;image=prepared
                 } else {image=nil}
                 for callback in callbacks {guard lifetime.current else{break};callback(image)}
@@ -164,6 +168,8 @@ final class JimiV9Artwork {
         }
     }
     func retainPreparedImages(_ requests:[(String,Bool)]) {
+        if !requests.contains(where:{$0.0==NativeBloobReverseArt.path}) {preparedBloobReverse=nil}
+        if !requests.contains(where:{$0.0==NativeBloobArt.splashPath}) {preparedBloobSplash=nil}
         let keys=Set(requests.map{imageRequestKey($0.0,densityAware:$0.1)})
         // Exact live/active families retain bitmap aliases. Dropped queued
         // requests cannot publish after their pending registry row retires.
@@ -181,6 +187,7 @@ final class JimiV9Artwork {
         pendingImageTokens.removeAll();pendingImages.removeAll()
     }
     func retireImagePreparation() {
+        preparedBloobSplash=nil;preparedBloobReverse=nil
         preparationLifetime.retire();let callbacks=pendingImages.values.flatMap{$0}
         cancelPendingImagePreparation()
         pendingImages.removeAll();images.removeAll();resolvedImages.removeAll();resolvedImagePaths.removeAll();materializedPaths.removeAll()

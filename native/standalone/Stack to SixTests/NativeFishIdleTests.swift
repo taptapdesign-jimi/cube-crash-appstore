@@ -25,7 +25,7 @@ final class NativeFishIdleTests:XCTestCase {
             XCTAssertEqual(center.x>fixture.width/2,fixture.facing)
         }
     }
-    func testOriginalFramesStayReadyAcrossLoopsAndPointerHidesThemBeforeReturningNativePose() async throws {
+    func testOriginalFramesStayVisibleThroughPointerWithoutPNGHandoffOrPhaseReset() async throws {
         let fish=NativeTile(id:"fish",cell:NativeCell(column:0,row:0),value:0,archetype:.juice,variant:"fish")
         let engine=NativeGameplayEngine(state:NativeBoardState(columns:5,rows:9,tiles:[fish,NativeTile(id:"a",cell:NativeCell(column:1,row:0),value:1),NativeTile(id:"b",cell:NativeCell(column:2,row:0),value:2)]))
         let controller=NativeGameplayViewController(engine:engine,resourceRoot:root)
@@ -58,8 +58,14 @@ final class NativeFishIdleTests:XCTestCase {
         scene.onSpecialIdleSuspended?(false)
         XCTAssertFalse(owner.isHidden);XCTAssertEqual(owner.playbackRate,0)
         let point=scene.boardGeometry!.center(row:0,column:0)
-        XCTAssertTrue(scene.beginDrag(at:point));XCTAssertTrue(owner.isHidden);XCTAssertEqual(owner.playbackRate,0)
-        XCTAssertEqual(field.activeCount,0);XCTAssertFalse(field.isHidden)
+        XCTAssertTrue(scene.beginDrag(at:point));XCTAssertFalse(owner.isHidden);XCTAssertTrue(face.isHidden);XCTAssertEqual(owner.playbackRate,0)
+        XCTAssertEqual(field.activeCount,0);XCTAssertTrue(field.isHidden)
+        let held=owner.originalSVGFrame
+        try await Task.sleep(for:.milliseconds(120))
+        XCTAssertFalse(owner.isHidden);XCTAssertTrue(face.isHidden)
+        XCTAssertNotEqual(owner.originalSVGFrame,held,"The same SVG clock keeps swimming while held")
+        let image=UIGraphicsImageRenderer(size:window.bounds.size).image{window.layer.render(in:$0.cgContext)}
+        try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/fishy-drag-svg.png"))
         XCTAssertEqual(scene.finishDrag(at:point,now:1)?.accepted,false)
         XCTAssertFalse(owner.isHidden,"Source media resumes on pointer-up while actual snapback still owns emitter restart")
         XCTAssertFalse(field.isRunning)
@@ -86,7 +92,6 @@ final class NativeFishIdleTests:XCTestCase {
         while (host.presentation(tileID:"f1")?.mediaReady != true || host.presentation(tileID:"f2")?.mediaReady != true || controller.boardScene?.isBoardEntryComplete != true),CACurrentMediaTime()<deadline {try await Task.sleep(for:.milliseconds(25))}
         XCTAssertEqual(host.activeMediaCount,2);XCTAssertEqual(host.selectedSVGFrameCount,72)
         let owners=try ["f1","f2"].map {try XCTUnwrap(host.presentation(tileID:$0))}
-        let pose=NativeFishIdleFrame.project(center:.init(x:150,y:400),horizontalUnit:.init(x:151,y:400),verticalUnit:.init(x:150,y:399),sceneHeight:844,alpha:1,dragging:false,phaseStarted:true,visible:true,bubbles:[])
         let format=UIGraphicsImageRendererFormat();format.scale=1;format.opaque=false
         let renderer=UIGraphicsImageRenderer(size:NativeFishIdlePresentation.logicalMediaSize,format:format)
         for owner in owners {
@@ -95,7 +100,8 @@ final class NativeFishIdleTests:XCTestCase {
             // Three full source cycles, including the exact71→0 boundary.
             let start=CACurrentMediaTime()
             for tick in 0..<216 {
-                owner.paint(pose,now:start+Double(tick)/64,force:true)
+                let pointer=NativeFishIdleFrame.project(center:.init(x:150,y:400),horizontalUnit:.init(x:151,y:400),verticalUnit:.init(x:150,y:399),sceneHeight:844,alpha:1,dragging:tick%20<10,phaseStarted:true,visible:true,bubbles:[])
+                owner.paint(pointer,now:start+Double(tick)/64,force:true)
                 XCTAssertFalse(owner.isHidden);XCTAssertTrue(owner.mediaReady)
                 seen.insert(try XCTUnwrap(owner.originalSVGFrame))
                 let image=try XCTUnwrap(renderer.image {owner.layer.render(in:$0.cgContext)}.cgImage)
@@ -167,7 +173,7 @@ final class NativeFishIdleTests:XCTestCase {
         fish.setDragging(true)
         let pose=try XCTUnwrap(fish.fishFrame(in:scene,visible:true))
         XCTAssertEqual(pose.point.x,268,accuracy:1e-5);XCTAssertEqual(pose.point.y,550,accuracy:1e-5)
-        XCTAssertEqual(pose.transform.a,0.432,accuracy:1e-5);XCTAssertEqual(pose.transform.d,0.432,accuracy:1e-5)
+        XCTAssertEqual(pose.transform.a,-0.432,accuracy:1e-5);XCTAssertEqual(pose.transform.d,0.432,accuracy:1e-5)
         XCTAssertEqual(pose.alpha,0.56,accuracy:1e-5);XCTAssertTrue(pose.dragging);XCTAssertEqual(pose.bubbles.count,0)
         let face=try XCTUnwrap(fish.visual.children.compactMap {$0 as? SKSpriteNode}.first)
         XCTAssertEqual(face.xScale,-1)
@@ -186,11 +192,11 @@ final class NativeFishIdleTests:XCTestCase {
         fish.setFishMediaReady(false);XCTAssertFalse(face.isHidden);XCTAssertEqual(face.xScale,-1)
         fish.setDragging(true);_ = fish.fishFrame(in:scene,visible:true)
         XCTAssertEqual(face.xScale,-1);XCTAssertFalse(face.isHidden)
-        fish.setFishMediaReady(true);XCTAssertFalse(face.isHidden);XCTAssertEqual(face.xScale,-1)
+        fish.setFishMediaReady(true);XCTAssertTrue(face.isHidden);XCTAssertEqual(face.xScale,-1)
         fish.setDragging(false)
         XCTAssertEqual(face.xScale,1,"Actual pointer release restores the authored resting direction")
         XCTAssertTrue(face.isHidden,"The ready media still hides its static base on release")
         fish.setDragging(true);fish.position.x=90;_ = fish.fishFrame(in:scene,visible:true)
-        XCTAssertEqual(face.xScale,1);XCTAssertFalse(face.isHidden)
+        XCTAssertEqual(face.xScale,1);XCTAssertTrue(face.isHidden)
     }
 }

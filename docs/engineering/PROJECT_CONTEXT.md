@@ -49,11 +49,19 @@ in the parity checklist; native implementation alone is not visual acceptance.
 
 ## Native reward flow (2026-10-20)
 
+Journey card flip onboarding (2026-10-24): the first visible card modal shows
+the immediate DRAG TO FLIP text/hand motion once per installation, acknowledged
+in namespaced local UserDefaults separately from player saves. Later card
+openings, flips, foreground returns and app relaunches show no automatic hint.
+This supersedes the earlier once-per-process exception and delayed repeat hints.
+
 Native Backpack player-facing name for internal die `kanta` is **BLOB BARREL**
 (user decision2026-10-23),replacing BLOOB. This is distinct from `bloob-ball`
 (**BLOB POD**,previously BLOOB GAS;user decision2026-10-23) and `barell`
 (**BARREL**). Display names do not rename save IDs,
 artwork paths or gameplay archetypes.
+
+Native **BLOOB** (`bloob`,2026-10-24) is a separate Star gameplay variant introduced in Area55 Unit07,with Mushroom-equivalent main+4–6bonus and7–9remaining closed dice when space permits (2026-10-24); **BLOB POD** (`bloob-ball`) now starts in Unit06. BLOOB uses the archived Shards Float Hovering visual recipe with22 ordinary floating Bloobs and5independent reverse Bloobs;central robot splash is excluded; its caption is BLOOB in the existing CLANK style. Existing discoveries and save identities remain canonical.
 
 Journey level-star ranking v1 (2026-10-21) uses one global ten-row threshold table
 by local Unit number in Forest/Beach/Area55. Completed attempts earn1/2/3 stars
@@ -212,3 +220,15 @@ Official player-facing name for Native special die `bloob-ball` is **BLOB POD** 
 Blob Pod (previously Bloob Gas) uses Barrel whole-board TNT gameplay (2026-10-23): all eligible ordinary targets change through the existing TNT transaction. Stable bloob-ball identity accepts historical Star-tagged saves. Finale uses supplied gas1..12 PNGs with Barrel smoke/wood/die timing and Bloob white/cyan GASSS! caption. Inherited Barrel audio layer is50percent gain plus original Bloob sounds,with merge6 boom explicitly overridden to gain0.50;Bloob tnt3,crash.wav and both hovering layers removed,massive gas leak.wav starts immediately at gain0.60;original Barrel unchanged. Previous Star two-bonus/six-coin and floating finale runtime are retired. Immutable old animation recipe lives in ANIMATION_RECIPES.md.
 
 Native new numbered-die enter (user correction2026-10-23): hidden zero-scale pending presentation receipt before value assignment; nativeFreshFace owner starts full0.56s bounce from first actual delivered frame,with at most1/30s visual progress per actual NativeBoardScene render-serial change;independent Source callbacks during skipped GPU frames cannot consume entry. Locked bonus uses its0.48s recipe after stagger. Idle/repair cannot overwrite pending/active entry. Existing survivors and moving Special/Six meter carriers remain full-size under their own owners; source-reference defaults unchanged. Real arrival continues on actual bounce completion,with existing cancellation/generation cleanup.
+
+Native COCONUT (`coconut`,2026-10-24) is a Barrel/TNT whole-board variant introduced in Beach Unit06 (board16),with canonical same-World rewards/Backpack/save identity. Original coconut.svg idle uses existing shared atlas preparation;board-only artwork1.3scale. Finale uses five original SVG bodies sharing one selected18MiB atlas plus three plain coconuts,shuffled0.5–1.5sizes and random upper/lower rear-canopy releases. Contained eased/springy flight,two tangent falling-pair collisions and remaining floor bursts emit48original coco1–6fragments. Palm1–8/palm5 hold/local bending/1.5scale remain;exit rotates only left. BONKERS uses white CLANK faces with blended65771E/829424backing. Full Flower merge foundation plus three bounded Coconut loops (coconut1,coconut2,shards),250ms fade after last visible shard;six semantic contacts mini2/mini3. Existing preparation/finite clock/audio queue/Settings/background/generation/disposal owners;no source asset change. Physical acceptance stays separate.
+
+Coconut palm finale uses two complete shared-original sequences: rear layer delayed200ms,10percent larger and opposite rotation; pose crossfades and damped exit preserve continuous motion. Whole coconuts now launch in random360degree directions/strength,reflect at side/top walls and fall through the bottom;no breaking/pieces. Existing contact sounds follow wall receipts.Whole-body multi-turn spin follows launch strength and captured wall angular impulses without pose jumps.Squash/stretch only follows wall contact:50percent compression at25ms,quick rebound then neutral by160ms. Existing audio/gameplay owners remain.
+
+Coconut board drag holds the already-prepared SVG first frame and freezes its idle phase until release;no PNG decode or replacement texture is introduced. Finale population is16 (8additional upward/top-corner flights),nominal body size0.8–1.2times actual board artwork body size. Palm shards loop spans full two-palm motion at gain0.51.
+
+Fishy ready SVG remains the same visible animated carrier through board drag and release,with source drag facing projected into its transform and continuous phase. Static PNG is preparation/failure fallback only;pointer no longer swaps between representations. Original72frames/1.125s source loop and resource/lifecycle owners remain.
+
+BONKERS green glow fades smoothly with Coconut palm exit1.40–1.97s;white faces keep their authored exit. Shared splash field defaults remain fully opaque for other callers.
+
+Native Bottle glass-crack latency policy:prepare only its original glass crack.wav when a Bottle is present on the current/restored board (and retry on pickup),using the existing selected SFX cache/Settings/lifecycle gates. Pull dispatch gives the crack first position among the8unchanged layers,at the existing convergence/smoke event;no early timer or asset edits.

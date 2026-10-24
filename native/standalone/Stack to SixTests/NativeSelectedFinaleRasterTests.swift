@@ -191,6 +191,7 @@ nonisolated final class NativeSelectedFinaleRasterTests:XCTestCase {
    let artwork=owner.artwork,size=CGSize(width:390,height:844),origin=CGPoint(x:195,y:422)
    let presentation:NativeFinitePresentation?
    switch variant {
+   case "bloob":presentation=NativeBloobFinalePresentation(resourceRoot:NativeTestResources.root,viewport:size,preparedArtwork:artwork)
    case "bee":presentation=NativeBeeFinalePresentation(resourceRoot:NativeTestResources.root,viewport:size,origin:origin,preparedArtwork:artwork)
    case "honey":presentation=NativeHoneyFinalePresentation(resourceRoot:NativeTestResources.root,viewport:size,preparedArtwork:artwork)
    case "bottle":presentation=NativeBottleFinalePresentation(resourceRoot:NativeTestResources.root,viewport:size,preparedArtwork:artwork)
@@ -198,7 +199,7 @@ nonisolated final class NativeSelectedFinaleRasterTests:XCTestCase {
    case "cubero":presentation=NativeCuberoFinalePresentation(resourceRoot:NativeTestResources.root,viewport:size,preparedArtwork:artwork)
    case "mushroom":presentation=NativeMushroomFinalePresentation(resourceRoot:NativeTestResources.root,viewport:size,preparedArtwork:artwork)
    case "robo-cube":presentation=NativeRoboFinalePresentation(resourceRoot:NativeTestResources.root,viewport:size,preparedArtwork:artwork)
-   case "flower","barell":presentation=NativeTntVariantPresentation(resourceRoot:NativeTestResources.root,variant:variant=="flower" ? .flower:.barell,viewport:size,preparedArtwork:artwork)
+   case "coconut","flower","barell":presentation=NativeTntVariantPresentation(resourceRoot:NativeTestResources.root,variant:variant=="coconut" ? .coconut:variant=="flower" ? .flower:.barell,viewport:size,preparedArtwork:artwork)
    case "beach-ball":presentation=NativeBeachBallPresentation(resourceRoot:NativeTestResources.root,viewport:size,preparedArtwork:artwork)
    case "spaceship":presentation=NativeSpaceshipFinalePresentation(resourceRoot:NativeTestResources.root,viewport:size,origin:origin,generation:7,preparedArtwork:artwork)
    case "laser-gun":

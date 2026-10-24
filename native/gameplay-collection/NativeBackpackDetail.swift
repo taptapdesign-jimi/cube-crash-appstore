@@ -132,7 +132,9 @@ final class NativeBackpackDetail:UIViewController {
         // SKView owns its internal render surfaces. Keep the UIKit shadow on
         // the modal compositor plane, in the same coordinates as the preview.
         if let shadow=selected.groundShadow {
-            if die.id=="honey" {idle.insertSubview(shadow,belowSubview:selected)}
+            // Coconut's opening shell descends across the floor footprint.
+            // Establish the rear plane before readiness/entry paints any frame.
+            if ["honey","coconut"].contains(die.id) {idle.insertSubview(shadow,belowSubview:selected)}
             else {idle.insertSubview(shadow,aboveSubview:selected)}
         }
         if let rear=selected.rearCanShadow {idle.insertSubview(rear,aboveSubview:selected)}

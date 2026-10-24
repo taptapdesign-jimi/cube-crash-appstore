@@ -33,12 +33,14 @@ struct NativeBackpackCatalog {
         Die(id:"kanta",title:"BLOB BARREL",copy:"Merge me to release 1–3 bonus dice, plus the main merge die. Closed dice appear for later moves.",board:22),
         Die(id:"spaceship",title:"SPACESHIP",copy:"Merge me to beam up to 4 dice aboard, then beam the same number of replacements back down.",board:23),
         Die(id:"laser-gun",title:"LASER GUN",copy:"Merge me to shoot up to 4 ordinary dice. Each target stays in place and gets a different number.",board:24),
-        Die(id:"bloob-ball",title:"BLOB POD",copy:"Gassy fumes sweep the board, changing every ordinary die to a different number!",board:27)]
+        Die(id:"bloob-ball",title:"BLOB POD",copy:"Gassy fumes sweep the board, changing every ordinary die to a different number!",board:26),
+        Die(id:"bloob",title:"BLOOB",copy:"Creates 4–6 bonus dice, plus the main die, and adds 7–9 closed dice when space allows.",board:27)]
     static let beach:[Die] = [
         Die(id:"wild-juice",title:"JUICE",copy:"Merge me to pour a fresh number die onto the board. It appears where the merge happened.",board:11),
         Die(id:"fish",title:"FISHY",copy:"Merge me to bring in 1–3 bonus dice, plus the main merge die. Closed dice appear for later moves.",board:12),
         Die(id:"beach-ball",title:"BEACH BALL",copy:"Merge me to bounce into up to 4 ordinary dice. Every hit gives that die a different number.",board:13),
-        Die(id:"bottle",title:"BOTTLE",copy:"Merge me to wash away up to 4 dice, then bring back the same number of fresh dice.",board:14)]
+        Die(id:"bottle",title:"BOTTLE",copy:"Merge me to wash away up to 4 dice, then bring back the same number of fresh dice.",board:14),
+        Die(id:"coconut",title:"COCONUT",copy:"Merge me to shake the palms! Every ordinary die changes to a different number.",board:16)]
     static func sections(_ progression:NativeProgressionState)->[Section] {
         [("Forest",forest),("Area 55",area),("Beach",beach)].map {title,dice in
             // Reward eligibility and card progression do not prove a die landed.

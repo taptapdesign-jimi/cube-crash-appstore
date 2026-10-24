@@ -237,3 +237,17 @@ Bloob uses canonical TNT/Barrel merge and whole-board impact cues. NativeBloobBa
 2026-10-23 latest Bloob Gas tnt3.wav: gain0.65,delay0 immediately on committed merge6;replaces gain0.80/delay0.5. Original Barrel and remaining cues unchanged.
 
 2026-10-23 latest Bloob Gas mix: remove Bloob crash.wav,hovering.wav,hovering 2.wav and borrowed tnt3.wav;massive gas leak.wav once at committed merge6,gain0.60/delay0,natural2.316688s. Selected-only preload and existing Settings/background/generation/full-stop owner. Original assets/Barrel retained;merge6 crash.mp3 remains a distinct inherited layer.
+
+### BLOOB — 2026-10-24
+
+New Native Bee/Star variant `bloob`, distinct from BLOB POD `bloob-ball`. Committed merge6 retains standard foundation, adds existing bloob ball/splat.wav at0.504 (120percent of0.42) and supplied paint splat.wav at0.6. First visible hovering finale owns Area55 djeca.wav at0.84 (+40percent),beams.wav at0.45 (+50percent)after400ms (bibice and ufo movement removed only for BLOOB per user). Distinct BLOOB voices share NativeGameplayAudioOwner Settings/foreground/generation/full-stop and selected preload. Original assets unchanged;all four selected sources48kHz stereo PCM16. Speaker mix NEEDS PHYSICAL TEST. Central bloob animation.svg is excluded from this variant's runtime;the audio sequence remains independent of it.
+
+### Coconut Native — 2026-10-24
+
+Beach Unit06 Barrel/TNT variant uses the full existing Flower merge, leaves, spark and TNT impact family. Committed merge additionally plays original `coconut1.wav` and `coconut2.wav` at gain0.39,delay0; `coconut shards.wav` starts at1.28s after both end. Selected-only preload and existing NativeGameplayAudioOwner Settings/background/generation/route full-stop. No source audio changes; speaker mix NEEDS PHYSICAL TEST.
+
+### Coconut collision loops — 2026-10-24
+
+Visible Coconut launch owns bounded native loops of coconut1.wav,coconut2.wav and coconut shards.wav at0.30each. Three original AVAudioPlayers use existing selected queue/voice leases,positive finite stopAfter and250ms fade after analytic last visible shard. Full Flower merge foundation stays;old Coconut merge one-shots are superseded by these loops. Two pair collisions and four floor contacts each fire mini2.mp3+mini3.wav once,gain0.30. Settings/background/interruption/generation/disposal and exact-family abort stop current voices. No new cache/engine/clock;original source files unchanged. Speaker mix NEEDS PHYSICAL TEST.
+
+Native Bottle pull timing2026-10-24:current/restored Bottle board admission prewarms only original glass crack.wav through existing selected SFX cache;pickup retries if needed. Pull dispatch places that cue before the other seven layers at unchanged convergence receipt/gain0.48/rate1/delay0. No authored file edits or early guessed timer.

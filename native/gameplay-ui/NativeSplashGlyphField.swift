@@ -6,12 +6,13 @@ import StackToSixGameplay
 @MainActor
 final class NativeSplashGlyphField: UIView {
     /// Shared authored Kanta treatment, also requested for Bloob and Woombuu.
-    static func clankStyle(artwork:JimiV9Artwork,text:String,random:()->Double={Double.random(in:0..<1)})->NativeSplashGlyphField {
+    static func clankStyle(artwork:JimiV9Artwork,text:String,backgroundColors:[UIColor]?=nil,random:()->Double={Double.random(in:0..<1)})->NativeSplashGlyphField {
         NativeSplashGlyphField(artwork:artwork,text:text,
             colors:[.white],
-            splitIndex:0,letterOpacityRange:0.8...1.0,fitToWidth:true,neonGlow:true,random:random)
+            splitIndex:0,letterOpacityRange:0.8...1.0,fitToWidth:true,neonGlow:true,glowPalette:backgroundColors,random:random)
     }
     private struct Glyph { let label: UILabel; let index: Int; let bounce: CGFloat; var exitRotation: CGFloat; let splitLabels: [UILabel]; let glowLabels:[UILabel] }
+    private static let glowOpacities:[Float]=[0.62,0.82,0.95,0.98]
     private var glyphs: [Glyph] = []
     private var finishedGlyphs = Set<Int>()
     private var lastPaintSeconds: TimeInterval?
@@ -19,14 +20,16 @@ final class NativeSplashGlyphField: UIView {
     let exitStart: TimeInterval
     let duration: TimeInterval
     private let roboNameplate:Bool
+    private let glowPalette:[UIColor]?
     private let compactLaser: Bool
     private let fitToWidth:Bool
     private var exitRotationsCaptured:Bool
     init(artwork: JimiV9Artwork,text: String,colors: [UIColor],splitIndex: Double,
-         letterColors: [UIColor]? = nil,letterOpacityRange: ClosedRange<Double>? = nil,compactLaser: Bool = false,fitToWidth:Bool = false,neonGlow: Bool = false,deferExitRotationCapture:Bool = false,sourcePlan:NativeSourceSplashGlyphPlan? = nil,
+         letterColors: [UIColor]? = nil,letterOpacityRange: ClosedRange<Double>? = nil,compactLaser: Bool = false,fitToWidth:Bool = false,neonGlow: Bool = false,glowPalette:[UIColor]? = nil,deferExitRotationCapture:Bool = false,sourcePlan:NativeSourceSplashGlyphPlan? = nil,
          random: () -> Double = { Double.random(in: 0..<1) }) {
         let letters = Array(text)
         roboNameplate = text == "BIBI - RIBI"
+        self.glowPalette=glowPalette
         self.compactLaser = compactLaser;self.fitToWidth = fitToWidth
         exitRotationsCaptured = sourcePlan == nil && !deferExitRotationCapture
         exitStart = compactLaser ? .infinity : 0.3+Double(max(0,letters.count-1))*0.05+0.54
@@ -72,7 +75,9 @@ final class NativeSplashGlyphField: UIView {
                     (14,UIColor(red:153.0/255,green:252.0/255,blue:1,alpha:1),0.95),
                     (30,UIColor(red:88.0/255,green:238.0/255,blue:250.0/255,alpha:1),0.82),
                     (48,UIColor(red:6.0/255,green:244.0/255,blue:1,alpha:1),0.62)]
-                for (radius,color,opacity) in layers.reversed() {
+                for (offset,entry) in layers.reversed().enumerated() {
+                    let (radius,original,opacity)=entry
+                    let color=glowPalette.flatMap{$0.isEmpty ? nil:$0[offset % $0.count]} ?? original
                     let glow=UILabel();glow.text=label.text;glow.font=label.font;glow.textAlignment = .center;glow.textColor=label.textColor
                     glow.layer.shadowColor=color.cgColor;glow.layer.shadowOpacity=opacity;glow.layer.shadowRadius=radius;glow.layer.shadowOffset = .zero
                     glow.backgroundColor = .clear;glow.isUserInteractionEnabled=false;label.addSubview(glow);glowLabels.append(glow)
@@ -127,7 +132,7 @@ final class NativeSplashGlyphField: UIView {
         }
         guard current() else{return false};exitRotationsCaptured=true;return true
     }
-    func paint(seconds: TimeInterval) {
+    func paint(seconds: TimeInterval,glowOpacity:CGFloat=1) {
         // Finale clocks may outlive their fully hidden caption. Commit each
         // exit once, then avoid redundant UIKit transactions and transforms.
         // Backward seeking explicitly reactivates every authored glyph.
@@ -137,6 +142,16 @@ final class NativeSplashGlyphField: UIView {
         CATransaction.begin(); CATransaction.setDisableActions(true)
         defer { CATransaction.commit() }
         for glyph in glyphs where !finishedGlyphs.contains(glyph.index) {
+            if let palette=glowPalette,palette.count>=2 {
+                let blend=CGFloat(0.5+0.5*sin(seconds*3+Double(glyph.index)*0.5))
+                for (i,glow) in glyph.glowLabels.enumerated() {
+                    var r0:CGFloat=0,g0:CGFloat=0,b0:CGFloat=0,a0:CGFloat=0,r1:CGFloat=0,g1:CGFloat=0,b1:CGFloat=0,a1:CGFloat=0
+                    palette[i%2].getRed(&r0,green:&g0,blue:&b0,alpha:&a0);palette[(i+1)%2].getRed(&r1,green:&g1,blue:&b1,alpha:&a1)
+                    glow.layer.shadowOpacity=Self.glowOpacities[i]*Float(min(1,max(0,glowOpacity)))
+                    glow.layer.shadowColor=UIColor(red:r0+(r1-r0)*blend,green:g0+(g1-g0)*blend,blue:b0+(b1-b0)*blend,alpha:1).cgColor
+                }
+            }
+
             let enter = compactLaser ? 0.04+Double(glyph.index)*0.025 : 0.3+Double(glyph.index)*0.05
             let firstDuration = compactLaser ? 0.16 : 0.3
             let settleDuration = compactLaser ? 0.06 : 0.12

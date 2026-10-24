@@ -165,7 +165,14 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
     }
     private(set) var value: Int
     private(set) var kind: String
-    private(set) var variant: String?
+    private(set) var variant: String? {
+        didSet {
+            if oldValue != variant {
+                let seed=tileID.utf8.reduce(UInt64(5381)){($0 &* 33) &+ UInt64($1)}
+                bloobBoardPlayback=variant=="bloob" ? .init(seed:seed):nil
+            }
+        }
+    }
     private(set) var sourceWildStateCleared=false
     private(set) var sourceResidualWildPresence=false
     private var sourceWildDestinationFrames:NativeSourceWildDestinationFaceSequence?
@@ -1544,6 +1551,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
     private var definition: NativeDiceArtwork
     private var frames: [SKTexture] = []
     private var paintedFrame = -1
+    private var bloobBoardPlayback:NativeBloobArt.Playback?
     private var artworkGeneration = 0
     private var cuberoCarrierArtwork=false
     private var disposed = false
@@ -1787,6 +1795,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         tileID = id; self.value = value; self.kind = kind; self.variant = variant
         self.depth = depth; self.locked = locked; self.textures = textures
         let hash = id.utf8.reduce(UInt64(5381)) { ($0 &* 33) &+ UInt64($1) }
+        bloobBoardPlayback=variant=="bloob" ? .init(seed:hash):nil
         definition = artworkOverride ?? NativeDiceArtwork.definition(kind: kind, variant: variant, regularSkin: Int(hash % 4))
         super.init()
         name = "native-die-\(id)"
@@ -2354,7 +2363,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
 
     func updateIdleDrag(offset:CGPoint,velocity:CGPoint) {sourceHoneyIdle?.updateDrag(offset:offset,velocity:velocity);honeyIdle?.updateDrag(offset:offset,velocity:velocity)}
 
-    func tick(_ delta: TimeInterval, suspended: Bool, viewportCenter: CGFloat, fizzDelta:TimeInterval?=nil, beeFrameOrder:[Int]?=nil) {
+    func tick(_ delta: TimeInterval, suspended: Bool, viewportCenter: CGFloat, fizzDelta:TimeInterval?=nil, beeFrameOrder:[Int]?=nil,selectedBloobTime:TimeInterval?=nil) {
         guard sourceStarSheet==nil else{return}
         guard !disposed, !sourceWildStateCleared, !sourceIdleDeferred && !sourceRegistryPending, !isHidden, alpha > 0, !suspended,(!sourceRegistryPaused || keepsDirectArtworkDuringRegistryPressure) else { return }
         if variant=="bee",sourceSkinHitArea != nil {
@@ -2363,9 +2372,14 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         }
         elapsed += delta
         if idleFizz !== sourceIdleBubbleField {idleFizz?.tick(fizzDelta ?? delta)}
-        if let id=artworkPhaseID {
+        if let id=artworkPhaseID,!(variant=="coconut" && dragging) {
             if !artworkRunning {if textures.advanceIdlePhase(id) {artworkRunning=true;artworkElapsed=0}}
             else {artworkElapsed+=delta}
+            if artworkRunning,variant=="bloob" {
+                if scene is NativeBoardScene,let time=bloobBoardPlayback?.advance(delta) {
+                    artworkElapsed=time
+                }else if let selectedBloobTime {artworkElapsed=selectedBloobTime}
+            }
         }
         if variant == "bee" {
             let time = elapsed
@@ -2449,14 +2463,15 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
     }
     private func paintFishVisibility() {
         guard variant == "fish" else {return}
-        face.isHidden=fishMediaReady && !dragging
-        idleFizz?.isHidden=fishMediaReady && !dragging
+        face.isHidden=fishMediaReady
+        idleFizz?.isHidden=fishMediaReady
     }
     func fishFrame(in scene:SKScene,visible:Bool)->NativeFishIdleFrame? {
         guard !disposed,!sourceIdleDeferred && !sourceRegistryPending,variant == "fish" else {return nil}
         let center=visual.convert(CGPoint.zero,to:scene)
         if dragging {face.xScale=center.x>scene.size.width/2 ? -1:1}
-        let horizontal=visual.convert(CGPoint(x:1,y:0),to:scene),vertical=visual.convert(CGPoint(x:0,y:-1),to:scene)
+        let facing:CGFloat=dragging && center.x>scene.size.width/2 ? -1:1
+        let horizontal=visual.convert(CGPoint(x:facing,y:0),to:scene),vertical=visual.convert(CGPoint(x:0,y:-1),to:scene)
         var branchAlpha:CGFloat=face.alpha
         var ancestor:SKNode?=visual
         var branchVisible=visible
@@ -2525,16 +2540,28 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         let carrier = variant=="cubero" && cuberoCarrierArtwork
         guard !disposed,(!sourceIdleDeferred && !sourceRegistryPending || carrier),
               let sheet=definition.idleSheet,!frames.isEmpty else{return}
-        let useFrames = (artworkRunning || variant == "cubero") && (!dragging || sheet.animateDuringDrag)
+        let useFrames = (artworkRunning || variant == "cubero") && (!dragging || sheet.animateDuringDrag || variant == "coconut")
         artwork.isHidden = !useFrames; face.isHidden = useFrames
         guard useFrames else { return }
         let time = variant == "cubero" && (carrier || !artworkRunning) ? 0:artworkElapsed
-        let frame = sheet.frame(at: time)
+        let frame = variant == "coconut" && dragging ? 0:sheet.frame(at: time)
         if frame != paintedFrame { artwork.texture = frames[frame]; paintedFrame = frame }
         artwork.anchorPoint = sheet.anchor
         if artwork.xScale != 1 || artwork.yScale != 1 {artwork.setScale(1)}
         artwork.size = CGSize(width: sheet.cell.width * sheet.displayScale, height: sheet.cell.height * sheet.displayScale)
         artwork.position.y = sheet.offsetY
+        if variant == "coconut",scene is NativeBoardScene {
+            artwork.size=CGSize(width:artwork.size.width*1.3,height:artwork.size.height*1.3)
+        }
+        if variant == "bloob" {
+            if scene is NativeBoardScene {
+                artwork.size=CGSize(width:artwork.size.width*1.2,height:artwork.size.height*1.2)
+            }
+            let pose=NativeBloobArt.idlePose(seconds:elapsed)
+            let boardIdle = !dragging && scene is NativeBoardScene
+            artwork.position=boardIdle ? CGPoint(x:pose.x,y:pose.y):.zero
+            artwork.zRotation=boardIdle ? pose.rotation:0
+        }
         if variant == "bloob-ball" {
             let pose=NativeBloobBallArt.idlePose(seconds:time)
             // Enlarge only settled board idle; drag and collection keep the original SVG pose.
@@ -2590,6 +2617,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
 
     func dispose() {
         guard !disposed else { return }
+        bloobBoardPlayback=nil
         sourceFreshFaceEntryPending=nil
         sourceGridCell=nil
         retireTntFuse()

@@ -11,9 +11,11 @@ struct NativeWildMergeSixShardProfile {
     static func make(archetype:NativeWildArchetype,variant:String?,pull:Bool=false)->Self? {
         let palette:[String:[UInt32]]=[
             "baloon":[0x8DCCF9,0x47A5EC],
+            "bloob":[0xA5F8ED,0x67D7E5],
             "bloob-ball":[0xDEB186,0x09E8FD],
             "fish":[0xFCA470,0xFD6B38],"kanta":[0xE4B688,0x96FDFC],"bee":[0xFBE8C7,0xDD8564],
             "laser-gun":[0xFED49A,0x97E9FD],"spaceship":[0xF2CDA8,0x8AEEFE],"bottle":[0xB1DCC9,0xFFCE77],
+            "coconut":[0xFEEDD4,0xDF8E58],
             "honey":[0xF1BA79,0xFDCF58],"flower":[0xFFCDC7,0xFC8C75],"barell":[0xE9D6C6,0xEBA95B],
             "mushroom":[0xE7B392,0xFF7B60],"robo-cube":[0x91F2FF,0xFAC388],"cubero":[0xFE9130],
             "beach-ball":[0xDD94EB,0x4BC9FC,0xFDEB8C,0xFD979D]]

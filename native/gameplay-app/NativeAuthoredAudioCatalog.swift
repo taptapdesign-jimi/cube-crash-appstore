@@ -78,6 +78,16 @@ enum NativeAuthoredAudioCatalog {
             NativeAudioCue(source:"assets/sound/Wild and special kockice/barell/puf1.wav",voice:"barrel-merge6-puf1",gain:0.33,rate:1,delay:0,stopAfter:nil,fadeOut:0),
             NativeAudioCue(source:"assets/sound/Wild and special kockice/barell/puf2.wav",voice:"barrel-merge6-puf2",gain:0.21,rate:1,delay:0.1,stopAfter:nil,fadeOut:0),
         ],
+        "coconut": [
+            NativeAudioCue(source:"assets/sound/merge 6/merge six obicna.mp3",voice:"coconut-regular-merge6-primary",gain:0.195,rate:1.3,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/merge 6/merge6 crash.mp3",voice:"coconut-regular-merge6-crash",gain:0.10608000000000001,rate:1.3,delay:0,stopAfter:0.892,fadeOut:0.12),
+            NativeAudioCue(source:"assets/sound/merge 6/merge6 boom.mp3",voice:"coconut-regular-merge6-boom",gain:0.23399999999999999,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/merge 6/stack.mp3",voice:"coconut-regular-merge6-stack",gain:0.312,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/Wild and special kockice/flower/bush0.wav",voice:"coconut-flower-merge6-bush0",gain:0.312,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/Wild and special kockice/flower/bush2.wav",voice:"coconut-flower-merge6-bush2",gain:0.39,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/Wild and special kockice/flower/bush3.wav",voice:"coconut-flower-merge6-bush3",gain:0.13649999999999998,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/Wild and special kockice/flower/boom.wav",voice:"coconut-flower-merge6-boom",gain:0.39,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
         "flower": [
             NativeAudioCue(source:"assets/sound/merge 6/merge six obicna.mp3",voice:"regular-merge6-primary",gain:0.195,rate:1.3,delay:0,stopAfter:nil,fadeOut:0),
             NativeAudioCue(source:"assets/sound/merge 6/merge6 crash.mp3",voice:"regular-merge6-crash",gain:0.10608000000000001,rate:1.3,delay:0,stopAfter:0.892,fadeOut:0.12),

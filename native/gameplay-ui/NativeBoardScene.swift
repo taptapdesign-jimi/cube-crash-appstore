@@ -1771,6 +1771,7 @@ final class NativeBoardScene: SKScene {
     private var hoverVisualTargetID: String?
     private var hoverGeometryKey:CGSize?
     private var dragHoverCadence=NativeDragHoverCadence()
+    var coconutFinaleBodySize:CGFloat {166.4*(geometry?.scale ?? 1)*371/640}
     private var geometry: NativeBoardGeometry?
     var boardGeometry: NativeBoardGeometry? { geometry }
     private var safeInsets = UIEdgeInsets.zero
@@ -7718,7 +7719,7 @@ final class NativeBoardScene: SKScene {
                         playShortWildBoardBlast(sourceID:sourceID,destinationID:destinationID,
                             center:geometry.center(row:tile.cell.row,column:tile.cell.column))
                     }
-                    if let variant = event.variant,["baloon","fish","bottle","honey","spaceship","laser-gun","flower","barell","beach-ball","kanta","bee","bloob-ball","cubero","mushroom","robo-cube"].contains(variant),let tile,let geometry,
+                    if let variant = event.variant,["baloon","fish","bottle","honey","spaceship","laser-gun","coconut","flower","barell","beach-ball","kanta","bee","bloob","bloob-ball","cubero","mushroom","robo-cube"].contains(variant),let tile,let geometry,
                        authoredFinale(variant,at: geometry.center(row: tile.cell.row,column: tile.cell.column)) {
                         // Native media/glyph owner holds its own visible receipt.
                     } else if event.archetype == .tnt && carrier?.variant == nil {
@@ -7765,7 +7766,7 @@ final class NativeBoardScene: SKScene {
                         continue
                     }
                     if sourceStackCoreFaceReceiptsEnabled,node.sourceOuterDriven,
-                       let variant=event.variant,["flower","barell","beach-ball","bloob-ball"].contains(variant) {
+                       let variant=event.variant,["coconut","flower","barell","beach-ball","bloob-ball"].contains(variant) {
                         // These replacements borrow the Source fresh constructor,
                         // whose new-face entry lives on the outer carrier.
                         // An inner SKAction cannot settle that captured scale.

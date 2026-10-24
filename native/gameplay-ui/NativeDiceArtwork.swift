@@ -50,6 +50,7 @@ struct NativeDiceArtwork {
         "baloon": Self(path: "assets/shop/baloon/baloon.png"),
         "fish": Self(path: "assets/shop/fish/fish.png"),
         "kanta": Self(path: "assets/shop/kanta/04.png", size: CGSize(width: 128.0 * 128.0 / 171.0, height: 128)),
+        "bloob": Self(path: "assets/shop/bloob/bloob.png",idleSheet:.bloob),
         "bee": Self(path: "assets/shop/bee/bee1.png"),
         "bloob-ball": Self(path:"assets/shop/bloog ball/bloob-ball.png",idleSheet:.bloobBall),
         "laser-gun": Self(path: "assets/shop/gun/right gun.png", size: CGSize(width: 184.32, height: 184.32)),
@@ -57,6 +58,7 @@ struct NativeDiceArtwork {
         "bottle": Self(path: "assets/shop/bottle/glass bottle.png"),
         "honey": Self(path: "assets/shop/honey/honey.png"),
         "flower": Self(path: "assets/shop/bush/flower.png"),
+        "coconut": Self(path:"assets/shop/coconut/coconut.png",idleSheet:.coconut),
         "barell": Self(path: "assets/shop/barell/barell-static.png", size: CGSize(width: 160.2, height: 207.9),
                        anchor: CGPoint(x: 0.5, y: 1 - 221.0 / 351.0), idleSheet: .barrel),
         "mushroom": Self(path: "assets/shop/mushroom/mushroom.png", idleSheet: .mushroom),
@@ -84,6 +86,8 @@ struct NativeDiceSheet {
     var animateDuringDrag = false
 
     func frame(at elapsed: TimeInterval) -> Int {
+        if path==NativeCoconutArt.path {return Int(max(0,elapsed).truncatingRemainder(dividingBy:4.032)/4.032*128)}
+        if path==NativeBloobArt.path {return NativeBloobArt.frame(seconds:elapsed)}
         if path==NativeBloobBallArt.idlePath {return NativeBloobBallArt.idleFrame(seconds:elapsed)}
         if NativeCuberoIdleMotion.isSVGSource(path) {return NativeCuberoIdleMotion.frame(seconds:elapsed)}
         let sequence = cycle * Double(activeLoops) + restingDuration
@@ -541,7 +545,9 @@ final class NativeBoardTextures {
         enqueuePreparation { [weak self] in
             guard lifetime.isCurrent else{return}
             let cgImage:CGImage?
-            if NativeBloobBallArt.isSource(spec.path) {cgImage=NativeBloobBallArt.decode(url)}
+            if spec.path==NativeCoconutArt.path {cgImage=NativeCoconutArt.decode(url)}
+            else if NativeBloobArt.isSource(spec.path) {cgImage=NativeBloobArt.decode(url)}
+            else if NativeBloobBallArt.isSource(spec.path) {cgImage=NativeBloobBallArt.decode(url)}
             else if NativeCuberoIdleMotion.isSVGSource(spec.path) {cgImage=NativeCuberoSVGAtlas.decode(url)}
             else if includeMotionBounds {
                 // The selected atlas crosses to SpriteKit as raw pixels, never

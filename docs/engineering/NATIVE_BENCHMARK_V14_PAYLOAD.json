@@ -1,0 +1,413 @@
+{
+  "benchmark": "native-benchmark-v14",
+  "title": "Nove kockice",
+  "baseCommit": "446598436e82b542122131426c8ec777a4dc9e07",
+  "manifestSelfPolicy": "Included in commit; own recursive SHA256 excluded. Every other changed file is listed.",
+  "excludedLocalDeletions": [
+    "assets/sound/Wild and special kockice/bloob ball/paint_splat_goo_stic_#2-1792714932570.wav",
+    "assets/sound/soundtrack/adaptive-music-v1/README.md",
+    "assets/sound/soundtrack/adaptive-music-v1/analysis.json",
+    "assets/sound/soundtrack/adaptive-music-v1/gameplay-bed-active-01.wav",
+    "assets/sound/soundtrack/adaptive-music-v1/gameplay-bed-calm-01.wav",
+    "assets/sound/soundtrack/stack to six theme copy.wav",
+    "assets/sound/soundtrack/stack to six theme.wav"
+  ],
+  "files": [
+    {
+      "path": "assets/colelctibles/beach/common/05.png",
+      "sha256": "9ffc309640305fb78d6ba66f866f9e21be89bb3bb9c0d93e7dcf212b933e7307"
+    },
+    {
+      "path": "assets/colelctibles/beach/common/05@2x.png",
+      "sha256": "8c4d6daea5c8a0505db24e9834cd531f2ef4bf62ac08af308e9ece2a2c455f8b"
+    },
+    {
+      "path": "assets/colelctibles/beach/legendary/05-gold.png",
+      "sha256": "d9b06f2d16676b2b60eb60c9e98b27bd2b17c2d96ef1ff2fbefdae47e30d2796"
+    },
+    {
+      "path": "assets/colelctibles/beach/legendary/05-gold@2x.png",
+      "sha256": "1dc63d519290b7aae82dfd49ff1e90cf4ec25b94d59bc8edad8ee89236175e70"
+    },
+    {
+      "path": "assets/shop/bloob/bloob reverse.svg",
+      "sha256": "abbc0bfb0020f67954ad466788ef5a4847577b80c61632e565bd60d7827c75ee"
+    },
+    {
+      "path": "assets/shop/bloob/bloob.png",
+      "sha256": "64a47424d99c64a0d087a4fd7ee25b9765ac9c6c602e43749439e218cf161ee2"
+    },
+    {
+      "path": "assets/shop/bloob/bloob.svg",
+      "sha256": "6cd8bbed0721ea8914f4a004641621ddb08856fb2b0b76e06bbf93c82d623372"
+    },
+    {
+      "path": "assets/shop/bloob/robo splash.svg",
+      "sha256": "d6677467e30625c8f54ad7e28b325c2b9889e94b9fb1dfd42d08c2d5ae7e05fc"
+    },
+    {
+      "path": "assets/shop/coconut/coco1.png",
+      "sha256": "1ae071269852b1ef768fc98201f69a911b743c0e24013078543f340c845d68ec"
+    },
+    {
+      "path": "assets/shop/coconut/coco1@2x.png",
+      "sha256": "8faaf0caf66ced620260c0bcc2da23b0edbc1c650f0a482bf60f56b077430b0e"
+    },
+    {
+      "path": "assets/shop/coconut/coco2.png",
+      "sha256": "2b9b5d7cebbf97fb06670ee5791ec9a39c356ac8d1740c53614804211cd511b1"
+    },
+    {
+      "path": "assets/shop/coconut/coco2@2x.png",
+      "sha256": "5abafeb80a57756ef4365b39cd69cb48904b5471331080201f4e785f93245dd3"
+    },
+    {
+      "path": "assets/shop/coconut/coco3.png",
+      "sha256": "2f36666f28e2f6824e26ccd32cb5f91a364349cbefa15037d84ca245625b28da"
+    },
+    {
+      "path": "assets/shop/coconut/coco3@2x.png",
+      "sha256": "7035a7adb0d6ecc6a955c8c905c1fa975064f8a23a7393b28529390246b8d832"
+    },
+    {
+      "path": "assets/shop/coconut/coco4.png",
+      "sha256": "556e545e78cc2197616ccba3a6b9fe4f6b070704c7e3b8e312d40cd5d7e99d25"
+    },
+    {
+      "path": "assets/shop/coconut/coco4@2x.png",
+      "sha256": "3cf30c838b997f6bb196548148a9a18727e6f6ff752f02c51ded743f7de72da2"
+    },
+    {
+      "path": "assets/shop/coconut/coco5.png",
+      "sha256": "d5391bd6ff2a7d75b900709141508f1e4776236b61b1c88686a397b5f043bc46"
+    },
+    {
+      "path": "assets/shop/coconut/coco5@2x.png",
+      "sha256": "c4d2a587960c08910850ffd006379aebf7c1c765c9d41c07d3729c84444a4d7d"
+    },
+    {
+      "path": "assets/shop/coconut/coco6.png",
+      "sha256": "4f0465e86dd331072f7554100580a0ec2fbffd397b9c9cde0672166923befd14"
+    },
+    {
+      "path": "assets/shop/coconut/coco6@2x.png",
+      "sha256": "339a3d4fd4a596a4ad7a3a711b446e90c6b32f041ef8843c45f92e216076aa3c"
+    },
+    {
+      "path": "assets/shop/coconut/coconut.png",
+      "sha256": "cbf3b53cd8b2d32a10fc0cd75a7435352df0b295916f676bdcdea309dca6112d"
+    },
+    {
+      "path": "assets/shop/coconut/coconut.svg",
+      "sha256": "b65b960178f74984de7f37ef17eb456a3ace53fe08a5cf98a294940bf9c6e501"
+    },
+    {
+      "path": "assets/shop/coconut/coconut@2x.png",
+      "sha256": "8041ccc33aeacca36a927d7296cf58f16af7f744a157930742bd556ddcab0867"
+    },
+    {
+      "path": "assets/shop/coconut/image 2245.png",
+      "sha256": "21d5b1d6238f396ac3688d5f27f50af2beaaad051fafe250a28957e73ccbab2d"
+    },
+    {
+      "path": "assets/shop/coconut/image 2246.png",
+      "sha256": "4c1d7b382b51be174e55da392d3e8047e09a758c4aeceb5baa479dc80a223d83"
+    },
+    {
+      "path": "assets/shop/coconut/image 2247.png",
+      "sha256": "87d5b0149b496d5f9ad817483720400dfb3841357cac9e4ad6b2c0c67a4edd38"
+    },
+    {
+      "path": "assets/shop/coconut/image 2248.png",
+      "sha256": "bfe2f0bc30280683fde763eae6b48534aa193d704c46bb64e39ebec031bcbe5f"
+    },
+    {
+      "path": "assets/shop/coconut/image 2249.png",
+      "sha256": "0f537a3050c8aa4f27317981f947fb7e1da413c3704fc0ed06902d0f65df39f0"
+    },
+    {
+      "path": "assets/shop/coconut/image 2250.png",
+      "sha256": "b7504f095e749f3ac172800a77d148dbf41deb6d5de816b053361ef1390b4968"
+    },
+    {
+      "path": "assets/shop/coconut/image 2251.png",
+      "sha256": "962fda0ba03086dcdf706b0a8291bb45d8fd690ccbe994fb3c7a21b193ff3b6c"
+    },
+    {
+      "path": "assets/shop/coconut/image 2252.png",
+      "sha256": "23747fa6f6cf47a8368e7770c3c9eced0e9db2517942296a48cfc64fdfd9d98c"
+    },
+    {
+      "path": "assets/shop/coconut/palm1@2x.png",
+      "sha256": "25b2f9c6001fe461c4bfa9b7d2a66cb3b3c2015eee0cab0312969dc563077782"
+    },
+    {
+      "path": "assets/shop/coconut/palm2@2x.png",
+      "sha256": "043b54ae3a974978912da848e7d82a972fbd97e848147fb890e0cc3ea10c0b93"
+    },
+    {
+      "path": "assets/shop/coconut/palm3@2x.png",
+      "sha256": "c468095dcda910b9bb03dddb6065ccaa931732eb43d57cc57fd5949fee99a3fc"
+    },
+    {
+      "path": "assets/shop/coconut/palm4@2x.png",
+      "sha256": "68829c81873a7dbe7513b6723e15ebbf6bd754aba0d71cc291597f2196e384fd"
+    },
+    {
+      "path": "assets/shop/coconut/palm5@2x.png",
+      "sha256": "4127f41fa094baa85d763a4e2b15fdb1d470f17c18ae1beda216446f1409e83f"
+    },
+    {
+      "path": "assets/shop/coconut/palm6@2x.png",
+      "sha256": "41a125c6fa34f5343c6cbccbc62901763a4a2a05c87a1bc9506bd9dbe409b525"
+    },
+    {
+      "path": "assets/shop/coconut/palm7@2x.png",
+      "sha256": "8350c91eea43825bc5c42b7aa980625cda46672114e7d82de48f0ecc4561dc51"
+    },
+    {
+      "path": "assets/shop/coconut/palm8@2x.png",
+      "sha256": "8627bd679dc55a8e1f1be2c52eaddfabe65b0c380ad4c0915d0b2a8e49e3bcf8"
+    },
+    {
+      "path": "assets/sound/Wild and special kockice/bloob ball/paint splat.wav",
+      "sha256": "16797ebe4bb889d561e7debcaca423450041ccb20ad88f8b650bfae248f19297"
+    },
+    {
+      "path": "assets/sound/Wild and special kockice/coconut/coconut shards.wav",
+      "sha256": "7de194e36ac3d1e4c6a6163524958ef70ac9af56f65662096ad57574795e069c"
+    },
+    {
+      "path": "assets/sound/Wild and special kockice/coconut/coconut1.wav",
+      "sha256": "f9142b32bb537907abfd74d6a08d6594bf95b7511137c776e41be1b207012c6e"
+    },
+    {
+      "path": "assets/sound/Wild and special kockice/coconut/coconut2.wav",
+      "sha256": "d50add86a4b81aff52ea57fd93d391fc594194f1af5a5ff303907862b93f2b15"
+    },
+    {
+      "path": "docs/audio/STACK_TO_SIX_INTERACTION_SOUND_INVENTORY.md",
+      "sha256": "2b264ff545cf3a13e96489d3af96e822def12556e3a024c02fc9bb1bcabbc40d"
+    },
+    {
+      "path": "docs/audio/audio-runtime-owners.json",
+      "sha256": "506a9f7a2b8545e365dcd5d2d5912d5059302814c7df2b72c6da98e15a9dbd6f"
+    },
+    {
+      "path": "docs/engineering/CURRENT_HANDOFF.md",
+      "sha256": "f60f7f76de5d5058e9fba55d44b75c41038692193c3e65bd2163a8b1fbafe1d5"
+    },
+    {
+      "path": "docs/engineering/NATIVE_BENCHMARK_V14.md",
+      "sha256": "4a8d5271cdc33d562a8f7c877ec1e1e148448da27ea49d1a5d0957876ea860db"
+    },
+    {
+      "path": "docs/engineering/PROJECT_CONTEXT.md",
+      "sha256": "6e84973b186fa9d3e14e837b031e664bf6cbe156b7cb5e87b96849caf7b0dda7"
+    },
+    {
+      "path": "docs/engineering/feature-runtime-owners.json",
+      "sha256": "03ff26d4fdb0ce8b29ecf4ad7fe9f18f9ed629f41b6ec59135c62e43d9224142"
+    },
+    {
+      "path": "docs/engineering/native-special-dice-performance-owners.json",
+      "sha256": "6fc75021fb7b800adf8fc8d8140e520dafa4fcf6fa14b660929b28ec23584ee3"
+    },
+    {
+      "path": "native/gameplay-app/NativeAuthoredAudioCatalog.swift",
+      "sha256": "2d9b70034e2a9e5cf028e0c614480456f07c3ff0820536f2ca544b36ebc526b9"
+    },
+    {
+      "path": "native/gameplay-app/NativeBloobAudio.swift",
+      "sha256": "911088683ab8d0aaef3a83b441dc0e16ea3b5e4fa5a3c30ba091f1391e1a3e7e"
+    },
+    {
+      "path": "native/gameplay-app/NativeBootstrap.swift",
+      "sha256": "92c04bffaeea81caf9d7160e0c541b9de82c68bd005a116b919c94ee5b36b1bd"
+    },
+    {
+      "path": "native/gameplay-app/NativeGameplayAudioOwner.swift",
+      "sha256": "e5f85efb5094442412ab610370733eb91df8b553be589e20f3dc02c9ed6076fd"
+    },
+    {
+      "path": "native/gameplay-app/NativeMeterSelectedAudioCatalog.swift",
+      "sha256": "a5efe70423a85a29fa42911d2ab9d52e4dd5856e46baec959bf2d10bfa80f1ff"
+    },
+    {
+      "path": "native/gameplay-app/NativeSelectedAudioFile.swift",
+      "sha256": "a01133f057440c89bb0b7b1928dbf70bf3822af828a5953e208cac1248d77e71"
+    },
+    {
+      "path": "native/gameplay-collection-tests/NativeBackpackTests.swift",
+      "sha256": "113191a8558fd6970c7fded4e0f4378d6d379c5f10cc82ae9683048505f36127"
+    },
+    {
+      "path": "native/gameplay-collection/NativeBackpackCatalog.swift",
+      "sha256": "08cd698c28da6ca8b1912191e04196a1418a90926950dbab5fe0874ccb5e47b6"
+    },
+    {
+      "path": "native/gameplay-collection/NativeBackpackDetail.swift",
+      "sha256": "9a9263386c54a130bd21ef3ff54bd3d83d5aebeee57995e2a0b73b2974193208"
+    },
+    {
+      "path": "native/gameplay-collection/NativeBackpackDicePreview.swift",
+      "sha256": "07eaf282978747c63869a005a581be4a73355aaee848f79620ba9aa26f4a2cf5"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeGameplayEngine.swift",
+      "sha256": "aac30c6ae1c5131a416adec21662fc92aff2886e0928e89f9231349f0f79b83a"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeSpecialDiceRegistry.swift",
+      "sha256": "8fd4991e5bd4c397f22d45278e3083c2718fd461d100257759eea4950b97236f"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeWildSpawnPhaseOwner.swift",
+      "sha256": "7fe5e0548ed0c85b38399cf91e0440adf970b832aec60c6735cccd3bd7c2a3b3"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeBloobTests.swift",
+      "sha256": "5f4ec61b19a14ed2361f251ce22ecabae3279cceade3eefaf55b175839d3e211"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeCoconutTests.swift",
+      "sha256": "caa576e6981c0e7e657df4febe1edad4602218f8e97537526af78b6edcfcbaef"
+    },
+    {
+      "path": "native/gameplay-meter-drop/NativeMeterSelectedWarmupCatalog.swift",
+      "sha256": "44da801a095e13240995cbbaa2e27bfbac2c0ed7745614ee724da2bebee652e0"
+    },
+    {
+      "path": "native/gameplay-meter-drop/NativeSelectedFinaleRaster.swift",
+      "sha256": "52258240aea973a93a832ccfdc2c760c278e1c2edd05fbf6e5e960e0e4f1c2c3"
+    },
+    {
+      "path": "native/gameplay-ordinary-six/NativeWildMergeSixShardOwner.swift",
+      "sha256": "7e56ac588b5159c567d58fcd617db30d4aee04b1286ef89a773baefc0b875d3a"
+    },
+    {
+      "path": "native/gameplay-state/Sources/StackToSixNativeState/NativeJourneyContent.swift",
+      "sha256": "f9342687639bc69f7f1af511a8fd2371b6b5b982096866b046901466b36ce2a5"
+    },
+    {
+      "path": "native/gameplay-state/Tests/StackToSixNativeStateTests/NativeBackpackAlertStateTests.swift",
+      "sha256": "7adf5f64f6cd02f6d1ba04780f9a80d872b164bd03330563a17060c106349d70"
+    },
+    {
+      "path": "native/gameplay-state/Tests/StackToSixNativeStateTests/NativeJourneyUnlockAppearanceTests.swift",
+      "sha256": "4f088b45172e6faca5f741db2d0fa927f255f7d5f45f6103c7da46bc7ca73c36"
+    },
+    {
+      "path": "native/gameplay-state/Tests/StackToSixNativeStateTests/NativeStateTests.swift",
+      "sha256": "2046b5edc39c0e199582aa220d62d07152134b84bef53ccd179e7353b9f55f85"
+    },
+    {
+      "path": "native/gameplay-tnt-variants/NativeCoconutFinaleMotion.swift",
+      "sha256": "50b115e4b91d66734f10d4a1be512c80ce218a8c8b930c3aa588446720e33866"
+    },
+    {
+      "path": "native/gameplay-tnt-variants/NativeTntVariantPresentation.swift",
+      "sha256": "7239effcb8d1442b01f9d9be579d8cb21056e5eb4bbc2c4a429d30bbb852f226"
+    },
+    {
+      "path": "native/gameplay-ui/NativeBloobArt.swift",
+      "sha256": "aefed454fece78dbb443e2c700f29862d16ff763664a005d1ff3bc99102c0895"
+    },
+    {
+      "path": "native/gameplay-ui/NativeBloobFinaleMotion.swift",
+      "sha256": "5df14e80d966e3da228e9da9d242d8cb91256d3e769bc9e226f7f5f46a7323c3"
+    },
+    {
+      "path": "native/gameplay-ui/NativeBloobFinalePresentation.swift",
+      "sha256": "d7273d489199363a8dbf33cb140e8a0999e23cbc7e135ac6f27c5042c570c979"
+    },
+    {
+      "path": "native/gameplay-ui/NativeBloobReverseArt.swift",
+      "sha256": "7e51f5347da20df8a9d0a3e2f990b5f40e17faf1d5f845eaec4e8d9c46cf4f74"
+    },
+    {
+      "path": "native/gameplay-ui/NativeBloobSplashSVG.swift",
+      "sha256": "e8c1f8469c8e5ae2fb872b50290783c543c3ddfe0ce774c15f06a288ab961d97"
+    },
+    {
+      "path": "native/gameplay-ui/NativeBoardScene.swift",
+      "sha256": "783a5160c585a82e51011c5a6a06e65fa7a6d2ca2fe1ad946a87e346f7c56029"
+    },
+    {
+      "path": "native/gameplay-ui/NativeCoconutArt.swift",
+      "sha256": "9924eb7a0d6e5f59cc70d9f55aaa56ca05abfe736b1980f164066ee87edda335"
+    },
+    {
+      "path": "native/gameplay-ui/NativeDiceArtwork.swift",
+      "sha256": "305380f625c5e4bef41eac3b380b52720a620b071d0194b74a9cfb529c485aa9"
+    },
+    {
+      "path": "native/gameplay-ui/NativeDiceNode.swift",
+      "sha256": "c366981fc2e07ed88efb4aaa0275e4bd03d843ad4e7ebc03233c5d3fc2d901c1"
+    },
+    {
+      "path": "native/gameplay-ui/NativeDragTrail.swift",
+      "sha256": "6c5bf16fcd08204961554887ddfa6841f1d248d18d96b8d793f8f35fac92fee1"
+    },
+    {
+      "path": "native/gameplay-ui/NativeFishIdlePresentation.swift",
+      "sha256": "c28dc730d3e47364945ef74f8f5cd37678b8f2fc91aa967670ff14a9dba5618c"
+    },
+    {
+      "path": "native/gameplay-ui/NativeGameplayViewController.swift",
+      "sha256": "e07b7c57645a2b9fd01c84cff64f6a42492575bd5cb44a33ce9e6f72f0f3104a"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSplashGlyphField.swift",
+      "sha256": "79b76e13119deb6457b7dbb50f2b01e16a02a04c25fd1c1152e14a36b5404da3"
+    },
+    {
+      "path": "native/jimi-2026/JimiNativeWorldCardEffects.swift",
+      "sha256": "c1ca213e73a6f42afa9b80b587c4159979c4bdf1cec094b6623981eea8518162"
+    },
+    {
+      "path": "native/jimi-2026/JimiNativeWorldCardView.swift",
+      "sha256": "e19d562138ab4e235889cfe88a2fb667919813f1f143e24be2e29ee7d2707268"
+    },
+    {
+      "path": "native/jimi-2026/JimiV9Artwork.swift",
+      "sha256": "2db888aaea424a8c2e781d2980b96fb2bcc49223177ca9cd24271593040a6198"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/JimiNativeWorldTests.swift",
+      "sha256": "e8a7ef5224f085797d66812104ccd1ee801669e731e035b304416e07264d098c"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeBloobTests.swift",
+      "sha256": "f57afbded51009aa8790c4796718b29e95c104d0caad4a4f2679a8f30b7fa1d4"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeCoconutTests.swift",
+      "sha256": "f22fb16f315883fdee7d3a5cc495b4d94492b0e63712552468c348c34a66c2ad"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeFishIdleTests.swift",
+      "sha256": "1b33b2510b448c52681e80c910acf601f04f4ece6154f5ed66418ef4e339838e"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeFishSVGFallbackTests.swift",
+      "sha256": "6478e0d931120b967ca98d104a880bc1f5f7ff8fe46d4ebc823b7d1733abfd80"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeMagnetForceCapturedStopTests.swift",
+      "sha256": "314a5d01f556f704dad8283d1d341b32344167677774d545b4d3b30157306cf4"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeMeterSelectedAudioTests.swift",
+      "sha256": "72b0e40ea59c9376ae72002166978abee33bf3b5913c375d9d3cbfd7bd6af913"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSelectedFinaleRasterTests.swift",
+      "sha256": "109e37e33773648649e557c4dfa9c25320efd4bfa80a568c009afed6ee167883"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeWildMergeSixRootTests.swift",
+      "sha256": "2b1bb5effa16f4fb574647f86a5f4311368b6f52a6f145d2234a01902ec04b6b"
+    }
+  ]
+}

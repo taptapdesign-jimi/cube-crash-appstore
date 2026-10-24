@@ -2302,8 +2302,8 @@ public final class NativeGameplayEngine {
         state.mode == .arcade && archetype != .star
     }
     private func spawnDirectWildMerge6(at cell: NativeCell, archetype: NativeWildArchetype, depth: Int, avoiding: Int, starOrbitCount: Int, variant:String?=nil, events: inout [NativeGameplayEvent]) {
-        // One captured draw per genuine non-final Mushroom merge.
-        let mushroomBonusCount = variant == "mushroom" ? 4+min(2,max(0,Int(nextRandom()*3))) : nil
+        // One captured draw per genuine non-final Mushroom or BLOOB merge.
+        let mushroomBonusCount = (variant == "mushroom" || variant == "bloob") ? 4+min(2,max(0,Int(nextRandom()*3))) : nil
         let effectiveOrbitCount:Int
         if archetype == .star,committingDirectWild,let plan=pendingDirectWild,
             let capture=plan.sourceStarOrbitCapture,capture.generation==state.generation {
@@ -2524,7 +2524,7 @@ public enum NativeSpawnRules {
     public static func wildEndgameMultiplier(_ multiplier: Int, isWild: Bool, lockedEmptyCount: Int, isLastMerge: Bool) -> Int { isWild && lockedEmptyCount <= 0 && multiplier > 1 && !isLastMerge ? 1 : multiplier }
     public static func wildBonus(archetype: NativeWildArchetype?, isLastMerge: Bool, isArcadeSimpleWild: Bool, isFinalWildSnapshot: Bool, starOrbitCount: Int = 3,mushroomBonusCount:Int?=nil) -> (locked: Int, active: Int) {
         guard let archetype, !isLastMerge, !isFinalWildSnapshot else { return (0, 0) }
-        if archetype == .juice,let mushroomBonusCount {
+        if (archetype == .juice || archetype == .star),let mushroomBonusCount {
             let count=max(4,min(6,mushroomBonusCount))
             return (3+2*count,count)
         }

@@ -26,6 +26,7 @@ nonisolated final class NativeSelectedAudioFile:@unchecked Sendable {
   let gain:@Sendable (Double,Double)->Void
   let reset:@Sendable ()->Bool
   var state:@Sendable ()->(Bool,Double) = {(false,0)}
+  var looping:@Sendable (Bool)->Void = {_ in}
  }
  private final class Delegate:NSObject,AVAudioPlayerDelegate {
   let completion:Completion
@@ -42,10 +43,11 @@ nonisolated final class NativeSelectedAudioFile:@unchecked Sendable {
  private let io:DispatchQueue,operations:Operations
  private var bound:ControlLease? // Serial queue only.
  init(source:String,bytes:Int,duration:Double,queue:DispatchQueue,operations:Operations){self.source=source;estimatedDecodedBytes=bytes;self.duration=duration;io=queue;self.operations=operations}
- func start(_ lease:ControlLease,rate:Double,gain:Double,completion:@escaping Completion,started:@escaping @MainActor @Sendable (Bool)->Void){
+ func start(_ lease:ControlLease,rate:Double,gain:Double,looping:Bool=false,completion:@escaping Completion,started:@escaping @MainActor @Sendable (Bool)->Void){
   io.async{[self] in
    guard lease.claim(),bound==nil else{Task{@MainActor in started(false)};return}
    bound=lease
+   operations.looping(looping)
    let success=operations.start(rate,gain,completion)
    // Main retirement can overlap an already claimed AudioQueue call. Finish
    // it, then stop the same lease before delivering any successful start.
@@ -91,7 +93,7 @@ nonisolated final class NativeSelectedAudioFile:@unchecked Sendable {
    return box.player.play()
   },stop:{box.player.delegate=nil;box.delegate=nil;box.player.stop()},gain:{gain,duration in
    if duration>0 {box.player.setVolume(Float(gain),fadeDuration:duration)}else{box.player.volume=Float(gain)}
-  },reset:{box.player.currentTime=0;return box.player.prepareToPlay()},state:{(box.player.isPlaying,box.player.currentTime)})
+  },reset:{box.player.currentTime=0;return box.player.prepareToPlay()},state:{(box.player.isPlaying,box.player.currentTime)},looping:{box.player.numberOfLoops=$0 ? -1:0})
   return NativeSelectedAudioFile(source:source,bytes:metadata.estimatedDecodedBytes,duration:player.duration,queue:queue,operations:operations)
  }
 }

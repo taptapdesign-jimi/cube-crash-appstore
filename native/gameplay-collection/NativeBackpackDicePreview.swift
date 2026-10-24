@@ -62,6 +62,7 @@ import StackToSixGameplay
     private var presentationRect=CGRect(x:-64,y:-64,width:128,height:128)
     var presentationHeightRatio:CGFloat {max(1,presentationRect.height/max(1,bodyRect.height))}
     private var previewElapsed:TimeInterval=0
+    private var bloobPlayback:NativeBloobArt.Playback?
     private var layoutNodePosition=CGPoint.zero,layoutNodeScale:CGFloat=1
     var playbackElapsed:TimeInterval {previewElapsed}
     private var pollen:[SKShapeNode]=[]
@@ -72,7 +73,7 @@ import StackToSixGameplay
     private let referenceBounds:CGRect
     let identity:NativeBackpackCatalog.Die
     init(die:NativeBackpackCatalog.Die,root:URL,referenceBounds:CGRect=CGRect(x:0,y:0,width:1,height:1),fishOwnerFactory:((URL)->NativeFishIdleOwner)?=nil){
-        identity=die;self.resourceRoot=root;self.referenceBounds=referenceBounds;self.fishOwnerFactory=fishOwnerFactory;textures=NativeBoardTextures(root:root)
+        identity=die;bloobPlayback=die.id=="bloob" ? .init():nil;self.resourceRoot=root;self.referenceBounds=referenceBounds;self.fishOwnerFactory=fishOwnerFactory;textures=NativeBoardTextures(root:root)
         super.init(frame:.zero)
         backgroundColor = .clear;allowsTransparency=true;isOpaque=false;isUserInteractionEnabled=false
         preferredFramesPerSecond=["bee","honey","fish"].contains(die.id) ? 60:30;isPaused=true
@@ -330,8 +331,11 @@ import StackToSixGameplay
         guard active,ready,!disposed,!UIAccessibility.isReduceMotionEnabled else{return}
         let delta=lastTime.map{min(1.0/15,max(0,time-$0))} ?? 0;lastTime=time
         textures.advanceIdlePhases()
-        dieNode?.tick(delta*(identity.id=="bee" ? 0.4356:1),suspended:false,viewportCenter:canvas.size.width/2,
-                      beeFrameOrder:identity.id=="bee" ? [1,2,4,3]:nil)
+        // BLOOB changes direction along its captured route at original1x speed.
+        let bloobTime=bloobPlayback?.advance(delta)
+        let artworkRate=identity.id=="bee" ? 0.4356:1
+        dieNode?.tick(delta*artworkRate,suspended:false,viewportCenter:canvas.size.width/2,
+                      beeFrameOrder:identity.id=="bee" ? [1,2,4,3]:nil,selectedBloobTime:bloobTime)
         previewElapsed+=delta
         dieNode?.paintCollectionPreview(seconds:previewElapsed)
         paintSelectedBounce(seconds:previewElapsed)
@@ -349,7 +353,7 @@ import StackToSixGameplay
     }
     func dispose(){
         guard !disposed else{return};disposed=true;active=false;isPaused=true;onReady=nil
-        fishOwner?.dispose();fishOwner=nil;pollen.removeAll();dieNode?.dispose();dieNode=nil
+        fishOwner?.dispose();fishOwner=nil;bloobPlayback=nil;pollen.removeAll();dieNode?.dispose();dieNode=nil
         groundShadow?.removeFromSuperview();groundShadow=nil;shadowSample=nil;shadowSlot=nil
         rearCanShadow?.removeFromSuperview();rearCanShadow=nil
         canvas.owner=nil;canvas.removeAllChildren();presentScene(nil);textures.dispose()

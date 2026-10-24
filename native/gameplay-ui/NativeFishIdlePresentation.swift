@@ -98,9 +98,9 @@ final class NativeFishIdlePresentation:UIView {
         CATransaction.commit()
         if let svgView {
             if frame.phaseStarted,svgStart==nil {svgStart=now}
-            if frame.visible,!frame.dragging,!suspended {svgView.paint(seconds:(svgStart.map {max(0,now-$0)} ?? 0)*svgPlaybackRate)}
+            if frame.visible,!suspended {svgView.paint(seconds:(svgStart.map {max(0,now-$0)} ?? 0)*svgPlaybackRate)}
         } else if frame.phaseStarted,!started,!seeking,!failed {startAdmittedMedia()}
-        let visible=ready && frame.visible && !frame.dragging && !suspended && window != nil
+        let visible=ready && frame.visible && !suspended && window != nil
         isHidden = !visible
         if visible {
             if svgView==nil,player.rate != 1 {player.playImmediately(atRate:1)}
@@ -151,7 +151,10 @@ final class NativeFishIdlePresentation:UIView {
         if markUnavailable {onVideoSourceError?()}
         itemObservation?.invalidate();itemObservation=nil
         readiness.forEach {$0.invalidate()};readiness.removeAll();looper?.disableLooping();looper=nil
-        player.removeAllItems();mediaLayer.player=nil;mediaLayer.removeFromSuperlayer();publishPaintReady(false)
+        player.removeAllItems();mediaLayer.player=nil;mediaLayer.removeFromSuperlayer()
+        // A failed preparation also reports fallback ownership before the first
+        // visible frame; disposal/duplicate failure is already guarded above.
+        if reportedPaintReady {publishPaintReady(false)}else{onMediaReady?(false)}
         guard let svgResources else {return}
         let acceptedEpoch=mediaEpoch
         svgRequest=svgResources.request { [weak self] resources in

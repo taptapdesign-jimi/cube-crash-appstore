@@ -47,7 +47,7 @@ public enum NativeJourneyContent {
     private static let cardArtNumbers = [[3,1,9,4,5,6,7,8,2,10], [2,1,3,4,6,5,7,9,8,10], [1,4,3,2,5,6,7,8,9,10]]
     private static let cardNamesByArt = [
         ["Star Is Out","Flying Tent","Weee - Beee","Honey Splat","Dreamy","Shroomy","Kaboom","Break Out","Final Gate","Winner"],
-        ["Fishy","Fresh Juice","Bouncy Day","Bottle Tips","Star Below","Castle Ruins","Looky Here","The Letter","Playtime","Life Saver"],
+        ["Fishy","Fresh Juice","Bouncy Day","Bottle Tips","Bonkers","Castle Ruins","Looky Here","The Letter","Playtime","Life Saver"],
         ["Bibi - Ribi","Zap - Zap","Woombuu","The Bloob","Beam Up","Bloob Spill","Team Party","Transport","Fixer Upper","Take Over"]
     ]
     private static func cardIdentity(board:Int)->(world:Int,art:Int) {
@@ -81,12 +81,14 @@ public enum NativeJourneyContent {
         case 11: return ["wild-juice"]
         case 12: return ["fish","wild-juice"]
         case 13: return ["fish","wild-juice","beach-ball"]
-        case 14...20: return ["fish","wild-juice","beach-ball","bottle"]
+        case 14...15: return ["fish","wild-juice","beach-ball","bottle"]
+        case 16...20: return ["fish","wild-juice","beach-ball","bottle","coconut"]
         case 21: return ["robo-cube"]
         case 22: return ["kanta","robo-cube"]
         case 23: return ["kanta","robo-cube","spaceship"]
-        case 24...26: return ["kanta","robo-cube","spaceship","laser-gun"]
-        case 27...30: return ["kanta","robo-cube","spaceship","laser-gun","bloob-ball"]
+        case 24...25: return ["kanta","robo-cube","spaceship","laser-gun"]
+        case 26: return ["kanta","robo-cube","spaceship","laser-gun","bloob-ball"]
+        case 27...30: return ["kanta","robo-cube","spaceship","laser-gun","bloob-ball","bloob"]
         default: return []
         }
     }

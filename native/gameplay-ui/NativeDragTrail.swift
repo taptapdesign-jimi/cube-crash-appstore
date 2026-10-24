@@ -27,6 +27,7 @@ struct NativeDragTrailStyle:Equatable {
             "baloon":[0xF4E2CD,0x95D0F9,0x5BB6F9],
             "fish":[0xF5D8BF,0xFDAC78,0xFDA458,0xFD7C41],
             "kanta":[0xEBC29B,0xDDAD7F,0xDCFEFB,0x9CFDFC],
+            "bloob":[0xDAFCEF,0xA5F8ED,0x6CDDE8,0x57C8DA],
             "bloob-ball":[0x09E8FD,0xB77D49,0xF3D1B0],
             "bee":[0xFAF4ED,0xFAE0BB,0xDB8265,0xD68E62],
             "laser-gun":[0xFEDFAD,0xFDC37E,0xE5CCA4,0x97E9FD],
@@ -34,6 +35,7 @@ struct NativeDragTrailStyle:Equatable {
             "bottle":[0xFDCA89,0xD8E9CA,0xC8ECD0,0xAEE9E6],
             "honey":[0xFBD099,0xFEE4B8,0xFDCD55,0xF9AF3A],
             "flower":[0xFFE4D4,0xFFBBAD,0xF9999F,0xFFD257],
+            "coconut":[0xFBC68E,0xD27B45,0xBB623A,0xA34C30],
             "barell":[0xD7C3BC,0xE2CDC0,0xF5BD65,0xEAAD61],
             "mushroom":[0xFFE1C8,0xFFEDD9,0xFF9A80,0xFF7D61],
             "robo-cube":[0xFED49C,0xE99D5F,0xAA9482,0x8AEEFE],
@@ -46,7 +48,7 @@ struct NativeDragTrailStyle:Equatable {
     static func resolve(core:NativeWildArchetype?,variant:String?)->Self {
         let core=variant.flatMap{NativeSpecialDiceRegistry.variants[$0]?.archetype} ?? core
         var colors=variant.flatMap{variants[$0]} ?? core.flatMap{defaults[$0]} ?? [0xF4EEE7,0xFBE3C5,0xECD7C2,0xE5C7AD,0xFADEC0]
-        if core == .tnt {colors += [0xFFD966,0xFFE699]}
+        if core == .tnt,variant != "coconut" {colors += [0xFFD966,0xFFE699]}
         let round=core != .tnt && (variant.map{["baloon","fish","beach-ball","bottle"].contains($0)} ?? (core == .juice))
         return Self(wild:core != nil,round:round,colors:colors)
     }

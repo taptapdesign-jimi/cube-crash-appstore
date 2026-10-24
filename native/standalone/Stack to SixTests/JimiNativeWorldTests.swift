@@ -550,7 +550,7 @@ final class JimiNativeWorldTests: XCTestCase {
         let effects=JimiNativeWorldCardEffects(impact:impact,overlay:overlay,assets:art,resources:resources,boardID:1)
         defer{effects.cleanup();resources.cleanup()}
         effects.layout();effects.present()
-        XCTAssertNotNil(impact.layer.animation(forKey:"modal.coach.impact"))
+        XCTAssertNil(impact.layer.animation(forKey:"modal.coach.impact"))
         func check(_ layer:CALayer) {
             XCTAssertFalse(layer is CAGradientLayer,"Journey modal must not attach a white or holographic shimmer")
             XCTAssertFalse((layer.animationKeys() ?? []).contains{$0.contains("holo") || $0.contains("common")})
@@ -558,8 +558,104 @@ final class JimiNativeWorldTests: XCTestCase {
         }
         check(overlay.layer)
         effects.setActive(false);XCTAssertNil(impact.layer.animation(forKey:"modal.coach.impact"))
-        effects.setActive(true);XCTAssertNotNil(impact.layer.animation(forKey:"modal.coach.impact"))
+        effects.setActive(true);XCTAssertNil(impact.layer.animation(forKey:"modal.coach.impact"))
         effects.cleanup();effects.cleanup();XCTAssertTrue(overlay.subviews.isEmpty)
+    }
+
+    func testJourneyOpeningCoachIsImmediateOncePerInstallationAcrossWorldsAndRelaunch() async throws {
+        guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Coach respects Reduced Motion")}
+        let prior=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),controller=UIViewController()
+        window.rootViewController=controller;window.makeKeyAndVisible();controller.loadViewIfNeeded()
+        let suite="journey-coach-test-"+UUID().uuidString
+        let defaults=try XCTUnwrap(UserDefaults(suiteName:suite))
+        defer{defaults.removePersistentDomain(forName:suite)}
+        let resources=JimiNativeWorldResources(root:root),session=JimiNativeWorldCardCoachPolicy(defaults:defaults)
+        var effects:[JimiNativeWorldCardEffects]=[]
+        defer{effects.forEach{$0.cleanup()};resources.cleanup();window.isHidden=true;prior?.makeKeyAndVisible()}
+        func make(_ board:Int,_ session:JimiNativeWorldCardCoachPolicy)async throws->(JimiNativeWorldCardEffects,UIView,UIView) {
+            let ready=expectation(description:"Prepared coach pointer \(board)")
+            resources.prepare(["assets/hand-pointer.png"],owner:board){ok in XCTAssertTrue(ok);ready.fulfill()}
+            await fulfillment(of:[ready],timeout:3)
+            let overlay=UIView(frame:window.bounds),impact=UIView();controller.view.addSubview(overlay)
+            let owner=JimiNativeWorldCardEffects(impact:impact,overlay:overlay,assets:art,resources:resources,boardID:board,coachSession:session)
+            effects.append(owner);owner.layout()
+            try await settle(0.05)
+            return(owner,overlay,impact)
+        }
+        func remainingDelay(_ impact:UIView)throws->Double {
+            let animation=try XCTUnwrap(impact.layer.animation(forKey:"modal.coach.impact"))
+            return animation.beginTime-impact.layer.convertTime(CACurrentMediaTime(),from:nil)
+        }
+        let(first,overlay,impact)=try await make(1,session)
+        XCTAssertTrue(session.immediateDragAvailable,"Preparation cannot consume the opening")
+        overlay.isHidden=true;first.present(opening:true)
+        XCTAssertTrue(session.immediateDragAvailable,"An attached but hidden card cannot consume the visible opening")
+        overlay.isHidden=false
+        first.present(opening:true)
+        XCTAssertFalse(session.immediateDragAvailable)
+        XCTAssertLessThanOrEqual(try remainingDelay(impact),0.05)
+        let text=overlay.subviews.flatMap(\.subviews).compactMap{($0 as? UILabel)?.text}.joined()
+        XCTAssertEqual(text,"DRAG TO FLIP")
+        first.cancel();first.present()
+        XCTAssertNil(impact.layer.animation(forKey:"modal.coach.impact"),"Interaction cannot schedule another hint")
+        first.setActive(false);first.setActive(true)
+        XCTAssertNil(impact.layer.animation(forKey:"modal.coach.impact"),"Resume cannot schedule another hint")
+        first.cleanup();first.cleanup()
+        let(second,_,secondImpact)=try await make(21,session)
+        second.present(opening:true)
+        XCTAssertNil(secondImpact.layer.animation(forKey:"modal.coach.impact"),"A different World cannot repeat onboarding")
+        let fresh=JimiNativeWorldCardCoachPolicy(defaults:try XCTUnwrap(UserDefaults(suiteName:suite)))
+        let(third,_,thirdImpact)=try await make(11,fresh)
+        third.present(opening:true)
+        XCTAssertFalse(fresh.immediateDragAvailable,"A new policy instance reads persisted installation acknowledgement")
+        XCTAssertNil(thirdImpact.layer.animation(forKey:"modal.coach.impact"),"Relaunch cannot repeat onboarding")
+    }
+
+    func testUnopenedInactiveAndRetiredCoachDoNotSpendTheSessionOpening()async throws {
+        let resources=JimiNativeWorldResources(root:root),session=JimiNativeWorldCardCoachPolicy()
+        let overlay=UIView(frame:CGRect(x:0,y:0,width:390,height:844)),impact=UIView()
+        let owner=JimiNativeWorldCardEffects(impact:impact,overlay:overlay,assets:art,resources:resources,boardID:1,coachSession:session)
+        owner.setActive(false);owner.present(opening:true)
+        XCTAssertTrue(session.immediateDragAvailable)
+        owner.cleanup();owner.cleanup()
+        try await settle(0.1)
+        XCTAssertTrue(session.immediateDragAvailable,"A late pointer completion after disposal cannot consume the first opening")
+        XCTAssertTrue(overlay.subviews.isEmpty)
+        resources.cleanup()
+    }
+
+    func testActualJourneyCardEntryClaimsCoachOnlyAfterMountedFlight()async throws {
+        guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Coach respects Reduced Motion")}
+        let prior=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+        let unit=try XCTUnwrap(JimiNativeWorldSnapshot(fixture())?.units.first)
+        let resources=JimiNativeWorldResources(root:root),session=JimiNativeWorldCardCoachPolicy()
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),host=UIViewController()
+        window.rootViewController=host;window.makeKeyAndVisible();host.loadViewIfNeeded()
+        let card=JimiNativeWorldCardView(unit:unit,assets:art,resources:resources,coachSession:session)
+        defer{card.cleanup();resources.cleanup();window.isHidden=true;prior?.makeKeyAndVisible()}
+        card.frame=window.bounds;host.view.addSubview(card);card.layoutIfNeeded()
+        XCTAssertTrue(session.immediateDragAvailable)
+        card.enter(from:CGRect(x:30,y:400,width:90,height:120))
+        let deadline=Date().addingTimeInterval(3)
+        while session.immediateDragAvailable,Date()<deadline {try await settle(0.02)}
+        XCTAssertFalse(session.immediateDragAvailable,"The actual Journey modal must claim its first opening after flight")
+        func labels(_ view:UIView)->[UILabel] {(view as? UILabel).map{[$0]} ?? view.subviews.flatMap(labels)}
+        XCTAssertEqual(labels(card).filter{$0.layer.animation(forKey:"modal.coach.copy") != nil}.compactMap(\.text).joined(),"DRAG TO FLIP")
+        card.cleanup();card.cleanup()
+    }
+
+    func testFailedPointerPreparationShowsNoCoachWithoutSpendingInstallationHint()async throws {
+        guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Coach respects Reduced Motion")}
+        let resources=JimiNativeWorldResources(root:URL(fileURLWithPath:NSTemporaryDirectory()).appendingPathComponent(UUID().uuidString))
+        let session=JimiNativeWorldCardCoachPolicy(),impact=UIView(),overlay=UIView(frame:CGRect(x:0,y:0,width:390,height:844))
+        let owner=JimiNativeWorldCardEffects(impact:impact,overlay:overlay,assets:art,resources:resources,boardID:1,coachSession:session)
+        defer{owner.cleanup();resources.cleanup()}
+        owner.setActive(false);owner.present(opening:true)
+        try await settle(0.2)
+        owner.setActive(true)
+        XCTAssertNil(impact.layer.animation(forKey:"modal.coach.impact"))
+        XCTAssertTrue(session.immediateDragAvailable,"A missing pointer never spends the one visible opening")
     }
 
     func testLegendaryFoilFollowsDragAndRetiresWithoutCommonShine() throws {

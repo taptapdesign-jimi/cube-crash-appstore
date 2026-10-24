@@ -155,17 +155,17 @@ final class NativeStateTests: XCTestCase {
         XCTAssertEqual(NativeJourneyContent.cardAsset(board:21,score:35000),"./assets/colelctibles/Area55/legendary/01-gold.png")
         XCTAssertEqual(NativeJourneyContent.cardAsset(board:2,score:0),"./assets/colelctibles/Forest/common/01.png")
     }
-    func testBeachUnlocksOneAdditionalDiePerUnitUntilFour() {
-        let order=["wild-juice","fish","beach-ball","bottle"]
+    func testBeachUnlocksOneAdditionalDiePerUnitUntilFive() {
+        let order=["wild-juice","fish","beach-ball","bottle","coconut"]
         for unit in 1...10 {
-            XCTAssertEqual(Set(NativeJourneyContent.rewardPool(board:10+unit)),Set(order.prefix(min(unit,4))))
+            XCTAssertEqual(Set(NativeJourneyContent.rewardPool(board:10+unit)),Set(order.prefix(unit>=6 ? 5:min(unit,4))))
         }
     }
     func testEveryJourneyPoolContainsOnlyItsWorldDiceAndNeverArcadeOnlyDice() {
         let worlds:[Set<String>]=[
             ["bee","wild-star","flower","honey","mushroom","barell"],
-            ["wild-juice","fish","beach-ball","bottle"],
-            ["robo-cube","kanta","spaceship","laser-gun","bloob-ball"]]
+            ["wild-juice","fish","beach-ball","bottle","coconut"],
+            ["robo-cube","kanta","spaceship","laser-gun","bloob-ball","bloob"]]
         for board in 1...30 {
             let pool=Set(NativeJourneyContent.rewardPool(board:board))
             XCTAssertFalse(pool.isEmpty)
@@ -219,7 +219,7 @@ final class NativeStateTests: XCTestCase {
         let worlds=["Forest","beach","Area55"]
         let expected:[[(Int,String)]] = [
             [(3,"Weee - Beee"),(1,"Star Is Out"),(9,"Final Gate"),(4,"Honey Splat"),(5,"Dreamy"),(6,"Shroomy"),(7,"Kaboom"),(8,"Break Out"),(2,"Flying Tent"),(10,"Winner")],
-            [(2,"Fresh Juice"),(1,"Fishy"),(3,"Bouncy Day"),(4,"Bottle Tips"),(6,"Castle Ruins"),(5,"Star Below"),(7,"Looky Here"),(9,"Playtime"),(8,"The Letter"),(10,"Life Saver")],
+            [(2,"Fresh Juice"),(1,"Fishy"),(3,"Bouncy Day"),(4,"Bottle Tips"),(6,"Castle Ruins"),(5,"Bonkers"),(7,"Looky Here"),(9,"Playtime"),(8,"The Letter"),(10,"Life Saver")],
             [(1,"Bibi - Ribi"),(4,"The Bloob"),(3,"Woombuu"),(2,"Zap - Zap"),(5,"Beam Up"),(6,"Bloob Spill"),(7,"Team Party"),(8,"Transport"),(9,"Fixer Upper"),(10,"Take Over")]
         ]
         for world in 0..<3 {for stage in 0..<10 {

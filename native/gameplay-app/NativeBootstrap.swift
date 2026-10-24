@@ -266,6 +266,7 @@ final class NativeBootstrap {
         soundtrack?.apply(enabled: envelope.settings.musicEnabled)
         arcadeMusic?.apply(enabled:envelope.settings.musicEnabled)
         audio?.setEnabled(envelope.settings.gameSoundsEnabled)
+        if let state=gameplay?.engine.state {audio?.prepareBottleOnBoard(state)}
         ambient?.setEnabled(envelope.settings.gameSoundsEnabled)
         if key == "hapticsEnabled",value {impactFeedback("light")}
     }
@@ -582,7 +583,7 @@ final class NativeBootstrap {
         }
         committedScore=nil
         interimJourney = mode == .journey && !envelope.progression.completedJourneyBoards.contains(number)
-        audio?.stop();audio?.beginGeneration(initial.generation)
+        audio?.stop();audio?.beginGeneration(initial.generation);audio?.prepareBottleOnBoard(initial)
         haptics.cancelSequences();failHapticGeneration=nil;ordinarySixHapticContact=nil;specialHapticTargetCounts.removeAll()
         lastReturnBoard = mode == .journey ? number : nil
         if !resumed || consumedPending { envelope.progression.beginAttempt(mode: mode, board: number,arcadeVariant:envelope.activeArcadeVariant) }
@@ -597,7 +598,7 @@ final class NativeBootstrap {
             do {try self.store.save(self.envelope)}catch{self.envelope=previous;self.showError(error.localizedDescription)}
             gameplay.boardScene?.refreshBackpackAlert()
         }
-        gameplay.onStateChange = { [weak self] state in self?.record(state);self?.tutorialOwner?.refresh(state) }
+        gameplay.onStateChange = { [weak self] state in self?.record(state);self?.tutorialOwner?.refresh(state);self?.audio?.prepareBottleOnBoard(state) }
         gameplay.onSourceGuidedSnapBack={ [weak self] node in self?.tutorialOwner?.sourceSnapBackCompleted(node) }
         gameplay.onGameplayEvent = { [weak self] event in self?.tutorialOwner?.gameplayEvent(event) }
         gameplay.onHaptic = { [weak self] kind in self?.impactFeedback(kind) }
@@ -654,6 +655,7 @@ final class NativeBootstrap {
         }
         gameplay.onBoardEntry = { [weak self] duration,beats in
             guard let self,let state=self.gameplay?.engine.state else{return};self.audioReceipt &+= 1
+            self.audio?.prepareBottleOnBoard(state)
             self.audio?.routeFeedback("board-enter",receipt:self.audioReceipt,generation:state.generation,duration:duration)
             self.tutorialOwner?.refresh(state)
             self.boardEntryHaptics?.dispose()

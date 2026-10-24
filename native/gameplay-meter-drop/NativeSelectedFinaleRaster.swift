@@ -8,10 +8,29 @@ import CoreGraphics
 nonisolated struct NativeSelectedFinaleRaster:@unchecked Sendable {
  let path:String
  let image:CGImage
+ let bloobSplash:NativeBloobSplashScene?
+ let bloobReverse:NativeBloobReverseArt?
+ init(path:String,image:CGImage,bloobSplash:NativeBloobSplashScene?=nil,bloobReverse:NativeBloobReverseArt?=nil){self.path=path;self.image=image;self.bloobSplash=bloobSplash;self.bloobReverse=bloobReverse}
  static func decode(root:URL,candidates:[String])->Self? {
   for path in candidates {
    let relative=path.hasPrefix("./") ? String(path.dropFirst(2)):path
    guard !relative.hasPrefix("/"),!relative.split(separator:"/").contains("..") else{continue}
+   if relative==NativeBloobReverseArt.path {
+    if let recipe=NativeBloobReverseArt.decode(root.appendingPathComponent(relative)),let pixel=NativeBloobReverseArt.readinessPixel() {return Self(path:relative,image:pixel,bloobReverse:recipe)}
+    continue
+   }
+   if relative==NativeBloobArt.splashPath {
+    if let scene=NativeBloobSplashScene.decode(root.appendingPathComponent(relative)),let poster=scene.poster() {return Self(path:relative,image:poster,bloobSplash:scene)}
+    continue
+   }
+   if relative==NativeCoconutArt.path {
+    if let image=NativeCoconutArt.decode(root.appendingPathComponent(relative)){return Self(path:relative,image:image)}
+    continue
+   }
+   if NativeBloobArt.isSource(relative) {
+    if let image=NativeBloobArt.decode(root.appendingPathComponent(relative)) {return Self(path:relative,image:image)}
+    continue
+   }
    if NativeBloobBallArt.isSource(relative) {
     if let image=NativeBloobBallArt.decode(root.appendingPathComponent(relative)) {return Self(path:relative,image:image)}
     continue

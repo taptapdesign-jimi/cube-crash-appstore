@@ -49,7 +49,7 @@ final class NativeWildSpawnPhaseOwner {
         self.sourceEndgameGuardAwaits=sourceEndgameGuardAwaits
         self.tntOwnerCaptured=tntOwner?.id==id && tntOwner?.generation==generation && tntOwner?.archetype == .tnt
         self.spawnCount=max(0,spawnCount);self.orbitCount=max(1,min(3,orbitCount))
-        self.mushroomBonusCount=archetype == .juice ? mushroomBonusCount.map{max(4,min(6,$0))}:nil
+        self.mushroomBonusCount=(archetype == .juice || archetype == .star) ? mushroomBonusCount.map{max(4,min(6,$0))}:nil
     }
     @discardableResult func begin()->Command? {
         guard !cancelled,stage == .idle,(archetype == .star || archetype == .juice || archetype == .magnet || archetype == .tnt && tntOwnerCaptured),spawnCount>0 else{return nil}

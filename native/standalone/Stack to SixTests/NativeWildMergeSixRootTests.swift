@@ -28,6 +28,11 @@ final class NativeWildMergeSixRootTests:XCTestCase {
     func testBeachBallMergeKeepsUnrelatedBoardDiceFullSize()async throws {
         try await exercise(archetype:.tnt,variant:"beach-ball",reverse:false,disposeDuringMain:false,moves:49,verifyBoardScale:true)
     }
+    func testBloobFourToSixBonusDiceSettleInActualJourneyAndArcadeSourceRoots()async throws {
+        for arcade in [false,true] {for reverse in [false,true] {
+            try await exercise(archetype:.star,variant:"bloob",reverse:reverse,disposeDuringMain:false,moves:49,arcadeRun:arcade)
+        }}
+    }
     func testMushroomFourToSixBonusDiceSettleInActualJourneyAndArcadeSourceRoots()async throws {
         for arcade in [false,true] {for reverse in [false,true] {
             try await exercise(archetype:.juice,variant:"mushroom",reverse:reverse,disposeDuringMain:false,moves:49,arcadeRun:arcade)
@@ -231,14 +236,44 @@ final class NativeWildMergeSixRootTests:XCTestCase {
             try await exercise(archetype:.tnt,variant:"bloob-ball",reverse:arcade,disposeDuringMain:false,moves:49,finalOnly:final,arcadeRun:arcade)
         }}
     }
+    func testCoconutJourneyFinalSource()async throws {
+        try await exercise(archetype:.tnt,variant:"coconut",reverse:false,disposeDuringMain:false,moves:49,finalOnly:true,arcadeRun:false)
+    }
+    func testCoconutArcadeFinalDestination()async throws {
+        try await exercise(archetype:.tnt,variant:"coconut",reverse:true,disposeDuringMain:false,moves:49,finalOnly:true,arcadeRun:true)
+    }
+    func testBloobJourneyBlockerSource()async throws {
+        try await exercise(archetype:.star,variant:"bloob",reverse:false,disposeDuringMain:false,moves:49,finalOnly:false,starCount:1,arcadeRun:false)
+    }
+    func testBloobJourneyBlockerDestination()async throws {
+        try await exercise(archetype:.star,variant:"bloob",reverse:true,disposeDuringMain:false,moves:49,finalOnly:false,starCount:1,arcadeRun:false)
+    }
+    func testBloobJourneyFinalSource()async throws {
+        try await exercise(archetype:.star,variant:"bloob",reverse:false,disposeDuringMain:false,moves:49,finalOnly:true,starCount:1,arcadeRun:false)
+    }
+    func testBloobJourneyFinalDestination()async throws {
+        try await exercise(archetype:.star,variant:"bloob",reverse:true,disposeDuringMain:false,moves:49,finalOnly:true,starCount:1,arcadeRun:false)
+    }
+    func testBloobArcadeBlockerSource()async throws {
+        try await exercise(archetype:.star,variant:"bloob",reverse:false,disposeDuringMain:false,moves:49,finalOnly:false,starCount:1,arcadeRun:true)
+    }
+    func testBloobArcadeBlockerDestination()async throws {
+        try await exercise(archetype:.star,variant:"bloob",reverse:true,disposeDuringMain:false,moves:49,finalOnly:false,starCount:1,arcadeRun:true)
+    }
+    func testBloobArcadeFinalSource()async throws {
+        try await exercise(archetype:.star,variant:"bloob",reverse:false,disposeDuringMain:false,moves:49,finalOnly:true,starCount:1,arcadeRun:true)
+    }
+    func testBloobArcadeFinalDestination()async throws {
+        try await exercise(archetype:.star,variant:"bloob",reverse:true,disposeDuringMain:false,moves:49,finalOnly:true,starCount:1,arcadeRun:true)
+    }
     private func exercise(archetype:NativeWildArchetype,variant:String?,reverse:Bool,disposeDuringMain:Bool=true,pulledKanta:Bool=false,moves:Int=50,finalOnly:Bool=false,starCount:Int=3,capturedBoard:NativeBoardState?=nil,freshStar:Bool=false,verifyStarTail:Bool=false,interveningOrdinary:Bool=false,interveningSix:Bool=false,heldOrdinaryMilliseconds:Int=160,rapidOrdinaryContacts:Int=0,tutorialAssist:Bool=false,arcadeTutorial:Bool=false,laserInterveningStack:Bool=false,laserInterveningSix:Bool=false,arcadeRun:Bool=false,initialMeter:Double?=nil,verifyBaloonRetirement:Bool=false,verifyBoardScale:Bool=false,verifyQueuedBonus:Bool=false)async throws {
         let label=(variant ?? archetype.rawValue)+(reverse ? ":destination":":source")
         print("[WildMergeSixRoot] start \(label)")
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("wild-six-particles-"+UUID().uuidString)
         let store=NativeSaveStore(directory:directory)
         var envelope=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
-        envelope.progression.firstPlayTutorialComplete=true;envelope.progression.completedJourneyBoards=Set(1..<(variant=="bloob-ball" ? 27:26))
-        var board=NativeBoardFactory.make(mode:.journey,board:variant=="bloob-ball" ? 27:26,generation:9,seed:7)
+        envelope.progression.firstPlayTutorialComplete=true;envelope.progression.completedJourneyBoards=Set(1..<(variant=="bloob" ? 27:26))
+        var board=NativeBoardFactory.make(mode:.journey,board:variant=="bloob" ? 27:26,generation:9,seed:7)
         for i in board.tiles.indices {board.tiles[i].value=0;board.tiles[i].locked=true;board.tiles[i].alpha=0.25}
         for (i,value) in (finalOnly ? [(0,6),(1,2)]:[(0,6),(1,2),(2,1),(3,1),(40,1)]) {
             board.tiles[i].value=value;board.tiles[i].locked=false;board.tiles[i].alpha=1
@@ -264,7 +299,7 @@ final class NativeWildMergeSixRootTests:XCTestCase {
         try store.save(envelope)
         weak var drawingScene:NativeBoardScene?
         var drawPhases:[String]=[],drawCount=0
-        if variant=="bloob-ball" {
+        if variant=="bloob-ball" || variant=="bloob" || variant=="coconut" {
             // Component rendering can let the ordinary test-host intro begin.
             // Wait for its finite shared clock; never bypass transport ownership.
             try await wait(label+":host-transport-idle") {
@@ -624,7 +659,7 @@ final class NativeWildMergeSixRootTests:XCTestCase {
             XCTAssertGreaterThan(queuedSamples,0)
             print("[LockedPopDiag] settled queued=\(queuedBonus.count) samples=\(queuedSamples)")
         }
-        if variant=="mushroom" {
+        if variant=="mushroom" || variant=="bloob" {
             let before=board.activeTiles.count
             XCTAssertTrue((before+3...before+5).contains(gameplay.engine.state.activeTiles.count),"One primary plus4–6 extras replaces the consumed pair: "+label)
         }

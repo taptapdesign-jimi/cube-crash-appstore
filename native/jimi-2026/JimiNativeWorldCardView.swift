@@ -48,7 +48,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
     private let cardArt2x: String?
     private var newRibbon:UIImageView?
 
-    init(unit:JimiNativeWorldSnapshot.Unit,assets:JimiV9Artwork,resources:JimiNativeWorldResources,worldTitle:String = "Forest",presentationHasNewRibbon:Bool? = nil) {
+    init(unit:JimiNativeWorldSnapshot.Unit,assets:JimiV9Artwork,resources:JimiNativeWorldResources,worldTitle:String = "Forest",presentationHasNewRibbon:Bool? = nil,coachSession:JimiNativeWorldCardCoachPolicy? = nil) {
         boardID = unit.boardID
         self.resources = resources;cardArt2x = unit.cardArt2x
         originRotation = unit.parts.first(where:{$0.role == "card"})?.rotation ?? 0
@@ -113,7 +113,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         cta.addTarget(self,action:#selector(releaseCTA),for:[.touchUpInside,.touchUpOutside,.touchCancel,.touchDragExit])
         var perspective = CATransform3DIdentity; perspective.m34 = -1/1050; cameraStage.layer.sublayerTransform = perspective
         for face in [front as UIView,back] {face.layer.shadowColor = UIColor(red:165/255,green:124/255,blue:98/255,alpha:1).cgColor;face.layer.shadowOpacity = 0.86;face.layer.shadowRadius = 18;face.layer.shadowOffset = CGSize(width:0,height:14)}
-        effects = JimiNativeWorldCardEffects(front:front,impact:effectShell,overlay:self,assets:assets,resources:resources,boardID:boardID,rarity:unit.cardRarity)
+        effects = JimiNativeWorldCardEffects(front:front,impact:effectShell,overlay:self,assets:assets,resources:resources,boardID:boardID,rarity:unit.cardRarity,coachSession:coachSession)
 
     }
     required init?(coder:NSCoder) {fatalError("init(coder:) has not been implemented")}
@@ -237,7 +237,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         animateBackStats(entering:true,delay:duration*0.5)
         angle = -.pi;rotate(from:0,to:-.pi,duration:duration,flight:true)
         fly(from:origin,to:base,returning:false) { [weak self] in
-            guard let self,!self.disposed,!self.closing else {return};CATransaction.begin();CATransaction.setDisableActions(true);self.carrier.layer.transform = CATransform3DMakeRotation(self.backTilt,0,0,1);self.carrier.layer.removeAnimation(forKey:"card.flight");CATransaction.commit();self.cta.isEnabled = self.stableCTAEnabled;self.effects?.present(frontFacing:!self.isBackFacing);(self.newRibbon as? JimiNativeNewRibbonView)?.setForeground(self.active && !self.isBackFacing)
+            guard let self,!self.disposed,!self.closing else {return};CATransaction.begin();CATransaction.setDisableActions(true);self.carrier.layer.transform = CATransform3DMakeRotation(self.backTilt,0,0,1);self.carrier.layer.removeAnimation(forKey:"card.flight");CATransaction.commit();self.cta.isEnabled = self.stableCTAEnabled;self.effects?.present(frontFacing:!self.isBackFacing,opening:true);(self.newRibbon as? JimiNativeNewRibbonView)?.setForeground(self.active && !self.isBackFacing)
             if let path = self.cardArt2x,let resources = self.resources {let token = self.generation;resources.prepare([path],owner:self.boardID,required:false) { [weak self,weak resources] accepted in guard accepted,let self,self.generation == token else {return};if let image = resources?.image(path,owner:self.boardID) {self.front.image = image;self.effects?.layout()} } }
         }
     }

@@ -1756,6 +1756,31 @@ final class NativeBackpackTests:XCTestCase {
             XCTAssertLessThan(high.scale,low.scale,"\(die.id): a higher actual die must cast a smaller shadow")
         }
     }
+    func testCoconutModalShadowStaysBehindOpeningShellFromPreparation() async throws {
+        let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+        let die=try XCTUnwrap(NativeBackpackCatalog.beach.first{$0.id=="coconut"})
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible()
+        let detail=NativeBackpackDetail(die:die,assets:assets,motion:NativeRouteMotion(home:JimiV9HomeView(frame:.zero,assets:assets),hub:JimiV9HubView(frame:.zero,assets:assets)))
+        defer{detail.dispose();host.dismiss(animated:false);window.isHidden=true;window.rootViewController=nil}
+        host.present(detail,animated:false)
+        let preview=try XCTUnwrap(detail.preview),shadow=try XCTUnwrap(preview.groundShadow)
+        func assertRearPlane() throws {
+            let parent=try XCTUnwrap(preview.superview)
+            XCTAssertTrue(shadow.superview === parent)
+            XCTAssertLessThan(try XCTUnwrap(parent.subviews.firstIndex(of:shadow)),try XCTUnwrap(parent.subviews.firstIndex(of:preview)))
+        }
+        try assertRearPlane()
+        let deadline=Date().addingTimeInterval(15)
+        while !detail.card.isUserInteractionEnabled,Date()<deadline {try await Task.sleep(for:.milliseconds(20))}
+        XCTAssertTrue(detail.card.isUserInteractionEnabled)
+        try assertRearPlane()
+        try await Task.sleep(for:.seconds(2))
+        try assertRearPlane()
+        let image=UIGraphicsImageRenderer(bounds:window.bounds).image{_ in window.drawHierarchy(in:window.bounds,afterScreenUpdates:true)}
+        try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/coconut-modal-shadow.png"))
+    }
+
     func testMountedBackpackShadowScreenshotsAtNarrowAndIPhoneWidths() async throws {
         let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
         let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))

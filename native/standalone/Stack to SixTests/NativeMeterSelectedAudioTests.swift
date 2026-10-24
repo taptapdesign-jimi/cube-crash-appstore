@@ -9,6 +9,19 @@ import AVFAudio
   func append(_ value:String){lock.withLock{entries.append(value)}}
   var values:[String]{lock.withLock{entries}}
  }
+ func testLoopConfigurationIsQueueOwnedAndResetForNextOneShot()async {
+  let log=ControlLog(),queue=DispatchQueue(label:"native-coconut-loop-test")
+  let file=NativeSelectedAudioFile(source:"assets/sound/selected.wav",bytes:4,duration:0.02,queue:queue,
+   operations:.init(start:{_,_,_ in log.append("start");return true},stop:{log.append("stop")},gain:{_,duration in log.append("fade:\(duration)")},reset:{true},looping:{log.append("loop:\($0)")}))
+  let first=NativeSelectedAudioFile.ControlLease(),started=expectation(description:"loop starts")
+  file.start(first,rate:1,gain:0.3,looping:true,completion:{_,_ in},started:{ok in XCTAssertTrue(ok);started.fulfill()})
+  await fulfillment(of:[started],timeout:2);file.fadeOut(duration:0.25,lease:first)
+  let stopped=expectation(description:"loop stops");file.stop(first){_ in stopped.fulfill()};await fulfillment(of:[stopped],timeout:2)
+  let second=NativeSelectedAudioFile.ControlLease(),again=expectation(description:"one shot starts")
+  file.start(second,rate:1,gain:0.3,completion:{_,_ in},started:{ok in XCTAssertTrue(ok);again.fulfill()});await fulfillment(of:[again],timeout:2)
+  XCTAssertEqual(log.values.filter{$0.hasPrefix("loop:")},["loop:true","loop:false"])
+  let done=expectation(description:"cleanup");file.stop(second){_ in done.fulfill()};await fulfillment(of:[done],timeout:2)
+ }
  func testRetiredQueuedStartBehindPreparationCannotReachAudioOperations()async {
   let queue=DispatchQueue(label:"native-test-blocked-selected-audio"),gate=DispatchSemaphore(value:0),log=ControlLog()
   queue.async{gate.wait()}
