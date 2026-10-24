@@ -71,9 +71,10 @@ import StackToSixGameplay
   f.deliver(50);XCTAssertEqual(f.nodes.count,1)
   f.deliver(200);XCTAssertEqual(f.nodes.count,2);XCTAssertEqual(f.acquired,2)
   f.deliver(600);XCTAssertEqual(f.released,0);XCTAssertTrue(f.outcomes.isEmpty)
-  f.deliver(610);XCTAssertEqual(f.released,1);XCTAssertTrue(f.verified.isEmpty)
-  f.deliver(660);XCTAssertEqual(f.verified,[660]);XCTAssertTrue(f.outcomes.isEmpty)
-  f.deliver(810);XCTAssertEqual(f.verified,[660,810]);XCTAssertEqual(f.outcomes,[.completed(successes:2)]);XCTAssertTrue(f.checkpoint)
+  // Fresh-face elapsed begins on the first delivered10ms tick,not construction.
+  f.deliver(620);XCTAssertEqual(f.released,1);XCTAssertTrue(f.verified.isEmpty)
+  f.deliver(670);XCTAssertEqual(f.verified,[670]);XCTAssertTrue(f.outcomes.isEmpty)
+  f.deliver(820);XCTAssertEqual(f.verified,[670,820]);XCTAssertEqual(f.outcomes,[.completed(successes:2)]);XCTAssertTrue(f.checkpoint)
   XCTAssertEqual(f.released,2);XCTAssertEqual(f.service.activeParticipantCount,0)
   XCTAssertEqual(f.constructionTimes,[50,200]);XCTAssertEqual(f.assignments.map{$0.1},[50,200])
   XCTAssertEqual(f.engine.state.tile(at:f.plan.destination.cell)?.value,6)
@@ -94,7 +95,7 @@ import StackToSixGameplay
   XCTAssertEqual(f.nodes.count,2);XCTAssertEqual(f.released,0);XCTAssertTrue(f.verified.isEmpty)
   f.service.setSourceGlobalPaused(false);f.deliver(1500)
   XCTAssertEqual(f.released,0);XCTAssertTrue(f.outcomes.isEmpty)
-  f.deliver(1510);XCTAssertEqual(f.released,1);XCTAssertTrue(f.outcomes.isEmpty)
-  f.deliver(1610);XCTAssertEqual(f.released,2);XCTAssertEqual(f.verified.count,2);XCTAssertEqual(f.outcomes,[.completed(successes:2)])
+  f.deliver(1530);XCTAssertEqual(f.released,1);XCTAssertTrue(f.outcomes.isEmpty)
+  f.deliver(1620);XCTAssertEqual(f.released,2);XCTAssertEqual(f.verified.count,2);XCTAssertEqual(f.outcomes,[.completed(successes:2)])
  }
 }

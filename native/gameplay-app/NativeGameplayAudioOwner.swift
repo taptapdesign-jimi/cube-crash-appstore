@@ -30,12 +30,14 @@ protocol NativeGameplayAudioTransport:AnyObject {
     func prepareSelectedSources(_ sources:[String],capture:String,generation:UInt64)->Bool
     func setSelectedPreparationEnabled(_ enabled:Bool)
     func setSelectedPreparationForeground(_ foreground:Bool)
+    func prepareCoconutContacts()
 }
 
 extension NativeGameplayAudioTransport {
     func prepareSelectedSources(_ sources:[String],capture:String,generation:UInt64)->Bool {false}
     func setSelectedPreparationEnabled(_ enabled:Bool) {}
     func setSelectedPreparationForeground(_ foreground:Bool) {}
+    func prepareCoconutContacts() {}
     func stopVoices(_ ids:Set<String>) {stopAll()}
     func captureFade(_ ids:Set<String>)->((Double)->Void)? {nil}
     // An injected transport without lifecycle support must release the hook as
@@ -403,6 +405,7 @@ final class NativeGameplayAudioOwner {
         }
         if variant=="coconut" {
             if moment=="coconut-palm-shards" {
+                transport.prepareCoconutContacts()
                 let voice="coconut-loop-coconut shards";coconutLoopVoices.insert(voice)
                 transport.stopVoices([voice])
                 transport.play(NativeAudioCue(source:"assets/sound/Wild and special kockice/coconut/coconut shards.wav",voice:voice,gain:0.51,stopAfter:max(0.05,min(12,Double(index)/1000))+0.25,fadeOut:0.25,looping:true))
@@ -418,9 +421,7 @@ final class NativeGameplayAudioOwner {
             }
             if moment=="coconut-stop" {if !coconutLoopVoices.isEmpty {transport.stopVoices(coconutLoopVoices)};coconutLoopVoices.removeAll();return}
             if moment=="coconut-contact" {
-                for (name,ext) in [("mini2","mp3"),("mini3","wav")] {
-                    transport.play(NativeAudioCue(source:"assets/sound/mini explozije/\(name).\(ext)",voice:"coconut-contact-\(index)-\(name)",gain:0.30))
-                }
+                transport.play(NativeAudioCue(source:"assets/sound/mini explozije/mini2.mp3",voice:"coconut-contact-\(index)-mini2",gain:0.15))
                 return
             }
         }
@@ -687,6 +688,9 @@ final class NativeAVGameplayAudioTransport:NSObject,NativeGameplayAudioTransport
     private var controlEpoch:UInt64=1
     private var sessionActivated=false
     private let activateSession:()->Bool
+    private var coconutContacts:NativeCoconutContactAudio?
+    private var selectedEnabled=true,selectedForeground=true
+    func prepareCoconutContacts(){guard selectedEnabled,selectedForeground,!disposed else{return};if coconutContacts==nil{coconutContacts=NativeCoconutContactAudio(root:root)};coconutContacts?.prepare()}
     private let maximumVoices=32
     // Includes logically retired players awaiting their exact worker stop.
     private let maximumControlVoices=64
@@ -702,9 +706,9 @@ final class NativeAVGameplayAudioTransport:NSObject,NativeGameplayAudioTransport
         selectedPreparation.beginGeneration(generation)
         return selectedPreparation.prepare(sources:canonical,requestID:capture,generation:generation)
     }
-    func setSelectedPreparationEnabled(_ enabled:Bool) {selectedPreparation.setEnabled(enabled);if !enabled {sessionActivated=false;stopAll()}}
-    func setSelectedPreparationForeground(_ foreground:Bool) {selectedPreparation.setForeground(foreground);if !foreground {sessionActivated=false;stopAll()}}
-    var scheduledVoiceCount:Int {voices.count}
+    func setSelectedPreparationEnabled(_ enabled:Bool) {selectedEnabled=enabled;selectedPreparation.setEnabled(enabled);if !enabled {sessionActivated=false;stopAll();coconutContacts?.dispose();coconutContacts=nil}}
+    func setSelectedPreparationForeground(_ foreground:Bool) {selectedForeground=foreground;selectedPreparation.setForeground(foreground);if !foreground {sessionActivated=false;stopAll()}}
+    var scheduledVoiceCount:Int {voices.count+(coconutContacts?.count ?? 0)}
     func scheduledGain(for id:String)->Double? {voices[id]?.gain}
     var openedFileCount:Int {voices.values.filter{$0.started}.count}
     func capturedCompletionReceipt(for id:String)->NativeSelectedAudioFile.Completion? {voices[id]?.completionReceipt}
@@ -716,13 +720,18 @@ final class NativeAVGameplayAudioTransport:NSObject,NativeGameplayAudioTransport
     func play(_ cue:NativeAudioCue){play(cue,completion:nil)}
     func play(_ cue:NativeAudioCue,onFinished:@escaping (NativeAudioCompletion)->Void){play(cue,completion:onFinished)}
     private func play(_ cue:NativeAudioCue,completion:((NativeAudioCompletion)->Void)?) {
-        guard !disposed,(!cue.looping || (cue.stopAfter.map{$0.isFinite && $0>0} ?? false)),NativeSelectedAudioFile.canonicalPath(cue.source) != nil,cue.gain.isFinite,cue.rate.isFinite,cue.delay.isFinite,cue.rate>0,cue.delay>=0 else{completion?(.unavailable);return}
+        guard !disposed,selectedEnabled,selectedForeground,(!cue.looping || (cue.stopAfter.map{$0.isFinite && $0>0} ?? false)),NativeSelectedAudioFile.canonicalPath(cue.source) != nil,cue.gain.isFinite,cue.rate.isFinite,cue.delay.isFinite,cue.rate>0,cue.delay>=0 else{completion?(.unavailable);return}
         // SFX must recover with Music OFF as well as on a cold launch. Activation
         // is retried after a failed attempt and invalidated by background/reset.
         if !sessionActivated {sessionActivated=activateSession()}
         guard sessionActivated else {onError?("Cannot activate Native SFX session");completion?(.unavailable);return}
-        stop(cue.voice)
-        guard voices.count<maximumVoices else {onError?("Native SFX voice limit reached");completion?(.unavailable);return}
+        stop(cue.voice);coconutContacts?.stop([cue.voice])
+        guard scheduledVoiceCount<maximumVoices else {onError?("Native SFX voice limit reached");completion?(.unavailable);return}
+        if NativeCoconutContactAudio.accepts(cue) {
+            prepareCoconutContacts()
+            coconutContacts?.play(cue){completion?($0)}
+            return
+        }
         let voice=Voice();voice.gain=max(0,min(1,cue.gain));voice.onFinished=completion;voices[cue.voice]=voice
         voice.task=Task { @MainActor [weak self,weak voice] in
             if cue.delay>0 {do {try await Task.sleep(for:.seconds(cue.delay))}catch{return}}
@@ -816,7 +825,7 @@ final class NativeAVGameplayAudioTransport:NSObject,NativeGameplayAudioTransport
             }
         }
     }
-    func stopAll() {controlEpoch &+= 1;for id in Array(voices.keys) {stop(id,returnIdle:false)};selectedPreparation.cancelPending()}
-    func stopVoices(_ ids:Set<String>) {for id in ids {stop(id)}}
-    func dispose() {guard !disposed else{return};disposed=true;stopAll();selectedPreparation.dispose()}
+    func stopAll() {coconutContacts?.stopAll();controlEpoch &+= 1;for id in Array(voices.keys) {stop(id,returnIdle:false)};selectedPreparation.cancelPending()}
+    func stopVoices(_ ids:Set<String>) {coconutContacts?.stop(ids);for id in ids {stop(id)}}
+    func dispose() {guard !disposed else{return};disposed=true;stopAll();coconutContacts?.dispose();coconutContacts=nil;selectedPreparation.dispose()}
 }

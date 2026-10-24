@@ -90,7 +90,7 @@ import Foundation
             initialRotation = captured
         }
         guard let initialRotation else { return }
-        hooks.paintScale(Self.scale(seconds*timeScale,initialScale:initialScale)); guard current() else { interrupt(); return }
+        hooks.paintScale(nativeFreshFace ? Self.freshFaceScale(seconds):Self.scale(seconds*timeScale,initialScale:initialScale)); guard current() else { interrupt(); return }
         hooks.paintRotation(Self.rotation(seconds*timeScale, initial: initialRotation, direction: direction))
         guard current() else { interrupt(); return }
         hooks.ensureFullOpacity(); if !current() { interrupt() }
@@ -121,6 +121,14 @@ import Foundation
 
     private static func sine(_ t: Double) -> Double { -(cos(.pi*t)-1)/2 }
     private static func mix(_ a: Double, _ b: Double, _ t: Double) -> Double { floor((a+(b-a)*t)*1_000_000+0.5)/1_000_000 }
+    /// A zero-size Native face needs visible growth, not Source back-out's
+    /// steep initial slope (already108percent by the second30Hz frame).
+    /// Retain the180ms arrival and every authored overshoot/settle endpoint.
+    static func freshFaceScale(_ seconds:Double)->Double {
+        let t=max(0,seconds)
+        if t<0.18 {return mix(0,1.08,sine(t/0.18))}
+        return scale(t,initialScale:0)
+    }
     static func scale(_ seconds: Double,preservesBoardSize:Bool=false,initialScale:Double?=nil) -> Double {
         let t = max(0, seconds)
         if t < 0.18 {

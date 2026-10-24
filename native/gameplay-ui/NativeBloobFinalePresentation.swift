@@ -118,12 +118,12 @@ import UIKit
             if die.layer.zPosition != depth {die.layer.zPosition=depth}
             let pose=motion.fakeDiePose(i,seconds:t)
             die.isHidden=pose.hidden
-            guard !pose.hidden else{continue}
+            if die.alpha != pose.alpha {die.alpha=pose.alpha}
+            guard !pose.hidden,pose.alpha>0 else{continue}
             die.center=pose.center
             let side=t<NativeBloobFinaleMotion.scatterStart ? Double(intakeDieSize):plan.flight.size
             let scale=pose.scale*side/64
             die.transform=CGAffineTransform(rotationAngle:pose.rotation * .pi/180).scaledBy(x:scale,y:scale)
-            die.alpha=pose.alpha
         }
     }
     override func dispose() {

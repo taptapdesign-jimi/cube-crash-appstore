@@ -65,6 +65,15 @@ import StackToSixNativeState
         }
         XCTAssertEqual(edges,Set(["left","right","top","bottom"]))
     }
+    func testFakeDiceAreInvisibleDuringHeroCollapseAndInstantAtBurst() {
+        let motion=NativeBloobFinaleMotion(viewport:CGSize(width:390,height:844),random:{0.5})
+        for i in motion.fakeDice.indices {
+            XCTAssertEqual(motion.fakeDiePose(i,seconds:NativeBloobFinaleMotion.heroReverseStart-0.001).alpha,1)
+            XCTAssertEqual(motion.fakeDiePose(i,seconds:NativeBloobFinaleMotion.heroReverseStart).alpha,0)
+            XCTAssertEqual(motion.fakeDiePose(i,seconds:NativeBloobFinaleMotion.scatterStart-0.001).alpha,0)
+            XCTAssertEqual(motion.fakeDiePose(i,seconds:NativeBloobFinaleMotion.scatterStart).alpha,1)
+        }
+    }
     func testDecorativeDicePullFromOutsideBoardAndEscapeIndependently() {
         let board=CGRect(x:24,y:150,width:342,height:640)
         var state:UInt64=727
@@ -352,7 +361,7 @@ import StackToSixNativeState
             let cues=NativeBloobAudio.cues("bluub",index:index)
             XCTAssertEqual(cues.count,1)
             XCTAssertTrue(cues[0].source.hasSuffix("/bluub\(index+1).wav"))
-            XCTAssertEqual(cues[0].delay,0);XCTAssertEqual(cues[0].gain,0.6)
+            XCTAssertEqual(cues[0].delay,0);XCTAssertEqual(cues[0].gain,0.9509359154766681,accuracy:0.000001)
             XCTAssertNil(cues[0].stopAfter);XCTAssertEqual(cues[0].fadeOut,0);XCTAssertFalse(cues[0].looping)
             XCTAssertTrue(NativeBloobAudio.sources.contains(cues[0].source))
         }

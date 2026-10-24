@@ -20,6 +20,12 @@ final class NativeWildMergeSixRootTests:XCTestCase {
         }
         boardScaleAudit?()
     }
+    func testConsumedBottleDestinationDisposalAfterMainRetiresOldScene()async throws {
+        try await exercise(archetype:.magnet,variant:"bottle",reverse:true,disposeDuringMain:true,moves:49)
+    }
+    func testConsumedBottleDestinationRetiresDuringFourTargetPull()async throws {
+        try await exercise(archetype:.magnet,variant:"bottle",reverse:true,disposeDuringMain:false,moves:49)
+    }
     func testBottleBothDirectionsRetireArtworkInNormalAndFinalActualAppFlows()async throws {
         for final in [false,true] {for reverse in [false,true] {
             try await exercise(archetype:.magnet,variant:"bottle",reverse:reverse,disposeDuringMain:false,moves:49,finalOnly:final)
@@ -278,6 +284,9 @@ final class NativeWildMergeSixRootTests:XCTestCase {
         for (i,value) in (finalOnly ? [(0,6),(1,2)]:[(0,6),(1,2),(2,1),(3,1),(40,1)]) {
             board.tiles[i].value=value;board.tiles[i].locked=false;board.tiles[i].alpha=1
         }
+        if variant=="bottle",!finalOnly,capturedBoard==nil {
+            board.tiles[4].value=1;board.tiles[4].locked=false;board.tiles[4].alpha=1
+        }
         if interveningOrdinary || laserInterveningStack {
             for i in [2,3,4,5,40,41] {board.tiles[i].value=1;board.tiles[i].locked=false;board.tiles[i].alpha=1}
             if interveningSix {board.tiles[40].value=3;board.tiles[41].value=3}
@@ -453,9 +462,43 @@ final class NativeWildMergeSixRootTests:XCTestCase {
             wildID=earned.id;targetID=board.tiles[2].id
             XCTAssertEqual(scene.sourceWildDropTileMarkers(try XCTUnwrap(scene.sourceNativeTileNode(wildID))),.init(dropping:false,handoffLocked:false))
         }
+        var bottleTracePhases=Set<String>()
+        if variant=="bottle",!finalOnly {
+            let consumedBottle=try XCTUnwrap(scene.sourceNativeTileNode(wildID))
+            let consumedID=wildID,origin=CACurrentMediaTime()
+            let previousAudit=boardScaleAudit
+            var reportedVisibleFailure=false
+            boardScaleAudit={
+                previousAudit?()
+                let key="bottle:main"
+                guard scene.sourceWildSixParticleAdmissions[key]==1 else{return}
+                let converted=consumedBottle.kind=="regular" && consumedBottle.variant==nil && (1...5).contains(consumedBottle.sourceValue)
+                let phase=converted || gameplay.engine.pendingSpecial==nil ? "settle":gameplay.engine.pendingSourceMagnetLazyRespawn != nil ? "respawn":scene.sourceMagnetActualPullOwnerCount>0 ? "preconvergence":"first-main"
+                if bottleTracePhases.insert("first-main").inserted {
+                    print("[BottleMergeTrace] ms=\(Int((CACurrentMediaTime()-origin)*1000)) direction=\(reverse ? "destination":"source") phase=first-main id=\(consumedID) childrenHidden=\(consumedBottle.sourceFinalResultChildrenHidden) idle=\(consumedBottle.hasSourceBottleIdle) pending=\(gameplay.engine.pendingSpecial?.id ?? "none")")
+                }
+                if bottleTracePhases.insert(phase).inserted {
+                    print("[BottleMergeTrace] ms=\(Int((CACurrentMediaTime()-origin)*1000)) direction=\(reverse ? "destination":"source") phase=\(phase) id=\(consumedID) parent=\(consumedBottle.parent != nil) hidden=\(consumedBottle.isHidden) childrenHidden=\(consumedBottle.sourceFinalResultChildrenHidden) idle=\(consumedBottle.hasSourceBottleIdle) modelValue=\(gameplay.engine.state.tiles.first{$0.id==consumedID}?.value ?? -1) pending=\(gameplay.engine.pendingSpecial?.id ?? "none") pull=\(scene.sourceMagnetActualPullOwnerCount)")
+                }
+                guard !converted else{return}
+                let retired=reverse
+                    ? consumedBottle.sourceFinalResultChildrenHidden && !consumedBottle.hasSourceBottleIdle
+                    : consumedBottle.parent==nil || consumedBottle.isHidden || consumedBottle.sourceFinalResultChildrenHidden
+                if !retired,!reportedVisibleFailure {
+                    reportedVisibleFailure=true
+                    XCTFail("Consumed Bottle artwork must retire at actual main80, throughout pull and replacements: \(label)")
+                }
+                if reverse,gameplay.engine.pendingSpecial != nil {
+                    XCTAssertTrue(scene.sourceNativeTileNode(consumedID) === consumedBottle,"Retire only old visual children, preserving the exact protected destination root: \(label)")
+                }
+            }
+        }
         try await drag(reverse ? targetID:wildID,reverse ? wildID:targetID)
         if interveningOrdinary {print("[SpaceshipOverlap] visible-scene-entry direction=\(reverse ? "destination":"source")")}
         let pulledNodes=archetype == .magnet && !finalOnly ? try XCTUnwrap(gameplay.engine.pendingSpecial).targets.compactMap{scene.sourceNativeTileNode($0.id)}:[]
+        if variant=="bottle",!finalOnly,capturedBoard==nil {
+            XCTAssertEqual(gameplay.engine.pendingSpecial?.targets.count,4,"Consumed Bottle regression requires four actual pull targets")
+        }
         let pulledPositions=pulledNodes.map(\.position)
         let mainKey=(variant ?? archetype.rawValue)+":main"
         try await wait(label+":main"){failure != nil || scene.sourceWildSixParticleAdmissions[mainKey]==1}
@@ -553,7 +596,7 @@ final class NativeWildMergeSixRootTests:XCTestCase {
             XCTAssertEqual(Array(scene.sourceWildSixMainPhases.values),[[.shards,.presentation,.smoke]],
                 "Actual Direct consume places hero/HUD admission between shards and smoke: "+label)
         }
-        if !reverse,disposeDuringMain {
+        if (!reverse || variant=="bottle"),disposeDuringMain {
             // Disposal during the genuine main burst must revoke its exact old
             // Scope resources; the next matrix root must not inherit them.
             host.dispose()
@@ -664,6 +707,10 @@ final class NativeWildMergeSixRootTests:XCTestCase {
             XCTAssertTrue((before+3...before+5).contains(gameplay.engine.state.activeTiles.count),"One primary plus4–6 extras replaces the consumed pair: "+label)
         }
         if variant=="bottle" {
+            if !finalOnly {
+                XCTAssertTrue(bottleTracePhases.contains("preconvergence"),"Must sample actual four-target pull before convergence")
+                XCTAssertTrue(bottleTracePhases.contains("respawn"),"Must sample reserved carrier during replacement cascade")
+            }
             if let retained=scene.sourceNativeTileNode(wildID) {
                 XCTAssertNil(retained.variant,"Consumed Bottle becomes ordinary or is removed")
                 XCTAssertFalse(retained.hasSourceBottleIdle)

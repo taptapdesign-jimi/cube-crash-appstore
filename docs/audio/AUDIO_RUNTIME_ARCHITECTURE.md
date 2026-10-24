@@ -237,3 +237,24 @@ Those remain **NEEDS PHYSICAL TEST** on the authorized Stack to Six app.
 The existing file transport now permits one finite `-outgoing` slot per source-replacing route,within its4player ceiling. Open/validate/start the incoming file first;the old source remains audible through failure or setup. Source replacement uses1.25s native gain fades and retires the old node/file on the actual fade completion. Rapid replacement,pause,Music OFF,background and disposal cancel/release outgoing ownership. No additional transport,engine,cache or recurring clock is introduced.
 
 Arcade starts its existing gameplay voice at NN presentation start. `onPlaybackReady` is emitted only after successful current play;the main route owner then fades the still-playing menu for the matching incoming duration,and pauses it only on fade completion with a current route lease. Returning to menu resumes its saved phase with preserved initial gain and overlaps the existing Arcade exit fade. Gameplay settles at0.11 in both modes.
+
+## Native Coconut contact buffer subowner (2026-10-24)
+
+`NativeAVGameplayAudioTransport` routes only exact `coconut-contact-*` mini2
+one-shots(rate1,no delay/fade/loop) to `NativeCoconutContactAudio`. First palm
+requests silent selected preparation. One original decoded PCM buffer(<1MiB)
+feeds32fixed AVAudioPlayerNodes on a private serial queue; the parent retains
+its combined32voice admission cap and canonical audio-session owner. No new
+session category, global SFX engine, recurring timer or original asset conversion.
+Other families and Coconut loops/merge/coin/impact cues retain their transports.
+The purpose is to bypass AVAudioPlayer natural-finish stop/dispose work observed
+blocking the physical main thread; a physical recapture must verify improvement.
+
+The subowner's engine pauses immediately after its last audible contact tail.
+Prepared PCM and paused graph are retained for bounded reuse. Sounds OFF/media
+reset/dispose release them; background/interruption/generation/stopAll retire
+logical leases synchronously, then queue exact node stops. Worker lifetime
+checks reject obsolete work before decoding and again before playback. An
+already admitted decode/graph creation is bounded to this one small source and
+may drain before retirement. Slot tokens reject old completions after reuse.
+No fallback AVAudioPlayer is started for a failed buffered contact.

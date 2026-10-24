@@ -56,6 +56,19 @@ final class NativeFishSVGFallbackTests:XCTestCase {
         window.isHidden=true
     }
     private var root:URL {Bundle.main.bundleURL.appendingPathComponent("NativeAssets.bundle")}
+    func testAllPlaybackCellsOwnDecodedPixelsInsteadOfCompressedStripProviders() throws {
+        let resources=try NativeFishSVGFallbackResources.load(resourceRoot:root)
+        XCTAssertEqual(resources.frames.count,72)
+        var total=0
+        for frame in resources.frames {
+            XCTAssertEqual(frame.bitsPerPixel,32)
+            XCTAssertEqual(frame.bytesPerRow,224*4)
+            let pixels=try XCTUnwrap(frame.dataProvider?.data)
+            XCTAssertEqual(CFDataGetLength(pixels),224*224*4,"Each CALayer cell must own ready pixels, not a lazy WebP subimage")
+            total+=CFDataGetLength(pixels)
+        }
+        XCTAssertEqual(total,14_450_688,"One selected 72-cell resource remains bounded")
+    }
     private struct Fixture:Decodable {
         struct Sample:Decodable {let requested,time:Double,frame:Int,matrix:[Double]}
         let width,height:Int,samples:[Sample]

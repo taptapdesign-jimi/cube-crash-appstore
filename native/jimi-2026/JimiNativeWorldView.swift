@@ -189,7 +189,7 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
             }
         }
         if owner > 0, let unit = snapshot.units.first(where: { $0.boardID == owner }), unit.locked {
-            let number = UILabel(frame: target.bounds); number.text = String(format:"%02d",(owner-1)%10+1); number.textAlignment = .center; number.font = artwork.font(size:32*scale,weight:"ExtraBold"); number.textColor = UIColor(red:248/255,green:151/255,blue:77/255,alpha:1); number.alpha = 0.8; number.transform = CGAffineTransform(translationX:unit.lockedNumberOffset.x*scale,y:unit.lockedNumberOffset.y*scale).rotated(by:unit.lockedNumberRotation); target.addSubview(number)
+            let number = UILabel(frame: target.bounds); number.text = String(format:"%02d",(owner-1)%10+1); number.textAlignment = .center; number.font = artwork.font(size:32*scale,weight:"ExtraBold"); number.textColor = UIColor(red:248/255,green:151/255,blue:77/255,alpha:1); number.alpha = 0.8; number.transform = CGAffineTransform(translationX:unit.lockedNumberOffset.x*scale,y:unit.lockedNumberOffset.y*scale).rotated(by:unit.lockedNumberRotation); number.accessibilityIdentifier = "native.world.number.\(owner)"; number.layer.zPosition = max(0,parts.map(\.depth).max() ?? 0)+1; target.addSubview(number)
         }
     }
     private func scheduleParts(_ parts:[JimiNativeWorldSnapshot.Part],target:UIView,owner:Int) {

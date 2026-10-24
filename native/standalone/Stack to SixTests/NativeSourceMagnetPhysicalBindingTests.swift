@@ -67,7 +67,7 @@ nonisolated final class NativeSourceMagnetPhysicalBindingTests:XCTestCase {
   XCTAssertTrue(node.bindSourceAppSpawnInterruption(id:"storyboard",pickup:{owner.removeChildrenForPickup()},interrupted:{owner.interrupt()}));XCTAssertTrue(owner.start())
   for index in 0...36 {
    service.deliver(wallMilliseconds:500+Double(index)*1000/60)
-   if [0,1,2,4,7,36].contains(index){try capture(index==0 ? "Late first: hidden":"+\(Int(Double(index)*1000/60)) ms")}
+   if [0,1,2,4,7,10,11,18,25,36].contains(index){try capture(index==0 ? "Late first: hidden":"+\(Int(Double(index)*1000/60)) ms")}
   }
   XCTAssertEqual(scales[0],0);XCTAssertEqual(scales[1],0)
   XCTAssertGreaterThan(scales[2],0);XCTAssertLessThan(scales[2],0.70)

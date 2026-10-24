@@ -5,6 +5,95 @@ import UIKit
 @MainActor
 final class NativeBottleFinaleTests: XCTestCase {
     private var root: URL { Bundle.main.bundleURL.appendingPathComponent("NativeAssets.bundle") }
+    func testBubbleCollapseCannotFlashBrighterThanItsPopOnset() {
+        let owner=NativeBottleFinalePresentation(resourceRoot:root,viewport:CGSize(width:390,height:844),random:{0.1})
+        let host=UIView(frame:owner.bounds);host.addSubview(owner);owner.layoutIfNeeded();defer{owner.dispose()}
+        let bubbles=owner.subviews.compactMap{$0 as? UIImageView}.filter{$0.layer.zPosition>=120 && $0.layer.zPosition<1000}
+        XCTAssertEqual(bubbles.count,40)
+        let trail=owner.subviews.compactMap{$0 as? UIImageView}[0]
+        let trailPop=0.3+0.06+(0.32+0.1*0.18)-0.08
+        owner.paint(seconds:trailPop)
+        var previous=trail.alpha
+        XCTAssertGreaterThan(previous,0)
+        for frame in 1...8 {
+            owner.paint(seconds:trailPop+Double(frame)*0.01)
+            XCTAssertLessThanOrEqual(trail.alpha,previous+0.000001,"Bottle trail bubbles must also fade without brightening")
+            previous=trail.alpha
+        }
+        let first=bubbles[0]
+        // Captured first bubble: pause=true, travel=1.495, ratio=0.478.
+        let pop=0.12+1.495*0.478
+        owner.paint(seconds:pop+0.06)
+        let onset=first.alpha,peakSize=first.bounds.width*abs(first.transform.a)
+        var samples:[String]=[];previous=onset
+        var largest=peakSize
+        for frame in 1...8 {
+            let time=pop+0.06+Double(frame)*0.01
+            owner.paint(seconds:time)
+            samples.append(String(format:"%.5f:%.6f",time,first.alpha))
+            XCTAssertLessThanOrEqual(first.alpha,onset+0.000001,"A shrinking/popping bubble must not flash brighter during its final 80ms")
+            XCTAssertLessThanOrEqual(first.alpha,previous+0.000001)
+            previous=first.alpha;largest=max(largest,first.bounds.width*abs(first.transform.a))
+            if frame==4 {
+                func render(_ name:String) {
+                    let image=UIGraphicsImageRenderer(size:owner.bounds.size).image{owner.layer.render(in:$0.cgContext)}
+                    try? image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/"+name+".png"))
+                }
+                render("bottle-pop-after")
+                let faded=first.alpha
+                first.alpha=onset*1.25 // Exact previous back-in opacity at its halfway overshoot.
+                render("bottle-pop-before")
+                first.alpha=faded
+            }
+        }
+        print("[BOTTLE_POP_AUDIT] pop=\(pop) onsetAlpha=\(onset) onsetSize=\(peakSize) samples=\(samples)")
+        XCTAssertEqual(first.alpha,0,accuracy:0.000001)
+        XCTAssertGreaterThan(largest,peakSize,"Keep the existing elastic scale pop while removing opacity overshoot")
+    }
+    func testEveryBubbleHasOneFiniteVisibleLifetimeWithoutResurrectionOrScreenSizedFlash() {
+        for seed in [UInt64(17),UInt64(256),UInt64(12345)] {
+            var randomState=seed
+            let owner=NativeBottleFinalePresentation(resourceRoot:root,viewport:CGSize(width:390,height:844),random:{
+                randomState=randomState &* 6364136223846793005 &+ 1
+                return Double(randomState>>11)/Double(UInt64.max>>11)
+            })
+            let host=UIView(frame:owner.bounds);host.addSubview(owner);owner.layoutIfNeeded();defer{owner.dispose()}
+            let images=owner.subviews.compactMap{$0 as? UIImageView}
+            XCTAssertEqual(images.count,100)
+            var seen=Set<Int>(),retired=Set<Int>()
+            for frame in 0...684 {
+                owner.advanceSourceAnimation(seconds:Double(frame)/120)
+                for (index,image) in images.enumerated() {
+                    XCTAssertTrue(image.center.x.isFinite && image.center.y.isFinite && image.transform.a.isFinite)
+                    XCTAssertLessThanOrEqual(image.alpha,0.8+0.000001)
+                    if image.alpha>0.000001 {
+                        XCTAssertLessThanOrEqual(image.frame.width,80,"Only visible geometry can produce a screen flash; hidden UIImageViews retain original natural bounds until birth")
+                        XCTAssertFalse(retired.contains(index),"A bubble cannot reappear after its completed fade")
+                        seen.insert(index)
+                    } else if seen.contains(index) {retired.insert(index)}
+                }
+            }
+            XCTAssertEqual(seen.count,100);XCTAssertEqual(retired.count,100)
+        }
+    }
+    func testAllForegroundBubblesStaySmallToMediumIncludingPopOvershoot() {
+        for roll in [0.0,0.5,1.0] {
+            let owner=NativeBottleFinalePresentation(resourceRoot:root,viewport:CGSize(width:390,height:844),random:{roll})
+            defer{owner.dispose()}
+            let bubbles=owner.subviews.compactMap{$0 as? UIImageView}.filter{$0.layer.zPosition>=120 && $0.layer.zPosition<1000}
+            XCTAssertEqual(bubbles.count,40)
+            var largestPainted:CGFloat=0
+            for frame in 0...648 {
+                owner.paint(seconds:Double(frame)/120)
+                for bubble in bubbles where bubble.alpha>0 {
+                    XCTAssertTrue((18...48).contains(bubble.bounds.width))
+                    largestPainted=max(largestPainted,bubble.frame.width)
+                }
+            }
+            XCTAssertGreaterThan(largestPainted,0)
+            XCTAssertLessThanOrEqual(largestPainted,80,"Even the existing pop overshoot must remain medium-sized")
+        }
+    }
     func testCrossingPathsMatchExecutedSourceGoldenCoordinates() {
         let progress: [CGFloat] = [0,0.125,0.375,0.625,0.875,1]
         let expected: [[CGFloat]] = [

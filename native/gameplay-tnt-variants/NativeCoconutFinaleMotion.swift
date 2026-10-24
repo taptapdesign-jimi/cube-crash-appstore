@@ -2,12 +2,14 @@ import UIKit
 
 /// Finite analytic box flights; side-wall receipts never depend on frame rate.
 struct NativeCoconutFinaleMotion {
+    static let palmHoldExtension:Double=1
     struct Flight {
         let start:CGPoint,velocity:CGPoint,size:CGFloat,delay:Double,exitAge:Double,spin:Double
-        let animated:Bool
+        // Preserve captured offscreen retirement padding and RNG/contact ordering.
+        let extendedExitPadding:Bool
         let topAge:Double?
         var endTime:Double {delay+exitAge}
-        var displayRadius:CGFloat {size*(animated ? 640.0/371:1)*0.85}
+        var displayRadius:CGFloat {size*(extendedExitPadding ? 640.0/371:1)*0.85}
         var wallRadius:CGFloat {size*0.75}
     }
     struct Contact {let time:Double,id:Int,body:Int;let top:Bool;let spinKick:Double}
@@ -34,7 +36,7 @@ struct NativeCoconutFinaleMotion {
                 age=hit+(-reflected+sqrt(reflected*reflected+1800*Double(viewport.height+extent-radius)))/900
                 contacts.append(Contact(time:delay+hit,id:contacts.count,body:i,top:true,spinKick:(random()-0.5)*18))
             }else{age=(-vy+sqrt(vy*vy+1800*Double(viewport.height+extent-start.y)))/900}
-            let flight=Flight(start:start,velocity:CGPoint(x:vx,y:vy),size:size,delay:delay,exitAge:age,spin:(random()<0.5 ? -1:1)*(8+speed/60+random()*10),animated:i<5,topAge:topAge)
+            let flight=Flight(start:start,velocity:CGPoint(x:vx,y:vy),size:size,delay:delay,exitAge:age,spin:(random()<0.5 ? -1:1)*(8+speed/60+random()*10),extendedExitPadding:i<5,topAge:topAge)
             flights.append(flight)
             let width=Double(viewport.width-2*radius),origin=Double(start.x-radius)
             var crossing=direction>0 ? width:0.0
@@ -75,27 +77,22 @@ struct NativeCoconutFinaleMotion {
         return contact.top ? CGPoint(x:1+wave,y:1-wave):CGPoint(x:1-wave,y:1+wave)
     }
     static func palmAngle(seconds:Double)->Double {
-        let start=1.16,end=1.77
+        let start=1.16+palmHoldExtension,end=1.77+palmHoldExtension
         if seconds<start{return (.pi/4)*sin(seconds * .pi*2/0.72)}
         let p=min(1,max(0,(seconds-start)/(end-start)))
         let initial=(.pi/4)*sin(start * .pi*2/0.72)
-        let velocity=(.pi/4)*(2 * .pi/0.72)*cos(start * .pi*2/0.72)
+        // The longer hold can end on the shake's rightward half-cycle.
+        // Keep the left-only exit instead of carrying that rightward tangent.
+        let velocity=min(0,(.pi/4)*(2 * .pi/0.72)*cos(start * .pi*2/0.72))
         return (2*p*p*p-3*p*p+1)*initial+(p*p*p-2*p*p+p)*(end-start)*velocity+(-2*p*p*p+3*p*p)*(-.pi/2)
     }
-}
-
-/// All five bodies borrow one selected original SVG atlas and this finite clock.
-@MainActor final class NativeCoconutSVGView:UIView {
-    init(atlas:CGImage){super.init(frame:CGRect(x:0,y:0,width:128,height:128));layer.contents=atlas;isUserInteractionEnabled=false}
-    required init?(coder:NSCoder){fatalError("init(coder:) has not been implemented")}
-    func paint(seconds:Double){let frame=NativeDiceSheet.coconut.frame(at:max(0,seconds));layer.contentsRect=CGRect(x:Double(frame%8)/8,y:Double(frame/8)/16,width:1.0/8,height:1.0/16)}
-    func retire(){layer.contents=nil}
 }
 
 /// Overlapping image bands bend the original leaves locally without image
 /// decoding, filters, another renderer or a clock. Only the visible pose samples.
 @MainActor final class NativeCoconutPalmView:UIImageView {
     private var bands:[CALayer]=[]
+    private var bandsVisible=false
     override init(image:UIImage?) {
         super.init(image:image)
         guard let image,let pixels=image.cgImage else{return}
@@ -105,11 +102,21 @@ struct NativeCoconutFinaleMotion {
             layer.contents=pixels;layer.contentsScale=image.scale
             layer.contentsRect=CGRect(x:0,y:y,width:1,height:h)
             layer.frame=CGRect(x:0,y:y*bounds.height,width:bounds.width,height:h*bounds.height)
-            self.layer.addSublayer(layer);bands.append(layer)
+            // Prepare once, but keep invisible poses out of CA's commit tree.
+            bands.append(layer)
         }
     }
     required init?(coder:NSCoder){fatalError("init(coder:) has not been implemented")}
+    func setBendingVisible(_ visible:Bool) {
+        guard visible != bandsVisible else{return}
+        bandsVisible=visible
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        if visible {bands.forEach{layer.addSublayer($0)}}
+        else {bands.forEach{$0.removeFromSuperlayer()}}
+        CATransaction.commit()
+    }
     func bend(seconds:Double,amplitude:Double=1) {
+        setBendingVisible(true)
         CATransaction.begin();CATransaction.setDisableActions(true)
         for (i,band) in bands.enumerated() {
             let row=Double(i)/63,phase=seconds * .pi*2/0.58+row*3.2
@@ -119,5 +126,5 @@ struct NativeCoconutFinaleMotion {
         }
         CATransaction.commit()
     }
-    func retire(){bands.forEach{$0.contents=nil;$0.removeFromSuperlayer()};bands.removeAll()}
+    func retire(){bandsVisible=false;bands.forEach{$0.contents=nil;$0.removeFromSuperlayer()};bands.removeAll()}
 }

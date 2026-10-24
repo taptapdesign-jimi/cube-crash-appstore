@@ -60,7 +60,8 @@ final class NativeBottleFinalePresentation: NativeFinitePresentation {
         let waveSizes = [6,10,7,7,5,5],waveStarts: [CGFloat] = [0,0.4,0.9,1.4,1.9,2.35]
         for index in 0..<40 {
             let image = makeBubble(artwork: artwork,index: index,z: CGFloat(120+index%3))
-            let size = (18+pow(roll(),1.6)*42)*(index >= 25 ? 1.08 : 2.4)
+            // One small-to-medium range for every foreground wave; no giant cohort.
+            let size = 18+pow(roll(),1.6)*30
             var wave = 0,start = 0
             while wave < 5 && index >= start+waveSizes[wave] { start += waveSizes[wave]; wave += 1 }
             let slot = index-start,lane = (CGFloat(slot)+0.12+roll()*0.76)/CGFloat(waveSizes[wave])
@@ -129,7 +130,9 @@ final class NativeBottleFinalePresentation: NativeFinitePresentation {
             if local >= popStart {
                 let initial = NativeBottleFinaleMotion.keyframes([trail.startScale,trail.startScale*1.08,trail.startScale*1.35,trail.endScale*0.88,trail.endScale],progress: (popStart-0.06)/trail.travel)
                 let collapse = NativeBoardMotion.Ease.backIn(3).sample((local-popStart)/0.08)
-                scale = initial*(1-collapse); alpha = trail.alpha*(1-collapse)
+                scale = initial*(1-collapse)
+                // Back-in may overshoot geometry, but opacity must only fade.
+                alpha = trail.alpha*(1-NativeBoardMotion.Ease.power2In.sample((local-popStart)/0.08))
             }
             pose(trail.image,size: trail.size,center: CGPoint(x: origin.x+x,y: origin.y+y),scale: scale,alpha: min(0.8,alpha))
         }
@@ -148,9 +151,10 @@ final class NativeBottleFinalePresentation: NativeFinitePresentation {
                 scale = bubble.startScale+(1.2-bubble.startScale)*p; alpha = bubble.alpha+(popAlpha-bubble.alpha)*p
             } else if local >= bubble.pop+0.06 {
                 let p = NativeBoardMotion.Ease.backIn(3).sample((local-bubble.pop-0.06)/0.08)
-                scale = 1.2*(1-p); alpha = popAlpha*(1-p)
+                scale = 1.2*(1-p)
+                alpha = popAlpha*(1-NativeBoardMotion.Ease.power2In.sample((local-bubble.pop-0.06)/0.08))
             }
-            // The authored back-in pop may overshoot; keep its scale but cap opacity.
+            // Keep the authored scale overshoot; collapse opacity fades monotonically.
             pose(bubble.image,size: bubble.size,center: CGPoint(x: bubble.origin.x+x,y: bubble.origin.y+y),scale: scale,alpha: min(0.8,alpha))
         }
         glyphs.paint(seconds: seconds)

@@ -5,6 +5,26 @@ import StackToSixGameplay
 @testable import Stack_to_Six
 
 @MainActor final class NativeDragTrailRasterTests:XCTestCase {
+    func testBloobPodResolvedTrailContainsOnlyItsThreeColorsWithoutTntYellow() {
+        let expected:[UInt32]=[0x09E8FD,0xB77D49,0xE3B484]
+        for core:NativeWildArchetype? in [nil,.star,.tnt] {
+            let style=NativeDragTrailStyle.resolve(core:core,variant:"bloob-ball")
+            XCTAssertTrue(style.wild);XCTAssertFalse(style.round)
+            XCTAssertEqual(style.colors,expected,"Check the final resolved palette,including legacy Star-tagged Pod saves")
+            var emitted=Set<UInt32>()
+            for index in 0..<100 {
+                let roll=(Double(index)+0.5)/100
+                let plan=NativeDragTrailParticlePlan.make(style:style,origin:.zero,scale:1,random:{roll})
+                XCTAssertTrue(expected.contains(plan.color));emitted.insert(plan.color)
+            }
+            XCTAssertEqual(emitted,Set(expected))
+        }
+        for variant:String? in [nil,"barell","laser-gun","flower"] {
+            let style=NativeDragTrailStyle.resolve(core:.tnt,variant:variant)
+            XCTAssertTrue(style.colors.contains(0xFFD966));XCTAssertTrue(style.colors.contains(0xFFE699))
+        }
+        XCTAssertFalse(NativeDragTrailStyle.resolve(core:.tnt,variant:"coconut").colors.contains(0xFFD966))
+    }
     private func rgba(_ image:CGImage)throws->[UInt8] {
         var bytes=[UInt8](repeating:0,count:image.width*image.height*4)
         let rendered=bytes.withUnsafeMutableBytes {buffer->Bool in

@@ -41,11 +41,19 @@ nonisolated struct NativeFishSVGFallbackResources:@unchecked Sendable {
               let encoded=parsed.imageURI,encoded.hasPrefix("data:image/webp;base64,"),
               let bytes=Data(base64Encoded:String(encoded.dropFirst("data:image/webp;base64,".count))),
               let source=CGImageSourceCreateWithData(bytes as CFData,nil),let strip=CGImageSourceCreateImageAtIndex(source,0,[kCGImageSourceShouldCacheImmediately:true] as CFDictionary),strip.width==16128,strip.height==224 else {throw ResourceError.unsupportedOriginalSVG}
+        // Decode the compressed provider once before making independent cells.
+        // Cropping the ImageIO image directly can re-decode all 72 cells for
+        // every draw, including CALayer commits during direct manipulation.
+        guard let decoded=CGContext(data:nil,width:strip.width,height:strip.height,bitsPerComponent:8,bytesPerRow:strip.width*4,
+                                    space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue) else {throw ResourceError.undecodableOriginalStrip}
+        decoded.draw(strip,in:CGRect(x:0,y:0,width:strip.width,height:strip.height))
+        try Task.checkCancellation()
+        guard let preparedStrip=decoded.makeImage() else {throw ResourceError.undecodableOriginalStrip}
         // Measure all original cells in one cancellable CPU strip traversal.
         // Keep rectangles only; visible playback never rasterizes/readbacks.
         var frameBodyBounds:[CGRect]=[]
         if measureBodyBounds {
-            guard let measured=NativeArtworkAlphaBounds.measureFrames(strip,cell:CGSize(width:224,height:224),columns:72,frameCount:72,current:{!Task.isCancelled}) else {
+            guard let measured=NativeArtworkAlphaBounds.measureFrames(preparedStrip,cell:CGSize(width:224,height:224),columns:72,frameCount:72,current:{!Task.isCancelled}) else {
                 try Task.checkCancellation();throw ResourceError.undecodableOriginalStrip
             }
             frameBodyBounds=measured
@@ -53,8 +61,15 @@ nonisolated struct NativeFishSVGFallbackResources:@unchecked Sendable {
         var frames:[CGImage]=[]
         for i in 0..<72 {
             try Task.checkCancellation()
-            guard discrete.values[i]==[-Double(i)*224,0],let frame=strip.cropping(to:CGRect(x:i*224,y:0,width:224,height:224)) else {throw ResourceError.undecodableOriginalStrip}
-            frames.append(frame)
+            guard discrete.values[i]==[-Double(i)*224,0],let frame=preparedStrip.cropping(to:CGRect(x:i*224,y:0,width:224,height:224)) else {throw ResourceError.undecodableOriginalStrip}
+            // A cropped ImageIO image can retain its compressed WebP provider.
+            // CALayer then decodes the whole strip again at commit, on main.
+            // Materialize each original cell on this selected decode worker.
+            guard let pixels=CGContext(data:nil,width:224,height:224,bitsPerComponent:8,bytesPerRow:224*4,
+                                       space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue) else {throw ResourceError.undecodableOriginalStrip}
+            pixels.draw(frame,in:CGRect(x:0,y:0,width:224,height:224))
+            guard let prepared=pixels.makeImage() else {throw ResourceError.undecodableOriginalStrip}
+            frames.append(prepared)
         }
         return Self(frames:frames,frameBodyBounds:frameBodyBounds,translate:translate,rotate:rotate,scale:scale,discrete:discrete,duration:translate.duration,viewBox:parsed.viewBox!,pivot:parsed.pivot!)
     }

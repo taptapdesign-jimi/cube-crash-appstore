@@ -252,4 +252,18 @@ Visible Coconut launch owns bounded native loops of coconut1.wav,coconut2.wav an
 
 Native Bottle pull timing2026-10-24:current/restored Bottle board admission prewarms only original glass crack.wav through existing selected SFX cache;pickup retries if needed. Pull dispatch places that cue before the other seven layers at unchanged convergence receipt/gain0.48/rate1/delay0. No authored file edits or early guessed timer.
 
-- Accepted Native BLOOB (2026-10-24):one uniform random original bluub1–4.wav immediately at merge6,gain0.6,unique generation/receipt voice,full natural tail and cleanup. SPLAT gain0.504/delay500ms,paint splat gain0.84/delay0,beams gain0.45/delay400ms;djeca/bibice/ufo excluded for BLOOB. Shared bounded transport/Settings/background/generation cancellation;all4original new files preserved and selected-prepared.
+Coconut contact mix (2026-10-24): each analytic side/top contact now plays only mini explozije/mini2.mp3 at0.15,half the previous0.30 gain;mini3.wav removed from this contact event only. Other impact/merge cues and original files remain. This reduces contact voices from2to1;physical hitch/mix improvement remains unverified.
+
+Coconut contact playback (2026-10-24): only coconut-contact mini2 gain0.15 now uses a selected shared PCM buffer and fixed AVAudioPlayerNode bank under the existing total32voice gate. First palm requests silent preparation;every contact retains original natural tail. Serial queue owns graph/decode/play/stop;engine pauses after last tail,graph/buffer release on Sounds OFF/media reset/dispose. Original merge/impact/coin/loop families retain their prior transports;physical hitch improvement requires recapture.
+
+- Native BLOOB tuning (2026-10-24): remove `djeca.wav` from this family only; `splat.wav` gain0.504 now starts600ms after merge; `paint splat.wav` gain0.6→0.84 (+40% amplitude,about+2.92dB),delay0. `beams.wav` gain0.45/delay400ms unchanged. Original files and other families preserved.
+
+- Native BLOOB splat synchronization (2026-10-24): supersedes600ms merge delay. Original `splat.wav` stereo48kHz/16bit/2s analysis:strongest10ms RMS window0–10ms (0.58169 FS),sample energy peak11.896ms. Cue now belongs to actual hero visual `pop`,shared with ordinary BLOOB/fake-dice scatter,delay0/gain0.504;selected preload includes pop source. `paint splat.wav` stays merge/gain0.84. No source edits;output-device latency/mix needs listening.
+
+- User listening correction2026-10-24:supersedes visual-pop SPLAT experiment. `splat.wav` gain0.504 now fires from committed BLOOB merge with fixed500ms delay;pop cue empty. Paint splat gain0.84/delay0 and beams unchanged.
+
+- Native BLOOB merge6 (2026-10-24): choose exactly one original `bluub1.wav`–`bluub4.wav` uniformly per accepted merge via existing audio-owner RNG,start150ms after merge,gain0.6/rate1/natural tail. Selected/restored BLOOB preparation includes all4;shared transport/Settings/generation/background/disposal retained. Fixed SPLAT500ms unchanged.
+
+- Native BLOOB bluub pool correction2026-10-24:delay150ms→0 at merge6. Each admitted sound receives unique generation/merge receipt voice,so a later merge selecting same file does not replace its tail. stopAfter=nil,fadeOut0,loopingfalse;visual finale has no stop hook. Existing bounded transport cleans at natural completion;Settings OFF/background/route retirement remain authoritative.
+
+- Native BLOOB bluub1–4 gain2026-10-24:user requests+4dB relative0.6;all four now0.6×10^(4/20)=0.9509359154766681. Immediate onset/unique receipt/natural tail unchanged.

@@ -2,6 +2,25 @@ import XCTest
 @testable import Stack_to_Six
 
 nonisolated final class NativeSourceWildBounceTransportTests:XCTestCase {
+    @MainActor func testFreshFaceShowsGradualGrowthAcrossRealThirtyAndSixtyFPSDeliveries() {
+        for fps in [30.0,60.0] {
+            let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0},sourceFrameTransportEnabled:true)
+            defer{service.dispose()}
+            var serial:UInt64=0,scale=0.0,finished=0,visibleGrowth:[Double]=[]
+            let owner=NativeSourceAppSpawnBounceOwner(service:service,hooks:.init(current:{true},readRotation:{0},paintScale:{scale=$0},paintRotation:{_ in},ensureFullOpacity:{},random:{0.2},acquireFrames:{{}},finished:{_ in finished+=1}),nativeFreshFace:true,nativeFrameSerial:{serial})
+            XCTAssertTrue(owner.start());service.deliver(wallMilliseconds:100)
+            for frame in 1...Int(fps*0.8) {
+                serial+=1;service.deliver(wallMilliseconds:100+Double(frame)*1000/fps)
+                if Double(frame)/fps<0.18 {visibleGrowth.append(scale)}
+                if frame<=2 {print("[BottleSpawnTrace] fps=\(fps) frame=\(frame) scale=\(scale)")}
+                if frame==2 {XCTAssertLessThan(scale,0.5,"The first two presented frames cannot consume the whole growth")}
+            }
+            XCTAssertGreaterThanOrEqual(visibleGrowth.filter{$0>0 && $0<1}.count,fps==30 ? 4:8)
+            let growth=[0.0]+visibleGrowth
+            for (a,b) in zip(growth,growth.dropFirst()) {XCTAssertGreaterThanOrEqual(b,a);XCTAssertLessThanOrEqual(b-a,0.32)}
+            XCTAssertEqual(scale,1);XCTAssertEqual(finished,1)
+        }
+    }
     @MainActor func testNativeFreshFaceHasFullLengthGrowthAndOriginalSettle() {
         for suppliedSpeed in [1.0,2.0] {
             let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0},sourceFrameTransportEnabled:true)
@@ -16,7 +35,7 @@ nonisolated final class NativeSourceWildBounceTransportTests:XCTestCase {
             XCTAssertTrue(scales.allSatisfy{$0>=0 && $0<1.20})
             XCTAssertEqual(scales.last,1);XCTAssertEqual(draws,1);XCTAssertEqual(finishes,1);XCTAssertEqual(releases,1)
             for time in [0.18,0.24,0.30,0.36,0.42,0.50,0.56] {
-                XCTAssertEqual(NativeSourceAppSpawnBounceOwner.scale(time,initialScale:0),NativeSourceAppSpawnBounceOwner.scale(time),accuracy:1e-9)
+                XCTAssertEqual(NativeSourceAppSpawnBounceOwner.freshFaceScale(time),NativeSourceAppSpawnBounceOwner.scale(time),accuracy:1e-9)
             }
             owner.interrupt();XCTAssertEqual(finishes,1)
         }

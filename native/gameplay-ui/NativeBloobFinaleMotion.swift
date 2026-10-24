@@ -163,7 +163,7 @@ struct NativeBloobFinaleMotion {
             let curve=sin(u * .pi)
             return Pose(center:CGPoint(x:die.incoming.x+(target.x-die.incoming.x)*e+CGFloat(p.bendX*curve),
                                        y:die.incoming.y+(target.y-die.incoming.y)*e+CGFloat(p.bendY*curve)),
-                        scale:1,rotation:p.baseRotation+(1-e)*t*280,alpha:1,hidden:t<die.intakeDelay)
+                        scale:1,rotation:p.baseRotation+(1-e)*t*280,alpha:t<Self.heroReverseStart ? 1:0,hidden:t<die.intakeDelay)
         }
         let age=t-Self.scatterStart,from=CGPoint(x:heroDestination.x+die.inside.x,y:heroDestination.y+die.inside.y)
         return Pose(center:Self.childPosition(p,age:age,viewport:viewport,origin:from),

@@ -60,7 +60,7 @@ import StackToSixGameplay
  }
  private func root()throws->URL{try XCTUnwrap(Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle"))}
  func testActualNormalPromiseCommitRetiresCallerButNextCoreMergeAndFaceRemainPlayable()throws {
-  let f=try Fixture(root:root());defer{f.dispose()};f.start();f.deliver(810)
+  let f=try Fixture(root:root());defer{f.dispose()};f.start();f.deliver(820)
   XCTAssertEqual(f.outcomes,[.completed(successes:2)]);XCTAssertTrue(try XCTUnwrap(f.boardCommit).accepted)
   XCTAssertNil(f.engine.pendingSpecial);XCTAssertNil(f.engine.pendingMagnetRespawn);XCTAssertFalse(f.engine.flags.isWaiting)
   let target=try XCTUnwrap(f.nodes.values.first(where:{$0.sourceValue==1}))
@@ -73,11 +73,11 @@ import StackToSixGameplay
   XCTAssertTrue(target.queueSourceStackValue(model.value,addStack:1,service:f.service,random:{0.9},current:{[weak f,weak target] in
    guard let f,let target else{return false};return !f.closed && f.nodes[target.tileID] === target && target.parent === f.canvas
   }))
-  f.deliver(820);XCTAssertEqual(target.sourceValue,2);XCTAssertEqual(target.sourceStackDepth,2)
+  f.deliver(830);XCTAssertEqual(target.sourceValue,2);XCTAssertEqual(target.sourceStackDepth,2)
   XCTAssertTrue(target.sourceMergeSixFaceReady(service:f.service));XCTAssertEqual(target.sourcePendingStackFrameCount,0)
  }
  func testRouteObjectReplacementRevokesOldStableFrameBeforeAnyNewRngOrPaint()throws {
-  let f=try Fixture(root:root());defer{f.dispose()};f.start();f.deliver(810)
+  let f=try Fixture(root:root());defer{f.dispose()};f.start();f.deliver(820)
   let old=try XCTUnwrap(f.nodes.values.first);XCTAssertTrue(old.sourceMergeSixFaceReady(service:f.service))
   let c=NativeDiceNode(id:old.tileID,value:3,kind:"regular",variant:nil,depth:1,locked:false,textures:f.textures)
   f.nodes[old.tileID]=c;f.canvas.addChild(c)

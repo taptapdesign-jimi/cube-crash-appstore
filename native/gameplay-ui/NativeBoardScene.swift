@@ -4906,6 +4906,14 @@ final class NativeBoardScene: SKScene {
                         self.onSourcePresentationFailure?("source_\(variant)_main_finale_not_admitted",plan.generation);return
                     }
                 }
+                if !plan.targets.isEmpty,plan.destination.variant=="bottle" {
+                    // The Bottle has already been consumed. Its old idle is
+                    // retired by the face prefix, so retaining that PNG until
+                    // pull convergence leaves a visibly frozen bottle. Once
+                    // the real burst/finale is admitted, retire only its visual
+                    // children; the reserved grid carrier and pull target stay.
+                    entry.destination.hideSourceWildDestinationFinalChildren()
+                }
                 if plan.variant==nil,!self.coreMagnetFinale() {
                     self.onSourcePresentationFailure?("source_magnet_main_finale_not_admitted",plan.generation);return
                 }

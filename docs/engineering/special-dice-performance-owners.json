@@ -1,5 +1,6 @@
 {
   "fish": {
+    "nativeSVGPlaybackPixels": "NativeFishSVGResourceLease prepares only the selected family on its existing cancellable worker. NativeFishSVGFallbackResources materializes the original WebP strip once, then 72 independent 224x224 RGBA cells (14,450,688 bytes retained). CALayer receives bitmap-backed cells, never lazy compressed subimages. Existing lease suspension, generation retirement and disposal remain authoritative; original artwork, all frames and SMIL timing preserved.",
     "archetype": "wild-star",
     "idleOwner": "src/modules/fish-swim-artwork.ts",
     "idleAdmissionPolicy": "Every live copy is owned by the all-live idle registry; no recency winner or variant exemption; exact interaction suspension, visibility and terminal cleanup remain authoritative.",

@@ -2551,7 +2551,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         artwork.size = CGSize(width: sheet.cell.width * sheet.displayScale, height: sheet.cell.height * sheet.displayScale)
         artwork.position.y = sheet.offsetY
         if variant == "coconut",scene is NativeBoardScene {
-            artwork.size=CGSize(width:artwork.size.width*1.3,height:artwork.size.height*1.3)
+            artwork.size=CGSize(width:artwork.size.width*1.56,height:artwork.size.height*1.56)
         }
         if variant == "bloob" {
             if scene is NativeBoardScene {

@@ -44,6 +44,34 @@ final class JimiNativeWorldTests: XCTestCase {
     }
     private func settle(_ seconds: Double = 1.3) async throws { try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000)) }
 
+    func testLockedUnitNumbersStayAboveCloudsInEveryWorldAndViewport() async throws {
+        for width:CGFloat in [390,768] {for worldID in 1...3 {
+            let raw=try NativeWorldLayouts().snapshot(world:worldID,width:Double(width),height:844,generation:1,progression:NativeProgressionState())
+            let snapshot=try XCTUnwrap(JimiNativeWorldSnapshot(raw))
+            let world=try XCTUnwrap(JimiNativeWorldView(snapshot:raw,assets:art))
+            world.frame=CGRect(x:0,y:0,width:width,height:844);world.layoutIfNeeded()
+            defer{world.cleanup()}
+            let scroll=try XCTUnwrap(world.subviews.compactMap{$0 as? UIScrollView}.first)
+            for definition in snapshot.units where definition.locked {
+                let unit=try XCTUnwrap(descendant(world,"native.world.card.\(definition.boardID)"))
+                scroll.contentOffset=CGPoint(x:0,y:max(0,min(unit.frame.midY-422,scroll.contentSize.height-844)))
+                let ready=expectation(description:"Unit number prepared")
+                world.prepare{ready.fulfill()};await fulfillment(of:[ready],timeout:10)
+                let number=try XCTUnwrap(descendant(world,"native.world.number.\(definition.boardID)") as? UILabel)
+                XCTAssertEqual(number.text,String(format:"%02d",(definition.boardID-1)%10+1))
+                XCTAssertTrue(number.superview === unit)
+                let decorations=unit.subviews.filter{$0 !== number}
+                XCTAssertTrue(decorations.allSatisfy{$0.layer.zPosition<number.layer.zPosition},"Unit \(definition.boardID) number must paint above its clouds/artwork")
+                XCTAssertGreaterThan(number.layer.zPosition,definition.parts.map(\.depth).max() ?? 0)
+                if worldID==1 && definition.boardID==10 && width==390 {
+                    world.alpha=1
+                    let image=UIGraphicsImageRenderer(bounds:world.bounds).image{world.layer.render(in:$0.cgContext)}
+                    try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/forest10-number-above-clouds.png"))
+                }
+            }
+        }}
+    }
+
     func testEveryWorldEndsScrollAtLastArtworkWithSmallBottomClearance() async throws {
         for width:CGFloat in [390,768] {for id in 1...3 {
             let raw=try NativeWorldLayouts().snapshot(world:id,width:Double(width),height:844,generation:1,progression:NativeProgressionState())
