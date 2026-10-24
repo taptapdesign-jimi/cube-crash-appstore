@@ -1,10 +1,55 @@
 import XCTest
 import UIKit
+import SpriteKit
+import StackToSixGameplay
 @testable import Stack_to_Six
 
 @MainActor
 final class NativeBottleFinaleTests: XCTestCase {
     private var root: URL { Bundle.main.bundleURL.appendingPathComponent("NativeAssets.bundle") }
+    func testOldGridCannotPaintOrResetSuccessorOnSameArtworkSurface()throws {
+        let surface=SKNode()
+        let plan=try XCTUnwrap(NativeShortWildBoardBlastPlan.make(rests:[CGPoint(x:100,y:80)],center:.zero,tileSize:128,random:{0.5},dateMilliseconds:{nil},current:{true},held:false)?.first)
+        let entry=NativeBloobBoardReactionBinding.Entry(surface:surface,plan:plan,phase:0,current:{true})
+        let old=NativeBloobBoardReactionBinding(entries:[entry]);old.paint(seconds:0.8,startTime:0,returnTime:1.1,vibrates:false)
+        let next=NativeBloobBoardReactionBinding(entries:[entry]);next.paint(seconds:0.8,startTime:0,returnTime:1.1,vibrates:false)
+        let pose=surface.position
+        old.paint(seconds:2,startTime:0,returnTime:1.1,vibrates:false);old.reset();old.dispose()
+        XCTAssertEqual(surface.position,pose,"Old Bottle/BLOOB/GAS cleanup must not reset the newer reaction")
+        next.dispose();XCTAssertEqual(surface.position,.zero)
+        XCTAssertNil(surface.userData?["native-board-reaction-owner"])
+    }
+    func testGridHoldsUntilCapturedPullConvergesThenSpringsHomeAndResets()throws {
+        let owner=NativeBottleFinalePresentation(resourceRoot:root,viewport:CGSize(width:390,height:844),random:{0.5})
+        let window=UIWindow(frame:owner.bounds);window.isHidden=false;window.addSubview(owner)
+        defer{owner.dispose();window.isHidden=true}
+        let surface=SKNode();var converged=false
+        let plan=try XCTUnwrap(NativeShortWildBoardBlastPlan.make(rests:[CGPoint(x:100,y:80)],center:.zero,tileSize:128,random:{0.5},dateMilliseconds:{nil},current:{true},held:false)?.first)
+        owner.bindBoardReaction(.init(entries:[.init(surface:surface,plan:plan,phase:0,current:{true})]),pullComplete:{converged})
+        owner.paint(seconds:0);XCTAssertEqual(surface.position,.zero)
+        owner.paint(seconds:0.8);XCTAssertGreaterThan(hypot(surface.position.x,surface.position.y),50)
+        let held=surface.position;owner.paint(seconds:1.0);XCTAssertEqual(surface.position,held)
+        owner.setSuspended(true);XCTAssertEqual(surface.position,.zero)
+        owner.setSuspended(false);owner.paint(seconds:1.0);XCTAssertEqual(surface.position,held)
+        converged=true;owner.paint(seconds:1.1);XCTAssertEqual(surface.position,held)
+        owner.paint(seconds:1.8);XCTAssertEqual(surface.position,.zero)
+        owner.dispose();owner.dispose();owner.paint(seconds:0.8);XCTAssertEqual(surface.position,.zero)
+    }
+    func testBackgroundGridExcludesCapturedPullTargetsAndPreservesLogicalPositions()throws {
+        let engine=NativeGameplayEngine(state:.init(tiles:[.init(id:"pulled",cell:.init(column:0,row:0),value:2),.init(id:"background",cell:.init(column:4,row:8),value:3)]))
+        let scene=NativeBoardScene(engine:engine,resourceRoot:root,size:CGSize(width:390,height:844))
+        scene.layout(size:scene.size,insets:.zero);defer{scene.dispose()}
+        let pulled=try XCTUnwrap(scene.sourceNativeTileNode("pulled")),background=try XCTUnwrap(scene.sourceNativeTileNode("background"))
+        let pulledPosition=pulled.position,backgroundPosition=background.position
+        let binding=try XCTUnwrap(scene.makeBloobBoardReaction(excluding:["pulled"]))
+        defer{binding.dispose()}
+        binding.paint(seconds:0.8,startTime:0,returnTime:1.1,vibrates:false)
+        XCTAssertTrue(pulled.visual.parent === pulled)
+        XCTAssertEqual(background.visual.parent?.name,"native-bloob-board-reaction")
+        XCTAssertNotEqual(background.visual.parent?.position,.zero)
+        XCTAssertEqual(pulled.position,pulledPosition);XCTAssertEqual(background.position,backgroundPosition)
+        binding.dispose();XCTAssertEqual(background.visual.parent?.position,.zero)
+    }
     func testBubbleCollapseCannotFlashBrighterThanItsPopOnset() {
         let owner=NativeBottleFinalePresentation(resourceRoot:root,viewport:CGSize(width:390,height:844),random:{0.1})
         let host=UIView(frame:owner.bounds);host.addSubview(owner);owner.layoutIfNeeded();defer{owner.dispose()}

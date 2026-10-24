@@ -23,6 +23,20 @@ final class NativeBottleFinalePresentation: NativeFinitePresentation {
         let pause: Bool,travel: CGFloat,delay: CGFloat,pop: CGFloat,alpha: CGFloat,startScale: CGFloat
     }
     private var bottles: [Bottle] = [],trails: [Trail] = [],bubbles: [Bubble] = []
+    private var boardReaction:NativeBloobBoardReactionBinding?
+    private var pullComplete:(()->Bool)?
+    private var boardReturnTime:Double?
+    private var retired=false
+    func bindBoardReaction(_ binding:NativeBloobBoardReactionBinding?,pullComplete:@escaping()->Bool) {
+        boardReaction?.dispose();boardReaction=binding;self.pullComplete=pullComplete;boardReturnTime=nil
+    }
+    override func setSuspended(_ value:Bool){super.setSuspended(value);if value {boardReaction?.reset()}}
+    override func didMoveToWindow(){super.didMoveToWindow();if window==nil {boardReaction?.reset()}}
+    override func dispose(){
+        guard !retired else{return};retired=true
+        boardReaction?.dispose();boardReaction=nil;pullComplete=nil;boardReturnTime=nil
+        super.dispose()
+    }
     private var retiredBubbles = Set<Int>(),fired = Set<String>()
     private let glyphs: NativeSplashGlyphField
     private let random: () -> Double
@@ -33,7 +47,7 @@ final class NativeBottleFinalePresentation: NativeFinitePresentation {
         self.random = random
         self.viewport = CGSize(width: max(320,viewport.width),height: max(520,viewport.height))
         let artwork = preparedArtwork ?? JimiV9Artwork(resourceRoot: resourceRoot)
-        let color = UIColor(red: 117.0/255,green: 221.0/255,blue: 223.0/255,alpha: 1)
+        let color = UIColor(red: 179.0/255,green: 217.0/255,blue: 191.0/255,alpha: 1)
         glyphs = NativeSplashGlyphField(artwork: artwork,text: "S.O.S.",colors: [color],splitIndex: 0,random: random)
         // Source particle completion 0.30 + 5.35, followed by 0.05 cleanup.
         super.init(viewport: viewport,duration: 5.70)
@@ -92,6 +106,11 @@ final class NativeBottleFinalePresentation: NativeFinitePresentation {
         }
     }
     override func paint(seconds: TimeInterval) {
+        guard !retired else{return}
+        // Let the full standard outward wave arrive, then return on the real
+        // captured pull convergence, independent of its random travel duration.
+        if boardReturnTime==nil,pullComplete?()==true {boardReturnTime=max(0.75,seconds)}
+        boardReaction?.paint(seconds:seconds,startTime:0,returnTime:boardReturnTime ?? duration,vibrates:false)
         let time = CGFloat(seconds)
         let cueTimes: [(String,CGFloat)] = [("water-waves",0),("bottle1",0.3),("bottle2",0.94),("bublesi",1.26),("cling",2.06),("cling2",2.70)]
         for (cue,at) in cueTimes where time >= at && !fired.contains(cue) { fired.insert(cue); onCue?(cue,0) }

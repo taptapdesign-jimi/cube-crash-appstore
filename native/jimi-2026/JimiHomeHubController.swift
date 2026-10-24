@@ -142,7 +142,7 @@ final class JimiHomeHubController: UIViewController {
         home.onSlideSelected = { [weak self] index in self?.selectSlide(index) }
         home.onPanBegan = { [weak self] in
             guard let self, self.active, !self.transitioning, self.route == .home else { return false }
-            self.home.pauseHeroIdle(); self.cancelMotion(); return true
+            self.home.pauseHeroIdle(preserveLogoIdle:true); self.cancelMotion(); return true
         }
         home.onPanEnded = { [weak self] index, _ in self?.selectSlide(index, snap: true) }
         home.onActivate = { [weak self] index in

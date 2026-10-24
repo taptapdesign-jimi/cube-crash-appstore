@@ -38,7 +38,7 @@ final class NativeArea55Tests: XCTestCase {
             XCTAssertEqual(plan.delay,row.travelStartAt,accuracy: 1e-12); XCTAssertEqual(1.95+plan.order*0.04,row.travelSeconds,accuracy: 1e-12); XCTAssertEqual(plan.arrival,row.arrivalAt,accuracy: 1e-12)
         }
     }
-    func testSourceAssetsAndExactBoundedDurations() {
+    func testSourceAssetsAndExactBoundedDurations() throws {
         let laser = NativeLaserGunFinalePresentation(resourceRoot: root,viewport: .init(width: 390,height: 844),origin: .init(x: 150,y: 410),generation: 10,random: { 0.5 })
         let ship = NativeSpaceshipFinalePresentation(resourceRoot: root,viewport: .init(width: 390,height: 844),origin: .init(x: 150,y: 410),generation: 10,random: { 0.5 })
         XCTAssertTrue(laser.assetReady); XCTAssertTrue(ship.assetReady)
@@ -47,6 +47,22 @@ final class NativeArea55Tests: XCTestCase {
         let letters=field?.subviews.first?.subviews.compactMap{$0 as? UILabel} ?? []
         XCTAssertEqual(letters.compactMap(\.text).joined(),"WOOMBUU")
         XCTAssertTrue(letters.allSatisfy{$0.textColor.withAlphaComponent(1)==UIColor.white && $0.textColor.cgColor.alpha>=0.8 && $0.subviews.count==4})
+        let originalColors=[UIColor(red:117.0/255,green:196.0/255,blue:195.0/255,alpha:1),UIColor(red:88.0/255,green:217.0/255,blue:234.0/255,alpha:1)]
+        for (index,letter) in letters.enumerated() {
+            let glows=letter.subviews.compactMap{$0 as? UILabel}
+            XCTAssertEqual(glows.count,4)
+            XCTAssertTrue(glows.allSatisfy{$0.layer.shadowColor==originalColors[index<3 ? 0:1].cgColor})
+        }
+        if let field {
+            ship.setNeedsLayout();ship.layoutIfNeeded()
+            field.layoutIfNeeded();field.paint(seconds:0.9)
+            XCTAssertGreaterThan(field.bounds.width,0)
+            let image=UIGraphicsImageRenderer(size:field.bounds.size).image{context in
+                UIColor(red:0.97,green:0.94,blue:0.89,alpha:1).setFill();context.fill(field.bounds)
+                field.layer.render(in:context.cgContext)
+            }
+            try XCTUnwrap(image.pngData()).write(to:FileManager.default.temporaryDirectory.appendingPathComponent("woombuu-original-pwa-glow.png"))
+        }
         XCTAssertEqual(NativeArea55Motion.debris.count,25)
         XCTAssertEqual(NativeArea55Motion.debris.map(\.arrival).max()!+0.01,2.62,accuracy: 1e-12)
         XCTAssertEqual(NativeArea55Motion.additionalSideDebris.count,21)
@@ -68,7 +84,7 @@ final class NativeArea55Tests: XCTestCase {
         let ship = NativeSpaceshipFinalePresentation(resourceRoot: root,viewport: .init(width: 390,height: 844),origin: .zero,generation: 1,random: { 0.5 })
         ship.layoutIfNeeded(); ship.paint(seconds: 0.5)
         let beam = ship.subviews.first { $0.layer.zPosition == 2 }
-        XCTAssertNotNil(beam); XCTAssertEqual(ship.subviews.filter { $0.layer.zPosition < 5 && $0 !== beam }.count,46)
+        XCTAssertNotNil(beam); XCTAssertEqual(ship.subviews.filter { $0.layer.zPosition < 5 && $0 !== beam }.count,61)
         ship.paint(seconds: 3); XCTAssertNil(beam?.superview)
         let hidden = ship.subviews.filter { $0.layer.zPosition < 5 }
         XCTAssertTrue(hidden.allSatisfy(\.isHidden)); let count = hidden.count
@@ -81,7 +97,7 @@ final class NativeArea55Tests: XCTestCase {
         defer{ship.dispose()};ship.layoutIfNeeded()
         ship.paint(seconds:0)
         let movers=ship.subviews.filter{$0.layer.zPosition<5 && $0.layer.zPosition != 2}
-        let extras=Array(movers.suffix(21))
+        let extras=Array(movers.dropFirst(25).prefix(21))
         XCTAssertEqual(extras.count,21);XCTAssertTrue(extras.allSatisfy{!$0.isHidden})
         for (i,plan) in NativeArea55Motion.additionalSideDebris.enumerated() {
             XCTAssertEqual(plan.delay,0)
@@ -99,6 +115,31 @@ final class NativeArea55Tests: XCTestCase {
         }
         ship.paint(seconds:2.62);XCTAssertTrue(extras.allSatisfy(\.isHidden))
         ship.paint(seconds:0);XCTAssertTrue(extras.allSatisfy{!$0.isHidden})
+    }
+    func testAdditionalCargoAndDiceDeformation() throws {
+        XCTAssertEqual(NativeArea55Motion.additionalCargo.filter{$0.value>0}.count,10)
+        XCTAssertEqual(NativeArea55Motion.additionalCargo.filter{$0.source?.contains("/kanta")==true}.count,5)
+        for roll in [0.0,0.25,0.75,1.0] {
+            let ship=NativeSpaceshipFinalePresentation(resourceRoot:root,viewport:.init(width:390,height:844),origin:.zero,generation:1,random:{roll})
+            defer{ship.dispose()};ship.layoutIfNeeded()
+            let movers=ship.subviews.filter{$0.layer.zPosition<5 && $0.layer.zPosition != 2}
+            XCTAssertEqual(movers.count,61)
+            var deformed=false,rotated=false
+            for t in stride(from:0.1,through:2.0,by:0.1) {
+                ship.paint(seconds:t)
+                for mover in movers where !mover.isHidden {
+                    guard let die=mover.subviews.first, !(die is UIImageView) else{continue}
+                    let transform=die.transform
+                    let angle=atan2(transform.b,transform.a)*180 / .pi
+                    XCTAssertLessThanOrEqual(abs(angle),40.00001)
+                    rotated = rotated || abs(angle)>1
+                    deformed = deformed || abs(hypot(transform.a,transform.b)-1)>0.01
+                }
+            }
+            XCTAssertTrue(rotated);XCTAssertTrue(deformed)
+            ship.paint(seconds:3);XCTAssertTrue(movers.allSatisfy(\.isHidden))
+            ship.paint(seconds:0.5);XCTAssertTrue(movers.allSatisfy{!$0.isHidden})
+        }
     }
     func testSemanticCuesAndCancellationReceiptsAreExactlyOnce() {
         let ship = NativeSpaceshipFinalePresentation(resourceRoot: root,viewport: .init(width: 390,height: 844),origin: .zero,generation: 4,random: { 0.5 })

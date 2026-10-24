@@ -28,7 +28,7 @@ enum NativeNoMovesPlan {
         }
     }
     struct Composition {let tilt:Double,letters:[Letter]}
-    static func make(random:()->Double)->Composition {
+    static func make(text:[Character]=NativeNoMovesPlan.text,random:()->Double)->Composition {
         let tilt=(random()-0.5)*30,buckets=[[92.0,98,104],[66,72,80],[30,36,44,50],[66,72,80],[92,98,104],[30,36,44,50],[66,72,80],[30,36,44,50],[92,98,104]]
         let offset=min(8,Int(random()*9))
         var sizes:[Double]=[]

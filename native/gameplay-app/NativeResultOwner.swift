@@ -111,7 +111,7 @@ final class NativeResultOwner {
         } else {showResult()}
     }
     private func presentResult(gameplay:NativeGameplayViewController,state:NativeBoardState,clean:Bool,combo:Int,efficiency:Int,score:Int,arcadeReached:Bool) {
-        let sheet=NativeResultController(root:root,state:state,clean:clean,combo:combo,efficiency:efficiency,finalScore:score,interimJourney:interimJourney,arcadeReached:arcadeReached)
+        let sheet=NativeResultController(root:root,state:state,clean:clean,combo:combo,efficiency:efficiency,finalScore:score,interimJourney:interimJourney,arcadeReached:arcadeReached,arcadeCelebrationPresented:gameplay.hasPresentedBoardCleared)
         sheet.onForestAmbience=onForestAmbience
         sheet.onMoment=onMoment
         sheet.onHaptic=onHaptic
@@ -156,6 +156,7 @@ final class NativeResultController:UIViewController {
     private let resourceRoot:URL
     private let headline:String
     private let paperSurface:NativeAppPaperSurface
+    private let arcadeCelebrationPresented:Bool
     private var arcadePresentation:NativeArcadeRoundPresentation?
     private let content=UIView(),cardContent=UIView(),headlineContent=UIView(),statusContent=UIView(),bonusContent=UIView()
     private let stars=UIView()
@@ -198,7 +199,8 @@ final class NativeResultController:UIViewController {
         return state.board>20 ? .area55:state.board>10 ? .beach:.forest
     }
     private var arcadeCue:Bool {clean && state.mode == .arcade && !arcadeReached}
-    init(root:URL,state:NativeBoardState,clean:Bool,combo:Int,efficiency:Int,finalScore:Int,interimJourney:Bool=false,arcadeReached:Bool=false,headlineRandom:Double=Double.random(in:0..<1)) {
+    init(root:URL,state:NativeBoardState,clean:Bool,combo:Int,efficiency:Int,finalScore:Int,interimJourney:Bool=false,arcadeReached:Bool=false,arcadeCelebrationPresented:Bool=false,headlineRandom:Double=Double.random(in:0..<1)) {
+        self.arcadeCelebrationPresented=arcadeCelebrationPresented
         assets=JimiV9Artwork(resourceRoot:root);self.state=state;self.clean=clean;self.arcadeReached=arcadeReached
         paperSurface=NativeAppPaperSurface(artwork:assets)
         resourceRoot=root
@@ -261,7 +263,7 @@ final class NativeResultController:UIViewController {
             NotificationCenter.default.addObserver(forName:UIApplication.didBecomeActiveNotification,object:nil,queue:.main) { [weak self] _ in MainActor.assumeIsolated{self?.setSuspended(false)} }]
         if arcadeCue {
             content.isHidden=true
-            let presentation=NativeArcadeRoundPresentation(resourceRoot:resourceRoot,clearedRound:state.stage,nextRound:state.stage+1)
+            let presentation=NativeArcadeRoundPresentation(resourceRoot:resourceRoot,clearedRound:state.stage,nextRound:state.stage+1,continuationOnly:arcadeCelebrationPresented)
             presentation.frame=view.bounds;presentation.autoresizingMask=[.flexibleWidth,.flexibleHeight];view.addSubview(presentation)
             arcadePresentation=presentation
             presentation.onNextRoundPresented = { [weak self] in

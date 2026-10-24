@@ -608,6 +608,10 @@ final class NativeBootstrap {
                   gameplay.engine.state.generation==generation else{return}
             self.audioReceipt &+= 1
             self.audio?.roundWon(receipt:self.audioReceipt,generation:generation)
+            if gameplay.boardClearedUsesPuppyThumb {self.resultMoment("arcade-thumb",index:1,duration:nil)}
+            // Arcade's clear card moved onto the live board. Keep its existing
+            // victory bed here; the successor now presents Round digits only.
+            if gameplay.engine.state.mode == .arcade {self.resultMoment("arcade-victory",index:0,duration:nil)}
         }
         gameplay.onTerminal = { [weak self,weak gameplay] result in
             guard let self,let gameplay,self.gameplay === gameplay else{return}

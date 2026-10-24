@@ -79,9 +79,9 @@ enum NativeBoardMotion {
         ])
     }
 
-    static func spawnBounce(direction: CGFloat = Bool.random() ? 1 : -1,initialScale:CGFloat=0.30) -> SKAction {
+    static func spawnBounce(direction: CGFloat = Bool.random() ? 1 : -1,initialScale:CGFloat=0) -> SKAction {
         let scale = SKAction.sequence([
-            Self.scale(from: CGPoint(x: initialScale,y: initialScale),to: CGPoint(x: 1.08,y: 1.08),duration: 0.18,ease: .backOut(1.7)),
+            Self.scale(from: CGPoint(x: initialScale,y: initialScale),to: CGPoint(x: 1.08,y: 1.08),duration: 0.18,ease: initialScale==0 ? .sineInOut:.backOut(1.7)),
             Self.scale(from: CGPoint(x: 1.08,y: 1.08),to: CGPoint(x: 0.96,y: 0.96),duration: 0.12,ease: .sineInOut),
             Self.scale(from: CGPoint(x: 0.96,y: 0.96),to: CGPoint(x: 1.02,y: 1.02),duration: 0.12,ease: .sineInOut),
             Self.scale(from: CGPoint(x: 1.02,y: 1.02),to: CGPoint(x: 1,y: 1),duration: 0.14,ease: .sineInOut)

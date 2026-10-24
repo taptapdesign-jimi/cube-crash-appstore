@@ -79,9 +79,11 @@ nonisolated struct NativeBloobReverseArt:Sendable {
 @MainActor final class NativeBloobReverseView:UIView {
     private let recipe:NativeBloobReverseArt
     private let body=CALayer()
+    private var blueGlow:[CALayer]=[]
+    private var glowEnabled=false
     private var droplets:[CALayer]=[]
     private var retired=false,lastTime:Double?,lastFrame:Int?
-    init(recipe:NativeBloobReverseArt,atlas:CGImage) {
+    init(recipe:NativeBloobReverseArt,atlas:CGImage,blueGlow:Bool=false) {
         self.recipe=recipe;super.init(frame:CGRect(x:0,y:0,width:640,height:640))
         isUserInteractionEnabled=false;isOpaque=false;clipsToBounds=false
         accessibilityIdentifier="native-bloob-reverse"
@@ -91,6 +93,14 @@ nonisolated struct NativeBloobReverseArt:Sendable {
             target.contentsRect=CGRect(x:0,y:0,width:1.0/8,height:0.2)
             target.actions=["position":NSNull(),"transform":NSNull(),"opacity":NSNull(),"contentsRect":NSNull()]
             layer.addSublayer(target)
+        }
+        if blueGlow {
+            for (radius,color,opacity) in NativeSplashGlyphField.neonGlowLayers.reversed() {
+                let glow=CALayer();prepare(glow);glow.name="native-bloob-blue-glow"
+                glow.shadowColor=color.cgColor;glow.shadowRadius=radius
+                glow.shadowOpacity=opacity;glow.shadowOffset = .zero;glow.opacity=0
+                self.blueGlow.append(glow)
+            }
         }
         prepare(body)
         for plan in recipe.drops {
@@ -105,12 +115,13 @@ nonisolated struct NativeBloobReverseArt:Sendable {
         guard !retired else{return}
         let t=min(NativeBloobReverseArt.duration,max(0,seconds))
         if lastFrame != bodyFrame {
-            body.contentsRect=CGRect(x:Double(bodyFrame%8)/8,y:Double(bodyFrame/8)/5,width:1.0/8,height:0.2);lastFrame=bodyFrame
+            body.contentsRect=CGRect(x:Double(bodyFrame%8)/8,y:Double(bodyFrame/8)/5,width:1.0/8,height:0.2);blueGlow.forEach{$0.contentsRect=body.contentsRect};lastFrame=bodyFrame
         }
         guard lastTime != t else{return};lastTime=t
         let size=NativeBloobReverseArt.sample(recipe.collapse,seconds:t)
         body.setAffineTransform(CGAffineTransform(scaleX:size[0],y:size[1]))
         body.opacity=Float(NativeBloobReverseArt.sample(recipe.opacity,seconds:t)[0])
+        for glow in blueGlow {glow.transform=body.transform;glow.opacity=glowEnabled ? body.opacity:0}
         for (layer,drop) in zip(droplets,recipe.drops) {
             let alpha=NativeBloobReverseArt.sample(drop.opacity,seconds:t)[0]
             layer.opacity=Float(alpha)
@@ -121,5 +132,10 @@ nonisolated struct NativeBloobReverseArt:Sendable {
             layer.setAffineTransform(CGAffineTransform(rotationAngle:r * .pi/180).scaledBy(x:s[0],y:s[1]))
         }
     }
-    func dispose(){guard !retired else{return};retired=true;body.contents=nil;droplets.forEach{$0.contents=nil;$0.removeFromSuperlayer()};droplets.removeAll();body.removeFromSuperlayer()}
+    func paintBlueGlow(enabled:Bool) {
+        guard !retired,glowEnabled != enabled else{return}
+        glowEnabled=enabled
+        for glow in blueGlow {glow.opacity=enabled ? body.opacity:0}
+    }
+    func dispose(){guard !retired else{return};retired=true;blueGlow.forEach{$0.contents=nil;$0.removeFromSuperlayer()};blueGlow.removeAll();body.contents=nil;droplets.forEach{$0.contents=nil;$0.removeFromSuperlayer()};droplets.removeAll();body.removeFromSuperlayer()}
 }

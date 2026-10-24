@@ -65,7 +65,7 @@ import Foundation
     @discardableResult
     func start(depth:Int,initial:ShakePose,random:()->Double,
                paintMultiplier:@escaping(NativeSixSourceMultiplierGraph.Pose)->Void,
-               removeMultiplier:@escaping()->Void,carrierCurrent:@escaping()->Bool={true})->UUID? {
+               progress:((Double)->Void)?=nil,removeMultiplier:@escaping()->Void,carrierCurrent:@escaping()->Bool={true})->UUID? {
         guard valid() else{return nil}
         let effect=Effect(paint:paintMultiplier,remove:removeMultiplier,carrierCurrent:carrierCurrent);effects[effect.id]=effect
         guard valid(effect) else{retire(effect.id);return nil}
@@ -84,6 +84,16 @@ import Foundation
         guard let lease=service.register(participant:multiplier,duration:0.64,domain:.sourceGSAP(.timeline),cleanup:{_ in}) else{retire(effect.id);return nil}
         guard valid(effect),effects[effect.id] === effect else{lease.cancel();return nil}
         effect.roots.append(multiplier);effect.leases.append(lease)
+        // Observe the existing0.9s carrier lifetime without changing its TTL,
+        // multiplier or RNG roots. Only a requested final-clear observer leases.
+        if let progress {
+            let observer=Root{[weak self,weak effect] elapsed in
+                guard let self,let effect,self.valid(effect),self.effects[effect.id] === effect else{return}
+                progress(elapsed)
+            }
+            guard let observation=service.register(participant:observer,duration:0.9,domain:.sourceGSAP(.timeline),cleanup:{_ in}) else{retire(effect.id);return nil}
+            effect.roots.append(observer);effect.leases.append(observation)
+        }
         let strength=floor(min(24,10+Double(max(1,depth))*3)*0.45+0.5)
         let graph=NativeSixSourceShakeGraph(strength:strength,initial:initial,random:{
             guard self.valid(effect) else{return 0}

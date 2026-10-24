@@ -27,8 +27,9 @@ enum JimiNativeWorldEffects {
         let cloudStyle = NativeSharedSmokeRecipes.regularSix(tileDepth:0,reduced:false)
         let size = landing ? max(rect.width,rect.height) : min(rect.width,rect.height)
         let originalCount = landing ? max(4,Int((Double.random(in:24...32)*Double.random(in:1.55...1.75)*0.28).rounded())) : Int.random(in:24...32)
-        let count = max(1,Int((Double(originalCount)*0.8).rounded()))
-        let baseAlpha = landing ? min(1,CGFloat.random(in:0.68...0.82)*1.4) : 0.95
+        let reducedCount = max(1,Int((Double(originalCount)*0.8).rounded()))
+        let count = landing ? Int((Double(reducedCount)*1.5).rounded()):reducedCount
+        let baseAlpha = landing ? min(1,CGFloat.random(in:0.68...0.82)*1.4)*0.6 : 0.95
         CATransaction.begin()
         let container = CALayer(); container.name = repeatPeriod == nil ? "world.smoke.feedback" : "world.smoke"; container.frame = rect
         if let card,card.layer.superlayer === owner.layer {owner.layer.insertSublayer(container,below:card.layer)} else {owner.layer.insertSublayer(container,at:0)}
@@ -66,7 +67,7 @@ enum JimiNativeWorldEffects {
             let pad = size*(0.22+0.05*1.65)*0.52,halo = CALayer()
             halo.name = "world.smoke.halo";halo.frame = container.bounds.insetBy(dx:-pad,dy:-pad);halo.cornerRadius = 16*scale
             halo.backgroundColor = UIColor.white.withAlphaComponent(0.10).cgColor;halo.opacity = 0;container.insertSublayer(halo,at:0)
-            let pulse = CAKeyframeAnimation(keyPath:"opacity");pulse.values = [0,0,0.22,0.22,0]
+            let pulse = CAKeyframeAnimation(keyPath:"opacity");pulse.values = [0,0,0.22*0.6,0.22*0.6,0]
             pulse.keyTimes = [0,NSNumber(value:delay/(delay+0.46)),NSNumber(value:(delay+0.08)/(delay+0.46)),NSNumber(value:(delay+0.18)/(delay+0.46)),1]
             pulse.duration = delay+0.46;halo.add(pulse,forKey:"world.smoke.halo")
         }

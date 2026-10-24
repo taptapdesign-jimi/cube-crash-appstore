@@ -61,15 +61,25 @@ final class JimiV9PlainButton: UIButton {
     }
     func layoutCartoonContent(){guard let surface=cartoonSurface else{return};bounds=surface.bounds;center=CGPoint(x:bounds.midX,y:bounds.midY)}
     override var isHidden:Bool {didSet{cartoonSurface?.isHidden=isHidden;if isHidden{cartoonSurface?.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey)}}}
-    override func didMoveToWindow(){super.didMoveToWindow();if window==nil{cartoonSurface?.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey)}}
+    override func didMoveToWindow(){super.didMoveToWindow();if window==nil{cartoonSurface?.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey)};ctaShimmer?.rebindVisibility()}
+    private var ctaShimmer:NativeCTAShimmer?
+    func setPrimaryCTAShimmer(_ enabled:Bool) {
+        if enabled {
+            if ctaShimmer == nil {ctaShimmer=NativeCTAShimmer(button:self)}
+            ctaShimmer?.refresh()
+        }else{ctaShimmer?.dispose();ctaShimmer=nil}
+    }
+    override var isEnabled:Bool {didSet{ctaShimmer?.refresh()}}
     private var ctaSoftShadow: CALayer?
     private let ctaShadowCaster = CALayer()
     private let ctaShadowMask = CAShapeLayer()
     func removeModalCTAPaint() {
+        setPrimaryCTAShimmer(false)
         ctaSoftShadow?.removeFromSuperlayer();ctaSoftShadow = nil
         backgroundColor = .clear;layer.shadowOpacity = 0;layer.borderWidth = 0
     }
     func applyModalCTA(artwork: JimiV9Artwork,primary: Bool = true) {
+        setPrimaryCTAShimmer(primary)
         let edge = primary ? UIColor(red:194/255,green:73/255,blue:33/255,alpha:1) : UIColor(red:216/255,green:199/255,blue:187/255,alpha:1)
         backgroundColor = primary ? UIColor(red:233/255,green:122/255,blue:85/255,alpha:1) : .white
         setTitleColor(primary ? UIColor(red:1,green:251/255,blue:242/255,alpha:1) : UIColor(red:173/255,green:134/255,blue:117/255,alpha:1),for:.normal)
@@ -93,6 +103,7 @@ final class JimiV9PlainButton: UIButton {
     override func layoutSubviews() {
         super.layoutSubviews()
         if let artworkOpacity {imageView?.alpha=artworkOpacity}
+        ctaShimmer?.layout()
         guard let soft = ctaSoftShadow else{return}
         CATransaction.begin();CATransaction.setDisableActions(true)
         let radius = min(40,bounds.height/2)
@@ -110,6 +121,121 @@ final class JimiV9PlainButton: UIButton {
     override var isHighlighted: Bool {
         get { false }
         set { /* Keep normal artwork/title colors while tracking touches. */ }
+    }
+}
+
+/// TAP TAP DESIGN specular profile with the shared CTA cadence, composed by Core Animation only. One finite
+/// ten-second projection per visible primary button; completion renews only while
+/// eligible. No display link, timer, decoder, game clock or persistence ownership.
+@MainActor
+final class NativeCTAShimmer:NSObject,CAAnimationDelegate {
+    static let animationKey="native.cta.shimmer"
+    private weak var button:JimiV9PlainButton?
+    let highlight=CAGradientLayer(),band=CAGradientLayer()
+    private let edge=CAGradientLayer(),edgeMask=CAShapeLayer()
+    private var observations:[NSKeyValueObservation]=[]
+    private var disposed=false,foreground=true
+    private(set) var running=false
+    init(button:JimiV9PlainButton) {
+        self.button=button
+        super.init()
+        highlight.name="native.cta.shimmer";highlight.opacity=0;highlight.masksToBounds=true;highlight.zPosition=1
+        highlight.colors=Array(repeating:UIColor(red:1,green:225/255,blue:189/255,alpha:0.55).cgColor,count:2)
+        highlight.startPoint=CGPoint(x:0.5,y:0);highlight.endPoint=CGPoint(x:0.5,y:1)
+        // Same soft shoulders and narrow specular core as TAP TAP DESIGN.
+        band.colors=[0.0,0.06,0.35,1,0.35,0.06,0].map{UIColor(white:1,alpha:$0).cgColor}
+        band.locations=[0,0.18,0.38,0.5,0.62,0.82,1];highlight.mask=band
+        button.layer.addSublayer(highlight)
+        edge.name="native.cta.edge-shine";edge.zPosition=2
+        edge.colors=[UIColor(red:1,green:228/255,blue:168/255,alpha:0.96).cgColor,
+                     UIColor(red:1,green:201/255,blue:120/255,alpha:0.72).cgColor,
+                     UIColor(red:233/255,green:139/255,blue:66/255,alpha:0.45).cgColor,
+                     UIColor(red:185/255,green:67/255,blue:32/255,alpha:0.68).cgColor]
+        edge.locations=[0,0.35,0.65,1];edge.startPoint=CGPoint(x:0.08,y:0);edge.endPoint=CGPoint(x:0.9,y:1)
+        edgeMask.fillColor=UIColor.clear.cgColor;edgeMask.strokeColor=UIColor.white.cgColor;edgeMask.lineWidth=3.2
+        edge.mask=edgeMask;button.layer.addSublayer(edge)
+        let center=NotificationCenter.default
+        center.addObserver(self,selector:#selector(background),name:UIApplication.willResignActiveNotification,object:nil)
+        center.addObserver(self,selector:#selector(active),name:UIApplication.didBecomeActiveNotification,object:nil)
+        center.addObserver(self,selector:#selector(motionChanged),name:UIAccessibility.reduceMotionStatusDidChangeNotification,object:nil)
+        foreground=UIApplication.shared.applicationState != .background
+        rebindVisibility()
+    }
+    deinit {NotificationCenter.default.removeObserver(self)}
+    @objc private func background(){foreground=false;refresh()}
+    @objc private func active(){foreground=true;refresh()}
+    @objc private func motionChanged(){refresh()}
+    func rebindVisibility() {
+        observations.removeAll()
+        var view:UIView?=button
+        while let current=view {
+            let layer=current.layer
+            observations.append(layer.observe(\.isHidden,options:[.new]){[weak self] _,_ in MainActor.assumeIsolated{self?.refresh()}})
+            observations.append(layer.observe(\.opacity,options:[.new]){[weak self] _,_ in MainActor.assumeIsolated{self?.refresh()}})
+            observations.append(layer.observe(\.position,options:[.new]){[weak self] _,_ in MainActor.assumeIsolated{self?.refresh()}})
+            observations.append(layer.observe(\.bounds,options:[.new]){[weak self] _,_ in MainActor.assumeIsolated{self?.refresh()}})
+            observations.append(current.observe(\.isUserInteractionEnabled,options:[.new]){[weak self] _,_ in MainActor.assumeIsolated{self?.refresh()}})
+            observations.append(layer.observe(\.transform,options:[.new]){[weak self] _,_ in MainActor.assumeIsolated{self?.refresh()}})
+            view=current.superview
+        }
+        layout()
+    }
+    private var eligible:Bool {
+        guard !disposed,foreground,!UIAccessibility.isReduceMotionEnabled,
+              let button,button.isEnabled,let window=button.window,!window.isHidden,
+              button.bounds.width>0,button.bounds.height>0 else{return false}
+        var view:UIView?=button
+        while let current=view {
+            guard !current.isHidden,current.alpha>0.01 else{return false}
+            if current !== button && !current.isUserInteractionEnabled {return false}
+            let rect=button.convert(button.bounds,to:current)
+            if current.clipsToBounds && !current.bounds.intersects(rect) {return false}
+            view=current.superview
+        }
+        return button.convert(button.bounds,to:window).intersects(window.bounds)
+    }
+    func layout() {
+        guard let button,!disposed else{return}
+        let changed=highlight.bounds.size != button.bounds.size
+        if changed {stop()}
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        highlight.frame=button.bounds;highlight.cornerRadius=min(40,button.bounds.height/2)
+        edge.frame=button.bounds;edgeMask.frame=edge.bounds
+        let rim=button.bounds.insetBy(dx:3,dy:3)
+        edgeMask.path = rim.width>0 && rim.height>0 ? UIBezierPath(roundedRect:rim,cornerRadius:max(0,highlight.cornerRadius-3)).cgPath:nil
+        let w=button.bounds.width*1.62,h=button.bounds.height
+        // Overscan the tilted stripe so its shoulders/core span the complete
+        // button height. Only the outer rounded body clips it; no vertical fade.
+        band.bounds=CGRect(x:0,y:0,width:w,height:3*h+w)
+        band.position=CGPoint(x:-0.85*button.bounds.width,y:h/2)
+        band.startPoint=CGPoint(x:0,y:0.5);band.endPoint=CGPoint(x:1,y:0.5)
+        band.transform=CATransform3DMakeRotation(-20 * .pi/180,0,0,1)
+        CATransaction.commit();refresh()
+    }
+    func refresh() {
+        guard eligible else{stop();return}
+        guard !running,let button else{return}
+        running=true
+        let opacity=CAKeyframeAnimation(keyPath:"opacity")
+        opacity.values=[0,0,0.62,0.62,0,0,0,0.52,0.52,0,0,0]
+        opacity.keyTimes=[0,0.12,0.12+0.04/1.3,0.12+0.15/1.3,0.12+0.20/1.3,0.33,0.38,0.38+0.04/1.3,0.38+0.15/1.3,0.38+0.20/1.3,0.59,1].map{NSNumber(value:$0)}
+        opacity.duration=10;opacity.delegate=self
+        opacity.timingFunctions=Array(repeating:CAMediaTimingFunction(controlPoints:0.42,0,0.58,1),count:11)
+        let sweep=CAKeyframeAnimation(keyPath:"position.x")
+        sweep.values=[-0.85,-0.85,1.85,-0.85,-0.85,1.85,1.85].map{$0*button.bounds.width}
+        sweep.keyTimes=[0,0.12,0.12+0.20/1.3,0.33,0.38,0.38+0.20/1.3,1].map{NSNumber(value:$0)};sweep.duration=10
+        sweep.timingFunctions=Array(repeating:CAMediaTimingFunction(controlPoints:0.42,0,0.58,1),count:6)
+        highlight.add(opacity,forKey:Self.animationKey);band.add(sweep,forKey:Self.animationKey)
+    }
+    func animationDidStop(_ anim:CAAnimation,finished flag:Bool) {
+        guard flag,running,!disposed else{return};running=false;refresh()
+    }
+    private func stop() {
+        running=false;highlight.removeAnimation(forKey:Self.animationKey);band.removeAnimation(forKey:Self.animationKey)
+    }
+    func dispose() {
+        guard !disposed else{return};disposed=true;stop();observations.removeAll()
+        NotificationCenter.default.removeObserver(self);highlight.removeFromSuperlayer();edge.removeFromSuperlayer();button=nil
     }
 }
 
@@ -139,10 +265,19 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
     let navView = UIView()
     let sliderTrack = UIView()
     let logoView = UIView()
+    let logoIdleView=UIView()
+    private let logoIdleDirection=CGPoint(x:CGFloat.random(in:-4...4),y:CGFloat.random(in:-5...5))
+    private let logoIdleTilt=CGFloat.random(in:-1.2...1.2)
+    private let logoIdleDuration=Double.random(in:5.4...6.4)
     private let viewport = UIView()
     private let logoImage: UIImageView
     private let shards: [UIImageView]
     private let shardShells = (0..<4).map { _ in UIView() }
+    private let shardIdleDirections=(0..<4).map{index in CGPoint(x:CGFloat.random(in:1...3)*(index%2==0 ? -1:1),y:CGFloat.random(in:1...3)*(index<2 ? -1:1))}
+    private let shardIdleTilts=(0..<4).map{index in CGFloat.random(in:0.4...1.2)*(index%2==0 ? 1:-1)}
+    private let shardIdleDurations=(0..<4).map{index in 3.1+Double(index)*0.65+Double.random(in:0...0.3)}
+    private let shardIdlePhases=(0..<4).map{_ in Double.random(in:0.32...0.68)}
+    private let shardIdleScales=(0..<4).map{_ in CGFloat.random(in:0.96...0.98)}
     private let bottomShadow: UIImageView
     private var panels: [UIView] = []
     private var heroes: [UIButton] = []
@@ -154,10 +289,21 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
     private var ctaContainers: [UIView] = []
     private var ctaPressShells: [UIView] = []
     private var ctaCartoonShells: [UIView] = []
+    private var ctaIdleShells:[UIView]=[]
+    private let ctaIdleDirections=(0..<3).map{_ in CGPoint(x:CGFloat.random(in:-6...6),y:CGFloat.random(in:4...8))}
+    private let ctaIdleTilts=(0..<3).map{_ in CGFloat.random(in:-1.4...1.4)}
+    private let ctaIdleRates=(0..<3).map{_ in Double.random(in:1.13...1.29)}
+    private let ctaIdlePhases=(0..<3).map{_ in Double.random(in:0.35...0.65)}
+    var ctaIdleView:UIView {ctaIdleShells[selectedSlide]}
     private var ctaPressGeneration = [0, 0, 0]
     private var ctaActivationPending = false
     private var navButtons: [UIButton] = []
     private var navImages: [UIImageView] = []
+    private var navIdleShells:[UIView]=[]
+    private let navIdleDirections=(0..<3).map{_ in CGPoint(x:CGFloat.random(in:-1.5...1.5),y:CGFloat.random(in:-2...2))}
+    private let navIdleTilts=(0..<3).map{_ in CGFloat.random(in:-1.4...1.4)}
+    private let navIdleDurations=(0..<3).map{index in 4.1+Double(index)*0.8+Double.random(in:0...0.3)}
+    private let navIdlePhases=(0..<3).map{_ in Double.random(in:0.35...0.65)}
     private var navShadows: [UIView] = []
     private let titles = ["Journey", "Arcade", "Settings"]
     private var panGesture: UIPanGestureRecognizer!
@@ -206,7 +352,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         }
         shards[3].transform = CGAffineTransform(scaleX: -1, y: 1)
         logoImage.contentMode = .scaleAspectFit
-        logoView.addSubview(logoImage)
+        logoView.addSubview(logoIdleView);logoIdleView.addSubview(logoImage)
         logoView.isUserInteractionEnabled = false
         bottomShadow.contentMode = .scaleAspectFill
         bottomShadow.alpha = 0.55
@@ -234,6 +380,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             heroImages.append(art)
 
             let cta = JimiV9PlainButton(type: .custom)
+            cta.setPrimaryCTAShimmer(true)
             cta.tag = index
             cta.setTitle(titles[index], for: .normal)
             cta.titleLabel?.font = assets.font(size: 28)
@@ -255,7 +402,8 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             let previewShell=JimiV9OverflowView()
             previewShell.addSubview(cta);pressShell.addSubview(previewShell)
             ctaCartoonShells.append(previewShell)
-            ctaContainer.addSubview(pressShell)
+            let idleShell=JimiV9OverflowView();idleShell.accessibilityIdentifier="native.home.cta-idle.\(index)"
+            idleShell.addSubview(pressShell);ctaContainer.addSubview(idleShell);ctaIdleShells.append(idleShell)
             panel.addSubview(ctaContainer)
             ctaPressShells.append(pressShell)
             ctaContainers.append(ctaContainer)
@@ -277,7 +425,8 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             let image = UIImageView(image: assets.image("assets/nav/\(icons[index]).png"))
             image.contentMode = .scaleAspectFit
             nav.addSubview(shadow)
-            nav.addSubview(image)
+            let idle=UIView();idle.isUserInteractionEnabled=false
+            nav.addSubview(idle);idle.addSubview(image);navIdleShells.append(idle)
             navView.addSubview(nav)
             navButtons.append(nav)
             navImages.append(image)
@@ -297,7 +446,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
     /// concern. Call inside the controller's owned animation transaction.
     func selectSlide(_ index: Int, animated: Bool) {
         guard titles.indices.contains(index) else { return }
-        if index != selectedSlide { stopHeroIdle() }
+        if index != selectedSlide { stopHeroIdle(preserveLogoIdle:true) }
         resetCTAFeedback()
         draggedPositionX = nil
         selectedSlide = index
@@ -327,13 +476,14 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         // Route motion writes a collapsed model transform before playback.
         // UIView.frame is undefined under that transform (including scale 0);
         // layout must not resize the logo out from under its authored track.
+        logoIdleView.bounds=logoView.bounds;logoIdleView.center=CGPoint(x:104,y:63.5)
         logoImage.bounds = CGRect(x: 0, y: 0, width: 208, height: 127)
         logoImage.center = CGPoint(x: 104, y: 55.5)
         let shardCenters = [
             CGPoint(x: -208*0.12 + 29.5, y: -127*0.16 + 29.5 - 8),
-            CGPoint(x: 208 + 208*0.08 - 29.5, y: -127*0.16 + 29.5),
-            CGPoint(x: -208*0.032 + 29.5, y: 127 - 127*0.023 - 29.5 - 8),
-            CGPoint(x: 208 + 208*0.018 - 29.5, y: 127 + 127*0.019 - 29.5 - 8),
+            CGPoint(x: 208 + 208*0.08 - 29.5 + 8, y: -127*0.16 + 29.5 - 8),
+            CGPoint(x: -208*0.032 + 29.5 + 2, y: 127 - 127*0.023 - 29.5 - 16),
+            CGPoint(x: 208 + 208*0.018 - 29.5 - 8, y: 127 + 127*0.019 - 29.5 - 14),
         ]
         for i in shards.indices {
             shardShells[i].bounds = CGRect(x: 0, y: 0, width: 59, height: 59)
@@ -368,7 +518,9 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             ctaContainers[i].center = CGPoint(x: width/2, y: heroTop + 360)
             ctas[i].bounds = CGRect(x: 0, y: 0, width: 226, height: 64)
             ctaPressShells[i].bounds = ctas[i].bounds
-            ctaPressShells[i].center = CGPoint(x: width/2, y: 72 + height*0.0225)
+            ctaIdleShells[i].bounds=ctas[i].bounds
+            ctaIdleShells[i].center=CGPoint(x:width/2,y:72+height*0.0225)
+            ctaPressShells[i].center = CGPoint(x:113,y:32)
             ctaCartoonShells[i].bounds=ctas[i].bounds;ctaCartoonShells[i].center=CGPoint(x:113,y:32)
             ctas[i].center = CGPoint(x: 113, y: 32)
             ctas[i].layer.shadowPath = UIBezierPath(roundedRect: ctas[i].bounds, cornerRadius: 32).cgPath
@@ -386,6 +538,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             let size = sizes[i]
             navButtons[i].bounds = CGRect(x: 0, y: 0, width: size, height: size)
             navButtons[i].center = CGPoint(x: x + size/2, y: 92 - size/2)
+            navIdleShells[i].bounds=navButtons[i].bounds;navIdleShells[i].center=CGPoint(x:size/2,y:size/2)
             navImages[i].frame = CGRect(x: 0, y: i == selectedSlide ? -12 : 0, width: size, height: size)
             navShadows[i].frame = CGRect(x: (size-60)/2, y: size-19, width: 60, height: 15)
             navShadows[i].layer.shadowPath = UIBezierPath(ovalIn: navShadows[i].bounds).cgPath
@@ -400,11 +553,13 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         guard !isHidden, UIApplication.shared.applicationState == .active, !UIAccessibility.isReduceMotionEnabled else {stopHeroIdle();return}
         let layer = heroImages[selectedSlide].layer
         if idleSlide == selectedSlide, layer.animation(forKey:"native-hero-idle") != nil {
-            guard layer.speed == 0 else{return}
-            let offset = layer.timeOffset;layer.speed = 1;layer.timeOffset = 0;layer.beginTime = 0
-            layer.beginTime = layer.convertTime(CACurrentMediaTime(),from:nil)-offset;return
+            for target in ([layer,ctaIdleView.layer,logoIdleView.layer]+shards.map{$0.layer}+navIdleShells.map{$0.layer}) where target.speed == 0 {
+                let offset=target.timeOffset;target.speed=1;target.timeOffset=0;target.beginTime=0
+                target.beginTime=target.convertTime(CACurrentMediaTime(),from:nil)-offset
+            }
+            return
         }
-        stopHeroIdle()
+        stopHeroIdle(preserveLogoIdle:true)
         let duration = [4.0,3.0,3.5][selectedSlide]
         let y = [-6.0,-8.0,-7.0][selectedSlide]
         let rotation = [-1.0,1.0,2.0][selectedSlide]
@@ -417,20 +572,113 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         animation.keyTimes = [0,0.5,1];animation.duration = duration;animation.repeatCount = .infinity
         animation.timingFunctions = Array(repeating:CAMediaTimingFunction(controlPoints:0.42,0,0.58,1),count:2)
         layer.add(animation,forKey:"native-hero-idle");idleSlide = selectedSlide
+        // Independent inner shell keeps idle away from route, press and contact
+        // transforms. Capture directions once per Home lifetime, never per frame.
+        let direction=ctaIdleDirections[selectedSlide]
+        var ctaPeak=CATransform3DMakeTranslation(direction.x,direction.y,0)
+        ctaPeak=CATransform3DRotate(ctaPeak,ctaIdleTilts[selectedSlide] * .pi/180,0,0,1)
+        ctaPeak=CATransform3DScale(ctaPeak,scale,scale,1)
+        let drift=CAKeyframeAnimation(keyPath:"transform")
+        drift.values=[CATransform3DIdentity,ctaPeak,CATransform3DIdentity].map{NSValue(caTransform3D:$0)}
+        drift.keyTimes=[0,NSNumber(value:ctaIdlePhases[selectedSlide]),1]
+        drift.duration=duration*ctaIdleRates[selectedSlide];drift.repeatCount = .infinity
+        drift.timingFunctions=animation.timingFunctions
+        ctaIdleView.layer.add(drift,forKey:"native-home-cta-idle")
+        let logoLayer=logoIdleView.layer
+        if logoLayer.animation(forKey:"native-home-logo-idle") == nil {
+            var logoPeak=CATransform3DMakeTranslation(logoIdleDirection.x,logoIdleDirection.y,0)
+            logoPeak=CATransform3DRotate(logoPeak,logoIdleTilt * .pi/180,0,0,1)
+            logoPeak=CATransform3DScale(logoPeak,1.025,1.025,1)
+            let float=CAKeyframeAnimation(keyPath:"transform")
+            float.values=[CATransform3DIdentity,logoPeak,CATransform3DIdentity].map{NSValue(caTransform3D:$0)}
+            float.keyTimes=[0,0.57,1];float.duration=logoIdleDuration;float.repeatCount = .infinity
+            float.beginTime=logoLayer.convertTime(CACurrentMediaTime(),from:nil)
+            float.timingFunctions=animation.timingFunctions
+            logoLayer.add(float,forKey:"native-home-logo-idle")
+        }else if logoLayer.speed == 0 {
+            let offset=logoLayer.timeOffset;logoLayer.speed=1;logoLayer.timeOffset=0;logoLayer.beginTime=0
+            logoLayer.beginTime=logoLayer.convertTime(CACurrentMediaTime(),from:nil)-offset
+        }
+        for index in shards.indices {
+            let layer=shards[index].layer
+            if layer.animation(forKey:"native-home-shard-idle") == nil {
+                let base=CATransform3DMakeScale(index==3 ? -1:1,1,1)
+                let direction=shardIdleDirections[index]
+                var peak=CATransform3DMakeTranslation(direction.x,direction.y,0)
+                peak=CATransform3DRotate(peak,shardIdleTilts[index] * .pi/180,0,0,1)
+                let scale=shardIdleScales[index]
+                peak=CATransform3DScale(peak,index==3 ? -scale:scale,scale,1)
+                let float=CAKeyframeAnimation(keyPath:"transform")
+                float.values=[base,peak,base].map{NSValue(caTransform3D:$0)}
+                float.keyTimes=[0,NSNumber(value:shardIdlePhases[index]),1]
+                float.duration=shardIdleDurations[index];float.repeatCount = .infinity
+                float.beginTime=layer.convertTime(CACurrentMediaTime(),from:nil)
+                float.timingFunctions=animation.timingFunctions
+                layer.add(float,forKey:"native-home-shard-idle")
+            }else if layer.speed == 0 {
+                let offset=layer.timeOffset;layer.speed=1;layer.timeOffset=0;layer.beginTime=0
+                layer.beginTime=layer.convertTime(CACurrentMediaTime(),from:nil)-offset
+            }
+        }
+        for index in navIdleShells.indices {
+            let layer=navIdleShells[index].layer
+            if layer.animation(forKey:"native-home-nav-idle") == nil {
+                let direction=navIdleDirections[index]
+                var peak=CATransform3DMakeTranslation(direction.x,direction.y,0)
+                peak=CATransform3DRotate(peak,navIdleTilts[index] * .pi/180,0,0,1)
+                peak=CATransform3DScale(peak,0.985,0.985,1)
+                let drift=CAKeyframeAnimation(keyPath:"transform")
+                drift.values=[CATransform3DIdentity,peak,CATransform3DIdentity].map{NSValue(caTransform3D:$0)}
+                drift.keyTimes=[0,NSNumber(value:navIdlePhases[index]),1]
+                drift.duration=navIdleDurations[index];drift.repeatCount = .infinity
+                drift.beginTime=layer.convertTime(CACurrentMediaTime(),from:nil);drift.timingFunctions=animation.timingFunctions
+                layer.add(drift,forKey:"native-home-nav-idle")
+            }else if layer.speed == 0 {
+                let offset=layer.timeOffset;layer.speed=1;layer.timeOffset=0;layer.beginTime=0
+                layer.beginTime=layer.convertTime(CACurrentMediaTime(),from:nil)-offset
+            }
+        }
     }
-    func pauseHeroIdle() {
+    func pauseHeroIdle(preserveLogoIdle:Bool=false) {
         heroCartoonShells.forEach{$0.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey)}
-        guard let i = idleSlide else{return};let layer = heroImages[i].layer
-        guard layer.speed != 0 else{return}
-        let time = layer.convertTime(CACurrentMediaTime(),from:nil);layer.speed = 0;layer.timeOffset = time
+        var layers:[CALayer]=preserveLogoIdle ? []:([logoIdleView.layer]+shards.map{$0.layer}+navIdleShells.map{$0.layer})
+        if let i=idleSlide {layers += [heroImages[i].layer,ctaIdleShells[i].layer]}
+        for layer in layers where layer.speed != 0 {
+            let time=layer.convertTime(CACurrentMediaTime(),from:nil);layer.speed=0;layer.timeOffset=time
+        }
     }
-    func stopHeroIdle(preservePaintedPose:Bool = false) {
+    func stopHeroIdle(preservePaintedPose:Bool = false,preserveLogoIdle:Bool=false) {
         if !preservePaintedPose {heroCartoonShells.forEach{$0.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey)}}
         CATransaction.begin();CATransaction.setDisableActions(true)
         for image in heroImages {
             let layer = image.layer
             let painted = preservePaintedPose ? layer.presentation()?.transform ?? layer.transform : CATransform3DIdentity
             layer.removeAnimation(forKey:"native-hero-idle");layer.speed = 1;layer.timeOffset = 0;layer.beginTime = 0;layer.transform = painted
+        }
+        for shell in ctaIdleShells {
+            let layer=shell.layer
+            let painted=preservePaintedPose ? layer.presentation()?.transform ?? layer.transform:CATransform3DIdentity
+            layer.removeAnimation(forKey:"native-home-cta-idle");layer.speed=1;layer.timeOffset=0;layer.beginTime=0;layer.transform=painted
+        }
+        if !preserveLogoIdle {
+            let layer=logoIdleView.layer
+            let painted=preservePaintedPose ? layer.presentation()?.transform ?? layer.transform:CATransform3DIdentity
+            layer.removeAnimation(forKey:"native-home-logo-idle");layer.speed=1;layer.timeOffset=0;layer.beginTime=0;layer.transform=painted
+        }
+        if !preserveLogoIdle {
+            for index in shards.indices {
+                let layer=shards[index].layer
+                let base=CATransform3DMakeScale(index==3 ? -1:1,1,1)
+                let painted=preservePaintedPose ? layer.presentation()?.transform ?? layer.transform:base
+                layer.removeAnimation(forKey:"native-home-shard-idle");layer.speed=1;layer.timeOffset=0;layer.beginTime=0;layer.transform=painted
+            }
+        }
+        if !preserveLogoIdle {
+            for shell in navIdleShells {
+                let layer=shell.layer
+                let painted=preservePaintedPose ? layer.presentation()?.transform ?? layer.transform:CATransform3DIdentity
+                layer.removeAnimation(forKey:"native-home-nav-idle");layer.speed=1;layer.timeOffset=0;layer.beginTime=0;layer.transform=painted
+            }
         }
         idleSlide = nil;CATransaction.commit()
     }

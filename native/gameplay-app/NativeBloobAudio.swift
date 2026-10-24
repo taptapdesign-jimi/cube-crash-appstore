@@ -11,7 +11,7 @@ nonisolated enum NativeBloobAudio {
         switch moment {
         // Standard committed Star/merge-six layers are already played by the
         // shared owner. Splat uses120percent of its existing0.42 gain.
-        case "merge":return [cue(base+"splat.wav",0.504,0.5),cue(base+"paint splat.wav",0.84)]
+        case "merge":return [cue(base+"splat.wav",0.504,0.6+NativeBloobFinaleMotion.heroAnticipationExtension),cue(base+"paint splat.wav",0.84)]
         case "bluub":return [cue(base+"bluub\(min(3,max(0,index))+1).wav",0.9509359154766681)]
         case "rise":return [cue(area+"beams.wav",0.45,0.4)]
         default:return []

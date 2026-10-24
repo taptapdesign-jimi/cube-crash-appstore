@@ -66,7 +66,7 @@ nonisolated final class NativeSelectedFinaleRasterTests:XCTestCase {
  }
  func testActualControllerSplashGlyphsBorrowGenerationFontBeforeFirstMerge()throws {
   let game=NativeGameplayViewController(engine:NativeGameplayEngine(state:.init(tiles:[.init(id:"a",cell:.init(column:0,row:0),value:2)])),resourceRoot:NativeTestResources.root)
-  game.loadViewIfNeeded();defer{game.dispose()}
+  game.loadViewIfNeeded();game.view.frame=CGRect(x:0,y:0,width:390,height:844);defer{game.dispose()}
   let scene=try XCTUnwrap(game.boardScene),owner=try XCTUnwrap(game.finaleArtworkOwner)
   XCTAssertEqual(owner.artwork.fontDescriptorReadCount,1,"ExtraBold is prepared at generation admission even without a selected variant")
   let expected=owner.artwork.font(size:32,weight:"ExtraBold").fontName
@@ -81,6 +81,16 @@ nonisolated final class NativeSelectedFinaleRasterTests:XCTestCase {
    XCTAssertTrue(fields.flatMap{labels($0)}.allSatisfy{$0.font.fontName==expected})
    XCTAssertTrue(game.finaleArtworkOwner === owner)
    XCTAssertEqual(owner.artwork.fontDescriptorReadCount,1,"Actual BOOM/SPARKLE/BUBBLY creation must not reread the font URL")
+   if repeatIndex==0 {
+    scene.onSplashGlyphClock?("juice","juice-0",0.9,false)
+    let field=try XCTUnwrap(fields.first{labels($0).compactMap(\.text).joined()=="BUBBLY"})
+    let format=UIGraphicsImageRendererFormat();format.scale=1
+    let image=UIGraphicsImageRenderer(size:field.bounds.size,format:format).image{context in
+     context.cgContext.setFillColor(UIColor(red:0.97,green:0.94,blue:0.89,alpha:1).cgColor);context.cgContext.fill(field.bounds)
+     field.layer.render(in:context.cgContext)
+    }
+    try XCTUnwrap(image.pngData()).write(to:FileManager.default.temporaryDirectory.appendingPathComponent("juice-bubbly-pink-yellow-glow.png"))
+   }
    scene.onTntGlyphClock?("boom-\(repeatIndex)",1,true)
    scene.onSplashGlyphClock?("star","star-\(repeatIndex)",1,true)
    scene.onSplashGlyphClock?("juice","juice-\(repeatIndex)",1,true)

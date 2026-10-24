@@ -1,10 +1,67 @@
 import XCTest
 import UIKit
 import SpriteKit
+import Metal
 import StackToSixGameplay
 @testable import Stack_to_Six
 
 @MainActor final class NativeSourceStaticPipTests:XCTestCase {
+    func testMagnetSurvivorStaysUnpaintedUntilActualNumberFaceRafAndRejectsStaleFrame()async throws {
+        let device=try XCTUnwrap(MTLCreateSystemDefaultDevice()),queue=try XCTUnwrap(device.makeCommandQueue())
+        for stale in [false,true] {
+            let textures=NativeBoardTextures(root:NativeTestResources.root)
+            let ready=expectation(description:"retained survivor foundations")
+            textures.prepareSourceInitialResources(current:{true}){success in XCTAssertTrue(success);ready.fulfill()}
+            await fulfillment(of:[ready],timeout:10)
+            let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0},sourceFrameTransportEnabled:true)
+            let outer=NativeSourceOuterTimelineAdapter(service:service)
+            let scene=SKScene(size:CGSize(width:160,height:160));scene.scaleMode = .fill;scene.backgroundColor = .clear
+            let node=NativeDiceNode(id:"survivor",value:0,kind:"regular",variant:nil,depth:1,locked:true,textures:textures)
+            scene.addChild(node)
+            XCTAssertTrue(node.prepareSourceInitialHolder(rotation:0,generation:1,cell:.init(column:0,row:0)))
+            node.installSourceOuterDriver(outer,generation:1,geometryScale:1)
+            node.position=CGPoint(x:80,y:80);node.isHidden=true;node.alpha=0
+            let renderer=SKRenderer(device:device);renderer.scene=scene
+            defer{renderer.scene=nil;node.dispose();outer.dispose();service.dispose();textures.dispose()}
+            let descriptor=MTLTextureDescriptor.texture2DDescriptor(pixelFormat:.bgra8Unorm,width:160,height:160,mipmapped:false)
+            descriptor.usage=[.renderTarget,.shaderRead];descriptor.storageMode = .shared
+            let target=try XCTUnwrap(device.makeTexture(descriptor:descriptor))
+            func paintedPixels(_ time:Double)throws->Int {
+                renderer.update(atTime:time)
+                let pass=MTLRenderPassDescriptor();pass.colorAttachments[0].texture=target
+                pass.colorAttachments[0].loadAction = .clear;pass.colorAttachments[0].storeAction = .store
+                pass.colorAttachments[0].clearColor=MTLClearColorMake(0,0,0,0)
+                let command=try XCTUnwrap(queue.makeCommandBuffer())
+                renderer.render(withViewport:CGRect(x:0,y:0,width:160,height:160),commandBuffer:command,renderPassDescriptor:pass)
+                command.commit();command.waitUntilCompleted();XCTAssertEqual(command.status,.completed)
+                var bytes=[UInt8](repeating:0,count:160*160*4)
+                bytes.withUnsafeMutableBytes{target.getBytes($0.baseAddress!,bytesPerRow:160*4,from:MTLRegionMake2D(0,0,160,160),mipmapLevel:0)}
+                // Centre excludes the ordinary ground shadow: only the face/pips
+                // can paint here while the actual Source RAF is withheld.
+                return (48..<112).reduce(0){sum,y in sum+(48..<112).filter{bytes[(y*160+$0)*4+3]>32}.count}
+            }
+            XCTAssertEqual(try paintedPixels(1),0)
+            var current=true,cancellations=0
+            XCTAssertTrue(node.convertSourceMagnetSurvivor(position:CGPoint(x:80,y:80),depthZ:1,selectValue:{3},
+                service:service,driver:outer,random:{0.1},current:{current},frameCurrent:{current},beforeSetValue:{true},onCancelled:{cancellations+=1}))
+            XCTAssertTrue(node.sourceRegularFramePending)
+            XCTAssertTrue(node.sourceFinalResultChildrenHidden,"Pending survivor face owns hidden visual and shadow children")
+            XCTAssertEqual(try paintedPixels(2),0,"A held raw face RAF must never expose the full-size blank tile placeholder")
+            if stale {current=false}
+            service.deliver(wallMilliseconds:16)
+            if stale {
+                XCTAssertEqual(try paintedPixels(3),0,"A stale face callback must not reveal the retained survivor")
+                XCTAssertEqual(cancellations,1)
+            } else {
+                XCTAssertFalse(node.sourceRegularFramePending)
+                XCTAssertNotNil(node.sourceCurrentRegularSkin)
+                XCTAssertEqual(node.sourcePipNodes.count,3)
+                XCTAssertFalse(node.sourceFinalResultChildrenHidden)
+                XCTAssertGreaterThan(try paintedPixels(3),100,"The accepted actual numbers face must become visible")
+                XCTAssertEqual(cancellations,0)
+            }
+        }
+    }
     private let maps=[1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]]
     private func assertPips(_ node:NativeDiceNode,value:Int,texture:SKTexture,file:StaticString=#filePath,line:UInt=#line)throws {
         let indices=maps[value] ?? []

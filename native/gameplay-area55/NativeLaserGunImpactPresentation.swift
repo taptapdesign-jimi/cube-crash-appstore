@@ -143,6 +143,7 @@ final class NativeLaserGunImpactPresentation: NativeFinitePresentation {
             shot.beam.transform = CGAffineTransform(rotationAngle:p.beam * .pi / 180)
         }
     }
+    override var progressDuration:TimeInterval {captionAt.map{min(duration,$0+glyphs.duration)} ?? duration}
     override func paint(seconds: TimeInterval) {
         guard assetReady else { return }
         // Two distinct mounted samples provide the source's initial paint barrier.

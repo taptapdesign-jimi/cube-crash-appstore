@@ -198,6 +198,11 @@ final class NativeGameplayViewController: UIViewController {
     private var fishGeneration: UInt64?
     private var bottleFinale: NativeBottleFinalePresentation?
     private var bottleGeneration: UInt64?
+    private var boardClearedPresentation:NativeArcadeRoundPresentation?
+    var boardClearedUsesPuppyThumb:Bool {boardClearedPresentation?.isPuppyThumb == true}
+    var hasPresentedBoardCleared:Bool {boardClearedGeneration==engine.state.generation}
+    private var boardClearedGeneration:UInt64?
+    private var boardClearedTerminalContinuation:(()->Void)?
     private var honeyFinale: NativeHoneyFinalePresentation?
     private var honeyGeneration: UInt64?
     private var lastRoboExitFrame:Int?
@@ -424,6 +429,7 @@ final class NativeGameplayViewController: UIViewController {
                     return
                 }
                 guard current() else{return};glyphs.paint(seconds:time)
+                self.boardScene?.reportFinalMergeProgress(seconds:time,duration:glyphs.duration,generation:generation,ownerID:self.sourceTntGlyphOwnerIDs[id])
                 // Authored final handoff waits actual BOOM exit, not the
                 // independent four-second debris parent completion.
                 if time>=glyphs.duration,current() {
@@ -451,8 +457,8 @@ final class NativeGameplayViewController: UIViewController {
             else {
                 guard let artwork=self.selectedFinaleArtwork() else{return}
                 let color = variant == "magnet" ? UIColor(red: 1,green: 148.0/255,blue: 114.0/255,alpha: 1) :
-                    variant == "juice" ? UIColor(red: 1,green: 166.0/255,blue: 175.0/255,alpha: 1) : UIColor(red: 1,green: 203.0/255,blue: 129.0/255,alpha: 1)
-                glyphs = NativeSplashGlyphField(artwork: artwork,text: variant == "magnet" ? "SWOOP":variant == "juice" ? "BUBBLY" : "SPARKLE",colors: [color],splitIndex: 0)
+                    variant == "juice" ? UIColor(red: 1,green: 182.0/255,blue: 175.0/255,alpha: 1) : UIColor(red: 1,green: 203.0/255,blue: 129.0/255,alpha: 1)
+                glyphs = NativeSplashGlyphField(artwork: artwork,text: variant == "magnet" ? "SWOOP":variant == "juice" ? "BUBBLY" : "SPARKLE",colors: variant == "juice" ? [color,UIColor(red:249.0/255,green:222.0/255,blue:161.0/255,alpha:1)]:[color],splitIndex: variant == "juice" ? 3:0)
                 glyphs.frame = self.view.bounds; glyphs.autoresizingMask = [.flexibleWidth,.flexibleHeight]
                 self.view.addSubview(glyphs); self.tntGlyphs[id] = glyphs; glyphs.layoutIfNeeded()
             }
@@ -493,7 +499,7 @@ final class NativeGameplayViewController: UIViewController {
                 if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
                 completion()
             }
-            owner.start();return true
+            self.bindFinalMergeProgress(owner,generation:generation);owner.start();return true
         }
         scene.onAuthoredTntPresentation = { [weak self] variant,_,generation,ready,completion in
             self?.presentTntVariant(variant,generation:generation,onGameplayReady:ready,completion:completion) == true
@@ -530,7 +536,7 @@ final class NativeGameplayViewController: UIViewController {
                     if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
                     completion()
                 }
-                owner.start(); return true
+                self.bindFinalMergeProgress(owner,generation:generation);owner.start(); return true
             }
             if variant == "mushroom" || variant == "robo-cube" {
                 let owner:NativeFinitePresentation
@@ -557,7 +563,7 @@ final class NativeGameplayViewController: UIViewController {
                     if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
                     completion()
                 }
-                owner.start();return true
+                self.bindFinalMergeProgress(owner,generation:generation);owner.start();return true
             }
             if variant == "baloon" {
                 guard let resources=self.finaleArtworkOwner?.baloonResources,let artwork=self.selectedFinaleArtwork() else{return false}
@@ -576,7 +582,7 @@ final class NativeGameplayViewController: UIViewController {
                     if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
                     completion()
                 }
-                owner.start();return true
+                self.bindFinalMergeProgress(owner,generation:generation);owner.start();return true
             }
             if variant == "cubero" {
                 let owner=NativeCuberoFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.view.bounds.size,preparedArtwork:self.selectedFinaleArtwork())
@@ -594,17 +600,15 @@ final class NativeGameplayViewController: UIViewController {
                     if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
                     completion()
                 }
-                owner.start();return true
+                self.bindFinalMergeProgress(owner,generation:generation);owner.start();return true
             }
             if variant == "bloob" {
-                let geometry=NativeBoardGeometry(columns:self.engine.state.columns,rows:self.engine.state.rows,viewport:self.view.bounds.size,safeInsets:self.view.safeAreaInsets)
-                let width=CGFloat(geometry.columns-1)*geometry.stride+geometry.tileSize
-                let height=CGFloat(geometry.rows-1)*geometry.stride+geometry.tileSize
-                let boardRect=CGRect(x:geometry.origin.x,y:self.view.bounds.height-geometry.origin.y-height,width:width,height:height)
-                let owner=NativeBloobFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.view.bounds.size,origin:origin,boardRect:boardRect,boardTileSize:geometry.tileSize,preparedArtwork:self.selectedFinaleArtwork())
+                let owner=NativeBloobFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.view.bounds.size,origin:origin,preparedArtwork:self.selectedFinaleArtwork())
                 guard owner.assetReady else {owner.dispose();return false}
                 self.area55Finales[variant]?.dispose()
                 self.area55Finales[variant]=owner;self.area55Generations[variant]=generation
+                owner.bindScreenShake(to:self.view)
+                owner.bindBoardReaction(self.boardScene?.makeBloobBoardReaction())
                 owner.autoresizingMask=[.flexibleWidth,.flexibleHeight];self.view.addSubview(owner)
                 owner.onCue={ [weak self] moment,index in
                     guard self?.engine.state.generation == generation else {return}
@@ -615,7 +619,7 @@ final class NativeGameplayViewController: UIViewController {
                     if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
                     completion()
                 }
-                owner.start();return true
+                self.bindFinalMergeProgress(owner,generation:generation);owner.start();return true
             }
             if variant == "bee" {
                 let owner=NativeBeeFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.view.bounds.size,origin:origin,preparedArtwork:self.selectedFinaleArtwork())
@@ -637,7 +641,7 @@ final class NativeGameplayViewController: UIViewController {
                     if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
                     completion()
                 }
-                owner.start();return true
+                self.bindFinalMergeProgress(owner,generation:generation);owner.start();return true
             }
             if variant == "kanta" {
                 let owner = NativeKantaFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.view.bounds.size,preparedArtwork:self.selectedFinaleArtwork())
@@ -660,13 +664,18 @@ final class NativeGameplayViewController: UIViewController {
                     if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
                     completion()
                 }
-                owner.start();return true
+                self.bindFinalMergeProgress(owner,generation:generation);owner.start();return true
             }
             if variant == "bottle" {
                 self.area55Finales["spaceship"]?.dispose()
                 self.honeyFinale?.dispose()
                 self.bottleFinale?.dispose()
                 let owner = NativeBottleFinalePresentation(resourceRoot: self.resourceRoot,viewport: self.view.bounds.size,preparedArtwork:self.selectedFinaleArtwork())
+                let plan=self.engine.pendingSpecial
+                let excluded=Set((plan?.targets.map(\.id) ?? [])+[plan?.source.id,plan?.destination.id].compactMap{$0})
+                owner.bindBoardReaction(self.boardScene?.makeBloobBoardReaction(excluding:excluded),pullComplete:{[weak scene=self.boardScene] in
+                    scene?.sourcePullConverged(ownerID:plan?.id,generation:generation) ?? true
+                })
                 owner.autoresizingMask = [.flexibleWidth,.flexibleHeight]
                 self.bottleFinale = owner; self.bottleGeneration = generation; self.view.addSubview(owner)
                 owner.onCue = { [weak self] moment,index in
@@ -679,7 +688,7 @@ final class NativeGameplayViewController: UIViewController {
                     if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
                     completion()
                 }
-                owner.start(); return true
+                self.bindFinalMergeProgress(owner,generation:generation);owner.start(); return true
             }
             if variant == "honey" {
                 self.area55Finales["spaceship"]?.dispose()
@@ -696,7 +705,7 @@ final class NativeGameplayViewController: UIViewController {
                     if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
                     completion()
                 }
-                owner.start(); return true
+                self.bindFinalMergeProgress(owner,generation:generation);owner.start(); return true
             }
             guard variant == "fish" else { return false }
             self.fishFinale?.dispose()
@@ -709,7 +718,7 @@ final class NativeGameplayViewController: UIViewController {
                 if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
                 completion()
             }
-            owner.start(); return true
+            owner.onProgress = self.boardScene?.finalMergeProgressObserver(generation:generation);owner.start(); return true
         }
         scene.unreadJourneyDice = {[weak self] in self?.unreadJourneyDice() ?? []}
         scene.onJourneyDieLanded = {[weak self] id,board,generation in self?.onJourneyDieLanded?(id,board,generation)}
@@ -725,6 +734,7 @@ final class NativeGameplayViewController: UIViewController {
         scene.onEndgameHintEvaluation={ [weak self] _ in self?.updateNativeEndgameHint() }
         scene.onEndgameHintInteraction={ [weak self] in self?.endgameHint?.interact() }
         scene.onStateChange = { [weak self] state in
+            if let self,let generation=self.boardClearedGeneration,generation != state.generation {self.retireBoardCleared();self.boardClearedGeneration=nil}
             if self?.preparedJourneyReward?.presentationGeneration != state.generation {self?.retirePreparedJourneyReward()}
             self?.retireJourneyRewardChildren(excludingGeneration:state.generation)
             if let generation = self?.fishGeneration,generation != state.generation { self?.fishFinale?.dispose() }
@@ -735,6 +745,7 @@ final class NativeGameplayViewController: UIViewController {
             self?.onStateChange?(state)
             self?.updateNativeEndgameHint()
         }
+        scene.onFinalMergeProgress = {[weak self] _,_,generation in self?.presentBoardCleared(generation:generation)}
         scene.onTerminal = { [weak self] result in
             guard let self,!self.disposed else{return}
             guard result.kind == .complete,self.engine.state.tutorial?.requiresResultCompletion != true else {
@@ -742,14 +753,19 @@ final class NativeGameplayViewController: UIViewController {
             }
             guard !self.exitingBoard else{return}
             let generation=self.engine.state.generation
-            self.onRoundWon?(generation)
+            self.presentBoardCleared(generation:generation)
             self.preparedJourneyReward=self.prepareJourneyRewardController?(result)
             self.preparedJourneyReward?.loadViewIfNeeded()
             self.animateBoardExit(finalMerge:true) { [weak self,weak scene] completed in
                 guard let self else{return}
                 guard let scene,completed,!self.disposed,self.boardScene === scene,
                       self.engine.state.generation==generation else{self.retirePreparedJourneyReward();return}
-                self.onTerminal?(result)
+                let deliver:()->Void = {[weak self] in
+                    guard let self,!self.disposed,self.engine.state.generation==generation else{return}
+                    self.onTerminal?(result)
+                }
+                if self.boardClearedPresentation != nil {self.boardClearedTerminalContinuation=deliver}
+                else {deliver()}
             }
         }
         scene.onFirstBoardFrame = { [weak self] in
@@ -1173,6 +1189,40 @@ final class NativeGameplayViewController: UIViewController {
         return specs.allSatisfy{artwork.image($0.path,densityAware:$0.densityAware) != nil}
     }
 
+    private func bindFinalMergeProgress(_ owner:NativeFinitePresentation,generation:UInt64) {
+        owner.onProgress=boardScene?.finalMergeProgressObserver(generation:generation)
+    }
+    /// One generation owns one finite reused Arcade clear card. It never
+    /// commits a round; the existing terminal receipt remains authoritative.
+    private func presentBoardCleared(generation:UInt64) {
+        guard !disposed,!backgrounded,engine.state.generation==generation,
+              boardClearedGeneration != generation,engine.state.tutorial?.requiresResultCompletion != true else{return}
+        retireBoardCleared();boardClearedGeneration=generation
+        let owner=NativeArcadeRoundPresentation(resourceRoot:resourceRoot,clearedRound:engine.state.stage,
+            nextRound:engine.state.stage+1,boardClearedOnly:true)
+        boardClearedPresentation=owner
+        owner.frame=view.bounds;owner.autoresizingMask=[.flexibleWidth,.flexibleHeight]
+        // Transparent overlay above SpriteKit dice/ghost exits and UIKit finale
+        // art. Its stage margins leave the real HUD/footer visible underneath.
+        owner.layer.zPosition=1000;view.addSubview(owner)
+        owner.onCue = {[weak self] cue in
+            guard let self,!self.disposed,self.engine.state.generation==generation else{return}
+            if case .thumbWhoosh=cue {self.onRoundWon?(generation)}
+            if case .heavyHaptic=cue {self.onHaptic?("heavy")}
+        }
+        owner.onFinished = {[weak self,weak owner] success in
+            guard let self,self.boardClearedPresentation === owner else{return}
+            self.boardClearedPresentation=nil
+            let pending=self.boardClearedTerminalContinuation;self.boardClearedTerminalContinuation=nil
+            if success,!self.disposed,self.engine.state.generation==generation {pending?()}
+        }
+        owner.start()
+    }
+    private func retireBoardCleared() {
+        let old=boardClearedPresentation;boardClearedPresentation=nil
+        boardClearedTerminalContinuation=nil;old?.onFinished=nil;old?.dispose()
+    }
+
     private func presentTntVariant(_ variant: String,generation: UInt64,onGameplayReady: (() -> Void)?,completion: @escaping () -> Void) -> Bool {
         guard !disposed,engine.state.generation == generation,tntArtworkReady(variant) else { return false }
         let owner: NativeFinitePresentation
@@ -1183,6 +1233,7 @@ final class NativeGameplayViewController: UIViewController {
         } else {
             let tnt = NativeTntVariantPresentation(resourceRoot:resourceRoot,variant:variant == "coconut" ? .coconut:variant == "flower" ? .flower:variant == "bloob-ball" ? .bloobGas:.barell,viewport:view.bounds.size,preparedArtwork:selectedFinaleArtwork(),coconutBoardBodySize:boardScene?.coconutFinaleBodySize)
             guard tnt.assetsReady else { tnt.dispose(); return false }
+            if variant == "bloob-ball" {tnt.bindBoardReaction(boardScene?.makeBloobBoardReaction())}
             tnt.onSprite6Entered = onGameplayReady; owner = tnt
         }
         // These variants share their source TNT/Flower visual owner.
@@ -1202,7 +1253,7 @@ final class NativeGameplayViewController: UIViewController {
             if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
             completion()
         }
-        owner.start(); return true
+        bindFinalMergeProgress(owner,generation:generation);owner.start(); return true
     }
 
     func setSuspended(_ value: Bool) {
@@ -1250,6 +1301,7 @@ final class NativeGameplayViewController: UIViewController {
         finaleArtworkOwner?.setSuspended(value)
         if !value {prepareSelectedFinaleArtwork(engine.state)}
         if value {endgameHint?.forceClear()}
+        boardClearedPresentation?.setSuspended(value)
         nativeNoMovesUIKit?.setSuspended(value)
         sourceScope?.update(foreground: !backgrounded, globalPaused: explicitlySuspended && !exitingBoard,
                             terminalSuspended: engine.state.terminal != nil && !exitingBoard)
@@ -1498,7 +1550,7 @@ final class NativeGameplayViewController: UIViewController {
         exitingBoard=true
         applySuspension()
         journeyBottomDecor?.setSuspended(backgrounded)
-        let keepsChromeVisible=finalMerge && engine.state.mode == .arcade
+        let keepsChromeVisible=finalMerge
         var remaining=keepsChromeVisible || journeyBottomDecor == nil ? 1:2,finished=false
         let generation=engine.state.generation
         let settled:(Bool)->Void = { [weak self] success in
@@ -1572,7 +1624,7 @@ final class NativeGameplayViewController: UIViewController {
         beforeSourceGameplayAdmission=nil
         guard !disposed else { return }
         incomingOriginalCoverCompletion=nil;incomingOriginalCoverGeneration=nil
-        disposed = true;onJourneyDieLanded=nil;unreadJourneyDice={[]};nativeNoMovesUIKit?.dispose();nativeNoMovesUIKit=nil;endgameHint?.dispose();endgameHint=nil;endgameHintSourceScope=nil;firstBoardFrameWaiters.removeAll();beforeInitialBoardEntry = nil
+        disposed = true;retireBoardCleared();onJourneyDieLanded=nil;unreadJourneyDice={[]};nativeNoMovesUIKit?.dispose();nativeNoMovesUIKit=nil;endgameHint?.dispose();endgameHint=nil;endgameHintSourceScope=nil;firstBoardFrameWaiters.removeAll();beforeInitialBoardEntry = nil
         sourceDirectHUDPrepared=nil
         finaleArtworkOwner?.dispose();finaleArtworkOwner=nil
         retireSourceNoMovesUIKit();sourceNoMovesBindings=nil

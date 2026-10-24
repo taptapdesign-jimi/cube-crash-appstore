@@ -5,6 +5,25 @@ import StackToSixGameplay
 @testable import Stack_to_Six
 
 @MainActor final class NativeBloobBallTests:XCTestCase {
+    func testGasBackgroundGridSeparatesHoldsReturnsAndResets()throws {
+        let gas=NativeTntVariantPresentation(resourceRoot:NativeTestResources.root,variant:.bloobGas,viewport:.init(width:390,height:844),random:{0.5})
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.isHidden=false;window.addSubview(gas)
+        defer{gas.dispose();window.isHidden=true}
+        let surface=SKNode()
+        let plan=try XCTUnwrap(NativeShortWildBoardBlastPlan.make(rests:[CGPoint(x:100,y:80)],center:.zero,tileSize:128,random:{0.5},dateMilliseconds:{nil},current:{true},held:false)?.first)
+        var valid=true
+        gas.bindBoardReaction(.init(entries:[.init(surface:surface,plan:plan,phase:0,current:{valid})]))
+        gas.paint(seconds:0);XCTAssertEqual(surface.position,.zero)
+        gas.paint(seconds:0.8);XCTAssertGreaterThan(hypot(surface.position.x,surface.position.y),50)
+        let held=surface.position;gas.paint(seconds:1.3);XCTAssertEqual(surface.position,held)
+        gas.setSuspended(true);XCTAssertEqual(surface.position,.zero)
+        gas.setSuspended(false);gas.paint(seconds:1.3);XCTAssertEqual(surface.position,held)
+        gas.paint(seconds:2.2);XCTAssertEqual(surface.position,.zero)
+        gas.paint(seconds:0.8);valid=false;gas.paint(seconds:0.9);XCTAssertEqual(surface.position,.zero)
+        valid=true;gas.paint(seconds:0.8);gas.removeFromSuperview();XCTAssertEqual(surface.position,.zero)
+        window.addSubview(gas);gas.paint(seconds:0.8);gas.dispose();gas.dispose();XCTAssertEqual(surface.position,.zero)
+        gas.paint(seconds:0.8);XCTAssertEqual(surface.position,.zero)
+    }
     func testGasUsesBarrelTimingAndActualGasFramesWithBloobCaption()throws {
         let root=NativeTestResources.root
         let gas=NativeTntVariantPresentation(resourceRoot:root,variant:.bloobGas,viewport:.init(width:390,height:844),random:{0.5})

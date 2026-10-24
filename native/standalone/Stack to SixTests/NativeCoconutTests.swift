@@ -1,4 +1,7 @@
 import XCTest
+import CoreText
+import QuartzCore
+import Darwin
 import CryptoKit
 import UIKit
 import SpriteKit
@@ -190,6 +193,52 @@ import StackToSixNativeState
   owner.paint(seconds:1.97);XCTAssertTrue(glows.allSatisfy{$0.layer.shadowOpacity==0});XCTAssertTrue(faces.contains{$0.alpha>0})
   owner.paint(seconds:1.4);XCTAssertEqual(glows.map{$0.layer.shadowOpacity},initial)
  }
+ func testAllCaptionFacesAreWhiteWhileOriginalPerLetterColorsMoveToGlow()throws {
+  let art=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+  let palette:[UIColor]=[.red,.green,.blue,.orange]
+  let field=NativeSplashGlyphField(artwork:art,text:"TEST",colors:palette,splitIndex:2,letterColors:palette,letterOpacityRange:1...1,random:{0.5})
+  field.frame=CGRect(x:0,y:0,width:390,height:844);field.layoutIfNeeded();field.paint(seconds:0.9)
+  let faces=try XCTUnwrap(field.subviews.first).subviews.compactMap{$0 as? UILabel}
+  XCTAssertEqual(faces.count,4)
+  for(index,face)in faces.enumerated(){
+   XCTAssertEqual(face.textColor.withAlphaComponent(1),.white)
+   let glows=face.subviews.compactMap{$0 as? UILabel};XCTAssertEqual(glows.count,4)
+   XCTAssertTrue(glows.allSatisfy{$0.layer.shadowColor==palette[index].cgColor && $0.layer.shadowPath==nil})
+  }
+  field.paint(seconds:10);XCTAssertTrue(faces.allSatisfy{$0.alpha==0})
+  field.paint(seconds:0.9);XCTAssertTrue(faces.contains{$0.alpha>0})
+ }
+ func testOriginalTwoColorSplitMovesIntoGlowWithoutSplitWhiteFaces()throws {
+  let art=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+  let field=NativeSplashGlyphField(artwork:art,text:"TEST",colors:[.red,.blue],splitIndex:1.5,random:{0.5})
+  field.frame=CGRect(x:0,y:0,width:390,height:844);field.layoutIfNeeded()
+  let faces=try XCTUnwrap(field.subviews.first).subviews.compactMap{$0 as? UILabel}
+  XCTAssertEqual(faces.map{$0.subviews.count},[4,4,4,4])
+  let splitColors=faces[1].subviews.compactMap{($0 as? UILabel)?.layer.shadowColor}
+  XCTAssertEqual(splitColors.filter{$0==UIColor.red.cgColor}.count,2);XCTAssertEqual(splitColors.filter{$0==UIColor.blue.cgColor}.count,2)
+  XCTAssertTrue(faces[0].subviews.allSatisfy{$0.layer.shadowColor==UIColor.red.cgColor})
+  XCTAssertTrue(faces[3].subviews.allSatisfy{$0.layer.shadowColor==UIColor.blue.cgColor})
+ }
+ func testBlossomUsesWhiteLettersAndFlyingFlowerPinkYellowGlow()async throws {
+  let selected=try await prepared();defer{selected.dispose()}
+  let owner=NativeTntVariantPresentation(resourceRoot:NativeTestResources.root,variant:.flower,viewport:.init(width:390,height:844),preparedArtwork:selected.artwork,random:{0.5});defer{owner.dispose()}
+  XCTAssertTrue(owner.assetsReady)
+  func labels(_ view:UIView)->[UILabel] {view.subviews.compactMap{$0 as? UILabel}+view.subviews.flatMap{labels($0)}}
+  owner.paint(seconds:1.4)
+  let all=labels(owner),faces=all.filter{!($0.superview is UILabel)},glows=all.filter{$0.layer.shadowOpacity>0}
+  XCTAssertEqual(faces.compactMap(\.text).joined(),"BLOSSOM")
+  XCTAssertTrue(faces.allSatisfy{$0.textColor.withAlphaComponent(1) == .white})
+  XCTAssertEqual(glows.count,28)
+  for glow in glows {
+   var r:CGFloat=0,g:CGFloat=0,b:CGFloat=0,a:CGFloat=0
+   XCTAssertTrue(UIColor(cgColor:glow.layer.shadowColor!).getRed(&r,green:&g,blue:&b,alpha:&a))
+   XCTAssertTrue((253.0/255...1).contains(r));XCTAssertTrue((156.0/255...233.0/255).contains(g));XCTAssertTrue((171.0/255...177.0/255).contains(b))
+  }
+  let image=UIGraphicsImageRenderer(size:owner.bounds.size).image{owner.layer.render(in:$0.cgContext)}
+  try image.pngData()?.write(to:FileManager.default.temporaryDirectory.appendingPathComponent("blossom-pink-yellow-treatment.png"))
+  owner.paint(seconds:1.97);XCTAssertTrue(glows.allSatisfy{$0.layer.shadowOpacity==0});XCTAssertTrue(faces.contains{$0.alpha>0})
+  owner.paint(seconds:1.4);XCTAssertTrue(glows.allSatisfy{$0.layer.shadowOpacity>0})
+ }
  private final class AudioTransport:NativeGameplayAudioTransport {
   var cues:[NativeAudioCue]=[],stops=0,stopped:Set<String>=[]
   func play(_ cue:NativeAudioCue){cues.append(cue)}
@@ -302,5 +351,114 @@ import StackToSixNativeState
   XCTAssertFalse(try XCTUnwrap(found).isHidden)
   die.setDragging(false);die.tick(0.1,suspended:false,viewportCenter:195)
   XCTAssertGreaterThan(die.authoredArtworkReceipt.elapsed,phase)
+ }
+}
+
+// Opt-in comparison only: no production renderer or player preference changes.
+@MainActor private final class GlyphDisplayBenchmark: NSObject {
+ var field:NativeSplashGlyphField!
+ var glowOpacity:CGFloat=1
+ var optimize:((NativeSplashGlyphField)->Void)?
+ var completion:(()->Void)?
+ var link:CADisplayLink?,tick=0,last:CFTimeInterval=0
+ var gaps:[Double]=[],paintMilliseconds:[Double]=[]
+ func start(){let l=CADisplayLink(target:self,selector:#selector(frame(_:)));l.preferredFrameRateRange=CAFrameRateRange(minimum:60,maximum:60,preferred:60);link=l;l.add(to:.main,forMode:.common)}
+ @objc private func frame(_ l:CADisplayLink){
+  tick+=1
+  if tick>20,last>0 {gaps.append((l.timestamp-last)*1000)}
+  last=l.timestamp
+  let start=CACurrentMediaTime()
+  field.paint(seconds:0.3+Double(tick%66)/60,glowOpacity:glowOpacity);optimize?(field)
+  if tick>20{paintMilliseconds.append((CACurrentMediaTime()-start)*1000)}
+  if tick==140 {link?.invalidate();link=nil;let done=completion;completion=nil;done?()}
+ }
+}
+
+extension NativeCoconutTests {
+ func testOptInGlyphGlowComparison()async throws {
+  let art=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+  let viewport=CGSize(width:390,height:844)
+  let colors=[UIColor(red:101.0/255,green:119.0/255,blue:30.0/255,alpha:1),UIColor(red:130.0/255,green:148.0/255,blue:36.0/255,alpha:1)]
+  func labels(_ view:UIView)->[UILabel]{view.subviews.compactMap{$0 as? UILabel}+view.subviews.flatMap{labels($0)}}
+  func make(_ mode:String)->NativeSplashGlyphField {
+   let f=NativeSplashGlyphField(artwork:art,text:"BLOOMING!",colors:[.white],splitIndex:0,letterOpacityRange:0.8...1,fitToWidth:true,neonGlow:mode != "none",glowPalette:colors,whiteGlowTreatment:false,random:{0.5})
+   f.frame=CGRect(origin:.zero,size:viewport);f.layoutIfNeeded();return f
+  }
+  // Exact font outlines give Core Animation a retained shape instead of asking
+  // it to derive the shadow from each label's composited alpha channel.
+  func preparePaths(_ f:NativeSplashGlyphField){
+   for label in labels(f) where label.layer.shadowOpacity>0 {
+    let font=CTFontCreateWithName(label.font.fontName as CFString,label.font.pointSize,nil)
+    let chars=Array((label.text ?? "").utf16);var glyphs=[CGGlyph](repeating:0,count:chars.count)
+    guard !chars.isEmpty,CTFontGetGlyphsForCharacters(font,chars,&glyphs,chars.count) else{continue}
+    let line=CTLineCreateWithAttributedString(NSAttributedString(string:label.text ?? "",attributes:[.font:label.font as Any]))
+    let width=CTLineGetTypographicBounds(line,nil,nil,nil)
+    let rect=label.textRect(forBounds:label.bounds,limitedToNumberOfLines:1)
+    var transform=CGAffineTransform(translationX:(label.bounds.width-width)/2,y:rect.minY+label.font.ascender).scaledBy(x:1,y:-1)
+    if let path=CTFontCreatePathForGlyph(font,glyphs[0],&transform){label.layer.shadowPath=path}
+   }
+  }
+  func sample(_ values:[Double])->[String:Double]{let a=values.sorted();return ["mean":a.reduce(0,+)/Double(max(1,a.count)),"p95":a[min(a.count-1,Int(Double(a.count)*0.95))],"max":a.last ?? 0]}
+  func resident()->UInt64 {
+   var info=mach_task_basic_info();var count=mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size/MemoryLayout<natural_t>.size)
+   let result=withUnsafeMutablePointer(to:&info){$0.withMemoryRebound(to:integer_t.self,capacity:Int(count)){task_info(mach_task_self_,task_flavor_t(MACH_TASK_BASIC_INFO),$0,&count)}}
+   return result==KERN_SUCCESS ? info.resident_size:0
+  }
+  let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first{$0.isKeyWindow}
+  let window=UIWindow(frame:CGRect(origin:.zero,size:viewport)),vc=UIViewController();vc.view.backgroundColor=UIColor(red:0.97,green:0.94,blue:0.89,alpha:1);window.rootViewController=vc;window.makeKeyAndVisible()
+  defer{window.isHidden=true;previous?.makeKeyAndVisible()}
+  var result:[String:Any]=["environment":"Native iOS Simulator; UIKit isolated caption; not physical GPU timing","text":"BLOOMING!","pointViewport":[390,844],"targetHz":60]
+  var metrics:[String:[[String:Any]]]=[:]
+  let format=UIGraphicsImageRendererFormat();format.scale=3;format.opaque=false
+  let renderer=UIGraphicsImageRenderer(size:viewport,format:format)
+  var images:[String:UIImage]=[:]
+  // Constant0.5 RNG gives every glyph0.9 fill alpha. Explicit paths require
+  // that same alpha on the shadow; pass it in the existing disabled-action
+  // paint transaction, never as a second implicit-animation write.
+  // Rotate order to reduce first-run/font-cache/thermal ordering bias.
+  for order in [["none","current","paths"],["paths","none","current"],["current","paths","none"]] {
+   for mode in order {
+    let f=make(mode);vc.view.addSubview(f);if mode=="paths"{preparePaths(f)}
+    f.paint(seconds:0.9,glowOpacity:mode=="paths" ? 0.9:1)
+    if images[mode]==nil {images[mode]=renderer.image{f.layer.render(in:$0.cgContext)}}
+    let driver=GlyphDisplayBenchmark();driver.field=f;driver.glowOpacity=mode=="paths" ? 0.9:1
+    await withCheckedContinuation{(c:CheckedContinuation<Void,Never>) in driver.completion={c.resume()};driver.start()}
+    var raster:[Double]=[]
+    for _ in 0..<1 {
+     f.paint(seconds:1.1,glowOpacity:mode=="paths" ? 0.9:1)
+     let start=CACurrentMediaTime();autoreleasepool{_ = renderer.image{f.layer.render(in:$0.cgContext)}};raster.append((CACurrentMediaTime()-start)*1000)
+    }
+    metrics[mode,default:[]].append(["paintMs":sample(driver.paintMilliseconds),"displayCallbackGapMs":sample(driver.gaps),"gapsOver25ms":driver.gaps.filter{$0>25}.count,"cpuLayerRenderMs":sample(raster),"labels":labels(f).count,"dynamicShadows":labels(f).filter{$0.layer.shadowOpacity>0 && $0.layer.shadowPath==nil}.count])
+    print("[GlyphGlowBenchmark] sample \(mode) paint=\(sample(driver.paintMilliseconds)) softwareRender=\(sample(raster))")
+    f.removeFromSuperview();driver.field=nil;driver.optimize=nil
+   }
+  }
+  var memory:[String:Any]=[:]
+  for mode in ["none","current","paths"] {
+   var alive=0,checkpoints:[UInt64]=[]
+   for i in 0..<60 {
+    weak var weakField:NativeSplashGlyphField?
+    autoreleasepool {
+     let f=make(mode);weakField=f;vc.view.addSubview(f);if mode=="paths"{preparePaths(f)}
+     f.paint(seconds:0.9,glowOpacity:mode=="paths" ? 0.9:1)
+     f.layer.displayIfNeeded();CATransaction.flush()
+     f.paint(seconds:4);f.removeFromSuperview()
+    }
+    CATransaction.flush();try await Task.sleep(for:.milliseconds(10))
+    if weakField != nil{alive+=1}
+    if i%10==9{checkpoints.append(resident())}
+   }
+   XCTAssertEqual(alive,0,"Caption must release every iteration")
+   memory[mode]=["residentBytesEvery10Cycles":checkpoints,"retainedCaptionsAfter60":alive]
+   print("[GlyphGlowBenchmark] memory \(mode) retained=\(alive) bytes=\(checkpoints)")
+  }
+  func rgba(_ image:UIImage)->[UInt8]{var bytes=[UInt8](repeating:0,count:1170*2532*4);bytes.withUnsafeMutableBytes{b in let ctx=CGContext(data:b.baseAddress,width:1170,height:2532,bitsPerComponent:8,bytesPerRow:1170*4,space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue)!;ctx.draw(image.cgImage!,in:CGRect(x:0,y:0,width:1170,height:2532))};return bytes}
+  let a=rgba(images["current"]!),b=rgba(images["paths"]!);var squared=0.0,changed=0
+  for i in a.indices {let d=Double(a[i])-Double(b[i]);squared+=d*d;if abs(d)>8{changed+=1}}
+  result["metrics"]=metrics;result["memory"]=memory;result["pathVisualDifference"]=["rgbaRms255":sqrt(squared/Double(a.count)),"channelsDifferingOver8Percent":Double(changed)*100/Double(a.count)]
+  let dir=FileManager.default.temporaryDirectory
+  for(mode,image)in images{try image.pngData()?.write(to:dir.appendingPathComponent("glyph-glow-\(mode).png"))}
+  let data=try JSONSerialization.data(withJSONObject:result,options:[.prettyPrinted,.sortedKeys]);try data.write(to:dir.appendingPathComponent("glyph-glow-benchmark.json"))
+  print("[GlyphGlowBenchmark] \(String(decoding:data,as:UTF8.self))")
  }
 }

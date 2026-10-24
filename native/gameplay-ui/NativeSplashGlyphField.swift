@@ -12,6 +12,11 @@ final class NativeSplashGlyphField: UIView {
             splitIndex:0,letterOpacityRange:0.8...1.0,fitToWidth:true,neonGlow:true,glowPalette:backgroundColors,random:random)
     }
     private struct Glyph { let label: UILabel; let index: Int; let bounce: CGFloat; var exitRotation: CGFloat; let splitLabels: [UILabel]; let glowLabels:[UILabel] }
+    static let neonGlowLayers:[(CGFloat,UIColor,Float)]=[
+        (6,UIColor(red:240.0/255,green:1,blue:1,alpha:1),0.98),
+        (14,UIColor(red:153.0/255,green:252.0/255,blue:1,alpha:1),0.95),
+        (30,UIColor(red:88.0/255,green:238.0/255,blue:250.0/255,alpha:1),0.82),
+        (48,UIColor(red:6.0/255,green:244.0/255,blue:1,alpha:1),0.62)]
     private static let glowOpacities:[Float]=[0.62,0.82,0.95,0.98]
     private var glyphs: [Glyph] = []
     private var finishedGlyphs = Set<Int>()
@@ -25,12 +30,12 @@ final class NativeSplashGlyphField: UIView {
     private let fitToWidth:Bool
     private var exitRotationsCaptured:Bool
     init(artwork: JimiV9Artwork,text: String,colors: [UIColor],splitIndex: Double,
-         letterColors: [UIColor]? = nil,letterOpacityRange: ClosedRange<Double>? = nil,compactLaser: Bool = false,fitToWidth:Bool = false,neonGlow: Bool = false,glowPalette:[UIColor]? = nil,deferExitRotationCapture:Bool = false,sourcePlan:NativeSourceSplashGlyphPlan? = nil,
+         letterColors: [UIColor]? = nil,letterOpacityRange: ClosedRange<Double>? = nil,compactLaser: Bool = false,fitToWidth:Bool = false,neonGlow: Bool = false,glowPalette:[UIColor]? = nil,deferExitRotationCapture:Bool = false,sourcePlan:NativeSourceSplashGlyphPlan? = nil,whiteGlowTreatment:Bool = true,
          random: () -> Double = { Double.random(in: 0..<1) }) {
         let letters = Array(text)
         roboNameplate = text == "BIBI - RIBI"
         self.glowPalette=glowPalette
-        self.compactLaser = compactLaser;self.fitToWidth = fitToWidth
+        self.compactLaser = compactLaser;self.fitToWidth = fitToWidth || whiteGlowTreatment
         exitRotationsCaptured = sourcePlan == nil && !deferExitRotationCapture
         exitStart = compactLaser ? .infinity : 0.3+Double(max(0,letters.count-1))*0.05+0.54
         duration = compactLaser ? 0.04+Double(max(0,letters.count-1))*0.025+0.28 : exitStart+Double(max(0,letters.count-1))*0.06+0.60+0.05
@@ -58,9 +63,9 @@ final class NativeSplashGlyphField: UIView {
             let opacity = sourcePlan.map{$0.opacities[index]} ?? (min(1,max(0,opacityRange.lowerBound+(opacityRange.upperBound-opacityRange.lowerBound)*random()))*100).rounded()/100
             let palette = colors.isEmpty ? [UIColor.white] : colors
             let color = letterColors.flatMap { index < $0.count ? $0[index] : nil } ?? palette[min(palette.count-1,Double(index) < splitIndex ? 0 : 1)]
-            label.textColor = color.withAlphaComponent(opacity)
+            label.textColor = (whiteGlowTreatment ? UIColor.white:color).withAlphaComponent(opacity)
             var splitLabels: [UILabel] = []
-            if letterColors == nil,splitIndex.rounded(.down) == Double(index),splitIndex != splitIndex.rounded(.down),palette.count > 1 {
+            if !whiteGlowTreatment,letterColors == nil,splitIndex.rounded(.down) == Double(index),splitIndex != splitIndex.rounded(.down),palette.count > 1 {
                 label.textColor = .clear
                 for side in 0..<2 {
                     let half = UILabel(); half.text = label.text; half.font = label.font; half.textAlignment = .center
@@ -69,15 +74,16 @@ final class NativeSplashGlyphField: UIView {
                 }
             }
             var glowLabels:[UILabel] = []
-            if neonGlow {
-                let layers:[(CGFloat,UIColor,Float)]=[
-                    (6,UIColor(red:240.0/255,green:1,blue:1,alpha:1),0.98),
-                    (14,UIColor(red:153.0/255,green:252.0/255,blue:1,alpha:1),0.95),
-                    (30,UIColor(red:88.0/255,green:238.0/255,blue:250.0/255,alpha:1),0.82),
-                    (48,UIColor(red:6.0/255,green:244.0/255,blue:1,alpha:1),0.62)]
+            if neonGlow || whiteGlowTreatment {
+                let layers=Self.neonGlowLayers
                 for (offset,entry) in layers.reversed().enumerated() {
                     let (radius,original,opacity)=entry
-                    let color=glowPalette.flatMap{$0.isEmpty ? nil:$0[offset % $0.count]} ?? original
+                    // Existing explicit glow styles keep their authored palette.
+                    // Plain captions move each original face color into its glow;
+                    // per-letter rainbow colors and the split boundary survive.
+                    let splitBoundary=letterColors == nil && splitIndex.rounded(.down)==Double(index) && splitIndex != splitIndex.rounded(.down) && palette.count>1
+                    let inherited=splitBoundary ? palette[offset % palette.count]:color
+                    let color=glowPalette.flatMap{$0.isEmpty ? nil:$0[offset % $0.count]} ?? (neonGlow ? original:inherited)
                     let glow=UILabel();glow.text=label.text;glow.font=label.font;glow.textAlignment = .center;glow.textColor=label.textColor
                     glow.layer.shadowColor=color.cgColor;glow.layer.shadowOpacity=opacity;glow.layer.shadowRadius=radius;glow.layer.shadowOffset = .zero
                     glow.backgroundColor = .clear;glow.isUserInteractionEnabled=false;label.addSubview(glow);glowLabels.append(glow)

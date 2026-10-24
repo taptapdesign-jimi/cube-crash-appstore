@@ -158,3 +158,42 @@ import SpriteKit
     func dispose(){guard !disposed else{return};disposed=true;for capture in Array(captures.values){finish(capture,restore:true)}}
     isolated deinit{dispose()}
 }
+
+/// Same standard outward grid recipe, driven only by the existing BLOOB finale clock.
+/// Dedicated neutral art parents keep logical tile positions, hit tests and other tweens intact.
+@MainActor final class NativeBloobBoardReactionBinding {
+    struct Entry {
+        weak var surface:SKNode?
+        let plan:NativeShortWildBoardBlastPlan
+        let phase:Double
+        let current:()->Bool
+    }
+    private static let ownershipKey="native-board-reaction-owner"
+    private let ownership=UUID().uuidString
+    private var entries:[Entry]
+    private var disposed=false
+    init(entries:[Entry]){
+        self.entries=entries
+        for entry in entries {
+            guard let surface=entry.surface else{continue}
+            if surface.userData==nil {surface.userData=NSMutableDictionary()}
+            surface.userData?[Self.ownershipKey]=ownership;surface.position = .zero
+        }
+    }
+    private func owns(_ surface:SKNode)->Bool {surface.userData?[Self.ownershipKey] as? String == ownership}
+    func paint(seconds:Double,startTime:Double=NativeBloobFinaleMotion.boardReactionStart,returnTime:Double=NativeBloobFinaleMotion.scatterStart,vibrates:Bool=true) {
+        guard !disposed else{return}
+        for entry in entries {
+            guard let surface=entry.surface,owns(surface) else{continue}
+            let offset=entry.current() ? NativeBloobFinaleMotion.boardReactionOffset(plan:entry.plan,phase:entry.phase,seconds:seconds,startTime:startTime,returnTime:returnTime,vibrates:vibrates):.zero
+            if surface.position != offset {surface.position=offset}
+        }
+    }
+    func reset(){for entry in entries {if let surface=entry.surface,owns(surface) {surface.position = .zero}}}
+    func dispose(){
+        guard !disposed else{return};reset();disposed=true
+        for entry in entries {if let surface=entry.surface,owns(surface) {surface.userData?.removeObject(forKey:Self.ownershipKey)}}
+        entries.removeAll()
+    }
+    isolated deinit{dispose()}
+}

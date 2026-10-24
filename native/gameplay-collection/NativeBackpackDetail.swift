@@ -46,9 +46,10 @@ final class NativeBackpackDetail:UIViewController {
         paper.image=assets.image("assets/modals/paper.png");paper.layer.cornerRadius=40;paper.clipsToBounds=true;paper.accessibilityIdentifier="native.backpack.detail.paper";idle.addSubview(paper)
         idle.layer.shadowColor=UIColor(red:185/255,green:145/255,blue:119/255,alpha:1).cgColor;idle.layer.shadowOpacity=die.id=="baloon" ? 0:0.8;idle.layer.shadowOffset=CGSize(width:0,height:13);idle.layer.shadowRadius=16.8
         heading.textAlignment = .center;heading.font=assets.font(size:30,weight:"ExtraBold");heading.textColor=NativeBackpackCellPalette.ink
-        let title=NSMutableAttributedString(string:die.title)
-        if let space=die.title.firstIndex(of:" ") {
-            title.addAttribute(.foregroundColor,value:UIColor(red:232/255,green:116/255,blue:74/255,alpha:1),range:NSRange(die.title.startIndex..<space,in:die.title))
+        let displayTitle=die.id=="tnt" ? "TNT":die.title.capitalized
+        let title=NSMutableAttributedString(string:displayTitle)
+        if let space=displayTitle.firstIndex(of:" ") {
+            title.addAttribute(.foregroundColor,value:UIColor(red:232/255,green:116/255,blue:74/255,alpha:1),range:NSRange(displayTitle.startIndex..<space,in:displayTitle))
         }
         heading.attributedText=title
         copy.attributedText=NativeModalTypography.attributedSubtitle(die.copy,font:assets.font(size:20,weight:"Medium"));copy.numberOfLines=0;copy.textAlignment = .center;copy.font=assets.font(size:20,weight:"Medium");copy.textColor=NativeTextPalette.subtitle

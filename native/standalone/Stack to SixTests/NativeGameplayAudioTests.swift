@@ -190,6 +190,24 @@ final class NativeGameplayAudioTests:XCTestCase {
             owner.dispose();XCTAssertEqual(tail.disposals,1)
         }
     }
+    func testBoardClearedNalaAndRoundWonVoicePlayTogetherAndMuteTogether() {
+        for sample in [0.0,0.4,0.99] {
+            let main=Transport(),human=Transport(),dog=Transport()
+            let owner=NativeGameplayAudioOwner(root:NativeTestResources.root,enabled:true,transport:main,
+                arcadeTailFactory:{dog},roundWonTailFactory:{human},random:{sample})
+            owner.roundWon(receipt:1,generation:1)
+            owner.resultMoment("arcade-thumb",index:1,receipt:2,generation:1)
+            XCTAssertEqual(human.cues.count,1);XCTAssertEqual(human.disposals,0)
+            XCTAssertEqual(dog.cues.count,1);XCTAssertTrue(dog.cues[0].source.contains("nala"))
+            XCTAssertEqual(dog.cues[0].gain,0.42);XCTAssertEqual(dog.disposals,0)
+            owner.resultMoment("arcade-thumb",index:1,receipt:2,generation:1)
+            XCTAssertEqual(dog.cues.count,1)
+            owner.setEnabled(false)
+            XCTAssertEqual(human.disposals,1);XCTAssertEqual(dog.disposals,1)
+            owner.dispose()
+        }
+    }
+
     func testRoundWonAllTenSelectionsAndNaturalTailAcrossResultGeneration() {
         for choice in 0..<10 {
             let tail=Transport(),main=Transport()

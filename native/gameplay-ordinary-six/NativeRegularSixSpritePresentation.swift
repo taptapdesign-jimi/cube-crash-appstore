@@ -9,6 +9,7 @@ final class NativeRegularSixSpritePresentation:SKNode {
     enum AdmissionError:Error {case missingSourceFont,missingSourceSlot}
     struct ShakeReceipt {let canvas,indicator,bottomDecor:CGPoint}
     var onShake:((ShakeReceipt,UInt64)->Void)?
+    var onProgress:((Double,Double)->Void)?
     var onFinished:((Bool)->Void)?
     let generation:UInt64
     private let legacyShards:NativeRegularSixShardPlan?,legacySmoke:NativeRegularSixSmokePlan?
@@ -92,7 +93,7 @@ final class NativeRegularSixSpritePresentation:SKNode {
             let id=surfaces.start(depth:combinedDepth,initial:sourceInitial,random:random,paintMultiplier:{[weak self] pose in
                 guard let self,!self.disposed,self.current(self.generation),!self.disposed else{return}
                 self.multiplierLayer.alpha=pose.alpha;self.multiplierLayer.setScale(pose.scale);self.multiplierLayer.zRotation = -pose.rotation
-            },removeMultiplier:{[weak self] in guard let self else{return};self.finish(!self.sourceStarting)},carrierCurrent:{[weak self] in guard let self,!self.disposed else{return false};let accepted=self.current(self.generation);return !self.disposed && accepted})
+            },progress:onProgress == nil ? nil : {[weak self] seconds in self?.onProgress?(seconds,0.9)},removeMultiplier:{[weak self] in guard let self else{return};self.finish(!self.sourceStarting)},carrierCurrent:{[weak self] in guard let self,!self.disposed else{return false};let accepted=self.current(self.generation);return !self.disposed && accepted})
             guard !disposed,current(generation),!disposed else{if let id{surfaces.cancel(id)};return}
             sourceEffectID=id
             if id==nil{finish(false)}
@@ -107,6 +108,7 @@ final class NativeRegularSixSpritePresentation:SKNode {
     func paint(seconds:Double) {
         guard sourceSurfaces==nil,!disposed,!suspended,!finishedPaint else{return}
         guard current(generation) else{finish(false);return}
+        onProgress?(seconds,Self.presentationDuration)
         for(index,plan)in (legacyShards?.shards ?? []).enumerated(){let pose=plan.sample(seconds:seconds);shardNodes[index].position=CGPoint(x:pose.x,y:-pose.y);shardNodes[index].alpha=pose.alpha}
         for(index,plan)in (legacySmoke?.puffs ?? []).enumerated(){let pose=plan.sample(seconds:seconds);puffNodes[index].position=CGPoint(x:pose.x,y:-pose.y);puffNodes[index].alpha=pose.alpha}
         if let smoke=legacySmoke{halo.alpha=smoke.haloAlpha(seconds:seconds)}
@@ -125,7 +127,7 @@ final class NativeRegularSixSpritePresentation:SKNode {
         // paused smoke root or replace its separate wall shard cleanup.
         if !success{sourceLayers?.dispose()};sourceLayers=nil
         if sourceSurfaces==nil,current(generation){onShake?(.init(canvas:.zero,indicator:.zero,bottomDecor:.zero),generation)}
-        let receipt=onFinished;onFinished=nil;onShake=nil;receipt?(success && current(generation))
+        let receipt=onFinished;onFinished=nil;onShake=nil;onProgress=nil;receipt?(success && current(generation))
     }
     /// A newer source screenShake replaces only these surface tweens. Original
     /// accepted shard/smoke/multiplier tails keep their own finite lease.

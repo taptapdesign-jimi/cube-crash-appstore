@@ -64,6 +64,17 @@ enum NativeArea55Motion {
                 spin:i%5<2 ? (left ? 1:-1)*(120+Double((i*17)%100)):0)
         }
     }()
+    /// Fifteen additional decorative intake owners; no board transaction is involved.
+    static let additionalCargo: [DebrisPlan] = (0..<15).map { i in
+        let die = i < 10, left = i.isMultiple(of: 2)
+        return DebrisPlan(id: "sideCopyCargo\(i)",
+            source: die ? nil : "assets/shop/spaceship/kanta\(i-9)@2x.png",
+            value: die ? i%5+1 : 0, x: left ? 26 : 74,
+            y: 68+Double((i*13)%64), curve: (left ? 18 : 82,left ? 36 : 64),
+            size: die ? 52 : 78+Double(i%3)*8, order: Double((i*7)%15), delay: 0,
+            rotation: 0, wobble: left ? 24 : -24, drift: left ? 28 : -28,
+            below: i%3==0, foreground: i%4==0)
+    }
     static func scatter(_ plan: DebrisPlan,random: () -> Double) -> Scatter {
         let x = clamp(50+(plan.x-50)*1.5+(random()*2-1)*3,-6,106)
         let c1 = clamp(50+(plan.curve.0-50)*1.5+(random()*2-1)*5,-15,115)

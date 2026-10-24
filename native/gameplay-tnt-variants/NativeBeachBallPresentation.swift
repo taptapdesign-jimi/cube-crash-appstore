@@ -26,6 +26,10 @@ final class NativeBeachBallPresentation: NativeFinitePresentation {
         glyphs.frame=bounds;glyphs.layer.zPosition=100;addSubview(glyphs)
     }
     required init?(coder:NSCoder) { fatalError("init(coder:) has not been implemented") }
+    override var progressDuration:TimeInterval {
+        guard born==29 else{return duration}
+        return min(duration,live.map{$0.born+$0.plan.lifetime}.max() ?? lastUpdate)
+    }
     override func paint(seconds time:TimeInterval) {
         guard !cancelled,assetsReady else { return }
         glyphs.paint(seconds:time)

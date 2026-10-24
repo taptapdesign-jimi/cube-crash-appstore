@@ -120,7 +120,7 @@ final class NativeRouteMotion {
         }
         cancel()
         home.cancelPan()
-        home.pauseHeroIdle()
+        home.pauseHeroIdle(preserveLogoIdle:true)
         home.selectSlide(index, animated: false)
         CATransaction.begin(); CATransaction.setDisableActions(true)
         let destination = home.sliderTrack.layer.position.x

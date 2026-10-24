@@ -201,6 +201,237 @@ final class NativeResultOwnerTests:XCTestCase {
         }
     }
 
+    @MainActor func testPrimaryCTAShimmerUsesOriginalCadenceAndRetiresForMattePaint() throws {
+        let artwork=JimiV9Artwork(resourceRoot:Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle")!)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),vc=UIViewController()
+        window.rootViewController=vc;window.makeKeyAndVisible()
+        defer{window.isHidden=true;window.rootViewController=nil}
+        let button=JimiV9PlainButton(frame:CGRect(x:70,y:350,width:249,height:64))
+        vc.view.addSubview(button);button.applyModalCTA(artwork:artwork);button.layoutIfNeeded()
+        let shine=try XCTUnwrap(button.layer.sublayers?.first{$0.name=="native.cta.shimmer"} as? CAGradientLayer)
+        let edge=try XCTUnwrap(button.layer.sublayers?.first{$0.name=="native.cta.edge-shine"} as? CAGradientLayer)
+        let rim=try XCTUnwrap(edge.mask as? CAShapeLayer)
+        XCTAssertEqual(rim.lineWidth,3.2);XCTAssertEqual(rim.fillColor,UIColor.clear.cgColor)
+        XCTAssertNil(edge.animationKeys(),"Edge shine is static and has no recurring clock")
+        let opacity=try XCTUnwrap(shine.animation(forKey:NativeCTAShimmer.animationKey) as? CAKeyframeAnimation)
+        XCTAssertEqual(opacity.duration,10);XCTAssertEqual(opacity.repeatCount,0)
+        let phases=try XCTUnwrap(opacity.keyTimes).map{$0.doubleValue}
+        XCTAssertEqual((phases[4]-phases[1])*10,2/1.3,accuracy:0.000001)
+        XCTAssertEqual((phases[9]-phases[6])*10,2/1.3,accuracy:0.000001)
+        XCTAssertEqual(shine.cornerRadius,32);XCTAssertEqual(shine.mask?.bounds.width,249*1.62)
+        let band=try XCTUnwrap(shine.mask as? CAGradientLayer)
+        XCTAssertEqual(band.locations,[0,0.18,0.38,0.5,0.62,0.82,1])
+        XCTAssertEqual(band.startPoint.y,0.5);XCTAssertEqual(band.endPoint.y,0.5)
+        XCTAssertGreaterThan(band.bounds.height,64*3,"Overscan keeps the tilted stripe full-height")
+        XCTAssertEqual(shine.colors?.count,2)
+        let colors=try XCTUnwrap(shine.colors as? [CGColor])
+        XCTAssertEqual(colors[0],colors[1],"No vertical dimming")
+        button.applyModalCTA(artwork:artwork);button.layoutIfNeeded()
+        XCTAssertEqual(button.layer.sublayers?.filter{$0.name=="native.cta.shimmer"}.count,1)
+        button.applyModalCTA(artwork:artwork,primary:false)
+        XCTAssertNil(shine.superlayer);XCTAssertNil(edge.superlayer);XCTAssertNil(shine.animation(forKey:NativeCTAShimmer.animationKey))
+        button.applyModalCTA(artwork:artwork);button.removeModalCTAPaint()
+        XCTAssertFalse(button.layer.sublayers?.contains{$0.name=="native.cta.shimmer"} ?? false)
+    }
+
+    @MainActor func testPrimaryCTAShimmerVisibilityBackgroundAndRelease() async throws {
+        let artwork=JimiV9Artwork(resourceRoot:Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle")!)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),vc=UIViewController()
+        window.rootViewController=vc;window.makeKeyAndVisible()
+        defer{window.isHidden=true;window.rootViewController=nil}
+        for _ in 0..<5 {
+            weak var releasedButton:JimiV9PlainButton?,releasedShine:CALayer?
+            try autoreleasepool {
+                let parent=UIView(frame:vc.view.bounds);vc.view.addSubview(parent)
+                let button=JimiV9PlainButton(frame:CGRect(x:70,y:350,width:249,height:64))
+                parent.addSubview(button);button.applyModalCTA(artwork:artwork);button.layoutIfNeeded()
+                let shine=try XCTUnwrap(button.layer.sublayers?.first{$0.name=="native.cta.shimmer"})
+                func running()->Bool{shine.animation(forKey:NativeCTAShimmer.animationKey) != nil}
+                XCTAssertTrue(running())
+                parent.isHidden=true;XCTAssertFalse(running());parent.isHidden=false;XCTAssertTrue(running())
+                parent.alpha=0;XCTAssertFalse(running());parent.alpha=1;XCTAssertTrue(running())
+                parent.isUserInteractionEnabled=false;XCTAssertFalse(running())
+                parent.isUserInteractionEnabled=true;XCTAssertTrue(running())
+                button.isEnabled=false;XCTAssertFalse(running());button.isEnabled=true;XCTAssertTrue(running())
+                button.isUserInteractionEnabled=false;XCTAssertTrue(running(),"Source tutorial uses a visual-only CTA child")
+                button.isUserInteractionEnabled=true
+                parent.transform=CGAffineTransform(translationX:900,y:0);XCTAssertFalse(running())
+                parent.transform = .identity;XCTAssertTrue(running())
+                button.center.x=800;XCTAssertFalse(running());button.center.x=195;XCTAssertTrue(running())
+                NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
+                XCTAssertFalse(running())
+                NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
+                XCTAssertTrue(running())
+                releasedButton=button;releasedShine=shine
+                parent.removeFromSuperview();XCTAssertFalse(running())
+            }
+            CATransaction.flush()
+            try await Task.sleep(nanoseconds:30_000_000)
+            XCTAssertNil(releasedButton);XCTAssertNil(releasedShine)
+        }
+    }
+
+    @MainActor func testHomeShimmerAdmitsOnlyVisibleSlideAndPaintsOriginalSweep() async throws {
+        let artwork=JimiV9Artwork(resourceRoot:Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle")!)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),vc=UIViewController()
+        window.rootViewController=vc;window.makeKeyAndVisible()
+        defer{window.isHidden=true;window.rootViewController=nil}
+        let home=JimiV9HomeView(frame:vc.view.bounds,assets:artwork);vc.view.addSubview(home);home.layoutIfNeeded()
+        func activeCount(_ view:UIView)->Int {
+            let own=view.layer.sublayers?.filter{$0.name=="native.cta.shimmer" && $0.animation(forKey:NativeCTAShimmer.animationKey) != nil}.count ?? 0
+            return own+view.subviews.reduce(0){$0+activeCount($1)}
+        }
+        XCTAssertEqual(activeCount(home),1)
+        home.selectSlide(1,animated:false);XCTAssertEqual(activeCount(home),1)
+        XCTAssertNotNil(home.ctaView.layer.sublayers?.first{$0.name=="native.cta.shimmer"}?.animation(forKey:NativeCTAShimmer.animationKey))
+        try await Task.sleep(nanoseconds:2_050_000_000)
+        let image=UIGraphicsImageRenderer(bounds:window.bounds).image{_ in window.drawHierarchy(in:window.bounds,afterScreenUpdates:true)}
+        try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/native-cta-shimmer-home.png"))
+        try await Task.sleep(nanoseconds:8_200_000_000)
+        XCTAssertEqual(activeCount(home),1,"Completed finite cycle renews while visible")
+        home.isHidden=true;XCTAssertEqual(activeCount(home),0)
+        home.isHidden=false;XCTAssertEqual(activeCount(home),1)
+    }
+
+    @MainActor func testHomeCTAIdleHasIndependentDirectionAndSharedVisibilityLifetime() async throws {
+        let artwork=JimiV9Artwork(resourceRoot:Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle")!)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),vc=UIViewController()
+        window.rootViewController=vc;window.makeKeyAndVisible()
+        defer{window.isHidden=true;window.rootViewController=nil}
+        var home:JimiV9HomeView?=JimiV9HomeView(frame:vc.view.bounds,assets:artwork)
+        weak var released=home
+        vc.view.addSubview(home!);home!.layoutIfNeeded()
+        for index in 0..<3 {
+            home!.selectSlide(index,animated:false);home!.startHeroIdle()
+            let shell=home!.ctaIdleView,button=home!.ctaView
+            let drift=try XCTUnwrap(shell.layer.animation(forKey:"native-home-cta-idle") as? CAKeyframeAnimation)
+            let hero=try XCTUnwrap(home!.heroImages[index].layer.animation(forKey:"native-hero-idle") as? CAKeyframeAnimation)
+            XCTAssertGreaterThan(drift.duration,hero.duration*1.12)
+            let peak=try XCTUnwrap((drift.values?[1] as? NSValue)?.caTransform3DValue)
+            let heroPeak=try XCTUnwrap((hero.values?[1] as? NSValue)?.caTransform3DValue)
+            XCTAssertGreaterThan(peak.m42,0);XCTAssertLessThan(heroPeak.m42,0)
+            XCTAssertNil(button.layer.animation(forKey:"native-home-cta-idle"))
+            button.sendActions(for:.touchDown)
+            XCTAssertNotNil(button.superview?.layer.animation(forKey:NativeHubBackpackFeedback.animationKey))
+            XCTAssertNotNil(button.superview?.superview?.layer.animation(forKey:"cta-press"))
+            XCTAssertNotNil(shell.layer.animation(forKey:"native-home-cta-idle"))
+            home!.pauseHeroIdle();XCTAssertEqual(shell.layer.speed,0)
+            let offset=shell.layer.timeOffset
+            try await Task.sleep(nanoseconds:20_000_000)
+            XCTAssertEqual(shell.layer.timeOffset,offset)
+            home!.startHeroIdle();XCTAssertEqual(shell.layer.speed,1)
+            XCTAssertEqual(shell.layer.animation(forKey:"native-home-cta-idle")?.duration,drift.duration)
+            home!.stopHeroIdle(preservePaintedPose:true)
+            XCTAssertNil(shell.layer.animation(forKey:"native-home-cta-idle"))
+            home!.startHeroIdle();home!.isHidden=true
+            XCTAssertNil(shell.layer.animation(forKey:"native-home-cta-idle"))
+            home!.isHidden=false
+        }
+        home!.stopHeroIdle();home!.removeFromSuperview();home=nil
+        CATransaction.flush();try await Task.sleep(nanoseconds:30_000_000)
+        XCTAssertNil(released)
+    }
+
+    @MainActor func testHomeLogoIdleContinuesAcrossSlidesAndSharesPauseAndExit() async throws {
+        let artwork=JimiV9Artwork(resourceRoot:Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle")!)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),vc=UIViewController()
+        window.rootViewController=vc;window.makeKeyAndVisible()
+        defer{window.isHidden=true;window.rootViewController=nil}
+        let home=JimiV9HomeView(frame:vc.view.bounds,assets:artwork);vc.view.addSubview(home);home.layoutIfNeeded()
+        home.startHeroIdle()
+        let layer=home.logoIdleView.layer
+        let original=try XCTUnwrap(layer.animation(forKey:"native-home-logo-idle") as? CAKeyframeAnimation)
+        XCTAssertGreaterThanOrEqual(original.duration,5.4);XCTAssertLessThanOrEqual(original.duration,6.4)
+        XCTAssertNil(home.logoImageView.layer.animation(forKey:"native-home-logo-idle"),"Logo route transform remains separate")
+        for index in 0..<3 {
+            home.selectSlide(index,animated:false)
+            XCTAssertEqual(layer.animation(forKey:"native-home-logo-idle")?.beginTime,original.beginTime,"Slide selection never restarts logo")
+            home.startHeroIdle()
+            XCTAssertEqual(layer.animation(forKey:"native-home-logo-idle")?.beginTime,original.beginTime)
+            home.pauseHeroIdle(preserveLogoIdle:true);XCTAssertEqual(layer.speed,1,"Slider drag preserves continuous logo")
+            home.pauseHeroIdle();XCTAssertEqual(layer.speed,0)
+            let offset=layer.timeOffset;try await Task.sleep(nanoseconds:20_000_000)
+            XCTAssertEqual(layer.timeOffset,offset)
+            home.startHeroIdle();XCTAssertEqual(layer.speed,1)
+        }
+        home.stopHeroIdle(preservePaintedPose:true);XCTAssertNil(layer.animation(forKey:"native-home-logo-idle"))
+        home.startHeroIdle();home.isHidden=true;XCTAssertNil(layer.animation(forKey:"native-home-logo-idle"))
+        home.isHidden=false;home.startHeroIdle();home.removeFromSuperview()
+        XCTAssertNil(layer.animation(forKey:"native-home-logo-idle"))
+        home.stopHeroIdle();home.stopHeroIdle()
+    }
+
+    @MainActor func testHomeShardsDriftIndependentlyPreserveMirrorAndShareLogoLifetime() async throws {
+        let artwork=JimiV9Artwork(resourceRoot:Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle")!)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),vc=UIViewController()
+        window.rootViewController=vc;window.makeKeyAndVisible()
+        defer{window.isHidden=true;window.rootViewController=nil}
+        let home=JimiV9HomeView(frame:vc.view.bounds,assets:artwork);vc.view.addSubview(home);home.layoutIfNeeded()
+        home.startHeroIdle()
+        let layers=try home.shardViews.map{try XCTUnwrap($0.subviews.first?.layer)}
+        let animations=try layers.map{try XCTUnwrap($0.animation(forKey:"native-home-shard-idle") as? CAKeyframeAnimation)}
+        XCTAssertEqual(Set(animations.map{$0.duration}).count,4)
+        for (index,animation) in animations.enumerated() {
+            XCTAssertNil(home.shardViews[index].layer.animation(forKey:"native-home-shard-idle"),"Route shell remains separate")
+            let poses=try XCTUnwrap(animation.values as? [NSValue]).map{$0.caTransform3DValue}
+            XCTAssertEqual(poses.count,3)
+            for pose in poses {if index==3 {XCTAssertLessThan(pose.m11,0)}else{XCTAssertGreaterThan(pose.m11,0)}}
+            XCTAssertEqual(poses[0].m11,index==3 ? -1:1)
+            XCTAssertNotEqual(poses[1].m41,0);XCTAssertNotEqual(poses[1].m42,0)
+            let scale=hypot(poses[1].m11,poses[1].m12)
+            XCTAssertGreaterThanOrEqual(scale,0.96);XCTAssertLessThanOrEqual(scale,0.98)
+            XCTAssertEqual(abs(poses[2].m11),1,"Gentle scale-down returns to original size")
+        }
+        home.pauseHeroIdle(preserveLogoIdle:true)
+        XCTAssertTrue(layers.allSatisfy{$0.speed==1})
+        home.selectSlide(1,animated:false);home.startHeroIdle()
+        for (index,layer) in layers.enumerated(){XCTAssertEqual(layer.animation(forKey:"native-home-shard-idle")?.beginTime,animations[index].beginTime)}
+        home.pauseHeroIdle();XCTAssertTrue(layers.allSatisfy{$0.speed==0})
+        let offsets=layers.map{$0.timeOffset};try await Task.sleep(nanoseconds:20_000_000)
+        XCTAssertEqual(layers.map{$0.timeOffset},offsets)
+        home.startHeroIdle();XCTAssertTrue(layers.allSatisfy{$0.speed==1})
+        home.stopHeroIdle();home.stopHeroIdle()
+        for (index,layer) in layers.enumerated(){XCTAssertNil(layer.animation(forKey:"native-home-shard-idle"));XCTAssertEqual(layer.transform.m11,index==3 ? -1:1)}
+        home.startHeroIdle();home.isHidden=true
+        XCTAssertTrue(layers.allSatisfy{$0.animation(forKey:"native-home-shard-idle")==nil})
+        home.isHidden=false;home.startHeroIdle();home.removeFromSuperview()
+        XCTAssertTrue(layers.allSatisfy{$0.animation(forKey:"native-home-shard-idle")==nil})
+    }
+
+    @MainActor func testHomeBottomNavigationIdleKeepsFixedHitsAndIndependentTapBounce() async throws {
+        let artwork=JimiV9Artwork(resourceRoot:Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle")!)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),vc=UIViewController()
+        window.rootViewController=vc;window.makeKeyAndVisible()
+        defer{window.isHidden=true;window.rootViewController=nil}
+        let home=JimiV9HomeView(frame:vc.view.bounds,assets:artwork);vc.view.addSubview(home);home.layoutIfNeeded();home.startHeroIdle()
+        let shells=try home.navigationIconViews.map{try XCTUnwrap($0.superview)}
+        let animations=try shells.map{try XCTUnwrap($0.layer.animation(forKey:"native-home-nav-idle") as? CAKeyframeAnimation)}
+        XCTAssertEqual(Set(animations.map{$0.duration}).count,3)
+        var requests:[Int]=[];home.onSlideSelected={requests.append($0)}
+        for index in 0..<3 {
+            let button=home.navigationButtonViews[index],image=home.navigationIconViews[index]
+            XCTAssertFalse(shells[index].isUserInteractionEnabled)
+            let point=button.convert(CGPoint(x:button.bounds.midX,y:button.bounds.midY),to:window)
+            XCTAssertTrue(window.hitTest(point,with:nil) === button,"Idle shell cannot intercept the fixed button target")
+            button.sendActions(for:.touchUpInside)
+            NativeHubBackpackFeedback.play(on:image)
+            XCTAssertNotNil(image.layer.animation(forKey:NativeHubBackpackFeedback.animationKey))
+            XCTAssertNotNil(shells[index].layer.animation(forKey:"native-home-nav-idle"))
+            XCTAssertNil(button.layer.animation(forKey:"native-home-nav-idle"))
+        }
+        XCTAssertEqual(requests,[0,1,2])
+        home.pauseHeroIdle(preserveLogoIdle:true);XCTAssertTrue(shells.allSatisfy{$0.layer.speed==1})
+        home.selectSlide(1,animated:false);home.startHeroIdle()
+        for (index,shell) in shells.enumerated(){XCTAssertEqual(shell.layer.animation(forKey:"native-home-nav-idle")?.beginTime,animations[index].beginTime)}
+        home.pauseHeroIdle();XCTAssertTrue(shells.allSatisfy{$0.layer.speed==0})
+        let offsets=shells.map{$0.layer.timeOffset};try await Task.sleep(nanoseconds:20_000_000)
+        XCTAssertEqual(shells.map{$0.layer.timeOffset},offsets)
+        home.startHeroIdle();XCTAssertTrue(shells.allSatisfy{$0.layer.speed==1})
+        home.isHidden=true;XCTAssertTrue(shells.allSatisfy{$0.layer.animation(forKey:"native-home-nav-idle")==nil})
+        home.isHidden=false;home.startHeroIdle();home.removeFromSuperview()
+        XCTAssertTrue(shells.allSatisfy{$0.layer.animation(forKey:"native-home-nav-idle")==nil})
+    }
+
     func testZeroScaleFilledStarsRetainImageBoundsAcrossInitialRelayout() {
         let result=controller(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
         window.rootViewController=result;window.makeKeyAndVisible();result.loadViewIfNeeded()

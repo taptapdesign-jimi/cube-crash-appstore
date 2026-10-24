@@ -10,6 +10,12 @@ final class NativeJuiceFinale: SKNode {
     var onGameplayReady: (() -> Void)?
     let assetReady: Bool
     let maximumDuration: TimeInterval = 5.4
+    var presentationDuration:TimeInterval {
+        guard scheduler.lastPhaseEnded else{return 3.9}
+        let bubbleEnd=active.values.map{$0.1+$0.0.duration}.max() ?? 0
+        let propEnd=props.map{$0.1.delay+$0.1.duration}.max() ?? 0
+        return min(maximumDuration,max(2.15,max(bubbleEnd,propEnd)))
+    }
     private let viewport: CGSize,random: () -> Double
     private let bubbleTextures: [SKTexture]
     private let freePool: [SKSpriteNode]

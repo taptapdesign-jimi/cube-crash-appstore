@@ -7,6 +7,7 @@ import AVFoundation
 @MainActor
 final class NativeFishFinalePresentation: UIView {
     var presentationDuration:TimeInterval{max(NativeFishFinaleMotion.duration,glyphs.duration)}
+    var onProgress: ((TimeInterval,TimeInterval) -> Void)?
     var onFinished: ((Bool) -> Void)?
     private let swimmer = UIView(),bubbles = UIView()
     private let swimmerLayer = AVPlayerLayer(),bubblesLayer = AVPlayerLayer()
@@ -82,7 +83,7 @@ final class NativeFishFinalePresentation: UIView {
         guard !disposed,!paused,!backgrounded,window != nil else { lastFrame = nil; return }
         let delta = lastFrame.map { max(0,clock.timestamp-$0) } ?? 0; lastFrame = clock.timestamp
         if ready {
-            elapsed += delta; paint()
+            elapsed += delta; paint();onProgress?(elapsed,presentationDuration)
             if elapsed >= presentationDuration { finish(true) }
         } else {
             preparing += delta
@@ -117,7 +118,7 @@ final class NativeFishFinalePresentation: UIView {
         readiness.removeAll(); observations.forEach(NotificationCenter.default.removeObserver); observations.removeAll()
         swimmerPlayer.pause(); bubblesPlayer.pause(); swimmerLoop.disableLooping(); swimmerPlayer.removeAllItems()
         bubblesPlayer.replaceCurrentItem(with: nil); swimmerLayer.player = nil; bubblesLayer.player = nil
-        let completion = onFinished; onFinished = nil; removeFromSuperview(); completion?(success)
+        let completion = onFinished; onFinished = nil; onProgress = nil; removeFromSuperview(); completion?(success)
     }
     func dispose() { finish(false) }
 }

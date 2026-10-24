@@ -45,7 +45,8 @@ import Foundation
               capturedDirection == nil || capturedDirection == 1 || capturedDirection == -1,
               current(), service.sourceFrameTransportAdmissionOpen else { return false }
         begun = true
-        // New faces use the selected entry scale; existing survivors retain full size.
+        // Production new faces, including converted survivors, use fresh entry.
+        // Source-reference callers can explicitly retain their original scale.
         // Source-reference defaults and write/draw order remain unchanged.
         hooks.ensureFullOpacity(); guard current() else { finish(.unavailable); return false }
         hooks.paintScale(initialScale); guard current() else { finish(.unavailable); return false }

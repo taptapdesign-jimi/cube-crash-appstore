@@ -47,6 +47,25 @@ final class NativeMushroomFinalePresentation:NativeFinitePresentation {
         glyphs.frame=bounds;glyphs.layer.zPosition=1000;addSubview(glyphs)
     }
     required init?(coder:NSCoder) {fatalError("init(coder:) has not been implemented")}
+    override var progressDuration:TimeInterval {
+        var growthEnd=0.0,sporeEnd=0.0
+        for (index,plan) in growth.enumerated() {
+            let birth=growthBirth[index] ?? plan.birth
+            growthEnd=max(growthEnd,birth+plan.end-plan.birth)
+        }
+        for spore in spores {
+            let p=spore.plan
+            let end:Double
+            if let arrival=spore.arrivalStartTime {end=arrival+p.arrivalDuration}
+            else {
+                let riseDistance=p.originY-p.targetY+Double(viewport.height)*0.012
+                end=p.birthDelay+riseDistance/p.riseSpeed+p.arrivalDuration
+            }
+            sporeEnd=max(sporeEnd,end)
+        }
+        let end=(sporeStart ?? 0.055)+min(5,sporeEnd)
+        return min(duration,max(growthEnd,end))
+    }
     override func start() {guard assetReady else {dispose();return};super.start()}
     override func layoutSubviews() {super.layoutSubviews();glyphs.frame=bounds}
     override func paint(seconds:Double) {

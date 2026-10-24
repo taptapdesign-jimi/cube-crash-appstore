@@ -6,6 +6,18 @@ nonisolated enum NativeBloobArt {
     static let path="assets/shop/bloob/bloob.svg"
     static let splashPath="assets/shop/bloob/robo splash.svg"
     static func isSource(_ path:String)->Bool {path==Self.path || path==splashPath}
+    struct BoardRotation {
+        let initialAngle,radiansPerSecond:Double
+        init(seed:UInt64) {
+            var value=seed &+ 0x9E3779B97F4A7C15
+            value=(value ^ (value >> 30)) &* 0xBF58476D1CE4E5B9
+            value=(value ^ (value >> 27)) &* 0x94D049BB133111EB
+            value=value ^ (value >> 31)
+            initialAngle=(20+Double((value >> 8)%320000)/1000) * .pi/180
+            radiansPerSecond=(value & 1 == 0 ? 1.0:-1.0)*(6+Double((value >> 32)%4000)/1000) * .pi/180
+        }
+        func angle(seconds:Double)->Double {initialAngle+max(0,seconds)*radiansPerSecond}
+    }
     static func frame(seconds:Double)->Int {
         let starts:[Double]=[0,0.03125,0.046875,0.078125,0.09375,0.125,0.15625,0.171875,0.203125,0.21875,0.25,0.28125,0.296875,0.328125,0.34375,0.375,0.40625,0.421875,0.453125,0.46875,0.5,0.53125,0.546875,0.578125,0.59375,0.625,0.65625,0.671875,0.703125,0.71875,0.75,0.78125,0.796875,0.828125,0.84375,0.875,0.90625,0.921875,0.953125,0.96875]
         let phase=max(0,seconds).truncatingRemainder(dividingBy:1.635865961197037)/1.635865961197037
@@ -74,6 +86,11 @@ nonisolated enum NativeBloobArt {
         }
     }
     struct Pose {let x,y,rotation:CGFloat}
+    static let boardScale:CGFloat=1.44 //20% larger than the accepted1.2x board size.
+    static func boardLandingBlend(seconds:Double)->CGFloat {
+        let t=max(0,min(1,seconds/0.32))
+        return CGFloat(t*t*(3-2*t))
+    }
     static func idlePose(seconds:Double)->Pose {
         // Exactly twice the existing Pod whole-body pose speed, with a clearly
         // airborne two-axis displacement. Shared board/Backpack clock only.

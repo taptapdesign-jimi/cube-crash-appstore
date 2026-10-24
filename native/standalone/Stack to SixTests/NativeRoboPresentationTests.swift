@@ -36,6 +36,23 @@ final class NativeRoboPresentationTests:XCTestCase {
         XCTAssertTrue(owner.assetReady)
         let images=owner.subviews.compactMap {$0 as? UIImageView},head=try XCTUnwrap(images.first {$0.layer.zPosition==10000})
         XCTAssertEqual(images.count,31);XCTAssertTrue(images.allSatisfy {$0.image != nil || $0 === head})
+        let field=try XCTUnwrap(owner.subviews.compactMap{$0 as? NativeSplashGlyphField}.first)
+        let letters=try XCTUnwrap(field.subviews.first).subviews.compactMap{$0 as? UILabel}
+        let light=UIColor(red:163.0/255,green:233.0/255,blue:236.0/255,alpha:1).cgColor
+        let dark=UIColor(red:32.0/255,green:231.0/255,blue:247.0/255,alpha:1).cgColor
+        XCTAssertEqual(letters.compactMap(\.text).joined(),"BIBI - RIBI")
+        for (index,letter) in letters.enumerated() {
+            XCTAssertEqual(letter.textColor.withAlphaComponent(1),.white)
+            let glows=letter.subviews.compactMap{$0 as? UILabel};XCTAssertEqual(glows.count,4)
+            if index<4 {XCTAssertTrue(glows.allSatisfy{$0.layer.shadowColor==light})}
+            if index>=7 {XCTAssertTrue(glows.allSatisfy{$0.layer.shadowColor==dark})}
+        }
+        owner.setNeedsLayout();owner.layoutIfNeeded();field.layoutIfNeeded();field.paint(seconds:0.9)
+        let image=UIGraphicsImageRenderer(size:field.bounds.size).image{context in
+            context.cgContext.setFillColor(UIColor(red:0.97,green:0.94,blue:0.89,alpha:1).cgColor);context.cgContext.fill(field.bounds)
+            field.layer.render(in:context.cgContext)
+        }
+        try XCTUnwrap(image.pngData()).write(to:FileManager.default.temporaryDirectory.appendingPathComponent("bibi-ribi-aqua-cyan-glow.png"))
         var receipts:[Bool]=[],frames:[Int]=[],haptics=0
         owner.onFinished={receipts.append($0)};owner.onExitFrameSelected={frames.append($0)};owner.onHaptic={_ in haptics+=1}
         for index in 0...152 {

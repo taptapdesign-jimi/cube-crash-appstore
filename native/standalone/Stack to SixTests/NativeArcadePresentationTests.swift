@@ -4,6 +4,86 @@ import UIKit
 
 @MainActor
 final class NativeArcadePresentationTests: XCTestCase {
+    func testBoardClearedReusesBothThumbsWithoutRoundCommitAndReleases() async throws {
+        for sample in [0.0,0.99] {
+            let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+            let host=UIViewController();window.rootViewController=host;window.makeKeyAndVisible()
+            var owner:NativeArcadeRoundPresentation?=NativeArcadeRoundPresentation(resourceRoot:root,
+                clearedRound:1,nextRound:2,boardClearedOnly:true,random:{sample})
+            weak var retired=owner
+            owner!.frame=window.bounds;host.view.addSubview(owner!)
+            var commits=0,starts=0,digits=0,finishes=0
+            let entered=expectation(description:"Clear card entered"),done=expectation(description:"Finite clear card exit")
+            owner!.onNextRoundPresented={commits += 1}
+            owner!.onCue={cue in
+                if case .celebrationStarted=cue {starts += 1}
+                if case .digitEntered=cue {digits += 1}
+                if case .thumbWhoosh=cue {XCTAssertGreaterThanOrEqual(owner!.elapsed,owner!.boardClearedTextEnterEnd);entered.fulfill()}
+            }
+            owner!.onFinished={success in XCTAssertTrue(success);finishes += 1;done.fulfill()}
+            owner!.start();await fulfillment(of:[entered],timeout:2)
+            owner!.setSuspended(true);owner!.start()
+            let held=owner!.elapsed
+            NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
+            NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
+            try await Task.sleep(for:.milliseconds(100))
+            XCTAssertEqual(finishes,0);XCTAssertEqual(starts,1);XCTAssertEqual(owner!.elapsed,held)
+            owner!.setSuspended(false)
+            try await Task.sleep(for:.milliseconds(300))
+            owner!.setSuspended(true)
+            let format=UIGraphicsImageRendererFormat();format.scale=1
+            let image=UIGraphicsImageRenderer(size:window.bounds.size,format:format).image{host.view.layer.render(in:$0.cgContext)}
+            try image.pngData()?.write(to:URL(fileURLWithPath:sample==0 ? "/tmp/board-cleared-puppy.png":"/tmp/board-cleared-thumb.png"))
+            owner!.setSuspended(false)
+            await fulfillment(of:[done],timeout:5)
+            XCTAssertEqual(commits,0);XCTAssertEqual(digits,0);XCTAssertEqual(finishes,1)
+            owner!.dispose();owner=nil
+            try await Task.sleep(for:.milliseconds(100))
+            XCTAssertNil(retired);window.isHidden=true
+        }
+    }
+
+    func testBoardClearedSharesNoMovesEntryAndHasNoExtraHold() throws {
+        let owner=NativeArcadeRoundPresentation(resourceRoot:root,clearedRound:1,nextRound:2,boardClearedOnly:true,random:{0.4})
+        defer{owner.dispose()}
+        let plan=try XCTUnwrap(owner.boardClearedTextComposition)
+        XCTAssertEqual(String(plan.letters.map(\.character)),"BOARD CLEARED")
+        XCTAssertEqual(owner.boardClearedTextEnterEnd,1.34,accuracy:0.000001)
+        XCTAssertEqual(owner.thumbEnterStart,1.34,accuracy:0.000001)
+        XCTAssertLessThanOrEqual(abs(owner.boardClearedThumbRotation),20)
+        XCTAssertEqual(owner.duration,3.34,accuracy:0.000001)
+        for index in plan.letters.indices {
+            for time in [0.0,0.2,0.6,1.0,1.339] {
+                let expected=plan.letters[index].enter(at:time,index:index),actual=owner.boardClearedTextPose(at:time,index:index)
+                XCTAssertEqual(Double(actual.scale),expected.scale,accuracy:0.000001)
+                XCTAssertEqual(Double(actual.alpha),expected.alpha,accuracy:0.000001)
+            }
+            let end=owner.boardClearedTextPose(at:owner.duration,index:index)
+            XCTAssertEqual(end.scale,0,accuracy:0.000001);XCTAssertEqual(end.alpha,0,accuracy:0.000001)
+        }
+        owner.frame=CGRect(x:0,y:0,width:320,height:568);owner.layoutIfNeeded()
+        func labels(_ view:UIView)->[UILabel]{view.subviews.flatMap{($0 as? UILabel).map{[$0]} ?? labels($0)}}
+        let glyphs=labels(owner).filter{$0.accessibilityIdentifier?.hasPrefix("native.board-cleared.glyph.")==true}
+        XCTAssertEqual(glyphs.count,13)
+        func find(_ view:UIView,_ id:String)->UIView? {
+            if view.accessibilityIdentifier==id{return view}
+            return view.subviews.compactMap{find($0,id)}.first
+        }
+        let text=try XCTUnwrap(find(owner,"native.board-cleared.text"))
+        let png=try XCTUnwrap(find(owner,"native.board-cleared.thumb"))
+        XCTAssertTrue(text.superview === png.superview)
+        XCTAssertGreaterThan(png.layer.zPosition,text.layer.zPosition)
+        XCTAssertEqual(text.frame.midX,png.frame.midX,accuracy:0.001)
+        XCTAssertEqual(text.frame.midY,png.frame.midY,accuracy:0.001)
+        for glyph in glyphs {
+            XCTAssertEqual(glyph.font.fontName,"Baloo2-ExtraBold")
+            var r:CGFloat=0,g:CGFloat=0,b:CGFloat=0,a:CGFloat=0
+            glyph.textColor.getRed(&r,green:&g,blue:&b,alpha:&a)
+            XCTAssertEqual(r,1);XCTAssertEqual(g,1);XCTAssertEqual(b,1)
+            XCTAssertEqual(glyph.layer.shadowRadius,14);XCTAssertEqual(glyph.layer.shadowOpacity,1)
+        }
+    }
+
     func testThumbVariantCapturedOnceAtEqualProbabilityBoundary() {
         for (sample,puppy) in [(0.0,true),(0.499999,true),(0.5,false),(0.999999,false)] {
             let owner=NativeArcadeRoundPresentation(resourceRoot:root,clearedRound:1,nextRound:2,random:{sample})

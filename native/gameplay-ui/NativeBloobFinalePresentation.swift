@@ -1,12 +1,11 @@
 import UIKit
 
-/// One finite clock owns the hero reverse, ordinary escape sprites and decorative magnetic dice.
+/// One finite clock owns the hero reverse, ordinary escape sprites and decorative outgoing dice.
 @MainActor final class NativeBloobFinalePresentation:NativeFinitePresentation {
     nonisolated static var assets:[String] {[NativeBloobArt.path,NativeBloobReverseArt.path,"assets/tile.png"]}
     let assetReady:Bool
     private let glyphs:NativeSplashGlyphField
     let motion:NativeBloobFinaleMotion
-    private let intakeDieSize:CGFloat
     private var dice:[Int:UIView]=[:]
     private var dieImage:UIImage?
     private var carriers:[Int:UIView]=[:]
@@ -15,9 +14,14 @@ import UIKit
     private var idlePixels:CGImage?
     private var popped=false,startedAir=false,retired=false
     private var lastTime:Double?
-    init(resourceRoot:URL,viewport:CGSize,origin:CGPoint?=nil,boardRect:CGRect?=nil,boardTileSize:CGFloat?=nil,preparedArtwork:JimiV9Artwork?=nil,random:()->Double={Double.random(in:0..<1)}) {
-        intakeDieSize=boardTileSize ?? 64
-        motion=NativeBloobFinaleMotion(viewport:viewport,origin:origin,boardRect:boardRect,random:random)
+    private var boardReaction:NativeBloobBoardReactionBinding?
+    func bindBoardReaction(_ binding:NativeBloobBoardReactionBinding?) {boardReaction?.dispose();boardReaction=binding}
+    private var screenShake:NativeBloobScreenShakeBinding?
+    func bindScreenShake(to view:UIView) {screenShake?.dispose();screenShake=NativeBloobScreenShakeBinding(view:view)}
+    override func setSuspended(_ value:Bool) {super.setSuspended(value);if value {screenShake?.paint(.zero);boardReaction?.reset()}}
+    override func didMoveToWindow() {super.didMoveToWindow();if window==nil {screenShake?.paint(.zero);boardReaction?.reset()}}
+    init(resourceRoot:URL,viewport:CGSize,origin:CGPoint?=nil,preparedArtwork:JimiV9Artwork?=nil,random:()->Double={Double.random(in:0..<1)}) {
+        motion=NativeBloobFinaleMotion(viewport:viewport,origin:origin,random:random)
         let artwork=preparedArtwork ?? JimiV9Artwork(resourceRoot:resourceRoot)
         let idleAtlas=artwork.image(NativeBloobArt.path,densityAware:false)
         let tileImage=artwork.image("assets/tile.png",densityAware:true)
@@ -41,10 +45,10 @@ import UIKit
         carrier.layer.contentsRect=CGRect(x:0,y:0,width:1.0/8,height:0.2)
         carrier.layer.zPosition=index==0 ? 8:(plan.front ? 7:3);carrier.alpha=0
         if index==0,let recipe=reverseRecipe {
-            let reverse=NativeBloobReverseView(recipe:recipe,atlas:atlas)
+            let reverse=NativeBloobReverseView(recipe:recipe,atlas:atlas,blueGlow:true)
             reverse.center=CGPoint(x:carrier.bounds.midX,y:carrier.bounds.midY)
             reverse.transform=CGAffineTransform(scaleX:plan.size/640,y:plan.size/640)
-            reverse.isHidden=true;carrier.addSubview(reverse);heroReverse=reverse
+            reverse.isHidden=false;carrier.layer.contents=nil;carrier.addSubview(reverse);heroReverse=reverse
         }
         addSubview(carrier);carriers[index]=carrier
     }
@@ -81,7 +85,7 @@ import UIKit
             for i in motion.reverseBalls.indices where t<motion.exitTimes[i] {makeCarrier(i)}
             for i in motion.fakeDice.indices where t<motion.fakeDice[i].exit {makeFakeDie(i)}
         }
-        lastTime=t;glyphs.paint(seconds:t)
+        lastTime=t;boardReaction?.paint(seconds:t);screenShake?.paint(motion.screenShakeOffset(seconds:t));glyphs.paint(seconds:t)
         if !startedAir {startedAir=true;onCue?("rise",0)}
         if !popped,t>=motion.popStart(0) {popped=true;onCue?("pop",0)}
         for i in motion.reverseBalls.indices {
@@ -96,13 +100,14 @@ import UIKit
             var frameTime=plan.playbackRoute?.seconds(at:time) ?? time
             if i==0,let reverse=heroReverse {
                 let age=NativeBloobFinaleMotion.heroReverseSeconds(t)
-                reverse.isHidden=age<0
-                if age>=0 {
+                reverse.isHidden=false
+                if t>=motion.reverseStart {
                     carrier.layer.contents=nil
                     let handoff=NativeBloobFinaleMotion.heroArtworkClock(motion.reverseStart)*plan.playbackRate+plan.playbackPhase
                     frameTime=(plan.playbackRoute?.seconds(at:handoff) ?? handoff)+age*1.635865961197037/NativeBloobReverseArt.bodyCycle
                     reverse.paint(seconds:age,bodyFrame:NativeBloobArt.frame(seconds:frameTime))
-                } else {carrier.layer.contents=idlePixels}
+                } else {reverse.paint(seconds:0,bodyFrame:NativeBloobArt.frame(seconds:frameTime))}
+                reverse.paintBlueGlow(enabled:t>=0 && t<NativeBloobFinaleMotion.scatterStart)
             }
             let frame=NativeBloobArt.frame(seconds:frameTime),stretch=motion.stretch(i,seconds:t)
             carrier.center=pose.center
@@ -114,24 +119,42 @@ import UIKit
             guard let die=dice[i] else{continue}
             let plan=motion.fakeDice[i]
             if t>=plan.exit {removeFakeDie(i);continue}
-            let depth:CGFloat=t<NativeBloobFinaleMotion.scatterStart ? 7:CGFloat(plan.scatterDepth)
+            let depth=CGFloat(plan.scatterDepth)
             if die.layer.zPosition != depth {die.layer.zPosition=depth}
             let pose=motion.fakeDiePose(i,seconds:t)
             die.isHidden=pose.hidden
             if die.alpha != pose.alpha {die.alpha=pose.alpha}
             guard !pose.hidden,pose.alpha>0 else{continue}
             die.center=pose.center
-            let side=t<NativeBloobFinaleMotion.scatterStart ? Double(intakeDieSize):plan.flight.size
-            let scale=pose.scale*side/64
+            let scale=pose.scale*plan.flight.size/64
             die.transform=CGAffineTransform(rotationAngle:pose.rotation * .pi/180).scaledBy(x:scale,y:scale)
         }
     }
     override func dispose() {
         guard !retired else{return};retired=true
+        screenShake?.dispose();screenShake=nil;boardReaction?.dispose();boardReaction=nil
         for i in Array(carriers.keys) {removeCarrier(i)}
         idlePixels=nil;reverseRecipe=nil
         for i in Array(dice.keys) {removeFakeDie(i)}
         dieImage=nil
         super.dispose()
     }
+}
+
+/// One finite finale owns a camera offset; preserve all other root transforms.
+@MainActor final class NativeBloobScreenShakeBinding {
+    private weak var view:UIView?
+    private var previous=CGPoint.zero,retired=false
+    init(view:UIView){self.view=view}
+    func paint(_ offset:CGPoint) {
+        guard !retired,offset != previous else{return}
+        if let view {
+            var transform=view.transform
+            transform.tx+=offset.x-previous.x;transform.ty+=offset.y-previous.y
+            view.transform=transform
+        }
+        previous=offset
+    }
+    func dispose(){guard !retired else{return};paint(.zero);retired=true;view=nil}
+    isolated deinit {dispose()}
 }

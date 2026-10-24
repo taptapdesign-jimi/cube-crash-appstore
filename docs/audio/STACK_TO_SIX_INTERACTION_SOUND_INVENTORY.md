@@ -267,3 +267,5 @@ Coconut contact playback (2026-10-24): only coconut-contact mini2 gain0.15 now u
 - Native BLOOB bluub pool correction2026-10-24:delay150ms→0 at merge6. Each admitted sound receives unique generation/merge receipt voice,so a later merge selecting same file does not replace its tail. stopAfter=nil,fadeOut0,loopingfalse;visual finale has no stop hook. Existing bounded transport cleans at natural completion;Settings OFF/background/route retirement remain authoritative.
 
 - Native BLOOB bluub1–4 gain2026-10-24:user requests+4dB relative0.6;all four now0.6×10^(4/20)=0.9509359154766681. Immediate onset/unique receipt/natural tail unchanged.
+
+- Native BLOOB extended anticipation (2026-10-24): hero burst moves exactly1s later; SPLAT start uses600ms baseline+the same1s extension(total1600ms after committed merge),gain0.504 unchanged. Immediate bluub1–4 natural tails/+4dB,paint splat and beams unchanged.

@@ -1,11 +1,12 @@
 import UIKit
 
-/// Source-authored 3.8-second saucer, beams and 46 individual debris owners.
+/// Source-authored 3.8-second saucer, beams and 61 individual debris owners.
 /// A single finite clock samples all tracks. Retired debris/beam owners stop receiving paint work.
 @MainActor
 final class NativeSpaceshipFinalePresentation: NativeFinitePresentation {
     private struct Debris {
         let plan: NativeArea55Motion.DebrisPlan,scatter: NativeArea55Motion.Scatter,mover: UIView,visual: UIView
+        let intakeRotation: Double
         var retired = false
     }
     private struct BeamStep { let start,duration,target: Double; let ease: Int }
@@ -27,7 +28,10 @@ final class NativeSpaceshipFinalePresentation: NativeFinitePresentation {
         frames = (1...4).compactMap { artwork.image("assets/shop/spaceship/saucer\($0)@2x.png") }
         leftBeam.image = artwork.image("assets/shop/spaceship/leftbeam@2x.png")
         rightBeam.image = artwork.image("assets/shop/spaceship/rightbeam@2x.png")
-        glyphs = NativeSplashGlyphField.clankStyle(artwork:artwork,text:"WOOMBUU",random:random)
+        // Original PWA spaceship caption palette and WOO / MBUU split.
+        // Shared caption treatment keeps faces white and moves these into glow.
+        glyphs = NativeSplashGlyphField(artwork:artwork,text:"WOOMBUU",
+            colors:[UIColor(red:117.0/255,green:196.0/255,blue:195.0/255,alpha:1),UIColor(red:88.0/255,green:217.0/255,blue:234.0/255,alpha:1)],splitIndex:3,random:random)
         var prepared: [Debris] = [],allAssets = frames.count == 4 && leftBeam.image != nil && rightBeam.image != nil
         func prepare(_ plan:NativeArea55Motion.DebrisPlan) {
             let mover = UIView(),visual: UIView
@@ -51,12 +55,12 @@ final class NativeSpaceshipFinalePresentation: NativeFinitePresentation {
             }
             mover.bounds = CGRect(x: 0,y: 0,width: plan.size,height: plan.size)
             visual.frame = mover.bounds; mover.addSubview(visual)
-            prepared.append(.init(plan: plan,scatter: NativeArea55Motion.scatter(plan,random: random),mover: mover,visual: visual,retired:plan.isSideIntake))
+            prepared.append(.init(plan: plan,scatter: NativeArea55Motion.scatter(plan,random: random),mover: mover,visual: visual,intakeRotation: plan.value > 0 ? (NativeArea55Motion.clamp(random())*2-1)*40 : 0,retired:plan.isSideIntake))
         }
         for plan in NativeArea55Motion.debris {prepare(plan)}
         // The source schedules the right lead and its shuffled cycles before left shimmer.
         rightSteps = Self.makeBeamSteps(left: false,random: random); leftSteps = Self.makeBeamSteps(left: true,random: random)
-        for plan in NativeArea55Motion.additionalSideDebris {prepare(plan)}
+        for plan in NativeArea55Motion.additionalSideDebris+NativeArea55Motion.additionalCargo {prepare(plan)}
         debris = prepared
         assetReady = allAssets && FileManager.default.fileExists(atPath: resourceRoot.appendingPathComponent("assets/fonts/Baloo2-ExtraBold.ttf").path)
         super.init(viewport: viewport,duration: 3.8)
@@ -118,8 +122,12 @@ final class NativeSpaceshipFinalePresentation: NativeFinitePresentation {
             item.mover.center = CGPoint(x: NativeArea55Motion.bezier(startX,Double(bounds.width)*s.c1/100,Double(bounds.width)*s.c2/100,Double(target.x),m),y: Double(bounds.height)*s.y/100+(Double(target.y)-Double(bounds.height)*s.y/100)*m)
             let scale = 1.4-0.8*pow(m,1.18); item.mover.transform = CGAffineTransform(scaleX: scale,y: scale)
             var rotation = s.rotation*(1-m)+plan.wobble*wobble+plan.spin*sin(.pi*m)
-            if plan.value > 0 { rotation = NativeArea55Motion.clamp(rotation,-60,60) }
-            item.visual.transform = CGAffineTransform(translationX: s.drift*wobble,y: 0).rotated(by: rotation * .pi/180)
+            if plan.value > 0 {
+                rotation = item.intakeRotation*sin(.pi*p)+(item.intakeRotation*0.35)*sin(3 * .pi*p)*sin(.pi*p)
+                rotation = NativeArea55Motion.clamp(rotation,-40,40)
+            }
+            let squeeze = plan.value > 0 ? 0.20*sin(4 * .pi*p)*sin(.pi*p) : 0
+            item.visual.transform = CGAffineTransform(translationX: s.drift*wobble,y: 0).rotated(by: rotation * .pi/180).scaledBy(x: 1+squeeze,y: 1/(1+squeeze))
             item.mover.alpha = plan.isSideIntake ? 1:plan.delay > 0 ? CGFloat(1-pow(1-min(1,elapsed/0.12),2)):1
         }
         glyphs.paint(seconds: seconds)

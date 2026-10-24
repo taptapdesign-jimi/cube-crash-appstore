@@ -1,0 +1,236 @@
+{
+  "environment": "Native iOS Simulator; UIKit isolated caption; not physical GPU timing",
+  "memory": {
+    "current": {
+      "residentBytesEvery10Cycles": [
+        283164672,
+        283394048,
+        283590656,
+        283820032,
+        284000256,
+        284246016
+      ],
+      "retainedCaptionsAfter60": 0
+    },
+    "none": {
+      "residentBytesEvery10Cycles": [
+        274006016,
+        274038784,
+        274071552,
+        274120704,
+        274137088,
+        274169856
+      ],
+      "retainedCaptionsAfter60": 0
+    },
+    "paths": {
+      "residentBytesEvery10Cycles": [
+        284442624,
+        284672000,
+        284852224,
+        285032448,
+        285163520,
+        285360128
+      ],
+      "retainedCaptionsAfter60": 0
+    }
+  },
+  "metrics": {
+    "current": [
+      {
+        "cpuLayerRenderMs": {
+          "max": 4082.35320833046,
+          "mean": 4082.35320833046,
+          "p95": 4082.35320833046
+        },
+        "displayCallbackGapMs": {
+          "max": 16.66666667733807,
+          "mean": 16.666666666666668,
+          "p95": 16.66666667733807
+        },
+        "dynamicShadows": 36,
+        "gapsOver25ms": 0,
+        "labels": 45,
+        "paintMs": {
+          "max": 0.8850416634231806,
+          "mean": 0.32876250067298923,
+          "p95": 0.6891666707815602
+        }
+      },
+      {
+        "cpuLayerRenderMs": {
+          "max": 4115.953958331374,
+          "mean": 4115.953958331374,
+          "p95": 4115.953958331374
+        },
+        "displayCallbackGapMs": {
+          "max": 16.66666667733807,
+          "mean": 16.666666666666668,
+          "p95": 16.66666667733807
+        },
+        "dynamicShadows": 36,
+        "gapsOver25ms": 0,
+        "labels": 45,
+        "paintMs": {
+          "max": 0.9504166664555669,
+          "mean": 0.5309156253739881,
+          "p95": 0.8413333271164447
+        }
+      },
+      {
+        "cpuLayerRenderMs": {
+          "max": 4101.201416662661,
+          "mean": 4101.201416662661,
+          "p95": 4101.201416662661
+        },
+        "displayCallbackGapMs": {
+          "max": 16.66666667733807,
+          "mean": 16.666666666666668,
+          "p95": 16.66666667733807
+        },
+        "dynamicShadows": 36,
+        "gapsOver25ms": 0,
+        "labels": 45,
+        "paintMs": {
+          "max": 0.8937499951571226,
+          "mean": 0.48800937584019266,
+          "p95": 0.6847916665719822
+        }
+      }
+    ],
+    "none": [
+      {
+        "cpuLayerRenderMs": {
+          "max": 26.46025001013186,
+          "mean": 26.46025001013186,
+          "p95": 26.46025001013186
+        },
+        "displayCallbackGapMs": {
+          "max": 16.66666667733807,
+          "mean": 16.649092361088453,
+          "p95": 16.66666667733807
+        },
+        "dynamicShadows": 0,
+        "gapsOver25ms": 0,
+        "labels": 9,
+        "paintMs": {
+          "max": 0.8191249944502488,
+          "mean": 0.4352826383789458,
+          "p95": 0.7152500038500875
+        }
+      },
+      {
+        "cpuLayerRenderMs": {
+          "max": 20.71125000657048,
+          "mean": 20.71125000657048,
+          "p95": 20.71125000657048
+        },
+        "displayCallbackGapMs": {
+          "max": 16.66666667733807,
+          "mean": 16.666666666666668,
+          "p95": 16.66666667733807
+        },
+        "dynamicShadows": 0,
+        "gapsOver25ms": 0,
+        "labels": 9,
+        "paintMs": {
+          "max": 0.7519166683778167,
+          "mean": 0.4052312505033721,
+          "p95": 0.5758333427365869
+        }
+      },
+      {
+        "cpuLayerRenderMs": {
+          "max": 23.899458334199153,
+          "mean": 23.899458334199153,
+          "p95": 23.899458334199153
+        },
+        "displayCallbackGapMs": {
+          "max": 16.66666667733807,
+          "mean": 16.666666666666668,
+          "p95": 16.66666667733807
+        },
+        "dynamicShadows": 0,
+        "gapsOver25ms": 0,
+        "labels": 9,
+        "paintMs": {
+          "max": 0.862000000779517,
+          "mean": 0.5505256944161374,
+          "p95": 0.7622499979333952
+        }
+      }
+    ],
+    "paths": [
+      {
+        "cpuLayerRenderMs": {
+          "max": 4044.6308333339402,
+          "mean": 4044.6308333339402,
+          "p95": 4044.6308333339402
+        },
+        "displayCallbackGapMs": {
+          "max": 16.66666667733807,
+          "mean": 16.666666666666668,
+          "p95": 16.66666667733807
+        },
+        "dynamicShadows": 0,
+        "gapsOver25ms": 0,
+        "labels": 45,
+        "paintMs": {
+          "max": 2.092750000883825,
+          "mean": 0.9398281248043835,
+          "p95": 1.7183750023832545
+        }
+      },
+      {
+        "cpuLayerRenderMs": {
+          "max": 4045.198749998235,
+          "mean": 4045.198749998235,
+          "p95": 4045.198749998235
+        },
+        "displayCallbackGapMs": {
+          "max": 16.66666667733807,
+          "mean": 16.666666666666668,
+          "p95": 16.66666667733807
+        },
+        "dynamicShadows": 0,
+        "gapsOver25ms": 0,
+        "labels": 45,
+        "paintMs": {
+          "max": 2.0493750052992254,
+          "mean": 1.461210764561353,
+          "p95": 2.0054166670888662
+        }
+      },
+      {
+        "cpuLayerRenderMs": {
+          "max": 4025.6192499946337,
+          "mean": 4025.6192499946337,
+          "p95": 4025.6192499946337
+        },
+        "displayCallbackGapMs": {
+          "max": 16.66666667733807,
+          "mean": 16.666666666666668,
+          "p95": 16.66666667733807
+        },
+        "dynamicShadows": 0,
+        "gapsOver25ms": 0,
+        "labels": 45,
+        "paintMs": {
+          "max": 2.1288333227857947,
+          "mean": 1.3386659734048105,
+          "p95": 1.7634166579227895
+        }
+      }
+    ]
+  },
+  "pathVisualDifference": {
+    "channelsDifferingOver8Percent": 0.6392534532344959,
+    "rgbaRms255": 1.3941606819524979
+  },
+  "pointViewport": [
+    390,
+    844
+  ],
+  "targetHz": 60,
+  "text": "BLOOMING!"
+}

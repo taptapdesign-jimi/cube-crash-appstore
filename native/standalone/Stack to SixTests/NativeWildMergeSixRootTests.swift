@@ -116,6 +116,11 @@ final class NativeWildMergeSixRootTests:XCTestCase {
     func testSpaceshipDestinationActualSourceParticlesSettleAndContinue()async throws {
         try await exercise(archetype:.magnet,variant:"spaceship",reverse:true)
     }
+    func testLaserUntouchedAndLaterTargetsStayVisibleUntilTheirOwnContact()async throws {
+        for arcade in [false,true] {for reverse in [false,true] {
+            try await exercise(archetype:.tnt,variant:"laser-gun",reverse:reverse,disposeDuringMain:false,moves:49,arcadeRun:arcade,verifyLaserContinuity:true)
+        }}
+    }
     func testLaserEveryActualContactUsesOrdinaryMergeSixSmokeAndShardsAndSettlesBothDirections()async throws {
         try await exercise(archetype:.tnt,variant:"laser-gun",reverse:false,disposeDuringMain:false)
         try await exercise(archetype:.tnt,variant:"laser-gun",reverse:true,disposeDuringMain:false)
@@ -228,6 +233,18 @@ final class NativeWildMergeSixRootTests:XCTestCase {
                 interveningOrdinary:true,interveningSix:true,rapidOrdinaryContacts:5)
         }
     }
+    func testBottleGridKeepsPullAndSurvivorBouncePlayableBothDirections()async throws {
+        for reverse in [false,true] {
+            try await exercise(archetype:.magnet,variant:"bottle",reverse:reverse,disposeDuringMain:false,moves:49,verifySurvivorEntry:true)
+        }
+    }
+    func testEveryMagnetFamilySurvivorHasVisibleFreshFaceBounceBothDirections()async throws {
+        for variant in [String?.none,"spaceship","bottle","honey"] {
+            for reverse in [false,true] {
+                try await exercise(archetype:.magnet,variant:variant,reverse:reverse,disposeDuringMain:false,moves:49,verifySurvivorEntry:true)
+            }
+        }
+    }
     func testSpaceshipSourceActualSourceParticlesSettleAndContinue()async throws {
         try await exercise(archetype:.magnet,variant:"spaceship",reverse:false,disposeDuringMain:false)
     }
@@ -272,7 +289,29 @@ final class NativeWildMergeSixRootTests:XCTestCase {
     func testBloobArcadeFinalDestination()async throws {
         try await exercise(archetype:.star,variant:"bloob",reverse:true,disposeDuringMain:false,moves:49,finalOnly:true,starCount:1,arcadeRun:true)
     }
-    private func exercise(archetype:NativeWildArchetype,variant:String?,reverse:Bool,disposeDuringMain:Bool=true,pulledKanta:Bool=false,moves:Int=50,finalOnly:Bool=false,starCount:Int=3,capturedBoard:NativeBoardState?=nil,freshStar:Bool=false,verifyStarTail:Bool=false,interveningOrdinary:Bool=false,interveningSix:Bool=false,heldOrdinaryMilliseconds:Int=160,rapidOrdinaryContacts:Int=0,tutorialAssist:Bool=false,arcadeTutorial:Bool=false,laserInterveningStack:Bool=false,laserInterveningSix:Bool=false,arcadeRun:Bool=false,initialMeter:Double?=nil,verifyBaloonRetirement:Bool=false,verifyBoardScale:Bool=false,verifyQueuedBonus:Bool=false)async throws {
+    func testFinalBoardClearCelebrationObservesAllAuthoredFamiliesAtNinetyPercent()async throws {
+        let cases:[(NativeWildArchetype,String?)]=[(.star,nil),(.juice,nil),(.magnet,nil),(.tnt,nil),
+            (.star,"fish"),(.juice,"baloon"),(.juice,"mushroom"),(.juice,"robo-cube"),(.star,"cubero"),
+            (.star,"kanta"),(.star,"bee"),(.star,"bloob"),(.magnet,"bottle"),(.magnet,"honey"),
+            (.magnet,"spaceship"),(.tnt,"laser-gun"),(.tnt,"flower"),(.tnt,"coconut"),(.tnt,"barell"),
+            (.tnt,"beach-ball"),(.tnt,"bloob-ball")]
+        for (index,item) in cases.enumerated() {
+            try await exercise(archetype:item.0,variant:item.1,reverse:index % 2 == 0,
+                disposeDuringMain:false,moves:49,finalOnly:true,arcadeRun:true,verifyBoardCleared:true)
+        }
+    }
+
+    func testBeachBallBoardClearFollowsActualLastBallInBothModesAndDirections()async throws {
+        for (arcade,reverse) in [(true,false),(true,true),(false,false)] {
+            try await exercise(archetype:.tnt,variant:"beach-ball",reverse:reverse,disposeDuringMain:false,
+                moves:49,finalOnly:true,arcadeRun:arcade,verifyBoardCleared:true)
+        }
+    }
+    func testJourneyBoardClearProgressForBottleAndCoconut()async throws {
+        try await exercise(archetype:.magnet,variant:"bottle",reverse:true,disposeDuringMain:false,moves:49,finalOnly:true,verifyBoardCleared:true)
+        try await exercise(archetype:.tnt,variant:"coconut",reverse:false,disposeDuringMain:false,moves:49,finalOnly:true,verifyBoardCleared:true)
+    }
+    private func exercise(archetype:NativeWildArchetype,variant:String?,reverse:Bool,disposeDuringMain:Bool=true,pulledKanta:Bool=false,moves:Int=49,finalOnly:Bool=false,starCount:Int=3,capturedBoard:NativeBoardState?=nil,freshStar:Bool=false,verifyStarTail:Bool=false,interveningOrdinary:Bool=false,interveningSix:Bool=false,heldOrdinaryMilliseconds:Int=160,rapidOrdinaryContacts:Int=0,tutorialAssist:Bool=false,arcadeTutorial:Bool=false,laserInterveningStack:Bool=false,laserInterveningSix:Bool=false,arcadeRun:Bool=false,initialMeter:Double?=nil,verifyBaloonRetirement:Bool=false,verifyBoardScale:Bool=false,verifyQueuedBonus:Bool=false,verifyLaserContinuity:Bool=false,verifySurvivorEntry:Bool=false,verifyBoardCleared:Bool=false)async throws {
         let label=(variant ?? archetype.rawValue)+(reverse ? ":destination":":source")
         print("[WildMergeSixRoot] start \(label)")
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("wild-six-particles-"+UUID().uuidString)
@@ -293,6 +332,12 @@ final class NativeWildMergeSixRootTests:XCTestCase {
         }
         if laserInterveningSix {
             for i in 2..<25 {board.tiles[i].value=1+(i % 5);board.tiles[i].locked=false;board.tiles[i].alpha=1}
+        }
+        if verifyLaserContinuity {
+            for i in 2..<40 {board.tiles[i].value=1+(i % 4);board.tiles[i].locked=false;board.tiles[i].alpha=1}
+            for (index,kind,name) in [(10,NativeWildArchetype.tnt,"laser-gun"),(20,.tnt,"flower"),(30,.star,"")] {
+                board.tiles[index].value=6;board.tiles[index].archetype=kind;board.tiles[index].variant=name.isEmpty ? nil:name
+            }
         }
         board.tiles[0].archetype=archetype;board.tiles[0].variant=variant;board.tiles[0].starOrbitCount=starCount
         if tutorialAssist {var tutorial=NativeTutorialState();tutorial.active=false;tutorial.guideCompleted=true;tutorial.completionAssist=true;tutorial.step = .freePlay;board.tutorial=tutorial}
@@ -324,7 +369,7 @@ final class NativeWildMergeSixRootTests:XCTestCase {
             },completeNativeGameplayEnabled:true)
         let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
         let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844))
-        if interveningOrdinary {window.windowScene=try XCTUnwrap(previous?.windowScene,"Overlap fixture must mount on the actual Simulator UIWindowScene")}
+        if interveningOrdinary || verifyLaserContinuity {window.windowScene=try XCTUnwrap(previous?.windowScene,"Overlap/Laser continuity fixture must mount on the actual Simulator UIWindowScene")}
         window.rootViewController=host;window.makeKeyAndVisible()
         defer{host.dispose();window.isHidden=true;previous?.makeKeyAndVisible();try? FileManager.default.removeItem(at:directory);timeoutDiagnostic=nil;boardScaleAudit=nil}
         host.loadViewIfNeeded();let app=try XCTUnwrap(host.children.first as? NativeAppController)
@@ -340,11 +385,32 @@ final class NativeWildMergeSixRootTests:XCTestCase {
         try await wait(label+":entry"){game()?.boardScene?.isBoardEntryComplete==true && game()?.beforeSourceGameplayAdmission==nil}
         let gameplay=try XCTUnwrap(game()),scene=try XCTUnwrap(gameplay.boardScene),scope=try XCTUnwrap(gameplay.sourceScope)
         drawingScene=scene
+        var clearProgress:[Double]=[],clearVoices=0
+        if verifyBoardCleared {
+            let previousProgress=scene.onFinalMergeProgress,previousVoice=gameplay.onRoundWon
+            scene.onFinalMergeProgress={seconds,duration,generation in
+                clearProgress.append(seconds/duration);previousProgress?(seconds,duration,generation)
+            }
+            gameplay.onRoundWon={generation in clearVoices += 1;previousVoice?(generation)}
+        }
         timeoutDiagnostic={"route=\(app.route) failureScope=\(scope.current) unsavable=\(gameplay.engine.hasUnsavableSourceGameplayState) HUD=\(gameplay.engine.pendingHUDStars) pullOwners=\(scene.sourceMagnetActualPullOwnerCount) survivorInput=\(scene.sourceMagnetSurvivorPendingInputIDs) revision=\(gameplay.engine.state.revision) flags=\(gameplay.engine.flags) mainEntered=\(gameplay.engine.sourceSpecialAbsorbMainEntered) lazy=\(String(describing:gameplay.engine.pendingSourceMagnetLazyRespawn)) special=\(String(describing:gameplay.engine.pendingSpecial)) direct=\(String(describing:gameplay.engine.pendingDirectWild)) shards=\(scene.sourceWildSixShardOwnerCount) smoke=\(scope.smoke.activeOwnerCount)"}
         var wildID=board.tiles[0].id,targetID=board.tiles[1].id
         if !freshStar {
             XCTAssertEqual(gameplay.engine.state.tiles.first{$0.id==wildID}?.variant,variant)
             XCTAssertEqual(gameplay.engine.state.tiles.first{$0.id==wildID}?.gameplayArchetype,archetype)
+        }
+        var survivorEntrySamples:[CGFloat]=[]
+        if verifySurvivorEntry {
+            let previous=scene.onRenderSurfacePreparation
+            scene.onRenderSurfacePreparation={ [weak scene] in
+                previous?()
+                guard let scene else{return}
+                for id in [wildID,targetID] {
+                    guard let tile=scene.engine.state.tiles.first(where:{$0.id==id}),!tile.isWild,!tile.locked,tile.value>0,
+                          let node=scene.sourceNativeTileNode(id),!node.isSpecial,node.sourceAppSpawnOwnsOuterScale else{continue}
+                    survivorEntrySamples.append(node.sourceLocalScale.x)
+                }
+            }
         }
         if verifyBoardScale {
             let mergedPair=Set(board.tiles.prefix(2).map(\.id))
@@ -374,6 +440,44 @@ final class NativeWildMergeSixRootTests:XCTestCase {
                 }
             }
             boardScaleAudit?()
+        }
+        var laserContinuitySamples=0,laserContactCount=0,laserLaterTargetSamples=0,laserPresentationCount=0
+        if verifyLaserContinuity {
+            let prepareSurface=scene.onRenderSurfacePreparation
+            scene.onRenderSurfacePreparation={ [weak self] in
+                prepareSurface?();self?.boardScaleAudit?()
+            }
+            let present=try XCTUnwrap(scene.onAuthoredLaserImpact)
+            scene.onAuthoredLaserImpact={targets,generation,impact,allContacts,completion in
+                laserPresentationCount+=1
+                let originals=Dictionary(uniqueKeysWithValues:gameplay.engine.state.tiles.filter{!$0.locked && !$0.isWild}.compactMap{tile in
+                    scene.sourceNativeTileNode(tile.id).map{(tile.id,($0,tile.value))}
+                })
+                XCTAssertGreaterThan(originals.count,4,"Must include unhit tiles as well as four targets")
+                var contacted=Set<String>(),failures=Set<String>()
+                let reserved=Set(targets.map(\.tileID));XCTAssertEqual(targets.count,4)
+                self.boardScaleAudit={
+                    for (id,(original,value)) in originals where !contacted.contains(id) {
+                        laserContinuitySamples+=1
+                        if reserved.contains(id){laserLaterTargetSamples+=1}
+                        guard let tile=gameplay.engine.state.tiles.first(where:{$0.id==id}),
+                              let node=scene.sourceNativeTileNode(id) else{
+                            if failures.insert(id+":missing").inserted{XCTFail("Laser removed untouched tile \(id)")};continue
+                        }
+                        let message="Laser pre-contact pass=\(laserPresentationCount) id=\(id) value=\(value) reserved=\(reserved.contains(id)) contacts=\(laserContactCount) outer=\(node.sourceLocalScale) inner=\(node.visual.xScale),\(node.visual.yScale) hidden=\(node.isHidden),\(node.visual.isHidden) alpha=\(node.alpha),\(node.visual.alpha)"
+                        let continuous=node === original && node.parent != nil && !node.isHidden && !node.visual.isHidden && node.alpha>0.99 && node.visual.alpha>0.99 && tile.value==value && node.sourceValue==value && !scene.sourceOwnsNewFaceEntry(id) && !node.sourceIsBeingSpawned && min(node.sourceLocalScale.x,node.sourceLocalScale.y)>0.90 && min(node.visual.xScale,node.visual.yScale)>0.90
+                        if !continuous,failures.insert(id+":continuity").inserted{XCTFail(message)}
+                    }
+                }
+                self.boardScaleAudit?()
+                return present(targets,generation,{index,id in
+                    self.boardScaleAudit?()
+                    contacted.insert(id);laserContactCount+=1
+                    let accepted=impact(index,id)
+                    self.boardScaleAudit?()
+                    return accepted
+                },allContacts,completion)
+            }
         }
         var queuedBonus:[String:(TimeInterval,Int)]=[:],queuedSamples=0
         if verifyQueuedBonus {
@@ -629,6 +733,16 @@ final class NativeWildMergeSixRootTests:XCTestCase {
             XCTAssertNotNil(scene.childNode(withName:"//native-core-star-finale"),"The actual Star field remains alive after its ordinary shards retire")
             XCTAssertEqual(scene.sourceFrameSnapshot.maxFPS,60,"The live Star field must own render cadence after merge settlement: "+label)
         }
+        if verifyBoardCleared {
+            try await wait(label+":board-cleared-overlay"){failure != nil || clearVoices>0}
+            XCTAssertNil(failure,label);XCTAssertEqual(clearVoices,1,label)
+            XCTAssertFalse(clearProgress.isEmpty,"Must start from actual animation90percent,not terminal fallback: "+label)
+            if let first=clearProgress.first {XCTAssertGreaterThanOrEqual(first,0.9,label);XCTAssertLessThan(first,1.05,label)}
+            XCTAssertTrue(gameplay.hasPresentedBoardCleared,label)
+            let overlay=gameplay.view.subviews.first{$0.accessibilityIdentifier=="native-board-cleared-presentation"}
+            XCTAssertNotNil(overlay,label);XCTAssertEqual(overlay?.layer.zPosition,1000,label)
+            XCTAssertGreaterThan(scene.childNode(withName:"//native-game-hud")?.alpha ?? 0,0.9,label)
+        }
         if finalOnly {
             try await wait(label+":clean-result") {
                 failure != nil || gameplay.engine.state.terminal?.kind == .complete
@@ -697,6 +811,7 @@ final class NativeWildMergeSixRootTests:XCTestCase {
             failure != nil || (!gameplay.engine.hasUnsavableSourceGameplayState && gameplay.engine.pendingHUDStars.isEmpty &&
                 scene.sourceMagnetActualPullOwnerCount==0 && scene.sourceMagnetSurvivorPendingInputIDs.isEmpty)
         }
+        XCTAssertFalse(gameplay.hasPresentedBoardCleared,"Non-final merge must not celebrate: "+label)
         if verifyQueuedBonus {
             XCTAssertGreaterThan(queuedBonus.count,variant=="mushroom" ? 5:0)
             XCTAssertGreaterThan(queuedSamples,0)
@@ -716,6 +831,13 @@ final class NativeWildMergeSixRootTests:XCTestCase {
                 XCTAssertFalse(retained.hasSourceBottleIdle)
             }
             XCTAssertFalse(gameplay.engine.state.activeTiles.contains{$0.variant=="bottle"})
+        }
+        if verifyLaserContinuity {
+            XCTAssertEqual(laserContactCount,4)
+            XCTAssertGreaterThan(laserContinuitySamples,100)
+            XCTAssertGreaterThan(laserLaterTargetSamples,20)
+            print("[LaserContinuity] \(label) samples=\(laserContinuitySamples) laterTargetSamples=\(laserLaterTargetSamples) contacts=\(laserContactCount)")
+            boardScaleAudit=nil // Later user moves intentionally replace untouched dice.
         }
         if laserInterveningStack {XCTAssertTrue(laserOverlapAccepted,"Must exercise replacement interruption")}
         if initialMeter != nil {
@@ -767,6 +889,13 @@ final class NativeWildMergeSixRootTests:XCTestCase {
             try await wait(label+":post-laser-merge-six"){failure != nil || !gameplay.engine.hasUnsavableSourceGameplayState}
             XCTAssertNil(failure,label);XCTAssertNil(gameplay.sourcePresentationFailure)
         }
+        if verifySurvivorEntry {
+            try await wait(label+":survivor-bounce-settled") {
+                [wildID,targetID].compactMap{scene.sourceNativeTileNode($0)}.allSatisfy{!$0.sourceAppSpawnOwnsOuterScale}
+            }
+            XCTAssertGreaterThanOrEqual(survivorEntrySamples.filter{$0>0.02 && $0<0.9}.count,3,"Must render visible growth, not instantaneous full size: "+label)
+            XCTAssertGreaterThan(survivorEntrySamples.max() ?? 0,1.04,"Must render the standard overshoot: "+label)
+        }
         let ordinary=gameplay.engine.state.activeTiles.filter{!$0.isWild && !$0.locked && $0.value>0 && $0.value<6}
         let pair=ordinary.lazy.flatMap{a in ordinary.filter{$0.id != a.id && a.value+$0.value<=6}.map{(a,$0)}}.first
         if let pair {
@@ -789,6 +918,31 @@ final class NativeWildMergeSixRootTests:XCTestCase {
             XCTAssertEqual(scene.sourceMagnetActualPullOwnerCount,0)
             XCTAssertTrue(scene.sourceMagnetSurvivorPendingInputIDs.isEmpty)
             XCTAssertEqual(app.route,.gameplay)
+        }
+        if verifyLaserContinuity {
+            boardScaleAudit=nil
+            // Actual input/history on this SAME board/root: two other Wilds,
+            // several ordinary moves, then a second pre-existing Laser.
+            for specialID in [board.tiles[20].id,board.tiles[30].id] {
+                let target=try XCTUnwrap(gameplay.engine.state.activeTiles.first{!$0.isWild && !$0.locked && $0.value>0 && $0.value<6 && gameplay.engine.canBeginDrag(tileID:$0.id)})
+                try await drag(specialID,target.id)
+                try await wait(label+":history-special"){failure != nil || (!gameplay.engine.hasUnsavableSourceGameplayState && gameplay.engine.pendingHUDStars.isEmpty)}
+                XCTAssertNil(failure)
+            }
+            for index in 0..<6 {
+                let playable=gameplay.engine.state.activeTiles.filter{!$0.isWild && !$0.locked && $0.value>0 && $0.value<6}
+                let pair=try XCTUnwrap(playable.lazy.flatMap{a in playable.filter{$0.id != a.id && a.value+$0.value<6}.map{(a,$0)}}.first)
+                try await drag(pair.0.id,pair.1.id,holdMilliseconds:20)
+                try await wait(label+":history-move-\(index)"){failure != nil || !gameplay.engine.hasUnsavableSourceGameplayState}
+                XCTAssertNil(failure)
+            }
+            let second=board.tiles[10].id
+            let target=try XCTUnwrap(gameplay.engine.state.activeTiles.first{!$0.isWild && !$0.locked && $0.value>0 && $0.value<6 && gameplay.engine.canBeginDrag(tileID:$0.id)})
+            try await drag(reverse ? target.id:second,reverse ? second:target.id)
+            try await wait(label+":second-laser"){failure != nil || (!gameplay.engine.hasUnsavableSourceGameplayState && gameplay.engine.pendingHUDStars.isEmpty)}
+            XCTAssertNil(failure);XCTAssertEqual(laserPresentationCount,2);XCTAssertEqual(laserContactCount,8)
+            print("[LaserContinuity] history \(label) arcade=\(arcadeRun) presentations=\(laserPresentationCount) contacts=\(laserContactCount) samples=\(laserContinuitySamples) laterTargetSamples=\(laserLaterTargetSamples)")
+            boardScaleAudit=nil
         }
         host.dispose();XCTAssertFalse(scope.current,label);XCTAssertEqual(scope.smoke.activeOwnerCount,0,label)
         print("[WildMergeSixRoot] settled continuation PASS \(label)")

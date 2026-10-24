@@ -6,7 +6,9 @@ import UIKit
 class NativeFinitePresentation: UIView,NativeSourceAnimationParticipant {
     private let completionReceipt=NativeFiniteCompletionReceipt()
     var onFinished: ((Bool) -> Void)? {didSet{completionReceipt.callback=onFinished}}
+    var onProgress: ((TimeInterval,TimeInterval) -> Void)?
     var onCue: ((String,Int) -> Void)?
+    var progressDuration:TimeInterval {duration}
     let duration: TimeInterval
     private var delivery=NativeSourceAnimationClockService.shared
     private var domain=NativeSourceAnimationClockService.Domain.nativeRaw
@@ -51,7 +53,7 @@ class NativeFinitePresentation: UIView,NativeSourceAnimationParticipant {
     func advanceSourceAnimation(seconds:Double) {
         guard !disposed else{return}
         CATransaction.begin();CATransaction.setDisableActions(true)
-        paint(seconds:min(duration,seconds));CATransaction.commit()
+        paint(seconds:min(duration,seconds));onProgress?(min(duration,seconds),progressDuration);CATransaction.commit()
     }
     override func didMoveToWindow() { super.didMoveToWindow(); updatePause() }
     func setSuspended(_ value: Bool) { suspended = value; updatePause() }
@@ -61,7 +63,7 @@ class NativeFinitePresentation: UIView,NativeSourceAnimationParticipant {
         if let lease=deliveryLease{deliveryLease=nil;lease.cancel(success:success);return}
         disposed=true
         observations.forEach(NotificationCenter.default.removeObserver); observations.removeAll()
-        let completion = completionReceipt.take(); onFinished = nil; onCue = nil
+        let completion = completionReceipt.take(); onFinished = nil; onCue = nil; onProgress = nil
         removeFromSuperview(); completion?(success)
     }
     isolated deinit {

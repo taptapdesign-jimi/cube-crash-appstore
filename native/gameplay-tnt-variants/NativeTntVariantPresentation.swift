@@ -24,6 +24,10 @@ final class NativeTntVariantPresentation: NativeFinitePresentation {
     private var receipts = Set<String>()
     private var finishedClouds=Set<Int>(),finishedPetals=Set<Int>(),finishedDebris=Set<Int>()
     private var lastPaintTime:TimeInterval?
+    private var boardReaction:NativeBloobBoardReactionBinding?
+    func bindBoardReaction(_ binding:NativeBloobBoardReactionBinding?) {boardReaction?.dispose();boardReaction=binding}
+    override func setSuspended(_ value:Bool){super.setSuspended(value);if value {boardReaction?.reset()}}
+    override func didMoveToWindow(){super.didMoveToWindow();if window==nil {boardReaction?.reset()}}
     private var cancelled = false
     static func assets(_ variant: Variant) -> [String] {
         if variant == .coconut {return (1...8).map{"assets/shop/coconut/palm\($0)@2x.png"}+["assets/shop/coconut/coconut.png"]}
@@ -35,8 +39,17 @@ final class NativeTntVariantPresentation: NativeFinitePresentation {
     init(resourceRoot: URL,variant: Variant,viewport: CGSize,preparedArtwork:JimiV9Artwork?=nil,coconutBoardBodySize:CGFloat?=nil,random: @escaping () -> Double = { Double.random(in:0..<1) }) {
         self.variant = variant; effectCenter = CGPoint(x:viewport.width/2,y:viewport.height/2)
         let artwork = preparedArtwork ?? JimiV9Artwork(resourceRoot:resourceRoot)
-        let colors: [UIColor] = variant == .coconut ? [UIColor(red:228.0/255,green:149.0/255,blue:90.0/255,alpha:1)] : variant == .flower ? [UIColor(red:1,green:254.0/255,blue:250.0/255,alpha:1),UIColor(red:254.0/255,green:248.0/255,blue:234.0/255,alpha:1)] : [UIColor(red:244.0/255,green:141.0/255,blue:89.0/255,alpha:1)]
-        glyphs = variant == .coconut ? NativeSplashGlyphField.clankStyle(artwork:artwork,text:"BONKERS",backgroundColors:[UIColor(red:101.0/255,green:119.0/255,blue:30.0/255,alpha:1),UIColor(red:130.0/255,green:148.0/255,blue:36.0/255,alpha:1)],random:random):variant == .bloobGas ? NativeSplashGlyphField.clankStyle(artwork:artwork,text:"GASSS!",random:random):NativeSplashGlyphField(artwork:artwork,text:variant == .coconut ? "BONKERS":variant == .flower ? "BLOOMING!":"POOOF",colors:colors,splitIndex:variant == .flower ? 3.5:0,letterOpacityRange:variant == .barell || variant == .coconut ? 1...1:nil,random:random)
+        if variant == .coconut || variant == .flower {
+            // Flower petals sampled from the preserved flying flowr3/flowr2 art.
+            let glowColors: [UIColor] = variant == .flower
+                ? [UIColor(red:1,green:156.0/255,blue:171.0/255,alpha:1),UIColor(red:253.0/255,green:233.0/255,blue:177.0/255,alpha:1)]
+                : [UIColor(red:101.0/255,green:119.0/255,blue:30.0/255,alpha:1),UIColor(red:130.0/255,green:148.0/255,blue:36.0/255,alpha:1)]
+            glyphs = NativeSplashGlyphField.clankStyle(artwork:artwork,text:variant == .flower ? "BLOSSOM":"COCO-LOCO",backgroundColors:glowColors,random:random)
+        } else if variant == .bloobGas {
+            glyphs = NativeSplashGlyphField.clankStyle(artwork:artwork,text:"GASSS!",random:random)
+        } else {
+            glyphs = NativeSplashGlyphField(artwork:artwork,text:"POOOF",colors:[UIColor(red:244.0/255,green:141.0/255,blue:89.0/255,alpha:1)],splitIndex:0,letterOpacityRange:1...1,random:random)
+        }
         let coconutPlan=variant == .coconut ? NativeCoconutFinaleMotion(viewport:viewport,boardBodySize:coconutBoardBodySize ?? 48,random:random):nil
         super.init(viewport:viewport,duration:max(Self.animationDuration,(coconutPlan?.endTime ?? 0)+0.3))
         accessibilityIdentifier = "native-\(variant.rawValue)-finale"
@@ -106,13 +119,14 @@ final class NativeTntVariantPresentation: NativeFinitePresentation {
     private func fire(_ name:String,_ callback:(() -> Void)?) { if receipts.insert(name).inserted { callback?() } }
     override func paint(seconds time: TimeInterval) {
         guard !cancelled,assetsReady else { return }
+        if variant == .bloobGas {boardReaction?.paint(seconds:time,startTime:0.07,returnTime:1.45,vibrates:false)}
         // Retain final hidden poses but stop evaluating/mutating retired art.
         // Explicit backward sampling restores the original authored pose.
         if let previous=lastPaintTime,time<previous {
             finishedClouds.removeAll();finishedPetals.removeAll();finishedDebris.removeAll()
         }
         lastPaintTime=time
-        glyphs.paint(seconds:time,glowOpacity:variant == .coconut ? CGFloat(1-Self.smoothUnit((time-1.40)/0.57)):1)
+        glyphs.paint(seconds:time,glowOpacity:variant == .coconut || variant == .flower ? CGFloat(1-Self.smoothUnit((time-1.40)/0.57)):1)
         if variant == .bloobGas,receipts.insert("rise").inserted {onCue?("rise",0)}
         if time>=0.51 { fire("frame6",onSprite6Entered) }
         let sequenceEnd=variant == .coconut ? 1.77+NativeCoconutFinaleMotion.palmHoldExtension:1.01+Double(clouds.count-1)*0.04+0.30
@@ -243,5 +257,5 @@ final class NativeTntVariantPresentation: NativeFinitePresentation {
         return p<0.5 ? (1-out(1-p*2))/2:0.5+out((p-0.5)*2)/2
     }
     override func start() { guard assetsReady else {dispose();return};super.start() }
-    override func dispose() { guard !cancelled else{return};cancelled=true;if variant == .coconut {onCue?("coconut-stop",0)};if variant == .coconut {rearPalms.forEach{$0.retire();$0.removeFromSuperview()};rearPalms.removeAll();frontPalms.removeAll();palmUnit.subviews.forEach{($0 as? NativeCoconutPalmView)?.retire();($0 as? UIImageView)?.image=nil;$0.removeFromSuperview()};debris.forEach{($0.view as? UIImageView)?.image=nil;$0.view.removeFromSuperview()}};wholeCoconuts.forEach{($0 as? UIImageView)?.image=nil;$0.removeFromSuperview()};wholeCoconuts.removeAll();coconutMotion=nil;onSprite6Entered=nil;onVisualSequenceComplete=nil;clouds.removeAll();petals.removeAll();debris.removeAll();super.dispose() }
+    override func dispose() { guard !cancelled else{return};cancelled=true;boardReaction?.dispose();boardReaction=nil;if variant == .coconut {onCue?("coconut-stop",0)};if variant == .coconut {rearPalms.forEach{$0.retire();$0.removeFromSuperview()};rearPalms.removeAll();frontPalms.removeAll();palmUnit.subviews.forEach{($0 as? NativeCoconutPalmView)?.retire();($0 as? UIImageView)?.image=nil;$0.removeFromSuperview()};debris.forEach{($0.view as? UIImageView)?.image=nil;$0.view.removeFromSuperview()}};wholeCoconuts.forEach{($0 as? UIImageView)?.image=nil;$0.removeFromSuperview()};wholeCoconuts.removeAll();coconutMotion=nil;onSprite6Entered=nil;onVisualSequenceComplete=nil;clouds.removeAll();petals.removeAll();debris.removeAll();super.dispose() }
 }

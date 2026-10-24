@@ -36,6 +36,20 @@ import StackToSixNativeState
         let gameplay=try XCTUnwrap(game()),scene=try XCTUnwrap(gameplay.boardScene)
         XCTAssertTrue(scene.sourceTutorialMeterHUDReady,"Restored gameplay must mount the actual Source owner, not prototype fill")
         XCTAssertFalse(scene.sourceTutorialMeterSmokeFrozen)
+        func assertSavedFill(file:StaticString=#filePath,line:UInt=#line)throws {
+            let loader=try XCTUnwrap(scene.childNode(withName:"//wildLoader"),file:file,line:line)
+            let track=try XCTUnwrap(loader.children.compactMap{$0 as? SKShapeNode}.first?.path,file:file,line:line)
+            let fill=try XCTUnwrap(loader.childNode(withName:"//wildMeterFillBounceLayer")?.children.compactMap{$0 as? SKShapeNode}.first?.path,file:file,line:line)
+            XCTAssertEqual(fill.boundingBox.width,track.boundingBox.width*0.1,accuracy:0.001,"Saved charge visible before any move",file:file,line:line)
+            XCTAssertEqual(gameplay.engine.state.wildMeter,0.1,accuracy:0.000001,file:file,line:line)
+        }
+        try assertSavedFill()
+        let originalSize=scene.size
+        scene.layout(size:CGSize(width:originalSize.width+8,height:originalSize.height),insets:.zero)
+        try assertSavedFill()
+        scene.layout(size:originalSize,insets:window.safeAreaInsets)
+        try assertSavedFill()
+
         let loader=try XCTUnwrap(scene.childNode(withName:"//wildLoader"))
         let bounce=try XCTUnwrap(loader.childNode(withName:"//wildMeterFillBounceLayer"))
         func point(_ id:String)throws->CGPoint{let node=try XCTUnwrap(scene.sourceNativeTileNode(id));return scene.convert(node.position,from:try XCTUnwrap(node.parent))}

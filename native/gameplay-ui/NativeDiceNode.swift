@@ -170,6 +170,9 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
             if oldValue != variant {
                 let seed=tileID.utf8.reduce(UInt64(5381)){($0 &* 33) &+ UInt64($1)}
                 bloobBoardPlayback=variant=="bloob" ? .init(seed:seed):nil
+                bloobBoardRotation=variant=="bloob" ? .init(seed:seed):nil
+                bloobBoardEntryStart=nil
+                paintBloobRotation()
             }
         }
     }
@@ -350,6 +353,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
                 if self.variant != nil {self.sourceRestoredWildFaceHit=CGRect(x:-64,y:-64,width:128,height:128)}
                 self.face.texture=texture;self.face.setScale(1);self.face.size=requested.size
                 self.face.anchorPoint=requested.anchor;self.face.alpha=1;self.face.isHidden=false;self.face.colorBlendFactor=0
+                self.paintBloobRotation()
                 if self.variant=="cubero" {self.paintArtwork()}
                 self.onResourceReady?()
                 guard self.sourceRestoredWildConstructorCurrent,self.sourceGeneration==generation,current(),
@@ -698,6 +702,9 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
     // Exact retained conversion token; an old cleanup never owns a later C
     // conversion on this same container. It is NOT a Source activity marker.
     private var sourceMagnetConversionRevision:UInt64=0
+    // A retained survivor also crosses an asynchronous numbers-face RAF.
+    // Keep its placeholder children out of pixels until that face is complete.
+    private var sourceMagnetSurvivorFacePending=false
     var sourceRetainedMagnetConversionRevision:UInt64 {sourceMagnetConversionRevision}
     /// Literal v9 app-merge survivor conversion: this actual container is
     /// normalized/reset before setValue's separate raw numbers RAF. Resources
@@ -735,12 +742,13 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         oldHoney?.dispose();guard valid() else{return false}
         oldFizz?.dispose();guard valid() else{return false}
         self.position=position;zRotation=0;paintSourceOuterScale(CGPoint(x:1,y:1))
-        visual.position = .zero;visual.zRotation=0;visual.setScale(1);visual.alpha=1;visual.isHidden=false
+        sourceMagnetSurvivorFacePending=true
+        visual.position = .zero;visual.zRotation=0;visual.setScale(1);visual.alpha=1;visual.isHidden=true
         spaceshipRoot.position = .zero;spaceshipRoot.zRotation=0;spaceshipRoot.setScale(1)
         face.removeFromParent();visual.addChild(face)
         face.anchorPoint=CGPoint(x:0.5,y:0.5);face.position = .zero;face.zRotation=0
         face.texture=tileTexture;face.size=CGSize(width:128,height:128);face.setScale(1);face.alpha=1;face.isHidden=false
-        shadow.zRotation=0;shadow.setScale(1);shadow.isHidden=false
+        shadow.zRotation=0;shadow.setScale(1);shadow.isHidden=true
         // Literal collapse/normalization precedes randomRegularTileValue.
         // Retirement/current hooks may synchronously deliver callbacks; the
         // shared APP draw therefore cannot be precomputed by the caller.
@@ -821,6 +829,12 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
             let pip=SKSpriteNode(texture:textures.pipTexture(),size:CGSize(width:15,height:15))
             pip.position=CGPoint(x:x,y:y)
             pips.addChild(pip)
+        }
+        if sourceMagnetSurvivorFacePending,sourceCurrentRegularSkin != nil {
+            // Skin, layers and pips now belong to the accepted physical frame.
+            // An old/cancelled binding never reaches this publication point.
+            sourceMagnetSurvivorFacePending=false
+            visual.isHidden=false;shadow.isHidden=false
         }
     }
     private func installSourceStackLayers(_ layout:NativeRegularStackLayout) {
@@ -1039,6 +1053,13 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
 
     var sourceMagnetImpactToken:UUID?
     let visual = SKNode()
+    private var bloobReactionSurface:SKNode?
+    func bloobBoardReactionSurface()->SKNode {
+        if let bloobReactionSurface{return bloobReactionSurface}
+        let surface=SKNode();surface.name="native-bloob-board-reaction"
+        visual.removeFromParent();addChild(surface);surface.addChild(visual)
+        bloobReactionSurface=surface;return surface
+    }
     private let face = SKSpriteNode()
     private let pips = SKNode()
     private let stack = SKNode()
@@ -1552,6 +1573,8 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
     private var frames: [SKTexture] = []
     private var paintedFrame = -1
     private var bloobBoardPlayback:NativeBloobArt.Playback?
+    private var bloobBoardRotation:NativeBloobArt.BoardRotation?
+    private var bloobBoardEntryStart:TimeInterval?
     private var artworkGeneration = 0
     private var cuberoCarrierArtwork=false
     private var disposed = false
@@ -1796,6 +1819,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         self.depth = depth; self.locked = locked; self.textures = textures
         let hash = id.utf8.reduce(UInt64(5381)) { ($0 &* 33) &+ UInt64($1) }
         bloobBoardPlayback=variant=="bloob" ? .init(seed:hash):nil
+        bloobBoardRotation=variant=="bloob" ? .init(seed:hash):nil
         definition = artworkOverride ?? NativeDiceArtwork.definition(kind: kind, variant: variant, regularSkin: Int(hash % 4))
         super.init()
         name = "native-die-\(id)"
@@ -1896,6 +1920,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
     }
 
     private func rebuild() {
+        paintBloobRotation()
         if !sourceIdleDeferred && !sourceRegistryPending,idleFizz==nil,let family=NativeIdleBubbleMotion.family(kind:kind,variant:variant) {
             let field=NativeIdleBubbleField(family:family);if collectionBubbleStyle {field.useCollectionStyle()};idleFizz=field;visual.addChild(field)
         }
@@ -2101,6 +2126,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         sourceBottlePreservingBase=preserveSourceBottleBase && !active && variant=="bottle"
         sourceHoneyPreparing=preserveSourceHoneyIdle && !active && variant=="honey"
         defer{sourceBottlePreservingBase=false;sourceHoneyPreparing=false}
+        if active {bloobBoardEntryStart=nil}
         sourceIdleDeferred=active;paintBaloonIdle();artworkGeneration+=1;cuberoCarrierArtwork=false
         if active {
             retireTntFuse()
@@ -2536,7 +2562,16 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         }
     }
 
+    private func paintBloobRotation() {
+        guard variant=="bloob" else{return}
+        // The deferred drop face and later SVG share one per-die angle.
+        // Landing/dragging must never switch from a flat face to tilted artwork.
+        let angle:CGFloat = (scene is NativeBoardScene || scene==nil) ? CGFloat(bloobBoardRotation?.angle(seconds:elapsed) ?? 0):0
+        face.zRotation=angle;artwork.zRotation=angle
+    }
+
     private func paintArtwork() {
+        paintBloobRotation()
         let carrier = variant=="cubero" && cuberoCarrierArtwork
         guard !disposed,(!sourceIdleDeferred && !sourceRegistryPending || carrier),
               let sheet=definition.idleSheet,!frames.isEmpty else{return}
@@ -2554,13 +2589,17 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
             artwork.size=CGSize(width:artwork.size.width*1.56,height:artwork.size.height*1.56)
         }
         if variant == "bloob" {
-            if scene is NativeBoardScene {
-                artwork.size=CGSize(width:artwork.size.width*1.2,height:artwork.size.height*1.2)
-            }
             let pose=NativeBloobArt.idlePose(seconds:elapsed)
             let boardIdle = !dragging && scene is NativeBoardScene
-            artwork.position=boardIdle ? CGPoint(x:pose.x,y:pose.y):.zero
-            artwork.zRotation=boardIdle ? pose.rotation:0
+            if boardIdle {
+                // Static drop face lands at zero offset/128px. Start the blend
+                // only when the actual SVG is visible, including delayed loading.
+                if bloobBoardEntryStart==nil {bloobBoardEntryStart=elapsed}
+                let blend=NativeBloobArt.boardLandingBlend(seconds:elapsed-(bloobBoardEntryStart ?? elapsed))
+                let size=1+(NativeBloobArt.boardScale-1)*blend
+                artwork.size=CGSize(width:artwork.size.width*size,height:artwork.size.height*size)
+                artwork.position=CGPoint(x:pose.x*blend,y:pose.y*blend)
+            } else {bloobBoardEntryStart=nil;artwork.position = .zero}
         }
         if variant == "bloob-ball" {
             let pose=NativeBloobBallArt.idlePose(seconds:time)
@@ -2617,7 +2656,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
 
     func dispose() {
         guard !disposed else { return }
-        bloobBoardPlayback=nil
+        bloobBoardPlayback=nil;bloobBoardRotation=nil;bloobBoardEntryStart=nil
         sourceFreshFaceEntryPending=nil
         sourceGridCell=nil
         retireTntFuse()

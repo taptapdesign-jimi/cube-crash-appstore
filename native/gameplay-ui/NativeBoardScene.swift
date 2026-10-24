@@ -332,6 +332,32 @@ final class NativeBoardScene: SKScene {
     }
     var onStateChange: ((NativeBoardState) -> Void)?
     var onTerminal: ((NativeResolution) -> Void)?
+    var onFinalMergeProgress: ((TimeInterval,TimeInterval,UInt64) -> Void)?
+    /// Capture the exact transaction at construction. A still-playing non-final
+    /// effect must never borrow a later final merge's approval.
+    func finalMergeProgressObserver(generation:UInt64)->(TimeInterval,TimeInterval)->Void {
+        let ordinary=engine.pendingOrdinarySix,direct=engine.pendingDirectWild,late=engine.pendingSourceLateFinalMerge
+        let id=late?.ownerID ?? direct?.id ?? engine.pendingSpecial?.id ?? ordinary?.id
+        let capturedFinal=late != nil || direct?.isFinal == true || ordinary?.isFinal == true || engine.state.terminal?.kind == .complete
+        return {[weak self] seconds,duration in
+            self?.reportFinalMergeProgress(seconds:seconds,duration:duration,generation:generation,ownerID:id,capturedFinal:capturedFinal)
+        }
+    }
+    func reportFinalMergeProgress(seconds:TimeInterval,duration:TimeInterval,generation:UInt64,
+                                  ownerID:String?,capturedFinal:Bool=false) {
+        guard !disposed,!sourceDisposalInProgress,!suspended,!exitInProgress,
+              engine.state.generation==generation,duration>0,seconds>=duration*0.9,
+              engine.state.tutorial?.requiresResultCompletion != true else{return}
+        let ordinary=engine.pendingOrdinarySix,direct=engine.pendingDirectWild
+        let finalID=engine.pendingSourceLateFinalMerge?.ownerID ?? (direct?.isFinal == true ? direct?.id:nil) ??
+            (ordinary?.isFinal == true ? ordinary?.id:nil)
+        let sameOwner=ownerID != nil && finalID==ownerID
+        let settledFinal=capturedFinal && finalID==nil &&
+            (engine.state.terminal?.kind == .complete || pendingTerminal?.kind == .complete)
+        guard sameOwner || settledFinal else{return}
+        onFinalMergeProgress?(seconds,duration,generation)
+    }
+
     var onNativeNoMovesShow:((UInt64,UInt64)->Bool)?
     var onNativeNoMovesExit:((UInt64,@escaping()->Void)->Void)?
     var onNativeNoMovesClear:(()->Void)?
@@ -3898,6 +3924,9 @@ final class NativeBoardScene: SKScene {
         } catch {onPresentationFailure?("source_six_shared_layers_not_admitted");return false}
         guard sourceAnimationBindingAdmissionOpen,sourceSixShared === shared,engine.state.generation==plan.generation else{owner.dispose();return false}
         regularSixPresentations[plan.id]=owner
+        if plan.isFinal {owner.onProgress={[weak self] seconds,duration in
+            self?.reportFinalMergeProgress(seconds:seconds,duration:duration,generation:plan.generation,ownerID:plan.id,capturedFinal:plan.isFinal)
+        }}
         let visual=beginVisual()
         owner.onFinished={[weak self,weak owner] _ in
             guard let self else{return}
@@ -5840,7 +5869,17 @@ final class NativeBoardScene: SKScene {
         if let owner=sourceTutorialMeterHUD {
             if sourceTutorialMeterRect != rect {
                 sourceTutorialMeterRect=rect
+                let wasConsuming=owner.consumeActive
                 owner.resize(maximum:Double(rect.width),sourceOrigin:.init(x:rect.minX,y:size.height-rect.maxY))
+                // Source setWidth clears an idle fill. Native entry may apply safe
+                // insets AFTER mounting the saved charge; the cached ratio then
+                // prevents the ordinary refresh below from repainting that fill.
+                // Rehydrate synchronously, without replaying gain/smoke or a move.
+                // Active consume owns its captured retained ratio on resize.
+                if !wasConsuming {
+                    sourceTutorialMeterRatio=engine.state.wildMeter
+                    owner.setProgress(engine.state.wildMeter,animated:false)
+                }
             }
             if sourceTutorialMeterRatio != engine.state.wildMeter {
                 sourceTutorialMeterRatio=engine.state.wildMeter
@@ -8004,6 +8043,9 @@ final class NativeBoardScene: SKScene {
         }
         if let previous=regularSixShakeID {regularSixPresentations[previous]?.detachShake()}
         regularSixShakeID=plan.id;regularSixPresentations[plan.id]=owner
+        if plan.isFinal {owner.onProgress={[weak self] seconds,duration in
+            self?.reportFinalMergeProgress(seconds:seconds,duration:duration,generation:plan.generation,ownerID:plan.id,capturedFinal:plan.isFinal)
+        }}
         let receipt=beginVisual()
         owner.onShake={ [weak self] pose,generation in
             guard let self,self.regularSixShakeID==plan.id,self.engine.state.generation==generation else {return}
@@ -9056,9 +9098,11 @@ final class NativeBoardScene: SKScene {
     private func configureTntGlyphClock(_ owner: NativeTntFinale,id preparedID:String?=nil) {
         guard onTntGlyphClock != nil else { return }
         let id = preparedID ?? UUID().uuidString,generation = engine.state.generation
+        let reportProgress=finalMergeProgressObserver(generation:generation)
         owner.onGlyphClock = { [weak self] time,finished in
             guard let self,finished || !self.disposed && self.engine.state.generation == generation else { return }
             self.onTntGlyphClock?(id,time,finished)
+            if !finished {reportProgress(time,NativeTntFinale.duration)}
         }
     }
 
@@ -9136,6 +9180,37 @@ final class NativeBoardScene: SKScene {
         owner.play { [weak self] in releaseSource?();self?.finishVisual(receipt) }
     }
 
+    func sourcePullConverged(ownerID:String?,generation:UInt64)->Bool {
+        guard !disposed,engine.state.generation==generation,let ownerID else{return true}
+        if let entry=sourceMagnetSourcePulls[ownerID] {return entry.owner?.mergeStarted==true}
+        guard let plan=engine.pendingSpecial,plan.id==ownerID else{return true}
+        return plan.targets.isEmpty
+    }
+    func makeBloobBoardReaction(excluding excluded:Set<String>=[])->NativeBloobBoardReactionBinding? {
+        guard !disposed,let geometry else{return nil}
+        let generation=engine.state.generation
+        let targets=engine.state.tiles.compactMap { tile -> NativeDiceNode? in
+            guard !excluded.contains(tile.id),!tile.locked,(tile.value>0 || tile.isWild),let node=nodesByID[tile.id],
+                  node.parent === canvasRoot,draggedID != tile.id,sourceMeterCaller?.owns(node) != true else{return nil}
+            return node
+        }
+        let first=geometry.center(row:0,column:0),last=geometry.center(row:geometry.rows-1,column:geometry.columns-1)
+        let center=CGPoint(x:(first.x+last.x)/2,y:(first.y+last.y)/2)
+        guard let plans=NativeShortWildBoardBlastPlan.make(rests:targets.map(\.position),center:center,tileSize:geometry.tileSize,
+            random:{Double.random(in:0..<1)},dateMilliseconds:{nil},current:{true},held:false) else{return nil}
+        let entries=zip(targets,plans).map { node,plan -> NativeBloobBoardReactionBinding.Entry in
+            let rest=node.convert(plan.rest,from:canvasRoot),blast=node.convert(plan.blast,from:canvasRoot)
+            let local=NativeShortWildBoardBlastPlan(rest:rest,blast:blast,waveDelay:plan.waveDelay,blastDuration:plan.blastDuration,
+                returnDelay:0,returnDuration:plan.returnDuration,returnElastic:plan.returnElastic,returnAmplitude:plan.returnAmplitude,returnNotBeforeMilliseconds:nil)
+            return .init(surface:node.bloobBoardReactionSurface(),plan:local,phase:Double.random(in:0..<(2 * .pi)),current:{[weak self,weak node] in
+                guard let self,let node else{return false}
+                return !self.disposed && self.engine.state.generation==generation && self.nodesByID[node.tileID] === node &&
+                    node.parent === self.canvasRoot && self.draggedID != node.tileID && self.sourceMeterCaller?.owns(node) != true
+            })
+        }
+        return NativeBloobBoardReactionBinding(entries:entries)
+    }
+
     private var shortWildBoardBlast:NativeShortWildBoardBlastOwner?
     var sourceShortWildBoardBlastActiveCount:Int{shortWildBoardBlast?.activeSourceCount ?? 0}
     private func captureShortWildBoardBlastTargets(sourceID:String,destinationID:String)->[NativeDiceNode]? {
@@ -9192,9 +9267,12 @@ final class NativeBoardScene: SKScene {
         guard owner.assetReady else{owner.dispose();return false}
         for previous in effects.children.compactMap({$0 as? NativeMagnetFinalePresentation}){previous.dispose()}
         let id=UUID().uuidString,generation=engine.state.generation
+        let finaleDuration=owner.duration
+        let reportProgress=finalMergeProgressObserver(generation:generation)
         owner.onGlyphClock={[weak self] time,finished in
             guard let self,finished || !self.disposed && self.engine.state.generation==generation else{return}
             self.onSplashGlyphClock?("magnet",id,time,finished)
+            if !finished {reportProgress(time,finaleDuration)}
         }
         owner.zPosition=999998;effects.addChild(owner)
         let receipt=beginVisual();requestRendering(true)
@@ -9209,9 +9287,12 @@ final class NativeBoardScene: SKScene {
         let earlyBeats: [TimeInterval] = (0..<7).map { Double($0)*0.095 }
         let lateBeats: [TimeInterval] = (0..<6).map { 1.0+Double($0)*0.11 }
         let beats = earlyBeats+lateBeats
+        let finaleDuration=owner.duration
+        let reportProgress=finalMergeProgressObserver(generation:generation)
         owner.onGlyphClock = { [weak self] time,finished in
             guard let self,finished || !self.disposed && self.engine.state.generation == generation else { return }
             self.onSplashGlyphClock?("star",id,time,finished)
+            if !finished {reportProgress(time,finaleDuration)}
             if !finished { for (index,at) in beats.enumerated() where time >= at && !haptics.contains(index) {
                 haptics.insert(index); self.onHaptic?("light")
             } }
@@ -9230,9 +9311,11 @@ final class NativeBoardScene: SKScene {
         let token = UUID().uuidString,generation = engine.state.generation
         let beats: [TimeInterval] = [0.2,0.27,0.34,0.52,0.78,1.04,1.325,1.425,1.525,1.625,2.225,2.405,2.585,2.725]
         var haptics = Set<Int>()
-        owner.onGlyphClock = { [weak self] time,finished in
+        let reportProgress=finalMergeProgressObserver(generation:generation)
+        owner.onGlyphClock = { [weak self,weak owner] time,finished in
             guard let self,finished || !self.disposed && self.engine.state.generation == generation else { return }
             self.onSplashGlyphClock?("juice",token,time,finished)
+            if !finished {reportProgress(time,owner?.presentationDuration ?? 5.4)}
             if !finished { for (index,at) in beats.enumerated() where time >= at && !haptics.contains(index) {
                 haptics.insert(index); self.onHaptic?("light")
             } }
@@ -10597,7 +10680,7 @@ final class NativeBoardScene: SKScene {
         removeAllActions(); retireEffects(); nodesByID.values.forEach { $0.dispose() }
         retireSourcePhysicalObservers();nodesByID.removeAll();meterTimeoutIDs.removeAll();ghostNodesByCell.removeAll();ghosts.removeAllChildren(); removeAllChildren(); textures.dispose()
         onFishIdleFrames?([:],engine.state.generation,true);onFishIdleFrames=nil
-        onNativeNoMovesShow=nil;onNativeNoMovesExit=nil;onNativeNoMovesClear=nil;onJourneyBottomDecorShake=nil;captureSourceScreenOverlayShake=nil;sourceCoreTntShakeTargets.removeAll();sourceScreenShakeTargets.removeAll();onPresentationFailure=nil;onSourcePresentationFailure=nil;onStateChange = nil; onTerminal = nil; onGameplayEvent = nil; onGameplayReceipt = nil; onSpecialMoment = nil; onAuthoredFinale = nil;onAuthoredTntPresentation = nil;onAuthoredLaserImpact=nil;authoredTntPresentationReady = nil;authoredFinalePresentationReady=nil;onSpecialPresentationCancelled = nil; onTntGlyphClock = nil; onSplashGlyphClock = nil; onHaptic = nil
+        onNativeNoMovesShow=nil;onNativeNoMovesExit=nil;onNativeNoMovesClear=nil;onJourneyBottomDecorShake=nil;captureSourceScreenOverlayShake=nil;sourceCoreTntShakeTargets.removeAll();sourceScreenShakeTargets.removeAll();onPresentationFailure=nil;onSourcePresentationFailure=nil;onStateChange = nil; onTerminal = nil; onFinalMergeProgress = nil; onGameplayEvent = nil; onGameplayReceipt = nil; onSpecialMoment = nil; onAuthoredFinale = nil;onAuthoredTntPresentation = nil;onAuthoredLaserImpact=nil;authoredTntPresentationReady = nil;authoredFinalePresentationReady=nil;onSpecialPresentationCancelled = nil; onTntGlyphClock = nil; onSplashGlyphClock = nil; onHaptic = nil
         onRenderSurfacePreparation=nil
         hudTapFeedbackBases.removeAll();hudTapFeedbackPositions.removeAll();onSourceGuidedSnapBack=nil;onSourceTutorialRetired=nil;onLevelFlowBounceCompletion=nil;onExitRequest = nil; onHUDTapContact=nil; onHelpRequest = nil; onScoreRequest = nil; onComboRequest = nil; onPointerState = nil; onRenderingDemand = nil; onBoardEntry = nil; onBoardExit = nil; onHUDDrop = nil
     }

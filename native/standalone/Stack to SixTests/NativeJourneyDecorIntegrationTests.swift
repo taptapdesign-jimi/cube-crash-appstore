@@ -30,15 +30,15 @@ final class NativeJourneyDecorIntegrationTests:XCTestCase {
         controller.beforeInitialBoardEntry={release=$0};controller.onBoardEntry={_,_ in entries += 1}
         let window=mount(controller);defer{controller.dispose();window.isHidden=true}
         XCTAssertNotNil(release,"Selected artwork preparation cannot delay themed first motion")
-        let renderer=try XCTUnwrap(controller.view.subviews.compactMap{$0 as? SKView}.first)
-        XCTAssertNil(renderer.scene);XCTAssertTrue(renderer.isHidden);XCTAssertEqual(resources.requests.count,1)
-        release?();XCTAssertNil(renderer.scene);XCTAssertEqual(entries,0)
+        let renderer=try XCTUnwrap(controller.view.subviews.compactMap{$0 as? any NativeGameplayRenderHost}.first)
+        XCTAssertNil(renderer.renderedScene);XCTAssertTrue(renderer.renderView.isHidden);XCTAssertEqual(resources.requests.count,1)
+        release?();XCTAssertNil(renderer.renderedScene);XCTAssertEqual(entries,0)
         resources.finish(0);controller.view.setNeedsLayout();controller.view.layoutIfNeeded()
         let footer=try XCTUnwrap(controller.journeyBottomDecor)
-        XCTAssertTrue(footer.isPrepared);XCTAssertNotNil(renderer.scene);XCTAssertEqual(entries,1)
+        XCTAssertTrue(footer.isPrepared);XCTAssertNotNil(renderer.renderedScene);XCTAssertEqual(entries,1)
         try await waitForActualDecorEntry(controller);XCTAssertEqual(footer.phase,.entering)
         XCTAssertTrue(controller.view.subviews.first is NativeAppPaperSurface)
-        XCTAssertTrue(controller.view.subviews[1] === footer);XCTAssertTrue(controller.view.subviews[2] === renderer)
+        XCTAssertTrue(controller.view.subviews[1] === footer);XCTAssertTrue(controller.view.subviews[2] === renderer.renderView)
         release?();controller.view.layoutIfNeeded();XCTAssertEqual(entries,1)
     }
     func testBackgroundCancellationRetainsEntryBarrierUntilFreshForegroundReply() throws {
@@ -96,7 +96,37 @@ final class NativeJourneyDecorIntegrationTests:XCTestCase {
         XCTAssertEqual(footer.phase,.exiting);XCTAssertTrue(footer.hasActiveClock);XCTAssertTrue(replies.isEmpty)
         await fulfillment(of:[done],timeout:4);XCTAssertEqual(replies,[true])
     }
-    func testCleanTerminalWaitsForResidualBoardThenHUDAndFooter() async throws {
+    func testOldNonfinalProgressCannotBorrowALaterFinalTransactionOrCrossGeneration()async throws {
+        let resources=Resources()
+        let tiles=[NativeTile(id:"a",cell:NativeCell(column:0,row:0),value:3),NativeTile(id:"b",cell:NativeCell(column:1,row:0),value:3)]
+        let engine=NativeGameplayEngine(state:NativeBoardState(tiles:tiles))
+        engine.stagedOrdinaryMoves=true
+        let controller=NativeGameplayViewController(engine:engine,resourceRoot:NativeTestResources.root)
+        controller.journeyDecorCatalog=NativeJourneyBottomDecorCatalog();controller.journeyDecorResources={_ in resources}
+        let window=mount(controller)
+        defer{controller.dispose();window.isHidden=true}
+        resources.finish(0);try await waitForActualDecorEntry(controller)
+        let scene=try XCTUnwrap(controller.boardScene),generation=engine.state.generation
+        let deadline=Date().addingTimeInterval(4)
+        while !scene.isBoardEntryComplete {guard Date()<deadline else{throw CancellationError()};try await Task.sleep(for:.milliseconds(20))}
+        let oldNonfinal=scene.finalMergeProgressObserver(generation:generation)
+        XCTAssertTrue(engine.beginDrag(tileID:"a"))
+        XCTAssertTrue(engine.drop(target:tiles[1].cell).accepted)
+        XCTAssertTrue(try XCTUnwrap(engine.pendingOrdinarySix).isFinal)
+        let final=scene.finalMergeProgressObserver(generation:generation)
+        var calls=0;scene.onFinalMergeProgress={_,_,_ in calls += 1}
+        oldNonfinal(9,10);XCTAssertEqual(calls,0)
+        final(8.999,10);XCTAssertEqual(calls,0)
+        final(9,10);XCTAssertEqual(calls,1)
+        oldNonfinal(10,10);XCTAssertEqual(calls,1)
+        scene.setSuspended(true);final(9.5,10);XCTAssertEqual(calls,1)
+        scene.setSuspended(false)
+        engine.restart(state:engine.state)
+        final(10,10);XCTAssertEqual(calls,1)
+        controller.dispose();final(10,10);XCTAssertEqual(calls,1)
+    }
+
+    func testCleanTerminalWaitsForResidualAndClearCardWhileHUDAndFooterStayVisible() async throws {
         let resources=Resources(),controller=controller(resources)
         var state=controller.engine.state
         state.tiles.append(NativeTile(id:"closed",cell:NativeCell(column:1,row:0),value:0,locked:true))
@@ -123,28 +153,28 @@ final class NativeJourneyDecorIntegrationTests:XCTestCase {
         var roundWon=0
         controller.onRoundWon={generation in
             roundWon += 1;XCTAssertEqual(generation,controller.engine.state.generation)
-            XCTAssertNil(tile.action(forKey:"board-exit"),"Speech admission precedes board exit")
+            XCTAssertTrue(controller.hasPresentedBoardCleared,"Speech follows the completed text entry and PNG onset")
         }
         var callbacks=0
         controller.onTerminal={result in
             callbacks += 1;XCTAssertEqual(result.kind,.complete)
-            XCTAssertEqual(footer.phase,.hidden);XCTAssertFalse(footer.hasActiveClock)
+            XCTAssertNotEqual(footer.phase,.hidden)
             for target in [tile,closed] + ghosts {
                 XCTAssertEqual(target.xScale,0,accuracy:0.001);XCTAssertEqual(target.alpha,0,accuracy:0.001)
             }
-            XCTAssertEqual(hud.alpha,0,accuracy:0.001)
+            XCTAssertGreaterThan(hud.alpha,0.9)
             done.fulfill()
         }
         scene.onTerminal?(NativeResolution(.complete,reason:"final_regular_merge6"))
-        XCTAssertEqual(callbacks,0);XCTAssertEqual(roundWon,1)
+        XCTAssertEqual(callbacks,0);XCTAssertEqual(roundWon,0)
         scene.onTerminal?(NativeResolution(.complete,reason:"final_regular_merge6"))
-        XCTAssertEqual(roundWon,1,"Duplicate terminal cannot select another phrase")
+        XCTAssertEqual(roundWon,0,"Voice waits for all text before PNG onset")
         XCTAssertNotEqual(footer.phase,.exiting,"Footer must wait for board residual pop-out")
         XCTAssertNotNil(tile.action(forKey:"board-exit"))
         XCTAssertNotNil(closed.action(forKey:"board-exit"))
         XCTAssertNil(hud.action(forKey:"hud-exit"),"HUD must wait for all residual targets")
-        await fulfillment(of:[done],timeout:4)
-        XCTAssertEqual(callbacks,1)
+        await fulfillment(of:[done],timeout:5)
+        XCTAssertEqual(callbacks,1);XCTAssertEqual(roundWon,1)
     }
 
     private func waitForActualDecorEntry(_ controller:NativeGameplayViewController) async throws {

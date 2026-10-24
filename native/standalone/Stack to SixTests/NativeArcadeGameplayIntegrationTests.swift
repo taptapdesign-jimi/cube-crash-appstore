@@ -57,6 +57,7 @@ import StackToSixNativeState
         try await Task.sleep(for:.seconds(7))
         try await wait("Fail result: " + scene.sourceLevelEndDiagnostic()){game.presentedViewController is NativeResultController}
         XCTAssertFalse(try XCTUnwrap(game.presentedViewController as? NativeResultController).clean)
+        XCTAssertFalse(game.hasPresentedBoardCleared)
     }
     func testArcadeLossAfterClearedRoundPresentsCleanRunSummaryWithoutAdvancing() async throws {
         for variant in [NativeArcadeVariant.slowBurn,.pureDice] {
@@ -170,7 +171,28 @@ import StackToSixNativeState
         defer{f.dispose()}
         let old=try await enter(f),scene=try XCTUnwrap(old.boardScene)
         XCTAssertTrue(scene.sourceTutorialMeterHUDReady)
+        func assertSavedFill()throws {
+            let loader=try XCTUnwrap(scene.childNode(withName:"//wildLoader"))
+            let track=try XCTUnwrap(loader.children.compactMap{$0 as? SKShapeNode}.first?.path)
+            let fill=try XCTUnwrap(loader.childNode(withName:"//wildMeterFillBounceLayer")?.children.compactMap{$0 as? SKShapeNode}.first?.path)
+            XCTAssertEqual(fill.boundingBox.width,track.boundingBox.width*0.63,accuracy:0.001,"Arcade saved charge appears before a merge")
+            XCTAssertEqual(old.engine.state.wildMeter,0.63,accuracy:0.000001)
+        }
+        try assertSavedFill()
+        let originalSize=scene.size
+        scene.layout(size:CGSize(width:originalSize.width+8,height:originalSize.height),insets:.zero)
+        try assertSavedFill()
+        scene.layout(size:originalSize,insets:f.window.safeAreaInsets)
+        try assertSavedFill()
+        var clearProgress:[Double]=[],voices=0
+        let progress=scene.onFinalMergeProgress,voice=old.onRoundWon
+        scene.onFinalMergeProgress={seconds,duration,generation in clearProgress.append(seconds/duration);progress?(seconds,duration,generation)}
+        old.onRoundWon={generation in voices += 1;voice?(generation)}
         try await merge(scene,source:"a",target:"b")
+        try await wait("Actual ordinary clear-card entry"){voices>0}
+        XCTAssertEqual(voices,1);XCTAssertFalse(clearProgress.isEmpty,"Ordinary final must use actual90percent clock")
+        if let first=clearProgress.first {XCTAssertGreaterThanOrEqual(first,0.9);XCTAssertLessThan(first,1.05)}
+        XCTAssertTrue(old.hasPresentedBoardCleared)
         try await wait("Clean result"){old.presentedViewController is NativeResultController}
         let result=try XCTUnwrap(old.presentedViewController as? NativeResultController)
         XCTAssertTrue(result.clean)

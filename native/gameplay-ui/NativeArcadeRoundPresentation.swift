@@ -16,10 +16,14 @@ final class NativeArcadeRoundPresentation: UIView {
     private let clearedRound: Int
     private let nextRound: Int
     private let continuationOnly: Bool
+    private let boardClearedOnly: Bool
+    let boardClearedTextComposition:NativeNoMovesPlan.Composition?
+    private let titleStage=UIView()
     private let clearCard = UIView()
     private let nextCard = UIView()
     private let stage = UIView()
     private let thumb = UIImageView()
+    let boardClearedThumbRotation:CGFloat
     let isPuppyThumb: Bool
     var thumbAssetPath: String { isPuppyThumb ? "assets/puppy thumbs up@2x.png" : "assets/thumbs-up@2x.png" }
     private let shadow = NativeArcadeThumbShadow()
@@ -30,8 +34,8 @@ final class NativeArcadeRoundPresentation: UIView {
     private var displayLink: CADisplayLink?
     private let clockTarget = NativeArcadeDisplayTarget()
     private var lastTime: CFTimeInterval?
-    private var elapsed: TimeInterval = 0
-    private var started = false, disposed = false, paused = false
+    private(set) var elapsed: TimeInterval = 0
+    private var started = false, disposed = false, paused = false,backgrounded = false
     private var roundReceiptWritten = false
     private var sentThumbWhoosh = false, sentThumbArrival = false, sentDigitExit = false
     private var enteredDigits = Set<Int>()
@@ -41,38 +45,55 @@ final class NativeArcadeRoundPresentation: UIView {
     private var titleEnterEnd: TimeInterval { Double(max(0,titleGlyphs.count-1))*0.02+0.44 }
     private var subtitleEnterEnd: TimeInterval { titleEnterEnd+Double(max(0,subtitleGlyphs.count-1))*0.02+0.44 }
     private var clearReady: TimeInterval { max(0.48,subtitleEnterEnd) }
-    private var clearExitStart: TimeInterval { clearReady+1.5 }
+    var boardClearedTextEnterEnd:TimeInterval {0.2+Double(max(0,titleGlyphs.count-1))*0.05+0.54}
+    var thumbEnterStart:TimeInterval {boardClearedOnly ? boardClearedTextEnterEnd:0}
+    private var clearExitStart: TimeInterval {boardClearedOnly ? thumbEnterStart+0.68:clearReady+1.5}
     private var roundStart: TimeInterval {
         continuationOnly ? 0 : clearExitStart+max(0.30,Double(max(0,titleGlyphs.count+subtitleGlyphs.count-1))*0.012+0.30)
     }
     private var roundEnterEnd: TimeInterval { max(Double(max(0,roundGlyphs.count-1))*0.02+0.44,Double(max(0,digits.count-1))*0.3+0.75) }
     private var roundExitStart: TimeInterval { roundStart+roundEnterEnd+0.3 }
-    var duration: TimeInterval { roundExitStart+max(Double(max(0,roundGlyphs.count-1))*0.012+0.30,Double(max(0,digits.count-1))*0.4+0.45) }
+    var duration: TimeInterval { if boardClearedOnly { return clearExitStart+Double(max(0,titleGlyphs.count-1))*0.06+0.60 }; return roundExitStart+max(Double(max(0,roundGlyphs.count-1))*0.012+0.30,Double(max(0,digits.count-1))*0.4+0.45) }
 
-    init(resourceRoot: URL,clearedRound: Int,nextRound: Int,continuationOnly: Bool = false,
+    init(resourceRoot: URL,clearedRound: Int,nextRound: Int,continuationOnly: Bool = false,boardClearedOnly: Bool = false,
          random: () -> Double = { Double.random(in: 0..<1) }) {
         artwork = JimiV9Artwork(resourceRoot: resourceRoot)
-        self.clearedRound = max(1,clearedRound); self.nextRound = max(1,nextRound); self.continuationOnly = continuationOnly
-        headline = Self.headlines[min(Self.headlines.count-1,max(0,Int(random()*Double(Self.headlines.count))))]
+        self.clearedRound = max(1,clearedRound); self.nextRound = max(1,nextRound); self.continuationOnly = continuationOnly; self.boardClearedOnly = boardClearedOnly
+        headline = boardClearedOnly ? "BOARD CLEARED" : Self.headlines[min(Self.headlines.count-1,max(0,Int(random()*Double(Self.headlines.count))))]
+        boardClearedTextComposition=boardClearedOnly ? NativeNoMovesPlan.make(text:Array("BOARD CLEARED"),random:random):nil
         isPuppyThumb = !continuationOnly && random() < 0.5
+        boardClearedThumbRotation=boardClearedOnly ? CGFloat(-20+random()*40):0
         super.init(frame: .zero)
         isUserInteractionEnabled = false; clipsToBounds = true; backgroundColor = .clear
-        accessibilityIdentifier = "native-arcade-round-presentation"
+        accessibilityIdentifier = boardClearedOnly ? "native-board-cleared-presentation" : "native-arcade-round-presentation"
         addSubview(stage); stage.addSubview(clearCard); stage.addSubview(nextCard)
-        titleGlyphs = glyphs(headline,color: UIColor(red: 239.0/255,green: 116.0/255,blue: 77.0/255,alpha: 1),parent: clearCard)
-        subtitleGlyphs = glyphs("Round \(String(format: "%02d",self.clearedRound)) complete",color: NativeTextPalette.subtitle,parent: clearCard)
+        if boardClearedOnly {titleStage.accessibilityIdentifier="native.board-cleared.text";clearCard.addSubview(titleStage)}
+        titleGlyphs = glyphs(headline,color: UIColor(red: 239.0/255,green: 116.0/255,blue: 77.0/255,alpha: 1),parent: boardClearedOnly ? titleStage:clearCard)
+        if let composition=boardClearedTextComposition {
+            titleStage.transform=CGAffineTransform(rotationAngle:composition.tilt * .pi/180)
+            var perspective=CATransform3DIdentity;perspective.m34 = -1/1000;titleStage.layer.sublayerTransform=perspective
+            for (index,label) in titleGlyphs.enumerated() {
+                label.font=artwork.font(size:composition.letters[index].size,weight:"ExtraBold")
+                label.textColor=UIColor.white.withAlphaComponent(composition.letters[index].inkAlpha)
+                label.layer.shadowColor=UIColor(red:239.0/255,green:116.0/255,blue:77.0/255,alpha:1).cgColor
+                label.layer.shadowOffset = .zero;label.layer.shadowRadius=14;label.layer.shadowOpacity=1
+                label.accessibilityIdentifier="native.board-cleared.glyph.\(index)"
+            }
+        }
+        subtitleGlyphs = glyphs(boardClearedOnly ? "" : "Round \(String(format: "%02d",self.clearedRound)) complete",color: NativeTextPalette.subtitle,parent: clearCard)
         roundGlyphs = glyphs("Round",color: NativeTextPalette.subtitle,parent: nextCard)
         digits = glyphs(String(format: "%02d",self.nextRound),color: .init(red: 231.0/255,green: 116.0/255,blue: 73.0/255,alpha: 1),parent: nextCard)
         for character in headline { titleFactors.append(character == " " ? 1 : CGFloat((85+random()*30).rounded())/100) }
-        exitAngles = (titleGlyphs+subtitleGlyphs+roundGlyphs).indices.map { CGFloat(($0 % 2 == 0 ? 1 : -1)*(12+random()*8)) }
+        exitAngles = (titleGlyphs+subtitleGlyphs+roundGlyphs).indices.map { CGFloat((boardClearedOnly || $0 % 2 == 0 ? 1 : -1)*(12+random()*8)) }
         digitAngles = digits.indices.map { CGFloat(-8+random()*16)*($0 % 2 == 0 ? 1 : -1) }
         thumb.image = artwork.image(thumbAssetPath,densityAware: false)
+        if boardClearedOnly {thumb.accessibilityIdentifier="native.board-cleared.thumb"}
         thumb.contentMode = .scaleAspectFit; clearCard.addSubview(shadow); clearCard.addSubview(thumb)
         thumb.layer.anchorPoint = CGPoint(x: 0.5,y: 0.74)
         clockTarget.owner = self
         observations = [
-            NotificationCenter.default.addObserver(forName: UIApplication.willResignActiveNotification,object: nil,queue: .main) { [weak self] _ in MainActor.assumeIsolated { self?.setSuspended(true) } },
-            NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification,object: nil,queue: .main) { [weak self] _ in MainActor.assumeIsolated { self?.setSuspended(false) } }
+            NotificationCenter.default.addObserver(forName: UIApplication.willResignActiveNotification,object: nil,queue: .main) { [weak self] _ in MainActor.assumeIsolated { self?.backgrounded=true;self?.updatePause() } },
+            NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification,object: nil,queue: .main) { [weak self] _ in MainActor.assumeIsolated { self?.backgrounded=false;self?.updatePause() } }
         ]
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -95,8 +116,29 @@ final class NativeArcadeRoundPresentation: UIView {
         let thumbSize = compact ? min(bounds.width*0.46,230) : min(bounds.width*0.58,300)
         let subtitleMargin: CGFloat = compact ? 10 : 16
         let thumbMargin: CGFloat = compact ? 16 : min(40,max(22,bounds.height*0.044))
-        let titleHeight = layoutGlyphs(titleGlyphs,font: artwork.font(size: titleSize,weight: "ExtraBold"),factors: titleFactors,
-                                     width: cardWidth,lineHeight: titleSize*0.95,spacing: -2,gap: 0)
+        let titleFont=artwork.font(size:titleSize,weight:"ExtraBold")
+        let titleHeight:CGFloat
+        if let composition=boardClearedTextComposition {
+            // Same irregular NO MOVES typography, fitted as two complete words.
+            let ranges=[0..<5,6..<13]
+            var y:CGFloat=0
+            for range in ranges {
+                let labels=range.map{titleGlyphs[$0]}
+                let sizes=range.map{CGFloat(composition.letters[$0].size)}
+                let width=zip(labels,sizes).reduce(CGFloat.zero){sum,item in
+                    sum+(item.0.text! as NSString).size(withAttributes:[.font:artwork.font(size:item.1,weight:"ExtraBold")]).width
+                }-4.2*CGFloat(labels.count-1)
+                let fit=min(1,(cardWidth-36)/max(1,width))
+                let height=(sizes.max() ?? titleSize)*fit
+                _=layoutGlyphs(labels,font:titleFont,factors:sizes.map{$0*fit/titleSize},width:cardWidth,lineHeight:height,spacing:-4.2*fit,gap:0,wrap:false)
+                for label in labels {label.center.y += y}
+                y += height
+            }
+            titleHeight=y
+            titleStage.bounds=CGRect(x:0,y:0,width:cardWidth,height:y);titleStage.center=CGPoint(x:cardWidth/2,y:y/2)
+        } else {
+            titleHeight=layoutGlyphs(titleGlyphs,font:titleFont,factors:titleFactors,width:cardWidth,lineHeight:titleSize*0.95,spacing:-2,gap:0)
+        }
         let subtitleHeight = layoutGlyphs(subtitleGlyphs,font: artwork.font(size: subtitleSize),width: cardWidth,
                                         lineHeight: subtitleSize*1.05,spacing: 0,gap: 0)
         for label in subtitleGlyphs { label.center.y += titleHeight+subtitleMargin }
@@ -109,6 +151,17 @@ final class NativeArcadeRoundPresentation: UIView {
         thumbRest = CGPoint(x: cardWidth/2,y: thumbTop+thumbSize*0.74); thumb.layer.position = thumbRest
         shadow.frame = CGRect(x: (cardWidth-thumbSize*0.74)/2,y: thumbTop+thumbSize+70-thumbSize*0.15,
                               width: thumbSize*0.74,height: thumbSize*0.15)
+        if boardClearedOnly {
+            // Text/glow share the PNG's center and stay physically behind it.
+            let height=thumbSize+100
+            clearCard.bounds=CGRect(x:0,y:0,width:cardWidth,height:height)
+            clearCard.center=CGPoint(x:stage.bounds.midX,y:stage.bounds.midY-24)
+            titleStage.center=CGPoint(x:cardWidth/2,y:height/2);titleStage.layer.zPosition=0
+            thumbRest=CGPoint(x:cardWidth/2,y:height/2+thumbSize*0.24)
+            thumb.layer.position=thumbRest;thumb.layer.zPosition=2;shadow.layer.zPosition=1
+            shadow.frame=CGRect(x:(cardWidth-thumbSize*0.74)/2,y:height/2+thumbSize/2+70-thumbSize*0.15,
+                width:thumbSize*0.74,height:thumbSize*0.15)
+        }
         let digitSize = compact ? min(276,max(168,bounds.width*0.49)) : min(332,max(190,bounds.width*0.56))
         let labelHeight = layoutGlyphs(roundGlyphs,font: artwork.font(size: subtitleSize),width: cardWidth,
                                       lineHeight: subtitleSize*1.05,spacing: 0,gap: 1)
@@ -157,11 +210,11 @@ final class NativeArcadeRoundPresentation: UIView {
         let link = CADisplayLink(target: clockTarget,selector: #selector(NativeArcadeDisplayTarget.tick(_:)))
         link.preferredFrameRateRange = CAFrameRateRange(minimum: 30,maximum: 60,preferred: 60)
         link.add(to: .main,forMode: .common); displayLink = link
-        link.isPaused = paused || window == nil
+        link.isPaused = paused || backgrounded || window == nil
     }
 
     fileprivate func tick(_ link: CADisplayLink) {
-        guard started,!disposed,!paused,window != nil else { lastTime = nil; return }
+        guard started,!disposed,!paused,!backgrounded,window != nil else { lastTime = nil; return }
         if let lastTime { elapsed += max(0,link.timestamp-lastTime) }
         lastTime = link.timestamp
         paint(elapsed)
@@ -169,9 +222,10 @@ final class NativeArcadeRoundPresentation: UIView {
     }
     override func didMoveToWindow() {
         super.didMoveToWindow(); lastTime = nil
-        displayLink?.isPaused = paused || window == nil
+        updatePause()
     }
-    func setSuspended(_ value: Bool) { paused = value; lastTime = nil; displayLink?.isPaused = value || window == nil }
+    func setSuspended(_ value: Bool) { paused = value;updatePause() }
+    private func updatePause() {lastTime=nil;displayLink?.isPaused=paused || backgrounded || window == nil}
 
     private func commitRoundReceipt() -> Bool {
         guard !roundReceiptWritten,!disposed else { return !disposed }
@@ -221,17 +275,26 @@ final class NativeArcadeRoundPresentation: UIView {
                     rotationX: (index % 2 == 0 ? 45 : -45)*p,rotationY: (index % 2 == 0 ? 30 : -30)*p,z: 30-130*p)
     }
 
+    func boardClearedTextPose(at time:TimeInterval,index:Int)->Pose {
+        guard let composition=boardClearedTextComposition,composition.letters.indices.contains(index) else{return .hidden}
+        let letter=composition.letters[index]
+        let p=time<clearExitStart ? letter.enter(at:time,index:index) :
+            letter.exit(at:time-clearExitStart,index:index,from:letter.enter(at:clearExitStart,index:index),rotation:Double(exitAngles[index]))
+        return Pose(scale:CGFloat(p.scale),alpha:CGFloat(p.alpha),rotation:CGFloat(p.rz),rotationX:CGFloat(p.rx),rotationY:CGFloat(p.ry),z:CGFloat(p.z))
+    }
+
     private func paint(_ time: TimeInterval) {
         guard !disposed else { return }
         CATransaction.begin(); CATransaction.setDisableActions(true)
         defer { CATransaction.commit() }
-        if time < roundStart && !continuationOnly {
+        if (boardClearedOnly || time < roundStart) && !continuationOnly {
             nextCard.isHidden = true; clearCard.isHidden = false
-            if time >= 0.06 && !sentThumbWhoosh { sentThumbWhoosh = true; onCue?(.thumbWhoosh) }
-            if time >= 0.48 && !sentThumbArrival { sentThumbArrival = true; onCue?(.heavyHaptic) }
+            if time >= (boardClearedOnly ? thumbEnterStart:0.06) && !sentThumbWhoosh { sentThumbWhoosh = true; onCue?(.thumbWhoosh) }
+            if time >= (boardClearedOnly ? thumbEnterStart+0.42:0.48) && !sentThumbArrival { sentThumbArrival = true; onCue?(.heavyHaptic) }
             for (index,label) in titleGlyphs.enumerated() {
-                let pose = time < clearExitStart ? Self.entry(time-Double(index)*0.02)
-                    : Self.exit(time-clearExitStart-Double(index)*0.012,index: index,rotation: exitAngles[index])
+                let pose = boardClearedOnly ? boardClearedTextPose(at:time,index:index) :
+                    (time < clearExitStart ? Self.entry(time-Double(index)*0.02)
+                    : Self.exit(time-clearExitStart-Double(index)*0.012,index: index,rotation: exitAngles[index]))
                 pose.apply(label)
             }
             for (index,label) in subtitleGlyphs.enumerated() {
@@ -241,7 +304,7 @@ final class NativeArcadeRoundPresentation: UIView {
                 pose.apply(label)
             }
             paintThumb(time)
-            shake(clearCard,time: time-0.48,thumbArrival: true)
+            shake(clearCard,time: time-(boardClearedOnly ? thumbEnterStart+0.42:0.48),thumbArrival: true)
         } else {
             guard roundReceiptWritten || commitRoundReceipt() else { return }
             clearCard.isHidden = true; nextCard.isHidden = false
@@ -269,35 +332,37 @@ final class NativeArcadeRoundPresentation: UIView {
     }
 
     private func paintThumb(_ time: TimeInterval) {
+        let entryTime=boardClearedOnly ? time-thumbEnterStart+0.06:time
         var pose = Pose.hidden, y: CGFloat = -24
         var shadowAlpha: CGFloat = 0, shadowX: CGFloat = 0.68, shadowY: CGFloat = 0.72
-        if time >= 0.06 {
-            let p = NativeBoardMotion.Ease.backOut(2.05).sample(CGFloat(min(1,(time-0.06)/0.42)))
+        if entryTime >= 0.06 {
+            let p = NativeBoardMotion.Ease.backOut(2.05).sample(CGFloat(min(1,(entryTime-0.06)/0.42)))
             pose = Pose(scale: p,alpha: p,rotation: -8*(1-p)); y = -24*(1-p)
         }
-        if time >= 0.08 {
-            let p = NativeBoardMotion.Ease.power2Out.sample(CGFloat(min(1,(time-0.08)/0.24)))
+        if entryTime >= 0.08 {
+            let p = NativeBoardMotion.Ease.power2Out.sample(CGFloat(min(1,(entryTime-0.08)/0.24)))
             shadowAlpha = p; shadowX = 0.68+0.32*p; shadowY = 0.72+0.28*p
         }
-        if time >= 0.48 && time < 0.74 {
-            let local = time-0.48
+        if entryTime >= 0.48 && entryTime < 0.74 {
+            let local = entryTime-0.48
             pose.scale = local < 0.08 ? 1+0.14*NativeBoardMotion.Ease.power2Out.sample(CGFloat(local/0.08))
                 : 1.14-0.14*NativeBoardMotion.Ease.backOut(2.2).sample(CGFloat((local-0.08)/0.18))
         }
-        if time >= clearReady && time < clearExitStart {
+        if !boardClearedOnly && time >= clearReady && time < clearExitStart {
             let phase = (time-clearReady).truncatingRemainder(dividingBy: 1.64)/0.82
             let progress = NativeBoardMotion.Ease.sineInOut.sample(CGFloat(phase <= 1 ? phase : 2-phase))
             y = -8*progress; pose.rotation = 2.5*progress
         }
         if time >= clearExitStart {
             let idlePhase = (clearExitStart-clearReady).truncatingRemainder(dividingBy: 1.64)/0.82
-            let held = NativeBoardMotion.Ease.sineInOut.sample(CGFloat(idlePhase <= 1 ? idlePhase : 2-idlePhase))
+            let held:CGFloat = boardClearedOnly ? 0:NativeBoardMotion.Ease.sineInOut.sample(CGFloat(idlePhase <= 1 ? idlePhase : 2-idlePhase))
             let p = NativeBoardMotion.Ease.backIn(1.8).sample(CGFloat(min(1,max(0,time-clearExitStart-0.02)/0.28)))
             y = -8*held+(28+8*held)*p
             pose = Pose(scale: 1-p,alpha: 1-p,rotation: 2.5*held+(9-2.5*held)*p)
             let fade = NativeBoardMotion.Ease.power2In.sample(CGFloat(min(1,max(0,time-clearExitStart-0.04)/0.18)))
             shadowAlpha = 1-fade; shadowX = 1-0.38*fade; shadowY = shadowX
         }
+        pose.rotation += boardClearedThumbRotation
         pose.apply(thumb); thumb.layer.position = CGPoint(x: thumbRest.x,y: thumbRest.y+y)
         shadow.alpha = max(0,min(1,shadowAlpha)); shadow.transform = CGAffineTransform(scaleX: shadowX,y: shadowY)
     }

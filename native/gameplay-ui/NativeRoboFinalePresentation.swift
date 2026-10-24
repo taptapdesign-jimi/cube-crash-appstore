@@ -13,8 +13,8 @@ final class NativeRoboFinalePresentation:NativeFinitePresentation {
     private var runtime:NativeRoboFinaleMotion.Runtime,headFrames:[UIImage],neonImages:[UIImageView]=[],head=UIImageView(),beats=Set<Int>(),exitFrame:Int?,paintedFrame = -1,cancelled=false
     init(resourceRoot:URL,viewport:CGSize,previousExitFrame:Int?=nil,preparedArtwork:JimiV9Artwork?=nil,random:@escaping ()->Double={Double.random(in:0..<1)}) {
         self.viewport=viewport;self.random=random;previousExit=previousExitFrame
-        let artwork=preparedArtwork ?? JimiV9Artwork(resourceRoot:resourceRoot),color=UIColor(red:166.0/255,green:139.0/255,blue:124.0/255,alpha:1)
-        glyphs=NativeSplashGlyphField(artwork:artwork,text:"BIBI - RIBI",colors:[color],splitIndex:0,deferExitRotationCapture:true,random:random)
+        let artwork=preparedArtwork ?? JimiV9Artwork(resourceRoot:resourceRoot)
+        glyphs=NativeSplashGlyphField(artwork:artwork,text:"BIBI - RIBI",colors:[UIColor(red:163.0/255,green:233.0/255,blue:236.0/255,alpha:1),UIColor(red:32.0/255,green:231.0/255,blue:247.0/255,alpha:1)],splitIndex:5.5,deferExitRotationCapture:true,random:random)
         let images=Self.assets.map {artwork.image($0,densityAware:true)}
         headFrames=images.prefix(12).compactMap {$0};let neonFrames=Array(images.suffix(4))
         assetReady=images.allSatisfy {$0 != nil}
@@ -32,6 +32,7 @@ final class NativeRoboFinalePresentation:NativeFinitePresentation {
         glyphs.frame=bounds;glyphs.layer.zPosition=10001;addSubview(glyphs)
     }
     required init?(coder:NSCoder) {fatalError("init(coder:) has not been implemented")}
+    override var progressDuration:TimeInterval {max(NativeRoboFinaleMotion.headEnd,runtime.motionEnd ?? duration)}
     override func start() {guard assetReady else {dispose();return};super.start()}
     override func layoutSubviews() {super.layoutSubviews();glyphs.frame=bounds}
     override func paint(seconds:Double) {

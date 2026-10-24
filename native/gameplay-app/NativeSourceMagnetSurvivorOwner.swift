@@ -23,6 +23,7 @@ import StackToSixGameplay
     private var bounce:NativeSourceAppSpawnBounceOwner?
     private var closed=false,begun=false
     private var conversionRevision:UInt64?
+    private var pendingEntry:UUID?
     private(set) var inputBound=false
     init(node:NativeDiceNode,transactionID:String,generation:UInt64,service:NativeSourceAnimationClockService,
          driver:NativeTileOuterTimelineDriver,hooks:Hooks) {
@@ -44,7 +45,13 @@ import StackToSixGameplay
             return survivor.value
         },
             service:service,driver:driver,random:hooks.random,current:{[weak self] in self?.current()==true},
-            frameCurrent:hooks.frameCurrent,beforeSetValue:hooks.beforeSetValue,onCancelled:{[weak self] in self?.finish(.interrupted)}),current() else {finish(.unavailable);return false}
+            frameCurrent:hooks.frameCurrent,beforeSetValue:{[weak self] in
+                guard let self,self.current() else{return false}
+                // The retained container becomes a NEW numbered face. Hide it
+                // before publishing the value, then atomically transfer to bounce.
+                self.node.prepareSourceFreshFaceEntry();self.pendingEntry=self.node.sourcePendingFreshFaceEntryID
+                return self.hooks.beforeSetValue()
+            },onCancelled:{[weak self] in self?.finish(.interrupted)}),current() else {finish(.unavailable);return false}
         conversionRevision=node.sourceRetainedMagnetConversionRevision
         // Source releaseSpecialDiceResolution is after setValue and before the
         // decorative spawnBounce. This is distinct from its real drag bind.
@@ -72,7 +79,7 @@ import StackToSixGameplay
                     self.finish(self.inputBound && self.current() ? .completed:.interrupted)
                 case .unavailable:self.finish(.unavailable)
                 }
-            }),preservesBoardSize:true)
+            }),initialScale:NativeSourceAppSpawnBounceOwner.nativeEntryScale,nativeFreshFace:true,nativeFrameSerial:node.scene is NativeBoardScene ? {[weak node] in node?.sourceFreshFaceRenderSerial}:nil)
         bounce=tail
         guard node.bindSourceAppSpawnInterruption(id:ownerID,pickup:{[weak tail] in tail?.removeChildrenForPickup()},
             interrupted:{[weak tail] in tail?.interrupt()}),current(),tail.start(),current() else {
@@ -85,6 +92,8 @@ import StackToSixGameplay
         let captured=bounce;bounce=nil
         node.unbindSourceAppSpawnInterruption(id:"magnet-survivor:\(generation):\(transactionID)")
         captured?.interrupt()
+        if let pendingEntry {node.retireSourcePendingFreshFaceEntry(expected:pendingEntry)}
+        pendingEntry=nil
         hooks.finished(completion)
     }
     func retire(){finish(.interrupted)}

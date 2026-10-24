@@ -17,6 +17,58 @@ nonisolated final class NativeSourceMagnetPhysicalBindingTests:XCTestCase {
   node.installSourceOuterDriver(adapter,generation:1,geometryScale:1)
   return(textures,canvas,node,service,adapter)
  }
+ @MainActor func testNativeFallbackSpawnRendersGradualGrowthAndStandardOvershoot()throws {
+  let device=try XCTUnwrap(MTLCreateSystemDefaultDevice()),queue=try XCTUnwrap(device.makeCommandQueue())
+  let scene=SKScene(size:CGSize(width:160,height:160)),tile=SKSpriteNode(color:.orange,size:CGSize(width:64,height:64))
+  tile.position=CGPoint(x:80,y:80);tile.setScale(0);scene.addChild(tile)
+  let renderer=SKRenderer(device:device);renderer.scene=scene;defer{renderer.scene=nil}
+  let descriptor=MTLTextureDescriptor.texture2DDescriptor(pixelFormat:.bgra8Unorm,width:160,height:160,mipmapped:false)
+  descriptor.usage=[.renderTarget];descriptor.storageMode = .shared
+  let target=try XCTUnwrap(device.makeTexture(descriptor:descriptor))
+  tile.run(NativeBoardMotion.spawnBounce(direction:1,initialScale:0))
+  var scales:[CGFloat]=[]
+  for frame in 0...42 {
+   renderer.update(atTime:1+Double(frame)/60)
+   let pass=MTLRenderPassDescriptor();pass.colorAttachments[0].texture=target
+   pass.colorAttachments[0].loadAction = .clear;pass.colorAttachments[0].storeAction = .store
+   let command=try XCTUnwrap(queue.makeCommandBuffer())
+   renderer.render(withViewport:CGRect(x:0,y:0,width:160,height:160),commandBuffer:command,renderPassDescriptor:pass)
+   command.commit();command.waitUntilCompleted();XCTAssertEqual(command.status,.completed)
+   scales.append(tile.xScale)
+  }
+  XCTAssertGreaterThanOrEqual(scales.filter{$0>0.02 && $0<0.9}.count,6)
+  XCTAssertLessThan(scales[2],0.3);XCTAssertGreaterThan(scales.max() ?? 0,1.04)
+  XCTAssertEqual(scales.last ?? 0,1,accuracy:0.000001)
+ }
+ @MainActor func testRetainedSurvivorUsesFullFreshFaceBounceAndProtectsValuePublication()throws {
+  for interrupt in [false,true] {
+   let (textures,canvas,node,service,adapter)=try fixture()
+   let scene=SKScene(size:CGSize(width:192,height:220));scene.addChild(canvas)
+   XCTAssertTrue(node.prepareSourceInitialHolder(rotation:0,generation:1,cell:.init(column:0,row:0)))
+   var published=false,released=false,bound=false,finished:[NativeSourceMagnetSurvivorOwner.Completion]=[]
+   let owner=NativeSourceMagnetSurvivorOwner(node:node,transactionID:"survivor-entry",generation:1,service:service,driver:adapter,hooks:.init(
+    current:{true},frameCurrent:{true},random:{0.5},acquireFrames:{{}},beforeSetValue:{
+     published=true;XCTAssertEqual(node.sourceLocalScale,.zero,"Number publication must already be hidden")
+     XCTAssertNotNil(node.sourcePendingFreshFaceEntryID);return true
+    },resolutionReleased:{released=true},inputBound:{bound=true},finished:{finished.append($0)}))
+   defer{owner.retire();node.dispose();adapter.dispose();service.dispose();textures.dispose()}
+   XCTAssertTrue(owner.start(position:CGPoint(x:96,y:110),depthZ:1,selectSurvivor:{.init(id:node.tileID,cell:.init(column:0,row:0),value:3)}))
+   XCTAssertTrue(published && released && bound);XCTAssertEqual(node.sourceLocalScale,.zero)
+   XCTAssertNil(node.sourcePendingFreshFaceEntryID);XCTAssertTrue(node.sourceAppSpawnOwnsOuterScale)
+   service.deliver(wallMilliseconds:500)
+   XCTAssertLessThan(node.sourceLocalScale.x,0.1,"A delayed first flush cannot skip the entry")
+   if interrupt {
+    owner.retire();XCTAssertEqual(node.sourceLocalScale.x,1,accuracy:0.000001)
+    XCTAssertFalse(node.sourceAppSpawnOwnsOuterScale);XCTAssertEqual(finished.count,1)
+   } else {
+    var scales:[CGFloat]=[]
+    for frame in 1...38 {service.deliver(wallMilliseconds:500+Double(frame)*1000/60);scales.append(node.sourceLocalScale.x)}
+    XCTAssertTrue(scales.contains{$0>0.05 && $0<0.7});XCTAssertGreaterThan(scales.max() ?? 0,1.04)
+    XCTAssertEqual(scales.last ?? 0,1,accuracy:0.000001);XCTAssertEqual(finished,[.completed])
+    XCTAssertFalse(node.sourceAppSpawnOwnsOuterScale)
+   }
+  }
+ }
  @MainActor func testNativeFreshFaceRenderedStoryboardPreservesGrowthAfterDelayedFirstDelivery()throws {
   let (textures,canvas,node,service,adapter)=try fixture()
   let device=try XCTUnwrap(MTLCreateSystemDefaultDevice()),queue=try XCTUnwrap(device.makeCommandQueue())

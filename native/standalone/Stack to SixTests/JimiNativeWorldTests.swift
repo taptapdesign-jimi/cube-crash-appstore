@@ -1064,12 +1064,18 @@ final class JimiNativeWorldTests: XCTestCase {
         XCTAssertLessThan(siblings.firstIndex(of:island.layer)!,siblings.firstIndex(of:smoke)!)
         XCTAssertLessThan(siblings.firstIndex(of:smoke)!,siblings.firstIndex(of:card.layer)!)
         let bubbles = smoke.sublayers?.filter {$0.name != "world.smoke.halo"} ?? []
-        XCTAssertGreaterThanOrEqual(bubbles.count,8);XCTAssertLessThanOrEqual(bubbles.count,13)
+        XCTAssertGreaterThanOrEqual(bubbles.count,12);XCTAssertLessThanOrEqual(bubbles.count,20)
         for bubble in bubbles {
             let animation = try XCTUnwrap(bubble.animation(forKey:"world.smoke") as? CAAnimationGroup)
             let opacity = try XCTUnwrap(animation.animations?.first as? CAKeyframeAnimation)
             XCTAssertGreaterThanOrEqual(opacity.keyTimes![1].doubleValue*animation.duration,0.43)
+            let values=try XCTUnwrap(opacity.values as? [NSNumber])
+            XCTAssertGreaterThanOrEqual(values[2].doubleValue,0.3*0.68*1.4*0.6-0.000001)
+            XCTAssertLessThanOrEqual(values[2].doubleValue,0.6)
         }
+        let halo=try XCTUnwrap(smoke.sublayers?.first{$0.name=="world.smoke.halo"})
+        let haloAlpha=try XCTUnwrap(halo.animation(forKey:"world.smoke.halo") as? CAKeyframeAnimation)
+        XCTAssertEqual((haloAlpha.values?[2] as? NSNumber)?.doubleValue,0.132)
         let successor = CALayer();successor.name = "world.smoke.feedback";unit.layer.addSublayer(successor)
         XCTAssertFalse(completed);try await settle(0.9)
         XCTAssertTrue(successor.superlayer === unit.layer,"Retired landing must never clean a successor feedback lease")

@@ -129,7 +129,7 @@ final class NativeAppController: UIViewController {
         }
         home.onPanBegan = { [weak self] in
             guard let self,!self.transitioning,self.route == .home else{return false}
-            self.motion.cancel();self.home.pauseHeroIdle();return true
+            self.motion.cancel();self.home.pauseHeroIdle(preserveLogoIdle:true);return true
         }
         home.onPanEnded = { [weak self] index,_ in self?.selectSlide(index,feedback:"tab-swipe") }
         arcadeHub.onCrate = {[weak self] in

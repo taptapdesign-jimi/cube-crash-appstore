@@ -49,12 +49,24 @@ final class NativeKantaPresentationTests: XCTestCase {
         field.layoutIfNeeded()
         let container=try XCTUnwrap(field.subviews.first)
         let letters=container.subviews.compactMap{$0 as? UILabel}
-        XCTAssertEqual(letters.compactMap(\.text).joined(),"CLANK")
+        XCTAssertEqual(letters.compactMap(\.text).joined(),"CLANK!")
+        let palette=[UIColor(red:229.0/255,green:182.0/255,blue:135.0/255,alpha:1).cgColor,UIColor(red:167.0/255,green:139.0/255,blue:119.0/255,alpha:1).cgColor]
+        for letter in letters {
+            XCTAssertEqual(letter.textColor.withAlphaComponent(1),.white)
+            let glows=letter.subviews.compactMap{$0 as? UILabel};XCTAssertEqual(glows.count,4)
+            XCTAssertTrue(glows.allSatisfy{palette.contains($0.layer.shadowColor!)})
+        }
         XCTAssertLessThanOrEqual(container.frame.width,350)
         field.paint(seconds:0.6)
         XCTAssertTrue(letters.contains{$0.alpha>0})
         field.layoutIfNeeded()
         XCTAssertLessThanOrEqual(container.frame.width,350)
+        field.paint(seconds:0.9)
+        let image=UIGraphicsImageRenderer(size:field.bounds.size).image{context in
+            context.cgContext.setFillColor(UIColor(red:0.97,green:0.94,blue:0.89,alpha:1).cgColor);context.cgContext.fill(field.bounds)
+            field.layer.render(in:context.cgContext)
+        }
+        try XCTUnwrap(image.pngData()).write(to:FileManager.default.temporaryDirectory.appendingPathComponent("bucket-clank-peach-brown-glow.png"))
     }
     func testFiniteKantaReceiptsFadeAndDisposedClockStayOnce() async {
         let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),controller=UIViewController()
