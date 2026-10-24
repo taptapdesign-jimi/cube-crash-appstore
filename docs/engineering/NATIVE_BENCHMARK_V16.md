@@ -92,3 +92,7 @@ Original local asset deletions are excluded; all original tracked bytes remain i
 - `native/standalone/Stack to SixTests/NativeWildMergeSixRootTests.swift`
 - `native/standalone/Stack to SixTests/NativeWildMeterActualRootTests.swift`
 - `docs/engineering/NATIVE_BENCHMARK_V16.md`
+
+## Delivery and publication receipt
+
+Immutable payload: `a851bb2638609575fb197a950583d46012e83e71`. Phone install-over and normal launch succeeded before the atomic online push. Both save files remained byte-identical. Signed Release build, compiled Native audit and strict signature verification passed. Published branch and v15/v16 tags are on `https://github.com/taptapdesign-jimi/cube-crash-appstore`. Receipt documentation is subsequent to the immutable payload tag. Physical acceptance remains NEEDS PHYSICAL TEST.
