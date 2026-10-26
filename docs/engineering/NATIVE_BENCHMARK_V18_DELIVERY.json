@@ -1,0 +1,37 @@
+{
+  "tag": "native-benchmark-v18",
+  "payloadCommit": "0c123f98252eb3ec70f8d7644fdf002821d033ac",
+  "device": "iPhone 13 blue",
+  "bundleID": "com.taptapdesign.stacktosix.native",
+  "executableSHA256": "728e33dfc9ecf0ebf92c50c4fc7c940e79ef3dcfe59ba645437399b65643acf3",
+  "postinstall": {
+    "state-v1.json": {
+      "byteIdentical": true,
+      "progressEqual": true
+    },
+    "state-v1.previous.json": {
+      "byteIdentical": true,
+      "progressEqual": true
+    }
+  },
+  "postlaunch": {
+    "state-v1.json": {
+      "byteIdentical": true,
+      "progressEqual": true
+    },
+    "state-v1.previous.json": {
+      "byteIdentical": true,
+      "progressEqual": true
+    }
+  },
+  "physicalAcceptance": "NEEDS PHYSICAL TEST",
+  "date": "2026-10-26",
+  "processIdentifier": 51062,
+  "remote": "https://github.com/taptapdesign-jimi/cube-crash-appstore",
+  "remoteTagVerified": true,
+  "releaseAudit": "PASS",
+  "strictSignature": "PASS",
+  "sourceQA": "PASS latest full/fast/feature/iOS plus focused Native SDK tests",
+  "saveBackup": "/tmp/benchmark-v18-phone-preinstall/",
+  "evidencePrefix": "/tmp/benchmark-v18-"
+}
