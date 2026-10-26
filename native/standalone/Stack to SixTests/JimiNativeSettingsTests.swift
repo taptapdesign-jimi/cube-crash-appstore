@@ -109,7 +109,7 @@ final class JimiNativeSettingsTests: XCTestCase {
         for button in settings.developerButtons { button.sendActions(for: .touchUpInside) }
         XCTAssertTrue(actions.isEmpty)
         settings.setDeveloperPanelVisible(true); settings.layoutSubviews()
-        XCTAssertEqual(settings.developerButtons.compactMap { $0.title(for: .normal) },["Show Card","Hide Card","Legendary Card","Reset Stage","New Card","Clean Stage","LAST MERGE"])
+        XCTAssertEqual(settings.developerButtons.compactMap { $0.title(for: .normal) },["Show Card","Hide Card","Legendary Card","Reset Stage","New Card","Clean Stage","End Game","LAST MERGE"])
         for button in settings.developerButtons {
             XCTAssertFalse(button.isHidden); XCTAssertGreaterThanOrEqual(button.cartoonBounceFrame.minX,24)
             XCTAssertLessThanOrEqual(button.cartoonBounceFrame.maxX,296); XCTAssertGreaterThanOrEqual(button.bounds.height,44)
@@ -120,7 +120,7 @@ final class JimiNativeSettingsTests: XCTestCase {
         XCTAssertLessThanOrEqual(settings.firstPlay.frame.maxY,settings.scroll.contentSize.height)
         settings.back.sendActions(for: .touchUpInside)
         for button in settings.developerButtons { XCTAssertTrue(button.isHidden); button.sendActions(for: .touchUpInside) }
-        XCTAssertEqual(actions.count,7)
+        XCTAssertEqual(actions.count,8)
     }
 
     func testDeveloperPreviewCloseReleasesOnceEvenBeforeAssetsAreReady() {
@@ -179,11 +179,11 @@ final class JimiNativeSettingsTests: XCTestCase {
         saved=try XCTUnwrap(store.load())
         let expected=Set((NativeBackpackCatalog.forest+NativeBackpackCatalog.area+NativeBackpackCatalog.beach).map(\.id))
         XCTAssertEqual(saved.progression.announcedJourneyDice,expected)
-        XCTAssertEqual(NativeBackpackCatalog.sections(saved.progression).reduce(0){$0+$1.count},15)
+        XCTAssertEqual(NativeBackpackCatalog.sections(saved.progression).reduce(0){$0+$1.count},expected.count)
         try owner.applyDeveloperProgress(.hide,values:["22"])
         saved=try XCTUnwrap(store.load())
         XCTAssertFalse(saved.progression.announcedJourneyDice.contains("kanta"))
-        XCTAssertEqual(saved.progression.announcedJourneyDice.count,14)
+        XCTAssertEqual(saved.progression.announcedJourneyDice.count,expected.count-1)
         try owner.applyDeveloperProgress(.show,values:["22"])
         XCTAssertEqual(try store.load()?.progression.announcedJourneyDice,expected)
     }
@@ -258,8 +258,13 @@ final class JimiNativeSettingsTests: XCTestCase {
         try await wait("settings") { app.route == .settings && app.settingsView.isUserInteractionEnabled }
         app.settingsView.developer.sendActions(for: .touchUpInside)
         let before = try store.load()
-        for choice in [NativeWildArchetype.tnt.rawValue,"flower"] {
-            try XCTUnwrap(app.settingsView.developerButtons.last).sendActions(for: .touchUpInside)
+        for choice in [NativeWildArchetype.tnt.rawValue,"flower","ordinary","bloob-ball"] {
+            if choice == "ordinary" || choice == "bloob-ball" {
+                let index=try XCTUnwrap(NativeDeveloperAction.allCases.firstIndex(of:.endGame))
+                app.settingsView.developerButtons[index].sendActions(for:.touchUpInside)
+            } else {
+                try XCTUnwrap(app.settingsView.developerButtons.last).sendActions(for: .touchUpInside)
+            }
             let picker = try XCTUnwrap(app.presentedViewController as? NativeDeveloperPicker)
             picker.loadViewIfNeeded()
             try XCTUnwrap(button(picker.view,id: "native.developer.choice.\(choice)")).sendActions(for: .touchUpInside)
@@ -272,15 +277,33 @@ final class JimiNativeSettingsTests: XCTestCase {
             let gameplay = try XCTUnwrap(game()), scene = try XCTUnwrap(gameplay.boardScene)
             XCTAssertEqual(gameplay.engine.state.activeTiles.count,2)
             XCTAssertTrue(NativeSaveEnvelope.hasRecordedMove(gameplay.engine.state),"Synthetic final pair must survive normal resume admission")
-            XCTAssertEqual(gameplay.engine.state.tiles.first { $0.id == "dev-wild" }?.variant,choice == "flower" ? "flower" : nil)
+            XCTAssertEqual(gameplay.engine.state.tiles.first { $0.id == "dev-wild" }?.variant,choice == "flower" || choice == "bloob-ball" ? choice : nil)
             XCTAssertTrue(try XCTUnwrap(gameplay.sourceScope).current)
-            if choice == "flower" {
-                let a = try XCTUnwrap(scene.sourceNativeTileNode("dev-wild")), b = try XCTUnwrap(scene.sourceNativeTileNode("dev-regular"))
+            if choice == "ordinary" {
+                XCTAssertEqual(gameplay.engine.state.activeTiles.map(\.value).sorted(),[2,4])
+                XCTAssertTrue(gameplay.engine.state.activeTiles.allSatisfy{$0.archetype == nil})
+            }
+            if choice == "flower" || choice == "ordinary" || choice == "bloob-ball" {
+                let a = try XCTUnwrap(scene.sourceNativeTileNode(choice == "ordinary" ? "dev-end-four":"dev-wild")), b = try XCTUnwrap(scene.sourceNativeTileNode(choice == "ordinary" ? "dev-end-two":"dev-regular"))
                 let from = scene.convert(a.position,from: try XCTUnwrap(a.parent)), to = scene.convert(b.position,from: try XCTUnwrap(b.parent))
                 XCTAssertTrue(scene.beginDrag(at: from)); scene.moveDrag(to: to,now: CACurrentMediaTime())
                 try await Task.sleep(for: .milliseconds(160))
                 XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at: to,now: CACurrentMediaTime())).accepted)
+                if choice == "ordinary" {
+                    XCTAssertTrue(gameplay.hasPresentedBoardCleared,"Ordinary final contact starts the clear group synchronously")
+                    var ghosts:[SKNode]=[]
+                    scene.enumerateChildNodes(withName:"//native-ghost-*"){node,_ in ghosts.append(node)}
+                    XCTAssertFalse(ghosts.isEmpty)
+                    XCTAssertTrue(ghosts.allSatisfy{$0.action(forKey:"board-exit") != nil},"Residual pop-out begins with CLEARED, before terminal")
+                } else {
+                    XCTAssertFalse(gameplay.hasPresentedBoardCleared,"Special finale must finish before the clear group starts")
+                }
                 try await wait("developer final complete") { gameplay.engine.state.terminal?.kind == .complete }
+                if choice == "ordinary" || choice == "bloob-ball" {
+                    try await wait("developer clean result") {
+                        gameplay.presentedViewController is NativeResultController || preview.presentedViewController is NativeResultController || previewApp.presentedViewController is NativeResultController
+                    }
+                }
             }
             try XCTUnwrap(button(preview.view,id: "native.developer.close-gameplay")).sendActions(for: .touchUpInside)
             try await wait("preview closed") { app.presentedViewController == nil }

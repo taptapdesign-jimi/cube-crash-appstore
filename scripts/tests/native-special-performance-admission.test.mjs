@@ -29,3 +29,21 @@ test('rejects absent Native tests',()=>assert.match(fixture(e=>e.nativeTests=[])
 test('rejects a Swift file without XCTest cases',()=>assert.match(fixture((e,f)=>f.write(e.nativeTests[0],'final class Empty {}')).output,/FAIL.*Native test has no XCTest cases/));
 test('Native receipts cannot replace mandatory Source regressions',()=>assert.match(fixture(e=>e.tests=e.tests.slice(1)).output,/FAIL.*missing shared foreground geometry regression/));
 test('Native paths cannot be placed in the Source test namespace',()=>assert.match(fixture(e=>e.tests.push(e.nativeTests[0])).output,/FAIL.*missing test native/));
+test('Native admission blocks a variant that drops the shared restore lifecycle suite',()=>{
+ const result=spawnSync(process.execPath,['--input-type=module','-e',`
+  import fs from 'node:fs';
+  const original=fs.readFileSync.bind(fs);
+  fs.readFileSync=(file,...args)=>{
+   const data=original(file,...args);
+   if(String(file).endsWith('/docs/engineering/native-special-dice-performance-owners.json')) {
+    const manifest=JSON.parse(data);
+    manifest.variants.spaceship.tests=manifest.variants.spaceship.tests.filter(file=>!file.endsWith('/NativeSourceRegularResumeConstructionTests.swift'));
+    return JSON.stringify(manifest);
+   }
+   return data;
+  };
+  await import('./scripts/native-gameplay-admission.mjs');
+ `],{cwd:path.resolve('.'),encoding:'utf8'});
+ assert.equal(result.status,1,result.stdout+result.stderr);
+ assert.match(result.stderr,/spaceship: missing shared Native restore\/idle regression/);
+});

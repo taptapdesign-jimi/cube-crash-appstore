@@ -98,6 +98,18 @@ enum NativeAuthoredAudioCatalog {
             NativeAudioCue(source:"assets/sound/Wild and special kockice/flower/bush3.wav",voice:"flower-merge6-bush3",gain:0.13649999999999998,rate:1,delay:0,stopAfter:nil,fadeOut:0),
             NativeAudioCue(source:"assets/sound/Wild and special kockice/flower/boom.wav",voice:"flower-merge6-boom",gain:0.39,rate:1,delay:0,stopAfter:nil,fadeOut:0),
         ],
+        "kite": [
+            NativeAudioCue(source:"assets/sound/Wild and special kockice/kite/kite lfight.wav",voice:"kite-flight",gain:0.6,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/Wild and special kockice/kite/kite meerge.wav",voice:"kite-merge",gain:0.6,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/merge 6/merge six obicna.mp3",voice:"regular-merge6-primary",gain:0.195,rate:1.3,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/merge 6/merge6 crash.mp3",voice:"regular-merge6-crash",gain:0.10608000000000001,rate:1.3,delay:0,stopAfter:0.892,fadeOut:0.12),
+            NativeAudioCue(source:"assets/sound/merge 6/merge6 boom.mp3",voice:"regular-merge6-boom",gain:0.23399999999999999,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/merge 6/stack.mp3",voice:"regular-merge6-stack",gain:0.312,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/Wild and special kockice/bee/brushing.wav",voice:"kite-brushing",gain:0.48,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/Wild and special kockice/ baloon/prvi pop.wav",voice:"kite-first-pop",gain:0.6,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/Wild and special kockice/ baloon/baloon pop.wav",voice:"kite-balloon-pop",gain:0.3,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/mini explozije/mini2.mp3",voice:"kite-mini2",gain:0.144,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
         "bee": [
             NativeAudioCue(source:"assets/sound/merge 6/merge six obicna.mp3",voice:"regular-merge6-primary",gain:0.195,rate:1.3,delay:0,stopAfter:nil,fadeOut:0),
             NativeAudioCue(source:"assets/sound/merge 6/merge6 crash.mp3",voice:"regular-merge6-crash",gain:0.10608000000000001,rate:1.3,delay:0,stopAfter:0.892,fadeOut:0.12),

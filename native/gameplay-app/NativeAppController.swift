@@ -58,6 +58,7 @@ final class NativeAppController: UIViewController {
     private var transitioning = false
     private var suspended = false
     private var deferredReveal:Route?
+    private var pendingGameplayReturnWorldID:Int?
     private var observers: [NSObjectProtocol] = []
     private var returnRoute = Route.home
     private var homeJourneyTutorial=false
@@ -79,7 +80,7 @@ final class NativeAppController: UIViewController {
     private var returnPreparation:ReturnPreparation?
     @MainActor private final class WorldEntryPreparation {
         let generation:Int,id:Int,world:JimiNativeWorldView
-        var ready=false
+        var ready=false,gameplayReturn=false
         init(generation:Int,id:Int,world:JimiNativeWorldView){self.generation=generation;self.id=id;self.world=world}
     }
     private var worldEntryPreparation:WorldEntryPreparation?
@@ -287,6 +288,7 @@ final class NativeAppController: UIViewController {
     }
     private func reveal(_ next:Route) {
         guard !suspended else {deferredReveal = next;return}
+        if let pending=pendingGameplayReturnWorldID,next != .world(pending) {pendingGameplayReturnWorldID=nil}
         if route == .backpack,next != .backpack {
             for id in (backpackView?.seenUnreadDice ?? []).sorted() {_ = services.readJourneyDie(id)}
         }
@@ -394,7 +396,9 @@ final class NativeAppController: UIViewController {
         guard let incoming=world else{throw NativeAppError.invalidWorld}
         incoming.isHidden=true;incoming.setActive(false);configureWorld(incoming,id:id)
         if route != .backpack {incoming.setBackpackUnread(!services.journeyProgression().unreadJourneyDice.isEmpty)}
-        let lease=WorldEntryPreparation(generation:owner,id:id,world:incoming);worldEntryPreparation=lease
+        let lease=WorldEntryPreparation(generation:owner,id:id,world:incoming)
+        lease.gameplayReturn=pendingGameplayReturnWorldID==id
+        worldEntryPreparation=lease
         services.prepareWorldEntry(incoming){[weak self,weak lease] in
             guard let self,let lease,!self.disposed,!self.suspended,self.generation==lease.generation,
                   self.worldEntryPreparation === lease,self.world === lease.world else{return}
@@ -416,7 +420,10 @@ final class NativeAppController: UIViewController {
             backpackReturnWorldClose=false
             closeReturningBackpack(button:incoming.backpackButton,badge:incoming.backpackAlert,lead:UIAccessibility.isReduceMotionEnabled ? 0:0.08)
         }
-        incoming.enter{[weak self,weak incoming] in
+        // A manual Exit has no result-cover preparation, but owns the same
+        // once-only Unit return flip after its selected World is ready.
+        if lease.gameplayReturn {pendingGameplayReturnWorldID=nil}
+        incoming.enter(terminal:lease.gameplayReturn){[weak self,weak incoming] in
             guard let self,let incoming,!self.disposed,self.generation==lease.generation,
                   self.route == .world(lease.id),self.world === incoming else{return}
             guard !self.suspended else{self.deferredReveal=self.route;return}
@@ -536,7 +543,10 @@ final class NativeAppController: UIViewController {
                 guard let self,let incoming,!self.disposed,self.generation==owner,self.world===incoming else{return}
                 incoming.finishPresentationAdmission();self.transitioning=false
             }
-        }else{reveal(returnRoute)}
+        }else{
+            if case .world(let id)=returnRoute {pendingGameplayReturnWorldID=id}
+            reveal(returnRoute)
+        }
     }
     private var pendingGameplayReplacement:NativeGameplayViewController?
     private func retireCoveredGameplay() {

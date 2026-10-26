@@ -61,6 +61,77 @@ final class NativeHUDCloseTests:XCTestCase {
             XCTAssertEqual(layer.presentation()?.transform.m11 ?? 1,1,accuracy:0.005,"Revealing navigation must not replay contact")
         }
     }
+    func testRealExitModalKeepsCloseBouncePainting() async throws {
+        let engine=NativeGameplayEngine(state:.init(tiles:[.init(id:"one",cell:.init(column:0,row:0),value:1),.init(id:"two",cell:.init(column:1,row:0),value:1)]))
+        let controller=NativeGameplayViewController(engine:engine,resourceRoot:NativeTestResources.root)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=controller;window.makeKeyAndVisible()
+        var checkpoints=0
+        let owner=NativeEndRunOwner(gameplay:controller,resourceRoot:NativeTestResources.root,save:{checkpoints += 1;Thread.sleep(forTimeInterval:0.5);return true},restart:{},exit:{})
+        defer{owner.dispose();controller.dispose();window.isHidden=true}
+        controller.view.frame=window.bounds;controller.view.layoutIfNeeded()
+        let scene=try XCTUnwrap(controller.boardScene);scene.layout(size:scene.size,insets:.zero,animateEntry:false)
+        try await Task.sleep(for:.milliseconds(200))
+        let close=try XCTUnwrap(scene.childNode(withName:"//native-game-close"))
+        let base=close.xScale
+        for _ in 0..<3 {
+            let beforeCheckpoints=checkpoints,contactStart=Date()
+            XCTAssertTrue(scene.handleHUDContact(at:close.convert(.zero,to:scene)))
+            XCTAssertLessThan(Date().timeIntervalSince(contactStart),0.25,"Opening must not wait for the half-second disk checkpoint")
+            XCTAssertEqual(checkpoints,beforeCheckpoints,"Checkpoint belongs after visible entrance")
+            XCTAssertNotNil(controller.presentedViewController,"Modal opens immediately like trophy")
+            XCTAssertNotNil(close.action(forKey:"hud-tap-bounce"))
+            var changed=false,minX=CGFloat.greatestFiniteMagnitude,maxY:CGFloat=0
+            let visibleStart=Date()
+            let deadline=Date().addingTimeInterval(2)
+            while scene.hasActiveHUDTapFeedback,Date()<deadline {
+                try await Task.sleep(for:.milliseconds(10))
+                changed = changed || abs(close.xScale-base)>0.005
+                minX=min(minX,close.xScale);maxY=max(maxY,close.yScale)
+                XCTAssertNotNil(controller.presentedViewController)
+            }
+            XCTAssertTrue(changed,"Every contact must bounce, including after dismissal")
+            XCTAssertLessThan(minX,base*0.94,"Slow synchronous save must not consume squash/stretch peaks")
+            XCTAssertGreaterThan(maxY,base*1.06,"Rendered stretch must remain after first resumed frame, including30FPS sampling")
+            XCTAssertGreaterThanOrEqual(Date().timeIntervalSince(visibleStart),0.30,"Save stall cannot consume the visible0.4s action")
+            XCTAssertNil(close.action(forKey:"hud-tap-bounce"))
+            XCTAssertEqual(close.xScale,base,accuracy:0.001)
+            XCTAssertTrue(scene.isPaused)
+            let sheet=try XCTUnwrap(controller.presentedViewController as? JimiNativeEndRunModal)
+            let readyDeadline=Date().addingTimeInterval(3)
+            while checkpoints == beforeCheckpoints,Date()<readyDeadline {try await Task.sleep(for:.milliseconds(20))}
+            XCTAssertEqual(checkpoints,beforeCheckpoints+1)
+            sheet.onAction?("close")
+            let dismissDeadline=Date().addingTimeInterval(3)
+            while controller.presentedViewController != nil,Date()<dismissDeadline {try await Task.sleep(for:.milliseconds(20))}
+            XCTAssertNil(controller.presentedViewController)
+            XCTAssertFalse(scene.isPaused)
+        }
+        XCTAssertTrue(scene.handleHUDContact(at:close.convert(.zero,to:scene)))
+        XCTAssertNotNil(controller.presentedViewController)
+        let savedBeforeDispose=checkpoints
+        owner.dispose()
+        try await Task.sleep(for:.milliseconds(900))
+        XCTAssertNil(controller.presentedViewController)
+        XCTAssertEqual(checkpoints,savedBeforeDispose,"Retired modal must not checkpoint later")
+    }
+
+    func testFailedExitCheckpointDismissesModalAndResumesBoard() async throws {
+        let engine=NativeGameplayEngine(state:.init(tiles:[.init(id:"one",cell:.init(column:0,row:0),value:1)]))
+        let controller=NativeGameplayViewController(engine:engine,resourceRoot:NativeTestResources.root)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=controller;window.makeKeyAndVisible()
+        var checkpoints=0
+        let owner=NativeEndRunOwner(gameplay:controller,resourceRoot:NativeTestResources.root,save:{checkpoints += 1;return false},restart:{},exit:{})
+        defer{owner.dispose();controller.dispose();window.isHidden=true}
+        controller.view.frame=window.bounds;controller.view.layoutIfNeeded()
+        let scene=try XCTUnwrap(controller.boardScene);scene.layout(size:scene.size,insets:.zero,animateEntry:false)
+        try await Task.sleep(for:.milliseconds(200))
+        controller.onExit?()
+        XCTAssertNotNil(controller.presentedViewController)
+        let deadline=Date().addingTimeInterval(3)
+        while (checkpoints==0 || controller.presentedViewController != nil),Date()<deadline {try await Task.sleep(for:.milliseconds(20))}
+        XCTAssertEqual(checkpoints,1);XCTAssertNil(controller.presentedViewController);XCTAssertFalse(scene.isPaused)
+    }
+
     func testControllerModalPausePaintsEveryHUDContactAndNeverReplaysOnDismissal() async throws {
         for metal in [false,true] {
             let engine=NativeGameplayEngine(state:.init(tiles:[

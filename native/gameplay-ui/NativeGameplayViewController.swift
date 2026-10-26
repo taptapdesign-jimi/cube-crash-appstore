@@ -25,7 +25,7 @@ final class NativeGameplayViewController: UIViewController {
     }
     func mountJourneyRewardController(_ card:NativeJourneyRewardController,generation:UInt64) {
         guard !disposed,isViewLoaded,view.window != nil,engine.state.generation==generation,visibleJourneyRewardController==nil,presentedViewController==nil else {card.dispose(notify:false);return}
-        card.useGameplayPaper();card.setRewardActionsAdmitted(false)
+        card.setRewardActionsAdmitted(false)
         card.loadViewIfNeeded()
         guard card.phase != "asset-failed",card.phase != "disposed" else{return}
         addChild(card);card.view.frame=view.bounds;card.view.autoresizingMask=[.flexibleWidth,.flexibleHeight]
@@ -621,8 +621,8 @@ final class NativeGameplayViewController: UIViewController {
                 }
                 self.bindFinalMergeProgress(owner,generation:generation);owner.start();return true
             }
-            if variant == "bee" {
-                let owner=NativeBeeFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.view.bounds.size,origin:origin,preparedArtwork:self.selectedFinaleArtwork())
+            if variant == "bee" || variant == "kite" {
+                let owner=NativeBeeFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.view.bounds.size,origin:origin,preparedArtwork:self.selectedFinaleArtwork(),kite:variant == "kite")
                 guard owner.assetReady else {owner.dispose();return false}
                 self.area55Finales[variant]?.dispose()
                 self.area55Finales[variant]=owner;self.area55Generations[variant]=generation
@@ -813,7 +813,16 @@ final class NativeGameplayViewController: UIViewController {
         scene.onGameplayReceipt = { [weak self] event,source,destination,generation in self?.onGameplayReceipt?(event,source,destination,generation) }
         scene.onSpecialMoment = { [weak self] variant,moment,index in self?.onSpecialMoment?(variant,moment,index) }
         scene.onHUDCoinArrival = { [weak self] relativeSize in self?.onHUDCoinArrival?(relativeSize) }
-        scene.onGameplayEvent = { [weak self] event in self?.onGameplayEvent?(event) }
+        scene.onGameplayEvent = { [weak self] event in
+            guard let self,!self.disposed else{return}
+            // Ordinary final contact starts the clear group immediately. Wild/
+            // Special finales keep the screen until their authored animation ends.
+            let ordinary=self.engine.pendingOrdinarySix
+            if event.kind == .ordinarySixReserved,ordinary?.isFinal == true,event.reason == ordinary?.id {
+                self.presentBoardCleared(generation:self.engine.state.generation)
+            }
+            self.onGameplayEvent?(event)
+        }
         scene.onFrameTarget={ [weak self,weak scene] fps in
             guard let self,!self.disposed,self.spriteView.surfaceFrameRate != fps else{return}
             if fps<60 {scene?.retireSourceRendererDragTransport()}
@@ -1216,6 +1225,7 @@ final class NativeGameplayViewController: UIViewController {
             let pending=self.boardClearedTerminalContinuation;self.boardClearedTerminalContinuation=nil
             if success,!self.disposed,self.engine.state.generation==generation {pending?()}
         }
+        boardScene?.beginClearedResidualExit(generation:generation)
         owner.start()
     }
     private func retireBoardCleared() {
@@ -1233,6 +1243,7 @@ final class NativeGameplayViewController: UIViewController {
         } else {
             let tnt = NativeTntVariantPresentation(resourceRoot:resourceRoot,variant:variant == "coconut" ? .coconut:variant == "flower" ? .flower:variant == "bloob-ball" ? .bloobGas:.barell,viewport:view.bounds.size,preparedArtwork:selectedFinaleArtwork(),coconutBoardBodySize:boardScene?.coconutFinaleBodySize)
             guard tnt.assetsReady else { tnt.dispose(); return false }
+            if variant == "coconut" {tnt.bindScreenShake(to:view)}
             if variant == "bloob-ball" {tnt.bindBoardReaction(boardScene?.makeBloobBoardReaction())}
             tnt.onSprite6Entered = onGameplayReady; owner = tnt
         }
@@ -1303,10 +1314,11 @@ final class NativeGameplayViewController: UIViewController {
         if value {endgameHint?.forceClear()}
         boardClearedPresentation?.setSuspended(value)
         nativeNoMovesUIKit?.setSuspended(value)
+        boardScene?.setPreservesPausedSpecialVisuals(!backgrounded && explicitlySuspended && !exitingBoard,hardBackgroundPause:backgrounded)
         sourceScope?.update(foreground: !backgrounded, globalPaused: explicitlySuspended && !exitingBoard,
                             terminalSuspended: engine.state.terminal != nil && !exitingBoard)
         boardScene?.setSourceRegularIdleForeground(!backgrounded)
-        fishIdleOwner.setSuspended(value)
+        fishIdleOwner.setSuspended(value,preservingVisiblePose:!backgrounded)
         boardScene?.setSuspended(value,allowHUDFeedback:!backgrounded); fishFinale?.setSuspended(value); bottleFinale?.setSuspended(value); honeyFinale?.setSuspended(value)
         area55Finales.values.forEach { $0.setSuspended(value) }
         journeyBottomDecor?.setForeground(!backgrounded)
@@ -1550,7 +1562,9 @@ final class NativeGameplayViewController: UIViewController {
         exitingBoard=true
         applySuspension()
         journeyBottomDecor?.setSuspended(backgrounded)
-        let keepsChromeVisible=finalMerge
+        // Journey retires HUD/footer after residual ghosts, before its opaque reward screen.
+        // Arcade automatic round continuation retains its already settled chrome.
+        let keepsChromeVisible=finalMerge && engine.state.mode == .arcade
         var remaining=keepsChromeVisible || journeyBottomDecor == nil ? 1:2,finished=false
         let generation=engine.state.generation
         let settled:(Bool)->Void = { [weak self] success in
@@ -1684,6 +1698,7 @@ final class NativeGameplayViewController: UIViewController {
         case "cubero":paths=(1...7).map{"assets/shop/cubero/krpa\($0).png"}
         case "bloob-ball":paths=NativeTntVariantPresentation.assets(.bloobGas).map{$0.replacingOccurrences(of:"@2x.png",with:".png")}
         case "bloob":paths=NativeBloobFinalePresentation.assets
+        case "kite":paths=NativeKiteArt.assets
         case "bee":paths=(1...4).map{"assets/shop/bee/bee\($0).png"}+(1...6).map{"assets/shop/bee/leaf\($0).png"}+["assets/shop/honey/bee1.png","assets/shop/honey/bee3.png"]
         case "honey":paths=(1...7).map{"assets/shop/honey/bee\($0).png"}
         case "bottle":paths=NativeBottleFinaleMotion.layers.map{"assets/shop/bottle/bottle animation pack/\($0.asset).png"}+(1...6).map{"assets/shop/bottle/bottle animation pack/bubble\($0).png"}

@@ -16,17 +16,19 @@
                         <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
-                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleToFill" alpha="0.6" image="LaunchPaper" translatesAutoresizingMaskIntoConstraints="NO" id="CCL-Pa-per">
+                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFill" alpha="0.6" image="LaunchPaper" translatesAutoresizingMaskIntoConstraints="NO" id="CCL-Pa-per">
                                 <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
                             </imageView>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="6Tk-OE-BBY"/>
                         <color key="backgroundColor" red="0.9529411765" green="0.9333333333" blue="0.9098039216" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                         <constraints>
-                            <constraint firstItem="CCL-Pa-per" firstAttribute="leading" secondItem="Ze5-6b-2t3" secondAttribute="leading" id="CCL-Pa-L"/>
-                            <constraint firstAttribute="trailing" secondItem="CCL-Pa-per" secondAttribute="trailing" id="CCL-Pa-R"/>
+                            <constraint firstItem="CCL-Pa-per" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="CCL-Pa-X"/>
                             <constraint firstItem="CCL-Pa-per" firstAttribute="top" secondItem="Ze5-6b-2t3" secondAttribute="top" id="CCL-Pa-T"/>
-                            <constraint firstAttribute="bottom" secondItem="CCL-Pa-per" secondAttribute="bottom" id="CCL-Pa-B"/>
+                            <constraint firstItem="CCL-Pa-per" firstAttribute="width" secondItem="CCL-Pa-per" secondAttribute="height" multiplier="605:844" id="CCL-Pa-Ratio"/>
+                            <constraint firstItem="CCL-Pa-per" firstAttribute="width" relation="greaterThanOrEqual" secondItem="Ze5-6b-2t3" secondAttribute="width" id="CCL-Pa-W"/>
+                            <constraint firstItem="CCL-Pa-per" firstAttribute="height" relation="greaterThanOrEqual" secondItem="Ze5-6b-2t3" secondAttribute="height" constant="24" id="CCL-Pa-H"/>
+                            <constraint firstItem="CCL-Pa-per" firstAttribute="height" secondItem="Ze5-6b-2t3" secondAttribute="height" constant="24" priority="999" id="CCL-Pa-Min"/>
                         </constraints>
                     </view>
                 </viewController>

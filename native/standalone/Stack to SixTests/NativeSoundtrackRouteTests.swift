@@ -134,10 +134,63 @@ final class NativeSoundtrackRouteTests:XCTestCase {
         transport.perform(id:id,op:"dispose",body:[:]){_,error in XCTAssertNil(error)}
         XCTAssertEqual((state(id)["duration"] as? NSNumber)?.doubleValue,0)
     }
+    func testTransientActivationFailureRecoversCurrentRouteWithoutFatalSurface() async throws {
+        let transport=Transport();var attempts=0;var errors:[String]=[]
+        let owner=NativeSoundtrackRouteOwner(root:URL(fileURLWithPath:"/unused"),transport:transport,isApplicationActive:{true},activateSession:{
+            attempts += 1
+            if attempts == 1 {throw NSError(domain:"com.apple.coreaudio.avfaudio",code:2003329396)}
+        })
+        defer{owner.dispose()};owner.onError={errors.append($0)}
+        owner.setJourneyGameplay()
+        XCTAssertEqual(errors.count,1);XCTAssertTrue(transport.plays.isEmpty)
+        try await Task.sleep(for:.milliseconds(250))
+        XCTAssertEqual(attempts,2)
+        XCTAssertEqual(transport.plays.last?["source"] as? String,NativeSoundtrackRouteOwner.gameplaySource)
+    }
+    func testTransportStartFailureRetriesWithoutDuplicateVoiceAndDisposalReleasesTimer() async throws {
+        let transport=Transport();transport.failedStarts=1
+        let owner=NativeSoundtrackRouteOwner(root:URL(fileURLWithPath:"/unused"),transport:transport,isApplicationActive:{true},activateSession:{})
+        owner.setMenu();XCTAssertEqual(transport.plays.count,1)
+        try await Task.sleep(for:.milliseconds(250));XCTAssertEqual(transport.plays.count,2)
+        transport.failedStarts=1;owner.setJourneyGameplay()
+        owner.dispose();let disposed=transport.commands.count
+        try await Task.sleep(for:.milliseconds(250));XCTAssertEqual(transport.commands.count,disposed)
+    }
+    func testPersistentActivationFailureHasFiniteBudgetAndBackgroundRevokesPendingRetry() async throws {
+        let transport=Transport();var attempts=0
+        let owner=NativeSoundtrackRouteOwner(root:URL(fileURLWithPath:"/unused"),transport:transport,isApplicationActive:{true},activateSession:{
+            attempts += 1;throw NSError(domain:"com.apple.coreaudio.avfaudio",code:2003329396)
+        })
+        defer{owner.dispose()};owner.setMenu()
+        try await Task.sleep(for:.seconds(2))
+        XCTAssertEqual(attempts,4,"Initial attempt plus three bounded retries")
+        try await Task.sleep(for:.milliseconds(200));XCTAssertEqual(attempts,4)
+        NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
+        NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
+        let background=attempts
+        try await Task.sleep(for:.milliseconds(250));XCTAssertEqual(attempts,background)
+        XCTAssertTrue(transport.plays.isEmpty)
+    }
+    func testInterruptionBlocksRoutePlaybackUntilForegroundAndMusicOffCancelsRecovery() async throws {
+        let transport=Transport();var fail=false;var attempts=0
+        let owner=NativeSoundtrackRouteOwner(root:URL(fileURLWithPath:"/unused"),transport:transport,isApplicationActive:{true},activateSession:{
+            attempts += 1;if fail {throw NSError(domain:"test",code:1)}
+        })
+        defer{owner.dispose()};owner.setMenu()
+        NotificationCenter.default.post(name:AVAudioSession.interruptionNotification,object:nil,userInfo:[AVAudioSessionInterruptionTypeKey:AVAudioSession.InterruptionType.began.rawValue])
+        let paused=transport.commands.count;owner.setJourneyGameplay()
+        XCTAssertEqual(transport.commands.count,paused)
+        NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
+        XCTAssertEqual(transport.plays.last?["source"] as? String,NativeSoundtrackRouteOwner.gameplaySource)
+        fail=true;owner.setMenu();owner.apply(enabled:false)
+        let disabled=attempts
+        try await Task.sleep(for:.milliseconds(250));XCTAssertEqual(attempts,disabled)
+    }
     private final class Transport:NativeSoundtrackTransport {
         var commands:[String] = []
         var volumes:[Double] = []
         var plays:[[String:Any]]=[]
+        var failedStarts=0
         var deferFade=false
         var fadeReplies:[(Any?,String?)->Void]=[]
         func perform(id:String,op:String,body:[String:Any],replyHandler:@escaping (Any?,String?)->Void) {
@@ -145,6 +198,7 @@ final class NativeSoundtrackRouteTests:XCTestCase {
             if let volume=body["volume"] as? Double {volumes.append(volume)}
             if op=="play" {plays.append(body)}
             commands.append(op)
+            if (op == "play" || op == "resume"),failedStarts>0 {failedStarts -= 1;replyHandler(nil,"Transient engine start failure");return}
             if deferFade,body["replyOnFadeFinished"] as? Bool==true {fadeReplies.append(replyHandler);return}
             replyHandler(["position":12.5],nil)
         }

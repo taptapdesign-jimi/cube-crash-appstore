@@ -43,7 +43,7 @@ import StackToSixGameplay
         default:return (1,1,1,1,0)
         }
     }
-    private struct ShadowPose {
+    private struct ShadowPose:Equatable {
         var x:CGFloat,sx:CGFloat,sy:CGFloat,alpha:CGFloat
         func approaching(_ target:Self,by amount:CGFloat)->Self {
             Self(x:x+(target.x-x)*amount,sx:sx+(target.sx-sx)*amount,
@@ -92,6 +92,7 @@ import StackToSixGameplay
         let kind=variant?.archetype.rawValue ?? (identity.id=="tnt" ? "wild-tnt":identity.id=="wild-star" ? "wild":identity.id)
         var artwork=identity.id=="barell" ? NativeDiceArtwork(path:"assets/shop/barell/barell.png",idleSheet:.barrel):identity.artwork
         if identity.id=="cubero" {artwork.idleSheet = .cuberoCollection}
+        if identity.id=="kite" {artwork.idleSheet = .kite}
         // Admit selected heavy sheets with body bounds before node construction.
         // Otherwise Cubero's constructor starts a bounds-free decode and the
         // readiness barrier must decode/filter the same SVG a second time.
@@ -108,7 +109,7 @@ import StackToSixGameplay
         let base=identity.id=="barell" ? "assets/shop/barell/barell.png":identity.artwork.path
         textures.prepareDensityAwareArtwork(base){[weak self] _ in
             guard let self,!self.disposed,self.preparationForeground,self.preparationEpoch==epoch else{return}
-            let node=NativeDiceNode(id:"backpack-\(self.identity.id)",value:6,kind:kind,variant:variant?.id,depth:1,locked:false,textures:self.textures,deferSourceIdle:true,artworkOverride:["barell","cubero"].contains(self.identity.id) ? artwork:nil)
+            let node=NativeDiceNode(id:"backpack-\(self.identity.id)",value:6,kind:kind,variant:variant?.id,depth:1,locked:false,textures:self.textures,deferSourceIdle:true,artworkOverride:["barell","cubero","kite"].contains(self.identity.id) ? artwork:nil)
             self.dieNode=node;self.canvas.addChild(node)
             var paths=node.resourcePaths
             if let sheet=artwork.idleSheet {paths.remove(sheet.path)}
@@ -210,6 +211,17 @@ import StackToSixGameplay
         guard !disposed,ready,let node=dieNode,let shadow=groundShadow else{return}
         let slot=artworkFrame ?? bounds.insetBy(dx:0,dy:48)
         guard !slot.isNull,!slot.isInfinite,slot.width>0,slot.height>0,bounds.height>0 else{return}
+        if identity.id=="kite" {
+            // Two slow three-second pulses on the existing modal clock only.
+            // Animated silhouette/rotation/float never feeds this grounded shadow.
+            let t=max(0,seconds),pulse:CGFloat=t<6 ? CGFloat(pow(sin(.pi*t/3),2)):0
+            let pose=ShadowPose(x:slot.midX,sx:1+0.04*pulse,sy:1+0.03*pulse,alpha:0.92+0.06*pulse)
+            guard shadowSample?.pose != pose else{return}
+            shadowSample=(seconds,pose)
+            shadow.layer.position=CGPoint(x:pose.x,y:shadowFloorCenter(slot:slot,height:shadow.bounds.height))
+            shadow.layer.setAffineTransform(CGAffineTransform(scaleX:pose.sx,y:pose.sy));shadow.layer.opacity=Float(pose.alpha)
+            return
+        }
         let lift:CGFloat,footprint:CGFloat,bodyCenterX:CGFloat
         if identity.id=="kanta" {
             // Project the actual bottom pivot: rocking moves the shadow under
@@ -282,7 +294,7 @@ import StackToSixGameplay
             node.zRotation=CGFloat(sin(phase)*5*Double.pi/180)
             return
         }
-        if ["kanta","tnt","wild-magnet","bottle"].contains(identity.id) {
+        if ["kanta","tnt","wild-magnet","bottle","kite"].contains(identity.id) {
             let phase=max(0,seconds).truncatingRemainder(dividingBy:3.6)/3.6*2*Double.pi
             node.position=CGPoint(x:layoutNodePosition.x,y:layoutNodePosition.y+CGFloat(10*(1-cos(phase))))
             node.xScale=layoutNodeScale;node.yScale=layoutNodeScale

@@ -1,0 +1,33 @@
+{
+  "source": "NativeSculptedCTAFace.makePaintPlan",
+  "change": "Secondary top edge #E4D7CC with #F4EFEA transition at0.65pt;white core and silhouette unchanged. Original baked faces preserved separately.",
+  "faceOnly": true,
+  "glyphs": "live UIKit labels",
+  "widths": [
+    240,
+    249
+  ],
+  "height": 80,
+  "scales": [
+    4,
+    6
+  ],
+  "files": [
+    {
+      "file": "exit-240-4x.png",
+      "sha256": "781b808966be1ebcad6dc3b429eaf605c3d25546edb3d9638ebe90f088f2e522"
+    },
+    {
+      "file": "exit-240-6x.png",
+      "sha256": "4197c7bdec30fe1938fbdfb4ec08768d6b46327a7dc25157e5c7d7bc17410434"
+    },
+    {
+      "file": "exit-249-4x.png",
+      "sha256": "1f711d12ed54c9723ea7cc13c3b535a29d869f5e4b3e382274bae496b861d194"
+    },
+    {
+      "file": "exit-249-6x.png",
+      "sha256": "862d9003bb0cfa7cd774764913f5e9dfd2806dce02e119f8803912eb78584300"
+    }
+  ]
+}

@@ -5,11 +5,11 @@ const read = (path: string): string => readFileSync(resolve(process.cwd(), path)
 const host = read('native/standalone/Stack to Six/GameViewController.swift');
 
 describe('separate Native app delivery boundary', () => {
-  it('uses an independent bundle and visible name', () => {
+  it('uses independent bundle identity with the approved visible name', () => {
     const project = read('native/standalone/Stack to Six.xcodeproj/project.pbxproj');
     expect(project).toContain('PRODUCT_BUNDLE_IDENTIFIER = "com.taptapdesign.stacktosix.native";');
     expect(project).not.toContain('PRODUCT_BUNDLE_IDENTIFIER = "com.taptapdesign.stacktosix.Stack-to-Six";');
-    expect(read('native/standalone/Info.plist')).toContain('<string>Stack to Six Native</string>');
+    expect(read('native/standalone/Info.plist')).toMatch(/<key>CFBundleDisplayName<\/key>\s*<string>Stack to Six<\/string>/);
   });
   it('enables native surfaces on ordinary icon launch, without Simulator flags', () => {
     const gate = host.match(/private static var jimiHomeHubEnabled: Bool \{([^}]+)\}/)?.[1];

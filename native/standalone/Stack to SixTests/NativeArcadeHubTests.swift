@@ -45,6 +45,8 @@ final class NativeArcadeHubTests: XCTestCase {
                 view.hub.onWorld?(view.hub.worldIDs[index])
                 try await wait{(find(view,"native.arcade-world-modal.play") as? UIButton)?.isEnabled==true}
                 let play=try XCTUnwrap(find(view,"native.arcade-world-modal.play") as? UIButton)
+                XCTAssertEqual(play.title(for:.normal),index == 1 ? "Continue":"Play")
+                XCTAssertEqual(play.bounds.width,226,accuracy:0.01,"Play and Continue match the Journey card CTA width")
                 play.sendActions(for:.touchUpInside)
                 XCTAssertTrue(exitStarted);XCTAssertFalse(played)
                 try await wait{played}
@@ -108,7 +110,7 @@ final class NativeArcadeHubTests: XCTestCase {
                 view.present();view.layoutIfNeeded();view.hub.onWorld?(id)
                 let text=try XCTUnwrap(find(view,"native.arcade-world-modal.description") as? UILabel)
                 let art=try XCTUnwrap(find(view,"native.arcade-world-modal.art"))
-                let play=try XCTUnwrap(find(view,"native.arcade-world-modal.play"))
+                let play=try XCTUnwrap(find(view,"native.arcade-world-modal.play") as? JimiV9PlainButton)
                 let measured=text.sizeThatFits(CGSize(width:text.bounds.width,height:CGFloat.greatestFiniteMagnitude))
                 XCTAssertLessThanOrEqual(measured.height,text.bounds.height+0.5,"Full description at \(size), world \(id)")
                 XCTAssertEqual(text.numberOfLines,id == view.hub.worldIDs[0] ? 2 : 3)
@@ -119,7 +121,7 @@ final class NativeArcadeHubTests: XCTestCase {
                 XCTAssertGreaterThan(art.bounds.height,40)
                 XCTAssertLessThanOrEqual(art.bounds.width,(min(390,size.width-40)-30)*0.8+0.5)
                 XCTAssertEqual(art.frame.minY-text.frame.maxY,24,accuracy:0.01)
-                XCTAssertEqual(play.frame.minY-art.frame.maxY,32,accuracy:0.01)
+                XCTAssertEqual(play.cartoonBounceFrame.minY-art.frame.maxY,32,accuracy:0.01)
                 let close=try XCTUnwrap(find(view,"native.arcade-world-modal.close") as? JimiV9PlainButton)
                 for enabled in [true,false,true] {
                     close.isEnabled=enabled;close.setNeedsLayout();close.layoutIfNeeded()
@@ -133,10 +135,10 @@ final class NativeArcadeHubTests: XCTestCase {
                     XCTAssertEqual(text.frame.minX,paper.bounds.width*0.1,accuracy:0.01)
                     XCTAssertEqual(text.bounds.width,paper.bounds.width*0.8,accuracy:0.01)
                 }
-                XCTAssertEqual(play.bounds.width,226,accuracy:0.01)
-                XCTAssertEqual(play.bounds.height,64,accuracy:0.01)
-                XCTAssertEqual(play.frame.midX,paper.bounds.midX,accuracy:0.01)
-                XCTAssertEqual(paper.bounds.height-play.frame.maxY,40,accuracy:0.01)
+                XCTAssertEqual(play.bounds.width,min((size.width < 768 ? 226:250)*1.05,paper.bounds.width-32),accuracy:0.01,"Arcade Play uses the Journey card CTA width")
+                XCTAssertEqual(play.bounds.height,80.64,accuracy:0.01)
+                XCTAssertEqual(play.cartoonBounceFrame.midX,paper.bounds.midX,accuracy:0.01)
+                XCTAssertEqual(paper.bounds.height-play.cartoonBounceFrame.maxY,40,accuracy:0.01)
                 view.hide()
             }
         }
@@ -212,8 +214,8 @@ final class NativeArcadeHubTests: XCTestCase {
             let content=try XCTUnwrap(paper.superview)
             let localPlay=play.convert(play.bounds,to:content)
             XCTAssertEqual(paper.frame.maxY-localPlay.maxY,40,accuracy:0.1)
-            XCTAssertEqual(play.bounds.width,226,accuracy:0.1)
-            XCTAssertEqual(play.bounds.height,64,accuracy:0.1)
+            XCTAssertEqual(play.bounds.width,min(237.3,paper.bounds.width-32),accuracy:0.1)
+            XCTAssertEqual(play.bounds.height,80.64,accuracy:0.1)
             XCTAssertEqual(localPlay.midX,paper.frame.midX,accuracy:0.1)
             let tilt=try XCTUnwrap(content.superview)
             let originalTilt=tilt.transform

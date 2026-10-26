@@ -145,6 +145,39 @@ final class NativeBootstrapTests:XCTestCase {
         try await Task.sleep(for:.milliseconds(500))
         XCTAssertNil(help.childNode(withName:"native-game-backpack-alert"));XCTAssertNil(game.presentedViewController)
     }
+    func testArcadeFinalMergeKeepsSettledHUDForAutomaticNextRound() async throws {
+        let state=NativeBoardState(tiles:[.init(id:"remaining",cell:.init(column:0,row:0),value:2)],mode:.arcade,board:2,generation:85)
+        let game=NativeGameplayViewController(engine:NativeGameplayEngine(state:state),resourceRoot:NativeTestResources.root)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=game;window.makeKeyAndVisible();game.view.layoutIfNeeded()
+        defer {game.dispose();window.isHidden=true;window.rootViewController=nil}
+        try await waitUntil {game.boardScene != nil}
+        let scene=try XCTUnwrap(game.boardScene)
+        try await waitUntil {scene.boardChromeReceipt.alpha>0.99 && !scene.boardChromeReceipt.entering}
+        let offset=scene.boardChromeReceipt.offset
+        var finished:Bool?
+        game.animateBoardExit(finalMerge:true) {finished=$0}
+        try await waitUntil {finished != nil}
+        XCTAssertEqual(finished,true)
+        XCTAssertEqual(scene.boardChromeReceipt.alpha,1,accuracy:0.001)
+        XCTAssertEqual(scene.boardChromeReceipt.offset,offset,accuracy:0.001,"Automatic Arcade continuation keeps its settled HUD")
+    }
+    func testFinalMergeBoardExitRetiresHUDInsteadOfLeavingItBehindReward() async throws {
+        let state=NativeBoardState(tiles:[.init(id:"remaining",cell:.init(column:0,row:0),value:2)],mode:.journey,board:18,generation:84)
+        let game=NativeGameplayViewController(engine:NativeGameplayEngine(state:state),resourceRoot:NativeTestResources.root)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=game;window.makeKeyAndVisible();game.view.layoutIfNeeded()
+        defer {game.dispose();window.isHidden=true;window.rootViewController=nil}
+        try await waitUntil {game.boardScene != nil}
+        let scene=try XCTUnwrap(game.boardScene)
+        try await waitUntil {scene.boardChromeReceipt.alpha>0.99 && !scene.boardChromeReceipt.entering}
+        XCTAssertEqual(scene.boardChromeReceipt.alpha,1,accuracy:0.001)
+        var finished:Bool?
+        game.animateBoardExit(finalMerge:true) {finished=$0}
+        try await waitUntil {finished != nil}
+        XCTAssertEqual(finished,true)
+        XCTAssertEqual(scene.boardChromeReceipt.alpha,0,accuracy:0.001,"Final clear must finish the real HUD exit before reward admission")
+        XCTAssertGreaterThan(abs(scene.boardChromeReceipt.offset),0)
+        if let decor=game.journeyBottomDecor {XCTAssertEqual(decor.phase,.hidden);XCTAssertFalse(decor.hasActiveClock)}
+    }
     func testCanonicalRewardChildMountsAfterCommitAndDisposesWithOwner() async throws {
         let state=NativeBoardState(tiles:[],mode:.journey,board:1,moves:2,score:1000)
         let game=NativeGameplayViewController(engine:NativeGameplayEngine(state:state),resourceRoot:NativeTestResources.root)
@@ -161,6 +194,8 @@ final class NativeBootstrapTests:XCTestCase {
         XCTAssertEqual(card.phase,"opening","The first admitted reward frame starts the prepared SVG immediately")
         XCTAssertEqual(commits,1);XCTAssertTrue(card.parent === game);XCTAssertTrue(card.view.window === window)
         XCTAssertEqual(card.view.frame,game.view.bounds);XCTAssertNil(game.presentedViewController)
+        XCTAssertTrue(card.view.isOpaque);XCTAssertEqual(card.view.backgroundColor?.cgColor.alpha,1)
+        XCTAssertFalse(try XCTUnwrap(card.view.subviews.first as? NativeAppPaperSurface).isHidden,"New Card Unlocked must cover gameplay HUD/footer with its own screen")
         owner.dispose();XCTAssertNil(card.parent);XCTAssertNil(card.view.superview);XCTAssertEqual(card.phase,"disposed")
     }
     func testRewardStaleGenerationAndCommitFailureDoNotMountReward() throws {

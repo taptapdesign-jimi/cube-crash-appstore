@@ -5,7 +5,7 @@ import StackToSixNativeState
 /// Native Settings DEV commands are admitted by the app
 /// route owner; the panel itself has no save or gameplay authority.
 enum NativeDeveloperAction: String, CaseIterable {
-    case show, hide, legendary, reset, newCard = "new-card", clean = "clean-board", lastMerge = "last-merge"
+    case show, hide, legendary, reset, newCard = "new-card", clean = "clean-board", endGame = "end-game", lastMerge = "last-merge"
     var title: String {
         switch self {
         case .show: return "Show Card"
@@ -14,6 +14,7 @@ enum NativeDeveloperAction: String, CaseIterable {
         case .reset: return "Reset Stage"
         case .newCard: return "New Card"
         case .clean: return "Clean Stage"
+        case .endGame: return "End Game"
         case .lastMerge: return "LAST MERGE"
         }
     }
@@ -133,7 +134,12 @@ final class NativeDeveloperGameplayHost: UIViewController {
         if isBeingDismissed { cleanup() }
     }
     @objc func finish() {
-        guard !closed else { return }; cleanup(); dismiss(animated: false)
+        guard !closed else { return }
+        // The result sheet may be presented above this host. Dismiss the whole
+        // isolated DEV presentation, rather than only its topmost modal.
+        let presenter=presentingViewController
+        cleanup()
+        if let presenter {presenter.dismiss(animated:false)} else {dismiss(animated:false)}
     }
     private func cleanup() {
         guard !closed else { return }; closed = true; bootstrap.dispose()

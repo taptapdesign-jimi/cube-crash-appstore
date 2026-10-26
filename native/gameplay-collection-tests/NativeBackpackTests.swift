@@ -1852,10 +1852,10 @@ final class NativeBackpackTests:XCTestCase {
         }
     }
 
-    func testSelectedKantaTNTMagnetBottleFloatIsContinuousAndBounded() async throws {
+    func testSelectedKantaTNTMagnetBottleKiteFloatIsContinuousAndBounded() async throws {
         let all=NativeBackpackCatalog.forest+NativeBackpackCatalog.area+NativeBackpackCatalog.beach+NativeBackpackCatalog.arcade
-        let dice=all.filter{["kanta","tnt","wild-magnet","bottle"].contains($0.id)}
-        XCTAssertEqual(dice.count,4)
+        let dice=all.filter{["kanta","tnt","wild-magnet","bottle","kite"].contains($0.id)}
+        XCTAssertEqual(dice.count,5)
         for die in dice {
             let preview=NativeBackpackDicePreview(die:die,root:NativeTestResources.root)
             defer{preview.dispose()}
@@ -1889,7 +1889,7 @@ final class NativeBackpackTests:XCTestCase {
             preview.paintSelectedBounce(seconds:2.7);XCTAssertEqual(node.zRotation,-14*CGFloat.pi/180,accuracy:0.000001)
             preview.paintSelectedBounce(seconds:1.8);preview.paintGroundShadow(seconds:1.8)
             XCTAssertEqual(node.position.y-base.y,20,accuracy:0.000001)
-            XCTAssertLessThan(shadow.transform.d,rest.d,die.id)
+            if die.id != "kite" {XCTAssertLessThan(shadow.transform.d,rest.d,die.id)}
             preview.paintSelectedBounce(seconds:3.6);XCTAssertEqual(node.position,base)
             preview.dispose();XCTAssertNil(preview.scene);XCTAssertNil(shadow.superview)
         }
@@ -1929,6 +1929,45 @@ final class NativeBackpackTests:XCTestCase {
         XCTAssertGreaterThan(highWidth,lowWidth*0.65)
         preview.dispose();XCTAssertNil(preview.scene);XCTAssertNil(shadow.superview)
     }
+    func testKiteModalUsesGreenSVGWithBottleFloatAndTwoShadowPulses() async throws {
+        let die=try XCTUnwrap(NativeBackpackCatalog.beach.first{$0.id=="kite"})
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible()
+        let preview=NativeBackpackDicePreview(die:die,root:NativeTestResources.root)
+        defer{preview.dispose();window.isHidden=true;window.rootViewController=nil}
+        preview.frame=CGRect(x:0,y:0,width:342,height:360);preview.artworkFrame=CGRect(x:0,y:48,width:342,height:216)
+        host.view.addSubview(preview)
+        let deadline=Date().addingTimeInterval(15)
+        while !preview.ready,Date()<deadline {try await Task.sleep(for:.milliseconds(20))}
+        XCTAssertTrue(preview.ready);preview.layoutArtwork();preview.setActive(true)
+        while preview.playbackElapsed<0.3,Date()<deadline {try await Task.sleep(for:.milliseconds(20))}
+        preview.setActive(false)
+        let node=try XCTUnwrap(preview.dieNode),shadow=try XCTUnwrap(preview.groundShadow)
+        XCTAssertNil(NativeDiceArtwork.definition(kind:"wild",variant:"kite").idleSheet)
+        XCTAssertGreaterThan(node.authoredArtworkReceipt.elapsed,0,"Selected SVG frames use the mounted preview clock")
+        XCTAssertGreaterThanOrEqual(node.authoredArtworkReceipt.frame,0)
+        let frame=node.authoredArtworkReceipt.frame
+        node.tick(0.2,suspended:false,viewportCenter:171)
+        XCTAssertNotEqual(node.authoredArtworkReceipt.frame,frame,"Green SVG atlas must animate rather than remain the board PNG")
+        preview.paintSelectedBounce(seconds:0);let resting=node.position
+        preview.paintSelectedBounce(seconds:0.9)
+        XCTAssertEqual(node.zRotation,14*CGFloat.pi/180,accuracy:0.000001)
+        preview.paintSelectedBounce(seconds:1.8)
+        XCTAssertEqual(node.position.y-resting.y,20,accuracy:0.000001)
+        preview.paintGroundShadow(seconds:0);let base=shadow.transform,baseAlpha=shadow.layer.opacity,floor=shadow.center
+        preview.paintGroundShadow(seconds:1.5);let first=shadow.transform,firstAlpha=shadow.layer.opacity
+        XCTAssertEqual(first.a,1.04,accuracy:0.0001)
+        node.position.x+=40;node.position.y+=35;node.zRotation+=0.2
+        preview.paintGroundShadow(seconds:1.5)
+        XCTAssertEqual(shadow.transform,first);XCTAssertEqual(shadow.center,floor);XCTAssertEqual(shadow.layer.opacity,firstAlpha)
+        preview.paintGroundShadow(seconds:3);XCTAssertEqual(shadow.transform,base)
+        preview.paintGroundShadow(seconds:4.5);XCTAssertEqual(shadow.transform,first)
+        for t in [6.0,8,12,30] {preview.paintGroundShadow(seconds:t);XCTAssertEqual(shadow.transform,base);XCTAssertEqual(shadow.layer.opacity,baseAlpha);XCTAssertEqual(shadow.center,floor)}
+        let elapsed=preview.playbackElapsed
+        try await Task.sleep(for:.milliseconds(80));XCTAssertEqual(preview.playbackElapsed,elapsed)
+        preview.dispose();XCTAssertNil(shadow.superview);XCTAssertNil(preview.scene)
+    }
+
     func testSelectedShadowFortyPercentGainIsAppliedAfterBlur() throws {
         func peakAlpha(_ gain:CGFloat)throws->Double {
             let shadow=NativeArcadeThumbShadow(frame:CGRect(x:0,y:0,width:180,height:28),alphaGain:gain)

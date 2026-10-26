@@ -13,6 +13,20 @@ struct NativeCoconutFinaleMotion {
         var wallRadius:CGFloat {size*0.75}
     }
     struct Contact {let time:Double,id:Int,body:Int;let top:Bool;let spinKick:Double}
+    func screenShakeOffset(seconds:Double)->CGPoint {
+        var x=0.0,y=0.0
+        for contact in contacts {
+            let age=seconds-contact.time
+            guard age>=0,age<0.18 else{continue}
+            let p=age/0.18,wave=sin(p * .pi*6)*pow(1-p,2)*4.5
+            if contact.top {y += wave;x += wave*0.25}
+            else {
+                let side=position(whole[contact.body],seconds:contact.time).x<viewport.width/2 ? 1.0:-1.0
+                x += wave*side;y += wave*0.25
+            }
+        }
+        return CGPoint(x:max(-8,min(8,x)),y:max(-8,min(8,y)))
+    }
     let whole:[Flight],contacts:[Contact]
     let endTime:Double
     let viewport:CGSize

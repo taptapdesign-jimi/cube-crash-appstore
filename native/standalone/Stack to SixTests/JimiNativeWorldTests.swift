@@ -289,8 +289,10 @@ final class JimiNativeWorldTests: XCTestCase {
             try screenshot.pngData()?.write(to:URL(fileURLWithPath:"/tmp/native-card-back-\(Int(width)).png"))
             let attachment=XCTAttachment(image:screenshot);attachment.name="native-card-back-\(Int(width))";attachment.lifetime = .keepAlways;add(attachment)
             let cta=try XCTUnwrap(descendant(card,"native.world.card.play"))
+            XCTAssertEqual(cta.bounds.height,80.64)
             let ctaLayout=(cta as? JimiV9PlainButton)?.cartoonBounceLayoutView ?? cta
             let back=try XCTUnwrap(ctaLayout.superview)
+            XCTAssertEqual(cta.bounds.width,min(237.3,back.bounds.width-32),accuracy:0.001)
             let stats=try XCTUnwrap(back.subviews.compactMap{$0 as? UIStackView}.first{$0.axis == .vertical})
             XCTAssertGreaterThanOrEqual(ctaLayout.frame.minY-stats.frame.maxY,15,"Stats/CTA gap at \(width)")
             XCTAssertEqual(back.bounds.maxY-ctaLayout.frame.maxY,40,accuracy:0.1)

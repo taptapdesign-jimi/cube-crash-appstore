@@ -4,6 +4,25 @@ import QuartzCore
 /// Interpolating finished matrices loses the exit angles at zero scale and
 /// follows different geometry throughout the inflate/collapse/enter tracks.
 enum NativeRewardMotion {
+    static let cardEnterDuration=0.6
+    /// Shared finite spring for interim SVG and unlocked faces. Each turning
+    /// point has zero velocity, so expansion flows into compression smoothly.
+    static func cardEnterProgress(_ progress:Double)->Double {
+        let stops:[(Double,Double)]=[(0,0),(0.42,1.25),(0.65,0.90),(0.81,1.08),(0.93,0.975),(1,1)]
+        let t=min(1,max(0,progress))
+        for index in 1..<stops.count where t<=stops[index].0 {
+            let a=stops[index-1],b=stops[index],p=(t-a.0)/(b.0-a.0)
+            return a.1+(b.1-a.1)*p*p*(3-2*p)
+        }
+        return 1
+    }
+
+    /// The SVG already grows through its unfolded image sequence. Start its
+    /// visible rebound at rest, then share every unlocked overshoot/settle beat.
+    static func cardRestBounceProgress(_ progress:Double)->Double {
+        if progress<0.42 {let p=max(0,progress)/0.42;return 1+0.25*p*p*(3-2*p)}
+        return cardEnterProgress(progress)
+    }
     struct Pose: Equatable {
         var scaleX=1.0,scaleY=1.0,y=0.0,rotationZ=0.0,rotationX=0.0,rotationY=0.0,depth=0.0
         func interpolated(to end:Pose,progress:Double)->Pose {

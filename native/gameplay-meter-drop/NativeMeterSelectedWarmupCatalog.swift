@@ -14,6 +14,7 @@ nonisolated enum NativeMeterSelectedWarmupCatalog {
   case "kanta":return .init(selection:"kanta",preOpen:[],committed:[])
   case "bloob-ball":return .init(selection:"bloob-ball",preOpen:(1...12).map{NativeMeterWarmupAsset(["./assets/shop/bloog ball/gas animation/gas\($0)@2x.png","./assets/shop/bloog ball/gas animation/gas\($0).png"])}+(1...6).map{NativeMeterWarmupAsset(["./assets/shop/barell/wood\($0).png"])},committed:[])
   case "bloob":return .init(selection:"bloob",preOpen:NativeBloobFinalePresentation.assets.map{NativeMeterWarmupAsset([$0])},committed:[])
+  case "kite":return .init(selection:"kite",preOpen:[],committed:[])
   case "bee":return .init(selection:"bee",preOpen:[],committed:[])
   case "laser-gun":return .init(selection:"laser-gun",preOpen:[NativeMeterWarmupAsset(["./assets/shop/gun/lasergun1@2x.png"]),NativeMeterWarmupAsset(["./assets/shop/gun/lasergun2@2x.png"]),NativeMeterWarmupAsset(["./assets/shop/gun/lasergun3@2x.png"]),NativeMeterWarmupAsset(["./assets/shop/gun/lasergun4@2x.png"]),NativeMeterWarmupAsset(["./assets/shop/gun/lasergun5@2x.png"]),NativeMeterWarmupAsset(["./assets/shop/gun/lasergun6@2x.png"]),NativeMeterWarmupAsset(["./assets/shop/gun/left laser@2x.png"]),NativeMeterWarmupAsset(["./assets/shop/gun/right laser@2x.png"])],committed:[])
   case "spaceship":return .init(selection:"spaceship",preOpen:[],committed:[])

@@ -248,10 +248,9 @@ final class NativeArcadeWorldModal: UIView {
         let scaledArtworkHeight = min(max(0,priorWidth-30)/aspect,priorArtworkHeight)*0.8
         let safeTop = safeAreaInsets.top+30, safeBottom = bounds.height-safeAreaInsets.bottom-40
         let availableHeight = max(0,safeBottom-safeTop)
-        // Match Journey world-card modal: standard width226/250, height64,
-        // centered horizontally with exactly40pt of paper below the CTA.
-        let ctaWidth:CGFloat = bounds.width < 768 ? 226 : 250
-        let footerHeight:CGFloat = 32+64+40
+        // Match the Journey world-card modal's fixed phone/tablet CTA widths.
+        let ctaWidth:CGFloat = min((bounds.width < 768 ? 226:250)*JimiV9PlainButton.ctaWidthScale,w-32)
+        let footerHeight:CGFloat = 32+72+40
         let artworkHeight = min(scaledArtworkHeight,max(0,availableHeight-artworkY-footerHeight))
         art.bounds=CGRect(x:0,y:0,width:artworkHeight*aspect,height:artworkHeight)
         art.center=CGPoint(x:w/2,y:artworkY+artworkHeight/2)
@@ -287,9 +286,9 @@ final class NativeArcadeWorldModal: UIView {
             cloud.center=center
         }
         let playY=artworkY+artworkHeight+32
-        play.cartoonBounceLayoutView.bounds=CGRect(x:0,y:0,width:ctaWidth,height:64)
-        play.cartoonBounceLayoutView.center=CGPoint(x:w/2,y:playY+32);play.layoutCartoonContent()
-        let h=playY+64+40
+        play.cartoonBounceLayoutView.bounds=CGRect(x:0,y:0,width:ctaWidth,height:JimiV9PlainButton.primaryCTAHeight)
+        play.cartoonBounceLayoutView.center=CGPoint(x:w/2,y:playY+JimiV9PlainButton.primaryCTAHeight/2);play.layoutCartoonContent()
+        let h=playY+JimiV9PlainButton.primaryCTAHeight+40
         card.bounds = CGRect(x:0,y:0,width:w,height:h)
         card.center = CGPoint(x:bounds.midX,y:safeTop+availableHeight/2)
         flip.bounds = card.bounds; flip.center = CGPoint(x:w/2,y:h)

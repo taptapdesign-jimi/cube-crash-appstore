@@ -15,6 +15,10 @@ nonisolated struct NativeSelectedFinaleRaster:@unchecked Sendable {
   for path in candidates {
    let relative=path.hasPrefix("./") ? String(path.dropFirst(2)):path
    guard !relative.hasPrefix("/"),!relative.split(separator:"/").contains("..") else{continue}
+   if NativeKiteArt.isSource(relative) {
+    if let image=NativeKiteArt.decode(root.appendingPathComponent(relative)){return Self(path:relative,image:image)}
+    continue
+   }
    if relative==NativeBloobReverseArt.path {
     if let recipe=NativeBloobReverseArt.decode(root.appendingPathComponent(relative)),let pixel=NativeBloobReverseArt.readinessPixel() {return Self(path:relative,image:pixel,bloobReverse:recipe)}
     continue

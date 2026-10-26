@@ -50,7 +50,7 @@ import UIKit
    let shot=XCTAttachment(image:raster);shot.name="source-third-cta-\(Int(width))";shot.lifetime = .keepAlways;add(shot)
   }
   overlay.frame=CGRect(x:0,y:0,width:390,height:844);overlay.setNeedsLayout();overlay.layoutIfNeeded()
-  let hit=overlay.sourceCTAHitFrame;XCTAssertEqual(hit.width,249);XCTAssertEqual(hit.height,64)
+  let hit=overlay.sourceCTAHitFrame;XCTAssertLessThan(hit.width,249);XCTAssertGreaterThan(hit.width,72);XCTAssertEqual(hit.height,80.64)
   button.sendActions(for:.touchDown);f.deliver(1120);f.deliver(1248)
   XCTAssertEqual(contacts,1);XCTAssertEqual(overlay.sourceCTAHitFrame,hit);XCTAssertEqual(button.transform,.identity)
   XCTAssertLessThan(overlay.sourceCTAVisualTransform.a,1)

@@ -39,7 +39,7 @@ export function auditNativeSource({ project, scheme, storyboard, controller, inf
   require(controller.includes('NativeBootstrap(') && controller.includes('owner.start(in:self)'), 'Native root must launch the actual Native bootstrap');
   require(controller.includes('forResource:"NativeAssets"'), 'Native root must load NativeAssets.bundle');
   require(!/\bimport\s+(WebKit|JavaScriptCore)\b|\bWKWebView\b|Web\.bundle/.test(controller), 'Native root must not boot a web runtime');
-  require(info?.CFBundleDisplayName === 'Stack to Six Native', 'Standalone display name must remain Stack to Six Native');
+  require(info?.CFBundleDisplayName === 'Stack to Six', 'Standalone display name must remain Stack to Six');
   require(info?.UIMainStoryboardFile === 'Main', 'Standalone app must use its Main storyboard');
   require(info?.ITSAppUsesNonExemptEncryption === false && info?.UIRequiresFullScreen === true, 'Standalone encryption/full-screen declarations must be retained');
   require(info?.UISupportedInterfaceOrientations?.length === 1 && info.UISupportedInterfaceOrientations[0] === 'UIInterfaceOrientationPortrait', 'Native app must retain portrait-only orientation');

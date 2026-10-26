@@ -24,10 +24,13 @@ final class NativeTntVariantPresentation: NativeFinitePresentation {
     private var receipts = Set<String>()
     private var finishedClouds=Set<Int>(),finishedPetals=Set<Int>(),finishedDebris=Set<Int>()
     private var lastPaintTime:TimeInterval?
+    private var screenShake:NativeBloobScreenShakeBinding?
+    func bindScreenShake(to view:UIView) {screenShake?.dispose();screenShake=NativeBloobScreenShakeBinding(view:view)}
     private var boardReaction:NativeBloobBoardReactionBinding?
     func bindBoardReaction(_ binding:NativeBloobBoardReactionBinding?) {boardReaction?.dispose();boardReaction=binding}
-    override func setSuspended(_ value:Bool){super.setSuspended(value);if value {boardReaction?.reset()}}
-    override func didMoveToWindow(){super.didMoveToWindow();if window==nil {boardReaction?.reset()}}
+    override func setSuspended(_ value:Bool){super.setSuspended(value);if value {screenShake?.paint(.zero);boardReaction?.reset()}}
+    override func didMoveToWindow(){super.didMoveToWindow();if window==nil {screenShake?.paint(.zero);boardReaction?.reset()}}
+    private var authoredVisualEnd:TimeInterval=0
     private var cancelled = false
     static func assets(_ variant: Variant) -> [String] {
         if variant == .coconut {return (1...8).map{"assets/shop/coconut/palm\($0)@2x.png"}+["assets/shop/coconut/coconut.png"]}
@@ -113,7 +116,16 @@ final class NativeTntVariantPresentation: NativeFinitePresentation {
             clouds.append(Cloud(view:view,index:index,size:size,bounce:bounce,y:y,rotation:rotation,rotationTravel:travel,squeezePhase:squeezePhase,opacityFloor:opacityFloor,opacityPeriod:opacityPeriod))
         }
         glyphs.frame=bounds;glyphs.layer.zPosition=100;addSubview(glyphs)
+        // Cleanup can outlive visible paint. Capture once; progress sampling
+        // performs no array traversal/allocation on the shared animation clock.
+        let cloudEnd=variant == .coconut ? 1.77+NativeCoconutFinaleMotion.palmHoldExtension:
+            1.01+Double(max(0,clouds.count-1))*0.04+0.30
+        let petalsEnd=petals.map{$0.plan.delay+$0.plan.duration}.max() ?? 0
+        let debrisEnd=debris.map{$0.plan.delay+$0.plan.duration}.max() ?? 0
+        authoredVisualEnd=min(duration,max(glyphs.duration,cloudEnd,petalsEnd,debrisEnd,coconutMotion?.endTime ?? 0))
     }
+    /// Captured once from the selected immutable plans, independently of TTL.
+    override var progressDuration:TimeInterval {authoredVisualEnd>0 ? authoredVisualEnd:duration}
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     private func setNaturalBounds(_ view: UIImageView) { view.bounds=CGRect(origin:.zero,size:view.image?.size ?? .zero);view.contentMode = .scaleToFill }
     private func fire(_ name:String,_ callback:(() -> Void)?) { if receipts.insert(name).inserted { callback?() } }
@@ -231,6 +243,7 @@ final class NativeTntVariantPresentation: NativeFinitePresentation {
 
     private func paintCoconuts(seconds time:Double) {
         guard let motion=coconutMotion else{return}
+        screenShake?.paint(UIAccessibility.isReduceMotionEnabled ? .zero:motion.screenShakeOffset(seconds:time))
         if time>=0.07,receipts.insert("coconut-palm-shards").inserted {onCue?("coconut-palm-shards",1900+Int(NativeCoconutFinaleMotion.palmHoldExtension*1000))}
         if time>=(motion.whole.map(\.delay).min() ?? 0),receipts.insert("coconut-loop").inserted {onCue?("coconut-loop",Int(max(0,motion.endTime-time)*1000))}
         for contact in motion.contacts where time>=contact.time {
@@ -257,5 +270,5 @@ final class NativeTntVariantPresentation: NativeFinitePresentation {
         return p<0.5 ? (1-out(1-p*2))/2:0.5+out((p-0.5)*2)/2
     }
     override func start() { guard assetsReady else {dispose();return};super.start() }
-    override func dispose() { guard !cancelled else{return};cancelled=true;boardReaction?.dispose();boardReaction=nil;if variant == .coconut {onCue?("coconut-stop",0)};if variant == .coconut {rearPalms.forEach{$0.retire();$0.removeFromSuperview()};rearPalms.removeAll();frontPalms.removeAll();palmUnit.subviews.forEach{($0 as? NativeCoconutPalmView)?.retire();($0 as? UIImageView)?.image=nil;$0.removeFromSuperview()};debris.forEach{($0.view as? UIImageView)?.image=nil;$0.view.removeFromSuperview()}};wholeCoconuts.forEach{($0 as? UIImageView)?.image=nil;$0.removeFromSuperview()};wholeCoconuts.removeAll();coconutMotion=nil;onSprite6Entered=nil;onVisualSequenceComplete=nil;clouds.removeAll();petals.removeAll();debris.removeAll();super.dispose() }
+    override func dispose() { guard !cancelled else{return};cancelled=true;screenShake?.dispose();screenShake=nil;boardReaction?.dispose();boardReaction=nil;if variant == .coconut {onCue?("coconut-stop",0)};if variant == .coconut {rearPalms.forEach{$0.retire();$0.removeFromSuperview()};rearPalms.removeAll();frontPalms.removeAll();palmUnit.subviews.forEach{($0 as? NativeCoconutPalmView)?.retire();($0 as? UIImageView)?.image=nil;$0.removeFromSuperview()};debris.forEach{($0.view as? UIImageView)?.image=nil;$0.view.removeFromSuperview()}};wholeCoconuts.forEach{($0 as? UIImageView)?.image=nil;$0.removeFromSuperview()};wholeCoconuts.removeAll();coconutMotion=nil;onSprite6Entered=nil;onVisualSequenceComplete=nil;clouds.removeAll();petals.removeAll();debris.removeAll();super.dispose() }
 }

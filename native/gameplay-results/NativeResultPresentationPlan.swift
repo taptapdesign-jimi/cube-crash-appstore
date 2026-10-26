@@ -23,11 +23,12 @@ enum NativeResultPresentationPlan {
         let hero,title,scoreLabel,score,combo,efficiency,status,primary,secondary:Pose
         let displayedScore,displayedCombo,displayedEfficiency:Int
     }
-    static func layout(viewport:CGSize,clean:Bool,titleHeight:Double)->Layout {
+    static func layout(viewport:CGSize,clean:Bool,titleHeight:Double,primarySize:CGSize?=nil,actionGap:CGFloat=16)->Layout {
         let w=Double(viewport.width),h=Double(viewport.height),s=min(90,max(60,w*0.2))
         let cw=min(340,w*0.88),inner=cw-64,heroW=min(280,w*0.8),buttons=min(w<1025 ? 249:310,w*0.8)
         let infoH=clean ? s+244+titleHeight:s+100+titleHeight
-        let cardH=infoH+80,outerH=cardH+18+144,top=(h-outerH)/2
+        let primaryW=Double(primarySize?.width ?? CGFloat(buttons)),primaryH=Double(primarySize?.height ?? 64),secondaryH=Double(primarySize?.height ?? 64)
+        let cardH=infoH+80,outerH=cardH+18+primaryH+Double(actionGap)+secondaryH,top=(h-outerH)/2
         let card=CGRect(x:(w-cw)/2,y:top,width:cw,height:cardH)
         let sy=top+40+(clean ? 16:0),ty=sy+s+(clean ? 48:64)
         let title=CGRect(x:(w-inner)/2,y:ty,width:inner,height:titleHeight)
@@ -36,8 +37,8 @@ enum NativeResultPresentationPlan {
         let status=CGRect(x:(w-inner)/2,y:clean ? score.maxY+8:title.maxY+12,width:inner,height:clean ? 52:24)
         return Layout(card:card,hero:CGRect(x:(w-heroW)/2,y:sy,width:heroW,height:s),title:title,
             scoreLabel:label,score:score,status:status,
-            primary:CGRect(x:(w-buttons)/2,y:card.maxY+18,width:buttons,height:64),
-            secondary:CGRect(x:(w-buttons)/2,y:card.maxY+98,width:buttons,height:64),starSize:s)
+            primary:CGRect(x:(w-primaryW)/2,y:card.maxY+18,width:primaryW,height:primaryH),
+            secondary:CGRect(x:(w-primaryW)/2,y:card.maxY+18+primaryH+Double(actionGap),width:primaryW,height:secondaryH),starSize:s)
     }
     static func counterDuration(from:Int,to:Int)->Double {min(1.5,max(0.8,Double(abs(to-from))/500))}
     static func counter(from:Int,to:Int,age:Double,duration:Double?=nil)->Int {

@@ -55,6 +55,9 @@ enum NativeSharedSmokeRecipes {
     }
     static func regularIdle(tileDepth:Double)->NativeSharedSmokeRecipe{
         var r=NativeSharedSmokeRecipe();r.tileDepth=tileDepth;r.strength=1.1;r.behind=true;r.baseAlpha=0.58
-        r.sizeScale=1.1;r.distanceScale=0.75;r.countScale=1.04;r.ttl=0.28;r.durationScale=0.84;r.fxTag="tile-idle-smoke";r.groupedOwner=true;return r
+        // Five staggered bursts can finish at586.4ms; the halo ends at460ms.
+        // Keep their layer until every authored fade ends, independently of
+        // the die's520ms squeeze (smoke starts at230ms).
+        r.sizeScale=1.1;r.distanceScale=0.75;r.countScale=1.04;r.ttl=0.65;r.durationScale=0.84;r.fxTag="tile-idle-smoke";r.groupedOwner=true;return r
     }
 }

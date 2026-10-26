@@ -4,18 +4,18 @@ import XCTest
 final class NativeStarVariantDropCountTests:XCTestCase {
     private let variants=["fish","kanta","cubero"]
     func testMeterVariantsChooseAllThreeCountsAndBeeRemainsSingle() throws {
-        for mode in [NativeRunMode.journey,.arcade] {for variant in variants+["bee"] {
+        for mode in [NativeRunMode.journey,.arcade] {for variant in variants+["bee","kite"] {
             for (roll,count) in [(0.0,1),(0.4,2),(0.99,3)] {
                 let engine=NativeGameplayEngine(state:.init(tiles:[.init(id:"ordinary",cell:.init(column:0,row:0),value:4)],mode:mode,wildMeter:1.25),recordedRandomChoices:[0,0,roll],rewardPicker:{_,_ in .init(.star,variant:variant)})
                 XCTAssertTrue(engine.claimMeterReward().accepted)
                 let tile=try XCTUnwrap(engine.state.tiles.first{$0.variant==variant})
-                XCTAssertEqual(tile.starOrbitCount,variant == "bee" ? 1:count,variant)
+                XCTAssertEqual(tile.starOrbitCount,(variant == "bee" || variant == "kite") ? 1:count,variant)
                 XCTAssertEqual(tile.effectiveStarDropCount,tile.starOrbitCount)
             }
         }}
     }
     func testHiddenOpenPersistsVariantCountOnceAndPreservesPlainPresentationBoundary() throws {
-        for variant in [nil,"fish","kanta","cubero","bee"] as [String?] {
+        for variant in [nil,"fish","kanta","cubero","bee","kite"] as [String?] {
             var draws=0
             let math=NativeSourceMathRandomStream {draws+=1;return 0.8}
             let engine=NativeGameplayEngine(state:.init(tiles:[.init(id:"ordinary",cell:.init(column:0,row:0),value:4)],wildMeter:1.25),rewardPicker:{_,_ in .init(.star,variant:variant)},sourceMathRandom:math)
@@ -23,15 +23,15 @@ final class NativeStarVariantDropCountTests:XCTestCase {
             engine.sourceStarOrbitCountAtPresentationEnabled=true
             XCTAssertTrue(engine.claimMeterReward().accepted)
             let request=try XCTUnwrap(engine.pendingMeterOpen)
-            XCTAssertEqual(request.tile.starOrbitCount,variant == nil ? 0:variant == "bee" ? 1:3)
-            XCTAssertEqual(draws,variant == nil || variant == "bee" ? 2:3)
+            XCTAssertEqual(request.tile.starOrbitCount,variant == nil ? 0:(variant == "bee" || variant == "kite") ? 1:3)
+            XCTAssertEqual(draws,variant == nil || (variant == "bee" || variant == "kite") ? 2:3)
             XCTAssertFalse(engine.claimMeterReward().accepted)
             XCTAssertEqual(engine.pendingMeterOpen,request)
-            XCTAssertEqual(draws,variant == nil || variant == "bee" ? 2:3,"A waiting hidden owner must not reroll")
+            XCTAssertEqual(draws,variant == nil || (variant == "bee" || variant == "kite") ? 2:3,"A waiting hidden owner must not reroll")
         }
     }
     func testMagnetAbsorptionUsesVariantSavedCountInBothRespawnOwnersAndKeepsBeeBaseline() throws {
-        for lazy in [false,true] {for variant in variants+["bee"] {for count in 1...3 {
+        for lazy in [false,true] {for variant in variants+["bee","kite"] {for count in 1...3 {
             let tiles=[NativeTile(id:"magnet",cell:.init(column:0,row:0),value:6,archetype:.magnet),NativeTile(id:"destination",cell:.init(column:1,row:0),value:2),NativeTile(id:"helper",cell:.init(column:2,row:0),value:6,starOrbitCount:count,archetype:.star,variant:variant)]
             var draw=0
             let math=NativeSourceMathRandomStream {defer{draw+=1};return Double((draw*17+3)%97)/97}
@@ -45,7 +45,7 @@ final class NativeStarVariantDropCountTests:XCTestCase {
                 XCTAssertTrue(engine.commitSourceSpecialAbsorbMain(receiptID:receipt.id,generation:plan.generation).accepted)
                 XCTAssertTrue(engine.prepareSourceMagnetLazyRespawn(transactionID:plan.id,generation:plan.generation,sourceCurrent:{true}).accepted)
             } else {XCTAssertTrue(engine.prepareMagnetRespawn(transactionID:plan.id).accepted)}
-            XCTAssertEqual(engine.pendingHUDStars.count,variant == "bee" ? 1:min(3,count+1))
+            XCTAssertEqual(engine.pendingHUDStars.count,(variant == "bee" || variant == "kite") ? 1:min(3,count+1))
         }}}
     }
     private func merge(variant:String?,count:Int,mode:NativeRunMode,final:Bool)->NativeGameplayEngine {
@@ -79,7 +79,7 @@ final class NativeStarVariantDropCountTests:XCTestCase {
         }
     }
     func testArcadeMatchesJourneyForEveryStarVariantSavedCountAndSpawnOwner() throws {
-        for variant in [nil,"fish","kanta","cubero","bee"] as [String?] {
+        for variant in [nil,"fish","kanta","cubero","bee","kite"] as [String?] {
             for count in 1...3 {for locked in [0,18] {for staged in [false,true] {
                 func run(_ mode:NativeRunMode) throws -> NativeGameplayEngine {
                     var tiles=[NativeTile(id:"wild",cell:.init(column:0,row:0),value:6,starOrbitCount:count,archetype:.star,variant:variant),NativeTile(id:"destination",cell:.init(column:1,row:0),value:5),NativeTile(id:"survivor",cell:.init(column:4,row:8),value:2)]
@@ -110,10 +110,10 @@ final class NativeStarVariantDropCountTests:XCTestCase {
                 let journey=try run(.journey),arcade=try run(.arcade)
                 let tag="\(variant ?? "star")/\(count)/\(locked)/\(staged)"
                 XCTAssertEqual(arcade.state.tiles,journey.state.tiles,tag)
-                XCTAssertEqual(arcade.pendingHUDStars.count,variant == "bee" ? 1:count,tag)
+                XCTAssertEqual(arcade.pendingHUDStars.count,(variant == "bee" || variant == "kite") ? 1:count,tag)
                 XCTAssertEqual(arcade.state.terminal,journey.state.terminal,tag)
                 XCTAssertTrue(arcade.state.validationIssues().isEmpty,tag)
-                XCTAssertEqual(arcade.state.tiles.filter(\.isActive).count,2+(locked>0 ? 1:0)+(variant == "bee" ? 1:count),tag)
+                XCTAssertEqual(arcade.state.tiles.filter(\.isActive).count,2+(locked>0 ? 1:0)+((variant == "bee" || variant == "kite") ? 1:count),tag)
             }}}
         }
     }

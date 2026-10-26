@@ -3,6 +3,18 @@ import UIKit
 /// Authored feedback owns pressed visuals, never UIKit's dark highlight.
 @MainActor
 final class JimiV9PlainButton: UIButton {
+    static let modalIdleKey = "native-modal-cta-idle"
+    private var hasModalIdle = false
+    private var pairedModalCTA = false
+    private var modalIdleSuspended = false
+    private var observesModalIdle = false
+    // Captured once per button. The existing idle sway adds at most 1.4°,
+    // keeping the complete pose within the requested three-degree limit.
+    private let ctaRestTiltDegrees = CGFloat.random(in:0...1.6) * (Bool.random() ? CGFloat(1):CGFloat(-1))
+    private let modalIdleDirection = CGPoint(x:CGFloat.random(in:-6...6),y:CGFloat.random(in:4...8))
+    private let modalIdleTilt = CGFloat.random(in:-1.4...1.4)
+    private let modalIdlePhase = Double.random(in:0.35...0.65)
+    private let modalIdleDuration = Double.random(in:3.4...4.6)
     override init(frame: CGRect) {
         super.init(frame:frame)
         adjustsImageWhenHighlighted = false
@@ -60,63 +72,181 @@ final class JimiV9PlainButton: UIButton {
         surface.bounds=CGRect(origin:.zero,size:rect.size);surface.center=CGPoint(x:rect.midX,y:rect.midY);layoutCartoonContent()
     }
     func layoutCartoonContent(){guard let surface=cartoonSurface else{return};bounds=surface.bounds;center=CGPoint(x:bounds.midX,y:bounds.midY)}
-    override var isHidden:Bool {didSet{cartoonSurface?.isHidden=isHidden;if isHidden{cartoonSurface?.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey)}}}
-    override func didMoveToWindow(){super.didMoveToWindow();if window==nil{cartoonSurface?.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey)};ctaShimmer?.rebindVisibility()}
+    override var isHidden:Bool {didSet{cartoonSurface?.isHidden=isHidden;if isHidden{cartoonSurface?.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey)};updateModalCTAIdle();ctaShimmer?.refresh()}}
+    override func didMoveToWindow(){super.didMoveToWindow();if window==nil{cartoonSurface?.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey)};updateModalCTAIdle();ctaShimmer?.rebindVisibility()}
+    deinit {NotificationCenter.default.removeObserver(self)}
+    @objc private func modalCTAWillResignActive(){layer.removeAnimation(forKey:Self.modalIdleKey)}
+    @objc private func modalCTADidBecomeActive(){updateModalCTAIdle()}
+    private func updateModalCTAIdle() {
+        guard hasModalIdle,!modalIdleSuspended,window != nil,!isHidden,UIApplication.shared.applicationState == .active,
+              !UIAccessibility.isReduceMotionEnabled else {layer.removeAnimation(forKey:Self.modalIdleKey);return}
+        guard layer.animation(forKey:Self.modalIdleKey)==nil else{return}
+        // The button owns its sculpted content; sublayerTransform leaves the
+        // button's hit box, modal route and press/contact transforms untouched.
+        let settled=CATransform3DMakeRotation(ctaRestTiltDegrees * .pi/180,0,0,1)
+        let strength:CGFloat=pairedModalCTA ? 0.30:1
+        // Keep the established small vertical drift while making sway visible.
+        let verticalStrength:CGFloat=pairedModalCTA ? 0.15:1
+        var peak=CATransform3DMakeTranslation(modalIdleDirection.x*strength,modalIdleDirection.y*verticalStrength,0)
+        peak=CATransform3DRotate(peak,(ctaRestTiltDegrees+modalIdleTilt*strength) * .pi/180,0,0,1)
+        peak=CATransform3DScale(peak,1+0.03*strength,1+0.03*strength,1)
+        let idle=CAKeyframeAnimation(keyPath:"sublayerTransform")
+        idle.values=[settled,peak,settled].map{NSValue(caTransform3D:$0)}
+        idle.keyTimes=[0,NSNumber(value:modalIdlePhase),1]
+        idle.duration=modalIdleDuration;idle.repeatCount = .infinity
+        idle.timingFunctions=Array(repeating:CAMediaTimingFunction(controlPoints:0.42,0,0.58,1),count:2)
+        layer.add(idle,forKey:Self.modalIdleKey)
+    }
+    /// Stacked actions use thirty percent sway/scale with fifteen percent vertical
+    /// float, retaining the 1.2pt vertical drift bound without moving hit boxes.
+    func setPairedModalCTA() {
+        pairedModalCTA=true
+        layer.removeAnimation(forKey:Self.modalIdleKey)
+        updateModalCTAIdle()
+    }
+    func setModalCTAIdleSuspended(_ value:Bool) {
+        modalIdleSuspended=value;updateModalCTAIdle()
+    }
     private var ctaShimmer:NativeCTAShimmer?
     func setPrimaryCTAShimmer(_ enabled:Bool) {
-        if enabled {
-            if ctaShimmer == nil {ctaShimmer=NativeCTAShimmer(button:self)}
-            ctaShimmer?.refresh()
-        }else{ctaShimmer?.dispose();ctaShimmer=nil}
+        if enabled,let face=sculptedFace {
+            if ctaShimmer==nil {ctaShimmer=NativeCTAShimmer(button:self,faceLayer:face.layer)}
+            ctaShimmer?.layout()
+        } else {ctaShimmer?.dispose();ctaShimmer=nil}
     }
     override var isEnabled:Bool {didSet{ctaShimmer?.refresh()}}
-    private var ctaSoftShadow: CALayer?
-    private let ctaShadowCaster = CALayer()
-    private let ctaShadowMask = CAShapeLayer()
-    func removeModalCTAPaint() {
-        setPrimaryCTAShimmer(false)
-        ctaSoftShadow?.removeFromSuperlayer();ctaSoftShadow = nil
-        backgroundColor = .clear;layer.shadowOpacity = 0;layer.borderWidth = 0
+    var onSculptedFacePrepared:(()->Void)?
+    var isSculptedFacePrepared:Bool {sculptedFace?.isPrepared ?? false}
+    func setSculptedFacePreparationSuspended(_ value:Bool){sculptedFace?.setPreparationSuspended(value)}
+    func retireSculptedFacePreparation(){sculptedFace?.retirePreparation()}
+    /// Explicit visible-entry readiness; UIKit may have retired a face during
+    /// reparenting without marking its unchanged geometry for another layout.
+    func prepareSculptedFaceForEntrance() {
+        setNeedsLayout();layoutIfNeeded();sculptedFace?.prepareForEntrance()
     }
-    func applyModalCTA(artwork: JimiV9Artwork,primary: Bool = true) {
+    #if DEBUG
+    var sculptedFacePreparationSnapshotForTesting:String {sculptedFace?.preparationSnapshotForTesting ?? "no-face"}
+    func sculptedFaceRasterForTesting(original:Bool=false)->CGImage? {
+        sculptedFace?.rasterForTesting(original:original)
+    }
+    #endif
+    private var sculptedFace:NativeSculptedCTAFace?
+    func applyPrimaryCTAStyle(artwork:JimiV9Artwork,shapeKey:String?=nil) {
+        applySculptedCTAStyle(artwork:artwork,shapeKey:shapeKey,primary:true)
+    }
+    private func applySculptedCTAStyle(artwork:JimiV9Artwork,shapeKey:String?=nil,primary:Bool) {
+        setBackgroundImage(nil,for:.normal);layer.borderWidth=0;layer.shadowPath=nil
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        layer.sublayerTransform=CATransform3DMakeRotation(ctaRestTiltDegrees * .pi/180,0,0,1)
+        CATransaction.commit()
+        sculptedShapeKey=shapeKey
+        backgroundColor = .clear
+        if sculptedFace==nil {
+            let face=NativeSculptedCTAFace();face.isUserInteractionEnabled=false
+            face.backgroundColor = .clear;face.isOpaque=false
+            face.accessibilityIdentifier="native.cta.sculpted-face"
+            insertSubview(face,at:0);sculptedFace=face
+        }
+        sculptedFace?.secondary = !primary
         setPrimaryCTAShimmer(primary)
-        let edge = primary ? UIColor(red:194/255,green:73/255,blue:33/255,alpha:1) : UIColor(red:216/255,green:199/255,blue:187/255,alpha:1)
-        backgroundColor = primary ? UIColor(red:233/255,green:122/255,blue:85/255,alpha:1) : .white
-        setTitleColor(primary ? UIColor(red:1,green:251/255,blue:242/255,alpha:1) : UIColor(red:173/255,green:134/255,blue:117/255,alpha:1),for:.normal)
-        titleLabel?.font = artwork.font(size:28,weight:"Bold")
-        titleLabel?.shadowColor = primary ? edge : nil
-        titleLabel?.shadowOffset = CGSize(width:0,height:primary ? 2:0)
-        layer.cornerRadius = 32;layer.shadowColor = edge.cgColor
-        layer.shadowOffset = CGSize(width:0,height:8);layer.shadowOpacity = 1;layer.shadowRadius = 0
-        layer.borderWidth = primary ? 0:1
-        layer.borderColor = UIColor(red:234/255,green:222/255,blue:215/255,alpha:1).cgColor
-        clipsToBounds = false
-        let soft = ctaSoftShadow ?? CALayer()
-        if ctaSoftShadow == nil {layer.insertSublayer(soft,at:0);soft.addSublayer(ctaShadowCaster);ctaSoftShadow = soft}
-        ctaShadowCaster.backgroundColor = backgroundColor?.cgColor
-        ctaShadowCaster.cornerRadius = 32
-        ctaShadowCaster.shadowColor = (primary ? UIColor(red:112/255,green:55/255,blue:34/255,alpha:1) : UIColor(red:112/255,green:85/255,blue:73/255,alpha:1)).cgColor
-        ctaShadowCaster.shadowOpacity = primary ? 0.16:0.12;ctaShadowCaster.shadowOffset = CGSize(width:0,height:13);ctaShadowCaster.shadowRadius = 11
-        ctaShadowMask.fillRule = .evenOdd;soft.mask = ctaShadowMask
+        titleLabel?.font=artwork.font(size:28,weight:"ExtraBold")
+        setTitleColor(UIColor(red:1,green:246/255,blue:225/255,alpha:1),for:.normal)
+        let font=artwork.font(size:28,weight:"ExtraBold")
+        let cream=UIColor(red:1,green:246/255,blue:225/255,alpha:1)
+        let title=title(for:.normal) ?? ""
+        let glyphLight=UIGraphicsImageRenderer(size:CGSize(width:1,height:font.lineHeight)).image { renderer in
+            let colors=[UIColor(red:1,green:252/255,blue:237/255,alpha:1).cgColor,
+                cream.cgColor,UIColor(red:247/255,green:232/255,blue:206/255,alpha:1).cgColor]
+            let gradient=CGGradient(colorsSpace:CGColorSpaceCreateDeviceRGB(),colors:colors as CFArray,locations:[0,0.52,1])!
+            renderer.cgContext.drawLinearGradient(gradient,start:.zero,end:CGPoint(x:0,y:font.lineHeight),options:[])
+        }
+        setAttributedTitle(NSAttributedString(string:title,attributes:[.font:font,.foregroundColor:UIColor(patternImage:glyphLight)]),for:.normal)
+        // Live glyph fill only: outlines previously bridged the dot on lowercase i.
+        titleLabel?.shadowColor=nil
+        titleLabel?.layer.shadowColor=UIColor(red:164/255,green:65/255,blue:31/255,alpha:1).cgColor
+        titleLabel?.layer.shadowOffset=CGSize(width:0,height:-1)
+        titleLabel?.layer.shadowOpacity=0;titleLabel?.layer.shadowRadius=0
+        if !primary {
+            // Ordinary flat live title, without bevel, shadow or glyph overlays.
+            let ink=UIColor(red:176/255,green:137/255,blue:121/255,alpha:1)
+            setTitleColor(ink,for:.normal)
+            setAttributedTitle(NSAttributedString(string:title,attributes:[.font:font,.foregroundColor:ink]),for:.normal)
+        }
+        layer.shadowOpacity=0;layer.cornerRadius=0
         setNeedsLayout()
+    }
+    static let ctaWidthScale:CGFloat=1.05
+    static let primaryCTAHeight:CGFloat=80.64
+    /// All sculpted action buttons share the fuller silhouette; live type stays unchanged.
+    /// Width follows live title width so both side insets retain the same percentage.
+    func primaryCTASize(maxWidth:CGFloat)->CGSize {
+        let font=titleLabel?.font ?? UIFont.systemFont(ofSize:28,weight:.heavy)
+        let reference=("Journey" as NSString).size(withAttributes:[.font:font]).width
+        let text=((title(for:.normal) ?? "") as NSString).size(withAttributes:[.font:font]).width
+        return CGSize(width:min(maxWidth,max(72,176*text/max(1,reference))*Self.ctaWidthScale),height:Self.primaryCTAHeight)
+    }
+    static let pairedModalCTAHeight:CGFloat=84
+    static let pairedModalCTAGap:CGFloat=6
+    /// Pre-redesign modal action width, independent of the live title.
+    static func modalCTAWidth(_ buttons:[JimiV9PlainButton],maxWidth:CGFloat)->CGFloat {
+        min(249,maxWidth)
+    }
+    private var sculptedShapeKey:String?
+    override func setTitle(_ title:String?,for state:UIControl.State) {
+        super.setTitle(title,for:state)
+        guard state == .normal,sculptedFace != nil else{return}
+        func updated(_ prior:NSAttributedString?)->NSAttributedString? {
+            guard let title,let prior,prior.length>0 else{return nil}
+            return NSAttributedString(string:title,attributes:prior.attributes(at:0,effectiveRange:nil))
+        }
+        setAttributedTitle(updated(attributedTitle(for:.normal)),for:.normal)
+        setNeedsLayout()
+    }
+    private func removeSculptedCTA() {
+        setPrimaryCTAShimmer(false)
+        hasModalIdle=false;layer.removeAnimation(forKey:Self.modalIdleKey)
+        CATransaction.begin();CATransaction.setDisableActions(true);layer.sublayerTransform=CATransform3DIdentity;CATransaction.commit()
+        sculptedFace?.removeFromSuperview();sculptedFace=nil
+        setAttributedTitle(nil,for:.normal);sculptedShapeKey=nil
+    }
+    func removeModalCTAPaint() {
+        removeSculptedCTA()
+        backgroundColor = .clear;layer.shadowOpacity=0;layer.borderWidth=0
+    }
+    func applyModalCTA(artwork:JimiV9Artwork,primary:Bool=true,preparesSculptedFaceOffMain:Bool=false) {
+        applySculptedCTAStyle(artwork:artwork,primary:primary)
+        sculptedFace?.preparesOffMain=preparesSculptedFaceOffMain
+        sculptedFace?.bundledRasterRoot=preparesSculptedFaceOffMain ? artwork.resourceRoot:nil
+        sculptedFace?.onPrepared={ [weak self] in self?.onSculptedFacePrepared?() }
+        hasModalIdle=true
+        if !observesModalIdle {
+            observesModalIdle=true
+            NotificationCenter.default.addObserver(self,selector:#selector(modalCTAWillResignActive),name:UIApplication.willResignActiveNotification,object:nil)
+            NotificationCenter.default.addObserver(self,selector:#selector(modalCTADidBecomeActive),name:UIApplication.didBecomeActiveNotification,object:nil)
+        }
+        updateModalCTAIdle()
     }
     override func layoutSubviews() {
         super.layoutSubviews()
+        updateModalCTAIdle()
         if let artworkOpacity {imageView?.alpha=artworkOpacity}
-        ctaShimmer?.layout()
-        guard let soft = ctaSoftShadow else{return}
-        CATransaction.begin();CATransaction.setDisableActions(true)
-        let radius = min(40,bounds.height/2)
-        layer.cornerRadius = radius
-        let body = UIBezierPath(roundedRect:bounds,cornerRadius:radius)
-        layer.shadowPath = body.cgPath;soft.frame = bounds.insetBy(dx:-44,dy:-44)
-        ctaShadowCaster.frame = bounds.offsetBy(dx:44,dy:44);ctaShadowCaster.shadowPath = body.cgPath;ctaShadowCaster.cornerRadius = radius
-        // Keep the soft shadow outside the painted button body, like CSS box-shadow.
-        ctaShadowMask.frame = soft.bounds
-        let mask = UIBezierPath(rect:ctaShadowMask.bounds)
-        mask.append(UIBezierPath(roundedRect:bounds.offsetBy(dx:44,dy:44),cornerRadius:radius))
-        ctaShadowMask.path = mask.cgPath
-        CATransaction.commit()
+
+        if let sculptedFace {
+            // Small static CTA surfaces render at 2x display density, then the
+            // compositor downsamples during authored press/idle transforms.
+            let displayScale=max(1,window?.screen.scale ?? traitCollection.displayScale)
+            for surface in [sculptedFace,titleLabel].compactMap({$0}) {
+                let scale=displayScale*2
+                if surface.contentScaleFactor != scale {surface.contentScaleFactor=scale;surface.setNeedsDisplay()}
+                surface.layer.allowsEdgeAntialiasing=true
+                surface.layer.minificationFilter = .trilinear
+                surface.layer.magnificationFilter = .linear
+            }
+            sculptedFace.shapeKey=sculptedShapeKey ?? accessibilityIdentifier ?? title(for:.normal) ?? "primary"
+            sculptedFace.frame=bounds
+            sculptedFace.layoutIfNeeded();ctaShimmer?.layout()
+            titleLabel?.center=CGPoint(x:bounds.midX,y:bounds.midY-NativeSculptedCTAFace.depth/2)
+        }
     }
     override var isHighlighted: Bool {
         get { false }
@@ -124,19 +254,15 @@ final class JimiV9PlainButton: UIButton {
     }
 }
 
-/// TAP TAP DESIGN specular profile with the shared CTA cadence, composed by Core Animation only. One finite
-/// ten-second projection per visible primary button; completion renews only while
-/// eligible. No display link, timer, decoder, game clock or persistence ownership.
 @MainActor
 final class NativeCTAShimmer:NSObject,CAAnimationDelegate {
     static let animationKey="native.cta.shimmer"
     private weak var button:JimiV9PlainButton?
     let highlight=CAGradientLayer(),band=CAGradientLayer()
-    private let edge=CAGradientLayer(),edgeMask=CAShapeLayer()
     private var observations:[NSKeyValueObservation]=[]
     private var disposed=false,foreground=true
     private(set) var running=false
-    init(button:JimiV9PlainButton) {
+    init(button:JimiV9PlainButton,faceLayer:CALayer) {
         self.button=button
         super.init()
         highlight.name="native.cta.shimmer";highlight.opacity=0;highlight.masksToBounds=true;highlight.zPosition=1
@@ -145,15 +271,7 @@ final class NativeCTAShimmer:NSObject,CAAnimationDelegate {
         // Same soft shoulders and narrow specular core as TAP TAP DESIGN.
         band.colors=[0.0,0.06,0.35,1,0.35,0.06,0].map{UIColor(white:1,alpha:$0).cgColor}
         band.locations=[0,0.18,0.38,0.5,0.62,0.82,1];highlight.mask=band
-        button.layer.addSublayer(highlight)
-        edge.name="native.cta.edge-shine";edge.zPosition=2
-        edge.colors=[UIColor(red:1,green:228/255,blue:168/255,alpha:0.96).cgColor,
-                     UIColor(red:1,green:201/255,blue:120/255,alpha:0.72).cgColor,
-                     UIColor(red:233/255,green:139/255,blue:66/255,alpha:0.45).cgColor,
-                     UIColor(red:185/255,green:67/255,blue:32/255,alpha:0.68).cgColor]
-        edge.locations=[0,0.35,0.65,1];edge.startPoint=CGPoint(x:0.08,y:0);edge.endPoint=CGPoint(x:0.9,y:1)
-        edgeMask.fillColor=UIColor.clear.cgColor;edgeMask.strokeColor=UIColor.white.cgColor;edgeMask.lineWidth=3.2
-        edge.mask=edgeMask;button.layer.addSublayer(edge)
+        faceLayer.addSublayer(highlight)
         let center=NotificationCenter.default
         center.addObserver(self,selector:#selector(background),name:UIApplication.willResignActiveNotification,object:nil)
         center.addObserver(self,selector:#selector(active),name:UIApplication.didBecomeActiveNotification,object:nil)
@@ -199,10 +317,7 @@ final class NativeCTAShimmer:NSObject,CAAnimationDelegate {
         let changed=highlight.bounds.size != button.bounds.size
         if changed {stop()}
         CATransaction.begin();CATransaction.setDisableActions(true)
-        highlight.frame=button.bounds;highlight.cornerRadius=min(40,button.bounds.height/2)
-        edge.frame=button.bounds;edgeMask.frame=edge.bounds
-        let rim=button.bounds.insetBy(dx:3,dy:3)
-        edgeMask.path = rim.width>0 && rim.height>0 ? UIBezierPath(roundedRect:rim,cornerRadius:max(0,highlight.cornerRadius-3)).cgPath:nil
+        highlight.frame=button.bounds;highlight.cornerRadius=0
         let w=button.bounds.width*1.62,h=button.bounds.height
         // Overscan the tilted stripe so its shoulders/core span the complete
         // button height. Only the outer rounded body clips it; no vertical fade.
@@ -235,7 +350,313 @@ final class NativeCTAShimmer:NSObject,CAAnimationDelegate {
     }
     func dispose() {
         guard !disposed else{return};disposed=true;stop();observations.removeAll()
-        NotificationCenter.default.removeObserver(self);highlight.removeFromSuperlayer();edge.removeFromSuperlayer();button=nil
+        NotificationCenter.default.removeObserver(self);highlight.removeFromSuperlayer();button=nil
+    }
+}
+
+/// Rebase the accepted SIX lighting profile onto the requested #F6875B face.
+/// Each channel retains its fraction toward white (light) or black (shade).
+/// Ivory glyph material stays separate; its orange recess/reflection use this palette.
+private enum NativeSculptedCTAPalette {
+    static func tone(_ r:CGFloat,_ g:CGFloat,_ b:CGFloat,secondary:Bool=false)->UIColor {
+        func channel(_ value:CGFloat,_ reference:CGFloat,_ target:CGFloat)->CGFloat {
+            let mapped=value<=reference ? target*value/reference
+                : target+(255-target)*(value-reference)/(255-reference)
+            return mapped.rounded()/255
+        }
+        return UIColor(red:channel(r,239,secondary ? 250:246),green:channel(g,147,secondary ? 239:135),blue:channel(b,106,secondary ? 218:91),alpha:1)
+    }
+}
+
+/// Static UIKit vector paint; the existing button/idle shells own all motion.
+private nonisolated final class NativeSculptedCTAPaintCancellation:@unchecked Sendable {
+    private let lock=NSLock()
+    private var value=false
+    var cancelled:Bool {lock.lock();defer{lock.unlock()};return value}
+    func cancel(){lock.lock();value=true;lock.unlock()}
+}
+private nonisolated struct NativeSculptedCTAPaintImage:@unchecked Sendable {let image:CGImage?}
+/// Immutable Core Graphics commands. No UIKit/Scene/layer access on the worker.
+private nonisolated struct NativeSculptedCTAPaintPlan:@unchecked Sendable {
+    enum Command {case fill(CGPath,CGColor),gradient(CGPath,CGGradient,CGPoint,CGPoint),rightHighlight([Command],CGFloat,CGFloat)}
+    let size:CGSize,scale:CGFloat,commands:[Command]
+    func paint(into context:CGContext,cancelled:()->Bool) {
+        context.setAllowsAntialiasing(true);context.setShouldAntialias(true)
+        for command in commands {
+            guard !cancelled() else{return}
+            switch command {
+            case let .fill(path,color):
+                context.addPath(path);context.setFillColor(color);context.fillPath()
+            case let .gradient(path,gradient,start,end):
+                context.saveGState();context.addPath(path);context.clip()
+                context.drawLinearGradient(gradient,start:start,end:end,options:[.drawsBeforeStartLocation,.drawsAfterEndLocation])
+                context.restoreGState()
+            case let .rightHighlight(commands,startX,endX):
+                // One static masked paint pass restores the original light edge
+                // on the right, with no seam at the early left-side transition.
+                context.saveGState();context.beginTransparencyLayer(auxiliaryInfo:nil)
+                NativeSculptedCTAPaintPlan(size:size,scale:scale,commands:commands).paint(into:context,cancelled:cancelled)
+                context.setBlendMode(.destinationIn)
+                let mask=CGGradient(colorsSpace:CGColorSpaceCreateDeviceRGB(),colors:[CGColor(red:1,green:1,blue:1,alpha:0),CGColor(red:1,green:1,blue:1,alpha:1)] as CFArray,locations:nil)!
+                context.drawLinearGradient(mask,start:CGPoint(x:startX,y:0),end:CGPoint(x:endX,y:0),options:[.drawsBeforeStartLocation,.drawsAfterEndLocation])
+                context.endTransparencyLayer();context.restoreGState()
+            }
+        }
+    }
+    func render(cancellation:NativeSculptedCTAPaintCancellation)->NativeSculptedCTAPaintImage {
+        guard !cancellation.cancelled else{return .init(image:nil)}
+        let width=Int(ceil(size.width*scale)),height=Int(ceil(size.height*scale))
+        guard width>0,height>0,width<=8192,height<=8192,
+              let space=CGColorSpace(name:CGColorSpace.sRGB),
+              let context=CGContext(data:nil,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,space:space,bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue) else{return .init(image:nil)}
+        context.translateBy(x:0,y:CGFloat(height));context.scaleBy(x:scale,y:-scale)
+        paint(into:context,cancelled:{cancellation.cancelled})
+        guard !cancellation.cancelled else{return .init(image:nil)}
+        return .init(image:context.makeImage())
+    }
+}
+private final class NativeSculptedCTAFace:UIView {
+    private static let paintQueue=DispatchQueue(label:"com.taptapdesign.stacktosix.cta-paint",qos:.userInitiated)
+    var preparesOffMain=false {didSet{if oldValue != preparesOffMain {retirePaint();setNeedsLayout();setNeedsDisplay()}}}
+    var onPrepared:(()->Void)?
+    var bundledRasterRoot:URL? {didSet{if oldValue != bundledRasterRoot {retirePaint();setNeedsLayout();setNeedsDisplay()}}}
+    var isPrepared:Bool {!preparesOffMain || preparedImage != nil || fallbackOriginalRaster}
+    private var preparedImage:CGImage?
+    private var preparationSuspended=false,fallbackOriginalRaster=false
+    private var paintKey:String?
+    private var paintCancellation:NativeSculptedCTAPaintCancellation?
+    private func retirePaint(){paintCancellation?.cancel();paintCancellation=nil;paintKey=nil;preparedImage=nil;fallbackOriginalRaster=false}
+    func retirePreparation(){preparationSuspended=true;retirePaint();onPrepared=nil}
+    func setPreparationSuspended(_ value:Bool){
+        guard preparationSuspended != value else{return}
+        preparationSuspended=value
+        if value {
+            paintCancellation?.cancel();paintCancellation=nil
+            if preparedImage == nil && !fallbackOriginalRaster {paintKey=nil}
+        } else {setNeedsLayout()}
+    }
+    #if DEBUG
+    var preparationSnapshotForTesting:String {
+        "width=\(String(format:"%.17g",Double(bounds.width))) height=\(String(format:"%.17g",Double(bounds.height))) scale=\(contentScaleFactor) shape=\(shapeKey) secondary=\(secondary) suspended=\(preparationSuspended) window=\(window != nil) prepared=\(isPrepared) image=\(preparedImage?.width ?? 0)x\(preparedImage?.height ?? 0) key=\(paintKey ?? "nil") queued=\(paintCancellation != nil)"
+    }
+    func rasterForTesting(original:Bool)->CGImage? {
+        if !original {return preparedImage}
+        let format=UIGraphicsImageRendererFormat();format.scale=contentScaleFactor
+        format.opaque=false;format.preferredRange = .standard
+        let plan=makePaintPlan()
+        return UIGraphicsImageRenderer(size:bounds.size,format:format).image {plan.paint(into:$0.cgContext,cancelled:{false})}.cgImage
+    }
+    #endif
+    func prepareForEntrance(){prepareIfNeeded()}
+    private func prepareIfNeeded(){
+        guard preparesOffMain,!preparationSuspended,bounds.width>0,bounds.height>0 else{return}
+        let key="\(bounds.size)|\(contentScaleFactor)|\(shapeKey)|\(secondary)"
+        guard key != paintKey else{return}
+        retirePaint();paintKey=key
+        // Only the two fixed Exit roles use recipe-derived bundled faces.
+        // Resolve during layout before visible entry: no worker-ready gate on
+        // the common path, no global image cache, and live text stays untouched.
+        if let image=bundledFace() {
+            preparedImage=image;setNeedsDisplay();onPrepared?();return
+        }
+        guard window != nil else{paintKey=nil;return}
+        let cancellation=NativeSculptedCTAPaintCancellation();paintCancellation=cancellation
+        let plan=makePaintPlan()
+        Self.paintQueue.async { [weak self] in
+            let result=plan.render(cancellation:cancellation)
+            guard !cancellation.cancelled else{return}
+            DispatchQueue.main.async { [weak self] in
+                guard let self,!cancellation.cancelled,!self.preparationSuspended,self.paintKey==key,self.window != nil else{return}
+                self.paintCancellation=nil;self.preparedImage=result.image
+                // Allocation failure preserves the original full-resolution
+                // vector paint rather than leaving a permanently empty CTA.
+                self.fallbackOriginalRaster=result.image == nil
+                self.setNeedsDisplay();self.onPrepared?()
+            }
+        }
+    }
+    private func bundledFace()->CGImage? {
+        // UIKit can round a transformed descendant's bounds by fractions of
+        // a point. Match only numerical noise, not a different action size.
+        let fuller=abs(bounds.height-JimiV9PlainButton.pairedModalCTAHeight)<0.0001
+        guard let root=bundledRasterRoot,
+              let scale=[CGFloat(4),6].first(where:{abs(contentScaleFactor-$0)<0.000001}) else{return nil}
+        if fuller {
+            guard let width=[CGFloat(240),249].first(where:{abs(bounds.width-$0)<0.0001}) else{return nil}
+            let role=shapeKey=="native.end-run.restart" && !secondary ? "restart":(shapeKey=="native.end-run.exit" && secondary ? "exit":"")
+            guard !role.isEmpty else{return nil}
+            let name="\(role)-\(width==240 ? "240":"249")-\(Int(scale))x.png"
+            let path=root.appendingPathComponent("assets/ui/native-end-run-cta-balanced-v1").appendingPathComponent(name).path
+            guard let image=UIImage(contentsOfFile:path)?.preparingForDisplay()?.cgImage,
+                  image.width==Int(ceil(width*scale)),image.height==Int(ceil(JimiV9PlainButton.pairedModalCTAHeight*scale)) else{return nil}
+            return image
+        }
+        guard abs(bounds.height-80)<0.0001,
+              let width=[CGFloat(240),249].first(where:{abs(bounds.width-$0)<0.0001}) else{return nil}
+        let role:String
+        if shapeKey=="native.end-run.restart",!secondary {role="restart"}
+        else if shapeKey=="native.end-run.exit",secondary {role="exit"}
+        else{return nil}
+        let name="\(role)-\(Int(width))-\(Int(scale))x.png"
+        let directory=secondary ? "assets/ui/native-end-run-cta-soft-top-v3":"assets/ui/native-end-run-cta"
+        let path=root.appendingPathComponent(directory).appendingPathComponent(name).path
+        guard let source=UIImage(contentsOfFile:path),
+              let image=(source.preparingForDisplay() ?? source).cgImage,
+              image.width==Int(width*scale),image.height==Int(80*scale) else{return nil}
+        return image
+    }
+    override func didMoveToWindow(){super.didMoveToWindow();if window == nil {retirePaint()}else{setNeedsLayout()}}
+
+    var secondary=false {didSet{if secondary != oldValue{setNeedsDisplay()}}}
+    static let depth:CGFloat=9.6
+    var shapeKey="home.journey" {didSet{if shapeKey != oldValue{setNeedsDisplay();setNeedsLayout()}}}
+    private var variation:(CGFloat,CGFloat) {
+        guard shapeKey != "home.journey" else{return (0,0)}
+        let hash=shapeKey.utf8.reduce(UInt64(1469598103934665603)){($0 ^ UInt64($1)) &* 1099511628211}
+        return (CGFloat(hash%997)/498-1,CGFloat((hash/997)%991)/495-1)
+    }
+    private let silhouetteMask=CAShapeLayer()
+    private var frontRect:CGRect {bounds.insetBy(dx:1,dy:1).inset(by:UIEdgeInsets(top:0,left:0,bottom:Self.depth,right:0))}
+    // One contour family owns the shoulder and wall. Depth changes only
+    // the lower half; top corners never slide when the wall is extended.
+private func contour(inset:CGFloat=0,depth:CGFloat=0)->UIBezierPath {
+        let front=frontRect
+        let (lean,bow)=variation
+        let r=front.insetBy(dx:inset,dy:inset),w=r.width,h=r.height,p=UIBezierPath()
+        func q(_ x:CGFloat,_ y:CGFloat,_ d:CGFloat=0)->CGPoint {
+            let px=x+lean*0.009*sin(.pi*y)+bow*0.007*sin(.pi*x)*sin(.pi*y)
+            let py=y+lean*0.014*(x-0.5)+bow*0.009*sin(.pi*x)
+            return CGPoint(x:r.minX+px*w,y:r.minY+py*h+d*depth)
+        }
+        p.move(to:q(0.135,0.025))
+        p.addCurve(to:q(0.862,0.022),controlPoint1:q(0.35,-0.012),controlPoint2:q(0.66,0.002))
+        p.addCurve(to:q(0.993,0.39),controlPoint1:q(0.963,0.022),controlPoint2:q(0.994,0.105))
+        p.addCurve(to:q(0.864,0.953,1),controlPoint1:q(1.001,0.77,0.5),controlPoint2:q(0.979,0.927,1))
+        p.addCurve(to:q(0.132,0.956,1),controlPoint1:q(0.685,1.007,1),controlPoint2:q(0.309,1.009,1))
+        p.addCurve(to:q(0.008,0.49),controlPoint1:q(0.023,0.941,1),controlPoint2:q(0.002,0.785,0.5))
+        p.addCurve(to:q(0.135,0.025),controlPoint1:q(0.009,0.177),controlPoint2:q(0.037,0.042))
+        p.close();return p
+    }
+    #if DEBUG
+    private var hudLatencyDrawCount=0
+    #endif
+    override func draw(_ rect:CGRect) {
+        #if DEBUG
+        let traceDraw=ProcessInfo.processInfo.arguments.contains("-native-hud-latency-trace") && hudLatencyDrawCount<3
+        let traceStart=traceDraw ? CACurrentMediaTime():0
+        if traceDraw {
+            hudLatencyDrawCount+=1
+            NSLog("[CC_NATIVE_HUD_LATENCY] cta-draw-begin t=%.6f key=%@ bounds=%.1fx%.1f density=%.2f secondary=%d",traceStart,shapeKey,bounds.width,bounds.height,contentScaleFactor,secondary ? 1:0)
+        }
+        defer {
+            if traceDraw {
+                let end=CACurrentMediaTime()
+                NSLog("[CC_NATIVE_HUD_LATENCY] cta-draw-end t=%.6f key=%@ elapsedMs=%.3f",end,shapeKey,(end-traceStart)*1000)
+            }
+        }
+        #endif
+        guard let ctx=UIGraphicsGetCurrentContext(),bounds.width>0,bounds.height>0 else{return}
+        if preparesOffMain && !fallbackOriginalRaster {
+            guard let preparedImage else{return}
+            ctx.saveGState();ctx.translateBy(x:0,y:bounds.height);ctx.scaleBy(x:1,y:-1)
+            ctx.draw(preparedImage,in:bounds);ctx.restoreGState()
+        } else {makePaintPlan().paint(into:ctx,cancelled:{false})}
+    }
+    private func makePaintPlan()->NativeSculptedCTAPaintPlan {
+        func color(_ r:CGFloat,_ g:CGFloat,_ b:CGFloat)->UIColor{NativeSculptedCTAPalette.tone(r,g,b,secondary:secondary)}
+        let front=frontRect
+        var commands:[NativeSculptedCTAPaintPlan.Command]=[]
+        func mix(_ a:UIColor,_ b:UIColor,_ t:CGFloat)->UIColor {
+            var ar:CGFloat=0,ag:CGFloat=0,ab:CGFloat=0,aa:CGFloat=0
+            var br:CGFloat=0,bg:CGFloat=0,bb:CGFloat=0,ba:CGFloat=0
+            a.getRed(&ar,green:&ag,blue:&ab,alpha:&aa);b.getRed(&br,green:&bg,blue:&bb,alpha:&ba)
+            return UIColor(red:ar+(br-ar)*t,green:ag+(bg-ag)*t,blue:ab+(bb-ab)*t,alpha:1)
+        }
+        func sample(_ stops:[(CGFloat,UIColor)],_ t:CGFloat)->UIColor {
+            for i in 1..<stops.count where t<=stops[i].0 {
+                let a=stops[i-1],b=stops[i];return mix(a.1,b.1,(t-a.0)/(b.0-a.0))
+            }
+            return stops.last!.1
+        }
+        // Filled contour slices follow the bowed underside at every x: warm
+        // shoulder, reflected peach, rounded underside. No screen-flat seam.
+        // Reference secondary material: flat #DFC3B0 underside beneath white.
+        let secondaryShadow=UIColor(red:223/255,green:195/255,blue:176/255,alpha:1)
+        let wall:[(CGFloat,UIColor)]=secondary
+            ? [(0,secondaryShadow),(1,secondaryShadow)]
+            : [(0,color(222,128,89)),(0.24,color(207,113,79)),
+               (0.66,color(211,123,87)),(0.81,color(214,128,92)),(1,color(203,115,82))]
+        for step in stride(from:48,through:0,by:-1) {
+            let t=CGFloat(step)/48
+            commands.append(.fill(contour(depth:Self.depth*t).cgPath,sample(wall,t).cgColor))
+        }
+        // A broad convex shoulder, painted as filled nested surfaces rather
+        // than a stroked outline. The warm crest peaks inside the silhouette.
+        // Secondary retains the warm bevel and wall, while its broad front
+        // returns to the original white CTA material.
+        let white=UIColor.white
+        // Retain the one-percent inset, then add 1pt above and 2pt at the left.
+        let highlightInset=bounds.height*0.01+1
+        let top:[(CGFloat,UIColor)]=secondary
+            ? [(0,UIColor(red:228/255,green:215/255,blue:204/255,alpha:1)),
+               (0.65,UIColor(red:244/255,green:239/255,blue:234/255,alpha:1)),
+               (1.35,white),(2.1,white),(3.5,white),(5.5,white)]
+            : [(0,color(235,143,101)),(0.65+highlightInset,color(248,181,132)),
+               (1.35+highlightInset,color(255,205,157)),(2.1+highlightInset,color(251,187,137)),(3.5+highlightInset,color(244,163,115)),(6.5,color(239,147,106))]
+        let leftStops=secondary ? top : top.map { ($0.0 == 0 ? 0:$0.0+1,$0.1) }
+        let bottom:[(CGFloat,UIColor)]=secondary
+            ? [(0,secondaryShadow),(1,mix(secondaryShadow,white,0.55)),
+               (2.4,mix(secondaryShadow,white,0.9)),(4.5,white),(5.5,white)]
+            : [(0,color(219,125,86)),(1,color(224,129,89)),
+               (2.4,color(235,140,98)),(4.5,color(239,147,106)),(5.5,color(239,147,106))]
+        let core=secondary ? white : color(239,147,106)
+        let originalSecondaryTop:[(CGFloat,UIColor)]=[(0,color(235,143,101)),(0.65,UIColor(red:1,green:0.98,blue:0.94,alpha:1)),(1.35,white),(5.5,white)]
+        var rightHighlight:[NativeSculptedCTAPaintPlan.Command]=[]
+        for step in 0...(secondary ? 44:60) {
+            let inset=CGFloat(step)/8
+            let clip=contour(inset:inset).cgPath
+            let upper=sample(top,inset),lower=sample(bottom,inset)
+            let gradient=CGGradient(colorsSpace:CGColorSpaceCreateDeviceRGB(),colors:[upper.cgColor,core.cgColor,lower.cgColor] as CFArray,locations:[0,0.42,1])!
+            commands.append(.gradient(clip,gradient,CGPoint(x:front.minX,y:front.minY),CGPoint(x:front.minX,y:front.maxY)))
+            if secondary {
+                let originalUpper=sample(originalSecondaryTop,inset)
+                let restored=CGGradient(colorsSpace:CGColorSpaceCreateDeviceRGB(),colors:[originalUpper.cgColor,core.cgColor,lower.cgColor] as CFArray,locations:[0,0.42,1])!
+                rightHighlight.append(.gradient(clip,restored,CGPoint(x:front.minX,y:front.minY),CGPoint(x:front.minX,y:front.maxY)))
+            }
+            // Left roll receives a warmer, broader light than the right wall.
+            let left=sample(leftStops,inset)
+            let glow=CGGradient(colorsSpace:CGColorSpaceCreateDeviceRGB(),colors:[left.withAlphaComponent(0.7).cgColor,left.withAlphaComponent(0).cgColor] as CFArray,locations:nil)!
+            commands.append(.gradient(clip,glow,CGPoint(x:front.minX,y:0),CGPoint(x:front.minX+14,y:0)))
+        }
+        if secondary {commands.append(.rightHighlight(rightHighlight,front.minX+front.width*0.12,front.minX+front.width*0.4))}
+        return NativeSculptedCTAPaintPlan(size:bounds.size,scale:contentScaleFactor,commands:commands)
+    }
+    private var paintedSize:CGSize = .zero
+    private var maskedShapeKey=""
+    private var maskedScale:CGFloat=0
+    override func layoutSubviews(){
+        super.layoutSubviews()
+        // Window attachment can reset UIView's scale to screen density before
+        // the parent button lays out. Preserve the authored2x face density so
+        // that transient scale cannot enqueue an unnecessary fallback paint.
+        if preparesOffMain,let window {
+            let scale=max(1,window.screen.scale)*2
+            if contentScaleFactor != scale {contentScaleFactor=scale;setNeedsDisplay()}
+        }
+        // Apply silhouette coverage once, after all material layers. Repeated
+        // overlapping fills must not accumulate opacity at the outer edge.
+        if paintedSize != bounds.size || maskedShapeKey != shapeKey || maskedScale != contentScaleFactor {
+            CATransaction.begin();CATransaction.setDisableActions(true)
+            if layer.mask !== silhouetteMask {layer.mask=silhouetteMask}
+            silhouetteMask.frame=bounds
+            silhouetteMask.contentsScale=contentScaleFactor
+            silhouetteMask.fillColor=UIColor.black.cgColor
+            silhouetteMask.path=contour(depth:Self.depth).cgPath
+            CATransaction.commit()
+            maskedShapeKey=shapeKey;maskedScale=contentScaleFactor
+        }
+        if paintedSize != bounds.size {paintedSize=bounds.size;setNeedsDisplay()}
+        prepareIfNeeded()
     }
 }
 
@@ -285,7 +706,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
     private var heroCartoonShells:[UIView]=[]
     static let heroArtworkScale: CGFloat = 1.05
     private var idleSlide: Int?
-    private var ctas: [UIButton] = []
+    private var ctas: [JimiV9PlainButton] = []
     private var ctaContainers: [UIView] = []
     private var ctaPressShells: [UIView] = []
     private var ctaCartoonShells: [UIView] = []
@@ -300,8 +721,8 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
     private var navButtons: [UIButton] = []
     private var navImages: [UIImageView] = []
     private var navIdleShells:[UIView]=[]
-    private let navIdleDirections=(0..<3).map{_ in CGPoint(x:CGFloat.random(in:-1.5...1.5),y:CGFloat.random(in:-2...2))}
-    private let navIdleTilts=(0..<3).map{_ in CGFloat.random(in:-1.4...1.4)}
+    private let navIdleDirections=(0..<3).map{index in CGPoint(x:CGFloat.random(in:1.5...3)*(index==1 ? -1:1),y:-CGFloat.random(in:4...7))}
+    private let navIdleTilts=(0..<3).map{index in CGFloat.random(in:1...2)*(index==1 ? -1:1)}
     private let navIdleDurations=(0..<3).map{index in 4.1+Double(index)*0.8+Double.random(in:0...0.3)}
     private let navIdlePhases=(0..<3).map{_ in Double.random(in:0.35...0.65)}
     private var navShadows: [UIView] = []
@@ -380,19 +801,9 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             heroImages.append(art)
 
             let cta = JimiV9PlainButton(type: .custom)
-            cta.setPrimaryCTAShimmer(true)
             cta.tag = index
             cta.setTitle(titles[index], for: .normal)
-            cta.titleLabel?.font = assets.font(size: 28)
-            cta.setTitleColor(UIColor(red: 1, green: 251/255, blue: 242/255, alpha: 1), for: .normal)
-            cta.titleLabel?.shadowColor = UIColor(red: 194/255, green: 73/255, blue: 33/255, alpha: 1)
-            cta.titleLabel?.shadowOffset = CGSize(width: 0, height: 2)
-            cta.backgroundColor = UIColor(red: 233/255, green: 122/255, blue: 85/255, alpha: 1)
-            cta.layer.cornerRadius = 32
-            cta.layer.shadowColor = UIColor(red: 194/255, green: 73/255, blue: 33/255, alpha: 1).cgColor
-            cta.layer.shadowOffset = CGSize(width: 0, height: 8)
-            cta.layer.shadowOpacity = 1
-            cta.layer.shadowRadius = 0
+            cta.applyPrimaryCTAStyle(artwork:assets,shapeKey:index==0 ? "home.journey":"home.\(titles[index])")
             cta.accessibilityIdentifier = "native.home.cta.\(index)"
             cta.addTarget(self, action: #selector(activate(_:)), for: .touchUpInside)
             cta.addTarget(self, action: #selector(pressCTA(_:)), for: [.touchDown, .touchDragEnter])
@@ -499,6 +910,9 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         // and relative top:5% adds 14px, leaving a net -14px displacement.
         // Its CTA has the same net correction (-34 text + 12px margin).
         let heroTop = topInset + innerInset + 139
+        // Shared Settings width plus 5% of that width on each side of the text.
+        let settingsSize=ctas[2].primaryCTASize(maxWidth:width-48)
+        let homeCTASize=CGSize(width:min(width-48,settingsSize.width*1.10),height:settingsSize.height)
         for i in panels.indices {
             panels[i].frame = CGRect(x: CGFloat(i)*width, y: 0, width: width, height: height)
             heroes[i].bounds = CGRect(x: 0, y: 0, width: 336, height: 336)
@@ -516,13 +930,13 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             heroImages[i].center = CGPoint(x:168,y:168)
             ctaContainers[i].bounds = CGRect(x: 0, y: 0, width: width, height: 104)
             ctaContainers[i].center = CGPoint(x: width/2, y: heroTop + 360)
-            ctas[i].bounds = CGRect(x: 0, y: 0, width: 226, height: 64)
+            ctas[i].bounds = CGRect(origin:.zero,size:homeCTASize)
             ctaPressShells[i].bounds = ctas[i].bounds
             ctaIdleShells[i].bounds=ctas[i].bounds
             ctaIdleShells[i].center=CGPoint(x:width/2,y:72+height*0.0225)
-            ctaPressShells[i].center = CGPoint(x:113,y:32)
-            ctaCartoonShells[i].bounds=ctas[i].bounds;ctaCartoonShells[i].center=CGPoint(x:113,y:32)
-            ctas[i].center = CGPoint(x: 113, y: 32)
+            ctaPressShells[i].center = CGPoint(x:ctas[i].bounds.midX,y:ctas[i].bounds.midY)
+            ctaCartoonShells[i].bounds=ctas[i].bounds;ctaCartoonShells[i].center=CGPoint(x:ctas[i].bounds.midX,y:ctas[i].bounds.midY)
+            ctas[i].center = CGPoint(x:ctas[i].bounds.midX,y:ctas[i].bounds.midY)
             ctas[i].layer.shadowPath = UIBezierPath(roundedRect: ctas[i].bounds, cornerRadius: 32).cgPath
         }
         bottomShadow.bounds = CGRect(x: 0, y: 0, width: width * 1.2 - 96, height: 49)
@@ -626,7 +1040,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
                 let direction=navIdleDirections[index]
                 var peak=CATransform3DMakeTranslation(direction.x,direction.y,0)
                 peak=CATransform3DRotate(peak,navIdleTilts[index] * .pi/180,0,0,1)
-                peak=CATransform3DScale(peak,0.985,0.985,1)
+                peak=CATransform3DScale(peak,1.025,1.025,1)
                 let drift=CAKeyframeAnimation(keyPath:"transform")
                 drift.values=[CATransform3DIdentity,peak,CATransform3DIdentity].map{NSValue(caTransform3D:$0)}
                 drift.keyTimes=[0,NSNumber(value:navIdlePhases[index]),1]

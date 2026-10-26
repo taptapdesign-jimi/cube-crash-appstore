@@ -596,7 +596,7 @@ final class NativeBoardTests: XCTestCase {
         let paper=try XCTUnwrap(controller.view.subviews.compactMap {$0 as? NativeAppPaperSurface}.first)
         paper.layoutIfNeeded()
         let texture=try XCTUnwrap(paper.subviews.compactMap {$0 as? UIImageView}.first)
-        XCTAssertNotNil(texture.image);XCTAssertEqual(texture.frame,paper.bounds)
+        XCTAssertNotNil(texture.image);XCTAssertEqual(texture.frame,NativeAppPaperSurface.textureFrame(imageSize:try XCTUnwrap(texture.image).size,bounds:paper.bounds))
         XCTAssertTrue(controller.view.subviews.first === paper)
         controller.view.setNeedsLayout();controller.view.layoutIfNeeded();XCTAssertEqual(requests,1)
         release?();controller.view.setNeedsLayout();controller.view.layoutIfNeeded()

@@ -5,6 +5,21 @@ import StackToSixGameplay
 @testable import Stack_to_Six
 
 @MainActor final class NativeDragTrailRasterTests:XCTestCase {
+    func testKiteUsesRequestedGreenTrailAndShardPalettes() throws {
+        let expected:[UInt32]=[0xE9F3A5,0xD1E076,0x8FD593,0x5DAC6C]
+        for core:NativeWildArchetype? in [nil,.star,.tnt] {
+            let style=NativeDragTrailStyle.resolve(core:core,variant:"kite")
+            XCTAssertEqual(style.colors,expected)
+            var emitted=Set<UInt32>()
+            for index in 0..<100 {
+                let plan=NativeDragTrailParticlePlan.make(style:style,origin:.zero,scale:1,random:{(Double(index)+0.5)/100})
+                XCTAssertTrue(expected.contains(plan.color));emitted.insert(plan.color)
+            }
+            XCTAssertEqual(emitted,Set(expected))
+        }
+        let shards=try XCTUnwrap(NativeWildMergeSixShardProfile.make(archetype:.star,variant:"kite"))
+        XCTAssertEqual(shards.colors,[0xDDE985,0x80CB8A]);XCTAssertEqual(shards.family,.star)
+    }
     func testBloobPodResolvedTrailContainsOnlyItsThreeColorsWithoutTntYellow() {
         let expected:[UInt32]=[0x09E8FD,0xB77D49,0xE3B484]
         for core:NativeWildArchetype? in [nil,.star,.tnt] {

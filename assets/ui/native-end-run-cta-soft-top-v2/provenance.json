@@ -1,0 +1,33 @@
+{
+  "source": "NativeSculptedCTAFace.makePaintPlan",
+  "change": "Retain warm secondary top shadow left;blend back to original light secondary material from75to90percent of face width,right corner fully original light material. Core/shape/bottom unchanged. Prior originals and trial preserved.",
+  "faceOnly": true,
+  "glyphs": "live UIKit labels",
+  "widths": [
+    240,
+    249
+  ],
+  "height": 80,
+  "scales": [
+    4,
+    6
+  ],
+  "files": [
+    {
+      "file": "exit-240-4x.png",
+      "sha256": "eed4967dc915303f48d890ced08aee9f1d05a75e4998474c7ac8ac3fb0342dd2"
+    },
+    {
+      "file": "exit-240-6x.png",
+      "sha256": "f63e0e6a0a677d4d960d6d1ffb86392e06ee9f849aa89f081d3675b64fad9727"
+    },
+    {
+      "file": "exit-249-4x.png",
+      "sha256": "d2036736b7667cbceb726ef8ceafb8c07a6f06cdf9e35cf7c86ecefb5918709a"
+    },
+    {
+      "file": "exit-249-6x.png",
+      "sha256": "40864d90b6b64e5dd7e42ccdcd44eb5c8865832b41c6bd97d814a007d0a4639c"
+    }
+  ]
+}

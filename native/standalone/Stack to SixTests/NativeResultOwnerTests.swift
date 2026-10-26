@@ -176,119 +176,298 @@ final class NativeResultOwnerTests:XCTestCase {
         }
     }
 
-    func testSharedModalCTAPaintsHardEdgeAndSoftShadowWithoutDuplicatingLayers()throws {
-        let root=Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle")!
-        let artwork=JimiV9Artwork(resourceRoot:root)
-        for primary in [true,false] {
-            let button=JimiV9PlainButton(type:.custom)
-            button.frame=CGRect(x:0,y:0,width:249,height:64);button.setTitle(primary ? "Continue":"Exit",for:.normal)
-            button.applyModalCTA(artwork:artwork,primary:primary);button.layoutIfNeeded()
-            let layerCount=button.layer.sublayers?.count
-            button.applyModalCTA(artwork:artwork,primary:primary);button.layoutIfNeeded()
-            XCTAssertEqual(button.layer.sublayers?.count,layerCount)
-            XCTAssertEqual(button.layer.cornerRadius,32);XCTAssertEqual(button.titleLabel?.font.pointSize,28)
-            XCTAssertEqual(button.titleLabel?.shadowOffset.height,primary ? 2:0)
-            let format=UIGraphicsImageRendererFormat();format.scale=1;format.opaque=false
-            let image=UIGraphicsImageRenderer(size:CGSize(width:337,height:152),format:format).image {
-                $0.cgContext.translateBy(x:44,y:44);button.layer.render(in:$0.cgContext)
-            }
-            let cg=try XCTUnwrap(image.cgImage),data=cg.dataProvider!.data! as Data
-            func alpha(_ x:Int,_ y:Int)->UInt8 {data[y*cg.bytesPerRow+x*4+3]}
-            XCTAssertEqual(alpha(168,112),255,"PWA's solid8px edge remains opaque")
-            XCTAssertGreaterThan(alpha(168,125),0,"PWA's second soft shadow must actually paint")
-            XCTAssertLessThan(alpha(168,125),70)
-            try image.pngData()?.write(to:URL(fileURLWithPath:primary ? "/tmp/native-modal-primary-cta.png":"/tmp/native-modal-secondary-cta.png"))
+    func testSharedPrimarySculptedCTAIsStableDistinctAndUpdatesLiveTitles() throws {
+        let artwork=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),host=UIViewController()
+        window.rootViewController=host;window.makeKeyAndVisible()
+        defer{window.isHidden=true;window.rootViewController=nil}
+        var images:[Data]=[]
+        for (index,id) in ["native.world.card.play","native.arcade.play","native.result.play-again","native.tutorial.got-it"].enumerated() {
+            let button=JimiV9PlainButton(frame:CGRect(x:50,y:CGFloat(100+index*130),width:249,height:64))
+            button.accessibilityIdentifier=id;button.setTitle("Continue",for:.normal)
+            host.view.addSubview(button);button.applyModalCTA(artwork:artwork)
+            button.bounds=CGRect(origin:.zero,size:button.primaryCTASize(maxWidth:300));button.layoutIfNeeded()
+            let count=button.subviews.count
+            button.applyModalCTA(artwork:artwork);button.layoutIfNeeded()
+            XCTAssertEqual(button.subviews.count,count,"Reapplying never duplicates surfaces")
+            XCTAssertEqual(button.bounds.height,80.64)
+            XCTAssertEqual(button.titleLabel?.font.pointSize,28)
+            XCTAssertEqual(button.titleLabel!.center.y,35.52,accuracy:0.01)
+            XCTAssertNil(button.backgroundImage(for:.normal))
+            XCTAssertFalse(button.layer.sublayers?.contains{$0.name=="native.cta.shimmer"} ?? false)
+            XCTAssertTrue(button.point(inside:CGPoint(x:124,y:32),with:nil))
+            let format=UIGraphicsImageRendererFormat();format.scale=1
+            func snapshot()->Data {UIGraphicsImageRenderer(size:button.bounds.size,format:format).image{button.layer.render(in:$0.cgContext)}.pngData()!}
+            let first=snapshot();button.setNeedsLayout();button.layoutIfNeeded();XCTAssertEqual(first,snapshot())
+            images.append(first)
+            button.setTitle("Play Again",for:.normal);button.bounds=CGRect(origin:.zero,size:button.primaryCTASize(maxWidth:300));button.layoutIfNeeded()
+            XCTAssertEqual(button.attributedTitle(for:.normal)?.string,"Play Again")
+            for label in button.subviews.compactMap({$0 as? UILabel}) {XCTAssertEqual(label.attributedText?.string,"Play Again")}
+            XCTAssertEqual(button.accessibilityIdentifier,id)
+        }
+        XCTAssertEqual(Set(images).count,4,"Same title/material still has a subtle distinct contour per role")
+        let image=UIGraphicsImageRenderer(size:window.bounds.size).image{_ in host.view.drawHierarchy(in:host.view.bounds,afterScreenUpdates:true)}
+        try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/native-shared-sculpted-ctas.png"))
+    }
+
+    func testMainCTASizesMatchJourneyTextPaddingAndJourneyCardKeepsItsWidth() throws {
+        let artwork=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+        let font=artwork.font(size:28,weight:"ExtraBold")
+        let reference=("Journey" as NSString).size(withAttributes:[.font:font]).width/(176*1.05)
+        for text in ["Journey","Arcade","Settings","Play","Continue","Play Again","Got it!","Restart"] {
+            let button=JimiV9PlainButton(type:.custom);button.setTitle(text,for:.normal);button.applyModalCTA(artwork:artwork)
+            let size=button.primaryCTASize(maxWidth:400)
+            XCTAssertEqual(size.height,80.64)
+            XCTAssertEqual((text as NSString).size(withAttributes:[.font:font]).width/size.width,reference,accuracy:0.0001)
         }
     }
 
-    @MainActor func testPrimaryCTAShimmerUsesOriginalCadenceAndRetiresForMattePaint() throws {
-        let artwork=JimiV9Artwork(resourceRoot:Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle")!)
-        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),vc=UIViewController()
-        window.rootViewController=vc;window.makeKeyAndVisible()
-        defer{window.isHidden=true;window.rootViewController=nil}
-        let button=JimiV9PlainButton(frame:CGRect(x:70,y:350,width:249,height:64))
-        vc.view.addSubview(button);button.applyModalCTA(artwork:artwork);button.layoutIfNeeded()
-        let shine=try XCTUnwrap(button.layer.sublayers?.first{$0.name=="native.cta.shimmer"} as? CAGradientLayer)
-        let edge=try XCTUnwrap(button.layer.sublayers?.first{$0.name=="native.cta.edge-shine"} as? CAGradientLayer)
-        let rim=try XCTUnwrap(edge.mask as? CAShapeLayer)
-        XCTAssertEqual(rim.lineWidth,3.2);XCTAssertEqual(rim.fillColor,UIColor.clear.cgColor)
-        XCTAssertNil(edge.animationKeys(),"Edge shine is static and has no recurring clock")
-        let opacity=try XCTUnwrap(shine.animation(forKey:NativeCTAShimmer.animationKey) as? CAKeyframeAnimation)
-        XCTAssertEqual(opacity.duration,10);XCTAssertEqual(opacity.repeatCount,0)
-        let phases=try XCTUnwrap(opacity.keyTimes).map{$0.doubleValue}
-        XCTAssertEqual((phases[4]-phases[1])*10,2/1.3,accuracy:0.000001)
-        XCTAssertEqual((phases[9]-phases[6])*10,2/1.3,accuracy:0.000001)
-        XCTAssertEqual(shine.cornerRadius,32);XCTAssertEqual(shine.mask?.bounds.width,249*1.62)
-        let band=try XCTUnwrap(shine.mask as? CAGradientLayer)
-        XCTAssertEqual(band.locations,[0,0.18,0.38,0.5,0.62,0.82,1])
-        XCTAssertEqual(band.startPoint.y,0.5);XCTAssertEqual(band.endPoint.y,0.5)
-        XCTAssertGreaterThan(band.bounds.height,64*3,"Overscan keeps the tilted stripe full-height")
-        XCTAssertEqual(shine.colors?.count,2)
-        let colors=try XCTUnwrap(shine.colors as? [CGColor])
-        XCTAssertEqual(colors[0],colors[1],"No vertical dimming")
-        button.applyModalCTA(artwork:artwork);button.layoutIfNeeded()
-        XCTAssertEqual(button.layer.sublayers?.filter{$0.name=="native.cta.shimmer"}.count,1)
-        button.applyModalCTA(artwork:artwork,primary:false)
-        XCTAssertNil(shine.superlayer);XCTAssertNil(edge.superlayer);XCTAssertNil(shine.animation(forKey:NativeCTAShimmer.animationKey))
-        button.applyModalCTA(artwork:artwork);button.removeModalCTAPaint()
-        XCTAssertFalse(button.layer.sublayers?.contains{$0.name=="native.cta.shimmer"} ?? false)
+    func testPrimaryCTASmoothSilhouetteAndTextAtDisplayDensity() throws {
+        let artwork=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),host=UIViewController()
+        window.rootViewController=host;host.view.backgroundColor=UIColor(red:0.98,green:0.95,blue:0.9,alpha:1)
+        window.makeKeyAndVisible();defer{window.isHidden=true;window.rootViewController=nil}
+        for (index,title) in ["Restart","Journey","Settings"].enumerated() {
+            let button=JimiV9PlainButton(frame:CGRect(x:50,y:150+CGFloat(index)*150,width:249,height:72))
+            button.setTitle(title,for:.normal);button.accessibilityIdentifier="native.qa.cta.\(title)"
+            host.view.addSubview(button);button.applyModalCTA(artwork:artwork)
+            button.bounds=CGRect(origin:.zero,size:button.primaryCTASize(maxWidth:300))
+            button.center=CGPoint(x:195,y:186+CGFloat(index)*150);button.layoutIfNeeded()
+            let face=try XCTUnwrap(button.subviews.first{$0.accessibilityIdentifier=="native.cta.sculpted-face"})
+            for surface in [face]+button.subviews.compactMap({$0 as? UILabel}) {
+                XCTAssertEqual(surface.contentScaleFactor,window.screen.scale*2)
+                XCTAssertFalse(surface.layer.shouldRasterize,"No low-density flattened parent cache")
+            }
+            let format=UIGraphicsImageRendererFormat();format.scale=window.screen.scale;format.opaque=false
+            let image=UIGraphicsImageRenderer(size:face.bounds.size,format:format).image{face.layer.render(in:$0.cgContext)}
+            let cg=try XCTUnwrap(image.cgImage),w=cg.width,h=cg.height
+            var pixels=[UInt8](repeating:0,count:w*h*4)
+            let partial=pixels.withUnsafeMutableBytes { bytes -> Int in
+                let context=CGContext(data:bytes.baseAddress,width:w,height:h,bitsPerComponent:8,bytesPerRow:w*4,
+                    space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue)!
+                context.draw(cg,in:CGRect(x:0,y:0,width:CGFloat(w),height:CGFloat(h)))
+                let data=bytes.bindMemory(to:UInt8.self)
+                return (w/4..<w*3/4).filter { x in
+                    (0..<Int(5*window.screen.scale)).contains { y in
+                        let alpha=data[(y*w+x)*4+3];return alpha>8 && alpha<247
+                    }
+                }.count
+            }
+            print("[CTA edge coverage] \(title): \(partial)/\(w/2) columns, displayScale=\(window.screen.scale)")
+            XCTAssertGreaterThan(partial,w/5,"Shallow upper curve retains fractional edge coverage instead of opaque steps")
+            if index==1 {button.transform=CGAffineTransform(rotationAngle:0.015).scaledBy(x:1.025,y:1.025)}
+        }
+        let snapshot=UIGraphicsImageRenderer(bounds:window.bounds).image{_ in window.drawHierarchy(in:window.bounds,afterScreenUpdates:true)}
+        try snapshot.pngData()?.write(to:URL(fileURLWithPath:"/tmp/native-cta-antialiasing.png"))
     }
 
-    @MainActor func testPrimaryCTAShimmerVisibilityBackgroundAndRelease() async throws {
-        let artwork=JimiV9Artwork(resourceRoot:Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle")!)
-        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),vc=UIViewController()
-        window.rootViewController=vc;window.makeKeyAndVisible()
-        defer{window.isHidden=true;window.rootViewController=nil}
+    func testSharedCTARestylesSecondaryAndRemovalWithoutRetainingPaint() async throws {
+        let artwork=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+        let button=JimiV9PlainButton(frame:CGRect(x:0,y:0,width:249,height:64))
+        weak var face:UIView?
+        autoreleasepool {
+            button.setTitle("Continue",for:.normal);button.applyModalCTA(artwork:artwork);button.layoutIfNeeded()
+            face=button.subviews.first{$0.accessibilityIdentifier=="native.cta.sculpted-face"}
+            XCTAssertNotNil(face)
+            button.applyModalCTA(artwork:artwork,primary:false);button.layoutIfNeeded()
+            XCTAssertTrue(face === button.subviews.first{$0.accessibilityIdentifier=="native.cta.sculpted-face"})
+            if let face {
+                let image=UIGraphicsImageRenderer(size:face.bounds.size).image{face.layer.render(in:$0.cgContext)}
+                let cg=image.cgImage!,w=cg.width,h=cg.height
+                var pixels=[UInt8](repeating:0,count:w*h*4)
+                pixels.withUnsafeMutableBytes { bytes in
+                    let context=CGContext(data:bytes.baseAddress,width:w,height:h,bitsPerComponent:8,bytesPerRow:w*4,
+                        space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue)!
+                    context.draw(cg,in:CGRect(x:0,y:0,width:w,height:h))
+                    let data=bytes.bindMemory(to:UInt8.self),center=(h/3*w+w/2)*4
+                    XCTAssertGreaterThanOrEqual(data[center],250)
+                    XCTAssertGreaterThanOrEqual(data[center+1],250)
+                    XCTAssertGreaterThanOrEqual(data[center+2],250,"Secondary front core is white")
+                }
+            }
+            XCTAssertEqual(button.backgroundColor,.clear);XCTAssertEqual(button.layer.shadowOpacity,0)
+            XCTAssertEqual(button.subviews.filter{$0.accessibilityIdentifier=="native.cta.title-inner-outline"}.count,0)
+            button.setTitle("Exit Game",for:.normal);button.layoutIfNeeded()
+            XCTAssertEqual(button.attributedTitle(for:.normal)?.string,"Exit Game")
+            XCTAssertEqual(button.titleLabel!.center.y,button.bounds.midY-4.8,accuracy:0.01)
+            button.applyModalCTA(artwork:artwork);button.removeModalCTAPaint();button.removeModalCTAPaint()
+        }
+        CATransaction.flush();try await Task.sleep(nanoseconds:30_000_000)
+        XCTAssertNil(face)
+        XCTAssertFalse(button.subviews.contains{$0.accessibilityIdentifier=="native.cta.sculpted-face"})
+        XCTAssertNil(button.attributedTitle(for:.normal));XCTAssertEqual(button.layer.shadowOpacity,0)
+    }
+
+    func testSharedCTAPaintReleasesAcrossHiddenBackgroundAndReopen() async throws {
+        let artwork=JimiV9Artwork(resourceRoot:NativeTestResources.root)
         for _ in 0..<5 {
-            weak var releasedButton:JimiV9PlainButton?,releasedShine:CALayer?
-            try autoreleasepool {
-                let parent=UIView(frame:vc.view.bounds);vc.view.addSubview(parent)
-                let button=JimiV9PlainButton(frame:CGRect(x:70,y:350,width:249,height:64))
-                parent.addSubview(button);button.applyModalCTA(artwork:artwork);button.layoutIfNeeded()
-                let shine=try XCTUnwrap(button.layer.sublayers?.first{$0.name=="native.cta.shimmer"})
-                func running()->Bool{shine.animation(forKey:NativeCTAShimmer.animationKey) != nil}
-                XCTAssertTrue(running())
-                parent.isHidden=true;XCTAssertFalse(running());parent.isHidden=false;XCTAssertTrue(running())
-                parent.alpha=0;XCTAssertFalse(running());parent.alpha=1;XCTAssertTrue(running())
-                parent.isUserInteractionEnabled=false;XCTAssertFalse(running())
-                parent.isUserInteractionEnabled=true;XCTAssertTrue(running())
-                button.isEnabled=false;XCTAssertFalse(running());button.isEnabled=true;XCTAssertTrue(running())
-                button.isUserInteractionEnabled=false;XCTAssertTrue(running(),"Source tutorial uses a visual-only CTA child")
-                button.isUserInteractionEnabled=true
-                parent.transform=CGAffineTransform(translationX:900,y:0);XCTAssertFalse(running())
-                parent.transform = .identity;XCTAssertTrue(running())
-                button.center.x=800;XCTAssertFalse(running());button.center.x=195;XCTAssertTrue(running())
+            weak var released:JimiV9PlainButton?,releasedFace:UIView?
+            autoreleasepool {
+                let button=JimiV9PlainButton(frame:CGRect(x:0,y:0,width:226,height:64))
+                button.setTitle("Continue",for:.normal);button.applyModalCTA(artwork:artwork,primary:false);button.layoutIfNeeded()
+                released=button;releasedFace=button.subviews.first{$0.accessibilityIdentifier=="native.cta.sculpted-face"}
+                button.isHidden=true;button.isHidden=false;button.isEnabled=false;button.isEnabled=true
                 NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
-                XCTAssertFalse(running())
                 NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
-                XCTAssertTrue(running())
-                releasedButton=button;releasedShine=shine
-                parent.removeFromSuperview();XCTAssertFalse(running())
+                XCTAssertNil(releasedFace?.layer.animationKeys(),"Static paint creates no recurring work")
             }
-            CATransaction.flush()
-            try await Task.sleep(nanoseconds:30_000_000)
-            XCTAssertNil(releasedButton);XCTAssertNil(releasedShine)
+            CATransaction.flush();try await Task.sleep(nanoseconds:30_000_000)
+            XCTAssertNil(released);XCTAssertNil(releasedFace)
+        }
+    }
+    func testModalCTAIdleFloatsIndependentlyAndStopsWhenHiddenOrBackgrounded() throws {
+        let artwork=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        let host=UIViewController();window.rootViewController=host;window.makeKeyAndVisible()
+        defer {window.isHidden=true}
+        for primary in [true,false] {
+            let button=JimiV9PlainButton(frame:CGRect(x:82,y:250,width:226,height:72))
+            button.setTitle(primary ? "Play":"Exit",for:.normal)
+            host.view.addSubview(button);button.applyModalCTA(artwork:artwork,primary:primary)
+            let key=JimiV9PlainButton.modalIdleKey
+            let idle=try XCTUnwrap(button.layer.animation(forKey:key) as? CAKeyframeAnimation)
+            XCTAssertEqual(idle.keyPath,"sublayerTransform")
+            XCTAssertEqual(idle.repeatCount,.infinity)
+            XCTAssertTrue(CATransform3DIsIdentity(button.layer.transform))
+            func degrees(_ transform:CATransform3D)->CGFloat {atan2(transform.m12,transform.m11)*180 / .pi}
+            let resting=degrees(button.layer.sublayerTransform)
+            XCTAssertGreaterThanOrEqual(abs(resting),0)
+            XCTAssertLessThanOrEqual(abs(resting),1.6+0.001)
+            let poses=try XCTUnwrap(idle.values as? [NSValue]).map{$0.caTransform3DValue}
+            XCTAssertEqual(poses.count,3)
+            XCTAssertEqual(degrees(poses[0]),resting,accuracy:0.001)
+            XCTAssertEqual(degrees(poses[2]),resting,accuracy:0.001)
+            XCTAssertLessThanOrEqual(abs(degrees(poses[1])),3.001)
+            button.isHidden=true;XCTAssertNil(button.layer.animation(forKey:key))
+            XCTAssertEqual(degrees(button.layer.sublayerTransform),resting,accuracy:0.001)
+            button.isHidden=false;XCTAssertNotNil(button.layer.animation(forKey:key))
+            NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
+            XCTAssertNil(button.layer.animation(forKey:key))
+            NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
+            XCTAssertNotNil(button.layer.animation(forKey:key))
+            button.removeModalCTAPaint();XCTAssertNil(button.layer.animation(forKey:key))
+            XCTAssertTrue(CATransform3DIsIdentity(button.layer.sublayerTransform))
+            button.applyModalCTA(artwork:artwork,primary:primary)
+            XCTAssertEqual(button.layer.animationKeys()?.filter{$0==key}.count,1)
+            XCTAssertEqual(degrees(button.layer.sublayerTransform),resting,accuracy:0.001)
+            button.removeFromSuperview();XCTAssertNil(button.layer.animation(forKey:key))
         }
     }
 
-    @MainActor func testHomeShimmerAdmitsOnlyVisibleSlideAndPaintsOriginalSweep() async throws {
+    @MainActor func testStackedCTAContentHasBoundedSubtleIdleAcrossRelayoutOrForeground() throws {
+        let artwork=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        let host=UIViewController();window.rootViewController=host;window.makeKeyAndVisible()
+        defer {window.isHidden=true}
+        let buttons=[JimiV9PlainButton(type:.custom),JimiV9PlainButton(type:.custom)]
+        for (index,button) in buttons.enumerated() {
+            button.frame=CGRect(x:70,y:250+index*88,width:249,height:80)
+            button.setTitle(index == 0 ? "Play Again":"Exit",for:.normal)
+            host.view.addSubview(button);button.applyModalCTA(artwork:artwork,primary:index == 0)
+            button.setPairedModalCTA();button.layoutIfNeeded()
+        }
+        let rest=buttons.map{$0.layer.sublayerTransform}
+        for _ in 0..<3 {
+            NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
+            NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
+            for (index,button) in buttons.enumerated() {
+                button.setNeedsLayout();button.layoutIfNeeded()
+                let idle=try XCTUnwrap(button.layer.animation(forKey:JimiV9PlainButton.modalIdleKey) as? CAKeyframeAnimation)
+                let poses=try XCTUnwrap(idle.values as? [NSValue]).map{$0.caTransform3DValue}
+                XCTAssertEqual(poses.count,3)
+                XCTAssertGreaterThan(poses[1].m42,0)
+                XCTAssertLessThanOrEqual(poses[1].m42,1.2)
+                XCTAssertLessThanOrEqual(abs(poses[1].m41),1.8)
+                XCTAssertLessThanOrEqual(hypot(poses[1].m11,poses[1].m12),1.0091)
+                XCTAssertTrue(CATransform3DEqualToTransform(button.layer.sublayerTransform,rest[index]))
+                XCTAssertEqual(button.layer.sublayerTransform.m42,0)
+            }
+            XCTAssertEqual(buttons[1].frame.minY-buttons[0].frame.maxY,8)
+        }
+        for button in buttons {
+            button.setModalCTAIdleSuspended(true);XCTAssertNil(button.layer.animation(forKey:JimiV9PlainButton.modalIdleKey))
+            button.layoutIfNeeded();XCTAssertNil(button.layer.animation(forKey:JimiV9PlainButton.modalIdleKey))
+            button.setModalCTAIdleSuspended(false);XCTAssertNotNil(button.layer.animation(forKey:JimiV9PlainButton.modalIdleKey))
+            button.isHidden=true;XCTAssertNil(button.layer.animation(forKey:JimiV9PlainButton.modalIdleKey))
+            button.isHidden=false;XCTAssertNotNil(button.layer.animation(forKey:JimiV9PlainButton.modalIdleKey))
+            button.removeFromSuperview();XCTAssertNil(button.layer.animation(forKey:JimiV9PlainButton.modalIdleKey))
+        }
+    }
+
+    @MainActor func testRestoredOrangeShimmerUsesWideFullHeightSweepAndRetires() throws {
+        let root=try XCTUnwrap(Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle"))
+        let artwork=JimiV9Artwork(resourceRoot:root)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),host=UIViewController()
+        window.rootViewController=host;window.makeKeyAndVisible()
+        defer{window.isHidden=true;window.rootViewController=nil}
+        let button=JimiV9PlainButton(frame:CGRect(x:60,y:200,width:240,height:80));button.setTitle("Continue",for:.normal)
+        host.view.addSubview(button);button.applyModalCTA(artwork:artwork);button.layoutIfNeeded()
+        let face=try XCTUnwrap(button.subviews.first{$0.accessibilityIdentifier=="native.cta.sculpted-face"})
+        let shimmer=try XCTUnwrap(face.layer.sublayers?.first{$0.name==NativeCTAShimmer.animationKey})
+        XCTAssertNotNil(face.layer.mask,"Sweep must respect the actual sculpted silhouette")
+        XCTAssertNotNil(shimmer.animation(forKey:NativeCTAShimmer.animationKey))
+        let band=try XCTUnwrap(shimmer.mask)
+        XCTAssertEqual(band.bounds.width,button.bounds.width*1.62,accuracy:0.001)
+        XCTAssertGreaterThan(band.bounds.height,button.bounds.height*3)
+        button.isHidden=true;XCTAssertNil(shimmer.animation(forKey:NativeCTAShimmer.animationKey))
+        button.isHidden=false;XCTAssertNotNil(shimmer.animation(forKey:NativeCTAShimmer.animationKey))
+        NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
+        XCTAssertNil(shimmer.animation(forKey:NativeCTAShimmer.animationKey))
+        NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
+        XCTAssertNotNil(shimmer.animation(forKey:NativeCTAShimmer.animationKey))
+        button.isEnabled=false;XCTAssertNil(shimmer.animation(forKey:NativeCTAShimmer.animationKey))
+        button.isEnabled=true;XCTAssertNotNil(shimmer.animation(forKey:NativeCTAShimmer.animationKey))
+        button.applyModalCTA(artwork:artwork,primary:false)
+        XCTAssertFalse(face.layer.sublayers?.contains{$0.name==NativeCTAShimmer.animationKey} ?? false)
+        button.applyModalCTA(artwork:artwork);button.layoutIfNeeded()
+        let renewed=try XCTUnwrap(face.layer.sublayers?.first{$0.name==NativeCTAShimmer.animationKey})
+        button.removeFromSuperview();XCTAssertNil(renewed.animation(forKey:NativeCTAShimmer.animationKey))
+    }
+    @MainActor func testHomeSculptedStyleKeepsOneVisibleShimmerAcrossSlides() async throws {
         let artwork=JimiV9Artwork(resourceRoot:Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle")!)
         let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),vc=UIViewController()
         window.rootViewController=vc;window.makeKeyAndVisible()
         defer{window.isHidden=true;window.rootViewController=nil}
         let home=JimiV9HomeView(frame:vc.view.bounds,assets:artwork);vc.view.addSubview(home);home.layoutIfNeeded()
         func activeCount(_ view:UIView)->Int {
-            let own=view.layer.sublayers?.filter{$0.name=="native.cta.shimmer" && $0.animation(forKey:NativeCTAShimmer.animationKey) != nil}.count ?? 0
+            let own=view.layer.sublayers?.filter{$0.name=="native.cta.shimmer" && $0.animation(forKey:"native.cta.shimmer") != nil}.count ?? 0
             return own+view.subviews.reduce(0){$0+activeCount($1)}
         }
-        XCTAssertEqual(activeCount(home),1)
+        XCTAssertEqual(activeCount(home),1,"Only the visible Home CTA owns its finite shimmer cycle")
+        XCTAssertNil(home.ctaView.backgroundImage(for:.normal),"The treatment is native vector paint, not a PNG")
+        XCTAssertNotNil(home.ctaView.subviews.first{$0.accessibilityIdentifier=="native.cta.sculpted-face"})
+        home.selectSlide(2,animated:false)
+        let settingsSize=home.ctaView.bounds.size
+        let referenceWidth=try XCTUnwrap(home.ctaView as? JimiV9PlainButton).primaryCTASize(maxWidth:342).width
+        XCTAssertEqual(settingsSize.width,min(342,referenceWidth*1.10),accuracy:0.001,"Add 5% of reference width to each side without scaling the text")
+        XCTAssertGreaterThan(settingsSize.width,176)
+        XCTAssertEqual(settingsSize.height,80.64)
+        for slide in 0...2 {
+            home.selectSlide(slide,animated:false)
+            XCTAssertEqual(home.ctaView.bounds.size,settingsSize,"Every Home CTA keeps the Settings width")
+            let pose=home.ctaView.layer.sublayerTransform
+            let tilt=atan2(pose.m12,pose.m11)*180 / CGFloat.pi
+            XCTAssertGreaterThanOrEqual(abs(tilt),0)
+            XCTAssertLessThanOrEqual(abs(tilt),1.6+0.001,"The Home CTA has a stable slight lean while its idle shell floats")
+        }
+        home.selectSlide(0,animated:false)
+        XCTAssertEqual(home.ctaView.titleLabel?.font.pointSize,28)
+        home.ctaView.layoutIfNeeded()
+        XCTAssertEqual(home.ctaView.titleLabel!.center.y,home.ctaView.bounds.midY-4.8,accuracy:0.01,"Title centers in the lit face, excluding lower depth")
+        XCTAssertEqual(home.ctaView.titleLabel?.layer.shadowOpacity,0,"No separate layer shadow owner")
+        XCTAssertNil(home.ctaView.attributedTitle(for:.normal)?.attribute(.strokeWidth,at:0,effectiveRange:nil),"Live glyphs have no thickening stroke")
+        XCTAssertFalse(home.ctaView.subviews.contains{$0.accessibilityIdentifier=="native.cta.title-outline" || $0.accessibilityIdentifier=="native.cta.title-inner-outline"},"Clean live glyphs must not acquire outline layers that bridge lowercase i")
+        XCTAssertEqual(home.ctaView.accessibilityLabel,"Journey")
+        try await Task.sleep(nanoseconds:100_000_000)
+        let puffy=UIGraphicsImageRenderer(bounds:window.bounds).image{_ in window.drawHierarchy(in:window.bounds,afterScreenUpdates:true)}
+        try puffy.pngData()?.write(to:URL(fileURLWithPath:"/tmp/native-home-puffy-trial.png"))
         home.selectSlide(1,animated:false);XCTAssertEqual(activeCount(home),1)
-        XCTAssertNotNil(home.ctaView.layer.sublayers?.first{$0.name=="native.cta.shimmer"}?.animation(forKey:NativeCTAShimmer.animationKey))
+        XCTAssertNil(home.ctaView.backgroundImage(for:.normal),"Other Home CTAs keep the accepted treatment")
+        XCTAssertNotNil(home.ctaView.subviews.first{$0.accessibilityIdentifier=="native.cta.sculpted-face"})
         try await Task.sleep(nanoseconds:2_050_000_000)
         let image=UIGraphicsImageRenderer(bounds:window.bounds).image{_ in window.drawHierarchy(in:window.bounds,afterScreenUpdates:true)}
         try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/native-cta-shimmer-home.png"))
-        try await Task.sleep(nanoseconds:8_200_000_000)
-        XCTAssertEqual(activeCount(home),1,"Completed finite cycle renews while visible")
+        XCTAssertEqual(activeCount(home),1,"Visible slide renews only one shimmer")
         home.isHidden=true;XCTAssertEqual(activeCount(home),0)
         home.isHidden=false;XCTAssertEqual(activeCount(home),1)
     }
@@ -407,6 +586,13 @@ final class NativeResultOwnerTests:XCTestCase {
         let shells=try home.navigationIconViews.map{try XCTUnwrap($0.superview)}
         let animations=try shells.map{try XCTUnwrap($0.layer.animation(forKey:"native-home-nav-idle") as? CAKeyframeAnimation)}
         XCTAssertEqual(Set(animations.map{$0.duration}).count,3)
+        for animation in animations {
+            let poses=try XCTUnwrap(animation.values as? [NSValue])
+            let peak=poses[1].caTransform3DValue
+            XCTAssertLessThanOrEqual(peak.m42,-4,"Every icon must visibly lift, even at the smallest captured random amplitude")
+            XCTAssertGreaterThanOrEqual(peak.m42,-7)
+            XCTAssertGreaterThanOrEqual(abs(peak.m41),1.5)
+        }
         var requests:[Int]=[];home.onSlideSelected={requests.append($0)}
         for index in 0..<3 {
             let button=home.navigationButtonViews[index],image=home.navigationIconViews[index]
@@ -452,8 +638,9 @@ final class NativeResultOwnerTests:XCTestCase {
         for index in 0..<3 {XCTAssertGreaterThan(find(result.view,"native.result.star.filled.\(index)")!.bounds.width,0)}
         let primary=button(in:result.view,id:"native.result.play-again")!
         let secondary=button(in:result.view,id:"native.result.exit")!
-        XCTAssertEqual(primary.layer.shadowOffset,CGSize(width:0,height:8))
-        XCTAssertEqual(secondary.backgroundColor,.white);XCTAssertEqual(secondary.layer.borderWidth,1)
+        XCTAssertEqual(primary.layer.shadowOpacity,0,"Shared sculpted wall replaces the old external hard shadow")
+        XCTAssertEqual(secondary.backgroundColor,.clear);XCTAssertEqual(secondary.layer.borderWidth,0)
+        XCTAssertNotNil(secondary.subviews.first{$0.accessibilityIdentifier=="native.cta.sculpted-face"})
     }
     func testCleanScoreUsesPlainIntegerWithoutGroupingSeparator() {
         let root=Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle")!
@@ -527,10 +714,18 @@ final class NativeResultOwnerTests:XCTestCase {
         result.view.frame=window.bounds;result.view.setNeedsLayout();result.view.layoutIfNeeded()
         let primary=button(in:result.view,id:"native.result.play-again")!
         let secondary=button(in:result.view,id:"native.result.exit")!
-        XCTAssertEqual(primary.bounds.size,CGSize(width:249,height:64))
-        XCTAssertEqual(secondary.bounds.size,CGSize(width:249,height:64))
-        XCTAssertEqual(primary.layer.cornerRadius,32);XCTAssertEqual(secondary.layer.cornerRadius,32)
-        XCTAssertEqual((primary as! JimiV9PlainButton).cartoonBounceLayoutView.center.x,195);XCTAssertEqual((secondary as! JimiV9PlainButton).cartoonBounceLayoutView.center.y-(primary as! JimiV9PlainButton).cartoonBounceLayoutView.center.y,80)
+        XCTAssertEqual(primary.bounds.height,84);XCTAssertEqual(primary.bounds.width,249)
+        XCTAssertEqual(secondary.bounds.size,CGSize(width:primary.bounds.width,height:84))
+        for glyph in secondary.subviews where glyph.accessibilityIdentifier=="native.cta.title-outline" || glyph.accessibilityIdentifier=="native.cta.title-inner-outline" {XCTAssertTrue(glyph.isHidden)}
+        let ink=secondary.attributedTitle(for:.normal)?.attribute(.foregroundColor,at:0,effectiveRange:nil) as? UIColor
+        XCTAssertEqual(ink,UIColor(red:176/255,green:137/255,blue:121/255,alpha:1))
+        XCTAssertNil(secondary.titleLabel?.shadowColor);XCTAssertEqual(secondary.titleLabel?.layer.shadowOpacity,0)
+        for painted in secondary.subviews where painted.accessibilityIdentifier?.hasPrefix("native.cta.") == true {
+            XCTAssertEqual(painted.contentScaleFactor,window.screen.scale*2)
+            XCTAssertFalse(painted.layer.shouldRasterize)
+        }
+        XCTAssertEqual(primary.layer.cornerRadius,40);XCTAssertEqual(secondary.layer.cornerRadius,40)
+        XCTAssertEqual((primary as! JimiV9PlainButton).cartoonBounceLayoutView.center.x,195);XCTAssertEqual((secondary as! JimiV9PlainButton).cartoonBounceLayoutView.center.y-(primary as! JimiV9PlainButton).cartoonBounceLayoutView.center.y,90,accuracy:0.001)
         XCTAssertEqual(primary.transform.a,0)
         result.tick(0)
         for index in 1...80 {result.tick(Double(index)/10)}
@@ -539,6 +734,8 @@ final class NativeResultOwnerTests:XCTestCase {
         XCTAssertEqual(primary.center,restingCenter);XCTAssertEqual(primary.bounds,restingBounds)
         XCTAssertEqual(primary.transform.a,1);XCTAssertTrue(primary.isUserInteractionEnabled)
         attach(result.view,name:"Native Clean Board authored result")
+        let creamPreview=UIGraphicsImageRenderer(bounds:result.view.bounds).image{_ in result.view.drawHierarchy(in:result.view.bounds,afterScreenUpdates:true)}
+        try? creamPreview.pngData()?.write(to:URL(fileURLWithPath:"/tmp/native-secondary-cream.png"))
         result.close(completion:{})
         for index in 81...90 {result.tick(Double(index)/10)}
         result.view.setNeedsLayout();result.view.layoutIfNeeded()
@@ -554,8 +751,9 @@ final class NativeResultOwnerTests:XCTestCase {
         window.rootViewController=result;window.makeKeyAndVisible();result.loadViewIfNeeded()
         result.view.frame=window.bounds;result.view.setNeedsLayout();result.view.layoutIfNeeded()
         let primary=button(in:result.view,id:"native.result.play-again")!
-        XCTAssertEqual(primary.bounds.size,CGSize(width:249,height:64));XCTAssertFalse(primary.isUserInteractionEnabled)
-        XCTAssertEqual(primary.layer.cornerRadius,32)
+        XCTAssertEqual(primary.bounds.height,84);XCTAssertEqual(primary.bounds.width,249);XCTAssertFalse(primary.isUserInteractionEnabled)
+        XCTAssertEqual(primary.layer.cornerRadius,40)
+        XCTAssertEqual(button(in:result.view,id:"native.result.exit")?.bounds.width,primary.bounds.width)
         result.tick(0)
         for index in 1...15 {result.tick(Double(index)/10)}
         XCTAssertTrue(primary.isUserInteractionEnabled)

@@ -7,7 +7,7 @@ final class NativeJourneyUnlockAppearanceTests: XCTestCase {
         let expected:[Int:NativeWildReward] = [
             1:.init(.star,variant:"bee"),2:.init(.star),3:.init(.tnt,variant:"flower"),
             4:.init(.magnet,variant:"honey"),6:.init(.juice,variant:"mushroom"),7:.init(.tnt,variant:"barell"),
-            11:.init(.juice),12:.init(.star,variant:"fish"),13:.init(.tnt,variant:"beach-ball"),14:.init(.magnet,variant:"bottle"),16:.init(.tnt,variant:"coconut"),
+            11:.init(.juice),12:.init(.star,variant:"fish"),13:.init(.tnt,variant:"beach-ball"),14:.init(.magnet,variant:"bottle"),16:.init(.tnt,variant:"coconut"),18:.init(.star,variant:"kite"),
             21:.init(.juice,variant:"robo-cube"),22:.init(.star,variant:"kanta"),23:.init(.magnet,variant:"spaceship"),24:.init(.tnt,variant:"laser-gun"),26:.init(.tnt,variant:"bloob-ball"),27:.init(.star,variant:"bloob")]
         for board in 0...31 {
             XCTAssertEqual(NativeJourneyContent.unlockReward(board:board),expected[board],"Unit \(board)")

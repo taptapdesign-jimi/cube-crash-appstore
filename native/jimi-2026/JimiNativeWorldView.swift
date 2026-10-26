@@ -682,7 +682,12 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
         let viewport = CGRect(origin:scrollView.contentOffset,size:scrollView.bounds.size)
         guard viewport.intersects(unit.frame) else {return}
         card.isHidden = true;reminderSource = card
-        let localOrigin = CGRect(x:card.center.x-card.bounds.width/2,y:card.center.y-card.bounds.height/2,width:card.bounds.width,height:card.bounds.height)
+        // Interim idle owns a bottom pivot. UIView.center is that layer's
+        // position, so treating it as the artwork centre moves the return
+        // carrier down by half a card. Convert the actual bounds midpoint;
+        // keep the authored rotation on the reminder's own finite flight.
+        let cardCenter = card.convert(CGPoint(x:card.bounds.midX,y:card.bounds.midY),to:unit)
+        let localOrigin = CGRect(x:cardCenter.x-card.bounds.width/2,y:cardCenter.y-card.bounds.height/2,width:card.bounds.width,height:card.bounds.height)
         let origin = unit.convert(localOrigin,to:content)
         let carrier = UIView(frame:origin)
         carrier.isUserInteractionEnabled = false

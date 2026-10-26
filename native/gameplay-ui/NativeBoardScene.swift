@@ -346,7 +346,7 @@ final class NativeBoardScene: SKScene {
     func reportFinalMergeProgress(seconds:TimeInterval,duration:TimeInterval,generation:UInt64,
                                   ownerID:String?,capturedFinal:Bool=false) {
         guard !disposed,!sourceDisposalInProgress,!suspended,!exitInProgress,
-              engine.state.generation==generation,duration>0,seconds>=duration*0.9,
+              engine.state.generation==generation,duration>0,seconds>=NativeFinalMergeCelebrationTiming.startTime(visualDuration:duration),
               engine.state.tutorial?.requiresResultCompletion != true else{return}
         let ordinary=engine.pendingOrdinarySix,direct=engine.pendingDirectWild
         let finalID=engine.pendingSourceLateFinalMerge?.ownerID ?? (direct?.isFinal == true ? direct?.id:nil) ??
@@ -568,15 +568,24 @@ final class NativeBoardScene: SKScene {
         guard sourceAnimationBindingAdmissionOpen,scope.current,scope.specialIdle.admissionOpen,sourceIdleScope==nil,
             sourceOuterTimelineDriver === scope.timeline,sourceDragTweenDriver === scope.tween else{return false}
         sourceIdleScope=scope;sourceIdleGeneration=engine.state.generation;sourceIdleWasScoped=true
+        var registryWasSuspended=scope.specialIdle.snapshot.suspended
         scope.specialIdle.onStateChange={[weak self,weak scope] snapshot in
             guard let self,let scope,self.sourceSpecialIdleAdmissionOpen,self.sourceIdleScope === scope else{return}
+            let released=registryWasSuspended && !snapshot.suspended
+            registryWasSuspended=snapshot.suspended
             self.sourceCallbackTime();self.sourceFrames.setRegistrySuspended(snapshot.suspended)
             self.refreshSourceIdlePopulation()
             self.flushSourcePlainStarSheetStarts()
+            if released {self.resumeSourceEntryDeferredIdle()}
             self.onSpecialIdleSuspended?(snapshot.suspended || self.sourceFrames.isSpecialIdleSuspended)
         }
         for node in engine.state.tiles.compactMap({nodesByID[$0.id]}) {
-            let startupVariant=sourceMicrotaskInstallation != nil && (node.variant=="bottle" || node.variant=="honey" || node.variant=="cubero" || node.variant=="fish" || node.kind=="wild-tnt" && node.variant==nil) && (!node.sourceIdleDeferred || node.sourceRestoredWildConstructorCurrent)
+            // Every restored Special must leave constructor deferral after its
+            // real face/entry completes. Star and Bee retain their dedicated
+            // starters below; all other identities use the shared registry.
+            // A new variant must not need another restore whitelist entry.
+            let dedicatedStar=node.kind=="wild" && (node.variant==nil || node.variant=="bee")
+            let startupVariant=sourceMicrotaskInstallation != nil && node.isSpecial && !dedicatedStar && (!node.sourceIdleDeferred || node.sourceRestoredWildConstructorCurrent)
             if startupVariant {
                 node.setSourceIdleDeferred(true)
                 sourceEntryDeferredVariants.append(node)
@@ -615,6 +624,10 @@ final class NativeBoardScene: SKScene {
         guard sourceSpecialIdleAdmissionOpen,let scope=sourceIdleScope else {
             if !sourcePlainStarWaitsForSharedIdle {resumeSourceEntryDeferredPlainStars()};return
         }
+        // Entry may complete while another genuine owner still holds idle.
+        // Keep the constructor pending until the final registry release, so
+        // typed bubbles/feature starters cannot run before their registration.
+        guard !scope.specialIdle.snapshot.suspended else{return}
         guard !sourceEntryDeferredPlainStars.isEmpty || !sourceEntryDeferredVariants.isEmpty || !sourceEntryDeferredBee.isEmpty else{return}
         let needsSharedAssetTask=sourceEntryDeferredVariants.contains(where:{$0.variant=="honey"}) ||
             sourcePlainStarWaitsForSharedIdle && !sourceEntryDeferredPlainStars.isEmpty
@@ -667,7 +680,7 @@ final class NativeBoardScene: SKScene {
         let captured=sourceEntryDeferredVariants.filter{only==nil || $0 === only};sourceEntryDeferredVariants.removeAll{only==nil || $0 === only}
         for node in captured {
             guard sourceSpecialIdleAdmissionOpen,nodesByID[node.tileID] === node,
-                  node.sourceGeneration==engine.state.generation,node.variant=="bottle" || node.variant=="honey" || node.variant=="cubero" || node.variant=="fish" || node.kind=="wild-tnt" && node.variant==nil else{continue}
+                  node.sourceGeneration==engine.state.generation,node.isSpecial else{continue}
             let variant=node.variant
             if node.sourceRestoreWildFacePending {sourceEntryDeferredVariants.append(node);continue}
             node.setSourceIdleDeferred(false,preserveSourceBottleBase:variant=="bottle",preserveSourceHoneyIdle:variant=="honey")
@@ -678,17 +691,19 @@ final class NativeBoardScene: SKScene {
                     node.sourceGeneration==self.engine.state.generation && node.variant==variant
             }
             guard repairSourceWildSkin(tileID:node.tileID,scope:scope,startSourceIdle:{
-                if variant==nil || variant=="cubero" || variant=="fish" {return node.configureSourceSpecialIdle(scope.specialIdle)}
                 if variant=="honey" {
                     guard let tasks=scope.sourceMicrotaskTasks else{return false}
                     return node.beginSourceHoneyIdle(service:scope.service,scope:scope.specialIdle,assetTasks:tasks,
                         use2x:UIScreen.main.scale>1.5,current:current,
                         paintable:{[weak self] in self?.sourceFizzCanvasPaintable==true})
                 }
-                return node.beginSourceBottleIdle(service:scope.service,scope:scope.specialIdle,current:current,
-                    paintable:{[weak self] in self?.sourceFizzCanvasPaintable==true})
+                if variant=="bottle" {
+                    return node.beginSourceBottleIdle(service:scope.service,scope:scope.specialIdle,current:current,
+                        paintable:{[weak self] in self?.sourceFizzCanvasPaintable==true})
+                }
+                return node.configureSourceSpecialIdle(scope.specialIdle)
             },currentSourceFaceAnchor:{[weak node] in
-                guard let node,node.hasSourceBottleIdle else{return nil}
+                guard let node,variant=="kanta" || node.hasSourceBottleIdle else{return nil}
                 return .init(x:node.sourceBaseAnchorX,y:1-node.sourceBaseAnchorY)
             }) else{onSourcePresentationFailure?("source_entry_variant_idle_rejected",engine.state.generation);return}
         }
@@ -701,7 +716,7 @@ final class NativeBoardScene: SKScene {
         resumeSourceEntryDeferredIdle()
     }
     /// Static APP skin is a separate caller from board.setValue's raw face RAF.
-    /// This does not admit the remaining exact non-Bee Source idle composers.
+    /// Static paint remains separate from the shared post-entry idle admission.
     @discardableResult func configureSourceRestoredWildSkins(scope:NativeGameplaySourceContext.Scope)->Bool {
         guard sourceAnimationBindingAdmissionOpen,scope.current,sourceMicrotaskBoundariesInstalled,
               sourceOuterTimelineDriver === scope.timeline,!sourceRestoredWildSkinsConfigured else{return false}
@@ -2631,7 +2646,12 @@ final class NativeBoardScene: SKScene {
     private var regularSixShakeID:String?
     private var boardShake=NativeRegularSixSpritePresentation.ShakeReceipt(canvas:.zero,indicator:.zero,bottomDecor:.zero)
     private var ordinarySixVisual:OrdinarySixVisual?
-    private var specialPresentationIDs = Set<String>()
+    private var specialPresentationIDs = Set<String>() {
+        didSet { specialMovingArtworkIDs.formIntersection(specialPresentationIDs) }
+    }
+    // Blast holders borrow position/depth without replacing their artwork.
+    // Keep this subset tied to the presentation lifetime, including cancellation.
+    private var specialMovingArtworkIDs = Set<String>()
     private var laserSpawnCallbacks:[String:() -> Void] = [:]
     private let sourceAppTimeouts=NativeSourceAppTimeoutOwner()
     private var sourceMicrotaskInstallation:NativeSourceSceneMicrotaskInstallation?
@@ -5662,6 +5682,13 @@ final class NativeBoardScene: SKScene {
     // The exited surface remains owned until a fresh board replaces it. UIKit
     // result mounting may relayout the old SpriteKit view before its next paint.
     private var completedExitGeneration:UInt64?
+    private var clearedResidualGeneration:UInt64?
+    private var clearedResidualIDs=Set<String>()
+    private var clearedResidualTargets:[SKNode]=[]
+    private var clearedResidualPending=0
+    private var clearedResidualWaiters:[(Bool)->Void]=[]
+    private var clearedResidualCapture:NativeSourceFrameRuntime.Capture?
+
     private var exitCompletion: ((Bool) -> Void)?
     private var exitOwners = 0
 
@@ -6145,6 +6172,12 @@ final class NativeBoardScene: SKScene {
         return sourceRegularIdleOwner?.start()==true
     }
     func setSourceRegularIdleForeground(_ value:Bool){sourceRegularIdleHidden = !value;sourceRegularIdleOwner?.setHidden(!value)}
+    func setPreservesPausedSpecialVisuals(_ value:Bool,hardBackgroundPause:Bool=false) {
+        for node in nodesByID.values {
+            node.preservesPausedSpecialVisuals=value
+            if hardBackgroundPause {node.reconcileHardBackgroundSpecialPause()}
+        }
+    }
     private func retireSourceRegularIdle(){
         let old=sourceRegularIdleOwner;sourceRegularIdleOwner=nil;sourceRegularIdleScope=nil;sourceRegularIdleGeneration=nil
         old?.dispose();stopSourceRegularIdleAnimations()
@@ -6471,6 +6504,7 @@ final class NativeBoardScene: SKScene {
         if sourceInitialStartupRejected {onPresentationFailure?("source_initial_startup_not_adopted");return}
         if let initial=sourceInitialConstruction,!initial.isCurrent {sourceInitialConstruction=nil;initial.dispose()}
         if lastGeneration != state.generation {
+            retireClearedResidualExit()
             if lastGeneration != nil {retireSourceBoardEntry()}
             if lastGeneration != nil {retireSourceEndgameMutationLedger()}
             retireSourceSpecialIdleBindings()
@@ -6774,7 +6808,7 @@ final class NativeBoardScene: SKScene {
     }
 
     private func renderGhosts(state: NativeBoardState, geometry: NativeBoardGeometry) {
-        guard !disposed,!sourceDisposalInProgress else{return}
+        guard !disposed,!sourceDisposalInProgress,clearedResidualGeneration != state.generation else{return}
         let occupied = Set(state.tiles.filter { !$0.pendingRemoval && $0.visible && $0.alpha > 0.01 }.map(\.cell))
         let texture = textures.texture("assets/ghost-placeholder.png")
         // v9 retains each cell's background object. Occupied cells remain in
@@ -6811,6 +6845,12 @@ final class NativeBoardScene: SKScene {
     }
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-native-hud-latency-trace"),let touch=touches.first {
+            hudLatencyTouch=touch.timestamp;hudLatencySubmissionPending=true
+            traceHUDLatency("touch.dispatch")
+        }
+        #endif
         if let binding=sourceMicrotaskInstallation {
             _=binding.inputTask{[self] in sourceTouchesBegan(touches,with:event)}
         } else {sourceTouchesBegan(touches,with:event)}
@@ -6831,12 +6871,14 @@ final class NativeBoardScene: SKScene {
         guard !disposed,!suspended else{return false}
         let canvasPoint=canvasRoot.convert(point,from:self)
         if closeButton?.hitRect.contains(canvasPoint)==true {
+            traceHUDLatency("close.hit")
             guard inputAdmitted,!navigationLocked,engine.state.tutorial?.shouldLockHUD != true else{return true}
+            if let close=closeButton {playHUDTapFeedback(on:close)}
             onHUDTapContact?("close")
-            closeButton?.playTapBounce();requestRendering(true)
-            onExitRequest?();return true
+            traceHUDLatency("close.audio.return");onExitRequest?();traceHUDLatency("close.modal.return");return true
         }
         if gameplayHelpAllowed,nodes(at:point).contains(where:{$0.name == "native-game-help"}) {
+            traceHUDLatency("backpack.hit")
             guard inputAdmitted,!navigationLocked,engine.state.tutorial?.shouldLockHUD != true else {return true}
             onHUDTapContact?("hud-icon-tap")
             if let icon=hud.childNode(withName:"native-game-help") {playHUDTapFeedback(on:icon)}
@@ -6844,6 +6886,7 @@ final class NativeBoardScene: SKScene {
             return true
         }
         if scoreHitRect.contains(canvasPoint) || comboHitRect.contains(canvasPoint) {
+            traceHUDLatency("score.hit")
             guard inputAdmitted,!navigationLocked,engine.state.tutorial?.shouldLockHUD != true else { return true }
             onHUDTapContact?("hud-icon-tap")
             if comboHitRect.contains(canvasPoint) {playHUDTapFeedback(on:comboArt);onComboRequest?()}
@@ -7476,7 +7519,8 @@ final class NativeBoardScene: SKScene {
         guard !disposed else {return}
         var frames:[String:NativeFishIdleFrame]=[:]
         for (id,node) in nodesByID {
-            if let frame=node.fishFrame(in:self,visible:gameplayRenderHost != nil && !suspended && (exitInProgress || engine.state.terminal==nil) && !specialPresentationIDs.contains(id)) {frames[id]=frame}
+            let artworkVisible = !specialPresentationIDs.contains(id) || specialMovingArtworkIDs.contains(id)
+            if let frame=node.fishFrame(in:self,visible:gameplayRenderHost != nil && !suspended && (exitInProgress || engine.state.terminal==nil) && artworkVisible) {frames[id]=frame}
         }
         onFishIdleFrames?(frames,engine.state.generation,force || exitInProgress || completedExitGeneration == engine.state.generation)
     }
@@ -7766,7 +7810,7 @@ final class NativeBoardScene: SKScene {
                         playShortWildBoardBlast(sourceID:sourceID,destinationID:destinationID,
                             center:geometry.center(row:tile.cell.row,column:tile.cell.column))
                     }
-                    if let variant = event.variant,["baloon","fish","bottle","honey","spaceship","laser-gun","coconut","flower","barell","beach-ball","kanta","bee","bloob","bloob-ball","cubero","mushroom","robo-cube"].contains(variant),let tile,let geometry,
+                    if let variant = event.variant,["baloon","fish","bottle","honey","spaceship","laser-gun","coconut","flower","barell","beach-ball","kanta","bee","kite","bloob","bloob-ball","cubero","mushroom","robo-cube"].contains(variant),let tile,let geometry,
                        authoredFinale(variant,at: geometry.center(row: tile.cell.row,column: tile.cell.column)) {
                         // Native media/glyph owner holds its own visible receipt.
                     } else if event.archetype == .tnt && carrier?.variant == nil {
@@ -9753,6 +9797,7 @@ final class NativeBoardScene: SKScene {
             return node
         }
         specialPresentationIDs.formUnion(blastNodes.map(\.tileID))
+        specialMovingArtworkIDs.formUnion(blastNodes.map(\.tileID))
         let scope=sourceBoardEntryScope ?? sourceSixScope ?? sourceRuntimeObservationScope
         let usesSourceMath=sourceOuterTimelineDriver != nil
         if usesSourceMath {guard let scope,scope.current,engine.sourceMathRandom === scope.mathRandom,sourceOuterTimelineDriver === scope.timeline else{return}}
@@ -10341,6 +10386,10 @@ final class NativeBoardScene: SKScene {
     }
 
     override func didFinishUpdate() {
+        #if DEBUG
+        if hudLatencySubmissionPending {traceHUDLatency("scene.didFinishUpdate")}
+        #endif
+        startPendingHUDTapFeedback()
         if let binding=sourceMicrotaskInstallation {
             _=binding.renderedHandoff{[self] in sourceDidFinishUpdate()}
         } else {sourceDidFinishUpdate()}
@@ -10395,19 +10444,38 @@ final class NativeBoardScene: SKScene {
         // actions/resources do not create fabricated generic activity marks.
     }
 
+    private var pendingHUDTapFeedback:[ObjectIdentifier:SKNode]=[:]
+    #if DEBUG
+    private var hudLatencyTouch:Double=0
+    private var hudLatencySubmissionPending=false
+    private var hudLatencyRows=0
+    func takeHUDLatencySubmission()->Double? {
+        guard hudLatencySubmissionPending else{return nil}
+        hudLatencySubmissionPending=false;return hudLatencyTouch
+    }
+    #endif
+    private func traceHUDLatency(_ phase:String) {
+        #if DEBUG
+        guard ProcessInfo.processInfo.arguments.contains("-native-hud-latency-trace"),hudLatencyRows<160 else{return}
+        hudLatencyRows+=1
+        NSLog("[NATIVE_HUD_LATENCY] phase=%@ monotonicMs=%.3f touchMs=%.3f deltaMs=%.3f",phase,CACurrentMediaTime()*1000,hudLatencyTouch*1000,(CACurrentMediaTime()-hudLatencyTouch)*1000)
+        #endif
+    }
     private var hudTapFeedbackPositions:[ObjectIdentifier:CGPoint]=[:]
     private var hudTapFeedbackBases:[ObjectIdentifier:CGPoint]=[:]
     private var hudTapFeedbackNodes:[SKNode] {
         hud.children.filter {$0 === closeButton || $0.name == "native-game-help" || $0 === scoreArt || $0 === comboArt}
     }
-    var hasActiveHUDTapFeedback:Bool {hudTapFeedbackNodes.contains {$0.action(forKey:"hud-tap-bounce") != nil}}
+    var hasActiveHUDTapFeedback:Bool {!pendingHUDTapFeedback.isEmpty || hudTapFeedbackNodes.contains {$0.action(forKey:"hud-tap-bounce") != nil}}
     /// Foreground sheets freeze the board, while an already-visible HUD may
     /// finish its finite entrance and contact feedback on the existing Scene clock.
     var hasActiveHUDPresentationFeedback:Bool {hasActiveHUDTapFeedback || hud.action(forKey:"hud-enter") != nil || hud.childNode(withName:"native-game-help")?.action(forKey:"backpack-icon-swap") != nil}
     private func finishHUDTapFeedback() {
-        guard suspended,!hasActiveHUDPresentationFeedback else{return}
-        isPaused=true;canvasRoot.isPaused=true
-        restoreHUDFeedbackPause();requestRendering(false)
+        if suspended && !hasActiveHUDPresentationFeedback {
+            isPaused=true;canvasRoot.isPaused=true
+            restoreHUDFeedbackPause();requestRendering(false)
+        }
+
     }
     private func playHUDTapFeedback(on node:SKNode) {
         guard node.action(forKey:"backpack-icon-swap")==nil else{return}
@@ -10416,8 +10484,24 @@ final class NativeBoardScene: SKScene {
         let origin=hudTapFeedbackPositions[key] ?? node.position
         hudTapFeedbackPositions[key]=origin
         hudTapFeedbackBases[key]=base;node.removeAction(forKey:"hud-tap-bounce")
-        node.xScale=base.x;node.yScale=base.y
-        node.run(.sequence([.customAction(withDuration:NativeHUDTapMotion.duration) { node,elapsed in
+        node.xScale=base.x;node.yScale=base.y;node.position=origin
+        traceHUDLatency("contact.pose")
+        // Consume any idle/save-blocked renderer delta before starting the
+        // visible 0.4s contact. A bounded pending entry keeps the HUD awake.
+        pendingHUDTapFeedback[key]=node
+        node.run(.wait(forDuration:NativeHUDTapMotion.duration),withKey:"hud-tap-bounce")
+    }
+    private func startPendingHUDTapFeedback() {
+        guard !disposed,!pendingHUDTapFeedback.isEmpty else{return}
+        let batch=pendingHUDTapFeedback;pendingHUDTapFeedback.removeAll()
+        for (key,node) in batch {
+            guard node.parent === hud,let base=hudTapFeedbackBases[key],let origin=hudTapFeedbackPositions[key] else {
+                node.removeAction(forKey:"hud-tap-bounce")
+                hudTapFeedbackBases.removeValue(forKey:key);hudTapFeedbackPositions.removeValue(forKey:key)
+                continue
+            }
+            node.removeAction(forKey:"hud-tap-bounce")
+            node.run(.sequence([.customAction(withDuration:NativeHUDTapMotion.duration) { node,elapsed in
             let pose=NativeHUDTapMotion.pose(at:Double(elapsed))
             node.xScale=base.x*pose.x;node.yScale=base.y*pose.y;node.position.y=origin.y-pose.offset
         },.run {[weak self,weak node] in
@@ -10428,6 +10512,8 @@ final class NativeBoardScene: SKScene {
             node?.removeAction(forKey:"hud-tap-bounce")
             self?.finishHUDTapFeedback()
         }]),withKey:"hud-tap-bounce")
+        }
+        if !hasActiveHUDPresentationFeedback {finishHUDTapFeedback()}
     }
 
     private func restoreHUDFeedbackPause() {
@@ -10445,8 +10531,9 @@ final class NativeBoardScene: SKScene {
         // Cancel before iOS freezes APP timers; modal pauses stay foreground.
         if value,sourceBoardEntryScope?.service.sourceForegroundAdmissionOpen==false {sourceSmokePoolWarmup?.dispose()}
         if value && !allowHUDFeedback {
+            pendingHUDTapFeedback.removeAll()
             closeButton?.cancelTapBounce()
-            for node in hudTapFeedbackNodes where node !== closeButton {
+            for node in hudTapFeedbackNodes {
                 node.removeAction(forKey:"hud-tap-bounce")
                 if let base=hudTapFeedbackBases.removeValue(forKey:ObjectIdentifier(node)) {node.xScale=base.x;node.yScale=base.y}
                 if let origin=hudTapFeedbackPositions.removeValue(forKey:ObjectIdentifier(node)){node.position=origin}
@@ -10472,7 +10559,7 @@ final class NativeBoardScene: SKScene {
         let keepTap=value && allowHUDFeedback && hasActiveHUDPresentationFeedback
         isPaused=value && !keepTap
         canvasRoot.isPaused=value && !keepTap;effects.isPaused=value;ghosts.isPaused=value;hudStarFlights.isPaused=value;roundIndicator.isPaused=value
-        for child in hud.children {child.isPaused=value && !(keepTap && (child.action(forKey:"hud-tap-bounce") != nil || child.action(forKey:"backpack-icon-swap") != nil))}
+        for child in hud.children {child.isPaused=value && !(keepTap && (pendingHUDTapFeedback[ObjectIdentifier(child)] != nil || child.action(forKey:"hud-tap-bounce") != nil || child.action(forKey:"backpack-icon-swap") != nil))}
         if keepTap {
             // An unpaused Scene cannot advance an action beneath a paused
             // canvas ancestor. Keep only HUD entrance/contact feedback ticking;
@@ -10506,6 +10593,52 @@ final class NativeBoardScene: SKScene {
         textures.purgeUnused(retaining: paths)
     }
 
+    /// Visual-only exit of nonplayable background content. Final transaction,
+    /// active finale nodes, HUD and terminal admission remain independently owned.
+    func beginClearedResidualExit(generation:UInt64) {
+        guard !disposed,!sourceDisposalInProgress,!exitInProgress,
+              engine.state.generation==generation,clearedResidualGeneration != generation else{return}
+        retireClearedResidualExit()
+        clearedResidualGeneration=generation
+        let locked=engine.state.tiles.filter{$0.locked}.compactMap{nodesByID[$0.id]}.sorted{$0.tileID<$1.tileID}
+        clearedResidualIDs=Set(locked.map(\.tileID))
+        clearedResidualTargets=locked.map{$0.makeFinalResidualExitSurface()} + ghosts.children
+        let plans=NativeBoardExitPlan.make(count:clearedResidualTargets.count)
+        clearedResidualPending=plans.count
+        guard !plans.isEmpty else{return}
+        sourceCallbackTime()
+        clearedResidualCapture=sourceFrames.begin(.init(kind:.boardExit,generation:generation,id:UUID().uuidString))
+        requestRendering(true)
+        if let end=plans.map(\.end).max(){onBoardExit?(end+0.03)}
+        for plan in plans {
+            runBoardExitPose(clearedResidualTargets[plan.tileIndex],plan:plan) {[weak self] in
+                guard let self,!self.disposed,self.engine.state.generation==generation,self.clearedResidualGeneration==generation else{return}
+                self.clearedResidualPending=max(0,self.clearedResidualPending-1)
+                if self.clearedResidualPending==0 {
+                    if let capture=self.clearedResidualCapture {self.sourceFrames.end(capture);self.clearedResidualCapture=nil}
+                    let waiters=self.clearedResidualWaiters;self.clearedResidualWaiters.removeAll()
+                    waiters.forEach{$0(true)}
+                }
+            }
+        }
+    }
+    private func retireClearedResidualExit() {
+        clearedResidualTargets.forEach{$0.removeAction(forKey:"board-exit")}
+        clearedResidualTargets.removeAll();clearedResidualIDs.removeAll();clearedResidualPending=0;clearedResidualGeneration=nil
+        if let capture=clearedResidualCapture {sourceFrames.end(capture);clearedResidualCapture=nil}
+        let waiters=clearedResidualWaiters;clearedResidualWaiters.removeAll();waiters.forEach{$0(false)}
+    }
+    private func runBoardExitPose(_ node:SKNode,plan:NativeBoardExitPlan,completion:@escaping()->Void) {
+        node.removeAction(forKey:"board-exit")
+        let base=CGPoint(x:node.xScale,y:node.yScale),small=CGPoint(x:node.xScale*0.88,y:node.yScale*0.88)
+        let peak=CGPoint(x:base.x*plan.peak,y:base.y*plan.peak)
+        node.run(.sequence([.wait(forDuration:plan.delay),
+            NativeBoardMotion.scale(from:base,to:small,duration:plan.settle,ease:.backIn(1.5)),
+            .group([.sequence([NativeBoardMotion.scale(from:small,to:peak,duration:plan.compress,ease:.power2In),
+                NativeBoardMotion.scale(from:peak,to:.zero,duration:plan.collapse,ease:.backIn(2))]),
+                .fadeOut(withDuration:max(0.12,plan.collapse*0.68))]),.run(completion)]),withKey:"board-exit")
+    }
+
     func animateExit(keepsHUDVisible:Bool=false,afterResidualExit:(()->Void)?=nil,completion: @escaping (Bool) -> Void) {
         guard !sourceDisposalInProgress else {completion(false); return }
         guard !disposed, !exitInProgress,completedExitGeneration != engine.state.generation else { completion(false); return }
@@ -10521,11 +10654,12 @@ final class NativeBoardScene: SKScene {
         let generation = engine.state.generation
         sourceCallbackTime();sourceExit=sourceFrames.begin(.init(kind:.boardExit,generation:generation,id:UUID().uuidString))
         let hudCapture=keepsHUDVisible ? nil:sourceFrames.begin(.init(kind:.hudExit,generation:generation,id:UUID().uuidString));sourceHUDExit=hudCapture
-        let targets: [SKNode] = nodesByID.values.sorted { $0.tileID < $1.tileID } + ghosts.children
+        let joinsResidual=clearedResidualGeneration==generation
+        let targets: [SKNode] = nodesByID.values.filter{!joinsResidual || !clearedResidualIDs.contains($0.tileID)}.sorted { $0.tileID < $1.tileID } + (joinsResidual ? []:ghosts.children)
         let plans = NativeBoardExitPlan.make(count: targets.count)
-        if let end=plans.map(\.end).max() {onBoardExit?(end+0.03)}
+        if !joinsResidual || clearedResidualTargets.isEmpty,let end=plans.map(\.end).max() {onBoardExit?(end+0.03)}
         guard !disposed,exitInProgress,engine.state.generation==generation else{return}
-        exitOwners = targets.count + 1
+        exitOwners = targets.count + 1 + (joinsResidual ? 1:0)
         let startHUDExit:()->Void = { [weak self] in
             guard let self,!self.disposed,self.exitInProgress,self.engine.state.generation==generation else{return}
             afterResidualExit?()
@@ -10534,25 +10668,25 @@ final class NativeBoardScene: SKScene {
                 self.animateHUDExit(generation:generation,capture:hudCapture)
             } else {self.finishExitOwner(generation:generation)}
         }
-        if afterResidualExit == nil || targets.isEmpty {startHUDExit()}
+        if joinsResidual {
+            let settled:(Bool)->Void = {[weak self] success in
+                guard let self,self.exitInProgress,self.engine.state.generation==generation else{return}
+                guard success else{self.finishExit(completed:false);return}
+                self.finishExitOwner(generation:generation)
+                if afterResidualExit != nil,self.exitOwners==1 {startHUDExit()}
+            }
+            if clearedResidualPending==0 {settled(true)}else{clearedResidualWaiters.append(settled)}
+        }
+        if afterResidualExit == nil || targets.isEmpty && !joinsResidual {startHUDExit()}
         for plan in plans {
             let node = targets[plan.tileIndex]
             node.removeAllActions()
             if let die = node as? NativeDiceNode { die.visual.removeAllActions(); die.visual.setScale(1) }
-            let base = CGPoint(x: node.xScale,y: node.yScale)
-            let small = CGPoint(x: base.x*0.88,y: base.y*0.88)
-            let peak = CGPoint(x: base.x*plan.peak,y: base.y*plan.peak)
-            node.run(.sequence([.wait(forDuration: plan.delay),
-                NativeBoardMotion.scale(from: base,to: small,duration: plan.settle,ease: .backIn(1.5)),
-                .group([
-                    .sequence([NativeBoardMotion.scale(from: small,to: peak,duration: plan.compress,ease: .power2In),
-                        NativeBoardMotion.scale(from: peak,to: .zero,duration: plan.collapse,ease: .backIn(2))]),
-                    .fadeOut(withDuration: max(0.12,plan.collapse*0.68))
-                ]),.run { [weak self] in
-                    guard let self,!self.disposed,self.exitInProgress,self.engine.state.generation==generation else{return}
-                    self.finishExitOwner(generation:generation)
-                    if afterResidualExit != nil,self.exitOwners==1 {startHUDExit()}
-                }]),withKey: "board-exit")
+            runBoardExitPose(node,plan:plan) { [weak self] in
+                guard let self,!self.disposed,self.exitInProgress,self.engine.state.generation==generation else{return}
+                self.finishExitOwner(generation:generation)
+                if afterResidualExit != nil,self.exitOwners==1 {startHUDExit()}
+            }
         }
     }
 
@@ -10586,7 +10720,7 @@ final class NativeBoardScene: SKScene {
         if !completed {
             roundIndicator.cancelExit()
             for node in nodesByID.values { node.removeAllActions(); node.visual.setScale(1) }
-            for ghost in ghosts.children { ghost.removeAllActions(); ghost.setScale(1) }
+            if clearedResidualGeneration != engine.state.generation {for ghost in ghosts.children {ghost.removeAllActions();ghost.setScale(1)}}
             hud.removeAllActions(); hud.position = .zero; hud.alpha = 1
         }
         let completion = exitCompletion; exitCompletion = nil
@@ -10632,6 +10766,7 @@ final class NativeBoardScene: SKScene {
     }
 
     func dispose() {
+        retireClearedResidualExit()
         restoreHUDFeedbackPause()
         guard !disposed,!sourceDisposalInProgress else {return}
         comboHUDMotion.dispose();comboNumberMotion.stop()
@@ -10682,6 +10817,14 @@ final class NativeBoardScene: SKScene {
         onFishIdleFrames?([:],engine.state.generation,true);onFishIdleFrames=nil
         onNativeNoMovesShow=nil;onNativeNoMovesExit=nil;onNativeNoMovesClear=nil;onJourneyBottomDecorShake=nil;captureSourceScreenOverlayShake=nil;sourceCoreTntShakeTargets.removeAll();sourceScreenShakeTargets.removeAll();onPresentationFailure=nil;onSourcePresentationFailure=nil;onStateChange = nil; onTerminal = nil; onFinalMergeProgress = nil; onGameplayEvent = nil; onGameplayReceipt = nil; onSpecialMoment = nil; onAuthoredFinale = nil;onAuthoredTntPresentation = nil;onAuthoredLaserImpact=nil;authoredTntPresentationReady = nil;authoredFinalePresentationReady=nil;onSpecialPresentationCancelled = nil; onTntGlyphClock = nil; onSplashGlyphClock = nil; onHaptic = nil
         onRenderSurfacePreparation=nil
-        hudTapFeedbackBases.removeAll();hudTapFeedbackPositions.removeAll();onSourceGuidedSnapBack=nil;onSourceTutorialRetired=nil;onLevelFlowBounceCompletion=nil;onExitRequest = nil; onHUDTapContact=nil; onHelpRequest = nil; onScoreRequest = nil; onComboRequest = nil; onPointerState = nil; onRenderingDemand = nil; onBoardEntry = nil; onBoardExit = nil; onHUDDrop = nil
+        pendingHUDTapFeedback.removeAll();hudTapFeedbackBases.removeAll();hudTapFeedbackPositions.removeAll();onSourceGuidedSnapBack=nil;onSourceTutorialRetired=nil;onLevelFlowBounceCompletion=nil;onExitRequest = nil; onHUDTapContact=nil; onHelpRequest = nil; onScoreRequest = nil; onComboRequest = nil; onPointerState = nil; onRenderingDemand = nil; onBoardEntry = nil; onBoardExit = nil; onHUDDrop = nil
+    }
+}
+
+/// Visual handoff only: begin text during the last bounded slice of a finale.
+/// Completion, gameplay and result admission keep their existing receipts.
+enum NativeFinalMergeCelebrationTiming {
+    static func startTime(visualDuration:TimeInterval)->TimeInterval {
+        max(0,visualDuration-min(0.45,visualDuration*0.15))
     }
 }

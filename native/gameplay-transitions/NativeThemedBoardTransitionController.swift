@@ -76,9 +76,9 @@ final class NativeThemedBoardTransitionController:UIViewController {
     override func loadView(){view=UIView(frame:CGRect(origin:.zero,size:viewport));view.backgroundColor = .clear;view.isOpaque=false;view.clipsToBounds=false
         // Keep the already painted gameplay paper visible while this captured
         // cover prepares. A flat opaque placeholder must never replace it.
-        paperCover.frame=view.bounds;paperCover.isHidden=true;paperCover.backgroundColor=UIColor(red:243/255,green:238/255,blue:232/255,alpha:1);paperCover.isUserInteractionEnabled=false;view.addSubview(paperCover)
+        paperCover.frame=view.bounds;paperCover.isHidden=true;paperCover.clipsToBounds=true;paperCover.backgroundColor=UIColor(red:243/255,green:238/255,blue:232/255,alpha:1);paperCover.isUserInteractionEnabled=false;view.addSubview(paperCover)
         let gradient=CAGradientLayer();gradient.frame=view.bounds;gradient.colors=[UIColor(red:243/255,green:238/255,blue:232/255,alpha:1).cgColor,UIColor(red:252/255,green:236/255,blue:223/255,alpha:1).cgColor,UIColor(red:252/255,green:236/255,blue:223/255,alpha:1).cgColor];gradient.locations=[0,0.6,1];paperCover.layer.insertSublayer(gradient,at:0)
-        paper.frame=view.bounds;paper.contentMode = .scaleToFill;paper.isUserInteractionEnabled=false;paperCover.addSubview(paper);let tint=UIView(frame:view.bounds);tint.backgroundColor=UIColor(red:243/255,green:238/255,blue:232/255,alpha:0.4);tint.isUserInteractionEnabled=false;paperCover.addSubview(tint)
+        paper.frame=view.bounds;paper.contentMode = .scaleAspectFill;paper.isUserInteractionEnabled=false;paperCover.addSubview(paper);let tint=UIView(frame:view.bounds);tint.backgroundColor=UIColor(red:243/255,green:238/255,blue:232/255,alpha:0.4);tint.isUserInteractionEnabled=false;paperCover.addSubview(tint)
         scene.frame=NativeTransitionSceneGeometry.sceneFrame(viewport:viewport);scene.isUserInteractionEnabled=false;scene.clipsToBounds=false;scene.backgroundColor = .clear;scene.layer.zPosition=4;view.addSubview(scene)
         // PWA's NN Unit is a fixed stacking context. Keep each digit's authored
         // 3D exit inside it so perspective cannot reorder scene/cloud siblings.
@@ -94,7 +94,7 @@ final class NativeThemedBoardTransitionController:UIViewController {
             NotificationCenter.default.addObserver(forName:name,object:nil,queue:.main){[weak self] notice in MainActor.assumeIsolated{self?.setForeground(notice.name==UIApplication.didBecomeActiveNotification)}}
         }
         resources.prepare(["./assets/paper-bg.png"],owner:paperOwner,required:true){[weak self] ready in
-            guard let self,!self.disposed else{return};guard ready,let image=self.resources.image("./assets/paper-bg.png",owner:self.paperOwner) else{self.failPreparation();return};self.paper.image=image
+            guard let self,!self.disposed else{return};guard ready,let image=self.resources.image("./assets/paper-bg.png",owner:self.paperOwner) else{self.failPreparation();return};self.paper.image=image;self.paper.frame=NativeAppPaperSurface.textureFrame(imageSize:image.size,bounds:self.view.bounds)
             self.resources.prepare(Self.assets(theme:self.theme),owner:self.sceneOwner,required:true){[weak self] ready in
                 guard let self,!self.disposed,!self.preparationFailed else{return};guard ready else{self.failPreparation();return}
                 do {

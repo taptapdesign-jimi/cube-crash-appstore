@@ -255,6 +255,7 @@ final class NativeResultController:UIViewController {
         for (index,button) in buttons.enumerated() {
             button.setTitle(index == 0 ? (clean && interimJourney ? "Continue" : "Play Again") : "Exit",for:.normal)
             button.applyModalCTA(artwork:assets,primary:index == 0)
+            button.setPairedModalCTA()
             button.tag=index;button.accessibilityIdentifier=index == 0 ? "native.result.play-again" : "native.result.exit"
             button.addTarget(self,action:#selector(activate(_:)),for:.touchUpInside);content.addSubview(button);button.enableCartoonBounce()
         }
@@ -313,7 +314,7 @@ final class NativeResultController:UIViewController {
         let lineHeight:CGFloat=clean ? 40:56
         let lines=max(1,ceil((measured-0.5)/lineHeight))
         let titleHeight=lines*lineHeight
-        let layout=NativeResultPresentationPlan.layout(viewport:view.bounds.size,clean:clean,titleHeight:titleHeight)
+        let layout=NativeResultPresentationPlan.layout(viewport:view.bounds.size,clean:clean,titleHeight:titleHeight,primarySize:CGSize(width:min(view.bounds.width<1025 ? 249:310,view.bounds.width*0.8),height:JimiV9PlainButton.pairedModalCTAHeight),actionGap:JimiV9PlainButton.pairedModalCTAGap)
         place(cardContent,in:layout.card)
         place(stars,in:layout.hero.offsetBy(dx:-layout.card.minX,dy:-layout.card.minY))
         for index in 0..<3 {
@@ -487,6 +488,7 @@ final class NativeResultController:UIViewController {
     private func finishClose() {let completion=closed;closed=nil;dispose();dismiss(animated:false,completion:completion)}
     func setSuspended(_ value:Bool) {
         if clean,state.mode == .journey,(1...10).contains(state.board),closingAt == nil,!disposed {onForestAmbience?(true,value)}
+        buttons.forEach{$0.setModalCTAIdleSuspended(value || disposed)}
         suspended=value;lastTime=nil;link?.isPaused=value;arcadePresentation?.setSuspended(value);confetti?.setForeground(!value);area55Flybys?.setForeground(!value)
         if destinationPreparation != nil {
             if value {destinationLease &+= 1;destinationReady=false;destinationPending=false;paperFadeAt=nil;view.alpha=1}
@@ -494,7 +496,7 @@ final class NativeResultController:UIViewController {
         }
     }
     func dispose() {
-        guard !disposed else {return};disposed=true;onForestAmbience?(false,false);onForestAmbience=nil;link?.invalidate();link=nil;clockTarget=nil
+        guard !disposed else {return};disposed=true;buttons.forEach{$0.setModalCTAIdleSuspended(true)};onForestAmbience?(false,false);onForestAmbience=nil;link?.invalidate();link=nil;clockTarget=nil
         arcadePresentation?.dispose();arcadePresentation=nil;confetti?.dispose();confetti=nil;area55Flybys?.dispose();area55Flybys=nil;forestBees?.dispose();forestBees=nil
         for observer in observations {NotificationCenter.default.removeObserver(observer)};observations.removeAll()
         destinationLease &+= 1;destinationPreparation=nil;destinationPending=false

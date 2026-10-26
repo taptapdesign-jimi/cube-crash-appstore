@@ -20,7 +20,7 @@ final class NativeTutorialOverlay:UIView {
     private var sourceIntro:NativeSourceTutorialIntroOwner?
     private var sourceSheetProgress:Double?
     private var sourceCTA:NativeSourceTutorialCTAOwner?
-    private let sourceCTAVisual=JimiV9PlainButton(type:.custom),sourceCTATitle=UILabel()
+    private let sourceCTAVisual=JimiV9PlainButton(type:.custom)
     private var sourceCTACaptured=false
     var sourceCTAState:NativeSourceTutorialCTAOwner.State?{sourceCTA?.state}
     var sourceCTAHitFrame:CGRect{button.cartoonBounceFrame}
@@ -82,7 +82,7 @@ final class NativeTutorialOverlay:UIView {
         let measuredSpecialHeight=ceil(("Stack and merge dice to fill the bar and earn special dice." as NSString).boundingRect(with:CGSize(width:min(280,bounds.width-56),height:.greatestFiniteMagnitude),options:[.usesLineFragmentOrigin,.usesFontLeading],attributes:[.font:subtitleFont,.paragraphStyle:NativeModalTypography.subtitleParagraph(fontSize:subtitleFont.pointSize)],context:nil).height)
         let subtitleHeight:CGFloat=specialBarVisible ? max(56,measuredSpecialHeight) : (step == 1 || step == 2 ? max(28,subtitleFont.lineHeight) : max(56,subtitleFont.lineHeight*2+2))
         let top:CGFloat=58,headingHeight:CGFloat=small ? 38.4 : 48
-        let height=max(178,top+headingHeight+12+subtitleHeight+(step == 3 || specialBarVisible ? 98 : 0)+62+safeAreaInsets.bottom)
+        let height=max(178,top+headingHeight+12+subtitleHeight+(step == 3 || specialBarVisible ? 98 : 0)+62+(JimiV9PlainButton.primaryCTAHeight-72)+safeAreaInsets.bottom)
         sheet.bounds=CGRect(x:0,y:0,width:bounds.width,height:height)
         sheet.center=CGPoint(x:bounds.midX,y:bounds.maxY-height/2)
         // Keep the painted bottom below the viewport during the authored
@@ -91,10 +91,10 @@ final class NativeTutorialOverlay:UIView {
         paper.frame=sheetSurface.bounds;paper.layer.cornerRadius=36;paper.layer.maskedCorners=sheetSurface.layer.maskedCorners
         heading.frame=CGRect(x:28,y:top,width:max(0,bounds.width-56),height:headingHeight)
         subtitle.frame=CGRect(x:(bounds.width-min(280,bounds.width-56))/2,y:heading.frame.maxY+12,width:min(280,bounds.width-56),height:subtitleHeight)
-        let width=min(bounds.width-56,bounds.width <= 428 || UIDevice.current.userInterfaceIdiom == .pad ? 249 : 310)
-        button.setCartoonBounceFrame(CGRect(x:(bounds.width-width)/2,y:subtitle.frame.maxY+34,width:width,height:64))
-        sourceCTAVisual.bounds=button.bounds;sourceCTAVisual.center=CGPoint(x:button.bounds.midX,y:button.bounds.midY);sourceCTATitle.frame=sourceCTAVisual.bounds
-        if sourceCTA != nil{let radius=min(40,sourceCTAVisual.bounds.height/2);sourceCTAVisual.layer.cornerRadius=radius;sourceCTAVisual.layer.shadowPath=UIBezierPath(roundedRect:sourceCTAVisual.bounds,cornerRadius:radius).cgPath}
+        let width=button.primaryCTASize(maxWidth:bounds.width-56).width
+        button.setCartoonBounceFrame(CGRect(x:(bounds.width-width)/2,y:subtitle.frame.maxY+34,width:width,height:JimiV9PlainButton.primaryCTAHeight))
+        sourceCTAVisual.bounds=button.bounds;sourceCTAVisual.center=CGPoint(x:button.bounds.midX,y:button.bounds.midY)
+
         let pointerWidth=min(bounds.width*0.34,190)
         let ratio=(pointerImage.image?.size.height ?? 180)/max(1,pointerImage.image?.size.width ?? 180)
         pointer.bounds=CGRect(x:0,y:0,width:pointerWidth,height:pointerWidth*ratio);pointerImage.frame=pointer.bounds
@@ -111,7 +111,8 @@ final class NativeTutorialOverlay:UIView {
         if range.location != NSNotFound {text.addAttribute(.foregroundColor,value:UIColor(red:233/255,green:122/255,blue:85/255,alpha:1),range:range)}
         heading.attributedText=text;subtitle.font=assets.font(size:bounds.width <= 428 ? 18 : 20,weight:"Medium");subtitle.attributedText=NativeModalTypography.attributedSubtitle(copy.1,font:subtitle.font);subtitle.lineBreakMode = .byWordWrapping
         button.isHidden=specialBarVisible ? false : (step != 3 || sourceCTA?.state == .hidden)
-        button.setTitle(specialBarVisible ? "Continue":"Got it!",for:.normal)
+        let ctaTitle=specialBarVisible ? "Continue":"Got it!"
+        if button.title(for:.normal) != ctaTitle {button.setTitle(ctaTitle,for:.normal);setNeedsLayout()}
         if sourceCTA != nil{button.isEnabled=sourceCTA?.enabled==true}
     }
     @discardableResult func showSourceIntro(from:CGPoint?,to:CGPoint?,service:NativeSourceAnimationClockService,
@@ -363,12 +364,10 @@ final class NativeTutorialOverlay:UIView {
             self.sourceCTAVisual.transform=CGAffineTransform(translationX:0,y:pose.y).scaledBy(x:pose.scale,y:pose.scale)
         },contact:contact,activate:activate)
         guard let owner else{return false};sourceCTA=owner
-        sourceCTAVisual.isUserInteractionEnabled=false;sourceCTATitle.isUserInteractionEnabled=false
-        sourceCTATitle.text="Got it!";sourceCTATitle.font=assets.font(size:28,weight:"Bold");sourceCTATitle.textAlignment = .center
-        sourceCTATitle.textColor=UIColor(red:1,green:251/255,blue:242/255,alpha:1)
-        sourceCTATitle.shadowColor=UIColor(red:194/255,green:73/255,blue:33/255,alpha:1);sourceCTATitle.shadowOffset=CGSize(width:0,height:2)
-        sourceCTAVisual.applyModalCTA(artwork:assets)
-        sourceCTAVisual.addSubview(sourceCTATitle);button.addSubview(sourceCTAVisual)
+        sourceCTAVisual.isUserInteractionEnabled=false
+        sourceCTAVisual.accessibilityIdentifier="native.tutorial.source-cta"
+        sourceCTAVisual.setTitle("Got it!",for:.normal);sourceCTAVisual.applyModalCTA(artwork:assets)
+        button.addSubview(sourceCTAVisual)
         button.setTitle(nil,for:.normal);button.removeModalCTAPaint()
         owner.prime(hidden:true);setNeedsLayout();setCopy();return true
     }

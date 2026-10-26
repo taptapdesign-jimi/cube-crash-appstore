@@ -198,7 +198,7 @@ final class NativeBootstrap {
         audio = NativeGameplayAudioOwner(root:root,enabled:envelope.settings.gameSoundsEnabled,
             random:{[sourceContext] in sourceContext.smokeSession.nextVisualRandom()})
         ambient = NativeJourneyAmbientOwner(root:root,enabled:envelope.settings.gameSoundsEnabled)
-        soundtrack?.onError = { [weak self] detail in self?.showError(detail) }
+        soundtrack?.onError = { detail in NSLog("[NATIVE_SOUNDTRACK] recoverable audio failure: %@",detail) }
         soundtrack?.apply(enabled: envelope.settings.musicEnabled)
         arcadeMusic?.apply(enabled:envelope.settings.musicEnabled)
         controller.onShipVisibility = {[weak self] visible in self?.ambient?.setSpaceshipVisible(visible)}
@@ -268,6 +268,9 @@ final class NativeBootstrap {
         audio?.setEnabled(envelope.settings.gameSoundsEnabled)
         if let state=gameplay?.engine.state {audio?.prepareBottleOnBoard(state)}
         ambient?.setEnabled(envelope.settings.gameSoundsEnabled)
+        // Reuse the accepted CTA cue after committing the current Sounds gate.
+        // Toggle haptics already have their own contact above/below.
+        routeFeedback("cta",includesHaptic:false)
         if key == "hapticsEnabled",value {impactFeedback("light")}
     }
     private enum FreshGameplayEntry:Equatable {
@@ -1690,13 +1693,18 @@ final class NativeBootstrap {
             let host = NativeDeveloperPreviewHost(preview: preview,release: { [weak preview] in preview?.dispose() })
             preview.onAction = { [weak host] _ in host?.finish() }
             presenter.present(host,animated: false)
-        case .lastMerge:
+        case .endGame,.lastMerge:
             let cores = NativeWildArchetype.allCases.map { NativeDeveloperPicker.Choice(title: String(describing: $0).capitalized,value: $0.rawValue) }
-            let variants = NativeSpecialDiceRegistry.variants.values.sorted { $0.id < $1.id }.map { NativeDeveloperPicker.Choice(title: $0.id,value: $0.id) }
-            let picker = NativeDeveloperPicker(root: root,title: "Last Merge",choices: cores+variants,multiple: false)
+            let variants = NativeSpecialDiceRegistry.variants.values.sorted { $0.id < $1.id }.map { NativeDeveloperPicker.Choice(title: $0.id == "bloob-ball" ? "Gassy (BLOOB POD)":$0.id,value: $0.id) }
+            let ordinary:[NativeDeveloperPicker.Choice]=action == .endGame ? [.init(title:"Ordinary 4 + 2",value:"ordinary")]:[]
+            let picker = NativeDeveloperPicker(root: root,title: action.title,choices: ordinary+cores+variants,multiple: false)
             picker.onSelect = { [weak self, weak presenter] values in
                 guard let self, let presenter, current(), let choice = values.first else { return }
-                do { presenter.present(try self.makeDeveloperLastMerge(board: board,choice: choice),animated: false) }
+                do {
+                    let preview=choice == "ordinary" ? try self.makeDeveloperEndGame(board:board):
+                        try self.makeDeveloperLastMerge(board:board,choice:choice,replay:action == .endGame)
+                    presenter.present(preview,animated:false)
+                }
                 catch { self.showError(error.localizedDescription) }
             }
             picker.onCloseRequested = {[weak self] in self?.routeFeedback("modal-close")}
@@ -1753,7 +1761,7 @@ final class NativeBootstrap {
         next.savedAt = Date().timeIntervalSince1970
         try store.save(next); envelope = next
     }
-    func makeDeveloperLastMerge(board: Int, choice: String) throws -> UIViewController {
+    func makeDeveloperLastMerge(board: Int, choice: String,replay:Bool=false) throws -> UIViewController {
         let variant = NativeSpecialDiceRegistry.variants[choice]
         guard let archetype = variant?.archetype ?? NativeWildArchetype(rawValue: choice) else { throw NativeSaveError.invalidState(["developer-wild-choice"]) }
         // This synthetic final pair represents an already-played run.
@@ -1762,13 +1770,28 @@ final class NativeBootstrap {
             NativeTile(id: "dev-regular",cell: .init(column: 2,row: 4),value: 5),
             NativeTile(id: "dev-wild",cell: .init(column: 3,row: 4),value: 6,archetype: archetype,variant: variant?.id)
         ],board: board,stage: board,moves:49)
+        return try makeDeveloperGameplayPreview(state:state,replay:replay)
+    }
+    func makeDeveloperEndGame(board:Int) throws -> UIViewController {
+        let state=NativeBoardState(tiles:[
+            NativeTile(id:"dev-end-four",cell:.init(column:2,row:4),value:4),
+            NativeTile(id:"dev-end-two",cell:.init(column:3,row:4),value:2)
+        ],board:board,stage:board,moves:49)
+        return try makeDeveloperGameplayPreview(state:state,replay:true)
+    }
+    /// All interactive DEV fixtures use one disposable profile and the normal
+    /// gameplay/result assembly. The player's real store is never borrowed.
+    private func makeDeveloperGameplayPreview(state:NativeBoardState,replay:Bool=false) throws -> UIViewController {
+        let board=state.board
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("stacktosix-dev-\(UUID().uuidString)",isDirectory: true)
         let previewStore = NativeSaveStore(directory: directory)
         do {
             var profile = NativeSaveEnvelope(settings: envelope.settings,journeyRuns: [board: state])
             profile.settings.musicEnabled = false
             profile.progression.firstPlayTutorialComplete = true
-            profile.progression.completedJourneyBoards = Set(1..<board)
+            // The ordinary end-game fixture previews a replay so no first-card
+            // collection interrupts the requested cleared/result sequence.
+            profile.progression.completedJourneyBoards = replay ? Set(1...board):Set(1..<board)
             profile.progression.lastOpenedJourneyBoard = board
             try previewStore.save(profile)
             let child = try NativeBootstrap(root: root,store: previewStore,showStudioIntro: false,sourceContext: sourceContext,ownsSourceContext: false)

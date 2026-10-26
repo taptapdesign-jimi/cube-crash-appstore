@@ -51,6 +51,7 @@ struct NativeDiceArtwork {
         "fish": Self(path: "assets/shop/fish/fish.png"),
         "kanta": Self(path: "assets/shop/kanta/04.png", size: CGSize(width: 128.0 * 128.0 / 171.0, height: 128)),
         "bloob": Self(path: "assets/shop/bloob/bloob.png",idleSheet:.bloob),
+        "kite": Self(path: "assets/shop/kite/kite-green.png"),
         "bee": Self(path: "assets/shop/bee/bee1.png"),
         "bloob-ball": Self(path:"assets/shop/bloog ball/bloob-ball.png",idleSheet:.bloobBall),
         "laser-gun": Self(path: "assets/shop/gun/right gun.png", size: CGSize(width: 184.32, height: 184.32)),
@@ -86,6 +87,7 @@ struct NativeDiceSheet {
     var animateDuringDrag = false
 
     func frame(at elapsed: TimeInterval) -> Int {
+        if path==NativeKiteArt.path {return NativeKiteArt.frame(seconds:elapsed)}
         if path==NativeCoconutArt.path {return Int(max(0,elapsed).truncatingRemainder(dividingBy:4.032)/4.032*128)}
         if path==NativeBloobArt.path {return NativeBloobArt.frame(seconds:elapsed)}
         if path==NativeBloobBallArt.idlePath {return NativeBloobBallArt.idleFrame(seconds:elapsed)}
@@ -99,6 +101,9 @@ struct NativeDiceSheet {
         return min(frameCount - 1, Int(floor(local / active * Double(frameCount))))
     }
 
+    static let kite=Self(path:NativeKiteArt.path,atlas:CGSize(width:1200,height:1920),
+        cell:CGSize(width:240,height:240),columns:5,frameCount:40,cycle:NativeKiteArt.cycle,
+        anchor:CGPoint(x:0.5,y:0.5),displayScale:128.0/240,animateDuringDrag:true)
     static let cubero = Self(path: "assets/shop/cubero/cubero.svg", atlas: CGSize(width:3360,height:540),
         cell:CGSize(width:480,height:540),columns:7,frameCount:7,cycle:NativeCuberoIdleMotion.duration,
         anchor:CGPoint(x:0.5,y:1-480.0/540),displayScale:128.0/360.5,offsetY:-64,animateDuringDrag:true)
@@ -545,7 +550,8 @@ final class NativeBoardTextures {
         enqueuePreparation { [weak self] in
             guard lifetime.isCurrent else{return}
             let cgImage:CGImage?
-            if spec.path==NativeCoconutArt.path {cgImage=NativeCoconutArt.decode(url)}
+            if spec.path==NativeKiteArt.path {cgImage=NativeKiteArt.decode(url)}
+            else if spec.path==NativeCoconutArt.path {cgImage=NativeCoconutArt.decode(url)}
             else if NativeBloobArt.isSource(spec.path) {cgImage=NativeBloobArt.decode(url)}
             else if NativeBloobBallArt.isSource(spec.path) {cgImage=NativeBloobBallArt.decode(url)}
             else if NativeCuberoIdleMotion.isSVGSource(spec.path) {cgImage=NativeCuberoSVGAtlas.decode(url)}

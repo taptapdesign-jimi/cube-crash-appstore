@@ -5,6 +5,33 @@ import SpriteKit
 
 @MainActor
 final class NativeSharedSmokeRootTests:XCTestCase {
+    func testIdleSmokeRetainsLatePuffsThroughTheirFadeInsteadOfSqueezeEnd()throws {
+        let recipe=NativeSharedSmokeRecipes.regularIdle(tileDepth:20)
+        let expectedRandom=Random()
+        let values=NativeSharedSmokeRootValues(recipe:recipe,hotFactor:1,generation:1,sequence:1,gsapNowMs:0,
+            random:expectedRandom.next,acquireActivity:{_ in nil})
+        let puff=try XCTUnwrap(values.puffs.max{$0.finish<$1.finish})
+        XCTAssertGreaterThan(puff.finish,0.28,"Old lifetime cut this puff before it faded")
+        XCTAssertGreaterThanOrEqual(recipe.ttl,max(0.46,puff.finish))
+        let runtime=NativeSourceAnimationRuntime(wallOriginMilliseconds:0),canvas=SKNode(),tile=SKNode(),pool=NativeSharedSmokeSpritePool()
+        canvas.addChild(tile)
+        let effect=try owner(recipe,canvas:canvas,tile:tile,pool:pool,runtime:runtime,random:Random())
+        defer{effect.disposeForRetirement();runtime.dispose()}
+        // The halo is inserted first; capture the exact original puff lease.
+        let sprite=try XCTUnwrap(effect.layer.children[puff.id+1] as? SKSpriteNode)
+        runtime.deliverSourceTicker(seconds:0.28,wallMilliseconds:280)
+        XCTAssertFalse(effect.disposed);XCTAssertNotNil(sprite.parent)
+        let start=puff.finish-puff.fadeOut
+        runtime.deliverSourceTicker(seconds:start,wallMilliseconds:start*1000)
+        let full=sprite.alpha
+        runtime.deliverSourceTicker(seconds:start+puff.fadeOut/2,wallMilliseconds:(start+puff.fadeOut/2)*1000)
+        XCTAssertGreaterThan(sprite.alpha,0);XCTAssertLessThan(sprite.alpha,full)
+        XCTAssertEqual(sprite.alpha,CGFloat(Float(NativeSharedSmokeSpritePresentation.sourcePackedAlpha(puff.pose(at:start+puff.fadeOut/2).alpha))),accuracy:1e-6)
+        runtime.deliverSourceTicker(seconds:puff.finish+0.001,wallMilliseconds:(puff.finish+0.001)*1000)
+        XCTAssertNil(sprite.parent,"Natural puff completion releases its exact lease")
+        runtime.deliverSourceTicker(seconds:recipe.ttl+0.001,wallMilliseconds:(recipe.ttl+0.001)*1000)
+        XCTAssertTrue(effect.disposed);XCTAssertEqual(pool.activeCount,0)
+    }
     private final class Random {
         var seed:UInt32=127,draws=0
         func next()->Double{draws += 1;seed=seed &* 1664525 &+ 1013904223;return Double(seed)/4294967296}

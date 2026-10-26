@@ -1,0 +1,14 @@
+{
+  "source": "assets/sound/Wild and special kockice/kite/kite tune.wav",
+  "source_sha256": "3791a061fcada2ba6e67837f1d9504cc5f01227b4eb904da78033034242ce3f6",
+  "output": "assets/sound/Wild and special kockice/kite/candidates-v1/kite-tune-4s-01.wav",
+  "duration_seconds": 4,
+  "sample_rate": 48000,
+  "channels": 2,
+  "bits": 16,
+  "peak_dbfs": -5.982513125461006,
+  "rms_dbfs": -21.600327095863186,
+  "dc_offset": 5.6191047032674153e-05,
+  "edit": "Source 0.000\u20132.340 seconds joined to 6.320\u20138.000 with 20 ms cosine crossfade. Opening 0\u20130.82, main motif 0.82\u20132.32, original resolving phrase/tail 2.32\u20134.00. 6 ms entrance and 100 ms ending fade; original pitch, tempo and stereo retained.",
+  "status": "Technical checks PASS; musical fit awaits user audition; no runtime integration."
+}

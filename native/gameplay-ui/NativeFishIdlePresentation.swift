@@ -35,6 +35,7 @@ final class NativeFishIdlePresentation:UIView {
     private var readiness:[NSKeyValueObservation]=[]
     private var itemObservation:NSKeyValueObservation?
     private var notifiedPrepared=false,prepared=false,started=false,seeking=false,ready=false,disposed=false,suspended=false,failed=false
+    private var preservingVisiblePose=false
     private var displayedFrame:NativeFishIdleFrame?
     private var reportedPaintReady=false
     private var lastPaint:Double?,lastAcceptedTime:Double?
@@ -90,7 +91,7 @@ final class NativeFishIdlePresentation:UIView {
         notifiedPrepared=true;player.pause();onPrepared?()
     }
     func paint(_ frame:NativeFishIdleFrame,now:Double,force:Bool=false) {
-        guard !disposed else {return};displayedFrame=frame;lastAcceptedTime=now
+        guard !disposed,!(suspended && preservingVisiblePose) else {return};displayedFrame=frame;lastAcceptedTime=now
         if !force,let lastPaint,now-lastPaint<minimumPaintInterval {return};lastPaint=now
         CATransaction.begin();CATransaction.setDisableActions(true)
         center=frame.point;transform=frame.transform;alpha=frame.alpha
@@ -136,9 +137,16 @@ final class NativeFishIdlePresentation:UIView {
             if carrier.paint(bubble) {host.bringSubviewToFront(carrier)}
         }
     }
-    func setSuspended(_ value:Bool) {
+    func setSuspended(_ value:Bool,preservingVisiblePose:Bool=false) {
         suspended=value
-        if value {player.pause();isHidden=true;lastPaint=nil}
+        self.preservingVisiblePose=value && preservingVisiblePose
+        // Foreground sheets freeze the already-painted artwork and bubbles.
+        // Background suspension still hides media and stops all preparation.
+        if value {
+            player.pause()
+            isHidden = !preservingVisiblePose || !ready || displayedFrame?.visible != true || window == nil
+            lastPaint=nil
+        }
         else if let frame=displayedFrame {paint(frame,now:lastAcceptedTime ?? 0,force:true)}
     }
     override func didMoveToWindow() {

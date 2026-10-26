@@ -7,7 +7,7 @@ import StackToSixNativeState
 
 @MainActor
 final class NativeRewardCardRenderingTests:XCTestCase {
-    func testMountedGameplayRewardKeepsTheSameWindowAnchoredPaper() throws {
+    func testMountedGameplayRewardOwnsOpaquePaperMatchingGameplayViewport() throws {
         for size in [CGSize(width:390,height:844),CGSize(width:430,height:932)] {
             let engine=NativeGameplayEngine(state:NativeBoardState(tiles:[]))
             let game=NativeGameplayViewController(engine:engine,resourceRoot:NativeTestResources.root)
@@ -20,10 +20,14 @@ final class NativeRewardCardRenderingTests:XCTestCase {
             let format=UIGraphicsImageRendererFormat();format.scale=1
             func pixels()->Data? {UIGraphicsImageRenderer(bounds:paper.bounds,format:format).image{paper.layer.render(in:$0.cgContext)}.pngData()}
             let before=try XCTUnwrap(pixels())
-            let reward=NativeJourneyRewardController(root:NativeTestResources.root,board:1,score:1000,generation:90);reward.useGameplayPaper();reward.setRewardActionsAdmitted(false)
-            game.addChild(reward);reward.view.frame=game.view.bounds;game.view.addSubview(reward.view);reward.didMove(toParent:game);reward.view.layoutIfNeeded()
+            let reward=NativeJourneyRewardController(root:NativeTestResources.root,board:1,score:1000,generation:engine.state.generation);reward.setRewardActionsAdmitted(false)
+            game.mountJourneyRewardController(reward,generation:engine.state.generation);reward.view.layoutIfNeeded()
             defer{reward.dispose();reward.willMove(toParent:nil);reward.view.removeFromSuperview();reward.removeFromParent()}
-            XCTAssertTrue(reward.view.subviews.first?.isHidden == true);XCTAssertFalse(reward.view.isOpaque);XCTAssertEqual(reward.view.backgroundColor,.clear)
+            let rewardPaper=try XCTUnwrap(reward.view.subviews.first as? NativeAppPaperSurface)
+            XCTAssertFalse(rewardPaper.isHidden);XCTAssertTrue(reward.view.isOpaque);XCTAssertEqual(reward.view.backgroundColor?.cgColor.alpha,1)
+            XCTAssertTrue(reward.parent === game);XCTAssertTrue(reward.view.window === window)
+            let rewardPixels=UIGraphicsImageRenderer(bounds:rewardPaper.bounds,format:format).image{rewardPaper.layer.render(in:$0.cgContext)}.pngData()
+            XCTAssertEqual(before,rewardPixels,"Separate reward screen preserves the canonical paper appearance")
             XCTAssertTrue(game.view.subviews.first === paper);XCTAssertEqual(rect,paper.convert(paper.bounds,to:window));XCTAssertEqual(before,try XCTUnwrap(pixels()))
             XCTAssertEqual(paper.bounds.size,size)
         }
@@ -37,7 +41,7 @@ final class NativeRewardCardRenderingTests:XCTestCase {
         let reference=NativeAppPaperSurface(artwork:JimiV9Artwork(resourceRoot:root))
         reference.frame=actual.frame;actual.layoutIfNeeded();reference.layoutIfNeeded()
         let texture=try XCTUnwrap(actual.subviews.first as? UIImageView)
-        XCTAssertEqual(texture.frame.height,actual.bounds.height+64);XCTAssertEqual(texture.contentMode,.scaleToFill)
+        XCTAssertEqual(texture.frame.height,actual.bounds.height+24,accuracy:0.000001);XCTAssertEqual(texture.contentMode,.scaleAspectFill)
         func pixels(_ view:UIView)->Data? {
             let format=UIGraphicsImageRendererFormat();format.scale=1
             return UIGraphicsImageRenderer(bounds:view.bounds,format:format).image{view.layer.render(in:$0.cgContext)}.pngData()

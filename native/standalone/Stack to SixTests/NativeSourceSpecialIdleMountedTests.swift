@@ -5,6 +5,68 @@ import StackToSixGameplay
 @testable import Stack_to_Six
 
 @MainActor final class NativeSourceSpecialIdleMountedTests:XCTestCase {
+ func testEveryRegistryVariantRetainsPaintedSubtreeAcrossForegroundModalPause() {
+  let identities=NativeSpecialDiceRegistry.variants.values.map{($0.id,$0.archetype.rawValue,Optional($0.id))}
+   + NativeWildArchetype.allCases.map{($0.rawValue,$0.rawValue,Optional<String>.none)}
+  for (id,kind,variant) in identities {
+   let registry=NativeSourceSpecialIdleRegistry(),scope=NativeSourceSpecialIdleScope(registry:registry,current:{true})
+   let textures=NativeBoardTextures(root:root)
+   let die=NativeDiceNode(id:id,value:6,kind:kind,variant:variant,depth:1,locked:false,textures:textures,sourceSpecialIdle:scope)
+   let parent=SKNode();parent.addChild(die)
+   die.tick(0.7,suspended:false,viewportCenter:195)
+   func snapshot(_ node:SKNode)->[String] {
+    ["\(ObjectIdentifier(node))|\(node.position)|\(node.xScale)|\(node.yScale)|\(node.zRotation)|\(node.alpha)|\(node.isHidden)"] + node.children.flatMap{snapshot($0)}
+   }
+   let before=snapshot(die)
+   die.preservesPausedSpecialVisuals=true
+   let release=scope.acquire(reason:"foreground-modal")
+   XCTAssertEqual(snapshot(die),before,"Modal pause changes no painted child: \(id)")
+   die.preservesPausedSpecialVisuals=false
+   release?()
+   XCTAssertEqual(snapshot(die),before,"Modal resume cannot reset authored pose: \(id)")
+   die.dispose();scope.dispose();registry.dispose();textures.dispose()
+  }
+ }
+ func testPreparedHoneyAndTntFreezeLiveEffectsAcrossRepeatedForegroundModalPauses() throws {
+  for variant in [Optional("honey"),nil] {
+   let registry=NativeSourceSpecialIdleRegistry(),scope=NativeSourceSpecialIdleScope(registry:registry,sourceMathRandom:.init(draw:{0.5}),current:{true})
+   let textures=NativeBoardTextures(root:root)
+   let die=NativeDiceNode(id:variant ?? "tnt",value:6,kind:variant == nil ? "wild-tnt":"wild",variant:variant,depth:1,locked:false,textures:textures,sourceSpecialIdle:scope)
+   let parent=SKNode();parent.addChild(die)
+   let fifo=NativeSourceMicrotaskFIFO(),tasks=NativeSourceMicrotaskAdapters(fifo:fifo)
+   let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0},sourceFrameTransportEnabled:true)
+   service.sourceMicrotaskTasks=tasks
+   defer{die.dispose();scope.dispose();registry.dispose();textures.dispose();service.dispose();fifo.dispose()}
+   if variant != nil {
+    XCTAssertTrue(tasks.inputTask{XCTAssertTrue(die.beginSourceHoneyIdle(service:service,scope:scope,assetTasks:tasks,use2x:true,current:{true},paintable:{true}))})
+    XCTAssertEqual(die.sourceHoneySprites.count,3)
+   } else {
+    XCTAssertTrue(die.beginSourceTntFuse(service:service,current:{true},paintable:{true}))
+   }
+   func snapshot(_ node:SKNode)->[String] {
+    ["\(ObjectIdentifier(node))|\(node.position)|\(node.xScale)|\(node.yScale)|\(node.zRotation)|\(node.alpha)|\(node.isHidden)"] + node.children.flatMap{snapshot($0)}
+   }
+   var time=400.0
+   service.deliver(wallMilliseconds:time)
+   let fuse=die.visual.children.compactMap{$0 as? NativeTntFuseSparkles}.first
+   if variant == nil {XCTAssertGreaterThan(try XCTUnwrap(fuse).activeCount,0,"Fixture must contain live sparks")}
+   else {XCTAssertTrue(die.sourceHoneySprites.contains{$0.alpha>0},"Fixture must contain painted bees")}
+   for _ in 0..<3 {
+    let before=snapshot(die),participants=service.activeParticipantCount,sparks=fuse?.activeCount
+    die.preservesPausedSpecialVisuals=true
+    let release=scope.acquire(reason:"foreground-modal-live-effects")
+    XCTAssertTrue(service.setSourceGlobalPaused(true))
+    time+=400;service.deliver(wallMilliseconds:time)
+    XCTAssertEqual(snapshot(die),before,"Modal freezes live artwork and FX")
+    XCTAssertEqual(fuse?.activeCount,sparks,"Modal never clears existing sparks")
+    XCTAssertEqual(service.activeParticipantCount,participants,"Pause retains owners")
+    die.preservesPausedSpecialVisuals=false
+    release?();XCTAssertTrue(service.setSourceGlobalPaused(false))
+    XCTAssertEqual(snapshot(die),before,"Resume preserves the exact painted pose")
+    time+=100;service.deliver(wallMilliseconds:time)
+   }
+  }
+ }
  private final class Key {}
  private var root:URL{Bundle.main.bundleURL.appendingPathComponent("NativeAssets.bundle")}
  func testActualHoneyNodePreservesRepeatedPhaseAndRegistryChaseWhileVisibilitySuspends()throws {

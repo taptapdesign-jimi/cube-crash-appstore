@@ -14,7 +14,7 @@ final class NativeFishIdleOwner:UIView {
     private let resourceRoot:URL
     private let svgResources:NativeFishSVGResourceLease
     private var owners:[String:NativeFishIdlePresentation]=[:]
-    private var generation:UInt64?,disposed=false,suspended=false
+    private var generation:UInt64?,disposed=false,suspended=false,preservingVisiblePose=false
     init(resourceRoot:URL,mediaPolicy:NativeFishMediaPolicy? = nil,preferOriginalSVG:Bool=false,minimumPaintInterval:Double=1/30,svgPlaybackRate:Double=1) {
         self.minimumPaintInterval=minimumPaintInterval;self.svgPlaybackRate=svgPlaybackRate
         self.preferOriginalSVG=preferOriginalSVG
@@ -28,6 +28,7 @@ final class NativeFishIdleOwner:UIView {
         if self.generation != generation {
             retireMedia();self.generation=generation
         }
+        if suspended && preservingVisiblePose {return}
         for id in Array(owners.keys) where frames[id]==nil {owners.removeValue(forKey:id)?.dispose()}
         for (id,frame) in frames.sorted(by:{$0.value.depth == $1.value.depth ? $0.value.paintOrder<$1.value.paintOrder:$0.value.depth<$1.value.depth}) {
             let owner:NativeFishIdlePresentation
@@ -49,7 +50,11 @@ final class NativeFishIdleOwner:UIView {
             bringSubviewToFront(owner);owner.paint(frame,now:now,force:force)
         }
     }
-    func setSuspended(_ value:Bool) {suspended=value;svgResources.setSuspended(value);owners.values.forEach {$0.setSuspended(value)}}
+    func setSuspended(_ value:Bool,preservingVisiblePose:Bool=false) {
+        suspended=value;self.preservingVisiblePose=value && preservingVisiblePose
+        svgResources.setSuspended(value)
+        owners.values.forEach {$0.setSuspended(value,preservingVisiblePose:preservingVisiblePose)}
+    }
     var selectedSVGFrameCount:Int {svgResources.decodedFrameCount}
     var pendingSVGRequests:Int {svgResources.pendingRequestCount}
     var activeMediaCount:Int {owners.count}

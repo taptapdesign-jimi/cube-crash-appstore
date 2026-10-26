@@ -30,7 +30,7 @@ final class NativeTutorialCompleteController: UIViewController {
     private var observations: [NSObjectProtocol] = []
     init(resourceRoot: URL, title: String = "Congrats!", subtitle: String = "You cleared the stage.", reducedMotion: Bool? = nil) {
         artwork = JimiV9Artwork(resourceRoot: resourceRoot); self.reducedMotion = reducedMotion ?? UIAccessibility.isReduceMotionEnabled
-        paper=NativeAppPaperSurface(artwork:artwork,textureBottomExtension:64)
+        paper=NativeAppPaperSurface(artwork:artwork,textureBottomExtension:24)
         super.init(nibName: nil,bundle: nil)
         titleLabel.text = title; subtitleLabel.text = subtitle
         modalPresentationStyle = .overFullScreen
@@ -93,9 +93,9 @@ final class NativeTutorialCompleteController: UIViewController {
         shadow.center = CGPoint(x:width/2,y:heroTop+heroSize+heroSize*0.03+24-shadowHeight/2)
 
         let gap = compact ? CGFloat(30) : min(82,max(44,height*0.07))
-        let buttonWidth = min(width*0.68,408), bottom = heroTop+heroSize+gap+48
-        button.cartoonBounceLayoutView.bounds = CGRect(x:0,y:0,width:buttonWidth,height:64)
-        button.cartoonBounceLayoutView.center = CGPoint(x:width/2,y:min(bottom+32,height-max(42,view.safeAreaInsets.bottom)-32));button.layoutCartoonContent()
+        let buttonWidth = button.primaryCTASize(maxWidth:width-48).width, bottom = heroTop+heroSize+gap+48
+        button.cartoonBounceLayoutView.bounds = CGRect(x:0,y:0,width:buttonWidth,height:JimiV9PlainButton.primaryCTAHeight)
+        button.cartoonBounceLayoutView.center = CGPoint(x:width/2,y:min(bottom+JimiV9PlainButton.primaryCTAHeight/2,height-max(42,view.safeAreaInsets.bottom)-JimiV9PlainButton.primaryCTAHeight/2));button.layoutCartoonContent()
     }
     /// The pure sampled enter timeline is shared by runtime and deterministic UIKit tests.
     func sampleEnter(seconds: Double) {

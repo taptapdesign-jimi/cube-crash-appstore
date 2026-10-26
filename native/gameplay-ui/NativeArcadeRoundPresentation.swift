@@ -46,8 +46,8 @@ final class NativeArcadeRoundPresentation: UIView {
     private var subtitleEnterEnd: TimeInterval { titleEnterEnd+Double(max(0,subtitleGlyphs.count-1))*0.02+0.44 }
     private var clearReady: TimeInterval { max(0.48,subtitleEnterEnd) }
     var boardClearedTextEnterEnd:TimeInterval {0.2+Double(max(0,titleGlyphs.count-1))*0.05+0.54}
-    var thumbEnterStart:TimeInterval {boardClearedOnly ? boardClearedTextEnterEnd:0}
-    private var clearExitStart: TimeInterval {boardClearedOnly ? thumbEnterStart+0.68:clearReady+1.5}
+    var thumbEnterStart:TimeInterval {boardClearedOnly ? 0.2:0}
+    private var clearExitStart: TimeInterval {boardClearedOnly ? boardClearedTextEnterEnd+0.68:clearReady+1.5}
     private var roundStart: TimeInterval {
         continuationOnly ? 0 : clearExitStart+max(0.30,Double(max(0,titleGlyphs.count+subtitleGlyphs.count-1))*0.012+0.30)
     }
@@ -59,8 +59,8 @@ final class NativeArcadeRoundPresentation: UIView {
          random: () -> Double = { Double.random(in: 0..<1) }) {
         artwork = JimiV9Artwork(resourceRoot: resourceRoot)
         self.clearedRound = max(1,clearedRound); self.nextRound = max(1,nextRound); self.continuationOnly = continuationOnly; self.boardClearedOnly = boardClearedOnly
-        headline = boardClearedOnly ? "BOARD CLEARED" : Self.headlines[min(Self.headlines.count-1,max(0,Int(random()*Double(Self.headlines.count))))]
-        boardClearedTextComposition=boardClearedOnly ? NativeNoMovesPlan.make(text:Array("BOARD CLEARED"),random:random):nil
+        headline = boardClearedOnly ? "CLEARED" : Self.headlines[min(Self.headlines.count-1,max(0,Int(random()*Double(Self.headlines.count))))]
+        boardClearedTextComposition=boardClearedOnly ? NativeNoMovesPlan.make(text:Array("CLEARED"),random:random):nil
         isPuppyThumb = !continuationOnly && random() < 0.5
         boardClearedThumbRotation=boardClearedOnly ? CGFloat(-20+random()*40):0
         super.init(frame: .zero)
@@ -74,9 +74,8 @@ final class NativeArcadeRoundPresentation: UIView {
             var perspective=CATransform3DIdentity;perspective.m34 = -1/1000;titleStage.layer.sublayerTransform=perspective
             for (index,label) in titleGlyphs.enumerated() {
                 label.font=artwork.font(size:composition.letters[index].size,weight:"ExtraBold")
-                label.textColor=UIColor.white.withAlphaComponent(composition.letters[index].inkAlpha)
-                label.layer.shadowColor=UIColor(red:239.0/255,green:116.0/255,blue:77.0/255,alpha:1).cgColor
-                label.layer.shadowOffset = .zero;label.layer.shadowRadius=14;label.layer.shadowOpacity=1
+                label.textColor=UIColor(red:231.0/255,green:116.0/255,blue:73.0/255,alpha:composition.letters[index].inkAlpha)
+                label.layer.shadowOpacity=0;label.layer.shadowRadius=0
                 label.accessibilityIdentifier="native.board-cleared.glyph.\(index)"
             }
         }
@@ -119,8 +118,8 @@ final class NativeArcadeRoundPresentation: UIView {
         let titleFont=artwork.font(size:titleSize,weight:"ExtraBold")
         let titleHeight:CGFloat
         if let composition=boardClearedTextComposition {
-            // Same irregular NO MOVES typography, fitted as two complete words.
-            let ranges=[0..<5,6..<13]
+            // Keep the authored irregular glyph recipe in one centered row.
+            let ranges=[titleGlyphs.indices]
             var y:CGFloat=0
             for range in ranges {
                 let labels=range.map{titleGlyphs[$0]}
@@ -152,15 +151,17 @@ final class NativeArcadeRoundPresentation: UIView {
         shadow.frame = CGRect(x: (cardWidth-thumbSize*0.74)/2,y: thumbTop+thumbSize+70-thumbSize*0.15,
                               width: thumbSize*0.74,height: thumbSize*0.15)
         if boardClearedOnly {
-            // Text/glow share the PNG's center and stay physically behind it.
-            let height=thumbSize+100
-            clearCard.bounds=CGRect(x:0,y:0,width:cardWidth,height:height)
-            clearCard.center=CGPoint(x:stage.bounds.midX,y:stage.bounds.midY-24)
-            titleStage.center=CGPoint(x:cardWidth/2,y:height/2);titleStage.layer.zPosition=0
-            thumbRest=CGPoint(x:cardWidth/2,y:height/2+thumbSize*0.24)
+            // Center the complete text + thumb composition on the screen.
+            titleStage.center=CGPoint(x:cardWidth/2,y:titleHeight/2)
+            titleStage.layer.zPosition=0
+            let thumbTop=titleStage.frame.maxY+18
+            thumbRest=CGPoint(x:cardWidth/2,y:thumbTop+thumbSize*0.74)
             thumb.layer.position=thumbRest;thumb.layer.zPosition=2;shadow.layer.zPosition=1
-            shadow.frame=CGRect(x:(cardWidth-thumbSize*0.74)/2,y:height/2+thumbSize/2+70-thumbSize*0.15,
-                width:thumbSize*0.74,height:thumbSize*0.15)
+            let top=titleStage.frame.minY,bottom=thumbTop+thumbSize
+            clearCard.bounds=CGRect(x:0,y:top,width:cardWidth,height:bottom-top)
+            clearCard.center=stage.convert(CGPoint(x:bounds.midX,y:bounds.midY),from:self)
+            shadow.frame=CGRect(x:(cardWidth-thumbSize*0.74)/2,y:bottom+12,
+                width:thumbSize*0.74,height:thumbSize*0.10)
         }
         let digitSize = compact ? min(276,max(168,bounds.width*0.49)) : min(332,max(190,bounds.width*0.56))
         let labelHeight = layoutGlyphs(roundGlyphs,font: artwork.font(size: subtitleSize),width: cardWidth,

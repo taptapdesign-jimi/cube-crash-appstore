@@ -27,7 +27,7 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
     enum Action {case collect,cancelled}
     let board:Int,score:Int
     private let awardedStars:Int
-    private var borrowsGameplayPaper=false,rewardActionsAdmitted=true
+    private var rewardActionsAdmitted=true
     private let resourceRoot:URL
     private let magic=NativeMagicCardReveal()
     private var magicOpened=false,magicOpening=false,magicPrepared=false,cardPrepared=false
@@ -86,18 +86,11 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         self.scheduler=scheduler ?? RewardScheduler();self.random=random;self.now=now;self.reducedMotion=reducedMotion ?? UIAccessibility.isReduceMotionEnabled;tilt=NativeRewardPresentation.Tilt(random:random);assets=JimiV9Artwork(resourceRoot:root)
         super.init(nibName:nil,bundle:nil);modalPresentationStyle = .overFullScreen
     }
-    /// Keep the exact painted gameplay viewport beneath this transparent cover.
-    /// Standalone reward previews retain their canonical local-paper fallback.
-    func useGameplayPaper() {
-        borrowsGameplayPaper=true
-        if isViewLoaded {paper.isHidden=true;view.backgroundColor = .clear;view.isOpaque=false}
-    }
     func setRewardActionsAdmitted(_ value:Bool){rewardActionsAdmitted=value}
     required init?(coder:NSCoder){fatalError("Use Native reward initializer")}
     override func viewDidLoad() {
         super.viewDidLoad();view.backgroundColor=UIColor(red:243/255,green:238/255,blue:232/255,alpha:1)
         paper=NativeAppPaperSurface(artwork:assets);view.addSubview(paper)
-        if borrowsGameplayPaper {paper.isHidden=true;view.backgroundColor = .clear;view.isOpaque=false}
         for label in [headingLabel,subtitle,coach] {label.textAlignment = .center;label.isUserInteractionEnabled=false;view.addSubview(label)}
         headingLabel.text="New Reward";headingLabel.textColor=UIColor(red:239/255,green:116/255,blue:77/255,alpha:1)
         subtitle.text="Tap the card to reveal";subtitle.textColor=NativeTextPalette.subtitle
@@ -115,7 +108,7 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         ownedLayers=[view.layer,headingLabel.layer,subtitle.layer,hero.layer,pose.layer,interim.layer,unlocked.layer,interimRotor.layer,unlockedRotor.layer,front.layer,hand.layer,coach.layer,glow,holo]
         headingLabel.layer.opacity=0;subtitle.layer.opacity=0;pose.layer.opacity=0;unlocked.layer.opacity=0
         applyFace(interim,scale:1,y:40,z:0,x:0,ry:0)
-        applyFace(unlocked,scale:0.58,y:22,z:tilt.entryZ,x:tilt.entryX,ry:tilt.entryY,depth:-180)
+        applyFace(unlocked,scale:0,y:22,z:tilt.entryZ,x:tilt.entryX,ry:tilt.entryY,depth:-180)
         let paths=[cardPath,maskPath,"assets/hand-pointer.png"]
         resources.prepare(paths,owner:resourceOwner,required:true) { [weak self] accepted in
             guard let self,!self.disposed,!self.resolved else{return}
@@ -172,8 +165,8 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         animate(headingLabel.layer,"transform",from:NSValue(caTransform3D:spatial(scale:0,y:-28)),to:NSValue(caTransform3D:CATransform3DIdentity),duration:0.24,ease:.backOut(1.65))
         animate(headingLabel.layer,"opacity",from:0,to:1,duration:0.24)
         animate(subtitle.layer,"transform",from:NSValue(caTransform3D:spatial(scale:0,y:-22)),to:NSValue(caTransform3D:CATransform3DIdentity),duration:0.24,delay:0.032,ease:.backOut(1.65));animate(subtitle.layer,"opacity",from:0,to:1,duration:0.24,delay:0.032)
-        // The SVG itself owns appearance from empty. No parent card bounce,
-        // opacity ramp, fixed lead-in or unlocked-art filter gates its start.
+        // The selected SVG starts immediately; its parent spring starts on the
+        // same admission clock without a lead-in or artwork/filter gate.
         CATransaction.begin();CATransaction.setDisableActions(true)
         pose.layer.transform=CATransform3DIdentity;pose.layer.opacity=1;CATransaction.commit()
         later("intro-haptic",after:0.12){ [weak self] in self?.onHaptic?("light")}
@@ -201,10 +194,12 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
     private func crumble() {
         guard foreground,started,magicPrepared,!disposed,!revealRunning,!revealed,!magicOpening,!magicOpened else{return}
         magicOpening=true;phase="opening"
-        // SVG owns the whole card opening, dust, bounce and angular motion.
+        // SVG retains its authored opening/dust/angular tracks; the parent owns
+        // the requested additional finite scale bounce.
         // Start at visible admission or immediately upon selected SVG readiness.
         waitingCrumble=false
-        magic.play(from:0,to:NativeMagicCardSource.hold,reduced:reducedMotion)
+        animateCardEntrance(pose.layer,from:NativeRewardMotion.pose(scale:0),to:NativeRewardMotion.pose(),delay:reducedMotion ? 0:NativeMagicCardSource.fullyOpenAt,fromRest:!reducedMotion)
+        magic.play(from:0,to:NativeMagicCardSource.hold,reduced:reducedMotion,parentOwnsCardScale:true)
         let openingDuration=reducedMotion ? 0.16:NativeMagicCardSource.hold
         later("opening-crumbs",after:openingDuration*0.20){[weak self] in
             guard let self else{return}
@@ -251,8 +246,8 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         headingLabel.text=rarity=="legendary" ? "Legendary!":"Common"
         let copy=NSMutableAttributedString(string:"Unlocked \(NativeRewardPresentation.name(board:board))")
         copy.addAttribute(.foregroundColor,value:NativeTextPalette.subtitle,range:NSRange(location:9,length:copy.length-9));subtitle.attributedText=copy
-        let enter=reducedMotion ? 0.16:0.28
-        animatePose(unlocked.layer,from:NativeRewardMotion.pose(scale:0.58,y:22,z:tilt.entryZ,x:tilt.entryX,ry:tilt.entryY,depth:-180),to:NativeRewardMotion.pose(scale:1.17,y:40,z:tilt.restZ,x:tilt.restX,ry:tilt.restY),duration:enter,delay:unlockedDelay,ease:.backOut(2.1))
+        let enter=reducedMotion ? 0.16:NativeRewardMotion.cardEnterDuration
+        animateCardEntrance(unlocked.layer,from:NativeRewardMotion.pose(scale:0,y:22,z:tilt.entryZ,x:tilt.entryX,ry:tilt.entryY,depth:-180),to:NativeRewardMotion.pose(scale:1.17,y:40,z:tilt.restZ,x:tilt.restX,ry:tilt.restY),delay:unlockedDelay)
         animate(headingLabel.layer,"opacity",from:0,to:1,duration:0.192,delay:unlockedDelay);animate(subtitle.layer,"opacity",from:0,to:1,duration:0.192,delay:unlockedDelay)
         animate(headingLabel.layer,"transform",from:NSValue(caTransform3D:spatial(scale:0.72,y:-16)),to:NSValue(caTransform3D:CATransform3DIdentity),duration:0.192,delay:unlockedDelay,ease:.backOut(1.65))
         animate(subtitle.layer,"transform",from:NSValue(caTransform3D:spatial(scale:0.78,y:-12)),to:NSValue(caTransform3D:CATransform3DIdentity),duration:0.192,delay:unlockedDelay,ease:.backOut(1.65))
@@ -342,6 +337,11 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
     }
     private func spatial(scale:Double=1,scaleX:Double?=nil,scaleY:Double?=nil,y:Double=0,z:Double=0,x:Double=0,ry:Double=0,depth:Double=0)->CATransform3D {
         NativeRewardMotion.pose(scale:scale,scaleX:scaleX,scaleY:scaleY,y:y,z:z,x:x,ry:ry,depth:depth).transform
+    }
+    private func animateCardEntrance(_ layer:CALayer,from:NativeRewardMotion.Pose,to:NativeRewardMotion.Pose,delay:Double=0,fromRest:Bool=false) {
+        let curve:(Double)->Double=reducedMotion ? JimiV9Motion.Ease.powerOut(2).value:(fromRest ? NativeRewardMotion.cardRestBounceProgress:NativeRewardMotion.cardEnterProgress)
+        let samples=NativeRewardMotion.samples(from:from,to:to,ease:curve)
+        keyframes(layer,"transform",values:samples.map{NSValue(caTransform3D:$0)},times:(0..<samples.count).map{Double($0)/Double(samples.count-1)},duration:reducedMotion ? 0.16:NativeRewardMotion.cardEnterDuration,delay:delay,final:NSValue(caTransform3D:to.transform))
     }
     private func animatePose(_ layer:CALayer,from:NativeRewardMotion.Pose,to:NativeRewardMotion.Pose,duration:Double,delay:Double=0,ease:JimiV9Motion.Ease) {
         let samples=NativeRewardMotion.samples(from:from,to:to,ease:ease.value)

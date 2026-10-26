@@ -42,12 +42,12 @@ final class NativeHUDCloseNode:SKNode {
         run(.sequence([.customAction(withDuration:NativeHUDTapMotion.duration) { node,elapsed in
             let pose=NativeHUDTapMotion.pose(at:Double(elapsed))
             node.xScale=base.x*pose.x;node.yScale=base.y*pose.y;node.position.y=origin.y-pose.offset
-        },.run { [weak self] in self?.xScale=base.x;self?.yScale=base.y;self?.position=origin;self?.tapPosition=nil;self?.onTapFinished?() }]),withKey:"hud-tap-bounce")
+        },.run { [weak self] in self?.xScale=base.x;self?.yScale=base.y;self?.position=origin;self?.tapPosition=nil;self?.tapBase=nil;self?.onTapFinished?() }]),withKey:"hud-tap-bounce")
     }
     func cancelTapBounce() {
         removeAction(forKey:"hud-tap-bounce")
         if let base=tapBase {xScale=base.x;yScale=base.y}
-        if let origin=tapPosition{position=origin};tapPosition=nil
+        if let origin=tapPosition{position=origin};tapPosition=nil;tapBase=nil
     }
     var hitRect:CGRect {
         let circle=CGRect(x:position.x-22,y:position.y-22,width:44,height:44)

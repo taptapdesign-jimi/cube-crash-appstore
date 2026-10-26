@@ -22,7 +22,7 @@ final class NativeBackpackAlertStateTests:XCTestCase {
     func testEveryIntroductionIsUnreadOnlyOnceAndDetailReadsOnlyIt() throws {
         var state=NativeProgressionState()
         let introductions=(1...30).compactMap{board -> (Int,String)? in NativeJourneyContent.introductionID(board:board).map{(board,$0)}}
-        XCTAssertEqual(introductions.count,17)
+        XCTAssertEqual(introductions.count,18)
         for (board,id) in introductions {
             XCTAssertTrue(state.unreadJourneyDice.isEmpty)
             XCTAssertFalse(state.announceJourneyDie("invalid",board:board))
@@ -36,7 +36,7 @@ final class NativeBackpackAlertStateTests:XCTestCase {
             state.readJourneyDie(id);XCTAssertTrue(state.unreadJourneyDice.isEmpty)
             XCTAssertFalse(state.announceJourneyDie(id,board:board))
         }
-        XCTAssertEqual(state.announcedJourneyDice.count,17)
+        XCTAssertEqual(state.announcedJourneyDice.count,18)
     }
     func testOldProfileProgressionNeverInventsLandedDiscovery() throws {
         var state=NativeProgressionState();state.lastOpenedJourneyBoard=4;state.completedJourneyBoards=[1,2,3]

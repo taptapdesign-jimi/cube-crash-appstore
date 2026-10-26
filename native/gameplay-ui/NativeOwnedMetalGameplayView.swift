@@ -172,6 +172,14 @@ final class NativeOwnedMetalGameplayView: MTKView, @preconcurrency MTKViewDelega
             pool.completeSubmission(status:completed.status,error:completed.error,epoch:epoch,generation:generation)
         }
         let submitStart=diagnosticsEnabled ? CACurrentMediaTime():nil
+        #if DEBUG
+        if let touch=scene.takeHUDLatencySubmission() {
+            NSLog("[NATIVE_HUD_LATENCY] phase=metal.submit monotonicMs=%.3f deltaMs=%.3f",CACurrentMediaTime()*1000,(CACurrentMediaTime()-touch)*1000)
+            command.addCompletedHandler { _ in
+                NSLog("[NATIVE_HUD_LATENCY] phase=metal.completed monotonicMs=%.3f deltaMs=%.3f",CACurrentMediaTime()*1000,(CACurrentMediaTime()-touch)*1000)
+            }
+        }
+        #endif
         command.present(drawable);submitted=true;pool.recordSubmission();command.commit()
         if let submitStart {submitWorst=max(submitWorst,(CACurrentMediaTime()-submitStart)*1000)}
     }

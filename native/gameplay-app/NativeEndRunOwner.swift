@@ -12,6 +12,16 @@ final class NativeEndRunOwner {
     private var modal:JimiNativeEndRunModal?
     private var generation = 0
     private var observers:[NSObjectProtocol] = []
+    #if DEBUG
+    private var hudLatencyTraceRows=0
+    #endif
+    private func traceHUDLatency(_ phase:String) {
+        #if DEBUG
+        guard ProcessInfo.processInfo.arguments.contains("-native-hud-latency-trace"),hudLatencyTraceRows<96 else{return}
+        hudLatencyTraceRows+=1
+        NSLog("[NATIVE_HUD_LATENCY] phase=%@ owner=%d monotonicMs=%.3f",phase,generation,CACurrentMediaTime()*1000)
+        #endif
+    }
     var onFeedback:((String)->Void)?
     init(gameplay:NativeGameplayViewController,resourceRoot:URL,save:@escaping ()->Bool,
          restart:@escaping ()->Void,exit:@escaping ()->Void) {
@@ -26,19 +36,44 @@ final class NativeEndRunOwner {
         })
     }
     private func present() {
+        traceHUDLatency("exit-owner-enter")
+        defer{traceHUDLatency("exit-owner-return")}
         guard let gameplay,modal == nil,gameplay.presentedViewController == nil,
               gameplay.boardScene?.navigationLocked != true,gameplay.engine.state.terminal == nil,
               UIApplication.shared.applicationState == .active else{return}
+        traceHUDLatency("exit-suspend-begin")
         gameplay.setSuspended(true)
-        guard save() else {gameplay.setSuspended(false);return}
+        traceHUDLatency("exit-suspend-end")
+        guard self.gameplay === gameplay else{return}
         generation += 1;let owner = generation
+        showModal(gameplay:gameplay,owner:owner)
+    }
+    private func showModal(gameplay:NativeGameplayViewController,owner:Int) {
         let state = gameplay.engine.state,arcade = state.mode == .arcade
         let progress = arcade ? String(format:"Round %02d",state.stage) : "Stage \((state.board-1)%10+1)"
         guard let model = JimiNativeEndRunModel(["title":arcade ? "Exit Game?" : "Exit Stage?",
             "subtitle":"Come back anytime.\n\(progress) progress saved.",
             "restartLabel":arcade ? "New Game" : "Restart","exitLabel":arcade ? "Exit Game" : "Exit Stage"]) else {gameplay.setSuspended(false);return}
+        traceHUDLatency("exit-modal-init-begin")
         let sheet = JimiNativeEndRunModal(id:owner,model:model,assets:assets);modal = sheet
+        traceHUDLatency("exit-modal-init-end")
+        // Match trophy contact latency: disk checkpoint must not block modal entrance.
+        sheet.onReady = { [weak self,weak sheet,weak gameplay] in
+            guard let self,let sheet,let gameplay,self.generation == owner,
+                  self.modal === sheet,self.gameplay === gameplay else{return}
+            sheet.onReady = nil
+            self.traceHUDLatency("exit-checkpoint-begin")
+            let saved=self.save()
+            self.traceHUDLatency("exit-checkpoint-end")
+            guard saved else {
+                guard self.generation == owner,self.modal === sheet else{return}
+                self.modal = nil;sheet.dispose();sheet.dismiss(animated:false)
+                gameplay.setSuspended(false);return
+            }
+        }
+        traceHUDLatency("exit-feedback-begin")
         onFeedback?("exit-modal")
+        traceHUDLatency("exit-feedback-end")
         sheet.onAction = { [weak self,weak sheet] action in
             guard let self,let sheet,self.generation == owner,self.modal === sheet else{return}
             guard ["close","restart","exit"].contains(action) else{return}
@@ -64,7 +99,9 @@ final class NativeEndRunOwner {
             }
             sheet.closeFromOwner()
         }
+        traceHUDLatency("exit-present-begin")
         gameplay.present(sheet,animated:false)
+        traceHUDLatency("exit-present-return")
     }
     func dispose() {
         generation += 1;modal?.dispose();modal?.dismiss(animated:false);modal = nil

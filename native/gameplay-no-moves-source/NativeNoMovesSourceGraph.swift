@@ -56,7 +56,7 @@ import Foundation
         guard current()else{throw Failure.stale}
         let tilt=(random()-0.5)*30,buckets=[[92.0,98,104],[66,72,80],[30,36,44,50],[66,72,80],[92,98,104],[30,36,44,50],[66,72,80],[30,36,44,50],[92,98,104]]
         let offset=min(8,Int(random()*9));var sizes:[Double]=[],letters:[NativeNoMovesPlan.Letter]=[]
-        for i in 0..<8{let bucket=buckets[(i+offset)%9],base=bucket[min(bucket.count-1,Int(random()*Double(bucket.count)))];sizes.append(max(i==0 ? 75:28,base+random()*10-5))}
+        for i in 0..<8{let bucket=buckets[(i+offset)%9],base=bucket[min(bucket.count-1,Int(random()*Double(bucket.count)))];sizes.append(max(i==0 || i==1 || i==3 ? 75:28,base+random()*10-5))}
         do {
             for i in 0..<8 {
                 let alpha=((0.8+random()*0.2)*100).rounded()/100

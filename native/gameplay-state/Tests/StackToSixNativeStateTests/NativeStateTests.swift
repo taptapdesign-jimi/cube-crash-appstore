@@ -155,16 +155,16 @@ final class NativeStateTests: XCTestCase {
         XCTAssertEqual(NativeJourneyContent.cardAsset(board:21,score:35000),"./assets/colelctibles/Area55/legendary/01-gold.png")
         XCTAssertEqual(NativeJourneyContent.cardAsset(board:2,score:0),"./assets/colelctibles/Forest/common/01.png")
     }
-    func testBeachUnlocksOneAdditionalDiePerUnitUntilFive() {
-        let order=["wild-juice","fish","beach-ball","bottle","coconut"]
+    func testBeachUnlocksSixDiceAtAuthoredIntroductionUnits() {
+        let order=["wild-juice","fish","beach-ball","bottle","coconut","kite"]
         for unit in 1...10 {
-            XCTAssertEqual(Set(NativeJourneyContent.rewardPool(board:10+unit)),Set(order.prefix(unit>=6 ? 5:min(unit,4))))
+            XCTAssertEqual(Set(NativeJourneyContent.rewardPool(board:10+unit)),Set(order.prefix(unit>=8 ? 6:unit>=6 ? 5:min(unit,4))))
         }
     }
     func testEveryJourneyPoolContainsOnlyItsWorldDiceAndNeverArcadeOnlyDice() {
         let worlds:[Set<String>]=[
             ["bee","wild-star","flower","honey","mushroom","barell"],
-            ["wild-juice","fish","beach-ball","bottle","coconut"],
+            ["wild-juice","fish","beach-ball","bottle","coconut","kite"],
             ["robo-cube","kanta","spaceship","laser-gun","bloob-ball","bloob"]]
         for board in 1...30 {
             let pool=Set(NativeJourneyContent.rewardPool(board:board))

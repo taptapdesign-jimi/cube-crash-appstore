@@ -7,6 +7,7 @@ import ImageIO
 nonisolated enum NativeMagicCardSource {
     static let path="assets/animations/sand/magic-card-reveal.svg"
     static let duration=1.86666667
+    static let fullyOpenAt=0.3107143*duration
     static let hold=0.725*duration
     static let end=duration
     static let brightnessLift=0.145
@@ -127,11 +128,15 @@ final class NativeMagicCardReveal {
         for track in tracks {track.layer.removeAnimation(forKey:"magic.\(track.key)");track.layer.setValue(track.object(at:time),forKeyPath:track.key)}
         CATransaction.commit()
     }
-    func play(from start:Double,to end:Double,reduced:Bool=false,durationScale:Double=1) {
+    func play(from start:Double,to end:Double,reduced:Bool=false,durationScale:Double=1,parentOwnsCardScale:Bool=false) {
         guard ready else{return}
         guard !reduced else{settle(at:end);return}
         var prepared:[(CALayer,CAKeyframeAnimation,String)]=[]
         for track in tracks {
+            // The global SVG card-scale group is directly inside the rotation
+            // group under the centered root. During entry the shared parent
+            // spring owns scale, so this authored bounce must not multiply it.
+            if parentOwnsCardScale,track.type=="scale",track.layer.superlayer?.superlayer === layer.sublayers?.first {continue}
             // Preserve every discrete artwork change exactly. Numeric tracks
             // sample only their active portion; constant tracks need no owner.
             let boundaries=track.times.map{$0*NativeMagicCardSource.duration}.filter{$0>start && $0<end}

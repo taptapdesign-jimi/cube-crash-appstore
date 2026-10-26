@@ -13,6 +13,10 @@ extension JimiNativeMusic:NativeSoundtrackTransport {}
 final class NativeSoundtrackRouteOwner {
     private let transport:any NativeSoundtrackTransport
     private let isApplicationActive:@MainActor ()->Bool
+    private let activateSession:@MainActor () throws -> Void
+    private var recovery:Timer?
+    private var recoveryAttempts=0
+    private var interrupted=false
     private var enabled = true
     private static let menuGain = 0.578 * 0.8 * 0.7
     private static let journeyGain = 0.11
@@ -37,9 +41,11 @@ final class NativeSoundtrackRouteOwner {
     var hasBoardTransitionEnvelope:Bool {transition != nil}
     private var observers:[NSObjectProtocol] = []
     var onError:((String)->Void)?
-    init(root:URL, transport:(any NativeSoundtrackTransport)? = nil,isApplicationActive:@escaping @MainActor ()->Bool={UIApplication.shared.applicationState == .active}) {
+    init(root:URL, transport:(any NativeSoundtrackTransport)? = nil,isApplicationActive:@escaping @MainActor ()->Bool={UIApplication.shared.applicationState == .active},
+         activateSession:@escaping @MainActor () throws -> Void={try AVAudioSession.sharedInstance().setCategory(JimiNativeMusic.sessionCategory);try AVAudioSession.sharedInstance().setActive(true)}) {
         self.transport = transport ?? JimiNativeMusic(root:root)
         self.isApplicationActive=isApplicationActive
+        self.activateSession=activateSession
         for name in [UIApplication.willResignActiveNotification, UIApplication.didBecomeActiveNotification,
                      AVAudioSession.interruptionNotification,AVAudioSession.mediaServicesWereResetNotification] {
             observers.append(NotificationCenter.default.addObserver(forName:name,object:nil,queue:.main) { [weak self] notice in
@@ -50,12 +56,12 @@ final class NativeSoundtrackRouteOwner {
     func apply(enabled:Bool) {
         guard !disposed else{return}
         self.enabled = enabled
-        if !enabled {lease &+= 1;if transition != nil{target=Self.journeyGain};transition=nil;command("dispose");themePrepared = false}
+        if !enabled {cancelRecovery();lease &+= 1;if transition != nil{target=Self.journeyGain};transition=nil;command("dispose");themePrepared = false}
         else if foreground,!arcade {resume()}
     }
     func setMenu() {guard !disposed else{return};lease &+= 1;transition=nil;arcade = false;gameplay=false;target = Self.menuGain;setGain(duration:0.42)}
     func setJourneyGameplay() {guard !disposed,transition==nil else{return};lease &+= 1;arcade = false;gameplay=true;target = Self.journeyGain;setGain(duration:0.32)}
-    func setArcadeGameplay() {guard !disposed,!arcade else{return};lease &+= 1;transition=nil;arcade = true}
+    func setArcadeGameplay() {guard !disposed,!arcade else{return};cancelRecovery();lease &+= 1;transition=nil;arcade = true}
     /// Arcade readiness owns the outgoing fade: NN never creates a silent gap.
     func arcadePlaybackReady(duration:Double) {
         guard !disposed,enabled,foreground,arcade else{return}
@@ -110,16 +116,16 @@ final class NativeSoundtrackRouteOwner {
         }
     }
     private func setGain(duration:Double) {
-        guard enabled,foreground else{return}
+        guard enabled,foreground,!interrupted,isApplicationActive() else{return}
         let replacing=themePrepared && preparedSource != (gameplay ? Self.gameplaySource : Self.menuSource)
         if !themePrepared || replacing {resume()}
         else {command("resume")} // Preserve current gain while ensuring a paused route is live.
         command("volume",extra:["volume":target,"duration":replacing ? max(1.25,duration):duration])
     }
     private func resume(fadeIn:Bool=false) {
-        guard enabled,foreground,!arcade,isApplicationActive() else{return}
-        do {try AVAudioSession.sharedInstance().setCategory(JimiNativeMusic.sessionCategory);try AVAudioSession.sharedInstance().setActive(true)}
-        catch {onError?(error.localizedDescription);return}
+        guard !disposed,enabled,foreground,!interrupted,!arcade,isApplicationActive() else{return}
+        do {try activateSession()}
+        catch {onError?(error.localizedDescription);scheduleRecovery();return}
         let source=gameplay ? Self.gameplaySource : Self.menuSource
         if themePrepared,preparedSource != source {
             // Direct Native transport state receipts are synchronous and read-only.
@@ -141,22 +147,34 @@ final class NativeSoundtrackRouteOwner {
     private func command(_ op:String,extra:[String:Any] = [:]) {
         transport.perform(id:"soundtrack-native-main",op:op,body:extra) { [weak self] _,error in
             guard let self else{return}
-            if let error {self.onError?(error);return}
+            if let error {self.onError?(error);if op == "play" || op == "resume" {self.scheduleRecovery()};return}
+            if op == "play" || op == "resume" {self.cancelRecovery()}
             if op == "play" {self.themePrepared = true;self.preparedSource=extra["source"] as? String}
         }
     }
     private func notification(_ notice:Notification) {
-        if notice.name == UIApplication.willResignActiveNotification {foreground = false;retireTransitionForInterruption();command("pause");return}
-        if notice.name == UIApplication.didBecomeActiveNotification {foreground = true;resume(fadeIn:true);return}
+        if notice.name == UIApplication.willResignActiveNotification {foreground = false;cancelRecovery();retireTransitionForInterruption();command("pause");return}
+        if notice.name == UIApplication.didBecomeActiveNotification {foreground = true;interrupted=false;cancelRecovery();resume(fadeIn:true);return}
         if notice.name == AVAudioSession.interruptionNotification {
             guard let raw = notice.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
                   let type = AVAudioSession.InterruptionType(rawValue:raw) else{return}
-            if type == .began {retireTransitionForInterruption();command("pause")}
-            else if foreground {resume(fadeIn:true)}
+            if type == .began {interrupted=true;cancelRecovery();retireTransitionForInterruption();command("pause")}
+            else {interrupted=false;cancelRecovery();if foreground {resume(fadeIn:true)}}
         } else if foreground {retireTransitionForInterruption();resume(fadeIn:true)}
     }
+    // One finite retry chain per activation failure; no polling while hidden.
+    // Every attempt reads current route/Settings rather than replaying old intent.
+    private func scheduleRecovery() {
+        guard recovery == nil,recoveryAttempts<3,!disposed,enabled,foreground,!interrupted,!arcade,isApplicationActive() else{return}
+        let delay=[0.15,0.5,1.0][recoveryAttempts];recoveryAttempts += 1
+        let timer=Timer(timeInterval:delay,repeats:false){[weak self] _ in
+            MainActor.assumeIsolated {guard let self else{return};self.recovery=nil;self.resume(fadeIn:true)}
+        }
+        recovery=timer;RunLoop.main.add(timer,forMode:.common)
+    }
+    private func cancelRecovery(){recovery?.invalidate();recovery=nil;recoveryAttempts=0}
     /// Source background receipt cancels the transition envelope and preserves
     /// gameplay intent at33%; foreground cannot replay any old phase contact.
     private func retireTransitionForInterruption(){guard transition != nil else{return};lease &+= 1;transition=nil;target=Self.journeyGain}
-    func dispose() {guard !disposed else{return};disposed=true;lease &+= 1;transition=nil;enabled = false;command("dispose");themePrepared = false;for observer in observers {NotificationCenter.default.removeObserver(observer)};observers.removeAll()}
+    func dispose() {guard !disposed else{return};disposed=true;cancelRecovery();lease &+= 1;transition=nil;enabled = false;command("dispose");themePrepared = false;for observer in observers {NotificationCenter.default.removeObserver(observer)};observers.removeAll()}
 }

@@ -10,6 +10,41 @@ import StackToSixNativeState
 @testable import Stack_to_Six
 
 @MainActor final class NativeCoconutTests:XCTestCase {
+ func testLocoLeadingLAlwaysUsesLargeLetterTreatment() throws {
+  let artwork=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+  for sample in [0.0,0.23,0.56,0.99] {
+   let field=NativeSplashGlyphField.clankStyle(artwork:artwork,text:"COCO-LOCO",random:{sample})
+   let labels=try XCTUnwrap(field.subviews.first).subviews.compactMap{$0 as? UILabel}
+   XCTAssertEqual(labels.map{$0.text ?? ""}.joined(),"COCO-LOCO")
+   XCTAssertGreaterThanOrEqual(labels[0].font.pointSize,75)
+   XCTAssertGreaterThanOrEqual(labels[5].font.pointSize,75)
+  }
+ }
+
+ func testEveryCoconutContactDrivesBoundedFiniteScreenShake() {
+  let motion=NativeCoconutFinaleMotion(viewport:.init(width:390,height:844),random:{0.5})
+  XCTAssertFalse(motion.contacts.isEmpty)
+  for contact in motion.contacts {
+   let poses=(1...17).map{motion.screenShakeOffset(seconds:contact.time+Double($0)*0.01)}
+   XCTAssertTrue(poses.contains{$0 != .zero})
+   XCTAssertTrue(poses.allSatisfy{abs($0.x)<=8 && abs($0.y)<=8})
+  }
+  XCTAssertEqual(motion.screenShakeOffset(seconds:-1),.zero)
+  XCTAssertEqual(motion.screenShakeOffset(seconds:(motion.contacts.last?.time ?? 0)+0.181),.zero)
+ }
+ func testCoconutScreenShakeRestoresHostOnPauseAndDisposal() async throws {
+  let selected=try await prepared();defer{selected.dispose()}
+  let host=UIView(frame:CGRect(x:0,y:0,width:390,height:844));host.transform=CGAffineTransform(translationX:3,y:5)
+  let base=host.transform
+  let owner=NativeTntVariantPresentation(resourceRoot:NativeTestResources.root,variant:.coconut,viewport:host.bounds.size,preparedArtwork:selected.artwork,random:{0.5})
+  defer{owner.dispose()};host.addSubview(owner);owner.bindScreenShake(to:host)
+  let motion=NativeCoconutFinaleMotion(viewport:host.bounds.size,random:{0.5})
+  let time=try XCTUnwrap(motion.contacts.first).time+0.015
+  owner.paint(seconds:time);XCTAssertNotEqual(host.transform,base)
+  owner.setSuspended(true);XCTAssertEqual(host.transform.tx,base.tx,accuracy:1e-10);XCTAssertEqual(host.transform.ty,base.ty,accuracy:1e-10)
+  owner.setSuspended(false);owner.paint(seconds:time);XCTAssertNotEqual(host.transform,base)
+  owner.dispose();XCTAssertEqual(host.transform.tx,base.tx,accuracy:1e-10);XCTAssertEqual(host.transform.ty,base.ty,accuracy:1e-10);owner.dispose()
+ }
  private func prepared()async throws->NativeSelectedUIKitFinaleArtworkOwner {
   let selected=NativeSelectedUIKitFinaleArtworkOwner(root:NativeTestResources.root,generation:1,current:{true})
   selected.prepare(variant:"coconut")
@@ -343,6 +378,7 @@ import StackToSixNativeState
   var found:SKSpriteNode?
   for _ in 0..<600 {die.tick(1.0/60,suspended:false,viewportCenter:195);if let art=die.visual.children.compactMap({$0 as? SKSpriteNode}).last,!art.isHidden,art.texture != nil,abs(art.size.width-199.68)<0.01 {found=art;break};try await Task.sleep(for:.milliseconds(20))}
   XCTAssertEqual(try XCTUnwrap(found).size.width,199.68,accuracy:0.01)
+  XCTAssertEqual(try XCTUnwrap(found).position.y,10,accuracy:0.001)
   let phase=die.authoredArtworkReceipt.elapsed
   die.setDragging(true)
   for _ in 0..<120 {die.tick(1.0/60,suspended:false,viewportCenter:195)}

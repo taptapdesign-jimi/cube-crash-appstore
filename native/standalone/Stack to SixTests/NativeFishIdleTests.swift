@@ -72,11 +72,119 @@ final class NativeFishIdleTests:XCTestCase {
         let snapbackDeadline=CACurrentMediaTime()+2
         while !field.isRunning,CACurrentMediaTime()<snapbackDeadline {try await Task.sleep(for:.milliseconds(25))}
         XCTAssertTrue(field.isRunning,"Actual snapback must resume its bubble owner")
-        controller.setSuspended(true);XCTAssertTrue(owner.isHidden);XCTAssertEqual(owner.playbackRate,0)
+        controller.setSuspended(true)
+        XCTAssertFalse(owner.isHidden,"Foreground modal pause retains the painted Fishy pose")
+        let pausedFrame=owner.originalSVGFrame
+        try await Task.sleep(for:.milliseconds(100))
+        XCTAssertEqual(owner.originalSVGFrame,pausedFrame)
+        NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
+        XCTAssertTrue(owner.isHidden);XCTAssertEqual(owner.playbackRate,0)
+        NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
         controller.setSuspended(false)
         engine.restart(state:NativeBoardState(columns:5,rows:9,tiles:[NativeTile(id:"a2",cell:NativeCell(column:1,row:0),value:1),NativeTile(id:"b2",cell:NativeCell(column:2,row:0),value:2)]))
         controller.refreshFromEngine()
         XCTAssertEqual(host.activeMediaCount,0);XCTAssertEqual(owner.retainedItemCount,0);XCTAssertEqual(owner.playbackRate,0)
+    }
+    func testConsumedFishMergeDoesNotLeaveOriginalBoardSVGVisible() async throws {
+        let tiles=[NativeTile(id:"fish",cell:.init(column:0,row:0),value:6,starOrbitCount:1,archetype:.star,variant:"fish"),
+                   NativeTile(id:"destination",cell:.init(column:1,row:0),value:2),
+                   NativeTile(id:"a",cell:.init(column:3,row:3),value:1),NativeTile(id:"b",cell:.init(column:4,row:4),value:2)]
+        let engine=NativeGameplayEngine(state:.init(columns:5,rows:9,tiles:tiles))
+        let controller=NativeGameplayViewController(engine:engine,resourceRoot:root)
+        let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+        let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=controller;window.makeKeyAndVisible();controller.view.layoutIfNeeded()
+        defer {controller.dispose();window.isHidden=true;previous?.makeKeyAndVisible()}
+        let scene=try XCTUnwrap(controller.boardScene)
+        let media=try XCTUnwrap(controller.view.subviews.compactMap{$0 as? NativeFishIdleOwner}.first)
+        try await waitForFishBoundary {scene.isBoardEntryComplete && media.presentation(tileID:"fish")?.mediaReady==true && media.presentation(tileID:"fish")?.isHidden==false}
+        let owner=try XCTUnwrap(media.presentation(tileID:"fish"))
+        let source=try XCTUnwrap(scene.sourceNativeTileNode("fish")),destination=try XCTUnwrap(scene.sourceNativeTileNode("destination"))
+        let from=scene.convert(source.position,from:try XCTUnwrap(source.parent)),to=scene.convert(destination.position,from:try XCTUnwrap(destination.parent))
+        XCTAssertTrue(scene.beginDrag(at:from));scene.moveDrag(to:to,now:CACurrentMediaTime())
+        try await Task.sleep(for:.milliseconds(160))
+        XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:to,now:CACurrentMediaTime())).accepted)
+        try await waitForFishBoundary {engine.state.tiles.allSatisfy{$0.id != "fish"} && media.presentation(tileID:"fish")==nil}
+        XCTAssertTrue(owner.isHidden || owner.superview==nil,"Consumed board Fishy must not remain beside the separate finale")
+        XCTAssertEqual(media.activeMediaCount,0)
+    }
+    func testBeachBallBlastKeepsSurvivingFishSVGVisibleAndTracksItsActualHolder() async throws {
+        try await exerciseSurvivingFishDuringBlast(variant:"beach-ball")
+    }
+    func testFlowerBlastKeepsSurvivingFishSVGVisibleAndTracksItsActualHolder() async throws {
+        try await exerciseSurvivingFishDuringBlast(variant:"flower")
+    }
+    private func exerciseSurvivingFishDuringBlast(variant:String) async throws {
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent("fish-blast-"+UUID().uuidString)
+        let store=NativeSaveStore(directory:directory)
+        let fish=NativeTile(id:"fish",cell:.init(column:4,row:6),value:6,starOrbitCount:1,archetype:.star,variant:"fish")
+        let tiles=[NativeTile(id:"blast",cell:.init(column:0,row:0),value:6,archetype:.tnt,variant:variant),
+                   NativeTile(id:"destination",cell:.init(column:1,row:0),value:2),fish]+(0..<6).map {
+            NativeTile(id:"target-\($0)",cell:.init(column:$0%5,row:2+$0/5),value:1+$0%5)
+        }
+        var saved=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
+        saved.progression.firstPlayTutorialComplete=true
+        saved.arcadeRun = .init(tiles:tiles,mode:.arcade,board:3,stage:3,generation:9,moves:37,score:123)
+        saved.arcadeRunSavedAt=Date().timeIntervalSince1970
+        try store.save(saved)
+        let controller=NativeStandaloneViewController(resourceRoot:root,store:store,sourceVisualRandom:{0.1},completeNativeGameplayEnabled:true)
+        let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+        let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844))
+        window.rootViewController=controller;window.makeKeyAndVisible();controller.loadViewIfNeeded()
+        defer {controller.dispose();window.isHidden=true;previous?.makeKeyAndVisible();try? FileManager.default.removeItem(at:directory)}
+        let app=try XCTUnwrap(controller.children.first as? NativeAppController)
+        try await waitForFishBoundary { !app.home.isHidden }
+        app.navigate(.gameplay,interrupt:true)
+        try await waitForFishBoundary {app.children.compactMap{$0 as? NativeGameplayViewController}.first?.boardScene?.isBoardEntryComplete==true}
+        let game=try XCTUnwrap(app.children.compactMap{$0 as? NativeGameplayViewController}.first)
+        let scene=try XCTUnwrap(game.boardScene)
+        let media=try XCTUnwrap(game.view.subviews.compactMap{$0 as? NativeFishIdleOwner}.first)
+        try await waitForFishBoundary {media.presentation(tileID:"fish")?.mediaReady==true && media.presentation(tileID:"fish")?.isHidden==false && !game.engine.hasUnsavableSourceGameplayState && game.beforeSourceGameplayAdmission==nil}
+        let owner=try XCTUnwrap(media.presentation(tileID:"fish")),holder=try XCTUnwrap(scene.sourceNativeTileNode("fish"))
+        let rest=holder.position
+        let originalPaint=scene.onFishIdleFrames
+        var outwardSamples=0,returnSamples=0,maxDisplacement=CGFloat.zero
+        scene.onFishIdleFrames={ [weak scene,weak media,weak owner,weak holder] frames,generation,force in
+            originalPaint?(frames,generation,force)
+            guard let scene,let media,let owner,let holder,
+                  holder.action(forKey:"tnt-blast") != nil || holder.action(forKey:"tnt-return") != nil else{return}
+            if holder.action(forKey:"tnt-blast") != nil {outwardSamples+=1}
+            if holder.action(forKey:"tnt-return") != nil {returnSamples+=1}
+            guard let frame=frames["fish"] else {XCTFail("Moving survivor lost its Fishy frame");return}
+            XCTAssertTrue(frame.visible,"A board blast moves surviving artwork; it must not suppress it")
+            XCTAssertTrue(media.presentation(tileID:"fish") === owner,"The same prepared SVG must survive the blast")
+            XCTAssertFalse(owner.isHidden,"Actual mounted Fishy SVG disappeared during \(variant)")
+            XCTAssertGreaterThan(owner.alpha,0.99)
+            XCTAssertEqual(owner.center.x,frame.point.x,accuracy:0.001)
+            XCTAssertEqual(owner.center.y,frame.point.y,accuracy:0.001)
+            let center=holder.visual.convert(CGPoint.zero,to:scene)
+            XCTAssertEqual(frame.point.x,center.x,accuracy:0.001)
+            XCTAssertEqual(frame.point.y,scene.size.height-center.y,accuracy:0.001)
+            maxDisplacement=max(maxDisplacement,hypot(holder.position.x-rest.x,holder.position.y-rest.y))
+        }
+        let source=try XCTUnwrap(scene.sourceNativeTileNode("blast")),destination=try XCTUnwrap(scene.sourceNativeTileNode("destination"))
+        let from=scene.convert(source.position,from:try XCTUnwrap(source.parent)),to=scene.convert(destination.position,from:try XCTUnwrap(destination.parent))
+        XCTAssertTrue(scene.beginDrag(at:from));scene.moveDrag(to:to,now:CACurrentMediaTime())
+        try await Task.sleep(for:.milliseconds(160))
+        XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:to,now:CACurrentMediaTime())).accepted)
+        try await waitForFishBoundary {game.sourcePresentationFailure != nil || (outwardSamples>0 && game.engine.pendingSpecial==nil && !game.engine.hasUnsavableSourceGameplayState)}
+        scene.onFishIdleFrames=originalPaint
+        XCTAssertNil(game.sourcePresentationFailure)
+        XCTAssertGreaterThan(outwardSamples,2,"Exercise actual authored outward motion")
+        XCTAssertGreaterThan(returnSamples,2,"Exercise actual authored return motion")
+        XCTAssertGreaterThan(maxDisplacement,10,"A stationary SVG cannot satisfy the survivor contract")
+        XCTAssertTrue(scene.sourceNativeTileNode("fish") === holder)
+        XCTAssertEqual(holder.position.x,rest.x,accuracy:0.001);XCTAssertEqual(holder.position.y,rest.y,accuracy:0.001)
+        XCTAssertTrue(media.presentation(tileID:"fish") === owner);XCTAssertFalse(owner.isHidden)
+        XCTAssertEqual(game.engine.state.tiles.first{$0.id=="fish"}?.cell,fish.cell)
+        controller.dispose()
+        XCTAssertEqual(media.activeMediaCount,0,"Route retirement releases surviving SVG and its prepared lease")
+    }
+    private func waitForFishBoundary(_ predicate:()->Bool) async throws {
+        let deadline=CACurrentMediaTime()+35
+        while !predicate() {
+            guard CACurrentMediaTime()<deadline else {XCTFail("Mounted Fishy transaction boundary timed out");throw CancellationError()}
+            try await Task.sleep(for:.milliseconds(20))
+        }
     }
     func testTwoBoardFishShareOriginalFramesAndNeverRenderEmptyAtLoopWrap() async throws {
         let tiles=[NativeTile(id:"f1",cell:.init(column:0,row:0),value:0,archetype:.juice,variant:"fish"),

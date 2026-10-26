@@ -40,7 +40,8 @@ struct NativeBackpackCatalog {
         Die(id:"fish",title:"FISHY",copy:"Merge me to bring in 1–3 bonus dice, plus the main merge die. Closed dice appear for later moves.",board:12),
         Die(id:"beach-ball",title:"BEACH BALL",copy:"Merge me to bounce into up to 4 ordinary dice. Every hit gives that die a different number.",board:13),
         Die(id:"bottle",title:"BOTTLE",copy:"Merge me to wash away up to 4 dice, then bring back the same number of fresh dice.",board:14),
-        Die(id:"coconut",title:"COCONUT",copy:"Merge me to shake the palms! Every ordinary die changes to a different number.",board:16)]
+        Die(id:"coconut",title:"COCONUT",copy:"Merge me to shake the palms! Every ordinary die changes to a different number.",board:16),
+        Die(id:"kite",title:"KITE",copy:"Merge me to create the main merge die and 1 bonus die. Fly away!",board:18)]
     static func sections(_ progression:NativeProgressionState)->[Section] {
         [("Forest",forest),("Area 55",area),("Beach",beach)].map {title,dice in
             // Reward eligibility and card progression do not prove a die landed.

@@ -328,6 +328,152 @@ import StackToSixGameplay
   let variants=NativeSpecialDiceRegistry.variants.values.sorted{$0.id<$1.id}.map{NativeTile(id:$0.id,cell:.init(column:0,row:0),value:6,archetype:$0.archetype,variant:$0.id)}
   return cores+variants+[NativeTile(id:"legacy-juice-ball",cell:.init(column:0,row:0),value:6,archetype:.juice,variant:"beach-ball"),NativeTile(id:"legacy-magnet-ball",cell:.init(column:0,row:0),value:6,archetype:.magnet,variant:"beach-ball")]
  }
+ // Exercise the real restore constructor, face receipt, entry and registry for
+ // the live roster. Adding a registry identity automatically extends this test.
+ func testEveryRestoredSpecialStartsAfterEntryInJourneyAndArcadeAndRetainsItsOwners()async throws {
+  for mode in [NativeRunMode.journey,.arcade] {
+   for tile in wildRoster() {
+    let label="\(mode) / \(tile.id)"
+    let fifo=NativeSourceMicrotaskFIFO(),tasks=NativeSourceMicrotaskAdapters(fifo:fifo)
+    var state=saved();state.mode=mode
+    var sibling=tile;sibling.id=tile.id+"-sibling";sibling.cell = .init(column:1,row:0)
+    state.tiles=[tile,sibling]
+    var wall=0.0
+    let f=try Fixture(state,sourceOuterForRepair:true,wildRestore:true,sourceTasks:tasks,sourceWallMillisecondsNow:{wall})
+    let view=SKView(frame:.init(x:0,y:0,width:390,height:844)),window=UIWindow(frame:.init(x:0,y:0,width:390,height:844)),controller=UIViewController()
+    defer{view.presentScene(nil);window.isHidden=true;window.rootViewController=nil;f.dispose();fifo.dispose()}
+    let scope=try XCTUnwrap(f.repairScope),nodes=[try XCTUnwrap(f.construction.nodes[tile.id]),try XCTUnwrap(f.construction.nodes[sibling.id])]
+    f.scene.sourceBoardEntryEnabled=true
+    var completed:[NativeSourceBoardEntryOwner.Completion]=[],failures:[String]=[]
+    f.scene.onSourcePresentationFailure={reason,_ in failures.append(reason)}
+    XCTAssertTrue(f.scene.configureSourceBoardEntry(scope:scope,sound:{_,_,_ in {}},completed:{completed.append($0)}),label)
+    controller.view=view;window.rootViewController=controller;window.makeKeyAndVisible();view.presentScene(f.scene)
+    XCTAssertTrue(tasks.layoutTask{
+     f.scene.layout(size:view.bounds.size,insets:.zero,animateEntry:true)
+     XCTAssertTrue(f.scene.configureSourceRestoredWildSkins(scope:scope),label)
+     XCTAssertTrue(f.scene.configureSourceRestoredPlainStarHalos(scope:scope,waitForSharedIdle:true),label)
+     XCTAssertTrue(f.scene.configureSourceSpecialIdle(scope:scope),label)
+    })
+    let before=f.scene.engine.state
+    XCTAssertTrue(nodes.allSatisfy{$0.sourceIdleDeferred},label)
+    XCTAssertEqual(scope.specialIdle.snapshot.registered,0,label)
+    let pendingRelease=mode == .arcade ? f.scene.acquireSourceSpecialIdle(reason:"restore-entry-held"):nil
+    wall=16;f.service.deliver(wallMilliseconds:wall)
+    XCTAssertTrue(nodes.allSatisfy{!$0.sourceRestoreWildFacePending && $0.sourceIdleDeferred},label)
+    while completed.isEmpty && wall<1800 {
+     wall+=16;f.service.deliver(wallMilliseconds:wall)
+     f.scene.update(wall/1000);f.scene.didFinishUpdate()
+    }
+    XCTAssertEqual(completed.map(\.outcome),[.normal],label)
+    guard !completed.isEmpty else{continue}
+    if let pendingRelease {
+     XCTAssertTrue(nodes.allSatisfy{$0.sourceIdleDeferred},label)
+     XCTAssertEqual(scope.specialIdle.snapshot.registered,0,label)
+     XCTAssertTrue(tasks.inputTask{pendingRelease()})
+    }
+    XCTAssertTrue(nodes.allSatisfy{!$0.sourceIdleDeferred && !$0.authoredArtworkReceipt.pending},label)
+    func artworkReady(_ node:NativeDiceNode)->Bool {
+     if node.kind=="wild",node.variant==nil {return node.sourcePlainStarArtworkSprite?.isHidden==false}
+     if node.variant=="flower" || NativeDiceArtwork.definition(kind:node.kind,variant:node.variant).idleSheet != nil {return node.authoredArtworkReceipt.running}
+     return node.variant != "bee" || node.hasAnimatedArtwork
+    }
+    for _ in 0..<600 {
+     // Phase staggering follows its existing wall clock, independently of
+     // synthetic delta samples. Pump readiness at zero delta before comparing.
+     f.scene.didFinishUpdate()
+     for node in nodes {node.tick(0,suspended:false,viewportCenter:195);node.tickSourcePlainStarSheet(deltaMilliseconds:0,suspended:false)}
+     if nodes.allSatisfy({$0.sourceWildSkinReceiptCurrent &&
+      artworkReady($0) && ($0.variant != "honey" || $0.sourceHoneyCohortCommitted)}) {break}
+     try await Task.sleep(for:.milliseconds(10))
+    }
+    XCTAssertTrue(nodes.allSatisfy{$0.sourceWildSkinReceiptCurrent},label)
+    XCTAssertTrue(nodes.allSatisfy{artworkReady($0)},label)
+    XCTAssertEqual(scope.specialIdle.snapshot.running,2,label)
+    for node in nodes {
+     if NativeDiceArtwork.definition(kind:node.kind,variant:node.variant).idleSheet != nil || node.variant=="spaceship" || node.variant=="bee" {
+      XCTAssertTrue(node.hasAnimatedArtwork,label)
+     }
+     if node.variant=="kanta" {
+      let face=try XCTUnwrap(node.sourceStarOrbitHost.children.compactMap{$0 as? SKSpriteNode}.first{$0.texture === node.sourcePaintedNumbersTexture})
+      XCTAssertTrue(face.isHidden,"Late skin receipt must not expose a duplicate base: \(label)")
+     }
+    }
+    let owners=nodes.map(\.sourceIdleOwnerCount)
+    // Real Scene delivery must visibly advance the authored node subtree.
+    func paint(_ node:SKNode)->[String] {
+     let texture=(node as? SKSpriteNode)?.texture.map{String(describing:ObjectIdentifier($0))} ?? "none"
+     return ["\(ObjectIdentifier(node))|\(node.position)|\(node.xScale)|\(node.yScale)|\(node.zRotation)|\(node.alpha)|\(node.isHidden)|\(texture)"]+node.children.flatMap{paint($0)}
+    }
+    func tilePaint(_ node:NativeDiceNode)->[String] {
+     // Plain Star projects its sprite into the shared above-HUD layer.
+     paint(node)+(node.sourcePlainStarArtworkSprite.map{paint($0)} ?? [])
+    }
+    f.scene.update(1)
+    let initial=nodes.map{tilePaint($0)}
+    for frame in 1...24 {wall+=40;f.service.deliver(wallMilliseconds:wall);f.scene.update(1+Double(frame)*0.04)}
+    for (index,node) in nodes.enumerated() where node.hasAnimatedArtwork || node.sourceIdleOwnerCount>0 {
+     XCTAssertNotEqual(tilePaint(node),initial[index],label)
+    }
+    // Foreground modal pause freezes the actual subtree and resumes the same
+    // owners. Nested release and repeated layout cannot duplicate playback.
+    nodes.forEach{$0.preservesPausedSpecialVisuals=true}
+    let release=try XCTUnwrap(f.scene.acquireSourceSpecialIdle(reason:"restore-regression-modal"))
+    XCTAssertTrue(f.service.setSourceGlobalPaused(true));f.scene.setSuspended(true)
+    let held=nodes.map{tilePaint($0)}
+    wall+=400;f.service.deliver(wallMilliseconds:wall);f.scene.update(4)
+    XCTAssertEqual(nodes.map{tilePaint($0)},held,label)
+    release();release();XCTAssertTrue(f.service.setSourceGlobalPaused(false));f.scene.setSuspended(false)
+    nodes.forEach{$0.preservesPausedSpecialVisuals=false}
+    XCTAssertTrue(tasks.layoutTask{f.scene.layout(size:view.bounds.size,insets:.zero,animateEntry:false)})
+    XCTAssertEqual(scope.specialIdle.snapshot.running,2,label)
+    XCTAssertEqual(nodes.map(\.sourceIdleOwnerCount),owners,label)
+    f.service.setSourceForeground(false);f.scene.setSuspended(true)
+    let background=nodes.map{paint($0)}
+    wall+=400;f.service.deliver(wallMilliseconds:wall);f.scene.update(4.4)
+    XCTAssertEqual(nodes.map{paint($0)},background,label)
+    f.service.setSourceForeground(true);f.scene.setSuspended(false)
+    XCTAssertEqual(scope.specialIdle.snapshot.running,2,label)
+    XCTAssertEqual(nodes.map(\.sourceIdleOwnerCount),owners,label)
+    nodes[0].setDragging(true);nodes[0].setDragging(false);nodes[0].resumeIdleAfterLanding()
+    f.scene.update(5);wall+=40;f.service.deliver(wallMilliseconds:wall);f.scene.update(5.04)
+    XCTAssertTrue(nodes.allSatisfy{!$0.sourceIdleDeferred && !$0.authoredArtworkReceipt.pending},label)
+    XCTAssertEqual(scope.specialIdle.snapshot.running,2,label)
+    XCTAssertTrue(failures.isEmpty,"\(label): \(failures)")
+    XCTAssertEqual(f.scene.engine.state,before,label)
+    // Retiring one copy must not stop its sibling; late clocks after scene
+    // retirement cannot repaint the captured nodes or keep registry work alive.
+    nodes[0].dispose();XCTAssertEqual(scope.specialIdle.snapshot.running,1,label)
+    f.scene.retireSourceAnimationBindings()
+    let retired=nodes.map{paint($0)}
+    wall+=400;f.service.deliver(wallMilliseconds:wall)
+    XCTAssertEqual(nodes.map{paint($0)},retired,label)
+    XCTAssertEqual(scope.specialIdle.snapshot.registered,0,label)
+   }
+  }
+ }
+
+ func testEveryRestoredSpecialRetiredDuringEntryCannotStartAfterLateFaceCompletion()throws {
+  for tile in wildRoster() {
+   let fifo=NativeSourceMicrotaskFIFO(),tasks=NativeSourceMicrotaskAdapters(fifo:fifo)
+   var state=saved();state.tiles=[tile]
+   let f=try Fixture(state,sourceOuterForRepair:true,wildRestore:true,sourceTasks:tasks)
+   defer{f.dispose();fifo.dispose()}
+   let scope=try XCTUnwrap(f.repairScope),node=try XCTUnwrap(f.construction.nodes[tile.id])
+   f.scene.sourceBoardEntryEnabled=true
+   XCTAssertTrue(f.scene.configureSourceBoardEntry(scope:scope,sound:{_,_,_ in {}},completed:{_ in}))
+   XCTAssertTrue(tasks.layoutTask{
+    f.scene.layout(size:f.scene.size,insets:.zero,animateEntry:true)
+    XCTAssertTrue(f.scene.configureSourceRestoredPlainStarHalos(scope:scope,waitForSharedIdle:true))
+    XCTAssertTrue(f.scene.configureSourceSpecialIdle(scope:scope))
+   })
+   XCTAssertTrue(node.sourceIdleDeferred,tile.id)
+   f.scene.retireSourceAnimationBindings();f.service.deliver(wallMilliseconds:1500)
+   f.scene.sourceRestoredWildFaceSettled(node)
+   XCTAssertTrue(node.sourceIdleDeferred,tile.id)
+   XCTAssertEqual(node.sourceIdleOwnerCount,0,tile.id)
+   XCTAssertEqual(scope.specialIdle.snapshot.registered,0,tile.id)
+  }
+ }
  func testActualAllWildRestoreConstructorsRetainOrdinaryPrefixTiltAndRawFaceWithoutIdleOrFaceRNG()throws {
   for tile in wildRoster() {
    var state=saved();state.tiles=[tile];state.wildSpawnCount=7
@@ -346,8 +492,11 @@ import StackToSixGameplay
    XCTAssertEqual(f.counter.count,1,"Wild face must not pick ordinary numbers skin")
    XCTAssertEqual(f.construction.pendingFaceCount,0);XCTAssertFalse(node.sourceRestoreWildFacePending)
    XCTAssertTrue(node.sourcePaintedNumbersTexture === f.construction.textures.texture(definition.path,densityAware:false))
-   XCTAssertEqual(node.sourceStarOrbitMetrics.width,definition.size.width,accuracy:1e-3)
-   XCTAssertEqual(node.sourceStarOrbitMetrics.height,definition.size.height,accuracy:1e-3)
+   // BLOOB retains its authored tilted face; logical size is independent of
+   // the larger axis-aligned orbit bounds produced by that rotation.
+   let face=try XCTUnwrap(node.sourceStarOrbitHost.children.compactMap{$0 as? SKSpriteNode}.first{$0.texture === node.sourcePaintedNumbersTexture})
+   XCTAssertEqual(face.size.width,definition.size.width,accuracy:1e-3)
+   XCTAssertEqual(face.size.height,definition.size.height,accuracy:1e-3)
    XCTAssertEqual(node.dragInnerTilt,tilt);XCTAssertTrue(node.sourcePipNodes.isEmpty);XCTAssertTrue(node.sourceStackLayerNodes.isEmpty)
    XCTAssertTrue(node.sourceIdleDeferred);XCTAssertEqual(node.sourceIdleOwnerCount,0);XCTAssertFalse(node.sourceWildSkinReceiptCurrent,"board face is not a typed APP upload receipt")
    XCTAssertEqual(f.scene.engine.state,before)
@@ -464,8 +613,11 @@ import StackToSixGameplay
    XCTAssertTrue(node.sourcePhysicalMarkersCovered);XCTAssertTrue(node.sourceWildSkinReceiptCurrent)
    let core=try XCTUnwrap(before.tiles[0].archetype),definition=try XCTUnwrap(NativeDiceArtwork.sourceWildSkinDefinition(kind:core.rawValue,variant:tile.variant))
    XCTAssertEqual(node.sourceWildSkinAssetPath,definition.path)
-   XCTAssertEqual(node.sourceStarOrbitMetrics.width,definition.size.width,accuracy:1e-3)
-   XCTAssertEqual(node.sourceStarOrbitMetrics.height,definition.size.height,accuracy:1e-3)
+   // BLOOB retains its authored tilted face; logical size is independent of
+   // the larger axis-aligned orbit bounds produced by that rotation.
+   let face=try XCTUnwrap(node.sourceStarOrbitHost.children.compactMap{$0 as? SKSpriteNode}.first{$0.texture === node.sourcePaintedNumbersTexture})
+   XCTAssertEqual(face.size.width,definition.size.width,accuracy:1e-3)
+   XCTAssertEqual(face.size.height,definition.size.height,accuracy:1e-3)
    XCTAssertTrue(node.sourceIdleDeferred);XCTAssertEqual(node.sourceIdleOwnerCount,0);XCTAssertFalse(node.hasAnimatedArtwork)
    XCTAssertEqual(f.counter.count,1);XCTAssertEqual(f.scene.engine.state,before);XCTAssertEqual(f.construction.pendingFaceCount,0)
    node.onResourceReady=nil

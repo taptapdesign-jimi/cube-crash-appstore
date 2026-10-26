@@ -837,6 +837,82 @@ final class NativeGameplayAudioTests:XCTestCase {
             owner.dispose()
         }
     }
+    func testKiteFlightStartsAtMergeSixOnceWithNaturalFourSecondTail() throws {
+        let path="assets/sound/Wild and special kockice/kite/kite lfight.wav"
+        let file=try AVAudioFile(forReading:NativeTestResources.root.appendingPathComponent(path))
+        XCTAssertEqual(Double(file.length)/file.processingFormat.sampleRate,4,accuracy:0.00001)
+        XCTAssertTrue(NativeMeterSelectedAudioCatalog.sources(special:"wild",variant:"kite")!.contains("./"+path))
+        for boundary in 0..<4 {
+            let transport=Transport(),owner=NativeGameplayAudioOwner(root:NativeTestResources.root,enabled:true,transport:transport)
+            if boundary==1 {owner.setEnabled(false)}
+            if boundary==2 {owner.setForeground(false)}
+            if boundary==3 {owner.beginGeneration(2)}
+            let event=NativeGameplayEvent(.merged,value:6,archetype:.star,variant:"kite")
+            owner.onGameplayEvent(event,generation:1,receipt:1)
+            owner.onGameplayEvent(event,generation:1,receipt:1)
+            let cues=transport.cues.filter{$0.source==path}
+            XCTAssertEqual(cues.count,boundary==0 ? 1:0)
+            if let cue=cues.first {
+                XCTAssertEqual(cue.voice,"kite-flight");XCTAssertEqual(cue.delay,0)
+                XCTAssertEqual(cue.rate,1);XCTAssertEqual(cue.gain,0.6)
+                XCTAssertNil(cue.stopAfter);XCTAssertEqual(cue.fadeOut,0)
+                XCTAssertTrue(transport.cues.contains{$0.voice=="kite-merge"})
+            }
+            if boundary==1 || boundary==2 {
+                owner.setEnabled(true);owner.setForeground(true)
+                owner.onGameplayEvent(event,generation:1,receipt:1)
+                XCTAssertFalse(transport.cues.contains{$0.source==path})
+            }
+            owner.dispose()
+        }
+    }
+    func testKitePopReplacementIsPreparedOnceAndSuppressedBySettingsBackgroundAndGeneration() throws {
+        let paths=["assets/sound/Wild and special kockice/ baloon/prvi pop.wav","assets/sound/Wild and special kockice/ baloon/baloon pop.wav","assets/sound/mini explozije/mini2.mp3"]
+        let warmup=try XCTUnwrap(NativeMeterSelectedAudioCatalog.sources(special:"wild",variant:"kite"))
+        XCTAssertFalse(warmup.contains{$0.hasSuffix("hiss.wav")})
+        for path in paths {
+            XCTAssertTrue(warmup.contains("./"+path))
+            let file=try AVAudioFile(forReading:NativeTestResources.root.appendingPathComponent(path))
+            XCTAssertGreaterThan(file.length,0);XCTAssertEqual(file.processingFormat.sampleRate,48000)
+        }
+        for boundary in 0..<4 {
+            let transport=Transport(),owner=NativeGameplayAudioOwner(root:NativeTestResources.root,enabled:true,transport:transport)
+            if boundary==1 {owner.setEnabled(false)}
+            if boundary==2 {owner.setForeground(false)}
+            if boundary==3 {owner.beginGeneration(2)}
+            let event=NativeGameplayEvent(.merged,value:6,archetype:.star,variant:"kite")
+            owner.onGameplayEvent(event,generation:1,receipt:1)
+            owner.onGameplayEvent(event,generation:1,receipt:1)
+            for path in paths {XCTAssertEqual(transport.cues.filter{$0.source==path}.count,boundary==0 ? 1:0)}
+            XCTAssertFalse(transport.cues.contains{$0.source.hasSuffix("hiss.wav")})
+            owner.setEnabled(true);owner.setForeground(true)
+            let count=transport.cues.count;owner.onGameplayEvent(event,generation:1,receipt:1)
+            XCTAssertEqual(transport.cues.count,count,"Suppressed receipt never replays on return")
+            owner.dispose()
+        }
+    }
+    func testKiteSuppliedMergeCuePlaysOnceAndObeysSettingsAndBackground() throws {
+        let path="assets/sound/Wild and special kockice/kite/kite meerge.wav"
+        let file=try AVAudioFile(forReading:NativeTestResources.root.appendingPathComponent(path))
+        XCTAssertEqual(file.processingFormat.sampleRate,48000)
+        XCTAssertEqual(Double(file.length)/file.processingFormat.sampleRate,1.182917,accuracy:0.00001)
+        XCTAssertTrue(NativeMeterSelectedAudioCatalog.sources(special:"wild",variant:"kite")!.contains("./"+path))
+        for boundary in 0..<3 {
+            let transport=Transport(),owner=NativeGameplayAudioOwner(root:NativeTestResources.root,enabled:true,transport:transport)
+            if boundary==1 {owner.setEnabled(false)}
+            if boundary==2 {owner.setForeground(false)}
+            let event=NativeGameplayEvent(.merged,value:6,archetype:.star,variant:"kite")
+            owner.onGameplayEvent(event,generation:1,receipt:1)
+            owner.onGameplayEvent(event,generation:1,receipt:1)
+            XCTAssertEqual(transport.cues.filter{$0.source==path}.count,boundary==0 ? 1:0)
+            if boundary != 0 {
+                owner.setEnabled(true);owner.setForeground(true)
+                owner.onGameplayEvent(event,generation:1,receipt:1)
+                XCTAssertFalse(transport.cues.contains{$0.source==path},"Suppressed committed cue never replays")
+            }
+            owner.dispose()
+        }
+    }
     func testMuteConsumesReceiptAndForegroundDoesNotReplayOldTransients() {
         let transport=Transport(),owner=NativeGameplayAudioOwner(root:URL(fileURLWithPath:"/unused"),enabled:false,transport:transport)
         owner.routeFeedback("cta",receipt:1,generation:1);owner.setEnabled(true)

@@ -5,6 +5,19 @@ import CoreText
 
 @MainActor
 final class NativeNoMovesSourceGraphTests:XCTestCase {
+    func testNoAndMRemainLargeAcrossRandomTreatmentsInPlanAndActualGraph() throws {
+        for sample in [0.0,0.23,0.56,0.99] {
+            let plan=NativeNoMovesPlan.make(random:{sample})
+            let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0})
+            let graph=try NativeNoMovesSourceGraph(width:390,height:844,scheduler:NativeNoMovesClockScheduler(service),current:{true},random:{sample})
+            defer{graph.dispose();service.dispose()}
+            for composition in [plan,graph.composition!] {
+                XCTAssertEqual(String(composition.letters.map(\.character)),"NO Moves")
+                for index in [0,1,3] {XCTAssertGreaterThanOrEqual(composition.letters[index].size,75)}
+            }
+        }
+    }
+
     func testMountedExitCannotRepaintAnAlreadyFadedGlyphOrReviveAfterCompletion()throws {
         let root=NativeTestResources.root
         let font=JimiV9Artwork(resourceRoot:root).font(size:48,weight:"ExtraBold")

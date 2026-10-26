@@ -3,7 +3,7 @@ import Foundation
 /// Display only. Caller owns candidate/terminal decision, generation, clock,
 /// suspension and exact exit completion. This owner never acquires input locks.
 enum NativeNoMovesPlan {
-    static let text=Array("No Moves"),exitDuration=1.07
+    static let text=Array("NO Moves"),exitDuration=1.07
     struct Pose {var scale=0.0,alpha=0.0,rx=0.0,ry=0.0,rz=0.0,z=0.0}
     struct Letter {
         let character:Character,size,inkAlpha,bounce:Double
@@ -32,7 +32,7 @@ enum NativeNoMovesPlan {
         let tilt=(random()-0.5)*30,buckets=[[92.0,98,104],[66,72,80],[30,36,44,50],[66,72,80],[92,98,104],[30,36,44,50],[66,72,80],[30,36,44,50],[92,98,104]]
         let offset=min(8,Int(random()*9))
         var sizes:[Double]=[]
-        for index in text.indices {let bucket=buckets[(index+offset)%9],base=bucket[min(bucket.count-1,Int(random()*Double(bucket.count)))];sizes.append(max(index==0 ? 75:28,base+random()*10-5))}
+        for index in text.indices {let bucket=buckets[(index+offset)%9],base=bucket[min(bucket.count-1,Int(random()*Double(bucket.count)))];sizes.append(max(index==0 || (text==Self.text && (index==1 || index==3)) ? 75:28,base+random()*10-5))}
         let letters=text.indices.map { i -> Letter in
             let size=text[i]==" " ? 64:sizes[i],alpha=((0.8+random()*0.2)*100).rounded()/100,bounce=1.02+random()*0.06
             return Letter(character:text[i],size:(size*10).rounded()/10,inkAlpha:alpha,bounce:bounce)

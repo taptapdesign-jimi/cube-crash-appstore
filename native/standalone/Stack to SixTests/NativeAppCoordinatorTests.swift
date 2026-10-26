@@ -328,6 +328,66 @@ final class NativeAppCoordinatorTests:XCTestCase {
         controller.backpackView?.close.sendActions(for:.touchUpInside)
         try await waitFor{controller.route == .hub && controller.hub.scrollView.isUserInteractionEnabled}
     }
+    func testEveryGameplayReturnFlipsItsUnitOnceAndRetainsPendingExitAcrossBackground() async throws {
+        guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Reduced Motion preserves its no-flip policy")}
+        func find(_ view:UIView,_ id:String)->UIView? {
+            if view.accessibilityIdentifier==id {return view}
+            for child in view.subviews {if let found=find(child,id){return found}}
+            return nil
+        }
+        for path in ["manual-exit","clean-board","fail"] {
+            let layouts=try NativeWorldLayouts()
+            var progression=NativeProgressionState();progression.firstPlayTutorialComplete=true
+            progression.completedJourneyBoards=Set(1...30);progression.viewedJourneyBoards=Set(1...30)
+            var exit:(()->Void)?,returnBoard:Int?,holdEntry=false,held:[()->Void]=[],flips=0
+            var services=NativeAppServices(settings:{[:]},setPreference:{_,_ in},worldSnapshot:{world,size,generation in
+                try layouts.snapshot(world:world,width:size.width,height:size.height,generation:generation,progression:progression,returnBoard:returnBoard)
+            },markViewed:{_ in},makeGameplay:{board,onExit in returnBoard=board;exit=onExit;return UIViewController()},flush:{})
+            services.prepareWorldEntry={world,done in world.prepare{if holdEntry {held.append(done)}else{done()}}}
+            let controller=NativeAppController(resourceRoot:resources(),services:services)
+            let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=controller;window.makeKeyAndVisible()
+            defer{controller.dispose();window.isHidden=true}
+            controller.onFeedback={if $0=="card-entry-flip" {flips+=1}}
+            controller.navigate(.world(2),interrupt:true)
+            try await waitFor{controller.world?.isReadyForInput==true}
+            let world=try XCTUnwrap(controller.world)
+            let unit=try XCTUnwrap(world.snapshot.units.first{$0.boardID==16})
+            world.scrollView.setContentOffset(.init(x:0,y:unit.frame.minY-150),animated:false)
+            let prepared=expectation(description:"Selected Beach06 artwork prepared")
+            world.prepare{prepared.fulfill()};await fulfillment(of:[prepared],timeout:10)
+            XCTAssertEqual(flips,0,"Ordinary World entry stays silent")
+            world.onRequest?("play",16)
+            try await waitFor{controller.route == .gameplay}
+            let offset=world.scrollView.contentOffset
+            if path != "manual-exit" {
+                var ready=false;controller.prepareGameplayReturn{ready=$0}
+                try await waitFor{ready}
+            } else {holdEntry=true}
+            try XCTUnwrap(exit)()
+            if path == "manual-exit" {
+                try await waitFor{held.count==1}
+                NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
+                NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
+                try await waitFor{held.count==2}
+                held[0]();XCTAssertEqual(flips,0,"A retired preparation cannot start the flip")
+                holdEntry=false;held[1]()
+            }
+            try await waitFor{flips==1 && world.isReadyForInput}
+            XCTAssertTrue(controller.world === world,path)
+            XCTAssertEqual(world.snapshot.returnBoardID,16,path)
+            XCTAssertNotNil(find(world,"native.world.return-reminder"),path)
+            XCTAssertEqual(world.scrollView.contentOffset.y,offset.y,accuracy:0.5,path)
+            let shifted=offset.y+12
+            world.scrollView.setContentOffset(.init(x:0,y:shifted),animated:false)
+            XCTAssertEqual(world.scrollView.contentOffset.y,shifted,accuracy:0.5,"Flip must retain user scroll")
+            controller.navigate(.hub,interrupt:true)
+            try await waitFor{controller.route == .hub && controller.hub.scrollView.isUserInteractionEnabled}
+            XCTAssertNil(find(world,"native.world.return-reminder"),"Back cancels the owned reminder")
+            controller.navigate(.world(2))
+            try await waitFor{controller.world?.isReadyForInput==true}
+            XCTAssertEqual(flips,1,"Ordinary revisit must not replay the consumed gameplay return")
+        }
+    }
     func testPreparedWorldReturnReadsLatestUnreadDiscoveries() async throws {
         for (worldID,board,id) in [(1,6,"mushroom"),(1,7,"barell"),(2,12,"fish"),(3,23,"spaceship")] {
             let layouts=try NativeWorldLayouts()

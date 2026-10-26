@@ -29,12 +29,17 @@ const expectedIDs = [...sourceIDs,...Object.keys(additions)].sort();
 if (JSON.stringify(expectedIDs) !== JSON.stringify(nativeIDs)) errors.push('Native Special registry differs from preserved registry plus declared Native-only identities');
 const sourcePerformance = JSON.parse(read('docs/engineering/special-dice-performance-owners.json'));
 const nativePerformance = JSON.parse(read('docs/engineering/native-special-dice-performance-owners.json')).variants;
+const sharedIdleTests = [
+  'native/standalone/Stack to SixTests/NativeSourceRegularResumeConstructionTests.swift',
+  'native/standalone/Stack to SixTests/NativeSourceSpecialIdleMountedTests.swift',
+];
 for (const id of expectedIDs) {
   const record = nativePerformance[id];
   if (!record) {errors.push(`${id}: missing native performance owner`);continue;}
   if (record.archetype !== (sourcePerformance[id] ?? additions[id])?.archetype) errors.push(`${id}: native performance archetype mismatch`);
   for (const key of ['warmupPolicy','cleanupPolicy','hudDepthPolicy','physicalAcceptance']) if (!record[key]?.trim()) errors.push(`${id}: missing native ${key}`);
   for (const file of [record.idleOwner,record.finaleOwner,...record.tests ?? []]) if (!file?.startsWith('native/') || !fs.existsSync(path.join(root,file))) errors.push(`${id}: missing native performance owner/test ${file}`);
+  for (const file of sharedIdleTests) if (!record.tests?.includes(file)) errors.push(`${id}: missing shared Native restore/idle regression ${file}`);
 }
 for (const id of Object.keys(nativePerformance)) if (!expectedIDs.includes(id)) errors.push(`${id}: stale native performance owner`);
 const project = read('native/standalone/Stack to Six.xcodeproj/project.pbxproj');

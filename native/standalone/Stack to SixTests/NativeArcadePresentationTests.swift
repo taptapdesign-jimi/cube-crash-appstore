@@ -18,7 +18,7 @@ final class NativeArcadePresentationTests: XCTestCase {
             owner!.onCue={cue in
                 if case .celebrationStarted=cue {starts += 1}
                 if case .digitEntered=cue {digits += 1}
-                if case .thumbWhoosh=cue {XCTAssertGreaterThanOrEqual(owner!.elapsed,owner!.boardClearedTextEnterEnd);entered.fulfill()}
+                if case .thumbWhoosh=cue {XCTAssertGreaterThanOrEqual(owner!.elapsed,owner!.thumbEnterStart);XCTAssertLessThan(owner!.elapsed,owner!.boardClearedTextEnterEnd);entered.fulfill()}
             }
             owner!.onFinished={success in XCTAssertTrue(success);finishes += 1;done.fulfill()}
             owner!.start();await fulfillment(of:[entered],timeout:2)
@@ -29,7 +29,7 @@ final class NativeArcadePresentationTests: XCTestCase {
             try await Task.sleep(for:.milliseconds(100))
             XCTAssertEqual(finishes,0);XCTAssertEqual(starts,1);XCTAssertEqual(owner!.elapsed,held)
             owner!.setSuspended(false)
-            try await Task.sleep(for:.milliseconds(300))
+            try await Task.sleep(for:.milliseconds(850))
             owner!.setSuspended(true)
             let format=UIGraphicsImageRendererFormat();format.scale=1
             let image=UIGraphicsImageRenderer(size:window.bounds.size,format:format).image{host.view.layer.render(in:$0.cgContext)}
@@ -43,17 +43,41 @@ final class NativeArcadePresentationTests: XCTestCase {
         }
     }
 
+    func testFinalCelebrationLeadIsBoundedByActualVisualEnd() {
+        XCTAssertEqual(NativeFinalMergeCelebrationTiming.startTime(visualDuration:10),9.55,accuracy:0.000001)
+        XCTAssertEqual(NativeFinalMergeCelebrationTiming.startTime(visualDuration:2),1.7,accuracy:0.000001)
+        XCTAssertEqual(NativeFinalMergeCelebrationTiming.startTime(visualDuration:0.4),0.34,accuracy:0.000001)
+        XCTAssertEqual(NativeFinalMergeCelebrationTiming.startTime(visualDuration:0),0)
+    }
+    func testBarrelVisualEndDoesNotIncludeEmptyCleanupTail() {
+        let owner=NativeTntVariantPresentation(resourceRoot:root,variant:.barell,viewport:CGSize(width:390,height:844),random:{0.5})
+        defer{owner.dispose()}
+        XCTAssertTrue(owner.assetsReady)
+        XCTAssertEqual(owner.duration,4.2,accuracy:0.000001)
+        let wood=NativeTntFinale.makeDiePlans(random:{0.5})
+        let dice=NativeTntVariantPlanning.barrelDice(wood:wood,random:{0.5})
+        let expected=max(1.93,(wood+dice).map{$0.delay+$0.duration}.max() ?? 0)
+        XCTAssertEqual(owner.progressDuration,expected,accuracy:0.000001)
+        XCTAssertLessThan(owner.progressDuration,owner.duration)
+        print("[ClearedHandoff] barrel visualEnd=\(owner.progressDuration) cleanupEnd=\(owner.duration) textStart=\(NativeFinalMergeCelebrationTiming.startTime(visualDuration:owner.progressDuration))")
+        var reports:[(Double,Double)]=[]
+        owner.onProgress={reports.append(($0,$1))}
+        owner.advanceSourceAnimation(seconds:NativeFinalMergeCelebrationTiming.startTime(visualDuration:owner.progressDuration))
+        XCTAssertEqual(reports.count,1)
+        XCTAssertEqual(reports[0].1,owner.progressDuration)
+        XCTAssertLessThan(reports[0].0,reports[0].1)
+    }
     func testBoardClearedSharesNoMovesEntryAndHasNoExtraHold() throws {
         let owner=NativeArcadeRoundPresentation(resourceRoot:root,clearedRound:1,nextRound:2,boardClearedOnly:true,random:{0.4})
         defer{owner.dispose()}
         let plan=try XCTUnwrap(owner.boardClearedTextComposition)
-        XCTAssertEqual(String(plan.letters.map(\.character)),"BOARD CLEARED")
-        XCTAssertEqual(owner.boardClearedTextEnterEnd,1.34,accuracy:0.000001)
-        XCTAssertEqual(owner.thumbEnterStart,1.34,accuracy:0.000001)
+        XCTAssertEqual(String(plan.letters.map(\.character)),"CLEARED")
+        XCTAssertEqual(owner.boardClearedTextEnterEnd,1.04,accuracy:0.000001)
+        XCTAssertEqual(owner.thumbEnterStart,0.2,accuracy:0.000001)
         XCTAssertLessThanOrEqual(abs(owner.boardClearedThumbRotation),20)
-        XCTAssertEqual(owner.duration,3.34,accuracy:0.000001)
+        XCTAssertEqual(owner.duration,2.68,accuracy:0.000001)
         for index in plan.letters.indices {
-            for time in [0.0,0.2,0.6,1.0,1.339] {
+            for time in [0.0,0.2,0.6,1.0,1.039] {
                 let expected=plan.letters[index].enter(at:time,index:index),actual=owner.boardClearedTextPose(at:time,index:index)
                 XCTAssertEqual(Double(actual.scale),expected.scale,accuracy:0.000001)
                 XCTAssertEqual(Double(actual.alpha),expected.alpha,accuracy:0.000001)
@@ -64,7 +88,7 @@ final class NativeArcadePresentationTests: XCTestCase {
         owner.frame=CGRect(x:0,y:0,width:320,height:568);owner.layoutIfNeeded()
         func labels(_ view:UIView)->[UILabel]{view.subviews.flatMap{($0 as? UILabel).map{[$0]} ?? labels($0)}}
         let glyphs=labels(owner).filter{$0.accessibilityIdentifier?.hasPrefix("native.board-cleared.glyph.")==true}
-        XCTAssertEqual(glyphs.count,13)
+        XCTAssertEqual(glyphs.count,7)
         func find(_ view:UIView,_ id:String)->UIView? {
             if view.accessibilityIdentifier==id{return view}
             return view.subviews.compactMap{find($0,id)}.first
@@ -74,13 +98,27 @@ final class NativeArcadePresentationTests: XCTestCase {
         XCTAssertTrue(text.superview === png.superview)
         XCTAssertGreaterThan(png.layer.zPosition,text.layer.zPosition)
         XCTAssertEqual(text.frame.midX,png.frame.midX,accuracy:0.001)
-        XCTAssertEqual(text.frame.midY,png.frame.midY,accuracy:0.001)
+        XCTAssertLessThan(text.frame.maxY,png.frame.minY)
+        let group=text.frame.union(png.frame)
+        let center=try XCTUnwrap(text.superview).convert(CGPoint(x:group.midX,y:group.midY),to:owner)
+        XCTAssertEqual(center.x,owner.bounds.midX,accuracy:0.001)
+        XCTAssertEqual(center.y,owner.bounds.midY,accuracy:0.001)
+        for glyph in glyphs {glyph.alpha=1;glyph.transform = .identity}
+        let review=UIGraphicsImageRenderer(size:CGSize(width:text.bounds.width+120,height:text.bounds.height+120)).image {ctx in
+            UIColor(red:243.0/255,green:238.0/255,blue:232.0/255,alpha:1).setFill()
+            ctx.fill(CGRect(x:0,y:0,width:text.bounds.width+120,height:text.bounds.height+120))
+            ctx.cgContext.translateBy(x:60,y:60);text.layer.render(in:ctx.cgContext)
+        }
+        try review.pngData()?.write(to:FileManager.default.temporaryDirectory.appendingPathComponent("cleared-no-glow-review.png"))
+
         for glyph in glyphs {
             XCTAssertEqual(glyph.font.fontName,"Baloo2-ExtraBold")
             var r:CGFloat=0,g:CGFloat=0,b:CGFloat=0,a:CGFloat=0
             glyph.textColor.getRed(&r,green:&g,blue:&b,alpha:&a)
-            XCTAssertEqual(r,1);XCTAssertEqual(g,1);XCTAssertEqual(b,1)
-            XCTAssertEqual(glyph.layer.shadowRadius,14);XCTAssertEqual(glyph.layer.shadowOpacity,1)
+            XCTAssertEqual(r,231.0/255,accuracy:1e-8);XCTAssertEqual(g,116.0/255,accuracy:1e-8);XCTAssertEqual(b,73.0/255,accuracy:1e-8)
+            XCTAssertEqual(glyph.layer.shadowRadius,0);XCTAssertEqual(glyph.layer.shadowOpacity,0)
+            XCTAssertTrue(glyph.subviews.isEmpty)
+
         }
     }
 

@@ -38,18 +38,50 @@ final class NativeTntVariantTests: XCTestCase {
             for index in wood.indices { compare(values(wood[index]),fixture.wood[index]);compare(values(dice[index]),fixture.dice[index]) }
         }
     }
-    func testBallMatchesOriginalRandomPlansAnd72ActualGSAPPlayheadSamples() {
+    func testBallRetainsOriginalRandomDrawsAndFlightPathsWithRequestedSizeAndImpactTreatment() {
         for fixture in NativeTntVariantOracle.balls {
             let random=Random(fixture.seed),plan=NativeBeachBallPlanning.ball(width:fixture.width,height:fixture.height,random:random.next)
-            compare(plan.oracleValues,fixture.values);XCTAssertEqual(random.draws,fixture.draws)
+            var actual=plan.oracleValues,expected=fixture.values
+            actual.remove(at:3);expected.remove(at:3) // User changed size distribution only.
+            compare(actual,expected);XCTAssertEqual(random.draws,fixture.draws)
             for sample in fixture.samples {
                 let pose=NativeBeachBallPlanning.pose(plan,time:sample[0])
                 // GSAP rounds tween start times and scalar output; positional
                 // samples agree within one thousandth of an original point.
                 XCTAssertEqual(pose.x,sample[1],accuracy:0.001)
                 XCTAssertEqual(pose.y,sample[2],accuracy:0.001)
-                compare([pose.scaleX,pose.scaleY,pose.rotation],Array(sample[3...5]),accuracy:0.00001)
+                XCTAssertEqual(pose.rotation,sample[5],accuracy:0.00001)
             }
+        }
+    }
+    func testBallStaysRoundUntilFloorContactThenSquashesAndRecovers() {
+        let plan=NativeBeachBallPlanning.ball(width:390,height:844,random:{0.5})
+        let impact=plan.duration*0.52
+        for time in stride(from:0.0,to:impact,by:1.0/120) {
+            let pose=NativeBeachBallPlanning.pose(plan,time:time)
+            XCTAssertEqual(pose.scaleX,plan.scale,accuracy:1e-10)
+            XCTAssertEqual(pose.scaleY,plan.scale,accuracy:1e-10)
+        }
+        let compressed=NativeBeachBallPlanning.pose(plan,time:impact+0.0149)
+        XCTAssertEqual(compressed.y,plan.floorY,accuracy:1e-8)
+        XCTAssertGreaterThan(compressed.scaleX,plan.scale)
+        XCTAssertLessThan(compressed.scaleY,plan.scale)
+        let rebound=NativeBeachBallPlanning.pose(plan,time:impact+0.070)
+        XCTAssertLessThan(rebound.y,plan.floorY)
+        XCTAssertLessThan(rebound.scaleX,plan.scale)
+        XCTAssertGreaterThan(rebound.scaleY,plan.scale)
+        let recovered=NativeBeachBallPlanning.pose(plan,time:impact+0.17)
+        XCTAssertEqual(recovered.scaleX,plan.scale,accuracy:1e-10)
+        XCTAssertEqual(recovered.scaleY,plan.scale,accuracy:1e-10)
+    }
+    func testBallLargeSizeBucketIsLimitedToTwentyPercent() {
+        let small=NativeBeachBallPlanning.ball(width:390,height:844,random:{0.2})
+        let large=NativeBeachBallPlanning.ball(width:390,height:844,random:{0.199})
+        XCTAssertLessThan(small.scale,large.scale)
+        for roll in [0.2,0.4,0.6,0.99] {
+            var draw=0
+            let plan=NativeBeachBallPlanning.ball(width:390,height:844,random:{draw += 1;return draw==2 ? roll:0.5})
+            XCTAssertLessThan(plan.scale,0.3)
         }
     }
     private func resourceRoot()->URL {

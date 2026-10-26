@@ -5,6 +5,12 @@ import StackToSixGameplay
 @MainActor
 final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHost, NativeRegularStackFrameHost {
     let tileID: String
+    var preservesPausedSpecialVisuals=false
+    func reconcileHardBackgroundSpecialPause() {
+        guard sourceRegistryPaused else{return}
+        setSourceRegistryPaused(true,reconcileExistingPause:true)
+    }
+    private var sourceRegistryPauseEffectsApplied=false
     private var tntFuse:NativeTntFuseSparkles?
     private var tntFusePaintable:(()->Bool)?
     @discardableResult func beginSourceTntFuse(service:NativeSourceAnimationClockService,current:@escaping()->Bool,paintable:@escaping()->Bool)->Bool {
@@ -30,7 +36,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
             sourceIdleHostPaintable(canvasPaintable:tntFusePaintable?()==true)
     }
     private func reconcileTntFuseVisibility(){
-        guard let field=tntFuse else{return}
+        guard !preservesPausedSpecialVisuals,let field=tntFuse else{return}
         let visible=tntFuseCanPaint
         guard tntFuse === field else{return};field.setVisible(visible)
     }
@@ -63,7 +69,10 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
             return accepted && !self.disposed && self.sourceStarSheetID==id && self.sourceGeneration==generation
         }
         guard let owner=NativeSourceStarSheetPresentation(textures:textures,host:visual,base:face,layer:layer,
-            current:valid,paintable:{[weak self] in self?.sourceIdleHostPaintable(canvasPaintable:paintable())==true},
+            current:valid,paintable:{[weak self] in
+                guard let self else{return false}
+                return self.sourceIdleHostPaintable(canvasPaintable:self.preservesPausedSpecialVisuals || paintable())
+            },
             ownsBase:{[weak self] in self?.sourceStarSheetID==id}) else{sourceStarSheetID=nil;return false}
         sourceStarSheet=owner
         sourceStarSheetStartTasks=tasks;sourceStarSheetAwaitingStart=true
@@ -1053,6 +1062,15 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
 
     var sourceMagnetImpactToken:UUID?
     let visual = SKNode()
+    private(set) var finalResidualExitSurface:SKNode?
+    func makeFinalResidualExitSurface()->SKNode {
+        if let finalResidualExitSurface{return finalResidualExitSurface}
+        let surface=SKNode();surface.name="native-cleared-residual-exit"
+        let content=[bloobReactionSurface ?? visual,shadow,sourceShadowContainer].filter{$0.parent === self}
+        addChild(surface)
+        for child in content {child.removeFromParent();surface.addChild(child)}
+        finalResidualExitSurface=surface;return surface
+    }
     private var bloobReactionSurface:SKNode?
     func bloobBoardReactionSurface()->SKNode {
         if let bloobReactionSurface{return bloobReactionSurface}
@@ -1387,7 +1405,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         sourceWildSkinFaceHeight=definition.size.height
         sourceWildSkinTexture=receipt;expectedReceipt=receipt
         sourceStarSheet?.baseFacePainted()
-        paintFishVisibility()
+        paintOwnedArtworkVisibility()
         if definition.idleSheet != nil {paintArtwork()}
         return valid()
     }
@@ -1443,7 +1461,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
                 // Keep authored idle/drag flips relative to that logical face;
                 // xScale=±1 must never expose the full @2x raster dimensions.
                 self.face.anchorPoint=anchor;self.face.alpha=1;self.face.isHidden=false
-                self.paintFishVisibility()
+                self.paintOwnedArtworkVisibility()
                 if capturedVariant=="cubero",self.sourceIdleDeferred {self.prepareCuberoCarrierArtwork()}
                 if self.definition.idleSheet != nil {self.paintArtwork()}
                 self.face.colorBlendFactor=0
@@ -1851,7 +1869,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
             guard let cohort=sourceBeeFrames,cohort.generation==sourceGeneration,cohort.handles.count>=2,
                   cohort.handles.allSatisfy({textures.isSourceTextureHandleCurrent($0)}) else{return false}
         }
-        return !disposed && !sourceWildStateCleared && (!sourceRegistryPaused || keepsDirectArtworkDuringRegistryPressure) && !sourceIdleDeferred && !sourceRegistryPending && ((!frames.isEmpty && definition.idleSheet != nil) || variant == "bee" || variant == "flower" || variant == "cubero" || variant == "bottle" || variant == "baloon" || variant == "spaceship" || variant == "fish" && artworkPhaseID != nil && !artworkRunning || honeyIdle?.hasActiveMotion==true || idleFizz?.isRunning==true || mushroomSmoke != nil || kantaIdle?.assetReady == true)
+        return !disposed && !sourceWildStateCleared && (!sourceRegistryPaused || keepsDirectArtworkDuringRegistryPressure) && !sourceIdleDeferred && !sourceRegistryPending && ((!frames.isEmpty && definition.idleSheet != nil) || variant == "bee" || variant == "flower" || variant == "cubero" || variant == "kite" || variant == "bottle" || variant == "baloon" || variant == "spaceship" || variant == "fish" && artworkPhaseID != nil && !artworkRunning || honeyIdle?.hasActiveMotion==true || idleFizz?.isRunning==true || mushroomSmoke != nil || kantaIdle?.assetReady == true)
     }
     var authoredArtworkReceipt:(frame:Int,elapsed:Double,running:Bool,pending:Bool,paused:Bool) {(paintedFrame,artworkElapsed,artworkRunning,sourceRegistryPending,sourceRegistryPaused)}
     var hasPresentationActions: Bool { hasActions() || visual.hasActions() || shadow.hasActions() }
@@ -1933,7 +1951,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         let faceHost=variant == "spaceship" ? spaceshipRoot:visual
         if face.parent !== faceHost {face.removeFromParent();faceHost.addChild(face)}
         face.isHidden = false; artwork.isHidden = true
-        paintFishVisibility()
+        paintOwnedArtworkVisibility()
         flowerCanvas.isHidden = true
         if !sourceIdleDeferred && !sourceRegistryPending,variant == "spaceship",spaceshipEngine==nil {
             let engine=NativeSpaceshipDiceIdle();spaceshipEngine=engine;spaceshipRoot.addChild(engine);engine.zPosition = -2
@@ -2221,7 +2239,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         let old=sourceHoneyIdle;sourceHoneyIdle=nil;sourceHoneyOwnerID=nil;sourceHoneyPaintable=nil;old?.dispose()
     }
     private func reconcileSourceHoneyIdleVisibility(){
-        guard let owner=sourceHoneyIdle else{return}
+        guard !preservesPausedSpecialVisuals,let owner=sourceHoneyIdle else{return}
         let visible=sourceIdleHostPaintable(canvasPaintable:sourceHoneyPaintable?()==true)
         guard sourceHoneyIdle === owner else{return};owner.setVisible(visible)
     }
@@ -2294,18 +2312,23 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         return !isHidden && alpha>threshold
     }
     func reconcileSourceBottleIdleVisibility(){
-        guard let owner=sourceBottleIdle else{return}
+        guard !preservesPausedSpecialVisuals,let owner=sourceBottleIdle else{return}
         let visible=sourceIdleHostPaintable(canvasPaintable:sourceBottlePaintable?()==true)
         guard sourceBottleIdle === owner else{return}
         owner.setSuspended(sourceRegistryPaused || dragging || !visible)
     }
-    private func setSourceRegistryPaused(_ active:Bool) {
-        guard !disposed,sourceRegistryPaused != active else{return}
+    private func setSourceRegistryPaused(_ active:Bool,reconcileExistingPause:Bool=false) {
+        guard !disposed,sourceRegistryPaused != active || reconcileExistingPause else{return}
         sourceRegistryPaused=active
+        // A foreground modal pauses the Source clock, not pointer ownership.
+        // Drag APIs clear puffs/sparks and restart authored motion on release.
+        let appliesPauseEffects=active && !preservesPausedSpecialVisuals
+        guard sourceRegistryPauseEffectsApplied != appliesPauseEffects else{return}
+        sourceRegistryPauseEffectsApplied=appliesPauseEffects
         reconcileTntFuseVisibility()
         sourceStarSheet?.pointerStateChanged()
         reconcileSourceBottleIdleVisibility()
-        let effective=active || dragging
+        let effective=appliesPauseEffects || dragging
         sourceHoneyIdle?.setDragging(effective)
         kantaIdle?.setDragging(effective);mushroomSmoke?.setDragging(effective);honeyIdle?.setDragging(effective)
         // Direct artwork state stays pointer-only; retain painted phase/skin.
@@ -2372,7 +2395,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         // Source applyFishDragFacing restores baseScaleX on pointer-up.
         // Visibility/skin repair must not become a second facing writer.
         if variant == "fish",!active {face.xScale=1}
-        paintFishVisibility()
+        paintOwnedArtworkVisibility()
         sourceStarSheet?.pointerStateChanged()
     }
 
@@ -2439,6 +2462,15 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
                 let scale = 1 + sin(time * .pi * 2.6 + .pi * 0.6) * 0.018
                 face.yScale = scale; face.xScale *= scale
             } else { face.position = .zero; face.zRotation = 0; face.yScale = 1 }
+        } else if variant == "kite" {
+            paintArtwork()
+            if !dragging {bottleElapsed+=delta}
+            let pose=NativeBottleIdleMotion.sample(seconds:bottleElapsed)
+            let boardIdle=scene is NativeBoardScene
+            let phase=bottleElapsed * .pi*2/2.2
+            face.position=dragging ? .zero:boardIdle ? CGPoint(x:sin(phase*0.73)*5,y:sin(phase)*12):CGPoint(x:sin(bottleElapsed * .pi/3.66)*3,y:-pose.y)
+            face.zRotation=dragging ? 0:boardIdle ? sin(phase*0.8)*15 * .pi/180:-pose.rotation
+            artwork.position=face.position;artwork.zRotation=face.zRotation
         } else if variant == "baloon" {
             paintBaloonIdle()
         } else if variant == "cubero" {
@@ -2485,9 +2517,13 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         guard !disposed,variant == "fish",!ready || !sourceIdleDeferred && !sourceRegistryPending else {return}
         fishMediaReady=ready
         if !ready {if let id=artworkPhaseID {textures.releaseIdlePhase(id)};artworkPhaseID=nil;artworkRunning=false;artworkElapsed=0}
-        paintFishVisibility();onResourceReady?()
+        paintOwnedArtworkVisibility();onResourceReady?()
     }
-    private func paintFishVisibility() {
+    private func paintOwnedArtworkVisibility() {
+        // A late static Source upload cannot uncover a second base beneath
+        // the already prepared animated bucket. Its owner keeps the fallback
+        // visible until the complete front/rear artwork is ready.
+        if variant == "kanta" {face.isHidden=kantaIdle?.assetReady==true;return}
         guard variant == "fish" else {return}
         face.isHidden=fishMediaReady
         idleFizz?.isHidden=fishMediaReady
@@ -2585,8 +2621,14 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         if artwork.xScale != 1 || artwork.yScale != 1 {artwork.setScale(1)}
         artwork.size = CGSize(width: sheet.cell.width * sheet.displayScale, height: sheet.cell.height * sheet.displayScale)
         artwork.position.y = sheet.offsetY
+        if variant == "kite",!dragging,scene is NativeBoardScene {
+            artwork.size=CGSize(width:artwork.size.width*1.32,height:artwork.size.height*1.32)
+        }
         if variant == "coconut",scene is NativeBoardScene {
             artwork.size=CGSize(width:artwork.size.width*1.56,height:artwork.size.height*1.56)
+            // Lift the enlarged authored base onto the placeholder row baseline.
+            // Ten logical die units are about four points on the phone board.
+            artwork.position.y += 10
         }
         if variant == "bloob" {
             let pose=NativeBloobArt.idlePose(seconds:elapsed)

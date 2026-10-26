@@ -1,0 +1,57 @@
+{
+  "source": "NativeSculptedCTAFace.makePaintPlan (existing Native CGContext recipe)",
+  "faceOnly": true,
+  "glyphs": "remain live UIKit labels",
+  "widths": [
+    240,
+    249
+  ],
+  "height": 80,
+  "scales": [
+    4,
+    6
+  ],
+  "files": [
+    {
+      "file": "exit-240-4x.png",
+      "sha256": "0eb95d27cbe2105e525a72dcff1d537211b52007d9d6df4ead2d8993b5435c39",
+      "bytes": 57548
+    },
+    {
+      "file": "exit-240-6x.png",
+      "sha256": "90a032b651ab120a4537403b5013bda4eff2e19cc1f63d9c40796401b6a7021c",
+      "bytes": 115119
+    },
+    {
+      "file": "exit-249-4x.png",
+      "sha256": "196ab4dd67cb8edc8dbb95ecf3d4df97b8fb3f94252ba148c60a1ac17a689a51",
+      "bytes": 59457
+    },
+    {
+      "file": "exit-249-6x.png",
+      "sha256": "63c5d46c7274d5427b7677637ee930dcec00af21587733c651fa74af59103143",
+      "bytes": 117834
+    },
+    {
+      "file": "restart-240-4x.png",
+      "sha256": "ce960603859a6f8319248ad71c3ace4b75226989cff137e78bef6ee14f2928c1",
+      "bytes": 102784
+    },
+    {
+      "file": "restart-240-6x.png",
+      "sha256": "5cea8b168358cc33f542668ba10c891b50a011027cc2f639be9267c814ba6b78",
+      "bytes": 206223
+    },
+    {
+      "file": "restart-249-4x.png",
+      "sha256": "f481dd44eb47f9b8b8e5f63572e03ba9f9a1d838e574be76c49004f3ec8977f2",
+      "bytes": 104881
+    },
+    {
+      "file": "restart-249-6x.png",
+      "sha256": "579157e7aecd8025b57a5618ee159a3d50a48f43fd2cb568b7b1c87b8dbe1b0a",
+      "bytes": 210835
+    }
+  ],
+  "orangeHighlightInset": "one percent of CTA height plus1pt at top and plus2pt on left;outer contour and white material unchanged"
+}

@@ -74,8 +74,19 @@ No asset conversion, timing reduction, emitter reduction or gameplay rule change
 
 ## Native migration admission
 
-The separate Swift/SpriteKit candidate records all thirteen preserved variant
-identities in `native-special-dice-performance-owners.json`. Each record names
+Native restored Special idle admission is shared across the live registry, not
+an allowlist of variant IDs. The genuine constructor face and board entry must
+finish before registration starts playback. Star/Bee and Honey/Bottle retain
+their existing authored starters; other variants use the existing node owner.
+`NativeSourceRegularResumeConstructionTests` enumerates the canonical registry,
+all four base archetypes and historical compatible saves in Journey and Arcade:
+two copies, real entry, visible motion where authored, modal pause/resume,
+pickup/landing, sibling retirement and late completion after route retirement.
+Every Native variant's performance record must retain this shared regression
+suite and `NativeSourceSpecialIdleMountedTests` when its local tests change.
+
+The separate Swift/SpriteKit candidate records every canonical variant identity
+in `native-special-dice-performance-owners.json`. Each record names
 its active presentation, preload/resource retirement boundary and native test
 paths. `npm run qa:native:admission` validates this index. A record explicitly
 marked in progress is an admission/ownership declaration, not visual parity or

@@ -10,8 +10,8 @@ enum NativeBeachBallPlanning {
     }
     struct Pose { let x,y,scaleX,scaleY,rotation,alpha: Double }
     static func ball(width: Double,height: Double,random: () -> Double) -> Ball {
-        let asset=Int(random()*6)+1,big=random()<0.5
-        let base=big ? 55+random()*35:18+random()*25
+        let asset=Int(random()*6)+1,big=random()<0.2
+        let base=big ? 55+random()*25:18+random()*25
         let size=base*(0.75+random()*0.08)
         let x=(random()-0.5)*width*1.4+width*0.5,y=height*(-0.15-random()*0.20)
         let opaque=random()<0.85,alpha=opaque ? 1:0.8+random()*0.1
@@ -41,14 +41,18 @@ enum NativeBeachBallPlanning {
         else if time<bounceEnd { let p=powerOut((time-bounceStart)/(plan.duration*0.26));x=mix(plan.x1,plan.x2,p);y=mix(plan.floorY,plan.bounceY,p);rotation=mix(plan.rotation,plan.rotation * -0.55,p) }
         else { let p=powerIn((time-bounceEnd)/(plan.duration*0.42));x=mix(plan.x2,plan.x3,p);y=mix(plan.bounceY,plan.exitY,p);rotation=mix(plan.rotation * -0.55,plan.rotation * -1.25,p) }
         if time<bounceStart { rotation=plan.rotation*powerOut((time-0.01)/0.045) }
-        // Source GSAP '<+=.01' is relative to the fall tween's START.
-        // Preserve its actual authored playhead rather than retiming by prose.
+        // Stay round in free flight. Compression begins only at floor contact;
+        // the existing floor hold ends at the compression peak.
         var sx=1.0,sy=1.0
-        if time<fall { let p=powerOut((time-0.01)/0.035);sx=mix(1,1.26,p);sy=mix(1,0.70,p) }
-        else if time<fall+0.035 { let p=backOut((time-fall)/0.055,2.1);sx=mix(1.26,0.84,p);sy=mix(0.70,1.18,p) }
-        else {
-            let startP=backOut(0.035/0.055,2.1),p=backOut((time-fall-0.035)/0.09,1.7)
-            sx=mix(mix(1.26,0.84,startP),1,p);sy=mix(mix(0.70,1.18,startP),1,p)
+        if time>=fall && time<bounceStart {
+            let p=powerOut((time-fall)/0.015)
+            sx=mix(1,1.26,p);sy=mix(1,0.70,p)
+        } else if time>=bounceStart && time<bounceStart+0.055 {
+            let p=powerOut((time-bounceStart)/0.055)
+            sx=mix(1.26,0.84,p);sy=mix(0.70,1.18,p)
+        } else if time>=bounceStart+0.055 && time<bounceStart+0.145 {
+            let p=backOut((time-bounceStart-0.055)/0.09,1.7)
+            sx=mix(0.84,1,p);sy=mix(1.18,1,p)
         }
         return Pose(x:x,y:y,scaleX:plan.scale*sx,scaleY:plan.scale*sy,rotation:rotation,alpha:time>=plan.lifetime ? 0:plan.alpha)
     }

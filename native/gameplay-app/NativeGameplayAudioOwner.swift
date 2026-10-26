@@ -193,7 +193,7 @@ final class NativeGameplayAudioOwner {
             if types.contains(.tnt) || !variants.isDisjoint(with:["flower","beach-ball","laser-gun","barell","bloob-ball"]) {tntOrder=shuffle([0,1,2,3,4])}
             if variants.isEmpty && types.contains(.star) {play("star\(pick(4))")}
             if variants.isEmpty && types.contains(.tnt) && tiles.filter({$0.archetype != nil}).count<=1 {play("tnt")}
-            for (variant,group) in [("fish","fish"),("beach-ball","ball"),("barell","barrel"),("flower","flower"),("coconut","coconut"),("bee","bee"),("kanta","kanta"),("laser-gun","laser"),("spaceship","spaceship"),("robo-cube","robo")] where variants.contains(variant) {play(group)}
+            for (variant,group) in [("fish","fish"),("beach-ball","ball"),("barell","barrel"),("flower","flower"),("coconut","coconut"),("bee","bee"),("kite","kite"),("kanta","kanta"),("laser-gun","laser"),("spaceship","spaceship"),("robo-cube","robo")] where variants.contains(variant) {play(group)}
             if types.contains(.magnet) || !variants.isDisjoint(with:["bottle","honey","spaceship"]) {play("magnet")}
             if variants.contains("honey") {play("honey")}
         default:break // Spawn landing and special tails belong to visual contact owners.

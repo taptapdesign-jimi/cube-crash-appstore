@@ -1,0 +1,33 @@
+{
+  "source": "NativeSculptedCTAFace.makePaintPlan",
+  "change": "Brown top shadow retained on first12percent;blend to original light edge from12to40percent,then original light material across remaining face. Original assets and previous trials preserved.",
+  "faceOnly": true,
+  "glyphs": "live UIKit labels",
+  "widths": [
+    240,
+    249
+  ],
+  "height": 80,
+  "scales": [
+    4,
+    6
+  ],
+  "files": [
+    {
+      "file": "exit-240-4x.png",
+      "sha256": "269bbbcdd81a82a11bd2fdfc79f42d0d3379ec6f4216c661ab2906b4cdc1f847"
+    },
+    {
+      "file": "exit-240-6x.png",
+      "sha256": "ac70276fb355f8425ce864ae52a9dee8ba9c71031d1d22e7d38098ef01213397"
+    },
+    {
+      "file": "exit-249-4x.png",
+      "sha256": "05c4523d6ba82ae918851b67d3c0f357ed8d52ad66963dd6f6285d78202eac7f"
+    },
+    {
+      "file": "exit-249-6x.png",
+      "sha256": "77cd7eb796ea1f6c70bd5247637eb5d86ae9885e4ff5f6d3a63a2df645fc9f30"
+    }
+  ]
+}

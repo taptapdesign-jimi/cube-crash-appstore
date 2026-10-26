@@ -129,13 +129,13 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         stars.frame = CGRect(x:(size.width-110.35)/2,y:40.55,width:110.35,height:31.45)
         title.frame = CGRect(x:24,y:80,width:size.width-48,height:32)
         // v10 .cc-cta--standard-width: 226px below 768px, otherwise 250px.
-        let ctaWidth:CGFloat = bounds.width < 768 ? 226 : 250
+        let ctaWidth:CGFloat = min((bounds.width < 768 ? 226:250)*JimiV9PlainButton.ctaWidthScale,size.width-32)
         // Preserve a 40pt paper inset while giving the stat copy 16pt more
         // breathing room; the PWA stack also reserves a 24pt stats margin.
-        cta.setCartoonBounceFrame(CGRect(x:(size.width-ctaWidth)/2,y:size.height-104,width:ctaWidth,height:64))
+        cta.setCartoonBounceFrame(CGRect(x:(size.width-ctaWidth)/2,y:size.height-40-JimiV9PlainButton.primaryCTAHeight,width:ctaWidth,height:JimiV9PlainButton.primaryCTAHeight))
         // The original 112pt rows fit the larger portal, but overlap Play on
         // narrow phones. Compress row padding and artwork before reducing type.
-        let rowHeight=min(112,max(56,(cta.cartoonBounceFrame.minY-15-120-18)/2))
+        let rowHeight=min(112,max(52,(cta.cartoonBounceFrame.minY-16-120-18)/2))
         stats.frame=CGRect(x:24,y:120,width:size.width-48,height:rowHeight*2+18)
         for (index,row) in stats.arrangedSubviews.enumerated() {
             if let divider=row.subviews.first(where:{$0.tag == 701}) {

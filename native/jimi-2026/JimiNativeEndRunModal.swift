@@ -16,10 +16,10 @@ enum JimiNativeModalV10 {
     static var backdropColor:UIColor {UIColor(red:220/255,green:183/255,blue:163/255,alpha:0.5)}
 
     /// Authored Exit Game idle, shared by Backpack paper planes.
-    static func startIdle(on target:UIView,key:String,drift:CGFloat=0,amplitude:CGFloat=1,duration:Double=6.8,depth:Bool=true) {
+    static func startIdle(on target:UIView,key:String,drift:CGFloat=0,amplitude:CGFloat=1,duration:Double=6.8,depth:Bool=true,rigid:Bool=false) {
         guard !UIAccessibility.isReduceMotionEnabled,target.layer.animation(forKey:key)==nil else{return}
         func pose(_ y:CGFloat,_ z:CGFloat,_ scale:CGFloat)->NSValue {
-            NSValue(caTransform3D:CATransform3DScale(CATransform3DMakeTranslation(drift*y/4,y*amplitude,depth ? z:0),scale,scale,depth ? scale:1))
+            NSValue(caTransform3D:CATransform3DScale(CATransform3DMakeTranslation(drift*y/4,y*amplitude,depth && !rigid ? z:0),rigid ? 1:scale,rigid ? 1:scale,depth && !rigid ? scale:1))
         }
         let animation=CAKeyframeAnimation(keyPath:"transform")
         animation.duration=duration;animation.repeatCount = .infinity
@@ -212,19 +212,40 @@ final class JimiNativeEndRunModal: UIViewController {
     var onReady: (() -> Void)?
     var onAction: ((String) -> Void)?
     var onClosed: (() -> Void)?
+    #if DEBUG
+    var onEntryAnimationsInstalledForTesting:(()->Void)?
+    private(set) var ctaPreparationBeforeEntryForTesting:[String]=[]
+    #endif
     private var modalDrag: JimiNativeModalDrag?
     private var clickedButton: Int?
     private let assets: JimiV9Artwork
     private let dismissalAllowed:Bool
     private(set) var closing = false
     private var ready = false
+    private var enterStarted=false
+    private var cardEnterCompleted=false
+    private var enteredCTAs=Set<Int>(),completedCTAs=Set<Int>()
     private var disposed = false
+    #if DEBUG
+    private var hudLatencyTraceRows=0
+    private var hudLatencyLayoutCount=0
+    #endif
+    private func traceHUDLatency(_ phase:String) {
+        #if DEBUG
+        guard ProcessInfo.processInfo.arguments.contains("-native-hud-latency-trace"),hudLatencyTraceRows<48 else{return}
+        hudLatencyTraceRows+=1
+        NSLog("[NATIVE_HUD_LATENCY] phase=%@ owner=%d monotonicMs=%.3f",phase,requestID,CACurrentMediaTime()*1000)
+        #endif
+    }
     init(id:Int,model:JimiNativeEndRunModel,assets:JimiV9Artwork,dismissalAllowed:Bool = true) {
         requestID = id; self.model = model; self.assets = assets;self.dismissalAllowed=dismissalAllowed
         super.init(nibName:nil,bundle:nil); modalPresentationStyle = .overFullScreen
+        traceHUDLatency("exit-modal-init-body-end")
     }
     required init?(coder:NSCoder) { fatalError("Use init(id:model:assets:)") }
     override func viewDidLoad() {
+        traceHUDLatency("exit-load-begin")
+        defer{traceHUDLatency("exit-load-end")}
         super.viewDidLoad();view.backgroundColor = .clear
         var camera = CATransform3DIdentity;camera.m34 = -1/920;view.layer.sublayerTransform = camera
         idle.layer.isDoubleSided = false
@@ -241,17 +262,22 @@ final class JimiNativeEndRunModal: UIViewController {
         subtitle.text = model.subtitle;subtitle.font = assets.font(size:20,weight:"Medium");subtitle.textColor = NativeTextPalette.subtitle;subtitle.textAlignment = .center;subtitle.numberOfLines = 0
         subtitle.attributedText=NativeModalTypography.attributedSubtitle(model.subtitle,font:subtitle.font)
         idle.addSubview(heading);idle.addSubview(subtitle)
+        traceHUDLatency("exit-cta-style-begin")
         for (i,button) in buttons.enumerated() {
             button.accessibilityIdentifier = i == 0 ? "native.end-run.restart" : "native.end-run.exit"
             button.tag = i;button.setTitle(i == 0 ? model.restartLabel : model.exitLabel,for:.normal)
-            button.applyModalCTA(artwork:assets,primary:i == 0)
+            button.applyModalCTA(artwork:assets,primary:i == 0,preparesSculptedFaceOffMain:true)
+            button.setPairedModalCTA()
+            button.layer.opacity=0
+            button.onSculptedFacePrepared={ [weak self] in self?.revealPreparedCTAs() }
             button.addTarget(self,action:#selector(pressButton(_:)),for:.touchDown)
             button.addTarget(self,action:#selector(releaseButton(_:)),for:[.touchCancel,.touchUpOutside])
             button.addTarget(self,action:#selector(requestButton(_:)),for:.touchUpInside);idle.addSubview(button);button.enableCartoonBounce()
         }
+        traceHUDLatency("exit-cta-style-end")
         close.setBackgroundImage(paper.image,for:.normal);close.layer.cornerRadius = 26;close.clipsToBounds = true
         close.setImage(assets.image("assets/close-icon.png"),for:.normal);close.imageView?.contentMode = .scaleAspectFit;close.artworkOpacity = 0.8;close.enableArtworkTapFeedback()
-        close.imageEdgeInsets = UIEdgeInsets(top:14,left:14,bottom:14,right:14)
+        close.imageEdgeInsets = UIEdgeInsets(top:14,left:16,bottom:14,right:12)
         close.accessibilityLabel = "Close "+model.title;close.accessibilityIdentifier = "native.end-run.close"
         close.addTarget(self,action:#selector(requestClose),for:.touchUpInside);idle.addSubview(close)
         close.isHidden = !dismissalAllowed;backdrop.isUserInteractionEnabled=dismissalAllowed
@@ -259,14 +285,25 @@ final class JimiNativeEndRunModal: UIViewController {
         view.isUserInteractionEnabled = false
     }
     override func viewDidLayoutSubviews() {
+        #if DEBUG
+        let traceLayout=ProcessInfo.processInfo.arguments.contains("-native-hud-latency-trace") && hudLatencyLayoutCount<3
+        if traceLayout {hudLatencyLayoutCount+=1;traceHUDLatency("exit-layout-begin")}
+        defer{if traceLayout {traceHUDLatency("exit-layout-end")}}
+        #endif
         super.viewDidLayoutSubviews();backdrop.frame = view.bounds
-        let width = min(390,max(0,view.bounds.width-48)),height:CGFloat = 364
+        let width = min(390,max(0,view.bounds.width-48)),height:CGFloat = 388+2*(JimiV9PlainButton.pairedModalCTAHeight-80)+(JimiV9PlainButton.pairedModalCTAGap-8)
         card.bounds = CGRect(x:0,y:0,width:width,height:height);card.center = CGPoint(x:view.bounds.midX,y:view.bounds.midY+height*0.05)
         flip.bounds = card.bounds;flip.center = CGPoint(x:width/2,y:height)
         idle.bounds = card.bounds;idle.center = CGPoint(x:width/2,y:height*0.52);JimiNativeModalV10.paperLayout(paper,bounds:idle.bounds)
         heading.frame = CGRect(x:24,y:52,width:width-48,height:32)
         subtitle.frame = CGRect(x:24,y:96,width:width-48,height:52)
-        for (i,button) in buttons.enumerated() {button.cartoonBounceLayoutView.bounds = CGRect(x:0,y:0,width:249,height:64);button.cartoonBounceLayoutView.center = CGPoint(x:width/2,y:216+CGFloat(i)*80);button.layoutCartoonContent()}
+        let actionWidth=JimiV9PlainButton.modalCTAWidth(buttons,maxWidth:width-32)
+        for (i,button) in buttons.enumerated() {
+            let size=CGSize(width:actionWidth,height:JimiV9PlainButton.pairedModalCTAHeight)
+            button.cartoonBounceLayoutView.bounds=CGRect(origin:.zero,size:size)
+            button.cartoonBounceLayoutView.center=CGPoint(x:width/2,y:184+JimiV9PlainButton.pairedModalCTAHeight/2+CGFloat(i)*(JimiV9PlainButton.pairedModalCTAHeight+JimiV9PlainButton.pairedModalCTAGap))
+            button.layoutCartoonContent()
+        }
         close.frame = CGRect(x:width-42,y:-10,width:52,height:52)
     }
     private func pose(_ y:CGFloat,_ z:CGFloat,_ rx:CGFloat,_ ry:CGFloat,_ scale:CGFloat,_ rz:CGFloat = 0)->CATransform3D {
@@ -275,10 +312,23 @@ final class JimiNativeEndRunModal: UIViewController {
         return CATransform3DScale(t,scale,scale,scale)
     }
     override func viewDidAppear(_ animated:Bool) {
-        super.viewDidAppear(animated);guard !disposed,!closing else{return};card.alpha = 1
-        for (i,button) in buttons.enumerated() {
-            track(button,JimiV9Motion.Track(tweens:[.init(begin:0.13+Double(i)*0.07,duration:0.34,from:.scale(0,y:18,opacity:0),to:.scale(1),ease:.backOut(1.8))]),key:"cta-enter")
-        }
+        traceHUDLatency("exit-appear-begin")
+        defer{traceHUDLatency("exit-appear-end")}
+        super.viewDidAppear(animated);guard !disposed,!closing else{return}
+        // UIKit may defer a descendant layout until after appearance. Resolve
+        // the two selected face geometries before either visible animation is
+        // installed, rather than letting a later layout admit the CTA cohort.
+        #if DEBUG
+        ctaPreparationBeforeEntryForTesting=buttons.map{$0.sculptedFacePreparationSnapshotForTesting}
+        #endif
+        for button in buttons {button.prepareSculptedFaceForEntrance()}
+        card.alpha = 1
+        #if DEBUG
+        defer{onEntryAnimationsInstalledForTesting?()}
+        #endif
+        enterStarted=true
+        traceHUDLatency(buttons.allSatisfy({$0.isSculptedFacePrepared}) ? "exit-appear-faces-ready":"exit-appear-awaits-faces")
+        revealPreparedCTAs()
         if UIAccessibility.isReduceMotionEnabled { completeEnter();backdrop.alpha = 1;return }
         CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in self?.completeEnter()}
         JimiNativeModalV10.enter(card:card,flip:flip,key:"end-run-enter")
@@ -286,9 +336,39 @@ final class JimiNativeEndRunModal: UIViewController {
         UIView.animate(withDuration:0.5){self.backdrop.alpha = 1}
     }
     private func completeEnter() {
+        traceHUDLatency("exit-enter-complete")
+        cardEnterCompleted=true;finishEnterIfReady()
+    }
+    /// Remove up to the requested .5s lead-in, clamping at first presentation.
+    /// Fail's .18s orange→white spacing and .34s bounce remain intact.
+    static func ctaStart(_ index:Int)->Double {max(0,0.13-0.5)+Double(index)*0.18}
+    private func revealPreparedCTAs() {
+        guard !disposed,!closing,view.layer.speed != 0,enterStarted,
+              enteredCTAs.isEmpty,buttons.allSatisfy({$0.isSculptedFacePrepared}) else{return}
+        traceHUDLatency("exit-cta-cohort-start")
+        // Both bitmaps form one entrance cohort. Independent async preparation
+        // must never let Exit appear before Restart or consume their stagger.
+        for index in buttons.indices {
+            enteredCTAs.insert(index)
+            let button=buttons[index]
+            if UIAccessibility.isReduceMotionEnabled {
+                button.layer.opacity=1;completedCTAs.insert(index);continue
+            }
+            CATransaction.begin()
+            CATransaction.setCompletionBlock{[weak self] in
+                guard let self,!self.disposed,!self.closing else{return}
+                self.completedCTAs.insert(index);self.finishEnterIfReady()
+            }
+            track(button,.init(tweens:[.init(begin:Self.ctaStart(index),duration:0.34,from:.scale(0,y:18,opacity:0),to:.scale(1),ease:.backOut(1.8))]),key:"cta-enter")
+            CATransaction.commit()
+        }
+        finishEnterIfReady()
+    }
+    private func finishEnterIfReady() {
+        guard cardEnterCompleted,completedCTAs.count==buttons.count else{return}
         guard !disposed,!closing,!ready else{return};ready = true;view.isUserInteractionEnabled = true;onReady?()
-        guard dismissalAllowed,!UIAccessibility.isReduceMotionEnabled else{return}
-        JimiNativeModalV10.startIdle(on:idle,key:"end-run-idle")
+        guard !disposed,!closing,dismissalAllowed,!UIAccessibility.isReduceMotionEnabled else{return}
+        JimiNativeModalV10.startIdle(on:idle,key:"end-run-idle",rigid:true)
     }
     private func track(_ target:UIView,_ recipe:JimiV9Motion.Track,key:String) {
         guard !UIAccessibility.isReduceMotionEnabled else{return}
@@ -332,9 +412,13 @@ final class JimiNativeEndRunModal: UIViewController {
         let receipt = onClosed;onClosed = nil
         dispose();dismiss(animated:false,completion:receipt)
     }
-    func suspend() {modalDrag?.cancel(preservePose:true);let layer = view.layer;guard layer.speed != 0 else{return};let t = layer.convertTime(CACurrentMediaTime(),from:nil);layer.speed = 0;layer.timeOffset = t;view.isUserInteractionEnabled = false}
-    func resume() {let layer = view.layer;guard layer.speed == 0,!disposed else{return};let t = layer.timeOffset;layer.speed = 1;layer.timeOffset = 0;layer.beginTime = 0;layer.beginTime = layer.convertTime(CACurrentMediaTime(),from:nil)-t;view.isUserInteractionEnabled = ready && !closing}
-    func dispose() {guard !disposed else{return};modalDrag?.dispose();modalDrag = nil;disposed = true;onReady = nil;onAction = nil;onClosed = nil;for target in [card,flip,idle,close]+buttons {target.layer.removeAllAnimations()};viewIfLoaded?.layer.removeAllAnimations()}
+    func suspend() {buttons.forEach{$0.setModalCTAIdleSuspended(true);$0.setSculptedFacePreparationSuspended(true)};modalDrag?.cancel(preservePose:true);let layer = view.layer;guard layer.speed != 0 else{return};let t = layer.convertTime(CACurrentMediaTime(),from:nil);layer.speed = 0;layer.timeOffset = t;view.isUserInteractionEnabled = false}
+    func resume() {let layer = view.layer;guard layer.speed == 0,!disposed else{return};let t = layer.timeOffset;layer.speed = 1;layer.timeOffset = 0;layer.beginTime = 0;layer.beginTime = layer.convertTime(CACurrentMediaTime(),from:nil)-t;buttons.forEach{$0.setModalCTAIdleSuspended(false);$0.setSculptedFacePreparationSuspended(false)};revealPreparedCTAs();view.isUserInteractionEnabled = ready && !closing}
+    func dispose() {
+        #if DEBUG
+        onEntryAnimationsInstalledForTesting=nil
+        #endif
+        guard !disposed else{return};modalDrag?.dispose();modalDrag = nil;disposed = true;onReady = nil;onAction = nil;onClosed = nil;buttons.forEach{$0.setModalCTAIdleSuspended(true);$0.onSculptedFacePrepared=nil;$0.retireSculptedFacePreparation()};for target in [card,flip,idle,close]+buttons {target.layer.removeAllAnimations()};viewIfLoaded?.layer.removeAllAnimations()}
     override func viewDidDisappear(_ animated:Bool) {super.viewDidDisappear(animated);dispose()}
 }
 
