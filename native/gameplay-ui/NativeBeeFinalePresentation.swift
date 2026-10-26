@@ -29,7 +29,7 @@ final class NativeBeeFinalePresentation: NativeFinitePresentation {
         self.kiteMotion=kiteMotion
         let backgrounds:[NativeKiteBackgroundPlan]
         if let kiteMotion {
-            backgrounds=(0..<2).map {NativeKiteBackgroundPlan(main:kiteMotion,width:Double(viewport.width),height:Double(viewport.height),flagCount:8,index:$0,random:random)}
+            backgrounds=NativeKiteBackgroundPlan.makePair(main:kiteMotion,width:Double(viewport.width),height:Double(viewport.height),flagCount:8,random:random)
         }else {backgrounds=[]}
         backgroundPlans=backgrounds
         var plans=NativeBeeLeafPlan.make(route:route,heroPosition:kiteMotion.map{motion in {motion.sample(seconds:$0).point}},emissionEnd:kite ? 3.15:2.9,retireAt:kite ? NativeKiteFinaleMotion.flightDuration:3.86)

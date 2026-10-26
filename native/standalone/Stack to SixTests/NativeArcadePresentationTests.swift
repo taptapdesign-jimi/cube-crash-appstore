@@ -35,6 +35,16 @@ final class NativeArcadePresentationTests: XCTestCase {
             let image=UIGraphicsImageRenderer(size:window.bounds.size,format:format).image{host.view.layer.render(in:$0.cgContext)}
             try image.pngData()?.write(to:URL(fileURLWithPath:sample==0 ? "/tmp/board-cleared-puppy.png":"/tmp/board-cleared-thumb.png"))
             owner!.setSuspended(false)
+            while owner!.elapsed < owner!.boardClearedTextExitEnd {try await Task.sleep(for:.milliseconds(10))}
+            owner!.setSuspended(true)
+            func descendants(_ view:UIView)->[UIView] {view.subviews.flatMap{[$0]+descendants($0)}}
+            let rendered=descendants(owner!)
+            let thumb=try XCTUnwrap(rendered.first{$0.accessibilityIdentifier=="native.board-cleared.thumb"})
+            XCTAssertEqual(thumb.alpha,1,accuracy:0.001,"Thumb waits for every CLEARED glyph to exit")
+            for glyph in rendered where glyph.accessibilityIdentifier?.hasPrefix("native.board-cleared.glyph.")==true {
+                XCTAssertEqual(glyph.alpha,0,accuracy:0.001)
+            }
+            owner!.setSuspended(false)
             await fulfillment(of:[done],timeout:5)
             XCTAssertEqual(commits,0);XCTAssertEqual(digits,0);XCTAssertEqual(finishes,1)
             owner!.dispose();owner=nil
@@ -75,7 +85,8 @@ final class NativeArcadePresentationTests: XCTestCase {
         XCTAssertEqual(owner.boardClearedTextEnterEnd,1.04,accuracy:0.000001)
         XCTAssertEqual(owner.thumbEnterStart,0.2,accuracy:0.000001)
         XCTAssertLessThanOrEqual(abs(owner.boardClearedThumbRotation),20)
-        XCTAssertEqual(owner.duration,2.68,accuracy:0.000001)
+        XCTAssertEqual(owner.boardClearedTextExitEnd,2.68,accuracy:0.000001)
+        XCTAssertEqual(owner.duration,2.98,accuracy:0.000001)
         for index in plan.letters.indices {
             for time in [0.0,0.2,0.6,1.0,1.039] {
                 let expected=plan.letters[index].enter(at:time,index:index),actual=owner.boardClearedTextPose(at:time,index:index)

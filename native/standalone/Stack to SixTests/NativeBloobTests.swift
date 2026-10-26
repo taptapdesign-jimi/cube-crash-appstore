@@ -65,6 +65,37 @@ import StackToSixNativeState
         }
         XCTAssertEqual(edges,Set(["left","right","top","bottom"]))
     }
+    func testLateScatteredBlobsInheritVelocityThenFallWithoutVisibleRetirement() {
+        for seed in [7,727,1441] {
+            var state=UInt64(seed),draws=0
+            let motion=NativeBloobFinaleMotion(viewport:.init(width:390,height:844),random:{draws+=1;state=state &* 6364136223846793005 &+ 1;return Double(state>>11)/Double(UInt64.max>>11)})
+            let captured=draws
+            XCTAssertEqual(motion.gravityTails.count,22)
+            XCTAssertNil(motion.gravityTails[0],"The burst hero keeps its existing animation")
+            XCTAssertLessThanOrEqual(motion.duration-NativeBloobFinaleMotion.scatterStart,motion.originalScatterDuration+1.000001)
+            for (index,tail) in motion.gravityTails {
+                let step=0.00001
+                let before=motion.reversePose(index,seconds:tail.start-step).center
+                let join=motion.reversePose(index,seconds:tail.start).center
+                let after=motion.reversePose(index,seconds:tail.start+step).center
+                XCTAssertEqual(join.x,tail.origin.x,accuracy:0.000001)
+                XCTAssertEqual(join.y,tail.origin.y,accuracy:0.000001)
+                XCTAssertEqual((join.x-before.x)/step,(after.x-join.x)/step,accuracy:2,"Horizontal inertia must survive the handoff")
+                XCTAssertEqual((join.y-before.y)/step,(after.y-join.y)/step,accuracy:2,"No stop or velocity snap at gravity onset")
+                let span=min(0.05,(motion.exitTimes[index]-tail.start)/4)
+                let a=motion.reversePose(index,seconds:tail.start+span).center
+                let b=motion.reversePose(index,seconds:tail.start+2*span).center
+                XCTAssertEqual((b.y-2*a.y+join.y)/(span*span),tail.gravity,accuracy:0.001)
+                XCTAssertEqual((b.x-a.x)/span,tail.velocity.x,accuracy:0.001)
+                XCTAssertGreaterThan(tail.gravity,0)
+                let exit=motion.reversePose(index,seconds:motion.exitTimes[index]),radius=motion.reverseBalls[index].size*0.86+4
+                XCTAssertTrue(exit.hidden)
+                XCTAssertTrue(exit.center.x+radius<0 || exit.center.y+radius<0 || exit.center.x-radius>390 || exit.center.y-radius>844,"Retire only once the actual ballistic path is fully outside")
+                XCTAssertFalse(motion.reversePose(index,seconds:motion.exitTimes[index]-0.001).hidden)
+            }
+            XCTAssertEqual(draws,captured,"Gravity sampling consumes no new random values")
+        }
+    }
     func testFakeDiceStayHiddenUntilInstantBurstReveal() {
         let motion=NativeBloobFinaleMotion(viewport:CGSize(width:390,height:844),random:{0.5})
         for i in motion.fakeDice.indices {
@@ -164,14 +195,28 @@ import StackToSixNativeState
     func testScreenShakeBindingRestoresWithoutAccumulation() {
         let view=UIView();let original=CGAffineTransform(rotationAngle:0.1).scaledBy(x:0.9,y:0.95).translatedBy(x:4,y:7)
         view.transform=original
+        let originalFrame=view.frame
+        var contents=CATransform3DMakeScale(1.1,0.8,1);contents.m41=3;contents.m42=5
+        view.layer.sublayerTransform=contents
         var binding:NativeBloobScreenShakeBinding?=NativeBloobScreenShakeBinding(view:view)
         weak var released=binding
-        for i in 0..<100 {binding?.paint(CGPoint(x:sin(Double(i))*7,y:cos(Double(i))*8))}
+        for i in 0..<100 {
+            let offset=CGPoint(x:sin(Double(i))*7,y:cos(Double(i))*8)
+            binding?.paint(offset)
+            XCTAssertEqual(view.transform,original,"Camera paint cannot move UIKit frame/safe-area geometry and cancel input")
+            XCTAssertEqual(view.frame,originalFrame)
+            XCTAssertEqual(view.layer.sublayerTransform.m41,contents.m41+offset.x,accuracy:0.000001)
+            XCTAssertEqual(view.layer.sublayerTransform.m42,contents.m42+offset.y,accuracy:0.000001)
+        }
         binding?.paint(.zero)
         XCTAssertEqual(view.transform.tx,original.tx,accuracy:0.000001);XCTAssertEqual(view.transform.ty,original.ty,accuracy:0.000001)
         XCTAssertEqual(view.transform.a,original.a);XCTAssertEqual(view.transform.d,original.d)
         binding?.paint(CGPoint(x:7,y:9));binding?.dispose();binding?.dispose();binding=nil
         XCTAssertNil(released)
+        XCTAssertEqual(view.layer.sublayerTransform.m41,contents.m41,accuracy:0.000001)
+        XCTAssertEqual(view.layer.sublayerTransform.m42,contents.m42,accuracy:0.000001)
+        XCTAssertEqual(view.layer.sublayerTransform.m11,contents.m11)
+        XCTAssertEqual(view.layer.sublayerTransform.m22,contents.m22)
         XCTAssertEqual(view.transform.tx,original.tx,accuracy:0.000001);XCTAssertEqual(view.transform.ty,original.ty,accuracy:0.000001)
     }
     func testStandardGridReactionVibratesThenSpringsHomeAndDisposes()throws {
@@ -319,6 +364,42 @@ import StackToSixNativeState
         // UIKit's transient transform/autorelease references drain at this boundary.
         XCTAssertNil(escapedDie);XCTAssertNil(escapedBall)
         selected.dispose();try await Task.sleep(for:.milliseconds(50));XCTAssertNil(released)
+    }
+    func testMountedLateGravityBodiesFollowTheirBallisticPlanAndRetireOffscreen() async throws {
+        let selected=NativeSelectedUIKitFinaleArtworkOwner(root:NativeTestResources.root,generation:9,current:{true})
+        selected.prepare(variant:"bloob")
+        let deadline=Date().addingTimeInterval(20)
+        while !selected.readyFamilies.contains("bloob"),Date()<deadline {try await Task.sleep(for:.milliseconds(10))}
+        XCTAssertTrue(selected.readyFamilies.contains("bloob"))
+        let host=UIViewController(),window=UIWindow(frame:.init(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible();host.view.backgroundColor=NativeAppPaperSurface.base
+        var seed:UInt64=727
+        let owner=NativeBloobFinalePresentation(resourceRoot:NativeTestResources.root,viewport:window.bounds.size,preparedArtwork:selected.artwork,random:{seed=seed &* 6364136223846793005 &+ 1;return Double(seed>>11)/Double(UInt64.max>>11)})
+        host.view.addSubview(owner)
+        defer {owner.dispose();selected.dispose();window.isHidden=true}
+        for (index,tail) in owner.motion.gravityTails {
+            let time=tail.start+(owner.motion.exitTimes[index]-tail.start)*0.5
+            owner.paint(seconds:time)
+            let carrier=try XCTUnwrap(owner.subviews.first{$0.accessibilityIdentifier=="native-bloob-ordinary-\(index)"})
+            let expected=tail.center(seconds:time)
+            XCTAssertFalse(carrier.isHidden)
+            XCTAssertEqual(carrier.center.x,expected.x,accuracy:0.000001)
+            XCTAssertEqual(carrier.center.y,expected.y,accuracy:0.000001)
+            owner.paint(seconds:owner.motion.exitTimes[index]+0.001)
+            XCTAssertNil(carrier.superview)
+        }
+        let image=UIGraphicsImageRenderer(size:.init(width:585,height:844)).image {context in
+            for (index,fraction) in [0.2,0.36,0.52,0.68,0.84,0.97].enumerated() {
+                let time=NativeBloobFinaleMotion.scatterStart+(owner.motion.duration-NativeBloobFinaleMotion.scatterStart)*fraction
+                owner.paint(seconds:time)
+                let cg=context.cgContext;cg.saveGState()
+                cg.translateBy(x:CGFloat(index%3)*195,y:CGFloat(index/3)*422);cg.scaleBy(x:0.5,y:0.5)
+                cg.setFillColor(NativeAppPaperSurface.base.cgColor);cg.fill(owner.bounds);owner.layer.render(in:cg);cg.restoreGState()
+            }
+        }
+        try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/bloob-gravity-mounted-contact.png"))
+        owner.paint(seconds:owner.duration)
+        XCTAssertFalse(owner.subviews.contains{$0.accessibilityIdentifier?.hasPrefix("native-bloob-ordinary-")==true})
     }
     func testModalPeriodicBoostPreservesContinuousPhase() {
         XCTAssertEqual(NativeBloobArt.modalArtworkTime(2),2,accuracy:0.000001)

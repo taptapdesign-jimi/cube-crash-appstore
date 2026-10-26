@@ -192,10 +192,17 @@ struct NativeKiteBackgroundPlan {
     var size:Double {index==0 ? 228:288}
     var delay:Double {Self.delay+Double(index)*0.2}
     var side:Double {Double(direction)}
-    init(main:NativeKiteFinaleMotion,width:Double,height:Double,flagCount:Int,index:Int=0,random:()->Double={0.5}) {
+    // Only the edge assignment is paired; each carrier still captures its own
+    // wind, phase and staggered departure rather than reflecting a shared path.
+    static func makePair(main:NativeKiteFinaleMotion,width:Double,height:Double,flagCount:Int,random:()->Double)->[Self] {
+        let first=Self(main:main,width:width,height:height,flagCount:flagCount,index:0,random:random)
+        let second=Self(main:main,width:width,height:height,flagCount:flagCount,index:1,direction:-first.direction,random:random)
+        return [first,second]
+    }
+    init(main:NativeKiteFinaleMotion,width:Double,height:Double,flagCount:Int,index:Int=0,direction:Int?=nil,random:()->Double={0.5}) {
         self.main=main;self.width=width;self.height=height;self.flagCount=flagCount;self.index=index
         let draw=random(),unit=draw.isFinite ? min(1,max(0,draw)):0.5
-        phase=unit*0.12;direction=unit<0.5 ? -1:1
+        phase=unit*0.12;self.direction=direction ?? (unit<0.5 ? -1:1)
         let style=NativeKiteDeparturePlan.Style(rawValue:(main.departure.style.rawValue+(index==0 ? 1:2))%3)!
         let timing=random(),interval=timing.isFinite ? min(1,max(0,timing)):0.5
         let lastStart=index==0 ? main.departure.start+0.4+0.1*interval:nil

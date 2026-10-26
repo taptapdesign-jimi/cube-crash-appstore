@@ -141,7 +141,7 @@ import UIKit
     }
 }
 
-/// One finite finale owns a camera offset; preserve all other root transforms.
+/// Shake rendered children, keeping UIKit frame/safe-area geometry and input stable.
 @MainActor final class NativeBloobScreenShakeBinding {
     private weak var view:UIView?
     private var previous=CGPoint.zero,retired=false
@@ -149,9 +149,11 @@ import UIKit
     func paint(_ offset:CGPoint) {
         guard !retired,offset != previous else{return}
         if let view {
-            var transform=view.transform
-            transform.tx+=offset.x-previous.x;transform.ty+=offset.y-previous.y
-            view.transform=transform
+            var transform=view.layer.sublayerTransform
+            transform.m41+=offset.x-previous.x;transform.m42+=offset.y-previous.y
+            CATransaction.begin();CATransaction.setDisableActions(true)
+            view.layer.sublayerTransform=transform
+            CATransaction.commit()
         }
         previous=offset
     }

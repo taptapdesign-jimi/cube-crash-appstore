@@ -27,6 +27,33 @@ final class NativeRouteMotionTests:XCTestCase {
             XCTAssertEqual(painted.m42,0,accuracy:0.001,"Settled artwork must not retain a visual squash or offset")
         }
     }
+    func testNavigationShadowWaits200msThenFadesAndRestoresAfterCancellation() async throws {
+        let motion=owner(),host=UIViewController(),window=UIWindow(frame:.init(x:0,y:0,width:390,height:844))
+        window.windowScene=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.first
+        window.rootViewController=host;window.makeKeyAndVisible()
+        let header=JimiV9NavigationHeader(frame:.init(x:0,y:0,width:390,height:110))
+        header.backgroundColor=NativeAppPaperSurface.base;host.view.addSubview(header);header.layoutIfNeeded()
+        defer {motion.cancel();window.isHidden=true}
+        CATransaction.flush();try await Task.sleep(for:.milliseconds(40))
+        motion.animate([(header,JimiV9Motion.journeyNavigationExit())]){}
+        let group=try XCTUnwrap(header.layer.animation(forKey:"native-route") as? CAAnimationGroup)
+        let fade=try XCTUnwrap(group.animations?.compactMap{$0 as? CABasicAnimation}.first{$0.keyPath=="shadowOpacity"})
+        XCTAssertEqual(fade.beginTime,0.2);XCTAssertEqual(fade.duration,0.16)
+        XCTAssertEqual((fade.fromValue as? NSNumber)?.doubleValue ?? -1,0.16,accuracy:0.001)
+        XCTAssertEqual((fade.toValue as? NSNumber)?.doubleValue,0)
+        CATransaction.flush();try await Task.sleep(for:.milliseconds(80))
+        XCTAssertEqual(try XCTUnwrap(header.layer.presentation()).shadowOpacity,0.16,accuracy:0.001,"Shadow holds through the200ms delay")
+        try await Task.sleep(for:.milliseconds(200))
+        let partial=try XCTUnwrap(header.layer.presentation()).shadowOpacity
+        XCTAssertGreaterThan(partial,0);XCTAssertLessThan(partial,0.14,"Shadow fades after its200ms delay")
+        try await Task.sleep(for:.milliseconds(110))
+        XCTAssertLessThan(try XCTUnwrap(header.layer.presentation()).shadowOpacity,0.001,"Shadow is gone before rectangle collapse finishes")
+        motion.cancel()
+        XCTAssertEqual(header.layer.shadowOpacity,0.16,accuracy:0.001)
+        XCTAssertNil(header.layer.animation(forKey:"native-route"))
+        motion.animate([(header,JimiV9Motion.homeEnter(.navigation))]){}
+        XCTAssertEqual(header.layer.shadowOpacity,0.16,accuracy:0.001)
+    }
     private final class WeakLayer {weak var value:CALayer?;init(_ value:CALayer){self.value=value}}
     private func owner()->NativeRouteMotion {
         let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)

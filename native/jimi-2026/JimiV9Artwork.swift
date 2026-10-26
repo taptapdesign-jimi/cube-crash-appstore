@@ -45,6 +45,18 @@ final class JimiV9NavigationHeader: UIView {
         layer.shadowOffset=CGSize(width:0,height:4)
     }
     required init?(coder:NSCoder) {fatalError("Use frame initializer")}
+    /// The route group owns this fade, including pause, cancellation and replay.
+    /// Shadow starts fading200ms into the rectangle’s authored bounce.
+    func appendExitShadowFade(to group:CAAnimationGroup,track:JimiV9Motion.Track) {
+        guard track.tweens.last?.to.opacity == 0 else{return}
+        let fade=CABasicAnimation(keyPath:"shadowOpacity")
+        fade.fromValue=layer.presentation()?.shadowOpacity ?? layer.shadowOpacity
+        fade.toValue=Float(0);fade.beginTime=min(0.2,max(0,group.duration-0.06))
+        fade.duration=min(0.16,max(0,group.duration-fade.beginTime))
+        fade.timingFunction=CAMediaTimingFunction(name:.easeOut)
+        fade.fillMode = .both;fade.isRemovedOnCompletion=false
+        group.animations=(group.animations ?? [])+[fade]
+    }
     override func layoutSubviews() {
         super.layoutSubviews()
         layer.shadowPath=UIBezierPath(rect:bounds).cgPath

@@ -5,6 +5,25 @@ import StackToSixGameplay
 @testable import Stack_to_Six
 
 @MainActor final class NativeKitePresentationTests:XCTestCase {
+    func testPairAlwaysChoosesOppositeExitEdgesAndMirrorsRightwardSVG() {
+        for draw in [0.0,0.1,0.49,0.5,0.9,1.0,Double.nan] {
+            let main=NativeKiteFinaleMotion(route:.init(width:390,height:844,origin:.init(x:195,y:500),seed:0.5))
+            var pairedDraws=0,individualDraws=0
+            let pair=NativeKiteBackgroundPlan.makePair(main:main,width:390,height:844,flagCount:8,random:{pairedDraws+=1;return draw})
+            for index in 0..<2 {_ = NativeKiteBackgroundPlan(main:main,width:390,height:844,flagCount:8,index:index,random:{individualDraws+=1;return draw})}
+            XCTAssertEqual(pairedDraws,individualDraws,"Pair assignment reuses the first facing draw; it must not advance shared randomness further")
+            XCTAssertEqual(pair.count,2)
+            XCTAssertEqual(Set(pair.map(\.direction)),Set([-1,1]))
+            for plan in pair {
+                XCTAssertEqual(plan.facing,plan.direction>0 ? -1:1,"Rightward Kite2 reflects the entire original left-facing SVG")
+                for t in [0.8,1.7,2.4,3.4,4.7] {XCTAssertEqual(plan.sample(seconds:t).facing,plan.facing)}
+                let end=plan.sample(seconds:NativeKiteBackgroundPlan.flightDuration)
+                if plan.direction<0 {XCTAssertLessThan(end.point.x,0)}
+                else {XCTAssertGreaterThan(end.point.x,390)}
+            }
+            if draw.isFinite {XCTAssertEqual(pair[0].direction,draw<0.5 ? -1:1)}
+        }
+    }
     func testSelectedSVGAndMountedFlightAreBoundedAndRetire() async throws {
         let root=Bundle.main.bundleURL.appendingPathComponent("NativeAssets.bundle")
         let artwork=JimiV9Artwork(resourceRoot:root)
@@ -133,7 +152,7 @@ import StackToSixGameplay
     func testIndependentSideExitsStayContinuousBoundedAndFinishOnExistingClock() {
         for width in [320.0,390.0,768.0] {for draw in [0.0,0.5,1.0] {for origin in [NativeBeeFinaleMotion.Point(x:56,y:150),.init(x:width-56,y:700)] {
             let main=NativeKiteFinaleMotion(route:.init(width:width,height:844,origin:origin,seed:draw*6),random:{draw})
-            let plans=(0..<2).map{NativeKiteBackgroundPlan(main:main,width:width,height:844,flagCount:3,index:$0,random:{draw})}
+            let plans=NativeKiteBackgroundPlan.makePair(main:main,width:width,height:844,flagCount:3,random:{draw})
             XCTAssertLessThan(plans[1].departure.start,main.departure.start)
             XCTAssertGreaterThanOrEqual(plans[0].departure.start-main.departure.start,0.4-0.000001)
             let departures=[main.departure]+plans.map(\.departure)
@@ -160,13 +179,17 @@ import StackToSixGameplay
             XCTAssertEqual(stretch.x*stretch.y,1,accuracy:0.000001)
         }}}
     }
-    func testRandomDeparturePlansAreCapturedOnceVaryAcrossRunsAndSeparateSameSideKites() {
+    func testRandomDeparturePlansAreCapturedOnceVaryAcrossRunsAndSeparateOpposedKites() {
         var signatures:Set<String>=[]
         for seed in 1...8 {
             var state=UInt64(seed),draws=0
             func random()->Double {draws+=1;state=state &* 6364136223846793005 &+ 1442695040888963407;return Double(state>>11)/Double(UInt64.max>>11)}
             let main=NativeKiteFinaleMotion(route:.init(width:390,height:844,origin:.init(x:195,y:500),seed:0.5),random:random)
-            let plans=(0..<2).map{NativeKiteBackgroundPlan(main:main,width:390,height:844,flagCount:4,index:$0,random:random)}
+            let plans=NativeKiteBackgroundPlan.makePair(main:main,width:390,height:844,flagCount:4,random:random)
+            XCTAssertEqual(plans[0].direction,-plans[1].direction)
+            XCTAssertNotEqual(plans[0].departure.style,plans[1].departure.style)
+            XCTAssertNotEqual(plans[0].departure.start,plans[1].departure.start)
+            XCTAssertNotEqual(plans[0].departure.tempo,plans[1].departure.tempo)
             let captured=draws
             let samples=(0...470).map{frame->[Double] in
                 let t=Double(frame)/100,a=main.sample(seconds:t),b=plans[0].sample(seconds:t),c=plans[1].sample(seconds:t)
@@ -208,7 +231,7 @@ import StackToSixGameplay
     func testCompanionsKeepUpperAndLowerSlotsWithoutPaintRandomness() {
         let main=NativeKiteFinaleMotion(route:.init(width:390,height:844,origin:.init(x:195,y:300),seed:0.5))
         var draws=0
-        let plans=(0..<2).map{NativeKiteBackgroundPlan(main:main,width:390,height:844,flagCount:3,index:$0,random:{draws+=1;return 0.5})}
+        let plans=NativeKiteBackgroundPlan.makePair(main:main,width:390,height:844,flagCount:3,random:{draws+=1;return 0.5})
         let captured=draws
         for frame in 108...126 {
             let t=Double(frame)/60
@@ -229,7 +252,7 @@ import StackToSixGameplay
     func testFacingOwnsDirectionCentreEntryContinuousDepartureAndOneSecondStretch() {
         for draw in [0.1,0.9] {
             let main=NativeKiteFinaleMotion(route:.init(width:390,height:844,origin:.init(x:195,y:500),seed:draw*2 * .pi),random:{draw})
-            let plans=(0..<2).map{NativeKiteBackgroundPlan(main:main,width:390,height:844,flagCount:4,index:$0,random:{draw})}
+            let plans=NativeKiteBackgroundPlan.makePair(main:main,width:390,height:844,flagCount:4,random:{draw})
             for plan in plans {XCTAssertEqual(plan.facing,-plan.direction,"Original Kite2 points left; rightward travel must mirror it")}
             let upper=plans[0],birth=upper.sample(seconds:upper.delay)
             XCTAssertEqual(birth.point.x,upper.side>0 ? -upper.size*0.55:390+upper.size*0.55,accuracy:0.000001);XCTAssertEqual(birth.point.y,422,accuracy:0.000001)
@@ -289,8 +312,12 @@ import StackToSixGameplay
         host.view.addSubview(flight);defer{flight.dispose();window.isHidden=true}
         let main=NativeKiteFinaleMotion(route:.init(width:390,height:844,origin:.init(x:195,y:400),seed:.pi),random:{0.5})
         let field=try XCTUnwrap(flight.subviews.first),companions=field.subviews.filter{$0.accessibilityIdentifier?.hasPrefix("native-kite-background-")==true}
+        let pairedPlans=NativeKiteBackgroundPlan.makePair(main:main,width:390,height:844,flagCount:8,random:{0.5})
+        flight.paint(seconds:1.7)
+        let determinants=companions.map{$0.transform.a*$0.transform.d-$0.transform.b*$0.transform.c}
+        XCTAssertLessThan(determinants[0]*determinants[1],0,"One whole SVG carrier is mirrored, including its patch; the other is original")
         for index in 0..<2 {
-            let plan=NativeKiteBackgroundPlan(main:main,width:390,height:844,flagCount:4,index:index,random:{0.5}),view=companions[index]
+            let plan=pairedPlans[index],view=companions[index]
             flight.paint(seconds:plan.departure.start-0.01)
             let before=abs(atan2(Double(view.transform.b)*Double(plan.facing),Double(view.transform.a)*Double(plan.facing)))
             flight.paint(seconds:plan.departure.start+0.5)

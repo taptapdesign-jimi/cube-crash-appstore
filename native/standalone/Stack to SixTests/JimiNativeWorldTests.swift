@@ -951,6 +951,20 @@ final class JimiNativeWorldTests: XCTestCase {
         let attachment=XCTAttachment(image:preview);attachment.name="native-navigation-soft-shadow";attachment.lifetime = .keepAlways;add(attachment)
     }
 
+    func testWorldNavigationShadowFadeSharesActualExitGroupAndReducedMotionClock() throws {
+        let world=try XCTUnwrap(JimiNativeWorldView(snapshot:fixture(),assets:art))
+        world.frame = .init(x:0,y:0,width:390,height:844);world.layoutIfNeeded()
+        defer {world.cleanup()}
+        world.exit{}
+        let group=try XCTUnwrap(world.header.layer.animation(forKey:"world.exit") as? CAAnimationGroup)
+        let fade=try XCTUnwrap(group.animations?.compactMap{$0 as? CABasicAnimation}.first{$0.keyPath=="shadowOpacity"})
+        XCTAssertEqual(fade.beginTime,0.2);XCTAssertEqual(fade.duration,0.16)
+        let reduced=CAAnimationGroup();reduced.duration=0.16
+        world.header.appendExitShadowFade(to:reduced,track:JimiV9Motion.journeyNavigationExit(reducedMotion:true))
+        XCTAssertEqual(reduced.animations?.first?.beginTime,0.1)
+        XCTAssertEqual(reduced.animations?.first?.duration ?? -1,0.06,accuracy:0.000001)
+        XCTAssertEqual(world.header.layer.shadowOpacity,0.16,accuracy:0.001,"Model paint remains ready for re-entry")
+    }
     private func rotatedInterimCard() -> (UIView,UIView) {
         let parent = UIView(frame:CGRect(x:0,y:0,width:390,height:844))
         let card = UIView(frame:CGRect(x:30,y:200,width:90,height:133))

@@ -48,12 +48,14 @@ final class NativeArcadeRoundPresentation: UIView {
     var boardClearedTextEnterEnd:TimeInterval {0.2+Double(max(0,titleGlyphs.count-1))*0.05+0.54}
     var thumbEnterStart:TimeInterval {boardClearedOnly ? 0.2:0}
     private var clearExitStart: TimeInterval {boardClearedOnly ? boardClearedTextEnterEnd+0.68:clearReady+1.5}
+    var boardClearedTextExitEnd:TimeInterval {clearExitStart+Double(max(0,titleGlyphs.count-1))*0.06+0.60}
+    private var thumbExitStart:TimeInterval {boardClearedOnly ? boardClearedTextExitEnd:clearExitStart}
     private var roundStart: TimeInterval {
         continuationOnly ? 0 : clearExitStart+max(0.30,Double(max(0,titleGlyphs.count+subtitleGlyphs.count-1))*0.012+0.30)
     }
     private var roundEnterEnd: TimeInterval { max(Double(max(0,roundGlyphs.count-1))*0.02+0.44,Double(max(0,digits.count-1))*0.3+0.75) }
     private var roundExitStart: TimeInterval { roundStart+roundEnterEnd+0.3 }
-    var duration: TimeInterval { if boardClearedOnly { return clearExitStart+Double(max(0,titleGlyphs.count-1))*0.06+0.60 }; return roundExitStart+max(Double(max(0,roundGlyphs.count-1))*0.012+0.30,Double(max(0,digits.count-1))*0.4+0.45) }
+    var duration: TimeInterval { if boardClearedOnly { return thumbExitStart+0.30 }; return roundExitStart+max(Double(max(0,roundGlyphs.count-1))*0.012+0.30,Double(max(0,digits.count-1))*0.4+0.45) }
 
     init(resourceRoot: URL,clearedRound: Int,nextRound: Int,continuationOnly: Bool = false,boardClearedOnly: Bool = false,
          random: () -> Double = { Double.random(in: 0..<1) }) {
@@ -354,13 +356,13 @@ final class NativeArcadeRoundPresentation: UIView {
             let progress = NativeBoardMotion.Ease.sineInOut.sample(CGFloat(phase <= 1 ? phase : 2-phase))
             y = -8*progress; pose.rotation = 2.5*progress
         }
-        if time >= clearExitStart {
+        if time >= thumbExitStart {
             let idlePhase = (clearExitStart-clearReady).truncatingRemainder(dividingBy: 1.64)/0.82
             let held:CGFloat = boardClearedOnly ? 0:NativeBoardMotion.Ease.sineInOut.sample(CGFloat(idlePhase <= 1 ? idlePhase : 2-idlePhase))
-            let p = NativeBoardMotion.Ease.backIn(1.8).sample(CGFloat(min(1,max(0,time-clearExitStart-0.02)/0.28)))
+            let p = NativeBoardMotion.Ease.backIn(1.8).sample(CGFloat(min(1,max(0,time-thumbExitStart-0.02)/0.28)))
             y = -8*held+(28+8*held)*p
             pose = Pose(scale: 1-p,alpha: 1-p,rotation: 2.5*held+(9-2.5*held)*p)
-            let fade = NativeBoardMotion.Ease.power2In.sample(CGFloat(min(1,max(0,time-clearExitStart-0.04)/0.18)))
+            let fade = NativeBoardMotion.Ease.power2In.sample(CGFloat(min(1,max(0,time-thumbExitStart-0.04)/0.18)))
             shadowAlpha = 1-fade; shadowX = 1-0.38*fade; shadowY = shadowX
         }
         pose.rotation += boardClearedThumbRotation

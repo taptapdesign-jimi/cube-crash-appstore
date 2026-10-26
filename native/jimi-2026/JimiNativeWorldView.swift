@@ -428,6 +428,7 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
         animation.duration = sampled.duration; animation.fillMode = .both; animation.isRemovedOnCompletion = false
         let opacity = CAKeyframeAnimation(keyPath:"opacity"); opacity.values = sampled.poses.map {$0.opacity}; opacity.duration = sampled.duration; opacity.fillMode = .both; opacity.isRemovedOnCompletion = false
         let group = CAAnimationGroup(); group.animations = [animation,opacity]; group.duration = sampled.duration; group.fillMode = .both; group.isRemovedOnCompletion = false
+        (view as? JimiV9NavigationHeader)?.appendExitShadowFade(to:group,track:shifted)
         group.beginTime = CACurrentMediaTime()+delay
         let token = generation
         if view !== header && (view === main || units.values.contains(where:{$0 === view}) || (view.superview === main && view.accessibilityIdentifier?.hasSuffix(".cloud") != true)) {

@@ -1,0 +1,113 @@
+{
+  "tag": "native-benchmark-v18",
+  "date": "2026-10-26",
+  "branch": "feature/board-cleared-final-merge-celebration",
+  "parent": "b10c37981f43d5e0afbe14f2ca32102d6e8742f2",
+  "scope": "Current saved nondeleted changes; original asset deletions excluded; explicit online publication to existing PUBLIC origin. Includes prior unpublished v17 ancestry.",
+  "files": [
+    {
+      "path": "docs/engineering/CURRENT_HANDOFF.md",
+      "bytes": 1962248,
+      "sha256": "91c9ab5a206eedbecbf23778407c873335fafeb7d5ffdbcb42d50462eaade491"
+    },
+    {
+      "path": "docs/engineering/JOURNEY_ANIMATION_CONTRACT.md",
+      "bytes": 24202,
+      "sha256": "0e73f818b7cd5aa60eb1584959ac30807afcd0a74a2a2586a3d400cb46e30fbe"
+    },
+    {
+      "path": "docs/engineering/NATIVE_BENCHMARK_V18.md",
+      "bytes": 1905,
+      "sha256": "bc387b48e3ac17c94b480dbe495db8a74e1b803145cc0d36627d633a150510fe"
+    },
+    {
+      "path": "docs/engineering/feature-runtime-owners.json",
+      "bytes": 273909,
+      "sha256": "b1d102fd7d31484b991b0c5946a21c0d710d03dafc1f573d2a222acaa7abfa3a"
+    },
+    {
+      "path": "docs/engineering/native-special-dice-performance-owners.json",
+      "bytes": 168988,
+      "sha256": "632f4b4b513c3b8d0e63d0cb73402d93c8121dc152fe92fe089d7e3eb19a4609"
+    },
+    {
+      "path": "native/gameplay-app/NativeRouteMotion.swift",
+      "bytes": 14365,
+      "sha256": "74cf7306c9bbeb967344a49f8245534e9bb067c9d1313fbcc78ea4b80e383189"
+    },
+    {
+      "path": "native/gameplay-ui/NativeArcadeRoundPresentation.swift",
+      "bytes": 29305,
+      "sha256": "cba417300bad331f0caaf609114c51c01af17667218fea84bec7662db1657975"
+    },
+    {
+      "path": "native/gameplay-ui/NativeBeeFinalePresentation.swift",
+      "bytes": 13271,
+      "sha256": "62303664cab25411aaa65e9320316dfd014e850f6e7745c9fc90efa934011d60"
+    },
+    {
+      "path": "native/gameplay-ui/NativeBloobFinaleMotion.swift",
+      "bytes": 16548,
+      "sha256": "d19d73438ac1ff3b4089eb57ee2f338c12f68830b2f98e16731535f67d551250"
+    },
+    {
+      "path": "native/gameplay-ui/NativeBloobFinalePresentation.swift",
+      "bytes": 9699,
+      "sha256": "e4bdec824c083606f9bdb806eb04ed0c554335544dfbe1cfd4b72e08176db616"
+    },
+    {
+      "path": "native/gameplay-ui/NativeKiteFinaleMotion.swift",
+      "bytes": 15345,
+      "sha256": "909f73f4aa560acc20817ac04372047ab12d1ae38fa2297d71d1c06bd7c52b24"
+    },
+    {
+      "path": "native/jimi-2026/JimiHomeHubController.swift",
+      "bytes": 73116,
+      "sha256": "7dac75a44c53bfbef7924f7abd40f0594f8fb2151bc95358679925afebbf9655"
+    },
+    {
+      "path": "native/jimi-2026/JimiNativeWorldView.swift",
+      "bytes": 64106,
+      "sha256": "b28fa83812cf546d15befa4fdbe3b8c093996e0058e1cb7fee79d45919da6565"
+    },
+    {
+      "path": "native/jimi-2026/JimiV9Artwork.swift",
+      "bytes": 13063,
+      "sha256": "7763e67373ffd09e481b3c0c9cb23a56aec782c57d0163957e06acbe880b9aa5"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/JimiNativeWorldTests.swift",
+      "bytes": 111791,
+      "sha256": "107cc195c26813f83c38e14ba2ce713a8bb6b8076c0f631a74f938368c395bfe"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeArcadePresentationTests.swift",
+      "bytes": 19046,
+      "sha256": "e915538b56452a8e0e1a28f74b5f1d58ff42005fb0b1448d477f11a3fb1db9b2"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeBloobTests.swift",
+      "bytes": 46998,
+      "sha256": "f5a173018d3557aa431d6d0ad5a39ed44508846be0811c4678d264afcf454bca"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeKitePresentationTests.swift",
+      "bytes": 28628,
+      "sha256": "d6931685a4cae57fe7f60d50e53e9794cd593aa03d72a7f6c277fd71d9776798"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeRouteMotionTests.swift",
+      "bytes": 6982,
+      "sha256": "fd482c194aeacca0a9a526d3c610f719240f083e0294a87704d154afbd3a5e55"
+    }
+  ],
+  "excludedOriginalDeletions": [
+    "assets/sound/Wild and special kockice/bloob ball/paint_splat_goo_stic_#2-1792714932570.wav",
+    "assets/sound/soundtrack/adaptive-music-v1/README.md",
+    "assets/sound/soundtrack/adaptive-music-v1/analysis.json",
+    "assets/sound/soundtrack/adaptive-music-v1/gameplay-bed-active-01.wav",
+    "assets/sound/soundtrack/adaptive-music-v1/gameplay-bed-calm-01.wav",
+    "assets/sound/soundtrack/stack to six theme copy.wav",
+    "assets/sound/soundtrack/stack to six theme.wav"
+  ]
+}

@@ -909,6 +909,7 @@ final class JimiHomeHubController: UIViewController {
             opacity.duration = sampled.duration
             opacity.keyTimes = sampled.keyTimes?.map { NSNumber(value: $0) }
             let group = CAAnimationGroup(); group.animations = [transform, opacity]; group.duration = sampled.duration
+            (target as? JimiV9NavigationHeader)?.appendExitShadowFade(to:group,track:track)
             group.timingFunction = CAMediaTimingFunction(name: .linear)
             CATransaction.setDisableActions(true)
             let final = poses.last!

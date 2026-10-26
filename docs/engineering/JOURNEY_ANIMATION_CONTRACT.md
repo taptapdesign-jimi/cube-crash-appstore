@@ -89,6 +89,7 @@ Navigation rules:
 - Every Journey X/back/nav tap should call `playNavIconCartoonBounce(...)` from `src/utils/nav-icon-bounce.ts`.
 - Forest/Beach/Area 55 screen nav, Journey Worlds nav, and card-modal nav should use the same cartoon tap feeling.
 - Nav/header exit starts immediately with the relevant content exit. Do not leave header/nav visible while content waits to begin exit.
+- Native navigation's underside shadow begins its 160ms ease-out fade 200ms after the header bounce-out starts (Reduced Motion retains its 100ms hold plus 60ms fade). Keep the rectangle's existing motion; the same route group owns shadow pause/cancellation, and entry restores the accepted static shadow.
 - Card modal X/header exit should begin immediately on X tap, not after the card/stat content has mostly finished exiting.
 - An accepted Unit-card tap starts its portaled flight after the first owned geometry paint. Exact 2x artwork, modal chrome decode, and front/back prepaint must never gate the first visible motion; the already-painted 1x World card is the entry carrier.
 - Card-modal pointerdown and ordinary Common-card flip handoff are write-only: they

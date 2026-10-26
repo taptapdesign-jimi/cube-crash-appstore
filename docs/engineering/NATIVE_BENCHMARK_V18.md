@@ -1,0 +1,9 @@
+# Native benchmark v18
+
+2026-10-26. User explicitly requests publishing the complete current Native checkpoint online to the existing public taptapdesign-jimi/cube-crash-appstore repository, followed by install-over on iPhone 13 blue. Immutable payload tag: `native-benchmark-v18`; retain the current feature/board-cleared-final-merge-celebration branch and all historical tags. No PWA or legacy operation.
+
+Changes since v17: opposite horizontal whole-SVG facing for the two Kite2 companions with independent flight styles; navigation underside shadow waits200ms then fades160ms (Reduced Motion100ms+60ms); late scattered BLOOBs inherit velocity and fall under gravity; camera shake uses sublayerTransform to preserve board geometry and active drags; CLEARED finishes exiting before the thumb begins its300ms exit. Assets and saves remain preserved. Seven preexisting original-asset deletions stay unstaged; their historical bytes remain in Git.
+
+Validation: latest full no-sync, fast, iOS and feature gates PASS /tmp/cleared-exit-{full,fast,ios,feature}.log;12 NativeArcadePresentationTests PASS9.891s; prior6 navigation tests PASS2.615s,27 BLOOB tests PASS12.981s, original Arcade/Journey root continuation tests PASS and20 Kite/Bee tests PASS. Current retained Simulator normal Debug install-over/home launchPID91590, both saves preserved and actual Silent Mode On. Fresh pre-Release iOS audit PASS /tmp/benchmark-v18-ios.log. Complete historical SDK suite was not run. Physical visual/touch/audio/FPS/thermal acceptance remains NEEDS PHYSICAL TEST.
+
+Payload paths and hashes are recorded in NATIVE_BENCHMARK_V18_PAYLOAD.json (self hash excluded). Credential-pattern scan covers this payload plus prior unpublished v17 commits before publication. Signed Release audit, publication, phone install/launch and both-save verification receive a separate receipt commit so this payload tag stays immutable.

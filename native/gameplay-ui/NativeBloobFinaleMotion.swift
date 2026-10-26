@@ -42,6 +42,14 @@ struct NativeBloobFinaleMotion {
         let asset:Int
     }
     struct Pose {let center:CGPoint,scale,rotation,alpha:Double;let hidden:Bool}
+    struct GravityTail {
+        let start:Double,origin,velocity:CGPoint,gravity:Double
+        func center(seconds:Double)->CGPoint {
+            let age=max(0,seconds-start)
+            return CGPoint(x:origin.x+velocity.x*age,y:origin.y+velocity.y*age+0.5*gravity*age*age)
+        }
+    }
+    let gravityTails:[Int:GravityTail]
     let reverseBalls:[Profile],fakeDice:[FakeDie],viewport:CGSize
     let origin:CGPoint
     let heroSize:Double
@@ -89,16 +97,53 @@ struct NativeBloobFinaleMotion {
             return FakeDie(flight:flight,inside:inside,value:1+Int(roll()*6),
                            exit:Self.firstExit(flight,viewport:viewport,origin:from),scatterDepth:[2.0,5.0,9.0][Int(roll()*3)])
         }
-        // Stretch the existing outgoing paths as one phase: the final offscreen
-        // retirement is exactly one second later, with no idle tail after escape.
+        // Preserve the outgoing phase’s extra second as a maximum budget.
+        // Gravity may retire late survivors earlier, never leaving an idle tail.
         let lastExit=max(originalExits.dropFirst().max() ?? Self.scatterStart,originalDice.map{Self.scatterStart+($0.exit-Self.scatterStart)/Self.fakeDieFlightSpeed}.max() ?? Self.scatterStart)
         let originalDuration=max(0.001,lastExit-Self.scatterStart)
         originalScatterDuration=originalDuration
         let timeScale=(originalDuration+1)/originalDuration
         scatterTimeScale=timeScale
-        exitTimes=originalExits.enumerated().map{index,time in index==0 ? time:Self.scatterStart+(time-Self.scatterStart)*timeScale}
+        var exits=originalExits.enumerated().map{index,time in index==0 ? time:Self.scatterStart+(time-Self.scatterStart)*timeScale}
         fakeDice=originalDice.map{FakeDie(flight:$0.flight,inside:$0.inside,value:$0.value,
             exit:Self.scatterStart+($0.exit-Self.scatterStart)*timeScale/Self.fakeDieFlightSpeed,scatterDepth:$0.scatterDepth)}
+        // Only the slowest third switches to gravity. The burst and faster
+        // authored lanes remain intact; no extra random draws or paint state.
+        let late=children.indices.map{$0+1}.sorted{a,b in exits[a]==exits[b] ? a<b:exits[a]>exits[b]}.prefix(Self.floatingBallCount/3)
+        var tails:[Int:GravityTail]=[:]
+        for index in late {
+            let p=reverseBalls[index],deadline=exits[index]
+            let start=Self.scatterStart+(deadline-Self.scatterStart)*0.55
+            let age=(start-Self.scatterStart)/timeScale,step=0.0001
+            let point=Self.childPosition(p,age:age,viewport:viewport,origin:destination)
+            let a=Self.childPosition(p,age:age-step/timeScale,viewport:viewport,origin:destination)
+            let b=Self.childPosition(p,age:age+step/timeScale,viewport:viewport,origin:destination)
+            let velocity=CGPoint(x:(b.x-a.x)/(2*step),y:(b.y-a.y)/(2*step))
+            let remaining=max(0.001,deadline-start),radius=p.size*0.86+4
+            let gravity=max(Double(viewport.height)*1.5,
+                            2*(Double(viewport.height)+radius+8-Double(point.y)-Double(velocity.y)*remaining)/(remaining*remaining))
+            let tail=GravityTail(start:start,origin:point,velocity:velocity,gravity:gravity)
+            tails[index]=tail
+            exits[index]=Self.gravityExit(tail,radius:radius,viewport:viewport,deadline:deadline)
+        }
+        gravityTails=tails;exitTimes=exits
+    }
+    private static func gravityExit(_ tail:GravityTail,radius:Double,viewport:CGSize,deadline:Double)->Double {
+        func outside(_ time:Double)->Bool {
+            let c=tail.center(seconds:time)
+            return c.x+radius<0 || c.y+radius<0 || c.x-radius>viewport.width || c.y-radius>viewport.height
+        }
+        var low=tail.start
+        for step in 1...240 {
+            let time=tail.start+(deadline-tail.start)*Double(step)/240
+            if outside(time) {
+                var high=time
+                for _ in 0..<16 {let mid=(low+high)/2;if outside(mid){high=mid}else{low=mid}}
+                return high
+            }
+            low=time
+        }
+        return deadline
     }
     private static func firstExit(_ p:Profile,viewport:CGSize,origin:CGPoint)->Double {
         let radius=p.size*0.86+4
@@ -194,7 +239,10 @@ struct NativeBloobFinaleMotion {
                         scale:(0.2+0.8*e)*(1+0.5*min(1,max(0,(t-Self.heroReverseStart)/0.1))),rotation:0,alpha:1,hidden:t<0 || t>=exitTimes[0])
         }
         let age=(t-Self.scatterStart)/scatterTimeScale
-        return Pose(center:Self.childPosition(p,age:age,viewport:viewport,origin:heroDestination),
+        let center:CGPoint
+        if let tail=gravityTails[index],t>=tail.start {center=tail.center(seconds:t)}
+        else {center=Self.childPosition(p,age:age,viewport:viewport,origin:heroDestination)}
+        return Pose(center:center,
                     scale:0.45+0.55*min(1,max(0,age/0.08)),rotation:p.baseRotation+max(0,age)*(p.asset==2 ? 390:90)*sin(p.phaseX),
                     alpha:1,hidden:age<0 || t>=exitTimes[index])
     }
