@@ -1,0 +1,53 @@
+{
+  "tag": "native-benchmark-v17",
+  "payloadCommit": "0152d5edce33eb67dc20fe6902df9b55b981f49b",
+  "device": "iPhone 13 blue",
+  "bundleID": "com.taptapdesign.stacktosix.native",
+  "executableSHA256": "a33050556445e46f3f97c1e094e943e5b0dea4226cfbf55bf566ca4cf11a6fa9",
+  "postinstall": {
+    "state-v1.json": {
+      "byteIdentical": true,
+      "progressEqual": true
+    },
+    "state-v1.previous.json": {
+      "byteIdentical": true,
+      "progressEqual": true
+    }
+  },
+  "postlaunch": {
+    "state-v1.json": {
+      "byteIdentical": true,
+      "progressEqual": true
+    },
+    "state-v1.previous.json": {
+      "byteIdentical": true,
+      "progressEqual": true
+    }
+  },
+  "physicalAcceptance": "NEEDS PHYSICAL TEST; install/launch/save preservation only, no physical gameplay/FPS/thermal acceptance claimed.",
+  "label": "Gotove kockice",
+  "date": "2026-10-26",
+  "publication": "Local Git checkpoint; no remote push requested or performed.",
+  "branch": "feature/board-cleared-final-merge-celebration",
+  "configuration": "Release",
+  "version": "1.0",
+  "build": "1",
+  "processIdentifier": 50733,
+  "transport": "wired",
+  "qa": {
+    "full": "PASS530 suites/4010tests + KING330 /tmp/fishy-visibility-full.log",
+    "nativeSDK": "PASS10 /tmp/fishy-visibility-final-sdk.log",
+    "ios": "PASS /tmp/gotove-v17-ios.log",
+    "compiledReleaseAudit": "PASS /tmp/gotove-v17-release-audit.log",
+    "strictSignature": "PASS /tmp/gotove-v17-signature-verify.log",
+    "credentialPatternScan": "PASS219 paths /tmp/gotove-v17-credential-scan.json"
+  },
+  "logs": {
+    "build": "/tmp/gotove-v17-release-build.log",
+    "install": "/tmp/gotove-v17-phone-install.json",
+    "launch": "/tmp/gotove-v17-phone-launch.json",
+    "process": "/tmp/gotove-v17-phone-processes.json",
+    "installedApp": "/tmp/gotove-v17-phone-app-info.json",
+    "saveBackups": "/tmp/gotove-v17-phone-preinstall/"
+  }
+}
