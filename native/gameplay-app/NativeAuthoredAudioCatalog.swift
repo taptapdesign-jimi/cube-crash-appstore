@@ -4,6 +4,7 @@ import Foundation
 @MainActor
 enum NativeAuthoredAudioCatalog {
     static let groups: [String: [NativeAudioCue]] = [
+        "cubero": [NativeAudioCue(source:"assets/sound/Wild and special kockice/cubero/haya.wav",voice:"cubero-merge6-haya",gain:0.48,rate:1,delay:0,stopAfter:nil,fadeOut:0)],
         "pickup": [
             NativeAudioCue(source:"assets/sound/merge 6/woosh.mp3",voice:"gameplay-pickup",gain:0.2592,rate:1,delay:0,stopAfter:nil,fadeOut:0),
         ],

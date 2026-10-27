@@ -119,6 +119,7 @@ for(const [i,name] of ["collection-see-what-weve-got", "collection-little-look",
 for(const name of ["high-score-01", "high-score-02", "high-score-03", "combo-01", "combo-02", "combo-03"])catalog[name]=[{source:`assets/sound/SPEECH/${name}.wav`,voice:'native-score-combo-human',gain:0.42,rate:1,delay:0,stopAfter:null,fadeOut:0}];
 // Arcade Home CTA/hero share one authored non-repeating three-line pool.
 for(const name of ['arcade-01','arcade-02','arcade-03'])catalog[name]=[{source:`assets/sound/SPEECH/${name}.wav`,voice:'native-arcade-home-human',gain:0.42,rate:1,delay:0,stopAfter:null,fadeOut:0}];
+catalog.cubero=[{source:'assets/sound/Wild and special kockice/cubero/haya.wav',voice:'cubero-merge6-haya',gain:0.48,rate:1,delay:0,stopAfter:null,fadeOut:0}];
 // Native human speech/voice: explicit 0.72 gain; Nala keeps its authored mix.
 // Source classification also covers new spoken groups without touching music/SFX.
 for(const list of Object.values(catalog))for(const cue of list) {

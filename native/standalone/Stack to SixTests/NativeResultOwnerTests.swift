@@ -6,6 +6,60 @@ import StackToSixNativeState
 
 @MainActor
 final class NativeResultOwnerTests:XCTestCase {
+    func testOnlyTutorialJourneyContinueUsesPreparedReturnInsteadOfNextUnit()async throws {
+        for tutorialRun in [true,false] {
+            var state=NativeBoardState(tiles:[],mode:.journey,board:11)
+            if tutorialRun {var tutorial=NativeTutorialState();tutorial.active=false;tutorial.guideCompleted=true;tutorial.completionAssist=true;state.tutorial=tutorial}
+            let game=NativeGameplayViewController(engine:NativeGameplayEngine(state:state),resourceRoot:NativeTestResources.root)
+            let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=game;window.makeKeyAndVisible()
+            var exits=0,next=0,preparations=0
+            let owner=NativeResultOwner(gameplay:game,root:NativeTestResources.root,resolution:NativeResolution(.complete,reason:"clean"),commit:{_ in},restart:{},continueArcade:{},exit:{exits+=1},continueJourney:{next+=1})
+            owner.prepareExit={done in preparations+=1;done(true)}
+            owner.present()
+            let modal=try XCTUnwrap(game.presentedViewController as? NativeResultController)
+            modal.tick(0);for frame in 1...600 {modal.tick(Double(frame)/60)}
+            modal.onAction?(.nextJourney)
+            for frame in 601...720 {modal.tick(Double(frame)/60)}
+            let deadline=Date().addingTimeInterval(2)
+            while exits+next==0 && Date()<deadline {try await Task.sleep(for:.milliseconds(10))}
+            XCTAssertEqual(exits,tutorialRun ? 1:0);XCTAssertEqual(next,tutorialRun ? 0:1)
+            XCTAssertEqual(preparations,tutorialRun ? 1:0)
+            owner.dispose();game.dispose();window.isHidden=true
+        }
+    }
+
+    func testPreparedResultStaysQuietUntilVisibleHandoffAndRetires() {
+        let state=NativeBoardState(tiles:[],mode:.journey,board:12)
+        var commits=0,cues=0
+        var result:NativeResultController?=NativeResultController(root:NativeTestResources.root,state:state,clean:true,combo:0,efficiency:500,finalScore:1000,arcadeCelebrationPresented:true)
+        weak var retired=result
+        result?.onCommit={commits+=1};result?.onMoment={_,_,_ in cues+=1}
+        result?.prepareForHandoff(viewport:CGSize(width:390,height:844))
+        let start=result?.elapsed
+        result?.tick(100);result?.tick(110)
+        NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
+        result?.tick(120)
+        XCTAssertEqual(result?.elapsed,start);XCTAssertEqual(commits,0);XCTAssertEqual(cues,0)
+        result?.admitPreparedHandoff()
+        XCTAssertEqual(commits,1);XCTAssertGreaterThan(cues,0)
+        XCTAssertEqual(result?.elapsed,NativeResultPresentationPlan.cleanAfterClearedStart)
+        result?.dispose();result?.dispose();result=nil;XCTAssertNil(retired)
+    }
+
+    func testClearedKeepsItsVisibleExitUntilSuccessorIsReadyThenCompletesOnce() {
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible();defer{window.isHidden=true}
+        let cleared=NativeArcadeRoundPresentation(resourceRoot:NativeTestResources.root,clearedRound:1,nextRound:2,boardClearedOnly:true)
+        cleared.frame=window.bounds;host.view.addSubview(cleared)
+        var ready=false,finished=0;cleared.permitsBoardClearedExit={ready};cleared.onFinished={if $0{finished+=1}}
+        cleared.start();cleared.advanceFrame(timestamp:100);cleared.advanceFrame(timestamp:110)
+        XCTAssertEqual(finished,0);XCTAssertNotNil(cleared.superview)
+        XCTAssertLessThan(cleared.elapsed,cleared.duration-0.29)
+        ready=true;cleared.advanceFrame(timestamp:110.31)
+        XCTAssertEqual(finished,1);XCTAssertNil(cleared.superview)
+        cleared.advanceFrame(timestamp:120);XCTAssertEqual(finished,1)
+    }
+
     func testArcadeReachedExitKeepsGreyStarsVisibleThenAnimatesThemOut() throws {
         func find(_ view:UIView,_ id:String)->UIView? {
             if view.accessibilityIdentifier==id{return view}
@@ -32,6 +86,32 @@ final class NativeResultOwnerTests:XCTestCase {
             for frame in 497...535 {result.tick(Double(frame)/60)}
             for index in earned..<3 {XCTAssertEqual(grey[index].alpha,0)}
         }
+    }
+
+    func testPostClearedCleanResultStartsWithReadableHeroWithoutBlankAnticipation() throws {
+        let state=NativeBoardState(tiles:[],mode:.journey,board:2)
+        let result=NativeResultController(root:NativeTestResources.root,state:state,clean:true,combo:0,efficiency:500,finalScore:1000,arcadeCelebrationPresented:true)
+        result.loadViewIfNeeded()
+        defer{result.dispose()}
+        XCTAssertEqual(result.elapsed,NativeResultPresentationPlan.cleanAfterClearedStart)
+        let pose=NativeResultPresentationPlan.sample(seconds:result.elapsed,clean:true,baseScore:0,combo:0,efficiency:500)
+        XCTAssertGreaterThan(pose.hero.opacity,0.1)
+        XCTAssertGreaterThan(pose.title.opacity,0)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=result;window.makeKeyAndVisible()
+        defer{window.isHidden=true}
+        result.view.frame=window.bounds;result.view.setNeedsLayout();result.view.layoutIfNeeded()
+        let image=UIGraphicsImageRenderer(size:window.bounds.size).image {result.view.layer.render(in:$0.cgContext)}
+        try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/native-clean-immediate-first-frame.png"))
+    }
+
+    func testInterimRewardResultSkipsInvisibleOpeningAfterClearedOwnerRetires() {
+        let state=NativeBoardState(tiles:[],mode:.journey,board:21)
+        let result=NativeResultController(root:NativeTestResources.root,state:state,clean:true,combo:0,efficiency:500,finalScore:1000,interimJourney:true,arcadeCelebrationPresented:false)
+        result.loadViewIfNeeded();defer{result.dispose()}
+        XCTAssertEqual(result.elapsed,NativeResultPresentationPlan.cleanAfterClearedStart)
+        let pose=NativeResultPresentationPlan.sample(seconds:result.elapsed,clean:true,baseScore:0,combo:0,efficiency:500)
+        XCTAssertGreaterThan(pose.hero.opacity,0.1);XCTAssertGreaterThan(pose.title.opacity,0)
     }
 
     func testCleanRegisterStartsOnceWithPrimaryCTAInsteadOfCounter() {
@@ -714,18 +794,18 @@ final class NativeResultOwnerTests:XCTestCase {
         result.view.frame=window.bounds;result.view.setNeedsLayout();result.view.layoutIfNeeded()
         let primary=button(in:result.view,id:"native.result.play-again")!
         let secondary=button(in:result.view,id:"native.result.exit")!
-        XCTAssertEqual(primary.bounds.height,84);XCTAssertEqual(primary.bounds.width,249)
-        XCTAssertEqual(secondary.bounds.size,CGSize(width:primary.bounds.width,height:84))
+        XCTAssertEqual(primary.bounds.height,70);XCTAssertEqual(primary.bounds.width,230*0.94)
+        XCTAssertEqual(secondary.bounds.size,CGSize(width:primary.bounds.width,height:70))
         for glyph in secondary.subviews where glyph.accessibilityIdentifier=="native.cta.title-outline" || glyph.accessibilityIdentifier=="native.cta.title-inner-outline" {XCTAssertTrue(glyph.isHidden)}
         let ink=secondary.attributedTitle(for:.normal)?.attribute(.foregroundColor,at:0,effectiveRange:nil) as? UIColor
-        XCTAssertEqual(ink,UIColor(red:176/255,green:137/255,blue:121/255,alpha:1))
+        XCTAssertEqual(ink,UIColor(red:189/255,green:160/255,blue:142/255,alpha:1))
         XCTAssertNil(secondary.titleLabel?.shadowColor);XCTAssertEqual(secondary.titleLabel?.layer.shadowOpacity,0)
         for painted in secondary.subviews where painted.accessibilityIdentifier?.hasPrefix("native.cta.") == true {
             XCTAssertEqual(painted.contentScaleFactor,window.screen.scale*2)
             XCTAssertFalse(painted.layer.shouldRasterize)
         }
-        XCTAssertEqual(primary.layer.cornerRadius,40);XCTAssertEqual(secondary.layer.cornerRadius,40)
-        XCTAssertEqual((primary as! JimiV9PlainButton).cartoonBounceLayoutView.center.x,195);XCTAssertEqual((secondary as! JimiV9PlainButton).cartoonBounceLayoutView.center.y-(primary as! JimiV9PlainButton).cartoonBounceLayoutView.center.y,90,accuracy:0.001)
+        XCTAssertEqual(primary.layer.cornerRadius,35);XCTAssertEqual(secondary.layer.cornerRadius,35)
+        XCTAssertEqual((primary as! JimiV9PlainButton).cartoonBounceLayoutView.center.x,195);XCTAssertEqual((secondary as! JimiV9PlainButton).cartoonBounceLayoutView.center.y-(primary as! JimiV9PlainButton).cartoonBounceLayoutView.center.y,82,accuracy:0.001)
         XCTAssertEqual(primary.transform.a,0)
         result.tick(0)
         for index in 1...80 {result.tick(Double(index)/10)}
@@ -751,8 +831,8 @@ final class NativeResultOwnerTests:XCTestCase {
         window.rootViewController=result;window.makeKeyAndVisible();result.loadViewIfNeeded()
         result.view.frame=window.bounds;result.view.setNeedsLayout();result.view.layoutIfNeeded()
         let primary=button(in:result.view,id:"native.result.play-again")!
-        XCTAssertEqual(primary.bounds.height,84);XCTAssertEqual(primary.bounds.width,249);XCTAssertFalse(primary.isUserInteractionEnabled)
-        XCTAssertEqual(primary.layer.cornerRadius,40)
+        XCTAssertEqual(primary.bounds.height,70);XCTAssertEqual(primary.bounds.width,230*0.94);XCTAssertFalse(primary.isUserInteractionEnabled)
+        XCTAssertEqual(primary.layer.cornerRadius,35)
         XCTAssertEqual(button(in:result.view,id:"native.result.exit")?.bounds.width,primary.bounds.width)
         result.tick(0)
         for index in 1...15 {result.tick(Double(index)/10)}

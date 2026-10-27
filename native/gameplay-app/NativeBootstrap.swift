@@ -185,6 +185,12 @@ final class NativeBootstrap {
             return selected.resumedRun(mode:.arcade,board:board) != nil
         }
         services.requiresTutorial = { [weak self] in self?.envelope.progression.firstPlayTutorialComplete == false }
+        services.tutorialDestination = {[weak self] requested in
+            guard let self,!self.envelope.progression.firstPlayTutorialComplete else{return requested}
+            guard let saved=self.envelope.firstPlayRun else{return requested.map{(($0-1)/10)*10+1}}
+            if saved.mode == .arcade {self.envelope.activeArcadeVariant=saved.effectiveArcadeVariant;return nil}
+            return saved.board
+        }
         services.prepareGameplayEntry = {[weak self] board,completion in
             guard let self else{completion(false);return};self.prepareGameplayEntry(board:board,completion:completion)
         }
@@ -280,6 +286,7 @@ final class NativeBootstrap {
         }
         var isJourneyContinuation:Bool {if case .journeyContinuation=self{return true};return false}
         var isRestart:Bool {if case .restart=self{return true};return false}
+        var startsAtFirstBoard:Bool {if case .tutorialCompletion=self{return true};return isRestart}
         var consumesPendingArcade:Bool {if case .arcadeContinuation=self{return true};return false}
         var alreadyAnnouncedArcade:Bool {consumesPendingArcade}
         var skipsBoardAnnouncement:Bool {if case .restart(_,let origin)=self{return origin.skipsBoardAnnouncement};return false}
@@ -296,9 +303,9 @@ final class NativeBootstrap {
         guard sourceInitialFreshStartupEnabled || sourceInitialRegularResumeEnabled || sourceInitialWildResumeEnabled else{completion(true);return}
         let mode:NativeRunMode=board == nil ? .arcade:.journey
         let tutorial = !envelope.progression.firstPlayTutorialComplete
-        let number=tutorial ? 1:board ?? (freshEntry?.isRestart==true ? 1:(envelope.pendingArcadeRound?.round ?? envelope.arcadeRun?.board ?? 1))
+        let number=board ?? (tutorial || freshEntry?.startsAtFirstBoard==true ? 1:(envelope.pendingArcadeRound?.round ?? envelope.arcadeRun?.board ?? 1))
         guard mode == .arcade || envelope.progression.isPlayable(board:number) else{completion(false);return}
-        let saved=freshEntry != nil || tutorial || mode == .arcade && envelope.pendingArcadeRound != nil ? nil:envelope.resumedRun(mode:mode,board:number)
+        let saved=tutorial ? envelope.firstPlayRun : (freshEntry != nil || mode == .arcade && envelope.pendingArcadeRound != nil ? nil:envelope.resumedRun(mode:mode,board:number))
         let textures=NativeBoardTextures(root:root)
         let lease=InitialTexturePreparation(board:board,number:number,tutorial:tutorial,saved:saved,textures:textures,
             freshEntry:freshEntry,callerCurrent:callerCurrent)
@@ -325,7 +332,7 @@ final class NativeBootstrap {
         sourcePreparedArcadeSaveGeneration=nil
         let mode: NativeRunMode = board == nil ? .arcade : .journey
         let needsTutorial = !envelope.progression.firstPlayTutorialComplete
-        let number = needsTutorial ? 1 : board ?? (freshEntry?.isRestart == true ? 1:(envelope.pendingArcadeRound?.round ?? envelope.arcadeRun?.board ?? 1))
+        let number = board ?? (needsTutorial || freshEntry?.startsAtFirstBoard == true ? 1:(envelope.pendingArcadeRound?.round ?? envelope.arcadeRun?.board ?? 1))
         guard mode == .arcade || envelope.progression.isPlayable(board: number) else {
             throw NativeSaveError.invalidState(["journey-board-locked"])
         }
@@ -334,16 +341,18 @@ final class NativeBootstrap {
         retireBoardTransition()
         endRun?.dispose();scoreOwner?.dispose();tutorialOwner?.dispose();resultOwner?.dispose();resultOwner = nil
         var state = freshEntry==nil ? envelope.resumedRun(mode: mode, board: number):nil
-        // Immutable v9 Homepage Play never resumes a saved run while first
-        // play is forced. Reading/mounting Home preserves the old document;
-        // the user's new Play starts the demo until authored result Continue.
+        // First play has one coherent checkpoint independent of real run slots.
+        // Its selected destination and Special survive route/process replacement.
         let previousTutorialGeneration = mode == .arcade ? envelope.arcadeRun?.generation : envelope.journeyRuns[number]?.generation
         let freshEntryGeneration = freshEntry?.generation ?? (needsTutorial ? (max(state?.generation ?? 0,previousTutorialGeneration ?? 0)+1):1)
-        if needsTutorial {state=nil}
+        if needsTutorial {
+            state=freshEntry?.isRestart == true ? nil:envelope.firstPlayRun
+            if state != nil {state?.generation &+= 1;state?.revision &+= 1}
+        }
         var preparedTextures:NativeBoardTextures?
         if let lease=initialTexturePreparation,lease.ready,lease.board==board,lease.freshEntry==freshEntry,
            lease.number==number,lease.tutorial==needsTutorial,lease.callerCurrent(),
-           lease.saved == (!needsTutorial && mode == .arcade && envelope.pendingArcadeRound != nil ? nil:state) {
+           lease.saved == (needsTutorial ? envelope.firstPlayRun:(!needsTutorial && mode == .arcade && envelope.pendingArcadeRound != nil ? nil:state)) {
             preparedTextures=lease.textures;initialTexturePreparation=nil
         }else{cancelGameplayEntryPreparation()}
         if freshEntry != nil,sourceInitialFreshStartupEnabled,preparedTextures==nil {
@@ -390,7 +399,7 @@ final class NativeBootstrap {
         if let state {initial=state}else {initial=try freshForInitialEntry(boardNumber:number,generation:freshEntryGeneration)}
         if let carriedScore=freshEntry?.carriedJourneyScore {initial.score=carriedScore}
         if sourceInitialWildResumeEnabled,resumed,!consumedPending,sourceConstruction==nil,initial.tiles.contains(where:{$0.isWild}) {
-            guard !needsTutorial,sourceSpecialIdlePresentationEnabled,sourceContext.sourceMicrotaskTasks != nil,
+            guard sourceSpecialIdlePresentationEnabled,sourceContext.sourceMicrotaskTasks != nil,
                   let construction=NativeSourceInitialBoardConstruction.makeRestored(
                     root:root,service:sourceContext.service,saved:initial,preparedTextures:preparedTextures,
                     random:{[sourceContext] in sourceContext.smokeSession.nextVisualRandom()}),
@@ -398,7 +407,7 @@ final class NativeBootstrap {
             sourceConstruction=construction;initial=recipe.state
         }
         if sourceInitialRegularResumeEnabled,resumed,!consumedPending,sourceConstruction==nil {
-            guard !needsTutorial,let construction=NativeSourceInitialBoardConstruction.makeRestoredRegular(
+            guard let construction=NativeSourceInitialBoardConstruction.makeRestoredRegular(
                 root:root,service:sourceContext.service,saved:initial,preparedTextures:preparedTextures,
                 random:{[sourceContext] in sourceContext.smokeSession.nextVisualRandom()}),
                 let recipe=construction.recipe else{throw NativeSaveError.invalidState(["source-regular-resume-constructor-not-admitted"])}
@@ -425,6 +434,18 @@ final class NativeBootstrap {
                 guard engine.startTutorial().accepted else {throw NativeSaveError.invalidState(["tutorial-canonical-cells-unavailable"])}
             }
         }
+        if needsTutorial,engine.state.tutorial?.rewardArchetype == nil {
+            let reward:NativeWildRewardChoice
+            if let saved=envelope.firstPlayRun?.tutorial,saved.rewardArchetype != nil {
+                reward=saved.reward
+            } else if mode == .journey,let authored=NativeJourneyContent.unlockReward(board:number) {
+                reward = .init(authored.archetype,variant:authored.variant)
+            } else {
+                reward=NativeWildRewardPolicy.choose(state:engine.state,roll:Double.random(in:0..<1),plainStarUnlocked:plainStarUnlocked,
+                    mushroomUnlocked:mushroomUnlocked,unlockedJourneyDice:unlockedJourneyDice,allowEnduranceTrial:false,nextRoll:{Double.random(in:0..<1)}) ?? .init(.star)
+            }
+            engine.configureTutorialReward(reward)
+        }
         let gameplay = NativeGameplayViewController(engine: engine, resourceRoot: root)
         gameplay.keepsGameplayChromeVisibleOnEntry=freshEntry?.keepsGameplayChromeVisible == true
         gameplay.waitsForFirstFrameOnReplacement=freshEntry?.skipsBoardAnnouncement == true || freshEntry?.consumesPendingArcade == true
@@ -435,7 +456,7 @@ final class NativeBootstrap {
         gameplay.sourceTutorialActivationEnabled=sourceTutorialActivationEnabled && needsTutorial &&
             engine.pendingSourceTutorialDemoActivation != nil
         let freshOrdinarySource=sourceFreshOrdinaryPresentationEnabled && !needsTutorial && !resumed && sourceConstruction != nil
-        let restoredOrdinarySource=sourceRestoredOrdinaryPresentationEnabled && !needsTutorial && resumed && sourceConstruction != nil
+        let restoredOrdinarySource=sourceRestoredOrdinaryPresentationEnabled && resumed && sourceConstruction != nil
         let normalOrdinarySource=freshOrdinarySource || restoredOrdinarySource
         gameplay.sourceOrdinaryPresentationEnabled=sourceOrdinaryPresentationEnabled && (gameplay.sourceTutorialActivationEnabled || normalOrdinarySource)
         gameplay.sourceRegularIdlePresentationEnabled=normalOrdinarySource && gameplay.sourceOrdinaryPresentationEnabled
@@ -463,6 +484,7 @@ final class NativeBootstrap {
         gameplay.onSourceTutorialPrepared={ [weak self,weak gameplay] in
             guard let self,let gameplay,!self.disposed,self.gameplay === gameplay else{return}
             self.tutorialOwner?.refresh(gameplay.engine.state)
+            self.recordTutorialCheckpoint(gameplay.engine.state)
         }
         // Fresh and restore admission are independent. The Source wave owns
         // actual constructed holders; a Native resume cannot borrow that flag
@@ -471,7 +493,7 @@ final class NativeBootstrap {
         // Restoring gameplay state does not acknowledge its new entry motion.
         let homeArcadeEntry=mode == .arcade && freshEntry == nil && !needsTutorial
         gameplay.sourceBoardEntryEnabled=sourceBoardEntryEnabled && sourceConstruction != nil &&
-            (!sourceRestoredOrdinaryPresentationEnabled || !resumed || homeArcadeEntry)
+            (!sourceRestoredOrdinaryPresentationEnabled || !resumed || homeArcadeEntry || needsTutorial)
         gameplay.sourceSpecialIdlePresentationEnabled=sourceSpecialIdlePresentationEnabled && (!sourceTutorialEarnedMeterEnabled || gameplay.sourceTutorialActivationEnabled || normalOrdinarySource)
         gameplay.sourceWildShimmerPresentationEnabled=sourceWildShimmerPresentationEnabled
         gameplay.onSourceBoardEntrySound={ [weak self,weak gameplay] duration,_,generation in
@@ -547,7 +569,7 @@ final class NativeBootstrap {
                 // v9 World-card entries include resumed Journey boards. Prepare
                 // meter artwork behind the original transition rather than
                 // postponing its first motion until that artwork is ready.
-                if mode == .journey,freshEntry == nil {
+                if mode == .journey,freshEntry == nil,!needsTutorial {
                     let generation=gameplay.engine.state.generation
                     var meterReady=false,transitionReady=false,released=false
                     let releaseWhenReady:()->Void = { [weak self,weak gameplay] in
@@ -589,7 +611,7 @@ final class NativeBootstrap {
         audio?.stop();audio?.beginGeneration(initial.generation);audio?.prepareBottleOnBoard(initial)
         haptics.cancelSequences();failHapticGeneration=nil;ordinarySixHapticContact=nil;specialHapticTargetCounts.removeAll()
         lastReturnBoard = mode == .journey ? number : nil
-        if !resumed || consumedPending { envelope.progression.beginAttempt(mode: mode, board: number,arcadeVariant:envelope.activeArcadeVariant) }
+        if (!resumed || consumedPending) && !(needsTutorial && mode == .arcade) { envelope.progression.beginAttempt(mode: mode, board: number,arcadeVariant:envelope.activeArcadeVariant) }
         gameplay.unreadJourneyDice = {[weak self] in self?.envelope.progression.unreadJourneyDice ?? []}
         gameplay.onJourneyDieLanded = {[weak self,weak gameplay] id,board,generation in
             guard let self,let gameplay,self.gameplay === gameplay,!self.disposed,
@@ -601,7 +623,7 @@ final class NativeBootstrap {
             do {try self.store.save(self.envelope)}catch{self.envelope=previous;self.showError(error.localizedDescription)}
             gameplay.boardScene?.refreshBackpackAlert()
         }
-        gameplay.onStateChange = { [weak self] state in self?.record(state);self?.tutorialOwner?.refresh(state);self?.audio?.prepareBottleOnBoard(state) }
+        gameplay.onStateChange = { [weak self] state in self?.record(state);self?.refreshTutorial(state);self?.audio?.prepareBottleOnBoard(state) }
         gameplay.onSourceGuidedSnapBack={ [weak self] node in self?.tutorialOwner?.sourceSnapBackCompleted(node) }
         gameplay.onGameplayEvent = { [weak self] event in self?.tutorialOwner?.gameplayEvent(event) }
         gameplay.onHaptic = { [weak self] kind in self?.impactFeedback(kind) }
@@ -620,10 +642,18 @@ final class NativeBootstrap {
             guard let self,let gameplay,self.gameplay === gameplay else{return}
             self.terminal(result)
         }
+        gameplay.prepareJourneyResultController = {[weak self,weak gameplay] result in
+            guard let self,let gameplay,self.gameplay === gameplay,!self.disposed,
+                  result.kind == .complete,gameplay.engine.state.mode == .journey,
+                  gameplay.sourcePresentationFailureGeneration != gameplay.engine.state.generation else{return nil}
+            let state=gameplay.engine.state
+            return NativeResultController(root:self.root,state:state,clean:true,combo:state.earnedComboBonus,
+                efficiency:NativeRewardMath.efficiencyBonus(baseBonus:500+(state.board-1)*200,remainingMoves:state.moves,maxMoves:state.maxMoves,maxStackDepth:state.maxStackDepth),
+                finalScore:NativeResultOwner.finalScore(state:state,clean:true),interimJourney:self.interimJourney,arcadeCelebrationPresented:true)
+        }
         gameplay.prepareJourneyRewardController = { [weak self,weak gameplay] result in
             guard let self,let gameplay,self.gameplay === gameplay,!self.disposed,!self.attemptCommitted,
                   self.interimJourney,result.kind == .complete,gameplay.engine.state.mode == .journey,
-                  gameplay.engine.state.tutorial?.requiresResultCompletion != true,
                   gameplay.sourcePresentationFailureGeneration != gameplay.engine.state.generation else{return nil}
             let state=gameplay.engine.state
             let score=max(NativeResultOwner.finalScore(state:state,clean:true),self.envelope.progression.boardStats[state.board]?.highScore ?? 0)
@@ -890,7 +920,7 @@ final class NativeBootstrap {
         guard !disposed,self.gameplay === gameplay,gameplay.sourceScope?.current==true,
               ((gameplay.sourceTutorialActivationEnabled && gameplay.engine.sourceTutorialSubsequentPresentationEnabled) ||
                (sourceFreshOrdinaryPresentationEnabled && gameplay.sourceInitialConstruction != nil &&
-                gameplay.sourceOrdinaryPresentationEnabled && gameplay.engine.state.tutorial?.active != true)) else{return}
+                gameplay.sourceOrdinaryPresentationEnabled)) else{return}
         retireSourceTutorialMeterRequest()
         let epoch=sourceTutorialMeterEpoch,generation=gameplay.engine.state.generation
         let resources=sourceTutorialMeterResources ?? NativeWildMeterDropResources(root:root)
@@ -1012,10 +1042,10 @@ final class NativeBootstrap {
                 }
             },continuation:{[weak self,weak gameplay] in
                 guard self?.sourceCanonicalSaveBinding?.current==true,let gameplay,current() else{return false}
-                return gameplay.engine.state.wildMeter.isFinite && gameplay.engine.state.wildMeter>=1 && !gameplay.engine.flags.busyEnding
+                return NativeWildMeterRules.isReady(gameplay.engine.state.wildMeter) && !gameplay.engine.flags.busyEnding
             },meterReady:{[weak gameplay] in
                 guard let gameplay,current() else{return false}
-                return gameplay.engine.state.wildMeter.isFinite && gameplay.engine.state.wildMeter>=1
+                return NativeWildMeterRules.isReady(gameplay.engine.state.wildMeter)
             },enqueue:{[weak scene] _ in
                 // Real Scene installer captures the exact FIFO; reaching this
                 // unbound fallback must never synthesize DispatchQueue work.
@@ -1052,6 +1082,12 @@ final class NativeBootstrap {
         do {try store.save(envelope);gameplay?.boardScene?.refreshBackpackAlert();return true}
         catch {envelope=previous;showError(error.localizedDescription);return false}
     }
+    private func recordTutorialCheckpoint(_ state:NativeBoardState) {
+        guard !envelope.progression.firstPlayTutorialComplete,state.tutorial != nil,
+            NativeSaveEnvelope.isCoherentRun(state),gameplay?.engine.hasUnsavableSourceGameplayState == false else{return}
+        let previous=envelope;envelope.firstPlayRun=state
+        do {try store.save(envelope)} catch {envelope=previous;showError(error.localizedDescription)}
+    }
     private func record(_ state: NativeBoardState) {
         guard gameplay?.sourcePresentationFailureGeneration != state.generation else{return}
         // Installed Source producers own gameplay snapshot writes. Settings and
@@ -1065,16 +1101,23 @@ final class NativeBootstrap {
         let now = Date().timeIntervalSince1970
         envelope.recordPlayableRun(state,now:now)
     }
+    private func refreshTutorial(_ state:NativeBoardState) {
+        guard !disposed,gameplay?.engine.state.generation==state.generation else{return}
+        if state.tutorial?.needsEncouragement == true,tutorialOwner?.disposed != false,let gameplay {
+            installTutorial(gameplay)
+        }
+        tutorialOwner?.refresh(state)
+    }
     private func installTutorial(_ gameplay:NativeGameplayViewController) {
         tutorialOwner?.dispose();tutorialOwner=nil
-        guard gameplay.engine.state.tutorial?.active == true else{return}
+        guard gameplay.engine.state.tutorial?.active == true || gameplay.engine.state.tutorial?.needsEncouragement == true else{return}
         tutorialOwner=NativeTutorialOwner(gameplay:gameplay,root:root)
         tutorialOwner?.sourceFirstStepMonitorEnabled=gameplay.sourceTutorialFirstStepMonitorEnabled
         tutorialOwner?.sourceSubsequentPresentationEnabled=gameplay.engine.sourceTutorialSubsequentPresentationEnabled
         gameplay.boardScene?.sourceTutorialSubsequentPresentationEnabled=gameplay.engine.sourceTutorialSubsequentPresentationEnabled
         tutorialOwner?.sourceActivationEnabled=gameplay.sourceTutorialActivationEnabled
         tutorialOwner?.sourceIntroEnabled=sourceTutorialIntroEnabled && gameplay.sourceTutorialActivationEnabled
-        tutorialOwner?.onChanged = { [weak self] state in self?.record(state);_ = self?.saveCurrent() }
+        tutorialOwner?.onChanged = { [weak self] state in self?.record(state);_ = self?.saveCurrent();if state.tutorial?.active == false {self?.refreshTutorial(state)} }
         tutorialOwner?.onFeedback = { [weak self] in self?.routeFeedback("cta") }
         tutorialOwner?.onSourceCTAContact = { [weak self] in self?.resultMoment("cta",index:0,duration:nil) }
     }
@@ -1265,8 +1308,8 @@ final class NativeBootstrap {
         let old = gameplay.engine.state
         attemptCommitted = false
         let tutorial = !envelope.progression.firstPlayTutorialComplete
-        gameplay.engine.restart(state: fresh(mode: old.mode, board: tutorial || old.mode == .arcade ? 1 : old.board, generation: old.generation + 1,tutorial:tutorial))
-        if tutorial {_ = gameplay.engine.startTutorial()};installTutorial(gameplay)
+        gameplay.engine.restart(state: fresh(mode: old.mode, board: old.mode == .arcade ? 1 : old.board, generation: old.generation + 1,tutorial:tutorial))
+        if tutorial {_ = gameplay.engine.startTutorial();if let reward=old.tutorial?.reward {gameplay.engine.configureTutorialReward(reward)}};installTutorial(gameplay)
         audio?.beginGeneration(gameplay.engine.state.generation)
         if old.mode == .arcade {arcadeMusic?.enterRound(generation:gameplay.engine.state.generation,immediate:true)}
         else {soundtrack?.setJourneyGameplay()}
@@ -1360,7 +1403,7 @@ final class NativeBootstrap {
         }
         ambient?.cleanResidualFinished(generation:routeLease)
         boardEntryHaptics?.dispose();boardEntryHaptics=nil
-        if resolution.kind == .complete,gameplay.engine.state.tutorial?.requiresResultCompletion == true {
+        if resolution.kind == .complete,gameplay.engine.state.mode == .arcade,gameplay.engine.state.tutorial?.requiresResultCompletion == true {
             presentTutorialComplete(gameplay);return
         }
         // NativeResultOwner commits rewards and progression atomically before presenting.
@@ -1405,6 +1448,9 @@ final class NativeBootstrap {
         guard gameplay.sourcePresentationFailureGeneration != gameplay.engine.state.generation else{return}
         let state = gameplay.engine.state
         var next = envelope
+        if clean,state.mode == .journey,state.tutorial?.guideCompleted == true {
+            next.progression.firstPlayTutorialComplete=true;next.firstPlayRun=nil
+        }
         next.progression.finishAttempt(mode: state.mode, board: state.board, score: score,
             longestCombo: state.longestCombo, cubesCracked: state.cubesCracked, clean: clean,arcadeVariant:state.effectiveArcadeVariant)
         // The existing Flower grant commits with the completed board, independently
@@ -1424,6 +1470,11 @@ final class NativeBootstrap {
         guard tutorialComplete==nil,let controller else{return}
         tutorialOwner?.dispose();tutorialOwner=nil;gameplay.setSuspended(true)
         let generation=gameplay.engine.state.generation,mode=gameplay.engine.state.mode
+        do {
+            var next=envelope;next.progression.firstPlayTutorialComplete=true;next.firstPlayRun=nil
+            next.savedAt=Date().timeIntervalSince1970
+            try store.save(next);envelope=next;attemptCommitted=true
+        } catch {gameplay.setSuspended(false);showError(error.localizedDescription);return}
         let sheet=NativeTutorialCompleteController(resourceRoot:root);tutorialComplete=sheet
         controller.addChild(sheet);sheet.view.frame=controller.view.bounds;sheet.view.autoresizingMask=[.flexibleWidth,.flexibleHeight]
         controller.view.addSubview(sheet.view);sheet.didMove(toParent:controller)
@@ -1435,13 +1486,6 @@ final class NativeBootstrap {
         sheet.onContinue = { [weak self,weak sheet] in
             guard let self,let sheet,!self.disposed,self.tutorialComplete === sheet,self.gameplay?.engine.state.generation==generation else{return}
             self.routeFeedback("modal-exit")
-            do {
-                var next=self.envelope;next.progression.firstPlayTutorialComplete=true
-                next.progression.boardStats.removeValue(forKey:gameplay.engine.state.board);next.progression.resetArcadeStats(for:next.activeArcadeVariant)
-                next.journeyRuns.removeValue(forKey:gameplay.engine.state.board);next.journeyRunSavedAt.removeValue(forKey:gameplay.engine.state.board)
-                next.arcadeRun=nil;next.arcadeRunSavedAt=nil;next.pendingArcadeRound=nil;next.savedAt=Date().timeIntervalSince1970
-                try self.store.save(next);self.envelope=next;self.attemptCommitted=true
-            } catch {self.showError(error.localizedDescription);return}
             let release:()->Void = { [weak self,weak sheet] in
                 guard let self,let sheet,self.tutorialComplete === sheet else{return}
                 self.tutorialComplete=nil;sheet.dispose();sheet.willMove(toParent:nil);sheet.view.removeFromSuperview();sheet.removeFromParent()

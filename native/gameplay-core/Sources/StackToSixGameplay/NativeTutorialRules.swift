@@ -3,6 +3,11 @@ import Foundation
 /// Pure tutorial policy. The UIKit overlay owns its transitions; ordinary completion cannot mark this run done.
 public struct NativeTutorialState: Equatable, Codable, Sendable {
     public enum Step: Int, Codable, Sendable { case stack = 1, mergeSix, freePlay, special }
+    public var encouragementAcknowledged: Bool?
+    public var needsEncouragement: Bool { guideCompleted && !done && encouragementAcknowledged != true }
+    public var rewardArchetype: NativeWildArchetype?
+    public var rewardVariant: String?
+    public var reward: NativeWildRewardChoice { .init(rewardArchetype ?? .star,variant:rewardVariant) }
     public var active = true
     public var step: Step = .stack
     public var guidedPair: [String] = []
@@ -33,7 +38,7 @@ public enum NativeTutorialRules {
     public static func allowsPickup(_ tile: NativeTile, tutorial: NativeTutorialState?, rows: Int) -> Bool {
         guard let tutorial, tutorial.active else { return true }
         if tutorial.step == .freePlay { return true }
-        if tutorial.step == .special { return tile.gameplayArchetype == .star || isSpecialTarget(tile,rows:rows) }
+        if tutorial.step == .special { return tile.id == tutorial.wildTileID || isSpecialTarget(tile,rows:rows) }
         return tutorial.guidedPair.contains(tile.id)
     }
     public static func allowsDrop(source: NativeTile, destination: NativeTile, tutorial: NativeTutorialState?, rows: Int) -> Bool {
@@ -44,7 +49,7 @@ public enum NativeTutorialRules {
             return [source.value,destination.value].sorted() == (tutorial.step == .stack ? [2,3] : [1,5])
         case .freePlay: return true
         case .special:
-            let srcWild = source.gameplayArchetype == .star, dstWild = destination.gameplayArchetype == .star
+            let srcWild = source.id == tutorial.wildTileID, dstWild = destination.id == tutorial.wildTileID
             return srcWild != dstWild && isSpecialTarget(srcWild ? destination : source,rows:rows)
         }
     }

@@ -34,8 +34,12 @@ final class JimiNativeEndRunTests: XCTestCase {
             let reference=try XCTUnwrap(button.sculptedFaceRasterForTesting(original:true))
             XCTAssertEqual(actual.width,Int(width*scale));XCTAssertEqual(actual.height,Int(80*scale))
             let name="\(primary ? "restart":"exit")-\(Int(width))-\(Int(scale))x.png"
-            XCTAssertTrue(FileManager.default.fileExists(atPath:root.appendingPathComponent((primary ? "assets/ui/native-end-run-cta/":"assets/ui/native-end-run-cta-soft-top-v3/")+name).path))
+            XCTAssertTrue(FileManager.default.fileExists(atPath:root.appendingPathComponent((primary ? "assets/ui/native-end-run-cta-ee8158-v1/base/":"assets/ui/native-end-run-cta-soft-top-v3/")+name).path))
             XCTAssertEqual(pixels(actual),pixels(reference),"Bundled material must preserve the exact current CGContext recipe,including orientation")
+            if primary {
+                let offset=((actual.height/2)*actual.width+actual.width/2)*4
+                XCTAssertEqual(Array(pixels(actual)[offset..<offset+4]),[238,129,88,255],"CTA core matches requested #EE8158")
+            }
             face.bounds.size=CGSize(width:width-0.00000000001,height:80+0.00000000001)
             face.setNeedsLayout();face.layoutIfNeeded()
             XCTAssertTrue(button.isSculptedFacePrepared,"Tiny UIKit geometry rounding must not fall back to asynchronous paint")
@@ -89,13 +93,14 @@ final class JimiNativeEndRunTests: XCTestCase {
             let modal = JimiNativeEndRunModal(id:1,model:try XCTUnwrap(JimiNativeEndRunModel(dto)),assets:assets)
             modal.loadViewIfNeeded();modal.view.frame = CGRect(x:0,y:0,width:width,height:844);modal.viewDidLayoutSubviews()
             for (i,button) in modal.buttons.enumerated() {
-                if i==0 {XCTAssertEqual(button.bounds.height,84);XCTAssertLessThanOrEqual(button.bounds.width,modal.card.bounds.width-32)}
-                else {XCTAssertEqual(button.bounds.size,CGSize(width:modal.buttons[0].bounds.width,height:84))}
+                if i==0 {XCTAssertEqual(button.bounds.height,70);XCTAssertLessThanOrEqual(button.bounds.width,modal.card.bounds.width-32)}
+                else {XCTAssertEqual(button.bounds.size,CGSize(width:modal.buttons[0].bounds.width,height:70))}
+                XCTAssertEqual(button.titleLabel?.font.pointSize,28)
                 XCTAssertEqual(button.cartoonBounceLayoutView.center.x,modal.card.bounds.midX)
-                XCTAssertEqual(button.cartoonBounceFrame.minY,i==0 ? 184:274,accuracy:0.001)
+                XCTAssertEqual(button.cartoonBounceFrame.minY,i==0 ? 172:254,accuracy:0.001)
             }
-            XCTAssertEqual(modal.buttons[1].cartoonBounceFrame.minY-modal.buttons[0].cartoonBounceFrame.maxY,6,accuracy:0.001)
-            XCTAssertEqual(modal.card.bounds.height-modal.buttons[1].cartoonBounceFrame.maxY,36,accuracy:0.001)
+            XCTAssertEqual(modal.buttons[1].cartoonBounceFrame.minY-modal.buttons[0].cartoonBounceFrame.maxY,12,accuracy:0.001)
+            XCTAssertEqual(modal.card.bounds.height-modal.buttons[1].cartoonBounceFrame.maxY,28,accuracy:0.001)
             modal.close.layoutIfNeeded()
             XCTAssertEqual(modal.close.bounds.size,CGSize(width:52,height:52),"Circle and hit target stay unchanged")
             XCTAssertEqual(modal.close.frame.minX,modal.card.bounds.width-42)
@@ -115,11 +120,11 @@ final class JimiNativeEndRunTests: XCTestCase {
             defer {modal.dispose()}
             for width in [CGFloat(390),320,430] {
                 modal.view.frame=CGRect(x:0,y:0,width:width,height:844);modal.viewDidLayoutSubviews()
-                let expected=min(CGFloat(249),modal.card.bounds.width-32)
+                let expected=min(CGFloat(230)*0.94,modal.card.bounds.width-32)
                 XCTAssertEqual(modal.buttons[0].bounds.width,expected)
                 XCTAssertEqual(modal.buttons[1].bounds.width,expected)
                 XCTAssertLessThanOrEqual(expected,modal.card.bounds.width-32)
-                XCTAssertEqual(modal.buttons[1].cartoonBounceFrame.minY-modal.buttons[0].cartoonBounceFrame.maxY,6,accuracy:0.001)
+                XCTAssertEqual(modal.buttons[1].cartoonBounceFrame.minY-modal.buttons[0].cartoonBounceFrame.maxY,12,accuracy:0.001)
             }
         }
     }
@@ -189,7 +194,9 @@ final class JimiNativeEndRunTests: XCTestCase {
         XCTAssertTrue(modal.view.isUserInteractionEnabled)
         XCTAssertEqual(modal.card.bounds.width,342)
         XCTAssertEqual(modal.card.layer.anchorPoint.y,0.55);XCTAssertEqual(modal.flip.layer.anchorPoint.y,1)
-        XCTAssertEqual(modal.buttons[0].bounds.height,84)
+        XCTAssertEqual(modal.buttons[0].bounds.height,70)
+        let image=UIGraphicsImageRenderer(size:window.bounds.size).image{_ in window.drawHierarchy(in:window.bounds,afterScreenUpdates:true)}
+        try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/cta-compact-mounted.png"))
         XCTAssertLessThanOrEqual(modal.subtitle.sizeThatFits(CGSize(width:modal.subtitle.bounds.width,height:1000)).height,52)
         XCTAssertEqual(modal.subtitle.text,modal.model.subtitle)
         var actions:[String] = [];modal.onAction = {actions.append($0)}
@@ -253,9 +260,7 @@ final class JimiNativeEndRunTests: XCTestCase {
             XCTAssertTrue(button.isSculptedFacePrepared)
             let actual=try XCTUnwrap(button.sculptedFaceRasterForTesting())
             let role=button.accessibilityIdentifier=="native.end-run.exit" ? "exit":"restart"
-            let sourceWidth=button.bounds.width<245 ? 240:249
-            let directory=role=="exit" ? "native-end-run-cta-soft-top-v3":"native-end-run-cta"
-            let original=try XCTUnwrap(UIImage(contentsOfFile:NativeTestResources.root.appendingPathComponent("assets/ui/\(directory)/\(role)-\(sourceWidth)-6x.png").path))
+            let original=try XCTUnwrap(UIImage(contentsOfFile:NativeTestResources.root.appendingPathComponent("assets/ui/native-paired-cta-compact-v2/\(role)-216p2-6x.png").path))
             let format=UIGraphicsImageRendererFormat();format.scale=6;format.opaque=false;format.preferredRange = .standard
             let reference=try XCTUnwrap(UIGraphicsImageRenderer(size:button.bounds.size,format:format).image{_ in original.draw(in:CGRect(origin:.zero,size:button.bounds.size))}.cgImage)
             XCTAssertEqual(actual.width,reference.width);XCTAssertEqual(actual.height,reference.height)
@@ -266,13 +271,13 @@ final class JimiNativeEndRunTests: XCTestCase {
             guard a.count==b.count else{XCTFail("Raster byte dimensions differ");continue}
             var error=0.0,outliers=0
             for index in a.indices {let difference=abs(Int(a[index])-Int(b[index]));error+=Double(difference);if difference>8 {outliers+=1}}
-            XCTAssertLessThanOrEqual(error/Double(a.count),0.75,"Protected original raster resized to fuller bounds preserves directional lighting and orientation")
+            XCTAssertLessThanOrEqual(error/Double(a.count),0.75,"Compact prepainted face preserves exact UIKit material and orientation")
             XCTAssertLessThanOrEqual(Double(outliers)/Double(a.count),0.002,"Only bounded edge rounding may differ")
         }
     }
     func testExitFacePreparationSuspendsResumesAndRetiresBeforeLateCompletion() async throws {
         let modal=JimiNativeEndRunModal(id:911,model:try XCTUnwrap(JimiNativeEndRunModel(dto)),assets:JimiV9Artwork(resourceRoot:NativeTestResources.root))
-        let window=UIWindow(frame:CGRect(x:0,y:0,width:321,height:844));window.rootViewController=modal;window.makeKeyAndVisible()
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:280,height:844));window.rootViewController=modal;window.makeKeyAndVisible()
         defer{modal.dispose();window.isHidden=true}
         modal.view.frame=window.bounds;modal.view.layoutIfNeeded();modal.suspend()
         try await Task.sleep(for:.milliseconds(100))

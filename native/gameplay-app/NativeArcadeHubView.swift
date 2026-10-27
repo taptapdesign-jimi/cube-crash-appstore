@@ -189,7 +189,7 @@ final class NativeArcadeWorldModal: UIView {
         card.layer.shadowColor = UIColor(red:185/255,green:145/255,blue:119/255,alpha:1).cgColor
         card.layer.shadowOpacity = 0.8; card.layer.shadowRadius = 16.8; card.layer.shadowOffset = CGSize(width:0,height:13)
         heading.text = ["Endurance","One Lucky Drop","Slow Burn"][index]
-        heading.font = assets.font(size:29,weight:"ExtraBold"); heading.textAlignment = .center
+        heading.font = assets.font(size:28,weight:"ExtraBold"); heading.textAlignment = .center
         heading.textColor = UIColor(red:173/255,green:135/255,blue:117/255,alpha:1)
         subtitle.numberOfLines = index == 0 ? 2 : 3; subtitle.textAlignment = .center
         subtitle.accessibilityIdentifier = "native.arcade-world-modal.description"
@@ -198,7 +198,7 @@ final class NativeArcadeWorldModal: UIView {
             "Clear rounds and keep going until you run out of moves.",
             "Get one lucky Special die\nto help you per round.",
             "Special dice take longer to drop onto your board."
-        ][index],font:assets.font(size:19,weight:"Medium"))
+        ][index],font:assets.font(size:18,weight:"Medium"))
         art.image = assets.image(["assets/arcade/endourance2.png","assets/arcade/pure dice2.png","assets/arcade/slow burn2.png"][index],densityAware:true)
         art.contentMode = .scaleAspectFit;art.layer.zPosition=1
         play.setTitle(continuing ? "Continue":"Play",for:.normal); play.applyModalCTA(artwork:assets)

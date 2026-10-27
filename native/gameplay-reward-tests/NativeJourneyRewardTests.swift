@@ -24,7 +24,10 @@ final class NativeJourneyRewardTests:XCTestCase {
             let scales=values.map(scale)
             if reduced {XCTAssertLessThanOrEqual(scales.max()!,1.170001)}
             else {
-                XCTAssertGreaterThan(scales.max()!,1.17*1.24,"Actual card must visibly overshoot before settling")
+                XCTAssertGreaterThan(scales.max()!,1.17*1.12)
+                XCTAssertLessThanOrEqual(scales.max()!,1.17*1.125001)
+                XCTAssertEqual(NativeRewardMotion.cardEnterProgress(0.42),1.125,accuracy:0.000001)
+                XCTAssertEqual(NativeRewardMotion.cardRestBounceProgress(0.42),1.125,accuracy:0.000001)
                 XCTAssertEqual(NativeRewardMotion.cardEnterProgress(0.65),0.9,accuracy:0.000001)
                 XCTAssertEqual(NativeRewardMotion.cardEnterProgress(0.81),1.08,accuracy:0.000001)
                 for index in values.indices {
@@ -261,7 +264,8 @@ final class NativeJourneyRewardTests:XCTestCase {
             XCTAssertEqual(scales[index],NativeRewardMotion.cardRestBounceProgress(progress),accuracy:0.000001)
             if progress>=0.42 {XCTAssertEqual(scales[index],NativeRewardMotion.cardEnterProgress(progress),accuracy:0.000001)}
         }
-        XCTAssertGreaterThan(scales.max() ?? 0,1.24)
+        XCTAssertGreaterThan(scales.max() ?? 0,1.12)
+        XCTAssertLessThanOrEqual(scales.max() ?? 0,1.125001)
         func descendants(_ layer:CALayer)->[CALayer] {[layer]+(layer.sublayers ?? []).flatMap{descendants($0)}}
         let magic=descendants(pose).first{$0.name=="native.reward.magic-card"}!
         let cardScale=magic.sublayers!.first!.sublayers!.first!.sublayers!.first!
@@ -331,6 +335,14 @@ final class NativeJourneyRewardTests:XCTestCase {
         view.activate();clock.advance(20)
         XCTAssertEqual(view.phase,"asset-failed");XCTAssertEqual(outcomes,0);XCTAssertEqual(failures,1)
         view.dispose();XCTAssertEqual(outcomes,1)
+    }
+    func testCollectHandsOffAtVisibleExitEndWithoutExtraBlankDelay() {
+        let clock=Clock(),resources=Resources(),view=screen(clock,resources);resources.finish()
+        var outcomes=0;view.onFinish={_ in outcomes+=1}
+        view.start();clock.advance(3);view.activate();clock.advance(3)
+        XCTAssertEqual(view.phase,"unlocked");view.activate()
+        clock.advance(0.239);XCTAssertEqual(outcomes,0)
+        clock.advance(0.002);XCTAssertEqual(outcomes,1);XCTAssertEqual(clock.activeCount,0)
     }
     func testBackgroundPreservesRemainingRevealAndCollectDeadlinesWithoutDuplicateMoments() {
         let clock=Clock(),resources=Resources(),view=screen(clock,resources);resources.finish()

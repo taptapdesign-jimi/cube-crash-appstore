@@ -5,14 +5,14 @@ import AVFAudio
 
 @MainActor
 final class NativeSoundtrackRouteTests:XCTestCase {
-    func testOverallThemeReductionSurvivesRoutesResultHookAndForegroundRecovery() {
+    func testGameplayBoostPreservesMenuAndSurvivesRoutesResultHookAndForegroundRecovery() {
         let transport=Transport()
         let owner=NativeSoundtrackRouteOwner(root:URL(fileURLWithPath:"/unused"),transport:transport,isApplicationActive:{true})
         defer{owner.dispose()}
         owner.setMenu()
         XCTAssertEqual(transport.volumes.last!,0.578*0.8*0.7,accuracy:0.00000001)
         owner.setJourneyGameplay()
-        XCTAssertEqual(transport.volumes.last!,0.11,accuracy:0.00000001)
+        XCTAssertEqual(transport.volumes.last!,0.154,accuracy:0.00000001)
         let release=owner.beginResultHook()
         XCTAssertEqual(transport.volumes.last!,0)
         release()
@@ -20,9 +20,9 @@ final class NativeSoundtrackRouteTests:XCTestCase {
         owner.setJourneyGameplay()
         NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
         NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
-        XCTAssertEqual(transport.volumes.last!,0.11,accuracy:0.00000001)
+        XCTAssertEqual(transport.volumes.last!,0.154,accuracy:0.00000001)
         owner.apply(enabled:false);owner.apply(enabled:true)
-        XCTAssertEqual(transport.volumes.last!,0.11,accuracy:0.00000001)
+        XCTAssertEqual(transport.volumes.last!,0.154,accuracy:0.00000001)
     }
     func testMusicOffAndDisposalRevokeForegroundRecovery() {
         let transport = Transport()
@@ -112,7 +112,7 @@ final class NativeSoundtrackRouteTests:XCTestCase {
         defer{transport.dispose()}
         let menu="assets/sound/soundtrack/theme-loop-v1/SIx-theme-runtime-intro-loop.wav"
         func play(_ source:String,_ duration:Double) {
-            transport.perform(id:id,op:"play",body:["source":source,"volume":0.11,"position":3,"loop":true,"crossfadeDuration":duration]){_,error in XCTAssertNil(error)}
+            transport.perform(id:id,op:"play",body:["source":source,"volume":0.154,"position":3,"loop":true,"crossfadeDuration":duration]){_,error in XCTAssertNil(error)}
         }
         func state(_ voice:String)->[String:Any] {
             var result:[String:Any]=[:]
@@ -125,7 +125,7 @@ final class NativeSoundtrackRouteTests:XCTestCase {
         XCTAssertEqual(state(id)["playing"] as? Bool,true)
         try await Task.sleep(for:.milliseconds(240))
         XCTAssertEqual((state(id+"-outgoing")["duration"] as? NSNumber)?.doubleValue,0)
-        XCTAssertEqual(state(id)["gain"] as? Double ?? 0,0.11,accuracy:0.0001)
+        XCTAssertEqual(state(id)["gain"] as? Double ?? 0,0.154,accuracy:0.0001)
         // Rapid reversal retains at most the current incoming and one outgoing.
         play(menu,0.5);play(NativeSoundtrackRouteOwner.gameplaySource,0.5);play(menu,0.5)
         NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)

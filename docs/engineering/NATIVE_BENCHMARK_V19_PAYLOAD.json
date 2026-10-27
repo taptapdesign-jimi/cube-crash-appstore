@@ -1,0 +1,1130 @@
+{
+  "tag": "native-benchmark-v19",
+  "date": "2026-10-27",
+  "branch": "feature/board-cleared-final-merge-celebration",
+  "parent": "a7fa39424be4cb2caf170567254a71d3246edd00",
+  "scope": "All saved nondeleted changes, existing public origin; seven preexisting protected original asset deletions excluded. Phone delivery pending Keychain.",
+  "credentialPatternScan": "PASS",
+  "files": [
+    {
+      "path": "DESIGN_SYSTEM.md",
+      "bytes": 1185,
+      "sha256": "2b6cab9734403a5b0a81c1f8b3d5afc34ff6a9f790e13cd920ce168cfa7dfa53"
+    },
+    {
+      "path": "assets/sound/Wild and special kockice/cubero/haya.wav",
+      "bytes": 278510,
+      "sha256": "bc4a5893cb5aaef12a39f74f1936731ea16dfcb98d78cf56bb03a80729144cf2"
+    },
+    {
+      "path": "assets/ui/native-end-run-cta-e7693a-v1/base/restart-240-4x.png",
+      "bytes": 103360,
+      "sha256": "37dd82d55c9a04f094f04c3a6470343b5690c0d024c231c86bfe9a4653c1d46b"
+    },
+    {
+      "path": "assets/ui/native-end-run-cta-e7693a-v1/base/restart-240-6x.png",
+      "bytes": 206994,
+      "sha256": "789249f030f939da53616b108e2ecbc2b19d586b865ccba21c6b8e43239b6c4e"
+    },
+    {
+      "path": "assets/ui/native-end-run-cta-e7693a-v1/base/restart-249-4x.png",
+      "bytes": 105634,
+      "sha256": "6b3157bfeee37fb30c2c778227e046cc463abd3d2fcbbe0bf28571b459fec252"
+    },
+    {
+      "path": "assets/ui/native-end-run-cta-e7693a-v1/base/restart-249-6x.png",
+      "bytes": 212382,
+      "sha256": "5e411b9601031cd829ffa0c251758d842391b85cfd09ce81fd74b797569b668c"
+    },
+    {
+      "path": "assets/ui/native-end-run-cta-e7693a-v1/paired/restart-240-4x.png",
+      "bytes": 110800,
+      "sha256": "687bcce2e4a8d67b18691fd6871c4acd4d38b3c8a83f834e842d95f861b7f436"
+    },
+    {
+      "path": "assets/ui/native-end-run-cta-e7693a-v1/paired/restart-240-6x.png",
+      "bytes": 219900,
+      "sha256": "c50612438303bab20d1ff1dffdbfc0f7fd4f07194472f041aa0d058c91d7feb9"
+    },
+    {
+      "path": "assets/ui/native-end-run-cta-e7693a-v1/paired/restart-249-4x.png",
+      "bytes": 113132,
+      "sha256": "ece9e950e59cfd0af4016dbc20a08658a63bc4dc0ca6fedee22029458bafbdc5"
+    },
+    {
+      "path": "assets/ui/native-end-run-cta-e7693a-v1/paired/restart-249-6x.png",
+      "bytes": 225403,
+      "sha256": "c4668961cb17dce543e60ff766994c6893c2aee6a8098919a07491bde63be0b8"
+    },
+    {
+      "path": "assets/ui/native-end-run-cta-ee8158-v1/base/restart-240-4x.png",
+      "bytes": 103167,
+      "sha256": "c0e51c04c589145bf8f2a50db87326d2e9182e213d9339a3f236be7bfc4065ed"
+    },
+    {
+      "path": "assets/ui/native-end-run-cta-ee8158-v1/base/restart-240-6x.png",
+      "bytes": 206225,
+      "sha256": "ea6f028a007a86dda86134ac1b2dcfe210c302359cd314203db3d0dd2f6f1fef"
+    },
+    {
+      "path": "assets/ui/native-end-run-cta-ee8158-v1/base/restart-249-4x.png",
+      "bytes": 105211,
+      "sha256": "66c07b3bb9b52bb7eed51aa148a9ce0d9ab66234a75205a14713a9219e2f94d9"
+    },
+    {
+      "path": "assets/ui/native-end-run-cta-ee8158-v1/base/restart-249-6x.png",
+      "bytes": 211420,
+      "sha256": "c0b8bebfdc58a2438e2cc5cbae86863097bfdf4f921cf9ada81267a4a4f4335b"
+    },
+    {
+      "path": "assets/ui/native-end-run-cta-ee8158-v1/paired/restart-240-4x.png",
+      "bytes": 110485,
+      "sha256": "ac9ba3738dccd2a969feb6111d290ac95de89488e2072d9234fd36451ddc0098"
+    },
+    {
+      "path": "assets/ui/native-end-run-cta-ee8158-v1/paired/restart-240-6x.png",
+      "bytes": 219953,
+      "sha256": "6dfb112533cd5972ffd02036649ee24405565cfc78e6bba672b6172f93e51364"
+    },
+    {
+      "path": "assets/ui/native-end-run-cta-ee8158-v1/paired/restart-249-4x.png",
+      "bytes": 112749,
+      "sha256": "5166f911571aa305889e3f0c66e4c81a0262f08b9e3316c32fb44de1792fa030"
+    },
+    {
+      "path": "assets/ui/native-end-run-cta-ee8158-v1/paired/restart-249-6x.png",
+      "bytes": 225270,
+      "sha256": "4a8b534a25150ef7dbbe1fe3f32818f7650c82505db2bc3529429923d8baa2cc"
+    },
+    {
+      "path": "assets/ui/native-end-run-cta-score-v1/base/restart-240-4x.png",
+      "bytes": 104015,
+      "sha256": "47bde432fbacb875bd953ba6fdd0947c39f1906c61d81c22fba84903d38e6981"
+    },
+    {
+      "path": "assets/ui/native-end-run-cta-score-v1/base/restart-240-6x.png",
+      "bytes": 208644,
+      "sha256": "e32ba2fae8dfa0e9ee1fcf514de0ecbd2870c5b1995729b81094d0f80769ae76"
+    },
+    {
+      "path": "assets/ui/native-end-run-cta-score-v1/base/restart-249-4x.png",
+      "bytes": 106058,
+      "sha256": "befd560c0031e60474fa65dd69995564a78b1af2d4f4366601fe2ee8b4cf9cdb"
+    },
+    {
+      "path": "assets/ui/native-end-run-cta-score-v1/base/restart-249-6x.png",
+      "bytes": 213628,
+      "sha256": "569fc21759d99717cb504a25cac788e881740b319cab5a4b199e319203756cd0"
+    },
+    {
+      "path": "assets/ui/native-end-run-cta-score-v1/paired/restart-240-4x.png",
+      "bytes": 111185,
+      "sha256": "2a27360445b00390e5470ba022fc48b4edc41f159a37e99cb9280b7fb4f3cdfc"
+    },
+    {
+      "path": "assets/ui/native-end-run-cta-score-v1/paired/restart-240-6x.png",
+      "bytes": 222013,
+      "sha256": "a9af8e88fd6a5aafed77b3a544374d9511a84b30aec4727bff9cced020812f03"
+    },
+    {
+      "path": "assets/ui/native-end-run-cta-score-v1/paired/restart-249-4x.png",
+      "bytes": 113730,
+      "sha256": "2f11160faaf504c3788fabc18da940eccfb3bf675d0bfc8014bda4a359e6f719"
+    },
+    {
+      "path": "assets/ui/native-end-run-cta-score-v1/paired/restart-249-6x.png",
+      "bytes": 226875,
+      "sha256": "0ece612396693b9e3b45eb6b1005183e73b48ea9c6f28d92bb38fa3d4661d2dc"
+    },
+    {
+      "path": "assets/ui/native-paired-cta-compact-v1/exit-230-4x.png",
+      "bytes": 53760,
+      "sha256": "bf1e4ebd3d774dd2b5f357c084d1d36cff9decb51fbd75ccf064cad97b930a70"
+    },
+    {
+      "path": "assets/ui/native-paired-cta-compact-v1/exit-230-6x.png",
+      "bytes": 106501,
+      "sha256": "a0fc49c6b11481dbe2bcebbbd67306cc3c4a3a770c2c61fb8025f29a599c6ffe"
+    },
+    {
+      "path": "assets/ui/native-paired-cta-compact-v1/restart-230-4x.png",
+      "bytes": 92204,
+      "sha256": "c361a760cd53185769a8b80db9699e5e44a8a7ac765b2144860377e108e18db7"
+    },
+    {
+      "path": "assets/ui/native-paired-cta-compact-v1/restart-230-6x.png",
+      "bytes": 185914,
+      "sha256": "25e2bec2289e8616af52aa6db80940bb24bc87797e096f379214dfc9d7b5cea0"
+    },
+    {
+      "path": "assets/ui/native-paired-cta-compact-v2/exit-216p2-4x.png",
+      "bytes": 51346,
+      "sha256": "a88562358370b82fa3f61ad7f20f3ba3b64069dae09e4787fbf6ad9e6c7cde7b"
+    },
+    {
+      "path": "assets/ui/native-paired-cta-compact-v2/exit-216p2-6x.png",
+      "bytes": 102257,
+      "sha256": "64ecad48e201e15bc3cbaec719fdd661b736194f21256170fa6f04b438731413"
+    },
+    {
+      "path": "assets/ui/native-paired-cta-compact-v2/restart-216p2-4x.png",
+      "bytes": 89578,
+      "sha256": "bdeab7afaa87ee4f289963ea951af38bf27646ac55cf0842baa0201d08818180"
+    },
+    {
+      "path": "assets/ui/native-paired-cta-compact-v2/restart-216p2-6x.png",
+      "bytes": 178791,
+      "sha256": "bc28c0def7afc2752a4b9323effec2b0ff59f8b0c8f885847066b7aeb82a9dfe"
+    },
+    {
+      "path": "design-library/stack-to-six-typography-library.zip",
+      "bytes": 16142047,
+      "sha256": "43378f0f9de82f2223da4441b6885ceab0f356ad946a9407109df31747ab9f71"
+    },
+    {
+      "path": "design-library/typography/ASSISTANT.md",
+      "bytes": 3479,
+      "sha256": "87558d55ab4a38558e0c5424048c95a84f356079fd826f1f06b513ce16e54f0d"
+    },
+    {
+      "path": "design-library/typography/DESIGN_SYSTEM.md",
+      "bytes": 38010,
+      "sha256": "0c3332142a041e7caa5a73e7265079a733d36b3feac5bd5bd400c9aef9d218a5"
+    },
+    {
+      "path": "design-library/typography/arcade-28px.png",
+      "bytes": 164062,
+      "sha256": "d093d602c1142464770f4f2264464f09037e4c3a3fcb82eb8781fce4f4e5c26a"
+    },
+    {
+      "path": "design-library/typography/assistant-dog.webp",
+      "bytes": 2933018,
+      "sha256": "f19e4fe6071f408747fc1f2d06fb1a5147ae22a3cef6d59aabf3d42bd84f42fb"
+    },
+    {
+      "path": "design-library/typography/backpack-all-details.png",
+      "bytes": 156705,
+      "sha256": "4a45b0f238d3d0f4cc09370797191923cb9193b028225c18a823a52bccfd19b1"
+    },
+    {
+      "path": "design-library/typography/capture/NativeTypographyCaptureTests.swift",
+      "bytes": 34738,
+      "sha256": "07a83e92bf25978a757cf665854fc4493eb53441b3594404c190a9238881e6aa"
+    },
+    {
+      "path": "design-library/typography/capture/README.txt",
+      "bytes": 3822,
+      "sha256": "69272f929e2b6a77afff60e8821bf59346df2dbb45cf4b09395dac1d9e88161f"
+    },
+    {
+      "path": "design-library/typography/capture/build_library.py",
+      "bytes": 29015,
+      "sha256": "aa040776e44fb213fe7568388b8d5fdec07dd342a412a5ec6c5135f50dcdb53b"
+    },
+    {
+      "path": "design-library/typography/capture/test_dog_chat_server.py",
+      "bytes": 4288,
+      "sha256": "75383a179f7c8e3a1906c390575deb18ad0cc0fd5ca2cab190bd03f072db111d"
+    },
+    {
+      "path": "design-library/typography/capture/verification.json",
+      "bytes": 7049,
+      "sha256": "c7e9bfa33f93f1b2df69fb2247403a043c00aed98d18f4250e3743a42e182552"
+    },
+    {
+      "path": "design-library/typography/compact-navigation.png",
+      "bytes": 159520,
+      "sha256": "0deb1416325e836d6271ea41e80825ca755262bce752c0ea21a2ac022c8c56b3"
+    },
+    {
+      "path": "design-library/typography/data.json",
+      "bytes": 187011,
+      "sha256": "6940762c257a029e95cf0b8ea7fbc74859cf328d26769d216f8adbdbf063c89b"
+    },
+    {
+      "path": "design-library/typography/design-system-navigation-28.png",
+      "bytes": 164734,
+      "sha256": "d62c5c4d7f2237bcf68afa2f448e15b2f2f295341dbff3aaa84e17eeba25ebfc"
+    },
+    {
+      "path": "design-library/typography/dog-chat-preview.png",
+      "bytes": 190245,
+      "sha256": "5ed75dba89fb168a804cee63f87e894b5919488ca9eadbd06560152dcbf10310"
+    },
+    {
+      "path": "design-library/typography/dog-chat.css",
+      "bytes": 4625,
+      "sha256": "d9ca6d9e93778c888112ed41c3d100c4a60866838a99a8f63beaeb970bdeba87"
+    },
+    {
+      "path": "design-library/typography/dog-chat.js",
+      "bytes": 18898,
+      "sha256": "ad0d273bdec059ebdbb802d2456fd79b7b80661c46f5150a257527c642f31b40"
+    },
+    {
+      "path": "design-library/typography/fonts/Baloo2-Bold.ttf",
+      "bytes": 671876,
+      "sha256": "31a2115ea92ea3ae2c5d3cec385be100fcf076c6507ff3ec60722ddfff884b91"
+    },
+    {
+      "path": "design-library/typography/fonts/Baloo2-ExtraBold.ttf",
+      "bytes": 699352,
+      "sha256": "343d0a4a7a0621a9bc431a23ebd09ac281801465cced528f4334aed9ccea4f7e"
+    },
+    {
+      "path": "design-library/typography/fonts/Baloo2-Medium.ttf",
+      "bytes": 657480,
+      "sha256": "109e97713ede742591a6e13ff8586a63c8ed38e1651a8bc9ab9efc7230c59251"
+    },
+    {
+      "path": "design-library/typography/fonts/Baloo2-Regular.ttf",
+      "bytes": 654900,
+      "sha256": "421e87b5163bea7907266aa22b53a878c853f82ae51ad94e1c7be64a9572ae28"
+    },
+    {
+      "path": "design-library/typography/fonts/Baloo2-SemiBold.ttf",
+      "bytes": 659312,
+      "sha256": "16c729ad520765094ceb7fb49755a4950c92aae83391853763886731568ce54e"
+    },
+    {
+      "path": "design-library/typography/index.html",
+      "bytes": 152876,
+      "sha256": "96c38bfef84d96606684c41455a43490f84645bff7435c360f97b3962a16de99"
+    },
+    {
+      "path": "design-library/typography/modal-without-background-duplicates.png",
+      "bytes": 162365,
+      "sha256": "a5b958d6c8785ec4d7cd7644b9513514fa310f55d6fadeb64d10e6ecb2be2229"
+    },
+    {
+      "path": "design-library/typography/nav-accordion.js",
+      "bytes": 1821,
+      "sha256": "1f38684223934e575d6f82ab9bcba232a9247ba2e242042ca2f7866bf0f89f6e"
+    },
+    {
+      "path": "design-library/typography/navigation-fix.png",
+      "bytes": 146576,
+      "sha256": "aef04484918bd2e5e6162566067c155c78c306de3967f0ade6a211ec1275c4e6"
+    },
+    {
+      "path": "design-library/typography/number-marking.png",
+      "bytes": 75681,
+      "sha256": "fd9f9b0d2e67e078228d5f31a20269be060a45134ad5d788cc4c3c6ecd0a36e3"
+    },
+    {
+      "path": "design-library/typography/onboarding-review.png",
+      "bytes": 177544,
+      "sha256": "83080e8850771f6f114826ef56709ccd19ad7e5da592f493d6567a89ff7dd946"
+    },
+    {
+      "path": "design-library/typography/orange-mark-action.png",
+      "bytes": 167540,
+      "sha256": "7f214c969a7a146adf379a55d058ef68cc0d666e57dd872a216f3d691e140dfa"
+    },
+    {
+      "path": "design-library/typography/pair-compare.css",
+      "bytes": 5114,
+      "sha256": "ef1be295c5277b12a19d7ab4fcc8c2b6ebb4e573f582c7f218da116e7943b93c"
+    },
+    {
+      "path": "design-library/typography/pair-compare.js",
+      "bytes": 11012,
+      "sha256": "cca6808331929773d7dc4d851656c3d99a716bbcf4ca4746818a45501dbcf2d2"
+    },
+    {
+      "path": "design-library/typography/pixel-units.png",
+      "bytes": 103150,
+      "sha256": "ddb53f4a2aab01562f8654e7130a156f6d974f8065d02ce415dfea352730e51d"
+    },
+    {
+      "path": "design-library/typography/preview.png",
+      "bytes": 144420,
+      "sha256": "f910ea42f3ae4ae904a4d80b4508eeee1369753e1b51227cb83ed985915fc32f"
+    },
+    {
+      "path": "design-library/typography/screens/arcade-mode-0.webp",
+      "bytes": 178814,
+      "sha256": "f7902adadc9d34359be135c3fa3152ae771e338ba4d0f8ecab9751a75fdd257f"
+    },
+    {
+      "path": "design-library/typography/screens/arcade-mode-1.webp",
+      "bytes": 186900,
+      "sha256": "79090c859ed120165630c20c316ba52356f40e0d07ec41cde4b669e1d99b0860"
+    },
+    {
+      "path": "design-library/typography/screens/arcade-mode-2.webp",
+      "bytes": 178646,
+      "sha256": "857bb8b81d0b52ec7ed873c8fd3d3bb8fe509e76ea83de6882207bdaad3d4a07"
+    },
+    {
+      "path": "design-library/typography/screens/backpack-info.webp",
+      "bytes": 200504,
+      "sha256": "971d3a12fa6c10bab8326bee3d4e99bf1d43db4ca14a19e453e2e7f0ffe30207"
+    },
+    {
+      "path": "design-library/typography/screens/backpack.webp",
+      "bytes": 198860,
+      "sha256": "ae6c63f452eced76ba77e86f700ee427364f31066e77818d780ec6690111a5a3"
+    },
+    {
+      "path": "design-library/typography/screens/cleared-celebration.webp",
+      "bytes": 156834,
+      "sha256": "f2226d9f05102553b3657bb61c5ef112db967e5c8d87546b718661c69aaf495c"
+    },
+    {
+      "path": "design-library/typography/screens/dice-detail-baloon.webp",
+      "bytes": 133300,
+      "sha256": "eb788fa0b50eb58197f82df6bbde09fb1de453f96db0d429aeb1726df330ddff"
+    },
+    {
+      "path": "design-library/typography/screens/dice-detail-barell.webp",
+      "bytes": 151458,
+      "sha256": "eca25b3016a39a6b0e59acf3ea2206078028b034280fc97c115945a590b9062c"
+    },
+    {
+      "path": "design-library/typography/screens/dice-detail-beach-ball.webp",
+      "bytes": 140666,
+      "sha256": "b99e44391eebfcee990d5a7441176af9972348d62969bbb892a6688c1b69ce77"
+    },
+    {
+      "path": "design-library/typography/screens/dice-detail-bloob-ball.webp",
+      "bytes": 167882,
+      "sha256": "f3037da0a744dda4d6241f26d1d39f5bfc64ebce3c7b344c6e4808ac28f37f99"
+    },
+    {
+      "path": "design-library/typography/screens/dice-detail-bloob.webp",
+      "bytes": 136042,
+      "sha256": "f5ac0c9a6d2b1ea11f1fa0e33d2b3d3fb0476892bdea08016480e0df6ef47508"
+    },
+    {
+      "path": "design-library/typography/screens/dice-detail-bottle.webp",
+      "bytes": 147504,
+      "sha256": "cff6806df8982d4db5dc0f7648b97ae327f1f6d7087f4286a46d569aea3c63c5"
+    },
+    {
+      "path": "design-library/typography/screens/dice-detail-coconut.webp",
+      "bytes": 146836,
+      "sha256": "ac9370727b93914f10c0abd35fb0cbf78fd22af0e97661f59047d21761ec74e9"
+    },
+    {
+      "path": "design-library/typography/screens/dice-detail-cubero.webp",
+      "bytes": 154778,
+      "sha256": "84ff0b816466aeaa86879526732b4e2ac7c0083adab1e3845d9f48b972a60a8d"
+    },
+    {
+      "path": "design-library/typography/screens/dice-detail-fish.webp",
+      "bytes": 150660,
+      "sha256": "07da7ce79c0de433665b3be924e324278b922b8c45a4b660d5e59b6cdcfc6685"
+    },
+    {
+      "path": "design-library/typography/screens/dice-detail-flower.webp",
+      "bytes": 143080,
+      "sha256": "0b636b6fd870e89fbb6264857bd1853c712d303d187dedcb86104f233e1c16d5"
+    },
+    {
+      "path": "design-library/typography/screens/dice-detail-honey.webp",
+      "bytes": 167404,
+      "sha256": "d6101c2adbf1d0cd67b5ad08b7a6ce30af005a193b3f88d49594b5e9f1dcecb4"
+    },
+    {
+      "path": "design-library/typography/screens/dice-detail-kanta.webp",
+      "bytes": 162214,
+      "sha256": "1a4250ad8ce8a49b1d7df53db344ae696a028322fc6879cae0d6e69e790ffb5c"
+    },
+    {
+      "path": "design-library/typography/screens/dice-detail-kite.webp",
+      "bytes": 143208,
+      "sha256": "3b3ed0928a007ab62c7f52d25e8f950cc829f1f1e8be80778e64e947c619b894"
+    },
+    {
+      "path": "design-library/typography/screens/dice-detail-laser-gun.webp",
+      "bytes": 172674,
+      "sha256": "0dd6923567f9bb07c8c8d5310a87f4300d8bceeca7f9a84415b68c6f011f6056"
+    },
+    {
+      "path": "design-library/typography/screens/dice-detail-mushroom.webp",
+      "bytes": 145472,
+      "sha256": "3142185e1b1fc5bc08430056e4dc5b1dcddb2f6d06e17940aa8a9229cf155816"
+    },
+    {
+      "path": "design-library/typography/screens/dice-detail-robo-cube.webp",
+      "bytes": 150412,
+      "sha256": "3c81a7f1fdb81ec8bd368498c45c6d409f6c3c182df603b60e1afd56242e3fcf"
+    },
+    {
+      "path": "design-library/typography/screens/dice-detail-spaceship.webp",
+      "bytes": 158352,
+      "sha256": "5dccda2fa799afd8045c32e8ecc58da038cc83cd9a192258fc9639f2ec307423"
+    },
+    {
+      "path": "design-library/typography/screens/dice-detail-tnt.webp",
+      "bytes": 150890,
+      "sha256": "9b6a691ecc6e807526b4524f27a6100330b4d7a1dd6611184e3fbd376372a9a7"
+    },
+    {
+      "path": "design-library/typography/screens/dice-detail-wild-juice.webp",
+      "bytes": 146916,
+      "sha256": "448a1e40fa8ef8b2edfde69d22ed2c00de451336563ed0d515019d3cedc2fb89"
+    },
+    {
+      "path": "design-library/typography/screens/dice-detail-wild-magnet.webp",
+      "bytes": 155884,
+      "sha256": "63c8d31b3cc3bec55155fa0e5c6859a1fb9cb94cf53a05b657de4c89deb674cc"
+    },
+    {
+      "path": "design-library/typography/screens/dice-detail-wild-star.webp",
+      "bytes": 138934,
+      "sha256": "9893b9579fddc775b5899acd8b895f85e148cd076a79e4741aa96ca28a626ec4"
+    },
+    {
+      "path": "design-library/typography/screens/dice-detail.webp",
+      "bytes": 151298,
+      "sha256": "12d5db8dbddc3ccc0d0273d0cd25fab2fe1b42a0d496f940f033853e4c958345"
+    },
+    {
+      "path": "design-library/typography/screens/exit-game.webp",
+      "bytes": 147934,
+      "sha256": "cca07881113b89cb7781abf5a0d26016db30ea210a6bff3a5ee86957edb4c06f"
+    },
+    {
+      "path": "design-library/typography/screens/exit-stage.webp",
+      "bytes": 147206,
+      "sha256": "e31d31b285551a8d300177424fdc61542ef7e66667e1f6459a6d55bc60c763d2"
+    },
+    {
+      "path": "design-library/typography/screens/gameplay-hud.webp",
+      "bytes": 124200,
+      "sha256": "d66a36d9e588b26b80a6410b824846eaa7c18d908c4270848a8adbbbb4b10574"
+    },
+    {
+      "path": "design-library/typography/screens/home.webp",
+      "bytes": 316414,
+      "sha256": "578f7509b2d82a7bb9110579ce4650613a919561057a758035d857e5ff467217"
+    },
+    {
+      "path": "design-library/typography/screens/nav-arcade.webp",
+      "bytes": 277434,
+      "sha256": "d3475f2740c89f31e74acddc6912390a0366a84660ea14711b651407f134e356"
+    },
+    {
+      "path": "design-library/typography/screens/nav-area55.webp",
+      "bytes": 415926,
+      "sha256": "9dac8248c1e40b27c3c666c023f57d432c8616723cfee9111f01eec005c473fb"
+    },
+    {
+      "path": "design-library/typography/screens/nav-beach.webp",
+      "bytes": 402004,
+      "sha256": "ac573e61966528061de338030cc993c21156d9492d47649e4e5a73cc063fbf2b"
+    },
+    {
+      "path": "design-library/typography/screens/nav-forest.webp",
+      "bytes": 443092,
+      "sha256": "155b3138d5effa3da3379e9b4a02b9f820aaf083af4782557e09a0893e33adb7"
+    },
+    {
+      "path": "design-library/typography/screens/nav-journey.webp",
+      "bytes": 337912,
+      "sha256": "34c9d840ccdc45860204b5788dc91d8a3f2181b4b5ce05ff109f78bb2f4e124f"
+    },
+    {
+      "path": "design-library/typography/screens/result-clean.webp",
+      "bytes": 141466,
+      "sha256": "6fe4401c7f20f5634d64bc9d7402555a2b3f505b8226b71798f5c417840478bc"
+    },
+    {
+      "path": "design-library/typography/screens/result-combo.webp",
+      "bytes": 143032,
+      "sha256": "272f8617b098e5cc37b697f3a749fda96ac5e7f7bf8eb9833fea63bea924f0d0"
+    },
+    {
+      "path": "design-library/typography/screens/result-efficiency.webp",
+      "bytes": 139664,
+      "sha256": "2ccf21a3a5076e4ee78f7133667590fa439653209fbca37668d6526404359b29"
+    },
+    {
+      "path": "design-library/typography/screens/result-fail.webp",
+      "bytes": 123596,
+      "sha256": "073b5577f5bcc2e6642f412b1d19cf0da3bc8b9664bd9783132ea7b0fcf274cd"
+    },
+    {
+      "path": "design-library/typography/screens/reward-common.webp",
+      "bytes": 207598,
+      "sha256": "7015f3089e5a13e884780e833ac459539359b0d1210d9abab61b7090aeaccd7e"
+    },
+    {
+      "path": "design-library/typography/screens/reward-interim.webp",
+      "bytes": 187080,
+      "sha256": "6a1b4609ae04c657c4643ed748e072f0374306531ce654f5e0152b24698ed025"
+    },
+    {
+      "path": "design-library/typography/screens/reward-legendary.webp",
+      "bytes": 219660,
+      "sha256": "1b16f08f5a3e22d8ad06fd6bc54ac3da980b00f626bd5f155fc9d6f53ad080d2"
+    },
+    {
+      "path": "design-library/typography/screens/score-modal.webp",
+      "bytes": 124558,
+      "sha256": "bc32a7ad6f5e321e45bf00be52dfbbf911b0c05993b2010262df5899ffaa0c07"
+    },
+    {
+      "path": "design-library/typography/screens/settings.webp",
+      "bytes": 115802,
+      "sha256": "9571975abc12086484fc9bc39806b93774685e1157fc44096c637d9f79c2ed90"
+    },
+    {
+      "path": "design-library/typography/screens/stage-area55.webp",
+      "bytes": 246708,
+      "sha256": "5d71f10fa5744f0682f69a0c162184e859d3b21a6f208db250c4e9d359ed9ca7"
+    },
+    {
+      "path": "design-library/typography/screens/stage-beach.webp",
+      "bytes": 235192,
+      "sha256": "698b58673504c6a70826de04043caf912eba6fbd583daddb9d2ca41f93b76c58"
+    },
+    {
+      "path": "design-library/typography/screens/stage-continue.webp",
+      "bytes": 181074,
+      "sha256": "2a5c4eff39dbdaf6a11d537ed22a13438fcdc9063d76c10c597206dbc6208be7"
+    },
+    {
+      "path": "design-library/typography/screens/stage-forest.webp",
+      "bytes": 247136,
+      "sha256": "d3224f13e53c1b6fe6f279e4bc7ef660605b5c3ce2c7ec3882c8e5004876bf18"
+    },
+    {
+      "path": "design-library/typography/screens/stage-play.webp",
+      "bytes": 180350,
+      "sha256": "70f16990c093ebf5baddcf6337e32138b15e02b2cbce7b8bfbdb2c3a4c717b4a"
+    },
+    {
+      "path": "design-library/typography/screens/tutorial-completed.webp",
+      "bytes": 132960,
+      "sha256": "9ecc75416b72eb8f195d1997eace2d90c6e186d4ffcefded33c7c0ad89a6b52b"
+    },
+    {
+      "path": "design-library/typography/screens/tutorial-encouragement.webp",
+      "bytes": 168508,
+      "sha256": "89cac21bf0ca0811a03c1d029dc3565b8782997aeac51cbaaf6421ffa3167acc"
+    },
+    {
+      "path": "design-library/typography/screens/tutorial.webp",
+      "bytes": 126208,
+      "sha256": "477eb281aeb74b368832e4bf2d97c0efbf13a6ebf5d8c94dcaee6d41d99ce6a4"
+    },
+    {
+      "path": "design-library/typography/serve.py",
+      "bytes": 10269,
+      "sha256": "82a4e888c8ce97342d9d219f1e5d90b29cb8169b0db9854f05900d950ac1ab3c"
+    },
+    {
+      "path": "design-library/typography/settings-ad8775.png",
+      "bytes": 145573,
+      "sha256": "28d87e73fa73da7c7f37b388b9c04f5bdacf24357f214ad4aab0f3e9ff34d4e9"
+    },
+    {
+      "path": "design-library/typography/side-by-side-compare.png",
+      "bytes": 111746,
+      "sha256": "2b395ae49f55590137f1c86c646c9e08a69fbd83e5de1d0db95cf7a7df3255be"
+    },
+    {
+      "path": "design-library/typography/stage-28-28-18.png",
+      "bytes": 144952,
+      "sha256": "2ebfceb83304f8ccde02cec4e732154d121b02032ccecf83ca283ab9c0a33a9a"
+    },
+    {
+      "path": "design-library/typography/subtitles-18px.png",
+      "bytes": 111695,
+      "sha256": "d4e5fb16bce758fbb0cd97db18423ff0eda0d2916fd549c65f453a16e61da0a7"
+    },
+    {
+      "path": "design-library/typography/title-audit.css",
+      "bytes": 2611,
+      "sha256": "0611bf823d478ef96816c820d772eb501855d68a5072725ca3c374034c3d78a0"
+    },
+    {
+      "path": "design-library/typography/title-audit.js",
+      "bytes": 9641,
+      "sha256": "f0ae57504c178c265439dd387f89b40c1490b9a16f1e2390d1fb70841fad3e65"
+    },
+    {
+      "path": "docs/audio/AUDIO_RUNTIME_ARCHITECTURE.md",
+      "bytes": 20737,
+      "sha256": "69c41655fb79d1feb7dc7daacdac72847c4f6d7b74a140b33e60da1190cf8865"
+    },
+    {
+      "path": "docs/audio/STACK_TO_SIX_INTERACTION_SOUND_INVENTORY.md",
+      "bytes": 63807,
+      "sha256": "c775338e6005749cadcf919d85abbc6fe24f5100d1c9f0ea1e433c6ea2e6d184"
+    },
+    {
+      "path": "docs/audio/audio-runtime-owners.json",
+      "bytes": 89254,
+      "sha256": "a624799f52582d8845b9b3b2ff90774bff64cbc5eae8b8285b8f791e77726bd6"
+    },
+    {
+      "path": "docs/engineering/CONTEXTUAL_ONBOARDING.md",
+      "bytes": 6765,
+      "sha256": "4c823d60b19c583f74a95944c3d22c681f735d75d357709aa1f04d1a7cdf5967"
+    },
+    {
+      "path": "docs/engineering/CURRENT_HANDOFF.md",
+      "bytes": 2031228,
+      "sha256": "aa0dbdd29adb17934c31b7ab097b2232f2313588a1cba5f3fb9777fbeb37e4f7"
+    },
+    {
+      "path": "docs/engineering/GAMEPLAY_KING_CONTRACT.md",
+      "bytes": 34329,
+      "sha256": "bff231ee09d3e5876e7306be4fccc7a5c9235e3970535d751cda92ef4e0dbfb1"
+    },
+    {
+      "path": "docs/engineering/NATIVE_BENCHMARK_V19.md",
+      "bytes": 1740,
+      "sha256": "ef2ed6cb8d0cf514c175736fbd6191fd1be2a483957147f5c1f6595af7a2d313"
+    },
+    {
+      "path": "docs/engineering/NATIVE_FIXES_2026-10-27_TODO.md",
+      "bytes": 2185,
+      "sha256": "b219d379c21983f7c3a05012b59c0b2ee3bd4574887ac5f5a9e7bdbccf0d0e17"
+    },
+    {
+      "path": "docs/engineering/NATIVE_TUTORIAL_POLISH_2026-10-27_TODO.md",
+      "bytes": 1745,
+      "sha256": "3bd625b49b56e9bf1b1e1fde4d7a5a482d82f32c32e0adfc638a004e4de9bb86"
+    },
+    {
+      "path": "docs/engineering/NATIVE_TUTORIAL_VIDEO_FIX_2026-10-27_TODO.md",
+      "bytes": 1919,
+      "sha256": "04ab58cfe8b3e7e9d057c06d52eb63311d8e1e23bd2681f90bbe16f9d80a5864"
+    },
+    {
+      "path": "docs/engineering/PROJECT_CONTEXT.md",
+      "bytes": 57734,
+      "sha256": "8e90dbe9e7ed049c1555ee5346f48066f32c132a096876463fea901b6249ba51"
+    },
+    {
+      "path": "docs/engineering/feature-runtime-owners.json",
+      "bytes": 279503,
+      "sha256": "82bb0560c423c8eb49b2b66c0cb01e5fcb2d0c6c9d6b032171ea739183474f0e"
+    },
+    {
+      "path": "game design/output/exit-stage-secondary-2026-10-27/Baloo.ttf",
+      "bytes": 151421,
+      "sha256": "428c7b0b4a2aca2e4ba0efb6c3f9d7f0eb00fc7dec27c3239ea714434c8eddd5"
+    },
+    {
+      "path": "game design/output/exit-stage-secondary-2026-10-27/exit-stage.webp",
+      "bytes": 149996,
+      "sha256": "0b375bc9bee3437480f22e41b4f957d406136ac0f2dd5fa139121376c8955bd2"
+    },
+    {
+      "path": "game design/output/exit-stage-secondary-2026-10-27/index.html",
+      "bytes": 235144,
+      "sha256": "4203526867380a8d9c2c66e74bcac89d93e97f8523c3dde7ac0b367267d53fd7"
+    },
+    {
+      "path": "game design/output/exit-stage-secondary-2026-10-27/palettes.json",
+      "bytes": 740,
+      "sha256": "8fc73963b95bac8c130c38267ceff692ac52d1dccf7724997a486996237d60e1"
+    },
+    {
+      "path": "game design/output/exit-stage-secondary-2026-10-27/preview.png",
+      "bytes": 125972,
+      "sha256": "95b3b82b903b7961d0196a9faa90421779d95e0a812a32ab063a95873bdacd7e"
+    },
+    {
+      "path": "game design/output/exit-stage-secondary-2026-10-27/white-palettes.json",
+      "bytes": 810,
+      "sha256": "f361a2018649cc75a7faaea7042323dde7afeb86a72d0fd8a709e6c04b7a3042"
+    },
+    {
+      "path": "game design/output/exit-stage-secondary-2026-10-27/white-preview.png",
+      "bytes": 127418,
+      "sha256": "b1df7b24f951389bf4d5a547da9dba31c4105cf61bf20a99ae658cc1f626c23f"
+    },
+    {
+      "path": "game design/output/exit-stage-secondary-2026-10-27/white.html",
+      "bytes": 235218,
+      "sha256": "5ff672444bdcaf33d1323fb58c70daef12fdf8db44e19aa687cfd5a5e560489a"
+    },
+    {
+      "path": "native/gameplay-app/NativeAppController.swift",
+      "bytes": 46358,
+      "sha256": "e6a2104b1321d58736aab8a894ba56868dfda33a5f21caca098021aff2b10ed2"
+    },
+    {
+      "path": "native/gameplay-app/NativeArcadeHubView.swift",
+      "bytes": 27251,
+      "sha256": "56151d4afc46b33a1a5290a05bfef4129395d702d42f96ef5c54d478a47db9c9"
+    },
+    {
+      "path": "native/gameplay-app/NativeArcadeMusicOwner.swift",
+      "bytes": 6680,
+      "sha256": "71966e7e7186f367b947024f10ef52931d729922a0b0d98ae96f6c88816bb916"
+    },
+    {
+      "path": "native/gameplay-app/NativeAuthoredAudioCatalog.swift",
+      "bytes": 72387,
+      "sha256": "056c9edbd0572d4502495c9058c76014e1916e1bc751447a7bbaa3c2fc34eed5"
+    },
+    {
+      "path": "native/gameplay-app/NativeBootstrap.swift",
+      "bytes": 133163,
+      "sha256": "bf83f8929ae5551069dc15fb858fe13f1596defa80b12b9f680bee8451db6297"
+    },
+    {
+      "path": "native/gameplay-app/NativeGameplayAudioOwner.swift",
+      "bytes": 55442,
+      "sha256": "4f55dad06a9deeea7db12dc8f0123352e4bdf49a3c620ba0d1cef2b3276c56a8"
+    },
+    {
+      "path": "native/gameplay-app/NativeMeterSelectedAudioCatalog.swift",
+      "bytes": 10926,
+      "sha256": "520b09d1b58c5bea2956f80692f799786ce92c1571f011f6ae610a0837d013b3"
+    },
+    {
+      "path": "native/gameplay-app/NativeResultOwner.swift",
+      "bytes": 35393,
+      "sha256": "f171fa64720efa563534957ac7bcee6f31afa0e0cc2109dc28d6187a57225588"
+    },
+    {
+      "path": "native/gameplay-app/NativeScoreModal.swift",
+      "bytes": 10743,
+      "sha256": "8fe740eb3f89d99cc415166cb9e5b761f4b6cdcb2a43df3a16d54eda522a4ae9"
+    },
+    {
+      "path": "native/gameplay-app/NativeScoreOwner.swift",
+      "bytes": 20816,
+      "sha256": "d3128f0fd1b103197d1422fa7451d46d992a579e4dc7bb8f0b296fa7895f5545"
+    },
+    {
+      "path": "native/gameplay-app/NativeSoundtrackRouteOwner.swift",
+      "bytes": 12204,
+      "sha256": "198cf9a271971e843f6d48517a872d4e9bc44c07c2f38d6b7f57faaa943eac39"
+    },
+    {
+      "path": "native/gameplay-app/NativeTutorialOverlay.swift",
+      "bytes": 36177,
+      "sha256": "abe3db237f63560ae071dfe0bcb27c676e9972eafc1fa65166f51da26a454164"
+    },
+    {
+      "path": "native/gameplay-app/NativeTutorialOwner.swift",
+      "bytes": 43124,
+      "sha256": "4b3fb5335ca5c64816146bd1ab996db46d08c8beeeac0790aef97d23fdcf52a9"
+    },
+    {
+      "path": "native/gameplay-collection-tests/NativeBackpackTests.swift",
+      "bytes": 153274,
+      "sha256": "4fa5491c4fc345086a38402640470092020a3aec0cca7b58376b695889fb9723"
+    },
+    {
+      "path": "native/gameplay-collection/NativeBackpackCatalog.swift",
+      "bytes": 5001,
+      "sha256": "ff744884870f6b8bdd21d3044ff7ff7942d336374a7560617cb56e6cba537af2"
+    },
+    {
+      "path": "native/gameplay-collection/NativeBackpackDetail.swift",
+      "bytes": 15437,
+      "sha256": "2c13752a4e49e586eff268d64227ef5dee7851c68e68b47f39fd19ab94fa3455"
+    },
+    {
+      "path": "native/gameplay-collection/NativeBackpackView.swift",
+      "bytes": 31956,
+      "sha256": "a80ec375bb71fc5435fb0c6aff34c7bb4e22390541a34c3c0053b7cbd26cb988"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeGameplayEngine.swift",
+      "bytes": 388464,
+      "sha256": "95b866ef2173bdf823ad2850243fcf66a02427ccc1c3d14f1f4ad67c9338d302"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeSourceGameplaySignature.swift",
+      "bytes": 6961,
+      "sha256": "a09740b027428050e285fdea25b526f172359ca1c5e9dca4085d9ae962794c42"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeSpecialRules.swift",
+      "bytes": 7963,
+      "sha256": "8384789899999b47e85e28458bbd2bee6d533d5f86dffab9720f5f17775a385a"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeTutorialRules.swift",
+      "bytes": 11113,
+      "sha256": "14ee74eb3041655be7dcc914f600ddf1ea21af803e4ee078cc0ba8109e0df0e3"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeEndgameIdleHintEligibilityTests.swift",
+      "bytes": 2077,
+      "sha256": "d17b17ec6b7db6bc254acc23c69620d70e031851e7d6f6c3dcc6ca0472dd19ee"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeSourceMeterQueuePermissionTests.swift",
+      "bytes": 13644,
+      "sha256": "06f85c81cccb9afcea924197b0ad6176f10d017145c4d1b05225ae0909197b46"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeTutorialTests.swift",
+      "bytes": 33981,
+      "sha256": "06e800d1ddf589457bbd8cb165a73e0dde65612f670b94e22b25a78985195cef"
+    },
+    {
+      "path": "native/gameplay-meter-drop/NativeWildMeterHUDPresentation.swift",
+      "bytes": 11547,
+      "sha256": "519db4bb33e1446c42cf16fab7893d5f69091be9247bf0b2bfbe37ad39f78cbf"
+    },
+    {
+      "path": "native/gameplay-meter-scene/NativeMeterSceneCaller.swift",
+      "bytes": 29501,
+      "sha256": "3e49a89ed73cbe3c736c9d81e2392a71ef2fe101295487d544ad8eaa1f4ae57d"
+    },
+    {
+      "path": "native/gameplay-results/NativeResultPresentationPlan.swift",
+      "bytes": 7981,
+      "sha256": "82c249422f03a6d7af2c40d77c7f78e6ff2ed6855442521e03dc0fe9d7b484c7"
+    },
+    {
+      "path": "native/gameplay-reward-tests/NativeJourneyRewardTests.swift",
+      "bytes": 28703,
+      "sha256": "3bfe3e0b860262f9a6c22c8e1305ea80791b4aeda21ffc3548ed6af24bb8ec4d"
+    },
+    {
+      "path": "native/gameplay-reward/NativeJourneyRewardController.swift",
+      "bytes": 34635,
+      "sha256": "b9a1231d9e01eab2fca7d95844aabeb6a586fa3831657a55d162093c167bb555"
+    },
+    {
+      "path": "native/gameplay-reward/NativeRewardMotion.swift",
+      "bytes": 4190,
+      "sha256": "49455ab98a517909fa344ac7323c25db5dcf01a34a9cfcae42f64b0bec906312"
+    },
+    {
+      "path": "native/gameplay-state/NativeAudioCatalog.json",
+      "bytes": 93728,
+      "sha256": "41ca2869cdd968d920cdb953d0d9c100a482d41de3cfa5156e2046cd7b299c4e"
+    },
+    {
+      "path": "native/gameplay-state/Sources/StackToSixNativeState/NativeSaveStore.swift",
+      "bytes": 17672,
+      "sha256": "65ca0587c00c7fc57eaeb7d6e970074ca0bdd1cacf62108f447a9b3d38bb1585"
+    },
+    {
+      "path": "native/gameplay-state/Sources/StackToSixNativeState/NativeWildRewardPolicy.swift",
+      "bytes": 2653,
+      "sha256": "b0ca29e214cf3c2d4d3b551becdad85913e2bbf3533761ac1b80d60a7bffe1a9"
+    },
+    {
+      "path": "native/gameplay-state/Tests/StackToSixNativeStateTests/NativeContextualOnboardingTests.swift",
+      "bytes": 2786,
+      "sha256": "58457887a2bf3c57ee3a67f43acfaa1e8b7918c9e44f5cca97a2f9aba4e09fa9"
+    },
+    {
+      "path": "native/gameplay-state/export-audio-catalog.mjs",
+      "bytes": 20382,
+      "sha256": "dd961494e11892337da17531150b9eb1559a39a2551305f4eb174efca188dec1"
+    },
+    {
+      "path": "native/gameplay-transition-tests/NativeBoardTransitionMusicTests.swift",
+      "bytes": 7096,
+      "sha256": "24bb672442eaf8fa80084038cfe2915831abf12afc6e148ad2a85d179dd9d652"
+    },
+    {
+      "path": "native/gameplay-tutorial-complete-tests/NativeTutorialCompleteTests.swift",
+      "bytes": 8238,
+      "sha256": "6fe27a1ccea95a34ecea71212e687985b9f65fa04d5edbcd8c07b711dc42f125"
+    },
+    {
+      "path": "native/gameplay-tutorial-complete/NativeTutorialCompleteController.swift",
+      "bytes": 17024,
+      "sha256": "a9b790f46f00663e685e8d11a919ffd65db9dd70c7e42269b8e30603d50f8b83"
+    },
+    {
+      "path": "native/gameplay-ui/NativeArcadeRoundPresentation.swift",
+      "bytes": 30142,
+      "sha256": "672bfd1c4977e5e8e7cccea6869713118842e0a4d30ee9aa93ac9f21896ac93b"
+    },
+    {
+      "path": "native/gameplay-ui/NativeBoardScene.swift",
+      "bytes": 840241,
+      "sha256": "b70fbea782a7b5082620b8bfecc863a78d68bfd2db934eea38e2e8d17987db2f"
+    },
+    {
+      "path": "native/gameplay-ui/NativeEndgameHintCoordinator.swift",
+      "bytes": 6659,
+      "sha256": "763d741ab72793de27adae3edda981c0a5f24e83d0f9a786a71fb3f94cd26193"
+    },
+    {
+      "path": "native/gameplay-ui/NativeGameplayViewController.swift",
+      "bytes": 126039,
+      "sha256": "7e6a0849b1e2ee0fd1df7217b485561bf759f3007f52e702661c25e823d5aa37"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceFrameRuntime.swift",
+      "bytes": 7328,
+      "sha256": "fe783b8825160d04ec44149b5feb766c389064565ad85dccff0f987a13631dce"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceInitialBoardRecipe.swift",
+      "bytes": 8251,
+      "sha256": "eed72cd85d029eb1c63c5a77fd555bbff83f51c63287c6703efb0df3265aee4f"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceTutorialBoardRestoreOwner.swift",
+      "bytes": 9674,
+      "sha256": "660d65f46ec19fa37826b1f99dd70e69c6efd4f1b47f85b87ad8f2ce0ac9a81b"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceTutorialHUDOwner.swift",
+      "bytes": 10180,
+      "sha256": "94b0847602c3db70022110e4dbc9b667f533981ced07908ec69fbcfb7113f2b9"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceTutorialIntroOwner.swift",
+      "bytes": 15705,
+      "sha256": "980e82df651f4da3fa0f0ed6e1d1d182f17456e2410c8d5caf0191b62b2fb448"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceTutorialSecondStepMonitor.swift",
+      "bytes": 17236,
+      "sha256": "d66aebfcdc9092fe0e5bbd32d2f0226aed80daff17faa99ed6152e03468151f4"
+    },
+    {
+      "path": "native/jimi-2026/JimiNativeEndRunModal.swift",
+      "bytes": 30804,
+      "sha256": "ea557831de86b8a11203c7c053056d04ebb0a69a61c47555def6fc48392c33ef"
+    },
+    {
+      "path": "native/jimi-2026/JimiNativeSettingsView.swift",
+      "bytes": 28794,
+      "sha256": "37c3a7ac714601d62f11737f5ecaae4a7ef7dafb5a119fac03a6e2dc342b7196"
+    },
+    {
+      "path": "native/jimi-2026/JimiNativeWorldCardView.swift",
+      "bytes": 43629,
+      "sha256": "91f5d5a51fa1eb6ad147842944167b234939c4d1004eeba10af92bfa1dd29892"
+    },
+    {
+      "path": "native/jimi-2026/JimiNativeWorldView.swift",
+      "bytes": 64106,
+      "sha256": "823f83fed2af80e3907abce7bafd6753493a1e1e3e2c79d68d9f45b7ac985eaf"
+    },
+    {
+      "path": "native/jimi-2026/JimiV9Artwork.swift",
+      "bytes": 13066,
+      "sha256": "df18a743760b0ea582abd819e5d0b001a59abc108765241a918606469a08acb7"
+    },
+    {
+      "path": "native/jimi-2026/JimiV9HomeView.swift",
+      "bytes": 73440,
+      "sha256": "3dd2b212e4c65e9d643d4144caec1f96b8670ea564eacf61fb845c0fc56cc9f6"
+    },
+    {
+      "path": "native/jimi-2026/JimiV9HubView.swift",
+      "bytes": 29362,
+      "sha256": "69cb30307fac4d5cc3b676849993e6a9b339bbbdbf156281f576d8d1a24536e1"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/JimiNativeEndRunTests.swift",
+      "bytes": 22727,
+      "sha256": "c5b1450ad63d5af302a52f8bb7649b57cec1d5447d7988484411ff0a8361bcec"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/JimiNativeWorldTests.swift",
+      "bytes": 114176,
+      "sha256": "edf87aa457511d81e17cddc231e3538631c93af5345e0dc7dbdfc3d52b318e47"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeAppCoordinatorTests.swift",
+      "bytes": 34879,
+      "sha256": "3baa57d22870998affc676ab282524773a39499c0a87fc26e23f4aab5a2dab48"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeArcadeGameplayIntegrationTests.swift",
+      "bytes": 18222,
+      "sha256": "004cc43ef969dbb2439612ccfc14842a4d72ec04ccae07406d18aacb94d8e785"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeArcadeMusicTests.swift",
+      "bytes": 7531,
+      "sha256": "40164ed323825bd360f1a17a411815b3753bf1774ca2bbf3fd0a5350e8715560"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeArcadeNavigationTests.swift",
+      "bytes": 15106,
+      "sha256": "41f70f2d96387ac2e96d028726ec259e9fbd69e8a029323e294ef3c816c672fc"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeArcadePresentationTests.swift",
+      "bytes": 19896,
+      "sha256": "e46e6e762776ed27a2cbc6183d06a101d676e47bcb11c2735d545b63ea3de13d"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeCompleteNoMovesRootTests.swift",
+      "bytes": 26189,
+      "sha256": "ed306adb2fab5b9913c7225b20bdf61d2e66989c31b73925de2c4b24f839835d"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeEndgameHintTests.swift",
+      "bytes": 21066,
+      "sha256": "dab2b0c5546a43f287e2688665554ab459100496093f4b655cdc1858ed58053a"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeGameplayAudioTests.swift",
+      "bytes": 78100,
+      "sha256": "3d74fe4012413a7fe4efd7ce7b36b27f54517d111540e2a63f43b199210abf5a"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeJourneyDecorIntegrationTests.swift",
+      "bytes": 16316,
+      "sha256": "6e13751eb3331b1227f217c0617c03e26c736a65eaa96ef2d187cbccc0b33b3b"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeMeterSelectedAudioTests.swift",
+      "bytes": 22420,
+      "sha256": "91e12d45e0b468ce0bc325e47fe142fad7df0430e7776fe187ae795f47993fc2"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeResultOwnerTests.swift",
+      "bytes": 63231,
+      "sha256": "ef082765466b9d140ec23f04eb56a73e462013deda2e4385c32ce2c80b0e0632"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSoundtrackRouteTests.swift",
+      "bytes": 13510,
+      "sha256": "236bf2c849d13b5ff1e82eaeff34018eb5903413dabc5aadb5811e6d83fe716b"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceTutorialBoardRestoreTests.swift",
+      "bytes": 9724,
+      "sha256": "48bd6deafc614eaeb4b592e7bec898af01b95322ed15360e3ebdb0f9f9574ee1"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceTutorialBootstrapTests.swift",
+      "bytes": 68892,
+      "sha256": "4c4b7b58d7e73537cc75c238de5cfec75f7162b38ea9aa898fd0110f86e7498d"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceTutorialHUDTests.swift",
+      "bytes": 12888,
+      "sha256": "853ea6ced456d1acdfdfed05a068f5157e3b5841470539a3addc545c3e267e56"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceTutorialIntroTests.swift",
+      "bytes": 24725,
+      "sha256": "83bf4608cfba05a0c5da9f9a65bbf5a90a04895778d136751546562c45c98b00"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceTutorialSecondStepMonitorTests.swift",
+      "bytes": 27929,
+      "sha256": "d2252ddcf941c62f499e76c435d1c7757f6e610008a83ec51cd11e80ba02a3d6"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeWildMeterHUDSourceTests.swift",
+      "bytes": 16250,
+      "sha256": "2ddaa973e60ed18ac6fcd542093990314f761b378ed9d7f89be5808c41902070"
+    },
+    {
+      "path": "native/standalone/Stack to SixUITests/NativeHomeInteractionUITests.swift",
+      "bytes": 20582,
+      "sha256": "e0f45a5f28f6ca0f7fc8260144190594ca33d189e50ba89b16f01d26c825898f"
+    }
+  ]
+}

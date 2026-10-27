@@ -23,6 +23,7 @@ struct NativeAppServices {
     var ambient: (Int, CGRect, [Int]) -> [[String:Any]]? = {_,_,_ in nil}
     var bees: ([Int]) -> [[String:Any]]? = {_ in nil}
     var requiresTutorial: () -> Bool = {false}
+    var tutorialDestination: (Int?) -> Int? = {$0}
     var prepareReturnWorld: (JimiNativeWorldView,@escaping ()->Void)->Void = {world,completion in world.prepare(completion:completion)}
     var prepareWorldEntry: (JimiNativeWorldView,@escaping ()->Void)->Void = {world,completion in world.prepare(completion:completion)}
 }
@@ -55,13 +56,12 @@ final class NativeAppController: UIViewController {
     private var backpackReturnRoute:Route = .hub
     private var backpack:NativeHubBackpackFeedback?
     private var generation = 0
-    private var transitioning = false
+    private(set) var transitioning = false
     private var suspended = false
     private var deferredReveal:Route?
     private var pendingGameplayReturnWorldID:Int?
     private var observers: [NSObjectProtocol] = []
     private var returnRoute = Route.home
-    private var homeJourneyTutorial=false
     private var beforeHomeReveal:(()->Void)?
     private var disposed=false
     private var returnPreparationEpoch=0
@@ -120,8 +120,7 @@ final class NativeAppController: UIViewController {
         hub.onBackpack = { [weak self] in guard let self else{return};self.navigate(.backpack) }
         home.onActivate = { [weak self] index in
             guard let self else{return}
-            self.homeJourneyTutorial = index == 0 && self.services.requiresTutorial()
-            self.navigate(self.homeJourneyTutorial ? .gameplay : index == 0 ? .hub : index == 1 ? .arcadeHub : .settings)
+            self.navigate(index == 0 ? .hub : index == 1 ? .arcadeHub : .settings)
         }
         home.onSlideSelected = { [weak self] index in self?.selectSlide(index) }
         home.onHeroContact = {[weak self] in
@@ -147,9 +146,7 @@ final class NativeAppController: UIViewController {
                   let variant=NativeArcadeVariant(rawValue:identifier) else{return}
             do {try self.services.selectArcadeVariant(variant)} catch {self.reveal(.arcadeHub);self.showFault(error);return}
             self.transitioning=true;self.arcadeHub.setContentInteractionEnabled(false);self.arcadeHub.suspend()
-            // New variant rules must never alter the required authored tutorial.
-            let tutorialBoard:Int? = self.services.requiresTutorial() && variant != .endurance ? 1:nil
-            self.prepareGameplayLaunch(boardID:tutorialBoard)
+            self.prepareGameplayLaunch(boardID:nil)
         }
         hub.onBack = { [weak self] in self?.navigate(.home,interrupt:true) }
         hub.onWorld = { [weak self] id in
@@ -341,7 +338,8 @@ final class NativeAppController: UIViewController {
                 screen.onDie={[weak self] die in self?.openBackpackDetail(die)}
             }
             backpackView?.isHidden=false;backpackView?.isUserInteractionEnabled=false
-            backpackView?.apply(crate ? []:NativeBackpackCatalog.sections(services.journeyProgression()))
+            let originWorld:Int? = {if case .world(let id)=backpackReturnRoute{return id};return nil}()
+            backpackView?.apply(crate ? []:NativeBackpackCatalog.sections(services.journeyProgression(),prioritizingWorld:originWorld))
             motion.animate(backpackView?.tracks(enter:true) ?? [],completion:admitted)
         case .home:
             home.isHidden = false;home.selectSlide(home.selectedSlide,animated:false)
@@ -381,7 +379,7 @@ final class NativeAppController: UIViewController {
             } catch {
                 generation += 1;reveal(.hub);showFault(error)
             }
-        case .gameplay:launch(boardID:homeJourneyTutorial ? 1 : nil);homeJourneyTutorial=false
+        case .gameplay:launch(boardID:nil)
         }
     }
     private func prepareWorldEntry(id:Int,owner:Int)throws {
@@ -464,6 +462,7 @@ final class NativeAppController: UIViewController {
     }
     private func prepareGameplayLaunch(boardID:Int?,exit:((@escaping()->Void)->Void)?=nil){
         cancelGameplayLaunchPreparation()
+        let boardID=services.tutorialDestination(boardID)
         let lease=GameplayLaunchPreparation(board:boardID,generation:generation)
         gameplayLaunchPreparation=lease
         services.prepareGameplayEntry(boardID){[weak self,weak lease] ready in

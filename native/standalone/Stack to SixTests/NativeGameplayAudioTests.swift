@@ -891,6 +891,28 @@ final class NativeGameplayAudioTests:XCTestCase {
             owner.dispose()
         }
     }
+    func testCuberoSuppliedMergeCuePlaysOnceAndObeysSettingsAndBackground() throws {
+        let path="assets/sound/Wild and special kockice/cubero/haya.wav"
+        let file=try AVAudioFile(forReading:NativeTestResources.root.appendingPathComponent(path))
+        XCTAssertEqual(file.processingFormat.sampleRate,48000)
+        XCTAssertEqual(Double(file.length)/file.processingFormat.sampleRate,1.450167,accuracy:0.00001)
+        XCTAssertTrue(NativeMeterSelectedAudioCatalog.sources(special:"wild",variant:"cubero")!.contains("./"+path))
+        for boundary in 0..<3 {
+            let transport=Transport(),owner=NativeGameplayAudioOwner(root:NativeTestResources.root,enabled:true,transport:transport)
+            if boundary==1 {owner.setEnabled(false)}
+            if boundary==2 {owner.setForeground(false)}
+            let event=NativeGameplayEvent(.merged,value:6,archetype:.star,variant:"cubero")
+            owner.onGameplayEvent(event,generation:1,receipt:1)
+            owner.onGameplayEvent(event,generation:1,receipt:1)
+            XCTAssertEqual(transport.cues.filter{$0.source==path}.count,boundary==0 ? 1:0)
+            if boundary != 0 {
+                owner.setEnabled(true);owner.setForeground(true)
+                owner.onGameplayEvent(event,generation:1,receipt:1)
+                XCTAssertFalse(transport.cues.contains{$0.source==path},"Suppressed committed cue never replays")
+            }
+            owner.dispose()
+        }
+    }
     func testKiteSuppliedMergeCuePlaysOnceAndObeysSettingsAndBackground() throws {
         let path="assets/sound/Wild and special kockice/kite/kite meerge.wav"
         let file=try AVAudioFile(forReading:NativeTestResources.root.appendingPathComponent(path))

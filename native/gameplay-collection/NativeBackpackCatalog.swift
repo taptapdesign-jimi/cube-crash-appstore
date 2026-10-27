@@ -42,8 +42,12 @@ struct NativeBackpackCatalog {
         Die(id:"bottle",title:"BOTTLE",copy:"Merge me to wash away up to 4 dice, then bring back the same number of fresh dice.",board:14),
         Die(id:"coconut",title:"COCONUT",copy:"Merge me to shake the palms! Every ordinary die changes to a different number.",board:16),
         Die(id:"kite",title:"KITE",copy:"Merge me to create the main merge die and 1 bonus die. Fly away!",board:18)]
-    static func sections(_ progression:NativeProgressionState)->[Section] {
-        [("Forest",forest),("Area 55",area),("Beach",beach)].map {title,dice in
+    static func sections(_ progression:NativeProgressionState,prioritizingWorld:Int?=nil)->[Section] {
+        let canonical=[(1,"Forest",forest),(3,"Area 55",area),(2,"Beach",beach)]
+        // Move the origin World to the front, keeping every other World in its
+        // existing order. A Hub visit has no origin and restores canonical order.
+        let ordered=canonical.filter{$0.0==prioritizingWorld}+canonical.filter{$0.0 != prioritizingWorld}
+        return ordered.map {_,title,dice in
             // Reward eligibility and card progression do not prove a die landed.
             // Both the gameplay modal and collection screen use this durable receipt.
             let discovered=progression.announcedJourneyDice.intersection(Set(dice.map(\.id)))

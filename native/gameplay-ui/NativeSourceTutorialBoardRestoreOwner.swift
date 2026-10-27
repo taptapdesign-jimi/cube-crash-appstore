@@ -71,6 +71,15 @@ import SpriteKit
         }
         return admitted()
     }
+    /// Transfer alpha ownership without repainting between adjacent sheets.
+    @discardableResult func retainPaint()->Bool {
+        guard !started,admitted() else{return false};started=true
+        for node in nodes {
+            guard node.parent === parent,node.sourceContactNodeAlive,node.sourceGeneration==generation else{dispose();return false}
+            entries[ObjectIdentifier(node)]=Entry(node,parent:parent,generation:generation)
+        }
+        return admitted()
+    }
     private static func backOut(_ value:Double,_ amount:Double)->Double{let t=max(0,min(1,value))-1;return 1+(amount+1)*t*t*t+amount*t*t}
     private func attach(_ entry:Entry,duration:Double,domain:NativeSourceAnimationClockService.Domain,delay:Double,update:@escaping(NativeDiceNode,Double)->Void)->Bool {
         let paint=Paint{[weak self,weak entry] seconds in
@@ -85,4 +94,44 @@ import SpriteKit
     func retire(_ node:NativeDiceNode){entries.removeValue(forKey:ObjectIdentifier(node))?.retire()}
     func dispose(){guard !disposed else{return};disposed=true;let old=Array(entries.values);entries.removeAll();for entry in old{entry.retire()}}
     isolated deinit{dispose()}
+}
+
+/// The final rendered alpha channel for tutorial dice. Logical synchronize and
+/// finite spawn/focus writers cannot publish an intermediate full-opacity flash.
+/// Sampled by the existing Scene handoff; no timer, action, or display link.
+@MainActor final class NativeTutorialBoardOpacityOwner {
+    private final class Entry {
+        weak var node:NativeDiceNode?
+        var from:CGFloat,painted:CGFloat,target:CGFloat,elapsed=0.0
+        init(_ node:NativeDiceNode,target:CGFloat){self.node=node;from=node.alpha;painted=node.alpha;self.target=target}
+    }
+    private var entries:[ObjectIdentifier:Entry]=[:]
+    private var focus:Set<String>?,enabled=false,lastTime:Double?,generation:UInt64?
+    var active:Bool{enabled}
+    func setFocus(_ ids:Set<String>?) {
+        guard focus != ids || (!enabled && ids != nil) else{return}
+        focus=ids;enabled=enabled || ids != nil;lastTime=nil
+    }
+    @discardableResult func paint(nodes:[NativeDiceNode],generation:UInt64,time:Double,suspended:Bool,externallyOwned:(NativeDiceNode)->Bool)->Bool {
+        guard enabled,!suspended else{lastTime=nil;return false}
+        if self.generation != generation{entries.removeAll();self.generation=generation;lastTime=nil}
+        let delta=min(0.05,max(0,time-(lastTime ?? time)));lastTime=time
+        let live=Set(nodes.map(ObjectIdentifier.init));entries=entries.filter{live.contains($0.key) && $0.value.node != nil}
+        var moving=false
+        for node in nodes {
+            let key=ObjectIdentifier(node)
+            guard !node.isHidden,node.sourceContactNodeAlive,!externallyOwned(node) else{entries.removeValue(forKey:key);continue}
+            let target:CGFloat=node.sourceLocked ? 0.2:(focus.map{$0.contains(node.tileID) ? 1:0.2} ?? 1)
+            let entry:Entry
+            if let old=entries[key],old.node === node{entry=old}else{entry=Entry(node,target:target);entries[key]=entry}
+            if abs(entry.target-target)>0.000001{entry.from=entry.painted;entry.target=target;entry.elapsed=0}
+            entry.elapsed+=delta
+            let t=min(1,entry.elapsed/0.42),e=t*t*(3-2*t)
+            entry.painted=entry.from+(entry.target-entry.from)*CGFloat(e);node.alpha=entry.painted
+            moving = moving || abs(entry.painted-entry.target)>0.00001
+        }
+        if !moving && focus==nil{enabled=false;entries.removeAll();lastTime=nil}
+        return moving
+    }
+    func dispose(){entries.removeAll();focus=nil;enabled=false;lastTime=nil;generation=nil}
 }

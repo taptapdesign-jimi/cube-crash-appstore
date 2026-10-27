@@ -53,6 +53,20 @@ final class NativeArcadePresentationTests: XCTestCase {
         }
     }
 
+    func testClearedThumbFloatsSixteenPointsAndHoldsItsPoseIntoExit() {
+        for sample in [0.0,0.99] {
+            let owner=NativeArcadeRoundPresentation(resourceRoot:root,clearedRound:1,nextRound:2,boardClearedOnly:true,random:{sample})
+            defer{owner.dispose()}
+            let start=owner.thumbEnterStart+0.68
+            XCTAssertEqual(owner.thumbFloat(at:start).y,0,accuracy:0.000001)
+            XCTAssertEqual(owner.thumbFloat(at:start+0.82).y,-16,accuracy:0.000001)
+            XCTAssertEqual(owner.thumbFloat(at:start+0.82).rotation,4,accuracy:0.000001)
+            let exit=owner.duration-0.30
+            XCTAssertEqual(owner.thumbFloat(at:exit-0.000001).y,owner.thumbFloat(at:exit).y,accuracy:0.0001)
+            XCTAssertEqual(owner.thumbFloat(at:exit+0.1).y,owner.thumbFloat(at:exit).y,accuracy:0.000001)
+        }
+    }
+
     func testFinalCelebrationLeadIsBoundedByActualVisualEnd() {
         XCTAssertEqual(NativeFinalMergeCelebrationTiming.startTime(visualDuration:10),9.55,accuracy:0.000001)
         XCTAssertEqual(NativeFinalMergeCelebrationTiming.startTime(visualDuration:2),1.7,accuracy:0.000001)

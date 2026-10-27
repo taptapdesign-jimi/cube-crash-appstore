@@ -23,7 +23,7 @@ nonisolated enum NativeMeterSelectedAudioCatalog {
   case "mushroom":return []
   case "robo-cube":return ["./assets/sound/Wild and special kockice/robo/bibiribi.wav", "./assets/sound/Wild and special kockice/robo/robo1.wav", "./assets/sound/Wild and special kockice/robo/outro zing.wav"]
   case "baloon":return ["./assets/sound/Wild and special kockice/ baloon/happy people.wav", "./assets/sound/merge 6/merge six obicna.mp3", "./assets/sound/merge 6/merge6 crash.mp3", "./assets/sound/merge 6/merge6 boom.mp3", "./assets/sound/merge 6/stack.mp3", "./assets/sound/Wild and special kockice/ baloon/prvi swosh.wav", "./assets/sound/Wild and special kockice/ baloon/prvi pop.wav", "./assets/sound/Wild and special kockice/ baloon/hiss.wav", "./assets/sound/Wild and special kockice/ baloon/baloni.wav", "./assets/sound/Wild and special kockice/ baloon/baloni zvuk.wav"]
-  case "cubero":return []
+  case "cubero":return ["./assets/sound/Wild and special kockice/cubero/haya.wav"]
   case "beach-ball":return ["./assets/sound/merge 6/merge six obicna.mp3", "./assets/sound/merge 6/merge6 crash.mp3", "./assets/sound/merge 6/merge6 boom.mp3", "./assets/sound/merge 6/stack.mp3", "./assets/sound/Wild and special kockice/ball/ball1.wav", "./assets/sound/Wild and special kockice/ball/ball2.wav", "./assets/sound/Wild and special kockice/ball/ball4.wav", "./assets/sound/Wild and special kockice/ball/ball5-60pct.wav", "./assets/sound/Wild and special kockice/ball/ball impact.mp3", "./assets/sound/Wild and special kockice/tnt/mini crash1.wav", "./assets/sound/mini explozije/mini2.mp3", "./assets/sound/mini explozije/mini3.wav", "./assets/sound/mini explozije/mini4.wav", "./assets/sound/mini explozije/mini5.wav"]
   default:return nil
   }

@@ -10,6 +10,8 @@ final class NativeArcadeRoundPresentation: UIView {
     enum Cue { case celebrationStarted, thumbWhoosh, heavyHaptic, roundShown, digitEntered(Int), digitExitStarted, finished }
     var onNextRoundPresented: (() throws -> Void)?
     var onFinished: ((Bool) -> Void)?
+    var permitsBoardClearedExit:(()->Bool)?
+    private var clearedExitHoldDuration:TimeInterval=0
     var onCue: ((Cue) -> Void)?
     static let headlines = ["Sweet Win","Nice Move","Nice Job","Clean Hit","Smooth","Wild","Magic","Legend","Nailed It","Done","Nice","Sweet","Awesome","Congrats","Rock On","Fantastic"]
     private let artwork: JimiV9Artwork
@@ -216,10 +218,17 @@ final class NativeArcadeRoundPresentation: UIView {
         link.isPaused = paused || backgrounded || window == nil
     }
 
-    fileprivate func tick(_ link: CADisplayLink) {
+    fileprivate func tick(_ link: CADisplayLink) {advanceFrame(timestamp:link.timestamp)}
+    func advanceFrame(timestamp:CFTimeInterval) {
         guard started,!disposed,!paused,!backgrounded,window != nil else { lastTime = nil; return }
-        if let lastTime { elapsed += max(0,link.timestamp-lastTime) }
-        lastTime = link.timestamp
+        if let lastTime {
+            let delta=max(0,timestamp-lastTime),next=elapsed+delta
+            if boardClearedOnly,permitsBoardClearedExit?()==false,next>=thumbExitStart {
+                let held=max(0,next-max(elapsed,thumbExitStart-0.000001))
+                clearedExitHoldDuration+=held;elapsed=min(next,thumbExitStart-0.000001)
+            } else {elapsed=next}
+        }
+        lastTime = timestamp
         paint(elapsed)
         if !disposed && elapsed >= duration { finish(completed: true) }
     }
@@ -334,6 +343,15 @@ final class NativeArcadeRoundPresentation: UIView {
         }
     }
 
+    /// Same finite celebration clock owns float and the continuous exit pose.
+    func thumbFloat(at time:TimeInterval)->(y:CGFloat,rotation:CGFloat) {
+        let start=boardClearedOnly ? thumbEnterStart+0.68:clearReady
+        guard time>=start else{return (0,0)}
+        let phase=(min(time,thumbExitStart)-start).truncatingRemainder(dividingBy:1.64)/0.82
+        let progress=NativeBoardMotion.Ease.sineInOut.sample(CGFloat(phase<=1 ? phase:2-phase))
+        return (-(boardClearedOnly ? 16:8)*progress,(boardClearedOnly ? 4:2.5)*progress)
+    }
+
     private func paintThumb(_ time: TimeInterval) {
         let entryTime=boardClearedOnly ? time-thumbEnterStart+0.06:time
         var pose = Pose.hidden, y: CGFloat = -24
@@ -351,17 +369,15 @@ final class NativeArcadeRoundPresentation: UIView {
             pose.scale = local < 0.08 ? 1+0.14*NativeBoardMotion.Ease.power2Out.sample(CGFloat(local/0.08))
                 : 1.14-0.14*NativeBoardMotion.Ease.backOut(2.2).sample(CGFloat((local-0.08)/0.18))
         }
-        if !boardClearedOnly && time >= clearReady && time < clearExitStart {
-            let phase = (time-clearReady).truncatingRemainder(dividingBy: 1.64)/0.82
-            let progress = NativeBoardMotion.Ease.sineInOut.sample(CGFloat(phase <= 1 ? phase : 2-phase))
-            y = -8*progress; pose.rotation = 2.5*progress
+        let floatStart=boardClearedOnly ? thumbEnterStart+0.68:clearReady
+        if time>=floatStart && time<thumbExitStart {
+            let floating=thumbFloat(at:time+clearedExitHoldDuration);y=floating.y;pose.rotation=floating.rotation
         }
         if time >= thumbExitStart {
-            let idlePhase = (clearExitStart-clearReady).truncatingRemainder(dividingBy: 1.64)/0.82
-            let held:CGFloat = boardClearedOnly ? 0:NativeBoardMotion.Ease.sineInOut.sample(CGFloat(idlePhase <= 1 ? idlePhase : 2-idlePhase))
+            let held=thumbFloat(at:thumbExitStart+clearedExitHoldDuration)
             let p = NativeBoardMotion.Ease.backIn(1.8).sample(CGFloat(min(1,max(0,time-thumbExitStart-0.02)/0.28)))
-            y = -8*held+(28+8*held)*p
-            pose = Pose(scale: 1-p,alpha: 1-p,rotation: 2.5*held+(9-2.5*held)*p)
+            y = held.y+(28-held.y)*p
+            pose = Pose(scale: 1-p,alpha: 1-p,rotation: held.rotation+(9-held.rotation)*p)
             let fade = NativeBoardMotion.Ease.power2In.sample(CGFloat(min(1,max(0,time-thumbExitStart-0.04)/0.18)))
             shadowAlpha = 1-fade; shadowX = 1-0.38*fade; shadowY = shadowX
         }
@@ -393,7 +409,7 @@ final class NativeArcadeRoundPresentation: UIView {
         disposed = true; displayLink?.invalidate(); displayLink = nil; clockTarget.owner = nil
         observations.forEach(NotificationCenter.default.removeObserver); observations.removeAll()
         onCue?(.finished)
-        let completion = onFinished; onFinished = nil; onNextRoundPresented = nil; onCue = nil
+        let completion = onFinished; onFinished = nil;permitsBoardClearedExit=nil; onNextRoundPresented = nil; onCue = nil
         removeFromSuperview(); completion?(completed)
     }
     func dispose() { finish(completed: false) }

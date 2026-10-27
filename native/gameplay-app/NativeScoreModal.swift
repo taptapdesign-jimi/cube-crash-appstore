@@ -48,14 +48,14 @@ final class NativeScoreModal:UIViewController {
         idle.layer.shadowOpacity=0.8;idle.layer.shadowOffset=CGSize(width:0,height:13);idle.layer.shadowRadius=16.8
         heading.text=model.title;heading.font=assets.font(size:32,weight:"ExtraBold");heading.textAlignment = .center
         heading.textColor=UIColor(red:173/255,green:135/255,blue:117/255,alpha:1)
-        subtitle.attributedText=NativeModalTypography.attributedSubtitle(model.subtitle,font:assets.font(size:20,weight:"Medium"));subtitle.numberOfLines=0
+        subtitle.attributedText=NativeModalTypography.attributedSubtitle(model.subtitle,font:assets.font(size:18,weight:"Medium"));subtitle.numberOfLines=0
         idle.addSubview(heading);idle.addSubview(subtitle)
         for (index,stat) in model.stats.enumerated() {
             if index>0 {let divider=UIView();divider.backgroundColor=UIColor(red:249/255,green:242/255,blue:233/255,alpha:1);idle.addSubview(divider);statTracks.append(divider)}
             let row=UIView(),icon=UIImageView(image:assets.image(stat.icon)),value=UILabel(),label=UILabel()
             icon.contentMode = .scaleAspectFit;icon.frame=CGRect(x:0,y:16,width:80,height:80)
             value.text=stat.value;value.font=assets.font(size:32,weight:"Bold");value.textColor=UIColor(red:232/255,green:116/255,blue:74/255,alpha:1)
-            label.text=stat.label;label.font=assets.font(size:20,weight:"Medium");label.textColor=NativeTextPalette.subtitle
+            label.text=stat.label;label.font=assets.font(size:18,weight:"Medium");label.textColor=NativeTextPalette.subtitle
             value.frame=CGRect(x:96,y:33,width:150,height:32);label.frame=CGRect(x:96,y:67,width:150,height:22)
             row.addSubview(icon);row.addSubview(value);row.addSubview(label);idle.addSubview(row);rows.append(row);statTracks.append(row)
         }

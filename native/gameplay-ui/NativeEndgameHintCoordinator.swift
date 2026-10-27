@@ -4,10 +4,14 @@ import UIKit
 /// existing app-timeout owner; glyph/cloud roots borrow the existing APP clock.
 /// Neither UI, locks, score nor persistence is authored by this presentation.
 @MainActor final class NativeEndgameHintCoordinator {
+    nonisolated struct Timing:Sendable {
+        var idleMilliseconds=10000,visibleMilliseconds=3000,repeatMilliseconds=5000
+    }
     private weak var host:UIView?
     private let root:URL,service:NativeSourceAnimationClockService,current:(UInt64)->Bool,random:()->Double
     private let preparedCloudImages:()->[UIImage]?
     private let timeouts=NativeSourceAppTimeoutOwner()
+    private let timing:Timing
     private var images:[UIImage]=[],font:UIFont?
     private var preparationStarted=false
     private var idle:NativeSourceAppTimeoutOwner.Receipt?,visibleTimer:NativeSourceAppTimeoutOwner.Receipt?,repeatTimer:NativeSourceAppTimeoutOwner.Receipt?
@@ -17,8 +21,8 @@ import UIKit
     private(set) var preparationCount=0
     var pendingTimers:Int{timeouts.pendingCount}
     init(host:UIView,root:URL,service:NativeSourceAnimationClockService,current:@escaping(UInt64)->Bool,
-         random:@escaping()->Double={Double.random(in:0..<1)},preparedCloudImages:@escaping()->[UIImage]?={nil}) {
-        self.host=host;self.root=root;self.service=service;self.current=current;self.random=random;self.preparedCloudImages=preparedCloudImages
+         random:@escaping()->Double={Double.random(in:0..<1)},preparedCloudImages:@escaping()->[UIImage]?={nil},timing:Timing = .init()) {
+        self.host=host;self.root=root;self.service=service;self.current=current;self.random=random;self.preparedCloudImages=preparedCloudImages;self.timing=timing
     }
     private func prepare() {
         guard !preparationStarted,!disposed else{return};preparationStarted=true
@@ -28,8 +32,9 @@ import UIKit
             guard !disposed,preparationEpoch==expected,font.fontName=="Baloo2-ExtraBold" else{return}
             images=borrowed;self.font=font;return
         }
+        let paths=NativeSourceNoMovesUIKitCoordinator.paths
         Task { @MainActor [weak self] in
-            let bytes=await Task.detached(priority:.userInitiated){NativeSourceNoMovesUIKitCoordinator.paths.map{try? Data(contentsOf:root.appendingPathComponent($0))}}.value
+            let bytes=await Task.detached(priority:.userInitiated){paths.map{try? Data(contentsOf:root.appendingPathComponent($0))}}.value
             guard let self,!self.disposed,self.preparationEpoch==expected else{return}
             let loaded=bytes.compactMap{$0.flatMap{UIImage(data:$0)}?.preparingForDisplay()}
             let font=JimiV9Artwork(resourceRoot:root).font(size:80,weight:"ExtraBold")
@@ -51,7 +56,7 @@ import UIKit
     }
     private func scheduleIdle() {
         let expected=generation,token=epoch
-        idle=timeouts.schedule(sourceID:"endgame-hint.idle",generation:expected,delayMilliseconds:20000) { [weak self] in
+        idle=timeouts.schedule(sourceID:"endgame-hint.idle",generation:expected,delayMilliseconds:timing.idleMilliseconds) { [weak self] in
             guard let self else{return};self.idle=nil
             guard self.admitted(expected,token),self.eligible else{return};self.show()
         }
@@ -72,7 +77,7 @@ import UIKit
                 guard let self,let node,self.presentation === node else{return}
                 self.presentation=nil;node.dispose()
             }
-            visibleTimer=timeouts.schedule(sourceID:"endgame-hint.visible",generation:expected,delayMilliseconds:3000) { [weak self] in
+            visibleTimer=timeouts.schedule(sourceID:"endgame-hint.visible",generation:expected,delayMilliseconds:timing.visibleMilliseconds) { [weak self] in
                 guard let self else{return};self.visibleTimer=nil
                 guard self.admitted(expected,token) else{return};self.hide(repeatAfter:true)
             }
@@ -82,7 +87,7 @@ import UIKit
         if let receipt=visibleTimer {_=timeouts.cancel(receipt)};visibleTimer=nil;visible=false
         if repeatAfter,eligible,idle==nil,repeatTimer==nil {
             let expected=generation,token=epoch
-            repeatTimer=timeouts.schedule(sourceID:"endgame-hint.repeat",generation:expected,delayMilliseconds:5000) { [weak self] in
+            repeatTimer=timeouts.schedule(sourceID:"endgame-hint.repeat",generation:expected,delayMilliseconds:timing.repeatMilliseconds) { [weak self] in
                 guard let self else{return};self.repeatTimer=nil
                 guard self.admitted(expected,token),self.eligible,!self.visible,self.idle==nil else{return};self.show()
             }

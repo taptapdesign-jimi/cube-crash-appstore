@@ -2,6 +2,16 @@ import XCTest
 @testable import StackToSixGameplay
 
 nonisolated final class NativeSourceMeterQueuePermissionTests:XCTestCase {
+    func testReadinessUsesSameFiniteToleranceAsPermission() {
+        for meter in [1.0,1-1e-12,1-0.0000005,1.25] {
+            XCTAssertTrue(NativeWildMeterRules.isReady(meter))
+            XCTAssertEqual(NativeWildMeterRules.permission(meter:meter).action,.allow)
+        }
+        for meter in [0.9795,1-0.000002,Double.nan,Double.infinity,-Double.infinity] {
+            XCTAssertFalse(NativeWildMeterRules.isReady(meter))
+            XCTAssertEqual(NativeWildMeterRules.permission(meter:meter).reason,"wild-meter-not-ready")
+        }
+    }
     func testSpecialBarIntervalBlocksCanonicalQueuePermissionWithoutChangingMeter() {
         var tutorial=NativeTutorialState();tutorial.step = .freePlay
         let engine=NativeGameplayEngine(state:.init(tiles:[.init(id:"live",cell:.init(column:0,row:0),value:1)],wildMeter:1.25,tutorial:tutorial))

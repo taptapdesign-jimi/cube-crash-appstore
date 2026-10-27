@@ -311,6 +311,10 @@ final class NativeAppCoordinatorTests:XCTestCase {
             world.backpackButton.sendActions(for:.touchUpInside)
             XCTAssertEqual(cues.filter{$0 == "collection-icon-speech"}.count,1)
             try await waitFor{controller.route == .backpack && controller.backpackView?.isUserInteractionEnabled==true}
+            let expectedOrder=id==2 ? ["Beach","Forest","Area 55"]:id==3 ? ["Area 55","Forest","Beach"]:["Forest","Area 55","Beach"]
+            XCTAssertEqual(controller.backpackView?.sections.map(\.title),expectedOrder)
+            let backpack=try XCTUnwrap(controller.backpackView)
+            XCTAssertEqual(backpack.grid.contentOffset.y,-backpack.grid.contentInset.top,accuracy:0.5,"Each World visit starts at its first section")
             XCTAssertTrue(controller.world === world)
             XCTAssertFalse(world.isReadyForInput)
             XCTAssertTrue(world.isHidden)
@@ -325,6 +329,7 @@ final class NativeAppCoordinatorTests:XCTestCase {
         try await waitFor{controller.route == .hub && controller.hub.scrollView.isUserInteractionEnabled}
         controller.hub.backpackButton.sendActions(for:.touchUpInside)
         try await waitFor{controller.route == .backpack && controller.backpackView?.isUserInteractionEnabled==true}
+        XCTAssertEqual(controller.backpackView?.sections.map(\.title),["Forest","Area 55","Beach"],"Hub entry must not retain the previous World priority")
         controller.backpackView?.close.sendActions(for:.touchUpInside)
         try await waitFor{controller.route == .hub && controller.hub.scrollView.isUserInteractionEnabled}
     }

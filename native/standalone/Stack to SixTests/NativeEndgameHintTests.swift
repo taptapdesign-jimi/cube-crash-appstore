@@ -85,4 +85,33 @@ import UIKit
         XCTAssertEqual(finished,1);XCTAssertTrue(graph.glyphs.allSatisfy{$0.scale==0 && $0.alpha==0})
         XCTAssertEqual(runtime.activeCount,0);graph.dispose();runtime.dispose()
     }
+    func testIdleOwnerHasOneTimerInteractionRequiresFreshAdmissionAndRetirementClearsEverything()async throws {
+        XCTAssertEqual(NativeEndgameHintCoordinator.Timing().idleMilliseconds,10000)
+        let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0})
+        let host=UIView(frame:.init(x:0,y:0,width:390,height:844))
+        var current=true
+        let images=(0..<4).map{_ in UIImage()}
+        var owner:NativeEndgameHintCoordinator?=NativeEndgameHintCoordinator(host:host,root:NativeTestResources.root,
+            service:service,current:{_ in current},random:{0.5},preparedCloudImages:{images},
+            timing:.init(idleMilliseconds:20,visibleMilliseconds:1000,repeatMilliseconds:20))
+        weak var weakOwner=owner
+        defer{owner?.dispose();service.dispose()}
+        for _ in 0..<10 {owner?.update(eligible:true,generation:1)}
+        XCTAssertEqual(owner?.pendingTimers,1);XCTAssertEqual(owner?.preparationCount,1)
+        try await Task.sleep(for:.milliseconds(60))
+        XCTAssertEqual(owner?.visible,true);XCTAssertEqual(host.subviews.count,1)
+        XCTAssertEqual(owner?.pendingTimers,1)
+        owner?.interact();XCTAssertEqual(owner?.pendingTimers,0)
+        try await Task.sleep(for:.milliseconds(60))
+        XCTAssertEqual(owner?.visible,false,"Interaction cannot rearm itself without a fresh board evaluation")
+        owner?.update(eligible:true,generation:1);XCTAssertEqual(owner?.pendingTimers,1)
+        owner?.update(eligible:false,generation:1);XCTAssertEqual(owner?.pendingTimers,0)
+        owner?.update(eligible:true,generation:2);current=false
+        try await Task.sleep(for:.milliseconds(60))
+        XCTAssertEqual(owner?.visible,false);XCTAssertEqual(owner?.pendingTimers,0)
+        owner?.forceClear();XCTAssertTrue(host.subviews.isEmpty)
+        owner?.dispose();owner?.dispose();owner=nil
+        XCTAssertNil(weakOwner);XCTAssertEqual(service.activeParticipantCount,0)
+    }
+
 }

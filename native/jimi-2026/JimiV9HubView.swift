@@ -128,7 +128,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
             if id == 3 { flag.transform = CGAffineTransform(scaleX: -1, y: 1) }
             banner.addSubview(flag)
             let count = UILabel(frame: banner.bounds.insetBy(dx: 12, dy: 8))
-            count.font = assets.font(size: 19, weight: "ExtraBold")
+            count.font = assets.font(size: 18, weight: "ExtraBold")
             count.textColor = UIColor(red: 232/255, green: 115/255, blue: 74/255, alpha: 1)
             count.textAlignment = .center; count.text = "0 / 10"
             counts[id] = count; banner.addSubview(count)
@@ -164,7 +164,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
         backpackButton.isHidden = false
         backpackAlert.image=assets.image("assets/nav/alsert@2x.png") ?? assets.image("assets/nav/alert.png")
         backpackButton.addSubview(backpackAlert)
-        title.text = arcade ? "Arcade" : "Journey"; title.font = assets.font(size: 32, weight: "ExtraBold")
+        title.text = arcade ? "Arcade" : "Journey"; title.font = assets.font(size: 28, weight: "ExtraBold")
         title.textColor = UIColor(red: 173/255, green: 135/255, blue: 117/255, alpha: 1)
         title.textAlignment = .center
         [backButton, title, backpackButton].forEach { header.addSubview($0) }

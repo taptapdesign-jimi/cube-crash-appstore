@@ -348,7 +348,7 @@
       "family": "Soundtrack route",
       "eventOwner": "NativeAppController routes, versioned Native Music setting and generation-scoped NativeThemedBoardTransitionController source phase contacts.",
       "transport": "Existing JimiNativeMusic file-backed AVAudioEngine via direct Swift perform call; no WKWebView instance. Native standalone Debug and Release define NATIVE_MUSIC_DIRECT_ONLY: JimiNativeMusic has no WebKit import or script-handler conformance in this target. Preserved hybrid targets without that condition retain the original validated reply bridge; AV transport/session code is unchanged.",
-      "voicePolicy": "Existing main file voice with one finite outgoing slot during source replacement. Incoming file opens and starts before outgoing retires;1.25s native fades crossfade Menu/Journey in both directions,retaining source phase and11percent gameplay gain. Arcade NN retains audible menu until Arcade actual play readiness,then uses its incoming fade duration and real fade-end receipt before pausing menu. A route lease rejects stale pause callbacks. Main/result and source-authored Journey phase envelopes remain.",
+      "voicePolicy": "Existing main file voice with one finite outgoing slot during source replacement. Incoming file opens and starts before outgoing retires;1.25s native fades crossfade Menu/Journey in both directions,retaining source phase and15.4percent gameplay gain (+40percent relative to0.11; shared with Arcade). Arcade NN retains audible menu until Arcade actual play readiness,then uses its incoming fade duration and real fade-end receipt before pausing menu. A route lease rejects stale pause callbacks. Main/result and source-authored Journey phase envelopes remain.",
       "preloadPolicy": "No voice allocated until native Music ON foreground play.",
       "settingsPolicy": "Native Music OFF immediately disposes voice and invalidates foreground recovery. Sounds remains separate.",
       "interruptionPolicy": "Activation/playback failures are diagnostic only and never replace gameplay. At most three finite current-route recovery attempts (150ms,500ms,1s); success,Music OFF,background,interruption,Arcade takeover and disposal cancel pending recovery. Interruption blocks route starts until ended or authoritative didBecomeActive. Music OFF/dispose/pause retires outgoing overlap; background suspends current nodes and releases finite outgoing files. Foreground starts only current enabled route. Rapid replacements retain at most one outgoing slot per route,existing native engine cap4players,old file remains audible if incoming open/start fails. Old fade callbacks cannot retire replacement or pause another route.",
@@ -608,7 +608,7 @@
       "family": "Arcade gameplay Soundtrack",
       "eventOwner": "Arcade NN presentation start and Round gameplay admission; actual native play success publishes onPlaybackReady to the main-theme route owner; exact result voice release receipts. Merge6 retains the same theme.",
       "transport": "Shared existing JimiNativeMusic segmented AVAudioEngine, direct Swift NativeSoundtrackTransport. No new session or WK runtime. Read-only state command observes real native audio clock. Native standalone Debug and Release define NATIVE_MUSIC_DIRECT_ONLY: JimiNativeMusic has no WebKit import or script-handler conformance in this target. Preserved hybrid targets without that condition retain the original validated reply bridge; AV transport/session code is unchanged.",
-      "voicePolicy": "One Arcade gameplay file at0.11;main theme can overlap only during bounded entry/return fade. NN begins the incoming file early,and only actual successful play allows menu fade-out. Existing StageClear0.07/result0/round phase continuity remain.",
+      "voicePolicy": "One Arcade gameplay file at0.154 (+40percent relative to0.11);main theme can overlap only during bounded entry/return fade. NN begins the incoming file early,and only actual successful play allows menu fade-out. Existing StageClear0.07/result0/round phase continuity remain.",
       "preloadPolicy": "Only admitted enabled foreground playback opens one immutable source; no eager decode.",
       "settingsPolicy": "Music independent of Sounds; OFF invalidates result/retirement leases and disposes the file voice.",
       "interruptionPolicy": "Background/interruption pauses the current voice and cancels finite leave work; a leaving voice retires immediately when hidden. Foreground resumes only enabled admitted gameplay. Media reset releases and prepares only the current file.",
@@ -766,6 +766,27 @@
         "native/standalone/Stack to SixTests/NativeCoconutTests.swift"
       ],
       "physicalAcceptance": "NEEDS PHYSICAL TEST: preserved speaker mix and measured frame pacing improvement versus prior capture. Other AVAudioPlayer families remain possible stall sources."
+    },
+    {
+      "id": "native-cubero-merge6-sfx",
+      "ownerFile": "native/gameplay-app/NativeGameplayAudioOwner.swift",
+      "family": "Wild/Special Cubero",
+      "eventOwner": "Accepted committed Cubero merge6 only; existing semantic receipt deduplicates playback.",
+      "transport": "Existing NativeAVGameplayAudioTransport; no new transport or timer.",
+      "voicePolicy": "One cubero-merge6-haya one-shot at0.48 gain,rate1,zero delay,natural end.",
+      "preloadPolicy": "Only selected/restored Cubero through NativeMeterSelectedAudioCatalog.",
+      "settingsPolicy": "Existing gameSoundsEnabled admission; Music unchanged.",
+      "interruptionPolicy": "Existing background/interruption/generation/route retirement and full stop.",
+      "stopExport": "stop",
+      "globalRegistryRequired": false,
+      "sources": [
+        "./assets/sound/Wild and special kockice/cubero/haya.wav"
+      ],
+      "tests": [
+        "native/standalone/Stack to SixTests/NativeGameplayAudioTests.swift",
+        "native/standalone/Stack to SixTests/NativeMeterSelectedAudioTests.swift"
+      ],
+      "physicalAcceptance": "NEEDS PHYSICAL TEST for phone speaker mix."
     }
   ]
 }

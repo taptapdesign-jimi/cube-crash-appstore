@@ -6,7 +6,7 @@ public enum NativeWildRewardPolicy {
     // Explicit user trial2026-10-21. Keep enabled until the user requests removal.
     // First special drop of a NEW Endurance run only; no save/schema mutation.
     static let enduranceBaloonFirstDropTrialEnabled = true
-    public static func choose(state:NativeBoardState,roll:Double,plainStarUnlocked:Bool,mushroomUnlocked:Bool=false,unlockedJourneyDice:Set<String>=[],nextRoll:()->Double) -> NativeWildRewardChoice? {
+    public static func choose(state:NativeBoardState,roll:Double,plainStarUnlocked:Bool,mushroomUnlocked:Bool=false,unlockedJourneyDice:Set<String>=[],allowEnduranceTrial:Bool=true,nextRoll:()->Double) -> NativeWildRewardChoice? {
         if state.mode == .journey {
             // Before this marker existed, Unit6's very first committed drop
             // was always Mushroom. Preserve that evidence in legacy saves.
@@ -14,7 +14,7 @@ public enum NativeWildRewardPolicy {
             guard let reward=NativeJourneyContent.reward(board:state.board,wildSpawnCount:state.wildSpawnCount,roll:roll,previous:state.lastWildDropType,mushroomIntroduced:introduced,unlockedDice:unlockedJourneyDice,introducedDice:state.earnedJourneyDice) else {return nil}
             return NativeWildRewardChoice(reward.archetype,variant:reward.variant)
         }
-        if enduranceBaloonFirstDropTrialEnabled,state.effectiveArcadeVariant == .endurance,
+        if allowEnduranceTrial,enduranceBaloonFirstDropTrialEnabled,state.effectiveArcadeVariant == .endurance,
            state.board == 1,state.wildSpawnCount == 0 {return .init(.juice,variant:"baloon")}
         // Keep the existing Arcade identities, but make the former introductory
         // variants eligible randomly instead of assigning them to numbered drops.

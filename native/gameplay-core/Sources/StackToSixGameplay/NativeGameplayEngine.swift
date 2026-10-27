@@ -1912,7 +1912,7 @@ public final class NativeGameplayEngine {
     public func beginSourceTutorialDemoActivation()->NativeSourceTutorialDemoActivationReceipt? {
         guard sourceTutorialDemoActivationEnabled,pendingSourceTutorialDemoActivation==nil,
             state.tutorial==nil,state.terminal==nil,drag==nil,!flags.isWaiting,
-            state.board==1,state.validationIssues(allowSourceDetachedGridReferences:sourceTutorialSubsequentPresentationEnabled).isEmpty,
+            state.board>0,state.validationIssues(allowSourceDetachedGridReferences:sourceTutorialSubsequentPresentationEnabled).isEmpty,
             NativeSourceTutorialDemoActivationReceipt.matchesOriginalDemo(state) else{return nil}
         sourceTutorialDemoActivationSequence &+= 1
         let cells=NativeTutorialRules.guidedCells(columns:state.columns,rows:state.rows)
@@ -1967,6 +1967,10 @@ public final class NativeGameplayEngine {
     }
     /// Arm before the first guided action. The actual stack and merge-six
     /// commits introduce Special Bar before Clear the Stage.
+    public func configureTutorialReward(_ reward:NativeWildRewardChoice) {
+        guard state.tutorial != nil,state.tutorial?.rewardArchetype == nil else{return}
+        state.tutorial?.rewardArchetype=reward.archetype;state.tutorial?.rewardVariant=reward.variant
+    }
     public func beginTutorialSpecialBarInterval() -> NativeMoveResult {
         guard state.terminal == nil, state.tutorial?.active == true,
               state.tutorial?.step != .special,
@@ -2024,14 +2028,13 @@ public final class NativeGameplayEngine {
             state.tutorial?.step == .freePlay || state.tutorial?.step == .special,
             let wildIndex=state.tiles.firstIndex(where:{$0.id==wildID}),
             !sourceTutorialDestroyedIDs.contains(wildID),state.tiles[wildIndex].value>0,!state.tiles[wildIndex].locked,
-            state.tiles[wildIndex].variant.flatMap({NativeSpecialDiceRegistry.variants[$0]?.visualFinale}) == .star ||
-                (!state.tiles[wildIndex].sourceWildStateCleared && (state.tiles[wildIndex].archetype == .star || state.tiles[wildIndex].sourceResidualWildPresence)),
+            state.tiles[wildIndex].isWild,
             let target=NativeTutorialRules.sourceFourthTarget(state:state,wildID:wildID,destroyedIDs:sourceTutorialDestroyedIDs),target.id==targetID,
             let cell=NativeTutorialRules.sourceFourthWildCell(state:state,wildID:wildID,destroyedIDs:sourceTutorialDestroyedIDs),
             let targetIndex=state.tiles.firstIndex(where:{$0.id==targetID}) else{return rejected("source_tutorial_fourth_preparation_stale")}
         var prepared=state
         guard prepared.sourcePlaceTutorialTile(id:wildID,at:cell) else{return rejected("source_tutorial_fourth_placement_unavailable")}
-        prepared.tiles[wildIndex].archetype = .star;prepared.tiles[wildIndex].sourceWildStateCleared=false;prepared.tiles[wildIndex].sourceResidualWildPresence=false
+        prepared.tiles[wildIndex].sourceWildStateCleared=false;prepared.tiles[wildIndex].sourceResidualWildPresence=false
         prepared.tiles[wildIndex].locked=false;prepared.tiles[wildIndex].value=6;prepared.tiles[wildIndex].visible=true;prepared.tiles[wildIndex].alpha=1
         prepared.tiles[targetIndex].value=target.value;prepared.tiles[targetIndex].archetype=nil
         // Match the ordinary tutorial node's initial-value setter. This tile
@@ -2066,7 +2069,7 @@ public final class NativeGameplayEngine {
             }
         case .freePlay: break
         case .special:
-            guard source.gameplayArchetype == .star || destination.gameplayArchetype == .star else { return }
+            guard source.id == tutorial.wildTileID || destination.id == tutorial.wildTileID else { return }
             // Admitted Source fourth presentation still owns its wall60,
             // pointer/sheet exits and restoration. A merge cannot retire it.
             if sourceTutorialSubsequentPresentationEnabled,sourceTutorialFourthPreparation?.generation==state.generation{return}
@@ -2083,7 +2086,7 @@ public final class NativeGameplayEngine {
             state.tutorial?.active==true,state.tutorial?.step == .special else{return rejected("source_tutorial_fourth_completion_stale")}
         let destroyed=sourceTutorialDestroyedIDs
         let wild=state.tiles.first{$0.id==receipt.wildID}
-        let wildConsumed=wild==nil || destroyed.contains(receipt.wildID) || wild?.gameplayArchetype != .star
+        let wildConsumed=wild==nil || destroyed.contains(receipt.wildID) || wild?.isWild != true
         let hasSix=state.tiles.contains{!destroyed.contains($0.id) && !$0.locked && $0.gameplayArchetype==nil && $0.value==6 && $0.cell.row<=min(state.rows-1,5)}
         guard wildConsumed || hasSix else{return rejected("source_tutorial_fourth_completion_not_ready")}
         state.tutorial?.active=false;state.tutorial?.guideCompleted=true;state.tutorial?.completionAssist=true;state.tutorial?.guidedPair=[]
@@ -2091,6 +2094,10 @@ public final class NativeGameplayEngine {
         return NativeMoveResult(accepted:true,state:state,events:[],resolution:resolve())
     }
     /// Result acknowledgement is scoped to a tutorial run that actually completed its guide.
+    public func acknowledgeTutorialEncouragement() {
+        guard state.tutorial?.guideCompleted == true else{return}
+        state.tutorial?.encouragementAcknowledged=true
+    }
     public func acknowledgeTutorialResult() -> Bool {
         guard state.terminal != nil, state.tutorial?.guideCompleted == true else { return false }
         state.tutorial?.done = true; state.tutorial?.completionAssist = false; return true
@@ -2358,7 +2365,7 @@ public final class NativeGameplayEngine {
         let available = NativeMagnetRules.emptyCells(state:state,excluding:sourceMeterDropExcludedCells)
         guard !available.isEmpty else { return false }
         let cell = state.tutorial?.waitingForWild == true ? (NativeTutorialRules.preferredWildCell(state:state) ?? available[min(available.count-1,Int(nextRandom()*Double(available.count)))]) : available[min(available.count-1,Int(nextRandom()*Double(available.count)))]
-        let choice = state.tutorial?.waitingForWild == true ? NativeWildRewardChoice(.star) : rewardPicker?(state,nextRandom(),{ self.nextRandom() })
+        let choice = state.tutorial?.waitingForWild == true ? (state.tutorial?.reward ?? NativeWildRewardChoice(.star)) : rewardPicker?(state,nextRandom(),{ self.nextRandom() })
         guard let reward = choice, reward.variant == nil || NativeSpecialDiceRegistry.compatibleVariant(reward.variant!,core:reward.archetype) != nil else { return false }
         state.removeSourceGridOwner(at:cell)
         var tile = freshTile(cell:cell,value:6); tile.archetype = reward.archetype; tile.variant = reward.variant
@@ -4376,7 +4383,7 @@ extension NativeGameplayEngine {
             }
             if flow.attempted.contains(cell) {flow.tries+=1;continue}
             flow.attempted.insert(cell)
-            let choice=forceTutorialWildStar ? NativeWildRewardChoice(.star):rewardPicker?(state,nextRandom(),{self.nextRandom()})
+            let choice=forceTutorialWildStar ? (state.tutorial?.reward ?? NativeWildRewardChoice(.star)):rewardPicker?(state,nextRandom(),{self.nextRandom()})
             guard let choice,choice.variant==nil || NativeSpecialDiceRegistry.compatibleVariant(choice.variant!,core:choice.archetype) != nil else{flow.tries+=1;continue}
             var tile=freshTile(cell:cell,value:6);tile.archetype=choice.archetype;tile.variant=choice.variant;tile.visible=false;tile.alpha=0
             if choice.archetype == .star {tile.starOrbitCount=initialStarDropCount(variant:choice.variant)}

@@ -269,3 +269,7 @@ Coconut contact playback (2026-10-24): only coconut-contact mini2 gain0.15 now u
 - Native BLOOB bluub1–4 gain2026-10-24:user requests+4dB relative0.6;all four now0.6×10^(4/20)=0.9509359154766681. Immediate onset/unique receipt/natural tail unchanged.
 
 - Native BLOOB extended anticipation (2026-10-24): hero burst moves exactly1s later; SPLAT start uses600ms baseline+the same1s extension(total1600ms after committed merge),gain0.504 unchanged. Immediate bluub1–4 natural tails/+4dB,paint splat and beams unchanged.
+
+### Native Cubero merge6 — 2026-10-27
+
+User-supplied `assets/sound/Wild and special kockice/cubero/haya.wav` is the approved Haaaa→yaaaa ordering,1.450167s,48kHz,stereo16-bit PCM,peak0.95575,no clipped samples. Native committed Cubero merge6 plays one `cubero-merge6-haya` voice at0.48 gain/rate1 with no delay,natural end. Existing receipt deduplication,selected meter preload,Sounds gate and background/generation/route cleanup own it. Original file bytes preserved;no other Special family or preserved web audio changed. Physical speaker fit NEEDS PHYSICAL TEST.

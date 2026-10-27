@@ -208,7 +208,7 @@ import AVFAudio
   let rows=try JSONDecoder().decode(Gold.self,from:Data(contentsOf:url)).rows
   XCTAssertEqual(rows.count,17)
   for row in rows {XCTAssertEqual(NativeMeterSelectedAudioCatalog.sources(special:row.special,variant:row.id),row.sources)}
-  XCTAssertEqual(NativeMeterSelectedAudioCatalog.sources(special:"wild",variant:"cubero"),[])
+  XCTAssertEqual(NativeMeterSelectedAudioCatalog.sources(special:"wild",variant:"cubero"),["./assets/sound/Wild and special kockice/cubero/haya.wav"])
   XCTAssertEqual(NativeMeterSelectedAudioCatalog.sources(special:"wild",variant:"mushroom"),[])
   XCTAssertNil(NativeMeterSelectedAudioCatalog.sources(special:"wild",variant:"unknown"))
  }

@@ -41,6 +41,14 @@ public struct NativeNoMovesTileRuntime: Equatable, Sendable {
 
 /// Forced checkEndGame with no src/dst merge context. No debounce/cache/clock.
 public enum NativeSourceEndgameChecker {
+    /// Preserved PWA endgame-hint eligibility uses the physical active roster,
+    /// not canonical tiles awaiting cleanup. This is presentation admission only.
+    public static func idleHintEligible(state:NativeBoardState,runtime:[String:NativeNoMovesTileRuntime])->Bool {
+        guard state.terminal==nil,!runtime.values.contains(where:{$0.explicitFinal}),
+              check(state:state,runtime:runtime).kind == .continue else{return false}
+        let tiles=state.tiles.filter{active($0,runtime:runtime[$0.id] ?? .init())}
+        return tiles.count>=2 && !tiles.contains(where:{$0.isWild}) && anyMerge(tiles)
+    }
     static func transient(_ t:NativeTile,_ r:NativeNoMovesTileRuntime)->Bool {
         if r.destroyed{return false}
         if r.wildHandoff{return true}

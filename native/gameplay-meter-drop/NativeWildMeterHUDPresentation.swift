@@ -55,10 +55,10 @@ import UIKit
     private var tutorialFillBase:(CGPoint,CGFloat,CGFloat)?
     private var tutorialBubbleStep=0
     var tutorialPulseRunning:Bool{tutorialPulseActive}
+    static let tutorialPulseDuration=1.6/1.1
     static func tutorialPulseScale(_ seconds:Double)->Double {
-        let t=max(0,min(0.6,seconds))
-        if t<=0.3 {return 1+0.04*JimiV9Motion.Ease.backOut(1.7).value(t/0.3)}
-        return 1.04-0.04*JimiV9Motion.Ease.backOut(1.7).value((t-0.3)/0.3)
+        let t=max(0,min(1,seconds/tutorialPulseDuration))
+        return 1+0.03*(0.5-0.5*cos(t*2*Double.pi))
     }
     func startTutorialPulse() {
         guard !closed,!tutorialPulseActive,current(),!UIAccessibility.isReduceMotionEnabled else{return}
@@ -70,7 +70,7 @@ import UIKit
     private func runTutorialPulse(_ epoch:UInt64) {
         guard !closed,tutorialPulseActive,tutorialPulseEpoch==epoch,current() else{return}
         tutorialBubbleStep=0
-        tutorialPulseCancel=driver.start(duration:0.6,paint:{[weak self] seconds in
+        tutorialPulseCancel=driver.start(duration:Self.tutorialPulseDuration,paint:{[weak self] seconds in
             guard let self,!self.closed,self.tutorialPulseActive,self.tutorialPulseEpoch==epoch,self.current(),self.tutorialPulseBase != nil else{return}
             guard let base=self.tutorialPulseBase else{return}
             let scale=CGFloat(Self.tutorialPulseScale(seconds))
@@ -78,11 +78,11 @@ import UIKit
             let center=self.background.path?.boundingBox.midX ?? 0
             self.container.position=CGPoint(x:base.0.x-center*base.1*(scale-1),y:base.0.y+5*base.2*(scale-1))
             if let fillBase=self.tutorialFillBase {
-                let spring=(scale-1)/0.04,extra=1+0.1*spring,stretch=(1+0.4*spring)*extra
+                let spring=(scale-1)/0.03,extra=1+0.035*spring,stretch=(1+0.12*spring)*extra
                 self.fill.xScale=fillBase.1*stretch;self.fill.yScale=fillBase.2*extra
                 self.fill.position=CGPoint(x:fillBase.0.x+CGFloat(self.owner.left)*fillBase.1*(1-stretch),y:fillBase.0.y+5*fillBase.2*(extra-1))
             }
-            let step=min(2,Int((seconds+1e-9)/0.3))
+            let step=Int((seconds+1e-9)/0.3)
             if step>self.tutorialBubbleStep {
                 self.tutorialBubbleStep=step;self.smoke.emitTutorialBubble()
             }

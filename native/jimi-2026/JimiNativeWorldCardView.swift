@@ -76,8 +76,8 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         back.layer.transform = CATransform3DTranslate(CATransform3DMakeRotation(-.pi,0,1,0),0,0,0.6)
         panel.backgroundColor = .clear; panel.layer.cornerRadius = 34; panel.clipsToBounds = true;back.addSubview(panel)
         paper.image = resources.image("assets/modals/paper.png",owner:boardID); paper.contentMode = .scaleToFill; paper.alpha = 1; panel.addSubview(paper)
-        let cardTitle=(21...30).contains(boardID) ? "Area":worldTitle
-        title.text = String(format:"%@ %02d",cardTitle,(boardID-1)%10+1); title.font = assets.font(size:32,weight:"ExtraBold"); title.textAlignment = .center; title.textColor = UIColor(red:173/255,green:134/255,blue:117/255,alpha:1); back.addSubview(title)
+        title.accessibilityIdentifier = "native.world.card.stage-title"
+        title.text = String(format:"Stage %02d",(boardID-1)%10+1); title.font = assets.font(size:28,weight:"ExtraBold"); title.textAlignment = .center; title.textColor = UIColor(red:173/255,green:134/255,blue:117/255,alpha:1); back.addSubview(title)
         stars.axis = .horizontal; stars.spacing = 8; stars.alignment = .center
         for index in 0..<3 {
             let image = UIImageView(image:resources.image(index < unit.stars ? "assets/modals/star.png" : "assets/modals/star-empty.png",owner:boardID)); image.contentMode = .scaleAspectFit; image.widthAnchor.constraint(equalToConstant:31.45).isActive = true; image.heightAnchor.constraint(equalToConstant:31.45).isActive = true; image.transform = index == 1 ? CGAffineTransform(translationX:0,y:-8) : CGAffineTransform(rotationAngle:index == 0 ? -8 * .pi/180 : 8 * .pi/180); stars.addArrangedSubview(image)
@@ -92,8 +92,8 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
             let row = UIView();row.heightAnchor.constraint(equalToConstant:112).isActive = true
             let offset:CGFloat = index == 0 ? 6 : -6
             let icon = UIImageView(image:resources.image(index == 0 ? "assets/highscore-icon.png" : "assets/combo-icon.png",owner:boardID));icon.contentMode = .scaleAspectFit;icon.frame = CGRect(x:0,y:16+offset,width:80,height:80);row.addSubview(icon)
-            let value = UILabel(frame:CGRect(x:96,y:32.2+offset,width:180,height:32));value.text = pair.1;value.font = assets.font(size:32,weight:"Bold");value.textColor = UIColor(red:232/255,green:116/255,blue:74/255,alpha:1);row.addSubview(value)
-            let label = UILabel(frame:CGRect(x:96,y:66.2+offset,width:180,height:21.6));label.text = index == 0 ? "High score" : "Longest combo";label.font = assets.font(size:20,weight:"Medium");label.textColor = title.textColor;row.addSubview(label)
+            let value = UILabel(frame:CGRect(x:96,y:32.2+offset,width:180,height:32));value.text = pair.1;value.font = assets.font(size:28,weight:"Bold");value.textColor = UIColor(red:232/255,green:116/255,blue:74/255,alpha:1);row.addSubview(value)
+            let label = UILabel(frame:CGRect(x:96,y:66.2+offset,width:180,height:21.6));label.text = index == 0 ? "High score" : "Longest combo";label.font = assets.font(size:18,weight:"Medium");label.textColor = title.textColor;row.addSubview(label)
             stats.addArrangedSubview(row)
         }
         back.addSubview(stats)
@@ -127,9 +127,10 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         let size = carrier.bounds.size;dragShell.frame = carrier.bounds;effectShell.frame = carrier.bounds;pinchShell.frame = carrier.bounds;rotorShell.frame = carrier.bounds
         front.bounds = carrier.bounds;front.center = CGPoint(x:size.width/2,y:size.height/2);back.bounds = carrier.bounds;back.center = front.center;panel.frame = carrier.bounds;paper.frame = CGRect(x:-6,y:0,width:size.width+12,height:size.height+16)
         stars.frame = CGRect(x:(size.width-110.35)/2,y:40.55,width:110.35,height:31.45)
-        title.frame = CGRect(x:24,y:80,width:size.width-48,height:32)
+        let titleWidth = min(ceil(title.intrinsicContentSize.width),max(0,size.width-48))
+        title.frame = CGRect(x:(size.width-titleWidth)/2,y:80,width:titleWidth,height:32)
         // v10 .cc-cta--standard-width: 226px below 768px, otherwise 250px.
-        let ctaWidth:CGFloat = min((bounds.width < 768 ? 226:250)*JimiV9PlainButton.ctaWidthScale,size.width-32)
+        let ctaWidth:CGFloat = min((bounds.width < 768 ? 226:250)*JimiV9PlainButton.ctaWidthScale,size.width-32)*0.95
         // Preserve a 40pt paper inset while giving the stat copy 16pt more
         // breathing room; the PWA stack also reserves a 24pt stats margin.
         cta.setCartoonBounceFrame(CGRect(x:(size.width-ctaWidth)/2,y:size.height-40-JimiV9PlainButton.primaryCTAHeight,width:ctaWidth,height:JimiV9PlainButton.primaryCTAHeight))
@@ -139,7 +140,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         stats.frame=CGRect(x:24,y:120,width:size.width-48,height:rowHeight*2+18)
         for (index,row) in stats.arrangedSubviews.enumerated() {
             if let divider=row.subviews.first(where:{$0.tag == 701}) {
-                divider.frame=CGRect(x:0,y:8,width:stats.bounds.width,height:2);continue
+                divider.frame=CGRect(x:8,y:8,width:max(0,stats.bounds.width-16),height:2);continue
             }
             row.constraints.first(where:{$0.firstAttribute == .height})?.constant=rowHeight
             if rowHeight == 112 {
@@ -147,7 +148,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
                 row.subviews.compactMap{$0 as? UIImageView}.first?.frame=CGRect(x:0,y:16+offset,width:80,height:80)
                 let labels=row.subviews.compactMap{$0 as? UILabel}
                 if labels.count == 2 {
-                    labels[0].font=labels[0].font.withSize(32);labels[1].font=labels[1].font.withSize(20)
+                    labels[0].font=labels[0].font.withSize(28);labels[1].font=labels[1].font.withSize(18)
                     labels[0].frame=CGRect(x:96,y:32.2+offset,width:max(0,stats.bounds.width-96),height:32)
                     labels[1].frame=CGRect(x:96,y:66.2+offset,width:max(0,stats.bounds.width-96),height:21.6)
                 }
@@ -159,7 +160,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
             if labels.count == 2 {
                 let value=labels[0],label=labels[1]
                 let valueHeight:CGFloat=32-8*compact,labelHeight:CGFloat=21.6-3.6*compact
-                value.font=value.font.withSize(32-8*compact);label.font=label.font.withSize(20-4*compact)
+                value.font=value.font.withSize(28);label.font=label.font.withSize(18)
                 let top=(rowHeight-valueHeight-labelHeight-2)/2
                 value.frame=CGRect(x:left,y:top,width:max(0,stats.bounds.width-left),height:valueHeight)
                 label.frame=CGRect(x:left,y:top+valueHeight+2,width:max(0,stats.bounds.width-left),height:labelHeight)

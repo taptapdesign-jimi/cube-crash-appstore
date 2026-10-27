@@ -346,3 +346,16 @@ preserves reward eligibility, first-drop selection, Arcade pools and gameplay.
 BLOB POD Special (`bloob-ball`,user replacement2026-10-23) uses shared Barrel/TNT whole-board ordinary-die replacement in Journey and Arcade,both directions. Historical Star-tagged Bloob saves resolve through the canonical TNT registry without changing stable IDs. Protected Wild/locked policy,capacity,endgame,save/input and arrival-owned HUD receipts follow the shared Barrel transaction. Old fixed-two Star bonus and six bespoke coin policy are retired;final merges never spawn. Gas artwork replaces smoke,with original assets and archived Shards Float Hovering recipe preserved.
 
 Global Native new-face enter (2026-10-23): new numbered dice may remain at presentation scale0 while exact pending/bounce ownership is active. This is not an absent logical/model tile or a synthetic Source spawn marker. Physical pre-spawn/final guards retain their actual existing transaction semantics; cleanup must release pending/active entry and restore current live nodes,never old generations/successor entries. Primary/bonus receipt delivery follows the real visible bounce rather than a nominal fast timer; counters,final veto,save,input and once-only continuations remain canonical. Existing survivors keep fullsize.
+
+## Contextual first-play onboarding (user decision 2026-10-26)
+This supersedes the separate plain-Star tutorial exception above. Home Journey
+opens World selection; tutorial begins on the selected first Unit Play (global
+board1/11/21), uses that World's first Special, and completes via ordinary
+CLEARED/result/card progression. Arcade first-play stays in its selected variant,
+chooses an eligible random Special once, skips tutorial round-number entry/next
+round presentation, and shows Tutorial completed/thumb/Continue before real
+round1. Practice does not earn Arcade stats or advance Journey. One global
+completion receipt suppresses all later onboarding. A single optional firstPlayRun
+slot retains coherent guide checkpoints and selected Special; old saves default
+absent. The post-Special Great merge sheet is acknowledged once per guide before
+free board clearing. Original art, merge semantics and ordinary result motion stay.

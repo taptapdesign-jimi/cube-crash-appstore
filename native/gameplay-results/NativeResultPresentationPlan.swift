@@ -5,6 +5,7 @@ import CoreGraphics
 /// supplies time and persisted values; this module never commits a result or route.
 enum NativeResultPresentationPlan {
     static let cleanPrimaryCTAStart=6.62
+    static let cleanAfterClearedStart=0.47
     struct Pose: Equatable {
         var opacity:Double=1,scale:Double=1,y:Double=0,scaleBeforeTranslation=false
         /// CSS function order matters: Clean uses scale() translateY(), Fail

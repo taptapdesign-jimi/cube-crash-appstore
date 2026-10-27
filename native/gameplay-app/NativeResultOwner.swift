@@ -111,24 +111,28 @@ final class NativeResultOwner {
         } else {showResult()}
     }
     private func presentResult(gameplay:NativeGameplayViewController,state:NativeBoardState,clean:Bool,combo:Int,efficiency:Int,score:Int,arcadeReached:Bool) {
-        let sheet=NativeResultController(root:root,state:state,clean:clean,combo:combo,efficiency:efficiency,finalScore:score,interimJourney:interimJourney,arcadeReached:arcadeReached,arcadeCelebrationPresented:gameplay.hasPresentedBoardCleared)
+        let sheet=gameplay.takePreparedJourneyResult(generation:state.generation) ?? NativeResultController(root:root,state:state,clean:clean,combo:combo,efficiency:efficiency,finalScore:score,interimJourney:interimJourney,arcadeReached:arcadeReached,arcadeCelebrationPresented:gameplay.hasPresentedBoardCleared)
         sheet.onForestAmbience=onForestAmbience
         sheet.onMoment=onMoment
         sheet.onHaptic=onHaptic
         sheet.onCommit = { [weak self] in try self?.commit(score) }
         sheet.onAction = { [weak self,weak sheet] action in
             guard let self,let sheet,self.modal === sheet else {return}
+            // Only the completed first-play Journey result returns to its
+            // retained World. Later ordinary Continue keeps advancing Units.
+            var destination=action
+            if case .nextJourney=action,clean,state.mode == .journey,state.tutorial?.requiresResultCompletion==true {destination = .exit}
             let preparation:((@escaping (Bool)->Void)->Void)?
-            if case .exit=action,state.mode == .journey {preparation=self.prepareExit}else {preparation=nil}
+            if case .exit=destination,state.mode == .journey {preparation=self.prepareExit}else {preparation=nil}
             sheet.close(prepareDestination:preparation) {
                 guard self.modal === sheet else {return}
                 self.finishSourceFinalCleanup()
                 guard !self.disposed,self.modal === sheet else{return}
                 self.modal=nil
-                switch action {case .restart:self.restart();case .exit:self.exit();case .nextRound:self.continueArcade();case .nextJourney:self.continueJourney?()}
+                switch destination {case .restart:self.restart();case .exit:self.exit();case .nextRound:self.continueArcade();case .nextJourney:self.continueJourney?()}
             }
         }
-        modal=sheet;gameplay.setSuspended(true);onMoment?("modal-open",0,nil);gameplay.present(sheet,animated:false)
+        modal=sheet;sheet.admitPreparedHandoff();gameplay.setSuspended(true);onMoment?("modal-open",0,nil);gameplay.present(sheet,animated:false)
         if let receipt=sourceNoMovesReceipt {
             gameplay.boardScene?.traceNoMovesHandoff("result-mount",token:receipt.planToken,owner:sheet,mounted:sheet.view.window != nil)
         }
@@ -187,6 +191,7 @@ final class NativeResultController:UIViewController {
     private var commitAttempted=false
     private var disposed=false
     private var suspended=false
+    private var presentationAdmitted=true
     private var commitFault:Error?
     var onCommit:(() throws -> Void)?
     var onAction:((Action)->Void)?
@@ -233,7 +238,7 @@ final class NativeResultController:UIViewController {
         let orange=UIColor(red:231/255,green:116/255,blue:73/255,alpha:1)
         let brown=UIColor(red:182/255,green:144/255,blue:119/255,alpha:1)
         let values:[(UILabel,CGFloat,String,UIColor)]=[(heading,clean ? 40 : 56,"ExtraBold",clean ? UIColor(red:176/255,green:127/255,blue:105/255,alpha:1) : orange),
-            (scoreLabel,20,"SemiBold",brown),(score,80,"ExtraBold",orange),(status,20,"SemiBold",brown),
+            (scoreLabel,18,"SemiBold",brown),(score,80,"ExtraBold",orange),(status,18,"SemiBold",brown),
             (bonus,36,"ExtraBold",orange),(bonusLabel,18,"SemiBold",UIColor(red:196/255,green:138/255,blue:109/255,alpha:1))]
         for (label,size,weight,color) in values {
             label.font=assets.font(size:size,weight:weight);label.textColor=color;label.textAlignment = .center
@@ -245,7 +250,7 @@ final class NativeResultController:UIViewController {
         heading.attributedText=NSAttributedString(string:headline,attributes:[.font:heading.font!,.foregroundColor:heading.textColor!,.paragraphStyle:paragraph])
         heading.numberOfLines=0;heading.lineBreakMode = .byWordWrapping
         if finalScore > state.bestScore {
-            let label=NSMutableAttributedString(string:"NEW ",attributes:[.font:assets.font(size:20,weight:"ExtraBold"),.foregroundColor:UIColor(red:233/255,green:122/255,blue:85/255,alpha:1),.kern:0.4])
+            let label=NSMutableAttributedString(string:"NEW ",attributes:[.font:assets.font(size:18,weight:"ExtraBold"),.foregroundColor:UIColor(red:233/255,green:122/255,blue:85/255,alpha:1),.kern:0.4])
             label.append(NSAttributedString(string:"Highscore",attributes:[.font:scoreLabel.font!,.foregroundColor:brown,.kern:0.4]))
             scoreLabel.attributedText=label
         } else {scoreLabel.text="Your score"}
@@ -302,6 +307,10 @@ final class NativeResultController:UIViewController {
                 ships.mount(overlay:view,content:content);area55Flybys=ships
             }
         }
+        // The shared clean entry spring has an invisible anticipation segment.
+        // CLEARED already supplied that anticipation: hand straight into the
+        // first readable hero/title frame instead of mounting blank paper.
+        if clean,state.mode == .journey,(arcadeCelebrationPresented || interimJourney) {elapsed=NativeResultPresentationPlan.cleanAfterClearedStart}
         let target=NativeResultClockTarget(owner:self);clockTarget=target
         let link=CADisplayLink(target:target,selector:#selector(NativeResultClockTarget.tick(_:)));self.link=link;link.add(to:.main,forMode:.common)
         paint()
@@ -314,7 +323,7 @@ final class NativeResultController:UIViewController {
         let lineHeight:CGFloat=clean ? 40:56
         let lines=max(1,ceil((measured-0.5)/lineHeight))
         let titleHeight=lines*lineHeight
-        let layout=NativeResultPresentationPlan.layout(viewport:view.bounds.size,clean:clean,titleHeight:titleHeight,primarySize:CGSize(width:min(view.bounds.width<1025 ? 249:310,view.bounds.width*0.8),height:JimiV9PlainButton.pairedModalCTAHeight),actionGap:JimiV9PlainButton.pairedModalCTAGap)
+        let layout=NativeResultPresentationPlan.layout(viewport:view.bounds.size,clean:clean,titleHeight:titleHeight,primarySize:CGSize(width:min(view.bounds.width<1025 ? 230*0.94:310*0.94,view.bounds.width*0.8),height:JimiV9PlainButton.pairedModalCTAHeight),actionGap:JimiV9PlainButton.pairedModalCTAGap)
         place(cardContent,in:layout.card)
         place(stars,in:layout.hero.offsetBy(dx:-layout.card.minX,dy:-layout.card.minY))
         for index in 0..<3 {
@@ -349,6 +358,13 @@ final class NativeResultController:UIViewController {
     private func place(_ target:UIView,in rect:CGRect) {
         target.bounds=CGRect(origin:.zero,size:rect.size);target.center=CGPoint(x:rect.midX,y:rect.midY)
     }
+    func prepareForHandoff(viewport:CGSize) {
+        guard !disposed,!isViewLoaded else{return}
+        presentationAdmitted=false
+        loadViewIfNeeded();view.frame=CGRect(origin:.zero,size:viewport);view.setNeedsLayout();view.layoutIfNeeded()
+        setSuspended(true)
+    }
+    func admitPreparedHandoff(){guard !disposed else{return};presentationAdmitted=true;setSuspended(false);if isViewLoaded{paint()}}
     func tick(_ timestamp:CFTimeInterval) {
         guard !disposed,!suspended,!arcadeCue else {lastTime=nil;return}
         if let lastTime {elapsed += min(0.1,max(0,timestamp-lastTime))};lastTime=timestamp
@@ -359,7 +375,7 @@ final class NativeResultController:UIViewController {
         paint()
     }
     private func commitOnce() {
-        guard !commitAttempted else {return};commitAttempted=true
+        guard presentationAdmitted,!commitAttempted else {return};commitAttempted=true
         do {try onCommit?();committed=true;commitFault=nil}
         catch {commitFault=error;status.text=error.localizedDescription;status.numberOfLines=0}
     }
@@ -457,7 +473,7 @@ final class NativeResultController:UIViewController {
     }
     private func moment(_ kind:String,at time:Double,index:Int=0,duration:Double?=nil) {
         let key="\(kind):\(time):\(index)"
-        guard elapsed >= time,!sentMoments.contains(key) else{return};sentMoments.insert(key)
+        guard presentationAdmitted,elapsed >= time,!sentMoments.contains(key) else{return};sentMoments.insert(key)
         onMoment?(kind,index,duration)
     }
     @objc private func activate(_ sender:UIButton) {
@@ -487,6 +503,7 @@ final class NativeResultController:UIViewController {
     }
     private func finishClose() {let completion=closed;closed=nil;dispose();dismiss(animated:false,completion:completion)}
     func setSuspended(_ value:Bool) {
+        guard value || presentationAdmitted else{return}
         if clean,state.mode == .journey,(1...10).contains(state.board),closingAt == nil,!disposed {onForestAmbience?(true,value)}
         buttons.forEach{$0.setModalCTAIdleSuspended(value || disposed)}
         suspended=value;lastTime=nil;link?.isPaused=value;arcadePresentation?.setSuspended(value);confetti?.setForeground(!value);area55Flybys?.setForeground(!value)

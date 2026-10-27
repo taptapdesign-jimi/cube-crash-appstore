@@ -6,9 +6,9 @@ enum NativeTextPalette {
     static let subtitle = UIColor(red:189/255,green:151/255,blue:136/255,alpha:1) // #BD9788
 }
 
-/// Modal subtitles share Combo's 20pt / 26pt rhythm, including explicit newlines.
+/// Modal subtitles use the shared 18pt / 23.4pt rhythm, including explicit newlines.
 enum NativeModalTypography {
-    static func subtitleParagraph(fontSize:CGFloat=20,alignment:NSTextAlignment = .center)->NSParagraphStyle {
+    static func subtitleParagraph(fontSize:CGFloat=18,alignment:NSTextAlignment = .center)->NSParagraphStyle {
         let paragraph=NSMutableParagraphStyle()
         paragraph.alignment=alignment
         paragraph.minimumLineHeight=fontSize*1.3

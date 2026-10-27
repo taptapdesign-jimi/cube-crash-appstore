@@ -1,0 +1,219 @@
+{
+  "date": "2026-10-26",
+  "viewportPoints": [
+    390,
+    844
+  ],
+  "screenshotScale": 3,
+  "scenes": 31,
+  "measuredTextElements": 116,
+  "ctaExamples": 17,
+  "checks": {
+    "nativeCapture": "PASS /tmp/typography-library-capture-final.log",
+    "nativeSupplement": "PASS /tmp/typography-library-supplement.log",
+    "javascriptSyntax": "PASS node --check",
+    "dataAndAssets": "PASS unique refs,all image paths/source files exist,positive font/frame dimensions,no empty scenes,no narrow broken CTA fixture",
+    "browserSearch": "PASS Forest navigation →1screen;216,2 →8entries",
+    "browserCTAFilter": "PASS17examples",
+    "browserCopyPrompt": "PASS actual clipboard read matches STS-NAV-FOREST-01,32pt,#AD8775 and correct Native owner",
+    "browserConsoleErrors": [],
+    "temporaryTestRemoved": true,
+    "originalGameAssets": "UNCHANGED"
+  },
+  "normalNativePreview": {
+    "fullerCTARasters": {
+      "exit-240-4x.png": "7c56a4c871223bcbcfcb1640b42974802489fe879f11ebc8d3efe65c051447e8",
+      "restart-240-6x.png": "62089618b5c696e191866abe111048abfcf53d236e2b2632ad18bbca8588fe04",
+      "restart-249-4x.png": "feced5b698d1afbd730ff185a27c3e9560ae05a828c503d61fb1713c677c1b8c",
+      "exit-249-6x.png": "5cce6f33b231c19240a64dc488cd670db5f4619b1c7abb43ebe0270d0cf7b79d",
+      "restart-240-4x.png": "ebe91b05616824bcd7fdd329a318aaef7a49d3ee77d5003f7ce265283696f8c7",
+      "exit-240-6x.png": "56e35675874b0897bb897850b4e882fbe19f6bf78ce5fd2305b642dc818c98e3",
+      "exit-249-4x.png": "d04fcdf48dd65a101d1561752fc321782ccbaa7b895fccf8ea1926baa448b7b2",
+      "restart-249-6x.png": "806ce0e1770adde7bb0ff908e99976a5b7548eb0de7a6cfb823c52177946a0ce"
+    },
+    "launch": "com.taptapdesign.stacktosix.native: 28929",
+    "builtAndInstalledDylib": {
+      "Stack to Six.debug.dylib": "f4fa77fcbce9c0e991985b5f86ba7236dd85da23de36c7dcb0d07dca7b41f705"
+    },
+    "savesPreserved": {
+      "state-v1.json": true,
+      "state-v1.previous.json": true
+    },
+    "dataContainer": "/Users/user/Library/Developer/CoreSimulator/Devices/1018BE2D-491B-465F-8F75-3E5BEB38C22A/data/Containers/Data/Application/FDA0CA4E-BC91-423D-95E9-31D5D418AC30/Library/Application Support/StackToSixNative"
+  },
+  "physicalAcceptance": "NEEDS PHYSICAL TEST; this artifact is a Simulator design reference",
+  "titleAudit": {
+    "status": "PASS",
+    "exact32ptLocations": 18,
+    "navigationLocations": 10,
+    "navigation28ptLocations": 2,
+    "ctaFallbackCount": 17,
+    "checks": [
+      "Exact-size chips",
+      "Semantic family filter",
+      "Search shortcut titlovi 32",
+      "Screenshot location selection",
+      "CTA filter recovery",
+      "Browser console without errors"
+    ],
+    "scope": "Captured component snapshot only; editorial findings do not modify runtime"
+  },
+  "sidebarNavigation": {
+    "status": "PASS",
+    "case": "titlovi 32 → Stage Play CTA",
+    "visible": true,
+    "selected": "Play",
+    "sectionTop": 90
+  },
+  "arcadeHeadings28": {
+    "status": "PASS",
+    "titles": [
+      "Endurance",
+      "One Lucky Drop",
+      "Slow Burn"
+    ],
+    "measuredSize": 28,
+    "font": "Baloo2-ExtraBold",
+    "color": "#AD8775",
+    "mountedLog": "/tmp/arcade-title-capture-final.log"
+  },
+  "navigationHeadings28": {
+    "status": "PASS",
+    "screens": [
+      "Journey",
+      "Arcade",
+      "Forest",
+      "Beach",
+      "Area 55",
+      "Settings",
+      "Backpack"
+    ],
+    "size": 28,
+    "capturedNavigationLocations": 10,
+    "mountedLog": "/tmp/nav28-capture.log",
+    "browserTitle": "DESIGN SYSTEM",
+    "markdownInventory": "DESIGN_SYSTEM.md"
+  },
+  "modalBackgroundDedup": {
+    "status": "PASS",
+    "removedBackgroundNavigationEntries": 3,
+    "navigationLocations": 7,
+    "textElements": 113,
+    "referencesPreserved": true
+  },
+  "font19To18": {
+    "status": "PASS",
+    "affectedTexts": 6,
+    "remaining19": 0,
+    "mountedLog": "/tmp/font18-capture.log"
+  },
+  "orangeLocateAction": {
+    "status": "PASS",
+    "buttonsVerified": 113,
+    "color": "#EE8158"
+  },
+  "stageTypography": {
+    "status": "PASS",
+    "title": 28,
+    "statValues": 28,
+    "statLabels": 18,
+    "contexts": 5,
+    "mountedCaptureLog": "/tmp/stage-type-capture.log",
+    "layoutLog": "/tmp/stage-type-layout.log"
+  },
+  "settingsTitleColor": {
+    "status": "PASS",
+    "reference": "STS-SETTINGS-01",
+    "color": "#AD8775",
+    "mountedLog": "/tmp/settings-ink-capture.log"
+  },
+  "allDiceDetails": {
+    "status": "PASS",
+    "details": 22,
+    "groups": {
+      "Forest": 6,
+      "Beach": 6,
+      "Area 55": 6,
+      "Arcade": 4
+    },
+    "screens": 52,
+    "texts": 155,
+    "sidebarLinks": 22,
+    "actualReadiness": true,
+    "mountedLog": "/tmp/all-details-capture.log",
+    "visualContactSheet": "/tmp/all-details-contact-sheet.jpg"
+  },
+  "dogInspector": {
+    "localComparison": "PASS",
+    "navigationComparisonCount": 7,
+    "exact18Styles": 13,
+    "resultNavigation": "PASS",
+    "screenshotPicker": "PASS",
+    "browserSpeechCapability": "browser",
+    "humanVoiceTest": "NOT RUN",
+    "serverTests": 6,
+    "upstreamLiveAI": "NOT CONFIGURED — no API key",
+    "nativeAppChanged": false
+  },
+  "compactSidebar": {
+    "status": "PASS",
+    "headingAccordions": true,
+    "firstDieInitiallyVisible": true,
+    "extraDiceToggle": 21,
+    "linkNavigation": "PASS"
+  },
+  "focusedPairComparison": {
+    "status": "PASS",
+    "rawScreenshotClick": "PASS",
+    "pinThenNavigateDoesNotChooseB": true,
+    "explicitMarkChoosesB": true,
+    "stageExitSizes": [
+      28,
+      32
+    ],
+    "sameFontAndPalette": true,
+    "swap": "PASS",
+    "searchableBPicker": "PASS",
+    "editablePrompt": "PASS",
+    "clipboardBridge": "Unverified — stale external clipboard observed",
+    "nativeAppChanged": false
+  },
+  "subtitleStandard18": {
+    "status": "PASS",
+    "screens": 52,
+    "texts": 155,
+    "diceDetails": 22,
+    "remaining20": 0,
+    "mountedCaptureLog": "/tmp/subtitle18-capture.log",
+    "sdkTests": 18,
+    "sdkLog": "/tmp/subtitle18-sdk.log",
+    "browserComparison": [
+      "arcade-mode-1-text-2",
+      "exit-stage-text-2"
+    ],
+    "browserSizes": [
+      18,
+      18
+    ]
+  },
+  "contextualOnboarding": {
+    "status": "PASS",
+    "screens": 54,
+    "texts": 161,
+    "newScreens": [
+      "tutorial-encouragement",
+      "tutorial-completed"
+    ],
+    "worldSpecialGuides": "Bee/Juice/Robo mounted PASS /tmp/onboarding-sdk9.log",
+    "globalJourneyArcadeCommit": "PASS /tmp/onboarding-sdk9.log",
+    "completeCover": "8 tests PASS /tmp/onboarding-sdk9.log",
+    "coreTutorialTests": "26 PASS /tmp/onboarding-tutorial-core.log",
+    "stateTests": "92 PASS /tmp/onboarding-state2.log",
+    "rawCoreBaseline": "17 pre-existing failures reproduced with original HEAD engine/rules; same failing tests/counts after change",
+    "physical": "NEEDS PHYSICAL TEST",
+    "resumeAndHUD": "15 mounted tests PASS /tmp/onboarding-final-sdk.log",
+    "aggregateMountedTests": 33,
+    "sourceQualityGates": "PASS /tmp/onboarding-full-release.log",
+    "browserProof": "onboarding-review.png"
+  }
+}

@@ -30,6 +30,27 @@ import StackToSixGameplay
         func finishRoots(){for t in stride(from:608.0,through:1400,by:16){deliver(t)}}
         func dispose(){restore.dispose();intro.dispose();timeouts.cancelAll();scene.dispose();construction.dispose();driver.dispose();service.dispose();fifo.dispose()}
     }
+    func testRenderedOpacityOwnsCanonicalFlashesAndUsesContinuousEase()throws {
+        let f=try Fixture();defer{f.dispose()}
+        let node=try XCTUnwrap(f.targets.first{!$0.sourceLocked && $0.sourceValue>0})
+        let owner=NativeTutorialBoardOpacityOwner();defer{owner.dispose()}
+        node.isHidden=false;node.alpha=1;owner.setFocus([])
+        _=owner.paint(nodes:[node],generation:1,time:0,suspended:false,externallyOwned:{_ in false})
+        var previous=node.alpha
+        for frame in 1...30 {
+            node.alpha=1 // actual synchronize/focus writer attempting a full-opacity flash
+            _=owner.paint(nodes:[node],generation:1,time:Double(frame)/60,suspended:false,externallyOwned:{_ in false})
+            XCTAssertLessThanOrEqual(node.alpha,previous+1e-6);XCTAssertLessThan(previous-node.alpha,0.07);previous=node.alpha
+        }
+        XCTAssertEqual(node.alpha,0.2,accuracy:1e-6)
+        owner.setFocus(nil)
+        for frame in 31...65 {
+            node.alpha=1
+            _=owner.paint(nodes:[node],generation:1,time:Double(frame)/60,suspended:false,externallyOwned:{_ in false})
+            XCTAssertGreaterThanOrEqual(node.alpha,previous-1e-6);XCTAssertLessThan(node.alpha-previous,0.07);previous=node.alpha
+        }
+        XCTAssertEqual(node.alpha,1,accuracy:1e-6);XCTAssertFalse(owner.active)
+    }
     func testImmediateRestoreConsumesShuffleOnlyAndRestoresActualActiveScale()throws {
         let f=try Fixture();defer{f.dispose()}
         for node in f.targets{node.alpha=0.2;node.paintSourceOuterScale(.init(x:0.7,y:0.7))}

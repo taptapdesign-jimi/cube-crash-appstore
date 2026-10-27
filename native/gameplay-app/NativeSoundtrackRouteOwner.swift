@@ -19,7 +19,8 @@ final class NativeSoundtrackRouteOwner {
     private var interrupted=false
     private var enabled = true
     private static let menuGain = 0.578 * 0.8 * 0.7
-    private static let journeyGain = 0.11
+    // Shared by Journey and Arcade: user-requested +40% gameplay music only.
+    static let gameplayGain = 0.11 * 1.4
     private var target = NativeSoundtrackRouteOwner.menuGain
     static let gameplaySource = "assets/sound/soundtrack/taptap-gameplay-v1/taptap-gameplay-intro-loop.wav"
     static let gameplayLoopStart = 195122.0 / 48000
@@ -56,11 +57,11 @@ final class NativeSoundtrackRouteOwner {
     func apply(enabled:Bool) {
         guard !disposed else{return}
         self.enabled = enabled
-        if !enabled {cancelRecovery();lease &+= 1;if transition != nil{target=Self.journeyGain};transition=nil;command("dispose");themePrepared = false}
+        if !enabled {cancelRecovery();lease &+= 1;if transition != nil{target=Self.gameplayGain};transition=nil;command("dispose");themePrepared = false}
         else if foreground,!arcade {resume()}
     }
     func setMenu() {guard !disposed else{return};lease &+= 1;transition=nil;arcade = false;gameplay=false;target = Self.menuGain;setGain(duration:0.42)}
-    func setJourneyGameplay() {guard !disposed,transition==nil else{return};lease &+= 1;arcade = false;gameplay=true;target = Self.journeyGain;setGain(duration:0.32)}
+    func setJourneyGameplay() {guard !disposed,transition==nil else{return};lease &+= 1;arcade = false;gameplay=true;target = Self.gameplayGain;setGain(duration:0.32)}
     func setArcadeGameplay() {guard !disposed,!arcade else{return};cancelRecovery();lease &+= 1;transition=nil;arcade = true}
     /// Arcade readiness owns the outgoing fade: NN never creates a silent gap.
     func arcadePlaybackReady(duration:Double) {
@@ -80,12 +81,12 @@ final class NativeSoundtrackRouteOwner {
         guard let current=transition,current.generation==generation,current.lease==lease,!current.settling else{return}
         if phase=="complete" {
             transition?.completionRequested=true
-            if !enabled || !foreground || !themePrepared {transition=nil;target=Self.journeyGain;if enabled,foreground{target=0;resume();target=Self.journeyGain;setGain(duration:0.32)};return}
+            if !enabled || !foreground || !themePrepared {transition=nil;target=Self.gameplayGain;if enabled,foreground{target=0;resume();target=Self.gameplayGain;setGain(duration:0.32)};return}
             if current.tailSettled {settleBoardTransition(current)}
             return
         }
         guard ["begin","hold","exit"].contains(phase) else{return}
-        guard enabled,foreground,themePrepared else{target=Self.journeyGain;return} // A cold paused theme starts only at complete.
+        guard enabled,foreground,themePrepared else{target=Self.gameplayGain;return} // A cold paused theme starts only at complete.
         target=Self.menuGain*min(1,max(0,ratio))
         if phase != "exit" {command("volume",extra:["volume":target,"duration":duration]);return}
         transport.perform(id:"soundtrack-native-main",op:"volume",body:["volume":target,"duration":duration+0.32,"replyOnFadeFinished":true]){[weak self] _,error in
@@ -96,7 +97,7 @@ final class NativeSoundtrackRouteOwner {
     }
     private func settleBoardTransition(_ captured:Transition) {
         guard transition?.lease==captured.lease,lease==captured.lease,!disposed,enabled,foreground else{return}
-        transition?.settling=true;target=Self.journeyGain
+        transition?.settling=true;target=Self.gameplayGain
         transport.perform(id:"soundtrack-native-main",op:"volume",body:["volume":target,"duration":0.32,"replyOnFadeFinished":true]){[weak self] _,error in
             guard let self,error==nil,!self.disposed,self.lease==captured.lease,self.transition?.lease==captured.lease else{return}
             self.transition=nil
@@ -174,7 +175,7 @@ final class NativeSoundtrackRouteOwner {
     }
     private func cancelRecovery(){recovery?.invalidate();recovery=nil;recoveryAttempts=0}
     /// Source background receipt cancels the transition envelope and preserves
-    /// gameplay intent at33%; foreground cannot replay any old phase contact.
-    private func retireTransitionForInterruption(){guard transition != nil else{return};lease &+= 1;transition=nil;target=Self.journeyGain}
+    /// the current gameplay mix; foreground cannot replay any old phase contact.
+    private func retireTransitionForInterruption(){guard transition != nil else{return};lease &+= 1;transition=nil;target=Self.gameplayGain}
     func dispose() {guard !disposed else{return};disposed=true;cancelRecovery();lease &+= 1;transition=nil;enabled = false;command("dispose");themePrepared = false;for observer in observers {NotificationCenter.default.removeObserver(observer)};observers.removeAll()}
 }

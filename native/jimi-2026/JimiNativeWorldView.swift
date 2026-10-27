@@ -86,7 +86,7 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
         scrollView.delaysContentTouches = true; scrollView.canCancelContentTouches = true
         addSubview(scrollView); scrollView.addSubview(content); content.addSubview(main)
         addSubview(header); header.addSubview(title); header.addSubview(backButton); header.addSubview(backpackButton)
-        title.font = assets.font(size: 32, weight: "ExtraBold"); title.textAlignment = .center
+        title.font = assets.font(size: 28, weight: "ExtraBold"); title.textAlignment = .center
         title.textColor = UIColor(red:173/255,green:135/255,blue:117/255,alpha:1); title.text = snapshot.title
         header.backgroundColor = UIColor(red:243/255,green:238/255,blue:232/255,alpha:0.8)
         backButton.configuration = nil;backArtwork.image = assets.image("assets/close-icon.png",densityAware:true);backArtwork.contentMode = .scaleAspectFit;backArtwork.isUserInteractionEnabled = false;backButton.addSubview(backArtwork)

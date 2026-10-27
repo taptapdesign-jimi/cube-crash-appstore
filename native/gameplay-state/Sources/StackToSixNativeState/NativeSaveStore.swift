@@ -40,11 +40,12 @@ public struct NativeSaveEnvelope: Codable, Equatable, Sendable {
         get { activeArcadeVariant == .endurance ? enduranceRunSavedAt : arcadeVariantRunSavedAt[activeArcadeVariant.rawValue] }
         set { if activeArcadeVariant == .endurance { enduranceRunSavedAt = newValue } else { arcadeVariantRunSavedAt[activeArcadeVariant.rawValue] = newValue } }
     }
+    public var firstPlayRun: NativeBoardState?
     public var importedHybrid: Bool
     public init(settings: NativeSettingsPreferences = .init(), progression: NativeProgressionState = .init(), journeyRuns: [Int: NativeBoardState] = [:], arcadeRun: NativeBoardState? = nil, importedHybrid: Bool = false) {
         self.settings = settings; self.progression = progression; self.journeyRuns = journeyRuns; self.enduranceRun = arcadeRun; self.importedHybrid = importedHybrid
     }
-    private enum CodingKeys:String,CodingKey {case activeArcadeVariant,arcadeVariantRuns,arcadeVariantPendingRounds,arcadeVariantRunSavedAt,version,product,savedAt,settings,progression,journeyRuns,arcadeRun,pendingArcadeRound,journeyRunSavedAt,arcadeRunSavedAt,importedHybrid}
+    private enum CodingKeys:String,CodingKey {case firstPlayRun,activeArcadeVariant,arcadeVariantRuns,arcadeVariantPendingRounds,arcadeVariantRunSavedAt,version,product,savedAt,settings,progression,journeyRuns,arcadeRun,pendingArcadeRound,journeyRunSavedAt,arcadeRunSavedAt,importedHybrid}
     public init(from decoder:Decoder) throws {
         let fields=try decoder.container(keyedBy:CodingKeys.self)
         // Identity and schema remain required. Only additive Native-v1 fields
@@ -56,6 +57,7 @@ public struct NativeSaveEnvelope: Codable, Equatable, Sendable {
         savedAt=try fields.decode(TimeInterval.self,forKey:.savedAt)
         settings=try fields.decode(NativeSettingsPreferences.self,forKey:.settings)
         progression=try fields.decode(NativeProgressionState.self,forKey:.progression)
+        firstPlayRun=try fields.decodeIfPresent(NativeBoardState.self,forKey:.firstPlayRun)
         journeyRuns=try fields.decode([Int:NativeBoardState].self,forKey:.journeyRuns)
         enduranceRun=try fields.decodeIfPresent(NativeBoardState.self,forKey:.arcadeRun)
         endurancePendingRound=try fields.decodeIfPresent(NativePendingArcadeRound.self,forKey:.pendingArcadeRound)
@@ -74,6 +76,7 @@ public struct NativeSaveEnvelope: Codable, Equatable, Sendable {
         try fields.encode(savedAt, forKey: .savedAt)
         try fields.encode(settings, forKey: .settings)
         try fields.encode(progression, forKey: .progression)
+        try fields.encodeIfPresent(firstPlayRun,forKey:.firstPlayRun)
         try fields.encode(journeyRuns, forKey: .journeyRuns)
         try fields.encode(journeyRunSavedAt, forKey: .journeyRunSavedAt)
         try fields.encode(importedHybrid, forKey: .importedHybrid)
@@ -93,6 +96,10 @@ public struct NativeSaveEnvelope: Codable, Equatable, Sendable {
         if !progression.announcedJourneyDice.isSubset(of:knownDice) || !progression.unreadJourneyDice.isSubset(of:progression.announcedJourneyDice) {issues.append("invalid-backpack-alert-state")}
         if !progression.unlockedSpecialDice.allSatisfy({["flower","juice"].contains($0)}) {issues.append("invalid-special-unlock")}
         if !savedAt.isFinite || !journeyRunSavedAt.allSatisfy({(1...30).contains($0.key) && $0.value.isFinite && $0.value >= 0}) || enduranceRunSavedAt.map({!$0.isFinite || $0 < 0}) == true || !progression.completedJourneyBoards.allSatisfy({(1...30).contains($0)}) || !progression.viewedJourneyBoards.allSatisfy({(1...30).contains($0)}) { issues.append("invalid-progression") }
+        if let run=firstPlayRun {
+            issues += Self.boardIssues(run)
+            if run.tutorial == nil || run.mode == .journey && !(1...30).contains(run.board) {issues.append("invalid-first-play-run")}
+        }
         for (key, board) in journeyRuns {
             if key != board.board || board.mode != .journey || !(1...30).contains(key) { issues.append("journey-run-mode-mismatch") }
             issues += Self.boardIssues(board)
@@ -126,6 +133,7 @@ public struct NativeSaveEnvelope: Codable, Equatable, Sendable {
     /// authorizes a resumable layout; Arcade progression survives as metadata.
     public static func hasRecordedMove(_ state:NativeBoardState)->Bool {state.moves < state.maxMoves}
     public mutating func recordPlayableRun(_ state:NativeBoardState,now:TimeInterval) {
+        if !progression.firstPlayTutorialComplete,state.tutorial != nil {firstPlayRun=state;return}
         let played=Self.hasRecordedMove(state)
         if state.mode == .journey {
             journeyRuns[state.board]=played ? state:nil

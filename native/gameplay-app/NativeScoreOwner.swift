@@ -120,7 +120,7 @@ final class NativeGameplayBackpackController:UIViewController {
         default:copy="Boom, swoop, hop — ready to play!"
         }
         subtitle.text="\(world) \(includesArcade ? "crate":"backpack") items\n\(copy)";subtitle.numberOfLines=0;subtitle.textAlignment = .center
-        subtitle.font=assets.font(size:20,weight:"Medium");subtitle.textColor=NativeTextPalette.subtitle
+        subtitle.font=assets.font(size:18,weight:"Medium");subtitle.textColor=NativeTextPalette.subtitle
         subtitle.attributedText=NativeModalTypography.attributedSubtitle(subtitle.text ?? "",font:subtitle.font)
         idle.addSubview(subtitle)
         let screen=NativeBackpackView(frame:.zero,assets:assets,title:includesArcade ? "Box":"Backpack",arcadeCrate:includesArcade);self.screen=screen

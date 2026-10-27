@@ -52,7 +52,7 @@ final class NativeBackpackDetail:UIViewController {
             title.addAttribute(.foregroundColor,value:UIColor(red:232/255,green:116/255,blue:74/255,alpha:1),range:NSRange(displayTitle.startIndex..<space,in:displayTitle))
         }
         heading.attributedText=title
-        copy.attributedText=NativeModalTypography.attributedSubtitle(die.copy,font:assets.font(size:20,weight:"Medium"));copy.numberOfLines=0;copy.textAlignment = .center;copy.font=assets.font(size:20,weight:"Medium");copy.textColor=NativeTextPalette.subtitle
+        copy.attributedText=NativeModalTypography.attributedSubtitle(die.copy,font:assets.font(size:18,weight:"Medium"));copy.numberOfLines=0;copy.textAlignment = .center;copy.font=assets.font(size:18,weight:"Medium");copy.textColor=NativeTextPalette.subtitle
         hero.image=assets.image(die.id=="barell" ? "assets/shop/barell/barell.png":die.artwork.path,densityAware:true);hero.contentMode = .scaleAspectFit
         if let image=hero.image {artworkAspect=image.size.width/image.size.height;artworkVisibleBounds=Self.visibleArtworkBounds(image)}
         [heading,copy,hero,close].forEach{idle.addSubview($0)}
@@ -67,7 +67,7 @@ final class NativeBackpackDetail:UIViewController {
         super.viewDidLayoutSubviews();backdrop.frame=view.bounds
         worldIllustration.frame=view.bounds.insetBy(dx:-view.bounds.width*0.2,dy:0)
         let width=min(390,max(0,view.bounds.width-48)),scale=width/390
-        heading.font=assets.font(size:32,weight:"ExtraBold");copy.font=assets.font(size:20,weight:"Medium")
+        heading.font=assets.font(size:32,weight:"ExtraBold");copy.font=assets.font(size:18,weight:"Medium")
         heading.frame=CGRect(x:width*0.1,y:28,width:width*0.8,height:38.4)
         let copyHeight=ceil(copy.sizeThatFits(CGSize(width:width*0.8,height:CGFloat.greatestFiniteMagnitude)).height)
         copy.frame=CGRect(x:width*0.1,y:heading.frame.maxY+12,width:width*0.8,height:copyHeight)

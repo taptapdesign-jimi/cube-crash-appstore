@@ -22,6 +22,7 @@ import SpriteKit
         func advanceSourceAnimation(seconds:Double){update(seconds)}
     }
     private let service:NativeSourceAnimationClockService,timeouts:NativeSourceAppTimeoutOwner,generation:UInt64,current:()->Bool
+    private let rootEntryPending:()->Bool
     private let root:SKNode,rootOriginalAlpha:CGFloat,excluded:Set<ObjectIdentifier>
     private var targets:[Target]
     private weak var rootParent:SKNode?
@@ -30,11 +31,11 @@ import SpriteKit
     private var timer:NativeSourceAppTimeoutOwner.Receipt?,deadline:UInt64=0,started=false,disposed=false
     private(set) var intervalDeliveries=0
     var pendingInterval:Bool{timer != nil}
-    init?(root:SKNode,rootFinalAlpha:CGFloat?=nil,extraTargets:[SKNode]=[],unifiedTargets:[SKNode]=[],excludedTargets:[SKNode]=[],service:NativeSourceAnimationClockService,timeouts:NativeSourceAppTimeoutOwner,
+    init?(root:SKNode,rootFinalAlpha:CGFloat?=nil,rootEntryPending:@escaping()->Bool={false},extraTargets:[SKNode]=[],unifiedTargets:[SKNode]=[],excludedTargets:[SKNode]=[],service:NativeSourceAnimationClockService,timeouts:NativeSourceAppTimeoutOwner,
         generation:UInt64,current:@escaping()->Bool) {
         guard generation>0,root.parent != nil,service.sourceMicrotaskRAFBoundaryInstalled,
             let tasks=service.sourceMicrotaskTasks,timeouts.sourceMicrotaskTasks === tasks,current() else{return nil}
-        self.root=root;rootParent=root.parent;rootOriginalAlpha=rootFinalAlpha ?? root.alpha
+        self.root=root;rootParent=root.parent;rootOriginalAlpha=rootFinalAlpha ?? root.alpha;self.rootEntryPending=rootEntryPending
         self.service=service;self.timeouts=timeouts;self.generation=generation;self.current=current
         excluded=Set(excludedTargets.map(ObjectIdentifier.init))
         var seen=Set<ObjectIdentifier>();targets=[]
@@ -42,7 +43,7 @@ import SpriteKit
             targets.append(Target(node,unified:unifiedTargets.contains(where:{$0 === node})))
         }
     }
-    private func restoreRootAlpha(){if root.action(forKey:"hud-enter")==nil{root.alpha=rootOriginalAlpha}}
+    private func restoreRootAlpha(){if !rootEntryPending(),root.action(forKey:"hud-enter")==nil{root.alpha=rootOriginalAlpha}}
     private func admitted()->Bool{guard !disposed,root.parent === rootParent,rootParent != nil else{return false};let valid=current();return valid && !disposed}
     func owns(_ node:SKNode)->Bool{!disposed && targets.contains{$0.node === node && $0.current}}
     private func captureNewRootChildren(restoring:Bool=false){for node in root.children where !excluded.contains(ObjectIdentifier(node)) && !targets.contains(where:{$0.node === node}){targets.append(Target(node,originalAlpha:restoring ? 1:nil))}}

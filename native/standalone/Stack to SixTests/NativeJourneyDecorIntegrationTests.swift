@@ -176,6 +176,10 @@ final class NativeJourneyDecorIntegrationTests:XCTestCase {
         XCTAssertNotNil(tile.action(forKey:"board-exit"))
         XCTAssertNotNil(closed.finalResidualExitSurface?.action(forKey:"board-exit"))
         XCTAssertNil(hud.action(forKey:"hud-exit"),"HUD must wait for all residual targets")
+        try await Task.sleep(for:.milliseconds(1050))
+        XCTAssertGreaterThanOrEqual(hud.alpha,0.99,"HUD remains painted for one second after CLEARED first appears at0.2s; existing drop can overshoot alpha1")
+        XCTAssertNil(hud.action(forKey:"hud-exit"))
+        XCTAssertNotEqual(footer.phase,.exiting)
         await fulfillment(of:[done],timeout:5)
         XCTAssertEqual(callbacks,1);XCTAssertEqual(roundWon,1)
     }

@@ -40,6 +40,7 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
     private let reducedMotion:Bool
     private let generation:UInt64
     var presentationGeneration:UInt64 {generation}
+    var initialPresentationReady:Bool {magicPrepared || phase == "asset-failed"}
     private var magicPreparationWaiters:[()->Void]=[]
     func whenMagicCardPrepared(_ completion:@escaping ()->Void) {
         guard !disposed,phase != "asset-failed" else{return}
@@ -262,15 +263,15 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         guard !disposed,!resolved,!revealRunning,revealed else{return};resolved=true;phase="exiting";epoch &+= 1;cancelTasks();removeAnimations();hand.alpha=0;coach.alpha=0
         onSoundMoment?("modal-exit",0,generation)
         onSoundMoment?("cta",0,generation);onHaptic?("selection")
-        let inflation=reducedMotion ? 0 : 0.12,collapse=reducedMotion ? 0.16 : 0.224
+        let inflation=reducedMotion ? 0 : 0.08,collapse=0.16
         if inflation>0 {animate(pose.layer,"transform",from:NSValue(caTransform3D:CATransform3DIdentity),to:NSValue(caTransform3D:spatial(scaleX:1.18,scaleY:1.15)),duration:inflation,ease:.powerIn(2))}
         animate(pose.layer,"transform",from:NSValue(caTransform3D:spatial(scaleX:inflation>0 ? 1.18:1,scaleY:inflation>0 ? 1.15:1)),to:NSValue(caTransform3D:spatial(scale:0)),duration:collapse,delay:inflation,ease:reducedMotion ? .powerIn(1):.backIn(1.7))
         animate(headingLabel.layer,"opacity",from:1,to:0,duration:0.12);animate(subtitle.layer,"opacity",from:1,to:0,duration:0.12,delay:0.04)
         animate(headingLabel.layer,"transform",from:NSValue(caTransform3D:CATransform3DIdentity),to:NSValue(caTransform3D:spatial(scale:0,y:-34)),duration:0.12,ease:.backIn(1.55))
         animate(subtitle.layer,"transform",from:NSValue(caTransform3D:CATransform3DIdentity),to:NSValue(caTransform3D:spatial(scale:0,y:-28)),duration:0.12,delay:0.04,ease:.backIn(1.55))
         animatePose(unlocked.layer,from:NativeRewardMotion.pose(scale:1.17,y:40,z:tilt.restZ,x:tilt.restX,ry:tilt.restY),to:NativeRewardMotion.pose(scale:1.17,y:40,z:tilt.exitZ,x:tilt.exitX,ry:tilt.exitY,depth:-188),duration:inflation+collapse,ease:.powerIn(2))
-        animate(view.layer,"opacity",from:1,to:0,duration:0.08,delay:inflation+collapse)
-        later("collected",after:inflation+collapse+0.08,allowResolved:true) { [weak self] in self?.settle(.collect) }
+        animate(view.layer,"opacity",from:1,to:0,duration:0.08,delay:max(0,inflation+collapse-0.08))
+        later("collected",after:inflation+collapse,allowResolved:true) { [weak self] in self?.settle(.collect) }
     }
     private func scheduleUnlockedIdle(after:Double) {
         guard !reducedMotion,foreground,!disposed,revealed,!resolved else{return}

@@ -27,6 +27,7 @@ import StackToSixGameplay
         let fault:(String)->Void
         let consume:(NativeMoveResult,NativeBoardState)->Void
         var onDropStarted:((NativeDiceNode)->Void)?=nil
+        var onDropContact:((NativeDiceNode)->Void)?=nil
         var onDropLanded:((NativeDiceNode)->Void)?=nil
         var sourceSkin:((NativeDiceNode)->Bool)?=nil
     }
@@ -391,7 +392,10 @@ import StackToSixGameplay
         }
         switch event {
         case .mediumHaptic:hooks.onHaptic()
-        case .impact:hooks.onImpact(drop.captured.lease.node,drop.runtime)
+        case .impact:
+            hooks.onImpact(drop.captured.lease.node,drop.runtime)
+            guard valid(drop) else{return}
+            hooks.onDropContact?(drop.captured.lease.node)
         case .landed,.spawnCompleted:
             // spawnCompleted is literal post-warmup finally startLandedIdle;
             // it also covers accepted explicit carrier interruption.

@@ -3705,6 +3705,17 @@
         "stopAfter": null,
         "fadeOut": 0
       }
+    ],
+    "cubero": [
+      {
+        "source": "assets/sound/Wild and special kockice/cubero/haya.wav",
+        "voice": "cubero-merge6-haya",
+        "gain": 0.48,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
     ]
   }
 }

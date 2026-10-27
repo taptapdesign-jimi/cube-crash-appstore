@@ -33,7 +33,7 @@ final class NativeArcadeMusicTests:XCTestCase {
         owner.onPlaybackReady={readiness.append($0)}
         owner.enterRound(generation:1);XCTAssertTrue(readiness.isEmpty)
         transport.playReply?([:],nil)
-        XCTAssertEqual(readiness,[1.25]);XCTAssertEqual(transport.commands.last?.body["volume"] as? Double,0.11)
+        XCTAssertEqual(readiness,[1.25]);XCTAssertEqual(transport.commands.last?.body["volume"] as? Double,0.154)
         owner.apply(enabled:false);owner.apply(enabled:true)
         let pending=transport.playReply;owner.leave();pending?([:],nil)
         XCTAssertEqual(readiness.count,1,"Retired entry cannot release another route's music")
@@ -47,6 +47,7 @@ final class NativeArcadeMusicTests:XCTestCase {
         let count=transport.commands.count
         NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
         XCTAssertTrue(transport.commands.dropFirst(count).contains{$0.op=="resume"})
+        XCTAssertEqual(transport.commands.last?.body["volume"] as? Double,0.154)
         owner.apply(enabled:false)
         let muted=transport.commands.count
         NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
@@ -60,7 +61,7 @@ final class NativeArcadeMusicTests:XCTestCase {
         XCTAssertEqual(play.body["source"] as? String,NativeSoundtrackRouteOwner.gameplaySource)
         XCTAssertEqual(play.body["loopStart"] as? Double,NativeSoundtrackRouteOwner.gameplayLoopStart)
         XCTAssertEqual(play.body["loopEnd"] as? Double,NativeSoundtrackRouteOwner.gameplayLoopEnd)
-        XCTAssertEqual(transport.commands.last?.body["volume"] as? Double,0.11)
+        XCTAssertEqual(transport.commands.last?.body["volume"] as? Double,0.154)
         let count=transport.commands.count
         for _ in 0..<20 {owner.committedMerge6(generation:9)}
         XCTAssertEqual(transport.commands.count,count);XCTAssertTrue(scheduler.jobs.isEmpty)
@@ -95,11 +96,11 @@ final class NativeArcadeMusicTests:XCTestCase {
         let transport=Transport(),scheduler=Scheduler(),owner=NativeArcadeMusicOwner(transport:transport,scheduler:scheduler)
         owner.enterRound(generation:7);owner.setResultMix(generation:7);let release=owner.beginResultHook(generation:7)
         owner.setForeground(false);let hiddenCount=transport.commands.count;release();release();XCTAssertEqual(transport.commands.count,hiddenCount)
-        owner.setForeground(true);XCTAssertEqual(transport.commands.last?.body["volume"] as? Double,0.11)
+        owner.setForeground(true);XCTAssertEqual(transport.commands.last?.body["volume"] as? Double,0.154)
         let completed=transport.commands.count;release();XCTAssertEqual(transport.commands.count,completed)
         let old=owner.beginResultHook(generation:7);owner.apply(enabled:false);owner.apply(enabled:true)
         let afterOn=transport.commands.count;old();XCTAssertEqual(transport.commands.count,afterOn)
-        XCTAssertEqual(transport.commands.last?.body["volume"] as? Double,0.11);owner.dispose()
+        XCTAssertEqual(transport.commands.last?.body["volume"] as? Double,0.154);owner.dispose()
     }
     func testResultAndOldReleaseCannotOwnNewRound() {
         let transport=Transport(),scheduler=Scheduler(),owner=NativeArcadeMusicOwner(transport:transport,scheduler:scheduler)

@@ -46,6 +46,9 @@ final class NativeSourceFrameRuntime {
     private var lastDeliveredTarget:Int?
     var reducedFx:Bool {budget.isReduced}
     var snapshot:NativeBoardFrameCadence.Snapshot {cadence.snapshot}
+    func hasActivePresentation(generation:UInt64)->Bool {
+        owners.keys.contains {$0.generation==generation && $0.kind != .starHalo && $0.kind != .regularIdleBounce}
+    }
     var isSpecialIdleSuspended:Bool {owners.keys.contains {$0.kind.suspendsSpecialIdle}}
 
     /// Assign a real existing Scene/input callback timestamp without adding a budget sample.

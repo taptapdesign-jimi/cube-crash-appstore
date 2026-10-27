@@ -236,7 +236,7 @@ Those remain **NEEDS PHYSICAL TEST** on the authorized Stack to Six app.
 
 The existing file transport now permits one finite `-outgoing` slot per source-replacing route,within its4player ceiling. Open/validate/start the incoming file first;the old source remains audible through failure or setup. Source replacement uses1.25s native gain fades and retires the old node/file on the actual fade completion. Rapid replacement,pause,Music OFF,background and disposal cancel/release outgoing ownership. No additional transport,engine,cache or recurring clock is introduced.
 
-Arcade starts its existing gameplay voice at NN presentation start. `onPlaybackReady` is emitted only after successful current play;the main route owner then fades the still-playing menu for the matching incoming duration,and pauses it only on fade completion with a current route lease. Returning to menu resumes its saved phase with preserved initial gain and overlaps the existing Arcade exit fade. Gameplay settles at0.11 in both modes.
+Arcade starts its existing gameplay voice at NN presentation start. `onPlaybackReady` is emitted only after successful current play;the main route owner then fades the still-playing menu for the matching incoming duration,and pauses it only on fade completion with a current route lease. Returning to menu resumes its saved phase with preserved initial gain and overlaps the existing Arcade exit fade. Gameplay settles at0.154 in both modes (+40percent relative to0.11); menu/result/transition phase mixes remain unchanged.
 
 ## Native Coconut contact buffer subowner (2026-10-24)
 

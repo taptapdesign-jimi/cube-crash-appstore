@@ -6,6 +6,7 @@ import StackToSixGameplay
 /// Run completion is committed by the result owner, never by this overlay.
 @MainActor
 final class NativeTutorialOwner {
+    private weak var boundScene:NativeBoardScene?
     private weak var gameplay:NativeGameplayViewController?
     private let overlay:NativeTutorialOverlay
     enum ThirdDismissPhase:Equatable{case ready,exitingCTA,exitingSheet,countingActions,specialBar,waitingForWild,finished,retired}
@@ -34,23 +35,103 @@ final class NativeTutorialOwner {
     private weak var sourceGuidedDragNode:NativeDiceNode?
     private var sourceGuidedDragStep:NativeTutorialState.Step?
     private var displayedStep:NativeTutorialState.Step?
-    private var disposed=false,generation:UInt64
+    private(set) var disposed=false
+    private var specialVisualExitStarted=false,contactSheetVisible=false,contactSheetEntered=false,contactLanded=false
+    private var generation:UInt64
     private var observers:[NSObjectProtocol]=[]
     isolated deinit{dispose()}
     var onChanged:((NativeBoardState)->Void)?
     var onFeedback:(()->Void)?
     init(gameplay:NativeGameplayViewController,root:URL) {
         self.gameplay=gameplay;generation=gameplay.engine.state.generation;overlay=NativeTutorialOverlay(resourceRoot:root)
-        overlay.onGotIt = { [weak self] in self?.dismissFreePlay() }
+        overlay.onPresentationChanged = { [weak gameplay] in gameplay?.tutorialSheetPresentationChanged() }
+        overlay.onGotIt = { [weak self] in
+            guard let self else{return}
+            if self.gameplay?.engine.state.tutorial?.step == .special {
+                if self.overlay.dismissSpecialSheet(){self.onFeedback?()}
+            } else {self.dismissFreePlay()}
+        }
         overlay.onSpecialBarContinue = { [weak self] in self?.continueSpecialBar() }
+        bindSceneCallbacks()
         for (name,suspended) in [(UIApplication.willResignActiveNotification,true),(UIApplication.didBecomeActiveNotification,false)] {
             observers.append(NotificationCenter.default.addObserver(forName:name,object:nil,queue:.main) {[weak self] _ in MainActor.assumeIsolated {self?.overlay.setSuspended(suspended)}})
+        }
+    }
+    private func bindSceneCallbacks(){
+        guard let scene=gameplay?.boardScene,boundScene !== scene else{return};boundScene=scene
+        scene.onTutorialWildAnimationProgress = {[weak self] fraction in self?.tutorialAnimationProgress(fraction)}
+        scene.onTutorialSpecialDropContact = {[weak self] node in self?.tutorialDropContact(node)}
+        scene.onTutorialSpecialDropLanded = {[weak self] _ in
+            guard let self,!self.sourceSubsequentPresentationEnabled else{return};self.contactLanded=true
+            if let game=self.gameplay{self.refresh(game.engine.state)}
+        }
+    }
+    private func tutorialDropContact(_ node:NativeDiceNode){
+        guard !disposed,!sourceSubsequentPresentationEnabled,!contactSheetVisible,let game=gameplay,
+            game.engine.state.generation==generation,game.tutorialVisualPresentationAllowed,
+            let tutorial=game.engine.state.tutorial,tutorial.active,(tutorial.waitingForWild || tutorial.step == .special) else{return}
+        contactSheetVisible=true;game.engine.setInputLock(arrivalLock,active:true)
+        displayedStep = .special;overlay.frame=game.view.bounds;overlay.autoresizingMask=[.flexibleWidth,.flexibleHeight]
+        if overlay.superview==nil{game.view.addSubview(overlay)}
+        overlay.show(step:4,from:nil,to:nil,initial:true,entered:{[weak self,weak game] in
+            guard let self,let game,!self.disposed else{return};self.contactSheetEntered=true;self.refresh(game.engine.state)
+        })
+    }
+    private func tutorialAnimationProgress(_ fraction:Double){
+        guard !disposed,let game=gameplay,game.engine.state.generation==generation,game.tutorialVisualPresentationAllowed,
+            let tutorial=game.engine.state.tutorial,tutorial.active || tutorial.needsEncouragement,
+            tutorial.step == .special || tutorial.needsEncouragement else{return}
+        if !specialVisualExitStarted {
+            specialVisualExitStarted=true;game.boardScene?.setTutorialBoardFocus(nil)
+            if sourceSubsequentPresentationEnabled,tutorial.active {
+                _=game.boardScene?.beginSourceTutorialFourthExitFade(ownerID:sourceReservationOwnerID)
+            }
+            _=overlay.exitSpecialVisuals(completed:{})
+        }
+        // The guide ends after the genuine Special settlement; no encouragement sheet.
+    }
+    private func presentEncouragement(_ game:NativeGameplayViewController){
+        guard !disposed,game.engine.state.tutorial?.needsEncouragement==true,
+            game.tutorialEncouragementPresentationReady else{return}
+        game.boardScene?.onTutorialEncouragementSettled=nil
+        game.engine.acknowledgeTutorialEncouragement()
+        onChanged?(game.engine.state);dispose();game.refreshFromEngine()
+    }
+    private func updateBoardFocus(_ state:NativeBoardState){
+        guard let scene=gameplay?.boardScene,let tutorial=state.tutorial else{return}
+        if specialVisualExitStarted || !tutorial.active{scene.setTutorialBoardFocus(nil);return}
+        switch tutorial.step {
+        case .stack,.mergeSix:scene.setTutorialBoardFocus(Set(tutorial.guidedPair))
+        case .special:scene.setTutorialBoardFocus(Set(state.tiles.map(\.id)))
+        case .freePlay:scene.setTutorialBoardFocus(tutorial.specialBarReady && tutorial.specialBarAcknowledged != true ? []:nil)
         }
     }
     func refresh(_ state:NativeBoardState) {
         guard !disposed else{return}
         guard state.generation==generation,let gameplay else{dispose();return}
-        guard let tutorial=state.tutorial,tutorial.active,state.terminal==nil else {dispose();displayedStep=nil;return}
+        guard let tutorial=state.tutorial,state.terminal==nil else {dispose();displayedStep=nil;return}
+        bindSceneCallbacks()
+        updateBoardFocus(state)
+        if contactSheetVisible,tutorial.active {
+            if tutorial.waitingForWild{return}
+            if contactSheetEntered && contactLanded{gameplay.engine.setInputLock(arrivalLock,active:false)}
+        }
+        if !tutorial.active {
+            if tutorial.needsEncouragement {
+                guard gameplay.tutorialEncouragementPresentationReady else {
+                    if gameplay.boardScene?.onTutorialEncouragementSettled==nil {
+                        gameplay.boardScene?.onTutorialEncouragementSettled = {[weak self,weak gameplay] in
+                            guard let self,let gameplay,!self.disposed,gameplay.engine.state.generation==self.generation else{return}
+                            self.refresh(gameplay.engine.state)
+                        }
+                    }
+                    return
+                }
+                gameplay.boardScene?.onTutorialEncouragementSettled=nil
+                presentEncouragement(gameplay)
+            } else {dispose()}
+            return
+        }
         if sourceSubsequentPresentationEnabled,tutorial.waitingForWild,state.wildMeter>=1-0.000001 {
             gameplay.engine.setInputLock(arrivalLock,active:true)
             if gameplay.engine.isDragging {gameplay.boardScene?.cancelDrag()}
@@ -158,16 +239,16 @@ final class NativeTutorialOwner {
             pointerExit:{[weak self] callback in self?.overlay.sourceIntroOwner?.popOutPointer(completed:callback)==true},
             sheetExit:{[weak self] callback in self?.overlay.sourceIntroOwner?.exitSheet(completed:callback)==true},
             activate:{[weak self,weak gameplay,weak scene,weak scope] in
-                guard let self,let gameplay,let scene,let scope,!self.disposed,scope.current,gameplay.sourceScope === scope,scene.prepareSourceTutorialThirdStep() else{return false}
+                guard let self,let gameplay,let scene,let scope,!self.disposed,scope.current,gameplay.sourceScope === scope,scene.prepareSourceTutorialThirdStep(immediateSpecialBar:true) else{return false}
                 self.sourceGuidedDragNode=nil;self.sourceGuidedDragStep=nil;self.displayedStep = .freePlay
                 self.sourceThirdDismissPhase = .countingActions
                 self.scheduleSpecialBarIfReady()
                 return true
-            })
+            },readyToExit:{[weak scene] in scene?.tutorialSpecialBarSettled==true},activationDelayMilliseconds:0)
         guard let monitor else{return false};sourceSecondMonitor=monitor
         if !monitor.start(){sourceSecondMonitor=nil;monitor.dispose();return false};return true
     }
-    @discardableResult private func showSourceClearStage(gameplay:NativeGameplayViewController,scene:NativeBoardScene)->Bool {
+    @discardableResult private func showSourceClearStage(gameplay:NativeGameplayViewController,scene:NativeBoardScene,alreadyVisible:Bool=false)->Bool {
         guard let scope=gameplay.sourceScope,scope.current,scene.sourceTutorialThirdPresentationActive else{return false}
         guard self.overlay.installSourceCTA(service:scope.service,current:{[weak self,weak gameplay,weak scene,weak scope] in
             guard let self,let gameplay,let scene,let scope else{return false}
@@ -175,7 +256,7 @@ final class NativeTutorialOwner {
         },contact:{[weak self] in self?.onSourceCTAContact?()},activate:{[weak self] in self?.dismissSourceThirdStep()}) else{return false}
         // Sheet completion owns the original independent hint260 wall
         // boundary; CTA/fourth-Wild admission remains separate.
-        return self.overlay.transitionSourceSheetToThirdStep(entered:{[weak self,weak gameplay,weak scene,weak scope] in
+        let entered:()->Void = {[weak self,weak gameplay,weak scene,weak scope] in
             guard let self,let gameplay,let scene,let scope,!self.disposed,scope.current,scene.sourceTutorialThirdPresentationActive,self.sourceThirdDismissPhase == .ready else{return}
             self.sourceThirdHintTimeouts=scene.sourceTutorialIntroTimeouts
             self.sourceThirdHintTimer=scene.sourceTutorialIntroTimeouts.schedule(sourceID:"tutorial-third-hint260",generation:self.generation,delayMilliseconds:260,elapsed:{[weak self,weak gameplay,weak scene,weak scope] in
@@ -187,7 +268,9 @@ final class NativeTutorialOwner {
                     guard let self,let gameplay,let scene,let scope else{return false};return !self.disposed && scope.current && gameplay.sourceScope === scope && gameplay.engine.state.generation==self.generation && scene.sourceTutorialThirdPresentationActive && gameplay.engine.state.tutorial?.active==true && gameplay.engine.state.tutorial?.step == .freePlay
                 })
             })
-        })
+        }
+        if alreadyVisible{overlay.revealSourceClearCTA();entered();return true}
+        return overlay.transitionSourceSheetToThirdStep(entered:entered)
     }
     func gameplayEvent(_ event:NativeGameplayEvent) {
         guard !disposed else{return}
@@ -298,22 +381,18 @@ final class NativeTutorialOwner {
         guard let monitor else{return false};sourceFourthMonitor=monitor
         guard monitor.start(),current() else{if sourceFourthMonitor === monitor{sourceFourthMonitor=nil};monitor.dispose();return false}
         scene.onTutorialSpecialDropStarted = {[weak monitor] wild in _=monitor?.activateDroppingWild(wild)}
+        scene.onTutorialSpecialDropContact = {[weak monitor] wild in _=monitor?.contactWild(wild)}
         scene.onTutorialSpecialDropLanded = {[weak monitor] wild in _=monitor?.landedWild(wild)}
         return true
     }
     private func installSourceFourthCompletion(gameplay:NativeGameplayViewController,scene:NativeBoardScene,wild:NativeDiceNode,current:@escaping()->Bool)->Bool {
         guard sourceFourthCompletion==nil,let scope=gameplay.sourceScope,scope.current,current() else{return false}
         let owner=NativeSourceTutorialFourthCompletionMonitor(service:scope.service,timeouts:scene.sourceTutorialIntroTimeouts,generation:generation,
-            current:current,isComplete:{[weak scene,weak wild] in guard let scene,let wild else{return false};return scene.sourceTutorialFourthStepIsComplete(wild)},
+            current:current,isComplete:{[weak scene,weak wild] in guard let scene,let wild else{return false};return scene.sourceTutorialFourthStepIsComplete(wild) && scene.tutorialEncouragementMilestoneReached},
             complete:{[weak self,weak gameplay,weak scene,weak scope] in
                 guard let self,let gameplay,let scene,let scope,current(),!self.sourceFourthCompleting else{return}
                 self.sourceFourthCompleting=true;scene.sourceTutorialSetMeterSmokeFrozen(true)
-                let exitStarted=self.overlay.exitSourceFourthStep(beforeSheet:{[weak self,weak scene] in
-                    guard let self,let scene,current() else{return false}
-                    let admitted=scene.beginSourceTutorialFourthExitFade(ownerID:self.sourceReservationOwnerID)
-                    if !admitted,current(){scene.failSourceTutorialFourthPresentation("source_tutorial_fourth_fade_rejected",generation:self.generation)}
-                    return admitted
-                }){[weak self,weak gameplay,weak scene,weak scope] in
+                let finish:()->Void = { [weak self,weak gameplay,weak scene,weak scope] in
                     guard let self,let gameplay,let scene,let scope,current(),self.sourceFourthCompleting,
                         gameplay.sourceScope === scope,gameplay.boardScene === scene else{return}
                     guard scene.restoreSourceTutorialAfterFourthExit(ownerID:self.sourceReservationOwnerID),current() else{
@@ -325,9 +404,14 @@ final class NativeTutorialOwner {
                     self.sourceFourthCompletion?.dispose();self.sourceFourthCompletion=nil
                     self.sourceFourthMonitor?.dispose();self.sourceFourthMonitor=nil
                     self.sourceThirdDismissPhase = .finished;self.sourceGuidedDragNode=nil;self.sourceGuidedDragStep=nil
-                    self.overlay.dispose();self.onChanged?(result.state)
-                    self.dispose();self.sourceThirdDismissPhase = .finished
+                    let changed=self.onChanged
+                    changed?(result.state)
                 }
+                if self.specialVisualExitStarted {finish();return}
+                let exitStarted=self.overlay.exitSourceFourthStep(beforeSheet:{[weak self,weak scene] in
+                    guard let self,let scene,current() else{return false}
+                    return scene.beginSourceTutorialFourthExitFade(ownerID:self.sourceReservationOwnerID)
+                },completed:finish)
                 if !exitStarted,current(){scene.failSourceTutorialFourthPresentation("source_tutorial_fourth_exit_rejected",generation:self.generation)}
             })
         guard let owner else{return false};sourceFourthCompletion=owner
@@ -386,7 +470,7 @@ final class NativeTutorialOwner {
             gameplay.engine.setInputLock(specialBarLock,active:false)
         }
         gameplay.boardScene?.beginTutorialSpecialBarFocusExit()
-        let started=overlay.hideSpecialBar(completed:{[weak self,weak gameplay] in
+        let completed:()->Void = {[weak self,weak gameplay] in
             guard let self,let gameplay,!self.disposed,gameplay.engine.state.generation==self.generation,
                 self.sourceThirdDismissPhase == .specialBar else{return}
             if !forInteraction {
@@ -394,10 +478,20 @@ final class NativeTutorialOwner {
                 guard result.accepted else{self.restoreSpecialBarFocus(gameplay);self.specialBarExiting=false;self.sourceThirdDismissPhase = .countingActions;self.scheduleSpecialBarIfReady();return}
             }
             self.restoreSpecialBarFocus(gameplay)
-            self.specialBarExiting=false;self.sourceThirdDismissPhase = .ready
-            self.onChanged?(gameplay.engine.state);gameplay.refreshFromEngine()
-            if self.sourceSubsequentPresentationEnabled,let scene=gameplay.boardScene,scene.sourceTutorialThirdPresentationActive,!self.showSourceClearStage(gameplay:gameplay,scene:scene){scene.failSourceTutorialFourthPresentation("source_tutorial_clear_sheet_rejected",generation:self.generation)}
-        })
+            let reveal:()->Void = {[weak self,weak gameplay] in
+                guard let self,let gameplay,!self.disposed,gameplay.engine.state.generation==self.generation else{return}
+                self.specialBarExiting=false;self.sourceThirdDismissPhase = .ready
+                self.onChanged?(gameplay.engine.state);gameplay.refreshFromEngine()
+                if self.sourceSubsequentPresentationEnabled,let scene=gameplay.boardScene,scene.sourceTutorialThirdPresentationActive,!self.showSourceClearStage(gameplay:gameplay,scene:scene){scene.failSourceTutorialFourthPresentation("source_tutorial_clear_sheet_rejected",generation:self.generation)}
+            }
+            if !forInteraction,let scene=gameplay.boardScene {
+                // The previous sheet is fully gone. Wait for actual painted
+                // dice restoration before beginning Clear's independent enter.
+                scene.onTutorialBoardFocusSettled=reveal
+                scene.setTutorialBoardFocus(nil)
+            } else {reveal()}
+        }
+        let started=overlay.hideSpecialBar(completed:completed)
         if !started{specialBarExiting=false;restoreSpecialBarFocus(gameplay);gameplay.boardScene?.failSourceTutorialFourthPresentation("tutorial_special_bar_exit_rejected",generation:generation)}
         return started
     }
@@ -405,8 +499,13 @@ final class NativeTutorialOwner {
         guard !disposed else{return}
         disposed=true
         let gameplay=self.gameplay
+        gameplay?.boardScene?.setTutorialBoardFocus(nil)
+        gameplay?.boardScene?.onTutorialBoardFocusSettled=nil
+        gameplay?.boardScene?.onTutorialWildAnimationProgress=nil
         gameplay?.boardScene?.onTutorialSpecialDropStarted=nil
+        gameplay?.boardScene?.onTutorialSpecialDropContact=nil
         gameplay?.boardScene?.onTutorialSpecialDropLanded=nil
+        gameplay?.boardScene?.onTutorialEncouragementSettled=nil
         gameplay?.boardScene?.onTutorialSpecialBarInteraction=nil
         gameplay?.boardScene?.onTutorialSpecialBarSettled=nil
         gameplay?.restoreTutorialSpecialBarSiblings()

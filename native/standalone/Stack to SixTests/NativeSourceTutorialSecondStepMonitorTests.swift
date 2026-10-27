@@ -27,6 +27,20 @@ import StackToSixGameplay
         XCTAssertTrue(monitor.start());XCTAssertFalse(monitor.activateDroppingWild(f.targets[0]))
         XCTAssertEqual(sheets,0);XCTAssertEqual(monitor.phase,.retired)
     }
+    func testNativeFourthFirstContactEntersWhileImpactSettlesAndKeepsInputPreparationDeferred()async throws {
+        let f=try Fixture();defer{f.dispose()};let node=f.targets[0]
+        var dropping=true,sheets=0,prepared=0,entered:(()->Void)?
+        let monitor=try XCTUnwrap(NativeSourceTutorialFourthStepMonitor(service:f.service,timeouts:f.timeouts,generation:1,
+            current:{f.current},findWild:{nil},nodeCurrent:{$0 === node},dropping:{_ in dropping},activate:{_ in true},
+            transitionSheet:{sheets+=1;entered=$0;return true},prepare:{_ in prepared+=1;return true},
+            sheetDelayMilliseconds:0,waitForLandingBeforeSheet:true))
+        defer{monitor.dispose()};XCTAssertTrue(monitor.start());XCTAssertTrue(monitor.activateDroppingWild(node))
+        XCTAssertFalse(monitor.contactWild(f.targets[1]));XCTAssertEqual(sheets,0)
+        XCTAssertTrue(monitor.contactWild(node));XCTAssertEqual(sheets,1);XCTAssertTrue(dropping)
+        XCTAssertFalse(monitor.contactWild(node));try XCTUnwrap(entered)();XCTAssertEqual(prepared,0)
+        dropping=false;try await Task.sleep(for:.milliseconds(110));XCTAssertEqual(prepared,1)
+        XCTAssertFalse(monitor.landedWild(node));XCTAssertEqual(sheets,1)
+    }
     func testNativeFourthWaitsForExactLandingAndRetirementCancelsOwnedWork()throws {
         let f=try Fixture();defer{f.dispose()}
         let node=f.targets[0];var dropping=true,sheets=0,prepared=0;var entered:(()->Void)?
@@ -70,6 +84,22 @@ import StackToSixGameplay
         func finishRoots(){for t in stride(from:608.0,through:1400,by:16){deliver(t)}}
         func dispose(){monitor.dispose();intro.dispose();timeouts.cancelAll();scene.dispose();construction.dispose();driver.dispose();service.dispose();fifo.dispose()}
     }
+    func testNativeSecondSheetStaysVisibleUntilReadyAndNextStartsOnExactExitCompletion()async throws {
+        let f=try Fixture();defer{f.dispose()};var ready=false,activations=0
+        var pointer:(()->Void)?,sheet:(()->Void)?
+        let monitor=try XCTUnwrap(NativeSourceTutorialSecondStepMonitor(service:f.service,timeouts:f.timeouts,generation:1,
+            five:f.targets[0],one:f.targets[1],parent:f.construction.canvas,current:{f.current},hasUnlockedSix:{true},nodeCurrent:{_ in true},
+            pointerExit:{pointer=$0;return true},sheetExit:{sheet=$0;return true},activate:{activations+=1;return true},
+            readyToExit:{ready},activationDelayMilliseconds:0))
+        defer{monitor.dispose()};XCTAssertTrue(monitor.start())
+        try await Task.sleep(for:.milliseconds(100));XCTAssertEqual(monitor.phase,.polling);XCTAssertNil(pointer)
+        ready=true;try await Task.sleep(for:.milliseconds(70));XCTAssertEqual(monitor.phase,.pointerExit)
+        try XCTUnwrap(pointer)();XCTAssertEqual(monitor.phase,.sheetExit);XCTAssertEqual(activations,0)
+        try XCTUnwrap(sheet)();XCTAssertEqual(activations,1);XCTAssertEqual(monitor.phase,.finished)
+        XCTAssertFalse(f.timeouts.pendingReceipts.contains{$0.sourceID=="tutorial-second-activate90"})
+        try XCTUnwrap(sheet)();XCTAssertEqual(activations,1)
+    }
+
     func testUnlockedSixCompletesWithoutInteractionThroughActualExitsAndSeparateWall90()async throws {
         let f=try Fixture();defer{f.dispose()};XCTAssertTrue(f.monitor.start());XCTAssertFalse(f.monitor.start())
         _=f.service.setSourceGlobalPaused(true);f.hasSix=true

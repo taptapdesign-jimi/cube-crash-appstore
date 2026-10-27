@@ -88,7 +88,7 @@ public struct NativeSourceInitialBoardRecipe: Equatable, Sendable {
     public static func canRestore(_ saved:NativeBoardState)->Bool {
         guard (saved.columns==5 || saved.columns==7),saved.rows==9,saved.board>0,
             saved.generation>0,saved.terminal==nil,
-            (saved.tutorial==nil || (saved.tutorial?.active==false && saved.tutorial?.guideCompleted==true)),!saved.tiles.isEmpty,
+            !saved.tiles.isEmpty,
             saved.sourceDetachedGridTileIDs?.isEmpty != false,
             Set(saved.tiles.map(\.id)).count==saved.tiles.count,
             Set(saved.tiles.map(\.cell)).count==saved.tiles.count else{return false}

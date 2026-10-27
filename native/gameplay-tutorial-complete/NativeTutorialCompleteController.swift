@@ -28,7 +28,7 @@ final class NativeTutorialCompleteController: UIViewController {
     private let lease = UUID()
     private var sentMoments = Set<Int>()
     private var observations: [NSObjectProtocol] = []
-    init(resourceRoot: URL, title: String = "Congrats!", subtitle: String = "You cleared the stage.", reducedMotion: Bool? = nil) {
+    init(resourceRoot: URL, title: String = "Tutorial completed", subtitle: String = "You’re ready to play!", reducedMotion: Bool? = nil) {
         artwork = JimiV9Artwork(resourceRoot: resourceRoot); self.reducedMotion = reducedMotion ?? UIAccessibility.isReduceMotionEnabled
         paper=NativeAppPaperSurface(artwork:artwork,textureBottomExtension:24)
         super.init(nibName: nil,bundle: nil)
@@ -40,9 +40,9 @@ final class NativeTutorialCompleteController: UIViewController {
         super.viewDidLoad()
         view.backgroundColor = UIColor(red:243/255,green:238/255,blue:232/255,alpha:1)
         paper.autoresizingMask = [.flexibleWidth,.flexibleHeight]; view.addSubview(paper)
-        titleLabel.textAlignment = .center; titleLabel.numberOfLines = 0
+        titleLabel.textAlignment = .center; titleLabel.numberOfLines = 0;titleLabel.lineBreakMode = .byWordWrapping
         titleLabel.textColor = UIColor(red:239/255,green:116/255,blue:77/255,alpha:1)
-        subtitleLabel.textAlignment = .center; subtitleLabel.numberOfLines = 0
+        subtitleLabel.textAlignment = .center; subtitleLabel.numberOfLines = 0;titleLabel.lineBreakMode = .byWordWrapping
         subtitleLabel.textColor = NativeTextPalette.subtitle
         thumb.image = artwork.image("assets/thumbs-up@2x.png"); thumb.contentMode = .scaleAspectFit
         thumb.layer.anchorPoint = CGPoint(x:0.5,y:0.74)
@@ -77,7 +77,7 @@ final class NativeTutorialCompleteController: UIViewController {
         let titleSize = min(64,max(44,width*0.094)), subtitleSize = min(32,max(23,width*0.051))
         titleLabel.font = artwork.font(size:titleSize,weight:"ExtraBold")
         subtitleLabel.font = artwork.font(size:subtitleSize,weight:"SemiBold")
-        titleLabel.bounds = CGRect(x:0,y:0,width:width-48,height:titleSize*0.95+8)
+        titleLabel.bounds = CGRect(x:0,y:0,width:width-48,height:ceil(titleLabel.sizeThatFits(CGSize(width:width-48,height:.greatestFiniteMagnitude)).height))
         titleLabel.center = CGPoint(x:width/2,y:top-16+titleLabel.bounds.height/2)
         subtitleLabel.bounds = CGRect(x:0,y:0,width:width-48,height:subtitleSize*1.2+8)
         subtitleLabel.center = CGPoint(x:width/2,y:titleLabel.center.y+titleLabel.bounds.height/2+26+subtitleLabel.bounds.height/2)

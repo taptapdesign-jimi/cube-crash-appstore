@@ -14,6 +14,13 @@ final class NativeGameplayViewController: UIViewController {
     var onRoundWon: ((UInt64) -> Void)?
     var onTerminal: ((NativeResolution) -> Void)?
     var prepareJourneyRewardController:((NativeResolution)->NativeJourneyRewardController?)?
+    var prepareJourneyResultController:((NativeResolution)->NativeResultController?)?
+    private var preparedJourneyResult:(generation:UInt64,controller:NativeResultController)?
+    func takePreparedJourneyResult(generation:UInt64)->NativeResultController? {
+        guard let prepared=preparedJourneyResult,prepared.generation==generation,engine.state.generation==generation else{retirePreparedJourneyResult();return nil}
+        preparedJourneyResult=nil;return prepared.controller
+    }
+    private func retirePreparedJourneyResult(){preparedJourneyResult?.controller.dispose();preparedJourneyResult=nil}
     private var preparedJourneyReward:NativeJourneyRewardController?
     func takePreparedJourneyReward(generation:UInt64)->NativeJourneyRewardController? {
         guard engine.state.generation==generation,preparedJourneyReward?.presentationGeneration==generation else {retirePreparedJourneyReward();return nil}
@@ -203,8 +210,16 @@ final class NativeGameplayViewController: UIViewController {
     var hasPresentedBoardCleared:Bool {boardClearedGeneration==engine.state.generation}
     private var boardClearedGeneration:UInt64?
     private var boardClearedTerminalContinuation:(()->Void)?
+    private var boardClearedSuccessorReady=false
     private var honeyFinale: NativeHoneyFinalePresentation?
     private var honeyGeneration: UInt64?
+    var tutorialVisualPresentationAllowed:Bool{!disposed && !backgrounded && !explicitlySuspended && !exitingBoard}
+    var tutorialEncouragementPresentationReady:Bool {
+        !disposed && !backgrounded && !explicitlySuspended && !exitingBoard &&
+        (boardScene?.tutorialEncouragementMilestoneReached==true ||
+         (fishFinale==nil && bottleFinale==nil && honeyFinale==nil && area55Finales.isEmpty && tntGlyphs.isEmpty)) &&
+        boardScene?.tutorialEncouragementSettled==true
+    }
     private var lastRoboExitFrame:Int?
     private var laserResources:NativeLaserGunResources? {finaleArtworkOwner?.laserResources}
     private(set) var finaleArtworkOwner:NativeSelectedUIKitFinaleArtworkOwner?
@@ -736,6 +751,7 @@ final class NativeGameplayViewController: UIViewController {
         scene.onStateChange = { [weak self] state in
             if let self,let generation=self.boardClearedGeneration,generation != state.generation {self.retireBoardCleared();self.boardClearedGeneration=nil}
             if self?.preparedJourneyReward?.presentationGeneration != state.generation {self?.retirePreparedJourneyReward()}
+            if self?.preparedJourneyResult?.generation != state.generation {self?.retirePreparedJourneyResult()}
             self?.retireJourneyRewardChildren(excludingGeneration:state.generation)
             if let generation = self?.fishGeneration,generation != state.generation { self?.fishFinale?.dispose() }
             if let generation = self?.bottleGeneration,generation != state.generation { self?.bottleFinale?.dispose() }
@@ -748,23 +764,28 @@ final class NativeGameplayViewController: UIViewController {
         scene.onFinalMergeProgress = {[weak self] _,_,generation in self?.presentBoardCleared(generation:generation)}
         scene.onTerminal = { [weak self] result in
             guard let self,!self.disposed else{return}
-            guard result.kind == .complete,self.engine.state.tutorial?.requiresResultCompletion != true else {
+            guard result.kind == .complete,(self.engine.state.mode == .journey || self.engine.state.tutorial?.requiresResultCompletion != true) else {
                 self.onTerminal?(result);return
             }
             guard !self.exitingBoard else{return}
             let generation=self.engine.state.generation
             self.presentBoardCleared(generation:generation)
+            self.retirePreparedJourneyResult()
+            if let resultController=self.prepareJourneyResultController?(result) {
+                self.preparedJourneyResult=(generation,resultController)
+                resultController.prepareForHandoff(viewport:self.view.bounds.size)
+            }
             self.preparedJourneyReward=self.prepareJourneyRewardController?(result)
             self.preparedJourneyReward?.loadViewIfNeeded()
             self.animateBoardExit(finalMerge:true) { [weak self,weak scene] completed in
                 guard let self else{return}
                 guard let scene,completed,!self.disposed,self.boardScene === scene,
-                      self.engine.state.generation==generation else{self.retirePreparedJourneyReward();return}
+                      self.engine.state.generation==generation else{self.retirePreparedJourneyReward();self.retirePreparedJourneyResult();return}
                 let deliver:()->Void = {[weak self] in
                     guard let self,!self.disposed,self.engine.state.generation==generation else{return}
                     self.onTerminal?(result)
                 }
-                if self.boardClearedPresentation != nil {self.boardClearedTerminalContinuation=deliver}
+                if self.boardClearedPresentation != nil {self.boardClearedTerminalContinuation=deliver;self.boardClearedSuccessorReady=true}
                 else {deliver()}
             }
         }
@@ -865,7 +886,7 @@ final class NativeGameplayViewController: UIViewController {
             self.finaleArtworkOwner?.dispose();self.finaleArtworkOwner=nil
             self.sourcePresentationFailureGeneration=generation
             self.sourcePresentationFailure = .init(reason:reason,generation:generation,boardState:self.engine.state)
-            self.retirePreparedJourneyReward();self.retireJourneyRewardChildren()
+            self.retirePreparedJourneyReward();self.retirePreparedJourneyResult();self.retireJourneyRewardChildren()
             guard scene.sealSourcePresentationFailure(generation:generation),!self.disposed,self.boardScene === scene,
                 self.engine.state.generation==generation else{return}
             NSLog("[NativeSourcePresentation] captured generation %llu retired: %@",generation,reason)
@@ -1205,11 +1226,15 @@ final class NativeGameplayViewController: UIViewController {
     /// commits a round; the existing terminal receipt remains authoritative.
     private func presentBoardCleared(generation:UInt64) {
         guard !disposed,!backgrounded,engine.state.generation==generation,
-              boardClearedGeneration != generation,engine.state.tutorial?.requiresResultCompletion != true else{return}
+              boardClearedGeneration != generation,(engine.state.mode == .journey || engine.state.tutorial?.requiresResultCompletion != true) else{return}
         retireBoardCleared();boardClearedGeneration=generation
         let owner=NativeArcadeRoundPresentation(resourceRoot:resourceRoot,clearedRound:engine.state.stage,
             nextRound:engine.state.stage+1,boardClearedOnly:true)
-        boardClearedPresentation=owner
+        boardClearedPresentation=owner;boardClearedSuccessorReady=false
+        if engine.state.mode == .journey {owner.permitsBoardClearedExit = {[weak self] in
+            guard let self else{return false}
+            return self.boardClearedSuccessorReady && (self.preparedJourneyReward?.initialPresentationReady ?? true)
+        }}
         owner.frame=view.bounds;owner.autoresizingMask=[.flexibleWidth,.flexibleHeight]
         // Transparent overlay above SpriteKit dice/ghost exits and UIKit finale
         // art. Its stage margins leave the real HUD/footer visible underneath.
@@ -1229,7 +1254,7 @@ final class NativeGameplayViewController: UIViewController {
         owner.start()
     }
     private func retireBoardCleared() {
-        let old=boardClearedPresentation;boardClearedPresentation=nil
+        let old=boardClearedPresentation;boardClearedPresentation=nil;boardClearedSuccessorReady=false
         boardClearedTerminalContinuation=nil;old?.onFinished=nil;old?.dispose()
     }
 
@@ -1279,7 +1304,7 @@ final class NativeGameplayViewController: UIViewController {
             current:{[weak self,weak scope] generation in
                 guard let self,let scope,!self.disposed else{return false}
                 return self.sourceScope === scope && scope.current && self.engine.state.generation==generation &&
-                    self.viewIfLoaded?.window != nil && !self.backgrounded && !self.explicitlySuspended && !self.exitingBoard
+                    self.viewIfLoaded?.window != nil && !self.backgrounded && !self.explicitlySuspended && !self.exitingBoard && !self.tutorialSheetPresented
             },random:{[weak scope] in scope?.mathRandom.next() ?? .nan})
         endgameHint=owner;endgameHintSourceScope=scope
         // Literal module initialization; no positive decision or absent flags
@@ -1287,13 +1312,26 @@ final class NativeGameplayViewController: UIViewController {
         owner.update(eligible:false,generation:engine.state.generation)
         return owner
     }
+    private var tutorialSheetPresented:Bool {
+        viewIfLoaded?.subviews.contains{ $0 is NativeTutorialOverlay && !$0.isHidden } == true
+    }
+    func tutorialSheetPresentationChanged(){
+        if tutorialSheetPresented{endgameHint?.forceClear()}
+        updateNativeEndgameHint()
+    }
     private func updateNativeEndgameHint() {
         guard !disposed else{return}
-        // The shipping Native Core is this caller's actual authority. Explicit
-        // Source scopes must wait for their genuine whole endgame caller; a
-        // Native result cannot manufacture a Source hint/global capability.
+        if let scope=sourceScope {
+            let owner=sourceHintModule(scope:scope)
+            let allowed=viewIfLoaded?.window != nil && !backgrounded && !explicitlySuspended && !exitingBoard && !tutorialSheetPresented &&
+                boardScene?.sourceEndgameHintAllowed(scope:scope)==true
+            owner.update(eligible:allowed,generation:engine.state.generation)
+            return
+        }
+        // Unbound Native Core keeps its own authority; Source eligibility above
+        // comes only from the installed whole caller and actual physical roster.
         let tiles=engine.state.activeTiles
-        let allowed=sourceScope==nil && viewIfLoaded?.window != nil && !backgrounded && !explicitlySuspended && !exitingBoard &&
+        let allowed=sourceScope==nil && viewIfLoaded?.window != nil && !backgrounded && !explicitlySuspended && !exitingBoard && !tutorialSheetPresented &&
             engine.state.terminal==nil && !engine.flags.busyEnding && !engine.navigationLocked &&
             engine.resolve().kind == .continue && tiles.count>=2 && !tiles.contains(where:{$0.isWild}) &&
             NativeGameplayResolver.anyMergePossible(tiles)
@@ -1301,7 +1339,7 @@ final class NativeGameplayViewController: UIViewController {
             endgameHint=NativeEndgameHintCoordinator(host:view,root:resourceRoot,service:.shared,current:{[weak self] generation in
                 guard let self,!self.disposed else{return false}
                 return self.engine.state.generation==generation && self.viewIfLoaded?.window != nil &&
-                    !self.backgrounded && !self.explicitlySuspended && !self.exitingBoard
+                    !self.backgrounded && !self.explicitlySuspended && !self.exitingBoard && !self.tutorialSheetPresented
             },preparedCloudImages:{[weak self] in self?.nativeNoMovesUIKit?.preparedOriginalCloudImages})
         }
         endgameHint?.update(eligible:allowed,generation:engine.state.generation)
@@ -1584,6 +1622,11 @@ final class NativeGameplayViewController: UIViewController {
         } else if finalMerge {
             boardScene.animateExit(afterResidualExit:{ [weak self] in
                 self?.journeyBottomDecor?.exit(completion:settled)
+            },hudExitDelay:{[weak self] in
+                guard let clear=self?.boardClearedPresentation else{return 0}
+                // First CLEARED/PNG paint is at thumbEnterStart. Retain chrome
+                // for one further second, overlapping all existing residual work.
+                return max(0,clear.thumbEnterStart+1-clear.elapsed)
             },completion:settled)
         } else {
             journeyBottomDecor?.exit(completion:settled)
@@ -1632,7 +1675,7 @@ final class NativeGameplayViewController: UIViewController {
     }
 
     func dispose() {
-        retirePreparedJourneyReward();retireJourneyRewardChildren();prepareJourneyRewardController=nil
+        retirePreparedJourneyReward();retirePreparedJourneyResult();retireJourneyRewardChildren();prepareJourneyRewardController=nil;prepareJourneyResultController=nil
         restoreTutorialSpecialBarSiblings()
         beforeSourceInitialBoardReveal=nil
         beforeSourceGameplayAdmission=nil

@@ -25,7 +25,7 @@ private final class NativeMusicTimerScheduler:NativeMusicScheduler {
 /// One segmented file voice; no Merge-6 layer switch or second gameplay clock.
 @MainActor
 final class NativeArcadeMusicOwner {
-    private static let gameplayGain=0.11,resultGain=0.07
+    private static let gameplayGain=NativeSoundtrackRouteOwner.gameplayGain,resultGain=0.07
     private let transport:any NativeSoundtrackTransport
     private let scheduler:any NativeMusicScheduler
     private var observers:[NSObjectProtocol]=[]

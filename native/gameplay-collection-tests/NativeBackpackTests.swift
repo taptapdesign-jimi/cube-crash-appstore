@@ -191,6 +191,31 @@ final class NativeBackpackTests:XCTestCase {
         XCTAssertTrue(groups.allSatisfy{$0.layer.animation(forKey:"backpack.artwork.idle")==nil})
     }
 
+    func testOriginWorldComesFirstWithoutChangingRemainingOrderOrDiscovery() throws {
+        var progression=NativeProgressionState()
+        for (board,id) in [(1,"bee"),(11,"wild-juice"),(21,"robo-cube")] {
+            XCTAssertTrue(progression.announceJourneyDie(id,board:board))
+        }
+        progression.readJourneyDie("bee")
+        let original=try JSONEncoder().encode(progression)
+        let canonical=NativeBackpackCatalog.sections(progression)
+        for (world,expected) in [(1,["Forest","Area 55","Beach"]),
+                                 (2,["Beach","Forest","Area 55"]),
+                                 (3,["Area 55","Forest","Beach"]),
+                                 (99,["Forest","Area 55","Beach"])] {
+            let sections=NativeBackpackCatalog.sections(progression,prioritizingWorld:world)
+            XCTAssertEqual(sections.map(\.title),expected)
+            for section in sections {
+                let source=try XCTUnwrap(canonical.first{$0.title==section.title})
+                XCTAssertEqual(section.dice,source.dice)
+                XCTAssertEqual(section.unlocked,source.unlocked)
+                XCTAssertEqual(section.unread,source.unread)
+            }
+        }
+        XCTAssertEqual(NativeBackpackCatalog.sections(progression).map(\.title),["Forest","Area 55","Beach"])
+        XCTAssertEqual(try JSONDecoder().decode(NativeProgressionState.self,from:original),progression)
+    }
+
     func testOpeningEveryIntroductionUnitDoesNotRevealItsDieBeforeLandedDrop() throws {
         for board in 1...30 {
             var progression=NativeProgressionState()

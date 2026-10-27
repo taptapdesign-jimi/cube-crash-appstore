@@ -190,7 +190,11 @@ import StackToSixNativeState
         old.onRoundWon={generation in voices += 1;voice?(generation)}
         try await merge(scene,source:"a",target:"b")
         try await wait("Actual ordinary clear-card entry"){voices>0}
-        XCTAssertEqual(voices,1);XCTAssertFalse(clearProgress.isEmpty,"Ordinary finale completion remains observed independently of immediate celebration")
+        XCTAssertEqual(voices,1)
+        // CLEARED/voice starts at contact; the independently observed ordinary
+        // finale reaches its bounded visual-tail callback later.
+        try await wait("Actual ordinary finale progress"){!clearProgress.isEmpty}
+        XCTAssertFalse(clearProgress.isEmpty,"Ordinary finale completion remains observed independently of immediate celebration")
         if let first=clearProgress.first {XCTAssertGreaterThanOrEqual(first,0.85);XCTAssertLessThan(first,1.05)}
         XCTAssertTrue(old.hasPresentedBoardCleared)
         try await wait("Clean result"){old.presentedViewController is NativeResultController}

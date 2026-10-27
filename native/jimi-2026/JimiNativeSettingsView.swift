@@ -45,7 +45,7 @@ final class JimiNativeSettingsView: UIView {
         clipsToBounds = false; scroll.clipsToBounds = false
         scroll.alwaysBounceVertical = false
         scroll.showsVerticalScrollIndicator = false
-        title.text = "Settings"; title.font = assets.font(size: 28); title.textColor = ink
+        title.text = "Settings"; title.font = assets.font(size: 28); title.textColor = UIColor(red:173/255,green:135/255,blue:117/255,alpha:1)
         title.textAlignment = .center; header.addSubview(title)
         back.setImage(assets.image("assets/chevron-back.png"), for: .normal)
         back.imageView?.contentMode = .scaleAspectFit
@@ -58,10 +58,10 @@ final class JimiNativeSettingsView: UIView {
         developer.imageEdgeInsets = UIEdgeInsets(top: 9,left: 9,bottom: 9,right: 9)
         developer.accessibilityLabel = "Open developer tools"; developer.accessibilityIdentifier = "native.settings.developer"
         developer.addTarget(self, action: #selector(openDeveloper), for: .touchUpInside); header.addSubview(developer)
-        developerSummary.numberOfLines = 0; developerSummary.font = assets.font(size: 20,weight: "Medium")
+        developerSummary.numberOfLines = 0; developerSummary.font = assets.font(size: 18,weight: "Medium")
         developerSummary.textColor = ink; developerSummary.accessibilityIdentifier = "native.settings.developer.summary"
         developerSummary.isHidden = true; scroll.addSubview(developerSummary)
-        firstPlay.titleLabel?.font = assets.font(size: 20,weight: "Medium"); firstPlay.setTitleColor(accent,for: .normal)
+        firstPlay.titleLabel?.font = assets.font(size: 18,weight: "Medium"); firstPlay.setTitleColor(accent,for: .normal)
         firstPlay.accessibilityIdentifier = "native.settings.developer.first-play"
         firstPlay.addTarget(self,action: #selector(toggleFirstPlay),for: .touchUpInside)
         firstPlay.isHidden = true; scroll.addSubview(firstPlay);firstPlay.enableCartoonBounce()
@@ -89,7 +89,7 @@ final class JimiNativeSettingsView: UIView {
             let status = UILabel(); status.font = assets.font(size: 32, weight: "ExtraBold"); status.textColor = UIColor(red: 232/255, green: 116/255, blue: 74/255, alpha: 1)
             status.accessibilityIdentifier = "native.settings.status.\(keys[i])"
             row.addSubview(status); statuses.append(status)
-            let label = UILabel(); label.text = labels[i]; label.font = assets.font(size: 20, weight: "Medium"); label.textColor = NativeTextPalette.subtitle
+            let label = UILabel(); label.text = labels[i]; label.font = assets.font(size: 18, weight: "Medium"); label.textColor = NativeTextPalette.subtitle
             row.addSubview(label); descriptions.append(label)
             let toggle = JimiNativeSettingsToggle(); toggle.tag = i; toggle.onTintColor = accent
             toggle.accessibilityLabel = labels[i]; toggle.accessibilityIdentifier = "native.settings.\(keys[i])"

@@ -3,6 +3,21 @@ import SpriteKit
 @testable import Stack_to_Six
 
 @MainActor final class NativeSourceTutorialHUDTests:XCTestCase {
+    func testPendingHUDRevealCannotCaptureZeroAsSettledTutorialOpacity()async throws {
+        let parent=SKNode(),root=SKNode();parent.addChild(root);root.alpha=0
+        let fifo=NativeSourceMicrotaskFIFO(),timeouts=NativeSourceAppTimeoutOwner()
+        let tasks=NativeSourceMicrotaskAdapters(fifo:fifo);timeouts.sourceMicrotaskTasks=tasks
+        let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0},sourceFrameTransportEnabled:true);service.sourceMicrotaskTasks=tasks
+        var pending=true
+        let owner=try XCTUnwrap(NativeSourceTutorialHUDOwner(root:root,rootFinalAlpha:1,rootEntryPending:{pending},service:service,timeouts:timeouts,generation:1,current:{true}))
+        defer{owner.dispose();timeouts.cancelAll();service.dispose();fifo.dispose()}
+        XCTAssertTrue(owner.start());XCTAssertEqual(root.alpha,0)
+        try await Task.sleep(for:.milliseconds(150));XCTAssertEqual(root.alpha,0)
+        pending=false
+        try await Task.sleep(for:.milliseconds(150));XCTAssertEqual(root.alpha,1)
+        owner.dispose();root.alpha=0.4
+        try await Task.sleep(for:.milliseconds(150));XCTAssertEqual(root.alpha,0.4,accuracy:1e-6)
+    }
     func testRootFinalAlphaWaitsForActualHUDEntryOwnerThenRestoresOne()async throws {
         let parent=SKNode(),root=SKNode();parent.addChild(root);root.alpha=0.486
         root.run(.wait(forDuration:10),withKey:"hud-enter")

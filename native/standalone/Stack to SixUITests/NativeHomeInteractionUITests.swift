@@ -2,6 +2,43 @@ import XCTest
 
 @MainActor
 final class NativeHomeInteractionUITests: XCTestCase {
+    func testNormalJourneyArea55TutorialTransitionsOnActualOSClock()throws {
+        guard ProcessInfo.processInfo.environment["SIMULATOR_UDID"]=="1018BE2D-491B-465F-8F75-3E5BEB38C22A" else{throw XCTSkip("Dedicated isolated Native Simulator only")}
+        continueAfterFailure=false
+        let app=XCUIApplication(bundleIdentifier:"com.taptapdesign.stacktosix.native")
+        app.launchArguments=[];app.launchEnvironment=["CC_NATIVE_QA_PROFILE_ID":UUID().uuidString]
+        app.launch();defer{app.terminate()}
+        func settle(_ seconds:Double=1.0){let e=expectation(description:"actual visible motion");DispatchQueue.main.asyncAfter(deadline:.now()+seconds){e.fulfill()};wait(for:[e],timeout:seconds+3)}
+        func tap(_ id:String,timeout:Double=15){let e=app.buttons[id];XCTAssertTrue(e.waitForExistence(timeout:timeout));let ready=XCTNSPredicateExpectation(predicate:NSPredicate(format:"hittable == true AND enabled == true"),object:e);XCTAssertEqual(XCTWaiter.wait(for:[ready],timeout:timeout),.completed);e.tap()}
+        tap("native.home.cta",timeout:25);tap("native.hub.world.3");tap("native.world.card.21")
+        let board=app.otherElements["native-gameplay-board"]
+        let launched=XCTNSPredicateExpectation(predicate:NSPredicate{_,_ in board.exists || app.buttons["native.world.card.play"].exists},object:nil)
+        XCTAssertEqual(XCTWaiter.wait(for:[launched],timeout:15),.completed)
+        if app.buttons["native.world.card.play"].exists{tap("native.world.card.play")}
+        XCTAssertTrue(board.waitForExistence(timeout:20));XCTAssertTrue(app.staticTexts["Drag to stack"].waitForExistence(timeout:15));settle(1.2)
+        func guidedDrag(){
+            let source=app.descendants(matching:.any).matching(identifier:"native.tutorial.drag-source").firstMatch
+            let target=app.descendants(matching:.any).matching(identifier:"native.tutorial.drag-target").firstMatch
+            XCTAssertTrue(source.waitForExistence(timeout:8));XCTAssertTrue(target.waitForExistence(timeout:8))
+            source.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.5)).press(forDuration:0.16,thenDragTo:target.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.5)))
+        }
+        guidedDrag();XCTAssertTrue(app.staticTexts["Merge dice"].waitForExistence(timeout:10));settle(1.0)
+        guidedDrag();XCTAssertTrue(app.staticTexts["Special Bar"].waitForExistence(timeout:15));settle(1.1)
+        tap("native.tutorial.got-it");XCTAssertTrue(app.staticTexts["Clear the stage"].waitForExistence(timeout:3));settle(0.8)
+        tap("native.tutorial.got-it");settle(0.8)
+        func point(_ x:Double,_ y:Double)->XCUICoordinate{board.coordinate(withNormalizedOffset:CGVector(dx:x,dy:y))}
+        for (sx,sy,tx,ty) in [(0.141,0.197,0.321,0.197),(0.50,0.197,0.321,0.197),(0.50,0.363,0.679,0.363),(0.141,0.363,0.321,0.363),(0.679,0.363,0.321,0.363)] {
+            point(sx,sy).press(forDuration:0.16,thenDragTo:point(tx,ty));settle(1.2)
+        }
+        XCTAssertTrue(app.staticTexts["Special dice"].waitForExistence(timeout:15));settle(1.2)
+        XCTAssertEqual(app.buttons["native.tutorial.got-it"].label,"Got it")
+        tap("native.tutorial.got-it");settle(0.4)
+        XCTAssertFalse(app.staticTexts["Special dice"].exists)
+        guidedDrag();settle(5)
+        XCTAssertFalse(app.staticTexts["Great merge!"].exists)
+        XCTAssertFalse(app.staticTexts["Special dice"].exists);XCTAssertFalse(app.staticTexts["Replay board?"].exists)
+        XCTAssertFalse(app.otherElements["native.tutorial.sheet"].exists);XCTAssertTrue(board.exists);XCTAssertEqual(app.webViews.count,0)
+    }
     func testExplicitSourceGuidedOSDragsCTAAndBackground()throws {
         try runSourceGuidedOS(profile:"AD1E2026-1010-4000-8000-000000000005",completeFourth:false)
     }

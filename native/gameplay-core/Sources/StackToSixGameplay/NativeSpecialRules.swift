@@ -85,6 +85,10 @@ public enum NativeTntRules {
 
 /// Source: wild-spawn-permission.ts, wild-meter-progress-decision.ts, app-core.ts addWildProgress.
 public enum NativeWildMeterRules {
+    /// Same readiness boundary for semantic permission and outer continuation.
+    /// Floating-point accumulation can land one ulp below the displayed full bar.
+    public static func isReady(_ meter:Double)->Bool {meter.isFinite && meter>=1-0.000001}
+
     public struct Permission: Equatable, Sendable {
         public enum Action: String, Sendable { case allow, block, retry }
         public let action: Action
@@ -100,7 +104,7 @@ public enum NativeWildMeterRules {
     public static func permission(meter: Double, meterEnabled: Bool = true, spawnEnabled: Bool = true, spawnInProgress: Bool = false, busyEnding: Bool = false, boardTransition: Bool = false, failPending: Bool = false, lastMerge: Bool = false, animationBlock: String? = nil) -> Permission {
         if !meterEnabled { return Permission(.block,"wild-meter-disabled") }
         if !spawnEnabled { return Permission(.block,"wild-spawn-disabled") }
-        if !meter.isFinite || meter < 1 - 0.000001 { return Permission(.block,"wild-meter-not-ready") }
+        if !isReady(meter) { return Permission(.block,"wild-meter-not-ready") }
         if spawnInProgress { return Permission(.block,"wild-spawn-in-progress") }
         if busyEnding { return Permission(.block,"busyEnding") }
         if boardTransition { return Permission(.block,"board-transition") }

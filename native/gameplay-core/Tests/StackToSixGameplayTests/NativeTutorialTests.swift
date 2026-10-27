@@ -86,6 +86,35 @@ final class NativeTutorialTests: XCTestCase {
         XCTAssertTrue(engine.claimMeterReward().accepted)
         XCTAssertTrue(engine.state.activeTiles.contains{$0.gameplayArchetype == .star})
     }
+    func testContextualSpecialIdentitySurvivesSpawnPreparationAndSave()throws {
+        for reward in [NativeWildRewardChoice(.star,variant:"bee"),.init(.juice),.init(.juice,variant:"robo-cube"),.init(.magnet),.init(.tnt)] {
+            var state=board();var tutorial=NativeTutorialState();tutorial.step = .freePlay;tutorial.waitingForWild=true
+            state.tutorial=tutorial;state.wildMeter=1
+            let engine=NativeGameplayEngine(state:state,recordedRandomChoices:Array(repeating:0.2,count:100))
+            engine.configureTutorialReward(reward);engine.configureTutorialReward(.init(.star))
+            XCTAssertEqual(engine.state.tutorial?.reward,reward)
+            XCTAssertTrue(engine.claimMeterReward().accepted)
+            let wild=try XCTUnwrap(engine.state.activeTiles.first{$0.isWild})
+            XCTAssertEqual(wild.archetype,reward.archetype);XCTAssertEqual(wild.variant,reward.variant)
+            XCTAssertTrue(NativeTutorialRules.allowsPickup(wild,tutorial:engine.state.tutorial,rows:9))
+            let target=try XCTUnwrap(engine.state.activeTiles.first{!$0.isWild})
+            XCTAssertTrue(NativeTutorialRules.allowsDrop(source:wild,destination:target,tutorial:engine.state.tutorial,rows:9))
+            XCTAssertTrue(NativeTutorialRules.allowsDrop(source:target,destination:wild,tutorial:engine.state.tutorial,rows:9))
+            let decoded=try JSONDecoder().decode(NativeBoardState.self,from:JSONEncoder().encode(engine.state))
+            XCTAssertEqual(decoded.tutorial?.reward,reward)
+        }
+    }
+    func testEncouragementAcknowledgementRequiresCompletedGuideAndPersists()throws {
+        var state=board();state.tutorial=NativeTutorialState()
+        let engine=NativeGameplayEngine(state:state);engine.acknowledgeTutorialEncouragement()
+        XCTAssertNil(engine.state.tutorial?.encouragementAcknowledged)
+        state.tutorial?.active=false;state.tutorial?.guideCompleted=true;engine.restart(state:state)
+        XCTAssertTrue(engine.state.tutorial?.needsEncouragement==true)
+        engine.acknowledgeTutorialEncouragement()
+        XCTAssertFalse(engine.state.tutorial?.needsEncouragement==true)
+        let decoded=try JSONDecoder().decode(NativeBoardState.self,from:JSONEncoder().encode(engine.state))
+        XCTAssertEqual(decoded.tutorial?.encouragementAcknowledged,true)
+    }
     func board() -> NativeBoardState {
         var tiles: [NativeTile] = []
         for row in 0..<9 { for column in 0..<5 {

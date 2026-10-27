@@ -1,5 +1,19 @@
 import Foundation
 
+/// Shared Native tutorial sheet entrance: one overshoot and a soft return.
+/// The paper surface must extend below the viewport by at least 25% of its height.
+enum NativeTutorialSheetMotion {
+    static let duration=0.78
+    static func progress(_ seconds:Double)->Double {
+        let t=max(0,min(1,seconds/duration))
+        func smooth(_ value:Double)->Double {let p=max(0,min(1,value));return p*p*p*(p*(p*6-15)+10)}
+        // Spend two thirds on readable travel, then a small, soft rebound.
+        if t<0.66{return 1-1.045*smooth(t/0.66)}
+        if t<0.86{return -0.045+0.053*smooth((t-0.66)/0.20)}
+        return 0.008*(1-smooth((t-0.86)/0.14))
+    }
+}
+
 /// Original renderOverlay intro only. The two wall timers are independent of
 /// each other and of paused GSAP. Sheet/image roots borrow the APP transport;
 /// the later pointer hint, HUD and step monitor remain separate owners.
@@ -11,7 +25,7 @@ import Foundation
         func advanceSourceAnimation(seconds:Double){update(seconds)}
     }
     private let service:NativeSourceAnimationClockService,timeouts:NativeSourceAppTimeoutOwner
-    private let immediateSheet:Bool
+    private let immediateSheet:Bool,nativeSheetMotion:Bool
     private let generation:UInt64,current:()->Bool,sheet:(Double)->Void,pointer:(PointerPose)->Void,reveal:()->Void,focus:()->Void
     private var timers:[NativeSourceAppTimeoutOwner.Receipt]=[]
     private var sheetPaint:Paint?,pointerPaint:Paint?,hintPaint:Paint?
@@ -25,11 +39,11 @@ import Foundation
     private(set) var sheetStarted=false,pointerStarted=false
     var pendingTimerCount:Int{timers.count}
     init?(service:NativeSourceAnimationClockService,timeouts:NativeSourceAppTimeoutOwner,generation:UInt64,
-          immediateSheet:Bool=false,current:@escaping()->Bool,sheet:@escaping(Double)->Void,pointer:@escaping(PointerPose)->Void,
+          immediateSheet:Bool=false,nativeSheetMotion:Bool=false,current:@escaping()->Bool,sheet:@escaping(Double)->Void,pointer:@escaping(PointerPose)->Void,
           reveal:@escaping()->Void,focus:@escaping()->Void,conceal:@escaping()->Void={},dim:@escaping(Double)->Void={_ in}) {
         guard generation>0,service.sourceMicrotaskRAFBoundaryInstalled,
               let tasks=service.sourceMicrotaskTasks,timeouts.sourceMicrotaskTasks === tasks,current() else{return nil}
-        self.immediateSheet=immediateSheet
+        self.immediateSheet=immediateSheet;self.nativeSheetMotion=nativeSheetMotion
         self.service=service;self.timeouts=timeouts;self.generation=generation
         self.current=current;self.sheet=sheet;self.pointer=pointer;self.reveal=reveal;self.focus=focus;self.conceal=conceal;self.dim=dim
     }
@@ -61,9 +75,9 @@ import Foundation
     private func startSheet() {
         guard admitted(),!sheetStarted else{return};sheetStarted=true
         cancelSheet();let epoch=sheetEpoch
-        let paint=Paint{[weak self] seconds in guard let self else{return};guard self.admitted() else{self.dispose();return};guard self.sheetEpoch==epoch else{return};self.paintSheet(Self.sheetProgress(seconds))}
+        let paint=Paint{[weak self] seconds in guard let self else{return};guard self.admitted() else{self.dispose();return};guard self.sheetEpoch==epoch else{return};self.paintSheet(self.entranceProgress(seconds))}
         sheetPaint=paint
-        sheetLease=service.register(participant:paint,duration:0.42,domain:.sourceGSAP(.defaultLazyTween),cleanup:{[weak self] _ in guard let self,self.sheetEpoch==epoch else{return};self.sheetLease=nil;self.sheetPaint=nil})
+        sheetLease=service.register(participant:paint,duration:entranceDuration,domain:.sourceGSAP(.defaultLazyTween),cleanup:{[weak self] _ in guard let self,self.sheetEpoch==epoch else{return};self.sheetLease=nil;self.sheetPaint=nil})
         if sheetLease==nil{dispose()}
     }
     private func startPointer(scheduleFocus:Bool) {
@@ -139,12 +153,30 @@ import Foundation
         guard admitted() else{return false};cancelSheet();let epoch=sheetEpoch,from=paintedSheet
         let paint=Paint{[weak self] seconds in
             guard let self else{return};guard self.admitted() else{self.dispose();return};guard self.sheetEpoch==epoch else{return}
-            self.paintSheet(from*(1-Self.backOut(seconds/0.42,1.25)))
+            self.paintSheet(from*self.entranceProgress(seconds))
         }
         sheetPaint=paint
-        sheetLease=service.register(participant:paint,duration:0.42,domain:.sourceGSAP(.defaultLazyTween),cleanup:{[weak self] success in
+        sheetLease=service.register(participant:paint,duration:entranceDuration,domain:.sourceGSAP(.defaultLazyTween),cleanup:{[weak self] success in
             guard let self,self.sheetEpoch==epoch else{return};self.sheetLease=nil;self.sheetPaint=nil
             guard success,self.admitted() else{return};completed()
+        })
+        return sheetLease != nil
+    }
+    /// Adjacent lessons retain their paper; only the copy/CTA crossfade.
+    @discardableResult func replaceSheetContent(prepare:@escaping()->Void,paint:@escaping(Double,Double)->Void,completed:@escaping()->Void)->Bool {
+        guard admitted() else{return false};cancelSheet();let epoch=sheetEpoch
+        var replaced=false
+        let participant=Paint{[weak self] seconds in
+            guard let self,self.admitted(),self.sheetEpoch==epoch else{return}
+            if seconds>=0.14 && !replaced {replaced=true;prepare()}
+            guard self.admitted(),self.sheetEpoch==epoch else{return}
+            if seconds<0.14 {let t=min(1,seconds/0.14);paint(1-t*t*(3-2*t),-6*t)}
+            else {let t=min(1,(seconds-0.14)/0.24),e=t*t*(3-2*t);paint(e,6*(1-e))}
+        }
+        sheetPaint=participant
+        sheetLease=service.register(participant:participant,duration:0.38,domain:.sourceGSAP(.timeline),cleanup:{[weak self] success in
+            guard let self,self.sheetEpoch==epoch else{return};self.sheetLease=nil;self.sheetPaint=nil
+            guard success,self.admitted() else{return};paint(1,0);completed()
         })
         return sheetLease != nil
     }
@@ -177,6 +209,8 @@ import Foundation
         cancelSheet();cancelDim()
         cancelPointer();let oldFrame=frame;frame=nil;oldFrame?.cancel()
     }
+    private var entranceDuration:Double{nativeSheetMotion ? NativeTutorialSheetMotion.duration:0.42}
+    private func entranceProgress(_ seconds:Double)->Double{nativeSheetMotion ? NativeTutorialSheetMotion.progress(seconds):Self.sheetProgress(seconds)}
     static func sheetProgress(_ seconds:Double)->Double {1-backOut(seconds/0.42,1.25)}
     static func pointerPose(_ seconds:Double)->PointerPose {
         let time=max(0,seconds),alpha=sin(min(1,time/0.08)*Double.pi/2)

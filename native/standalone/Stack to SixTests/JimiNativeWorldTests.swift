@@ -263,9 +263,40 @@ final class JimiNativeWorldTests: XCTestCase {
         let card=JimiNativeWorldCardView(unit:unit,assets:art,resources:resources,worldTitle:snapshot.title)
         defer{card.cleanup()}
         func labels(_ view:UIView)->[UILabel] {(view as? UILabel).map{[$0]} ?? view.subviews.flatMap(labels)}
-        XCTAssertTrue(labels(card).contains{$0.text=="Area 05"})
+        XCTAssertTrue(labels(card).contains{$0.text=="Stage 05"})
         XCTAssertFalse(labels(card).contains{$0.text=="Area 55 05"})
     }
+    func testStageTitleWithoutDividersAndContinueWidthAcrossAllWorlds() async throws {
+        let resources=JimiNativeWorldResources(root:root)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),host=UIViewController()
+        window.rootViewController=host;window.makeKeyAndVisible();defer{window.isHidden=true}
+        for (board,world) in [(7,"Forest"),(17,"Beach"),(27,"Area 55")] {
+            for action in ["play","continue"] {
+                var projection=fixture(),units=fixture()["units"] as! [[String:Any]]
+                units[0]["boardID"]=board;units[0]["allowedActions"]=[action]
+                units[0]["parts"]=[["asset":"assets/colelctibles/Forest/common/01.png","role":"card","x":0,"y":0,"width":90,"height":133,"rotation":0,"opacity":1,"zIndex":2]]
+                units[0]["stats"]=[["label":"Score","value":"1,234"],["label":"Combo","value":"12"]]
+                projection["units"]=[units[0]];projection["worldID"]=(board-1)/10+1
+                let unit=try XCTUnwrap(JimiNativeWorldSnapshot(projection)?.units.first)
+                let card=JimiNativeWorldCardView(unit:unit,assets:art,resources:resources,worldTitle:world)
+                defer{card.cleanup();card.removeFromSuperview()}
+                card.frame=CGRect(x:0,y:0,width:390,height:844);host.view.addSubview(card)
+                card.enter(from:CGRect(x:30,y:400,width:90,height:133));card.setNeedsLayout();card.layoutIfNeeded()
+                try await settle(0.65)
+                let title=try XCTUnwrap(descendant(card,"native.world.card.stage-title") as? UILabel)
+                XCTAssertEqual(title.text,"Stage 07");XCTAssertEqual(title.font.pointSize,28)
+                XCTAssertNil(descendant(card,"native.world.card.title-divider.0"))
+                XCTAssertNil(descendant(card,"native.world.card.title-divider.1"))
+                let cta=try XCTUnwrap(descendant(card,"native.world.card.\(action)"))
+                XCTAssertEqual(cta.bounds.width,237.3*0.95,accuracy:0.001)
+                func all(_ view:UIView)->[UIView] {view.subviews.flatMap{[$0]+all($0)}}
+                let middle=try XCTUnwrap(all(card).first{$0.tag==701})
+                XCTAssertEqual(middle.frame.minX,8,accuracy:0.001)
+                XCTAssertEqual(try XCTUnwrap(middle.superview).bounds.width-middle.frame.maxX,8,accuracy:0.001)
+            }
+        }
+    }
+
     func testCardBackKeepsStatsClearOfCTAOnNarrowPhones() async throws {
         var projection=fixture(),units=fixture()["units"] as! [[String:Any]]
         units[0]["stats"]=[["label":"Score","value":"1,234"],["label":"Combo","value":"12"]]
@@ -292,7 +323,7 @@ final class JimiNativeWorldTests: XCTestCase {
             XCTAssertEqual(cta.bounds.height,80.64)
             let ctaLayout=(cta as? JimiV9PlainButton)?.cartoonBounceLayoutView ?? cta
             let back=try XCTUnwrap(ctaLayout.superview)
-            XCTAssertEqual(cta.bounds.width,min(237.3,back.bounds.width-32),accuracy:0.001)
+            XCTAssertEqual(cta.bounds.width,min(237.3,back.bounds.width-32)*0.95,accuracy:0.001)
             let stats=try XCTUnwrap(back.subviews.compactMap{$0 as? UIStackView}.first{$0.axis == .vertical})
             XCTAssertGreaterThanOrEqual(ctaLayout.frame.minY-stats.frame.maxY,15,"Stats/CTA gap at \(width)")
             XCTAssertEqual(back.bounds.maxY-ctaLayout.frame.maxY,40,accuracy:0.1)
@@ -1151,7 +1182,7 @@ final class JimiNativeWorldTests: XCTestCase {
         XCTAssertTrue(world.hasActiveCard)
         func allLabels(_ root:UIView) -> [UILabel] {(root as? UILabel).map{[$0]} ?? root.subviews.flatMap(allLabels)}
         let labels = allLabels(modal)
-        for text in ["Forest 01","1,234","12","High score","Longest combo"] {
+        for text in ["Stage 01","1,234","12","High score","Longest combo"] {
             let label = try XCTUnwrap(labels.first {$0.text == text})
             XCTAssertGreaterThan(label.bounds.width,0);XCTAssertGreaterThan(label.bounds.height,0)
             XCTAssertGreaterThanOrEqual(label.bounds.width,label.intrinsicContentSize.width,"Critical card text must fit its original UIKit row")

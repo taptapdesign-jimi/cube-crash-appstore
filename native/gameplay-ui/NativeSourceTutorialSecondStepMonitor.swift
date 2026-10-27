@@ -9,18 +9,21 @@ import SpriteKit
     private let timeouts:NativeSourceAppTimeoutOwner,generation:UInt64,five:NativeDiceNode,one:NativeDiceNode,parent:SKNode
     private let current:()->Bool,hasUnlockedSix:()->Bool,nodeCurrent:(NativeDiceNode)->Bool
     private let pointerExit:(@escaping()->Void)->Bool,sheetExit:(@escaping()->Void)->Bool,activate:()->Bool
+    private let readyToExit:()->Bool,activationDelayMilliseconds:Int
     private var timer:NativeSourceAppTimeoutOwner.Receipt?,deadline:UInt64=0,interacted=false
     private(set) var phase=Phase.idle
     var pendingTimer:Bool{timer != nil}
     init?(service:NativeSourceAnimationClockService,timeouts:NativeSourceAppTimeoutOwner,generation:UInt64,five:NativeDiceNode,one:NativeDiceNode,parent:SKNode,
         current:@escaping()->Bool,hasUnlockedSix:@escaping()->Bool,nodeCurrent:@escaping(NativeDiceNode)->Bool,
-        pointerExit:@escaping(@escaping()->Void)->Bool,sheetExit:@escaping(@escaping()->Void)->Bool,activate:@escaping()->Bool) {
+        pointerExit:@escaping(@escaping()->Void)->Bool,sheetExit:@escaping(@escaping()->Void)->Bool,activate:@escaping()->Bool,
+        readyToExit:@escaping()->Bool={true},activationDelayMilliseconds:Int=90) {
         guard generation>0,five !== one,service.sourceMicrotaskRAFBoundaryInstalled,
             let tasks=service.sourceMicrotaskTasks,timeouts.sourceMicrotaskTasks === tasks,
             five.parent === parent,one.parent === parent,five.sourceContactNodeAlive,one.sourceContactNodeAlive,
             five.sourceGeneration==generation,one.sourceGeneration==generation,current() else{return nil}
         self.timeouts=timeouts;self.generation=generation;self.five=five;self.one=one;self.parent=parent
         self.current=current;self.hasUnlockedSix=hasUnlockedSix;self.nodeCurrent=nodeCurrent;self.pointerExit=pointerExit;self.sheetExit=sheetExit;self.activate=activate
+        self.readyToExit=readyToExit;self.activationDelayMilliseconds=max(0,activationDelayMilliseconds)
     }
     private func admitted()->Bool{guard phase != .retired,phase != .finished else{return false};let valid=current();return valid && phase != .retired && phase != .finished}
     @discardableResult func start()->Bool {
@@ -39,6 +42,7 @@ import SpriteKit
             let hasSix=self.hasUnlockedSix();guard self.admitted() else{self.dispose();return}
             let pairIntact=self.bound(self.five) && self.five.sourceValue==5 && self.bound(self.one) && self.one.sourceValue==1
             guard hasSix || (self.interacted && !pairIntact) else{self.schedulePoll();return}
+            guard self.readyToExit(),self.admitted() else{self.schedulePoll();return}
             self.phase = .pointerExit
             guard self.pointerExit({[weak self] in
                 guard let self else{return};guard self.admitted() else{self.dispose();return};guard self.phase == .pointerExit else{return}
@@ -46,7 +50,11 @@ import SpriteKit
                 guard self.sheetExit({[weak self] in
                     guard let self else{return};guard self.admitted() else{self.dispose();return};guard self.phase == .sheetExit else{return}
                     self.phase = .activationWait
-                    self.timer=self.timeouts.schedule(sourceID:"tutorial-second-activate90",generation:self.generation,delayMilliseconds:90,elapsed:{[weak self] in
+                    if self.activationDelayMilliseconds==0 {
+                        if self.activate(),self.phase != .retired {self.phase = .finished}else{self.dispose()}
+                        return
+                    }
+                    self.timer=self.timeouts.schedule(sourceID:"tutorial-second-activate90",generation:self.generation,delayMilliseconds:self.activationDelayMilliseconds,elapsed:{[weak self] in
                         guard let self else{return};self.timer=nil
                         guard self.admitted(),self.phase == .activationWait else{self.dispose();return}
                         if self.activate(),self.phase != .retired{self.phase = .finished}else{self.dispose()}
@@ -118,7 +126,13 @@ import SpriteKit
         })
         return timer != nil
     }
-    /// Only the captured transport's genuine landed receipt may open the Native sheet.
+    /// Native starts the sheet on first contact; input still waits for restoration.
+    @discardableResult func contactWild(_ candidate:NativeDiceNode)->Bool {
+        guard admitted(),phase == .waitingForLanding,wild === candidate,nodeCurrent(candidate) else{return false}
+        phase = .sheetDelay
+        return transitionToSheet()
+    }
+    /// Reference callers may still wait for the full landed receipt.
     @discardableResult func landedWild(_ candidate:NativeDiceNode)->Bool {
         guard admitted(),phase == .waitingForLanding,wild === candidate,nodeCurrent(candidate),!dropping(candidate) else{return false}
         phase = .sheetDelay

@@ -259,7 +259,7 @@ final class JimiNativeEndRunModal: UIViewController {
         idle.layer.shadowOpacity = 0.8;idle.layer.shadowOffset = CGSize(width:0,height:13);idle.layer.shadowRadius = 16.8
         let ink = UIColor(red:173/255,green:134/255,blue:117/255,alpha:1)
         heading.text = model.title;heading.font = assets.font(size:32,weight:"ExtraBold");heading.textColor = ink;heading.textAlignment = .center
-        subtitle.text = model.subtitle;subtitle.font = assets.font(size:20,weight:"Medium");subtitle.textColor = NativeTextPalette.subtitle;subtitle.textAlignment = .center;subtitle.numberOfLines = 0
+        subtitle.text = model.subtitle;subtitle.font = assets.font(size:18,weight:"Medium");subtitle.textColor = NativeTextPalette.subtitle;subtitle.textAlignment = .center;subtitle.numberOfLines = 0
         subtitle.attributedText=NativeModalTypography.attributedSubtitle(model.subtitle,font:subtitle.font)
         idle.addSubview(heading);idle.addSubview(subtitle)
         traceHUDLatency("exit-cta-style-begin")
@@ -291,7 +291,7 @@ final class JimiNativeEndRunModal: UIViewController {
         defer{if traceLayout {traceHUDLatency("exit-layout-end")}}
         #endif
         super.viewDidLayoutSubviews();backdrop.frame = view.bounds
-        let width = min(390,max(0,view.bounds.width-48)),height:CGFloat = 388+2*(JimiV9PlainButton.pairedModalCTAHeight-80)+(JimiV9PlainButton.pairedModalCTAGap-8)
+        let width = min(390,max(0,view.bounds.width-48)),height:CGFloat = 172+2*JimiV9PlainButton.pairedModalCTAHeight+JimiV9PlainButton.pairedModalCTAGap+28
         card.bounds = CGRect(x:0,y:0,width:width,height:height);card.center = CGPoint(x:view.bounds.midX,y:view.bounds.midY+height*0.05)
         flip.bounds = card.bounds;flip.center = CGPoint(x:width/2,y:height)
         idle.bounds = card.bounds;idle.center = CGPoint(x:width/2,y:height*0.52);JimiNativeModalV10.paperLayout(paper,bounds:idle.bounds)
@@ -301,7 +301,7 @@ final class JimiNativeEndRunModal: UIViewController {
         for (i,button) in buttons.enumerated() {
             let size=CGSize(width:actionWidth,height:JimiV9PlainButton.pairedModalCTAHeight)
             button.cartoonBounceLayoutView.bounds=CGRect(origin:.zero,size:size)
-            button.cartoonBounceLayoutView.center=CGPoint(x:width/2,y:184+JimiV9PlainButton.pairedModalCTAHeight/2+CGFloat(i)*(JimiV9PlainButton.pairedModalCTAHeight+JimiV9PlainButton.pairedModalCTAGap))
+            button.cartoonBounceLayoutView.center=CGPoint(x:width/2,y:172+JimiV9PlainButton.pairedModalCTAHeight/2+CGFloat(i)*(JimiV9PlainButton.pairedModalCTAHeight+JimiV9PlainButton.pairedModalCTAGap))
             button.layoutCartoonContent()
         }
         close.frame = CGRect(x:width-42,y:-10,width:52,height:52)

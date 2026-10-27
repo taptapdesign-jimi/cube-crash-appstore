@@ -168,7 +168,7 @@ final class JimiV9PlainButton: UIButton {
         titleLabel?.layer.shadowOpacity=0;titleLabel?.layer.shadowRadius=0
         if !primary {
             // Ordinary flat live title, without bevel, shadow or glyph overlays.
-            let ink=UIColor(red:176/255,green:137/255,blue:121/255,alpha:1)
+            let ink=UIColor(red:189/255,green:160/255,blue:142/255,alpha:1) // #BDA08E
             setTitleColor(ink,for:.normal)
             setAttributedTitle(NSAttributedString(string:title,attributes:[.font:font,.foregroundColor:ink]),for:.normal)
         }
@@ -185,11 +185,11 @@ final class JimiV9PlainButton: UIButton {
         let text=((title(for:.normal) ?? "") as NSString).size(withAttributes:[.font:font]).width
         return CGSize(width:min(maxWidth,max(72,176*text/max(1,reference))*Self.ctaWidthScale),height:Self.primaryCTAHeight)
     }
-    static let pairedModalCTAHeight:CGFloat=84
-    static let pairedModalCTAGap:CGFloat=6
+    static let pairedModalCTAHeight:CGFloat=70
+    static let pairedModalCTAGap:CGFloat=12
     /// Pre-redesign modal action width, independent of the live title.
     static func modalCTAWidth(_ buttons:[JimiV9PlainButton],maxWidth:CGFloat)->CGFloat {
-        min(249,maxWidth)
+        min(230*0.94,maxWidth)
     }
     private var sculptedShapeKey:String?
     override func setTitle(_ title:String?,for state:UIControl.State) {
@@ -354,7 +354,7 @@ final class NativeCTAShimmer:NSObject,CAAnimationDelegate {
     }
 }
 
-/// Rebase the accepted SIX lighting profile onto the requested #F6875B face.
+/// Rebase the accepted SIX lighting profile onto the requested #EE8158 face.
 /// Each channel retains its fraction toward white (light) or black (shade).
 /// Ivory glyph material stays separate; its orange recess/reflection use this palette.
 private enum NativeSculptedCTAPalette {
@@ -364,7 +364,7 @@ private enum NativeSculptedCTAPalette {
                 : target+(255-target)*(value-reference)/(255-reference)
             return mapped.rounded()/255
         }
-        return UIColor(red:channel(r,239,secondary ? 250:246),green:channel(g,147,secondary ? 239:135),blue:channel(b,106,secondary ? 218:91),alpha:1)
+        return UIColor(red:channel(r,239,secondary ? 250:238),green:channel(g,147,secondary ? 239:129),blue:channel(b,106,secondary ? 218:88),alpha:1)
     }
 }
 
@@ -482,13 +482,13 @@ private final class NativeSculptedCTAFace:UIView {
         guard let root=bundledRasterRoot,
               let scale=[CGFloat(4),6].first(where:{abs(contentScaleFactor-$0)<0.000001}) else{return nil}
         if fuller {
-            guard let width=[CGFloat(240),249].first(where:{abs(bounds.width-$0)<0.0001}) else{return nil}
+            guard abs(bounds.width-230*0.94)<0.0001 else{return nil}
             let role=shapeKey=="native.end-run.restart" && !secondary ? "restart":(shapeKey=="native.end-run.exit" && secondary ? "exit":"")
             guard !role.isEmpty else{return nil}
-            let name="\(role)-\(width==240 ? "240":"249")-\(Int(scale))x.png"
-            let path=root.appendingPathComponent("assets/ui/native-end-run-cta-balanced-v1").appendingPathComponent(name).path
+            let name="\(role)-216p2-\(Int(scale))x.png"
+            let path=root.appendingPathComponent("assets/ui/native-paired-cta-compact-v2").appendingPathComponent(name).path
             guard let image=UIImage(contentsOfFile:path)?.preparingForDisplay()?.cgImage,
-                  image.width==Int(ceil(width*scale)),image.height==Int(ceil(JimiV9PlainButton.pairedModalCTAHeight*scale)) else{return nil}
+                  image.width==Int(ceil(230*0.94*scale)),image.height==Int(ceil(JimiV9PlainButton.pairedModalCTAHeight*scale)) else{return nil}
             return image
         }
         guard abs(bounds.height-80)<0.0001,
@@ -498,7 +498,7 @@ private final class NativeSculptedCTAFace:UIView {
         else if shapeKey=="native.end-run.exit",secondary {role="exit"}
         else{return nil}
         let name="\(role)-\(Int(width))-\(Int(scale))x.png"
-        let directory=secondary ? "assets/ui/native-end-run-cta-soft-top-v3":"assets/ui/native-end-run-cta"
+        let directory=secondary ? "assets/ui/native-end-run-cta-soft-top-v3":"assets/ui/native-end-run-cta-ee8158-v1/base"
         let path=root.appendingPathComponent(directory).appendingPathComponent(name).path
         guard let source=UIImage(contentsOfFile:path),
               let image=(source.preparingForDisplay() ?? source).cgImage,

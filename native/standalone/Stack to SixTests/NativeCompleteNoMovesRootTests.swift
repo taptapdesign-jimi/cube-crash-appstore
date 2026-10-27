@@ -232,4 +232,47 @@ import StackToSixNativeState
         XCTAssertEqual(game.engine.state.moves,4);XCTAssertNil(game.engine.pendingSourceNoMoves);XCTAssertNil(game.engine.state.terminal)
         XCTAssertEqual(game.engine.state.tutorial?.completionAssist,true)
     }
+    func testShippingSourceMeterNearOneStillQueuesAnEarnedDrop()async throws {
+        var board=NativeBoardState(tiles:[.init(id:"near-full-a",cell:.init(column:0,row:0),value:1),
+            .init(id:"near-full-b",cell:.init(column:1,row:0),value:2),
+            .init(id:"near-full-c",cell:.init(column:2,row:0),value:3)],mode:.arcade,moves:20)
+        board.wildMeter=1-1e-12
+        let fixture=try Fixture(state:board);defer{fixture.dispose()}
+        let (game,scene)=try await enter(fixture)
+        XCTAssertTrue(NativeWildMeterRules.permission(meter:board.wildMeter).action == .allow)
+        let deadline=Date().addingTimeInterval(6)
+        while game.engine.state.wildSpawnCount==0 && Date()<deadline {try await Task.sleep(for:.milliseconds(20))}
+        XCTAssertGreaterThan(game.engine.state.wildSpawnCount,0,"A ready meter cannot be stranded by a stricter outer queue continuation;meter=\(game.engine.state.wildMeter),flags=\(game.engine.flags),reservations=\(game.engine.meterDropReservations),runtime=\(String(describing:scene.captureSourceGameplayRuntime(isWild:false)))")
+    }
+
+    func testShippingSourceBoardAdmitsTenSecondIdleHintAndClearsItOnSuspension()async throws {
+        let board=NativeBoardState(tiles:[.init(id:"idle-a",cell:.init(column:0,row:0),value:2),
+            .init(id:"idle-b",cell:.init(column:1,row:0),value:4)],mode:.arcade,moves:20)
+        let fixture=try Fixture(state:board);defer{fixture.dispose()}
+        let (game,scene)=try await enter(fixture)
+        let scope=try XCTUnwrap(game.sourceScope)
+        XCTAssertTrue(scene.sourceEndgameHintAllowed(scope:scope),scene.sourceLevelEndDiagnostic())
+        scene.evaluate()
+        try await wait("ten-second-idle") {game.view.subviews.contains{$0.accessibilityIdentifier=="native.endgame-idle-hint"}}
+        let sheet=NativeTutorialOverlay(resourceRoot:NativeTestResources.root)
+        sheet.onPresentationChanged={[weak game] in game?.tutorialSheetPresentationChanged()}
+        sheet.frame=game.view.bounds;game.view.addSubview(sheet)
+        XCTAssertFalse(game.view.subviews.contains{$0.accessibilityIdentifier=="native.endgame-idle-hint"})
+        // Stay beyond the shipping ten-second threshold with paper mounted.
+        try await Task.sleep(for:.seconds(11))
+        XCTAssertFalse(game.view.subviews.contains{$0.accessibilityIdentifier=="native.endgame-idle-hint"})
+        sheet.isHidden=true
+        try await Task.sleep(for:.milliseconds(400))
+        XCTAssertFalse(game.view.subviews.contains{$0.accessibilityIdentifier=="native.endgame-idle-hint"})
+        try await wait("fresh-ten-second-idle-after-sheet") {game.view.subviews.contains{$0.accessibilityIdentifier=="native.endgame-idle-hint"}}
+        sheet.dispose()
+        let generation=game.engine.state.generation
+        game.setSuspended(true)
+        XCTAssertFalse(game.view.subviews.contains{$0.accessibilityIdentifier=="native.endgame-idle-hint"})
+        XCTAssertFalse(scene.sourceEndgameHintAllowed(scope:scope))
+        game.setSuspended(false)
+        XCTAssertTrue(scene.sourceEndgameHintAllowed(scope:scope))
+        XCTAssertEqual(game.engine.state.generation,generation)
+    }
+
 }

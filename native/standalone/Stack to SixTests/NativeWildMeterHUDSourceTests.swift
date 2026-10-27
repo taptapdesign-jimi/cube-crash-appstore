@@ -58,8 +58,8 @@ import SpriteKit
         hud.container.xScale=0.97;hud.container.yScale=1.02
         let position=hud.container.position,fillPosition=hud.fill.position
         XCTAssertEqual(NativeWildMeterHUDPresentation.tutorialPulseScale(0),1,accuracy:1e-9)
-        XCTAssertEqual(NativeWildMeterHUDPresentation.tutorialPulseScale(0.3),1.04,accuracy:1e-9)
-        XCTAssertEqual(NativeWildMeterHUDPresentation.tutorialPulseScale(0.6),1,accuracy:1e-9)
+        XCTAssertEqual(NativeWildMeterHUDPresentation.tutorialPulseScale(NativeWildMeterHUDPresentation.tutorialPulseDuration/2),1.03,accuracy:1e-9)
+        XCTAssertEqual(NativeWildMeterHUDPresentation.tutorialPulseScale(NativeWildMeterHUDPresentation.tutorialPulseDuration),1,accuracy:1e-9)
         hud.setProgress(0.6,animated:false)
         let fillWidth=hud.fillPose.width,track=hud.background.path!,fillPath=hud.fill.path!
         hud.startTutorialPulse();hud.startTutorialPulse()
@@ -69,7 +69,7 @@ import SpriteKit
         wall=150;service.deliver(wallMilliseconds:wall)
         XCTAssertGreaterThan(hud.container.xScale,0.97)
         XCTAssertGreaterThan(hud.container.yScale,1.02)
-        XCTAssertGreaterThan(hud.fill.xScale,1.4);XCTAssertGreaterThan(hud.fill.yScale,1.1)
+        XCTAssertGreaterThan(hud.fill.xScale,1);XCTAssertLessThan(hud.fill.xScale,1.04);XCTAssertGreaterThan(hud.fill.yScale,1);XCTAssertLessThan(hud.fill.yScale,1.01)
         XCTAssertEqual(hud.activeSmokeCount,0)
         wall=316;service.deliver(wallMilliseconds:wall)
         XCTAssertEqual(hud.activeSmokeCount,1,"original meter bubble appears after300ms even with normal tutorial emission frozen")
