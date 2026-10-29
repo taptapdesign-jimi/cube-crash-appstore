@@ -11,11 +11,13 @@ final class NativeTutorialOverlay:UIView {
     var onGotIt:(()->Void)?
     var onSpecialBarContinue:(()->Void)?
     private(set) var specialBarVisible=false
+    private var secondSheetEntered=false,secondStepReady=true,specialBarEntered=false,specialBarReady=true
     private let assets:JimiV9Artwork
     private let sheet=UIView(),sheetSurface=UIView(),paper=UIImageView(),pointer=UIView(),pointerImage=UIImageView()
     private let heading=UILabel(),subtitle=UILabel(),button=JimiV9PlainButton(type:.custom)
     private var step=1
     private var specialSheetDismissed=false
+    private var guidedSheetDismissed=false
     private var generation=0
     private var disposed=false
     private var suspended=false
@@ -111,28 +113,28 @@ final class NativeTutorialOverlay:UIView {
         setCopy();updatePointer(force:false)
     }
     private func setCopy() {
-        let copies=[("Drag to stack","Drag a dice onto another dice.","Drag"),("Merge dice","Drag to stack this dice to make 6.","Merge"),
-            ("Clear the stage","Stack and merge dice until\nthe stage is clear.","Clear"),("Special dice","They can merge with any regular\ndice to get the value 6","Special"),("Great merge!","Keep stacking and merging\nto clear the board.","Great")]
+        let copies=[("Drag to stack","Drag a dice onto another dice.","Drag"),("Merge dice","Stack the dice to make 6.","Merge"),
+            ("Clear the stage","The whole board is yours.\nStack and merge anywhere.","Clear"),("Special dice","They can merge with any regular\ndice to get the value 6","Special"),("Great merge!","Keep stacking and merging\nto clear the board.","Great")]
         let copy=specialBarVisible ? ("Special Bar","Stack and merge dice to fill the bar and earn special dice.","Special") : copies[max(0,min(4,step-1))]
         let font=assets.font(size:bounds.width > 0 && bounds.width <= 428 ? 32 : 40,weight:"ExtraBold")
         let text=NSMutableAttributedString(string:copy.0,attributes:[.font:font,.foregroundColor:UIColor(red:173/255,green:135/255,blue:117/255,alpha:1)])
         let range=(copy.0 as NSString).range(of:copy.2)
         if range.location != NSNotFound {text.addAttribute(.foregroundColor,value:UIColor(red:233/255,green:122/255,blue:85/255,alpha:1),range:range)}
         heading.attributedText=text;subtitle.font=assets.font(size:18,weight:"Medium");subtitle.attributedText=NativeModalTypography.attributedSubtitle(copy.1,font:subtitle.font);subtitle.lineBreakMode = .byWordWrapping
-        button.isHidden=specialBarVisible ? false : (step != 4 && step != 5 && (step != 3 || sourceCTA?.state == .hidden))
-        let ctaTitle=specialBarVisible || step == 5 ? "Continue":(step==4 ? "Got it":"Got it!")
+        button.isHidden = !specialBarVisible && step==3 && sourceCTA?.state == .hidden
+        let ctaTitle=specialBarVisible || step == 5 ? "Continue":"Got it"
         if button.title(for:.normal) != ctaTitle {button.setTitle(ctaTitle,for:.normal);setNeedsLayout()}
         if sourceCTA != nil{button.isEnabled=sourceCTA?.enabled==true}
     }
     @discardableResult func showSourceIntro(from:CGPoint?,to:CGPoint?,service:NativeSourceAnimationClockService,
-        timeouts:NativeSourceAppTimeoutOwner,boardGeneration:UInt64,immediateSheet:Bool=false,current:@escaping()->Bool)->Bool {
+        timeouts:NativeSourceAppTimeoutOwner,boardGeneration:UInt64,immediateSheet:Bool=false,deferInitialPointer:Bool=false,current:@escaping()->Bool)->Bool {
         guard !disposed,sourceIntro==nil else{return false}
         generation += 1;let captured=generation
         step=1;isHidden=false;pointerStart=from;pointerEnd=to;pointerKey=nil
         pointer.isHidden=true;pointer.layer.removeAllAnimations();pointerImage.layer.removeAllAnimations();sheet.layer.removeAllAnimations()
         sourceSheetProgress=1;setNeedsLayout();layoutIfNeeded()
         let owner=NativeSourceTutorialIntroOwner(service:service,timeouts:timeouts,generation:boardGeneration,
-            immediateSheet:immediateSheet,nativeSheetMotion:true,
+            immediateSheet:immediateSheet,nativeSheetMotion:true,deferInitialPointer:deferInitialPointer,
             current:{[weak self] in guard let self,!self.disposed,self.generation==captured else{return false};let valid=current();return valid && !self.disposed && self.generation==captured},
             sheet:{[weak self] progress in guard let self else{return};self.sourceSheetProgress=progress;self.sheet.transform=CGAffineTransform(translationX:0,y:self.sheet.bounds.height*progress)},
             pointer:{[weak self] pose in guard let self else{return};self.pointerImage.alpha=pose.alpha;self.pointerImage.transform=CGAffineTransform(rotationAngle:pose.rotation*Double.pi/180).scaledBy(x:pose.scale,y:pose.scale)},
@@ -146,15 +148,26 @@ final class NativeTutorialOverlay:UIView {
         guard !disposed,let intro=sourceIntro else{return false}
         let show={ [weak self,weak intro] in
             guard let self,let intro,!self.disposed,self.sourceIntro === intro else{return}
-            self.isHidden=false;prepare();self.setNeedsLayout();self.layoutIfNeeded();_=intro.enterSheet(completed:entered)
+            self.isHidden=false;self.sheet.isHidden=false;self.guidedSheetDismissed=false;self.button.isEnabled=true;prepare();self.setNeedsLayout();self.layoutIfNeeded();_=intro.enterSheet(completed:entered)
         }
         // Monitors already finish the previous exit before handing off. Do not
         // run a second hidden exit before the next authored enter.
         if (sourceSheetProgress ?? 0)>=1 {show();return true}
         return intro.exitSheet(completed:show)
     }
-    @discardableResult func transitionSourceSheetToSecondStep(from:CGPoint?,to:CGPoint?,entered:@escaping()->Void)->Bool {
-        transitionSourceSheet(prepare:{[weak self] in guard let self else{return};self.step=2;self.pointerStart=from;self.pointerEnd=to;self.pointerKey=nil},entered:entered)
+    @discardableResult func transitionSourceSheetToSecondStep(from:CGPoint?,to:CGPoint?,preparationReady:Bool=true,entered:@escaping()->Void)->Bool {
+        secondSheetEntered=false;secondStepReady=preparationReady
+        return transitionSourceSheet(prepare:{[weak self] in
+            guard let self else{return};self.step=2;self.pointerStart=from;self.pointerEnd=to;self.pointerKey=nil;self.button.isEnabled=false
+        },entered:{[weak self] in
+            guard let self,!self.disposed,self.step==2 else{return};self.secondSheetEntered=true;self.button.isEnabled=self.secondStepReady;entered()
+        })
+    }
+    func admitSourceSecondStepInteraction() {
+        guard !disposed,step==2 else{return};secondStepReady=true;button.isEnabled=secondSheetEntered
+    }
+    func admitSpecialBarInteraction() {
+        guard !disposed,specialBarVisible else{return};specialBarReady=true;button.isEnabled=specialBarEntered
     }
     @discardableResult func transitionSourceSheetToThirdStep(entered:@escaping()->Void)->Bool {
         transitionSourceSheet(prepare:{[weak self] in
@@ -188,10 +201,11 @@ final class NativeTutorialOverlay:UIView {
     }
     @discardableResult func startSourceFourthPointer(service:NativeSourceAnimationClockService,timeouts:NativeSourceAppTimeoutOwner,
         boardGeneration:UInt64,current:@escaping()->Bool,select:@escaping()->NativeSourceTutorialFourthPointerPlan?)->Bool {
-        guard !disposed,step==4,let intro=sourceIntro,current() else{return false}
+        guard !disposed,step==4,current() else{return false}
         sourceFourthAccessibleDie.accessibilityLabel="Special die";sourceFourthAccessibleTarget.accessibilityLabel="Merge target"
         sourceFourthPointer?.dispose();sourceFourthPointer=nil
-        intro.primePointerImage(.init(alpha:1,scale:1,rotation:0));pointerKey=nil
+        sourceIntro?.primePointerImage(.init(alpha:1,scale:1,rotation:0));pointerKey=nil
+        if sourceIntro==nil{pointer.alpha=0;pointerImage.alpha=1;pointerImage.transform = .identity}
         pointer.layer.removeAllAnimations();pointerImage.layer.removeAllAnimations();pointer.isHidden=false
         let captured=generation
         let owner=NativeSourceTutorialFourthPointerOwner(service:service,timeouts:timeouts,generation:boardGeneration,
@@ -244,7 +258,7 @@ final class NativeTutorialOverlay:UIView {
     func show(step:Int,from:CGPoint?,to:CGPoint?,initial:Bool=false,moves:[(CGPoint,CGPoint)]=[],entered:@escaping()->Void={}) {
         guard !disposed,(1...5).contains(step) else{return}
         retireSourceIntro()
-        generation += 1;let owner=generation;isHidden=false;pointerStart=from;pointerEnd=to;freePlayMoves=moves
+        generation += 1;let owner=generation;isHidden=false;sheet.isHidden=false;guidedSheetDismissed=false;button.isEnabled=true;pointerStart=from;pointerEnd=to;freePlayMoves=moves
         pointerKey=nil;pointer.layer.removeAllAnimations();sheet.layer.removeAllAnimations()
         if initial {
             self.step=step;setNeedsLayout();layoutIfNeeded();if step==4{button.isEnabled=false}
@@ -258,17 +272,30 @@ final class NativeTutorialOverlay:UIView {
             }
         }
     }
-    @discardableResult func showSpecialBar(entered:@escaping()->Void)->Bool {
+    @discardableResult func showSpecialBar(interactionReady:Bool=true,entered:@escaping()->Void)->Bool {
         guard !disposed,!specialBarVisible else{return false}
+        specialBarEntered=false;specialBarReady=interactionReady
         sourceFreeHint?.dispose();sourceFreeHint=nil;hidePointer();retireSourceCTA()
-        specialBarVisible=true;isHidden=false;setNeedsLayout();layoutIfNeeded();button.isEnabled=false
+        specialBarVisible=true;isHidden=false;sheet.isHidden=false;guidedSheetDismissed=false;setNeedsLayout();layoutIfNeeded();button.isEnabled=false
         if let intro=sourceIntro {
             _=intro.setDimVisible(false)
-            return intro.enterSheet{[weak self] in guard let self,!self.disposed,self.specialBarVisible else{return};self.button.isEnabled=true;entered()}
+            return intro.enterSheet{[weak self] in guard let self,!self.disposed,self.specialBarVisible else{return};self.specialBarEntered=true;self.button.isEnabled=self.specialBarReady;entered()}
         }
         translateSheet(from:sheet.bounds.height,to:0,begin:0,duration:NativeTutorialSheetMotion.duration,ease:.backOut(1.25)){[weak self] in
-            guard let self,!self.disposed,self.specialBarVisible else{return};self.button.isEnabled=true;entered()
+            guard let self,!self.disposed,self.specialBarVisible else{return};self.specialBarEntered=true;self.button.isEnabled=self.specialBarReady;entered()
         }
+        return true
+    }
+    @discardableResult func dismissGuidedSheet()->Bool {
+        guard !disposed,(step==1 || step==2),!guidedSheetDismissed else{return false}
+        guidedSheetDismissed=true;button.isEnabled=false
+        let capturedStep=step
+        let completed={ [weak self] in
+            guard let self,!self.disposed,self.step==capturedStep else{return}
+            self.sheet.isHidden=true;self.onPresentationChanged?()
+        }
+        if let intro=sourceIntro{return intro.exitSheet(completed:completed)}
+        translateSheet(from:sheet.layer.presentation()?.transform.m42 ?? sheet.transform.ty,to:sheet.bounds.height,begin:0,duration:0.28,ease:.powerIn(3),completion:completed)
         return true
     }
     @discardableResult func dismissSpecialSheet()->Bool {
@@ -312,10 +339,11 @@ final class NativeTutorialOverlay:UIView {
         translateSheet(from:sheet.layer.presentation()?.transform.m42 ?? sheet.transform.ty,to:sheet.bounds.height,begin:0,duration:0.28,ease:.powerIn(3),completion:finish);return true
     }
     func updateTargets(from:CGPoint?,to:CGPoint?) {pointerStart=from;pointerEnd=to;updatePointer(force:false)}
-    private func showPointer(allowSuspended:Bool=false) {guard !disposed,(!suspended || allowSuspended),pointerStart != nil,pointerEnd != nil else{return};pointer.isHidden=false;pointerImage.alpha=1;updatePointer(force:true)}
+    private func showPointer(allowSuspended:Bool=false) {guard !disposed,(!suspended || allowSuspended) else{return};if sourceFourthPointer != nil{pointer.isHidden=false;return};guard pointerStart != nil,pointerEnd != nil else{return};pointer.isHidden=false;pointerImage.alpha=1;updatePointer(force:true)}
     func hidePointer() {sourceFreeHint?.dispose();sourceFreeHint=nil;sourceIntro?.hidePointerImage();pointer.isHidden=true;pointer.layer.removeAllAnimations();pointerImage.layer.removeAllAnimations()}
     func restorePointer() {if let sourceIntro{sourceIntro.restorePointer()}else{showPointer()}}
     private func updatePointer(force:Bool) {
+        if sourceFourthPointer != nil{return}
         if (step==1 || step==2),let from=pointerStart,let to=pointerEnd {
             sourceFourthAccessibleDie.accessibilityLabel="Die to stack";sourceFourthAccessibleTarget.accessibilityLabel="Stack target"
             sourceFourthAccessibleDie.frame=CGRect(x:from.x-24,y:from.y-24,width:48,height:48)
@@ -443,6 +471,7 @@ final class NativeTutorialOverlay:UIView {
     @objc private func gotIt() {
         guard !disposed,!suspended else{return}
         if specialBarVisible{guard button.isEnabled else{return};onSpecialBarContinue?();return}
+        if step==1 || step==2 {guard button.isEnabled else{return};onGotIt?();return}
         if step==4 {guard button.isEnabled,!specialSheetDismissed else{return};onGotIt?();return}
         if step==5 {onGotIt?();return}
         guard step==3 else{return}

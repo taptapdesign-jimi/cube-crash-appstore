@@ -1,0 +1,14 @@
+{
+  "asset": "assets/ui/native-stage-stats-v1/pale-oak-botanical-tile-v2.png",
+  "sha256": "8cc50c7d20e1dc674858d9b19ab22b9fdf1d2f79280242b42b88a79c8cbfab6d",
+  "dimensions": [
+    1045,
+    1506
+  ],
+  "mode": "RGBA",
+  "decoded_bytes": 6295080,
+  "source": "Built-in imagegen edit of original new wood-botanical tile per user lighter faded oak and50percent thinning request",
+  "scope": "Versioned new asset, original v1 retained; no number well; upper leaf mirrored on right.",
+  "limitation": "Imagegen thinning is visual and approximate, not certified exact pixel50percent.",
+  "info_side": "Static native Bezier top/bottom arch and cream gradient rim; original collectible front untouched."
+}

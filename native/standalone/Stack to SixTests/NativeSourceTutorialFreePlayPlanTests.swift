@@ -2,6 +2,17 @@ import XCTest
 import CoreGraphics
 @testable import Stack_to_Six
 @MainActor final class NativeSourceTutorialFreePlayPlanTests:XCTestCase {
+ func testSpecialTargetCycleCoversEveryLiveDieBeforeRepeatingAndDropsRemovedTargets() {
+  var cycle=NativeTutorialTargetCycle()
+  XCTAssertEqual(cycle.select(["top","middle","bottom"]),"top")
+  XCTAssertEqual(cycle.select(["top","middle","bottom"]),"middle")
+  XCTAssertEqual(cycle.select(["middle","top","bottom"]),"bottom")
+  XCTAssertEqual(cycle.select(["bottom","top","middle"]),"top")
+  XCTAssertEqual(cycle.select(["bottom","top"]),"bottom")
+  XCTAssertEqual(cycle.select(["top"]),"top")
+  XCTAssertNil(cycle.select([]))
+  XCTAssertEqual(cycle.select(["new"]),"new")
+ }
  struct Rect:Decodable {let left:Double,top:Double,width:Double,height:Double;var cg:CGRect{CGRect(x:left,y:top,width:width,height:height)}}
  struct Candidate:Decodable{let id:String,column:Int,row:Int,rect:Rect}
  struct Move:Decodable{let from:Rect,to:Rect}

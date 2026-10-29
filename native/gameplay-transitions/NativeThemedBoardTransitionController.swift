@@ -73,7 +73,7 @@ final class NativeThemedBoardTransitionController:UIViewController {
         super.init(nibName:nil,bundle:nil);modalPresentationStyle = .overFullScreen
     }
     required init?(coder:NSCoder){fatalError("Use authored native transition initializer")}
-    override func loadView(){view=UIView(frame:CGRect(origin:.zero,size:viewport));view.backgroundColor = .clear;view.isOpaque=false;view.clipsToBounds=false
+    override func loadView(){view=UIView(frame:CGRect(origin:.zero,size:viewport));view.alpha=0;view.backgroundColor = .clear;view.isOpaque=false;view.clipsToBounds=false
         // Keep the already painted gameplay paper visible while this captured
         // cover prepares. A flat opaque placeholder must never replace it.
         paperCover.frame=view.bounds;paperCover.isHidden=true;paperCover.clipsToBounds=true;paperCover.backgroundColor=UIColor(red:243/255,green:238/255,blue:232/255,alpha:1);paperCover.isUserInteractionEnabled=false;view.addSubview(paperCover)
@@ -219,6 +219,16 @@ final class NativeThemedBoardTransitionController:UIViewController {
     private func startClockIfReady(){guard foreground,assetsReady,!disposed,!sceneFinished,displayLink==nil else{return};let proxy=ClockProxy(self);clockProxy=proxy;let link=CADisplayLink(target:proxy,selector:#selector(ClockProxy.tick(_:)));link.add(to:.main,forMode:.common);displayLink=link}
     private func stopClock(){displayLink?.invalidate();displayLink=nil;clockProxy=nil;lastTimestamp=nil}
     @MainActor private final class ClockProxy:NSObject {weak var owner:NativeThemedBoardTransitionController?;init(_ owner:NativeThemedBoardTransitionController){self.owner=owner};@objc func tick(_ link:CADisplayLink){guard let owner else{link.invalidate();return};owner.tick(link)}}
-    private func tick(_ link:CADisplayLink){let delta=lastTimestamp.map{max(0,link.timestamp-$0)} ?? 0;lastTimestamp=link.timestamp;paint(seconds:elapsed+delta,generation:generation)}
+    private func tick(_ link:CADisplayLink){advanceDisplayClock(timestamp:link.timestamp)}
+    /// Preparation and route handoff can stall the main thread. Consume visible
+    /// animation time in bounded steps rather than skipping the authored enter
+    /// on the first frame after that stall. Normal 60/120Hz timing is unchanged;
+    /// cues, cover and exit receipts still follow this same presentation clock.
+    func advanceDisplayClock(timestamp:CFTimeInterval) {
+        guard !disposed,foreground,assetsReady,timestamp.isFinite,viewIfLoaded?.window != nil else{lastTimestamp=nil;return}
+        let delta=lastTimestamp.map{min(1.0/30,max(0,timestamp-$0))} ?? 0
+        lastTimestamp=timestamp
+        paint(seconds:elapsed+delta,generation:generation)
+    }
     func dispose(aborted:Bool=true){guard !disposed else{return};disposed=true;stopClock();retireScene();if !paperReleased{paperReleased=true;resources.release(paperOwner)};paper.image=nil;if aborted || !sceneFinished{cleanupAudio(aborted:aborted)};onAudioCleanup=nil;onOriginalOpaqueCover=nil;onSceneExit=nil;onCue=nil;onHaptic=nil;onMusicPhase=nil;onAssetFailure=nil;for observer in observers{NotificationCenter.default.removeObserver(observer)};observers.removeAll()}
 }

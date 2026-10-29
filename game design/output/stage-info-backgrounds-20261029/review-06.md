@@ -1,0 +1,3 @@
+# Shallower border — candidate06
+
+Unapproved image-only revision requested by user. Built-in imagegen edit of immediately preceding combined candidate05: reduce perimeter inset depth approximately half while keeping the tall rounded shape and thick cracked lower stone. Actual output inspected: perimeter shadow is softer/shallower, particularly top/right, but still visible; exact depth reduction is not measured. Lower mass and major cracks retained, with minor generative surface/edge detail drift. Warm backdrop persists despite transparency request; alpha/background extraction remains pending before any asset integration. Previous candidate retained. No runtime/code/build/Simulator changes.

@@ -2,10 +2,10 @@ import Foundation
 import StackToSixGameplay
 
 public struct NativeSettingsPreferences: Codable, Equatable, Sendable {
-    public var gameSoundsEnabled = false
+    public var gameSoundsEnabled = true
     public var musicEnabled = true
     public var hapticsEnabled = true
-    public init(gameSoundsEnabled: Bool = false, musicEnabled: Bool = true, hapticsEnabled: Bool = true) {
+    public init(gameSoundsEnabled: Bool = true, musicEnabled: Bool = true, hapticsEnabled: Bool = true) {
         self.gameSoundsEnabled = gameSoundsEnabled; self.musicEnabled = musicEnabled; self.hapticsEnabled = hapticsEnabled
     }
 }

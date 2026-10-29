@@ -1,0 +1,32 @@
+[
+  {
+    "file": "stat-tile@3x.png",
+    "size": [
+      414,
+      528
+    ],
+    "alpha_preserved": true,
+    "center_preserved": true,
+    "sha256": "2d61350a2502183ddc416da69b7ecffe06dde1f5ed406aa8e96908c80ec46a76"
+  },
+  {
+    "file": "stat-tile@2x.png",
+    "size": [
+      276,
+      352
+    ],
+    "alpha_preserved": true,
+    "center_preserved": true,
+    "sha256": "77f91fc59bcff7842964ecfc549b39ceb01542ce54be780b7918cb1f97a348e6"
+  },
+  {
+    "file": "stat-tile.png",
+    "size": [
+      138,
+      176
+    ],
+    "alpha_preserved": true,
+    "center_preserved": true,
+    "sha256": "5319b6af47d1a550a2700f38bd1a6fe8d95e678f74edd348b61663d35f4155b4"
+  }
+]

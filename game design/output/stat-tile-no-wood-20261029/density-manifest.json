@@ -1,0 +1,20 @@
+[
+  {
+    "density" : 1,
+    "file" : "stat-tile.png",
+    "height" : 176,
+    "width" : 138
+  },
+  {
+    "density" : 2,
+    "file" : "stat-tile@2x.png",
+    "height" : 352,
+    "width" : 276
+  },
+  {
+    "density" : 3,
+    "file" : "stat-tile@3x.png",
+    "height" : 528,
+    "width" : 414
+  }
+]

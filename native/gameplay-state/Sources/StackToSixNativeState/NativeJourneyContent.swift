@@ -46,9 +46,9 @@ public enum NativeJourneyContent {
     // Keep this identity resolver shared by artwork, reveal copy and accessibility.
     private static let cardArtNumbers = [[3,1,9,4,5,6,7,8,2,10], [2,1,3,4,6,5,7,9,8,10], [1,4,3,2,5,6,7,8,9,10]]
     private static let cardNamesByArt = [
-        ["Star Is Out","Flying Tent","Weee - Beee","Honey Splat","Dreamy","Shroomy","Kaboom","Break Out","Final Gate","Winner"],
-        ["Fishy","Fresh Juice","Bouncy Day","Bottle Tips","Bonkers","Castle Ruins","Looky Here","The Letter","Playtime","Life Saver"],
-        ["Bibi - Ribi","Zap - Zap","Woombuu","The Bloob","Beam Up","Bloob Spill","Team Party","Transport","Fixer Upper","Take Over"]
+        ["Star Is Out","Flying Tent","Weee - Beee","Honey Splat","Dreamy","Shroomy","Pooof","CHAAARGE!","Flower Day","Winner"],
+        ["Fishy","Fresh Juice","Bouncy Day","Bottle Tips","Bonkers","Castle Ruins","Looky Here","The Letter","Fly Away","Life Saver"],
+        ["Bibi - Ribi","Zap - Zap","Woombuu","The Bloob","Beam Up","Peekaboo","Hello, Goo!","Transport","Bloob Spill","Take Over"]
     ]
     private static func cardIdentity(board:Int)->(world:Int,art:Int) {
         let safe = (1...30).contains(board) ? board : 1

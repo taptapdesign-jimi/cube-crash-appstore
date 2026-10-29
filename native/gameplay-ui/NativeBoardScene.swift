@@ -1157,6 +1157,10 @@ final class NativeBoardScene: SKScene {
             haptic:{[weak self] in guard current() else{return};self?.onHaptic?("protected-light")},
             syncZ:{node,animating in guard current(),nodes[node.tileID] === node,node.parent === captures.first?.parent else{return};node.zPosition=node.locked ? (animating ? 80:5):(animating ? 120:20)},
             drawBG:{[weak self] in guard let self,current() else{return};self.renderGhosts(state:self.engine.state,geometry:geometry)},
+            fullOpacity:{[weak self] in
+                guard let self,current(),self.sourceTutorialActivationEnabled,self.engine.state.tutorial?.active==true else{return}
+                self.sourceTutorialEntryFullyVisible=true;self.onSourceTutorialBoardVisible?()
+            },
             finished:{[weak self,weak installation] completion in
                 guard let self,self.sourceBoardEntryOwner?.id==completion.id,self.sourceBoardEntryEpoch==epoch else{return}
                 self.sourceBoardEntryOwner=nil;self.sourceBoardEntryNodes.removeAll()
@@ -1258,6 +1262,7 @@ final class NativeBoardScene: SKScene {
     var onSourceTutorialRetired:(()->Void)?
     var sourceTutorialSubsequentPresentationEnabled=false
     private var sourceTutorialObjectOrder:[NativeDiceNode]=[]
+    private var sourceTutorialFourthTargetCycle=NativeTutorialTargetCycle()
     private var sourceTutorialBoardRestore:NativeSourceTutorialBoardRestoreOwner?
     private(set) var sourceTutorialSecondPresentationActive=false
     private(set) var sourceTutorialThirdPresentationActive=false
@@ -1269,6 +1274,8 @@ final class NativeBoardScene: SKScene {
     var sourceTutorialHUDActive:Bool{sourceTutorialHUD != nil}
     var sourceTutorialHUDAlphas:[CGFloat]{hud.children.filter{$0 !== noMoves}.map(\.alpha)}
     var onSourceTutorialPrepared:(()->Void)?
+    var onSourceTutorialBoardVisible:(()->Void)?
+    private(set) var sourceTutorialEntryFullyVisible=false
     private weak var sourceTutorialScope:NativeGameplaySourceContext.Scope?
     private var sourceTutorialReceipt:NativeSourceTutorialDemoActivationReceipt?
     private var sourceTutorialActivation:NativeSourceTutorialActivationOwner?
@@ -1418,8 +1425,8 @@ final class NativeBoardScene: SKScene {
         let focus=NativeSourceTutorialFocusOwner(service:scope.service,random:{[scope] in scope.mathRandom.next()},current:current)
         sourceTutorialFourthFocus=focus;capturedFocus=focus
         for node in sourceTutorialCapturedLiveNodes {
-            guard current(),let tile=engine.state.tiles.first(where:{$0.id==node.tileID}) else{return false}
-            let allowed=node === wild || (!node.sourceLocked && !node.isSpecial && node.sourceValue>0 && tile.cell.row<=min(engine.state.rows-1,5))
+            guard current(),engine.state.tiles.contains(where:{$0.id==node.tileID}) else{return false}
+            let allowed=node === wild || (!node.sourceLocked && !node.isSpecial && node.sourceValue>0)
             guard focus.focusFourth(node,focused:allowed) else{return false}
         }
         completed=current();return completed
@@ -1465,7 +1472,7 @@ final class NativeBoardScene: SKScene {
         let sourceRect=rect(wild)
         var candidates=sourceTutorialObjectOrder.enumerated().compactMap{index,node -> (Int,NativeDiceNode,NativeCell)? in
             guard node !== wild,sourceTutorialTargetCurrent(node),!node.sourceLocked,!node.isSpecial,node.sourceValue>0,
-                let tile=engine.state.tiles.first(where:{$0.id==node.tileID}),tile.cell.row<=min(engine.state.rows-1,5) else{return nil}
+                let tile=engine.state.tiles.first(where:{$0.id==node.tileID}) else{return nil}
             return (index,node,tile.cell)
         }.sorted{a,b in
             if a.2.row != b.2.row{return a.2.row>b.2.row}
@@ -1477,7 +1484,8 @@ final class NativeBoardScene: SKScene {
             guard current(),draw.isFinite,draw>=0,draw<1 else{return nil}
             candidates.swapAt(i,Int(floor(draw*Double(i+1))))
         }}
-        guard current(),let sourceRect,let candidate=candidates.first,let targetRect=rect(candidate.1) else{return nil}
+        guard current(),let sourceRect,let selected=sourceTutorialFourthTargetCycle.select(candidates.map{$0.1.tileID}),
+            let candidate=candidates.first(where:{$0.1.tileID==selected}),let targetRect=rect(candidate.1) else{return nil}
         return .init(from:sourceRect,to:targetRect)
     }
     /// Literal isFourthStepComplete reads the actual prepared physical roster,
@@ -1491,8 +1499,8 @@ final class NativeBoardScene: SKScene {
         if !starLike{return true}
         return sourceTutorialObjectOrder.contains{node in
             guard sourceTutorialTargetCurrent(node),!node.sourceLocked,!node.isSpecial,node.sourceValue==6,
-                let tile=engine.state.tiles.first(where:{$0.id==node.tileID}) else{return false}
-            return tile.cell.row<=min(engine.state.rows-1,5)
+                engine.state.tiles.contains(where:{$0.id==node.tileID}) else{return false}
+            return true
         }
     }
     func sourceTutorialWildIsDropping(_ node:NativeDiceNode)->Bool {
@@ -1537,21 +1545,33 @@ final class NativeBoardScene: SKScene {
         sourceAnimationBindingAdmissionOpen && node.parent === canvasRoot && nodesByID[node.tileID] === node &&
             node.sourceContactNodeAlive && node.sourceGeneration==engine.state.generation && engine.state.tiles.contains{$0.id==node.tileID}
     }
+    func sourceTutorialSecondStepTransitionReady(_ merged:NativeDiceNode)->Bool {
+        guard sourceTutorialFirstStepPresentationActive,sourceTutorialCurrent(sourceTutorialEpoch),
+            let barrier=engine.pendingSourceTutorialPresentationBarrier,barrier.phase == .firstMerge,
+            barrier.generation==engine.state.generation,barrier.mergedID==merged.tileID,
+            sourceTutorialTargetCurrent(merged),merged.sourceValue==5,merged.sourceTutorialNormalizationReady,
+            let one=nodesByID[barrier.oneID],sourceTutorialTargetCurrent(one),one.sourceTutorialNormalizationReady else{return false}
+        return true
+    }
     @discardableResult func prepareSourceTutorialSecondStep(_ merged:NativeDiceNode)->Bool {
+        guard sourceTutorialSecondStepTransitionReady(merged) else{return false}
         guard sourceTutorialFirstStepPresentationActive,sourceTutorialCurrent(sourceTutorialEpoch),let scope=sourceTutorialScope,
             let barrier=engine.pendingSourceTutorialPresentationBarrier,barrier.generation==engine.state.generation,
             barrier.mergedID==merged.tileID,sourceTutorialTargetCurrent(merged),merged.sourceValue==5,
             let one=nodesByID[barrier.oneID],let oneTile=engine.state.tiles.first(where:{$0.id==barrier.oneID}),
             let geometry,let first=sourceTutorialPreparation else{return false}
         let ordered=first.orderedSurvivingNodes
-        if sourceTutorialSubsequentPresentationEnabled{sourceTutorialObjectOrder=ordered;sourceTutorialSecondPresentationActive=true}
-        first.dispose();sourceTutorialPreparation=nil;sourceTutorialFirstStepPresentationActive=false
         let epoch=sourceTutorialEpoch
         let owner=NativeSourceTutorialSecondStepPreparation(service:scope.service,random:{[scope] in scope.mathRandom.next()},nodes:ordered,merged:merged,one:one,
             parent:canvasRoot,generation:barrier.generation,onePosition:geometry.center(row:oneTile.cell.row,column:oneTile.cell.column),
             current:{[weak self,weak scope] in guard let self,let scope else{return false};return self.sourceAnimationBindingAdmissionOpen && self.sourceTutorialEpoch==epoch && scope.current && self.sourceTutorialScope === scope && self.engine.state.generation==barrier.generation && self.engine.state.tutorial?.active==true && (self.engine.state.tutorial?.step == .mergeSix || (self.sourceTutorialSecondPresentationActive && self.engine.state.tutorial?.step == .freePlay))})
-        guard let owner else{return false};sourceTutorialSecondPreparation=owner
+        guard let owner else{return false}
+        // Do not retire the live first lesson until the replacement has prepared.
+        // A temporary frame/outer-motion guard must leave a retryable owner.
+        sourceTutorialSecondPreparation=owner
         guard owner.prepare(),engine.completeSourceTutorialPresentationBarrier(barrier) else{owner.dispose();sourceTutorialSecondPreparation=nil;return false}
+        if sourceTutorialSubsequentPresentationEnabled{sourceTutorialObjectOrder=ordered;sourceTutorialSecondPresentationActive=true}
+        first.dispose();sourceTutorialPreparation=nil;sourceTutorialFirstStepPresentationActive=false
         return true
     }
     private func captureSourceTutorialObject(_ node:NativeDiceNode){
@@ -1701,9 +1721,11 @@ final class NativeBoardScene: SKScene {
         retireSourceTutorialFourthExitFade()
         let fourthFocus=sourceTutorialFourthFocus;sourceTutorialFourthFocus=nil;fourthFocus?.dispose()
         let fourthFrames=sourceTutorialFourthWildFrames;sourceTutorialFourthWildFrames=nil;fourthFrames?.dispose()
-        let retirePresentation=sourceTutorialFirstStepPresentationActive || sourceTutorialSecondPreparation != nil || sourceTutorialThirdPresentationActive
+        let retirePresentation=(sourceTutorialEntryFullyVisible && sourceTutorialPreparation?.prepared != true) || sourceTutorialFirstStepPresentationActive || sourceTutorialSecondPreparation != nil || sourceTutorialThirdPresentationActive
+        sourceTutorialEntryFullyVisible=false
         sourceTutorialSecondPresentationActive=false;sourceTutorialThirdPresentationActive=false
         sourceTutorialObjectOrder.removeAll();sourceTutorialBoardRestore?.dispose();sourceTutorialBoardRestore=nil
+        sourceTutorialFourthTargetCycle=NativeTutorialTargetCycle()
         sourceTutorialEpoch &+= 1
         sourceTutorialFirstStepPresentationActive=false
         let second=sourceTutorialSecondPreparation;sourceTutorialSecondPreparation=nil;second?.dispose()
@@ -5143,6 +5165,7 @@ final class NativeBoardScene: SKScene {
         let pair=engine.pendingSpecial.map{"\($0.variant ?? "core"):source=\($0.source.id),destination=\($0.destination.id)"} ?? "none"
         return "pair=\(pair);meter=\((sourceMeterCaller?.retainedNodeIDs ?? []).sorted());admission=\(sourceAnimationBindingAdmissionOpen);entries=\(entries);coreMain=\(engine.sourceSpecialAbsorbMainEntered);face=\(String(describing:engine.pendingSourceSpecialWildDestinationFace));objects=\(objects)"
     }
+    private(set) var sourceTntMeterOpenWaitCount=0
     private(set) var sourceTntSpawnResumeRejection:String?
     @discardableResult func configureSourceTntMain80(scope:NativeGameplaySourceContext.Scope)->Bool {
         guard sourceAnimationBindingAdmissionOpen,scope.current,sourceTntMainScope==nil,
@@ -5178,7 +5201,7 @@ final class NativeBoardScene: SKScene {
         engine.sourceTntCoroutineResume={[weak self,weak scope] id,g in
             guard let self,let scope,current(),g==generation,let fifo=self.sourceMicrotaskInstallation,fifo.isCurrent else{return false}
             if self.sourceTntResumes.contains(id){return true};self.sourceTntResumes.insert(id)
-            let accepted=fifo.enqueue{[weak self,weak fifo] in
+            let resume:@MainActor ()->Void = {[weak self,weak fifo] in
                 guard let self,self.sourceTntResumes.remove(id) != nil,current(),let fifo,
                       self.sourceMicrotaskInstallation === fifo,fifo.isCurrent,self.engine.hasSourceTntSpawnCoroutine(transactionID:id,generation:g) else{return}
                 let previous=self.engine.state,result=self.engine.resumeSourceWildSpawnCoroutine(transactionID:id,generation:g)
@@ -5188,6 +5211,17 @@ final class NativeBoardScene: SKScene {
                     self.onSourcePresentationFailure?("source_tnt_spawn_resume_refused",g);return
                 }
                 self.consume(result,previous:previous)
+            }
+            let accepted=fifo.enqueue{[weak self,weak fifo] in
+                guard let self,current(),let fifo,self.sourceMicrotaskInstallation === fifo,fifo.isCurrent else{return}
+                // Meter open physically constructs before its awaited Core receipt.
+                // Join that exact receipt rather than treating its legitimate
+                // hidden placeholder as board corruption or weakening the guard.
+                let waiting=self.sourceMeterCaller?.whenPendingHiddenOpenSettled{[weak self,weak fifo] in
+                    guard let self,current(),let fifo,self.sourceMicrotaskInstallation === fifo,fifo.isCurrent else{return}
+                    if !fifo.enqueue(resume) {self.sourceTntResumes.remove(id)}
+                } ?? false
+                if waiting {self.sourceTntMeterOpenWaitCount+=1} else {resume()}
             }
             if !accepted {self.sourceTntResumes.remove(id)}
             return accepted
@@ -10922,6 +10956,7 @@ final class NativeBoardScene: SKScene {
         onFishIdleFrames?([:],engine.state.generation,true);onFishIdleFrames=nil
         onNativeNoMovesShow=nil;onNativeNoMovesExit=nil;onNativeNoMovesClear=nil;onJourneyBottomDecorShake=nil;captureSourceScreenOverlayShake=nil;sourceCoreTntShakeTargets.removeAll();sourceScreenShakeTargets.removeAll();onPresentationFailure=nil;onSourcePresentationFailure=nil;onStateChange = nil; onTerminal = nil; onFinalMergeProgress = nil; onGameplayEvent = nil; onGameplayReceipt = nil; onSpecialMoment = nil; onAuthoredFinale = nil;onAuthoredTntPresentation = nil;onAuthoredLaserImpact=nil;authoredTntPresentationReady = nil;authoredFinalePresentationReady=nil;onSpecialPresentationCancelled = nil; onTntGlyphClock = nil; onSplashGlyphClock = nil; onHaptic = nil
         onRenderSurfacePreparation=nil
+        onSourceTutorialBoardVisible=nil
         pendingHUDTapFeedback.removeAll();hudTapFeedbackBases.removeAll();hudTapFeedbackPositions.removeAll();onSourceGuidedSnapBack=nil;onSourceTutorialRetired=nil;onLevelFlowBounceCompletion=nil;onExitRequest = nil; onHUDTapContact=nil; onHelpRequest = nil; onScoreRequest = nil; onComboRequest = nil; onPointerState = nil; onRenderingDemand = nil; onBoardEntry = nil; onBoardExit = nil; onHUDDrop = nil
     }
 }

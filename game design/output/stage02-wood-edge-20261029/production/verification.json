@@ -1,0 +1,98 @@
+[
+  {
+    "file": "assets/ui/native-stage-stats-v8/stat-tile@3x.png",
+    "size": [
+      414,
+      528
+    ],
+    "sha256": "b18bb32990aafe55c5e250e60573c9ce70d8d1327e13a4f8d7a969e3895dadf7"
+  },
+  {
+    "file": "assets/ui/native-stage-stats-v8/info-slab-2@3x.png",
+    "size": [
+      978,
+      1518
+    ],
+    "sha256": "f74149647c7dc9d92a010f92d1be6dceab41f6ccd36c78b9186fc97ef6fcdd92"
+  },
+  {
+    "file": "assets/ui/native-stage-stats-v8/info-slab-2@2x.png",
+    "size": [
+      652,
+      1012
+    ],
+    "sha256": "7ad96cce2a625c6fc91050b826379a98ddf9aed5a58a37410f20bdef311ee372"
+  },
+  {
+    "file": "assets/ui/native-stage-stats-v8/stat-tile@2x.png",
+    "size": [
+      276,
+      352
+    ],
+    "sha256": "28a71502a84c5d155edccc7718f1c5fd946e75cbc08c1c53734d9241e286bf1b"
+  },
+  {
+    "file": "assets/ui/native-stage-stats-v8/info-slab-2.png",
+    "size": [
+      326,
+      506
+    ],
+    "sha256": "ce193c721061e04a4399a7a6f1f9586f9acb0e9bcdf582998868ba54d9652a53"
+  },
+  {
+    "file": "assets/ui/native-stage-stats-v8/info-slab-3@3x.png",
+    "size": [
+      978,
+      1518
+    ],
+    "sha256": "77eabd38fdf674026c9499a495260e023c4f0572e6548b4ea1b68d7ff6f1c7fa"
+  },
+  {
+    "file": "assets/ui/native-stage-stats-v8/info-slab-3.png",
+    "size": [
+      326,
+      506
+    ],
+    "sha256": "ba9d0dc7958304d011aeaeaad9485000bbde5367335f41a3ce7d5b8b97872c14"
+  },
+  {
+    "file": "assets/ui/native-stage-stats-v8/info-slab-1@2x.png",
+    "size": [
+      652,
+      1012
+    ],
+    "sha256": "7d6f05603cb02e3746de6c65e8d72ff93ea4cc6e099980c5ced693bf01092867"
+  },
+  {
+    "file": "assets/ui/native-stage-stats-v8/info-slab-1.png",
+    "size": [
+      326,
+      506
+    ],
+    "sha256": "64adbf1e340aa9dea35fb2236e4daf084cd4e0c263d50bdacd3d44f6d684123f"
+  },
+  {
+    "file": "assets/ui/native-stage-stats-v8/info-slab-1@3x.png",
+    "size": [
+      978,
+      1518
+    ],
+    "sha256": "429f5e69eb51ba8f86c337df29ac2542b013c4bf930f1af4cee4c224e51f3258"
+  },
+  {
+    "file": "assets/ui/native-stage-stats-v8/info-slab-3@2x.png",
+    "size": [
+      652,
+      1012
+    ],
+    "sha256": "ddef53f40105d935e9838c0ab3c9c3c3c5326d998fc595e9cd7bf5e25d76b574"
+  },
+  {
+    "file": "assets/ui/native-stage-stats-v8/stat-tile.png",
+    "size": [
+      138,
+      176
+    ],
+    "sha256": "f8b58a4bcdab73596834907e1e765798d4e6edc5dc37b79a413db71f9b3a5b22"
+  }
+]

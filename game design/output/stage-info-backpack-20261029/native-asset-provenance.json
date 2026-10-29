@@ -1,0 +1,14 @@
+{
+  "asset": "assets/ui/native-stage-stats-v1/wood-botanical-tile.png",
+  "sha256": "2c196c55c85e943caa007d4ea351ae11e586db3bd18b9ba1a5f34002fbc3e4d2",
+  "dimensions": [
+    1045,
+    1506
+  ],
+  "mode": "RGBA",
+  "source": "Built-in imagegen extraction/reconstruction from candidate04",
+  "scope": "New artwork for user-authorized Native stage card implementation. No originals changed.",
+  "rendering": "Flat cream field with no number recess, thin honey-wood rim, top-left botanical emboss. Mirrored right background. Runtime rounded alpha mask clips generated fringe.",
+  "layout": "326x481.76 nominal panel,136x196 stat tiles, narrow/short viewport scaling",
+  "notes": "Reference-derived illustration, not pixel-identical crop; live original icons and Baloo labels remain separate."
+}

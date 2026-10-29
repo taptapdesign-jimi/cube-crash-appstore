@@ -40,6 +40,18 @@ import StackToSixGameplay
         XCTAssertTrue(f.ordered.filter{$0 !== f.one && $0 !== f.merged}.allSatisfy{abs($0.alpha-0.2)<1e-6})
         XCTAssertEqual(f.draws,84);XCTAssertEqual(f.service.activeParticipantCount,0)
     }
+    func testBusyGuidedTileDoesNotConsumePreparationAndCanRetryAfterRelease()throws {
+        let f=try Fixture();defer{f.dispose()}
+        let position=f.one.position,depth=f.merged.depth
+        f.one.setDragging(true)
+        XCTAssertFalse(f.one.sourceTutorialNormalizationReady)
+        XCTAssertFalse(f.owner.prepare())
+        XCTAssertEqual(f.draws,0);XCTAssertEqual(f.one.position,position);XCTAssertEqual(f.merged.depth,depth)
+        f.one.setDragging(false)
+        XCTAssertTrue(f.one.sourceTutorialNormalizationReady)
+        XCTAssertTrue(f.owner.prepare());XCTAssertTrue(f.owner.repair())
+        XCTAssertEqual(f.draws,84)
+    }
     func testWallTimeAndPausedGSAPCannotDeliverSecondStepOnePop()async throws {
         let f=try Fixture();defer{f.dispose()};_=f.service.setSourceGlobalPaused(true);XCTAssertTrue(f.owner.prepare())
         try await Task.sleep(for:.milliseconds(450));f.deliver(1000)

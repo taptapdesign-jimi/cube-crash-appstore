@@ -7,6 +7,8 @@ struct NativeSourceBoardEntryPlan:Equatable,Sendable {
     enum Preset:String,CaseIterable {case inward,outward,diagonal,burst}
     let preset:Preset,tileIndex:Int,delay:Double,offset:CGPoint,rotation:Double
     static let grow=0.18,compress=0.12,rebound=0.12,settle=0.14
+    static let opacityDuration=0.08
+    var fullOpacityTime:Double{delay+Self.opacityDuration}
     var end:Double{delay+Self.grow+Self.compress+Self.rebound+Self.settle}
     static func make(positions:[CGPoint],maxOffset:Double,random:()->Double?)->[Self]? {
         func unit()->Double? {guard let value=random() else{return nil};return max(0,min(0.999999,value.isFinite ? value:0))}
@@ -48,7 +50,7 @@ struct NativeSourceBoardEntryPose:Equatable,Sendable {
         guard local>=0 else{return .init(x:rest.x+plan.offset.x,y:rest.y+plan.offset.y,rotation:rotation+plan.rotation,scale:0,alpha:initialAlpha)}
         func sine(_ t:Double)->Double{(1-cos(Double.pi*max(0,min(1,t))))/2}
         func back(_ t:Double)->Double{let p=max(0,min(1,t))-1;return 1+p*p*(2.7*p+1.7)}
-        let move=back(local/0.42),fade=1-pow(1-max(0,min(1,local/0.08)),3)
+        let move=back(local/0.42),fade=1-pow(1-max(0,min(1,local/NativeSourceBoardEntryPlan.opacityDuration)),3)
         let scale:Double
         if local<0.18 {scale=1.08*back(local/0.18)}
         else if local<0.30 {scale=1.08+(0.96-1.08)*sine((local-0.18)/0.12)}

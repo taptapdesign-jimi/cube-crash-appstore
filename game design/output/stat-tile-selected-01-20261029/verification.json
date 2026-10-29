@@ -1,0 +1,48 @@
+{
+  "approvedSourceEqualsCandidate01": true,
+  "sourceSha256": "7b2e46c1cb33d1accdf810accbafd208b8d4c9efe8b1ea07facc1b1f3f7ee9f6",
+  "production": [
+    {
+      "file": "stat-tile.png",
+      "size": [
+        138,
+        176
+      ],
+      "alphaBounds": [
+        1,
+        2,
+        137,
+        173
+      ],
+      "sha256": "cf8de12940097a9297d260cbbc9dc7750cdca0dbb3122cd7a9f7d430f5a5a7e7"
+    },
+    {
+      "file": "stat-tile@2x.png",
+      "size": [
+        276,
+        352
+      ],
+      "alphaBounds": [
+        2,
+        2,
+        274,
+        346
+      ],
+      "sha256": "68e7316de9bf473b4b253cc971ce88ecbccdf30c8c70c674e7750a6f1e8f02b0"
+    },
+    {
+      "file": "stat-tile@3x.png",
+      "size": [
+        414,
+        528
+      ],
+      "alphaBounds": [
+        3,
+        4,
+        411,
+        518
+      ],
+      "sha256": "e4dc94793ca6a34b488f878c55fd301891bc36ea16e146a495d894e018f8ac4d"
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 import Foundation
 
-/// Literal v9 wild-spawn-drop.ts geometry. Coordinates remain source Y-down.
+/// v9 wild-spawn-drop.ts geometry with the approved Native backpack downward exit.
+/// Coordinates remain source Y-down.
 /// A carrier adapter must map stage space to the existing renderer; this value
 /// owner never chooses a clock, creates assets, or changes gameplay state.
 nonisolated struct NativeWildMeterDropPlan: Sendable {
@@ -140,12 +141,21 @@ nonisolated struct NativeWildMeterDropPlan: Sendable {
             }
         }
         if t==0 {result=Point(x:b*0.82,y:b*0.82)}
-        if t>=1.08 {let k=Self.backIn((t-1.08)/0.24,2.2);let v=Self.quantize(Self.lerp(Self.quantize(b),0,k));result=Point(x:v,y:v)}
+        if arcade && t>=1.08 {let k=Self.backIn((t-1.08)/0.24,2.2);let v=Self.quantize(Self.lerp(Self.quantize(b),0,k));result=Point(x:v,y:v)}
         var frame=0,frameTime=0.28
         for i in 0..<20 {if t+1e-8>=frameTime {frame=i};frameTime += i>=10 ? 0.0225:0.0375;if i==9 {frameTime+=0.2}}
-        let opacity=t<1.12 ? Self.quantize(Self.power2Out(t/0.08)):Self.quantize(1-pow(Self.clamp((t-1.12)/0.1),2))
-        let y=t==0 ? backpackPoint.y+tileSize*visualScale*2.2:
+        var opacity=t<1.12 ? Self.quantize(Self.power2Out(t/0.08)):Self.quantize(1-pow(Self.clamp((t-1.12)/0.1),2))
+        var y=t==0 ? backpackPoint.y+tileSize*visualScale*2.2:
             Self.quantize(Self.lerp(backpackPoint.y+tileSize*visualScale*2.2,backpackPoint.y,Self.backOut(t/0.28,2.3)))
+        if !arcade && t>=1.08 {
+            // Keep its physical size visible: a short anticipation lifts the bag,
+            // then it travels below the viewport before the existing1.4s release.
+            // Tile travel, landing, clock leases and Arcade stay source-identical.
+            let exit=Self.clamp((t-1.08)/0.30)
+            y=Self.lerp(backpackPoint.y,viewport.y+tileSize*visualScale*3,Self.backIn(exit,1.5))
+            result=Point(x:b,y:b)
+            opacity=1-Self.clamp((t-1.34)/0.04)
+        }
         let sources=arcade ? Self.crateSources+Self.crateSources.reversed():Self.backpackSources
         return CarrierPose(pose:Pose(point:Point(x:backpackPoint.x,y:y),scaleX:result.x,scaleY:result.y,
             rotation:carrierRotation,opacity:opacity),frame:frame,source:sources[frame],released:t>=Self.carrierCleanupTime)

@@ -1,0 +1,65 @@
+{
+  "exports": [
+    {
+      "file": "assets/ui/native-stage-stats-v4/info-slab.png",
+      "sha256": "23bcabc09cb27c9396d3db7e849c0e160c10147295caa9a4997e8dc303c3f64c",
+      "pixels": [
+        326,
+        482
+      ],
+      "density": 1
+    },
+    {
+      "file": "assets/ui/native-stage-stats-v4/info-slab@2x.png",
+      "sha256": "7ac4d2ae81556a7dffeb8daf3450076d0a0ada81eb97a3844f19ac4c2a0bb40e",
+      "pixels": [
+        652,
+        964
+      ],
+      "density": 2
+    },
+    {
+      "file": "assets/ui/native-stage-stats-v4/info-slab@3x.png",
+      "sha256": "977e27ac59ac55c3b31294c9ceae48892d76570b7eb42cfb579ae0237152fdcf",
+      "pixels": [
+        978,
+        1446
+      ],
+      "density": 3
+    },
+    {
+      "file": "assets/ui/native-stage-stats-v4/stat-tile.png",
+      "sha256": "4b965d5ee1524da5eb3b730ae29d5ad5828ba96a1ad91ba9ebc65fbc4ca71d73",
+      "pixels": [
+        136,
+        176
+      ],
+      "density": 1
+    },
+    {
+      "file": "assets/ui/native-stage-stats-v4/stat-tile@2x.png",
+      "sha256": "bef2ddc65919adfd38bb6859eedaf9ec59997fb0ee3e304304fec9ba60a29736",
+      "pixels": [
+        272,
+        352
+      ],
+      "density": 2
+    },
+    {
+      "file": "assets/ui/native-stage-stats-v4/stat-tile@3x.png",
+      "sha256": "f5814782507de40b6e034f98a42686ec030477842cdf522398bc03bf833027e1",
+      "pixels": [
+        408,
+        528
+      ],
+      "density": 3
+    }
+  ],
+  "masters": [
+    "assets/ui/native-stage-stats-v1/puffy-info-slab-v3.png",
+    "assets/ui/native-stage-stats-v1/puffy-stat-tile-v3.png"
+  ],
+  "exporter": "export-density.swift",
+  "rendering": "CoreGraphics high-quality density exports, retained largest opaque slab component and2master-pixel edge cleanup to remove generation speckles; originals unchanged",
+  "native": "No runtime crop/mask; trilinear minification;carrier326x481.76,mini136x176;static live icons;Regular labels;Play raised20pt;parent mini float/squash3finitecycles"
+}

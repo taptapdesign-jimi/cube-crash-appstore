@@ -184,6 +184,24 @@ final class NativeJourneyDecorIntegrationTests:XCTestCase {
         XCTAssertEqual(callbacks,1);XCTAssertEqual(roundWon,1)
     }
 
+    func testTutorialClearedIgnoresEarlyFinalMergeAndStartsAtSettledTerminal()async throws {
+        let resources=Resources(),controller=controller(resources)
+        let window=mount(controller);defer{controller.dispose();window.isHidden=true}
+        resources.finish(0);try await waitForActualDecorEntry(controller)
+        let scene=try XCTUnwrap(controller.boardScene)
+        let deadline=Date().addingTimeInterval(4)
+        while !scene.isBoardEntryComplete {guard Date()<deadline else{throw CancellationError()};try await Task.sleep(for:.milliseconds(20))}
+        var state=controller.engine.state
+        var tutorial=NativeTutorialState();tutorial.guideCompleted=true;tutorial.active=false;tutorial.completionAssist=true
+        state.tutorial=tutorial;controller.engine.restart(state:state)
+        scene.onFinalMergeProgress?(0.5,1,controller.engine.state.generation)
+        XCTAssertFalse(controller.hasPresentedBoardCleared,"Tutorial cannot celebrate while final merge artwork remains")
+        try await Task.sleep(for:.milliseconds(520))
+        scene.onFinalMergeProgress?(1,1,controller.engine.state.generation)
+        XCTAssertFalse(controller.hasPresentedBoardCleared,"A guessed 500ms alone cannot bypass actual Scene settlement")
+        scene.onTerminal?(NativeResolution(.complete,reason:"final_regular_merge6"))
+        XCTAssertTrue(controller.hasPresentedBoardCleared,"Actual settled terminal admits the tutorial celebration")
+    }
     func testClearedResidualsExitBeforeTerminalWithoutRepaintingOrChangingModel()async throws {
         let resources=Resources(),controller=controller(resources)
         var state=controller.engine.state

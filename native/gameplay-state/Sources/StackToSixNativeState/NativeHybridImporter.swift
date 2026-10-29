@@ -21,7 +21,7 @@ public enum NativeHybridImporter {
         result.progression.firstPlayTutorialComplete=storage["cc_first_play_tutorial_done"] == "true" && storage["cc_first_play_tutorial_force_next"] != "true"
         result.progression.unlockedSpecialDice=Set(["flower","juice"].filter{storage["cc_special_dice_unlocked_\($0)"] == "true"})
         if let settings=try object("cc_settings") {
-            result.settings=NativeSettingsPreferences(gameSoundsEnabled:settings["gameSoundsEnabled"] as? Bool == true,musicEnabled:settings["musicEnabled"] as? Bool != false,hapticsEnabled:settings["hapticsEnabled"] as? Bool != false)
+            result.settings=NativeSettingsPreferences(gameSoundsEnabled:settings["gameSoundsEnabled"] as? Bool != false,musicEnabled:settings["musicEnabled"] as? Bool != false,hapticsEnabled:settings["hapticsEnabled"] as? Bool != false)
         }
         if let boards=try array("journey_boards_state") {
             for entry in boards {

@@ -207,11 +207,13 @@ final class NativeJourneyRewardTests:XCTestCase {
             XCTAssertEqual(NativeRewardPresentation.dragTilt(start:input[0],deltaX:input[1],width:input[2]),angle,accuracy:0.0000001)
             XCTAssertEqual(NativeRewardPresentation.collectDrag(deltaX:input[1],deltaY:input[3],cardHeight:input[4]),collect)
         }
-        // Native progression swaps the first two authored cards in each World;
-        // keep the immutable PWA oracle, applying only the Native order here.
-        var nativeNames=NativeRewardOracleFixtures.names
-        for start in [0,10,20] {nativeNames.swapAt(start,start+1)}
-        nativeNames[15]="Bonkers" // Existing Native Beach06 title; PWA oracle stays immutable.
+        // Native card slots and display names follow the current authored art.
+        // The historical PWA oracle remains immutable for its motion/math checks.
+        let nativeNames=[
+            "Weee - Beee","Star Is Out","Flower Day","Honey Splat","Dreamy","Shroomy","Pooof","CHAAARGE!","Flying Tent","Winner",
+            "Fresh Juice","Fishy","Bouncy Day","Bottle Tips","Castle Ruins","Bonkers","Looky Here","Fly Away","The Letter","Life Saver",
+            "Bibi - Ribi","The Bloob","Woombuu","Zap - Zap","Beam Up","Peekaboo","Hello, Goo!","Transport","Bloob Spill","Take Over"
+        ]
         XCTAssertEqual(NativeRewardPresentation.names,nativeNames)
         for board in 1...30 {XCTAssertEqual(NativeRewardPresentation.name(board:board),nativeNames[board-1])}
     }

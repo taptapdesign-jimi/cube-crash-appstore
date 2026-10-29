@@ -14,6 +14,7 @@ import StackToSixGameplay
         let request:NativeMeterOpenRequest,hidden:Hidden.Capture,warmup:Warmup.Capture
         var lease:Hidden.Lease?,drop:NativeMeterDropReservation?,settled:Warmup.Outcome?
         var callbacks:[(Warmup.Outcome)->Void]=[]
+        var openCallbacks:[()->Void]=[]
         init(_ request:NativeMeterOpenRequest){
             self.request=request
             hidden = .init(id:request.id,generation:request.generation,spawnToken:request.spawnToken,column:request.tile.cell.column,row:request.tile.cell.row)
@@ -39,6 +40,13 @@ import StackToSixGameplay
         self.texturesCurrent=texturesCurrent;self.prepareAudio=prepareAudio
     }
     var retainedNodeIDs:Set<String>{hiddenOwner.retainedNodeIDs}
+    /// Join the actual created receipt, including cancellation cleanup and its
+    /// Scene consume, before another owner captures the canonical/physical roster.
+    @discardableResult func whenPendingOpenSettled(_ request:NativeMeterOpenRequest,_ callback:@escaping()->Void)->Bool {
+        guard valid(),engine.pendingMeterOpen==request,let entry=entries[request.id],
+              valid(entry),entry.drop==nil,hiddenOwner.retainedNodeIDs.contains(request.tile.id) else{return false}
+        entry.openCallbacks.append(callback);return true
+    }
     @discardableResult func begin(_ request:NativeMeterOpenRequest)->Bool {
         guard valid(),engine.pendingMeterOpen==request,entries[request.id]==nil,
               let special=request.tile.gameplayArchetype?.rawValue,
@@ -55,6 +63,14 @@ import StackToSixGameplay
             case .refused:receipt = .refused
             case .creationFailed:receipt = .creationFailed
             case .retired:self.retire(entry);return
+            }
+            let openCallbacks=entry.openCallbacks;entry.openCallbacks=[]
+            defer {
+                // No continuation survives generation replacement/disposal.
+                for callback in openCallbacks {
+                    guard self.valid(),self.engine.state.generation==request.generation else{break}
+                    callback()
+                }
             }
             let previous=self.engine.state
             let result=self.engine.completeMeterOpen(id:request.id,generation:request.generation,receipt:receipt,prepareCommitted:{[weak self,weak entry] tile in
@@ -121,6 +137,7 @@ import StackToSixGameplay
         guard entries[entry.request.id] === entry else{return}
         entries.removeValue(forKey:entry.request.id)
         if let drop=entry.drop,drops[drop.id]==entry.request.id{drops.removeValue(forKey:drop.id)}
+        entry.openCallbacks=[]
         hiddenOwner.retire(entry.hidden);warmupOwner.cancel(entry.warmup)
         let callbacks=entry.callbacks;entry.callbacks=[];callbacks.forEach{$0(.retired)}
     }

@@ -1,12 +1,16 @@
 # Stack to Six Project Context
 
+Current illustration/render authority (user2026-10-28): `game design/APPROVED_RENDER_MASTER.md` and its exact `game design/style-masters/journey-approved-20261028.png` reference replace older character/render descriptions. The same approved Journey image now defines Jimbo/Nala appearance and clean rounded warm-soft retro finish in the separate Studio. Earlier five Jimbo and standalone Nala masters are historical, not default generation authorities. Nala’s anatomical left ear may sometimes fold; upright ears are valid. This is design guidance only; no runtime artwork replacement or acceptance of new generated candidates is implied.
+
 This file is the stable, authoritative onboarding map for new Codex chats. Verify mutable facts from disk or the connected device; do not rely on old conversation memory when it conflicts with this file.
+
+Fresh Native profiles default every player preference to ON: Game sounds, Music and Vibration (user decision 2026-10-27). Explicit saved user choices remain authoritative; missing imported preferences use the same ON defaults.
 
 ## Native-first main decision (2026-10-07)
 
-User-selected continuation baseline (2026-10-16): immutable
-`native-benchmark-v6`; see [NATIVE_BENCHMARK_V6.md](NATIVE_BENCHMARK_V6.md).
-Continue Native work from v6. This checkpoint preserves known open physical
+User-selected Native production/continuation baseline (2026-10-30): immutable
+`native-benchmark-v20` — Journey modal card; see [NATIVE_BENCHMARK_V20.md](NATIVE_BENCHMARK_V20.md).
+Continue Native work from v20. Historical v6 and subsequent tags remain protected. This checkpoint preserves known open physical
 acceptance/parity issues and does not replace the approved PWA recovery tags.
 
 The user designates `main` as the **Stack to Six Native** development project,
@@ -36,6 +40,10 @@ in the parity checklist; native implementation alone is not visual acceptance.
 - Preserved PWA: `/Users/user/Stack to Six/Stack to Six.xcodeproj`, bundle `com.taptapdesign.stacktosix.Stack-to-Six`, its own Web.bundle and saves. Do not sync/build/install it as a Native side effect.
 - Legacy Kockice Crash and repository Capacitor shell are separate, prohibited default targets.
 - NativeHybridExport one-time old Native sandbox migration now uses Foundation/SQLite with a private stable WAL snapshot and the same Library boundary as NativeSaveStore; connected verification is recorded in CURRENT_HANDOFF. Preserved Jimi hybrid UI adapters are Debug fixtures and already excluded from Release by NATIVE_HYBRID_UI_RETIRED; the music script adapter is excluded by NATIVE_MUSIC_DIRECT_ONLY. Verify the resulting Release dependency graph before closure. Preserve old Native data; never access PWA sandbox.
+
+## Studio editorial code application (user decision 2026-10-29)
+
+The separate desktop Studio Brand language tool has an explicitly authorized **Primijeni u Native** action for verified static display text bindings. Its `app/brand_native.py` writes associated Swift UI literals only in this Native tree, preserves previous bytes and optimistic source revisions, parses Swift syntax and records source-only application in CURRENT_HANDOFF. Randomize/default and **Spremi skicu** do not apply code. Dynamic values, source conflicts, artwork and recorded speech need separate handling. This exception is specific to the user's explicit copy action; ordinary Studio art tasks retain their no-game-change boundary. Applying copy does not build/install/launch or establish gameplay/layout/physical acceptance; the next Native delivery keeps the usual gates and save protection.
 
 ## Native mode and device
 

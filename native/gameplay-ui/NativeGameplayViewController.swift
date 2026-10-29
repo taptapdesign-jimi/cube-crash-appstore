@@ -121,6 +121,7 @@ final class NativeGameplayViewController: UIViewController {
     var sourceTutorialHUDEnabled=false
     var onSourceTutorialRetired:(()->Void)?
     var onSourceTutorialPrepared:(()->Void)?
+    var onSourceTutorialBoardVisible:(()->Void)?
     var sourceBoardEntryEnabled=false
     /// Fresh Arcade save runs after actual Source holders/owners are mounted,
     /// before the board wave changes their painted alpha or admits input.
@@ -396,6 +397,7 @@ final class NativeGameplayViewController: UIViewController {
             scene.sourceTutorialFirstStepMonitorEnabled=sourceTutorialFirstStepMonitorEnabled
             scene.onSourceTutorialRetired={ [weak self] in self?.onSourceTutorialRetired?() }
             scene.onSourceTutorialPrepared={ [weak self] in self?.onSourceTutorialPrepared?() }
+            scene.onSourceTutorialBoardVisible={ [weak self] in self?.onSourceTutorialBoardVisible?() }
             _=scene.configureSourceTutorialActivation(scope:scope)
         }
         scene.onSourceGuidedSnapBack={ [weak self] node in self?.onSourceGuidedSnapBack?(node) }
@@ -769,7 +771,7 @@ final class NativeGameplayViewController: UIViewController {
             }
             guard !self.exitingBoard else{return}
             let generation=self.engine.state.generation
-            self.presentBoardCleared(generation:generation)
+            self.presentBoardCleared(generation:generation,tutorialSettled:true)
             self.retirePreparedJourneyResult()
             if let resultController=self.prepareJourneyResultController?(result) {
                 self.preparedJourneyResult=(generation,resultController)
@@ -1224,7 +1226,10 @@ final class NativeGameplayViewController: UIViewController {
     }
     /// One generation owns one finite reused Arcade clear card. It never
     /// commits a round; the existing terminal receipt remains authoritative.
-    private func presentBoardCleared(generation:UInt64) {
+    private func presentBoardCleared(generation:UInt64,tutorialSettled:Bool=false) {
+        // First-play completion celebrates only after Scene has retired the final
+        // merge artwork and its HUD receipts, never at ordinary-six contact.
+        guard engine.state.tutorial?.requiresResultCompletion != true || tutorialSettled else{return}
         guard !disposed,!backgrounded,engine.state.generation==generation,
               boardClearedGeneration != generation,(engine.state.mode == .journey || engine.state.tutorial?.requiresResultCompletion != true) else{return}
         retireBoardCleared();boardClearedGeneration=generation
@@ -1698,7 +1703,7 @@ final class NativeGameplayViewController: UIViewController {
         sourceScope?.dispose(); sourceScope = nil; sourceContext = nil
         boardScene?.dispose(); boardScene = nil;
         sourceTntGlyphScopes.removeAll();sourceTntGlyphOwnerIDs.removeAll();tntGlyphs.values.forEach { $0.removeFromSuperview() }; tntGlyphs.removeAll(); spriteView.presentGameplayScene(nil); spriteView.surfacePaused = true
-        onSourceGuidedSnapBack=nil;onSourceTutorialRetired=nil;onSourceTutorialPrepared=nil
+        onSourceGuidedSnapBack=nil;onSourceTutorialRetired=nil;onSourceTutorialPrepared=nil;onSourceTutorialBoardVisible=nil
         onSourceBoardEntrySound=nil;onSourceBoardEntryCompleted=nil
         onExit = nil; onStateChange = nil; onRoundWon=nil; onTerminal = nil; onGameplayEvent = nil; onHUDTapContact=nil; onHelp = nil; onScore = nil; onCombo = nil; onPointerState = nil; onHaptic = nil; onBoardEntry = nil; onBoardExit = nil; onGameplayReceipt = nil; onSpecialMoment = nil; onHUDCoinArrival = nil; onSpecialFadeCapture = nil
     }

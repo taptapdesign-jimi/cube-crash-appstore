@@ -292,14 +292,15 @@ final class NativeBootstrapTests:XCTestCase {
             XCTAssertFalse(containsWeb(game.view))
         }
     }
-    func testTutorialCompletionContinueCommitsOnceAndStartsFreshNativeArcadeRoundOne() async throws {
+    func testTutorialCompletionContinueReturnsToArcadeHubWithoutStartingOrScoringRound() async throws {
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("native-bootstrap-tutorial-end-\(UUID().uuidString)")
         defer {try? FileManager.default.removeItem(at:directory)}
         let store=NativeSaveStore(directory:directory)
         var tutorial=NativeTutorialState();tutorial.active=false;tutorial.guideCompleted=true;tutorial.completionAssist=true;tutorial.step = .special
         let tiles=[NativeTile(id:"tutorial-left",cell:.init(column:0,row:0),value:3),NativeTile(id:"tutorial-right",cell:.init(column:1,row:0),value:3)]
         let state=NativeBoardState(tiles:tiles,mode:.arcade,score:123,tutorial:tutorial)
-        var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false),arcadeRun:state)
+        var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
+        seed.firstPlayRun=state
         seed.arcadeRunSavedAt=Date().timeIntervalSince1970;seed.progression.arcadeStats.highScore=777;seed.progression.arcadeStats.longestCombo=8
         try store.save(seed)
         let bootstrap=try NativeBootstrap(root:NativeTestResources.root,store:store,showStudioIntro:false)
@@ -323,14 +324,16 @@ final class NativeBootstrapTests:XCTestCase {
         XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:to,now:100)).accepted)
         try await waitUntil {app.children.contains{$0 is NativeTutorialCompleteController}}
         let cover=try XCTUnwrap(app.children.first{$0 is NativeTutorialCompleteController} as? NativeTutorialCompleteController)
-        XCTAssertFalse(try XCTUnwrap(store.load()).progression.firstPlayTutorialComplete)
+        XCTAssertTrue(try XCTUnwrap(store.load()).progression.firstPlayTutorialComplete)
         XCTAssertNil(game.presentedViewController,"Tutorial must not open Clean Board/New Reward")
         try await waitUntil {cover.phase == .ready};cover.requestContinue();cover.requestContinue()
         try await waitUntil {(try? store.load()?.progression.firstPlayTutorialComplete) == true}
-        XCTAssertEqual(game.engine.state.board,1);XCTAssertNil(game.engine.state.tutorial)
-        XCTAssertEqual(game.engine.state.score,0);XCTAssertEqual(game.engine.state.wildMeter,0)
+        try await waitUntil {app.route == .arcadeHub && !app.transitioning && !app.children.contains{$0 is NativeTutorialCompleteController}}
+        XCTAssertNil(game.parent);XCTAssertFalse(app.children.contains{$0 is NativeGameplayViewController})
+        XCTAssertFalse(app.arcadeHub.isHidden);XCTAssertTrue(app.arcadeHub.hub.scrollView.isUserInteractionEnabled)
         let saved=try XCTUnwrap(store.load())
-        XCTAssertEqual(saved.progression.arcadeStats.highScore,0);XCTAssertEqual(saved.progression.arcadeStats.longestCombo,0)
+        XCTAssertEqual(saved.progression.arcadeStats.highScore,777);XCTAssertEqual(saved.progression.arcadeStats.longestCombo,8)
+        XCTAssertNil(saved.firstPlayRun);XCTAssertNil(saved.arcadeRun)
         XCTAssertNil(saved.pendingArcadeRound);XCTAssertNil(saved.arcadeRun?.tutorial)
         XCTAssertFalse(containsWeb(app.view))
     }

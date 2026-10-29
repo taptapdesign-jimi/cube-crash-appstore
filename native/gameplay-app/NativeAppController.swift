@@ -63,6 +63,7 @@ final class NativeAppController: UIViewController {
     private var observers: [NSObjectProtocol] = []
     private var returnRoute = Route.home
     private var beforeHomeReveal:(()->Void)?
+    private var beforeArcadeReveal:(()->Void)?
     private var disposed=false
     private var returnPreparationEpoch=0
     @MainActor private final class ReturnPreparation {
@@ -367,6 +368,7 @@ final class NativeAppController: UIViewController {
                 crateButton.setImage(artwork.image("assets/hud/crate - hud.png",densityAware:true),for:.normal)
             }
             motion.animate(arcadeHub.tracks(enter:true),completion:admitted)
+            let prepared=beforeArcadeReveal;beforeArcadeReveal=nil;prepared?()
         case .settings:
             settingsView.isHidden = false;applySettings();settingsView.layoutIfNeeded()
             motion.animate(settingsView.tracks(enter:true),completion:admitted)
@@ -653,6 +655,11 @@ final class NativeAppController: UIViewController {
         incoming.onAmbientPlansRequest = {[weak self] viewport,ids,completion in completion(self?.services.ambient(id,viewport,ids))}
         incoming.onBeePlansRequest = {[weak self] ids,completion in completion(self?.services.bees(ids))}
     }
+    func returnTutorialToArcade(onPrepared:@escaping ()->Void) {
+        guard !disposed,route == .gameplay else{return}
+        returnRoute = .arcadeHub;beforeArcadeReveal=onPrepared
+        returnFromGameplay()
+    }
     func returnTutorialToHome(onPrepared:@escaping ()->Void) {
         home.selectSlide(0,animated:false);returnRoute = .home;beforeHomeReveal=onPrepared
         returnFromGameplay()
@@ -735,7 +742,7 @@ final class NativeAppController: UIViewController {
         gameplay?.willMove(toParent:nil);gameplay?.view.removeFromSuperview();gameplay?.removeFromParent();gameplay = nil
         for observer in observers {NotificationCenter.default.removeObserver(observer)};observers.removeAll()
         onFeedback = nil;onRoute = nil;onShipVisibility=nil
-        beforeHomeReveal=nil
+        beforeHomeReveal=nil;beforeArcadeReveal=nil
     }
     deinit {for observer in observers {NotificationCenter.default.removeObserver(observer)}}
 }

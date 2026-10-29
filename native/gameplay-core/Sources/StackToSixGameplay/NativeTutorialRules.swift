@@ -53,7 +53,7 @@ public enum NativeTutorialRules {
             return srcWild != dstWild && isSpecialTarget(srcWild ? destination : source,rows:rows)
         }
     }
-    public static func isSpecialTarget(_ tile: NativeTile, rows: Int) -> Bool { tile.isPlayable && !tile.isWild && tile.value > 0 && tile.cell.row <= min(rows-1,5) }
+    public static func isSpecialTarget(_ tile: NativeTile, rows: Int) -> Bool { tile.isPlayable && !tile.isWild && tile.value > 0 }
     public static func preferredWildCell(state: NativeBoardState) -> NativeCell? {
         let preferred = NativeCell(column:max(0,min(state.columns-1,state.columns/2)),row:min(state.rows-1,1))
         var cells: [NativeCell] = []

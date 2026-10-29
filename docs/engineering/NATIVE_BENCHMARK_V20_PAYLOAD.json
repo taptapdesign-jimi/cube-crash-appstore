@@ -1,0 +1,2771 @@
+{
+  "tag": "native-benchmark-v20",
+  "date": "2026-10-30",
+  "branch": "main",
+  "title": "Native production benchmark v20: Journey modal card",
+  "parent": "17913655ec3d4a934434e264494f8d7abdaf70a3",
+  "scope": "All saved nondeleted changes since v19; seven preexisting protected original-asset deletions excluded. Private phone data and build products excluded.",
+  "credentialPatternScan": "PASS",
+  "files": [
+    {
+      "path": ".agents/skills/stack-to-six-render-style/SKILL.md",
+      "bytes": 6031,
+      "sha256": "8283b02227fda9f510bc689c94e095cfe245f07a260f9bc7889bbbcdea4d2b14"
+    },
+    {
+      "path": "assets/arcade/pure dice.png",
+      "bytes": 105073,
+      "sha256": "b01afb9368d4646454b78f55087b8db07da78c2559ab111b20435239a8998ba0"
+    },
+    {
+      "path": "assets/arcade/pure dice2.png",
+      "bytes": 108282,
+      "sha256": "66b265bd4013958caa28202c08b517a8bb4b5e3864da7645cb2ececd1c16e61d"
+    },
+    {
+      "path": "assets/arcade/pure dice2@2x.png",
+      "bytes": 357229,
+      "sha256": "41274f622167f791d483aba6a444cbe5b3a3c688236df77338f9645194f4c6e4"
+    },
+    {
+      "path": "assets/arcade/pure dice@2x.png",
+      "bytes": 353896,
+      "sha256": "333ab0214938089410f6d2c4b3d0b688e582ee1e1c0420ddd3d900e7e6c1d760"
+    },
+    {
+      "path": "assets/colelctibles/Area55/legendary/01-gold@2x.png",
+      "bytes": 2028491,
+      "sha256": "3669d2656cd231e48f43fcff0860de045b7bb339eebb44dd143f90dd938724ad"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/clean board titles.mp3",
+      "bytes": 1977165,
+      "sha256": "15e8f094875070026adcfa6cb6cfabc10f20a32e3ecb208fc46b6cef3ceba32e"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/001-outstanding.wav",
+      "bytes": 113324,
+      "sha256": "76e0ad9f46ee1d969c085c87061ef6a555370b3a2ef9b76622ab9d1841597e82"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/002-amazing.wav",
+      "bytes": 93644,
+      "sha256": "f1dc3df519da37ed23c9d24cb0c9fb4a68b83b3eddc3eeed78770e22c774a873"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/003-excellent.wav",
+      "bytes": 79244,
+      "sha256": "023dcb02d499a636d9cf1fcaec8f046bc91625752f77b24127d888c43460c368"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/004-fantastic.wav",
+      "bytes": 110444,
+      "sha256": "858be5c1a1e2f95b44d53c671b230963e560c271a84b1f1295ccc5e4e98b3591"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/005-incredible.wav",
+      "bytes": 109004,
+      "sha256": "9b059e82b4088950106a13afa7f1c4040ac5250280c9c54d18d858746a5d6498"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/006-perfect.wav",
+      "bytes": 76364,
+      "sha256": "1ff1b15a6f627ea32d75b9ba6ef75905464061aaa18c196bf741891524af4491"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/007-brilliant.wav",
+      "bytes": 85004,
+      "sha256": "541ff351fa8a20f0909d888451a3d282d1db61f50cbf911db9ce20d3e8d05fc5"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/008-superb.wav",
+      "bytes": 91244,
+      "sha256": "ec757e63e1ee3a74f67c20e7cfa2562b5e031712d616decbe7ab4d23c8be04c5"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/009-awesome.wav",
+      "bytes": 73484,
+      "sha256": "5deb5b8e2a1943618fbb961a165855a857786e321a40908375443edad214cd7c"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/010-spectacular.wav",
+      "bytes": 122924,
+      "sha256": "0799527dedc5cd577ef08198556f4567350ea2dc77d59b0366e99fce70611e8d"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/011-magnificent.wav",
+      "bytes": 113324,
+      "sha256": "d9f22aceda383459a2e59dadf61cf8cb148ef2d0d17d41a5bd4b6e21664be897"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/012-phenomenal.wav",
+      "bytes": 103244,
+      "sha256": "24e4a0a35d446bf308528d3306f3366c95d9e20bfa90aa43b868e8928d083eec"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/013-marvelous.wav",
+      "bytes": 97004,
+      "sha256": "c65f40592f61e8ca8a27c06939a9f658dd2980ef523ef07b63d6f4ea15cacadd"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/014-exceptional.wav",
+      "bytes": 94604,
+      "sha256": "384514418bd80ec6c86aa7aac5c793cf888fd71892cff03e2b76ca9d587519f3"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/015-stellar.wav",
+      "bytes": 84524,
+      "sha256": "4c42d8121928eedc21da3e9c0bef6a9c2d6c6b662b5d71ab36b75026b0a9795c"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/016-remarkable.wav",
+      "bytes": 101324,
+      "sha256": "df67f540d00065ec687306e7ebf4069b1ed38a991e324df5716826074ff8f6a8"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/017-impressive.wav",
+      "bytes": 86444,
+      "sha256": "58516ae1c63c1d1491b2bcb9cd09eec09eb6d989db12c5147a5de7f8584ea8bf"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/018-unbelievable.wav",
+      "bytes": 125324,
+      "sha256": "e7cc2195d4219387b57c65c788c16338a11ad06704f84e49159dba47f506a68b"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/019-wonderful.wav",
+      "bytes": 95564,
+      "sha256": "1c3b62e4a62762e6b8bae1b9c1a9ad084d3061e03845929cd620853c74ded232"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/020-fabulous.wav",
+      "bytes": 97964,
+      "sha256": "7f4732b1e5624ed0b070a59a118b0387a39ad519c691ad9a97a26a51fff4349e"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/021-sensational.wav",
+      "bytes": 111884,
+      "sha256": "07441dc757d14a725bdbe27c604089ddc85dd8bb9fc26e43d9206cae00433189"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/022-terrific.wav",
+      "bytes": 85004,
+      "sha256": "715bd810a9308e89ecf88c6eb1c77ccc0b6ec1383f7aab3c329d45baa71e73ef"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/023-splendid.wav",
+      "bytes": 94604,
+      "sha256": "a62c84e51299b99e540308d4d8e9d1f5182146ef7400031852c3fc661d779936"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/024-exquisite.wav",
+      "bytes": 90284,
+      "sha256": "35abcf32441151cec44be7827e8743fe2c60518efc6b17b886552564241e831a"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/025-divine.wav",
+      "bytes": 95564,
+      "sha256": "ce193f558efff4c44a5ef9e77b442964fd52c3ea06d7408f3832eaa7c841d90b"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/026-glorious.wav",
+      "bytes": 100364,
+      "sha256": "44fb846c0edc1307ac435feda817c4c50d2f57d180a3dfc2b1d87ba345be4df8"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/027-masterful.wav",
+      "bytes": 93644,
+      "sha256": "66c805c640e245f16afee78b6cb2c520a4ee43b26eb612633f80724ae969ebc8"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/028-flawless.wav",
+      "bytes": 92204,
+      "sha256": "bb6d0453c931f301a3a67bd5af0d40b6a77db09ab659caeaa59f53357839de86"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/029-supreme.wav",
+      "bytes": 99404,
+      "sha256": "bd55b2a9cb61365efbe8a26dea6c180e367287ee317296664382a8d468fec07d"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/030-epic.wav",
+      "bytes": 60044,
+      "sha256": "b0425620b4cba9ca27b53852fa2169cd81d8c99186369bbae4501fb659bad5b6"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/031-legendary.wav",
+      "bytes": 99404,
+      "sha256": "9c659bdcdd9ce949b475b8db7034afc719fbc16765c89524e41391f323ec64cd"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/032-radiant.wav",
+      "bytes": 79724,
+      "sha256": "1802ca98d5f28391d7b2feadba39e9c02d27d111a790b4386994a817af8bffab"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/033-majestic.wav",
+      "bytes": 91244,
+      "sha256": "f97e215cf06654f4b25e8dafac5454b182ee54211bfe5a315f7b8cd4f79f6f23"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/034-unstoppable.wav",
+      "bytes": 114764,
+      "sha256": "788bbb0254af607db5119186fb92e84d13cfcc796a3ff98063124e6b4a891e58"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/035-victorious.wav",
+      "bytes": 98924,
+      "sha256": "7102d8fe476945bcfc3be1d46493ae34800fb3094991646bd4556deffee90cdd"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/036-triumphant.wav",
+      "bytes": 94604,
+      "sha256": "49c187451c0bcdc7ee869b085c9ea744f3768c4cb614ba77c060049ab7baa744"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/037-dominant.wav",
+      "bytes": 82124,
+      "sha256": "dbd0a7d68e820d5b78b98d9a48a8662ebe335f4e646b631a904687669a079570"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/038-epicness.wav",
+      "bytes": 86444,
+      "sha256": "811e6d5ccb1ab8516623947042352f5060859d9a3f65468e81a0a230905d9090"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/039-powerful.wav",
+      "bytes": 82604,
+      "sha256": "f84dfebdc5250b50ec20a41ae5bec0ab23dbe394cd18ce5b91efc2c451114581"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/040-heroic.wav",
+      "bytes": 78284,
+      "sha256": "f094ff4f86bbedf8115ab1cad4e79ea51ff57dd4f36100d9e641d777e37f6c42"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/041-gorgeous.wav",
+      "bytes": 86924,
+      "sha256": "d7f2ce137cba3021b00ad5bb2861f7fccd6698cc0365fc8a140a4af3adadcf0c"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/042-sparkling.wav",
+      "bytes": 94124,
+      "sha256": "b2e3a8b21ce8e3a1db34ac6b1016d0425abae016bc994935e2ced8aea61af0c9"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/043-blazing.wav",
+      "bytes": 90764,
+      "sha256": "81daab328d6647799df0d013ab874e0de4e15abb670f35bd59dec674247dec79"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/044-vibrant.wav",
+      "bytes": 79244,
+      "sha256": "812b904938f886050c0b5909f2b32f3b834969fd58c76de2a95d1af6716c9c7c"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/045-shining.wav",
+      "bytes": 81164,
+      "sha256": "42b743597c85dcb54761c488590e7a4c809995500060eba25a50204261fd9249"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/046-golden.wav",
+      "bytes": 80204,
+      "sha256": "de019b493916927e802455db20662eb95a9973f7797d3e7e584d37c4c245157c"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/047-prime.wav",
+      "bytes": 71564,
+      "sha256": "b028ba11e2e8d7c136e804350333592641b4ccee89d1992636d634d3167c07a6"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/048-royal.wav",
+      "bytes": 70604,
+      "sha256": "a2c98d2be89e5b5d47026c500dab1316d15e9bde8981a760e4a6a71d7e74db22"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/049-ace.wav",
+      "bytes": 61964,
+      "sha256": "c901d7dfd0eee0e0721012ff4d889b489a0a58c3d8adf054cf6a661f8db7bf98"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/050-infinite.wav",
+      "bytes": 70604,
+      "sha256": "be50e7745ef629a55a27ccb3e6aa2d7046ac217b891d659b7fdd0d60a06f4d61"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/051-titanic.wav",
+      "bytes": 88364,
+      "sha256": "c4c9af3884a14cf9b136a5a70a88ea16787a63ed5befdb6b3cba39775c23953a"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/052-grand.wav",
+      "bytes": 77804,
+      "sha256": "18032c73c908afa58e17dd0474a18d87d80e7d9512ae2c98d2b40aced5e48700"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/053-mythic.wav",
+      "bytes": 72044,
+      "sha256": "f4b62ae489eb8729edbd93000e09f0c26f5515d72e52ea6d13fa935b906654de"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/054-immortal.wav",
+      "bytes": 80684,
+      "sha256": "0966fd56b24f668b30dd42f85c800424314c77fffbaca0aae8c73f8b8c6de4a1"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/055-mega.wav",
+      "bytes": 71564,
+      "sha256": "7f003533af4b3e8c9eec5551e72245805e8b749f26e0f3c5da7396a18e5c4ca3"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/056-ultra.wav",
+      "bytes": 65804,
+      "sha256": "9cce10402fb877feb46af67a52d062b3d41a75fcd22f7a0a80c401a6224a15e9"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/057-primeval.wav",
+      "bytes": 86444,
+      "sha256": "645317da1aa7ba820596d2d82d672d4ba2cf80f1557aca3499ac37707e6429ff"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/058-booming.wav",
+      "bytes": 77322,
+      "sha256": "16790ac1d65f9c00c9dc61dfe291a923e8b09732e9c07c8badab496e52875608"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/059-nice-win.wav",
+      "bytes": 82604,
+      "sha256": "d124bcce486c1363426a87946b35e8ccf529c96525fdf96d554e6c51dbe9184b"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/060-clean-board.wav",
+      "bytes": 85004,
+      "sha256": "86f41dcde470efdb76359298bd5d281fe11b73dafcaacf1ef07ebf074d25110c"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/061-cleared-it.wav",
+      "bytes": 64364,
+      "sha256": "0e990f85abc21c1dbb6e6804bbdb2e70b4185f8b6877ca1b2c52960b32c4caf2"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/062-nailed-it.wav",
+      "bytes": 75884,
+      "sha256": "0546064164a13e7c7f85f6e6996e5474e061d9a925fd9811c24073fe8015ce12"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/063-you-won.wav",
+      "bytes": 77324,
+      "sha256": "5028370be74b0551d5aa2002a03853ad1e1c311402357e8c3ef30e4fda90c341"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/064-yesss.wav",
+      "bytes": 82122,
+      "sha256": "d26522935a308dd19ed993e6edd61a9c4ae93025d34779c440acf579f98f9fba"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/065-wooow.wav",
+      "bytes": 86444,
+      "sha256": "9fd8d99956225f52f1857654585aab5dd15c3d6319e2fc3a66e769da1fddc311"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/066-sweet-win.wav",
+      "bytes": 104684,
+      "sha256": "27bbb7b98be31a34ad4a2b8ba5be76a4d8546e9f3d2b7f7b599d970311f4dc87"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/067-easy-win.wav",
+      "bytes": 86924,
+      "sha256": "fa9fcdd87c970ca410c2d29f17939a3724aaa7fb57942be26e1df26429d36545"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/068-big-win.wav",
+      "bytes": 84524,
+      "sha256": "16ee0f34d5123ba1c6746e8a95507a1257cb4b54ce32c0e9c3f0ec82120cb18e"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/069-smooth.wav",
+      "bytes": 79724,
+      "sha256": "410c58ce3ab7e6d8c7ab52be538ffa0e7707ad0003be50c937584422f2ff2e90"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/070-so-clean.wav",
+      "bytes": 106604,
+      "sha256": "c838e13289bfc5c0d0eff286fa8ec65b2f3c288def7901bc96fac834cfd594b2"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/071-well-played.wav",
+      "bytes": 76364,
+      "sha256": "bb34baf5965fbba65703716bfb845df4587470dc95a25cb4dcf7a2694f0a4f45"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/072-nice-one.wav",
+      "bytes": 69164,
+      "sha256": "ef9e4960998766c84f378b862942f82226c490f8c99dc86e55a4791583f97828"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/073-great-job.wav",
+      "bytes": 92684,
+      "sha256": "ef189d8efd914183b252d5aa2c78c129566d8db08d4e520d4ab37862909745c2"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/074-boom.wav",
+      "bytes": 75884,
+      "sha256": "0528494641f18282c1222895ec087788dd0c614ebe739c32dd953bf603297cf4"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/075-dice-done.wav",
+      "bytes": 91724,
+      "sha256": "8410424128e8ff2cd8099738345e1b1f039b5847da092637579c2c411ce27cb3"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/076-dice-cleared.wav",
+      "bytes": 92204,
+      "sha256": "d1b393b362fc72ab96abd4004379014950c53fea0f4c9cee90b7ba0c54960a28"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/077-dice-master.wav",
+      "bytes": 121964,
+      "sha256": "74a87b3de4d99416cbd54d911265f0ece4fe7f8bb54e83a596a8ff536a3e4075"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/078-rollin.wav",
+      "bytes": 71564,
+      "sha256": "9aa66562fa71ed542480c9375a53530b821bc19854c824e02b1bb065e94a6ad8"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/079-roll-perfect.wav",
+      "bytes": 112844,
+      "sha256": "22e115f8f210847b136958241befa27e56619e3a309ffd0b4c1d9cb5e4c7f517"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/080-lucky-six.wav",
+      "bytes": 88844,
+      "sha256": "54fd6c6a95a5d9f82bcd26f50fdd3adc89ff0853bb151f851551ee2b8be63f18"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/081-six-it-up.wav",
+      "bytes": 79724,
+      "sha256": "e2c5f9c46352d7348665697cc0cc16acc4baf6f1d3a05f5d6bb30bbe061267ed"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/082-stack-cleared.wav",
+      "bytes": 104684,
+      "sha256": "8ff294313fbe5f724b544f8e13deb42eaa71e6fdc7018df9bbfeaa579382eb76"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/083-stack-smashed.wav",
+      "bytes": 125804,
+      "sha256": "0bd7e263deec8609109afb3cdcd252fc7af27f6eb260297ee109414c5c4d1741"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/084-stack-complete.wav",
+      "bytes": 98444,
+      "sha256": "e078214afe4f30890b7ce789a139c77de858a84525de75177af5aff586671054"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/085-stack-attack.wav",
+      "bytes": 100364,
+      "sha256": "d09acc456ffab3d1d8dcba09b658dbb0ecd7a960087924cf443b0fd57f11860a"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/086-stacktastic.wav",
+      "bytes": 113324,
+      "sha256": "f48b01b6e4f6388b56fa0e77515f6141f3c9732e3c974b8a6893f8a34d9876a8"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/087-stack-magic.wav",
+      "bytes": 113804,
+      "sha256": "623d38e34001e76902ad9d291fe9fd3a11e5fb12a2b4e6ef783aba4fd99c2231"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/088-stack-nailed.wav",
+      "bytes": 117164,
+      "sha256": "51d1a9691c0e60d71a0c99d5fd6dba83089cc0f779669adfdaa7c350f005f6ab"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/089-board-smashed.wav",
+      "bytes": 116684,
+      "sha256": "fa50232b6bb049d85b973a86d2226b28f41b6346ae45c6b148ff0d3b97d41900"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/090-board-cleared.wav",
+      "bytes": 84524,
+      "sha256": "d2f3983582541a952b5ea3143eaae945d7dccd73c4224ac73f0f8f655223cf77"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/091-clean-sweep.wav",
+      "bytes": 96524,
+      "sha256": "7ca7b8f6ac94bbfce9520aa41d2fcfb2727f529c6a16d90d8dc1b473357e16b9"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/092-full-clear.wav",
+      "bytes": 88844,
+      "sha256": "7467be11b4ae09d080ad21d30cc92486149aadbb9ed30a8a8284eca7437f1307"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/093-total-clear.wav",
+      "bytes": 93164,
+      "sha256": "432fafa147fe2ecfe497d1f42166b6173927c4e595777801d77ef42c20a36f17"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/094-perfect-clear.wav",
+      "bytes": 98924,
+      "sha256": "a6c2d819f553f596c88dc139c7e863c3a4837601b9f453bbe754c0b96d506314"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/095-all-gone.wav",
+      "bytes": 78764,
+      "sha256": "a3e11ba4829ae7b241c4b802904da0f734077824684453a5ffa0510ac36ab5d6"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/096-done-dusted.wav",
+      "bytes": 128204,
+      "sha256": "5374517213b065c9fca2f751aa782ce024df4cacc23390161babcf6c28ca1b7a"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/097-crushed-it.wav",
+      "bytes": 74444,
+      "sha256": "d38ac47130d02d17a112c8466a2c34d24b9acd7ff9e6c71b38b612a45dcc7f59"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/098-smashed-it.wav",
+      "bytes": 86924,
+      "sha256": "de41bdd4343812f348ca68f1719027d821213dd4695fd31489489287a529d437"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/099-owned-it.wav",
+      "bytes": 61964,
+      "sha256": "8d280c7e25ef91ae30c1a89176d7c89cc9dab2d678063be46f63591cece69955"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/100-got-em.wav",
+      "bytes": 62444,
+      "sha256": "d1ed63c821f94dad0df8fd6b46ea1988dd5b9872a787d95ca2942c4b27ee1ce4"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/101-that-s-it.wav",
+      "bytes": 67724,
+      "sha256": "ee0fc04bb76d9a5c4ee19314a9a66571842e9379f7cb129e310bb491974a1109"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/102-oh-yeah.wav",
+      "bytes": 92684,
+      "sha256": "5863b0dd26711c36faf5642d7845567598b04c45d737aac6103109982f0c4462"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/103-heck-yeah.wav",
+      "bytes": 83564,
+      "sha256": "7fadb114de5ed34c25703e80e4011c5f6f9350a8b7058c6cce931d3f3f79e973"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/104-let-s-gooo.wav",
+      "bytes": 110924,
+      "sha256": "343e97290fe8145f5325a051c28f1d4e4b33cf57cc75dd58a3c086b196afea80"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/105-too-easy.wav",
+      "bytes": 98924,
+      "sha256": "e8a10dfddd502f740ed23db4f6df60144f49f989f5a92e3152ef0a68b0ef2c89"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/106-so-good.wav",
+      "bytes": 102284,
+      "sha256": "daea47e44433744ea964011066daa7965931b53a0a11e04817abfd2ba89b5930"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/107-super-clean.wav",
+      "bytes": 106604,
+      "sha256": "1df2f0dce3c7abd7aa66e100c6a95205a8a7643a44ae017437b1d3c48cdaec18"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/108-mega-win.wav",
+      "bytes": 96524,
+      "sha256": "dcc78c179903304ca4034ed318291601d07deea92f9b2304e4d6a46afafc44fe"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/109-epic-clear.wav",
+      "bytes": 93644,
+      "sha256": "ad65c552a9895bd900acca76bd1f88967dbf614376e11200f6fb5607b7fa93a7"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/110-dicey-nice.wav",
+      "bytes": 101804,
+      "sha256": "5f9ec3a730b667d4edc939f438e4671855286e19f43f40a71fc4905ce739e777"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/111-roll-star.wav",
+      "bytes": 106124,
+      "sha256": "b6683be06957ce2541b3595f715ddbe8d0be46a740a7e070e42776f4c526134f"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/112-stack-star.wav",
+      "bytes": 103244,
+      "sha256": "3307be98b0ba15dda17f2f6083b21c880ec7a16267385b5307c91f44acca3551"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/113-sixcess.wav",
+      "bytes": 96044,
+      "sha256": "be1644cb93faeb01746139f06fe1b0fcc1947fedd9c7ee5346f934b0f9f68766"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v1/114-dice-lightful.wav",
+      "bytes": 111884,
+      "sha256": "c478afe5757b1b4eccb3f0f6ad7abe31635915c2ad5e3d059a6e568db28c7b90"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/001-outstanding.wav",
+      "bytes": 113324,
+      "sha256": "f66940ae24aa087c4b557ea4a15f8c81027767c16771911d7e4bc44ed599b620"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/002-amazing.wav",
+      "bytes": 93644,
+      "sha256": "d20c459c602f65f3a028476eae327e15a558030ce283bb7af7170148bf558aa2"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/003-excellent.wav",
+      "bytes": 79244,
+      "sha256": "a8003f1f0c03f8a328b192d5e7a190de22fb4ff5ec44ff7f88f5d3bf2339bc61"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/004-fantastic.wav",
+      "bytes": 110444,
+      "sha256": "c3e10439831ac5d338f7864d019bbe5cc834a52856c97e1f416e121f120d6b3e"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/005-incredible.wav",
+      "bytes": 109004,
+      "sha256": "282e7b5a6f8342d822ec96efabcb305a3374aeb008e8c7e4193828d394fbf55c"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/006-perfect.wav",
+      "bytes": 76364,
+      "sha256": "946b43018e91958ccf99271ce803d50968c3666cbd715af3bf88b08c25c571eb"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/007-brilliant.wav",
+      "bytes": 85004,
+      "sha256": "7f907f08f5198db1c6a7b36a7a906807b6086d71db7aa930fe511614bb14c19b"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/008-superb.wav",
+      "bytes": 91244,
+      "sha256": "4ea281e12d9ca34b44cba3e081059f99b7c262d6418038b63997aee62865a518"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/009-awesome.wav",
+      "bytes": 73484,
+      "sha256": "2bef320fcd49611e9cf2acb51a6984d5a319bfd1ad41087980b7ce304948b511"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/010-spectacular.wav",
+      "bytes": 122924,
+      "sha256": "6776369310c99fe35381357ee58eef57b2ee051289c4cbee449157b9b703d0c5"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/011-magnificent.wav",
+      "bytes": 113324,
+      "sha256": "2a99bbe820270ce3a82ffea6c6434f668b33587717cabc7a40b1a8415a9eb1de"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/012-phenomenal.wav",
+      "bytes": 103244,
+      "sha256": "add87d204bd1a979332bde9e3d6b440b364177190f3aa0714b4375d9a5b93720"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/013-marvelous.wav",
+      "bytes": 97004,
+      "sha256": "5ea947bbab03fc0d699e40a5813ca334a4c9885f1cab136fbc6cdae2e4008c55"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/014-exceptional.wav",
+      "bytes": 94604,
+      "sha256": "01020d2ce797a5656e06bb765a3695dfb6732a61f4a7e3458e6ec73435ccd93d"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/015-stellar.wav",
+      "bytes": 84524,
+      "sha256": "02748b0e9f53c370c94797c2182c188df5b69702f75eee77b10dfb6d319dc60d"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/016-remarkable.wav",
+      "bytes": 101324,
+      "sha256": "568d814e1c6d6474cf0bdaeee4c25f09453c0392de625b004e33a1ae408159de"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/017-impressive.wav",
+      "bytes": 86444,
+      "sha256": "c4684accf2e7972f74ba2d26e5e7704d76dd6437b5aa3c811d41825dd1e67b52"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/018-unbelievable.wav",
+      "bytes": 125324,
+      "sha256": "d788fa3a7ff0917ddb77c6cf5e8b8314011f8abfb0268926eab02ad5387b2783"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/019-wonderful.wav",
+      "bytes": 95564,
+      "sha256": "5bcdb9235f627b552a6fdb6aa25272d88c3f16c13e07eab7354d4119eb10f578"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/020-fabulous.wav",
+      "bytes": 97964,
+      "sha256": "6d7a10926d543169e8420cf0e188b6aed7ff12282fad6dab8379d22740d0f59d"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/021-sensational.wav",
+      "bytes": 111884,
+      "sha256": "391008dad70c76da52b2214e4e18306c6084ca5ce25bce47e91e02c8f99643cd"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/022-terrific.wav",
+      "bytes": 85004,
+      "sha256": "3bcc501914b8d39097112e7815f4d2e5b266f92ab51ddd81e66816e7b31a6b4e"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/023-splendid.wav",
+      "bytes": 94604,
+      "sha256": "3dc451bcd1a610ebe00c215cc0321a03e64250adbb1740baa096d26b0309e625"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/024-exquisite.wav",
+      "bytes": 90284,
+      "sha256": "416f84a60b340dd52614afe001800aa15123a6888ae1ab9189bf2d1ad627e8fb"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/025-divine.wav",
+      "bytes": 95564,
+      "sha256": "47f553ca9d47773f49eba8c44fee9b6d9126747e50f7e3018c12cf577ebc81b9"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/026-glorious.wav",
+      "bytes": 100364,
+      "sha256": "5f2f04f552d1228d461ee060f65be935362e852c808d4c81e3f5f030c1abd880"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/027-masterful.wav",
+      "bytes": 93644,
+      "sha256": "58f1de4e00928f472fe3795168ecd7ff7f37b9575f6e8d7ed39716cd9048cb2e"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/028-flawless.wav",
+      "bytes": 92204,
+      "sha256": "1ef560ce3a2ebe5e86411c8b5fbd5314128d667345c706eab4f2f8f6be59d149"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/029-supreme.wav",
+      "bytes": 99404,
+      "sha256": "0a80bbd8b77b43ed25fa01293352912f94d546c63ef48bb3336eb28ce2aea586"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/030-epic.wav",
+      "bytes": 60044,
+      "sha256": "ec53d8b47a83a9da3f8043a401dc387ee2f4ec46645a0e49eb196a0779ef4621"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/031-legendary.wav",
+      "bytes": 99404,
+      "sha256": "63ad10979546835fde324f61933febca87c0a70767e1660e75042c0afdb602ec"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/032-radiant.wav",
+      "bytes": 79724,
+      "sha256": "65a13e33f1a5c0ea0a1b47368ab59bd13d10bca088edcd22d356b72e37adc858"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/033-majestic.wav",
+      "bytes": 91244,
+      "sha256": "9481c384eafc3ded2fb4edc126fe3bcbf51718bd538d54ef392e8b0ca943749f"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/034-unstoppable.wav",
+      "bytes": 114764,
+      "sha256": "e52d0b2d56443f174ecad4f36b00f80ed704ad948a6bce2c70b30e85b538eb72"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/035-victorious.wav",
+      "bytes": 98924,
+      "sha256": "61ce775ff49386f23a66b25aaeaeda7e758984334bc2e40848f6afdfdc53a014"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/036-triumphant.wav",
+      "bytes": 94604,
+      "sha256": "5dff3a0683bc1fe63bb8321df21a509a988c9cab4f5722518247c4bed8abc33f"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/037-dominant.wav",
+      "bytes": 82124,
+      "sha256": "d60493548ef043e2f1df9982ea7d1412079bfcb6f0703a34a08d2705409e0d12"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/038-epicness.wav",
+      "bytes": 86444,
+      "sha256": "e19676e3ba679fcede583bf3272241b3e7404dddb82ba2429087c6a5de7319f8"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/039-powerful.wav",
+      "bytes": 82604,
+      "sha256": "96f1a90b38d94a9029dd17aac93c324450faac8dc99ff14dd6ce28d3132ff1a7"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/040-heroic.wav",
+      "bytes": 78284,
+      "sha256": "7752a8419d31c9e0ff83a508033644c849500b31ac72a87111e32c656ea7033e"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/041-gorgeous.wav",
+      "bytes": 86924,
+      "sha256": "11e36c8093add101ef939a4b8405bfaeca689b3f2e5374f2d50d8d00132ba24e"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/042-sparkling.wav",
+      "bytes": 94124,
+      "sha256": "cde23f376834deee2fee6b48fb7de1a3bea5c5228a817aa9f9086df67929b9f7"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/043-blazing.wav",
+      "bytes": 90764,
+      "sha256": "f8cca09e8cf625cd783f8c34e233e1297ef92834a6ac6caf4cebe0c6d4b74d7f"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/044-vibrant.wav",
+      "bytes": 79244,
+      "sha256": "83ba1d6b58c1e3ffc767b52c128454e3618e21d5488c49123293f09de1a3f7a7"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/045-shining.wav",
+      "bytes": 81164,
+      "sha256": "098bca295ba557e499c053e4ef1ea2bec34aef6cec6e6fee18b19e6b0e596288"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/046-golden.wav",
+      "bytes": 80204,
+      "sha256": "932c5175746f760ab79d015fb8e55eef7c021918124a0dd57d7a80a63bfb4ac3"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/047-prime.wav",
+      "bytes": 71564,
+      "sha256": "f5da3ec2bab3095d4ce09022ea3caa269c87f2984d9b847e41ecb363b49d15c0"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/048-royal.wav",
+      "bytes": 70604,
+      "sha256": "d2c6b7735dc1ad741b49b03e862a70e46be1b1100661b8d2bada64e9e4c74614"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/049-ace.wav",
+      "bytes": 61964,
+      "sha256": "b0bbbc6a1a5a14fd16dab1c8e09548ff6c2cd20fe2c937d97ba8cd2b2cda80e9"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/050-infinite.wav",
+      "bytes": 70604,
+      "sha256": "373ceab5bd250bd32e4e40171ec87b33820f962c0f993884a464e172b7595b03"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/051-titanic.wav",
+      "bytes": 88364,
+      "sha256": "5ab80fa471770b1d7ca3a60148ade548190b292d2390be9d093e9b43f964389f"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/052-grand.wav",
+      "bytes": 77804,
+      "sha256": "a15ba8eabf28718d9ffbc14306cf81cc0bbc79e69c87fcbd52be2ac894f24f69"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/053-mythic.wav",
+      "bytes": 72044,
+      "sha256": "0c4981bca04c9e67e71ff4aea6febef6b8748f13d31ff313139cacc42aac200c"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/054-immortal.wav",
+      "bytes": 80684,
+      "sha256": "67074d6ed830b38372ef689bdcd52e6ae6c768d2e4b4d5bc760af356842ae2ca"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/055-mega.wav",
+      "bytes": 71564,
+      "sha256": "ab2f038c9e9674535ab986bee7882cae69ac004f7ef2de28e6516265fca6c2d0"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/056-ultra.wav",
+      "bytes": 65804,
+      "sha256": "6baadd0284de19527677a42d713ee5b6849981cbbc877a9a164492f562abc47b"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/057-primeval.wav",
+      "bytes": 86444,
+      "sha256": "b901695fd29f364f55e2e4ab89ccb4c42b6e47b4331adb7a6c79ea8cdc500a04"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/058-booming.wav",
+      "bytes": 77322,
+      "sha256": "86060545a3076ff916f25de70a885e36741ac004105348b2148825bd17143c9e"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/059-nice-win.wav",
+      "bytes": 82604,
+      "sha256": "3019ffc3cc35392e488f72b3a8a31157d921f10d0eb46d2f203d047a207c632e"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/060-clean-board.wav",
+      "bytes": 85004,
+      "sha256": "e809c3e97809321a2635dc173447f0bed5fb027654063f06f8ecb3a644161909"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/061-cleared-it.wav",
+      "bytes": 64364,
+      "sha256": "45f3bce4b774b3b5b4b5adacd408b2a935dd217c2c34a64df801fdcc43eddf02"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/062-nailed-it.wav",
+      "bytes": 75884,
+      "sha256": "730c9cbdda90c474d3dc0ac7864efc4e6adeaafd2825cb7107b6ddca76c03476"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/063-you-won.wav",
+      "bytes": 77324,
+      "sha256": "3f7d7325bda2e8c41b514f4d87af3c93bb7df889b0418a0ab780e91f68eb8b56"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/064-yesss.wav",
+      "bytes": 82122,
+      "sha256": "f2622f98c05b95b388cc15c5e900762702213fad90cb86a3a16a756c9fe28dbb"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/065-wooow.wav",
+      "bytes": 86444,
+      "sha256": "267354d8924eb90855744de3406efc6986ca5d60b85a7f955ba206a195fd0409"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/066-sweet-win.wav",
+      "bytes": 104684,
+      "sha256": "111d376f89339755431e9b142714f1226b90f26b518e5f1e678e0a3eff154270"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/067-easy-win.wav",
+      "bytes": 86924,
+      "sha256": "ad8de310b87414d586e23bd5671396f26a3d347e65ffde4502ddaf0d59f9cff8"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/068-big-win.wav",
+      "bytes": 84524,
+      "sha256": "1c3f2b150f58f7e7a442b8e054ec09517ab0a99a7a8e26adfcfbb4ee068ebb93"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/069-smooth.wav",
+      "bytes": 79724,
+      "sha256": "cc5a9a3dbef485bdcb055ca3d7a7bc850aba112ca8cdfd52224350c843cc3cf3"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/070-so-clean.wav",
+      "bytes": 106604,
+      "sha256": "ef20c82440ce6145d8f76c031e4f53032061346bc96c382aa11c078a6274d745"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/071-well-played.wav",
+      "bytes": 76364,
+      "sha256": "d4328acfd648aea450e0cb17d344487e20adbc5f36927af530f3517fd5ab7fd7"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/072-nice-one.wav",
+      "bytes": 69164,
+      "sha256": "6a36b9ce39262a0f39e89cc8e6b4cd2d75b31f0e0c8d4cddbefbdd8d912905f6"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/073-great-job.wav",
+      "bytes": 92684,
+      "sha256": "34870f8fbf721b800fb9e10c2bbef2eb386601026eb176db68aec972a739a7b0"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/074-boom.wav",
+      "bytes": 75884,
+      "sha256": "b94a2b57def0fb30c8febab406d23f25f02eb73f063cf65406cc37b985677768"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/075-dice-done.wav",
+      "bytes": 91724,
+      "sha256": "2446e42ac9a64877b18cbbaa58c7dfb4e5f20d6e7a2cbe6451e9c21ea6d9e76e"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/076-dice-cleared.wav",
+      "bytes": 92204,
+      "sha256": "3e2f1ee9161778a42298748d3ee86978b1f0d985e78bd012666730dc650a36ef"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/077-dice-master.wav",
+      "bytes": 121964,
+      "sha256": "ce4c7929b71cbc346739d33503fd437ed6e9f982e7ef7617210b6d2da69ab72c"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/078-rollin.wav",
+      "bytes": 71564,
+      "sha256": "6c867c94566bc8a1b3c7678ad16b9e97e49f5d1c6143de09ef5d86740235e4f8"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/079-roll-perfect.wav",
+      "bytes": 112844,
+      "sha256": "9ce37f43599f78df1eaff7daf00cfc1331f9298fdae62d951585993ff76d623d"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/080-lucky-six.wav",
+      "bytes": 88844,
+      "sha256": "0e29a7932e7e9cc89786e5dfa58567c46643cbf3d5274ecece7759ac772c8b11"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/081-six-it-up.wav",
+      "bytes": 79724,
+      "sha256": "caa7497337c800e29f87f64084db789aa1b47ba272cb6dbbe7f73bb2e141ec1e"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/082-stack-cleared.wav",
+      "bytes": 104684,
+      "sha256": "4fea320a7ae37934ba86a462265cb9c80ced465a827e03bbd0705b79a932efe8"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/083-stack-smashed.wav",
+      "bytes": 125804,
+      "sha256": "1ed2455716a02655d3c4a92f3eba9791de0b5fd22e034d5ad54b0a60d4846d82"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/084-stack-complete.wav",
+      "bytes": 98444,
+      "sha256": "aab76a8cbcd12cdf559025a569a63a456a11a9d1386494e7ecf74eeacabea08b"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/085-stack-attack.wav",
+      "bytes": 100364,
+      "sha256": "588c7d2164ed85062431c215860f4cf2ab4fd77b23e1f26a02223463019cd848"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/086-stacktastic.wav",
+      "bytes": 113324,
+      "sha256": "799308d3819d3dafe5be3736aada9c13592297ab06272b38df2b34d7c550c63a"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/087-stack-magic.wav",
+      "bytes": 113804,
+      "sha256": "1c7eb2883869dc30142f676d2949499f1318f97f2241c0be623f038334631d5f"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/088-stack-nailed.wav",
+      "bytes": 117164,
+      "sha256": "39aac43bbc6e81837462d31fb04821ddcbb9f28fa90358e91cd64453f2addba6"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/089-board-smashed.wav",
+      "bytes": 116684,
+      "sha256": "502fac402a1fb7faf9026d15a16dd5807771a8f32e18e17b930b9555f6e32d36"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/090-board-cleared.wav",
+      "bytes": 84524,
+      "sha256": "35f81b737f3ef992a45a62bedd5af201d7babe894b2a68f924e9e51f3bba3205"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/091-clean-sweep.wav",
+      "bytes": 96524,
+      "sha256": "d7f0faf64cd6830cf646c6625cbe2e649f2465e47cca111f8b4844269150a47b"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/092-full-clear.wav",
+      "bytes": 88844,
+      "sha256": "9c65738b147e1b0ba1fb25373b7366aba6353a25a13e63692f927b50fe06813a"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/093-total-clear.wav",
+      "bytes": 93164,
+      "sha256": "cd8e185514ec0aae5d126c262333bd8e8b854fc40539d38b3dd732d42debec77"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/094-perfect-clear.wav",
+      "bytes": 98924,
+      "sha256": "f5d0252843c3aed2947df3965901208ba44c5909af1210ac26349d40eb7cb8ed"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/095-all-gone.wav",
+      "bytes": 78764,
+      "sha256": "a4eeac07132e6b50d7e1a7d91797a33f0ee9e889b2d3593e8eea67ade4bc9b44"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/096-done-dusted.wav",
+      "bytes": 128204,
+      "sha256": "14bb0813fec06c43e327539eeb8680d66567c36acac13f2bc90f4ba8f511bd0f"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/097-crushed-it.wav",
+      "bytes": 74444,
+      "sha256": "88416a39d4fbb5fdb96e74143f1a0334ac8059105b2eb050b911fcc5787e75c9"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/098-smashed-it.wav",
+      "bytes": 86924,
+      "sha256": "5d44b9e14ae27d2303db7fcc190baf0c507b120d84a942da9a8a53a24a1ffad5"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/099-owned-it.wav",
+      "bytes": 61964,
+      "sha256": "813a1277ea9c1b09896273c9c6996779d152bdcc01da9d696ba0d55832cfd7c8"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/100-got-em.wav",
+      "bytes": 62444,
+      "sha256": "4dc4f84488fc827b352efe80ee9d66e9fc476fd8adfccf04bbaaf1996ea19c1c"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/101-that-s-it.wav",
+      "bytes": 67724,
+      "sha256": "40508bd9886e71295dc7fd81598ba8c268dfd309b0af29ad8a600cdb928dcc8e"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/102-oh-yeah.wav",
+      "bytes": 92684,
+      "sha256": "321d6d1b09b81186c03898316956f6f56accf6d8107711be007b09ee2f3ce4f8"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/103-heck-yeah.wav",
+      "bytes": 83564,
+      "sha256": "dd4def5e3dc0ebb669ee6f7f0e38c1bb8c5fdb7be43221b807fcb55e045e7c78"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/104-let-s-gooo.wav",
+      "bytes": 110924,
+      "sha256": "8715c38cd1fa12527dadf386da426f7a5733b33423a18ec19a072e8e004767bd"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/105-too-easy.wav",
+      "bytes": 98924,
+      "sha256": "22ed408dc58c28a9bdde58c231319c2bd278aef454479b4ee91cd7af6b526387"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/106-so-good.wav",
+      "bytes": 102284,
+      "sha256": "d1a1c0096ee1db88dcf518484f3e597bc691210c81ea9d330a7a70927d9c2135"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/107-super-clean.wav",
+      "bytes": 106604,
+      "sha256": "dc75c2e89067a61be9360afb90814aefd63e05a0f37d1143a517048bb8cbbbb2"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/108-mega-win.wav",
+      "bytes": 96524,
+      "sha256": "698444b8112f8faa2d771df0b787de10173c7678e9c2d7713ef79056e625d404"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/109-epic-clear.wav",
+      "bytes": 93644,
+      "sha256": "67d2308212c25342b542dafaaebdf0cee76194e5459e88f4e0055540d22cbcd8"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/110-dicey-nice.wav",
+      "bytes": 101804,
+      "sha256": "4d4f59b71f31d7d8ec63ca59e9ffde91c2034b6a325aff4a43a345bc3857f817"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/111-roll-star.wav",
+      "bytes": 106124,
+      "sha256": "1e9f785e7a6dbb1ee7547d14527f0bd7a4fc700b05d06c2de7eaf2212b55a398"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/112-stack-star.wav",
+      "bytes": 103244,
+      "sha256": "f1f86fe59f787fc528baaa97283103d2e08458def00186eec05a1454102746c2"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/113-sixcess.wav",
+      "bytes": 96044,
+      "sha256": "bee59dcca41f5802beea57dec74723af5be8ddc1cf5e5ca3495049e6db9477cd"
+    },
+    {
+      "path": "assets/sound/Clean board/voice/titles-v2-plus3db/114-dice-lightful.wav",
+      "bytes": 111884,
+      "sha256": "f723784edd8cb62fd7480a4561b94c3b6623283e478e7a123e344ea7b4c43b7b"
+    },
+    {
+      "path": "assets/ui/left score card.png",
+      "bytes": 28197,
+      "sha256": "0d3abf97a568d4c70f7f021dc6044a8d6a4d3ea75557c98db597906b0fcdc596"
+    },
+    {
+      "path": "assets/ui/left score card@2x.png",
+      "bytes": 87184,
+      "sha256": "67b124881c8ccc704bfd1476fcf88b7f505a23505467e18a6a0ebb40952439dd"
+    },
+    {
+      "path": "assets/ui/left score card@3x.png",
+      "bytes": 176423,
+      "sha256": "9bad9a4e313463f3a29701f0190a0e4182335e5b712db1fc787ca34565e85a9e"
+    },
+    {
+      "path": "assets/ui/native-end-run-cta-shallow-v4/primary/restart-240-4x.png",
+      "bytes": 103415,
+      "sha256": "b6109b3de80bfa4097f0444fe17f31ec6036fb5553052188f905d0a3b6b739d7"
+    },
+    {
+      "path": "assets/ui/native-end-run-cta-shallow-v4/primary/restart-240-6x.png",
+      "bytes": 206968,
+      "sha256": "ddd34ab05b1ff7b060084f72b8abf7612d6160d941b67eff52de4929d0eb23af"
+    },
+    {
+      "path": "assets/ui/native-end-run-cta-shallow-v4/primary/restart-249-4x.png",
+      "bytes": 105485,
+      "sha256": "836eb9e544d38412c735df2c7d05359711fa21832662bbb41733a80848771305"
+    },
+    {
+      "path": "assets/ui/native-end-run-cta-shallow-v4/primary/restart-249-6x.png",
+      "bytes": 212106,
+      "sha256": "c2d962c5faaa88bd464f50386111acc3060760e051d8033338b31849c281284f"
+    },
+    {
+      "path": "assets/ui/native-end-run-cta-shallow-v4/secondary/exit-240-4x.png",
+      "bytes": 59243,
+      "sha256": "3f64aad4a8440665f1067abd701e2df34d9d5f95207a0582703c49cbe7d664df"
+    },
+    {
+      "path": "assets/ui/native-end-run-cta-shallow-v4/secondary/exit-240-6x.png",
+      "bytes": 117414,
+      "sha256": "54a36a43ca74e8233c24cb1a5f7f1a87b009681c0c4a1247c34581a5c940d09f"
+    },
+    {
+      "path": "assets/ui/native-end-run-cta-shallow-v4/secondary/exit-249-4x.png",
+      "bytes": 60961,
+      "sha256": "2a96d49946aac84db00381bd9565f28d57434d2080621ad0023d9786064a9a31"
+    },
+    {
+      "path": "assets/ui/native-end-run-cta-shallow-v4/secondary/exit-249-6x.png",
+      "bytes": 120613,
+      "sha256": "a9e8d006189dd94fc59762161fafc0d1ddaf16b0f7dde0ee3852ca14889f28f1"
+    },
+    {
+      "path": "assets/ui/native-paired-cta-shallow-v3/exit-216p2-4x.png",
+      "bytes": 51450,
+      "sha256": "deb4aa301aa839ae4fbc95f4406e2ceb7bfa0965c3845086450049e464ee6e9e"
+    },
+    {
+      "path": "assets/ui/native-paired-cta-shallow-v3/exit-216p2-6x.png",
+      "bytes": 102331,
+      "sha256": "ebe2e3ee9f81f7c1555bfdf0da841f3c3160a95351175bbc5c57b49da56415cd"
+    },
+    {
+      "path": "assets/ui/native-paired-cta-shallow-v3/restart-216p2-4x.png",
+      "bytes": 89519,
+      "sha256": "b0f8b73192f094bd46d2051c92b5c0922650534d4e50292dad15340550a77219"
+    },
+    {
+      "path": "assets/ui/native-paired-cta-shallow-v3/restart-216p2-6x.png",
+      "bytes": 178785,
+      "sha256": "47195999ed83cdb7c2e831857db95f6f3eb1f998accf7b0e37a5b0cd8c36eed2"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v1/pale-oak-botanical-tile-v2.png",
+      "bytes": 2102450,
+      "sha256": "8cc50c7d20e1dc674858d9b19ab22b9fdf1d2f79280242b42b88a79c8cbfab6d"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v1/puffy-info-slab-v3.png",
+      "bytes": 2081591,
+      "sha256": "b6c2e20b5ffb46c22c5e75ddfcc5baff1eec8c0bed69b65053ab10175be26cbb"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v1/puffy-stat-tile-v3.png",
+      "bytes": 2064475,
+      "sha256": "778b989d0ce99c395637c78dd26bbf1d3e5946d6126ada1916f93a7d18dc87de"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v1/stone-stat-master-v5.png",
+      "bytes": 2039807,
+      "sha256": "5debf8a388c1e80caf8f4fdb28aae443dd41b0bf47dc715a04c253a2f966af0e"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v1/wood-botanical-tile.png",
+      "bytes": 2217741,
+      "sha256": "2c196c55c85e943caa007d4ea351ae11e586db3bd18b9ba1a5f34002fbc3e4d2"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v10/info-slab-1.png",
+      "bytes": 194882,
+      "sha256": "f64a882930b4f8d491381d7f75239d8aae5908b5927c89df2b1268d3d77d1b0e"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v10/info-slab-1@2x.png",
+      "bytes": 770296,
+      "sha256": "7094f7c980f1dcb341cafdd606399229b3b1b1f7a896036d6cf6df19d29e99ce"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v10/info-slab-1@3x.png",
+      "bytes": 1682383,
+      "sha256": "54b9baf12d1c84109292f1e35d9bc5cec2658099ebba982cffd97f271bb5dc47"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v10/info-slab-2.png",
+      "bytes": 196549,
+      "sha256": "843953bfbd251d08f46a69ce79581f54b9b3219773006b5f70201bc295570030"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v10/info-slab-2@2x.png",
+      "bytes": 775397,
+      "sha256": "2e61e2fdb8e6d094a3ac7eda7c09e23d9acf7688e561d45148871542c81dfb8b"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v10/info-slab-2@3x.png",
+      "bytes": 1691789,
+      "sha256": "78f62d42e6d228fed7b619906925a42d0cf09a906bf1b3ed100a2fb6aa0c41a9"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v10/info-slab-3.png",
+      "bytes": 197718,
+      "sha256": "7f6dcfb515a1ae92da949a85d9be88b6252c65e383b32c4cfea22544adf321ad"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v10/info-slab-3@2x.png",
+      "bytes": 778605,
+      "sha256": "c113bbc981ed222f336d5d84cfb1bbb352f1717390313b6490117f2980df5221"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v10/info-slab-3@3x.png",
+      "bytes": 1699778,
+      "sha256": "b39b4430a1927b0d024c18199ee2518cf2a7e78ffe8d0a855c8a64753d096d82"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v11/stat-tile.png",
+      "bytes": 35747,
+      "sha256": "5319b6af47d1a550a2700f38bd1a6fe8d95e678f74edd348b61663d35f4155b4"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v11/stat-tile@2x.png",
+      "bytes": 136617,
+      "sha256": "77f91fc59bcff7842964ecfc549b39ceb01542ce54be780b7918cb1f97a348e6"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v11/stat-tile@3x.png",
+      "bytes": 300656,
+      "sha256": "2d61350a2502183ddc416da69b7ecffe06dde1f5ed406aa8e96908c80ec46a76"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v12/stat-tile.png",
+      "bytes": 36335,
+      "sha256": "62244d7ea7baa53f31b259dd9b46e19c5eca649d485e13b4963c70d9a4e54d61"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v12/stat-tile@2x.png",
+      "bytes": 137811,
+      "sha256": "b0ad0b0e2ad4b643321eda879a43f7d4d74bb0f5dff10a15d828bdbafae9b9c3"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v12/stat-tile@3x.png",
+      "bytes": 301957,
+      "sha256": "c414facc758c0a3e397111ee87e218d7707dc3865b8ce31e323954287128c0ce"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v13/stat-tile.png",
+      "bytes": 37789,
+      "sha256": "730cc81b142c7552340d302e0fd875f2fe617a6c01172ad1ba5e6b64c686ebe1"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v13/stat-tile@2x.png",
+      "bytes": 140630,
+      "sha256": "edbddc1b350e3301fa4e04315d4614ba775e94d050e2cf17716c5a28e7fc5876"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v13/stat-tile@3x.png",
+      "bytes": 300491,
+      "sha256": "03dbb2340c906312a547a7f66232435aa95d0f7bb307fb8b3de21dbd675b9cc6"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v14/stat-tile.png",
+      "bytes": 38079,
+      "sha256": "cf8de12940097a9297d260cbbc9dc7750cdca0dbb3122cd7a9f7d430f5a5a7e7"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v14/stat-tile@2x.png",
+      "bytes": 139398,
+      "sha256": "68e7316de9bf473b4b253cc971ce88ecbccdf30c8c70c674e7750a6f1e8f02b0"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v14/stat-tile@3x.png",
+      "bytes": 304888,
+      "sha256": "e4dc94793ca6a34b488f878c55fd301891bc36ea16e146a495d894e018f8ac4d"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v4/info-slab.png",
+      "bytes": 221114,
+      "sha256": "23bcabc09cb27c9396d3db7e849c0e160c10147295caa9a4997e8dc303c3f64c"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v4/info-slab@2x.png",
+      "bytes": 942581,
+      "sha256": "7ac4d2ae81556a7dffeb8daf3450076d0a0ada81eb97a3844f19ac4c2a0bb40e"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v4/info-slab@3x.png",
+      "bytes": 2085825,
+      "sha256": "977e27ac59ac55c3b31294c9ceae48892d76570b7eb42cfb579ae0237152fdcf"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v4/stat-tile.png",
+      "bytes": 33170,
+      "sha256": "4b965d5ee1524da5eb3b730ae29d5ad5828ba96a1ad91ba9ebc65fbc4ca71d73"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v4/stat-tile@2x.png",
+      "bytes": 135150,
+      "sha256": "bef2ddc65919adfd38bb6859eedaf9ec59997fb0ee3e304304fec9ba60a29736"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v4/stat-tile@3x.png",
+      "bytes": 316235,
+      "sha256": "f5814782507de40b6e034f98a42686ec030477842cdf522398bc03bf833027e1"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v5/stat-tile.png",
+      "bytes": 34102,
+      "sha256": "c44002ba9e6baee35a2ea213f9282b4f645f97b6d8848ebd7fb71c348f6b7a9c"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v5/stat-tile@2x.png",
+      "bytes": 137205,
+      "sha256": "1906cd3c52ab042b6be4afd33a7448760bce0ac4d72d321c08bd3ed942e8be8e"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v5/stat-tile@3x.png",
+      "bytes": 319057,
+      "sha256": "56a421978b2767fcaa88e77b13cf473421fc58cb8e2194b511966a0d9af0a5af"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v6/info-slab-1.png",
+      "bytes": 210199,
+      "sha256": "90752f632ce6a0e32f5889740dbec45f919f791f3fd317752101b3d1bdb1ee51"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v6/info-slab-1@2x.png",
+      "bytes": 843407,
+      "sha256": "e8135de126259665f926085091a446f3d98c32153ad19947fc86bc4bcd34cdd0"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v6/info-slab-1@3x.png",
+      "bytes": 1804538,
+      "sha256": "d5dd909cbbf6e280f4744e65a39d9cffca6da8e3075ec18a0bfbd1c63690327a"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v6/info-slab-2.png",
+      "bytes": 210592,
+      "sha256": "f9de74f1248f919a7df33bd93661a26eafdc503826936267212284ff694ae499"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v6/info-slab-2@2x.png",
+      "bytes": 851839,
+      "sha256": "2cfeab2c262a8dedfd7067b1dca53f7ed4df067d73d38f47fc0fc6c5b663f031"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v6/info-slab-2@3x.png",
+      "bytes": 1831851,
+      "sha256": "d361cb8fa373a82ee5e7e083878d09d8d65ce754c72558752153ab74ca8cf541"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v6/info-slab-3.png",
+      "bytes": 210485,
+      "sha256": "4cd0181a7dec8e9180b94a703d4ea993ba883b615dad32fabbe9dae1dc46ab18"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v6/info-slab-3@2x.png",
+      "bytes": 847413,
+      "sha256": "eea8fd1bd2772a84863ba62adeedd9d8d780b733cb60eb168c4417dc0767b125"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v6/info-slab-3@3x.png",
+      "bytes": 1816457,
+      "sha256": "ea5b393fe141de8cbb15f5702ed6abe72183baf5e6f3845d884f33b7f95663c8"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v6/stat-tile.png",
+      "bytes": 35027,
+      "sha256": "14985554f9bd7630b409894ad97d8e601c5985948de2e00892a47b9cd1f0e163"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v6/stat-tile@2x.png",
+      "bytes": 134378,
+      "sha256": "e2ca9d8cc8688acb693f4fcd47a76160761c504782fcd937afd293c6770e80ed"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v6/stat-tile@3x.png",
+      "bytes": 298091,
+      "sha256": "2210e411b25842c7793e3b2072a324f0433d532aa10f7eb2522499c641f6a6eb"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v7/stat-tile.png",
+      "bytes": 36934,
+      "sha256": "8d306ccd9cf5c69c99dca0578536d56c81d87c962de2b87d7f14885a4272305b"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v7/stat-tile@2x.png",
+      "bytes": 140540,
+      "sha256": "59aafd8fb4038b387ae25bfe164479f68666af22bc1cd39dadddabcd5c6f44aa"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v7/stat-tile@3x.png",
+      "bytes": 309384,
+      "sha256": "14f891e82638d376b011c08fd37b3b790b4caeb1d81039e1a66b77ca23e4a680"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v8/info-slab-1.png",
+      "bytes": 210736,
+      "sha256": "64adbf1e340aa9dea35fb2236e4daf084cd4e0c263d50bdacd3d44f6d684123f"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v8/info-slab-1@2x.png",
+      "bytes": 831541,
+      "sha256": "7d6f05603cb02e3746de6c65e8d72ff93ea4cc6e099980c5ced693bf01092867"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v8/info-slab-1@3x.png",
+      "bytes": 1818879,
+      "sha256": "429f5e69eb51ba8f86c337df29ac2542b013c4bf930f1af4cee4c224e51f3258"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v8/info-slab-2.png",
+      "bytes": 210494,
+      "sha256": "ce193c721061e04a4399a7a6f1f9586f9acb0e9bcdf582998868ba54d9652a53"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v8/info-slab-2@2x.png",
+      "bytes": 829178,
+      "sha256": "7ad96cce2a625c6fc91050b826379a98ddf9aed5a58a37410f20bdef311ee372"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v8/info-slab-2@3x.png",
+      "bytes": 1807781,
+      "sha256": "f74149647c7dc9d92a010f92d1be6dceab41f6ccd36c78b9186fc97ef6fcdd92"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v8/info-slab-3.png",
+      "bytes": 212448,
+      "sha256": "ba9d0dc7958304d011aeaeaad9485000bbde5367335f41a3ce7d5b8b97872c14"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v8/info-slab-3@2x.png",
+      "bytes": 837343,
+      "sha256": "ddef53f40105d935e9838c0ab3c9c3c3c5326d998fc595e9cd7bf5e25d76b574"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v8/info-slab-3@3x.png",
+      "bytes": 1826761,
+      "sha256": "77eabd38fdf674026c9499a495260e023c4f0572e6548b4ea1b68d7ff6f1c7fa"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v8/stat-tile.png",
+      "bytes": 35660,
+      "sha256": "f8b58a4bcdab73596834907e1e765798d4e6edc5dc37b79a413db71f9b3a5b22"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v8/stat-tile@2x.png",
+      "bytes": 137860,
+      "sha256": "28a71502a84c5d155edccc7718f1c5fd946e75cbc08c1c53734d9241e286bf1b"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v8/stat-tile@3x.png",
+      "bytes": 304064,
+      "sha256": "b18bb32990aafe55c5e250e60573c9ce70d8d1327e13a4f8d7a969e3895dadf7"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v9/info-slab-1.png",
+      "bytes": 206800,
+      "sha256": "436d0b9c141934fa2f18bbf8c92e6d47a1ff837f3965f62e6a5d9c7ddd07fe7f"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v9/info-slab-1@2x.png",
+      "bytes": 818534,
+      "sha256": "25ae57976763fe1ac18544a91e3f38bd11f4bdc7dd0a9fe54f5c03c70b37768f"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v9/info-slab-1@3x.png",
+      "bytes": 1787344,
+      "sha256": "eff0c842fad0c0b0641384317bd5ddd864866acc2287d85113ce00db35c96513"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v9/info-slab-2.png",
+      "bytes": 208392,
+      "sha256": "d2aaaa8d8c75e4a116245247fcde09e375792d7bf35fe124444cee15c1c7b525"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v9/info-slab-2@2x.png",
+      "bytes": 823627,
+      "sha256": "5afb4918450cd5ce5e19aa15dcd346a0c209ad61e40a241f738084ba3d2a19ea"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v9/info-slab-2@3x.png",
+      "bytes": 1796843,
+      "sha256": "ead5dcabc4446e5f7ad1a9d0abc31c5504553171954ead768db93b9dfc66f2e7"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v9/info-slab-3.png",
+      "bytes": 209516,
+      "sha256": "63d77a4846dac51f2574f3a226f23162bf04e3a0ec43b92584b146dd682b04e9"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v9/info-slab-3@2x.png",
+      "bytes": 826760,
+      "sha256": "e130d623dab1de58ce2fefcbf00ed239ece4526c8181b55808232da8e469f9a5"
+    },
+    {
+      "path": "assets/ui/native-stage-stats-v9/info-slab-3@3x.png",
+      "bytes": 1804973,
+      "sha256": "62b710d4d955c28bdf170267f3381e6c97f3795f3bdd9230f59abf11686d77d6"
+    },
+    {
+      "path": "assets/ui/right score card.png",
+      "bytes": 28308,
+      "sha256": "d6c2053f738a15d610ca955f43fed77c3b8d6c002a866ebcde20a2e576b76808"
+    },
+    {
+      "path": "assets/ui/right score card@2x.png",
+      "bytes": 87245,
+      "sha256": "45ca7cf6f0150f12a99d33743e580ac240862501b6ccf04c3750bb2e1e5d70c9"
+    },
+    {
+      "path": "assets/ui/right score card@3x.png",
+      "bytes": 176660,
+      "sha256": "57f32f8f7038ac764bc8cab3a78e14cd796fd681807add79e018a8baf4251ce7"
+    },
+    {
+      "path": "design-library/stack-to-six-typography-library.zip",
+      "bytes": 16693220,
+      "sha256": "7a0edda0e67f83f6312f55df4d75eabca854e2604ca3c6b56e5fc3b0369f2e80"
+    },
+    {
+      "path": "design-library/typography/DESIGN_SYSTEM.md",
+      "bytes": 40888,
+      "sha256": "e2e5d0235ba0584b46f3032b8d1d9af7ea29785e9c87ee4925b54c48b03a38bf"
+    },
+    {
+      "path": "design-library/typography/capture/NativeTypographyCaptureTests.swift",
+      "bytes": 37193,
+      "sha256": "59f269acb80bc7247c10d2aaf1c38b0e6d0391c8c844ee0d51fc720021d74902"
+    },
+    {
+      "path": "design-library/typography/data.json",
+      "bytes": 205354,
+      "sha256": "73fb0cf9f959a4dca1ebbda831bf095543ee817e785d9d0e5989ad09b9869019"
+    },
+    {
+      "path": "design-library/typography/index.html",
+      "bytes": 166167,
+      "sha256": "7269ab8118b307363fbb8bdb687e6ee9f8bba36fb8ef304d0bf8d6361474c926"
+    },
+    {
+      "path": "design-library/typography/screens/nav-arcade.webp",
+      "bytes": 273188,
+      "sha256": "b1ebdb9c1ebf5a7dd78f4501efb578ba534c852bfe1940366fc8cd097e61f351"
+    },
+    {
+      "path": "design-library/typography/screens/nav-area55.webp",
+      "bytes": 415728,
+      "sha256": "beb8ec5bc20c3dee1d79f00a59dbccbcd4e7f1c301f03689e072552e1203a2fc"
+    },
+    {
+      "path": "design-library/typography/screens/nav-beach.webp",
+      "bytes": 403006,
+      "sha256": "55574e7b67f633b5fb4f025dd3fb41b56b66232d297ac8571ec47a11d52bf1fd"
+    },
+    {
+      "path": "design-library/typography/screens/nav-forest.webp",
+      "bytes": 445694,
+      "sha256": "717e76a7b1ac6902f85943bd0f06eca78f1b9033c8a8d07dfbcb9b3bbe593f53"
+    },
+    {
+      "path": "design-library/typography/screens/settings.webp",
+      "bytes": 115796,
+      "sha256": "f4d53f29b9f4f66e5b96091c05d84c7b7ccf640b88da851e8e9a4c217763dc51"
+    },
+    {
+      "path": "design-library/typography/screens/stage-area55.webp",
+      "bytes": 231438,
+      "sha256": "129d54907eaf29ac66ff88688f57eae775ffa8fdb34ac136aef7b88790119faf"
+    },
+    {
+      "path": "design-library/typography/screens/stage-beach.webp",
+      "bytes": 222036,
+      "sha256": "00745180fa07bcd6d3ce5d254704d2d5e9028261c0a3ef3572ecd5e4bf324716"
+    },
+    {
+      "path": "design-library/typography/screens/stage-continue.webp",
+      "bytes": 173498,
+      "sha256": "f0945e196de04b5b5926a0a1e2e4b4f5660ab851eaa2712672918f16f5ebafc5"
+    },
+    {
+      "path": "design-library/typography/screens/stage-forest.webp",
+      "bytes": 238298,
+      "sha256": "b3d435c3f2ac0d989fc9a50087ad88e8afb206108d8f1cee01ed51ed90dbbcd9"
+    },
+    {
+      "path": "design-library/typography/screens/stage-play.webp",
+      "bytes": 171504,
+      "sha256": "aafd6828ff0662782ba757650091697e61c42d0f19ba0b01d475a211fe6cc270"
+    },
+    {
+      "path": "design-library/typography/screens/tutorial-clear.webp",
+      "bytes": 137304,
+      "sha256": "5c6211610b39aa4ddea165010fd5da0a8c2a43989f69f836098d61275ebbb1e6"
+    },
+    {
+      "path": "design-library/typography/screens/tutorial-merge.webp",
+      "bytes": 130576,
+      "sha256": "0fa118e6a466e165cf49e12cde2b80536bc1350c03e0ee7dc120379abddb93d6"
+    },
+    {
+      "path": "design-library/typography/screens/tutorial-special-bar.webp",
+      "bytes": 138030,
+      "sha256": "ee7f1c6c834348fc08d5b23a7b60291caa5ab3fc8bb83e735fe154cd82751d1e"
+    },
+    {
+      "path": "design-library/typography/screens/tutorial-special.webp",
+      "bytes": 137276,
+      "sha256": "5ae2002c276191fab1ced001e3d780391ec7b2c70a61db5b92cfa3540c9b1112"
+    },
+    {
+      "path": "design-library/typography/screens/tutorial.webp",
+      "bytes": 130612,
+      "sha256": "31232c3df348bd7a596bc30679cfd43320f52b00c81dc2b9a1f18d1817a1f0f2"
+    },
+    {
+      "path": "docs/audio/STACK_TO_SIX_INTERACTION_SOUND_INVENTORY.md",
+      "bytes": 66030,
+      "sha256": "0a7534bec8599906ccffdba0a3f9cfc03380e1a686973adc89a0167709d301ca"
+    },
+    {
+      "path": "docs/audio/audio-runtime-owners.json",
+      "bytes": 100024,
+      "sha256": "b4289bfbb16fce9695405406ec8b47018076f35bc778415fd3dac19a8be4009b"
+    },
+    {
+      "path": "docs/audio/clean-board-title-voice-cuts-v1.json",
+      "bytes": 20665,
+      "sha256": "273978e0529e04919b6e147fb377f44ed50f6c93dd5c6b029973c4453d341fc0"
+    },
+    {
+      "path": "docs/audio/clean-board-title-voices-v1.json",
+      "bytes": 51460,
+      "sha256": "ab0e4e37bb518439b9c481915f592d4df897abf24668495b3ed3a3bcbfafbc35"
+    },
+    {
+      "path": "docs/audio/clean-board-title-voices-v2.json",
+      "bytes": 53085,
+      "sha256": "2a8d7a04d1593cefa6553e54ecf5b8c9a287ce658a6da2eb8a43eaf15ee5a54c"
+    },
+    {
+      "path": "docs/engineering/APPROVED_PRODUCTION_BASELINE.md",
+      "bytes": 5445,
+      "sha256": "295764b6a692cc12021095b41cf947456a5c1e17e98eea9a60f69754d8bb38ce"
+    },
+    {
+      "path": "docs/engineering/CONTEXTUAL_ONBOARDING.md",
+      "bytes": 10780,
+      "sha256": "0170509b5845d7e03e30b4c739c557fa618a448747c3861c12bbae983ecb2583"
+    },
+    {
+      "path": "docs/engineering/CURRENT_HANDOFF.md",
+      "bytes": 2284932,
+      "sha256": "6dd6477bcfda96b6fb9122fd649d7cbd789108addfa268d71da2b344d4e3e81f"
+    },
+    {
+      "path": "docs/engineering/NATIVE_BENCHMARK_V20.md",
+      "bytes": 2005,
+      "sha256": "d8bb5c9213310f595af3440c4781cfef0e1767cac0188a606837de04a241b5a1"
+    },
+    {
+      "path": "docs/engineering/NATIVE_CARD_IDENTITY_AUDIT_2026-10-27.md",
+      "bytes": 4040,
+      "sha256": "b1fc50d8b787bc2a325aef4f9bafd92472e0bf14c068bb8fbc885679be3b715e"
+    },
+    {
+      "path": "docs/engineering/PROJECT_CONTEXT.md",
+      "bytes": 59572,
+      "sha256": "2c96df6060410c3f7de6d27b0b8d5537c90b2617268cd1b9c44e2609cf2e484f"
+    },
+    {
+      "path": "docs/engineering/feature-runtime-owners.json",
+      "bytes": 297113,
+      "sha256": "c2da4b7c9141d72d00218a3a26b8c968e34bd284656cb99ef6e867b0d75bd7d0"
+    },
+    {
+      "path": "game design/APPROVED_RENDER_MASTER.md",
+      "bytes": 28749,
+      "sha256": "be68d651787962ccafc9ab08cbbda5296a6706e3d8c0a0888e1bc2d292fae775"
+    },
+    {
+      "path": "game design/SKILL.md",
+      "bytes": 6494,
+      "sha256": "1f875cf507c42f4baf5db70289242a72c36a81e2b3abf95e702264342baad701"
+    },
+    {
+      "path": "game design/STYLE_GUIDE.md",
+      "bytes": 8297,
+      "sha256": "1b157711a99146e856293abe807ae9cc975e47b5afb22cc1b31fd9bdf750a155"
+    },
+    {
+      "path": "game design/output/icon-orange-2026-10-28/stack-to-six-orange-darker-v2.png",
+      "bytes": 1846423,
+      "sha256": "c3613c532bc5170ca176041a9614e9b678606fb133a330f9245796e02a9c687f"
+    },
+    {
+      "path": "game design/output/icon-orange-2026-10-28/stack-to-six-orange.png",
+      "bytes": 1911750,
+      "sha256": "bc78ff2d928fe82e32355744b481b8da11280d02578b5b7f933f8eb3b7e39d3f"
+    },
+    {
+      "path": "game design/output/journey-stage-card-20261029/approved-ui-reference.png",
+      "bytes": 1667956,
+      "sha256": "b2a1a7b3d5d41abb02749dd3ab23d66aa539e316215ec361e69e117ccfbef6b3"
+    },
+    {
+      "path": "game design/output/stage-bottom-thinner-60-20261029/density-manifest.json",
+      "bytes": 1079,
+      "sha256": "30b3820cdcd13187ecdf10e583aef96fd29c83df572b75865227fea64a67d261"
+    },
+    {
+      "path": "game design/output/stage-bottom-thinner-60-20261029/export.swift",
+      "bytes": 4328,
+      "sha256": "e5b216e8fe01d504658a9e92c31d14ba55b53d79df7378973951890ca85836be"
+    },
+    {
+      "path": "game design/output/stage-bottom-thinner-60-20261029/review.json",
+      "bytes": 1205,
+      "sha256": "d928687b2bea4e1cc52b23dd9711aa6081b57c5a071def442bd9b3dc1a285ab3"
+    },
+    {
+      "path": "game design/output/stage-bottom-thinner-60-20261029/variant-1.png",
+      "bytes": 1832812,
+      "sha256": "40f42d7cfac4b5cf12c83ae7b29bc54616f53e53e6431b0aca03a12346f726dc"
+    },
+    {
+      "path": "game design/output/stage-bottom-thinner-60-20261029/variant-2.png",
+      "bytes": 1918628,
+      "sha256": "fec6d0d69d0fdb4ca9468e98f95f19e8af51af7ddb33afd527e80fd326cd4a85"
+    },
+    {
+      "path": "game design/output/stage-bottom-thinner-60-20261029/variant-3.png",
+      "bytes": 1855566,
+      "sha256": "c89ee3952693ca14d7ae48fdce857417619bcbfb13108a4955b0ee83032d7dfa"
+    },
+    {
+      "path": "game design/output/stage-bottom-thinner-60-20261029/verification.json",
+      "bytes": 2384,
+      "sha256": "8a45c090d051b5e431165ef4265ba1ce82e4c57e298bd64280faeaf73e968708"
+    },
+    {
+      "path": "game design/output/stage-edge-repair-20261029/export.swift",
+      "bytes": 4091,
+      "sha256": "c8891862176848d0489bad2bb85a1b1ccc1c7f729bda23adfc0543aed5135838"
+    },
+    {
+      "path": "game design/output/stage-edge-repair-20261029/generated-edge.png",
+      "bytes": 1837669,
+      "sha256": "25e30b058c8b923dab5125a6bafeb32f463a39d1cbad726a9c924abc91d36b75"
+    },
+    {
+      "path": "game design/output/stage-edge-repair-20261029/review.json",
+      "bytes": 660,
+      "sha256": "82690e177313645e7340e757d9e37575c9834f3debeca0df53ce087e075ae293"
+    },
+    {
+      "path": "game design/output/stage-edge-repair-20261029/verification.json",
+      "bytes": 1001,
+      "sha256": "ef046b253353cdf9748e09fe78279b126ecd1386202b51b6c243fd923e5080d3"
+    },
+    {
+      "path": "game design/output/stage-info-backgrounds-20261029/01-puffy-loot.png",
+      "bytes": 2175961,
+      "sha256": "990fc86f2c08a8e9ac2368db62b6407d1003e0cc358b3de1552e4d65aa9bcc7b"
+    },
+    {
+      "path": "game design/output/stage-info-backgrounds-20261029/02-layered-paper-stone.png",
+      "bytes": 2339783,
+      "sha256": "e9cdee84069a547b5de1d81dbe690896a50b67e2bea6427c81babed94b0c6b6b"
+    },
+    {
+      "path": "game design/output/stage-info-backgrounds-20261029/03-chunky-dungeon.png",
+      "bytes": 2188660,
+      "sha256": "56eb7e06b9894173ee8a7ac4e0b93d1c099209a14a6ccde5e09200994b5f9a94"
+    },
+    {
+      "path": "game design/output/stage-info-backgrounds-20261029/04-squishy-relic.png",
+      "bytes": 2218741,
+      "sha256": "b6f1e68266e4e2f707174afd91386ba39623048b051a49f54e96a1b26d4261f2"
+    },
+    {
+      "path": "game design/output/stage-info-backgrounds-20261029/05-combined-shape-stone.png",
+      "bytes": 2194808,
+      "sha256": "43822c321b0620932aebbe4bd7173e40c606685a8720ccbb9c2239030c0a7dd9"
+    },
+    {
+      "path": "game design/output/stage-info-backgrounds-20261029/06-shallower-border.png",
+      "bytes": 2087561,
+      "sha256": "8adcc5f4c84f43418c92eaa77e063c06d2f783c19bd0436360eeeadd415cc062"
+    },
+    {
+      "path": "game design/output/stage-info-backgrounds-20261029/07-flush-front.png",
+      "bytes": 2057917,
+      "sha256": "d3d1765ae93822d85342282f73b09b6e6f359302f1e12f1edb1ee735d2539883"
+    },
+    {
+      "path": "game design/output/stage-info-backgrounds-20261029/08-primary-ref1-small-chips.png",
+      "bytes": 2063283,
+      "sha256": "ccde3ebfd517200ea73e76f09c151fa4e7d875cbcf24c942b876dcaf9355435b"
+    },
+    {
+      "path": "game design/output/stage-info-backgrounds-20261029/inspection.json",
+      "bytes": 583,
+      "sha256": "ca68a5fe7faa402168011c59005a246d23cfba734b8b990297b1858e45e2ceb1"
+    },
+    {
+      "path": "game design/output/stage-info-backgrounds-20261029/review-05.md",
+      "bytes": 1038,
+      "sha256": "e3b295a01649620e64be428516be8bfb66e196aa5cff3aa07a45eb0912b157ad"
+    },
+    {
+      "path": "game design/output/stage-info-backgrounds-20261029/review-06.md",
+      "bytes": 701,
+      "sha256": "befe566b749e54601660902f17b391bb3a4bab0f2a449424d467a9a49391acde"
+    },
+    {
+      "path": "game design/output/stage-info-backgrounds-20261029/review-07.md",
+      "bytes": 653,
+      "sha256": "bbb518104d936e2da12bb6a80fdbd3c597d237c82d11768b817be6afed4a447f"
+    },
+    {
+      "path": "game design/output/stage-info-backgrounds-20261029/review-08.md",
+      "bytes": 903,
+      "sha256": "71cf995140078556a4d72add926a28c0a81eef302d6e8a9396e539b206a73d96"
+    },
+    {
+      "path": "game design/output/stage-info-backgrounds-20261029/review.md",
+      "bytes": 1666,
+      "sha256": "a4ccd5f2869d830c933bc23bb027dc1f67a6971da2a45e05bad284ddfaa7e48f"
+    },
+    {
+      "path": "game design/output/stage-info-backpack-20261029/candidate-01.png",
+      "bytes": 1957444,
+      "sha256": "64d4d59fdc0a7393014cddfb7aae8e0ebf02474346211fcd6b420f5f18b9d69e"
+    },
+    {
+      "path": "game design/output/stage-info-backpack-20261029/candidate-02.png",
+      "bytes": 1954793,
+      "sha256": "23dccc656a4e268b59a2f9fbb311318465a35bb88e5cdf867e63b8583a7ed795"
+    },
+    {
+      "path": "game design/output/stage-info-backpack-20261029/candidate-03.png",
+      "bytes": 1867072,
+      "sha256": "048ede254a4af99115d32f0d0955dcaa9945e2ef281f5a4c7850ef49a2499b87"
+    },
+    {
+      "path": "game design/output/stage-info-backpack-20261029/candidate-04.png",
+      "bytes": 1759749,
+      "sha256": "1e59f1e452fbe9de22b81feb077f6f6c755945e88198a65b7050632438d2af0b"
+    },
+    {
+      "path": "game design/output/stage-info-backpack-20261029/export/density-manifest.json",
+      "bytes": 1959,
+      "sha256": "6e731cde95e7d5e054c00d1e734d0c3020dd9fb6bfe80cd54110e78ed03a7bdf"
+    },
+    {
+      "path": "game design/output/stage-info-backpack-20261029/export/export-density.swift",
+      "bytes": 3679,
+      "sha256": "69e645abb8c7c14a1b30af758a0b00aa5c29ba3f2e4679165828b6efb05be8b6"
+    },
+    {
+      "path": "game design/output/stage-info-backpack-20261029/export/export-stone-density.swift",
+      "bytes": 3525,
+      "sha256": "073858f74b72a6c19aebe3f60a4ce794609e90bba948e162f11eeb2e7f12d0a3"
+    },
+    {
+      "path": "game design/output/stage-info-backpack-20261029/export/stone-density-manifest.json",
+      "bytes": 1156,
+      "sha256": "f37ddd3571b0740edd57e1804750e3ad1fa73594089aaaa83a3ec15e80f914fb"
+    },
+    {
+      "path": "game design/output/stage-info-backpack-20261029/layout-326x481.76.json",
+      "bytes": 1337,
+      "sha256": "0adc26fa057e08b27eed7544b83b3b2446a64bb72a5154b99b96bfd5bad61bd1"
+    },
+    {
+      "path": "game design/output/stage-info-backpack-20261029/native-asset-provenance.json",
+      "bytes": 790,
+      "sha256": "2b1554e66314c770a5be48dde058375183ad0184f421643f9515050ad567bf65"
+    },
+    {
+      "path": "game design/output/stage-info-backpack-20261029/native-pale-oak-provenance.json",
+      "bytes": 698,
+      "sha256": "4ac51ad7f2100ef64b210e7528b5ab91672b2019b6eb7d31d9ec563879d9cc81"
+    },
+    {
+      "path": "game design/output/stage-info-backpack-20261029/native-puffy-provenance.json",
+      "bytes": 1157,
+      "sha256": "efc29bfdcb8dd65c63a8f576c81a0427104ca5978d63af94c16278847cc0af72"
+    },
+    {
+      "path": "game design/output/stage-info-backpack-20261029/prompt-02.txt",
+      "bytes": 2135,
+      "sha256": "57555b92f8eed10ab4e13f0fb3f41a1f0d114bd50f24594688b6d712d58a436a"
+    },
+    {
+      "path": "game design/output/stage-info-backpack-20261029/prompt-03.txt",
+      "bytes": 1913,
+      "sha256": "a62d68bc403cc8597614ecff3cc656544283357ab7e22c8bba7373131fbd7fe5"
+    },
+    {
+      "path": "game design/output/stage-info-backpack-20261029/prompt-04.txt",
+      "bytes": 1675,
+      "sha256": "375a8a37324c453d8c0e903650de0a4e021f3eeeccc86e68510e3b0ca1dca318"
+    },
+    {
+      "path": "game design/output/stage-info-backpack-20261029/prompt.txt",
+      "bytes": 2469,
+      "sha256": "e7120ee31dab1ed9018389e982c93422e599837fd76438123464865a76bbcb13"
+    },
+    {
+      "path": "game design/output/stage-info-backpack-20261029/review-02.md",
+      "bytes": 808,
+      "sha256": "0a4bd0119e5e1cb0f15420eff6d488138678e21de37f1491cac43e07896f123a"
+    },
+    {
+      "path": "game design/output/stage-info-backpack-20261029/review-03.md",
+      "bytes": 679,
+      "sha256": "2156e8afc403f48d8c38fea5ffacecd0b733403e13b7afb2d958f82e50122676"
+    },
+    {
+      "path": "game design/output/stage-info-backpack-20261029/review-04.md",
+      "bytes": 773,
+      "sha256": "231478763d789b1e5b6c2d5b8fa48de0917a06b15eb568d7b65445a9145df6ad"
+    },
+    {
+      "path": "game design/output/stage-info-backpack-20261029/review.md",
+      "bytes": 830,
+      "sha256": "178995e1a8d7e325153ea3933f2ef9281c6086a86e1d95a878ce346902182586"
+    },
+    {
+      "path": "game design/output/stage-info-length-20261029/candidate-01.png",
+      "bytes": 1916468,
+      "sha256": "7d3c9936dd07c2fa1a83ad49d166c374e2779c545871d5c5a78f1066bf9d0564"
+    },
+    {
+      "path": "game design/output/stage-info-length-20261029/review-01.md",
+      "bytes": 1576,
+      "sha256": "8288867df81ad5f5fe268ba8d76a5c7a3ee5eac0e44d0fed7aa02363a7c1d40d"
+    },
+    {
+      "path": "game design/output/stage-info-paler-20261029/candidate-01.png",
+      "bytes": 1542688,
+      "sha256": "2d1a0e86b28bbccafbf05cee2924874c7d1643aaf33b1d8c8c55792d42b5d21d"
+    },
+    {
+      "path": "game design/output/stage-info-paler-20261029/candidate-02-chipped.png",
+      "bytes": 1559305,
+      "sha256": "71fbeda9e268b87d3b3cecf2d744f8045ff8122e9f16ab91386d03bd22d7f29f"
+    },
+    {
+      "path": "game design/output/stage-info-paler-20261029/candidate-03-original-paper.png",
+      "bytes": 1879106,
+      "sha256": "2660520f1809027d2c1c99a7c3b6fc9e0584f6448e720d93b27f5fe695c41414"
+    },
+    {
+      "path": "game design/output/stage-info-paler-20261029/candidate-04-stage07-native-pale.png",
+      "bytes": 1554627,
+      "sha256": "1729672b9ad5b6ab245bee1ec92080289dd4ab494d1c2a764a7e682ff02fa52d"
+    },
+    {
+      "path": "game design/output/stage-info-paler-20261029/candidate-05-halfwarm-mini.png",
+      "bytes": 1607907,
+      "sha256": "93bbe2624d9d23e6f6cdc74ef62c08aed345a699dee21066be7becda5ed85a7d"
+    },
+    {
+      "path": "game design/output/stage-info-paler-20261029/candidate-06-stage05-20percent.png",
+      "bytes": 1567681,
+      "sha256": "f391cdbcc5c44ec019192747ee3e40b4aec62528684401f767e2e0533d0792bb"
+    },
+    {
+      "path": "game design/output/stage-info-paler-20261029/candidate-07-oak-base-embossed-close.png",
+      "bytes": 1535816,
+      "sha256": "094e858b20641ca265850c36b2ab16491705feef333e5cb939353724ab91c00b"
+    },
+    {
+      "path": "game design/output/stage-info-paler-20261029/candidate-08-thin-light-oak.png",
+      "bytes": 1513563,
+      "sha256": "1367a878130bdf2c2e9f36b0da25ea50ddb722d60105ba26c0f985ce75b27287"
+    },
+    {
+      "path": "game design/output/stage-info-paler-20261029/candidate-09-mid-light-oak.png",
+      "bytes": 1539858,
+      "sha256": "87569312e9bb25bb491ebdba439d08eef19a9d5da58e11f9b33fa3f52652a020"
+    },
+    {
+      "path": "game design/output/stage-info-paler-20261029/candidate-10-richer-oak.png",
+      "bytes": 1558648,
+      "sha256": "3156d96db9ea379255dffd3d643fed116b81f0d294d6c58655b6a49779ac9a51"
+    },
+    {
+      "path": "game design/output/stage-info-paler-20261029/candidate-11-matte-wood-base.png",
+      "bytes": 1578827,
+      "sha256": "60f0e9737cc3b1fc523c7900c4ef1baa944872544b10c31725f6ffb005887b1f"
+    },
+    {
+      "path": "game design/output/stage-info-paler-20261029/component-01.png",
+      "bytes": 1523018,
+      "sha256": "47fae563905b8ef76bf69940bb0dc0bf32e17b97e8837be782ebbfc06a84293b"
+    },
+    {
+      "path": "game design/output/stage-info-paler-20261029/component-02.png",
+      "bytes": 1517594,
+      "sha256": "e93466d0f2e9e9c3fa5556dce91bf980564e6af7da4d63d7e95554a3a0c3556b"
+    },
+    {
+      "path": "game design/output/stage-info-paler-20261029/component-03-approved.png",
+      "bytes": 1604656,
+      "sha256": "026e4b61404ba97b215241582155785592adf5aef833515f4522bdde74be2c7e"
+    },
+    {
+      "path": "game design/output/stage-info-paler-20261029/density-manifest.json",
+      "bytes": 2495,
+      "sha256": "e8a2594eb5e4144e53bc2a03904cf2b0e25ba575b3d18e4cf5e812d70819270d"
+    },
+    {
+      "path": "game design/output/stage-info-paler-20261029/export-production.swift",
+      "bytes": 3008,
+      "sha256": "405cc5d9a9537f4ec8c9193def726318b36eadd3255508d039259d038c95644c"
+    },
+    {
+      "path": "game design/output/stage-info-paler-20261029/export-thin-wood.swift",
+      "bytes": 2801,
+      "sha256": "2e30a52542341d882186faa30a4e04e9f0e88ffa05c891684c9c650d47bebf1f"
+    },
+    {
+      "path": "game design/output/stage-info-paler-20261029/production-masters/pale-main.png",
+      "bytes": 2014442,
+      "sha256": "c1448ac65359cb914dcbdc804c902b47437c90c8b4af21a6a8b760b5af94c495"
+    },
+    {
+      "path": "game design/output/stage-info-paler-20261029/production-masters/pale-mini.png",
+      "bytes": 1826637,
+      "sha256": "46ad721404329d15bd2fe79169057c1412757d831bc5d403da573201a0a2212f"
+    },
+    {
+      "path": "game design/output/stage-info-paler-20261029/production-masters/slab-medium.png",
+      "bytes": 1937598,
+      "sha256": "733625a29b85ff054326adb35de775469d34ed14cf8f99101d81c21afa2d4c8e"
+    },
+    {
+      "path": "game design/output/stage-info-paler-20261029/production-masters/slab-mild.png",
+      "bytes": 1906115,
+      "sha256": "a1012667c739feb6689db2c05710fd09a47cc0345965fecc47eeefc9e2523ecb"
+    },
+    {
+      "path": "game design/output/stage-info-paler-20261029/production-masters/slab-strong.png",
+      "bytes": 1913784,
+      "sha256": "92c9fe1a91528ed77df7f273c8ba62ad315997f84521fc7e993a9d482a357fdd"
+    },
+    {
+      "path": "game design/output/stage-info-paler-20261029/production-masters/thin-wood-mini-v7.png",
+      "bytes": 1928000,
+      "sha256": "17cc5f10b53fef81a0efc5bedc2ebc61949e31280379650e8ecff2e202de263a"
+    },
+    {
+      "path": "game design/output/stage-info-paler-20261029/production-verification.json",
+      "bytes": 3167,
+      "sha256": "98b92260de9e90890799507100906ccbd773d3ec404177ebac3daffd59892c07"
+    },
+    {
+      "path": "game design/output/stage-info-paler-20261029/wood-density-manifest.json",
+      "bytes": 641,
+      "sha256": "4ab2f565367e5cbb42ebe9e7f19d7e75f60857e1e9117274eac582912a6c22b3"
+    },
+    {
+      "path": "game design/output/stage02-wood-edge-20261029/candidate-01.png",
+      "bytes": 1592388,
+      "sha256": "79ecf7200b26f277b0ffaf641dd534889b8855951e54fc36aa6d9768a4bd1abd"
+    },
+    {
+      "path": "game design/output/stage02-wood-edge-20261029/production/README.md",
+      "bytes": 1101,
+      "sha256": "1972256d5143c5cd7f54f3af8fa336df7eeaea1dea854185b1cbf48198286848"
+    },
+    {
+      "path": "game design/output/stage02-wood-edge-20261029/production/density-manifest.json",
+      "bytes": 1514,
+      "sha256": "a231f58638d611bc9f60b3c2701a5084550e7bbe551b6cec2a3b3dcc25cc9c96"
+    },
+    {
+      "path": "game design/output/stage02-wood-edge-20261029/production/export.swift",
+      "bytes": 7047,
+      "sha256": "536c123192dc949fcd0365aa0b6b23c87a42583c5289b46fdac603b72446fbc1"
+    },
+    {
+      "path": "game design/output/stage02-wood-edge-20261029/production/master-1.png",
+      "bytes": 1965730,
+      "sha256": "a40c9ccc965f2764bc24958ad758bb4b1a4f98457ec662dfb3df1cb2b6f3ff27"
+    },
+    {
+      "path": "game design/output/stage02-wood-edge-20261029/production/master-2.png",
+      "bytes": 1897475,
+      "sha256": "0d7261c3b7418d00aaae151e131a1202fc49e6fbddb686b210ada0262bd742ed"
+    },
+    {
+      "path": "game design/output/stage02-wood-edge-20261029/production/master-3.png",
+      "bytes": 1940459,
+      "sha256": "fc666a413b0c217d4d5e11cf283831953e601606b217e384034265752739271f"
+    },
+    {
+      "path": "game design/output/stage02-wood-edge-20261029/production/master-mini.png",
+      "bytes": 1811271,
+      "sha256": "82f98ca044e5428133c03aeb394dcf482865ecddebe8b1640b63b4b3c2742ead"
+    },
+    {
+      "path": "game design/output/stage02-wood-edge-20261029/production/native-mounted-320.png",
+      "bytes": 2580050,
+      "sha256": "5ae7ed7ec4e74a1599cc614b6b2de01cff0fcef7aa79a7fda73b46f087030af4"
+    },
+    {
+      "path": "game design/output/stage02-wood-edge-20261029/production/native-mounted-stage01.png",
+      "bytes": 3509986,
+      "sha256": "3a6995c98ddbee7b95a3f70c9d85db8dbe591a6bf8342e4e4526486f56400cce"
+    },
+    {
+      "path": "game design/output/stage02-wood-edge-20261029/production/verification.json",
+      "bytes": 2366,
+      "sha256": "22c1d49bae9a7d8ae40dfbf50d150d459fb67b2e7c94a6f41a4667e7183f9122"
+    },
+    {
+      "path": "game design/output/stage02-wood-edge-20261029/review.md",
+      "bytes": 635,
+      "sha256": "58cc585fc96b5af5f697f6474d3655fd335ed414d224a4381c3acda3c163616f"
+    },
+    {
+      "path": "game design/output/stat-tile-clean-edges-20261029/candidate-01.png",
+      "bytes": 1805010,
+      "sha256": "2e3681e7485d373d94116ee8fc7a7e2b0c9e8fc33551b64714fbf0ac09556f90"
+    },
+    {
+      "path": "game design/output/stat-tile-clean-edges-20261029/density-manifest.json",
+      "bytes": 296,
+      "sha256": "e931852e0056b4d71731046e15bf3a6078530e67c2019fec7a9329cfe6e84f3c"
+    },
+    {
+      "path": "game design/output/stat-tile-clean-edges-20261029/export.swift",
+      "bytes": 3826,
+      "sha256": "90d2d9f36062b6953331d3f8b13e8f8b015505fb61d03342b028d3131f592648"
+    },
+    {
+      "path": "game design/output/stat-tile-clean-edges-20261029/review.json",
+      "bytes": 605,
+      "sha256": "572ac02e3cb3d79800a425c4010ad53479e4b86c9389bc964d63188a77b448dc"
+    },
+    {
+      "path": "game design/output/stat-tile-clean-edges-20261029/verification.json",
+      "bytes": 668,
+      "sha256": "245f8fa779526b188aec7d34ee0f061886101381a5345d0030b2e57b3bc00d01"
+    },
+    {
+      "path": "game design/output/stat-tile-direct-ref2-20261029/export.swift",
+      "bytes": 3251,
+      "sha256": "385815bbaae3496c1c97c1948ce628dfa3fcfa0a5b9e1be5fab17645975b4286"
+    },
+    {
+      "path": "game design/output/stat-tile-direct-ref2-20261029/reference-2-clean.png",
+      "bytes": 1929491,
+      "sha256": "18546e6eac90f77168b1bddf773f45ea6504b79affe1f1e6a2fde7194c7385c8"
+    },
+    {
+      "path": "game design/output/stat-tile-direct-ref2-20261029/review.md",
+      "bytes": 767,
+      "sha256": "d58bcce97ff98da3f735d10b4c02faf94ca7102063d7490d2fefe73e012d472e"
+    },
+    {
+      "path": "game design/output/stat-tile-direct-ref2-20261029/verification.json",
+      "bytes": 1069,
+      "sha256": "aede3200234388a842758d5aec63a010e68c0673b486487981555631a84b1081"
+    },
+    {
+      "path": "game design/output/stat-tile-no-wood-20261029/candidate-01.png",
+      "bytes": 1807868,
+      "sha256": "c683e495e96c304d28330fc1aabc700f59f8a3e03b6101fb1a37225238d83927"
+    },
+    {
+      "path": "game design/output/stat-tile-no-wood-20261029/density-manifest.json",
+      "bytes": 296,
+      "sha256": "e931852e0056b4d71731046e15bf3a6078530e67c2019fec7a9329cfe6e84f3c"
+    },
+    {
+      "path": "game design/output/stat-tile-no-wood-20261029/export.swift",
+      "bytes": 6283,
+      "sha256": "09dfeff7e698c001c084ff5d76325b32ae66938ffefdfc73308a697b92ffba54"
+    },
+    {
+      "path": "game design/output/stat-tile-no-wood-20261029/prompt.txt",
+      "bytes": 882,
+      "sha256": "3e25a80f48c8acd327e726362d59ee6a693b918e8bec2dec7e1e6c32024a05f8"
+    },
+    {
+      "path": "game design/output/stat-tile-no-wood-20261029/review.md",
+      "bytes": 1104,
+      "sha256": "73de3c0385979c1f4f539823d376169e6715c91fb610fb8b3b2f34520dbbd326"
+    },
+    {
+      "path": "game design/output/stat-tile-no-wood-20261029/verification.json",
+      "bytes": 938,
+      "sha256": "37c0d4929b32aded29a2e60b0c7bb007851a216caf2e9cab7f4ef8a069625df5"
+    },
+    {
+      "path": "game design/output/stat-tile-selected-01-20261029/approved-source.png",
+      "bytes": 1855161,
+      "sha256": "7b2e46c1cb33d1accdf810accbafd208b8d4c9efe8b1ea07facc1b1f3f7ee9f6"
+    },
+    {
+      "path": "game design/output/stat-tile-selected-01-20261029/density-manifest.json",
+      "bytes": 497,
+      "sha256": "69e342d3e2ec3962431345b17ecdc0cfe99036b6b5f965c48d9903d81e7c0f2c"
+    },
+    {
+      "path": "game design/output/stat-tile-selected-01-20261029/export.swift",
+      "bytes": 1881,
+      "sha256": "170bb58ffbf1c6f0e16a3a882bdbeddefa9b97e616e78c4ecd2c2a7bcdd02d28"
+    },
+    {
+      "path": "game design/output/stat-tile-selected-01-20261029/review.md",
+      "bytes": 738,
+      "sha256": "ebc77f7e5914ff794b348d6ee931a9447261f1a5cdfd512f77b9a42645c6614d"
+    },
+    {
+      "path": "game design/output/stat-tile-selected-01-20261029/verification.json",
+      "bytes": 927,
+      "sha256": "f7e6e0e62aaa70ccb95f55142b0cf6df784f4f4818644dfe86601c7b8d804915"
+    },
+    {
+      "path": "game design/output/stat-tile-three-rims-20261029/candidate-01.png",
+      "bytes": 1855161,
+      "sha256": "7b2e46c1cb33d1accdf810accbafd208b8d4c9efe8b1ea07facc1b1f3f7ee9f6"
+    },
+    {
+      "path": "game design/output/stat-tile-three-rims-20261029/candidate-02.png",
+      "bytes": 1922221,
+      "sha256": "62778f018d8c99ad876948d111e3d64425441d34d62d2f7c1c99af0a8941a1f5"
+    },
+    {
+      "path": "game design/output/stat-tile-three-rims-20261029/candidate-03.png",
+      "bytes": 1883594,
+      "sha256": "41c1298120cb604dfcac47a196fc71a6176fc4d70e2caae1cd1e43cbd41ab2ad"
+    },
+    {
+      "path": "game design/output/stat-tile-three-rims-20261029/compare.swift",
+      "bytes": 1392,
+      "sha256": "958814267989928cb028e968db2e673338853a0a18dd82a26e06a421422da1a6"
+    },
+    {
+      "path": "game design/output/stat-tile-three-rims-20261029/comparison.png",
+      "bytes": 2467944,
+      "sha256": "781a9fb35ad686277e5a86b35fc45dc9d4aacec2b7156dc42a90e3d27153a09d"
+    },
+    {
+      "path": "game design/output/stat-tile-three-rims-20261029/prompts.json",
+      "bytes": 3550,
+      "sha256": "2255a06f88589a182e9c45c65c863592a4bc03ef0a6c2d6145e8fea47caa86f9"
+    },
+    {
+      "path": "game design/output/stat-tile-three-rims-20261029/review.json",
+      "bytes": 1745,
+      "sha256": "36cb398473b2a98036b30ba2aa2e018582f22134ffe9578ffc15b3d8ede15387"
+    },
+    {
+      "path": "game design/style-masters/jimbo-body-endurance-20261029.png",
+      "bytes": 311869,
+      "sha256": "101670ad43b9b18b9779fc08be3fc18fd37b82b170367a09e34d0ead8993823a"
+    },
+    {
+      "path": "game design/style-masters/journey-approved-20261028.png",
+      "bytes": 182244,
+      "sha256": "8f0a03122dedd15f19c49f2ed52c8604f0f1f80d54a918837b18eaf4527ff9c0"
+    },
+    {
+      "path": "native/gameplay-app/NativeAppController.swift",
+      "bytes": 46726,
+      "sha256": "6020c7a59472a201aef97ac1381c317a03ec000dae077f84ca5aa49ea4d0cb2a"
+    },
+    {
+      "path": "native/gameplay-app/NativeBootstrap.swift",
+      "bytes": 132649,
+      "sha256": "052fa44219df1f238d4d857a1b0326a3cbf686ec88d0f1a49ec20df28b58407c"
+    },
+    {
+      "path": "native/gameplay-app/NativeGameplayAudioOwner.swift",
+      "bytes": 56024,
+      "sha256": "bea6cc50b25e9d699b77e59017af6b763be3bca99d3f87c894847cfdb21b8f53"
+    },
+    {
+      "path": "native/gameplay-app/NativeResultOwner.swift",
+      "bytes": 36237,
+      "sha256": "0f7c3c0f76aaef4bb72f0f9dd2dc6706cbd5659b49435f7a19f6adbc49c28a56"
+    },
+    {
+      "path": "native/gameplay-app/NativeTutorialOverlay.swift",
+      "bytes": 38350,
+      "sha256": "52999ab9d4874b712738d46b48c5aea89c81afbc9d7ee704b19054aae13f7f65"
+    },
+    {
+      "path": "native/gameplay-app/NativeTutorialOwner.swift",
+      "bytes": 47898,
+      "sha256": "627ac7fd4d5d97649ae242f667eb84b869264d7f00c371b5000de88ad625f29f"
+    },
+    {
+      "path": "native/gameplay-core/Sources/StackToSixGameplay/NativeTutorialRules.swift",
+      "bytes": 11079,
+      "sha256": "9f2512f1f8c6b0e34cce1136f6c323a8bf3f1a0907f80a8289bc4bd34ef8da43"
+    },
+    {
+      "path": "native/gameplay-core/Tests/StackToSixGameplayTests/NativeTutorialTests.swift",
+      "bytes": 35078,
+      "sha256": "b85b0320ed92bce19b6c8fb0fb5e1a9938f227672240006b1428c52065dd33e7"
+    },
+    {
+      "path": "native/gameplay-meter-drop-tests/NativeWildMeterDropRenderingTests.swift",
+      "bytes": 15222,
+      "sha256": "e83cdebe3497bd0be05cae3a176ee36fdaff3ae9c42a7964b34a4f5c300922c8"
+    },
+    {
+      "path": "native/gameplay-meter-drop-tests/NativeWildMeterDropTests.swift",
+      "bytes": 11086,
+      "sha256": "9de3d6de9418695666f2e5b645cf00acfdcdd442673ad7247b233f5cf5f3212e"
+    },
+    {
+      "path": "native/gameplay-meter-drop/NativeWildMeterDropPlan.swift",
+      "bytes": 11588,
+      "sha256": "dd58f3f4988478ab80c84551312b9e22c4dd607d4af2c4663f8b4d493a5000c2"
+    },
+    {
+      "path": "native/gameplay-meter-scene/NativeMeterHiddenCoreCaller.swift",
+      "bytes": 10015,
+      "sha256": "a3abf3445083091985b869e8db4e8861b84d06c459e936166ff195c43cd21379"
+    },
+    {
+      "path": "native/gameplay-meter-scene/NativeMeterSceneCaller.swift",
+      "bytes": 29994,
+      "sha256": "ebd8b8d4a352f482a1044d39ab09f1b013bd477fa3fff235373e6b0dde60d6d8"
+    },
+    {
+      "path": "native/gameplay-results/NativeCleanBoardTitleVoice.swift",
+      "bytes": 13172,
+      "sha256": "827e1493f14de73f612d70c7d466c7f53996c12a07ed04e8cdad73ab4237e98b"
+    },
+    {
+      "path": "native/gameplay-results/NativeResultPresentationPlan.swift",
+      "bytes": 9082,
+      "sha256": "41e4bc70c799fa7365f9d7f46735bfddd2fbd6fb3727da252186f421ea327f0b"
+    },
+    {
+      "path": "native/gameplay-reward-tests/NativeJourneyRewardTests.swift",
+      "bytes": 28923,
+      "sha256": "eb9c2f523274c04c5407c5ab94154dc5e57e4fd1a4bfb6d308b8ee44812c2dc1"
+    },
+    {
+      "path": "native/gameplay-state/Sources/StackToSixNativeState/NativeHybridImporter.swift",
+      "bytes": 10123,
+      "sha256": "e2cac96dc55f4f5ee58e472252c7567633ace3175a1146ed52c3d892d59f368f"
+    },
+    {
+      "path": "native/gameplay-state/Sources/StackToSixNativeState/NativeJourneyContent.swift",
+      "bytes": 9634,
+      "sha256": "7b8c4d43c298d5ec4b2239d817ad59aa2f5003c76fe3713ed7a27690ff99ce0b"
+    },
+    {
+      "path": "native/gameplay-state/Sources/StackToSixNativeState/NativeProgressionState.swift",
+      "bytes": 10633,
+      "sha256": "44a7f228f0878e7d6c0ec6b85f4c2ffa683792de1ac8d69348597af896220fba"
+    },
+    {
+      "path": "native/gameplay-state/Tests/StackToSixNativeStateTests/NativeStateTests.swift",
+      "bytes": 40283,
+      "sha256": "25d73cb369692bc83e854d14120841e4d3e81fa3dac5e736b69514e42f305c69"
+    },
+    {
+      "path": "native/gameplay-transition-tests/NativeThemedBoardTransitionLifecycleTests.swift",
+      "bytes": 22017,
+      "sha256": "6c002f5df1d01df9f97b2334c9eadc6ad4f642882a2dab868a0bdeb0174d7e31"
+    },
+    {
+      "path": "native/gameplay-transition-tests/NativeTransitionScenePlanTests.swift",
+      "bytes": 8075,
+      "sha256": "8ea269561b19dc0ff30813e6fc89d21fe60267b3ebb7e183e697c6ce6d332dcb"
+    },
+    {
+      "path": "native/gameplay-transitions/NativeForestTransitionBees.swift",
+      "bytes": 35224,
+      "sha256": "e04aeb7be1b62c4c7a38876f034cd3ef4fb14fbf1a095780958d32c7ab8a6385"
+    },
+    {
+      "path": "native/gameplay-transitions/NativeThemedBoardTransitionController.swift",
+      "bytes": 23725,
+      "sha256": "c68b540a650374fbdd625e94cb4cb73e86fc0f1848737a605369064bdccd5e89"
+    },
+    {
+      "path": "native/gameplay-transitions/NativeTransitionScenePlan.swift",
+      "bytes": 14468,
+      "sha256": "babb00317bc32f4daf2482c7aa7ffd5b1b938c24eecb5327f5907aa0fe84d3ed"
+    },
+    {
+      "path": "native/gameplay-tutorial-complete-tests/NativeTutorialCompleteTests.swift",
+      "bytes": 10410,
+      "sha256": "08f2f626dbfcb7763e598e3f9abc765acf7277730d5ac9343d7aee07a40c0986"
+    },
+    {
+      "path": "native/gameplay-tutorial-complete/NativeTutorialCompleteController.swift",
+      "bytes": 17848,
+      "sha256": "6f1c00dd8a9a531fbb15d990865949bdcf5e97ec1de81eb893684a88d70ebbff"
+    },
+    {
+      "path": "native/gameplay-ui/NativeBoardScene.swift",
+      "bytes": 842749,
+      "sha256": "a09ab15f6102cbd2798bf7282ea9689674b7ae00987e46cee42ec25dedeae82b"
+    },
+    {
+      "path": "native/gameplay-ui/NativeDiceNode.swift",
+      "bytes": 182675,
+      "sha256": "fdfdd36c0d4c4ff1d957df5a23764a85cfcce59e81e3ba028b4a20fec890ed52"
+    },
+    {
+      "path": "native/gameplay-ui/NativeGameplayViewController.swift",
+      "bytes": 126536,
+      "sha256": "62ea96a23d41f76fce435816a55b5fe53868a13eb22bd57202e760afc64eb748"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceBoardEntryOwner.swift",
+      "bytes": 10700,
+      "sha256": "e3abfeaa90a5d9cfa1c84d4afa846169ec0a14e96ec7b0ac9067682b1573b290"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceBoardEntryPlan.swift",
+      "bytes": 4736,
+      "sha256": "f7249b2ce78d5d000af27d3b6fba4568f98d5912cbf12b06ed90a68f208c8b1c"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceTutorialFirstStepMonitor.swift",
+      "bytes": 6528,
+      "sha256": "3758eb3b550d9ee67175cd8427bed26d034ae4d3f02b4e2e8eb9cb0f22ba649f"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceTutorialFreePlayPlan.swift",
+      "bytes": 5619,
+      "sha256": "3fa663da6c57404cad14864b5725bb51bded7c9c6a71361403feaf9fdaccd629"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceTutorialIntroOwner.swift",
+      "bytes": 16391,
+      "sha256": "8a569f49b3986d9c970ed09828f5d7d95adc4f2a42ad3653bbf37edde8c45cef"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceTutorialSecondStepMonitor.swift",
+      "bytes": 18416,
+      "sha256": "3b620b5cc912eedf098d5145552c20d2a3ee6e41bc7b1f45ba7802855b77e6c7"
+    },
+    {
+      "path": "native/gameplay-ui/NativeSourceTutorialSecondStepPreparation.swift",
+      "bytes": 5543,
+      "sha256": "a96e29843e954129d9ec1662b64d3dc09f278bb0fc03fa5058b71efb869ed1f7"
+    },
+    {
+      "path": "native/jimi-2026/JimiNativeWorldCardView.swift",
+      "bytes": 63697,
+      "sha256": "237bcc8925324a0334299c1a5d68cb4adebf67ee2cbfc156cb61702cf0e4b0cc"
+    },
+    {
+      "path": "native/jimi-2026/JimiNativeWorldView.swift",
+      "bytes": 65033,
+      "sha256": "74b3d6c15abca1f94efd108e51e1ba00d5b78b8bd749dd30b325bd59b11347cb"
+    },
+    {
+      "path": "native/jimi-2026/JimiV9HomeView.swift",
+      "bytes": 73978,
+      "sha256": "b5f345412c65451fad174e3fd24ef059a4a9a872a149dbdcc72debe9dc2e3c00"
+    },
+    {
+      "path": "native/standalone/Stack to Six/Assets.xcassets/AppIcon.appiconset/AppIcon-20.png",
+      "bytes": 1098,
+      "sha256": "a5661cc87d8f370fa55f07895bca1501f0bcf1d3235b5931b1edf91d0221b33a"
+    },
+    {
+      "path": "native/standalone/Stack to Six/Assets.xcassets/AppIcon.appiconset/AppIcon-20@2x-ipad.png",
+      "bytes": 3206,
+      "sha256": "3bcb77996fae5166840377f6a9c5fb97160d01b70d1c29f6b92ecde998170e35"
+    },
+    {
+      "path": "native/standalone/Stack to Six/Assets.xcassets/AppIcon.appiconset/AppIcon-20@2x.png",
+      "bytes": 3206,
+      "sha256": "3bcb77996fae5166840377f6a9c5fb97160d01b70d1c29f6b92ecde998170e35"
+    },
+    {
+      "path": "native/standalone/Stack to Six/Assets.xcassets/AppIcon.appiconset/AppIcon-20@3x.png",
+      "bytes": 6403,
+      "sha256": "d9f059146bd75fb3b84ee74721e374dfcc099e27c0c2f244468061cd54770df4"
+    },
+    {
+      "path": "native/standalone/Stack to Six/Assets.xcassets/AppIcon.appiconset/AppIcon-29.png",
+      "bytes": 1921,
+      "sha256": "31761f6c1ff3e265a782f2b3385f1d1a34f64329fdcc832c6e1be4345f847aca"
+    },
+    {
+      "path": "native/standalone/Stack to Six/Assets.xcassets/AppIcon.appiconset/AppIcon-29@2x-ipad.png",
+      "bytes": 5951,
+      "sha256": "7788ce10550e5bad59677b7fd9165789efc1f04b0a5cae216a807781a131afb8"
+    },
+    {
+      "path": "native/standalone/Stack to Six/Assets.xcassets/AppIcon.appiconset/AppIcon-29@2x.png",
+      "bytes": 5951,
+      "sha256": "7788ce10550e5bad59677b7fd9165789efc1f04b0a5cae216a807781a131afb8"
+    },
+    {
+      "path": "native/standalone/Stack to Six/Assets.xcassets/AppIcon.appiconset/AppIcon-29@3x.png",
+      "bytes": 12203,
+      "sha256": "ee3912b5e026ea4aff507297429760423d8b8df0453cd263962ad6758c6bddeb"
+    },
+    {
+      "path": "native/standalone/Stack to Six/Assets.xcassets/AppIcon.appiconset/AppIcon-40.png",
+      "bytes": 3206,
+      "sha256": "3bcb77996fae5166840377f6a9c5fb97160d01b70d1c29f6b92ecde998170e35"
+    },
+    {
+      "path": "native/standalone/Stack to Six/Assets.xcassets/AppIcon.appiconset/AppIcon-40@2x-ipad.png",
+      "bytes": 10508,
+      "sha256": "c7a9de2a197c4617414a718595f3319e3376b11d3afb2fdbe20fbf1b12ba2f02"
+    },
+    {
+      "path": "native/standalone/Stack to Six/Assets.xcassets/AppIcon.appiconset/AppIcon-40@2x.png",
+      "bytes": 10508,
+      "sha256": "c7a9de2a197c4617414a718595f3319e3376b11d3afb2fdbe20fbf1b12ba2f02"
+    },
+    {
+      "path": "native/standalone/Stack to Six/Assets.xcassets/AppIcon.appiconset/AppIcon-40@3x.png",
+      "bytes": 21784,
+      "sha256": "0ef413c0e794ffc4a1e4e2844c59976b2a36bd6064338df7c227f44e0de9d8f1"
+    },
+    {
+      "path": "native/standalone/Stack to Six/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png",
+      "bytes": 1313790,
+      "sha256": "c3383dd61f8672f89393804f07af7f10382b39d89d65fbc1ffb0ba74c4c4d960"
+    },
+    {
+      "path": "native/standalone/Stack to Six/Assets.xcassets/AppIcon.appiconset/AppIcon-60@2x.png",
+      "bytes": 21784,
+      "sha256": "0ef413c0e794ffc4a1e4e2844c59976b2a36bd6064338df7c227f44e0de9d8f1"
+    },
+    {
+      "path": "native/standalone/Stack to Six/Assets.xcassets/AppIcon.appiconset/AppIcon-60@3x.png",
+      "bytes": 45327,
+      "sha256": "44c7cf6dc0c42be9aa42b50975b174e45ae7796f963d29709c657ce4fd486baa"
+    },
+    {
+      "path": "native/standalone/Stack to Six/Assets.xcassets/AppIcon.appiconset/AppIcon-76.png",
+      "bytes": 9551,
+      "sha256": "75b0e87796fe8c0bce138bab9deab827757c29ef11e05765a19320b2511aaf9b"
+    },
+    {
+      "path": "native/standalone/Stack to Six/Assets.xcassets/AppIcon.appiconset/AppIcon-76@2x.png",
+      "bytes": 33301,
+      "sha256": "b1aa12d71e4a1edc0d4b19acfbc8009efc04b5bad35b2260a71287cdd3a39439"
+    },
+    {
+      "path": "native/standalone/Stack to Six/Assets.xcassets/AppIcon.appiconset/AppIcon-83.5@2x.png",
+      "bytes": 39466,
+      "sha256": "48988422b0f461dce1f47a943c170c519df8fb61588eaeb5d11af4cd502f3512"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/JimiNativeEndRunTests.swift",
+      "bytes": 24254,
+      "sha256": "bbf5874cc44dd3119597aa1e0973e9dee77341c64afe00742e54384df09a6889"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/JimiNativeWorldTests.swift",
+      "bytes": 144376,
+      "sha256": "3345bfd9d699cea1e9f2ceb958da5ddd453631ed649955ca169b5c7746c71d67"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeBootstrapTests.swift",
+      "bytes": 50103,
+      "sha256": "4774fd7033f80dcf50791a3252802424d4bd373a2b2c2b6c9ee79ca89fd17308"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeGameplayAudioTests.swift",
+      "bytes": 83936,
+      "sha256": "1c8ef3c1ee25a304a02d2b91c788a8607e57fd7633e00883ee21fd8550ae1145"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeJourneyDecorIntegrationTests.swift",
+      "bytes": 17780,
+      "sha256": "949ebe8c672f00a4f7069ac77068f679ca610f6626159415281c810cfef92768"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeMeterSceneCallerTests.swift",
+      "bytes": 28964,
+      "sha256": "f54263ce7a592cf48f3a8f41cdcc9e215f72defa5f1b9468fdc33b9c3d386906"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeResultOwnerTests.swift",
+      "bytes": 69607,
+      "sha256": "14b8f6328f0109242ebba9226a6ca3a508431a42345a4deab13b3145b6eec4c5"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceBoardEntryTests.swift",
+      "bytes": 11373,
+      "sha256": "b33795e20bfb82f1eef3074e250d43ef16a788f536abecdfe683114f15c78ae2"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceConfirmedFailMountedTests.swift",
+      "bytes": 10672,
+      "sha256": "d832d2c41e63d7dcc85efd85e05d3bc8c0225fe5fa9e53e4f373ff99fcd6e439"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceTutorialBootstrapTests.swift",
+      "bytes": 73653,
+      "sha256": "c3e3440dafe3b2ea444dbbfd24b243b7d9945710d794c41e39163844db3956c1"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceTutorialCTATests.swift",
+      "bytes": 7611,
+      "sha256": "fdd32b4971d3e8c3d96c529d90183afc1901b7c5bc0fc1e042015d8ca842a6a4"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceTutorialFirstStepMonitorTests.swift",
+      "bytes": 10095,
+      "sha256": "317539e65582828dc2056f9c2138c9052059a630c8c1526be2f1ebd05310ca9e"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceTutorialFreePlayPlanTests.swift",
+      "bytes": 48071,
+      "sha256": "8328644c03aa671dc63dbec3291ed11ccfd1642dbaa3787dfbcb68dd025a3570"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceTutorialIntroTests.swift",
+      "bytes": 27810,
+      "sha256": "e216c4b44d948c034143ccff3c670630494f6588d915927c12873574b0e44f5b"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceTutorialSecondStepMonitorTests.swift",
+      "bytes": 29151,
+      "sha256": "fb41a08ae9f331b05cfd7a08e9233db1bcffda9208a9af8e6d0633c9ea00d964"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeSourceTutorialSecondStepTests.swift",
+      "bytes": 5487,
+      "sha256": "59a9c8c10c979da9565d8f5ee9e0f00c2e50153a8dc8cead3cacd237998faf76"
+    },
+    {
+      "path": "native/standalone/Stack to SixTests/NativeStandaloneRootTests.swift",
+      "bytes": 157005,
+      "sha256": "3dc555e712bbe21e62fd187f863a259702b45e20610c721aebd357b766c2a06e"
+    },
+    {
+      "path": "scripts/boost-clean-board-title-voices.py",
+      "bytes": 2837,
+      "sha256": "69e58b6586662246bfff8e71c79b9c924e60136e0e29e9862c30db7e79c3fd6e"
+    },
+    {
+      "path": "scripts/prepare-clean-board-title-voices.py",
+      "bytes": 4676,
+      "sha256": "a14f7fe201e02934afa3f4f6e027834c58b825fe760deaac3d5b2458cbb7e854"
+    }
+  ]
+}

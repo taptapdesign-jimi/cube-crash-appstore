@@ -6,6 +6,35 @@ import StackToSixNativeState
 @testable import Stack_to_Six
 
 @MainActor final class NativeSourceTutorialBootstrapTests:XCTestCase {
+    func testRestoredSpecialGuideCyclesHandTargetsWithoutSourceIntro()async throws {
+        var state=NativeBoardState(tiles:[
+            .init(id:"restored-special",cell:.init(column:2,row:1),value:6,archetype:.star),
+            .init(id:"restored-top",cell:.init(column:0,row:0),value:2),
+            .init(id:"restored-bottom",cell:.init(column:4,row:8),value:3)])
+        var tutorial=NativeTutorialState();tutorial.step = .special;tutorial.wildTileID="restored-special"
+        tutorial.guidedPair=["restored-special","restored-top"];state.tutorial=tutorial
+        var wall=0.0
+        let fifo=NativeSourceMicrotaskFIFO(),tasks=NativeSourceMicrotaskAdapters(fifo:fifo)
+        let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{wall},sourceFrameTransportEnabled:true)
+        service.sourceMicrotaskTasks=tasks
+        let context=NativeGameplaySourceContext(service:service,appOriginMilliseconds:0,sourceMicrotaskTasks:tasks)
+        let game=NativeGameplayViewController(engine:NativeGameplayEngine(state:state),resourceRoot:NativeTestResources.root)
+        game.sourceContext=context;game.sourceSpecialIdlePresentationEnabled=true
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=game;window.makeKeyAndVisible()
+        game.view.frame=window.bounds;game.view.setNeedsLayout();game.view.layoutIfNeeded()
+        let owner=NativeTutorialOwner(gameplay:game,root:NativeTestResources.root)
+        defer{owner.dispose();game.dispose();context.dispose();service.dispose();fifo.dispose();window.isHidden=true}
+        XCTAssertNotNil(game.sourceScope)
+        owner.refresh(game.engine.state)
+        let overlay=try XCTUnwrap(game.view.subviews.compactMap{$0 as? NativeTutorialOverlay}.first)
+        XCTAssertNil(overlay.sourceIntroOwner)
+        let target=try XCTUnwrap(overlay.subviews.first{$0.accessibilityIdentifier=="native.tutorial.drag-target"})
+        let first=target.frame
+        for time in stride(from:16.0,through:1400,by:16){wall=time;service.deliver(wallMilliseconds:time)}
+        try await Task.sleep(for:.milliseconds(230))
+        XCTAssertNotEqual(target.frame,first,"restored guide must select the other ordinary die, including the bottom row")
+        owner.dispose();XCTAssertNil(target.superview)
+    }
     func testInactiveTutorialRetiresOverlayCallbacksAndReleasesOwnerOnRepeatedMount()throws {
         var state=NativeBoardState(tiles:[NativeTile(id:"cleanup-a",cell:.init(column:0,row:0),value:1),NativeTile(id:"cleanup-b",cell:.init(column:1,row:0),value:2)])
         var tutorial=NativeTutorialState();tutorial.step = .freePlay;tutorial.specialBarAcknowledged=true
@@ -118,7 +147,8 @@ import StackToSixNativeState
     func testContextualForestBeeCompletesActualSpecialGuide()async throws {try await run(monitored:true,retireDuringExit:false,third:true,dismiss:"button",fourth:true,fourthComplete:true,complete:true,journeyBoard:1)}
     func testContextualBeachJuiceCompletesActualSpecialGuide()async throws {try await run(monitored:true,retireDuringExit:false,third:true,dismiss:"button",fourth:true,fourthComplete:true,complete:true,journeyBoard:11)}
     func testContextualAreaRoboCompletesActualSpecialGuide()async throws {try await run(monitored:true,retireDuringExit:false,third:true,dismiss:"button",fourth:true,fourthComplete:true,complete:true,journeyBoard:21)}
-    private func run(monitored:Bool,retireDuringExit:Bool,third:Bool=false,dismiss:String?=nil,failure:Bool=false,meter:Bool=false,fourth:Bool=false,fourthComplete:Bool=false,complete:Bool=false,reverseFourth:Bool=false,specialInteraction:Bool=false,stressTurns:Int=1,stressFrames:Int=100,journeyBoard:Int?=nil)async throws {
+    func testEarlyOpacitySheetRetiresWithScopeBeforeBoardPreparation()async throws {try await run(monitored:true,retireDuringExit:false,retireAtOpacity:true)}
+    private func run(monitored:Bool,retireDuringExit:Bool,third:Bool=false,dismiss:String?=nil,failure:Bool=false,meter:Bool=false,fourth:Bool=false,fourthComplete:Bool=false,complete:Bool=false,reverseFourth:Bool=false,specialInteraction:Bool=false,stressTurns:Int=1,stressFrames:Int=100,journeyBoard:Int?=nil,retireAtOpacity:Bool=false)async throws {
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("source-initial-bootstrap-\(UUID().uuidString)")
         defer{try? FileManager.default.removeItem(at:directory)}
         let store=NativeSaveStore(directory:directory)
@@ -189,6 +219,20 @@ import StackToSixNativeState
         let deadline=Date().addingTimeInterval(10);var wall=0.0
         while scene.completedSourceBoardEntry==nil && Date()<deadline {
             wall+=16;service.deliver(wallMilliseconds:wall)
+            if scene.sourceTutorialEntryFullyVisible,scene.completedSourceBoardEntry==nil {
+                let early=try XCTUnwrap(game.view.subviews.first{$0 is NativeTutorialOverlay} as? NativeTutorialOverlay)
+                XCTAssertTrue(early.sourceIntroOwner?.sheetStarted==true,"first sheet starts on the full-opacity frame, before entry tails finish")
+                XCTAssertFalse(scene.sourceTutorialPreparationReady,"paper alone does not bypass actual board-entry ownership")
+                if retireAtOpacity {
+                    game.sourceScope?.dispose()
+                    XCTAssertNil(early.sourceIntroOwner)
+                    XCTAssertNil(early.superview)
+                    for _ in 0..<80{wall+=16;service.deliver(wallMilliseconds:wall)}
+                    XCTAssertFalse(game.view.subviews.contains{$0 is NativeTutorialOverlay})
+                    XCTAssertFalse(scene.sourceTutorialPreparationReady)
+                    return
+                }
+            }
             try await Task.sleep(nanoseconds:20_000_000)
         }
         XCTAssertEqual(scene.completedSourceBoardEntry?.outcome,.normal)
@@ -375,10 +419,14 @@ import StackToSixNativeState
                 return
             }
             _=service.setSourceGlobalPaused(false)
-            for _ in 0..<45{wall+=16;service.deliver(wallMilliseconds:wall)}
-            // Only wall90 after the two real finite roots may prepare step two.
-            service.setSourceForeground(false)
-            try await Task.sleep(for:.milliseconds(130))
+            // Native presents the next paper after the real outgoing exit,
+            // while gameplay preparation still waits for merge/face ownership.
+            // Deliver both APP frames and wall polls through that barrier.
+            let secondPreparationDeadline=Date().addingTimeInterval(5)
+            while !scene.sourceTutorialSecondPreparationReady && Date()<secondPreparationDeadline {
+                wall+=16;service.deliver(wallMilliseconds:wall)
+                try await Task.sleep(for:.milliseconds(10))
+            }
             XCTAssertTrue(scene.sourceTutorialSecondPreparationReady)
             XCTAssertFalse(scene.sourceTutorialFirstStepPresentationActive)
             XCTAssertNil(game.engine.pendingSourceTutorialPresentationBarrier)
@@ -500,6 +548,15 @@ import StackToSixNativeState
                     if specialInteraction{XCTAssertTrue(overlay.specialBarVisible)}
                     else{XCTAssertFalse(overlay.isHidden);XCTAssertGreaterThan(overlay.sourceSheetTranslation,0,"Special Bar must exit before Clear can enter")}
                     if specialInteraction{XCTAssertTrue(game.engine.isDragging)}
+                    if !specialInteraction {
+                        let handoffDeadline=Date().addingTimeInterval(3)
+                        while overlay.specialBarVisible && Date()<handoffDeadline {
+                            wall+=16;service.deliver(wallMilliseconds:wall);try await Task.sleep(for:.milliseconds(10))
+                        }
+                        XCTAssertFalse(overlay.isHidden,"Clear begins on the previous sheet's exit, without waiting for dice-opacity restoration")
+                        XCTAssertNil(scene.onTutorialBoardFocusSettled)
+                        XCTAssertTrue(overlay.subviews.flatMap{$0.subviews}.compactMap{$0 as? UILabel}.contains{$0.text=="Clear the stage"})
+                    }
                     for _ in 0..<51{wall+=16;service.deliver(wallMilliseconds:wall);try await Task.sleep(for:.milliseconds(10))}
                     let clearReady=Date().addingTimeInterval(4)
                     while (!overlay.sourceFreeHintActive || overlay.sourcePointerAlpha<0.999) && Date()<clearReady {
@@ -699,7 +756,10 @@ import StackToSixNativeState
                                 XCTAssertLessThanOrEqual(control.alpha,0.200001)
                             }
 
-                            if complete {
+                            // Guide-only and complete-app fixtures both retain
+                            // the owner until genuine post-Special settlement
+                            // and the automatic acknowledgement (no Great merge CTA).
+                            do {
                                 let encouragementDeadline=Date().addingTimeInterval(8)
                                 while !game.tutorialEncouragementPresentationReady && Date()<encouragementDeadline {
                                     wall+=16;service.deliver(wallMilliseconds:wall);try await Task.sleep(for:.milliseconds(10))

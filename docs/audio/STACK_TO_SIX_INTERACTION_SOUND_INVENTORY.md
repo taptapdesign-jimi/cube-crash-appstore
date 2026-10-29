@@ -273,3 +273,14 @@ Coconut contact playback (2026-10-24): only coconut-contact mini2 gain0.15 now u
 ### Native Cubero merge6 — 2026-10-27
 
 User-supplied `assets/sound/Wild and special kockice/cubero/haya.wav` is the approved Haaaa→yaaaa ordering,1.450167s,48kHz,stereo16-bit PCM,peak0.95575,no clipped samples. Native committed Cubero merge6 plays one `cubero-merge6-haya` voice at0.48 gain/rate1 with no delay,natural end. Existing receipt deduplication,selected meter preload,Sounds gate and background/generation/route cleanup own it. Original file bytes preserved;no other Special family or preserved web audio changed. Physical speaker fit NEEDS PHYSICAL TEST.
+
+
+## Native Clean Board title speech (2026-10-27)
+
+The supplied `Clean board/voice/clean board titles.mp3` remains unchanged. Its 114 phrases map exactly to `NativeResultHeadlines.clean` through `NativeCleanBoardTitleVoice`; index and literal title are both checked. Derivative WAVs live in `Clean board/voice/titles-v1/`. Cut boundaries, original hash, output hashes and measured levels are in `clean-board-title-voices-v1.json`; regenerate with `scripts/prepare-clean-board-title-voices.py` (numpy, macOS afconvert).
+
+Selected-file preparation occurs only after real result admission. One `clean-title` moment plays the exact title at the existing title entry (0.22s; the prepared Journey first visible handoff starts at0.47s). Existing NativeGameplayAudioOwner/main SFX transport owns one stable `native-clean-title` voice at0.9064262964918004gain (+2dB relative to0.72, user2026-10-28), original speed/pitch, natural completion. Sounds OFF, background/interruption, generation replacement and full stop cancel active/pending playback without replay. No whole-pool preload and no change to music, sax, applause or result timings. Fail and title-less Arcade presentation remain separate. Physical pronunciation/timing and speaker mix: NEEDS PHYSICAL TEST.
+
+Native Clean Board spoken titles (2026-10-28): all114 now select the versioned `titles-v2-plus3db` PCM pack, exactly +3dB relative to v1, retaining runtime gain0.9064262964918004. Original MP3/v1 WAVs, timings, pitch and all other sound layers remain unchanged. Reproduce with `python3 scripts/boost-clean-board-title-voices.py`; per-clip hashes/levels are in `clean-board-title-voices-v2.json`. No samples clip; combined physical speaker mix remains NEEDS PHYSICAL TEST.
+
+Native Clean Board counting pace (2026-10-28): numeric windows and bonus phases run at80percent of authored duration anchored at0.47s. Ordinary first CTA starts5.39s instead6.62s, completing the result sequence1.23s sooner. Money count and fast-points layers both play1.25x with their actual visual counter duration and96ms final fade; natural title/sax/applause/star cues remain at original speed/gain. No original audio asset changes. Physical speaker balance and pace remain user review.

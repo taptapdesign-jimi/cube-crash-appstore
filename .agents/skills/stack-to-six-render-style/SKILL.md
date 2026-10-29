@@ -1,98 +1,66 @@
 ---
 name: stack-to-six-render-style
-description: Review or correct Stack to Six character illustration rendering when the user says "render style", asks to match their soft creamy character style, or requests lighter, gentler rendering. Supports image review, edit instructions and requested image edits; does not refer to SpriteKit, Metal or runtime rendering performance.
+description: Review or correct Stack to Six illustration rendering against the current user-approved Journey master, including character identity, clean rounded materials, soft warm color and retro feel; excludes runtime renderer performance.
 ---
 
-# Stack to Six render style
+# Stack to Six illustration render
 
-Use this skill when “render style” appears within a natural request, including
-“daj mi pogledaj render style moj i popravi sliku”. Match the user's established
-character illustrations rather than introducing a new art direction.
+Explicit user replacement2026-10-28: first read
+`game design/APPROVED_RENDER_MASTER.md` and open
+`game design/style-masters/journey-approved-20261028.png` from repository root.
+The identical Studio reference is
+`/Users/user/Desktop/Stack to Six Studio/library/style-masters/journey-approved-20261028.png`.
+This is the single current render AND Jimbo/Nala appearance authority.
+Older lik-game/lik-lajna, five Jimbo images and standalone Nala no longer define
+the current rendering or identity. Preserve original files as historical assets.
 
-## Visual authority
+Match the actual master rather than adding a generic textured style: warm soft
+colors, cream highlights and gentle reflections, bright open shadows, continuous
+rounded forms, clean smooth skin and a retro storybook/game feel. Keep material
+cues quiet and specific to hair/fur/wood. No wool/felt, porous old skin, dirty
+mottling, angular patchwork, universal cloth grain, heavy AO, blur or orange wash.
+The detailed guide describes every visible character/material/prop family.
+Foreground question-mark cards are not dice; die references still own cube/face
+geometry. Nala's anatomical left ear may sometimes fold; upright ears are valid.
 
-Open these original project images before comparing or editing:
+Use the candidate as scene/pose/composition authority and the approved master
+as appearance authority. Preserve requested subjects, geometry, action, text,
+objects, framing, UI space and alpha unless the user changes them. Do not insert
+Jimbo/Nala or treasure props merely because they appear in the style master.
 
-- `assets/logo addons/lik-game.png`: seated man with controller; authority for pale peach skin, light gray hair/beard, cream clothing, muted blue denim and soft material finish.
-- `assets/logo addons/lik-lajna.png`: man playing tug with dog; authority for light cream/beige fur and muted taupe/brown markings, plus shared lighting and palette.
+Follow requested scope:
+- Review/explain: inspect actual images and give concrete observed differences;
+  do not generate an unrequested edit.
+- Prompt: state image roles and exact requested corrections.
+- Image edit: use the image editing tool and its skill with inspected candidate
+  and master; save a separate result, inspect actual identity/material/alpha drift.
+- SVG: keep timing/layers and distinguish embedded raster from vector redraw;
+  a flat PNG cannot independently move limbs without reconstruction.
 
-Paths are relative to the repository root. These match references 2 and 3 in the
-user's style decision of 2026-10-17. Current user-supplied references and explicit
-instructions take precedence. A candidate submitted for correction is the
-composition reference, not automatically the rendering reference. If originals
-are unavailable, use attached references; request missing images only when needed.
-Do not pretend that a reference was inspected when it was not.
+The finished master also controls brightness/exposure/saturation/warmth. Earlier
+Figma slider preferences are adaptive tools, not a mandatory second filter.
+No numeric values have been calibrated and no90/100percent match is guaranteed.
+Compare at normal presentation size and useful close-up: skin smoothness, face/
+glasses/teeth, coherent jaw, dog markings/ear policy, anatomy, rounded objects,
+open shadows, color relationships and clean alpha. State remaining drift.
+User alone approves candidates. No runtime asset/build/Simulator/phone operation
+is authorized by a standalone illustration review/style task.
 
-## Accepted finish
+Explicit user correction2026-10-28: no drawn outlines/strokes/ink or colored contour lines, including thin beige/brown/peach borders. Full volumetric stylized3D with natural light/shadow/material-defined edges; no cel/toon-outline or line-art hybrid. Preserve physical glasses and intended graphic marks. Inspect the actual candidate edges against the approved master.
 
-- Soft, friendly stylized 3D characters, rounded forms and expressive faces.
-- The man has intentionally elongated cartoony arms and legs, a slim silhouette
-  and expressive hands/feet. Keep these stylized proportions from the accepted
-  references; do not shorten limbs, thicken the body or normalize anatomy toward
-  realistic human proportions. Preserve foreshortening appropriate to the pose.
-  In render-only edits retain the candidate's approved geometry. If the user also
-  asks to match character proportions, use the references to correct them; do not
-  stretch pixels or apply a uniform numeric limb multiplier.
-- Light, airy, gently faded pastel palette. Warmth comes from creamy neutrals,
-  pale peach and soft light, not an orange/yellow cast across the whole image.
-- Man: pale peach skin rather than saturated orange/tan; light warm-gray hair
-  and beard rather than dark, strongly contrasted strands; cream/off-white shirt.
-- Dog: light cream/beige fur; subdued taupe/brown markings rather than rich
-  reddish brown or golden-orange fur. Preserve the markings and character identity.
-- Broad diffuse light, soft shadow transitions, restrained highlights and gentle
-  local contrast. Keep rounded volume and readable facial features.
-- Matte, soft materials with fine, quiet texture. References DO contain fabric,
-  hair and fur detail: soften its prominence, do not erase it or blur the image.
-- Denim stays muted dusty blue. Props harmonize with the references without
-  making every material identical or bleaching purposeful accent colors.
+Latest explicit Jimbo correction2026-10-28: the Journey image remains the overall render/Nala master, while the two current Jimbo head/teeth details configured in `data/art-direction.json` supplement ONLY selected Jimbo. Inspect both originals: reference-matched oval skull, restrained cheeks and original jaw, proportionate glasses/nose, fewer larger rounded cartoon teeth. Do not elongate the head to act tired. See the latest correction section in APPROVED_RENDER_MASTER.md; it overrides older tooth-size prose. Never restore all historical identities or copy the detail scenes/props.
 
-Typical drift: excessive microdetail, etched/patterned skin or cloth, individually
-emphasized hairs, crispy texture, dark creases/ambient occlusion, glossy edges,
-HDR-like local contrast, saturated gold/orange lighting and over-realistic materials.
+Latest explicit Jimbo face lock, 2026-10-29 (supersedes older two-head-only roles):
+read the latest section in APPROVED_RENDER_MASTER.md. Studio automatically attaches
+the original Journey @3x face source matching user reference 2 as PRIMARY Jimbo
+face/design/material authority. Other approved heads are EXPRESSION ONLY, never
+alternative skull/material masters. Preserve head, glasses, nose, jaw, ears, hair/
+beard silhouette and teeth while changing expression. Remove linen/cloth weave,
+fibrous skin and editor grid; retain quiet short hair detail and smooth warm 3D
+shading with no drawn strokes. Existing original files remain unchanged.
 
-“Faded” means restrained saturation and contrast with lighter midtones. It does
-not mean a white overlay, lost silhouette, clipped highlights, flat lighting or
-an out-of-focus result. Do not invent numerical color/exposure corrections unless
-requested or supported by a measured comparison.
+Latest user correction2026-10-29: no puffed/bulging cheek or fat/widened head. Match the locked original Journey oval face contour; prior full-cheeks/broad-head wording is revoked. Fatigue changes eyelids/brows/mouth, never cheek volume. Read the latest cheek correction in the master guide.
 
-## Follow the requested action
+Latest explicit Jimbo body-proportion correction, 2026-10-29: open the original Endurance full-body runner specified in APPROVED_RENDER_MASTER.md. Preserve long thin upper arms/forearms, narrow wrists, slim thighs/calves/ankles, narrow torso and a relatively large original head. Rounded hands and sneakers are larger relative to thin wrists/ankles without becoming dominant. No stocky torso, thick/padded limbs or baby proportions. Body reference does not override locked Journey face, Nala or shared rendering; running props/action remain scene-specific. Review actual limb thickness and head-to-body balance before delivery.
 
-- **Review / “pogledaj”, “reci što ne valja”:** compare the actual candidate and
-  references; explain the main visible differences concisely in Croatian. Do not
-  generate or edit unless asked. For feedback to another creator, give short,
-  paste-ready English feedback when appropriate.
-- **Prompt / “napiši opis”:** provide a usable edit instruction with clear roles:
-  candidate controls composition; accepted references control rendering/materials.
-- **Edit / “popravi sliku”, “uskladi render style”:** perform the image edit using
-  the available image editing tool and its imagegen skill. Supply both candidate
-  and inspected style references. Preserve composition, pose, anatomy, proportions,
-  expression, clothing design, objects, framing and transparency unless explicitly
-  changed by the user. Correct rendering, color, lighting and texture emphasis.
-  Do not stop at writing a prompt when an actual edit was requested.
-
-Compare the result against the originals, especially skin orange cast, beard
-brightness, dog fur, texture contrast and shadows. Report remaining visible
-mismatches honestly; do not call the result a match without inspecting it.
-
-For animation/SVG work, preserve authored timing, transforms and frame structure;
-this skill does not authorize flattening animation into a still or replacing SVG
-with a raster. Use the appropriate vector/animation workflow for that request.
-
-Preserve supplied original assets. Produce a separate edited output; replacing a
-runtime asset or installing the app requires the corresponding user task. A style
-review or standalone image edit does not require an app build, Simulator refresh
-or unrelated gameplay QA.
-
-## Reusable edit brief
-
-> Keep the existing composition, character identity, poses, expressions and objects.
-> Preserve the character's elongated cartoony arms and legs and slim silhouette;
-> do not normalize them toward realistic human proportions.
-> Match the supplied Stack to Six style references for rendering only: light creamy
-> colors, pale peach skin, light warm-gray hair and beard, muted dusty-blue denim,
-> and a light cream/beige dog with subdued taupe-brown markings. Use broad soft
-> lighting, gentle shadows, restrained highlights and a matte finish. Reduce texture
-> contrast and excessive microdetail while retaining subtle fabric and fur texture
-> and rounded 3D volume. Keep the result airy and softly faded, without an orange
-> cast, HDR contrast, glossy edges, blur or washed-out facial features. Preserve the
-> original background transparency.
+Latest explicit Nala correction, 2026-10-29: match the approved Journey dog with a slightly longer, forward-projecting but softly rounded muzzle, broad warm-brown nose, expressive eyes and playful continuous smile/jaw. No shortened baby-puppy face, pointed wolf muzzle or realistic long skull. Preserve the same cartoony rounded design and soft warm creamy volumetric 3D rendering with quiet fur detail; no drawn outlines or flat cel shading. Read the Nala muzzle/render section in APPROVED_RENDER_MASTER.md and inspect the actual reference before generation.

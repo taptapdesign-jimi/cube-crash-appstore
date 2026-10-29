@@ -2,23 +2,18 @@
 
 Authored reference library, 2026-10-17. These descriptions were derived from viewed PNG artwork, not filenames alone. Reference images are authoritative; prose is an aid. Use original-resolution copies for generation. This guide describes appearance, not gameplay rules.
 
-## Shared render language
+## Current render, human and dog — replaced 2026-10-28
 
-Soft sculpted 3D toy/diorama rendering. Rounded bevels, inflated volumes, warm cream highlights and peach/brown contact shading. Broad soft light, gentle ambient occlusion in joints and layered objects. Matte or satin surfaces, with stronger gloss only on authored liquids, bubbles and polished details. Cream, honey yellow, coral orange and sage/lime greens recur; turquoise and teal create accents. Texture is simplified but tangible: subtle wood grain, sculpted foliage and soft fabric. Preserve each reference’s own palette rather than applying one universal orange tint. No heavy black contour, photoreal skin, gritty realism or sharp low-poly facets. Match perspective and light direction to the selected reference rather than assuming a fixed camera for all assets.
+Read [APPROVED_RENDER_MASTER.md](APPROVED_RENDER_MASTER.md) and open
+[the exact approved image](style-masters/journey-approved-20261028.png).
+This replaces previous human/dog and generic textured/fabric/toy descriptions.
+Use the one approved image for current identities, warm soft color, continuous
+rounded geometry, clean materials, bright cream highlights, gentle reflections
+and retro feel. No felt/wool, porous/aged skin or dirty angular surface patches.
+The dog's anatomical left ear may sometimes fold; upright ears are valid.
+Other catalog images define shapes/marks/pose only, not competing rendering.
 
-[journey.png](<references/assets/journey.png>) · [crash-cubes-homepage.png](<references/assets/crash-cubes-homepage.png>) · [settings-slider.png](<references/assets/settings-slider.png>)
-
-## Recurring human character — identity
-
-Slim adult male caricature with oversized expressive head, swept light grey hair, glasses, prominent nose/ears, friendly smile and short facial hair. Cream short-sleeved shirt, narrow teal trousers and pale sneakers recur. Long thin bent limbs and large gestures give a playful silhouette. Keep face shape, glasses, hair, beard, outfit and body ratio consistent across new poses; inspect multiple poses before drawing. Accessories and poses vary by activity; they do not define a new person.
-
-[lik-game.png](<references/assets/logo addons/lik-game.png>) · [lik-laptop.png](<references/assets/logo addons/lik-laptop.png>) · [lik-gitara.png](<references/assets/logo addons/lik-gitara.png>) · [lik-nogomet.png](<references/assets/logo addons/lik-nogomet.png>) · [lik-cvijet.png](<references/assets/logo addons/lik-cvijet.png>)
-
-## Human with dog — paired identity
-
-Use these as the primary pair references. The dog has a tan/golden body, darker brown muzzle/face areas and ear details, large upright ears, pale chest/muzzle accents, dark nose and a lively friendly expression. Preserve its specific silhouette and face markings; do not substitute an arbitrary dog breed. The human and dog share the same warm softly shaded sculpted finish. Match their relative scale from the chosen full-body pair. A new park scene should read both pair references plus an environment reference; the scene may change while their identities stay stable.
-
-[lik-pas.png](<references/assets/logo addons/lik-pas.png>) · [lik-lajna.png](<references/assets/logo addons/lik-lajna.png>) · [lik-speceraj.png](<references/assets/logo addons/lik-speceraj.png>)
+Latest Jimbo body authority: [original Endurance runner](style-masters/jimbo-body-endurance-20261029.png). Keep long thin arms/legs, narrow wrists/ankles, a slim torso and the original relatively large head. See the body-proportions section in APPROVED_RENDER_MASTER.md. This supplements body proportions only; the locked Journey face and shared render remain authoritative.
 
 ## Home slider — hero compositions
 
@@ -71,3 +66,7 @@ Soft translucent soap bubbles use pale cream/pink interiors and bright edge refl
 ## Finding every reference
 
 [REFERENCE_INDEX.md](REFERENCE_INDEX.md) groups every copied file with direct image links; [reference-manifest.json](reference-manifest.json) records source paths, bytes and SHA-256. Folder names and original filenames are preserved, including historical spelling. Density variants and old/experimental files are retained, but are not automatically preferred over the current primary references above. For detailed icon families not described above, open their complete PNGs before proposing specific material/identity claims.
+
+## Nala muzzle clarification · 2026-10-29
+
+The approved Journey dog has a slightly elongated rounded muzzle and a playful cartoon design in soft warm volumetric 3D. Preserve forward muzzle projection, broad rounded nose, expressive eyes and continuous smile/jaw. See APPROVED_RENDER_MASTER.md for the current rule; avoid short baby-puppy faces, pointed wolf muzzles and photorealistic fur.

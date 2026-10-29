@@ -9,6 +9,7 @@ import SpriteKit
     private let timeouts:NativeSourceAppTimeoutOwner,generation:UInt64,five:NativeDiceNode,one:NativeDiceNode,parent:SKNode
     private let current:()->Bool,hasUnlockedSix:()->Bool,nodeCurrent:(NativeDiceNode)->Bool
     private let pointerExit:(@escaping()->Void)->Bool,sheetExit:(@escaping()->Void)->Bool,activate:()->Bool
+    private let presentAfterExit:(()->Bool)?
     private let readyToExit:()->Bool,activationDelayMilliseconds:Int
     private var timer:NativeSourceAppTimeoutOwner.Receipt?,deadline:UInt64=0,interacted=false
     private(set) var phase=Phase.idle
@@ -16,14 +17,14 @@ import SpriteKit
     init?(service:NativeSourceAnimationClockService,timeouts:NativeSourceAppTimeoutOwner,generation:UInt64,five:NativeDiceNode,one:NativeDiceNode,parent:SKNode,
         current:@escaping()->Bool,hasUnlockedSix:@escaping()->Bool,nodeCurrent:@escaping(NativeDiceNode)->Bool,
         pointerExit:@escaping(@escaping()->Void)->Bool,sheetExit:@escaping(@escaping()->Void)->Bool,activate:@escaping()->Bool,
-        readyToExit:@escaping()->Bool={true},activationDelayMilliseconds:Int=90) {
+        readyToExit:@escaping()->Bool={true},activationDelayMilliseconds:Int=90,presentAfterExit:(()->Bool)?=nil) {
         guard generation>0,five !== one,service.sourceMicrotaskRAFBoundaryInstalled,
             let tasks=service.sourceMicrotaskTasks,timeouts.sourceMicrotaskTasks === tasks,
             five.parent === parent,one.parent === parent,five.sourceContactNodeAlive,one.sourceContactNodeAlive,
             five.sourceGeneration==generation,one.sourceGeneration==generation,current() else{return nil}
         self.timeouts=timeouts;self.generation=generation;self.five=five;self.one=one;self.parent=parent
         self.current=current;self.hasUnlockedSix=hasUnlockedSix;self.nodeCurrent=nodeCurrent;self.pointerExit=pointerExit;self.sheetExit=sheetExit;self.activate=activate
-        self.readyToExit=readyToExit;self.activationDelayMilliseconds=max(0,activationDelayMilliseconds)
+        self.presentAfterExit=presentAfterExit;self.readyToExit=readyToExit;self.activationDelayMilliseconds=max(0,activationDelayMilliseconds)
     }
     private func admitted()->Bool{guard phase != .retired,phase != .finished else{return false};let valid=current();return valid && phase != .retired && phase != .finished}
     @discardableResult func start()->Bool {
@@ -40,9 +41,10 @@ import SpriteKit
             let now=DispatchTime.now().uptimeNanoseconds;self.deadline += 40_000_000
             if self.deadline<=now{self.deadline += ((now-self.deadline)/40_000_000+1)*40_000_000}
             let hasSix=self.hasUnlockedSix();guard self.admitted() else{self.dispose();return}
+            if self.presentAfterExit != nil && !hasSix {self.schedulePoll();return}
             let pairIntact=self.bound(self.five) && self.five.sourceValue==5 && self.bound(self.one) && self.one.sourceValue==1
             guard hasSix || (self.interacted && !pairIntact) else{self.schedulePoll();return}
-            guard self.readyToExit(),self.admitted() else{self.schedulePoll();return}
+            guard (self.presentAfterExit != nil || self.readyToExit()),self.admitted() else{self.schedulePoll();return}
             self.phase = .pointerExit
             guard self.pointerExit({[weak self] in
                 guard let self else{return};guard self.admitted() else{self.dispose();return};guard self.phase == .pointerExit else{return}
@@ -50,6 +52,10 @@ import SpriteKit
                 guard self.sheetExit({[weak self] in
                     guard let self else{return};guard self.admitted() else{self.dispose();return};guard self.phase == .sheetExit else{return}
                     self.phase = .activationWait
+                    if let present=self.presentAfterExit {
+                        guard present(),self.admitted() else{self.dispose();return}
+                        self.activateWhenReady();return
+                    }
                     if self.activationDelayMilliseconds==0 {
                         if self.activate(),self.phase != .retired {self.phase = .finished}else{self.dispose()}
                         return
@@ -63,6 +69,19 @@ import SpriteKit
                 }) else{self.dispose();return}
             }) else{self.dispose();return}
         })
+    }
+    // Native paper can already be entering; the canonical preparation barrier
+    // stays owned until readiness succeeds. Reuse this monitor's single timeout.
+    private func activateWhenReady() {
+        guard admitted(),phase == .activationWait else{dispose();return}
+        if readyToExit(),admitted(),activate() {
+            if phase != .retired{phase = .finished};return
+        }
+        guard admitted(),phase == .activationWait else{return}
+        timer=timeouts.schedule(sourceID:"tutorial-second-preparation40",generation:generation,delayMilliseconds:40,elapsed:{[weak self] in
+            guard let self else{return};self.timer=nil;self.activateWhenReady()
+        })
+        if timer==nil{dispose()}
     }
     func dispose(){guard phase != .retired else{return};phase = .retired;let old=timer;timer=nil;if let old{_=timeouts.cancel(old)}}
     isolated deinit{dispose()}

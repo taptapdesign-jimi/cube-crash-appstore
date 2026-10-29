@@ -1,0 +1,92 @@
+[
+  {
+    "file": "assets/ui/native-stage-stats-v9/info-slab-2@3x.png",
+    "size": [
+      978,
+      1518
+    ],
+    "alpha_preserved": true,
+    "upper83percent_identical": true,
+    "sha256": "ead5dcabc4446e5f7ad1a9d0abc31c5504553171954ead768db93b9dfc66f2e7"
+  },
+  {
+    "file": "assets/ui/native-stage-stats-v9/info-slab-2@2x.png",
+    "size": [
+      652,
+      1012
+    ],
+    "alpha_preserved": true,
+    "upper83percent_identical": true,
+    "sha256": "5afb4918450cd5ce5e19aa15dcd346a0c209ad61e40a241f738084ba3d2a19ea"
+  },
+  {
+    "file": "assets/ui/native-stage-stats-v9/info-slab-2.png",
+    "size": [
+      326,
+      506
+    ],
+    "alpha_preserved": true,
+    "upper83percent_identical": true,
+    "sha256": "d2aaaa8d8c75e4a116245247fcde09e375792d7bf35fe124444cee15c1c7b525"
+  },
+  {
+    "file": "assets/ui/native-stage-stats-v9/info-slab-3@3x.png",
+    "size": [
+      978,
+      1518
+    ],
+    "alpha_preserved": true,
+    "upper83percent_identical": true,
+    "sha256": "62b710d4d955c28bdf170267f3381e6c97f3795f3bdd9230f59abf11686d77d6"
+  },
+  {
+    "file": "assets/ui/native-stage-stats-v9/info-slab-3.png",
+    "size": [
+      326,
+      506
+    ],
+    "alpha_preserved": true,
+    "upper83percent_identical": true,
+    "sha256": "63d77a4846dac51f2574f3a226f23162bf04e3a0ec43b92584b146dd682b04e9"
+  },
+  {
+    "file": "assets/ui/native-stage-stats-v9/info-slab-1@2x.png",
+    "size": [
+      652,
+      1012
+    ],
+    "alpha_preserved": true,
+    "upper83percent_identical": true,
+    "sha256": "25ae57976763fe1ac18544a91e3f38bd11f4bdc7dd0a9fe54f5c03c70b37768f"
+  },
+  {
+    "file": "assets/ui/native-stage-stats-v9/info-slab-1.png",
+    "size": [
+      326,
+      506
+    ],
+    "alpha_preserved": true,
+    "upper83percent_identical": true,
+    "sha256": "436d0b9c141934fa2f18bbf8c92e6d47a1ff837f3965f62e6a5d9c7ddd07fe7f"
+  },
+  {
+    "file": "assets/ui/native-stage-stats-v9/info-slab-1@3x.png",
+    "size": [
+      978,
+      1518
+    ],
+    "alpha_preserved": true,
+    "upper83percent_identical": true,
+    "sha256": "eff0c842fad0c0b0641384317bd5ddd864866acc2287d85113ce00db35c96513"
+  },
+  {
+    "file": "assets/ui/native-stage-stats-v9/info-slab-3@2x.png",
+    "size": [
+      652,
+      1012
+    ],
+    "alpha_preserved": true,
+    "upper83percent_identical": true,
+    "sha256": "e130d623dab1de58ce2fefcbf00ed239ece4526c8181b55808232da8e469f9a5"
+  }
+]

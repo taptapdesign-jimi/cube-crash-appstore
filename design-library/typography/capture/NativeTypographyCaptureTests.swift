@@ -191,8 +191,8 @@ import StackToSixNativeState
         for scene in scenes where ["stage-play","stage-continue","stage-forest","stage-beach","stage-area55"].contains(scene["id"] as? String ?? "") {
             for t in (scene["texts"] as? [[String:Any]]) ?? [] {
                 let text=t["text"] as? String ?? ""
-                if text.hasPrefix("Stage ") || text=="0" {XCTAssertEqual((t["size"] as? NSNumber)?.doubleValue,28);values += 1}
-                if ["High score","Longest combo"].contains(text) {XCTAssertEqual((t["size"] as? NSNumber)?.doubleValue,18);labels += 1}
+                if text.hasPrefix("Stage ") || text=="0" {XCTAssertEqual((t["size"] as? NSNumber)?.doubleValue,text=="0" ? 34:28);values += 1}
+                if ["High score","Best combo"].contains(text) {XCTAssertEqual((t["size"] as? NSNumber)?.doubleValue,18);labels += 1}
             }
         }
         XCTAssertEqual(values,15);XCTAssertEqual(labels,10)
@@ -358,4 +358,28 @@ import StackToSixNativeState
         try capture("cleared-celebration","CLEARED · animated glyph sizes","Effect","Final merge → CLEARED celebration","native/gameplay-ui/NativeArcadeRoundPresentation.swift");cleared.dispose()
         XCTAssertGreaterThan(scenes.count,20)
     }
+    func testCaptureTutorialActionButtons() async throws {
+        scenes=try JSONSerialization.jsonObject(with:Data(contentsOf:output.appendingPathComponent("scenes.json"))) as! [[String:Any]]
+        scenes.removeAll{["tutorial","tutorial-merge","tutorial-special","tutorial-special-bar"].contains($0["id"] as? String ?? "")}
+        let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+        window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));art=JimiV9Artwork(resourceRoot:root)
+        defer{window.isHidden=true;window.rootViewController=nil;previous?.makeKeyAndVisible()}
+        for (step,id,name) in [(1,"tutorial","Drag to stack · Got it"),(2,"tutorial-merge","Merge dice · Got it"),(4,"tutorial-special","Special dice · Got it")] {
+            reset();let overlay=NativeTutorialOverlay(resourceRoot:root);mount(overlay);overlay.show(step:step,from:nil,to:nil,initial:true);try await wait(0.9)
+            try capture(id,name,"Tutorial","First play → tutorial sheet","native/gameplay-app/NativeTutorialOverlay.swift");overlay.dispose()
+        }
+        reset();let overlay=NativeTutorialOverlay(resourceRoot:root);mount(overlay);XCTAssertTrue(overlay.showSpecialBar(entered:{}));try await wait(0.9)
+        try capture("tutorial-special-bar","Special Bar · Continue","Tutorial","First play → earned meter guide","native/gameplay-app/NativeTutorialOverlay.swift");overlay.dispose()
+    }
+
+    func testCaptureClearStageFreeMovementCopy() async throws {
+        scenes=try JSONSerialization.jsonObject(with:Data(contentsOf:output.appendingPathComponent("scenes.json"))) as! [[String:Any]]
+        scenes.removeAll{($0["id"] as? String)=="tutorial-clear"}
+        let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+        window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));art=JimiV9Artwork(resourceRoot:root)
+        defer{window.isHidden=true;window.rootViewController=nil;previous?.makeKeyAndVisible()}
+        reset();let overlay=NativeTutorialOverlay(resourceRoot:root);mount(overlay);overlay.show(step:3,from:nil,to:nil,initial:true);try await wait(0.9)
+        try capture("tutorial-clear","Clear the stage · free movement","Tutorial","First play → Clear the stage","native/gameplay-app/NativeTutorialOverlay.swift");overlay.dispose()
+    }
+
 }

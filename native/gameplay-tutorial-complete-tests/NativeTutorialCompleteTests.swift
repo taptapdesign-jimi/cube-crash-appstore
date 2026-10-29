@@ -16,6 +16,30 @@ final class NativeTutorialCompleteTests: XCTestCase {
         let window = UIWindow(frame:CGRect(origin:.zero,size:size)); window.rootViewController = owner; window.makeKeyAndVisible()
         owner.view.frame = window.bounds; owner.view.setNeedsLayout(); owner.view.layoutIfNeeded(); return window
     }
+    func testCompactHeadingAndBalancedCompositionAtPhoneSizes()throws {
+        for size in [CGSize(width:320,height:568),CGSize(width:390,height:667),CGSize(width:390,height:844),CGSize(width:430,height:932)] {
+            let owner=NativeTutorialCompleteController(resourceRoot:root,reducedMotion:true)
+            let window=mount(owner,size:size);defer{owner.dispose();window.isHidden=true}
+            owner.sampleEnter(seconds:1)
+            let labels=owner.visualUnit.subviews.compactMap{$0 as? UILabel}
+            let title=try XCTUnwrap(labels.first),subtitle=labels[1]
+            print("[TutorialHeading] font=\(title.font.pointSize) line=\(title.font.lineHeight) asc=\(title.font.ascender) desc=\(title.font.descender) bounds=\(title.bounds)")
+            let style=try XCTUnwrap(title.attributedText?.attribute(.paragraphStyle,at:0,effectiveRange:nil) as? NSParagraphStyle)
+            XCTAssertEqual(style.minimumLineHeight,style.maximumLineHeight)
+            XCTAssertLessThanOrEqual(style.maximumLineHeight/title.font.pointSize,1.12)
+            XCTAssertLessThan(title.bounds.height,title.font.pointSize*2.7,"Two lines must read as one compact heading")
+            XCTAssertGreaterThanOrEqual(subtitle.frame.minY-title.frame.maxY,10)
+            XCTAssertLessThanOrEqual(subtitle.frame.minY-title.frame.maxY,16)
+            let hero=try XCTUnwrap(owner.visualUnit.subviews.compactMap{$0 as? UIImageView}.first{$0.layer.anchorPoint.y==0.74})
+            let button=try XCTUnwrap(continueButton(owner) as? JimiV9PlainButton).cartoonBounceLayoutView
+            XCTAssertGreaterThanOrEqual(hero.frame.minY,subtitle.frame.maxY+20)
+            XCTAssertLessThanOrEqual(hero.frame.maxY+36,button.frame.minY)
+            XCTAssertLessThanOrEqual(button.frame.maxY,size.height-20)
+            XCTAssertEqual(title.accessibilityLabel,"Tutorial completed")
+            let image=UIGraphicsImageRenderer(bounds:owner.view.bounds).image{_ in owner.view.drawHierarchy(in:owner.view.bounds,afterScreenUpdates:true)}
+            try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/tutorial-complete-\(Int(size.width))x\(Int(size.height)).png"))
+        }
+    }
     func testContinueReceiptIsExactlyOnceAndRetainsOpaqueTransitionCover() async {
         let owner = NativeTutorialCompleteController(resourceRoot:root,reducedMotion:true)
         let window = mount(owner)
@@ -57,7 +81,7 @@ final class NativeTutorialCompleteTests: XCTestCase {
         XCTAssertLessThanOrEqual(button.frame.maxY,667); XCTAssertGreaterThan(button.bounds.height,44)
         let images = owner.visualUnit.subviews.compactMap { $0 as? UIImageView }
         XCTAssertEqual(images.count,2); XCTAssertTrue(images.allSatisfy { $0.image != nil })
-        XCTAssertEqual(owner.visualUnit.subviews.compactMap { $0 as? UILabel }.map(\.text),["Tutorial completed","You’re ready to play!"])
+        XCTAssertEqual(owner.visualUnit.subviews.compactMap { $0 as? UILabel }.map(\.text),["Tutorial\ncompleted","You’re ready to play!"])
         owner.dispose(); window.isHidden = true
     }
     func testIndividualElementsFollowSharedHomepageExitWithThirtyMillisecondStagger() {

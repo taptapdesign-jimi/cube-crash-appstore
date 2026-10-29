@@ -31,7 +31,8 @@ nonisolated final class NativeWildMeterDropTests: XCTestCase {
                     frame.carrier.pose.point.x,frame.carrier.pose.point.y,frame.carrier.pose.scaleX,frame.carrier.pose.scaleY,frame.carrier.pose.rotation,frame.carrier.pose.opacity]
                 let expected=[row.tile.x,row.tile.y,row.tile.scaleX,row.tile.scaleY,row.tile.rotation,row.tile.opacity,
                     row.carrier.x,row.carrier.y,row.carrier.scaleX,row.carrier.scaleY,row.carrier.rotation,row.carrier.opacity]
-                for i in actual.indices {XCTAssertEqual(actual[i],expected[i],accuracy:0.000000001,"\(r.arcade)/\(r.special)/\(r.viewport.width) t=\(row.time) field\(i)")}
+                // Native backpack exit intentionally overrides only Y, scale and opacity.
+                for i in actual.indices where r.arcade || row.time<1.08 || ![7,8,9,11].contains(i) {XCTAssertEqual(actual[i],expected[i],accuracy:0.000000001,"\(r.arcade)/\(r.special)/\(r.viewport.width) t=\(row.time) field\(i)")}
                 XCTAssertEqual(frame.tile.visible,row.tile.visible);XCTAssertEqual(frame.tile.stageParent,row.tile.stageParent)
                 XCTAssertEqual(frame.tile.dropping,row.tile.dropping);XCTAssertEqual(frame.tile.handoff,row.tile.handoff)
                 XCTAssertEqual(frame.tile.interactive,row.tile.interactive);XCTAssertEqual(frame.carrier.source,row.carrier.frame)
@@ -39,6 +40,24 @@ nonisolated final class NativeWildMeterDropTests: XCTestCase {
             }
         }
         XCTAssertEqual(checked,2100)
+    }
+    func testBackpackExitAnticipatesThenTravelsBelowViewportBeforeRelease() {
+        for width in [390.0,768.0] {
+            let plan=NativeWildMeterDropPlan(arcade:false,viewport:.init(x:width,y:844),tileSize:128,
+                target:.init(x:256,y:384),parentWorld:.init(a:0.55,d:0.55),originalRotation:0,
+                originalZIndex:0,usesUniformDropScale:false,random:{0.5})
+            let start=plan.sampleCarrier(1.08),anticipation=plan.sampleCarrier(1.16),travel=plan.sampleCarrier(1.30),end=plan.sampleCarrier(1.38)
+            XCTAssertEqual(start.pose.point.y,plan.backpackPoint.y,accuracy:0.000001)
+            XCTAssertLessThan(anticipation.pose.point.y,start.pose.point.y)
+            XCTAssertGreaterThan(travel.pose.point.y,start.pose.point.y)
+            XCTAssertEqual(travel.pose.opacity,1)
+            XCTAssertEqual(travel.pose.scaleX,plan.carrierScale)
+            XCTAssertEqual(travel.pose.scaleY,plan.carrierScale)
+            XCTAssertGreaterThan(end.pose.point.y,plan.viewport.y+plan.tileSize*plan.visualScale*2)
+            XCTAssertEqual(end.pose.opacity,0,accuracy:0.000001)
+            XCTAssertFalse(end.released)
+            XCTAssertTrue(plan.sampleCarrier(1.4).released)
+        }
     }
     @MainActor
     func testLiteralRegistryDimensionsDecideUniformScaleNotNativeBounds() async throws {

@@ -1,0 +1,3 @@
+# Nearly flush front — candidate07
+
+Unapproved image-only iteration. User says reduce inset totally. Actual generated result reviewed: raised tubular frame and inner gutter removed; front now reads as one continuous near-flat cream surface with softly rounded exterior edge. Thick lower sandstone sidewall, major cracks, top-right and lower-right chips remain. Generative texture drift is visible: fine polygonal texture has become stronger over the face and lower stone. Warm backdrop still present despite transparent request; cleanup pending before asset production. Candidate06 and all previous art retained. No runtime/code/build/device changes.

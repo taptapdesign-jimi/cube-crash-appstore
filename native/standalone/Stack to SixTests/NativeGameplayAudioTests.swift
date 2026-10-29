@@ -6,6 +6,67 @@ import StackToSixGameplay
 
 @MainActor
 final class NativeGameplayAudioTests:XCTestCase {
+    func testCleanBoardTitleVoiceAll114ExactMappingsAndPackagedPCM()throws {
+        XCTAssertEqual(NativeCleanBoardTitleVoice.entries.map(\.title),NativeResultHeadlines.clean)
+        XCTAssertEqual(NativeCleanBoardTitleVoice.entries.count,114)
+        let transport=Transport(),owner=NativeGameplayAudioOwner(root:NativeTestResources.root,enabled:true,transport:transport)
+        defer{owner.dispose()}
+        for (index,entry) in NativeCleanBoardTitleVoice.entries.enumerated() {
+            owner.resultMoment("clean-title",index:index,receipt:UInt64(index+1),generation:1)
+            let cue=try XCTUnwrap(transport.cues.last)
+            XCTAssertEqual(cue.source,entry.source);XCTAssertEqual(cue.voice,"native-clean-title")
+            XCTAssertEqual(20 * log10(cue.gain / 0.72),2,accuracy:0.000001);XCTAssertLessThan(cue.gain,1)
+            XCTAssertEqual(cue.rate,1);XCTAssertEqual(cue.delay,0);XCTAssertNil(cue.stopAfter)
+            let file=try AVAudioFile(forReading:NativeTestResources.root.appendingPathComponent(entry.source))
+            XCTAssertEqual(file.fileFormat.sampleRate,48000);XCTAssertEqual(file.fileFormat.channelCount,1)
+            let seconds=Double(file.length)/file.fileFormat.sampleRate
+            XCTAssertGreaterThan(seconds,0.3);XCTAssertLessThan(seconds,2)
+            XCTAssertTrue(entry.source.contains("/titles-v2-plus3db/"))
+            let original=try AVAudioFile(forReading:NativeTestResources.root.appendingPathComponent(entry.source.replacingOccurrences(of:"/titles-v2-plus3db/",with:"/titles-v1/")))
+            XCTAssertEqual(file.length,original.length)
+            let actual=try XCTUnwrap(AVAudioPCMBuffer(pcmFormat:file.processingFormat,frameCapacity:AVAudioFrameCount(file.length)))
+            let baseline=try XCTUnwrap(AVAudioPCMBuffer(pcmFormat:original.processingFormat,frameCapacity:AVAudioFrameCount(original.length)))
+            try file.read(into:actual);try original.read(into:baseline)
+            let a=try XCTUnwrap(actual.floatChannelData)[0],b=try XCTUnwrap(baseline.floatChannelData)[0]
+            var actualEnergy=0.0,baseEnergy=0.0,peak=0.0
+            for frame in 0..<Int(actual.frameLength) {
+                let x=Double(a[frame]),y=Double(b[frame])
+                actualEnergy+=x*x;baseEnergy+=y*y;peak=max(peak,abs(x))
+            }
+            XCTAssertEqual(10 * log10(actualEnergy/baseEnergy),3,accuracy:0.001)
+            XCTAssertLessThan(peak,1,"Amplified speech must retain every sample without clipping")
+        }
+        XCTAssertEqual(transport.cues.count,114)
+        XCTAssertNil(NativeCleanBoardTitleVoice.cue(index:-1));XCTAssertNil(NativeCleanBoardTitleVoice.cue(index:114))
+    }
+    func testCleanBoardTitleVoiceSelectedPreparationAndLifecycleGuards()throws {
+        final class SelectedTransport:NativeGameplayAudioTransport {
+            var cues:[NativeAudioCue]=[],prepared:[[String]]=[];var stops=0
+            func play(_ cue:NativeAudioCue){cues.append(cue)}
+            func stopAll(){stops+=1}
+            func dispose(){}
+            func prepareSelectedSources(_ sources:[String],capture:String,generation:UInt64)->Bool {prepared.append(sources);return true}
+        }
+        let transport=SelectedTransport(),owner=NativeGameplayAudioOwner(root:NativeTestResources.root,enabled:true,transport:transport)
+        owner.resultMoment("clean-title-prepare",index:73,receipt:1,generation:1)
+        XCTAssertEqual(transport.prepared,[[NativeCleanBoardTitleVoice.entries[73].source]])
+        XCTAssertTrue(transport.cues.isEmpty,"Preparation never plays or loads the whole title pool")
+        owner.resultMoment("clean-title",index:73,receipt:2,generation:1)
+        owner.resultMoment("clean-title",index:74,receipt:2,generation:1)
+        owner.resultMoment("clean-title",index:74,receipt:3,generation:99)
+        XCTAssertEqual(transport.cues.count,1)
+        owner.setEnabled(false);let stops=transport.stops
+        owner.resultMoment("clean-title",index:74,receipt:3,generation:1)
+        owner.setEnabled(true);owner.resultMoment("clean-title",index:74,receipt:3,generation:1)
+        owner.setForeground(false);owner.resultMoment("clean-title",index:74,receipt:4,generation:1)
+        owner.setForeground(true);owner.resultMoment("clean-title",index:74,receipt:4,generation:1)
+        XCTAssertEqual(transport.cues.count,1);XCTAssertGreaterThan(transport.stops,stops)
+        owner.beginGeneration(2);owner.resultMoment("clean-title",index:0,receipt:5,generation:1)
+        owner.resultMoment("clean-title",index:113,receipt:1,generation:2)
+        XCTAssertEqual(transport.cues.last?.source,NativeCleanBoardTitleVoice.entries[113].source)
+        owner.dispose();owner.resultMoment("clean-title",index:0,receipt:2,generation:2)
+        XCTAssertEqual(transport.cues.count,2)
+    }
     func testArcadeHomeThreeChoicesNeverRepeatAndRemainIndependentFromModalHistory() {
         for first in 0..<3 {
             var roll=(Double(first)+0.1)/3;var cues:[NativeAudioCue]=[],tails:[Transport]=[]
@@ -955,6 +1016,24 @@ final class NativeGameplayAudioTests:XCTestCase {
         owner.specialMoment(variant:"flower",moment:"leaves",receipt:2,generation:8);XCTAssertEqual(transport.cues.count,count)
         owner.dispose();owner.dispose();owner.beginGeneration(20);owner.routeFeedback("cta",receipt:1,generation:20)
         XCTAssertEqual(transport.disposals,1);XCTAssertEqual(transport.cues.count,count)
+    }
+    func testCleanCountingSoundsMatchFasterVisualWindowAndRetainSettingsGuards() {
+        let transport=Transport(),owner=NativeGameplayAudioOwner(root:NativeTestResources.root,enabled:true,transport:transport)
+        defer{owner.dispose()}
+        for (index,kind) in ["clean-count","clean-bonus","clean-bonus"].enumerated() {
+            owner.resultMoment(kind,receipt:UInt64(index+1),generation:1,duration:0.92)
+        }
+        XCTAssertEqual(transport.cues.count,6)
+        for cue in transport.cues {
+            XCTAssertEqual(cue.rate,1.25,accuracy:0.000001)
+            XCTAssertEqual(cue.stopAfter,0.92)
+            XCTAssertEqual(cue.fadeOut,0.096,accuracy:0.000001)
+        }
+        owner.setEnabled(false);owner.resultMoment("clean-bonus",receipt:4,generation:1,duration:0.92)
+        XCTAssertEqual(transport.cues.count,6)
+        owner.setEnabled(true);owner.setForeground(false)
+        owner.resultMoment("clean-count",receipt:5,generation:1,duration:0.92)
+        XCTAssertEqual(transport.cues.count,6)
     }
     func testNoMovesUsesVisibleResultMomentAndResultsStayDistinct() {
         let transport=Transport(),owner=NativeGameplayAudioOwner(root:URL(fileURLWithPath:"/unused"),enabled:true,transport:transport,random:{0.99})

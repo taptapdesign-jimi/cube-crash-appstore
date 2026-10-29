@@ -1,0 +1,15 @@
+{
+  "tool": "built-in image_gen",
+  "source": "assets/ui/native-stage-stats-v8/stat-tile@3x.png",
+  "request": "Remove brown/taupe skirt beneath wood and right vertical brown bevel. Match right edge to pale left edge; retain thin orange bottom wood, cream face and botanical sprig. Transparent background.",
+  "size": [
+    1110,
+    1417
+  ],
+  "mode": "RGBA",
+  "alpha_extrema": [
+    0,
+    255
+  ],
+  "review": "Inspected actual image: bottom wood is final material, both side rims cream with similar softness; minor generative texture/framing changes. Image-only candidate, not applied to runtime."
+}

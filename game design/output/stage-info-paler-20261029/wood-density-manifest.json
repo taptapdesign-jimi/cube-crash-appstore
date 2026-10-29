@@ -1,0 +1,26 @@
+[
+  {
+    "alphaIdenticalTo" : "assets\/ui\/native-stage-stats-v6\/stat-tile.png",
+    "density" : 1,
+    "file" : "stat-tile.png",
+    "height" : 176,
+    "master" : "thin-wood-mini-v7",
+    "width" : 138
+  },
+  {
+    "alphaIdenticalTo" : "assets\/ui\/native-stage-stats-v6\/stat-tile@2x.png",
+    "density" : 2,
+    "file" : "stat-tile@2x.png",
+    "height" : 352,
+    "master" : "thin-wood-mini-v7",
+    "width" : 276
+  },
+  {
+    "alphaIdenticalTo" : "assets\/ui\/native-stage-stats-v6\/stat-tile@3x.png",
+    "density" : 3,
+    "file" : "stat-tile@3x.png",
+    "height" : 528,
+    "master" : "thin-wood-mini-v7",
+    "width" : 414
+  }
+]

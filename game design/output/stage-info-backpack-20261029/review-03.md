@@ -1,0 +1,3 @@
+# Candidate03, reference01 restored
+
+Built-in imagegen edit using candidate01 as base and candidate02 only for outer wood-frame material. Actual inspected result restores aligned level stat tiles, thin title dividers and clean cream main modal with no wood outer frame. Wood grain rounded perimeter frames now surround only the two small cards instead of the previous gold coating. Leaf arrangements remain inside lower-left corners of small tiles only. Icons, recessed values 17.829 / 27, labels High score / Best combo, stars and Play remain readable. Generated redraw, not exact source pixels; static concept awaiting user review. No runtime changes; candidate01/02 retained.

@@ -18,14 +18,15 @@ final class NativeTransitionScenePlan {
             let hill=["mountain","hill1","hill2"].contains(key),front=key=="robo-front",walker=key=="robo-walker",groundFront=key=="robo-ground-front"
             let regularStart=theme == .forest ? 0.01+Double(index)*0.03:0.05+Double(index)*0.042525
             let ground=key=="robo-ground-front" || key=="robo-ground-rear"
+            let softArea55=theme == .area55 && (ground || key.hasPrefix("robo-fence"))
             let start=theme == .area55 ? front ? 0.32:!ground ? 0.62+Double(max(0,index-2))*0.042525:regularStart:regularStart
             let parallax=key=="mountain" ? 50.0:key=="hill1" ? -67:84
             let baseX=key=="mountain" ? -72.0:key=="hill1" ? -32:-20,scale=key=="mountain" ? 1.45:key=="hill1" ? 1.6:1.53
             let sign=front ? variation.frontDirection == -1 ? -1.0:1:walker && variation.walkerDirection==1 ? -1:1
             let sx=hill ? scale*0.68:key=="beach-shore-2" ? 0.7:front ? sign:0
             let initial=Pose(x:hill ? baseX-parallax*0.18:front ? -Double(variation.frontDirection)*max(360,viewportWidth):0,
-                y:hill ? (min(viewportHeight,760)*0.4).rounded():key=="beach-shore-2" || front ? 0:groundFront ? 4.2:14,
-                sx:sx,sy:abs(sx),opacity:key=="beach-shore-2" || front ? 1:0,rotation:hill || front ? 0:Double(index%2==0 ? -8:8))
+                y:hill ? (min(viewportHeight,760)*0.4).rounded():key=="beach-shore-2" || front ? 0:groundFront ? 4.2:softArea55 ? 7:14,
+                sx:sx,sy:abs(sx),opacity:key=="beach-shore-2" || front ? 1:0,rotation:hill || front ? 0:Double(index%2==0 ? -1:1)*(softArea55 ? (ground ? 2:4):8))
             var frames:[Frame]=[]
             if hill {
                 var target=initial;target.opacity=1;target.y=0;target.sx=scale;target.sy=scale
@@ -39,11 +40,13 @@ final class NativeTransitionScenePlan {
                 let restX=key=="robo-ground-rear" ? 100.0:groundFront ? -100:0,restRotation=key=="robo-fence" ? 6.0:0
                 let fenceSign=key=="robo-fence-static-right" ? -1.0:1
                 let renderSign=walker ? sign:fenceSign
-                let over=groundFront ? 1.012:1.04,rebound=groundFront ? 0.985:0.95
+                let over=softArea55 ? (ground ? 1.012:1.025):groundFront ? 1.012:1.04,rebound=softArea55 ? (ground ? 0.994:0.99):groundFront ? 0.985:0.95
                 var target=Pose(x:restX,y:0,sx:over*renderSign,sy:over,rotation:restRotation)
-                frames.append(Frame(duration:0.2835,to:target,ease:.backOut(groundFront ? 0.6:2)))
-                target.sx=rebound*renderSign;target.sy=rebound;frames.append(Frame(duration:0.0945,to:target,ease:.powerOut(2)))
-                target.sx=renderSign;target.sy=1;frames.append(Frame(duration:0.1134,to:target,ease:.backOut(groundFront ? 0.45:1.5)))
+                // Large sand plates and fences ease into one restrained rebound;
+                // no fast backOut acceleration or extra easing overshoot.
+                frames.append(Frame(duration:softArea55 ? (ground ? 0.48:0.40):0.2835,to:target,ease:softArea55 ? .sineInOut:.backOut(groundFront ? 0.6:2)))
+                target.sx=rebound*renderSign;target.sy=rebound;frames.append(Frame(duration:softArea55 ? (ground ? 0.14:0.13):0.0945,to:target,ease:softArea55 ? .sineInOut:.powerOut(2)))
+                target.sx=renderSign;target.sy=1;frames.append(Frame(duration:softArea55 ? (ground ? 0.18:0.17):0.1134,to:target,ease:softArea55 ? .sineInOut:.backOut(groundFront ? 0.45:1.5)))
                 if walker {
                     let end=Double(variation.walkerDirection)*max(viewportWidth+layer.width*1.5,viewportWidth*1.65)
                     let xs=[0.18,0.36,0.53,0.70,0.86,1.0],ys=[7.0,-7,9,-9,6,0],rots=[-3.0,3,-3,3,-2,0],scales=[1.01,0.99,1.01,0.99,1.01,1.0],durations=[0.34,0.42,0.44,0.46,0.46,0.48]

@@ -1,0 +1,98 @@
+[
+  {
+    "alphaIdenticalTo" : "assets\/ui\/native-stage-stats-v4\/info-slab.png",
+    "density" : 1,
+    "file" : "info-slab-1.png",
+    "height" : 482,
+    "master" : "slab-mild",
+    "width" : 326
+  },
+  {
+    "alphaIdenticalTo" : "assets\/ui\/native-stage-stats-v4\/info-slab@2x.png",
+    "density" : 2,
+    "file" : "info-slab-1@2x.png",
+    "height" : 964,
+    "master" : "slab-mild",
+    "width" : 652
+  },
+  {
+    "alphaIdenticalTo" : "assets\/ui\/native-stage-stats-v4\/info-slab@3x.png",
+    "density" : 3,
+    "file" : "info-slab-1@3x.png",
+    "height" : 1446,
+    "master" : "slab-mild",
+    "width" : 978
+  },
+  {
+    "alphaIdenticalTo" : "assets\/ui\/native-stage-stats-v4\/info-slab.png",
+    "density" : 1,
+    "file" : "info-slab-2.png",
+    "height" : 482,
+    "master" : "slab-medium",
+    "width" : 326
+  },
+  {
+    "alphaIdenticalTo" : "assets\/ui\/native-stage-stats-v4\/info-slab@2x.png",
+    "density" : 2,
+    "file" : "info-slab-2@2x.png",
+    "height" : 964,
+    "master" : "slab-medium",
+    "width" : 652
+  },
+  {
+    "alphaIdenticalTo" : "assets\/ui\/native-stage-stats-v4\/info-slab@3x.png",
+    "density" : 3,
+    "file" : "info-slab-2@3x.png",
+    "height" : 1446,
+    "master" : "slab-medium",
+    "width" : 978
+  },
+  {
+    "alphaIdenticalTo" : "assets\/ui\/native-stage-stats-v4\/info-slab.png",
+    "density" : 1,
+    "file" : "info-slab-3.png",
+    "height" : 482,
+    "master" : "slab-strong",
+    "width" : 326
+  },
+  {
+    "alphaIdenticalTo" : "assets\/ui\/native-stage-stats-v4\/info-slab@2x.png",
+    "density" : 2,
+    "file" : "info-slab-3@2x.png",
+    "height" : 964,
+    "master" : "slab-strong",
+    "width" : 652
+  },
+  {
+    "alphaIdenticalTo" : "assets\/ui\/native-stage-stats-v4\/info-slab@3x.png",
+    "density" : 3,
+    "file" : "info-slab-3@3x.png",
+    "height" : 1446,
+    "master" : "slab-strong",
+    "width" : 978
+  },
+  {
+    "alphaIdenticalTo" : "assets\/ui\/native-stage-stats-v5\/stat-tile.png",
+    "density" : 1,
+    "file" : "stat-tile.png",
+    "height" : 176,
+    "master" : "pale-mini",
+    "width" : 138
+  },
+  {
+    "alphaIdenticalTo" : "assets\/ui\/native-stage-stats-v5\/stat-tile@2x.png",
+    "density" : 2,
+    "file" : "stat-tile@2x.png",
+    "height" : 352,
+    "master" : "pale-mini",
+    "width" : 276
+  },
+  {
+    "alphaIdenticalTo" : "assets\/ui\/native-stage-stats-v5\/stat-tile@3x.png",
+    "density" : 3,
+    "file" : "stat-tile@3x.png",
+    "height" : 528,
+    "master" : "pale-mini",
+    "width" : 414
+  }
+]

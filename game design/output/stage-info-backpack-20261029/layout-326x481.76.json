@@ -1,0 +1,61 @@
+{
+  "status": "Current Native stone layout; flat live scores, no recessed wells",
+  "units": "pt",
+  "panel": {
+    "width": 326,
+    "height": 481.76
+  },
+  "frames": {
+    "stars": {
+      "x": 94,
+      "y": 35,
+      "width": 138,
+      "height": 42
+    },
+    "title": {
+      "x": 82,
+      "y": 106,
+      "width": 162,
+      "height": 38
+    },
+    "high_score": {
+      "x": 24,
+      "y": 150,
+      "width": 138,
+      "height": 176
+    },
+    "best_combo": {
+      "x": 164,
+      "y": 150,
+      "width": 138,
+      "height": 176
+    },
+    "play": {
+      "x": 44,
+      "y": 339.12,
+      "width": 238,
+      "height": 80.64
+    }
+  },
+  "stat_tile": {
+    "material": "Textured cream stone, approximately 10 percent darker than main slab",
+    "icon_size": 68.8,
+    "icon_y": 18,
+    "number_y": 86,
+    "number_height": 42,
+    "caption_y": 127,
+    "caption_height": 24,
+    "caption_font": "Baloo Regular18",
+    "botanical_position": "upper inside corners mirrored",
+    "density_variants": [
+      1,
+      2,
+      3
+    ]
+  },
+  "notes": [
+    "Exact326x481.76pt nominal card at390pt phone width; scale down on narrow/short viewports.",
+    "Native frame artwork is reference-derived, with slight generative material differences.",
+    "Play retains the existing80.64pt button art height and bounce owner."
+  ]
+}

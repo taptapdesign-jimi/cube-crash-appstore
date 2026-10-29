@@ -351,6 +351,14 @@ final class NativeGameplayAudioOwner {
         guard admit("result",receipt:receipt,generation:generation) else{onFinished?();return}
         let group:String
         switch kind {
+        case "clean-title-prepare":
+            if let cue=NativeCleanBoardTitleVoice.cue(index:index) {
+                _=transport.prepareSelectedSources([cue.source],capture:"clean-title-\(generation)-\(index)",generation:generation)
+            }
+            onFinished?();return
+        case "clean-title":
+            if let cue=NativeCleanBoardTitleVoice.cue(index:index) {transport.play(cue)}
+            onFinished?();return
         case "no-moves":group="noMoves"
         case "clean-applause":beginHarpSequence();group="cleanApplause"
         case "clean-sax":group="cleanSax"
@@ -380,7 +388,7 @@ final class NativeGameplayAudioOwner {
         default:onFinished?();return
         }
         let hookVoice=kind=="clean-sax" ? "clean-board-saxophone-happy" : kind=="fail-sax" ? "fail-screen-saxophone":nil
-        play(group,duration:duration,completionVoice:hookVoice,onFinished:onFinished)
+        play(group,duration:duration,rateScale:(kind=="clean-count" || kind=="clean-bonus") ? 1/NativeResultPresentationPlan.cleanCountingScale:1,completionVoice:hookVoice,onFinished:onFinished)
     }
     static func hudCoinGain(relativeSize:Double)->Double {
         let fraction=relativeSize.isFinite ? min(1,max(0,relativeSize)):0
@@ -525,12 +533,12 @@ final class NativeGameplayAudioOwner {
     private func pick(_ count:Int)->Int {let roll=random();return min(count-1,max(0,Int((roll.isFinite ? min(1-Double.ulpOfOne,max(0,roll)) : 0)*Double(count))))}
     private func shuffle(_ input:[Int])->[Int] {var order=input;for index in stride(from:order.count-1,through:1,by:-1) {order.swapAt(index,pick(index+1))};return order}
     private func beginHarpSequence(){var order=shuffle([0,1,2]);if order==previousHarpOrder {order.append(order.removeFirst())};harpOrder=order;previousHarpOrder=order;harpSequenceReady=true}
-    private func play(_ group:String,duration:Double?=nil,voiceSuffix:String="",completionVoice:String?=nil,onFinished:(()->Void)?=nil) {
+    private func play(_ group:String,duration:Double?=nil,rateScale:Double=1,voiceSuffix:String="",completionVoice:String?=nil,onFinished:(()->Void)?=nil) {
         var completionAttached=false
         for cue in NativeAuthoredAudioCatalog.groups[group] ?? [] {
             let adjusted:NativeAudioCue
             if let duration,duration.isFinite,duration>0,cue.stopAfter != nil {
-                adjusted=NativeAudioCue(source:cue.source,voice:cue.voice,gain:cue.gain,rate:cue.rate,delay:cue.delay,stopAfter:duration,fadeOut:min(cue.fadeOut,duration))
+                adjusted=NativeAudioCue(source:cue.source,voice:cue.voice,gain:cue.gain,rate:cue.rate*rateScale,delay:cue.delay,stopAfter:duration,fadeOut:min(cue.fadeOut/rateScale,duration))
             } else {adjusted=cue}
             let delivered=voiceSuffix.isEmpty ? adjusted:NativeAudioCue(source:adjusted.source,voice:adjusted.voice+voiceSuffix,gain:adjusted.gain,rate:adjusted.rate,delay:adjusted.delay,stopAfter:adjusted.stopAfter,fadeOut:adjusted.fadeOut)
             if let onFinished,completionVoice==cue.voice {completionAttached=true;var finished=false;transport.play(delivered){_ in guard !finished else{return};finished=true;onFinished()}}else{transport.play(delivered)}

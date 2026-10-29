@@ -15,6 +15,38 @@ final class NativeThemedBoardTransitionLifecycleTests:XCTestCase {
     private func make(board:Int,resources:Resources,generation:UInt64=9)->NativeThemedBoardTransitionController {
         NativeThemedBoardTransitionController(root:URL(fileURLWithPath:"/unused"),board:board,viewport:CGSize(width:390,height:844),generation:generation,resources:resources,font:.systemFont(ofSize:166),random:{0.37})
     }
+    func testWarmAndColdDisplayClockCannotSkipEnterAfterMainThreadStall() throws {
+        for board in [1,11,21] {
+            for warm in [true,false] {
+                let resources=Resources(),owner=make(board:board,resources:resources)
+                owner.loadViewIfNeeded();XCTAssertEqual(owner.view.alpha,0)
+                owner.start()
+                if warm {resources.accept()}
+                // A prepared, detached carrier must not consume its enter.
+                owner.advanceDisplayClock(timestamp:10)
+                owner.advanceDisplayClock(timestamp:11)
+                XCTAssertEqual(owner.view.alpha,0)
+                let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+                let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=owner;window.makeKeyAndVisible()
+                defer{owner.dispose();window.isHidden=true;previous?.makeKeyAndVisible()}
+                if !warm {resources.accept()}
+                owner.advanceDisplayClock(timestamp:12)
+                XCTAssertEqual(owner.view.alpha,0,"First attached frame retains the authored hidden pose")
+                owner.advanceDisplayClock(timestamp:12.8)
+                let firstAge=1.0/30
+                XCTAssertEqual(owner.view.alpha,NativeBoardTransitionPlan.powerOut(firstAge/0.2,2),accuracy:0.000001,"A stalled frame must not jump to a fully visible scene")
+                owner.advanceDisplayClock(timestamp:12.8+1.0/60)
+                XCTAssertEqual(owner.view.alpha,NativeBoardTransitionPlan.powerOut((firstAge+1.0/60)/0.2,2),accuracy:0.000001,"Normal 60Hz time remains unchanged")
+                let frozen=owner.view.alpha
+                owner.setForeground(false);owner.advanceDisplayClock(timestamp:20)
+                XCTAssertEqual(owner.view.alpha,frozen)
+                owner.setForeground(true);owner.advanceDisplayClock(timestamp:30)
+                XCTAssertEqual(owner.view.alpha,frozen,"Background time cannot skip the remaining enter")
+                owner.dispose();owner.advanceDisplayClock(timestamp:31)
+                XCTAssertFalse(owner.hasActiveClock)
+            }
+        }
+    }
     private final class DepthResources:NativeBoardTransitionResources {
         let mountain:UIImage,cloud:UIImage,clear:UIImage
         init(){

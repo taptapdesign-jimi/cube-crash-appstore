@@ -4,6 +4,18 @@ import StackToSixGameplay
 @testable import Stack_to_Six
 
 @MainActor final class NativeSourceTutorialSecondStepMonitorTests:XCTestCase {
+    func testNativeSpecialPaperWaitsForCommittedSixButNotHUDSettlement()async throws {
+        let f=try Fixture();defer{f.dispose()};var committed=false,settled=false,presented=0,activated=0
+        let monitor=try XCTUnwrap(NativeSourceTutorialSecondStepMonitor(service:f.service,timeouts:f.timeouts,generation:1,
+            five:f.targets[0],one:f.targets[1],parent:f.construction.canvas,current:{f.current},hasUnlockedSix:{committed},nodeCurrent:{_ in true},
+            pointerExit:{$0();return true},sheetExit:{$0();return true},activate:{activated+=1;return true},readyToExit:{settled},
+            presentAfterExit:{presented+=1;return true}))
+        defer{monitor.dispose()};XCTAssertTrue(monitor.start());monitor.pointerDown(f.targets[0])
+        XCTAssertTrue(f.targets[0].forceSourceTutorialInitialValue(4));try await Task.sleep(for:.milliseconds(80))
+        XCTAssertEqual(presented,0,"A changed pair alone cannot present the Native next lesson")
+        committed=true;try await Task.sleep(for:.milliseconds(80));XCTAssertEqual(presented,1);XCTAssertEqual(activated,0)
+        settled=true;try await Task.sleep(for:.milliseconds(80));XCTAssertEqual(activated,1);XCTAssertFalse(monitor.pendingTimer)
+    }
     func testNativeFourthDropAdmissionStartsSheetImmediatelyThenWaitsActualLanding()async throws {
         let f=try Fixture();defer{f.dispose()};let node=f.targets[0]
         var dropping=true,activated=0,prepared=0,entered:(()->Void)?

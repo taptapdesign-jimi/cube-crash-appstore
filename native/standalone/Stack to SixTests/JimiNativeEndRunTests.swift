@@ -10,6 +10,26 @@ final class JimiNativeEndRunTests: XCTestCase {
         #endif
         guard ProcessInfo.processInfo.environment["SIMULATOR_UDID"] == "1018BE2D-491B-465F-8F75-3E5BEB38C22A" else {throw XCTSkip("Isolated QA Simulator only")}
     }
+    func testExportShallowerCTAFaceRecipe() throws {
+        let artwork=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+        let output=URL(fileURLWithPath:"/tmp/native-cta-shallow-export")
+        for width in [CGFloat(216.2),240,249] {for scale in [CGFloat(4),6] {for primary in [true,false] {
+            let compact=width==216.2
+            let button=JimiV9PlainButton(frame:CGRect(x:0,y:0,width:width,height:compact ? 70:80))
+            button.accessibilityIdentifier=primary ? "native.end-run.restart":"native.end-run.exit"
+            button.setTitle(primary ? "Restart":"Exit Stage",for:.normal)
+            button.applyModalCTA(artwork:artwork,primary:primary,preparesSculptedFaceOffMain:false)
+            button.layoutIfNeeded()
+            let face=try XCTUnwrap(button.subviews.first{$0.accessibilityIdentifier=="native.cta.sculpted-face"})
+            face.contentScaleFactor=scale
+            let raster=try XCTUnwrap(button.sculptedFaceRasterForTesting(original:true))
+            let folder=compact ? "native-paired-cta-shallow-v3":("native-end-run-cta-shallow-v4/"+(primary ? "primary":"secondary"))
+            let dir=output.appendingPathComponent(folder)
+            try FileManager.default.createDirectory(at:dir,withIntermediateDirectories:true)
+            let name="\(primary ? "restart":"exit")-\(compact ? "216p2":String(Int(width)))-\(Int(scale))x.png"
+            try XCTUnwrap(UIImage(cgImage:raster).pngData()).write(to:dir.appendingPathComponent(name))
+        }}}
+    }
     private var dto:[String:Any] {["title":"Exit Game?","subtitle":"Come back anytime.\nRound 01 progress saved.","restartLabel":"New Game","exitLabel":"Exit Game"]}
     func testBundledExitFacesMatchCurrentRecipeAcrossBothWidthsAndDensities() throws {
         let root=NativeTestResources.root,artwork=JimiV9Artwork(resourceRoot:NativeTestResources.root)
@@ -34,7 +54,7 @@ final class JimiNativeEndRunTests: XCTestCase {
             let reference=try XCTUnwrap(button.sculptedFaceRasterForTesting(original:true))
             XCTAssertEqual(actual.width,Int(width*scale));XCTAssertEqual(actual.height,Int(80*scale))
             let name="\(primary ? "restart":"exit")-\(Int(width))-\(Int(scale))x.png"
-            XCTAssertTrue(FileManager.default.fileExists(atPath:root.appendingPathComponent((primary ? "assets/ui/native-end-run-cta-ee8158-v1/base/":"assets/ui/native-end-run-cta-soft-top-v3/")+name).path))
+            XCTAssertTrue(FileManager.default.fileExists(atPath:root.appendingPathComponent((primary ? "assets/ui/native-end-run-cta-shallow-v4/primary/":"assets/ui/native-end-run-cta-shallow-v4/secondary/")+name).path))
             XCTAssertEqual(pixels(actual),pixels(reference),"Bundled material must preserve the exact current CGContext recipe,including orientation")
             if primary {
                 let offset=((actual.height/2)*actual.width+actual.width/2)*4
@@ -260,7 +280,7 @@ final class JimiNativeEndRunTests: XCTestCase {
             XCTAssertTrue(button.isSculptedFacePrepared)
             let actual=try XCTUnwrap(button.sculptedFaceRasterForTesting())
             let role=button.accessibilityIdentifier=="native.end-run.exit" ? "exit":"restart"
-            let original=try XCTUnwrap(UIImage(contentsOfFile:NativeTestResources.root.appendingPathComponent("assets/ui/native-paired-cta-compact-v2/\(role)-216p2-6x.png").path))
+            let original=try XCTUnwrap(UIImage(contentsOfFile:NativeTestResources.root.appendingPathComponent("assets/ui/native-paired-cta-shallow-v3/\(role)-216p2-6x.png").path))
             let format=UIGraphicsImageRendererFormat();format.scale=6;format.opaque=false;format.preferredRange = .standard
             let reference=try XCTUnwrap(UIGraphicsImageRenderer(size:button.bounds.size,format:format).image{_ in original.draw(in:CGRect(origin:.zero,size:button.bounds.size))}.cgImage)
             XCTAssertEqual(actual.width,reference.width);XCTAssertEqual(actual.height,reference.height)

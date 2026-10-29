@@ -18,10 +18,10 @@ import SpriteKit
             nodes=(0..<3).map{i in NativeDiceNode(id:"tile-\(i)",value:[3,0,2][i],kind:"regular",variant:nil,depth:1,locked:i != 0,textures:textures)}
             for (i,node) in nodes.enumerated(){parent.addChild(node);node.position=CGPoint(x:Double(i*148+64)*0.5,y:500-32);node.zRotation = -CGFloat(Double(i)*0.01);node.installSourceOuterDriver(driver,generation:1,geometryScale:0.5)}
         }
-        func install(acquire:(()->Void)?=nil,sound:(()->Void)?=nil)throws {
+        func install(acquire:(()->Void)?=nil,sound:(()->Void)?=nil,fullOpacity:@escaping()->Void={})throws {
             let state=state
             let captures=nodes.enumerated().map{i,node in NativeSourceBoardEntryOwner.Capture(node:node,parent:parent,generation:1,sourcePosition:.init(x:i*148+64,y:64),nativePosition:node.position,sourceRotation:Double(i)*0.01,geometryScale:0.5,locked:node.locked,value:node.value)}
-            owner=try XCTUnwrap(NativeSourceBoardEntryOwner(service:service,captures:captures,generation:1,timeouts:timeouts,random:{let a=[0.12,0.74,0.19,0.81,0.43];defer{state.draws+=1};return a[state.draws%5]},current:{state.current},acquireFrames:{state.acquired+=1;acquire?();var done=false;return {guard !done else{return};done=true;state.released+=1}},sound:{duration in XCTAssertEqual(duration,0.646,accuracy:1e-12);state.sounds+=1;sound?();var done=false;return{guard !done else{return};done=true;state.stops+=1}},half:{state.half+=1},haptic:{state.haptics+=1},syncZ:{_,entry in state.depths.append(entry)},drawBG:{state.bg+=1},finished:{state.finished.append($0)}))
+            owner=try XCTUnwrap(NativeSourceBoardEntryOwner(service:service,captures:captures,generation:1,timeouts:timeouts,random:{let a=[0.12,0.74,0.19,0.81,0.43];defer{state.draws+=1};return a[state.draws%5]},current:{state.current},acquireFrames:{state.acquired+=1;acquire?();var done=false;return {guard !done else{return};done=true;state.released+=1}},sound:{duration in XCTAssertEqual(duration,0.646,accuracy:1e-12);state.sounds+=1;sound?();var done=false;return{guard !done else{return};done=true;state.stops+=1}},half:{state.half+=1},haptic:{state.haptics+=1},syncZ:{_,entry in state.depths.append(entry)},drawBG:{state.bg+=1},fullOpacity:fullOpacity,finished:{state.finished.append($0)}))
         }
         func deliver(_ ms:Double){state.wall=ms;service.deliver(wallMilliseconds:ms)}
         func dispose(){owner?.dispose();owner=nil;timeouts.cancelAll();for node in nodes{node.dispose()};driver.dispose();service.dispose()}
@@ -35,6 +35,22 @@ import SpriteKit
         XCTAssertEqual(f.state.depths.filter{!$0}.count,3)
         for (i,node) in f.nodes.enumerated(){XCTAssertEqual(node.position.x,Double(i*148+64)*0.5,accuracy:2e-5);XCTAssertEqual(node.sourceLocalScale.x,1,accuracy:1e-6);XCTAssertNil(node.sourceBoardEntryBinding)}
         source.dispose();f.deliver(900);XCTAssertEqual(f.state.finished.count,1);XCTAssertEqual(f.state.stops,1)
+    }
+    func testFullOpacityPublishesOnActualPaintBeforeEntrySettlementAndOnlyOnce()throws {
+        let f=Fixture();defer{f.dispose()};var paints=0
+        try f.install(fullOpacity:{
+            paints+=1
+            XCTAssertEqual(f.nodes[0].alpha,1,accuracy:1e-6)
+            XCTAssertTrue(f.state.finished.isEmpty)
+            XCTAssertEqual(f.owner?.phase,.running)
+        })
+        XCTAssertTrue(try XCTUnwrap(f.owner).start(groupedHaptics:false))
+        // Last staggered face finishes its 80ms opacity at .136s.
+        f.deliver(128);XCTAssertEqual(paints,0)
+        f.deliver(144);XCTAssertEqual(paints,1)
+        XCTAssertTrue(f.state.finished.isEmpty)
+        for time in stride(from:176.0,through:800,by:16){f.deliver(time)}
+        XCTAssertEqual(paints,1);XCTAssertEqual(f.state.finished.map(\.outcome),[.normal])
     }
     func testActualCanonicalTransportMatchesOriginal570FrameOracleNormalSleepingCase()throws {
         struct Oracle:Decodable{let cases:[Case]};struct Case:Decodable{let awake:Bool,scenario:String,samples:[Sample]};struct Sample:Decodable{let wall:Double,settled:Bool,tiles:[Pose]};struct Pose:Decodable{let x:Double,y:Double,rotation:Double,scale:Double,alpha:Double}

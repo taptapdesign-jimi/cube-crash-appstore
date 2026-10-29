@@ -393,13 +393,13 @@ final class NativeResultForestBees {
                 let x=towardRight ? viewport.width*(0.62+roll()*0.22):viewport.width*(0.16+roll()*0.22)
                 let to=CGPoint(x:x,y:rows[index]+(roll()-0.5)*56)
                 let duration=max(0.28,hypot(to.x-from.x,to.y-from.y)/speed)
-                if time+duration>5.2 {break}
+                if time+duration>departureTime-1.4 {break}
                 moves.append(move(to:to,start:time,duration:duration))
                 time += duration+0.38+roll()*0.38;from=to
             }
             let exitX=index==1 ? -160.0:viewport.width+160
             let outside=CGPoint(x:exitX,y:rows[index]+(roll()-0.5)*140)
-            let exitStart=min(5.45+Double(index)*0.10,time)
+            let exitStart=min(departureTime-1.15+Double(index)*0.10,time)
             moves.append(move(to:outside,start:exitStart,duration:departureTime-0.02-exitStart,exits:true))
             let sizes=[1.00,1.05,1.16,1.08]
             let distant=[0.95,0.62,0.86,0.55]

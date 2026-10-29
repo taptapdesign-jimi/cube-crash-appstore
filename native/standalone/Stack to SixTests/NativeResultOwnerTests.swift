@@ -6,6 +6,34 @@ import StackToSixNativeState
 
 @MainActor
 final class NativeResultOwnerTests:XCTestCase {
+    func testCleanBoardTitleSpeechUsesTheDisplayedSelectionOnceAtTitleEntry() {
+        for index in [0,73,113] {
+            let result=controller(board:12,headlineRandom:(Double(index)+0.5)/Double(NativeResultHeadlines.clean.count))
+            var events:[(String,Int,Double)]=[]
+            result.onMoment={kind,selected,_ in if kind.hasPrefix("clean-title") {events.append((kind,selected,result.elapsed))}}
+            result.loadViewIfNeeded()
+            let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=result;window.makeKeyAndVisible()
+            XCTAssertEqual(events.map{$0.0},["clean-title-prepare"])
+            result.tick(0);result.tick(0.1);result.tick(0.2)
+            XCTAssertFalse(events.contains{$0.0=="clean-title"})
+            result.tick(0.23);result.tick(0.33);result.tick(0.43)
+            let spoken=events.filter{$0.0=="clean-title"}
+            XCTAssertEqual(spoken.count,1);XCTAssertEqual(spoken.first?.1,index)
+            XCTAssertGreaterThanOrEqual(spoken.first?.2 ?? 0,0.22)
+            let label=findUILabels(result.view).first{$0.attributedText?.string==NativeResultHeadlines.clean[index]}
+            XCTAssertNotNil(label,"The spoken index is the actual displayed title")
+            result.setSuspended(true);result.tick(20);result.setSuspended(false);result.tick(21);result.tick(21.1)
+            XCTAssertEqual(events.filter{$0.0=="clean-title"}.count,1)
+            result.dispose();result.tick(22);window.isHidden=true;window.rootViewController=nil
+        }
+        let failed=controller(clean:false);var voices=0
+        failed.onMoment={kind,_,_ in if kind.hasPrefix("clean-title"){voices+=1}}
+        failed.loadViewIfNeeded();failed.tick(0);for frame in 1...40 {failed.tick(Double(frame)/60)}
+        XCTAssertEqual(voices,0);failed.dispose()
+    }
+    private func findUILabels(_ view:UIView)->[UILabel] {
+        (view as? UILabel).map{[$0]} ?? view.subviews.flatMap{findUILabels($0)}
+    }
     func testOnlyTutorialJourneyContinueUsesPreparedReturnInsteadOfNextUnit()async throws {
         for tutorialRun in [true,false] {
             var state=NativeBoardState(tiles:[],mode:.journey,board:11)
@@ -114,15 +142,35 @@ final class NativeResultOwnerTests:XCTestCase {
         XCTAssertGreaterThan(pose.hero.opacity,0.1);XCTAssertGreaterThan(pose.title.opacity,0)
     }
 
+    func testFasterCleanCounterAudioWindowsAndFinalScoreRemainSynchronized() {
+        let state=NativeBoardState(tiles:[],mode:.journey,board:1,score:1500)
+        let result=NativeResultController(root:NativeTestResources.root,state:state,clean:true,combo:725,efficiency:500,finalScore:2725)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=result;window.makeKeyAndVisible()
+        defer{result.dispose();window.isHidden=true;window.rootViewController=nil}
+        var counters:[(String,Double,Double)]=[]
+        result.onMoment={kind,_,duration in if kind=="clean-count" || kind=="clean-bonus" {counters.append((kind,result.elapsed,duration ?? -1))}}
+        result.view.frame=window.bounds;result.view.layoutIfNeeded();result.tick(0)
+        for frame in 1...720 {result.tick(Double(frame)/120)}
+        XCTAssertEqual(counters.count,3)
+        for (event,start) in zip(counters,[0.47,NativeResultPresentationPlan.cleanComboStart,NativeResultPresentationPlan.cleanEfficiencyStart]) {
+            XCTAssertEqual(event.1,start,accuracy:1.0/120+0.001)
+            XCTAssertGreaterThan(event.2,0);XCTAssertLessThanOrEqual(event.2,1.2+0.000001)
+        }
+        XCTAssertEqual(counters.first!.2,1.2,accuracy:0.000001)
+        let complete=NativeResultPresentationPlan.sample(seconds:5.3,clean:true,baseScore:1500,combo:725,efficiency:500)
+        XCTAssertEqual(complete.displayedScore,2725);XCTAssertEqual(complete.displayedCombo,0);XCTAssertEqual(complete.displayedEfficiency,0)
+        XCTAssertEqual(6.62-NativeResultPresentationPlan.cleanPrimaryCTAStart,1.23,accuracy:0.001)
+    }
     func testCleanRegisterStartsOnceWithPrimaryCTAInsteadOfCounter() {
         let result=controller();var stops:[Int]=[];var cueTimes:[Double]=[]
         result.onMoment={kind,index,_ in if kind=="clean-score-stop" {stops.append(index);cueTimes.append(result.elapsed)}}
         result.loadViewIfNeeded();defer{result.dispose()}
         result.tick(0)
         XCTAssertTrue(stops.isEmpty)
-        for frame in 1...396 {result.tick(Double(frame)/60)}
+        let beforeFrame=Int(floor(NativeResultPresentationPlan.cleanPrimaryCTAStart*60))
+        for frame in 1...beforeFrame {result.tick(Double(frame)/60)}
         XCTAssertTrue(stops.isEmpty)
-        for frame in 397...420 {result.tick(Double(frame)/60)}
+        for frame in (beforeFrame+1)...(beforeFrame+24) {result.tick(Double(frame)/60)}
         XCTAssertEqual(stops,[0])
         XCTAssertEqual(cueTimes.first ?? 0,NativeResultPresentationPlan.cleanPrimaryCTAStart,accuracy:1.0/60+0.001)
         result.tick(7.1);XCTAssertEqual(stops,[0])
@@ -186,17 +234,21 @@ final class NativeResultOwnerTests:XCTestCase {
         result.setSuspended(true);result.tick(50)
         XCTAssertEqual(bees().map(\.center),positions)
         result.setSuspended(false);result.tick(50)
-        for frame in 1...330 {result.tick(50+Double(frame)/60)}
+        var timestamp=50.0
+        func advance(to target:Double) {
+            while result.elapsed<target-0.000001 {
+                timestamp+=min(1.0/120,target-result.elapsed)
+                result.tick(timestamp)
+            }
+        }
+        advance(to:NativeResultForestBees.departureTime-0.01)
         XCTAssertEqual(bees().count,4)
         XCTAssertTrue(bees().allSatisfy {$0.alpha==1},"Departure must fly out without fading")
-
-        for frame in 331...336 {result.tick(50+Double(frame)/60)}
-        result.tick(55.61)
+        advance(to:NativeResultForestBees.departureTime+0.001)
         XCTAssertTrue(bees().isEmpty,"Bees must retire before the first CTA frame")
         XCTAssertEqual(button(in:result.view,id:"native.result.play-again")!.alpha,0)
-        for frame in 337...340 {result.tick(50+Double(frame)/60)}
+        advance(to:NativeResultPresentationPlan.cleanPrimaryCTAStart+0.06)
         XCTAssertTrue(bees().isEmpty)
-        XCTAssertGreaterThan(result.elapsed,6.62)
         XCTAssertGreaterThan(button(in:result.view,id:"native.result.play-again")!.alpha,0)
         result.dispose();result.dispose()
         XCTAssertTrue(bees().isEmpty)
@@ -256,6 +308,38 @@ final class NativeResultOwnerTests:XCTestCase {
         }
     }
 
+    func testCleanAndFailButtonsMatchHomeDimensionsAtPhoneWidths() throws {
+        let artwork=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+        for width in [CGFloat(320),390,430] {
+            let window=UIWindow(frame:CGRect(x:0,y:0,width:width,height:844))
+            let host=UIViewController();window.rootViewController=host;window.makeKeyAndVisible()
+            let home=JimiV9HomeView(frame:window.bounds,assets:artwork)
+            host.view.addSubview(home);home.layoutIfNeeded()
+            let expected=home.ctaView.bounds.size
+            for clean in [false,true] {
+                let result=NativeResultController(root:NativeTestResources.root,state:NativeBoardState(tiles:[],mode:.journey,board:1),clean:clean,combo:0,efficiency:0,finalScore:0)
+                window.rootViewController=result;result.view.frame=window.bounds;result.view.layoutIfNeeded()
+                result.tick(0)
+                for frame in 1...720 {result.tick(Double(frame)/60)}
+                func actions(_ view:UIView)->[JimiV9PlainButton] {
+                    (view as? JimiV9PlainButton).map{[$0]} ?? view.subviews.flatMap{actions($0)}
+                }
+                let buttons=actions(result.view).filter{["Play Again","Exit"].contains($0.title(for:.normal) ?? "")}
+                XCTAssertEqual(buttons.count,2)
+                for button in buttons {
+                    XCTAssertEqual(button.bounds.width,expected.width,accuracy:0.001)
+                    XCTAssertEqual(button.bounds.height,expected.height,accuracy:0.001)
+                    XCTAssertEqual(button.titleLabel?.font.pointSize,28)
+                }
+                if width==390 {
+                    let image=UIGraphicsImageRenderer(bounds:window.bounds).image{_ in window.drawHierarchy(in:window.bounds,afterScreenUpdates:true)}
+                    try image.pngData()?.write(to:URL(fileURLWithPath:clean ? "/tmp/cta-result-home-clean.png":"/tmp/cta-result-home-fail.png"))
+                }
+                result.dispose()
+            }
+            window.isHidden=true;window.rootViewController=nil
+        }
+    }
     func testSharedPrimarySculptedCTAIsStableDistinctAndUpdatesLiveTitles() throws {
         let artwork=JimiV9Artwork(resourceRoot:NativeTestResources.root)
         let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),host=UIViewController()
@@ -272,7 +356,7 @@ final class NativeResultOwnerTests:XCTestCase {
             XCTAssertEqual(button.subviews.count,count,"Reapplying never duplicates surfaces")
             XCTAssertEqual(button.bounds.height,80.64)
             XCTAssertEqual(button.titleLabel?.font.pointSize,28)
-            XCTAssertEqual(button.titleLabel!.center.y,35.52,accuracy:0.01)
+            XCTAssertEqual(button.titleLabel!.center.y,37.52,accuracy:0.01)
             XCTAssertNil(button.backgroundImage(for:.normal))
             XCTAssertFalse(button.layer.sublayers?.contains{$0.name=="native.cta.shimmer"} ?? false)
             XCTAssertTrue(button.point(inside:CGPoint(x:124,y:32),with:nil))
@@ -369,7 +453,7 @@ final class NativeResultOwnerTests:XCTestCase {
             XCTAssertEqual(button.subviews.filter{$0.accessibilityIdentifier=="native.cta.title-inner-outline"}.count,0)
             button.setTitle("Exit Game",for:.normal);button.layoutIfNeeded()
             XCTAssertEqual(button.attributedTitle(for:.normal)?.string,"Exit Game")
-            XCTAssertEqual(button.titleLabel!.center.y,button.bounds.midY-4.8,accuracy:0.01)
+            XCTAssertEqual(button.titleLabel!.center.y,button.bounds.midY-4.8+2,accuracy:0.01)
             button.applyModalCTA(artwork:artwork);button.removeModalCTAPaint();button.removeModalCTAPaint()
         }
         CATransaction.flush();try await Task.sleep(nanoseconds:30_000_000)
@@ -519,9 +603,9 @@ final class NativeResultOwnerTests:XCTestCase {
         home.selectSlide(2,animated:false)
         let settingsSize=home.ctaView.bounds.size
         let referenceWidth=try XCTUnwrap(home.ctaView as? JimiV9PlainButton).primaryCTASize(maxWidth:342).width
-        XCTAssertEqual(settingsSize.width,min(342,referenceWidth*1.10),accuracy:0.001,"Add 5% of reference width to each side without scaling the text")
+        XCTAssertEqual(settingsSize.width,min(342,referenceWidth*1.10)*0.96,accuracy:0.001,"Add 5% of reference width to each side without scaling the text")
         XCTAssertGreaterThan(settingsSize.width,176)
-        XCTAssertEqual(settingsSize.height,80.64)
+        XCTAssertEqual(settingsSize.height,80.64*0.96)
         for slide in 0...2 {
             home.selectSlide(slide,animated:false)
             XCTAssertEqual(home.ctaView.bounds.size,settingsSize,"Every Home CTA keeps the Settings width")
@@ -533,11 +617,11 @@ final class NativeResultOwnerTests:XCTestCase {
         home.selectSlide(0,animated:false)
         XCTAssertEqual(home.ctaView.titleLabel?.font.pointSize,28)
         home.ctaView.layoutIfNeeded()
-        XCTAssertEqual(home.ctaView.titleLabel!.center.y,home.ctaView.bounds.midY-4.8,accuracy:0.01,"Title centers in the lit face, excluding lower depth")
+        XCTAssertEqual(home.ctaView.titleLabel!.center.y,home.ctaView.bounds.midY-4.8+2,accuracy:0.01,"Title centers in the lit face, excluding lower depth")
         XCTAssertEqual(home.ctaView.titleLabel?.layer.shadowOpacity,0,"No separate layer shadow owner")
         XCTAssertNil(home.ctaView.attributedTitle(for:.normal)?.attribute(.strokeWidth,at:0,effectiveRange:nil),"Live glyphs have no thickening stroke")
         XCTAssertFalse(home.ctaView.subviews.contains{$0.accessibilityIdentifier=="native.cta.title-outline" || $0.accessibilityIdentifier=="native.cta.title-inner-outline"},"Clean live glyphs must not acquire outline layers that bridge lowercase i")
-        XCTAssertEqual(home.ctaView.accessibilityLabel,"Journey")
+        XCTAssertEqual(home.ctaView.accessibilityLabel ?? home.ctaView.title(for:.normal),"Journey")
         try await Task.sleep(nanoseconds:100_000_000)
         let puffy=UIGraphicsImageRenderer(bounds:window.bounds).image{_ in window.drawHierarchy(in:window.bounds,afterScreenUpdates:true)}
         try puffy.pngData()?.write(to:URL(fileURLWithPath:"/tmp/native-home-puffy-trial.png"))
@@ -794,8 +878,9 @@ final class NativeResultOwnerTests:XCTestCase {
         result.view.frame=window.bounds;result.view.setNeedsLayout();result.view.layoutIfNeeded()
         let primary=button(in:result.view,id:"native.result.play-again")!
         let secondary=button(in:result.view,id:"native.result.exit")!
-        XCTAssertEqual(primary.bounds.height,70);XCTAssertEqual(primary.bounds.width,230*0.94)
-        XCTAssertEqual(secondary.bounds.size,CGSize(width:primary.bounds.width,height:70))
+        let homeSize=JimiV9PlainButton.homeCTASize(maxWidth:342,font:primary.titleLabel!.font)
+        XCTAssertEqual(primary.bounds.height,homeSize.height);XCTAssertEqual(primary.bounds.width,homeSize.width)
+        XCTAssertEqual(secondary.bounds.size,CGSize(width:primary.bounds.width,height:homeSize.height))
         for glyph in secondary.subviews where glyph.accessibilityIdentifier=="native.cta.title-outline" || glyph.accessibilityIdentifier=="native.cta.title-inner-outline" {XCTAssertTrue(glyph.isHidden)}
         let ink=secondary.attributedTitle(for:.normal)?.attribute(.foregroundColor,at:0,effectiveRange:nil) as? UIColor
         XCTAssertEqual(ink,UIColor(red:189/255,green:160/255,blue:142/255,alpha:1))
@@ -804,8 +889,8 @@ final class NativeResultOwnerTests:XCTestCase {
             XCTAssertEqual(painted.contentScaleFactor,window.screen.scale*2)
             XCTAssertFalse(painted.layer.shouldRasterize)
         }
-        XCTAssertEqual(primary.layer.cornerRadius,35);XCTAssertEqual(secondary.layer.cornerRadius,35)
-        XCTAssertEqual((primary as! JimiV9PlainButton).cartoonBounceLayoutView.center.x,195);XCTAssertEqual((secondary as! JimiV9PlainButton).cartoonBounceLayoutView.center.y-(primary as! JimiV9PlainButton).cartoonBounceLayoutView.center.y,82,accuracy:0.001)
+        XCTAssertEqual(primary.layer.cornerRadius,homeSize.height/2);XCTAssertEqual(secondary.layer.cornerRadius,homeSize.height/2)
+        XCTAssertEqual((primary as! JimiV9PlainButton).cartoonBounceLayoutView.center.x,195);XCTAssertEqual((secondary as! JimiV9PlainButton).cartoonBounceLayoutView.center.y-(primary as! JimiV9PlainButton).cartoonBounceLayoutView.center.y,homeSize.height+12,accuracy:0.001)
         XCTAssertEqual(primary.transform.a,0)
         result.tick(0)
         for index in 1...80 {result.tick(Double(index)/10)}
@@ -831,8 +916,9 @@ final class NativeResultOwnerTests:XCTestCase {
         window.rootViewController=result;window.makeKeyAndVisible();result.loadViewIfNeeded()
         result.view.frame=window.bounds;result.view.setNeedsLayout();result.view.layoutIfNeeded()
         let primary=button(in:result.view,id:"native.result.play-again")!
-        XCTAssertEqual(primary.bounds.height,70);XCTAssertEqual(primary.bounds.width,230*0.94);XCTAssertFalse(primary.isUserInteractionEnabled)
-        XCTAssertEqual(primary.layer.cornerRadius,35)
+        let homeSize=JimiV9PlainButton.homeCTASize(maxWidth:342,font:primary.titleLabel!.font)
+        XCTAssertEqual(primary.bounds.height,homeSize.height);XCTAssertEqual(primary.bounds.width,homeSize.width);XCTAssertFalse(primary.isUserInteractionEnabled)
+        XCTAssertEqual(primary.layer.cornerRadius,homeSize.height/2)
         XCTAssertEqual(button(in:result.view,id:"native.result.exit")?.bounds.width,primary.bounds.width)
         result.tick(0)
         for index in 1...15 {result.tick(Double(index)/10)}

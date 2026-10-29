@@ -95,6 +95,11 @@ import StackToSixGameplay
         owner.onSourceFinalCleanup={r in cleanups += 1;XCTAssertTrue(f.game.sourceConfirmedFailFinalCleanup(receipt:r,endpoint:endpoint))}
         defer{owner.dispose()};owner.present()
         let sheet=try XCTUnwrap(f.game.presentedViewController as? NativeResultController)
+        XCTAssertEqual(sheet.elapsed,NativeResultPresentationPlan.failAfterNoMovesStart)
+        let pose=NativeResultPresentationPlan.sample(seconds:sheet.elapsed,clean:false,baseScore:0,combo:0,efficiency:0)
+        XCTAssertGreaterThan(pose.hero.opacity,0.1)
+        XCTAssertGreaterThan(pose.title.opacity,0)
+        XCTAssertEqual(pose.primary.opacity,0,"The readable first frame must not skip CTA entry")
         XCTAssertTrue(f.engine.flags.busyEnding);XCTAssertEqual(cleanups,0)
         sheet.tick(0);for i in 1...30 {sheet.tick(Double(i)/10)}
         func button(_ v:UIView)->UIButton? {if v.accessibilityIdentifier=="native.result.play-again" {return v as? UIButton};return v.subviews.compactMap(button).first}

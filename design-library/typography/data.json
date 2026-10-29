@@ -61,1757 +61,6 @@
     "width": 390
   },
   {
-    "category": "Navigation",
-    "height": 844,
-    "id": "nav-journey",
-    "name": "Journey navigation",
-    "route": "Home → Journey",
-    "screenshot": "screens/nav-journey.webp",
-    "source": "native/jimi-2026/JimiV9HubView.swift",
-    "texts": [
-      {
-        "alignment": 1,
-        "button": {
-          "enabled": true,
-          "identifier": "native.hub.world.1",
-          "kind": "Control",
-          "rect": {
-            "height": 182.51999999999998,
-            "width": 263.64000000000004,
-            "x": 16,
-            "y": 165
-          },
-          "size": {
-            "height": 182.52,
-            "width": 263.64000000000004
-          }
-        },
-        "color": "#E8734A",
-        "font": "Baloo2-ExtraBold",
-        "id": "nav-journey-text-1",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiV9HubView[1]/JimiV9HubScrollView[2]/UIView[0]/JimiV9PlainButton[0]/UIView[6]/UIView[0]/UIView[0]/UIView[0]/UILabel[1]",
-        "rect": {
-          "height": 36.98756194687377,
-          "width": 74.4642213497608,
-          "x": 282.83551120001766,
-          "y": 235.1863092093202
-        },
-        "runs": [
-          {
-            "color": "#E8734A",
-            "font": "Baloo2-ExtraBold",
-            "size": 18,
-            "text": "7 / 10"
-          }
-        ],
-        "size": 18,
-        "text": "7 / 10",
-        "reference": "STS-NAV-JOURNEY-01",
-        "role": "Broj / statistika",
-        "source": "native/jimi-2026/JimiV9HubView.swift",
-        "sourceLine": 131,
-        "colorDescription": "#E8734A"
-      },
-      {
-        "alignment": 1,
-        "button": {
-          "enabled": true,
-          "identifier": "native.hub.world.3",
-          "kind": "Control",
-          "rect": {
-            "height": 182.51999999999998,
-            "width": 263.64000000000004,
-            "x": 110.35999999999996,
-            "y": 370
-          },
-          "size": {
-            "height": 182.52,
-            "width": 263.64000000000004
-          }
-        },
-        "color": "#E8734A",
-        "font": "Baloo2-ExtraBold",
-        "id": "nav-journey-text-2",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiV9HubView[1]/JimiV9HubScrollView[2]/UIView[0]/JimiV9PlainButton[1]/UIView[4]/UIView[0]/UIView[0]/UIView[0]/UILabel[1]",
-        "rect": {
-          "height": 21.50118947594285,
-          "width": 72.61922998272242,
-          "x": 29.140749466028357,
-          "y": 461.86548484076775
-        },
-        "runs": [
-          {
-            "color": "#E8734A",
-            "font": "Baloo2-ExtraBold",
-            "size": 18,
-            "text": "2 / 10"
-          }
-        ],
-        "size": 18,
-        "text": "2 / 10",
-        "reference": "STS-NAV-JOURNEY-02",
-        "role": "Broj / statistika",
-        "source": "native/jimi-2026/JimiV9HubView.swift",
-        "sourceLine": 131,
-        "colorDescription": "#E8734A"
-      },
-      {
-        "alignment": 1,
-        "button": {
-          "enabled": true,
-          "identifier": "native.hub.world.2",
-          "kind": "Control",
-          "rect": {
-            "height": 182.51999999999998,
-            "width": 263.64000000000004,
-            "x": 16,
-            "y": 604
-          },
-          "size": {
-            "height": 182.52,
-            "width": 263.64000000000004
-          }
-        },
-        "color": "#E8734A",
-        "font": "Baloo2-ExtraBold",
-        "id": "nav-journey-text-3",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiV9HubView[1]/JimiV9HubScrollView[2]/UIView[0]/JimiV9PlainButton[2]/UIView[3]/UIView[0]/UIView[0]/UIView[0]/UILabel[1]",
-        "rect": {
-          "height": 19,
-          "width": 72,
-          "x": 279.49,
-          "y": 707.0096
-        },
-        "runs": [
-          {
-            "color": "#E8734A",
-            "font": "Baloo2-ExtraBold",
-            "size": 18,
-            "text": "4 / 10"
-          }
-        ],
-        "size": 18,
-        "text": "4 / 10",
-        "reference": "STS-NAV-JOURNEY-03",
-        "role": "Broj / statistika",
-        "source": "native/jimi-2026/JimiV9HubView.swift",
-        "sourceLine": 131,
-        "colorDescription": "#E8734A"
-      },
-      {
-        "alignment": 1,
-        "color": "#AD8775",
-        "font": "Baloo2-ExtraBold",
-        "id": "nav-journey-text-4",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiV9HubView[1]/JimiV9NavigationHeader[3]/UILabel[1]",
-        "rect": {
-          "height": 32,
-          "width": 246,
-          "x": 72,
-          "y": 57.879999999999995
-        },
-        "runs": [
-          {
-            "color": "#AD8775",
-            "font": "Baloo2-ExtraBold",
-            "size": 28,
-            "text": "Journey"
-          }
-        ],
-        "size": 28,
-        "text": "Journey",
-        "reference": "STS-NAV-JOURNEY-04",
-        "role": "Navigacijski naslov",
-        "source": "native/jimi-2026/JimiV9HubView.swift",
-        "sourceLine": 167,
-        "colorDescription": "#AD8775"
-      }
-    ],
-    "width": 390
-  },
-  {
-    "category": "Navigation",
-    "height": 844,
-    "id": "nav-arcade",
-    "name": "Arcade navigation",
-    "route": "Home → Arcade",
-    "screenshot": "screens/nav-arcade.webp",
-    "source": "native/jimi-2026/JimiV9HubView.swift",
-    "texts": [
-      {
-        "alignment": 1,
-        "color": "#AD8775",
-        "font": "Baloo2-ExtraBold",
-        "id": "nav-arcade-text-1",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiV9HubView[1]/JimiV9NavigationHeader[3]/UILabel[1]",
-        "rect": {
-          "height": 32,
-          "width": 246,
-          "x": 72,
-          "y": 57.879999999999995
-        },
-        "runs": [
-          {
-            "color": "#AD8775",
-            "font": "Baloo2-ExtraBold",
-            "size": 28,
-            "text": "Arcade"
-          }
-        ],
-        "size": 28,
-        "text": "Arcade",
-        "reference": "STS-NAV-ARCADE-01",
-        "role": "Navigacijski naslov",
-        "source": "native/jimi-2026/JimiV9HubView.swift",
-        "sourceLine": 167,
-        "colorDescription": "#AD8775"
-      }
-    ],
-    "width": 390
-  },
-  {
-    "category": "Navigation",
-    "height": 844,
-    "id": "nav-forest",
-    "name": "Forest navigation",
-    "route": "Home → Journey → Forest",
-    "screenshot": "screens/nav-forest.webp",
-    "source": "native/jimi-2026/JimiNativeWorldView.swift",
-    "texts": [
-      {
-        "alignment": 1,
-        "color": "#AD8775",
-        "font": "Baloo2-ExtraBold",
-        "id": "nav-forest-text-1",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeWorldView[1]/JimiV9NavigationHeader[2]/UILabel[0]",
-        "rect": {
-          "height": 32,
-          "width": 246,
-          "x": 72,
-          "y": 57.879999999999995
-        },
-        "runs": [
-          {
-            "color": "#AD8775",
-            "font": "Baloo2-ExtraBold",
-            "size": 28,
-            "text": "Forest"
-          }
-        ],
-        "size": 28,
-        "text": "Forest",
-        "reference": "STS-NAV-FOREST-01",
-        "role": "Navigacijski naslov",
-        "source": "native/jimi-2026/JimiNativeWorldView.swift",
-        "sourceLine": 89,
-        "colorDescription": "#AD8775"
-      }
-    ],
-    "width": 390
-  },
-  {
-    "category": "Modal",
-    "height": 844,
-    "id": "stage-forest",
-    "name": "Stage 07 · Forest",
-    "route": "Journey → Forest → Unit 07 → stats back",
-    "screenshot": "screens/stage-forest.webp",
-    "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
-    "texts": [
-      {
-        "alignment": 1,
-        "color": "#AD8675",
-        "font": "Baloo2-ExtraBold",
-        "id": "stage-forest-text-2",
-        "identifier": "native.world.card.stage-title",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeWorldView[1]/JimiNativeWorldCardView[3]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/UIView[1]/UILabel[1]",
-        "rect": {
-          "height": 37.93678910277322,
-          "width": 110.5926427915094,
-          "x": 147.65875155219877,
-          "y": 258.3723945140175
-        },
-        "runs": [
-          {
-            "color": "#AD8675",
-            "font": "Baloo2-ExtraBold",
-            "size": 28,
-            "text": "Stage 07"
-          }
-        ],
-        "size": 28,
-        "text": "Stage 07",
-        "reference": "STS-STAGE-FOREST-02",
-        "role": "Naslov modala",
-        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
-        "sourceLine": 80,
-        "colorDescription": "#AD8675"
-      },
-      {
-        "alignment": 4,
-        "color": "#E8744A",
-        "font": "Baloo2-Bold",
-        "id": "stage-forest-text-3",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeWorldView[1]/JimiNativeWorldCardView[3]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/UIView[1]/UIStackView[3]/UIView[0]/UILabel[1]",
-        "rect": {
-          "height": 41.03892145653191,
-          "width": 188.8352463496557,
-          "x": 150.227650449359,
-          "y": 323.46127053001817
-        },
-        "runs": [
-          {
-            "color": "#E8744A",
-            "font": "Baloo2-Bold",
-            "size": 28,
-            "text": "0"
-          }
-        ],
-        "size": 28,
-        "text": "0",
-        "reference": "STS-STAGE-FOREST-03",
-        "role": "Broj / statistika",
-        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
-        "sourceLine": 163,
-        "colorDescription": "#E8744A"
-      },
-      {
-        "alignment": 4,
-        "color": "#AD8675",
-        "font": "Baloo2-Medium",
-        "id": "stage-forest-text-4",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeWorldView[1]/JimiNativeWorldCardView[3]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/UIView[1]/UIStackView[3]/UIView[0]/UILabel[2]",
-        "rect": {
-          "height": 31.316927960251405,
-          "width": 188.30061625619138,
-          "x": 148.96160128258967,
-          "y": 356.20576484652946
-        },
-        "runs": [
-          {
-            "color": "#AD8675",
-            "font": "Baloo2-Medium",
-            "size": 18,
-            "text": "High score"
-          }
-        ],
-        "size": 18,
-        "text": "High score",
-        "reference": "STS-STAGE-FOREST-04",
-        "role": "Podnaslov / labela",
-        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
-        "sourceLine": 96,
-        "colorDescription": "#AD8675"
-      },
-      {
-        "alignment": 4,
-        "color": "#E8744A",
-        "font": "Baloo2-Bold",
-        "id": "stage-forest-text-5",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeWorldView[1]/JimiNativeWorldCardView[3]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/UIView[1]/UIStackView[3]/UIView[2]/UILabel[1]",
-        "rect": {
-          "height": 41.038921456531966,
-          "width": 188.8352463496557,
-          "x": 143.5470730446431,
-          "y": 444.94438731304024
-        },
-        "runs": [
-          {
-            "color": "#E8744A",
-            "font": "Baloo2-Bold",
-            "size": 28,
-            "text": "0"
-          }
-        ],
-        "size": 28,
-        "text": "0",
-        "reference": "STS-STAGE-FOREST-05",
-        "role": "Broj / statistika",
-        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
-        "sourceLine": 163,
-        "colorDescription": "#E8744A"
-      },
-      {
-        "alignment": 4,
-        "color": "#AD8675",
-        "font": "Baloo2-Medium",
-        "id": "stage-forest-text-6",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeWorldView[1]/JimiNativeWorldCardView[3]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/UIView[1]/UIStackView[3]/UIView[2]/UILabel[2]",
-        "rect": {
-          "height": 31.316927960251405,
-          "width": 188.30061625619138,
-          "x": 142.28102387787376,
-          "y": 477.6888816295516
-        },
-        "runs": [
-          {
-            "color": "#AD8675",
-            "font": "Baloo2-Medium",
-            "size": 18,
-            "text": "Longest combo"
-          }
-        ],
-        "size": 18,
-        "text": "Longest combo",
-        "reference": "STS-STAGE-FOREST-06",
-        "role": "Podnaslov / labela",
-        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
-        "sourceLine": 96,
-        "colorDescription": "#AD8675"
-      },
-      {
-        "alignment": 0,
-        "button": {
-          "enabled": true,
-          "identifier": "native.world.card.play",
-          "kind": "CTA",
-          "rect": {
-            "height": 92.89672195573996,
-            "width": 229.52275227860437,
-            "x": 71.4225800603667,
-            "y": 535.8671946511735
-          },
-          "size": {
-            "height": 80.64,
-            "width": 225.435
-          }
-        },
-        "color": "gradient / pattern",
-        "font": "Baloo2-ExtraBold",
-        "id": "stage-forest-text-7",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeWorldView[1]/JimiNativeWorldCardView[3]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/UIView[1]/NativeCartoonBounceSurface[4]/JimiV9PlainButton[0]/UIButtonLabel[1]",
-        "rect": {
-          "height": 48.30145536546843,
-          "width": 57.67951609411202,
-          "x": 157.57850460658688,
-          "y": 553.3705500564048
-        },
-        "runs": [
-          {
-            "color": "gradient / pattern",
-            "font": "Baloo2-ExtraBold",
-            "size": 28,
-            "text": "Play"
-          }
-        ],
-        "size": 28,
-        "text": "Play",
-        "reference": "STS-STAGE-FOREST-07",
-        "role": "CTA",
-        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
-        "sourceLine": 102,
-        "fontSource": "native/jimi-2026/JimiV9HomeView.swift",
-        "fontSourceLine": 152,
-        "colorDescription": "Ivory gradient · #FFFCED → #FFF6E1 → #F7E8CE",
-        "surfaceColor": "#EE8158"
-      }
-    ],
-    "width": 390
-  },
-  {
-    "category": "Navigation",
-    "height": 844,
-    "id": "nav-beach",
-    "name": "Beach navigation",
-    "route": "Home → Journey → Beach",
-    "screenshot": "screens/nav-beach.webp",
-    "source": "native/jimi-2026/JimiNativeWorldView.swift",
-    "texts": [
-      {
-        "alignment": 1,
-        "color": "#AD8775",
-        "font": "Baloo2-ExtraBold",
-        "id": "nav-beach-text-1",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeWorldView[1]/JimiV9NavigationHeader[2]/UILabel[0]",
-        "rect": {
-          "height": 32,
-          "width": 246,
-          "x": 72,
-          "y": 57.879999999999995
-        },
-        "runs": [
-          {
-            "color": "#AD8775",
-            "font": "Baloo2-ExtraBold",
-            "size": 28,
-            "text": "Beach"
-          }
-        ],
-        "size": 28,
-        "text": "Beach",
-        "reference": "STS-NAV-BEACH-01",
-        "role": "Navigacijski naslov",
-        "source": "native/jimi-2026/JimiNativeWorldView.swift",
-        "sourceLine": 89,
-        "colorDescription": "#AD8775"
-      }
-    ],
-    "width": 390
-  },
-  {
-    "category": "Modal",
-    "height": 844,
-    "id": "stage-beach",
-    "name": "Stage 07 · Beach",
-    "route": "Journey → Beach → Unit 07 → stats back",
-    "screenshot": "screens/stage-beach.webp",
-    "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
-    "texts": [
-      {
-        "alignment": 1,
-        "color": "#AD8675",
-        "font": "Baloo2-ExtraBold",
-        "id": "stage-beach-text-2",
-        "identifier": "native.world.card.stage-title",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeWorldView[1]/JimiNativeWorldCardView[3]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/UIView[1]/UILabel[1]",
-        "rect": {
-          "height": 36.92751195586425,
-          "width": 110.3434027976624,
-          "x": 133.2348062672265,
-          "y": 258.80858131493574
-        },
-        "runs": [
-          {
-            "color": "#AD8675",
-            "font": "Baloo2-ExtraBold",
-            "size": 28,
-            "text": "Stage 07"
-          }
-        ],
-        "size": 28,
-        "text": "Stage 07",
-        "reference": "STS-STAGE-BEACH-02",
-        "role": "Naslov modala",
-        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
-        "sourceLine": 80,
-        "colorDescription": "#AD8675"
-      },
-      {
-        "alignment": 4,
-        "color": "#E8744A",
-        "font": "Baloo2-Bold",
-        "id": "stage-beach-text-3",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeWorldView[1]/JimiNativeWorldCardView[3]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/UIView[1]/UIStackView[3]/UIView[0]/UILabel[1]",
-        "rect": {
-          "height": 39.292005770597086,
-          "width": 188.6343960156746,
-          "x": 142.25288982345177,
-          "y": 319.7489894825283
-        },
-        "runs": [
-          {
-            "color": "#E8744A",
-            "font": "Baloo2-Bold",
-            "size": 28,
-            "text": "0"
-          }
-        ],
-        "size": 28,
-        "text": "0",
-        "reference": "STS-STAGE-BEACH-03",
-        "role": "Broj / statistika",
-        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
-        "sourceLine": 163,
-        "colorDescription": "#E8744A"
-      },
-      {
-        "alignment": 4,
-        "color": "#AD8675",
-        "font": "Baloo2-Medium",
-        "id": "stage-beach-text-4",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeWorldView[1]/JimiNativeWorldCardView[3]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/UIView[1]/UIStackView[3]/UIView[0]/UILabel[2]",
-        "rect": {
-          "height": 29.56541189192052,
-          "width": 188.19127255900554,
-          "x": 143.7453670107658,
-          "y": 352.5089782750726
-        },
-        "runs": [
-          {
-            "color": "#AD8675",
-            "font": "Baloo2-Medium",
-            "size": 18,
-            "text": "High score"
-          }
-        ],
-        "size": 18,
-        "text": "High score",
-        "reference": "STS-STAGE-BEACH-04",
-        "role": "Podnaslov / labela",
-        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
-        "sourceLine": 96,
-        "colorDescription": "#AD8675"
-      },
-      {
-        "alignment": 4,
-        "color": "#E8744A",
-        "font": "Baloo2-Bold",
-        "id": "stage-beach-text-5",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeWorldView[1]/JimiNativeWorldCardView[3]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/UIView[1]/UIStackView[3]/UIView[2]/UILabel[1]",
-        "rect": {
-          "height": 39.292005770597086,
-          "width": 188.6343960156746,
-          "x": 147.7900277218081,
-          "y": 441.28959126511114
-        },
-        "runs": [
-          {
-            "color": "#E8744A",
-            "font": "Baloo2-Bold",
-            "size": 28,
-            "text": "0"
-          }
-        ],
-        "size": 28,
-        "text": "0",
-        "reference": "STS-STAGE-BEACH-05",
-        "role": "Broj / statistika",
-        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
-        "sourceLine": 163,
-        "colorDescription": "#E8744A"
-      },
-      {
-        "alignment": 4,
-        "color": "#AD8675",
-        "font": "Baloo2-Medium",
-        "id": "stage-beach-text-6",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeWorldView[1]/JimiNativeWorldCardView[3]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/UIView[1]/UIStackView[3]/UIView[2]/UILabel[2]",
-        "rect": {
-          "height": 29.56541189192052,
-          "width": 188.19127255900554,
-          "x": 149.2825049091221,
-          "y": 474.0495800576554
-        },
-        "runs": [
-          {
-            "color": "#AD8675",
-            "font": "Baloo2-Medium",
-            "size": 18,
-            "text": "Longest combo"
-          }
-        ],
-        "size": 18,
-        "text": "Longest combo",
-        "reference": "STS-STAGE-BEACH-06",
-        "role": "Podnaslov / labela",
-        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
-        "sourceLine": 96,
-        "colorDescription": "#AD8675"
-      },
-      {
-        "alignment": 0,
-        "button": {
-          "enabled": true,
-          "identifier": "native.world.card.play",
-          "kind": "CTA",
-          "rect": {
-            "height": 90.8161546016172,
-            "width": 228.8714002436712,
-            "x": 87.87140034015788,
-            "y": 536.9833385785228
-          },
-          "size": {
-            "height": 80.64,
-            "width": 225.435
-          }
-        },
-        "color": "gradient / pattern",
-        "font": "Baloo2-ExtraBold",
-        "id": "stage-beach-text-7",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeWorldView[1]/JimiNativeWorldCardView[3]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/UIView[1]/NativeCartoonBounceSurface[4]/JimiV9PlainButton[0]/UIButtonLabel[1]",
-        "rect": {
-          "height": 47.85842565441362,
-          "width": 57.325271810443155,
-          "x": 173.45993821448002,
-          "y": 553.6657512355209
-        },
-        "runs": [
-          {
-            "color": "gradient / pattern",
-            "font": "Baloo2-ExtraBold",
-            "size": 28,
-            "text": "Play"
-          }
-        ],
-        "size": 28,
-        "text": "Play",
-        "reference": "STS-STAGE-BEACH-07",
-        "role": "CTA",
-        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
-        "sourceLine": 102,
-        "fontSource": "native/jimi-2026/JimiV9HomeView.swift",
-        "fontSourceLine": 152,
-        "colorDescription": "Ivory gradient · #FFFCED → #FFF6E1 → #F7E8CE",
-        "surfaceColor": "#EE8158"
-      }
-    ],
-    "width": 390
-  },
-  {
-    "category": "Navigation",
-    "height": 844,
-    "id": "nav-area55",
-    "name": "Area 55 navigation",
-    "route": "Home → Journey → Area 55",
-    "screenshot": "screens/nav-area55.webp",
-    "source": "native/jimi-2026/JimiNativeWorldView.swift",
-    "texts": [
-      {
-        "alignment": 1,
-        "color": "#AD8775",
-        "font": "Baloo2-ExtraBold",
-        "id": "nav-area55-text-1",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeWorldView[1]/JimiV9NavigationHeader[2]/UILabel[0]",
-        "rect": {
-          "height": 32,
-          "width": 246,
-          "x": 72,
-          "y": 57.879999999999995
-        },
-        "runs": [
-          {
-            "color": "#AD8775",
-            "font": "Baloo2-ExtraBold",
-            "size": 28,
-            "text": "Area 55"
-          }
-        ],
-        "size": 28,
-        "text": "Area 55",
-        "reference": "STS-NAV-AREA55-01",
-        "role": "Navigacijski naslov",
-        "source": "native/jimi-2026/JimiNativeWorldView.swift",
-        "sourceLine": 89,
-        "colorDescription": "#AD8775"
-      }
-    ],
-    "width": 390
-  },
-  {
-    "category": "Modal",
-    "height": 844,
-    "id": "stage-area55",
-    "name": "Stage 07 · Area 55",
-    "route": "Journey → Area 55 → Unit 07 → stats back",
-    "screenshot": "screens/stage-area55.webp",
-    "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
-    "texts": [
-      {
-        "alignment": 1,
-        "color": "#AD8675",
-        "font": "Baloo2-ExtraBold",
-        "id": "stage-area55-text-2",
-        "identifier": "native.world.card.stage-title",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeWorldView[1]/JimiNativeWorldCardView[3]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/UIView[1]/UILabel[1]",
-        "rect": {
-          "height": 37.835265282419755,
-          "width": 110.56797758566094,
-          "x": 147.5339485402188,
-          "y": 258.4156802823119
-        },
-        "runs": [
-          {
-            "color": "#AD8675",
-            "font": "Baloo2-ExtraBold",
-            "size": 28,
-            "text": "Stage 07"
-          }
-        ],
-        "size": 28,
-        "text": "Stage 07",
-        "reference": "STS-STAGE-AREA55-02",
-        "role": "Naslov modala",
-        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
-        "sourceLine": 80,
-        "colorDescription": "#AD8675"
-      },
-      {
-        "alignment": 4,
-        "color": "#E8744A",
-        "font": "Baloo2-Bold",
-        "id": "stage-area55-text-3",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeWorldView[1]/JimiNativeWorldCardView[3]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/UIView[1]/UIStackView[3]/UIView[0]/UILabel[1]",
-        "rect": {
-          "height": 40.863099347714524,
-          "width": 188.8157698094815,
-          "x": 150.16340678416756,
-          "y": 323.5021545993335
-        },
-        "runs": [
-          {
-            "color": "#E8744A",
-            "font": "Baloo2-Bold",
-            "size": 28,
-            "text": "0"
-          }
-        ],
-        "size": 28,
-        "text": "0",
-        "reference": "STS-STAGE-AREA55-03",
-        "role": "Broj / statistika",
-        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
-        "sourceLine": 163,
-        "colorDescription": "#E8744A"
-      },
-      {
-        "alignment": 4,
-        "color": "#AD8675",
-        "font": "Baloo2-Medium",
-        "id": "stage-area55-text-4",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeWorldView[1]/JimiNativeWorldCardView[3]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/UIView[1]/UIStackView[3]/UIView[0]/UILabel[2]",
-        "rect": {
-          "height": 31.1406034084697,
-          "width": 188.29035607733692,
-          "x": 148.91918273856555,
-          "y": 356.24834118613853
-        },
-        "runs": [
-          {
-            "color": "#AD8675",
-            "font": "Baloo2-Medium",
-            "size": 18,
-            "text": "High score"
-          }
-        ],
-        "size": 18,
-        "text": "High score",
-        "reference": "STS-STAGE-AREA55-04",
-        "role": "Podnaslov / labela",
-        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
-        "sourceLine": 96,
-        "colorDescription": "#AD8675"
-      },
-      {
-        "alignment": 4,
-        "color": "#E8744A",
-        "font": "Baloo2-Bold",
-        "id": "stage-area55-text-5",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeWorldView[1]/JimiNativeWorldCardView[3]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/UIView[1]/UIStackView[3]/UIView[2]/UILabel[1]",
-        "rect": {
-          "height": 40.86309934771458,
-          "width": 188.81576980948145,
-          "x": 143.59799426810886,
-          "y": 444.9915497590418
-        },
-        "runs": [
-          {
-            "color": "#E8744A",
-            "font": "Baloo2-Bold",
-            "size": 28,
-            "text": "0"
-          }
-        ],
-        "size": 28,
-        "text": "0",
-        "reference": "STS-STAGE-AREA55-05",
-        "role": "Broj / statistika",
-        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
-        "sourceLine": 163,
-        "colorDescription": "#E8744A"
-      },
-      {
-        "alignment": 4,
-        "color": "#AD8675",
-        "font": "Baloo2-Medium",
-        "id": "stage-area55-text-6",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeWorldView[1]/JimiNativeWorldCardView[3]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/UIView[1]/UIStackView[3]/UIView[2]/UILabel[2]",
-        "rect": {
-          "height": 31.140603408469758,
-          "width": 188.2903560773369,
-          "x": 142.35377022250682,
-          "y": 477.7377363458468
-        },
-        "runs": [
-          {
-            "color": "#AD8675",
-            "font": "Baloo2-Medium",
-            "size": 18,
-            "text": "Longest combo"
-          }
-        ],
-        "size": 18,
-        "text": "Longest combo",
-        "reference": "STS-STAGE-AREA55-06",
-        "role": "Podnaslov / labela",
-        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
-        "sourceLine": 96,
-        "colorDescription": "#AD8675"
-      },
-      {
-        "alignment": 0,
-        "button": {
-          "enabled": true,
-          "identifier": "native.world.card.play",
-          "kind": "CTA",
-          "rect": {
-            "height": 92.68749531153344,
-            "width": 229.4580547654012,
-            "x": 71.60690650409832,
-            "y": 535.9800932517052
-          },
-          "size": {
-            "height": 80.64,
-            "width": 225.435
-          }
-        },
-        "color": "gradient / pattern",
-        "font": "Baloo2-ExtraBold",
-        "id": "stage-area55-text-7",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeWorldView[1]/JimiNativeWorldCardView[3]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/UIView[1]/NativeCartoonBounceSurface[4]/JimiV9PlainButton[0]/UIButtonLabel[1]",
-        "rect": {
-          "height": 48.276350835949984,
-          "width": 57.6601870061387,
-          "x": 157.79619661109442,
-          "y": 553.3944554897964
-        },
-        "runs": [
-          {
-            "color": "gradient / pattern",
-            "font": "Baloo2-ExtraBold",
-            "size": 28,
-            "text": "Play"
-          }
-        ],
-        "size": 28,
-        "text": "Play",
-        "reference": "STS-STAGE-AREA55-07",
-        "role": "CTA",
-        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
-        "sourceLine": 102,
-        "fontSource": "native/jimi-2026/JimiV9HomeView.swift",
-        "fontSourceLine": 152,
-        "colorDescription": "Ivory gradient · #FFFCED → #FFF6E1 → #F7E8CE",
-        "surfaceColor": "#EE8158"
-      }
-    ],
-    "width": 390
-  },
-  {
-    "category": "Navigation",
-    "height": 844,
-    "id": "settings",
-    "name": "Settings navigation and rows",
-    "route": "Home → Settings",
-    "screenshot": "screens/settings.webp",
-    "source": "native/jimi-2026/JimiNativeSettingsView.swift",
-    "texts": [
-      {
-        "alignment": 1,
-        "color": "#AD8775",
-        "font": "Baloo2-Bold",
-        "id": "settings-text-1",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeSettingsView[1]/JimiV9NavigationHeader[0]/UILabel[0]",
-        "rect": {
-          "height": 32,
-          "width": 246,
-          "x": 72,
-          "y": 57.879999999999995
-        },
-        "runs": [
-          {
-            "color": "#AD8775",
-            "font": "Baloo2-Bold",
-            "size": 28,
-            "text": "Settings"
-          }
-        ],
-        "size": 28,
-        "text": "Settings",
-        "reference": "STS-SETTINGS-01",
-        "role": "Navigacijski naslov",
-        "source": "native/jimi-2026/JimiNativeSettingsView.swift",
-        "sourceLine": 48,
-        "colorDescription": "#AD8775"
-      },
-      {
-        "alignment": 4,
-        "color": "#BD9788",
-        "font": "Baloo2-Medium",
-        "id": "settings-text-2",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeSettingsView[1]/UIScrollView[1]/UIView[10]/UILabel[1]",
-        "rect": {
-          "height": 28,
-          "width": 259,
-          "x": 24,
-          "y": 180.88
-        },
-        "runs": [
-          {
-            "color": "#BD9788",
-            "font": "Baloo2-Medium",
-            "size": 18,
-            "text": "Game sounds"
-          }
-        ],
-        "size": 18,
-        "text": "Game sounds",
-        "reference": "STS-SETTINGS-02",
-        "role": "Podnaslov",
-        "source": "native/jimi-2026/JimiNativeSettingsView.swift",
-        "sourceLine": 34,
-        "colorDescription": "#BD9788"
-      },
-      {
-        "alignment": 4,
-        "color": "#BD9788",
-        "font": "Baloo2-Medium",
-        "id": "settings-text-3",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeSettingsView[1]/UIScrollView[1]/UIView[12]/UILabel[1]",
-        "rect": {
-          "height": 28,
-          "width": 259,
-          "x": 24,
-          "y": 306.88
-        },
-        "runs": [
-          {
-            "color": "#BD9788",
-            "font": "Baloo2-Medium",
-            "size": 18,
-            "text": "Music"
-          }
-        ],
-        "size": 18,
-        "text": "Music",
-        "reference": "STS-SETTINGS-03",
-        "role": "Podnaslov",
-        "source": "native/jimi-2026/JimiNativeSettingsView.swift",
-        "sourceLine": 34,
-        "colorDescription": "#BD9788"
-      },
-      {
-        "alignment": 4,
-        "color": "#BD9788",
-        "font": "Baloo2-Medium",
-        "id": "settings-text-4",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeSettingsView[1]/UIScrollView[1]/UIView[14]/UILabel[1]",
-        "rect": {
-          "height": 28,
-          "width": 259,
-          "x": 24,
-          "y": 432.88
-        },
-        "runs": [
-          {
-            "color": "#BD9788",
-            "font": "Baloo2-Medium",
-            "size": 18,
-            "text": "Vibration"
-          }
-        ],
-        "size": 18,
-        "text": "Vibration",
-        "reference": "STS-SETTINGS-04",
-        "role": "Podnaslov",
-        "source": "native/jimi-2026/JimiNativeSettingsView.swift",
-        "sourceLine": 34,
-        "colorDescription": "#BD9788"
-      },
-      {
-        "alignment": 1,
-        "color": "#996754",
-        "font": "Baloo2-Bold",
-        "id": "settings-text-5",
-        "identifier": "",
-        "lineCount": 0,
-        "opacity": 1,
-        "path": "root/JimiNativeSettingsView[1]/UIView[2]/UILabel[0]",
-        "rect": {
-          "height": 125,
-          "width": 342,
-          "x": 24,
-          "y": 645
-        },
-        "runs": [
-          {
-            "color": "#996754",
-            "font": "Baloo2-Bold",
-            "size": 16,
-            "text": "Made with ❤️ in Croatia\nby Tap Tap Design\n\nVersion: 1.0"
-          }
-        ],
-        "size": 16,
-        "text": "Made with ❤️ in Croatia\nby Tap Tap Design\n\nVersion: 1.0",
-        "reference": "STS-SETTINGS-05",
-        "role": "Opis / pomoćni tekst",
-        "source": "native/jimi-2026/JimiNativeSettingsView.swift",
-        "sourceLine": 89,
-        "colorDescription": "#996754"
-      },
-      {
-        "alignment": 0,
-        "button": {
-          "enabled": true,
-          "identifier": "native.settings.privacy",
-          "kind": "Control",
-          "rect": {
-            "height": 44,
-            "width": 342,
-            "x": 24,
-            "y": 766
-          },
-          "size": {
-            "height": 44,
-            "width": 342
-          }
-        },
-        "color": "#996754",
-        "font": "Baloo2-Bold",
-        "id": "settings-text-6",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeSettingsView[1]/UIView[2]/NativeCartoonBounceSurface[1]/JimiV9PlainButton[0]/UIButtonLabel[0]",
-        "rect": {
-          "height": 23,
-          "width": 88,
-          "x": 151,
-          "y": 776.6666666666666
-        },
-        "runs": [
-          {
-            "color": "#996754",
-            "font": "Baloo2-Bold",
-            "size": 14,
-            "text": "Privacy Policy"
-          }
-        ],
-        "size": 14,
-        "text": "Privacy Policy",
-        "reference": "STS-SETTINGS-06",
-        "role": "Opis / pomoćni tekst",
-        "source": "native/jimi-2026/JimiNativeSettingsView.swift",
-        "sourceLine": 107,
-        "colorDescription": "#996754"
-      }
-    ],
-    "width": 390
-  },
-  {
-    "category": "Navigation",
-    "height": 844,
-    "id": "backpack",
-    "name": "Backpack navigation and section",
-    "route": "Home → Backpack",
-    "screenshot": "screens/backpack.webp",
-    "source": "native/gameplay-collection/NativeBackpackView.swift",
-    "texts": [
-      {
-        "alignment": 4,
-        "color": "#AD8775",
-        "font": "Baloo2-ExtraBold",
-        "id": "backpack-text-1",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/NativeBackpackView[1]/UICollectionView[0]/NativeBackpackSectionHeader[6]/UILabel[0]",
-        "rect": {
-          "height": 40,
-          "width": 250,
-          "x": 32,
-          "y": 154
-        },
-        "runs": [
-          {
-            "color": "#AD8775",
-            "font": "Baloo2-ExtraBold",
-            "size": 28,
-            "text": "Forest"
-          }
-        ],
-        "size": 28,
-        "text": "Forest",
-        "reference": "STS-BACKPACK-01",
-        "role": "Naslov sekcije",
-        "source": "native/gameplay-collection/NativeBackpackView.swift",
-        "sourceLine": 348,
-        "colorDescription": "#AD8775"
-      },
-      {
-        "alignment": 2,
-        "color": "#E8744A",
-        "font": "Baloo2-ExtraBold",
-        "id": "backpack-text-2",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/NativeBackpackView[1]/UICollectionView[0]/NativeBackpackSectionHeader[6]/UILabel[2]",
-        "rect": {
-          "height": 40,
-          "width": 80,
-          "x": 278,
-          "y": 154
-        },
-        "runs": [
-          {
-            "color": "#E8744A",
-            "font": "Baloo2-ExtraBold",
-            "size": 24,
-            "text": "6 / 6"
-          }
-        ],
-        "size": 24,
-        "text": "6 / 6",
-        "reference": "STS-BACKPACK-02",
-        "role": "Broj / statistika",
-        "source": "native/gameplay-collection/NativeBackpackView.swift",
-        "sourceLine": 348,
-        "colorDescription": "#E8744A"
-      },
-      {
-        "alignment": 1,
-        "color": "#AD8775",
-        "font": "Baloo2-Bold",
-        "id": "backpack-text-3",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/NativeBackpackView[1]/JimiV9NavigationHeader[1]/UILabel[0]",
-        "rect": {
-          "height": 32,
-          "width": 246,
-          "x": 72,
-          "y": 57.879999999999995
-        },
-        "runs": [
-          {
-            "color": "#AD8775",
-            "font": "Baloo2-Bold",
-            "size": 28,
-            "text": "Backpack"
-          }
-        ],
-        "size": 28,
-        "text": "Backpack",
-        "reference": "STS-BACKPACK-03",
-        "role": "Navigacijski naslov",
-        "source": "native/gameplay-collection/NativeBackpackView.swift",
-        "sourceLine": 71,
-        "colorDescription": "#AD8775"
-      }
-    ],
-    "width": 390
-  },
-  {
-    "category": "CTA",
-    "height": 844,
-    "id": "stage-play",
-    "name": "Stage · Play CTA",
-    "route": "Journey → Forest → Unit 07 → stats back",
-    "screenshot": "screens/stage-play.webp",
-    "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
-    "texts": [
-      {
-        "alignment": 1,
-        "color": "#AD8675",
-        "font": "Baloo2-ExtraBold",
-        "id": "stage-play-text-1",
-        "identifier": "native.world.card.stage-title",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeWorldCardView[1]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/UIView[1]/UILabel[1]",
-        "rect": {
-          "height": 37.44132797526839,
-          "width": 110.47140923823875,
-          "x": 147.05048070355164,
-          "y": 258.5848924519068
-        },
-        "runs": [
-          {
-            "color": "#AD8675",
-            "font": "Baloo2-ExtraBold",
-            "size": 28,
-            "text": "Stage 07"
-          }
-        ],
-        "size": 28,
-        "text": "Stage 07",
-        "reference": "STS-STAGE-PLAY-01",
-        "role": "Naslov modala",
-        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
-        "sourceLine": 80,
-        "colorDescription": "#AD8675"
-      },
-      {
-        "alignment": 4,
-        "color": "#E8744A",
-        "font": "Baloo2-Bold",
-        "id": "stage-play-text-2",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeWorldCardView[1]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/UIView[1]/UIStackView[3]/UIView[0]/UILabel[1]",
-        "rect": {
-          "height": 40.18107599504583,
-          "width": 188.7386535242259,
-          "x": 149.91470996811952,
-          "y": 323.6615022093581
-        },
-        "runs": [
-          {
-            "color": "#E8744A",
-            "font": "Baloo2-Bold",
-            "size": 28,
-            "text": "0"
-          }
-        ],
-        "size": 28,
-        "text": "0",
-        "reference": "STS-STAGE-PLAY-02",
-        "role": "Broj / statistika",
-        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
-        "sourceLine": 163,
-        "colorDescription": "#E8744A"
-      },
-      {
-        "alignment": 4,
-        "color": "#AD8675",
-        "font": "Baloo2-Medium",
-        "id": "stage-play-text-3",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeWorldCardView[1]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/UIView[1]/UIStackView[3]/UIView[0]/UILabel[2]",
-        "rect": {
-          "height": 30.456714648441164,
-          "width": 188.24897681534546,
-          "x": 148.75511420865288,
-          "y": 356.4139716455309
-        },
-        "runs": [
-          {
-            "color": "#AD8675",
-            "font": "Baloo2-Medium",
-            "size": 18,
-            "text": "High score"
-          }
-        ],
-        "size": 18,
-        "text": "High score",
-        "reference": "STS-STAGE-PLAY-03",
-        "role": "Podnaslov / labela",
-        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
-        "sourceLine": 96,
-        "colorDescription": "#AD8675"
-      },
-      {
-        "alignment": 4,
-        "color": "#E8744A",
-        "font": "Baloo2-Bold",
-        "id": "stage-play-text-4",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeWorldCardView[1]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/UIView[1]/UIStackView[3]/UIView[2]/UILabel[1]",
-        "rect": {
-          "height": 40.18107599504589,
-          "width": 188.73865352422592,
-          "x": 143.79585658340847,
-          "y": 445.1742069403211
-        },
-        "runs": [
-          {
-            "color": "#E8744A",
-            "font": "Baloo2-Bold",
-            "size": 28,
-            "text": "0"
-          }
-        ],
-        "size": 28,
-        "text": "0",
-        "reference": "STS-STAGE-PLAY-04",
-        "role": "Broj / statistika",
-        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
-        "sourceLine": 163,
-        "colorDescription": "#E8744A"
-      },
-      {
-        "alignment": 4,
-        "color": "#AD8675",
-        "font": "Baloo2-Medium",
-        "id": "stage-play-text-5",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeWorldCardView[1]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/UIView[1]/UIStackView[3]/UIView[2]/UILabel[2]",
-        "rect": {
-          "height": 30.45671464844122,
-          "width": 188.24897681534543,
-          "x": 142.63626082394183,
-          "y": 477.92667637649384
-        },
-        "runs": [
-          {
-            "color": "#AD8675",
-            "font": "Baloo2-Medium",
-            "size": 18,
-            "text": "Longest combo"
-          }
-        ],
-        "size": 18,
-        "text": "Longest combo",
-        "reference": "STS-STAGE-PLAY-05",
-        "role": "Podnaslov / labela",
-        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
-        "sourceLine": 96,
-        "colorDescription": "#AD8675"
-      },
-      {
-        "alignment": 0,
-        "button": {
-          "enabled": true,
-          "identifier": "native.world.card.play",
-          "kind": "CTA",
-          "rect": {
-            "height": 91.8755196352372,
-            "width": 229.2052679011046,
-            "x": 72.32260301933337,
-            "y": 536.4168416347432
-          },
-          "size": {
-            "height": 80.64,
-            "width": 225.435
-          }
-        },
-        "color": "gradient / pattern",
-        "font": "Baloo2-ExtraBold",
-        "id": "stage-play-text-6",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeWorldCardView[1]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/UIView[1]/NativeCartoonBounceSurface[4]/JimiV9PlainButton[0]/UIButtonLabel[1]",
-        "rect": {
-          "height": 48.79744152167143,
-          "width": 58.09818874441186,
-          "x": 158.20945839060803,
-          "y": 553.167467532432
-        },
-        "runs": [
-          {
-            "color": "gradient / pattern",
-            "font": "Baloo2-ExtraBold",
-            "size": 28,
-            "text": "Play"
-          }
-        ],
-        "size": 28,
-        "text": "Play",
-        "reference": "STS-STAGE-PLAY-06",
-        "role": "CTA",
-        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
-        "sourceLine": 102,
-        "fontSource": "native/jimi-2026/JimiV9HomeView.swift",
-        "fontSourceLine": 152,
-        "colorDescription": "Ivory gradient · #FFFCED → #FFF6E1 → #F7E8CE",
-        "surfaceColor": "#EE8158"
-      }
-    ],
-    "width": 390
-  },
-  {
-    "category": "CTA",
-    "height": 844,
-    "id": "stage-continue",
-    "name": "Stage · Continue CTA",
-    "route": "Journey → Forest → Unit 07 → stats back",
-    "screenshot": "screens/stage-continue.webp",
-    "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
-    "texts": [
-      {
-        "alignment": 1,
-        "color": "#AD8675",
-        "font": "Baloo2-ExtraBold",
-        "id": "stage-continue-text-1",
-        "identifier": "native.world.card.stage-title",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeWorldCardView[1]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/UIView[1]/UILabel[1]",
-        "rect": {
-          "height": 37.468914678337796,
-          "width": 110.47821627118111,
-          "x": 132.43748794396438,
-          "y": 258.5729780666365
-        },
-        "runs": [
-          {
-            "color": "#AD8675",
-            "font": "Baloo2-ExtraBold",
-            "size": 28,
-            "text": "Stage 07"
-          }
-        ],
-        "size": 28,
-        "text": "Stage 07",
-        "reference": "STS-STAGE-CONTINUE-01",
-        "role": "Naslov modala",
-        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
-        "sourceLine": 80,
-        "colorDescription": "#AD8675"
-      },
-      {
-        "alignment": 4,
-        "color": "#E8744A",
-        "font": "Baloo2-Bold",
-        "id": "stage-continue-text-2",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeWorldCardView[1]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/UIView[1]/UIStackView[3]/UIView[0]/UILabel[1]",
-        "rect": {
-          "height": 40.22882600005386,
-          "width": 188.74413358508846,
-          "x": 141.7808387853713,
-          "y": 319.0719537581714
-        },
-        "runs": [
-          {
-            "color": "#E8744A",
-            "font": "Baloo2-Bold",
-            "size": 28,
-            "text": "0"
-          }
-        ],
-        "size": 28,
-        "text": "0",
-        "reference": "STS-STAGE-CONTINUE-02",
-        "role": "Broj / statistika",
-        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
-        "sourceLine": 163,
-        "colorDescription": "#E8744A"
-      },
-      {
-        "alignment": 4,
-        "color": "#AD8675",
-        "font": "Baloo2-Medium",
-        "id": "stage-continue-text-3",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeWorldCardView[1]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/UIView[1]/UIStackView[3]/UIView[0]/UILabel[2]",
-        "rect": {
-          "height": 30.504590931601058,
-          "width": 188.25195555629085,
-          "x": 143.43853591022946,
-          "y": 351.823997878875
-        },
-        "runs": [
-          {
-            "color": "#AD8675",
-            "font": "Baloo2-Medium",
-            "size": 18,
-            "text": "High score"
-          }
-        ],
-        "size": 18,
-        "text": "High score",
-        "reference": "STS-STAGE-CONTINUE-03",
-        "role": "Podnaslov / labela",
-        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
-        "sourceLine": 96,
-        "colorDescription": "#AD8675"
-      },
-      {
-        "alignment": 4,
-        "color": "#E8744A",
-        "font": "Baloo2-Bold",
-        "id": "stage-continue-text-4",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeWorldCardView[1]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/UIView[1]/UIStackView[3]/UIView[2]/UILabel[1]",
-        "rect": {
-          "height": 40.22882600005397,
-          "width": 188.74413358508843,
-          "x": 147.93094791405247,
-          "y": 440.583080555198
-        },
-        "runs": [
-          {
-            "color": "#E8744A",
-            "font": "Baloo2-Bold",
-            "size": 28,
-            "text": "0"
-          }
-        ],
-        "size": 28,
-        "text": "0",
-        "reference": "STS-STAGE-CONTINUE-04",
-        "role": "Broj / statistika",
-        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
-        "sourceLine": 163,
-        "colorDescription": "#E8744A"
-      },
-      {
-        "alignment": 4,
-        "color": "#AD8675",
-        "font": "Baloo2-Medium",
-        "id": "stage-continue-text-5",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeWorldCardView[1]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/UIView[1]/UIStackView[3]/UIView[2]/UILabel[2]",
-        "rect": {
-          "height": 30.504590931601058,
-          "width": 188.25195555629082,
-          "x": 149.58864503891064,
-          "y": 473.3351246759017
-        },
-        "runs": [
-          {
-            "color": "#AD8675",
-            "font": "Baloo2-Medium",
-            "size": 18,
-            "text": "Longest combo"
-          }
-        ],
-        "size": 18,
-        "text": "Longest combo",
-        "reference": "STS-STAGE-CONTINUE-05",
-        "role": "Podnaslov / labela",
-        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
-        "sourceLine": 96,
-        "colorDescription": "#AD8675"
-      },
-      {
-        "alignment": 0,
-        "button": {
-          "enabled": true,
-          "identifier": "native.world.card.continue",
-          "kind": "CTA",
-          "rect": {
-            "height": 91.93238725755998,
-            "width": 229.22306029828394,
-            "x": 88.50447961627071,
-            "y": 536.3863254983794
-          },
-          "size": {
-            "height": 80.64,
-            "width": 225.435
-          }
-        },
-        "color": "gradient / pattern",
-        "font": "Baloo2-ExtraBold",
-        "id": "stage-continue-text-6",
-        "identifier": "",
-        "lineCount": 1,
-        "opacity": 1,
-        "path": "root/JimiNativeWorldCardView[1]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/UIView[1]/NativeCartoonBounceSurface[4]/JimiV9PlainButton[0]/UIButtonLabel[1]",
-        "rect": {
-          "height": 52.43072898663456,
-          "width": 118.81597923892375,
-          "x": 143.3992826440568,
-          "y": 551.347093970873
-        },
-        "runs": [
-          {
-            "color": "gradient / pattern",
-            "font": "Baloo2-ExtraBold",
-            "size": 28,
-            "text": "Continue"
-          }
-        ],
-        "size": 28,
-        "text": "Continue",
-        "reference": "STS-STAGE-CONTINUE-06",
-        "role": "CTA",
-        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
-        "sourceLine": 102,
-        "fontSource": "native/jimi-2026/JimiV9HomeView.swift",
-        "fontSourceLine": 152,
-        "colorDescription": "Ivory gradient · #FFFCED → #FFF6E1 → #F7E8CE",
-        "surfaceColor": "#EE8158"
-      }
-    ],
-    "width": 390
-  },
-  {
     "category": "Modal",
     "height": 844,
     "id": "exit-stage",
@@ -2771,7 +1020,7 @@
         "reference": "STS-RESULT-COMBO-01",
         "role": "Naslov",
         "source": "native/gameplay-app/NativeResultOwner.swift",
-        "sourceLine": 240,
+        "sourceLine": 242,
         "colorDescription": "#B07F69"
       },
       {
@@ -2833,7 +1082,7 @@
         "reference": "STS-RESULT-COMBO-03",
         "role": "Podnaslov",
         "source": "native/gameplay-app/NativeResultOwner.swift",
-        "sourceLine": 458,
+        "sourceLine": 467,
         "colorDescription": "#C48A6D"
       },
       {
@@ -2864,7 +1113,7 @@
         "reference": "STS-RESULT-COMBO-04",
         "role": "Podnaslov / labela",
         "source": "native/gameplay-app/NativeResultOwner.swift",
-        "sourceLine": 256,
+        "sourceLine": 258,
         "colorDescription": "#B69077"
       },
       {
@@ -2938,7 +1187,7 @@
         "reference": "STS-RESULT-EFFICIENCY-01",
         "role": "Naslov",
         "source": "native/gameplay-app/NativeResultOwner.swift",
-        "sourceLine": 240,
+        "sourceLine": 242,
         "colorDescription": "#B07F69"
       },
       {
@@ -3000,7 +1249,7 @@
         "reference": "STS-RESULT-EFFICIENCY-03",
         "role": "Podnaslov",
         "source": "native/gameplay-app/NativeResultOwner.swift",
-        "sourceLine": 457,
+        "sourceLine": 441,
         "colorDescription": "#C48A6D"
       },
       {
@@ -3031,7 +1280,7 @@
         "reference": "STS-RESULT-EFFICIENCY-04",
         "role": "Podnaslov / labela",
         "source": "native/gameplay-app/NativeResultOwner.swift",
-        "sourceLine": 256,
+        "sourceLine": 258,
         "colorDescription": "#B69077"
       },
       {
@@ -3105,7 +1354,7 @@
         "reference": "STS-RESULT-CLEAN-01",
         "role": "Naslov",
         "source": "native/gameplay-app/NativeResultOwner.swift",
-        "sourceLine": 240,
+        "sourceLine": 242,
         "colorDescription": "#B07F69"
       },
       {
@@ -3136,7 +1385,7 @@
         "reference": "STS-RESULT-CLEAN-02",
         "role": "Podnaslov",
         "source": "native/gameplay-app/NativeResultOwner.swift",
-        "sourceLine": 259,
+        "sourceLine": 261,
         "colorDescription": "#B69077"
       },
       {
@@ -3167,7 +1416,7 @@
         "reference": "STS-RESULT-CLEAN-03",
         "role": "Podnaslov / labela",
         "source": "native/gameplay-app/NativeResultOwner.swift",
-        "sourceLine": 256,
+        "sourceLine": 258,
         "colorDescription": "#B69077"
       },
       {
@@ -3244,7 +1493,7 @@
         "reference": "STS-RESULT-CLEAN-05",
         "role": "CTA",
         "source": "native/gameplay-app/NativeResultOwner.swift",
-        "sourceLine": 261,
+        "sourceLine": 263,
         "fontSource": "native/jimi-2026/JimiV9HomeView.swift",
         "fontSourceLine": 152,
         "colorDescription": "Ivory gradient · #FFFCED → #FFF6E1 → #F7E8CE",
@@ -3339,7 +1588,7 @@
         "reference": "STS-RESULT-FAIL-01",
         "role": "Naslov",
         "source": "native/gameplay-app/NativeResultOwner.swift",
-        "sourceLine": 240,
+        "sourceLine": 242,
         "colorDescription": "#E77449"
       },
       {
@@ -3370,7 +1619,7 @@
         "reference": "STS-RESULT-FAIL-02",
         "role": "Podnaslov",
         "source": "native/gameplay-app/NativeResultOwner.swift",
-        "sourceLine": 259,
+        "sourceLine": 261,
         "colorDescription": "#B69077"
       },
       {
@@ -3416,7 +1665,7 @@
         "reference": "STS-RESULT-FAIL-03",
         "role": "CTA",
         "source": "native/gameplay-app/NativeResultOwner.swift",
-        "sourceLine": 261,
+        "sourceLine": 263,
         "fontSource": "native/jimi-2026/JimiV9HomeView.swift",
         "fontSourceLine": 152,
         "colorDescription": "Ivory gradient · #FFFCED → #FFF6E1 → #F7E8CE",
@@ -3552,8 +1801,8 @@
     "category": "Tutorial",
     "height": 844,
     "id": "tutorial",
-    "name": "First play tutorial",
-    "route": "Settings → First play / first launch",
+    "name": "Drag to stack · Got it",
+    "route": "First play → tutorial sheet",
     "screenshot": "screens/tutorial.webp",
     "source": "native/gameplay-app/NativeTutorialOverlay.swift",
     "texts": [
@@ -3591,7 +1840,7 @@
         "reference": "STS-TUTORIAL-01",
         "role": "Naslov",
         "source": "native/gameplay-app/NativeTutorialOverlay.swift",
-        "sourceLine": 114,
+        "sourceLine": 116,
         "colorDescription": "Drag: #E97A55 · to stack: #AD8775"
       },
       {
@@ -3622,8 +1871,57 @@
         "reference": "STS-TUTORIAL-02",
         "role": "Podnaslov",
         "source": "native/gameplay-app/NativeTutorialOverlay.swift",
-        "sourceLine": 114,
+        "sourceLine": 116,
         "colorDescription": "#BD9788"
+      },
+      {
+        "alignment": 0,
+        "button": {
+          "enabled": true,
+          "identifier": "native.tutorial.got-it",
+          "kind": "CTA",
+          "rect": {
+            "height": 80.63999999999999,
+            "width": 127.54229508196724,
+            "x": 131.2288524590164,
+            "y": 729.36
+          },
+          "size": {
+            "height": 80.64,
+            "width": 127.54229508196721
+          }
+        },
+        "color": "gradient / pattern",
+        "font": "Baloo2-ExtraBold",
+        "id": "tutorial-text-3",
+        "identifier": "",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/NativeTutorialOverlay[1]/UIView[1]/NativeCartoonBounceSurface[3]/JimiV9PlainButton[0]/UIButtonLabel[1]",
+        "rect": {
+          "height": 46.38577062819422,
+          "width": 71.8701117345976,
+          "x": 158.97067142201968,
+          "y": 741.6880405401931
+        },
+        "runs": [
+          {
+            "color": "gradient / pattern",
+            "font": "Baloo2-ExtraBold",
+            "size": 28,
+            "text": "Got it"
+          }
+        ],
+        "size": 28,
+        "text": "Got it",
+        "reference": "STS-TUTORIAL-03",
+        "role": "CTA",
+        "source": "native/gameplay-app/NativeTutorialOverlay.swift",
+        "sourceLine": 66,
+        "fontSource": "native/jimi-2026/JimiV9HomeView.swift",
+        "fontSourceLine": 152,
+        "colorDescription": "Ivory gradient · #FFFCED → #FFF6E1 → #F7E8CE",
+        "surfaceColor": "#EE8158"
       }
     ],
     "width": 390
@@ -4110,7 +2408,7 @@
         "reference": "STS-GAMEPLAY-HUD-01",
         "role": "Broj / statistika",
         "source": "native/gameplay-ui/NativeBoardScene.swift",
-        "sourceLine": 5806,
+        "sourceLine": 5828,
         "colorDescription": "#B58573"
       },
       {
@@ -4135,7 +2433,7 @@
         "reference": "STS-GAMEPLAY-HUD-02",
         "role": "Opis / pomoćni tekst",
         "source": "native/gameplay-ui/NativeBoardScene.swift",
-        "sourceLine": 5940,
+        "sourceLine": 5962,
         "colorDescription": "#E77449"
       },
       {
@@ -4160,7 +2458,7 @@
         "reference": "STS-GAMEPLAY-HUD-03",
         "role": "Broj / statistika",
         "source": "native/gameplay-ui/NativeBoardScene.swift",
-        "sourceLine": 5806,
+        "sourceLine": 5828,
         "colorDescription": "#E77449"
       }
     ],
@@ -5848,6 +4146,7 @@
       {
         "alignment": 1,
         "color": "#E97A55",
+        "colorDescription": "Great: #E97A55 · merge!: #AD8775",
         "font": "Baloo2-ExtraBold",
         "id": "tutorial-encouragement-text-1",
         "identifier": "",
@@ -5860,6 +4159,8 @@
           "x": 28,
           "y": 532.296
         },
+        "reference": "STS-TUTORIAL-ENCOURAGEMENT-01",
+        "role": "Naslov",
         "runs": [
           {
             "color": "#E97A55",
@@ -5875,16 +4176,14 @@
           }
         ],
         "size": 32,
-        "text": "Great merge!",
-        "reference": "STS-TUTORIAL-ENCOURAGEMENT-01",
-        "role": "Naslov",
         "source": "native/gameplay-app/NativeTutorialOverlay.swift",
-        "sourceLine": 115,
-        "colorDescription": "Great: #E97A55 · merge!: #AD8775"
+        "sourceLine": 117,
+        "text": "Great merge!"
       },
       {
         "alignment": 1,
         "color": "#BD9788",
+        "colorDescription": "#BD9788",
         "font": "Baloo2-Medium",
         "id": "tutorial-encouragement-text-2",
         "identifier": "",
@@ -5897,6 +4196,8 @@
           "x": 55,
           "y": 582.696
         },
+        "reference": "STS-TUTORIAL-ENCOURAGEMENT-02",
+        "role": "Podnaslov",
         "runs": [
           {
             "color": "#BD9788",
@@ -5906,12 +4207,9 @@
           }
         ],
         "size": 18,
-        "text": "You’re doing great! Keep merging\nto clear the board.",
-        "reference": "STS-TUTORIAL-ENCOURAGEMENT-02",
-        "role": "Podnaslov",
         "source": "native/gameplay-app/NativeTutorialOverlay.swift",
-        "sourceLine": 121,
-        "colorDescription": "#BD9788"
+        "sourceLine": 123,
+        "text": "You’re doing great! Keep merging\nto clear the board."
       },
       {
         "alignment": 0,
@@ -5931,7 +4229,10 @@
           }
         },
         "color": "gradient / pattern",
+        "colorDescription": "Ivory gradient · #FFFCED → #FFF6E1 → #F7E8CE",
         "font": "Baloo2-ExtraBold",
+        "fontSource": "native/jimi-2026/JimiV9HomeView.swift",
+        "fontSourceLine": 152,
         "id": "tutorial-encouragement-text-3",
         "identifier": "",
         "lineCount": 1,
@@ -5943,6 +4244,8 @@
           "x": 136.5371700702305,
           "y": 687.3823919670951
         },
+        "reference": "STS-TUTORIAL-ENCOURAGEMENT-03",
+        "role": "CTA",
         "runs": [
           {
             "color": "gradient / pattern",
@@ -5952,15 +4255,10 @@
           }
         ],
         "size": 28,
-        "text": "Continue",
-        "reference": "STS-TUTORIAL-ENCOURAGEMENT-03",
-        "role": "CTA",
         "source": "native/gameplay-app/NativeTutorialOverlay.swift",
         "sourceLine": 12,
-        "fontSource": "native/jimi-2026/JimiV9HomeView.swift",
-        "fontSourceLine": 152,
-        "colorDescription": "Ivory gradient · #FFFCED → #FFF6E1 → #F7E8CE",
-        "surfaceColor": "#EE8158"
+        "surfaceColor": "#EE8158",
+        "text": "Continue"
       }
     ],
     "width": 390
@@ -5977,6 +4275,7 @@
       {
         "alignment": 1,
         "color": "#EF744D",
+        "colorDescription": "#EF744D",
         "font": "Baloo2-ExtraBold",
         "id": "tutorial-completed-text-1",
         "identifier": "",
@@ -5989,6 +4288,8 @@
           "x": 24,
           "y": 110.6
         },
+        "reference": "STS-TUTORIAL-COMPLETED-01",
+        "role": "Naslov",
         "runs": [
           {
             "color": "#EF744D",
@@ -5998,16 +4299,14 @@
           }
         ],
         "size": 44,
-        "text": "Tutorial completed",
-        "reference": "STS-TUTORIAL-COMPLETED-01",
-        "role": "Naslov",
         "source": "native/gameplay-tutorial-complete/NativeTutorialCompleteController.swift",
         "sourceLine": 31,
-        "colorDescription": "#EF744D"
+        "text": "Tutorial completed"
       },
       {
         "alignment": 1,
         "color": "#BD9788",
+        "colorDescription": "#BD9788",
         "font": "Baloo2-SemiBold",
         "id": "tutorial-completed-text-2",
         "identifier": "",
@@ -6020,6 +4319,8 @@
           "x": 24,
           "y": 275.6
         },
+        "reference": "STS-TUTORIAL-COMPLETED-02",
+        "role": "Podnaslov",
         "runs": [
           {
             "color": "#BD9788",
@@ -6029,12 +4330,9 @@
           }
         ],
         "size": 23,
-        "text": "You’re ready to play!",
-        "reference": "STS-TUTORIAL-COMPLETED-02",
-        "role": "Podnaslov",
         "source": "native/gameplay-tutorial-complete/NativeTutorialCompleteController.swift",
         "sourceLine": 31,
-        "colorDescription": "#BD9788"
+        "text": "You’re ready to play!"
       },
       {
         "alignment": 0,
@@ -6054,7 +4352,10 @@
           }
         },
         "color": "gradient / pattern",
+        "colorDescription": "Ivory gradient · #FFFCED → #FFF6E1 → #F7E8CE",
         "font": "Baloo2-ExtraBold",
+        "fontSource": "native/jimi-2026/JimiV9HomeView.swift",
+        "fontSourceLine": 152,
         "id": "tutorial-completed-text-3",
         "identifier": "",
         "lineCount": 1,
@@ -6066,6 +4367,390 @@
           "x": 135.7960094097412,
           "y": 732.8212559901971
         },
+        "reference": "STS-TUTORIAL-COMPLETED-03",
+        "role": "CTA",
+        "runs": [
+          {
+            "color": "gradient / pattern",
+            "font": "Baloo2-ExtraBold",
+            "size": 28,
+            "text": "Continue"
+          }
+        ],
+        "size": 28,
+        "source": "native/gameplay-tutorial-complete/NativeTutorialCompleteController.swift",
+        "sourceLine": 4,
+        "surfaceColor": "#EE8158",
+        "text": "Continue"
+      }
+    ],
+    "width": 390
+  },
+  {
+    "category": "Tutorial",
+    "height": 844,
+    "id": "tutorial-merge",
+    "name": "Merge dice · Got it",
+    "route": "First play → tutorial sheet",
+    "screenshot": "screens/tutorial-merge.webp",
+    "source": "native/gameplay-app/NativeTutorialOverlay.swift",
+    "texts": [
+      {
+        "alignment": 1,
+        "color": "#E97A55",
+        "font": "Baloo2-ExtraBold",
+        "id": "tutorial-merge-text-1",
+        "identifier": "",
+        "lineCount": 0,
+        "opacity": 1,
+        "path": "root/NativeTutorialOverlay[1]/UIView[1]/UILabel[1]",
+        "rect": {
+          "height": 38.39999999999998,
+          "width": 334,
+          "x": 28,
+          "y": 608.96
+        },
+        "runs": [
+          {
+            "color": "#E97A55",
+            "font": "Baloo2-ExtraBold",
+            "size": 32,
+            "text": "Merge"
+          },
+          {
+            "color": "#AD8775",
+            "font": "Baloo2-ExtraBold",
+            "size": 32,
+            "text": " dice"
+          }
+        ],
+        "size": 32,
+        "text": "Merge dice",
+        "reference": "STS-TUTORIAL-MERGE-01",
+        "role": "Naslov",
+        "source": "native/gameplay-app/NativeTutorialOverlay.swift",
+        "sourceLine": 116,
+        "colorDescription": "Merge: #E97A55 · dice: #AD8775"
+      },
+      {
+        "alignment": 1,
+        "color": "#BD9788",
+        "font": "Baloo2-Medium",
+        "id": "tutorial-merge-text-2",
+        "identifier": "",
+        "lineCount": 2,
+        "opacity": 1,
+        "path": "root/NativeTutorialOverlay[1]/UIView[1]/UILabel[2]",
+        "rect": {
+          "height": 56,
+          "width": 280,
+          "x": 55,
+          "y": 657.36
+        },
+        "runs": [
+          {
+            "color": "#BD9788",
+            "font": "Baloo2-Medium",
+            "size": 18,
+            "text": "Stack the dice to make 6."
+          }
+        ],
+        "size": 18,
+        "text": "Stack the dice to make 6.",
+        "reference": "STS-TUTORIAL-MERGE-02",
+        "role": "Podnaslov",
+        "source": "native/gameplay-app/NativeTutorialOverlay.swift",
+        "sourceLine": 116,
+        "colorDescription": "#BD9788"
+      },
+      {
+        "alignment": 0,
+        "button": {
+          "enabled": true,
+          "identifier": "native.tutorial.got-it",
+          "kind": "CTA",
+          "rect": {
+            "height": 80.63999999999999,
+            "width": 127.54229508196724,
+            "x": 131.2288524590164,
+            "y": 729.36
+          },
+          "size": {
+            "height": 80.64,
+            "width": 127.54229508196721
+          }
+        },
+        "color": "gradient / pattern",
+        "font": "Baloo2-ExtraBold",
+        "id": "tutorial-merge-text-3",
+        "identifier": "",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/NativeTutorialOverlay[1]/UIView[1]/NativeCartoonBounceSurface[3]/JimiV9PlainButton[0]/UIButtonLabel[1]",
+        "rect": {
+          "height": 45.70695472283353,
+          "width": 71.44595068362133,
+          "x": 159.22907876234072,
+          "y": 742.0267621038199
+        },
+        "runs": [
+          {
+            "color": "gradient / pattern",
+            "font": "Baloo2-ExtraBold",
+            "size": 28,
+            "text": "Got it"
+          }
+        ],
+        "size": 28,
+        "text": "Got it",
+        "reference": "STS-TUTORIAL-MERGE-03",
+        "role": "CTA",
+        "source": "native/gameplay-app/NativeTutorialOverlay.swift",
+        "sourceLine": 66,
+        "fontSource": "native/jimi-2026/JimiV9HomeView.swift",
+        "fontSourceLine": 152,
+        "colorDescription": "Ivory gradient · #FFFCED → #FFF6E1 → #F7E8CE",
+        "surfaceColor": "#EE8158"
+      }
+    ],
+    "width": 390
+  },
+  {
+    "category": "Tutorial",
+    "height": 844,
+    "id": "tutorial-special",
+    "name": "Special dice · Got it",
+    "route": "First play → tutorial sheet",
+    "screenshot": "screens/tutorial-special.webp",
+    "source": "native/gameplay-app/NativeTutorialOverlay.swift",
+    "texts": [
+      {
+        "alignment": 1,
+        "color": "#E97A55",
+        "font": "Baloo2-ExtraBold",
+        "id": "tutorial-special-text-1",
+        "identifier": "",
+        "lineCount": 0,
+        "opacity": 1,
+        "path": "root/NativeTutorialOverlay[1]/UIView[1]/UILabel[1]",
+        "rect": {
+          "height": 38.39999999999998,
+          "width": 334,
+          "x": 28,
+          "y": 608.96
+        },
+        "runs": [
+          {
+            "color": "#E97A55",
+            "font": "Baloo2-ExtraBold",
+            "size": 32,
+            "text": "Special"
+          },
+          {
+            "color": "#AD8775",
+            "font": "Baloo2-ExtraBold",
+            "size": 32,
+            "text": " dice"
+          }
+        ],
+        "size": 32,
+        "text": "Special dice",
+        "reference": "STS-TUTORIAL-SPECIAL-01",
+        "role": "Naslov",
+        "source": "native/gameplay-app/NativeTutorialOverlay.swift",
+        "sourceLine": 117,
+        "colorDescription": "Special: #E97A55 · dice: #AD8775"
+      },
+      {
+        "alignment": 1,
+        "color": "#BD9788",
+        "font": "Baloo2-Medium",
+        "id": "tutorial-special-text-2",
+        "identifier": "",
+        "lineCount": 2,
+        "opacity": 1,
+        "path": "root/NativeTutorialOverlay[1]/UIView[1]/UILabel[2]",
+        "rect": {
+          "height": 56,
+          "width": 280,
+          "x": 55,
+          "y": 657.36
+        },
+        "runs": [
+          {
+            "color": "#BD9788",
+            "font": "Baloo2-Medium",
+            "size": 18,
+            "text": "They can merge with any regular\ndice to get the value 6"
+          }
+        ],
+        "size": 18,
+        "text": "They can merge with any regular\ndice to get the value 6",
+        "reference": "STS-TUTORIAL-SPECIAL-02",
+        "role": "Podnaslov",
+        "source": "native/gameplay-app/NativeTutorialOverlay.swift",
+        "sourceLine": 123,
+        "colorDescription": "#BD9788"
+      },
+      {
+        "alignment": 0,
+        "button": {
+          "enabled": false,
+          "identifier": "native.tutorial.got-it",
+          "kind": "CTA",
+          "rect": {
+            "height": 80.63999999999999,
+            "width": 127.54229508196724,
+            "x": 131.2288524590164,
+            "y": 729.36
+          },
+          "size": {
+            "height": 80.64,
+            "width": 127.54229508196721
+          }
+        },
+        "color": "gradient / pattern",
+        "font": "Baloo2-ExtraBold",
+        "id": "tutorial-special-text-3",
+        "identifier": "",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/NativeTutorialOverlay[1]/UIView[1]/NativeCartoonBounceSurface[3]/JimiV9PlainButton[0]/UIButtonLabel[1]",
+        "rect": {
+          "height": 46.53208178434886,
+          "width": 71.9610090720428,
+          "x": 158.91519986963348,
+          "y": 741.6150923219062
+        },
+        "runs": [
+          {
+            "color": "gradient / pattern",
+            "font": "Baloo2-ExtraBold",
+            "size": 28,
+            "text": "Got it"
+          }
+        ],
+        "size": 28,
+        "text": "Got it",
+        "reference": "STS-TUTORIAL-SPECIAL-03",
+        "role": "CTA",
+        "source": "native/gameplay-app/NativeTutorialOverlay.swift",
+        "sourceLine": 66,
+        "fontSource": "native/jimi-2026/JimiV9HomeView.swift",
+        "fontSourceLine": 152,
+        "colorDescription": "Ivory gradient · #FFFCED → #FFF6E1 → #F7E8CE",
+        "surfaceColor": "#EE8158"
+      }
+    ],
+    "width": 390
+  },
+  {
+    "category": "Tutorial",
+    "height": 844,
+    "id": "tutorial-special-bar",
+    "name": "Special Bar · Continue",
+    "route": "First play → earned meter guide",
+    "screenshot": "screens/tutorial-special-bar.webp",
+    "source": "native/gameplay-app/NativeTutorialOverlay.swift",
+    "texts": [
+      {
+        "alignment": 1,
+        "color": "#E97A55",
+        "font": "Baloo2-ExtraBold",
+        "id": "tutorial-special-bar-text-1",
+        "identifier": "",
+        "lineCount": 0,
+        "opacity": 1,
+        "path": "root/NativeTutorialOverlay[1]/UIView[1]/UILabel[1]",
+        "rect": {
+          "height": 38.39999999999998,
+          "width": 334,
+          "x": 28,
+          "y": 608.96
+        },
+        "runs": [
+          {
+            "color": "#E97A55",
+            "font": "Baloo2-ExtraBold",
+            "size": 32,
+            "text": "Special"
+          },
+          {
+            "color": "#AD8775",
+            "font": "Baloo2-ExtraBold",
+            "size": 32,
+            "text": " Bar"
+          }
+        ],
+        "size": 32,
+        "text": "Special Bar",
+        "reference": "STS-TUTORIAL-SPECIAL-BAR-01",
+        "role": "Naslov",
+        "source": "native/gameplay-app/NativeTutorialOverlay.swift",
+        "sourceLine": 118,
+        "colorDescription": "Special: #E97A55 · Bar: #AD8775"
+      },
+      {
+        "alignment": 1,
+        "color": "#BD9788",
+        "font": "Baloo2-Medium",
+        "id": "tutorial-special-bar-text-2",
+        "identifier": "",
+        "lineCount": 2,
+        "opacity": 1,
+        "path": "root/NativeTutorialOverlay[1]/UIView[1]/UILabel[2]",
+        "rect": {
+          "height": 56,
+          "width": 280,
+          "x": 55,
+          "y": 657.36
+        },
+        "runs": [
+          {
+            "color": "#BD9788",
+            "font": "Baloo2-Medium",
+            "size": 18,
+            "text": "Stack and merge dice to fill the bar and earn special dice."
+          }
+        ],
+        "size": 18,
+        "text": "Stack and merge dice to fill the bar and earn special dice.",
+        "reference": "STS-TUTORIAL-SPECIAL-BAR-02",
+        "role": "Podnaslov",
+        "source": "native/gameplay-app/NativeTutorialOverlay.swift",
+        "sourceLine": 118,
+        "colorDescription": "#BD9788"
+      },
+      {
+        "alignment": 0,
+        "button": {
+          "enabled": false,
+          "identifier": "native.tutorial.got-it",
+          "kind": "CTA",
+          "rect": {
+            "height": 80.63999999999999,
+            "width": 208.0262295081967,
+            "x": 90.98688524590163,
+            "y": 729.36
+          },
+          "size": {
+            "height": 80.64,
+            "width": 208.02622950819674
+          }
+        },
+        "color": "gradient / pattern",
+        "font": "Baloo2-ExtraBold",
+        "id": "tutorial-special-bar-text-3",
+        "identifier": "",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/NativeTutorialOverlay[1]/UIView[1]/NativeCartoonBounceSurface[3]/JimiV9PlainButton[0]/UIButtonLabel[1]",
+        "rect": {
+          "height": 47.708497785749046,
+          "width": 117.02359855142078,
+          "x": 136.37561264975562,
+          "y": 741.0270717132222
+        },
         "runs": [
           {
             "color": "gradient / pattern",
@@ -6076,10 +4761,1890 @@
         ],
         "size": 28,
         "text": "Continue",
-        "reference": "STS-TUTORIAL-COMPLETED-03",
+        "reference": "STS-TUTORIAL-SPECIAL-BAR-03",
         "role": "CTA",
-        "source": "native/gameplay-tutorial-complete/NativeTutorialCompleteController.swift",
-        "sourceLine": 4,
+        "source": "native/gameplay-app/NativeTutorialOverlay.swift",
+        "sourceLine": 12,
+        "fontSource": "native/jimi-2026/JimiV9HomeView.swift",
+        "fontSourceLine": 152,
+        "colorDescription": "Ivory gradient · #FFFCED → #FFF6E1 → #F7E8CE",
+        "surfaceColor": "#EE8158"
+      }
+    ],
+    "width": 390
+  },
+  {
+    "category": "Tutorial",
+    "height": 844,
+    "id": "tutorial-clear",
+    "name": "Clear the stage · free movement",
+    "route": "First play → Clear the stage",
+    "screenshot": "screens/tutorial-clear.webp",
+    "source": "native/gameplay-app/NativeTutorialOverlay.swift",
+    "texts": [
+      {
+        "alignment": 1,
+        "color": "#E97A55",
+        "font": "Baloo2-ExtraBold",
+        "id": "tutorial-clear-text-1",
+        "identifier": "",
+        "lineCount": 0,
+        "opacity": 1,
+        "path": "root/NativeTutorialOverlay[1]/UIView[1]/UILabel[1]",
+        "rect": {
+          "height": 38.39999999999998,
+          "width": 334,
+          "x": 28,
+          "y": 608.96
+        },
+        "runs": [
+          {
+            "color": "#E97A55",
+            "font": "Baloo2-ExtraBold",
+            "size": 32,
+            "text": "Clear"
+          },
+          {
+            "color": "#AD8775",
+            "font": "Baloo2-ExtraBold",
+            "size": 32,
+            "text": " the stage"
+          }
+        ],
+        "size": 32,
+        "text": "Clear the stage",
+        "reference": "STS-TUTORIAL-CLEAR-01",
+        "role": "Naslov",
+        "source": "native/gameplay-app/NativeTutorialOverlay.swift",
+        "sourceLine": 117,
+        "colorDescription": "Clear: #E97A55 · the stage: #AD8775"
+      },
+      {
+        "alignment": 1,
+        "color": "#BD9788",
+        "font": "Baloo2-Medium",
+        "id": "tutorial-clear-text-2",
+        "identifier": "",
+        "lineCount": 2,
+        "opacity": 1,
+        "path": "root/NativeTutorialOverlay[1]/UIView[1]/UILabel[2]",
+        "rect": {
+          "height": 56,
+          "width": 280,
+          "x": 55,
+          "y": 657.36
+        },
+        "runs": [
+          {
+            "color": "#BD9788",
+            "font": "Baloo2-Medium",
+            "size": 18,
+            "text": "The whole board is yours.\nStack and merge anywhere."
+          }
+        ],
+        "size": 18,
+        "text": "The whole board is yours.\nStack and merge anywhere.",
+        "reference": "STS-TUTORIAL-CLEAR-02",
+        "role": "Podnaslov",
+        "source": "native/gameplay-app/NativeTutorialOverlay.swift",
+        "sourceLine": 123,
+        "colorDescription": "#BD9788"
+      },
+      {
+        "alignment": 0,
+        "button": {
+          "enabled": true,
+          "identifier": "native.tutorial.got-it",
+          "kind": "CTA",
+          "rect": {
+            "height": 80.63999999999999,
+            "width": 127.54229508196724,
+            "x": 131.2288524590164,
+            "y": 729.36
+          },
+          "size": {
+            "height": 80.64,
+            "width": 127.54229508196721
+          }
+        },
+        "color": "gradient / pattern",
+        "font": "Baloo2-ExtraBold",
+        "id": "tutorial-clear-text-3",
+        "identifier": "",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/NativeTutorialOverlay[1]/UIView[1]/NativeCartoonBounceSurface[3]/JimiV9PlainButton[0]/UIButtonLabel[1]",
+        "rect": {
+          "height": 45.45111101435464,
+          "width": 71.28505453348009,
+          "x": 159.32691343138316,
+          "y": 742.1545417720305
+        },
+        "runs": [
+          {
+            "color": "gradient / pattern",
+            "font": "Baloo2-ExtraBold",
+            "size": 28,
+            "text": "Got it"
+          }
+        ],
+        "size": 28,
+        "text": "Got it",
+        "reference": "STS-TUTORIAL-CLEAR-03",
+        "role": "CTA",
+        "source": "native/gameplay-app/NativeTutorialOverlay.swift",
+        "sourceLine": 66,
+        "fontSource": "native/jimi-2026/JimiV9HomeView.swift",
+        "fontSourceLine": 152,
+        "colorDescription": "Ivory gradient · #FFFCED → #FFF6E1 → #F7E8CE",
+        "surfaceColor": "#EE8158"
+      }
+    ],
+    "width": 390
+  },
+  {
+    "category": "Navigation",
+    "height": 844,
+    "id": "nav-journey",
+    "name": "Journey navigation",
+    "route": "Home → Journey",
+    "screenshot": "screens/nav-journey.webp",
+    "source": "native/jimi-2026/JimiV9HubView.swift",
+    "texts": [
+      {
+        "alignment": 1,
+        "button": {
+          "enabled": true,
+          "identifier": "native.hub.world.1",
+          "kind": "Control",
+          "rect": {
+            "height": 182.51999999999998,
+            "width": 263.64000000000004,
+            "x": 16,
+            "y": 165
+          },
+          "size": {
+            "height": 182.52,
+            "width": 263.64000000000004
+          }
+        },
+        "color": "#E8734A",
+        "font": "Baloo2-ExtraBold",
+        "id": "nav-journey-text-1",
+        "identifier": "",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiV9HubView[1]/JimiV9HubScrollView[2]/UIView[0]/JimiV9PlainButton[0]/UIView[6]/UIView[0]/UIView[0]/UIView[0]/UILabel[1]",
+        "rect": {
+          "height": 36.98756194687377,
+          "width": 74.4642213497608,
+          "x": 282.83551120001766,
+          "y": 235.1863092093202
+        },
+        "runs": [
+          {
+            "color": "#E8734A",
+            "font": "Baloo2-ExtraBold",
+            "size": 18,
+            "text": "7 / 10"
+          }
+        ],
+        "size": 18,
+        "text": "7 / 10",
+        "reference": "STS-NAV-JOURNEY-01",
+        "role": "Broj / statistika",
+        "source": "native/jimi-2026/JimiV9HubView.swift",
+        "sourceLine": 131,
+        "colorDescription": "#E8734A"
+      },
+      {
+        "alignment": 1,
+        "button": {
+          "enabled": true,
+          "identifier": "native.hub.world.3",
+          "kind": "Control",
+          "rect": {
+            "height": 182.51999999999998,
+            "width": 263.64000000000004,
+            "x": 110.35999999999996,
+            "y": 370
+          },
+          "size": {
+            "height": 182.52,
+            "width": 263.64000000000004
+          }
+        },
+        "color": "#E8734A",
+        "font": "Baloo2-ExtraBold",
+        "id": "nav-journey-text-2",
+        "identifier": "",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiV9HubView[1]/JimiV9HubScrollView[2]/UIView[0]/JimiV9PlainButton[1]/UIView[4]/UIView[0]/UIView[0]/UIView[0]/UILabel[1]",
+        "rect": {
+          "height": 21.50118947594285,
+          "width": 72.61922998272242,
+          "x": 29.140749466028357,
+          "y": 461.86548484076775
+        },
+        "runs": [
+          {
+            "color": "#E8734A",
+            "font": "Baloo2-ExtraBold",
+            "size": 18,
+            "text": "2 / 10"
+          }
+        ],
+        "size": 18,
+        "text": "2 / 10",
+        "reference": "STS-NAV-JOURNEY-02",
+        "role": "Broj / statistika",
+        "source": "native/jimi-2026/JimiV9HubView.swift",
+        "sourceLine": 131,
+        "colorDescription": "#E8734A"
+      },
+      {
+        "alignment": 1,
+        "button": {
+          "enabled": true,
+          "identifier": "native.hub.world.2",
+          "kind": "Control",
+          "rect": {
+            "height": 182.51999999999998,
+            "width": 263.64000000000004,
+            "x": 16,
+            "y": 604
+          },
+          "size": {
+            "height": 182.52,
+            "width": 263.64000000000004
+          }
+        },
+        "color": "#E8734A",
+        "font": "Baloo2-ExtraBold",
+        "id": "nav-journey-text-3",
+        "identifier": "",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiV9HubView[1]/JimiV9HubScrollView[2]/UIView[0]/JimiV9PlainButton[2]/UIView[3]/UIView[0]/UIView[0]/UIView[0]/UILabel[1]",
+        "rect": {
+          "height": 19,
+          "width": 72,
+          "x": 279.49,
+          "y": 707.0096
+        },
+        "runs": [
+          {
+            "color": "#E8734A",
+            "font": "Baloo2-ExtraBold",
+            "size": 18,
+            "text": "4 / 10"
+          }
+        ],
+        "size": 18,
+        "text": "4 / 10",
+        "reference": "STS-NAV-JOURNEY-03",
+        "role": "Broj / statistika",
+        "source": "native/jimi-2026/JimiV9HubView.swift",
+        "sourceLine": 131,
+        "colorDescription": "#E8734A"
+      },
+      {
+        "alignment": 1,
+        "color": "#AD8775",
+        "font": "Baloo2-ExtraBold",
+        "id": "nav-journey-text-4",
+        "identifier": "",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiV9HubView[1]/JimiV9NavigationHeader[3]/UILabel[1]",
+        "rect": {
+          "height": 32,
+          "width": 246,
+          "x": 72,
+          "y": 57.879999999999995
+        },
+        "runs": [
+          {
+            "color": "#AD8775",
+            "font": "Baloo2-ExtraBold",
+            "size": 28,
+            "text": "Journey"
+          }
+        ],
+        "size": 28,
+        "text": "Journey",
+        "reference": "STS-NAV-JOURNEY-04",
+        "role": "Navigacijski naslov",
+        "source": "native/jimi-2026/JimiV9HubView.swift",
+        "sourceLine": 167,
+        "colorDescription": "#AD8775"
+      }
+    ],
+    "width": 390
+  },
+  {
+    "category": "Navigation",
+    "height": 844,
+    "id": "nav-arcade",
+    "name": "Arcade navigation",
+    "route": "Home → Arcade",
+    "screenshot": "screens/nav-arcade.webp",
+    "source": "native/jimi-2026/JimiV9HubView.swift",
+    "texts": [
+      {
+        "alignment": 1,
+        "color": "#AD8775",
+        "font": "Baloo2-ExtraBold",
+        "id": "nav-arcade-text-1",
+        "identifier": "",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiV9HubView[1]/JimiV9NavigationHeader[3]/UILabel[1]",
+        "rect": {
+          "height": 32,
+          "width": 246,
+          "x": 72,
+          "y": 57.879999999999995
+        },
+        "runs": [
+          {
+            "color": "#AD8775",
+            "font": "Baloo2-ExtraBold",
+            "size": 28,
+            "text": "Arcade"
+          }
+        ],
+        "size": 28,
+        "text": "Arcade",
+        "reference": "STS-NAV-ARCADE-01",
+        "role": "Navigacijski naslov",
+        "source": "native/jimi-2026/JimiV9HubView.swift",
+        "sourceLine": 167,
+        "colorDescription": "#AD8775"
+      }
+    ],
+    "width": 390
+  },
+  {
+    "category": "Navigation",
+    "height": 844,
+    "id": "nav-forest",
+    "name": "Forest navigation",
+    "route": "Home → Journey → Forest",
+    "screenshot": "screens/nav-forest.webp",
+    "source": "native/jimi-2026/JimiNativeWorldView.swift",
+    "texts": [
+      {
+        "alignment": 1,
+        "color": "#AD8775",
+        "font": "Baloo2-ExtraBold",
+        "id": "nav-forest-text-1",
+        "identifier": "",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeWorldView[1]/JimiV9NavigationHeader[2]/UILabel[0]",
+        "rect": {
+          "height": 32,
+          "width": 246,
+          "x": 72,
+          "y": 57.879999999999995
+        },
+        "runs": [
+          {
+            "color": "#AD8775",
+            "font": "Baloo2-ExtraBold",
+            "size": 28,
+            "text": "Forest"
+          }
+        ],
+        "size": 28,
+        "text": "Forest",
+        "reference": "STS-NAV-FOREST-01",
+        "role": "Navigacijski naslov",
+        "source": "native/jimi-2026/JimiNativeWorldView.swift",
+        "sourceLine": 97,
+        "colorDescription": "#AD8775"
+      }
+    ],
+    "width": 390
+  },
+  {
+    "category": "Modal",
+    "height": 844,
+    "id": "stage-forest",
+    "name": "Stage 07 · Forest",
+    "route": "Journey → Forest → Unit 07 → stats back",
+    "screenshot": "screens/stage-forest.webp",
+    "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
+    "texts": [
+      {
+        "alignment": 1,
+        "color": "#AD8675",
+        "font": "Baloo2-ExtraBold",
+        "id": "stage-forest-text-2",
+        "identifier": "native.world.card.stage-title",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeWorldView[1]/JimiNativeWorldCardView[3]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[1]/UIView[0]/UILabel[1]",
+        "rect": {
+          "height": 40.98866298606339,
+          "width": 110.54430218948445,
+          "x": 134.89089044773814,
+          "y": 296.73726567061584
+        },
+        "runs": [
+          {
+            "color": "#AD8675",
+            "font": "Baloo2-ExtraBold",
+            "size": 28,
+            "text": "Stage 07"
+          }
+        ],
+        "size": 28,
+        "text": "Stage 07",
+        "reference": "STS-STAGE-FOREST-02",
+        "role": "Naslov modala",
+        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
+        "sourceLine": 259,
+        "colorDescription": "#AD8675"
+      },
+      {
+        "alignment": 1,
+        "color": "#EC7045",
+        "font": "Baloo2-Bold",
+        "id": "stage-forest-text-3",
+        "identifier": "native.world.card.stat.0.value",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeWorldView[1]/JimiNativeWorldCardView[3]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[1]/UIView[0]/UIStackView[5]/JimiWorldStatTileView[0]/UILabel[2]",
+        "rect": {
+          "height": 47.766301342241434,
+          "width": 127.80292727494503,
+          "x": 62.65436118242504,
+          "y": 433.43100065544314
+        },
+        "runs": [
+          {
+            "color": "#EC7045",
+            "font": "Baloo2-Bold",
+            "size": 34,
+            "text": "0"
+          }
+        ],
+        "size": 34,
+        "text": "0",
+        "reference": "STS-STAGE-FOREST-03",
+        "role": "Broj / statistika",
+        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
+        "sourceLine": 1,
+        "colorDescription": "#EC7045"
+      },
+      {
+        "alignment": 1,
+        "color": "#9E694F",
+        "font": "Baloo2-Regular",
+        "id": "stage-forest-text-4",
+        "identifier": "native.world.card.stat.0.caption",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeWorldView[1]/JimiNativeWorldCardView[3]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[1]/UIView[0]/UIStackView[5]/JimiWorldStatTileView[0]/UILabel[3]",
+        "rect": {
+          "height": 29.785454173531036,
+          "width": 126.97278566324259,
+          "x": 64.54523929796953,
+          "y": 474.3873747619501
+        },
+        "runs": [
+          {
+            "color": "#9E694F",
+            "font": "Baloo2-Regular",
+            "size": 18,
+            "text": "High score"
+          }
+        ],
+        "size": 18,
+        "text": "High score",
+        "reference": "STS-STAGE-FOREST-04",
+        "role": "Podnaslov / labela",
+        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
+        "sourceLine": 1,
+        "colorDescription": "#9E694F"
+      },
+      {
+        "alignment": 1,
+        "color": "#EC7045",
+        "font": "Baloo2-Bold",
+        "id": "stage-forest-text-5",
+        "identifier": "native.world.card.stat.1.value",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeWorldView[1]/JimiNativeWorldCardView[3]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[1]/UIView[0]/UIStackView[5]/JimiWorldStatTileView[1]/UILabel[2]",
+        "rect": {
+          "height": 47.766301342241434,
+          "width": 127.80292727494506,
+          "x": 202.5053947168391,
+          "y": 426.9743436755352
+        },
+        "runs": [
+          {
+            "color": "#EC7045",
+            "font": "Baloo2-Bold",
+            "size": 34,
+            "text": "0"
+          }
+        ],
+        "size": 34,
+        "text": "0",
+        "reference": "STS-STAGE-FOREST-05",
+        "role": "Broj / statistika",
+        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
+        "sourceLine": 1,
+        "colorDescription": "#EC7045"
+      },
+      {
+        "alignment": 1,
+        "color": "#9E694F",
+        "font": "Baloo2-Regular",
+        "id": "stage-forest-text-6",
+        "identifier": "native.world.card.stat.1.caption",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeWorldView[1]/JimiNativeWorldCardView[3]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[1]/UIView[0]/UIStackView[5]/JimiWorldStatTileView[1]/UILabel[3]",
+        "rect": {
+          "height": 29.785454173531093,
+          "width": 126.97278566324258,
+          "x": 204.3962728323836,
+          "y": 467.9307177820421
+        },
+        "runs": [
+          {
+            "color": "#9E694F",
+            "font": "Baloo2-Regular",
+            "size": 18,
+            "text": "Best combo"
+          }
+        ],
+        "size": 18,
+        "text": "Best combo",
+        "reference": "STS-STAGE-FOREST-06",
+        "role": "Podnaslov",
+        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
+        "sourceLine": 124,
+        "colorDescription": "#9E694F"
+      },
+      {
+        "alignment": 0,
+        "button": {
+          "enabled": true,
+          "identifier": "native.world.card.play",
+          "kind": "CTA",
+          "rect": {
+            "height": 91.53051218166604,
+            "width": 241.4657914289309,
+            "x": 81.76420541877627,
+            "y": 538.6217725616981
+          },
+          "size": {
+            "height": 80.64,
+            "width": 238
+          }
+        },
+        "color": "gradient / pattern",
+        "font": "Baloo2-ExtraBold",
+        "id": "stage-forest-text-7",
+        "identifier": "",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeWorldView[1]/JimiNativeWorldCardView[3]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[1]/UIView[0]/NativeCartoonBounceSurface[6]/JimiV9PlainButton[0]/UIButtonLabel[1]",
+        "rect": {
+          "height": 47.98947513766814,
+          "width": 57.43327452014995,
+          "x": 173.6759942122346,
+          "y": 557.5942406749401
+        },
+        "runs": [
+          {
+            "color": "gradient / pattern",
+            "font": "Baloo2-ExtraBold",
+            "size": 28,
+            "text": "Play"
+          }
+        ],
+        "size": 28,
+        "text": "Play",
+        "reference": "STS-STAGE-FOREST-07",
+        "role": "CTA",
+        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
+        "sourceLine": 280,
+        "fontSource": "native/jimi-2026/JimiV9HomeView.swift",
+        "fontSourceLine": 152,
+        "colorDescription": "Ivory gradient · #FFFCED → #FFF6E1 → #F7E8CE",
+        "surfaceColor": "#EE8158"
+      }
+    ],
+    "width": 390
+  },
+  {
+    "category": "Navigation",
+    "height": 844,
+    "id": "nav-beach",
+    "name": "Beach navigation",
+    "route": "Home → Journey → Beach",
+    "screenshot": "screens/nav-beach.webp",
+    "source": "native/jimi-2026/JimiNativeWorldView.swift",
+    "texts": [
+      {
+        "alignment": 1,
+        "color": "#AD8775",
+        "font": "Baloo2-ExtraBold",
+        "id": "nav-beach-text-1",
+        "identifier": "",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeWorldView[1]/JimiV9NavigationHeader[2]/UILabel[0]",
+        "rect": {
+          "height": 32,
+          "width": 246,
+          "x": 72,
+          "y": 57.879999999999995
+        },
+        "runs": [
+          {
+            "color": "#AD8775",
+            "font": "Baloo2-ExtraBold",
+            "size": 28,
+            "text": "Beach"
+          }
+        ],
+        "size": 28,
+        "text": "Beach",
+        "reference": "STS-NAV-BEACH-01",
+        "role": "Navigacijski naslov",
+        "source": "native/jimi-2026/JimiNativeWorldView.swift",
+        "sourceLine": 97,
+        "colorDescription": "#AD8775"
+      }
+    ],
+    "width": 390
+  },
+  {
+    "category": "Modal",
+    "height": 844,
+    "id": "stage-beach",
+    "name": "Stage 07 · Beach",
+    "route": "Journey → Beach → Unit 07 → stats back",
+    "screenshot": "screens/stage-beach.webp",
+    "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
+    "texts": [
+      {
+        "alignment": 1,
+        "color": "#AD8675",
+        "font": "Baloo2-ExtraBold",
+        "id": "stage-beach-text-2",
+        "identifier": "native.world.card.stage-title",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeWorldView[1]/JimiNativeWorldCardView[3]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[1]/UIView[0]/UILabel[1]",
+        "rect": {
+          "height": 40.9295328311033,
+          "width": 110.52722775820968,
+          "x": 144.5155738072843,
+          "y": 296.76417954251235
+        },
+        "runs": [
+          {
+            "color": "#AD8675",
+            "font": "Baloo2-ExtraBold",
+            "size": 28,
+            "text": "Stage 07"
+          }
+        ],
+        "size": 28,
+        "text": "Stage 07",
+        "reference": "STS-STAGE-BEACH-02",
+        "role": "Naslov modala",
+        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
+        "sourceLine": 259,
+        "colorDescription": "#AD8675"
+      },
+      {
+        "alignment": 1,
+        "color": "#EC7045",
+        "font": "Baloo2-Bold",
+        "id": "stage-beach-text-3",
+        "identifier": "native.world.card.stat.0.value",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeWorldView[1]/JimiNativeWorldCardView[3]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[1]/UIView[0]/UIStackView[5]/JimiWorldStatTileView[0]/UILabel[2]",
+        "rect": {
+          "height": 47.69795879334811,
+          "width": 127.78297761358006,
+          "x": 59.717575920304384,
+          "y": 427.04788480793826
+        },
+        "runs": [
+          {
+            "color": "#EC7045",
+            "font": "Baloo2-Bold",
+            "size": 34,
+            "text": "0"
+          }
+        ],
+        "size": 34,
+        "text": "0",
+        "reference": "STS-STAGE-BEACH-03",
+        "role": "Broj / statistika",
+        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
+        "sourceLine": 1,
+        "colorDescription": "#EC7045"
+      },
+      {
+        "alignment": 1,
+        "color": "#9E694F",
+        "font": "Baloo2-Regular",
+        "id": "stage-beach-text-4",
+        "identifier": "native.world.card.stat.0.caption",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeWorldView[1]/JimiNativeWorldCardView[3]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[1]/UIView[0]/UIStackView[5]/JimiWorldStatTileView[0]/UILabel[3]",
+        "rect": {
+          "height": 29.716656612237784,
+          "width": 126.96275089394805,
+          "x": 58.669508445219044,
+          "y": 468.0052953315784
+        },
+        "runs": [
+          {
+            "color": "#9E694F",
+            "font": "Baloo2-Regular",
+            "size": 18,
+            "text": "High score"
+          }
+        ],
+        "size": 18,
+        "text": "High score",
+        "reference": "STS-STAGE-BEACH-04",
+        "role": "Podnaslov / labela",
+        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
+        "sourceLine": 1,
+        "colorDescription": "#9E694F"
+      },
+      {
+        "alignment": 1,
+        "color": "#EC7045",
+        "font": "Baloo2-Bold",
+        "id": "stage-beach-text-5",
+        "identifier": "native.world.card.stat.1.value",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeWorldView[1]/JimiNativeWorldCardView[3]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[1]/UIView[0]/UIStackView[5]/JimiWorldStatTileView[1]/UILabel[2]",
+        "rect": {
+          "height": 47.69795879334805,
+          "width": 127.78297761358002,
+          "x": 199.5721484400511,
+          "y": 433.4274259606317
+        },
+        "runs": [
+          {
+            "color": "#EC7045",
+            "font": "Baloo2-Bold",
+            "size": 34,
+            "text": "0"
+          }
+        ],
+        "size": 34,
+        "text": "0",
+        "reference": "STS-STAGE-BEACH-05",
+        "role": "Broj / statistika",
+        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
+        "sourceLine": 1,
+        "colorDescription": "#EC7045"
+      },
+      {
+        "alignment": 1,
+        "color": "#9E694F",
+        "font": "Baloo2-Regular",
+        "id": "stage-beach-text-6",
+        "identifier": "native.world.card.stat.1.caption",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeWorldView[1]/JimiNativeWorldCardView[3]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[1]/UIView[0]/UIStackView[5]/JimiWorldStatTileView[1]/UILabel[3]",
+        "rect": {
+          "height": 29.71665661223784,
+          "width": 126.96275089394803,
+          "x": 198.52408096496575,
+          "y": 474.3848364842718
+        },
+        "runs": [
+          {
+            "color": "#9E694F",
+            "font": "Baloo2-Regular",
+            "size": 18,
+            "text": "Best combo"
+          }
+        ],
+        "size": 18,
+        "text": "Best combo",
+        "reference": "STS-STAGE-BEACH-06",
+        "role": "Podnaslov",
+        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
+        "sourceLine": 124,
+        "colorDescription": "#9E694F"
+      },
+      {
+        "alignment": 0,
+        "button": {
+          "enabled": true,
+          "identifier": "native.world.card.play",
+          "kind": "CTA",
+          "rect": {
+            "height": 91.40145373095288,
+            "width": 241.42738898752083,
+            "x": 66.87874686494074,
+            "y": 538.6904110545952
+          },
+          "size": {
+            "height": 80.64,
+            "width": 238
+          }
+        },
+        "color": "gradient / pattern",
+        "font": "Baloo2-ExtraBold",
+        "id": "stage-beach-text-7",
+        "identifier": "",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeWorldView[1]/JimiNativeWorldCardView[3]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[1]/UIView[0]/NativeCartoonBounceSurface[6]/JimiV9PlainButton[0]/UIButtonLabel[1]",
+        "rect": {
+          "height": 48.73544328019125,
+          "width": 58.05147048674877,
+          "x": 158.75747909914588,
+          "y": 557.2299228275683
+        },
+        "runs": [
+          {
+            "color": "gradient / pattern",
+            "font": "Baloo2-ExtraBold",
+            "size": 28,
+            "text": "Play"
+          }
+        ],
+        "size": 28,
+        "text": "Play",
+        "reference": "STS-STAGE-BEACH-07",
+        "role": "CTA",
+        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
+        "sourceLine": 280,
+        "fontSource": "native/jimi-2026/JimiV9HomeView.swift",
+        "fontSourceLine": 152,
+        "colorDescription": "Ivory gradient · #FFFCED → #FFF6E1 → #F7E8CE",
+        "surfaceColor": "#EE8158"
+      }
+    ],
+    "width": 390
+  },
+  {
+    "category": "Navigation",
+    "height": 844,
+    "id": "nav-area55",
+    "name": "Area 55 navigation",
+    "route": "Home → Journey → Area 55",
+    "screenshot": "screens/nav-area55.webp",
+    "source": "native/jimi-2026/JimiNativeWorldView.swift",
+    "texts": [
+      {
+        "alignment": 1,
+        "color": "#AD8775",
+        "font": "Baloo2-ExtraBold",
+        "id": "nav-area55-text-1",
+        "identifier": "",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeWorldView[1]/JimiV9NavigationHeader[2]/UILabel[0]",
+        "rect": {
+          "height": 32,
+          "width": 246,
+          "x": 72,
+          "y": 57.879999999999995
+        },
+        "runs": [
+          {
+            "color": "#AD8775",
+            "font": "Baloo2-ExtraBold",
+            "size": 28,
+            "text": "Area 55"
+          }
+        ],
+        "size": 28,
+        "text": "Area 55",
+        "reference": "STS-NAV-AREA55-01",
+        "role": "Navigacijski naslov",
+        "source": "native/jimi-2026/JimiNativeWorldView.swift",
+        "sourceLine": 97,
+        "colorDescription": "#AD8775"
+      }
+    ],
+    "width": 390
+  },
+  {
+    "category": "Modal",
+    "height": 844,
+    "id": "stage-area55",
+    "name": "Stage 07 · Area 55",
+    "route": "Journey → Area 55 → Unit 07 → stats back",
+    "screenshot": "screens/stage-area55.webp",
+    "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
+    "texts": [
+      {
+        "alignment": 1,
+        "color": "#AD8675",
+        "font": "Baloo2-ExtraBold",
+        "id": "stage-area55-text-2",
+        "identifier": "native.world.card.stage-title",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeWorldView[1]/JimiNativeWorldCardView[3]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[1]/UIView[0]/UILabel[1]",
+        "rect": {
+          "height": 40.55133180642002,
+          "width": 110.41730952911075,
+          "x": 144.20127946894263,
+          "y": 296.93708830773306
+        },
+        "runs": [
+          {
+            "color": "#AD8675",
+            "font": "Baloo2-ExtraBold",
+            "size": 28,
+            "text": "Stage 07"
+          }
+        ],
+        "size": 28,
+        "text": "Stage 07",
+        "reference": "STS-STAGE-AREA55-02",
+        "role": "Naslov modala",
+        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
+        "sourceLine": 259,
+        "colorDescription": "#AD8675"
+      },
+      {
+        "alignment": 1,
+        "color": "#EC7045",
+        "font": "Baloo2-Bold",
+        "id": "stage-area55-text-3",
+        "identifier": "native.world.card.stat.0.value",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeWorldView[1]/JimiNativeWorldCardView[3]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[1]/UIView[0]/UIStackView[5]/JimiWorldStatTileView[0]/UILabel[2]",
+        "rect": {
+          "height": 47.2608317749918,
+          "width": 127.65455956548517,
+          "x": 59.88406372589644,
+          "y": 427.5178577433169
+        },
+        "runs": [
+          {
+            "color": "#EC7045",
+            "font": "Baloo2-Bold",
+            "size": 34,
+            "text": "0"
+          }
+        ],
+        "size": 34,
+        "text": "0",
+        "reference": "STS-STAGE-AREA55-03",
+        "role": "Broj / statistika",
+        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
+        "sourceLine": 1,
+        "colorDescription": "#EC7045"
+      },
+      {
+        "alignment": 1,
+        "color": "#9E694F",
+        "font": "Baloo2-Regular",
+        "id": "stage-area55-text-4",
+        "identifier": "native.world.card.stat.0.caption",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeWorldView[1]/JimiNativeWorldCardView[3]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[1]/UIView[0]/UIStackView[5]/JimiWorldStatTileView[0]/UILabel[3]",
+        "rect": {
+          "height": 29.2767506899134,
+          "width": 126.89770586408389,
+          "x": 58.916972885217056,
+          "y": 468.48159799266216
+        },
+        "runs": [
+          {
+            "color": "#9E694F",
+            "font": "Baloo2-Regular",
+            "size": 18,
+            "text": "High score"
+          }
+        ],
+        "size": 18,
+        "text": "High score",
+        "reference": "STS-STAGE-AREA55-04",
+        "role": "Podnaslov / labela",
+        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
+        "sourceLine": 1,
+        "colorDescription": "#9E694F"
+      },
+      {
+        "alignment": 1,
+        "color": "#EC7045",
+        "font": "Baloo2-Bold",
+        "id": "stage-area55-text-5",
+        "identifier": "native.world.card.stat.1.value",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeWorldView[1]/JimiNativeWorldCardView[3]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[1]/UIView[0]/UIStackView[5]/JimiWorldStatTileView[1]/UILabel[2]",
+        "rect": {
+          "height": 47.2608317749918,
+          "width": 127.65455956548516,
+          "x": 199.760249943173,
+          "y": 433.4044976431045
+        },
+        "runs": [
+          {
+            "color": "#EC7045",
+            "font": "Baloo2-Bold",
+            "size": 34,
+            "text": "0"
+          }
+        ],
+        "size": 34,
+        "text": "0",
+        "reference": "STS-STAGE-AREA55-05",
+        "role": "Broj / statistika",
+        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
+        "sourceLine": 1,
+        "colorDescription": "#EC7045"
+      },
+      {
+        "alignment": 1,
+        "color": "#9E694F",
+        "font": "Baloo2-Regular",
+        "id": "stage-area55-text-6",
+        "identifier": "native.world.card.stat.1.caption",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeWorldView[1]/JimiNativeWorldCardView[3]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[1]/UIView[0]/UIStackView[5]/JimiWorldStatTileView[1]/UILabel[3]",
+        "rect": {
+          "height": 29.2767506899134,
+          "width": 126.89770586408392,
+          "x": 198.7931591024936,
+          "y": 474.36823789244977
+        },
+        "runs": [
+          {
+            "color": "#9E694F",
+            "font": "Baloo2-Regular",
+            "size": 18,
+            "text": "Best combo"
+          }
+        ],
+        "size": 18,
+        "text": "Best combo",
+        "reference": "STS-STAGE-AREA55-06",
+        "role": "Podnaslov",
+        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
+        "sourceLine": 124,
+        "colorDescription": "#9E694F"
+      },
+      {
+        "alignment": 0,
+        "button": {
+          "enabled": true,
+          "identifier": "native.world.card.play",
+          "kind": "CTA",
+          "rect": {
+            "height": 90.57597109079018,
+            "width": 241.18022115164774,
+            "x": 67.57465955196561,
+            "y": 539.1282489651798
+          },
+          "size": {
+            "height": 80.64,
+            "width": 238
+          }
+        },
+        "color": "gradient / pattern",
+        "font": "Baloo2-ExtraBold",
+        "id": "stage-area55-text-7",
+        "identifier": "",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeWorldView[1]/JimiNativeWorldCardView[3]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[1]/UIView[0]/NativeCartoonBounceSurface[6]/JimiV9PlainButton[0]/UIButtonLabel[1]",
+        "rect": {
+          "height": 47.5861447613504,
+          "width": 57.103803442002715,
+          "x": 159.74605546634376,
+          "y": 557.8263315652842
+        },
+        "runs": [
+          {
+            "color": "gradient / pattern",
+            "font": "Baloo2-ExtraBold",
+            "size": 28,
+            "text": "Play"
+          }
+        ],
+        "size": 28,
+        "text": "Play",
+        "reference": "STS-STAGE-AREA55-07",
+        "role": "CTA",
+        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
+        "sourceLine": 280,
+        "fontSource": "native/jimi-2026/JimiV9HomeView.swift",
+        "fontSourceLine": 152,
+        "colorDescription": "Ivory gradient · #FFFCED → #FFF6E1 → #F7E8CE",
+        "surfaceColor": "#EE8158"
+      }
+    ],
+    "width": 390
+  },
+  {
+    "category": "Navigation",
+    "height": 844,
+    "id": "settings",
+    "name": "Settings navigation and rows",
+    "route": "Home → Settings",
+    "screenshot": "screens/settings.webp",
+    "source": "native/jimi-2026/JimiNativeSettingsView.swift",
+    "texts": [
+      {
+        "alignment": 1,
+        "color": "#AD8775",
+        "font": "Baloo2-Bold",
+        "id": "settings-text-1",
+        "identifier": "",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeSettingsView[1]/JimiV9NavigationHeader[0]/UILabel[0]",
+        "rect": {
+          "height": 32,
+          "width": 246,
+          "x": 72,
+          "y": 57.879999999999995
+        },
+        "runs": [
+          {
+            "color": "#AD8775",
+            "font": "Baloo2-Bold",
+            "size": 28,
+            "text": "Settings"
+          }
+        ],
+        "size": 28,
+        "text": "Settings",
+        "reference": "STS-SETTINGS-01",
+        "role": "Navigacijski naslov",
+        "source": "native/jimi-2026/JimiNativeSettingsView.swift",
+        "sourceLine": 48,
+        "colorDescription": "#AD8775"
+      },
+      {
+        "alignment": 4,
+        "color": "#BD9788",
+        "font": "Baloo2-Medium",
+        "id": "settings-text-2",
+        "identifier": "",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeSettingsView[1]/UIScrollView[1]/UIView[10]/UILabel[1]",
+        "rect": {
+          "height": 28,
+          "width": 259,
+          "x": 24,
+          "y": 180.88
+        },
+        "runs": [
+          {
+            "color": "#BD9788",
+            "font": "Baloo2-Medium",
+            "size": 18,
+            "text": "Game sounds"
+          }
+        ],
+        "size": 18,
+        "text": "Game sounds",
+        "reference": "STS-SETTINGS-02",
+        "role": "Podnaslov",
+        "source": "native/jimi-2026/JimiNativeSettingsView.swift",
+        "sourceLine": 34,
+        "colorDescription": "#BD9788"
+      },
+      {
+        "alignment": 4,
+        "color": "#BD9788",
+        "font": "Baloo2-Medium",
+        "id": "settings-text-3",
+        "identifier": "",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeSettingsView[1]/UIScrollView[1]/UIView[12]/UILabel[1]",
+        "rect": {
+          "height": 28,
+          "width": 259,
+          "x": 24,
+          "y": 306.88
+        },
+        "runs": [
+          {
+            "color": "#BD9788",
+            "font": "Baloo2-Medium",
+            "size": 18,
+            "text": "Music"
+          }
+        ],
+        "size": 18,
+        "text": "Music",
+        "reference": "STS-SETTINGS-03",
+        "role": "Podnaslov",
+        "source": "native/jimi-2026/JimiNativeSettingsView.swift",
+        "sourceLine": 34,
+        "colorDescription": "#BD9788"
+      },
+      {
+        "alignment": 4,
+        "color": "#BD9788",
+        "font": "Baloo2-Medium",
+        "id": "settings-text-4",
+        "identifier": "",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeSettingsView[1]/UIScrollView[1]/UIView[14]/UILabel[1]",
+        "rect": {
+          "height": 28,
+          "width": 259,
+          "x": 24,
+          "y": 432.88
+        },
+        "runs": [
+          {
+            "color": "#BD9788",
+            "font": "Baloo2-Medium",
+            "size": 18,
+            "text": "Vibration"
+          }
+        ],
+        "size": 18,
+        "text": "Vibration",
+        "reference": "STS-SETTINGS-04",
+        "role": "Podnaslov",
+        "source": "native/jimi-2026/JimiNativeSettingsView.swift",
+        "sourceLine": 34,
+        "colorDescription": "#BD9788"
+      },
+      {
+        "alignment": 1,
+        "color": "#996754",
+        "font": "Baloo2-Bold",
+        "id": "settings-text-5",
+        "identifier": "",
+        "lineCount": 0,
+        "opacity": 1,
+        "path": "root/JimiNativeSettingsView[1]/UIView[2]/UILabel[0]",
+        "rect": {
+          "height": 125,
+          "width": 342,
+          "x": 24,
+          "y": 645
+        },
+        "runs": [
+          {
+            "color": "#996754",
+            "font": "Baloo2-Bold",
+            "size": 16,
+            "text": "Made with ❤️ in Croatia\nby Tap Tap Design\n\nVersion: 1.0"
+          }
+        ],
+        "size": 16,
+        "text": "Made with ❤️ in Croatia\nby Tap Tap Design\n\nVersion: 1.0",
+        "reference": "STS-SETTINGS-05",
+        "role": "Opis / pomoćni tekst",
+        "source": "native/jimi-2026/JimiNativeSettingsView.swift",
+        "sourceLine": 89,
+        "colorDescription": "#996754"
+      },
+      {
+        "alignment": 0,
+        "button": {
+          "enabled": true,
+          "identifier": "native.settings.privacy",
+          "kind": "Control",
+          "rect": {
+            "height": 44,
+            "width": 342,
+            "x": 24,
+            "y": 766
+          },
+          "size": {
+            "height": 44,
+            "width": 342
+          }
+        },
+        "color": "#996754",
+        "font": "Baloo2-Bold",
+        "id": "settings-text-6",
+        "identifier": "",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeSettingsView[1]/UIView[2]/NativeCartoonBounceSurface[1]/JimiV9PlainButton[0]/UIButtonLabel[0]",
+        "rect": {
+          "height": 23,
+          "width": 88,
+          "x": 151,
+          "y": 778.6666666666666
+        },
+        "runs": [
+          {
+            "color": "#996754",
+            "font": "Baloo2-Bold",
+            "size": 14,
+            "text": "Privacy Policy"
+          }
+        ],
+        "size": 14,
+        "text": "Privacy Policy",
+        "reference": "STS-SETTINGS-06",
+        "role": "Opis / pomoćni tekst",
+        "source": "native/jimi-2026/JimiNativeSettingsView.swift",
+        "sourceLine": 107,
+        "colorDescription": "#996754"
+      }
+    ],
+    "width": 390
+  },
+  {
+    "category": "Navigation",
+    "height": 844,
+    "id": "backpack",
+    "name": "Backpack navigation and section",
+    "route": "Home → Backpack",
+    "screenshot": "screens/backpack.webp",
+    "source": "native/gameplay-collection/NativeBackpackView.swift",
+    "texts": [
+      {
+        "alignment": 4,
+        "color": "#AD8775",
+        "font": "Baloo2-ExtraBold",
+        "id": "backpack-text-1",
+        "identifier": "",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/NativeBackpackView[1]/UICollectionView[0]/NativeBackpackSectionHeader[6]/UILabel[0]",
+        "rect": {
+          "height": 40,
+          "width": 250,
+          "x": 32,
+          "y": 154
+        },
+        "runs": [
+          {
+            "color": "#AD8775",
+            "font": "Baloo2-ExtraBold",
+            "size": 28,
+            "text": "Forest"
+          }
+        ],
+        "size": 28,
+        "text": "Forest",
+        "reference": "STS-BACKPACK-01",
+        "role": "Naslov sekcije",
+        "source": "native/gameplay-collection/NativeBackpackView.swift",
+        "sourceLine": 348,
+        "colorDescription": "#AD8775"
+      },
+      {
+        "alignment": 2,
+        "color": "#E8744A",
+        "font": "Baloo2-ExtraBold",
+        "id": "backpack-text-2",
+        "identifier": "",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/NativeBackpackView[1]/UICollectionView[0]/NativeBackpackSectionHeader[6]/UILabel[2]",
+        "rect": {
+          "height": 40,
+          "width": 80,
+          "x": 278,
+          "y": 154
+        },
+        "runs": [
+          {
+            "color": "#E8744A",
+            "font": "Baloo2-ExtraBold",
+            "size": 24,
+            "text": "6 / 6"
+          }
+        ],
+        "size": 24,
+        "text": "6 / 6",
+        "reference": "STS-BACKPACK-02",
+        "role": "Broj / statistika",
+        "source": "native/gameplay-collection/NativeBackpackView.swift",
+        "sourceLine": 348,
+        "colorDescription": "#E8744A"
+      },
+      {
+        "alignment": 1,
+        "color": "#AD8775",
+        "font": "Baloo2-Bold",
+        "id": "backpack-text-3",
+        "identifier": "",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/NativeBackpackView[1]/JimiV9NavigationHeader[1]/UILabel[0]",
+        "rect": {
+          "height": 32,
+          "width": 246,
+          "x": 72,
+          "y": 57.879999999999995
+        },
+        "runs": [
+          {
+            "color": "#AD8775",
+            "font": "Baloo2-Bold",
+            "size": 28,
+            "text": "Backpack"
+          }
+        ],
+        "size": 28,
+        "text": "Backpack",
+        "reference": "STS-BACKPACK-03",
+        "role": "Navigacijski naslov",
+        "source": "native/gameplay-collection/NativeBackpackView.swift",
+        "sourceLine": 71,
+        "colorDescription": "#AD8775"
+      }
+    ],
+    "width": 390
+  },
+  {
+    "category": "CTA",
+    "height": 844,
+    "id": "stage-play",
+    "name": "Stage · Play CTA",
+    "route": "Journey → Forest → Unit 07 → stats back",
+    "screenshot": "screens/stage-play.webp",
+    "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
+    "texts": [
+      {
+        "alignment": 1,
+        "color": "#AD8675",
+        "font": "Baloo2-ExtraBold",
+        "id": "stage-play-text-1",
+        "identifier": "native.world.card.stage-title",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeWorldCardView[1]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[1]/UIView[0]/UILabel[1]",
+        "rect": {
+          "height": 40.88981966641296,
+          "width": 110.51574333634719,
+          "x": 135.00173480885243,
+          "y": 296.7822737054263
+        },
+        "runs": [
+          {
+            "color": "#AD8675",
+            "font": "Baloo2-ExtraBold",
+            "size": 28,
+            "text": "Stage 07"
+          }
+        ],
+        "size": 28,
+        "text": "Stage 07",
+        "reference": "STS-STAGE-PLAY-01",
+        "role": "Naslov modala",
+        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
+        "sourceLine": 259,
+        "colorDescription": "#AD8675"
+      },
+      {
+        "alignment": 1,
+        "color": "#EC7045",
+        "font": "Baloo2-Bold",
+        "id": "stage-play-text-2",
+        "identifier": "native.world.card.stat.0.value",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeWorldCardView[1]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[1]/UIView[0]/UIStackView[5]/JimiWorldStatTileView[0]/UILabel[2]",
+        "rect": {
+          "height": 47.65205830732407,
+          "width": 127.7695595165635,
+          "x": 62.63852580676612,
+          "y": 433.42502358611006
+        },
+        "runs": [
+          {
+            "color": "#EC7045",
+            "font": "Baloo2-Bold",
+            "size": 34,
+            "text": "0"
+          }
+        ],
+        "size": 34,
+        "text": "0",
+        "reference": "STS-STAGE-PLAY-02",
+        "role": "Broj / statistika",
+        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
+        "sourceLine": 1,
+        "colorDescription": "#EC7045"
+      },
+      {
+        "alignment": 1,
+        "color": "#9E694F",
+        "font": "Baloo2-Regular",
+        "id": "stage-play-text-3",
+        "identifier": "native.world.card.stat.0.caption",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeWorldCardView[1]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[1]/UIView[0]/UIStackView[5]/JimiWorldStatTileView[0]/UILabel[3]",
+        "rect": {
+          "height": 29.670453651483,
+          "width": 126.95599083413089,
+          "x": 64.49165447230706,
+          "y": 474.38312307997023
+        },
+        "runs": [
+          {
+            "color": "#9E694F",
+            "font": "Baloo2-Regular",
+            "size": 18,
+            "text": "High score"
+          }
+        ],
+        "size": 18,
+        "text": "High score",
+        "reference": "STS-STAGE-PLAY-03",
+        "role": "Podnaslov / labela",
+        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
+        "sourceLine": 1,
+        "colorDescription": "#9E694F"
+      },
+      {
+        "alignment": 1,
+        "color": "#EC7045",
+        "font": "Baloo2-Bold",
+        "id": "stage-play-text-4",
+        "identifier": "native.world.card.stat.1.value",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeWorldCardView[1]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[1]/UIView[0]/UIStackView[5]/JimiWorldStatTileView[1]/UILabel[2]",
+        "rect": {
+          "height": 47.65205830732407,
+          "width": 127.76955951656353,
+          "x": 202.49545090775214,
+          "y": 427.0972671671898
+        },
+        "runs": [
+          {
+            "color": "#EC7045",
+            "font": "Baloo2-Bold",
+            "size": 34,
+            "text": "0"
+          }
+        ],
+        "size": 34,
+        "text": "0",
+        "reference": "STS-STAGE-PLAY-04",
+        "role": "Broj / statistika",
+        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
+        "sourceLine": 1,
+        "colorDescription": "#EC7045"
+      },
+      {
+        "alignment": 1,
+        "color": "#9E694F",
+        "font": "Baloo2-Regular",
+        "id": "stage-play-text-5",
+        "identifier": "native.world.card.stat.1.caption",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeWorldCardView[1]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[1]/UIView[0]/UIStackView[5]/JimiWorldStatTileView[1]/UILabel[3]",
+        "rect": {
+          "height": 29.670453651483,
+          "width": 126.95599083413094,
+          "x": 204.34857957329308,
+          "y": 468.05536666104996
+        },
+        "runs": [
+          {
+            "color": "#9E694F",
+            "font": "Baloo2-Regular",
+            "size": 18,
+            "text": "Best combo"
+          }
+        ],
+        "size": 18,
+        "text": "Best combo",
+        "reference": "STS-STAGE-PLAY-05",
+        "role": "Podnaslov",
+        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
+        "sourceLine": 124,
+        "colorDescription": "#9E694F"
+      },
+      {
+        "alignment": 0,
+        "button": {
+          "enabled": true,
+          "identifier": "native.world.card.play",
+          "kind": "CTA",
+          "rect": {
+            "height": 91.3147747703324,
+            "width": 241.40156036897437,
+            "x": 81.64664898308203,
+            "y": 538.7364822178073
+          },
+          "size": {
+            "height": 80.64,
+            "width": 238
+          }
+        },
+        "color": "gradient / pattern",
+        "font": "Baloo2-ExtraBold",
+        "id": "stage-play-text-6",
+        "identifier": "",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeWorldCardView[1]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[1]/UIView[0]/NativeCartoonBounceSurface[6]/JimiV9PlainButton[0]/UIButtonLabel[1]",
+        "rect": {
+          "height": 48.589928423536776,
+          "width": 57.93159781703645,
+          "x": 173.31204010060148,
+          "y": 557.2997703087472
+        },
+        "runs": [
+          {
+            "color": "gradient / pattern",
+            "font": "Baloo2-ExtraBold",
+            "size": 28,
+            "text": "Play"
+          }
+        ],
+        "size": 28,
+        "text": "Play",
+        "reference": "STS-STAGE-PLAY-06",
+        "role": "CTA",
+        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
+        "sourceLine": 280,
+        "fontSource": "native/jimi-2026/JimiV9HomeView.swift",
+        "fontSourceLine": 152,
+        "colorDescription": "Ivory gradient · #FFFCED → #FFF6E1 → #F7E8CE",
+        "surfaceColor": "#EE8158"
+      }
+    ],
+    "width": 390
+  },
+  {
+    "category": "CTA",
+    "height": 844,
+    "id": "stage-continue",
+    "name": "Stage · Continue CTA",
+    "route": "Journey → Forest → Unit 07 → stats back",
+    "screenshot": "screens/stage-continue.webp",
+    "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
+    "texts": [
+      {
+        "alignment": 1,
+        "color": "#AD8675",
+        "font": "Baloo2-ExtraBold",
+        "id": "stage-continue-text-1",
+        "identifier": "native.world.card.stage-title",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeWorldCardView[1]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[1]/UIView[0]/UILabel[1]",
+        "rect": {
+          "height": 40.537460499313,
+          "width": 110.41325477918801,
+          "x": 135.39697321252018,
+          "y": 296.94345522816604
+        },
+        "runs": [
+          {
+            "color": "#AD8675",
+            "font": "Baloo2-ExtraBold",
+            "size": 28,
+            "text": "Stage 07"
+          }
+        ],
+        "size": 28,
+        "text": "Stage 07",
+        "reference": "STS-STAGE-CONTINUE-01",
+        "role": "Naslov modala",
+        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
+        "sourceLine": 259,
+        "colorDescription": "#AD8675"
+      },
+      {
+        "alignment": 1,
+        "color": "#EC7045",
+        "font": "Baloo2-Bold",
+        "id": "stage-continue-text-2",
+        "identifier": "native.world.card.stat.0.value",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeWorldCardView[1]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[1]/UIView[0]/UIStackView[5]/JimiWorldStatTileView[0]/UILabel[2]",
+        "rect": {
+          "height": 47.244799142496845,
+          "width": 127.64982269742151,
+          "x": 62.583034228212114,
+          "y": 433.4036545887854
+        },
+        "runs": [
+          {
+            "color": "#EC7045",
+            "font": "Baloo2-Bold",
+            "size": 34,
+            "text": "0"
+          }
+        ],
+        "size": 34,
+        "text": "0",
+        "reference": "STS-STAGE-CONTINUE-02",
+        "role": "Broj / statistika",
+        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
+        "sourceLine": 1,
+        "colorDescription": "#EC7045"
+      },
+      {
+        "alignment": 1,
+        "color": "#9E694F",
+        "font": "Baloo2-Regular",
+        "id": "stage-continue-text-3",
+        "identifier": "native.world.card.stat.0.caption",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeWorldCardView[1]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[1]/UIView[0]/UIStackView[5]/JimiWorldStatTileView[0]/UILabel[3]",
+        "rect": {
+          "height": 29.260620448759255,
+          "width": 126.89529190831067,
+          "x": 64.30168769229792,
+          "y": 474.3676171689654
+        },
+        "runs": [
+          {
+            "color": "#9E694F",
+            "font": "Baloo2-Regular",
+            "size": 18,
+            "text": "High score"
+          }
+        ],
+        "size": 18,
+        "text": "High score",
+        "reference": "STS-STAGE-CONTINUE-03",
+        "role": "Podnaslov / labela",
+        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
+        "sourceLine": 1,
+        "colorDescription": "#9E694F"
+      },
+      {
+        "alignment": 1,
+        "color": "#EC7045",
+        "font": "Baloo2-Bold",
+        "id": "stage-continue-text-4",
+        "identifier": "native.world.card.stat.1.value",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeWorldCardView[1]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[1]/UIView[0]/UIStackView[5]/JimiWorldStatTileView[1]/UILabel[2]",
+        "rect": {
+          "height": 47.24479914249679,
+          "width": 127.64982269742148,
+          "x": 202.45997962394864,
+          "y": 427.53508178459003
+        },
+        "runs": [
+          {
+            "color": "#EC7045",
+            "font": "Baloo2-Bold",
+            "size": 34,
+            "text": "0"
+          }
+        ],
+        "size": 34,
+        "text": "0",
+        "reference": "STS-STAGE-CONTINUE-04",
+        "role": "Broj / statistika",
+        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
+        "sourceLine": 1,
+        "colorDescription": "#EC7045"
+      },
+      {
+        "alignment": 1,
+        "color": "#9E694F",
+        "font": "Baloo2-Regular",
+        "id": "stage-continue-text-5",
+        "identifier": "native.world.card.stat.1.caption",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeWorldCardView[1]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[1]/UIView[0]/UIStackView[5]/JimiWorldStatTileView[1]/UILabel[3]",
+        "rect": {
+          "height": 29.260620448759255,
+          "width": 126.89529190831067,
+          "x": 204.17863308803445,
+          "y": 468.49904436477
+        },
+        "runs": [
+          {
+            "color": "#9E694F",
+            "font": "Baloo2-Regular",
+            "size": 18,
+            "text": "Best combo"
+          }
+        ],
+        "size": 18,
+        "text": "Best combo",
+        "reference": "STS-STAGE-CONTINUE-05",
+        "role": "Podnaslov",
+        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
+        "sourceLine": 124,
+        "colorDescription": "#9E694F"
+      },
+      {
+        "alignment": 0,
+        "button": {
+          "enabled": true,
+          "identifier": "native.world.card.continue",
+          "kind": "CTA",
+          "rect": {
+            "height": 90.54569431507639,
+            "width": 241.1711051079687,
+            "x": 81.22869883923002,
+            "y": 539.1442688676827
+          },
+          "size": {
+            "height": 80.64,
+            "width": 238
+          }
+        },
+        "color": "gradient / pattern",
+        "font": "Baloo2-ExtraBold",
+        "id": "stage-continue-text-6",
+        "identifier": "",
+        "lineCount": 1,
+        "opacity": 1,
+        "path": "root/JimiNativeWorldCardView[1]/JimiWorldCameraStage[1]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[0]/JimiWorldRotorView[1]/UIView[0]/NativeCartoonBounceSurface[6]/JimiV9PlainButton[0]/UIButtonLabel[1]",
+        "rect": {
+          "height": 50.29744047911231,
+          "width": 117.984279662537,
+          "x": 142.69346232477182,
+          "y": 556.4713528160673
+        },
+        "runs": [
+          {
+            "color": "gradient / pattern",
+            "font": "Baloo2-ExtraBold",
+            "size": 28,
+            "text": "Continue"
+          }
+        ],
+        "size": 28,
+        "text": "Continue",
+        "reference": "STS-STAGE-CONTINUE-06",
+        "role": "CTA",
+        "source": "native/jimi-2026/JimiNativeWorldCardView.swift",
+        "sourceLine": 280,
         "fontSource": "native/jimi-2026/JimiV9HomeView.swift",
         "fontSourceLine": 152,
         "colorDescription": "Ivory gradient · #FFFCED → #FFF6E1 → #F7E8CE",

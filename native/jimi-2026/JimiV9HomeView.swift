@@ -185,6 +185,13 @@ final class JimiV9PlainButton: UIButton {
         let text=((title(for:.normal) ?? "") as NSString).size(withAttributes:[.font:font]).width
         return CGSize(width:min(maxWidth,max(72,176*text/max(1,reference))*Self.ctaWidthScale),height:Self.primaryCTAHeight)
     }
+    /// Shared Home/result dimensions, independent of each action's label.
+    static func homeCTASize(maxWidth:CGFloat,font:UIFont)->CGSize {
+        let reference=("Journey" as NSString).size(withAttributes:[.font:font]).width
+        let settings=("Settings" as NSString).size(withAttributes:[.font:font]).width
+        let width=min(maxWidth,max(72,176*settings/max(1,reference))*ctaWidthScale)
+        return CGSize(width:min(maxWidth,width*1.10)*0.96,height:primaryCTAHeight*0.96)
+    }
     static let pairedModalCTAHeight:CGFloat=70
     static let pairedModalCTAGap:CGFloat=12
     /// Pre-redesign modal action width, independent of the live title.
@@ -245,8 +252,11 @@ final class JimiV9PlainButton: UIButton {
             sculptedFace.shapeKey=sculptedShapeKey ?? accessibilityIdentifier ?? title(for:.normal) ?? "primary"
             sculptedFace.frame=bounds
             sculptedFace.layoutIfNeeded();ctaShimmer?.layout()
-            titleLabel?.center=CGPoint(x:bounds.midX,y:bounds.midY-NativeSculptedCTAFace.depth/2)
+            titleLabel?.center=CGPoint(x:bounds.midX,y:bounds.midY-9.6/2+2)
         }
+    }
+    override func titleRect(forContentRect contentRect:CGRect)->CGRect {
+        super.titleRect(forContentRect:contentRect).offsetBy(dx:0,dy:2)
     }
     override var isHighlighted: Bool {
         get { false }
@@ -486,7 +496,7 @@ private final class NativeSculptedCTAFace:UIView {
             let role=shapeKey=="native.end-run.restart" && !secondary ? "restart":(shapeKey=="native.end-run.exit" && secondary ? "exit":"")
             guard !role.isEmpty else{return nil}
             let name="\(role)-216p2-\(Int(scale))x.png"
-            let path=root.appendingPathComponent("assets/ui/native-paired-cta-compact-v2").appendingPathComponent(name).path
+            let path=root.appendingPathComponent("assets/ui/native-paired-cta-shallow-v3").appendingPathComponent(name).path
             guard let image=UIImage(contentsOfFile:path)?.preparingForDisplay()?.cgImage,
                   image.width==Int(ceil(230*0.94*scale)),image.height==Int(ceil(JimiV9PlainButton.pairedModalCTAHeight*scale)) else{return nil}
             return image
@@ -498,7 +508,7 @@ private final class NativeSculptedCTAFace:UIView {
         else if shapeKey=="native.end-run.exit",secondary {role="exit"}
         else{return nil}
         let name="\(role)-\(Int(width))-\(Int(scale))x.png"
-        let directory=secondary ? "assets/ui/native-end-run-cta-soft-top-v3":"assets/ui/native-end-run-cta-ee8158-v1/base"
+        let directory=secondary ? "assets/ui/native-end-run-cta-shallow-v4/secondary":"assets/ui/native-end-run-cta-shallow-v4/primary"
         let path=root.appendingPathComponent(directory).appendingPathComponent(name).path
         guard let source=UIImage(contentsOfFile:path),
               let image=(source.preparingForDisplay() ?? source).cgImage,
@@ -508,7 +518,7 @@ private final class NativeSculptedCTAFace:UIView {
     override func didMoveToWindow(){super.didMoveToWindow();if window == nil {retirePaint()}else{setNeedsLayout()}}
 
     var secondary=false {didSet{if secondary != oldValue{setNeedsDisplay()}}}
-    static let depth:CGFloat=9.6
+    static let depth:CGFloat=9.6*0.90
     var shapeKey="home.journey" {didSet{if shapeKey != oldValue{setNeedsDisplay();setNeedsLayout()}}}
     private var variation:(CGFloat,CGFloat) {
         guard shapeKey != "home.journey" else{return (0,0)}
@@ -803,7 +813,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             let cta = JimiV9PlainButton(type: .custom)
             cta.tag = index
             cta.setTitle(titles[index], for: .normal)
-            cta.applyPrimaryCTAStyle(artwork:assets,shapeKey:index==0 ? "home.journey":"home.\(titles[index])")
+            cta.applyPrimaryCTAStyle(artwork:assets,shapeKey:"home.journey")
             cta.accessibilityIdentifier = "native.home.cta.\(index)"
             cta.addTarget(self, action: #selector(activate(_:)), for: .touchUpInside)
             cta.addTarget(self, action: #selector(pressCTA(_:)), for: [.touchDown, .touchDragEnter])
@@ -911,8 +921,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         // Its CTA has the same net correction (-34 text + 12px margin).
         let heroTop = topInset + innerInset + 139
         // Shared Settings width plus 5% of that width on each side of the text.
-        let settingsSize=ctas[2].primaryCTASize(maxWidth:width-48)
-        let homeCTASize=CGSize(width:min(width-48,settingsSize.width*1.10),height:settingsSize.height)
+        let homeCTASize=JimiV9PlainButton.homeCTASize(maxWidth:width-48,font:ctas[2].titleLabel!.font)
         for i in panels.indices {
             panels[i].frame = CGRect(x: CGFloat(i)*width, y: 0, width: width, height: height)
             heroes[i].bounds = CGRect(x: 0, y: 0, width: 336, height: 336)

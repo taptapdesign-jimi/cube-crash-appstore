@@ -1,0 +1,28 @@
+{
+  "method": "Built-in imagegen from original rendered stage concepts; user explicitly authorized new assets for textured physical thickness.",
+  "assets": [
+    {
+      "asset": "assets/ui/native-stage-stats-v1/puffy-info-slab-v3.png",
+      "sha256": "b6c2e20b5ffb46c22c5e75ddfcc5baff1eec8c0bed69b65053ab10175be26cbb",
+      "dimensions": [
+        1032,
+        1524
+      ],
+      "mode": "RGBA",
+      "decodedRGBABytes": 6291072
+    },
+    {
+      "asset": "assets/ui/native-stage-stats-v1/puffy-stat-tile-v3.png",
+      "sha256": "778b989d0ce99c395637c78dd26bbf1d3e5946d6126ada1916f93a7d18dc87de",
+      "dimensions": [
+        1100,
+        1429
+      ],
+      "mode": "RGBA",
+      "decodedRGBABytes": 6287600
+    }
+  ],
+  "layout": "326x481.76 panel;136x176 stat tiles;flat live34pt scores,y100;Regular18captions,y140;38ptCTA bottom whitespace",
+  "scope": "Info-side only. Old painted border/gradient/outline layers removed. Original artwork and earlier versioned assets remain unchanged.",
+  "motion": "Existing card owner finite9.6second additive icon/star beat;pause via card clock;retire on front flip/exit/cleanup;none in Reduced Motion."
+}

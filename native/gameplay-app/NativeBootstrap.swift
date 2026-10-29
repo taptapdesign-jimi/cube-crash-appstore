@@ -280,13 +280,13 @@ final class NativeBootstrap {
         if key == "hapticsEnabled",value {impactFeedback("light")}
     }
     private enum FreshGameplayEntry:Equatable {
-        case restart(UInt64,NativeGameplayRestartOrigin),arcadeContinuation(UInt64),journeyContinuation(UInt64,Int),tutorialCompletion(UInt64)
+        case restart(UInt64,NativeGameplayRestartOrigin),arcadeContinuation(UInt64),journeyContinuation(UInt64,Int)
         var generation:UInt64 {
-            switch self {case .restart(let value,_),.arcadeContinuation(let value),.journeyContinuation(let value,_),.tutorialCompletion(let value):return value}
+            switch self {case .restart(let value,_),.arcadeContinuation(let value),.journeyContinuation(let value,_):return value}
         }
         var isJourneyContinuation:Bool {if case .journeyContinuation=self{return true};return false}
         var isRestart:Bool {if case .restart=self{return true};return false}
-        var startsAtFirstBoard:Bool {if case .tutorialCompletion=self{return true};return isRestart}
+        var startsAtFirstBoard:Bool {isRestart}
         var consumesPendingArcade:Bool {if case .arcadeContinuation=self{return true};return false}
         var alreadyAnnouncedArcade:Bool {consumesPendingArcade}
         var skipsBoardAnnouncement:Bool {if case .restart(_,let origin)=self{return origin.skipsBoardAnnouncement};return false}
@@ -481,6 +481,10 @@ final class NativeBootstrap {
         engine.sourceTutorialSubsequentPresentationEnabled=sourceTutorialSubsequentPresentationEnabled && gameplay.sourceTutorialFirstStepMonitorEnabled
         engine.sourceStarOrbitCountAtPresentationEnabled=(sourceTutorialEarnedMeterEnabled && gameplay.sourceTutorialActivationEnabled) || normalOrdinarySource
         gameplay.onSourceTutorialRetired={ [weak self,weak gameplay] in guard let self,let gameplay,self.gameplay === gameplay else{return};self.tutorialOwner?.dispose() }
+        gameplay.onSourceTutorialBoardVisible={ [weak self,weak gameplay] in
+            guard let self,let gameplay,!self.disposed,self.gameplay === gameplay else{return}
+            self.tutorialOwner?.showSourceEntrySheet()
+        }
         gameplay.onSourceTutorialPrepared={ [weak self,weak gameplay] in
             guard let self,let gameplay,!self.disposed,self.gameplay === gameplay else{return}
             self.tutorialOwner?.refresh(gameplay.engine.state)
@@ -1246,7 +1250,7 @@ final class NativeBootstrap {
         arcadeMusic?.enterRound(generation:generation)
         cue.start()
     }
-    private func rebuildSourceGameplay(_ previous:NativeGameplayViewController,board:Int?,entry:FreshGameplayEntry,onReplaced:(()->Void)?=nil) {
+    private func rebuildSourceGameplay(_ previous:NativeGameplayViewController,board:Int?,entry:FreshGameplayEntry) {
         guard !disposed,let controller,controller.canReplaceGameplay(previous),let exit=returnAction,
               self.gameplay === previous,let scope=previous.sourceScope,scope.current else{return}
         if entry.consumesPendingArcade,envelope.pendingArcadeRound==nil{return}
@@ -1269,11 +1273,11 @@ final class NativeBootstrap {
                 }
                 self.finishGameplayExit();self.showError("Unable to prepare Native board resources");return
             }
-            self.replacePreparedSourceGameplay(previous,controller:controller,board:board,entry:entry,exit:exit,onReplaced:onReplaced)
+            self.replacePreparedSourceGameplay(previous,controller:controller,board:board,entry:entry,exit:exit)
         }
     }
     private func replacePreparedSourceGameplay(_ previous:NativeGameplayViewController,controller:NativeAppController,
-        board:Int?,entry:FreshGameplayEntry,exit:@escaping()->Void,onReplaced:(()->Void)?=nil) {
+        board:Int?,entry:FreshGameplayEntry,exit:@escaping()->Void) {
         do {
             guard let incoming=try makeGameplay(board:board,exit:exit,freshEntry:entry) as? NativeGameplayViewController else{return}
             guard !disposed,self.gameplay === incoming,controller.canReplaceGameplay(previous),
@@ -1285,7 +1289,6 @@ final class NativeBootstrap {
             if incoming.engine.state.mode == .arcade {
                 arcadeMusic?.enterRound(generation:incoming.engine.state.generation,immediate:entry.isRestart)
             } else if boardTransition == nil {soundtrack?.setJourneyGameplay()}
-            onReplaced?()
         } catch {
             if previous.sourcePresentationFailureGeneration==previous.engine.state.generation {
                 self.gameplay=previous;self.returnAction=exit
@@ -1494,19 +1497,12 @@ final class NativeBootstrap {
                 self.endRun?.dispose();self.endRun=nil;self.scoreOwner?.dispose();self.scoreOwner=nil
                 self.gameplay=nil;self.returnAction=nil;self.controller?.returnTutorialToHome(onPrepared:release)
             } else {
-                if gameplay.sourceInitialConstruction != nil,gameplay.sourceScope?.current==true {
-                    self.rebuildSourceGameplay(gameplay,board:nil,entry:.tutorialCompletion(generation+1),onReplaced:release)
-                    return
-                }
-                let state=self.fresh(mode:.arcade,board:1,generation:generation+1)
-                gameplay.engine.restart(state:state);self.attemptCommitted=false;self.committedScore=nil
-                self.audio?.beginGeneration(state.generation);self.arcadeMusic?.enterRound(generation:state.generation,immediate:true)
-                self.envelope.progression.beginAttempt(mode:.arcade,board:1,arcadeVariant:self.envelope.activeArcadeVariant);self.record(state);_ = self.saveCurrent()
-                let boardEntry=gameplay.prepareNextBoardEntry()
-                if boardEntry == nil {gameplay.refreshFromEngine()}
-                self.mountArcadeEntry(gameplay,onPresented:release) {
-                    gameplay.setSuspended(false);boardEntry?()
-                }
+                self.endRun?.dispose();self.endRun=nil;self.scoreOwner?.dispose();self.scoreOwner=nil
+                self.boardEntryHaptics?.dispose();self.boardEntryHaptics=nil
+                self.arcadeEntryCue?.dispose();self.arcadeEntryCue=nil
+                self.cancelGameplayEntryPreparation();self.retireSourceTutorialMeterRequest();self.retireBoardTransition()
+                self.gameplay=nil;self.returnAction=nil
+                self.controller?.returnTutorialToArcade(onPrepared:release)
             }
         }
     }

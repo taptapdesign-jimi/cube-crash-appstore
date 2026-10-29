@@ -132,6 +132,7 @@ final class NativeResultOwner {
                 switch destination {case .restart:self.restart();case .exit:self.exit();case .nextRound:self.continueArcade();case .nextJourney:self.continueJourney?()}
             }
         }
+        sheet.followsConfirmedNoMoves = sourceNoMovesReceipt != nil
         modal=sheet;sheet.admitPreparedHandoff();gameplay.setSuspended(true);onMoment?("modal-open",0,nil);gameplay.present(sheet,animated:false)
         if let receipt=sourceNoMovesReceipt {
             gameplay.boardScene?.traceNoMovesHandoff("result-mount",token:receipt.planToken,owner:sheet,mounted:sheet.view.window != nil)
@@ -148,6 +149,7 @@ final class NativeResultOwner {
 /// Celebration particles, reward cards and ship flybys have separate parity admissions.
 @MainActor
 final class NativeResultController:UIViewController {
+    var followsConfirmedNoMoves=false
     enum Action {case restart,exit,nextRound,nextJourney}
     let state:NativeBoardState
     let clean:Bool
@@ -311,6 +313,9 @@ final class NativeResultController:UIViewController {
         // CLEARED already supplied that anticipation: hand straight into the
         // first readable hero/title frame instead of mounting blank paper.
         if clean,state.mode == .journey,(arcadeCelebrationPresented || interimJourney) {elapsed=NativeResultPresentationPlan.cleanAfterClearedStart}
+        // NO MOVES already supplied the lead-in. Start at the readable fail
+        // pose only after its confirmed board-exit receipt reaches this sheet.
+        if !clean,followsConfirmedNoMoves {elapsed=NativeResultPresentationPlan.failAfterNoMovesStart}
         let target=NativeResultClockTarget(owner:self);clockTarget=target
         let link=CADisplayLink(target:target,selector:#selector(NativeResultClockTarget.tick(_:)));self.link=link;link.add(to:.main,forMode:.common)
         paint()
@@ -323,7 +328,7 @@ final class NativeResultController:UIViewController {
         let lineHeight:CGFloat=clean ? 40:56
         let lines=max(1,ceil((measured-0.5)/lineHeight))
         let titleHeight=lines*lineHeight
-        let layout=NativeResultPresentationPlan.layout(viewport:view.bounds.size,clean:clean,titleHeight:titleHeight,primarySize:CGSize(width:min(view.bounds.width<1025 ? 230*0.94:310*0.94,view.bounds.width*0.8),height:JimiV9PlainButton.pairedModalCTAHeight),actionGap:JimiV9PlainButton.pairedModalCTAGap)
+        let layout=NativeResultPresentationPlan.layout(viewport:view.bounds.size,clean:clean,titleHeight:titleHeight,primarySize:JimiV9PlainButton.homeCTASize(maxWidth:view.bounds.width-48,font:assets.font(size:28,weight:"ExtraBold")),actionGap:JimiV9PlainButton.pairedModalCTAGap)
         place(cardContent,in:layout.card)
         place(stars,in:layout.hero.offsetBy(dx:-layout.card.minX,dy:-layout.card.minY))
         for index in 0..<3 {
@@ -428,8 +433,12 @@ final class NativeResultController:UIViewController {
         for (target,pose) in [(stars,plan.hero),(headlineContent,plan.title),(scoreLabel,plan.scoreLabel),(score,plan.score),(status,plan.status),(buttons[0],plan.primary),(buttons[1],plan.secondary)] {apply(pose,to:target)}
         moment(clean ? "clean-applause":"fail-sax",at:0)
         if clean {
-            moment("clean-hero",at:0.1);moment("clean-sax",at:0);moment("clean-count",at:0.47,duration:NativeResultPresentationPlan.counterDuration(from:0,to:state.score))
-            if !arcadeReached {moment("clean-bonus",at:2.15,duration:combo>0 ? 1.4:0.8);moment("clean-bonus",at:4.6,duration:efficiency>0 ? 1.4:0.8)}
+            if let titleIndex=NativeResultHeadlines.clean.firstIndex(of:headline) {
+                moment("clean-title-prepare",at:0,index:titleIndex)
+                moment("clean-title",at:0.22,index:titleIndex)
+            }
+            moment("clean-hero",at:0.1);moment("clean-sax",at:0);moment("clean-count",at:0.47,duration:NativeResultPresentationPlan.cleanCounterDuration(from:0,to:state.score))
+            if !arcadeReached {moment("clean-bonus",at:NativeResultPresentationPlan.cleanComboStart,duration:NativeResultPresentationPlan.cleanCounterDuration(from:state.score,to:state.score+combo));moment("clean-bonus",at:NativeResultPresentationPlan.cleanEfficiencyStart,duration:NativeResultPresentationPlan.cleanCounterDuration(from:state.score+combo,to:finalScore))}
         }
         for index in 0..<3 {
             if clean {
@@ -452,7 +461,7 @@ final class NativeResultController:UIViewController {
                     lastCounterHapticAt=elapsed;onHaptic?("protected-light")
                 }
             }
-            let comboVisible=elapsed<3.97
+            let comboVisible=elapsed<NativeResultPresentationPlan.cleanEfficiencyReveal
             bonus.isHidden=arcadeReached;bonusLabel.isHidden=arcadeReached
             bonus.text="+\(comboVisible ? plan.displayedCombo:plan.displayedEfficiency)"
             bonusLabel.text=comboVisible ? "Combo bonus":"Efficiency"

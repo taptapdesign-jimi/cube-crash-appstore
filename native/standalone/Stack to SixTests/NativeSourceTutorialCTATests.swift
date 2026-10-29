@@ -59,4 +59,31 @@ import UIKit
   XCTAssertEqual(exit,[true]);XCTAssertEqual(overlay.sourceCTAState,.hidden);XCTAssertTrue(button.isHidden)
  }
 
+ func testFirstAndMergeGotItDismissOnlySheetAndNextLessonRestoresCTA()throws {
+  let f=try Fixture();defer{f.dispose()};let timeouts=NativeSourceAppTimeoutOwner();timeouts.sourceMicrotaskTasks=f.service.sourceMicrotaskTasks
+  let overlay=NativeTutorialOverlay(resourceRoot:NativeTestResources.root);defer{overlay.dispose();timeouts.cancelAll()}
+  let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));let host=UIViewController();window.rootViewController=host;window.makeKeyAndVisible();host.view.addSubview(overlay);overlay.frame=host.view.bounds;overlay.layoutIfNeeded()
+  defer{window.isHidden=true;window.rootViewController=nil}
+  XCTAssertTrue(overlay.showSourceIntro(from:.init(x:80,y:200),to:.init(x:160,y:200),service:f.service,timeouts:timeouts,boardGeneration:1,current:{f.current}))
+  for t in stride(from:16.0,through:1800,by:16){f.deliver(t)}
+  let button=try XCTUnwrap(overlay.subviews.flatMap{$0.subviews.flatMap{[$0]+$0.subviews}}.compactMap{$0 as? UIButton}.first{$0.accessibilityIdentifier=="native.tutorial.got-it"})
+  let sheet=try XCTUnwrap((button as? JimiV9PlainButton)?.cartoonBounceLayoutView.superview)
+  var taps=0;overlay.onGotIt={taps+=1;XCTAssertTrue(overlay.dismissGuidedSheet())}
+  XCTAssertFalse(button.isHidden);XCTAssertEqual(button.title(for:.normal),"Got it")
+  button.sendActions(for:.touchUpInside)
+  for t in stride(from:1816.0,through:2300,by:16){f.deliver(t)}
+  XCTAssertEqual(taps,1);XCTAssertTrue(sheet.isHidden);XCTAssertFalse(overlay.isHidden)
+  XCTAssertTrue(overlay.transitionSourceSheetToSecondStep(from:.init(x:80,y:200),to:.init(x:160,y:200),entered:{}))
+  for t in stride(from:2316.0,through:3300,by:16){f.deliver(t)}
+  XCTAssertFalse(sheet.isHidden);XCTAssertTrue(button.isEnabled);XCTAssertFalse(button.isHidden);XCTAssertEqual(button.title(for:.normal),"Got it")
+  button.sendActions(for:.touchUpInside)
+  for t in stride(from:3316.0,through:3800,by:16){f.deliver(t)}
+  XCTAssertEqual(taps,2);XCTAssertTrue(sheet.isHidden)
+  XCTAssertTrue(overlay.showSpecialBar(entered:{}))
+  for t in stride(from:3816.0,through:4800,by:16){f.deliver(t)}
+  XCTAssertFalse(sheet.isHidden,"Special Bar must restore paper hidden by Merge Got it")
+  XCTAssertFalse(button.isHidden);XCTAssertTrue(button.isEnabled);XCTAssertEqual(button.title(for:.normal),"Continue")
+
+ }
+
 }

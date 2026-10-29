@@ -1,6 +1,20 @@
 import XCTest
 @testable import StackToSixGameplay
 final class NativeTutorialTests: XCTestCase {
+    func testSpecialGuideAllowsEveryPlayableRegularTargetAcrossEntireBoard() {
+        for row in 0..<9 {for value in 1...5 {for reverse in [false,true] {
+            var tutorial=NativeTutorialState();tutorial.step = .special;tutorial.wildTileID="wild"
+            let wild=NativeTile(id:"wild",cell:.init(column:0,row:0),value:6,archetype:.star)
+            let regular=NativeTile(id:"regular",cell:.init(column:1,row:row),value:value)
+            XCTAssertTrue(NativeTutorialRules.allowsPickup(regular,tutorial:tutorial,rows:9))
+            let source=reverse ? regular:wild,destination=reverse ? wild:regular
+            XCTAssertTrue(NativeTutorialRules.allowsDrop(source:source,destination:destination,tutorial:tutorial,rows:9))
+            let engine=NativeGameplayEngine(state:NativeBoardState(tiles:[wild,regular],tutorial:tutorial),recordedRandomChoices:Array(repeating:0.5,count:100))
+            XCTAssertTrue(engine.beginDrag(tileID:source.id))
+            XCTAssertTrue(engine.drop(target:destination.cell).accepted,"row=\(row),value=\(value),reverse=\(reverse)")
+        }}}
+    }
+
     func testHUDRemainsLockedAfterGuideUntilResultAcknowledged() {
         var tutorial=NativeTutorialState()
         XCTAssertTrue(tutorial.shouldLockHUD)

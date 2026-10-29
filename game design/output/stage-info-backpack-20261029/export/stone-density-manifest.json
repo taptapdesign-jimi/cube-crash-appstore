@@ -1,0 +1,32 @@
+{
+  "exports": [
+    {
+      "file": "assets/ui/native-stage-stats-v5/stat-tile.png",
+      "sha256": "c44002ba9e6baee35a2ea213f9282b4f645f97b6d8848ebd7fb71c348f6b7a9c",
+      "pixels": [
+        138,
+        176
+      ]
+    },
+    {
+      "file": "assets/ui/native-stage-stats-v5/stat-tile@2x.png",
+      "sha256": "1906cd3c52ab042b6be4afd33a7448760bce0ac4d72d321c08bd3ed942e8be8e",
+      "pixels": [
+        276,
+        352
+      ]
+    },
+    {
+      "file": "assets/ui/native-stage-stats-v5/stat-tile@3x.png",
+      "sha256": "56a421978b2767fcaa88e77b13cf473421fc58cb8e2194b511966a0d9af0a5af",
+      "pixels": [
+        414,
+        528
+      ]
+    }
+  ],
+  "master": "assets/ui/native-stage-stats-v1/stone-stat-master-v5.png",
+  "method": "Built-in imagegen material match to main v4stone,then authorized high-quality density export as earlier;source and earlier versions preserved.",
+  "target": "Same cream stone material as main,approximately10percent darker,not wood or gold",
+  "layout": "24ptouter padding,2ptgap,138ptwide176pthigh;68.8pticon(-20percent),scorey92(-8),caption127(-4);Xy6(+16)sharesmaintexture;whole info wrapper shared7.6sidle"
+}

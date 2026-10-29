@@ -1,0 +1,3 @@
+# Candidate04
+
+Actual built-in imagegen output: visibly finer wooden frames and reduced bottom wood depth, taller inner cards, upper-only botanical emboss (upper-left on score and upper-right on combo), no lower decorations. Recessed scores, displayed values/captions/icons and outer cream panel retained. Frame reduction was requested as approximately30percent; raster generation does not certify an exact measured percentage. User supplied exact main panel size326×481.76pt while generation was running. A separate proposed layout JSON records that exact outer size and bounded element positions, including 4.2pt frame width instead of6pt for an exact30percent implementation reduction. Image is appearance concept, not a dimensionally exact export. No runtime changes.

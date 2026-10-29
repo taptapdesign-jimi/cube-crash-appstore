@@ -1,0 +1,7 @@
+{
+  "method": "built-in image_gen edit; offline narrow RGB composite",
+  "edit_target": "assets/ui/native-stage-stats-v9/info-slab-1@3x.png",
+  "prompt": "Repair only both long vertical side edges: remove jagged white patch seams and malformed bevel; preserve ivory slab, central face, top arch, bottom damaged wooden lip and transparent exterior.",
+  "integration": "v10 all three variants and densities; blend within 14pt side strips only, y13-86%; exact source alpha and remaining pixels preserved",
+  "generation_note": "Full generated image contains exterior flecks and texture drift; never integrated full image. Source silhouette and center retained."
+}

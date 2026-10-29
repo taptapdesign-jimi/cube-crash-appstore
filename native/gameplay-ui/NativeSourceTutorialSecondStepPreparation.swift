@@ -25,7 +25,8 @@ import SpriteKit
     private func bound(_ node:NativeDiceNode)->Bool{node.parent === parent && node.sourceContactNodeAlive && node.sourceGeneration==generation}
     func owns(_ node:NativeDiceNode)->Bool{started && !disposed && nodes.contains(where:{$0 === node}) && bound(node)}
     @discardableResult func prepare()->Bool {
-        guard !started,admitted(),bound(merged),bound(one) else{return false};started=true
+        guard !started,admitted(),bound(merged),bound(one),
+            merged.sourceTutorialNormalizationReady,one.sourceTutorialNormalizationReady else{return false};started=true
         guard merged.setSourceTutorialInitialValue(5),admitted(),one.setSourceTutorialInitialValue(1),admitted() else{dispose();return false}
         one.position=onePosition
         for node in nodes {

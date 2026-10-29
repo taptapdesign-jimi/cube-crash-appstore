@@ -1,0 +1,54 @@
+{
+  "source": "../stat-tile-no-wood-20261029/candidate-01.png",
+  "source_sha256": "c683e495e96c304d28330fc1aabc700f59f8a3e03b6101fb1a37225238d83927",
+  "source_size": [
+    1110,
+    1417
+  ],
+  "retained_opaque_pixel_changes": 0,
+  "removed_disconnected_pixels": 258,
+  "production": [
+    {
+      "file": "stat-tile.png",
+      "size": [
+        138,
+        176
+      ],
+      "alpha_bounds": [
+        1,
+        1,
+        134,
+        172
+      ],
+      "sha256": "730cc81b142c7552340d302e0fd875f2fe617a6c01172ad1ba5e6b64c686ebe1"
+    },
+    {
+      "file": "stat-tile@2x.png",
+      "size": [
+        276,
+        352
+      ],
+      "alpha_bounds": [
+        2,
+        2,
+        270,
+        347
+      ],
+      "sha256": "edbddc1b350e3301fa4e04315d4614ba775e94d050e2cf17716c5a28e7fc5876"
+    },
+    {
+      "file": "stat-tile@3x.png",
+      "size": [
+        414,
+        528
+      ],
+      "alpha_bounds": [
+        3,
+        3,
+        406,
+        520
+      ],
+      "sha256": "03dbb2340c906312a547a7f66232435aa95d0f7bb307fb8b3de21dbd675b9cc6"
+    }
+  ]
+}

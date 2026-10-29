@@ -28,6 +28,30 @@ import StackToSixGameplay
         func finishRoots(){for t in stride(from:608.0,through:1400,by:16){deliver(t)}}
         func dispose(){monitor.dispose();intro.dispose();timeouts.cancelAll();scene.dispose();construction.dispose();driver.dispose();service.dispose();fifo.dispose()}
     }
+    func testNativeNextPaperStartsAtExitWithoutWaitingForNormalizationAndRetiresPendingPreparation()async throws {
+        let f=try Fixture();defer{f.dispose()};var ready=false,presented=0,activated=0,exit:(()->Void)?
+        let monitor=try XCTUnwrap(NativeSourceTutorialFirstStepMonitor(service:f.service,timeouts:f.timeouts,generation:1,
+            targets:f.targets,parent:f.construction.canvas,current:{f.current},targetCurrent:{_ in true},
+            pointerExit:{$0();return true},sheetExit:{exit=$0;return true},activate:{_ in activated+=1;return true},
+            readyToExit:{_ in ready},presentAfterExit:{_ in presented+=1;return true}))
+        defer{monitor.dispose()};XCTAssertTrue(monitor.start());monitor.pointerDown(f.targets[0])
+        XCTAssertTrue(f.targets[1].forceSourceTutorialInitialValue(5));try await Task.sleep(for:.milliseconds(160))
+        XCTAssertEqual(monitor.phase,.sheetExit);XCTAssertEqual(presented,0)
+        try XCTUnwrap(exit)();XCTAssertEqual(presented,1);XCTAssertEqual(activated,0)
+        XCTAssertEqual(monitor.phase,.activationWait)
+        ready=true;try await Task.sleep(for:.milliseconds(160));XCTAssertEqual(activated,1)
+        XCTAssertEqual(monitor.phase,.finished);XCTAssertFalse(monitor.pendingTimer)
+    }
+    func testNativeEarlyPaperRetirementCannotReleasePreparation()async throws {
+        let f=try Fixture();defer{f.dispose()};var activated=0
+        let monitor=try XCTUnwrap(NativeSourceTutorialFirstStepMonitor(service:f.service,timeouts:f.timeouts,generation:1,
+            targets:f.targets,parent:f.construction.canvas,current:{f.current},targetCurrent:{_ in true},
+            pointerExit:{$0();return true},sheetExit:{$0();return true},activate:{_ in activated+=1;return true},
+            readyToExit:{_ in false},presentAfterExit:{_ in true}))
+        XCTAssertTrue(monitor.start());monitor.pointerDown(f.targets[0]);XCTAssertTrue(f.targets[1].forceSourceTutorialInitialValue(5))
+        try await Task.sleep(for:.milliseconds(160));XCTAssertEqual(monitor.phase,.activationWait)
+        monitor.dispose();try await Task.sleep(for:.milliseconds(160));XCTAssertEqual(activated,0);XCTAssertFalse(monitor.pendingTimer)
+    }
     func testActualWallObserverRequiresBoundPointerdownAndRealAPPCompletionThenWall90()async throws {
         let f=try Fixture();defer{f.dispose()};XCTAssertTrue(f.monitor.start());XCTAssertFalse(f.monitor.start())
         XCTAssertTrue(f.targets[1].forceSourceTutorialInitialValue(5));try await Task.sleep(for:.milliseconds(160))
@@ -49,6 +73,27 @@ import StackToSixGameplay
         XCTAssertEqual(f.monitor.matchedID,f.targets[0].tileID)
         f.monitor.dispose();f.finishRoots();try await Task.sleep(for:.milliseconds(130))
         XCTAssertTrue(f.activated.isEmpty);XCTAssertEqual(unrelated,1)
+    }
+    func testWaitsForGuidedTileReadinessAndRetriesRejectedHandoffWithoutLosingStep()async throws {
+        let f=try Fixture();defer{f.dispose()}
+        var attempts=0
+        let monitor=try XCTUnwrap(NativeSourceTutorialFirstStepMonitor(service:f.service,timeouts:f.timeouts,generation:1,
+            targets:f.targets,parent:f.construction.canvas,current:{f.current},targetCurrent:{_ in true},
+            pointerExit:{f.intro.popOutPointer(completed:$0)},sheetExit:{f.intro.exitSheet(completed:$0)},
+            activate:{_ in attempts+=1;return attempts==2},readyToExit:{_ in f.targets.allSatisfy(\.sourceTutorialNormalizationReady)}))
+        defer{monitor.dispose()}
+        XCTAssertTrue(monitor.start());monitor.pointerDown(f.targets[0])
+        XCTAssertTrue(f.targets[1].forceSourceTutorialInitialValue(5));f.targets[1].setDragging(true)
+        try await Task.sleep(for:.milliseconds(160))
+        XCTAssertEqual(monitor.phase,.polling);XCTAssertEqual(attempts,0)
+        f.targets[1].setDragging(false)
+        try await Task.sleep(for:.milliseconds(160));XCTAssertEqual(monitor.phase,.pointerExit)
+        f.finishRoots();try await Task.sleep(for:.milliseconds(130))
+        XCTAssertEqual(attempts,1);XCTAssertNotEqual(monitor.phase,.retired)
+        try await Task.sleep(for:.milliseconds(160))
+        for t in stride(from:1408.0,through:2400,by:16){f.deliver(t)}
+        try await Task.sleep(for:.milliseconds(130))
+        XCTAssertEqual(attempts,2);XCTAssertEqual(monitor.phase,.finished);XCTAssertFalse(monitor.pendingTimer)
     }
     func testUnrelatedNodeCannotMarkInteractionAndReparentedCandidateCannotMatch()async throws {
         let f=try Fixture();defer{f.dispose()};XCTAssertTrue(f.monitor.start())

@@ -1,0 +1,86 @@
+[
+  {
+    "density" : 1,
+    "file" : "info-slab-1.png",
+    "height" : 506,
+    "variant" : 1,
+    "width" : 326
+  },
+  {
+    "density" : 1,
+    "file" : "info-slab-2.png",
+    "height" : 506,
+    "variant" : 2,
+    "width" : 326
+  },
+  {
+    "density" : 1,
+    "file" : "info-slab-3.png",
+    "height" : 506,
+    "variant" : 3,
+    "width" : 326
+  },
+  {
+    "density" : 2,
+    "file" : "info-slab-1@2x.png",
+    "height" : 1012,
+    "variant" : 1,
+    "width" : 652
+  },
+  {
+    "density" : 2,
+    "file" : "info-slab-2@2x.png",
+    "height" : 1012,
+    "variant" : 2,
+    "width" : 652
+  },
+  {
+    "density" : 2,
+    "file" : "info-slab-3@2x.png",
+    "height" : 1012,
+    "variant" : 3,
+    "width" : 652
+  },
+  {
+    "density" : 3,
+    "file" : "info-slab-1@3x.png",
+    "height" : 1518,
+    "variant" : 1,
+    "width" : 978
+  },
+  {
+    "density" : 3,
+    "file" : "info-slab-2@3x.png",
+    "height" : 1518,
+    "variant" : 2,
+    "width" : 978
+  },
+  {
+    "density" : 3,
+    "file" : "info-slab-3@3x.png",
+    "height" : 1518,
+    "variant" : 3,
+    "width" : 978
+  },
+  {
+    "density" : 1,
+    "file" : "stat-tile.png",
+    "height" : 176,
+    "removed" : "baked grey skirt below wood",
+    "width" : 138
+  },
+  {
+    "density" : 2,
+    "file" : "stat-tile@2x.png",
+    "height" : 352,
+    "removed" : "baked grey skirt below wood",
+    "width" : 276
+  },
+  {
+    "density" : 3,
+    "file" : "stat-tile@3x.png",
+    "height" : 528,
+    "removed" : "baked grey skirt below wood",
+    "width" : 414
+  }
+]

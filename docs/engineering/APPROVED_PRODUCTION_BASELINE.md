@@ -1,8 +1,21 @@
 # Approved Production Baseline
 
-Updated: 2026-10-03
+Updated: 2026-10-30
 
-## Native development boundary (2026-10-07)
+## Current Native production benchmark — v20 Journey modal card
+
+User explicitly promotes the complete current Native state on `main` on
+2026-10-30: **native-benchmark-v20 — Journey modal card**. See
+[NATIVE_BENCHMARK_V20.md](NATIVE_BENCHMARK_V20.md).
+For ordinary Native continuation, approved baseline, production benchmark or
+recovery now means this immutable tag. Its principal change is the redesigned
+Journey modal card, including Stage heading, stone panel/stat cards, close
+surface and refined star/idle motion. All saved nondeleted work is included.
+Physical delivery and acceptance are recorded separately; promotion alone does
+not establish measured FPS, thermal, touch or speaker acceptance.
+Preserve every older Native tag. The PWA recovery tag remains unchanged.
+
+## Historical Native development boundary (2026-10-07)
 
 `main` now develops Stack to Six Native toward 100% native gameplay/UI.
 `native-benchmark-v1` is its starting source recovery checkpoint; see
@@ -11,7 +24,7 @@ complete native or physical acceptance. The approved production baseline below
 remains the immutable **PWA** recovery reference and is not overwritten by
 Native checkpoint promotion.
 
-## Latest benchmark — FLUIDNOST
+## Preserved PWA benchmark — FLUIDNOST
 
 **Production Benchmark v9 — Fluidnost** is the latest user-approved recovery
 point. See [PRODUCTION_BENCHMARK_V9.md](PRODUCTION_BENCHMARK_V9.md). Preserve this
@@ -44,7 +57,7 @@ remote publication must be reported separately and is not implied here.
 
 ## Interpretation rule
 
-When the user says **approved version**, **approved baseline**, **perfect version**, **the version that was super**, **production benchmark**, **benchmark fluidnost**, **stable release**, or otherwise refers to the last version they personally accepted, treat `production-benchmark-v9` as the exact current source reference unless the user explicitly approves a newer baseline.
+When the user says **approved version**, **approved baseline**, **perfect version**, **the version that was super**, **production benchmark**, **benchmark fluidnost**, **stable release**, or otherwise refers to the last version they personally accepted, for the preserved PWA treat `production-benchmark-v9` as the exact source reference. Native uses `native-benchmark-v20` above.
 
 Do not infer approval from a successful build, QA pass, device installation, merge, release, or positive comment about one isolated change. Only an explicit user statement that a newer complete state is approved may supersede this file.
 
@@ -68,7 +81,7 @@ Do not infer approval from a successful build, QA pass, device installation, mer
 
 ## Current status
 
-`production-benchmark-v9` is the approved complete source baseline. It records
+`production-benchmark-v9` is the preserved PWA approved complete source baseline. It records
 the full repository state on `main`, retained assets, deterministic coverage,
 native delivery evidence and the exact physical-test limits documented in its
 benchmark record. Later experiments must preserve this tag and be compared

@@ -24,6 +24,8 @@ import SpriteKit
     private let service:NativeSourceAnimationClockService,captures:[Capture],random:()->Double?,current:()->Bool
     private let acquireFrames:()->(()->Void)?,sound:(Double)->(()->Void)?,half:()->Void,haptic:()->Void,syncZ:(NativeDiceNode,Bool)->Void,drawBG:()->Void,finished:(Completion)->Void
     private let timeouts:NativeSourceAppTimeoutOwner
+    private let fullOpacity:()->Void
+    private var fullOpacityFired=false
     private var parentLease:NativeSourceAnimationClockService.Lease?,calls:[UUID:Call]=[:],watchdog:NativeSourceAppTimeoutOwner.Receipt?
     private var releaseFrames:(()->Void)?,stopSound:(()->Void)?,plans:[NativeSourceBoardEntryPlan]=[],completed=Set<Int>(),halfFired=false
     private(set) var phase:Phase = .idle
@@ -33,9 +35,10 @@ import SpriteKit
         timeouts:NativeSourceAppTimeoutOwner,random:@escaping()->Double?,current:@escaping()->Bool,
         acquireFrames:@escaping()->(()->Void)?,sound:@escaping(Double)->(()->Void)?,
         half:@escaping()->Void,haptic:@escaping()->Void,syncZ:@escaping(NativeDiceNode,Bool)->Void,
-        drawBG:@escaping()->Void,finished:@escaping(Completion)->Void) {
+        drawBG:@escaping()->Void,fullOpacity:@escaping()->Void={},finished:@escaping(Completion)->Void) {
         guard service.sourceFrameTransportAdmissionOpen,captures.allSatisfy({$0.node.sourceContactNodeAlive && $0.node.sourceGeneration==generation && $0.generation==generation && $0.node.parent === $0.parent && $0.node.sourceOuterDriven && $0.node.sourceBoardEntryIdentityAdmitted && $0.node.kind==$0.kind && $0.node.variant==$0.variant && !$0.node.sourceResidualWildPresence && $0.node.locked==$0.locked && $0.node.value==$0.value && $0.geometryScale>0}),current(),captures.allSatisfy({$0.node.sourceContactNodeAlive && $0.node.sourceGeneration==generation && $0.node.parent === $0.parent && $0.node.sourceBoardEntryIdentityAdmitted && $0.node.kind==$0.kind && $0.node.variant==$0.variant}) else{return nil}
         self.service=service;self.captures=captures;self.generation=generation;self.timeouts=timeouts;self.random=random;self.current=current;self.acquireFrames=acquireFrames;self.sound=sound;self.half=half;self.haptic=haptic;self.syncZ=syncZ;self.drawBG=drawBG;self.finished=finished
+        self.fullOpacity=fullOpacity
     }
     private func admitted()->Bool {guard phase != .finished else{return false};let value=current();return value && phase != .finished}
     private func bound(_ capture:Capture)->Bool {capture.node.sourceContactNodeAlive && capture.node.sourceGeneration==capture.generation && capture.node.parent === capture.parent && capture.node.sourceBoardEntryBinding==id && capture.node.sourceBoardEntryIdentityAdmitted && capture.node.kind==capture.kind && capture.node.variant==capture.variant}
@@ -87,6 +90,10 @@ import SpriteKit
                 guard phase == .running,admitted() else{return}
                 if completed.count>=Int(ceil(Double(captures.count)/2)){fireHalf()}
             }
+        }
+        if !fullOpacityFired,phase == .running,admitted(),
+            seconds >= (plans.map(\.fullOpacityTime).max() ?? 0),captures.allSatisfy(bound) {
+            fullOpacityFired=true;fullOpacity()
         }
     }
     private func fireHalf(){guard phase == .running,!halfFired,admitted() else{return};halfFired=true;half()}

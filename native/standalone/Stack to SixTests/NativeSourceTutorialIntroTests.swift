@@ -16,6 +16,23 @@ import UIKit
         func deliver(_ value:Double){wall=value;service.deliver(wallMilliseconds:value)}
         func dispose(){owner.dispose();timeouts.cancelAll();service.dispose();fifo.dispose()}
     }
+    func testEarlySecondAndSpecialPaperRequireEntryAndRealPreparationBeforeCTA()throws {
+        let f=try Fixture();defer{f.dispose()}
+        let overlay=NativeTutorialOverlay(resourceRoot:NativeTestResources.root);defer{overlay.dispose()}
+        overlay.frame=CGRect(x:0,y:0,width:390,height:844)
+        XCTAssertTrue(overlay.showSourceIntro(from:nil,to:nil,service:f.service,timeouts:f.timeouts,boardGeneration:1,
+            immediateSheet:true,deferInitialPointer:true,current:{f.current}))
+        let button=try XCTUnwrap(overlay.subviews.flatMap{$0.subviews.flatMap{[$0]+$0.subviews}}.compactMap{$0 as? UIButton}.first{$0.accessibilityIdentifier=="native.tutorial.got-it"})
+        for t in stride(from:16.0,through:1000,by:16){f.deliver(t)}
+        XCTAssertTrue(overlay.transitionSourceSheetToSecondStep(from:nil,to:nil,preparationReady:false,entered:{}))
+        for t in stride(from:1008.0,through:2400,by:16){f.deliver(t)}
+        XCTAssertFalse(button.isEnabled,"Early paper never releases the first-merge preparation barrier")
+        overlay.admitSourceSecondStepInteraction();XCTAssertTrue(button.isEnabled)
+        XCTAssertTrue(overlay.showSpecialBar(interactionReady:false,entered:{}))
+        overlay.admitSpecialBarInteraction();XCTAssertFalse(button.isEnabled,"Preparation alone still waits for real paper entry")
+        for t in stride(from:2408.0,through:3400,by:16){f.deliver(t)}
+        XCTAssertTrue(button.isEnabled)
+    }
     func testSharedNativeSpringOvershootsReturnsAndRetiresOnExistingClock()throws {
         let f=try Fixture(immediate:true,nativeMotion:true);defer{f.dispose()}
         XCTAssertTrue(f.owner.start())
@@ -40,6 +57,29 @@ import UIKit
         f.deliver(16);f.deliver(32)
         XCTAssertLessThan(try XCTUnwrap(f.sheet.last),1)
         f.owner.dispose();XCTAssertEqual(f.timeouts.pendingCount,0)
+    }
+    func testFastNativeStepExitCannotBeOverwrittenByDelayedHandEntrance()async throws {
+        let f=try Fixture(immediate:true,nativeMotion:true);defer{f.dispose()}
+        XCTAssertTrue(f.owner.start());var completed=0
+        XCTAssertTrue(f.owner.popOutPointer{completed+=1})
+        // No APP frames until the old wall400 callback would have fired.
+        try await Task.sleep(for:.milliseconds(450))
+        for time in stride(from:16.0,through:600,by:16){f.deliver(time)}
+        XCTAssertEqual(completed,1);XCTAssertEqual(f.reveals,0)
+        XCTAssertEqual(f.owner.pendingTimerCount,0)
+    }
+    func testEarlyPaperCanEnterBeforePreparedTargetsWithoutStartingHand()throws {
+        let f=try Fixture();defer{f.dispose()}
+        let overlay=NativeTutorialOverlay(resourceRoot:NativeTestResources.root);defer{overlay.dispose()}
+        overlay.frame=CGRect(x:0,y:0,width:390,height:844)
+        XCTAssertTrue(overlay.showSourceIntro(from:nil,to:nil,service:f.service,timeouts:f.timeouts,boardGeneration:1,
+            immediateSheet:true,deferInitialPointer:true,current:{f.current}))
+        for time in stride(from:16.0,through:600,by:16){f.deliver(time)}
+        let intro=try XCTUnwrap(overlay.sourceIntroOwner)
+        XCTAssertTrue(intro.sheetStarted);XCTAssertFalse(intro.pointerStarted)
+        XCTAssertFalse(overlay.sourcePointerVisible);XCTAssertLessThan(overlay.sourceSheetTranslation,overlay.sourceSheetHeight)
+        overlay.updateTargets(from:.init(x:80,y:240),to:.init(x:200,y:340));overlay.restorePointer()
+        XCTAssertTrue(intro.pointerStarted);XCTAssertTrue(overlay.sourcePointerVisible)
     }
     func testIndependentWall800SheetAndWall1200PointerWhileGSAPPaused()async throws {
         let f=try Fixture();defer{f.dispose()};_=f.service.setSourceGlobalPaused(true)

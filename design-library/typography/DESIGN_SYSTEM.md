@@ -43,185 +43,6 @@ Screenshot: [home](../typography/screens/home.webp)
 
 Source: `native/jimi-2026/JimiV9HomeView.swift`
 
-### Journey navigation
-
-Route: Home → Journey
-
-Screenshot: [nav-journey](../typography/screens/nav-journey.webp)
-
-| Reference | Element / role | Font | Size (px) | Color | CTA / control size (px) |
-|---|---|---|---:|---|---|
-| STS-NAV-JOURNEY-01 | 7 / 10 · Broj / statistika | Baloo2-ExtraBold | 18 | #E8734A | 263.64 × 182.52 |
-| STS-NAV-JOURNEY-02 | 2 / 10 · Broj / statistika | Baloo2-ExtraBold | 18 | #E8734A | 263.64 × 182.52 |
-| STS-NAV-JOURNEY-03 | 4 / 10 · Broj / statistika | Baloo2-ExtraBold | 18 | #E8734A | 263.64 × 182.52 |
-| STS-NAV-JOURNEY-04 | Journey · Navigacijski naslov | Baloo2-ExtraBold | 28 | #AD8775 | — |
-
-Source: `native/jimi-2026/JimiV9HubView.swift`
-
-### Arcade navigation
-
-Route: Home → Arcade
-
-Screenshot: [nav-arcade](../typography/screens/nav-arcade.webp)
-
-| Reference | Element / role | Font | Size (px) | Color | CTA / control size (px) |
-|---|---|---|---:|---|---|
-| STS-NAV-ARCADE-01 | Arcade · Navigacijski naslov | Baloo2-ExtraBold | 28 | #AD8775 | — |
-
-Source: `native/jimi-2026/JimiV9HubView.swift`
-
-### Forest navigation
-
-Route: Home → Journey → Forest
-
-Screenshot: [nav-forest](../typography/screens/nav-forest.webp)
-
-| Reference | Element / role | Font | Size (px) | Color | CTA / control size (px) |
-|---|---|---|---:|---|---|
-| STS-NAV-FOREST-01 | Forest · Navigacijski naslov | Baloo2-ExtraBold | 28 | #AD8775 | — |
-
-Source: `native/jimi-2026/JimiNativeWorldView.swift`
-
-### Stage 07 · Forest
-
-Route: Journey → Forest → Unit 07 → stats back
-
-Screenshot: [stage-forest](../typography/screens/stage-forest.webp)
-
-| Reference | Element / role | Font | Size (px) | Color | CTA / control size (px) |
-|---|---|---|---:|---|---|
-| STS-STAGE-FOREST-02 | Stage 07 · Naslov modala | Baloo2-ExtraBold | 28 | #AD8675 | — |
-| STS-STAGE-FOREST-03 | 0 · Broj / statistika | Baloo2-Bold | 28 | #E8744A | — |
-| STS-STAGE-FOREST-04 | High score · Podnaslov / labela | Baloo2-Medium | 18 | #AD8675 | — |
-| STS-STAGE-FOREST-05 | 0 · Broj / statistika | Baloo2-Bold | 28 | #E8744A | — |
-| STS-STAGE-FOREST-06 | Longest combo · Podnaslov / labela | Baloo2-Medium | 18 | #AD8675 | — |
-| STS-STAGE-FOREST-07 | Play · CTA | Baloo2-ExtraBold | 28 | Ivory gradient · #FFFCED → #FFF6E1 → #F7E8CE | 225.44 × 80.64 |
-
-Source: `native/jimi-2026/JimiNativeWorldCardView.swift`
-
-### Beach navigation
-
-Route: Home → Journey → Beach
-
-Screenshot: [nav-beach](../typography/screens/nav-beach.webp)
-
-| Reference | Element / role | Font | Size (px) | Color | CTA / control size (px) |
-|---|---|---|---:|---|---|
-| STS-NAV-BEACH-01 | Beach · Navigacijski naslov | Baloo2-ExtraBold | 28 | #AD8775 | — |
-
-Source: `native/jimi-2026/JimiNativeWorldView.swift`
-
-### Stage 07 · Beach
-
-Route: Journey → Beach → Unit 07 → stats back
-
-Screenshot: [stage-beach](../typography/screens/stage-beach.webp)
-
-| Reference | Element / role | Font | Size (px) | Color | CTA / control size (px) |
-|---|---|---|---:|---|---|
-| STS-STAGE-BEACH-02 | Stage 07 · Naslov modala | Baloo2-ExtraBold | 28 | #AD8675 | — |
-| STS-STAGE-BEACH-03 | 0 · Broj / statistika | Baloo2-Bold | 28 | #E8744A | — |
-| STS-STAGE-BEACH-04 | High score · Podnaslov / labela | Baloo2-Medium | 18 | #AD8675 | — |
-| STS-STAGE-BEACH-05 | 0 · Broj / statistika | Baloo2-Bold | 28 | #E8744A | — |
-| STS-STAGE-BEACH-06 | Longest combo · Podnaslov / labela | Baloo2-Medium | 18 | #AD8675 | — |
-| STS-STAGE-BEACH-07 | Play · CTA | Baloo2-ExtraBold | 28 | Ivory gradient · #FFFCED → #FFF6E1 → #F7E8CE | 225.44 × 80.64 |
-
-Source: `native/jimi-2026/JimiNativeWorldCardView.swift`
-
-### Area 55 navigation
-
-Route: Home → Journey → Area 55
-
-Screenshot: [nav-area55](../typography/screens/nav-area55.webp)
-
-| Reference | Element / role | Font | Size (px) | Color | CTA / control size (px) |
-|---|---|---|---:|---|---|
-| STS-NAV-AREA55-01 | Area 55 · Navigacijski naslov | Baloo2-ExtraBold | 28 | #AD8775 | — |
-
-Source: `native/jimi-2026/JimiNativeWorldView.swift`
-
-### Stage 07 · Area 55
-
-Route: Journey → Area 55 → Unit 07 → stats back
-
-Screenshot: [stage-area55](../typography/screens/stage-area55.webp)
-
-| Reference | Element / role | Font | Size (px) | Color | CTA / control size (px) |
-|---|---|---|---:|---|---|
-| STS-STAGE-AREA55-02 | Stage 07 · Naslov modala | Baloo2-ExtraBold | 28 | #AD8675 | — |
-| STS-STAGE-AREA55-03 | 0 · Broj / statistika | Baloo2-Bold | 28 | #E8744A | — |
-| STS-STAGE-AREA55-04 | High score · Podnaslov / labela | Baloo2-Medium | 18 | #AD8675 | — |
-| STS-STAGE-AREA55-05 | 0 · Broj / statistika | Baloo2-Bold | 28 | #E8744A | — |
-| STS-STAGE-AREA55-06 | Longest combo · Podnaslov / labela | Baloo2-Medium | 18 | #AD8675 | — |
-| STS-STAGE-AREA55-07 | Play · CTA | Baloo2-ExtraBold | 28 | Ivory gradient · #FFFCED → #FFF6E1 → #F7E8CE | 225.44 × 80.64 |
-
-Source: `native/jimi-2026/JimiNativeWorldCardView.swift`
-
-### Settings navigation and rows
-
-Route: Home → Settings
-
-Screenshot: [settings](../typography/screens/settings.webp)
-
-| Reference | Element / role | Font | Size (px) | Color | CTA / control size (px) |
-|---|---|---|---:|---|---|
-| STS-SETTINGS-01 | Settings · Navigacijski naslov | Baloo2-Bold | 28 | #AD8775 | — |
-| STS-SETTINGS-02 | Game sounds · Podnaslov | Baloo2-Medium | 18 | #BD9788 | — |
-| STS-SETTINGS-03 | Music · Podnaslov | Baloo2-Medium | 18 | #BD9788 | — |
-| STS-SETTINGS-04 | Vibration · Podnaslov | Baloo2-Medium | 18 | #BD9788 | — |
-| STS-SETTINGS-05 | Made with ❤️ in Croatia / by Tap Tap Design /  / Version: 1.0 · Opis / pomoćni tekst | Baloo2-Bold | 16 | #996754 | — |
-| STS-SETTINGS-06 | Privacy Policy · Opis / pomoćni tekst | Baloo2-Bold | 14 | #996754 | 342 × 44 |
-
-Source: `native/jimi-2026/JimiNativeSettingsView.swift`
-
-### Backpack navigation and section
-
-Route: Home → Backpack
-
-Screenshot: [backpack](../typography/screens/backpack.webp)
-
-| Reference | Element / role | Font | Size (px) | Color | CTA / control size (px) |
-|---|---|---|---:|---|---|
-| STS-BACKPACK-01 | Forest · Naslov sekcije | Baloo2-ExtraBold | 28 | #AD8775 | — |
-| STS-BACKPACK-02 | 6 / 6 · Broj / statistika | Baloo2-ExtraBold | 24 | #E8744A | — |
-| STS-BACKPACK-03 | Backpack · Navigacijski naslov | Baloo2-Bold | 28 | #AD8775 | — |
-
-Source: `native/gameplay-collection/NativeBackpackView.swift`
-
-### Stage · Play CTA
-
-Route: Journey → Forest → Unit 07 → stats back
-
-Screenshot: [stage-play](../typography/screens/stage-play.webp)
-
-| Reference | Element / role | Font | Size (px) | Color | CTA / control size (px) |
-|---|---|---|---:|---|---|
-| STS-STAGE-PLAY-01 | Stage 07 · Naslov modala | Baloo2-ExtraBold | 28 | #AD8675 | — |
-| STS-STAGE-PLAY-02 | 0 · Broj / statistika | Baloo2-Bold | 28 | #E8744A | — |
-| STS-STAGE-PLAY-03 | High score · Podnaslov / labela | Baloo2-Medium | 18 | #AD8675 | — |
-| STS-STAGE-PLAY-04 | 0 · Broj / statistika | Baloo2-Bold | 28 | #E8744A | — |
-| STS-STAGE-PLAY-05 | Longest combo · Podnaslov / labela | Baloo2-Medium | 18 | #AD8675 | — |
-| STS-STAGE-PLAY-06 | Play · CTA | Baloo2-ExtraBold | 28 | Ivory gradient · #FFFCED → #FFF6E1 → #F7E8CE | 225.44 × 80.64 |
-
-Source: `native/jimi-2026/JimiNativeWorldCardView.swift`
-
-### Stage · Continue CTA
-
-Route: Journey → Forest → Unit 07 → stats back
-
-Screenshot: [stage-continue](../typography/screens/stage-continue.webp)
-
-| Reference | Element / role | Font | Size (px) | Color | CTA / control size (px) |
-|---|---|---|---:|---|---|
-| STS-STAGE-CONTINUE-01 | Stage 07 · Naslov modala | Baloo2-ExtraBold | 28 | #AD8675 | — |
-| STS-STAGE-CONTINUE-02 | 0 · Broj / statistika | Baloo2-Bold | 28 | #E8744A | — |
-| STS-STAGE-CONTINUE-03 | High score · Podnaslov / labela | Baloo2-Medium | 18 | #AD8675 | — |
-| STS-STAGE-CONTINUE-04 | 0 · Broj / statistika | Baloo2-Bold | 28 | #E8744A | — |
-| STS-STAGE-CONTINUE-05 | Longest combo · Podnaslov / labela | Baloo2-Medium | 18 | #AD8675 | — |
-| STS-STAGE-CONTINUE-06 | Continue · CTA | Baloo2-ExtraBold | 28 | Ivory gradient · #FFFCED → #FFF6E1 → #F7E8CE | 225.44 × 80.64 |
-
-Source: `native/jimi-2026/JimiNativeWorldCardView.swift`
-
 ### Exit Stage? · paired actions
 
 Route: Gameplay → X
@@ -399,9 +220,9 @@ Screenshot: [reward-interim](../typography/screens/reward-interim.webp)
 
 Source: `native/gameplay-reward/NativeJourneyRewardController.swift`
 
-### First play tutorial
+### Drag to stack · Got it
 
-Route: Settings → First play / first launch
+Route: First play → tutorial sheet
 
 Screenshot: [tutorial](../typography/screens/tutorial.webp)
 
@@ -409,6 +230,7 @@ Screenshot: [tutorial](../typography/screens/tutorial.webp)
 |---|---|---|---:|---|---|
 | STS-TUTORIAL-01 | Drag to stack · Naslov | Baloo2-ExtraBold | 32 | Drag: #E97A55 · to stack: #AD8775 | — |
 | STS-TUTORIAL-02 | Drag a dice onto another dice. · Podnaslov | Baloo2-Medium | 18 | #BD9788 | — |
+| STS-TUTORIAL-03 | Got it · CTA | Baloo2-ExtraBold | 28 | Ivory gradient · #FFFCED → #FFF6E1 → #F7E8CE | 127.54 × 80.64 |
 
 Source: `native/gameplay-app/NativeTutorialOverlay.swift`
 
@@ -785,4 +607,239 @@ Screenshot: [tutorial-completed](../typography/screens/tutorial-completed.webp)
 | STS-TUTORIAL-COMPLETED-03 | Continue · CTA | Baloo2-ExtraBold | 28 | Ivory gradient · #FFFCED → #FFF6E1 → #F7E8CE | 208.03 × 80.64 |
 
 Source: `native/gameplay-tutorial-complete/NativeTutorialCompleteController.swift`
+
+### Merge dice · Got it
+
+Route: First play → tutorial sheet
+
+Screenshot: [tutorial-merge](../typography/screens/tutorial-merge.webp)
+
+| Reference | Element / role | Font | Size (px) | Color | CTA / control size (px) |
+|---|---|---|---:|---|---|
+| STS-TUTORIAL-MERGE-01 | Merge dice · Naslov | Baloo2-ExtraBold | 32 | Merge: #E97A55 · dice: #AD8775 | — |
+| STS-TUTORIAL-MERGE-02 | Stack the dice to make 6. · Podnaslov | Baloo2-Medium | 18 | #BD9788 | — |
+| STS-TUTORIAL-MERGE-03 | Got it · CTA | Baloo2-ExtraBold | 28 | Ivory gradient · #FFFCED → #FFF6E1 → #F7E8CE | 127.54 × 80.64 |
+
+Source: `native/gameplay-app/NativeTutorialOverlay.swift`
+
+### Special dice · Got it
+
+Route: First play → tutorial sheet
+
+Screenshot: [tutorial-special](../typography/screens/tutorial-special.webp)
+
+| Reference | Element / role | Font | Size (px) | Color | CTA / control size (px) |
+|---|---|---|---:|---|---|
+| STS-TUTORIAL-SPECIAL-01 | Special dice · Naslov | Baloo2-ExtraBold | 32 | Special: #E97A55 · dice: #AD8775 | — |
+| STS-TUTORIAL-SPECIAL-02 | They can merge with any regular / dice to get the value 6 · Podnaslov | Baloo2-Medium | 18 | #BD9788 | — |
+| STS-TUTORIAL-SPECIAL-03 | Got it · CTA | Baloo2-ExtraBold | 28 | Ivory gradient · #FFFCED → #FFF6E1 → #F7E8CE | 127.54 × 80.64 |
+
+Source: `native/gameplay-app/NativeTutorialOverlay.swift`
+
+### Special Bar · Continue
+
+Route: First play → earned meter guide
+
+Screenshot: [tutorial-special-bar](../typography/screens/tutorial-special-bar.webp)
+
+| Reference | Element / role | Font | Size (px) | Color | CTA / control size (px) |
+|---|---|---|---:|---|---|
+| STS-TUTORIAL-SPECIAL-BAR-01 | Special Bar · Naslov | Baloo2-ExtraBold | 32 | Special: #E97A55 · Bar: #AD8775 | — |
+| STS-TUTORIAL-SPECIAL-BAR-02 | Stack and merge dice to fill the bar and earn special dice. · Podnaslov | Baloo2-Medium | 18 | #BD9788 | — |
+| STS-TUTORIAL-SPECIAL-BAR-03 | Continue · CTA | Baloo2-ExtraBold | 28 | Ivory gradient · #FFFCED → #FFF6E1 → #F7E8CE | 208.03 × 80.64 |
+
+Source: `native/gameplay-app/NativeTutorialOverlay.swift`
+
+### Clear the stage · free movement
+
+Route: First play → Clear the stage
+
+Screenshot: [tutorial-clear](../typography/screens/tutorial-clear.webp)
+
+| Reference | Element / role | Font | Size (px) | Color | CTA / control size (px) |
+|---|---|---|---:|---|---|
+| STS-TUTORIAL-CLEAR-01 | Clear the stage · Naslov | Baloo2-ExtraBold | 32 | Clear: #E97A55 · the stage: #AD8775 | — |
+| STS-TUTORIAL-CLEAR-02 | The whole board is yours. / Stack and merge anywhere. · Podnaslov | Baloo2-Medium | 18 | #BD9788 | — |
+| STS-TUTORIAL-CLEAR-03 | Got it · CTA | Baloo2-ExtraBold | 28 | Ivory gradient · #FFFCED → #FFF6E1 → #F7E8CE | 127.54 × 80.64 |
+
+Source: `native/gameplay-app/NativeTutorialOverlay.swift`
+
+### Journey navigation
+
+Route: Home → Journey
+
+Screenshot: [nav-journey](../typography/screens/nav-journey.webp)
+
+| Reference | Element / role | Font | Size (px) | Color | CTA / control size (px) |
+|---|---|---|---:|---|---|
+| STS-NAV-JOURNEY-01 | 7 / 10 · Broj / statistika | Baloo2-ExtraBold | 18 | #E8734A | 263.64 × 182.52 |
+| STS-NAV-JOURNEY-02 | 2 / 10 · Broj / statistika | Baloo2-ExtraBold | 18 | #E8734A | 263.64 × 182.52 |
+| STS-NAV-JOURNEY-03 | 4 / 10 · Broj / statistika | Baloo2-ExtraBold | 18 | #E8734A | 263.64 × 182.52 |
+| STS-NAV-JOURNEY-04 | Journey · Navigacijski naslov | Baloo2-ExtraBold | 28 | #AD8775 | — |
+
+Source: `native/jimi-2026/JimiV9HubView.swift`
+
+### Arcade navigation
+
+Route: Home → Arcade
+
+Screenshot: [nav-arcade](../typography/screens/nav-arcade.webp)
+
+| Reference | Element / role | Font | Size (px) | Color | CTA / control size (px) |
+|---|---|---|---:|---|---|
+| STS-NAV-ARCADE-01 | Arcade · Navigacijski naslov | Baloo2-ExtraBold | 28 | #AD8775 | — |
+
+Source: `native/jimi-2026/JimiV9HubView.swift`
+
+### Forest navigation
+
+Route: Home → Journey → Forest
+
+Screenshot: [nav-forest](../typography/screens/nav-forest.webp)
+
+| Reference | Element / role | Font | Size (px) | Color | CTA / control size (px) |
+|---|---|---|---:|---|---|
+| STS-NAV-FOREST-01 | Forest · Navigacijski naslov | Baloo2-ExtraBold | 28 | #AD8775 | — |
+
+Source: `native/jimi-2026/JimiNativeWorldView.swift`
+
+### Stage 07 · Forest
+
+Route: Journey → Forest → Unit 07 → stats back
+
+Screenshot: [stage-forest](../typography/screens/stage-forest.webp)
+
+| Reference | Element / role | Font | Size (px) | Color | CTA / control size (px) |
+|---|---|---|---:|---|---|
+| STS-STAGE-FOREST-02 | Stage 07 · Naslov modala | Baloo2-ExtraBold | 28 | #AD8675 | — |
+| STS-STAGE-FOREST-03 | 0 · Broj / statistika | Baloo2-Bold | 34 | #EC7045 | — |
+| STS-STAGE-FOREST-04 | High score · Podnaslov / labela | Baloo2-Regular | 18 | #9E694F | — |
+| STS-STAGE-FOREST-05 | 0 · Broj / statistika | Baloo2-Bold | 34 | #EC7045 | — |
+| STS-STAGE-FOREST-06 | Best combo · Podnaslov | Baloo2-Regular | 18 | #9E694F | — |
+| STS-STAGE-FOREST-07 | Play · CTA | Baloo2-ExtraBold | 28 | Ivory gradient · #FFFCED → #FFF6E1 → #F7E8CE | 238 × 80.64 |
+
+Source: `native/jimi-2026/JimiNativeWorldCardView.swift`
+
+### Beach navigation
+
+Route: Home → Journey → Beach
+
+Screenshot: [nav-beach](../typography/screens/nav-beach.webp)
+
+| Reference | Element / role | Font | Size (px) | Color | CTA / control size (px) |
+|---|---|---|---:|---|---|
+| STS-NAV-BEACH-01 | Beach · Navigacijski naslov | Baloo2-ExtraBold | 28 | #AD8775 | — |
+
+Source: `native/jimi-2026/JimiNativeWorldView.swift`
+
+### Stage 07 · Beach
+
+Route: Journey → Beach → Unit 07 → stats back
+
+Screenshot: [stage-beach](../typography/screens/stage-beach.webp)
+
+| Reference | Element / role | Font | Size (px) | Color | CTA / control size (px) |
+|---|---|---|---:|---|---|
+| STS-STAGE-BEACH-02 | Stage 07 · Naslov modala | Baloo2-ExtraBold | 28 | #AD8675 | — |
+| STS-STAGE-BEACH-03 | 0 · Broj / statistika | Baloo2-Bold | 34 | #EC7045 | — |
+| STS-STAGE-BEACH-04 | High score · Podnaslov / labela | Baloo2-Regular | 18 | #9E694F | — |
+| STS-STAGE-BEACH-05 | 0 · Broj / statistika | Baloo2-Bold | 34 | #EC7045 | — |
+| STS-STAGE-BEACH-06 | Best combo · Podnaslov | Baloo2-Regular | 18 | #9E694F | — |
+| STS-STAGE-BEACH-07 | Play · CTA | Baloo2-ExtraBold | 28 | Ivory gradient · #FFFCED → #FFF6E1 → #F7E8CE | 238 × 80.64 |
+
+Source: `native/jimi-2026/JimiNativeWorldCardView.swift`
+
+### Area 55 navigation
+
+Route: Home → Journey → Area 55
+
+Screenshot: [nav-area55](../typography/screens/nav-area55.webp)
+
+| Reference | Element / role | Font | Size (px) | Color | CTA / control size (px) |
+|---|---|---|---:|---|---|
+| STS-NAV-AREA55-01 | Area 55 · Navigacijski naslov | Baloo2-ExtraBold | 28 | #AD8775 | — |
+
+Source: `native/jimi-2026/JimiNativeWorldView.swift`
+
+### Stage 07 · Area 55
+
+Route: Journey → Area 55 → Unit 07 → stats back
+
+Screenshot: [stage-area55](../typography/screens/stage-area55.webp)
+
+| Reference | Element / role | Font | Size (px) | Color | CTA / control size (px) |
+|---|---|---|---:|---|---|
+| STS-STAGE-AREA55-02 | Stage 07 · Naslov modala | Baloo2-ExtraBold | 28 | #AD8675 | — |
+| STS-STAGE-AREA55-03 | 0 · Broj / statistika | Baloo2-Bold | 34 | #EC7045 | — |
+| STS-STAGE-AREA55-04 | High score · Podnaslov / labela | Baloo2-Regular | 18 | #9E694F | — |
+| STS-STAGE-AREA55-05 | 0 · Broj / statistika | Baloo2-Bold | 34 | #EC7045 | — |
+| STS-STAGE-AREA55-06 | Best combo · Podnaslov | Baloo2-Regular | 18 | #9E694F | — |
+| STS-STAGE-AREA55-07 | Play · CTA | Baloo2-ExtraBold | 28 | Ivory gradient · #FFFCED → #FFF6E1 → #F7E8CE | 238 × 80.64 |
+
+Source: `native/jimi-2026/JimiNativeWorldCardView.swift`
+
+### Settings navigation and rows
+
+Route: Home → Settings
+
+Screenshot: [settings](../typography/screens/settings.webp)
+
+| Reference | Element / role | Font | Size (px) | Color | CTA / control size (px) |
+|---|---|---|---:|---|---|
+| STS-SETTINGS-01 | Settings · Navigacijski naslov | Baloo2-Bold | 28 | #AD8775 | — |
+| STS-SETTINGS-02 | Game sounds · Podnaslov | Baloo2-Medium | 18 | #BD9788 | — |
+| STS-SETTINGS-03 | Music · Podnaslov | Baloo2-Medium | 18 | #BD9788 | — |
+| STS-SETTINGS-04 | Vibration · Podnaslov | Baloo2-Medium | 18 | #BD9788 | — |
+| STS-SETTINGS-05 | Made with ❤️ in Croatia / by Tap Tap Design /  / Version: 1.0 · Opis / pomoćni tekst | Baloo2-Bold | 16 | #996754 | — |
+| STS-SETTINGS-06 | Privacy Policy · Opis / pomoćni tekst | Baloo2-Bold | 14 | #996754 | 342 × 44 |
+
+Source: `native/jimi-2026/JimiNativeSettingsView.swift`
+
+### Backpack navigation and section
+
+Route: Home → Backpack
+
+Screenshot: [backpack](../typography/screens/backpack.webp)
+
+| Reference | Element / role | Font | Size (px) | Color | CTA / control size (px) |
+|---|---|---|---:|---|---|
+| STS-BACKPACK-01 | Forest · Naslov sekcije | Baloo2-ExtraBold | 28 | #AD8775 | — |
+| STS-BACKPACK-02 | 6 / 6 · Broj / statistika | Baloo2-ExtraBold | 24 | #E8744A | — |
+| STS-BACKPACK-03 | Backpack · Navigacijski naslov | Baloo2-Bold | 28 | #AD8775 | — |
+
+Source: `native/gameplay-collection/NativeBackpackView.swift`
+
+### Stage · Play CTA
+
+Route: Journey → Forest → Unit 07 → stats back
+
+Screenshot: [stage-play](../typography/screens/stage-play.webp)
+
+| Reference | Element / role | Font | Size (px) | Color | CTA / control size (px) |
+|---|---|---|---:|---|---|
+| STS-STAGE-PLAY-01 | Stage 07 · Naslov modala | Baloo2-ExtraBold | 28 | #AD8675 | — |
+| STS-STAGE-PLAY-02 | 0 · Broj / statistika | Baloo2-Bold | 34 | #EC7045 | — |
+| STS-STAGE-PLAY-03 | High score · Podnaslov / labela | Baloo2-Regular | 18 | #9E694F | — |
+| STS-STAGE-PLAY-04 | 0 · Broj / statistika | Baloo2-Bold | 34 | #EC7045 | — |
+| STS-STAGE-PLAY-05 | Best combo · Podnaslov | Baloo2-Regular | 18 | #9E694F | — |
+| STS-STAGE-PLAY-06 | Play · CTA | Baloo2-ExtraBold | 28 | Ivory gradient · #FFFCED → #FFF6E1 → #F7E8CE | 238 × 80.64 |
+
+Source: `native/jimi-2026/JimiNativeWorldCardView.swift`
+
+### Stage · Continue CTA
+
+Route: Journey → Forest → Unit 07 → stats back
+
+Screenshot: [stage-continue](../typography/screens/stage-continue.webp)
+
+| Reference | Element / role | Font | Size (px) | Color | CTA / control size (px) |
+|---|---|---|---:|---|---|
+| STS-STAGE-CONTINUE-01 | Stage 07 · Naslov modala | Baloo2-ExtraBold | 28 | #AD8675 | — |
+| STS-STAGE-CONTINUE-02 | 0 · Broj / statistika | Baloo2-Bold | 34 | #EC7045 | — |
+| STS-STAGE-CONTINUE-03 | High score · Podnaslov / labela | Baloo2-Regular | 18 | #9E694F | — |
+| STS-STAGE-CONTINUE-04 | 0 · Broj / statistika | Baloo2-Bold | 34 | #EC7045 | — |
+| STS-STAGE-CONTINUE-05 | Best combo · Podnaslov | Baloo2-Regular | 18 | #9E694F | — |
+| STS-STAGE-CONTINUE-06 | Continue · CTA | Baloo2-ExtraBold | 28 | Ivory gradient · #FFFCED → #FFF6E1 → #F7E8CE | 238 × 80.64 |
+
+Source: `native/jimi-2026/JimiNativeWorldCardView.swift`
 

@@ -68,7 +68,15 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
     var hasPendingCardLanding: Bool {pendingCardLanding != nil}
     var gameplayTransitionResources:any NativeBoardTransitionResources {resources}
     private static let gameplayPreparationOwner = -900_001
-    func releaseGameplayTransitionPreparation(){resources.release(Self.gameplayPreparationOwner)}
+    private(set) var gameplayTransitionPreparationBoard:Int?
+    func releaseGameplayTransitionPreparation(){gameplayTransitionPreparationBoard=nil;resources.release(Self.gameplayPreparationOwner)}
+    private func prepareGameplayTransition(boardID:Int) {
+        guard gameplayTransitionPreparationBoard != boardID else{return}
+        releaseGameplayTransitionPreparation()
+        gameplayTransitionPreparationBoard=boardID
+        let paths=NativeThemedBoardTransitionController.assets(theme:.init(board:boardID))+["./assets/paper-bg.png"]
+        resources.prepare(paths,owner:Self.gameplayPreparationOwner,required:true){_ in}
+    }
     var isReadyForInput: Bool { active && admitted && !transition }
     private var scale: CGFloat { max(0.01, bounds.width / 390) }
 
@@ -222,7 +230,7 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
         }) {
             if loaded.contains(owner) && !dirtyUnits.contains(owner) {continue}
             remaining += 1
-            resources.prepare(parts.map{$0.asset} + (owner == 0 ? ["assets/modals/paper.png","assets/modals/star.png","assets/modals/star-empty.png","assets/highscore-icon.png","assets/combo-icon.png","assets/colelctibles/cardflip.png","assets/journey assets/orange-ribbon.png","assets/hand-pointer.png"] : []),owner:owner) { [weak self,weak target] accepted in
+            resources.prepare(parts.map{$0.asset} + (owner == 0 ? JimiNativeWorldCardView.infoPanelBackgroundPaths + JimiNativeWorldCardView.statTileBackgroundPaths + ["assets/modals/paper.png","assets/modals/star.png","assets/modals/star-empty.png","assets/highscore-icon.png","assets/combo-icon.png","assets/colelctibles/cardflip.png","assets/journey assets/orange-ribbon.png","assets/hand-pointer.png"] : []),owner:owner) { [weak self,weak target] accepted in
                 guard let self,let target,self.resourceEpoch == epoch else {finish();return}
                 self.preparationHasMissingResources = self.preparationHasMissingResources || !self.resources.missingAssets.isEmpty
                 guard accepted else {finish();return}
@@ -233,7 +241,7 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
     }
     /// Cancellation retires only in-flight preparation receipts, never warm
     /// decoded artwork, geometry or the existing ambient/bee owners.
-    func cancelPendingPreparation(){resourceEpoch += 1;preparing.removeAll();resources.cancelPendingPreparation()}
+    func cancelPendingPreparation(){resourceEpoch += 1;preparing.removeAll();gameplayTransitionPreparationBoard=nil;resources.cancelPendingPreparation()}
     private func updateResources() {
         let viewport = CGRect(origin: scrollView.contentOffset, size: scrollView.bounds.size).insetBy(dx: 0, dy: -180*scale)
         if (!loaded.contains(0) || dirtyUnits.contains(0)) && viewport.intersects(main.frame) { scheduleParts(snapshot.mainParts,target:main,owner:0) }
@@ -626,6 +634,11 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
             }
             CATransaction.commit()
         }
+        // Required destination art warms during the unchanged card/World exit.
+        // A quick Play cancels the modal's delayed optional warm-up; do not
+        // leave this work until the transition is mounted after World exit.
+        // Run after closeCard so an interim launch cannot release this lease.
+        if let sourceID {prepareGameplayTransition(boardID:sourceID)}
     }
     func memoryWarning() {
         guard !transition else {return}
@@ -635,8 +648,8 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
         }
         if !viewport.intersects(main.frame) {main.subviews.forEach {$0.layer.removeAllAnimations();$0.removeFromSuperview()};resources.release(0);loaded.remove(0)}
     }
-    func park() { returningCard=false;pendingCardLanding=nil;stopIdle();cancelHiddenReturnPose();depthPlanes.values.flatMap {$0}.forEach {$0.layer.removeAllAnimations()}; generation += 1; transition = false; admitted = false; backRequested = false; cancelReminder(); units.values.forEach {$0.layer.removeAnimation(forKey:"world.enter");$0.layer.removeAnimation(forKey:"world.exit");$0.subviews.forEach {$0.layer.removeAnimation(forKey:"card.tap.exit");$0.layer.removeAnimation(forKey:"world.exit")}}; main.subviews.forEach {$0.layer.removeAnimation(forKey:"world.exit")};main.layer.removeAllAnimations();header.layer.removeAllAnimations();backButton.layer.removeAllAnimations(); restoreSourceCard(); setActive(false); isUserInteractionEnabled = false; modal?.cleanup(); modal?.removeFromSuperview(); modal = nil }
-    func cleanup() {returningCard=false;pendingCardLanding=nil;discardCardWaves();quiesceRibbons();cancelHiddenReturnPose();ambient?.cleanup();ambient = nil;onAmbientPlansRequest = nil;onShipVisibility=nil;depthPlanes.values.flatMap {$0}.forEach {$0.layer.removeAllAnimations();$0.removeFromSuperview()};depthPlanes.removeAll();bees?.cleanup();bees = nil;onBeePlansRequest = nil; landingBarrier?.cancel();landingBarrier = nil;interimOwners.values.forEach {$0.stop()};interimOwners.removeAll();cancelReminder(); resourceEpoch += 1; preparing.removeAll(); generation += 1; active = false; transition = false; backRequested = false; modal?.cleanup(); modal?.removeFromSuperview(); modal = nil; stopIdle(); layer.removeAllAnimations(); units.values.forEach {$0.layer.removeAllAnimations()}; main.layer.removeAllAnimations(); header.layer.removeAllAnimations(); main.subviews.forEach { $0.removeFromSuperview() }; units.values.forEach { $0.subviews.forEach { $0.layer.removeAllAnimations();$0.removeFromSuperview() } }; resources.cleanup(); loaded.removeAll() }
+    func park() { releaseGameplayTransitionPreparation();returningCard=false;pendingCardLanding=nil;stopIdle();cancelHiddenReturnPose();depthPlanes.values.flatMap {$0}.forEach {$0.layer.removeAllAnimations()}; generation += 1; transition = false; admitted = false; backRequested = false; cancelReminder(); units.values.forEach {$0.layer.removeAnimation(forKey:"world.enter");$0.layer.removeAnimation(forKey:"world.exit");$0.subviews.forEach {$0.layer.removeAnimation(forKey:"card.tap.exit");$0.layer.removeAnimation(forKey:"world.exit")}}; main.subviews.forEach {$0.layer.removeAnimation(forKey:"world.exit")};main.layer.removeAllAnimations();header.layer.removeAllAnimations();backButton.layer.removeAllAnimations(); restoreSourceCard(); setActive(false); isUserInteractionEnabled = false; modal?.cleanup(); modal?.removeFromSuperview(); modal = nil }
+    func cleanup() {releaseGameplayTransitionPreparation();returningCard=false;pendingCardLanding=nil;discardCardWaves();quiesceRibbons();cancelHiddenReturnPose();ambient?.cleanup();ambient = nil;onAmbientPlansRequest = nil;onShipVisibility=nil;depthPlanes.values.flatMap {$0}.forEach {$0.layer.removeAllAnimations();$0.removeFromSuperview()};depthPlanes.removeAll();bees?.cleanup();bees = nil;onBeePlansRequest = nil; landingBarrier?.cancel();landingBarrier = nil;interimOwners.values.forEach {$0.stop()};interimOwners.removeAll();cancelReminder(); resourceEpoch += 1; preparing.removeAll(); generation += 1; active = false; transition = false; backRequested = false; modal?.cleanup(); modal?.removeFromSuperview(); modal = nil; stopIdle(); layer.removeAllAnimations(); units.values.forEach {$0.layer.removeAllAnimations()}; main.layer.removeAllAnimations(); header.layer.removeAllAnimations(); main.subviews.forEach { $0.removeFromSuperview() }; units.values.forEach { $0.subviews.forEach { $0.layer.removeAllAnimations();$0.removeFromSuperview() } }; resources.cleanup(); loaded.removeAll() }
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
         guard !isHidden, isUserInteractionEnabled, alpha > 0.01 else { return nil }
         if active, modal == nil, navigationTarget.frame.contains(point), backButton.isEnabled { return navigationTarget }
@@ -668,9 +681,7 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
         card.onRequest = { [weak self] action in self?.onRequest?(action,boardID) }
         card.onPrepareGameplayAssets = {[weak self,weak card] in
             guard let self,let card,self.active,self.modal === card,!self.transition else{return}
-            self.releaseGameplayTransitionPreparation()
-            let paths=NativeThemedBoardTransitionController.assets(theme:.init(board:boardID))+["./assets/paper-bg.png"]
-            self.resources.prepare(paths,owner:Self.gameplayPreparationOwner,required:true){_ in}
+            self.prepareGameplayTransition(boardID:boardID)
         }
         sourceCard?.isHidden = true
         card.enter(from:origin)

@@ -1,0 +1,50 @@
+[
+  {
+    "file": "stat-tile.png",
+    "size": [
+      138,
+      176
+    ],
+    "upper80percent_pixels_equal": true,
+    "alpha_bounds": [
+      2,
+      1,
+      137,
+      175
+    ],
+    "bottom_transparent_padding_px": 1,
+    "sha256": "62244d7ea7baa53f31b259dd9b46e19c5eca649d485e13b4963c70d9a4e54d61"
+  },
+  {
+    "file": "stat-tile@2x.png",
+    "size": [
+      276,
+      352
+    ],
+    "upper80percent_pixels_equal": true,
+    "alpha_bounds": [
+      4,
+      1,
+      273,
+      350
+    ],
+    "bottom_transparent_padding_px": 2,
+    "sha256": "b0ad0b0e2ad4b643321eda879a43f7d4d74bb0f5dff10a15d828bdbafae9b9c3"
+  },
+  {
+    "file": "stat-tile@3x.png",
+    "size": [
+      414,
+      528
+    ],
+    "upper80percent_pixels_equal": true,
+    "alpha_bounds": [
+      5,
+      2,
+      410,
+      525
+    ],
+    "bottom_transparent_padding_px": 3,
+    "sha256": "c414facc758c0a3e397111ee87e218d7707dc3865b8ce31e323954287128c0ce"
+  }
+]

@@ -1,0 +1,122 @@
+[
+  {
+    "file": "assets/ui/native-stage-stats-v6/info-slab-1.png",
+    "size": [
+      326,
+      482
+    ],
+    "alpha_identical": true,
+    "native_bundle_byte_exact": true,
+    "sha256": "90752f632ce6a0e32f5889740dbec45f919f791f3fd317752101b3d1bdb1ee51"
+  },
+  {
+    "file": "assets/ui/native-stage-stats-v6/info-slab-1@2x.png",
+    "size": [
+      652,
+      964
+    ],
+    "alpha_identical": true,
+    "native_bundle_byte_exact": true,
+    "sha256": "e8135de126259665f926085091a446f3d98c32153ad19947fc86bc4bcd34cdd0"
+  },
+  {
+    "file": "assets/ui/native-stage-stats-v6/info-slab-1@3x.png",
+    "size": [
+      978,
+      1446
+    ],
+    "alpha_identical": true,
+    "native_bundle_byte_exact": true,
+    "sha256": "d5dd909cbbf6e280f4744e65a39d9cffca6da8e3075ec18a0bfbd1c63690327a"
+  },
+  {
+    "file": "assets/ui/native-stage-stats-v6/info-slab-2.png",
+    "size": [
+      326,
+      482
+    ],
+    "alpha_identical": true,
+    "native_bundle_byte_exact": true,
+    "sha256": "f9de74f1248f919a7df33bd93661a26eafdc503826936267212284ff694ae499"
+  },
+  {
+    "file": "assets/ui/native-stage-stats-v6/info-slab-2@2x.png",
+    "size": [
+      652,
+      964
+    ],
+    "alpha_identical": true,
+    "native_bundle_byte_exact": true,
+    "sha256": "2cfeab2c262a8dedfd7067b1dca53f7ed4df067d73d38f47fc0fc6c5b663f031"
+  },
+  {
+    "file": "assets/ui/native-stage-stats-v6/info-slab-2@3x.png",
+    "size": [
+      978,
+      1446
+    ],
+    "alpha_identical": true,
+    "native_bundle_byte_exact": true,
+    "sha256": "d361cb8fa373a82ee5e7e083878d09d8d65ce754c72558752153ab74ca8cf541"
+  },
+  {
+    "file": "assets/ui/native-stage-stats-v6/info-slab-3.png",
+    "size": [
+      326,
+      482
+    ],
+    "alpha_identical": true,
+    "native_bundle_byte_exact": true,
+    "sha256": "4cd0181a7dec8e9180b94a703d4ea993ba883b615dad32fabbe9dae1dc46ab18"
+  },
+  {
+    "file": "assets/ui/native-stage-stats-v6/info-slab-3@2x.png",
+    "size": [
+      652,
+      964
+    ],
+    "alpha_identical": true,
+    "native_bundle_byte_exact": true,
+    "sha256": "eea8fd1bd2772a84863ba62adeedd9d8d780b733cb60eb168c4417dc0767b125"
+  },
+  {
+    "file": "assets/ui/native-stage-stats-v6/info-slab-3@3x.png",
+    "size": [
+      978,
+      1446
+    ],
+    "alpha_identical": true,
+    "native_bundle_byte_exact": true,
+    "sha256": "ea5b393fe141de8cbb15f5702ed6abe72183baf5e6f3845d884f33b7f95663c8"
+  },
+  {
+    "file": "assets/ui/native-stage-stats-v6/stat-tile.png",
+    "size": [
+      138,
+      176
+    ],
+    "alpha_identical": true,
+    "native_bundle_byte_exact": true,
+    "sha256": "14985554f9bd7630b409894ad97d8e601c5985948de2e00892a47b9cd1f0e163"
+  },
+  {
+    "file": "assets/ui/native-stage-stats-v6/stat-tile@2x.png",
+    "size": [
+      276,
+      352
+    ],
+    "alpha_identical": true,
+    "native_bundle_byte_exact": true,
+    "sha256": "e2ca9d8cc8688acb693f4fcd47a76160761c504782fcd937afd293c6770e80ed"
+  },
+  {
+    "file": "assets/ui/native-stage-stats-v6/stat-tile@3x.png",
+    "size": [
+      414,
+      528
+    ],
+    "alpha_identical": true,
+    "native_bundle_byte_exact": true,
+    "sha256": "2210e411b25842c7793e3b2072a324f0433d532aa10f7eb2522499c641f6a6eb"
+  }
+]

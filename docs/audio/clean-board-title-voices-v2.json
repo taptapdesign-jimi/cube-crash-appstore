@@ -1,0 +1,1031 @@
+{
+  "processing": "Uniform +3 dB relative to immutable v1 PCM; no limiter, trim, pitch or speed change. Existing Native cue gain 0.9064262964918004 retained.",
+  "clips": [
+    {
+      "title": "Outstanding!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/001-outstanding.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/001-outstanding.wav",
+      "originalSha256": "76e0ad9f46ee1d969c085c87061ef6a555370b3a2ef9b76622ab9d1841597e82",
+      "gainDb": 3.0000027513925613,
+      "peakDbFS": -0.10775484918403792,
+      "sha256": "f66940ae24aa087c4b557ea4a15f8c81027767c16771911d7e4bc44ed599b620"
+    },
+    {
+      "title": "Amazing!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/002-amazing.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/002-amazing.wav",
+      "originalSha256": "f1dc3df519da37ed23c9d24cb0c9fb4a68b83b3eddc3eeed78770e22c774a873",
+      "gainDb": 2.9999977170758902,
+      "peakDbFS": -3.6727623792595123,
+      "sha256": "d20c459c602f65f3a028476eae327e15a558030ce283bb7af7170148bf558aa2"
+    },
+    {
+      "title": "Excellent!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/003-excellent.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/003-excellent.wav",
+      "originalSha256": "023dcb02d499a636d9cf1fcaec8f046bc91625752f77b24127d888c43460c368",
+      "gainDb": 2.999998315628716,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "a8003f1f0c03f8a328b192d5e7a190de22fb4ff5ec44ff7f88f5d3bf2339bc61"
+    },
+    {
+      "title": "Fantastic!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/004-fantastic.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/004-fantastic.wav",
+      "originalSha256": "858be5c1a1e2f95b44d53c671b230963e560c271a84b1f1295ccc5e4e98b3591",
+      "gainDb": 2.9999980137519238,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "c3e10439831ac5d338f7864d019bbe5cc834a52856c97e1f416e121f120d6b3e"
+    },
+    {
+      "title": "Incredible!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/005-incredible.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/005-incredible.wav",
+      "originalSha256": "9b059e82b4088950106a13afa7f1c4040ac5250280c9c54d18d858746a5d6498",
+      "gainDb": 2.9999990798143266,
+      "peakDbFS": -0.7602062867978844,
+      "sha256": "282e7b5a6f8342d822ec96efabcb305a3374aeb008e8c7e4193828d394fbf55c"
+    },
+    {
+      "title": "Perfect!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/006-perfect.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/006-perfect.wav",
+      "originalSha256": "1ff1b15a6f627ea32d75b9ba6ef75905464061aaa18c196bf741891524af4491",
+      "gainDb": 3.0000017765073035,
+      "peakDbFS": -1.0871355749821223,
+      "sha256": "946b43018e91958ccf99271ce803d50968c3666cbd715af3bf88b08c25c571eb"
+    },
+    {
+      "title": "Brilliant!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/007-brilliant.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/007-brilliant.wav",
+      "originalSha256": "541ff351fa8a20f0909d888451a3d282d1db61f50cbf911db9ce20d3e8d05fc5",
+      "gainDb": 3.0000009459893873,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "7f907f08f5198db1c6a7b36a7a906807b6086d71db7aa930fe511614bb14c19b"
+    },
+    {
+      "title": "Superb!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/008-superb.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/008-superb.wav",
+      "originalSha256": "ec757e63e1ee3a74f67c20e7cfa2562b5e031712d616decbe7ab4d23c8be04c5",
+      "gainDb": 2.9999997257507625,
+      "peakDbFS": -2.1696836840154012,
+      "sha256": "4ea281e12d9ca34b44cba3e081059f99b7c262d6418038b63997aee62865a518"
+    },
+    {
+      "title": "Awesome!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/009-awesome.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/009-awesome.wav",
+      "originalSha256": "5deb5b8e2a1943618fbb961a165855a857786e321a40908375443edad214cd7c",
+      "gainDb": 2.999999010868442,
+      "peakDbFS": -4.688331354239808,
+      "sha256": "2bef320fcd49611e9cf2acb51a6984d5a319bfd1ad41087980b7ce304948b511"
+    },
+    {
+      "title": "Spectacular!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/010-spectacular.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/010-spectacular.wav",
+      "originalSha256": "0799527dedc5cd577ef08198556f4567350ea2dc77d59b0366e99fce70611e8d",
+      "gainDb": 2.9999969967442572,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "6776369310c99fe35381357ee58eef57b2ee051289c4cbee449157b9b703d0c5"
+    },
+    {
+      "title": "Magnificent!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/011-magnificent.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/011-magnificent.wav",
+      "originalSha256": "d9f22aceda383459a2e59dadf61cf8cb148ef2d0d17d41a5bd4b6e21664be897",
+      "gainDb": 3.0000049766610553,
+      "peakDbFS": -0.4546288262394662,
+      "sha256": "2a99bbe820270ce3a82ffea6c6434f668b33587717cabc7a40b1a8415a9eb1de"
+    },
+    {
+      "title": "Phenomenal!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/012-phenomenal.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/012-phenomenal.wav",
+      "originalSha256": "24e4a0a35d446bf308528d3306f3366c95d9e20bfa90aa43b868e8928d083eec",
+      "gainDb": 3.0000022527288985,
+      "peakDbFS": -3.478725501789336,
+      "sha256": "add87d204bd1a979332bde9e3d6b440b364177190f3aa0714b4375d9a5b93720"
+    },
+    {
+      "title": "Marvelous!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/013-marvelous.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/013-marvelous.wav",
+      "originalSha256": "c65f40592f61e8ca8a27c06939a9f658dd2980ef523ef07b63d6f4ea15cacadd",
+      "gainDb": 2.9999948779733443,
+      "peakDbFS": -0.9447114438233613,
+      "sha256": "5ea947bbab03fc0d699e40a5813ca334a4c9885f1cab136fbc6cdae2e4008c55"
+    },
+    {
+      "title": "Exceptional!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/014-exceptional.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/014-exceptional.wav",
+      "originalSha256": "384514418bd80ec6c86aa7aac5c793cf888fd71892cff03e2b76ca9d587519f3",
+      "gainDb": 3.0000019170399748,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "01020d2ce797a5656e06bb765a3695dfb6732a61f4a7e3458e6ec73435ccd93d"
+    },
+    {
+      "title": "Stellar!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/015-stellar.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/015-stellar.wav",
+      "originalSha256": "4c42d8121928eedc21da3e9c0bef6a9c2d6c6b662b5d71ab36b75026b0a9795c",
+      "gainDb": 3.000000044387386,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "02748b0e9f53c370c94797c2182c188df5b69702f75eee77b10dfb6d319dc60d"
+    },
+    {
+      "title": "Remarkable!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/016-remarkable.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/016-remarkable.wav",
+      "originalSha256": "df67f540d00065ec687306e7ebf4069b1ed38a991e324df5716826074ff8f6a8",
+      "gainDb": 3.0000000162487273,
+      "peakDbFS": -3.154112195586847,
+      "sha256": "568d814e1c6d6474cf0bdaeee4c25f09453c0392de625b004e33a1ae408159de"
+    },
+    {
+      "title": "Impressive!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/017-impressive.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/017-impressive.wav",
+      "originalSha256": "58516ae1c63c1d1491b2bcb9cd09eec09eb6d989db12c5147a5de7f8584ea8bf",
+      "gainDb": 2.999995933274887,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "c4684accf2e7972f74ba2d26e5e7704d76dd6437b5aa3c811d41825dd1e67b52"
+    },
+    {
+      "title": "Unbelievable!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/018-unbelievable.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/018-unbelievable.wav",
+      "originalSha256": "e7cc2195d4219387b57c65c788c16338a11ad06704f84e49159dba47f506a68b",
+      "gainDb": 3.0000016691478266,
+      "peakDbFS": -2.1428423287193024,
+      "sha256": "d788fa3a7ff0917ddb77c6cf5e8b8314011f8abfb0268926eab02ad5387b2783"
+    },
+    {
+      "title": "Wonderful!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/019-wonderful.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/019-wonderful.wav",
+      "originalSha256": "1c3b62e4a62762e6b8bae1b9c1a9ad084d3061e03845929cd620853c74ded232",
+      "gainDb": 2.9999998695832577,
+      "peakDbFS": -1.2401855133231772,
+      "sha256": "5bcdb9235f627b552a6fdb6aa25272d88c3f16c13e07eab7354d4119eb10f578"
+    },
+    {
+      "title": "Fabulous!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/020-fabulous.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/020-fabulous.wav",
+      "originalSha256": "7f4732b1e5624ed0b070a59a118b0387a39ad519c691ad9a97a26a51fff4349e",
+      "gainDb": 3.000002894857192,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "6d7a10926d543169e8420cf0e188b6aed7ff12282fad6dab8379d22740d0f59d"
+    },
+    {
+      "title": "Sensational!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/021-sensational.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/021-sensational.wav",
+      "originalSha256": "07441dc757d14a725bdbe27c604089ddc85dd8bb9fc26e43d9206cae00433189",
+      "gainDb": 3.00000074484557,
+      "peakDbFS": -0.8570873048995251,
+      "sha256": "391008dad70c76da52b2214e4e18306c6084ca5ce25bce47e91e02c8f99643cd"
+    },
+    {
+      "title": "Terrific!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/022-terrific.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/022-terrific.wav",
+      "originalSha256": "715bd810a9308e89ecf88c6eb1c77ccc0b6ec1383f7aab3c329d45baa71e73ef",
+      "gainDb": 3.000000276663264,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "3bcc501914b8d39097112e7815f4d2e5b266f92ab51ddd81e66816e7b31a6b4e"
+    },
+    {
+      "title": "Splendid!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/023-splendid.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/023-splendid.wav",
+      "originalSha256": "a62c84e51299b99e540308d4d8e9d1f5182146ef7400031852c3fc661d779936",
+      "gainDb": 3.000004638664559,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "3dc451bcd1a610ebe00c215cc0321a03e64250adbb1740baa096d26b0309e625"
+    },
+    {
+      "title": "Exquisite!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/024-exquisite.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/024-exquisite.wav",
+      "originalSha256": "35abcf32441151cec44be7827e8743fe2c60518efc6b17b886552564241e831a",
+      "gainDb": 3.0000020587671035,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "416f84a60b340dd52614afe001800aa15123a6888ae1ab9189bf2d1ad627e8fb"
+    },
+    {
+      "title": "Divine!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/025-divine.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/025-divine.wav",
+      "originalSha256": "ce193f558efff4c44a5ef9e77b442964fd52c3ea06d7408f3832eaa7c841d90b",
+      "gainDb": 3.000002393543491,
+      "peakDbFS": -0.16889204358880622,
+      "sha256": "47f553ca9d47773f49eba8c44fee9b6d9126747e50f7e3018c12cf577ebc81b9"
+    },
+    {
+      "title": "Glorious!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/026-glorious.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/026-glorious.wav",
+      "originalSha256": "44fb846c0edc1307ac435feda817c4c50d2f57d180a3dfc2b1d87ba345be4df8",
+      "gainDb": 3.000001792293991,
+      "peakDbFS": -0.9829185796901594,
+      "sha256": "5f2f04f552d1228d461ee060f65be935362e852c808d4c81e3f5f030c1abd880"
+    },
+    {
+      "title": "Masterful!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/027-masterful.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/027-masterful.wav",
+      "originalSha256": "66c805c640e245f16afee78b6cb2c520a4ee43b26eb612633f80724ae969ebc8",
+      "gainDb": 3.0000010991752157,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "58f1de4e00928f472fe3795168ecd7ff7f37b9575f6e8d7ed39716cd9048cb2e"
+    },
+    {
+      "title": "Flawless!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/028-flawless.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/028-flawless.wav",
+      "originalSha256": "bb6d0453c931f301a3a67bd5af0d40b6a77db09ab659caeaa59f53357839de86",
+      "gainDb": 3.0000001403345773,
+      "peakDbFS": -1.835890847726793,
+      "sha256": "1ef560ce3a2ebe5e86411c8b5fbd5314128d667345c706eab4f2f8f6be59d149"
+    },
+    {
+      "title": "Supreme!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/029-supreme.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/029-supreme.wav",
+      "originalSha256": "bd55b2a9cb61365efbe8a26dea6c180e367287ee317296664382a8d468fec07d",
+      "gainDb": 3.0000006370761394,
+      "peakDbFS": -1.9052612921086374,
+      "sha256": "0a80bbd8b77b43ed25fa01293352912f94d546c63ef48bb3336eb28ce2aea586"
+    },
+    {
+      "title": "Epic!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/030-epic.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/030-epic.wav",
+      "originalSha256": "b0425620b4cba9ca27b53852fa2169cd81d8c99186369bbae4501fb659bad5b6",
+      "gainDb": 3.000004024362987,
+      "peakDbFS": -0.14621840102973716,
+      "sha256": "ec53d8b47a83a9da3f8043a401dc387ee2f4ec46645a0e49eb196a0779ef4621"
+    },
+    {
+      "title": "Legendary!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/031-legendary.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/031-legendary.wav",
+      "originalSha256": "9c659bdcdd9ce949b475b8db7034afc719fbc16765c89524e41391f323ec64cd",
+      "gainDb": 2.9999997626233768,
+      "peakDbFS": -1.9046011446914042,
+      "sha256": "63ad10979546835fde324f61933febca87c0a70767e1660e75042c0afdb602ec"
+    },
+    {
+      "title": "Radiant!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/032-radiant.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/032-radiant.wav",
+      "originalSha256": "1802ca98d5f28391d7b2feadba39e9c02d27d111a790b4386994a817af8bffab",
+      "gainDb": 2.9999997224008936,
+      "peakDbFS": -0.7382459420164024,
+      "sha256": "65a13e33f1a5c0ea0a1b47368ab59bd13d10bca088edcd22d356b72e37adc858"
+    },
+    {
+      "title": "Majestic!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/033-majestic.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/033-majestic.wav",
+      "originalSha256": "f97e215cf06654f4b25e8dafac5454b182ee54211bfe5a315f7b8cd4f79f6f23",
+      "gainDb": 3.0000028511609096,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "9481c384eafc3ded2fb4edc126fe3bcbf51718bd538d54ef392e8b0ca943749f"
+    },
+    {
+      "title": "Unstoppable!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/034-unstoppable.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/034-unstoppable.wav",
+      "originalSha256": "788bbb0254af607db5119186fb92e84d13cfcc796a3ff98063124e6b4a891e58",
+      "gainDb": 3.0000008008856445,
+      "peakDbFS": -0.5171407027566212,
+      "sha256": "e52d0b2d56443f174ecad4f36b00f80ed704ad948a6bce2c70b30e85b538eb72"
+    },
+    {
+      "title": "Victorious!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/035-victorious.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/035-victorious.wav",
+      "originalSha256": "7102d8fe476945bcfc3be1d46493ae34800fb3094991646bd4556deffee90cdd",
+      "gainDb": 3.000002162020406,
+      "peakDbFS": -0.09890278133872776,
+      "sha256": "61ce775ff49386f23a66b25aaeaeda7e758984334bc2e40848f6afdfdc53a014"
+    },
+    {
+      "title": "Triumphant!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/036-triumphant.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/036-triumphant.wav",
+      "originalSha256": "49c187451c0bcdc7ee869b085c9ea744f3768c4cb614ba77c060049ab7baa744",
+      "gainDb": 2.9999998333907785,
+      "peakDbFS": -1.3323998018907353,
+      "sha256": "5dff3a0683bc1fe63bb8321df21a509a988c9cab4f5722518247c4bed8abc33f"
+    },
+    {
+      "title": "Dominant!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/037-dominant.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/037-dominant.wav",
+      "originalSha256": "dbd0a7d68e820d5b78b98d9a48a8662ebe335f4e646b631a904687669a079570",
+      "gainDb": 3.0000038218547225,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "d60493548ef043e2f1df9982ea7d1412079bfcb6f0703a34a08d2705409e0d12"
+    },
+    {
+      "title": "Epicness!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/038-epicness.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/038-epicness.wav",
+      "originalSha256": "811e6d5ccb1ab8516623947042352f5060859d9a3f65468e81a0a230905d9090",
+      "gainDb": 2.9999989645811906,
+      "peakDbFS": -0.08202838939009718,
+      "sha256": "e19676e3ba679fcede583bf3272241b3e7404dddb82ba2429087c6a5de7319f8"
+    },
+    {
+      "title": "Powerful!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/039-powerful.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/039-powerful.wav",
+      "originalSha256": "f84dfebdc5250b50ec20a41ae5bec0ab23dbe394cd18ce5b91efc2c451114581",
+      "gainDb": 3.0000007381716736,
+      "peakDbFS": -1.4826385496773986,
+      "sha256": "96f1a90b38d94a9029dd17aac93c324450faac8dc99ff14dd6ce28d3132ff1a7"
+    },
+    {
+      "title": "Heroic!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/040-heroic.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/040-heroic.wav",
+      "originalSha256": "f094ff4f86bbedf8115ab1cad4e79ea51ff57dd4f36100d9e641d777e37f6c42",
+      "gainDb": 3.0000016110030896,
+      "peakDbFS": -1.1036741176566558,
+      "sha256": "7752a8419d31c9e0ff83a508033644c849500b31ac72a87111e32c656ea7033e"
+    },
+    {
+      "title": "Gorgeous!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/041-gorgeous.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/041-gorgeous.wav",
+      "originalSha256": "d7f2ce137cba3021b00ad5bb2861f7fccd6698cc0365fc8a140a4af3adadcf0c",
+      "gainDb": 2.999999495134669,
+      "peakDbFS": -0.513484137384867,
+      "sha256": "11e36c8093add101ef939a4b8405bfaeca689b3f2e5374f2d50d8d00132ba24e"
+    },
+    {
+      "title": "Sparkling!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/042-sparkling.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/042-sparkling.wav",
+      "originalSha256": "b2e3a8b21ce8e3a1db34ac6b1016d0425abae016bc994935e2ced8aea61af0c9",
+      "gainDb": 3.000001538343337,
+      "peakDbFS": -1.7797494693911629,
+      "sha256": "cde23f376834deee2fee6b48fb7de1a3bea5c5228a817aa9f9086df67929b9f7"
+    },
+    {
+      "title": "Blazing!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/043-blazing.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/043-blazing.wav",
+      "originalSha256": "81daab328d6647799df0d013ab874e0de4e15abb670f35bd59dec674247dec79",
+      "gainDb": 3.0000025358211406,
+      "peakDbFS": -0.29576317370402744,
+      "sha256": "f8cca09e8cf625cd783f8c34e233e1297ef92834a6ac6caf4cebe0c6d4b74d7f"
+    },
+    {
+      "title": "Vibrant!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/044-vibrant.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/044-vibrant.wav",
+      "originalSha256": "812b904938f886050c0b5909f2b32f3b834969fd58c76de2a95d1af6716c9c7c",
+      "gainDb": 3.0000005541029298,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "83ba1d6b58c1e3ffc767b52c128454e3618e21d5488c49123293f09de1a3f7a7"
+    },
+    {
+      "title": "Shining!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/045-shining.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/045-shining.wav",
+      "originalSha256": "42b743597c85dcb54761c488590e7a4c809995500060eba25a50204261fd9249",
+      "gainDb": 2.999999477184701,
+      "peakDbFS": -2.2386955994074658,
+      "sha256": "098bca295ba557e499c053e4ef1ea2bec34aef6cec6e6fee18b19e6b0e596288"
+    },
+    {
+      "title": "Golden!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/046-golden.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/046-golden.wav",
+      "originalSha256": "de019b493916927e802455db20662eb95a9973f7797d3e7e584d37c4c245157c",
+      "gainDb": 2.9999992554066135,
+      "peakDbFS": -0.5210802646517694,
+      "sha256": "932c5175746f760ab79d015fb8e55eef7c021918124a0dd57d7a80a63bfb4ac3"
+    },
+    {
+      "title": "Prime!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/047-prime.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/047-prime.wav",
+      "originalSha256": "b028ba11e2e8d7c136e804350333592641b4ccee89d1992636d634d3167c07a6",
+      "gainDb": 3.00000296513649,
+      "peakDbFS": -2.545197867197271,
+      "sha256": "f5da3ec2bab3095d4ce09022ea3caa269c87f2984d9b847e41ecb363b49d15c0"
+    },
+    {
+      "title": "Royal!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/048-royal.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/048-royal.wav",
+      "originalSha256": "a2c98d2be89e5b5d47026c500dab1316d15e9bde8981a760e4a6a71d7e74db22",
+      "gainDb": 3.0000005273664696,
+      "peakDbFS": -3.897349909723329,
+      "sha256": "d2c6b7735dc1ad741b49b03e862a70e46be1b1100661b8d2bada64e9e4c74614"
+    },
+    {
+      "title": "Ace!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/049-ace.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/049-ace.wav",
+      "originalSha256": "c901d7dfd0eee0e0721012ff4d889b489a0a58c3d8adf054cf6a661f8db7bf98",
+      "gainDb": 3.0000043212138143,
+      "peakDbFS": -0.007955811906075777,
+      "sha256": "b0bbbc6a1a5a14fd16dab1c8e09548ff6c2cd20fe2c937d97ba8cd2b2cda80e9"
+    },
+    {
+      "title": "Infinite!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/050-infinite.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/050-infinite.wav",
+      "originalSha256": "be50e7745ef629a55a27ccb3e6aa2d7046ac217b891d659b7fdd0d60a06f4d61",
+      "gainDb": 2.9999983050886634,
+      "peakDbFS": -1.5844731937827097,
+      "sha256": "373ceab5bd250bd32e4e40171ec87b33820f962c0f993884a464e172b7595b03"
+    },
+    {
+      "title": "Titanic!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/051-titanic.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/051-titanic.wav",
+      "originalSha256": "c4c9af3884a14cf9b136a5a70a88ea16787a63ed5befdb6b3cba39775c23953a",
+      "gainDb": 3.0000033697459205,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "5ab80fa471770b1d7ca3a60148ade548190b292d2390be9d093e9b43f964389f"
+    },
+    {
+      "title": "Grand!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/052-grand.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/052-grand.wav",
+      "originalSha256": "18032c73c908afa58e17dd0474a18d87d80e7d9512ae2c98d2b40aced5e48700",
+      "gainDb": 3.0000006616466206,
+      "peakDbFS": -2.7312337073860804,
+      "sha256": "a15ba8eabf28718d9ffbc14306cf81cc0bbc79e69c87fcbd52be2ac894f24f69"
+    },
+    {
+      "title": "Mythic!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/053-mythic.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/053-mythic.wav",
+      "originalSha256": "f4b62ae489eb8729edbd93000e09f0c26f5515d72e52ea6d13fa935b906654de",
+      "gainDb": 3.0000042799526256,
+      "peakDbFS": -1.16074780647053,
+      "sha256": "0c4981bca04c9e67e71ff4aea6febef6b8748f13d31ff313139cacc42aac200c"
+    },
+    {
+      "title": "Immortal!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/054-immortal.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/054-immortal.wav",
+      "originalSha256": "0966fd56b24f668b30dd42f85c800424314c77fffbaca0aae8c73f8b8c6de4a1",
+      "gainDb": 3.0000017766062834,
+      "peakDbFS": -4.009335798411889,
+      "sha256": "67074d6ed830b38372ef689bdcd52e6ae6c768d2e4b4d5bc760af356842ae2ca"
+    },
+    {
+      "title": "Mega!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/055-mega.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/055-mega.wav",
+      "originalSha256": "7f003533af4b3e8c9eec5551e72245805e8b749f26e0f3c5da7396a18e5c4ca3",
+      "gainDb": 3.0000013225670434,
+      "peakDbFS": -0.2179504494630374,
+      "sha256": "ab2f038c9e9674535ab986bee7882cae69ac004f7ef2de28e6516265fca6c2d0"
+    },
+    {
+      "title": "Ultra!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/056-ultra.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/056-ultra.wav",
+      "originalSha256": "9cce10402fb877feb46af67a52d062b3d41a75fcd22f7a0a80c401a6224a15e9",
+      "gainDb": 3.0000012699696814,
+      "peakDbFS": -1.7751957524304767,
+      "sha256": "6baadd0284de19527677a42d713ee5b6849981cbbc877a9a164492f562abc47b"
+    },
+    {
+      "title": "Primeval!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/057-primeval.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/057-primeval.wav",
+      "originalSha256": "645317da1aa7ba820596d2d82d672d4ba2cf80f1557aca3499ac37707e6429ff",
+      "gainDb": 3.0000040468520734,
+      "peakDbFS": -0.3717889513070041,
+      "sha256": "b901695fd29f364f55e2e4ab89ccb4c42b6e47b4331adb7a6c79ea8cdc500a04"
+    },
+    {
+      "title": "Booming!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/058-booming.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/058-booming.wav",
+      "originalSha256": "16790ac1d65f9c00c9dc61dfe291a923e8b09732e9c07c8badab496e52875608",
+      "gainDb": 2.999996950925329,
+      "peakDbFS": -2.331457237448002,
+      "sha256": "86060545a3076ff916f25de70a885e36741ac004105348b2148825bd17143c9e"
+    },
+    {
+      "title": "Nice win!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/059-nice-win.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/059-nice-win.wav",
+      "originalSha256": "d124bcce486c1363426a87946b35e8ccf529c96525fdf96d554e6c51dbe9184b",
+      "gainDb": 2.999999566187033,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "3019ffc3cc35392e488f72b3a8a31157d921f10d0eb46d2f203d047a207c632e"
+    },
+    {
+      "title": "Clean board!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/060-clean-board.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/060-clean-board.wav",
+      "originalSha256": "86f41dcde470efdb76359298bd5d281fe11b73dafcaacf1ef07ebf074d25110c",
+      "gainDb": 3.0000041054678617,
+      "peakDbFS": -2.870287023135095,
+      "sha256": "e809c3e97809321a2635dc173447f0bed5fb027654063f06f8ecb3a644161909"
+    },
+    {
+      "title": "Cleared it!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/061-cleared-it.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/061-cleared-it.wav",
+      "originalSha256": "0e990f85abc21c1dbb6e6804bbdb2e70b4185f8b6877ca1b2c52960b32c4caf2",
+      "gainDb": 3.000004534504075,
+      "peakDbFS": -3.42390484805567,
+      "sha256": "45f3bce4b774b3b5b4b5adacd408b2a935dd217c2c34a64df801fdcc43eddf02"
+    },
+    {
+      "title": "Nailed it!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/062-nailed-it.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/062-nailed-it.wav",
+      "originalSha256": "0546064164a13e7c7f85f6e6996e5474e061d9a925fd9811c24073fe8015ce12",
+      "gainDb": 2.999998805854172,
+      "peakDbFS": -0.4702846230600466,
+      "sha256": "730c9cbdda90c474d3dc0ac7864efc4e6adeaafd2825cb7107b6ddca76c03476"
+    },
+    {
+      "title": "You won!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/063-you-won.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/063-you-won.wav",
+      "originalSha256": "5028370be74b0551d5aa2002a03853ad1e1c311402357e8c3ef30e4fda90c341",
+      "gainDb": 2.9999971567220483,
+      "peakDbFS": -3.074441978842501,
+      "sha256": "3f7d7325bda2e8c41b514f4d87af3c93bb7df889b0418a0ab780e91f68eb8b56"
+    },
+    {
+      "title": "Yesss!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/064-yesss.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/064-yesss.wav",
+      "originalSha256": "d26522935a308dd19ed993e6edd61a9c4ae93025d34779c440acf579f98f9fba",
+      "gainDb": 2.999998548994898,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "f2622f98c05b95b388cc15c5e900762702213fad90cb86a3a16a756c9fe28dbb"
+    },
+    {
+      "title": "Wooow!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/065-wooow.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/065-wooow.wav",
+      "originalSha256": "9fd8d99956225f52f1857654585aab5dd15c3d6319e2fc3a66e769da1fddc311",
+      "gainDb": 2.999999000775275,
+      "peakDbFS": -2.978298323946932,
+      "sha256": "267354d8924eb90855744de3406efc6986ca5d60b85a7f955ba206a195fd0409"
+    },
+    {
+      "title": "Sweet win!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/066-sweet-win.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/066-sweet-win.wav",
+      "originalSha256": "27bbb7b98be31a34ad4a2b8ba5be76a4d8546e9f3d2b7f7b599d970311f4dc87",
+      "gainDb": 3.000001156946634,
+      "peakDbFS": -0.26482765824822974,
+      "sha256": "111d376f89339755431e9b142714f1226b90f26b518e5f1e678e0a3eff154270"
+    },
+    {
+      "title": "Easy win!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/067-easy-win.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/067-easy-win.wav",
+      "originalSha256": "fa9fcdd87c970ca410c2d29f17939a3724aaa7fb57942be26e1df26429d36545",
+      "gainDb": 2.9999989898687325,
+      "peakDbFS": -2.12962205197021,
+      "sha256": "ad8de310b87414d586e23bd5671396f26a3d347e65ffde4502ddaf0d59f9cff8"
+    },
+    {
+      "title": "Big win!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/068-big-win.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/068-big-win.wav",
+      "originalSha256": "16ee0f34d5123ba1c6746e8a95507a1257cb4b54ce32c0e9c3f0ec82120cb18e",
+      "gainDb": 2.9999970741567243,
+      "peakDbFS": -0.7903475423482098,
+      "sha256": "1c3f2b150f58f7e7a442b8e054ec09517ab0a99a7a8e26adfcfbb4ee068ebb93"
+    },
+    {
+      "title": "Smooth!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/069-smooth.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/069-smooth.wav",
+      "originalSha256": "410c58ce3ab7e6d8c7ab52be538ffa0e7707ad0003be50c937584422f2ff2e90",
+      "gainDb": 3.000002339233554,
+      "peakDbFS": -1.625288021954928,
+      "sha256": "cc5a9a3dbef485bdcb055ca3d7a7bc850aba112ca8cdfd52224350c843cc3cf3"
+    },
+    {
+      "title": "So clean!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/070-so-clean.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/070-so-clean.wav",
+      "originalSha256": "c838e13289bfc5c0d0eff286fa8ec65b2f3c288def7901bc96fac834cfd594b2",
+      "gainDb": 3.000001654903915,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "ef20c82440ce6145d8f76c031e4f53032061346bc96c382aa11c078a6274d745"
+    },
+    {
+      "title": "Well played!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/071-well-played.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/071-well-played.wav",
+      "originalSha256": "bb34baf5965fbba65703716bfb845df4587470dc95a25cb4dcf7a2694f0a4f45",
+      "gainDb": 3.0000039874432103,
+      "peakDbFS": -3.4700257709442486,
+      "sha256": "d4328acfd648aea450e0cb17d344487e20adbc5f36927af530f3517fd5ab7fd7"
+    },
+    {
+      "title": "Nice one!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/072-nice-one.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/072-nice-one.wav",
+      "originalSha256": "ef9e4960998766c84f378b862942f82226c490f8c99dc86e55a4791583f97828",
+      "gainDb": 2.999996473140944,
+      "peakDbFS": -0.16321808172907656,
+      "sha256": "6a36b9ce39262a0f39e89cc8e6b4cd2d75b31f0e0c8d4cddbefbdd8d912905f6"
+    },
+    {
+      "title": "Great job!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/073-great-job.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/073-great-job.wav",
+      "originalSha256": "ef189d8efd914183b252d5aa2c78c129566d8db08d4e520d4ab37862909745c2",
+      "gainDb": 3.0000005931389206,
+      "peakDbFS": -0.7521091724191921,
+      "sha256": "34870f8fbf721b800fb9e10c2bbef2eb386601026eb176db68aec972a739a7b0"
+    },
+    {
+      "title": "Boom!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/074-boom.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/074-boom.wav",
+      "originalSha256": "0528494641f18282c1222895ec087788dd0c614ebe739c32dd953bf603297cf4",
+      "gainDb": 3.0000023147441635,
+      "peakDbFS": -3.529913651642212,
+      "sha256": "b94a2b57def0fb30c8febab406d23f25f02eb73f063cf65406cc37b985677768"
+    },
+    {
+      "title": "Dice done!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/075-dice-done.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/075-dice-done.wav",
+      "originalSha256": "8410424128e8ff2cd8099738345e1b1f039b5847da092637579c2c411ce27cb3",
+      "gainDb": 3.0000011204835637,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "2446e42ac9a64877b18cbbaa58c7dfb4e5f20d6e7a2cbe6451e9c21ea6d9e76e"
+    },
+    {
+      "title": "Dice cleared!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/076-dice-cleared.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/076-dice-cleared.wav",
+      "originalSha256": "d1b393b362fc72ab96abd4004379014950c53fea0f4c9cee90b7ba0c54960a28",
+      "gainDb": 3.000001650047557,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "3e2f1ee9161778a42298748d3ee86978b1f0d985e78bd012666730dc650a36ef"
+    },
+    {
+      "title": "Dice master!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/077-dice-master.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/077-dice-master.wav",
+      "originalSha256": "74a87b3de4d99416cbd54d911265f0ece4fe7f8bb54e83a596a8ff536a3e4075",
+      "gainDb": 2.999998182961347,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "ce4c7929b71cbc346739d33503fd437ed6e9f982e7ef7617210b6d2da69ab72c"
+    },
+    {
+      "title": "Rollin’!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/078-rollin.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/078-rollin.wav",
+      "originalSha256": "9aa66562fa71ed542480c9375a53530b821bc19854c824e02b1bb065e94a6ad8",
+      "gainDb": 3.0000015037748176,
+      "peakDbFS": -2.259300257719078,
+      "sha256": "6c867c94566bc8a1b3c7678ad16b9e97e49f5d1c6143de09ef5d86740235e4f8"
+    },
+    {
+      "title": "Roll perfect!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/079-roll-perfect.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/079-roll-perfect.wav",
+      "originalSha256": "22e115f8f210847b136958241befa27e56619e3a309ffd0b4c1d9cb5e4c7f517",
+      "gainDb": 2.999988417268256,
+      "peakDbFS": -1.335799669775749,
+      "sha256": "9ce37f43599f78df1eaff7daf00cfc1331f9298fdae62d951585993ff76d623d"
+    },
+    {
+      "title": "Lucky six!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/080-lucky-six.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/080-lucky-six.wav",
+      "originalSha256": "54fd6c6a95a5d9f82bcd26f50fdd3adc89ff0853bb151f851551ee2b8be63f18",
+      "gainDb": 3.000005669486092,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "0e29a7932e7e9cc89786e5dfa58567c46643cbf3d5274ecece7759ac772c8b11"
+    },
+    {
+      "title": "Six it up!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/081-six-it-up.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/081-six-it-up.wav",
+      "originalSha256": "e2c5f9c46352d7348665697cc0cc16acc4baf6f1d3a05f5d6bb30bbe061267ed",
+      "gainDb": 2.9999973987020523,
+      "peakDbFS": -0.10694974285375254,
+      "sha256": "caa7497337c800e29f87f64084db789aa1b47ba272cb6dbbe7f73bb2e141ec1e"
+    },
+    {
+      "title": "Stack cleared!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/082-stack-cleared.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/082-stack-cleared.wav",
+      "originalSha256": "8ff294313fbe5f724b544f8e13deb42eaa71e6fdc7018df9bbfeaa579382eb76",
+      "gainDb": 2.9999976346674915,
+      "peakDbFS": -0.9894513334779016,
+      "sha256": "4fea320a7ae37934ba86a462265cb9c80ced465a827e03bbd0705b79a932efe8"
+    },
+    {
+      "title": "Stack smashed!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/083-stack-smashed.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/083-stack-smashed.wav",
+      "originalSha256": "0bd7e263deec8609109afb3cdcd252fc7af27f6eb260297ee109414c5c4d1741",
+      "gainDb": 3.0000076425270055,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "1ed2455716a02655d3c4a92f3eba9791de0b5fd22e034d5ad54b0a60d4846d82"
+    },
+    {
+      "title": "Stack complete!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/084-stack-complete.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/084-stack-complete.wav",
+      "originalSha256": "e078214afe4f30890b7ce789a139c77de858a84525de75177af5aff586671054",
+      "gainDb": 3.000000528481279,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "aab76a8cbcd12cdf559025a569a63a456a11a9d1386494e7ecf74eeacabea08b"
+    },
+    {
+      "title": "Stack attack!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/085-stack-attack.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/085-stack-attack.wav",
+      "originalSha256": "d09acc456ffab3d1d8dcba09b658dbb0ecd7a960087924cf443b0fd57f11860a",
+      "gainDb": 2.999999453629958,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "588c7d2164ed85062431c215860f4cf2ab4fd77b23e1f26a02223463019cd848"
+    },
+    {
+      "title": "Stacktastic!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/086-stacktastic.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/086-stacktastic.wav",
+      "originalSha256": "f48b01b6e4f6388b56fa0e77515f6141f3c9732e3c974b8a6893f8a34d9876a8",
+      "gainDb": 3.000000980969938,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "799308d3819d3dafe5be3736aada9c13592297ab06272b38df2b34d7c550c63a"
+    },
+    {
+      "title": "Stack magic!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/087-stack-magic.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/087-stack-magic.wav",
+      "originalSha256": "623d38e34001e76902ad9d291fe9fd3a11e5fb12a2b4e6ef783aba4fd99c2231",
+      "gainDb": 3.0000002241115595,
+      "peakDbFS": -0.13544219588449263,
+      "sha256": "1c7eb2883869dc30142f676d2949499f1318f97f2241c0be623f038334631d5f"
+    },
+    {
+      "title": "Stack nailed!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/088-stack-nailed.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/088-stack-nailed.wav",
+      "originalSha256": "51d1a9691c0e60d71a0c99d5fd6dba83089cc0f779669adfdaa7c350f005f6ab",
+      "gainDb": 3.0000017539192054,
+      "peakDbFS": -0.24272024287666494,
+      "sha256": "39aac43bbc6e81837462d31fb04821ddcbb9f28fa90358e91cd64453f2addba6"
+    },
+    {
+      "title": "Board smashed!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/089-board-smashed.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/089-board-smashed.wav",
+      "originalSha256": "fa50232b6bb049d85b973a86d2226b28f41b6346ae45c6b148ff0d3b97d41900",
+      "gainDb": 3.0000044873309935,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "502fac402a1fb7faf9026d15a16dd5807771a8f32e18e17b930b9555f6e32d36"
+    },
+    {
+      "title": "Board cleared!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/090-board-cleared.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/090-board-cleared.wav",
+      "originalSha256": "d2f3983582541a952b5ea3143eaae945d7dccd73c4224ac73f0f8f655223cf77",
+      "gainDb": 3.000000825287345,
+      "peakDbFS": -1.9975134417974485,
+      "sha256": "35f81b737f3ef992a45a62bedd5af201d7babe894b2a68f924e9e51f3bba3205"
+    },
+    {
+      "title": "Clean sweep!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/091-clean-sweep.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/091-clean-sweep.wav",
+      "originalSha256": "7ca7b8f6ac94bbfce9520aa41d2fcfb2727f529c6a16d90d8dc1b473357e16b9",
+      "gainDb": 3.00000461301188,
+      "peakDbFS": -1.2484448254399092,
+      "sha256": "d7f0faf64cd6830cf646c6625cbe2e649f2465e47cca111f8b4844269150a47b"
+    },
+    {
+      "title": "Full clear!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/092-full-clear.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/092-full-clear.wav",
+      "originalSha256": "7467be11b4ae09d080ad21d30cc92486149aadbb9ed30a8a8284eca7437f1307",
+      "gainDb": 3.000000588878558,
+      "peakDbFS": -1.9575721253798275,
+      "sha256": "9c65738b147e1b0ba1fb25373b7366aba6353a25a13e63692f927b50fe06813a"
+    },
+    {
+      "title": "Total clear!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/093-total-clear.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/093-total-clear.wav",
+      "originalSha256": "432fafa147fe2ecfe497d1f42166b6173927c4e595777801d77ef42c20a36f17",
+      "gainDb": 3.0000021282784806,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "cd8e185514ec0aae5d126c262333bd8e8b854fc40539d38b3dd732d42debec77"
+    },
+    {
+      "title": "Perfect clear!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/094-perfect-clear.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/094-perfect-clear.wav",
+      "originalSha256": "a6c2d819f553f596c88dc139c7e863c3a4837601b9f453bbe754c0b96d506314",
+      "gainDb": 2.999999638915041,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "f5d0252843c3aed2947df3965901208ba44c5909af1210ac26349d40eb7cb8ed"
+    },
+    {
+      "title": "All gone!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/095-all-gone.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/095-all-gone.wav",
+      "originalSha256": "a3e11ba4829ae7b241c4b802904da0f734077824684453a5ffa0510ac36ab5d6",
+      "gainDb": 3.000000476204487,
+      "peakDbFS": -3.5326999508419843,
+      "sha256": "a4eeac07132e6b50d7e1a7d91797a33f0ee9e889b2d3593e8eea67ade4bc9b44"
+    },
+    {
+      "title": "Done & dusted!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/096-done-dusted.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/096-done-dusted.wav",
+      "originalSha256": "5374517213b065c9fca2f751aa782ce024df4cacc23390161babcf6c28ca1b7a",
+      "gainDb": 2.9999958211776887,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "14bb0813fec06c43e327539eeb8680d66567c36acac13f2bc90f4ba8f511bd0f"
+    },
+    {
+      "title": "Crushed it!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/097-crushed-it.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/097-crushed-it.wav",
+      "originalSha256": "d38ac47130d02d17a112c8466a2c34d24b9acd7ff9e6c71b38b612a45dcc7f59",
+      "gainDb": 3.0000006820428244,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "88416a39d4fbb5fdb96e74143f1a0334ac8059105b2eb050b911fcc5787e75c9"
+    },
+    {
+      "title": "Smashed it!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/098-smashed-it.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/098-smashed-it.wav",
+      "originalSha256": "de41bdd4343812f348ca68f1719027d821213dd4695fd31489489287a529d437",
+      "gainDb": 2.9999963041424813,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "5d44b9e14ae27d2303db7fcc190baf0c507b120d84a942da9a8a53a24a1ffad5"
+    },
+    {
+      "title": "Owned it!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/099-owned-it.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/099-owned-it.wav",
+      "originalSha256": "8d280c7e25ef91ae30c1a89176d7c89cc9dab2d678063be46f63591cece69955",
+      "gainDb": 2.9999994800825345,
+      "peakDbFS": -3.829526592176713,
+      "sha256": "813a1277ea9c1b09896273c9c6996779d152bdcc01da9d696ba0d55832cfd7c8"
+    },
+    {
+      "title": "Got ’em!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/100-got-em.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/100-got-em.wav",
+      "originalSha256": "d1ed63c821f94dad0df8fd6b46ea1988dd5b9872a787d95ca2942c4b27ee1ce4",
+      "gainDb": 3.0000029014415563,
+      "peakDbFS": -0.9346692688849128,
+      "sha256": "4dc4f84488fc827b352efe80ee9d66e9fc476fd8adfccf04bbaaf1996ea19c1c"
+    },
+    {
+      "title": "That’s it!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/101-that-s-it.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/101-that-s-it.wav",
+      "originalSha256": "ee0fc04bb76d9a5c4ee19314a9a66571842e9379f7cb129e310bb491974a1109",
+      "gainDb": 3.000001555612155,
+      "peakDbFS": -1.1480323157089558,
+      "sha256": "40508bd9886e71295dc7fd81598ba8c268dfd309b0af29ad8a600cdb928dcc8e"
+    },
+    {
+      "title": "Oh yeah!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/102-oh-yeah.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/102-oh-yeah.wav",
+      "originalSha256": "5863b0dd26711c36faf5642d7845567598b04c45d737aac6103109982f0c4462",
+      "gainDb": 2.999998361640621,
+      "peakDbFS": -1.0886377782749943,
+      "sha256": "321d6d1b09b81186c03898316956f6f56accf6d8107711be007b09ee2f3ce4f8"
+    },
+    {
+      "title": "Heck yeah!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/103-heck-yeah.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/103-heck-yeah.wav",
+      "originalSha256": "7fadb114de5ed34c25703e80e4011c5f6f9350a8b7058c6cce931d3f3f79e973",
+      "gainDb": 3.000000443932212,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "dd4def5e3dc0ebb669ee6f7f0e38c1bb8c5fdb7be43221b807fcb55e045e7c78"
+    },
+    {
+      "title": "Let’s gooo!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/104-let-s-gooo.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/104-let-s-gooo.wav",
+      "originalSha256": "343e97290fe8145f5325a051c28f1d4e4b33cf57cc75dd58a3c086b196afea80",
+      "gainDb": 2.9999998253855975,
+      "peakDbFS": -2.3390876964316205,
+      "sha256": "8715c38cd1fa12527dadf386da426f7a5733b33423a18ec19a072e8e004767bd"
+    },
+    {
+      "title": "Too easy!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/105-too-easy.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/105-too-easy.wav",
+      "originalSha256": "e8a10dfddd502f740ed23db4f6df60144f49f989f5a92e3152ef0a68b0ef2c89",
+      "gainDb": 3.0000064902416916,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "22ed408dc58c28a9bdde58c231319c2bd278aef454479b4ee91cd7af6b526387"
+    },
+    {
+      "title": "So good!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/106-so-good.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/106-so-good.wav",
+      "originalSha256": "daea47e44433744ea964011066daa7965931b53a0a11e04817abfd2ba89b5930",
+      "gainDb": 2.9999987791694287,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "d1a1c0096ee1db88dcf518484f3e597bc691210c81ea9d330a7a70927d9c2135"
+    },
+    {
+      "title": "Super clean!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/107-super-clean.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/107-super-clean.wav",
+      "originalSha256": "1df2f0dce3c7abd7aa66e100c6a95205a8a7643a44ae017437b1d3c48cdaec18",
+      "gainDb": 3.000001320658399,
+      "peakDbFS": -0.49382135573047964,
+      "sha256": "dc75c2e89067a61be9360afb90814aefd63e05a0f37d1143a517048bb8cbbbb2"
+    },
+    {
+      "title": "Mega win!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/108-mega-win.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/108-mega-win.wav",
+      "originalSha256": "dcc78c179903304ca4034ed318291601d07deea92f9b2304e4d6a46afafc44fe",
+      "gainDb": 3.000001220871806,
+      "peakDbFS": -2.355759274751515,
+      "sha256": "698444b8112f8faa2d771df0b787de10173c7678e9c2d7713ef79056e625d404"
+    },
+    {
+      "title": "Epic clear!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/109-epic-clear.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/109-epic-clear.wav",
+      "originalSha256": "ad65c552a9895bd900acca76bd1f88967dbf614376e11200f6fb5607b7fa93a7",
+      "gainDb": 2.999997543098573,
+      "peakDbFS": -1.3916237679140409,
+      "sha256": "67d2308212c25342b542dafaaebdf0cee76194e5459e88f4e0055540d22cbcd8"
+    },
+    {
+      "title": "Dicey nice!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/110-dicey-nice.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/110-dicey-nice.wav",
+      "originalSha256": "5f9ec3a730b667d4edc939f438e4671855286e19f43f40a71fc4905ce739e777",
+      "gainDb": 2.999993897551834,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "4d4f59b71f31d7d8ec63ca59e9ffde91c2034b6a325aff4a43a345bc3857f817"
+    },
+    {
+      "title": "Roll star!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/111-roll-star.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/111-roll-star.wav",
+      "originalSha256": "b6683be06957ce2541b3595f715ddbe8d0be46a740a7e070e42776f4c526134f",
+      "gainDb": 3.0000007650898484,
+      "peakDbFS": -1.2827897824377656,
+      "sha256": "1e9f785e7a6dbb1ee7547d14527f0bd7a4fc700b05d06c2de7eaf2212b55a398"
+    },
+    {
+      "title": "Stack star!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/112-stack-star.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/112-stack-star.wav",
+      "originalSha256": "3307be98b0ba15dda17f2f6083b21c880ec7a16267385b5307c91f44acca3551",
+      "gainDb": 3.000000464638941,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "f1f86fe59f787fc528baaa97283103d2e08458def00186eec05a1454102746c2"
+    },
+    {
+      "title": "Sixcess!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/113-sixcess.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/113-sixcess.wav",
+      "originalSha256": "be1644cb93faeb01746139f06fe1b0fcc1947fedd9c7ee5346f934b0f9f68766",
+      "gainDb": 3.0000010051371495,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "bee59dcca41f5802beea57dec74723af5be8ddc1cf5e5ca3495049e6db9477cd"
+    },
+    {
+      "title": "Dice-lightful!",
+      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/114-dice-lightful.wav",
+      "originalSource": "assets/sound/Clean board/voice/titles-v1/114-dice-lightful.wav",
+      "originalSha256": "c478afe5757b1b4eccb3f0f6ad7abe31635915c2ad5e3d059a6e568db28c7b90",
+      "gainDb": 3.0000036131319723,
+      "peakDbFS": -0.00026507636037961915,
+      "sha256": "f723784edd8cb62fd7480a4561b94c3b6623283e478e7a123e344ea7b4c43b7b"
+    }
+  ]
+}

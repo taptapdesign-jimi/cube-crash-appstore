@@ -4,6 +4,30 @@ import StackToSixGameplay
 @testable import StackToSixNativeState
 
 final class NativeStateTests: XCTestCase {
+    func testFreshProfileEnablesEverySettingAndSavedChoicesRemainExplicit() throws {
+        let store=NativeSaveStore(directory:try temporary())
+        XCTAssertNil(try store.load())
+        let fresh=NativeSaveEnvelope()
+        XCTAssertTrue(fresh.settings.gameSoundsEnabled)
+        XCTAssertTrue(fresh.settings.musicEnabled)
+        XCTAssertTrue(fresh.settings.hapticsEnabled)
+        try store.save(fresh)
+        XCTAssertEqual(try store.load()?.settings,fresh.settings)
+        var chosen=fresh
+        chosen.settings = .init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false)
+        try store.save(chosen)
+        XCTAssertEqual(try store.load()?.settings,chosen.settings)
+    }
+
+    func testImportedMissingSettingsDefaultOnAndExplicitOffSurvives() throws {
+        for settings in ["{}", "{\"gameSoundsEnabled\":false,\"musicEnabled\":false,\"hapticsEnabled\":false}"] {
+            let data=try JSONSerialization.data(withJSONObject:["product":"com.taptapdesign.stacktosix.native","storage":["cc_settings":settings]])
+            let imported=try NativeHybridImporter.importExport(data)
+            let enabled=settings == "{}"
+            XCTAssertEqual(imported.settings,.init(gameSoundsEnabled:enabled,musicEnabled:enabled,hapticsEnabled:enabled))
+        }
+    }
+
     func testStarVariantDropCountSurvivesAtomicSaveAndResumeWithoutReroll() throws {
         for variant in ["fish","kanta","cubero"] {for count in 1...3 {
             let store=NativeSaveStore(directory:try temporary())
@@ -218,9 +242,9 @@ final class NativeStateTests: XCTestCase {
     func testEveryJourneyCardTitleFollowsItsAuthoredArtworkAcrossRarityAndDensity() {
         let worlds=["Forest","beach","Area55"]
         let expected:[[(Int,String)]] = [
-            [(3,"Weee - Beee"),(1,"Star Is Out"),(9,"Final Gate"),(4,"Honey Splat"),(5,"Dreamy"),(6,"Shroomy"),(7,"Kaboom"),(8,"Break Out"),(2,"Flying Tent"),(10,"Winner")],
-            [(2,"Fresh Juice"),(1,"Fishy"),(3,"Bouncy Day"),(4,"Bottle Tips"),(6,"Castle Ruins"),(5,"Bonkers"),(7,"Looky Here"),(9,"Playtime"),(8,"The Letter"),(10,"Life Saver")],
-            [(1,"Bibi - Ribi"),(4,"The Bloob"),(3,"Woombuu"),(2,"Zap - Zap"),(5,"Beam Up"),(6,"Bloob Spill"),(7,"Team Party"),(8,"Transport"),(9,"Fixer Upper"),(10,"Take Over")]
+            [(3,"Weee - Beee"),(1,"Star Is Out"),(9,"Flower Day"),(4,"Honey Splat"),(5,"Dreamy"),(6,"Shroomy"),(7,"Pooof"),(8,"CHAAARGE!"),(2,"Flying Tent"),(10,"Winner")],
+            [(2,"Fresh Juice"),(1,"Fishy"),(3,"Bouncy Day"),(4,"Bottle Tips"),(6,"Castle Ruins"),(5,"Bonkers"),(7,"Looky Here"),(9,"Fly Away"),(8,"The Letter"),(10,"Life Saver")],
+            [(1,"Bibi - Ribi"),(4,"The Bloob"),(3,"Woombuu"),(2,"Zap - Zap"),(5,"Beam Up"),(6,"Peekaboo"),(7,"Hello, Goo!"),(8,"Transport"),(9,"Bloob Spill"),(10,"Take Over")]
         ]
         for world in 0..<3 {for stage in 0..<10 {
             let board=world*10+stage+1,(art,name)=expected[world][stage]

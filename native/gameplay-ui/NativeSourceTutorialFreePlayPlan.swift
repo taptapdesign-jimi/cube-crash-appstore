@@ -1,6 +1,21 @@
 import Foundation
 import CoreGraphics
 
+/// Covers every currently eligible target before repeating one. Input order
+/// has already been shuffled by the existing visual RNG owner.
+struct NativeTutorialTargetCycle {
+    private var seen=Set<String>()
+    private var last:String?
+    mutating func select(_ ids:[String])->String? {
+        guard !ids.isEmpty else{seen.removeAll();last=nil;return nil}
+        seen.formIntersection(ids)
+        if ids.allSatisfy(seen.contains){seen.removeAll()}
+        let available=ids.filter{!seen.contains($0)}
+        guard let next=available.first(where:{$0 != last}) ?? available.first else{return nil}
+        seen.insert(next);last=next;return next
+    }
+}
+
 /// Literal first-play-tutorial.ts step-three ordering and finite cycle recipe.
 /// Input is the Scene's genuine object roster/rects; Math is the APP supplier.
 struct NativeSourceTutorialFreePlayPlan {

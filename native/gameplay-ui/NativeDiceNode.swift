@@ -504,13 +504,16 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
     }
     func endSourceBoardEntryPaint(id:UUID) {if sourceBoardEntryBinding==id{sourceBoardEntryBinding=nil}}
 
+    var sourceTutorialNormalizationReady:Bool {
+        !disposed && kind=="regular" && variant==nil && !isSpecial && !dragging &&
+            !sourceRegularFramePending && !sourceResidualWildPresence && parent != nil &&
+            !sourceOuterOwners.pickupScale && !sourceOuterOwners.snapBack &&
+            !sourceOuterOwners.mergeImpact && !sourceOuterOwners.isBeingSpawned &&
+            !sourceOuterOwners.pendingRemoval && !sourceOuterOwners.beingRemoved &&
+            !sourceOuterOwners.cleanupQueued && !sourceOuterOwners.wildSpawnDropping
+    }
     func normalizeSourceTutorialInitialTile()->Bool {
-        guard !disposed,kind=="regular",variant==nil,!isSpecial,!dragging,
-            !sourceRegularFramePending,!sourceResidualWildPresence,parent != nil,
-            !sourceOuterOwners.pickupScale,!sourceOuterOwners.snapBack,
-            !sourceOuterOwners.mergeImpact,!sourceOuterOwners.isBeingSpawned,
-            !sourceOuterOwners.pendingRemoval,!sourceOuterOwners.beingRemoved,
-            !sourceOuterOwners.cleanupQueued,!sourceOuterOwners.wildSpawnDropping else{return false}
+        guard sourceTutorialNormalizationReady else{return false}
         let capturedGeneration=sourceGeneration,capturedParent=parent
         // Existing outer owner targets this tile/scale/rotation. Keep driver,
         // shadow and independent raw frames bound; generic retirement is wrong.

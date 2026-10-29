@@ -1,0 +1,61 @@
+{
+  "tool": "built-in image_gen",
+  "request": "Reduce combined bottom stone and wood rim thickness by 60 percent on each of the three source masters; preserve front face, colors and variant damage; transparent background.",
+  "status": "Unapproved image-only candidates; visual target approximately 60 percent, not exact measured geometry; minor generative texture/crack changes. Original files and runtime unchanged.",
+  "images": [
+    {
+      "file": "variant-1.png",
+      "size": [
+        1007,
+        1562
+      ],
+      "mode": "RGBA",
+      "alpha_extrema": [
+        0,
+        255
+      ],
+      "alpha_bounds": [
+        0,
+        0,
+        997,
+        1488
+      ]
+    },
+    {
+      "file": "variant-2.png",
+      "size": [
+        1008,
+        1561
+      ],
+      "mode": "RGBA",
+      "alpha_extrema": [
+        0,
+        255
+      ],
+      "alpha_bounds": [
+        0,
+        0,
+        998,
+        1501
+      ]
+    },
+    {
+      "file": "variant-3.png",
+      "size": [
+        1007,
+        1562
+      ],
+      "mode": "RGBA",
+      "alpha_extrema": [
+        0,
+        255
+      ],
+      "alpha_bounds": [
+        0,
+        0,
+        1007,
+        1488
+      ]
+    }
+  ]
+}

@@ -743,6 +743,50 @@ import StackToSixNativeState
     func testActualCompleteLaserReverseNoTargetOwnerBoundary()async throws {
         try await runTntResumeRoot(cancelBeforeMain:false,noTargets:true,variant:"laser-gun",wildDestination:true,complete:true)
     }
+    func testLiveLaserMergeWithAlmostFullMeterKeepsPhysicalRoster()async throws {
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent("laser-live-regression-"+UUID().uuidString)
+        let store=NativeSaveStore(directory:directory)
+        var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
+        seed.progression.firstPlayTutorialComplete=true
+        seed.progression.completedJourneyBoards=Set(1...24)
+        seed.journeyRuns[25] = .init(tiles:[
+            .init(id:"source",cell:.init(column:4,row:2),value:6,archetype:.tnt,variant:"laser-gun"),
+            .init(id:"magnet",cell:.init(column:0,row:3),value:6,archetype:.magnet,variant:"spaceship"),
+            .init(id:"laser",cell:.init(column:1,row:4),value:6,archetype:.tnt,variant:"laser-gun"),
+            .init(id:"destination",cell:.init(column:4,row:4),value:5)],mode:.journey,board:25,generation:4,moves:21,score:4025,wildMeter:0.9480000000000002)
+        seed.journeyRuns[25]?.wildSpawnCount=3
+        seed.journeyRuns[25]?.lastWildDropType = .tnt
+        seed.journeyRuns[25]?.wildDropTypeStreak=1
+        try store.save(seed)
+        let host=NativeStandaloneViewController(resourceRoot:NativeTestResources.root,store:store,completeNativeGameplayEnabled:true)
+        let oldWindow=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+        let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=host;window.makeKeyAndVisible()
+        defer{host.dispose();window.isHidden=true;oldWindow?.makeKeyAndVisible();try? FileManager.default.removeItem(at:directory)}
+        let app=try await awaitMountedApp(host)
+        func wait(_ name:String,_ predicate:()->Bool)async throws {
+            let deadline=Date().addingTimeInterval(30)
+            while !predicate(){guard Date()<deadline else{XCTFail("Laser incident timeout: \(name)");throw CancellationError()};try await Task.sleep(for:.milliseconds(20))}
+        }
+        try await wait("home"){!app.home.isHidden}
+        app.navigate(.world(3),interrupt:true)
+        try await wait("continue"){if app.children.contains(where:{$0 is NativeGameplayViewController}){return true};app.world?.onRequest?("continue",25);return false}
+        let game=try XCTUnwrap(app.children.compactMap{$0 as? NativeGameplayViewController}.first)
+        try await wait("entry"){game.beforeSourceGameplayAdmission==nil && game.boardScene?.isBoardEntryComplete==true}
+        let scene=try XCTUnwrap(game.boardScene)
+        let source=try XCTUnwrap(scene.sourceNativeTileNode("source")),destination=try XCTUnwrap(scene.sourceNativeTileNode("destination"))
+        let start=scene.convert(source.position,from:try XCTUnwrap(source.parent)),end=scene.convert(destination.position,from:try XCTUnwrap(destination.parent))
+        XCTAssertTrue(scene.beginDrag(at:start));scene.moveDrag(to:end,now:Date().timeIntervalSince1970)
+        try await Task.sleep(for:.milliseconds(160))
+        XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:end,now:Date().timeIntervalSince1970)).accepted)
+        try await wait("Laser completion or rejection"){scene.sourceTntSpawnFinallyCount==1 || game.sourcePresentationFailureGeneration != nil}
+        XCTAssertNil(game.sourcePresentationFailureGeneration,"\(scene.sourcePhysicalBoardCaptureDiagnostic);\(scene.sourceTntMainDiagnostic())")
+        guard game.sourcePresentationFailureGeneration==nil else{return}
+        try await wait("meter and physical roster settle"){game.engine.pendingSpecial==nil && game.engine.meterDropReservations.isEmpty && game.engine.pendingMeterOpen==nil && scene.captureSourcePhysicalBoard() != nil}
+        XCTAssertEqual(game.engine.state.moves,20)
+        XCTAssertGreaterThan(scene.sourceTntMeterOpenWaitCount,0,"Exercise the actual overlapping hidden-open receipt")
+        XCTAssertGreaterThan(game.engine.state.wildSpawnCount,3)
+        XCTAssertNotNil(scene.captureSourcePhysicalBoard())
+    }
     func testActualCompleteLaserForwardWithTargets()async throws {
         try await runTntResumeRoot(cancelBeforeMain:false,variant:"laser-gun",complete:true)
     }

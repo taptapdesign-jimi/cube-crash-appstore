@@ -1,0 +1,1028 @@
+[
+  {
+    "index": 0,
+    "title": "Outstanding!",
+    "file": "001-outstanding.wav",
+    "start": 0.06,
+    "end": 1.24,
+    "duration": 1.18,
+    "recognised": "Outstanding!,"
+  },
+  {
+    "index": 1,
+    "title": "Amazing!",
+    "file": "002-amazing.wav",
+    "start": 1.3725,
+    "end": 2.3475,
+    "duration": 0.975,
+    "recognised": "Amazing!,"
+  },
+  {
+    "index": 2,
+    "title": "Excellent!",
+    "file": "003-excellent.wav",
+    "start": 2.622479,
+    "end": 3.447479,
+    "duration": 0.825,
+    "recognised": "Excellent!,"
+  },
+  {
+    "index": 3,
+    "title": "Fantastic!",
+    "file": "004-fantastic.wav",
+    "start": 3.6425,
+    "end": 4.7925,
+    "duration": 1.15,
+    "recognised": "Fantastic!,"
+  },
+  {
+    "index": 4,
+    "title": "Incredible!",
+    "file": "005-incredible.wav",
+    "start": 5.1175,
+    "end": 6.2525,
+    "duration": 1.135,
+    "recognised": "Incredible!,"
+  },
+  {
+    "index": 5,
+    "title": "Perfect!",
+    "file": "006-perfect.wav",
+    "start": 6.6075,
+    "end": 7.4025,
+    "duration": 0.795,
+    "recognised": "Perfect!,"
+  },
+  {
+    "index": 6,
+    "title": "Brilliant!",
+    "file": "007-brilliant.wav",
+    "start": 7.6375,
+    "end": 8.5225,
+    "duration": 0.885,
+    "recognised": "Brilliant!,"
+  },
+  {
+    "index": 7,
+    "title": "Superb!",
+    "file": "008-superb.wav",
+    "start": 8.7325,
+    "end": 9.6825,
+    "duration": 0.95,
+    "recognised": "Superb!,"
+  },
+  {
+    "index": 8,
+    "title": "Awesome!",
+    "file": "009-awesome.wav",
+    "start": 9.9975,
+    "end": 10.7625,
+    "duration": 0.765,
+    "recognised": "Awesome!,"
+  },
+  {
+    "index": 9,
+    "title": "Spectacular!",
+    "file": "010-spectacular.wav",
+    "start": 10.8975,
+    "end": 12.1775,
+    "duration": 1.28,
+    "recognised": "Spectacular!,"
+  },
+  {
+    "index": 10,
+    "title": "Magnificent!",
+    "file": "011-magnificent.wav",
+    "start": 12.3475,
+    "end": 13.5275,
+    "duration": 1.18,
+    "recognised": "Magnificent!,"
+  },
+  {
+    "index": 11,
+    "title": "Phenomenal!",
+    "file": "012-phenomenal.wav",
+    "start": 13.7075,
+    "end": 14.7825,
+    "duration": 1.075,
+    "recognised": "Phenomenal!,"
+  },
+  {
+    "index": 12,
+    "title": "Marvelous!",
+    "file": "013-marvelous.wav",
+    "start": 14.9775,
+    "end": 15.9875,
+    "duration": 1.01,
+    "recognised": "Marvelous!,"
+  },
+  {
+    "index": 13,
+    "title": "Exceptional!",
+    "file": "014-exceptional.wav",
+    "start": 16.1725,
+    "end": 17.1575,
+    "duration": 0.985,
+    "recognised": "Exceptional!,"
+  },
+  {
+    "index": 14,
+    "title": "Stellar!",
+    "file": "015-stellar.wav",
+    "start": 17.3575,
+    "end": 18.2375,
+    "duration": 0.88,
+    "recognised": "Stellar!,"
+  },
+  {
+    "index": 15,
+    "title": "Remarkable!",
+    "file": "016-remarkable.wav",
+    "start": 18.4675,
+    "end": 19.5225,
+    "duration": 1.055,
+    "recognised": "Remarkable!,"
+  },
+  {
+    "index": 16,
+    "title": "Impressive!",
+    "file": "017-impressive.wav",
+    "start": 19.8025,
+    "end": 20.7025,
+    "duration": 0.9,
+    "recognised": "Impressive!,"
+  },
+  {
+    "index": 17,
+    "title": "Unbelievable!",
+    "file": "018-unbelievable.wav",
+    "start": 20.9425,
+    "end": 22.2475,
+    "duration": 1.305,
+    "recognised": "Unbelievable!,"
+  },
+  {
+    "index": 18,
+    "title": "Wonderful!",
+    "file": "019-wonderful.wav",
+    "start": 22.4425,
+    "end": 23.4375,
+    "duration": 0.995,
+    "recognised": "Wonderful!,"
+  },
+  {
+    "index": 19,
+    "title": "Fabulous!",
+    "file": "020-fabulous.wav",
+    "start": 23.6225,
+    "end": 24.6425,
+    "duration": 1.02,
+    "recognised": "Fabulous!,"
+  },
+  {
+    "index": 20,
+    "title": "Sensational!",
+    "file": "021-sensational.wav",
+    "start": 24.7525,
+    "end": 25.9175,
+    "duration": 1.165,
+    "recognised": "Sensational!,"
+  },
+  {
+    "index": 21,
+    "title": "Terrific!",
+    "file": "022-terrific.wav",
+    "start": 26.1125,
+    "end": 26.9975,
+    "duration": 0.885,
+    "recognised": "Terrific!,"
+  },
+  {
+    "index": 22,
+    "title": "Splendid!",
+    "file": "023-splendid.wav",
+    "start": 27.1575,
+    "end": 28.1425,
+    "duration": 0.985,
+    "recognised": "Splendid!,"
+  },
+  {
+    "index": 23,
+    "title": "Exquisite!",
+    "file": "024-exquisite.wav",
+    "start": 28.3325,
+    "end": 29.2725,
+    "duration": 0.94,
+    "recognised": "Exquisite!,"
+  },
+  {
+    "index": 24,
+    "title": "Divine!",
+    "file": "025-divine.wav",
+    "start": 29.4775,
+    "end": 30.4725,
+    "duration": 0.995,
+    "recognised": "Divine,"
+  },
+  {
+    "index": 25,
+    "title": "Glorious!",
+    "file": "026-glorious.wav",
+    "start": 30.6225,
+    "end": 31.6675,
+    "duration": 1.045,
+    "recognised": "glorious,"
+  },
+  {
+    "index": 26,
+    "title": "Masterful!",
+    "file": "027-masterful.wav",
+    "start": 31.8225,
+    "end": 32.7975,
+    "duration": 0.975,
+    "recognised": "masterful,"
+  },
+  {
+    "index": 27,
+    "title": "Flawless!",
+    "file": "028-flawless.wav",
+    "start": 32.9775,
+    "end": 33.9375,
+    "duration": 0.96,
+    "recognised": "flawless,"
+  },
+  {
+    "index": 28,
+    "title": "Supreme!",
+    "file": "029-supreme.wav",
+    "start": 34.0925,
+    "end": 35.1275,
+    "duration": 1.035,
+    "recognised": "supreme,"
+  },
+  {
+    "index": 29,
+    "title": "Epic!",
+    "file": "030-epic.wav",
+    "start": 35.3425,
+    "end": 35.9675,
+    "duration": 0.625,
+    "recognised": "epic,"
+  },
+  {
+    "index": 30,
+    "title": "Legendary!",
+    "file": "031-legendary.wav",
+    "start": 36.1175,
+    "end": 37.1525,
+    "duration": 1.035,
+    "recognised": "legendary,"
+  },
+  {
+    "index": 31,
+    "title": "Radiant!",
+    "file": "032-radiant.wav",
+    "start": 37.3475,
+    "end": 38.1775,
+    "duration": 0.83,
+    "recognised": "radiant,"
+  },
+  {
+    "index": 32,
+    "title": "Majestic!",
+    "file": "033-majestic.wav",
+    "start": 38.3375,
+    "end": 39.2875,
+    "duration": 0.95,
+    "recognised": "majestic,"
+  },
+  {
+    "index": 33,
+    "title": "Unstoppable!",
+    "file": "034-unstoppable.wav",
+    "start": 39.4675,
+    "end": 40.6625,
+    "duration": 1.195,
+    "recognised": "unstoppable,"
+  },
+  {
+    "index": 34,
+    "title": "Victorious!",
+    "file": "035-victorious.wav",
+    "start": 40.8125,
+    "end": 41.8425,
+    "duration": 1.03,
+    "recognised": "victorious,"
+  },
+  {
+    "index": 35,
+    "title": "Triumphant!",
+    "file": "036-triumphant.wav",
+    "start": 41.9675,
+    "end": 42.9525,
+    "duration": 0.985,
+    "recognised": "triumphant,"
+  },
+  {
+    "index": 36,
+    "title": "Dominant!",
+    "file": "037-dominant.wav",
+    "start": 43.0975,
+    "end": 43.9525,
+    "duration": 0.855,
+    "recognised": "dominant,"
+  },
+  {
+    "index": 37,
+    "title": "Epicness!",
+    "file": "038-epicness.wav",
+    "start": 44.1425,
+    "end": 45.0425,
+    "duration": 0.9,
+    "recognised": "epicness,"
+  },
+  {
+    "index": 38,
+    "title": "Powerful!",
+    "file": "039-powerful.wav",
+    "start": 45.1825,
+    "end": 46.0425,
+    "duration": 0.86,
+    "recognised": "powerful,"
+  },
+  {
+    "index": 39,
+    "title": "Heroic!",
+    "file": "040-heroic.wav",
+    "start": 46.1975,
+    "end": 47.0125,
+    "duration": 0.815,
+    "recognised": "heroic,"
+  },
+  {
+    "index": 40,
+    "title": "Gorgeous!",
+    "file": "041-gorgeous.wav",
+    "start": 47.1775,
+    "end": 48.0825,
+    "duration": 0.905,
+    "recognised": "gorgeous,"
+  },
+  {
+    "index": 41,
+    "title": "Sparkling!",
+    "file": "042-sparkling.wav",
+    "start": 48.1925,
+    "end": 49.1725,
+    "duration": 0.98,
+    "recognised": "sparkling,"
+  },
+  {
+    "index": 42,
+    "title": "Blazing!",
+    "file": "043-blazing.wav",
+    "start": 49.2675,
+    "end": 50.2125,
+    "duration": 0.945,
+    "recognised": "blazing,"
+  },
+  {
+    "index": 43,
+    "title": "Vibrant!",
+    "file": "044-vibrant.wav",
+    "start": 50.3375,
+    "end": 51.1625,
+    "duration": 0.825,
+    "recognised": "vibrant,"
+  },
+  {
+    "index": 44,
+    "title": "Shining!",
+    "file": "045-shining.wav",
+    "start": 51.2775,
+    "end": 52.1225,
+    "duration": 0.845,
+    "recognised": "shining,"
+  },
+  {
+    "index": 45,
+    "title": "Golden!",
+    "file": "046-golden.wav",
+    "start": 52.2525,
+    "end": 53.0875,
+    "duration": 0.835,
+    "recognised": "golden,"
+  },
+  {
+    "index": 46,
+    "title": "Prime!",
+    "file": "047-prime.wav",
+    "start": 53.2325,
+    "end": 53.9775,
+    "duration": 0.745,
+    "recognised": "prime,"
+  },
+  {
+    "index": 47,
+    "title": "Royal!",
+    "file": "048-royal.wav",
+    "start": 54.1075,
+    "end": 54.8425,
+    "duration": 0.735,
+    "recognised": "royal,"
+  },
+  {
+    "index": 48,
+    "title": "Ace!",
+    "file": "049-ace.wav",
+    "start": 55.0025,
+    "end": 55.6475,
+    "duration": 0.645,
+    "recognised": "ace,"
+  },
+  {
+    "index": 49,
+    "title": "Infinite!",
+    "file": "050-infinite.wav",
+    "start": 55.7875,
+    "end": 56.5225,
+    "duration": 0.735,
+    "recognised": "infinite,"
+  },
+  {
+    "index": 50,
+    "title": "Titanic!",
+    "file": "051-titanic.wav",
+    "start": 56.6575,
+    "end": 57.5775,
+    "duration": 0.92,
+    "recognised": "titanic,"
+  },
+  {
+    "index": 51,
+    "title": "Grand!",
+    "file": "052-grand.wav",
+    "start": 57.6875,
+    "end": 58.4975,
+    "duration": 0.81,
+    "recognised": "grand,"
+  },
+  {
+    "index": 52,
+    "title": "Mythic!",
+    "file": "053-mythic.wav",
+    "start": 58.6075,
+    "end": 59.3575,
+    "duration": 0.75,
+    "recognised": "mythic,"
+  },
+  {
+    "index": 53,
+    "title": "Immortal!",
+    "file": "054-immortal.wav",
+    "start": 59.5025,
+    "end": 60.3425,
+    "duration": 0.84,
+    "recognised": "immortal,"
+  },
+  {
+    "index": 54,
+    "title": "Mega!",
+    "file": "055-mega.wav",
+    "start": 60.4575,
+    "end": 61.2025,
+    "duration": 0.745,
+    "recognised": "mega,"
+  },
+  {
+    "index": 55,
+    "title": "Ultra!",
+    "file": "056-ultra.wav",
+    "start": 61.3725,
+    "end": 62.0575,
+    "duration": 0.685,
+    "recognised": "ultra,"
+  },
+  {
+    "index": 56,
+    "title": "Primeval!",
+    "file": "057-primeval.wav",
+    "start": 62.1975,
+    "end": 63.0975,
+    "duration": 0.9,
+    "recognised": "primeval,"
+  },
+  {
+    "index": 57,
+    "title": "Booming!",
+    "file": "058-booming.wav",
+    "start": 63.2025,
+    "end": 64.007479,
+    "duration": 0.805,
+    "recognised": "booming,"
+  },
+  {
+    "index": 58,
+    "title": "Nice win!",
+    "file": "059-nice-win.wav",
+    "start": 64.177479,
+    "end": 65.037479,
+    "duration": 0.86,
+    "recognised": "nice win,"
+  },
+  {
+    "index": 59,
+    "title": "Clean board!",
+    "file": "060-clean-board.wav",
+    "start": 65.2325,
+    "end": 66.1175,
+    "duration": 0.885,
+    "recognised": "clean board,"
+  },
+  {
+    "index": 60,
+    "title": "Cleared it!",
+    "file": "061-cleared-it.wav",
+    "start": 66.2725,
+    "end": 66.9425,
+    "duration": 0.67,
+    "recognised": "cleared it,"
+  },
+  {
+    "index": 61,
+    "title": "Nailed it!",
+    "file": "062-nailed-it.wav",
+    "start": 67.0825,
+    "end": 67.8725,
+    "duration": 0.79,
+    "recognised": "nailed it."
+  },
+  {
+    "index": 62,
+    "title": "You won!",
+    "file": "063-you-won.wav",
+    "start": 68.017479,
+    "end": 68.822479,
+    "duration": 0.805,
+    "recognised": "You won,"
+  },
+  {
+    "index": 63,
+    "title": "Yesss!",
+    "file": "064-yesss.wav",
+    "start": 68.9175,
+    "end": 69.772479,
+    "duration": 0.855,
+    "recognised": "yes,"
+  },
+  {
+    "index": 64,
+    "title": "Wooow!",
+    "file": "065-wooow.wav",
+    "start": 69.877479,
+    "end": 70.777479,
+    "duration": 0.9,
+    "recognised": "wow,"
+  },
+  {
+    "index": 65,
+    "title": "Sweet win!",
+    "file": "066-sweet-win.wav",
+    "start": 70.8475,
+    "end": 71.9375,
+    "duration": 1.09,
+    "recognised": "sweet win,"
+  },
+  {
+    "index": 66,
+    "title": "Easy win!",
+    "file": "067-easy-win.wav",
+    "start": 72.0475,
+    "end": 72.9525,
+    "duration": 0.905,
+    "recognised": "easy win,"
+  },
+  {
+    "index": 67,
+    "title": "Big win!",
+    "file": "068-big-win.wav",
+    "start": 73.0175,
+    "end": 73.8975,
+    "duration": 0.88,
+    "recognised": "big win,"
+  },
+  {
+    "index": 68,
+    "title": "Smooth!",
+    "file": "069-smooth.wav",
+    "start": 73.9725,
+    "end": 74.8025,
+    "duration": 0.83,
+    "recognised": "smooth,"
+  },
+  {
+    "index": 69,
+    "title": "So clean!",
+    "file": "070-so-clean.wav",
+    "start": 74.8925,
+    "end": 76.0025,
+    "duration": 1.11,
+    "recognised": "so clean,"
+  },
+  {
+    "index": 70,
+    "title": "Well played!",
+    "file": "071-well-played.wav",
+    "start": 76.1125,
+    "end": 76.9075,
+    "duration": 0.795,
+    "recognised": "well played,"
+  },
+  {
+    "index": 71,
+    "title": "Nice one!",
+    "file": "072-nice-one.wav",
+    "start": 77.0125,
+    "end": 77.7325,
+    "duration": 0.72,
+    "recognised": "nice one."
+  },
+  {
+    "index": 72,
+    "title": "Great job!",
+    "file": "073-great-job.wav",
+    "start": 77.8325,
+    "end": 78.7975,
+    "duration": 0.965,
+    "recognised": "Great job."
+  },
+  {
+    "index": 73,
+    "title": "Boom!",
+    "file": "074-boom.wav",
+    "start": 78.8525,
+    "end": 79.6425,
+    "duration": 0.79,
+    "recognised": ""
+  },
+  {
+    "index": 74,
+    "title": "Dice done!",
+    "file": "075-dice-done.wav",
+    "start": 79.6825,
+    "end": 80.6375,
+    "duration": 0.955,
+    "recognised": "Dice done."
+  },
+  {
+    "index": 75,
+    "title": "Dice cleared!",
+    "file": "076-dice-cleared.wav",
+    "start": 80.6975,
+    "end": 81.6575,
+    "duration": 0.96,
+    "recognised": "Dice cleared."
+  },
+  {
+    "index": 76,
+    "title": "Dice master!",
+    "file": "077-dice-master.wav",
+    "start": 81.7275,
+    "end": 82.9975,
+    "duration": 1.27,
+    "recognised": "Dice master."
+  },
+  {
+    "index": 77,
+    "title": "Rollin’!",
+    "file": "078-rollin.wav",
+    "start": 83.0675,
+    "end": 83.8125,
+    "duration": 0.745,
+    "recognised": "Rollin'."
+  },
+  {
+    "index": 78,
+    "title": "Roll perfect!",
+    "file": "079-roll-perfect.wav",
+    "start": 83.8825,
+    "end": 85.0575,
+    "duration": 1.175,
+    "recognised": "Roll perfect."
+  },
+  {
+    "index": 79,
+    "title": "Lucky six!",
+    "file": "080-lucky-six.wav",
+    "start": 85.1325,
+    "end": 86.0575,
+    "duration": 0.925,
+    "recognised": "Lucky six."
+  },
+  {
+    "index": 80,
+    "title": "Six it up!",
+    "file": "081-six-it-up.wav",
+    "start": 86.1075,
+    "end": 86.9375,
+    "duration": 0.83,
+    "recognised": "Six it up."
+  },
+  {
+    "index": 81,
+    "title": "Stack cleared!",
+    "file": "082-stack-cleared.wav",
+    "start": 87.0275,
+    "end": 88.1175,
+    "duration": 1.09,
+    "recognised": "Stack cleared."
+  },
+  {
+    "index": 82,
+    "title": "Stack smashed!",
+    "file": "083-stack-smashed.wav",
+    "start": 88.1725,
+    "end": 89.4825,
+    "duration": 1.31,
+    "recognised": "Stack smashed."
+  },
+  {
+    "index": 83,
+    "title": "Stack complete!",
+    "file": "084-stack-complete.wav",
+    "start": 89.5525,
+    "end": 90.5775,
+    "duration": 1.025,
+    "recognised": "Stack complete."
+  },
+  {
+    "index": 84,
+    "title": "Stack attack!",
+    "file": "085-stack-attack.wav",
+    "start": 90.6525,
+    "end": 91.6975,
+    "duration": 1.045,
+    "recognised": "Stack attack."
+  },
+  {
+    "index": 85,
+    "title": "Stacktastic!",
+    "file": "086-stacktastic.wav",
+    "start": 91.7625,
+    "end": 92.9425,
+    "duration": 1.18,
+    "recognised": "Stack tastic."
+  },
+  {
+    "index": 86,
+    "title": "Stack magic!",
+    "file": "087-stack-magic.wav",
+    "start": 93.0175,
+    "end": 94.2025,
+    "duration": 1.185,
+    "recognised": "Stack magic."
+  },
+  {
+    "index": 87,
+    "title": "Stack nailed!",
+    "file": "088-stack-nailed.wav",
+    "start": 94.2775,
+    "end": 95.4975,
+    "duration": 1.22,
+    "recognised": "Stack nailed."
+  },
+  {
+    "index": 88,
+    "title": "Board smashed!",
+    "file": "089-board-smashed.wav",
+    "start": 95.5475,
+    "end": 96.7625,
+    "duration": 1.215,
+    "recognised": "Board smashed."
+  },
+  {
+    "index": 89,
+    "title": "Board cleared!",
+    "file": "090-board-cleared.wav",
+    "start": 96.8425,
+    "end": 97.7225,
+    "duration": 0.88,
+    "recognised": "Board cleared."
+  },
+  {
+    "index": 90,
+    "title": "Clean sweep!",
+    "file": "091-clean-sweep.wav",
+    "start": 97.8075,
+    "end": 98.8125,
+    "duration": 1.005,
+    "recognised": "Clean sweep."
+  },
+  {
+    "index": 91,
+    "title": "Full clear!",
+    "file": "092-full-clear.wav",
+    "start": 98.8975,
+    "end": 99.8225,
+    "duration": 0.925,
+    "recognised": "Full clear."
+  },
+  {
+    "index": 92,
+    "title": "Total clear!",
+    "file": "093-total-clear.wav",
+    "start": 99.8875,
+    "end": 100.8575,
+    "duration": 0.97,
+    "recognised": "Total clear."
+  },
+  {
+    "index": 93,
+    "title": "Perfect clear!",
+    "file": "094-perfect-clear.wav",
+    "start": 100.9225,
+    "end": 101.9525,
+    "duration": 1.03,
+    "recognised": "Perfect clear."
+  },
+  {
+    "index": 94,
+    "title": "All gone!",
+    "file": "095-all-gone.wav",
+    "start": 102.0275,
+    "end": 102.8475,
+    "duration": 0.82,
+    "recognised": "All gone."
+  },
+  {
+    "index": 95,
+    "title": "Done & dusted!",
+    "file": "096-done-dusted.wav",
+    "start": 102.8825,
+    "end": 104.2175,
+    "duration": 1.335,
+    "recognised": "Done and dusted."
+  },
+  {
+    "index": 96,
+    "title": "Crushed it!",
+    "file": "097-crushed-it.wav",
+    "start": 104.2625,
+    "end": 105.0375,
+    "duration": 0.775,
+    "recognised": "Crushed it."
+  },
+  {
+    "index": 97,
+    "title": "Smashed it!",
+    "file": "098-smashed-it.wav",
+    "start": 105.0875,
+    "end": 105.9925,
+    "duration": 0.905,
+    "recognised": "Smashed it."
+  },
+  {
+    "index": 98,
+    "title": "Owned it!",
+    "file": "099-owned-it.wav",
+    "start": 106.0775,
+    "end": 106.7225,
+    "duration": 0.645,
+    "recognised": "Owned it."
+  },
+  {
+    "index": 99,
+    "title": "Got ’em!",
+    "file": "100-got-em.wav",
+    "start": 106.7875,
+    "end": 107.4375,
+    "duration": 0.65,
+    "recognised": "Got"
+  },
+  {
+    "index": 100,
+    "title": "That’s it!",
+    "file": "101-that-s-it.wav",
+    "start": 107.4975,
+    "end": 108.2025,
+    "duration": 0.705,
+    "recognised": "That's it!"
+  },
+  {
+    "index": 101,
+    "title": "Oh yeah!",
+    "file": "102-oh-yeah.wav",
+    "start": 108.2475,
+    "end": 109.2125,
+    "duration": 0.965,
+    "recognised": "Oh yeah!"
+  },
+  {
+    "index": 102,
+    "title": "Heck yeah!",
+    "file": "103-heck-yeah.wav",
+    "start": 109.2825,
+    "end": 110.1525,
+    "duration": 0.87,
+    "recognised": "Heck yeah!"
+  },
+  {
+    "index": 103,
+    "title": "Let’s gooo!",
+    "file": "104-let-s-gooo.wav",
+    "start": 110.1875,
+    "end": 111.3425,
+    "duration": 1.155,
+    "recognised": "Let's go!"
+  },
+  {
+    "index": 104,
+    "title": "Too easy!",
+    "file": "105-too-easy.wav",
+    "start": 111.3925,
+    "end": 112.4225,
+    "duration": 1.03,
+    "recognised": "Too easy!"
+  },
+  {
+    "index": 105,
+    "title": "So good!",
+    "file": "106-so-good.wav",
+    "start": 112.5025,
+    "end": 113.5675,
+    "duration": 1.065,
+    "recognised": "So good!"
+  },
+  {
+    "index": 106,
+    "title": "Super clean!",
+    "file": "107-super-clean.wav",
+    "start": 113.5975,
+    "end": 114.7075,
+    "duration": 1.11,
+    "recognised": "Super clean!"
+  },
+  {
+    "index": 107,
+    "title": "Mega win!",
+    "file": "108-mega-win.wav",
+    "start": 114.7475,
+    "end": 115.7525,
+    "duration": 1.005,
+    "recognised": "Megawin!"
+  },
+  {
+    "index": 108,
+    "title": "Epic clear!",
+    "file": "109-epic-clear.wav",
+    "start": 115.8175,
+    "end": 116.7925,
+    "duration": 0.975,
+    "recognised": "Epic clear!"
+  },
+  {
+    "index": 109,
+    "title": "Dicey nice!",
+    "file": "110-dicey-nice.wav",
+    "start": 116.8225,
+    "end": 117.8825,
+    "duration": 1.06,
+    "recognised": "Dicy nice!"
+  },
+  {
+    "index": 110,
+    "title": "Roll star!",
+    "file": "111-roll-star.wav",
+    "start": 117.9275,
+    "end": 119.0325,
+    "duration": 1.105,
+    "recognised": "Roll star!"
+  },
+  {
+    "index": 111,
+    "title": "Stack star!",
+    "file": "112-stack-star.wav",
+    "start": 119.0675,
+    "end": 120.1425,
+    "duration": 1.075,
+    "recognised": "Stack star!"
+  },
+  {
+    "index": 112,
+    "title": "Sixcess!",
+    "file": "113-sixcess.wav",
+    "start": 120.1725,
+    "end": 121.1725,
+    "duration": 1.0,
+    "recognised": "Success!"
+  },
+  {
+    "index": 113,
+    "title": "Dice-lightful!",
+    "file": "114-dice-lightful.wav",
+    "start": 121.2075,
+    "end": 122.3725,
+    "duration": 1.165,
+    "recognised": "Dice Lightful!"
+  }
+]

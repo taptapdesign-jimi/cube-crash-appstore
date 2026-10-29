@@ -100,6 +100,14 @@ import StackToSixGameplay
         self.sourcePromiseBookkeeping=sourcePromiseBookkeeping
     }
     var retainedNodeIDs:Set<String>{core.retainedNodeIDs}
+    /// Only a constructor-owned, not-yet-canonical hidden open can defer a
+    /// roster reader. Unrelated node/model mismatches still fail normally.
+    @discardableResult func whenPendingHiddenOpenSettled(_ callback:@escaping()->Void)->Bool {
+        guard sourcePromiseBookkeeping,valid(),let request=engine.pendingMeterOpen,
+              !engine.state.tiles.contains(where:{$0.id==request.tile.id}) else{return false}
+        return core.whenPendingOpenSettled(request,callback)
+    }
+
     func captureSourceTileDropMarkers(_ node:NativeDiceNode)->NativeWildMeterDropRuntime.SourceTileMarkers? {
         guard sourcePromiseBookkeeping,valid(),let stage,node.parent === stage,node.sourcePhysicalMarkersCovered,
               node.sourceGeneration==engine.state.generation,let cell=node.sourceGridCell,

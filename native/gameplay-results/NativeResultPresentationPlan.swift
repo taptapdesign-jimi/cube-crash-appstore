@@ -4,8 +4,15 @@ import CoreGraphics
 /// Read-only projection of clean-board-modal / board-fail-modal. The terminal owner
 /// supplies time and persisted values; this module never commits a result or route.
 enum NativeResultPresentationPlan {
-    static let cleanPrimaryCTAStart=6.62
+    static let cleanCountingScale=0.8
+    static func cleanCountingTime(_ authored:Double)->Double {0.47+(authored-0.47)*cleanCountingScale}
+    static let cleanComboStart=cleanCountingTime(2.15)
+    static let cleanEfficiencyStart=cleanCountingTime(4.6)
+    static let cleanEfficiencyReveal=cleanCountingTime(3.97)
+    static let cleanPrimaryCTAStart=cleanCountingTime(6.62)
+    static func cleanCounterDuration(from:Int,to:Int)->Double {counterDuration(from:from,to:to)*cleanCountingScale}
     static let cleanAfterClearedStart=0.47
+    static let failAfterNoMovesStart=0.47
     struct Pose: Equatable {
         var opacity:Double=1,scale:Double=1,y:Double=0,scaleBeforeTranslation=false
         /// CSS function order matters: Clean uses scale() translateY(), Fail
@@ -54,18 +61,18 @@ enum NativeResultPresentationPlan {
                 status:enter(t,at:0.42,duration:0.55,y:-10,clean:false,startScale:0.82),primary:cta(t,at:0.64),secondary:cta(t,at:0.82),
                 displayedScore:baseScore,displayedCombo:0,displayedEfficiency:0)
         }
-        var shown=counter(from:0,to:baseScore,age:t-0.47)
-        if !arcadeReached,t>=2.15 {shown=counter(from:baseScore,to:baseScore+combo,age:t-2.15)}
-        if !arcadeReached,t>=4.6 {shown=counter(from:baseScore+combo,to:baseScore+combo+efficiency,age:t-4.6)}
+        var shown=counter(from:0,to:baseScore,age:t-0.47,duration:cleanCounterDuration(from:0,to:baseScore))
+        if !arcadeReached,t>=cleanComboStart {shown=counter(from:baseScore,to:baseScore+combo,age:t-cleanComboStart,duration:cleanCounterDuration(from:baseScore,to:baseScore+combo))}
+        if !arcadeReached,t>=cleanEfficiencyStart {shown=counter(from:baseScore+combo,to:baseScore+combo+efficiency,age:t-cleanEfficiencyStart,duration:cleanCounterDuration(from:baseScore+combo,to:baseScore+combo+efficiency))}
         var main=enter(t,at:0.42,duration:0.65,y:-10,clean:true)
-        if !arcadeReached {main.scale *= pulse(t,at:2.15,enabled:combo>0)*pulse(t,at:4.6,enabled:efficiency>0)}
+        if !arcadeReached {main.scale *= pulse(t,at:cleanComboStart,enabled:combo>0)*pulse(t,at:cleanEfficiencyStart,enabled:efficiency>0)}
         return Sample(hero:enter(t,at:0.1,duration:0.65,y:-25,clean:true),title:enter(t,at:0.22,duration:0.65,y:-20,clean:true),
             scoreLabel:enter(t,at:0.32,duration:0.65,y:-15,clean:true),score:main,
-            combo:arcadeReached ? Pose(opacity:0):bonus(t,at:1.35,hide:3.65),efficiency:arcadeReached ? Pose(opacity:0):bonus(t,at:3.97,hide:6.1),
-            status:Pose(opacity:bezier(bounded((t-(arcadeReached ? 1.45:6.42))/0.4),0.25,0.1,0.25,1)),
-            primary:cta(t,at:arcadeReached ? 2.05:cleanPrimaryCTAStart),secondary:cta(t,at:arcadeReached ? 2.40:6.97),displayedScore:shown,
-            displayedCombo:combo-counter(from:0,to:combo,age:t-2.15,duration:1.4),
-            displayedEfficiency:efficiency-counter(from:0,to:efficiency,age:t-4.6,duration:1.4))
+            combo:arcadeReached ? Pose(opacity:0):bonus(t,at:cleanCountingTime(1.35),hide:cleanCountingTime(3.65)),efficiency:arcadeReached ? Pose(opacity:0):bonus(t,at:cleanEfficiencyReveal,hide:cleanCountingTime(6.1)),
+            status:Pose(opacity:bezier(bounded((t-(arcadeReached ? 1.45:cleanCountingTime(6.42)))/0.4),0.25,0.1,0.25,1)),
+            primary:cta(t,at:arcadeReached ? 2.05:cleanPrimaryCTAStart),secondary:cta(t,at:arcadeReached ? 2.40:cleanPrimaryCTAStart+0.35),displayedScore:shown,
+            displayedCombo:combo-counter(from:0,to:combo,age:t-cleanComboStart,duration:cleanCounterDuration(from:baseScore,to:baseScore+combo)),
+            displayedEfficiency:efficiency-counter(from:0,to:efficiency,age:t-cleanEfficiencyStart,duration:cleanCounterDuration(from:baseScore+combo,to:baseScore+combo+efficiency)))
     }
     static func filledStarScale(seconds:Double,index:Int)->Double {
         let age=seconds-(0.6+Double(index)*0.5)
@@ -106,12 +113,12 @@ enum NativeResultPresentationPlan {
         return Pose(opacity:bounded(s),scale:s,y:18*(1-s))
     }
     private static func bonus(_ t:Double,at:Double,hide:Double)->Pose {
-        if t>=hide {let p=bezier(bounded((t-hide)/0.3),0.25,0.1,0.25,1);return Pose(opacity:1-p,scale:1-p*0.2,y:-8*p,scaleBeforeTranslation:true)}
-        let p=bezier(bounded((t-at)/0.55),0.68,-0.8,0.265,1.8);return Pose(opacity:bounded(p),scale:0.65+p*0.35,y:-6*(1-p),scaleBeforeTranslation:true)
+        if t>=hide {let p=bezier(bounded((t-hide)/(0.3*cleanCountingScale)),0.25,0.1,0.25,1);return Pose(opacity:1-p,scale:1-p*0.2,y:-8*p,scaleBeforeTranslation:true)}
+        let p=bezier(bounded((t-at)/(0.55*cleanCountingScale)),0.68,-0.8,0.265,1.8);return Pose(opacity:bounded(p),scale:0.65+p*0.35,y:-6*(1-p),scaleBeforeTranslation:true)
     }
     private static func pulse(_ t:Double,at:Double,enabled:Bool)->Double {
         guard enabled,t>=at else{return 1}
-        let age=t-at,e: (Double)->Double={bezier(bounded($0),0.34,1.56,0.64,1)}
+        let age=(t-at)/cleanCountingScale,e: (Double)->Double={bezier(bounded($0),0.34,1.56,0.64,1)}
         if age<0.42{return 1+0.08*e(age/0.6)}
         let start=1+0.08*e(0.42/0.6);return start+(1-start)*e((age-0.42)/0.55)
     }

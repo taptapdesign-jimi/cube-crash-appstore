@@ -26,6 +26,7 @@ enum NativeTutorialSheetMotion {
     }
     private let service:NativeSourceAnimationClockService,timeouts:NativeSourceAppTimeoutOwner
     private let immediateSheet:Bool,nativeSheetMotion:Bool
+    private let deferInitialPointer:Bool
     private let generation:UInt64,current:()->Bool,sheet:(Double)->Void,pointer:(PointerPose)->Void,reveal:()->Void,focus:()->Void
     private var timers:[NativeSourceAppTimeoutOwner.Receipt]=[]
     private var sheetPaint:Paint?,pointerPaint:Paint?,hintPaint:Paint?
@@ -39,11 +40,12 @@ enum NativeTutorialSheetMotion {
     private(set) var sheetStarted=false,pointerStarted=false
     var pendingTimerCount:Int{timers.count}
     init?(service:NativeSourceAnimationClockService,timeouts:NativeSourceAppTimeoutOwner,generation:UInt64,
-          immediateSheet:Bool=false,nativeSheetMotion:Bool=false,current:@escaping()->Bool,sheet:@escaping(Double)->Void,pointer:@escaping(PointerPose)->Void,
+          immediateSheet:Bool=false,nativeSheetMotion:Bool=false,deferInitialPointer:Bool=false,current:@escaping()->Bool,sheet:@escaping(Double)->Void,pointer:@escaping(PointerPose)->Void,
           reveal:@escaping()->Void,focus:@escaping()->Void,conceal:@escaping()->Void={},dim:@escaping(Double)->Void={_ in}) {
         guard generation>0,service.sourceMicrotaskRAFBoundaryInstalled,
               let tasks=service.sourceMicrotaskTasks,timeouts.sourceMicrotaskTasks === tasks,current() else{return nil}
         self.immediateSheet=immediateSheet;self.nativeSheetMotion=nativeSheetMotion
+        self.deferInitialPointer=deferInitialPointer
         self.service=service;self.timeouts=timeouts;self.generation=generation
         self.current=current;self.sheet=sheet;self.pointer=pointer;self.reveal=reveal;self.focus=focus;self.conceal=conceal;self.dim=dim
     }
@@ -55,7 +57,7 @@ enum NativeTutorialSheetMotion {
         // Source pushes pointer1200 before sheet800. Keep insertion order too.
         if immediateSheet {
             // Preserve the pointer's 400ms offset from the sheet entry.
-            schedule("tutorial-pointer400",400){[weak self] in self?.startPointer(scheduleFocus:true)}
+            if !deferInitialPointer{schedule("tutorial-pointer400",400){[weak self] in self?.startPointer(scheduleFocus:true)}}
             startSheet()
         } else {
             schedule("tutorial-pointer1200",1200){[weak self] in self?.startPointer(scheduleFocus:true)}
@@ -119,9 +121,18 @@ enum NativeTutorialSheetMotion {
     private func cancelSheet(){sheetEpoch &+= 1;let old=sheetLease;sheetLease=nil;sheetPaint=nil;old?.cancel(success:false)}
     /// These are real finite APP roots. Only their successful captured cleanup
     /// may advance a tutorial phase; cancellation/overwrite never completes it.
-    /// Independent intro wall timers deliberately remain armed, like Source.
+    /// Reference intro wall timers retain Source behavior. Native step exits
+    /// retire delayed hand entrances which could overwrite their completion.
     @discardableResult func popOutPointer(completed:@escaping()->Void)->Bool {
-        guard admitted() else{return false};cancelPointer();let epoch=pointerEpoch,from=paintedPointer
+        guard admitted() else{return false}
+        if nativeSheetMotion {
+            // A fast real merge can beat the delayed hand entrance. That old
+            // entrance must not overwrite the exit which owns step completion.
+            let delayed=timers.filter{["tutorial-pointer400","tutorial-pointer1200","tutorial-second-pointer400"].contains($0.sourceID)}
+            timers.removeAll{delayed.contains($0)}
+            for receipt in delayed{_=timeouts.cancel(receipt)}
+        }
+        cancelPointer();let epoch=pointerEpoch,from=paintedPointer
         let paint=Paint{[weak self] seconds in
             guard let self else{return};guard self.admitted() else{self.dispose();return};guard self.pointerEpoch==epoch else{return}
             let t=Self.backIn(seconds/0.2,1.7)

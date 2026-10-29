@@ -70,7 +70,9 @@ nonisolated final class NativeWildMeterDropRenderingTests:XCTestCase {
             // Compare the actual SpriteKit node-to-view transform, original PNG
             // dimensions, anchor and frame switches with independently captured
             // v9 GSAP poses. Plan constants alone cannot prove rendered size.
-            for row in record.rows where row.time<1.4 {
+            // The independently captured v9 oracle covers unchanged entry/Arcade.
+            // Native backpack exit is covered by its dedicated motion regression.
+            for row in record.rows where row.time<1.4 && (record.arcade || row.time<1.08) {
                 owner.advance(animationSeconds:row.time,wallMilliseconds:row.time*1000,renderEpoch:1)
                 let sprite=try XCTUnwrap(owner.children.first as? SKSpriteNode)
                 let pixels=try XCTUnwrap(pixelSizes[row.carrier.frame])

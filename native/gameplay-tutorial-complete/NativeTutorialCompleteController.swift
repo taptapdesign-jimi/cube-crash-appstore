@@ -32,7 +32,8 @@ final class NativeTutorialCompleteController: UIViewController {
         artwork = JimiV9Artwork(resourceRoot: resourceRoot); self.reducedMotion = reducedMotion ?? UIAccessibility.isReduceMotionEnabled
         paper=NativeAppPaperSurface(artwork:artwork,textureBottomExtension:24)
         super.init(nibName: nil,bundle: nil)
-        titleLabel.text = title; subtitleLabel.text = subtitle
+        titleLabel.text = title == "Tutorial completed" ? "Tutorial\ncompleted":title
+        titleLabel.accessibilityLabel=title;subtitleLabel.text = subtitle
         modalPresentationStyle = .overFullScreen
     }
     required init?(coder: NSCoder) { fatalError("Use native tutorial completion initializer") }
@@ -42,7 +43,7 @@ final class NativeTutorialCompleteController: UIViewController {
         paper.autoresizingMask = [.flexibleWidth,.flexibleHeight]; view.addSubview(paper)
         titleLabel.textAlignment = .center; titleLabel.numberOfLines = 0;titleLabel.lineBreakMode = .byWordWrapping
         titleLabel.textColor = UIColor(red:239/255,green:116/255,blue:77/255,alpha:1)
-        subtitleLabel.textAlignment = .center; subtitleLabel.numberOfLines = 0;titleLabel.lineBreakMode = .byWordWrapping
+        subtitleLabel.textAlignment = .center; subtitleLabel.numberOfLines = 0;subtitleLabel.lineBreakMode = .byWordWrapping
         subtitleLabel.textColor = NativeTextPalette.subtitle
         thumb.image = artwork.image("assets/thumbs-up@2x.png"); thumb.contentMode = .scaleAspectFit
         thumb.layer.anchorPoint = CGPoint(x:0.5,y:0.74)
@@ -69,33 +70,47 @@ final class NativeTutorialCompleteController: UIViewController {
     }
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        let width = view.bounds.width, height = view.bounds.height, compact = height <= 760
-        paper.frame = view.bounds
+        let width=view.bounds.width,height=view.bounds.height,compact=height<740
+        paper.frame=view.bounds
         visualUnit.bounds=view.bounds;visualUnit.center=CGPoint(x:width/2,y:height*0.54)
         visualUnit.layer.anchorPoint=CGPoint(x:0.5,y:0.54)
-        let top: CGFloat = compact ? 58 : min(150,max(92,height*0.15))
-        let titleSize = min(64,max(44,width*0.094)), subtitleSize = min(32,max(23,width*0.051))
-        titleLabel.font = artwork.font(size:titleSize,weight:"ExtraBold")
-        subtitleLabel.font = artwork.font(size:subtitleSize,weight:"SemiBold")
-        titleLabel.bounds = CGRect(x:0,y:0,width:width-48,height:ceil(titleLabel.sizeThatFits(CGSize(width:width-48,height:.greatestFiniteMagnitude)).height))
-        titleLabel.center = CGPoint(x:width/2,y:top-16+titleLabel.bounds.height/2)
-        subtitleLabel.bounds = CGRect(x:0,y:0,width:width-48,height:subtitleSize*1.2+8)
-        subtitleLabel.center = CGPoint(x:width/2,y:titleLabel.center.y+titleLabel.bounds.height/2+26+subtitleLabel.bounds.height/2)
-        let margin = compact ? CGFloat(42) : min(132,max(76,height*0.15))
-        let heroSize = compact ? min(width*0.58,320) : min(width*0.68,420)
-        let heroTop = subtitleLabel.center.y+subtitleLabel.bounds.height/2+margin-24
-        thumb.bounds = CGRect(x:0,y:0,width:heroSize,height:heroSize)
-        thumb.layer.position = CGPoint(x:width/2,y:heroTop-16+heroSize*0.74)
-        let shadowHeight = heroSize*0.18
-        let size=CGSize(width:heroSize*0.76,height:shadowHeight)
-        if shadowSize != size {shadowSize=size;shadow.image=Self.makeShadow(size:size)}
-        shadow.bounds = CGRect(x:0,y:0,width:size.width+72,height:size.height+72)
-        shadow.center = CGPoint(x:width/2,y:heroTop+heroSize+heroSize*0.03+24-shadowHeight/2)
+        let contentWidth=width-48
+        let titleSize:CGFloat=width<350 ? 34:40,subtitleSize:CGFloat=compact ? 20:22
+        titleLabel.font=artwork.font(size:titleSize,weight:"ExtraBold")
+        let titleParagraph=NSMutableParagraphStyle()
+        titleParagraph.alignment = .center;titleParagraph.lineBreakMode = .byWordWrapping
+        titleParagraph.minimumLineHeight=titleSize*1.1;titleParagraph.maximumLineHeight=titleSize*1.1
+        titleLabel.attributedText=NSAttributedString(string:titleLabel.text ?? "",attributes:[
+            .font:titleLabel.font!,.foregroundColor:titleLabel.textColor!,.paragraphStyle:titleParagraph,
+            .baselineOffset:(titleSize*1.1-titleLabel.font.lineHeight)/2])
+        subtitleLabel.font=artwork.font(size:subtitleSize,weight:"SemiBold")
+        subtitleLabel.attributedText=NativeModalTypography.attributedSubtitle(subtitleLabel.text ?? "",font:subtitleLabel.font)
+        let top=max(view.safeAreaInsets.top+24,min(112,height*0.13))
+        let titleHeight=ceil(titleLabel.sizeThatFits(CGSize(width:contentWidth,height:.greatestFiniteMagnitude)).height)
+        titleLabel.bounds=CGRect(x:0,y:0,width:contentWidth,height:titleHeight)
+        titleLabel.center=CGPoint(x:width/2,y:top+titleHeight/2)
+        let subtitleHeight=ceil(subtitleLabel.sizeThatFits(CGSize(width:contentWidth,height:.greatestFiniteMagnitude)).height)
+        subtitleLabel.bounds=CGRect(x:0,y:0,width:contentWidth,height:subtitleHeight)
+        subtitleLabel.center=CGPoint(x:width/2,y:top+titleHeight+12+subtitleHeight/2)
 
-        let gap = compact ? CGFloat(30) : min(82,max(44,height*0.07))
-        let buttonWidth = button.primaryCTASize(maxWidth:width-48).width, bottom = heroTop+heroSize+gap+48
-        button.cartoonBounceLayoutView.bounds = CGRect(x:0,y:0,width:buttonWidth,height:JimiV9PlainButton.primaryCTAHeight)
-        button.cartoonBounceLayoutView.center = CGPoint(x:width/2,y:min(bottom+JimiV9PlainButton.primaryCTAHeight/2,height-max(42,view.safeAreaInsets.bottom)-JimiV9PlainButton.primaryCTAHeight/2));button.layoutCartoonContent()
+        let buttonBottom=height-max(24,view.safeAreaInsets.bottom+20)
+        let buttonTop=buttonBottom-JimiV9PlainButton.primaryCTAHeight
+        let buttonWidth=button.primaryCTASize(maxWidth:contentWidth).width
+        button.cartoonBounceLayoutView.bounds=CGRect(x:0,y:0,width:buttonWidth,height:JimiV9PlainButton.primaryCTAHeight)
+        button.cartoonBounceLayoutView.center=CGPoint(x:width/2,y:buttonTop+JimiV9PlainButton.primaryCTAHeight/2)
+        button.layoutCartoonContent()
+
+        let heroAreaTop=subtitleLabel.center.y+subtitleHeight/2+24
+        let heroAreaBottom=buttonTop-52
+        let heroSize=max(100,min(width*0.78,300,heroAreaBottom-heroAreaTop))
+        let heroTop=heroAreaTop+max(0,(heroAreaBottom-heroAreaTop-heroSize)/2)
+        thumb.bounds=CGRect(x:0,y:0,width:heroSize,height:heroSize)
+        thumb.layer.position=CGPoint(x:width/2,y:heroTop+heroSize*0.74)
+        let shadowHeight=heroSize*0.18,size=CGSize(width:heroSize*0.76,height:heroSize*0.18)
+        if shadowSize != size {shadowSize=size;shadow.image=Self.makeShadow(size:size)}
+        shadow.bounds=CGRect(x:0,y:0,width:size.width+72,height:size.height+72)
+        shadow.center=CGPoint(x:width/2,y:heroTop+heroSize+heroSize*0.03+24-shadowHeight/2)
+
     }
     /// The pure sampled enter timeline is shared by runtime and deterministic UIKit tests.
     func sampleEnter(seconds: Double) {

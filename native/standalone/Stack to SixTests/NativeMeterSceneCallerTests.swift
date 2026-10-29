@@ -58,6 +58,44 @@ nonisolated final class NativeMeterSceneCallerTests:XCTestCase {
         func dispose(){current=false;caller.dispose();scene.receipt=nil;onRendered=nil;onReleased=nil;service.dispose();timeouts.cancelAll();resources.dispose();textures.dispose();nodes.values.forEach{$0.dispose()};nodes.removeAll();view.presentScene(nil);window.isHidden=true;window.rootViewController=nil}
     }
     @MainActor private func root()->URL {Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle") ?? Bundle.main.bundleURL.appendingPathComponent("NativeAssets.bundle")}
+    @MainActor func testHiddenOpenRosterWaiterRunsAfterCanonicalCommitAndSceneConsume()async throws {
+        try await exerciseHiddenOpenWaiter(cancel:false)
+    }
+    @MainActor func testHiddenOpenRosterWaiterRunsAfterCanceledPlaceholderRetires()async throws {
+        try await exerciseHiddenOpenWaiter(cancel:true)
+    }
+    @MainActor private func exerciseHiddenOpenWaiter(cancel:Bool)async throws {
+        let f=Fixture(root:root(),sourceConstructor:true);defer{f.dispose()}
+        XCTAssertFalse(f.caller.whenPendingHiddenOpenSettled{XCTFail("No request")})
+        f.start()
+        let request=try XCTUnwrap(f.engine.pendingMeterOpen),settled=expectation(description:"exact hidden open settled")
+        XCTAssertNotNil(f.nodes[request.tile.id]);XCTAssertFalse(f.engine.state.tiles.contains{$0.id==request.tile.id})
+        var calls=0
+        XCTAssertTrue(f.caller.whenPendingHiddenOpenSettled{
+            calls+=1
+            XCTAssertNil(f.engine.pendingMeterOpen)
+            if cancel {
+                XCTAssertNil(f.nodes[request.tile.id]);XCTAssertFalse(f.caller.retainedNodeIDs.contains(request.tile.id))
+                XCTAssertTrue(f.results.contains(.meterDropOpenCanceled))
+            } else {
+                XCTAssertTrue(f.engine.state.tiles.contains{$0.id==request.tile.id})
+                XCTAssertTrue(f.results.contains(.meterDropReserved))
+            }
+            settled.fulfill()
+        })
+        if cancel {let result=f.engine.cancelMeterOpenContinuation();XCTAssertTrue(result.accepted);f.caller.receive(result)}
+        await fulfillment(of:[settled],timeout:10)
+        XCTAssertEqual(calls,1)
+        XCTAssertFalse(f.caller.whenPendingHiddenOpenSettled{XCTFail("Completed request")})
+    }
+    @MainActor func testRetiredHiddenOpenDiscardsRosterWaiter()async throws {
+        let f=Fixture(root:root(),sourceConstructor:true);defer{f.dispose()}
+        f.start()
+        XCTAssertTrue(f.caller.whenPendingHiddenOpenSettled{XCTFail("Retired continuation")})
+        f.caller.dispose()
+        await Task.yield()
+        XCTAssertTrue(f.caller.retainedNodeIDs.isEmpty)
+    }
     @MainActor func testAcceptedLaserDestinationDuringActualWallHandoffReleasesConsumedRoster()async throws {
         try await exerciseAcceptedDestinationHandoff(reward:.init(.tnt,variant:"laser-gun"),mode:.journey)
     }
