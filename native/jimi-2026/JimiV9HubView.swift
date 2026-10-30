@@ -151,7 +151,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
         }
         header.backgroundColor = UIColor(red: 243/255, green: 238/255, blue: 232/255, alpha: 0.8)
         addSubview(header)
-        backButton.setImage(assets.image("assets/chevron-back.png"), for: .normal)
+        backButton.setImage(assets.image("assets/chevron-back.png",densityAware:true), for: .normal)
         backButton.imageView?.contentMode = .scaleAspectFit
         backButton.imageEdgeInsets = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
         backButton.accessibilityLabel = "Back to slider"; backButton.accessibilityIdentifier = "native.hub.back"
@@ -165,7 +165,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
         backpackAlert.image=assets.image("assets/nav/alsert@2x.png") ?? assets.image("assets/nav/alert.png")
         backpackButton.addSubview(backpackAlert)
         title.text = arcade ? "Arcade" : "Journey"; title.font = assets.font(size: 28, weight: "ExtraBold")
-        title.textColor = UIColor(red: 173/255, green: 135/255, blue: 117/255, alpha: 1)
+        title.textColor = NativeTextPalette.navigationTitle
         title.textAlignment = .center
         [backButton, title, backpackButton].forEach { header.addSubview($0) }
     }
@@ -295,6 +295,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
         backpackAlert.setActive(!backpackAlert.isHidden && !isHidden && window != nil)
         guard window != nil, !isHidden, alpha > 0, !UIAccessibility.isReduceMotionEnabled else { return }
         idleRequested = true
+        NativeHubBackpackFeedback.setIdle(on:backpackButton,active:true)
         updateIdleAdmission()
     }
 
@@ -303,6 +304,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
     func stopIdle() {
         cancelWorldTap()
         backpackAlert.setActive(false)
+        NativeHubBackpackFeedback.setIdle(on:backpackButton,active:false)
         idleRequested = false
         for id in worldIDs { removeIdle(id, freeze: true) }
         admittedWorlds.removeAll()

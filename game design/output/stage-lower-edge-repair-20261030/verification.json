@@ -1,0 +1,9 @@
+{
+  "changedAlphaPixels" : 0,
+  "changedPixels" : 19701,
+  "changedPixelsOutsideLowerSideBands" : 0,
+  "height" : 1012,
+  "method" : "ImageGen repair RGB aligned row-by-row to original sides, exact original alpha and untouched remainder",
+  "runtimeIntegration" : false,
+  "width" : 652
+}

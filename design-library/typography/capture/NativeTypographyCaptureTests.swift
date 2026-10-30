@@ -169,7 +169,7 @@ import StackToSixNativeState
         reset();let settings=JimiNativeSettingsView(frame:host.view.bounds,assets:art);mount(settings);try await wait(0.2)
         try capture("settings","Settings navigation and rows","Navigation","Home → Settings","native/jimi-2026/JimiNativeSettingsView.swift")
         let title=try XCTUnwrap((scenes.last?["texts"] as? [[String:Any]])?.first)
-        XCTAssertEqual(title["text"] as? String,"Settings");XCTAssertEqual(title["color"] as? String,"#AD8775")
+        XCTAssertEqual(title["text"] as? String,"Settings");XCTAssertEqual(title["color"] as? String,"#BE7C59")
     }
     func testCaptureStageTypography() async throws {
         try await testCaptureNavigationTitles()

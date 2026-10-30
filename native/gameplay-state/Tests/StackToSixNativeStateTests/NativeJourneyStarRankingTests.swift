@@ -15,12 +15,13 @@ final class NativeJourneyStarRankingTests:XCTestCase {
             XCTAssertEqual(NativeJourneyContent.earnedStars(score:999999,board:board,completed:false),0)
         }
     }
-    func testFailedHighScoreCannotGrantStarsOrPromoteLaterLowCompletion()throws {
+    func testFailedJourneyCannotRecordStatsOrPromoteLaterLowCompletion()throws {
         var p=NativeProgressionState()
         p.finishAttempt(mode:.journey,board:3,score:200000,longestCombo:99,cubesCracked:20,clean:false)
         XCTAssertEqual(p.journeyStars(board:3),0)
+        XCTAssertNil(p.boardStats[3])
         p.finishAttempt(mode:.journey,board:3,score:1000,longestCombo:2,cubesCracked:5,clean:true)
-        XCTAssertEqual(p.boardStats[3]?.highScore,200000)
+        XCTAssertEqual(p.boardStats[3]?.highScore,1000)
         XCTAssertEqual(p.journeyStars(board:3),1)
         let restored=try JSONDecoder().decode(NativeProgressionState.self,from:JSONEncoder().encode(p))
         XCTAssertEqual(restored.journeyStars(board:3),1)
@@ -28,6 +29,16 @@ final class NativeJourneyStarRankingTests:XCTestCase {
         let units=try XCTUnwrap(world["units"] as? [[String:Any]])
         XCTAssertEqual(units[2]["stars"] as? Int,1)
         XCTAssertEqual(units[2]["cardRarity"] as? String,"common")
+    }
+    func testFailedReplayPreservesAllExistingJourneyStatistics()throws {
+        var p=NativeProgressionState()
+        p.finishAttempt(mode:.journey,board:18,score:15000,longestCombo:12,cubesCracked:30,clean:true,now:100)
+        p.beginAttempt(mode:.journey,board:18,now:200)
+        let before=p
+        p.finishAttempt(mode:.journey,board:18,score:999999,longestCombo:99,cubesCracked:41,clean:false,now:300)
+        XCTAssertEqual(p,before)
+        let restored=try JSONDecoder().decode(NativeProgressionState.self,from:JSONEncoder().encode(p))
+        XCTAssertEqual(restored,before)
     }
     func testLegacyAwardIsFrozenAndRetainedAcrossLowReplayAndNewSave()throws {
         for board in 1...30 {

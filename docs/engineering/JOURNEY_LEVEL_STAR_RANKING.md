@@ -60,8 +60,10 @@ Clean Board rezultat prikazuje ocjenu upravo odigrane partije.
 `NativeBoardStats.awardedStars` trajno pamti najbolju uspješno osvojenu ocjenu;
 `starRankingVersion` pamti verziju pravila pri zadnjem zapisu rezultata.
 `NativeProgressionState.journeyStars(board:)` služi kolekciji, karticama i World
-zvjezdicama. High score ostaje statistika i može uključiti neuspješne pokušaje;
-sam ne dodjeljuje ni ne podiže zvjezdice. Slabiji replay ili fail ne oduzima nagrade.
+zvjezdicama. Prema odluci korisnika 2026-10-30, Journey high score, best combo,
+cubesCracked i ocjena spremaju se samo nakon Clean Boarda. Fail ne mijenja
+postojeće statistike ni nagrade; beginAttempt i dalje bilježi posjet/pokušaj.
+Slabiji uspješan replay ne oduzima prethodne nagrade.
 
 Stari saveovi bez novih opcionalnih polja zadržavaju zvjezdice prema zamrznutim
 pre-v1 pragovima, samo za već završene nivoe. Pri dekodiranju ta se ocjena trajno

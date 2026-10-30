@@ -42,7 +42,7 @@ final class NativeTutorialCompleteController: UIViewController {
         view.backgroundColor = UIColor(red:243/255,green:238/255,blue:232/255,alpha:1)
         paper.autoresizingMask = [.flexibleWidth,.flexibleHeight]; view.addSubview(paper)
         titleLabel.textAlignment = .center; titleLabel.numberOfLines = 0;titleLabel.lineBreakMode = .byWordWrapping
-        titleLabel.textColor = UIColor(red:239/255,green:116/255,blue:77/255,alpha:1)
+        titleLabel.textColor = NativeTextPalette.modalTitle
         subtitleLabel.textAlignment = .center; subtitleLabel.numberOfLines = 0;subtitleLabel.lineBreakMode = .byWordWrapping
         subtitleLabel.textColor = NativeTextPalette.subtitle
         thumb.image = artwork.image("assets/thumbs-up@2x.png"); thumb.contentMode = .scaleAspectFit

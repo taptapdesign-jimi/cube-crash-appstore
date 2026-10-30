@@ -257,8 +257,7 @@ final class JimiNativeEndRunModal: UIViewController {
         paper.image = assets.image("assets/modals/paper.png");paper.contentMode = .scaleToFill;paper.layer.cornerRadius = 40;paper.clipsToBounds = true
         idle.layer.shadowColor = UIColor(red:185/255,green:145/255,blue:119/255,alpha:1).cgColor
         idle.layer.shadowOpacity = 0.8;idle.layer.shadowOffset = CGSize(width:0,height:13);idle.layer.shadowRadius = 16.8
-        let ink = UIColor(red:173/255,green:134/255,blue:117/255,alpha:1)
-        heading.text = model.title;heading.font = assets.font(size:32,weight:"ExtraBold");heading.textColor = ink;heading.textAlignment = .center
+        heading.text = model.title;heading.font = assets.font(size:32,weight:"ExtraBold");heading.textColor = NativeTextPalette.modalTitle;heading.textAlignment = .center
         subtitle.text = model.subtitle;subtitle.font = assets.font(size:18,weight:"Medium");subtitle.textColor = NativeTextPalette.subtitle;subtitle.textAlignment = .center;subtitle.numberOfLines = 0
         subtitle.attributedText=NativeModalTypography.attributedSubtitle(model.subtitle,font:subtitle.font)
         idle.addSubview(heading);idle.addSubview(subtitle)
@@ -267,6 +266,11 @@ final class JimiNativeEndRunModal: UIViewController {
             button.accessibilityIdentifier = i == 0 ? "native.end-run.restart" : "native.end-run.exit"
             button.tag = i;button.setTitle(i == 0 ? model.restartLabel : model.exitLabel,for:.normal)
             button.applyModalCTA(artwork:assets,primary:i == 0,preparesSculptedFaceOffMain:true)
+            if i == 1 {
+                let ink=NativeTextPalette.modalTitle.withAlphaComponent(0.7)
+                button.setTitleColor(ink,for:.normal)
+                button.setAttributedTitle(NSAttributedString(string:model.exitLabel,attributes:[.font:button.titleLabel?.font ?? assets.font(size:28,weight:"ExtraBold"),.foregroundColor:ink]),for:.normal)
+            }
             button.setPairedModalCTA()
             button.layer.opacity=0
             button.onSculptedFacePrepared={ [weak self] in self?.revealPreparedCTAs() }
@@ -276,7 +280,7 @@ final class JimiNativeEndRunModal: UIViewController {
         }
         traceHUDLatency("exit-cta-style-end")
         close.setBackgroundImage(paper.image,for:.normal);close.layer.cornerRadius = 26;close.clipsToBounds = true
-        close.setImage(assets.image("assets/close-icon.png"),for:.normal);close.imageView?.contentMode = .scaleAspectFit;close.artworkOpacity = 0.8;close.enableArtworkTapFeedback()
+        close.setImage(assets.image("assets/close-icon.png",densityAware:true),for:.normal);close.imageView?.contentMode = .scaleAspectFit;close.artworkOpacity = 0.8;close.enableArtworkTapFeedback()
         close.imageEdgeInsets = UIEdgeInsets(top:14,left:16,bottom:14,right:12)
         close.accessibilityLabel = "Close "+model.title;close.accessibilityIdentifier = "native.end-run.close"
         close.addTarget(self,action:#selector(requestClose),for:.touchUpInside);idle.addSubview(close)
@@ -299,7 +303,7 @@ final class JimiNativeEndRunModal: UIViewController {
         subtitle.frame = CGRect(x:24,y:96,width:width-48,height:52)
         let actionWidth=JimiV9PlainButton.modalCTAWidth(buttons,maxWidth:width-32)
         for (i,button) in buttons.enumerated() {
-            let size=CGSize(width:actionWidth,height:JimiV9PlainButton.pairedModalCTAHeight)
+            let size=CGSize(width:actionWidth*0.90,height:JimiV9PlainButton.pairedModalCTAHeight*1.05)
             button.cartoonBounceLayoutView.bounds=CGRect(origin:.zero,size:size)
             button.cartoonBounceLayoutView.center=CGPoint(x:width/2,y:172+JimiV9PlainButton.pairedModalCTAHeight/2+CGFloat(i)*(JimiV9PlainButton.pairedModalCTAHeight+JimiV9PlainButton.pairedModalCTAGap))
             button.layoutCartoonContent()

@@ -2,18 +2,15 @@
 
 Updated: 2026-10-30
 
-## Current Native production benchmark — v20 Journey modal card
+## Current Native production benchmark — v21 Top 3 and Journey cards
 
-User explicitly promotes the complete current Native state on `main` on
-2026-10-30: **native-benchmark-v20 — Journey modal card**. See
-[NATIVE_BENCHMARK_V20.md](NATIVE_BENCHMARK_V20.md).
-For ordinary Native continuation, approved baseline, production benchmark or
-recovery now means this immutable tag. Its principal change is the redesigned
-Journey modal card, including Stage heading, stone panel/stat cards, close
-surface and refined star/idle motion. All saved nondeleted work is included.
-Physical delivery and acceptance are recorded separately; promotion alone does
-not establish measured FPS, thermal, touch or speaker acceptance.
-Preserve every older Native tag. The PWA recovery tag remains unchanged.
+User explicitly requests saving all current work online as a new benchmark on
+2026-10-30: **native-benchmark-v21 — Top 3 paper strips and Journey cards**.
+See [NATIVE_BENCHMARK_V21.md](NATIVE_BENCHMARK_V21.md). For ordinary Native
+continuation and recovery this immutable tag supersedes v20. All saved
+nondeleted work is included; protected original audio files remain in Git.
+Build/Simulator delivery is recorded separately from physical acceptance.
+Preserve every older Native tag. PWA recovery remains unchanged.
 
 ## Historical Native development boundary (2026-10-07)
 
@@ -57,7 +54,7 @@ remote publication must be reported separately and is not implied here.
 
 ## Interpretation rule
 
-When the user says **approved version**, **approved baseline**, **perfect version**, **the version that was super**, **production benchmark**, **benchmark fluidnost**, **stable release**, or otherwise refers to the last version they personally accepted, for the preserved PWA treat `production-benchmark-v9` as the exact source reference. Native uses `native-benchmark-v20` above.
+When the user says **approved version**, **approved baseline**, **perfect version**, **the version that was super**, **production benchmark**, **benchmark fluidnost**, **stable release**, or otherwise refers to the last version they personally accepted, for the preserved PWA treat `production-benchmark-v9` as the exact source reference. Native uses `native-benchmark-v21` above.
 
 Do not infer approval from a successful build, QA pass, device installation, merge, release, or positive comment about one isolated change. Only an explicit user statement that a newer complete state is approved may supersede this file.
 

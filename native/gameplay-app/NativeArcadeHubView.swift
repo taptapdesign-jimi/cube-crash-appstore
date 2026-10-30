@@ -190,7 +190,7 @@ final class NativeArcadeWorldModal: UIView {
         card.layer.shadowOpacity = 0.8; card.layer.shadowRadius = 16.8; card.layer.shadowOffset = CGSize(width:0,height:13)
         heading.text = ["Endurance","One Lucky Drop","Slow Burn"][index]
         heading.font = assets.font(size:28,weight:"ExtraBold"); heading.textAlignment = .center
-        heading.textColor = UIColor(red:173/255,green:135/255,blue:117/255,alpha:1)
+        heading.textColor = NativeTextPalette.modalTitle
         subtitle.numberOfLines = index == 0 ? 2 : 3; subtitle.textAlignment = .center
         subtitle.accessibilityIdentifier = "native.arcade-world-modal.description"
         art.accessibilityIdentifier = "native.arcade-world-modal.art"
@@ -207,7 +207,7 @@ final class NativeArcadeWorldModal: UIView {
         play.addTarget(self,action:#selector(playGame),for:.touchUpInside)
         play.accessibilityIdentifier = "native.arcade-world-modal.play"; play.isEnabled = false
         close.setBackgroundImage(paper.image,for:.normal); close.layer.cornerRadius = 26; close.clipsToBounds = true
-        close.setImage(assets.image("assets/close-icon.png"),for:.normal)
+        close.setImage(assets.image("assets/close-icon.png",densityAware:true),for:.normal)
         close.imageView?.contentMode = .scaleAspectFit; close.artworkOpacity = 0.8; close.imageEdgeInsets = UIEdgeInsets(top:14,left:14,bottom:14,right:14)
         close.accessibilityLabel = "Close"; close.accessibilityIdentifier = "native.arcade-world-modal.close"; close.enableArtworkTapFeedback()
         close.addTarget(self,action:#selector(dismissSheet),for:.touchUpInside)

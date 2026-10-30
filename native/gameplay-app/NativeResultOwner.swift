@@ -238,10 +238,10 @@ final class NativeResultController:UIViewController {
             holder.transform=CGAffineTransform(rotationAngle:index == 0 ? -.pi*8/180 : index == 2 ? .pi*8/180 : 0)
         }
         let orange=UIColor(red:231/255,green:116/255,blue:73/255,alpha:1)
-        let brown=UIColor(red:182/255,green:144/255,blue:119/255,alpha:1)
-        let values:[(UILabel,CGFloat,String,UIColor)]=[(heading,clean ? 40 : 56,"ExtraBold",clean ? UIColor(red:176/255,green:127/255,blue:105/255,alpha:1) : orange),
+        let brown=NativeTextPalette.subtitle
+        let values:[(UILabel,CGFloat,String,UIColor)]=[(heading,clean ? 40 : 56,"ExtraBold",orange),
             (scoreLabel,18,"SemiBold",brown),(score,80,"ExtraBold",orange),(status,18,"SemiBold",brown),
-            (bonus,36,"ExtraBold",orange),(bonusLabel,18,"SemiBold",UIColor(red:196/255,green:138/255,blue:109/255,alpha:1))]
+            (bonus,36,"ExtraBold",orange),(bonusLabel,18,"SemiBold",NativeTextPalette.subtitle)]
         for (label,size,weight,color) in values {
             label.font=assets.font(size:size,weight:weight);label.textColor=color;label.textAlignment = .center
             let parent=label === bonus || label === bonusLabel ? bonusContent:label === status ? statusContent:label === heading ? headlineContent:cardContent
@@ -252,7 +252,7 @@ final class NativeResultController:UIViewController {
         heading.attributedText=NSAttributedString(string:headline,attributes:[.font:heading.font!,.foregroundColor:heading.textColor!,.paragraphStyle:paragraph])
         heading.numberOfLines=0;heading.lineBreakMode = .byWordWrapping
         if finalScore > state.bestScore {
-            let label=NSMutableAttributedString(string:"NEW ",attributes:[.font:assets.font(size:18,weight:"ExtraBold"),.foregroundColor:UIColor(red:233/255,green:122/255,blue:85/255,alpha:1),.kern:0.4])
+            let label=NSMutableAttributedString(string:"NEW ",attributes:[.font:assets.font(size:18,weight:"ExtraBold"),.foregroundColor:NativeTextPalette.subtitle,.kern:0.4])
             label.append(NSAttributedString(string:"Highscore",attributes:[.font:scoreLabel.font!,.foregroundColor:brown,.kern:0.4]))
             scoreLabel.attributedText=label
         } else {scoreLabel.text="Your score"}

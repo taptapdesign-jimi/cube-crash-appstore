@@ -91,7 +91,7 @@ Navigation rules:
 - Nav/header exit starts immediately with the relevant content exit. Do not leave header/nav visible while content waits to begin exit.
 - Native navigation's underside shadow begins its 160ms ease-out fade 200ms after the header bounce-out starts (Reduced Motion retains its 100ms hold plus 60ms fade). Keep the rectangle's existing motion; the same route group owns shadow pause/cancellation, and entry restores the accepted static shadow.
 - Card modal X/header exit should begin immediately on X tap, not after the card/stat content has mostly finished exiting.
-- An accepted Unit-card tap starts its portaled flight after the first owned geometry paint. Exact 2x artwork, modal chrome decode, and front/back prepaint must never gate the first visible motion; the already-painted 1x World card is the entry carrier.
+- An accepted ordinary Unit-card tap starts visible contact after the first owned geometry paint. User2026-10-30: play the complete shared0.40s NativeHUDTapMotion squeeze/stretch at the original Unit rectangle before the unchanged portaled flight/flip;one carrier owns both phases. Interim contact/launch remains unchanged. Reduced Motion skips the contact prefix. Star/input admission follows the actual full opening completion. The flip cue follows travel onset through the existing finite animation-start receipt. Exact 2x artwork, modal chrome decode, and front/back prepaint must never gate the first visible motion; the already-painted 1x World card is the entry carrier.
 - Card-modal pointerdown and ordinary Common-card flip handoff are write-only: they
   sample the active WAAPI owner's cached pose and must not call computed-style,
   geometry or layout APIs. Ordinary flips remain compositor-owned without a
@@ -374,3 +374,10 @@ This supersedes stopping the whole World idle at the interim tap. Regular modal
 pause policy,card choreography,route completion and Reduced Motion stay intact.
 No new recurring clock,decode work or persistent pose mutation. Background,
 park,replacement and cleanup retire the bridges through existing World ownership.
+
+
+Native Journey info statistics (user2026-10-30): face flip is admitted only by horizontal drag/swipe; tapping blank/artwork is not a flip gesture. High score/Best combo tile taps use shared finite navigation contact and open Top3 result history. Retained info card exits on v10 modal planes, preserves its star/idle phase while covered, then resumes through v10 entry on detail close. Detail shows greatest3 values with dates from at most10 canonical records per metric/board. Legacy best dates remain unknown rather than fabricated. Existing Play/Continue, vertical dismissal and automatic post-game return semantics remain.
+
+Journey Top3 detail close (latest user2026-10-30): the retained large info card begins its standard return entry at60percent of the detail exit timeline (0.39s of0.65s), overlapping its final40percent. The milestone shares the actual paused compositor clock; no wall-time delay. Reduced Motion returns immediately. Do not wait for dismissal/onClosed or return at close request. Exact selected controller/World identity and duplicate/navigation/disposal guards remain authoritative.
+
+Journey Top3 opening (latest user2026-10-30): present the selected detail at60percent of the source info-card0.65s exit (0.39s), with the final40percent overlapping. Retain one pending selected detail; duplicate/background/navigation/cleanup cannot admit a stale presentation. The source-layer milestone follows its paused compositor clock, Reduced Motion enters immediately. Closing retains the60percent return rule.

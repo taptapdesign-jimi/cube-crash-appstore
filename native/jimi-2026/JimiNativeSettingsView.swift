@@ -45,9 +45,9 @@ final class JimiNativeSettingsView: UIView {
         clipsToBounds = false; scroll.clipsToBounds = false
         scroll.alwaysBounceVertical = false
         scroll.showsVerticalScrollIndicator = false
-        title.text = "Settings"; title.font = assets.font(size: 28); title.textColor = UIColor(red:173/255,green:135/255,blue:117/255,alpha:1)
+        title.text = "Settings"; title.font = assets.font(size: 28); title.textColor = NativeTextPalette.navigationTitle
         title.textAlignment = .center; header.addSubview(title)
-        back.setImage(assets.image("assets/chevron-back.png"), for: .normal)
+        back.setImage(assets.image("assets/chevron-back.png",densityAware:true), for: .normal)
         back.imageView?.contentMode = .scaleAspectFit
         back.imageEdgeInsets = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
         back.setTitleColor(ink, for: .normal)
@@ -286,8 +286,7 @@ final class JimiNativePrivacyController: UIViewController {
         let orange = UIColor(red:232/255,green:116/255,blue:74/255,alpha:1)
         let content = NSMutableAttributedString()
         let titleStyle = NSMutableParagraphStyle();titleStyle.alignment = .center;titleStyle.paragraphSpacing = 20
-        content.append(NSAttributedString(string:"Privacy Policy\n",attributes:[.font:assets.font(size:32,weight:"ExtraBold"),.foregroundColor:ink,.paragraphStyle:titleStyle]))
-        content.addAttribute(.foregroundColor,value:orange,range:NSRange(location:0,length:7))
+        content.append(NSAttributedString(string:"Privacy Policy\n",attributes:[.font:assets.font(size:32,weight:"ExtraBold"),.foregroundColor:NativeTextPalette.modalTitle,.paragraphStyle:titleStyle]))
         let paragraphs = ["Stack to Six does not collect, transmit, sell, or share personal data.","Game progress and settings are stored only on your device.","The game does not use accounts, advertising, analytics, or in-app purchases.","Deleting the app removes its locally stored data.","Privacy questions can be directed to Tap Tap Design through the App Store support page.","Read Privacy Policy","Last updated: August 27, 2026"]
         for (i,text) in paragraphs.enumerated() {
             let style = NSMutableParagraphStyle();style.minimumLineHeight = 22.5;style.maximumLineHeight = 22.5;style.paragraphSpacing = 8
@@ -299,7 +298,7 @@ final class JimiNativePrivacyController: UIViewController {
         idle.addSubview(copy)
         close.backgroundColor = UIColor(red:1,green:250/255,blue:244/255,alpha:1);close.layer.cornerRadius = 26
         close.setBackgroundImage(paper.image,for:.normal);close.clipsToBounds = true
-        close.setImage(assets.image("assets/close-icon.png"),for:.normal);close.imageView?.contentMode = .scaleAspectFit;close.artworkOpacity = 0.8;close.enableArtworkTapFeedback()
+        close.setImage(assets.image("assets/close-icon.png",densityAware:true),for:.normal);close.imageView?.contentMode = .scaleAspectFit;close.artworkOpacity = 0.8;close.enableArtworkTapFeedback()
         close.imageEdgeInsets = UIEdgeInsets(top:14,left:14,bottom:14,right:14)
         close.accessibilityLabel = "Close Privacy Policy";close.accessibilityIdentifier = "native.settings.privacy.close"
         close.addTarget(self,action:#selector(closeSheet),for:.touchUpInside);idle.addSubview(close)

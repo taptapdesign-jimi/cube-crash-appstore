@@ -9,9 +9,23 @@ public struct NativeSettingsPreferences: Codable, Equatable, Sendable {
         self.gameSoundsEnabled = gameSoundsEnabled; self.musicEnabled = musicEnabled; self.hapticsEnabled = hapticsEnabled
     }
 }
+public struct NativeJourneyStatPoint: Codable, Equatable, Sendable {
+    public let value:Int
+    /// Nil only for a retained best imported from a save without result dates.
+    public let date:TimeInterval?
+    public init(value:Int,date:TimeInterval?){self.value=value;self.date=date}
+    public static func recording(_ point:Self,in history:[Self]?,legacyBest:Int)->[Self] {
+        var result=history ?? (legacyBest>0 ? [.init(value:legacyBest,date:nil)]:[])
+        result.append(point)
+        return Array(result.sorted {a,b in a.value != b.value ? a.value>b.value:(a.date ?? 0)>(b.date ?? 0)}.prefix(10))
+    }
+}
+
 public struct NativeBoardStats: Codable, Equatable, Sendable {
     public var highScore = 0
     public var longestCombo = 0
+    public var scoreHistory:[NativeJourneyStatPoint]?
+    public var comboHistory:[NativeJourneyStatPoint]?
     public var cubesCracked = 0
     public var timesPlayed = 0
     public var lastPlayed: TimeInterval = 0
@@ -158,12 +172,16 @@ public struct NativeProgressionState: Codable, Equatable, Sendable {
             setArcadeStats(stats, for: arcadeVariant)
             return
         }
-        guard (1...30).contains(board) else { return }
+        // A failed Journey attempt has no result statistics. beginAttempt already
+        // records the visit; result cleanup still retires its checkpoint normally.
+        guard clean,(1...30).contains(board) else { return }
         let previousStars=journeyStars(board:board)
         wildStarUnlocked = hasUnlockedWildStar || (2...10).contains(board)
         var stats = boardStats[board] ?? NativeBoardStats()
         stats.awardedStars=max(previousStars,NativeJourneyContent.earnedStars(score:score,board:board,completed:clean))
         stats.starRankingVersion=NativeJourneyContent.starRankingVersion
+        stats.scoreHistory=NativeJourneyStatPoint.recording(.init(value:score,date:now),in:stats.scoreHistory,legacyBest:stats.highScore)
+        stats.comboHistory=NativeJourneyStatPoint.recording(.init(value:longestCombo,date:now),in:stats.comboHistory,legacyBest:stats.longestCombo)
         stats.highScore = max(stats.highScore, score); stats.longestCombo = max(stats.longestCombo, longestCombo)
         stats.cubesCracked += cubesCracked; stats.lastPlayed = now; boardStats[board] = stats
         if clean {

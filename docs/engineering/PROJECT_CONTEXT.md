@@ -73,6 +73,8 @@ artwork paths or gameplay archetypes.
 
 Native **BLOOB** (`bloob`,2026-10-24) is a separate Star gameplay variant introduced in Area55 Unit07,with Mushroom-equivalent main+4–6bonus and7–9remaining closed dice when space permits (2026-10-24); **BLOOB POD** (`bloob-ball`) now starts in Unit06. BLOOB uses the archived Shards Float Hovering visual recipe with22 ordinary floating Bloobs and5independent reverse Bloobs;central robot splash is excluded; its caption is BLOOB in the existing CLANK style. Existing discoveries and save identities remain canonical.
 
+Journey failed-attempt statistics (user2026-10-30): only Clean Board commits Journey score, best combo, cubesCracked or star-ranking result. Fail preserves prior boardStats; beginAttempt still records the visit, and terminal save cleanup still retires its checkpoint. Arcade run-score ownership remains separate.
+
 Journey level-star ranking v1 (2026-10-21) uses one global ten-row threshold table
 by local Unit number in Forest/Beach/Area55. Completed attempts earn1/2/3 stars
 from their existing final score;3 grants Legendary. Persisted best completion
@@ -145,12 +147,18 @@ legacy evidence before World changes; older saves default false, with no format-
 change or reset. Existing saved tiles and
 scripted tutorial remain intact. See GAMEPLAY_KING_CONTRACT.md for exact scope.
 
+Native Backpack/Box section headings (user decision2026-10-30): Forest, Beach, Area55 and Arcade section titles use the same #BE7C59 navigation-title ink at28logicalpx ExtraBold through NativeBackpackSectionHeader, including fullscreen and embedded collection consumers.
+
+Native navigation title palette (user decision2026-10-30): Journey, Arcade, Forest, Beach, Area55, Settings and Backpack/Box screen navigation titles use `NativeTextPalette.navigationTitle` (#BE7C59). This is separate from modal-title, CTA and section-heading roles.
+
+Native semantic text palette (user decision2026-10-30): all ordinary modal titles use `NativeTextPalette.modalTitle` (#BE7C59), including Journey Stage, Exit, Arcade modes, HUD Score/Combo/Backpack, die details, tutorial/reward and Privacy Policy headings. Fail and Clean Board result headings are an explicit exception (user2026-10-30): use the original orange #E77449, shared with result numeric score ink. Full titles use one ink, including formerly accented word runs. Shared subtitles/descriptions and secondary stat/result labels use `NativeTextPalette.subtitle` (#CF9373). Navigation titles, CTA labels, numeric scores and authored fullscreen splash lettering remain separate roles. Historical Design System captures retain their actual captured colors until recaptured; do not relabel old screenshots.
+
 Native modal subtitle typography (user decision2026-10-17): `NativeModalTypography`
 is the shared rule for Score/Combo, End Run/confirmation, gameplay Backpack headers,
 main Backpack section subtitles, selected die descriptions and tutorial-sheet subtitles.
 Use the authored Combo ratio1.3 (20pt Medium →26pt line height), identical minimum/
 maximum line heights, no extra paragraph spacing and `NativeTextPalette.subtitle`
-(current #BD9788). Retain each owner’s alignment, wrapping, font size and measured
+(current #CF9373). Retain each owner’s alignment, wrapping, font size and measured
 content layout. Fullscreen reward/round/title typography remains separately owned.
 
 Native Journey reward policy (user correction 2026-10-22): fresh Play and

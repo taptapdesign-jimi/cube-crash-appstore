@@ -1,0 +1,10 @@
+{
+  "candidate": "candidate-02.png",
+  "request": "Make right edge match left along its full length",
+  "tool": "Built-in image_gen edit plus deterministic source-edge composite",
+  "generationPrompt": "Precisely edit only the RIGHT edge of this blank ivory stone card. Make the entire right vertical edge from top-right corner to bottom-right corner look identical to the existing LEFT edge, mirrored: same pale ivory material, same rounded softly lit bevel, same narrow physical depth, same brightness and crispness. Remove the current darker tan/orange right-side stripe and its thicker uneven bevel. Use the existing LEFT edge as exact visual authority. Preserve the left edge, entire central face, original cracks, top arch, bottom rim and damage, canvas proportions and transparent silhouette. No redesign, no added marks, no blur seams, no background, no exterior flecks, no text. Deliver a new transparent PNG candidate.",
+  "finalMethod": "Final right-edge RGB sampled from actual original left edge, mirrored by row/edge distance. Inner blend joins original face; alpha, left, center and bottom damage retained. Generated image retained only as intermediate, not used as a full-scene replacement.",
+  "review": "Final candidate viewed at native resolution. Right bevel now shares pale material, highlight and visual thickness of left; remaining pixels/alpha verified unchanged.",
+  "approval": "Pending user review",
+  "runtimeIntegration": false
+}

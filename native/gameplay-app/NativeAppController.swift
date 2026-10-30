@@ -53,6 +53,7 @@ final class NativeAppController: UIViewController {
     private(set) var backpackView:NativeBackpackView?
     private var pendingBackpackDie:NativeBackpackCatalog.Die?
     private var backpackDetail:NativeBackpackDetail?
+    private var statHistoryModal:NativeScoreModal?
     private var backpackReturnRoute:Route = .hub
     private var backpack:NativeHubBackpackFeedback?
     private var generation = 0
@@ -237,6 +238,7 @@ final class NativeAppController: UIViewController {
             if case .world = route {backpackReturnRoute=route}else{backpackReturnRoute = route == .arcadeHub ? .arcadeHub:.hub}
         }
         retireDeveloperPresentation()
+        retireStatHistory()
         cancelWorldEntryPreparation()
         cancelGameplayLaunchPreparation()
         if transitioning {motion.cancel()} else {motion.cancelSelectionLayout()}
@@ -450,6 +452,8 @@ final class NativeAppController: UIViewController {
                 world.openCard(boardID:boardID)
                 world.reconcile(updated)
             } catch {showFault(error)}
+        case "scoreHistory","comboHistory":
+            if let boardID {openStatHistory(board:boardID,combo:action=="comboHistory")}
         case "close":world?.closeCard()
         case "play","continue":
             guard let boardID else{return};transitioning = true
@@ -664,6 +668,30 @@ final class NativeAppController: UIViewController {
         home.selectSlide(0,animated:false);returnRoute = .home;beforeHomeReveal=onPrepared
         returnFromGameplay()
     }
+    private func openStatHistory(board:Int,combo:Bool){
+        guard !disposed,!suspended,!transitioning,statHistoryModal==nil,presentedViewController==nil,
+              let world else{return}
+        let detail=NativeScoreModal(model:.init(boardStats:services.journeyProgression().boardStats[board] ?? .init(),combo:combo),root:resourceRoot)
+        statHistoryModal=detail
+        detail.onCloseRequested={ [weak self,weak detail] in
+            guard let self,let detail,self.statHistoryModal === detail,!self.disposed else{return}
+            self.onFeedback?("modal-close")
+        }
+        detail.onCloseReturnReady={ [weak self,weak world,weak detail] in
+            guard let self,let detail,self.statHistoryModal === detail,!self.disposed else{return}
+            if let world,self.world === world {world.restoreInfoFromStatHistory()}
+        }
+        detail.onClosed={ [weak self,weak detail] in
+            guard let self,let detail,self.statHistoryModal === detail else{return}
+            self.statHistoryModal=nil
+        }
+        guard world.hideInfoForStatHistory(onReady:{[weak self,weak world,weak detail] in
+            guard let self,let world,let detail,self.world === world,self.statHistoryModal === detail,
+                  !self.disposed,!self.suspended,!self.transitioning,self.presentedViewController==nil else{return}
+            self.onFeedback?("exit-modal");self.present(detail,animated:false)
+        }) else{statHistoryModal=nil;detail.dispose();return}
+    }
+    private func retireStatHistory(){statHistoryModal?.dispose();statHistoryModal?.dismiss(animated:false);statHistoryModal=nil}
     private func openBackpackDetail(_ die:NativeBackpackCatalog.Die) {
         guard !disposed,!suspended,!transitioning,route == .backpack,backpackDetail == nil,presentedViewController == nil else{return}
         onFeedback?("tab")
@@ -694,7 +722,7 @@ final class NativeAppController: UIViewController {
     private func suspend() {
         hub.backpackButton.imageView?.layer.removeAnimation(forKey:NativeHubBackpackFeedback.switchKey)
         world?.backpackButton.imageView?.layer.removeAnimation(forKey:NativeHubBackpackFeedback.switchKey)
-        suspended = true;backpackView?.setAlertsActive(false);pendingBackpackDie=nil;motion.suspend();backpackView?.isUserInteractionEnabled=false;backpackDetail?.setForeground(false)
+        suspended = true;statHistoryModal?.setSuspended(true);backpackView?.setAlertsActive(false);pendingBackpackDie=nil;motion.suspend();backpackView?.isUserInteractionEnabled=false;backpackDetail?.setForeground(false)
         if let launch=gameplayLaunchPreparation {
             deferredReveal=launch.board.map{.world(($0-1)/10+1)} ?? .arcadeHub
             generation+=1;transitioning=false
@@ -708,7 +736,7 @@ final class NativeAppController: UIViewController {
         do {try services.flush()} catch {showFault(error)}
     }
     private func resume() {
-        suspended = false;backpackView?.setAlertsActive(route == .backpack && backpackDetail == nil && !transitioning);motion.resume();backpackDetail?.setForeground(true)
+        suspended = false;statHistoryModal?.setSuspended(false);backpackView?.setAlertsActive(route == .backpack && backpackDetail == nil && !transitioning);motion.resume();backpackDetail?.setForeground(true)
         if route == .backpack {backpackView?.isUserInteractionEnabled = !transitioning && backpackDetail == nil}
         if let next = deferredReveal {deferredReveal = nil;reveal(next);return}
         guard !transitioning else{return}
@@ -734,7 +762,7 @@ final class NativeAppController: UIViewController {
         generation += 1;transitioning = true;suspended = true;deferredReveal = nil
         arcadeHub?.hide();arcadeHub?.onClose=nil;arcadeHub?.onPlay=nil;arcadeHub?.onPlayExit=nil;arcadeHub?.onCrate=nil;arcadeHub?.canContinue=nil
         motion?.cancel();home?.stopHeroIdle(preservePaintedPose:false);hub?.stopIdle()
-        retireBackpackDetail();backpackView?.onClose=nil;backpackView?.onDie=nil;backpackView?.removeFromSuperview();backpackView=nil
+        retireStatHistory();retireBackpackDetail();backpackView?.onClose=nil;backpackView?.onDie=nil;backpackView?.removeFromSuperview();backpackView=nil
         backpack?.dispose();backpack=nil;hub?.onBackpack=nil
         world?.cleanup();world?.removeFromSuperview();world = nil
         retireCoveredGameplay()

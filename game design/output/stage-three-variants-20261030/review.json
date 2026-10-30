@@ -1,0 +1,33 @@
+{
+  "tool": "Built-in image_gen plus exact-source bottom-band composite",
+  "source": "game design/output/stage-lower-edge-repair-20261030/candidate-02.png",
+  "sourceApproval": "User: super je",
+  "files": [
+    {
+      "path": "assets/ui/stage-info-card-01.png",
+      "bytes": 777527,
+      "sha256": "c77ae97bce00b13fcc95e59128c7405a3b1424b2af076e30bda199105a3b2afb"
+    },
+    {
+      "path": "assets/ui/stage-info-card-02.png",
+      "bytes": 779532,
+      "sha256": "73b279db1db96c7b53297d8ab610457a4b820221a4e21520099b1d2590aa9650"
+    },
+    {
+      "path": "assets/ui/stage-info-card-03.png",
+      "bytes": 782120,
+      "sha256": "8c781be9a41f90a038ca81ea1c31e0476ce093cf5b3380715f4929b76ee8e517"
+    }
+  ],
+  "prompts": [
+    "Edit this exact approved blank ivory stone card. Preserve the entire top, center, full left/right sides, cream color, silhouette, dimensions/proportions and clean narrow rounded matching side bevels. Vary ONLY the bottom rim wear in the bottom 10 percent. Keep it subtle, warm, clean and fully volumetric; no drawn outlines, no foggy seams, no dark dirt. Keep transparent exterior. No text, symbols or UI controls. VARIANT 2: Remove the existing central bottom crack. Put one short fine natural hairline fracture on the lower-left quarter of the face flowing into one tiny shallow chip on the lower-left rim near 25 percent width. The center and right of the bottom rim should be intact. Do not alter the lower side edges.",
+    "Edit this exact approved blank ivory stone card. Preserve the entire top, center, full left/right sides, cream color, silhouette, dimensions/proportions and clean narrow rounded matching side bevels. Vary ONLY the bottom rim wear in the bottom 10 percent. Keep it subtle, warm, clean and fully volumetric; no drawn outlines, no foggy seams, no dark dirt. Keep transparent exterior. No text, symbols or UI controls. VARIANT 3: Remove the existing central bottom crack. Create two short fine naturally branching hairline fractures confined to the bottom-right quarter, near 70–80 percent width, and a tiny shallow rim nick there. Keep the bottom-left quarter intact. Do not alter the lower side edges."
+  ],
+  "variants": [
+    "Approved central bottom crack, unchanged source",
+    "Left bottom fracture and tiny chip",
+    "Right bottom branching fractures and tiny nick"
+  ],
+  "review": "All final files viewed; matching approved upper face and side edges, distinct bottom wear, original alpha identical. PNGs saved directly in assets/ui, no child folder.",
+  "runtimeIntegration": false
+}

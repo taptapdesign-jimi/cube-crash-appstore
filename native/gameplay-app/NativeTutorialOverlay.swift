@@ -113,13 +113,11 @@ final class NativeTutorialOverlay:UIView {
         setCopy();updatePointer(force:false)
     }
     private func setCopy() {
-        let copies=[("Drag to stack","Drag a dice onto another dice.","Drag"),("Merge dice","Stack the dice to make 6.","Merge"),
-            ("Clear the stage","The whole board is yours.\nStack and merge anywhere.","Clear"),("Special dice","They can merge with any regular\ndice to get the value 6","Special"),("Great merge!","Keep stacking and merging\nto clear the board.","Great")]
-        let copy=specialBarVisible ? ("Special Bar","Stack and merge dice to fill the bar and earn special dice.","Special") : copies[max(0,min(4,step-1))]
+        let copies=[("Drag to stack","Drag a dice onto another dice."),("Merge dice","Stack the dice to make 6."),
+            ("Clear the stage","The whole board is yours.\nStack and merge anywhere."),("Special dice","They can merge with any regular\ndice to get the value 6"),("Great merge!","Keep stacking and merging\nto clear the board.")]
+        let copy=specialBarVisible ? ("Special Bar","Stack and merge dice to fill the bar and earn special dice.") : copies[max(0,min(4,step-1))]
         let font=assets.font(size:bounds.width > 0 && bounds.width <= 428 ? 32 : 40,weight:"ExtraBold")
-        let text=NSMutableAttributedString(string:copy.0,attributes:[.font:font,.foregroundColor:UIColor(red:173/255,green:135/255,blue:117/255,alpha:1)])
-        let range=(copy.0 as NSString).range(of:copy.2)
-        if range.location != NSNotFound {text.addAttribute(.foregroundColor,value:UIColor(red:233/255,green:122/255,blue:85/255,alpha:1),range:range)}
+        let text=NSAttributedString(string:copy.0,attributes:[.font:font,.foregroundColor:NativeTextPalette.modalTitle])
         heading.attributedText=text;subtitle.font=assets.font(size:18,weight:"Medium");subtitle.attributedText=NativeModalTypography.attributedSubtitle(copy.1,font:subtitle.font);subtitle.lineBreakMode = .byWordWrapping
         button.isHidden = !specialBarVisible && step==3 && sourceCTA?.state == .hidden
         let ctaTitle=specialBarVisible || step == 5 ? "Continue":"Got it"

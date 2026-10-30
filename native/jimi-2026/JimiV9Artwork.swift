@@ -3,7 +3,9 @@ import CoreText
 
 /// Shared semantic text colors for Native UI.
 enum NativeTextPalette {
-    static let subtitle = UIColor(red:189/255,green:151/255,blue:136/255,alpha:1) // #BD9788
+    static let navigationTitle = UIColor(red:190/255,green:124/255,blue:89/255,alpha:1) // #BE7C59
+    static let modalTitle = UIColor(red:190/255,green:124/255,blue:89/255,alpha:1) // #BE7C59
+    static let subtitle = UIColor(red:207/255,green:147/255,blue:115/255,alpha:1) // #CF9373
 }
 
 /// Modal subtitles use the shared 18pt / 23.4pt rhythm, including explicit newlines.

@@ -6,6 +6,28 @@ import StackToSixNativeState
 
 @MainActor
 final class NativeScoreModalTests:XCTestCase {
+    func testJourneyHistoryProjectsTopThreeAndNeverInventsLegacyDate() {
+        var stats=NativeBoardStats();stats.highScore=400
+        let legacy=NativeScoreModalModel(boardStats:stats,combo:false)
+        XCTAssertEqual(legacy.title,"Top 3 high scores");XCTAssertEqual(legacy.history,[.init(value:400,date:nil)])
+        stats.comboHistory=[.init(value:2,date:10),.init(value:8,date:12),.init(value:8,date:11),.init(value:4,date:1)]
+        let top=NativeScoreModalModel(boardStats:stats,combo:true)
+        XCTAssertEqual(top.title,"Top 3 best combos");XCTAssertEqual(top.history?.map(\.value),[8,8,4]);XCTAssertEqual(top.history?.first?.date,12)
+    }
+    func testHistoryModalHasBoundedRowsAndNoRecurringIdle()async throws {
+        var stats=NativeBoardStats();stats.scoreHistory=(1...10).map{.init(value:$0*100,date:Double($0))}
+        let modal=NativeScoreModal(model:.init(boardStats:stats,combo:false),root:NativeTestResources.root)
+        let window=UIWindow(frame:.init(x:0,y:0,width:320,height:568));window.rootViewController=modal;window.makeKeyAndVisible()
+        defer{modal.dispose();window.isHidden=true}
+        try await Task.sleep(for:.milliseconds(800))
+        func all(_ v:UIView)->[UIView]{[v]+v.subviews.flatMap(all)}
+        let views=all(modal.view)
+        XCTAssertEqual(views.filter{$0.accessibilityIdentifier?.hasPrefix("native.score-history.row.")==true}.count,3)
+        XCTAssertFalse(views.contains{$0.layer.animation(forKey:"score.idle") != nil})
+        modal.setSuspended(true);XCTAssertEqual(modal.view.layer.speed,0)
+        modal.setSuspended(false);XCTAssertEqual(modal.view.layer.speed,1)
+        modal.dispose();modal.dispose();XCTAssertNil(modal.onClosed)
+    }
     func testActualHighScoreAndComboModalAdmissionSpeaksOnceAndRejectedRepeatIsSilent() async throws {
         enum Unused:Error {case unavailable}
         for mode in [NativeRunMode.journey,.arcade] {for combo in [false,true] {

@@ -45,18 +45,14 @@ final class NativeBackpackDetail:UIViewController {
         backdrop.alpha=0;backdrop.backgroundColor=usesParentBackdrop ? .clear:JimiNativeModalV10.backdropColor;backdrop.addTarget(self,action:#selector(closeTapped),for:.touchUpInside);view.addSubview(backdrop);view.addSubview(card)
         paper.image=assets.image("assets/modals/paper.png");paper.layer.cornerRadius=40;paper.clipsToBounds=true;paper.accessibilityIdentifier="native.backpack.detail.paper";idle.addSubview(paper)
         idle.layer.shadowColor=UIColor(red:185/255,green:145/255,blue:119/255,alpha:1).cgColor;idle.layer.shadowOpacity=die.id=="baloon" ? 0:0.8;idle.layer.shadowOffset=CGSize(width:0,height:13);idle.layer.shadowRadius=16.8
-        heading.textAlignment = .center;heading.font=assets.font(size:30,weight:"ExtraBold");heading.textColor=NativeBackpackCellPalette.ink
+        heading.textAlignment = .center;heading.font=assets.font(size:30,weight:"ExtraBold");heading.textColor=NativeTextPalette.modalTitle
         let displayTitle=die.id=="tnt" ? "TNT":die.title.capitalized
-        let title=NSMutableAttributedString(string:displayTitle)
-        if let space=displayTitle.firstIndex(of:" ") {
-            title.addAttribute(.foregroundColor,value:UIColor(red:232/255,green:116/255,blue:74/255,alpha:1),range:NSRange(displayTitle.startIndex..<space,in:displayTitle))
-        }
-        heading.attributedText=title
+        heading.attributedText=NSAttributedString(string:displayTitle,attributes:[.foregroundColor:NativeTextPalette.modalTitle])
         copy.attributedText=NativeModalTypography.attributedSubtitle(die.copy,font:assets.font(size:18,weight:"Medium"));copy.numberOfLines=0;copy.textAlignment = .center;copy.font=assets.font(size:18,weight:"Medium");copy.textColor=NativeTextPalette.subtitle
         hero.image=assets.image(die.id=="barell" ? "assets/shop/barell/barell.png":die.artwork.path,densityAware:true);hero.contentMode = .scaleAspectFit
         if let image=hero.image {artworkAspect=image.size.width/image.size.height;artworkVisibleBounds=Self.visibleArtworkBounds(image)}
         [heading,copy,hero,close].forEach{idle.addSubview($0)}
-        close.setBackgroundImage(paper.image,for:.normal);close.clipsToBounds=true;close.layer.cornerRadius=26;close.setImage(assets.image("assets/close-icon.png"),for:.normal);close.imageView?.contentMode = .scaleAspectFit;close.artworkOpacity = 0.8;close.enableArtworkTapFeedback();close.imageEdgeInsets=UIEdgeInsets(top:14,left:14,bottom:14,right:14);close.addTarget(self,action:#selector(closeTapped),for:.touchUpInside);close.accessibilityLabel="Close dice details";close.accessibilityIdentifier="native.backpack.detail.close"
+        close.setBackgroundImage(paper.image,for:.normal);close.clipsToBounds=true;close.layer.cornerRadius=26;close.setImage(assets.image("assets/close-icon.png",densityAware:true),for:.normal);close.imageView?.contentMode = .scaleAspectFit;close.artworkOpacity = 0.8;close.enableArtworkTapFeedback();close.imageEdgeInsets=UIEdgeInsets(top:14,left:14,bottom:14,right:14);close.addTarget(self,action:#selector(closeTapped),for:.touchUpInside);close.accessibilityLabel="Close dice details";close.accessibilityIdentifier="native.backpack.detail.close"
         modalDrag=JimiNativeModalDrag(target:card,idle:idle,viewport:view,canDrag:{[weak self] in guard let self else{return false};return self.foreground && self.entered && self.card.isUserInteractionEnabled && !self.closing && !self.disposed},onDismiss:{[weak self] in self?.closeTapped()})
         card.accessibilityIdentifier="native.backpack.detail";card.alpha=0;card.isUserInteractionEnabled=false;view.accessibilityViewIsModal=true
         let exitTap=UILongPressGestureRecognizer(target:self,action:#selector(exitSelectionPressed(_:)))

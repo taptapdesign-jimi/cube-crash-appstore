@@ -1,0 +1,11 @@
+{
+  "tool": "built-in image_gen",
+  "prompt": "Edit the provided blank ivory stone game info-card asset. Precise-object-edit, new repair candidate. Repair ONLY the two muddy/smeared transition patches on the LOWER LEFT and LOWER RIGHT side edges, just above the curved bottom rim: narrow side bands in roughly lower 72–94% of image height, where the vertical stone bevel approaches the lower corners. Make both transitions clean, continuous, crisp and naturally rounded, with coherent ivory material and a well-defined softly lit physical bevel. Remove blur smears, foggy feathered patches, visible patch seams and dirty transitions there. Preserve the exact existing tall arched rounded-rectangle silhouette, proportions, framing, cream palette, broad blank center, subtle original cracks, top edge, bottom rim thickness, central bottom crack and small bottom-right chip. No overall redesign, no additional wear, no new cracks, no added details, no outline/stroke lines. Keep the rest of the image visually unchanged; only the two lower-side repair areas need correction. Keep transparent exterior, no halo, no cast shadow, no background, no text, no UI controls. Full isolated card in same orientation with complete uncropped lower rim.",
+  "source": "assets/ui/native-stage-stats-v10/info-slab-1@2x.png",
+  "candidate": "candidate-01.png",
+  "method": "Generated repair RGB selected only inside two lower-side strips; exact original alpha retained. All remaining pixels unchanged.",
+  "review": "Viewed final candidate at native resolution. Lower-side muddy transitions replaced by continuous clean rounded bevel; broad face/top/bottom crack and chip unchanged. Raw generation changed the whole texture and had exterior flecks, so it is excluded from delivery.",
+  "approval": "Pending user review",
+  "runtimeIntegration": false,
+  "sha256": "ec41988070c612284d4786c7c36a2b7efadf4888be71947a87fd5f3faa17474c"
+}

@@ -1,0 +1,11 @@
+{
+  "changedAlphaPixels" : 0,
+  "changedLeftOrCenterPixels" : 0,
+  "changedPixels" : 41655,
+  "dimensions" : [
+    652,
+    1012
+  ],
+  "method" : "Original left-edge RGB mirrored by silhouette distance into the right-edge strip, inward seam feathered; original alpha retained",
+  "runtimeIntegration" : false
+}

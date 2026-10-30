@@ -1,5 +1,11 @@
 # DESIGN SYSTEM — Stack to Six Native
 
+Top 3 result lists (Native source, 2026-10-30): user-selected layered paper strips, without rank labels. Mode-specific trophy for high scores and lightning for combos. 32px ExtraBold title #BE7C59; 30px Bold orange result with dot grouping and width fitting; 16px Regular date #CF9373 to the right of a vertical divider. Original paper texture with a static irregular mask and warm shadow on each actual saved row. This supersedes the rejected rank-badge draft; captures remain pending under the no-tests/no-recapture instruction.
+
+Backpack/Box section headings (2026-10-30): Forest, Beach, Area55 and Arcade use **#BE7C59**, **28logicalpx ExtraBold**.
+
+Current Native source palette (2026-10-30): modal and navigation titles **#BE7C59**, subtitles and secondary stat/result labels **#CF9373**. Historical captures below have not been refreshed under the current no-tests/no-recapture instruction; their measured colors describe the old captures.
+
 Current measured design reference: [Full design system inventory](design-library/typography/DESIGN_SYSTEM.md).
 
 Visual reference: [DESIGN SYSTEM](design-library/typography/index.html), served locally at http://127.0.0.1:8766/.

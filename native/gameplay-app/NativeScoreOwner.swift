@@ -109,7 +109,7 @@ final class NativeGameplayBackpackController:UIViewController {
         idle.layer.shadowColor=UIColor(red:185/255,green:145/255,blue:119/255,alpha:1).cgColor
         idle.layer.shadowOpacity=0.8;idle.layer.shadowOffset=CGSize(width:0,height:13);idle.layer.shadowRadius=16.8
         heading.text=includesArcade ? "Box":"Backpack";heading.textAlignment = .center
-        heading.font=assets.font(size:28,weight:"ExtraBold");heading.textColor=UIColor(red:0.68,green:0.53,blue:0.46,alpha:1)
+        heading.font=assets.font(size:28,weight:"ExtraBold");heading.textColor=NativeTextPalette.modalTitle
         idle.addSubview(heading)
         let world=sections.first?.title ?? "Arcade"
         let copy:String
@@ -127,7 +127,7 @@ final class NativeGameplayBackpackController:UIViewController {
         screen.useModalLayout();screen.apply(sections,includesArcade:includesArcade);idle.addSubview(screen)
         screen.onDie={[weak self] die in self?.open(die)}
         closeButton.setBackgroundImage(paper.image,for:.normal);closeButton.layer.cornerRadius=26;closeButton.clipsToBounds=true
-        closeButton.setImage(assets.image("assets/close-icon.png"),for:.normal);closeButton.imageView?.contentMode = .scaleAspectFit;closeButton.artworkOpacity = 0.8;closeButton.enableArtworkTapFeedback()
+        closeButton.setImage(assets.image("assets/close-icon.png",densityAware:true),for:.normal);closeButton.imageView?.contentMode = .scaleAspectFit;closeButton.artworkOpacity = 0.8;closeButton.enableArtworkTapFeedback()
         closeButton.imageEdgeInsets=UIEdgeInsets(top:14,left:14,bottom:14,right:14);closeButton.accessibilityIdentifier="native.gameplay.backpack.close"
         closeButton.accessibilityLabel=includesArcade ? "Close Box":"Close Backpack";closeButton.addTarget(self,action:#selector(close),for:.touchUpInside);idle.addSubview(closeButton)
         modalDrag=JimiNativeModalDrag(target:card,idle:idle,viewport:view,canDrag:{[weak self] in

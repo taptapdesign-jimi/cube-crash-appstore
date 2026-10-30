@@ -68,7 +68,7 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
         grid.dataSource=self;grid.delegate=self;grid.isPrefetchingEnabled=false
         addSubview(grid);addSubview(header)
         header.backgroundColor=UIColor(red:243/255,green:238/255,blue:232/255,alpha:0.8);header.isOpaque=false
-        self.title.text=title;self.title.font=assets.font(size:28);self.title.textColor=NativeBackpackCell.ink;self.title.textAlignment = .center
+        self.title.text=title;self.title.font=assets.font(size:28);self.title.textColor=NativeTextPalette.navigationTitle;self.title.textAlignment = .center
         header.addSubview(self.title);header.addSubview(close)
         close.setImage(assets.image("assets/close-icon.png",densityAware:true),for:.normal)
         close.imageView?.contentMode = .scaleAspectFit;close.imageEdgeInsets=UIEdgeInsets(top:10,left:10,bottom:10,right:10)
@@ -345,7 +345,7 @@ private final class NativeBackpackSectionHeader:UICollectionReusableView {
     private let heading=UILabel(),detail=UILabel(),count=UILabel()
     override init(frame:CGRect){super.init(frame:frame);[heading,detail,count].forEach{addSubview($0)};detail.numberOfLines=2}
     required init?(coder:NSCoder){fatalError("Use frame")}
-    func apply(title:String,detail:String?,count:String?,assets:JimiV9Artwork){heading.text=title;heading.font=assets.font(size:28,weight:"ExtraBold");heading.textColor=NativeBackpackCell.ink;self.detail.text=detail;self.detail.font=assets.font(size:18,weight:"Medium");if let detail {self.detail.attributedText=NativeModalTypography.attributedSubtitle(detail,font:assets.font(size:18,weight:"Medium"),alignment:.left)};self.detail.textColor=NativeTextPalette.subtitle;self.count.text=count;self.count.font=assets.font(size:24,weight:"ExtraBold");self.count.textColor=UIColor(red:232/255,green:116/255,blue:74/255,alpha:1);self.count.textAlignment = .right}
+    func apply(title:String,detail:String?,count:String?,assets:JimiV9Artwork){heading.text=title;heading.font=assets.font(size:28,weight:"ExtraBold");heading.textColor=NativeTextPalette.navigationTitle;self.detail.text=detail;self.detail.font=assets.font(size:18,weight:"Medium");if let detail {self.detail.attributedText=NativeModalTypography.attributedSubtitle(detail,font:assets.font(size:18,weight:"Medium"),alignment:.left)};self.detail.textColor=NativeTextPalette.subtitle;self.count.text=count;self.count.font=assets.font(size:24,weight:"ExtraBold");self.count.textColor=UIColor(red:232/255,green:116/255,blue:74/255,alpha:1);self.count.textAlignment = .right}
     override func layoutSubviews(){super.layoutSubviews();let top:CGFloat=detail.text == nil ? 40:32;heading.frame=CGRect(x:32,y:top,width:bounds.width-140,height:40);count.frame=CGRect(x:bounds.width-112,y:top,width:80,height:40);detail.frame=CGRect(x:32,y:top+48,width:bounds.width-64,height:56)}
 }
 

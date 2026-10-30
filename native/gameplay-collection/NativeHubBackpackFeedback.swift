@@ -8,6 +8,36 @@ final class NativeHubBackpackFeedback {
     private(set) var generation=0
     private(set) var acceptedContacts=0
     static let animationKey="native.hub.backpack-bounce"
+    static let idleKey="native.navigation.icon.float"
+    /// Existing compositor idle, admitted only by the visible screen owner.
+    /// The managed image moves inside an unchanged button/hit rectangle.
+    static func setIdle(on button:UIButton,active:Bool) {
+        guard let image=button.imageView else{return}
+        guard active,!button.isHidden,button.window != nil,!UIAccessibility.isReduceMotionEnabled else{
+            image.layer.removeAnimation(forKey:idleKey);return
+        }
+        guard image.layer.animation(forKey:idleKey)==nil else{return}
+        let now=image.layer.convertTime(CACurrentMediaTime(),from:nil)
+        let ready=[animationKey,switchKey].compactMap{image.layer.animation(forKey:$0)}.reduce(now){max($0,$1.beginTime+$1.duration)}
+        // Bottle's sine motion at 80% speed, continuously repeated without its
+        // gameplay repeat gap. Only translation: no bounce, scale or sharp tail.
+        let idle=CAKeyframeAnimation(keyPath:"transform")
+        let steps=120
+        idle.values=(0...steps).map { index in
+            let phase=Double(index)/Double(steps)*2*Double.pi
+            return NSValue(caTransform3D:CATransform3DMakeTranslation(0,-4.8*CGFloat(sin(phase)),0))
+        }
+        idle.keyTimes=(0...steps).map {NSNumber(value:Double($0)/Double(steps))}
+        idle.calculationMode = .linear
+        idle.duration=NativeBottleIdleMotion.activeDuration/0.8
+        idle.repeatCount = .infinity
+        image.layer.add(idle,forKey:idleKey)
+        // Delayed icon switches retain their entire authored contact before idle.
+        if ready>now,let idle=image.layer.animation(forKey:idleKey) {
+            idle.beginTime=ready;image.layer.add(idle,forKey:idleKey)
+        }
+    }
+
     init(button:UIButton){self.button=button}
     func setActive(_ value:Bool,generation:Int) {
         guard !disposed,generation>=self.generation else{return}
@@ -27,6 +57,7 @@ final class NativeHubBackpackFeedback {
     static func play(on target:UIView){
         guard !UIAccessibility.isReduceMotionEnabled else{return}
         let painted=target.layer.presentation()?.transform ?? CATransform3DIdentity
+        target.layer.removeAnimation(forKey:idleKey)
         target.layer.removeAnimation(forKey:animationKey)
         let poses=NativeHUDTapMotion.poses
         let motion=CAKeyframeAnimation(keyPath:"transform")
@@ -48,6 +79,7 @@ final class NativeHubBackpackFeedback {
         let path=crate ? (open ? "assets/hud/crate-open.png":"assets/hud/crate - hud.png"):(open ? "assets/nav/stats-nav-open.png":"assets/nav/stats-nav.png")
         guard let image=assets.image(path,densityAware:true) else{return}
         let target=button.imageView ?? button
+        target.layer.removeAnimation(forKey:idleKey)
         let previous=button.image(for:.normal)
         let aligned:UIImage
         if open && !crate {

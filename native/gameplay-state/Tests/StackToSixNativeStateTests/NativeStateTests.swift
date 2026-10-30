@@ -4,6 +4,21 @@ import StackToSixGameplay
 @testable import StackToSixNativeState
 
 final class NativeStateTests: XCTestCase {
+    func testJourneyResultHistoryRetainsTopTenDatesAndRestoresLegacyBest()throws {
+        var p=NativeProgressionState(),legacy=NativeBoardStats();legacy.highScore=900;legacy.longestCombo=20
+        p.boardStats[1]=legacy
+        for n in 1...15 {p.finishAttempt(mode:.journey,board:1,score:n*100,longestCombo:n, cubesCracked:0,clean:true,now:Double(n))}
+        let stats=try XCTUnwrap(p.boardStats[1])
+        XCTAssertEqual(stats.scoreHistory?.count,10);XCTAssertEqual(stats.comboHistory?.count,10)
+        XCTAssertEqual(stats.scoreHistory?.first,.init(value:1500,date:15));XCTAssertEqual(stats.comboHistory?.first,.init(value:20,date:nil))
+        XCTAssertEqual(try JSONDecoder().decode(NativeProgressionState.self,from:JSONEncoder().encode(p)),p)
+        let before=p;p.finishAttempt(mode:.journey,board:1,score:99999,longestCombo:999,cubesCracked:0,clean:false,now:100)
+        XCTAssertEqual(p,before,"Failed attempts keep existing clean-result ownership")
+        var json=try XCTUnwrap(JSONSerialization.jsonObject(with:JSONEncoder().encode(stats)) as? [String:Any])
+        json.removeValue(forKey:"scoreHistory");json.removeValue(forKey:"comboHistory")
+        let old=try JSONDecoder().decode(NativeBoardStats.self,from:JSONSerialization.data(withJSONObject:json))
+        XCTAssertNil(old.scoreHistory);XCTAssertNil(old.comboHistory);XCTAssertEqual(old.highScore,1500)
+    }
     func testFreshProfileEnablesEverySettingAndSavedChoicesRemainExplicit() throws {
         let store=NativeSaveStore(directory:try temporary())
         XCTAssertNil(try store.load())

@@ -93,7 +93,7 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         super.viewDidLoad();view.backgroundColor=UIColor(red:243/255,green:238/255,blue:232/255,alpha:1)
         paper=NativeAppPaperSurface(artwork:assets);view.addSubview(paper)
         for label in [headingLabel,subtitle,coach] {label.textAlignment = .center;label.isUserInteractionEnabled=false;view.addSubview(label)}
-        headingLabel.text="New Reward";headingLabel.textColor=UIColor(red:239/255,green:116/255,blue:77/255,alpha:1)
+        headingLabel.text="New Reward";headingLabel.textColor=NativeTextPalette.modalTitle
         subtitle.text="Tap the card to reveal";subtitle.textColor=NativeTextPalette.subtitle
         coach.text="TAP TO COLLECT";coach.font=assets.font(size:32,weight:"ExtraBold");coach.textColor = .white;coach.alpha=0
         coach.layer.shadowColor=UIColor(red:159/255,green:105/255,blue:82/255,alpha:0.34).cgColor;coach.layer.shadowOffset=CGSize(width:0,height:3);coach.layer.shadowOpacity=1
@@ -246,7 +246,7 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         animate(unlocked.layer,"opacity",from:0,to:1,duration:0.001,delay:unlockedDelay)
         headingLabel.text=rarity=="legendary" ? "Legendary!":"Common"
         let copy=NSMutableAttributedString(string:"Unlocked \(NativeRewardPresentation.name(board:board))")
-        copy.addAttribute(.foregroundColor,value:NativeTextPalette.subtitle,range:NSRange(location:9,length:copy.length-9));subtitle.attributedText=copy
+        copy.addAttribute(.foregroundColor,value:NativeTextPalette.subtitle,range:NSRange(location:0,length:copy.length));subtitle.attributedText=copy
         let enter=reducedMotion ? 0.16:NativeRewardMotion.cardEnterDuration
         animateCardEntrance(unlocked.layer,from:NativeRewardMotion.pose(scale:0,y:22,z:tilt.entryZ,x:tilt.entryX,ry:tilt.entryY,depth:-180),to:NativeRewardMotion.pose(scale:1.17,y:40,z:tilt.restZ,x:tilt.restX,ry:tilt.restY),delay:unlockedDelay)
         animate(headingLabel.layer,"opacity",from:0,to:1,duration:0.192,delay:unlockedDelay);animate(subtitle.layer,"opacity",from:0,to:1,duration:0.192,delay:unlockedDelay)
