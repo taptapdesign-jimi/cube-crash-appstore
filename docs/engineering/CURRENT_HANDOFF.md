@@ -1,6 +1,6 @@
 ## Native benchmark v21 online publication · 2026-10-30
 
-User requests all saved work on online Git as new benchmark. Prepared main commit and immutable native-benchmark-v21 for Top3 paper strips/Journey cards, including all saved nondeleted source/docs/art/design work. Seven preexisting protected-original audio/library deletions stay unstaged and their originals remain in Git, matching v20. Approved Native recovery pointer updated; historical tags and PWA preserved. Latest actual build/Simulator evidence and no-QA/physical limits in NATIVE_BENCHMARK_V21.md. Remote publication result recorded separately after push verification.
+User requests all saved work on online Git as new benchmark. Prepared main commit and immutable native-benchmark-v21 for Top3 paper strips/Journey cards, including all saved nondeleted source/docs/art/design work. Seven preexisting protected-original audio/library deletions stay unstaged and their originals remain in Git, matching v20. Approved Native recovery pointer updated; historical tags and PWA preserved. Latest actual build/Simulator evidence and no-QA/physical limits in NATIVE_BENCHMARK_V21.md. Atomic GitHub publication succeeded: main and annotated native-benchmark-v21 both verified by git ls-remote at payload commit d8a9c403850cedaf10219d6f2ce75373ca8acb4e; tag object4976ad3af0b935ec7ddc7aa6e64dfb970c6dcb8a. This documentation receipt follows the immutable payload tag. Only the seven preexisting protected-original deletions remain unstaged.
 
 ## Top 3 selected paper-strip design installed · 2026-10-30
 
