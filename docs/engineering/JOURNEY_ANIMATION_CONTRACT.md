@@ -91,7 +91,7 @@ Navigation rules:
 - Nav/header exit starts immediately with the relevant content exit. Do not leave header/nav visible while content waits to begin exit.
 - Native navigation's underside shadow begins its 160ms ease-out fade 200ms after the header bounce-out starts (Reduced Motion retains its 100ms hold plus 60ms fade). Keep the rectangle's existing motion; the same route group owns shadow pause/cancellation, and entry restores the accepted static shadow.
 - Card modal X/header exit should begin immediately on X tap, not after the card/stat content has mostly finished exiting.
-- An accepted ordinary Unit-card tap starts visible contact after the first owned geometry paint. User2026-10-30: play the complete shared0.40s NativeHUDTapMotion squeeze/stretch at the original Unit rectangle before the unchanged portaled flight/flip;one carrier owns both phases. Interim contact/launch remains unchanged. Reduced Motion skips the contact prefix. Star/input admission follows the actual full opening completion. The flip cue follows travel onset through the existing finite animation-start receipt. Exact 2x artwork, modal chrome decode, and front/back prepaint must never gate the first visible motion; the already-painted 1x World card is the entry carrier.
+- An accepted ordinary Unit-card tap starts its portaled flight immediately, matching the preserved PWA (user2026-10-30 correction). No complete 0.40s resident-contact prefix before flight. One carrier owns the original PWA 520/0.98ms spatial path, overshoot/settle and rotor turn during32–68% of that same flight; the existing finite animation-start receipt owns its flip cue. Native flight and rotor must both use commit-relative beginTime=0, never an earlier absolute rotor timestamp: first32% stays front-facing, physical edge at50%, turn complete at68% of the same rendered flight. Star/input admission follows this opening timeline. Interim contact/launch remains unchanged; Reduced Motion retains its short entry. Exact 2x artwork, modal chrome decode, and front/back prepaint must never gate the first visible motion; the already-painted 1x World card is the entry carrier.
 - Card-modal pointerdown and ordinary Common-card flip handoff are write-only: they
   sample the active WAAPI owner's cached pose and must not call computed-style,
   geometry or layout APIs. Ordinary flips remain compositor-owned without a
@@ -381,3 +381,55 @@ Native Journey info statistics (user2026-10-30): face flip is admitted only by h
 Journey Top3 detail close (latest user2026-10-30): the retained large info card begins its standard return entry at60percent of the detail exit timeline (0.39s of0.65s), overlapping its final40percent. The milestone shares the actual paused compositor clock; no wall-time delay. Reduced Motion returns immediately. Do not wait for dismissal/onClosed or return at close request. Exact selected controller/World identity and duplicate/navigation/disposal guards remain authoritative.
 
 Journey Top3 opening (latest user2026-10-30): present the selected detail at60percent of the source info-card0.65s exit (0.39s), with the final40percent overlapping. Retain one pending selected detail; duplicate/background/navigation/cleanup cannot admit a stale presentation. The source-layer milestone follows its paused compositor clock, Reduced Motion enters immediately. Closing retains the60percent return rule.
+
+Journey info-stat tiles (user2026-10-30): High score and Best combo independently float continuously while the info face is visible, using their existing disjoint tempo/phase profiles with gentle horizontal/vertical translation and tiny lean. This supersedes the three-cycle limit only for whole-tile float. Existing parent pause, flip/exit/cleanup retirement and Reduced Motion remain;finite background-stone breathing and rigid text stay unchanged.
+
+
+### NEW card opening tilt (user2026-10-30)
+
+For Native Journey selected-card presentation, the effective presentation NEW flag (explicit presentation override, otherwise Unit newRibbon) fixes artwork-face tilt to the existing negative/left direction, keeping NEW at the right edge. The authored4.75–6.25degree magnitude remains random. Without NEW, left/right direction remains random per presentation. Existing opposite info-face tilt, motion tracks, alert ownership, discovery/read state and cleanup remain unchanged.
+
+
+### Selected info-stat contents (user2026-10-30)
+
+High score and Best combo tile icon+number move4logicalpx toward the caption relative to the prior recipe. Then the combined icon/number/caption frame union is centered vertically inside its unchanged tile bounds;all children remain horizontally centered. Existing independent tile drift/surface breathing,paper art,hitbox and stat-history tap owners remain unchanged.
+
+
+### All visible paper modals float (user2026-10-30)
+
+Score/Combo history and HUD modals now use the same6.8s JimiNativeModalV10 idle after enter readiness,including Best scores/Best combo. This explicitly supersedes history settled-stillness. Existing Backpack/detail/Arcade/Exit/Privacy and selected Journey card floats remain under their current owners;do not stack a second float. Score modal pauses on existing parent clock for background/covered state,drag pauses its idle subtree,close freezes the painted idle pose before outer exit,and disposal removes its animation. Reduced Motion skips float. No new ticker/timer or asset work.
+
+
+### Result score counter accent (user2026-10-30)
+
+While the large clean-result score counts through its existing base/combo/efficiency phases,show faint vertical motion-blur trails,a small deterministic shake and warm glow behind the same text. Stop blur/shake outside active counting. Emit one finite glow burst only after the last nonzero phase settles,then leave the text sharp with no glow. Existing result elapsed clock owns all sampling and background pause;close/disposal reset it,Reduced Motion skips it. Do not change any displayed result,count duration,CTA,audio/haptic or saved state.
+
+
+Result counter refinement(user2026-10-30):remove motion blur during counting. Once entire score finishes,sample exact shared0.4s NativeHUDTapMotion/Settings ON-OFF squash-stretch bounce,with1.5x motion-blur trail strength only over that bounce. Counting shake/glow and final single0.42s glow burst remain;after bounce text returns to identity/sharp. Same result clock,pause/cleanup/Reduced Motion gates,no new scheduler.
+
+User duration refinement2026-10-30:final score bounce lasts0.6s;sample shared0.4s Settings pose with proportional time stretch (same shape/peaks). Motion blur spans only this0.6s bounce;normal Settings timing unchanged.
+
+The final glow burst follows the end of this0.6s bounce (whole text settled),then fades over0.42s;it does not flash early at count completion.
+
+
+Journey selected-card CTA width(user2026-10-30):Play and Continue share prior min(238*layoutScale,cardWidth-32) width multiplied by0.9 (10percent narrower). Height,vertical position,center,font,artwork/contact/entry/exit and routing stay unchanged;other CTA surfaces keep their existing metrics.
+
+
+### Arcade selected-island contact with retained screen (user2026-10-31)
+
+User explicitly rejects whole-Worlds exit for Arcade modal opening. Keep the
+entire Arcade screen and all Units/header at their original size behind modal.
+Only selected island illustration performs a clear stronger cartoon contact:
+shared NativeHUDTapMotion phases,1.45x squash/stretch displacement,1.6x lift,
+bounded3degree settling lean,0.48s duration. Latest quicker-response request:
+Arcade disables scroll touch delay while retaining touchUpInside/drag cancellation.
+Stop idle and submit/flush contact immediately on accepted tap,before feedback or
+selected modal preparation. Mount/layout selected modal hidden,then precommit
+standard entry on contact epoch+0.20s,overlapping the final0.28s (latest user:another200ms earlier);late preparation
+enters immediately. Existing opacity fills hold paper/tint hidden until entry. No collapse,
+background route exit,extra gentle-scale pulse or percentage delay. Close simply
+uncovers retained Hub, preserving scroll and idle phase;Play alone retains
+original complete Hub exit. Pending tokens and existing animation key own
+background/hide/detach cancellation;Reduced Motion skips contact. Journey and
+all original artwork remain unchanged. This supersedes prior2026-10-30 Arcade
+whole-Worlds activation interpretation.

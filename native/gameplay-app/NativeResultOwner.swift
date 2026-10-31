@@ -165,6 +165,9 @@ final class NativeResultController:UIViewController {
     private let arcadeCelebrationPresented:Bool
     private var arcadePresentation:NativeArcadeRoundPresentation?
     private let content=UIView(),cardContent=UIView(),headlineContent=UIView(),statusContent=UIView(),bonusContent=UIView()
+    private let scoreMotion=UIView(),scoreShake=UIView(),scoreGlow=UILabel()
+    private let scoreTrails=(0..<4).map{_ in UILabel()}
+    private var scoreAccentVisible=false
     private let stars=UIView()
     private var empty:[UIImageView]=[]
     private var filled:[UIImageView]=[]
@@ -227,6 +230,9 @@ final class NativeResultController:UIViewController {
         view.addSubview(content);content.addSubview(cardContent);cardContent.addSubview(stars)
         cardContent.addSubview(headlineContent)
         cardContent.addSubview(statusContent);statusContent.addSubview(bonusContent)
+        cardContent.addSubview(scoreMotion);scoreMotion.addSubview(scoreGlow);scoreMotion.addSubview(scoreShake)
+        scoreMotion.accessibilityIdentifier="native.result.score-motion"
+        for trail in scoreTrails {scoreShake.addSubview(trail)}
         for index in 0..<3 {
             let holder=UIView();stars.addSubview(holder)
             let back=UIImageView(image:assets.image("assets/modals/star-empty.png"))
@@ -244,7 +250,7 @@ final class NativeResultController:UIViewController {
             (bonus,36,"ExtraBold",orange),(bonusLabel,18,"SemiBold",NativeTextPalette.subtitle)]
         for (label,size,weight,color) in values {
             label.font=assets.font(size:size,weight:weight);label.textColor=color;label.textAlignment = .center
-            let parent=label === bonus || label === bonusLabel ? bonusContent:label === status ? statusContent:label === heading ? headlineContent:cardContent
+            let parent=label === bonus || label === bonusLabel ? bonusContent:label === status ? statusContent:label === heading ? headlineContent:label === score ? scoreShake:cardContent
             parent.addSubview(label)
         }
         let paragraph=NSMutableParagraphStyle();paragraph.alignment = .center;paragraph.lineBreakMode = .byWordWrapping
@@ -256,6 +262,12 @@ final class NativeResultController:UIViewController {
             label.append(NSAttributedString(string:"Highscore",attributes:[.font:scoreLabel.font!,.foregroundColor:brown,.kern:0.4]))
             scoreLabel.attributedText=label
         } else {scoreLabel.text="Your score"}
+        for label in [scoreGlow]+scoreTrails {
+            label.font=score.font;label.textColor=score.textColor;label.textAlignment=score.textAlignment
+            label.isAccessibilityElement=false;label.isUserInteractionEnabled=false;label.isHidden=true
+            label.layer.shadowColor=orange.cgColor;label.layer.shadowOffset = .zero
+            label.layer.shadowOpacity=1;label.layer.shadowRadius=label === scoreGlow ? 18:1.1
+        }
         score.accessibilityIdentifier="native.result.score"
         status.accessibilityIdentifier="native.result.status"
         status.text="\(state.mode == .arcade ? String(format:"Round %02d",state.stage) : String(format:"%@ %02d",state.board>20 ? "Area":state.board>10 ? "Beach":"Forest",(state.board-1)%10+1)) \(arcadeReached ? "reached" : clean ? "cleared" : "not cleared")"
@@ -328,7 +340,9 @@ final class NativeResultController:UIViewController {
         let lineHeight:CGFloat=clean ? 40:56
         let lines=max(1,ceil((measured-0.5)/lineHeight))
         let titleHeight=lines*lineHeight
-        let layout=NativeResultPresentationPlan.layout(viewport:view.bounds.size,clean:clean,titleHeight:titleHeight,primarySize:JimiV9PlainButton.homeCTASize(maxWidth:view.bounds.width-48,font:assets.font(size:28,weight:"ExtraBold")),actionGap:JimiV9PlainButton.pairedModalCTAGap)
+        var actionSize=JimiV9PlainButton.homeCTASize(maxWidth:view.bounds.width-48,font:assets.font(size:28,weight:"ExtraBold"))
+        actionSize.width=min(view.bounds.width-48,actionSize.width*1.10)
+        let layout=NativeResultPresentationPlan.layout(viewport:view.bounds.size,clean:clean,titleHeight:titleHeight,primarySize:actionSize,actionGap:JimiV9PlainButton.pairedModalCTAGap)
         place(cardContent,in:layout.card)
         place(stars,in:layout.hero.offsetBy(dx:-layout.card.minX,dy:-layout.card.minY))
         for index in 0..<3 {
@@ -344,7 +358,10 @@ final class NativeResultController:UIViewController {
         let overhang=max(0,(heading.font.lineHeight-lineHeight)/2)
         heading.frame=headlineContent.bounds.insetBy(dx:0,dy:-overhang)
         place(scoreLabel,in:layout.scoreLabel.offsetBy(dx:-layout.card.minX,dy:-layout.card.minY))
-        place(score,in:layout.score.offsetBy(dx:-layout.card.minX,dy:-layout.card.minY))
+        place(scoreMotion,in:layout.score.offsetBy(dx:-layout.card.minX,dy:-layout.card.minY))
+        scoreShake.bounds=scoreMotion.bounds;scoreShake.center=CGPoint(x:scoreMotion.bounds.midX,y:scoreMotion.bounds.midY)
+        score.frame=scoreMotion.bounds;scoreGlow.frame=scoreMotion.bounds
+        for trail in scoreTrails {trail.frame=scoreMotion.bounds}
         place(statusContent,in:layout.status.offsetBy(dx:-layout.card.minX,dy:-layout.card.minY))
         place(status,in:statusContent.bounds)
         place(bonusContent,in:CGRect(x:0,y:statusContent.bounds.midY-30,width:statusContent.bounds.width,height:60))
@@ -402,7 +419,7 @@ final class NativeResultController:UIViewController {
             let path:NativeResultExitPlan.CleanPath = !clickedPrimary && state.mode == .journey ? .journeyReturn:.replay
             let plan=clean ? NativeResultExitPlan.clean(seconds:age,earned:earned,path:path,clickedPrimary:clickedPrimary):NativeResultExitPlan.failed(seconds:age,clickedPrimary:clickedPrimary)
             apply(plan.primary,to:buttons[0]);apply(plan.secondary,to:buttons[1]);apply(plan.hero,to:stars);apply(plan.card,to:cardContent)
-            let fields=clean ? [headlineContent,scoreLabel,score,statusContent,status]:[headlineContent,status]
+            let fields=clean ? [headlineContent,scoreLabel,scoreMotion,statusContent,status]:[headlineContent,status]
             for (field,pose) in zip(fields,plan.content) {apply(pose,to:field)}
             for index in 0..<3 {
                 if clean {
@@ -428,9 +445,9 @@ final class NativeResultController:UIViewController {
                 } else {finishClose()}
             };return
         }
-        commitOnce();thumb.isHidden=true;scoreLabel.isHidden = !clean;score.isHidden = !clean
+        commitOnce();thumb.isHidden=true;scoreLabel.isHidden = !clean;scoreMotion.isHidden = !clean
         let plan=NativeResultPresentationPlan.sample(seconds:elapsed,clean:clean,baseScore:state.score,combo:combo,efficiency:efficiency,arcadeReached:arcadeReached)
-        for (target,pose) in [(stars,plan.hero),(headlineContent,plan.title),(scoreLabel,plan.scoreLabel),(score,plan.score),(status,plan.status),(buttons[0],plan.primary),(buttons[1],plan.secondary)] {apply(pose,to:target)}
+        for (target,pose) in [(stars,plan.hero),(headlineContent,plan.title),(scoreLabel,plan.scoreLabel),(scoreMotion,plan.score),(status,plan.status),(buttons[0],plan.primary),(buttons[1],plan.secondary)] {apply(pose,to:target)}
         moment(clean ? "clean-applause":"fail-sax",at:0)
         if clean {
             if let titleIndex=NativeResultHeadlines.clean.firstIndex(of:headline) {
@@ -455,6 +472,7 @@ final class NativeResultController:UIViewController {
         }
         if clean {
             score.text=String(plan.displayedScore)
+            paintScoreAccent()
             if lastCounterValue != plan.displayedScore {
                 let previous=lastCounterValue;lastCounterValue=plan.displayedScore
                 if previous != nil,elapsed-lastCounterHapticAt>=0.05 {
@@ -496,11 +514,35 @@ final class NativeResultController:UIViewController {
         guard closingAt == nil,!disposed else {return}
         onMoment?("modal-exit",0,nil)
         if arcadeCue {dispose();dismiss(animated:false,completion:completion);return}
+        retireScoreAccent()
         capturedStarScales=(0..<3).map{NativeResultPresentationPlan.filledStarScale(seconds:elapsed,index:$0)}
         onForestAmbience?(false,false)
         confetti?.dispose();confetti=nil;area55Flybys?.dispose();area55Flybys=nil;forestBees?.dispose();forestBees=nil;closingAt=elapsed;closed=completion
         destinationPreparation=prepareDestination;self.paperFadeDuration=max(0.001,paperFadeDuration)
         preparationFrames=prepareDestination == nil ? 0:2
+    }
+    private func paintScoreAccent() {
+        let accent=NativeResultPresentationPlan.counterAccent(seconds:elapsed,baseScore:state.score,combo:combo,efficiency:efficiency,arcadeReached:arcadeReached,reducedMotion:UIAccessibility.isReduceMotionEnabled)
+        guard accent.motion>0 || accent.flash>0 || accent.blur>0 else{retireScoreAccent();return}
+        scoreAccentVisible=true
+        scoreShake.transform=CGAffineTransform(translationX:accent.x,y:accent.y+accent.bounceOffset).scaledBy(x:accent.bounceX,y:accent.bounceY)
+        scoreGlow.isHidden=false;scoreGlow.alpha=0.24*accent.motion+0.64*accent.flash
+        scoreGlow.transform=CGAffineTransform(translationX:0,y:accent.bounceOffset).scaledBy(x:accent.bounceX*(1+0.10*accent.flash),y:accent.bounceY*(1+0.10*accent.flash))
+        if scoreGlow.text != score.text {scoreGlow.text=score.text}
+        let offsets:[CGFloat]=[-4,-2,2,4],opacity:[CGFloat]=[0.07,0.14,0.14,0.07]
+        for (index,trail) in scoreTrails.enumerated() {
+            trail.isHidden=accent.blur<=0
+            if accent.blur>0 {
+                if trail.text != score.text {trail.text=score.text}
+                trail.alpha=opacity[index]*accent.blur
+                trail.transform=CGAffineTransform(translationX:0,y:offsets[index]*accent.blur)
+            }
+        }
+    }
+    private func retireScoreAccent() {
+        guard scoreAccentVisible else{return};scoreAccentVisible=false
+        scoreShake.transform = .identity;scoreGlow.isHidden=true;scoreGlow.text=nil;scoreGlow.transform = .identity
+        for trail in scoreTrails {trail.isHidden=true;trail.text=nil;trail.transform = .identity}
     }
     private func requestDestinationPreparation() {
         guard !disposed,!suspended,!destinationPending,!destinationReady,let destinationPreparation else{return}
@@ -522,7 +564,7 @@ final class NativeResultController:UIViewController {
         }
     }
     func dispose() {
-        guard !disposed else {return};disposed=true;buttons.forEach{$0.setModalCTAIdleSuspended(true)};onForestAmbience?(false,false);onForestAmbience=nil;link?.invalidate();link=nil;clockTarget=nil
+        guard !disposed else {return};disposed=true;retireScoreAccent();buttons.forEach{$0.setModalCTAIdleSuspended(true)};onForestAmbience?(false,false);onForestAmbience=nil;link?.invalidate();link=nil;clockTarget=nil
         arcadePresentation?.dispose();arcadePresentation=nil;confetti?.dispose();confetti=nil;area55Flybys?.dispose();area55Flybys=nil;forestBees?.dispose();forestBees=nil
         for observer in observations {NotificationCenter.default.removeObserver(observer)};observations.removeAll()
         destinationLease &+= 1;destinationPreparation=nil;destinationPending=false

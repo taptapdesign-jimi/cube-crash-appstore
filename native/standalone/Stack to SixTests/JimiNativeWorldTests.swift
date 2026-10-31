@@ -521,7 +521,7 @@ final class JimiNativeWorldTests: XCTestCase {
         let openingStar=initialStars[0]
         let firstGray=try XCTUnwrap(descendant(card,"native.world.card.star.0.empty"))
         let plannedExit=try XCTUnwrap(firstGray.layer.animation(forKey:"card.info.star.empty-exit"))
-        XCTAssertEqual(plannedExit.beginTime-openingLocal,NativeHUDTapMotion.duration+0.520/0.98-0.3,accuracy:0.03)
+        XCTAssertEqual(plannedExit.beginTime-openingLocal,0.520/0.98-0.3,accuracy:0.03)
         for star in initialStars {
             let scheduled=try XCTUnwrap(star.layer.animation(forKey:"card.info.star.intro"))
             XCTAssertEqual(scheduled.fillMode,.backwards)
@@ -621,8 +621,8 @@ final class JimiNativeWorldTests: XCTestCase {
         XCTAssertEqual(star.layer.animation(forKey:"card.info.star.pulse")?.beginTime,pulse.beginTime)
         let score=try XCTUnwrap(descendant(card,"native.world.card.stat.0.value"))
         let caption=try XCTUnwrap(descendant(card,"native.world.card.stat.0.caption") as? UILabel)
-        XCTAssertEqual(score.frame.minY,86,accuracy:0.01)
-        XCTAssertEqual(caption.frame.minY,127,accuracy:0.01)
+        XCTAssertEqual(caption.frame.minY-score.frame.minY,37,accuracy:0.01)
+        XCTAssertEqual(iconArt.frame.union(score.frame).union(caption.frame).midY,icon.bounds.midY,accuracy:0.01)
         XCTAssertEqual(caption.font.fontName,art.font(size:18,weight:"Regular").fontName)
         card.setActive(false)
         let starPaused=star.layer.convertTime(CACurrentMediaTime(),from:nil)
@@ -842,8 +842,8 @@ final class JimiNativeWorldTests: XCTestCase {
         world.cleanup(); world.cleanup(); XCTAssertFalse(world.isReadyForInput)
     }
 
-    func testRegularUnitTapShowsCompleteResidentContactBeforeModalTravelAndFlip() async throws {
-        guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Authored contact")}
+    func testRegularUnitTapImmediatelyStartsPWAFlightAndFlip() async throws {
+        guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Authored entry")}
         for board in [1,11,21] {
             var raw=fixture();raw["worldID"]=(board-1)/10+1
             var definitions=try XCTUnwrap(raw["units"] as? [[String:Any]])
@@ -868,49 +868,41 @@ final class JimiNativeWorldTests: XCTestCase {
                 XCTAssertEqual(action,"openCard");XCTAssertEqual(id,board);requests+=1
                 world.openCard(boardID:board)
             }
-            let activationTime=CACurrentMediaTime()
             unit.sendActions(for:.touchUpInside);unit.sendActions(for:.touchUpInside)
-            let activationFinished=CACurrentMediaTime()
             XCTAssertEqual(requests,1,"Mounted modal rejects duplicate Unit activation")
-            XCTAssertTrue(source.isHidden,"Visible contact belongs to the replacement carrier")
+            XCTAssertTrue(source.isHidden,"Visible flight belongs to the replacement carrier")
             let modal=try XCTUnwrap(world.subviews.compactMap{$0 as? JimiNativeWorldCardView}.first)
             let camera=try XCTUnwrap(descendant(modal,"native.world.card.camera"))
             let carrier=try XCTUnwrap(camera.subviews.first{$0.layer.animation(forKey:"card.flight") != nil})
             let flight=try XCTUnwrap(carrier.layer.animation(forKey:"card.flight") as? CAKeyframeAnimation)
             let poses=try XCTUnwrap(flight.values as? [NSValue]).map{$0.caTransform3DValue}
             let first=try XCTUnwrap(poses.first)
-            XCTAssertEqual(flight.duration,NativeHUDTapMotion.duration+0.520/0.98,accuracy:0.000001)
+            XCTAssertEqual(flight.duration,0.520/0.98,accuracy:0.000001)
             XCTAssertEqual(carrier.frame.midX+first.m41,sourceCenter.x+unitPose.m41+sourcePose.m41,accuracy:0.2)
             XCTAssertEqual(carrier.frame.midY+first.m42,sourceCenter.y+unitPose.m42+sourcePose.m42,accuracy:0.2)
             XCTAssertEqual(carrier.bounds.width*hypot(first.m11,first.m12),source.bounds.width*hypot(sourcePose.m11,sourcePose.m12),accuracy:0.001)
             XCTAssertEqual(carrier.bounds.height*hypot(first.m21,first.m22),source.bounds.height*hypot(sourcePose.m21,sourcePose.m22),accuracy:0.001)
-            for (index,pose) in poses.enumerated() {
-                let time=Double(index)*flight.duration/Double(poses.count-1)
-                guard time<=NativeHUDTapMotion.duration else{break}
-                let contact=NativeHUDTapMotion.pose(at:time)
-                XCTAssertEqual(pose.m41,first.m41,accuracy:0.000001,"No travel during resident contact")
-                XCTAssertEqual(pose.m42,first.m42+contact.offset,accuracy:0.000001)
-                XCTAssertEqual(hypot(pose.m11,pose.m12),hypot(first.m11,first.m12)*contact.x,accuracy:0.000001)
-                XCTAssertEqual(hypot(pose.m21,pose.m22),hypot(first.m21,first.m22)*contact.y,accuracy:0.000001)
-            }
+            // The first flight sample already enlarges/moves the card instead
+            // of spending 400ms squeezing at the source rectangle.
+            let next=poses[1]
+            XCTAssertGreaterThan(hypot(next.m11,next.m12),hypot(first.m11,first.m12))
             let rotor=try XCTUnwrap(descendant(modal,"native.world.card.rotor"))
             let flip=try XCTUnwrap(rotor.layer.animation(forKey:"card.flip") as? CAKeyframeAnimation)
             let angles=try XCTUnwrap(flip.values as? [Double])
             XCTAssertEqual(flip.duration,0.520/0.98,accuracy:0.000001,"Travel retains its original flip duration")
-            let flipStart=rotor.layer.convertTime(flip.beginTime,to:nil)
-            XCTAssertGreaterThanOrEqual(flipStart,activationTime+NativeHUDTapMotion.duration-0.001)
-            XCTAssertLessThanOrEqual(flipStart,activationFinished+NativeHUDTapMotion.duration+0.001,"Flip delay excludes synchronous UIKit construction cost")
-            XCTAssertEqual(flip.fillMode,.both,"Delayed flip holds its visible front pose")
+            XCTAssertEqual(flight.beginTime,0,"Flight starts at the render commit")
+            XCTAssertEqual(flip.beginTime,flight.beginTime,"Rotor must share the render commit, never a pre-construction wall clock")
+            XCTAssertEqual(flip.calculationMode,.linear)
+            XCTAssertTrue(angles.prefix(41).allSatisfy{$0 == 0},"PWA front remains still through 32% of the shared flight")
+            XCTAssertEqual(angles[88],-.pi,accuracy:0.000001,"PWA turn completes after 68% of the shared flight")
+            XCTAssertEqual(flip.fillMode,.both,"PWA flip starts with its visible front pose")
             XCTAssertEqual(angles.first ?? 1,0,accuracy:0.000001)
             XCTAssertEqual(angles[64],-.pi/2,accuracy:0.000001)
-            XCTAssertNil(carrier.layer.animation(forKey:NativeHubBackpackFeedback.animationKey),"One transform track owns contact and travel")
+            XCTAssertNil(carrier.layer.animation(forKey:NativeHubBackpackFeedback.animationKey),"One transform track owns travel")
             try await settle(0.07)
             let painted=try XCTUnwrap(carrier.layer.presentation()).transform
-            let x=hypot(painted.m11,painted.m12)/hypot(first.m11,first.m12)
-            let y=hypot(painted.m21,painted.m22)/hypot(first.m21,first.m22)
-            XCTAssertGreaterThan(abs(x-y),0.12,"Rendered ordinary card visibly squeezes before its flight")
-            XCTAssertEqual(painted.m41,first.m41,accuracy:0.2)
-            XCTAssertEqual(try XCTUnwrap(rotor.layer.presentation()).transform.m11,1,accuracy:0.001,"Rendered contact stays unflipped")
+            XCTAssertGreaterThan(hypot(painted.m11,painted.m12),hypot(first.m11,first.m12),"Rendered card is already flying/enlarging")
+            XCTAssertEqual(try XCTUnwrap(rotor.layer.presentation()).transform.m11,1,accuracy:0.001,"PWA keeps the front visible for the first 32% of flight")
             XCTAssertFalse(modal.acceptsCardPan)
             try await awaitCardOpening(modal)
             XCTAssertNil(carrier.layer.animation(forKey:"card.flight"))

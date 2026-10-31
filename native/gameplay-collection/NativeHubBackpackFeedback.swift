@@ -54,7 +54,7 @@ final class NativeHubBackpackFeedback {
     /// Core Animation retires this finite track; repeated taps replace only this key.
     /// Shared icon contact borrows the alert's active squash/stretch bounce,
     /// compressed into one0.4s track without its idle pause or notification tilt.
-    static func play(on target:UIView){
+    static func play(on target:UIView,beginTime:CFTimeInterval? = nil){
         guard !UIAccessibility.isReduceMotionEnabled else{return}
         let painted=target.layer.presentation()?.transform ?? CATransform3DIdentity
         target.layer.removeAnimation(forKey:idleKey)
@@ -69,7 +69,7 @@ final class NativeHubBackpackFeedback {
         motion.keyTimes=NativeHUDTapMotion.phases.map{NSNumber(value:$0)}
         motion.duration=NativeHUDTapMotion.duration
         motion.timingFunctions=Array(repeating:CAMediaTimingFunction(name:.easeInEaseOut),count:5)
-        motion.beginTime=target.layer.convertTime(CACurrentMediaTime(),from:nil)
+        motion.beginTime=target.layer.convertTime(beginTime ?? CACurrentMediaTime(),from:nil)
         target.layer.add(motion,forKey:animationKey)
     }
     static let switchKey="native.backpack.icon-switch"

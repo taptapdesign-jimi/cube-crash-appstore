@@ -21,7 +21,7 @@ import StackToSixGameplay
     // Laser's accepted modal footprint, shared independently of die silhouette.
     static func shadowSize(slotWidth:CGFloat,id:String,bodyWidth:CGFloat?=nil,rear:Bool=false)->CGSize {
         let width=228*slotWidth/342
-        let factor:CGFloat=id=="kanta" ? (rear ? 0.8:1):id=="wild-star" ? 0.81:id=="spaceship" ? 0.8*1.2:id=="bottle" ? 0.8*0.85*0.7:id=="bloob-ball" ? 0.85:["beach-ball","wild-juice","robo-cube"].contains(id) ? 0.8:1
+        let factor:CGFloat=id=="kanta" ? (rear ? 0.8:1):id=="wild-star" ? 0.81:id=="spaceship" ? 0.8*1.2:["bottle","tnt","wild-magnet","baloon"].contains(id) ? 0.8*0.85*0.7:id=="bloob-ball" ? 0.85:["beach-ball","wild-juice","robo-cube"].contains(id) ? 0.8:1
         // The blurred radial raster has generous transparent margins. Fit its
         // visible footprint to the can base rather than a fixed slot fraction.
         let footprintWidth=id=="kanta" ? (bodyWidth ?? width)*1.595*factor:width*factor
@@ -62,6 +62,8 @@ import StackToSixGameplay
     private var presentationRect=CGRect(x:-64,y:-64,width:128,height:128)
     var presentationHeightRatio:CGFloat {max(1,presentationRect.height/max(1,bodyRect.height))}
     private var previewElapsed:TimeInterval=0
+    private var laserIdleSchedule=NativeRegularIdleSchedule()
+    private var laserIdleCycle:(started:Double,motion:NativeRegularIdleMotion)?
     private var bloobPlayback:NativeBloobArt.Playback?
     private var layoutNodePosition=CGPoint.zero,layoutNodeScale:CGFloat=1
     var playbackElapsed:TimeInterval {previewElapsed}
@@ -81,6 +83,7 @@ import StackToSixGameplay
         let shadow=NativeArcadeThumbShadow(frame:.zero,alphaGain:Self.selectedShadowAlphaGain);shadow.isHidden=true
         shadow.layer.actions=["position":NSNull(),"transform":NSNull(),"opacity":NSNull()]
         groundShadow=shadow;addSubview(shadow)
+        if die.id=="laser-gun" {laserIdleSchedule.start(at:0)}
         prepare()
     }
     required init?(coder:NSCoder){fatalError("Use selected die")}
@@ -286,6 +289,21 @@ import StackToSixGameplay
     /// Selected-only whole-body float; authored inner artwork keeps its own motion.
     func paintSelectedBounce(seconds:Double){
         guard !disposed,let node=dieNode else{return}
+        if identity.id=="laser-gun" {
+            // Same value schedule and whole-die pose as the board, sampled by
+            // the existing selected-preview clock. No modal-only float.
+            if let due=laserIdleSchedule.due,seconds*1000>=due,
+               let cycle=laserIdleSchedule.wake(at:seconds*1000,hidden:false,dragActive:false,
+                   availableIDs:[node.tileID],random:{Double.random(in:0..<1)}) {
+                laserIdleCycle=(seconds,cycle.motion)
+            }
+            let pose=laserIdleCycle.map{$0.motion.sample(seconds-$0.started)}
+                ?? NativeRegularIdleMotion.Pose(x:1,y:1,rotation:0)
+            node.position=layoutNodePosition
+            node.xScale=layoutNodeScale*pose.x;node.yScale=layoutNodeScale*pose.y
+            node.zRotation = -pose.rotation
+            return
+        }
         if identity.id=="bloob-ball" {
             let phase=max(0,seconds).truncatingRemainder(dividingBy:3.8)/3.8*2*Double.pi
             node.position=CGPoint(x:layoutNodePosition.x+CGFloat(2.4*sin(phase)),
@@ -365,7 +383,7 @@ import StackToSixGameplay
         refreshGroundShadow()
     }
     func dispose(){
-        guard !disposed else{return};disposed=true;active=false;isPaused=true;onReady=nil
+        guard !disposed else{return};disposed=true;active=false;isPaused=true;onReady=nil;laserIdleSchedule.stop();laserIdleCycle=nil
         fishOwner?.dispose();fishOwner=nil;bloobPlayback=nil;pollen.removeAll();dieNode?.dispose();dieNode=nil
         groundShadow?.removeFromSuperview();groundShadow=nil;shadowSample=nil;shadowSlot=nil
         rearCanShadow?.removeFromSuperview();rearCanShadow=nil

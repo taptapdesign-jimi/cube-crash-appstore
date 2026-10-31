@@ -25,7 +25,7 @@ final class NativeArcadeHubView: UIView {
     func recordInputDiagnostic(_ event:String) {
         guard inputDiagnosticsEnabled,inputDiagnosticCount<160 else{return}
         inputDiagnosticCount+=1
-        NSLog("[ARCADE_INPUT] n=%d event=%@ active=%d foreground=%d close=%d crate=%d modal=%d pendingTap=%d pendingPlay=%d hidden=%d window=%d scrollEnabled=%d pan=%ld",inputDiagnosticCount,String(event.prefix(240)),active ? 1:0,foreground ? 1:0,closeRequested ? 1:0,crateRequested ? 1:0,modal == nil ? 0:1,pendingWorldTap == nil ? 0:1,pendingPlayExit == nil ? 0:1,isHidden ? 1:0,window == nil ? 0:1,hub.scrollView.isUserInteractionEnabled ? 1:0,hub.scrollView.panGestureRecognizer.state.rawValue)
+        NSLog("[ARCADE_INPUT] n=%d event=%@ active=%d foreground=%d close=%d crate=%d modal=%d pendingTap=%d pendingPlay=%d hidden=%d window=%d scrollEnabled=%d pan=%ld",inputDiagnosticCount,String(format:"t=%.6f %@",CACurrentMediaTime(),String(event.prefix(200))),active ? 1:0,foreground ? 1:0,closeRequested ? 1:0,crateRequested ? 1:0,modal == nil ? 0:1,pendingWorldTap == nil ? 0:1,pendingPlayExit == nil ? 0:1,isHidden ? 1:0,window == nil ? 0:1,hub.scrollView.isUserInteractionEnabled ? 1:0,hub.scrollView.panGestureRecognizer.state.rawValue)
     }
 
     init(frame: CGRect, assets: JimiV9Artwork) {
@@ -41,7 +41,7 @@ final class NativeArcadeHubView: UIView {
         if inputDiagnosticsEnabled {hub.onInputDiagnostic={[weak self] in self?.recordInputDiagnostic($0)}}
         hub.onBack = { [weak self] in
             self?.recordInputDiagnostic("back.callback")
-            guard let self,self.active,self.foreground,!self.closeRequested,!self.crateRequested else { return }
+            guard let self,self.active,self.foreground,!self.closeRequested,!self.crateRequested,self.modal == nil,self.pendingWorldTap == nil else { return }
             NativeHubBackpackFeedback.play(on:self.hub.backButton.imageView ?? self.hub.backButton)
             self.closeRequested = true; self.onClose?()
         }
@@ -61,16 +61,20 @@ final class NativeArcadeHubView: UIView {
                   let index = self.hub.worldIDs.firstIndex(of: id) else { return }
             let token=UUID();self.pendingWorldTap=token
             self.recordInputDiagnostic("world.accepted id=\(id)")
+            self.hub.stopIdle();self.hub.setContentInteractionEnabled(false)
+            let epoch=CACurrentMediaTime()
+            self.recordInputDiagnostic("world.contact-start id=\(id)")
+            self.hub.playArcadeWorldContact(id,beginTime:epoch) {[weak self] in
+                guard let self,self.pendingWorldTap==token else{return}
+                self.pendingWorldTap=nil
+                self.recordInputDiagnostic("world.contact-complete id=\(id)")
+            }
+            // Submit visible contact before feedback or selected-sheet work.
+            CATransaction.flush()
             self.onFeedback?("cta")
             self.onFeedback?("arcade-island-"+self.identifiers[index])
             self.recordInputDiagnostic("world.feedback-returned id=\(id)")
-            self.hub.playWorldTap(id) { [weak self] in
-                self?.recordInputDiagnostic("world.animation-completion id=\(id)")
-                guard let self,self.pendingWorldTap == token else { return }
-                self.pendingWorldTap=nil
-                guard self.active,self.foreground,!self.closeRequested,!self.crateRequested,self.modal == nil else { return }
-                self.open(index)
-            }
+            self.open(index,contactEpoch:epoch)
         }
     }
     required init?(coder: NSCoder) { fatalError("Use init(frame:assets:)") }
@@ -91,17 +95,24 @@ final class NativeArcadeHubView: UIView {
     func hide() {
         active = false;pendingPlayExit=nil; cancelWorldTap(); hub.stopIdle(); modal?.dispose(); modal = nil; hub.accessibilityElementsHidden = false; isHidden = true
     }
-    private func cancelWorldTap() { pendingWorldTap=nil;hub.cancelWorldTap() }
+    private func cancelWorldTap() {
+        let wasPending=pendingWorldTap != nil
+        pendingWorldTap=nil;hub.cancelWorldTap()
+        if wasPending {hub.setContentInteractionEnabled(active)}
+        if modal?.isWaitingForEntry == true {
+            modal?.dispose();modal=nil;hub.accessibilityElementsHidden=false
+        }
+    }
     override var isHidden: Bool { didSet { if isHidden { cancelWorldTap();hub.stopIdle();modal?.setForeground(false) } } }
     override func didMoveToWindow() { super.didMoveToWindow(); if window == nil { cancelWorldTap();hub.stopIdle();modal?.setForeground(false) } }
 
-    private func open(_ index: Int) {
+    private func open(_ index: Int,contactEpoch:CFTimeInterval) {
         recordInputDiagnostic("modal.construct-start index=\(index)")
-        hub.stopIdle(); hub.accessibilityElementsHidden = true
+        hub.accessibilityElementsHidden = true
         let sheet = NativeArcadeWorldModal(frame: bounds, assets: assets, index: index,continuing:canContinue?(identifiers[index]) ?? false)
         recordInputDiagnostic("modal.construct-finished index=\(index)")
         sheet.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        modal = sheet; addSubview(sheet)
+        modal = sheet;sheet.prepareReveal();addSubview(sheet);sheet.layoutIfNeeded()
         sheet.onFeedback = {[weak self,weak sheet] cue in
             guard let self,self.modal === sheet,self.active,self.foreground else{return}
             self.onFeedback?(cue)
@@ -123,11 +134,15 @@ final class NativeArcadeHubView: UIView {
             guard let self, self.modal === sheet else { return }
             self.modal?.dispose(); self.modal = nil; self.hub.accessibilityElementsHidden = false
             if play {modalFinished=true;complete()}
-            else if self.active && self.foreground { self.hub.startIdle() }
+            else if self.active && self.foreground {self.hub.setContentInteractionEnabled(true);self.hub.startIdle()}
         }
+
         onFeedback?("exit-modal")
-        sheet.reveal()
-        recordInputDiagnostic("modal.reveal-returned index=\(index)")
+        // Precommit modal entry200ms into the contact. No delayed
+        // completion callback or extra preparation at the reveal boundary.
+        let start=UIAccessibility.isReduceMotionEnabled ? CACurrentMediaTime():max(contactEpoch+0.20,CACurrentMediaTime())
+        sheet.reveal(beginTime:start)
+        recordInputDiagnostic("modal.reveal-scheduled index=\(index) start=\(start)")
     }
 
     func tracks(enter: Bool) -> [(UIView, JimiV9Motion.Track)] {
@@ -297,18 +312,34 @@ final class NativeArcadeWorldModal: UIView {
         JimiNativeModalV10.paperLayout(paper,bounds:card.bounds,bottomExtension:96)
         close.frame = CGRect(x:w-42,y:-10,width:52,height:52)
     }
-    func reveal() {
-        layoutIfNeeded(); card.alpha = 1; backdrop.alpha = 0
-        if UIAccessibility.isReduceMotionEnabled { completeEnter(); backdrop.alpha = 1; return }
-        CATransaction.begin()
+    private var entryRequested=false
+    private var entryBeginTime:CFTimeInterval?
+    var isWaitingForEntry:Bool {!entryRequested || (entryBeginTime.map{CACurrentMediaTime() < $0} ?? false)}
+    func prepareReveal() {alpha=0;isUserInteractionEnabled=false;accessibilityValue="entering"}
+    func reveal(beginTime:CFTimeInterval? = nil) {
+        entryRequested=true;alpha=1;isUserInteractionEnabled=foreground
+        accessibilityValue="entering"
+        layoutIfNeeded();card.alpha=0;backdrop.alpha=0
+        if UIAccessibility.isReduceMotionEnabled {card.alpha=1;completeEnter();backdrop.alpha=1;return}
+        // Hold the prepared pose until the shared contact clock reaches entry.
+        let start=beginTime ?? CACurrentMediaTime()
+        entryBeginTime=start
+        CATransaction.begin();CATransaction.setDisableActions(true)
         CATransaction.setCompletionBlock { [weak self] in guard let self,!self.disposed,!self.closing else { return }; self.completeEnter() }
-        JimiNativeModalV10.enter(card:card,flip:flip,key:"arcade.modal.enter")
+        JimiNativeModalV10.enter(card:card,flip:flip,key:"arcade.modal.enter",beginTime:start)
+        let visibility=CABasicAnimation(keyPath:"opacity")
+        visibility.fromValue=0;visibility.toValue=1;visibility.duration=0.001
+        visibility.beginTime=card.layer.convertTime(start,from:nil);visibility.fillMode = .backwards
+        card.alpha=1;card.layer.add(visibility,forKey:"arcade.modal.visibility")
+        let tint=CABasicAnimation(keyPath:"opacity")
+        tint.fromValue=0;tint.toValue=1;tint.duration=0.5
+        tint.beginTime=backdrop.layer.convertTime(start,from:nil);tint.fillMode = .backwards
+        backdrop.alpha=1;backdrop.layer.add(tint,forKey:"arcade.modal.backdrop-enter")
         CATransaction.commit()
-        UIView.animate(withDuration:0.5) { self.backdrop.alpha = 1 }
     }
     private func completeEnter() {
         guard !disposed,!closing else{return}
-        entered=true
+        entered=true;entryBeginTime=nil
         guard foreground else{return}
         ready=true
         JimiNativeModalV10.startIdle(on:idle,key:"arcade.modal.idle")

@@ -37,6 +37,8 @@ public struct NativeBoardStats: Codable, Equatable, Sendable {
 public struct NativeArcadeStats: Codable, Equatable, Sendable {
     public var highScore = 0
     public var longestCombo = 0
+    public var scoreHistory:[NativeJourneyStatPoint]?
+    public var comboHistory:[NativeJourneyStatPoint]?
     public var cubesCracked = 0
     public var highestStageOpened = 1
     public var lastPlayed: TimeInterval = 0
@@ -165,6 +167,8 @@ public struct NativeProgressionState: Codable, Equatable, Sendable {
         if mode == .arcade {
             wildStarUnlocked = hasUnlockedWildStar
             var stats = arcadeStats(for: arcadeVariant)
+            stats.scoreHistory=NativeJourneyStatPoint.recording(.init(value:score,date:now),in:stats.scoreHistory,legacyBest:stats.highScore)
+            stats.comboHistory=NativeJourneyStatPoint.recording(.init(value:longestCombo,date:now),in:stats.comboHistory,legacyBest:stats.longestCombo)
             stats.highScore = max(stats.highScore, score)
             stats.longestCombo = max(stats.longestCombo, longestCombo)
             stats.cubesCracked += cubesCracked; stats.lastPlayed = now

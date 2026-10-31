@@ -52,3 +52,14 @@ Use one screen lifetime and render cards from the canonical dice/unlock registry
 ## New Wild/Special gameplay archetype
 
 Register presentation and performance ownership only after defining gameplay semantics in `special-dice-archetype-owners.json`. The archetype must participate in the real Arcade and Journey final-merge matrix, distinguish final completion from a remaining playable blocker, serialize board mutation through the shared special transaction, defer endgame while gameplay work remains, release or roll back every token, preserve versioned save/load identity, use the central input gate, and connect reward/spawn, finale cleanup and modular audio. A skin that reuses Star, Juice, Magnet or TNT gameplay remains a variant of that proven archetype; it must not create a parallel resolver.
+
+
+## Adaptive modal paper texture — user decision 2026-10-30
+
+When a paper modal grows or shrinks with its content, keep the current paper style, visible grain and edge detail. Resize the texture uniformly (the same scale on both axes) and preserve balanced, symmetric presentation; never stretch width and height independently or fix a larger container by strongly zooming away its textured borders.
+
+The latest accepted Score/Combo paper example is the upper limit for texture enlargement, not a license to zoom further as the modal grows. The current reference is `NativeScoreModal.layoutHistory` using `JimiNativeModalV10.paperLayout` with a minimal `bottomExtension:16`. The earlier `96` extension was explicitly rejected here because the enlarged paper looked white, empty and stretched. This numeric reference belongs to these history modals; other modal sizes must preserve the same visual density rather than blindly copy the number or exceed the example's enlargement.
+
+Adapt to the actual container dimensions while retaining the original texture aspect ratio and a clean, filled, rounded finish. Hide only the narrow torn lower fringe with the smallest necessary crop/bleed; preserve the surrounding authored paper detail. If extra space cannot be covered within the reference's visual scale, adjust the content/container layout or extend an interior paper region without visible seams instead of increasing texture zoom. Do not alter protected original image files.
+
+Review both short and tall content states against the same reference. Verify visible paper detail and closed bottom corners, not just the image-view rectangle. The existing 40px top-to-first-visible-icon-pixel and 40px below the final result strip remain separate layout requirements for Score/Combo history modals.

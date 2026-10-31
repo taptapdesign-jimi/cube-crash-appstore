@@ -9,13 +9,18 @@ struct NativeScoreModalModel {
     let title:String,subtitle:String,stats:[Stat]
     var history:[NativeJourneyStatPoint]?
     var historyIcon:String?
+    var isGameplayHistory=false
+    var currentCombo:Int?
+    var currentScore:Int?
     init(boardStats:NativeBoardStats,combo:Bool) {
-        title=combo ? "Top 3 best combos":"Top 3 high scores"
+        title=combo ? "Best combo":"Best scores"
         historyIcon=combo ? "assets/combo-icon.png":"assets/highscore-icon.png"
         let best=combo ? boardStats.longestCombo:boardStats.highScore
         let points=(combo ? boardStats.comboHistory:boardStats.scoreHistory) ?? (best>0 ? [.init(value:best,date:nil)]:[])
         history=Array(points.sorted {a,b in a.value != b.value ? a.value>b.value:(a.date ?? 0)>(b.date ?? 0)}.prefix(3))
-        subtitle=history!.isEmpty ? "No saved results yet.":""
+        let count=history?.count ?? 0
+        let resultName=combo ? "combo":"score"
+        subtitle=combo ? "Longest combos in the game.":count == 0 ? "No saved runs yet.":count == 1 ? "Your best \(resultName)":"Your best \(count) \(resultName)s"
         stats=[]
     }
     init(state:NativeBoardState,progression:NativeProgressionState,combo:Bool) {
@@ -31,6 +36,13 @@ struct NativeScoreModalModel {
         if arcade && !combo {rows.append(.init(value:String(format:"%02d",max(1,arcadeStats.highestStageOpened)),
             label:"Rounds cleared",icon:"assets/clean-board.png"))}
         stats = rows
+        isGameplayHistory=true
+        historyIcon=combo ? "assets/combo-icon.png":"assets/highscore-icon.png"
+        let saved=combo ? (arcade ? arcadeStats.comboHistory:board.comboHistory)
+            : (arcade ? arcadeStats.scoreHistory:board.scoreHistory)
+        let points=saved ?? (value>0 ? [.init(value:value,date:nil)]:[])
+        history=Array(points.sorted {a,b in a.value != b.value ? a.value>b.value:(a.date ?? 0)>(b.date ?? 0)}.prefix(2))
+        if combo {currentCombo=state.combo} else {currentScore=state.score}
     }
 }
 
@@ -63,45 +75,57 @@ struct NativeScoreModalModel {
 /// One tactile paper strip per saved result. Static borrowed artwork and mask;
 /// the existing finite stat track owns the entire strip's motion.
 @MainActor private final class NativeScoreHistoryRow:UIView {
-    private let paper=UIImageView(),edge=CAShapeLayer(),value=UILabel(),date=UILabel(),divider=UIView()
-    init(index:Int,point:NativeJourneyStatPoint,dateText:String,assets:JimiV9Artwork) {
+    private let paper=UIImageView(),value=UILabel(),date=UILabel(),divider=UIView()
+    private let scoreLayout:Bool
+    init(index:Int,point:NativeJourneyStatPoint,dateText:String,combo:Bool,assets:JimiV9Artwork) {
+        scoreLayout = !combo
         super.init(frame:.zero)
-        paper.image=assets.image("assets/modals/paper.png");paper.layer.mask=edge
-        paper.isUserInteractionEnabled=false;addSubview(paper)
+        paper.image=assets.image("assets/modals/paper.png",densityAware:true)
+        paper.contentMode = .scaleAspectFill;paper.clipsToBounds=true
+        paper.layer.cornerRadius=22;paper.layer.cornerCurve = .continuous
+        paper.isUserInteractionEnabled=false;insertSubview(paper,at:0)
         layer.shadowColor=UIColor(red:0.68,green:0.40,blue:0.20,alpha:1).cgColor
-        layer.shadowOpacity=0.22;layer.shadowRadius=5;layer.shadowOffset=CGSize(width:0,height:5)
+        layer.shadowOpacity=0.18;layer.shadowRadius=6;layer.shadowOffset=CGSize(width:0,height:4)
         let formatter=NumberFormatter();formatter.numberStyle = .decimal
         formatter.groupingSeparator=".";formatter.groupingSize=3
         value.text=formatter.string(from:NSNumber(value:point.value)) ?? String(point.value)
         value.font=assets.font(size:30,weight:"Bold")
         value.textColor=UIColor(red:236/255,green:112/255,blue:69/255,alpha:1)
         date.text=dateText;date.font=assets.font(size:16,weight:"Regular");date.textColor=NativeTextPalette.subtitle
+        if dateText == "Current" {
+            date.font=assets.font(size:16,weight:"Medium");date.textColor=NativeTextPalette.modalTitle
+        }
         divider.backgroundColor=NativeTextPalette.subtitle.withAlphaComponent(0.35)
         divider.isUserInteractionEnabled=false;addSubview(divider)
         for label in [value,date] {
-            label.textAlignment = .center;label.numberOfLines=1
+            label.textAlignment = scoreLayout ? .left:.center;label.numberOfLines=1
             label.adjustsFontSizeToFitWidth=true;label.minimumScaleFactor=0.55
             label.baselineAdjustment = .alignCenters;addSubview(label)
         }
+        if scoreLayout {date.textAlignment = .right}
         accessibilityIdentifier="native.score-history.row.\(index)"
-        isAccessibilityElement=true;accessibilityLabel="\(point.value.formatted()), \(dateText)"
+        accessibilityLabel="\(point.value.formatted()), \(dateText)"
+        isAccessibilityElement=true
     }
     required init?(coder:NSCoder){fatalError("Use result initializer")}
     override func layoutSubviews() {
         super.layoutSubviews();paper.frame=bounds
-        // A bounded irregular edge, generated only during layout, never per frame.
-        let w=bounds.width,h=bounds.height,r:CGFloat=16,path=UIBezierPath()
-        path.move(to:CGPoint(x:r,y:1))
-        for i in 1...24 {let x=r+(w-2*r)*CGFloat(i)/24;path.addLine(to:CGPoint(x:x,y:i%3 == 0 ? 0:1.4))}
-        path.addQuadCurve(to:CGPoint(x:w-1,y:r),controlPoint:CGPoint(x:w,y:0))
-        path.addLine(to:CGPoint(x:w-0.5,y:h-r))
-        path.addQuadCurve(to:CGPoint(x:w-r,y:h-1),controlPoint:CGPoint(x:w,y:h))
-        for i in 1...24 {let x=w-r-(w-2*r)*CGFloat(i)/24;path.addLine(to:CGPoint(x:x,y:h-(i%3 == 0 ? 0:1.5)))}
-        path.addQuadCurve(to:CGPoint(x:1,y:h-r),controlPoint:CGPoint(x:0,y:h))
-        path.addLine(to:CGPoint(x:0.5,y:r))
-        path.addQuadCurve(to:CGPoint(x:r,y:1),controlPoint:.zero);path.close()
+        let w=bounds.width,h=bounds.height
+        // Preserve the original grain's aspect ratio; smooth continuous corners
+        // replace the repeated zigzag edge. Only shadow geometry needs layout.
         CATransaction.begin();CATransaction.setDisableActions(true)
-        edge.frame=bounds;edge.path=path.cgPath;layer.shadowPath=path.cgPath;CATransaction.commit()
+        layer.shadowPath=UIBezierPath(roundedRect:bounds,cornerRadius:min(22,h/2)).cgPath
+        CATransaction.commit()
+        if scoreLayout {
+            divider.isHidden=false
+            let inset:CGFloat=24,gap:CGFloat=8,dateGap:CGFloat=16
+            let dateWidth=min(CGFloat(106),w*0.30),textX=inset
+            let dateX=w-inset-dateWidth
+            value.frame=CGRect(x:textX,y:(h-40)/2,width:max(0,dateX-dateGap-gap-textX),height:40)
+            divider.frame=CGRect(x:dateX-dateGap,y:20,width:1,height:max(0,h-40))
+            date.frame=CGRect(x:dateX,y:(h-30)/2,width:dateWidth,height:30)
+            return
+        }
         let split=w*0.46
         value.frame=CGRect(x:10,y:(h-44)/2,width:max(0,split-20),height:44)
         divider.frame=CGRect(x:split,y:20,width:1,height:max(0,h-40))
@@ -119,6 +143,7 @@ final class NativeScoreModal:UIViewController,CAAnimationDelegate {
     private let model:NativeScoreModalModel,assets:JimiV9Artwork
     private let backdrop=JimiV9PlainButton(type:.custom),card=UIView(),flip=JimiNativeModalTransformView(),idle=UIView(),paper=UIImageView()
     private let historyIcon=UIImageView()
+    private var historyIconAlphaBounds=CGRect(x:0,y:0,width:1,height:1)
     private let heading=UILabel(),subtitle=UILabel(),close=JimiV9PlainButton(type:.custom)
     private var rows:[UIView]=[],statTracks:[UIView]=[],drag:JimiNativeModalDrag?
     private var ready=false,closing=false,disposed=false
@@ -127,7 +152,7 @@ final class NativeScoreModal:UIViewController,CAAnimationDelegate {
     override func viewDidLoad() {
         super.viewDidLoad();view.backgroundColor = .clear;view.layer.addSublayer(closeProgressLayer)
         var camera=CATransform3DIdentity;camera.m34 = -1/920;view.layer.sublayerTransform=camera
-        backdrop.backgroundColor=model.history == nil ? JimiNativeModalV10.backdropColor:.clear;backdrop.alpha=0
+        backdrop.backgroundColor=model.isGameplayHistory || model.history == nil ? JimiNativeModalV10.backdropColor:.clear;backdrop.alpha=0
         backdrop.addTarget(self,action:#selector(requestClose),for:.touchUpInside);view.addSubview(backdrop)
         view.addSubview(card);card.addSubview(flip);flip.addSubview(idle);idle.addSubview(paper)
         card.layer.anchorPoint=CGPoint(x:0.5,y:0.55);flip.layer.anchorPoint=CGPoint(x:0.5,y:1);idle.layer.anchorPoint=CGPoint(x:0.5,y:0.52)
@@ -141,18 +166,27 @@ final class NativeScoreModal:UIViewController,CAAnimationDelegate {
         subtitle.attributedText=NativeModalTypography.attributedSubtitle(model.subtitle,font:assets.font(size:18,weight:"Medium"));subtitle.numberOfLines=0
         idle.addSubview(heading);idle.addSubview(subtitle)
         if let history=model.history {
+            paper.image=assets.image("assets/modals/paper.png",densityAware:true)
+            paper.layer.cornerRadius=32;paper.layer.cornerCurve = .continuous
             let dates=DateFormatter();dates.locale=Locale(identifier:"en_GB");dates.dateFormat="dd.MM.yyyy"
             historyIcon.image=model.historyIcon.flatMap{assets.image($0,densityAware:true)}
+            if let image=historyIcon.image {historyIconAlphaBounds=NativeArtworkAlphaBounds.measure(image,maximumDimension:1024,alphaThreshold:0)}
             historyIcon.contentMode = .scaleAspectFit;historyIcon.isAccessibilityElement=false
             idle.addSubview(historyIcon)
-            subtitle.isHidden = !history.isEmpty
-            for (index,point) in history.enumerated() {
-                let text=point.date.map{dates.string(from:Date(timeIntervalSince1970:$0))} ?? "Date unavailable"
-                let row=NativeScoreHistoryRow(index:index,point:point,dateText:text,assets:assets)
+            subtitle.numberOfLines=model.currentCombo == nil ? 1:0
+            subtitle.adjustsFontSizeToFitWidth=model.currentCombo == nil;subtitle.minimumScaleFactor=0.7
+            if let current=model.currentCombo ?? model.currentScore {
+                let row=NativeScoreHistoryRow(index:0,point:.init(value:current,date:nil),dateText:"Current",combo:model.currentCombo != nil,assets:assets)
+                idle.addSubview(row);rows.append(row);statTracks.append(row)
+            }
+            for (offset,point) in history.prefix(model.isGameplayHistory ? 2:3).enumerated() {
+                let index=offset+(model.isGameplayHistory ? 1:0)
+                let text=point.date.map{dates.string(from:Date(timeIntervalSince1970:$0))} ?? "--/--"
+                let row=NativeScoreHistoryRow(index:index,point:point,dateText:text,combo:model.historyIcon == "assets/combo-icon.png",assets:assets)
                 idle.addSubview(row);rows.append(row);statTracks.append(row)
             }
         }
-        for (index,stat) in model.stats.enumerated() {
+        for (index,stat) in (model.history == nil ? model.stats:[]).enumerated() {
             if index>0 {let divider=UIView();divider.backgroundColor=UIColor(red:249/255,green:242/255,blue:233/255,alpha:1);idle.addSubview(divider);statTracks.append(divider)}
             let row=NativeScoreStatRow(stat:stat,assets:assets)
             idle.addSubview(row);rows.append(row);statTracks.append(row)
@@ -182,25 +216,30 @@ final class NativeScoreModal:UIViewController,CAAnimationDelegate {
         close.frame=CGRect(x:width-42,y:-10,width:52,height:52)
     }
     private func layoutHistory() {
-        let width=min(390,max(0,view.bounds.width-40)),inset:CGFloat=22
-        let top:CGFloat=146,gap:CGFloat=12,bottom:CGFloat=26
-        let rowHeight=min(CGFloat(82),max(0,(view.bounds.height-100-top-bottom-CGFloat(max(0,rows.count-1))*gap)/CGFloat(max(1,rows.count))))
-        let height:CGFloat=rows.isEmpty ? 228:top+CGFloat(rows.count)*rowHeight+CGFloat(max(0,rows.count-1))*gap+bottom
+        let width=min(390,max(0,view.bounds.width-80)),inset:CGFloat=32
+        let subtitleHeight:CGFloat=model.currentCombo == nil ? 24:52
+        let headerShift:CGFloat=26 // Icon top14→40;retain all header/content gaps.
+        let top:CGFloat=max(176,138+subtitleHeight+14)+headerShift,gap:CGFloat=4,bottom:CGFloat=40
+        let rowHeight=min(CGFloat(62),max(0,(view.bounds.height-100-top-bottom-CGFloat(max(0,rows.count-1))*gap)/CGFloat(max(1,rows.count))))
+        let height:CGFloat=rows.isEmpty ? top+52:top+CGFloat(rows.count)*rowHeight+CGFloat(max(0,rows.count-1))*gap+bottom
         card.bounds=CGRect(x:0,y:0,width:width,height:height)
         card.center=CGPoint(x:view.bounds.midX,y:view.bounds.midY+height*0.05)
         flip.bounds=card.bounds;flip.center=CGPoint(x:width/2,y:height)
         idle.bounds=card.bounds;idle.center=CGPoint(x:width/2,y:height*0.52)
-        JimiNativeModalV10.paperLayout(paper,bounds:idle.bounds)
-        historyIcon.frame=CGRect(x:(width-72)/2,y:14,width:72,height:72)
-        heading.frame=CGRect(x:inset,y:92,width:max(0,width-2*inset),height:38.4)
-        subtitle.frame=CGRect(x:inset,y:150,width:max(0,width-2*inset),height:52)
+        // Hide only the narrow torn source fringe;retain the original paper grain scale.
+        JimiNativeModalV10.paperLayout(paper,bounds:idle.bounds,bottomExtension:16)
+        let imageSize=historyIcon.image?.size ?? CGSize(width:72,height:72)
+        let imageScale=min(72/max(1,imageSize.width),72/max(1,imageSize.height))
+        let paintedHeight=imageSize.height*imageScale
+        let transparentTop=(72-paintedHeight)/2+historyIconAlphaBounds.minY*paintedHeight
+        // Padding ends at the first nontransparent source pixel,not its UIImageView.
+        historyIcon.frame=CGRect(x:(width-72)/2,y:40-transparentTop,width:72,height:72)
+        heading.frame=CGRect(x:inset,y:92+headerShift,width:max(0,width-2*inset),height:38.4)
+        subtitle.frame=CGRect(x:inset,y:138+headerShift,width:max(0,width-2*inset),height:subtitleHeight)
         for (index,row) in rows.enumerated() {
             row.frame=CGRect(x:inset,y:top+CGFloat(index)*(rowHeight+gap),width:max(0,width-2*inset),height:rowHeight)
         }
         close.frame=CGRect(x:width-42,y:-10,width:52,height:52)
-    }
-    private func pose(_ y:CGFloat,_ z:CGFloat,_ rx:CGFloat,_ ry:CGFloat,_ scale:CGFloat,_ rz:CGFloat=0)->CATransform3D {
-        var t=CATransform3DMakeTranslation(0,y,z);t=CATransform3DRotate(t,rx * .pi/180,1,0,0);t=CATransform3DRotate(t,ry * .pi/180,0,1,0);t=CATransform3DRotate(t,rz * .pi/180,0,0,1);return CATransform3DScale(t,scale,scale,scale)
     }
     override func viewDidAppear(_ animated:Bool) {
         super.viewDidAppear(animated);guard !disposed,!closing else{return};card.alpha=1
@@ -211,9 +250,7 @@ final class NativeScoreModal:UIViewController,CAAnimationDelegate {
     }
     private func completeEnter() {
         guard !disposed,!closing else{return};ready=true;view.isUserInteractionEnabled=true
-        guard model.history == nil,!UIAccessibility.isReduceMotionEnabled else{return}
-        let a=CAKeyframeAnimation(keyPath:"transform");a.duration=6.8;a.repeatCount = .infinity;a.keyTimes=[0,0.18,0.38,0.58,0.76,0.84,0.89,0.94,1]
-        a.values=[pose(0,0,0,0,1),pose(-3,3,0,0,1.003),pose(0,0,0,0,1),pose(-3.75,4,0,0,1.004),pose(0,0,0,0,1),pose(-4,8,0,0,1.015),pose(1,0,0,0,0.995),pose(-1,3,0,0,1.006),pose(0,0,0,0,1)].map{NSValue(caTransform3D:$0)};idle.layer.add(a,forKey:"score.idle")
+        JimiNativeModalV10.startIdle(on:idle,key:"score.idle")
     }
     private func animateStats(enter:Bool) {
         for (index,target) in statTracks.enumerated() {
@@ -225,6 +262,10 @@ final class NativeScoreModal:UIViewController,CAAnimationDelegate {
     }
     @objc func requestClose() {
         guard ready,!disposed,!closing else{return};close.playArtworkTapFeedback();closing=true;view.isUserInteractionEnabled=false;drag?.cancel(preservePose:true);onCloseRequested?()
+        // Retain the current float pose while the existing outer planes exit.
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        idle.layer.transform=idle.layer.presentation()?.transform ?? idle.layer.transform
+        idle.layer.removeAnimation(forKey:"score.idle");CATransaction.commit()
         if UIAccessibility.isReduceMotionEnabled {deliverCloseReturn();finishClose();return}
         CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in self?.finishClose()};animateStats(enter:false)
         // Finite compositor milestone on the SAME paused parent clock as exit.

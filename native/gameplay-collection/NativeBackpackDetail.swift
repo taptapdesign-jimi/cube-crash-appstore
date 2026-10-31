@@ -47,7 +47,7 @@ final class NativeBackpackDetail:UIViewController {
         idle.layer.shadowColor=UIColor(red:185/255,green:145/255,blue:119/255,alpha:1).cgColor;idle.layer.shadowOpacity=die.id=="baloon" ? 0:0.8;idle.layer.shadowOffset=CGSize(width:0,height:13);idle.layer.shadowRadius=16.8
         heading.textAlignment = .center;heading.font=assets.font(size:30,weight:"ExtraBold");heading.textColor=NativeTextPalette.modalTitle
         let displayTitle=die.id=="tnt" ? "TNT":die.title.capitalized
-        heading.attributedText=NSAttributedString(string:displayTitle,attributes:[.foregroundColor:NativeTextPalette.modalTitle])
+        heading.attributedText=NativeModalTypography.attributedCollectionTitle(displayTitle,baseColor:NativeTextPalette.modalTitle)
         copy.attributedText=NativeModalTypography.attributedSubtitle(die.copy,font:assets.font(size:18,weight:"Medium"));copy.numberOfLines=0;copy.textAlignment = .center;copy.font=assets.font(size:18,weight:"Medium");copy.textColor=NativeTextPalette.subtitle
         hero.image=assets.image(die.id=="barell" ? "assets/shop/barell/barell.png":die.artwork.path,densityAware:true);hero.contentMode = .scaleAspectFit
         if let image=hero.image {artworkAspect=image.size.width/image.size.height;artworkVisibleBounds=Self.visibleArtworkBounds(image)}
@@ -83,7 +83,8 @@ final class NativeBackpackDetail:UIViewController {
         hero.center=CGPoint(x:width/2-(artworkVisibleBounds.midX-0.5)*hero.bounds.width,
                             y:artworkTop+envelopeHeight/2-(artworkVisibleBounds.midY-0.5)*hero.bounds.height)
         let height=artworkTop+envelopeHeight+bottomGap
-        card.bounds=CGRect(x:0,y:0,width:width,height:height);card.center=CGPoint(x:view.bounds.midX,y:view.bounds.midY)
+        // Preserve the authored55% animation pivot while centering the visible paper.
+        card.bounds=CGRect(x:0,y:0,width:width,height:height);card.center=CGPoint(x:view.bounds.midX,y:view.bounds.midY+height*(card.layer.anchorPoint.y-0.5))
         flip.bounds=card.bounds;flip.center=CGPoint(x:width/2,y:height);idle.bounds=card.bounds;idle.center=CGPoint(x:width/2,y:height*0.52)
         // Crop the folded source edge below the rounded card, at every content height.
         JimiNativeModalV10.paperLayout(paper,bounds:card.bounds,bottomExtension:96)

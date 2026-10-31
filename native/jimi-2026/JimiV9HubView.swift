@@ -83,7 +83,9 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
         scrollView.contentInsetAdjustmentBehavior = .never
         scrollView.alwaysBounceVertical = true
         scrollView.showsVerticalScrollIndicator = false
-        scrollView.delaysContentTouches = true
+        // Arcade contact should respond to a quick completed tap immediately.
+        // Cancellation still hands a drag to the scroll view before activation.
+        scrollView.delaysContentTouches = !arcade
         scrollView.canCancelContentTouches = true
         scrollView.delegate = self
         addSubview(scrollView); scrollView.addSubview(content)
@@ -140,7 +142,8 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
             banner.isUserInteractionEnabled = false
             banners[id] = banner; flagViews[id] = flag
             revealShell.isHidden = arcade
-            let artwork = UIImageView(image: assets.image(paths[index], densityAware: arcade || id == 1))
+            let image=assets.image(paths[index],densityAware:arcade || id == 1)
+            let artwork = UIImageView(image:image)
             artwork.frame = CGRect(x: 0, y: 0, width: 273, height: 190)
             artwork.contentMode = .scaleAspectFit
             artwork.accessibilityIdentifier = arcade ? "native.arcade-hub.art.\(id)" : "native.hub.art.\(id)"
@@ -228,13 +231,18 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
             // (which jumps every World upward before/during its collapse).
             unit.layer.position = CGPoint(x: rect.minX + rect.width * unit.layer.anchorPoint.x,
                                           y: rect.minY + rect.height * unit.layer.anchorPoint.y)
-            let artworkScale:CGFloat = arcade && index == 1 ? 1.1 : 1
+            let artworkScale:CGFloat = arcade ? 1.2*0.9*(index == 1 ? 1.1 : 1) : 1
             let visualSize = arcade ? buttonWidth*0.96*artworkScale : min(width*0.65,254)
             let visualHeight = arcade ? buttonHeight*0.96*artworkScale : visualSize
             floats[id]?.bounds = CGRect(x: 0, y: 0, width: visualSize, height: visualHeight)
             // Artwork adjustments are independent of the Unit/cloud motion owner.
-            let artworkShift:CGPoint = arcade ? [CGPoint(x:-5,y:-4),CGPoint(x:5,y:16),CGPoint(x:-5,y:15)][index] : .zero
-            floats[id]?.center = CGPoint(x:buttonWidth/2+artworkShift.x,y:(arcade ? buttonHeight/2 : buttonHeight*0.48)+artworkShift.y)
+            let artworkShift:CGPoint = arcade ? [CGPoint(x:3,y:20),CGPoint(x:-19,y:8),CGPoint(x:11,y:-17)][index] : .zero
+            // Pad the enlarged artwork itself, not its smaller Unit hit area.
+            let artworkCenterX:CGFloat
+            if arcade,index == 0 {artworkCenterX = 16-x+visualSize/2}
+            else if arcade,index == 1 {artworkCenterX = width-16-x-visualSize/2}
+            else {artworkCenterX = buttonWidth/2+artworkShift.x}
+            floats[id]?.center = CGPoint(x:artworkCenterX,y:(arcade ? buttonHeight/2 : buttonHeight*0.48)+artworkShift.y)
             tilts[id]?.bounds = CGRect(x: 0, y: 0, width: visualSize, height: visualHeight)
             tilts[id]?.layer.anchorPoint = CGPoint(x: 0.5, y: 0.54)
             tilts[id]?.layer.position = CGPoint(x: visualSize*0.5, y: visualHeight*0.54)
@@ -436,9 +444,9 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
     /// Artwork-only finite contact; the Unit route shell and shared idle
     /// transforms keep their own owners. No timer or recurring observer.
     static let worldTapAnimationKey="native.hub.world-scale-up"
-    func playWorldTap(_ id:Int,completion:@escaping()->Void) {
+    func playWorldTap(_ id:Int,beginTime:CFTimeInterval? = nil,completion:@escaping()->Void) {
         guard let target=artworkViews[id],window != nil,!UIAccessibility.isReduceMotionEnabled else { completion();return }
-        if arcade,let shell=cartoonShells[id] {NativeHubBackpackFeedback.play(on:shell)}
+        if arcade,let shell=cartoonShells[id] {NativeHubBackpackFeedback.play(on:shell,beginTime:beginTime)}
         CATransaction.begin();CATransaction.setCompletionBlock(completion)
         // A gentle enlargement and return, without the navigation icon's
         // compressed first frame or elastic overshoot. Child artwork keeps
@@ -447,7 +455,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
         animation.values=[1,1.12,1];animation.keyTimes=[0,0.6,1]
         animation.duration=0.25
         animation.timingFunctions=Array(repeating:CAMediaTimingFunction(name:.easeInEaseOut),count:2)
-        animation.beginTime=target.layer.convertTime(CACurrentMediaTime(),from:nil)
+        animation.beginTime=target.layer.convertTime(beginTime ?? CACurrentMediaTime(),from:nil)
         target.layer.add(animation,forKey:Self.worldTapAnimationKey)
         CATransaction.commit()
     }
@@ -455,6 +463,27 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
     func playJourneyWorldContact(_ id:Int) {
         guard !arcade,window != nil,let shell=cartoonShells[id] else{return}
         NativeHubBackpackFeedback.play(on:shell)
+    }
+    /// Stronger selected-island contact, preserving the Arcade Unit and all
+    /// surrounding screen geometry. Same finite shared cartoon phases, with
+    /// amplified squash/stretch, lift and a small settling lean on one child.
+    static let arcadeContactDuration=0.48
+    func playArcadeWorldContact(_ id:Int,beginTime:CFTimeInterval? = nil,completion:@escaping()->Void) {
+        guard arcade,window != nil,!UIAccessibility.isReduceMotionEnabled,let shell=cartoonShells[id] else{completion();return}
+        let lean:[CGFloat]=[0,-3,3,-1.5,0.6,0]
+        let motion=CAKeyframeAnimation(keyPath:"transform")
+        motion.values=NativeHUDTapMotion.poses.enumerated().map {index,pose in
+            let transform=CATransform3DMakeTranslation(0,pose.offset*1.6,0)
+            let scale=CATransform3DScale(transform,1+(pose.x-1)*1.45,1+(pose.y-1)*1.45,1)
+            return NSValue(caTransform3D:CATransform3DRotate(scale,lean[index] * .pi/180,0,0,1))
+        }
+        motion.keyTimes=NativeHUDTapMotion.phases.map{NSNumber(value:$0)}
+        motion.timingFunctions=Array(repeating:CAMediaTimingFunction(name:.easeInEaseOut),count:5)
+        motion.duration=Self.arcadeContactDuration
+        motion.beginTime=shell.layer.convertTime(beginTime ?? CACurrentMediaTime(),from:nil)
+        CATransaction.begin();CATransaction.setCompletionBlock(completion)
+        shell.layer.add(motion,forKey:NativeHubBackpackFeedback.animationKey)
+        CATransaction.commit()
     }
     func cancelWorldTap() {
         for shell in cartoonShells.values {shell.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey)}

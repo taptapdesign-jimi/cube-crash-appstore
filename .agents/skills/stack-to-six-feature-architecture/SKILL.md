@@ -7,6 +7,8 @@ description: Design or implement a new Stack to Six screen, modal, overlay, coll
 
 Use this skill before implementation, not only during final review.
 
+For adaptive paper modals, follow [the modal paper texture rule](../../../docs/engineering/FEATURE_ARCHITECTURE_CONTRACT.md#adaptive-modal-paper-texture--user-decision-2026-10-30): uniform, symmetric resizing; preserve paper grain/edge detail and never enlarge beyond the latest accepted example.
+
 1. Read `AGENTS.md`, `docs/engineering/PROJECT_CONTEXT.md`, `docs/engineering/CURRENT_HANDOFF.md`, `docs/engineering/GAMEPLAY_KING_CONTRACT.md`, `docs/engineering/FEATURE_ARCHITECTURE_CONTRACT.md` and the contracts named there for the affected subsystem.
 2. Inspect the current call sites and shared owners. Preserve unrelated dirty work and accepted timing/art. Map entry, exit, input, animation, rendering, loading, audio, haptic, persistence, visibility and cleanup ownership before editing.
 3. Prefer existing lifecycle/resource owners. Build settled mobile UI so it becomes quiet. Keep reveal and feedback motion finite. Never copy an existing infinite animation or raw scheduler merely because it predates the feature-runtime baseline.

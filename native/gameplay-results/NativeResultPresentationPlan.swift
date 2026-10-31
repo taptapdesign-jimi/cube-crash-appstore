@@ -11,6 +11,33 @@ enum NativeResultPresentationPlan {
     static let cleanEfficiencyReveal=cleanCountingTime(3.97)
     static let cleanPrimaryCTAStart=cleanCountingTime(6.62)
     static func cleanCounterDuration(from:Int,to:Int)->Double {counterDuration(from:from,to:to)*cleanCountingScale}
+    static let scoreBounceDuration=0.6
+    struct CounterAccent {
+        let motion:Double,flash:Double,x:Double,y:Double
+        let bounceX:Double,bounceY:Double,bounceOffset:Double,blur:Double
+    }
+    /// Presentation only. The final flash belongs to the last nonzero counter phase.
+    static func counterAccent(seconds:Double,baseScore:Int,combo:Int,efficiency:Int,arcadeReached:Bool,reducedMotion:Bool)->CounterAccent {
+        guard !reducedMotion else{return .init(motion:0,flash:0,x:0,y:0,bounceX:1,bounceY:1,bounceOffset:0,blur:0)}
+        var windows:[(start:Double,end:Double)]=[]
+        if baseScore>0 {windows.append((0.47,0.47+cleanCounterDuration(from:0,to:baseScore)))}
+        if !arcadeReached,combo>0 {windows.append((cleanComboStart,cleanComboStart+cleanCounterDuration(from:baseScore,to:baseScore+combo)))}
+        if !arcadeReached,efficiency>0 {windows.append((cleanEfficiencyStart,cleanEfficiencyStart+cleanCounterDuration(from:baseScore+combo,to:baseScore+combo+efficiency)))}
+        let active=windows.first{seconds >= $0.start && seconds < $0.end}
+        let motion=active.map{min(1,max(0,(seconds-$0.start)/0.06))*min(1,max(0,($0.end-seconds)/0.10))} ?? 0
+        let end=windows.map(\.end).max()
+        let age=end.map{seconds-$0} ?? -1
+        let flashAge=age-scoreBounceDuration
+        let flash=flashAge>=0 && flashAge<0.42 ? pow(1-flashAge/0.42,2):0
+        let bouncing=age>=0 && age<scoreBounceDuration
+        let bounce=NativeHUDTapMotion.pose(at:bouncing ? age*NativeHUDTapMotion.duration/scoreBounceDuration:NativeHUDTapMotion.duration)
+        //1.5x blur,only during the Settings ON/OFF shape stretched to0.6s.
+        let blur=bouncing ? 1.5*sin(Double.pi*age/scoreBounceDuration):0
+        return .init(motion:motion,flash:flash,
+            x:motion*(0.65*sin(seconds*119)+0.25*sin(seconds*181)),
+            y:motion*(0.85*sin(seconds*137)+0.25*cos(seconds*89)),
+            bounceX:bounce.x,bounceY:bounce.y,bounceOffset:bounce.offset,blur:blur)
+    }
     static let cleanAfterClearedStart=0.47
     static let failAfterNoMovesStart=0.47
     struct Pose: Equatable {

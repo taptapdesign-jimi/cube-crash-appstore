@@ -148,7 +148,8 @@ final class NativeGameplayBackpackController:UIViewController {
         let columns:CGFloat=2,side=floor((width-48-(columns-1)*16)/columns)
         let rows=ceil(CGFloat(count)/columns),gridHeight=rows*side+max(0,rows-1)*16
         let height=min(subtitle.frame.maxY+24+gridHeight+32,max(0,view.bounds.height-view.safeAreaInsets.top-view.safeAreaInsets.bottom-48))
-        card.bounds=CGRect(x:0,y:0,width:width,height:height);card.center=CGPoint(x:view.bounds.midX,y:view.safeAreaInsets.top+(view.bounds.height-view.safeAreaInsets.top-view.safeAreaInsets.bottom)/2)
+        // Preserve the authored55% animation pivot while centering the visible paper.
+        card.bounds=CGRect(x:0,y:0,width:width,height:height);card.center=CGPoint(x:view.bounds.midX,y:view.bounds.midY+height*(card.layer.anchorPoint.y-0.5))
         flip.bounds=card.bounds;flip.center=CGPoint(x:width/2,y:height);idle.bounds=card.bounds;idle.center=CGPoint(x:width/2,y:height*0.52)
         // Crop the authored folded paper tail just as selected Backpack details do.
         JimiNativeModalV10.paperLayout(paper,bounds:idle.bounds,bottomExtension:96)

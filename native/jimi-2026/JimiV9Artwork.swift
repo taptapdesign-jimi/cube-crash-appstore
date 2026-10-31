@@ -10,6 +10,16 @@ enum NativeTextPalette {
 
 /// Modal subtitles use the shared 18pt / 23.4pt rhythm, including explicit newlines.
 enum NativeModalTypography {
+    /// Backpack and Box headings share the collection counter's orange accent.
+    static func attributedCollectionTitle(_ text:String,baseColor:UIColor)->NSAttributedString {
+        let title=NSMutableAttributedString(string:text,attributes:[.foregroundColor:baseColor])
+        let words=text.split(whereSeparator:{$0.isWhitespace})
+        if words.count==2,let first=words.first,let range=text.range(of:String(first)) {
+            title.addAttribute(.foregroundColor,value:UIColor(red:232/255,green:116/255,blue:74/255,alpha:1),range:NSRange(range,in:text))
+        }
+        return title
+    }
+
     static func subtitleParagraph(fontSize:CGFloat=18,alignment:NSTextAlignment = .center)->NSParagraphStyle {
         let paragraph=NSMutableParagraphStyle()
         paragraph.alignment=alignment

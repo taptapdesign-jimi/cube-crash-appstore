@@ -29,7 +29,7 @@ enum JimiNativeModalV10 {
     }
 
     /// Shared Exit Game / High Score / Backpack entrance planes and timing.
-    static func enter(card:UIView,flip:UIView,key:String) {
+    static func enter(card:UIView,flip:UIView,key:String,beginTime:CFTimeInterval? = nil) {
         func pose(_ y:CGFloat,_ z:CGFloat,_ rx:CGFloat,_ ry:CGFloat,_ scale:CGFloat,_ rz:CGFloat=0)->CATransform3D {
             var t=CATransform3DMakeTranslation(0,y,z)
             t=CATransform3DRotate(t,rx * .pi/180,1,0,0);t=CATransform3DRotate(t,ry * .pi/180,0,1,0);t=CATransform3DRotate(t,rz * .pi/180,0,0,1)
@@ -39,6 +39,7 @@ enum JimiNativeModalV10 {
             (flip,[pose(88,-180,17,-88,0.72),CATransform3DIdentity],[0,1])] {
             let a=CAKeyframeAnimation(keyPath:"transform");a.duration=0.65;a.values=poses.map{NSValue(caTransform3D:$0)};a.keyTimes=times.map{NSNumber(value:$0)}
             a.timingFunctions=Array(repeating:target === card ? CAMediaTimingFunction(controlPoints:0.22,1.18,0.36,1) : CAMediaTimingFunction(controlPoints:0.16,1,0.3,1),count:poses.count-1)
+            if let beginTime {a.beginTime=target.layer.convertTime(beginTime,from:nil);a.fillMode = .backwards}
             target.layer.add(a,forKey:key)
         }
     }

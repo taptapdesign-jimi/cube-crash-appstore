@@ -2497,11 +2497,9 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
     /// Selected Backpack only; no gameplay constructor or idle ownership changes.
     func paintCollectionPreview(seconds:Double) {
         guard !disposed else{return}
-        if ((kind=="wild-tnt" || kind=="wild-magnet") && variant==nil) || variant=="laser-gun" {
+        if (kind=="wild-tnt" || kind=="wild-magnet") && variant==nil {
             let motion=NativeRegularIdleMotion(variantDraw:0.7,directionDraw:0.7,tiltDraw:0.5)
-            let laserPause:Double=variant=="laser-gun" ? 1:0
-            let cycle=variant=="laser-gun" ? laserPause+NativeRegularIdleMotion.duration:2.52
-            let pose=motion.sample(max(0,seconds.truncatingRemainder(dividingBy:cycle)-laserPause))
+            let pose=motion.sample(seconds.truncatingRemainder(dividingBy:2.52))
             face.zRotation=pose.rotation;face.xScale=pose.x;face.yScale=pose.y
             // Gentle3s idle float, four modal points in either direction.
             face.position.y=sin(seconds*2 * .pi/3)*4/max(0.001,abs(yScale))
