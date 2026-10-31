@@ -249,6 +249,12 @@ final class NativeGameplayAudioOwner {
     }
     func routeFeedback(_ kind:String,receipt:UInt64,generation:UInt64,duration:Double?=nil) {
         guard admit("route",receipt:receipt,generation:generation) else{return}
+        if kind == "card-entry-flip" {
+            // Prepare only the two stat-tile contact layers while the card opens.
+            // Their eventual tap must not wait behind history image/font layout.
+            let sources=(NativeAuthoredAudioCatalog.groups["tab"] ?? []).map(\.source)
+            _=transport.prepareSelectedSources(sources,capture:"journey-stat-contact-\(generation)-\(receipt)",generation:generation)
+        }
         if kind == "high-score-modal-speech" || kind == "combo-modal-speech" {
             startScoreModalSpeech(combo:kind == "combo-modal-speech");return
         }
@@ -741,6 +747,9 @@ final class NativeAVGameplayAudioTransport:NSObject,NativeGameplayAudioTransport
             return
         }
         let voice=Voice();voice.gain=max(0,min(1,cue.gain));voice.onFinished=completion;voices[cue.voice]=voice
+        // Submit an immediate cue to its existing file worker before the caller
+        // can begin synchronous modal preparation on this same MainActor turn.
+        if cue.delay == 0 {obtainSelectedPlayer(cue,voice:voice);return}
         voice.task=Task { @MainActor [weak self,weak voice] in
             if cue.delay>0 {do {try await Task.sleep(for:.seconds(cue.delay))}catch{return}}
             guard let self,let voice,self.voices[cue.voice]===voice,!self.disposed,!Task.isCancelled else{return}

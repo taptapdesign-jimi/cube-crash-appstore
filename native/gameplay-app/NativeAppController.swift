@@ -671,7 +671,8 @@ final class NativeAppController: UIViewController {
     private func openStatHistory(board:Int,combo:Bool){
         guard !disposed,!suspended,!transitioning,statHistoryModal==nil,presentedViewController==nil,
               let world else{return}
-        let detail=NativeScoreModal(model:.init(boardStats:services.journeyProgression().boardStats[board] ?? .init(),combo:combo),root:resourceRoot)
+        NativeHistoryTransitionTrace.event("route.detail-init")
+        let detail=NativeScoreModal(model:.init(boardStats:services.journeyProgression().boardStats[board] ?? .init(),combo:combo),root:resourceRoot,deferredEntry:true)
         statHistoryModal=detail
         detail.onCloseRequested={ [weak self,weak detail] in
             guard let self,let detail,self.statHistoryModal === detail,!self.disposed else{return}
@@ -685,12 +686,29 @@ final class NativeAppController: UIViewController {
             guard let self,let detail,self.statHistoryModal === detail else{return}
             self.statHistoryModal=nil
         }
-        guard world.hideInfoForStatHistory(onReady:{[weak self,weak world,weak detail] in
-            guard let self,let world,let detail,self.world === world,self.statHistoryModal === detail,
-                  !self.disposed,!self.suspended,!self.transitioning,self.presentedViewController==nil else{return}
-            self.onFeedback?("exit-modal");self.present(detail,animated:false)
-        }) else{statHistoryModal=nil;detail.dispose();return}
+        // Complete selected resources/layout/UIKit attachment before starting
+        // the source exit. The30% receipt now starts animation,not view loading.
+        NativeHistoryTransitionTrace.event("route.prepare-start")
+        detail.loadViewIfNeeded();detail.view.frame=view.bounds;detail.view.setNeedsLayout();detail.view.layoutIfNeeded()
+        NativeHistoryTransitionTrace.event("route.prepare-complete")
+        present(detail,animated:false) {[weak self,weak world,weak detail] in
+            guard let self,let world,let detail else{return}
+            let retirePrepared:()->Void = {[weak self,weak detail] in
+                guard let self,let detail,self.statHistoryModal === detail else{return}
+                self.statHistoryModal=nil;detail.dispose();detail.dismiss(animated:false)
+            }
+            guard self.world === world,self.statHistoryModal === detail,!self.disposed,!self.suspended,!self.transitioning,
+                  self.presentedViewController === detail else{retirePrepared();return}
+            NativeHistoryTransitionTrace.event("route.prepared-attached")
+            guard world.hideInfoForStatHistory(onReady:{[weak self,weak world,weak detail] in
+                guard let self,let world,let detail,self.world === world,self.statHistoryModal === detail,
+                      !self.disposed,!self.suspended,!self.transitioning,self.presentedViewController === detail else{return}
+                NativeHistoryTransitionTrace.event("route.begin-prepared-entry")
+                self.onFeedback?("exit-modal");detail.beginPreparedEntry()
+            }) else{retirePrepared();return}
+        }
     }
+
     private func retireStatHistory(){statHistoryModal?.dispose();statHistoryModal?.dismiss(animated:false);statHistoryModal=nil}
     private func openBackpackDetail(_ die:NativeBackpackCatalog.Die) {
         guard !disposed,!suspended,!transitioning,route == .backpack,backpackDetail == nil,presentedViewController == nil else{return}

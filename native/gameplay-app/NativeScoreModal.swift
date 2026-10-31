@@ -2,6 +2,16 @@ import UIKit
 import StackToSixGameplay
 import StackToSixNativeState
 
+/// Opt-in bounded event trace; no observer, timer or player-state write.
+@MainActor enum NativeHistoryTransitionTrace {
+    private static let enabled=ProcessInfo.processInfo.arguments.contains("--cc-history-transition-diagnostics")
+    private static var count=0
+    static func event(_ name:String) {
+        guard enabled,count<100 else{return};count+=1
+        NSLog("[HISTORY_TRANSITION] t=%.6f %@",CACurrentMediaTime(),name)
+    }
+}
+
 /// Read-only, mode-scoped projection of committed statistics. Opening a HUD
 /// sheet never finishes an attempt or changes the live board.
 struct NativeScoreModalModel {
@@ -13,14 +23,12 @@ struct NativeScoreModalModel {
     var currentCombo:Int?
     var currentScore:Int?
     init(boardStats:NativeBoardStats,combo:Bool) {
-        title=combo ? "Best combo":"Best scores"
+        title=combo ? "Best combo":"High score"
         historyIcon=combo ? "assets/combo-icon.png":"assets/highscore-icon.png"
         let best=combo ? boardStats.longestCombo:boardStats.highScore
         let points=(combo ? boardStats.comboHistory:boardStats.scoreHistory) ?? (best>0 ? [.init(value:best,date:nil)]:[])
         history=Array(points.sorted {a,b in a.value != b.value ? a.value>b.value:(a.date ?? 0)>(b.date ?? 0)}.prefix(3))
-        let count=history?.count ?? 0
-        let resultName=combo ? "combo":"score"
-        subtitle=combo ? "Longest combos in the game.":count == 0 ? "No saved runs yet.":count == 1 ? "Your best \(resultName)":"Your best \(count) \(resultName)s"
+        subtitle=combo ? "Longest combos in the game.":"Your best scores so far"
         stats=[]
     }
     init(state:NativeBoardState,progression:NativeProgressionState,combo:Bool) {
@@ -76,16 +84,18 @@ struct NativeScoreModalModel {
 /// the existing finite stat track owns the entire strip's motion.
 @MainActor private final class NativeScoreHistoryRow:UIView {
     private let paper=UIImageView(),value=UILabel(),date=UILabel(),divider=UIView()
-    private let scoreLayout:Bool
-    init(index:Int,point:NativeJourneyStatPoint,dateText:String,combo:Bool,assets:JimiV9Artwork) {
-        scoreLayout = !combo
+    private let scoreLayout:Bool,showsPaperHolder:Bool
+    init(index:Int,point:NativeJourneyStatPoint,dateText:String,combo:Bool,assets:JimiV9Artwork,showsPaperHolder:Bool=true) {
+        scoreLayout = !combo;self.showsPaperHolder=showsPaperHolder
         super.init(frame:.zero)
-        paper.image=assets.image("assets/modals/paper.png",densityAware:true)
-        paper.contentMode = .scaleAspectFill;paper.clipsToBounds=true
-        paper.layer.cornerRadius=22;paper.layer.cornerCurve = .continuous
-        paper.isUserInteractionEnabled=false;insertSubview(paper,at:0)
-        layer.shadowColor=UIColor(red:0.68,green:0.40,blue:0.20,alpha:1).cgColor
-        layer.shadowOpacity=0.18;layer.shadowRadius=6;layer.shadowOffset=CGSize(width:0,height:4)
+        if showsPaperHolder {
+            paper.image=assets.image("assets/modals/paper.png",densityAware:true)
+            paper.contentMode = .scaleAspectFill;paper.clipsToBounds=true
+            paper.layer.cornerRadius=22;paper.layer.cornerCurve = .continuous
+            paper.isUserInteractionEnabled=false;insertSubview(paper,at:0)
+            layer.shadowColor=UIColor(red:0.68,green:0.40,blue:0.20,alpha:1).cgColor
+            layer.shadowOpacity=0.18;layer.shadowRadius=6;layer.shadowOffset=CGSize(width:0,height:4)
+        }
         let formatter=NumberFormatter();formatter.numberStyle = .decimal
         formatter.groupingSeparator=".";formatter.groupingSize=3
         value.text=formatter.string(from:NSNumber(value:point.value)) ?? String(point.value)
@@ -114,7 +124,7 @@ struct NativeScoreModalModel {
         // Preserve the original grain's aspect ratio; smooth continuous corners
         // replace the repeated zigzag edge. Only shadow geometry needs layout.
         CATransaction.begin();CATransaction.setDisableActions(true)
-        layer.shadowPath=UIBezierPath(roundedRect:bounds,cornerRadius:min(22,h/2)).cgPath
+        if showsPaperHolder {layer.shadowPath=UIBezierPath(roundedRect:bounds,cornerRadius:min(22,h/2)).cgPath}
         CATransaction.commit()
         if scoreLayout {
             divider.isHidden=false
@@ -146,10 +156,12 @@ final class NativeScoreModal:UIViewController,CAAnimationDelegate {
     private var historyIconAlphaBounds=CGRect(x:0,y:0,width:1,height:1)
     private let heading=UILabel(),subtitle=UILabel(),close=JimiV9PlainButton(type:.custom)
     private var rows:[UIView]=[],statTracks:[UIView]=[],drag:JimiNativeModalDrag?
-    private var ready=false,closing=false,disposed=false
-    init(model:NativeScoreModalModel,root:URL) {self.model=model;assets=JimiV9Artwork(resourceRoot:root);super.init(nibName:nil,bundle:nil);modalPresentationStyle = .overFullScreen}
+    private var ready=false,closing=false,disposed=false,entryStarted=false
+    private let deferredEntry:Bool
+    init(model:NativeScoreModalModel,root:URL,deferredEntry:Bool=false) {self.model=model;self.deferredEntry=deferredEntry;assets=JimiV9Artwork(resourceRoot:root);super.init(nibName:nil,bundle:nil);modalPresentationStyle = .overFullScreen}
     required init?(coder:NSCoder) {fatalError("Use native score initializer")}
     override func viewDidLoad() {
+        NativeHistoryTransitionTrace.event("score.load-start")
         super.viewDidLoad();view.backgroundColor = .clear;view.layer.addSublayer(closeProgressLayer)
         var camera=CATransform3DIdentity;camera.m34 = -1/920;view.layer.sublayerTransform=camera
         backdrop.backgroundColor=model.isGameplayHistory || model.history == nil ? JimiNativeModalV10.backdropColor:.clear;backdrop.alpha=0
@@ -176,7 +188,7 @@ final class NativeScoreModal:UIViewController,CAAnimationDelegate {
             subtitle.numberOfLines=model.currentCombo == nil ? 1:0
             subtitle.adjustsFontSizeToFitWidth=model.currentCombo == nil;subtitle.minimumScaleFactor=0.7
             if let current=model.currentCombo ?? model.currentScore {
-                let row=NativeScoreHistoryRow(index:0,point:.init(value:current,date:nil),dateText:"Current",combo:model.currentCombo != nil,assets:assets)
+                let row=NativeScoreHistoryRow(index:0,point:.init(value:current,date:nil),dateText:"Current",combo:model.currentCombo != nil,assets:assets,showsPaperHolder:false)
                 idle.addSubview(row);rows.append(row);statTracks.append(row)
             }
             for (offset,point) in history.prefix(model.isGameplayHistory ? 2:3).enumerated() {
@@ -197,6 +209,7 @@ final class NativeScoreModal:UIViewController,CAAnimationDelegate {
         close.addTarget(self,action:#selector(requestClose),for:.touchUpInside);idle.addSubview(close)
         drag=JimiNativeModalDrag(target:card,idle:idle,viewport:view,canDrag:{[weak self] in self?.ready == true && self?.closing == false},onDismiss:{[weak self] in self?.requestClose()})
         view.isUserInteractionEnabled=false
+        NativeHistoryTransitionTrace.event("score.load-complete")
     }
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews();backdrop.frame=view.bounds
@@ -242,13 +255,23 @@ final class NativeScoreModal:UIViewController,CAAnimationDelegate {
         close.frame=CGRect(x:width-42,y:-10,width:52,height:52)
     }
     override func viewDidAppear(_ animated:Bool) {
-        super.viewDidAppear(animated);guard !disposed,!closing else{return};card.alpha=1
+        NativeHistoryTransitionTrace.event("score.didAppear")
+        super.viewDidAppear(animated)
+        if !deferredEntry {beginPreparedEntry()}
+    }
+    /// Journey presents this selected sheet invisibly first; its source-clock
+    /// receipt then starts only the already-mounted finite animation.
+    func beginPreparedEntry() {
+        guard !disposed,!closing,!entryStarted,isViewLoaded,view.window != nil else{return}
+        entryStarted=true;card.alpha=1
         if UIAccessibility.isReduceMotionEnabled {completeEnter();backdrop.alpha=1;return}
         CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in self?.completeEnter()}
+        NativeHistoryTransitionTrace.event("score.enter-install")
         JimiNativeModalV10.enter(card:card,flip:flip,key:"score.enter")
         animateStats(enter:true);CATransaction.commit();UIView.animate(withDuration:0.5){self.backdrop.alpha=1}
     }
     private func completeEnter() {
+        NativeHistoryTransitionTrace.event("score.enter-complete")
         guard !disposed,!closing else{return};ready=true;view.isUserInteractionEnabled=true
         JimiNativeModalV10.startIdle(on:idle,key:"score.idle")
     }
@@ -272,7 +295,7 @@ final class NativeScoreModal:UIViewController,CAAnimationDelegate {
         // Empty layer has no pixels and does not compete for the card transform.
         if onCloseReturnReady != nil {
             let milestone=CABasicAnimation(keyPath:"opacity");milestone.fromValue=1;milestone.toValue=1
-            milestone.duration=0.65*0.6;milestone.delegate=self
+            milestone.duration=0.65*0.4;milestone.delegate=self
             milestone.setValue(true,forKey:"score.close-return")
             closeProgressLayer.add(milestone,forKey:"score.close-return")
         }

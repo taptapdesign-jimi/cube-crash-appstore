@@ -13,12 +13,12 @@ enum NativeResultPresentationPlan {
     static func cleanCounterDuration(from:Int,to:Int)->Double {counterDuration(from:from,to:to)*cleanCountingScale}
     static let scoreBounceDuration=0.6
     struct CounterAccent {
-        let motion:Double,flash:Double,x:Double,y:Double
+        let motion:Double,x:Double,y:Double
         let bounceX:Double,bounceY:Double,bounceOffset:Double,blur:Double
     }
-    /// Presentation only. The final flash belongs to the last nonzero counter phase.
+    /// Presentation only. Vertical motion blur tracks glyph speed, capped at five points.
     static func counterAccent(seconds:Double,baseScore:Int,combo:Int,efficiency:Int,arcadeReached:Bool,reducedMotion:Bool)->CounterAccent {
-        guard !reducedMotion else{return .init(motion:0,flash:0,x:0,y:0,bounceX:1,bounceY:1,bounceOffset:0,blur:0)}
+        guard !reducedMotion else{return .init(motion:0,x:0,y:0,bounceX:1,bounceY:1,bounceOffset:0,blur:0)}
         var windows:[(start:Double,end:Double)]=[]
         if baseScore>0 {windows.append((0.47,0.47+cleanCounterDuration(from:0,to:baseScore)))}
         if !arcadeReached,combo>0 {windows.append((cleanComboStart,cleanComboStart+cleanCounterDuration(from:baseScore,to:baseScore+combo)))}
@@ -27,13 +27,19 @@ enum NativeResultPresentationPlan {
         let motion=active.map{min(1,max(0,(seconds-$0.start)/0.06))*min(1,max(0,($0.end-seconds)/0.10))} ?? 0
         let end=windows.map(\.end).max()
         let age=end.map{seconds-$0} ?? -1
-        let flashAge=age-scoreBounceDuration
-        let flash=flashAge>=0 && flashAge<0.42 ? pow(1-flashAge/0.42,2):0
         let bouncing=age>=0 && age<scoreBounceDuration
         let bounce=NativeHUDTapMotion.pose(at:bouncing ? age*NativeHUDTapMotion.duration/scoreBounceDuration:NativeHUDTapMotion.duration)
-        //1.5x blur,only during the Settings ON/OFF shape stretched to0.6s.
-        let blur=bouncing ? 1.5*sin(Double.pi*age/scoreBounceDuration):0
-        return .init(motion:motion,flash:flash,
+        // Approximate a short shutter exposure from the existing vertical shake
+        // and bounce velocity. The motion recipe and timing remain unchanged.
+        let shakeVelocity=motion*(0.85*137*cos(seconds*137)-0.25*89*sin(seconds*89))
+        let step=1.0/600
+        func bouncePosition(_ time:Double)->Double {
+            let pose=NativeHUDTapMotion.pose(at:max(0,min(scoreBounceDuration,time))*NativeHUDTapMotion.duration/scoreBounceDuration)
+            return pose.offset+40*(pose.y-1)
+        }
+        let bounceVelocity=bouncing ? (bouncePosition(age+step)-bouncePosition(age-step))/(2*step):0
+        let blur=min(5,abs(shakeVelocity+bounceVelocity)*0.012)
+        return .init(motion:motion,
             x:motion*(0.65*sin(seconds*119)+0.25*sin(seconds*181)),
             y:motion*(0.85*sin(seconds*137)+0.25*cos(seconds*89)),
             bounceX:bounce.x,bounceY:bounce.y,bounceOffset:bounce.offset,blur:blur)

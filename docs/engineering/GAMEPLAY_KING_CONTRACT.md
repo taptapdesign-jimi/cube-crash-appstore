@@ -1,5 +1,13 @@
 # Stack to Six Gameplay KING Contract
 
+Native Arcade run-summary scoring override (user clarification2026-10-31):
+a fail after clearing at least one round (current board>=2) retains its Clean
+Board result presentation and Play Again/Exit, adds earnedComboBonus and the
+existing Journey efficiency formula to the current score, and saves that capped
+total once. The resolution remains a fail and grants no uncleared next round.
+Real round-clear automatic transitions/raw-score carry and first-round fail
+remain unchanged. Bonuses use the terminal board snapshot, with no new save schema.
+
 Native Journey level-star ranking override (user decision2026-10-21): all30
 Journey boards share the v1 ten-row score table by local Unit01–10 in
 `NativeJourneyContent`. Clean completion earns at least1 star, threshold2/3

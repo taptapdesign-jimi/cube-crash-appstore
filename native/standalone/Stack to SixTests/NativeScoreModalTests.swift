@@ -9,7 +9,7 @@ final class NativeScoreModalTests:XCTestCase {
     func testJourneyHistoryProjectsTopThreeAndNeverInventsLegacyDate() {
         var stats=NativeBoardStats();stats.highScore=400
         let legacy=NativeScoreModalModel(boardStats:stats,combo:false)
-        XCTAssertEqual(legacy.title,"Best scores");XCTAssertEqual(legacy.history,[.init(value:400,date:nil)])
+        XCTAssertEqual(legacy.title,"High score");XCTAssertEqual(legacy.history,[.init(value:400,date:nil)])
         stats.comboHistory=[.init(value:2,date:10),.init(value:8,date:12),.init(value:8,date:11),.init(value:4,date:1)]
         let top=NativeScoreModalModel(boardStats:stats,combo:true)
         XCTAssertEqual(top.title,"Best combo");XCTAssertEqual(top.history?.map(\.value),[8,8,4]);XCTAssertEqual(top.history?.first?.date,12)

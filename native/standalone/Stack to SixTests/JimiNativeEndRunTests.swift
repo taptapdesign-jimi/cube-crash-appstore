@@ -232,6 +232,31 @@ final class JimiNativeEndRunTests: XCTestCase {
         XCTAssertNil(presenter.presentedViewController)
         modal.dispose();modal.dispose();XCTAssertNil(modal.idle.layer.animationKeys())
     }
+    func testGameplayBoardPaperAndCTAsShareEpochAfterBothFacesAreReady() async throws {
+        let modal=JimiNativeEndRunModal(id:915,model:try XCTUnwrap(JimiNativeEndRunModel(dto)),assets:JimiV9Artwork(resourceRoot:NativeTestResources.root),synchronizesBoardCTAEntry:true)
+        modal.loadViewIfNeeded();modal.buttons[0].setSculptedFacePreparationSuspended(true)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=modal;window.makeKeyAndVisible()
+        defer{modal.dispose();window.isHidden=true;window.rootViewController=nil}
+        modal.view.frame=window.bounds;modal.view.layoutIfNeeded()
+        var deadline=Date().addingTimeInterval(8)
+        while !modal.buttons[1].isSculptedFacePrepared,Date()<deadline {try await Task.sleep(for:.milliseconds(10))}
+        XCTAssertFalse(modal.buttons[0].isSculptedFacePrepared)
+        XCTAssertNil(modal.card.layer.animation(forKey:"end-run-enter"))
+        XCTAssertEqual(modal.card.alpha,0,"Paper cannot consume its enter before the CTA cohort")
+        modal.buttons[0].setSculptedFacePreparationSuspended(false)
+        modal.buttons[0].setNeedsLayout();modal.buttons[0].layoutIfNeeded()
+        deadline=Date().addingTimeInterval(8)
+        while modal.card.layer.animation(forKey:"end-run-enter")==nil,Date()<deadline {try await Task.sleep(for:.milliseconds(10))}
+        let paper=try XCTUnwrap(modal.card.layer.animation(forKey:"end-run-enter") as? CAKeyframeAnimation)
+        XCTAssertEqual(paper.values?.count,4,"Existing paper animation recipe is retained")
+        let epoch=modal.card.layer.convertTime(paper.beginTime,to:nil)
+        for (index,button) in modal.buttons.enumerated() {
+            let enter=try XCTUnwrap(button.layer.animation(forKey:"cta-enter"))
+            XCTAssertEqual(button.layer.convertTime(enter.beginTime,to:nil),epoch,accuracy:0.000001)
+            XCTAssertEqual(enter.duration,index == 0 ? 0.34:0.52,accuracy:0.000001)
+        }
+    }
+
     func testExitCannotEnterBeforeRestartWhenItsBitmapIsReadyFirst() async throws {
         let modal=JimiNativeEndRunModal(id:913,model:try XCTUnwrap(JimiNativeEndRunModel(dto)),assets:JimiV9Artwork(resourceRoot:NativeTestResources.root))
         modal.loadViewIfNeeded()

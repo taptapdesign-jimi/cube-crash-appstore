@@ -206,13 +206,18 @@ final class NativeArcadeWorldModal: UIView {
         heading.text = ["Endurance","One Lucky Drop","Slow Burn"][index]
         heading.font = assets.font(size:28,weight:"ExtraBold"); heading.textAlignment = .center
         heading.textColor = NativeTextPalette.modalTitle
+        if let title=heading.text,let accentPrefix=([nil,"One Lucky","Slow"] as [String?])[index] {
+            let styled=NSMutableAttributedString(string:title,attributes:[.foregroundColor:NativeTextPalette.modalTitle])
+            styled.addAttribute(.foregroundColor,value:UIColor(red:232/255,green:116/255,blue:74/255,alpha:1),range:NSRange(location:0,length:(accentPrefix as NSString).length))
+            heading.attributedText=styled
+        }
         subtitle.numberOfLines = index == 0 ? 2 : 3; subtitle.textAlignment = .center
         subtitle.accessibilityIdentifier = "native.arcade-world-modal.description"
         art.accessibilityIdentifier = "native.arcade-world-modal.art"
         subtitle.attributedText = NativeModalTypography.attributedSubtitle([
-            "Clear rounds and keep going until you run out of moves.",
+            "Clear rounds until\nyou run out of moves.",
             "Get one lucky Special die\nto help you per round.",
-            "Special dice take longer to drop onto your board."
+            "Special dice take longer\nto drop onto your board."
         ][index],font:assets.font(size:18,weight:"Medium"))
         art.image = assets.image(["assets/arcade/endourance2.png","assets/arcade/pure dice2.png","assets/arcade/slow burn2.png"][index],densityAware:true)
         art.contentMode = .scaleAspectFit;art.layer.zPosition=1
@@ -263,8 +268,8 @@ final class NativeArcadeWorldModal: UIView {
         let scaledArtworkHeight = min(max(0,priorWidth-30)/aspect,priorArtworkHeight)*0.8
         let safeTop = safeAreaInsets.top+30, safeBottom = bounds.height-safeAreaInsets.bottom-40
         let availableHeight = max(0,safeBottom-safeTop)
-        // Match the Journey world-card modal's fixed phone/tablet CTA widths.
-        let ctaWidth:CGFloat = min((bounds.width < 768 ? 226:250)*JimiV9PlainButton.ctaWidthScale,w-32)
+        // Arcade Play/Continue is10percent narrower; height and live text stay unchanged.
+        let ctaWidth:CGFloat = min((bounds.width < 768 ? 226:250)*JimiV9PlainButton.ctaWidthScale,w-32)*0.9
         let footerHeight:CGFloat = 32+72+40
         let artworkHeight = min(scaledArtworkHeight,max(0,availableHeight-artworkY-footerHeight))
         art.bounds=CGRect(x:0,y:0,width:artworkHeight*aspect,height:artworkHeight)

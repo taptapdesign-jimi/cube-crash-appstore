@@ -6,6 +6,11 @@ final class JimiV9PlainButton: UIButton {
     static let modalIdleKey = "native-modal-cta-idle"
     private var hasModalIdle = false
     private var pairedModalCTA = false
+    private var independentPairedIdleIndex:Int?
+    private lazy var pairedIdlePhase=Double.random(in:0...3)
+    private lazy var pairedIdleDurationJitter=Double.random(in:0...0.4)
+    private lazy var pairedIdleOffsets=(0..<4).map{_ in CGPoint(x:CGFloat.random(in:0.9...2.0)*(Bool.random() ? 1:-1),y:CGFloat.random(in:0.6...1.2)*(Bool.random() ? 1:-1))}
+    private lazy var pairedIdleRotations=(0..<4).map{_ in CGFloat.random(in:0.55...1.0)*(Bool.random() ? 1:-1)}
     private var modalIdleSuspended = false
     private var observesModalIdle = false
     // Captured once per button. The existing idle sway adds at most 1.4°,
@@ -83,6 +88,20 @@ final class JimiV9PlainButton: UIButton {
         guard layer.animation(forKey:Self.modalIdleKey)==nil else{return}
         // The button owns its sculpted content; sublayerTransform leaves the
         // button's hit box, modal route and press/contact transforms untouched.
+        if let index=independentPairedIdleIndex {
+            let rest=CATransform3DMakeRotation(ctaRestTiltDegrees * .pi/180,0,0,1)
+            let poses=pairedIdleOffsets.enumerated().map { i,offset -> CATransform3D in
+                let translation=CATransform3DMakeTranslation(offset.x,offset.y,0)
+                return CATransform3DRotate(translation,(ctaRestTiltDegrees+pairedIdleRotations[i]) * .pi/180,0,0,1)
+            }
+            let idle=CAKeyframeAnimation(keyPath:"sublayerTransform")
+            idle.values=([rest]+poses+[rest]).map{NSValue(caTransform3D:$0)}
+            idle.keyTimes=[0,0.17,0.39,0.61,0.83,1]
+            idle.duration=(index==0 ? 3.6:4.7)+pairedIdleDurationJitter
+            idle.timeOffset=pairedIdlePhase;idle.repeatCount = .infinity
+            idle.timingFunctions=Array(repeating:CAMediaTimingFunction(controlPoints:0.42,0,0.58,1),count:5)
+            layer.add(idle,forKey:Self.modalIdleKey);return
+        }
         let settled=CATransform3DMakeRotation(ctaRestTiltDegrees * .pi/180,0,0,1)
         let strength:CGFloat=pairedModalCTA ? 0.30:1
         // Keep the established small vertical drift while making sway visible.
@@ -99,8 +118,8 @@ final class JimiV9PlainButton: UIButton {
     }
     /// Stacked actions use thirty percent sway/scale with fifteen percent vertical
     /// float, retaining the 1.2pt vertical drift bound without moving hit boxes.
-    func setPairedModalCTA() {
-        pairedModalCTA=true
+    func setPairedModalCTA(independentIdleIndex:Int?=nil) {
+        pairedModalCTA=true;independentPairedIdleIndex=independentIdleIndex
         layer.removeAnimation(forKey:Self.modalIdleKey)
         updateModalCTAIdle()
     }
@@ -211,7 +230,7 @@ final class JimiV9PlainButton: UIButton {
     }
     private func removeSculptedCTA() {
         setPrimaryCTAShimmer(false)
-        hasModalIdle=false;layer.removeAnimation(forKey:Self.modalIdleKey)
+        hasModalIdle=false;independentPairedIdleIndex=nil;layer.removeAnimation(forKey:Self.modalIdleKey)
         CATransaction.begin();CATransaction.setDisableActions(true);layer.sublayerTransform=CATransform3DIdentity;CATransaction.commit()
         sculptedFace?.removeFromSuperview();sculptedFace=nil
         setAttributedTitle(nil,for:.normal);sculptedShapeKey=nil

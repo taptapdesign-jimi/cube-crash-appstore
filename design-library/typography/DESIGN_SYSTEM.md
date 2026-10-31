@@ -1,3 +1,13 @@
+Journey score-history copy (Native, 2026-10-31): title “High score”;subtitle “Your best scores so far” for all history counts. Combo and gameplay HUD copy unchanged. Same layout/fonts/colors. Historical captures retained under standing no-QA/no-recapture policy.
+
+Arcade modal title accents (Native, 2026-10-31): “One Lucky” and “Slow” use orange#E8744A;“Drop”/“Burn” retain brown#BE7C59. Endurance unchanged. Same28px ExtraBold font/layout. Historical measured captures retained under standing no-QA/no-recapture policy.
+
+Slow Burn subtitle line break (Native, 2026-10-31): explicit two lines, “Special dice take longer” / “to drop onto your board.” Existing typography and CTA geometry unchanged. Historical captures remain under standing no-QA/no-recapture policy.
+
+Endurance subtitle line break (Native, 2026-10-31): explicit two lines, “Clear rounds until” / “you run out of moves.” Font and CTA geometry unchanged. Historical measured captures are not refreshed under standing no-QA/no-recapture policy.
+
+Arcade mode modals (Native, 2026-10-31): Endurance subtitle is “Clear rounds until you run out of moves.” All three mode Play/Continue buttons use90percent of their previous clamped width, retaining height,font,center and motion. Existing measured captures are historical; no recapture/tests under standing user policy.
+
 Result paired CTA width (Native, 2026-10-30):Play Again/Exit result actions use previous local width×1.10,capped by existing viewport-48px bound. Same height,font,center and pair gap;Home/Journey card CTA metrics unchanged.
 
 Journey selected-card CTA (Native, 2026-10-30):Play/Continue width is90percent of previous width;nominal238→214.2px. Height,font,center and vertical position unchanged.

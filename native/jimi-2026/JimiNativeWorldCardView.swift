@@ -80,10 +80,12 @@ private final class JimiWorldStoneCloseSurface:UIView {
     private var completion:(()->Void)?
     init(parent:CALayer,completion:@escaping()->Void){
         self.completion=completion;super.init();parent.addSublayer(layer)
+        NativeHistoryTransitionTrace.event("source.marker-install")
         let mark=CABasicAnimation(keyPath:"opacity");mark.fromValue=1;mark.toValue=1
-        mark.duration=0.65*0.6;mark.delegate=self;layer.add(mark,forKey:"history.entry-ready")
+        mark.duration=0.65*0.3;mark.delegate=self;layer.add(mark,forKey:"history.entry-ready")
     }
     func animationDidStop(_ animation:CAAnimation,finished:Bool){
+        NativeHistoryTransitionTrace.event("source.marker-stop finished=\(finished)")
         guard finished else{return};let done=completion;completion=nil;layer.removeFromSuperlayer();done?()
     }
     func cancel(){completion=nil;layer.removeAllAnimations();layer.removeFromSuperlayer()}
@@ -831,10 +833,12 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
     }
     @discardableResult func hideForStatHistory(onReady:(()->Void)?=nil)->Bool {
         guard active,!disposed,!closing,!animating,!historyVisible else{return false}
+        NativeHistoryTransitionTrace.event("source.exit-request")
         historyVisible=true;historyEntryReady=onReady;historyEntryMilestoneReached=false
         isUserInteractionEnabled=false;cancelGameplayPreparation();effects?.setActive(false)
         CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in
             guard let self,!self.disposed,self.historyVisible else{return}
+            NativeHistoryTransitionTrace.event("source.exit-complete")
             self.historyEntryMilestoneReached=true;self.deliverHistoryEntry()
             self.carrier.isHidden=true
             let time=self.carrier.layer.convertTime(CACurrentMediaTime(),from:nil)

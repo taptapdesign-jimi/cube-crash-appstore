@@ -6,6 +6,18 @@ import StackToSixNativeState
 
 @MainActor
 final class NativeResultOwnerTests:XCTestCase {
+    func testEveryArcadeReachedRunSummaryAddsSameBonusesAsJourney() {
+        for variant in [NativeArcadeVariant.endurance,.pureDice,.slowBurn] {
+            var arcade=NativeBoardState(tiles:[],mode:.arcade,board:3,stage:3,moves:30,score:1200,arcadeVariant:variant)
+            arcade.earnedComboBonus=350
+            var journey=arcade;journey.mode = .journey
+            let expected=1200+350+NativeRewardMath.efficiencyBonus(baseBonus:900,remainingMoves:30,maxMoves:arcade.maxMoves,maxStackDepth:arcade.maxStackDepth)
+            XCTAssertEqual(NativeResultOwner.finalScore(state:arcade,clean:true),expected)
+            XCTAssertEqual(NativeResultOwner.finalScore(state:arcade,clean:true),NativeResultOwner.finalScore(state:journey,clean:true))
+            XCTAssertEqual(NativeResultOwner.finalScore(state:arcade,clean:false),1200)
+        }
+    }
+
     func testCleanBoardTitleSpeechUsesTheDisplayedSelectionOnceAtTitleEntry() {
         for index in [0,73,113] {
             let result=controller(board:12,headlineRandom:(Double(index)+0.5)/Double(NativeResultHeadlines.clean.count))

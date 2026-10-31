@@ -63,15 +63,30 @@ final class JimiNativeWorldTests: XCTestCase {
         try await settle()
         let tile=try XCTUnwrap(descendant(world,"native.world.card.stat.0"))
         tile.perform(NSSelectorFromString("tappedStat"))
-        if !UIAccessibility.isReduceMotionEnabled {
-            XCTAssertNil(app.presentedViewController,"Detail waits for60percent source exit")
-            try await settle(0.2);XCTAssertNil(app.presentedViewController)
-            world.setActive(false);try await settle(0.5)
-            XCTAssertNil(app.presentedViewController,"Source60percent milestone pauses with its owner")
-            world.setActive(true);XCTAssertNil(app.presentedViewController)
+        let preparedBy=Date().addingTimeInterval(5)
+        while app.presentedViewController==nil,Date()<preparedBy {try await settle(0.01)}
+        let prepared=try XCTUnwrap(app.presentedViewController as? NativeScoreModal)
+        let paper=try XCTUnwrap(descendant(prepared.view,"native.score-modal"))
+        func hasExit(_ root:UIView)->Bool {
+            root.layer.animation(forKey:"history.exit") != nil || root.subviews.contains{hasExit($0)}
         }
-        let presentedBy=Date().addingTimeInterval(5)
-        while app.presentedViewController==nil,Date()<presentedBy {try await settle(0.01)}
+        let sourceBy=Date().addingTimeInterval(5)
+        if !UIAccessibility.isReduceMotionEnabled {
+            while !hasExit(world),Date()<sourceBy {try await settle(0.005)}
+            XCTAssertTrue(hasExit(world),"Source starts only after prepared detail attachment")
+            XCTAssertNil(paper.layer.animation(forKey:"score.enter"),"Prepared detail waits for30percent source exit")
+            XCTAssertEqual(paper.alpha,0)
+            try await settle(0.1);XCTAssertNil(paper.layer.animation(forKey:"score.enter"))
+            world.setActive(false);try await settle(0.5)
+            XCTAssertNil(paper.layer.animation(forKey:"score.enter"),"Source30percent milestone pauses with its owner")
+            world.setActive(true)
+            let enterBy=CACurrentMediaTime()+0.30
+            while paper.layer.animation(forKey:"score.enter")==nil,CACurrentMediaTime()<enterBy {try await settle(0.005)}
+            XCTAssertNotNil(paper.layer.animation(forKey:"score.enter"),"Mounted enter must follow the30percent receipt,not the650ms exit fallback")
+            XCTAssertNotNil(paper.window)
+            try await settle(0.02)
+            XCTAssertGreaterThan(paper.layer.presentation()?.opacity ?? 0,0.95,"The prepared card actually paints during source exit")
+        }
         let detail=try XCTUnwrap(app.presentedViewController as? NativeScoreModal),readyBy=Date().addingTimeInterval(5)
         while !detail.view.isUserInteractionEnabled,Date()<readyBy {try await settle(0.01)}
         XCTAssertTrue(detail.view.isUserInteractionEnabled)
@@ -88,14 +103,16 @@ final class JimiNativeWorldTests: XCTestCase {
         if !UIAccessibility.isReduceMotionEnabled {
             XCTAssertTrue(carrier.isHidden,"No immediate return at0percent")
             try await settle(0.2);detail.setSuspended(true);try await settle(0.5)
-            XCTAssertFalse(returned,"The60percent milestone follows the paused compositor clock")
+            XCTAssertFalse(returned,"The40percent milestone follows the paused compositor clock")
             detail.setSuspended(false)
         }
         try await settle(1.5)
         XCTAssertTrue(returned)
         XCTAssertNil(app.presentedViewController);XCTAssertTrue(app.world === world)
         tile.perform(NSSelectorFromString("tappedStat"))
-        if !UIAccessibility.isReduceMotionEnabled {XCTAssertNil(app.presentedViewController)}
+        if !UIAccessibility.isReduceMotionEnabled,let prepared=app.presentedViewController as? NativeScoreModal {
+            XCTAssertNil(descendant(prepared.view,"native.score-modal")?.layer.animation(forKey:"score.enter"))
+        }
         let retired=app.presentedViewController as? NativeScoreModal
         app.navigate(.hub,interrupt:true);try await settle()
         retired?.requestClose();try await settle(0.8)

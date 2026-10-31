@@ -1,4 +1,5 @@
 import UIKit
+import CoreImage
 import StackToSixGameplay
 import StackToSixNativeState
 
@@ -27,10 +28,9 @@ final class NativeResultOwner {
     var onSourceFinalCleanup:((NativeSourceNoMovesCompletedReceipt)->Void)?
     var prepareExit:((@escaping (Bool)->Void)->Void)?
     static func finalScore(state:NativeBoardState,clean:Bool)->Int {
-        let arcade=clean && state.mode == .arcade
-        let efficiency=clean && !arcade ? NativeRewardMath.efficiencyBonus(baseBonus:500+(state.board-1)*200,
+        let efficiency=clean ? NativeRewardMath.efficiencyBonus(baseBonus:500+(state.board-1)*200,
             remainingMoves:state.moves,maxMoves:state.maxMoves,maxStackDepth:state.maxStackDepth) : 0
-        return NativeRewardMath.finalScore(currentScore:state.score,comboBonus:clean && !arcade ? state.earnedComboBonus:0,efficiencyBonus:efficiency)
+        return NativeRewardMath.finalScore(currentScore:state.score,comboBonus:clean ? state.earnedComboBonus:0,efficiencyBonus:efficiency)
     }
     private static func removeReward(_ card:NativeJourneyRewardController,completion:@escaping ()->Void) {
         if card.parent != nil {
@@ -63,11 +63,14 @@ final class NativeResultOwner {
         // still commits a loss, so it cannot queue an uncleared next round.
         let arcadeReached=resolution.kind == .fail && state.mode == .arcade && state.board>=2
         let clean=resolution.kind == .complete || arcadeReached
-        let arcadeCue=clean && state.mode == .arcade
-        let efficiency=clean && !arcadeCue ? NativeRewardMath.efficiencyBonus(baseBonus:500+(state.board-1)*200,
+        // Arcade bonuses belong to the final reached-run summary. Real round
+        // clears retain their existing automatic cue and carry the raw score.
+        // The captured fail resolution still prevents next-round progression.
+        let awardsCleanBonus=clean && (state.mode != .arcade || arcadeReached)
+        let efficiency=awardsCleanBonus ? NativeRewardMath.efficiencyBonus(baseBonus:500+(state.board-1)*200,
             remainingMoves:state.moves,maxMoves:state.maxMoves,maxStackDepth:state.maxStackDepth) : 0
-        let combo=clean && !arcadeCue ? state.earnedComboBonus : 0
-        let score=Self.finalScore(state:state,clean:clean)
+        let combo=awardsCleanBonus ? state.earnedComboBonus : 0
+        let score=Self.finalScore(state:state,clean:awardsCleanBonus)
         let showResult:()->Void = { [weak self,weak gameplay] in
             guard let self,let gameplay,!self.disposed,self.lease==token else{return}
             self.presentResult(gameplay:gameplay,state:state,clean:clean,combo:combo,efficiency:efficiency,score:score,arcadeReached:arcadeReached)
@@ -165,8 +168,15 @@ final class NativeResultController:UIViewController {
     private let arcadeCelebrationPresented:Bool
     private var arcadePresentation:NativeArcadeRoundPresentation?
     private let content=UIView(),cardContent=UIView(),headlineContent=UIView(),statusContent=UIView(),bonusContent=UIView()
-    private let scoreMotion=UIView(),scoreShake=UIView(),scoreGlow=UILabel()
-    private let scoreTrails=(0..<4).map{_ in UILabel()}
+    private let scoreMotion=UIView(),scoreShake=UIView()
+    private let scoreBlur=UIImageView()
+    private var scoreBlurContext:CIContext?
+    private var scoreBlurInput:CIImage?
+    private var scoreBlurText:String?
+    private var scoreBlurSize=CGSize.zero
+    private var scoreBlurRadius:Double = -1
+    private let scoreBlurScale:CGFloat=2
+    private let scoreBlurPadding:CGFloat=12
     private var scoreAccentVisible=false
     private let stars=UIView()
     private var empty:[UIImageView]=[]
@@ -209,6 +219,7 @@ final class NativeResultController:UIViewController {
         return state.board>20 ? .area55:state.board>10 ? .beach:.forest
     }
     private var arcadeCue:Bool {clean && state.mode == .arcade && !arcadeReached}
+    private var scoreOnlyArcadeSummary:Bool {arcadeReached && combo==0 && efficiency==0}
     init(root:URL,state:NativeBoardState,clean:Bool,combo:Int,efficiency:Int,finalScore:Int,interimJourney:Bool=false,arcadeReached:Bool=false,arcadeCelebrationPresented:Bool=false,headlineRandom:Double=Double.random(in:0..<1)) {
         self.arcadeCelebrationPresented=arcadeCelebrationPresented
         assets=JimiV9Artwork(resourceRoot:root);self.state=state;self.clean=clean;self.arcadeReached=arcadeReached
@@ -230,9 +241,9 @@ final class NativeResultController:UIViewController {
         view.addSubview(content);content.addSubview(cardContent);cardContent.addSubview(stars)
         cardContent.addSubview(headlineContent)
         cardContent.addSubview(statusContent);statusContent.addSubview(bonusContent)
-        cardContent.addSubview(scoreMotion);scoreMotion.addSubview(scoreGlow);scoreMotion.addSubview(scoreShake)
+        cardContent.addSubview(scoreMotion);scoreMotion.addSubview(scoreShake)
         scoreMotion.accessibilityIdentifier="native.result.score-motion"
-        for trail in scoreTrails {scoreShake.addSubview(trail)}
+        scoreShake.addSubview(scoreBlur)
         for index in 0..<3 {
             let holder=UIView();stars.addSubview(holder)
             let back=UIImageView(image:assets.image("assets/modals/star-empty.png"))
@@ -262,19 +273,15 @@ final class NativeResultController:UIViewController {
             label.append(NSAttributedString(string:"Highscore",attributes:[.font:scoreLabel.font!,.foregroundColor:brown,.kern:0.4]))
             scoreLabel.attributedText=label
         } else {scoreLabel.text="Your score"}
-        for label in [scoreGlow]+scoreTrails {
-            label.font=score.font;label.textColor=score.textColor;label.textAlignment=score.textAlignment
-            label.isAccessibilityElement=false;label.isUserInteractionEnabled=false;label.isHidden=true
-            label.layer.shadowColor=orange.cgColor;label.layer.shadowOffset = .zero
-            label.layer.shadowOpacity=1;label.layer.shadowRadius=label === scoreGlow ? 18:1.1
-        }
+        scoreBlur.isAccessibilityElement=false;scoreBlur.isUserInteractionEnabled=false;scoreBlur.isHidden=true
+        scoreBlur.accessibilityIdentifier="native.result.score-motion-blur"
         score.accessibilityIdentifier="native.result.score"
         status.accessibilityIdentifier="native.result.status"
         status.text="\(state.mode == .arcade ? String(format:"Round %02d",state.stage) : String(format:"%@ %02d",state.board>20 ? "Area":state.board>10 ? "Beach":"Forest",(state.board-1)%10+1)) \(arcadeReached ? "reached" : clean ? "cleared" : "not cleared")"
         for (index,button) in buttons.enumerated() {
             button.setTitle(index == 0 ? (clean && interimJourney ? "Continue" : "Play Again") : "Exit",for:.normal)
             button.applyModalCTA(artwork:assets,primary:index == 0)
-            button.setPairedModalCTA()
+            button.setPairedModalCTA(independentIdleIndex:index)
             button.tag=index;button.accessibilityIdentifier=index == 0 ? "native.result.play-again" : "native.result.exit"
             button.addTarget(self,action:#selector(activate(_:)),for:.touchUpInside);content.addSubview(button);button.enableCartoonBounce()
         }
@@ -360,14 +367,14 @@ final class NativeResultController:UIViewController {
         place(scoreLabel,in:layout.scoreLabel.offsetBy(dx:-layout.card.minX,dy:-layout.card.minY))
         place(scoreMotion,in:layout.score.offsetBy(dx:-layout.card.minX,dy:-layout.card.minY))
         scoreShake.bounds=scoreMotion.bounds;scoreShake.center=CGPoint(x:scoreMotion.bounds.midX,y:scoreMotion.bounds.midY)
-        score.frame=scoreMotion.bounds;scoreGlow.frame=scoreMotion.bounds
-        for trail in scoreTrails {trail.frame=scoreMotion.bounds}
+        score.frame=scoreMotion.bounds
+        scoreBlur.frame=scoreMotion.bounds.insetBy(dx:-scoreBlurPadding,dy:-scoreBlurPadding)
         place(statusContent,in:layout.status.offsetBy(dx:-layout.card.minX,dy:-layout.card.minY))
         place(status,in:statusContent.bounds)
         place(bonusContent,in:CGRect(x:0,y:statusContent.bounds.midY-30,width:statusContent.bounds.width,height:60))
         bonus.frame=CGRect(x:0,y:0,width:bonusContent.bounds.width,height:36)
         bonusLabel.frame=CGRect(x:0,y:42,width:bonusContent.bounds.width,height:18)
-        place(buttons[0].cartoonBounceLayoutView,in:layout.primary);place(buttons[1].cartoonBounceLayoutView,in:layout.secondary);buttons.forEach{$0.layoutCartoonContent()}
+        place(buttons[0].cartoonBounceLayoutView,in:layout.primary);place(buttons[1].cartoonBounceLayoutView,in:layout.secondary.offsetBy(dx:0,dy:-JimiV9PlainButton.pairedModalCTAGap*0.60));buttons.forEach{$0.layoutCartoonContent()}
         // CSS reduces overlapping uniform40px corners to half the shortest
         // side. Use that painted radius for both authored result CTAs.
         for button in buttons {
@@ -446,7 +453,7 @@ final class NativeResultController:UIViewController {
             };return
         }
         commitOnce();thumb.isHidden=true;scoreLabel.isHidden = !clean;scoreMotion.isHidden = !clean
-        let plan=NativeResultPresentationPlan.sample(seconds:elapsed,clean:clean,baseScore:state.score,combo:combo,efficiency:efficiency,arcadeReached:arcadeReached)
+        let plan=NativeResultPresentationPlan.sample(seconds:elapsed,clean:clean,baseScore:state.score,combo:combo,efficiency:efficiency,arcadeReached:scoreOnlyArcadeSummary)
         for (target,pose) in [(stars,plan.hero),(headlineContent,plan.title),(scoreLabel,plan.scoreLabel),(scoreMotion,plan.score),(status,plan.status),(buttons[0],plan.primary),(buttons[1],plan.secondary)] {apply(pose,to:target)}
         moment(clean ? "clean-applause":"fail-sax",at:0)
         if clean {
@@ -455,7 +462,7 @@ final class NativeResultController:UIViewController {
                 moment("clean-title",at:0.22,index:titleIndex)
             }
             moment("clean-hero",at:0.1);moment("clean-sax",at:0);moment("clean-count",at:0.47,duration:NativeResultPresentationPlan.cleanCounterDuration(from:0,to:state.score))
-            if !arcadeReached {moment("clean-bonus",at:NativeResultPresentationPlan.cleanComboStart,duration:NativeResultPresentationPlan.cleanCounterDuration(from:state.score,to:state.score+combo));moment("clean-bonus",at:NativeResultPresentationPlan.cleanEfficiencyStart,duration:NativeResultPresentationPlan.cleanCounterDuration(from:state.score+combo,to:finalScore))}
+            if !scoreOnlyArcadeSummary {moment("clean-bonus",at:NativeResultPresentationPlan.cleanComboStart,duration:NativeResultPresentationPlan.cleanCounterDuration(from:state.score,to:state.score+combo));moment("clean-bonus",at:NativeResultPresentationPlan.cleanEfficiencyStart,duration:NativeResultPresentationPlan.cleanCounterDuration(from:state.score+combo,to:finalScore))}
         }
         for index in 0..<3 {
             if clean {
@@ -480,7 +487,7 @@ final class NativeResultController:UIViewController {
                 }
             }
             let comboVisible=elapsed<NativeResultPresentationPlan.cleanEfficiencyReveal
-            bonus.isHidden=arcadeReached;bonusLabel.isHidden=arcadeReached
+            bonus.isHidden=scoreOnlyArcadeSummary;bonusLabel.isHidden=scoreOnlyArcadeSummary
             bonus.text="+\(comboVisible ? plan.displayedCombo:plan.displayedEfficiency)"
             bonusLabel.text=comboVisible ? "Combo bonus":"Efficiency"
             let pose=comboVisible ? plan.combo:plan.efficiency
@@ -490,7 +497,7 @@ final class NativeResultController:UIViewController {
             forestBees?.paint(seconds:elapsed)
         } else {bonus.isHidden=true;bonusLabel.isHidden=true}
         for index in 0..<2 {
-            let begin=clean ? (arcadeReached ? 2.05:NativeResultPresentationPlan.cleanPrimaryCTAStart)+Double(index)*0.35:0.64+Double(index)*0.18
+            let begin=clean ? (scoreOnlyArcadeSummary ? 2.05:NativeResultPresentationPlan.cleanPrimaryCTAStart)+Double(index)*0.35:0.64+Double(index)*0.18
             // The register accent belongs to the first visible CTA, once.
             if clean,index == 0 {moment("clean-score-stop",at:begin)}
             moment(clean ? "clean-cta":"fail-cta",at:begin,index:index)
@@ -522,27 +529,47 @@ final class NativeResultController:UIViewController {
         preparationFrames=prepareDestination == nil ? 0:2
     }
     private func paintScoreAccent() {
-        let accent=NativeResultPresentationPlan.counterAccent(seconds:elapsed,baseScore:state.score,combo:combo,efficiency:efficiency,arcadeReached:arcadeReached,reducedMotion:UIAccessibility.isReduceMotionEnabled)
-        guard accent.motion>0 || accent.flash>0 || accent.blur>0 else{retireScoreAccent();return}
+        let accent=NativeResultPresentationPlan.counterAccent(seconds:elapsed,baseScore:state.score,combo:combo,efficiency:efficiency,arcadeReached:scoreOnlyArcadeSummary,reducedMotion:UIAccessibility.isReduceMotionEnabled)
+        guard accent.motion>0 || accent.blur>0 else{retireScoreAccent();return}
         scoreAccentVisible=true
         scoreShake.transform=CGAffineTransform(translationX:accent.x,y:accent.y+accent.bounceOffset).scaledBy(x:accent.bounceX,y:accent.bounceY)
-        scoreGlow.isHidden=false;scoreGlow.alpha=0.24*accent.motion+0.64*accent.flash
-        scoreGlow.transform=CGAffineTransform(translationX:0,y:accent.bounceOffset).scaledBy(x:accent.bounceX*(1+0.10*accent.flash),y:accent.bounceY*(1+0.10*accent.flash))
-        if scoreGlow.text != score.text {scoreGlow.text=score.text}
-        let offsets:[CGFloat]=[-4,-2,2,4],opacity:[CGFloat]=[0.07,0.14,0.14,0.07]
-        for (index,trail) in scoreTrails.enumerated() {
-            trail.isHidden=accent.blur<=0
-            if accent.blur>0 {
-                if trail.text != score.text {trail.text=score.text}
-                trail.alpha=opacity[index]*accent.blur
-                trail.transform=CGAffineTransform(translationX:0,y:offsets[index]*accent.blur)
-            }
+        paintScoreBlur(radius:accent.blur)
+    }
+    /// One small transparent glyph raster, filtered vertically; no duplicate labels
+    /// and no backdrop filter. Runs only on the existing visible result clock.
+    private func paintScoreBlur(radius:Double) {
+        let radius=(max(0,min(5,radius))*4).rounded()/4
+        guard radius>=0.25,score.bounds.width>0,score.bounds.height>0 else {
+            score.alpha=1;scoreBlur.isHidden=true;scoreBlur.image=nil
+            scoreBlurRadius = -1
+            return
         }
+        if scoreBlurText != score.text || scoreBlurSize != score.bounds.size || scoreBlurInput==nil {
+            let format=UIGraphicsImageRendererFormat();format.scale=scoreBlurScale;format.opaque=false
+            let size=score.bounds.size,padding=scoreBlurPadding
+            let image=UIGraphicsImageRenderer(size:CGSize(width:size.width+padding*2,height:size.height+padding*2),format:format).image { _ in
+                score.drawText(in:CGRect(origin:CGPoint(x:padding,y:padding),size:size))
+            }
+            scoreBlurInput=image.cgImage.map{CIImage(cgImage:$0)}
+            scoreBlurText=score.text;scoreBlurSize=size;scoreBlurRadius = -1
+        }
+        guard let input=scoreBlurInput else {score.alpha=1;scoreBlur.isHidden=true;return}
+        if scoreBlurRadius != radius {
+            if scoreBlurContext==nil {scoreBlurContext=CIContext(options:[.cacheIntermediates:false])}
+            let output=input.applyingFilter("CIMotionBlur",parameters:[kCIInputRadiusKey:radius*Double(scoreBlurScale),kCIInputAngleKey:Double.pi/2])
+            guard let raster=scoreBlurContext?.createCGImage(output,from:input.extent) else {
+                score.alpha=1;scoreBlur.isHidden=true;return
+            }
+            scoreBlur.image=UIImage(cgImage:raster,scale:scoreBlurScale,orientation:.up)
+            scoreBlurRadius=radius
+        }
+        score.alpha=0;scoreBlur.isHidden=false
     }
     private func retireScoreAccent() {
         guard scoreAccentVisible else{return};scoreAccentVisible=false
-        scoreShake.transform = .identity;scoreGlow.isHidden=true;scoreGlow.text=nil;scoreGlow.transform = .identity
-        for trail in scoreTrails {trail.isHidden=true;trail.text=nil;trail.transform = .identity}
+        scoreShake.transform = .identity;score.alpha=1
+        scoreBlur.isHidden=true;scoreBlur.image=nil;scoreBlurInput=nil;scoreBlurText=nil
+        scoreBlurSize = .zero;scoreBlurRadius = -1
     }
     private func requestDestinationPreparation() {
         guard !disposed,!suspended,!destinationPending,!destinationReady,let destinationPreparation else{return}
@@ -565,6 +592,7 @@ final class NativeResultController:UIViewController {
     }
     func dispose() {
         guard !disposed else {return};disposed=true;retireScoreAccent();buttons.forEach{$0.setModalCTAIdleSuspended(true)};onForestAmbience?(false,false);onForestAmbience=nil;link?.invalidate();link=nil;clockTarget=nil
+        scoreBlurContext?.clearCaches();scoreBlurContext=nil
         arcadePresentation?.dispose();arcadePresentation=nil;confetti?.dispose();confetti=nil;area55Flybys?.dispose();area55Flybys=nil;forestBees?.dispose();forestBees=nil
         for observer in observations {NotificationCenter.default.removeObserver(observer)};observations.removeAll()
         destinationLease &+= 1;destinationPreparation=nil;destinationPending=false

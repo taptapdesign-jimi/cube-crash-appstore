@@ -378,9 +378,9 @@ park,replacement and cleanup retire the bridges through existing World ownership
 
 Native Journey info statistics (user2026-10-30): face flip is admitted only by horizontal drag/swipe; tapping blank/artwork is not a flip gesture. High score/Best combo tile taps use shared finite navigation contact and open Top3 result history. Retained info card exits on v10 modal planes, preserves its star/idle phase while covered, then resumes through v10 entry on detail close. Detail shows greatest3 values with dates from at most10 canonical records per metric/board. Legacy best dates remain unknown rather than fabricated. Existing Play/Continue, vertical dismissal and automatic post-game return semantics remain.
 
-Journey Top3 detail close (latest user2026-10-30): the retained large info card begins its standard return entry at60percent of the detail exit timeline (0.39s of0.65s), overlapping its final40percent. The milestone shares the actual paused compositor clock; no wall-time delay. Reduced Motion returns immediately. Do not wait for dismissal/onClosed or return at close request. Exact selected controller/World identity and duplicate/navigation/disposal guards remain authoritative.
+Journey Top3 detail close (latest user2026-10-31): the retained large info card begins its standard return entry at40percent of the detail exit timeline (0.26s of0.65s), overlapping its final60percent. The milestone shares the actual paused compositor clock; no wall-time delay. Reduced Motion returns immediately. Do not wait for dismissal/onClosed or return at close request. Exact selected controller/World identity and duplicate/navigation/disposal guards remain authoritative.
 
-Journey Top3 opening (latest user2026-10-30): present the selected detail at60percent of the source info-card0.65s exit (0.39s), with the final40percent overlapping. Retain one pending selected detail; duplicate/background/navigation/cleanup cannot admit a stale presentation. The source-layer milestone follows its paused compositor clock, Reduced Motion enters immediately. Closing retains the60percent return rule.
+Journey Top3 opening (latest user2026-10-31): present the selected detail at30percent of the source info-card0.65s exit (0.195s), with the final70percent overlapping. Retain one pending selected detail; duplicate/background/navigation/cleanup cannot admit a stale presentation. The source-layer milestone follows its paused compositor clock, Reduced Motion enters immediately. Closing retains the40percent return rule.
 
 Journey info-stat tiles (user2026-10-30): High score and Best combo independently float continuously while the info face is visible, using their existing disjoint tempo/phase profiles with gentle horizontal/vertical translation and tiny lean. This supersedes the three-cycle limit only for whole-tile float. Existing parent pause, flip/exit/cleanup retirement and Reduced Motion remain;finite background-stone breathing and rigid text stay unchanged.
 
@@ -433,3 +433,34 @@ original complete Hub exit. Pending tokens and existing animation key own
 background/hide/detach cancellation;Reduced Motion skips contact. Journey and
 all original artwork remain unchanged. This supersedes prior2026-10-30 Arcade
 whole-Worlds activation interpretation.
+
+
+### Journey history entry preparation boundary (user2026-10-31)
+
+The30percent opening milestone must start the visible standard enter,not begin
+UIKit presentation/resource loading. Prepare/layout and attach only the selected
+Best scores/Best combo controller invisibly first (paper/tint0,entry disabled).
+Its presentation completion starts Journey info exit;the original source-clock
+195ms receipt starts the already-mounted entry exactly once. Other score modal
+callers keep normal appearance-triggered entry. Return stays40percent. Background
+before source admission retires prepared detail;mid-exit uses existing source and
+modal pause clocks. Navigation/disposal invalidates identity/callbacks. No new
+scheduler,asset mutation or per-frame work.
+
+Result score refinement(user2026-10-31):remove counting glow and final glow flash entirely. Existing four directional text trails use4times previous1.5 strength(envelope6),during active counting and final0.6s bounce only. Existing subpixel shake,bounce shape,count durations and result clock/pause/ReducedMotion/close/dispose ownership unchanged. Gaps and settled text stay sharp. No new timer/filter/cache or gameplay/audio/save changes.
+
+
+Result score blur override (user2026-10-31): the preceding four-label trail
+implementation is superseded for the shared result counter only. Use public
+CIMotionBlur on a single transparent glyph raster,vertical0–5pt based on existing
+vertical shake/bounce velocity;no glow or separated ghost labels. Original bounce,
+count duration,CTA and other surface animation recipes remain unchanged. Existing
+result clock owns rendering;gaps/final/ReducedMotion/close restore sharp text.
+
+
+Paired CTA scope override(user2026-10-31): result Play Again/Exit gap reduced
+60percent(12→4.8pt);in-game synchronized EndRun two-CTA actual gap reduced
+50percent(8.5→4.25pt). Move secondary only;paper/primary/other geometry unchanged.
+Only those pairs opt into gentle independent random idle profiles on existing
+button sublayerTransform owner:small drift/rotation,distinct durations/phases.
+Other button profiles,enter/exit/contact/counting and all other animations stay unchanged.

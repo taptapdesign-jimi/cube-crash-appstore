@@ -55,7 +55,7 @@ final class NativeEndRunOwner {
             "subtitle":"Come back anytime.\n\(progress) progress saved.",
             "restartLabel":arcade ? "New Game" : "Restart","exitLabel":arcade ? "Exit Game" : "Exit Stage"]) else {gameplay.setSuspended(false);return}
         traceHUDLatency("exit-modal-init-begin")
-        let sheet = JimiNativeEndRunModal(id:owner,model:model,assets:assets);modal = sheet
+        let sheet = JimiNativeEndRunModal(id:owner,model:model,assets:assets,synchronizesBoardCTAEntry:true);modal = sheet
         traceHUDLatency("exit-modal-init-end")
         // Match trophy contact latency: disk checkpoint must not block modal entrance.
         sheet.onReady = { [weak self,weak sheet,weak gameplay] in

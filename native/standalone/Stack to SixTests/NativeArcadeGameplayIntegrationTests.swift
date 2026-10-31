@@ -60,7 +60,7 @@ import StackToSixNativeState
         XCTAssertFalse(game.hasPresentedBoardCleared)
     }
     func testArcadeLossAfterClearedRoundPresentsCleanRunSummaryWithoutAdvancing() async throws {
-        for variant in [NativeArcadeVariant.slowBurn,.pureDice] {
+        for variant in [NativeArcadeVariant.endurance,.slowBurn,.pureDice] {
             for board in [1,2,5] {
                 let f=try Fixture(variant:variant,tiles:[
                     .init(id:"five-a",cell:.init(column:2,row:4),value:5,stackDepth:2),
@@ -74,9 +74,12 @@ import StackToSixNativeState
                 }
                 let result=try XCTUnwrap(game.presentedViewController as? NativeResultController)
                 XCTAssertEqual(result.clean,board>1,"Only a run with a cleared round earns the clean summary")
-                XCTAssertEqual(result.finalScore,123)
-                XCTAssertEqual(result.combo,0)
-                XCTAssertEqual(result.efficiency,0)
+                let terminal=game.engine.state
+                let efficiency=board>1 ? NativeRewardMath.efficiencyBonus(baseBonus:500+(board-1)*200,remainingMoves:terminal.moves,maxMoves:terminal.maxMoves,maxStackDepth:terminal.maxStackDepth):0
+                let expected=NativeRewardMath.finalScore(currentScore:123,comboBonus:board>1 ? terminal.earnedComboBonus:0,efficiencyBonus:efficiency)
+                XCTAssertEqual(result.finalScore,expected)
+                XCTAssertEqual(result.combo,board>1 ? terminal.earnedComboBonus:0)
+                XCTAssertEqual(result.efficiency,efficiency)
                 XCTAssertNotEqual(game.engine.state.terminal?.kind,.complete,"Presentation cannot turn a loss into a completed round")
                 XCTAssertFalse(result.view.subviews.contains{$0 is NativeArcadeRoundPresentation})
                 // Exercise the full finite result timeline; it must expose run-end CTAs,
@@ -88,7 +91,7 @@ import StackToSixNativeState
                 let saved=try XCTUnwrap(f.store.load())
                 XCTAssertNil(saved.pendingArcadeRound)
                 XCTAssertNil(saved.arcadeRun)
-                XCTAssertEqual(saved.progression.arcadeStats(for:variant).highScore,123)
+                XCTAssertEqual(saved.progression.arcadeStats(for:variant).highScore,expected)
                 XCTAssertLessThanOrEqual(saved.progression.arcadeStats(for:variant).highestStageOpened,board)
                 XCTAssertTrue(saved.progression.completedJourneyBoards.isEmpty)
                 XCTAssertTrue(saved.progression.boardStats.isEmpty)
@@ -110,7 +113,7 @@ import StackToSixNativeState
             let result=try XCTUnwrap(game.presentedViewController as? NativeResultController)
             XCTAssertTrue(result.clean)
             XCTAssertEqual(result.celebrationTheme,expected)
-            XCTAssertEqual(result.finalScore,123)
+            XCTAssertEqual(result.finalScore,NativeResultOwner.finalScore(state:game.engine.state,clean:true))
             XCTAssertEqual(game.engine.state.lastSpecialMergeWorld,world)
         }
     }

@@ -242,7 +242,8 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
             if arcade,index == 0 {artworkCenterX = 16-x+visualSize/2}
             else if arcade,index == 1 {artworkCenterX = width-16-x-visualSize/2}
             else {artworkCenterX = buttonWidth/2+artworkShift.x}
-            floats[id]?.center = CGPoint(x:artworkCenterX,y:(arcade ? buttonHeight/2 : buttonHeight*0.48)+artworkShift.y)
+            let islandOffset:CGPoint = arcade ? [CGPoint(x:-24,y:-20),CGPoint(x:10,y:-32),CGPoint(x:-8,y:0)][index] : .zero
+            floats[id]?.center = CGPoint(x:artworkCenterX+islandOffset.x,y:(arcade ? buttonHeight/2 : buttonHeight*0.48)+artworkShift.y+islandOffset.y)
             tilts[id]?.bounds = CGRect(x: 0, y: 0, width: visualSize, height: visualHeight)
             tilts[id]?.layer.anchorPoint = CGPoint(x: 0.5, y: 0.54)
             tilts[id]?.layer.position = CGPoint(x: visualSize*0.5, y: visualHeight*0.54)
