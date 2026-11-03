@@ -30,7 +30,7 @@ public struct NativeSourceInitialBoardRecipe: Equatable, Sendable {
         rows: Int = 9, generation: UInt64 = 1, gameplaySeed: UInt64 = 1,
         tutorialDemo: Bool = false, arcadeVariant: NativeArcadeVariant = .endurance, random: () -> Double,
         constructHolder: ((Holder) -> Bool)? = nil, openTile: ((Opening) -> Bool)? = nil) -> Self? {
-        guard (columns == 5 || columns == 7), rows == 9, board > 0 else { return nil }
+        guard (columns == 5 && rows == 9 || columns == 7 && (rows == 8 || rows == 9)), board > 0 else { return nil }
         var holders: [Holder] = [], tiles: [NativeTile] = [], openings: [Opening] = []
         for row in 0..<rows {
             for column in 0..<columns {
@@ -86,7 +86,7 @@ public struct NativeSourceInitialBoardRecipe: Equatable, Sendable {
     /// Validated Native save projection into original ordinary restore. Source
     /// reconstructs occupied cells only, row-major; no opening/shuffle draws.
     public static func canRestore(_ saved:NativeBoardState)->Bool {
-        guard (saved.columns==5 || saved.columns==7),saved.rows==9,saved.board>0,
+        guard (saved.columns==5 && saved.rows==9 || saved.columns==7 && (saved.rows==8 || saved.rows==9)),saved.board>0,
             saved.generation>0,saved.terminal==nil,
             !saved.tiles.isEmpty,
             saved.sourceDetachedGridTileIDs?.isEmpty != false,

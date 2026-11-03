@@ -1,0 +1,22 @@
+{
+  "recordingId": "lik-lajna-voice-v1",
+  "source": "assets/sound/SPEECH/Jimbo voice compilation/lik lajna.mp3",
+  "sourceSHA256": "e3f9eb2fb27944e03f2cafed332c554b8d6f814084891cddfc8b45f1fa646aaa",
+  "format": "48000Hz mono PCM16 WAV",
+  "processing": "Complete source decoded once;no cuts,gain,normalization,pitch or rate changes;original MP3 preserved.",
+  "clips": [
+    {
+      "order": 1,
+      "sceneId": "intro-lik-pas-SVG",
+      "lineId": "lik-lajna-voice-v1-1",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/lik-lajna-voice-v1/001-leash-laugh.wav",
+      "file": "001-leash-laugh.wav",
+      "text": "[smiling out load ] ha ha ha ha ha ha ! oh my hahaha!",
+      "spokenText": "ha ha ha ha ha ha ! oh my hahaha!",
+      "startFrame": 0,
+      "endFrame": 201874,
+      "duration": 4.205708333333333,
+      "sha256": "62acf5b265ef933897ac763d8f3e6e2384ee3d167c01f1f74e09a31281b12915"
+    }
+  ]
+}

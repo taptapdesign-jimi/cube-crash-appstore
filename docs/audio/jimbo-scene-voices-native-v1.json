@@ -1,0 +1,1248 @@
+{
+  "batchId": "1822e815ea044f35a41a201a973be51b",
+  "clips": 147,
+  "scenes": 40,
+  "owner": "native/gameplay-app/NativeGameplayAudioOwner.swift",
+  "registry": "native/gameplay-app/NativeRecordedSceneSpeech.swift",
+  "delivery": {
+    "bundle": "com.taptapdesign.stacktosix.native",
+    "launch": "com.taptapdesign.stacktosix.native: 37615",
+    "swiftInputsStable": 874,
+    "assetFilesByteExact": 2897,
+    "clips": 147,
+    "scenes": 40,
+    "runtimeMatchesBuilt": true,
+    "noWebOrTestPlugin": true,
+    "saveBefore": {
+      "state-v1.json": "b04ed1c0206a0e9c1c48bf6539e1ae5552f3fa87bc975d3ed17e539625f7ebc8",
+      "state-v1.previous.json": "0591919c988ea97c0b9a0416c8493b072e273c36f224e1242e0e82836ac9358c"
+    },
+    "saveAfter": {
+      "state-v1.json": "b04ed1c0206a0e9c1c48bf6539e1ae5552f3fa87bc975d3ed17e539625f7ebc8",
+      "state-v1.previous.json": "0591919c988ea97c0b9a0416c8493b072e273c36f224e1242e0e82836ac9358c"
+    },
+    "bothSavesByteIdenticalAtLaunch": true
+  },
+  "validation": {
+    "studioTests": 133,
+    "nativeFocusedTests": 83,
+    "qaFast": "PASS",
+    "qaFull": "PASS20gates/530suites4010tests+KING330",
+    "physicalMix": "NEEDS PHYSICAL TEST",
+    "broaderBackpackVisualFixtures": "FAIL existing dimensions/idle expectations outside this audio change; logged /tmp/jimbo-scene-import/native-tests.log; broad run interrupted after failures; targeted final tests pass."
+  },
+  "lines": [
+    {
+      "order": 1,
+      "lineId": "2e48d5debef4459299ca68c3a1799809",
+      "sceneId": "intro-lik-gitara",
+      "sceneName": "Jimbo svira gitaru",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0001-intro-lik-gitara-01.wav",
+      "sha256": "19aac04a21eb589ed575f201f00c0d8e452892ec9ad1dcf4d28b66af98720fbf"
+    },
+    {
+      "order": 2,
+      "lineId": "60ef046e7d1545f0b16f106f84a814ed",
+      "sceneId": "intro-lik-gitara",
+      "sceneName": "Jimbo svira gitaru",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0002-intro-lik-gitara-02.wav",
+      "sha256": "ed069d16a1a01173d0eec40ba8514f093a9fdd004981a407af5d1e46e5a4b235"
+    },
+    {
+      "order": 3,
+      "lineId": "dc279e27dd914023a1eea820ebe6627f",
+      "sceneId": "intro-lik-slikanje",
+      "sceneName": "Jimbo fotografira",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0003-intro-lik-slikanje-01.wav",
+      "sha256": "f24f6f2791a57b009f3cbf402f9f2dfb08047323b3ef563137d67597b2504b43"
+    },
+    {
+      "order": 4,
+      "lineId": "bf76ec238b894e999271a53e6be0d286",
+      "sceneId": "intro-lik-slikanje",
+      "sceneName": "Jimbo fotografira",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0004-intro-lik-slikanje-02.wav",
+      "sha256": "5c98c07dcd81d86c270ca467174906068f4ddac36ab3c2c813dc8965b482b9ee"
+    },
+    {
+      "order": 5,
+      "lineId": "6f3c2905a1614b1788169d15254dc016",
+      "sceneId": "intro-lik-cvijet",
+      "sceneName": "Jimbo zalijeva cvijet",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0005-intro-lik-cvijet-01.wav",
+      "sha256": "261dc6cf3d3948dd3b6a5a1678daca60613b7dfecd9dd12f99b6b3db6277f473"
+    },
+    {
+      "order": 6,
+      "lineId": "2fdab08858b54933948b83509649d7fd",
+      "sceneId": "intro-lik-cvijet",
+      "sceneName": "Jimbo zalijeva cvijet",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0006-intro-lik-cvijet-02.wav",
+      "sha256": "6ac737b7cdd03ec1a399add334470e33213f3ddacc59ffbe016eee38e142fb84"
+    },
+    {
+      "order": 7,
+      "lineId": "e5a4d4aa74a24d73b06530ca2c8cedf4",
+      "sceneId": "intro-lik-cvijet",
+      "sceneName": "Jimbo zalijeva cvijet",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0007-intro-lik-cvijet-03.wav",
+      "sha256": "a5f35af28c48c820fdc95d2433155409aac8d8d17aa8065d6e807c8f764e3a9b"
+    },
+    {
+      "order": 8,
+      "lineId": "e53110afa0e94668b75c813750f7cd69",
+      "sceneId": "intro-lik-cvijet",
+      "sceneName": "Jimbo zalijeva cvijet",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0008-intro-lik-cvijet-04.wav",
+      "sha256": "cc699e944a1e30d7e63e1b8c7e097fd2edc1d6a4c9342169d06ebe3f9bb23881"
+    },
+    {
+      "order": 9,
+      "lineId": "666c1158097a40daaedf6e3870ff134a",
+      "sceneId": "intro-lik-board",
+      "sceneName": "Jimbo baca kockice",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0009-intro-lik-board-01.wav",
+      "sha256": "c697525e36dfc06b4a67f8a2b9882dfe1c128ab168b4746d0196355575f49f24"
+    },
+    {
+      "order": 10,
+      "lineId": "00e235cea75a47ef8ce435620b0722de",
+      "sceneId": "intro-lik-board",
+      "sceneName": "Jimbo baca kockice",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0010-intro-lik-board-02.wav",
+      "sha256": "b164ad9197ec37a219bf19f937f23f098d69f67253b6d6f2496b0cce02bda426"
+    },
+    {
+      "order": 11,
+      "lineId": "6608356376b94dfb9c33b7f2d6ae7fc9",
+      "sceneId": "intro-lik-board",
+      "sceneName": "Jimbo baca kockice",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0011-intro-lik-board-03.wav",
+      "sha256": "e9857b0c24988fd70ca525d789f7af9cae199e1909de322ce19b506254871d93"
+    },
+    {
+      "order": 12,
+      "lineId": "7f0f09b05a344a1fa87369e5a772f5b6",
+      "sceneId": "intro-lik-game",
+      "sceneName": "Jimbo s kontrolerom",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0012-intro-lik-game-01.wav",
+      "sha256": "8caba5e2b7565df7e52a44c6572c2520bc81ccb52f64bafa0426fb17293887a1"
+    },
+    {
+      "order": 13,
+      "lineId": "a4f29e90f0f84f8ea8bacae6ab475418",
+      "sceneId": "intro-lik-game",
+      "sceneName": "Jimbo s kontrolerom",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0013-intro-lik-game-02.wav",
+      "sha256": "1b948618d91adeacc0bec06dbe1b5b7bf7381f3802f753679b913a9fadf162eb"
+    },
+    {
+      "order": 14,
+      "lineId": "c36eeb32ca1447e3b64234e342deee13",
+      "sceneId": "intro-lik-game",
+      "sceneName": "Jimbo s kontrolerom",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0014-intro-lik-game-03.wav",
+      "sha256": "21f1e839b00552a119c5c94417e24c3fd1ba1aaa90b47924ffaf33b29d0273ef"
+    },
+    {
+      "order": 15,
+      "lineId": "e83a21e7a9a14c67912c16c052a95fdb",
+      "sceneId": "intro-lik-laptop",
+      "sceneName": "Jimbo s laptopom",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0015-intro-lik-laptop-01.wav",
+      "sha256": "dee1e341a987349a90e6e00ae53db75db29d65961047905c9a24cc713746ce37"
+    },
+    {
+      "order": 16,
+      "lineId": "c6d51fbba03d466b9b2a2310d858487c",
+      "sceneId": "intro-lik-laptop",
+      "sceneName": "Jimbo s laptopom",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0016-intro-lik-laptop-02.wav",
+      "sha256": "058a2755683fb646663e221bdedaea3f694ab8b437e93989bde9f68340bf4b60"
+    },
+    {
+      "order": 17,
+      "lineId": "120f905dda71499bb3ba4bebbd9af863",
+      "sceneId": "intro-lik-laptop",
+      "sceneName": "Jimbo s laptopom",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0017-intro-lik-laptop-03.wav",
+      "sha256": "ac46cb59f118f49f6de861552f82d80231c08879e1d2f3b216c45ed12ee6f85a"
+    },
+    {
+      "order": 18,
+      "lineId": "26d2a0d32881406c9e909fd376371a50",
+      "sceneId": "intro-lik-pas-SVG",
+      "sceneName": "Jimbo i Nala s uzicom",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0018-intro-lik-pas-SVG-01.wav",
+      "sha256": "3f0f883254955dd2ed0f336219db9b84c26052d3d5502135fd3d6ade9351402c"
+    },
+    {
+      "order": 19,
+      "lineId": "2858f4097f3f4216bb39093224a9d575",
+      "sceneId": "intro-lik-pas-SVG",
+      "sceneName": "Jimbo i Nala s uzicom",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0019-intro-lik-pas-SVG-02.wav",
+      "sha256": "e0abd6dc5d6e9fd04fabcf0144d5c2c6214995b12e7d48e9a20fe13b99acc556"
+    },
+    {
+      "order": 20,
+      "lineId": "6a9a2a1fb4294aff9dafee0fc5d1cdb4",
+      "sceneId": "intro-lik-pas-SVG",
+      "sceneName": "Jimbo i Nala s uzicom",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0020-intro-lik-pas-SVG-03.wav",
+      "sha256": "bcb3a1b28c2e633ce7c136372dcedb66845a56cfc6497bfaa55d8f977043dc11"
+    },
+    {
+      "order": 21,
+      "lineId": "ea90faa272ed4eb5bcbfb4bd53a90fde",
+      "sceneId": "intro-lik-pas-SVG",
+      "sceneName": "Jimbo i Nala s uzicom",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0021-intro-lik-pas-SVG-04.wav",
+      "sha256": "d2b4761aa7c55bf3f89fa8d2dbc204c1323e5135d603579c7a4a571462878bca"
+    },
+    {
+      "order": 22,
+      "lineId": "6b4fab1d45a9462fb7ea4e933663ab4d",
+      "sceneId": "intro-lik-speceraj",
+      "sceneName": "Jimbo i Nala nose namirnice",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0022-intro-lik-speceraj-01.wav",
+      "sha256": "1da42ed73df21ff102a716884f7ce5c206ab281d24de348f0e11f911aacb2547"
+    },
+    {
+      "order": 23,
+      "lineId": "d038523fc18e4a91bfcb91fdd43f54da",
+      "sceneId": "intro-lik-speceraj",
+      "sceneName": "Jimbo i Nala nose namirnice",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0023-intro-lik-speceraj-02.wav",
+      "sha256": "bf0ab0329308da7bdcc11f541714abc74a8a5cdacc28eaeeca19db572e279fb0"
+    },
+    {
+      "order": 24,
+      "lineId": "068d0a08bc41480fb46b0ea3247ad80b",
+      "sceneId": "intro-lik-speceraj",
+      "sceneName": "Jimbo i Nala nose namirnice",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0024-intro-lik-speceraj-03.wav",
+      "sha256": "5c73147323ced8433eae49008820e51e61d592af5a53a44842b3ecba41c44914"
+    },
+    {
+      "order": 25,
+      "lineId": "864e2f093c534195b37728f7d64158c5",
+      "sceneId": "intro-lik-speceraj",
+      "sceneName": "Jimbo i Nala nose namirnice",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0025-intro-lik-speceraj-04.wav",
+      "sha256": "8ac7904818185dd9c1cd96c9fd26797bcdd6aa55ef3936547c26f35c596702ae"
+    },
+    {
+      "order": 26,
+      "lineId": "1821962353544e7f96735ed3f0796cb1",
+      "sceneId": "intro-pas-novine",
+      "sceneName": "Nala nosi novine",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0026-intro-pas-novine-01.wav",
+      "sha256": "e129d8d7dd6062bd7e639882c7131c0d584d8a1adaeeb09e30b7fdde4f8ecd26"
+    },
+    {
+      "order": 27,
+      "lineId": "555834018fdc4c02aa12235dfa0d54c6",
+      "sceneId": "intro-pas-novine",
+      "sceneName": "Nala nosi novine",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0027-intro-pas-novine-02.wav",
+      "sha256": "6c8ddc0600674d12167f3b914023bcb043b1116692cb210474d2bbbe3501018e"
+    },
+    {
+      "order": 28,
+      "lineId": "1c12c8056ca045e9910bb5f0cd42e2f2",
+      "sceneId": "intro-pas-novine",
+      "sceneName": "Nala nosi novine",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0028-intro-pas-novine-03.wav",
+      "sha256": "4db4309e3df63610d9693f78e723c4f522d1c1e0e963fbe2034e38dfb678cdbd"
+    },
+    {
+      "order": 29,
+      "lineId": "ea11fef8c7d64aaf8e52c3b30873c69c",
+      "sceneId": "intro-pas-novine",
+      "sceneName": "Nala nosi novine",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0029-intro-pas-novine-04.wav",
+      "sha256": "bdaed1e661b5165d67d9024864c38ef0716d3d81c58ce0e7f26f24fc65a5cabe"
+    },
+    {
+      "order": 30,
+      "lineId": "0937206b7f9d484fac13f601ad41e8e9",
+      "sceneId": "home-journey",
+      "sceneName": "Homepage · Journey",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0030-home-journey-01.wav",
+      "sha256": "4af0209334ae4f1924c6ff806036e0e4c4147a3d3416d157fbbbf93b9a2e281c"
+    },
+    {
+      "order": 31,
+      "lineId": "b7e85feeed9849e0be5f9a9d90ddf844",
+      "sceneId": "home-journey",
+      "sceneName": "Homepage · Journey",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0031-home-journey-02.wav",
+      "sha256": "63cdc9bb6a3e4b1a18661bfaf110d9f93671a1310c902a7f3ac43b97e2d3ada8"
+    },
+    {
+      "order": 32,
+      "lineId": "f5e3637830df4ca28924ad4302dee27c",
+      "sceneId": "home-journey",
+      "sceneName": "Homepage · Journey",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0032-home-journey-03.wav",
+      "sha256": "fb38a41f9d5a5f98e3765dd8bd1b3846db0e3bf10e245c41c2d95a7cf2c9ced4"
+    },
+    {
+      "order": 33,
+      "lineId": "4b99c586124d492cbc85a8199847fe27",
+      "sceneId": "home-journey",
+      "sceneName": "Homepage · Journey",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0033-home-journey-04.wav",
+      "sha256": "a5cde20ef6df5435bea3e4ab6f297cf85dab473d887878773698fb9ebe41bac6"
+    },
+    {
+      "order": 34,
+      "lineId": "9fe31e9a1508466ebb3410cf735d6a6c",
+      "sceneId": "home-journey",
+      "sceneName": "Homepage · Journey",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0034-home-journey-05.wav",
+      "sha256": "d1c13875a9207c991ff9a16999fb4a55b39174701c039cc0b95bd99ed90af530"
+    },
+    {
+      "order": 35,
+      "lineId": "fbd9c037241d4aa4a0b6503b10e02411",
+      "sceneId": "home-journey",
+      "sceneName": "Homepage · Journey",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0035-home-journey-06.wav",
+      "sha256": "ba552587cd61f2288f7c222ac48d2b2a3dc75ef997231a4a06c83f8d0633b794"
+    },
+    {
+      "order": 36,
+      "lineId": "904f4d9917bb4478a99a25ff79c6be77",
+      "sceneId": "home-journey",
+      "sceneName": "Homepage · Journey",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0036-home-journey-07.wav",
+      "sha256": "0be015729e85696bbf36c352b90fc0b3f76fb1230affb75e2b9044a213019bb7"
+    },
+    {
+      "order": 37,
+      "lineId": "9196d9f7918d4660a6673060ca0b091b",
+      "sceneId": "home-arcade",
+      "sceneName": "Homepage · Arcade / Arena",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0037-home-arcade-01.wav",
+      "sha256": "44fca56299bf3c701b596987052efd2bbf628ea23a06eb276cb47c1ed326c2f4"
+    },
+    {
+      "order": 38,
+      "lineId": "c052d5748e97483c936c2808f2de0f1b",
+      "sceneId": "home-arcade",
+      "sceneName": "Homepage · Arcade / Arena",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0038-home-arcade-02.wav",
+      "sha256": "0ab175cef216ff966456ee1748bc2bf2bc6a63660182b062bf88501c85305998"
+    },
+    {
+      "order": 39,
+      "lineId": "6611f97b6cbb4f74aa6444898b90b390",
+      "sceneId": "home-arcade",
+      "sceneName": "Homepage · Arcade / Arena",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0039-home-arcade-03.wav",
+      "sha256": "2af8d1078ea6622c9a24a43e90c399267080a67d1d226e748eec6e23d2ed7240"
+    },
+    {
+      "order": 40,
+      "lineId": "bf78b31d618642f780c74845d3352196",
+      "sceneId": "home-arcade",
+      "sceneName": "Homepage · Arcade / Arena",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0040-home-arcade-04.wav",
+      "sha256": "9680b5484677c8abbf17c77af46fb3f9357a07cea87f62598d1fcad9d2787e43"
+    },
+    {
+      "order": 41,
+      "lineId": "a37001e352d4410faca7006827659bf0",
+      "sceneId": "home-arcade",
+      "sceneName": "Homepage · Arcade / Arena",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0041-home-arcade-05.wav",
+      "sha256": "7164e5f1b2a4d7dee60192988ca9142ebe8ea300449247b2070ead66525d620d"
+    },
+    {
+      "order": 42,
+      "lineId": "a2a7f688927d48fda58c08cc8248a00d",
+      "sceneId": "home-arcade",
+      "sceneName": "Homepage · Arcade / Arena",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0042-home-arcade-06.wav",
+      "sha256": "0a887ef619394245fbd6263760ca973ca08d4b78cb3682140628e7b3eb8e76b6"
+    },
+    {
+      "order": 43,
+      "lineId": "f69b081799d44251a45f26e478b2416a",
+      "sceneId": "home-settings",
+      "sceneName": "Homepage · Settings radionica",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0043-home-settings-01.wav",
+      "sha256": "e6639991a01024e7eeeb0bbb0df13b24039eee7222174fcf950ddfddc4ebefbc"
+    },
+    {
+      "order": 44,
+      "lineId": "d488444596634d7495f5ca15ededb621",
+      "sceneId": "home-settings",
+      "sceneName": "Homepage · Settings radionica",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0044-home-settings-02.wav",
+      "sha256": "f50f633ca5cd1889625534af4bc5725703e05ebf24b34b499d35e53c04825074"
+    },
+    {
+      "order": 45,
+      "lineId": "f146abae24cc42c183f0ba5c8a23bfc3",
+      "sceneId": "home-settings",
+      "sceneName": "Homepage · Settings radionica",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0045-home-settings-03.wav",
+      "sha256": "310dcd4c078bc2ba6902f2b50d8f032be7f1f037d5f6e94e4c01706bbb928ca0"
+    },
+    {
+      "order": 46,
+      "lineId": "38b54d8f06f3449baf60076c67e0bd82",
+      "sceneId": "arena-endurance",
+      "sceneName": "Arena / Arcade · Endurance",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0046-arena-endurance-01.wav",
+      "sha256": "1d64a079f3494f7d51e6a67eefde6dcd39528b46139abb3f5a7e8b2ea89963d6"
+    },
+    {
+      "order": 47,
+      "lineId": "df3c6a18ac9c42669ad99e8098c2aee0",
+      "sceneId": "arena-endurance",
+      "sceneName": "Arena / Arcade · Endurance",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0047-arena-endurance-02.wav",
+      "sha256": "62343a718ff384ebc676b9168cad1dc546d092bf4009f5b927bca1c0628fd234"
+    },
+    {
+      "order": 48,
+      "lineId": "e68e6dd1747d4383940934f7aeb560c8",
+      "sceneId": "arena-endurance",
+      "sceneName": "Arena / Arcade · Endurance",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0048-arena-endurance-03.wav",
+      "sha256": "7636f4e3819da8ec994ae412a7284377fd1f634769fb151113f19328c2dc1976"
+    },
+    {
+      "order": 49,
+      "lineId": "c4dd7b2665eb40b9ae523d8fce80c803",
+      "sceneId": "arena-modal-endurance",
+      "sceneName": "Arena detalj · Endurance",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0049-arena-modal-endurance-01.wav",
+      "sha256": "a1760153b3fd4796e5f7c031f92aab8d88facd250d6f422986d6469bb7c2e8ff"
+    },
+    {
+      "order": 50,
+      "lineId": "c54e9ee31668466fabe457eac6b13773",
+      "sceneId": "arena-modal-endurance",
+      "sceneName": "Arena detalj · Endurance",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0050-arena-modal-endurance-02.wav",
+      "sha256": "5f7e7dd957be35896abb3cab170018f63b5753be435dd3c5fcd6758292fc1b5e"
+    },
+    {
+      "order": 51,
+      "lineId": "88d63e808cff430586597cb924e612a8",
+      "sceneId": "arena-modal-endurance",
+      "sceneName": "Arena detalj · Endurance",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0051-arena-modal-endurance-03.wav",
+      "sha256": "65b5ce639304218ea2d22f90bec4e77678ef3cab0d26b267dbd836bc7dc1fa71"
+    },
+    {
+      "order": 52,
+      "lineId": "6f38bf0bf6f24b7196c94678c733add8",
+      "sceneId": "arena-modal-endurance",
+      "sceneName": "Arena detalj · Endurance",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0052-arena-modal-endurance-04.wav",
+      "sha256": "e8de00cf1f2bd8932d87f2fb2f1104d677a49137c53e6efd4cd4ea64e9bb6a16"
+    },
+    {
+      "order": 53,
+      "lineId": "2b53f108029e468b859732d50304b54b",
+      "sceneId": "arena-grill",
+      "sceneName": "Arena / Arcade · One Lucky Drop · roštilj",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0053-arena-grill-01.wav",
+      "sha256": "e91b7237db9bd94cd953eeb6d2a71a522dce9324ba9c593ea9f0bc21f9d13186"
+    },
+    {
+      "order": 54,
+      "lineId": "0631297defab430789a924a486bace93",
+      "sceneId": "arena-grill",
+      "sceneName": "Arena / Arcade · One Lucky Drop · roštilj",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0054-arena-grill-02.wav",
+      "sha256": "237ace87dd1573dd9a5f9e8dbfe48b15b7d906321374750a8673e89ac1365bfe"
+    },
+    {
+      "order": 55,
+      "lineId": "d86edfd08bd14ec39d38e7329b4ab9fe",
+      "sceneId": "arena-grill",
+      "sceneName": "Arena / Arcade · One Lucky Drop · roštilj",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0055-arena-grill-03.wav",
+      "sha256": "acc0b11e47578362aa9ef5d87503b9032be6035b7ba73c173d9c2327977e6744"
+    },
+    {
+      "order": 56,
+      "lineId": "3518736a456543af9759e3b80fc9d840",
+      "sceneId": "arena-grill",
+      "sceneName": "Arena / Arcade · One Lucky Drop · roštilj",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0056-arena-grill-04.wav",
+      "sha256": "43510d1d566e615e42d083eedc7b2f0278e87a16fc421f0afd3bf86088a40a10"
+    },
+    {
+      "order": 57,
+      "lineId": "b05956429a6047ee978c30a70404ca6e",
+      "sceneId": "arena-grill",
+      "sceneName": "Arena / Arcade · One Lucky Drop · roštilj",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0057-arena-grill-05.wav",
+      "sha256": "e4f68fa8c981dd64261af41bf40adb88706ef0f04204741b690e931b2d446fb7"
+    },
+    {
+      "order": 58,
+      "lineId": "7c1275a6cc9b43909d93a00a0bfd1b3a",
+      "sceneId": "arena-modal-grill",
+      "sceneName": "Arena detalj · One Lucky Drop · roštilj",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0058-arena-modal-grill-01.wav",
+      "sha256": "f3aa84ebd2f5630d635884cff36b2a144f8784b597ad4aacd30adf7201e5b3c3"
+    },
+    {
+      "order": 59,
+      "lineId": "1c192429ff9644b88be9d2b606560557",
+      "sceneId": "arena-modal-grill",
+      "sceneName": "Arena detalj · One Lucky Drop · roštilj",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0059-arena-modal-grill-02.wav",
+      "sha256": "717a2e2051f4a6220a462822e8fd5acbe4314ba2e0efa913197f61e292a3972a"
+    },
+    {
+      "order": 60,
+      "lineId": "9f9d1f59014042798ac861d4da43e0c2",
+      "sceneId": "arena-modal-grill",
+      "sceneName": "Arena detalj · One Lucky Drop · roštilj",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0060-arena-modal-grill-03.wav",
+      "sha256": "54b2c73c968d003bf2acdf0ff41e017a24b95eb3f071a94584e911fdb8f981bd"
+    },
+    {
+      "order": 61,
+      "lineId": "1ad036729d824365b74f694d86d06e22",
+      "sceneId": "arena-slow",
+      "sceneName": "Arena / Arcade · Slow Burn · čaj i novine",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0061-arena-slow-01.wav",
+      "sha256": "2588587899ea9c688faaf751c7c65b7a55208f304d1b17f0a73b8f2b40a5de81"
+    },
+    {
+      "order": 62,
+      "lineId": "caeaf4effc8640a6a497bf86ea9143fe",
+      "sceneId": "arena-slow",
+      "sceneName": "Arena / Arcade · Slow Burn · čaj i novine",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0062-arena-slow-02.wav",
+      "sha256": "91ea212485707b1904699dddf7074948016bad3fafc5616bff489696e2f6b55c"
+    },
+    {
+      "order": 63,
+      "lineId": "66ecdbe581564cfe872f5de9efbe16c0",
+      "sceneId": "arena-slow",
+      "sceneName": "Arena / Arcade · Slow Burn · čaj i novine",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0063-arena-slow-03.wav",
+      "sha256": "74426a3d01b8d59399057cc1eec0e564a50f3ddb8e6bcf8a1205dc7d9f03dfab"
+    },
+    {
+      "order": 64,
+      "lineId": "3da291f7333948338bdfa40f2160cd10",
+      "sceneId": "arena-modal-slow",
+      "sceneName": "Arena detalj · Slow Burn · čaj i novine",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0064-arena-modal-slow-01.wav",
+      "sha256": "73385a4befa0f6088be49563725640dcc50b0ff3926059d75bf8200328c828d4"
+    },
+    {
+      "order": 65,
+      "lineId": "63b4e41594bd41a9bbf75b15e82b022e",
+      "sceneId": "arena-modal-slow",
+      "sceneName": "Arena detalj · Slow Burn · čaj i novine",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0065-arena-modal-slow-02.wav",
+      "sha256": "89dbc2359935a5250d03df4ab6a54b08693bedc7f40d852a42124901454e0c18"
+    },
+    {
+      "order": 66,
+      "lineId": "bf4e2e165c634e99a897c838e85bf0f8",
+      "sceneId": "arena-modal-slow",
+      "sceneName": "Arena detalj · Slow Burn · čaj i novine",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0066-arena-modal-slow-03.wav",
+      "sha256": "9b5799ad17fdb9487a3ef56a04f34463183fb723f2dc88eb85569e60e5febe19"
+    },
+    {
+      "order": 67,
+      "lineId": "aaef11c3e9b24fbebfee63a1c49accaa",
+      "sceneId": "arena-modal-slow",
+      "sceneName": "Arena detalj · Slow Burn · čaj i novine",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0067-arena-modal-slow-04.wav",
+      "sha256": "31dc6aeb772790bfb55ada1f53dc07a60af34e5442f2df2ce8c25739a1c24e82"
+    },
+    {
+      "order": 68,
+      "lineId": "64199778bd2d4377ac971863863abaf1",
+      "sceneId": "dice-detail",
+      "sceneName": "Backpack detalj · Wee Bee",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0068-dice-detail-01.wav",
+      "sha256": "55b292c277aea692f057d3a9e94d2e99c9c246171c97183ced746a42bba6a3c3"
+    },
+    {
+      "order": 69,
+      "lineId": "d379a996a51c4c9e8bb2651d4c48ecac",
+      "sceneId": "dice-detail",
+      "sceneName": "Backpack detalj · Wee Bee",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0069-dice-detail-02.wav",
+      "sha256": "0e8668c54b4093181e64206c51d313688561053451adb886c68b7a021fca4796"
+    },
+    {
+      "order": 70,
+      "lineId": "d47060e7ea304288a23fd435b2c26c3c",
+      "sceneId": "dice-detail",
+      "sceneName": "Backpack detalj · Wee Bee",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0070-dice-detail-03.wav",
+      "sha256": "15c52564911b3f5faf0e8b18b405fbe64b7776e87bc38243c6bcd98dd759912e"
+    },
+    {
+      "order": 71,
+      "lineId": "2116dcc6649f46148077d8c7f931bfb1",
+      "sceneId": "dice-detail-wild-star",
+      "sceneName": "Backpack detalj · STAR",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0071-dice-detail-wild-star-01.wav",
+      "sha256": "b11d0e7dcd21502974083b2c6073bc526601834224a5fc8929379cc2a16f2d46"
+    },
+    {
+      "order": 72,
+      "lineId": "c0daaf3dc23f44cd9b8be9bf9b74d279",
+      "sceneId": "dice-detail-wild-star",
+      "sceneName": "Backpack detalj · STAR",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0072-dice-detail-wild-star-02.wav",
+      "sha256": "1879925b9038172334284e5f43af545584e3f347fa33e95161674afc02ca2084"
+    },
+    {
+      "order": 73,
+      "lineId": "3c9970a6283746dd8975b7003459f0aa",
+      "sceneId": "dice-detail-wild-star",
+      "sceneName": "Backpack detalj · STAR",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0073-dice-detail-wild-star-03.wav",
+      "sha256": "88d3a50eb1511f03ff42c4e4dcbc9508ec362b422ab7031592c6130c77b9b844"
+    },
+    {
+      "order": 74,
+      "lineId": "6f806ced9c92418c9f3c0b877bcdfdc4",
+      "sceneId": "dice-detail-flower",
+      "sceneName": "Backpack detalj · Flower",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0074-dice-detail-flower-01.wav",
+      "sha256": "57830ec7c8a860f88be0b268566d6cd7bad69e868023f9e0b32e48da47998909"
+    },
+    {
+      "order": 75,
+      "lineId": "b0eae4b26eca47ab86654fafbf3011a2",
+      "sceneId": "dice-detail-flower",
+      "sceneName": "Backpack detalj · Flower",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0075-dice-detail-flower-02.wav",
+      "sha256": "1eeb8d121418b4eed31a28afc67141ef2bb21880705f48e43c91701f47e890ea"
+    },
+    {
+      "order": 76,
+      "lineId": "e4cc52f1c2b44aaf98648b1a7ef60c62",
+      "sceneId": "dice-detail-flower",
+      "sceneName": "Backpack detalj · Flower",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0076-dice-detail-flower-03.wav",
+      "sha256": "ab7127aa6f988cbee56dc0db67673617646a8c10d266999c9183d32cd045fa6f"
+    },
+    {
+      "order": 77,
+      "lineId": "e5f58185360f4867859391e187aa1eaa",
+      "sceneId": "dice-detail-honey",
+      "sceneName": "Backpack detalj · HONEY",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0077-dice-detail-honey-01.wav",
+      "sha256": "ce305876cbb431ef3e1ccb71f02ffd1ef7b3fbb0c7b91ebf2523e6c9d5f7b3a0"
+    },
+    {
+      "order": 78,
+      "lineId": "cdb5014e513a44de970ae5fd0a9e1a0b",
+      "sceneId": "dice-detail-honey",
+      "sceneName": "Backpack detalj · HONEY",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0078-dice-detail-honey-02.wav",
+      "sha256": "7db38eb07953e92f416f75412fe680e2276f6b0b1a928d96c013caeb6e789448"
+    },
+    {
+      "order": 79,
+      "lineId": "6039abfc8d85483797424ee99a4f54e2",
+      "sceneId": "dice-detail-honey",
+      "sceneName": "Backpack detalj · HONEY",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0079-dice-detail-honey-03.wav",
+      "sha256": "45fa2b6559f1d55019258882cb3646858e1591bab5eb1b87947b25ed78293f86"
+    },
+    {
+      "order": 80,
+      "lineId": "22ab121fef314430bdeca7273c20655b",
+      "sceneId": "dice-detail-honey",
+      "sceneName": "Backpack detalj · HONEY",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0080-dice-detail-honey-04.wav",
+      "sha256": "932ff3369c6307a402d511a88cac4274677dd3292602e849122de51b023646fc"
+    },
+    {
+      "order": 81,
+      "lineId": "a45facb7b3d742208d3d290f2e9dc21d",
+      "sceneId": "dice-detail-honey",
+      "sceneName": "Backpack detalj · HONEY",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0081-dice-detail-honey-05.wav",
+      "sha256": "b508caf8f3184cff99735c98fb1ed0ba001e7a4daef2a777ff9db83700350df1"
+    },
+    {
+      "order": 82,
+      "lineId": "5a4c286ba1934b9eb50b80ffbc78cc66",
+      "sceneId": "dice-detail-honey",
+      "sceneName": "Backpack detalj · HONEY",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0082-dice-detail-honey-06.wav",
+      "sha256": "a6ca0a605c8b2d37e7cfeaaeab3002d2cd74386dce385b2f8347301da6591769"
+    },
+    {
+      "order": 83,
+      "lineId": "0ed99088aa2e4e9996b3949281f341a7",
+      "sceneId": "dice-detail-mushroom",
+      "sceneName": "Backpack detalj · SHROOMY",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0083-dice-detail-mushroom-01.wav",
+      "sha256": "6ff359099c7b74354b72b7433474278662dc1462186b854e14375b7e7aa64209"
+    },
+    {
+      "order": 84,
+      "lineId": "006c9948c6b94bf485511644f0a17aa6",
+      "sceneId": "dice-detail-mushroom",
+      "sceneName": "Backpack detalj · SHROOMY",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0084-dice-detail-mushroom-02.wav",
+      "sha256": "f6e92812a804c6311640560b4891cd7a40b46ae7221b6853eec38c2a670b6db9"
+    },
+    {
+      "order": 85,
+      "lineId": "e43d198bf86a4a1997f5a1f91ce79822",
+      "sceneId": "dice-detail-mushroom",
+      "sceneName": "Backpack detalj · SHROOMY",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0085-dice-detail-mushroom-03.wav",
+      "sha256": "358b278b4f8ee17ab3b50315b692f8a30b4925cfc2acb30f6334410995a52e37"
+    },
+    {
+      "order": 86,
+      "lineId": "9d461abf6b594c8794008618dd85bacf",
+      "sceneId": "dice-detail-mushroom",
+      "sceneName": "Backpack detalj · SHROOMY",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0086-dice-detail-mushroom-04.wav",
+      "sha256": "1be7e7200d17092b255ba706c15ffabadd061fca77c14e03929fd48830517a9f"
+    },
+    {
+      "order": 87,
+      "lineId": "e77f551c20684e6b9494c12cd2f328ad",
+      "sceneId": "dice-detail-barell",
+      "sceneName": "Backpack detalj · BARREL",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0087-dice-detail-barell-01.wav",
+      "sha256": "6e063fa359a185a4b32c7a39effc8c5c9eb278f5c34088eb34f17a953e4adddf"
+    },
+    {
+      "order": 88,
+      "lineId": "a8070a053e4944dcb9116965b273593d",
+      "sceneId": "dice-detail-barell",
+      "sceneName": "Backpack detalj · BARREL",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0088-dice-detail-barell-02.wav",
+      "sha256": "5ac55d0fa92f234da90ea0aa176e168aba595b74824ff79b9c8797e6b958ad4e"
+    },
+    {
+      "order": 89,
+      "lineId": "e9d3bf3255914f1b8b51faf664a1f4e0",
+      "sceneId": "dice-detail-barell",
+      "sceneName": "Backpack detalj · BARREL",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0089-dice-detail-barell-03.wav",
+      "sha256": "ccfa564a16ce2fd4dcfa6844c0b0e19debec22295d064bf9d2821196e08a6736"
+    },
+    {
+      "order": 90,
+      "lineId": "dbaa14fa276e4b19b40197d7f9af93cd",
+      "sceneId": "dice-detail-barell",
+      "sceneName": "Backpack detalj · BARREL",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0090-dice-detail-barell-04.wav",
+      "sha256": "72d3199d3a7e33b7fe9fecd2f3dc686c1b1d692123ee75a4830b80b98ee276bb"
+    },
+    {
+      "order": 91,
+      "lineId": "d59c9c06264f4b3488382e4aac9e318a",
+      "sceneId": "dice-detail-wild-juice",
+      "sceneName": "Backpack detalj · JUICE",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0091-dice-detail-wild-juice-01.wav",
+      "sha256": "d2581aa0a10542d7a56682ee36210359547f2bdce0c560d614e6da868041336b"
+    },
+    {
+      "order": 92,
+      "lineId": "3cf582e4dff44813a0c8a03c088280ca",
+      "sceneId": "dice-detail-wild-juice",
+      "sceneName": "Backpack detalj · JUICE",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0092-dice-detail-wild-juice-02.wav",
+      "sha256": "7bdf498e90f66077173d907eeb67470eab07f6151a5f31128130ce6e04588dc6"
+    },
+    {
+      "order": 93,
+      "lineId": "31e8b14f56a641d6b253302a0d764a53",
+      "sceneId": "dice-detail-wild-juice",
+      "sceneName": "Backpack detalj · JUICE",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0093-dice-detail-wild-juice-03.wav",
+      "sha256": "3b713e8f5163ec8f33ff035e3ff49fdd6dd5d035be722be4f50deb8d519e706b"
+    },
+    {
+      "order": 94,
+      "lineId": "bba7ca47b27e410f8cf1a7a7856a204a",
+      "sceneId": "dice-detail-wild-juice",
+      "sceneName": "Backpack detalj · JUICE",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0094-dice-detail-wild-juice-04.wav",
+      "sha256": "033460622393f2b0b4e306ac04770995e26ec0ea0be970883fc2a4c8c301eabc"
+    },
+    {
+      "order": 95,
+      "lineId": "401826c8cbdd435a9c7ca249a14d7f16",
+      "sceneId": "dice-detail-fish",
+      "sceneName": "Backpack detalj · FISHY",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0095-dice-detail-fish-01.wav",
+      "sha256": "bd5a26dfb4079d8c1cdd7e10f53d00ef2e6b98276a0aae2d5b10d781690f4114"
+    },
+    {
+      "order": 96,
+      "lineId": "09c6183696d44d63ad0b9a76dd9fd246",
+      "sceneId": "dice-detail-fish",
+      "sceneName": "Backpack detalj · FISHY",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0096-dice-detail-fish-02.wav",
+      "sha256": "7e20d9937f2b07459a1974fb2a83ec213d718225b31719a9f35056d7d416d14c"
+    },
+    {
+      "order": 97,
+      "lineId": "008156197b96464bbebf2be5de37a8e4",
+      "sceneId": "dice-detail-fish",
+      "sceneName": "Backpack detalj · FISHY",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0097-dice-detail-fish-03.wav",
+      "sha256": "4e06f62396b060f9d68ecb856f9db3d57cfc8590d18b62284953713a69270d28"
+    },
+    {
+      "order": 98,
+      "lineId": "609b07e466b44e7c9f051f0a9b2d45f2",
+      "sceneId": "dice-detail-fish",
+      "sceneName": "Backpack detalj · FISHY",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0098-dice-detail-fish-04.wav",
+      "sha256": "d5718f73a94990af54c80314b495e24e2a43fb7f44848bd034bb7f09c3180afb"
+    },
+    {
+      "order": 99,
+      "lineId": "4d3345fdb761408fbb8c882dd8ee8e19",
+      "sceneId": "dice-detail-fish",
+      "sceneName": "Backpack detalj · FISHY",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0099-dice-detail-fish-05.wav",
+      "sha256": "4b7bfc034ef755be65d1108969824a215c070252e9221f4b5b8396577d0cca72"
+    },
+    {
+      "order": 100,
+      "lineId": "149b2d59e5754ae4a72a6e7581eb42a3",
+      "sceneId": "dice-detail-beach-ball",
+      "sceneName": "Backpack detalj · BEACH BALL",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0100-dice-detail-beach-ball-01.wav",
+      "sha256": "cabdcf2e76a81a99a2213b3529a60d02fc65bffc1ce7d307c22b5f741674b90c"
+    },
+    {
+      "order": 101,
+      "lineId": "7655921ff7f445288b63590c4b0da193",
+      "sceneId": "dice-detail-beach-ball",
+      "sceneName": "Backpack detalj · BEACH BALL",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0101-dice-detail-beach-ball-02.wav",
+      "sha256": "a4ccf088b9e84944d5e9fc2d622610e00d8bcdf3edf7ee08dada2b72c1553021"
+    },
+    {
+      "order": 102,
+      "lineId": "caade020e47c44f1b2672a370e3853b2",
+      "sceneId": "dice-detail-beach-ball",
+      "sceneName": "Backpack detalj · BEACH BALL",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0102-dice-detail-beach-ball-03.wav",
+      "sha256": "ee2c62a5df799714991ae5bdae9deef39f886d967ccb4d9d48651fb4669532ad"
+    },
+    {
+      "order": 103,
+      "lineId": "ffede88bf7424fac9daaef5b3af0490d",
+      "sceneId": "dice-detail-beach-ball",
+      "sceneName": "Backpack detalj · BEACH BALL",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0103-dice-detail-beach-ball-04.wav",
+      "sha256": "699ca4daa6e344ad59eca466c811f57f288706d248eecfe0458521a2909143de"
+    },
+    {
+      "order": 104,
+      "lineId": "7c5b7762235b49b295e971132a02f259",
+      "sceneId": "dice-detail-beach-ball",
+      "sceneName": "Backpack detalj · BEACH BALL",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0104-dice-detail-beach-ball-05.wav",
+      "sha256": "c3479a6e232865c84c245346c6efe13baac6b0a4eeeb832eca87275bbb77e506"
+    },
+    {
+      "order": 105,
+      "lineId": "f9e546d8b0614ac8a8a50b5bf5c4ced2",
+      "sceneId": "dice-detail-bottle",
+      "sceneName": "Backpack detalj · BOTTLE",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0105-dice-detail-bottle-01.wav",
+      "sha256": "70b55334f09dc50100ad534ec271b53e939b5bb9d7f2fbf85c85f7d4105a96c9"
+    },
+    {
+      "order": 106,
+      "lineId": "33e5e9477ca54f33b0e1fd2d88f99854",
+      "sceneId": "dice-detail-bottle",
+      "sceneName": "Backpack detalj · BOTTLE",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0106-dice-detail-bottle-02.wav",
+      "sha256": "df39bf7ec56784e31a8495dab82ca5c671f4811a4a0ffd1019a1ec375b0af249"
+    },
+    {
+      "order": 107,
+      "lineId": "a8e42c957dcc4f7984cf5105f5fbd7c0",
+      "sceneId": "dice-detail-bottle",
+      "sceneName": "Backpack detalj · BOTTLE",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0107-dice-detail-bottle-03.wav",
+      "sha256": "2ca36db588e0f01bf59aaa1816058f7ce7a61ba7bc1083cfaf805bfcf77b9a35"
+    },
+    {
+      "order": 108,
+      "lineId": "0dc92ccd34184d93b5842e11eeccc78c",
+      "sceneId": "dice-detail-coconut",
+      "sceneName": "Backpack detalj · COCONUT",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0108-dice-detail-coconut-01.wav",
+      "sha256": "d87c0c17867e29a6c4dfbf355d59e72060e75982855a00de1502a3999441c0a4"
+    },
+    {
+      "order": 109,
+      "lineId": "3c3e370edbfe4824af21ee60ae991175",
+      "sceneId": "dice-detail-coconut",
+      "sceneName": "Backpack detalj · COCONUT",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0109-dice-detail-coconut-02.wav",
+      "sha256": "9e36ad1ca2d0e09898c2f6bb90ae1e174051f022a7b604fa022bc6501ab7d218"
+    },
+    {
+      "order": 110,
+      "lineId": "9282d14376694ad8bff5c53aa216a113",
+      "sceneId": "dice-detail-coconut",
+      "sceneName": "Backpack detalj · COCONUT",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0110-dice-detail-coconut-03.wav",
+      "sha256": "55a509ba818b533685a81e7b82398e45af22076b88dd2a6f2de32a3b5d3640be"
+    },
+    {
+      "order": 111,
+      "lineId": "37764443db044b719fb5ee8c8f607e56",
+      "sceneId": "dice-detail-coconut",
+      "sceneName": "Backpack detalj · COCONUT",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0111-dice-detail-coconut-04.wav",
+      "sha256": "b02501ac700e48a5d0762af9d992a36233d31c27f6eff35cea266afa25a8ac30"
+    },
+    {
+      "order": 112,
+      "lineId": "479af4c4f7004dc2a9caf55715bc3e55",
+      "sceneId": "dice-detail-kite",
+      "sceneName": "Backpack detalj · KITE",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0112-dice-detail-kite-01.wav",
+      "sha256": "e806dc699de4a8c4784189c337c5d6300429a6973cc1b0af61de8ba5cab5bbcf"
+    },
+    {
+      "order": 113,
+      "lineId": "0faafec98b0246aa9d0f01ddc0c1edbc",
+      "sceneId": "dice-detail-kite",
+      "sceneName": "Backpack detalj · KITE",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0113-dice-detail-kite-02.wav",
+      "sha256": "86e53559f03d902866d73626fdb86c10386887e47262b78d580f7135cf2b9714"
+    },
+    {
+      "order": 114,
+      "lineId": "da66559840f84dee8fb5455680f512f8",
+      "sceneId": "dice-detail-kite",
+      "sceneName": "Backpack detalj · KITE",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0114-dice-detail-kite-03.wav",
+      "sha256": "118c29ace6e3feec6f469861915000a032b947463e500fc9849361e256b3a8ad"
+    },
+    {
+      "order": 115,
+      "lineId": "9256af439e70466d93fecbbb202b4cab",
+      "sceneId": "dice-detail-kite",
+      "sceneName": "Backpack detalj · KITE",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0115-dice-detail-kite-04.wav",
+      "sha256": "ebbc5d38b2045c048a16381100c4e8aa19df0869f333f8a3207a2a86d4a252f9"
+    },
+    {
+      "order": 116,
+      "lineId": "c0f8c34e66614916a7094886a8150268",
+      "sceneId": "dice-detail-robo-cube",
+      "sceneName": "Backpack detalj · BIBI RIBI",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0116-dice-detail-robo-cube-01.wav",
+      "sha256": "f50478f8d44637f8937c031a1de821c0eaf85824c49f4b9fd19553dd06f15e50"
+    },
+    {
+      "order": 117,
+      "lineId": "13eb0388b47d425c93540f66ccc080ca",
+      "sceneId": "dice-detail-robo-cube",
+      "sceneName": "Backpack detalj · BIBI RIBI",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0117-dice-detail-robo-cube-02.wav",
+      "sha256": "d8d16ffcc11fc76b69a7c0898603cee6d84fe5a6f1de7021fde809e3fb721452"
+    },
+    {
+      "order": 118,
+      "lineId": "6e0eaea183dd442d95bafcd727b2947d",
+      "sceneId": "dice-detail-robo-cube",
+      "sceneName": "Backpack detalj · BIBI RIBI",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0118-dice-detail-robo-cube-03.wav",
+      "sha256": "479bc181afa0c4850d353d9af3f4e826201c3f9484d0a6eea17b5bf13f34ef75"
+    },
+    {
+      "order": 119,
+      "lineId": "31a13451b2c346d88d85bf3f5b535362",
+      "sceneId": "dice-detail-robo-cube",
+      "sceneName": "Backpack detalj · BIBI RIBI",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0119-dice-detail-robo-cube-04.wav",
+      "sha256": "14066488a6c5ce6aaecb54fe012c47a9fa50228741c70e6e3f2074083785f8fc"
+    },
+    {
+      "order": 120,
+      "lineId": "08ed3f4f793d4869adaf28206593bda2",
+      "sceneId": "dice-detail-robo-cube",
+      "sceneName": "Backpack detalj · BIBI RIBI",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0120-dice-detail-robo-cube-05.wav",
+      "sha256": "6473f7bee88666e0c007573b3ef9c18a57ff3dcf33af98fafaee57d22f7dff44"
+    },
+    {
+      "order": 121,
+      "lineId": "9068a7753f804675aa39c02f3ec48774",
+      "sceneId": "dice-detail-kanta",
+      "sceneName": "Backpack detalj · BLOOB BUCKET",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0121-dice-detail-kanta-01.wav",
+      "sha256": "f7455dd65303c8d1f75937a96ba80bbf07f73a950a842e78af9c4397c3c51d35"
+    },
+    {
+      "order": 122,
+      "lineId": "27b099ef09b9424c97d5332934866c66",
+      "sceneId": "dice-detail-spaceship",
+      "sceneName": "Backpack detalj · SPACESHIP",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0122-dice-detail-spaceship-01.wav",
+      "sha256": "b2c09b6b8600d75609c90458b239721ebd150b003637479dc875306d1f6ed752"
+    },
+    {
+      "order": 123,
+      "lineId": "217e959ff07f4f91bfed02e7ce4d4f41",
+      "sceneId": "dice-detail-spaceship",
+      "sceneName": "Backpack detalj · SPACESHIP",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0123-dice-detail-spaceship-02.wav",
+      "sha256": "4c02556b4493d3b7eba85c8dc4aacf638818a92445c7dea47f31aff113624521"
+    },
+    {
+      "order": 124,
+      "lineId": "91f762230e7b4ec390dfd91fd32fd607",
+      "sceneId": "dice-detail-laser-gun",
+      "sceneName": "Backpack detalj · LASER GUN",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0124-dice-detail-laser-gun-01.wav",
+      "sha256": "ded92e57d5b9e1b8712c083124ae21c048d839d0b747534f7b51f40a4314856b"
+    },
+    {
+      "order": 125,
+      "lineId": "4ee911a2eb154dfe9f35fba4b81ae540",
+      "sceneId": "dice-detail-laser-gun",
+      "sceneName": "Backpack detalj · LASER GUN",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0125-dice-detail-laser-gun-02.wav",
+      "sha256": "c51d91877df6ad7c5d9ac12a253bf4f1a9a9b781cbfe2d1b61ebc07c4ed3b5e6"
+    },
+    {
+      "order": 126,
+      "lineId": "d750c95bb21f4be1955130abee15d5cb",
+      "sceneId": "dice-detail-laser-gun",
+      "sceneName": "Backpack detalj · LASER GUN",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0126-dice-detail-laser-gun-03.wav",
+      "sha256": "ac0340bc8e9ea3b86a836d8a3f89fa14515276caeb2096905f16b77e2e69d7dc"
+    },
+    {
+      "order": 127,
+      "lineId": "d0a7f2d1e44b46ccb1b5d5ce63091b90",
+      "sceneId": "dice-detail-bloob-ball",
+      "sceneName": "Backpack detalj · BLOOB POD",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0127-dice-detail-bloob-ball-01.wav",
+      "sha256": "b7eaa38f41e4be64a6f806395f296b8f3b51ca7c4e31e9503fa961fc397a811b"
+    },
+    {
+      "order": 128,
+      "lineId": "a3089dbe916b4909b487a1b57662e98f",
+      "sceneId": "dice-detail-bloob-ball",
+      "sceneName": "Backpack detalj · BLOOB POD",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0128-dice-detail-bloob-ball-02.wav",
+      "sha256": "49dded6cc3eec40789bb36d36448226598158fb14749832901cd6b5e23cc88ca"
+    },
+    {
+      "order": 129,
+      "lineId": "1378e1514b80444cb86e1e50d5827fcb",
+      "sceneId": "dice-detail-bloob-ball",
+      "sceneName": "Backpack detalj · BLOOB POD",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0129-dice-detail-bloob-ball-03.wav",
+      "sha256": "f891c42be43d306705720d07c102b19a4a72ff54b1ed0fd8cea5770f43974bba"
+    },
+    {
+      "order": 130,
+      "lineId": "eb19a0bb29564ff88ead067d81cb97bf",
+      "sceneId": "dice-detail-bloob-ball",
+      "sceneName": "Backpack detalj · BLOOB POD",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0130-dice-detail-bloob-ball-04.wav",
+      "sha256": "865b3f6dbbf2cb8a3bd3249ce93d1b9e2051beea39026ccb2d911d56f805dbd2"
+    },
+    {
+      "order": 131,
+      "lineId": "f2788baaf39d4ea6b1866f5c57b8f29c",
+      "sceneId": "dice-detail-bloob",
+      "sceneName": "Backpack detalj · BLOOB",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0131-dice-detail-bloob-01.wav",
+      "sha256": "02d8cc0116a4fa775ed266a45f86284e177fbc9d45fdab8a605694b927b78715"
+    },
+    {
+      "order": 132,
+      "lineId": "494a8367791a435dab5bb79f19f7a010",
+      "sceneId": "dice-detail-bloob",
+      "sceneName": "Backpack detalj · BLOOB",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0132-dice-detail-bloob-02.wav",
+      "sha256": "2b070e5b6a243e88e5c01deb549d02fcfaccc3571be81545da3e91d35560d2ef"
+    },
+    {
+      "order": 133,
+      "lineId": "9b3bfada9c9249a28ff8c982c2adc488",
+      "sceneId": "dice-detail-bloob",
+      "sceneName": "Backpack detalj · BLOOB",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0133-dice-detail-bloob-03.wav",
+      "sha256": "cf2504bfbd4591df08e0741c2d3a29b2ef22fe382d4eea6dcb6825cdd7182146"
+    },
+    {
+      "order": 134,
+      "lineId": "c861c302576c4b80adf7c9d022d7be41",
+      "sceneId": "dice-detail-bloob",
+      "sceneName": "Backpack detalj · BLOOB",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0134-dice-detail-bloob-04.wav",
+      "sha256": "2a9d9c0f7c46a2267f38b9a5174eab36c4127f4b9e1069ef156d718cb4f91d0b"
+    },
+    {
+      "order": 135,
+      "lineId": "74cd97cba05c4da3ab6ac93903c26d3b",
+      "sceneId": "dice-detail-cubero",
+      "sceneName": "Backpack detalj · CUBERO",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0135-dice-detail-cubero-01.wav",
+      "sha256": "fb9b06eb5eee106f23cb4117e98af27c5d70e3aff08591492ad2c1b45f203016"
+    },
+    {
+      "order": 136,
+      "lineId": "ad0892c99760461aa25adb72e7ff60c3",
+      "sceneId": "dice-detail-cubero",
+      "sceneName": "Backpack detalj · CUBERO",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0136-dice-detail-cubero-02.wav",
+      "sha256": "8b4ed621b64f4d169ee8c6d9f62361e120d0bf44b346e672046c84e0070c8e98"
+    },
+    {
+      "order": 137,
+      "lineId": "9e30f3c316ab4695a6d94335d3396950",
+      "sceneId": "dice-detail-cubero",
+      "sceneName": "Backpack detalj · CUBERO",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0137-dice-detail-cubero-03.wav",
+      "sha256": "ea1fc36509962508992e07e32abe069b897459005657678638bd619d914e7a06"
+    },
+    {
+      "order": 138,
+      "lineId": "266cbb2e5da84fbba47cbb05d6f045d1",
+      "sceneId": "dice-detail-cubero",
+      "sceneName": "Backpack detalj · CUBERO",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0138-dice-detail-cubero-04.wav",
+      "sha256": "493d08caa0bdd6d7e9738b9bc696d9c06e6b8c28d2eb5c80cc02854c4df5c8a1"
+    },
+    {
+      "order": 139,
+      "lineId": "fd8ef06f5faa4888bc772dbd149ecc90",
+      "sceneId": "dice-detail-baloon",
+      "sceneName": "Backpack detalj · BALLOON",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0139-dice-detail-baloon-01.wav",
+      "sha256": "43762264d62d43159bc26754323cb7768225c7ea53217f3a0782e1f5cec9916f"
+    },
+    {
+      "order": 140,
+      "lineId": "4364507515964b17a2866a0481775bf8",
+      "sceneId": "dice-detail-baloon",
+      "sceneName": "Backpack detalj · BALLOON",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0140-dice-detail-baloon-02.wav",
+      "sha256": "6535859ca82c4082ec753f92645d1b7c2601b8002b3ad5998ff60d68af40b85a"
+    },
+    {
+      "order": 141,
+      "lineId": "77f1d864502f4327b5dc93336a30398d",
+      "sceneId": "dice-detail-baloon",
+      "sceneName": "Backpack detalj · BALLOON",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0141-dice-detail-baloon-03.wav",
+      "sha256": "4261f5aeedd0c1a2d474a151f73dcb95068d46a376e2972f766872af2f36a5a2"
+    },
+    {
+      "order": 142,
+      "lineId": "2e0746db5adb45a3ada5bcde5c910229",
+      "sceneId": "dice-detail-tnt",
+      "sceneName": "Backpack detalj · TNT",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0142-dice-detail-tnt-01.wav",
+      "sha256": "492238d41a33c05ee57f266669d646502cad6c024c378a38512c52a454b6d443"
+    },
+    {
+      "order": 143,
+      "lineId": "c55320726ea44cd7b20171a91a767775",
+      "sceneId": "dice-detail-tnt",
+      "sceneName": "Backpack detalj · TNT",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0143-dice-detail-tnt-02.wav",
+      "sha256": "016b615c289b84ed7293fda1ab62e3a2764589776b047d2bd242271ea9ce6d2e"
+    },
+    {
+      "order": 144,
+      "lineId": "8a99cc07a17f4eb0a9d8940bbbf95a4b",
+      "sceneId": "dice-detail-tnt",
+      "sceneName": "Backpack detalj · TNT",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0144-dice-detail-tnt-03.wav",
+      "sha256": "41f39b03900af0f63ef012062cc3d6fe7307a183139c6b0ad1b2371a7afdb6ae"
+    },
+    {
+      "order": 145,
+      "lineId": "9ad1d6a43c9f4ea2b7ba71a6949afacc",
+      "sceneId": "dice-detail-wild-magnet",
+      "sceneName": "Backpack detalj · MAGNET",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0145-dice-detail-wild-magnet-01.wav",
+      "sha256": "f9a301bdbe6c028600b4cf9d682f3191463dd8d6321ac95edfec11ef8fdca64f"
+    },
+    {
+      "order": 146,
+      "lineId": "872a01cc610e41668175020c76b8974e",
+      "sceneId": "dice-detail-wild-magnet",
+      "sceneName": "Backpack detalj · MAGNET",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0146-dice-detail-wild-magnet-02.wav",
+      "sha256": "96e9884447826f19e0d26550c101b41b898d06bcd3c51c8e1b1a480efc9800e5"
+    },
+    {
+      "order": 147,
+      "lineId": "21c039bf576344318d58d81114f39bb8",
+      "sceneId": "dice-detail-wild-magnet",
+      "sceneName": "Backpack detalj · MAGNET",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0147-dice-detail-wild-magnet-03.wav",
+      "sha256": "1eae0482fbb78d2f2e8f3961e1970d732309a453d44646263d009d1fa0327bec"
+    }
+  ],
+  "boundaryRevisions": [
+    {
+      "date": "2026-11-01T00:33:46.646874+00:00",
+      "orders": [
+        57,
+        58
+      ],
+      "oldBoundaryFrame": 6119160,
+      "newBoundaryFrame": 6089520,
+      "newBoundarySeconds": 126.865,
+      "reason": "User identified next-line Whoah exclamation in previous best-shot clip. Move boundary into quiet before exclamation; preserve exclamation with following Oh! Dinner has legs now! recorded line. Earlier Oh! You smell a challenge too, Nala? line54 unchanged.",
+      "previousSHA256": {
+        "0057-arena-grill-05.wav": "38504bd341997d8e42cf71ebc57db894f2efedfb199e7b45e30e8df28a922549",
+        "0058-arena-modal-grill-01.wav": "bfe2a3619364ae6dac6c4395e1d8b9ac6fd889f4dfae77f592adfd90e0534adb"
+      },
+      "newSHA256": {
+        "0057-arena-grill-05.wav": "e4f68fa8c981dd64261af41bf40adb88706ef0f04204741b690e931b2d446fb7",
+        "0058-arena-modal-grill-01.wav": "f3aa84ebd2f5630d635884cff36b2a144f8784b597ad4aacd30adf7201e5b3c3"
+      },
+      "delivery": {
+        "bundle": "com.taptapdesign.stacktosix.native",
+        "launch": "com.taptapdesign.stacktosix.native: 38752",
+        "assetsVerified": 2897,
+        "all147InstalledClipHashesMatch": true,
+        "saveBefore": {
+          "state-v1.previous.json": "0591919c988ea97c0b9a0416c8493b072e273c36f224e1242e0e82836ac9358c",
+          "state-v1.json": "b04ed1c0206a0e9c1c48bf6539e1ae5552f3fa87bc975d3ed17e539625f7ebc8"
+        },
+        "saveAfter": {
+          "state-v1.previous.json": "0591919c988ea97c0b9a0416c8493b072e273c36f224e1242e0e82836ac9358c",
+          "state-v1.json": "b04ed1c0206a0e9c1c48bf6539e1ae5552f3fa87bc975d3ed17e539625f7ebc8"
+        },
+        "bothSavesByteIdentical": true
+      }
+    }
+  ]
+}

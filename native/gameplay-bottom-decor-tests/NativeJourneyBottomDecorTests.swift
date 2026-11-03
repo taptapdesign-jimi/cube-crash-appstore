@@ -23,6 +23,53 @@ final class NativeJourneyBottomDecorTests:XCTestCase {
     private func assertPose(_ p:NativeJourneyBottomDecorPlan.Pose,_ values:[Double],file:StaticString=#filePath,line:UInt=#line) {
         for(a,b)in zip([p.x,p.y,p.scaleX,p.scaleY,p.opacity],values){XCTAssertEqual(a,b,accuracy:0.000001,file:file,line:line)}
     }
+    func testActualFooterMaskHidesSceneryIncludingOverlappingCutoutsAndKeepsPaperVisible() throws {
+        let resources=Resources(),footer=owner(resources:resources)
+        defer {footer.dispose()}
+        footer.prepare {_ in};resources.finish(0,image:testImage());footer.showSettled()
+        let paper=UIView(frame:footer.bounds);paper.backgroundColor = .red;paper.addSubview(footer)
+        paper.layoutIfNeeded();footer.layoutIfNeeded()
+        let a=NativeBoardBackdropCutout(rect:CGRect(x:30,y:680,width:100,height:100),transform:.identity)
+        let b=NativeBoardBackdropCutout(rect:CGRect(x:80,y:700,width:100,height:100),transform:.identity)
+        footer.updateBoardOcclusion([a,b])
+        let format=UIGraphicsImageRendererFormat();format.scale=1
+        func pixel(_ x:CGFloat,_ y:CGFloat)->[UInt8] {
+            let image=UIGraphicsImageRenderer(size:CGSize(width:1,height:1),format:format).image { context in
+                context.cgContext.translateBy(x:-x,y:-y);paper.layer.render(in:context.cgContext)
+            }
+            return Array(image.cgImage!.dataProvider!.data! as Data).prefix(4).map{$0}
+        }
+        // UIGraphics uses BGRA on this host: red paper must have no green/blue;
+        // untouched scenery is white. Sample green, independent of byte order.
+        XCTAssertEqual(pixel(60,730)[1],0,"Locked tile reveals original paper")
+        XCTAssertEqual(pixel(100,730)[1],0,"Overlapping cutouts must stay hidden")
+        XCTAssertEqual(pixel(250,730)[1],255,"Scenery outside tiles remains painted")
+        XCTAssertEqual(pixel(31,681)[1],255,"Rounded corner must not cut a square hole")
+        let revision=footer.boardMaskRevision
+        for _ in 0..<120 {footer.updateBoardOcclusion([a,b])}
+        XCTAssertEqual(footer.boardMaskRevision,revision,"Settled poses must not rebuild a mask")
+        footer.updateBoardOcclusion([])
+        XCTAssertNil(footer.layer.mask)
+        XCTAssertEqual(pixel(100,730)[1],255,"Retiring tiles restores scenery")
+    }
+    func testBoardMaskTracksMovedCutoutsAndDisposalReleasesOwnerAndPath() {
+        let resources=Resources()
+        weak var released:NativeJourneyBottomDecorOwner?
+        autoreleasepool {
+            var footer:NativeJourneyBottomDecorOwner?=owner(resources:resources);released=footer
+            let shape=NativeBoardBackdropCutout(rect:CGRect(x:0,y:0,width:100,height:100),transform:.init(translationX:30,y:680))
+            footer!.updateBoardOcclusion([shape]);let revision=footer!.boardMaskRevision
+            let moved=NativeBoardBackdropCutout(rect:shape.rect,transform:.init(translationX:150,y:680))
+            footer!.updateBoardOcclusion([moved]);XCTAssertEqual(footer!.boardMaskRevision,revision+1)
+            let mask=footer!.layer.mask as! CAShapeLayer
+            XCTAssertTrue(mask.path!.contains(CGPoint(x:80-mask.frame.minX,y:730-mask.frame.minY)))
+            XCTAssertFalse(mask.path!.contains(CGPoint(x:200-mask.frame.minX,y:730-mask.frame.minY)))
+            footer!.dispose();footer!.dispose()
+            XCTAssertNil(footer!.layer.mask);XCTAssertNil(mask.path)
+            footer=nil
+        }
+        XCTAssertNil(released)
+    }
     func testRestartSettledFooterBorrowsPreparedImageWithoutAnEnterClock() {
         let resources=Resources(),footer=owner(resources:resources)
         defer {footer.dispose()}

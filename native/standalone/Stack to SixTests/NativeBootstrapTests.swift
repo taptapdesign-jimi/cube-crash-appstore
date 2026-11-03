@@ -449,18 +449,18 @@ final class NativeBootstrapTests:XCTestCase {
         XCTAssertEqual(try XCTUnwrap(store.load()).progression.boardStats[2],saved.progression.boardStats[2])
         XCTAssertFalse(containsWeb(app.view))
         let result=try XCTUnwrap(game.presentedViewController as? NativeResultController)
-        let carriedScore=result.finalScore,previousGeneration=game.engine.state.generation
+        let previousGeneration=game.engine.state.generation
         try await waitUntil(timeout:12) {self.button(in:result.view,id:"native.result.play-again")?.isUserInteractionEnabled == true}
         let next=try XCTUnwrap(button(in:result.view,id:"native.result.play-again"));next.sendActions(for:.touchUpInside);next.sendActions(for:.touchUpInside)
         try await waitUntil {game.engine.state.board == 3}
         XCTAssertEqual(game.engine.state.generation,previousGeneration+1)
-        XCTAssertEqual(game.engine.state.score,carriedScore)
+        XCTAssertEqual(game.engine.state.score,0)
         try await waitUntil {game.children.contains{$0 is NativeThemedBoardTransitionController}}
         let transition=try XCTUnwrap(game.children.first{$0 is NativeThemedBoardTransitionController} as? NativeThemedBoardTransitionController)
         XCTAssertEqual(transition.board,3)
         try await waitUntil(timeout:12) {!game.children.contains{$0 is NativeThemedBoardTransitionController}}
         XCTAssertFalse(transition.hasActiveClock)
-        XCTAssertEqual(game.engine.state.score,carriedScore)
+        XCTAssertEqual(game.engine.state.score,0)
         XCTAssertNil(try store.load()?.journeyRuns[3],"An untouched next board retains the current Play policy")
         XCTAssertEqual(try XCTUnwrap(store.load()).progression.boardStats[2],saved.progression.boardStats[2])
     }

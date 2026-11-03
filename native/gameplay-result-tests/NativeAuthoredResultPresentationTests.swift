@@ -68,7 +68,7 @@ final class NativeAuthoredResultPresentationTests:XCTestCase {
         XCTAssertEqual(complete.status.opacity,1);XCTAssertEqual(complete.displayedCombo,0);XCTAssertEqual(complete.primary.scale,1)
         let failed=NativeResultPresentationPlan.sample(seconds:0,clean:false,baseScore:10,combo:0,efficiency:0)
         XCTAssertEqual(failed.hero.scale,0.7);XCTAssertEqual(failed.title.scale,0.75);XCTAssertEqual(failed.status.scale,0.82)
-        XCTAssertEqual(Set(NativeResultHeadlines.clean).count,114);XCTAssertEqual(NativeResultHeadlines.fail.count,98)
+        XCTAssertEqual(Set(NativeResultHeadlines.clean).count,110);XCTAssertEqual(NativeResultHeadlines.fail.count,94)
     }
     func testAuthoredExitKeepsStarsUncompoundedAndClickedCtaFirst() {
         let first=NativeResultExitPlan.cleanStar(seconds:0.02,index:2,earned:3,capturedScale:1.1)

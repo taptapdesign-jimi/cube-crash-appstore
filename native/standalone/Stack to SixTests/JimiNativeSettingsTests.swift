@@ -343,17 +343,17 @@ final class JimiNativeSettingsTests: XCTestCase {
             XCTAssertEqual(settings.scroll.frame.minX,0)
             XCTAssertEqual(settings.scroll.bounds.width,width)
             XCTAssertFalse(settings.clipsToBounds);XCTAssertFalse(settings.scroll.clipsToBounds)
-            XCTAssertEqual(settings.switches[0].convert(settings.switches[0].bounds,to:settings).maxX,width-24,accuracy:0.001)
+            XCTAssertEqual(settings.switches[0].convert(settings.switches[0].bounds,to:settings).maxX-8,width-37,accuracy:0.001)
             for row in settings.rows {
-                XCTAssertEqual(row.frame.minX,24);XCTAssertEqual(row.bounds.width,width-48)
+                XCTAssertEqual(row.frame.minX,37);XCTAssertEqual(row.bounds.width,width-66)
                 var parent: UIView? = row
                 while let view = parent {XCTAssertFalse(view.clipsToBounds);parent = view.superview}
                 // The authored overshoot may paint beyond the padded layout box.
                 row.transform = CGAffineTransform(scaleX:1.12,y:1.12)
-                XCTAssertLessThan(row.frame.minX,24)
-                XCTAssertGreaterThan(row.frame.maxX,width-24)
+                XCTAssertLessThan(row.frame.minX,37)
+                XCTAssertGreaterThan(row.frame.maxX,width-37)
             }
-            for divider in settings.dividers {XCTAssertEqual(divider.frame.minX,24);XCTAssertEqual(divider.bounds.width,width-48)}
+            for divider in settings.dividers {XCTAssertEqual(divider.frame.minX,37);XCTAssertEqual(divider.bounds.width,width-74)}
         }
     }
 

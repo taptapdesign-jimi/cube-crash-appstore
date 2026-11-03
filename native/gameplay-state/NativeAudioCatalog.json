@@ -1903,9 +1903,9 @@
     ],
     "cleanCTA0": [
       {
-        "source": "assets/sound/magnet pul lforce/pull1.wav",
+        "source": "assets/sound/Clean board/boinb.wav",
         "voice": "clean-board-cta-bounce-primary",
-        "gain": 0.6,
+        "gain": 0.18,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -1914,9 +1914,9 @@
     ],
     "failCTA0": [
       {
-        "source": "assets/sound/magnet pul lforce/pull1.wav",
+        "source": "assets/sound/Clean board/boinb.wav",
         "voice": "fail-screen-cta-bounce-primary",
-        "gain": 0.6,
+        "gain": 0.18,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -1936,9 +1936,9 @@
     ],
     "cleanCTA1": [
       {
-        "source": "assets/sound/magnet pul lforce/pull1.wav",
+        "source": "assets/sound/Clean board/boinb.wav",
         "voice": "clean-board-cta-bounce-secondary",
-        "gain": 0.6,
+        "gain": 0.18,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -1947,9 +1947,9 @@
     ],
     "failCTA1": [
       {
-        "source": "assets/sound/magnet pul lforce/pull1.wav",
+        "source": "assets/sound/Clean board/boinb.wav",
         "voice": "fail-screen-cta-bounce-secondary",
-        "gain": 0.6,
+        "gain": 0.18,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,
@@ -3112,17 +3112,6 @@
         "fadeOut": 0
       }
     ],
-    "homeSpeech-treasure": [
-      {
-        "source": "assets/sound/SPEECH/treasure.mp3",
-        "voice": "native-home-human",
-        "gain": 0.72,
-        "rate": 1,
-        "delay": 0,
-        "stopAfter": null,
-        "fadeOut": 0
-      }
-    ],
     "homeSettingsSpeech": [
       {
         "source": "assets/sound/SPEECH/settings guy.mp3",
@@ -3673,17 +3662,6 @@
         "fadeOut": 0
       }
     ],
-    "arcade-01": [
-      {
-        "source": "assets/sound/SPEECH/arcade-01.wav",
-        "voice": "native-arcade-home-human",
-        "gain": 0.72,
-        "rate": 1,
-        "delay": 0,
-        "stopAfter": null,
-        "fadeOut": 0
-      }
-    ],
     "arcade-02": [
       {
         "source": "assets/sound/SPEECH/arcade-02.wav",
@@ -3711,6 +3689,816 @@
         "source": "assets/sound/Wild and special kockice/cubero/haya.wav",
         "voice": "cubero-merge6-haya",
         "gain": 0.48,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "coconut": [
+      {
+        "source": "assets/sound/merge 6/merge six obicna.mp3",
+        "voice": "coconut-regular-merge6-primary",
+        "gain": 0.195,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 crash.mp3",
+        "voice": "coconut-regular-merge6-crash",
+        "gain": 0.10608000000000001,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": 0.892,
+        "fadeOut": 0.12
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 boom.mp3",
+        "voice": "coconut-regular-merge6-boom",
+        "gain": 0.23399999999999999,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/stack.mp3",
+        "voice": "coconut-regular-merge6-stack",
+        "gain": 0.312,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/flower/bush0.wav",
+        "voice": "coconut-flower-merge6-bush0",
+        "gain": 0.312,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/flower/bush2.wav",
+        "voice": "coconut-flower-merge6-bush2",
+        "gain": 0.39,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/flower/bush3.wav",
+        "voice": "coconut-flower-merge6-bush3",
+        "gain": 0.13649999999999998,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/flower/boom.wav",
+        "voice": "coconut-flower-merge6-boom",
+        "gain": 0.39,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "kite": [
+      {
+        "source": "assets/sound/Wild and special kockice/kite/kite lfight.wav",
+        "voice": "kite-flight",
+        "gain": 0.6,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/kite/kite meerge.wav",
+        "voice": "kite-merge",
+        "gain": 0.6,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/merge six obicna.mp3",
+        "voice": "regular-merge6-primary",
+        "gain": 0.195,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 crash.mp3",
+        "voice": "regular-merge6-crash",
+        "gain": 0.10608000000000001,
+        "rate": 1.3,
+        "delay": 0,
+        "stopAfter": 0.892,
+        "fadeOut": 0.12
+      },
+      {
+        "source": "assets/sound/merge 6/merge6 boom.mp3",
+        "voice": "regular-merge6-boom",
+        "gain": 0.23399999999999999,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/merge 6/stack.mp3",
+        "voice": "regular-merge6-stack",
+        "gain": 0.312,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/bee/brushing.wav",
+        "voice": "kite-brushing",
+        "gain": 0.48,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/ baloon/prvi pop.wav",
+        "voice": "kite-first-pop",
+        "gain": 0.6,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/Wild and special kockice/ baloon/baloon pop.wav",
+        "voice": "kite-balloon-pop",
+        "gain": 0.3,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/mini explozije/mini2.mp3",
+        "voice": "kite-mini2",
+        "gain": 0.144,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "modalNala0": [
+      {
+        "source": "assets/sound/logo transitions/nala1.wav",
+        "voice": "native-modal-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "modalNala1": [
+      {
+        "source": "assets/sound/logo transitions/nala2.wav",
+        "voice": "native-modal-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "modalNala2": [
+      {
+        "source": "assets/sound/logo transitions/nala3.wav",
+        "voice": "native-modal-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "modalNala3": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala laje.wav",
+        "voice": "native-modal-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "modalNala4": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala laje 2.wav",
+        "voice": "native-modal-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "modalNala5": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala prica cvili.wav",
+        "voice": "native-modal-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "modalNala6": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala cvili prica 2.wav",
+        "voice": "native-modal-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "modalNala7": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala lajavo prica.wav",
+        "voice": "native-modal-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "modalNala8": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala lajavo prica 2.wav",
+        "voice": "native-modal-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "modalNala9": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala dahce cvili.wav",
+        "voice": "native-modal-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "modalNala10": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala dahce cvili 2.wav",
+        "voice": "native-modal-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "modalNala11": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala nesretna.wav",
+        "voice": "native-modal-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "studioNala0": [
+      {
+        "source": "assets/sound/logo transitions/nala1.wav",
+        "voice": "native-studio-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "studioNala1": [
+      {
+        "source": "assets/sound/logo transitions/nala2.wav",
+        "voice": "native-studio-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "studioNala2": [
+      {
+        "source": "assets/sound/logo transitions/nala3.wav",
+        "voice": "native-studio-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "homeCharacter3": [
+      {
+        "source": "assets/sound/logo transitions/smile.wav",
+        "voice": "native-home-human",
+        "gain": 0.72,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala laje.wav",
+        "voice": "native-home-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "arcadeIslandDog3": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala laje.wav",
+        "voice": "native-arcade-island-dog",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 1,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "arcadeThumbDog3": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala laje.wav",
+        "voice": "arcade-stage-clear-character",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "studioNala3": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala laje.wav",
+        "voice": "native-studio-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "homeCharacter4": [
+      {
+        "source": "assets/sound/logo transitions/smile.wav",
+        "voice": "native-home-human",
+        "gain": 0.72,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala laje 2.wav",
+        "voice": "native-home-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "arcadeIslandDog4": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala laje 2.wav",
+        "voice": "native-arcade-island-dog",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 1,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "arcadeThumbDog4": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala laje 2.wav",
+        "voice": "arcade-stage-clear-character",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "studioNala4": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala laje 2.wav",
+        "voice": "native-studio-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "homeCharacter5": [
+      {
+        "source": "assets/sound/logo transitions/smile.wav",
+        "voice": "native-home-human",
+        "gain": 0.72,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala prica cvili.wav",
+        "voice": "native-home-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "arcadeIslandDog5": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala prica cvili.wav",
+        "voice": "native-arcade-island-dog",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 1,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "arcadeThumbDog5": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala prica cvili.wav",
+        "voice": "arcade-stage-clear-character",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "studioNala5": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala prica cvili.wav",
+        "voice": "native-studio-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "homeCharacter6": [
+      {
+        "source": "assets/sound/logo transitions/smile.wav",
+        "voice": "native-home-human",
+        "gain": 0.72,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala cvili prica 2.wav",
+        "voice": "native-home-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "arcadeIslandDog6": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala cvili prica 2.wav",
+        "voice": "native-arcade-island-dog",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 1,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "arcadeThumbDog6": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala cvili prica 2.wav",
+        "voice": "arcade-stage-clear-character",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "studioNala6": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala cvili prica 2.wav",
+        "voice": "native-studio-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "homeCharacter7": [
+      {
+        "source": "assets/sound/logo transitions/smile.wav",
+        "voice": "native-home-human",
+        "gain": 0.72,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala lajavo prica.wav",
+        "voice": "native-home-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "arcadeIslandDog7": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala lajavo prica.wav",
+        "voice": "native-arcade-island-dog",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 1,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "arcadeThumbDog7": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala lajavo prica.wav",
+        "voice": "arcade-stage-clear-character",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "studioNala7": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala lajavo prica.wav",
+        "voice": "native-studio-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "homeCharacter8": [
+      {
+        "source": "assets/sound/logo transitions/smile.wav",
+        "voice": "native-home-human",
+        "gain": 0.72,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala lajavo prica 2.wav",
+        "voice": "native-home-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "arcadeIslandDog8": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala lajavo prica 2.wav",
+        "voice": "native-arcade-island-dog",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 1,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "arcadeThumbDog8": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala lajavo prica 2.wav",
+        "voice": "arcade-stage-clear-character",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "studioNala8": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala lajavo prica 2.wav",
+        "voice": "native-studio-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "homeCharacter9": [
+      {
+        "source": "assets/sound/logo transitions/smile.wav",
+        "voice": "native-home-human",
+        "gain": 0.72,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala dahce cvili.wav",
+        "voice": "native-home-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "arcadeIslandDog9": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala dahce cvili.wav",
+        "voice": "native-arcade-island-dog",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 1,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "arcadeThumbDog9": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala dahce cvili.wav",
+        "voice": "arcade-stage-clear-character",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "studioNala9": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala dahce cvili.wav",
+        "voice": "native-studio-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "homeCharacter10": [
+      {
+        "source": "assets/sound/logo transitions/smile.wav",
+        "voice": "native-home-human",
+        "gain": 0.72,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      },
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala dahce cvili 2.wav",
+        "voice": "native-home-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "arcadeIslandDog10": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala dahce cvili 2.wav",
+        "voice": "native-arcade-island-dog",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 1,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "arcadeThumbDog10": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala dahce cvili 2.wav",
+        "voice": "arcade-stage-clear-character",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "studioNala10": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala dahce cvili 2.wav",
+        "voice": "native-studio-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "failNala0": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala nesretna.wav",
+        "voice": "native-fail-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "failNala1": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala prica cvili.wav",
+        "voice": "native-fail-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "failNala2": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala cvili prica 2.wav",
+        "voice": "native-fail-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "failNala3": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala lajavo prica.wav",
+        "voice": "native-fail-nala",
+        "gain": 0.42,
+        "rate": 1,
+        "delay": 0,
+        "stopAfter": null,
+        "fadeOut": 0
+      }
+    ],
+    "failNala4": [
+      {
+        "source": "assets/sound/SPEECH/Nala/playback-v1/nala lajavo prica 2.wav",
+        "voice": "native-fail-nala",
+        "gain": 0.42,
         "rate": 1,
         "delay": 0,
         "stopAfter": null,

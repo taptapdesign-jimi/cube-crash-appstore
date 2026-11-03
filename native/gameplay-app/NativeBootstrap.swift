@@ -50,7 +50,6 @@ final class NativeBootstrap {
     private var lastReturnBoard: Int?
     private var attemptCommitted = false
     private var interimJourney=false
-    private var committedScore:Int?
     private var boardEntryHaptics:NativeBoardEntryHaptics?
     private lazy var haptics=NativeHapticRuntime(enabled:{[weak self] in self?.disposed==false && self?.envelope.settings.hapticsEnabled==true})
     var hapticOutputObserver:((NativeHapticRuntime.Output)->Void)? {get {haptics.onOutput} set {haptics.onOutput=newValue}}
@@ -143,11 +142,14 @@ final class NativeBootstrap {
             setPreference: { [weak self] key, value in try self?.setPreference(key, value) },
             worldSnapshot: { [weak self] world, size, generation in
                 guard let self else { throw CancellationError() }
+                let tablet=NativeTabletLayout.applies(size)
+                let canvas=NativeTabletLayout.worldFrame(CGRect(origin:.zero,size:size)).width
+                let bleed=tablet ? max(0,(size.width-canvas)/2-16)/(canvas/390):0
                 return try self.layouts.snapshot(world: world, width: size.width, height: size.height,
                     generation: generation, progression: self.envelope.progression,
                     resumableBoards: Set(self.envelope.journeyRuns.keys.filter {
                         self.envelope.resumedRun(mode: .journey, board: $0) != nil
-                    }), returnBoard: self.lastReturnBoard)
+                    }), returnBoard: self.lastReturnBoard, proportionalCards: tablet, unitScale: tablet ? 1.105:1, unitHorizontalBleed:bleed, unitRowGap:tablet ? 36:0, unitColumnSpread:tablet ? 0.20:0, unitPairCompression:tablet, lastUnitCenterX:tablet ? 195+size.width*0.10/(canvas/390):nil)
             },
             markViewed: { [weak self] board in
                 guard let self else { return }
@@ -280,9 +282,9 @@ final class NativeBootstrap {
         if key == "hapticsEnabled",value {impactFeedback("light")}
     }
     private enum FreshGameplayEntry:Equatable {
-        case restart(UInt64,NativeGameplayRestartOrigin),arcadeContinuation(UInt64),journeyContinuation(UInt64,Int)
+        case restart(UInt64,NativeGameplayRestartOrigin),arcadeContinuation(UInt64),journeyContinuation(UInt64)
         var generation:UInt64 {
-            switch self {case .restart(let value,_),.arcadeContinuation(let value),.journeyContinuation(let value,_):return value}
+            switch self {case .restart(let value,_),.arcadeContinuation(let value),.journeyContinuation(let value):return value}
         }
         var isJourneyContinuation:Bool {if case .journeyContinuation=self{return true};return false}
         var isRestart:Bool {if case .restart=self{return true};return false}
@@ -291,7 +293,6 @@ final class NativeBootstrap {
         var alreadyAnnouncedArcade:Bool {consumesPendingArcade}
         var skipsBoardAnnouncement:Bool {if case .restart(_,let origin)=self{return origin.skipsBoardAnnouncement};return false}
         var keepsGameplayChromeVisible:Bool {if case .restart(_, .exitMenu)=self{return true};return consumesPendingArcade}
-        var carriedJourneyScore:Int? {if case .journeyContinuation(_,let score)=self{return score};return nil}
     }
     private func cancelGameplayEntryPreparation(){
         let old=initialTexturePreparation;initialTexturePreparation=nil;old?.textures.dispose()
@@ -375,6 +376,7 @@ final class NativeBootstrap {
             }
             guard let construction=NativeSourceInitialBoardConstruction.make(root:root,service:sourceContext.service,
                 mode:mode,board:boardNumber,columns:UIDevice.current.userInterfaceIdiom == .pad ? 7:5,
+                rows:9,
                 generation:generation,tutorialDemo:needsTutorial,arcadeVariant:envelope.activeArcadeVariant,preparedTextures:preparedTextures,random:{[sourceContext] in sourceContext.smokeSession.nextVisualRandom()}),
                 let recipe=construction.recipe else{throw NativeSaveError.invalidState(["source-initial-constructor-not-admitted"])}
             sourceConstruction=construction
@@ -397,7 +399,6 @@ final class NativeBootstrap {
         let resumed = state != nil && !consumedPending
         var initial:NativeBoardState
         if let state {initial=state}else {initial=try freshForInitialEntry(boardNumber:number,generation:freshEntryGeneration)}
-        if let carriedScore=freshEntry?.carriedJourneyScore {initial.score=carriedScore}
         if sourceInitialWildResumeEnabled,resumed,!consumedPending,sourceConstruction==nil,initial.tiles.contains(where:{$0.isWild}) {
             guard sourceSpecialIdlePresentationEnabled,sourceContext.sourceMicrotaskTasks != nil,
                   let construction=NativeSourceInitialBoardConstruction.makeRestored(
@@ -425,6 +426,8 @@ final class NativeBootstrap {
             (sourceConstruction != nil && (sourceFreshOrdinaryPresentationEnabled || sourceRestoredOrdinaryPresentationEnabled))) ? sourceContext.mathRandom:nil)
         engine.comboHUDCoinRewardsEnabled=true
         engine.comboWindowExtension=1.5
+        engine.wildComboWindowExtension=1
+        engine.comboSpeedBonusEnabled=true
         if needsTutorial,engine.state.tutorial == nil {
             if sourceTutorialActivationEnabled {
                 guard sourceConstruction != nil else{throw NativeSaveError.invalidState(["source-tutorial-constructor-unavailable"])}
@@ -610,7 +613,6 @@ final class NativeBootstrap {
                 else {self.mountJourneyTransition(gameplay,board:number,release:release)}
             }
         }
-        committedScore=nil
         interimJourney = mode == .journey && !envelope.progression.completedJourneyBoards.contains(number)
         audio?.stop();audio?.beginGeneration(initial.generation);audio?.prepareBottleOnBoard(initial)
         haptics.cancelSequences();failHapticGeneration=nil;ordinarySixHapticContact=nil;specialHapticTargetCounts.removeAll()
@@ -637,7 +639,7 @@ final class NativeBootstrap {
                   gameplay.engine.state.generation==generation else{return}
             self.audioReceipt &+= 1
             self.audio?.roundWon(receipt:self.audioReceipt,generation:generation)
-            if gameplay.boardClearedUsesPuppyThumb {self.resultMoment("arcade-thumb",index:1,duration:nil)}
+            self.resultMoment("cleared-thumb-enter",index:gameplay.boardClearedUsesPuppyThumb ? 1:0,duration:nil)
             // Arcade's clear card moved onto the live board. Keep its existing
             // victory bed here; the successor now presents Round digits only.
             if gameplay.engine.state.mode == .arcade {self.resultMoment("arcade-victory",index:0,duration:nil)}
@@ -787,6 +789,7 @@ final class NativeBootstrap {
     private func fresh(mode: NativeRunMode, board: Int, generation: UInt64,tutorial:Bool=false) -> NativeBoardState {
         var state=NativeBoardFactory.make(mode: mode, board: board,
             columns: UIDevice.current.userInterfaceIdiom == .pad ? 7 : 5,
+            rows: 9,
             generation: generation, seed: UInt64.random(in: 1...UInt64.max),tutorial:tutorial,arcadeVariant:envelope.activeArcadeVariant)
         state.bestScore = mode == .arcade ? envelope.progression.arcadeStats(for:envelope.activeArcadeVariant).highScore : envelope.progression.boardStats[board]?.highScore ?? 0
         return state
@@ -1414,13 +1417,17 @@ final class NativeBootstrap {
             failHapticGeneration=gameplay.engine.state.generation
             impactFeedback(gameplay.engine.state.mode == .arcade && gameplay.engine.state.board>=2 ? "medium":"notification-error")
         }
+        let terminalBoard=gameplay.engine.state.board,terminalGeneration=gameplay.engine.state.generation
         resultOwner = NativeResultOwner(gameplay: gameplay, root: root, resolution: resolution,
             commit: { [weak self] score in try self?.commitResult(score: score, clean: resolution.kind == .complete) },
             restart: { [weak self] in self?.restart(origin:resolution.kind == .fail ? .failPlayAgain:.result) },
             continueArcade: { [weak self] in self?.continueArcade() },
             exit: { [weak self] in self?.exitGameplay() },
             interimJourney:interimJourney,rewardScore:envelope.progression.boardStats[gameplay.engine.state.board]?.highScore,
-            continueJourney:{[weak self] in self?.continueJourney()},sourceNoMovesReceipt:sourceReceipt,
+            continueJourney:{[weak self,weak gameplay] in
+                guard let gameplay else{return}
+                self?.continueJourney(completedBoard:terminalBoard,generation:terminalGeneration,gameplay:gameplay)
+            },sourceNoMovesReceipt:sourceReceipt,
             previousRewardStars:envelope.progression.journeyStars(board:gameplay.engine.state.board))
         if let sourceReceipt,let endpoint=gameplay.sourceNoMovesTerminalRegistry {
             resultOwner?.onSourceFinalCleanup={ [weak gameplay,weak endpoint] receipt in
@@ -1467,7 +1474,7 @@ final class NativeBootstrap {
             if clean { next.pendingArcadeRound = .init(round:state.board+1,score:score,ownerID:"native-\(state.generation)-\(state.revision)",meterProgress:state.effectiveArcadeVariant == .slowBurn ? state.wildMeter:nil,lastSpecialMergeWorld:state.lastSpecialMergeWorld) }
         }
         next.savedAt = Date().timeIntervalSince1970
-        try store.save(next); envelope = next; attemptCommitted = true;committedScore=score
+        try store.save(next); envelope = next; attemptCommitted = true
     }
     private func presentTutorialComplete(_ gameplay:NativeGameplayViewController) {
         guard tutorialComplete==nil,let controller else{return}
@@ -1522,17 +1529,19 @@ final class NativeBootstrap {
         gameplay.setSuspended(false); gameplay.refreshFromEngine(); record(gameplay.engine.state)
         _ = saveCurrent()
     }
-    private func continueJourney() {
-        guard let gameplay,attemptCommitted,gameplay.engine.state.mode == .journey else{return}
+    private func continueJourney(completedBoard:Int,generation:UInt64,gameplay:NativeGameplayViewController) {
+        guard !disposed,self.gameplay === gameplay,attemptCommitted,gameplay.engine.state.mode == .journey,
+              gameplay.engine.state.generation==generation else{return}
         controller?.cancelGameplayReturnPreparation()
-        let old=gameplay.engine.state,next=old.board+1
+        // The result owns the completed Unit. Mutable route/progression state
+        // cannot choose its successor; each Journey Unit starts a fresh attempt.
+        let next=completedBoard+1
         guard next<=30,envelope.progression.isPlayable(board:next) else{exitGameplay();return}
         if gameplay.sourceInitialConstruction != nil,gameplay.sourceScope?.current==true {
-            rebuildSourceGameplay(gameplay,board:next,entry:.journeyContinuation(old.generation+1,committedScore ?? old.score))
+            rebuildSourceGameplay(gameplay,board:next,entry:.journeyContinuation(generation+1))
             return
         }
-        var state=fresh(mode:.journey,board:next,generation:old.generation+1)
-        state.score=committedScore ?? old.score
+        let state=fresh(mode:.journey,board:next,generation:generation+1)
         gameplay.engine.restart(state:state);attemptCommitted=false;interimJourney = !envelope.progression.completedJourneyBoards.contains(next)
         lastReturnBoard=next;audio?.beginGeneration(state.generation)
         envelope.progression.beginAttempt(mode:.journey,board:next)
@@ -1564,6 +1573,11 @@ final class NativeBootstrap {
         sheet.loadViewIfNeeded()
         sheet.buttons[0].isEnabled=controller?.canReplaceGameplay(captured)==true && captured.sourceScope?.current==true && captured.sourceInitialConstruction != nil
         sourceFailureModal=sheet
+        sheet.onCTAsEntering={ [weak self,weak sheet] in
+            guard let self,let sheet,!self.disposed,self.sourceFailureModalEpoch==epoch,
+                  self.sourceFailureModal === sheet else{return}
+            self.routeFeedback("paired-cta-enter")
+        }
         sourceFailureObservers=[
             NotificationCenter.default.addObserver(forName:UIApplication.willResignActiveNotification,object:nil,queue:.main){[weak sheet] _ in
                 MainActor.assumeIsolated{sheet?.suspend()}
@@ -1625,8 +1639,10 @@ final class NativeBootstrap {
     }
     private func routeFeedback(_ kind:String,haptic:String?=nil,includesHaptic:Bool=true) {
         audioReceipt &+= 1
-        if kind != "home-haptic-enter" {audio?.routeFeedback(kind == "tab-swipe" ? "tab":kind,receipt:audioReceipt,generation:audio?.generation ?? 1)}
-        if kind == "modal-open" || kind == "modal-exit" {return}
+        // The committed swipe already owns its existing slider cue. This
+        // contact adds only the same haptic as a bottom navigation tap.
+        if kind != "home-haptic-enter",kind != "tab-swipe" {audio?.routeFeedback(kind,receipt:audioReceipt,generation:audio?.generation ?? 1)}
+        if ["modal-open","modal-exit","modal-cta-enter","paired-modal-cta-enter","paired-cta-enter"].contains(kind) {return}
         guard includesHaptic else{return}
         if let haptic {impactFeedback(haptic == "selection" || haptic.hasPrefix("protected-") ? haptic:"protected-\(haptic)")}
         else if kind == "home-haptic-enter",let controller {
@@ -1634,7 +1650,7 @@ final class NativeBootstrap {
             haptics.play(NativeHapticPatterns.home,in:controller.view) {[weak self,weak controller] in
                 self?.disposed==false && self?.routeLease==capturedRoute && self?.controller === controller && controller?.route == .home
             }
-        } else if ["cta","tab","back","modal-close","card-tap","card-manual-flip","hud-modal-open","exit-modal"].contains(kind) {
+        } else if ["cta","tab","tab-swipe","back","modal-close","card-tap","card-manual-flip","hud-modal-open","exit-modal"].contains(kind) {
             // Accepted navigation is a human contact, not a decorative burst.
             // Home enter/merge beats must not exhaust later World/Back/Close taps.
             if kind == "cta",case .world = controller?.route {impactFeedback("protected-medium")}
@@ -1722,6 +1738,7 @@ final class NativeBootstrap {
                     } else { try self.applyDeveloperProgress(action, values: values) }
                 } catch { self.showError(error.localizedDescription) }
             }
+            picker.onCTAEnter = {[weak self] in self?.routeFeedback("paired-modal-cta-enter",includesHaptic:false)}
             picker.onCloseRequested = {[weak self] in self?.routeFeedback("modal-close")}
             routeFeedback("modal-open");presenter.present(picker,animated: false)
         case .newCard:
@@ -1730,7 +1747,16 @@ final class NativeBootstrap {
             let state = NativeBoardState(tiles: [],board: board,stage: board,score: 2500)
             let preview = NativeResultController(root: root,state: state,clean: true,combo: 0,efficiency: 500,finalScore: 3000)
             preview.onCommit = {} // Authored result presentation, no attempt commit.
-            let host = NativeDeveloperPreviewHost(preview: preview,release: { [weak preview] in preview?.dispose() })
+            let previewGeneration=routeLease
+            preview.onMoment = { [weak self] kind,index,duration in
+                guard let self,!self.disposed,self.routeLease==previewGeneration else{return}
+                self.resultMoment(kind,index:index,duration:duration)
+            }
+            let host = NativeDeveloperPreviewHost(preview: preview,release: { [weak self,weak preview] in
+                preview?.dispose()
+                guard let self,!self.disposed,self.routeLease==previewGeneration else{return}
+                self.audio?.stopCleanResultPreviewSounds()
+            })
             preview.onAction = { [weak host] _ in host?.finish() }
             presenter.present(host,animated: false)
         case .endGame,.lastMerge:
@@ -1747,6 +1773,7 @@ final class NativeBootstrap {
                 }
                 catch { self.showError(error.localizedDescription) }
             }
+            picker.onCTAEnter = {[weak self] in self?.routeFeedback("paired-modal-cta-enter",includesHaptic:false)}
             picker.onCloseRequested = {[weak self] in self?.routeFeedback("modal-close")}
             routeFeedback("modal-open");presenter.present(picker,animated: false)
         }

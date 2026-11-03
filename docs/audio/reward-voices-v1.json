@@ -1,0 +1,141 @@
+{
+  "recordingId": "reward-voices-v1",
+  "source": "assets/sound/card reveal/reward-voices-v1/reward voices.mp3",
+  "sourceSHA256": "2f1ac589e6d68f46588afe052305a949a49ef1024cdfaef58b39bbf7b10daa05",
+  "format": "48000Hz mono PCM16 WAV",
+  "processing": "All decoded source frames preserved once,quiet-gap boundaries retain breaths/laughs/natural endings. No gain,fade,normalization,rate or pitch change. Content order verified with local offline transcription.",
+  "clips": [
+    {
+      "order": 1,
+      "sceneId": "reward-common",
+      "text": "[excited] A lovely find!",
+      "spokenText": "A lovely find!",
+      "source": "assets/sound/card reveal/reward-voices-v1/001-reward-common-01.wav",
+      "startFrame": 0,
+      "endFrame": 73440,
+      "duration": 1.53,
+      "sha256": "31f7d5c9a3b447205d79ded012d1886879ee3f2315699ce1c23239ca81b47e51"
+    },
+    {
+      "order": 2,
+      "sceneId": "reward-common",
+      "text": "[laughs] This one’s a keeper!",
+      "spokenText": "This one’s a keeper!",
+      "source": "assets/sound/card reveal/reward-voices-v1/002-reward-common-02.wav",
+      "startFrame": 73440,
+      "endFrame": 166320,
+      "duration": 1.935,
+      "sha256": "51335dbfe7e2e3072eabf5c7f25857a9a6184fa46c2255ed341c1f90713fffcc"
+    },
+    {
+      "order": 3,
+      "sceneId": "reward-common",
+      "text": "[excited] Into the collection!",
+      "spokenText": "Into the collection!",
+      "source": "assets/sound/card reveal/reward-voices-v1/003-reward-common-03.wav",
+      "startFrame": 166320,
+      "endFrame": 234000,
+      "duration": 1.41,
+      "sha256": "ec0ea3af68e2a393229bddedf396155cea4a7e9dbc9e9f889482ddda65d99318"
+    },
+    {
+      "order": 4,
+      "sceneId": "reward-common",
+      "text": "[laughs] Oh, lovely!",
+      "spokenText": "Oh, lovely!",
+      "source": "assets/sound/card reveal/reward-voices-v1/004-reward-common-04.wav",
+      "startFrame": 234000,
+      "endFrame": 329520,
+      "duration": 1.99,
+      "sha256": "5c713ba253011bd0acf7c1e5308b66c1fd9d42a44e7a0020689ffb77b8ee4129"
+    },
+    {
+      "order": 5,
+      "sceneId": "reward-legendary",
+      "text": "[excited] Legendary! We did it!",
+      "spokenText": "Legendary! We did it!",
+      "source": "assets/sound/card reveal/reward-voices-v1/005-reward-legendary-01.wav",
+      "startFrame": 329520,
+      "endFrame": 438000,
+      "duration": 2.26,
+      "sha256": "a2ac87d277ee7125697789abd29a726217bdeec8dfeb98321f66906fe5a934d9"
+    },
+    {
+      "order": 6,
+      "sceneId": "reward-legendary",
+      "text": "[laughs] Now that’s special!",
+      "spokenText": "Now that’s special!",
+      "source": "assets/sound/card reveal/reward-voices-v1/006-reward-legendary-02.wav",
+      "startFrame": 438000,
+      "endFrame": 542400,
+      "duration": 2.175,
+      "sha256": "471a1fc1b5990b8ff54db3c772bbbd078fc7a3da0e5ecdd15227efb6284b58c9"
+    },
+    {
+      "order": 7,
+      "sceneId": "reward-legendary",
+      "text": "[excited] What a beauty!",
+      "spokenText": "What a beauty!",
+      "source": "assets/sound/card reveal/reward-voices-v1/007-reward-legendary-03.wav",
+      "startFrame": 542400,
+      "endFrame": 616800,
+      "duration": 1.55,
+      "sha256": "ceaf83b758a7623766edba94a9a54030d9698e65065f8dfcff70adc40b72fef7"
+    },
+    {
+      "order": 8,
+      "sceneId": "reward-legendary",
+      "text": "[laughs] A legendary treasure!",
+      "spokenText": "A legendary treasure!",
+      "source": "assets/sound/card reveal/reward-voices-v1/008-reward-legendary-04.wav",
+      "startFrame": 616800,
+      "endFrame": 731760,
+      "duration": 2.395,
+      "sha256": "398b90dc51e751eba3e425c736c0b55491c39500d077048e8f78eddec8966895"
+    },
+    {
+      "order": 9,
+      "sceneId": "reward-interim",
+      "text": "[excited] Ooh, a reward!",
+      "spokenText": "Ooh, a reward!",
+      "source": "assets/sound/card reveal/reward-voices-v1/009-reward-interim-01.wav",
+      "startFrame": 731760,
+      "endFrame": 809520,
+      "duration": 1.62,
+      "sha256": "4dbf6ef8d167bafae7f182c4d7a33c92ce46a04031b58a7717c084dac6d251e3"
+    },
+    {
+      "order": 10,
+      "sceneId": "reward-interim",
+      "text": "[laughs] What’s behind?",
+      "spokenText": "What’s behind?",
+      "source": "assets/sound/card reveal/reward-voices-v1/010-reward-interim-02.wav",
+      "startFrame": 809520,
+      "endFrame": 877440,
+      "duration": 1.415,
+      "sha256": "84690fa809f09bef40ee1865dcd2b30f8aafcbf1a2f9c21ce9c8264efaf3cbeb"
+    },
+    {
+      "order": 11,
+      "sceneId": "reward-interim",
+      "text": "[excited] Let’s see it!",
+      "spokenText": "Let’s see it!",
+      "source": "assets/sound/card reveal/reward-voices-v1/011-reward-interim-03.wav",
+      "startFrame": 877440,
+      "endFrame": 927360,
+      "duration": 1.04,
+      "sha256": "72ba5923ce4d121362626c35949555bbb51244ee28798d1e32b89e6873b08674"
+    },
+    {
+      "order": 12,
+      "sceneId": "reward-interim",
+      "text": "[laughs] A little surprise!",
+      "spokenText": "A little surprise!",
+      "source": "assets/sound/card reveal/reward-voices-v1/012-reward-interim-04.wav",
+      "startFrame": 927360,
+      "endFrame": 1011879,
+      "duration": 1.7608125,
+      "sha256": "5ca8cebef65f4d21c55740b967a4ce69ffc127bd975049004bf91af084ffdaa3"
+    }
+  ]
+}

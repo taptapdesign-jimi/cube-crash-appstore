@@ -231,6 +231,7 @@
     ]
   },
   "flower": {
+    "nativeTabletFinaleSpritePolicy": "User2026-11-03:Native tablet Blossom bush sprites and flying flower sprites use same existing selected smokePresentationScale1.694asBarrelPoof. Phone/default1;glyphs,positions/paths,counts/timing/RNG,preparation/clock/retirement remain existing. No new texture/decode/cache/timer or asset changes.",
     "archetype": "wild-tnt",
     "idleOwner": "src/modules/flower-bouncy-artwork.ts",
     "finaleOwner": "src/modules/tnt-animation.ts",

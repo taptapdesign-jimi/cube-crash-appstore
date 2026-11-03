@@ -1,0 +1,999 @@
+{
+  "master": "assets/sound/Clean board/voice/clean board voices.mp3",
+  "masterSha256": "caf77eaa03055b48fd84f1b2e606b94fcd64a5c7b7d60ca6207eb61e98818d41",
+  "format": "48000Hz mono PCM16 WAV",
+  "processing": "Decode only; no gain/normalization/pitch/rate change; 3ms edge fades in inter-phrase silence.",
+  "alignment": "User-confirmed title order;109 >=200ms quiet gaps at -40dBFS5msRMS;cuts at gap midpoints.",
+  "clips": [
+    {
+      "title": "Outstanding!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/001-outstanding.wav",
+      "start": 0.0,
+      "end": 1.465,
+      "duration": 1.465,
+      "peakDbFS": -3.599840685406673,
+      "sha256": "7778fa2bada203b13c1f2854faa0bf71f4fcebb11687e0548c82cae5d538d6d0"
+    },
+    {
+      "title": "Amazing!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/002-amazing.wav",
+      "start": 1.465,
+      "end": 2.725,
+      "duration": 1.26,
+      "peakDbFS": -3.6938259656292245,
+      "sha256": "c6fbae7b63a9fd39d259b0a0f52cad62bccd2307d86e4e2778c241a1a70fabf1"
+    },
+    {
+      "title": "Excellent!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/003-excellent.wav",
+      "start": 2.725,
+      "end": 3.8475,
+      "duration": 1.1225,
+      "peakDbFS": -2.6704600864498134,
+      "sha256": "0ffa8def311d8bbf110d9555696bc537b9e181da1ae61ece32d0ad5fc1d4ea84"
+    },
+    {
+      "title": "Fantastic!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/004-fantastic.wav",
+      "start": 3.8475,
+      "end": 5.2875,
+      "duration": 1.44,
+      "peakDbFS": -3.09296643983732,
+      "sha256": "26ebf0a4c3067bf46042dddba94904c8c675efe2bc499635aa1d4ee9952a7777"
+    },
+    {
+      "title": "Incredible!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/005-incredible.wav",
+      "start": 5.2875,
+      "end": 6.7075,
+      "duration": 1.42,
+      "peakDbFS": -4.549383028744404,
+      "sha256": "4ab35d79d149faa8817a096996971388d810e133295b09ddf5e0919603ba540d"
+    },
+    {
+      "title": "Perfect!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/006-perfect.wav",
+      "start": 6.7075,
+      "end": 7.7075,
+      "duration": 1.0,
+      "peakDbFS": -2.0125389143860444,
+      "sha256": "34eccd08e96fd653922a5cbf46915dbf4f37bfbf697588b1380f29b2721a24d3"
+    },
+    {
+      "title": "Brilliant!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/007-brilliant.wav",
+      "start": 7.7075,
+      "end": 8.785,
+      "duration": 1.0775,
+      "peakDbFS": -4.882856323495067,
+      "sha256": "25c5104e5babf9fee0119c7f717228c9d5e49fc1d8cfee026a4c36dfa9577538"
+    },
+    {
+      "title": "Superb!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/008-superb.wav",
+      "start": 8.785,
+      "end": 10.085,
+      "duration": 1.3,
+      "peakDbFS": -4.357289793247429,
+      "sha256": "707cf811bc7b69677f00bbe20a0b8d825df896b248a73837ea29b6d70eccffb3"
+    },
+    {
+      "title": "Awesome!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/009-awesome.wav",
+      "start": 10.085,
+      "end": 11.1625,
+      "duration": 1.0775,
+      "peakDbFS": -2.4533015346856466,
+      "sha256": "0a1eb5e86ffbb0f218eced688da0c61edcc7df01b0d00ce71f2929df3ae2732c"
+    },
+    {
+      "title": "Spectacular!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/010-spectacular.wav",
+      "start": 11.1625,
+      "end": 12.7825,
+      "duration": 1.62,
+      "peakDbFS": -3.173571465802356,
+      "sha256": "3e1cde7955612d59590e6772cb429177a45edaac7ae5f0bf34438ea4b6c0a9e9"
+    },
+    {
+      "title": "Magnificent!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/011-magnificent.wav",
+      "start": 12.7825,
+      "end": 14.2425,
+      "duration": 1.46,
+      "peakDbFS": -5.838560714969889,
+      "sha256": "9c0cf0402d0e70a119ee0824ead2efd12fab4079f6a9a560392b86a305568ca3"
+    },
+    {
+      "title": "Phenomenal!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/012-phenomenal.wav",
+      "start": 14.2425,
+      "end": 15.53,
+      "duration": 1.2875,
+      "peakDbFS": -3.3180090274616534,
+      "sha256": "c6f9a2aa31b3bf1f66daab7cedb5391e378039119372cbb60cf4a64815987ead"
+    },
+    {
+      "title": "Marvelous!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/013-marvelous.wav",
+      "start": 15.53,
+      "end": 16.8425,
+      "duration": 1.3125,
+      "peakDbFS": -2.845607521119931,
+      "sha256": "08526f7508bb5187be6f1e058993a78685fd154827b456fe42501ef1bd0cee95"
+    },
+    {
+      "title": "Exceptional!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/014-exceptional.wav",
+      "start": 16.8425,
+      "end": 18.0775,
+      "duration": 1.235,
+      "peakDbFS": -4.142406772846396,
+      "sha256": "3f2888f15051b80f6ef11bc95ddfb8c74938a1c093d32fb48b53409a99811c9a"
+    },
+    {
+      "title": "Stellar!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/015-stellar.wav",
+      "start": 18.0775,
+      "end": 19.11,
+      "duration": 1.0325,
+      "peakDbFS": -4.304482563831203,
+      "sha256": "20070134e60d63cfc4288b1bde8c2bdc5833e03e59638ff30b514bd143449b22"
+    },
+    {
+      "title": "Remarkable!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/016-remarkable.wav",
+      "start": 19.11,
+      "end": 20.345,
+      "duration": 1.235,
+      "peakDbFS": -4.428496817287904,
+      "sha256": "7c608e91b229cf3360b14cc677d3a6513cfda7a4de99f9ecc6559e563f3818a6"
+    },
+    {
+      "title": "Impressive!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/017-impressive.wav",
+      "start": 20.345,
+      "end": 21.5825,
+      "duration": 1.2375,
+      "peakDbFS": -4.169353048167076,
+      "sha256": "4fa3af2b4cb6c2eeb077fda7de9657e8e15d7dcec24a246582f9e0d34a91527c"
+    },
+    {
+      "title": "Unbelievable!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/018-unbelievable.wav",
+      "start": 21.5825,
+      "end": 23.1125,
+      "duration": 1.53,
+      "peakDbFS": -2.607245294076057,
+      "sha256": "5dbda004c8f59b1f4899fc413bfa0ba88e14cbf7ac3456b7a9acd8e89a0b4e61"
+    },
+    {
+      "title": "Wonderful!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/019-wonderful.wav",
+      "start": 23.1125,
+      "end": 24.2825,
+      "duration": 1.17,
+      "peakDbFS": -5.064724589666021,
+      "sha256": "e4dd239056bd065a74c14829279b81513db7e297ca532ba18bae4ce14b8edc83"
+    },
+    {
+      "title": "Fabulous!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/020-fabulous.wav",
+      "start": 24.2825,
+      "end": 25.5125,
+      "duration": 1.23,
+      "peakDbFS": -2.9417731817513793,
+      "sha256": "c25aed4fb506c26100df38a406f31bc6069b651d3f567d9e064123544d916cfa"
+    },
+    {
+      "title": "Sensational!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/021-sensational.wav",
+      "start": 25.5125,
+      "end": 26.965,
+      "duration": 1.4525,
+      "peakDbFS": -2.1884197999220563,
+      "sha256": "283b502bb6bf997753d38e0d0ae739b3d9073072d9bc35eef58f35e136d602e1"
+    },
+    {
+      "title": "Terrific!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/022-terrific.wav",
+      "start": 26.965,
+      "end": 28.0425,
+      "duration": 1.0775,
+      "peakDbFS": -3.1903949576169994,
+      "sha256": "e3a89b8a2499fe6e770bc56cb733c1c02bec47757693b87fbf4b09963f61bfbe"
+    },
+    {
+      "title": "Splendid!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/023-splendid.wav",
+      "start": 28.0425,
+      "end": 29.2125,
+      "duration": 1.17,
+      "peakDbFS": -4.222635609393226,
+      "sha256": "2a36707f209f2cb4f8d3f66cf81ec852c82d965a4c266ddeb81d3cbe9d3628b1"
+    },
+    {
+      "title": "Exquisite!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/024-exquisite.wav",
+      "start": 29.2125,
+      "end": 30.42,
+      "duration": 1.2075,
+      "peakDbFS": -12.322439701641276,
+      "sha256": "53097047db471cb5e8d455f18e92734b54ed4968fafb3dd1fa426e454fa7f6d3"
+    },
+    {
+      "title": "Divine!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/025-divine.wav",
+      "start": 30.42,
+      "end": 31.68,
+      "duration": 1.26,
+      "peakDbFS": -6.617441200553862,
+      "sha256": "f174f52573655dc68802f3c1ba6c54302dc31d1a1abc8044eadc1f1fb0f80f02"
+    },
+    {
+      "title": "Glorious!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/026-glorious.wav",
+      "start": 31.68,
+      "end": 32.9825,
+      "duration": 1.3025,
+      "peakDbFS": -5.378534699862882,
+      "sha256": "4667b82d78dbc1b31f5c0981f512711389477a34070f6ea2de268605552a15b2"
+    },
+    {
+      "title": "Masterful!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/027-masterful.wav",
+      "start": 32.9825,
+      "end": 34.16,
+      "duration": 1.1775,
+      "peakDbFS": -3.1514447145969013,
+      "sha256": "62c49d104f6aa949dbb4df5d5b1bdaaa28a3177eb51914f2274481dc3edbebdd"
+    },
+    {
+      "title": "Flawless!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/028-flawless.wav",
+      "start": 34.16,
+      "end": 35.3425,
+      "duration": 1.1825,
+      "peakDbFS": -4.430262421448484,
+      "sha256": "83a92a5bdc1ce96b8e2609ec029a42ea97b866ebc8ff01b7f7f1751e4472e93a"
+    },
+    {
+      "title": "Supreme!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/029-supreme.wav",
+      "start": 35.3425,
+      "end": 36.5625,
+      "duration": 1.22,
+      "peakDbFS": -5.434846965958549,
+      "sha256": "2b33d82ef1dec69e852417475b1a8d2d0be22670ab2ad0b43c407793f8288d4e"
+    },
+    {
+      "title": "Epic!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/030-epic.wav",
+      "start": 36.5625,
+      "end": 37.4525,
+      "duration": 0.89,
+      "peakDbFS": -3.09296643983732,
+      "sha256": "134c61ce09a5d8e6008d89351cdeb460f21c66ed7642a96878b0bee1e88304f1"
+    },
+    {
+      "title": "Legendary!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/031-legendary.wav",
+      "start": 37.4525,
+      "end": 38.7875,
+      "duration": 1.335,
+      "peakDbFS": -3.5013063317914916,
+      "sha256": "6e2773d5ae3b0f576247831f28aa084e6ead03ac382ea3fbeb68b48016e2a5af"
+    },
+    {
+      "title": "Radiant!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/032-radiant.wav",
+      "start": 38.7875,
+      "end": 39.975,
+      "duration": 1.1875,
+      "peakDbFS": -6.8342044201566114,
+      "sha256": "bc9f828e8f300857a147b0e5d8dd6e9eea91f09aab1d2c807d1d1bf97e989c35"
+    },
+    {
+      "title": "Majestic!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/033-majestic.wav",
+      "start": 39.975,
+      "end": 41.26,
+      "duration": 1.285,
+      "peakDbFS": -3.7222616974458838,
+      "sha256": "0712b872f6e265e7c1af23435442c4c05fb0b582ed1960a5db5c75a3466b8eb1"
+    },
+    {
+      "title": "Unstoppable!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/034-unstoppable.wav",
+      "start": 41.26,
+      "end": 42.62,
+      "duration": 1.36,
+      "peakDbFS": -3.467654628574166,
+      "sha256": "1177d40b1f568dcf9e19ea863d8e8a199a3dad257ec44a07353718bc9f512bc9"
+    },
+    {
+      "title": "Victorious!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/035-victorious.wav",
+      "start": 42.62,
+      "end": 43.98,
+      "duration": 1.36,
+      "peakDbFS": -2.614047507935782,
+      "sha256": "4319144e3243badfc0fc5518df88dc1c941007cac7569a6d661eb7073ba61429"
+    },
+    {
+      "title": "Triumphant!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/036-triumphant.wav",
+      "start": 43.98,
+      "end": 45.1475,
+      "duration": 1.1675,
+      "peakDbFS": -3.769589692695952,
+      "sha256": "1dbe2ab2d9e047ff25a27a0dca68079e306f53a15d01844c082375e7cc02b997"
+    },
+    {
+      "title": "Dominant!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/037-dominant.wav",
+      "start": 45.1475,
+      "end": 46.21,
+      "duration": 1.0625,
+      "peakDbFS": -3.9218798778563175,
+      "sha256": "276a4c95f0cc59abd10c78038d7fbf331de98eeb7d0f57ae1afeae5ccc50ff92"
+    },
+    {
+      "title": "Epicness!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/038-epicness.wav",
+      "start": 46.21,
+      "end": 47.3875,
+      "duration": 1.1775,
+      "peakDbFS": -4.003870198130145,
+      "sha256": "ff5cb9ac430f76d190eb0e4eea87737fff6b87c6ababd637ba384fa8b14754ce"
+    },
+    {
+      "title": "Powerful!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/039-powerful.wav",
+      "start": 47.3875,
+      "end": 48.4,
+      "duration": 1.0125,
+      "peakDbFS": -1.8937159497585294,
+      "sha256": "aa518be2bf1a3e5c30db66b7be6ec9185948d2d8a2112384e0837bef57cd8f55"
+    },
+    {
+      "title": "Heroic!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/040-heroic.wav",
+      "start": 48.4,
+      "end": 49.485,
+      "duration": 1.085,
+      "peakDbFS": -2.8030439348475786,
+      "sha256": "5e376adc892093e35458bbaa2a3f25c7065e320ada5c907a4b85d1194bdf3670"
+    },
+    {
+      "title": "Gorgeous!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/041-gorgeous.wav",
+      "start": 49.485,
+      "end": 50.63,
+      "duration": 1.145,
+      "peakDbFS": -9.65501214934201,
+      "sha256": "a4b3868a9c529a91079dc0030ae3876fbd6ab767d3c1cdd5ffe6f578f75abf49"
+    },
+    {
+      "title": "Sparkling!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/042-sparkling.wav",
+      "start": 50.63,
+      "end": 51.685,
+      "duration": 1.055,
+      "peakDbFS": -4.811992298861062,
+      "sha256": "02272d9c32958822c9dd9646e998fc112ad1c25b66f7bc3ad74e93fadd6d6fb0"
+    },
+    {
+      "title": "Blazing!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/043-blazing.wav",
+      "start": 51.685,
+      "end": 52.7875,
+      "duration": 1.1025,
+      "peakDbFS": -4.616324035902562,
+      "sha256": "6d6c4a7d003475835d93c1b74109e2b5753cfea25b8cf6922637190bf79599ac"
+    },
+    {
+      "title": "Vibrant!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/044-vibrant.wav",
+      "start": 52.7875,
+      "end": 53.7825,
+      "duration": 0.995,
+      "peakDbFS": -2.3947845184916505,
+      "sha256": "622151a3c05ac522ee6efdf38e568a82865c32a0197110695a630d7cb247be1a"
+    },
+    {
+      "title": "Shining!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/045-shining.wav",
+      "start": 53.7825,
+      "end": 54.8075,
+      "duration": 1.025,
+      "peakDbFS": -3.5028931579458145,
+      "sha256": "9a9e84b21044ed70950f2fffd5b6b589a39e31167edea58bcba1c6ae8c805fbd"
+    },
+    {
+      "title": "Golden!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/046-golden.wav",
+      "start": 54.8075,
+      "end": 55.7875,
+      "duration": 0.98,
+      "peakDbFS": -4.640260208638839,
+      "sha256": "0800af1ea1573143f3e43e8538231680e20cf224e393dd5ff69d9e32b91f46b5"
+    },
+    {
+      "title": "Prime!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/047-prime.wav",
+      "start": 55.7875,
+      "end": 56.6625,
+      "duration": 0.875,
+      "peakDbFS": -3.8097756384472676,
+      "sha256": "3f9f40586ae208ac3ceaf0351b1746c911cf9f4840603f79308495abcbbc74ee"
+    },
+    {
+      "title": "Royal!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/048-royal.wav",
+      "start": 56.6625,
+      "end": 57.66,
+      "duration": 0.9975,
+      "peakDbFS": -4.303612408587231,
+      "sha256": "3359c35ad87859c28566a0abf9780154c4ffc25dc8e1dcd69c43f8c8bcf02181"
+    },
+    {
+      "title": "Ace!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/049-ace.wav",
+      "start": 57.66,
+      "end": 58.4825,
+      "duration": 0.8225,
+      "peakDbFS": -4.83277471120629,
+      "sha256": "9351576ed666f199c410512f9e49d90432b6765463a6a0497b3538ef5d385d2f"
+    },
+    {
+      "title": "Infinite!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/050-infinite.wav",
+      "start": 58.4825,
+      "end": 59.47,
+      "duration": 0.9875,
+      "peakDbFS": -6.081781516092009,
+      "sha256": "9b680fdfa36de8084896d6e0331aae3ec8a5d9c2e03c7d0c73fb486628e9001a"
+    },
+    {
+      "title": "Titanic!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/051-titanic.wav",
+      "start": 59.47,
+      "end": 60.64,
+      "duration": 1.17,
+      "peakDbFS": -1.8779072507968184,
+      "sha256": "bc7a4f28337a7f4561a281d7129db142fddaea8a10be6f121f5c470b7efecf73"
+    },
+    {
+      "title": "Grand!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/052-grand.wav",
+      "start": 60.64,
+      "end": 61.705,
+      "duration": 1.065,
+      "peakDbFS": -3.885732763980779,
+      "sha256": "c4d099164c17ff6d374e2626f07672a7bcac2d0d0d75382a62894adc59295003"
+    },
+    {
+      "title": "Mythic!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/053-mythic.wav",
+      "start": 61.705,
+      "end": 62.67,
+      "duration": 0.965,
+      "peakDbFS": -5.371644261212039,
+      "sha256": "d97dce6cd54f5a82c91d5247a17c0817b1328a745066f125fe9e284af3a96022"
+    },
+    {
+      "title": "Immortal!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/054-immortal.wav",
+      "start": 62.67,
+      "end": 63.77,
+      "duration": 1.1,
+      "peakDbFS": -4.4652068467243815,
+      "sha256": "a42eb1ceee8ec162ab515395de590378dd493c5ce51be57b191c035cc1a1821e"
+    },
+    {
+      "title": "Mega!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/055-mega.wav",
+      "start": 63.77,
+      "end": 64.6775,
+      "duration": 0.9075,
+      "peakDbFS": -3.7781853288631218,
+      "sha256": "986171058f8e53b740521cfe6d6339c48a23873ca45030fb22d26e0083eaa0f3"
+    },
+    {
+      "title": "Ultra!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/056-ultra.wav",
+      "start": 64.6775,
+      "end": 65.55,
+      "duration": 0.8725,
+      "peakDbFS": -4.552516385858775,
+      "sha256": "74b0f5177f4819024163495bcec2af39997919adcfa7f9373773b58e8b495405"
+    },
+    {
+      "title": "Primeval!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/057-primeval.wav",
+      "start": 65.55,
+      "end": 66.6375,
+      "duration": 1.0875,
+      "peakDbFS": -4.835086940592516,
+      "sha256": "401fdf1447e0389bfc9d8ee5de4d7662cd5ea8a1a152771292e2438e4361f35f"
+    },
+    {
+      "title": "Booming!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/058-booming.wav",
+      "start": 66.6375,
+      "end": 67.6925,
+      "duration": 1.055,
+      "peakDbFS": -3.425477595267077,
+      "sha256": "8461b0a217a6a35f813591219d8bda2596c31272d78d6a629533471825efd1f1"
+    },
+    {
+      "title": "Nice win!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/059-nice-win.wav",
+      "start": 67.6925,
+      "end": 68.855,
+      "duration": 1.1625,
+      "peakDbFS": -2.1914895612680447,
+      "sha256": "a7ad763a2d7a70e8fb05a310dd03cbce2ef7b335934fa00c4d3e9efc6399af15"
+    },
+    {
+      "title": "Clean board!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/060-clean-board.wav",
+      "start": 68.855,
+      "end": 69.9875,
+      "duration": 1.1325,
+      "peakDbFS": -6.345207568857928,
+      "sha256": "e926135813dd16abfae6d9c94ab89aaf9f41ce006e2b2a67a14402697ea66247"
+    },
+    {
+      "title": "Cleared it!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/061-cleared-it.wav",
+      "start": 69.9875,
+      "end": 70.9025,
+      "duration": 0.915,
+      "peakDbFS": -2.230124730130319,
+      "sha256": "e0b80e938876320f91cd417973c813aa68e0f5212bc8a28b9d49be03f27ef7ac"
+    },
+    {
+      "title": "Nailed it!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/062-nailed-it.wav",
+      "start": 70.9025,
+      "end": 71.905,
+      "duration": 1.0025,
+      "peakDbFS": -4.03038944852511,
+      "sha256": "4b85d47ce570a7d487853d4ab6e2e08a8d20da2dcbe5acdd5e45921ea1cea1d6"
+    },
+    {
+      "title": "You won!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/063-you-won.wav",
+      "start": 71.905,
+      "end": 72.93,
+      "duration": 1.025,
+      "peakDbFS": -3.646504524856689,
+      "sha256": "2cb83e7b43bb14684fcf5c4d55591cf9e5b2fd2636f11eafaa6cc7c51beb6c40"
+    },
+    {
+      "title": "Yesss!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/064-yesss.wav",
+      "start": 72.93,
+      "end": 73.9375,
+      "duration": 1.0075,
+      "peakDbFS": -3.394076631470983,
+      "sha256": "d15f3627f0756349158529cd70ddc7b39af8b0cf65c9086bc4057460c2584ba8"
+    },
+    {
+      "title": "Wooow!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/065-wooow.wav",
+      "start": 73.9375,
+      "end": 74.85,
+      "duration": 0.9125,
+      "peakDbFS": -4.477626034351357,
+      "sha256": "eb509d02790c48ad7e6396d5d2a0da4d2cb1a4da800c472278884ee1745b69a9"
+    },
+    {
+      "title": "Sweet win!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/066-sweet-win.wav",
+      "start": 74.85,
+      "end": 76.0325,
+      "duration": 1.1825,
+      "peakDbFS": -6.132649923702411,
+      "sha256": "6b44dec4531e1a273228f290a0dff40ef626a55d3776776029637f6d31430087"
+    },
+    {
+      "title": "Easy win!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/067-easy-win.wav",
+      "start": 76.0325,
+      "end": 77.1875,
+      "duration": 1.155,
+      "peakDbFS": -6.602689539121229,
+      "sha256": "f5f6fe4fb67506203730cad23b90cd9664918ac542d2a1f7b4f372e0025e8e4e"
+    },
+    {
+      "title": "Big win!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/068-big-win.wav",
+      "start": 77.1875,
+      "end": 78.305,
+      "duration": 1.1175,
+      "peakDbFS": -5.06140093764709,
+      "sha256": "605b313ad6c9243c7f6faa5c033e8a6f980722506ad012665b48d23e9a7ce4c3"
+    },
+    {
+      "title": "Smooth!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/069-smooth.wav",
+      "start": 78.305,
+      "end": 79.315,
+      "duration": 1.01,
+      "peakDbFS": -8.425867463543891,
+      "sha256": "3f55171a945fc71e74c6e733f5c0a695317e4ffb2a71afee2416478eda7f6097"
+    },
+    {
+      "title": "So clean!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/070-so-clean.wav",
+      "start": 79.315,
+      "end": 80.6325,
+      "duration": 1.3175,
+      "peakDbFS": -4.468309979299631,
+      "sha256": "d86d7fdb03026d9cd0a40b785cf9821c8b6b5173b4c669f128c49e27f2d4ff5b"
+    },
+    {
+      "title": "Well played!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/071-well-played.wav",
+      "start": 80.6325,
+      "end": 81.715,
+      "duration": 1.0825,
+      "peakDbFS": -3.90690420235676,
+      "sha256": "de8398e5fbf6fbe189337ce89aeb095c6e4a98108e46896880165560e027167c"
+    },
+    {
+      "title": "Nice one!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/072-nice-one.wav",
+      "start": 81.715,
+      "end": 82.66,
+      "duration": 0.945,
+      "peakDbFS": -3.9728236581339154,
+      "sha256": "bf4ea5fd90ec9cccc4e6b9ae076efa580662f2186ee0c57132a70c92fdf37cd5"
+    },
+    {
+      "title": "Great job!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/073-great-job.wav",
+      "start": 82.66,
+      "end": 83.7475,
+      "duration": 1.0875,
+      "peakDbFS": -4.5749304405089735,
+      "sha256": "82ec55cfde73dbc98ad447a75f1d3bb7516b027a591908b183a09d4de305d8a6"
+    },
+    {
+      "title": "Boom!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/074-boom.wav",
+      "start": 83.7475,
+      "end": 84.6375,
+      "duration": 0.89,
+      "peakDbFS": -3.9853967213253068,
+      "sha256": "4a8e1dec924db45399399b6c287f7ffea8fd3869b744f461db7f8dd9562af488"
+    },
+    {
+      "title": "Dicely done!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/075-dicely-done.wav",
+      "start": 84.6375,
+      "end": 85.8375,
+      "duration": 1.2,
+      "peakDbFS": -2.334231174282138,
+      "sha256": "9dd0904a6c7392965086c0a4af0a813eed01fcbcb804868d6baf59e90db56842"
+    },
+    {
+      "title": "Dice cleared!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/076-dice-cleared.wav",
+      "start": 85.8375,
+      "end": 86.9225,
+      "duration": 1.085,
+      "peakDbFS": -3.068401721548966,
+      "sha256": "88e454bb70104ea9efff0f5a278506d35e5609bb2a0c69eaa4e64e0c273b420a"
+    },
+    {
+      "title": "Dice master!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/077-dice-master.wav",
+      "start": 86.9225,
+      "end": 88.3775,
+      "duration": 1.455,
+      "peakDbFS": -2.72760430333943,
+      "sha256": "e1f7d9288b0d4766c37d032cee3701ce0a29f7161f33705e3b1edc9eb7169b5d"
+    },
+    {
+      "title": "Rollin’!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/078-rollin.wav",
+      "start": 88.3775,
+      "end": 89.4975,
+      "duration": 1.12,
+      "peakDbFS": -3.5462461325561954,
+      "sha256": "57862626c0a622aa6359c45d61b27c4c72cc11f2e6e7874446b06047a0c50456"
+    },
+    {
+      "title": "Perfect roll!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/079-perfect-roll.wav",
+      "start": 89.4975,
+      "end": 90.87,
+      "duration": 1.3725,
+      "peakDbFS": -2.4906496492481307,
+      "sha256": "4fb1fea8e2ac09e3afbf5c649627eadb2b17858e311978e3131ca2594db1312e"
+    },
+    {
+      "title": "Lucky six!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/080-lucky-six.wav",
+      "start": 90.87,
+      "end": 92.24,
+      "duration": 1.37,
+      "peakDbFS": -4.166783131592857,
+      "sha256": "7b0943b1769b9125a73a515ace3541d12242e08d97aa5c852fd562bc16f75ca2"
+    },
+    {
+      "title": "Stack cleared!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/081-stack-cleared.wav",
+      "start": 92.24,
+      "end": 93.4775,
+      "duration": 1.2375,
+      "peakDbFS": -2.9548002506913646,
+      "sha256": "43a8a8d73318d3cded8d02b3598b2842269e19202ebff82782740d2191c1103e"
+    },
+    {
+      "title": "Stack complete!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/082-stack-complete.wav",
+      "start": 93.4775,
+      "end": 94.9425,
+      "duration": 1.465,
+      "peakDbFS": -2.756682087998751,
+      "sha256": "a28982bffe89af4c11b6f16114af37c5c0e03900ce6d981131aa793a849afb77"
+    },
+    {
+      "title": "Stack attack!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/083-stack-attack.wav",
+      "start": 94.9425,
+      "end": 96.245,
+      "duration": 1.3025,
+      "peakDbFS": -2.330763891637371,
+      "sha256": "a1cd8e2ab92ada85650ac9e1f2ad13714d8ab2d4698994aff2a469aec9d65df4"
+    },
+    {
+      "title": "Stack magic!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/084-stack-magic.wav",
+      "start": 96.245,
+      "end": 97.8525,
+      "duration": 1.6075,
+      "peakDbFS": -3.9778506996389904,
+      "sha256": "66e878c47e8504dc5cfadbd79e9d16b08755f05dccecaafcd1f3790e7f416994"
+    },
+    {
+      "title": "Board smashed!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/085-board-smashed.wav",
+      "start": 97.8525,
+      "end": 99.4,
+      "duration": 1.5475,
+      "peakDbFS": -1.3763916328697736,
+      "sha256": "a4535be9768dbad25dc53d65dda591f8907855c3a341a03e3985129f124491d9"
+    },
+    {
+      "title": "Board cleared!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/086-board-cleared.wav",
+      "start": 99.4,
+      "end": 100.5775,
+      "duration": 1.1775,
+      "peakDbFS": -3.305589522735435,
+      "sha256": "d89905cb9e0996040b45daf225a244ce9dc053ff4679a87610ccc768daea6c21"
+    },
+    {
+      "title": "Clean sweep!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/087-clean-sweep.wav",
+      "start": 100.5775,
+      "end": 101.9925,
+      "duration": 1.415,
+      "peakDbFS": -4.597402484602469,
+      "sha256": "19b39ca09d9ad56ae194e8f9d460475614506a7cf7086bf08bc1c408497ff860"
+    },
+    {
+      "title": "Full clear!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/088-full-clear.wav",
+      "start": 101.9925,
+      "end": 103.17,
+      "duration": 1.1775,
+      "peakDbFS": -3.0604802530217508,
+      "sha256": "ae425a932bffbc8810a9b6bd73b65913125f5c60ebcde789b2d1989491dfb3cc"
+    },
+    {
+      "title": "Total clear!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/089-total-clear.wav",
+      "start": 103.17,
+      "end": 104.3475,
+      "duration": 1.1775,
+      "peakDbFS": -1.4112472740355966,
+      "sha256": "114ce5a355ffc3e39eb07ee4a01de770402afa2a5ae6a4a59eba3d4c929c2a02"
+    },
+    {
+      "title": "Perfect clear!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/090-perfect-clear.wav",
+      "start": 104.3475,
+      "end": 105.6825,
+      "duration": 1.335,
+      "peakDbFS": -1.3098707003235155,
+      "sha256": "c1010a51f487d4607ff3f51e52806bddc2f63fc5bcb5056b0caa275a9eb017e4"
+    },
+    {
+      "title": "All gone!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/091-all-gone.wav",
+      "start": 105.6825,
+      "end": 106.755,
+      "duration": 1.0725,
+      "peakDbFS": -2.506907422685667,
+      "sha256": "8596de0775a4eed256de91f32355f32d423cae0ab54ccd8bc74635fc7446f863"
+    },
+    {
+      "title": "Done & dusted!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/092-done-dusted.wav",
+      "start": 106.755,
+      "end": 108.4475,
+      "duration": 1.6925,
+      "peakDbFS": -2.6906707499804043,
+      "sha256": "326dd37ae365769b46290e38862bc91fe45c1c269603e8993e496bf44a782604"
+    },
+    {
+      "title": "Crushed it!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/093-crushed-it.wav",
+      "start": 108.4475,
+      "end": 109.44,
+      "duration": 0.9925,
+      "peakDbFS": -3.376072347656564,
+      "sha256": "d993b3734eee8d03ad9568123d55af3e0d7439eec16f000b12a61efb8062a5f8"
+    },
+    {
+      "title": "Smashed it!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/094-smashed-it.wav",
+      "start": 109.44,
+      "end": 110.565,
+      "duration": 1.125,
+      "peakDbFS": -3.302487419260296,
+      "sha256": "00f6467e994b3a786af372e3e94e35e2e19ac1cf6614b835f9919f42fe66ec09"
+    },
+    {
+      "title": "Owned it!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/095-owned-it.wav",
+      "start": 110.565,
+      "end": 111.515,
+      "duration": 0.95,
+      "peakDbFS": -1.9171525332026718,
+      "sha256": "2453d9178709dfe02e395d4f98eeb84c63abc7adc50f51d214b1adb4829d6e0a"
+    },
+    {
+      "title": "Got ’em!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/096-got-em.wav",
+      "start": 111.515,
+      "end": 112.305,
+      "duration": 0.79,
+      "peakDbFS": -1.4908170578900046,
+      "sha256": "994e08a73706cedd68677f53ca8fb48f3eef9dccdaa23985d8fc93fd584672d6"
+    },
+    {
+      "title": "That’s it!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/097-thats-it.wav",
+      "start": 112.305,
+      "end": 113.2725,
+      "duration": 0.9675,
+      "peakDbFS": -1.7804001953158055,
+      "sha256": "882077ef067fdcafcf04ac9a2acbf0ff55d466e8515ab214e6b7e1ee1d140ff6"
+    },
+    {
+      "title": "Oh yeah!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/098-oh-yeah.wav",
+      "start": 113.2725,
+      "end": 114.3775,
+      "duration": 1.105,
+      "peakDbFS": -1.8749463202625836,
+      "sha256": "c336b7f62b3148827d61f88a01b5e1782379e0e02276e13d2296a1de7d9f2224"
+    },
+    {
+      "title": "Heck yeah!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/099-heck-yeah.wav",
+      "start": 114.3775,
+      "end": 115.4,
+      "duration": 1.0225,
+      "peakDbFS": -1.9595648351284978,
+      "sha256": "5027c86b10eca800acdd52b380d240463d1e03509fc0778d73ff010cac4fa503"
+    },
+    {
+      "title": "Let’s gooo!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/100-lets-gooo.wav",
+      "start": 115.4,
+      "end": 116.8975,
+      "duration": 1.4975,
+      "peakDbFS": -2.3912929842411277,
+      "sha256": "692fbc49e242e623c6e8f0e5783ae58f7d287e5995c94c0d95ea512d0909da38"
+    },
+    {
+      "title": "Too easy!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/101-too-easy.wav",
+      "start": 116.8975,
+      "end": 117.9325,
+      "duration": 1.035,
+      "peakDbFS": -5.708199076035511,
+      "sha256": "193dfdbb44a4147c79b3dd07b4fe169e1d087fbac79b20d8dd709edb5343b6c7"
+    },
+    {
+      "title": "So good!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/102-so-good.wav",
+      "start": 117.9325,
+      "end": 119.1525,
+      "duration": 1.22,
+      "peakDbFS": -3.6934204145779983,
+      "sha256": "608e17c8fe7fa4ac316688a9888d73a76a742b88bf746e38f8eab242fcf904c0"
+    },
+    {
+      "title": "Super clean!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/103-super-clean.wav",
+      "start": 119.1525,
+      "end": 120.4425,
+      "duration": 1.29,
+      "peakDbFS": -3.6469078912225665,
+      "sha256": "a3525196ab6e4f5c3ba076e7631acc5be03211d8fa8749f09c4aec23dbfe7b2b"
+    },
+    {
+      "title": "Mega win!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/104-mega-win.wav",
+      "start": 120.4425,
+      "end": 121.69,
+      "duration": 1.2475,
+      "peakDbFS": -2.5359643586578584,
+      "sha256": "b74c5a606f7aa4324cb95f6dbd18b39fb1de67f0f4dadad1603cb0b02445bd03"
+    },
+    {
+      "title": "Epic clear!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/105-epic-clear.wav",
+      "start": 121.69,
+      "end": 122.9425,
+      "duration": 1.2525,
+      "peakDbFS": -2.1996808995038677,
+      "sha256": "e98a4623440f65d71bb1770322acf30bd3c7d1fcce774f5992fe73b5dfba9395"
+    },
+    {
+      "title": "Dicey nice!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/106-dicey-nice.wav",
+      "start": 122.9425,
+      "end": 124.3725,
+      "duration": 1.43,
+      "peakDbFS": -1.7774723124909286,
+      "sha256": "0a8f5e1c2b88b1cee34f2743fe6074dfb559cd31eaffcaad3c0bba4e9ae35c83"
+    },
+    {
+      "title": "Roll star!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/107-roll-star.wav",
+      "start": 124.3725,
+      "end": 125.465,
+      "duration": 1.0925,
+      "peakDbFS": -3.2788702406134744,
+      "sha256": "3a20222773173d56f9283a2e892f8a87d5cf094e1e57deb2e4d8488c2fdca739"
+    },
+    {
+      "title": "Stack star!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/108-stack-star.wav",
+      "start": 125.465,
+      "end": 126.74,
+      "duration": 1.275,
+      "peakDbFS": -3.09296643983732,
+      "sha256": "9c3f2fa578dc7bd765620f1dca0673bd30f00b35a24273befed09e59d18b845c"
+    },
+    {
+      "title": "Dice-lightful!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/109-dice-lightful.wav",
+      "start": 126.74,
+      "end": 128.1475,
+      "duration": 1.4075,
+      "peakDbFS": -2.1157454743052186,
+      "sha256": "d7cd3a2dc03495d334e37ea262e8ef300f355da1bbc3942697e06f5894b8be95"
+    },
+    {
+      "title": "Ultra win!",
+      "source": "assets/sound/Clean board/voice/clean booard title voice/110-ultra-win.wav",
+      "start": 128.1475,
+      "end": 129.48897916666667,
+      "duration": 1.3414791666666666,
+      "peakDbFS": -3.9933690850222803,
+      "sha256": "8e87707575d8e7bd235abf5f6b3f65b03f179b9dacfeca493489fbdbffc06207"
+    }
+  ]
+}

@@ -95,7 +95,7 @@ final class NativeTutorialCompleteController: UIViewController {
 
         let buttonBottom=height-max(24,view.safeAreaInsets.bottom+20)
         let buttonTop=buttonBottom-JimiV9PlainButton.primaryCTAHeight
-        let buttonWidth=button.primaryCTASize(maxWidth:contentWidth).width
+        let buttonWidth=JimiV9PlainButton.modalCTAWidth([button],maxWidth:contentWidth)
         button.cartoonBounceLayoutView.bounds=CGRect(x:0,y:0,width:buttonWidth,height:JimiV9PlainButton.primaryCTAHeight)
         button.cartoonBounceLayoutView.center=CGPoint(x:width/2,y:buttonTop+JimiV9PlainButton.primaryCTAHeight/2)
         button.layoutCartoonContent()

@@ -11,6 +11,8 @@ final class NativeHUDCloseNode:SKNode {
     let icon:SKSpriteNode
     var onTapFinished:(()->Void)?
     var isTapAnimating:Bool {action(forKey:"hud-tap-bounce") != nil}
+    private var visualScale:CGFloat=1
+    private let iconBaseSize:CGSize
     private var tapBase:CGPoint?
     private var tapPosition:CGPoint?
     init(texture:SKTexture?,stageFont:UIFont) {
@@ -27,11 +29,16 @@ final class NativeHUDCloseNode:SKNode {
         ring.fillColor = .clear;ring.lineWidth=2;ring.lineCap = .butt;ring.lineJoin = .miter;ring.miterLimit=10;ring.isAntialiased=true
         icon=SKSpriteNode(texture:texture)
         let dimensions=texture?.size() ?? CGSize(width:24,height:24),scale=24/max(1,max(dimensions.width,dimensions.height))
-        icon.size=CGSize(width:dimensions.width*scale,height:dimensions.height*scale);icon.alpha=0.8
+        iconBaseSize=CGSize(width:dimensions.width*scale,height:dimensions.height*scale)
+        icon.size=iconBaseSize;icon.alpha=0.8
         super.init();name="native-game-close";zPosition=10;addChild(ring);addChild(icon)
     }
     required init?(coder:NSCoder){fatalError("Use preserved close artwork")}
-    func layout(valueRowY:CGFloat) {
+    func layout(valueRowY:CGFloat,visualScale:CGFloat=1) {
+        if self.visualScale != visualScale {
+            self.visualScale=visualScale;ring.setScale(visualScale)
+            icon.size=CGSize(width:iconBaseSize.width*visualScale,height:iconBaseSize.height*visualScale)
+        }
         position=CGPoint(x:24+stageAdvance/2,y:valueRowY)
     }
     func playTapBounce() {
@@ -50,7 +57,9 @@ final class NativeHUDCloseNode:SKNode {
         if let origin=tapPosition{position=origin};tapPosition=nil;tapBase=nil
     }
     var hitRect:CGRect {
-        let circle=CGRect(x:position.x-22,y:position.y-22,width:44,height:44)
+        let radius=Self.radius*visualScale
+        let circle=CGRect(x:position.x-radius,y:position.y-radius,width:radius*2,height:radius*2)
+        if visualScale != 1 {return circle.insetBy(dx:-8,dy:-8)}
         let sourceLongWrapper=CGRect(x:0,y:position.y-32,width:104,height:68)
         return circle.union(sourceLongWrapper)
     }

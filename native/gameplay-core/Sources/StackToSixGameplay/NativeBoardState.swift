@@ -1,5 +1,24 @@
 import Foundation
 
+/// Stable game-wide integer presentation, independent of device locale.
+/// Stored values and calculations always retain their original integer values.
+public enum NativeScoreDisplay {
+    public static func text(_ value:Int)->String {
+        let digits=String(value.magnitude),count=digits.count
+        var result=value<0 ? "-":""
+        for (index,digit) in digits.enumerated() {
+            if index>0,(count-index)%3==0 {result.append(".")}
+            result.append(digit)
+        }
+        return result
+    }
+    public static func padded(_ value:Int)->String {value>=1000 ? text(value):String(format:"%02d",value)}
+}
+
+public enum NativeComboDisplay {
+    public static func text(_ combo:Int)->String {NativeScoreDisplay.text(max(0,combo))}
+}
+
 /// One reward per Wild/Special merge-six, using the resulting combo.
 public enum NativeComboCoinPolicy {
     public static let maximumCount=7
@@ -145,7 +164,7 @@ public struct NativeBoardState: Equatable, Codable, Sendable {
 
         if live.contains(where: { $0.cell.column < 0 || $0.cell.column >= columns || $0.cell.row < 0 || $0.cell.row >= rows }) { issues.append("coordinate-mismatch") }
         if tiles.contains(where: { $0.id.isEmpty || $0.stackDepth < 1 || !(0...6).contains($0.value) || !$0.alpha.isFinite || ($0.variant != nil && NativeSpecialDiceRegistry.variants[$0.variant!] == nil) }) { issues.append("invalid-die") }
-        if moves < 0 || maxMoves < 0 || score < 0 || starsCount < 0 || bestScore < 0 || !(0...99).contains(combo) || !wildMeter.isFinite || !(0...10).contains(wildMeter) { issues.append("invalid-run-counters") }
+        if moves < 0 || maxMoves < 0 || score < 0 || starsCount < 0 || bestScore < 0 || combo < 0 || !wildMeter.isFinite || !(0...10).contains(wildMeter) { issues.append("invalid-run-counters") }
         return issues
     }
 }

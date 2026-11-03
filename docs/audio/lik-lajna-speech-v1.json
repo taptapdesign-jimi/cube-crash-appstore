@@ -1,0 +1,53 @@
+{
+  "recordingId": "lik-lajna-voice-v1",
+  "source": "assets/sound/SPEECH/Jimbo voice compilation/lik lajna.mp3",
+  "sourceSHA256": "e3f9eb2fb27944e03f2cafed332c554b8d6f814084891cddfc8b45f1fa646aaa",
+  "format": "48000Hz mono PCM16 WAV",
+  "processing": "Complete source decoded once;no cuts,gain,normalization,pitch or rate changes;original MP3 preserved.",
+  "clips": [
+    {
+      "order": 1,
+      "sceneId": "intro-lik-pas-SVG",
+      "lineId": "lik-lajna-voice-v1-1",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/lik-lajna-voice-v1/001-leash-laugh.wav",
+      "file": "001-leash-laugh.wav",
+      "text": "[smiling out load ] ha ha ha ha ha ha ! oh my hahaha!",
+      "spokenText": "ha ha ha ha ha ha ! oh my hahaha!",
+      "startFrame": 0,
+      "endFrame": 201874,
+      "duration": 4.205708333333333,
+      "sha256": "62acf5b265ef933897ac763d8f3e6e2384ee3d167c01f1f74e09a31281b12915"
+    }
+  ],
+  "delivery": {
+    "bundle": "com.taptapdesign.stacktosix.native",
+    "launch": "com.taptapdesign.stacktosix.native: 41010",
+    "assetsVerified": 2905,
+    "all151InstalledClipHashesMatch": true,
+    "saveBefore": {
+      "state-v1.previous.json": "0591919c988ea97c0b9a0416c8493b072e273c36f224e1242e0e82836ac9358c",
+      "state-v1.json": "b04ed1c0206a0e9c1c48bf6539e1ae5552f3fa87bc975d3ed17e539625f7ebc8"
+    },
+    "saveAfter": {
+      "state-v1.previous.json": "0591919c988ea97c0b9a0416c8493b072e273c36f224e1242e0e82836ac9358c",
+      "state-v1.json": "b04ed1c0206a0e9c1c48bf6539e1ae5552f3fa87bc975d3ed17e539625f7ebc8"
+    },
+    "bothSavesByteIdentical": true
+  },
+  "audioValidation": {
+    "duration": 4.205708333333333,
+    "peakDbFS": -2.7029644930906676,
+    "asrText": " Ha ha ha ha!  Oh my!",
+    "originalHashUnchanged": true,
+    "decodedSamplesUnchanged": true,
+    "studioHTTPHashMatches": true
+  },
+  "validation": {
+    "studioTests": "133PASS",
+    "nativeAudioTests": "77PASS including exact leash trigger/Nala/no old human overlap/foreground stop/duration fits intro and all151registry choices",
+    "qaAudioRuntime": "PASS",
+    "qaIOS": "PASS",
+    "qaFull": "PASS all selected gates;530Jest suites/4010tests plus KING24suites/330tests",
+    "physicalListening": "NEEDS PHYSICAL TEST"
+  }
+}

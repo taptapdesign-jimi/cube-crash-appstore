@@ -12,6 +12,11 @@ enum NativeResultPresentationPlan {
     static let cleanPrimaryCTAStart=cleanCountingTime(6.62)
     static func cleanCounterDuration(from:Int,to:Int)->Double {counterDuration(from:from,to:to)*cleanCountingScale}
     static let scoreBounceDuration=0.6
+    static func finalScoreBounceStart(baseScore:Int,combo:Int,efficiency:Int,arcadeReached:Bool)->Double {
+        if !arcadeReached,efficiency>0 {return cleanEfficiencyStart+cleanCounterDuration(from:baseScore+combo,to:baseScore+combo+efficiency)}
+        if !arcadeReached,combo>0 {return cleanComboStart+cleanCounterDuration(from:baseScore,to:baseScore+combo)}
+        return 0.47+cleanCounterDuration(from:0,to:baseScore)
+    }
     struct CounterAccent {
         let motion:Double,x:Double,y:Double
         let bounceX:Double,bounceY:Double,bounceOffset:Double,blur:Double
@@ -25,9 +30,9 @@ enum NativeResultPresentationPlan {
         if !arcadeReached,efficiency>0 {windows.append((cleanEfficiencyStart,cleanEfficiencyStart+cleanCounterDuration(from:baseScore+combo,to:baseScore+combo+efficiency)))}
         let active=windows.first{seconds >= $0.start && seconds < $0.end}
         let motion=active.map{min(1,max(0,(seconds-$0.start)/0.06))*min(1,max(0,($0.end-seconds)/0.10))} ?? 0
-        let end=windows.map(\.end).max()
-        let age=end.map{seconds-$0} ?? -1
-        let bouncing=age>=0 && age<scoreBounceDuration
+        let end=finalScoreBounceStart(baseScore:baseScore,combo:combo,efficiency:efficiency,arcadeReached:arcadeReached)
+        let age=seconds-end
+        let bouncing = !windows.isEmpty && age>=0 && age<scoreBounceDuration
         let bounce=NativeHUDTapMotion.pose(at:bouncing ? age*NativeHUDTapMotion.duration/scoreBounceDuration:NativeHUDTapMotion.duration)
         // Approximate a short shutter exposure from the existing vertical shake
         // and bounce velocity. The motion recipe and timing remain unchanged.
@@ -65,21 +70,22 @@ enum NativeResultPresentationPlan {
         let displayedScore,displayedCombo,displayedEfficiency:Int
     }
     static func layout(viewport:CGSize,clean:Bool,titleHeight:Double,primarySize:CGSize?=nil,actionGap:CGFloat=16)->Layout {
-        let w=Double(viewport.width),h=Double(viewport.height),s=min(90,max(60,w*0.2))
-        let cw=min(340,w*0.88),inner=cw-64,heroW=min(280,w*0.8),buttons=min(w<1025 ? 249:310,w*0.8)
-        let infoH=clean ? s+244+titleHeight:s+100+titleHeight
+        let u=Double(NativeTabletLayout.textScale(viewport))
+        let w=Double(viewport.width),h=Double(viewport.height),s=min(90*u,max(60,w*0.2))
+        let cw=min(u>1 ? 440:340,w*0.88),inner=cw-64*u,heroW=min(u>1 ? 340:280,w*0.8),buttons=min(w<1025 ? 249:310,w*0.8)
+        let infoH=clean ? s+244*u+titleHeight:s+100*u+titleHeight
         let primaryW=Double(primarySize?.width ?? CGFloat(buttons)),primaryH=Double(primarySize?.height ?? 64),secondaryH=Double(primarySize?.height ?? 64)
-        let cardH=infoH+80,outerH=cardH+18+primaryH+Double(actionGap)+secondaryH,top=(h-outerH)/2
+        let cardH=infoH+80*u,outerH=cardH+18*u+primaryH+Double(actionGap)+secondaryH,top=(h-outerH)/2
         let card=CGRect(x:(w-cw)/2,y:top,width:cw,height:cardH)
-        let sy=top+40+(clean ? 16:0),ty=sy+s+(clean ? 48:64)
+        let sy=top+40*u+(clean ? 16*u:0),ty=sy+s+(clean ? 48:64)*u
         let title=CGRect(x:(w-inner)/2,y:ty,width:inner,height:titleHeight)
-        let label=CGRect(x:(w-inner)/2,y:title.maxY+16,width:inner,height:24)
-        let score=CGRect(x:(w-inner)/2,y:label.maxY+16,width:inner,height:80)
-        let status=CGRect(x:(w-inner)/2,y:clean ? score.maxY+8:title.maxY+12,width:inner,height:clean ? 52:24)
+        let label=CGRect(x:(w-inner)/2,y:title.maxY+16*u,width:inner,height:24*u)
+        let score=CGRect(x:(w-inner)/2,y:label.maxY+16*u,width:inner,height:80*u)
+        let status=CGRect(x:(w-inner)/2,y:clean ? score.maxY+8*u:title.maxY+12*u,width:inner,height:(clean ? 52:24)*u)
         return Layout(card:card,hero:CGRect(x:(w-heroW)/2,y:sy,width:heroW,height:s),title:title,
             scoreLabel:label,score:score,status:status,
-            primary:CGRect(x:(w-primaryW)/2,y:card.maxY+18,width:primaryW,height:primaryH),
-            secondary:CGRect(x:(w-primaryW)/2,y:card.maxY+18+primaryH+Double(actionGap),width:primaryW,height:secondaryH),starSize:s)
+            primary:CGRect(x:(w-primaryW)/2,y:card.maxY+18*u,width:primaryW,height:primaryH),
+            secondary:CGRect(x:(w-primaryW)/2,y:card.maxY+18*u+primaryH+Double(actionGap),width:primaryW,height:secondaryH),starSize:s)
     }
     static func counterDuration(from:Int,to:Int)->Double {min(1.5,max(0.8,Double(abs(to-from))/500))}
     static func counter(from:Int,to:Int,age:Double,duration:Double?=nil)->Int {

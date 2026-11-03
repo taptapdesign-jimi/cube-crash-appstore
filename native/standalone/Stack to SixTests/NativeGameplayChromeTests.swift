@@ -12,6 +12,8 @@ final class NativeGameplayChromeTests:XCTestCase {
         let samples=try JSONDecoder().decode([Sample].self,from:Data(NativeGameplayChromeSourceOracle.json.utf8))
         XCTAssertEqual(samples.count,35)
         for sample in samples {
+            // Tablet projection is an explicit later user adaptation.
+            if NativeTabletLayout.applies(CGSize(width:sample.width,height:sample.height)) {continue}
             let plan=NativeGameplayChromePlan.make(viewport:CGSize(width:sample.width,height:sample.height),safeTop:sample.safeTop)
             XCTAssertEqual(plan.hudTop,sample.hudTop,accuracy:1e-8)
             XCTAssertEqual(plan.valueRowY,sample.valueRowY,accuracy:1e-8)

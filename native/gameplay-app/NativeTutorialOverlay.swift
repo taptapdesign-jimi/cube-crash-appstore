@@ -102,7 +102,7 @@ final class NativeTutorialOverlay:UIView {
         paper.frame=sheetSurface.bounds;paper.layer.cornerRadius=36;paper.layer.maskedCorners=sheetSurface.layer.maskedCorners
         heading.frame=CGRect(x:28,y:top,width:max(0,bounds.width-56),height:headingHeight)
         subtitle.frame=CGRect(x:(bounds.width-min(280,bounds.width-56))/2,y:heading.frame.maxY+10,width:min(280,bounds.width-56),height:subtitleHeight)
-        let width=button.primaryCTASize(maxWidth:bounds.width-56).width
+        let width=JimiV9PlainButton.modalCTAWidth(sourceCTA == nil ? [button]:[sourceCTAVisual],maxWidth:bounds.width-56)
         button.setCartoonBounceFrame(CGRect(x:(bounds.width-width)/2,y:subtitle.frame.maxY+16,width:width,height:JimiV9PlainButton.primaryCTAHeight))
         sourceCTAVisual.bounds=button.bounds;sourceCTAVisual.center=CGPoint(x:button.bounds.midX,y:button.bounds.midY)
 

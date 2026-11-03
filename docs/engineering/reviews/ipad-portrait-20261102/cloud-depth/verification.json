@@ -1,0 +1,52 @@
+{
+  "scope": "iPad portrait only; original phone geometry/hierarchy/motion retained",
+  "changes": {
+    "beachAdditionalDownPoints": 16,
+    "beachTotalDownPoints": 40,
+    "horizontalCloudTravelMultiplier": 1.4,
+    "periodsUnchanged": true,
+    "allCloudsBehindAllWorlds": true
+  },
+  "ipad": {
+    "device": "43A75086-0C64-464C-B71C-FDD01AF59C32",
+    "bundle": "com.taptapdesign.stacktosix.native",
+    "normalLaunch": "com.taptapdesign.stacktosix.native: 3889",
+    "runtimeHashes": {
+      "Stack to Six": "ed54f27e894a561a3016e7fbeac0e6f6427b930289c37a96549ef62cb8fcc44b",
+      "Stack to Six.debug.dylib": "57779cbe3f13efd1e51b454b3f4875c0cb58ec7649f57ee997cd259a989e936f"
+    },
+    "originalAssetsByteExact": 2952,
+    "saveBefore": {
+      "state-v1.previous.json": "ecf1fc0ff30e001f99b19f8d92c062faaae42f65d7e74d893beacc86545751ee",
+      "state-v1.json": "08c95e574ad8235de3d3e44010655fa1efe26a5aea64383363e7f8fbd0f278be"
+    },
+    "saveAfter": {
+      "state-v1.previous.json": "ecf1fc0ff30e001f99b19f8d92c062faaae42f65d7e74d893beacc86545751ee",
+      "state-v1.json": "08c95e574ad8235de3d3e44010655fa1efe26a5aea64383363e7f8fbd0f278be"
+    },
+    "bothSavesByteIdenticalThroughInstallAndInitialLaunch": true,
+    "actualSpringBoardSBRingerMuted": "0"
+  },
+  "iphoneSimulator": {
+    "device": "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+    "bundle": "com.taptapdesign.stacktosix.native",
+    "normalLaunch": "com.taptapdesign.stacktosix.native: 4218",
+    "runtimeHashes": {
+      "Stack to Six": "ed54f27e894a561a3016e7fbeac0e6f6427b930289c37a96549ef62cb8fcc44b",
+      "Stack to Six.debug.dylib": "57779cbe3f13efd1e51b454b3f4875c0cb58ec7649f57ee997cd259a989e936f"
+    },
+    "originalAssetsByteExact": 2952,
+    "saveBefore": {
+      "state-v1.previous.json": "0966ba64bd96eb3e19dc24256b99c3ac72fbd5760c2ebd9430aa499f408d1912",
+      "state-v1.json": "9f029ebe42f174467c55c947bcd5572a59ca297ca1609f0cbc25b3802c4ac964"
+    },
+    "saveAfter": {
+      "state-v1.previous.json": "0966ba64bd96eb3e19dc24256b99c3ac72fbd5760c2ebd9430aa499f408d1912",
+      "state-v1.json": "9f029ebe42f174467c55c947bcd5572a59ca297ca1609f0cbc25b3802c4ac964"
+    },
+    "bothSavesByteIdenticalThroughInstallAndInitialLaunch": true,
+    "actualSpringBoardSBRingerMuted": "1"
+  },
+  "qa": "qa:ios,feature-runtime,fast,full,5mounted tests passed",
+  "physicalIPhoneChanged": false
+}

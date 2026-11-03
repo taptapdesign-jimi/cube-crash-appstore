@@ -1,0 +1,48 @@
+{
+  "cause": "updateProgress replaced attributedText with kern only; UIKit reset tablet font from45.301pt to18pt after initial layout",
+  "fix": "Keep explicit current font in tablet-only replacement attributed strings; phone branch unchanged",
+  "regressionBefore": "1case48assertion failures; before.log",
+  "regressionAfter": "4hosted cases0fail; after.log; covers2viewport sizes,before/after initial progress ordering,4refresh values,all3flags",
+  "qa": "ios-resume,fast-final,full-final PASS530/4010 plusKING24/330",
+  "ipad": {
+    "device": "43A75086-0C64-464C-B71C-FDD01AF59C32",
+    "bundle": "com.taptapdesign.stacktosix.native",
+    "normalLaunch": "com.taptapdesign.stacktosix.native: 28711",
+    "runtimeHashes": {
+      "Stack to Six": "f38f37ac4c0f4698b22c4e92f9ab3683062650a62a13b3003cc9d08090cc073d",
+      "Stack to Six.debug.dylib": "54f6c22e9fd4b4d7e5c3f383ab9f4f217785d99d4cd111173ca6ef4828547050"
+    },
+    "originalAssetsByteExact": 2954,
+    "saveBefore": {
+      "state-v1.previous.json": "b541afd54892686be989747f2ee068c883a473abaeb960b393d062270b37c047",
+      "state-v1.json": "b055053d309e171c058b889ef81d065ef180310d9c5e17a8bfdeebce27705ecc"
+    },
+    "saveAfter": {
+      "state-v1.previous.json": "b541afd54892686be989747f2ee068c883a473abaeb960b393d062270b37c047",
+      "state-v1.json": "b055053d309e171c058b889ef81d065ef180310d9c5e17a8bfdeebce27705ecc"
+    },
+    "bothSavesByteIdenticalThroughInstallAndInitialLaunch": true,
+    "actualSpringBoardSBRingerMuted": "0"
+  },
+  "iphoneSimulator": {
+    "device": "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+    "bundle": "com.taptapdesign.stacktosix.native",
+    "normalLaunch": "com.taptapdesign.stacktosix.native: 29442",
+    "runtimeHashes": {
+      "Stack to Six": "f38f37ac4c0f4698b22c4e92f9ab3683062650a62a13b3003cc9d08090cc073d",
+      "Stack to Six.debug.dylib": "54f6c22e9fd4b4d7e5c3f383ab9f4f217785d99d4cd111173ca6ef4828547050"
+    },
+    "originalAssetsByteExact": 2954,
+    "saveBefore": {
+      "state-v1.previous.json": "1da5b8b512a34a08ac049adf4f3461ad50f7a3348257fdd9c0b9f9025b2a9510",
+      "state-v1.json": "6d68b86d6f79de4d2b1d6f2c496833ad0d79ac6b4233dc7de7a59b533eabc516"
+    },
+    "saveAfter": {
+      "state-v1.previous.json": "1da5b8b512a34a08ac049adf4f3461ad50f7a3348257fdd9c0b9f9025b2a9510",
+      "state-v1.json": "6d68b86d6f79de4d2b1d6f2c496833ad0d79ac6b4233dc7de7a59b533eabc516"
+    },
+    "bothSavesByteIdenticalThroughInstallAndInitialLaunch": true,
+    "actualSpringBoardSBRingerMuted": "1"
+  },
+  "visual": "CUA normal iPad Journey after fresh install/noarg launch: all3flags large and readable. User then entered DEV result preview; did not force further navigation. Raw simctl screenshot earlier captured Home/portraitUpsideDown and is not font evidence."
+}

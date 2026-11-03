@@ -7,7 +7,7 @@ import StackToSixNativeState
 
 @MainActor
 final class NativeArcadeHelpHUDTests:XCTestCase {
-    func testActualSceneOmitsPureDiceCrateAndControllerRejectsItsProgrammaticHelp()throws {
+    func testEveryArcadeSceneShowsCrateAndControllerForwardsHelp()throws {
         for variant in NativeArcadeVariant.allCases {
             let engine=NativeGameplayEngine(state:NativeBoardFactory.make(mode:.arcade,board:1,arcadeVariant:variant))
             let game=NativeGameplayViewController(engine:engine,resourceRoot:NativeTestResources.root)
@@ -16,16 +16,13 @@ final class NativeArcadeHelpHUDTests:XCTestCase {
             let scene=try XCTUnwrap(game.boardScene)
             scene.layout(size:CGSize(width:390,height:844),insets:UIEdgeInsets(top:47,left:0,bottom:34,right:0))
             let icon=scene.childNode(withName:"//native-game-help")
-            XCTAssertEqual(icon == nil,variant == .pureDice)
+            XCTAssertNotNil(icon)
             var helpRequests=0;game.onHelp={helpRequests += 1}
             let before=engine.state
             scene.onHelpRequest?()
-            XCTAssertEqual(helpRequests,variant == .pureDice ? 0 : 1)
+            XCTAssertEqual(helpRequests,1)
             XCTAssertEqual(engine.state,before)
-            if variant == .pureDice {
-                let y=NativeGameplayChromePlan.make(viewport:scene.size,safeTop:47).valueRowY
-                XCTAssertFalse(scene.handleHUDContact(at:CGPoint(x:118,y:y)),"Former crate location has no Pure Dice hit target")
-            }
+
         }
     }
     func testJourneyRetainsBackpackHUD()throws {

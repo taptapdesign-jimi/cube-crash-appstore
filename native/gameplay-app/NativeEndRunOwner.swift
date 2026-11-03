@@ -57,6 +57,10 @@ final class NativeEndRunOwner {
         traceHUDLatency("exit-modal-init-begin")
         let sheet = JimiNativeEndRunModal(id:owner,model:model,assets:assets,synchronizesBoardCTAEntry:true);modal = sheet
         traceHUDLatency("exit-modal-init-end")
+        sheet.onCTAsEntering = { [weak self,weak sheet] in
+            guard let self,let sheet,self.generation==owner,self.modal === sheet else{return}
+            self.onFeedback?("paired-cta-enter")
+        }
         // Match trophy contact latency: disk checkpoint must not block modal entrance.
         sheet.onReady = { [weak self,weak sheet,weak gameplay] in
             guard let self,let sheet,let gameplay,self.generation == owner,

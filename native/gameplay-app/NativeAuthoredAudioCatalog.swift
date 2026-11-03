@@ -3,8 +3,8 @@ import Foundation
 
 @MainActor
 enum NativeAuthoredAudioCatalog {
+    static let nalaGroupCounts: [String: Int] = ["modalNala": 12, "homeCharacter": 11, "arcadeIslandDog": 11, "arcadeThumbDog": 11, "studioNala": 11, "failNala": 5]
     static let groups: [String: [NativeAudioCue]] = [
-        "cubero": [NativeAudioCue(source:"assets/sound/Wild and special kockice/cubero/haya.wav",voice:"cubero-merge6-haya",gain:0.48,rate:1,delay:0,stopAfter:nil,fadeOut:0)],
         "pickup": [
             NativeAudioCue(source:"assets/sound/merge 6/woosh.mp3",voice:"gameplay-pickup",gain:0.2592,rate:1,delay:0,stopAfter:nil,fadeOut:0),
         ],
@@ -79,16 +79,6 @@ enum NativeAuthoredAudioCatalog {
             NativeAudioCue(source:"assets/sound/Wild and special kockice/barell/puf1.wav",voice:"barrel-merge6-puf1",gain:0.33,rate:1,delay:0,stopAfter:nil,fadeOut:0),
             NativeAudioCue(source:"assets/sound/Wild and special kockice/barell/puf2.wav",voice:"barrel-merge6-puf2",gain:0.21,rate:1,delay:0.1,stopAfter:nil,fadeOut:0),
         ],
-        "coconut": [
-            NativeAudioCue(source:"assets/sound/merge 6/merge six obicna.mp3",voice:"coconut-regular-merge6-primary",gain:0.195,rate:1.3,delay:0,stopAfter:nil,fadeOut:0),
-            NativeAudioCue(source:"assets/sound/merge 6/merge6 crash.mp3",voice:"coconut-regular-merge6-crash",gain:0.10608000000000001,rate:1.3,delay:0,stopAfter:0.892,fadeOut:0.12),
-            NativeAudioCue(source:"assets/sound/merge 6/merge6 boom.mp3",voice:"coconut-regular-merge6-boom",gain:0.23399999999999999,rate:1,delay:0,stopAfter:nil,fadeOut:0),
-            NativeAudioCue(source:"assets/sound/merge 6/stack.mp3",voice:"coconut-regular-merge6-stack",gain:0.312,rate:1,delay:0,stopAfter:nil,fadeOut:0),
-            NativeAudioCue(source:"assets/sound/Wild and special kockice/flower/bush0.wav",voice:"coconut-flower-merge6-bush0",gain:0.312,rate:1,delay:0,stopAfter:nil,fadeOut:0),
-            NativeAudioCue(source:"assets/sound/Wild and special kockice/flower/bush2.wav",voice:"coconut-flower-merge6-bush2",gain:0.39,rate:1,delay:0,stopAfter:nil,fadeOut:0),
-            NativeAudioCue(source:"assets/sound/Wild and special kockice/flower/bush3.wav",voice:"coconut-flower-merge6-bush3",gain:0.13649999999999998,rate:1,delay:0,stopAfter:nil,fadeOut:0),
-            NativeAudioCue(source:"assets/sound/Wild and special kockice/flower/boom.wav",voice:"coconut-flower-merge6-boom",gain:0.39,rate:1,delay:0,stopAfter:nil,fadeOut:0),
-        ],
         "flower": [
             NativeAudioCue(source:"assets/sound/merge 6/merge six obicna.mp3",voice:"regular-merge6-primary",gain:0.195,rate:1.3,delay:0,stopAfter:nil,fadeOut:0),
             NativeAudioCue(source:"assets/sound/merge 6/merge6 crash.mp3",voice:"regular-merge6-crash",gain:0.10608000000000001,rate:1.3,delay:0,stopAfter:0.892,fadeOut:0.12),
@@ -98,18 +88,6 @@ enum NativeAuthoredAudioCatalog {
             NativeAudioCue(source:"assets/sound/Wild and special kockice/flower/bush2.wav",voice:"flower-merge6-bush2",gain:0.39,rate:1,delay:0,stopAfter:nil,fadeOut:0),
             NativeAudioCue(source:"assets/sound/Wild and special kockice/flower/bush3.wav",voice:"flower-merge6-bush3",gain:0.13649999999999998,rate:1,delay:0,stopAfter:nil,fadeOut:0),
             NativeAudioCue(source:"assets/sound/Wild and special kockice/flower/boom.wav",voice:"flower-merge6-boom",gain:0.39,rate:1,delay:0,stopAfter:nil,fadeOut:0),
-        ],
-        "kite": [
-            NativeAudioCue(source:"assets/sound/Wild and special kockice/kite/kite lfight.wav",voice:"kite-flight",gain:0.6,rate:1,delay:0,stopAfter:nil,fadeOut:0),
-            NativeAudioCue(source:"assets/sound/Wild and special kockice/kite/kite meerge.wav",voice:"kite-merge",gain:0.6,rate:1,delay:0,stopAfter:nil,fadeOut:0),
-            NativeAudioCue(source:"assets/sound/merge 6/merge six obicna.mp3",voice:"regular-merge6-primary",gain:0.195,rate:1.3,delay:0,stopAfter:nil,fadeOut:0),
-            NativeAudioCue(source:"assets/sound/merge 6/merge6 crash.mp3",voice:"regular-merge6-crash",gain:0.10608000000000001,rate:1.3,delay:0,stopAfter:0.892,fadeOut:0.12),
-            NativeAudioCue(source:"assets/sound/merge 6/merge6 boom.mp3",voice:"regular-merge6-boom",gain:0.23399999999999999,rate:1,delay:0,stopAfter:nil,fadeOut:0),
-            NativeAudioCue(source:"assets/sound/merge 6/stack.mp3",voice:"regular-merge6-stack",gain:0.312,rate:1,delay:0,stopAfter:nil,fadeOut:0),
-            NativeAudioCue(source:"assets/sound/Wild and special kockice/bee/brushing.wav",voice:"kite-brushing",gain:0.48,rate:1,delay:0,stopAfter:nil,fadeOut:0),
-            NativeAudioCue(source:"assets/sound/Wild and special kockice/ baloon/prvi pop.wav",voice:"kite-first-pop",gain:0.6,rate:1,delay:0,stopAfter:nil,fadeOut:0),
-            NativeAudioCue(source:"assets/sound/Wild and special kockice/ baloon/baloon pop.wav",voice:"kite-balloon-pop",gain:0.3,rate:1,delay:0,stopAfter:nil,fadeOut:0),
-            NativeAudioCue(source:"assets/sound/mini explozije/mini2.mp3",voice:"kite-mini2",gain:0.144,rate:1,delay:0,stopAfter:nil,fadeOut:0),
         ],
         "bee": [
             NativeAudioCue(source:"assets/sound/merge 6/merge six obicna.mp3",voice:"regular-merge6-primary",gain:0.195,rate:1.3,delay:0,stopAfter:nil,fadeOut:0),
@@ -376,19 +354,19 @@ enum NativeAuthoredAudioCatalog {
             NativeAudioCue(source:"assets/sound/Wild and special kockice/star/star1.wav",voice:"laser-gun-final-changed-cube-star1",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
         ],
         "cleanCTA0": [
-            NativeAudioCue(source:"assets/sound/magnet pul lforce/pull1.wav",voice:"clean-board-cta-bounce-primary",gain:0.6,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/Clean board/boinb.wav",voice:"clean-board-cta-bounce-primary",gain:0.18,rate:1,delay:0,stopAfter:nil,fadeOut:0),
         ],
         "failCTA0": [
-            NativeAudioCue(source:"assets/sound/magnet pul lforce/pull1.wav",voice:"fail-screen-cta-bounce-primary",gain:0.6,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/Clean board/boinb.wav",voice:"fail-screen-cta-bounce-primary",gain:0.18,rate:1,delay:0,stopAfter:nil,fadeOut:0),
         ],
         "digit0": [
             NativeAudioCue(source:"assets/sound/NN tranzicije/bum bum zvuk.wav",voice:"arcade-round-first-digit",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
         ],
         "cleanCTA1": [
-            NativeAudioCue(source:"assets/sound/magnet pul lforce/pull1.wav",voice:"clean-board-cta-bounce-secondary",gain:0.6,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/Clean board/boinb.wav",voice:"clean-board-cta-bounce-secondary",gain:0.18,rate:1,delay:0,stopAfter:nil,fadeOut:0),
         ],
         "failCTA1": [
-            NativeAudioCue(source:"assets/sound/magnet pul lforce/pull1.wav",voice:"fail-screen-cta-bounce-secondary",gain:0.6,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/Clean board/boinb.wav",voice:"fail-screen-cta-bounce-secondary",gain:0.18,rate:1,delay:0,stopAfter:nil,fadeOut:0),
         ],
         "digit1": [
             NativeAudioCue(source:"assets/sound/NN tranzicije/bum bum 2.wav",voice:"arcade-round-second-digit",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
@@ -644,9 +622,6 @@ enum NativeAuthoredAudioCatalog {
             NativeAudioCue(source:"assets/sound/Wild and special kockice/ baloon/hiss.wav",voice:"native-baloon-hiss",gain:0.144,rate:1,delay:0,stopAfter:2.2,fadeOut:1.2),
             NativeAudioCue(source:"assets/sound/Wild and special kockice/ baloon/baloni.wav",voice:"native-baloon-flight-0",gain:0.18,rate:1,delay:0.3,stopAfter:nil,fadeOut:0),
         ],
-        "homeSpeech-treasure": [
-            NativeAudioCue(source:"assets/sound/SPEECH/treasure.mp3",voice:"native-home-human",gain:0.72,rate:1,delay:0,stopAfter:nil,fadeOut:0),
-        ],
         "homeSettingsSpeech": [
             NativeAudioCue(source:"assets/sound/SPEECH/settings guy.mp3",voice:"native-home-settings-human",gain:0.72,rate:1,delay:0,stopAfter:nil,fadeOut:0),
         ],
@@ -797,14 +772,200 @@ enum NativeAuthoredAudioCatalog {
         "combo-03": [
             NativeAudioCue(source:"assets/sound/SPEECH/combo-03.wav",voice:"native-score-combo-human",gain:0.72,rate:1,delay:0,stopAfter:nil,fadeOut:0),
         ],
-        "arcade-01": [
-            NativeAudioCue(source:"assets/sound/SPEECH/arcade-01.wav",voice:"native-arcade-home-human",gain:0.72,rate:1,delay:0,stopAfter:nil,fadeOut:0),
-        ],
         "arcade-02": [
             NativeAudioCue(source:"assets/sound/SPEECH/arcade-02.wav",voice:"native-arcade-home-human",gain:0.72,rate:1,delay:0,stopAfter:nil,fadeOut:0),
         ],
         "arcade-03": [
             NativeAudioCue(source:"assets/sound/SPEECH/arcade-03.wav",voice:"native-arcade-home-human",gain:0.72,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "cubero": [
+            NativeAudioCue(source:"assets/sound/Wild and special kockice/cubero/haya.wav",voice:"cubero-merge6-haya",gain:0.48,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "coconut": [
+            NativeAudioCue(source:"assets/sound/merge 6/merge six obicna.mp3",voice:"coconut-regular-merge6-primary",gain:0.195,rate:1.3,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/merge 6/merge6 crash.mp3",voice:"coconut-regular-merge6-crash",gain:0.10608000000000001,rate:1.3,delay:0,stopAfter:0.892,fadeOut:0.12),
+            NativeAudioCue(source:"assets/sound/merge 6/merge6 boom.mp3",voice:"coconut-regular-merge6-boom",gain:0.23399999999999999,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/merge 6/stack.mp3",voice:"coconut-regular-merge6-stack",gain:0.312,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/Wild and special kockice/flower/bush0.wav",voice:"coconut-flower-merge6-bush0",gain:0.312,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/Wild and special kockice/flower/bush2.wav",voice:"coconut-flower-merge6-bush2",gain:0.39,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/Wild and special kockice/flower/bush3.wav",voice:"coconut-flower-merge6-bush3",gain:0.13649999999999998,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/Wild and special kockice/flower/boom.wav",voice:"coconut-flower-merge6-boom",gain:0.39,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "kite": [
+            NativeAudioCue(source:"assets/sound/Wild and special kockice/kite/kite lfight.wav",voice:"kite-flight",gain:0.6,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/Wild and special kockice/kite/kite meerge.wav",voice:"kite-merge",gain:0.6,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/merge 6/merge six obicna.mp3",voice:"regular-merge6-primary",gain:0.195,rate:1.3,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/merge 6/merge6 crash.mp3",voice:"regular-merge6-crash",gain:0.10608000000000001,rate:1.3,delay:0,stopAfter:0.892,fadeOut:0.12),
+            NativeAudioCue(source:"assets/sound/merge 6/merge6 boom.mp3",voice:"regular-merge6-boom",gain:0.23399999999999999,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/merge 6/stack.mp3",voice:"regular-merge6-stack",gain:0.312,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/Wild and special kockice/bee/brushing.wav",voice:"kite-brushing",gain:0.48,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/Wild and special kockice/ baloon/prvi pop.wav",voice:"kite-first-pop",gain:0.6,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/Wild and special kockice/ baloon/baloon pop.wav",voice:"kite-balloon-pop",gain:0.3,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/mini explozije/mini2.mp3",voice:"kite-mini2",gain:0.144,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "modalNala0": [
+            NativeAudioCue(source:"assets/sound/logo transitions/nala1.wav",voice:"native-modal-nala",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "modalNala1": [
+            NativeAudioCue(source:"assets/sound/logo transitions/nala2.wav",voice:"native-modal-nala",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "modalNala2": [
+            NativeAudioCue(source:"assets/sound/logo transitions/nala3.wav",voice:"native-modal-nala",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "modalNala3": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala laje.wav",voice:"native-modal-nala",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "modalNala4": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala laje 2.wav",voice:"native-modal-nala",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "modalNala5": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala prica cvili.wav",voice:"native-modal-nala",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "modalNala6": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala cvili prica 2.wav",voice:"native-modal-nala",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "modalNala7": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala lajavo prica.wav",voice:"native-modal-nala",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "modalNala8": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala lajavo prica 2.wav",voice:"native-modal-nala",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "modalNala9": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala dahce cvili.wav",voice:"native-modal-nala",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "modalNala10": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala dahce cvili 2.wav",voice:"native-modal-nala",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "modalNala11": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala nesretna.wav",voice:"native-modal-nala",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "studioNala0": [
+            NativeAudioCue(source:"assets/sound/logo transitions/nala1.wav",voice:"native-studio-nala",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "studioNala1": [
+            NativeAudioCue(source:"assets/sound/logo transitions/nala2.wav",voice:"native-studio-nala",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "studioNala2": [
+            NativeAudioCue(source:"assets/sound/logo transitions/nala3.wav",voice:"native-studio-nala",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "homeCharacter3": [
+            NativeAudioCue(source:"assets/sound/logo transitions/smile.wav",voice:"native-home-human",gain:0.72,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala laje.wav",voice:"native-home-nala",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "arcadeIslandDog3": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala laje.wav",voice:"native-arcade-island-dog",gain:0.42,rate:1,delay:1,stopAfter:nil,fadeOut:0),
+        ],
+        "arcadeThumbDog3": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala laje.wav",voice:"arcade-stage-clear-character",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "studioNala3": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala laje.wav",voice:"native-studio-nala",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "homeCharacter4": [
+            NativeAudioCue(source:"assets/sound/logo transitions/smile.wav",voice:"native-home-human",gain:0.72,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala laje 2.wav",voice:"native-home-nala",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "arcadeIslandDog4": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala laje 2.wav",voice:"native-arcade-island-dog",gain:0.42,rate:1,delay:1,stopAfter:nil,fadeOut:0),
+        ],
+        "arcadeThumbDog4": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala laje 2.wav",voice:"arcade-stage-clear-character",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "studioNala4": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala laje 2.wav",voice:"native-studio-nala",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "homeCharacter5": [
+            NativeAudioCue(source:"assets/sound/logo transitions/smile.wav",voice:"native-home-human",gain:0.72,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala prica cvili.wav",voice:"native-home-nala",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "arcadeIslandDog5": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala prica cvili.wav",voice:"native-arcade-island-dog",gain:0.42,rate:1,delay:1,stopAfter:nil,fadeOut:0),
+        ],
+        "arcadeThumbDog5": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala prica cvili.wav",voice:"arcade-stage-clear-character",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "studioNala5": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala prica cvili.wav",voice:"native-studio-nala",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "homeCharacter6": [
+            NativeAudioCue(source:"assets/sound/logo transitions/smile.wav",voice:"native-home-human",gain:0.72,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala cvili prica 2.wav",voice:"native-home-nala",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "arcadeIslandDog6": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala cvili prica 2.wav",voice:"native-arcade-island-dog",gain:0.42,rate:1,delay:1,stopAfter:nil,fadeOut:0),
+        ],
+        "arcadeThumbDog6": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala cvili prica 2.wav",voice:"arcade-stage-clear-character",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "studioNala6": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala cvili prica 2.wav",voice:"native-studio-nala",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "homeCharacter7": [
+            NativeAudioCue(source:"assets/sound/logo transitions/smile.wav",voice:"native-home-human",gain:0.72,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala lajavo prica.wav",voice:"native-home-nala",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "arcadeIslandDog7": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala lajavo prica.wav",voice:"native-arcade-island-dog",gain:0.42,rate:1,delay:1,stopAfter:nil,fadeOut:0),
+        ],
+        "arcadeThumbDog7": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala lajavo prica.wav",voice:"arcade-stage-clear-character",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "studioNala7": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala lajavo prica.wav",voice:"native-studio-nala",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "homeCharacter8": [
+            NativeAudioCue(source:"assets/sound/logo transitions/smile.wav",voice:"native-home-human",gain:0.72,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala lajavo prica 2.wav",voice:"native-home-nala",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "arcadeIslandDog8": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala lajavo prica 2.wav",voice:"native-arcade-island-dog",gain:0.42,rate:1,delay:1,stopAfter:nil,fadeOut:0),
+        ],
+        "arcadeThumbDog8": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala lajavo prica 2.wav",voice:"arcade-stage-clear-character",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "studioNala8": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala lajavo prica 2.wav",voice:"native-studio-nala",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "homeCharacter9": [
+            NativeAudioCue(source:"assets/sound/logo transitions/smile.wav",voice:"native-home-human",gain:0.72,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala dahce cvili.wav",voice:"native-home-nala",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "arcadeIslandDog9": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala dahce cvili.wav",voice:"native-arcade-island-dog",gain:0.42,rate:1,delay:1,stopAfter:nil,fadeOut:0),
+        ],
+        "arcadeThumbDog9": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala dahce cvili.wav",voice:"arcade-stage-clear-character",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "studioNala9": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala dahce cvili.wav",voice:"native-studio-nala",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "homeCharacter10": [
+            NativeAudioCue(source:"assets/sound/logo transitions/smile.wav",voice:"native-home-human",gain:0.72,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala dahce cvili 2.wav",voice:"native-home-nala",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "arcadeIslandDog10": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala dahce cvili 2.wav",voice:"native-arcade-island-dog",gain:0.42,rate:1,delay:1,stopAfter:nil,fadeOut:0),
+        ],
+        "arcadeThumbDog10": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala dahce cvili 2.wav",voice:"arcade-stage-clear-character",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "studioNala10": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala dahce cvili 2.wav",voice:"native-studio-nala",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "failNala0": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala nesretna.wav",voice:"native-fail-nala",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "failNala1": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala prica cvili.wav",voice:"native-fail-nala",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "failNala2": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala cvili prica 2.wav",voice:"native-fail-nala",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "failNala3": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala lajavo prica.wav",voice:"native-fail-nala",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
+        ],
+        "failNala4": [
+            NativeAudioCue(source:"assets/sound/SPEECH/Nala/playback-v1/nala lajavo prica 2.wav",voice:"native-fail-nala",gain:0.42,rate:1,delay:0,stopAfter:nil,fadeOut:0),
         ],
     ]
 }

@@ -1,4 +1,34 @@
+Native World-final result override(user2026-11-01): successful local Stage10
+(boards10,20,30),both first clear and replay,shows Back to World as primary
+and Play again as white secondary. Primary uses existing Journey exit/World
+preparation;secondary uses existing same-Stage restart. This takes precedence
+over ordinary first-clear Continue/replay primary choice below. Other Journey
+stages,Fail,Arcade,first-play tutorial completion and saves remain unchanged.
+
+Native Journey result primary override(user2026-11-01): first successful clear
+of a not-yet-completed Stage shows Continue and uses existing next-Stage route.
+Re-clearing an already completed Stage shows Play again and restarts that same
+Stage through the existing restart owner. Capture first-clear status before the
+attempt commits(progression.completedJourneyBoards);a new high score or improved
+stars does not turn a replay into a first clear. Fail and Arcade behavior,
+reward/score/star persistence and Stage30 boundary stay. First-play tutorial
+completion retains its existing Continue->World exception,including imported
+profiles with an already completed tutorial Stage.
+
 # Stack to Six Gameplay KING Contract
+
+Native speed-combo override (user decision2026-11-01): ordinary continuation
+remains3.5s;after Wild/Special it is5.0s(previously5.5s). NativeBootstrap opts
+into speed-weighted earnedComboBonus: for an existing live streak, each normal
+streak-bonus increment is multiplied by1+2*(1-dt/3) when0<=dt<3seconds,
+rounded to the nearest integer;at3seconds or slower the authored increment
+remains. dt uses accepted move timestamps,excluding absorb animation delay;
+Special multi-target transactions capture one elapsed time at admission and
+award once through existing commit owners. First move/restored timestampless
+state gets no speed multiplier. Existing first-two-move zero streak bonus,
+combo counts,efficiency formula,terminal eligibility and999999score cap stay.
+Already-earned boosted bonus uses the existing serialized earnedComboBonus;
+no timestamp/save-schema/UI/audio/asset changes.
 
 Native Arcade run-summary scoring override (user clarification2026-10-31):
 a fail after clearing at least one round (current board>=2) retains its Clean

@@ -188,6 +188,7 @@ final class NativeResultController:UIViewController {
     private var clockTarget:NativeResultClockTarget?
     private var lastTime:CFTimeInterval?
     private(set) var elapsed=0.0
+
     private var confetti:NativeResultConfettiCanvas?
     private var area55Flybys:NativeResultArea55Flybys?
     private var forestBees:NativeResultForestBees?
@@ -254,7 +255,7 @@ final class NativeResultController:UIViewController {
             empty.append(back);filled.append(front)
             holder.transform=CGAffineTransform(rotationAngle:index == 0 ? -.pi*8/180 : index == 2 ? .pi*8/180 : 0)
         }
-        let orange=UIColor(red:231/255,green:116/255,blue:73/255,alpha:1)
+        let orange=NativeTextPalette.accentOrange
         let brown=NativeTextPalette.subtitle
         let values:[(UILabel,CGFloat,String,UIColor)]=[(heading,clean ? 40 : 56,"ExtraBold",orange),
             (scoreLabel,18,"SemiBold",brown),(score,80,"ExtraBold",orange),(status,18,"SemiBold",brown),
@@ -269,17 +270,17 @@ final class NativeResultController:UIViewController {
         heading.attributedText=NSAttributedString(string:headline,attributes:[.font:heading.font!,.foregroundColor:heading.textColor!,.paragraphStyle:paragraph])
         heading.numberOfLines=0;heading.lineBreakMode = .byWordWrapping
         if finalScore > state.bestScore {
-            let label=NSMutableAttributedString(string:"NEW ",attributes:[.font:assets.font(size:18,weight:"ExtraBold"),.foregroundColor:NativeTextPalette.subtitle,.kern:0.4])
-            label.append(NSAttributedString(string:"Highscore",attributes:[.font:scoreLabel.font!,.foregroundColor:brown,.kern:0.4]))
+            let label=NSMutableAttributedString(string:"NEW ",attributes:[.font:assets.font(size:18,weight:"ExtraBold"),.foregroundColor:orange,.kern:0.4])
+            label.append(NSAttributedString(string:"High score",attributes:[.font:scoreLabel.font!,.foregroundColor:brown,.kern:0.4]))
             scoreLabel.attributedText=label
         } else {scoreLabel.text="Your score"}
         scoreBlur.isAccessibilityElement=false;scoreBlur.isUserInteractionEnabled=false;scoreBlur.isHidden=true
         scoreBlur.accessibilityIdentifier="native.result.score-motion-blur"
         score.accessibilityIdentifier="native.result.score"
         status.accessibilityIdentifier="native.result.status"
-        status.text="\(state.mode == .arcade ? String(format:"Round %02d",state.stage) : String(format:"%@ %02d",state.board>20 ? "Area":state.board>10 ? "Beach":"Forest",(state.board-1)%10+1)) \(arcadeReached ? "reached" : clean ? "cleared" : "not cleared")"
+        status.text="\(state.mode == .arcade ? "Round \(NativeScoreDisplay.padded(state.stage))" : String(format:"%@ %02d",state.board>20 ? "Area":state.board>10 ? "Beach":"Forest",(state.board-1)%10+1)) \(arcadeReached ? "reached" : clean ? "cleared" : "not cleared")"
         for (index,button) in buttons.enumerated() {
-            button.setTitle(index == 0 ? (clean && interimJourney ? "Continue" : "Play Again") : "Exit",for:.normal)
+            button.setTitle(index == 0 ? (completesWorld ? "Back to World" : continuesJourney ? "Continue" : "Play again") : (completesWorld ? "Play again" : "Exit"),for:.normal)
             button.applyModalCTA(artwork:assets,primary:index == 0)
             button.setPairedModalCTA(independentIdleIndex:index)
             button.tag=index;button.accessibilityIdentifier=index == 0 ? "native.result.play-again" : "native.result.exit"
@@ -341,15 +342,29 @@ final class NativeResultController:UIViewController {
     }
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        content.frame=view.bounds
-        let titleWidth=max(1,min(340,view.bounds.width*0.88)-64)
+        let tablet=NativeTabletLayout.applies(view.bounds.size)
+        // The complete phone composition is the tablet reference. One outer
+        // scale preserves its type, spacing, CTA and animation proportions.
+        let viewport=tablet ? CGSize(width:390,height:844):view.bounds.size
+        content.bounds=CGRect(origin:.zero,size:viewport)
+        let u=NativeTabletLayout.textScale(viewport)
+        for (label,size) in [(heading,CGFloat(clean ? 40:56)),(scoreLabel,18),(score,80),(status,18),(bonus,36),(bonusLabel,18)] {label.font=label.font.withSize(size*u)}
+        if let attributed=heading.attributedText {
+            let text=NSMutableAttributedString(attributedString:attributed)
+            let paragraph=NSMutableParagraphStyle();paragraph.alignment = .center;paragraph.lineBreakMode = .byWordWrapping
+            paragraph.minimumLineHeight=(clean ? 40:56)*u;paragraph.maximumLineHeight=paragraph.minimumLineHeight
+            text.addAttributes([.font:heading.font!,.paragraphStyle:paragraph],range:NSRange(location:0,length:text.length));heading.attributedText=text
+        }
+        buttons.forEach{NativeTabletLayout.buttonFont($0,size:28*u)}
+        let titleWidth=max(1,min(u>1 ? 440:340,viewport.width*0.88)-64*u)
         let measured=heading.sizeThatFits(CGSize(width:titleWidth,height:CGFloat.greatestFiniteMagnitude)).height
-        let lineHeight:CGFloat=clean ? 40:56
+        let lineHeight:CGFloat=(clean ? 40:56)*u
         let lines=max(1,ceil((measured-0.5)/lineHeight))
         let titleHeight=lines*lineHeight
-        var actionSize=JimiV9PlainButton.homeCTASize(maxWidth:view.bounds.width-48,font:assets.font(size:28,weight:"ExtraBold"))
-        actionSize.width=min(view.bounds.width-48,actionSize.width*1.10)
-        let layout=NativeResultPresentationPlan.layout(viewport:view.bounds.size,clean:clean,titleHeight:titleHeight,primarySize:actionSize,actionGap:JimiV9PlainButton.pairedModalCTAGap)
+        var actionSize=JimiV9PlainButton.homeCTASize(maxWidth:viewport.width-48,font:assets.font(size:28,weight:"ExtraBold"))
+        actionSize.width=min(viewport.width-48,JimiV9PlainButton.modalCTAWidth(buttons,maxWidth:viewport.width-48)*1.20)
+        actionSize.height=JimiV9PlainButton.primaryCTAHeight*u
+        let layout=NativeResultPresentationPlan.layout(viewport:viewport,clean:clean,titleHeight:titleHeight,primarySize:actionSize,actionGap:JimiV9PlainButton.pairedModalCTAGap*u)
         place(cardContent,in:layout.card)
         place(stars,in:layout.hero.offsetBy(dx:-layout.card.minX,dy:-layout.card.minY))
         for index in 0..<3 {
@@ -371,14 +386,28 @@ final class NativeResultController:UIViewController {
         scoreBlur.frame=scoreMotion.bounds.insetBy(dx:-scoreBlurPadding,dy:-scoreBlurPadding)
         place(statusContent,in:layout.status.offsetBy(dx:-layout.card.minX,dy:-layout.card.minY))
         place(status,in:statusContent.bounds)
-        place(bonusContent,in:CGRect(x:0,y:statusContent.bounds.midY-30,width:statusContent.bounds.width,height:60))
-        bonus.frame=CGRect(x:0,y:0,width:bonusContent.bounds.width,height:36)
-        bonusLabel.frame=CGRect(x:0,y:42,width:bonusContent.bounds.width,height:18)
-        place(buttons[0].cartoonBounceLayoutView,in:layout.primary);place(buttons[1].cartoonBounceLayoutView,in:layout.secondary.offsetBy(dx:0,dy:-JimiV9PlainButton.pairedModalCTAGap*0.60));buttons.forEach{$0.layoutCartoonContent()}
+        place(bonusContent,in:CGRect(x:0,y:statusContent.bounds.midY-30,width:statusContent.bounds.width,height:60*u))
+        bonus.frame=CGRect(x:0,y:0,width:bonusContent.bounds.width,height:36*u)
+        bonusLabel.frame=CGRect(x:0,y:42*u,width:bonusContent.bounds.width,height:18*u)
+        place(buttons[0].cartoonBounceLayoutView,in:layout.primary);place(buttons[1].cartoonBounceLayoutView,in:layout.secondary.offsetBy(dx:0,dy:-JimiV9PlainButton.pairedModalCTAGap*0.40));buttons.forEach{$0.layoutCartoonContent()}
         // CSS reduces overlapping uniform40px corners to half the shortest
         // side. Use that painted radius for both authored result CTAs.
         for button in buttons {
             button.layer.cornerRadius=min(40,min(button.bounds.width,button.bounds.height)/2)
+        }
+        if tablet {
+            let available=view.bounds.inset(by:view.safeAreaInsets).insetBy(dx:24,dy:32)
+            let envelope=(0..<3).reduce(layout.title.union(layout.status).union(layout.primary).union(layout.secondary)) {$0.union(layout.star($1))}
+            let scale=max(0,min(available.width/viewport.width,available.height/(envelope.height+24)))*0.70*1.10
+            content.transform=CGAffineTransform(scaleX:scale,y:scale)
+            content.center=CGPoint(x:available.midX+(viewport.width/2-envelope.midX)*scale,
+                                   y:available.midY+(viewport.height/2-envelope.midY)*scale)
+            // Keep live glyphs sharp when the phone canvas is enlarged.
+            let density=(view.window?.screen.scale ?? traitCollection.displayScale)*scale
+            ([heading,scoreLabel,score,status,bonus,bonusLabel]+buttons.compactMap(\.titleLabel)).forEach{$0.contentScaleFactor=density}
+        } else {
+            content.transform = .identity
+            content.center=CGPoint(x:view.bounds.midX,y:view.bounds.midY)
         }
         confetti?.frame=view.bounds
     }
@@ -411,6 +440,8 @@ final class NativeResultController:UIViewController {
     private func apply(_ pose:NativeResultPresentationPlan.Pose,to target:UIView) {
         target.alpha=max(0,min(1,pose.opacity));target.transform=pose.transform
     }
+    private var completesWorld:Bool {clean && state.mode == .journey && (1...30).contains(state.board) && state.board%10 == 0}
+    private var continuesJourney:Bool {clean && state.mode == .journey && (interimJourney || state.tutorial?.requiresResultCompletion == true)}
     private var earnedStars:Int {clean ? NativeJourneyContent.earnedStars(score:finalScore,board:state.board):0}
     private var lastCounterValue:Int?
     private var lastCounterHapticAt = -Double.infinity
@@ -456,6 +487,10 @@ final class NativeResultController:UIViewController {
         let plan=NativeResultPresentationPlan.sample(seconds:elapsed,clean:clean,baseScore:state.score,combo:combo,efficiency:efficiency,arcadeReached:scoreOnlyArcadeSummary)
         for (target,pose) in [(stars,plan.hero),(headlineContent,plan.title),(scoreLabel,plan.scoreLabel),(scoreMotion,plan.score),(status,plan.status),(buttons[0],plan.primary),(buttons[1],plan.secondary)] {apply(pose,to:target)}
         moment(clean ? "clean-applause":"fail-sax",at:0)
+        if !clean,let titleIndex=NativeResultHeadlines.fail.firstIndex(of:headline) {
+            moment("fail-title-prepare",at:0,index:titleIndex)
+            moment("fail-title",at:0.24,index:titleIndex)
+        }
         if clean {
             if let titleIndex=NativeResultHeadlines.clean.firstIndex(of:headline) {
                 moment("clean-title-prepare",at:0,index:titleIndex)
@@ -478,28 +513,27 @@ final class NativeResultController:UIViewController {
             }
         }
         if clean {
-            score.text=String(plan.displayedScore)
+            let comboVisible=elapsed<NativeResultPresentationPlan.cleanEfficiencyReveal
+            bonus.isHidden=scoreOnlyArcadeSummary;bonusLabel.isHidden=scoreOnlyArcadeSummary
+            bonusLabel.text=comboVisible ? "Combo bonus":"Efficiency"
+            apply(comboVisible ? plan.combo:plan.efficiency,to:bonusContent)
+            bonus.text="+\(NativeScoreDisplay.text(comboVisible ? plan.displayedCombo:plan.displayedEfficiency))"
+            let shown=plan.displayedScore
+            score.text=NativeScoreDisplay.text(shown)
             paintScoreAccent()
-            if lastCounterValue != plan.displayedScore {
-                let previous=lastCounterValue;lastCounterValue=plan.displayedScore
+            moment("clean-score-stop",at:NativeResultPresentationPlan.finalScoreBounceStart(baseScore:state.score,combo:combo,efficiency:efficiency,arcadeReached:scoreOnlyArcadeSummary))
+            if lastCounterValue != shown {
+                let previous=lastCounterValue;lastCounterValue=shown
                 if previous != nil,elapsed-lastCounterHapticAt>=0.05 {
                     lastCounterHapticAt=elapsed;onHaptic?("protected-light")
                 }
             }
-            let comboVisible=elapsed<NativeResultPresentationPlan.cleanEfficiencyReveal
-            bonus.isHidden=scoreOnlyArcadeSummary;bonusLabel.isHidden=scoreOnlyArcadeSummary
-            bonus.text="+\(comboVisible ? plan.displayedCombo:plan.displayedEfficiency)"
-            bonusLabel.text=comboVisible ? "Combo bonus":"Efficiency"
-            let pose=comboVisible ? plan.combo:plan.efficiency
-            apply(pose,to:bonusContent)
             confetti?.paint(seconds:elapsed,generation:state.generation)
             area55Flybys?.paint(seconds:elapsed,generation:state.generation)
             forestBees?.paint(seconds:elapsed)
         } else {bonus.isHidden=true;bonusLabel.isHidden=true}
         for index in 0..<2 {
             let begin=clean ? (scoreOnlyArcadeSummary ? 2.05:NativeResultPresentationPlan.cleanPrimaryCTAStart)+Double(index)*0.35:0.64+Double(index)*0.18
-            // The register accent belongs to the first visible CTA, once.
-            if clean,index == 0 {moment("clean-score-stop",at:begin)}
             moment(clean ? "clean-cta":"fail-cta",at:begin,index:index)
             buttons[index].isUserInteractionEnabled=elapsed>=begin+0.34 && committed
         }
@@ -515,7 +549,8 @@ final class NativeResultController:UIViewController {
         clickedPrimary=sender.tag==0
         onMoment?(sender.tag == 0 ? "cta":"back",sender.tag,nil);onHaptic?("selection")
         for button in buttons {button.isUserInteractionEnabled=false}
-        onAction?(sender.tag == 0 ? (clean && interimJourney ? .nextJourney : .restart) : .exit);onAction=nil
+        let action:Action = completesWorld ? (sender.tag == 0 ? .exit : .restart) : (sender.tag == 0 ? (continuesJourney ? .nextJourney : .restart) : .exit)
+        onAction?(action);onAction=nil
     }
     func close(prepareDestination:((@escaping (Bool)->Void)->Void)?=nil,paperFadeDuration:Double=0.14,completion:@escaping ()->Void) {
         guard closingAt == nil,!disposed else {return}

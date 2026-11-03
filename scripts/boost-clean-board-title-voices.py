@@ -15,6 +15,8 @@ BASE = ROOT / 'assets/sound/Clean board/voice/titles-v1'
 DEST = ROOT / 'assets/sound/Clean board/voice/titles-v2-plus3db'
 
 def main():
+    if (ROOT / "docs/audio/clean-board-title-voice-revisions.json").exists():
+        raise SystemExit("Title revisions require new approved recordings; legacy generation blocked to preserve current title/audio mapping.")
     original = json.loads((ROOT / 'docs/audio/clean-board-title-voices-v1.json').read_text())
     clips = []
     DEST.mkdir(parents=True, exist_ok=True)

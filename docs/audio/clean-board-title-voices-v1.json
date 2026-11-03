@@ -1042,20 +1042,6 @@
       "sha256": "0528494641f18282c1222895ec087788dd0c614ebe739c32dd953bf603297cf4"
     },
     {
-      "index": 74,
-      "title": "Dice done!",
-      "file": "075-dice-done.wav",
-      "start": 79.6825,
-      "end": 80.6375,
-      "duration": 0.955,
-      "recognised": "Dice done.",
-      "source": "assets/sound/Clean board/voice/titles-v1/075-dice-done.wav",
-      "gainDb": -1.457,
-      "peakDbFS": -3.0,
-      "dc": -1.943298659399542e-06,
-      "sha256": "8410424128e8ff2cd8099738345e1b1f039b5847da092637579c2c411ce27cb3"
-    },
-    {
       "index": 75,
       "title": "Dice cleared!",
       "file": "076-dice-cleared.wav",
@@ -1085,7 +1071,7 @@
     },
     {
       "index": 77,
-      "title": "Rollin’!",
+      "title": "Rollin\u2019!",
       "file": "078-rollin.wav",
       "start": 83.0675,
       "end": 83.8125,
@@ -1096,20 +1082,6 @@
       "peakDbFS": -5.259,
       "dc": -2.048159605704698e-06,
       "sha256": "9aa66562fa71ed542480c9375a53530b821bc19854c824e02b1bb065e94a6ad8"
-    },
-    {
-      "index": 78,
-      "title": "Roll perfect!",
-      "file": "079-roll-perfect.wav",
-      "start": 83.8825,
-      "end": 85.0575,
-      "duration": 1.175,
-      "recognised": "Roll perfect.",
-      "source": "assets/sound/Clean board/voice/titles-v1/079-roll-perfect.wav",
-      "gainDb": -2.605,
-      "peakDbFS": -4.336,
-      "dc": -1.0654097753213653e-06,
-      "sha256": "22e115f8f210847b136958241befa27e56619e3a309ffd0b4c1d9cb5e4c7f517"
     },
     {
       "index": 79,
@@ -1127,20 +1099,6 @@
     },
     {
       "index": 80,
-      "title": "Six it up!",
-      "file": "081-six-it-up.wav",
-      "start": 86.1075,
-      "end": 86.9375,
-      "duration": 0.83,
-      "recognised": "Six it up.",
-      "source": "assets/sound/Clean board/voice/titles-v1/081-six-it-up.wav",
-      "gainDb": -0.998,
-      "peakDbFS": -3.107,
-      "dc": -2.664160058201556e-06,
-      "sha256": "e2c5f9c46352d7348665697cc0cc16acc4baf6f1d3a05f5d6bb30bbe061267ed"
-    },
-    {
-      "index": 81,
       "title": "Stack cleared!",
       "file": "082-stack-cleared.wav",
       "start": 87.0275,
@@ -1155,20 +1113,6 @@
     },
     {
       "index": 82,
-      "title": "Stack smashed!",
-      "file": "083-stack-smashed.wav",
-      "start": 88.1725,
-      "end": 89.4825,
-      "duration": 1.31,
-      "recognised": "Stack smashed.",
-      "source": "assets/sound/Clean board/voice/titles-v1/083-stack-smashed.wav",
-      "gainDb": -1.374,
-      "peakDbFS": -3.0,
-      "dc": -1.394839687201813e-06,
-      "sha256": "0bd7e263deec8609109afb3cdcd252fc7af27f6eb260297ee109414c5c4d1741"
-    },
-    {
-      "index": 83,
       "title": "Stack complete!",
       "file": "084-stack-complete.wav",
       "start": 89.5525,
@@ -1182,7 +1126,7 @@
       "sha256": "e078214afe4f30890b7ce789a139c77de858a84525de75177af5aff586671054"
     },
     {
-      "index": 84,
+      "index": 83,
       "title": "Stack attack!",
       "file": "085-stack-attack.wav",
       "start": 90.6525,
@@ -1196,21 +1140,7 @@
       "sha256": "d09acc456ffab3d1d8dcba09b658dbb0ecd7a960087924cf443b0fd57f11860a"
     },
     {
-      "index": 85,
-      "title": "Stacktastic!",
-      "file": "086-stacktastic.wav",
-      "start": 91.7625,
-      "end": 92.9425,
-      "duration": 1.18,
-      "recognised": "Stack tastic.",
-      "source": "assets/sound/Clean board/voice/titles-v1/086-stacktastic.wav",
-      "gainDb": -1.544,
-      "peakDbFS": -3.0,
-      "dc": -1.8863354699086335e-06,
-      "sha256": "f48b01b6e4f6388b56fa0e77515f6141f3c9732e3c974b8a6893f8a34d9876a8"
-    },
-    {
-      "index": 86,
+      "index": 84,
       "title": "Stack magic!",
       "file": "087-stack-magic.wav",
       "start": 93.0175,
@@ -1224,21 +1154,7 @@
       "sha256": "623d38e34001e76902ad9d291fe9fd3a11e5fb12a2b4e6ef783aba4fd99c2231"
     },
     {
-      "index": 87,
-      "title": "Stack nailed!",
-      "file": "088-stack-nailed.wav",
-      "start": 94.2775,
-      "end": 95.4975,
-      "duration": 1.22,
-      "recognised": "Stack nailed.",
-      "source": "assets/sound/Clean board/voice/titles-v1/088-stack-nailed.wav",
-      "gainDb": -0.881,
-      "peakDbFS": -3.243,
-      "dc": -1.715571502518784e-06,
-      "sha256": "51d1a9691c0e60d71a0c99d5fd6dba83089cc0f779669adfdaa7c350f005f6ab"
-    },
-    {
-      "index": 88,
+      "index": 86,
       "title": "Board smashed!",
       "file": "089-board-smashed.wav",
       "start": 95.5475,
@@ -1252,7 +1168,7 @@
       "sha256": "fa50232b6bb049d85b973a86d2226b28f41b6346ae45c6b148ff0d3b97d41900"
     },
     {
-      "index": 89,
+      "index": 87,
       "title": "Board cleared!",
       "file": "090-board-cleared.wav",
       "start": 96.8425,
@@ -1266,7 +1182,7 @@
       "sha256": "d2f3983582541a952b5ea3143eaae945d7dccd73c4224ac73f0f8f655223cf77"
     },
     {
-      "index": 90,
+      "index": 88,
       "title": "Clean sweep!",
       "file": "091-clean-sweep.wav",
       "start": 97.8075,
@@ -1280,7 +1196,7 @@
       "sha256": "7ca7b8f6ac94bbfce9520aa41d2fcfb2727f529c6a16d90d8dc1b473357e16b9"
     },
     {
-      "index": 91,
+      "index": 89,
       "title": "Full clear!",
       "file": "092-full-clear.wav",
       "start": 98.8975,
@@ -1294,7 +1210,7 @@
       "sha256": "7467be11b4ae09d080ad21d30cc92486149aadbb9ed30a8a8284eca7437f1307"
     },
     {
-      "index": 92,
+      "index": 90,
       "title": "Total clear!",
       "file": "093-total-clear.wav",
       "start": 99.8875,
@@ -1308,7 +1224,7 @@
       "sha256": "432fafa147fe2ecfe497d1f42166b6173927c4e595777801d77ef42c20a36f17"
     },
     {
-      "index": 93,
+      "index": 91,
       "title": "Perfect clear!",
       "file": "094-perfect-clear.wav",
       "start": 100.9225,
@@ -1322,7 +1238,7 @@
       "sha256": "a6c2d819f553f596c88dc139c7e863c3a4837601b9f453bbe754c0b96d506314"
     },
     {
-      "index": 94,
+      "index": 92,
       "title": "All gone!",
       "file": "095-all-gone.wav",
       "start": 102.0275,
@@ -1336,7 +1252,7 @@
       "sha256": "a3e11ba4829ae7b241c4b802904da0f734077824684453a5ffa0510ac36ab5d6"
     },
     {
-      "index": 95,
+      "index": 93,
       "title": "Done & dusted!",
       "file": "096-done-dusted.wav",
       "start": 102.8825,
@@ -1350,7 +1266,7 @@
       "sha256": "5374517213b065c9fca2f751aa782ce024df4cacc23390161babcf6c28ca1b7a"
     },
     {
-      "index": 96,
+      "index": 94,
       "title": "Crushed it!",
       "file": "097-crushed-it.wav",
       "start": 104.2625,
@@ -1364,7 +1280,7 @@
       "sha256": "d38ac47130d02d17a112c8466a2c34d24b9acd7ff9e6c71b38b612a45dcc7f59"
     },
     {
-      "index": 97,
+      "index": 95,
       "title": "Smashed it!",
       "file": "098-smashed-it.wav",
       "start": 105.0875,
@@ -1378,7 +1294,7 @@
       "sha256": "de41bdd4343812f348ca68f1719027d821213dd4695fd31489489287a529d437"
     },
     {
-      "index": 98,
+      "index": 96,
       "title": "Owned it!",
       "file": "099-owned-it.wav",
       "start": 106.0775,
@@ -1392,8 +1308,8 @@
       "sha256": "8d280c7e25ef91ae30c1a89176d7c89cc9dab2d678063be46f63591cece69955"
     },
     {
-      "index": 99,
-      "title": "Got ’em!",
+      "index": 97,
+      "title": "Got \u2019em!",
       "file": "100-got-em.wav",
       "start": 106.7875,
       "end": 107.4375,
@@ -1406,8 +1322,8 @@
       "sha256": "d1ed63c821f94dad0df8fd6b46ea1988dd5b9872a787d95ca2942c4b27ee1ce4"
     },
     {
-      "index": 100,
-      "title": "That’s it!",
+      "index": 98,
+      "title": "That\u2019s it!",
       "file": "101-that-s-it.wav",
       "start": 107.4975,
       "end": 108.2025,
@@ -1420,7 +1336,7 @@
       "sha256": "ee0fc04bb76d9a5c4ee19314a9a66571842e9379f7cb129e310bb491974a1109"
     },
     {
-      "index": 101,
+      "index": 99,
       "title": "Oh yeah!",
       "file": "102-oh-yeah.wav",
       "start": 108.2475,
@@ -1434,7 +1350,7 @@
       "sha256": "5863b0dd26711c36faf5642d7845567598b04c45d737aac6103109982f0c4462"
     },
     {
-      "index": 102,
+      "index": 100,
       "title": "Heck yeah!",
       "file": "103-heck-yeah.wav",
       "start": 109.2825,
@@ -1448,8 +1364,8 @@
       "sha256": "7fadb114de5ed34c25703e80e4011c5f6f9350a8b7058c6cce931d3f3f79e973"
     },
     {
-      "index": 103,
-      "title": "Let’s gooo!",
+      "index": 101,
+      "title": "Let\u2019s gooo!",
       "file": "104-let-s-gooo.wav",
       "start": 110.1875,
       "end": 111.3425,
@@ -1462,7 +1378,7 @@
       "sha256": "343e97290fe8145f5325a051c28f1d4e4b33cf57cc75dd58a3c086b196afea80"
     },
     {
-      "index": 104,
+      "index": 102,
       "title": "Too easy!",
       "file": "105-too-easy.wav",
       "start": 111.3925,
@@ -1476,7 +1392,7 @@
       "sha256": "e8a10dfddd502f740ed23db4f6df60144f49f989f5a92e3152ef0a68b0ef2c89"
     },
     {
-      "index": 105,
+      "index": 103,
       "title": "So good!",
       "file": "106-so-good.wav",
       "start": 112.5025,
@@ -1490,7 +1406,7 @@
       "sha256": "daea47e44433744ea964011066daa7965931b53a0a11e04817abfd2ba89b5930"
     },
     {
-      "index": 106,
+      "index": 104,
       "title": "Super clean!",
       "file": "107-super-clean.wav",
       "start": 113.5975,
@@ -1504,7 +1420,7 @@
       "sha256": "1df2f0dce3c7abd7aa66e100c6a95205a8a7643a44ae017437b1d3c48cdaec18"
     },
     {
-      "index": 107,
+      "index": 105,
       "title": "Mega win!",
       "file": "108-mega-win.wav",
       "start": 114.7475,
@@ -1518,7 +1434,7 @@
       "sha256": "dcc78c179903304ca4034ed318291601d07deea92f9b2304e4d6a46afafc44fe"
     },
     {
-      "index": 108,
+      "index": 106,
       "title": "Epic clear!",
       "file": "109-epic-clear.wav",
       "start": 115.8175,
@@ -1532,7 +1448,7 @@
       "sha256": "ad65c552a9895bd900acca76bd1f88967dbf614376e11200f6fb5607b7fa93a7"
     },
     {
-      "index": 109,
+      "index": 107,
       "title": "Dicey nice!",
       "file": "110-dicey-nice.wav",
       "start": 116.8225,
@@ -1546,7 +1462,7 @@
       "sha256": "5f9ec3a730b667d4edc939f438e4671855286e19f43f40a71fc4905ce739e777"
     },
     {
-      "index": 110,
+      "index": 108,
       "title": "Roll star!",
       "file": "111-roll-star.wav",
       "start": 117.9275,
@@ -1560,7 +1476,7 @@
       "sha256": "b6683be06957ce2541b3595f715ddbe8d0be46a740a7e070e42776f4c526134f"
     },
     {
-      "index": 111,
+      "index": 109,
       "title": "Stack star!",
       "file": "112-stack-star.wav",
       "start": 119.0675,
@@ -1574,21 +1490,7 @@
       "sha256": "3307be98b0ba15dda17f2f6083b21c880ec7a16267385b5307c91f44acca3551"
     },
     {
-      "index": 112,
-      "title": "Sixcess!",
-      "file": "113-sixcess.wav",
-      "start": 120.1725,
-      "end": 121.1725,
-      "duration": 1.0,
-      "recognised": "Success!",
-      "source": "assets/sound/Clean board/voice/titles-v1/113-sixcess.wav",
-      "gainDb": 1.154,
-      "peakDbFS": -3.0,
-      "dc": -2.4967193603515624e-06,
-      "sha256": "be1644cb93faeb01746139f06fe1b0fcc1947fedd9c7ee5346f934b0f9f68766"
-    },
-    {
-      "index": 113,
+      "index": 111,
       "title": "Dice-lightful!",
       "file": "114-dice-lightful.wav",
       "start": 121.2075,

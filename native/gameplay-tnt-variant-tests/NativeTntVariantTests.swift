@@ -87,6 +87,17 @@ final class NativeTntVariantTests: XCTestCase {
     private func resourceRoot()->URL {
         NativeTestResources.root
     }
+    func testBarrelSmokeGrowsTwentyPercentOnBothAxesWithoutMovingOrigin()throws {
+        let root=resourceRoot(),art=JimiV9Artwork(resourceRoot:root)
+        let expected=try XCTUnwrap(art.image("assets/shop/explosion pack/animation/tnt1.png",densityAware:true)?.pngData())
+        let owner=NativeTntVariantPresentation(resourceRoot:root,variant:.barell,viewport:CGSize(width:390,height:844),random:{0.5})
+        defer{owner.dispose()}
+        let cloud=try XCTUnwrap(owner.subviews.compactMap{$0 as? UIImageView}.first{$0.image?.pngData()==expected})
+        let center=cloud.center;owner.paint(seconds:0.31)
+        XCTAssertEqual(cloud.transform.a,1.26*1.2*1.2,accuracy:0.00001)
+        XCTAssertEqual(cloud.transform.d,1.26*1.2*1.2*1.4,accuracy:0.00001)
+        XCTAssertEqual(cloud.center,center)
+    }
     func testFlowerAndBarrelCommitAndSequenceReceiptsAreSeparateAndExactlyOnce() {
         for variant in [NativeTntVariantPresentation.Variant.flower,.barell] {
             let owner=NativeTntVariantPresentation(resourceRoot:resourceRoot(),variant:variant,viewport:CGSize(width:390,height:844),random:{0.5})

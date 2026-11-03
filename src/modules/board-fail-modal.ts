@@ -68,17 +68,17 @@ const HEADLINES: string[] = [
   'Shoot!', 'Try Again!', 'Whoa There!', 'Not Today!', 'Gah!', 'So Near!',
   'Drat!', 'Aw Man!', 'Dang!', 'One More!', 'That Hurt!',
   'Big L!', 'Epic Fail!', 'Nice Try!', 'Almost There!', 'Too Slow!', 'Wrong Move!',
-  'Out of Luck!', 'You Died!', 'Close Call!', 'Oopsie Daisy!', 'Denied Again!',
-  'Try Harder!', 'Next Time!', 'Bad Timing!', 'Off Target!', 'Miss Click?',
+  'Out of Luck!', 'Close Call!', 'Oopsie Daisy!', 'Denied Again!',
+  'Try Harder!', 'Next Time!', 'Bad Timing!', 'Off Target!',
   'Wrong Turn!', 'Nope Nope!', 'Weak Hit!', 'Fumble Time!', 'You Slipped!',
   'Almost Got It!', 'Almost Made!', 'So Nearly!', 'Nice Effort!', 'Close… Again!',
   'Missed Again!', 'Not Enough!', 'Try Once More!', 'Lost It!', 'Off By One!',
   'Tiny Miss!', 'Slip Up!', 'Fell Short!', 'Nearly There!', 'Almost Win!',
-  'Off Course!', 'You Almost!', 'Barely Missed!', 'Not This Run!', 'Just Missed!',
+  'Off Course!', 'Barely Missed!', 'Not This Run!', 'Just Missed!',
   'One Off!', 'Not Quite Yet!', 'Miss Again!', 'Fell Off!', 'Tiny Fail!',
   'Close Miss!', 'Off Mark!', 'Nice Almost!',
   'Just Short!', 'Barely Off!', 'Miss By Inch!', 'So Very Close!', 'Almost Did It!',
-  'Wrong Spot!', 'Next One!', 'Almost Clutch!', 'Barely Lost!',
+  'Next One!', 'Almost Clutch!', 'Barely Lost!',
   'Slip Moment!', 'Try Again Champ!', 'Solid Try!', 'Off Balance!', 'Almost Boss!',
   'Too Late!', 'Nice Attempt!', 'Close Runner!', 'Oh noo!'
 ];
@@ -261,9 +261,9 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
     logger.warn('⚠️ board-fail-modal: Modal already opening/open - joining active owner');
     return _activeModalPromise;
   }
-  
+
   _isModalOpen = true;
-  
+
   const modalPromise = new Promise<BoardFailModalResult>(async (resolve) => {
     let settled = false;
     const lifetime = createResultModalLifetime();
@@ -330,7 +330,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         options?: AddEventListenerOptions;
       }>;
     }> = [];
-    
+
     // 🔥 BUG FIX: Flag to prevent multiple resolveAndCleanup calls
     let isResolving = false;
     // 🔥 JOURNEY PROGRESSION: Handle board failure
@@ -339,7 +339,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       if (!lifetime.isActive()) return;
       // Keep lastOpenedBoardId (don't reset it) - user should be able to retry same board
       journeyProgressionState.setLastOpenedBoardId(boardNumber);
-      
+
       // 🔥 USER REQUEST: Save score in journey progression state BEFORE clearing currentRunState
       // This allows us to preserve score when resuming from interim card
       // Get current score from saved game state or use provided score (board-specific)
@@ -357,7 +357,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       } catch (e) {
         logger.warn(`⚠️ Failed to read score from saved game for board ${boardNumber}:`, e);
       }
-      
+
       // Also try to get score from current run state if available
       try {
         const currentRunState = journeyProgressionState.getCurrentRunState();
@@ -368,17 +368,17 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       } catch (e) {
         logger.warn('⚠️ Failed to read score from currentRunState:', e);
       }
-      
+
       // 🔥 USER REQUEST: Save score in journey progression state (with inProgress: true so it can be resumed)
       // This preserves the score for when user resumes from interim card
       // We set inProgress: true so continueGameWithSavedState can find it
       journeyProgressionState.setCurrentRunState(boardNumber, currentScore);
       logger.info(`🗺️ Journey: Board ${boardNumber} failed - score ${currentScore} saved in journey state (inProgress: true for resume)`);
-      
+
       // 🔥 CRITICAL FIX: Clear __ccSkipRebuildBoard flag to force fresh board on retry
       delete (window as any).__ccSkipRebuildBoard;
       logger.info('✅ Cleared __ccSkipRebuildBoard flag - will rebuild fresh board on retry');
-      
+
       // 🔥 CRITICAL FIX: Ensure interim status is saved for this board when user fails
       // This ensures interim card persists after hard exit
       try {
@@ -397,7 +397,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
     } catch (error) {
       logger.warn('⚠️ Failed to update Journey progression state on failure:', error);
     }
-    
+
     // 🔥 USER REQUEST: Clear saved game state (tiles) but preserve score in journey progression state
     // This prevents loading failed board state, but preserves score for journey continuation
     // 🔥 CRITICAL FIX: Clear stuck game state from localStorage AFTER saving score (board-specific)
@@ -405,7 +405,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
     try {
       // Set flag to prevent future saves
       (window as WindowWithCC)._gameHasEnded = true;
-      
+
       // 🔥 USER REQUEST: Clear tiles/board state for THIS specific board (board-specific)
       // Score is already saved in journey progression state
       const saveKey = getBoardSaveKey(boardNumber);
@@ -415,7 +415,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
     } catch (error) {
       logger.warn(`⚠️ board-fail-modal: Failed to clear saved game state for board ${boardNumber}:`, error);
     }
-    
+
     if (settled) {
       logger.info('⏭️ board-fail-modal: Navigation aborted modal before DOM creation');
       return;
@@ -616,7 +616,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
     });
 
     // FX cleanup is handled by restartGame()/exitToMenu() to avoid duplicate cleanup races
-    
+
     const resolveAndCleanup = async (action: string): Promise<void> => {
       // 🔥 BUG FIX: Prevent multiple calls (double-click protection)
       if (!lifetime.isActive()) return;
@@ -625,7 +625,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         return;
       }
       isResolving = true;
-      
+
       // CRITICAL FIX: Update high score before resolving
       if (typeof (window as WindowWithCC).updateHighScore === 'function') {
         try {
@@ -635,7 +635,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
           logger.warn('⚠️ board-fail-modal: Failed to call window.updateHighScore:', error);
         }
       }
-      
+
       // DIRECT FUNCTION CALLS like bottom sheet
       if (action === 'retry') {
         (async () => {
@@ -643,7 +643,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
             // 🔥 MEMORY LEAK FIX: NOW cleanup (modal is closing)
             cleanupFailModalLifecycle('gameplay');
             acquireGameplaySoundtrackAfterPlayAgain();
-            
+
             // Proceed with restart.
             logger.info('🎮 Play Again clicked - calling window.CC.restart directly');
             if (isArcadeHomeRunMode()) {
@@ -653,7 +653,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
             }
             await runExitAnimation(action);
             if (!lifetime.isActive()) return;
-            
+
             if ((window as WindowWithCC).CC && (window as WindowWithCC).CC!.restart) {
               try {
                 console.info('[CC_HUD_RETRY_TRACE] fail-retry-dispatch', {
@@ -670,15 +670,15 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
             } else {
               logger.error('❌ window.CC.restart not available!');
             }
-            
+
             disposeCtas();
-            try { overlay.remove(); } catch {} 
+            try { overlay.remove(); } catch {}
             _isModalOpen = false; // 🔥 BUG FIX: Reset flag when modal closes
             safeResolve(action);
           } catch (error) {
             if (!lifetime.isActive()) return;
             logger.warn('⚠️ Failed to restart after board fail, using fallback restart path:', error);
-            
+
             // 🔥 MEMORY LEAK FIX: Cleanup on fallback too
             cleanupFailModalLifecycle('gameplay');
             acquireGameplaySoundtrackAfterPlayAgain();
@@ -689,7 +689,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
             }
             await runExitAnimation(action);
             if (!lifetime.isActive()) return;
-            
+
             if ((window as WindowWithCC).CC && (window as WindowWithCC).CC!.restart) {
               try {
                 console.info('[CC_HUD_RETRY_TRACE] fail-retry-fallback-dispatch', {
@@ -706,9 +706,9 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
             } else {
               logger.error('❌ window.CC.restart not available (fallback)!');
             }
-            
+
             disposeCtas();
-            try { overlay.remove(); } catch {} 
+            try { overlay.remove(); } catch {}
             _isModalOpen = false; // 🔥 BUG FIX: Reset flag when modal closes
             safeResolve(action);
           }
@@ -720,10 +720,10 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         }
         // 🔥 MEMORY LEAK FIX: Cleanup (modal is closing)
         cleanupFailModalLifecycle();
-        
+
         logger.info('🚪 Exit clicked - calling window.exitToMenu directly');
         resetArcadeFailedRunForFreshStart();
-        
+
         if (isArcadeHomeRunMode()) {
           clearJourneyDetailReturn();
           logger.info('🎮 board-fail-modal: Arcade Exit - returning to homepage with no detail modal flags');
@@ -732,7 +732,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
           logger.info('🎯 board-fail-modal: Journey fail return target prepared', returnDecision);
           prepareJourneyReturnBehindTerminalOverlay('fail', journeyReturnTransitionId!);
         }
-        
+
         const exitAnimation = measureJourneyReturnPreparationPhase(
           journeyReturnTransitionId, 'modal-exit-setup', () => runExitAnimation(action),
         );
@@ -770,23 +770,23 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         } catch (error) {
           logger.warn('⚠️ menu exit handoff failed:', error);
         }
-        
+
         disposeCtas();
-        try { overlay.remove(); } catch {} 
+        try { overlay.remove(); } catch {}
         _isModalOpen = false; // 🔥 BUG FIX: Reset flag when modal closes
         safeResolve(action);
         return; // Exit early - modal closing is handled above
       }
-      
+
       // Only close modal if action is not 'retry' (retry handles its own modal closing)
       if (action !== 'retry') {
         // 🔥 MEMORY LEAK FIX: Cleanup event listeners for fallback actions
         cleanupFailModalLifecycle();
-        
+
         await runExitAnimation(action);
         if (!lifetime.isActive()) return;
         disposeCtas();
-        try { overlay.remove(); } catch {} 
+        try { overlay.remove(); } catch {}
         _isModalOpen = false; // 🔥 BUG FIX: Reset flag when modal closes
         safeResolve(action);
       }

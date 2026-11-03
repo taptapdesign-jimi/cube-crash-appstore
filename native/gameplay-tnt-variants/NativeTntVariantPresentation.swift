@@ -17,6 +17,7 @@ final class NativeTntVariantPresentation: NativeFinitePresentation {
     private var frontPalms:[UIImageView]=[],rearPalms:[NativeCoconutPalmView]=[]
     private var coconutMotion:NativeCoconutFinaleMotion?
     private var wholeCoconuts:[UIView]=[]
+    private let smokePresentationScale:CGFloat,smokeVerticalOffset:CGFloat
     private let variant: Variant
     private let glyphs: NativeSplashGlyphField
     private let effectCenter: CGPoint
@@ -39,7 +40,9 @@ final class NativeTntVariantPresentation: NativeFinitePresentation {
         }
         return (1...12).map { variant == .bloobGas ? "assets/shop/bloog ball/gas animation/gas\($0)@2x.png":"assets/shop/explosion pack/animation/tnt\($0)@2x.png" }+(1...6).map { "assets/shop/barell/wood\($0).png" }+["assets/tile.png"]
     }
-    init(resourceRoot: URL,variant: Variant,viewport: CGSize,preparedArtwork:JimiV9Artwork?=nil,coconutBoardBodySize:CGFloat?=nil,random: @escaping () -> Double = { Double.random(in:0..<1) }) {
+    init(resourceRoot: URL,variant: Variant,viewport: CGSize,preparedArtwork:JimiV9Artwork?=nil,coconutBoardBodySize:CGFloat?=nil,smokePresentationScale:CGFloat=1,smokeVerticalOffset:CGFloat=0,random: @escaping () -> Double = { Double.random(in:0..<1) }) {
+        self.smokePresentationScale=(variant == .barell || variant == .flower) ? smokePresentationScale:1
+        self.smokeVerticalOffset=variant == .barell ? smokeVerticalOffset:0
         self.variant = variant; effectCenter = CGPoint(x:viewport.width/2,y:viewport.height/2)
         let artwork = preparedArtwork ?? JimiV9Artwork(resourceRoot:resourceRoot)
         if variant == .coconut || variant == .flower {
@@ -170,7 +173,7 @@ final class NativeTntVariantPresentation: NativeFinitePresentation {
                 scale=cloud.size+(cloud.bounce-cloud.size)*p;y=cloud.y*p
                 if time>=exit+0.13 { let p=Double(NativeBoardMotion.Ease.backIn(2).sample((time-exit-0.13)/0.17));scale *= 1-p;alpha=1-p }
             }
-            cloud.view.center=CGPoint(x:effectCenter.x,y:effectCenter.y+CGFloat(y))
+            cloud.view.center=CGPoint(x:effectCenter.x,y:effectCenter.y+smokeVerticalOffset+CGFloat(y))
             let gas=variant == .bloobGas
             let progress=max(0,min(1,(time-enter)/(exit+0.30-enter)))
             let rotation=cloud.rotation+cloud.rotationTravel*progress*progress*(3-2*progress)
@@ -185,7 +188,7 @@ final class NativeTntVariantPresentation: NativeFinitePresentation {
                 opacity += (min(opacity,0.4)-opacity)*exitBlend
             }
             let hold=gas ? Self.smoothUnit((time-settle-0.1)/0.18)*(1-Self.smoothUnit((time-exit)/0.13)):0
-            let base=scale*(gas ? 0.7*(1+0.4*hold):1)
+            let base=scale*Double(smokePresentationScale)*(gas ? 0.7*(1+0.4*hold):1)*(variant == .barell ? 1.2:1)
             cloud.view.alpha=CGFloat(min(1,max(0,alpha))*opacity)
             cloud.view.transform=CGAffineTransform(rotationAngle:rotation).scaledBy(x:CGFloat(base*(1+squeeze))*(variant == .flower ? 0.84:1),y:CGFloat(base*(1-squeeze))*(variant == .barell ? 1.4:1))
         }
@@ -193,7 +196,7 @@ final class NativeTntVariantPresentation: NativeFinitePresentation {
             if time<petal.plan.delay {if petal.view.alpha != 0 {petal.view.alpha=0};continue}
             let pose=NativeTntVariantPlanning.flowerPose(petal.plan,time:time)
             let extent=max(1,max(petal.view.bounds.width,petal.view.bounds.height))
-            let scale=CGFloat(petal.plan.size*pose.scale)/extent
+            let scale=CGFloat(petal.plan.size*pose.scale)/extent*(variant == .flower ? smokePresentationScale:1)
             petal.view.center=CGPoint(x:effectCenter.x+CGFloat(pose.x),y:effectCenter.y+CGFloat(pose.y));petal.view.alpha=CGFloat(pose.alpha)
             petal.view.transform=CGAffineTransform(rotationAngle:pose.rotation).scaledBy(x:scale,y:scale);petal.view.layer.zPosition=pose.depth
             if time>=petal.plan.delay+petal.plan.duration {finishedPetals.insert(index)}

@@ -215,7 +215,11 @@ import StackToSixNativeState
             try await wait{old.visibleJourneyRewardController != nil}
             let reward=try XCTUnwrap(old.visibleJourneyRewardController)
             try await wait{(try? store.load()?.progression.completedJourneyBoards.contains(reward.board)) == true}
-            reward.activate();reward.activate() // real tap handler queues collect during reveal
+            // Opening taps request a reveal; repeated opening taps do not
+            // collect invisibly. Wait for the actual collectable face.
+            reward.activate()
+            try await wait{reward.phase == "unlocked"}
+            reward.activate()
             try await wait{old.presentedViewController is NativeResultController}
             let result=try XCTUnwrap(old.presentedViewController as? NativeResultController)
             func primary(_ view:UIView)->UIButton? {
@@ -247,24 +251,28 @@ import StackToSixNativeState
         XCTAssertEqual(app.route,.gameplay);XCTAssertTrue(app.home.isHidden)
         XCTAssertEqual(game.engine.state.generation,nextGeneration);XCTAssertEqual(game.engine.state.board,restart ? 1:2)
         XCTAssertEqual(game.engine.state.moves,50);XCTAssertEqual(game.engine.state.wildMeter,restart || journey ? 0:0.25)
-        if restart {XCTAssertEqual(game.engine.state.score,0)}else {
+        if restart || journey {XCTAssertEqual(game.engine.state.score,0)}else {
             XCTAssertGreaterThan(game.engine.state.score,123)
-            if !journey {XCTAssertEqual(game.engine.state.score,old.engine.state.score)}
+            XCTAssertEqual(game.engine.state.score,old.engine.state.score)
         }
-        XCTAssertEqual(game.sourceInitialBoardSaveAccepted,!journey);XCTAssertTrue(scene.sourceRegularIdleAdmissionOpen)
+        XCTAssertTrue(game.sourceInitialBoardSaveAccepted);XCTAssertTrue(scene.sourceRegularIdleAdmissionOpen)
         XCTAssertTrue(try XCTUnwrap(scene.captureSourcePhysicalBoard()).isStillCurrent())
         XCTAssertFalse(app.replaceGameplay(old,with:game),"Stale previous VC cannot replace or dispose the current board")
         XCTAssertTrue(scope.current)
         XCTAssertEqual(scope.captureSourceBoardTransitionActive(),false)
         if journey {
-            XCTAssertFalse(observedThemedAnnouncement,"Accepted Journey Play Again continues directly under first-frame coverage without another announcement")
-            XCTAssertFalse(observedSourceTransition,"Direct Journey continuation must not acquire an announcement transition flag")
+            XCTAssertTrue(observedThemedAnnouncement,"Journey Next announces the fresh successor Unit before revealing its board")
+            XCTAssertTrue(observedSourceTransition,"The Source continuation owns and retires its announcement transition flag")
         }
         let saved=try XCTUnwrap(store.load())
         let savedRun=journey ? saved.journeyRuns[2]:saved.arcadeRun
-        XCTAssertEqual(savedRun?.generation,nextGeneration);XCTAssertEqual(savedRun?.board,game.engine.state.board)
-        if journey {XCTAssertEqual(game.engine.state.score,saved.progression.boardStats[1]?.highScore)}
-        XCTAssertNil(saved.pendingArcadeRound);XCTAssertTrue(saved.progression.firstPlayTutorialComplete)
+        XCTAssertNil(savedRun,"An untouched fresh successor remains Play until its first committed move")
+        if journey {XCTAssertGreaterThan(saved.progression.boardStats[1]?.highScore ?? 0,123)}
+        if journey {XCTAssertNil(saved.pendingArcadeRound)}else {
+            XCTAssertEqual(saved.pendingArcadeRound?.round,game.engine.state.board)
+            XCTAssertEqual(saved.pendingArcadeRound?.score,game.engine.state.score)
+        }
+        XCTAssertTrue(saved.progression.firstPlayTutorialComplete)
         let candidates=game.engine.state.tiles.filter{!$0.locked && !$0.isWild && $0.value>0}
         let pair=try XCTUnwrap(candidates.enumerated().flatMap{i,a in candidates.dropFirst(i+1).filter{a.value+$0.value<6}.map{(a,$0)}}.first)
         let destination=try XCTUnwrap(scene.sourceNativeTileNode(pair.1.id)),geometry=try XCTUnwrap(scene.boardGeometry)

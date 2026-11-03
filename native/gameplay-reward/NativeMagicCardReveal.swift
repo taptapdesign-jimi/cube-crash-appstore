@@ -1,5 +1,6 @@
 import UIKit
 import ImageIO
+import CoreImage
 
 /// A bounded adapter for the authored magic-card-reveal.svg vocabulary, not a
 /// browser or general SVG renderer. Decode once off-main; finite CA tracks use
@@ -13,7 +14,9 @@ nonisolated enum NativeMagicCardSource {
     static let brightnessLift=0.145
     final class Node:@unchecked Sendable {
         let tag:String,attributes:[String:String]
-        var children:[Node]=[],image:CGImage?
+        var children:[Node]=[],image:CGImage?,sheenImage:CGImage?
+        var burnFrames:[CGImage]=[]
+        var burnGlow:CGImage?
         init(_ tag:String,_ attributes:[String:String]) {self.tag=tag;self.attributes=attributes}
     }
     private final class Parser:NSObject,XMLParserDelegate {
@@ -59,7 +62,48 @@ nonisolated enum NativeMagicCardSource {
             }
             return node.children.allSatisfy(prepare)
         }
-        return prepare(root) && images==9 ? root:nil
+        guard prepare(root),images==9 else{return nil}
+        // The final held face alone borrows the logo's original-image glint.
+        // Prepare on this existing selected SVG worker, preserving source alpha.
+        var held:Node?
+        func findHeld(_ node:Node) {
+            if node.tag=="image" {held=node}
+            for child in node.children {findHeld(child)}
+        }
+        findHeld(root)
+        if let held {
+            // Keep all authored fold frames and geometry. Only the final straight
+            // face borrows its existing high-density original on this same worker.
+            let original=url.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("colelctibles/interim@2x.png")
+            if let replacement=heldOriginal(original,lease:lease) {held.image=replacement}
+            prepareFaceEffects(held,lease:lease)
+        }
+        return lease.cancelled ? nil:root
+    }
+    private static func heldOriginal(_ url:URL,lease:NativeRewardPreparationLease)->CGImage? {
+        guard !lease.cancelled,let source=CGImageSourceCreateWithURL(url as CFURL,nil),
+              let properties=CGImageSourceCopyPropertiesAtIndex(source,0,nil) as? [CFString:Any],
+              let width=properties[kCGImagePropertyPixelWidth] as? Int,
+              let height=properties[kCGImagePropertyPixelHeight] as? Int,
+              width==1032,height==1528,!lease.cancelled,
+              let decoded=CGImageSourceCreateImageAtIndex(source,0,[kCGImageSourceShouldCacheImmediately:true] as CFDictionary),
+              !lease.cancelled,
+              let bitmap=CGContext(data:nil,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue) else{return nil}
+        bitmap.draw(decoded,in:CGRect(x:0,y:0,width:width,height:height))
+        guard !lease.cancelled else{return nil}
+        brightenPremultipliedRGBA(bitmap)
+        return lease.cancelled ? nil:bitmap.makeImage()
+    }
+    static func prepareFaceEffects(_ node:Node,lease:NativeRewardPreparationLease) {
+        guard !lease.cancelled,let image=node.image else{return}
+        let sheen=NativeCardSheenRecipe.pixels(image,cancelled:{lease.cancelled})
+        let context=CIContext(options:[.cacheIntermediates:false])
+        guard !lease.cancelled else{return}
+        node.sheenImage=sheen
+        node.burnFrames=JimiNativeInterimEffect.renderBurn(image:image,size:CGSize(width:360,height:533),density:1,radius:12,exactAlpha:false,includeArtwork:false,cancelled:{lease.cancelled})
+        guard !lease.cancelled else{return}
+        let glow=CIImage(cgImage:image).applyingFilter("CIColorMatrix",parameters:["inputRVector":CIVector(x:1.312,y:0,z:0,w:0),"inputGVector":CIVector(x:0,y:1.312,z:0,w:0),"inputBVector":CIVector(x:0,y:0,z:1.312,w:0)]).applyingFilter("CIColorControls",parameters:[kCIInputSaturationKey:1.156]).applyingFilter("CISepiaTone",parameters:[kCIInputIntensityKey:0.065])
+        node.burnGlow=context.createCGImage(glow,from:glow.extent)
     }
     static func numbers(_ string:String)->[Double] {string.split(whereSeparator:{$0==" " || $0=="," || $0==";"}).compactMap{Double($0)}}
     /// The accepted five-percent lift plus another ten-percent lift toward
@@ -105,6 +149,8 @@ final class NativeMagicCardReveal {
     }
     let layer=CALayer()
     private var tracks:[Track]=[],layers:[CALayer]=[]
+    private var cardSheen:CALayer?,cardSheenBand:CAGradientLayer?,cardBurn:CALayer?,cardBurnGlow:CALayer?
+    private var burnFrames:[CGImage]=[]
     private(set) var ready=false
     var trackCount:Int {tracks.count}
     var imageCount:Int {layers.filter{$0.contents != nil}.count}
@@ -122,6 +168,12 @@ final class NativeMagicCardReveal {
         CATransaction.begin();CATransaction.setDisableActions(true)
         layer.position=CGPoint(x:bounds.midX-300*scale,y:bounds.midY-410*scale)
         layer.transform=CATransform3DMakeScale(scale,scale,1);CATransaction.commit()
+    }
+    func layoutHeldFace(in bounds:CGRect) {
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        layer.bounds=CGRect(x:0,y:0,width:360,height:533);layer.position=bounds.origin
+        layer.transform=CATransform3DMakeScale(bounds.width/360,bounds.height/533,1)
+        CATransaction.commit()
     }
     func settle(at time:Double) {
         CATransaction.begin();CATransaction.setDisableActions(true)
@@ -160,8 +212,35 @@ final class NativeMagicCardReveal {
         }
         CATransaction.commit()
     }
-    func stop(){for item in layers {item.removeAllAnimations()}}
-    func dispose(){stop();layer.sublayers?.forEach{$0.removeFromSuperlayer()};layers.removeAll();tracks.removeAll();ready=false}
+    func playCardShimmer(reduced:Bool) {
+        stopCardShimmer()
+        guard ready,!reduced,let sheen=cardSheen,let band=cardSheenBand else{return}
+        CATransaction.begin();CATransaction.setDisableActions(true);sheen.opacity=0.72
+        let pass=NativeCardSheenRecipe.animation(width:sheen.bounds.width)
+        pass.beginTime=band.convertTime(CACurrentMediaTime(),from:nil)
+        pass.fillMode = .backwards
+        band.add(pass,forKey:"native.reward.magic-card.sheen")
+        cardBurn?.opacity=1
+        if let burn=cardBurn,!burnFrames.isEmpty {
+            let frames=CAKeyframeAnimation(keyPath:"contents");frames.values=burnFrames;frames.calculationMode = .discrete;frames.duration=1.1/1.3
+            let pulse=CAAnimationGroup();pulse.animations=[frames];pulse.duration=3;pulse.repeatCount = .infinity
+            pulse.beginTime=burn.convertTime(CACurrentMediaTime(),from:nil)+1.05*0.6;pulse.fillMode = .backwards
+            burn.add(pulse,forKey:"native.reward.magic-card.burn")
+            if let glow=cardBurnGlow {
+                let alpha=CAKeyframeAnimation(keyPath:"opacity");alpha.values=[0,1,0];alpha.keyTimes=[0,0.56,1];alpha.duration=1.1/1.3
+                alpha.timingFunctions=[CAMediaTimingFunction(name:.easeOut),CAMediaTimingFunction(name:.easeOut)]
+                let group=CAAnimationGroup();group.animations=[alpha];group.duration=3;group.repeatCount = .infinity;group.beginTime=glow.convertTime(CACurrentMediaTime(),from:nil)+1.05*0.6;group.fillMode = .backwards
+                glow.add(group,forKey:"native.reward.magic-card.burn-glow")
+            }
+        }
+        CATransaction.commit()
+    }
+    func stopCardShimmer() {
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        cardSheen?.opacity=0;cardSheenBand?.removeAllAnimations();cardBurn?.removeAllAnimations();cardBurn?.opacity=0;cardBurnGlow?.removeAllAnimations();CATransaction.commit()
+    }
+    func stop(){stopCardShimmer();for item in layers {item.removeAllAnimations()}}
+    func dispose(){stop();cardSheen?.contents=nil;cardSheen?.mask=nil;cardSheen?.removeFromSuperlayer();cardSheen=nil;cardSheenBand=nil;cardBurn?.contents=nil;cardBurn?.mask?.contents=nil;cardBurn?.mask=nil;cardBurn?.removeFromSuperlayer();cardBurn=nil;cardBurnGlow?.contents=nil;cardBurnGlow?.removeFromSuperlayer();cardBurnGlow=nil;burnFrames.removeAll();layer.sublayers?.forEach{$0.removeFromSuperlayer()};layers.forEach{$0.contents=nil;$0.mask=nil;$0.removeAllAnimations()};layers.removeAll();tracks.removeAll();ready=false}
     private func build(_ node:NativeMagicCardSource.Node,in parent:CALayer) {
         let a=node.attributes
         guard ["g","image","path","circle"].contains(node.tag) else{return}
@@ -193,6 +272,22 @@ final class NativeMagicCardReveal {
         child.name="magic.\(node.tag).\(layers.count)";child.opacity=Float(a["opacity"] ?? "1") ?? 1;child.allowsEdgeAntialiasing=true;child.minificationFilter = .trilinear
         if let transform=a["transform"],transform.hasPrefix("translate("),let close=transform.firstIndex(of:")") {let v=NativeMagicCardSource.numbers(String(transform[transform.index(transform.startIndex,offsetBy:10)..<close]));if v.count==2 {child.transform=CATransform3DMakeTranslation(v[0],v[1],0)}}
         parent.addSublayer(child);layers.append(child)
+        if let image=node.sheenImage {
+            let sheen=CALayer(),band=CAGradientLayer()
+            sheen.name="native.reward.magic-card.sheen";sheen.frame=child.bounds
+            sheen.contents=image;sheen.contentsGravity = .resize;sheen.opacity=0
+            sheen.allowsEdgeAntialiasing=true;sheen.minificationFilter = .trilinear
+            // The bright original's own alpha is the exact face silhouette;
+            // the traveling band never adds color outside that alpha.
+            NativeCardSheenRecipe.configure(band,size:child.bounds.size)
+            let burn=CALayer();burn.name="native.reward.magic-card.burn";burn.frame=child.bounds;burn.contents=node.burnFrames.first;burn.contentsGravity = .resize
+            // The low-frequency light field stays small; the original-density
+            // face alone clips its silhouette at the final display transform.
+            let burnMask=CALayer();burnMask.frame=child.bounds;burnMask.contents=node.image;burnMask.contentsGravity = .resize;burn.mask=burnMask
+            burn.opacity=0;child.addSublayer(burn);cardBurn=burn;burnFrames=node.burnFrames
+            let glow=CALayer();glow.frame=child.bounds;glow.contents=node.burnGlow;glow.contentsGravity = .resize;glow.opacity=0;child.addSublayer(glow);cardBurnGlow=glow
+            sheen.mask=band;child.addSublayer(sheen);cardSheen=sheen;cardSheenBand=band
+        }
         for part in node.children {
             if part.tag=="animate" || part.tag=="animateTransform" {
                 let attr=part.attributes,type=attr["type"] ?? "",property=attr["attributeName"] ?? ""

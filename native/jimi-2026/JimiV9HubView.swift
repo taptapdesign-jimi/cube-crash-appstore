@@ -1,4 +1,5 @@
 import UIKit
+import StackToSixGameplay
 
 private final class JimiV9HubScrollView: UIScrollView {
     override func touchesShouldCancel(in view: UIView) -> Bool {
@@ -25,6 +26,9 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
     private(set) var worldUnits: [UIButton] = []
     private var counts: [Int: UILabel] = [:]
     private var cloudViews: [(UIImageView, CGRect)] = []
+    private var leftFillClouds: [Int: UIImageView] = [:]
+    private let cloudPlane=UIView()
+    private(set) var cloudUnits: [Int:UIView] = [:]
     private var floats: [Int: UIView] = [:]
     private var tilts: [Int: UIView] = [:]
     private var banners: [Int: UIView] = [:]
@@ -89,6 +93,8 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
         scrollView.canCancelContentTouches = true
         scrollView.delegate = self
         addSubview(scrollView); scrollView.addSubview(content)
+        cloudPlane.isUserInteractionEnabled=false
+        content.addSubview(cloudPlane)
         let paths = arcade ? ["assets/arcade/endourance.png", "assets/arcade/pure dice.png", "assets/arcade/slow burn.png"] : ["assets/journey assets/forest/forest world/1Forest main.png",
                      "assets/journey assets/robo/robo world/robo-main.png",
                      "assets/journey assets/beach/Beacj world/beach-main.png"]
@@ -108,10 +114,19 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
         }
         for index in 0..<3 {
             let id = worldIDs[index]
+            let carrier=UIView();carrier.isUserInteractionEnabled=false
+            cloudPlane.addSubview(carrier);cloudUnits[id]=carrier
             let button = JimiV9PlainButton(type: .custom)
             button.tag = id; button.accessibilityLabel = names[index] + " world"
             button.accessibilityIdentifier = "native.hub.world.\(id)"
             button.addTarget(self, action: #selector(openWorld(_:)), for: .touchUpInside)
+            if !arcade {
+                let cloud=UIImageView(image:assets.image("assets/board transition/oblak veliki ljevo dole.png"))
+                cloud.contentMode = .scaleAspectFit; cloud.alpha=0.80
+                cloud.isUserInteractionEnabled=false
+                cloud.accessibilityIdentifier="native.hub.left-cloud.\(id)"
+                button.addSubview(cloud);leftFillClouds[id]=cloud
+            }
             // One complete Unit owns route motion, including its clouds.
             for (cloud, rect) in cloudViews where cloudWorldID(rect.minY) == id {
                 button.addSubview(cloud)
@@ -180,7 +195,16 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
                   let total = world["total"] as? Int, total >= 0, (0...total).contains(completed) else { continue }
             // Bridge's completed is canonical unlocked && !interim, exactly
             // the original banner count (not an independent progression model).
-            counts[id]?.attributedText = NSAttributedString(string: "\(completed) / \(total)", attributes: [.kern: -0.76])
+            if let count=counts[id] {
+                var attributes:[NSAttributedString.Key:Any]=[.kern: -0.76]
+                // Progress is refreshed after initial layout on every Hub entry.
+                // Keep the tablet font in the replacement attributed string;
+                // otherwise UIKit paints an unstyled run until a size change.
+                if NativeTabletLayout.applies(bounds.size),!arcade,let font=count.font {
+                    attributes[.font]=font
+                }
+                count.attributedText=NSAttributedString(string:"\(NativeScoreDisplay.text(completed)) / \(NativeScoreDisplay.text(total))",attributes:attributes)
+            }
             let locked = activeWorldId.map { id > $0 && completed == 0 } ?? false
             let interim = world["hasInterimCard"] as? Bool ?? false
             worldUnits.first { $0.tag == id }?.accessibilityValue = "\(completed) of \(total)"
@@ -193,6 +217,8 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
     override func layoutSubviews() {
         super.layoutSubviews()
         let width = bounds.width, top = safeAreaInsets.top
+        let tablet=NativeTabletLayout.applies(bounds.size)
+        let journeyWidth:CGFloat = tablet && !arcade ? 390 : width
         scrollView.frame = bounds
         let hubHeight = top + 747 + 128 - min(bounds.height*0.08, 68) - min(bounds.height*0.062, 53) + safeAreaInsets.bottom
         let row=JimiV9NavigationHeader.RowLayout(bounds:bounds,safeAreaTop:top)
@@ -203,22 +229,42 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
             guard let image=artworkViews[id]?.image else { return 1 }
             return image.size.height/max(1,image.size.width)
         }
+        // Fit the whole phone composition below the header at the largest
+        // uniform scale that keeps all three World artworks in the viewport.
+        // Clouds keep their phone proportions and may bleed at the screen edges.
+        let phoneButtonHeight:CGFloat = 390*0.468
+        let phoneVisualSize:CGFloat = 390*0.65
+        let journeyTops:[CGFloat] = [118,323,557]
+        let sceneTop=journeyTops[0]+phoneButtonHeight*0.48-phoneVisualSize/2
+        let sceneBottom=zip(journeyTops,ratios).map { y,ratio in
+            y+phoneButtonHeight*0.48-phoneVisualSize/2+phoneVisualSize*ratio
+        }.max() ?? 772
+        let journeyScale:CGFloat = tablet && !arcade
+            ? min(width/390,max(0,bounds.height-safeAreaInsets.bottom-24-(row.top+66+24))/(sceneBottom-sceneTop)) : 1
+        let journeyOffset:CGFloat = tablet && !arcade ? row.top+66+24-top-sceneTop*journeyScale : 0
+        let journeyGroupScale=journeyScale*(tablet && !arcade ? 1.30*0.95*0.94*0.95:1)
+        // Retain the previous row centres while shrinking complete World Units.
+        let journeyCompression:CGFloat = tablet && !arcade ? max(0,phoneVisualSize*journeyScale*0.30/2-8):0
         let fittedWidth = max(0,(arcadeBottom-arcadeTop-baselineArcadeGap*2)/max(1,ratios.reduce(0,+)))
-        let buttonWidth = arcade ? min(width*0.676,273,fittedWidth)*1.2 : min(width*0.676,273)
+        let buttonWidth = arcade ? min(width*0.676,tablet ? 273*1.4:273,fittedWidth)*1.2 : min(journeyWidth*0.676,273)*journeyGroupScale
         // Keep all enlarged islands inside the same viewport. The staggered
         // transparent image envelopes may interleave vertically.
         let arcadeGap = (arcadeBottom-arcadeTop-buttonWidth*ratios.reduce(0,+))/2
-        let flagWidth = min(width*0.385,150)
-        var contentHeight = arcade ? bounds.height : max(bounds.height,hubHeight)
+        let flagWidth = min(journeyWidth*0.385,150)*journeyGroupScale
+        var contentHeight = arcade || tablet ? bounds.height : max(bounds.height,hubHeight)
         var arcadeY = arcadeTop
+        var precedingArtworkBottom:CGFloat=0
         let flagHeight = flagWidth*49/105
         for (index, unit) in worldUnits.enumerated() {
             let id = worldIDs[index]
-            let y: CGFloat = arcade ? arcadeY-top+[0,15,34][index] : [118,323,557][index]
-            let buttonHeight = arcade ? buttonWidth*ratios[index] : min(width*0.468,190)
+            let journeyRowShift=journeyCompression*(1-2*(journeyTops[index]-journeyTops[0])/(journeyTops[2]-journeyTops[0]))
+            let tabletRowOffset:CGFloat=tablet && !arcade ? (id == 1 ? 20 : id == 2 ? 40 : id == 3 ? 26 : 0):0
+            let phoneRowOffset:CGFloat = !tablet && !arcade && id == 3 ? 8:0
+            let y: CGFloat = arcade ? arcadeY-top+[0,15,34][index] : journeyTops[index]*journeyScale+journeyOffset+journeyRowShift-phoneButtonHeight*(journeyGroupScale-journeyScale)*0.48+tabletRowOffset+phoneRowOffset
+            let buttonHeight = arcade ? buttonWidth*ratios[index] : min(journeyWidth*0.468,190)*journeyGroupScale
             if arcade { arcadeY += buttonHeight+arcadeGap }
             let originalX: CGFloat = id == 3 ? width+8-buttonWidth : (id == 1 ? -2 : -6)
-            let x: CGFloat = id == 3 ? width-16-buttonWidth : 16
+            let x: CGFloat = id == 3 ? width-16*journeyGroupScale-buttonWidth : 16*journeyGroupScale
             let rect = CGRect(x: x, y: top+y, width: buttonWidth, height: buttonHeight)
             if arcade,index == worldUnits.count-1 {
                 // Scroll extent belongs to authored layout, never the animated
@@ -231,8 +277,14 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
             // (which jumps every World upward before/during its collapse).
             unit.layer.position = CGPoint(x: rect.minX + rect.width * unit.layer.anchorPoint.x,
                                           y: rect.minY + rect.height * unit.layer.anchorPoint.y)
-            let artworkScale:CGFloat = arcade ? 1.2*0.9*(index == 1 ? 1.1 : 1) : 1
-            let visualSize = arcade ? buttonWidth*0.96*artworkScale : min(width*0.65,254)
+            let cloudParent:UIView=tablet ? cloudUnits[id]! : unit
+            if let carrier=cloudUnits[id] {
+                carrier.isHidden = !tablet
+                carrier.bounds=unit.bounds
+                carrier.layer.position=CGPoint(x:rect.minX+rect.width*carrier.layer.anchorPoint.x,y:rect.minY+rect.height*carrier.layer.anchorPoint.y)
+            }
+            let artworkScale:CGFloat = arcade ? 1.2*0.9*(index == 0 ? 0.95*0.9*1.05 : (index == 1 ? 1.1*1.1*0.9 : 1))*(tablet ? 1.1:((index == 0 || index == 2) ? 1.05:1))*(arcade && !tablet && index == 0 ? 1.05:1) : 1
+            let visualSize = arcade ? buttonWidth*0.96*artworkScale : min(journeyWidth*0.65,254)*journeyGroupScale
             let visualHeight = arcade ? buttonHeight*0.96*artworkScale : visualSize
             floats[id]?.bounds = CGRect(x: 0, y: 0, width: visualSize, height: visualHeight)
             // Artwork adjustments are independent of the Unit/cloud motion owner.
@@ -242,8 +294,9 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
             if arcade,index == 0 {artworkCenterX = 16-x+visualSize/2}
             else if arcade,index == 1 {artworkCenterX = width-16-x-visualSize/2}
             else {artworkCenterX = buttonWidth/2+artworkShift.x}
-            let islandOffset:CGPoint = arcade ? [CGPoint(x:-24,y:-20),CGPoint(x:10,y:-32),CGPoint(x:-8,y:0)][index] : .zero
-            floats[id]?.center = CGPoint(x:artworkCenterX+islandOffset.x,y:(arcade ? buttonHeight/2 : buttonHeight*0.48)+artworkShift.y+islandOffset.y)
+            let islandOffset:CGPoint = arcade ? [CGPoint(x:-4,y:-32),CGPoint(x:14,y:-26),CGPoint(x:-8,y:16)][index] : .zero
+            let floatingCenterY=(arcade ? buttonHeight/2 : buttonHeight*0.48)+artworkShift.y+islandOffset.y+(tablet && arcade && id == 1 ? 24:0)
+            floats[id]?.center = CGPoint(x:artworkCenterX+islandOffset.x,y:floatingCenterY)
             tilts[id]?.bounds = CGRect(x: 0, y: 0, width: visualSize, height: visualHeight)
             tilts[id]?.layer.anchorPoint = CGPoint(x: 0.5, y: 0.54)
             tilts[id]?.layer.position = CGPoint(x: visualSize*0.5, y: visualHeight*0.54)
@@ -257,46 +310,124 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
                 art.frame=CGRect(origin:.zero,size:rect.size)
             }
             if let banner = banners[id], let flag = flagViews[id] {
-                let edge = max(-width*0.128, -50)
-                let bx = id == 3 ? edge-38 : visualSize-(edge-30)-flagWidth
-                let by = visualSize/2 - (id == 1 ? 14 : id == 2 ? 20 : 26)
+                let edge = max(-journeyWidth*0.128, -50)*journeyGroupScale
+                let bx = id == 3 ? edge-38*journeyGroupScale : visualSize-(edge-30*journeyGroupScale)-flagWidth
+                let by = visualSize/2 - (id == 1 ? 14 : id == 2 ? 20 : 26)*journeyGroupScale
                 banner.bounds = CGRect(x: 0, y: 0, width: flagWidth, height: flagHeight)
                 banner.layer.anchorPoint = CGPoint(x: id == 3 ? 1 : 0, y: 0.18)
                 banner.layer.position = CGPoint(x: bx+(id == 3 ? flagWidth : 0), y: by+flagHeight*0.18)
                 flag.bounds = banner.bounds; flag.center = CGPoint(x: flagWidth/2, y: flagHeight/2)
-                counts[id]?.frame = CGRect(x: id == 3 ? 3 : flagWidth*0.52-3, y: flagHeight*0.57+5-9.5, width: flagWidth*0.48, height: 19)
+                if let count=counts[id] {
+                    let largerCount=tablet && !arcade
+                    NativeTabletLayout.labelFont(count,size:(largerCount ? 24:18)*journeyGroupScale)
+                    count.adjustsFontSizeToFitWidth=largerCount
+                    count.minimumScaleFactor=largerCount ? 0.85:0
+                    let countHeight:CGFloat=largerCount ? 28:19
+                    count.frame = CGRect(x: id == 3 ? 3*journeyGroupScale : flagWidth*0.52-3*journeyGroupScale, y: flagHeight*0.57+(5-countHeight/2)*journeyGroupScale, width: flagWidth*0.48, height: countHeight*journeyGroupScale)
+                }
             }
             var overflow = rect
-            for (cloud, authored) in cloudViews where cloudWorldID(authored.minY) == id {
+            let ownedClouds=cloudViews.filter {cloudWorldID($0.1.minY) == id}
+            let cloudBounds=tablet && !arcade ? ownedClouds.reduce(CGRect.null) {$0.union($1.1)} : .zero
+            for (cloud, authored) in ownedClouds {
+                if cloud.superview !== cloudParent {cloudParent.addSubview(cloud)}
                 // Endurance moves its complete cloud group; the other worlds
                 // move only their upper cloud row, preserving lower clouds.
                 let cloudShift:CGFloat = !arcade ? 0 : id == 1 ? 40 : (id == 3 && authored.minY < 400 || id == 2 && authored.minY < 632) ? 24 : 0
-                let cloudRect = authored.offsetBy(dx: x-originalX+(arcade && id == 3 ? 40:0), dy: top+82 + (arcade ? y - [118,323,557][index] : 0)+cloudShift)
+                let cloudRect: CGRect
+                if tablet && arcade {
+                    // Scatter the phone cloud bank across the wider tablet,
+                    // retaining each island's local vertical relationship.
+                    let scale=buttonWidth/(min(390*0.676,273)*1.2)
+                    let cloudScale=max(scale,width/600)
+                    let cloudSize=CGSize(width:authored.width*cloudScale,height:authored.height*cloudScale)
+                    let center=CGPoint(x:(authored.midX+(id == 3 ? 40:0))*width/390,
+                        y:rect.minY+(82+authored.midY-[118,323,557][index]+cloudShift)*scale)
+                    cloudRect=CGRect(x:center.x-cloudSize.width/2,y:center.y-cloudSize.height/2,width:cloudSize.width,height:cloudSize.height)
+                } else if tablet && !arcade {
+                    // Fill the complete screen behind each World with the same
+                    // bounded cloud group. Uniform image scale preserves shape;
+                    // vertical centres retain the fitted three-World rhythm.
+                    let bleed:CGFloat=64
+                    let cloudScale=(width+2*bleed)/max(1,cloudBounds.width)
+                    let size=CGSize(width:authored.width*cloudScale,height:authored.height*cloudScale)
+                    let center=CGPoint(x:-bleed+(authored.midX-cloudBounds.minX)*cloudScale,
+                                       y:top+journeyOffset+(authored.midY+82)*journeyScale)
+                    cloudRect=CGRect(x:center.x-size.width/2,y:center.y-size.height/2,width:size.width,height:size.height)
+                } else {
+                    // Phone Journey clouds frame their own island rather than
+                    // collecting beneath Forest or below the Beach viewport.
+                    let phoneCloudX:CGFloat = !tablet && !arcade && id == 3 ? (authored.minX < 100 ? -48:48):0
+                    let phoneCloudY:CGFloat = !tablet && !arcade ? (id == 3 ? (authored.minY < 400 ? 80:-24)+phoneRowOffset : id == 2 ? -76:0):0
+                    cloudRect = authored.offsetBy(dx: x-originalX+(arcade && id == 3 ? 40:0)+phoneCloudX, dy: top+82 + (arcade ? y - [118,323,557][index] : 0)+cloudShift+phoneCloudY)
+                }
                 cloud.frame = cloudRect.offsetBy(dx: -rect.minX, dy: -rect.minY)
                 overflow = overflow.union(cloudRect)
             }
+            if tablet && arcade {
+                // Retain the complete enlarged island inside the scroll extent.
+                let artRect=CGRect(x:rect.minX+artworkCenterX+islandOffset.x-visualSize/2,
+                    y:rect.minY+floatingCenterY-visualHeight/2,width:visualSize,height:visualSize*ratios[index])
+                overflow=overflow.union(artRect)
+                contentHeight=max(contentHeight,artRect.maxY+20+safeAreaInsets.bottom)
+            }
+            if tablet && !arcade {
+                let artRect=CGRect(x:rect.midX-visualSize/2,y:rect.minY+buttonHeight*0.48-visualSize/2,width:visualSize,height:visualSize)
+                overflow=overflow.union(artRect)
+            }
+            if let cloud=leftFillClouds[id] {
+                if cloud.superview !== cloudParent {cloudParent.insertSubview(cloud,at:0)}
+                cloud.isHidden = !tablet
+                if tablet {
+                    // Static, bounded left-side fill travels with its complete
+                    // World Unit; no additional idle clock or resource owner.
+                    let cloudWidth=width*0.82
+                    let ratio=(cloud.image?.size.height ?? 1)/max(1,cloud.image?.size.width ?? 1)
+                    // Later Units paint above earlier ones; keep this large
+                    // fill below preceding artwork so it cannot veil a World.
+                    let cloudTop=max(precedingArtworkBottom+8,rect.minY+buttonHeight*0.48+visualSize*0.12-cloudWidth*ratio/2)
+                    let cloudRect=CGRect(x:-width*0.18,y:cloudTop,width:cloudWidth,height:cloudWidth*ratio)
+                    cloud.frame=cloudRect.offsetBy(dx:-rect.minX,dy:-rect.minY)
+                    overflow=overflow.union(cloudRect)
+                }
+            }
+            precedingArtworkBottom=rect.minY+buttonHeight*0.48-visualSize/2+visualSize*ratios[index]
+            if tablet && !arcade {contentHeight=max(contentHeight,precedingArtworkBottom+8)}
             visualBounds[id] = overflow.insetBy(dx: -12, dy: -12)
         }
         // Publish only the final extent. A temporary viewport-height content
         // size would clamp a bottom-scrolled Hub before its exit even starts.
         content.frame = CGRect(x:0,y:0,width:width,height:contentHeight)
+        cloudPlane.frame=content.bounds
         scrollView.contentSize = content.bounds.size
-        let headerTop=row.top
         // Header is a route-motion target with a top-center animation pivot.
         // frame is undefined under its collapsed model transform; retain the
         // same untransformed rectangle for both active and restored anchors.
-        header.bounds = CGRect(x: 0, y: 0, width: width, height: headerTop + 66)
+        header.bounds = CGRect(x: 0, y: 0, width: width, height: row.headerHeight())
         header.layer.position = CGPoint(x: width * header.layer.anchorPoint.x,
                                         y: header.bounds.height * header.layer.anchorPoint.y)
-        backButton.frame = row.buttonFrame(x:24)
+        backButton.frame = row.buttonFrame(x:24,visibleInset:13)
+        backButton.imageEdgeInsets=row.iconInsets(UIEdgeInsets(top:10,left:10,bottom:10,right:10),imageHeight:24,inkCenterY:0.5104166666666666)
         navigationTarget.frame = backButton.frame
-        backpackAlert.frame=CGRect(x:21,y:1,width:28,height:28)
-        backpackButton.frame = row.buttonFrame(x:width-64,width:40,height:48)
+        backpackAlert.frame=row.iconRect(CGRect(x:21,y:1,width:28,height:28))
+        backpackButton.frame = row.buttonFrame(x:width-64,width:40,height:48,visibleInset:arcade ? 0.8:40/64)
+        backpackButton.imageEdgeInsets=row.iconInsets(arcade ? UIEdgeInsets(top:4.8,left:0.8,bottom:4.8,right:0.8):UIEdgeInsets(top:4,left:0,bottom:4,right:0),imageHeight:arcade ? 38.4:40,inkCenterY:arcade ? 0.5138888888888888:0.4765625)
         crateNavigationTarget.frame = backpackButton.frame.insetBy(dx:-2,dy:0)
-        title.frame = row.titleFrame
+        NativeTabletLayout.labelFont(title,size:row.titleFontSize)
+        title.frame = row.titleFrame(for:title)
         updateIdleAdmission()
     }
     private func cloudWorldID(_ y: CGFloat) -> Int { y < 220 ? 1 : y < 560 ? 3 : 2 }
+
+    /// Same finite route tracks/pivots for split paint planes. Keeping clouds
+    /// in the back plane prevents any later World's cloud veiling earlier art.
+    func includingCloudTracks(_ tracks:[(UIView,JimiV9Motion.Track)])->[(UIView,JimiV9Motion.Track)] {
+        guard NativeTabletLayout.applies(bounds.size) else {return tracks}
+        return tracks.flatMap { target,track in
+            guard worldUnits.contains(where:{$0 === target}),let cloud=cloudUnits[target.tag] else {return [(target,track)]}
+            return [(target,track),(cloud,track)]
+        }
+    }
 
     /// Call only after the complete incoming cascade settles. The controller
     /// calls stopIdle before route exit/background; no polling/RAF is created.
@@ -332,6 +463,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
             banners[id]?.transform = CGAffineTransform(rotationAngle: bannerAngle(id) * .pi/180)
         }
         for (cloud, _) in cloudViews { cloud.layer.transform = CATransform3DIdentity }
+        for cloud in leftFillClouds.values {cloud.layer.transform=CATransform3DIdentity}
         CATransaction.commit()
     }
 
@@ -381,9 +513,14 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
             (8,5,6.1,1.05),(-8,6,6.6,1.03),(7,-5,5.9,1.04),(-7,5,7.1,1.03),(-6,4,7.6,1.04)]
         for (index, item) in cloudViews.enumerated() where cloudWorldID(item.1.minY) == id {
             let (dx,dy,duration,scale) = motions[index]
-            let cloudPeak = CATransform3DScale(CATransform3DMakeTranslation(dx,dy,0),scale,scale,1)
+            let travel:CGFloat=NativeTabletLayout.applies(bounds.size) && !arcade ? 1.4:1
+            let cloudPeak = CATransform3DScale(CATransform3DMakeTranslation(dx*travel,dy,0),scale,scale,1)
             addLoop(item.0.layer, keyPath: "transform", values: transforms([CATransform3DIdentity,cloudPeak,CATransform3DIdentity]),
                     times: [0,0.5,1], duration: duration)
+        }
+        if NativeTabletLayout.applies(bounds.size),!arcade,let cloud=leftFillClouds[id] {
+            let peak=CATransform3DMakeTranslation((id == 3 ? -8:8)*1.4,0,0)
+            addLoop(cloud.layer,keyPath:"transform",values:transforms([CATransform3DIdentity,peak,CATransform3DIdentity]),times:[0,0.5,1],duration:id == 1 ? 7.3:id == 3 ? 6.8:7.1)
         }
         guard !arcade else { return } // Arcade has no progress flags to animate.
         let angles: [CGFloat] = [0,1,-1.7,2.5,-0.65,-2.1,1.25,0]
@@ -418,6 +555,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
     private func removeIdle(_ id: Int, freeze: Bool) {
         var layers: [CALayer] = [floats[id]?.layer,tilts[id]?.layer,banners[id]?.layer].compactMap { $0 }
         layers += cloudViews.filter { cloudWorldID($0.1.minY) == id }.map { $0.0.layer }
+        if let cloud=leftFillClouds[id] {layers.append(cloud.layer)}
         CATransaction.begin(); CATransaction.setDisableActions(true)
         for layer in layers {
             let keys = (layer.animationKeys() ?? []).filter { $0.hasPrefix(idleKey) }

@@ -89,6 +89,7 @@ struct JimiNativeWorldSnapshot {
     let returnBoardID: Int?
     let mainFrame: CGRect
     let title: String
+    let unitVisualScale: CGFloat
     let contentHeight: CGFloat
     let mainParts: [Part]
     let ambientPlans:[JimiNativeWorldAmbient.Plan]
@@ -130,6 +131,9 @@ struct JimiNativeWorldSnapshot {
                 if let delay = unit["enterDelayOffset"],!Self.finite(delay) {return false}
                 return true
               }) else { return nil }
+        let unitScale=Part.number(value["unitVisualScale"] ?? 1)
+        guard unitScale.isFinite,(1...1.5).contains(unitScale) else{return nil}
+        unitVisualScale=unitScale
         let rawAmbient = value["ambientPlans"] as? [[String:Any]] ?? []
         let parsedAmbient = rawAmbient.compactMap {JimiNativeWorldAmbient.Plan.parse($0,worldID:worldID)}
         guard parsedAmbient.count == rawAmbient.count,parsedAmbient.count <= (worldID == 2 ? 8 : worldID == 3 ? 2 : 0),Set(parsedAmbient.map {$0.id}).count == parsedAmbient.count,

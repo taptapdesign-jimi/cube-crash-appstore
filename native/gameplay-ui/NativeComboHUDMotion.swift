@@ -39,7 +39,8 @@ final class NativeComboHUDMotion {
     var isTransitioning: Bool { transitioning }
 
     func layoutArtwork(fallbackSize: CGSize) {
-        artwork?.size = frames.isEmpty ? fallbackSize : CGSize(width: Self.canvasSide, height: Self.canvasSide)
+        let side=Self.canvasSide*max(fallbackSize.width,fallbackSize.height)/28
+        artwork?.size = frames.isEmpty ? fallbackSize : CGSize(width:side,height:side)
     }
 
     func synchronize(combo: Int, generation: UInt64) {

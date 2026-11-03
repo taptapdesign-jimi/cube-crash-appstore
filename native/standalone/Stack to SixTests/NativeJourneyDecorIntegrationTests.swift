@@ -21,9 +21,41 @@ final class NativeJourneyDecorIntegrationTests:XCTestCase {
         controller.journeyDecorCatalog=NativeJourneyBottomDecorCatalog();controller.journeyDecorResources={_ in resources}
         return controller
     }
-    private func mount(_ controller:NativeGameplayViewController)->UIWindow {
-        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=controller;window.makeKeyAndVisible()
+    private func mount(_ controller:NativeGameplayViewController,size:CGSize=CGSize(width:390,height:844))->UIWindow {
+        let window=UIWindow(frame:CGRect(origin:.zero,size:size));window.rootViewController=controller;window.makeKeyAndVisible()
         controller.view.frame=window.bounds;controller.view.setNeedsLayout();controller.view.layoutIfNeeded();return window
+    }
+    func testTabletMaskBindsActualFramesSurvivesPauseAndRebindsToNewGenerationWithoutAClock() async throws {
+        let resources=Resources(),controller=controller(resources)
+        var state=controller.engine.state;state.columns=7;state.rows=8
+        state.tiles.append(.init(id:"locked",cell:.init(column:0,row:7),value:0,locked:true,alpha:0.25))
+        controller.engine.restart(state:state)
+        let window=mount(controller,size:CGSize(width:820,height:1180))
+        defer {controller.dispose();window.isHidden=true}
+        resources.finish(0);controller.view.setNeedsLayout();controller.view.layoutIfNeeded()
+        let scene=try XCTUnwrap(controller.boardScene)
+        let deadline=Date().addingTimeInterval(5)
+        while !scene.isBoardEntryComplete {
+            guard Date()<deadline else{throw CancellationError()};try await Task.sleep(for:.milliseconds(20))
+        }
+        let first=try XCTUnwrap(controller.journeyBottomDecor);first.showSettled()
+        scene.didFinishUpdate();XCTAssertNotNil(first.layer.mask)
+        controller.setSuspended(true);scene.didFinishUpdate()
+        let revision=first.boardMaskRevision
+        for _ in 0..<60 {scene.didFinishUpdate()}
+        XCTAssertEqual(first.boardMaskRevision,revision);XCTAssertFalse(first.hasActiveClock)
+        controller.setSuspended(false)
+        state=controller.engine.state;state.generation += 1
+        controller.engine.restart(state:state);controller.refreshFromEngine()
+        let replacement=try XCTUnwrap(controller.journeyBottomDecor)
+        XCTAssertFalse(first === replacement);XCTAssertEqual(first.phase,.disposed);XCTAssertNil(first.layer.mask)
+        resources.finish(1);controller.view.setNeedsLayout();controller.view.layoutIfNeeded()
+        scene.didFinishUpdate();XCTAssertNotNil(scene.onBackdropOcclusion)
+        XCTAssertNotNil(replacement.layer.mask)
+        // Returning to phone-sized review removes the opt-in entirely.
+        controller.view.frame=CGRect(x:0,y:0,width:390,height:844)
+        controller.view.setNeedsLayout();controller.view.layoutIfNeeded()
+        XCTAssertNil(scene.onBackdropOcclusion);XCTAssertNil(replacement.layer.mask)
     }
     func testThemedAdmissionStartsBeforeDecodeAndRevealsOnePreparedFooterBelowCanvas() async throws {
         let resources=Resources(),controller=controller(resources);var release:(()->Void)?,entries=0

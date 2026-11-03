@@ -1,0 +1,56 @@
+{
+  "scope": "iPad portrait Stage Units/cards30percent,selected Journey card30percent,all3Home illustration targets20percent,actual painted divider toCTA32pt,hero shell toCTA40pt;short viewports clamp safely",
+  "productionInputs": 450,
+  "ipad": {
+    "device": "43A75086-0C64-464C-B71C-FDD01AF59C32",
+    "bundle": "com.taptapdesign.stacktosix.native",
+    "normalLaunch": "com.taptapdesign.stacktosix.native: 93406",
+    "runtimeHashes": {
+      "Stack to Six": "05d54d873b27bebbbfe073a145690e092bc7cdd390e72b3af2015651a3d96ef4",
+      "Stack to Six.debug.dylib": "875bf2ae793395c6c96ea995285d297e0f0d4fbc0508103003e937c42e69b2f6"
+    },
+    "originalAssetsByteExact": 2952,
+    "saveBefore": {
+      "state-v1.previous.json": "800a27bbc09d6da1f3ce2f060f595eeb4f23d3f178e0c40b78fa468999cce155",
+      "state-v1.json": "5ce58f7e04b8073f06312ced2bf4f9be5e3bc50410e6e2c10648a84ee27eb945"
+    },
+    "saveAfter": {
+      "state-v1.previous.json": "800a27bbc09d6da1f3ce2f060f595eeb4f23d3f178e0c40b78fa468999cce155",
+      "state-v1.json": "5ce58f7e04b8073f06312ced2bf4f9be5e3bc50410e6e2c10648a84ee27eb945"
+    },
+    "bothSavesByteIdenticalThroughInstallAndInitialLaunch": true,
+    "actualSpringBoardSBRingerMuted": "0"
+  },
+  "iphone": {
+    "device": "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+    "bundle": "com.taptapdesign.stacktosix.native",
+    "normalLaunch": "com.taptapdesign.stacktosix.native: 93621",
+    "runtimeHashes": {
+      "Stack to Six": "05d54d873b27bebbbfe073a145690e092bc7cdd390e72b3af2015651a3d96ef4",
+      "Stack to Six.debug.dylib": "875bf2ae793395c6c96ea995285d297e0f0d4fbc0508103003e937c42e69b2f6"
+    },
+    "originalAssetsByteExact": 2952,
+    "saveBefore": {
+      "state-v1.previous.json": "0966ba64bd96eb3e19dc24256b99c3ac72fbd5760c2ebd9430aa499f408d1912",
+      "state-v1.json": "9f029ebe42f174467c55c947bcd5572a59ca297ca1609f0cbc25b3802c4ac964"
+    },
+    "saveAfter": {
+      "state-v1.previous.json": "0966ba64bd96eb3e19dc24256b99c3ac72fbd5760c2ebd9430aa499f408d1912",
+      "state-v1.json": "9f029ebe42f174467c55c947bcd5572a59ca297ca1609f0cbc25b3802c4ac964"
+    },
+    "bothSavesByteIdenticalThroughInstallAndInitialLaunch": true,
+    "actualSpringBoardSBRingerMuted": "1"
+  },
+  "QA": {
+    "full": "PASS:530 suites/4010 tests,KING24/330",
+    "native": "PASS:14 hosted tests/0fail;final NEW badge correction included",
+    "state": "PASS:2 focused tests including all30 Unit groups and unchanged legacy phone geometry",
+    "logs": "/tmp/ipad-units-home"
+  },
+  "visualEvidence": [
+    "ipad-current.png",
+    "forest-units.png",
+    "stage-card.png"
+  ],
+  "physicalAcceptance": "NEEDS PHYSICAL TEST"
+}

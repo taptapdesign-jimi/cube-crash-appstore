@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reproduce the 114 approved-order voice derivatives; never rewrite the supplied MP3.
+"""Reproduce the retained approved-order voice derivatives; never rewrite the supplied MP3.
 Requires numpy. Uses macOS afconvert only to decode the original to temporary PCM.
 """
 import hashlib, json, re, subprocess, tempfile, wave
@@ -13,6 +13,8 @@ RATE = 48000
 EXPECTED_SOURCE_SHA256 = "15e8f094875070026adcfa6cb6cfabc10f20a32e3ecb208fc46b6cef3ceba32e"
 
 def main():
+    if (ROOT / "docs/audio/clean-board-title-voice-revisions.json").exists():
+        raise SystemExit("Title revisions require new approved recordings; legacy generation blocked to preserve current title/audio mapping.")
     source_hash = hashlib.sha256(SOURCE.read_bytes()).hexdigest()
     assert source_hash == EXPECTED_SOURCE_SHA256, 'Source differs from the aligned original; do not reuse these cut times.'
     cuts = json.loads(CUTS.read_text())

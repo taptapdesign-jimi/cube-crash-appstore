@@ -2,6 +2,27 @@ import UIKit
 import StackToSixGameplay
 import StackToSixNativeState
 
+/// Calendar-day labels use the player's local timezone, including DST changes.
+enum NativeScoreHistoryDate {
+    static func text(_ timestamp:TimeInterval?,now:Date=Date(),calendar:Calendar = .current)->String {
+        guard let timestamp,timestamp.isFinite else{return "--/--"}
+        let date=Date(timeIntervalSince1970:timestamp)
+        if calendar.isDate(date,inSameDayAs:now) {
+            let elapsed=max(0,now.timeIntervalSince(date))
+            if elapsed<60 {return "Just now"}
+            if elapsed<3600 {
+                let minutes=Int(elapsed/60)
+                return "\(minutes) \(minutes == 1 ? "minute":"minutes") ago"
+            }
+            return "Today"
+        }
+        if let yesterday=calendar.date(byAdding:.day,value:-1,to:now),calendar.isDate(date,inSameDayAs:yesterday) {return "Yesterday"}
+        let dates=DateFormatter();dates.locale=Locale(identifier:"en_GB")
+        dates.calendar=calendar;dates.timeZone=calendar.timeZone;dates.dateFormat="dd.MM.yyyy"
+        return dates.string(from:date)
+    }
+}
+
 /// Opt-in bounded event trace; no observer, timer or player-state write.
 @MainActor enum NativeHistoryTransitionTrace {
     private static let enabled=ProcessInfo.processInfo.arguments.contains("--cc-history-transition-diagnostics")
@@ -39,9 +60,9 @@ struct NativeScoreModalModel {
             : (arcade ? arcadeStats.highScore : board.highScore)
         title = combo ? "Combo" : "High Score"
         subtitle = combo ? "Stack and merge quickly\nto boost your score." : "Your best score so far."
-        var rows = [Stat(value:value.formatted(),label:combo ? "Best combo" : "High score",
+        var rows = [Stat(value:combo ? NativeComboDisplay.text(value):NativeScoreDisplay.text(value),label:combo ? "Best combo" : "High score",
             icon:combo ? "assets/combo-icon.png" : "assets/highscore-icon.png")]
-        if arcade && !combo {rows.append(.init(value:String(format:"%02d",max(1,arcadeStats.highestStageOpened)),
+        if arcade && !combo {rows.append(.init(value:NativeScoreDisplay.padded(max(1,arcadeStats.highestStageOpened)),
             label:"Rounds cleared",icon:"assets/clean-board.png"))}
         stats = rows
         isGameplayHistory=true
@@ -96,9 +117,7 @@ struct NativeScoreModalModel {
             layer.shadowColor=UIColor(red:0.68,green:0.40,blue:0.20,alpha:1).cgColor
             layer.shadowOpacity=0.18;layer.shadowRadius=6;layer.shadowOffset=CGSize(width:0,height:4)
         }
-        let formatter=NumberFormatter();formatter.numberStyle = .decimal
-        formatter.groupingSeparator=".";formatter.groupingSize=3
-        value.text=formatter.string(from:NSNumber(value:point.value)) ?? String(point.value)
+        value.text=combo ? NativeComboDisplay.text(point.value):NativeScoreDisplay.text(point.value)
         value.font=assets.font(size:30,weight:"Bold")
         value.textColor=UIColor(red:236/255,green:112/255,blue:69/255,alpha:1)
         date.text=dateText;date.font=assets.font(size:16,weight:"Regular");date.textColor=NativeTextPalette.subtitle
@@ -114,7 +133,7 @@ struct NativeScoreModalModel {
         }
         if scoreLayout {date.textAlignment = .right}
         accessibilityIdentifier="native.score-history.row.\(index)"
-        accessibilityLabel="\(point.value.formatted()), \(dateText)"
+        accessibilityLabel="\(NativeScoreDisplay.text(point.value)), \(dateText)"
         isAccessibilityElement=true
     }
     required init?(coder:NSCoder){fatalError("Use result initializer")}
@@ -150,8 +169,10 @@ final class NativeScoreModal:UIViewController,CAAnimationDelegate {
     var onClosed:(()->Void)?,onCloseRequested:(()->Void)?,onCloseReturnReady:(()->Void)?
     private let closeProgressLayer=CALayer()
     private var closeReturnDelivered=false
+    private let foreground=NativeScoreForegroundView()
+    private var modalHost:UIView {NativeTabletLayout.applies(view.bounds.size) ? foreground:view}
     private let model:NativeScoreModalModel,assets:JimiV9Artwork
-    private let backdrop=JimiV9PlainButton(type:.custom),card=UIView(),flip=JimiNativeModalTransformView(),idle=UIView(),paper=UIImageView()
+    private let backdrop=JimiV9PlainButton(type:.custom),card=UIView(),flip=JimiNativeModalTransformView(),tilt=UIView(),idle=UIView(),paper=UIImageView()
     private let historyIcon=UIImageView()
     private var historyIconAlphaBounds=CGRect(x:0,y:0,width:1,height:1)
     private let heading=UILabel(),subtitle=UILabel(),close=JimiV9PlainButton(type:.custom)
@@ -166,7 +187,8 @@ final class NativeScoreModal:UIViewController,CAAnimationDelegate {
         var camera=CATransform3DIdentity;camera.m34 = -1/920;view.layer.sublayerTransform=camera
         backdrop.backgroundColor=model.isGameplayHistory || model.history == nil ? JimiNativeModalV10.backdropColor:.clear;backdrop.alpha=0
         backdrop.addTarget(self,action:#selector(requestClose),for:.touchUpInside);view.addSubview(backdrop)
-        view.addSubview(card);card.addSubview(flip);flip.addSubview(idle);idle.addSubview(paper)
+        view.addSubview(foreground);view.addSubview(card);card.addSubview(flip);flip.addSubview(tilt);tilt.addSubview(idle);idle.addSubview(paper)
+        if model.history != nil {tilt.transform=CGAffineTransform(rotationAngle:-1.5 * .pi/180)}
         card.layer.anchorPoint=CGPoint(x:0.5,y:0.55);flip.layer.anchorPoint=CGPoint(x:0.5,y:1);idle.layer.anchorPoint=CGPoint(x:0.5,y:0.52)
         card.alpha=0;card.accessibilityIdentifier="native.score-modal";idle.layer.isDoubleSided=false
         paper.image=assets.image("assets/modals/paper.png");paper.layer.cornerRadius=40;paper.clipsToBounds=true
@@ -174,13 +196,13 @@ final class NativeScoreModal:UIViewController,CAAnimationDelegate {
         idle.layer.shadowOpacity=0.8;idle.layer.shadowOffset=CGSize(width:0,height:13);idle.layer.shadowRadius=16.8
         heading.text=model.title;heading.font=assets.font(size:32,weight:"ExtraBold");heading.textAlignment = .center
         heading.textColor=NativeTextPalette.modalTitle
-        heading.adjustsFontSizeToFitWidth=true;heading.minimumScaleFactor=0.7
+        heading.adjustsFontSizeToFitWidth=false;heading.minimumScaleFactor=1
         subtitle.attributedText=NativeModalTypography.attributedSubtitle(model.subtitle,font:assets.font(size:18,weight:"Medium"));subtitle.numberOfLines=0
         idle.addSubview(heading);idle.addSubview(subtitle)
         if let history=model.history {
             paper.image=assets.image("assets/modals/paper.png",densityAware:true)
             paper.layer.cornerRadius=32;paper.layer.cornerCurve = .continuous
-            let dates=DateFormatter();dates.locale=Locale(identifier:"en_GB");dates.dateFormat="dd.MM.yyyy"
+            let now=Date()
             historyIcon.image=model.historyIcon.flatMap{assets.image($0,densityAware:true)}
             if let image=historyIcon.image {historyIconAlphaBounds=NativeArtworkAlphaBounds.measure(image,maximumDimension:1024,alphaThreshold:0)}
             historyIcon.contentMode = .scaleAspectFit;historyIcon.isAccessibilityElement=false
@@ -193,7 +215,7 @@ final class NativeScoreModal:UIViewController,CAAnimationDelegate {
             }
             for (offset,point) in history.prefix(model.isGameplayHistory ? 2:3).enumerated() {
                 let index=offset+(model.isGameplayHistory ? 1:0)
-                let text=point.date.map{dates.string(from:Date(timeIntervalSince1970:$0))} ?? "--/--"
+                let text=NativeScoreHistoryDate.text(point.date,now:now)
                 let row=NativeScoreHistoryRow(index:index,point:point,dateText:text,combo:model.historyIcon == "assets/combo-icon.png",assets:assets)
                 idle.addSubview(row);rows.append(row);statTracks.append(row)
             }
@@ -213,32 +235,49 @@ final class NativeScoreModal:UIViewController,CAAnimationDelegate {
     }
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews();backdrop.frame=view.bounds
+        let tablet=NativeTabletLayout.applies(view.bounds.size)
+        foreground.frame=view.bounds;foreground.isHidden = !tablet
+        var camera=CATransform3DIdentity;camera.m34 = -1/920
+        // The dimmer stays outside the entire foreground camera/depth tree.
+        view.layer.sublayerTransform=tablet ? CATransform3DIdentity:camera
+        foreground.layer.sublayerTransform=camera
+        if tablet {view.bringSubviewToFront(foreground)}
+        let modalBounds=NativeTabletLayout.modalBounds(in:modalHost,card:card,isolatesDepth:true)
+        let u=NativeTabletLayout.textScale(modalBounds.size)
+        heading.font=assets.font(size:32,weight:"ExtraBold")
+        subtitle.attributedText=NativeModalTypography.attributedSubtitle(model.subtitle,font:assets.font(size:18*u,weight:"Medium"))
         if model.history != nil {layoutHistory();return}
-        let width=min(390,max(0,view.bounds.width-48)),subtitleHeight:CGFloat=model.stats.count == 1 && model.title == "Combo" ? 52 : 26
-        let statsY:CGFloat=model.history == nil ? 28+38.4+12+subtitleHeight+24 : (model.subtitle.isEmpty ? 94:128)
+        let width=NativeTabletLayout.paperWidth(modalBounds.size,padding:48),subtitleHeight:CGFloat=(model.stats.count == 1 && model.title == "Combo" ? 52:26)*u
+        let statsY:CGFloat=model.history == nil ? (28+38.4+12+24)*u+subtitleHeight : (model.subtitle.isEmpty ? 94:128)
         let dividerHeight=CGFloat(max(0,rows.count-1))*18
-        let rowHeight=min(CGFloat(model.history == nil ? 176:58),max(0,(view.bounds.height-96-statsY-dividerHeight-40)/CGFloat(max(1,rows.count))))
+        let rowHeight=min(CGFloat(model.history == nil ? 176:58)*u,max(0,(modalBounds.height-96-statsY-dividerHeight-40)/CGFloat(max(1,rows.count))))
         let height=statsY+CGFloat(rows.count)*rowHeight+dividerHeight+40
-        card.bounds=CGRect(x:0,y:0,width:width,height:height);card.center=CGPoint(x:view.bounds.midX,y:view.bounds.midY+height*0.05)
-        flip.bounds=card.bounds;flip.center=CGPoint(x:width/2,y:height);idle.bounds=card.bounds;idle.center=CGPoint(x:width/2,y:height*0.52)
+        card.bounds=CGRect(x:0,y:0,width:width,height:height);card.center=CGPoint(x:modalBounds.midX,y:modalBounds.midY+height*0.05)
+        flip.bounds=card.bounds;flip.center=CGPoint(x:width/2,y:height);tilt.bounds=card.bounds;tilt.center=CGPoint(x:width/2,y:height/2);idle.bounds=card.bounds;idle.center=CGPoint(x:width/2,y:height*0.52)
         JimiNativeModalV10.paperLayout(paper,bounds:idle.bounds)
-        heading.frame=CGRect(x:width*0.1,y:28,width:width*0.8,height:38.4);subtitle.frame=CGRect(x:width*0.1,y:heading.frame.maxY+12,width:width*0.8,height:subtitleHeight)
+        // Keep the authored title centre and subtitle position, but give the
+        // full32pt Baloo line its natural height instead of shrinking the glyphs.
+        let titleHeight=ceil(heading.font.lineHeight)
+        heading.frame=CGRect(x:width*0.1,y:(28+19.2)*u-titleHeight/2,width:width*0.8,height:titleHeight)
+        subtitle.frame=CGRect(x:width*0.1,y:(28+38.4+12)*u,width:width*0.8,height:subtitleHeight)
         var y=statsY
         for track in statTracks {let h:CGFloat=rows.contains(where:{$0 === track}) ? rowHeight : 2
             if h==2 {y += 8};track.frame=CGRect(x:width*0.1,y:y,width:width*0.8,height:h);y += h+(h==2 ? 8 : 0)}
         close.frame=CGRect(x:width-42,y:-10,width:52,height:52)
     }
     private func layoutHistory() {
-        let width=min(390,max(0,view.bounds.width-80)),inset:CGFloat=32
-        let subtitleHeight:CGFloat=model.currentCombo == nil ? 24:52
+        let modalBounds=NativeTabletLayout.modalBounds(in:modalHost,card:card,isolatesDepth:true)
+        let u=NativeTabletLayout.textScale(modalBounds.size)
+        let width=NativeTabletLayout.paperWidth(modalBounds.size),inset:CGFloat=32
+        let subtitleHeight:CGFloat=(model.currentCombo == nil ? 24:52)*u
         let headerShift:CGFloat=26 // Icon top14→40;retain all header/content gaps.
-        let top:CGFloat=max(176,138+subtitleHeight+14)+headerShift,gap:CGFloat=4,bottom:CGFloat=40
-        let rowHeight=min(CGFloat(62),max(0,(view.bounds.height-100-top-bottom-CGFloat(max(0,rows.count-1))*gap)/CGFloat(max(1,rows.count))))
+        let top:CGFloat=max(176*u,138*u+subtitleHeight+14)+headerShift,gap:CGFloat=4,bottom:CGFloat=40
+        let rowHeight=min(CGFloat(62)*u,max(0,(modalBounds.height-100-top-bottom-CGFloat(max(0,rows.count-1))*gap)/CGFloat(max(1,rows.count))))
         let height:CGFloat=rows.isEmpty ? top+52:top+CGFloat(rows.count)*rowHeight+CGFloat(max(0,rows.count-1))*gap+bottom
         card.bounds=CGRect(x:0,y:0,width:width,height:height)
-        card.center=CGPoint(x:view.bounds.midX,y:view.bounds.midY+height*0.05)
+        card.center=CGPoint(x:modalBounds.midX,y:modalBounds.midY+height*0.05)
         flip.bounds=card.bounds;flip.center=CGPoint(x:width/2,y:height)
-        idle.bounds=card.bounds;idle.center=CGPoint(x:width/2,y:height*0.52)
+        tilt.bounds=card.bounds;tilt.center=CGPoint(x:width/2,y:height/2);idle.bounds=card.bounds;idle.center=CGPoint(x:width/2,y:height*0.52)
         // Hide only the narrow torn source fringe;retain the original paper grain scale.
         JimiNativeModalV10.paperLayout(paper,bounds:idle.bounds,bottomExtension:16)
         let imageSize=historyIcon.image?.size ?? CGSize(width:72,height:72)
@@ -247,8 +286,9 @@ final class NativeScoreModal:UIViewController,CAAnimationDelegate {
         let transparentTop=(72-paintedHeight)/2+historyIconAlphaBounds.minY*paintedHeight
         // Padding ends at the first nontransparent source pixel,not its UIImageView.
         historyIcon.frame=CGRect(x:(width-72)/2,y:40-transparentTop,width:72,height:72)
-        heading.frame=CGRect(x:inset,y:92+headerShift,width:max(0,width-2*inset),height:38.4)
-        subtitle.frame=CGRect(x:inset,y:138+headerShift,width:max(0,width-2*inset),height:subtitleHeight)
+        let titleHeight=ceil(heading.font.lineHeight)
+        heading.frame=CGRect(x:inset,y:92+headerShift+19.2*u-titleHeight/2,width:max(0,width-2*inset),height:titleHeight)
+        subtitle.frame=CGRect(x:inset,y:138*u+headerShift,width:max(0,width-2*inset),height:subtitleHeight)
         for (index,row) in rows.enumerated() {
             row.frame=CGRect(x:inset,y:top+CGFloat(index)*(rowHeight+gap),width:max(0,width-2*inset),height:rowHeight)
         }
@@ -288,7 +328,7 @@ final class NativeScoreModal:UIViewController,CAAnimationDelegate {
         // Retain the current float pose while the existing outer planes exit.
         CATransaction.begin();CATransaction.setDisableActions(true)
         idle.layer.transform=idle.layer.presentation()?.transform ?? idle.layer.transform
-        idle.layer.removeAnimation(forKey:"score.idle");CATransaction.commit()
+        idle.layer.removeAnimation(forKey:"score.idle");idle.layer.removeAnimation(forKey:JimiNativeModalV10.settledBounceKey);CATransaction.commit()
         if UIAccessibility.isReduceMotionEnabled {deliverCloseReturn();finishClose();return}
         CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in self?.finishClose()};animateStats(enter:false)
         // Finite compositor milestone on the SAME paused parent clock as exit.
@@ -318,6 +358,14 @@ final class NativeScoreModal:UIViewController,CAAnimationDelegate {
         if value,layer.speed != 0 {drag?.cancel(preservePose:true);layer.timeOffset=layer.convertTime(CACurrentMediaTime(),from:nil);layer.speed=0;view.isUserInteractionEnabled=false}
         else if !value,layer.speed==0,!disposed {let t=layer.timeOffset;layer.speed=1;layer.timeOffset=0;layer.beginTime=0;layer.beginTime=layer.convertTime(CACurrentMediaTime(),from:nil)-t;view.isUserInteractionEnabled=ready && !closing}
     }
-    func dispose() {guard !disposed else{return};disposed=true;onClosed=nil;onCloseRequested=nil;onCloseReturnReady=nil;closeProgressLayer.removeAllAnimations();closeProgressLayer.removeFromSuperlayer();drag?.dispose();drag=nil;for target in [card,flip,idle,close]+statTracks {target.layer.removeAllAnimations()};viewIfLoaded?.layer.removeAllAnimations()}
+    func dispose() {guard !disposed else{return};disposed=true;onClosed=nil;onCloseRequested=nil;onCloseReturnReady=nil;closeProgressLayer.removeAllAnimations();closeProgressLayer.removeFromSuperlayer();drag?.dispose();drag=nil;for target in [card,flip,tilt,idle,close]+statTracks {target.layer.removeAllAnimations()};viewIfLoaded?.layer.removeAllAnimations()}
     override func viewDidDisappear(_ animated:Bool) {super.viewDidDisappear(animated);dispose()}
+}
+
+/// Blank foreground space must continue to dismiss through the dimmer.
+@MainActor private final class NativeScoreForegroundView:UIView {
+    override func hitTest(_ point:CGPoint,with event:UIEvent?)->UIView? {
+        let hit=super.hitTest(point,with:event)
+        return hit === self ? nil:hit
+    }
 }

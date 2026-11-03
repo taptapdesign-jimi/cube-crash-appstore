@@ -1,0 +1,51 @@
+{
+  "recordingId": "bloob-bucket-v1",
+  "source": "assets/sound/SPEECH/Jimbo voice compilation/bloob buckket.mp3",
+  "sourceSHA256": "be61a85e18fbfeda53511674cce919b6778bdfceedc069f9afae4374f3ce8103",
+  "format": "48000Hz mono PCM16 WAV",
+  "processing": "Decode MP3 once; quiet waveform cuts2.2s/3.45s;3ms edge ramps;no gain/normalization/pitch/rate change;all source frames preserved. Internal laughing remains in third line.",
+  "clips": [
+    {
+      "order": 1,
+      "sceneId": "dice-detail-kanta",
+      "lineId": "bloob-bucket-v1-1",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/bloob-bucket-v1/001-bloob-bucket.wav",
+      "file": "001-bloob-bucket.wav",
+      "text": "[excited] You are full of bloob",
+      "spokenText": "You are full of bloob",
+      "startFrame": 0,
+      "endFrame": 105600,
+      "duration": 2.2,
+      "sha256": "8d2cd34e851ec3d868a2070a0edddb31bb8fc50e860e5b835b0195c5531debdb",
+      "peakDbFS": -3.4121183124519505
+    },
+    {
+      "order": 2,
+      "sceneId": "dice-detail-kanta",
+      "lineId": "bloob-bucket-v1-2",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/bloob-bucket-v1/002-bloob-bucket.wav",
+      "file": "002-bloob-bucket.wav",
+      "text": "[excited] Clank Clank!",
+      "spokenText": "Clank Clank!",
+      "startFrame": 105600,
+      "endFrame": 165600,
+      "duration": 1.25,
+      "sha256": "1927e23538212e1a98f2112d33fa46c6a46ad655cb34679c84b8659b89711ebf",
+      "peakDbFS": -1.5160301079248848
+    },
+    {
+      "order": 3,
+      "sceneId": "dice-detail-kanta",
+      "lineId": "bloob-bucket-v1-3",
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/bloob-bucket-v1/003-bloob-bucket.wav",
+      "file": "003-bloob-bucket.wav",
+      "text": "[excited] This is gloopy [laughing] and droopy",
+      "spokenText": "This is gloopy and droopy",
+      "startFrame": 165600,
+      "endFrame": 324754,
+      "duration": 3.3157083333333333,
+      "sha256": "55454d8e804db0f02491feed3ee590084421691abb43fcb75b9279530244880c",
+      "peakDbFS": -3.5032899097850088
+    }
+  ]
+}

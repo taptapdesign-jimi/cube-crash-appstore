@@ -30,9 +30,9 @@ final class NativeRouteMotion {
         parts += home.shardViews.map { ($0, .shard) }
         return parts.map { target, part in
             let track = enter ? JimiV9Motion.homeEnter(part) : JimiV9Motion.homeExit(part, reducedMotion: UIAccessibility.isReduceMotionEnabled)
-            if !enter, case .hero = part, let painted = target.layer.presentation(),
+            if !enter,(part == .hero || part == .ctaContainer),let painted = target.layer.presentation(),
                target.layer.animation(forKey: "native-route") != nil, let first = track.tweens.first {
-                // A tap can interrupt the selected-hero bounce. Retarget from
+                // A tap can interrupt the selected hero/CTA bounce. Retarget from
                 // its painted scale, compensating the changed animation pivot.
                 let t = painted.transform
                 let dx = (track.anchorX-target.layer.anchorPoint.x)*target.bounds.width
@@ -81,7 +81,7 @@ final class NativeRouteMotion {
             tracks.append((target.view, JimiV9Motion.hubBanner(worldID: target.worldID, enter: enter,
                 width: Double(hub.bannerWidth(for: target.worldID)), firstWorldStart: reduced ? 0 : 0.08, reducedMotion: reduced)))
         }
-        return tracks
+        return hub.includingCloudTracks(tracks)
     }
 
     func animate(_ entries: [(UIView, JimiV9Motion.Track)], completion: @escaping () -> Void) {
@@ -154,6 +154,13 @@ final class NativeRouteMotion {
         // An immediate route replacement must not cancel the tapped icon's bounce.
         NativeHubBackpackFeedback.play(on:home.navigationIconViews[index])
         animate(changed ? [(home.heroView, JimiV9Motion.selectedHeroBounce)] : [], completion: completion)
+        if changed {
+            // Keep the original hero completion/idle admission at810ms. The
+            // delayed CTA finishes independently on the same owned CA clock.
+            CATransaction.begin();CATransaction.setDisableActions(true)
+            installTracks([(home.ctaContainerView,JimiV9Motion.selectedCTABounce)])
+            CATransaction.commit()
+        }
     }
 
     /// Route exit must retain the hero's painted bounce for homeTracks to

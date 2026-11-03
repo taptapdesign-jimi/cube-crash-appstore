@@ -52,7 +52,7 @@ describe('native Home/Hub outgoing-pose source contracts', () => {
   test('Hub flags keep their art, progress and flutter without shimmer layers or idle effects', () => {
     const hub = fs.readFileSync('native/jimi-2026/JimiV9HubView.swift', 'utf8');
     expect(hub).toContain('assets/journey assets/natpis.png');
-    expect(hub).toContain('counts[id]?.attributedText');
+    expect(hub).toContain('count.attributedText=NSAttributedString');
     expect(hub).toContain('addLoop(banner.layer, keyPath: "transform"');
     expect(hub).not.toMatch(/shineLayers|emberLayers|flagEffects|flagMasks|shimmerDuration|CAGradientLayer/);
   });
@@ -163,10 +163,11 @@ describe('native Home/Hub outgoing-pose source contracts', () => {
   test('hero layout preserves its rest rectangle across route and selected-slide pivot changes', () => {
     const layout = home.slice(home.indexOf('override func layoutSubviews()', home.indexOf('final class JimiV9HomeView')))
       .split(/\n {4}(?:private )?func /)[0].replace(/\/\/[^\n]*/g, '');
-    expect(layout).toContain('heroes[i].bounds = CGRect(x: 0, y: 0, width: 336, height: 336)');
+    expect(layout).toContain('let heroSide:CGFloat=tablet ? min(tabletHeroTarget,max(0,tabletCTABottom-88-40-topInset-innerInset-logoLayoutHeight-20)):336');
+    expect(layout).toContain('heroes[i].bounds = CGRect(x: 0, y: 0, width:heroSide,height:heroSide)');
     expect(layout).toContain('heroes[i].layer.position = CGPoint(');
-    expect(layout).toContain('x: width/2 + (heroes[i].layer.anchorPoint.x - 0.5) * 336,');
-    expect(layout).toContain('y: heroTop + heroes[i].layer.anchorPoint.y * 336)');
+    expect(layout).toContain('x: width/2 + (heroes[i].layer.anchorPoint.x - 0.5) * heroSide,');
+    expect(layout).toContain('y: heroTop + heroes[i].layer.anchorPoint.y * heroSide)');
     expect(layout).not.toMatch(/heroes\[i\]\.(?:center|frame)\s*=/);
   });
 

@@ -280,13 +280,14 @@ final class NativeBoardScene: SKScene {
         backpackPaintedOpen=backpackPresented
         let path=engine.state.mode == .arcade ? (backpackPresented ? "assets/hud/crate-open.png":"assets/hud/crate - hud.png"):backpackPresented ? "assets/nav/stats-nav-open.png":"assets/nav/stats-nav.png"
         help.texture=textures.texture(path)
-        // Keep the authored 34pt HUD geometry. Reassigning size while the
+        // Keep initialized, proportionally projected phone geometry. Reassigning size while the
         // exit action has collapsed scale makes SpriteKit inflate the sprite
         // when enter restores scale, covering the board with backpack artwork.
         if backpackAlert?.action(forKey:"backpack-alert-exit")==nil {backpackAlert?.removeFromParent()};backpackAlert=nil;backpackAlertElapsed=0;backpackAlertCycle = -1;backpackAlertLastFrame=nil
         if wanted {
             let badge=SKSpriteNode(texture:textures.texture("assets/nav/alsert@2x.png"))
-            badge.name="native-game-backpack-alert";badge.size=CGSize(width:23,height:23*46/48);badge.position=CGPoint(x:12,y:13);badge.zPosition=2
+            let badgeScale:CGFloat=NativeGameplayChromePlan.hudScale(for:size)
+            badge.name="native-game-backpack-alert";badge.size=CGSize(width:23*badgeScale,height:23*46/48*badgeScale);badge.position=CGPoint(x:12*badgeScale,y:13*badgeScale);badge.zPosition=2
             badge.zRotation = -.pi/18
             help.addChild(badge);backpackAlert=badge;requestRendering(!suspended)
         }
@@ -294,7 +295,7 @@ final class NativeBoardScene: SKScene {
     /// Runs on the existing board frame owner, never on a second display link or timer.
     private func updateBackpackAlert(_ time:TimeInterval){
         if backpackAlert?.action(forKey:"backpack-alert-exit") != nil {return}
-        guard let badge=backpackAlert,!exitInProgress,!hud.isHidden,hud.alpha>0.01,!UIAccessibility.isReduceMotionEnabled else{backpackAlertLastFrame=nil;backpackAlert?.setScale(1);backpackAlert?.zRotation = -.pi/18;backpackAlert?.position.y=13;return}
+        guard let badge=backpackAlert,!exitInProgress,!hud.isHidden,hud.alpha>0.01,!UIAccessibility.isReduceMotionEnabled else{backpackAlertLastFrame=nil;backpackAlert?.setScale(1);backpackAlert?.zRotation = -.pi/18;backpackAlert?.position.y=13*(NativeGameplayChromePlan.hudScale(for:size));return}
         if let last=backpackAlertLastFrame {backpackAlertElapsed += min(0.05,max(0,time-last))}
         backpackAlertLastFrame=time
         let cycle=Int(backpackAlertElapsed/2.4)
@@ -308,7 +309,7 @@ final class NativeBoardScene: SKScene {
         badge.zRotation = -(.pi/18 + (backpackAlertRotation - .pi/18)*(angles[i]+(angles[i+1]-angles[i])*ease))
         badge.xScale=poses[i].0+(poses[i+1].0-poses[i].0)*ease
         badge.yScale=poses[i].1+(poses[i+1].1-poses[i].1)*ease
-        badge.position.y=13+poses[i].2+(poses[i+1].2-poses[i].2)*ease
+        badge.position.y=(13+poses[i].2+(poses[i+1].2-poses[i].2)*ease)*(NativeGameplayChromePlan.hudScale(for:size))
     }
     private func announceLandedJourneyDie(_ node:NativeDiceNode){
         guard engine.state.mode == .journey,!disposed,!sourceDisposalInProgress,!exitInProgress,
@@ -970,7 +971,7 @@ final class NativeBoardScene: SKScene {
     }
     /// Only source-identified wrapped/app-spawn paths call this helper. The
     /// unported Wild meter drop must not acquire a substitute bounce scope.
-    private func runSourceSpawn(_ node:NativeDiceNode,key:String,postDelay:Double=0,settleOnInterruption:Bool=false,completion:(()->Void)?=nil) {
+    private func runSourceSpawn(_ node:NativeDiceNode,key:String,postDelay:Double=0,settleOnInterruption:Bool=false,initialScale:CGFloat=CGFloat(NativeSourceAppSpawnBounceOwner.nativeEntryScale),completion:(()->Void)?=nil) {
         let ownerKey=node.tileID+":"+key,id=UUID().uuidString
         if let previous=sourceSpawns.removeValue(forKey:ownerKey) {previous.release();previous.interrupted?()}
         let release=beginSourceMotion(.spawnBounce,id:id,generation:engine.state.generation) ?? {}
@@ -1003,21 +1004,21 @@ final class NativeBoardScene: SKScene {
         }
         sourceSpawns[ownerKey]=SourceSpawnScope(tileID:node.tileID,actionKey:key,id:id,release:release,
             interrupted:settleOnInterruption ? {settle(true)}:nil)
-        var actions:[SKAction]=[NativeBoardMotion.spawnBounce(initialScale:CGFloat(NativeSourceAppSpawnBounceOwner.nativeEntryScale)),.run(release)]
+        var actions:[SKAction]=[NativeBoardMotion.spawnBounce(initialScale:initialScale),.run(release)]
         if postDelay>0 {actions.append(.wait(forDuration:postDelay))}
         actions.append(.run{
             if let binding {_=binding.renderActionTask{settle(false)}}
             else {settle(false)}
         })
-        prepareInnerSpawnEntry(node)
+        prepareInnerSpawnEntry(node,initialScale:initialScale)
         node.visual.run(.sequence(actions),withKey:key)
     }
     /// Fallback owns the inner carrier only; never multiply its entry by an
     /// already prepainted Source outer entry on the same newly opened face.
-    private func prepareInnerSpawnEntry(_ node:NativeDiceNode) {
+    private func prepareInnerSpawnEntry(_ node:NativeDiceNode,initialScale:CGFloat=CGFloat(NativeSourceAppSpawnBounceOwner.nativeEntryScale)) {
         node.retireSourcePendingFreshFaceEntry()
         if node.sourceOuterDriven {node.paintSourceOuterScale(.init(x:1,y:1))}
-        node.visual.setScale(CGFloat(NativeSourceAppSpawnBounceOwner.nativeEntryScale))
+        node.visual.setScale(initialScale)
     }
     private func retireSourceOrdinaryOpenBounces() {
         nodesByID.values.forEach{$0.retireSourcePendingFreshFaceEntry()}
@@ -1228,10 +1229,10 @@ final class NativeBoardScene: SKScene {
         if sourceTutorialMeterHUD != nil {return sourceMeterHUDScope === scope && scope.current}
         guard sourceAnimationBindingAdmissionOpen,scope.current,
             let tasks=scope.sourceMicrotaskTasks,sourceAppTimeouts.sourceMicrotaskTasks === tasks else{return false}
-        let generation=engine.state.generation,rect=NativeGameplayChromePlan.make(viewport:size,safeTop:safeInsets.top).meterRect
+        let generation=engine.state.generation,rect=gameplayChromePlan.meterRect
         sourceMeterHUDScope=scope;sourceTutorialSmokeFrozen=engine.state.tutorial?.active==true
         let owner=NativeWildMeterHUDPresentation(hudStage:hud,service:scope.service,timeouts:sourceAppTimeouts,generation:generation,
-            maximum:Double(rect.width),isPad:size.width>=768,sourceOrigin:.init(x:rect.minX,y:size.height-rect.maxY),
+            maximum:Double(rect.width),isPad:size.width>=768,sourceOrigin:.init(x:rect.minX,y:size.height-rect.maxY),barHeight:rect.height,
             sourceToNative:{[weak self] point in .init(x:point.x,y:(self?.size.height ?? 0)-point.y)},
             nativeToSource:{[weak self] point in .init(x:point.x,y:(self?.size.height ?? 0)-point.y)},
             smokeDisabled:{[weak self] in self?.sourceTutorialSmokeFrozen != false},
@@ -1882,6 +1883,7 @@ final class NativeBoardScene: SKScene {
     var sourceInitialStartupReady:Bool {!sourceInitialStartupRejected && (sourceInitialConstruction == nil || sourceInitialConstruction?.isCurrent==true)}
     private let ghosts = SKNode()
     private var ghostNodesByCell:[NativeCell:SKSpriteNode]=[:]
+    var onBackdropOcclusion:(([NativeBoardBackdropCutout])->Void)?
     private let hud = SKNode()
     private let dragTrail=NativeDragTrail()
     private var sourceDragTrailRelease:(()->Void)?
@@ -1899,6 +1901,7 @@ final class NativeBoardScene: SKScene {
     private let comboX = SKLabelNode()
     private let comboNumber = SKLabelNode()
     private lazy var comboNumberMotion = NativeComboNumberMotion(number:comboNumber)
+    private var hudIconSide:CGFloat=0
     private var scoreHitRect = CGRect.zero
     private var comboHitRect = CGRect.zero
     private let roundIndicator: NativeRoundIndicator
@@ -3184,7 +3187,7 @@ final class NativeBoardScene: SKScene {
             }
             engine.sourceWildLockedBonusPop = {[weak self,weak scope] bonus in
                 guard let self,let scope,scope.current,self.sourceDirectScope === scope else{return false}
-                self.startWildLockedBonus(ids:[bonus.tileID])
+                self.startWildLockedBonus(ids:[bonus.tileID],transactionID:bonus.transactionID)
                 return self.sourceWildBonusPops[bonus.tileID]?.active==true
             }
             engine.sourceRetainedDirectDestinationCleanup = {[weak self,weak scope] receipt in
@@ -5956,8 +5959,6 @@ final class NativeBoardScene: SKScene {
         if !entryInProgress {evaluate()}
     }
 
-    private var gameplayHelpAllowed:Bool { engine.state.mode != .arcade || engine.state.effectiveArcadeVariant != .pureDice }
-
     private func setupHUD() {
         let brown = UIColor(red: 0.42, green: 0.35, blue: 0.29, alpha: 1)
         for label in [score, noMoves] {
@@ -5980,11 +5981,11 @@ final class NativeBoardScene: SKScene {
             close?.removeAction(forKey:"hud-tap-bounce")
             self?.finishHUDTapFeedback()
         }
-        if gameplayHelpAllowed {
+        do {
             let help = SKSpriteNode(texture: textures.texture(engine.state.mode == .arcade ? "assets/hud/crate - hud.png":"assets/nav/stats-nav.png"))
             help.name = "native-game-help"; let helpDimensions=help.texture?.size() ?? CGSize(width:28,height:28)
-            // Shared 34pt HUD icon frame; Arena crate and Journey backpack retain aspect ratio.
-            let helpScale=34/max(1,max(helpDimensions.width,helpDimensions.height))
+            // Tablet Backpack matches the Journey navigation40pt base artwork.
+            let helpScale=NativeGameplayChromePlan.backpackBaseSide(for:size)*NativeGameplayChromePlan.hudScale(for:size)/max(1,max(helpDimensions.width,helpDimensions.height))
             help.size = CGSize(width:helpDimensions.width*helpScale,height:helpDimensions.height*helpScale); hud.addChild(help)
         }
         scoreArt.texture = textures.texture("assets/hud/score-hud.png")
@@ -6001,24 +6002,47 @@ final class NativeBoardScene: SKScene {
         addChild(roundIndicator)
     }
 
+    private var gameplayChromePlan:NativeGameplayChromePlan {
+        var boardBounds:CGRect?
+        if NativeTabletLayout.applies(size),engine.state.columns==7 {
+            let grid=NativeBoardGeometry(columns:engine.state.columns,rows:engine.state.rows,viewport:size,safeInsets:safeInsets)
+            boardBounds=CGRect(x:grid.origin.x,y:0,width:(CGFloat(grid.columns)*NativeBoardGeometry.tile+CGFloat(grid.columns-1)*NativeBoardGeometry.gap)*grid.scale,height:0)
+        }
+        return NativeGameplayChromePlan.make(viewport:size,safeTop:safeInsets.top,boardBounds:boardBounds)
+    }
+
     private func layoutHUD() {
-        let chrome = NativeGameplayChromePlan.make(viewport:size,safeTop:safeInsets.top)
+        let chrome = gameplayChromePlan
+        let tablet=NativeTabletLayout.applies(size)
+        let uiScale=NativeGameplayChromePlan.hudScale(for:size)
+        score.fontSize=18*uiScale;comboNumber.fontSize=18*uiScale;comboX.fontSize=14*uiScale
         let top = chrome.valueRowY
-        closeButton?.layout(valueRowY:top)
+        closeButton?.layout(valueRowY:top,visualScale:uiScale)
+        if tablet {closeButton?.position.x=chrome.meterRect.minX+NativeHUDCloseNode.radius*uiScale}
         let shift = (size.width*0.05).rounded()
         let spacing: CGFloat = size.width >= 768 ? 110 : 92
-        let scoreX = size.width-24-62-spacing-shift
+        let scoreX = (tablet ? chrome.meterRect.maxX:size.width-24)-62-spacing-shift
         hud.childNode(withName: "native-game-help")?.position = CGPoint(x: size.width >= 768 ? scoreX-spacing : 118, y: top)
-        for icon in [scoreArt,comboArt] {
-            let dimensions = (icon === comboArt ? textures.texture("assets/hud/combo-hud.png"):icon.texture)?.size() ?? CGSize(width: 28,height: 28)
-            let scale = 28/max(1,max(dimensions.width,dimensions.height))
-            icon.size = CGSize(width: dimensions.width*scale,height: dimensions.height*scale)
+        let targetIconSide:CGFloat=28*uiScale
+        if hudIconSide != targetIconSide {
+            // Configure intrinsic geometry only when its size class changes;
+            // contact/exit actions may currently own a collapsed node scale.
+            for icon in [scoreArt,comboArt] {
+                let dimensions = (icon === comboArt ? textures.texture("assets/hud/combo-hud.png"):icon.texture)?.size() ?? CGSize(width:28,height:28)
+                let scale=targetIconSide/max(1,max(dimensions.width,dimensions.height))
+                icon.size=CGSize(width:dimensions.width*scale,height:dimensions.height*scale)
+            }
+            if let help=hud.childNode(withName:"native-game-help") as? SKSpriteNode {
+                let dimensions=help.texture?.size() ?? CGSize(width:34,height:34)
+                let scale=NativeGameplayChromePlan.backpackBaseSide(for:size)*uiScale/max(1,max(dimensions.width,dimensions.height))
+                help.size=CGSize(width:dimensions.width*scale,height:dimensions.height*scale)
+            }
+            comboHUDMotion.layoutArtwork(fallbackSize:comboArt.size);hudIconSide=targetIconSide
         }
-        comboHUDMotion.layoutArtwork(fallbackSize:comboArt.size)
         scoreArt.position = CGPoint(x: scoreX,y: top)
-        score.position = CGPoint(x: scoreX+scoreArt.size.width/2+6,y: top)
+        score.position = CGPoint(x: scoreX+scoreArt.size.width/2+6*uiScale,y: top)
         layoutComboValue(top:top)
-        scoreHitRect = CGRect(x: scoreX-33,y: top-30,width: 70,height: 60)
+        if !tablet {scoreHitRect = CGRect(x:scoreX-33,y:top-30,width:70,height:60)}
         // Combo hit geometry is updated with the number-only balloon layout.
         noMoves.position = CGPoint(x: size.width / 2, y: size.height / 2)
         let rect=chrome.meterRect
@@ -6026,7 +6050,7 @@ final class NativeBoardScene: SKScene {
             if sourceTutorialMeterRect != rect {
                 sourceTutorialMeterRect=rect
                 let wasConsuming=owner.consumeActive
-                owner.resize(maximum:Double(rect.width),sourceOrigin:.init(x:rect.minX,y:size.height-rect.maxY))
+                owner.resize(maximum:Double(rect.width),sourceOrigin:.init(x:rect.minX,y:size.height-rect.maxY),barHeight:rect.height)
                 // Source setWidth clears an idle fill. Native entry may apply safe
                 // insets AFTER mounting the saved charge; the cached ratio then
                 // prevents the ordinary refresh below from repainting that fill.
@@ -6044,11 +6068,13 @@ final class NativeBoardScene: SKScene {
             roundIndicator.position=chrome.roundCenter
             return
         }
-        meterBackground.path=CGPath(roundedRect:CGRect(origin:.zero,size:rect.size),cornerWidth:5,cornerHeight:5,transform:nil)
+        let barHeight=rect.height
+        let barY=(rect.height-barHeight)/2,radius=barHeight/2
+        meterBackground.path=CGPath(roundedRect:CGRect(x:0,y:barY,width:rect.width,height:barHeight),cornerWidth:radius,cornerHeight:radius,transform:nil)
         meterBackground.position=rect.origin;meter.position=rect.origin
         let ratio=NativeGameplayChromePlan.visibleMeterRatio(engine.state.wildMeter)
         meter.isHidden=ratio<=0
-        meter.path=CGPath(roundedRect:CGRect(x:0,y:0,width:rect.width*ratio,height:rect.height),cornerWidth:5,cornerHeight:5,transform:nil)
+        meter.path=CGPath(roundedRect:CGRect(x:0,y:barY,width:rect.width*ratio,height:barHeight),cornerWidth:radius,cornerHeight:radius,transform:nil)
         roundIndicator.position=chrome.roundCenter
 
     }
@@ -6660,6 +6686,8 @@ final class NativeBoardScene: SKScene {
             textures.invalidatePendingPreparation()
             nodesByID.values.forEach { $0.dispose() }
             guard !sourceDisposalInProgress else {return}
+            // Footer binding belongs to the Scene/controller lifetime, not
+            // this retired tile generation. Keep it for the new locked faces.
             retireSourcePhysicalObservers();nodesByID.removeAll()
             hudStarFlights.removeAllChildren(); hudStarIDs.removeAll();hudStarNodes.removeAll(); hudStarVisualReceipts.removeAll()
             specialPresentationIDs.removeAll(); specialPresentationID = nil;directPresentationID=nil;directPresentationVariant=nil;directFinalReceipt=nil
@@ -6775,7 +6803,7 @@ final class NativeBoardScene: SKScene {
         }
         refreshSourceIdlePopulation()
         renderGhosts(state: state, geometry: geometry)
-        score.text = String(state.score)
+        score.text = NativeScoreDisplay.text(state.score)
         synchronizeComboHUD()
         // Source startup owns its initial fade; after guide completion the
         // completion-assist HUD lock still owns dimming, including cleanup refreshes.
@@ -6796,19 +6824,43 @@ final class NativeBoardScene: SKScene {
 
     private func layoutComboValue(top:CGFloat) {
         let normalNumberWidth=comboNumber.frame.width/max(0.00001,abs(comboNumber.xScale))
-        let width=comboArt.size.width+4+comboX.frame.width+normalNumberWidth
-        let center=size.width-36-width/2-(size.width*0.05).rounded()
+        let tablet=NativeTabletLayout.applies(size),gap=4*NativeGameplayChromePlan.hudScale(for:size)
+        let width=comboArt.size.width+gap+comboX.frame.width+normalNumberWidth
+        let chrome=tablet ? gameplayChromePlan:nil
+        let right=chrome?.meterRect.maxX ?? (size.width-12)
+        let center=right-24-width/2-(size.width*0.05).rounded()
         comboArt.position=CGPoint(x:center,y:top)
-        comboX.position=CGPoint(x:center+comboArt.size.width/2+4,y:top)
+        comboX.position=CGPoint(x:center+comboArt.size.width/2+gap,y:top)
         comboNumber.position=CGPoint(x:comboX.position.x+comboX.frame.width,y:top)
-        let overflow=max(0,comboNumber.frame.maxX-(size.width-12))
+        let overflow=max(0,comboNumber.frame.maxX-right)
         if overflow>0 {comboArt.position.x-=overflow;comboX.position.x-=overflow;comboNumber.position.x-=overflow}
-        comboHitRect=CGRect(x:center-53,y:top-30,width:106,height:60)
+        if let chrome {
+            let alignment=right-comboNumber.frame.maxX
+            comboArt.position.x+=alignment;comboX.position.x+=alignment;comboNumber.position.x+=alignment
+            comboHitRect=CGRect(x:comboArt.frame.minX-12,y:top-36,width:comboNumber.frame.maxX-comboArt.frame.minX+24,height:72)
+            layoutTabletHUDGroups(top:top,comboLeft:comboArt.frame.minX,left:chrome.meterRect.minX)
+        } else {comboHitRect=CGRect(x:center-53,y:top-30,width:106,height:60)}
+    }
+
+    private func layoutTabletHUDGroups(top:CGFloat,comboLeft:CGFloat,left:CGFloat) {
+        guard NativeTabletLayout.applies(size),let help=hud.childNode(withName:"native-game-help") as? SKSpriteNode else{return}
+        let scale=NativeGameplayChromePlan.hudScale(for:size)
+        let closeWidth=NativeHUDCloseNode.radius*2*scale
+        let scoreWidth=scoreArt.size.width+6*scale+score.frame.width
+        let gap=max(8*scale,(comboLeft-left-closeWidth-help.size.width-scoreWidth)/3)
+        let helpLeft=left+closeWidth+gap,scoreLeft=helpLeft+help.size.width+gap
+        let helpPosition=CGPoint(x:helpLeft+help.size.width/2,y:top)
+        let scoreIconPosition=CGPoint(x:scoreLeft+scoreArt.size.width/2,y:top)
+        let scorePosition=CGPoint(x:scoreLeft+scoreArt.size.width+6*scale,y:top)
+        if help.position != helpPosition {help.position=helpPosition}
+        if scoreArt.position != scoreIconPosition {scoreArt.position=scoreIconPosition}
+        if score.position != scorePosition {score.position=scorePosition}
+        scoreHitRect=CGRect(x:scoreLeft-12,y:top-36,width:scoreWidth+24,height:72)
     }
 
     private func synchronizeComboHUD() {
         let combo = engine.state.combo
-        comboNumber.text = String(combo)
+        comboNumber.text = NativeComboDisplay.text(combo)
         if exitInProgress || engine.state.terminal != nil {comboNumberMotion.stop()}
         else {comboNumberMotion.synchronize(combo:combo,generation:engine.state.generation,reducedMotion:UIAccessibility.isReduceMotionEnabled)}
         if !comboHUDMotion.usesAuthoredFrames {
@@ -7006,7 +7058,7 @@ final class NativeBoardScene: SKScene {
             onHUDTapContact?("close")
             traceHUDLatency("close.audio.return");onExitRequest?();traceHUDLatency("close.modal.return");return true
         }
-        if gameplayHelpAllowed,nodes(at:point).contains(where:{$0.name == "native-game-help"}) {
+        if nodes(at:point).contains(where:{$0.name == "native-game-help"}) {
             traceHUDLatency("backpack.hit")
             guard inputAdmitted,!navigationLocked,engine.state.tutorial?.shouldLockHUD != true else {return true}
             onHUDTapContact?("hud-icon-tap")
@@ -7967,7 +8019,7 @@ final class NativeBoardScene: SKScene {
             case .wildSpawnActionsPrepared:
                 startWildSpawnActions(ids:event.tileIDs)
             case .wildLockedBonusPrepared:
-                startWildLockedBonus(ids:event.tileIDs)
+                startWildLockedBonus(ids:event.tileIDs,transactionID:event.reason)
             case .wildRecoveryCheckPrepared:
                 if let id=event.reason {startWildRecoveryCheck(id:id)}
             case .meterRewardPrepared:
@@ -7996,9 +8048,14 @@ final class NativeBoardScene: SKScene {
                         continue
                     }
                     node.visual.setScale(1)
+                    // Laser changes the existing target in place. Its body must
+                    // stay painted through contact instead of replaying a new
+                    // die's zero-scale entry. Fresh replacements keep that entry.
+                    let sameLaserTarget=event.variant == "laser-gun" && event.tileIDs == [id]
+                    let impactEntryScale:CGFloat=sameLaserTarget ? 1:CGFloat(NativeSourceAppSpawnBounceOwner.nativeEntryScale)
                     if let completed=laserSpawnCallbacks.removeValue(forKey:id) {
-                        runSourceSpawn(node,key:"special-impact-spawn",postDelay:0.05,settleOnInterruption:true,completion:completed)
-                    } else {runSourceSpawn(node,key:"special-impact-spawn")}
+                        runSourceSpawn(node,key:"special-impact-spawn",postDelay:0.05,settleOnInterruption:true,initialScale:impactEntryScale,completion:completed)
+                    } else {runSourceSpawn(node,key:"special-impact-spawn",initialScale:impactEntryScale)}
                 } }
             case .spawned:
                 if sourceMagnetSurvivorOwnsSpawn(event) || sourceMagnetFallbackCallers.values.contains(where:{$0.ownsSpawnEvent(event)}) || sourceMagnetNormalCallers.values.contains(where:{$0.ownsSpawnEvent(event)}) {continue}
@@ -9168,9 +9225,10 @@ final class NativeBoardScene: SKScene {
         }
         finishVisual(captured.0)
     }
-    private func startWildLockedBonus(ids:[String]) {
-        for bonus in engine.pendingWildLockedBonusPresentations where ids.contains(bonus.tileID) && bonus.generation==engine.state.generation && wildBonusVisuals[bonus.tileID]==nil {
-            guard let node=nodesByID[bonus.tileID] else{continue}
+    private func startWildLockedBonus(ids:[String],transactionID:String?) {
+        guard let transactionID else{return}
+        for bonus in engine.pendingWildLockedBonusPresentations where bonus.transactionID==transactionID && ids.contains(bonus.tileID) && bonus.generation==engine.state.generation && wildBonusVisuals[bonus.tileID]==nil {
+            guard let node=nodesByID[bonus.tileID],node.locked,node.sourceValue==0 else{continue}
             let receipt=beginVisual();wildBonusVisuals[bonus.tileID]=(receipt,bonus.generation)
             if engine.sourceWildLockedBonusConstruct != nil {
                 guard let scope=sourceDirectScope,scope.current,node.sourceGeneration==bonus.generation,
@@ -9288,6 +9346,7 @@ final class NativeBoardScene: SKScene {
             return !self.disposed && self.engine.state.generation==generation && owner.parent === self.effects
         })
     }
+    private var finaleViewport:CGSize {NativeTabletLayout.animationViewport(size)}
     private func coreTntFinale() {
         if sourceStackCoreFaceReceiptsEnabled {
             let late=engine.pendingSourceLateFinalMerge
@@ -9317,10 +9376,10 @@ final class NativeBoardScene: SKScene {
                 onTntGlyphClock?(clockID,NativeTntFinale.duration,true)
                 onSourcePresentationFailure?("source_tnt_direct_final_constructor_unavailable",generation);return
             }
-            let owner=NativeTntFinale(textures:textures,fontName:finaleFontName,viewport:size,showsTitle:false,
+            let owner=NativeTntFinale(textures:textures,fontName:finaleFontName,viewport:finaleViewport,showsTitle:false,smokePresentationScale:NativeTabletLayout.smokeSpriteBoost(size),smokeVerticalOffset:-NativeTabletLayout.smokeVerticalOffset(size),
                 sourceConstruction:captured,sourceRandom:{[weak scope] in scope?.mathRandom.next() ?? .nan})
             sourceTntFinaleSourceConstructionCount+=1
-            configureTntGlyphClock(owner,id:clockID);owner.zPosition=999998;effects.addChild(owner)
+            configureTntGlyphClock(owner,id:clockID);owner.setScale(NativeTabletLayout.animationScale(size));owner.zPosition=999998;effects.addChild(owner)
             registerSourceCoreTntShakeTarget(owner,ownerID:ownerID,generation:generation)
             let receipt=beginVisual();onRenderingDemand?(true)
             let release=beginSourceMotion(.tntFinale,id:ownerID,generation:generation)
@@ -9345,9 +9404,9 @@ final class NativeBoardScene: SKScene {
             }
             return
         }
-        let owner = NativeTntFinale(textures: textures,fontName: finaleFontName,viewport: size,showsTitle: onTntGlyphClock == nil)
+        let owner = NativeTntFinale(textures: textures,fontName: finaleFontName,viewport: finaleViewport,showsTitle: onTntGlyphClock == nil,smokePresentationScale:NativeTabletLayout.smokeSpriteBoost(size),smokeVerticalOffset:-NativeTabletLayout.smokeVerticalOffset(size))
         configureTntGlyphClock(owner)
-        owner.zPosition = 999998; effects.addChild(owner)
+        owner.setScale(NativeTabletLayout.animationScale(size));owner.zPosition = 999998; effects.addChild(owner)
         let receipt = beginVisual(); onRenderingDemand?(true)
         let releaseSource=beginSourceMotion(.tntFinale,id:UUID().uuidString,generation:engine.state.generation)
         owner.play { [weak self] in releaseSource?();self?.finishVisual(receipt) }
@@ -9436,7 +9495,7 @@ final class NativeBoardScene: SKScene {
     }
 
     @discardableResult private func coreMagnetFinale()->Bool {
-        let owner=NativeMagnetFinalePresentation(textures:textures,viewport:size)
+        let owner=NativeMagnetFinalePresentation(textures:textures,viewport:finaleViewport)
         guard owner.assetReady else{owner.dispose();return false}
         for previous in effects.children.compactMap({$0 as? NativeMagnetFinalePresentation}){previous.dispose()}
         let id=UUID().uuidString,generation=engine.state.generation
@@ -9447,14 +9506,14 @@ final class NativeBoardScene: SKScene {
             self.onSplashGlyphClock?("magnet",id,time,finished)
             if !finished {reportProgress(time,finaleDuration)}
         }
-        owner.zPosition=999998;effects.addChild(owner)
+        owner.setScale(NativeTabletLayout.animationScale(size));owner.zPosition=999998;effects.addChild(owner)
         let receipt=beginVisual();requestRendering(true)
         let release=beginSourceMotion(.magnetFinale,id:id,generation:generation)
         owner.play{[weak self] in release?();self?.finishVisual(receipt)}
         return true
     }
     private func coreStarFinale() {
-        let owner = NativeStarFinale(textures: textures,viewport: size)
+        let owner = NativeStarFinale(textures: textures,viewport: finaleViewport)
         let id = UUID().uuidString,generation = engine.state.generation
         var haptics = Set<Int>()
         let earlyBeats: [TimeInterval] = (0..<7).map { Double($0)*0.095 }
@@ -9470,7 +9529,7 @@ final class NativeBoardScene: SKScene {
                 haptics.insert(index); self.onHaptic?("light")
             } }
         }
-        owner.zPosition = 999998; effects.addChild(owner)
+        owner.setScale(NativeTabletLayout.animationScale(size));owner.zPosition = 999998; effects.addChild(owner)
         let receipt = beginVisual(); requestRendering(true)
         let releaseSource=beginSourceMotion(.starFinale,id:id,generation:generation)
         owner.play { [weak self] in releaseSource?();self?.finishVisual(receipt) }
@@ -9478,7 +9537,7 @@ final class NativeBoardScene: SKScene {
 
     @discardableResult
     private func coreJuiceFinale(onGameplayReady: (() -> Void)? = nil) -> Bool {
-        let owner = NativeJuiceFinale(textures: textures,viewport: size)
+        let owner = NativeJuiceFinale(textures: textures,viewport: finaleViewport)
         guard owner.assetReady else { owner.dispose(); return false }
         for previous in effects.children.compactMap({ $0 as? NativeJuiceFinale }) { previous.dispose() }
         let token = UUID().uuidString,generation = engine.state.generation
@@ -9498,7 +9557,7 @@ final class NativeBoardScene: SKScene {
             self.onSpecialMoment?("juice",moment,index)
         }
         owner.onGameplayReady = onGameplayReady
-        owner.zPosition = 999998; effects.addChild(owner)
+        owner.setScale(NativeTabletLayout.animationScale(size));owner.zPosition = 999998; effects.addChild(owner)
         let receipt = beginVisual(); onRenderingDemand?(true)
         let releaseSource=beginSourceMotion(.juiceFinale,id:token,generation:generation)
         owner.play { [weak self] in releaseSource?();self?.finishVisual(receipt) }
@@ -10083,9 +10142,9 @@ final class NativeBoardScene: SKScene {
                 sourceRandom = {[weak scope] in scope?.mathRandom.next() ?? .nan}
                 sourceTntFinaleSourceConstructionCount+=1
             }
-            let owner = NativeTntFinale(textures: textures,fontName: finaleFontName,viewport: size,showsTitle: onTntGlyphClock == nil,
+            let owner = NativeTntFinale(textures: textures,fontName: finaleFontName,viewport: finaleViewport,showsTitle: onTntGlyphClock == nil,smokePresentationScale:NativeTabletLayout.smokeSpriteBoost(size),smokeVerticalOffset:-NativeTabletLayout.smokeVerticalOffset(size),
                 sourceConstruction:sourceConstruction,sourceRandom:sourceRandom,random:draw)
-            configureTntGlyphClock(owner,id:clockID); owner.zPosition = 999998; effects.addChild(owner)
+            configureTntGlyphClock(owner,id:clockID); owner.setScale(NativeTabletLayout.animationScale(size));owner.zPosition = 999998; effects.addChild(owner)
             if sourceTntMainScope != nil {registerSourceCoreTntShakeTarget(owner,ownerID:plan.id,generation:plan.generation)}
             let finaleReceipt = beginVisual()
             let completed: () -> Void = { [weak self] in
@@ -10517,6 +10576,31 @@ final class NativeBoardScene: SKScene {
         }
     }
 
+    /// Only the lower footer band can intersect background scenery. Sample the
+    /// actual painted hierarchy after all Source/SKAction writers, not Core cells.
+    func backdropOcclusionCutouts()->[NativeBoardBackdropCutout] {
+        guard !disposed,NativeTabletLayout.applies(size) else{return []}
+        let top=size.height-size.width*0.25-48
+        func cutout(_ sprite:SKSpriteNode)->NativeBoardBackdropCutout? {
+            var ancestor:SKNode?=sprite,opacity:CGFloat=1
+            while let node=ancestor,node !== self {
+                if node.isHidden {return nil};opacity *= node.alpha
+                if opacity<=0.001 {return nil};ancestor=node.parent
+            }
+            guard ancestor === self,sprite.texture != nil,sprite.size.width>0,sprite.size.height>0 else{return nil}
+            let origin=sprite.convert(CGPoint.zero,to:self)
+            let x=sprite.convert(CGPoint(x:1,y:0),to:self),y=sprite.convert(CGPoint(x:0,y:1),to:self)
+            let matrix=CGAffineTransform(a:x.x-origin.x,b:origin.y-x.y,c:y.x-origin.x,d:origin.y-y.y,tx:origin.x,ty:size.height-origin.y)
+            let rect=CGRect(x:-sprite.anchorPoint.x*sprite.size.width,y:-sprite.anchorPoint.y*sprite.size.height,width:sprite.size.width,height:sprite.size.height)
+            guard rect.applying(matrix).maxY>=top else{return nil}
+            return .init(rect:rect,transform:matrix)
+        }
+        var result:[NativeBoardBackdropCutout]=[]
+        for node in nodesByID.values {if let sprite=node.backdropOcclusionSprite,let shape=cutout(sprite){result.append(shape)}}
+        for sprite in ghostNodesByCell.values {if let shape=cutout(sprite){result.append(shape)}}
+        return result
+    }
+
     override func didFinishUpdate() {
         #if DEBUG
         if hudLatencySubmissionPending {traceHUDLatency("scene.didFinishUpdate")}
@@ -10539,6 +10623,7 @@ final class NativeBoardScene: SKScene {
             }
             roundIndicator.alpha=min(roundIndicator.alpha,0.2)
         }
+        if let onBackdropOcclusion {onBackdropOcclusion(backdropOcclusionCutouts())}
     }
     private func sourceDidFinishUpdate() {
         guard !disposed, !suspended else { return }
@@ -10716,7 +10801,7 @@ final class NativeBoardScene: SKScene {
         guard !disposed, activeTouch == nil, !hasActions(), effects.children.isEmpty,
               !nodesByID.values.contains(where: { $0.hasPresentationActions }) else { return }
         var paths: Set<String> = [NativeComboHUDMotion.atlasPath,"assets/ghost-placeholder.png", "assets/tile.png", "assets/shadow.png", "assets/paper-bg.png", "assets/close-icon.png", "assets/hud/help.png", "assets/hud/score-hud.png","assets/hud/combo-hud.png","assets/hud/extra-combo-hud.png","assets/hud/mega-combo-hud.png"]
-        if gameplayHelpAllowed { paths.formUnion(engine.state.mode == .arcade ? ["assets/hud/crate - hud.png","assets/hud/crate-open.png"]:["assets/nav/stats-nav.png","assets/nav/stats-nav-open.png"]) }
+        paths.formUnion(engine.state.mode == .arcade ? ["assets/hud/crate - hud.png","assets/hud/crate-open.png"]:["assets/nav/stats-nav.png","assets/nav/stats-nav-open.png"])
         for node in nodesByID.values { paths.formUnion(node.resourcePaths) }
         if sourceMagnetFallbackScope?.current == true || sourceSixScope?.current == true {
             paths.formUnion(NativeRegularStackLayout.Skin.allCases.map{String($0.rawValue.dropFirst(2))})
@@ -10952,7 +11037,7 @@ final class NativeBoardScene: SKScene {
         ordinaryAbsorbs.removeAll();ordinaryPostchecks.removeAll();ordinarySpawnVisuals.removeAll();ordinaryDeferred.removeAll();ordinaryPrimaryVisuals.removeAll();ordinarySixVisual=nil
         pendingTerminal = nil; pendingTerminalGeneration = nil; visualLifetime += 1; visualOwners = 0
         removeAllActions(); retireEffects(); nodesByID.values.forEach { $0.dispose() }
-        retireSourcePhysicalObservers();nodesByID.removeAll();meterTimeoutIDs.removeAll();ghostNodesByCell.removeAll();ghosts.removeAllChildren(); removeAllChildren(); textures.dispose()
+        onBackdropOcclusion=nil;retireSourcePhysicalObservers();nodesByID.removeAll();meterTimeoutIDs.removeAll();ghostNodesByCell.removeAll();ghosts.removeAllChildren(); removeAllChildren(); textures.dispose()
         onFishIdleFrames?([:],engine.state.generation,true);onFishIdleFrames=nil
         onNativeNoMovesShow=nil;onNativeNoMovesExit=nil;onNativeNoMovesClear=nil;onJourneyBottomDecorShake=nil;captureSourceScreenOverlayShake=nil;sourceCoreTntShakeTargets.removeAll();sourceScreenShakeTargets.removeAll();onPresentationFailure=nil;onSourcePresentationFailure=nil;onStateChange = nil; onTerminal = nil; onFinalMergeProgress = nil; onGameplayEvent = nil; onGameplayReceipt = nil; onSpecialMoment = nil; onAuthoredFinale = nil;onAuthoredTntPresentation = nil;onAuthoredLaserImpact=nil;authoredTntPresentationReady = nil;authoredFinalePresentationReady=nil;onSpecialPresentationCancelled = nil; onTntGlyphClock = nil; onSplashGlyphClock = nil; onHaptic = nil
         onRenderSurfacePreparation=nil

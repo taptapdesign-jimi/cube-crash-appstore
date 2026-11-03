@@ -7,7 +7,7 @@ public struct NativeSourceTutorialDemoActivationReceipt:Equatable,Sendable {
     public let threeID:String,twoID:String,oneID:String
     let originalTiles:[NativeTile]
     static func matchesOriginalDemo(_ state:NativeBoardState)->Bool {
-        guard (state.columns==5 || state.columns==7),state.rows==9,
+        guard (state.columns==5 && state.rows==9 || state.columns==7 && (state.rows==8 || state.rows==9)),
             state.tiles.count==state.columns*state.rows,state.validationIssues().isEmpty else{return false}
         let cols=state.columns,rows=state.rows,cells=NativeTutorialRules.guidedCells(columns:cols,rows:rows)
         let desired:[(NativeCell,Int)]=[(cells.three,3),(cells.two,2),(cells.one,1),

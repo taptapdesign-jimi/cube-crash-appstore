@@ -1,0 +1,945 @@
+{
+  "processing": "Measured +4 dB RMS relative to immutable v1, within0.001dB. Smooth offline lookahead peak protection at-0.1dBFS; no hard clipping, runtime limiter, added silence, pitch or speed change. Existing cue gain retained.",
+  "clips": [
+    {
+      "title": "Oops!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/001-oops.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/001-oops.wav",
+      "originalSha256": "c6d0c5c4b57555c12e68340669dbe55c4c7330bd3ea951dd6e816c81a0f849b0",
+      "gainDb": 4.0000008470396615,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 6.666410742115389,
+      "sha256": "628eb412c5ee2459f80848e3154d30bb936ca4f823ad660f41b4c790ba848521"
+    },
+    {
+      "title": "Bummer!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/002-bummer.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/002-bummer.wav",
+      "originalSha256": "4cc7c1f60f41dbf9aea2d93fbfce3ab49c317fbc4883a9a3132e32ec50de93da",
+      "gainDb": 3.999999350818081,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 4.510485017019194,
+      "sha256": "f288785564be571f72ee49782782a9cded60149fe786c2e95ff4cda9a8a5b856"
+    },
+    {
+      "title": "Ahh Noo!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/003-ahh-noo.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/003-ahh-noo.wav",
+      "originalSha256": "2c411d3501612fa985564e7e706e000d16c18ee9a8e092593941d14c5348885b",
+      "gainDb": 4.000000589724763,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 3.5320713917884645,
+      "sha256": "e17f15d8c0ea5753353ba1a444b734aebaa4f4a19adb854396926c70e98edc9b"
+    },
+    {
+      "title": "Almost!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/004-almost.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/004-almost.wav",
+      "originalSha256": "38ac4d3e9723b07fbdc8fb173430bb0257604b58208751862822b369c1d7cee2",
+      "gainDb": 4.00000169654523,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 2.4690412650162834,
+      "sha256": "94f5df7c8da855e38401ed4976e8fc87799b8c60a8d54bf5e35a4ab23cdf3b74"
+    },
+    {
+      "title": "So Close!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/005-so-close.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/005-so-close.wav",
+      "originalSha256": "b4f461bdd8ab859f3e5bd925d27ae22049d4dd26713488eb7629925bf0d9252a",
+      "gainDb": 3.99999960470673,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 3.2500868672291867,
+      "sha256": "447560b7bd720191333cc1f4e4dbf16e6ce10a42e647910e4321a8f2fc699d12"
+    },
+    {
+      "title": "Whoops!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/006-whoops.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/006-whoops.wav",
+      "originalSha256": "061afe6c9b649db66dd53c6839f1062a145e63440f1b831b5707854627122654",
+      "gainDb": 4.000000141646879,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 1.7424072444383563,
+      "sha256": "f708800ebdf2bb66baa706c21b41716b8085edfc07dd8b55a21995e75fee98a7"
+    },
+    {
+      "title": "Uh Oh!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/007-uh-oh.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/007-uh-oh.wav",
+      "originalSha256": "ae9ac66e73ab8ab4dbf1e88a71bae4e164bdac2f0f49c002d7c3cf792c25aca8",
+      "gainDb": 3.999999325016695,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 1.6167945340928962,
+      "sha256": "0f4d18dc84acde966632e787e23a1f213ff0eabd6e8208d13ccf8f402382af28"
+    },
+    {
+      "title": "Missed It!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/008-missed-it.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/008-missed-it.wav",
+      "originalSha256": "670b991328a2cb7adb059c5f48e023f358bd3e699690218f83748920f678f303",
+      "gainDb": 3.9999984872419656,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 4.262951367913904,
+      "sha256": "1cb83e2ec898cb6319c9c2ad040baece8f17446f403a10e633be2308f05c355a"
+    },
+    {
+      "title": "Darn!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/009-darn.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/009-darn.wav",
+      "originalSha256": "0db0b210ee8ef303baab589403f02a6df18ce130dcd2f87d92122bf57d34337a",
+      "gainDb": 3.9999967852907137,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 4.518071960262649,
+      "sha256": "e6b568a9d937130cc5ef3bce17b379d737c37ebc302149528ddb3c0df8b87eab"
+    },
+    {
+      "title": "Not Quite!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/010-not-quite.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/010-not-quite.wav",
+      "originalSha256": "7c1da4716f9faeb75c00e5ad523583b63d852adc95fded75fff42131ff39b603",
+      "gainDb": 4.000001460190993,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 7.920816545081135,
+      "sha256": "d570755171b5fed807f182ed8e0142ff5e25d4c4b9e381f47e77f032b3ba9a21"
+    },
+    {
+      "title": "Retry Time!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/011-retry-time.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/011-retry-time.wav",
+      "originalSha256": "8e279f12793774721f633c51dbbc7e443900da642c87676ae5535d2a0febf1cf",
+      "gainDb": 4.00000025741109,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 1.8616315692593253,
+      "sha256": "35686eea889ff6f34b71526f45f2cedbeb8623542c6ab9d5867a54023942d969"
+    },
+    {
+      "title": "Oh Snap!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/012-oh-snap.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/012-oh-snap.wav",
+      "originalSha256": "e864fa79e4273d7de2f86a3b303994ef549ffb6585ec052267f428f750e0ae5e",
+      "gainDb": 4.000000364352207,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 4.5513826106429995,
+      "sha256": "7756e464c5eb92d5725ca0515bc937aa0350f0d85f66095fd88e89b8dc4ef6f8"
+    },
+    {
+      "title": "Melted down!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/013-melted-down.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/013-melted-down.wav",
+      "originalSha256": "c55d081dff8435b4d9346433a2ccaa735a122f5cf1b1daebd1c63f9e9e1cb89c",
+      "gainDb": 3.999998494221649,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 4.35848292706157,
+      "sha256": "280b3bb871b61fb65a87928bd80332c53ed42480c7b98890cd819f4f67cd7c82"
+    },
+    {
+      "title": "Ouch!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/014-ouch.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/014-ouch.wav",
+      "originalSha256": "15cc0b1e805b51f4b64278bc3f78fc2739913f4b968167598e9d72d0a9f312b0",
+      "gainDb": 3.9999974231771023,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 4.103989274036028,
+      "sha256": "7d2084d30ab59f8c7a4d60effa9db9ea3a379fd9f49481edfd9036a20bc14c3b"
+    },
+    {
+      "title": "Fail!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/015-fail.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/015-fail.wav",
+      "originalSha256": "b29e4ff968e0818bdb03820df588d4520a4987767553e6e29dbf06008f75439c",
+      "gainDb": 4.000001122269105,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 5.933699086592275,
+      "sha256": "cbbf26aa96ce450107a1dfa88a3418090e143b385c9828d5c33537354ef9cc62"
+    },
+    {
+      "title": "Next Try!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/016-next-try.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/016-next-try.wav",
+      "originalSha256": "684d9fff471a7f919eccb0c6fa2f2c214a45b87a3efaf5949ff2fbfd7cf4f3fd",
+      "gainDb": 4.000002216426637,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 1.995759790050948,
+      "sha256": "b62a9fca1056954b1ccaebd11977a795f878ef968694f534fbd2e65743a2cf47"
+    },
+    {
+      "title": "Argh!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/017-argh.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/017-argh.wav",
+      "originalSha256": "ba5f987784af7b16e92b3064377868e89cd99d3156ce335424835c9464843bde",
+      "gainDb": 3.99999779395811,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 7.6066486628824315,
+      "sha256": "86e6054d33c045eaee4a847b1cb84c5ce6c988ad590b80a52c49a402531f6d9e"
+    },
+    {
+      "title": "No Luck!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/018-no-luck.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/018-no-luck.wav",
+      "originalSha256": "f3a562a6921fa91411686550e895d8c183d6192bd791758d77a9d05a114490a7",
+      "gainDb": 3.999998290518601,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 6.598576724966416,
+      "sha256": "910ee5a21a5f88d896cab107918ce8a1cbbeac8a3a37ca4da30cf2a7b6409461"
+    },
+    {
+      "title": "Oof!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/019-oof.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/019-oof.wav",
+      "originalSha256": "5cc8d0da91c431d9b59ab4d94c6019f3385f83f5e4f1774bffec983523a085a1",
+      "gainDb": 4.0000006568404265,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 2.5672012472104653,
+      "sha256": "d491a3c4d6b81b42e7c067060b05567c3baf456cf9c798fa2648939f61ed83bb"
+    },
+    {
+      "title": "Nearly!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/020-nearly.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/020-nearly.wav",
+      "originalSha256": "0792230d364154adf8297286d150500ae7a401b8c7da4f3469e51ea0a128fda9",
+      "gainDb": 3.999998992218585,
+      "peakDbFS": -0.4100528441926148,
+      "maxPeakReductionDb": -0.0,
+      "sha256": "1c29878a169968aeb6444ddcfd384f342aa9efaa1a3ecbb0d23348a633ea1743"
+    },
+    {
+      "title": "Shoot!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/021-shoot.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/021-shoot.wav",
+      "originalSha256": "9158452b678d7559c6490a36d60c1519274c90afe5f02dd0e4df3b5eb9f23c9a",
+      "gainDb": 4.000000014100426,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 3.0157806010634363,
+      "sha256": "baf30b5a5fd84a5ce3f7be075e91a4eb4a81e117e7be01fbc8a5103046b3f2d6"
+    },
+    {
+      "title": "Try Again!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/022-try-again.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/022-try-again.wav",
+      "originalSha256": "4ed7caa2d019267b2ce2c33507515f9ba1d547b6f2f070e354845f2099ce4e02",
+      "gainDb": 4.000001686537425,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 3.218259503032337,
+      "sha256": "5c1ff4049ad72b20a0cf1fbd36a98bd5d7ff46cd45cb79a9568b3ce3648c4b92"
+    },
+    {
+      "title": "Whoa There!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/023-whoa-there.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/023-whoa-there.wav",
+      "originalSha256": "4a820e2ca1408494ced26450894e7ad51edb0933b9868adc8857ee75019f6e22",
+      "gainDb": 4.000000545635317,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 2.8650253884971395,
+      "sha256": "320efb3fbb9d2b903e4237f0ef62b53520dfc2a8427f8d2c64dc5ebdb09bd3e7"
+    },
+    {
+      "title": "Not Today!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/024-not-today.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/024-not-today.wav",
+      "originalSha256": "1835aeb7329e62c84f4d97acdad478c4b6e66eeefa8fdb33a2db6eab4f4b56c8",
+      "gainDb": 4.000000951941018,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 1.0649645780260408,
+      "sha256": "a74cacd638aac5d7e54989a11f82ede0ff1103e332903b81b8d2c7838e19f8c8"
+    },
+    {
+      "title": "Gah!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/025-gah.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/025-gah.wav",
+      "originalSha256": "9d1ddb0e0bce1915d75f1b5a3df098088b415b703e3dc411eecb6fb4ee822e8d",
+      "gainDb": 3.9999999891393143,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 3.5983586325907284,
+      "sha256": "d190f26a1568969d0d1e5a70d1a52ef62352b2f61cbbcbe95a9353a5a4d8acc0"
+    },
+    {
+      "title": "So Near!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/026-so-near.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/026-so-near.wav",
+      "originalSha256": "e4209f2d70b1fe8658f5dbeadf2d784fa452561fb365feab3fdbb36f8afca69d",
+      "gainDb": 3.9999990635689153,
+      "peakDbFS": -0.513765356999871,
+      "maxPeakReductionDb": -0.0,
+      "sha256": "8f07ad5c6e7ad16ec4ca943529613c94144ee145ebd394c7179ed8259e386a28"
+    },
+    {
+      "title": "Drat!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/027-drat.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/027-drat.wav",
+      "originalSha256": "bf26608042e6b1057767abdd10ea8b078f93b5c2ef5262c4469d81dbc26f669e",
+      "gainDb": 3.9999975919695636,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 8.01064569990371,
+      "sha256": "49825c33714fcf48ac27a2cbd5d0304feb49aab694566853ff59296776e68270"
+    },
+    {
+      "title": "Aw Man!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/028-aw-man.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/028-aw-man.wav",
+      "originalSha256": "65549935d0dd3d3f5a104f8c01e824e2a68085739c16cd4610a3debff87d787f",
+      "gainDb": 4.000003033751836,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 2.393688262685802,
+      "sha256": "da1e25566674ab7a1d6b1f9e58a3fa1e9bf1e1abdc584dbcb54bea5eabbe3073"
+    },
+    {
+      "title": "Dang!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/029-dang.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/029-dang.wav",
+      "originalSha256": "6235875101440dd60e47dc9e06ae63b6b976f761b4dd84394bbb60ffeb5805ed",
+      "gainDb": 3.999998942879881,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 6.8342086568439,
+      "sha256": "002af0032d477f90819157002a58c66a320f21366fcddb874577bf8dec90d74b"
+    },
+    {
+      "title": "One More!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/030-one-more.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/030-one-more.wav",
+      "originalSha256": "4758a640ff6205894ee5f5654d46c43de9c955e394bfefd31d05d8c96685d6c0",
+      "gainDb": 3.9999995045340544,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 1.1867370590481476,
+      "sha256": "4feb5459162c3775bfd47a5878e25f98c98fea799433b519c24bcaf19041030b"
+    },
+    {
+      "title": "That Hurt!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/031-that-hurt.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/031-that-hurt.wav",
+      "originalSha256": "964d0fc7338f600400eaca07a90f70315e4ca62e9a166b937d2eb80f26881a85",
+      "gainDb": 3.999997616561825,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 3.1530417882683768,
+      "sha256": "01324873223555fb01c051db439a6650ef2cce000935e72ea6cee44579ee7f4f"
+    },
+    {
+      "title": "Big L!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/032-big-l.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/032-big-l.wav",
+      "originalSha256": "90f03f5b61e77baff35c78daea8e9930aadc2b2e24d2ac393c43ce959af83726",
+      "gainDb": 4.000000316549294,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 7.50383418466129,
+      "sha256": "f05382073f7a73bf5027ea073f9c7b6fe0d117ae53639e53c49f10729bc87b53"
+    },
+    {
+      "title": "Epic Fail!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/033-epic-fail.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/033-epic-fail.wav",
+      "originalSha256": "c1002452533aba63808cdfec2450d31535d9b166663b023aa61e347b9a52a041",
+      "gainDb": 3.999999993209822,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 7.2182649891338535,
+      "sha256": "6017720c5e8ea366b75b8ecf067b9f3e2bdc733f1ff5281bed48d8f075f8d61e"
+    },
+    {
+      "title": "Nice Try!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/034-nice-try.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/034-nice-try.wav",
+      "originalSha256": "af7b96d319b19a1457e25e39862d9d0039c1c9c1c2df3b4eee3f8c8d2f109859",
+      "gainDb": 3.999996437462179,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 4.552695049635681,
+      "sha256": "72ab2f763291401585e592afcfb597050edfdec01fc6ad882f74b6903389ca3a"
+    },
+    {
+      "title": "Almost There!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/035-almost-there.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/035-almost-there.wav",
+      "originalSha256": "4d1c097607b0b706e24ed846db8d598a2ef623ed129d6b0aaf22a783846e49af",
+      "gainDb": 3.9999992402024738,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 0.9126892395757409,
+      "sha256": "cc5e28ff11164d7c99f057d2d9d8f194f32097a6a85a194b4c1a69fe216cfad7"
+    },
+    {
+      "title": "Too Slow!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/036-too-slow.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/036-too-slow.wav",
+      "originalSha256": "64d7e4eaa7a417eb90107fdc390f95b97123d19ff08dc6caea7283fade7c60ef",
+      "gainDb": 4.000000157262283,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 3.9774339164202277,
+      "sha256": "54082de4912e08425e1951dabc479910841aa88c1d35aec1d55f8e4311d909c6"
+    },
+    {
+      "title": "Wrong Move!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/037-wrong-move.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/037-wrong-move.wav",
+      "originalSha256": "fb3b370449251492b7a10e4977dea1fdcb8664d1fc2b0e1600478c2e9453c919",
+      "gainDb": 3.9999993637653923,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 4.669137557211399,
+      "sha256": "f04bb519911c49db5e0d147e3d79e13a45b8e01767322945a96963c9828b5db2"
+    },
+    {
+      "title": "Out of Luck!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/038-out-of-luck.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/038-out-of-luck.wav",
+      "originalSha256": "2953e2c0ea414043e3dac24e69344090a31d111d8c8e18eac17662d192f4ee56",
+      "gainDb": 3.9999999162375808,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 5.0058015389799895,
+      "sha256": "aed394addd21e83b04f61e942b36eb88c89bc5ff661a3008056325f3f25f50d3"
+    },
+    {
+      "title": "Close Call!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/039-close-call.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/039-close-call.wav",
+      "originalSha256": "1a02761df3a99e65024da5c44f16e4705b14003fbfcda4d004a58fa47d0a0b9b",
+      "gainDb": 3.99999846327375,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 4.116755777579545,
+      "sha256": "77b87f892f9b263dd6a74bf9e8562cfa1930ca3bb6ed6a1dc00aa0ff4c90a5ae"
+    },
+    {
+      "title": "Oopsie Daisy!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/040-oopsie-daisy.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/040-oopsie-daisy.wav",
+      "originalSha256": "ab0d0bf52afc1f0d76494322efd9cd01a983ebaba7ddadbc39317e70f23ca870",
+      "gainDb": 3.9999979449756724,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 4.3961014793162425,
+      "sha256": "0c3a52a7344f618dfb49c0a7dd2d8cd5c551244f3fb1cf24c878720fe18258c0"
+    },
+    {
+      "title": "Denied Again!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/041-denied-again.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/041-denied-again.wav",
+      "originalSha256": "5060e43c932f56c3221767aaeb5b54df8c5a48b27f044bdb55bec4216ab1e91a",
+      "gainDb": 4.000002882968934,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 5.960921294654549,
+      "sha256": "0e19b76f9b1235e7d01e5d78727a09814bd25546bed840b2a09ec3a3ee4f094e"
+    },
+    {
+      "title": "Try Harder!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/042-try-harder.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/042-try-harder.wav",
+      "originalSha256": "a97158ef2a02802b723b67471a8cfd853bbd0b44ee6de7784b35943851a927e9",
+      "gainDb": 3.999999250578925,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 2.573455183603353,
+      "sha256": "ece611519e5225e87af7b0673edb796baa3faf405c752b6125e39ba3b1517fa3"
+    },
+    {
+      "title": "Next Time!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/043-next-time.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/043-next-time.wav",
+      "originalSha256": "a58a8e9c346533830666b207398a681b1846179e9018c169b25704dc15474e2e",
+      "gainDb": 4.00000097571563,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 3.3788768183271918,
+      "sha256": "3fe8439f0ba1b8b3a1c837cc18bc3ea4fd7511e3de82d2e2906a16f0e6ae07ce"
+    },
+    {
+      "title": "Bad Timing!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/044-bad-timing.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/044-bad-timing.wav",
+      "originalSha256": "af0c8db3a9de76cdecf8c9078d74281e86ded6b93d0d79c63ab992468971203d",
+      "gainDb": 4.000000344187729,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 0.6220112993173239,
+      "sha256": "4c2f75a93ca75d78e318cc713e285931b4b9d00bf3de472f78db5df80ca9b368"
+    },
+    {
+      "title": "Off Target!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/045-off-target.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/045-off-target.wav",
+      "originalSha256": "43e430a210c42efcc485d613ee126994d5a77062a772dacb64a4306e29d71e98",
+      "gainDb": 4.000001602970406,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 7.996687001226923,
+      "sha256": "677237bfc19eef6070711aee723aba088a02d8334f09d7d786d5b8e47d33e50a"
+    },
+    {
+      "title": "Wrong Turn!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/046-wrong-turn.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/046-wrong-turn.wav",
+      "originalSha256": "51464526ab0dbece2e4ed94eccb34fbd31732163057836a19237bc4e4cd2ed10",
+      "gainDb": 4.000000311391823,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 1.039962656744154,
+      "sha256": "2a3718ca9708f8e6a188a23ebf4bb853dd5c614bbdb3abaffa5760778649813a"
+    },
+    {
+      "title": "Nope Nope!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/047-nope-nope.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/047-nope-nope.wav",
+      "originalSha256": "268d5e0b2a94bd35bc20ccfcd41a7b561273fad209f610de92562584434a396c",
+      "gainDb": 4.000003194033865,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 0.9651796122873536,
+      "sha256": "e58dac6a710ade55712503f29908e67333dc338546dc36068e8c5bd730dcc08e"
+    },
+    {
+      "title": "Weak Hit!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/048-weak-hit.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/048-weak-hit.wav",
+      "originalSha256": "0299a284ff8c6ccb56d75e13717bb6cf9cbb5a701024954eae368486a3af37f1",
+      "gainDb": 3.99999823616967,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 5.021701798690861,
+      "sha256": "c370509c41e387074893337775f7373b0299a070fcc5e1698b3ec60ac245e0d3"
+    },
+    {
+      "title": "Fumble Time!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/049-fumble-time.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/049-fumble-time.wav",
+      "originalSha256": "cc37b43269c97db53720e5472e5f536d43b35d2b70e8c5fe2a7446168b5b833e",
+      "gainDb": 3.9999987000561377,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 4.402526585383951,
+      "sha256": "f58d40cfe9a0f1103d1903df18164cbc82cf75a3fdc56aae05dfa6f2961ce2fc"
+    },
+    {
+      "title": "You Slipped!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/050-you-slipped.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/050-you-slipped.wav",
+      "originalSha256": "1229c3132680c26fc262dcd28be950678aa8537fbe1b0b155f33d92dc815c4df",
+      "gainDb": 3.999999354730801,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 4.623901300369553,
+      "sha256": "92ecadeae27ca43dc1749a8f2eb2ded0f13b2bf86799c7b6aaa9e13cd9d753ca"
+    },
+    {
+      "title": "Almost Got It!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/051-almost-got-it.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/051-almost-got-it.wav",
+      "originalSha256": "dab2d93b012bd9cca6d5848eb3d5f8fbdcbcd6ccc61eff26437f993ab3f070ef",
+      "gainDb": 4.000000079150082,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 3.8752081803773955,
+      "sha256": "d2c5d4f5304468053b95918688bb0571f94dbb6784e0d8362efd21cf36951763"
+    },
+    {
+      "title": "Almost Made!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/052-almost-made.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/052-almost-made.wav",
+      "originalSha256": "a5b7bb85494c7ad26d9e3d9b1cb5fd8eec4b7d0306fc114c5a2407281a6c3aa4",
+      "gainDb": 4.000001338976997,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 2.9155823734471835,
+      "sha256": "2a44b387f4252b8290272ed5d78d9915e80a5e1a8f66249f67b364ea28a78daf"
+    },
+    {
+      "title": "So Nearly!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/053-so-nearly.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/053-so-nearly.wav",
+      "originalSha256": "6c448bbbe95b64627d17530e64379e2e1e54f5deee63927a7bd3dd600b2ea4bb",
+      "gainDb": 3.9999984724042017,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 0.11205889420131857,
+      "sha256": "f8eefe572a6f5f791f307bc79baa42567fc6cdcab9f09afbe3fa9a97a960eae1"
+    },
+    {
+      "title": "Nice Effort!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/054-nice-effort.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/054-nice-effort.wav",
+      "originalSha256": "874ebd4f6acdfd0743639bf25c81446d7b21679ac7c1fde1f0c52e3b91c2d922",
+      "gainDb": 3.99999919381007,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 8.185500500365167,
+      "sha256": "35ee806c67d2fd578c9f0d1e87d9fae020acd09039469f1e72fe3139b3846968"
+    },
+    {
+      "title": "Close… Again!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/055-close-again.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/055-close-again.wav",
+      "originalSha256": "c03f531ca67774361bbe4ffa06575ba842b2e692826585f52f56bc7ce9c51440",
+      "gainDb": 4.000000886072685,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 6.248330983186641,
+      "sha256": "494b1931fffed234b9fefc834662c375274fb35d4a216de9eb9bd1c43ef528e7"
+    },
+    {
+      "title": "Missed Again!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/056-missed-again.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/056-missed-again.wav",
+      "originalSha256": "78bbbe3c5cfeeac213a1b5536d7a0fca32a865a9b65a7f00f8eb97248524046f",
+      "gainDb": 3.9999998992422183,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 5.037720969920105,
+      "sha256": "63ec5fdd91c977d21feeb97912b68c0537c8674a21fd4f3f0e684c0f20cff18e"
+    },
+    {
+      "title": "Not Enough!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/057-not-enough.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/057-not-enough.wav",
+      "originalSha256": "f5b935c154ce53676dfe0096a113a8f3207cf8536f97f9512f1093e6dbce13f8",
+      "gainDb": 3.999999958679366,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 0.9199310557534561,
+      "sha256": "d67dcb62107e954978f2c0595efc6a8656a21e7eeecb021d4ce9cac19dc6eec4"
+    },
+    {
+      "title": "Try Once More!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/058-try-once-more.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/058-try-once-more.wav",
+      "originalSha256": "b2c5f125ae87ef373238147ee660a857b04f3a2cbcc83eb3f6efe8558ec55ee5",
+      "gainDb": 4.000001500848585,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 4.127766321683348,
+      "sha256": "efd1c5986bdea3633f7458b2303effd649de804c0f864c1721fb0c0198374895"
+    },
+    {
+      "title": "Lost It!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/059-lost-it.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/059-lost-it.wav",
+      "originalSha256": "16d8752b725a2833bf9585120a63ea820aaff786a1aa55a7d84bcbb1d2b018d9",
+      "gainDb": 4.000000900713862,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 6.407804731988927,
+      "sha256": "4c2b8f453035d5ed0e05afe13696913fbed27362ea45b0305eb5706386005413"
+    },
+    {
+      "title": "Off By One!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/060-off-by-one.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/060-off-by-one.wav",
+      "originalSha256": "4abe129a34f01862b3d40b1b70095a21bcb75c73c524a031b1c17eb24a692809",
+      "gainDb": 3.999998816987784,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 2.2320444405745907,
+      "sha256": "b5dab2d4e0bd2318345b5887b98b7800058ac2e7c2dc5f9e5d4478753e881b2e"
+    },
+    {
+      "title": "Tiny Miss!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/061-tiny-miss.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/061-tiny-miss.wav",
+      "originalSha256": "8a842c2b6dba934d52067e6533ed69192dadc9da9eacd505142b2cc0f69ae5e7",
+      "gainDb": 3.9999996010931445,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 1.1026841228036313,
+      "sha256": "0b9148f250b56be3d8ae2f640a11e615d674d48f142ddb8e59491f3873e8fddb"
+    },
+    {
+      "title": "Slip Up!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/062-slip-up.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/062-slip-up.wav",
+      "originalSha256": "844c3f3d5e27ca591ffc49d33273e9169a32695b6e1c538b3544ee4e7a0e2df8",
+      "gainDb": 3.9999981863996377,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 6.213696293071045,
+      "sha256": "4b10355ceaa156daa833909898404bfd8c4451c57456b9bbe32e86f73835f2a6"
+    },
+    {
+      "title": "Fell Short!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/063-fell-short.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/063-fell-short.wav",
+      "originalSha256": "a2ae42904d2cef579af0eb3cc5e370d5368e6c67dc6fc3d94e15e812039e32b4",
+      "gainDb": 3.9999975628172866,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 2.843719947889439,
+      "sha256": "4ef077e1aa9610c3ecd34d97b96039a246b93d270a5c151a84c7fb081044feb4"
+    },
+    {
+      "title": "Nearly There!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/064-nearly-there.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/064-nearly-there.wav",
+      "originalSha256": "76988d3c6f786504a2cf670a3a72f9840cb90bd770f8b6779888710f1e04375e",
+      "gainDb": 3.9999982061285584,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 1.7375724400688994,
+      "sha256": "05a02d4a527f04b9fd8e92631e7c14cecee5c77d6b1a75edf8b4d2532f4e2319"
+    },
+    {
+      "title": "Almost Win!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/065-almost-win.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/065-almost-win.wav",
+      "originalSha256": "32d76ddd4cc0e29eaf63391c4efbfd0f6c3c65299ea7db704dad68fde85c7667",
+      "gainDb": 3.999999909060259,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 3.7422946849490053,
+      "sha256": "a35e7860a1caffdb973723eb3c19de65e94a0baddc905ae0872deaba793799fc"
+    },
+    {
+      "title": "Off Course!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/066-off-course.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/066-off-course.wav",
+      "originalSha256": "00138ca1f3f80841bdea0ff08bdc70b9de94948c889a4b623c62f1a7ed8d0be5",
+      "gainDb": 3.99999999361413,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 6.983323728891876,
+      "sha256": "393967f1ab4dfb2258c6e3cf3bda59e32d76ac8b213fa16d702b7bff17d7dc5b"
+    },
+    {
+      "title": "Barely Missed!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/067-barely-missed.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/067-barely-missed.wav",
+      "originalSha256": "886a3e7d3bf78e5804f1a652afd0a99ef2ddd01d31f9acc07f3ad033102eb8f9",
+      "gainDb": 4.000003521381568,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 1.0318807500105833,
+      "sha256": "a32026b1b3fd353448eb94e5135c3c964cbe17f8590dbd7c88ffcf498fa030d4"
+    },
+    {
+      "title": "Not This Run!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/068-not-this-run.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/068-not-this-run.wav",
+      "originalSha256": "542128f7242b4d34b7bf5d42d77e5ddc87d040fb098e52e585a8cd513079e2a3",
+      "gainDb": 4.00000211710761,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 4.057469300726586,
+      "sha256": "396792f4406cccf35c0bd175d606619526b94ae2786713ae37da4037931aad36"
+    },
+    {
+      "title": "Just Missed!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/069-just-missed.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/069-just-missed.wav",
+      "originalSha256": "2a2966373b7bdae0e9f67462f5123ea03af55e2d3d8a958804d22bafc4ea3b31",
+      "gainDb": 4.000000600835078,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 1.223889568538087,
+      "sha256": "266c056323c84b0decab97a4debcaf78db01366bc8b4ad99ce6cc5c41865d845"
+    },
+    {
+      "title": "One Off!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/070-one-off.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/070-one-off.wav",
+      "originalSha256": "7952788ae061a9a143046e135fd04d10a81d9aaa69432af7ca1a27b933b07453",
+      "gainDb": 4.000002532276222,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 3.383156931582742,
+      "sha256": "0e9e890f7cbbb9f15645e1de53fd32f43b5419b056b6e448f291ad0aa47d7785"
+    },
+    {
+      "title": "Not Quite Yet!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/071-not-quite-yet.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/071-not-quite-yet.wav",
+      "originalSha256": "cc643ee59dc08dd872116364cbdc7ca7752cd5eb931660987cd84bb49bd05b0e",
+      "gainDb": 4.000002298250975,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 4.719878193334822,
+      "sha256": "c89526a7282ce670747af7275cfd6a575de33d61e1ff8bbffa1089affac90600"
+    },
+    {
+      "title": "Miss Again!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/072-miss-again.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/072-miss-again.wav",
+      "originalSha256": "4fe5b34065bfc1d07d1071b6df387ddcb8fc785df013a5b052e93fa47f03c9ba",
+      "gainDb": 3.999998628233029,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 2.9602228842676874,
+      "sha256": "6a11ba1a99be5ee196b2eea9856b2b9acef830238f98d4bd75b1fdeae7d3f878"
+    },
+    {
+      "title": "Fell Off!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/073-fell-off.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/073-fell-off.wav",
+      "originalSha256": "8e5c4c002dda0210577aceb1920d35709a864cb50d733930a84a6addb6fbeda9",
+      "gainDb": 4.000003046813251,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 4.467734863055005,
+      "sha256": "fb76d9fc29932a92560b075543d43e4c1bde437eaae046fa9b095785fb3085e7"
+    },
+    {
+      "title": "Tiny Fail!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/074-tiny-fail.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/074-tiny-fail.wav",
+      "originalSha256": "2d512e53ed4d7f2a7681dee40415b5f94a879e48b01417abd3a739be0965ca3f",
+      "gainDb": 3.999998695338723,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 6.171826779998652,
+      "sha256": "48fa063b03ae3be77bf6fd7839afca5792c9e78ff7ba6231d8eddf8ce6dda5a7"
+    },
+    {
+      "title": "Close Miss!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/075-close-miss.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/075-close-miss.wav",
+      "originalSha256": "585b1443140264d6dd2106490c06b88d57931a1990923235cfedd998d4123530",
+      "gainDb": 3.999998513680721,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 2.0264755334207587,
+      "sha256": "28bfec59e77b022f2074e34f098568d90969858d62a1c4bccb1cd07a5b0d6f56"
+    },
+    {
+      "title": "Off Mark!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/076-off-mark.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/076-off-mark.wav",
+      "originalSha256": "7ccdecbab87f68bf35140cb7a6ab5608be6bf9a8ef657f2c7a1427092878984c",
+      "gainDb": 3.999998903912687,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 6.174443419578547,
+      "sha256": "bb13ebf8fb665a68689361660dd3fb445f5a1bb5abdefa1eb54b226f5df13215"
+    },
+    {
+      "title": "Nice Almost!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/077-nice-almost.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/077-nice-almost.wav",
+      "originalSha256": "a99a8e2bf13c855b528328dcdba7c487cf42c5b067aa953f6f545f30fb0b5971",
+      "gainDb": 4.000000169133296,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 1.3252977359577396,
+      "sha256": "59aac0c32bb4bb0fe99b756d713696298ebfbd7546c4c10ce0570bab92e106c0"
+    },
+    {
+      "title": "Just Short!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/078-just-short.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/078-just-short.wav",
+      "originalSha256": "33e6ba1ea287ff592cee561e26fa0a19bda7d0dc28d97c742ffdc35b7af20489",
+      "gainDb": 3.9999983018629464,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 4.313282169918773,
+      "sha256": "8cc24579b8f0076a2565cc4756489e4f41808d3f0d305593e6067a65d7f0d908"
+    },
+    {
+      "title": "Barely Off!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/079-barely-off.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/079-barely-off.wav",
+      "originalSha256": "4f8fa5e19c3132c4a6702f9626a71bcca40f20e3e3e2570e1edbaab9d1b2c18d",
+      "gainDb": 4.000000679779233,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 0.19083694441142368,
+      "sha256": "455cfe313d7d8cf0ea6e4f6df88c524a63a9f585d953269e9473e7f70159bb98"
+    },
+    {
+      "title": "Miss By Inch!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/080-miss-by-inch.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/080-miss-by-inch.wav",
+      "originalSha256": "319f12ffa318b476a4ddf8fa485b02723172a8b27d7d950db7949cfa96128fa0",
+      "gainDb": 4.000000666035557,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 0.9119523722765305,
+      "sha256": "d2a7573bf50c18cc9bac7f2a51d70d05c3ca1878ee5e5d4cfab44229896b2337"
+    },
+    {
+      "title": "So Very Close!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/081-so-very-close.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/081-so-very-close.wav",
+      "originalSha256": "1f57e3cc40d05a56ca88520371169f5898c794ea527a7162af1605bd140ebb11",
+      "gainDb": 4.0000005859454735,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 5.258826176971687,
+      "sha256": "4cba8a23a0146062873cf5d0d5720889aa6a237f959f96f99f6e8f66f63bd91f"
+    },
+    {
+      "title": "Almost Did It!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/082-almost-did-it.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/082-almost-did-it.wav",
+      "originalSha256": "59bcaddf0fee359992a68acb078209fbea0310ff6a3512a734d4d4047c2f75ae",
+      "gainDb": 4.0000023626436585,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 1.6485028240688002,
+      "sha256": "78a4ee9ad41c6e6380eebd52e0795685256051582cfb2a5604b33370e1d660f2"
+    },
+    {
+      "title": "Next One!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/083-next-one.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/083-next-one.wav",
+      "originalSha256": "abe84dee56604c509cd4291133967aefbd8e192b747f0830de1b8a458d292787",
+      "gainDb": 3.9999960081702164,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 3.9454679784989106,
+      "sha256": "f877fdf978ba5825de47a338ee7dddfe9805442de8956a90ba388afd6a416091"
+    },
+    {
+      "title": "Almost Clutch!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/084-almost-clutch.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/084-almost-clutch.wav",
+      "originalSha256": "43a233d8fac32ef084fbd475f01cd622b63c236654734d21bf0ec10d71cc48be",
+      "gainDb": 3.999999147897925,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 2.400565468317856,
+      "sha256": "07f77d420be7b81909438854eddcde148b6e1a3419421bab95bc42457b6d4138"
+    },
+    {
+      "title": "Barely Lost!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/085-barely-lost.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/085-barely-lost.wav",
+      "originalSha256": "9574ac2a642307c38f48fabb669df9df7cbfa1ea7069a079f5c23fcaffb20bb3",
+      "gainDb": 3.9999978127683327,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 1.7040963368653448,
+      "sha256": "e09bc0fff6fe48646b89f70e2f487b82d2a521926f0b7f6574140b7e25c7c077"
+    },
+    {
+      "title": "Slip Moment!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/086-slip-moment.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/086-slip-moment.wav",
+      "originalSha256": "28a97f6433467a4f78ecbb11e106fd829fa3ccfcaacbabb381c33ce45b392cd7",
+      "gainDb": 3.9999979499014096,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 5.244610024000912,
+      "sha256": "067bc74861094a4521b675c935a270747c806dcf4e51f4e837f898b1cc5de58f"
+    },
+    {
+      "title": "Try Again Champ!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/087-try-again-champ.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/087-try-again-champ.wav",
+      "originalSha256": "d45bb9c2a4669a8ff41e45fd62eae89c64407e9a1505183ce2e428166fdbd427",
+      "gainDb": 3.999999307294667,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 4.198506680791568,
+      "sha256": "7bf8cec605951d95d85cb4d966422ef281559c8a83907cd966ad8523aaeef63e"
+    },
+    {
+      "title": "Solid Try!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/088-solid-try.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/088-solid-try.wav",
+      "originalSha256": "e737a2487da1ee0a85116a0fd6b1edb7c47093c0c2277064bff1e41937f6a099",
+      "gainDb": 3.999999953263677,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 6.264471956075081,
+      "sha256": "d7a20a9de859b02e7db987ee2165969be3738e8760c38abaa7e27fc6f23a4096"
+    },
+    {
+      "title": "Off Balance!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/089-off-balance.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/089-off-balance.wav",
+      "originalSha256": "1fd424a21833595820a6d67bef4f9929652dfd87bf4da4ad70987be480b46909",
+      "gainDb": 4.000001698980015,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 4.581353873840504,
+      "sha256": "a48860545fe8f30b6ae9a1330ca9314758859dc2575eee88c96b61e30c8e5d0c"
+    },
+    {
+      "title": "Almost Boss!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/090-almost-boss.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/090-almost-boss.wav",
+      "originalSha256": "975ca74adcfdb682d4ed02d03d721665f4d2d15940bc4d2795e275bb78509f8b",
+      "gainDb": 3.9999997575755186,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 1.290917650447009,
+      "sha256": "d7184f29ac7ed2f365b09f7a52ca79a735e03b8c939d8184208d4ae7af4fe39f"
+    },
+    {
+      "title": "Too Late!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/091-too-late.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/091-too-late.wav",
+      "originalSha256": "c90e3257689a36f342c91b31b95a67b17761ed468e302b4a46291818ecb087a8",
+      "gainDb": 4.0000035609320665,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 0.9564788969934472,
+      "sha256": "fb813ce8ddfdff45eaf1370a86520b413c4d4f3e2a6b0352b103264fceb009fd"
+    },
+    {
+      "title": "Nice Attempt!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/092-nice-attempt.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/092-nice-attempt.wav",
+      "originalSha256": "09b1b0b8121dd4d6ec43da498a49bcece28b6253492280ab8abd2ca78af8b3c3",
+      "gainDb": 4.000002532528489,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 8.277840993694252,
+      "sha256": "e9d2a558e19c4b6487e12f5fffaad03ee3298be15e2f0e9c738e7a7a3eb86504"
+    },
+    {
+      "title": "Close Runner!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/093-close-runner.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/093-close-runner.wav",
+      "originalSha256": "0f4dd5a8ecdcf0483a7a97cf6402338ffe7d94bdf4a538e39ee41d1da41edb8d",
+      "gainDb": 4.000000971353717,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 1.5486908203134166,
+      "sha256": "c8be4a4a5a04bd67de23ee394e2bc15b1fa6e86e4a394dd97e2c65acbecb3eb2"
+    },
+    {
+      "title": "Oh noo!",
+      "source": "assets/sound/fail board/voices/titles-v2-plus4db/094-oh-noo.wav",
+      "originalSource": "assets/sound/fail board/voices/titles-v1/094-oh-noo.wav",
+      "originalSha256": "576a38706ad24cd78bc7d584a0c299c74beabe6f4dd03808fe067f6828f5cd4e",
+      "gainDb": 3.9999977619189964,
+      "peakDbFS": -0.09997527890305569,
+      "maxPeakReductionDb": 1.4455098104195185,
+      "sha256": "6de32056393503d027a8cc801b8c2359a5e61e95b0f40adaceaaa01ed65b20b0"
+    }
+  ]
+}

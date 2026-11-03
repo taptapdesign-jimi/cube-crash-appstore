@@ -1,0 +1,59 @@
+{
+  "layout": "All three Worlds fit within one iPad portrait viewport; complete groups enlarged30percent from base fit, rows compressed to preserve16pt top/bottom clearance; original cloud groups fill full width with64pt edge bleed, uniform image aspect",
+  "productionInputs": 450,
+  "ipad": {
+    "device": "43A75086-0C64-464C-B71C-FDD01AF59C32",
+    "bundle": "com.taptapdesign.stacktosix.native",
+    "normalLaunch": "com.taptapdesign.stacktosix.native: 88601",
+    "runtimeHashes": {
+      "Stack to Six": "c21f8ccc928215bfd06254b863bbd6db16ddedc391d69cebe757ff7baaae9eb0",
+      "Stack to Six.debug.dylib": "6ac8fc7a46a23f7df18356f83af0162433e89e3db5866be245e7045bb1a2ebe6"
+    },
+    "originalAssetsByteExact": 2952,
+    "saveBefore": {
+      "state-v1.previous.json": "1645e18e47b381e1783644988e089d9eb332e76b985a8ff07fd07e4fdd151f92",
+      "state-v1.json": "d1c1420cbbd8d4cbfcf5df606f9c6eb78511bc2d987336b0e93303045074f411"
+    },
+    "saveAfter": {
+      "state-v1.previous.json": "1645e18e47b381e1783644988e089d9eb332e76b985a8ff07fd07e4fdd151f92",
+      "state-v1.json": "d1c1420cbbd8d4cbfcf5df606f9c6eb78511bc2d987336b0e93303045074f411"
+    },
+    "bothSavesByteIdenticalThroughInstallAndInitialLaunch": true,
+    "actualSpringBoardSBRingerMuted": "0"
+  },
+  "iphone": {
+    "device": "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+    "bundle": "com.taptapdesign.stacktosix.native",
+    "normalLaunch": "com.taptapdesign.stacktosix.native: 88668",
+    "runtimeHashes": {
+      "Stack to Six": "c21f8ccc928215bfd06254b863bbd6db16ddedc391d69cebe757ff7baaae9eb0",
+      "Stack to Six.debug.dylib": "6ac8fc7a46a23f7df18356f83af0162433e89e3db5866be245e7045bb1a2ebe6"
+    },
+    "originalAssetsByteExact": 2952,
+    "saveBefore": {
+      "state-v1.previous.json": "0966ba64bd96eb3e19dc24256b99c3ac72fbd5760c2ebd9430aa499f408d1912",
+      "state-v1.json": "9f029ebe42f174467c55c947bcd5572a59ca297ca1609f0cbc25b3802c4ac964"
+    },
+    "saveAfter": {
+      "state-v1.previous.json": "0966ba64bd96eb3e19dc24256b99c3ac72fbd5760c2ebd9430aa499f408d1912",
+      "state-v1.json": "9f029ebe42f174467c55c947bcd5572a59ca297ca1609f0cbc25b3802c4ac964"
+    },
+    "bothSavesByteIdenticalThroughInstallAndInitialLaunch": true,
+    "actualSpringBoardSBRingerMuted": "1"
+  },
+  "hostedNativeTests": {
+    "passed": 12,
+    "failed": 0,
+    "log": "/tmp/ipad-hub-fit/native-30-tests.log"
+  },
+  "visualEvidenceNote": "Base fit and earlier3percent cloud expansion screenshots are retained under viewport-fit. Final30percent geometry is verified in hosted UIKit tests; user entered active Stage during normal30percent preview, so no route was forced for a screenshot.",
+  "physicalAcceptance": "NEEDS PHYSICAL TEST",
+  "fullQA": {
+    "verdict": "PASS",
+    "suites": 530,
+    "tests": 4010,
+    "kingSuites": 24,
+    "kingTests": 330,
+    "log": "/tmp/ipad-hub-fit/full-30.log"
+  }
+}

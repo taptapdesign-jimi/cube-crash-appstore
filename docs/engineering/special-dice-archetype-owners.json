@@ -140,7 +140,8 @@
         "native/standalone/Stack to SixTests/NativeBloobBallTests.swift"
       ],
       "acceptance": "Implementation in progress; variant continuations and presentation parity require complete independent traces and Simulator/physical acceptance.",
-      "nativeVariantsPolicy": "Barrel and Bloob Gas reuse whole-board eligible ordinary targets via shared TNT transaction. Bloob stable bloob-ball ID accepts historical Star-tagged saves;no parallel resolver or save reset. Gas presentation and half-gain borrowed audio are variant-owned;original Barrel unchanged."
+      "nativeVariantsPolicy": "Barrel and Bloob Gas reuse whole-board eligible ordinary targets via shared TNT transaction. Bloob stable bloob-ball ID accepts historical Star-tagged saves;no parallel resolver or save reset. Gas presentation and half-gain borrowed audio are variant-owned;original Barrel unchanged.",
+      "smokeScalePolicy": "2026-11-02 core TNT original12smoke sprites use prior accepted scalar1.4*1.2 multiplied1.2 again, both selected source-construction and compatibility paths. RNG/count/assets/center/timing/dice/title/gameplay/cleanup remain unchanged. Barrel variant owns its own extra1.2 multiplier; other variants do not inherit core enlargement."
     }
   ]
 }

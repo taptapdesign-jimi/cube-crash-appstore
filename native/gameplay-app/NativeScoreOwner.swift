@@ -24,7 +24,6 @@ final class NativeScoreOwner {
         guard let gameplay,backpack==nil,sheet==nil,gameplay.presentedViewController==nil,
               gameplay.boardScene?.navigationLocked != true,gameplay.engine.state.terminal==nil,
               gameplay.engine.state.tutorial?.shouldLockHUD != true,
-              gameplay.engine.state.effectiveArcadeVariant != .pureDice,
               UIApplication.shared.applicationState == .active else{return}
         let state=gameplay.engine.state
         let sections=NativeBackpackCatalog.sections(progression()).filter { section in
@@ -77,6 +76,8 @@ final class NativeGameplayBackpackController:UIViewController {
     private let assets:JimiV9Artwork,sections:[NativeBackpackCatalog.Section],includesArcade:Bool
     private let motion:NativeRouteMotion
     let card=UIView(),heading=UILabel(),subtitle=UILabel()
+    private let restTilt=JimiNativeModalTransformView()
+    private let restTiltDegrees=CGFloat.random(in: -2...2)
     private let flip=JimiNativeModalTransformView(),idle=UIView(),paper=UIImageView(),backdrop=JimiV9PlainButton(type:.custom),closeButton=JimiV9PlainButton(type:.custom)
     private(set) var screen:NativeBackpackView?
     private(set) var detail:NativeBackpackDetail?
@@ -102,7 +103,7 @@ final class NativeGameplayBackpackController:UIViewController {
         backdrop.accessibilityIdentifier="native.gameplay.backpack.backdrop"
         backdrop.backgroundColor=JimiNativeModalV10.backdropColor;backdrop.alpha=0
         backdrop.addTarget(self,action:#selector(close),for:.touchUpInside)
-        view.addSubview(backdrop);view.addSubview(card);card.addSubview(flip);flip.addSubview(idle);idle.addSubview(paper)
+        view.addSubview(backdrop);view.addSubview(card);card.addSubview(restTilt);restTilt.addSubview(flip);flip.addSubview(idle);idle.addSubview(paper)
         card.layer.anchorPoint=CGPoint(x:0.5,y:0.55);flip.layer.anchorPoint=CGPoint(x:0.5,y:1);idle.layer.anchorPoint=CGPoint(x:0.5,y:0.52)
         card.alpha=0;card.accessibilityIdentifier="native.gameplay.backpack-modal";idle.layer.isDoubleSided=false
         paper.image=assets.image("assets/modals/paper.png");paper.layer.cornerRadius=40;paper.clipsToBounds=true
@@ -140,16 +141,24 @@ final class NativeGameplayBackpackController:UIViewController {
     }
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews();backdrop.frame=view.bounds
-        let width=min(390,max(0,view.bounds.width-48))
+        let tabletJourney=NativeTabletLayout.applies(view.bounds.size) && !includesArcade
+        let projectedPaperWidth=(NativeTabletLayout.collectionWidth(view.bounds.size,crate:false)-64)/NativeTabletLayout.modalScale(view.bounds.size)
+        let referenceWidth:CGFloat=tabletJourney ? projectedPaperWidth+48:390
+        let modalBounds=NativeTabletLayout.modalBounds(in:view,card:card,referenceWidth:referenceWidth)
+        let modalSafeInsets=NativeTabletLayout.modalSafeInsets(in:view)
+        let width=tabletJourney ? projectedPaperWidth:min(390,max(0,modalBounds.width-48))
+        screen?.useModalLayout(columns:tabletJourney ? 3:2)
         heading.frame=CGRect(x:24,y:28,width:max(0,width-48),height:38.4)
         let subtitleHeight=ceil(subtitle.sizeThatFits(CGSize(width:max(0,width-48),height:CGFloat.greatestFiniteMagnitude)).height)
         subtitle.frame=CGRect(x:24,y:heading.frame.maxY+12,width:max(0,width-48),height:subtitleHeight)
         let count=includesArcade ? NativeBackpackCatalog.arcade.count:sections.first?.dice.count ?? 0
-        let columns:CGFloat=2,side=floor((width-48-(columns-1)*16)/columns)
+        let columns:CGFloat=tabletJourney ? 3:2,side=floor((width-48-(columns-1)*16)/columns)
         let rows=ceil(CGFloat(count)/columns),gridHeight=rows*side+max(0,rows-1)*16
-        let height=min(subtitle.frame.maxY+24+gridHeight+32,max(0,view.bounds.height-view.safeAreaInsets.top-view.safeAreaInsets.bottom-48))
+        let height=min(subtitle.frame.maxY+24+gridHeight+32,max(0,modalBounds.height-modalSafeInsets.top-modalSafeInsets.bottom-48))
         // Preserve the authored55% animation pivot while centering the visible paper.
-        card.bounds=CGRect(x:0,y:0,width:width,height:height);card.center=CGPoint(x:view.bounds.midX,y:view.bounds.midY+height*(card.layer.anchorPoint.y-0.5))
+        card.bounds=CGRect(x:0,y:0,width:width,height:height);card.center=CGPoint(x:modalBounds.midX,y:modalBounds.midY+height*(card.layer.anchorPoint.y-0.5))
+        restTilt.bounds=card.bounds;restTilt.center=CGPoint(x:width/2,y:height/2)
+        restTilt.layer.transform=CATransform3DMakeRotation((NativeTabletLayout.applies(view.bounds.size) ? restTiltDegrees:0) * .pi/180,0,0,1)
         flip.bounds=card.bounds;flip.center=CGPoint(x:width/2,y:height);idle.bounds=card.bounds;idle.center=CGPoint(x:width/2,y:height*0.52)
         // Crop the authored folded paper tail just as selected Backpack details do.
         JimiNativeModalV10.paperLayout(paper,bounds:idle.bounds,bottomExtension:96)
@@ -192,12 +201,14 @@ final class NativeGameplayBackpackController:UIViewController {
         onFeedback?("tab")
         modalDrag?.cancel()
         idle.layer.removeAnimation(forKey:"backpack.collection.idle")
+        idle.layer.removeAnimation(forKey:JimiNativeModalV10.settledBounceKey)
         let detail=NativeBackpackDetail(die:die,assets:assets,motion:motion)
         detail.usesParentBackdrop=true;detail.entersImmediately=true
         self.detail=detail;switchingDetail=true;admitted=false;view.isUserInteractionEnabled=false
+        detail.onSpeechRequested={[weak self] in self?.onFeedback?("scene-speech:"+NativeRecordedSceneSpeech.scene(forDie:die.id))}
         detail.onPresentationStarted={[weak self,weak detail] in
             guard let self,let detail,self.detail === detail,!self.disposed,self.foreground else{return}
-            self.onFeedback?("exit-modal")
+            self.onFeedback?("exit-modal");detail.onSpeechRequested?()
             if self.onReadDie?(die.id)==true {self.screen?.markRead(die.id)}
         }
         detail.onCloseRequested={[weak self,weak detail] in
@@ -282,5 +293,5 @@ final class NativeGameplayBackpackController:UIViewController {
         }
     }
     private func finishClose(){guard !disposed else{return};seenUnreadDice=screen?.seenUnreadDice ?? [];let completed=onClosed;dispose();dismiss(animated:false,completion:completed)}
-    func dispose(){guard !disposed else{return};screen?.setAlertsActive(false);onReadDie=nil;modalDrag?.dispose();modalDrag=nil;disposed=true;pendingDie=nil;returningDetail=false;returnSelectionPress.map{view.removeGestureRecognizer($0)};returnSelectionPress=nil;exchangeGeneration += 1;exchangeMarker.removeAllAnimations();exchangeMarker.removeFromSuperlayer();motion.cancel();detail?.dispose();detail?.dismiss(animated:false);detail=nil;screen?.onClose=nil;screen?.onDie=nil;[card,flip,idle,backdrop].forEach{$0.layer.removeAllAnimations()};onHUDCloseRequested=nil;onCloseRequested=nil;onClosed=nil;onFeedback=nil}
+    func dispose(){guard !disposed else{return};screen?.setAlertsActive(false);onReadDie=nil;modalDrag?.dispose();modalDrag=nil;disposed=true;pendingDie=nil;returningDetail=false;returnSelectionPress.map{view.removeGestureRecognizer($0)};returnSelectionPress=nil;exchangeGeneration += 1;exchangeMarker.removeAllAnimations();exchangeMarker.removeFromSuperlayer();motion.cancel();detail?.dispose();detail?.dismiss(animated:false);detail=nil;screen?.onClose=nil;screen?.onDie=nil;[card,restTilt,flip,idle,backdrop].forEach{$0.layer.removeAllAnimations()};onHUDCloseRequested=nil;onCloseRequested=nil;onClosed=nil;onFeedback=nil}
 }

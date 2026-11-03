@@ -78,7 +78,7 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
         resources.prepare(paths,owner:Self.gameplayPreparationOwner,required:true){_ in}
     }
     var isReadyForInput: Bool { active && admitted && !transition }
-    private var scale: CGFloat { max(0.01, bounds.width / 390) }
+    private var scale: CGFloat { max(0.01, NativeTabletLayout.worldFrame(bounds).width / 390) }
 
     init?(snapshot value: [String: Any], assets: JimiV9Artwork, validatedSnapshot:JimiNativeWorldSnapshot? = nil) {
         guard let snapshot = validatedSnapshot ?? JimiNativeWorldSnapshot(value) else { return nil }
@@ -138,18 +138,21 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
         button.accessibilityValue = state
         button.accessibilityLabel = "Stage \(unit.boardID)\(state == "regular" ? "" : ", \(state)")"
     }
+    private var tabletContentDrop:CGFloat {NativeTabletLayout.applies(bounds.size) ? 40:0}
+    private var contentViewport:CGRect {CGRect(x:scrollView.contentOffset.x,y:scrollView.contentOffset.y-tabletContentDrop,width:scrollView.bounds.width,height:scrollView.bounds.height)}
     override func layoutSubviews() {
         super.layoutSubviews(); scrollView.frame = bounds
         scrollView.contentInset.bottom = safeAreaInsets.bottom
-        let row=JimiV9NavigationHeader.RowLayout(bounds:bounds,safeAreaTop:safeAreaInsets.top)
-        let headerTop=row.top
-        header.frame = CGRect(x:0,y:0,width:bounds.width,height:headerTop+58)
-        title.frame = row.titleFrame
-        backButton.frame = row.buttonFrame(x:22)
-        backpackAlert.frame=CGRect(x:21,y:1,width:28,height:28)
-        backpackButton.frame=row.buttonFrame(x:bounds.width-64,width:40,height:48)
+        let row=JimiV9NavigationHeader.RowLayout(bounds:bounds,safeAreaTop:safeAreaInsets.top,contentHeight:58)
+        header.frame = CGRect(x:0,y:0,width:bounds.width,height:row.headerHeight())
+        NativeTabletLayout.labelFont(title,size:row.titleFontSize)
+        title.frame = row.titleFrame(for:title)
+        backButton.frame = row.buttonFrame(x:22,visibleInset:10)
+        backpackAlert.frame=row.iconRect(CGRect(x:21,y:1,width:28,height:28))
+        backpackButton.frame=row.buttonFrame(x:bounds.width-64,width:40,height:48,visibleInset:40/64)
+        backpackButton.imageEdgeInsets=row.iconInsets(UIEdgeInsets(top:4,left:0,bottom:4,right:0),imageHeight:40,inkCenterY:0.4765625)
         navigationTarget.frame = backButton.frame
-        backArtwork.frame = CGRect(x:10,y:10,width:24,height:24)
+        backArtwork.frame = row.iconRect(CGRect(x:10,y:10,width:24,height:24),inkCenterY:0.5153061224489796)
         // Authored export includes a large trailing spacer. Bound scrolling by
         // actual Unit artwork and safe-area. User review requests another40pt
         // reduction of the trailing scroll extent in every World.
@@ -171,8 +174,9 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
             trailingArtworkBottom=unit.frame.minY+max(unit.frame.height,bottom)
         }
         let artworkBottom=(trailingArtworkBottom ?? snapshot.contentHeight)*scale
-        content.frame = CGRect(x:0,y:0,width:bounds.width,height:max(bounds.height-safeAreaInsets.bottom,artworkBottom+24*scale-40))
-        scrollView.contentSize = content.bounds.size; main.frame = snapshot.mainFrame.applying(CGAffineTransform(scaleX: scale, y: scale))
+        let canvas=NativeTabletLayout.worldFrame(bounds)
+        content.frame = CGRect(x:canvas.minX,y:tabletContentDrop,width:canvas.width,height:max(bounds.height-safeAreaInsets.bottom,artworkBottom+24*scale-40))
+        scrollView.contentSize = CGSize(width:content.bounds.width,height:content.bounds.height+tabletContentDrop); main.frame = snapshot.mainFrame.applying(CGAffineTransform(scaleX: scale, y: scale))
         for unit in snapshot.units { let frame = unit.frame.applying(CGAffineTransform(scaleX: scale, y: scale));units[unit.boardID]?.frame = frame;depthPlanes[unit.boardID]?.forEach {$0.frame = frame} }
         if !transition { updateResources() }
     }
@@ -182,7 +186,7 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
             guard let image = resources.image(part.asset, owner: owner) else { preparationHasMissingResources = true; onResourceFailure?(part.asset); continue }
             let view = UIImageView(image: image); view.contentMode = .scaleAspectFit
             var rect = part.frame
-            if owner == 1 && part.role == "card" { rect.origin.x += 12 / scale }
+            if owner == 1 && part.role == "card" { rect.origin.x += NativeTabletLayout.applies(bounds.size) ? 12*snapshot.unitVisualScale : 12 / scale }
             if owner == 0 { rect.origin.x -= snapshot.mainFrame.minX; rect.origin.y -= snapshot.mainFrame.minY }
             if rect.height <= 0 { rect.size.height = rect.width * image.size.height / max(1,image.size.width) }
             view.frame = rect.applying(CGAffineTransform(scaleX: scale, y: scale))
@@ -192,12 +196,12 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
             let parent = part.role == "card" ? target : depthPlanes[owner]?[planeIndex] ?? target
             view.layer.zPosition = part.depth;parent.addSubview(view)
             if part.role == "card",let definition = snapshot.units.first(where:{$0.boardID == owner}),definition.newRibbon {
-                let badge=JimiNativeWorldRibbon.make(image:resources.image("assets/journey assets/orange-ribbon.png",owner:owner),assets:artwork,cardSize:view.bounds.size,scale:scale,portal:false,compact:bounds.width<=768)
+                let badge=JimiNativeWorldRibbon.make(image:resources.image("assets/journey assets/orange-ribbon.png",owner:owner),assets:artwork,cardSize:view.bounds.size,scale:scale*snapshot.unitVisualScale,portal:false,compact:bounds.width<=768)
                 (badge as? JimiNativeNewRibbonView)?.setCardRotation(part.rotation);view.addSubview(badge)
             }
         }
         if owner > 0, let unit = snapshot.units.first(where: { $0.boardID == owner }), unit.locked {
-            let number = UILabel(frame: target.bounds); number.text = String(format:"%02d",(owner-1)%10+1); number.textAlignment = .center; number.font = artwork.font(size:32*scale,weight:"ExtraBold"); number.textColor = UIColor(red:248/255,green:151/255,blue:77/255,alpha:1); number.alpha = 0.8; number.transform = CGAffineTransform(translationX:unit.lockedNumberOffset.x*scale,y:unit.lockedNumberOffset.y*scale).rotated(by:unit.lockedNumberRotation); number.accessibilityIdentifier = "native.world.number.\(owner)"; number.layer.zPosition = max(0,parts.map(\.depth).max() ?? 0)+1; target.addSubview(number)
+            let number = UILabel(frame: target.bounds); number.text = String(format:"%02d",(owner-1)%10+1); number.textAlignment = .center; number.font = artwork.font(size:32*scale*snapshot.unitVisualScale,weight:"ExtraBold"); number.textColor = UIColor(red:248/255,green:151/255,blue:77/255,alpha:1); number.alpha = 0.8; number.transform = CGAffineTransform(translationX:unit.lockedNumberOffset.x*scale,y:unit.lockedNumberOffset.y*scale).rotated(by:unit.lockedNumberRotation); number.accessibilityIdentifier = "native.world.number.\(owner)"; number.layer.zPosition = max(0,parts.map(\.depth).max() ?? 0)+1; target.addSubview(number)
         }
     }
     private func scheduleParts(_ parts:[JimiNativeWorldSnapshot.Part],target:UIView,owner:Int) {
@@ -207,7 +211,7 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
             guard let self,let target,self.resourceEpoch == epoch else {return}
             self.preparing.remove(owner)
             guard accepted else {self.preparationHasMissingResources = !self.resources.missingAssets.isEmpty;return}
-            let viewport = CGRect(origin:self.scrollView.contentOffset,size:self.scrollView.bounds.size).insetBy(dx:0,dy:-220*self.scale)
+            let viewport = self.contentViewport.insetBy(dx:0,dy:-220*self.scale)
             guard viewport.intersects(owner == 0 ? self.main.frame : target.frame) else {self.resources.release(owner);return}
             // Route-motion is a no-decode/no-allocation presentation boundary.
             guard !self.transition else {return}
@@ -219,7 +223,7 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
     func prepare(completion:@escaping () -> Void) {
         layoutIfNeeded(); let epoch = resourceEpoch
         preparationHasMissingResources = !resources.missingAssets.isEmpty
-        let viewport = CGRect(origin:scrollView.contentOffset,size:scrollView.bounds.size).insetBy(dx:0,dy:-220*scale)
+        let viewport = contentViewport.insetBy(dx:0,dy:-220*scale)
         var remaining = 1
         func finish() { remaining -= 1; if remaining == 0 { completion() } }
         remaining += 1
@@ -243,7 +247,7 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
     /// decoded artwork, geometry or the existing ambient/bee owners.
     func cancelPendingPreparation(){resourceEpoch += 1;preparing.removeAll();gameplayTransitionPreparationBoard=nil;resources.cancelPendingPreparation()}
     private func updateResources() {
-        let viewport = CGRect(origin: scrollView.contentOffset, size: scrollView.bounds.size).insetBy(dx: 0, dy: -180*scale)
+        let viewport = contentViewport.insetBy(dx: 0, dy: -180*scale)
         if (!loaded.contains(0) || dirtyUnits.contains(0)) && viewport.intersects(main.frame) { scheduleParts(snapshot.mainParts,target:main,owner:0) }
         for unit in snapshot.units {
             guard let view = units[unit.boardID] else { continue }
@@ -275,7 +279,7 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
                 dirtyUnits.insert(unit.boardID)
             } else if old?.newRibbon != unit.newRibbon,let view = units[unit.boardID],let card = view.subviews.first(where:{$0.accessibilityIdentifier?.hasSuffix(".card") == true}) {
                 if unit.newRibbon {
-                    let ribbon=JimiNativeWorldRibbon.make(image:resources.image("assets/journey assets/orange-ribbon.png",owner:unit.boardID),assets:artwork,cardSize:card.bounds.size,scale:scale,portal:false,compact:bounds.width<=768)
+                    let ribbon=JimiNativeWorldRibbon.make(image:resources.image("assets/journey assets/orange-ribbon.png",owner:unit.boardID),assets:artwork,cardSize:card.bounds.size,scale:scale*snapshot.unitVisualScale,portal:false,compact:bounds.width<=768)
                     (ribbon as? JimiNativeNewRibbonView)?.setCardRotation(unit.parts.first(where:{$0.role=="card"})?.rotation ?? 0)
                     card.addSubview(ribbon);if active && !transition && modal == nil {(ribbon as? JimiNativeNewRibbonView)?.enter()}
                 } else {card.subviews.compactMap{$0 as? JimiNativeNewRibbonView}.forEach{ribbon in if active && !transition && modal == nil {ribbon.exit()}else{ribbon.quiesce();ribbon.removeFromSuperview()}}}
@@ -389,7 +393,7 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
         return rect.offsetBy(dx:view.frame.minX,dy:view.frame.minY)
     }
     private func motionTargets() -> [UIView] {
-        let viewport = CGRect(origin: scrollView.contentOffset,size:scrollView.bounds.size).insetBy(dx:0,dy:-220)
+        let viewport = contentViewport.insetBy(dx:0,dy:-220)
         return [main,header] + snapshot.units.compactMap { units[$0.boardID] }.filter { viewport.intersects(visualBounds($0)) }
     }
     private func animate(_ view:UIView,track originalTrack:JimiV9Motion.Track,key:String,fromBaseTransform:CATransform3D? = nil) {
@@ -464,10 +468,16 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
         let amplitude = (cloud == nil ? 7.0 : 10.0)*Double(scale)*(pairedVertical && index == 0 ? -1 : 1)
         let keyPath = "transform.translation.\(axis)"
         let current = (view.layer.presentation()?.value(forKeyPath:keyPath) as? NSNumber)?.doubleValue ?? 0
-        let onsetDuration = abs(current) > 0.0001 ? 0.52 : 0.18
+        // Ease into the shared wave over half its own cycle. The previous
+        // 180ms neutral onset chased an already elapsed phase near its peak,
+        // producing a fast correction before the slow authored float.
+        let onsetDuration = Double.pi/speed
         let ramp = CAKeyframeAnimation(keyPath:keyPath)
         ramp.values = (0...32).map { step -> Double in
-            let t = Double(step)/32, envelope = t*t*(3-2*t)
+            let t = Double(step)/32
+            // Zero first/second envelope derivatives at both ends: settle from
+            // the held pose and join the existing sine position/velocity.
+            let envelope = t*t*t*(t*(t*6-15)+10)
             return current*(1-envelope)+sin(onsetDuration*t*speed+phase)*amplitude*envelope
         }
         ramp.duration = onsetDuration; ramp.beginTime = begin
@@ -484,13 +494,13 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
     private func updateIdle() {
         NativeHubBackpackFeedback.setIdle(on:backpackButton,active:active && admitted && !transition && !backRequested && modal == nil)
         backpackAlert.setActive(!backpackAlert.isHidden && active && admitted && !transition && modal == nil)
-        ambient?.update(enabled:active && admitted && !transition && (modal == nil || returningCard),viewport:CGRect(origin:scrollView.contentOffset,size:scrollView.bounds.size),scale:scale,shipViewport:CGRect(x:scrollView.contentOffset.x,y:scrollView.contentOffset.y+header.frame.maxY,width:scrollView.bounds.width,height:max(0,scrollView.bounds.height-header.frame.maxY)))
-        bees?.update(enabled:active && !transition && (modal == nil || returningCard),viewport:CGRect(origin:scrollView.contentOffset,size:scrollView.bounds.size),scale:scale)
+        ambient?.update(enabled:active && admitted && !transition && (modal == nil || returningCard),viewport:contentViewport,scale:scale,shipViewport:CGRect(x:scrollView.contentOffset.x,y:scrollView.contentOffset.y-tabletContentDrop+header.frame.maxY,width:scrollView.bounds.width,height:max(0,scrollView.bounds.height-header.frame.maxY)))
+        bees?.update(enabled:active && !transition && (modal == nil || returningCard),viewport:contentViewport,scale:scale)
         guard active && !transition && (modal == nil || returningCard) else {
             if pausedCardWaves.isEmpty {stopIdle()}
             return
         }
-        let viewport = CGRect(origin:scrollView.contentOffset,size:scrollView.bounds.size)
+        let viewport = contentViewport
         for (index,definition) in snapshot.units.enumerated() {
             guard let unit = units[definition.boardID] else {continue}
             ([unit] + (depthPlanes[definition.boardID] ?? [])).forEach {$0.layer.removeAnimation(forKey:"world.enter");$0.layer.removeAnimation(forKey:"world.exit")}
@@ -581,8 +591,8 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
                 layer.add(frozen,forKey:key)
             }
         }
-        ambient?.update(enabled:false,viewport:CGRect(origin:scrollView.contentOffset,size:scrollView.bounds.size),scale:scale)
-        bees?.update(enabled:false,viewport:CGRect(origin:scrollView.contentOffset,size:scrollView.bounds.size),scale:scale)
+        ambient?.update(enabled:false,viewport:contentViewport,scale:scale)
+        bees?.update(enabled:false,viewport:contentViewport,scale:scale)
         interimOwners.values.forEach {$0.stop()}
     }
     private func resumeCardWaves() {
@@ -604,8 +614,8 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
         backpackAlert.setActive(false)
         NativeHubBackpackFeedback.setIdle(on:backpackButton,active:false)
         discardCardWaves()
-        ambient?.update(enabled:false,viewport:CGRect(origin:scrollView.contentOffset,size:scrollView.bounds.size),scale:scale)
-        if pauseBees {bees?.update(enabled:false,viewport:CGRect(origin:scrollView.contentOffset,size:scrollView.bounds.size),scale:scale)};interimOwners.values.forEach {$0.stop()};units.values.forEach {stopWave($0,preservingPoseForExit:preservingWavesForExit);JimiNativeWorldEffects.stop($0); partViews($0).forEach {stopWave($0,preservingPoseForExit:preservingWavesForExit);JimiNativeWorldEffects.stop($0)}}; main.subviews.forEach {stopWave($0,preservingPoseForExit:preservingWavesForExit)}}
+        ambient?.update(enabled:false,viewport:contentViewport,scale:scale)
+        if pauseBees {bees?.update(enabled:false,viewport:contentViewport,scale:scale)};interimOwners.values.forEach {$0.stop()};units.values.forEach {stopWave($0,preservingPoseForExit:preservingWavesForExit);JimiNativeWorldEffects.stop($0); partViews($0).forEach {stopWave($0,preservingPoseForExit:preservingWavesForExit);JimiNativeWorldEffects.stop($0)}}; main.subviews.forEach {stopWave($0,preservingPoseForExit:preservingWavesForExit)}}
     private func quiesceRibbons(){units.values.flatMap{$0.subviews}.flatMap{$0.subviews}.compactMap{$0 as? JimiNativeNewRibbonView}.forEach{$0.quiesce()}}
     func setActive(_ value: Bool) { if !value {NativeHubBackpackFeedback.setIdle(on:backpackButton,active:false);backpackAlert.setActive(false);backpackButton.imageView?.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey);quiesceRibbons();landingBarrier?.cancel();landingBarrier = nil;units.values.forEach {$0.subviews.forEach {$0.layer.removeAnimation(forKey:"world.card.landing")}}};active = value; modal?.setActive(value); if value {if modal == nil || returningCard {resumeCardWaves()};if landingBarrier == nil {pendingCardLanding?()};updateIdle()} else {cancelReminder();if returningCard {pauseCardWaves()}else if modal == nil && pausedCardWaves.isEmpty {stopIdle()};units.values.forEach {$0.layer.sublayers?.filter {$0.name == "world.smoke.feedback"}.forEach {$0.removeAllAnimations();$0.removeFromSuperlayer()}}} }
     func prepareGameplayExit(boardID:Int? = nil,completion: @escaping () -> Void) {
@@ -644,7 +654,7 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
     }
     func memoryWarning() {
         guard !transition else {return}
-        let viewport = CGRect(origin:scrollView.contentOffset,size:scrollView.bounds.size).insetBy(dx:0,dy:-220*scale)
+        let viewport = contentViewport.insetBy(dx:0,dy:-220*scale)
         for (id,view) in units where !viewport.intersects(view.frame) && modal?.boardID != id && snapshot.returnBoardID != id {
             interimOwners.removeValue(forKey:id)?.stop();depthPlanes[id]?.forEach {$0.layer.removeAllAnimations()};partViews(view).forEach {$0.layer.removeAllAnimations();$0.removeFromSuperview()};resources.release(id);loaded.remove(id)
         }
@@ -695,7 +705,7 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
         let pending=pendingReturnAlert;cancelReminder();pendingReturnAlert=pending
         guard !UIAccessibility.isReduceMotionEnabled,let boardID = snapshot.returnBoardID,let unit = units[boardID],let card = unit.subviews.first(where:{$0.accessibilityIdentifier?.hasSuffix(".card") == true}) as? UIImageView,let image = card.image,
               let backImage = resources.image("assets/colelctibles/cardflip.png",owner:boardID) else {return}
-        let viewport = CGRect(origin:scrollView.contentOffset,size:scrollView.bounds.size)
+        let viewport = contentViewport
         guard viewport.intersects(unit.frame) else {return}
         card.isHidden = true;reminderSource = card
         // Interim idle owns a bottom pivot. UIView.center is that layer's

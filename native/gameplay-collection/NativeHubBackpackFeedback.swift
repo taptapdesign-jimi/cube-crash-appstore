@@ -111,10 +111,16 @@ final class NativeHubBackpackFeedback {
 
 /// Pass-through outside the actual CTA, including when its button is hidden.
 @MainActor
-final class NativeCartoonBounceSurface:UIView {
+class NativeCartoonBounceSurface:UIView {
     override func hitTest(_ point:CGPoint,with event:UIEvent?)->UIView? {
         guard !isHidden,alpha>0.01,isUserInteractionEnabled else{return nil}
         for child in subviews.reversed(){if let hit=child.hitTest(convert(point,to:child),with:event){return hit}}
         return nil
     }
+}
+
+/// Opt-in spatial shell for controls whose live paint must survive a3D parent.
+@MainActor
+final class NativePreservingCartoonBounceSurface:NativeCartoonBounceSurface {
+    override class var layerClass:AnyClass {CATransformLayer.self}
 }

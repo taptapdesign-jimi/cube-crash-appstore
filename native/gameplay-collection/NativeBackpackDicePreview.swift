@@ -290,8 +290,8 @@ import StackToSixGameplay
     func paintSelectedBounce(seconds:Double){
         guard !disposed,let node=dieNode else{return}
         if identity.id=="laser-gun" {
-            // Same value schedule and whole-die pose as the board, sampled by
-            // the existing selected-preview clock. No modal-only float.
+            // Preserve the short board stretch/squeeze and compose Bottle's
+            // selected-only float on the same visibility-scoped preview clock.
             if let due=laserIdleSchedule.due,seconds*1000>=due,
                let cycle=laserIdleSchedule.wake(at:seconds*1000,hidden:false,dragActive:false,
                    availableIDs:[node.tileID],random:{Double.random(in:0..<1)}) {
@@ -299,9 +299,15 @@ import StackToSixGameplay
             }
             let pose=laserIdleCycle.map{$0.motion.sample(seconds-$0.started)}
                 ?? NativeRegularIdleMotion.Pose(x:1,y:1,rotation:0)
-            node.position=layoutNodePosition
+            let phase=max(0,seconds).truncatingRemainder(dividingBy:3.6)/3.6*2*Double.pi
+            node.position=CGPoint(x:layoutNodePosition.x,y:layoutNodePosition.y+CGFloat(10*(1-cos(phase))))
             node.xScale=layoutNodeScale*pose.x;node.yScale=layoutNodeScale*pose.y
-            node.zRotation = -pose.rotation
+            // SpriteKit positive rotation is counterclockwise. Keep a smooth
+            // two-sided sway around a20deg counterclockwise rest, biased to
+            // +4.2deg versus -2.1deg, with no step
+            // in angular velocity when crossing neutral.
+            let sway=sin(phase)
+            node.zRotation = CGFloat((20+3.15*sway+1.05*sway*sway)*Double.pi/180)-pose.rotation*0.6
             return
         }
         if identity.id=="bloob-ball" {

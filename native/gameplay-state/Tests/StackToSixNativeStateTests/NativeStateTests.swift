@@ -19,6 +19,27 @@ final class NativeStateTests: XCTestCase {
         let old=try JSONDecoder().decode(NativeBoardStats.self,from:JSONSerialization.data(withJSONObject:json))
         XCTAssertNil(old.scoreHistory);XCTAssertNil(old.comboHistory);XCTAssertEqual(old.highScore,1500)
     }
+    func testComboAbove99PersistsFullCountAndBestAcrossSaveResume()throws {
+        for count in [100,120,1000] {
+            let store=NativeSaveStore(directory:try temporary())
+            var envelope=NativeSaveEnvelope();envelope.savedAt=1000
+            envelope.journeyRuns[2] = .init(tiles:[.init(id:"a",cell:.init(column:0,row:0),value:1)],board:2,moves:49,longestCombo:count,combo:count,earnedComboBonus:500)
+            envelope.journeyRunSavedAt[2]=1000
+            envelope.progression.finishAttempt(mode:.journey,board:1,score:100,longestCombo:count,cubesCracked:1,clean:true,now:999)
+            envelope.progression.finishAttempt(mode:.arcade,board:1,score:100,longestCombo:count,cubesCracked:1,clean:true,now:999)
+            XCTAssertTrue(try store.save(envelope))
+            let loaded=try XCTUnwrap(store.load())
+            XCTAssertEqual(loaded.journeyRuns[2]?.combo,count)
+            XCTAssertEqual(loaded.progression.boardStats[1]?.longestCombo,count)
+            XCTAssertEqual(loaded.progression.boardStats[1]?.comboHistory?.first?.value,count)
+            XCTAssertEqual(loaded.progression.arcadeStats.longestCombo,count)
+            let resumed=try XCTUnwrap(loaded.resumedRun(mode:.journey,board:2,now:1001))
+            XCTAssertEqual(resumed.longestCombo,count)
+            XCTAssertEqual(resumed.earnedComboBonus,500)
+            XCTAssertEqual(resumed.combo,0,"A timed live streak still resets on resume")
+        }
+    }
+
     func testFreshProfileEnablesEverySettingAndSavedChoicesRemainExplicit() throws {
         let store=NativeSaveStore(directory:try temporary())
         XCTAssertNil(try store.load())
@@ -410,6 +431,95 @@ final class NativeStateTests: XCTestCase {
             XCTAssertEqual(try XCTUnwrap(pulse["duration"] as? Double),try XCTUnwrap(first[index]["duration"] as? Double)*factor)
             XCTAssertEqual(try XCTUnwrap(pulse["phase"] as? Double),try XCTUnwrap(first[index]["phase"] as? Double)*factor)
             XCTAssertEqual(parts.contains{$0["role"] as? String == "card"},index<=1)
+        }
+    }
+    func testProportionalTabletCardsRetainPhoneIslandRelationshipWithoutMovingDecorations() throws {
+        let layouts=try NativeWorldLayouts()
+        var progress=NativeProgressionState();progress.completedJourneyBoards=Set(1...30)
+        func number(_ object:[String:Any],_ key:String)->Double {(object[key] as! NSNumber).doubleValue}
+        for width in [744.0,820,1032] {for world in 1...3 {
+            let phone=try layouts.snapshot(world:world,width:390,height:844,generation:1,progression:progress)
+            let old=try layouts.snapshot(world:world,width:width,height:1180,generation:1,progression:progress)
+            let tablet=try layouts.snapshot(world:world,width:width,height:1180,generation:1,progression:progress,proportionalCards:true)
+            let phoneUnits=phone["units"] as! [[String:Any]],oldUnits=old["units"] as! [[String:Any]],units=tablet["units"] as! [[String:Any]]
+            XCTAssertTrue(NSDictionary(dictionary:tablet["mainFrame"] as! [String:Any]).isEqual(to:old["mainFrame"] as! [String:Any]))
+            for index in units.indices {
+                let frame=units[index]["frame"] as! [String:Any],oldFrame=oldUnits[index]["frame"] as! [String:Any]
+                let parts=units[index]["parts"] as! [[String:Any]],oldParts=oldUnits[index]["parts"] as! [[String:Any]],phoneParts=phoneUnits[index]["parts"] as! [[String:Any]]
+                let card=try XCTUnwrap(parts.first{$0["role"] as? String == "card"}),phoneCard=phoneParts.first{$0["role"] as? String == "card"}!
+                let island=parts.first{$0["role"] as? String == "island"}!,phoneIsland=phoneParts.first{$0["role"] as? String == "island"}!
+                for key in ["width","height"] {XCTAssertEqual(number(card,key),number(phoneCard,key),accuracy:0.000001)}
+                XCTAssertEqual(number(frame,"width"),number(card,"width"))
+                XCTAssertEqual(number(frame,"height"),number(card,"height"))
+                for axis in ["x","y"] {
+                    XCTAssertEqual(number(card,axis)-number(island,axis),number(phoneCard,axis)-number(phoneIsland,axis),accuracy:0.000001)
+                }
+                for (part,oldPart) in zip(parts,oldParts) where part["role"] as? String != "card" {
+                    for axis in ["x","y"] {XCTAssertEqual(number(frame,axis)+number(part,axis),number(oldFrame,axis)+number(oldPart,axis),accuracy:0.000001)}
+                    XCTAssertEqual(number(part,"width"),number(oldPart,"width"))
+                }
+                XCTAssertEqual(units[index]["boardID"] as? Int,oldUnits[index]["boardID"] as? Int)
+                XCTAssertEqual(units[index]["allowedActions"] as? [String],oldUnits[index]["allowedActions"] as? [String])
+            }
+        }}
+        let fresh=NativeProgressionState()
+        let old=try layouts.snapshot(world:1,width:820,height:1180,generation:1,progression:fresh)
+        let tablet=try layouts.snapshot(world:1,width:820,height:1180,generation:1,progression:fresh,proportionalCards:true)
+        let oldUnits=old["units"] as! [[String:Any]],units=tablet["units"] as! [[String:Any]]
+        XCTAssertEqual(number(units[0]["frame"] as! [String:Any],"width"),90)
+        XCTAssertEqual(units[0]["interim"] as? Bool,true)
+        for index in 1..<10 {
+            let frame=units[index]["frame"] as! [String:Any]
+            XCTAssertEqual(number(frame,"width"),90)
+            XCTAssertEqual(number(frame,"height"),133)
+            XCTAssertEqual(units[index]["locked"] as? Bool,oldUnits[index]["locked"] as? Bool)
+            let parts=units[index]["parts"] as! [[String:Any]],prior=oldUnits[index]["parts"] as! [[String:Any]]
+            let oldFrame=oldUnits[index]["frame"] as! [String:Any]
+            for (part,oldPart) in zip(parts,prior) {for axis in ["x","y"] {
+                XCTAssertEqual(number(frame,axis)+number(part,axis),number(oldFrame,axis)+number(oldPart,axis),accuracy:0.000001)
+            }}
+        }
+    }
+    func testTabletUnitGrowthScalesEveryPartAndCardAndReflowsRowsWithoutChangingGates() throws {
+        let layouts=try NativeWorldLayouts()
+        for complete in [false,true] {
+            var progress=NativeProgressionState();if complete {progress.completedJourneyBoards=Set(1...30)}
+            for world in 1...3 {
+                let old=try layouts.snapshot(world:world,width:820,height:1180,generation:1,progression:progress,proportionalCards:true)
+                let new=try layouts.snapshot(world:world,width:820,height:1180,generation:1,progression:progress,proportionalCards:true,unitScale:1.30)
+                let before=old["units"] as! [[String:Any]],after=new["units"] as! [[String:Any]]
+                func n(_ o:[String:Any],_ k:String)->Double {(o[k] as! NSNumber).doubleValue}
+                XCTAssertEqual(new["unitVisualScale"] as? Double,1.30)
+                let reduced=try layouts.snapshot(world:world,width:820,height:1180,generation:1,progression:progress,proportionalCards:true,unitScale:1.105)
+                XCTAssertEqual(try JSONSerialization.data(withJSONObject:reduced["mainFrame"]!,options:.sortedKeys),try JSONSerialization.data(withJSONObject:new["mainFrame"]!,options:.sortedKeys))
+                XCTAssertEqual(try JSONSerialization.data(withJSONObject:reduced["mainParts"]!,options:.sortedKeys),try JSONSerialization.data(withJSONObject:new["mainParts"]!,options:.sortedKeys))
+                let smaller=reduced["units"] as! [[String:Any]],larger=new["units"] as! [[String:Any]]
+                for (small,large) in zip(smaller,larger) {
+                    let sf=small["frame"] as! [String:Double],lf=large["frame"] as! [String:Double]
+                    for key in ["width","height"] {XCTAssertEqual(sf[key]!,lf[key]!*0.85,accuracy:0.001)}
+                    for (sp,lp) in zip(small["parts"] as! [[String:Any]],large["parts"] as! [[String:Any]]) {
+                        XCTAssertEqual(sp["width"] as! Double,(lp["width"] as! Double)*0.85,accuracy:0.001)
+                    }
+                }
+
+                XCTAssertTrue(NSDictionary(dictionary:old["mainFrame"] as! [String:Any]).isEqual(to:new["mainFrame"] as! [String:Any]))
+                let origin=n(before[0]["frame"] as! [String:Any],"y")
+                for (a,b) in zip(before,after) {
+                    let af=a["frame"] as! [String:Any],bf=b["frame"] as! [String:Any]
+                    XCTAssertEqual(n(bf,"width"),n(af,"width")*1.30,accuracy:0.001)
+                    XCTAssertEqual(n(bf,"y"),origin+(n(af,"y")-origin)*1.30,accuracy:0.001)
+                    let ap=a["parts"] as! [[String:Any]],bp=b["parts"] as! [[String:Any]]
+                    for (x,y) in zip(ap,bp) {
+                        for key in ["x","y","width"] {XCTAssertEqual(n(y,key),n(x,key)*1.30,accuracy:0.001)}
+                        XCTAssertEqual(y["asset"] as? String,x["asset"] as? String)
+                    }
+                    let island=bp.first{$0["role"] as? String=="island"}!
+                    XCTAssertGreaterThanOrEqual(n(bf,"x")+n(island,"x"),-0.001)
+                    XCTAssertLessThanOrEqual(n(bf,"x")+n(island,"x")+n(island,"width"),390.001)
+                    XCTAssertEqual(a["allowedActions"] as? [String],b["allowedActions"] as? [String])
+                    XCTAssertEqual(a["locked"] as? Bool,b["locked"] as? Bool)
+                }
+            }
         }
     }
     func testAuthoredWorldGeometryAtEveryExportedViewport() throws {

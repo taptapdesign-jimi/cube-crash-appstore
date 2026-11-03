@@ -28,9 +28,11 @@ final class NativeRewardFoil {
         rainbow.locations=[0.08,0.24,0.37,0.49,0.61,0.73,0.91]
         layer.addSublayer(rainbow);layer.addSublayer(gold);layer.opacity=0;layer.zPosition=1.2
     }
-    func layout(_ bounds:CGRect,mask:CGImage?,displayScale:CGFloat=1) {
+    func layout(_ frame:CGRect,mask:CGImage?,displayScale:CGFloat=1,artworkScale:CGFloat=NativeRewardPresentation.frontArtworkScale) {
         for surface in [layer,gold,rainbow] {surface.contentsScale=max(1,displayScale);surface.allowsEdgeAntialiasing=true;surface.isDoubleSided=false}
-        layer.frame=bounds
+        let projection=artworkScale/NativeRewardPresentation.frontArtworkScale
+        let bounds=CGRect(x:0,y:0,width:frame.width*projection,height:frame.height*projection)
+        layer.frame=CGRect(x:frame.midX-bounds.width/2,y:frame.midY-bounds.height/2,width:bounds.width,height:bounds.height)
         gold.frame=CGRect(x:-bounds.width*0.9,y:0,width:bounds.width*2.8,height:bounds.height)
         rainbow.frame=CGRect(x:-bounds.width*0.6,y:-bounds.height*0.225,width:bounds.width*2.2,height:bounds.height*1.45)
         for (gradient,angle) in [(gold,104.0),(rainbow,76.0)] {

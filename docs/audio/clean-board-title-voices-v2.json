@@ -668,15 +668,6 @@
       "sha256": "b94a2b57def0fb30c8febab406d23f25f02eb73f063cf65406cc37b985677768"
     },
     {
-      "title": "Dice done!",
-      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/075-dice-done.wav",
-      "originalSource": "assets/sound/Clean board/voice/titles-v1/075-dice-done.wav",
-      "originalSha256": "8410424128e8ff2cd8099738345e1b1f039b5847da092637579c2c411ce27cb3",
-      "gainDb": 3.0000011204835637,
-      "peakDbFS": -0.00026507636037961915,
-      "sha256": "2446e42ac9a64877b18cbbaa58c7dfb4e5f20d6e7a2cbe6451e9c21ea6d9e76e"
-    },
-    {
       "title": "Dice cleared!",
       "source": "assets/sound/Clean board/voice/titles-v2-plus3db/076-dice-cleared.wav",
       "originalSource": "assets/sound/Clean board/voice/titles-v1/076-dice-cleared.wav",
@@ -695,22 +686,13 @@
       "sha256": "ce4c7929b71cbc346739d33503fd437ed6e9f982e7ef7617210b6d2da69ab72c"
     },
     {
-      "title": "Rollin’!",
+      "title": "Rollin\u2019!",
       "source": "assets/sound/Clean board/voice/titles-v2-plus3db/078-rollin.wav",
       "originalSource": "assets/sound/Clean board/voice/titles-v1/078-rollin.wav",
       "originalSha256": "9aa66562fa71ed542480c9375a53530b821bc19854c824e02b1bb065e94a6ad8",
       "gainDb": 3.0000015037748176,
       "peakDbFS": -2.259300257719078,
       "sha256": "6c867c94566bc8a1b3c7678ad16b9e97e49f5d1c6143de09ef5d86740235e4f8"
-    },
-    {
-      "title": "Roll perfect!",
-      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/079-roll-perfect.wav",
-      "originalSource": "assets/sound/Clean board/voice/titles-v1/079-roll-perfect.wav",
-      "originalSha256": "22e115f8f210847b136958241befa27e56619e3a309ffd0b4c1d9cb5e4c7f517",
-      "gainDb": 2.999988417268256,
-      "peakDbFS": -1.335799669775749,
-      "sha256": "9ce37f43599f78df1eaff7daf00cfc1331f9298fdae62d951585993ff76d623d"
     },
     {
       "title": "Lucky six!",
@@ -722,15 +704,6 @@
       "sha256": "0e29a7932e7e9cc89786e5dfa58567c46643cbf3d5274ecece7759ac772c8b11"
     },
     {
-      "title": "Six it up!",
-      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/081-six-it-up.wav",
-      "originalSource": "assets/sound/Clean board/voice/titles-v1/081-six-it-up.wav",
-      "originalSha256": "e2c5f9c46352d7348665697cc0cc16acc4baf6f1d3a05f5d6bb30bbe061267ed",
-      "gainDb": 2.9999973987020523,
-      "peakDbFS": -0.10694974285375254,
-      "sha256": "caa7497337c800e29f87f64084db789aa1b47ba272cb6dbbe7f73bb2e141ec1e"
-    },
-    {
       "title": "Stack cleared!",
       "source": "assets/sound/Clean board/voice/titles-v2-plus3db/082-stack-cleared.wav",
       "originalSource": "assets/sound/Clean board/voice/titles-v1/082-stack-cleared.wav",
@@ -738,15 +711,6 @@
       "gainDb": 2.9999976346674915,
       "peakDbFS": -0.9894513334779016,
       "sha256": "4fea320a7ae37934ba86a462265cb9c80ced465a827e03bbd0705b79a932efe8"
-    },
-    {
-      "title": "Stack smashed!",
-      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/083-stack-smashed.wav",
-      "originalSource": "assets/sound/Clean board/voice/titles-v1/083-stack-smashed.wav",
-      "originalSha256": "0bd7e263deec8609109afb3cdcd252fc7af27f6eb260297ee109414c5c4d1741",
-      "gainDb": 3.0000076425270055,
-      "peakDbFS": -0.00026507636037961915,
-      "sha256": "1ed2455716a02655d3c4a92f3eba9791de0b5fd22e034d5ad54b0a60d4846d82"
     },
     {
       "title": "Stack complete!",
@@ -767,15 +731,6 @@
       "sha256": "588c7d2164ed85062431c215860f4cf2ab4fd77b23e1f26a02223463019cd848"
     },
     {
-      "title": "Stacktastic!",
-      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/086-stacktastic.wav",
-      "originalSource": "assets/sound/Clean board/voice/titles-v1/086-stacktastic.wav",
-      "originalSha256": "f48b01b6e4f6388b56fa0e77515f6141f3c9732e3c974b8a6893f8a34d9876a8",
-      "gainDb": 3.000000980969938,
-      "peakDbFS": -0.00026507636037961915,
-      "sha256": "799308d3819d3dafe5be3736aada9c13592297ab06272b38df2b34d7c550c63a"
-    },
-    {
       "title": "Stack magic!",
       "source": "assets/sound/Clean board/voice/titles-v2-plus3db/087-stack-magic.wav",
       "originalSource": "assets/sound/Clean board/voice/titles-v1/087-stack-magic.wav",
@@ -783,15 +738,6 @@
       "gainDb": 3.0000002241115595,
       "peakDbFS": -0.13544219588449263,
       "sha256": "1c7eb2883869dc30142f676d2949499f1318f97f2241c0be623f038334631d5f"
-    },
-    {
-      "title": "Stack nailed!",
-      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/088-stack-nailed.wav",
-      "originalSource": "assets/sound/Clean board/voice/titles-v1/088-stack-nailed.wav",
-      "originalSha256": "51d1a9691c0e60d71a0c99d5fd6dba83089cc0f779669adfdaa7c350f005f6ab",
-      "gainDb": 3.0000017539192054,
-      "peakDbFS": -0.24272024287666494,
-      "sha256": "39aac43bbc6e81837462d31fb04821ddcbb9f28fa90358e91cd64453f2addba6"
     },
     {
       "title": "Board smashed!",
@@ -893,7 +839,7 @@
       "sha256": "813a1277ea9c1b09896273c9c6996779d152bdcc01da9d696ba0d55832cfd7c8"
     },
     {
-      "title": "Got ’em!",
+      "title": "Got \u2019em!",
       "source": "assets/sound/Clean board/voice/titles-v2-plus3db/100-got-em.wav",
       "originalSource": "assets/sound/Clean board/voice/titles-v1/100-got-em.wav",
       "originalSha256": "d1ed63c821f94dad0df8fd6b46ea1988dd5b9872a787d95ca2942c4b27ee1ce4",
@@ -902,7 +848,7 @@
       "sha256": "4dc4f84488fc827b352efe80ee9d66e9fc476fd8adfccf04bbaaf1996ea19c1c"
     },
     {
-      "title": "That’s it!",
+      "title": "That\u2019s it!",
       "source": "assets/sound/Clean board/voice/titles-v2-plus3db/101-that-s-it.wav",
       "originalSource": "assets/sound/Clean board/voice/titles-v1/101-that-s-it.wav",
       "originalSha256": "ee0fc04bb76d9a5c4ee19314a9a66571842e9379f7cb129e310bb491974a1109",
@@ -929,7 +875,7 @@
       "sha256": "dd4def5e3dc0ebb669ee6f7f0e38c1bb8c5fdb7be43221b807fcb55e045e7c78"
     },
     {
-      "title": "Let’s gooo!",
+      "title": "Let\u2019s gooo!",
       "source": "assets/sound/Clean board/voice/titles-v2-plus3db/104-let-s-gooo.wav",
       "originalSource": "assets/sound/Clean board/voice/titles-v1/104-let-s-gooo.wav",
       "originalSha256": "343e97290fe8145f5325a051c28f1d4e4b33cf57cc75dd58a3c086b196afea80",
@@ -1008,15 +954,6 @@
       "gainDb": 3.000000464638941,
       "peakDbFS": -0.00026507636037961915,
       "sha256": "f1f86fe59f787fc528baaa97283103d2e08458def00186eec05a1454102746c2"
-    },
-    {
-      "title": "Sixcess!",
-      "source": "assets/sound/Clean board/voice/titles-v2-plus3db/113-sixcess.wav",
-      "originalSource": "assets/sound/Clean board/voice/titles-v1/113-sixcess.wav",
-      "originalSha256": "be1644cb93faeb01746139f06fe1b0fcc1947fedd9c7ee5346f934b0f9f68766",
-      "gainDb": 3.0000010051371495,
-      "peakDbFS": -0.00026507636037961915,
-      "sha256": "bee59dcca41f5802beea57dec74723af5be8ddc1cf5e5ca3495049e6db9477cd"
     },
     {
       "title": "Dice-lightful!",

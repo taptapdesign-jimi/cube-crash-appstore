@@ -5,6 +5,68 @@ import SpriteKit
 
 @MainActor
 final class NativeSharedSmokeRootTests:XCTestCase {
+    func testTabletTntBoostOnlyEnlargesSmokeSpritesAndLeavesDiceUnchanged() throws {
+        let size=CGSize(width:820,height:1180),viewport=NativeTabletLayout.animationViewport(size)
+        let textures=NativeBoardTextures(root:NativeTestResources.root);defer{textures.dispose()}
+        let baseline=NativeTntFinale(textures:textures,fontName:"Helvetica",viewport:viewport,showsTitle:false,random:{0.5})
+        let larger=NativeTntFinale(textures:textures,fontName:"Helvetica",viewport:viewport,showsTitle:false,smokePresentationScale:NativeTabletLayout.smokeSpriteBoost(size),random:{0.5})
+        let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0},sourceFrameTransportEnabled:true)
+        defer{baseline.dispose();larger.dispose();service.dispose()}
+        XCTAssertTrue(baseline.playSource(service:service,current:{true},frameSix:{},completion:{}))
+        XCTAssertTrue(larger.playSource(service:service,current:{true},frameSix:{},completion:{}))
+        baseline.advanceSourceAnimation(seconds:0.5);larger.advanceSourceAnimation(seconds:0.5)
+        let old=baseline.children.compactMap{$0 as? SKSpriteNode},new=larger.children.compactMap{$0 as? SKSpriteNode}
+        XCTAssertEqual(old.count,12);XCTAssertEqual(new.count,12)
+        for (a,b) in zip(old,new) where a.xScale>0 {XCTAssertEqual(b.xScale/a.xScale,2.541,accuracy:0.0001);XCTAssertEqual(b.alpha,a.alpha)}
+        let oldDice=baseline.children.filter{!($0 is SKSpriteNode)},newDice=larger.children.filter{!($0 is SKSpriteNode)}
+        for (a,b) in zip(oldDice,newDice) {XCTAssertEqual(a.position,b.position);XCTAssertEqual(a.xScale,b.xScale)}
+        XCTAssertEqual(NativeTabletLayout.smokeSpriteBoost(CGSize(width:390,height:844)),1)
+    }
+    func testTabletBlossomUsesPoofSpriteFactorWithoutMovingPathsOrGlyphs() throws {
+        let viewport=CGSize(width:390,height:561)
+        let baseline=NativeTntVariantPresentation(resourceRoot:NativeTestResources.root,variant:.flower,viewport:viewport,random:{0.5})
+        let larger=NativeTntVariantPresentation(resourceRoot:NativeTestResources.root,variant:.flower,viewport:viewport,smokePresentationScale:1.694,random:{0.5})
+        defer{baseline.dispose();larger.dispose()}
+        XCTAssertTrue(baseline.assetsReady);XCTAssertTrue(larger.assetsReady)
+        for time in [0.5,0.8,1.4,2.0] {
+            baseline.paint(seconds:time);larger.paint(seconds:time)
+            XCTAssertEqual(baseline.subviews.count,larger.subviews.count)
+            var scaled=0
+            for (a,b) in zip(baseline.subviews,larger.subviews) {
+                XCTAssertEqual(a.center,b.center);XCTAssertEqual(a.alpha,b.alpha)
+                if a is UIImageView,a.alpha>0.01 {
+                    let old=hypot(a.transform.a,a.transform.b),new=hypot(b.transform.a,b.transform.b)
+                    if old>0.001 {XCTAssertEqual(new/old,1.694,accuracy:0.001);scaled+=1}
+                } else if !(a is UIImageView) {XCTAssertEqual(a.transform,b.transform)}
+            }
+            XCTAssertGreaterThan(scaled,0)
+        }
+    }
+    func testTabletBarrelPoofRetainsReducedLargeSmokeSprites() throws {
+        let viewport=CGSize(width:390,height:561)
+        let old=NativeTntVariantPresentation(resourceRoot:NativeTestResources.root,variant:.barell,viewport:viewport,random:{0.5})
+        let new=NativeTntVariantPresentation(resourceRoot:NativeTestResources.root,variant:.barell,viewport:viewport,smokePresentationScale:1.694,random:{0.5})
+        defer{old.dispose();new.dispose()}
+        XCTAssertTrue(old.assetsReady);XCTAssertTrue(new.assetsReady)
+        old.paint(seconds:0.8);new.paint(seconds:0.8)
+        XCTAssertEqual(old.subviews.count,new.subviews.count)
+        var enlarged=0
+        for (a,b) in zip(old.subviews,new.subviews) {
+            XCTAssertEqual(a.center,b.center);XCTAssertEqual(a.alpha,b.alpha)
+            if a is UIImageView,abs(a.transform.a)>0.001,abs(b.transform.a/a.transform.a-1.694)<0.001 {
+                enlarged+=1;XCTAssertEqual(b.transform.d/a.transform.d,1.694,accuracy:0.001)
+            } else {XCTAssertEqual(a.transform,b.transform)}
+        }
+        XCTAssertEqual(enlarged,12)
+        let size=CGSize(width:820,height:1180),window=UIWindow(frame:CGRect(origin:.zero,size:size)),host=UIViewController()
+        window.rootViewController=host;window.makeKeyAndVisible();host.view.backgroundColor=UIColor(red:0.97,green:0.94,blue:0.89,alpha:1)
+        defer{window.isHidden=true}
+        for (name,owner) in [("before",old),("after",new)] {
+            host.view.addSubview(owner);NativeTabletLayout.projectAnimation(owner,viewport:size);owner.layoutIfNeeded()
+            let data=UIGraphicsImageRenderer(size:size).pngData{host.view.layer.render(in:$0.cgContext)}
+            try data.write(to:URL(fileURLWithPath:"/tmp/ipad-barrel-poof-"+name+".png"));owner.removeFromSuperview()
+        }
+    }
     func testIdleSmokeRetainsLatePuffsThroughTheirFadeInsteadOfSqueezeEnd()throws {
         let recipe=NativeSharedSmokeRecipes.regularIdle(tileDepth:20)
         let expectedRandom=Random()

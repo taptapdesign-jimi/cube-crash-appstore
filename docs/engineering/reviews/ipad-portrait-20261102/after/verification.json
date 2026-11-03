@@ -1,0 +1,67 @@
+{
+  "normalBuild": "/tmp/ipad-adaptation/hub-normal-build.log",
+  "nativeTests": {
+    "log": "/tmp/ipad-adaptation/hub-tests.log",
+    "passed": 15,
+    "failed": 0
+  },
+  "fullQA": {
+    "log": "/tmp/ipad-adaptation/hub-full.log",
+    "suites": 530,
+    "tests": 4010,
+    "kingSuites": 24,
+    "kingTests": 330
+  },
+  "ipad": {
+    "device": "43A75086-0C64-464C-B71C-FDD01AF59C32",
+    "bundle": "com.taptapdesign.stacktosix.native",
+    "normalLaunch": "com.taptapdesign.stacktosix.native: 82194",
+    "runtimeHashes": {
+      "Stack to Six": "a6280bbce0034eb1ab9ce5c2b0acc196b85b962270f2f97ac9a0f2ec5b8f21ea",
+      "Stack to Six.debug.dylib": "d8220400fdd9dd1222c3ba31e2b5285b7cca37650d6a933d023ab66dc801823f"
+    },
+    "originalAssetsByteExact": 2952,
+    "saveBefore": {
+      "state-v1.previous.json": "1645e18e47b381e1783644988e089d9eb332e76b985a8ff07fd07e4fdd151f92",
+      "state-v1.json": "d1c1420cbbd8d4cbfcf5df606f9c6eb78511bc2d987336b0e93303045074f411"
+    },
+    "saveAfter": {
+      "state-v1.previous.json": "1645e18e47b381e1783644988e089d9eb332e76b985a8ff07fd07e4fdd151f92",
+      "state-v1.json": "d1c1420cbbd8d4cbfcf5df606f9c6eb78511bc2d987336b0e93303045074f411"
+    },
+    "bothSavesByteIdenticalThroughInstallAndInitialLaunch": true,
+    "actualSpringBoardSBRingerMuted": "0"
+  },
+  "iphone": {
+    "device": "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+    "bundle": "com.taptapdesign.stacktosix.native",
+    "normalLaunch": "com.taptapdesign.stacktosix.native: 82235",
+    "runtimeHashes": {
+      "Stack to Six": "a6280bbce0034eb1ab9ce5c2b0acc196b85b962270f2f97ac9a0f2ec5b8f21ea",
+      "Stack to Six.debug.dylib": "d8220400fdd9dd1222c3ba31e2b5285b7cca37650d6a933d023ab66dc801823f"
+    },
+    "originalAssetsByteExact": 2952,
+    "saveBefore": {
+      "state-v1.previous.json": "0966ba64bd96eb3e19dc24256b99c3ac72fbd5760c2ebd9430aa499f408d1912",
+      "state-v1.json": "9f029ebe42f174467c55c947bcd5572a59ca297ca1609f0cbc25b3802c4ac964"
+    },
+    "saveAfter": {
+      "state-v1.previous.json": "0966ba64bd96eb3e19dc24256b99c3ac72fbd5760c2ebd9430aa499f408d1912",
+      "state-v1.json": "9f029ebe42f174467c55c947bcd5572a59ca297ca1609f0cbc25b3802c4ac964"
+    },
+    "bothSavesByteIdenticalThroughInstallAndInitialLaunch": true,
+    "actualSpringBoardSBRingerMuted": "1"
+  },
+  "visualCoverage": [
+    "Home",
+    "Settings",
+    "Journey Hub enlarged composition",
+    "Forest stage canvas",
+    "Forest open and return to Hub"
+  ],
+  "limits": [
+    "CUA scroll gesture failed at window targeting across multiple displays; scroll extent/offset/pivot continuity verified in hosted Native tests, not a successful manual drag.",
+    "Remaining modal/result/collection/HUD geometry has hosted layout regression coverage; full visual sweep and physical iPad acceptance remain pending.",
+    "iPhone Silent Mode ON verified; A16 iPad Silent Mode 0, toolbar has no Mute; game preferences and macOS audio untouched."
+  ]
+}

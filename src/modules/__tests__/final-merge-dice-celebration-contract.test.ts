@@ -50,10 +50,12 @@ describe('final merge dice celebration contract', () => {
     }
   });
 
-  test('shows only Cleared! here and moves all sixty authored messages into Clean Board', () => {
+  test('shows only Cleared! here and keeps the 58 retained authored messages into Clean Board', () => {
     expect(FINAL_MERGE_CELEBRATION_MESSAGE).toBe('Cleared!');
-    expect(ADDITIONAL_CLEAN_BOARD_WIN_MESSAGES).toHaveLength(60);
-    expect(new Set(ADDITIONAL_CLEAN_BOARD_WIN_MESSAGES).size).toBe(60);
+    expect(ADDITIONAL_CLEAN_BOARD_WIN_MESSAGES).not.toContain('Six it up!');
+    expect(ADDITIONAL_CLEAN_BOARD_WIN_MESSAGES).not.toContain('Stacktastic!');
+    expect(ADDITIONAL_CLEAN_BOARD_WIN_MESSAGES).toHaveLength(58);
+    expect(new Set(ADDITIONAL_CLEAN_BOARD_WIN_MESSAGES).size).toBe(58);
     expect(ADDITIONAL_CLEAN_BOARD_WIN_MESSAGES).toEqual(expect.arrayContaining([
       'Nice win!',
       'Perfect clear!',

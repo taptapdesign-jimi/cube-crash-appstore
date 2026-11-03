@@ -6,6 +6,7 @@ struct NativeRewardPresentation {
     static let inflateDuration=0.12,collapseDuration=0.224,unlockedEnterDuration=0.28
     static let surfaceScale=1.17,surfaceY=40.0
     static let frontArtworkScale=0.95
+    static let unlockedArtworkScale=frontArtworkScale*1.13
     enum TapAction {case reveal,queueCollect,collect,ignore}
     static func tapAction(revealed:Bool,revealRunning:Bool,resolved:Bool,disposed:Bool)->TapAction {
         if resolved || disposed{return .ignore};if revealed && !revealRunning{return .collect};if revealRunning{return .queueCollect};return .reveal
@@ -23,9 +24,10 @@ struct NativeRewardPresentation {
             let textWidth=min(width*0.88,520),heroWidth=min(width*0.68,380),heroHeight=heroWidth*458/310
             title=CGRect(x:(width-textWidth)/2,y:padding-16,width:textWidth,height:titleHeight)
             subtitle=CGRect(x:(width-textWidth)/2,y:padding+titleHeight+26-16,width:textWidth,height:subtitleHeight)
-            hero=CGRect(x:(width-heroWidth)/2,y:padding+titleHeight+26+subtitleHeight+clamp(height*0.125,70,116)-64,width:heroWidth,height:heroHeight)
+            let cardDrop:CGFloat=NativeTabletLayout.applies(CGSize(width:width,height:height)) ? 24:0
+            hero=CGRect(x:(width-heroWidth)/2,y:padding+titleHeight+26+subtitleHeight+clamp(height*0.125,70,116)-64+cardDrop,width:heroWidth,height:heroHeight)
             let handWidth=min(width*0.36,168),handHeight=handWidth*handAspect
-            hand=CGRect(x:(width-handWidth)/2,y:height*0.56-handHeight*0.28,width:handWidth,height:handHeight)
+            hand=CGRect(x:(width-handWidth)/2,y:height*0.56-handHeight*0.28+cardDrop,width:handWidth,height:handHeight)
             coach=CGRect(x:16,y:height-bottomSafe-34-32,width:width-32,height:32)
         }
     }

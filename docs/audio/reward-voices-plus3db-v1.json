@@ -1,0 +1,138 @@
+{
+  "originalsUnchanged": true,
+  "processing": "Fixed +3 dB; PCM16 rounding only; no clipping, limiting, resampling, trim or rate change",
+  "files": [
+    {
+      "source": "assets/sound/card reveal/reward-voices-v1/001-reward-common-01.wav",
+      "playback": "assets/sound/card reveal/reward-voices-v1/plus3db-v1/001-reward-common-01.wav",
+      "sourceSHA256": "31f7d5c9a3b447205d79ded012d1886879ee3f2315699ce1c23239ca81b47e51",
+      "playbackSHA256": "6024cea963b721d31fe1db81e9cd431ff0544dd223a27c68467584fd3c591db2",
+      "gainDb": 3,
+      "peakDbFS": -0.6480990629000422,
+      "frames": 73440,
+      "sampleRate": 48000,
+      "channels": 1
+    },
+    {
+      "source": "assets/sound/card reveal/reward-voices-v1/002-reward-common-02.wav",
+      "playback": "assets/sound/card reveal/reward-voices-v1/plus3db-v1/002-reward-common-02.wav",
+      "sourceSHA256": "51335dbfe7e2e3072eabf5c7f25857a9a6184fa46c2255ed341c1f90713fffcc",
+      "playbackSHA256": "bd6c8f2c065ccceba1c5d6962678f4d79d2aad8bd7c8c3031d14d4a81e3a1cb6",
+      "gainDb": 3,
+      "peakDbFS": -1.5447992094431864,
+      "frames": 92880,
+      "sampleRate": 48000,
+      "channels": 1
+    },
+    {
+      "source": "assets/sound/card reveal/reward-voices-v1/003-reward-common-03.wav",
+      "playback": "assets/sound/card reveal/reward-voices-v1/plus3db-v1/003-reward-common-03.wav",
+      "sourceSHA256": "ec0ea3af68e2a393229bddedf396155cea4a7e9dbc9e9f889482ddda65d99318",
+      "playbackSHA256": "491ca9bc6fba9edf21d573a04f5ac6170885d23d929ebe0ea0bccb0d79d0f4ec",
+      "gainDb": 3,
+      "peakDbFS": -1.4927055000407339,
+      "frames": 67680,
+      "sampleRate": 48000,
+      "channels": 1
+    },
+    {
+      "source": "assets/sound/card reveal/reward-voices-v1/004-reward-common-04.wav",
+      "playback": "assets/sound/card reveal/reward-voices-v1/plus3db-v1/004-reward-common-04.wav",
+      "sourceSHA256": "5c713ba253011bd0acf7c1e5308b66c1fd9d42a44e7a0020689ffb77b8ee4129",
+      "playbackSHA256": "b8cacc81c4baa7c92007fbc4b860e65268281e260c839d5d3e4d9e86f379ae5d",
+      "gainDb": 3,
+      "peakDbFS": -0.35382433344899766,
+      "frames": 95520,
+      "sampleRate": 48000,
+      "channels": 1
+    },
+    {
+      "source": "assets/sound/card reveal/reward-voices-v1/005-reward-legendary-01.wav",
+      "playback": "assets/sound/card reveal/reward-voices-v1/plus3db-v1/005-reward-legendary-01.wav",
+      "sourceSHA256": "a2ac87d277ee7125697789abd29a726217bdeec8dfeb98321f66906fe5a934d9",
+      "playbackSHA256": "80ec1792d0da2c85cc7e3a52d09beb1abc4d794a9c43d81f00b3bc6d4bb27e06",
+      "gainDb": 3,
+      "peakDbFS": -0.810693978538905,
+      "frames": 108480,
+      "sampleRate": 48000,
+      "channels": 1
+    },
+    {
+      "source": "assets/sound/card reveal/reward-voices-v1/006-reward-legendary-02.wav",
+      "playback": "assets/sound/card reveal/reward-voices-v1/plus3db-v1/006-reward-legendary-02.wav",
+      "sourceSHA256": "471a1fc1b5990b8ff54db3c772bbbd078fc7a3da0e5ecdd15227efb6284b58c9",
+      "playbackSHA256": "2474a13439a9d81f7240967b831ef2d99b2e8325d4e666d1c1771044f2fb4854",
+      "gainDb": 3,
+      "peakDbFS": -0.8556246152983613,
+      "frames": 104400,
+      "sampleRate": 48000,
+      "channels": 1
+    },
+    {
+      "source": "assets/sound/card reveal/reward-voices-v1/007-reward-legendary-03.wav",
+      "playback": "assets/sound/card reveal/reward-voices-v1/plus3db-v1/007-reward-legendary-03.wav",
+      "sourceSHA256": "ceaf83b758a7623766edba94a9a54030d9698e65065f8dfcff70adc40b72fef7",
+      "playbackSHA256": "7dfa32d8b8089e15cba2450a7d5f89313e00a5f699b3b07d9826793f9b8eecbf",
+      "gainDb": 3,
+      "peakDbFS": -1.3314727961119437,
+      "frames": 74400,
+      "sampleRate": 48000,
+      "channels": 1
+    },
+    {
+      "source": "assets/sound/card reveal/reward-voices-v1/008-reward-legendary-04.wav",
+      "playback": "assets/sound/card reveal/reward-voices-v1/plus3db-v1/008-reward-legendary-04.wav",
+      "sourceSHA256": "398b90dc51e751eba3e425c736c0b55491c39500d077048e8f78eddec8966895",
+      "playbackSHA256": "3fd4a6fc65ba99269d9a32395338f36ffd8b1d9bf51b97212131e8241126b511",
+      "gainDb": 3,
+      "peakDbFS": -0.7411322909075045,
+      "frames": 114960,
+      "sampleRate": 48000,
+      "channels": 1
+    },
+    {
+      "source": "assets/sound/card reveal/reward-voices-v1/009-reward-interim-01.wav",
+      "playback": "assets/sound/card reveal/reward-voices-v1/plus3db-v1/009-reward-interim-01.wav",
+      "sourceSHA256": "4dbf6ef8d167bafae7f182c4d7a33c92ce46a04031b58a7717c084dac6d251e3",
+      "playbackSHA256": "033e1d8b7c9c78b9bfa650532b297e628ee02470cf30126caeded756cef51b65",
+      "gainDb": 3,
+      "peakDbFS": -0.5750063889102671,
+      "frames": 77760,
+      "sampleRate": 48000,
+      "channels": 1
+    },
+    {
+      "source": "assets/sound/card reveal/reward-voices-v1/010-reward-interim-02.wav",
+      "playback": "assets/sound/card reveal/reward-voices-v1/plus3db-v1/010-reward-interim-02.wav",
+      "sourceSHA256": "84690fa809f09bef40ee1865dcd2b30f8aafcbf1a2f9c21ce9c8264efaf3cbeb",
+      "playbackSHA256": "8dc485b6df425795dd0e469ae878d1ea8f99d70b2dd80a706babe12f1b5fb1a0",
+      "gainDb": 3,
+      "peakDbFS": -1.1932264028311976,
+      "frames": 67920,
+      "sampleRate": 48000,
+      "channels": 1
+    },
+    {
+      "source": "assets/sound/card reveal/reward-voices-v1/011-reward-interim-03.wav",
+      "playback": "assets/sound/card reveal/reward-voices-v1/plus3db-v1/011-reward-interim-03.wav",
+      "sourceSHA256": "72ba5923ce4d121362626c35949555bbb51244ee28798d1e32b89e6873b08674",
+      "playbackSHA256": "30c232d8d0a7e42690be4ddbec6f1d98b99e1437e8f77a7f2d99b8b4de2b256d",
+      "gainDb": 3,
+      "peakDbFS": -0.5379843691854733,
+      "frames": 49920,
+      "sampleRate": 48000,
+      "channels": 1
+    },
+    {
+      "source": "assets/sound/card reveal/reward-voices-v1/012-reward-interim-04.wav",
+      "playback": "assets/sound/card reveal/reward-voices-v1/plus3db-v1/012-reward-interim-04.wav",
+      "sourceSHA256": "5ca8cebef65f4d21c55740b967a4ce69ffc127bd975049004bf91af084ffdaa3",
+      "playbackSHA256": "e73ca8419f38d240fce52a87f9cbac6875e55c6f743be817658997ec021962fd",
+      "gainDb": 3,
+      "peakDbFS": -1.062836007760546,
+      "frames": 84519,
+      "sampleRate": 48000,
+      "channels": 1
+    }
+  ]
+}

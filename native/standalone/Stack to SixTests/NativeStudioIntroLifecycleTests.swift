@@ -32,7 +32,7 @@ import ImageIO
         return Data(bytes:bytes,count:4096)
     }
     private func originalDurations(_ character:NativeStudioIntroView.Character)throws->[Double] {
-        let url=NativeTestResources.root.appendingPathComponent("assets/logo addons/optimized/\(character.key)-mobile.webp")
+        let url=NativeTestResources.root.appendingPathComponent(character.motionAssetPath)
         let source=try XCTUnwrap(CGImageSourceCreateWithURL(url as CFURL,nil))
         return try (0..<CGImageSourceGetCount(source)).map {index in
             let properties=try XCTUnwrap(CGImageSourceCopyPropertiesAtIndex(source,index,nil) as? [CFString:Any])
@@ -53,6 +53,63 @@ import ImageIO
             XCTAssertEqual(glyph.layer.opacity,0,file:file,line:line)
         }
     }
+    func testLogoBounceEntryUsesSharedHomeRecipeThenOriginalExit() {
+        let track=JimiV9Motion.homeEnter(.logo)
+        XCTAssertEqual(NativeStudioIntroView.logoEntryDuration,track.duration)
+        for index in 0...100 {
+            let time=track.duration*Double(index)/100
+            XCTAssertEqual(NativeStudioIntroView.scale(at:time,character:false),track.pose(at:time).scaleX,accuracy:0.000001)
+        }
+        XCTAssertGreaterThan((0...100).map{NativeStudioIntroView.scale(at:Double($0)/100*track.duration,character:false)}.max() ?? 0,1.05)
+        XCTAssertEqual(NativeStudioIntroView.scale(at:1,character:false),1)
+        XCTAssertEqual(NativeStudioIntroView.scale(at:3.68,character:false),1)
+        XCTAssertEqual(NativeStudioIntroView.scale(at:4.33,character:false),0,accuracy:0.000001)
+        for index in 0...100 {
+            let scale=NativeStudioIntroView.scale(at:Double(index)/100*0.16,character:false,reducedMotion:true)
+            XCTAssertGreaterThanOrEqual(scale,0);XCTAssertLessThanOrEqual(scale,1)
+        }
+    }
+    func testLogoUsesFiniteWorldsHubFloatWithLockedSheenPauseAndCleanup()async throws {
+        let(controller,window,prior)=mount(),view=intro()
+        controller.view.addSubview(view)
+        defer{view.dispose();window.isHidden=true;prior?.makeKeyAndVisible()}
+        view.start{};try await wait{view.timelineStarted}
+        let unit=try XCTUnwrap(view.subviews.first)
+        let images=unit.subviews.compactMap{$0 as? UIImageView}
+        XCTAssertEqual(images.count,2)
+        let animations=try images.map{try XCTUnwrap($0.layer.animation(forKey:NativeStudioIntroView.logoIdleKey) as? CAKeyframeAnimation)}
+        XCTAssertEqual(animations[0].beginTime,animations[1].beginTime,accuracy:0.000001)
+        for animation in animations {
+            XCTAssertEqual(animation.duration,4.4);XCTAssertEqual(animation.repeatCount,0)
+            XCTAssertEqual(animation.keyTimes,[0,0.5,1])
+            let values=try XCTUnwrap(animation.values as? [NSValue])
+            XCTAssertEqual(values[1].caTransform3DValue.m42,-8,accuracy:0.000001)
+            XCTAssertEqual(hypot(values[1].caTransform3DValue.m11,values[1].caTransform3DValue.m12),1.018,accuracy:0.000001)
+        }
+        try await Task.sleep(for:.milliseconds(1100))
+        let first=try XCTUnwrap(images[0].layer.presentation())
+        XCTAssertLessThan(first.transform.m42,-0.1)
+        XCTAssertEqual(first.transform.m42,try XCTUnwrap(images[1].layer.presentation()).transform.m42,accuracy:0.001)
+        NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
+        try await Task.sleep(for:.milliseconds(50))
+        let paused=try XCTUnwrap(images[0].layer.presentation()).transform.m42
+        try await Task.sleep(for:.milliseconds(150))
+        XCTAssertEqual(try XCTUnwrap(images[0].layer.presentation()).transform.m42,paused,accuracy:0.01)
+        NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
+        view.dispose()
+        for image in images{XCTAssertNil(image.layer.animation(forKey:NativeStudioIntroView.logoIdleKey))}
+    }
+    func testReducedMotionOmitsOnlyTheNewLogoFloat()async throws {
+        let(controller,window,prior)=mount()
+        let view=NativeStudioIntroView(root:NativeTestResources.root,character:.init("lik-nogomet",1.1),reducedMotion:true)
+        view.frame=window.bounds;controller.view.addSubview(view);view.layoutIfNeeded()
+        defer{view.dispose();window.isHidden=true;prior?.makeKeyAndVisible()}
+        view.start{};try await wait{view.timelineStarted}
+        let unit=try XCTUnwrap(view.subviews.first)
+        XCTAssertNotNil(unit.layer.animation(forKey:"native-studio-intro"))
+        for image in unit.subviews.compactMap({$0 as? UIImageView}){XCTAssertNil(image.layer.animation(forKey:NativeStudioIntroView.logoIdleKey))}
+    }
+
     func testPresentsUsesArcadeLetterEntryStretchedByExactlyOneSecond()async throws {
         XCTAssertEqual(NativeStudioIntroView.presentsEntryDuration,1.58,accuracy:0.000001)
         XCTAssertEqual(NativeStudioIntroView.presentsEntryStart,0.95,accuracy:0.000001)
@@ -165,6 +222,51 @@ import ImageIO
             view.dispose();assertReleased(view)
         }
     }
+    private func exerciseStudioLeashReplacement(_ mounted:(NativeStudioIntroView)->Void)async throws {
+        let character=try XCTUnwrap(NativeStudioIntroView.characters.first{$0.key == "lik-pas-SVG"})
+        XCTAssertEqual(character.motionAssetPath,"assets/logo addons/native/lik-lajna-v1.webp")
+        let(controller,window,prior)=mount()
+        defer{window.isHidden=true;prior?.makeKeyAndVisible()}
+        let view=NativeStudioIntroView(root:NativeTestResources.root,character:character)
+        mounted(view)
+        defer{view.dispose()}
+        var cues:[String]=[],handoffs=0
+        do {
+            view.frame=controller.view.bounds;controller.view.addSubview(view);view.layoutIfNeeded()
+            XCTAssertEqual(view.displayedFallbackImage?.size,CGSize(width:369,height:510))
+            view.onCharacterCue={cues.append($0)};view.start{handoffs+=1}
+            try await wait{view.timelineStarted}
+            XCTAssertEqual(view.preparedFrameCount,62)
+            XCTAssertEqual(view.preparedFramePixelSize,CGSize(width:369,height:510))
+            XCTAssertEqual(view.preparedDecodedBytes,369*510*4*62)
+            XCTAssertEqual(view.preparedFrameDurations.reduce(0,+),2.667,accuracy:0.000001)
+            XCTAssertEqual(cues,["lik-pas-SVG"])
+            try await wait(timeout:2){self.presentationPixels(view) != nil}
+            let first=try XCTUnwrap(presentationPixels(view))
+            try await wait(timeout:2){self.presentationPixels(view).map{$0 != first} ?? false}
+            NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
+            try await Task.sleep(for:.milliseconds(70))
+            let paused=try XCTUnwrap(presentationPixels(view))
+            try await Task.sleep(for:.milliseconds(160))
+            XCTAssertEqual(presentationPixels(view),paused)
+            let image=UIGraphicsImageRenderer(bounds:view.bounds).image{_ in
+                XCTAssertTrue(view.drawHierarchy(in:view.bounds,afterScreenUpdates:true))
+            }
+            try XCTUnwrap(image.pngData()).write(to:URL(fileURLWithPath:"/tmp/native-leash-v1/mounted.png"))
+            NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
+            try await wait(timeout:2){self.presentationPixels(view).map{$0 != paused} ?? false}
+            try await wait(timeout:7){handoffs==1}
+            XCTAssertEqual(cues,["lik-pas-SVG"]);assertReleased(view)
+            view.dispose();view.dispose();assertReleased(view)
+        }
+    }
+    func testStudioLeashReplacementKeepsNativeResolutionTimingPauseAndReleasesAtHandoff()async throws {
+        weak var released:NativeStudioIntroView?
+        // Return from the async playback scope before measuring object lifetime;
+        // the compiler can retain a do-block local across suspension points.
+        try await exerciseStudioLeashReplacement{released=$0}
+        try await wait(timeout:2){released == nil}
+    }
     func testDisposalBeforePreparedLoopPublicationRejectsPixelsCueAndHomeHandoff()async throws {
         var publications:[()->Void]=[],cues=0
         let view=intro(gate:{publications.append($0)})
@@ -252,6 +354,43 @@ import ImageIO
             view.animationDidStop(CAAnimation(),finished:true);XCTAssertEqual(handoffs,1,name)
             print("[NativeStudioIntroFallbackProof] case=\(name) preparation=\(view.preparationDuration) naturalHandoff=1")
         }
+    }
+    func testAppSwitchAtOneSecondRecoversHomeEvenWhenSystemDropsIntroAnimations()async throws {
+        let(controller,window,prior)=mount(),view=intro(),homepage=UIView();var handoffs=0,cues=0
+        controller.view.addSubview(view)
+        defer{view.dispose();window.isHidden=true;prior?.makeKeyAndVisible()}
+        view.onCharacterCue={_ in cues+=1}
+        view.start{
+            handoffs+=1;XCTAssertTrue(view.isRetired);XCTAssertNil(view.superview)
+            homepage.frame=controller.view.bounds;controller.view.addSubview(homepage)
+        }
+        try await wait{view.timelineStarted}
+        try await Task.sleep(for:.seconds(1))
+        NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
+        NotificationCenter.default.post(name:UIApplication.didEnterBackgroundNotification,object:nil)
+        // Reproduce the system losing the finite compositor completion while
+        // retaining the hidden model pose. No finished=true receipt follows.
+        view.subviews.forEach{$0.layer.removeAllAnimations()}
+        view.animationDidStop(CAAnimation(),finished:false)
+        XCTAssertEqual(handoffs,0)
+        NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
+        XCTAssertEqual(handoffs,1);XCTAssertTrue(homepage.superview === controller.view)
+        assertReleased(view)
+        NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
+        view.animationDidStop(CAAnimation(),finished:true)
+        XCTAssertEqual(handoffs,1);XCTAssertEqual(cues,1)
+    }
+    func testAppSwitchBeforeDecodePublicationRetiresStartupAndRejectsLatePixels()async throws {
+        var publications:[()->Void]=[],handoffs=0,cues=0
+        let view=intro(gate:{publications.append($0)})
+        view.onCharacterCue={_ in cues+=1};view.start{handoffs+=1}
+        try await wait{publications.count==1}
+        NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
+        NotificationCenter.default.post(name:UIApplication.didEnterBackgroundNotification,object:nil)
+        NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
+        XCTAssertEqual(handoffs,1);assertReleased(view)
+        publications.removeFirst()()
+        XCTAssertFalse(view.timelineStarted);XCTAssertEqual(cues,0);XCTAssertEqual(handoffs,1)
     }
     func testMountedPreparedMediaCompletesNaturalExitOnceBeforeHomepageEnters()async throws {
         let(controller,window,prior)=mount(),view=intro(),homepage=UIView();var handoffs=0

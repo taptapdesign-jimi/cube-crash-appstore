@@ -6,7 +6,7 @@ import UIKit
     private func modal(_ hub:NativeArcadeHubView)->UIView? {hub.subviews.first{$0.accessibilityIdentifier=="native.arcade-world-modal"}}
     private func animatedView(_ root:UIView,key:String)->UIView? {
         if root.layer.animation(forKey:key) != nil{return root}
-        return root.subviews.lazy.compactMap{animatedView($0,key:key)}.first
+        return root.subviews.lazy.compactMap{self.animatedView($0,key:key)}.first
     }
     func testJourneyAndArcadeWorldArtworkUseGentleScaleUp() async throws {
         guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Reduced Motion intentionally skips contact motion")}

@@ -216,7 +216,7 @@ final class NativeAppController: UIViewController {
     private func selectSlide(_ index:Int,feedback:String="tab") {
         guard !disposed,!suspended,!transitioning,route == .home,home.navigationButtonViews.indices.contains(index) else{return}
         let changed=index != home.selectedSlide
-        if feedback != "tab-swipe" {onFeedback?(feedback)}
+        if feedback != "tab-swipe" || changed {onFeedback?(feedback)}
         if changed {onFeedback?("swipe")}
         motion.selectSlide(index) { [weak self] in
             guard let self,self.route == .home,!self.suspended,!self.transitioning else{return}
@@ -704,7 +704,9 @@ final class NativeAppController: UIViewController {
                 guard let self,let world,let detail,self.world === world,self.statHistoryModal === detail,
                       !self.disposed,!self.suspended,!self.transitioning,self.presentedViewController === detail else{return}
                 NativeHistoryTransitionTrace.event("route.begin-prepared-entry")
-                self.onFeedback?("exit-modal");detail.beginPreparedEntry()
+                self.onFeedback?("exit-modal")
+                self.onFeedback?(combo ? "combo-modal-speech":"high-score-modal-speech")
+                detail.beginPreparedEntry()
             }) else{retirePrepared();return}
         }
     }
@@ -715,9 +717,10 @@ final class NativeAppController: UIViewController {
         onFeedback?("tab")
         let detail=NativeBackpackDetail(die:die,assets:JimiV9Artwork(resourceRoot:resourceRoot),motion:NativeRouteMotion(home:home,hub:hub))
         pendingBackpackDie=nil;backpackDetail=detail;backpackView?.isUserInteractionEnabled=false;backpackView?.setAlertsActive(false)
+        detail.onSpeechRequested={[weak self] in self?.onFeedback?("scene-speech:"+NativeRecordedSceneSpeech.scene(forDie:die.id))}
         detail.onPresentationStarted={[weak self,weak detail] in
             guard let self,let detail,self.backpackDetail === detail,!self.disposed,!self.suspended else{return}
-            self.onFeedback?("exit-modal")
+            self.onFeedback?("exit-modal");detail.onSpeechRequested?()
             if self.services.readJourneyDie(die.id){self.backpackView?.markRead(die.id)}
         }
         detail.onCloseRequested={[weak self] in self?.onFeedback?("modal-close")}

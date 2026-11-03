@@ -5,7 +5,8 @@ import UIKit
 final class NativeBackpackDetail:UIViewController {
     let die:NativeBackpackCatalog.Die
     private let assets:JimiV9Artwork,motion:NativeRouteMotion
-    private let flip=JimiNativeModalTransformView(),idle=UIView()
+    private let flip=JimiNativeModalTransformView(),tilt=UIView(),idle=UIView()
+    let speechButton=NativeSceneSpeechTapView()
     let card=UIView(),hero=UIImageView(),close=JimiV9PlainButton(type:.custom)
     private let paper=UIImageView(),heading=UILabel(),copy=UILabel(),backdrop=UIButton(type:.custom)
     let worldIllustration=UIImageView()
@@ -19,6 +20,7 @@ final class NativeBackpackDetail:UIViewController {
     var usesParentBackdrop=false
     var usesForestWorldIllustration=false
     var entersImmediately=false
+    var onSpeechRequested:(()->Void)?
     var onPresentationStarted:(()->Void)?
     var onClose:(()->Void)?
     var onExitSelection:((CGPoint)->Void)?
@@ -29,7 +31,7 @@ final class NativeBackpackDetail:UIViewController {
     override func viewDidLoad(){
         super.viewDidLoad();view.backgroundColor = .clear
         var camera=CATransform3DIdentity;camera.m34 = -1/920;view.layer.sublayerTransform=camera
-        card.addSubview(flip);flip.addSubview(idle);idle.layer.isDoubleSided=false
+        card.addSubview(flip);flip.addSubview(tilt);tilt.addSubview(idle);tilt.transform=CGAffineTransform(rotationAngle:-1.5 * .pi/180);idle.layer.isDoubleSided=false
         card.layer.anchorPoint=CGPoint(x:0.5,y:0.55);flip.layer.anchorPoint=CGPoint(x:0.5,y:1);idle.layer.anchorPoint=CGPoint(x:0.5,y:0.52)
         let illustrationPath:String?
         if usesForestWorldIllustration,(1...10).contains(die.board) {
@@ -44,16 +46,19 @@ final class NativeBackpackDetail:UIViewController {
         backdrop.accessibilityIdentifier="native.backpack.detail.backdrop"
         backdrop.alpha=0;backdrop.backgroundColor=usesParentBackdrop ? .clear:JimiNativeModalV10.backdropColor;backdrop.addTarget(self,action:#selector(closeTapped),for:.touchUpInside);view.addSubview(backdrop);view.addSubview(card)
         paper.image=assets.image("assets/modals/paper.png");paper.layer.cornerRadius=40;paper.clipsToBounds=true;paper.accessibilityIdentifier="native.backpack.detail.paper";idle.addSubview(paper)
-        idle.layer.shadowColor=UIColor(red:185/255,green:145/255,blue:119/255,alpha:1).cgColor;idle.layer.shadowOpacity=die.id=="baloon" ? 0:0.8;idle.layer.shadowOffset=CGSize(width:0,height:13);idle.layer.shadowRadius=16.8
+        idle.layer.shadowColor=UIColor(red:185/255,green:145/255,blue:119/255,alpha:1).cgColor;idle.layer.shadowOpacity=0.8;idle.layer.shadowOffset=CGSize(width:0,height:13);idle.layer.shadowRadius=16.8
         heading.textAlignment = .center;heading.font=assets.font(size:30,weight:"ExtraBold");heading.textColor=NativeTextPalette.modalTitle
         let displayTitle=die.id=="tnt" ? "TNT":die.title.capitalized
         heading.attributedText=NativeModalTypography.attributedCollectionTitle(displayTitle,baseColor:NativeTextPalette.modalTitle)
         copy.attributedText=NativeModalTypography.attributedSubtitle(die.copy,font:assets.font(size:18,weight:"Medium"));copy.numberOfLines=0;copy.textAlignment = .center;copy.font=assets.font(size:18,weight:"Medium");copy.textColor=NativeTextPalette.subtitle
         hero.image=assets.image(die.id=="barell" ? "assets/shop/barell/barell.png":die.artwork.path,densityAware:true);hero.contentMode = .scaleAspectFit
         if let image=hero.image {artworkAspect=image.size.width/image.size.height;artworkVisibleBounds=Self.visibleArtworkBounds(image)}
-        [heading,copy,hero,close].forEach{idle.addSubview($0)}
+        [heading,copy,hero,speechButton,close].forEach{idle.addSubview($0)}
+        speechButton.accessibilityLabel="Hear Jimbo";speechButton.accessibilityHint="Tap for another line"
+        speechButton.accessibilityIdentifier="native.backpack.detail.speech"
+        speechButton.onTap={[weak self] in self?.speechTapped()}
         close.setBackgroundImage(paper.image,for:.normal);close.clipsToBounds=true;close.layer.cornerRadius=26;close.setImage(assets.image("assets/close-icon.png",densityAware:true),for:.normal);close.imageView?.contentMode = .scaleAspectFit;close.artworkOpacity = 0.8;close.enableArtworkTapFeedback();close.imageEdgeInsets=UIEdgeInsets(top:14,left:14,bottom:14,right:14);close.addTarget(self,action:#selector(closeTapped),for:.touchUpInside);close.accessibilityLabel="Close dice details";close.accessibilityIdentifier="native.backpack.detail.close"
-        modalDrag=JimiNativeModalDrag(target:card,idle:idle,viewport:view,canDrag:{[weak self] in guard let self else{return false};return self.foreground && self.entered && self.card.isUserInteractionEnabled && !self.closing && !self.disposed},onDismiss:{[weak self] in self?.closeTapped()})
+        modalDrag=JimiNativeModalDrag(target:card,idle:idle,viewport:view,mediaSafeIdleAnimationKeys:["backpack.detail.idle",JimiNativeModalV10.settledBounceKey],canDrag:{[weak self] in guard let self else{return false};return self.foreground && self.entered && self.card.isUserInteractionEnabled && !self.closing && !self.disposed},onDismiss:{[weak self] in self?.closeTapped()})
         card.accessibilityIdentifier="native.backpack.detail";card.alpha=0;card.isUserInteractionEnabled=false;view.accessibilityViewIsModal=true
         let exitTap=UILongPressGestureRecognizer(target:self,action:#selector(exitSelectionPressed(_:)))
         exitTap.minimumPressDuration=0;exitTap.isEnabled=false;view.addGestureRecognizer(exitTap);exitSelectionPress=exitTap
@@ -61,21 +66,24 @@ final class NativeBackpackDetail:UIViewController {
     }
     override func viewDidLayoutSubviews(){
         super.viewDidLayoutSubviews();backdrop.frame=view.bounds
+        let modalBounds=NativeTabletLayout.modalBounds(in:view,card:card)
+        let modalSafeInsets=NativeTabletLayout.modalSafeInsets(in:view)
         worldIllustration.frame=view.bounds.insetBy(dx:-view.bounds.width*0.2,dy:0)
-        let width=min(390,max(0,view.bounds.width-48)),scale=width/390
-        heading.font=assets.font(size:32,weight:"ExtraBold");copy.font=assets.font(size:18,weight:"Medium")
-        heading.frame=CGRect(x:width*0.1,y:28,width:width*0.8,height:38.4)
+        let width=NativeTabletLayout.paperWidth(modalBounds.size),scale=width/390
+        let textScale=NativeTabletLayout.textScale(modalBounds.size)
+        NativeTabletLayout.labelFont(heading,size:32*textScale);NativeTabletLayout.labelFont(copy,size:18*textScale)
+        heading.frame=CGRect(x:width*0.1,y:28,width:width*0.8,height:38.4*textScale)
         let copyHeight=ceil(copy.sizeThatFits(CGSize(width:width*0.8,height:CGFloat.greatestFiniteMagnitude)).height)
         copy.frame=CGRect(x:width*0.1,y:heading.frame.maxY+12,width:width*0.8,height:copyHeight)
-        let subtitleGap:CGFloat=48
+        let subtitleGap:CGFloat=48*textScale
         // House the floor shadow and lower paper inset.
-        let bottomGap:CGFloat=96
+        let bottomGap:CGFloat=96*textScale
         let artworkOffset:CGFloat=die.id=="beach-ball" ? -32:die.id=="wild-star" ? -24:die.id=="spaceship" ? -16:0
-        let availableHeight=max(0,view.bounds.height-view.safeAreaInsets.top-view.safeAreaInsets.bottom-40)
+        let availableHeight=max(0,modalBounds.height-modalSafeInsets.top-modalSafeInsets.bottom-40)
         let artworkSpace=max(0,availableHeight-copy.frame.maxY-subtitleGap-bottomGap)
         let envelopeRatio=preview?.presentationHeightRatio ?? 1
         let artworkScale:CGFloat=die.id=="cubero" ? 1.33:die.id=="wild-magnet" ? 0.8:die.id=="laser-gun" ? 1.15:(11...20).contains(die.board) ? 0.9:1
-        let artworkHeight=min(min(180*artworkScale,artworkSpace/envelopeRatio)/artworkVisibleBounds.height,(width-40*scale)*artworkScale/artworkAspect)
+        let artworkHeight=min(min(180*textScale*artworkScale,artworkSpace/envelopeRatio)/artworkVisibleBounds.height,(width-40*scale)*artworkScale/artworkAspect)
         hero.bounds=CGRect(x:0,y:0,width:artworkHeight*artworkAspect,height:artworkHeight)
         let visibleHeight=hero.bounds.height*artworkVisibleBounds.height
         let envelopeHeight=visibleHeight*envelopeRatio
@@ -84,8 +92,8 @@ final class NativeBackpackDetail:UIViewController {
                             y:artworkTop+envelopeHeight/2-(artworkVisibleBounds.midY-0.5)*hero.bounds.height)
         let height=artworkTop+envelopeHeight+bottomGap
         // Preserve the authored55% animation pivot while centering the visible paper.
-        card.bounds=CGRect(x:0,y:0,width:width,height:height);card.center=CGPoint(x:view.bounds.midX,y:view.bounds.midY+height*(card.layer.anchorPoint.y-0.5))
-        flip.bounds=card.bounds;flip.center=CGPoint(x:width/2,y:height);idle.bounds=card.bounds;idle.center=CGPoint(x:width/2,y:height*0.52)
+        card.bounds=CGRect(x:0,y:0,width:width,height:height);card.center=CGPoint(x:modalBounds.midX,y:modalBounds.midY+height*(card.layer.anchorPoint.y-0.5))
+        flip.bounds=card.bounds;flip.center=CGPoint(x:width/2,y:height);tilt.bounds=card.bounds;tilt.center=CGPoint(x:width/2,y:height/2);idle.bounds=card.bounds;idle.center=CGPoint(x:width/2,y:height*0.52)
         // Crop the folded source edge below the rounded card, at every content height.
         JimiNativeModalV10.paperLayout(paper,bounds:card.bounds,bottomExtension:96)
         if let preview {
@@ -93,6 +101,7 @@ final class NativeBackpackDetail:UIViewController {
             preview.artworkFrame=CGRect(x:0,y:artworkTop,width:width,height:envelopeHeight)
             preview.layoutArtwork()
         }
+        speechButton.frame=hero.frame
         close.frame=CGRect(x:width-42,y:-10,width:52,height:52)
     }
     /// Read once from a bounded preview of the original PNG. Transparent
@@ -180,6 +189,18 @@ final class NativeBackpackDetail:UIViewController {
             motion.suspend();hero.layer.removeAllAnimations();preview?.setActive(false)
         }
     }
-    func dispose(){guard !disposed else{return};modalDrag?.dispose();modalDrag=nil;disposed=true;exitSelectionPress.map{view.removeGestureRecognizer($0)};exitSelectionPress=nil;onExitSelection=nil;motion.cancel();[card,flip,idle,hero,worldIllustration].forEach{$0.layer.removeAllAnimations()};hero.image=nil;worldIllustration.image=nil;worldIllustration.removeFromSuperview();preview?.dispose();preview?.removeFromSuperview();preview=nil;assets.retireImagePreparation();onClose=nil;onCloseRequested=nil;onPresentationStarted=nil}
+    @objc private func speechTapped(){guard entered,presentationStarted,foreground,card.isUserInteractionEnabled,!closing,!disposed else{return};onSpeechRequested?()}
+    func dispose(){guard !disposed else{return};speechButton.retire();modalDrag?.dispose();modalDrag=nil;disposed=true;exitSelectionPress.map{view.removeGestureRecognizer($0)};exitSelectionPress=nil;onExitSelection=nil;motion.cancel();[card,flip,tilt,idle,hero,worldIllustration].forEach{$0.layer.removeAllAnimations()};hero.image=nil;worldIllustration.image=nil;worldIllustration.removeFromSuperview();preview?.dispose();preview?.removeFromSuperview();preview=nil;assets.retireImagePreparation();onClose=nil;onCloseRequested=nil;onPresentationStarted=nil;onSpeechRequested=nil}
 }
 private enum NativeBackpackCellPalette {static let ink=UIColor(red:173/255,green:134/255,blue:117/255,alpha:1)}
+
+/// A non-control contact surface preserves the shared modal pan admission.
+/// Tap cancels naturally when the parent pan recognizes; VoiceOver uses the same callback.
+final class NativeSceneSpeechTapView:UIView {
+    var onTap:(()->Void)?
+    init(){super.init(frame:.zero);isAccessibilityElement=true;accessibilityTraits = .button;addGestureRecognizer(UITapGestureRecognizer(target:self,action:#selector(requestSpeech)))}
+    required init?(coder:NSCoder){fatalError("Use initializer")}
+    @objc private func requestSpeech(){onTap?()}
+    override func accessibilityActivate()->Bool {guard let onTap else{return false};onTap();return true}
+    func retire(){onTap=nil;gestureRecognizers?.forEach{removeGestureRecognizer($0)}}
+}

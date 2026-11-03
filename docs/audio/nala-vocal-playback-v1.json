@@ -1,0 +1,115 @@
+{
+  "version": 1,
+  "targetPeakDbFS": -1,
+  "originalsUnchanged": true,
+  "files": [
+    {
+      "source": "assets/sound/SPEECH/Nala/nala cvili prica 2.wav",
+      "playback": "assets/sound/SPEECH/Nala/playback-v1/nala cvili prica 2.wav",
+      "sourceSHA256": "dd7f84e47c2ecfa149bf822f08797a0e830226ff325c6bc31ed8ee626e7ea458",
+      "playbackSHA256": "526f248022f64d6bb152c67586f444fa72c89b26b7d308defd477975d6517264",
+      "duration": 2.88,
+      "channels": 2,
+      "sampleRate": 48000,
+      "bits": 16,
+      "gainDb": -0.7312000850286909,
+      "peakDbFS": -0.9998544876801003
+    },
+    {
+      "source": "assets/sound/SPEECH/Nala/nala dahce cvili 2.wav",
+      "playback": "assets/sound/SPEECH/Nala/playback-v1/nala dahce cvili 2.wav",
+      "sourceSHA256": "0604cc65c5a83e583bf0cd6da769e7bc61aa293aaf6428c88ce94daf6f1dc2b5",
+      "playbackSHA256": "6f57fe03658d85d2f45c3b0028cb069997d19d20fc4e994ce753dbc0cc4bf112",
+      "duration": 2.88,
+      "channels": 2,
+      "sampleRate": 48000,
+      "bits": 16,
+      "gainDb": 6.145514244484773,
+      "peakDbFS": -0.9998544876801003
+    },
+    {
+      "source": "assets/sound/SPEECH/Nala/nala dahce cvili.wav",
+      "playback": "assets/sound/SPEECH/Nala/playback-v1/nala dahce cvili.wav",
+      "sourceSHA256": "73086b3d509c5c0cbfecc4e1a19792a517baf4553ec4309ce19f3e55b81ef2d7",
+      "playbackSHA256": "dc0993bbf7b02f9ea728386df9b4bb3198f4841894ed7df0470e36b6b9faa7ec",
+      "duration": 2.88,
+      "channels": 2,
+      "sampleRate": 48000,
+      "bits": 16,
+      "gainDb": 24.95946532723613,
+      "peakDbFS": -0.9998544876801003
+    },
+    {
+      "source": "assets/sound/SPEECH/Nala/nala lajavo prica 2.wav",
+      "playback": "assets/sound/SPEECH/Nala/playback-v1/nala lajavo prica 2.wav",
+      "sourceSHA256": "29ec6a015f82930236984b19947b6fcecc4362a626de178ad210e49f03f5c8d8",
+      "playbackSHA256": "4b9af27d8163ccab1ded236c4f5a0963b3f70d23d87cd4f2d0d6f6b78d2912ff",
+      "duration": 2.88,
+      "channels": 2,
+      "sampleRate": 48000,
+      "bits": 16,
+      "gainDb": -0.8363663013210385,
+      "peakDbFS": -0.9998544876801003
+    },
+    {
+      "source": "assets/sound/SPEECH/Nala/nala lajavo prica.wav",
+      "playback": "assets/sound/SPEECH/Nala/playback-v1/nala lajavo prica.wav",
+      "sourceSHA256": "bba1c717f8d3f593828d6d042c9b0e50751a2a7c6f9c5254f456dc3627de9d73",
+      "playbackSHA256": "8b9264a2aa7a9fda5246ee7f8d15f3f951c4122ecf7e71f66c4e689e319741ca",
+      "duration": 2.88,
+      "channels": 2,
+      "sampleRate": 48000,
+      "bits": 16,
+      "gainDb": -0.4762407036461522,
+      "peakDbFS": -0.9998544876801003
+    },
+    {
+      "source": "assets/sound/SPEECH/Nala/nala laje 2.wav",
+      "playback": "assets/sound/SPEECH/Nala/playback-v1/nala laje 2.wav",
+      "sourceSHA256": "a04ae2e270d3aa27d4fd4813cec4207f32e7ebf2e3e4c4d96265c8788cc050da",
+      "playbackSHA256": "006d5b224ecf9854e66cf2ea4ff99adde2a09959ec7bd419fdef6d052301c6ac",
+      "duration": 2.88,
+      "channels": 2,
+      "sampleRate": 48000,
+      "bits": 16,
+      "gainDb": 0.7503384062314206,
+      "peakDbFS": -0.9998544876801003
+    },
+    {
+      "source": "assets/sound/SPEECH/Nala/nala laje.wav",
+      "playback": "assets/sound/SPEECH/Nala/playback-v1/nala laje.wav",
+      "sourceSHA256": "908ddfa087a5cebee99dda5d613caba599d6cc5a09c5de589a353a3a9a2677f5",
+      "playbackSHA256": "1fba6a09e6ab2afb93ca2b9470583e87f8001d4235f1b83713786eea04db9774",
+      "duration": 2.88,
+      "channels": 2,
+      "sampleRate": 48000,
+      "bits": 16,
+      "gainDb": -0.6252984482203328,
+      "peakDbFS": -0.9998544876801003
+    },
+    {
+      "source": "assets/sound/SPEECH/Nala/nala nesretna.wav",
+      "playback": "assets/sound/SPEECH/Nala/playback-v1/nala nesretna.wav",
+      "sourceSHA256": "40e8db1a91cbce1b7cdfc013ad17cf0defe06007810065363bdbac7aae6201b0",
+      "playbackSHA256": "0b50f9af1371336eab01bc0b50dbc705cb1c09136658f52212c92cf0c72fb97b",
+      "duration": 2.88,
+      "channels": 2,
+      "sampleRate": 48000,
+      "bits": 16,
+      "gainDb": 12.01536352877724,
+      "peakDbFS": -0.9998544876801003
+    },
+    {
+      "source": "assets/sound/SPEECH/Nala/nala prica cvili.wav",
+      "playback": "assets/sound/SPEECH/Nala/playback-v1/nala prica cvili.wav",
+      "sourceSHA256": "0bab06f0b679e20788e3ccbd849b5b7db21aae427ce3e12e752c9741f8db45bc",
+      "playbackSHA256": "72d32a3ec2709c1599ddb67aea54c08a0897269fd52b0e04a2595435852a57db",
+      "duration": 2.88,
+      "channels": 2,
+      "sampleRate": 48000,
+      "bits": 16,
+      "gainDb": 0.10201389427730334,
+      "peakDbFS": -0.9998544876801003
+    }
+  ]
+}

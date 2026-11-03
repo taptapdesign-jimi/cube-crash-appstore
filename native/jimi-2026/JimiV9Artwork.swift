@@ -3,6 +3,7 @@ import CoreText
 
 /// Shared semantic text colors for Native UI.
 enum NativeTextPalette {
+    static let accentOrange=UIColor(red:231/255,green:116/255,blue:73/255,alpha:1)
     static let navigationTitle = UIColor(red:190/255,green:124/255,blue:89/255,alpha:1) // #BE7C59
     static let modalTitle = UIColor(red:190/255,green:124/255,blue:89/255,alpha:1) // #BE7C59
     static let subtitle = UIColor(red:207/255,green:147/255,blue:115/255,alpha:1) // #CF9373
@@ -36,16 +37,54 @@ enum NativeModalTypography {
 /// Shared rectangular navigation surface; its existing parent owns all motion.
 @MainActor
 final class JimiV9NavigationHeader: UIView {
-    /// Forest's accepted row center, shared by differently sized controls.
+    /// Tablet content sits4pt below the full header midpoint; preserve the phone row.
     struct RowLayout {
-        let top,width:CGFloat
-        var centerY:CGFloat {top+26}
-        var titleFrame:CGRect {CGRect(x:72,y:centerY-16,width:max(0,width-144),height:32)}
-        init(bounds:CGRect,safeAreaTop:CGFloat) {
-            width=bounds.width;top=max(0,safeAreaTop+bounds.height*0.02-16)
+        let top,width,contentHeight:CGFloat
+        let tablet:Bool,sideInset:CGFloat
+        var centerY:CGFloat {tablet ? headerHeight()/2+4:top+26}
+        var iconScale:CGFloat {tablet ? 1.4:1}
+        var titleFontSize:CGFloat {28*iconScale}
+        func headerHeight()->CGFloat {top+contentHeight+(tablet ? 32:0)}
+        func iconRect(_ rect:CGRect,inkCenterY:CGFloat=0.5)->CGRect {
+            guard tablet else{return rect}
+            return CGRect(x:rect.minX*iconScale,y:(rect.minY+(0.5-inkCenterY)*rect.height)*iconScale,width:rect.width*iconScale,height:rect.height*iconScale)
         }
-        func buttonFrame(x:CGFloat,width:CGFloat=44,height:CGFloat=44)->CGRect {
-            CGRect(x:x,y:centerY-height/2,width:width,height:height)
+        func iconInsets(_ insets:UIEdgeInsets,imageHeight:CGFloat=0,inkCenterY:CGFloat=0.5)->UIEdgeInsets {
+            guard tablet else{return insets}
+            let offset=(0.5-inkCenterY)*imageHeight
+            return UIEdgeInsets(top:(insets.top+offset)*iconScale,left:insets.left*iconScale,bottom:(insets.bottom-offset)*iconScale,right:insets.right*iconScale)
+        }
+        var titleFrame:CGRect {
+            let edge:CGFloat=tablet ? sideInset+60:72
+            let height:CGFloat=32*iconScale
+            return CGRect(x:edge,y:centerY-height/2,width:max(0,width-edge*2),height:height)
+        }
+        /// Align actual glyph ink, not Baloo's asymmetric ascent/descent box.
+        /// Metrics are sampled only in the existing layout pass; no raster/cache.
+        func titleFrame(for label:UILabel)->CGRect {
+            var frame=titleFrame
+            guard tablet,let font=label.font else{return frame}
+            let text=label.attributedText ?? NSAttributedString(string:label.text ?? "",attributes:[.font:font])
+            let line=CTLineCreateWithAttributedString(text)
+            let ink=CTLineGetBoundsWithOptions(line,.useGlyphPathBounds)
+            guard !ink.isEmpty else{return frame}
+            frame.origin.x += CGFloat(CTLineGetTypographicBounds(line,nil,nil,nil))/2-ink.midX
+            frame.origin.y += ink.midY-(font.ascender+font.descender-font.leading)/2
+            return frame
+        }
+        init(bounds:CGRect,safeAreaTop:CGFloat,contentHeight:CGFloat=66) {
+            self.contentHeight=contentHeight
+            width=bounds.width;top=max(0,safeAreaTop+bounds.height*0.02-16)
+            tablet=NativeTabletLayout.applies(bounds.size)
+            sideInset=NativeTabletLayout.navigationSideInset(bounds.size)
+        }
+        /// Insets refer to the original icon's painted edge inside its hit area.
+        /// Phone callers retain their exact authored x; tablet icons share the
+        /// Settings content edges without reducing their existing hit targets.
+        func buttonFrame(x:CGFloat,width:CGFloat=44,height:CGFloat=44,visibleInset:CGFloat=0)->CGRect {
+            let paintedWidth=width*iconScale,paintedHeight=height*iconScale,inset=visibleInset*iconScale
+            let alignedX=tablet ? (x<self.width/2 ? sideInset-inset:self.width-sideInset-paintedWidth+inset):x
+            return CGRect(x:alignedX,y:centerY-paintedHeight/2,width:paintedWidth,height:paintedHeight)
         }
     }
     override init(frame:CGRect) {

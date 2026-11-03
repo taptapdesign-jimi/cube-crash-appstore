@@ -4,6 +4,118 @@ import UIKit
 
 @MainActor
 final class NativeJourneyRewardTests:XCTestCase {
+    func testCommonSkipsAllUnlockedShimmerBurnPreparationButKeepsInterimSVGEffects() {
+        for stars in [1,2] {
+            let clock=Clock(),resources=Resources(),controller=screen(clock,resources,stars:stars)
+            defer{controller.dispose()}
+            resources.suppliedImage=UIGraphicsImageRenderer(size:CGSize(width:2,height:2)).image{context in UIColor.white.setFill();context.fill(CGRect(x:0,y:0,width:2,height:2))}
+            var filters=0,faces=0
+            controller.prepareFilteredFrames={images,_,done in filters+=1;done(images)}
+            controller.prepareFaceEffects={_,_,done in faces+=1;done(NativeMagicCardSource.Node("g",[:]))}
+            func descendants(_ layer:CALayer)->[CALayer] {[layer]+(layer.sublayers ?? []).flatMap{descendants($0)}}
+            func passes()->[CALayer] {descendants(controller.view.layer).filter{$0.mask?.animation(forKey:"native.reward.magic-card.sheen") != nil}}
+            resources.finish();controller.start();clock.advance(NativeMagicCardSource.fullyOpenAt+0.01)
+            XCTAssertEqual(passes().count,1,"Common reward still retains the original interim SVG shimmer")
+            XCTAssertTrue(descendants(controller.view.layer).contains{$0.name=="native.reward.magic-card.burn"},"Interim SVG burn is preserved")
+            clock.advance(3);controller.activate();clock.advance(3)
+            XCTAssertEqual(controller.phase,"unlocked");XCTAssertEqual(filters,0);XCTAssertEqual(faces,0)
+            XCTAssertTrue(passes().isEmpty)
+            XCTAssertFalse(descendants(controller.view.layer).contains{$0.name=="native.reward.magic-card.burn"})
+            let glow=descendants(controller.view.layer).first{$0.name=="native.reward.unlocked-burn"}
+            XCTAssertNil(glow?.contents);XCTAssertTrue((glow?.animationKeys() ?? []).isEmpty)
+            controller.setForeground(false);clock.advance(5);controller.setForeground(true);clock.advance(1)
+            XCTAssertTrue(passes().isEmpty);XCTAssertEqual(filters,0);XCTAssertEqual(faces,0)
+            controller.activate();controller.dispose();clock.advance(10)
+            XCTAssertEqual(clock.activeCount,0);XCTAssertEqual(controller.phase,"disposed")
+        }
+    }
+
+    func testEffectsStartAtInterimArrivalAndUnlockedBounceEndAndCollectUsesStaggeredHomeExit() throws {
+        let clock=Clock(),resources=Resources(),controller=screen(clock,resources,stars:3)
+        defer {controller.dispose()}
+        let image=UIGraphicsImageRenderer(size:CGSize(width:2,height:2)).image{context in UIColor.white.setFill();context.fill(CGRect(x:0,y:0,width:2,height:2))}
+        resources.suppliedImage=image
+        var prepared=0
+        controller.prepareFaceEffects={image,_,completion in
+            prepared+=1
+            let root=NativeMagicCardSource.Node("g",[:]),face=NativeMagicCardSource.Node("image",["width":"360","height":"533"])
+            face.image=image;face.sheenImage=image;root.children=[face];completion(root)
+        }
+        resources.finish();XCTAssertEqual(prepared,1,"Prepare selected face before reveal")
+        func descendants(_ layer:CALayer)->[CALayer] {[layer]+(layer.sublayers ?? []).flatMap{descendants($0)}}
+        func passes()->[CAAnimation] {descendants(controller.view.layer).compactMap{$0.mask?.animation(forKey:"native.reward.magic-card.sheen")}}
+        controller.start();clock.advance(NativeMagicCardSource.fullyOpenAt-0.001)
+        XCTAssertTrue(passes().isEmpty)
+        clock.advance(0.002);XCTAssertEqual(passes().count,1,"SVG effect starts at arrival")
+        clock.advance(2);controller.activate();XCTAssertTrue(passes().isEmpty)
+        clock.advance(1.139);XCTAssertTrue(passes().isEmpty)
+        controller.setForeground(false);clock.advance(5);XCTAssertTrue(passes().isEmpty)
+        controller.setForeground(true);clock.advance(0.002)
+        XCTAssertEqual(passes().count,1,"Unlocked effect starts when its 540ms+600ms bounce finishes")
+        clock.advance(1);controller.activate();XCTAssertEqual(controller.phase,"exiting");XCTAssertTrue(passes().isEmpty)
+        let exits=descendants(controller.view.layer).compactMap{layer -> CAKeyframeAnimation? in
+            guard layer.name != "native.reward.collect-rotor",let key=layer.animationKeys()?.first(where:{$0.hasPrefix("reward.transform.")}),let animation=layer.animation(forKey:key) as? CAKeyframeAnimation,[NativeRewardMotion.collectExitTimeScale,NativeRewardMotion.collectCardExitTimeScale].contains(where:{abs(animation.duration-JimiV9Motion.homeExit(.hero).duration*$0)<0.00001}) else{return nil}
+            return animation
+        }.sorted{$0.beginTime<$1.beginTime}
+        XCTAssertEqual(exits.count,3)
+        if let values=exits.first?.values as? [NSValue] {
+            let scales=values.map{$0.caTransform3DValue.m11}
+            XCTAssertEqual(scales.first,1);XCTAssertEqual(scales.last,0)
+            for index in 1..<scales.count {XCTAssertLessThan(scales[index],scales[index-1],"Card must shrink from the first sample, without an anticipation plateau")}
+        }
+        if exits.count==3 {
+            XCTAssertEqual(exits[1].beginTime-exits[0].beginTime,0.08,accuracy:0.01)
+            XCTAssertEqual(exits[2].beginTime-exits[1].beginTime,0.08,accuracy:0.01)
+            let values=try XCTUnwrap(exits[0].values as? [NSValue])
+            for (index,value) in values.enumerated() {
+                let progress=Double(index)/Double(values.count-1)
+                XCTAssertEqual(value.caTransform3DValue.m11,NativeRewardMotion.collectCardExitScale(progress:progress),accuracy:0.000001)
+            }
+        }
+    }
+
+    func testMountedCollectRelayoutKeepsCardAndTextBoundsAndVisibleStagger() async throws {
+        let clock=Clock(),resources=Resources(),controller=screen(clock,resources)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=controller;window.makeKeyAndVisible()
+        defer {controller.dispose();window.isHidden=true;window.rootViewController=nil}
+        resources.finish();controller.start();clock.advance(3);controller.activate();clock.advance(3)
+        try await Task.sleep(for:.milliseconds(1250))
+        controller.view.layoutIfNeeded()
+        let heading=try XCTUnwrap(controller.view.subviews.compactMap{$0 as? UILabel}.first{$0.text=="Common"})
+        let subtitle=try XCTUnwrap(controller.view.subviews.compactMap{$0 as? UILabel}.first{$0.attributedText?.string.hasPrefix("Unlocked")==true})
+        let hero=try XCTUnwrap(controller.view.subviews.first{$0.accessibilityIdentifier=="native.reward.card"})
+        let pose=try XCTUnwrap(hero.subviews.first)
+        let targets=[pose,heading,subtitle],bounds=targets.map(\.bounds)
+        controller.activate();XCTAssertEqual(controller.phase,"exiting")
+        for _ in 0..<3 {controller.view.setNeedsLayout();controller.view.layoutIfNeeded()}
+        print("[RewardCollect] relayout bounds before=\(bounds) after=\(targets.map(\.bounds))")
+        for (index,target) in targets.enumerated(){XCTAssertEqual(target.bounds,bounds[index],"Collect layout cannot resize a zero-scale model")}
+        try await Task.sleep(for:.milliseconds(40))
+        for label in [heading,subtitle] {
+            let presentation=try XCTUnwrap(label.layer.presentation())
+            print("[RewardCollect] label=\(label.text ?? "") scale=\(presentation.transform.m11) opacity=\(presentation.opacity) bounds=\(presentation.bounds)")
+            XCTAssertGreaterThan(presentation.transform.m11,0.9,"Delayed text remains visible at its held size")
+            XCTAssertGreaterThan(presentation.opacity,0.9)
+        }
+    }
+
+    func testColdFaceEffectsHoldRevealAndLateCompletionCannotRestartCollectOrDisposedOwner() throws {
+        let clock=Clock(),resources=Resources(),controller=screen(clock,resources,stars:3)
+        let image=UIGraphicsImageRenderer(size:CGSize(width:2,height:2)).image{context in UIColor.white.setFill();context.fill(CGRect(x:0,y:0,width:2,height:2))}
+        resources.suppliedImage=image
+        var finish:((NativeMagicCardSource.Node)->Void)?
+        controller.prepareFaceEffects={_,_,completion in finish=completion}
+        resources.finish();controller.start();clock.advance(3);controller.activate()
+        XCTAssertEqual(controller.phase,"awaiting-artwork")
+        let root=NativeMagicCardSource.Node("g",[:]),face=NativeMagicCardSource.Node("image",["width":"360","height":"533"])
+        face.image=image.cgImage;face.sheenImage=image.cgImage;root.children=[face]
+        controller.setForeground(false);finish?(root);clock.advance(4)
+        XCTAssertEqual(controller.phase,"awaiting-artwork")
+        controller.setForeground(true);XCTAssertEqual(controller.phase,"revealing")
+        clock.advance(3);controller.activate();XCTAssertEqual(controller.phase,"exiting")
+        controller.dispose();finish?(root);XCTAssertEqual(controller.phase,"disposed")
+    }
+
     func testCommonAndLegendaryUnlockedCardsUseStrongBounceInAndRetire() throws {
         for stars in [1,3] {for reduced in [false,true] {
             let clock=Clock(),resources=Resources()
@@ -11,11 +123,19 @@ final class NativeJourneyRewardTests:XCTestCase {
             controller.prepareMagicCard={_,lease,completion in completion(NativeMagicCardSource.read(NativeTestResources.root.appendingPathComponent(NativeMagicCardSource.path),lease:lease))}
             controller.prepareFilteredFrames={images,_,completion in completion(images)}
             controller.loadViewIfNeeded();controller.view.frame=CGRect(x:0,y:0,width:390,height:844);controller.view.layoutIfNeeded()
-            resources.finish();controller.start();clock.advance(3);controller.activate()
+            var speech:[(String,Int,Double)]=[]
+            controller.onSoundMoment={kind,index,_ in if kind.hasSuffix("-speech") {speech.append((kind,index,clock.time))}}
+            resources.finish();controller.start();controller.start();clock.advance(3);controller.activate();controller.activate()
+            XCTAssertEqual(speech.map{$0.0},["new-card-interim-speech"])
+            clock.advance(0.539);XCTAssertEqual(speech.count,1)
+            clock.advance(0.0011)
+            XCTAssertEqual(speech.map{$0.0},["new-card-interim-speech","new-card-unlock-speech"])
+            XCTAssertEqual(speech.last?.1,stars==3 ? 1:0)
+            XCTAssertEqual(speech.last!.2,3.54,accuracy:0.00001)
             func descendants(_ layer:CALayer)->[CALayer] {[layer]+(layer.sublayers ?? []).flatMap{descendants($0)}}
             let burn=try XCTUnwrap(descendants(controller.view.layer).first{$0.name=="native.reward.unlocked-burn"})
             let face=try XCTUnwrap(burn.superlayer?.superlayer)
-            let animation=try XCTUnwrap(face.animation(forKey:"reward.transform.0.3") as? CAKeyframeAnimation)
+            let animation=try XCTUnwrap(face.animation(forKey:"reward.transform.0.54") as? CAKeyframeAnimation)
             let values=try XCTUnwrap(animation.values as? [NSValue])
             func scale(_ value:NSValue)->Double {let t=value.caTransform3DValue;return sqrt(t.m11*t.m11+t.m12*t.m12+t.m13*t.m13)}
             XCTAssertEqual(animation.duration,reduced ? 0.16:0.6,accuracy:0.000001)
@@ -66,7 +186,7 @@ final class NativeJourneyRewardTests:XCTestCase {
         XCTAssertNotEqual(controller.phase,"opening")
         func descendants(_ layer:CALayer)->[CALayer] {[layer]+(layer.sublayers ?? []).flatMap{descendants($0)}}
         let magic=try XCTUnwrap(descendants(controller.view.layer).first{$0.name=="native.reward.magic-card"})
-        XCTAssertTrue(descendants(magic).allSatisfy{($0.animationKeys() ?? []).isEmpty})
+        XCTAssertTrue(descendants(magic).allSatisfy{!($0.animationKeys() ?? []).contains(where:{$0.hasPrefix("magic.")})})
         controller.dispose();controller.whenMagicCardPrepared {admitted += 1};finish?(source)
         XCTAssertEqual(admitted,1)
     }
@@ -80,17 +200,18 @@ final class NativeJourneyRewardTests:XCTestCase {
     }
     private final class Resources:NativeRewardResources {
         var requested:[String]=[],reads:[String]=[],releases:[Int]=[]
+        var suppliedImage:UIImage?
         var completion:((Bool)->Void)?
-        func image(_ path:String,owner:Int)->UIImage? {reads.append(path);return UIImage()}
+        func image(_ path:String,owner:Int)->UIImage? {reads.append(path);return suppliedImage ?? UIImage()}
         func prepare(_ paths:[String],owner:Int,required:Bool,completion:@escaping (Bool)->Void){requested=paths;self.completion=completion}
         func release(_ owner:Int){releases.append(owner)}
         func finish(){let callback=completion;completion=nil;callback?(true)}
     }
-    private func screen(_ clock:Clock,_ resources:Resources,reduced:Bool=false)->NativeJourneyRewardController {
-        let screen=NativeJourneyRewardController(root:URL(fileURLWithPath:"/unused"),board:11,score:1000,generation:77,resources:resources,scheduler:clock,reducedMotion:reduced,random:{0.37},now:{clock.time});screen.prepareMagicCard={_,lease,completion in completion(NativeMagicCardSource.read(NativeTestResources.root.appendingPathComponent(NativeMagicCardSource.path),lease:lease))};screen.prepareFilteredFrames={images,_,completion in completion(images)};screen.loadViewIfNeeded();screen.view.frame=CGRect(x:0,y:0,width:390,height:844);screen.view.layoutIfNeeded();return screen
+    private func screen(_ clock:Clock,_ resources:Resources,reduced:Bool=false,stars:Int?=nil)->NativeJourneyRewardController {
+        let screen=NativeJourneyRewardController(root:URL(fileURLWithPath:"/unused"),board:11,score:1000,generation:77,awardedStars:stars,resources:resources,scheduler:clock,reducedMotion:reduced,random:{0.37},now:{clock.time});screen.prepareMagicCard={_,lease,completion in completion(NativeMagicCardSource.read(NativeTestResources.root.appendingPathComponent(NativeMagicCardSource.path),lease:lease))};screen.prepareFilteredFrames={images,_,completion in completion(images)};screen.loadViewIfNeeded();screen.view.frame=CGRect(x:0,y:0,width:390,height:844);screen.view.layoutIfNeeded();return screen
     }
     func testInterimAndUnlockedHaveNoFloorShadowAndUnlockedBurnHasNoSweep() {
-        let clock=Clock(),resources=Resources(),controller=screen(clock,resources)
+        let clock=Clock(),resources=Resources(),controller=screen(clock,resources,stars:3)
         let hero=controller.view.subviews.first{$0.accessibilityIdentifier=="native.reward.card"}!
         let pose=hero.layer.sublayers!.first{$0.name=="native.reward.card-pose"}!
         XCTAssertTrue(pose.superlayer === hero.layer)
@@ -116,7 +237,7 @@ final class NativeJourneyRewardTests:XCTestCase {
         XCTAssertNil(burn.animation(forKey:"transform"))
         controller.dispose();XCTAssertTrue((burn.animationKeys() ?? []).isEmpty)
     }
-    func testAuthoredSVGOpeningHoldsWithParentIdleAndClickStartsBothFaces() {
+    func testAuthoredSVGOpeningHoldsWithParentIdleAndClickStartsBothFaces() throws {
         let clock=Clock(),resources=Resources(),controller=screen(clock,resources)
         resources.finish();controller.start();XCTAssertEqual(controller.phase,"opening")
         clock.advance(0.7)
@@ -125,8 +246,8 @@ final class NativeJourneyRewardTests:XCTestCase {
         XCTAssertEqual(controller.phase,"interim");XCTAssertEqual(clock.activeCount,0)
         func descendants(_ layer:CALayer)->[CALayer] {[layer]+(layer.sublayers ?? []).flatMap{descendants($0)}}
         let layers=descendants(controller.view.layer),magic=layers.first{$0.name=="native.reward.magic-card"}!
-        XCTAssertEqual(descendants(magic).filter{$0.contents != nil}.count,9)
-        XCTAssertTrue(descendants(magic).allSatisfy{($0.animationKeys() ?? []).isEmpty})
+        XCTAssertEqual(descendants(magic).filter{($0.name ?? "").hasPrefix("magic.image.")}.count,9)
+        XCTAssertTrue(descendants(magic).allSatisfy{!($0.animationKeys() ?? []).contains(where:{$0.hasPrefix("magic.")})})
         let rotor=magic.superlayer!,pose=rotor.superlayer!.superlayer!
         for layer in [pose,rotor] {
             let idle=layer.animation(forKey:"reward.transform.0.0") as? CAKeyframeAnimation
@@ -143,7 +264,11 @@ final class NativeJourneyRewardTests:XCTestCase {
         XCTAssertTrue(descendants(magic).contains{!($0.animationKeys() ?? []).isEmpty})
         let unlockedBurn=layers.first{$0.name=="native.reward.unlocked-burn"}!
         let unlocked=unlockedBurn.superlayer!.superlayer!
-        XCTAssertEqual(unlocked.opacity,1);XCTAssertNotNil(unlocked.animation(forKey:"reward.transform.0.3"))
+        XCTAssertTrue(unlocked is CATransformLayer);XCTAssertEqual(unlocked.opacity,1)
+        XCTAssertNotNil(unlocked.animation(forKey:"reward.transform.0.54"))
+        XCTAssertNil(unlocked.animation(forKey:"reward.opacity.0.54"),"Spatial owner must not flatten its3D subtree to apply opacity")
+        let front=try XCTUnwrap(descendants(controller.view.layer).first{$0.name=="native.reward.card-front"})
+        XCTAssertNotNil(front.animation(forKey:"reward.opacity.0.54"),"The paint leaf owns the exact delayed reveal opacity")
         controller.dispose();XCTAssertNil(magic.sublayers);XCTAssertEqual(clock.activeCount,0)
         XCTAssertTrue((pose.animationKeys() ?? []).isEmpty);XCTAssertTrue((rotor.animationKeys() ?? []).isEmpty)
     }
@@ -160,13 +285,13 @@ final class NativeJourneyRewardTests:XCTestCase {
         let clock=Clock(),resources=Resources(),controller=screen(clock,resources)
         resources.finish();controller.start();clock.advance(0.8);controller.activate();controller.activate()
         controller.setForeground(false);clock.advance(10);XCTAssertEqual(controller.phase,"opening");XCTAssertEqual(clock.activeCount,0)
-        controller.setForeground(true);clock.advance(0.6);XCTAssertEqual(controller.phase,"revealing")
-        controller.activate();clock.advance(2);XCTAssertEqual(controller.phase,"disposed")
+        controller.setForeground(true);clock.advance(0.8);XCTAssertEqual(controller.phase,"revealing")
+        controller.activate();clock.advance(2.2);XCTAssertEqual(controller.phase,"disposed")
         for job in clock.history {job.callback()};XCTAssertEqual(clock.activeCount,0)
     }
     func testUnlockedRevealDoesNotRestartItsBurnBeforePeak() throws {
-        let clock=Clock(),resources=Resources(),controller=screen(clock,resources)
-        resources.finish();controller.start();clock.advance(2.1);controller.activate();clock.advance(1.0)
+        let clock=Clock(),resources=Resources(),controller=screen(clock,resources,stars:3)
+        resources.finish();controller.start();clock.advance(2.1);controller.activate();clock.advance(1.2)
         func descendants(_ layer:CALayer)->[CALayer] {[layer]+(layer.sublayers ?? []).flatMap{descendants($0)}}
         let burn=descendants(controller.view.layer).first{$0.name=="native.reward.unlocked-burn"}!
         let first=try XCTUnwrap(burn.animation(forKey:"reward.opacity.0.0")).beginTime
@@ -281,7 +406,8 @@ final class NativeJourneyRewardTests:XCTestCase {
         let clock=Clock(),resources=Resources(),view=screen(clock,resources)
         XCTAssertEqual(view.phase,"mounted");XCTAssertTrue(resources.reads.isEmpty)
         XCTAssertEqual(resources.requested.filter{$0.contains("zguzvano")}.count,0)
-        XCTAssertEqual(resources.requested.filter{$0.contains("colelctibles")}.count,2)
+        XCTAssertEqual(resources.requested.filter{$0.contains("colelctibles")}.count,3)
+        XCTAssertTrue(resources.requested.contains(NativeJourneyRewardController.collectBackAssetPath),"Only the selected World-return backside joins its two selected face densities")
         resources.finish();let reads=resources.reads.count
         view.view.setNeedsLayout();view.view.layoutIfNeeded();XCTAssertEqual(resources.reads.count,reads)
         view.dispose();XCTAssertEqual(resources.releases.count,1)
@@ -308,15 +434,46 @@ final class NativeJourneyRewardTests:XCTestCase {
         }
     }
 
+    func testInterimArrivalUsesUnlockedShakeBeforeSettleAndOrderedEntrySurvivesBackground()throws {
+        let clock=Clock(),resources=Resources(),view=screen(clock,resources);resources.finish()
+        defer{view.dispose()}
+        var reveals=0;view.onSoundMoment={kind,_,_ in if kind=="new-card-reveal" {reveals += 1}}
+        view.start();view.activate();clock.advance(NativeMagicCardSource.fullyOpenAt-0.001)
+        XCTAssertNil(view.view.layer.animation(forKey:"reward.transform.0.0"))
+        clock.advance(0.0011)
+        let shake=try XCTUnwrap(view.view.layer.animation(forKey:"reward.transform.0.0") as? CAKeyframeAnimation)
+        XCTAssertEqual(shake.duration,0.42);XCTAssertEqual(shake.repeatCount,0)
+        let shakeValues=try XCTUnwrap(shake.values as? [NSValue]);XCTAssertEqual(shakeValues[1].caTransform3DValue.m41,22)
+        XCTAssertEqual(view.phase,"opening");XCTAssertEqual(reveals,0)
+        view.activate();view.activate();XCTAssertEqual(reveals,0)
+        view.setForeground(false);clock.advance(10);XCTAssertEqual(view.phase,"opening")
+        view.setForeground(true);clock.advance(NativeMagicCardSource.hold-NativeMagicCardSource.fullyOpenAt-0.0002);XCTAssertEqual(reveals,0)
+        clock.advance(0.0002);XCTAssertEqual(view.phase,"revealing");XCTAssertEqual(reveals,1)
+        let labels=view.view.subviews.compactMap{$0 as? UILabel}
+        let subtitle=try XCTUnwrap(labels.first{($0.text ?? "").hasPrefix("Unlocked ")})
+        let heading=try XCTUnwrap(labels.first{["Common","Legendary!"].contains($0.text ?? "")})
+        let first=try XCTUnwrap(subtitle.layer.animation(forKey:"reward.transform.0.3"))
+        let second=try XCTUnwrap(heading.layer.animation(forKey:"reward.transform.0.42"))
+        func tree(_ layer:CALayer)->[CALayer] {[layer]+(layer.sublayers ?? []).flatMap{tree($0)}}
+        let face=try XCTUnwrap(tree(view.view.layer).first{$0.name=="native.reward.unlocked-spatial"})
+        let third=try XCTUnwrap(face.animation(forKey:"reward.transform.0.54"))
+        let a=subtitle.layer.convertTime(first.beginTime,to:nil),b=heading.layer.convertTime(second.beginTime,to:nil),c=face.convertTime(third.beginTime,to:nil)
+        XCTAssertEqual(b-a,0.12,accuracy:0.025);XCTAssertEqual(c-b,0.12,accuracy:0.025)
+        XCTAssertEqual(third.duration,NativeRewardMotion.cardEnterDuration)
+        clock.advance(1.330);XCTAssertEqual(view.phase,"revealing")
+        clock.advance(0.003);XCTAssertEqual(view.phase,"unlocked")
+        view.dispose();XCTAssertEqual(clock.activeCount,0);XCTAssertNil(view.view.layer.animationKeys())
+    }
     func testEarlyTapCannotSkipOpeningOrQueueInvisibleCollect() {
         let clock=Clock(),resources=Resources(),view=screen(clock,resources);resources.finish()
         var outcomes:[NativeJourneyRewardController.Action]=[],sounds:[String]=[]
         view.onFinish={outcomes.append($0)};view.onSoundMoment={kind,_,_ in sounds.append(kind)}
         view.start();view.activate();view.activate();XCTAssertEqual(view.phase,"opening")
         clock.advance(3);XCTAssertEqual(outcomes.count,0);XCTAssertEqual(view.phase,"unlocked")
-        view.activate();clock.advance(1);XCTAssertEqual(outcomes.count,1);XCTAssertEqual(view.phase,"disposed")
+        view.activate();clock.advance(2);XCTAssertEqual(outcomes.count,1);XCTAssertEqual(view.phase,"disposed")
         XCTAssertTrue(sounds.contains("new-card-crumble"));XCTAssertEqual(sounds.filter{$0=="new-card-reveal"}.count,1);XCTAssertEqual(sounds.filter{$0=="new-card-unlocked-enter"}.count,1)
-        XCTAssertEqual(sounds.filter{$0=="modal-open"}.count,1);XCTAssertEqual(sounds.filter{$0=="modal-exit"}.count,1)
+        XCTAssertEqual(sounds.filter{$0=="modal-open"}.count,1);XCTAssertEqual(sounds.filter{$0=="new-card-collect"}.count,1)
+        XCTAssertFalse(sounds.contains("modal-exit"));XCTAssertFalse(sounds.contains("cta"))
         view.activate();view.dispose();for job in clock.history {job.callback()};XCTAssertEqual(outcomes.count,1);XCTAssertEqual(clock.activeCount,0)
     }
     func testColdEarlyRevealWaitsForRequiredArtworkAndKeepsSecondTapWithoutInvisibleCollect() {
@@ -328,7 +485,7 @@ final class NativeJourneyRewardTests:XCTestCase {
         view.setForeground(false);resources.finish();clock.advance(10)
         XCTAssertEqual(view.phase,"awaiting-artwork");XCTAssertEqual(reveals,0)
         view.setForeground(true);XCTAssertEqual(view.phase,"revealing");clock.advance(3)
-        XCTAssertEqual(reveals,1);XCTAssertEqual(outcomes,0);view.activate();clock.advance(1);XCTAssertEqual(outcomes,1)
+        XCTAssertEqual(reveals,1);XCTAssertEqual(outcomes,0);view.activate();clock.advance(2);XCTAssertEqual(outcomes,1)
     }
     func testRejectedRequiredArtworkCannotRevealOrCollect() {
         let clock=Clock(),resources=Resources(),view=screen(clock,resources)
@@ -338,12 +495,103 @@ final class NativeJourneyRewardTests:XCTestCase {
         XCTAssertEqual(view.phase,"asset-failed");XCTAssertEqual(outcomes,0);XCTAssertEqual(failures,1)
         view.dispose();XCTAssertEqual(outcomes,1)
     }
+    func testCollectTurnsToWorldBackThenMainArtworkAndRetiresAcrossBackground()throws {
+        let clock=Clock(),resources=Resources(),view=screen(clock,resources)
+        defer{view.dispose()}
+        resources.finish();view.start();clock.advance(3);view.activate();clock.advance(3)
+        XCTAssertEqual(view.phase,"unlocked")
+        func tree(_ layer:CALayer)->[CALayer] {[layer]+(layer.sublayers ?? []).flatMap{tree($0)}}
+        let layers=tree(view.view.layer)
+        let rotor=try XCTUnwrap(layers.first{$0.name=="native.reward.collect-rotor"})
+        XCTAssertTrue(rotor is CATransformLayer)
+        let back=try XCTUnwrap(layers.first{$0.name=="native.reward.collect-back"})
+        XCTAssertFalse(back.isDoubleSided);XCTAssertEqual(back.transform.m11,-NativeRewardPresentation.unlockedArtworkScale,accuracy:0.00001)
+        XCTAssertTrue(resources.requested.contains("assets/colelctibles/cardflip@22.png"))
+        var sounds:[String]=[],outcomes=0
+        view.onSoundMoment={kind,_,_ in sounds.append(kind)};view.onFinish={_ in outcomes+=1}
+        view.activate();view.activate()
+        XCTAssertEqual(sounds,["new-card-collect"]);XCTAssertEqual(view.phase,"exiting")
+        let flip=try XCTUnwrap(rotor.animation(forKey:"reward.transform.0.4") as? CAKeyframeAnimation)
+        let samples=try XCTUnwrap(flip.values as? [NSValue])
+        XCTAssertEqual(samples.count,201);XCTAssertEqual(flip.duration,NativeRewardMotion.collectFlipDuration(forExitDuration:JimiV9Motion.homeExit(.hero).duration)*2)
+        XCTAssertEqual(samples.first!.caTransform3DValue.m11,1,accuracy:0.00001)
+        XCTAssertEqual(samples[100].caTransform3DValue.m11,-1,accuracy:0.00001)
+        XCTAssertEqual(samples.last!.caTransform3DValue.m11,1,accuracy:0.00001)
+        for index in 1...100 {
+            let previous=NativeRewardMotion.collectFlipAngle(progress:Double(index-1)/100)
+            let angle=NativeRewardMotion.collectFlipAngle(progress:Double(index)/100)
+            XCTAssertGreaterThanOrEqual(angle,previous);XCTAssertLessThanOrEqual(angle,.pi)
+        }
+        XCTAssertEqual(NativeRewardMotion.collectFlipAngle(progress:0),0)
+        XCTAssertEqual(NativeRewardMotion.collectFlipAngle(progress:0.5),.pi/2,accuracy:0.000001)
+        XCTAssertEqual(NativeRewardMotion.collectFlipAngle(progress:1),.pi,accuracy:0.000001)
+        clock.advance(0.1);view.setForeground(false);clock.advance(10)
+        XCTAssertEqual(outcomes,0);XCTAssertEqual(view.phase,"exiting")
+        view.setForeground(true);clock.advance(2)
+        XCTAssertEqual(outcomes,1);XCTAssertEqual(sounds.filter{$0=="new-card-collect"}.count,1)
+        view.dispose();view.dispose();XCTAssertTrue((rotor.animationKeys() ?? []).isEmpty)
+        XCTAssertNil(back.contents);XCTAssertEqual(clock.activeCount,0)
+    }
+    func testRepeatedPhoneAndTabletCollectOverlapsFlipsWithSlowerExit()throws {
+        for size in [CGSize(width:390,height:844),CGSize(width:820,height:1180)] {
+            for reduced in [false,true] {
+                // Independent openings share a deterministic random source so
+                // both directions and the boundary draw are exercised in order.
+                var draw=0.0,draws=0
+                for value in [0.0,0.99,0.49,0.5] {
+                    let clock=Clock(),resources=Resources()
+                    let view=NativeJourneyRewardController(root:NativeTestResources.root,board:11,score:1000,generation:77,awardedStars:3,resources:resources,scheduler:clock,reducedMotion:reduced,random:{draws+=1;return draw},now:{clock.time})
+                    view.prepareMagicCard={_,lease,done in done(NativeMagicCardSource.read(NativeTestResources.root.appendingPathComponent(NativeMagicCardSource.path),lease:lease))}
+                    view.prepareFilteredFrames={images,_,done in done(images)}
+                    let window=UIWindow(frame:CGRect(origin:.zero,size:size));window.rootViewController=view;window.makeKeyAndVisible()
+                    defer{view.dispose();window.isHidden=true;window.rootViewController=nil}
+                    view.loadViewIfNeeded();view.view.frame=window.bounds;view.view.layoutIfNeeded()
+                    resources.finish();view.start();clock.advance(3);view.activate();clock.advance(3)
+                    XCTAssertEqual(view.phase,"unlocked")
+                    func tree(_ layer:CALayer)->[CALayer] {[layer]+(layer.sublayers ?? []).flatMap{tree($0)}}
+                    let rotor=try XCTUnwrap(tree(view.view.layer).first{$0.name=="native.reward.collect-rotor"})
+                    draw=value;let before=draws
+                    var outcomes=0;view.onFinish={_ in outcomes+=1}
+                    view.activate();view.activate()
+                    XCTAssertEqual(draws-before,reduced ? 0:1,"Duplicate collect must not redraw direction")
+                    if reduced {
+                        XCTAssertNil(rotor.animation(forKey:"reward.transform.0.4"))
+                    } else {
+                        let animation=try XCTUnwrap(rotor.animation(forKey:"reward.transform.0.4") as? CAKeyframeAnimation)
+                        let samples=try XCTUnwrap(animation.values as? [NSValue])
+                        let start=samples[0].caTransform3DValue
+                        XCTAssertEqual(samples.count,201)
+                        for index in 0...200 {
+                            let progress=Double(index)/100
+                            let angle=(value<0.5 ? -1.0:1.0)*(NativeRewardMotion.collectFlipAngle(progress:progress)+NativeRewardMotion.collectFlipAngle(progress:progress-1))
+                            let expected=CATransform3DRotate(start,angle,0,1,0)
+                            XCTAssertTrue(CATransform3DEqualToTransform(samples[index].caTransform3DValue,expected))
+                        }
+                        XCTAssertEqual(animation.duration,NativeRewardMotion.collectFlipDuration(forExitDuration:JimiV9Motion.homeExit(.hero).duration)*2)
+                        let pose=try XCTUnwrap(tree(view.view.layer).first{$0.name=="native.reward.card-pose"})
+                        let key=try XCTUnwrap(pose.animationKeys()?.first{$0.hasPrefix("reward.transform.")})
+                        let collapse=try XCTUnwrap(pose.animation(forKey:key) as? CAKeyframeAnimation)
+                        XCTAssertEqual(collapse.beginTime,animation.beginTime+animation.duration/2,accuracy:0.000001,"Visible card shrink starts exactly with the return turn")
+                        XCTAssertEqual(collapse.fillMode,.backwards)
+                        XCTAssertEqual(collapse.duration,JimiV9Motion.homeExit(.hero).duration*NativeRewardMotion.collectCardExitTimeScale)
+                        let halfwayThroughReturn=(animation.duration/4)/collapse.duration
+                        XCTAssertLessThan(NativeRewardMotion.collectCardExitScale(progress:halfwayThroughReturn),0.85,"Card must be visibly smaller before return flip completes")
+                    }
+                    view.setForeground(false);clock.advance(10);XCTAssertEqual(outcomes,0)
+                    view.setForeground(true);clock.advance(2);XCTAssertEqual(outcomes,1)
+                    XCTAssertEqual(draws-before,reduced ? 0:1,"Resume retains the accepted direction")
+                    view.dispose();XCTAssertEqual(clock.activeCount,0);XCTAssertTrue((rotor.animationKeys() ?? []).isEmpty)
+                }
+            }
+        }
+    }
     func testCollectHandsOffAtVisibleExitEndWithoutExtraBlankDelay() {
         let clock=Clock(),resources=Resources(),view=screen(clock,resources);resources.finish()
         var outcomes=0;view.onFinish={_ in outcomes+=1}
         view.start();clock.advance(3);view.activate();clock.advance(3)
         XCTAssertEqual(view.phase,"unlocked");view.activate()
-        clock.advance(0.239);XCTAssertEqual(outcomes,0)
+        let duration=JimiV9Motion.homeExit(.hero).duration
+        clock.advance(NativeHUDTapMotion.duration+NativeRewardMotion.collectFlipDuration(forExitDuration:duration)+duration*1.5+0.16+0.079);XCTAssertEqual(outcomes,0)
         clock.advance(0.002);XCTAssertEqual(outcomes,1);XCTAssertEqual(clock.activeCount,0)
     }
     func testBackgroundPreservesRemainingRevealAndCollectDeadlinesWithoutDuplicateMoments() {
@@ -351,15 +599,90 @@ final class NativeJourneyRewardTests:XCTestCase {
         var outcomes=0,reveals=0;view.onFinish={_ in outcomes += 1};view.onSoundMoment={kind,_,_ in if kind=="new-card-reveal" {reveals += 1}}
         view.start();clock.advance(2.1);view.activate();view.activate();clock.advance(0.2);view.setForeground(false)
         let old=clock.history;clock.advance(20);for job in old {job.callback()};XCTAssertEqual(view.phase,"revealing");XCTAssertEqual(outcomes,0)
-        view.setForeground(true);clock.advance(1.0);XCTAssertEqual(view.phase,"exiting")
+        view.setForeground(true);clock.advance(1.2);XCTAssertEqual(view.phase,"exiting")
         clock.advance(0.1);view.setForeground(false);clock.advance(10);XCTAssertEqual(outcomes,0)
-        view.setForeground(true);clock.advance(0.33);XCTAssertEqual(outcomes,1);XCTAssertEqual(reveals,1)
+        view.setForeground(true);clock.advance(2);XCTAssertEqual(outcomes,1);XCTAssertEqual(reveals,1)
     }
     func testReplacementSettlesAndLatePreparationNeverReopensDisposedScreen() {
         let clock=Clock(),resources=Resources(),view=screen(clock,resources)
         var cancelled=0;view.onFinish={action in if case .cancelled=action {cancelled += 1}}
         view.start();view.dispose();view.dispose();resources.finish();clock.advance(20)
         XCTAssertEqual(cancelled,1);XCTAssertTrue(resources.reads.isEmpty);XCTAssertEqual(clock.activeCount,0)
+    }
+    func testRewardCoachUsesFasterPresentsEntryKeepsHandOpaqueAndRetiresGlowingLetters()throws {
+        let clock=Clock(),resources=Resources(),view=screen(clock,resources)
+        defer{view.dispose()}
+        resources.finish();view.start();clock.advance(3);view.activate();clock.advance(1.4)
+        XCTAssertEqual(view.phase,"unlocked")
+        let firstCoachAt=try XCTUnwrap(clock.jobs.filter{!$0.token.cancelled}.map(\.at).min())
+        clock.advance(firstCoachAt-clock.time+0.001)
+        let coach=try XCTUnwrap(view.view.subviews.compactMap{$0 as? UILabel}.first{$0.accessibilityIdentifier=="native.reward.coach-copy"})
+        XCTAssertEqual(coach.text,"TAP TO COLLECT");XCTAssertEqual(coach.textColor,.clear);XCTAssertTrue(coach.isAccessibilityElement)
+        XCTAssertNil(coach.shadowColor);XCTAssertEqual(coach.layer.shadowOpacity,0)
+        let glyphs=coach.subviews.compactMap{$0 as? UILabel}
+        XCTAssertEqual(glyphs.map{$0.text ?? ""}.joined(),"TAP TO COLLECT")
+        XCTAssertEqual(glyphs.count,14)
+        for (index,glyph) in glyphs.enumerated() {
+            XCTAssertFalse(glyph.isAccessibilityElement)
+            XCTAssertNil(glyph.shadowColor);XCTAssertEqual(glyph.layer.shadowOpacity,0)
+            for halo in glyph.subviews {XCTAssertEqual(halo.layer.shadowOffset,.zero);XCTAssertLessThanOrEqual(halo.layer.shadowOpacity,0.49)}
+            XCTAssertEqual(glyph.subviews.compactMap{$0 as? UILabel}.count,4,"Four static orange glow decorations per letter")
+            let group=try XCTUnwrap(glyph.layer.animation(forKey:"native.reward.coach.copy") as? CAAnimationGroup)
+            XCTAssertEqual(group.duration,2.8);XCTAssertTrue(group.isRemovedOnCompletion)
+            let opacity=try XCTUnwrap(group.animations?.first{$0 is CAKeyframeAnimation && ($0 as? CAKeyframeAnimation)?.keyPath=="opacity"} as? CAKeyframeAnimation)
+            let values=try XCTUnwrap(opacity.values as? [NSNumber])
+            XCTAssertEqual(values.first?.doubleValue,0);XCTAssertEqual(values.last?.doubleValue,0)
+            let transforms=try XCTUnwrap(group.animations?.first{($0 as? CAKeyframeAnimation)?.keyPath=="transform"} as? CAKeyframeAnimation)
+            let transformValues=try XCTUnwrap(transforms.values as? [NSValue])
+            for sample in [12,24,48,72] {
+                let elapsed=Double(sample)/120
+                var expected=NativeStudioIntroView.presentsPose(at:NativeStudioIntroView.presentsEntryStart+elapsed*3.375+Double(index)*NativeStudioIntroView.presentsLetterStagger*0.6,index:index)
+                let settledAt=(0.74+Double(index)*0.048)/3.375
+                if elapsed>=settledAt {expected.scale *= NativeSplashGlyphField.captionIdleScale(time:elapsed-settledAt,bounce:1.03+CGFloat(index%4)*0.01)}
+                XCTAssertEqual(values[sample].doubleValue,Double(max(0,min(1,expected.alpha))),accuracy:0.000001,"Reward letters use another50%faster entry and compressed offsets for one overlapping wave")
+                let actual=transformValues[sample].caTransform3DValue,wanted=expected.transform
+                let a=[actual.m11,actual.m12,actual.m13,actual.m14,actual.m21,actual.m22,actual.m23,actual.m24,actual.m31,actual.m32,actual.m33,actual.m34,actual.m41,actual.m42,actual.m43,actual.m44]
+                let b=[wanted.m11,wanted.m12,wanted.m13,wanted.m14,wanted.m21,wanted.m22,wanted.m23,wanted.m24,wanted.m31,wanted.m32,wanted.m33,wanted.m34,wanted.m41,wanted.m42,wanted.m43,wanted.m44]
+                for (value,target) in zip(a,b) {XCTAssertEqual(value,target,accuracy:0.000001)}
+            }
+
+            XCTAssertEqual(NativeCoachCopyMotion.pose(at:2.6,index:index,lifespan:2.8).alpha,1,accuracy:0.00001)
+            XCTAssertEqual(NativeCoachCopyMotion.pose(at:2.8,index:index,lifespan:2.8).alpha,0,accuracy:0.00001)
+        }
+        let enteringAtOnce=(0..<14).filter{NativeCoachCopyMotion.pose(at:0.08,index:$0,lifespan:2.8,speedMultiplier:2.25,staggerMultiplier:0.4).alpha>0}
+        XCTAssertGreaterThan(enteringAtOnce.count,4,"Several letters must enter together as a wave")
+        XCTAssertEqual(NativeCoachCopyMotion.pose(at:0.42,index:13,lifespan:2.8,speedMultiplier:2.25,staggerMultiplier:0.4).scale,1,accuracy:0.000001,"The entire wave settles in less than half a second")
+        for index in 0..<14 {
+            let settledAt=(0.74+Double(index)*0.048)/3.375
+            let peak=NativeCoachCopyMotion.pose(at:settledAt+0.35,index:index,speedMultiplier:2.25,staggerMultiplier:0.4,breathes:true)
+            let rest=NativeCoachCopyMotion.pose(at:settledAt+0.70,index:index,speedMultiplier:2.25,staggerMultiplier:0.4,breathes:true)
+            XCTAssertEqual(peak.scale,1.03+CGFloat(index%4)*0.01,accuracy:0.0001)
+            XCTAssertEqual(rest.scale,1,accuracy:0.0001)
+        }
+        let hand=try XCTUnwrap(view.view.subviews.compactMap{$0 as? UIImageView}.first)
+        let opacity=try XCTUnwrap(hand.layer.animation(forKey:"reward.opacity.0.0") as? CAKeyframeAnimation)
+        XCTAssertEqual(opacity.duration,2.8);XCTAssertEqual(opacity.values as? [Int],[0,1,1,0])
+        XCTAssertEqual(opacity.keyTimes,[0,0.12/2.8,2.65/2.8,1].map{NSNumber(value:$0)})
+        let motion=try XCTUnwrap(hand.layer.animation(forKey:"reward.transform.0.0") as? CAKeyframeAnimation)
+        let poses=try XCTUnwrap(motion.values as? [NSValue])
+        XCTAssertEqual(motion.duration,2.8);XCTAssertEqual(poses.count,6)
+        XCTAssertTrue(CATransform3DEqualToTransform(poses[4].caTransform3DValue,poses[5].caTransform3DValue),"Original2.1s gesture holds its final pose through2.8s")
+        XCTAssertEqual(motion.keyTimes?[4].doubleValue,2.1/2.8)
+        XCTAssertTrue(clock.jobs.contains{!$0.token.cancelled && abs($0.at-(firstCoachAt+4))<0.001},"A4s repeat leaves1.2s between visible coaches")
+        view.setForeground(false);XCTAssertEqual(view.view.layer.speed,0);clock.advance(10)
+        XCTAssertTrue(glyphs.allSatisfy{$0.layer.animation(forKey:"native.reward.coach.copy") != nil})
+        // The finite idle tail retires letters in order instead of a group fade.
+        let first=NativeCoachCopyMotion.pose(at:2.55,index:0,lifespan:2.8,speedMultiplier:2.25,staggerMultiplier:0.4,breathes:true,letterExit:true)
+        let last=NativeCoachCopyMotion.pose(at:2.55,index:13,lifespan:2.8,speedMultiplier:2.25,staggerMultiplier:0.4,breathes:true,letterExit:true)
+        XCTAssertLessThan(first.alpha,last.alpha)
+        view.setForeground(true);view.activate()
+        XCTAssertEqual(coach.alpha,1,"Collect keeps the parent visible while letters exit")
+        let firstExit=try XCTUnwrap(glyphs[0].layer.animation(forKey:"reward.opacity.0.0"))
+        let lastExit=try XCTUnwrap(glyphs[13].layer.animation(forKey:"reward.opacity.0.182"))
+        XCTAssertGreaterThan(lastExit.beginTime,firstExit.beginTime+0.17)
+        view.setForeground(false);XCTAssertEqual(view.view.layer.speed,0)
+        view.setForeground(true);view.dispose()
+        XCTAssertTrue(glyphs.allSatisfy{($0.layer.animationKeys() ?? []).isEmpty});XCTAssertEqual(clock.activeCount,0)
     }
     func testVisibleIdleBoundedAndReducedMotionSuppressesCoachLoops() {
         let clock=Clock(),resources=Resources(),view=screen(clock,resources,reduced:true);resources.finish();view.start();view.activate();clock.advance(1.6)

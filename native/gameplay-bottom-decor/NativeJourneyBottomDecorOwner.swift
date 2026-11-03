@@ -16,6 +16,30 @@ final class NativeJourneyBottomDecorOwner:UIView {
     var decodedBytes:Int {resources.decodedBytes}
     private let resources:NativeJourneyBottomDecorResourcePreparing,current:(UInt64)->Bool
     private let imageView=UIImageView(),clockTarget=NativeJourneyBottomDecorClockTarget()
+    private let boardMask=CAShapeLayer()
+    private var boardCutouts:[NativeBoardBackdropCutout]=[]
+    private var boardMaskBounds=CGRect.null
+    private(set) var boardMaskRevision=0
+    func updateBoardOcclusion(_ cutouts:[NativeBoardBackdropCutout]) {
+        // The original scenery is <=0.208*viewport width high. Keep mask
+        // rasterization in its lower band, with finite motion/shake clearance.
+        let height=min(bounds.height,max(bounds.width*0.25,imageView.bounds.height*1.05)+48)
+        let band=CGRect(x:bounds.minX,y:bounds.maxY-height,width:bounds.width,height:height)
+        guard phase != .disposed,cutouts != boardCutouts || band != boardMaskBounds else{return}
+        boardCutouts=cutouts;boardMaskBounds=band
+        guard !cutouts.isEmpty else{CATransaction.begin();CATransaction.setDisableActions(true);boardMask.path=nil;layer.mask=nil;CATransaction.commit();return}
+        let holes=CGMutablePath()
+        for cutout in cutouts {holes.addPath(cutout.path)}
+        // Winding union + subtraction keeps overlapping moving tiles opaque;
+        // even-odd holes would accidentally expose their intersections again.
+        let path=CGPath(rect:band,transform:nil).subtracting(holes,using:.winding)
+        var translation=CGAffineTransform(translationX:-band.minX,y:-band.minY)
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        boardMask.frame=band;boardMask.fillColor=UIColor.white.cgColor;boardMask.path=path.copy(using:&translation)
+        layer.mask=boardMask;boardMaskRevision &+= 1
+        CATransaction.commit()
+    }
+
     private var clock:CADisplayLink?,lastTime:Double?,elapsed=0.0,epoch:UInt64=0
     private var waiters:[(Bool)->Void]=[],pendingPrepare=false,queuedEnter=false,foreground:Bool,suspended=false
     private var observations:[NSObjectProtocol]=[],exitStart=NativeJourneyBottomDecorPlan.visible
@@ -111,7 +135,10 @@ final class NativeJourneyBottomDecorOwner:UIView {
         if let image=imageView.image,image.size.width>0 {
             let height=bounds.width*image.size.height/image.size.width
             imageView.bounds=CGRect(x:0,y:0,width:bounds.width,height:height)
-            imageView.layer.position=CGPoint(x:bounds.width/2,y:bounds.height+1)
+            // All Journey themes share this footer. Retain10% tablet drop,
+            // lifting it10% of rendered height from the previous20% position.
+            let tabletDrop=NativeTabletLayout.applies(bounds.size) ? height*0.10:0
+            imageView.layer.position=CGPoint(x:bounds.width/2,y:bounds.height+1+tabletDrop)
         }
         applyPose()
     }
@@ -154,7 +181,7 @@ final class NativeJourneyBottomDecorOwner:UIView {
         let callbacks=waiters;waiters.removeAll();callbacks.forEach{$0(false)};pendingPrepare=false
         let completion=exitCompletion;exitCompletion=nil;completion?(false)
         resources.release();imageView.image=nil;observations.forEach(NotificationCenter.default.removeObserver);observations.removeAll()
-        clockTarget.owner=nil;removeFromSuperview()
+        boardCutouts.removeAll();boardMask.path=nil;layer.mask=nil;clockTarget.owner=nil;removeFromSuperview()
     }
 }
 @MainActor

@@ -1,0 +1,884 @@
+[
+  {
+    "order": 1,
+    "text": "One more chord, then we roll!",
+    "recognized": "One more chord, then we roll.",
+    "similarity": 1.0
+  },
+  {
+    "order": 2,
+    "text": "A little rock before a little roll.",
+    "recognized": "A little rock before a little roll.",
+    "similarity": 1.0
+  },
+  {
+    "order": 3,
+    "text": "One little picture before the adventure.",
+    "recognized": "One little picture before the adventure.",
+    "similarity": 1.0
+  },
+  {
+    "order": 4,
+    "text": "Smile! This one's going in the scrapbook.",
+    "recognized": "Smile! This one's going in the scrapbook.",
+    "similarity": 1.0
+  },
+  {
+    "order": 5,
+    "text": "A little water, and little bit of patience",
+    "recognized": "A little water and a little bit of patience.",
+    "similarity": 0.9411764705882353
+  },
+  {
+    "order": 6,
+    "text": "Look at these little green leaves!",
+    "recognized": "Look at these little green leaves!",
+    "similarity": 1.0
+  },
+  {
+    "order": 7,
+    "text": "A few drops for you.",
+    "recognized": "A few drops for you.",
+    "similarity": 1.0
+  },
+  {
+    "order": 8,
+    "text": "Easy now, just a few drops.",
+    "recognized": "Easy now, just a few drops.",
+    "similarity": 1.0
+  },
+  {
+    "order": 9,
+    "text": "Let's roll these dice softly.",
+    "recognized": "Let's roll these dice softly.",
+    "similarity": 1.0
+  },
+  {
+    "order": 10,
+    "text": "Keep your eyes on the dice.",
+    "recognized": "Keep your eyes on the dice.",
+    "similarity": 1.0
+  },
+  {
+    "order": 11,
+    "text": "Let’s clear the board!",
+    "recognized": "Let's clear the board.",
+    "similarity": 1.0
+  },
+  {
+    "order": 12,
+    "text": "I call this my serious gaming face.",
+    "recognized": "I call this my serious gaming face.",
+    "similarity": 1.0
+  },
+  {
+    "order": 13,
+    "text": "One little game. Perhaps a few more after.",
+    "recognized": "One little game. Perhaps a few more after.",
+    "similarity": 1.0
+  },
+  {
+    "order": 14,
+    "text": "Let me try this button.",
+    "recognized": "Let me try this button.",
+    "similarity": 1.0
+  },
+  {
+    "order": 15,
+    "text": "A brilliant idea is loading.",
+    "recognized": "A brilliant idea is loading.",
+    "similarity": 1.0
+  },
+  {
+    "order": 16,
+    "text": "Steady now. I've got this. Maybe.",
+    "recognized": "Steady now, I've got this, maybe.",
+    "similarity": 1.0
+  },
+  {
+    "order": 17,
+    "text": "That was one lean too many.",
+    "recognized": "That was one lean too many.",
+    "similarity": 1.0
+  },
+  {
+    "order": 18,
+    "text": "Common now, leave it already",
+    "recognized": "Come and now, leave it already!",
+    "similarity": 0.7272727272727273
+  },
+  {
+    "order": 19,
+    "text": "Well, you've certainly got me smiling.",
+    "recognized": "Well, you've certainly got me smiling.",
+    "similarity": 1.0
+  },
+  {
+    "order": 20,
+    "text": "Is this leash made of treats?",
+    "recognized": "Is this leash made of treats?",
+    "similarity": 1.0
+  },
+  {
+    "order": 21,
+    "text": "Oh! You're stronger than you look!",
+    "recognized": "Oh, you're stronger than you look!",
+    "similarity": 1.0
+  },
+  {
+    "order": 22,
+    "text": "A bag of groceries, a bag of possibilities.",
+    "recognized": "A bag of groceries, a bag of possibilities.",
+    "similarity": 1.0
+  },
+  {
+    "order": 23,
+    "text": "This baguette is under my personal protection.",
+    "recognized": "This baguette is under my personal protection.",
+    "similarity": 1.0
+  },
+  {
+    "order": 24,
+    "text": "Yes, yes, I missed you too.",
+    "recognized": "Yes, yes, I missed you too.",
+    "similarity": 1.0
+  },
+  {
+    "order": 25,
+    "text": "Hey, watch the veggies!",
+    "recognized": "Hey, watch the veggies!",
+    "similarity": 1.0
+  },
+  {
+    "order": 26,
+    "text": "Nala, that's yesterday's news!",
+    "recognized": "Nala, that's yesterday's news.",
+    "similarity": 1.0
+  },
+  {
+    "order": 27,
+    "text": "I was reading that, you cheeky rascal.",
+    "recognized": "I was reading that, you cheeky rascal.",
+    "similarity": 1.0
+  },
+  {
+    "order": 28,
+    "text": "Bring that paper here, please.",
+    "recognized": "Bring that paper here, please.",
+    "similarity": 1.0
+  },
+  {
+    "order": 29,
+    "text": "Slow down with that paper.",
+    "recognized": "Slow down with that paper.",
+    "similarity": 1.0
+  },
+  {
+    "order": 30,
+    "text": "Come on, Nala! Let's explore!",
+    "recognized": "Come on, Nala. Let's explore.",
+    "similarity": 1.0
+  },
+  {
+    "order": 31,
+    "text": "Nala, we're off to a good start!",
+    "recognized": "Nala, we're off to a good start!",
+    "similarity": 1.0
+  },
+  {
+    "order": 32,
+    "text": "Which world shall we try first?",
+    "recognized": "Which world shall we try first?",
+    "similarity": 1.0
+  },
+  {
+    "order": 33,
+    "text": "Could we find a Special die?",
+    "recognized": "Could we find a special die?",
+    "similarity": 1.0
+  },
+  {
+    "order": 34,
+    "text": "Let's find out what's further ahead!",
+    "recognized": "Let's find out what's further ahead.",
+    "similarity": 1.0
+  },
+  {
+    "order": 35,
+    "text": "Let's discover something together, Nala.",
+    "recognized": "Let's discover something together, Nala.",
+    "similarity": 1.0
+  },
+  {
+    "order": 36,
+    "text": "Let's see how far we get!",
+    "recognized": "Let's see how far we get!",
+    "similarity": 1.0
+  },
+  {
+    "order": 37,
+    "text": "Let's give this challenge a go!",
+    "recognized": "Let's give this challenge a go.",
+    "similarity": 1.0
+  },
+  {
+    "order": 38,
+    "text": "How will this round go?",
+    "recognized": "How will this round go?",
+    "similarity": 1.0
+  },
+  {
+    "order": 39,
+    "text": "Come on, Nala. Let's try again!",
+    "recognized": "Come on, Nala. Let's try again.",
+    "similarity": 1.0
+  },
+  {
+    "order": 40,
+    "text": "A challenge? Let me sit up!",
+    "recognized": "A challenge? Let me sit up.",
+    "similarity": 1.0
+  },
+  {
+    "order": 41,
+    "text": "Big smile, small plan. Let's begin!",
+    "recognized": "Big smile, small plan. Let's begin!",
+    "similarity": 1.0
+  },
+  {
+    "order": 42,
+    "text": "Win or wobble, let's give it a try!",
+    "recognized": "When or wobble, let's give it a try.",
+    "similarity": 0.8888888888888888
+  },
+  {
+    "order": 43,
+    "text": "Nala, save some work for me!",
+    "recognized": "Nala, save some work for me!",
+    "similarity": 1.0
+  },
+  {
+    "order": 44,
+    "text": "Thanks, Nala. Keep that wrench handy.",
+    "recognized": "Thanks, Nala. Keep that wrench handy.",
+    "similarity": 1.0
+  },
+  {
+    "order": 45,
+    "text": "Nala, I need that wrench now!",
+    "recognized": "Nala, I need that wrench now!",
+    "similarity": 1.0
+  },
+  {
+    "order": 46,
+    "text": "A bit tired, but still trying!",
+    "recognized": "A bit tired, but still trying.",
+    "similarity": 1.0
+  },
+  {
+    "order": 47,
+    "text": "All right, legs. Stay with me!",
+    "recognized": "All right, legs, stay with me.",
+    "similarity": 1.0
+  },
+  {
+    "order": 48,
+    "text": "Can I borrow your energy, Nala?",
+    "recognized": "Can I borrow your energy, Nala?",
+    "similarity": 1.0
+  },
+  {
+    "order": 49,
+    "text": "Nala, you make this look easy!",
+    "recognized": "Nala you make this look easy",
+    "similarity": 1.0
+  },
+  {
+    "order": 50,
+    "text": "Phew! This challenge means business!",
+    "recognized": "This challenge means business",
+    "similarity": 0.8888888888888888
+  },
+  {
+    "order": 51,
+    "text": "I think Nala could do my turn!",
+    "recognized": "I think Nala could do my turn.",
+    "similarity": 1.0
+  },
+  {
+    "order": 52,
+    "text": "A big breath, then another try!",
+    "recognized": "A big breath than another try.",
+    "similarity": 0.8333333333333334
+  },
+  {
+    "order": 53,
+    "text": "Don't touch the grill, you rascal.",
+    "recognized": "Don't touch the grill, you rascal!",
+    "similarity": 1.0
+  },
+  {
+    "order": 54,
+    "text": "Oh! You smell a challenge too, Nala?",
+    "recognized": "Ho! You smell a challenge, too, Nala?",
+    "similarity": 0.8571428571428571
+  },
+  {
+    "order": 55,
+    "text": "One fresh challenge, coming right up!",
+    "recognized": "One fresh challenge coming right up.",
+    "similarity": 1.0
+  },
+  {
+    "order": 56,
+    "text": "My helper seems hungry for a turn.",
+    "recognized": "My helper seems hungry for a turn.",
+    "similarity": 1.0
+  },
+  {
+    "order": 57,
+    "text": "Let's give this our best shot!",
+    "recognized": "Let's give this our best shot. Oh!",
+    "similarity": 0.9333333333333333
+  },
+  {
+    "order": 58,
+    "text": "Oh! Dinner has legs now!",
+    "recognized": "Dinner has legs now.",
+    "similarity": 0.8888888888888888
+  },
+  {
+    "order": 59,
+    "text": "Nala, leave a bite for me!",
+    "recognized": "Nala, leave a bite for me.",
+    "similarity": 1.0
+  },
+  {
+    "order": 60,
+    "text": "Hey,  I was cooking that!",
+    "recognized": "Hey, I was cooking that.",
+    "similarity": 1.0
+  },
+  {
+    "order": 61,
+    "text": "Oh! Time to put my tea down.",
+    "recognized": "Oh, time to put my T down.",
+    "similarity": 0.8571428571428571
+  },
+  {
+    "order": 62,
+    "text": "My tea break has a challenge in it!",
+    "recognized": "My tea break has a challenge in it.",
+    "similarity": 1.0
+  },
+  {
+    "order": 63,
+    "text": "Ready, steady...  one more sip.",
+    "recognized": "Ready? Steady? One more sip.",
+    "similarity": 1.0
+  },
+  {
+    "order": 64,
+    "text": "Nala, you call this a quiet break?",
+    "recognized": "Nala, you call this a quiet break?",
+    "similarity": 1.0
+  },
+  {
+    "order": 65,
+    "text": "Slow Burn? Tell that to Nala!",
+    "recognized": "Slow burn till that's a Nala",
+    "similarity": 0.6153846153846154
+  },
+  {
+    "order": 66,
+    "text": "Whoops! That sip got away!",
+    "recognized": "Whoops, that sip got away.",
+    "similarity": 1.0
+  },
+  {
+    "order": 67,
+    "text": "All right, Nala.  You've got me smiling!",
+    "recognized": "Alright Nala, you've got me smiling.",
+    "similarity": 0.8
+  },
+  {
+    "order": 68,
+    "text": "Well, hello there, Wee Bee!",
+    "recognized": "Well, hello there, Weebie!",
+    "similarity": 0.6666666666666666
+  },
+  {
+    "order": 69,
+    "text": "What a sweet little find!",
+    "recognized": "What a sweet little find!",
+    "similarity": 1.0
+  },
+  {
+    "order": 70,
+    "text": "I'm glad we found you.",
+    "recognized": "I'm glad we found you.",
+    "similarity": 1.0
+  },
+  {
+    "order": 71,
+    "text": "Settle in, little STAR.",
+    "recognized": "settle in little star.",
+    "similarity": 1.0
+  },
+  {
+    "order": 72,
+    "text": "This STAR is a keeper.",
+    "recognized": "This star is a keeper.",
+    "similarity": 1.0
+  },
+  {
+    "order": 73,
+    "text": "What a lovely little find!",
+    "recognized": "What a lovely little find!",
+    "similarity": 1.0
+  },
+  {
+    "order": 74,
+    "text": "Well, you've grown on me already!",
+    "recognized": "Well, you've grown on me already!",
+    "similarity": 1.0
+  },
+  {
+    "order": 75,
+    "text": "A sweet flower for our growing collection.",
+    "recognized": "A sweet flower for our growing collection.",
+    "similarity": 1.0
+  },
+  {
+    "order": 76,
+    "text": "I'm blooming happy to see you!",
+    "recognized": "I'm blooming happy to see you!",
+    "similarity": 1.0
+  },
+  {
+    "order": 77,
+    "text": "Honey, please don't stick to everything.",
+    "recognized": "Honey, please don't stick to everything.",
+    "similarity": 1.0
+  },
+  {
+    "order": 78,
+    "text": "Our collection just got sweeter.",
+    "recognized": "Our collection just got sweeter.",
+    "similarity": 1.0
+  },
+  {
+    "order": 79,
+    "text": "Honey, what's all the buzz?",
+    "recognized": "Honey, what's all the buzz?",
+    "similarity": 1.0
+  },
+  {
+    "order": 80,
+    "text": "A sweet find to keep!",
+    "recognized": "A sweet find to keep!",
+    "similarity": 1.0
+  },
+  {
+    "order": 81,
+    "text": "Even the bees came along!",
+    "recognized": "Even the bees came along.",
+    "similarity": 1.0
+  },
+  {
+    "order": 82,
+    "text": "Honey fits in quite nicely.",
+    "recognized": "Honey fits in quite nicely.",
+    "similarity": 1.0
+  },
+  {
+    "order": 83,
+    "text": "Our collection feels cozier with you.",
+    "recognized": "Our collection feels cozier with you.",
+    "similarity": 1.0
+  },
+  {
+    "order": 84,
+    "text": "Shroomy, you've made yourself at home!",
+    "recognized": "Shroomie, you've made yourself at home.",
+    "similarity": 0.8571428571428571
+  },
+  {
+    "order": 85,
+    "text": "A little mushroom with plenty of charm.",
+    "recognized": "A little mushroom with plenty of charm.",
+    "similarity": 1.0
+  },
+  {
+    "order": 86,
+    "text": "What a lovely little surprise!",
+    "recognized": "What a lovely little surprise!",
+    "similarity": 1.0
+  },
+  {
+    "order": 87,
+    "text": "Barrel, no rolling off now!",
+    "recognized": "Barrel! No rolling off now!",
+    "similarity": 1.0
+  },
+  {
+    "order": 88,
+    "text": "Our collection feels fuller already!",
+    "recognized": "Our collection feels fuller already.",
+    "similarity": 1.0
+  },
+  {
+    "order": 89,
+    "text": "Does it come with instructions?",
+    "recognized": "Does it come with instructions?",
+    "similarity": 1.0
+  },
+  {
+    "order": 90,
+    "text": "There goes the quiet part!",
+    "recognized": "There goes the quiet part.",
+    "similarity": 1.0
+  },
+  {
+    "order": 91,
+    "text": "Bubbly juice",
+    "recognized": "Bubbly juice.",
+    "similarity": 1.0
+  },
+  {
+    "order": 92,
+    "text": "Our collection just got bubbly!",
+    "recognized": "Our collection just got bubbly.",
+    "similarity": 1.0
+  },
+  {
+    "order": 93,
+    "text": "I'll need more than a straw!",
+    "recognized": "I'll need more than a straw.",
+    "similarity": 1.0
+  },
+  {
+    "order": 94,
+    "text": "I nearly took a sip!",
+    "recognized": "I nearly took a sip!",
+    "similarity": 1.0
+  },
+  {
+    "order": 95,
+    "text": "A quiet little fish? Hmm.",
+    "recognized": "A quiet little fish?",
+    "similarity": 0.8888888888888888
+  },
+  {
+    "order": 96,
+    "text": "You're a keeper, splash and all.",
+    "recognized": "You're a keeper, splashing all.",
+    "similarity": 0.7692307692307693
+  },
+  {
+    "order": 97,
+    "text": "Stay close, my little fish friend.",
+    "recognized": "Stay close, my little fish friend.",
+    "similarity": 1.0
+  },
+  {
+    "order": 98,
+    "text": "You've swum right into my heart.",
+    "recognized": "You've swum right into my heart.",
+    "similarity": 1.0
+  },
+  {
+    "order": 99,
+    "text": "Settle in, Fishy. You're home.",
+    "recognized": "Settle in, fishy. You're home.",
+    "similarity": 1.0
+  },
+  {
+    "order": 100,
+    "text": "I've saved a spot for you.",
+    "recognized": "I've saved a spot for you.",
+    "similarity": 1.0
+  },
+  {
+    "order": 101,
+    "text": "Stay close, you little bouncer.",
+    "recognized": "Stay close, you little bouncer.",
+    "similarity": 1.0
+  },
+  {
+    "order": 102,
+    "text": "I like your bouncy little ways.",
+    "recognized": "I like your bouncy little ways.",
+    "similarity": 1.0
+  },
+  {
+    "order": 103,
+    "text": "There's my new beach buddy!",
+    "recognized": "There's my new beach buddy!",
+    "similarity": 1.0
+  },
+  {
+    "order": 104,
+    "text": "All right, one more happy bounce.",
+    "recognized": "Alright, one more happy bounce.",
+    "similarity": 0.7272727272727273
+  },
+  {
+    "order": 105,
+    "text": "Oh! You're quite a little treasure.",
+    "recognized": "Oh, you're quite a little treasure.",
+    "similarity": 1.0
+  },
+  {
+    "order": 106,
+    "text": "You're a keeper. Cork and all!",
+    "recognized": "You're a keeper, corkin' all!",
+    "similarity": 0.7692307692307693
+  },
+  {
+    "order": 107,
+    "text": "Let's keep you close, Bottle.",
+    "recognized": "Let's keep you close, bottle.",
+    "similarity": 1.0
+  },
+  {
+    "order": 108,
+    "text": "No need to act so tough!",
+    "recognized": "No need to act so tough!",
+    "similarity": 1.0
+  },
+  {
+    "order": 109,
+    "text": "May I call you Coco?",
+    "recognized": "May I call you Coco?",
+    "similarity": 1.0
+  },
+  {
+    "order": 110,
+    "text": "No palm tree needed. Stay here!",
+    "recognized": "Nope, palm tree needed. Stay here.",
+    "similarity": 0.8333333333333334
+  },
+  {
+    "order": 111,
+    "text": "Coconut, I think we'll get along.",
+    "recognized": "Coconut, I think we'll get along.",
+    "similarity": 1.0
+  },
+  {
+    "order": 112,
+    "text": "You can land right here, Kite.",
+    "recognized": "You can land right here, kite.",
+    "similarity": 1.0
+  },
+  {
+    "order": 113,
+    "text": "Stay close, you little flyer.",
+    "recognized": "Stay close, you little flier.",
+    "similarity": 0.8
+  },
+  {
+    "order": 114,
+    "text": "You nearly flew past me!",
+    "recognized": "You nearly flew past me!",
+    "similarity": 1.0
+  },
+  {
+    "order": 115,
+    "text": "You'll stay a while, won't you?",
+    "recognized": "You'll stay a while, won't you?",
+    "similarity": 1.0
+  },
+  {
+    "order": 116,
+    "text": "May I call you Bibi?",
+    "recognized": "May I call you BB?",
+    "similarity": 0.8
+  },
+  {
+    "order": 117,
+    "text": "Stay close, my little robot friend.",
+    "recognized": "Stay close, my little robot friend.",
+    "similarity": 1.0
+  },
+  {
+    "order": 118,
+    "text": "No need to beep. Come in!",
+    "recognized": "No need to beep, come in!",
+    "similarity": 1.0
+  },
+  {
+    "order": 119,
+    "text": "Your name is fun to say!",
+    "recognized": "Your name is fun to say!",
+    "similarity": 1.0
+  },
+  {
+    "order": 120,
+    "text": "Beep! Did I say that right?",
+    "recognized": "Beep! Did I say that right?",
+    "similarity": 1.0
+  },
+  {
+    "order": 121,
+    "text": "No need to spill hello.",
+    "recognized": "No need to spill hello",
+    "similarity": 1.0
+  },
+  {
+    "order": 122,
+    "text": "No flying off just yet!",
+    "recognized": "No flying off just yet!",
+    "similarity": 1.0
+  },
+  {
+    "order": 123,
+    "text": "You're a little far from home.",
+    "recognized": "You're a little far from home.",
+    "similarity": 1.0
+  },
+  {
+    "order": 124,
+    "text": "I'm glad we met, little zapper.",
+    "recognized": "I'm glad we met Little Zapper.",
+    "similarity": 1.0
+  },
+  {
+    "order": 125,
+    "text": "I'll call you my zappy friend.",
+    "recognized": "I'll call you my zappy friend.",
+    "similarity": 1.0
+  },
+  {
+    "order": 126,
+    "text": "Let's be friends before you zap anything.",
+    "recognized": "Let's be friends before you zap anything.",
+    "similarity": 1.0
+  },
+  {
+    "order": 127,
+    "text": "Are you shy in that shell?",
+    "recognized": "Are you shy in that shell?",
+    "similarity": 1.0
+  },
+  {
+    "order": 128,
+    "text": "Blue gas  makes me giggle.",
+    "recognized": "Blue gas makes me giggle",
+    "similarity": 1.0
+  },
+  {
+    "order": 129,
+    "text": "Why are you so powerful?",
+    "recognized": "Why are you so powerful?",
+    "similarity": 1.0
+  },
+  {
+    "order": 130,
+    "text": "what secrets you hide?",
+    "recognized": "What secrets you hide?",
+    "similarity": 1.0
+  },
+  {
+    "order": 131,
+    "text": "you seem powerfull",
+    "recognized": "You seem powerful.",
+    "similarity": 0.6666666666666666
+  },
+  {
+    "order": 132,
+    "text": "You're my kind of silly.",
+    "recognized": "You're my kind of silly.",
+    "similarity": 1.0
+  },
+  {
+    "order": 133,
+    "text": "Settle in, my little jelly friend.",
+    "recognized": "settle in my little jelly friend",
+    "similarity": 1.0
+  },
+  {
+    "order": 134,
+    "text": "You've got charm in every wobble.",
+    "recognized": "You've got charm in every wobble.",
+    "similarity": 1.0
+  },
+  {
+    "order": 135,
+    "text": "You can keep the mask on.",
+    "recognized": "You can keep the mask on.",
+    "similarity": 1.0
+  },
+  {
+    "order": 136,
+    "text": "Hiyaa! Oh, was that too loud?",
+    "recognized": "Yeah! Oh, was that too loud?",
+    "similarity": 0.8333333333333334
+  },
+  {
+    "order": 137,
+    "text": "A little ninja, a big entrance!",
+    "recognized": "A little ninja, a big entrance.",
+    "similarity": 1.0
+  },
+  {
+    "order": 138,
+    "text": "My little friend has big moves!",
+    "recognized": "My little friend has big moves.",
+    "similarity": 1.0
+  },
+  {
+    "order": 139,
+    "text": "Up you go, little trouble!",
+    "recognized": "Up you go, little trouble.",
+    "similarity": 1.0
+  },
+  {
+    "order": 140,
+    "text": "You make my day feel lighter.",
+    "recognized": "You make my day feel lighter.",
+    "similarity": 1.0
+  },
+  {
+    "order": 141,
+    "text": "More balloons? Now we're celebrating!",
+    "recognized": "More balloons? Now we're celebrating!",
+    "similarity": 1.0
+  },
+  {
+    "order": 142,
+    "text": "You're bursting with personality!",
+    "recognized": "You're bursting with personality!",
+    "similarity": 1.0
+  },
+  {
+    "order": 143,
+    "text": "You're a blast to have around!",
+    "recognized": "You're a blast to have around.",
+    "similarity": 1.0
+  },
+  {
+    "order": 144,
+    "text": "Come here, you little firecracker.",
+    "recognized": "Come here, your little firecracker.",
+    "similarity": 0.8
+  },
+  {
+    "order": 145,
+    "text": "You've collected quite a crowd!",
+    "recognized": "You've collected quite a crowd!",
+    "similarity": 1.0
+  },
+  {
+    "order": 146,
+    "text": "We just clicked, didn't we?",
+    "recognized": "We just clicked, didn't we?",
+    "similarity": 1.0
+  },
+  {
+    "order": 147,
+    "text": "Well, we're sticking together now.",
+    "recognized": "Well, we're sticking together now.",
+    "similarity": 1.0
+  }
+]

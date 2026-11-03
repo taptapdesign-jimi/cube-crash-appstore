@@ -1082,6 +1082,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         bloobReactionSurface=surface;return surface
     }
     private let face = SKSpriteNode()
+    var backdropOcclusionSprite:SKSpriteNode? {locked && value==0 ? face:nil}
     private let pips = SKNode()
     private let stack = SKNode()
     private let shadow = SKSpriteNode()
@@ -2641,7 +2642,8 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
                 let blend=NativeBloobArt.boardLandingBlend(seconds:elapsed-(bloobBoardEntryStart ?? elapsed))
                 let size=1+(NativeBloobArt.boardScale-1)*blend
                 artwork.size=CGSize(width:artwork.size.width*size,height:artwork.size.height*size)
-                artwork.position=CGPoint(x:pose.x*blend,y:pose.y*blend)
+                // Ten logical die units are about four points on the phone board.
+                artwork.position=CGPoint(x:pose.x*blend,y:(pose.y-10)*blend)
             } else {bloobBoardEntryStart=nil;artwork.position = .zero}
         }
         if variant == "bloob-ball" {

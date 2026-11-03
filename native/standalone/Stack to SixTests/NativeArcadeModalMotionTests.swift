@@ -13,7 +13,20 @@ final class NativeArcadeModalMotionTests: XCTestCase {
         if view.accessibilityIdentifier == id { return view }
         return view.subviews.lazy.compactMap { self.descendant($0, id: id) }.first
     }
-    func testCloseEmitsSemanticBackOnceAtAcceptedExit() async throws {
+    func testModalArtworkSpeechIsSceneSpecificAndRequiresVisibleReadyOwner() async throws {
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible();host.loadViewIfNeeded();defer{window.isHidden=true}
+        for (index,scene) in ["arena-modal-endurance","arena-modal-grill","arena-modal-slow"].enumerated() {
+            let modal=NativeArcadeWorldModal(frame:window.bounds,assets:JimiV9Artwork(resourceRoot:NativeTestResources.root),index:index)
+            var cues:[String]=[];modal.onFeedback={cues.append($0)};host.view.addSubview(modal)
+            modal.perform(NSSelectorFromString("speechTapped"));XCTAssertTrue(cues.isEmpty)
+            modal.reveal();try await wait{modal.accessibilityValue == "ready"}
+            modal.perform(NSSelectorFromString("speechTapped"));XCTAssertEqual(cues,["scene-speech:"+scene])
+            modal.setForeground(false);modal.perform(NSSelectorFromString("speechTapped"));XCTAssertEqual(cues.count,1)
+            modal.dispose();modal.perform(NSSelectorFromString("speechTapped"));XCTAssertEqual(cues.count,1)
+        }
+    }
+    func testCloseStopsOwnSceneSpeechAndEmitsModalCloseOnce() async throws {
         let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
         window.rootViewController=host;window.makeKeyAndVisible();host.loadViewIfNeeded()
         let modal=NativeArcadeWorldModal(frame:window.bounds,assets:JimiV9Artwork(resourceRoot:NativeTestResources.root),index:0)
@@ -23,9 +36,9 @@ final class NativeArcadeModalMotionTests: XCTestCase {
         try await wait{modal.accessibilityValue == "ready"}
         let close=try XCTUnwrap(descendant(modal,id:"native.arcade-world-modal.close") as? UIButton)
         close.sendActions(for:.touchUpInside);close.sendActions(for:.touchUpInside)
-        XCTAssertEqual(cues,["back"])
+        XCTAssertEqual(cues,["scene-speech-stop:arena-modal-endurance","modal-close"])
         modal.dispose();close.sendActions(for:.touchUpInside)
-        XCTAssertEqual(cues,["back"])
+        XCTAssertEqual(cues,["scene-speech-stop:arena-modal-endurance","modal-close"])
     }
     func testPlayAndPaperExitTogetherWithoutRelayoutJumpAndDisposalCancels() async throws {
         let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
@@ -50,7 +63,7 @@ final class NativeArcadeModalMotionTests: XCTestCase {
             button.sendActions(for:.touchDown)
             XCTAssertNotNil(button.layer.animation(forKey:"arcade.cta.press"))
             button.sendActions(for:.touchUpInside)
-            XCTAssertEqual(exitStarts,1);XCTAssertEqual(completed,0);XCTAssertEqual(cues,["cta"])
+            XCTAssertEqual(exitStarts,1);XCTAssertEqual(completed,0);XCTAssertEqual(cues,["scene-speech-stop:arena-modal-endurance","cta","modal-exit"])
             XCTAssertNotNil(button.layer.animation(forKey:"arcade.cta.exit"))
             XCTAssertNotNil(card.layer.animation(forKey:"arcade.modal.exit"))
             XCTAssertNil(button.layer.animation(forKey:"arcade.cta.release"))
@@ -68,7 +81,7 @@ final class NativeArcadeModalMotionTests: XCTestCase {
             let close=try XCTUnwrap(descendant(modal,id:"native.arcade-world-modal.close") as? UIButton)
             close.sendActions(for:.touchUpInside)
             try await Task.sleep(for:.milliseconds(150))
-            XCTAssertEqual(completed,0);XCTAssertEqual(cues,["cta"])
+            XCTAssertEqual(completed,0);XCTAssertEqual(cues,["scene-speech-stop:arena-modal-endurance","cta","modal-exit"])
             if background {
                 modal.setForeground(false)
                 try await Task.sleep(for:.milliseconds(350))
@@ -187,7 +200,8 @@ final class NativeArcadeModalMotionTests: XCTestCase {
                         return bounds.union(rect)
                     }
                 }
-                for envelope in envelopes {XCTAssertTrue(stage.bounds.contains(envelope))}
+                // The authored local cloud stage is unclipped; validate the actual modal viewport.
+                for envelope in envelopes {XCTAssertTrue(modal.bounds.contains(stage.convert(envelope,to:modal)))}
                 var connected:Set<Int>=[0]
                 for _ in clouds.indices {
                     for candidate in clouds.indices where !connected.contains(candidate) {

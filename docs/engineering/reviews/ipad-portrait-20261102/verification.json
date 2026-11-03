@@ -1,0 +1,31 @@
+{
+  "date": "2026-11-02",
+  "device": "iPad (A16) Simulator",
+  "uuid": "43A75086-0C64-464C-B71C-FDD01AF59C32",
+  "viewportPoints": [
+    820,
+    1180
+  ],
+  "pixels": [
+    1640,
+    2360
+  ],
+  "bundleID": "com.taptapdesign.stacktosix.native",
+  "productionSwiftInputs": 449,
+  "changedInputsSinceLatestValidatedBuild": [],
+  "assetsChecked": 2952,
+  "assetMismatches": [],
+  "binaryMatchesLatestDelivery": true,
+  "webBundlePresent": false,
+  "testPluginsPresent": false,
+  "physicalDeviceOperation": false,
+  "runtimeEdits": false,
+  "freshBuildPerformed": false,
+  "appArtifact": "/tmp/studio-logo-bounce-derived/Build/Products/Debug-iphonesimulator/Stack to Six.app",
+  "scope": "portrait read-only layout review; isolated simulator and existing DEV previews",
+  "simulatorAudioModeObserved": "SBRingerMuted=0; iPad simulator has no toolbar Mute; did not change game Sounds/Music or host output",
+  "reviewFinished": "DEV gameplay preview closed normally; extra iPad simulator shut down after review; dedicated iPhone simulator untouched",
+  "qaIOS": "PASS",
+  "layoutReadiness": "FAIL: confirmed inconsistent scaling",
+  "physicalAcceptance": "NEEDS PHYSICAL TEST"
+}

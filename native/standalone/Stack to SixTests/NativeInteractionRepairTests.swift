@@ -20,6 +20,19 @@ final class NativeInteractionRepairTests: XCTestCase {
     override func setUpWithError() throws {
         guard ProcessInfo.processInfo.environment["SIMULATOR_UDID"] == "1018BE2D-491B-465F-8F75-3E5BEB38C22A" else { throw XCTSkip("Dedicated QA Simulator only") }
     }
+    func testSelectedCTABounceIsExactlyHalfHeroScaleAndOneHundredMillisecondsLater() {
+        let hero=JimiV9Motion.selectedHeroBounce,cta=JimiV9Motion.selectedCTABounce
+        XCTAssertEqual(cta.tweens.count,hero.tweens.count)
+        for (a,b) in zip(hero.tweens,cta.tweens) {
+            XCTAssertEqual(b.begin-a.begin,0.1,accuracy:0.000001)
+            XCTAssertEqual(b.duration,a.duration,accuracy:0.000001)
+        }
+        for index in 0...200 {
+            let time=Double(index)*hero.duration/200
+            XCTAssertEqual(cta.pose(at:time+0.1).scaleX-1,(hero.pose(at:time).scaleX-1)*0.5,accuracy:0.000001)
+        }
+        XCTAssertEqual(cta.pose(at:0.91).scaleX,1,accuracy:0.000001)
+    }
     func testSelectionInstallsOriginalMotionForTrackAndNavigationAndSuspendsTogether() throws {
         let home=JimiV9HomeView(frame:CGRect(x:0,y:0,width:390,height:844),assets:JimiV9Artwork(resourceRoot:NativeTestResources.root))
         let hub=JimiV9HubView(frame:home.bounds,assets:JimiV9Artwork(resourceRoot:NativeTestResources.root))
@@ -31,11 +44,15 @@ final class NativeInteractionRepairTests: XCTestCase {
         XCTAssertEqual(values.first,Double(old));XCTAssertEqual(values.last,Double(home.sliderTrack.layer.position.x))
         XCTAssertEqual(values[40],Double(old)+(Double(home.sliderTrack.layer.position.x)-Double(old))*0.875,accuracy:1e-8)
         for target in home.navigationLayoutTargets {XCTAssertEqual(target.view.layer.animation(forKey:"native-slide-selection")?.duration,0.38)}
+        XCTAssertEqual(try XCTUnwrap(home.ctaContainerView.layer.animation(forKey:"native-route")).duration,0.91,accuracy:0.000001)
         motion.suspend();XCTAssertEqual(home.sliderTrack.layer.speed,0)
+        XCTAssertEqual(home.ctaContainerView.layer.speed,0)
         for target in home.navigationLayoutTargets {XCTAssertEqual(target.view.layer.speed,0)}
         motion.resume();XCTAssertEqual(home.sliderTrack.layer.speed,1)
+        XCTAssertEqual(home.ctaContainerView.layer.speed,1)
         motion.cancel();motion.cancel()
         XCTAssertNil(home.sliderTrack.layer.animation(forKey:"native-slide-selection"))
+        XCTAssertNil(home.ctaContainerView.layer.animation(forKey:"native-route"))
         for target in home.navigationLayoutTargets {XCTAssertNil(target.view.layer.animation(forKey:"native-slide-selection"));XCTAssertEqual(target.view.layer.speed,1)}
     }
     func testReplacementStartsAtPaintedPoseAndCannotCompleteRetiredHero() async throws {

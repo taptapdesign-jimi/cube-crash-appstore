@@ -37,12 +37,17 @@ import StackToSixNativeState
     func testNormalSavedBottleContinueKeepsExistingDieAndReachesPlayableBoard()async throws {
         try await exerciseBottleEntry(continueSaved:true)
     }
-    private func exerciseBottleEntry(continueSaved:Bool)async throws {
+    func testTabletActualFreshPlayAndSavedContinueReachEightRowGameplayWithSceneryMask() async throws {
+        guard UIDevice.current.userInterfaceIdiom == .pad else{throw XCTSkip("Tablet entry on iPad Simulator only")}
+        try await exerciseBottleEntry(continueSaved:false,tablet:true)
+        try await exerciseBottleEntry(continueSaved:true,tablet:true)
+    }
+    private func exerciseBottleEntry(continueSaved:Bool,tablet:Bool=false)async throws {
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("native-bottle-entry-"+UUID().uuidString)
         let store=NativeSaveStore(directory:directory)
         var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
         seed.progression.firstPlayTutorialComplete=true;seed.progression.completedJourneyBoards=Set(1...13)
-        var saved=NativeBoardFactory.make(mode:.journey,board:14,generation:9,seed:17)
+        var saved=NativeBoardFactory.make(mode:.journey,board:14,columns:tablet ? 7:5,rows:tablet ? 8:9,generation:9,seed:17)
         saved.moves=49
         if continueSaved {
             let index=try XCTUnwrap(saved.tiles.firstIndex(where:{$0.isPlayable}))
@@ -53,7 +58,7 @@ import StackToSixNativeState
         try store.save(seed)
         let host=NativeStandaloneViewController(resourceRoot:NativeTestResources.root,store:store,sourceVisualRandom:{0.1},completeNativeGameplayEnabled:true)
         let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
-        let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=host;window.makeKeyAndVisible()
+        let window=UIWindow(frame:.init(x:0,y:0,width:tablet ? 820:390,height:tablet ? 1180:844));window.rootViewController=host;window.makeKeyAndVisible()
         defer{timeoutDiagnostic=nil;host.dispose();window.isHidden=true;previous?.makeKeyAndVisible();try? FileManager.default.removeItem(at:directory)}
         host.loadViewIfNeeded();let app=try XCTUnwrap(host.children.first as? NativeAppController)
         try await wait{!app.home.isHidden && app.home.isUserInteractionEnabled}
@@ -66,6 +71,11 @@ import StackToSixNativeState
         let bottles=game.engine.state.tiles.filter{$0.variant=="bottle"}
         XCTAssertNil(game.sourcePresentationFailureGeneration);XCTAssertNil(game.presentedViewController)
         XCTAssertEqual(app.route,.gameplay)
+        if tablet {
+            XCTAssertEqual(game.engine.state.columns,7);XCTAssertEqual(game.engine.state.rows,8)
+            scene.didFinishUpdate();XCTAssertNotNil(scene.onBackdropOcclusion)
+            XCTAssertNotNil(game.journeyBottomDecor?.layer.mask)
+        }
         if continueSaved {
             XCTAssertEqual(bottles.count,1)
             let tile=try XCTUnwrap(bottles.first),node=try XCTUnwrap(scene.sourceNativeTileNode(tile.id))
@@ -376,8 +386,17 @@ import StackToSixNativeState
     func testActualArcadeCleanRoundContinuationAdoptsPreparedFoundationAndConsumesPendingRound()async throws {
         try await exerciseContinuation(board:nil)
     }
-    func testActualJourneyCleanRewardAndContinueAdoptPreparedFoundationAndCarryScore()async throws {
+    func testActualJourneyCleanRewardAndContinueAdoptPreparedFoundationAndResetScore()async throws {
         try await exerciseContinuation(board:21)
+    }
+    func testActualJourneySixToSevenStartsFreshAttemptAndPreservesCompletedScore()async throws {
+        try await exerciseContinuation(board:6)
+    }
+    func testActualJourneyNextUsesCompletedSixAndIgnoresStaleSuccessorSave()async throws {
+        try await exerciseContinuation(board:6,staleJourneySave:true)
+    }
+    func testActualPreviouslyClearedJourneySixAlsoAdvancesToFreshSeven()async throws {
+        try await exerciseContinuation(board:6,replayJourney:true)
     }
     func testActualArcadeRoundOneToTwoKeepsUpperAndLowerHUDVisibleThroughoutCueAndEntry()async throws {
         try await exerciseContinuation(board:nil,arcadeRound:1,verifyChrome:true)
@@ -450,17 +469,23 @@ import StackToSixNativeState
         let restored=try XCTUnwrap(store.load()?.resumedRun(mode:board==nil ? .arcade:.journey,board:number))
         XCTAssertEqual(restored.moves,49);XCTAssertEqual(restored.tiles,game.engine.state.tiles)
     }
-    private func exerciseContinuation(board:Int?,arcadeRound:Int=3,verifyChrome:Bool=false)async throws {
+    private func exerciseContinuation(board:Int?,arcadeRound:Int=3,verifyChrome:Bool=false,staleJourneySave:Bool=false,replayJourney:Bool=false)async throws {
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("native-fresh-continue-"+UUID().uuidString)
         let store=NativeSaveStore(directory:directory),number=board ?? arcadeRound
         var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
-        seed.progression.firstPlayTutorialComplete=true;seed.progression.completedJourneyBoards=Set(1..<21)
+        seed.progression.firstPlayTutorialComplete=true;seed.progression.completedJourneyBoards=Set(1..<(board ?? 21))
+        if replayJourney {seed.progression.completedJourneyBoards.insert(number)}
         let saved=NativeBoardState(tiles:[
             .init(id:"continue-a",cell:.init(column:0,row:0),value:3),
             .init(id:"continue-b",cell:.init(column:1,row:0),value:3)],
             mode:board==nil ? .arcade:.journey,board:number,stage:number,generation:9,moves:37,score:123)
         if let board {seed.journeyRuns[board]=saved;seed.journeyRunSavedAt[board]=Date().timeIntervalSince1970}
         else {seed.arcadeRun=saved;seed.arcadeRunSavedAt=Date().timeIntervalSince1970}
+        if staleJourneySave {
+            var stale=NativeBoardFactory.make(mode:.journey,board:number+1,generation:90,seed:24)
+            stale.score=9876;stale.moves=12;stale.combo=45;stale.longestCombo=45
+            seed.journeyRuns[number+1]=stale;seed.journeyRunSavedAt[number+1]=Date().timeIntervalSince1970
+        }
         try store.save(seed)
         let host=NativeStandaloneViewController(resourceRoot:NativeTestResources.root,store:store,sourceVisualRandom:{0.1},completeNativeGameplayEnabled:true)
         let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
@@ -469,7 +494,7 @@ import StackToSixNativeState
         host.loadViewIfNeeded();let app=try XCTUnwrap(host.children.first as? NativeAppController)
         try await wait{!app.home.isHidden}
         if let board {
-            app.navigate(.world(3),interrupt:true)
+            app.navigate(.world((board-1)/10+1),interrupt:true)
             try await wait{if app.children.contains(where:{$0 is NativeGameplayViewController}){return true};app.world?.onRequest?("continue",board);return false}
         }else{app.navigate(.gameplay,interrupt:true)}
         try await wait{app.children.compactMap{$0 as? NativeGameplayViewController}.first?.boardScene?.isBoardEntryComplete==true}
@@ -500,7 +525,7 @@ import StackToSixNativeState
         XCTAssertTrue(scene.beginDrag(at:from));scene.moveDrag(to:to,now:CACurrentMediaTime())
         try await Task.sleep(for:.milliseconds(160))
         XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:to,now:CACurrentMediaTime())).accepted)
-        if board != nil {
+        if board != nil,!replayJourney {
             try await wait{old.visibleJourneyRewardController != nil}
             let reward=try XCTUnwrap(old.visibleJourneyRewardController)
             try await wait{(try? store.load()?.progression.completedJourneyBoards.contains(reward.board)) == true}
@@ -520,6 +545,7 @@ import StackToSixNativeState
             let committed=try XCTUnwrap(store.load())
             XCTAssertTrue(committed.progression.completedJourneyBoards.contains(number))
             XCTAssertNil(committed.journeyRuns[number])
+            XCTAssertEqual(committed.progression.boardStats[number]?.highScore,carriedScore)
             primary.sendActions(for:.touchUpInside);primary.sendActions(for:.touchUpInside)
         }else {
             // Clean Arcade's authored round cue commits and continues itself.
@@ -535,7 +561,15 @@ import StackToSixNativeState
         }
         XCTAssertTrue(try XCTUnwrap(fresh.sourceInitialConstruction).borrowedPreparedFoundation)
         XCTAssertEqual(fresh.engine.state.generation,oldGeneration+1)
-        XCTAssertEqual(fresh.engine.state.board,number+1);XCTAssertEqual(fresh.engine.state.score,carriedScore)
+        XCTAssertEqual(fresh.engine.state.board,number+1);XCTAssertEqual(fresh.engine.state.stage,number+1)
+        XCTAssertEqual(fresh.engine.state.score,board == nil ? carriedScore:0)
+        if board != nil {
+            XCTAssertEqual(fresh.engine.state.combo,0);XCTAssertEqual(fresh.engine.state.longestCombo,0)
+            XCTAssertEqual(fresh.engine.state.earnedComboBonus,0);XCTAssertEqual(fresh.engine.state.cubesCracked,0)
+            XCTAssertNil(fresh.engine.state.terminal)
+            XCTAssertFalse(fresh.engine.state.tiles.isEmpty)
+            XCTAssertFalse(fresh.engine.state.tiles.contains{$0.id=="continue-a" || $0.id=="continue-b"})
+        }
         XCTAssertEqual(fresh.engine.state.moves,50);XCTAssertEqual(fresh.engine.state.mode,saved.mode)
         if verifyChrome {
             XCTAssertTrue(fresh.keepsGameplayChromeVisibleOnEntry)
@@ -559,6 +593,7 @@ import StackToSixNativeState
         if board != nil {
             XCTAssertNil(durable.journeyRuns[number+1])
             XCTAssertTrue(durable.progression.completedJourneyBoards.contains(number))
+            XCTAssertEqual(durable.progression.boardStats[number]?.highScore,carriedScore)
         } else {
             XCTAssertNil(durable.arcadeRun)
             XCTAssertEqual(durable.pendingArcadeRound?.round,number+1)

@@ -25,6 +25,12 @@ final class NativeHapticRuntimeTests:XCTestCase {
             try await Task.sleep(for:.milliseconds(30))
         }
         XCTAssertEqual(outputs.filter{$0 == .impact("light")}.count,16)
+        outputs.removeAll();app.home.onPanEnded?(1,false)
+        XCTAssertEqual(outputs,[.impact("light")],"Committed Home swipe shares the bottom navigation haptic")
+        outputs.removeAll();app.home.onPanEnded?(1,true)
+        XCTAssertTrue(outputs.isEmpty,"Cancelled/same-slide swipe stays quiet")
+        app.home.onPanEnded?(2,false)
+        XCTAssertEqual(outputs,[.impact("light")],"A second committed swipe owns one contact")
         outputs.removeAll();app.navigate(.world(1),interrupt:true)
         try await wait{app.world?.isReadyForInput==true}
         XCTAssertEqual(outputs.filter{$0 == .impact("light")}.count,1)

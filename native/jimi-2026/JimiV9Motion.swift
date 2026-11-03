@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 /// Pure immutable v9 recipes, not an animation owner. A controller samples a
 /// Track into its own CAKeyframes and owns cancellation/completion/input.
@@ -205,6 +206,13 @@ enum JimiV9Motion {
         Tween(begin: 0.555, duration: 0.255, from: .scale(0.975), to: .scale(1), ease: .backOut(1.35)),
     ], anchorY: 0.65)
 
+    /// Same selection bounce, half the scale excursion and100ms later.
+    static let selectedCTABounce = Track(tweens:selectedHeroBounce.tweens.map { tween in
+        Tween(begin:tween.begin+0.1,duration:tween.duration,
+            from:.scale(1+(tween.from.scaleX-1)*0.5),
+            to:.scale(1+(tween.to.scaleX-1)*0.5),ease:tween.ease)
+    })
+
     // nav-icon-bounce.ts:4–11,75–93. Parent may combine this visual track
     // with the separate 380ms size/offset selection track on its outer shell.
     static let navigationTapBounce = Track(tweens:(0..<5).map{i in
@@ -215,5 +223,53 @@ enum JimiV9Motion {
 
     private static func one(delay: Double, duration: Double, from: Pose, to: Pose, ease: Ease) -> Track {
         Track(tweens: [Tween(begin: delay, duration: duration, from: from, to: to, ease: ease)])
+    }
+}
+
+/// Finite letter entry sampled from the exact PRESENTS recipe. The caller owns
+/// glyph layout, admission, its ancestor clock and retirement; no scheduler.
+/// A caller can compress letter offsets into an overlapping wave without
+/// changing the authored shape or the other coach callers.
+@MainActor
+enum NativeCoachCopyMotion {
+    static let rate=1.5
+    static let fadeDuration=0.15
+    static func pose(at elapsed:Double,index:Int,lifespan:Double=2.8,speedMultiplier:Double=1,staggerMultiplier:Double=1,breathes:Bool=false,letterExit:Bool=false)->NativeArcadeRoundPresentation.Pose {
+        var result=NativeStudioIntroView.presentsPose(at:NativeStudioIntroView.presentsEntryStart+elapsed*rate*speedMultiplier+Double(index)*NativeStudioIntroView.presentsLetterStagger*(1-staggerMultiplier),index:index)
+        if breathes {
+            let letterDuration=NativeStudioIntroView.presentsEntryDuration-7*NativeStudioIntroView.presentsLetterStagger
+            let settledAt=(letterDuration+Double(index)*NativeStudioIntroView.presentsLetterStagger*staggerMultiplier)/(rate*speedMultiplier)
+            if elapsed>=settledAt {
+                result.scale *= NativeSplashGlyphField.captionIdleScale(time:elapsed-settledAt,bounce:1.03+CGFloat(index%4)*0.01)
+            }
+        }
+        let exitDelay=letterExit ? Double(index)*0.014:0
+        let exitStart=lifespan-(letterExit ? 0.18+13*0.014:fadeDuration)+exitDelay
+        let exitProgress=max(0,min(1,(elapsed-exitStart)/(letterExit ? 0.18:fadeDuration)))
+        if letterExit {
+            result.rotation += CGFloat(8*exitProgress)
+            result.scale *= CGFloat(1-0.25*exitProgress)
+        }
+        let fade=1-exitProgress
+        result.alpha=max(0,min(1,result.alpha))*CGFloat(fade)
+        return result
+    }
+    /// beginTime is the caller's shared host epoch, converted to each glyph's
+    /// local clock so letter staggering remains encoded solely in the recipe.
+    static func install(on layer:CALayer,index:Int,lifespan:Double=2.8,key:String="native.coach.copy",beginTime:CFTimeInterval?=nil,speedMultiplier:Double=1,staggerMultiplier:Double=1,breathes:Bool=false,letterExit:Bool=false) {
+        guard lifespan.isFinite,lifespan>0 else{return}
+        let count=max(1,Int(ceil(lifespan*120)))
+        let poses=(0...count).map{pose(at:lifespan*Double($0)/Double(count),index:index,lifespan:lifespan,speedMultiplier:speedMultiplier,staggerMultiplier:staggerMultiplier,breathes:breathes,letterExit:letterExit)}
+        let transform=CAKeyframeAnimation(keyPath:"transform"),opacity=CAKeyframeAnimation(keyPath:"opacity")
+        transform.values=poses.map{NSValue(caTransform3D:$0.transform)}
+        opacity.values=poses.map{NSNumber(value:Double($0.alpha))}
+        let times=(0...count).map{NSNumber(value:Double($0)/Double(count))}
+        for animation in [transform,opacity] {animation.keyTimes=times;animation.calculationMode = .linear;animation.duration=lifespan}
+        let group=CAAnimationGroup();group.animations=[transform,opacity];group.duration=lifespan
+        group.beginTime=layer.convertTime(beginTime ?? CACurrentMediaTime(),from:nil)
+        group.fillMode = .both;group.isRemovedOnCompletion=true
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        layer.opacity=0;layer.transform=CATransform3DIdentity;layer.add(group,forKey:key)
+        CATransaction.commit()
     }
 }

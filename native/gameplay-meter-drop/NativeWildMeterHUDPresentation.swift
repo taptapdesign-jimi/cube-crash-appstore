@@ -48,6 +48,7 @@ import UIKit
     private let smokeResources:SmokeResources
     private var owner:NativeWildMeterHUDOwner!
     private var smoke:NativeWildMeterSmokeOwner!
+    private var barHeight:CGFloat=10
     private var closed=false
     private var tutorialPulseActive=false,tutorialPulseEpoch:UInt64=0
     private var tutorialPulseCancel:(()->Void)?
@@ -102,9 +103,10 @@ import UIKit
         smoke.stopSmoke()
     }
     init(hudStage:SKNode,service:NativeSourceAnimationClockService,timeouts:NativeSourceAppTimeoutOwner,
-         generation:UInt64,maximum:Double,isPad:Bool,sourceOrigin:CGPoint,
+         generation:UInt64,maximum:Double,isPad:Bool,sourceOrigin:CGPoint,barHeight:CGFloat=10,
          sourceToNative:@escaping(CGPoint)->CGPoint,nativeToSource:@escaping(CGPoint)->CGPoint,
          smokeDisabled:@escaping()->Bool,current:@escaping()->Bool,visualRandom:@escaping()->Double){
+        self.barHeight=barHeight
         stage=hudStage;self.sourceToNative=sourceToNative;self.nativeToSource=nativeToSource;self.current=current
         driver=NativeWildMeterSourceDriver(service:service)
         wall=NativeWildMeterSmokeWallDriver(timeouts:timeouts,generation:generation)
@@ -130,16 +132,17 @@ import UIKit
         },disabled:smokeDisabled,current:{[weak self] in guard let self else{return false};return !self.closed && self.current()},random:visualRandom)
         owner=NativeWildMeterHUDOwner(driver:driver,maximum:maximum,initialWidth:0,isPad:isPad,draw:{[weak self] pose in
             guard let self else{return}
-            let path=Self.barPath(left:pose.left,width:pose.width)
+            let path=Self.barPath(left:pose.left,width:pose.width,height:self.barHeight)
             self.fill.path=path
         },drawBounce:{[weak self] y in self?.fillBounceLayer.position.y = -CGFloat(y)},stopSmoke:{[weak self] in self?.smoke.stopSmoke()},stopEmission:{[weak self] in self?.smoke.stopEmission()},startSmoke:{[weak self] in self?.smoke.startEmission()},verticalBounceEnabled:false)
         resize(maximum:maximum,sourceOrigin:sourceOrigin)
     }
-    private static func barPath(left:Double,width:Double)->CGPath {
-        // Source rectangle occupies y=0...10; SpriteKit source-Y projection is
-        // local y=0...-10. Zero width remains empty, with no invented min pixel.
+    private static func barPath(left:Double,width:Double,height:CGFloat)->CGPath {
+        // Retain the original local centre y=-5 as thickness grows. Both
+        // track and fill share true semicircular caps, including narrow fills.
         guard width>0 else{return CGMutablePath()}
-        return CGPath(roundedRect:CGRect(x:left,y:-10,width:width,height:10),cornerWidth:5,cornerHeight:5,transform:nil)
+        let radius=min(height/2,CGFloat(width)/2)
+        return CGPath(roundedRect:CGRect(x:left,y:-5-height/2,width:width,height:height),cornerWidth:radius,cornerHeight:radius,transform:nil)
     }
     /// Cancel only the board canvas translation; HUD enter/exit still owns its parent.
     func setCanvasShakeOffset(_ offset:CGPoint){guard !closed else{return};smokeResources.setCanvasShakeOffset(offset)}
@@ -150,10 +153,10 @@ import UIKit
     var consumeActive:Bool{owner.consumeActive}
     func setProgress(_ ratio:Double,animated:Bool){guard !closed else{return};owner.setProgress(ratio,animated:animated)}
     func consume(_ ratio:Double,reducedMotion:Bool){guard !closed else{return};owner.consume(ratio,reducedMotion:reducedMotion)}
-    func resize(maximum:Double,sourceOrigin:CGPoint){
-        guard !closed else{return};container.position=sourceToNative(sourceOrigin)
+    func resize(maximum:Double,sourceOrigin:CGPoint,barHeight:CGFloat?=nil){
+        guard !closed else{return};if let barHeight {self.barHeight=barHeight};container.position=sourceToNative(sourceOrigin)
         if let base=tutorialPulseBase {tutorialPulseBase=(container.position,base.1,base.2)}
-        owner.setWidth(maximum){[weak self] width in self?.background.path=Self.barPath(left:0,width:width)}
+        owner.setWidth(maximum){[weak self] width in guard let self else{return};self.background.path=Self.barPath(left:0,width:width,height:self.barHeight)}
     }
     func stopSmoke(){smoke.stopSmoke()}
     func dispose(){

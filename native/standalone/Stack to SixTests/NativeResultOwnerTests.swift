@@ -18,8 +18,28 @@ final class NativeResultOwnerTests:XCTestCase {
         }
     }
 
+    func testFailTitleSpeechUsesDisplayedSelectionOnceAtTitleEntry() {
+        for index in [0,19,93] {
+            let result=controller(clean:false,headlineRandom:(Double(index)+0.5)/Double(NativeResultHeadlines.fail.count))
+            var events:[(String,Int,Double)]=[]
+            result.onMoment={kind,selected,_ in if kind.hasPrefix("fail-title") {events.append((kind,selected,result.elapsed))}}
+            result.loadViewIfNeeded()
+            let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=result;window.makeKeyAndVisible()
+            XCTAssertEqual(events.map{$0.0},["fail-title-prepare"])
+            result.tick(0);result.tick(0.1);result.tick(0.2)
+            XCTAssertFalse(events.contains{$0.0=="fail-title"})
+            result.tick(0.25);result.tick(0.35);result.tick(0.45)
+            let spoken=events.filter{$0.0=="fail-title"}
+            XCTAssertEqual(spoken.count,1);XCTAssertEqual(spoken.first?.1,index)
+            XCTAssertGreaterThanOrEqual(spoken.first?.2 ?? 0,0.24)
+            XCTAssertNotNil(findUILabels(result.view).first{$0.attributedText?.string==NativeResultHeadlines.fail[index]})
+            result.setSuspended(true);result.tick(20);result.setSuspended(false);result.tick(21);result.tick(21.1)
+            XCTAssertEqual(events.filter{$0.0=="fail-title"}.count,1)
+            result.dispose();result.tick(22);window.isHidden=true;window.rootViewController=nil
+        }
+    }
     func testCleanBoardTitleSpeechUsesTheDisplayedSelectionOnceAtTitleEntry() {
-        for index in [0,73,113] {
+        for index in [0,73,NativeResultHeadlines.clean.count-1] {
             let result=controller(board:12,headlineRandom:(Double(index)+0.5)/Double(NativeResultHeadlines.clean.count))
             var events:[(String,Int,Double)]=[]
             result.onMoment={kind,selected,_ in if kind.hasPrefix("clean-title") {events.append((kind,selected,result.elapsed))}}
@@ -43,6 +63,138 @@ final class NativeResultOwnerTests:XCTestCase {
         failed.loadViewIfNeeded();failed.tick(0);for frame in 1...40 {failed.tick(Double(frame)/60)}
         XCTAssertEqual(voices,0);failed.dispose()
     }
+    func testJourneyFirstClearContinuesButPreviouslyClearedPrimaryReplaysSameStage()throws {
+        for board in [1,11,21,29] {
+            for firstClear in [false,true] {
+                let state=NativeBoardState(tiles:[],mode:.journey,board:board,score:100)
+                let result=NativeResultController(root:NativeTestResources.root,state:state,clean:true,combo:0,efficiency:0,finalScore:100,interimJourney:firstClear)
+                let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+                defer{result.dispose();window.isHidden=true;window.rootViewController=nil}
+                var commits=0,actions:[String]=[]
+                result.onCommit={commits+=1}
+                result.onAction={action in
+                    switch action {case .nextJourney:actions.append("continue");case .restart:actions.append("replay");default:actions.append("unexpected")}
+                }
+                window.rootViewController=result;window.makeKeyAndVisible()
+                result.loadViewIfNeeded();result.tick(0)
+                for frame in 1...720 {result.tick(Double(frame)/60)}
+                let primary=try XCTUnwrap(self.resultButtons(result.view).first{$0.accessibilityIdentifier=="native.result.play-again"})
+                XCTAssertEqual(primary.title(for:.normal),firstClear ? "Continue":"Play again")
+                XCTAssertEqual(primary.attributedTitle(for:.normal)?.string,firstClear ? "Continue":"Play again")
+                XCTAssertEqual(commits,1)
+                if board==21 {
+                    let image=UIGraphicsImageRenderer(bounds:window.bounds).image{_ in window.drawHierarchy(in:window.bounds,afterScreenUpdates:true)}
+                    try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/journey-replay-cta/\(firstClear ? "first-clear":"replay").png"))
+                    let attachment=XCTAttachment(image:image);attachment.name=firstClear ? "first-clear-Continue":"replay-Play-again";attachment.lifetime = .keepAlways;add(attachment)
+                }
+                result.setSuspended(true);primary.sendActions(for:.touchUpInside);XCTAssertTrue(actions.isEmpty)
+                result.setSuspended(false);primary.sendActions(for:.touchUpInside);primary.sendActions(for:.touchUpInside)
+                XCTAssertEqual(actions,[firstClear ? "continue":"replay"])
+                XCTAssertEqual(result.state.board,board);XCTAssertEqual(result.state.mode,.journey)
+            }
+        }
+    }
+    func testWorldFinalLevelReturnsToWorldOrReplaysSameLevelForEveryWorldAndClearHistory()throws {
+        for board in [10,20,30] {
+            for firstClear in [false,true] {
+                for buttonID in ["native.result.play-again","native.result.exit"] {
+                    let state=NativeBoardState(tiles:[],mode:.journey,board:board,score:100)
+                    let result=NativeResultController(root:NativeTestResources.root,state:state,clean:true,combo:0,efficiency:0,finalScore:100,interimJourney:firstClear)
+                    let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+                    defer{result.dispose();window.isHidden=true;window.rootViewController=nil}
+                    var actions:[String]=[]
+                    result.onAction={action in
+                        switch action {case .exit:actions.append("world");case .restart:actions.append("replay");default:actions.append("unexpected")}
+                    }
+                    window.rootViewController=result;window.makeKeyAndVisible();result.tick(0)
+                    for frame in 1...720 {result.tick(Double(frame)/60)}
+                    let buttons=resultButtons(result.view)
+                    XCTAssertEqual(buttons.first{$0.accessibilityIdentifier=="native.result.play-again"}?.title(for:.normal),"Back to World")
+                    XCTAssertEqual(buttons.first{$0.accessibilityIdentifier=="native.result.exit"}?.title(for:.normal),"Play again")
+                    let button=try XCTUnwrap(buttons.first{$0.accessibilityIdentifier==buttonID})
+                    result.setSuspended(true);button.sendActions(for:.touchUpInside);XCTAssertTrue(actions.isEmpty)
+                    result.setSuspended(false);button.sendActions(for:.touchUpInside);button.sendActions(for:.touchUpInside)
+                    XCTAssertEqual(actions,[buttonID=="native.result.play-again" ? "world":"replay"])
+                    XCTAssertEqual(result.state.board,board)
+                }
+            }
+        }
+    }
+    func testFailedWorldFinalLevelAndArcadeKeepOrdinaryResultActions()throws {
+        for mode in [NativeRunMode.journey,.arcade] {
+            let state=NativeBoardState(tiles:[],mode:mode,board:10)
+            let result=NativeResultController(root:NativeTestResources.root,state:state,clean:false,combo:0,efficiency:0,finalScore:0)
+            defer{result.dispose()};result.loadViewIfNeeded()
+            let buttons=resultButtons(result.view)
+            XCTAssertEqual(buttons.first{$0.accessibilityIdentifier=="native.result.play-again"}?.title(for:.normal),"Play again")
+            XCTAssertEqual(buttons.first{$0.accessibilityIdentifier=="native.result.exit"}?.title(for:.normal),"Exit")
+        }
+    }
+    func testPreviouslyClearedJourneyOwnerInvokesRestartNotNextJourney()async throws {
+        let state=NativeBoardState(tiles:[],mode:.journey,board:21)
+        let game=NativeGameplayViewController(engine:NativeGameplayEngine(state:state),resourceRoot:NativeTestResources.root)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=game;window.makeKeyAndVisible()
+        var restarts=0,next=0,exits=0,commits=0
+        let owner=NativeResultOwner(gameplay:game,root:NativeTestResources.root,resolution:NativeResolution(.complete,reason:"replay-clean"),commit:{_ in commits+=1},restart:{restarts+=1},continueArcade:{},exit:{exits+=1},interimJourney:false,continueJourney:{next+=1})
+        defer{owner.dispose();game.dispose();window.isHidden=true;window.rootViewController=nil}
+        owner.present()
+        let modal=try XCTUnwrap(game.presentedViewController as? NativeResultController)
+        modal.tick(0);for frame in 1...720 {modal.tick(Double(frame)/60)}
+        let primary=try XCTUnwrap(resultButtons(modal.view).first{$0.accessibilityIdentifier=="native.result.play-again"})
+        XCTAssertEqual(primary.title(for:.normal),"Play again");primary.sendActions(for:.touchUpInside)
+        for frame in 721...840 {modal.tick(Double(frame)/60)}
+        let deadline=Date().addingTimeInterval(2)
+        while restarts==0 && Date()<deadline {try await Task.sleep(for:.milliseconds(10))}
+        XCTAssertEqual(restarts,1);XCTAssertEqual(next,0);XCTAssertEqual(exits,0);XCTAssertEqual(commits,1)
+        XCTAssertEqual(game.engine.state.board,21)
+    }
+
+    func testResultCopyAcrossScoreAndContinuationBranches() throws {
+        try FileManager.default.createDirectory(atPath:"/tmp/native-consistency-review",withIntermediateDirectories:true)
+        for mode in [NativeRunMode.journey,.arcade] {
+            for clean in [false,true] {
+                for isNew in [false,true] {
+                    let state=NativeBoardState(tiles:[],mode:mode,board:1,score:100,bestScore:isNew ? 0:2000)
+                    let result=NativeResultController(root:NativeTestResources.root,state:state,clean:clean,combo:0,efficiency:0,finalScore:1234,interimJourney:mode == .journey && clean,arcadeReached:mode == .arcade && clean,headlineRandom:0)
+                    let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+                    window.rootViewController=result;window.makeKeyAndVisible();result.view.layoutIfNeeded()
+                    defer {result.dispose();window.isHidden=true;window.rootViewController=nil}
+                    result.tick(0);for frame in 1...720 {result.tick(Double(frame)/60)}
+                    func primaryButton(_ view:UIView)->UIButton? {
+                        if let button=view as? UIButton,button.accessibilityIdentifier == "native.result.play-again" {return button}
+                        return view.subviews.compactMap{primaryButton($0)}.first
+                    }
+                    let primary=try XCTUnwrap(primaryButton(result.view))
+                    XCTAssertEqual(primary.title(for:.normal),mode == .journey && clean ? "Continue":"Play again")
+                    let labels=findUILabels(result.view)
+                    if isNew {
+                        let label=try XCTUnwrap(labels.first{$0.attributedText?.string == "NEW High score"})
+                        let text=try XCTUnwrap(label.attributedText)
+                        XCTAssertEqual(text.attribute(.foregroundColor,at:4,effectiveRange:nil) as? UIColor,NativeTextPalette.subtitle)
+                        XCTAssertLessThanOrEqual(text.size().width,label.bounds.width)
+                    } else {XCTAssertNotNil(labels.first{$0.text == "Your score"})}
+                    let image=UIGraphicsImageRenderer(bounds:window.bounds).image{_ in window.drawHierarchy(in:window.bounds,afterScreenUpdates:true)}
+                    let attachment=XCTAttachment(image:image);attachment.name="result-copy-\(mode)-\(clean)-\(isNew)";attachment.lifetime = .keepAlways;add(attachment)
+                    try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/native-consistency-review/result-\(mode)-\(clean)-\(isNew).png"))
+                }
+            }
+        }
+    }
+
+    func testNewHighscoreUsesExtraBoldOrangePrefix() throws {
+        let result=controller()
+        defer {result.dispose()}
+        result.loadViewIfNeeded()
+        let label=try XCTUnwrap(findUILabels(result.view).first{$0.attributedText?.string == "NEW High score"})
+        let attributes=try XCTUnwrap(label.attributedText).attributes(at:0,effectiveRange:nil)
+        let orange=UIColor(red:231/255,green:116/255,blue:73/255,alpha:1)
+        XCTAssertEqual(attributes[.foregroundColor] as? UIColor,orange)
+        XCTAssertEqual((attributes[.font] as? UIFont)?.fontName,JimiV9Artwork(resourceRoot:NativeTestResources.root).font(size:18,weight:"ExtraBold").fontName)
+    }
+
+    private func resultButtons(_ view:UIView)->[UIButton] {
+        (view as? UIButton).map{[$0]} ?? view.subviews.flatMap{resultButtons($0)}
+    }
     private func findUILabels(_ view:UIView)->[UILabel] {
         (view as? UILabel).map{[$0]} ?? view.subviews.flatMap{findUILabels($0)}
     }
@@ -58,6 +210,12 @@ final class NativeResultOwnerTests:XCTestCase {
             owner.present()
             let modal=try XCTUnwrap(game.presentedViewController as? NativeResultController)
             modal.tick(0);for frame in 1...600 {modal.tick(Double(frame)/60)}
+            // Exercise nextJourney routing independently of the reward-first presentation.
+            // Tutorial completion keeps Continue even for imported completed-Stage profiles.
+            if tutorialRun {
+                let primary=try XCTUnwrap(resultButtons(modal.view).first{$0.accessibilityIdentifier=="native.result.play-again"})
+                XCTAssertEqual(primary.title(for:.normal),"Continue")
+            }
             modal.onAction?(.nextJourney)
             for frame in 601...720 {modal.tick(Double(frame)/60)}
             let deadline=Date().addingTimeInterval(2)
@@ -173,18 +331,20 @@ final class NativeResultOwnerTests:XCTestCase {
         XCTAssertEqual(complete.displayedScore,2725);XCTAssertEqual(complete.displayedCombo,0);XCTAssertEqual(complete.displayedEfficiency,0)
         XCTAssertEqual(6.62-NativeResultPresentationPlan.cleanPrimaryCTAStart,1.23,accuracy:0.001)
     }
-    func testCleanRegisterStartsOnceWithPrimaryCTAInsteadOfCounter() {
+    func testCleanRegisterStartsOnceWithFinalCounterBounce() {
         let result=controller();var stops:[Int]=[];var cueTimes:[Double]=[]
         result.onMoment={kind,index,_ in if kind=="clean-score-stop" {stops.append(index);cueTimes.append(result.elapsed)}}
         result.loadViewIfNeeded();defer{result.dispose()}
         result.tick(0)
         XCTAssertTrue(stops.isEmpty)
-        let beforeFrame=Int(floor(NativeResultPresentationPlan.cleanPrimaryCTAStart*60))
+        let finalCountEnd=NativeResultPresentationPlan.cleanEfficiencyStart+NativeResultPresentationPlan.cleanCounterDuration(from:150,to:650)
+        let beforeFrame=Int(floor(finalCountEnd*60))
         for frame in 1...beforeFrame {result.tick(Double(frame)/60)}
         XCTAssertTrue(stops.isEmpty)
         for frame in (beforeFrame+1)...(beforeFrame+24) {result.tick(Double(frame)/60)}
         XCTAssertEqual(stops,[0])
-        XCTAssertEqual(cueTimes.first ?? 0,NativeResultPresentationPlan.cleanPrimaryCTAStart,accuracy:1.0/60+0.001)
+        XCTAssertEqual(cueTimes.first ?? 0,finalCountEnd,accuracy:1.0/60+0.001)
+        XCTAssertLessThan(cueTimes.first ?? 0,NativeResultPresentationPlan.cleanPrimaryCTAStart)
         result.tick(7.1);XCTAssertEqual(stops,[0])
     }
 
@@ -320,14 +480,14 @@ final class NativeResultOwnerTests:XCTestCase {
         }
     }
 
-    func testCleanAndFailButtonsMatchHomeDimensionsAtPhoneWidths() throws {
+    func testCleanAndFailButtonsWidenTwentyPercentAtPhoneWidths() throws {
         let artwork=JimiV9Artwork(resourceRoot:NativeTestResources.root)
         for width in [CGFloat(320),390,430] {
             let window=UIWindow(frame:CGRect(x:0,y:0,width:width,height:844))
             let host=UIViewController();window.rootViewController=host;window.makeKeyAndVisible()
             let home=JimiV9HomeView(frame:window.bounds,assets:artwork)
             host.view.addSubview(home);home.layoutIfNeeded()
-            let expected=home.ctaView.bounds.size
+            let expectedHeight=JimiV9PlainButton.primaryCTAHeight
             for clean in [false,true] {
                 let result=NativeResultController(root:NativeTestResources.root,state:NativeBoardState(tiles:[],mode:.journey,board:1),clean:clean,combo:0,efficiency:0,finalScore:0)
                 window.rootViewController=result;result.view.frame=window.bounds;result.view.layoutIfNeeded()
@@ -336,11 +496,12 @@ final class NativeResultOwnerTests:XCTestCase {
                 func actions(_ view:UIView)->[JimiV9PlainButton] {
                     (view as? JimiV9PlainButton).map{[$0]} ?? view.subviews.flatMap{actions($0)}
                 }
-                let buttons=actions(result.view).filter{["Play Again","Exit"].contains($0.title(for:.normal) ?? "")}
+                let buttons=actions(result.view).filter{["Continue","Play again","Exit"].contains($0.title(for:.normal) ?? "")}
                 XCTAssertEqual(buttons.count,2)
+                let priorWidth=JimiV9PlainButton.modalCTAWidth(buttons,maxWidth:width-48)
                 for button in buttons {
-                    XCTAssertEqual(button.bounds.width,expected.width,accuracy:0.001)
-                    XCTAssertEqual(button.bounds.height,expected.height,accuracy:0.001)
+                    XCTAssertEqual(button.bounds.width,min(width-48,priorWidth*1.20),accuracy:0.001)
+                    XCTAssertEqual(button.bounds.height,expectedHeight,accuracy:0.001)
                     XCTAssertEqual(button.titleLabel?.font.pointSize,28)
                 }
                 if width==390 {
@@ -376,9 +537,9 @@ final class NativeResultOwnerTests:XCTestCase {
             func snapshot()->Data {UIGraphicsImageRenderer(size:button.bounds.size,format:format).image{button.layer.render(in:$0.cgContext)}.pngData()!}
             let first=snapshot();button.setNeedsLayout();button.layoutIfNeeded();XCTAssertEqual(first,snapshot())
             images.append(first)
-            button.setTitle("Play Again",for:.normal);button.bounds=CGRect(origin:.zero,size:button.primaryCTASize(maxWidth:300));button.layoutIfNeeded()
-            XCTAssertEqual(button.attributedTitle(for:.normal)?.string,"Play Again")
-            for label in button.subviews.compactMap({$0 as? UILabel}) {XCTAssertEqual(label.attributedText?.string,"Play Again")}
+            button.setTitle("Play again",for:.normal);button.bounds=CGRect(origin:.zero,size:button.primaryCTASize(maxWidth:300));button.layoutIfNeeded()
+            XCTAssertEqual(button.attributedTitle(for:.normal)?.string,"Play again")
+            for label in button.subviews.compactMap({$0 as? UILabel}) {XCTAssertEqual(label.attributedText?.string,"Play again")}
             XCTAssertEqual(button.accessibilityIdentifier,id)
         }
         XCTAssertEqual(Set(images).count,4,"Same title/material still has a subtle distinct contour per role")
@@ -390,7 +551,7 @@ final class NativeResultOwnerTests:XCTestCase {
         let artwork=JimiV9Artwork(resourceRoot:NativeTestResources.root)
         let font=artwork.font(size:28,weight:"ExtraBold")
         let reference=("Journey" as NSString).size(withAttributes:[.font:font]).width/(176*1.05)
-        for text in ["Journey","Arcade","Settings","Play","Continue","Play Again","Got it!","Restart"] {
+        for text in ["Journey","Arcade","Settings","Play","Continue","Play again","Got it!","Restart"] {
             let button=JimiV9PlainButton(type:.custom);button.setTitle(text,for:.normal);button.applyModalCTA(artwork:artwork)
             let size=button.primaryCTASize(maxWidth:400)
             XCTAssertEqual(size.height,80.64)
@@ -538,7 +699,7 @@ final class NativeResultOwnerTests:XCTestCase {
         let buttons=[JimiV9PlainButton(type:.custom),JimiV9PlainButton(type:.custom)]
         for (index,button) in buttons.enumerated() {
             button.frame=CGRect(x:70,y:250+index*88,width:249,height:80)
-            button.setTitle(index == 0 ? "Play Again":"Exit",for:.normal)
+            button.setTitle(index == 0 ? "Play again":"Exit",for:.normal)
             host.view.addSubview(button);button.applyModalCTA(artwork:artwork,primary:index == 0)
             button.setPairedModalCTA();button.layoutIfNeeded()
         }
@@ -818,7 +979,7 @@ final class NativeResultOwnerTests:XCTestCase {
         XCTAssertEqual(secondary.backgroundColor,.clear);XCTAssertEqual(secondary.layer.borderWidth,0)
         XCTAssertNotNil(secondary.subviews.first{$0.accessibilityIdentifier=="native.cta.sculpted-face"})
     }
-    func testCleanScoreUsesPlainIntegerWithoutGroupingSeparator() {
+    func testCleanScoreUsesDotThousandsGrouping() {
         let root=Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle")!
         let state=NativeBoardState(tiles:[],mode:.journey,board:1,score:1234)
         let result=NativeResultController(root:root,state:state,clean:true,combo:0,efficiency:0,finalScore:1234)
@@ -828,7 +989,7 @@ final class NativeResultOwnerTests:XCTestCase {
             if root.accessibilityIdentifier=="native.result.score" {return root as? UILabel}
             return root.subviews.compactMap{find($0)}.first
         }
-        XCTAssertEqual(find(result.view)?.text,"1234")
+        XCTAssertEqual(find(result.view)?.text,"1.234")
     }
     private func controller(clean:Bool=true,mode:NativeRunMode = .journey,board:Int=1,headlineRandom:Double=0)->NativeResultController {
         let root=Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle")!
@@ -882,6 +1043,46 @@ final class NativeResultOwnerTests:XCTestCase {
         for index in 101...320 {result.tick(Double(index)/60)}
         XCTAssertEqual(receipts,0);XCTAssertEqual(next,0)
     }
+    func testTabletResultUniformlyProjectsThePhoneCompositionAndFits() throws {
+        func identified(_ root:UIView,_ id:String)->UIView? {
+            if root.accessibilityIdentifier==id {return root}
+            return root.subviews.lazy.compactMap{identified($0,id)}.first
+        }
+        for clean in [true,false] {
+            let phone=controller(clean:clean)
+            phone.prepareForHandoff(viewport:CGSize(width:390,height:844));phone.admitPreparedHandoff()
+            phone.tick(0);for i in 1...100 {phone.tick(Double(i)/10)}
+            let ids=["native.result.star.filled.0","native.result.star.empty.1","native.result.score","native.result.status","native.result.play-again","native.result.exit"]
+            let mobile=try ids.map {try XCTUnwrap(identified(phone.view,$0))}
+            for size in [CGSize(width:744,height:1133),CGSize(width:820,height:1180),CGSize(width:1032,height:1376)] {
+                let result=controller(clean:clean)
+                result.prepareForHandoff(viewport:size);result.admitPreparedHandoff()
+                result.tick(0);for i in 1...100 {result.tick(Double(i)/10)}
+                let projected=try ids.map {try XCTUnwrap(identified(result.view,$0))}
+                let factor=projected[4].convert(projected[4].bounds,to:result.view).width/mobile[4].convert(mobile[4].bounds,to:phone.view).width
+                XCTAssertGreaterThan(factor,1.4*0.70*1.10)
+                for (a,b) in zip(mobile,projected) {
+                    XCTAssertEqual(a.bounds.size,b.bounds.size,"Tablet must retain exact mobile local geometry")
+                    let original=a.convert(a.bounds,to:phone.view),enlarged=b.convert(b.bounds,to:result.view)
+                    XCTAssertEqual(enlarged.width,original.width*factor,accuracy:0.01)
+                    XCTAssertEqual(enlarged.height,original.height*factor,accuracy:0.01)
+                    if let a=a as? UILabel,let b=b as? UILabel {XCTAssertEqual(a.font.pointSize,b.font.pointSize)}
+                }
+                let first=try XCTUnwrap(identified(result.view,"native.result.star.filled.1"))
+                XCTAssertGreaterThan(first.convert(first.bounds,to:result.view).minY,24)
+                let last=projected[5].convert(projected[5].bounds,to:result.view)
+                XCTAssertLessThan(last.maxY,size.height-24)
+                result.view.setNeedsLayout();result.view.layoutIfNeeded()
+                XCTAssertEqual(last.minY,projected[5].convert(projected[5].bounds,to:result.view).minY,accuracy:0.01)
+                if clean,size.width==820 {
+                    let image=UIGraphicsImageRenderer(size:size).image{result.view.layer.render(in:$0.cgContext)}
+                    try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/ipad-result-mobile-scale.png"))
+                }
+                result.dispose()
+            }
+            phone.dispose()
+        }
+    }
     func testCleanResultRelayoutPreservesZeroScaleEntryAndOutsideCardCTA() {
         let result=controller();let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
         let previousWindow=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
@@ -890,9 +1091,9 @@ final class NativeResultOwnerTests:XCTestCase {
         result.view.frame=window.bounds;result.view.setNeedsLayout();result.view.layoutIfNeeded()
         let primary=button(in:result.view,id:"native.result.play-again")!
         let secondary=button(in:result.view,id:"native.result.exit")!
-        let homeSize=JimiV9PlainButton.homeCTASize(maxWidth:342,font:primary.titleLabel!.font)
-        XCTAssertEqual(primary.bounds.height,homeSize.height);XCTAssertEqual(primary.bounds.width,homeSize.width)
-        XCTAssertEqual(secondary.bounds.size,CGSize(width:primary.bounds.width,height:homeSize.height))
+        let ctaHeight=JimiV9PlainButton.primaryCTAHeight
+        XCTAssertEqual(primary.bounds.height,ctaHeight);XCTAssertEqual(primary.bounds.width,min(342,(ceil(primary.attributedTitle(for:.normal)!.size().width)+48)*1.05*1.20),accuracy:0.001)
+        XCTAssertEqual(secondary.bounds.size,CGSize(width:primary.bounds.width,height:ctaHeight))
         for glyph in secondary.subviews where glyph.accessibilityIdentifier=="native.cta.title-outline" || glyph.accessibilityIdentifier=="native.cta.title-inner-outline" {XCTAssertTrue(glyph.isHidden)}
         let ink=secondary.attributedTitle(for:.normal)?.attribute(.foregroundColor,at:0,effectiveRange:nil) as? UIColor
         XCTAssertEqual(ink,UIColor(red:189/255,green:160/255,blue:142/255,alpha:1))
@@ -901,8 +1102,8 @@ final class NativeResultOwnerTests:XCTestCase {
             XCTAssertEqual(painted.contentScaleFactor,window.screen.scale*2)
             XCTAssertFalse(painted.layer.shouldRasterize)
         }
-        XCTAssertEqual(primary.layer.cornerRadius,homeSize.height/2);XCTAssertEqual(secondary.layer.cornerRadius,homeSize.height/2)
-        XCTAssertEqual((primary as! JimiV9PlainButton).cartoonBounceLayoutView.center.x,195);XCTAssertEqual((secondary as! JimiV9PlainButton).cartoonBounceLayoutView.center.y-(primary as! JimiV9PlainButton).cartoonBounceLayoutView.center.y,homeSize.height+12,accuracy:0.001)
+        XCTAssertEqual(primary.layer.cornerRadius,min(40,ctaHeight/2));XCTAssertEqual(secondary.layer.cornerRadius,min(40,ctaHeight/2))
+        XCTAssertEqual((primary as! JimiV9PlainButton).cartoonBounceLayoutView.center.x,195);XCTAssertEqual((secondary as! JimiV9PlainButton).cartoonBounceLayoutView.center.y-(primary as! JimiV9PlainButton).cartoonBounceLayoutView.center.y,ctaHeight+7.2,accuracy:0.001)
         XCTAssertEqual(primary.transform.a,0)
         result.tick(0)
         for index in 1...80 {result.tick(Double(index)/10)}
@@ -928,9 +1129,9 @@ final class NativeResultOwnerTests:XCTestCase {
         window.rootViewController=result;window.makeKeyAndVisible();result.loadViewIfNeeded()
         result.view.frame=window.bounds;result.view.setNeedsLayout();result.view.layoutIfNeeded()
         let primary=button(in:result.view,id:"native.result.play-again")!
-        let homeSize=JimiV9PlainButton.homeCTASize(maxWidth:342,font:primary.titleLabel!.font)
-        XCTAssertEqual(primary.bounds.height,homeSize.height);XCTAssertEqual(primary.bounds.width,homeSize.width);XCTAssertFalse(primary.isUserInteractionEnabled)
-        XCTAssertEqual(primary.layer.cornerRadius,homeSize.height/2)
+        let ctaHeight=JimiV9PlainButton.primaryCTAHeight
+        XCTAssertEqual(primary.bounds.height,ctaHeight);XCTAssertEqual(primary.bounds.width,min(342,(ceil(primary.attributedTitle(for:.normal)!.size().width)+48)*1.05*1.20));XCTAssertFalse(primary.isUserInteractionEnabled)
+        XCTAssertEqual(primary.layer.cornerRadius,min(40,ctaHeight/2))
         XCTAssertEqual(button(in:result.view,id:"native.result.exit")?.bounds.width,primary.bounds.width)
         result.tick(0)
         for index in 1...15 {result.tick(Double(index)/10)}

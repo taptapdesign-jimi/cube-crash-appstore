@@ -161,7 +161,7 @@ final class NativeArcadeHubView: UIView {
                 .init(begin:delay+0.18,duration:0.336,from:peak,to:.scale(0),ease:.backIn(1.7))],anchorY:0.54))
         }
         result.append((hub.header, enter ? .init(tweens:[.init(begin:0,duration:reduced ? 0.2 : 0.56,from:.scale(reduced ? 0.96 : 0.65,y:reduced ? 8 : 30,opacity:0),to:.scale(1),ease:reduced ? .powerOut(1) : .backOut(1.8))]) : JimiV9Motion.journeyNavigationExit(reducedMotion:reduced)))
-        return result
+        return hub.includingCloudTracks(result)
     }
 }
 
@@ -182,6 +182,7 @@ final class NativeArcadeWorldModal: UIView {
     private(set) var modalDrag:JimiNativeModalDrag?
     private var foreground = true, entered = false
     private var closing = false, disposed = false
+    private var didBounceCTA=false
     private var ready = false {
         didSet { play.isEnabled = ready && foreground && !closing; accessibilityValue = ready ? "ready" : "entering" }
     }
@@ -240,6 +241,8 @@ final class NativeArcadeWorldModal: UIView {
             cloud.accessibilityIdentifier="native.arcade-world-modal.cloud.\(ordinal)"
             cloudStage.addSubview(cloud);clouds.append(cloud)
         }
+        art.isUserInteractionEnabled=true;art.accessibilityTraits=[.image,.button];art.accessibilityHint="Hear Jimbo"
+        art.addGestureRecognizer(UITapGestureRecognizer(target:self,action:#selector(speechTapped)))
         [heading,subtitle,art,play,close].forEach { idle.addSubview($0) };play.enableCartoonBounce()
         modalDrag=JimiNativeModalDrag(target:card,idle:idle,viewport:self,canDrag:{[weak self] in
             guard let self else{return false}
@@ -250,28 +253,37 @@ final class NativeArcadeWorldModal: UIView {
     override func layoutSubviews() {
         super.layoutSubviews(); backdrop.frame = bounds
         guard !closing,!disposed else{return}
+        let modalBounds=NativeTabletLayout.modalBounds(in:self,card:card)
+        let modalSafeInsets=NativeTabletLayout.modalSafeInsets(in:self)
         // Backpack detail's content-sized paper recipe. Reserve real safe-area
         // and floor-shadow room, rather than centering a fixed tall card.
-        let w = min(390,max(0,bounds.width-48))
-        heading.frame = CGRect(x:w*0.1,y:28,width:w*0.8,height:38.4)
+        let w=NativeTabletLayout.paperWidth(modalBounds.size)
+        let textScale=NativeTabletLayout.textScale(modalBounds.size)
+        NativeTabletLayout.labelFont(heading,size:28*textScale)
+        NativeTabletLayout.labelFont(subtitle,size:18*textScale)
+        NativeTabletLayout.buttonFont(play,size:28*textScale)
+        heading.frame = CGRect(x:w*0.1,y:28,width:w*0.8,height:38.4*textScale)
         let subtitleWidth = modeIndex == 1 ? w*0.8 : (w < 300 ? max(0,w-16):w*0.8)
         let subtitleHeight = ceil(subtitle.sizeThatFits(CGSize(width:subtitleWidth,height:CGFloat.greatestFiniteMagnitude)).height)
         subtitle.frame = CGRect(x:(w-subtitleWidth)/2,y:heading.frame.maxY+12,width:subtitleWidth,height:subtitleHeight)
-        let artworkY = subtitle.frame.maxY+24
+        // Lift the illustration/footer together while keeping title and top edge fixed.
+        let contentLift:CGFloat = 16
+        let artworkY = subtitle.frame.maxY+24-contentLift
         let aspect = (art.image?.size.width ?? 1)/max(1,art.image?.size.height ?? 1)
         // Reduce the preceding aspect-fit image by exactly20percent before
         // applying the small-screen safe-area ceiling.
-        let priorWidth = min(390,max(0,bounds.width-40))
+        let priorWidth=NativeTabletLayout.paperWidth(modalBounds.size,padding:40)
         let priorCopyHeight = ceil(subtitle.sizeThatFits(CGSize(width:max(0,priorWidth-56),height:CGFloat.greatestFiniteMagnitude)).height)
-        let priorCardHeight = min(650,max(0,bounds.height-safeAreaInsets.top-safeAreaInsets.bottom-40))
+        let priorCardHeight = min(650*textScale,max(0,modalBounds.height-modalSafeInsets.top-modalSafeInsets.bottom-40))
         let priorArtworkHeight = max(0,priorCardHeight-100-(78+priorCopyHeight+12)-20)
         let scaledArtworkHeight = min(max(0,priorWidth-30)/aspect,priorArtworkHeight)*0.8
-        let safeTop = safeAreaInsets.top+30, safeBottom = bounds.height-safeAreaInsets.bottom-40
+        let safeTop = modalSafeInsets.top+30, safeBottom = modalBounds.height-modalSafeInsets.bottom-40
         let availableHeight = max(0,safeBottom-safeTop)
-        // Arcade Play/Continue is10percent narrower; height and live text stay unchanged.
-        let ctaWidth:CGFloat = min((bounds.width < 768 ? 226:250)*JimiV9PlainButton.ctaWidthScale,w-32)*0.9
+        // Match Journey info Play/Continue at this same viewport exactly.
+        let journeyScale=NativeTabletLayout.journeyScale(modalBounds.size)
+        let ctaWidth=max(0,min(w-32,min(238*journeyScale,326*journeyScale-32)*0.9))
         let footerHeight:CGFloat = 32+72+40
-        let artworkHeight = min(scaledArtworkHeight,max(0,availableHeight-artworkY-footerHeight))
+        let artworkHeight = min(scaledArtworkHeight,max(0,availableHeight-(artworkY+contentLift)-footerHeight))
         art.bounds=CGRect(x:0,y:0,width:artworkHeight*aspect,height:artworkHeight)
         art.center=CGPoint(x:w/2,y:artworkY+artworkHeight/2)
         // Connected cloud bank borrows the main Arcade Hub's shapes, relative
@@ -305,12 +317,12 @@ final class NativeArcadeWorldModal: UIView {
             if index == leftward { center.x -= 50 }
             cloud.center=center
         }
-        let playY=artworkY+artworkHeight+32
-        play.cartoonBounceLayoutView.bounds=CGRect(x:0,y:0,width:ctaWidth,height:JimiV9PlainButton.primaryCTAHeight)
-        play.cartoonBounceLayoutView.center=CGPoint(x:w/2,y:playY+JimiV9PlainButton.primaryCTAHeight/2);play.layoutCartoonContent()
-        let h=playY+JimiV9PlainButton.primaryCTAHeight+40
+        let playY=artworkY+artworkHeight+16
+        play.cartoonBounceLayoutView.bounds=CGRect(x:0,y:0,width:ctaWidth,height:JimiV9PlainButton.primaryCTAHeight*textScale)
+        play.cartoonBounceLayoutView.center=CGPoint(x:w/2,y:playY+JimiV9PlainButton.primaryCTAHeight*textScale/2);play.layoutCartoonContent()
+        let h=playY+JimiV9PlainButton.primaryCTAHeight*textScale+40
         card.bounds = CGRect(x:0,y:0,width:w,height:h)
-        card.center = CGPoint(x:bounds.midX,y:safeTop+availableHeight/2)
+        card.center = CGPoint(x:modalBounds.midX,y:safeTop+availableHeight/2-contentLift/2)
         flip.bounds = card.bounds; flip.center = CGPoint(x:w/2,y:h)
         tilt.bounds=flip.bounds;tilt.center=CGPoint(x:w/2,y:h/2)
         idle.bounds=tilt.bounds;idle.center=CGPoint(x:w/2,y:h/2)
@@ -349,6 +361,10 @@ final class NativeArcadeWorldModal: UIView {
         ready=true
         JimiNativeModalV10.startIdle(on:idle,key:"arcade.modal.idle")
         JimiNativeModalV10.startIdle(on:art,key:"arcade.modal.art.idle")
+        if !didBounceCTA {
+            didBounceCTA=true
+            JimiNativeModalV10.startSettledBounce(on:play,extraDuration:0,delay:0.2)
+        }
         refreshCloudIdle(reducedMotion:UIAccessibility.isReduceMotionEnabled)
     }
     /// Same visible modal owner handles preference changes and foreground reentry.
@@ -358,8 +374,8 @@ final class NativeArcadeWorldModal: UIView {
         let periods:[Double]=[7.3,6.8,7.1,6.7,6.4],amplitudes:[CGFloat]=[1.25,-1,1.25,-1.25,1.25]
         let drifts:[CGFloat]=[-8,-7,-7,7,-8]
         for (index,cloud) in clouds.enumerated() {
-            JimiNativeModalV10.startIdle(on:cloud,key:"arcade.modal.cloud.idle",drift:drifts[index],
-                amplitude:amplitudes[index],duration:periods[index],depth:false)
+            JimiNativeModalV10.startIdle(on:cloud,key:"arcade.modal.cloud.idle",drift:drifts[index]*1.5,
+                amplitude:amplitudes[index]*1.5,duration:periods[index],depth:false)
         }
     }
     func settle() {setForeground(false)}
@@ -376,10 +392,14 @@ final class NativeArcadeWorldModal: UIView {
         }
     }
     func dispose() {
-        guard !disposed else { return }; modalDrag?.dispose();modalDrag=nil;disposed = true; onFinish = nil;onFeedback=nil;onPlayExitStart=nil
+        guard !disposed else { return };art.gestureRecognizers?.forEach{art.removeGestureRecognizer($0)}; modalDrag?.dispose();modalDrag=nil;disposed = true;onFinish = nil;onFeedback=nil;onPlayExitStart=nil
         for target in [self,card,flip,tilt,idle,art,backdrop,close,play]+clouds { target.layer.removeAllAnimations() }
         clouds.forEach{$0.image=nil}
         removeFromSuperview()
+    }
+    @objc private func speechTapped(){
+        guard ready,foreground,!closing,!disposed else{return}
+        onFeedback?("scene-speech:"+["arena-modal-endurance","arena-modal-grill","arena-modal-slow"][modeIndex])
     }
     private func finish(_ play: Bool) {
         guard ready,foreground,!closing,!disposed else { return }
@@ -389,6 +409,8 @@ final class NativeArcadeWorldModal: UIView {
         let artPose=art.layer.presentation()?.transform ?? art.layer.transform
         modalDrag?.cancel(preservePose:true);closing=true
         isUserInteractionEnabled=false;self.play.isEnabled=false
+        self.play.layer.removeAnimation(forKey:JimiNativeModalV10.settledBounceKey)
+        onFeedback?("scene-speech-stop:"+["arena-modal-endurance","arena-modal-grill","arena-modal-slow"][modeIndex])
         if play {onFeedback?("cta");onFeedback?("modal-exit");onPlayExitStart?()}
         CATransaction.begin();CATransaction.setDisableActions(true)
         idle.layer.transform=idlePose;art.layer.transform=artPose
@@ -419,6 +441,7 @@ final class NativeArcadeWorldModal: UIView {
     @objc private func dismissSheet() { finish(false) }
     private func animatePlay(pressed:Bool) {
         let target=play.layer,from=target.presentation()?.transform ?? target.transform
+        target.removeAnimation(forKey:JimiNativeModalV10.settledBounceKey)
         let scale=pressed ? 0.84:1.0,y=pressed ? 4.0:0.0
         let ease:JimiV9Motion.Ease=pressed ? .powerOut(2):.backOut(2.1)
         let animation=CAKeyframeAnimation(keyPath:"transform")

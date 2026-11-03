@@ -1,0 +1,364 @@
+{
+  "recordingId": "journey-cards-v1",
+  "source": "assets/sound/SPEECH/Jimbo voice compilation/cjeline i kartice.mp3",
+  "sourceSHA256": "6bfd83b159f563470ae10ca53f1c4e2b1c1508911f07bd183c14a76627ecf025",
+  "format": "48000Hz mono PCM16 WAV",
+  "processing": "Complete source divided at waveform quiet gaps;3ms edge fades only,no gain/rate/pitch/normalization;all source frames retained. Leading laughs belong to lines3/6/10;internal wonder/three-stars pauses retained inside lines12/13.",
+  "clips": [
+    {
+      "order": 1,
+      "lineId": "journey-cards-v1-01",
+      "sceneId": "journey-card-common",
+      "studioSceneIds": [
+        "map-forest",
+        "map-beach",
+        "map-space"
+      ],
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/journey-cards-v1/001-common-01.wav",
+      "file": "001-common-01.wav",
+      "text": "[happy] Ooh, a lovely little find!",
+      "spokenText": "Ooh, a lovely little find!",
+      "startFrame": 0,
+      "endFrame": 118800,
+      "duration": 2.475,
+      "sha256": "2bd41f724aa8c565c8e8f8fd73211cdf08f875f8ac482b4c661323cb0cb7fb51",
+      "incompleteStageOnly": false
+    },
+    {
+      "order": 2,
+      "lineId": "journey-cards-v1-02",
+      "sceneId": "journey-card-common",
+      "studioSceneIds": [
+        "map-forest",
+        "map-beach",
+        "map-space"
+      ],
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/journey-cards-v1/002-common-02.wav",
+      "file": "002-common-02.wav",
+      "text": "[cheerful] A little treasure for our collection!",
+      "spokenText": "A little treasure for our collection!",
+      "startFrame": 118800,
+      "endFrame": 220080,
+      "duration": 2.11,
+      "sha256": "8a3cfc43807e836d5e22c060d5ce849d13d834dfcf0fd1f01cb5278d47c6f26c",
+      "incompleteStageOnly": false
+    },
+    {
+      "order": 3,
+      "lineId": "journey-cards-v1-03",
+      "sceneId": "journey-card-common",
+      "studioSceneIds": [
+        "map-forest",
+        "map-beach",
+        "map-space"
+      ],
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/journey-cards-v1/003-common-03.wav",
+      "file": "003-common-03.wav",
+      "text": "[laughs] You're coming home with us!",
+      "spokenText": "You're coming home with us!",
+      "startFrame": 220080,
+      "endFrame": 317160,
+      "duration": 2.0225,
+      "sha256": "af52408250ab6ce362110b845328752135a4243abb46d971a8e7a86069857955",
+      "incompleteStageOnly": false
+    },
+    {
+      "order": 4,
+      "lineId": "journey-cards-v1-04",
+      "sceneId": "journey-card-legendary",
+      "studioSceneIds": [
+        "map-forest",
+        "map-beach",
+        "map-space"
+      ],
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/journey-cards-v1/004-legendary-01.wav",
+      "file": "004-legendary-01.wav",
+      "text": "[excited] Wow! Look at that shine!",
+      "spokenText": "Wow! Look at that shine!",
+      "startFrame": 317160,
+      "endFrame": 430800,
+      "duration": 2.3675,
+      "sha256": "4d0e03f27962d609164aba8fa8ecf7c5e4f2677d65cbdde3f69e3429fbaf5a9d",
+      "incompleteStageOnly": false
+    },
+    {
+      "order": 5,
+      "lineId": "journey-cards-v1-05",
+      "sceneId": "journey-card-legendary",
+      "studioSceneIds": [
+        "map-forest",
+        "map-beach",
+        "map-space"
+      ],
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/journey-cards-v1/005-legendary-02.wav",
+      "file": "005-legendary-02.wav",
+      "text": "[surprised] Is that a legendary card?!",
+      "spokenText": "Is that a legendary card?!",
+      "startFrame": 430800,
+      "endFrame": 515520,
+      "duration": 1.765,
+      "sha256": "52b4b81e489118c738d8a5c1115591f90ba0ae86d4824d41099fc6e8e771ec04",
+      "incompleteStageOnly": false
+    },
+    {
+      "order": 6,
+      "lineId": "journey-cards-v1-06",
+      "sceneId": "journey-card-legendary",
+      "studioSceneIds": [
+        "map-forest",
+        "map-beach",
+        "map-space"
+      ],
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/journey-cards-v1/006-legendary-03.wav",
+      "file": "006-legendary-03.wav",
+      "text": "[laughs] Now that's a legendary find!",
+      "spokenText": "Now that's a legendary find!",
+      "startFrame": 515520,
+      "endFrame": 654840,
+      "duration": 2.9025,
+      "sha256": "4265c4b1ee42c90280884f0fa13a10ccb2ab4c8bae50a2b46f79d5e916cf1f61",
+      "incompleteStageOnly": false
+    },
+    {
+      "order": 7,
+      "lineId": "journey-cards-v1-07",
+      "sceneId": "journey-stage-open",
+      "studioSceneIds": [
+        "map-forest",
+        "map-beach",
+        "map-space"
+      ],
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/journey-cards-v1/007-stage-01.wav",
+      "file": "007-stage-01.wav",
+      "text": "[excited] Let's do this!",
+      "spokenText": "Let's do this!",
+      "startFrame": 654840,
+      "endFrame": 721680,
+      "duration": 1.3925,
+      "sha256": "abd297ac8cf6af04f6cb2302e630ca320a50f817efed8b95b18256fa6943eec2",
+      "incompleteStageOnly": false
+    },
+    {
+      "order": 8,
+      "lineId": "journey-cards-v1-08",
+      "sceneId": "journey-stage-open",
+      "studioSceneIds": [
+        "map-forest",
+        "map-beach",
+        "map-space"
+      ],
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/journey-cards-v1/008-stage-02.wav",
+      "file": "008-stage-02.wav",
+      "text": "[cheerful] This stage looks promising!",
+      "spokenText": "This stage looks promising!",
+      "startFrame": 721680,
+      "endFrame": 801480,
+      "duration": 1.6625,
+      "sha256": "909f981870f8b5b420641b451e0ea1436f347bc2a6cb26e36715697bfdf43ce6",
+      "incompleteStageOnly": false
+    },
+    {
+      "order": 9,
+      "lineId": "journey-cards-v1-09",
+      "sceneId": "journey-stage-open",
+      "studioSceneIds": [
+        "map-forest",
+        "map-beach",
+        "map-space"
+      ],
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/journey-cards-v1/009-stage-03.wav",
+      "file": "009-stage-03.wav",
+      "text": "[determined] Let's get all three stars!",
+      "spokenText": "Let's get all three stars!",
+      "startFrame": 801480,
+      "endFrame": 895920,
+      "duration": 1.9675,
+      "sha256": "ec35c6d31da2ca584fd0bb55dc2cf785677e91cbde7ac54a1d8f6279af6d0e1c",
+      "incompleteStageOnly": true
+    },
+    {
+      "order": 10,
+      "lineId": "journey-cards-v1-10",
+      "sceneId": "journey-stage-open",
+      "studioSceneIds": [
+        "map-forest",
+        "map-beach",
+        "map-space"
+      ],
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/journey-cards-v1/010-stage-04.wav",
+      "file": "010-stage-04.wav",
+      "text": "[laughs] Ready for a little adventure?",
+      "spokenText": "Ready for a little adventure?",
+      "startFrame": 895920,
+      "endFrame": 997680,
+      "duration": 2.12,
+      "sha256": "3a1ebf1d7d59c76debcf3effe82175d03bd242ee0224773d565ac8a63ede64a6",
+      "incompleteStageOnly": false
+    },
+    {
+      "order": 11,
+      "lineId": "journey-cards-v1-11",
+      "sceneId": "journey-stage-open",
+      "studioSceneIds": [
+        "map-forest",
+        "map-beach",
+        "map-space"
+      ],
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/journey-cards-v1/011-stage-05.wav",
+      "file": "011-stage-05.wav",
+      "text": "[confident] I've got a good feeling!",
+      "spokenText": "I've got a good feeling!",
+      "startFrame": 997680,
+      "endFrame": 1081080,
+      "duration": 1.7375,
+      "sha256": "3c8e9f6d788cdee00e54d87a4fab3510014533beb48b03dcdcb2b51df6cf2061",
+      "incompleteStageOnly": false
+    },
+    {
+      "order": 12,
+      "lineId": "journey-cards-v1-12",
+      "sceneId": "journey-stage-open",
+      "studioSceneIds": [
+        "map-forest",
+        "map-beach",
+        "map-space"
+      ],
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/journey-cards-v1/012-stage-06.wav",
+      "file": "012-stage-06.wav",
+      "text": "[curious] I wonder… could three stars mean a legendary card?",
+      "spokenText": "I wonder… could three stars mean a legendary card?",
+      "startFrame": 1081080,
+      "endFrame": 1253640,
+      "duration": 3.595,
+      "sha256": "13b78005f1aa190b8e4c1d55937d834849ec2cc0095af93f66be03cee0b51c0f",
+      "incompleteStageOnly": true
+    },
+    {
+      "order": 13,
+      "lineId": "journey-cards-v1-13",
+      "sceneId": "journey-stage-open",
+      "studioSceneIds": [
+        "map-forest",
+        "map-beach",
+        "map-space"
+      ],
+      "source": "assets/sound/SPEECH/Jimbo voice compilation/journey-cards-v1/013-stage-07.wav",
+      "file": "013-stage-07.wav",
+      "text": "[hopeful] Three stars… maybe something legendary is waiting!",
+      "spokenText": "Three stars… maybe something legendary is waiting!",
+      "startFrame": 1253640,
+      "endFrame": 1419389,
+      "duration": 3.453104166666667,
+      "sha256": "79f0b8f48279fc0d39fd63ed85fd22715efb355c658fcdd4abfb9dfdad14cbea",
+      "incompleteStageOnly": true
+    }
+  ],
+  "delivery": {
+    "bundle": "com.taptapdesign.stacktosix.native",
+    "launch": "com.taptapdesign.stacktosix.native: 47124",
+    "assetsVerified": 2921,
+    "all164InstalledClipHashesMatch": true,
+    "saveBefore": {
+      "state-v1.previous.json": "a04dda5ff4c2cad18800b5f494ca35751c1d74173ca4e83f24f1d6007019de73",
+      "state-v1.json": "a286786b002396be36018a831b182561bc0c05e3a94c4b09c65ea38265e7f414"
+    },
+    "saveAfter": {
+      "state-v1.previous.json": "a04dda5ff4c2cad18800b5f494ca35751c1d74173ca4e83f24f1d6007019de73",
+      "state-v1.json": "a286786b002396be36018a831b182561bc0c05e3a94c4b09c65ea38265e7f414"
+    },
+    "bothSavesByteIdentical": true
+  },
+  "clipValidation": [
+    {
+      "order": 1,
+      "expected": "Ooh, a lovely little find!",
+      "asr": "Ooh, a lovely little find!"
+    },
+    {
+      "order": 2,
+      "expected": "A little treasure for our collection!",
+      "asr": "A little treasure for our collection."
+    },
+    {
+      "order": 3,
+      "expected": "You're coming home with us!",
+      "asr": "You're coming home with us."
+    },
+    {
+      "order": 4,
+      "expected": "Wow! Look at that shine!",
+      "asr": "Wow! Look at that shine!"
+    },
+    {
+      "order": 5,
+      "expected": "Is that a legendary card?!",
+      "asr": "Is that a legendary card?"
+    },
+    {
+      "order": 6,
+      "expected": "Now that's a legendary find!",
+      "asr": "Now that's a legendary find."
+    },
+    {
+      "order": 7,
+      "expected": "Let's do this!",
+      "asr": "Let's do this!"
+    },
+    {
+      "order": 8,
+      "expected": "This stage looks promising!",
+      "asr": "This stage looks promising."
+    },
+    {
+      "order": 9,
+      "expected": "Let's get all three stars!",
+      "asr": "Let's get all three stars!"
+    },
+    {
+      "order": 10,
+      "expected": "Ready for a little adventure?",
+      "asr": "Ready for a little adventure?"
+    },
+    {
+      "order": 11,
+      "expected": "I've got a good feeling!",
+      "asr": "I've got a good feeling."
+    },
+    {
+      "order": 12,
+      "expected": "I wonder… could three stars mean a legendary card?",
+      "asr": "I wonder. Could three stars mean a legendary card?"
+    },
+    {
+      "order": 13,
+      "expected": "Three stars… maybe something legendary is waiting!",
+      "asr": "Three stars. Maybe something legendary is waiting."
+    }
+  ],
+  "validation": {
+    "studioTests": 133,
+    "nativeFocusedTests": 83,
+    "qaIOS": "PASS",
+    "qaAudioRuntime": "PASS",
+    "qaFeatureRuntime": "PASS",
+    "qaFull": "PASS530Jest suites/4010tests+KING330",
+    "physicalListening": "NEEDS PHYSICAL TEST"
+  },
+  "oneStarSelection": {
+    "earnedStars": 1,
+    "legendaryHintOrders": [
+      12,
+      13
+    ],
+    "combinedProbability": 0.6,
+    "otherStageOrders": [
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "otherCombinedProbability": 0.4,
+    "repeatPolicy": "Independent nonrepeat selection within each group;group probability unchanged by previous choice. Zero/two/three-star policy unchanged."
+  }
+}

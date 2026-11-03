@@ -111,6 +111,60 @@ final class NativeAppCoordinatorTests:XCTestCase {
         cues=[];controller.home.onHeroContact?()
         XCTAssertEqual(cues,["home-arcade-character-tap"])
     }
+    func testStartupAppSwitchRecoversActualHomeAndAdmitsNavigation()async throws {
+        let prior=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+        var services=NativeAppServices(settings:{["gameSoundsEnabled":false,"musicEnabled":false,"hapticsEnabled":false]},
+            setPreference:{_,_ in},worldSnapshot:{_,_,_ in throw FixtureError.unavailable},markViewed:{_ in},
+            makeGameplay:{_,_ in throw FixtureError.unavailable},flush:{})
+        services.showsStudioIntro=true
+        let controller=NativeAppController(resourceRoot:resources(),services:services)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=controller;window.makeKeyAndVisible()
+        defer{controller.dispose();window.isHidden=true;window.rootViewController=nil;prior?.makeKeyAndVisible()}
+        func findIntro(_ view:UIView)->NativeStudioIntroView? {
+            if let intro=view as? NativeStudioIntroView{return intro}
+            return view.subviews.lazy.compactMap{findIntro($0)}.first
+        }
+        let intro=try XCTUnwrap(findIntro(controller.view))
+        let deadline=Date().addingTimeInterval(20)
+        while !intro.timelineStarted,Date()<deadline {try await Task.sleep(for:.milliseconds(20))}
+        XCTAssertTrue(intro.timelineStarted)
+        XCTAssertTrue(controller.home.isHidden)
+        controller.navigate(.arcadeHub)
+        XCTAssertEqual(controller.route,.home,"Launch intro still owns route admission")
+        try await Task.sleep(for:.seconds(1))
+        NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
+        NotificationCenter.default.post(name:UIApplication.didEnterBackgroundNotification,object:nil)
+        intro.subviews.forEach{$0.layer.removeAllAnimations()}
+        intro.animationDidStop(CAAnimation(),finished:false)
+        NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
+        try await waitFor{controller.route == .home && controller.home.isUserInteractionEnabled}
+        XCTAssertTrue(intro.isRetired);XCTAssertNil(intro.superview)
+        XCTAssertFalse(controller.home.isHidden)
+        XCTAssertNil(findIntro(controller.view))
+        var cues:[String]=[];controller.onFeedback={cues.append($0)}
+        controller.home.navigationButtonViews[1].sendActions(for:.touchUpInside)
+        XCTAssertEqual(controller.home.selectedSlide,1);XCTAssertEqual(cues,["tab","swipe"])
+        // Route admission also proves the intro no longer blocks navigate().
+        controller.navigate(.arcadeHub)
+        try await waitFor{controller.route == .arcadeHub && controller.arcadeHub.hub.scrollView.isUserInteractionEnabled}
+        XCTAssertFalse(controller.arcadeHub.isHidden)
+    }
+    func testCommittedHomeSwipeEmitsNavigationContactButSnapBackDoesNot()async throws {
+        let services=NativeAppServices(settings:{["gameSoundsEnabled":false,"musicEnabled":false,"hapticsEnabled":true]},
+            setPreference:{_,_ in},worldSnapshot:{_,_,_ in throw FixtureError.unavailable},markViewed:{_ in},
+            makeGameplay:{_,_ in throw FixtureError.unavailable},flush:{})
+        let controller=NativeAppController(resourceRoot:resources(),services:services)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=controller;window.makeKeyAndVisible()
+        defer{controller.dispose();window.isHidden=true;window.rootViewController=nil}
+        try await waitFor{controller.home.isUserInteractionEnabled}
+        var cues:[String]=[];controller.onFeedback={cues.append($0)}
+        controller.home.onPanEnded?(1,false)
+        XCTAssertEqual(controller.home.selectedSlide,1);XCTAssertEqual(cues,["tab-swipe","swipe"])
+        cues=[];controller.home.onPanEnded?(1,true)
+        XCTAssertTrue(cues.isEmpty,"Cancelled/same-slide gestures do not claim a navigation haptic")
+        controller.home.onPanEnded?(2,false)
+        XCTAssertEqual(controller.home.selectedSlide,2);XCTAssertEqual(cues,["tab-swipe","swipe"])
+    }
     func testNativeHomeNeverRequestsWebDataAndRetainsAuthoredViews() {
         var writes = 0
         let services = NativeAppServices(settings:{["gameSoundsEnabled":false,"musicEnabled":true,"hapticsEnabled":true]},

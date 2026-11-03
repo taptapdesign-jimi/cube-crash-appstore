@@ -5,6 +5,21 @@ import Metal
 import StackToSixGameplay
 @testable import Stack_to_Six
 
+/// Test-only watchdog prevents a framework-side synchronous GPU wait from
+/// deadlocking the intentionally blocked submission. Such a wait fails the test.
+private final class NativeProjectionMutationGate: @unchecked Sendable {
+    private let lock=NSLock()
+    private let event:any MTLSharedEvent,value:UInt64
+    private var released=false,timedOut=false
+    init(event:any MTLSharedEvent,value:UInt64){self.event=event;self.value=value}
+    func release(timedOut:Bool=false) {
+        lock.lock();defer{lock.unlock()}
+        guard !released else{return}
+        released=true;self.timedOut=timedOut;event.signaledValue=value
+    }
+    var didTimeOut:Bool {lock.lock();defer{lock.unlock()};return timedOut}
+}
+
 /// Exercises actual SKRenderer pixels, including device-density projection.
 /// No assets, UI screenshot scaling, or manually reproduced projection math.
 @MainActor final class NativeOwnedMetalProjectionTests:XCTestCase {
@@ -72,6 +87,111 @@ import StackToSixGameplay
         host.retirePresentation()
         XCTAssertEqual(scene.scaleMode,.resizeFill)
         scene.dispose()
+    }
+
+    /// Keep the production one-flight rule while reproducing APP/input writes
+    /// after encoding. A GPU event makes the mutation-before-completion ordering
+    /// deterministic; no second renderer update occurs until that frame retires.
+    func testEncodedPixelsSurviveSceneMutationsBeforeGPUCompletion() throws {
+        let device=try XCTUnwrap(MTLCreateSystemDefaultDevice())
+        let queue=try XCTUnwrap(device.makeCommandQueue())
+        let gate=try XCTUnwrap(device.makeSharedEvent())
+        let width=256,height=256,comparedHeight=200,stressFrames=240
+        let root=Bundle.main.bundleURL.appendingPathComponent("NativeAssets.bundle")
+        XCTAssertEqual(NativeOwnedMetalGameplayView.maximumInFlightFrames,1)
+        for mipmaps in [true,false] {
+            let artwork=NativeBoardTextures(root:root)
+            defer {artwork.dispose()}
+            let paths=["assets/tile.png"]+NativeRegularStackLayout.Skin.allCases.map{String($0.rawValue.dropFirst(2))}
+            let textures=try paths.map{path -> SKTexture in
+                let texture=try XCTUnwrap(artwork.texture(path),path)
+                texture.usesMipmaps=mipmaps;return texture
+            }
+            let scene=SKScene(size:CGSize(width:width,height:height))
+            scene.scaleMode = .fill;scene.backgroundColor = .clear
+            let sprites=(0..<8).map{index -> SKSpriteNode in
+                let sprite=SKSpriteNode(texture:textures[index%textures.count],size:CGSize(width:58,height:58))
+                scene.addChild(sprite);return sprite
+            }
+            let transient=SKNode();scene.addChild(transient)
+            let renderer=SKRenderer(device:device);renderer.scene=scene;renderer.ignoresSiblingOrder=false
+            defer {renderer.scene=nil}
+            let descriptor=MTLTextureDescriptor.texture2DDescriptor(pixelFormat:.bgra8Unorm,width:width,height:height,mipmapped:false)
+            descriptor.usage=[.renderTarget,.shaderRead];descriptor.storageMode = .shared
+            let target=try XCTUnwrap(device.makeTexture(descriptor:descriptor))
+            func paintPhase(_ phase:Int) {
+                for (index,sprite) in sprites.enumerated() {
+                    sprite.texture=textures[(index+phase)%textures.count]
+                    sprite.position=CGPoint(x:CGFloat(32+index%4*64)+CGFloat(phase)/4,
+                                            y:CGFloat(34+index/4*64)+CGFloat(phase)/4)
+                    sprite.setScale(1+CGFloat(phase)*0.02)
+                    // Replace actual children as well as parent texture/pose.
+                    sprite.removeAllChildren()
+                    let pip=SKSpriteNode(texture:artwork.pipTexture(),size:CGSize(width:7+phase,height:7+phase))
+                    pip.position=CGPoint(x:5,y:5);sprite.addChild(pip)
+                }
+                transient.removeAllChildren()
+                for index in 0..<12 {
+                    let shape=SKShapeNode(circleOfRadius:CGFloat(2+(index+phase)%9))
+                    shape.fillColor = .white;shape.strokeColor = .clear
+                    shape.position=CGPoint(x:10+index*20,y:235);transient.addChild(shape)
+                }
+            }
+            func encode(time:Double,waitValue:UInt64?=nil)throws->any MTLCommandBuffer {
+                renderer.update(atTime:time)
+                let pass=MTLRenderPassDescriptor()
+                pass.colorAttachments[0].texture=target
+                pass.colorAttachments[0].loadAction = .clear;pass.colorAttachments[0].storeAction = .store
+                pass.colorAttachments[0].clearColor=MTLClearColorMake(0,0,0,0)
+                let command=try XCTUnwrap(queue.makeCommandBuffer())
+                if let waitValue {command.encodeWaitForEvent(gate,value:waitValue)}
+                renderer.render(withViewport:CGRect(x:0,y:0,width:width,height:height),commandBuffer:command,renderPassDescriptor:pass)
+                command.commit();return command
+            }
+            func pixels(after command:any MTLCommandBuffer)throws->Data {
+                command.waitUntilCompleted()
+                XCTAssertEqual(command.status,.completed,"mipmaps=\(mipmaps): \(String(describing:command.error))")
+                var bytes=[UInt8](repeating:0,count:width*height*4)
+                bytes.withUnsafeMutableBytes {raw in
+                    target.getBytes(raw.baseAddress!,bytesPerRow:width*4,from:MTLRegionMake2D(0,0,width,height),mipmapLevel:0)
+                }
+                return Data(bytes[(height-comparedHeight)*width*4..<bytes.count])
+            }
+            var references:[Int:Data]=[:]
+            // Serial upload warmup precedes the four exact encoded-pose references.
+            for frame in 0..<12 {
+                let phase=frame%4;paintPhase(phase)
+                let data=try pixels(after:encode(time:1+Double(frame)/60))
+                if frame>=8 {references[phase]=data}
+            }
+            var mismatchCount=0,mutatedWhileBlocked=0
+            for frame in 0..<stressFrames {
+                let phase=frame%4;paintPhase(phase)
+                let waitValue=gate.signaledValue+1
+                let release=NativeProjectionMutationGate(event:gate,value:waitValue)
+                DispatchQueue.global().asyncAfter(deadline:.now()+2){release.release(timedOut:true)}
+                let command=try encode(time:2+Double(frame)/60,waitValue:waitValue)
+                // This is after render+commit, while the already encoded frame
+                // cannot finish. Its expected pixels still belong to phase.
+                XCTAssertNotEqual(command.status,.completed)
+                paintPhase((phase+1)%4)
+                mutatedWhileBlocked+=1
+                release.release()
+                XCTAssertFalse(release.didTimeOut,"CPU Scene mutation synchronously waited for the blocked GPU command")
+                let actual=try pixels(after:command)
+                let expected=try XCTUnwrap(references[phase])
+                if actual != expected {
+                    mismatchCount+=1
+                    if mismatchCount==1 {
+                        let otherPhases=references.keys.sorted().filter{references[$0]==actual}
+                        print("POST_ENCODE_MUTATION_MISMATCH mipmaps=\(mipmaps) frame=\(frame) encodedPhase=\(phase) exactOtherPhases=\(otherPhases)")
+                    }
+                }
+                // pixels waits for completion before the next renderer update.
+            }
+            XCTAssertEqual(mutatedWhileBlocked,stressFrames)
+            XCTAssertEqual(mismatchCount,0,"mipmaps=\(mipmaps): \(mismatchCount)/\(stressFrames) encoded frames changed after CPU-only Scene mutations")
+        }
     }
 
     /// Unlike the projection marker, this exercises real authored textures and

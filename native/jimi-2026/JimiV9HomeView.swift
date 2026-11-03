@@ -2,7 +2,7 @@ import UIKit
 
 /// Authored feedback owns pressed visuals, never UIKit's dark highlight.
 @MainActor
-final class JimiV9PlainButton: UIButton {
+class JimiV9PlainButton: UIButton {
     static let modalIdleKey = "native-modal-cta-idle"
     private var hasModalIdle = false
     private var pairedModalCTA = false
@@ -60,10 +60,10 @@ final class JimiV9PlainButton: UIButton {
     var cartoonBounceLayoutView:UIView {cartoonSurface ?? self}
     var cartoonBounceFrame:CGRect {cartoonSurface?.frame ?? frame}
     /// Separate compositor shell: authored press/release/route transforms stay on the button.
-    func enableCartoonBounce(){
+    func enableCartoonBounce(preserves3D:Bool=false){
         guard cartoonSurface==nil,let parent=superview else{return}
         let original=CGRect(origin:CGPoint(x:center.x-bounds.width/2,y:center.y-bounds.height/2),size:bounds.size)
-        let surface=NativeCartoonBounceSurface();parent.insertSubview(surface,aboveSubview:self)
+        let surface:NativeCartoonBounceSurface=preserves3D ? NativePreservingCartoonBounceSurface():NativeCartoonBounceSurface();parent.insertSubview(surface,aboveSubview:self)
         removeFromSuperview();surface.addSubview(self);cartoonSurface=surface
         surface.isHidden=isHidden;setCartoonBounceFrame(original)
         addTarget(self,action:#selector(cartoonContact),for:.touchDown)
@@ -77,8 +77,8 @@ final class JimiV9PlainButton: UIButton {
         surface.bounds=CGRect(origin:.zero,size:rect.size);surface.center=CGPoint(x:rect.midX,y:rect.midY);layoutCartoonContent()
     }
     func layoutCartoonContent(){guard let surface=cartoonSurface else{return};bounds=surface.bounds;center=CGPoint(x:bounds.midX,y:bounds.midY)}
-    override var isHidden:Bool {didSet{cartoonSurface?.isHidden=isHidden;if isHidden{cartoonSurface?.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey)};updateModalCTAIdle();ctaShimmer?.refresh()}}
-    override func didMoveToWindow(){super.didMoveToWindow();if window==nil{cartoonSurface?.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey)};updateModalCTAIdle();ctaShimmer?.rebindVisibility()}
+    override var isHidden:Bool {didSet{if isHidden{cancelModalCTAEntryCue()};cartoonSurface?.isHidden=isHidden;if isHidden{cartoonSurface?.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey)};updateModalCTAIdle();ctaShimmer?.refresh()}}
+    override func didMoveToWindow(){super.didMoveToWindow();if window==nil{cancelModalCTAEntryCue();cartoonSurface?.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey)};updateModalCTAIdle();ctaShimmer?.rebindVisibility()}
     deinit {NotificationCenter.default.removeObserver(self)}
     @objc private func modalCTAWillResignActive(){layer.removeAnimation(forKey:Self.modalIdleKey)}
     @objc private func modalCTADidBecomeActive(){updateModalCTAIdle()}
@@ -125,6 +125,29 @@ final class JimiV9PlainButton: UIButton {
     }
     func setModalCTAIdleSuspended(_ value:Bool) {
         modalIdleSuspended=value;updateModalCTAIdle()
+    }
+    private var modalCTAEntryMarker:CALayer?
+    private var modalCTAEntryStart:JimiWorldAnimationStart?
+    private var modalCTAEntryGeneration:UInt64=0
+    /// One finite milestone on the button's inherited compositor clock.
+    /// The surface still owns admission and the semantic audio callback.
+    func scheduleModalCTAEntryCue(after delay:Double=0,feedback:@escaping ()->Void) {
+        cancelModalCTAEntryCue()
+        let generation=modalCTAEntryGeneration,marker=CALayer()
+        modalCTAEntryMarker=marker;layer.addSublayer(marker)
+        modalCTAEntryStart=JimiWorldAnimationStart { [weak self] in
+            guard let self,self.modalCTAEntryGeneration==generation else{return}
+            self.cancelModalCTAEntryCue()
+            guard self.window != nil,!self.isHidden,UIApplication.shared.applicationState == .active else{return}
+            feedback()
+        }
+        let mark=CABasicAnimation(keyPath:"opacity");mark.fromValue=0;mark.toValue=0;mark.duration=0.001
+        mark.beginTime=marker.convertTime(CACurrentMediaTime(),from:nil)+max(0,delay)
+        mark.delegate=modalCTAEntryStart;marker.add(mark,forKey:"native.modal.cta.entry-cue")
+    }
+    func cancelModalCTAEntryCue() {
+        modalCTAEntryGeneration &+= 1;modalCTAEntryStart=nil
+        modalCTAEntryMarker?.removeAllAnimations();modalCTAEntryMarker?.removeFromSuperlayer();modalCTAEntryMarker=nil
     }
     private var ctaShimmer:NativeCTAShimmer?
     func setPrimaryCTAShimmer(_ enabled:Bool) {
@@ -213,9 +236,14 @@ final class JimiV9PlainButton: UIButton {
     }
     static let pairedModalCTAHeight:CGFloat=70
     static let pairedModalCTAGap:CGFloat=12
-    /// Pre-redesign modal action width, independent of the live title.
+    /// Longest actual title plus24pt per side, then5percent extra width.
     static func modalCTAWidth(_ buttons:[JimiV9PlainButton],maxWidth:CGFloat)->CGFloat {
-        min(230*0.94,maxWidth)
+        let longest=buttons.map { button -> CGFloat in
+            if let title=button.attributedTitle(for:.normal) {return title.size().width}
+            let font=button.titleLabel?.font ?? UIFont.systemFont(ofSize:28,weight:.heavy)
+            return ((button.title(for:.normal) ?? "") as NSString).size(withAttributes:[.font:font]).width
+        }.max() ?? 0
+        return min(maxWidth,max(72,ceil(longest)+48)*1.05)
     }
     private var sculptedShapeKey:String?
     override func setTitle(_ title:String?,for state:UIControl.State) {
@@ -284,7 +312,14 @@ final class JimiV9PlainButton: UIButton {
 }
 
 @MainActor
-final class NativeCTAShimmer:NSObject,CAAnimationDelegate {
+private final class NativeCTAShimmerAnimationDelegate:NSObject,CAAnimationDelegate {
+    weak var owner:NativeCTAShimmer?
+    init(owner:NativeCTAShimmer){self.owner=owner}
+    func animationDidStop(_ animation:CAAnimation,finished flag:Bool){owner?.animationDidStop(animation,finished:flag)}
+}
+@MainActor
+final class NativeCTAShimmer:NSObject {
+    private lazy var animationDelegate=NativeCTAShimmerAnimationDelegate(owner:self)
     static let animationKey="native.cta.shimmer"
     private weak var button:JimiV9PlainButton?
     let highlight=CAGradientLayer(),band=CAGradientLayer()
@@ -363,7 +398,7 @@ final class NativeCTAShimmer:NSObject,CAAnimationDelegate {
         let opacity=CAKeyframeAnimation(keyPath:"opacity")
         opacity.values=[0,0,0.62,0.62,0,0,0,0.52,0.52,0,0,0]
         opacity.keyTimes=[0,0.12,0.12+0.04/1.3,0.12+0.15/1.3,0.12+0.20/1.3,0.33,0.38,0.38+0.04/1.3,0.38+0.15/1.3,0.38+0.20/1.3,0.59,1].map{NSNumber(value:$0)}
-        opacity.duration=10;opacity.delegate=self
+        opacity.duration=10;opacity.delegate=animationDelegate
         opacity.timingFunctions=Array(repeating:CAMediaTimingFunction(controlPoints:0.42,0,0.58,1),count:11)
         let sweep=CAKeyframeAnimation(keyPath:"position.x")
         sweep.values=[-0.85,-0.85,1.85,-0.85,-0.85,1.85,1.85].map{$0*button.bounds.width}
@@ -704,6 +739,8 @@ private final class JimiV9OverflowView: UIView {
 /// persistence, audio or timer lives here; controller grants visible motion/input leases.
 @MainActor
 final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
+    private let artwork:JimiV9Artwork
+    private var tabletLogoSelected=false
     var onSlideSelected: ((Int) -> Void)?
     var onActivate: ((Int) -> Void)?
     var onHeroContact:(()->Void)?
@@ -780,6 +817,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
     var animationUnits: [UIView] { [logoView, heroView, ctas[selectedSlide], bottomShadow, navView] }
 
     init(frame: CGRect, assets: JimiV9Artwork) {
+        artwork=assets
         // bootstrap-ui.ts:134–185: the logo is the original 1x source; its
         // lower-right shard is the mirrored lower-left asset, not dole desni.
         logoImage = UIImageView(image: assets.image("assets/logo-cube-crash.png"))
@@ -905,20 +943,36 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         super.layoutSubviews()
         let width = bounds.width
         let height = bounds.height
+        let tablet=NativeTabletLayout.applies(bounds.size)
+        if tabletLogoSelected != tablet {
+            tabletLogoSelected=tablet
+            logoImage.image=artwork.image(tablet ? "assets/logo-cube-crash@3x.png":"assets/logo-cube-crash.png")
+        }
+        let logoLayoutScale:CGFloat=tablet ? 1.28:1
+        let logoScale=logoLayoutScale*(tablet ? 0.95:1)
+        let logoLayoutHeight:CGFloat=127*logoLayoutScale
+        let logoHeight:CGFloat=127*logoScale
         let topInset = max(safeAreaInsets.top, 44)
         let innerInset = safeAreaInsets.top
+        // Aspect-fill paints the divider above its UIImageView's frame.
+        // Anchor to that visible line rather than the smaller view bounds.
+        let tabletDividerY=height-105.5-max(49,(width*1.2-96)*49/390)/2
+        let tabletCTABottom=tabletDividerY-32
+        let tabletHeroTarget=min(500,width*0.63,height*0.44)*1.20
+        let heroSide:CGFloat=tablet ? min(tabletHeroTarget,max(0,tabletCTABottom-88-40-topInset-innerInset-logoLayoutHeight-20)):336
+        let tabletHeroTop=tabletCTABottom-88-40-heroSide
         // Phone v9 CSS: Home top padding, content safeTop+2vh, logo -30,
         // logo127 + bottom20 + gap16, slider -10vh + slide8vh -16 + hero36.
         // Percentage Journey relative-top with an auto-height container is 0.
-        let logoTop = topInset + innerInset + height * 0.02 - 30
-        logoView.bounds = CGRect(x: 0, y: 0, width: 208, height: 127)
-        logoView.center = CGPoint(x: width/2, y: logoTop + 63.5)
+        let logoTop = tablet ? min(tabletHeroTop-logoLayoutHeight-20,max(topInset+innerInset,(height-160-(logoLayoutHeight+32+heroSide+40+88))/2)):topInset + innerInset + height * 0.02 - 30
+        logoView.bounds = CGRect(x: 0, y: 0, width: 208*logoScale, height: logoHeight)
+        logoView.center = CGPoint(x: width/2, y: logoTop + logoLayoutHeight/2 + (tablet ? 16:0))
         // Route motion writes a collapsed model transform before playback.
         // UIView.frame is undefined under that transform (including scale 0);
         // layout must not resize the logo out from under its authored track.
-        logoIdleView.bounds=logoView.bounds;logoIdleView.center=CGPoint(x:104,y:63.5)
-        logoImage.bounds = CGRect(x: 0, y: 0, width: 208, height: 127)
-        logoImage.center = CGPoint(x: 104, y: 55.5)
+        logoIdleView.bounds=logoView.bounds;logoIdleView.center=CGPoint(x:104*logoScale,y:63.5*logoScale)
+        logoImage.bounds = CGRect(x: 0, y: 0, width: 208*logoScale, height: logoHeight)
+        logoImage.center = CGPoint(x:104*logoScale,y:55.5*logoScale)
         let shardCenters = [
             CGPoint(x: -208*0.12 + 29.5, y: -127*0.16 + 29.5 - 8),
             CGPoint(x: 208 + 208*0.08 - 29.5 + 8, y: -127*0.16 + 29.5 - 8),
@@ -926,10 +980,10 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             CGPoint(x: 208 + 208*0.018 - 29.5 - 8, y: 127 + 127*0.019 - 29.5 - 14),
         ]
         for i in shards.indices {
-            shardShells[i].bounds = CGRect(x: 0, y: 0, width: 59, height: 59)
-            shardShells[i].center = shardCenters[i]
+            shardShells[i].bounds = CGRect(x: 0, y: 0, width:59*logoScale,height:59*logoScale)
+            shardShells[i].center = CGPoint(x:shardCenters[i].x*logoScale,y:shardCenters[i].y*logoScale)
             shards[i].bounds = shardShells[i].bounds
-            shards[i].center = CGPoint(x: 29.5, y: 29.5)
+            shards[i].center = CGPoint(x:29.5*logoScale,y:29.5*logoScale)
         }
 
         viewport.frame = bounds
@@ -938,43 +992,58 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         // v10 mobile: the 336px image overflows its 280px shell by 28px
         // and relative top:5% adds 14px, leaving a net -14px displacement.
         // Its CTA has the same net correction (-34 text + 12px margin).
-        let heroTop = topInset + innerInset + 139
+        let heroTop = tablet ? tabletHeroTop-32:topInset + innerInset + 139
         // Shared Settings width plus 5% of that width on each side of the text.
-        let homeCTASize=JimiV9PlainButton.homeCTASize(maxWidth:width-48,font:ctas[2].titleLabel!.font)
+        let tabletCTAScale:CGFloat=1.22
+        ctas.forEach{NativeTabletLayout.buttonFont($0,size:tablet ? 32*tabletCTAScale:28)}
+        var homeCTASize=JimiV9PlainButton.homeCTASize(maxWidth:width-48,font:ctas[2].titleLabel!.font)
+        if tablet {homeCTASize.width*=1.15*tabletCTAScale;homeCTASize.height=88*tabletCTAScale}
         for i in panels.indices {
             panels[i].frame = CGRect(x: CGFloat(i)*width, y: 0, width: width, height: height)
-            heroes[i].bounds = CGRect(x: 0, y: 0, width: 336, height: 336)
+            heroes[i].bounds = CGRect(x: 0, y: 0, width:heroSide,height:heroSide)
             // The route/selection owner changes the pivot to 54%/65% with
             // position compensation. Reapplying a 50%-based UIView.center
             // during that motion undoes the compensation (13.44pt on exit).
             // Preserve the authored rest rectangle at the current anchor.
             heroes[i].layer.position = CGPoint(
-                x: width/2 + (heroes[i].layer.anchorPoint.x - 0.5) * 336,
-                y: heroTop + heroes[i].layer.anchorPoint.y * 336)
-            let artSize = 336 * Self.heroArtworkScale
+                x: width/2 + (heroes[i].layer.anchorPoint.x - 0.5) * heroSide,
+                y: heroTop + heroes[i].layer.anchorPoint.y * heroSide)
+            let artSize = heroSide * Self.heroArtworkScale * (tablet ? 0.95*0.95 : 1)
             heroImages[i].bounds = CGRect(x:0,y:0,width:artSize,height:artSize)
-            heroCartoonShells[i].bounds=CGRect(x:0,y:0,width:336,height:336)
-            heroCartoonShells[i].center=CGPoint(x:168,y:168)
-            heroImages[i].center = CGPoint(x:168,y:168)
-            ctaContainers[i].bounds = CGRect(x: 0, y: 0, width: width, height: 104)
-            ctaContainers[i].center = CGPoint(x: width/2, y: heroTop + 360)
+            heroCartoonShells[i].bounds=CGRect(x:0,y:0,width:heroSide,height:heroSide)
+            heroCartoonShells[i].center=CGPoint(x:heroSide/2,y:heroSide/2)
+            heroImages[i].center = CGPoint(x:heroSide/2,y:heroSide/2)
+            let containerHeight:CGFloat=tablet ? max(104,homeCTASize.height):104
+            ctaContainers[i].bounds = CGRect(x: 0, y: 0, width: width, height: containerHeight)
+            ctaContainers[i].center = CGPoint(x: width/2, y:tablet ? tabletCTABottom-homeCTASize.height/2-32:heroTop + 360)
             ctas[i].bounds = CGRect(origin:.zero,size:homeCTASize)
             ctaPressShells[i].bounds = ctas[i].bounds
             ctaIdleShells[i].bounds=ctas[i].bounds
-            ctaIdleShells[i].center=CGPoint(x:width/2,y:72+height*0.0225)
+            ctaIdleShells[i].center=CGPoint(x:width/2,y:tablet ? containerHeight/2:72+height*0.0225)
             ctaPressShells[i].center = CGPoint(x:ctas[i].bounds.midX,y:ctas[i].bounds.midY)
             ctaCartoonShells[i].bounds=ctas[i].bounds;ctaCartoonShells[i].center=CGPoint(x:ctas[i].bounds.midX,y:ctas[i].bounds.midY)
             ctas[i].center = CGPoint(x:ctas[i].bounds.midX,y:ctas[i].bounds.midY)
             ctas[i].layer.shadowPath = UIBezierPath(roundedRect: ctas[i].bounds, cornerRadius: 32).cgPath
         }
-        bottomShadow.bounds = CGRect(x: 0, y: 0, width: width * 1.2 - 96, height: 49)
-        bottomShadow.center = CGPoint(x: 40 - width * 0.1 + bottomShadow.bounds.width/2, y: height - 81 - 24.5)
+        if tablet {
+            // Original divider artwork paints x17...377 in its390pt canvas.
+            // Add16pt at each visible edge, preserving vertical geometry.
+            let dividerScale=heroSide*Self.heroArtworkScale*0.95/360
+            let dividerXScale=(heroSide*Self.heroArtworkScale*0.95+32)/360
+            bottomShadow.contentMode = .scaleToFill
+            bottomShadow.bounds=CGRect(x:0,y:0,width:390*dividerXScale,height:49*dividerScale)
+            bottomShadow.center=CGPoint(x:width/2-2*dividerXScale,y:tabletDividerY+bottomShadow.bounds.height/2)
+        } else {
+            bottomShadow.contentMode = .scaleAspectFill
+            bottomShadow.bounds = CGRect(x: 0, y: 0, width: width * 1.2 - 96, height: 49)
+            bottomShadow.center = CGPoint(x: 40 - width * 0.1 + bottomShadow.bounds.width/2, y: height - 81 - 24.5)
+        }
         navView.bounds = CGRect(x: 0, y: 0, width: width, height: 120)
         navView.center = CGPoint(x: width/2, y: height - 60)
-        let rowWidth = (width - 32) * 0.935
-        let left = (width - rowWidth)/2 + 12
-        let sizes = navButtons.indices.map { CGFloat($0 == selectedSlide ? 72 : 64) }
-        let gap = (rowWidth - 24 - sizes.reduce(0, +))/2
+        let rowWidth = tablet ? min(600,width-64):(width - 32) * 0.935
+        let sizes = navButtons.indices.map { CGFloat($0 == selectedSlide ? (tablet ? 84:72):(tablet ? 76:64)) }
+        let gap = (rowWidth - 24 - sizes.reduce(0, +))/2 * (tablet ? 0.8:1)
+        let left = tablet ? (width-sizes.reduce(0,+)-gap*2)/2:(width - rowWidth)/2 + 12
         var x = left
         for i in navButtons.indices {
             let size = sizes[i]

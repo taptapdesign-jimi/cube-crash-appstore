@@ -215,6 +215,124 @@ final class NativeGameplayTests: XCTestCase {
             engine.expireCombo(now:deadline);XCTAssertEqual(engine.state.combo,0)
         }
     }
+    func testNativeWindowsKeepOrdinaryAtThreeAndHalfAndWildAtFiveSeconds() {
+        for wild in [false,true] {
+            let b=tile("b",1,1)
+            let engine=NativeGameplayEngine(state:NativeBoardState(tiles:[tile("a",wild ? 6:1,0,wild:wild ? .star:nil),b,tile("c",2,2)]),recordedRandomChoices:Array(repeating:0.2,count:100))
+            engine.comboWindowExtension=1.5;engine.wildComboWindowExtension=1
+            XCTAssertTrue(move(engine,"a",b,now:10).accepted)
+            let deadline=10+(wild ? 5:3.5)
+            engine.expireCombo(now:deadline-0.001);XCTAssertGreaterThan(engine.state.combo,0)
+            engine.expireCombo(now:deadline);XCTAssertEqual(engine.state.combo,0)
+        }
+    }
+    func testSpeedBonusCurveAndInvalidClockBoundaries() {
+        XCTAssertEqual(NativeRewardMath.comboIncrement(from:2,to:3,elapsed:0),450)
+        XCTAssertEqual(NativeRewardMath.comboIncrement(from:2,to:3,elapsed:1),350)
+        XCTAssertEqual(NativeRewardMath.comboIncrement(from:2,to:3,elapsed:2),250)
+        for elapsed in [3.0,3.4,5,-1,Double.nan,Double.infinity] {
+            XCTAssertEqual(NativeRewardMath.comboIncrement(from:2,to:3,elapsed:elapsed),150)
+        }
+        XCTAssertEqual(NativeRewardMath.comboIncrement(from:0,to:3,elapsed:0),150)
+        XCTAssertEqual(NativeRewardMath.comboIncrement(from:2,to:3,elapsed:nil),150)
+    }
+    func testSpeedBonusPersistsAndDoesNotAlterComboCountInEitherMode() throws {
+        for mode in [NativeRunMode.journey,.arcade] {
+            for gap in [1.0,2,3.25,3.5] {
+                let b=tile("b",1,1),c=tile("c",1,2),d=tile("d",1,3)
+                let engine=NativeGameplayEngine(state:NativeBoardState(tiles:[tile("a",1,0),b,c,d,tile("e",1,4)],mode:mode))
+                engine.comboWindowExtension=1.5;engine.comboSpeedBonusEnabled=true
+                XCTAssertTrue(move(engine,"a",b,now:10).accepted)
+                XCTAssertTrue(move(engine,"b",c,now:11).accepted)
+                XCTAssertTrue(move(engine,"c",d,now:11+gap).accepted)
+                let expected=gap==1 ? 350:gap==2 ? 250:gap==3.25 ? 150:0
+                XCTAssertEqual(engine.state.earnedComboBonus,expected)
+                XCTAssertEqual(engine.state.combo,gap<3.5 ? 3:1)
+                let saved=try JSONDecoder().decode(NativeBoardState.self,from:JSONEncoder().encode(engine.state))
+                XCTAssertEqual(saved.earnedComboBonus,expected)
+                engine.expireCombo(now:30);XCTAssertEqual(engine.state.earnedComboBonus,expected)
+                engine.restart(state:saved)
+                XCTAssertTrue(move(engine,"d",tile("e",1,4),now:31).accepted)
+                XCTAssertEqual(engine.state.earnedComboBonus,expected+NativeRewardMath.streakBonus(saved.combo+1)-NativeRewardMath.streakBonus(saved.combo)) // normal award, no invented speed after restore
+            }
+        }
+    }
+    func testStagedSixAwardsSpeedBonusOnlyOnce() {
+        let b=tile("b",1,1),c=tile("c",1,2),d=tile("d",3,3)
+        let engine=NativeGameplayEngine(state:NativeBoardState(tiles:[tile("a",1,0),b,c,d,tile("e",1,4)]),recordedRandomChoices:Array(repeating:0.2,count:100))
+        engine.comboWindowExtension=1.5;engine.comboSpeedBonusEnabled=true
+        XCTAssertTrue(move(engine,"a",b,now:10).accepted)
+        XCTAssertTrue(move(engine,"b",c,now:11).accepted)
+        engine.stagedOrdinaryMoves=true
+        XCTAssertTrue(move(engine,"c",d,now:12).accepted)
+        let plan=engine.pendingOrdinarySix!
+        XCTAssertTrue(engine.commitOrdinarySix(receiptID:plan.id,generation:plan.generation).accepted)
+        XCTAssertEqual(engine.state.earnedComboBonus,350) // speed uses accepted drop time, excluding absorb animation
+        XCTAssertFalse(engine.commitOrdinarySix(receiptID:plan.id,generation:plan.generation).accepted)
+        XCTAssertEqual(engine.state.earnedComboBonus,350)
+    }
+    func testSpecialSpeedBonusIsCapturedAtAcceptedMove() {
+        for archetype in [NativeWildArchetype.tnt,.magnet] {
+            let b=tile("b",1,1),c=tile("c",1,2)
+            let engine=NativeGameplayEngine(state:NativeBoardState(tiles:[tile("a",1,0),b,c,tile("w",6,3,wild:archetype),tile("e",1,4)]),recordedRandomChoices:Array(repeating:0.2,count:200))
+            engine.comboWindowExtension=1.5;engine.wildComboWindowExtension=1;engine.comboSpeedBonusEnabled=true
+            XCTAssertTrue(move(engine,"a",b,now:10).accepted)
+            XCTAssertTrue(move(engine,"b",c,now:11).accepted)
+            XCTAssertTrue(move(engine,"w",c,now:12).accepted)
+            let plan=engine.pendingSpecial!
+            if archetype == .tnt {
+                XCTAssertTrue(engine.commitSpecialActivation(transactionID:plan.id).accepted)
+                for target in plan.targets {XCTAssertTrue(engine.commitSpecialImpact(transactionID:plan.id,tileID:target.id).accepted)}
+            }
+            XCTAssertTrue(engine.commitSpecialBoard(transactionID:plan.id).accepted)
+            let expected=NativeRewardMath.comboIncrement(from:2,to:engine.state.combo,elapsed:1)
+            XCTAssertEqual(engine.state.earnedComboBonus,expected)
+            XCTAssertFalse(engine.commitSpecialBoard(transactionID:plan.id).accepted)
+            XCTAssertEqual(engine.state.earnedComboBonus,expected)
+        }
+    }
+    func testRejectedMoveDoesNotRestartSpeedClockOrAwardBonus() {
+        var allowReward=false
+        let b=tile("b",1,1),c=tile("c",1,2),d=tile("d",1,3)
+        let engine=NativeGameplayEngine(state:NativeBoardState(tiles:[tile("a",1,0),b,c,d,tile("e",1,4)],wildMeter:0.7),recordedRandomChoices:Array(repeating:0.2,count:100),rewardPicker:{_,_ in allowReward ? NativeWildRewardChoice(.star):nil})
+        engine.comboWindowExtension=1.5;engine.comboSpeedBonusEnabled=true
+        XCTAssertTrue(move(engine,"a",b,now:10).accepted)
+        XCTAssertTrue(move(engine,"b",c,now:11).accepted)
+        let before=engine.state
+        XCTAssertFalse(move(engine,"c",d,now:12).accepted)
+        XCTAssertEqual(engine.state,before)
+        allowReward=true
+        XCTAssertTrue(move(engine,"c",d,now:13).accepted)
+        XCTAssertEqual(engine.state.earnedComboBonus,250) // measured from last accepted move at11
+    }
+    func testSpeedBonusKeepsScoreCapAndIndependentEfficiencyAward() {
+        let b=tile("b",1,1),c=tile("c",1,2),d=tile("d",1,3)
+        let engine=NativeGameplayEngine(state:NativeBoardState(tiles:[tile("a",1,0),b,c,d,tile("e",1,4)],earnedComboBonus:999900))
+        engine.comboSpeedBonusEnabled=true
+        XCTAssertTrue(move(engine,"a",b,now:10).accepted)
+        XCTAssertTrue(move(engine,"b",c,now:11).accepted)
+        XCTAssertTrue(move(engine,"c",d,now:12).accepted)
+        XCTAssertEqual(engine.state.earnedComboBonus,999999)
+        XCTAssertEqual(NativeRewardMath.finalScore(currentScore:100,comboBonus:350,efficiencyBonus:500),950)
+        XCTAssertEqual(NativeRewardMath.finalScore(currentScore:100,comboBonus:engine.state.earnedComboBonus,efficiencyBonus:500),999999)
+    }
+    func testSpeedBonusForDirectWildUsesAcceptedTimeAcrossRoutesAndDirections() {
+        for mode in [NativeRunMode.journey,.arcade] {for staged in [false,true] {for reverse in [false,true] {for archetype in [NativeWildArchetype.star,.juice] {
+            let b=tile("b",1,1),c=tile("c",1,2),w=tile("w",6,3,wild:archetype)
+            let engine=NativeGameplayEngine(state:NativeBoardState(tiles:[tile("a",1,0),b,c,w,tile("e",1,4)],mode:mode),recordedRandomChoices:Array(repeating:0.2,count:200))
+            engine.comboWindowExtension=1.5;engine.wildComboWindowExtension=1;engine.comboSpeedBonusEnabled=true
+            XCTAssertTrue(move(engine,"a",b,now:10).accepted)
+            XCTAssertTrue(move(engine,"b",c,now:11).accepted)
+            engine.stagedDirectWildMoves=staged
+            XCTAssertTrue(move(engine,reverse ? "c":"w",reverse ? w:c,now:12).accepted)
+            if let plan=engine.pendingDirectWild {
+                XCTAssertTrue(engine.commitDirectWildGameplay(transactionID:plan.id).accepted)
+                XCTAssertFalse(engine.commitDirectWildGameplay(transactionID:plan.id).accepted)
+            }
+            XCTAssertEqual(engine.state.earnedComboBonus,350)
+            XCTAssertEqual(engine.state.combo,3)
+        }}}}
+    }
     func testComboCreditDecayAndCaps() {
         XCTAssertEqual(NativeRewardMath.streakBonus(2),0); XCTAssertEqual(NativeRewardMath.streakBonus(3),150); XCTAssertEqual(NativeRewardMath.streakBonus(4),225); XCTAssertEqual(NativeRewardMath.streakBonus(5),325)
         let engine = NativeGameplayEngine(state:NativeBoardState(tiles:[tile("a",1,0),tile("b",1,1),tile("c",1,2),tile("d",1,3)]))

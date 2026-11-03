@@ -24,6 +24,7 @@ final class JimiNativeWorldCardEffects {
     private weak var overlay: UIView?
     private let foil = CALayer(), gold = CAGradientLayer(), rainbow = CAGradientLayer()
     private let hand = UIImageView(), copy = UIView()
+    private var idleShine:NativeCardIdleShine?
     private var letters: [UILabel] = []
     private let assets: JimiV9Artwork
     private let rarity: String
@@ -41,6 +42,7 @@ final class JimiNativeWorldCardEffects {
         self.coachSession=coachSession ?? .shared
         self.front = front; self.impact = impact; self.overlay = overlay
         self.assets = assets; self.rarity = rarity
+        if let front {idleShine=NativeCardIdleShine(front:front)}
         foil.name = "modal.legendary.foil";rainbow.name = "modal.legendary.rainbow";gold.name = "modal.legendary.gold"
         foil.opacity = 0; foil.masksToBounds = true; foil.isDoubleSided = false
         foil.transform = CATransform3DMakeTranslation(0, 0, 1.2)
@@ -76,6 +78,7 @@ final class JimiNativeWorldCardEffects {
             rainbow.frame = CGRect(x:-front.bounds.width*0.6,y:-front.bounds.height*0.225,width:front.bounds.width*2.2,height:front.bounds.height*1.45)
             let mask = CALayer();mask.frame = front.bounds;mask.contents = front.image?.cgImage;mask.contentsGravity = .resizeAspect;foil.mask = mask
         }
+        idleShine?.layout()
         let width = min(overlay.bounds.width*0.36,168), aspect = (hand.image?.size.height ?? 1)/max(1,hand.image?.size.width ?? 1)
         hand.bounds = CGRect(x:0,y:0,width:width,height:width*aspect);hand.center = CGPoint(x:overlay.bounds.midX,y:overlay.bounds.height*0.56)
         copy.frame = CGRect(x:0,y:overlay.bounds.height-overlay.safeAreaInsets.bottom-72,width:overlay.bounds.width,height:38)
@@ -97,6 +100,7 @@ final class JimiNativeWorldCardEffects {
         openingCoachPending=false
         let immediate=opening && hand.image != nil && openingVisible && coachSession.claimImmediateDrag()
         if frontFacing {
+            idleShine?.setVisible(true)
             if rarity == "legendary" {holo()}
         }
         if immediate {coach()}
@@ -155,20 +159,19 @@ final class JimiNativeWorldCardEffects {
         letters.forEach{$0.removeFromSuperview()};letters.removeAll()
         let text = "DRAG TO FLIP"
         var x:CGFloat = 0
+        let copyEpoch=CACurrentMediaTime()+delay
         for (index,character) in text.enumerated() {
             let label = UILabel();label.text = String(character);label.font = assets.font(size:32*(index%3 == 0 ? 0.92 : index%3 == 1 ? 1.06 : 1),weight:"ExtraBold")
             label.textColor = .white;label.layer.shadowColor = color(159,105,82,1);label.layer.shadowOpacity = 0.34;label.layer.shadowOffset = CGSize(width:0,height:3);label.layer.shadowRadius = 0
             label.sizeToFit();let width:CGFloat = character == " " ? 32*0.34 : max(1,label.bounds.width-1.2)
             label.frame = CGRect(x:x,y:0,width:width,height:38);x += width;label.layer.opacity = 0;copy.addSubview(label);letters.append(label)
-            let poses:[(Double,Double,Double)] = [(10,0,-7),(-3,1.13,3),(0,1,0),(0,1,0),(-2,1.08,-2),(7,0,6)]
-            let transforms = poses.map{pose -> NSValue in var t = CATransform3DMakeTranslation(0,pose.0,0);t = CATransform3DRotate(t,pose.2 * .pi/180,0,0,1);return NSValue(caTransform3D:CATransform3DScale(t,max(0.001,pose.1),max(0.001,pose.1),1))}
-            animate(label.layer,key:"modal.coach.copy",values:transforms,times:[0,0.16,0.24,0.72,0.8,1],duration:1.7,delay:delay+Double(index)*0.012,path:"transform")
-            animate(label.layer,key:"modal.coach.copy.alpha",values:[0,1,1,1,1,0],times:[0,0.16,0.24,0.72,0.8,1],duration:1.7,delay:delay+Double(index)*0.012,path:"opacity")
+            NativeCoachCopyMotion.install(on:label.layer,index:index,lifespan:2.1,key:"modal.coach.copy",beginTime:copyEpoch)
         }
         for letter in letters {letter.frame.origin.x += (copy.bounds.width-x)/2}
     }
     func cancel(handoff:Bool = true) {
         permitted = false
+        idleShine?.setVisible(false)
         openingCoachPending=false
         if let impact {let pose = impact.layer.presentation()?.transform ?? impact.layer.transform;let coached = impact.layer.animation(forKey:"modal.coach.impact") != nil;impact.layer.removeAnimation(forKey:"modal.coach.impact")
             if handoff,coached,active,!UIAccessibility.isReduceMotionEnabled {animate(impact.layer,key:"modal.coach.handoff",values:[NSValue(caTransform3D:pose),NSValue(caTransform3D:CATransform3DIdentity)],times:[0,1],duration:0.16,path:"transform")}
@@ -182,5 +185,5 @@ final class JimiNativeWorldCardEffects {
         if !value {cancel(handoff:false);permitted = wasPermitted;openingCoachPending=wasOpening}
         else if wasPermitted {present(frontFacing:frontFacing,opening:wasOpening)}
     }
-    func cleanup(){guard !ended else{return};ended = true;cancel(handoff:false);foil.removeFromSuperlayer();hand.removeFromSuperview();copy.removeFromSuperview()}
+    func cleanup(){guard !ended else{return};ended = true;cancel(handoff:false);idleShine?.dispose();idleShine=nil;foil.mask?.contents=nil;foil.mask=nil;foil.removeFromSuperlayer();hand.removeFromSuperview();copy.removeFromSuperview()}
 }

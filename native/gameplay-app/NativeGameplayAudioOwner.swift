@@ -67,6 +67,16 @@ final class NativeGameplayAudioOwner {
     var activeArcadeTailCount:Int {arcadeTail == nil ? 0:1}
     private var rewardTail:(id:UUID,transport:any NativeGameplayAudioTransport)?
     var activeRewardTailCount:Int {rewardTail == nil ? 0:1}
+    private struct RewardSpeech {
+        let id:UUID
+        let transport:any NativeGameplayAudioTransport
+        var interim:Bool
+        var queuedUnlock:[NativeAudioCue]?
+    }
+    private var rewardSpeech:RewardSpeech?
+    var activeRewardSpeechCount:Int {rewardSpeech == nil ? 0:1}
+    private let sceneSpeech:[String:[String]]
+    private var recordedNavigationScene:String?
     private let random:()->Double
     private var enabled:Bool
     private var foreground=true
@@ -90,7 +100,8 @@ final class NativeGameplayAudioOwner {
     private var magnetPullSilentGeneration:UInt64?
     private var magnetPullStopCapture:(generation:UInt64,receipt:UInt64,stop:()->Void)?
     private var observers:[NSObjectProtocol]=[]
-    init(root:URL,enabled:Bool,transport:(any NativeGameplayAudioTransport)?=nil,rewardTailFactory:(()->any NativeGameplayAudioTransport)?=nil,arcadeTailFactory:(()->any NativeGameplayAudioTransport)?=nil,roundWonTailFactory:(()->any NativeGameplayAudioTransport)?=nil,worldTailFactory:(()->any NativeGameplayAudioTransport)?=nil,navigationSpeechFactory:(()->any NativeGameplayAudioTransport)?=nil,random:@escaping ()->Double={Double.random(in:0..<1)}) {
+    init(root:URL,sceneSpeech:[String:[String]]=NativeRecordedSceneSpeech.sources,enabled:Bool,transport:(any NativeGameplayAudioTransport)?=nil,rewardTailFactory:(()->any NativeGameplayAudioTransport)?=nil,arcadeTailFactory:(()->any NativeGameplayAudioTransport)?=nil,roundWonTailFactory:(()->any NativeGameplayAudioTransport)?=nil,worldTailFactory:(()->any NativeGameplayAudioTransport)?=nil,navigationSpeechFactory:(()->any NativeGameplayAudioTransport)?=nil,random:@escaping ()->Double={Double.random(in:0..<1)}) {
+        self.sceneSpeech=sceneSpeech
         self.transport=transport ?? NativeAVGameplayAudioTransport(root:root);self.enabled=enabled;self.random=random
         self.navigationSpeechFactory=navigationSpeechFactory ?? {NativeAVGameplayAudioTransport(root:root)}
         self.worldTailFactory=worldTailFactory ?? {NativeAVGameplayAudioTransport(root:root)}
@@ -111,8 +122,8 @@ final class NativeGameplayAudioOwner {
         guard !disposed,value != generation else{return}
         bottleBoardWarmupCapture=nil;sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.stopAll();coconutLoopVoices.removeAll();generation=value;meterCarrierVoices.removeAll();receipts.removeAll();harpSequenceReady=false;ordinarySixContact=nil;transitionVoices.removeAll();transitionDigitVoices.removeAll()
     }
-    func setEnabled(_ value:Bool) {guard !disposed else{return};enabled=value;transport.setSelectedPreparationEnabled(value);if !value {finishRewardTail();finishArcadeTail();finishRoundWonTail();finishWorldTail();finishNavigationSpeech();bottleBoardWarmupCapture=nil;sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.stopAll();coconutLoopVoices.removeAll()}}
-    func setForeground(_ value:Bool) {guard !disposed else{return};foreground=value;transport.setSelectedPreparationForeground(value && !interrupted);if !value {finishRewardTail();finishArcadeTail();finishRoundWonTail();finishWorldTail();finishNavigationSpeech();bottleBoardWarmupCapture=nil;sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.stopAll();coconutLoopVoices.removeAll()}}
+    func setEnabled(_ value:Bool) {guard !disposed else{return};enabled=value;transport.setSelectedPreparationEnabled(value);if !value {finishRewardTail();finishRewardSpeech();finishArcadeTail();finishRoundWonTail();finishWorldTail();finishNavigationSpeech();bottleBoardWarmupCapture=nil;sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.stopAll();coconutLoopVoices.removeAll()}}
+    func setForeground(_ value:Bool) {guard !disposed else{return};foreground=value;transport.setSelectedPreparationForeground(value && !interrupted);if !value {finishRewardTail();finishRewardSpeech();finishArcadeTail();finishRoundWonTail();finishWorldTail();finishNavigationSpeech();bottleBoardWarmupCapture=nil;sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.stopAll();coconutLoopVoices.removeAll()}}
     /// Called only for the actually-created committed meter tile after Source's
     /// open/token recheck. Preparation never plays or substitutes a generic cue.
     func prepareSelectedSpecial(special:String,variant:String?,capture:String,generation:UInt64)->Bool {
@@ -142,13 +153,18 @@ final class NativeGameplayAudioOwner {
     }
     func studioIntro(character:String,receipt:UInt64,generation:UInt64) {
         guard admit("studio-intro",receipt:receipt,generation:generation) else{return}
-        let selections:[String:[String]]=["lik-gitara":["guitar1","guitar2"],"lik-laptop":["chair"],"lik-nogomet":["nogomet"],"lik-board":["kokcice"],"lik-slikanje":["camera"],"lik-cvijet":["watering"],"lik-pas-SVG":["nala1","nala2","nala3"],"lik-speceraj":["paperbag"]]
+        let hasSpeech=playRecordedScene("intro-"+character)
+        let selections:[String:[String]]=["lik-gitara":["guitar1","guitar2"],"lik-laptop":["chair"],"lik-nogomet":["nogomet"],"lik-board":["kokcice"],"lik-slikanje":["camera"],"lik-cvijet":["watering"],"lik-speceraj":["paperbag"]]
         func cue(_ key:String,_ gain:Double=0.42,_ delay:Double=0){transport.play(NativeAudioCue(source:"assets/sound/logo transitions/\(key).wav",voice:"native-studio-\(key)",gain:gain,delay:delay))}
-        if ["lik-speceraj","lik-game","lik-pas-SVG","pas-novine","lik-laptop"].contains(character){cue("smile",0.882)}
-        if ["lik-pas-SVG","pas-novine","lik-speceraj"].contains(character){cue(["nala1","nala2","nala3"].randomElement()!)}
+        if !hasSpeech,["lik-speceraj","lik-game","lik-pas-SVG","pas-novine","lik-laptop"].contains(character){cue("smile",0.882,NativeRecordedSceneSpeech.introSpeechDelay)}
+        if ["lik-pas-SVG","pas-novine","lik-speceraj"].contains(character) {
+            for vocal in NativeAuthoredAudioCatalog.groups[chooseNalaGroup("studioNala")] ?? [] {
+                transport.play(NativeAudioCue(source:vocal.source,voice:vocal.voice,gain:vocal.gain,rate:vocal.rate,delay:vocal.delay+NativeRecordedSceneSpeech.introSpeechDelay,stopAfter:vocal.stopAfter,fadeOut:vocal.fadeOut,looping:vocal.looping))
+            }
+        }
         if character == "lik-game" {cue("gamer",0.6);cue("gemer2");return}
-        if character == "lik-kauc" {cue("sleepy2",0.336);cue("sleepy1",0.336,1.44);return}
-        if character != "lik-pas-SVG",let choice=selections[character]?.randomElement(){cue(choice)}
+        if character == "lik-kauc" {cue("sleepy2",0.336,NativeRecordedSceneSpeech.introSnoreDelay);cue("sleepy1",0.336,NativeRecordedSceneSpeech.introSnoreDelay+1.44);return}
+        if character != "lik-pas-SVG",let choice=selections[character]?.randomElement(){cue(choice,character == "lik-gitara" ? 0.42*pow(10,-3.0/20):0.42)}
     }
 
     func onGameplayEvent(_ event:NativeGameplayEvent,source:NativeTile?=nil,destination:NativeTile?=nil,generation:UInt64,receipt:UInt64) {
@@ -249,6 +265,40 @@ final class NativeGameplayAudioOwner {
     }
     func routeFeedback(_ kind:String,receipt:UInt64,generation:UInt64,duration:Double?=nil) {
         guard admit("route",receipt:receipt,generation:generation) else{return}
+        if kind.hasPrefix("scene-speech-stop:") {if recordedNavigationScene == String(kind.dropFirst("scene-speech-stop:".count)) {finishNavigationSpeech()};return}
+        if kind.hasPrefix("scene-speech:") {
+            let scene=String(kind.dropFirst("scene-speech:".count))
+            if playRecordedScene(scene),(scene == "dice-detail" || scene.hasPrefix("dice-detail-")) {playModalNalaIfSelected(pool:"backpack")}
+            return
+        }
+        if kind.hasPrefix("journey-stage-speech:") {
+            guard let stars=Int(kind.dropFirst("journey-stage-speech:".count)),(0...3).contains(stars) else{return}
+            let played:Bool
+            if stars==1 {
+                let hints=NativeRecordedSceneSpeech.legendaryHintSpeechSources
+                let favorHint=pick(10)<6
+                let excluded=favorHint ? Set((sceneSpeech["journey-stage-open"] ?? []).filter{!hints.contains($0)}):hints
+                played=playRecordedScene("journey-stage-open",excluding:excluded,historySuffix:favorHint ? "-one-star-hint":"-one-star-other")
+            }else{
+                played=playRecordedScene("journey-stage-open",excluding:stars==3 ? NativeRecordedSceneSpeech.incompleteStageSpeechSources:[])
+            }
+            if played {playModalNalaIfSelected(pool:"journey-stage")}
+            return
+        }
+        // Single-action modal appearance is silent by user policy.
+        if kind == "modal-cta-enter" {return}
+        if kind == "paired-modal-cta-enter" {
+            playNavigationLayer("cleanCTA0",receipt:receipt);return
+        }
+        if kind == "paired-cta-enter" {
+            // One admitted cohort, using the modal's existing 180ms stagger.
+            for index in 0..<2 {
+                for cue in NativeAuthoredAudioCatalog.groups["cleanCTA\(index)"] ?? [] {
+                    transport.play(NativeAudioCue(source:cue.source,voice:"paired-cta-\(index)-\(generation)-\(receipt)",gain:cue.gain,delay:Double(index)*0.18))
+                }
+            }
+            return
+        }
         if kind == "card-entry-flip" {
             // Prepare only the two stat-tile contact layers while the card opens.
             // Their eventual tap must not wait behind history image/font layout.
@@ -262,27 +312,40 @@ final class NativeGameplayAudioOwner {
             startWorldTail(world:world);return
         }
         if ["arcade-island-endurance","arcade-island-pureDice","arcade-island-slowBurn"].contains(kind) {
+            let scene=["arcade-island-endurance":"arena-endurance","arcade-island-pureDice":"arena-grill","arcade-island-slowBurn":"arena-slow"][kind]!
+            let legacy=kind == "arcade-island-slowBurn" ? [kind,"arcadeSlowBurnTea"]:[kind]
+            if let cue=sceneSpeechCue(scene,legacy:legacy) {startArcadeTail(groups:[chooseNalaGroup("arcadeIslandDog")],additionalSpeech:cue);return}
             let speech=kind == "arcade-island-slowBurn" && pick(2) == 1 ? "arcadeSlowBurnTea":kind
-            startArcadeTail(groups:[speech,"arcadeIslandDog\(pick(3))"]);return
+            startArcadeTail(groups:[speech,chooseNalaGroup("arcadeIslandDog")]);return
         }
         if kind == "home-settings-character-tap" {
+            if playRecordedScene("home-settings",legacy:["homeSettingsSpeech","settingsSpeech0","settingsSpeech1"]) {return}
             startNavigationSpeech(group:["homeSettingsSpeech","settingsSpeech0","settingsSpeech1"][pick(3)]);return
         }
         if kind == "collection-icon-speech" {startNavigationSpeech(group:"collectionSpeech\(pick(7))");return}
         if kind == "home-arcade-character-tap" {
-            let choice=chooseNonRepeatingSpeech("arcade-home")
+            if playRecordedScene("home-arcade",legacy:["arcade-02","arcade-03"]) {
+                let dog=(NativeAuthoredAudioCatalog.groups[chooseNalaGroup("homeCharacter")] ?? []).filter{$0.voice != "native-home-human"}
+                playNavigationCues(dog,receipt:receipt);return
+            }
+            let options=["arcade-02","arcade-03"]
+            let choice=chooseNonRepeatingSpeech("arcade-home",count:options.count)
             stopCharacterSpeechForReplacement()
-            startNavigationSpeech(group:String(format:"arcade-%02d",choice+1))
+            startNavigationSpeech(group:options[choice])
             // Preserve Nala, excluding the retired smile/old human choice.
-            let dog=(NativeAuthoredAudioCatalog.groups["homeCharacter\(pick(3))"] ?? []).filter{$0.voice != "native-home-human"}
+            let dog=(NativeAuthoredAudioCatalog.groups[chooseNalaGroup("homeCharacter")] ?? []).filter{$0.voice != "native-home-human"}
             playNavigationCues(dog,receipt:receipt);return
         }
         if ["home-character-tap","home-journey-character-tap"].contains(kind) {
+            if kind == "home-journey-character-tap",playRecordedScene("home-journey",legacy:["homeCharacter0","homeSpeech-lets-go","homeSpeech-come-here-look-at-this"]) {
+                let dog=(NativeAuthoredAudioCatalog.groups[chooseNalaGroup("homeCharacter")] ?? []).filter{$0.voice != "native-home-human"}
+                playNavigationCues(dog,receipt:receipt);return
+            }
             // Select each character once for this committed contact. Speech replaces
             // only the human layer; Nala and finite natural-tail ownership stay intact.
             finishNavigationSpeech()
-            var cues=NativeAuthoredAudioCatalog.groups["homeCharacter\(pick(3))"] ?? []
-            let options=["smile","lets-go","come-here-look-at-this","treasure"]
+            var cues=NativeAuthoredAudioCatalog.groups[chooseNalaGroup("homeCharacter")] ?? []
+            let options=["smile","lets-go","come-here-look-at-this"]
             let human=kind == "home-character-tap" ? "smile" : options[pick(options.count)]
             if human != "smile",let speech=NativeAuthoredAudioCatalog.groups["homeSpeech-"+human]?.first {
                 cues.removeAll{$0.voice == "native-home-human"};cues.insert(speech,at:0)
@@ -365,6 +428,14 @@ final class NativeGameplayAudioOwner {
         case "clean-title":
             if let cue=NativeCleanBoardTitleVoice.cue(index:index) {transport.play(cue)}
             onFinished?();return
+        case "fail-title-prepare":
+            if let cue=NativeFailBoardTitleVoice.cue(index:index) {
+                _=transport.prepareSelectedSources([cue.source],capture:"fail-title-\(generation)-\(index)",generation:generation)
+            }
+            onFinished?();return
+        case "fail-title":
+            if let cue=NativeFailBoardTitleVoice.cue(index:index) {transport.play(cue)}
+            onFinished?();return
         case "no-moves":group="noMoves"
         case "clean-applause":beginHarpSequence();group="cleanApplause"
         case "clean-sax":group="cleanSax"
@@ -376,14 +447,25 @@ final class NativeGameplayAudioOwner {
             if !harpSequenceReady {beginHarpSequence()}
             let slot=max(0,min(2,index));group="cleanStar-\(slot)-\(harpOrder[slot])"
         case "clean-cta":group="cleanCTA\(max(0,min(1,index)))"
-        case "fail-sax":group="failSax"
+        case "fail-sax":
+            // One captured unhappy vocal accompanies the existing Fail bed.
+            play(chooseNalaGroup("failNala"));group="failSax"
         case "fail-cta":group="failCTA\(max(0,min(1,index)))"
         case "arcade-victory":group="arcadeVictory"
+        case "cleared-thumb-enter":
+            if index == 1 {startArcadeTail(groups:[chooseNalaGroup("arcadeThumbDog")])}
+            group="modalWhoosh"
         case "arcade-thumb":
-            startArcadeTail(groups:[index == 1 ? "arcadeThumbDog\(pick(3))":"arcadeThumbSmile"])
+            startArcadeTail(groups:[index == 1 ? chooseNalaGroup("arcadeThumbDog"):"arcadeThumbSmile"])
             group="arcadeThumb"
         case "arcade-digit":group="digit\(max(0,min(1,index)))"
+        case "new-card-collect":
+            // Accepted TAP TO COLLECT borrows the exact Unit-card contact and
+            // its info-card return swoosh, without a second generic modal/CTA cue.
+            play("cardTap");play("returnFlip");onFinished?();return
         case "new-card-opening-puff":group="newCardOpeningPuff"
+        case "new-card-interim-speech":startRewardSpeech(interim:true);onFinished?();return
+        case "new-card-unlock-speech":startRewardSpeech(interim:false,legendary:index==1);onFinished?();return
         case "new-card-unlocked-enter":group="newCardUnlockedEnter"
         case "new-card-intro":group="newCardIntro"
         case "new-card-crumble":group="newCardCrumble"
@@ -566,15 +648,79 @@ final class NativeGameplayAudioOwner {
         }
     }
 
-    /// Bounded independent histories for High Score, Combo and Arcade Home.
-    /// Muted/rejected contacts never enter this selection path.
-    private func chooseNonRepeatingSpeech(_ pool:String)->Int {
+    /// One selected interim line and at most one queued unlock package. Rapid
+    /// reveal waits for actual interim completion; collection preserves the tail.
+    /// UUID checks reject completion callbacks from canceled/replaced packages.
+    private func startRewardSpeech(interim:Bool,legendary:Bool=false) {
+        let scene=interim ? "reward-interim":(legendary ? "reward-legendary":"reward-common")
+        guard let selected=sceneSpeechCue(scene) else{return}
+        let human=NativeAudioCue(source:selected.source,voice:"native-reward-jimbo",gain:selected.gain)
+        if interim {
+            finishRewardSpeech()
+            stopCharacterSpeechForReplacement()
+            let id=UUID(),tail=rewardTailFactory()
+            rewardSpeech=RewardSpeech(id:id,transport:tail,interim:true)
+            playRewardSpeechCues([human],id:id)
+        }else{
+            var cues=[human]
+            if let count=NativeAuthoredAudioCatalog.nalaGroupCounts["modalNala"],count>0 {
+                let choice=chooseNonRepeatingSpeech("nala-reward-unlock",count:count)
+                if let dog=NativeAuthoredAudioCatalog.groups["modalNala"+String(choice)]?.first {
+                    cues.append(NativeAudioCue(source:dog.source,voice:"native-reward-nala",gain:dog.gain))
+                }
+            }
+            if rewardSpeech?.interim == true {
+                // The visual owner admits unlock once; never grow a speech queue.
+                if rewardSpeech?.queuedUnlock == nil {rewardSpeech?.queuedUnlock=cues}
+            }else{
+                finishRewardSpeech()
+                stopCharacterSpeechForReplacement()
+                let id=UUID(),tail=rewardTailFactory()
+                rewardSpeech=RewardSpeech(id:id,transport:tail,interim:false)
+                playRewardSpeechCues(cues,id:id)
+            }
+        }
+    }
+    private func playRewardSpeechCues(_ cues:[NativeAudioCue],id:UUID) {
+        guard let package=rewardSpeech,package.id==id else{return}
+        var pending=Set(cues.map(\.voice))
+        for cue in cues {
+            guard rewardSpeech?.id==id else{return}
+            package.transport.play(cue){[weak self] result in
+                guard let self,self.rewardSpeech?.id==id,pending.remove(cue.voice) != nil else{return}
+                guard pending.isEmpty else{return}
+                if result != .stopped,let next=self.rewardSpeech?.queuedUnlock {
+                    self.rewardSpeech?.queuedUnlock=nil;self.rewardSpeech?.interim=false
+                    self.playRewardSpeechCues(next,id:id)
+                }else{self.finishRewardSpeech()}
+            }
+        }
+    }
+    private func finishRewardSpeech() {
+        let old=rewardSpeech;rewardSpeech=nil
+        old?.transport.dispose()
+    }
+
+    /// A finite history per semantic pool survives route/generation changes.
+    /// Only already-admitted audible contacts advance the selected index.
+    private func chooseNonRepeatingSpeech(_ pool:String,count:Int=3)->Int {
         let choice:Int
-        if let previous=previousSpeechSelections[pool] {
-            let draw=pick(2);choice=draw >= previous ? draw+1:draw
-        }else{choice=pick(3)}
+        if count>1,let previous=previousSpeechSelections[pool],previous<count {
+            let draw=pick(count-1);choice=draw >= previous ? draw+1:draw
+        }else{choice=count>1 ? pick(count):0}
         previousSpeechSelections[pool]=choice
         return choice
+    }
+    /// Only admitted, selected human speech may draw this companion vocal.
+    /// Two bounded histories; one stable main-transport voice replaces prior Nala.
+    private func playModalNalaIfSelected(pool:String) {
+        guard pick(2)==0,let count=NativeAuthoredAudioCatalog.nalaGroupCounts["modalNala"],count>0 else{return}
+        let index=chooseNonRepeatingSpeech("nala-modal-"+pool,count:count)
+        play("modalNala"+String(index))
+    }
+    private func chooseNalaGroup(_ prefix:String)->String {
+        let count=NativeAuthoredAudioCatalog.nalaGroupCounts[prefix] ?? 3
+        return prefix+String(chooseNonRepeatingSpeech("nala-"+prefix,count:count))
     }
     private func stopCharacterSpeechForReplacement() {
         stopNavigationHumanVoices();finishWorldTail();finishArcadeTail();finishRoundWonTail()
@@ -588,9 +734,26 @@ final class NativeGameplayAudioOwner {
 
     /// One selected Settings/collection human line owns its natural navigation
     /// tail. Replacement is bounded; route/generation changes never replay it.
+    private func sceneSpeechCue(_ scene:String,legacy:[String]=[],excluding:Set<String>=[],historySuffix:String?=nil)->NativeAudioCue? {
+        guard let registered=sceneSpeech[scene] else{return nil}
+        let sources=registered.filter{!excluding.contains($0)}
+        guard !sources.isEmpty else{return nil}
+        let old=legacy.compactMap{NativeAuthoredAudioCatalog.groups[$0]?.first}
+        let index=chooseNonRepeatingSpeech("scene-"+scene+(historySuffix ?? (excluding.isEmpty ? "":"-filtered")),count:sources.count+old.count)
+        if index>=sources.count {return old[index-sources.count]}
+        let gain=NativeRecordedSceneSpeech.fullGainSpeechSources.contains(sources[index]) ? 1.0:NativeRecordedSceneSpeech.boostedSpeechSources.contains(sources[index]) ? 0.72*pow(10,2.0/20):0.72
+        return NativeAudioCue(source:sources[index],voice:"native-scene-jimbo",gain:gain,delay:scene.hasPrefix("intro-") ? NativeRecordedSceneSpeech.introSpeechDelay:0)
+    }
+    @discardableResult private func playRecordedScene(_ scene:String,legacy:[String]=[],excluding:Set<String>=[],historySuffix:String?=nil)->Bool {
+        guard let cue=sceneSpeechCue(scene,legacy:legacy,excluding:excluding,historySuffix:historySuffix) else{return false}
+        stopCharacterSpeechForReplacement();startNavigationSpeech(cue:cue);recordedNavigationScene=scene;return true
+    }
     private func startNavigationSpeech(group:String) {
-        finishNavigationSpeech()
         guard let cue=NativeAuthoredAudioCatalog.groups[group]?.first else{return}
+        startNavigationSpeech(cue:cue)
+    }
+    private func startNavigationSpeech(cue:NativeAudioCue) {
+        finishNavigationSpeech()
         let id=UUID(),tail=navigationSpeechFactory();navigationSpeech=(id,tail)
         tail.play(cue){[weak self] _ in
             guard let self,self.navigationSpeech?.id==id else{return}
@@ -598,7 +761,7 @@ final class NativeGameplayAudioOwner {
         }
     }
     private func finishNavigationSpeech() {
-        let old=navigationSpeech;navigationSpeech=nil
+        let old=navigationSpeech;navigationSpeech=nil;recordedNavigationScene=nil
         old?.transport.dispose()
     }
 
@@ -638,9 +801,9 @@ final class NativeGameplayAudioOwner {
 
     // One selected Arcade character package survives Play/Continue and stage generations.
     // A new character contact replaces it; actual completion releases players/cache.
-    private func startArcadeTail(groups:[String]) {
+    private func startArcadeTail(groups:[String],additionalSpeech:NativeAudioCue?=nil) {
         finishNavigationSpeech();finishArcadeTail()
-        let cues=groups.flatMap {NativeAuthoredAudioCatalog.groups[$0] ?? []}
+        let cues=groups.flatMap {NativeAuthoredAudioCatalog.groups[$0] ?? []}+(additionalSpeech.map{[$0]} ?? [])
         guard !cues.isEmpty else{return}
         let id=UUID(),tail=arcadeTailFactory();arcadeTail=(id,tail)
         var pending=Set(cues.map(\.voice))
@@ -660,6 +823,14 @@ final class NativeGameplayAudioOwner {
         let old=rewardTail;rewardTail=nil
         old?.transport.dispose()
     }
+    /// Clean Stage is isolated from gameplay. Stop its bounded result family,
+    /// including pending starts and the sax completion hook, without menu SFX.
+    func stopCleanResultPreviewSounds() {
+        guard !disposed else{return}
+        var voices=Set(NativeAuthoredAudioCatalog.groups.filter{$0.key.hasPrefix("clean")}.values.flatMap{$0.map(\.voice)})
+        voices.formUnion(["native-clean-title","clean-board-final-score"])
+        transport.stopVoices(voices)
+    }
     /// DEV preview has no concurrent gameplay result; retire only its reward voices.
     func stopRewardPreviewSounds() {
         guard !disposed else{return}
@@ -668,15 +839,17 @@ final class NativeGameplayAudioOwner {
         })
         transport.stopVoices(voices)
     }
-    func stop() {bottleBoardWarmupCapture=nil;sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.stopAll();coconutLoopVoices.removeAll();meterCarrierVoices.removeAll();generation &+= 1;receipts.removeAll();harpSequenceReady=false;ordinarySixContact=nil}
-    func dispose() {guard !disposed else{return};disposed=true;bottleBoardWarmupCapture=nil;finishRewardTail();finishArcadeTail();finishRoundWonTail();finishWorldTail();finishNavigationSpeech();sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;meterCarrierVoices.removeAll();coconutLoopVoices.removeAll();transport.dispose();for observer in observers {NotificationCenter.default.removeObserver(observer)};observers.removeAll();receipts.removeAll()}
+    // Selected die speech is a finite owner-held tail, independent of its closed UI.
+    // Ordinary route retirement preserves it; replacement, full-stop and completion retire it.
+    func stop() {if let scene=recordedNavigationScene,scene.hasPrefix("intro-") || scene.hasPrefix("arena-modal-") {finishNavigationSpeech()};bottleBoardWarmupCapture=nil;sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.stopAll();coconutLoopVoices.removeAll();meterCarrierVoices.removeAll();generation &+= 1;receipts.removeAll();harpSequenceReady=false;ordinarySixContact=nil}
+    func dispose() {guard !disposed else{return};disposed=true;bottleBoardWarmupCapture=nil;finishRewardTail();finishRewardSpeech();finishArcadeTail();finishRoundWonTail();finishWorldTail();finishNavigationSpeech();sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;meterCarrierVoices.removeAll();coconutLoopVoices.removeAll();transport.dispose();for observer in observers {NotificationCenter.default.removeObserver(observer)};observers.removeAll();receipts.removeAll()}
     private func notification(name:String,interruption:UInt?) {
         if name==UIApplication.willResignActiveNotification.rawValue {setForeground(false)}
         else if name==UIApplication.didBecomeActiveNotification.rawValue {interrupted=false;setForeground(true)}
         else if name==AVAudioSession.interruptionNotification.rawValue {
             guard let raw=interruption,let type=AVAudioSession.InterruptionType(rawValue:raw) else{return}
-            interrupted=type == .began;transport.setSelectedPreparationForeground(foreground && !interrupted);if interrupted {finishRewardTail();finishArcadeTail();finishRoundWonTail();finishWorldTail();finishNavigationSpeech();bottleBoardWarmupCapture=nil;sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.stopAll()}
-        } else {finishRewardTail();finishArcadeTail();finishRoundWonTail();finishWorldTail();finishNavigationSpeech();interrupted=false;bottleBoardWarmupCapture=nil;sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.setSelectedPreparationEnabled(false);transport.stopAll();transport.setSelectedPreparationEnabled(enabled);transport.setSelectedPreparationForeground(foreground)}
+            interrupted=type == .began;transport.setSelectedPreparationForeground(foreground && !interrupted);if interrupted {finishRewardTail();finishRewardSpeech();finishArcadeTail();finishRoundWonTail();finishWorldTail();finishNavigationSpeech();bottleBoardWarmupCapture=nil;sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.stopAll()}
+        } else {finishRewardTail();finishRewardSpeech();finishArcadeTail();finishRoundWonTail();finishWorldTail();finishNavigationSpeech();interrupted=false;bottleBoardWarmupCapture=nil;sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.setSelectedPreparationEnabled(false);transport.stopAll();transport.setSelectedPreparationEnabled(enabled);transport.setSelectedPreparationForeground(foreground)}
     }
 }
 

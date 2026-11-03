@@ -1,0 +1,148 @@
+order,sceneId,sceneName,sceneLineOrder,lineId,file,text,start,end,duration
+1,intro-lik-gitara,Jimbo svira gitaru,1,2e48d5debef4459299ca68c3a1799809,0001-intro-lik-gitara-01.wav,"[excited] One more chord, then we roll!",0.0,2.3225,2.3225
+2,intro-lik-gitara,Jimbo svira gitaru,2,60ef046e7d1545f0b16f106f84a814ed,0002-intro-lik-gitara-02.wav,[excited] A little rock before a little roll.,2.3225,4.65,2.3275
+3,intro-lik-slikanje,Jimbo fotografira,1,dc279e27dd914023a1eea820ebe6627f,0003-intro-lik-slikanje-01.wav,[curious] One little picture before the adventure.,4.65,6.9825,2.3325
+4,intro-lik-slikanje,Jimbo fotografira,2,bf76ec238b894e999271a53e6be0d286,0004-intro-lik-slikanje-02.wav,[playful] Smile! This one's going in the scrapbook.,6.9825,9.74,2.7575
+5,intro-lik-cvijet,Jimbo zalijeva cvijet,1,6f3c2905a1614b1788169d15254dc016,0005-intro-lik-cvijet-01.wav,"[trusting] A little water, and little bit of patience",9.74,12.6725,2.9325
+6,intro-lik-cvijet,Jimbo zalijeva cvijet,2,2fdab08858b54933948b83509649d7fd,0006-intro-lik-cvijet-02.wav,[happy] Look at these little green leaves!,12.6725,14.705,2.0325
+7,intro-lik-cvijet,Jimbo zalijeva cvijet,3,e5a4d4aa74a24d73b06530ca2c8cedf4,0007-intro-lik-cvijet-03.wav,[gentle] A few drops for you.,14.705,16.1775,1.4725
+8,intro-lik-cvijet,Jimbo zalijeva cvijet,4,e53110afa0e94668b75c813750f7cd69,0008-intro-lik-cvijet-04.wav,"[careful] Easy now, just a few drops.",16.1775,18.4725,2.295
+9,intro-lik-board,Jimbo baca kockice,1,666c1158097a40daaedf6e3870ff134a,0009-intro-lik-board-01.wav,[gentle] Let's roll these dice softly.,18.4725,20.44,1.9675
+10,intro-lik-board,Jimbo baca kockice,2,00e235cea75a47ef8ce435620b0722de,0010-intro-lik-board-02.wav,[gentle] Keep your eyes on the dice.,20.44,22.2425,1.8025
+11,intro-lik-board,Jimbo baca kockice,3,6608356376b94dfb9c33b7f2d6ae7fc9,0011-intro-lik-board-03.wav,[playful] Let’s clear the board!,22.2425,23.785,1.5425
+12,intro-lik-game,Jimbo s kontrolerom,1,7f0f09b05a344a1fa87369e5a772f5b6,0012-intro-lik-game-01.wav,[curious] I call this my serious gaming face.,23.785,26.515,2.73
+13,intro-lik-game,Jimbo s kontrolerom,2,a4f29e90f0f84f8ea8bacae6ab475418,0013-intro-lik-game-02.wav,[curious] One little game. Perhaps a few more after.,26.515,29.5275,3.0125
+14,intro-lik-game,Jimbo s kontrolerom,3,c36eeb32ca1447e3b64234e342deee13,0014-intro-lik-game-03.wav,[amazed] Let me try this button.,29.5275,30.99,1.4625
+15,intro-lik-laptop,Jimbo s laptopom,1,e83a21e7a9a14c67912c16c052a95fdb,0015-intro-lik-laptop-01.wav,[proud] A brilliant idea is loading.,30.99,33.2125,2.2225
+16,intro-lik-laptop,Jimbo s laptopom,2,c6d51fbba03d466b9b2a2310d858487c,0016-intro-lik-laptop-02.wav,[nervous] Steady now. I've got this. Maybe.,33.2125,36.3175,3.105
+17,intro-lik-laptop,Jimbo s laptopom,3,120f905dda71499bb3ba4bebbd9af863,0017-intro-lik-laptop-03.wav,[amused] That was one lean too many.,36.3175,38.4,2.0825
+18,intro-lik-pas-SVG,Jimbo i Nala s uzicom,1,26d2a0d32881406c9e909fd376371a50,0018-intro-lik-pas-SVG-01.wav,"[amused] Common now, leave it already",38.4,40.5925,2.1925
+19,intro-lik-pas-SVG,Jimbo i Nala s uzicom,2,2858f4097f3f4216bb39093224a9d575,0019-intro-lik-pas-SVG-02.wav,"[content] Well, you've certainly got me smiling.",40.5925,43.1175,2.525
+20,intro-lik-pas-SVG,Jimbo i Nala s uzicom,3,6a9a2a1fb4294aff9dafee0fc5d1cdb4,0020-intro-lik-pas-SVG-03.wav,[playful] Is this leash made of treats?,43.1175,45.0475,1.93
+21,intro-lik-pas-SVG,Jimbo i Nala s uzicom,4,ea90faa272ed4eb5bcbfb4bd53a90fde,0021-intro-lik-pas-SVG-04.wav,[surprised] Oh! You're stronger than you look!,45.0475,47.345,2.2975
+22,intro-lik-speceraj,Jimbo i Nala nose namirnice,1,6b4fab1d45a9462fb7ea4e933663ab4d,0022-intro-lik-speceraj-01.wav,"[mischievous] A bag of groceries, a bag of possibilities.",47.345,50.58,3.235
+23,intro-lik-speceraj,Jimbo i Nala nose namirnice,2,d038523fc18e4a91bfcb91fdd43f54da,0023-intro-lik-speceraj-02.wav,[mock-serious] This baguette is under my personal protection.,50.58,53.4275,2.8475
+24,intro-lik-speceraj,Jimbo i Nala nose namirnice,3,068d0a08bc41480fb46b0ea3247ad80b,0024-intro-lik-speceraj-03.wav,"[warm] Yes, yes, I missed you too.",53.4275,55.8875,2.46
+25,intro-lik-speceraj,Jimbo i Nala nose namirnice,4,864e2f093c534195b37728f7d64158c5,0025-intro-lik-speceraj-04.wav,"[playful] Hey, watch the veggies!",55.8875,57.765,1.8775
+26,intro-pas-novine,Nala nosi novine,1,1821962353544e7f96735ed3f0796cb1,0026-intro-pas-novine-01.wav,"[optimistic] Nala, that's yesterday's news!",57.765,60.0825,2.3175
+27,intro-pas-novine,Nala nosi novine,2,555834018fdc4c02aa12235dfa0d54c6,0027-intro-pas-novine-02.wav,"[mischievously] I was reading that, you cheeky rascal.",60.0825,62.675,2.5925
+28,intro-pas-novine,Nala nosi novine,3,1c12c8056ca045e9910bb5f0cd42e2f2,0028-intro-pas-novine-03.wav,"[energetic] Bring that paper here, please.",62.675,64.3375,1.6625
+29,intro-pas-novine,Nala nosi novine,4,ea11fef8c7d64aaf8e52c3b30873c69c,0029-intro-pas-novine-04.wav,[gentle] Slow down with that paper.,64.3375,66.13,1.7925
+30,home-journey,Homepage · Journey,1,0937206b7f9d484fac13f601ad41e8e9,0030-home-journey-01.wav,"[excited] Come on, Nala! Let's explore!",66.13,68.355,2.225
+31,home-journey,Homepage · Journey,2,b7e85feeed9849e0be5f9a9d90ddf844,0031-home-journey-02.wav,"[excited] Nala, we're off to a good start!",68.355,70.675,2.32
+32,home-journey,Homepage · Journey,3,f5e3637830df4ca28924ad4302dee27c,0032-home-journey-03.wav,[curious] Which world shall we try first?,70.675,72.535,1.86
+33,home-journey,Homepage · Journey,4,4b99c586124d492cbc85a8199847fe27,0033-home-journey-04.wav,[curious] Could we find a Special die?,72.535,74.385,1.85
+34,home-journey,Homepage · Journey,5,9fe31e9a1508466ebb3410cf735d6a6c,0034-home-journey-05.wav,[excited] Let's find out what's further ahead!,74.385,76.375,1.99
+35,home-journey,Homepage · Journey,6,fbd9c037241d4aa4a0b6503b10e02411,0035-home-journey-06.wav,"[warm] Let's discover something together, Nala.",76.375,78.65,2.275
+36,home-journey,Homepage · Journey,7,904f4d9917bb4478a99a25ff79c6be77,0036-home-journey-07.wav,[cheerful] Let's see how far we get!,78.65,80.26,1.61
+37,home-arcade,Homepage · Arcade / Arena,1,9196d9f7918d4660a6673060ca0b091b,0037-home-arcade-01.wav,[cheerful] Let's give this challenge a go!,80.26,82.07,1.81
+38,home-arcade,Homepage · Arcade / Arena,2,c052d5748e97483c936c2808f2de0f1b,0038-home-arcade-02.wav,[curious] How will this round go?,82.07,83.4975,1.4275
+39,home-arcade,Homepage · Arcade / Arena,3,6611f97b6cbb4f74aa6444898b90b390,0039-home-arcade-03.wav,"[cheerful] Come on, Nala. Let's try again!",83.4975,85.7425,2.245
+40,home-arcade,Homepage · Arcade / Arena,4,bf78b31d618642f780c74845d3352196,0040-home-arcade-04.wav,[nervous] A challenge? Let me sit up!,85.7425,87.8675,2.125
+41,home-arcade,Homepage · Arcade / Arena,5,a37001e352d4410faca7006827659bf0,0041-home-arcade-05.wav,"[playful] Big smile, small plan. Let's begin!",87.8675,90.8825,3.015
+42,home-arcade,Homepage · Arcade / Arena,6,a2a7f688927d48fda58c08cc8248a00d,0042-home-arcade-06.wav,"[warm] Win or wobble, let's give it a try!",90.8825,93.4075,2.525
+43,home-settings,Homepage · Settings radionica,1,f69b081799d44251a45f26e478b2416a,0043-home-settings-01.wav,"[playful] Nala, save some work for me!",93.4075,95.4,1.9925
+44,home-settings,Homepage · Settings radionica,2,d488444596634d7495f5ca15ededb621,0044-home-settings-02.wav,"[warm] Thanks, Nala. Keep that wrench handy.",95.4,97.7175,2.3175
+45,home-settings,Homepage · Settings radionica,3,f146abae24cc42c183f0ba5c8a23bfc3,0045-home-settings-03.wav,"[amused] Nala, I need that wrench now!",97.7175,100.04,2.3225
+46,arena-endurance,Arena / Arcade · Endurance,1,38b54d8f06f3449baf60076c67e0bd82,0046-arena-endurance-01.wav,"[determined] A bit tired, but still trying!",100.04,102.4375,2.3975
+47,arena-endurance,Arena / Arcade · Endurance,2,df3c6a18ac9c42669ad99e8098c2aee0,0047-arena-endurance-02.wav,"[determined] All right, legs. Stay with me!",102.4375,104.415,1.9775
+48,arena-endurance,Arena / Arcade · Endurance,3,e68e6dd1747d4383940934f7aeb560c8,0048-arena-endurance-03.wav,"[playful] Can I borrow your energy, Nala?",104.415,106.225,1.81
+49,arena-modal-endurance,Arena detalj · Endurance,1,c4dd7b2665eb40b9ae523d8fce80c803,0049-arena-modal-endurance-01.wav,"[playful] Nala, you make this look easy!",106.225,108.4025,2.1775
+50,arena-modal-endurance,Arena detalj · Endurance,2,c54e9ee31668466fabe457eac6b13773,0050-arena-modal-endurance-02.wav,[surprised] Phew! This challenge means business!,108.4025,111.1225,2.72
+51,arena-modal-endurance,Arena detalj · Endurance,3,88d63e808cff430586597cb924e612a8,0051-arena-modal-endurance-03.wav,[amused] I think Nala could do my turn!,111.1225,113.1325,2.01
+52,arena-modal-endurance,Arena detalj · Endurance,4,6f38bf0bf6f24b7196c94678c733add8,0052-arena-modal-endurance-04.wav,"[determined] A big breath, then another try!",113.1325,115.5,2.3675
+53,arena-grill,Arena / Arcade · One Lucky Drop · roštilj,1,2b53f108029e468b859732d50304b54b,0053-arena-grill-01.wav,"[mischievously] Don't touch the grill, you rascal.",115.5,117.6775,2.1775
+54,arena-grill,Arena / Arcade · One Lucky Drop · roštilj,2,0631297defab430789a924a486bace93,0054-arena-grill-02.wav,"[surprised] Oh! You smell a challenge too, Nala?",117.6775,120.1325,2.455
+55,arena-grill,Arena / Arcade · One Lucky Drop · roštilj,3,d86edfd08bd14ec39d38e7329b4ab9fe,0055-arena-grill-03.wav,"[cheerful] One fresh challenge, coming right up!",120.1325,122.4925,2.36
+56,arena-grill,Arena / Arcade · One Lucky Drop · roštilj,4,3518736a456543af9759e3b80fc9d840,0056-arena-grill-04.wav,[amused] My helper seems hungry for a turn.,122.4925,124.635,2.1425
+57,arena-grill,Arena / Arcade · One Lucky Drop · roštilj,5,b05956429a6047ee978c30a70404ca6e,0057-arena-grill-05.wav,[laughs] Let's give this our best shot!,124.635,126.865,2.23
+58,arena-modal-grill,Arena detalj · One Lucky Drop · roštilj,1,7c1275a6cc9b43909d93a00a0bfd1b3a,0058-arena-modal-grill-01.wav,[surprised] Oh! Dinner has legs now!,126.865,128.995,2.13
+59,arena-modal-grill,Arena detalj · One Lucky Drop · roštilj,2,1c192429ff9644b88be9d2b606560557,0059-arena-modal-grill-02.wav,"[laughing] Nala, leave a bite for me!",128.995,131.7975,2.8025
+60,arena-modal-grill,Arena detalj · One Lucky Drop · roštilj,3,9f9d1f59014042798ac861d4da43e0c2,0060-arena-modal-grill-03.wav,"[laughs] Hey, [suprised] I was cooking that!",131.7975,134.6275,2.83
+61,arena-slow,Arena / Arcade · Slow Burn · čaj i novine,1,1ad036729d824365b74f694d86d06e22,0061-arena-slow-01.wav,[surprised] Oh! Time to put my tea down.,134.6275,136.7975,2.17
+62,arena-slow,Arena / Arcade · Slow Burn · čaj i novine,2,caeaf4effc8640a6a497bf86ea9143fe,0062-arena-slow-02.wav,[playful] My tea break has a challenge in it!,136.7975,139.0325,2.235
+63,arena-slow,Arena / Arcade · Slow Burn · čaj i novine,3,66ecdbe581564cfe872f5de9efbe16c0,0063-arena-slow-03.wav,"[playful] Ready, steady... [laughs] one more sip.",139.0325,142.415,3.3825
+64,arena-modal-slow,Arena detalj · Slow Burn · čaj i novine,1,3da291f7333948338bdfa40f2160cd10,0064-arena-modal-slow-01.wav,"[amused] [laughs] Nala, you call this a quiet break?",142.415,145.6925,3.2775
+65,arena-modal-slow,Arena detalj · Slow Burn · čaj i novine,2,63b4e41594bd41a9bbf75b15e82b022e,0065-arena-modal-slow-02.wav,[playful] Slow Burn? Tell that to Nala!,145.6925,148.2425,2.55
+66,arena-modal-slow,Arena detalj · Slow Burn · čaj i novine,3,bf4e2e165c634e99a897c838e85bf0f8,0066-arena-modal-slow-03.wav,[surprised][laughs]  Whoops! That sip got away!,148.2425,150.89,2.6475
+67,arena-modal-slow,Arena detalj · Slow Burn · čaj i novine,4,aaef11c3e9b24fbebfee63a1c49accaa,0067-arena-modal-slow-04.wav,"[warm] All right, Nala. [laughs] You've got me smiling!",150.89,153.965,3.075
+68,dice-detail,Backpack detalj · Wee Bee,1,64199778bd2d4377ac971863863abaf1,0068-dice-detail-01.wav,"[optimistic] Well, hello there, Wee Bee!",153.965,155.835,1.87
+69,dice-detail,Backpack detalj · Wee Bee,2,d379a996a51c4c9e8bb2651d4c48ecac,0069-dice-detail-02.wav,[pleased] What a sweet little find!,155.835,157.6225,1.7875
+70,dice-detail,Backpack detalj · Wee Bee,3,d47060e7ea304288a23fd435b2c26c3c,0070-dice-detail-03.wav,[happy] I'm glad we found you.,157.6225,159.08,1.4575
+71,dice-detail-wild-star,Backpack detalj · STAR,1,2116dcc6649f46148077d8c7f931bfb1,0071-dice-detail-wild-star-01.wav,"[gentle] Settle in, little STAR.",159.08,160.72,1.64
+72,dice-detail-wild-star,Backpack detalj · STAR,2,c0daaf3dc23f44cd9b8be9bf9b74d279,0072-dice-detail-wild-star-02.wav,[pleased] This STAR is a keeper.,160.72,162.59,1.87
+73,dice-detail-wild-star,Backpack detalj · STAR,3,3c9970a6283746dd8975b7003459f0aa,0073-dice-detail-wild-star-03.wav,[happy] What a lovely little find!,162.59,164.435,1.845
+74,dice-detail-flower,Backpack detalj · Flower,1,6f806ced9c92418c9f3c0b877bcdfdc4,0074-dice-detail-flower-01.wav,"[amused] Well, you've grown on me already!",164.435,166.63,2.195
+75,dice-detail-flower,Backpack detalj · Flower,2,b0eae4b26eca47ab86654fafbf3011a2,0075-dice-detail-flower-02.wav,[warm] A sweet flower for our growing collection.,166.63,169.3575,2.7275
+76,dice-detail-flower,Backpack detalj · Flower,3,e4cc52f1c2b44aaf98648b1a7ef60c62,0076-dice-detail-flower-03.wav,[trusting] I'm blooming happy to see you!,169.3575,171.5875,2.23
+77,dice-detail-honey,Backpack detalj · HONEY,1,e5f58185360f4867859391e187aa1eaa,0077-dice-detail-honey-01.wav,"[playful] Honey, please don't stick to everything.",171.5875,173.9625,2.375
+78,dice-detail-honey,Backpack detalj · HONEY,2,cdb5014e513a44de970ae5fd0a9e1a0b,0078-dice-detail-honey-02.wav,[pleased] Our collection just got sweeter.,173.9625,176.21,2.2475
+79,dice-detail-honey,Backpack detalj · HONEY,3,6039abfc8d85483797424ee99a4f54e2,0079-dice-detail-honey-03.wav,"[curious] Honey, what's all the buzz?",176.21,177.9875,1.7775
+80,dice-detail-honey,Backpack detalj · HONEY,4,22ab121fef314430bdeca7273c20655b,0080-dice-detail-honey-04.wav,[cheerful] A sweet find to keep!,177.9875,179.7225,1.735
+81,dice-detail-honey,Backpack detalj · HONEY,5,a45facb7b3d742208d3d290f2e9dc21d,0081-dice-detail-honey-05.wav,[surprised] Even the bees came along!,179.7225,181.5425,1.82
+82,dice-detail-honey,Backpack detalj · HONEY,6,5a4c286ba1934b9eb50b80ffbc78cc66,0082-dice-detail-honey-06.wav,[pleased] Honey fits in quite nicely.,181.5425,183.42,1.8775
+83,dice-detail-mushroom,Backpack detalj · SHROOMY,1,0ed99088aa2e4e9996b3949281f341a7,0083-dice-detail-mushroom-01.wav,[warm] Our collection feels cozier with you.,183.42,185.7775,2.3575
+84,dice-detail-mushroom,Backpack detalj · SHROOMY,2,006c9948c6b94bf485511644f0a17aa6,0084-dice-detail-mushroom-02.wav,"[amused] Shroomy, you've made yourself at home!",185.7775,188.22,2.4425
+85,dice-detail-mushroom,Backpack detalj · SHROOMY,3,e43d198bf86a4a1997f5a1f91ce79822,0085-dice-detail-mushroom-03.wav,[warm] A little mushroom with plenty of charm.,188.22,190.6475,2.4275
+86,dice-detail-mushroom,Backpack detalj · SHROOMY,4,9d461abf6b594c8794008618dd85bacf,0086-dice-detail-mushroom-04.wav,[delighted] What a lovely little surprise!,190.6475,192.6725,2.025
+87,dice-detail-barell,Backpack detalj · BARREL,1,e77f551c20684e6b9494c12cd2f328ad,0087-dice-detail-barell-01.wav,"[playful] Barrel, no rolling off now!",192.6725,194.715,2.0425
+88,dice-detail-barell,Backpack detalj · BARREL,2,a8070a053e4944dcb9116965b273593d,0088-dice-detail-barell-02.wav,[cheerful] Our collection feels fuller already!,194.715,196.9875,2.2725
+89,dice-detail-barell,Backpack detalj · BARREL,3,e9d3bf3255914f1b8b51faf664a1f4e0,0089-dice-detail-barell-03.wav,[curious] Does it come with instructions?,196.9875,198.655,1.6675
+90,dice-detail-barell,Backpack detalj · BARREL,4,dbaa14fa276e4b19b40197d7f9af93cd,0090-dice-detail-barell-04.wav,[surprised] There goes the quiet part!,198.655,200.2875,1.6325
+91,dice-detail-wild-juice,Backpack detalj · JUICE,1,d59c9c06264f4b3488382e4aac9e318a,0091-dice-detail-wild-juice-01.wav,[playful] Bubbly juice,200.2875,201.655,1.3675
+92,dice-detail-wild-juice,Backpack detalj · JUICE,2,3cf582e4dff44813a0c8a03c088280ca,0092-dice-detail-wild-juice-02.wav,[cheerful] Our collection just got bubbly!,201.655,203.595,1.94
+93,dice-detail-wild-juice,Backpack detalj · JUICE,3,31e8b14f56a641d6b253302a0d764a53,0093-dice-detail-wild-juice-03.wav,[amused] I'll need more than a straw!,203.595,205.39,1.795
+94,dice-detail-wild-juice,Backpack detalj · JUICE,4,bba7ca47b27e410f8cf1a7a7856a204a,0094-dice-detail-wild-juice-04.wav,[amused] I nearly took a sip!,205.39,206.9575,1.5675
+95,dice-detail-fish,Backpack detalj · FISHY,1,401826c8cbdd435a9c7ca249a14d7f16,0095-dice-detail-fish-01.wav,[curious] A quiet little fish? Hmm.,206.9575,209.1625,2.205
+96,dice-detail-fish,Backpack detalj · FISHY,2,09c6183696d44d63ad0b9a76dd9fd246,0096-dice-detail-fish-02.wav,"[warm] You're a keeper, splash and all.",209.1625,211.3775,2.215
+97,dice-detail-fish,Backpack detalj · FISHY,3,008156197b96464bbebf2be5de37a8e4,0097-dice-detail-fish-03.wav,"[gentle] Stay close, my little fish friend.",211.3775,213.415,2.0375
+98,dice-detail-fish,Backpack detalj · FISHY,4,609b07e466b44e7c9f051f0a9b2d45f2,0098-dice-detail-fish-04.wav,[amused] You've swum right into my heart.,213.415,215.565,2.15
+99,dice-detail-fish,Backpack detalj · FISHY,5,4d3345fdb761408fbb8c882dd8ee8e19,0099-dice-detail-fish-05.wav,"[gentle] Settle in, Fishy. You're home.",215.565,217.7175,2.1525
+100,dice-detail-beach-ball,Backpack detalj · BEACH BALL,1,149b2d59e5754ae4a72a6e7581eb42a3,0100-dice-detail-beach-ball-01.wav,[warm] I've saved a spot for you.,217.7175,219.305,1.5875
+101,dice-detail-beach-ball,Backpack detalj · BEACH BALL,2,7655921ff7f445288b63590c4b0da193,0101-dice-detail-beach-ball-02.wav,"[playful] Stay close, you little bouncer.",219.305,221.2675,1.9625
+102,dice-detail-beach-ball,Backpack detalj · BEACH BALL,3,caade020e47c44f1b2672a370e3853b2,0102-dice-detail-beach-ball-03.wav,[amused] I like your bouncy little ways.,221.2675,223.2825,2.015
+103,dice-detail-beach-ball,Backpack detalj · BEACH BALL,4,ffede88bf7424fac9daaef5b3af0490d,0103-dice-detail-beach-ball-04.wav,[cheerful] There's my new beach buddy!,223.2825,224.94,1.6575
+104,dice-detail-beach-ball,Backpack detalj · BEACH BALL,5,7c5b7762235b49b295e971132a02f259,0104-dice-detail-beach-ball-05.wav,"[playful] All right, one more happy bounce.",224.94,227.27,2.33
+105,dice-detail-bottle,Backpack detalj · BOTTLE,1,f9e546d8b0614ac8a8a50b5bf5c4ced2,0105-dice-detail-bottle-01.wav,[surprised] Oh! You're quite a little treasure.,227.27,229.4725,2.2025
+106,dice-detail-bottle,Backpack detalj · BOTTLE,2,33e5e9477ca54f33b0e1fd2d88f99854,0106-dice-detail-bottle-02.wav,[playful] You're a keeper. Cork and all!,229.4725,231.6025,2.13
+107,dice-detail-bottle,Backpack detalj · BOTTLE,3,a8e42c957dcc4f7984cf5105f5fbd7c0,0107-dice-detail-bottle-03.wav,"[warm] Let's keep you close, Bottle.",231.6025,233.2825,1.68
+108,dice-detail-coconut,Backpack detalj · COCONUT,1,0dc92ccd34184d93b5842e11eeccc78c,0108-dice-detail-coconut-01.wav,[playful] No need to act so tough!,233.2825,234.9575,1.675
+109,dice-detail-coconut,Backpack detalj · COCONUT,2,3c3e370edbfe4824af21ee60ae991175,0109-dice-detail-coconut-02.wav,[playful] May I call you Coco?,234.9575,236.615,1.6575
+110,dice-detail-coconut,Backpack detalj · COCONUT,3,9282d14376694ad8bff5c53aa216a113,0110-dice-detail-coconut-03.wav,[playful] No palm tree needed. Stay here!,236.615,239.1,2.485
+111,dice-detail-coconut,Backpack detalj · COCONUT,4,37764443db044b719fb5ee8c8f607e56,0111-dice-detail-coconut-04.wav,"[pleased] Coconut, I think we'll get along.",239.1,241.3225,2.2225
+112,dice-detail-kite,Backpack detalj · KITE,1,479af4c4f7004dc2a9caf55715bc3e55,0112-dice-detail-kite-01.wav,"[warm] You can land right here, Kite.",241.3225,243.1,1.7775
+113,dice-detail-kite,Backpack detalj · KITE,2,0faafec98b0246aa9d0f01ddc0c1edbc,0113-dice-detail-kite-02.wav,"[playful] Stay close, you little flyer.",243.1,244.9525,1.8525
+114,dice-detail-kite,Backpack detalj · KITE,3,da66559840f84dee8fb5455680f512f8,0114-dice-detail-kite-03.wav,[amused] You nearly flew past me!,244.9525,246.7775,1.825
+115,dice-detail-kite,Backpack detalj · KITE,4,9256af439e70466d93fecbbb202b4cab,0115-dice-detail-kite-04.wav,"[hopeful] You'll stay a while, won't you?",246.7775,248.3525,1.575
+116,dice-detail-robo-cube,Backpack detalj · BIBI RIBI,1,c0f8c34e66614916a7094886a8150268,0116-dice-detail-robo-cube-01.wav,[playful] May I call you Bibi?,248.3525,249.8775,1.525
+117,dice-detail-robo-cube,Backpack detalj · BIBI RIBI,2,13eb0388b47d425c93540f66ccc080ca,0117-dice-detail-robo-cube-02.wav,"[gentle] Stay close, my little robot friend.",249.8775,252.0225,2.145
+118,dice-detail-robo-cube,Backpack detalj · BIBI RIBI,3,6e0eaea183dd442d95bafcd727b2947d,0118-dice-detail-robo-cube-03.wav,[playful] No need to beep. Come in!,252.0225,253.985,1.9625
+119,dice-detail-robo-cube,Backpack detalj · BIBI RIBI,4,31a13451b2c346d88d85bf3f5b535362,0119-dice-detail-robo-cube-04.wav,[amused] Your name is fun to say!,253.985,255.805,1.82
+120,dice-detail-robo-cube,Backpack detalj · BIBI RIBI,5,08ed3f4f793d4869adaf28206593bda2,0120-dice-detail-robo-cube-05.wav,[playful] Beep! Did I say that right?,255.805,257.8825,2.0775
+121,dice-detail-kanta,Backpack detalj · BLOOB BUCKET,1,9068a7753f804675aa39c02f3ec48774,0121-dice-detail-kanta-01.wav,[playful] No need to spill hello.,257.8825,259.7425,1.86
+122,dice-detail-spaceship,Backpack detalj · SPACESHIP,1,27b099ef09b9424c97d5332934866c66,0122-dice-detail-spaceship-01.wav,[playful] No flying off just yet!,259.7425,261.6475,1.905
+123,dice-detail-spaceship,Backpack detalj · SPACESHIP,2,217e959ff07f4f91bfed02e7ce4d4f41,0123-dice-detail-spaceship-02.wav,[warm] You're a little far from home.,261.6475,263.65,2.0025
+124,dice-detail-laser-gun,Backpack detalj · LASER GUN,1,91f762230e7b4ec390dfd91fd32fd607,0124-dice-detail-laser-gun-01.wav,"[warm] I'm glad we met, little zapper.",263.65,265.6375,1.9875
+125,dice-detail-laser-gun,Backpack detalj · LASER GUN,2,4ee911a2eb154dfe9f35fba4b81ae540,0125-dice-detail-laser-gun-02.wav,[amused] I'll call you my zappy friend.,265.6375,267.75,2.1125
+126,dice-detail-laser-gun,Backpack detalj · LASER GUN,3,d750c95bb21f4be1955130abee15d5cb,0126-dice-detail-laser-gun-03.wav,[playful] Let's be friends before you zap anything.,267.75,270.2375,2.4875
+127,dice-detail-bloob-ball,Backpack detalj · BLOOB POD,1,d0a7f2d1e44b46ccb1b5d5ce63091b90,0127-dice-detail-bloob-ball-01.wav,[curious] Are you shy in that shell?,270.2375,272.055,1.8175
+128,dice-detail-bloob-ball,Backpack detalj · BLOOB POD,2,a3089dbe916b4909b487a1b57662e98f,0128-dice-detail-bloob-ball-02.wav,[interested] Blue gas [giggling] makes me giggle.,272.055,274.81,2.755
+129,dice-detail-bloob-ball,Backpack detalj · BLOOB POD,3,1378e1514b80444cb86e1e50d5827fcb,0129-dice-detail-bloob-ball-03.wav,[interested] Why are you so powerful?,274.81,276.58,1.77
+130,dice-detail-bloob-ball,Backpack detalj · BLOOB POD,4,eb19a0bb29564ff88ead067d81cb97bf,0130-dice-detail-bloob-ball-04.wav,[interested] what secrets you hide?,276.58,278.2075,1.6275
+131,dice-detail-bloob,Backpack detalj · BLOOB,1,f2788baaf39d4ea6b1866f5c57b8f29c,0131-dice-detail-bloob-01.wav,[excited] you seem powerfull,278.2075,280.0425,1.835
+132,dice-detail-bloob,Backpack detalj · BLOOB,2,494a8367791a435dab5bb79f19f7a010,0132-dice-detail-bloob-02.wav,[pleased] You're my kind of silly.,280.0425,281.86,1.8175
+133,dice-detail-bloob,Backpack detalj · BLOOB,3,9b3bfada9c9249a28ff8c982c2adc488,0133-dice-detail-bloob-03.wav,"[gentle] Settle in, my little jelly friend.",281.86,283.9475,2.0875
+134,dice-detail-bloob,Backpack detalj · BLOOB,4,c861c302576c4b80adf7c9d022d7be41,0134-dice-detail-bloob-04.wav,[amused] You've got charm in every wobble.,283.9475,286.5225,2.575
+135,dice-detail-cubero,Backpack detalj · CUBERO,1,74cd97cba05c4da3ab6ac93903c26d3b,0135-dice-detail-cubero-01.wav,[playful] You can keep the mask on.,286.5225,288.035,1.5125
+136,dice-detail-cubero,Backpack detalj · CUBERO,2,ad0892c99760461aa25adb72e7ff60c3,0136-dice-detail-cubero-02.wav,"[playful] Hiyaa! Oh, was that too loud?",288.035,290.49,2.455
+137,dice-detail-cubero,Backpack detalj · CUBERO,3,9e30f3c316ab4695a6d94335d3396950,0137-dice-detail-cubero-03.wav,"[amused] A little ninja, a big entrance!",290.49,293.2175,2.7275
+138,dice-detail-cubero,Backpack detalj · CUBERO,4,266cbb2e5da84fbba47cbb05d6f045d1,0138-dice-detail-cubero-04.wav,[warm] My little friend has big moves!,293.2175,295.6275,2.41
+139,dice-detail-baloon,Backpack detalj · BALLOON,1,fd8ef06f5faa4888bc772dbd149ecc90,0139-dice-detail-baloon-01.wav,"[cheerful] Up you go, little trouble!",295.6275,297.3425,1.715
+140,dice-detail-baloon,Backpack detalj · BALLOON,2,4364507515964b17a2866a0481775bf8,0140-dice-detail-baloon-02.wav,[happy] You make my day feel lighter.,297.3425,299.4225,2.08
+141,dice-detail-baloon,Backpack detalj · BALLOON,3,77f1d864502f4327b5dc93336a30398d,0141-dice-detail-baloon-03.wav,[excited] More balloons? Now we're celebrating!,299.4225,302.16,2.7375
+142,dice-detail-tnt,Backpack detalj · TNT,1,2e0746db5adb45a3ada5bcde5c910229,0142-dice-detail-tnt-01.wav,[playful] You're bursting with personality!,302.16,304.3675,2.2075
+143,dice-detail-tnt,Backpack detalj · TNT,2,c55320726ea44cd7b20171a91a767775,0143-dice-detail-tnt-02.wav,[playful] You're a blast to have around!,304.3675,306.415,2.0475
+144,dice-detail-tnt,Backpack detalj · TNT,3,8a99cc07a17f4eb0a9d8940bbbf95a4b,0144-dice-detail-tnt-03.wav,"[warm] Come here, you little firecracker.",306.415,308.445,2.03
+145,dice-detail-wild-magnet,Backpack detalj · MAGNET,1,9ad1d6a43c9f4ea2b7ba71a6949afacc,0145-dice-detail-wild-magnet-01.wav,[laughing] You've collected quite a crowd!,308.445,310.5875,2.1425
+146,dice-detail-wild-magnet,Backpack detalj · MAGNET,2,872a01cc610e41668175020c76b8974e,0146-dice-detail-wild-magnet-02.wav,"[happy] We just clicked, didn't we?",310.5875,312.3275,1.74
+147,dice-detail-wild-magnet,Backpack detalj · MAGNET,3,21c039bf576344318d58d81114f39bb8,0147-dice-detail-wild-magnet-03.wav,"[warm] Well, we're sticking together now.",312.3275,314.4359166666667,2.108416666666667

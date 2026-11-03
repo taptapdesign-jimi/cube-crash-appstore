@@ -17,31 +17,31 @@ struct NativeBackpackCatalog {
         var count:Int {dice.filter{unlocked.contains($0.id)}.count}
     }
     static let arcade:[Die] = [
-        Die(id:"cubero",title:"CUBERO",copy:"Merge me to add 1–3 bonus dice, plus the main merge die. Closed dice appear for later moves.",board:0),
-        Die(id:"baloon",title:"BALLOON",copy:"Merge me to release a fresh number die. I float away as the new die lands.",board:0),
-        Die(id:"tnt",title:"TNT",copy:"Merge me to blast up to 4 ordinary dice. Each hit replaces a die with a different number.",board:0),
-        Die(id:"wild-magnet",title:"MAGNET",copy:"Merge me to pull in up to 4 dice, then send the same number of replacements back to the board.",board:0)]
+        Die(id:"cubero",title:"CUBERO",copy:"Adds 2–4 regular dice and\n4–6 closed dice to the board.",board:0),
+        Die(id:"baloon",title:"BALLOON",copy:"Floats away and adds\n1 regular die to the board.",board:0),
+        Die(id:"tnt",title:"TNT",copy:"Blasts up to 4 regular dice.\nAdds 1 regular die to the board.",board:0),
+        Die(id:"wild-magnet",title:"MAGNET",copy:"Pulls and refills up to 4 dice.\nAdds 1 regular die to the board.",board:0)]
     static let forest:[Die] = [
-        Die(id:"bee",title:"Wee Bee",copy:"Merge me to create the main merge die and 1 bonus die. That makes 2 fresh dice!",board:1),
-        Die(id:"wild-star",title:"STAR",copy:"Merge me to add 1–3 bonus dice, plus the main merge die. Closed dice appear for later moves.",board:2),
-        Die(id:"flower",title:"Flower",copy:"Merge me to scatter petals over up to 4 ordinary dice. Each one gets a different number.",board:3),
-        Die(id:"honey",title:"HONEY",copy:"Merge me to scoop up to 4 dice, then return the same number of fresh dice to the board.",board:4),
-        Die(id:"mushroom",title:"SHROOMY",copy:"Sprouts 4–6 bonus dice, plus the main die, and adds 7–9 closed dice when space allows. A rare find!",board:6),
-        Die(id:"barell",title:"BARREL",copy:"Merge me to explode across the whole board! Every ordinary die is replaced with a different number.",board:7)]
+        Die(id:"bee",title:"Wee Bee",copy:"Adds 2 regular dice and\n4 closed dice to the board.",board:1),
+        Die(id:"wild-star",title:"STAR",copy:"Drops 2–4 regular dice and\n4–6 closed dice onto the board.",board:2),
+        Die(id:"flower",title:"Flower",copy:"Changes up to 4 dice.\nAdds 1 regular die and\n9 closed dice to the board.",board:3),
+        Die(id:"honey",title:"HONEY",copy:"Scoops and refills up to 4 dice.\nAdds 1 regular die and\n9 closed dice to the board.",board:4),
+        Die(id:"mushroom",title:"SHROOMY",copy:"Adds 5–7 regular dice and\n7–9 closed dice to the board.",board:6),
+        Die(id:"barell",title:"BARREL",copy:"Blasts all regular dice.\nAdds 1 regular die and\n9 closed dice to the board.",board:7)]
     static let area:[Die] = [
-        Die(id:"robo-cube",title:"BIBI RIBI",copy:"Merge me to build a fresh number die. The new die lands where the merge happened.",board:21),
-        Die(id:"kanta",title:"BLOOB BUCKET",copy:"Merge me to release 1–3 bonus dice, plus the main merge die. Closed dice appear for later moves.",board:22),
-        Die(id:"spaceship",title:"SPACESHIP",copy:"Merge me to beam up to 4 dice aboard, then beam the same number of replacements back down.",board:23),
-        Die(id:"laser-gun",title:"LASER GUN",copy:"Merge me to shoot up to 4 ordinary dice. Each target stays in place and gets a different number.",board:24),
-        Die(id:"bloob-ball",title:"BLOOB POD",copy:"Gassy fumes sweep the board, changing every ordinary die to a different number!",board:26),
-        Die(id:"bloob",title:"BLOOB",copy:"Creates 4–6 bonus dice, plus the main die, and adds 7–9 closed dice when space allows.",board:27)]
+        Die(id:"robo-cube",title:"BIBI RIBI",copy:"Adds 1 regular die and\n3 closed dice to the board.",board:21),
+        Die(id:"kanta",title:"BLOOB BUCKET",copy:"Adds 2–4 regular dice and\n4–6 closed dice to the board.",board:22),
+        Die(id:"spaceship",title:"SPACESHIP",copy:"Beams and refills up to 4 dice.\nAdds 1 regular die and\n9 closed dice to the board.",board:23),
+        Die(id:"laser-gun",title:"LASER GUN",copy:"Shoots up to 4 regular dice.\nAdds 1 regular die and\n9 closed dice to the board.",board:24),
+        Die(id:"bloob-ball",title:"BLOOB POD",copy:"Changes all regular dice.\nAdds 1 regular die and\n9 closed dice to the board.",board:26),
+        Die(id:"bloob",title:"BLOOB",copy:"Adds 5–7 regular dice and\n7–9 closed dice to the board.",board:27)]
     static let beach:[Die] = [
-        Die(id:"wild-juice",title:"JUICE",copy:"Merge me to pour a fresh number die onto the board. It appears where the merge happened.",board:11),
-        Die(id:"fish",title:"FISHY",copy:"Merge me to bring in 1–3 bonus dice, plus the main merge die. Closed dice appear for later moves.",board:12),
-        Die(id:"beach-ball",title:"BEACH BALL",copy:"Merge me to bounce into up to 4 ordinary dice. Every hit gives that die a different number.",board:13),
-        Die(id:"bottle",title:"BOTTLE",copy:"Merge me to wash away up to 4 dice, then bring back the same number of fresh dice.",board:14),
-        Die(id:"coconut",title:"COCONUT",copy:"Merge me to shake the palms! Every ordinary die changes to a different number.",board:16),
-        Die(id:"kite",title:"KITE",copy:"Merge me to create the main merge die and 1 bonus die. Fly away!",board:18)]
+        Die(id:"wild-juice",title:"JUICE",copy:"Adds 1 regular die and\n3 closed dice to the board.",board:11),
+        Die(id:"fish",title:"FISHY",copy:"Adds 2–4 regular dice and\n4–6 closed dice to the board.",board:12),
+        Die(id:"beach-ball",title:"BEACH BALL",copy:"Bounces into up to 4 dice.\nAdds 1 regular die and\n9 closed dice to the board.",board:13),
+        Die(id:"bottle",title:"BOTTLE",copy:"Washes and replaces 1–4 dice.\nAdds 1 regular die and\n9 closed dice to the board.",board:14),
+        Die(id:"coconut",title:"COCONUT",copy:"Changes all regular dice values.\nAdds 1 regular die and\n9 closed dice to the board.",board:16),
+        Die(id:"kite",title:"KITE",copy:"Adds 2 regular dice and\n4 closed dice to the board.",board:18)]
     static func sections(_ progression:NativeProgressionState,prioritizingWorld:Int?=nil)->[Section] {
         let canonical=[(1,"Forest",forest),(3,"Area 55",area),(2,"Beach",beach)]
         // Move the origin World to the front, keeping every other World in its

@@ -199,7 +199,7 @@ final class JimiNativeInterimEffect {
         preparingBurn = true;let token = generation,size = card.bounds.size,density = min(2,UIScreen.main.scale),radius = 12*scale
         Self.burnQueue.async { [weak self] in
             guard !lease.cancelled else {return}
-            let frames = Self.renderBurn(image:image,size:size,density:density,radius:radius,lease:lease)
+            let frames = Self.renderBurn(image:image,size:size,density:density,radius:radius,cancelled:{lease.cancelled})
             guard !lease.cancelled else {return}
             let glow = frames.first.flatMap { image -> CGImage? in
                 let input = CIImage(cgImage:image)
@@ -221,7 +221,7 @@ final class JimiNativeInterimEffect {
             }
         }
     }
-    nonisolated private static func renderBurn(image:CGImage,size:CGSize,density:CGFloat,radius:CGFloat,lease:JimiInterimPreparationLease) -> [CGImage] {
+    nonisolated static func renderBurn(image:CGImage,size:CGSize,density:CGFloat,radius:CGFloat,exactAlpha:Bool=false,includeArtwork:Bool=true,cancelled:()->Bool) -> [CGImage] {
         let width = Int(ceil(size.width*density)),height = Int(ceil(size.height*density))
         guard width > 0,height > 0,width <= 512,height <= 768 else {return []}
         let space = CGColorSpaceCreateDeviceRGB()
@@ -229,9 +229,11 @@ final class JimiNativeInterimEffect {
         guard let gradient = CGGradient(colorsSpace:space,colors:colors as CFArray,locations:[0,0.18,0.43,0.68,0.88]) else {return []}
         let times:[Double] = [0,0.18,0.52,0.82,1],alphas:[Double] = [0,0.32,0.611,0.26,0]
         return (0...30).compactMap { index in
-            guard !lease.cancelled else {return nil}
+            guard !cancelled() else {return nil}
             guard let context = CGContext(data:nil,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,space:space,bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue) else {return nil}
-            context.scaleBy(x:density,y:density);context.draw(image,in:CGRect(origin:.zero,size:size))
+            context.scaleBy(x:density,y:density)
+            if includeArtwork {context.draw(image,in:CGRect(origin:.zero,size:size))}
+            context.saveGState()
             context.translateBy(x:0,y:size.height);context.scaleBy(x:1,y:-1)
             context.addPath(CGPath(roundedRect:CGRect(origin:.zero,size:size),cornerWidth:radius,cornerHeight:radius,transform:nil));context.clip()
             let t = Double(index)/30,segment = min(3,times.lastIndex(where:{$0 <= t}) ?? 0)
@@ -244,6 +246,8 @@ final class JimiNativeInterimEffect {
             context.translateBy(x:-burnWidth/2,y:-burnHeight/2)
             context.translateBy(x:burnWidth/2,y:burnHeight*0.48);context.scaleBy(x:burnWidth/2,y:burnHeight*0.52)
             context.drawRadialGradient(gradient,startCenter:.zero,startRadius:0,endCenter:.zero,endRadius:1,options:[.drawsBeforeStartLocation])
+            context.restoreGState()
+            if exactAlpha {context.setBlendMode(.destinationIn);context.draw(image,in:CGRect(origin:.zero,size:size))}
             return context.makeImage()
         }
     }

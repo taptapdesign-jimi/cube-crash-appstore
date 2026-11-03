@@ -7,7 +7,7 @@ import UIKit
 @MainActor
 final class NativeTntFinale: SKNode, NativeSourceAnimationParticipant {
     static let duration: TimeInterval = 4.2
-    static let smokeScale: Double = 1.4 * 1.2
+    static let smokeScale: Double = 1.4 * 1.2 * 1.2
     var onGlyphClock: ((TimeInterval,Bool) -> Void)?
     private struct Frame {
         let sprite: SKSpriteNode
@@ -74,6 +74,7 @@ final class NativeTntFinale: SKNode, NativeSourceAnimationParticipant {
     private var dice: [Die] = []
     private var letters: [Letter] = []
     private let title = SKNode()
+    private let smokeVerticalOffset:CGFloat
     private let center: CGPoint
     private let frameExitStart = 1.01
     private let titleExitStart: TimeInterval
@@ -82,7 +83,8 @@ final class NativeTntFinale: SKNode, NativeSourceAnimationParticipant {
     private var finishedDice = Set<Int>()
     private var finishedLetters = Set<Int>()
 
-    init(textures: NativeBoardTextures, fontName: String, viewport: CGSize, showsTitle: Bool = true,sourceConstruction:SourceConstruction?=nil,sourceRandom:(()->Double)?=nil, random: () -> Double = { Double.random(in: 0..<1) }) {
+    init(textures: NativeBoardTextures, fontName: String, viewport: CGSize, showsTitle: Bool = true,smokePresentationScale:CGFloat = 1,smokeVerticalOffset:CGFloat = 0,sourceConstruction:SourceConstruction?=nil,sourceRandom:(()->Double)?=nil, random: () -> Double = { Double.random(in: 0..<1) }) {
+        self.smokeVerticalOffset=smokeVerticalOffset
         center = CGPoint(x: viewport.width/2,y: viewport.height/2)
         titleExitStart = 0.3 + 3*0.05 + 0.3 + 0.12 + 0.12
         super.init()
@@ -114,19 +116,19 @@ final class NativeTntFinale: SKNode, NativeSourceAnimationParticipant {
         if let sourceConstruction {
             for recipe in sourceConstruction.frames {
                 let sprite=SKSpriteNode(texture:recipe.handle.texture)
-                sprite.size=recipe.logicalSize;sprite.position=center;sprite.zPosition=CGFloat(recipe.index)
+                sprite.size=recipe.logicalSize;sprite.position=CGPoint(x:center.x,y:center.y+smokeVerticalOffset);sprite.zPosition=CGFloat(recipe.index)
                 sprite.zRotation = -recipe.rotation;sprite.alpha=0;sprite.setScale(0);addChild(sprite)
-                frames.append(.init(sprite:sprite,index:recipe.index,size:CGFloat(recipe.scale),bounceSize:nil,bounceY:nil))
+                frames.append(.init(sprite:sprite,index:recipe.index,size:CGFloat(recipe.scale)*smokePresentationScale,bounceSize:nil,bounceY:nil))
             }
         } else {for index in 0..<12 {
             let path = "assets/shop/explosion pack/animation/tnt\(index+1).png"
             guard let texture = textures.texture(path), let size = textures.logicalSize(path) else { continue }
             let sprite = SKSpriteNode(texture: texture)
-            sprite.size = size; sprite.position = center; sprite.zPosition = CGFloat(index)
+            sprite.size = size; sprite.position = CGPoint(x:center.x,y:center.y+smokeVerticalOffset); sprite.zPosition = CGFloat(index)
             sprite.zRotation = -(random()-0.5)*20 * .pi/180
             sprite.alpha = 0; sprite.setScale(0); addChild(sprite)
             // User-approved smoke-only enlargement; dice/title retain their original scale.
-            let scale = (1 + random()*0.52)*Self.smokeScale
+            let scale = (1 + random()*0.52)*Self.smokeScale*Double(smokePresentationScale)
             frames.append(Frame(sprite: sprite,index: index,size: scale,bounceSize: scale*(1.02+random()*0.06),bounceY: (random()-0.5)*4))
         }
         }
@@ -237,7 +239,7 @@ final class NativeTntFinale: SKNode, NativeSourceAnimationParticipant {
                 if frame.index==11,frame.sprite.parent === self {sourceSequenceCompleted=true}
                 continue
             }
-            var scale: CGFloat = 0, alpha: CGFloat = 0, y = center.y
+            var scale: CGFloat = 0, alpha: CGFloat = 0, y = center.y+smokeVerticalOffset
             if time >= enter && time < settle {
                 let eased = NativeBoardMotion.Ease.backOut(2).sample((time-enter)/0.24)
                 scale = frame.size*1.2*eased; alpha = eased

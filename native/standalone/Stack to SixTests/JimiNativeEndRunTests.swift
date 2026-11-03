@@ -197,6 +197,180 @@ final class JimiNativeEndRunTests: XCTestCase {
         drag.dispose();drag.dispose();XCTAssertNil(drag.pan.view);XCTAssertEqual(idle.layer.speed,1)
     }
 
+    func testMediaSafeDragHoldsOnlyOwnIdleWhileMountedChildClockContinues()async throws {
+        let prior=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible()
+        let target=UIView(frame:CGRect(x:24,y:220,width:342,height:360)),idle=UIView(frame:CGRect(x:0,y:0,width:342,height:360))
+        let child=UIView(frame:CGRect(x:80,y:80,width:40,height:40));child.backgroundColor = .red
+        host.view.addSubview(target);target.addSubview(idle);idle.addSubview(child)
+        let key="backpack.detail.idle"
+        let animation=CABasicAnimation(keyPath:"transform.translation.y")
+        animation.fromValue=0;animation.toValue=20;animation.duration=4;animation.repeatCount = .infinity
+        animation.beginTime=idle.layer.convertTime(CACurrentMediaTime(),from:nil);idle.layer.add(animation,forKey:key)
+        let childMotion=CABasicAnimation(keyPath:"position.x")
+        childMotion.fromValue=80;childMotion.toValue=280;childMotion.duration=5;childMotion.repeatCount = .infinity
+        childMotion.beginTime=child.layer.convertTime(CACurrentMediaTime(),from:nil);child.layer.add(childMotion,forKey:"child.media")
+        var dismissals=0
+        let drag=JimiNativeModalDrag(target:target,idle:idle,viewport:host.view,mediaSafeIdleAnimationKeys:[key,JimiNativeModalV10.settledBounceKey],canDrag:{true},onDismiss:{dismissals+=1})
+        defer{drag.dispose();window.isHidden=true;window.rootViewController=nil;prior?.makeKeyAndVisible()}
+        try await Task.sleep(for:.milliseconds(120))
+        let originalClock=(idle.layer.speed,idle.layer.beginTime,idle.layer.timeOffset)
+        for cycle in 0..<3 {
+            drag.begin();drag.begin()
+            XCTAssertEqual(idle.layer.speed,originalClock.0);XCTAssertEqual(idle.layer.beginTime,originalClock.1);XCTAssertEqual(idle.layer.timeOffset,originalClock.2)
+            XCTAssertEqual(idle.layer.animation(forKey:key)?.speed,0)
+            drag.move(CGPoint(x:0,y:20))
+            try await Task.sleep(for:.milliseconds(70))
+            let held=try XCTUnwrap(idle.layer.presentation()).transform.m42
+            let childBefore=try XCTUnwrap(child.layer.presentation()).position.x
+            try await Task.sleep(for:.milliseconds(140))
+            XCTAssertEqual(try XCTUnwrap(idle.layer.presentation()).transform.m42,held,accuracy:0.05)
+            XCTAssertGreaterThan(try XCTUnwrap(child.layer.presentation()).position.x,childBefore+1)
+            if cycle==1 {drag.cancel()}else{drag.finish(CGPoint(x:0,y:20),cancelled:cycle==2)}
+            XCTAssertEqual(idle.layer.animation(forKey:key)?.speed,1)
+            try await Task.sleep(for:.milliseconds(100))
+            XCTAssertGreaterThan(try XCTUnwrap(idle.layer.presentation()).transform.m42,held)
+        }
+        drag.cancel();drag.dispose();drag.dispose()
+        try await Task.sleep(for:.milliseconds(350))
+        XCTAssertEqual(dismissals,0);XCTAssertNil(drag.pan.view)
+        XCTAssertEqual(idle.layer.speed,originalClock.0);XCTAssertEqual(idle.layer.beginTime,originalClock.1);XCTAssertEqual(idle.layer.timeOffset,originalClock.2)
+        XCTAssertEqual(idle.layer.animation(forKey:key)?.speed,1)
+        XCTAssertNotNil(child.layer.animation(forKey:"child.media"))
+    }
+    func testMediaSafeDragPreservesFiniteTimingAndDoesNotRestoreReplacedOrRemovedIdle()async throws {
+        let prior=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible()
+        defer{window.isHidden=true;window.rootViewController=nil;prior?.makeKeyAndVisible()}
+        let target=UIView(frame:CGRect(x:0,y:0,width:300,height:300)),idle=UIView(frame:CGRect(x:0,y:0,width:300,height:300)),viewport=host.view!
+        viewport.addSubview(target);target.addSubview(idle)
+        let key=JimiNativeModalV10.settledBounceKey
+        let finite=CABasicAnimation(keyPath:"transform.scale")
+        finite.fromValue=0;finite.toValue=0.1;finite.isAdditive=true;finite.duration=0.4
+        finite.speed=0.75;finite.timeOffset=0.15;finite.beginTime=idle.layer.convertTime(CACurrentMediaTime(),from:nil)
+        finite.isRemovedOnCompletion=true;idle.layer.add(finite,forKey:key)
+        let drag=JimiNativeModalDrag(target:target,idle:idle,viewport:viewport,mediaSafeIdleAnimationKeys:[key],canDrag:{true},onDismiss:{})
+        defer{drag.dispose()}
+        drag.begin();try await Task.sleep(for:.milliseconds(50));drag.cancel()
+        let resumed=try XCTUnwrap(idle.layer.animation(forKey:key) as? CABasicAnimation)
+        XCTAssertEqual(resumed.speed,finite.speed);XCTAssertEqual(resumed.timeOffset,finite.timeOffset)
+        XCTAssertGreaterThan(resumed.beginTime,finite.beginTime)
+        XCTAssertEqual(resumed.duration,finite.duration);XCTAssertEqual(resumed.repeatCount,0)
+        XCTAssertEqual(resumed.isAdditive,finite.isAdditive);XCTAssertEqual(resumed.isRemovedOnCompletion,true)
+        let retirementDeadline=Date().addingTimeInterval(2)
+        while idle.layer.animation(forKey:key) != nil,Date()<retirementDeadline {try await Task.sleep(for:.milliseconds(20))}
+        if let remaining=idle.layer.animation(forKey:key) {
+            let local=idle.layer.convertTime(CACurrentMediaTime(),from:nil)
+            XCTFail("Finite bounce did not retire: local=\(local),begin=\(remaining.beginTime),speed=\(remaining.speed),offset=\(remaining.timeOffset),duration=\(remaining.duration),removed=\(remaining.isRemovedOnCompletion),window=\(idle.window != nil)")
+        }
+        finite.beginTime=idle.layer.convertTime(CACurrentMediaTime(),from:nil)
+        idle.layer.add(finite,forKey:key)
+        drag.begin();idle.layer.removeAnimation(forKey:key);drag.cancel()
+        XCTAssertNil(idle.layer.animation(forKey:key),"Retired animation cannot be resurrected")
+        idle.layer.add(finite,forKey:key);drag.begin()
+        let replacement=CABasicAnimation(keyPath:"opacity");replacement.duration=9;replacement.fromValue=1;replacement.toValue=0.5
+        replacement.beginTime=idle.layer.convertTime(CACurrentMediaTime(),from:nil)
+        idle.layer.add(replacement,forKey:key);drag.cancel()
+        XCTAssertEqual((idle.layer.animation(forKey:key) as? CAPropertyAnimation)?.keyPath,"opacity")
+        drag.begin();drag.finish(CGPoint(x:0,y:20),cancelled:true);drag.dispose()
+        try await Task.sleep(for:.milliseconds(350))
+        XCTAssertEqual((idle.layer.animation(forKey:key) as? CAPropertyAnimation)?.keyPath,"opacity")
+        XCTAssertEqual(idle.layer.speed,1);XCTAssertEqual(idle.layer.beginTime,0);XCTAssertEqual(idle.layer.timeOffset,0)
+    }
+    func testMediaSafeDragPreservesDelayedFiniteAnimationAcrossAncestorBackgroundAndReleasesOwner()async throws {
+        let prior=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible()
+        let target=UIView(frame:CGRect(x:24,y:200,width:300,height:300)),idle=UIView(frame:CGRect(x:0,y:0,width:300,height:300))
+        idle.backgroundColor = .red;host.view.addSubview(target);target.addSubview(idle)
+        let key=JimiNativeModalV10.settledBounceKey
+        let delayed=CABasicAnimation(keyPath:"opacity")
+        delayed.fromValue=0.2;delayed.toValue=1;delayed.duration=0.3
+        delayed.fillMode = .backwards;delayed.isRemovedOnCompletion=true
+        delayed.beginTime=idle.layer.convertTime(CACurrentMediaTime(),from:nil)+0.2
+        idle.layer.add(delayed,forKey:key)
+        var drag:JimiNativeModalDrag?=JimiNativeModalDrag(target:target,idle:idle,viewport:host.view,mediaSafeIdleAnimationKeys:[key],canDrag:{true},onDismiss:{})
+        weak var releasedDrag=drag
+        defer{drag?.dispose();window.isHidden=true;window.rootViewController=nil;prior?.makeKeyAndVisible()}
+        drag?.begin()
+        let held=try XCTUnwrap(idle.layer.animation(forKey:key))
+        XCTAssertEqual(held.speed,0);XCTAssertLessThan(held.timeOffset,0,"The selected finite animation has not reached its delay")
+        // Reproduce the existing app-level ancestor clock pause while the drag
+        // owns only its selected animation. Background elapsed time is excluded.
+        let parentTime=target.layer.convertTime(CACurrentMediaTime(),from:nil)
+        target.layer.speed=0;target.layer.timeOffset=parentTime
+        try await Task.sleep(for:.milliseconds(70))
+        target.layer.speed=1;target.layer.timeOffset=0;target.layer.beginTime=0
+        target.layer.beginTime=target.layer.convertTime(CACurrentMediaTime(),from:nil)-parentTime
+        let restoredClock=(idle.layer.speed,idle.layer.beginTime,idle.layer.timeOffset)
+        try await Task.sleep(for:.milliseconds(60))
+        drag?.cancel()
+        let resumed=try XCTUnwrap(idle.layer.animation(forKey:key))
+        let remainingDelay=resumed.beginTime-idle.layer.convertTime(CACurrentMediaTime(),from:nil)
+        XCTAssertGreaterThan(remainingDelay,0.13);XCTAssertLessThanOrEqual(remainingDelay,0.21)
+        XCTAssertEqual(resumed.fillMode,.backwards);XCTAssertTrue(resumed.isRemovedOnCompletion)
+        XCTAssertEqual(idle.layer.speed,restoredClock.0);XCTAssertEqual(idle.layer.beginTime,restoredClock.1);XCTAssertEqual(idle.layer.timeOffset,restoredClock.2)
+        try await Task.sleep(for:.milliseconds(100))
+        XCTAssertEqual(try XCTUnwrap(idle.layer.presentation()).opacity,0.2,accuracy:0.025,"Resume retains the unconsumed delay")
+        try await Task.sleep(for:.milliseconds(240))
+        XCTAssertGreaterThan(try XCTUnwrap(idle.layer.presentation()).opacity,0.25)
+        drag?.dispose();drag=nil
+        XCTAssertNil(releasedDrag,"Gesture delegate and pending spring completion cannot retain the drag owner")
+        let retirementDeadline=Date().addingTimeInterval(2)
+        while idle.layer.animation(forKey:key) != nil,Date()<retirementDeadline {try await Task.sleep(for:.milliseconds(20))}
+        if let remaining=idle.layer.animation(forKey:key) {
+            let local=idle.layer.convertTime(CACurrentMediaTime(),from:nil)
+            XCTFail("Delayed finite animation did not retire: local=\(local),begin=\(remaining.beginTime),speed=\(remaining.speed),offset=\(remaining.timeOffset),duration=\(remaining.duration),removed=\(remaining.isRemovedOnCompletion),window=\(idle.window != nil)")
+        }
+        XCTAssertNil(releasedDrag)
+    }
+    func testFreshEndRunRestTiltSamplesOnceAndStaysWithinTwoDegrees()throws {
+        let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+        var freshAngles:[CGFloat]=[]
+        for sample in [0.0,0.25,0.5,0.75,1.0,-2,3,Double.nan] {
+            var draws=0
+            let modal=JimiNativeEndRunModal(id:70,model:try XCTUnwrap(JimiNativeEndRunModel(dto)),assets:assets,restTiltRandom:{draws+=1;return sample})
+            defer{modal.dispose()}
+            modal.loadViewIfNeeded();modal.view.frame=CGRect(x:0,y:0,width:390,height:844);modal.view.layoutIfNeeded()
+            let tilt=try XCTUnwrap(modal.card.subviews.first{$0.accessibilityIdentifier=="native.end-run.rest-tilt"})
+            XCTAssertTrue(tilt.layer is CATransformLayer);XCTAssertTrue(modal.flip.superview === tilt)
+            XCTAssertLessThanOrEqual(abs(modal.restTiltDegrees),2)
+            let expected=CGFloat(min(1,max(0,sample.isFinite ? sample:0.5))*4-2)
+            XCTAssertEqual(modal.restTiltDegrees,expected)
+            XCTAssertEqual(atan2(tilt.layer.transform.m12,tilt.layer.transform.m11)*180 / .pi,expected,accuracy:0.000001)
+            let painted=tilt.layer.transform
+            for width in [CGFloat(320),390,430] {
+                modal.view.frame=CGRect(x:0,y:0,width:width,height:844);modal.view.setNeedsLayout();modal.view.layoutIfNeeded()
+                XCTAssertTrue(CATransform3DEqualToTransform(tilt.layer.transform,painted))
+                XCTAssertEqual(tilt.bounds,modal.card.bounds)
+            }
+            modal.suspend();modal.resume();XCTAssertEqual(draws,1)
+            if sample>=0 && sample<=1 {freshAngles.append(modal.restTiltDegrees)}
+        }
+        XCTAssertEqual(freshAngles,[-2,-1,0,1,2],"Each new opening selects its own rest angle")
+    }
+    func testMountedRestTiltSurvivesDragBackgroundAndCloseWithoutReset()async throws {
+        let prior=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+        let modal=JimiNativeEndRunModal(id:71,model:try XCTUnwrap(JimiNativeEndRunModel(dto)),assets:JimiV9Artwork(resourceRoot:NativeTestResources.root),restTiltRandom:{0.9})
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=modal
+        let ready=expectation(description:"Tilted modal admitted"),closed=expectation(description:"Tilted modal closed")
+        modal.onReady={ready.fulfill()};modal.onClosed={closed.fulfill()};window.makeKeyAndVisible()
+        defer{modal.dispose();window.isHidden=true;window.rootViewController=nil;prior?.makeKeyAndVisible()}
+        await fulfillment(of:[ready],timeout:5)
+        let tilt=try XCTUnwrap(modal.card.subviews.first{$0.accessibilityIdentifier=="native.end-run.rest-tilt"})
+        let painted=tilt.layer.transform
+        let drag=try XCTUnwrap(modal.card.gestureRecognizers?.compactMap{$0.delegate as? JimiNativeModalDrag}.first)
+        drag.begin();drag.move(CGPoint(x:2,y:20));drag.finish(CGPoint(x:2,y:20),cancelled:false)
+        XCTAssertTrue(CATransform3DEqualToTransform(tilt.layer.transform,painted))
+        modal.suspend();modal.resume();XCTAssertTrue(CATransform3DEqualToTransform(tilt.layer.transform,painted))
+        try await Task.sleep(for:.milliseconds(350))
+        XCTAssertTrue(CATransform3DEqualToTransform(tilt.layer.transform,painted))
+        modal.closeFromOwner();XCTAssertTrue(CATransform3DEqualToTransform(tilt.layer.transform,painted))
+        await fulfillment(of:[closed],timeout:3)
+        XCTAssertTrue((tilt.layer.animationKeys() ?? []).isEmpty)
+    }
     func testRejectsMalformedPresentationAndKeepsCanonicalLabels() throws {
         XCTAssertNil(JimiNativeEndRunModel(["title":"Exit"]))
         let model = try XCTUnwrap(JimiNativeEndRunModel(dto))
@@ -341,4 +515,52 @@ final class JimiNativeEndRunTests: XCTestCase {
         XCTAssertTrue(pending.buttons.allSatisfy{$0.sculptedFaceRasterForTesting()==nil},"Dispose before queued completion rejects publication")
     }
 
+
+    func testEndRunCTAEntryKeepsSharpPaintLeavesAndRetiresThroughRealClose()async throws {
+        guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Motion disabled")}
+        let model=try XCTUnwrap(JimiNativeEndRunModel(["title":"Exit Stage?","subtitle":"Come back anytime.\nStage 1 progress saved.","restartLabel":"Restart","exitLabel":"Exit Stage"]))
+        var modal:JimiNativeEndRunModal?=JimiNativeEndRunModal(id:74,model:model,assets:JimiV9Artwork(resourceRoot:NativeTestResources.root),synchronizesBoardCTAEntry:true)
+        weak var released=modal
+        let scene=try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.first),prior=scene.windows.first{$0.isKeyWindow}
+        let window=UIWindow(windowScene:scene);window.frame=CGRect(x:0,y:0,width:390,height:844);let host=UIViewController();window.rootViewController=host;window.makeKeyAndVisible()
+        defer{modal?.dispose();window.isHidden=true;window.rootViewController=nil;prior?.makeKeyAndVisible()}
+        let installed=expectation(description:"Actual entry installed"),ready=expectation(description:"Original input deadline"),closed=expectation(description:"Actual finite dismissal")
+        modal?.onEntryAnimationsInstalledForTesting={ [weak modal] in
+            guard let modal else{return}
+            XCTAssertTrue(modal.idle.layer is CATransformLayer)
+            XCTAssertEqual(modal.idle.layer.shadowOpacity,0)
+            XCTAssertNotNil(modal.idle.layer.sublayers?.first{$0.name=="native.end-run.paper-shadow"}?.shadowPath)
+            for button in modal.buttons {
+                XCTAssertTrue(button.layer is CATransformLayer)
+                XCTAssertTrue(button.cartoonBounceLayoutView.layer is CATransformLayer)
+                XCTAssertEqual(button.layer.opacity,1)
+                XCTAssertNotNil(button.layer.animation(forKey:"cta-enter"))
+                XCTAssertNil(button.layer.animation(forKey:"cta-enter-opacity"))
+                XCTAssertFalse(button.paintLayers.isEmpty)
+                for leaf in button.paintLayers {
+                    XCTAssertFalse(leaf.isDoubleSided);XCTAssertFalse(leaf.shouldRasterize)
+                    let alpha=leaf.animation(forKey:"cta-enter-opacity") as? CAKeyframeAnimation
+                    XCTAssertEqual(alpha?.values?.first as? Double ?? -1,0,accuracy:0.000001)
+                    XCTAssertEqual(alpha?.values?.last as? Double ?? -1,1,accuracy:0.000001)
+                }
+                XCTAssertEqual(button.titleLabel?.contentScaleFactor,(modal.view.window?.screen.scale ?? 3)*2)
+            }
+            installed.fulfill()
+        }
+        modal?.onReady={ready.fulfill()};modal?.onClosed={closed.fulfill()}
+        var actions:[String]=[];modal?.onAction={actions.append($0)}
+        host.present(try XCTUnwrap(modal),animated:false)
+        await fulfillment(of:[installed,ready],timeout:5)
+        XCTAssertTrue(modal?.view.isUserInteractionEnabled==true)
+        modal?.suspend();XCTAssertFalse(modal?.view.isUserInteractionEnabled ?? true);modal?.resume()
+        modal?.buttons[0].sendActions(for:.touchUpInside);XCTAssertEqual(actions,["restart"])
+        modal?.closeFromOwner();await fulfillment(of:[closed],timeout:3)
+        for button in modal?.buttons ?? [] {XCTAssertTrue(button.paintLayers.allSatisfy{($0.animationKeys() ?? []).isEmpty})}
+        XCTAssertNil(modal?.idle.layer.sublayers?.first{$0.name=="native.end-run.paper-shadow"})
+        modal=nil;CATransaction.flush()
+        let deadline=ProcessInfo.processInfo.systemUptime+2
+        while released != nil,ProcessInfo.processInfo.systemUptime<deadline {try await Task.sleep(for:.milliseconds(20))}
+        XCTAssertNil(released)
+        XCTAssertFalse(JimiV9PlainButton(type:.custom).layer is CATransformLayer,"Other buttons retain their existing implementation")
+    }
 }

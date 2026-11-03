@@ -1,0 +1,293 @@
+[excited] One more chord, then we roll!
+
+[excited] A little rock before a little roll.
+
+[curious] One little picture before the adventure.
+
+[playful] Smile! This one's going in the scrapbook.
+
+[trusting] A little water, and little bit of patience
+
+[happy] Look at these little green leaves!
+
+[gentle] A few drops for you.
+
+[careful] Easy now, just a few drops.
+
+[gentle] Let's roll these dice softly.
+
+[gentle] Keep your eyes on the dice.
+
+[playful] Let’s clear the board!
+
+[curious] I call this my serious gaming face.
+
+[curious] One little game. Perhaps a few more after.
+
+[amazed] Let me try this button.
+
+[proud] A brilliant idea is loading.
+
+[nervous] Steady now. I've got this. Maybe.
+
+[amused] That was one lean too many.
+
+[amused] Common now, leave it already
+
+[content] Well, you've certainly got me smiling.
+
+[playful] Is this leash made of treats?
+
+[surprised] Oh! You're stronger than you look!
+
+[mischievous] A bag of groceries, a bag of possibilities.
+
+[mock-serious] This baguette is under my personal protection.
+
+[warm] Yes, yes, I missed you too.
+
+[playful] Hey, watch the veggies!
+
+[optimistic] Nala, that's yesterday's news!
+
+[mischievously] I was reading that, you cheeky rascal.
+
+[energetic] Bring that paper here, please.
+
+[gentle] Slow down with that paper.
+
+[excited] Come on, Nala! Let's explore!
+
+[excited] Nala, we're off to a good start!
+
+[curious] Which world shall we try first?
+
+[curious] Could we find a Special die?
+
+[excited] Let's find out what's further ahead!
+
+[warm] Let's discover something together, Nala.
+
+[cheerful] Let's see how far we get!
+
+[cheerful] Let's give this challenge a go!
+
+[curious] How will this round go?
+
+[cheerful] Come on, Nala. Let's try again!
+
+[nervous] A challenge? Let me sit up!
+
+[playful] Big smile, small plan. Let's begin!
+
+[warm] Win or wobble, let's give it a try!
+
+[playful] Nala, save some work for me!
+
+[warm] Thanks, Nala. Keep that wrench handy.
+
+[amused] Nala, I need that wrench now!
+
+[determined] A bit tired, but still trying!
+
+[determined] All right, legs. Stay with me!
+
+[playful] Can I borrow your energy, Nala?
+
+[playful] Nala, you make this look easy!
+
+[surprised] Phew! This challenge means business!
+
+[amused] I think Nala could do my turn!
+
+[determined] A big breath, then another try!
+
+[mischievously] Don't touch the grill, you rascal.
+
+[surprised] Oh! You smell a challenge too, Nala?
+
+[cheerful] One fresh challenge, coming right up!
+
+[amused] My helper seems hungry for a turn.
+
+[laughs] Let's give this our best shot!
+
+[surprised] Oh! Dinner has legs now!
+
+[laughing] Nala, leave a bite for me!
+
+[laughs] Hey, [suprised] I was cooking that!
+
+[surprised] Oh! Time to put my tea down.
+
+[playful] My tea break has a challenge in it!
+
+[playful] Ready, steady... [laughs] one more sip.
+
+[amused] [laughs] Nala, you call this a quiet break?
+
+[playful] Slow Burn? Tell that to Nala!
+
+[surprised][laughs]  Whoops! That sip got away!
+
+[warm] All right, Nala. [laughs] You've got me smiling!
+
+[optimistic] Well, hello there, Wee Bee!
+
+[pleased] What a sweet little find!
+
+[happy] I'm glad we found you.
+
+[gentle] Settle in, little STAR.
+
+[pleased] This STAR is a keeper.
+
+[happy] What a lovely little find!
+
+[amused] Well, you've grown on me already!
+
+[warm] A sweet flower for our growing collection.
+
+[trusting] I'm blooming happy to see you!
+
+[playful] Honey, please don't stick to everything.
+
+[pleased] Our collection just got sweeter.
+
+[curious] Honey, what's all the buzz?
+
+[cheerful] A sweet find to keep!
+
+[surprised] Even the bees came along!
+
+[pleased] Honey fits in quite nicely.
+
+[warm] Our collection feels cozier with you.
+
+[amused] Shroomy, you've made yourself at home!
+
+[warm] A little mushroom with plenty of charm.
+
+[delighted] What a lovely little surprise!
+
+[playful] Barrel, no rolling off now!
+
+[cheerful] Our collection feels fuller already!
+
+[curious] Does it come with instructions?
+
+[surprised] There goes the quiet part!
+
+[playful] Bubbly juice
+
+[cheerful] Our collection just got bubbly!
+
+[amused] I'll need more than a straw!
+
+[amused] I nearly took a sip!
+
+[curious] A quiet little fish? Hmm.
+
+[warm] You're a keeper, splash and all.
+
+[gentle] Stay close, my little fish friend.
+
+[amused] You've swum right into my heart.
+
+[gentle] Settle in, Fishy. You're home.
+
+[warm] I've saved a spot for you.
+
+[playful] Stay close, you little bouncer.
+
+[amused] I like your bouncy little ways.
+
+[cheerful] There's my new beach buddy!
+
+[playful] All right, one more happy bounce.
+
+[surprised] Oh! You're quite a little treasure.
+
+[playful] You're a keeper. Cork and all!
+
+[warm] Let's keep you close, Bottle.
+
+[playful] No need to act so tough!
+
+[playful] May I call you Coco?
+
+[playful] No palm tree needed. Stay here!
+
+[pleased] Coconut, I think we'll get along.
+
+[warm] You can land right here, Kite.
+
+[playful] Stay close, you little flyer.
+
+[amused] You nearly flew past me!
+
+[hopeful] You'll stay a while, won't you?
+
+[playful] May I call you Bibi?
+
+[gentle] Stay close, my little robot friend.
+
+[playful] No need to beep. Come in!
+
+[amused] Your name is fun to say!
+
+[playful] Beep! Did I say that right?
+
+[playful] No need to spill hello.
+
+[playful] No flying off just yet!
+
+[warm] You're a little far from home.
+
+[warm] I'm glad we met, little zapper.
+
+[amused] I'll call you my zappy friend.
+
+[playful] Let's be friends before you zap anything.
+
+[curious] Are you shy in that shell?
+
+[interested] Blue gas [giggling] makes me giggle.
+
+[interested] Why are you so powerful?
+
+[interested] what secrets you hide?
+
+[excited] you seem powerfull
+
+[pleased] You're my kind of silly.
+
+[gentle] Settle in, my little jelly friend.
+
+[amused] You've got charm in every wobble.
+
+[playful] You can keep the mask on.
+
+[playful] Hiyaa! Oh, was that too loud?
+
+[amused] A little ninja, a big entrance!
+
+[warm] My little friend has big moves!
+
+[cheerful] Up you go, little trouble!
+
+[happy] You make my day feel lighter.
+
+[excited] More balloons? Now we're celebrating!
+
+[playful] You're bursting with personality!
+
+[playful] You're a blast to have around!
+
+[warm] Come here, you little firecracker.
+
+[laughing] You've collected quite a crowd!
+
+[happy] We just clicked, didn't we?
+
+[warm] Well, we're sticking together now.

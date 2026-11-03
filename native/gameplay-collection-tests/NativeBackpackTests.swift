@@ -7,6 +7,23 @@ import StackToSixNativeState
 
 @MainActor
 final class NativeBackpackTests:XCTestCase {
+    func testRecordedSpeechButtonFollowsSelectedVisibleDetailAndDisposes() async throws {
+        let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+        let detail=NativeBackpackDetail(die:NativeBackpackCatalog.beach.first{$0.id=="fish"}!,assets:assets,motion:NativeRouteMotion(home:JimiV9HomeView(frame:.zero,assets:assets),hub:JimiV9HubView(frame:.zero,assets:assets)))
+        detail.entersImmediately=true;let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible();host.addChild(detail);host.view.addSubview(detail.view);detail.view.frame=window.bounds;detail.didMove(toParent:host)
+        var requests=0;detail.onSpeechRequested={requests+=1}
+        _ = detail.speechButton.accessibilityActivate();XCTAssertEqual(requests,0)
+        detail.beginImmediatePresentation()
+        let deadline=Date().addingTimeInterval(3)
+        while !detail.card.isUserInteractionEnabled,Date()<deadline {try await Task.sleep(for:.milliseconds(20))}
+        XCTAssertTrue(detail.card.isUserInteractionEnabled);detail.view.layoutIfNeeded();XCTAssertEqual(detail.speechButton.frame,detail.hero.frame);XCTAssertFalse((detail.speechButton as UIView) is UIControl)
+        _ = detail.speechButton.accessibilityActivate();XCTAssertEqual(requests,1)
+        detail.setForeground(false);_ = detail.speechButton.accessibilityActivate();XCTAssertEqual(requests,1)
+        detail.dispose();detail.dispose()
+        _ = detail.speechButton.accessibilityActivate();XCTAssertEqual(requests,1);XCTAssertNil(detail.onSpeechRequested)
+        detail.removeFromParent();detail.view.removeFromSuperview();window.isHidden=true
+    }
     func testMountedCollectionArtworkResolutionAndRetinaSnapshot() throws {
         let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
         window.rootViewController=host;window.makeKeyAndVisible();defer{window.isHidden=true}
@@ -924,6 +941,92 @@ final class NativeBackpackTests:XCTestCase {
             XCTAssertNil(detail.worldIllustration.layer.animationKeys())
             XCTAssertEqual(detail.worldIllustration.alpha,1)
             detail.dispose();host.dismiss(animated:false);window.isHidden=true
+        }
+    }
+    func testEveryBackpackDetailSmallDragReturnPreservesCompositedArtwork() async throws {
+        let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible()
+        defer{host.dismiss(animated:false);window.isHidden=true;window.rootViewController=nil}
+        var seen=Set<String>()
+        let dice=(NativeBackpackCatalog.forest+NativeBackpackCatalog.beach+NativeBackpackCatalog.area+NativeBackpackCatalog.arcade).filter{seen.insert($0.id).inserted}
+        let output=URL(fileURLWithPath:"/tmp/laser-detail-rotation-42/frames",isDirectory:true)
+        try FileManager.default.createDirectory(at:output,withIntermediateDirectories:true)
+        let representatives:Set<String>=["laser-gun","kanta","fish","cubero"]
+        let format=UIGraphicsImageRendererFormat();format.scale=1
+        // Sample the composited window, including SKView's visible surface and Fish's
+        // UIKit SVG plane. A node/texture receipt alone cannot detect a blank drawable.
+        func capture(_ roi:CGRect)throws -> (image:UIImage,artworkPixels:Int) {
+            let image=UIGraphicsImageRenderer(bounds:window.bounds,format:format).image{_ in
+                window.drawHierarchy(in:window.bounds,afterScreenUpdates:false)
+            }
+            let crop=try XCTUnwrap(image.cgImage?.cropping(to:roi.integral.intersection(window.bounds)))
+            let width=crop.width,height=crop.height
+            var bytes=[UInt8](repeating:0,count:width*height*4)
+            try bytes.withUnsafeMutableBytes {buffer in
+                let context=try XCTUnwrap(CGContext(data:buffer.baseAddress,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue))
+                context.draw(crop,in:CGRect(x:0,y:0,width:width,height:height))
+            }
+            var pixels=0
+            for offset in stride(from:0,to:bytes.count,by:4) {
+                let rgb=[Int(bytes[offset]),Int(bytes[offset+1]),Int(bytes[offset+2])]
+                let low=rgb.min()!,high=rgb.max()!
+                if high<155 || (high-low>24 && low<200) {pixels+=1}
+            }
+            return (image,pixels)
+        }
+        for die in dice {
+            let detail=NativeBackpackDetail(die:die,assets:assets,motion:NativeRouteMotion(home:JimiV9HomeView(frame:.zero,assets:assets),hub:JimiV9HubView(frame:.zero,assets:assets)))
+            defer{detail.dispose();host.dismiss(animated:false)}
+            host.present(detail,animated:false)
+            let deadline=Date().addingTimeInterval(20)
+            while !detail.card.isUserInteractionEnabled,Date()<deadline {try await Task.sleep(for:.milliseconds(20))}
+            XCTAssertTrue(detail.card.isUserInteractionEnabled,die.id)
+            try await Task.sleep(for:.milliseconds(700))
+            let preview=try XCTUnwrap(detail.preview),node=try XCTUnwrap(preview.dieNode),scene=try XCTUnwrap(preview.scene)
+            let fish=preview.fishOwner,idle=try XCTUnwrap(preview.superview)
+            let pan=try XCTUnwrap(detail.card.gestureRecognizers?.compactMap{$0 as? UIPanGestureRecognizer}.first)
+            let drag=try XCTUnwrap(pan.delegate as? JimiNativeModalDrag)
+            // The broad central artwork slot excludes labels, paper edges and the
+            // floor shadow, while allowing normal body animation and 30pt finger motion.
+            let slot=try XCTUnwrap(preview.artworkFrame).insetBy(dx:24,dy:4)
+            let roi=preview.convert(slot,to:window)
+            let baseline=try capture(roi)
+            XCTAssertGreaterThan(baseline.artworkPixels,30,"\(die.id): actual composited artwork must be measurable before drag")
+            let minimum=max(20,baseline.artworkPixels/10)
+            if representatives.contains(die.id) {try baseline.image.pngData()?.write(to:output.appendingPathComponent("\(die.id)-baseline.png"))}
+            var elapsed=preview.playbackElapsed
+            let captureEpoch=CACurrentMediaTime()
+            var samples:[[String:Any]]=[]
+            for attempt in 0..<2 {
+                drag.begin()
+                for distance:CGFloat in [10,20,30] {
+                    drag.move(CGPoint(x:0,y:distance))
+                    XCTAssertEqual(idle.layer.speed,1,"\(die.id): slow drag must not freeze the media ancestor clock")
+                    try await Task.sleep(for:.milliseconds(67))
+                }
+                try await Task.sleep(for:.milliseconds(80))
+                let returnEpoch=CACurrentMediaTime()
+                drag.finish(CGPoint(x:0,y:30),cancelled:attempt==1)
+                for frame in 0..<19 {
+                    let capturedAt=CACurrentMediaTime()
+                    let sample=try capture(roi)
+                    samples.append(["attempt":attempt,"cancelled":attempt==1,"frame":frame,"secondsSinceCaptureStart":capturedAt-captureEpoch,"secondsSinceRelease":capturedAt-returnEpoch,"captureDurationSeconds":CACurrentMediaTime()-capturedAt,"artworkPixels":sample.artworkPixels,"previewElapsed":preview.playbackElapsed])
+                    XCTAssertGreaterThanOrEqual(sample.artworkPixels,minimum,"\(die.id) drag\(attempt) frame\(frame): blank/white composited artwork ROI")
+                    XCTAssertTrue(detail.preview === preview);XCTAssertTrue(preview.dieNode === node);XCTAssertTrue(preview.scene === scene)
+                    XCTAssertTrue(preview.fishOwner === fish);XCTAssertTrue(preview.ready)
+                    XCTAssertEqual(idle.layer.speed,1)
+                    XCTAssertGreaterThanOrEqual(preview.playbackElapsed,elapsed);elapsed=preview.playbackElapsed
+                    if representatives.contains(die.id) {try sample.image.pngData()?.write(to:output.appendingPathComponent("\(die.id)-drag\(attempt)-\(String(format:"%02d",frame)).png"))}
+                    try await Task.sleep(for:.milliseconds(16))
+                }
+            }
+            let actualMinimum=samples.compactMap{$0["artworkPixels"] as? Int}.min() ?? 0
+            let summary:[String:Any]=["id":die.id,"capture":"UIKit window drawHierarchy afterScreenUpdates false; not a display-synchronized video","dragMoveMilliseconds":201,"dragHoldMilliseconds":80,"baselineArtworkPixels":baseline.artworkPixels,"minimumArtworkPixels":minimum,"minimumActualArtworkPixels":actualMinimum,"minimumActualPixelRatio":Double(actualMinimum)/Double(max(1,baseline.artworkPixels)),"roi":["x":roi.minX,"y":roi.minY,"width":roi.width,"height":roi.height],"frames":samples]
+            try JSONSerialization.data(withJSONObject:summary,options:[.prettyPrinted,.sortedKeys]).write(to:output.appendingPathComponent("\(die.id)-samples.json"))
+            print("[BackpackDragPixels] id=\(die.id) baseline=\(baseline.artworkPixels) minimum=\(minimum) samples=38 elapsed=\(elapsed)")
+            detail.dispose();host.dismiss(animated:false)
+            XCTAssertNil(preview.scene)
         }
     }
     func testSelectedDetailOwnsAnimationAndClosesOnce() async throws {
@@ -1918,6 +2021,56 @@ final class NativeBackpackTests:XCTestCase {
             preview.paintSelectedBounce(seconds:3.6);XCTAssertEqual(node.position,base)
             preview.dispose();XCTAssertNil(preview.scene);XCTAssertNil(shadow.superview)
         }
+    }
+    func testSelectedLaserCombinesBottleFloatWithExistingShortStretchAndStopsWhenHidden() async throws {
+        let die=try XCTUnwrap(NativeBackpackCatalog.area.first{$0.id=="laser-gun"})
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible()
+        let preview=NativeBackpackDicePreview(die:die,root:NativeTestResources.root)
+        defer{preview.dispose();preview.removeFromSuperview();window.isHidden=true}
+        preview.frame=CGRect(x:0,y:0,width:342,height:380);host.view.addSubview(preview)
+        preview.artworkFrame=CGRect(x:0,y:48,width:342,height:240)
+        let deadline=Date().addingTimeInterval(15)
+        while !preview.ready,Date()<deadline {try await Task.sleep(for:.milliseconds(20))}
+        XCTAssertTrue(preview.ready);host.view.layoutIfNeeded();preview.layoutIfNeeded();preview.layoutArtwork();preview.setActive(true);preview.isPaused=true
+        let node=try XCTUnwrap(preview.dieNode)
+        preview.paintSelectedBounce(seconds:0)
+        let base=node.position,scale=node.xScale
+        XCTAssertEqual(node.zRotation,20 * .pi/180,accuracy:0.000001,"Authored starting point is20degrees counterclockwise")
+        for frame in 0...216 {
+            let seconds=Double(frame)/60,phase=seconds/3.6*2*Double.pi
+            preview.paintSelectedBounce(seconds:seconds)
+            XCTAssertEqual(node.position.x,base.x,accuracy:0.000001)
+            // SpriteKit quantizes the absolute node position through Float storage.
+            XCTAssertEqual(node.position.y-base.y,CGFloat(10*(1-cos(phase))),accuracy:0.0001)
+            let sway=sin(phase)
+            XCTAssertEqual(node.zRotation,CGFloat((20+3.15*sway+1.05*sway*sway)*Double.pi/180),accuracy:0.000001)
+            XCTAssertEqual(node.xScale,scale,accuracy:0.000001)
+            XCTAssertEqual(node.yScale,scale,accuracy:0.000001)
+        }
+        preview.paintSelectedBounce(seconds:0.9)
+        XCTAssertEqual(node.zRotation,24.2 * .pi/180,accuracy:0.000001)
+        let scene=try XCTUnwrap(node.scene)
+        let origin=preview.convert(node.convert(CGPoint.zero,to:scene),from:scene)
+        let right=preview.convert(node.convert(CGPoint(x:10,y:0),to:scene),from:scene)
+        XCTAssertLessThan(right.y,origin.y,"Positive peak visibly rotates counterclockwise in the actual SKView")
+        preview.paintSelectedBounce(seconds:2.7)
+        XCTAssertEqual(node.zRotation,17.9 * .pi/180,accuracy:0.000001)
+        XCTAssertGreaterThan(node.zRotation,0,"Smaller clockwise-side excursion retains the counterclockwise starting tilt")
+        preview.paintSelectedBounce(seconds:4)
+        preview.paintSelectedBounce(seconds:4.09)
+        XCTAssertNotEqual(node.xScale,scale,"Original short stretch/squeeze remains layered over the float")
+        XCTAssertNotEqual(node.yScale,scale)
+        preview.paintSelectedBounce(seconds:4.6)
+        XCTAssertEqual(node.xScale,scale,accuracy:0.000001)
+        XCTAssertEqual(node.yScale,scale,accuracy:0.000001)
+        // Manual pose seeks above do not advance the owner's live clock.
+        // Restore that real clock before checking hidden-state stability.
+        preview.layoutArtwork();preview.layoutIfNeeded();preview.setActive(false)
+        let elapsed=preview.playbackElapsed,pose=node.position
+        try await Task.sleep(for:.milliseconds(150))
+        XCTAssertEqual(preview.playbackElapsed,elapsed);XCTAssertEqual(node.position,pose)
+        preview.dispose();XCTAssertNil(preview.scene)
     }
     func testSelectedBloobBallFloatPreservesSizeAndGroundedShadow() async throws {
         let die=try XCTUnwrap(NativeBackpackCatalog.area.first{$0.id=="bloob-ball"})

@@ -1,4 +1,5 @@
 import UIKit
+import StackToSixGameplay
 import QuartzCore
 import CoreImage
 
@@ -83,9 +84,9 @@ final class NativeArcadeRoundPresentation: UIView {
                 label.accessibilityIdentifier="native.board-cleared.glyph.\(index)"
             }
         }
-        subtitleGlyphs = glyphs(boardClearedOnly ? "" : "Round \(String(format: "%02d",self.clearedRound)) complete",color: NativeTextPalette.subtitle,parent: clearCard)
+        subtitleGlyphs = glyphs(boardClearedOnly ? "" : "Round \(NativeScoreDisplay.padded(self.clearedRound)) complete",color: NativeTextPalette.subtitle,parent: clearCard)
         roundGlyphs = glyphs("Round",color: NativeTextPalette.subtitle,parent: nextCard)
-        digits = glyphs(String(format: "%02d",self.nextRound),color: .init(red: 231.0/255,green: 116.0/255,blue: 73.0/255,alpha: 1),parent: nextCard)
+        digits = glyphs(NativeScoreDisplay.padded(self.nextRound),color: .init(red: 231.0/255,green: 116.0/255,blue: 73.0/255,alpha: 1),parent: nextCard)
         for character in headline { titleFactors.append(character == " " ? 1 : CGFloat((85+random()*30).rounded())/100) }
         exitAngles = (titleGlyphs+subtitleGlyphs+roundGlyphs).indices.map { CGFloat((boardClearedOnly || $0 % 2 == 0 ? 1 : -1)*(12+random()*8)) }
         digitAngles = digits.indices.map { CGFloat(-8+random()*16)*($0 % 2 == 0 ? 1 : -1) }

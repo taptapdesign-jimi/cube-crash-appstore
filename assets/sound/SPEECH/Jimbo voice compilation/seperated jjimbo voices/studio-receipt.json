@@ -1,0 +1,11 @@
+{
+  "batchId": "1822e815ea044f35a41a201a973be51b",
+  "masterSource": "assets/sound/SPEECH/Jimbo voice compilation/jimbo voice compilation.mp3",
+  "masterSHA256": "fc8b52a4c9ae92b5f12c9729d35b60a894f45c824063b2ee2f6d07466bc9428d",
+  "clipCount": 147,
+  "sceneCount": 40,
+  "created": "2026-11-01T00:13:27.316272+00:00",
+  "status": "studio_linked",
+  "nativeApplied": false,
+  "repositoryManifest": "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/manifest.json"
+}

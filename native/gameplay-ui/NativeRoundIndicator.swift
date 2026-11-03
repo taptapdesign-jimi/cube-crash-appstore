@@ -36,13 +36,15 @@ final class NativeRoundIndicator:SKNode {
         isHidden = !arcade
         guard arcade else {painted.removeAllActions();content.removeAllActions();return}
         let changed=self.round != nil && self.round != round;self.round=round
-        label.text=String(format:"%@ - %02d",variant.title,max(1,round))
-        let width=label.frame.width+122,height=lineHeight+10
+        label.text="\(variant.title) - \(NativeScoreDisplay.padded(max(1,round)))"
+        let scale=NativeTabletLayout.applies(viewport) ? CGFloat(1.4):1
+        label.fontSize=18*scale
+        let width=label.frame.width+122*scale,height=(lineHeight+10)*scale
         pill.path=CGPath(roundedRect:CGRect(x:-width/2,y:-height/2,width:width,height:height),cornerWidth:min(32,height/2),cornerHeight:min(32,height/2),transform:nil)
         let path=CGMutablePath(),edge=viewport.width/2-23
-        if edge>width/2+24 {
-            path.move(to:CGPoint(x:-edge,y:2));path.addLine(to:CGPoint(x:-width/2-24,y:2))
-            path.move(to:CGPoint(x:width/2+24,y:2));path.addLine(to:CGPoint(x:edge,y:2))
+        if edge>width/2+24*scale {
+            path.move(to:CGPoint(x:-edge,y:2));path.addLine(to:CGPoint(x:-width/2-24*scale,y:2))
+            path.move(to:CGPoint(x:width/2+24*scale,y:2));path.addLine(to:CGPoint(x:edge,y:2))
         }
         lines.path=path;self.alpha=alpha
         if changed,painted.action(forKey:"round-enter")==nil {

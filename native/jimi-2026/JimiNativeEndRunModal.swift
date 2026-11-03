@@ -15,6 +15,24 @@ enum JimiNativeModalV10 {
     /// One shared Native modal tint; retain the original hue at 50percent opacity.
     static var backdropColor:UIColor {UIColor(red:220/255,green:183/255,blue:163/255,alpha:0.5)}
 
+    static let settledBounceKey="native.modal.settled-bounce"
+    /// The slider's small CTA bounce, starting immediately after modal entry.
+    /// Additive scale composes with the existing paper float/tilt owner.
+    @discardableResult static func startSettledBounce(on target:UIView,extraDuration:Double=0.4,delay:Double=0,additive:Bool=true)->Double {
+        guard !UIAccessibility.isReduceMotionEnabled else{return 0}
+        let source=JimiV9Motion.selectedCTABounce
+        let start=source.tweens.first?.begin ?? 0,duration=source.duration-start
+        let scales=(0...72).map{source.pose(at:start+duration*Double($0)/72).scaleX}
+        let bounce=CAKeyframeAnimation(keyPath:additive ? "transform.scale":"transform")
+        if additive {bounce.values=scales.map{$0-1}}
+        else {bounce.values=scales.map{NSValue(caTransform3D:CATransform3DMakeScale($0,$0,1))}}
+        bounce.duration=duration+extraDuration;bounce.isAdditive=additive;bounce.calculationMode = .linear
+        bounce.beginTime=target.layer.convertTime(CACurrentMediaTime(),from:nil)+delay
+        bounce.fillMode = .backwards
+        target.layer.add(bounce,forKey:settledBounceKey)
+        return bounce.duration
+    }
+
     /// Authored Exit Game idle, shared by Backpack paper planes.
     static func startIdle(on target:UIView,key:String,drift:CGFloat=0,amplitude:CGFloat=1,duration:Double=6.8,depth:Bool=true,rigid:Bool=false) {
         guard !UIAccessibility.isReduceMotionEnabled,target.layer.animation(forKey:key)==nil else{return}
@@ -23,9 +41,13 @@ enum JimiNativeModalV10 {
         }
         let animation=CAKeyframeAnimation(keyPath:"transform")
         animation.duration=duration;animation.repeatCount = .infinity
+        animation.beginTime=target.layer.convertTime(CACurrentMediaTime(),from:nil)
         animation.keyTimes=[0,0.18,0.38,0.58,0.76,0.84,0.89,0.94,1]
         animation.values=[pose(0,0,1),pose(-3,3,1.003),pose(0,0,1),pose(-3.75,4,1.004),pose(0,0,1),pose(-4,8,1.015),pose(1,0,0.995),pose(-1,3,1.006),pose(0,0,1)]
         target.layer.add(animation,forKey:key)
+        if ["end-run-idle","score.idle","backpack.detail.idle","backpack.collection.idle","arcade.modal.idle"].contains(key) {
+            startSettledBounce(on:target)
+        }
     }
 
     /// Shared Exit Game / High Score / Backpack entrance planes and timing.
@@ -47,7 +69,8 @@ enum JimiNativeModalV10 {
         paper.frame = bounds
         paper.contentMode = .scaleToFill
         guard let image = paper.image, bounds.width > 0, bounds.height > 0 else { return }
-        let cover = max(bounds.width / image.size.width, (bounds.height+bottomExtension) / image.size.height)
+        let bleed=bounds.width>=450 ? min(bottomExtension,16):bottomExtension
+        let cover = max(bounds.width / image.size.width, (bounds.height+bleed) / image.size.height)
         let width = bounds.width / (image.size.width * cover)
         let height = bounds.height / (image.size.height * cover)
         // background-size: cover; background-position: center top.
@@ -93,14 +116,25 @@ final class JimiNativeModalDrag: NSObject, UIGestureRecognizerDelegate {
     private weak var viewport: UIView?
     private let canDrag: () -> Bool
     private let onDismiss: () -> Void
+    // Opt in when idle contains independent renderers: hold only these modal
+    // animations, leaving descendant SpriteKit/Metal/media clocks untouched.
+    private let mediaSafeIdleAnimationKeys:[String]?
+    private struct PausedIdleAnimation {
+        let animation:CAAnimation
+        let localPauseTime:CFTimeInterval
+        let receipt:String
+    }
+    private var pausedIdleAnimations:[String:PausedIdleAnimation]=[:]
+    private static let idlePauseReceiptKey="native.modal.drag.pause-receipt"
     private var startRect = CGRect.zero
     private var startY: CGFloat = 0
     private var owner = 0
     private var disposed = false
     private var dragging = false
     let pan: UIPanGestureRecognizer
-    init(target:UIView,idle:UIView,viewport:UIView,canDrag:@escaping ()->Bool,onDismiss:@escaping ()->Void) {
+    init(target:UIView,idle:UIView,viewport:UIView,mediaSafeIdleAnimationKeys:[String]?=nil,canDrag:@escaping ()->Bool,onDismiss:@escaping ()->Void) {
         self.target = target;self.idle = idle;self.viewport = viewport;self.canDrag = canDrag;self.onDismiss = onDismiss
+        self.mediaSafeIdleAnimationKeys=mediaSafeIdleAnimationKeys
         pan = UIPanGestureRecognizer();super.init()
         pan.maximumNumberOfTouches = 1;pan.delegate = self;pan.addTarget(self,action:#selector(handle(_:)));target.addGestureRecognizer(pan)
     }
@@ -112,10 +146,41 @@ final class JimiNativeModalDrag: NSObject, UIGestureRecognizerDelegate {
         return (delta<0 ? -1 : 1)*limit*force/(limit+force)
     }
     private func pauseIdle() {
+        if let keys=mediaSafeIdleAnimationKeys {
+            guard let layer=idle?.layer,pausedIdleAnimations.isEmpty else{return}
+            let now=layer.convertTime(CACurrentMediaTime(),from:nil)
+            CATransaction.begin();CATransaction.setDisableActions(true)
+            for key in keys {
+                guard let original=layer.animation(forKey:key),original.speed != 0,
+                      let held=original.copy() as? CAAnimation else{continue}
+                let receipt=UUID().uuidString
+                held.timeOffset=(now-original.beginTime)*Double(original.speed)+original.timeOffset
+                held.beginTime=0;held.speed=0
+                held.setValue(receipt,forKey:Self.idlePauseReceiptKey)
+                pausedIdleAnimations[key]=PausedIdleAnimation(animation:original,localPauseTime:now,receipt:receipt)
+                layer.add(held,forKey:key)
+            }
+            CATransaction.commit();return
+        }
         guard let layer = idle?.layer,layer.speed != 0 else{return}
         let now = layer.convertTime(CACurrentMediaTime(),from:nil);layer.speed = 0;layer.timeOffset = now
     }
     private func resumeIdle() {
+        if mediaSafeIdleAnimationKeys != nil {
+            let pending=pausedIdleAnimations;pausedIdleAnimations.removeAll()
+            guard let layer=idle?.layer else{return}
+            let now=layer.convertTime(CACurrentMediaTime(),from:nil)
+            CATransaction.begin();CATransaction.setDisableActions(true)
+            for (key,paused) in pending {
+                // A replacement or retired animation belongs to its new owner.
+                guard let current=layer.animation(forKey:key),
+                      current.value(forKey:Self.idlePauseReceiptKey) as? String == paused.receipt,
+                      let resumed=paused.animation.copy() as? CAAnimation else{continue}
+                resumed.beginTime=paused.animation.beginTime+max(0,now-paused.localPauseTime)
+                layer.add(resumed,forKey:key)
+            }
+            CATransaction.commit();return
+        }
         guard let layer = idle?.layer,layer.speed == 0 else{return}
         let paused = layer.timeOffset;layer.speed = 1;layer.timeOffset = 0;layer.beginTime = 0
         layer.beginTime = layer.convertTime(CACurrentMediaTime(),from:nil)-paused
@@ -127,16 +192,17 @@ final class JimiNativeModalDrag: NSObject, UIGestureRecognizerDelegate {
         CATransaction.begin();CATransaction.setDisableActions(true)
         target.layer.transform = painted;target.layer.removeAnimation(forKey:"modal.drag.return")
         idle?.layer.removeAnimation(forKey:"modal.touch.return");CATransaction.commit()
-        startY = painted.m42;startRect = target.convert(target.bounds,to:viewport).offsetBy(dx:0,dy:-startY)
+        startY = painted.m42*NativeTabletLayout.modalProjectionScale(of:target);startRect = target.convert(target.bounds,to:viewport).offsetBy(dx:0,dy:-startY)
         pauseIdle()
     }
     func move(_ delta:CGPoint) {
         guard !disposed,dragging,canDrag(),let target,let viewport else{return}
-        let y = startY+Self.resisted(delta.y,rect:startRect,height:viewport.bounds.height)
+        let projectionScale=NativeTabletLayout.modalProjectionScale(of:target)
+        let y = (startY+Self.resisted(delta.y,rect:startRect,height:viewport.bounds.height))/projectionScale
         let tilt = max(-1.15,min(1.15,y/54)) * .pi/180
         var touch = CATransform3DIdentity;touch.m34 = -1/950
-        touch = CATransform3DRotate(touch,max(-3.64*0.72,min(3.64*0.72,-delta.y/90*1.3)) * .pi/180,1,0,0)
-        touch = CATransform3DRotate(touch,max(-3.64,min(3.64,delta.x/42*1.3)) * .pi/180,0,1,0)
+        touch = CATransform3DRotate(touch,max(-3.64*0.72,min(3.64*0.72,-delta.y/projectionScale/90*1.3)) * .pi/180,1,0,0)
+        touch = CATransform3DRotate(touch,max(-3.64,min(3.64,delta.x/projectionScale/42*1.3)) * .pi/180,0,1,0)
         CATransaction.begin();CATransaction.setDisableActions(true)
         target.layer.transform = CATransform3DRotate(CATransform3DMakeTranslation(0,y,0),tilt,0,0,1)
         idle?.layer.sublayerTransform = touch;CATransaction.commit()
@@ -202,14 +268,36 @@ struct JimiNativeEndRunModel {
     }
 }
 
+/// This sheet's3D flip must reach its live glyph/face leaves without first
+/// flattening the button. Visibility remains on those ordinary paint leaves.
+@MainActor
+final class JimiNativeEndRunButton:JimiV9PlainButton {
+    override class var layerClass:AnyClass {CATransformLayer.self}
+    private var paintOpacity:Float=1
+    var paintLayers:[CALayer] {subviews.map(\.layer)}
+    func setPaintOpacity(_ opacity:Float) {
+        paintOpacity=opacity
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        for leaf in paintLayers {leaf.opacity=opacity;leaf.isDoubleSided=false}
+        CATransaction.commit()
+    }
+    override func layoutSubviews() {
+        super.layoutSubviews();setPaintOpacity(paintOpacity)
+    }
+}
+
 @MainActor
 final class JimiNativeEndRunModal: UIViewController {
     let requestID: Int
     let model: JimiNativeEndRunModel
-    let card = UIView(), flip = JimiNativeModalTransformView(), idle = UIView(), paper = UIImageView()
+    let card = UIView(), flip = JimiNativeModalTransformView(), idle = JimiNativeModalTransformView(), paper = UIImageView()
+    private let restTilt=JimiNativeModalTransformView()
+    let restTiltDegrees:CGFloat
+    private let paperShadow=CALayer()
     let heading = UILabel(), subtitle = UILabel(), close = JimiV9PlainButton(type:.custom)
     let backdrop = JimiV9PlainButton(type:.custom)
-    let buttons = [JimiV9PlainButton(type:.custom),JimiV9PlainButton(type:.custom)]
+    let buttons = [JimiNativeEndRunButton(type:.custom),JimiNativeEndRunButton(type:.custom)]
+    var onCTAsEntering: (() -> Void)?
     var onReady: (() -> Void)?
     var onAction: ((String) -> Void)?
     var onClosed: (() -> Void)?
@@ -241,7 +329,9 @@ final class JimiNativeEndRunModal: UIViewController {
         NSLog("[NATIVE_HUD_LATENCY] phase=%@ owner=%d monotonicMs=%.3f",phase,requestID,CACurrentMediaTime()*1000)
         #endif
     }
-    init(id:Int,model:JimiNativeEndRunModel,assets:JimiV9Artwork,dismissalAllowed:Bool = true,synchronizesBoardCTAEntry:Bool = false) {
+    init(id:Int,model:JimiNativeEndRunModel,assets:JimiV9Artwork,dismissalAllowed:Bool = true,synchronizesBoardCTAEntry:Bool = false,restTiltRandom:()->Double = {Double.random(in:0..<1)}) {
+        let sample=restTiltRandom()
+        restTiltDegrees=CGFloat(min(1,max(0,sample.isFinite ? sample:0.5))*4-2)
         requestID = id; self.model = model; self.assets = assets;self.dismissalAllowed=dismissalAllowed;self.synchronizesBoardCTAEntry=synchronizesBoardCTAEntry
         super.init(nibName:nil,bundle:nil); modalPresentationStyle = .overFullScreen
         traceHUDLatency("exit-modal-init-body-end")
@@ -255,12 +345,18 @@ final class JimiNativeEndRunModal: UIViewController {
         idle.layer.isDoubleSided = false
         backdrop.backgroundColor = JimiNativeModalV10.backdropColor
         backdrop.alpha = 0;backdrop.addTarget(self,action:#selector(requestClose),for:.touchUpInside);view.addSubview(backdrop)
-        view.addSubview(card);card.addSubview(flip);flip.addSubview(idle);idle.addSubview(paper)
+        view.addSubview(card);card.addSubview(restTilt);restTilt.addSubview(flip);flip.addSubview(idle);idle.addSubview(paper)
+        restTilt.accessibilityIdentifier="native.end-run.rest-tilt"
+        restTilt.layer.transform=CATransform3DMakeRotation(restTiltDegrees * .pi/180,0,0,1)
         card.layer.anchorPoint = CGPoint(x:0.5,y:0.55);flip.layer.anchorPoint = CGPoint(x:0.5,y:1);idle.layer.anchorPoint = CGPoint(x:0.5,y:0.52)
         card.alpha = 0;card.accessibilityIdentifier = "native.end-run"
         paper.image = assets.image("assets/modals/paper.png");paper.contentMode = .scaleToFill;paper.layer.cornerRadius = 40;paper.clipsToBounds = true
-        idle.layer.shadowColor = UIColor(red:185/255,green:145/255,blue:119/255,alpha:1).cgColor
-        idle.layer.shadowOpacity = 0.8;idle.layer.shadowOffset = CGSize(width:0,height:13);idle.layer.shadowRadius = 16.8
+        // Keep the authored shadow on its own paint leaf. A shadow-bearing
+        // ordinary idle container flattens live text before the outer3D flip.
+        paperShadow.name="native.end-run.paper-shadow";paperShadow.isDoubleSided=false
+        paperShadow.shadowColor = UIColor(red:185/255,green:145/255,blue:119/255,alpha:1).cgColor
+        paperShadow.shadowOpacity = 0.8;paperShadow.shadowOffset = CGSize(width:0,height:13);paperShadow.shadowRadius = 16.8
+        idle.layer.insertSublayer(paperShadow,at:0)
         heading.text = model.title;heading.font = assets.font(size:32,weight:"ExtraBold");heading.textColor = NativeTextPalette.modalTitle;heading.textAlignment = .center
         subtitle.text = model.subtitle;subtitle.font = assets.font(size:18,weight:"Medium");subtitle.textColor = NativeTextPalette.subtitle;subtitle.textAlignment = .center;subtitle.numberOfLines = 0
         subtitle.attributedText=NativeModalTypography.attributedSubtitle(model.subtitle,font:subtitle.font)
@@ -276,11 +372,11 @@ final class JimiNativeEndRunModal: UIViewController {
                 button.setAttributedTitle(NSAttributedString(string:model.exitLabel,attributes:[.font:button.titleLabel?.font ?? assets.font(size:28,weight:"ExtraBold"),.foregroundColor:ink]),for:.normal)
             }
             button.setPairedModalCTA(independentIdleIndex:synchronizesBoardCTAEntry ? i:nil)
-            button.layer.opacity=0
+            button.setPaintOpacity(0)
             button.onSculptedFacePrepared={ [weak self] in self?.facesPrepared() }
             button.addTarget(self,action:#selector(pressButton(_:)),for:.touchDown)
             button.addTarget(self,action:#selector(releaseButton(_:)),for:[.touchCancel,.touchUpOutside])
-            button.addTarget(self,action:#selector(requestButton(_:)),for:.touchUpInside);idle.addSubview(button);button.enableCartoonBounce()
+            button.addTarget(self,action:#selector(requestButton(_:)),for:.touchUpInside);idle.addSubview(button);button.enableCartoonBounce(preserves3D:true)
         }
         traceHUDLatency("exit-cta-style-end")
         close.setBackgroundImage(paper.image,for:.normal);close.layer.cornerRadius = 26;close.clipsToBounds = true
@@ -289,6 +385,9 @@ final class JimiNativeEndRunModal: UIViewController {
         close.accessibilityLabel = "Close "+model.title;close.accessibilityIdentifier = "native.end-run.close"
         close.addTarget(self,action:#selector(requestClose),for:.touchUpInside);idle.addSubview(close)
         close.isHidden = !dismissalAllowed;backdrop.isUserInteractionEnabled=dismissalAllowed
+        // The spatial owner no longer composites a shared backface. Retain the
+        // former group culling on each ordinary painted subtree instead.
+        idle.subviews.forEach{$0.layer.isDoubleSided=false}
         modalDrag = JimiNativeModalDrag(target:card,idle:idle,viewport:view,canDrag:{[weak self] in guard let self else{return false};return self.dismissalAllowed && self.ready && !self.closing && !self.disposed},onDismiss:{[weak self] in self?.requestClose()})
         view.isUserInteractionEnabled = false
     }
@@ -299,24 +398,39 @@ final class JimiNativeEndRunModal: UIViewController {
         defer{if traceLayout {traceHUDLatency("exit-layout-end")}}
         #endif
         super.viewDidLayoutSubviews();backdrop.frame = view.bounds
-        let width = min(390,max(0,view.bounds.width-48)),height:CGFloat = 172+2*JimiV9PlainButton.pairedModalCTAHeight+JimiV9PlainButton.pairedModalCTAGap+28
-        card.bounds = CGRect(x:0,y:0,width:width,height:height);card.center = CGPoint(x:view.bounds.midX,y:view.bounds.midY+height*0.05)
+        let modalBounds=NativeTabletLayout.modalBounds(in:view,card:card)
+        let u=NativeTabletLayout.textScale(modalBounds.size)
+        NativeTabletLayout.labelFont(heading,size:32*u)
+        NativeTabletLayout.labelFont(subtitle,size:18*u)
+        buttons.forEach{NativeTabletLayout.buttonFont($0,size:28*u)}
+        let width=NativeTabletLayout.paperWidth(modalBounds.size,padding:synchronizesBoardCTAEntry ? 80:48)
+        let height:CGFloat=(172+2*JimiV9PlainButton.pairedModalCTAHeight+JimiV9PlainButton.pairedModalCTAGap+28)*u
+        card.bounds = CGRect(x:0,y:0,width:width,height:height);card.center = CGPoint(x:modalBounds.midX,y:modalBounds.midY+height*0.05)
+        restTilt.bounds=card.bounds;restTilt.center=CGPoint(x:width/2,y:height/2)
         flip.bounds = card.bounds;flip.center = CGPoint(x:width/2,y:height)
         idle.bounds = card.bounds;idle.center = CGPoint(x:width/2,y:height*0.52);JimiNativeModalV10.paperLayout(paper,bounds:idle.bounds)
-        heading.frame = CGRect(x:24,y:52,width:width-48,height:32)
-        subtitle.frame = CGRect(x:24,y:96,width:width-48,height:52)
-        let actionWidth=JimiV9PlainButton.modalCTAWidth(buttons,maxWidth:width-32)
+        heading.frame = CGRect(x:24*u,y:52*u,width:width-48*u,height:32*u)
+        subtitle.frame = CGRect(x:24*u,y:96*u,width:width-48*u,height:52*u)
+        let baseActionWidth=JimiV9PlainButton.modalCTAWidth(buttons,maxWidth:width-32)
+        let actionWidth=synchronizesBoardCTAEntry ? min(width-16,baseActionWidth*1.05):baseActionWidth
         for (i,button) in buttons.enumerated() {
-            let size=CGSize(width:actionWidth*0.90,height:JimiV9PlainButton.pairedModalCTAHeight*1.05)
+            let size=CGSize(width:actionWidth,height:JimiV9PlainButton.pairedModalCTAHeight*1.05*u)
             button.cartoonBounceLayoutView.bounds=CGRect(origin:.zero,size:size)
-            button.cartoonBounceLayoutView.center=CGPoint(x:width/2,y:172+JimiV9PlainButton.pairedModalCTAHeight/2+CGFloat(i)*(JimiV9PlainButton.pairedModalCTAHeight+JimiV9PlainButton.pairedModalCTAGap))
+            button.cartoonBounceLayoutView.center=CGPoint(x:width/2,y:(172+JimiV9PlainButton.pairedModalCTAHeight/2+CGFloat(i)*(JimiV9PlainButton.pairedModalCTAHeight+JimiV9PlainButton.pairedModalCTAGap))*u)
             if synchronizesBoardCTAEntry,i==1 {
                 let previousGap=JimiV9PlainButton.pairedModalCTAGap-JimiV9PlainButton.pairedModalCTAHeight*0.05
-                button.cartoonBounceLayoutView.center.y-=previousGap*0.50
+                button.cartoonBounceLayoutView.center.y-=previousGap*0.50*u
             }
             button.layoutCartoonContent()
         }
         close.frame = CGRect(x:width-42,y:-10,width:52,height:52)
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        paperShadow.frame=idle.bounds;paperShadow.contentsScale=view.window?.screen.scale ?? view.traitCollection.displayScale
+        let silhouette=CGMutablePath()
+        silhouette.addRoundedRect(in:paper.frame,cornerWidth:40,cornerHeight:40)
+        if !close.isHidden {silhouette.addEllipse(in:close.frame)}
+        paperShadow.shadowPath=silhouette
+        CATransaction.commit()
     }
     private func pose(_ y:CGFloat,_ z:CGFloat,_ rx:CGFloat,_ ry:CGFloat,_ scale:CGFloat,_ rz:CGFloat = 0)->CATransform3D {
         var t = CATransform3DIdentity
@@ -388,13 +502,14 @@ final class JimiNativeEndRunModal: UIViewController {
         guard !disposed,!closing,view.layer.speed != 0,enterStarted,
               enteredCTAs.isEmpty,buttons.allSatisfy({$0.isSculptedFacePrepared}) else{return}
         traceHUDLatency("exit-cta-cohort-start")
+        onCTAsEntering?()
         // Both bitmaps form one entrance cohort. Independent async preparation
         // must never let Exit appear before Restart or consume their stagger.
         for index in buttons.indices {
             enteredCTAs.insert(index)
             let button=buttons[index]
             if UIAccessibility.isReduceMotionEnabled {
-                button.layer.opacity=1;completedCTAs.insert(index);continue
+                button.setPaintOpacity(1);completedCTAs.insert(index);continue
             }
             CATransaction.begin()
             CATransaction.setCompletionBlock{[weak self] in
@@ -418,12 +533,19 @@ final class JimiNativeEndRunModal: UIViewController {
         let transform = CAKeyframeAnimation(keyPath:"transform");transform.duration = sample.duration
         transform.values = sample.poses.map{NSValue(caTransform3D:pose(CGFloat($0.y),0,0,0,CGFloat($0.scaleX)))}
         let alpha = CAKeyframeAnimation(keyPath:"opacity");alpha.duration = sample.duration;alpha.values = sample.poses.map{$0.opacity}
-        if let last = sample.poses.last {target.layer.transform = pose(CGFloat(last.y),0,0,0,CGFloat(last.scaleX));target.layer.opacity = Float(last.opacity)}
+        if let last = sample.poses.last {
+            target.layer.transform = pose(CGFloat(last.y),0,0,0,CGFloat(last.scaleX))
+            if let button=target as? JimiNativeEndRunButton {button.setPaintOpacity(Float(last.opacity))}
+            else {target.layer.opacity=Float(last.opacity)}
+        }
         if let beginTime {
             transform.beginTime=target.layer.convertTime(beginTime,from:nil);transform.fillMode = .backwards
             alpha.beginTime=transform.beginTime;alpha.fillMode = .backwards
         }
-        target.layer.add(transform,forKey:key);target.layer.add(alpha,forKey:key+"-opacity")
+        target.layer.add(transform,forKey:key)
+        if let button=target as? JimiNativeEndRunButton {
+            for leaf in button.paintLayers {leaf.add(alpha,forKey:key+"-opacity")}
+        }else {target.layer.add(alpha,forKey:key+"-opacity")}
     }
     @objc private func pressButton(_ sender:UIButton) {
         guard ready,!closing,!disposed else{return}
@@ -444,7 +566,7 @@ final class JimiNativeEndRunModal: UIViewController {
         CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in self?.finishClose()}
         let order = clickedButton == 1 ? [1,0] : [0,1]
         for (position,i) in order.enumerated() {
-            buttons[i].layer.removeAllAnimations()
+            buttons[i].layer.removeAllAnimations();buttons[i].paintLayers.forEach{$0.removeAllAnimations()}
             let from = JimiV9Motion.Pose.scale(clickedButton == i ? 0.84 : 1,y:clickedButton == i ? 4 : 0)
             track(buttons[i],.init(tweens:[.init(begin:Double(position)*0.07,duration:0.31,from:from,to:.scale(0,y:18,opacity:0),ease:.backIn(1.75))]),key:"cta-exit")
         }
@@ -464,7 +586,7 @@ final class JimiNativeEndRunModal: UIViewController {
         #if DEBUG
         onEntryAnimationsInstalledForTesting=nil
         #endif
-        guard !disposed else{return};modalDrag?.dispose();modalDrag = nil;disposed = true;onReady = nil;onAction = nil;onClosed = nil;buttons.forEach{$0.setModalCTAIdleSuspended(true);$0.onSculptedFacePrepared=nil;$0.retireSculptedFacePreparation()};for target in [card,flip,idle,close]+buttons {target.layer.removeAllAnimations()};viewIfLoaded?.layer.removeAllAnimations()}
+        guard !disposed else{return};paperShadow.removeAllAnimations();paperShadow.shadowPath=nil;paperShadow.removeFromSuperlayer();modalDrag?.dispose();modalDrag = nil;disposed = true;onCTAsEntering = nil;onReady = nil;onAction = nil;onClosed = nil;buttons.forEach{$0.setModalCTAIdleSuspended(true);$0.onSculptedFacePrepared=nil;$0.retireSculptedFacePreparation();$0.paintLayers.forEach{$0.removeAllAnimations()}};for target in [card,restTilt,flip,idle,close]+buttons {target.layer.removeAllAnimations()};viewIfLoaded?.layer.removeAllAnimations()}
     override func viewDidDisappear(_ animated:Bool) {super.viewDidDisappear(animated);dispose()}
 }
 

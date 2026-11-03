@@ -129,6 +129,16 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
     struct Character {
         let key:String,scale:CGFloat,x:CGFloat,y:CGFloat,topPivot:Bool
         init(_ key:String,_ scale:CGFloat,_ x:CGFloat=0,_ y:CGFloat=0,_ top:Bool=false){self.key=key;self.scale=scale;self.x=x;self.y=y;topPivot=top}
+        // Keep the established selection/audio identity; only this character's
+        // presentation uses the lossless Studio export. Originals stay intact.
+        var motionAssetPath:String {
+            key == "lik-pas-SVG" ? "assets/logo addons/native/lik-lajna-v1.webp":"assets/logo addons/optimized/\(key)-mobile.webp"
+        }
+        var stillAssetPath:String {
+            if key == "lik-pas-SVG" {return "assets/logo addons/native/lik-lajna-v1.png"}
+            let png=key == "lik-slikanje" ? "lik slikanje":key == "pas-novine" ? "pas novine":key
+            return "assets/logo addons/\(png).png"
+        }
     }
     static let characters:[Character]=[
         .init("lik-kauc",1.1475,0,40),.init("lik-gitara",1.1,0,16),.init("lik-slikanje",1.08,20,10),
@@ -136,8 +146,15 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
         .init("lik-laptop",1.452,0,8),.init("lik-pas-SVG",1.12,0,0,true),.init("lik-speceraj",1.21,0,20),
         .init("pas-novine",1.1,0,16)]
     static let duration=4.33
+    static let logoEntryDuration=JimiV9Motion.homeEnter(.logo).duration
+    static let logoIdleKey="native-studio-logo-idle"
+    private let reducedMotion:Bool
     let character:Character
     private let artwork:JimiV9Artwork,logoUnit=UIView(),logo=UIImageView(),sheen=UIImageView(),label=UIView(),characterView=UIView(),fallback=UIImageView()
+    private lazy var tabletComposition:UIView = {
+        let view=UIView();view.accessibilityIdentifier="native.studio-intro.tablet-composition"
+        return view
+    }()
     private(set) var presentsGlyphs:[UILabel]=[]
     static let presentsEntryDuration=0.44+7*0.02+1.0
     static let presentsEntryStart=0.95
@@ -153,6 +170,7 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
     private var preparedLoop:NativeStudioPreparedLoop?,preparationToken:NativeStudioPreparationToken?,mediaEpoch:UInt64=0
     private let notificationOwners=NativeStudioNotificationOwners()
     private var completion:(()->Void)?,started=false,disposed=false,backgrounded=false
+    private var leftApplication=false
     private(set) var timelineStarted=false,selectedMotionSource="pending"
     static let preparedMemoryBudgetBytes=NativeStudioAnimatedDecoder.memoryBudgetBytes
     static let frameAnimationKey="native-studio-character-frames"
@@ -172,7 +190,8 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
     var isRetired:Bool{disposed}
     var terminalCompositionHidden:Bool{isHidden && logoUnit.layer.opacity==0 && characterView.layer.opacity==0}
     var onCharacterCue:((String)->Void)?
-    init(root:URL,character:Character?=nil,decodedPublicationGate:((@escaping ()->Void)->Void)?=nil) {
+    init(root:URL,character:Character?=nil,decodedPublicationGate:((@escaping ()->Void)->Void)?=nil,reducedMotion:Bool?=nil) {
+        self.reducedMotion=reducedMotion ?? UIAccessibility.isReduceMotionEnabled
         resourceRoot=root;self.decodedPublicationGate=decodedPublicationGate
         artwork=JimiV9Artwork(resourceRoot:root)
         self.character=character ?? Self.characters.randomElement()!
@@ -203,12 +222,15 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
             glyph.textAlignment = .center;glyph.layer.isDoubleSided=false;glyph.layer.opacity=0
             label.addSubview(glyph);return glyph
         }
-        let png=self.character.key == "lik-slikanje" ? "lik slikanje":self.character.key == "pas-novine" ? "pas novine":self.character.key == "lik-pas-SVG" ? "lik-pas":self.character.key
-        fallback.image=artwork.image("assets/logo addons/\(png).png");fallback.contentMode = .scaleAspectFit
+        fallback.image=artwork.image(self.character.stillAssetPath);fallback.contentMode = .scaleAspectFit
         if self.character.topPivot {characterView.layer.anchorPoint=CGPoint(x:0.5,y:0)}
-        for name in [UIApplication.willResignActiveNotification,UIApplication.didBecomeActiveNotification] {
+        for name in [UIApplication.willResignActiveNotification,UIApplication.didEnterBackgroundNotification,UIApplication.didBecomeActiveNotification] {
             notificationOwners.tokens.append(NotificationCenter.default.addObserver(forName:name,object:nil,queue:.main){[weak self] note in
-                MainActor.assumeIsolated{self?.setBackgrounded(note.name==UIApplication.willResignActiveNotification)}
+                MainActor.assumeIsolated{
+                    guard let self else{return}
+                    if note.name==UIApplication.didEnterBackgroundNotification {self.leftApplication=true}
+                    self.setBackgrounded(note.name != UIApplication.didBecomeActiveNotification)
+                }
             })
         }
     }
@@ -216,13 +238,30 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
     required init?(coder:NSCoder){fatalError("Native original-art initializer")}
     override func layoutSubviews(){
         super.layoutSubviews()
-        let width=min(bounds.width*0.806,315),charWidth=min(bounds.width*0.74,289)
+        let tablet=NativeTabletLayout.applies(bounds.size)
+        let canvas=tablet ? CGRect(x:0,y:0,width:390,height:844):bounds
+        if tablet {
+            if logoUnit.superview !== tabletComposition {
+                addSubview(tabletComposition)
+                tabletComposition.addSubview(logoUnit);tabletComposition.addSubview(characterView)
+            }
+            let available=bounds.inset(by:safeAreaInsets)
+            let projection=max(0,min(1.33,max(0,available.width-48)/canvas.width,available.height/canvas.height))
+            tabletComposition.bounds=canvas
+            tabletComposition.center=CGPoint(x:available.midX,y:available.midY)
+            tabletComposition.transform=CGAffineTransform(scaleX:projection,y:projection)
+        } else if logoUnit.superview !== self {
+            addSubview(logoUnit);addSubview(characterView);tabletComposition.removeFromSuperview()
+        }
+        // The original phone composition owns all local geometry and motion.
+        // Tablet projects it once, including glyphs, offsets and finite floats.
+        let width=min(canvas.width*0.806,315),charWidth=min(canvas.width*0.74,289)
         let logoAspect=logo.image.map{$0.size.height/max(1,$0.size.width)} ?? 0.5
         let imageHeight=width*logoAspect,logoHeight=imageHeight+29
         let aspect=preparedLoop.map{CGFloat($0.sourceAspect)} ?? fallback.image.map{$0.size.height/max(1,$0.size.width)} ?? 1
-        let charHeight=min(bounds.height*0.54,charWidth*aspect),total=logoHeight+20+charHeight
-        let top=(bounds.height-total)/2
-        logoUnit.bounds=CGRect(x:0,y:0,width:width,height:logoHeight);logoUnit.center=CGPoint(x:bounds.midX,y:top+logoHeight/2)
+        let charHeight=min(canvas.height*0.54,charWidth*aspect),total=logoHeight+20+charHeight
+        let top=(canvas.height-total)/2
+        logoUnit.bounds=CGRect(x:0,y:0,width:width,height:logoHeight);logoUnit.center=CGPoint(x:canvas.midX,y:top+logoHeight/2)
         logo.frame=CGRect(x:0,y:0,width:width,height:imageHeight);sheen.frame=logo.frame;label.frame=CGRect(x:0,y:imageHeight+14,width:width,height:15)
         let advances=presentsGlyphs.map{($0.text! as NSString).size(withAttributes:[.font:$0.font as Any]).width}
         var glyphX=(width-advances.reduce(0,+)-0.9*CGFloat(max(0,advances.count-1)))/2
@@ -241,12 +280,18 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
             band.position=CGPoint(x:-width*0.26,y:row.bounds.midY)
         }
         CATransaction.commit()
-        characterView.bounds=CGRect(x:0,y:0,width:charWidth,height:charHeight)
-        characterView.layer.position=CGPoint(x:bounds.midX+character.x,y:top+logoHeight+20+charHeight*characterView.layer.anchorPoint.y+character.y)
+        // Resize every tablet character variant without shifting the existing
+        // logo composition, authored pivot, entry/exit scale or frame clock.
+        let characterSizeScale:CGFloat=tablet ? 1.5*0.70:1
+        characterView.bounds=CGRect(x:0,y:0,width:charWidth*characterSizeScale,height:charHeight*characterSizeScale)
+        characterView.layer.position=CGPoint(x:canvas.midX+character.x,y:top+logoHeight+20+charHeight*characterView.layer.anchorPoint.y+character.y)
         fallback.frame=characterView.bounds
     }
-    static func scale(at seconds:Double,character:Bool,rest:Double=1)->Double {
-        let begin=character ? 0.15:0,enter=character ? 0.55:0.45,exit=character ? 3.5:3.68
+    static func scale(at seconds:Double,character:Bool,rest:Double=1,reducedMotion:Bool=false)->Double {
+        let begin=character ? 0.15:0,enter=character ? 0.55:(reducedMotion ? 0.16:logoEntryDuration),exit=character ? 3.5:3.68
+        if !character,seconds<enter {
+            return rest*(reducedMotion ? JimiV9Motion.Ease.powerOut(2).value(max(0,seconds)/enter):JimiV9Motion.homeEnter(.logo).pose(at:seconds).scaleX)
+        }
         if seconds<begin{return rest*(character ? 0.82:0.92)}
         if seconds<begin+enter {
             let p=(seconds-begin)/enter,e=character ? JimiV9Motion.Ease.backOut(1.8).value(p):(p<0.5 ? 4*p*p*p:1-pow(-2*p+2,3)/2)
@@ -263,7 +308,7 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
         guard started,!disposed,!backgrounded,preparedLoop==nil,selectedMotionSource != "fallback-loading" else{return}
         mediaEpoch &+= 1;let epoch=mediaEpoch,token=NativeStudioPreparationToken()
         preparationToken=token;selectedMotionSource="fallback-loading"
-        let url=resourceRoot.appendingPathComponent("assets/logo addons/optimized/\(character.key)-mobile.webp")
+        let url=resourceRoot.appendingPathComponent(character.motionAssetPath)
         NativeStudioAnimatedDecoder.queue.async{[weak self] in
             let began=ProcessInfo.processInfo.systemUptime
             let loop=NativeStudioAnimatedDecoder.prepare(url:url,token:token)
@@ -294,6 +339,7 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
         guard !timelineStarted,!disposed else{return}
         guard !backgrounded else{return}
         timelineStarted=true
+        startLogoIdle()
         for (index,glyph) in presentsGlyphs.enumerated(){
             let samples=Int(ceil(Self.duration*60))
             let poses=(0...samples).map{Self.presentsPose(at:Self.duration*Double($0)/Double(samples),index:index)}
@@ -339,7 +385,7 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
             let scale=CAKeyframeAnimation(keyPath:"transform"),opacity=CAKeyframeAnimation(keyPath:"opacity")
             let samples=1040
             scale.values=(0...samples).map{index in
-                let value=Self.scale(at:Self.duration*Double(index)/Double(samples),character:isCharacter,rest:isCharacter ? Double(character.scale):1)
+                let value=Self.scale(at:Self.duration*Double(index)/Double(samples),character:isCharacter,rest:isCharacter ? Double(character.scale):1,reducedMotion:reducedMotion)
                 return NSValue(caTransform3D:CATransform3DMakeScale(value,value,1))
             }
             opacity.values=(0...samples).map{index -> NSNumber in
@@ -352,9 +398,39 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
             target.layer.add(group,forKey:"native-studio-intro")
         }
     }
-    func animationDidStop(_ anim:CAAnimation,finished:Bool){guard finished,timelineStarted,!disposed else{return};let done=completion;completion=nil;dispose();done?()}
+    private func startLogoIdle() {
+        guard !reducedMotion else{return}
+        // Exact Worlds Hub outer float:8pt lift,1.8percent breath,0.7degree lean.
+        // The intro lasts only4.33s,so a single finite4.4s pass is sufficient.
+        // Logo and its sheen share one epoch beneath the unchanged route shell.
+        var peak=CATransform3DMakeTranslation(0,-8,0)
+        peak=CATransform3DScale(peak,1.018,1.018,1)
+        peak=CATransform3DRotate(peak,0.7 * .pi/180,0,0,1)
+        let epoch=CACurrentMediaTime()+Self.logoEntryDuration
+        for target in [logo,sheen] {
+            let animation=CAKeyframeAnimation(keyPath:"transform")
+            animation.values=[CATransform3DIdentity,peak,CATransform3DIdentity].map{NSValue(caTransform3D:$0)}
+            animation.keyTimes=[0,0.5,1];animation.duration=4.4
+            animation.timingFunctions=[CAMediaTimingFunction(name:.easeInEaseOut),CAMediaTimingFunction(name:.easeInEaseOut)]
+            animation.beginTime=target.layer.convertTime(epoch,from:nil);animation.fillMode = .backwards
+            target.layer.add(animation,forKey:Self.logoIdleKey)
+        }
+    }
+    func animationDidStop(_ anim:CAAnimation,finished:Bool){
+        guard finished,timelineStarted,!disposed else{return};finishPresentation()
+    }
+    private func finishPresentation(){
+        guard started,!disposed else{return}
+        let done=completion;completion=nil;dispose();done?()
+    }
     private func setBackgrounded(_ value:Bool){
         guard !disposed,backgrounded != value else{return};backgrounded=value
+        // iOS may discard finite CA animations while the app is backgrounded.
+        // Their model pose is intentionally hidden, so waiting for the lost
+        // delegate would strand the root on paper. A real app switch retires
+        // this launch-only presentation and hands Home off exactly once.
+        // Transient focus loss retains the authored pause/resume path below.
+        if !value,leftApplication {finishPresentation();return}
         if timelineStarted {for target in [logoUnit,characterView]{let layer=target.layer
             if value {let time=layer.convertTime(CACurrentMediaTime(),from:nil);layer.speed=0;layer.timeOffset=time}
             else {let paused=layer.timeOffset;layer.speed=1;layer.timeOffset=0;layer.beginTime=0;layer.beginTime=layer.convertTime(CACurrentMediaTime(),from:nil)-paused}
@@ -371,6 +447,7 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
         for target in [logoUnit,characterView]{target.layer.opacity=0;target.layer.transform=CATransform3DMakeScale(0,0,1)}
         sheen.layer.opacity=0;CATransaction.commit()
         for target in [logoUnit,characterView]{target.layer.removeAllAnimations()}
+        logo.layer.removeAnimation(forKey:Self.logoIdleKey)
         sheen.layer.removeAllAnimations();sheenMask.removeAllAnimations();sheenBands.forEach{$0.removeAllAnimations()}
         presentsGlyphs.forEach{$0.layer.removeAllAnimations();$0.layer.opacity=0}
         notificationOwners.removeAll();removeFromSuperview()

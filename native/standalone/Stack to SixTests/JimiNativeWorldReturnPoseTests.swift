@@ -10,13 +10,14 @@ final class JimiNativeWorldReturnPoseTests: XCTestCase {
     }
     func testInterimTerminalReturnUsesArtworkCentreWithBottomIdlePivotInEveryWorld() async throws {
         guard !UIAccessibility.isReduceMotionEnabled else {throw XCTSkip("Return reminder requires full motion")}
-        for width:CGFloat in [390,768] {for worldID in 1...3 {
+        for width:CGFloat in [390,768,820] {for worldID in 1...3 {
+            let height:CGFloat=width==820 ? 1180:844
             let boardID=(worldID-1)*10+8
             var progression=NativeProgressionState()
             progression.completedJourneyBoards=Set(1..<boardID)
-            let raw=try NativeWorldLayouts().snapshot(world:worldID,width:Double(width),height:844,generation:2,progression:progression,returnBoard:boardID)
+            let raw=try NativeWorldLayouts().snapshot(world:worldID,width:Double(width),height:Double(height),generation:2,progression:progression,returnBoard:boardID,proportionalCards:width==820,unitScale:width==820 ? 1.30:1)
             let world=try XCTUnwrap(JimiNativeWorldView(snapshot:raw,assets:JimiV9Artwork(resourceRoot:NativeTestResources.root)))
-            let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:width,height:844))
+            let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:width,height:height))
             window.rootViewController=host;window.makeKeyAndVisible();world.frame=window.bounds;host.view.addSubview(world)
             defer {world.cleanup();window.isHidden=true}
             world.layoutIfNeeded()
@@ -25,7 +26,7 @@ final class JimiNativeWorldReturnPoseTests: XCTestCase {
                 return root.subviews.lazy.compactMap{find($0,id)}.first
             }
             let unit=try XCTUnwrap(find(world,"native.world.card.\(boardID)"))
-            world.scrollView.contentOffset=CGPoint(x:0,y:max(0,min(unit.frame.midY-422,world.scrollView.contentSize.height-844)))
+            world.scrollView.contentOffset=CGPoint(x:0,y:max(0,min(unit.frame.midY-height/2,world.scrollView.contentSize.height-height)))
             let prepared=expectation(description:"Authored Unit08 artwork ready")
             world.prepare{prepared.fulfill()};await fulfillment(of:[prepared],timeout:10)
             let card=try XCTUnwrap(find(unit,"native.world.part.\(boardID).card"))

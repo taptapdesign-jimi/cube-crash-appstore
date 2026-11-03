@@ -24,15 +24,16 @@ final class JimiHomePlacementAndBackTests: XCTestCase {
     func testAllThreeHomeRectsMatchV10MobileOffsets() {
         let root = NativeTestResources.root
         let home = JimiV9HomeView(frame: CGRect(x: 0, y: 0, width: 390, height: 844), assets: JimiV9Artwork(resourceRoot: root))
-        // v10 CSS evaluated at390×844: image233, CTA599.99 with47px
-        // top safe area. Removing its two47px insets and retaining Home's
-        // 44px minimum gives183 /549.99 in this unattached UIKit fixture.
+        // Existing fuller Home CTA is80.64 *0.96 =77.4144pt, already accepted
+        // before tablet adaptation. At390x844 without attached safe insets,
+        // the unchanged hero top is183 and CTA top is543.2828. The older
+        // 549.99 assertion described the retired64pt action height.
         for index in 0..<3 {
             home.selectSlide(index, animated: false)
             home.layoutSubviews()
             XCTAssertEqual(home.heroView.frame.minY, 183, accuracy: 0.001)
             XCTAssertEqual(home.heroView.frame.height, 336, accuracy: 0.001)
-            XCTAssertEqual(home.ctaView.convert(home.ctaView.bounds, to: home).minY, 549.99, accuracy: 0.02)
+            XCTAssertEqual(home.ctaView.convert(home.ctaView.bounds, to: home).minY, 543.2828, accuracy: 0.02)
         }
     }
 

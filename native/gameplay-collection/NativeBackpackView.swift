@@ -1,4 +1,5 @@
 import UIKit
+import StackToSixGameplay
 
 /// Reusable cells load only when they intersect the scroll viewport.
 /// The existing visible presentation lease also owns unlocked artwork idle.
@@ -51,8 +52,13 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
     }
     func collectionView(_ collectionView:UICollectionView,didEndDisplaying cell:UICollectionViewCell,forItemAt indexPath:IndexPath){(cell as? NativeBackpackCell)?.setAlert(unread:false,active:false)}
     private var embedded=false
+    private var modalColumns=2
     // Corner alerts extend beyond the first row during their authored bounce.
-    func useModalLayout(){embedded=true;header.isHidden=true;grid.isScrollEnabled=false;grid.bounces=false;grid.clipsToBounds=false;setNeedsLayout()}
+    func useModalLayout(columns:Int=2){
+        let columns=max(2,min(3,columns)),changed = !embedded || modalColumns != columns
+        embedded=true;modalColumns=columns;header.isHidden=true;grid.isScrollEnabled=false;grid.bounces=false;grid.clipsToBounds=false
+        if changed {grid.collectionViewLayout.invalidateLayout();grid.reloadData();setNeedsLayout()}
+    }
     private(set) var sections:[NativeBackpackCatalog.Section]=[]
     var onClose:(()->Void)?,onDie:((NativeBackpackCatalog.Die)->Void)?
     init(frame:CGRect,assets:JimiV9Artwork,title:String="Backpack",arcadeCrate:Bool=false) {
@@ -79,32 +85,56 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
     func apply(_ sections:[NativeBackpackCatalog.Section],includesArcade:Bool=false) {self.includesArcade=arcadeCrate || includesArcade;self.sections=arcadeCrate ? []:sections;seenUnreadDice.removeAll();grid.setContentOffset(CGPoint(x:0,y:-grid.contentInset.top),animated:false);grid.reloadData();setNeedsLayout();layoutIfNeeded()}
     override func layoutSubviews() {
         super.layoutSubviews()
-        let row=JimiV9NavigationHeader.RowLayout(bounds:bounds,safeAreaTop:safeAreaInsets.top),height=embedded ? 16:row.top+66
+        let row=JimiV9NavigationHeader.RowLayout(bounds:bounds,safeAreaTop:safeAreaInsets.top),height=embedded ? 16:row.headerHeight()
         header.bounds=CGRect(x:0,y:0,width:bounds.width,height:height);header.center=CGPoint(x:bounds.midX,y:height/2)
-        title.frame=row.titleFrame
-        close.frame=row.buttonFrame(x:22)
+        NativeTabletLayout.labelFont(title,size:row.titleFontSize)
+        title.frame=row.titleFrame(for:title)
+        close.frame=row.buttonFrame(x:22,visibleInset:10)
+        close.imageEdgeInsets=row.iconInsets(UIEdgeInsets(top:10,left:10,bottom:10,right:10),imageHeight:24,inkCenterY:0.5153061224489796)
         let previousTop=grid.contentInset.top,previousOffset=grid.contentOffset
-        grid.frame=bounds
+        let contentWidth=embedded ? bounds.width:NativeTabletLayout.collectionWidth(bounds.size,crate:arcadeCrate)
+        grid.frame=CGRect(x:bounds.midX-contentWidth/2,y:0,width:contentWidth,height:bounds.height)
         if previousTop != height {
             grid.contentInset.top=height
             grid.setContentOffset(CGPoint(x:previousOffset.x,y:previousOffset.y+previousTop-height),animated:false)
         }
         grid.contentInset.bottom=embedded ? 16:safeAreaInsets.bottom+16
         if embedded,let layout=grid.collectionViewLayout as? UICollectionViewFlowLayout {
-            let inset=max(24,(bounds.width-2*modalItemSide-16)/2)
+            let inset=max(24,(bounds.width-CGFloat(modalColumns)*modalItemSide-CGFloat(modalColumns-1)*16)/2)
             layout.sectionInset=UIEdgeInsets(top:0,left:inset,bottom:0,right:inset);layout.minimumLineSpacing=16
             layout.invalidateLayout()
         }
         if let layout=grid.collectionViewLayout as? UICollectionViewFlowLayout {
-            let side=floor((bounds.width-84)/2)
-            if layout.itemSize.width != side {layout.itemSize=CGSize(width:side,height:side);layout.headerReferenceSize=CGSize(width:bounds.width,height:100);layout.invalidateLayout()}
+            let metrics=tabletGridMetrics
+            if !embedded {
+                let verticalInset=metrics?.verticalInset ?? 0
+                let insets=UIEdgeInsets(top:verticalInset,left:32,bottom:verticalInset,right:32)
+                if layout.sectionInset != insets {layout.sectionInset=insets;layout.invalidateLayout()}
+            }
+            let gap=metrics?.gap ?? 16
+            let lineGap=metrics?.lineGap ?? (embedded ? 16:20)
+            if layout.minimumInteritemSpacing != gap || layout.minimumLineSpacing != lineGap {
+                layout.minimumInteritemSpacing=gap;layout.minimumLineSpacing=lineGap;layout.invalidateLayout()
+            }
+            let columns:CGFloat = !embedded && !arcadeCrate ? 3:2
+            let side=floor((grid.bounds.width-64-(columns-1)*(columns==3 ? 16:20))/columns)
+            if layout.itemSize.width != side {layout.itemSize=CGSize(width:side,height:side);layout.headerReferenceSize=CGSize(width:grid.bounds.width,height:100);layout.invalidateLayout()}
         }
+    }
+    private var tabletGridMetrics:(side:CGFloat,gap:CGFloat,lineGap:CGFloat,verticalInset:CGFloat)? {
+        guard !embedded,NativeTabletLayout.applies(bounds.size),grid.bounds.width>64 else{return nil}
+        let width=grid.bounds.width,oldSide=floor((width-64-32)/3)
+        let oldPaintedSide=oldSide*0.97
+        let oldVisibleGap=(width-64-3*oldSide)/2+oldSide-oldPaintedSide
+        let gap=oldVisibleGap+width*0.02
+        let side=(width-64-2*gap)/3
+        return (side,gap,20+oldSide-side,(oldSide-side)/2)
     }
     // The board modal shows one World: keep every row inside its available height.
     private var modalItemSide:CGFloat {
-        let rows=max(1,sections.reduce(0){$0+($1.dice.count+1)/2}+(includesArcade ? (NativeBackpackCatalog.arcade.count+1)/2:0))
+        let rows=max(1,sections.reduce(0){$0+($1.dice.count+modalColumns-1)/modalColumns}+(includesArcade ? (NativeBackpackCatalog.arcade.count+modalColumns-1)/modalColumns:0))
         let available=max(0,bounds.height-32-CGFloat(rows-1)*16)
-        return max(0,min(floor((bounds.width-64)/2),floor(available/CGFloat(rows))))
+        return max(0,min(floor((bounds.width-48-CGFloat(modalColumns-1)*16)/CGFloat(modalColumns)),floor(available/CGFloat(rows))))
     }
     func numberOfSections(in collectionView:UICollectionView)->Int {sections.count+(includesArcade ? 1:0)}
     func collectionView(_ collectionView:UICollectionView,numberOfItemsInSection section:Int)->Int {includesArcade && section==0 ? NativeBackpackCatalog.arcade.count:sections[section-(includesArcade ? 1:0)].dice.count}
@@ -112,24 +142,28 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
         let cell=collectionView.dequeueReusableCell(withReuseIdentifier:"die",for:indexPath) as! NativeBackpackCell
         let die=includesArcade && indexPath.section==0 ? NativeBackpackCatalog.arcade[indexPath.item]:sections[indexPath.section-(includesArcade ? 1:0)].dice[indexPath.item]
         let unlocked=includesArcade && indexPath.section==0 || sections[indexPath.section-(includesArcade ? 1:0)].unlocked.contains(die.id)
-        cell.apply(die,unlocked:unlocked,right:indexPath.item%2==1,arcade:includesArcade && indexPath.section==0 && !arcadeCrate,assets:assets,illustrationScale:arcadeCrate ? (die.id=="wild-magnet" ? 0.8:die.id=="tnt" ? 0.95:1):1)
+        let threeColumns = embedded ? modalColumns==3 : !arcadeCrate || NativeTabletLayout.applies(bounds.size)
+        let alertOnRight=threeColumns ? indexPath.item%3 != 0:indexPath.item%2==1
+        cell.apply(die,unlocked:unlocked,right:indexPath.item%2==1,arcade:includesArcade && indexPath.section==0 && !arcadeCrate,assets:assets,edgeAligned:tabletGridMetrics != nil,illustrationScale:arcadeCrate ? (die.id=="wild-magnet" ? 0.8:die.id=="tnt" ? 0.95:1):1,alertOnRight:alertOnRight)
         let section=indexPath.section-(includesArcade ? 1:0)
         cell.setAlert(unread:unlocked && section>=0 && sections[section].unread.contains(die.id),active:alertsActive && !isHidden);return cell
     }
     func collectionView(_ collectionView:UICollectionView,viewForSupplementaryElementOfKind kind:String,at indexPath:IndexPath)->UICollectionReusableView {
         let header=collectionView.dequeueReusableSupplementaryView(ofKind:kind,withReuseIdentifier:"section",for:indexPath) as! NativeBackpackSectionHeader
-        if arcadeCrate {header.apply(title:"Arcade",detail:nil,count:"\(NativeBackpackCatalog.arcade.count) / \(NativeBackpackCatalog.arcade.count)",assets:assets)}
+        if arcadeCrate {header.apply(title:"Arcade",detail:nil,count:"\(NativeScoreDisplay.text(NativeBackpackCatalog.arcade.count)) / \(NativeScoreDisplay.text(NativeBackpackCatalog.arcade.count))",assets:assets)}
         else if includesArcade && indexPath.section==0 {header.apply(title:"Arcade",detail:"Always ready to play! Unlock more dice in Journey for even more fun.",count:nil,assets:assets)}
-        else {let section=sections[indexPath.section-(includesArcade ? 1:0)];header.apply(title:section.title,detail:nil,count:"\(section.count) / \(section.dice.count)",assets:assets)}
+        else {let section=sections[indexPath.section-(includesArcade ? 1:0)];header.apply(title:section.title,detail:nil,count:"\(NativeScoreDisplay.text(section.count)) / \(NativeScoreDisplay.text(section.dice.count))",assets:assets)}
         return header
     }
     func collectionView(_ collectionView:UICollectionView,layout collectionViewLayout:UICollectionViewLayout,sizeForItemAt indexPath:IndexPath)->CGSize {
         if embedded {return CGSize(width:modalItemSide,height:modalItemSide)}
-        let columns:CGFloat=includesArcade && indexPath.section==0 && !arcadeCrate ? 3:2
-        let side=floor((bounds.width-(embedded ? 48:64)-(columns-1)*(embedded ? 16:columns==3 ? 16:20))/columns)
+        if let metrics=tabletGridMetrics {return CGSize(width:metrics.side,height:metrics.side)}
+        let phoneColumns=arcadeCrate ? 2:3
+        let columns=CGFloat(NativeTabletLayout.collectionColumns(bounds.size,crate:arcadeCrate,phoneColumns:phoneColumns))
+        let side=floor((grid.bounds.width-(embedded ? 48:64)-(columns-1)*(embedded ? 16:columns==3 ? 16:20))/columns)
         return CGSize(width:side,height:side)
     }
-    func collectionView(_ collectionView:UICollectionView,layout collectionViewLayout:UICollectionViewLayout,referenceSizeForHeaderInSection section:Int)->CGSize {CGSize(width:bounds.width,height:embedded ? 0:includesArcade && section==0 && !arcadeCrate ? 156:100)}
+    func collectionView(_ collectionView:UICollectionView,layout collectionViewLayout:UICollectionViewLayout,referenceSizeForHeaderInSection section:Int)->CGSize {CGSize(width:grid.bounds.width,height:embedded ? 0:includesArcade && section==0 && !arcadeCrate ? 156:100)}
     func collectionView(_ collectionView:UICollectionView,didSelectItemAt indexPath:IndexPath) {
         guard isUserInteractionEnabled else{return}
         let die=includesArcade && indexPath.section==0 ? NativeBackpackCatalog.arcade[indexPath.item]:sections[indexPath.section-(includesArcade ? 1:0)].dice[indexPath.item]
@@ -251,6 +285,7 @@ private final class NativeBackpackCell:UICollectionViewCell {
     let alert=NativeBackpackAlertView()
     private var alertRight=false
     private var arcade=false
+    private var edgeAligned=false
     private var artworkSize=CGSize(width:80,height:80)
     private var artworkOffset=CGPoint.zero
     private var artworkActive=false
@@ -297,10 +332,10 @@ private final class NativeBackpackCell:UICollectionViewCell {
     }
     override init(frame:CGRect){super.init(frame:frame);for image in [holder as UIView,die]{artworkGroup.addSubview(image)};die.contentMode = .scaleAspectFit;artworkGroup.addSubview(alert);contentView.addSubview(artworkGroup);artworkGroup.accessibilityIdentifier="native.backpack.idle-group";isAccessibilityElement=true}
     required init?(coder:NSCoder){fatalError("Use frame")}
-    func apply(_ item:NativeBackpackCatalog.Die,unlocked:Bool,right:Bool,arcade:Bool,assets:JimiV9Artwork,illustrationScale:CGFloat=1) {
+    func apply(_ item:NativeBackpackCatalog.Die,unlocked:Bool,right:Bool,arcade:Bool,assets:JimiV9Artwork,edgeAligned:Bool=false,illustrationScale:CGFloat=1,alertOnRight:Bool?=nil) {
         if artworkIdentity != item.id {stopArtworkIdle(reset:true);artworkIdentity=item.id}
         artworkIdleMotion=NativeBackpackArtworkIdleMotion(id:item.id)
-        self.arcade=arcade;alertRight=right;alert.clockwise=right
+        self.edgeAligned=edgeAligned;self.arcade=arcade;alertRight=alertOnRight ?? right;alert.clockwise=alertRight
         alert.image=assets.image("assets/nav/new.png",densityAware:true)
         let holderSuffix = !unlocked ? " locked" : arcade ? (item.id=="baloon" ? " middle" : item.id=="tnt" ? " desno" : "") : (right ? " desno" : "")
         holder.image=assets.image("assets/backpack/dice holder\(holderSuffix).png",densityAware:true)
@@ -333,7 +368,7 @@ private final class NativeBackpackCell:UICollectionViewCell {
         accessibilityIdentifier="native.backpack.die.\(item.id)";die.accessibilityIdentifier="native.backpack.idle-artwork";reconcileArtworkIdle();setNeedsLayout()
     }
     func setAlert(unread:Bool,active:Bool){alert.isHidden = !unread;alert.setActive(unread && active);artworkActive=active;layoutIfNeeded();reconcileArtworkIdle()}
-    override func layoutSubviews(){super.layoutSubviews();configureArtworkSampling();artworkGroup.bounds=contentView.bounds;artworkGroup.center=CGPoint(x:contentView.bounds.midX,y:contentView.bounds.midY);let scale=contentView.bounds.width/(arcade ? 98:153);holder.bounds=CGRect(x:0,y:0,width:contentView.bounds.width+(die.tag==0 ? 2*scale:0),height:contentView.bounds.height);holder.center=CGPoint(x:contentView.bounds.midX,y:contentView.bounds.midY);let size=die.tag==0 ? CGSize(width:70*scale,height:80*scale):CGSize(width:artworkSize.width*scale,height:artworkSize.height*scale);die.bounds=CGRect(origin:.zero,size:size);die.center=CGPoint(x:contentView.bounds.midX-artworkOffset.x*scale,y:contentView.bounds.midY-artworkOffset.y*scale)
+    override func layoutSubviews(){super.layoutSubviews();configureArtworkSampling();artworkGroup.bounds=contentView.bounds;artworkGroup.center=CGPoint(x:contentView.bounds.midX,y:contentView.bounds.midY);let scale=contentView.bounds.width/(arcade ? 98:153);holder.bounds=CGRect(x:0,y:0,width:contentView.bounds.width+(die.tag==0 && !edgeAligned ? 2*scale:0),height:contentView.bounds.height);holder.center=CGPoint(x:contentView.bounds.midX,y:contentView.bounds.midY);let size=die.tag==0 ? CGSize(width:70*scale,height:80*scale):CGSize(width:artworkSize.width*scale,height:artworkSize.height*scale);die.bounds=CGRect(origin:.zero,size:size);die.center=CGPoint(x:contentView.bounds.midX-artworkOffset.x*scale,y:contentView.bounds.midY-artworkOffset.y*scale)
         alert.bounds=CGRect(x:0,y:0,width:58*1.1*scale,height:58*1.1*scale);alert.center=CGPoint(x:alertRight ? contentView.bounds.width-14*scale:14*scale,y:14*scale)
         reconcileArtworkIdle()
     }
@@ -345,7 +380,7 @@ private final class NativeBackpackSectionHeader:UICollectionReusableView {
     private let heading=UILabel(),detail=UILabel(),count=UILabel()
     override init(frame:CGRect){super.init(frame:frame);[heading,detail,count].forEach{addSubview($0)};detail.numberOfLines=2}
     required init?(coder:NSCoder){fatalError("Use frame")}
-    func apply(title:String,detail:String?,count:String?,assets:JimiV9Artwork){heading.font=assets.font(size:28,weight:"ExtraBold");heading.textColor=NativeTextPalette.navigationTitle;heading.attributedText=title == "Area 55" ? NSAttributedString(string:title,attributes:[.foregroundColor:NativeTextPalette.navigationTitle]):NativeModalTypography.attributedCollectionTitle(title,baseColor:NativeTextPalette.navigationTitle);self.detail.text=detail;self.detail.font=assets.font(size:18,weight:"Medium");if let detail {self.detail.attributedText=NativeModalTypography.attributedSubtitle(detail,font:assets.font(size:18,weight:"Medium"),alignment:.left)};self.detail.textColor=NativeTextPalette.subtitle;self.count.text=count;self.count.font=assets.font(size:24,weight:"ExtraBold");self.count.textColor=UIColor(red:232/255,green:116/255,blue:74/255,alpha:1);self.count.textAlignment = .right}
+    func apply(title:String,detail:String?,count:String?,assets:JimiV9Artwork){heading.font=assets.font(size:28,weight:"ExtraBold");heading.textColor=NativeTextPalette.navigationTitle;heading.attributedText=title == "Area 55" ? NSAttributedString(string:title,attributes:[.foregroundColor:NativeTextPalette.navigationTitle]):NativeModalTypography.attributedCollectionTitle(title,baseColor:NativeTextPalette.navigationTitle);self.detail.text=detail;self.detail.font=assets.font(size:18,weight:"Medium");if let detail {self.detail.attributedText=NativeModalTypography.attributedSubtitle(detail,font:assets.font(size:18,weight:"Medium"),alignment:.left)};self.detail.textColor=NativeTextPalette.subtitle;self.count.text=count;self.count.font=assets.font(size:24,weight:"ExtraBold");self.count.textColor=NativeTextPalette.accentOrange;self.count.textAlignment = .right}
     override func layoutSubviews(){super.layoutSubviews();let top:CGFloat=detail.text == nil ? 40:32;heading.frame=CGRect(x:32,y:top,width:bounds.width-140,height:40);count.frame=CGRect(x:bounds.width-112,y:top,width:80,height:40);detail.frame=CGRect(x:32,y:top+48,width:bounds.width-64,height:56)}
 }
 

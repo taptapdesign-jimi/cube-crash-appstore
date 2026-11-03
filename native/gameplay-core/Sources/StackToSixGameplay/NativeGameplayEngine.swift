@@ -647,6 +647,10 @@ public final class NativeGameplayEngine {
     private var locks: [String: Bool] = [:] // true = wild-only; false = entire gameplay
     private var comboLastMutationTime: Double?
     public var comboWindowExtension:Double=0
+    public var wildComboWindowExtension:Double?
+    public var comboSpeedBonusEnabled=false
+    private var specialComboElapsed:Double?
+    private var comboLastAcceptedMoveTime:Double?
     private var comboWindow: Double = 2
     public let sourceMathRandom:NativeSourceMathRandomStream?
     private var randomChoices: [Double]
@@ -728,7 +732,7 @@ public final class NativeGameplayEngine {
         pendingSourceSpecialAbsorb=nil;sourceSpecialAbsorbMainEntered=false
         pendingSourceSpecialWildDestinationFace=nil;completedSourceSpecialWildDestinationFace=nil
         pendingOrdinaryStack = nil; pendingOrdinarySix = nil; ordinarySixGameplayCommitted = false; pendingOrdinaryPostchecks.removeAll(); pendingOrdinarySpawns.removeAll(); ordinarySpawnPreparationPending=false;pendingOrdinaryAssignments.removeAll();pendingSourceOrdinaryLockedSettlement=nil;pendingSourceOrdinaryMinimumPhase=nil;sourceOrdinaryMinimumRescueStage=nil;sourceOrdinaryMinimumRuntime=nil;sourceOrdinaryMinimumRescueOpened=0;sourceOrdinaryMinimumPhaseEligible=false;pendingOrdinaryPrimaryArrival=nil;pendingOrdinaryDestinationCleanup=nil;ordinaryRefillRemaining=0;ordinaryRequestedOpenings=0;ordinarySuccessfulOpenings=0;ordinaryForcedCandidates=[];ordinaryForcedPass=false; committingOrdinaryStack = false
-        drag = nil; sourceHUDStarJobs.removeAll(); sourceHUDStarJobSequence=0; pendingHUDStars.removeAll(); pendingMeterRewards.removeAll(); tntReservationReleased = false; specialActivationCommitted = false; tntTargetsReserved = false;tntComboCoinReward = 0;tntCoinCounts.removeAll(); deferredFinalMerge = nil; locks.removeAll(); flags = NativeGameplayRuntimeFlags(); noMovesSignature = nil; comboLastMutationTime = nil
+        drag = nil; sourceHUDStarJobs.removeAll(); sourceHUDStarJobSequence=0; pendingHUDStars.removeAll(); pendingMeterRewards.removeAll(); tntReservationReleased = false; specialActivationCommitted = false; tntTargetsReserved = false;tntComboCoinReward = 0;tntCoinCounts.removeAll(); deferredFinalMerge = nil; locks.removeAll(); flags = NativeGameplayRuntimeFlags(); noMovesSignature = nil; comboLastMutationTime = nil; specialComboElapsed=nil; comboLastAcceptedMoveTime=nil
     }
     public func cancelForBackground() {
         pendingWildRecoveryChecks=[];pendingWildSpawnPresentations=[]
@@ -828,8 +832,15 @@ public final class NativeGameplayEngine {
         return resolution
     }
     public func expireCombo(now: Double) {
-        guard let last = comboLastMutationTime, now - last >= comboWindow+max(0,comboWindowExtension) else { return }
-        state.combo = 0; comboLastMutationTime = nil
+        guard let last = comboLastMutationTime, now - last >= comboWindow+max(0,comboWindow == 4 ? (wildComboWindowExtension ?? comboWindowExtension):comboWindowExtension) else { return }
+        state.combo = 0; comboLastMutationTime = nil; comboLastAcceptedMoveTime=nil
+    }
+    private func comboElapsed(now:Double)->Double? {
+        guard state.combo>0,let last=comboLastAcceptedMoveTime,now.isFinite,last.isFinite,now>=last else{return nil}
+        return now-last
+    }
+    private func comboBonus(from:Int,to:Int,elapsed:Double?)->Int {
+        NativeRewardMath.comboIncrement(from:from,to:to,elapsed:comboSpeedBonusEnabled ? elapsed:nil)
     }
     public func drop(target: NativeCell?, pointerID: Int = 0, now: Double = 0) -> NativeMoveResult {
         guard let owned = drag else { return rejected("no_active_drag") }
@@ -919,15 +930,18 @@ public final class NativeGameplayEngine {
         let initialStarSequence = hudStarSequence
         let initialRandomChoices = randomChoices
         let initialComboTime = comboLastMutationTime
+        let initialComboSpeedTime = comboLastAcceptedMoveTime
         let initialComboWindow = comboWindow
         expireCombo(now: now)
         let oldCombo = state.combo
         let isMagnet = source.gameplayArchetype == .magnet || destination.gameplayArchetype == .magnet
-        state.combo = min(99, oldCombo + 1)
+        state.combo = oldCombo + 1
         let hudStars = captureHUDStars(source:source,destination:destination,starOrbitCapture:committingDirectWild ? pendingDirectWild?.sourceStarOrbitCapture:nil,finalMerge:final.isFinalMerge)
         state.longestCombo = max(state.longestCombo,state.combo)
-        let deltaBonus = NativeRewardMath.streakBonus(state.combo) - NativeRewardMath.streakBonus(oldCombo)
+        let comboAcceptedTime=committingDirectWild ? (pendingDirectWild?.startedAt ?? now):now
+        let deltaBonus = comboBonus(from:oldCombo,to:state.combo,elapsed:comboElapsed(now:comboAcceptedTime))
         state.earnedComboBonus = min(999999, state.earnedComboBonus + max(0, deltaBonus))
+        comboLastAcceptedMoveTime=comboAcceptedTime
         comboLastMutationTime = now
         comboWindow = source.isWild || destination.isWild ? 4 : 2
         state.revision &+= 1
@@ -991,7 +1005,7 @@ public final class NativeGameplayEngine {
         }
         state.wildMeter = max(0, state.wildMeter + meterIncrement)
         if state.wildMeter >= 1 - 0.000001 && directWildSpawnPhase == nil && pendingSpecial == nil && pendingOrdinaryStack == nil && pendingOrdinarySix == nil && state.tutorial?.specialBarDefersReward != true {
-            guard spawnMeterReward(events: &events) else { state = initialState; pendingHUDStars = initialHUDStars; hudStarSequence = initialStarSequence; randomChoices = initialRandomChoices; comboLastMutationTime = initialComboTime; comboWindow = initialComboWindow; return rejected("native_wild_meter_reward_policy_rejected") }
+            guard spawnMeterReward(events: &events) else { state = initialState; pendingHUDStars = initialHUDStars; hudStarSequence = initialStarSequence; randomChoices = initialRandomChoices; comboLastMutationTime = initialComboTime; comboLastAcceptedMoveTime=initialComboSpeedTime; comboWindow = initialComboWindow; return rejected("native_wild_meter_reward_policy_rejected") }
         }
         state.bestScore = max(state.bestScore,state.score)
         let resolution = settleDeferredFinalMerge(events:&events)
@@ -1278,6 +1292,7 @@ public final class NativeGameplayEngine {
         }
         pendingLaserShots = [];tntComboCoinReward = 0;tntCoinCounts.removeAll()
         expireCombo(now:now)
+        specialComboElapsed=comboElapsed(now:now)
         let pre = state
         let hudStars = comboHUDCoinRewardsEnabled ? [] : captureHUDStars(source:source,destination:destination,starOrbitCapture:capturedSpecialClaim?.starOrbitCapture)
         var targets: [NativeTile]
@@ -1353,8 +1368,9 @@ public final class NativeGameplayEngine {
         }
         if pendingSourceSpecialAbsorb?.transactionID==plan.id {sourceSpecialAbsorbMainEntered=true}
         let previousCombo = state.combo
-        state.combo = min(99,state.combo+1); state.longestCombo = max(state.longestCombo,state.combo)
-        state.earnedComboBonus = min(999999,state.earnedComboBonus+max(0,NativeRewardMath.streakBonus(state.combo)-NativeRewardMath.streakBonus(previousCombo)))
+        state.combo = state.combo+1; state.longestCombo = max(state.longestCombo,state.combo)
+        state.earnedComboBonus = min(999999,state.earnedComboBonus+comboBonus(from:previousCombo,to:state.combo,elapsed:specialComboElapsed))
+        comboLastAcceptedMoveTime=specialMoveTime
         comboLastMutationTime = specialMoveTime+0.08; comboWindow = 4
         let visual = NativeSpecialDiceRegistry.finale(source:plan.source,destination:plan.destination)
         let multiplier = visual == .star || visual == .juice ? 2 : plan.source.stackDepth+plan.destination.stackDepth
@@ -1730,7 +1746,7 @@ public final class NativeGameplayEngine {
             let ownedIDs = Set(plan.targets.map(\.id))
             // Source uses an explicit 4x pull crack, independent of the one-to-four pull count.
             state.score = min(999999,state.score+24); state.cubesCracked = pre.cubesCracked+2
-            state.combo = min(99,oldCombo+1+plan.targets.count)
+            state.combo = oldCombo+1+plan.targets.count
             if sourceMagnetLazyRespawnEnabled {
                 guard let index=state.tiles.firstIndex(where:{$0.id==plan.destination.id}),respawn.survivor.id==plan.destination.id else{return rejected("source_magnet_lazy_destination_identity_missing")}
                 state.tiles[index]=respawn.survivor
@@ -1749,7 +1765,7 @@ public final class NativeGameplayEngine {
             else if progress.isLastMergeBeforePull { resetMeterAfterRound() }
         } else if plan.archetype != .tnt {
             state.tiles.removeAll { $0.id == plan.destination.id }
-            if plan.archetype != .tnt { state.combo = min(99,oldCombo+1) }; state.cubesCracked += 1
+            if plan.archetype != .tnt { state.combo = oldCombo+1 }; state.cubesCracked += 1
             let visualFx = NativeSpecialDiceRegistry.finale(source:plan.source,destination:plan.destination)
             let multiplier = plan.archetype == .magnet || visualFx == .star || visualFx == .juice ? 2 : plan.source.stackDepth+plan.destination.stackDepth
             state.score = min(999999,state.score+6*multiplier*max(1,state.combo))
@@ -1761,9 +1777,9 @@ public final class NativeGameplayEngine {
         }
         if plan.archetype != .tnt { state.moves = max(0,state.moves-1) }
         state.longestCombo = max(state.longestCombo,state.combo)
-        if plan.archetype != .tnt { state.earnedComboBonus = min(999999,state.earnedComboBonus+max(0,NativeRewardMath.streakBonus(state.combo)-NativeRewardMath.streakBonus(oldCombo))) }
+        if plan.archetype != .tnt { state.earnedComboBonus = min(999999,state.earnedComboBonus+comboBonus(from:oldCombo,to:state.combo,elapsed:specialComboElapsed)) }
         state.bestScore = max(state.bestScore,state.score)
-        if plan.archetype != .tnt { comboLastMutationTime = specialMoveTime; comboWindow = 4 }
+        if plan.archetype != .tnt { comboLastAcceptedMoveTime=specialMoveTime; comboLastMutationTime = specialMoveTime; comboWindow = 4 }
         flags.pendingSpecialMutation = false; flags.wildMagnetPullInProgress = false
         pendingSpecial = nil; pendingLaserShots = []; pendingMagnetRespawn = nil; magnetReplacementIndex = 0; specialPreBoard = nil; tntReservationReleased = false; specialActivationCommitted = false; tntTargetsReserved = false
         pendingSourceSpecialAbsorb=nil;sourceSpecialAbsorbMainEntered=false
@@ -2510,6 +2526,13 @@ public final class NativeGameplayEngine {
 
 public enum NativeRewardMath {
     public static func streakBonus(_ length: Int) -> Int { length < 3 ? 0 : 50 * length + 25 * (length - 3) * (length - 2) / 2 }
+    /// Speed boosts only the earned streak increment; elapsed time is never persisted.
+    /// Three seconds or slower retains the authored award; zero approaches 3x.
+    public static func comboIncrement(from:Int,to:Int,elapsed:Double?)->Int {
+        let base=max(0,streakBonus(to)-streakBonus(from))
+        guard from>0,let elapsed,elapsed.isFinite,elapsed>=0,elapsed<3 else{return base}
+        return Int((Double(base)*(1+2*(1-elapsed/3))).rounded(.toNearestOrAwayFromZero))
+    }
     public static func efficiencyBonus(baseBonus: Int, remainingMoves: Int, maxMoves: Int = 50, maxStackDepth: Int = 1) -> Int {
         let bonus = max(0,baseBonus)
         let moves = max(0,min(1,Double(max(0,remainingMoves))/Double(max(1,maxMoves))))
@@ -2665,9 +2688,10 @@ extension NativeGameplayEngine {
               state.tiles.contains(where:{$0.id==plan.destination.id && $0.value==6 && $0.merge6CleanupOwned}) else{return rejected("stale_ordinary_six")}
         let epochCurrent=state.revision==plan.revision
         expireCombo(now:plan.startedAt+0.08)
-        let oldCombo=state.combo;state.combo=min(99,state.combo+1)
+        let oldCombo=state.combo;state.combo=state.combo+1
         state.longestCombo=max(state.longestCombo,state.combo)
-        state.earnedComboBonus=min(999999,state.earnedComboBonus+max(0,NativeRewardMath.streakBonus(state.combo)-NativeRewardMath.streakBonus(oldCombo)))
+        state.earnedComboBonus=min(999999,state.earnedComboBonus+comboBonus(from:oldCombo,to:state.combo,elapsed:comboElapsed(now:plan.startedAt)))
+        comboLastAcceptedMoveTime=plan.startedAt
         comboLastMutationTime=plan.startedAt+0.08;comboWindow=2
         state.moves=max(0,state.moves-1);state.cubesCracked += 1
         let depth=plan.source.stackDepth+plan.destination.stackDepth
@@ -3278,6 +3302,7 @@ extension NativeGameplayEngine {
         } else {referenceTiles=state.tiles}
         let referenceAlpha=referenceTiles.first{$0.locked && $0.value<=0 && !$0.isWild && $0.alpha.isFinite}?.alpha
         var constructed:[NativeCell:NativeTile]=[:]
+        var createdBonusIDs:[String]=[]
         let allocations=NativeWildLockedBonusRules.allocate(count:bonus.locked,emptyCells:empty,referenceAlpha:referenceAlpha,admitted:{current() && self.state.terminal==nil && (self.wildSpawnPermitAdmission?(.bonus) ?? true)},isEmpty:{self.state.tile(at:$0)==nil},random:{self.nextRandom()},construct:{cell,alpha in
             guard let construct=self.sourceWildLockedBonusConstruct else{return true}
             let captured=self.state
@@ -3293,10 +3318,13 @@ extension NativeGameplayEngine {
             if constructed[allocation.cell]==nil {state.tiles.append(tile)}
             let presentation=NativeWildLockedBonusPresentation(tileID:tile.id,transactionID:plan.id,generation:plan.generation,alpha:allocation.alpha,direction:allocation.direction,delayMilliseconds:allocation.delayMilliseconds)
             pendingWildLockedBonusPresentations.append(presentation)
+            createdBonusIDs.append(tile.id)
             if let pop=sourceWildLockedBonusPop{_=pop(presentation)}
             events.append(NativeGameplayEvent(.spawned,tileIDs:[tile.id],value:0,reason:plan.id+":locked-bonus"))
         },current:current)
-        if !allocations.isEmpty {events.append(NativeGameplayEvent(.wildLockedBonusPrepared,tileIDs:pendingWildLockedBonusPresentations.map(\.tileID),reason:plan.id))}
+        // Earlier transactions can still own decorative tails. Retain their
+        // receipts, but never replay their holders as this allocation's entry.
+        if !allocations.isEmpty && !createdBonusIDs.isEmpty {events.append(NativeGameplayEvent(.wildLockedBonusPrepared,tileIDs:createdBonusIDs,reason:plan.id))}
     }
     private func sourceDirectLockedBonusGuardAdmission(_ phase:NativeWildSpawnPhaseOwner)->Bool {
         phase.mode == .normal ? sourceDirectNormalLockedBonusGuardsEnabled:

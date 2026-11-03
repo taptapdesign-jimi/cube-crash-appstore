@@ -1,0 +1,48 @@
+{
+  "tabletFlagFontBase": 24,
+  "previousFontBase": 18,
+  "phoneFontUnchanged": 18,
+  "area55AdditionalDownPoints": 8,
+  "area55TotalDownPoints": 18,
+  "qa": "ios,feature,fast,full,4hosted tests passed",
+  "ipad": {
+    "device": "43A75086-0C64-464C-B71C-FDD01AF59C32",
+    "bundle": "com.taptapdesign.stacktosix.native",
+    "normalLaunch": "com.taptapdesign.stacktosix.native: 5499",
+    "runtimeHashes": {
+      "Stack to Six": "3484fe746367aebbdcd7ad56f8c13c1138ed1b717d96595846fb0e16da45c289",
+      "Stack to Six.debug.dylib": "0aa4baa262b018a346e8127dd755767ea53cbf15e7e2a53867f2e043b6d87183"
+    },
+    "originalAssetsByteExact": 2952,
+    "saveBefore": {
+      "state-v1.previous.json": "ecf1fc0ff30e001f99b19f8d92c062faaae42f65d7e74d893beacc86545751ee",
+      "state-v1.json": "08c95e574ad8235de3d3e44010655fa1efe26a5aea64383363e7f8fbd0f278be"
+    },
+    "saveAfter": {
+      "state-v1.previous.json": "ecf1fc0ff30e001f99b19f8d92c062faaae42f65d7e74d893beacc86545751ee",
+      "state-v1.json": "08c95e574ad8235de3d3e44010655fa1efe26a5aea64383363e7f8fbd0f278be"
+    },
+    "bothSavesByteIdenticalThroughInstallAndInitialLaunch": true,
+    "actualSpringBoardSBRingerMuted": "0"
+  },
+  "iphoneSimulator": {
+    "device": "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+    "bundle": "com.taptapdesign.stacktosix.native",
+    "normalLaunch": "com.taptapdesign.stacktosix.native: 5909",
+    "runtimeHashes": {
+      "Stack to Six": "3484fe746367aebbdcd7ad56f8c13c1138ed1b717d96595846fb0e16da45c289",
+      "Stack to Six.debug.dylib": "0aa4baa262b018a346e8127dd755767ea53cbf15e7e2a53867f2e043b6d87183"
+    },
+    "originalAssetsByteExact": 2952,
+    "saveBefore": {
+      "state-v1.previous.json": "0966ba64bd96eb3e19dc24256b99c3ac72fbd5760c2ebd9430aa499f408d1912",
+      "state-v1.json": "9f029ebe42f174467c55c947bcd5572a59ca297ca1609f0cbc25b3802c4ac964"
+    },
+    "saveAfter": {
+      "state-v1.previous.json": "0966ba64bd96eb3e19dc24256b99c3ac72fbd5760c2ebd9430aa499f408d1912",
+      "state-v1.json": "9f029ebe42f174467c55c947bcd5572a59ca297ca1609f0cbc25b3802c4ac964"
+    },
+    "bothSavesByteIdenticalThroughInstallAndInitialLaunch": true,
+    "actualSpringBoardSBRingerMuted": "1"
+  }
+}

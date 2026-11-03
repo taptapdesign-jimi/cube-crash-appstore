@@ -45,6 +45,16 @@ final class NativeThemedBoardTransitionController:UIViewController {
     private let variation:NativeTransitionSceneGeometry.Variation,fontOverride:UIFont?
     private let sceneOwner:Int,paperOwner:Int
     private static var nextOwner = -200000
+    private let presentationViewport:CGSize
+    private let composition=UIView()
+    private static let tabletContentScale:CGFloat=0.7*1.15
+    private var forestSceneryDrop:CGFloat {
+        guard theme == .forest,NativeTabletLayout.applies(presentationViewport) else{return 0}
+        // Uniform downscaling around screen centre lifted the lower scene by
+        // this physical gutter. Restore its authored bottom anchoring only.
+        let physicalDrop=presentationViewport.height*(1-Self.tabletContentScale)/2
+        return physicalDrop/(NativeTabletLayout.animationScale(presentationViewport)*Self.tabletContentScale)
+    }
     private let paper=UIImageView(),scene=UIView(),paperCover=UIView(),digitUnit=UIView()
     private struct MountedCloud {
         let plan:NativeTransitionCloudPlan.Cloud,host:UIView,sprite:UIImageView
@@ -66,24 +76,39 @@ final class NativeThemedBoardTransitionController:UIViewController {
     var hasActiveClock:Bool {displayLink != nil}
     var selectedAssetCount:Int {Self.assets(theme:theme).count}
     init(root:URL,board:Int,viewport:CGSize,generation:UInt64,resources:(any NativeBoardTransitionResources)?=nil,variation:NativeTransitionSceneGeometry.Variation?=nil,font:UIFont?=nil,random:@escaping ()->Double={Double.random(in:0..<1)}) {
-        self.root=root;self.board=max(1,min(30,board));self.viewport=viewport;self.generation=generation
+        self.root=root;self.board=max(1,min(30,board));self.viewport=NativeTabletLayout.animationViewport(viewport);presentationViewport=viewport;self.generation=generation
         theme=NativeBoardTransitionPlan.Theme(board:board);self.resources=resources ?? JimiNativeWorldResources(root:root);self.random=random;artwork=JimiV9Artwork(resourceRoot:root);fontOverride=font
         self.variation=variation ?? NativeThemedTransitionVariationOwner().next(theme:theme,random:random)
         sceneOwner=Self.nextOwner;paperOwner=Self.nextOwner-1;Self.nextOwner -= 2
         super.init(nibName:nil,bundle:nil);modalPresentationStyle = .overFullScreen
     }
     required init?(coder:NSCoder){fatalError("Use authored native transition initializer")}
-    override func loadView(){view=UIView(frame:CGRect(origin:.zero,size:viewport));view.alpha=0;view.backgroundColor = .clear;view.isOpaque=false;view.clipsToBounds=false
+    override func loadView(){view=UIView(frame:CGRect(origin:.zero,size:presentationViewport));view.alpha=0;view.backgroundColor = .clear;view.isOpaque=false;view.clipsToBounds=false
+        composition.frame=CGRect(origin:.zero,size:viewport);composition.isUserInteractionEnabled=false
+        if NativeTabletLayout.applies(presentationViewport) {
+            view.addSubview(composition);NativeTabletLayout.projectAnimation(composition,viewport:presentationViewport)
+            composition.transform=composition.transform.scaledBy(x:Self.tabletContentScale,y:Self.tabletContentScale)
+        }
         // Keep the already painted gameplay paper visible while this captured
         // cover prepares. A flat opaque placeholder must never replace it.
-        paperCover.frame=view.bounds;paperCover.isHidden=true;paperCover.clipsToBounds=true;paperCover.backgroundColor=UIColor(red:243/255,green:238/255,blue:232/255,alpha:1);paperCover.isUserInteractionEnabled=false;view.addSubview(paperCover)
-        let gradient=CAGradientLayer();gradient.frame=view.bounds;gradient.colors=[UIColor(red:243/255,green:238/255,blue:232/255,alpha:1).cgColor,UIColor(red:252/255,green:236/255,blue:223/255,alpha:1).cgColor,UIColor(red:252/255,green:236/255,blue:223/255,alpha:1).cgColor];gradient.locations=[0,0.6,1];paperCover.layer.insertSublayer(gradient,at:0)
-        paper.frame=view.bounds;paper.contentMode = .scaleAspectFill;paper.isUserInteractionEnabled=false;paperCover.addSubview(paper);let tint=UIView(frame:view.bounds);tint.backgroundColor=UIColor(red:243/255,green:238/255,blue:232/255,alpha:0.4);tint.isUserInteractionEnabled=false;paperCover.addSubview(tint)
-        scene.frame=NativeTransitionSceneGeometry.sceneFrame(viewport:viewport);scene.isUserInteractionEnabled=false;scene.clipsToBounds=false;scene.backgroundColor = .clear;scene.layer.zPosition=4;view.addSubview(scene)
+        paperCover.frame=canvas.bounds;paperCover.isHidden=true;paperCover.clipsToBounds=true;paperCover.backgroundColor=UIColor(red:243/255,green:238/255,blue:232/255,alpha:1);paperCover.isUserInteractionEnabled=false;canvas.addSubview(paperCover)
+        let gradient=CAGradientLayer();gradient.frame=canvas.bounds;gradient.colors=[UIColor(red:243/255,green:238/255,blue:232/255,alpha:1).cgColor,UIColor(red:252/255,green:236/255,blue:223/255,alpha:1).cgColor,UIColor(red:252/255,green:236/255,blue:223/255,alpha:1).cgColor];gradient.locations=[0,0.6,1];paperCover.layer.insertSublayer(gradient,at:0)
+        paper.frame=canvas.bounds;paper.contentMode = .scaleAspectFill;paper.isUserInteractionEnabled=false;paperCover.addSubview(paper);let tint=UIView(frame:canvas.bounds);tint.backgroundColor=UIColor(red:243/255,green:238/255,blue:232/255,alpha:0.4);tint.isUserInteractionEnabled=false;paperCover.addSubview(tint)
+        // Keep the opaque paper full-screen while artwork/digits/clouds shrink.
+        if NativeTabletLayout.applies(presentationViewport) {paperCover.transform=CGAffineTransform(scaleX:1/Self.tabletContentScale,y:1/Self.tabletContentScale)}
+        scene.frame=NativeTransitionSceneGeometry.sceneFrame(viewport:viewport).offsetBy(dx:0,dy:forestSceneryDrop);scene.isUserInteractionEnabled=false;scene.clipsToBounds=false;scene.backgroundColor = .clear;scene.layer.zPosition=4;canvas.addSubview(scene)
+        if theme == .forest,NativeTabletLayout.applies(presentationViewport) {
+            // Grow the whole lower scenery around its bottom edge, retaining
+            // the accepted ground alignment instead of zooming the screen.
+            let sceneryScale:CGFloat=1.05*1.05*1.05
+            scene.center.y-=scene.bounds.height*(sceneryScale-1)/2
+            scene.transform=CGAffineTransform(scaleX:sceneryScale,y:sceneryScale)
+        }
         // PWA's NN Unit is a fixed stacking context. Keep each digit's authored
         // 3D exit inside it so perspective cannot reorder scene/cloud siblings.
-        digitUnit.frame=view.bounds;digitUnit.isUserInteractionEnabled=false;digitUnit.clipsToBounds=false;digitUnit.backgroundColor = .clear;digitUnit.layer.zPosition=10;view.addSubview(digitUnit)
+        digitUnit.frame=canvas.bounds;digitUnit.isUserInteractionEnabled=false;digitUnit.clipsToBounds=false;digitUnit.backgroundColor = .clear;digitUnit.layer.zPosition=10;canvas.addSubview(digitUnit)
     }
+    private var canvas:UIView {NativeTabletLayout.applies(presentationViewport) ? composition:view}
     static func assets(theme:NativeBoardTransitionPlan.Theme)->[String] {
         var paths=NativeTransitionThemeLayers.layers(theme).map(\.asset)+NativeTransitionCloudPlan.assets
         if theme == .forest {paths += (1...7).map{"./assets/shop/honey/bee\($0)@2x.png"}}
@@ -94,7 +119,7 @@ final class NativeThemedBoardTransitionController:UIViewController {
             NotificationCenter.default.addObserver(forName:name,object:nil,queue:.main){[weak self] notice in MainActor.assumeIsolated{self?.setForeground(notice.name==UIApplication.didBecomeActiveNotification)}}
         }
         resources.prepare(["./assets/paper-bg.png"],owner:paperOwner,required:true){[weak self] ready in
-            guard let self,!self.disposed else{return};guard ready,let image=self.resources.image("./assets/paper-bg.png",owner:self.paperOwner) else{self.failPreparation();return};self.paper.image=image;self.paper.frame=NativeAppPaperSurface.textureFrame(imageSize:image.size,bounds:self.view.bounds)
+            guard let self,!self.disposed else{return};guard ready,let image=self.resources.image("./assets/paper-bg.png",owner:self.paperOwner) else{self.failPreparation();return};self.paper.image=image;self.paper.frame=NativeAppPaperSurface.textureFrame(imageSize:image.size,bounds:self.canvas.bounds)
             self.resources.prepare(Self.assets(theme:self.theme),owner:self.sceneOwner,required:true){[weak self] ready in
                 guard let self,!self.disposed,!self.preparationFailed else{return};guard ready else{self.failPreparation();return}
                 do {
@@ -129,7 +154,7 @@ final class NativeThemedBoardTransitionController:UIViewController {
         for plan in cloudPlans {let host=UIView(frame:CGRect(x:0,y:0,width:plan.width,height:plan.height));host.backgroundColor = .clear;host.isUserInteractionEnabled=false;host.clipsToBounds=false
             let sprite=UIImageView(image:try image(NativeTransitionCloudPlan.assets[plan.asset]));sprite.frame=host.bounds;sprite.contentMode = .scaleAspectFit;host.addSubview(sprite)
             if plan.depth==415 {host.layer.position=CGPoint(x:viewport.width*plan.xPercent/100,y:scene.bounds.height*plan.yPercent/100);host.layer.zPosition=15;scene.addSubview(host)}
-            else {host.layer.position=CGPoint(x:viewport.width*plan.xPercent/100,y:viewport.height*plan.yPercent/100);host.layer.zPosition=CGFloat(plan.depth);view.addSubview(host)}
+            else {host.layer.position=CGPoint(x:viewport.width*plan.xPercent/100,y:viewport.height*plan.yPercent/100);host.layer.zPosition=CGFloat(plan.depth);canvas.addSubview(host)}
             host.isHidden=true;sprite.alpha=0
             clouds.append(MountedCloud(plan:plan,host:host,sprite:sprite))
         }
@@ -137,7 +162,7 @@ final class NativeThemedBoardTransitionController:UIViewController {
         for index in 0..<20 {let intensity=15*(1-Double(index)/20);frames.append(.init(duration:0.025,to:.init(x:(random()-0.5)*intensity*2,y:(random()-0.5)*intensity*2),ease:.linear))}
         frames.append(.init(duration:0.1,to:.init(),ease:.powerOut(2)));shake = .init(initial:.init(),frames:frames)
         if theme == .forest {var images:[String:UIImage]=[:];for index in 1...7 {images["bee\(index)"]=try image("./assets/shop/honey/bee\(index)@2x.png")}
-            let bees=NativeForestTransitionBees(viewport:viewport,digitCenters:digitViews.map(\.center),images:images,random:random);guard bees.needsNativeParityReady else{throw PreparationError.bees};bees.mountLayers(in:view);self.bees=bees
+            let bees=NativeForestTransitionBees(viewport:viewport,digitCenters:digitViews.map(\.center),images:images,random:random);guard bees.needsNativeParityReady else{throw PreparationError.bees};bees.mountLayers(in:canvas);self.bees=bees
         }
         if theme == .area55 {combat=NativeTransitionRoboCombatPlan(viewport:viewport,sceneFrame:scene.frame,random:random);try mountCombat(layers:layers)}
         scenePlan=try NativeTransitionScenePlan(theme:theme,layers:layers,viewportWidth:viewport.width,viewportHeight:viewport.height,variation:variation,random:random)
@@ -153,7 +178,7 @@ final class NativeThemedBoardTransitionController:UIViewController {
     private func mountCombat(layers:[NativeTransitionSceneGeometry.Layer]) throws {
         for side in [NativeTransitionRoboCombatPlan.Side.left,.right] {let key=side == .left ? "robo-fighter-left":"robo-fighter-right",layer=layers.first{$0.definition.key==key}!
             let host=UIView(frame:layer.frame.offsetBy(dx:scene.frame.minX,dy:scene.frame.minY));host.isUserInteractionEnabled=false;host.backgroundColor = .clear;host.clipsToBounds=false
-            let sprite=UIImageView(image:try image(layer.definition.asset));sprite.frame=host.bounds;sprite.contentMode = .scaleAspectFit;host.addSubview(sprite);view.addSubview(host);fighterViews[side]=(host,sprite)
+            let sprite=UIImageView(image:try image(layer.definition.asset));sprite.frame=host.bounds;sprite.contentMode = .scaleAspectFit;host.addSubview(sprite);canvas.addSubview(host);fighterViews[side]=(host,sprite)
         }
         for key in ["robo-beam-hit","robo-beam-final"] {let layer=layers.first{$0.definition.key==key}!,sprite=UIImageView(image:try image(layer.definition.asset));sprite.bounds=CGRect(origin:.zero,size:layer.frame.size);sprite.layer.anchorPoint=CGPoint(x:0.88,y:0.75);sprite.contentMode = .scaleAspectFit;sprite.layer.zPosition=29;scene.addSubview(sprite);beamViews[key]=sprite}
     }
@@ -188,7 +213,7 @@ final class NativeThemedBoardTransitionController:UIViewController {
         }
         for (index,digit) in digitViews.enumerated(){let exit=scenePlan.exitAt+0.35+Double(index)*0.4,p=seconds>=exit ? NativeBoardTransitionPlan.digitExit(seconds-exit,index:index,rotation:digitRotations[index]):NativeBoardTransitionPlan.digitEnter(seconds-NativeBoardTransitionPlan.digitEnterStart(theme:theme,index:index),rotation:digitRotations[index]);digit.alpha=min(1,max(0,p.alpha));var matrix=CATransform3DIdentity;matrix.m34 = -1/1000;matrix=CATransform3DTranslate(matrix,0,0,p.z);matrix=CATransform3DRotate(matrix,p.rotation * .pi/180,0,0,1);matrix=CATransform3DRotate(matrix,p.rotationX * .pi/180,1,0,0);matrix=CATransform3DRotate(matrix,p.rotationY * .pi/180,0,1,0);digit.layer.transform=CATransform3DScale(matrix,p.scale,p.scale,1)}
         paintCombat(seconds:seconds)
-        bees?.paint(seconds:seconds,mountainBounds:sceneImages["mountain"].map{$0.convert($0.bounds,to:view)})
+        bees?.paint(seconds:seconds,mountainBounds:sceneImages["mountain"].map{$0.convert($0.bounds,to:canvas)})
         CATransaction.commit()
         emitMoments(seconds:seconds)
         if seconds>=scenePlan.exitAt+scenePlan.exitDuration {finishScene()}

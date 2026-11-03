@@ -1,8 +1,9 @@
 import Foundation
+import StackToSixGameplay
 
 /// Literal HUD star feedback on the existing Source clock. Source scoreRef is
 /// already mutated, so animateScore(value,.18) takes its from==to branch. The
-/// plain integer is painted before number bump and then original icon bounce.
+/// grouped integer is painted before number bump and then original icon bounce.
 @MainActor final class NativeSourceHUDStarScaleFeedback {
     nonisolated struct Scale:Equatable,Codable {var x:Double,y:Double}
     enum Target:String {case number,icon}
@@ -29,7 +30,7 @@ import Foundation
     private func admits(_ e:UInt64)->Bool {guard !disposed,epoch==e else{return false};let valid=hooks.current();return valid && !disposed && epoch==e}
     @discardableResult func paint(score:Int)->Bool {
         epoch &+= 1;let e=epoch;guard admits(e) else{return false}
-        let text=String(min(999999,score))
+        let text=NativeScoreDisplay.text(min(999999,score))
         let old=hooks.text();guard admits(e) else{return false}
         if old != text {
             hooks.setText(text);guard admits(e) else{return false}

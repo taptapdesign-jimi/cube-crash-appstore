@@ -27,7 +27,23 @@ struct NativeBoardGeometry: Equatable {
     /// Keep the original12px lift and24px bottom pad plus safe bottom.
     init(columns:Int,rows:Int,viewport:CGSize,safeInsets:UIEdgeInsets) {
         self.columns=max(1,columns);self.rows=max(1,rows)
-        let chrome=NativeGameplayChromePlan.make(viewport:viewport,safeTop:safeInsets.top)
+        let chrome=NativeGameplayChromePlan.make(viewport:viewport,safeTop:safeInsets.top,scaleTopHUD:false)
+        if NativeTabletLayout.applies(viewport),self.columns==7,(8...9).contains(self.rows) {
+            // Move the complete dice grid only. Reserve the authored bottom HUD
+            // band; retain the previous nine-row die size after removing a row.
+            let padding:CGFloat=viewport.width>=768 ? 40:24
+            let top=viewport.height-chrome.meterRect.minY
+            let bottom=viewport.height-max(safeInsets.bottom,viewport.width*0.20)
+            bounds=CGRect(x:padding,y:viewport.height-bottom,width:max(1,viewport.width-padding*2),height:max(1,bottom-top))
+            let width=CGFloat(self.columns)*Self.tile+CGFloat(self.columns-1)*Self.gap
+            let height=CGFloat(self.rows)*Self.tile+CGFloat(self.rows-1)*Self.gap
+            let previousAvailable=max(1,viewport.height-(top+24)-24-safeInsets.bottom)
+            let previousHeight=CGFloat(max(9,self.rows))*Self.tile+CGFloat(max(9,self.rows)-1)*Self.gap
+            scale=max(0.001,min(bounds.width/width,bounds.height/height,previousAvailable/previousHeight))
+            // SpriteKit y grows upwards: translate the complete board32pt down.
+            origin=CGPoint(x:viewport.width/2-width*scale/2,y:bounds.midY-height*scale/2-32)
+            return
+        }
         let meterBottom=viewport.height-chrome.meterRect.minY
         let dynamicHudBottom=meterBottom+24
         let available=max(1,viewport.height-dynamicHudBottom-24-safeInsets.bottom)
@@ -61,5 +77,17 @@ struct NativeBoardGeometry: Equatable {
         guard abs(point.x - center.x) <= tileSize / 2,
               abs(point.y - center.y) <= tileSize / 2 else { return nil }
         return (row, column)
+    }
+}
+
+/// A painted tile silhouette projected into UIKit coordinates. Value-only receipt;
+/// retains no scene/node/resource and is bounded by the current grid roster.
+struct NativeBoardBackdropCutout:Equatable {
+    let rect:CGRect
+    let transform:CGAffineTransform
+    var path:CGPath {
+        var matrix=transform
+        let radius=min(rect.width,rect.height)*0.25
+        return CGPath(roundedRect:rect,cornerWidth:radius,cornerHeight:radius,transform:&matrix)
     }
 }

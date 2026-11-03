@@ -32,11 +32,19 @@ final class NativeDeveloperPicker: UIViewController {
     private var resolved = false
     var onSelect: ((Set<String>) -> Void)?
     var onCloseRequested:(()->Void)?
+    var onCTAEnter:(()->Void)?
     init(root: URL, title: String, choices: [Choice], multiple: Bool) {
         self.choices = choices; self.multiple = multiple; artwork = JimiV9Artwork(resourceRoot: root)
         super.init(nibName: nil, bundle: nil); heading.text = title; modalPresentationStyle = .overFullScreen
     }
     required init?(coder: NSCoder) { fatalError("Use Developer picker initializer") }
+    override func viewDidAppear(_ animated:Bool) {
+        super.viewDidAppear(animated)
+        for button in [confirm,cancel] {button.scheduleModalCTAEntryCue{[weak self] in guard let self,!self.resolved else{return};self.onCTAEnter?()}}
+    }
+    override func viewWillDisappear(_ animated:Bool) {
+        super.viewWillDisappear(animated);confirm.cancelModalCTAEntryCue();cancel.cancelModalCTAEntryCue()
+    }
     override func viewDidLoad() {
         super.viewDidLoad(); view.backgroundColor = UIColor.black.withAlphaComponent(0.45)
         card.backgroundColor = NativeAppPaperSurface.base; card.layer.cornerRadius = 24
@@ -74,8 +82,10 @@ final class NativeDeveloperPicker: UIViewController {
             button.setCartoonBounceFrame(CGRect(x: CGFloat(index%2)*(width+8), y: CGFloat(index/2)*52, width: width, height: 44))
         }
         scroll.contentSize = CGSize(width: scroll.bounds.width, height: CGFloat((buttons.count+1)/2)*52)
-        confirm.setCartoonBounceFrame(CGRect(x: 16,y: height-64,width: width,height: 48))
-        cancel.setCartoonBounceFrame(CGRect(x: 24+width,y: height-64,width: width,height: 48))
+        let actionWidth=JimiV9PlainButton.modalCTAWidth([confirm,cancel],maxWidth:width)
+        let actionX=(card.bounds.width-2*actionWidth-8)/2
+        confirm.setCartoonBounceFrame(CGRect(x:actionX,y:height-64,width:actionWidth,height:48))
+        cancel.setCartoonBounceFrame(CGRect(x:actionX+actionWidth+8,y:height-64,width:actionWidth,height:48))
     }
     @objc private func selectChoice(_ sender: JimiV9PlainButton) {
         guard !resolved, choices.indices.contains(sender.tag) else { return }

@@ -427,7 +427,7 @@ final class JimiHomeHubController: UIViewController {
             tracks.append((target.view, JimiV9Motion.hubBanner(worldID: target.worldID, enter: enter,
                 width: Double(hub.bannerWidth(for: target.worldID)), firstWorldStart: reduced ? 0 : 0.08, reducedMotion: reduced)))
         }
-        return tracks
+        return hub.includingCloudTracks(tracks)
     }
 
     private func navigate(_ destination: [String: Any], exitTracks: [(UIView, JimiV9Motion.Track)]? = nil) {

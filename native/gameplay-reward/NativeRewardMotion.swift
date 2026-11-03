@@ -23,6 +23,20 @@ enum NativeRewardMotion {
         if progress<0.42 {let p=max(0,progress)/0.42;return 1+0.125*p*p*(3-2*p)}
         return cardEnterProgress(progress)
     }
+    static let collectExitTimeScale=1.5
+    static let collectCardExitTimeScale=collectExitTimeScale*0.6
+    static func collectFlipDuration(forExitDuration duration:Double)->Double {duration*0.4*1.5*0.5}
+    /// Visible shrink begins immediately with the return flip. Home's
+    /// inflate/backIn prefix would conceal the overlap until both turns end.
+    static func collectCardExitScale(progress:Double)->Double {
+        let p=min(1,max(0,progress))
+        return (1-p)*(1-p)
+    }
+    static func collectFlipAngle(progress:Double)->Double {
+        // Independent stationary turn; the collapse begins only after it ends.
+        let p=min(1,max(0,progress))
+        return .pi*p*p*(3-2*p)
+    }
     struct Pose: Equatable {
         var scaleX=1.0,scaleY=1.0,y=0.0,rotationZ=0.0,rotationX=0.0,rotationY=0.0,depth=0.0
         func interpolated(to end:Pose,progress:Double)->Pose {

@@ -1,0 +1,64 @@
+{
+  "scope": "Proportional Journey World cards only; iPad portrait opt-in; phone source geometry preserved",
+  "phoneCardDesignSize": [
+    90,
+    133
+  ],
+  "phoneIslandDesignWidth": 200,
+  "cardToIslandWidthRatio": 0.45,
+  "tabletCanvasWidth": 680,
+  "tabletCardSize": [
+    156.92307692307693,
+    231.89743589743588
+  ],
+  "QA": {
+    "full": "PASS:530 suites/4010 tests; KING24/330",
+    "state": "PASS:2 focused geometry tests across all30 cards,3 tablet widths,legacy phone projection and fresh interim/locked gates",
+    "hostedNative": "PASS:12 tests; actual tablet card painting all3 Worlds,18 interim terminal return cycles,phone placement,existing tablet layouts"
+  },
+  "ipad": {
+    "device": "43A75086-0C64-464C-B71C-FDD01AF59C32",
+    "bundle": "com.taptapdesign.stacktosix.native",
+    "normalLaunch": "com.taptapdesign.stacktosix.native: 84115",
+    "runtimeHashes": {
+      "Stack to Six": "9def7190ad3c80b6c52b587e17d17d227a5861d265bed0abb157e7074e79ba14",
+      "Stack to Six.debug.dylib": "849af6bf4467890941f3df452a2c222c3e2939a0a78415e901d40fee7252faed"
+    },
+    "originalAssetsByteExact": 2952,
+    "saveBefore": {
+      "state-v1.previous.json": "1645e18e47b381e1783644988e089d9eb332e76b985a8ff07fd07e4fdd151f92",
+      "state-v1.json": "d1c1420cbbd8d4cbfcf5df606f9c6eb78511bc2d987336b0e93303045074f411"
+    },
+    "saveAfter": {
+      "state-v1.previous.json": "1645e18e47b381e1783644988e089d9eb332e76b985a8ff07fd07e4fdd151f92",
+      "state-v1.json": "d1c1420cbbd8d4cbfcf5df606f9c6eb78511bc2d987336b0e93303045074f411"
+    },
+    "bothSavesByteIdenticalThroughInstallAndInitialLaunch": true,
+    "actualSpringBoardSBRingerMuted": "0"
+  },
+  "iphone": {
+    "device": "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+    "bundle": "com.taptapdesign.stacktosix.native",
+    "normalLaunch": "com.taptapdesign.stacktosix.native: 84153",
+    "runtimeHashes": {
+      "Stack to Six": "9def7190ad3c80b6c52b587e17d17d227a5861d265bed0abb157e7074e79ba14",
+      "Stack to Six.debug.dylib": "849af6bf4467890941f3df452a2c222c3e2939a0a78415e901d40fee7252faed"
+    },
+    "originalAssetsByteExact": 2952,
+    "saveBefore": {
+      "state-v1.previous.json": "0966ba64bd96eb3e19dc24256b99c3ac72fbd5760c2ebd9430aa499f408d1912",
+      "state-v1.json": "9f029ebe42f174467c55c947bcd5572a59ca297ca1609f0cbc25b3802c4ac964"
+    },
+    "saveAfter": {
+      "state-v1.previous.json": "0966ba64bd96eb3e19dc24256b99c3ac72fbd5760c2ebd9430aa499f408d1912",
+      "state-v1.json": "9f029ebe42f174467c55c947bcd5572a59ca297ca1609f0cbc25b3802c4ac964"
+    },
+    "bothSavesByteIdenticalThroughInstallAndInitialLaunch": true,
+    "actualSpringBoardSBRingerMuted": "1"
+  },
+  "visualEvidence": [
+    "ipad-forest.png",
+    "iphone-forest.png"
+  ],
+  "physicalAcceptance": "NEEDS PHYSICAL TEST"
+}

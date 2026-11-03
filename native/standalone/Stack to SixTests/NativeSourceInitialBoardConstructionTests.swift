@@ -34,6 +34,38 @@ import StackToSixNativeState
             else {XCTAssertEqual(pure.count,normal.count+b.openings.count)}
         }
     }
+    func testTabletEightRowActualSourceConstructionAndRegularAndWildRestore() throws {
+        for mode in [NativeRunMode.journey,.arcade] {for tutorial in [false,true] {
+            let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0},sourceFrameTransportEnabled:true)
+            defer {service.dispose()}
+            let construction=try XCTUnwrap(NativeSourceInitialBoardConstruction.make(root:NativeTestResources.root,service:service,mode:mode,board:2,columns:7,rows:8,tutorialDemo:tutorial,random:{0.4}))
+            var state=try XCTUnwrap(construction.recipe?.state)
+            XCTAssertEqual(state.rows,8);XCTAssertEqual(state.columns,7);XCTAssertEqual(state.tiles.count,56)
+            if tutorial {
+                let tutorialEngine=NativeGameplayEngine(state:state)
+                tutorialEngine.sourceTutorialDemoActivationEnabled=true
+                let receipt=try XCTUnwrap(tutorialEngine.beginSourceTutorialDemoActivation())
+                XCTAssertTrue(tutorialEngine.commitSourceTutorialDemoPreparation(receiptID:receipt.id,generation:receipt.generation).accepted)
+            }
+            let scene=NativeBoardScene(engine:NativeGameplayEngine(state:state),resourceRoot:NativeTestResources.root,size:CGSize(width:820,height:1180),sourceInitialConstruction:construction)
+            scene.synchronize();XCTAssertTrue(scene.sourceInitialStartupReady)
+            service.deliver(wallMilliseconds:16);XCTAssertEqual(construction.pendingFaceCount,0)
+            scene.dispose();construction.dispose()
+            state.tiles=state.tiles.map {tile in
+                var normalized=tile;normalized.alpha=tile.locked && tile.value==0 ? 0.25:1;return normalized
+            }
+            XCTAssertTrue(NativeSourceInitialBoardRecipe.canRestoreRegular(state))
+            let restored=try XCTUnwrap(NativeSourceInitialBoardConstruction.makeRestoredRegular(root:NativeTestResources.root,service:service,saved:state,random:{0.4}))
+            XCTAssertEqual(restored.recipe?.state,state);restored.dispose()
+            let first=state.tiles.firstIndex(where:{!$0.locked})!
+            state.tiles[first].value=6;state.tiles[first].archetype = .star
+            XCTAssertTrue(NativeSourceInitialBoardRecipe.canRestore(state))
+            let wild=try XCTUnwrap(NativeSourceInitialBoardConstruction.makeRestored(root:NativeTestResources.root,service:service,saved:state,random:{0.4}))
+            XCTAssertEqual(wild.recipe?.state,state);wild.dispose()
+            XCTAssertEqual(service.pendingSourceAnimationFrameCount,0)
+        }}
+        XCTAssertNil(NativeSourceInitialBoardRecipe.capture(mode:.journey,board:1,columns:5,rows:8,random:{0.4}),"Original phone shape admission remains unchanged")
+    }
     func testEveryJourneyUnitOpensOnlyOrdinaryHoldersWithExistingEntryOwnership() throws {
         for board in 1...30 {
             let counter=Counter()

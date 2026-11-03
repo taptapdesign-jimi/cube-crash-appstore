@@ -116,6 +116,164 @@ final class NativeWildMergeSixRootTests:XCTestCase {
     func testSpaceshipDestinationActualSourceParticlesSettleAndContinue()async throws {
         try await exercise(archetype:.magnet,variant:"spaceship",reverse:true)
     }
+    func testSpriteSizeAndConvertedCornersMeasureTheSameScaledFootprint() {
+        let parent=SKNode(),sprite=SKSpriteNode(color:.white,size:CGSize(width:128,height:128))
+        parent.addChild(sprite);sprite.xScale=0.25;sprite.yScale=0.5
+        let local=CGSize(width:sprite.size.width/abs(sprite.xScale),height:sprite.size.height/abs(sprite.yScale))
+        let origin=sprite.convert(CGPoint.zero,to:parent)
+        let right=sprite.convert(CGPoint(x:local.width,y:0),to:parent)
+        let top=sprite.convert(CGPoint(x:0,y:local.height),to:parent)
+        XCTAssertEqual(sprite.size.width,32,accuracy:0.0001,"SpriteKit size includes its local xScale")
+        XCTAssertEqual(sprite.size.height,64,accuracy:0.0001,"SpriteKit size includes its local yScale")
+        XCTAssertEqual(hypot(right.x-origin.x,right.y-origin.y),sprite.size.width,accuracy:0.0001)
+        XCTAssertEqual(hypot(top.x-origin.x,top.y-origin.y),sprite.size.height,accuracy:0.0001)
+    }
+    func testCapturedPreIncidentBoard24PreservesComposedFootprints()async throws {
+        // Exact read-only incident previous-save board; no external fixture path.
+        let json="""
+        {
+          "generation": 3,
+          "mode": "journey",
+          "wildMeter": 0.002000000000000224,
+          "longestCombo": 27,
+          "moves": 7,
+          "luckyDropUsed": false,
+          "earnedJourneyDice": ["laser-gun","bloob-ball","bloob"],
+          "revision": 43,
+          "wildDropTypeStreak": 3,
+          "rngState": 1,
+          "lastSpecialMergeWorld": "area55",
+          "bestScore": 191363,
+          "wildSpawnCount": 6,
+          "columns": 5,
+          "starsCount": 0,
+          "combo": 1,
+          "earnedComboBonus": 23568,
+          "board": 24,
+          "stage": 24,
+          "maxMoves": 50,
+          "maxStackDepth": 4,
+          "lastWildDropType": "wild-tnt",
+          "cubesCracked": 31,
+          "score": 7458,
+          "rows": 9,
+          "tiles": [
+            {"variant":"bloob-ball","transientSpawn":false,"resolutionOwned":false,"magnetOwned":false,"id":"native:3:12:3:1:die:2","nonFinalMerge6":false,"locked":false,"visible":true,"merge6CleanupOwned":false,"sourceResidualWildPresence":false,"archetype":"wild-tnt","cell":{"row":1,"column":3},"stackDepth":1,"alpha":1,"pendingRemoval":false,"starOrbitCount":3,"sourceWildStateCleared":false,"value":6},
+            {"transientSpawn":false,"resolutionOwned":false,"magnetOwned":false,"id":"native:3:38:2:3:die:30:locked","nonFinalMerge6":false,"locked":true,"visible":true,"merge6CleanupOwned":false,"sourceResidualWildPresence":false,"cell":{"row":3,"column":2},"stackDepth":1,"pendingRemoval":false,"alpha":0.2,"starOrbitCount":3,"sourceWildStateCleared":false,"value":0},
+            {"transientSpawn":false,"resolutionOwned":false,"magnetOwned":false,"id":"native:3:38:3:4:die:31:locked","nonFinalMerge6":false,"locked":false,"visible":true,"merge6CleanupOwned":false,"sourceResidualWildPresence":false,"cell":{"row":4,"column":3},"stackDepth":1,"pendingRemoval":false,"alpha":1,"starOrbitCount":3,"sourceWildStateCleared":false,"value":1},
+            {"transientSpawn":false,"resolutionOwned":false,"magnetOwned":false,"id":"native:3:38:2:1:die:32:locked","nonFinalMerge6":false,"locked":true,"visible":true,"merge6CleanupOwned":false,"sourceResidualWildPresence":false,"cell":{"row":1,"column":2},"stackDepth":1,"pendingRemoval":false,"alpha":0.2,"starOrbitCount":3,"sourceWildStateCleared":false,"value":0},
+            {"transientSpawn":false,"resolutionOwned":false,"magnetOwned":false,"id":"native:3:38:4:2:die:33:locked","nonFinalMerge6":false,"locked":true,"visible":true,"merge6CleanupOwned":false,"sourceResidualWildPresence":false,"cell":{"row":2,"column":4},"stackDepth":1,"pendingRemoval":false,"alpha":0.2,"starOrbitCount":3,"sourceWildStateCleared":false,"value":0},
+            {"transientSpawn":false,"resolutionOwned":false,"magnetOwned":false,"id":"native:3:38:4:3:die:35:locked","nonFinalMerge6":false,"locked":true,"visible":true,"merge6CleanupOwned":false,"sourceResidualWildPresence":false,"cell":{"row":3,"column":4},"stackDepth":1,"pendingRemoval":false,"alpha":0.2,"starOrbitCount":3,"sourceWildStateCleared":false,"value":0},
+            {"transientSpawn":false,"resolutionOwned":false,"magnetOwned":false,"id":"native:3:38:4:6:die:36:locked","nonFinalMerge6":false,"locked":false,"visible":true,"merge6CleanupOwned":false,"sourceResidualWildPresence":false,"cell":{"column":4,"row":6},"stackDepth":1,"pendingRemoval":false,"alpha":1,"starOrbitCount":3,"sourceWildStateCleared":false,"value":2},
+            {"transientSpawn":false,"resolutionOwned":false,"magnetOwned":false,"id":"native:3:42:1:3:die:41","nonFinalMerge6":false,"locked":false,"visible":true,"merge6CleanupOwned":false,"sourceResidualWildPresence":false,"cell":{"column":1,"row":3},"stackDepth":1,"pendingRemoval":false,"alpha":1,"starOrbitCount":3,"sourceWildStateCleared":false,"value":4},
+            {"resolutionOwned":false,"transientSpawn":false,"sourceResidualWildPresence":false,"cell":{"column":0,"row":1},"id":"native:3:42:0:1:die:42:locked","sourceWildStateCleared":false,"alpha":1,"starOrbitCount":3,"stackDepth":1,"visible":true,"value":1,"pendingRemoval":false,"locked":false,"nonFinalMerge6":false,"merge6CleanupOwned":false,"magnetOwned":false},
+            {"resolutionOwned":false,"transientSpawn":false,"sourceResidualWildPresence":false,"cell":{"column":1,"row":8},"id":"native:3:42:1:8:die:43:locked","sourceWildStateCleared":false,"alpha":0.20000000298023224,"starOrbitCount":3,"stackDepth":1,"visible":true,"value":0,"pendingRemoval":false,"locked":true,"nonFinalMerge6":false,"merge6CleanupOwned":false,"magnetOwned":false},
+            {"resolutionOwned":false,"transientSpawn":false,"sourceResidualWildPresence":false,"cell":{"column":1,"row":1},"id":"native:3:42:1:1:die:44:locked","sourceWildStateCleared":false,"alpha":0.20000000298023224,"starOrbitCount":3,"stackDepth":1,"visible":true,"value":0,"pendingRemoval":false,"locked":true,"nonFinalMerge6":false,"merge6CleanupOwned":false,"magnetOwned":false},
+            {"resolutionOwned":false,"transientSpawn":false,"sourceResidualWildPresence":false,"cell":{"column":4,"row":1},"id":"native:3:42:4:1:die:45:locked","sourceWildStateCleared":false,"alpha":0.20000000298023224,"starOrbitCount":3,"stackDepth":1,"visible":true,"value":0,"pendingRemoval":false,"locked":true,"nonFinalMerge6":false,"merge6CleanupOwned":false,"magnetOwned":false},
+            {"resolutionOwned":false,"transientSpawn":false,"sourceResidualWildPresence":false,"cell":{"column":3,"row":3},"id":"native:3:42:3:3:die:46:locked","sourceWildStateCleared":false,"alpha":0.20000000298023224,"starOrbitCount":3,"stackDepth":1,"visible":true,"value":0,"pendingRemoval":false,"locked":true,"nonFinalMerge6":false,"merge6CleanupOwned":false,"magnetOwned":false},
+            {"resolutionOwned":false,"transientSpawn":false,"sourceResidualWildPresence":false,"cell":{"column":4,"row":5},"id":"native:3:42:4:5:die:47:locked","sourceWildStateCleared":false,"alpha":0.20000000298023224,"starOrbitCount":3,"stackDepth":1,"visible":true,"value":0,"pendingRemoval":false,"locked":true,"nonFinalMerge6":false,"merge6CleanupOwned":false,"magnetOwned":false},
+            {"resolutionOwned":false,"transientSpawn":false,"sourceResidualWildPresence":false,"cell":{"column":0,"row":6},"id":"native:3:42:0:6:die:48:locked","sourceWildStateCleared":false,"alpha":0.20000000298023224,"starOrbitCount":3,"stackDepth":1,"visible":true,"value":0,"pendingRemoval":false,"locked":true,"nonFinalMerge6":false,"merge6CleanupOwned":false,"magnetOwned":false},
+            {"resolutionOwned":false,"transientSpawn":false,"sourceResidualWildPresence":false,"cell":{"column":1,"row":6},"id":"native:3:42:1:6:die:49:locked","sourceWildStateCleared":false,"alpha":0.20000000298023224,"starOrbitCount":3,"stackDepth":1,"visible":true,"value":0,"pendingRemoval":false,"locked":true,"nonFinalMerge6":false,"merge6CleanupOwned":false,"magnetOwned":false},
+            {"resolutionOwned":false,"transientSpawn":false,"sourceResidualWildPresence":false,"cell":{"column":0,"row":7},"id":"native:3:42:0:7:die:50:locked","sourceWildStateCleared":false,"alpha":1,"starOrbitCount":3,"stackDepth":1,"visible":true,"value":3,"pendingRemoval":false,"locked":false,"nonFinalMerge6":false,"merge6CleanupOwned":false,"magnetOwned":false},
+            {"resolutionOwned":false,"variant":"laser-gun","sourceResidualWildPresence":false,"cell":{"column":2,"row":6},"id":"native:3:38:2:6:die:28:locked","sourceWildStateCleared":false,"alpha":1,"transientSpawn":false,"starOrbitCount":3,"stackDepth":1,"visible":true,"value":6,"pendingRemoval":false,"locked":false,"nonFinalMerge6":false,"merge6CleanupOwned":false,"magnetOwned":false,"archetype":"wild-tnt"}
+          ]
+        }
+        """
+        var board=try JSONDecoder().decode(NativeBoardState.self,from:Data(json.utf8))
+        let laser=try XCTUnwrap(board.tiles.first{$0.variant=="laser-gun"})
+        let target=try XCTUnwrap(board.tiles.first{$0.cell==NativeCell(column:1,row:3)})
+        board.tiles=[laser,target]+board.tiles.filter{$0.id != laser.id && $0.id != target.id}
+        XCTAssertEqual(board.tiles.count,18);XCTAssertEqual(board.tiles.filter(\.locked).count,11)
+        XCTAssertEqual(board.revision,43);XCTAssertEqual(board.score,7458)
+        try await exercise(archetype:.tnt,variant:"laser-gun",reverse:false,disposeDuringMain:false,moves:board.moves,capturedBoard:board,verifyFilmLaserFootprints:true)
+    }
+    func testFilmBoard24TopologyPreservesComposedLockedAndActiveFootprints()async throws {
+        try await exerciseFilmBoard24Topology(disableRegularMipmaps:false)
+    }
+    func testFilmBoard24TopologyWithoutRegularMipmapsPreservesComposedFootprints()async throws {
+        try await exerciseFilmBoard24Topology(disableRegularMipmaps:true)
+    }
+    func testFilmBoard24AfterRepeatedActualMovesPreservesComposedFootprints()async throws {
+        try await exerciseFilmBoard24Topology(disableRegularMipmaps:false,warmMoves:true)
+    }
+    func testFilmBoard24WithPendingSourceSafetySweepPreservesComposedFootprints()async throws {
+        try await exerciseFilmBoard24Topology(disableRegularMipmaps:false,pendingSafetySweep:true)
+    }
+    func testSparseEndgameAfterRepeatedActualMovesPreservesComposedFootprints()async throws {
+        for locked in [0,1] {
+            try await exerciseFilmBoard24Topology(disableRegularMipmaps:false,warmMoves:true,sparseWarmLocked:locked)
+        }
+    }
+    func testSparseEndgameAfterThreeActualLasersPreservesComposedFootprints()async throws {
+        for locked in [0,1] {
+            try await exerciseFilmBoard24Topology(disableRegularMipmaps:false,sparseWarmLocked:locked,warmLaserRepeats:true)
+        }
+    }
+    private func exerciseFilmBoard24Topology(disableRegularMipmaps:Bool,warmMoves:Bool=false,pendingSafetySweep:Bool=false,sparseWarmLocked:Int?=nil,warmLaserRepeats:Bool=false)async throws {
+        // Movie-derived pre-shot roster. The post-shot save's locked(2,6)
+        // replaces the consumed Laser; retaining both would duplicate a cell.
+        let fullLocked:[(Int,Int)]=[(2,3),(2,1),(4,2),(4,3),(1,8),(1,1),(4,1),(3,3),(4,5),(0,6),(0,0),(1,4),(2,0),(4,0),(0,4),(2,8),(4,7),(4,8)]
+        let locked=sparseWarmLocked.map{Array(fullLocked.prefix($0))} ?? fullLocked
+        var tiles:[NativeTile]=[
+            .init(id:"film24-laser",cell:.init(column:2,row:6),value:6,archetype:.tnt,variant:"laser-gun"),
+            .init(id:"film24-target",cell:.init(column:1,row:3),value:4),
+            .init(id:"film24-a",cell:.init(column:0,row:1),value:1),
+            .init(id:"film24-b",cell:.init(column:3,row:4),value:1),
+            .init(id:"film24-c",cell:.init(column:4,row:6),value:2),
+            .init(id:"film24-d",cell:.init(column:0,row:7),value:3),
+            .init(id:"film24-orb",cell:.init(column:3,row:1),value:6,archetype:.tnt,variant:"bloob-ball")
+        ]
+        tiles += locked.map{column,row in NativeTile(id:"film24-locked-\(column)-\(row)",cell:.init(column:column,row:row),value:0,locked:true,alpha:0.2)}
+        if warmMoves {
+            for (id,column,row,value) in [("warm-six-a",0,8,3),("warm-six-b",3,8,3),("warm-one-a",2,7,1),("warm-one-b",3,7,1),("warm-one-c",1,7,1),("warm-one-d",0,2,1)] {
+                tiles.append(.init(id:id,cell:.init(column:column,row:row),value:value))
+            }
+        }
+        if warmLaserRepeats {
+            for (index,positions) in [[(0,8),(3,8)],[(2,7),(3,7)],[(4,4),(4,5)]].enumerated() {
+                tiles.append(.init(id:"warm-laser-\(index)",cell:.init(column:positions[0].0,row:positions[0].1),value:6,archetype:.tnt,variant:"laser-gun"))
+                tiles.append(.init(id:"warm-laser-target-\(index)",cell:.init(column:positions[1].0,row:positions[1].1),value:2))
+            }
+        }
+        let board=NativeBoardState(tiles:tiles,mode:.journey,board:24,stage:24,generation:3,moves:warmMoves || warmLaserRepeats ? 49:5,score:7458)
+        XCTAssertEqual(board.tiles.count,7+locked.count+(warmMoves ? 6:0)+(warmLaserRepeats ? 6:0));XCTAssertEqual(board.tiles.filter(\.locked).count,locked.count)
+        try await exercise(archetype:.tnt,variant:"laser-gun",reverse:false,disposeDuringMain:false,moves:board.moves,capturedBoard:board,verifyFilmLaserFootprints:true,disableFilmRegularMipmaps:disableRegularMipmaps,warmFilmMoves:warmMoves,pendingFilmSafetySweep:pendingSafetySweep,warmFilmLaserRepeats:warmLaserRepeats)
+    }
+    func testFilmLaserPreservesComposedBoardFootprintsThroughFirstAndLaterContacts()async throws {
+        let live:[NativeCell:Int]=[.init(column:0,row:1):1,.init(column:1,row:3):4,.init(column:3,row:4):1,.init(column:4,row:6):2,.init(column:0,row:7):3]
+        let laser=NativeTile(id:"film-laser",cell:.init(column:2,row:6),value:6,archetype:.tnt,variant:"laser-gun")
+        let target=NativeTile(id:"film-target",cell:.init(column:1,row:3),value:4)
+        var tiles=[laser,target]
+        for row in 0..<9 {for column in 0..<5 {
+            let cell=NativeCell(column:column,row:row)
+            if cell==laser.cell || cell==target.cell {continue}
+            if column==3 && row==1 {tiles.append(.init(id:"film-orb",cell:cell,value:6,archetype:.star,variant:"bloob-ball"))}
+            else if let value=live[cell] {tiles.append(.init(id:"film-\(column)-\(row)",cell:cell,value:value))}
+            else {tiles.append(.init(id:"film-\(column)-\(row)",cell:cell,value:0,locked:true,alpha:0.25))}
+        }}
+        let board=NativeBoardState(tiles:tiles,mode:.journey,board:26,generation:9,moves:49)
+        try await exercise(archetype:.tnt,variant:"laser-gun",reverse:false,disposeDuringMain:false,moves:49,capturedBoard:board,verifyFilmLaserFootprints:true)
+    }
+    func testSparseLaserKeepsUncontactedDiceContinuousWithAndWithoutLockedHolders()async throws {
+        try await exerciseSparseLaserMatrix(verifyContactBody:false)
+    }
+    func testSparseLaserHitKeepsExistingBodyVisibleThroughoutReplacementBounce()async throws {
+        try await exerciseSparseLaserMatrix(verifyContactBody:true)
+    }
+    private func exerciseSparseLaserMatrix(verifyContactBody:Bool)async throws {
+        for locked in [false,true] {for arcade in [false,true] {for reverse in [false,true] {
+            var sparse=NativeBoardState(tiles:[
+                .init(id:"sparse-laser",cell:.init(column:0,row:0),value:6,archetype:.tnt,variant:"laser-gun"),
+                .init(id:"sparse-destination",cell:.init(column:1,row:0),value:2),
+                .init(id:"sparse-a",cell:.init(column:2,row:1),value:1),
+                .init(id:"sparse-b",cell:.init(column:4,row:3),value:3),
+                .init(id:"sparse-c",cell:.init(column:0,row:5),value:4),
+                .init(id:"sparse-d",cell:.init(column:2,row:7),value:2)
+            ],mode:.journey,board:26,generation:9,moves:49)
+            if locked {sparse.tiles.append(.init(id:"sparse-locked",cell:.init(column:4,row:8),value:0,locked:true,alpha:0.25))}
+            try await exercise(archetype:.tnt,variant:"laser-gun",reverse:reverse,disposeDuringMain:false,moves:49,capturedBoard:sparse,arcadeRun:arcade,verifySparseLaserContinuity:true,verifyLaserContactBodyContinuity:verifyContactBody)
+        }}}
+    }
     func testLaserUntouchedAndLaterTargetsStayVisibleUntilTheirOwnContact()async throws {
         for arcade in [false,true] {for reverse in [false,true] {
             try await exercise(archetype:.tnt,variant:"laser-gun",reverse:reverse,disposeDuringMain:false,moves:49,arcadeRun:arcade,verifyLaserContinuity:true)
@@ -323,7 +481,7 @@ final class NativeWildMergeSixRootTests:XCTestCase {
         try await exercise(archetype:.magnet,variant:"bottle",reverse:true,disposeDuringMain:false,moves:49,finalOnly:true,verifyBoardCleared:true)
         try await exercise(archetype:.tnt,variant:"coconut",reverse:false,disposeDuringMain:false,moves:49,finalOnly:true,verifyBoardCleared:true)
     }
-    private func exercise(archetype:NativeWildArchetype,variant:String?,reverse:Bool,disposeDuringMain:Bool=true,pulledKanta:Bool=false,moves:Int=49,finalOnly:Bool=false,starCount:Int=3,capturedBoard:NativeBoardState?=nil,freshStar:Bool=false,verifyStarTail:Bool=false,interveningOrdinary:Bool=false,interveningSix:Bool=false,heldOrdinaryMilliseconds:Int=160,rapidOrdinaryContacts:Int=0,tutorialAssist:Bool=false,arcadeTutorial:Bool=false,laserInterveningStack:Bool=false,laserInterveningSix:Bool=false,arcadeRun:Bool=false,initialMeter:Double?=nil,verifyBaloonRetirement:Bool=false,verifyBoardScale:Bool=false,verifyQueuedBonus:Bool=false,verifyLaserContinuity:Bool=false,verifySurvivorEntry:Bool=false,verifyBoardCleared:Bool=false)async throws {
+    private func exercise(archetype:NativeWildArchetype,variant:String?,reverse:Bool,disposeDuringMain:Bool=true,pulledKanta:Bool=false,moves:Int=49,finalOnly:Bool=false,starCount:Int=3,capturedBoard:NativeBoardState?=nil,freshStar:Bool=false,verifyStarTail:Bool=false,interveningOrdinary:Bool=false,interveningSix:Bool=false,heldOrdinaryMilliseconds:Int=160,rapidOrdinaryContacts:Int=0,tutorialAssist:Bool=false,arcadeTutorial:Bool=false,laserInterveningStack:Bool=false,laserInterveningSix:Bool=false,arcadeRun:Bool=false,initialMeter:Double?=nil,verifyBaloonRetirement:Bool=false,verifyBoardScale:Bool=false,verifyQueuedBonus:Bool=false,verifyLaserContinuity:Bool=false,verifySparseLaserContinuity:Bool=false,verifyLaserContactBodyContinuity:Bool=false,verifyFilmLaserFootprints:Bool=false,disableFilmRegularMipmaps:Bool=false,warmFilmMoves:Bool=false,pendingFilmSafetySweep:Bool=false,warmFilmLaserRepeats:Bool=false,verifySurvivorEntry:Bool=false,verifyBoardCleared:Bool=false)async throws {
         let label=(variant ?? archetype.rawValue)+(reverse ? ":destination":":source")
         print("[WildMergeSixRoot] start \(label)")
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("wild-six-particles-"+UUID().uuidString)
@@ -381,7 +539,7 @@ final class NativeWildMergeSixRootTests:XCTestCase {
             },completeNativeGameplayEnabled:true)
         let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
         let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844))
-        if interveningOrdinary || verifyLaserContinuity {window.windowScene=try XCTUnwrap(previous?.windowScene,"Overlap/Laser continuity fixture must mount on the actual Simulator UIWindowScene")}
+        if interveningOrdinary || verifyLaserContinuity || verifySparseLaserContinuity || verifyFilmLaserFootprints {window.windowScene=try XCTUnwrap(previous?.windowScene,"Overlap/Laser continuity fixture must mount on the actual Simulator UIWindowScene")}
         window.rootViewController=host;window.makeKeyAndVisible()
         defer{host.dispose();window.isHidden=true;previous?.makeKeyAndVisible();try? FileManager.default.removeItem(at:directory);timeoutDiagnostic=nil;boardScaleAudit=nil}
         host.loadViewIfNeeded();let app=try XCTUnwrap(host.children.first as? NativeAppController)
@@ -410,6 +568,22 @@ final class NativeWildMergeSixRootTests:XCTestCase {
         if !freshStar {
             XCTAssertEqual(gameplay.engine.state.tiles.first{$0.id==wildID}?.variant,variant)
             XCTAssertEqual(gameplay.engine.state.tiles.first{$0.id==wildID}?.gameplayArchetype,archetype)
+        }
+        if warmFilmMoves {
+            for (source,target) in [("warm-six-a","warm-six-b"),("warm-one-a","warm-one-b"),("warm-one-c","warm-one-b"),("warm-one-d","warm-one-b")] {
+                try await drag(source,target,holdMilliseconds:20)
+                try await wait(label+":warm-history-"+source){!gameplay.engine.hasUnsavableSourceGameplayState && !gameplay.engine.isDragging}
+                print("[LaserFilmWarm] actual accepted move \(source)->\(target) revision=\(gameplay.engine.state.revision)")
+            }
+        }
+        if warmFilmLaserRepeats {
+            for index in 0..<3 {
+                try await drag("warm-laser-\(index)","warm-laser-target-\(index)",holdMilliseconds:20)
+                try await wait(label+":warm-Laser-\(index)"){
+                    !gameplay.engine.hasUnsavableSourceGameplayState && !gameplay.engine.isDragging && gameplay.engine.pendingSpecial==nil && gameplay.engine.pendingHUDStars.isEmpty && !gameplay.view.subviews.compactMap{$0 as? NativeLaserGunImpactPresentation}.contains(where:{$0.hasActiveClock})
+                }
+                print("[LaserFilmWarm] actual complete Laser \(index+1) same scene generation=\(gameplay.engine.state.generation) revision=\(gameplay.engine.state.revision) tiles=\(gameplay.engine.state.tiles.count)")
+            }
         }
         var survivorEntrySamples:[CGFloat]=[]
         if verifySurvivorEntry {
@@ -453,11 +627,147 @@ final class NativeWildMergeSixRootTests:XCTestCase {
             }
             boardScaleAudit?()
         }
+        var filmFootprintSamples=0,filmContactCount=0
+        if verifyFilmLaserFootprints {
+            let renderHost=try XCTUnwrap(scene.gameplayRenderHost)
+            if disableFilmRegularMipmaps {
+                var count=0
+                for model in gameplay.engine.state.tiles where !model.isWild {
+                    if let texture=scene.sourceNativeTileNode(model.id)?.sourcePaintedNumbersTexture {texture.usesMipmaps=false;count+=1}
+                }
+                XCTAssertGreaterThan(count,0,"Diagnostic A/B must change actual prepared regular textures before drag")
+                print("[LaserFilmMipmaps] disabled on \(count) actual regular/locked faces")
+            }
+            let consumed=Set([wildID,targetID])
+            let originals=Dictionary(uniqueKeysWithValues:gameplay.engine.state.tiles.filter{!consumed.contains($0.id)}.compactMap{tile in
+                scene.sourceNativeTileNode(tile.id).map{(tile.id,(node:$0,model:tile))}
+            })
+            func face(_ node:NativeDiceNode)->SKSpriteNode? {
+                // Stack layers borrow the same number texture. The actual
+                // face is a direct visual child and must win over descendants.
+                if let direct=node.visual.children.compactMap({$0 as? SKSpriteNode}).first(where:{$0.texture === node.sourcePaintedNumbersTexture}) {return direct}
+                func search(_ root:SKNode)->SKSpriteNode? {
+                    if let sprite=root as? SKSpriteNode,sprite.texture === node.sourcePaintedNumbersTexture {return sprite}
+                    for child in root.children {if let found=search(child){return found}}
+                    return nil
+                }
+                return search(node.visual)
+            }
+            func footprint(_ sprite:SKSpriteNode)->CGSize {
+                // SpriteKit size already includes the sprite's own scale;
+                // convert(to:) needs unscaled local coordinates.
+                let local=CGSize(width:sprite.size.width/max(0.0001,abs(sprite.xScale)),height:sprite.size.height/max(0.0001,abs(sprite.yScale)))
+                let left = -local.width*sprite.anchorPoint.x,bottom = -local.height*sprite.anchorPoint.y
+                let corners=[CGPoint(x:left,y:bottom),CGPoint(x:left+local.width,y:bottom),CGPoint(x:left,y:bottom+local.height)].map{point in
+                    renderHost.renderView.convert(renderHost.scenePointToView(sprite.convert(point,to:scene),scene:scene),to:window)
+                }
+                return CGSize(width:hypot(corners[1].x-corners[0].x,corners[1].y-corners[0].y),height:hypot(corners[2].x-corners[0].x,corners[2].y-corners[0].y))
+            }
+            func ancestry(_ node:SKNode)->String {
+                var rows:[String]=[],current:SKNode?=node
+                while let n=current {rows.append("\(n.name ?? String(describing:type(of:n))):s=\(n.xScale),\(n.yScale):a=\(n.alpha):hidden=\(n.isHidden)");current=n.parent}
+                return rows.joined(separator:" / ")
+            }
+            func effectiveAlpha(_ sprite:SKNode)->(hidden:Bool,alpha:CGFloat) {
+                var hidden=false,alpha:CGFloat=1,node:SKNode?=sprite
+                while let current=node {hidden = hidden || current.isHidden;alpha *= current.alpha;node=current.parent}
+                var view:UIView?=renderHost.renderView
+                while let current=view {hidden = hidden || current.isHidden;alpha *= current.layer.presentation().map{CGFloat($0.opacity)} ?? current.alpha;view=current.superview}
+                return (hidden,alpha)
+            }
+            var baseline:[String:CGSize]=[:],baselineAlpha:[String:CGFloat]=[:],reported=Set<String>(),contacted=Set<String>()
+            for (id,original) in originals where !original.model.isWild {
+                let sprite=try XCTUnwrap(face(original.node),"Initial film board face missing: \(id)")
+                let intrinsic=sprite.size
+                // Existing verifyBoardScale contract already requires a128pt
+                // canonical face; distinguish its initial violation from Laser.
+                XCTAssertEqual(intrinsic.width,128,accuracy:0.1,"INITIAL before any Laser: canonical face width \(id) \(ancestry(sprite))")
+                XCTAssertEqual(intrinsic.height,128,accuracy:0.1,"INITIAL before any Laser: canonical face height \(id) \(ancestry(sprite))")
+                let capturedFootprint=footprint(sprite)
+                // Capture canonical rest while an accepted prior stack's
+                // local pulse is still settling; do not wait past safety timers.
+                let pulseX=max(0.0001,abs(original.node.sourceLocalScale.x*original.node.visual.xScale))
+                let pulseY=max(0.0001,abs(original.node.sourceLocalScale.y*original.node.visual.yScale))
+                baseline[id]=CGSize(width:capturedFootprint.width/pulseX,height:capturedFootprint.height/pulseY)
+                let initialAlpha=effectiveAlpha(sprite)
+                XCTAssertFalse(initialAlpha.hidden,"INITIAL before any Laser: hidden face \(id)")
+                XCTAssertGreaterThan(initialAlpha.alpha,0,"INITIAL before any Laser: transparent face \(id)")
+                baselineAlpha[id]=initialAlpha.alpha
+            }
+            XCTAssertEqual(originals.count,gameplay.engine.state.tiles.filter{!consumed.contains($0.id)}.count)
+            let previousPrepare=scene.onRenderSurfacePreparation
+            scene.onRenderSurfacePreparation={ [weak self] in previousPrepare?();self?.boardScaleAudit?() }
+            boardScaleAudit={
+                for (id,original) in originals where !original.model.isWild && !contacted.contains(id) {
+                    filmFootprintSamples+=1
+                    guard let current=scene.sourceNativeTileNode(id),current === original.node,
+                          let canonical=gameplay.engine.state.tiles.first(where:{$0.id==id}),let sprite=face(current),let prior=baseline[id] else {
+                        if reported.insert(id+":identity").inserted {XCTFail("Film Laser changed unhit object/face identity: \(id) contacts=\(filmContactCount)")};continue
+                    }
+                    // A genuinely opened holder may enter its new numbered
+                    // face. A still-locked historical holder must never replay
+                    // an old bonus pop merely because a later Laser allocated.
+
+                    if original.model.locked && !canonical.locked && canonical.value>0 && scene.sourceOwnsNewFaceEntry(id) {continue}
+                    let now=footprint(sprite),width=now.width/max(prior.width,0.0001),height=now.height/max(prior.height,0.0001)
+                    let alpha=effectiveAlpha(sprite)
+                    if alpha.hidden || alpha.alpha<(baselineAlpha[id] ?? 0)*0.90 || width<0.90 || height<0.90 || width>1.20 || height>1.20 {
+                        if reported.insert(id+":footprint").inserted {XCTFail("Film Laser composed footprint changed: \(id) contacts=\(filmContactCount) locked=\(original.model.locked) baseline=\(prior) now=\(now) texture=\(String(describing:sprite.texture?.size())) size=\(sprite.size) stackChildren=\(current.sourceStackLayerNodes.count) ancestry=\(ancestry(sprite)) sceneSize=\(scene.size) hostBounds=\(renderHost.renderView.bounds)")}
+                    }
+                }
+            }
+            boardScaleAudit?()
+            let present=try XCTUnwrap(scene.onAuthoredLaserImpact)
+            scene.onAuthoredLaserImpact={targets,generation,impact,allContacts,completion in
+                return present(targets,generation,{index,id in
+                    self.boardScaleAudit?();contacted.insert(id);filmContactCount+=1
+                    let accepted=impact(index,id);self.boardScaleAudit?();return accepted
+                },allContacts,completion)
+            }
+        }
         var laserContinuitySamples=0,laserContactCount=0,laserLaterTargetSamples=0,laserPresentationCount=0
-        if verifyLaserContinuity {
+        if verifyLaserContinuity || verifySparseLaserContinuity {
             let prepareSurface=scene.onRenderSurfacePreparation
             scene.onRenderSurfacePreparation={ [weak self] in
                 prepareSurface?();self?.boardScaleAudit?()
+            }
+            let mergedPair=Set([wildID,targetID])
+            let beforeDrag=Dictionary(uniqueKeysWithValues:gameplay.engine.state.tiles.filter{!$0.locked && !$0.isWild && !mergedPair.contains($0.id)}.compactMap{tile in
+                scene.sourceNativeTileNode(tile.id).map{(tile.id,($0,tile.value))}
+            })
+            let beforeDragFaceSizes=beforeDrag.compactMapValues{entry -> CGSize? in
+                guard let face=entry.0.visual.children.compactMap({$0 as? SKSpriteNode}).first(where:{$0.texture === entry.0.sourcePaintedNumbersTexture}) else{return nil}
+                return face.size
+            }
+            var sparseContacted=Set<String>(),sparseFailures=Set<String>()
+            if verifySparseLaserContinuity {
+                XCTAssertEqual(beforeDrag.count,4)
+                XCTAssertEqual(beforeDragFaceSizes.count,beforeDrag.count,"Capture every original painted face before drag")
+                self.boardScaleAudit={
+                    for (id,(original,value)) in beforeDrag where !sparseContacted.contains(id) {
+                        laserContinuitySamples+=1
+                        guard let tile=gameplay.engine.state.tiles.first(where:{$0.id==id}),let node=scene.sourceNativeTileNode(id) else {
+                            if sparseFailures.insert(id+":missing").inserted {XCTFail("Sparse Laser removed untouched tile before its own hit: \(id)")};continue
+                        }
+                        let face=node.visual.children.compactMap{$0 as? SKSpriteNode}.first{$0.texture === node.sourcePaintedNumbersTexture}
+                        let intrinsicFaceSize=face.map{$0.size}
+                        if face==nil,sparseFailures.insert(id+":missing-face").inserted {XCTFail("Sparse Laser untouched tile \(id) has no painted number face")}
+                        let faceContinuous=intrinsicFaceSize.flatMap{size in beforeDragFaceSizes[id].map{abs(size.width-$0.width)<0.1 && abs(size.height-$0.height)<0.1}} ?? false
+                        let continuous=node === original && node.parent != nil && !node.isHidden && !node.visual.isHidden && node.alpha>0.99 && node.visual.alpha>0.99 && tile.value==value && node.sourceValue==value && !scene.sourceOwnsNewFaceEntry(id) && !node.sourceIsBeingSpawned && min(node.sourceLocalScale.x,node.sourceLocalScale.y)>0.90 && min(node.visual.xScale,node.visual.yScale)>0.90 && faceContinuous
+                        if !continuous,sparseFailures.insert(id+":continuity").inserted {XCTFail("Sparse Laser untouched tile \(id) changed before contact: value=\(tile.value)/\(value) scale=\(node.sourceLocalScale) visual=\(node.visual.xScale),\(node.visual.yScale) face=\(String(describing:intrinsicFaceSize)) lockedHolders=\(board.tiles.filter(\.locked).count)")}
+                    }
+                    if verifyLaserContactBodyContinuity {
+                        for id in sparseContacted {
+                            guard let (original,_)=beforeDrag[id] else {continue}
+                            guard let node=scene.sourceNativeTileNode(id) else {
+                                if sparseFailures.insert(id+":hit-missing").inserted {XCTFail("Laser hit removed same-ID body: \(id)")};continue
+                            }
+                            let continuous=node === original && node.parent != nil && !node.isHidden && !node.visual.isHidden && node.alpha>0.99 && node.visual.alpha>0.99 && min(node.sourceLocalScale.x,node.sourceLocalScale.y)>0.90 && min(node.visual.xScale,node.visual.yScale)>0.90
+                            if !continuous,sparseFailures.insert(id+":hit-body").inserted {XCTFail("Laser hit collapsed same-ID body: \(id) outer=\(node.sourceLocalScale) inner=\(node.visual.xScale),\(node.visual.yScale) alpha=\(node.alpha),\(node.visual.alpha)")}
+                        }
+                    }
+                }
+                self.boardScaleAudit?()
             }
             let present=try XCTUnwrap(scene.onAuthoredLaserImpact)
             scene.onAuthoredLaserImpact={targets,generation,impact,allContacts,completion in
@@ -465,10 +775,10 @@ final class NativeWildMergeSixRootTests:XCTestCase {
                 let originals=Dictionary(uniqueKeysWithValues:gameplay.engine.state.tiles.filter{!$0.locked && !$0.isWild}.compactMap{tile in
                     scene.sourceNativeTileNode(tile.id).map{(tile.id,($0,tile.value))}
                 })
-                XCTAssertGreaterThan(originals.count,4,"Must include unhit tiles as well as four targets")
+                if !verifySparseLaserContinuity {XCTAssertGreaterThan(originals.count,4,"Must include unhit tiles as well as four targets")}
                 var contacted=Set<String>(),failures=Set<String>()
                 let reserved=Set(targets.map(\.tileID));XCTAssertEqual(targets.count,4)
-                self.boardScaleAudit={
+                if !verifySparseLaserContinuity {self.boardScaleAudit={
                     for (id,(original,value)) in originals where !contacted.contains(id) {
                         laserContinuitySamples+=1
                         if reserved.contains(id){laserLaterTargetSamples+=1}
@@ -481,10 +791,11 @@ final class NativeWildMergeSixRootTests:XCTestCase {
                         if !continuous,failures.insert(id+":continuity").inserted{XCTFail(message)}
                     }
                 }
+                }
                 self.boardScaleAudit?()
                 return present(targets,generation,{index,id in
                     self.boardScaleAudit?()
-                    contacted.insert(id);laserContactCount+=1
+                    contacted.insert(id);sparseContacted.insert(id);laserContactCount+=1
                     let accepted=impact(index,id)
                     self.boardScaleAudit?()
                     return accepted
@@ -537,30 +848,50 @@ final class NativeWildMergeSixRootTests:XCTestCase {
                     "Cleared destination prefix must retain transaction-owned Baloon resources: "+label)
             }
         }
-        func drag(_ source:String,_ target:String,holdMilliseconds:Int=160)async throws {
+        func drag(_ source:String,_ target:String,holdMilliseconds:Int=160,requireLiveLaserBounce:Bool=false)async throws {
             let inputTasks=try XCTUnwrap(scope.sourceMicrotaskTasks)
             let a=try XCTUnwrap(scene.sourceNativeTileNode(source)),b=try XCTUnwrap(scene.sourceNativeTileNode(target))
             let from=scene.convert(a.position,from:try XCTUnwrap(a.parent)),to=scene.convert(b.position,from:try XCTUnwrap(b.parent))
+            if requireLiveLaserBounce {XCTAssertNotNil(a.visual.action(forKey:"special-impact-spawn"),"Merge-six interruption must begin during the actual Laser replacement bounce")}
+            var beginAccepted=false
             inputTasks.inputTask {
-                XCTAssertTrue(scene.beginDrag(at:from),label);scene.moveDrag(to:to,now:CACurrentMediaTime())
+                beginAccepted=scene.beginDrag(at:from)
+                XCTAssertTrue(beginAccepted,"\(label) begin source=\(source) target=\(target) from=\(from) to=\(to)")
+                if requireLiveLaserBounce {XCTAssertNil(a.visual.action(forKey:"special-impact-spawn"),"Actual pickup must retire the interrupted Laser replacement bounce")}
+                scene.moveDrag(to:to,now:CACurrentMediaTime())
             }
             try await Task.sleep(for:.milliseconds(holdMilliseconds))
             var result:NativeMoveResult?
-            inputTasks.inputTask {result=scene.finishDrag(at:to,now:CACurrentMediaTime())}
-            XCTAssertTrue(try XCTUnwrap(result).accepted,label)
+            inputTasks.inputTask {
+                if requireLiveLaserBounce {XCTAssertNil(a.visual.action(forKey:"special-impact-spawn"),"Interrupted Laser replacement bounce must stay retired through pointer release")}
+                result=scene.finishDrag(at:to,now:CACurrentMediaTime())
+            }
+            let resolved=try XCTUnwrap(result)
+            let details="\(label) begin=\(beginAccepted) source=\(source) target=\(target) from=\(from) to=\(to) sourceNow=\(a.position) targetNow=\(b.position) sourceFrame=\(a.calculateAccumulatedFrame()) targetFrame=\(b.calculateAccumulatedFrame()) sourceScale=\(a.sourceLocalScale)/\(a.visual.xScale),\(a.visual.yScale) targetScale=\(b.sourceLocalScale)/\(b.visual.xScale),\(b.visual.yScale) sourceCurrent=\(scene.sourceNativeTileNode(source) === a) targetCurrent=\(scene.sourceNativeTileNode(target) === b) sourceModel=\(String(describing:gameplay.engine.state.tiles.first{$0.id==source})) targetModel=\(String(describing:gameplay.engine.state.tiles.first{$0.id==target})) events=\(resolved.events) resolution=\(resolved.resolution)"
+            XCTAssertTrue(resolved.accepted,details)
+            guard resolved.accepted else {throw NSError(domain:"NativeLaserOverlapRejected",code:1,userInfo:[NSLocalizedDescriptionKey:details])}
         }
-        var laserOverlapAccepted=false
+        var laserOverlapAccepted=false,laserOverlapStarted=false
         if laserInterveningStack {
             let previousMoment=scene.onSpecialMoment
             scene.onSpecialMoment={kind,moment,index in
                 previousMoment?(kind,moment,index)
-                guard kind=="laser-gun",moment=="impact",index==0,
-                      let plan=gameplay.engine.pendingSpecial,let hit=plan.targets.first,
-                      let source=gameplay.engine.state.tiles.first(where:{$0.id==hit.id}),
+                guard kind=="laser-gun",moment=="impact",!laserOverlapStarted,
+                      let plan=gameplay.engine.pendingSpecial,plan.targets.indices.contains(index) else{return}
+                // Ordinary merge-six is intentionally blocked while the Source
+                // initial spawn coroutine is pending. Exercise the first actual
+                // contact after its settled receipt, still during that target's
+                // live replacement bounce. Sub-six keeps the first-shot path.
+                if laserInterveningSix {
+                    guard gameplay.engine.hasSettledSourceTntSpawnCoroutine(transactionID:plan.id,generation:plan.generation) else{return}
+                } else {guard index==0 else{return}}
+                let hit=plan.targets[index]
+                guard let source=gameplay.engine.state.tiles.first(where:{$0.id==hit.id}),
                       let target=gameplay.engine.state.activeTiles.first(where:{$0.id != hit.id && !$0.isWild && !$0.resolutionOwned && (laserInterveningSix ? $0.value+source.value==6:$0.value+source.value<6)}) else{return}
+                laserOverlapStarted=true
                 Task { @MainActor in
                     do {
-                        try await drag(source.id,target.id,holdMilliseconds:20)
+                        try await drag(source.id,target.id,holdMilliseconds:20,requireLiveLaserBounce:laserInterveningSix)
                         laserOverlapAccepted=true
                         print("[LaserOverlap] accepted during replacement bounce \(label)")
                     } catch {XCTFail("Laser overlap failed: \(error)")}
@@ -609,6 +940,15 @@ final class NativeWildMergeSixRootTests:XCTestCase {
                 }
             }
         }
+        let mainKey=(variant ?? archetype.rawValue)+":main"
+        let priorMainCount=scene.sourceWildSixParticleAdmissions[mainKey] ?? 0
+        let expectedMainCount=priorMainCount+1
+        let priorMainShardCount=scene.sourceWildOrdinaryMergeSixShardCounts[mainKey]?.count ?? 0
+        let priorMainSmokeCount=scene.sourceWildOrdinaryMergeSixSmokeRecipes[mainKey]?.count ?? 0
+        if pendingFilmSafetySweep {
+            XCTAssertTrue(scene.scheduleSourceSpawnVisualSafetySweep(),"Film regression requires actual Source600/1200ms safety work pending before Laser")
+            print("[LaserFilmSafety] scheduled actual Source safety sweep immediately before Laser")
+        }
         try await drag(reverse ? targetID:wildID,reverse ? wildID:targetID)
         if interveningOrdinary {print("[SpaceshipOverlap] visible-scene-entry direction=\(reverse ? "destination":"source")")}
         let pulledNodes=archetype == .magnet && !finalOnly ? try XCTUnwrap(gameplay.engine.pendingSpecial).targets.compactMap{scene.sourceNativeTileNode($0.id)}:[]
@@ -616,14 +956,13 @@ final class NativeWildMergeSixRootTests:XCTestCase {
             XCTAssertEqual(gameplay.engine.pendingSpecial?.targets.count,4,"Consumed Bottle regression requires four actual pull targets")
         }
         let pulledPositions=pulledNodes.map(\.position)
-        let mainKey=(variant ?? archetype.rawValue)+":main"
-        try await wait(label+":main"){failure != nil || scene.sourceWildSixParticleAdmissions[mainKey]==1}
+        try await wait(label+":main"){failure != nil || scene.sourceWildSixParticleAdmissions[mainKey]==expectedMainCount}
         XCTAssertNil(failure,label);XCTAssertEqual(app.route,.gameplay,label);XCTAssertTrue(game() === gameplay,label)
-        XCTAssertEqual(scene.sourceWildSixParticleAdmissions[mainKey],1,label)
-        XCTAssertEqual(scene.sourceWildOrdinaryMergeSixShardCounts[mainKey],[12],label)
+        XCTAssertEqual(scene.sourceWildSixParticleAdmissions[mainKey],expectedMainCount,label)
+        XCTAssertEqual(scene.sourceWildOrdinaryMergeSixShardCounts[mainKey].map{Array($0.dropFirst(priorMainShardCount))},[12],label)
         let ordinarySmoke=NativeSharedSmokeRecipes.regularSix(tileDepth:9993,reduced:false)
         let encoder=JSONEncoder();encoder.outputFormatting=[.sortedKeys]
-        XCTAssertEqual(try scene.sourceWildOrdinaryMergeSixSmokeRecipes[mainKey]?.map{try encoder.encode($0)},
+        XCTAssertEqual(try scene.sourceWildOrdinaryMergeSixSmokeRecipes[mainKey]?.dropFirst(priorMainSmokeCount).map{try encoder.encode($0)},
             [try encoder.encode(ordinarySmoke)],"Every actual Wild/Special main borrows ordinary merge6 clouds: "+label)
         if variant=="kite" {
             let kite=try XCTUnwrap(gameplay.view.subviews.first{$0.accessibilityIdentifier=="native-kite-finale"} as? NativeBeeFinalePresentation,"Actual Kite merge mounts its selected SVG finale")
@@ -853,6 +1192,17 @@ final class NativeWildMergeSixRootTests:XCTestCase {
             }
             XCTAssertFalse(gameplay.engine.state.activeTiles.contains{$0.variant=="bottle"})
         }
+        if verifyFilmLaserFootprints {
+            XCTAssertEqual(filmContactCount,4)
+            XCTAssertGreaterThan(filmFootprintSamples,100)
+            boardScaleAudit=nil
+        }
+        if verifySparseLaserContinuity {
+            XCTAssertEqual(laserContactCount,4)
+            XCTAssertEqual(laserPresentationCount,1)
+            XCTAssertGreaterThan(laserContinuitySamples,100)
+            boardScaleAudit=nil
+        }
         if verifyLaserContinuity {
             XCTAssertEqual(laserContactCount,4)
             XCTAssertGreaterThan(laserContinuitySamples,100)
@@ -860,7 +1210,7 @@ final class NativeWildMergeSixRootTests:XCTestCase {
             print("[LaserContinuity] \(label) samples=\(laserContinuitySamples) laterTargetSamples=\(laserLaterTargetSamples) contacts=\(laserContactCount)")
             boardScaleAudit=nil // Later user moves intentionally replace untouched dice.
         }
-        if laserInterveningStack {XCTAssertTrue(laserOverlapAccepted,"Must exercise replacement interruption")}
+        if laserInterveningStack {XCTAssertTrue(laserOverlapStarted,"Must start actual replacement interruption");XCTAssertTrue(laserOverlapAccepted,"Must exercise replacement interruption")}
         if initialMeter != nil {
             try await wait(label+":charged-meter-release") {
                 failure != nil || (gameplay.engine.state.wildSpawnCount>board.wildSpawnCount && !gameplay.engine.hasUnsavableSourceGameplayState)
@@ -870,7 +1220,7 @@ final class NativeWildMergeSixRootTests:XCTestCase {
         }
         XCTAssertNil(failure,label);XCTAssertEqual(app.route,.gameplay,label);XCTAssertTrue(game() === gameplay,label)
         if interveningOrdinary {XCTAssertFalse(gameplay.engine.flags.wildMagnetPullInProgress);XCTAssertNil(gameplay.engine.sourceMagnetPostCommit)}
-        XCTAssertEqual(scene.sourceWildSixParticleAdmissions[mainKey],1,"Late-final or pull must not repeat the main burst: "+label)
+        XCTAssertEqual(scene.sourceWildSixParticleAdmissions[mainKey],expectedMainCount,"Late-final or pull must not repeat the main burst: "+label)
         if archetype == .magnet {
             let pullKey=(variant ?? archetype.rawValue)+":pull"
             XCTAssertEqual(scene.sourceWildSixParticleAdmissions[pullKey],1,label)

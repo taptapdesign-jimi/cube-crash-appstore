@@ -1,0 +1,51 @@
+{
+  "changes": {
+    "worldScaleFromPrevious": 0.95,
+    "beachDownPoints": 24,
+    "area55DownPoints": 10,
+    "additionalLeftClouds": 3
+  },
+  "ipad": {
+    "device": "43A75086-0C64-464C-B71C-FDD01AF59C32",
+    "bundle": "com.taptapdesign.stacktosix.native",
+    "normalLaunch": "com.taptapdesign.stacktosix.native: 744",
+    "runtimeHashes": {
+      "Stack to Six": "2e30eeb6548dd669a55c95e6285881487f9f0d2e5281df6ddfa590e8a8d201ce",
+      "Stack to Six.debug.dylib": "e8ec1fdf2bbb2abf4b0ecbddb51282bca97143ec0606869203cdde82cc19e825"
+    },
+    "originalAssetsByteExact": 2952,
+    "saveBefore": {
+      "state-v1.previous.json": "0bfa9bd65e00c08cc1a2355fae4a4591930a787dc728e6693f32a2f91dbd67a7",
+      "state-v1.json": "ecf1fc0ff30e001f99b19f8d92c062faaae42f65d7e74d893beacc86545751ee"
+    },
+    "saveAfter": {
+      "state-v1.previous.json": "0bfa9bd65e00c08cc1a2355fae4a4591930a787dc728e6693f32a2f91dbd67a7",
+      "state-v1.json": "ecf1fc0ff30e001f99b19f8d92c062faaae42f65d7e74d893beacc86545751ee"
+    },
+    "bothSavesByteIdenticalThroughInstallAndInitialLaunch": true,
+    "actualSpringBoardSBRingerMuted": "0"
+  },
+  "iphone": {
+    "device": "1018BE2D-491B-465F-8F75-3E5BEB38C22A",
+    "bundle": "com.taptapdesign.stacktosix.native",
+    "normalLaunch": "com.taptapdesign.stacktosix.native: 872",
+    "runtimeHashes": {
+      "Stack to Six": "2e30eeb6548dd669a55c95e6285881487f9f0d2e5281df6ddfa590e8a8d201ce",
+      "Stack to Six.debug.dylib": "e8ec1fdf2bbb2abf4b0ecbddb51282bca97143ec0606869203cdde82cc19e825"
+    },
+    "originalAssetsByteExact": 2952,
+    "saveBefore": {
+      "state-v1.previous.json": "0966ba64bd96eb3e19dc24256b99c3ac72fbd5760c2ebd9430aa499f408d1912",
+      "state-v1.json": "9f029ebe42f174467c55c947bcd5572a59ca297ca1609f0cbc25b3802c4ac964"
+    },
+    "saveAfter": {
+      "state-v1.previous.json": "0966ba64bd96eb3e19dc24256b99c3ac72fbd5760c2ebd9430aa499f408d1912",
+      "state-v1.json": "9f029ebe42f174467c55c947bcd5572a59ca297ca1609f0cbc25b3802c4ac964"
+    },
+    "bothSavesByteIdenticalThroughInstallAndInitialLaunch": true,
+    "actualSpringBoardSBRingerMuted": "1"
+  },
+  "tests": "3 hosted cases passed, including744/820/1032 tablet viewports and stable route collapse",
+  "sourceGates": "qa:fast,qa:full530 suites4010tests plusKING24/330 passed; final cloud overlap guard followed by qa:ios/feature and3hosted cases",
+  "visual": "Normal iPad Journey inspected; subjective/physical acceptance pending"
+}

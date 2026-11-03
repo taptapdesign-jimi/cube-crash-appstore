@@ -44,7 +44,7 @@ Do not regress these rules:
 
 - No 1-frame flashes. Prime elements into hidden start state before making a screen visible.
 - No opacity fade-out before card scale-in visually completes. The tapped card should read as scaling into itself; opacity can be finalized at the end for cleanup.
-- No clouds in front of Journey worlds. World clouds belong behind the world and should follow the same active/inactive state as their world.
+- No clouds in front of Journey worlds. World clouds belong behind the world and should follow the same active/inactive state as their world. Native iPad Hub uses a shared rear paint plane with three cloud carriers. Each carrier receives exactly its World route track and pivot from the existing finite route owner,including cancellation/background/return. iPhone retains its existing Unit hierarchy. Tablet horizontal cloud travel is1.4x with unchanged periods;all16clouds share existing idle lifecycle admission/pause/retirement.
 - No drag-to-open bug. Vertical dragging over a Journey world must scroll/overshoot, not open the world.
 - Preserve springy drag/overshoot on Journey Worlds and Forest/Beach/Area 55 world screens.
 - Preserve scroll interactivity after returning from card modal or board game.
@@ -464,3 +464,58 @@ Paired CTA scope override(user2026-10-31): result Play Again/Exit gap reduced
 Only those pairs opt into gentle independent random idle profiles on existing
 button sublayerTransform owner:small drift/rotation,distinct durations/phases.
 Other button profiles,enter/exit/contact/counting and all other animations stay unchanged.
+
+
+### Unlocked reward stationary flip before exit (user2026-11-02)
+
+The shared Native phone/tablet collect rotor first turns180degrees at its
+captured location and size. No parent translation or scale advances during
+the turn. Only after that turn completes do the card and staggered title/copy
+run their retained Home collapse. At the exact collapse boundary the rotor
+continues a second180degree turn in the same selected direction, returning the
+main artwork during exit. Each turn lasts0.3096s;one precommitted rotor track
+spans both turns,with no callback gap or new direction draw. Total exit/handoff
+duration remains unchanged. Both the former actual turn duration and
+the collapse duration are multiplied by1.5:currently0.3096s for the turn and
+0.774s for the collapse. Both stages share one compositor epoch and are
+precommitted without a boundary callback. This supersedes the60percent onset.
+One random direction per accepted collect,existing geometry,stagger,
+handoff/pause/cleanup owners remain. Reduced Motion retains no flip and its
+existing160ms monotone exit.
+
+### Reward collect contact and faster turns (user2026-11-03)
+
+Supersedes previous collect timing:accepted collect first plays existing400ms
+NativeHUDTapMotion Cartoon Bounce on the captured unlocked face,then stationary
+turn and exit/return turn each last154.8ms(half prior duration). Parent collapse
+starts after contact+first turn;one rotor track starts after contact. On return
+to the main artwork at contact+two turns,a precommitted root shake22pt/420ms
+plays using the same compositor epoch. Existing774ms collapse,80ms text stagger,
+80ms fade and single random direction remain. No extra callbacks/timers;all
+tracks inherit existing pause/removal ownership. Reduced Motion stays160ms
+monotone without contact/flip/shake.
+
+User2026-11-03 overlap correction:after Cartoon Bounce,the parent Home exit
+starts simultaneously with the first rotor turn,not after it. Thus collapse
+already advances during the return from back/interim face to unlocked artwork.
+Both turn durations,return shake and text stagger remain;handoff now1.414s.
+Reduced Motion unchanged. Supersedes stationary-first-turn collect hold.
+
+User2026-11-03 visible-overlap correction supersedes the prior scheduled-only
+overlap:Home hero inflate/backIn kept the card visually growing through both
+turns. Reward card alone now uses monotone powerOut2 scale1→0 over774ms,
+beginning exactly with return half-turn at bounce+154.8ms. First turn holds size.
+Text retains Home recipe and80msstaggers from return-start;global Home unchanged.
+Card shrink is already19percent at the midpoint of return flip. Total handoff
+1.5688s. Existing contact,rotor,shake,pause/cleanup and ReducedMotion unchanged.
+
+User2026-11-03 card-only speed refinement:card monotone exit duration reduced
+40percent from774ms to464.4ms. Return-flip onset remains exact;rotor/contact,
+text exits/staggers,root shake,final-copy handoff and ReducedMotion unchanged.
+
+User2026-11-03 paper-modal projection:Journey info card uses common1.4iPad
+destination scale;other paper modals keep phone-local geometry under static
+CATransformLayer carrier1.4matching navigation. Existing carriers retain
+enter/flip/idle/drag/exit ownership,epochs and durations. Shared drag translation
+converts physical delta to local distance;physical dismissal threshold retained.
+Phone path unchanged. No fullscreen reward/result/tutorial change.

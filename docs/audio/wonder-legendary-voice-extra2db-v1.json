@@ -1,0 +1,16 @@
+{
+  "source": "assets/sound/SPEECH/Jimbo voice compilation/journey-cards-v1/plus3db-v1/012-stage-06.wav",
+  "playback": "assets/sound/SPEECH/Jimbo voice compilation/journey-cards-v1/wonder-extra2db-v1/012-stage-06.wav",
+  "sourceSHA256": "86a0a8ef40b1b48ec6fbc2b2fffd1cfdee1c1f2680003b2d7fefd3f4a4db78cf",
+  "playbackSHA256": "cd5dacf32448369562a78a67ca4371e7c24ddf697ea98b9d1caf78fd97807e05",
+  "originalUnchanged": true,
+  "oldCueGain": 0.9064262964918004,
+  "newCueGain": 1.0,
+  "pcmGainDb": 1.1466499286253697,
+  "effectiveIncreaseDb": 2.000000576881221,
+  "peakDbFS": -0.47756298917465384,
+  "frames": 172560,
+  "sampleRate": 48000,
+  "channels": 1,
+  "processing": "Fixed gain and PCM16 rounding only; original preserved; no clipping, limiting, trim, resampling, pitch or rate change"
+}

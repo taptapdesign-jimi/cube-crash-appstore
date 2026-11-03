@@ -199,6 +199,7 @@ final class NativeGameplayViewController: UIViewController {
         guard !disposed else{return}
         if firstBoardFrameReady {completion()}else{firstBoardFrameWaiters.append(completion)}
     }
+    private var finaleViewport:CGSize {NativeTabletLayout.animationViewport(view.bounds.size)}
     private var fishFinale: NativeFishFinalePresentation?
     private var tntGlyphs: [String: NativeSplashGlyphField] = [:]
     private var sourceTntGlyphScopes:[String:NativeGameplaySourceContext.Scope]=[:]
@@ -421,7 +422,7 @@ final class NativeGameplayViewController: UIViewController {
             field.frame=self.view.bounds;field.autoresizingMask=[.flexibleWidth,.flexibleHeight]
             self.tntGlyphs[id]=field;self.sourceTntGlyphScopes[id]=scope
             self.sourceTntGlyphOwnerIDs[id]=self.engine.pendingDirectWild?.id ?? self.engine.pendingSpecial?.id ?? self.engine.pendingSourceLateFinalMerge?.ownerID
-            self.view.addSubview(field);field.layoutIfNeeded()
+            self.view.addSubview(field);NativeTabletLayout.projectAnimation(field,viewport:self.view.bounds.size);field.layoutIfNeeded()
             guard current(),self.tntGlyphs[id] === field,self.sourceTntGlyphScopes[id] === scope else {
                 if self.tntGlyphs[id] === field {self.tntGlyphs.removeValue(forKey:id);self.sourceTntGlyphScopes.removeValue(forKey:id)}
                 field.removeFromSuperview();return false
@@ -461,7 +462,7 @@ final class NativeGameplayViewController: UIViewController {
                 let color = UIColor(red: 241.0/255,green: 132.0/255,blue: 83.0/255,alpha: 1)
                 glyphs = NativeSplashGlyphField(artwork: artwork,text: "BOOM",colors: [color,color],splitIndex: 0)
                 glyphs.frame = self.view.bounds; glyphs.autoresizingMask = [.flexibleWidth,.flexibleHeight]
-                self.view.addSubview(glyphs); self.tntGlyphs[id] = glyphs; glyphs.layoutIfNeeded()
+                self.view.addSubview(glyphs); NativeTabletLayout.projectAnimation(glyphs,viewport:self.view.bounds.size); self.tntGlyphs[id] = glyphs; glyphs.layoutIfNeeded()
             }
             glyphs.paint(seconds: time)
         }
@@ -477,7 +478,7 @@ final class NativeGameplayViewController: UIViewController {
                     variant == "juice" ? UIColor(red: 1,green: 182.0/255,blue: 175.0/255,alpha: 1) : UIColor(red: 1,green: 203.0/255,blue: 129.0/255,alpha: 1)
                 glyphs = NativeSplashGlyphField(artwork: artwork,text: variant == "magnet" ? "SWOOP":variant == "juice" ? "BUBBLY" : "SPARKLE",colors: variant == "juice" ? [color,UIColor(red:249.0/255,green:222.0/255,blue:161.0/255,alpha:1)]:[color],splitIndex: variant == "juice" ? 3:0)
                 glyphs.frame = self.view.bounds; glyphs.autoresizingMask = [.flexibleWidth,.flexibleHeight]
-                self.view.addSubview(glyphs); self.tntGlyphs[id] = glyphs; glyphs.layoutIfNeeded()
+                self.view.addSubview(glyphs); NativeTabletLayout.projectAnimation(glyphs,viewport:self.view.bounds.size); self.tntGlyphs[id] = glyphs; glyphs.layoutIfNeeded()
             }
             glyphs.paint(seconds: time)
         }
@@ -501,7 +502,8 @@ final class NativeGameplayViewController: UIViewController {
         scene.authoredTntPresentationReady = { [weak self] variant in self?.tntArtworkReady(variant) == true }
         scene.onAuthoredLaserImpact = { [weak self] targets,generation,impact,allContacts,completion in
             guard let self,!self.disposed,self.engine.state.generation == generation,self.tntArtworkReady("laser-gun"),let resources=self.laserResources else {return false}
-            let owner=NativeLaserGunImpactPresentation(resources:resources,viewport:self.view.bounds.size,targets:targets,generation:generation)
+            let logicalTargets=targets.map {NativeLaserVisualTarget(tileID:$0.tileID,point:NativeTabletLayout.animationPoint($0.point,viewport:self.view.bounds.size),shooter:$0.shooter)}
+            let owner=NativeLaserGunImpactPresentation(resources:resources,viewport:self.finaleViewport,targets:logicalTargets,generation:generation)
             guard owner.assetReady else {owner.dispose();return false}
             self.area55Finales["laser-gun"]?.dispose();self.area55Finales["laser-gun"]=owner;self.area55Generations["laser-gun"]=generation;self.area55SourceOwnerIDs["laser-gun"]=self.engine.pendingDirectWild?.id ?? self.engine.pendingSpecial?.id ?? self.engine.pendingSourceLateFinalMerge?.ownerID
             owner.autoresizingMask=[.flexibleWidth,.flexibleHeight];self.view.addSubview(owner)
@@ -516,23 +518,24 @@ final class NativeGameplayViewController: UIViewController {
                 if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
                 completion()
             }
-            self.bindFinalMergeProgress(owner,generation:generation);owner.start();return true
+            NativeTabletLayout.projectAnimation(owner,viewport:self.view.bounds.size);self.bindFinalMergeProgress(owner,generation:generation);owner.start();return true
         }
         scene.onAuthoredTntPresentation = { [weak self] variant,_,generation,ready,completion in
             self?.presentTntVariant(variant,generation:generation,onGameplayReady:ready,completion:completion) == true
         }
         scene.onAuthoredFinale = { [weak self] variant,origin,generation,completion in
             guard let self,!self.disposed,self.engine.state.generation == generation else { return false }
+            let origin=NativeTabletLayout.animationPoint(origin,viewport:self.view.bounds.size)
             if ["coconut","flower","barell","beach-ball","bloob-ball"].contains(variant) {
                 return self.presentTntVariant(variant,generation:generation,onGameplayReady:nil,completion:completion)
             }
             if variant == "spaceship" || variant == "laser-gun" {
                 let owner: NativeFinitePresentation,ready: Bool
                 if variant == "spaceship" {
-                    let spaceship = NativeSpaceshipFinalePresentation(resourceRoot: self.resourceRoot,viewport: self.view.bounds.size,origin: origin,generation: generation,preparedArtwork:self.selectedFinaleArtwork())
+                    let spaceship = NativeSpaceshipFinalePresentation(resourceRoot: self.resourceRoot,viewport: self.finaleViewport,origin: origin,generation: generation,preparedArtwork:self.selectedFinaleArtwork())
                     owner = spaceship; ready = spaceship.assetReady
                 } else {
-                    let laser = NativeLaserGunFinalePresentation(resourceRoot: self.resourceRoot,viewport: self.view.bounds.size,origin: origin,generation: generation,preparedArtwork:self.selectedFinaleArtwork())
+                    let laser = NativeLaserGunFinalePresentation(resourceRoot: self.resourceRoot,viewport: self.finaleViewport,origin: origin,generation: generation,preparedArtwork:self.selectedFinaleArtwork())
                     owner = laser; ready = laser.assetReady
                 }
                 guard ready else { owner.dispose(); return false }
@@ -553,17 +556,17 @@ final class NativeGameplayViewController: UIViewController {
                     if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
                     completion()
                 }
-                self.bindFinalMergeProgress(owner,generation:generation);owner.start(); return true
+                NativeTabletLayout.projectAnimation(owner,viewport:self.view.bounds.size);self.bindFinalMergeProgress(owner,generation:generation);owner.start(); return true
             }
             if variant == "mushroom" || variant == "robo-cube" {
                 let owner:NativeFinitePresentation
                 if variant == "mushroom" {
-                    let mushroom=NativeMushroomFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.view.bounds.size,preparedArtwork:self.selectedFinaleArtwork())
+                    let mushroom=NativeMushroomFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.finaleViewport,preparedArtwork:self.selectedFinaleArtwork())
                     guard mushroom.assetReady else {mushroom.dispose();return false}
                     mushroom.onHaptic={ [weak self] style in guard self?.engine.state.generation == generation else {return};self?.onHaptic?(style)}
                     owner=mushroom
                 } else {
-                    let robo=NativeRoboFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.view.bounds.size,previousExitFrame:self.lastRoboExitFrame,preparedArtwork:self.selectedFinaleArtwork())
+                    let robo=NativeRoboFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.finaleViewport,previousExitFrame:self.lastRoboExitFrame,preparedArtwork:self.selectedFinaleArtwork())
                     guard robo.assetReady else {robo.dispose();return false}
                     robo.onHaptic={ [weak self] style in guard self?.engine.state.generation == generation else {return};self?.onHaptic?(style)}
                     robo.onExitFrameSelected={ [weak self] frame in guard self?.engine.state.generation == generation else {return};self?.lastRoboExitFrame=frame}
@@ -580,11 +583,11 @@ final class NativeGameplayViewController: UIViewController {
                     if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
                     completion()
                 }
-                self.bindFinalMergeProgress(owner,generation:generation);owner.start();return true
+                NativeTabletLayout.projectAnimation(owner,viewport:self.view.bounds.size);self.bindFinalMergeProgress(owner,generation:generation);owner.start();return true
             }
             if variant == "baloon" {
                 guard let resources=self.finaleArtworkOwner?.baloonResources,let artwork=self.selectedFinaleArtwork() else{return false}
-                let owner=NativeBaloonFinalePresentation(viewport:self.view.bounds.size,origin:origin,resources:resources,artwork:artwork)
+                let owner=NativeBaloonFinalePresentation(viewport:self.finaleViewport,origin:origin,resources:resources,artwork:artwork)
                 guard owner.assetReady else{owner.dispose();return false}
                 self.area55Finales[variant]?.dispose();self.area55Finales[variant]=owner;self.area55Generations[variant]=generation
                 owner.autoresizingMask=[.flexibleWidth,.flexibleHeight];self.view.addSubview(owner)
@@ -599,10 +602,10 @@ final class NativeGameplayViewController: UIViewController {
                     if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
                     completion()
                 }
-                self.bindFinalMergeProgress(owner,generation:generation);owner.start();return true
+                NativeTabletLayout.projectAnimation(owner,viewport:self.view.bounds.size);self.bindFinalMergeProgress(owner,generation:generation);owner.start();return true
             }
             if variant == "cubero" {
-                let owner=NativeCuberoFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.view.bounds.size,preparedArtwork:self.selectedFinaleArtwork())
+                let owner=NativeCuberoFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.finaleViewport,preparedArtwork:self.selectedFinaleArtwork())
                 guard owner.assetReady else {owner.dispose();return false}
                 self.area55Finales[variant]?.dispose()
                 self.area55Finales[variant]=owner;self.area55Generations[variant]=generation
@@ -617,10 +620,10 @@ final class NativeGameplayViewController: UIViewController {
                     if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
                     completion()
                 }
-                self.bindFinalMergeProgress(owner,generation:generation);owner.start();return true
+                NativeTabletLayout.projectAnimation(owner,viewport:self.view.bounds.size);self.bindFinalMergeProgress(owner,generation:generation);owner.start();return true
             }
             if variant == "bloob" {
-                let owner=NativeBloobFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.view.bounds.size,origin:origin,preparedArtwork:self.selectedFinaleArtwork())
+                let owner=NativeBloobFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.finaleViewport,origin:origin,preparedArtwork:self.selectedFinaleArtwork())
                 guard owner.assetReady else {owner.dispose();return false}
                 self.area55Finales[variant]?.dispose()
                 self.area55Finales[variant]=owner;self.area55Generations[variant]=generation
@@ -636,10 +639,10 @@ final class NativeGameplayViewController: UIViewController {
                     if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
                     completion()
                 }
-                self.bindFinalMergeProgress(owner,generation:generation);owner.start();return true
+                NativeTabletLayout.projectAnimation(owner,viewport:self.view.bounds.size);self.bindFinalMergeProgress(owner,generation:generation);owner.start();return true
             }
             if variant == "bee" || variant == "kite" {
-                let owner=NativeBeeFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.view.bounds.size,origin:origin,preparedArtwork:self.selectedFinaleArtwork(),kite:variant == "kite")
+                let owner=NativeBeeFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.finaleViewport,origin:origin,preparedArtwork:self.selectedFinaleArtwork(),kite:variant == "kite")
                 guard owner.assetReady else {owner.dispose();return false}
                 self.area55Finales[variant]?.dispose()
                 self.area55Finales[variant]=owner;self.area55Generations[variant]=generation
@@ -658,10 +661,10 @@ final class NativeGameplayViewController: UIViewController {
                     if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
                     completion()
                 }
-                self.bindFinalMergeProgress(owner,generation:generation);owner.start();return true
+                NativeTabletLayout.projectAnimation(owner,viewport:self.view.bounds.size);self.bindFinalMergeProgress(owner,generation:generation);owner.start();return true
             }
             if variant == "kanta" {
-                let owner = NativeKantaFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.view.bounds.size,preparedArtwork:self.selectedFinaleArtwork())
+                let owner = NativeKantaFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.finaleViewport,preparedArtwork:self.selectedFinaleArtwork())
                 guard owner.assetReady else {owner.dispose();return false}
                 self.area55Finales[variant]?.dispose()
                 self.area55Finales[variant] = owner;self.area55Generations[variant] = generation
@@ -681,13 +684,13 @@ final class NativeGameplayViewController: UIViewController {
                     if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
                     completion()
                 }
-                self.bindFinalMergeProgress(owner,generation:generation);owner.start();return true
+                NativeTabletLayout.projectAnimation(owner,viewport:self.view.bounds.size);self.bindFinalMergeProgress(owner,generation:generation);owner.start();return true
             }
             if variant == "bottle" {
                 self.area55Finales["spaceship"]?.dispose()
                 self.honeyFinale?.dispose()
                 self.bottleFinale?.dispose()
-                let owner = NativeBottleFinalePresentation(resourceRoot: self.resourceRoot,viewport: self.view.bounds.size,preparedArtwork:self.selectedFinaleArtwork())
+                let owner = NativeBottleFinalePresentation(resourceRoot: self.resourceRoot,viewport: self.finaleViewport,preparedArtwork:self.selectedFinaleArtwork())
                 let plan=self.engine.pendingSpecial
                 let excluded=Set((plan?.targets.map(\.id) ?? [])+[plan?.source.id,plan?.destination.id].compactMap{$0})
                 owner.bindBoardReaction(self.boardScene?.makeBloobBoardReaction(excluding:excluded),pullComplete:{[weak scene=self.boardScene] in
@@ -705,12 +708,12 @@ final class NativeGameplayViewController: UIViewController {
                     if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
                     completion()
                 }
-                self.bindFinalMergeProgress(owner,generation:generation);owner.start(); return true
+                NativeTabletLayout.projectAnimation(owner,viewport:self.view.bounds.size);self.bindFinalMergeProgress(owner,generation:generation);owner.start(); return true
             }
             if variant == "honey" {
                 self.area55Finales["spaceship"]?.dispose()
                 self.bottleFinale?.dispose(); self.honeyFinale?.dispose()
-                let owner = NativeHoneyFinalePresentation(resourceRoot: self.resourceRoot,viewport: self.view.bounds.size,preparedArtwork:self.selectedFinaleArtwork())
+                let owner = NativeHoneyFinalePresentation(resourceRoot: self.resourceRoot,viewport: self.finaleViewport,preparedArtwork:self.selectedFinaleArtwork())
                 owner.autoresizingMask = [.flexibleWidth,.flexibleHeight]
                 self.honeyFinale = owner; self.honeyGeneration = generation; self.view.addSubview(owner)
                 owner.onCue = { [weak self] moment,index in
@@ -722,11 +725,11 @@ final class NativeGameplayViewController: UIViewController {
                     if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
                     completion()
                 }
-                self.bindFinalMergeProgress(owner,generation:generation);owner.start(); return true
+                NativeTabletLayout.projectAnimation(owner,viewport:self.view.bounds.size);self.bindFinalMergeProgress(owner,generation:generation);owner.start(); return true
             }
             guard variant == "fish" else { return false }
             self.fishFinale?.dispose()
-            let owner = NativeFishFinalePresentation(resourceRoot: self.resourceRoot,origin: origin,viewport: self.view.bounds.size,preparedArtwork:self.selectedFinaleArtwork())
+            let owner = NativeFishFinalePresentation(resourceRoot: self.resourceRoot,origin: origin,viewport: self.finaleViewport,preparedArtwork:self.selectedFinaleArtwork())
             owner.autoresizingMask = [.flexibleWidth,.flexibleHeight]
             self.fishFinale = owner; self.fishGeneration = generation; self.view.addSubview(owner)
             owner.onFinished = { [weak self,weak owner] success in
@@ -735,14 +738,14 @@ final class NativeGameplayViewController: UIViewController {
                 if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
                 completion()
             }
-            owner.onProgress = self.boardScene?.finalMergeProgressObserver(generation:generation);owner.start(); return true
+            NativeTabletLayout.projectAnimation(owner,viewport:self.view.bounds.size);owner.onProgress = self.boardScene?.finalMergeProgressObserver(generation:generation);owner.start(); return true
         }
         scene.unreadJourneyDice = {[weak self] in self?.unreadJourneyDice() ?? []}
         scene.onJourneyDieLanded = {[weak self] id,board,generation in self?.onJourneyDieLanded?(id,board,generation)}
         scene.refreshBackpackAlert()
         scene.onHUDTapContact = {[weak self] kind in self?.onHUDTapContact?(kind)}
         scene.onHelpRequest = { [weak self] in
-            guard let self,self.engine.state.mode != .arcade || self.engine.state.effectiveArcadeVariant != .pureDice else { return }
+            guard let self else { return }
             self.onHelp?()
         }
         scene.onScoreRequest = { [weak self] in self?.onScore?() }
@@ -812,7 +815,7 @@ final class NativeGameplayViewController: UIViewController {
                       glyphs.superview === self.view else{return nil}
                 return NativeSourceScreenShakeOverlayTarget(read:{[weak glyphs] in
                     guard let glyphs else{return .zero};return CGPoint(x:glyphs.transform.tx,y:glyphs.transform.ty)
-                },paint:{[weak glyphs] offset in glyphs?.transform=CGAffineTransform(translationX:offset.x,y:offset.y)},current:{[weak self,weak glyphs,weak scope] in
+                },paint:{[weak glyphs] offset in guard let glyphs else{return};let scale=NativeTabletLayout.animationScale(glyphs.superview?.bounds.size ?? .zero);glyphs.transform=CGAffineTransform(a:scale,b:0,c:0,d:scale,tx:offset.x,ty:offset.y)},current:{[weak self,weak glyphs,weak scope] in
                     guard let self,let glyphs,let scope else{return false}
                     return !self.disposed && self.engine.state.generation==generation && scope.current &&
                         self.tntGlyphs[id] === glyphs && self.sourceTntGlyphOwnerIDs[id]==ownerID && glyphs.superview === self.view
@@ -872,6 +875,7 @@ final class NativeGameplayViewController: UIViewController {
             self.spriteView.surfacePaused = paused
         }
         boardScene = scene
+        configureBackdropOcclusion()
         scene.onSourcePresentationFailure = {[weak self,weak scene] reason,generation in
             guard let self,let scene,!self.disposed,self.boardScene === scene,let scope=self.sourceScope,scope.current,
                 self.engine.state.generation==generation,self.sourcePresentationFailureGeneration != generation else{return}
@@ -941,6 +945,8 @@ final class NativeGameplayViewController: UIViewController {
         // keep its entry running so Wild idle remains deferred until entry ends.
         let preparedSourceSave = !hasPresentedScene && engine.state.mode == .arcade && beforeSourceInitialBoardReveal != nil
         boardScene.layout(size: spriteView.bounds.size,insets: view.safeAreaInsets,animateEntry: !hasPresentedScene && !preparedSourceSave)
+        configureBackdropOcclusion()
+
         if sourceDirectPresentationEnabled,!sourceDirectHUDInstalled {
             guard installSourceDirectHUDPresentation(scene:boardScene) else {
                 boardScene.onSourcePresentationFailure?("source_app_direct_hud_not_bound",engine.state.generation)
@@ -1267,11 +1273,11 @@ final class NativeGameplayViewController: UIViewController {
         guard !disposed,engine.state.generation == generation,tntArtworkReady(variant) else { return false }
         let owner: NativeFinitePresentation
         if variant == "beach-ball" {
-            let ball = NativeBeachBallPresentation(resourceRoot:resourceRoot,viewport:view.bounds.size,preparedArtwork:selectedFinaleArtwork())
+            let ball = NativeBeachBallPresentation(resourceRoot:resourceRoot,viewport:finaleViewport,preparedArtwork:selectedFinaleArtwork())
             guard ball.assetsReady else { ball.dispose(); return false }
             ball.onGameplayReady = onGameplayReady; owner = ball
         } else {
-            let tnt = NativeTntVariantPresentation(resourceRoot:resourceRoot,variant:variant == "coconut" ? .coconut:variant == "flower" ? .flower:variant == "bloob-ball" ? .bloobGas:.barell,viewport:view.bounds.size,preparedArtwork:selectedFinaleArtwork(),coconutBoardBodySize:boardScene?.coconutFinaleBodySize)
+            let tnt = NativeTntVariantPresentation(resourceRoot:resourceRoot,variant:variant == "coconut" ? .coconut:variant == "flower" ? .flower:variant == "bloob-ball" ? .bloobGas:.barell,viewport:finaleViewport,preparedArtwork:selectedFinaleArtwork(),coconutBoardBodySize:boardScene.map{$0.coconutFinaleBodySize/NativeTabletLayout.animationScale(view.bounds.size)},smokePresentationScale:NativeTabletLayout.applies(view.bounds.size) ? 1.694:1,smokeVerticalOffset:NativeTabletLayout.smokeVerticalOffset(view.bounds.size))
             guard tnt.assetsReady else { tnt.dispose(); return false }
             if variant == "coconut" {tnt.bindScreenShake(to:view)}
             if variant == "bloob-ball" {tnt.bindBoardReaction(boardScene?.makeBloobBoardReaction())}
@@ -1294,7 +1300,7 @@ final class NativeGameplayViewController: UIViewController {
             if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
             completion()
         }
-        bindFinalMergeProgress(owner,generation:generation);owner.start(); return true
+        NativeTabletLayout.projectAnimation(owner,viewport:view.bounds.size);bindFinalMergeProgress(owner,generation:generation);owner.start(); return true
     }
 
     func setSuspended(_ value: Bool) {
@@ -1648,6 +1654,15 @@ final class NativeGameplayViewController: UIViewController {
         if owner.isPrepared,!backgrounded,owner.isForeground {completion(true);return}
         decorWaiters.append((engine.state.generation,completion));startDecorPreparation()
     }
+    private func configureBackdropOcclusion() {
+        guard let boardScene else{return}
+        if NativeTabletLayout.applies(spriteView.bounds.size),let footer=journeyBottomDecor {
+            boardScene.onBackdropOcclusion = { [weak footer] cutouts in footer?.updateBoardOcclusion(cutouts) }
+            footer.updateBoardOcclusion(boardScene.backdropOcclusionCutouts())
+        } else {
+            boardScene.onBackdropOcclusion=nil;journeyBottomDecor?.updateBoardOcclusion([])
+        }
+    }
     private func ensureJourneyBottomDecor() {
         guard !disposed,isViewLoaded,engine.state.tutorial?.shouldLockHUD != true,engine.state.mode == .journey,let catalog=journeyDecorCatalog else{return}
         let generation=engine.state.generation
@@ -1659,6 +1674,7 @@ final class NativeGameplayViewController: UIViewController {
         },catalog:catalog,resources:journeyDecorResources?(resourceRoot),isApplicationActive:{[weak self] in self?.backgrounded == false})
         journeyBottomDecor=owner;owner.autoresizingMask=[.flexibleWidth,.flexibleHeight]
         view.insertSubview(owner,aboveSubview:paperSurface)
+        configureBackdropOcclusion()
         owner.setSuspended(explicitlySuspended && !exitingBoard)
     }
     private func revealJourneyBottomDecor() {

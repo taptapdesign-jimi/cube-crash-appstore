@@ -6,6 +6,23 @@ import StackToSixNativeState
 
 @MainActor
 final class NativeScoreModalTests:XCTestCase {
+    func testHistoryDatesUseMinutesTodayYesterdayThenOriginalDate() throws {
+        var calendar=Calendar(identifier:.gregorian)
+        calendar.timeZone=try XCTUnwrap(TimeZone(identifier:"Europe/Zagreb"))
+        let now=try XCTUnwrap(calendar.date(from:DateComponents(year:2026,month:11,day:3,hour:12)))
+        func text(_ elapsed:TimeInterval)->String {NativeScoreHistoryDate.text(now.addingTimeInterval(-elapsed).timeIntervalSince1970,now:now,calendar:calendar)}
+        XCTAssertEqual(text(0),"Just now");XCTAssertEqual(text(59),"Just now")
+        XCTAssertEqual(text(60),"1 minute ago");XCTAssertEqual(text(300),"5 minutes ago")
+        XCTAssertEqual(text(3599),"59 minutes ago");XCTAssertEqual(text(3600),"Today")
+        XCTAssertEqual(text(86400),"Yesterday");XCTAssertEqual(text(172800),"01.11.2026")
+        XCTAssertEqual(NativeScoreHistoryDate.text(nil,now:now,calendar:calendar),"--/--")
+        let midnight=try XCTUnwrap(calendar.date(from:DateComponents(year:2026,month:11,day:3)))
+        XCTAssertEqual(NativeScoreHistoryDate.text(midnight.addingTimeInterval(-60).timeIntervalSince1970,now:midnight,calendar:calendar),"Yesterday")
+        // Yesterday can last 25 hours when the local clock leaves daylight saving time.
+        let afterDST=try XCTUnwrap(calendar.date(from:DateComponents(year:2026,month:10,day:26,hour:0,minute:30)))
+        let yesterday=try XCTUnwrap(calendar.date(from:DateComponents(year:2026,month:10,day:25,hour:0,minute:15)))
+        XCTAssertEqual(NativeScoreHistoryDate.text(yesterday.timeIntervalSince1970,now:afterDST,calendar:calendar),"Yesterday")
+    }
     func testJourneyHistoryProjectsTopThreeAndNeverInventsLegacyDate() {
         var stats=NativeBoardStats();stats.highScore=400
         let legacy=NativeScoreModalModel(boardStats:stats,combo:false)
@@ -13,6 +30,23 @@ final class NativeScoreModalTests:XCTestCase {
         stats.comboHistory=[.init(value:2,date:10),.init(value:8,date:12),.init(value:8,date:11),.init(value:4,date:1)]
         let top=NativeScoreModalModel(boardStats:stats,combo:true)
         XCTAssertEqual(top.title,"Best combo");XCTAssertEqual(top.history?.map(\.value),[8,8,4]);XCTAssertEqual(top.history?.first?.date,12)
+    }
+    func testScoreAndComboTitlesRetainFull32ptWithoutHeightShrink() throws {
+        for size in [CGSize(width:320,height:568),CGSize(width:390,height:844),CGSize(width:820,height:1180)] {
+            for combo in [false,true] {for history in [false,true] {
+                let model=history ? NativeScoreModalModel(boardStats:NativeBoardStats(),combo:combo)
+                    : NativeScoreModalModel(state:NativeBoardFactory.make(mode:.journey,board:1),progression:NativeProgressionState(),combo:combo)
+                let modal=NativeScoreModal(model:model,root:NativeTestResources.root,deferredEntry:true)
+                defer{modal.dispose()}
+                modal.loadViewIfNeeded();modal.view.frame=CGRect(origin:.zero,size:size);modal.view.setNeedsLayout();modal.view.layoutIfNeeded()
+                func labels(_ view:UIView)->[UILabel] {((view as? UILabel).map{[$0]} ?? []) + view.subviews.flatMap(labels)}
+                let title=try XCTUnwrap(labels(modal.view).first{$0.text==model.title})
+                XCTAssertEqual(title.font.pointSize,32)
+                XCTAssertFalse(title.adjustsFontSizeToFitWidth)
+                XCTAssertGreaterThanOrEqual(title.bounds.height,title.font.lineHeight)
+                XCTAssertLessThanOrEqual((model.title as NSString).size(withAttributes:[.font:title.font!]).width,title.bounds.width)
+            }}
+        }
     }
     func testHistoryModalHasBoundedRowsAndSharedModalIdle()async throws {
         var stats=NativeBoardStats();stats.scoreHistory=(1...10).map{.init(value:$0*100,date:Double($0))}

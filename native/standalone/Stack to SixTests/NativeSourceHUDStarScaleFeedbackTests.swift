@@ -1,4 +1,5 @@
 import XCTest
+import StackToSixGameplay
 @testable import Stack_to_Six
 
 final class NativeSourceHUDStarScaleFeedbackTests:XCTestCase {
@@ -20,6 +21,11 @@ final class NativeSourceHUDStarScaleFeedbackTests:XCTestCase {
             for timer in timers.filter({$0.at<=w}).sorted(by:{$0.at<$1.at}) {guard timers.contains(where:{$0.id==timer.id}) else{continue};timers.removeAll{$0.id==timer.id};timer.callback()}
         }
     }
+    @MainActor func testCoinFeedbackPreservesDotGroupedHUDScore() async {
+        let h=Harness();XCTAssertTrue(h.owner.paint(score:7113));XCTAssertEqual(h.text,"7.113")
+        XCTAssertTrue(h.owner.paint(score:1_000_000));XCTAssertEqual(h.text,"999.999")
+        h.owner.dispose()
+    }
     func testLiteralOriginalGSAPRepeatedPausedAndAsymmetricFeedback() async throws {
         let rows=try JSONDecoder().decode([Row].self,from:Data(contentsOf:Bundle(for:NativeSourceHUDStarScaleFeedbackTests.self).url(forResource:"NativeSourceHUDStarScaleFeedbackOracle",withExtension:"json")!))
         await MainActor.run {
@@ -27,7 +33,7 @@ final class NativeSourceHUDStarScaleFeedbackTests:XCTestCase {
                 for s in row.samples {h.wall=s.wall
                     if row.spec.begin.contains(s.wall){score+=100;XCTAssertTrue(h.owner.paint(score:row.spec.same==true ? 0:score),row.spec.name)}
                     h.deliver(s.animation,s.wall)
-                    XCTAssertEqual(h.text,s.text,row.spec.name)
+                    XCTAssertEqual(h.text,Int(s.text).map{NativeScoreDisplay.text($0)} ?? s.text,row.spec.name)
                     if s.wall>0 {XCTAssertEqual(h.roots.count,s.roots,"\(row.spec.name) linked roots \(s.wall)")}
                     XCTAssertEqual(h.number.x,s.number.x,accuracy:0.0000011,"\(row.spec.name) numberX \(s.wall)")
                     XCTAssertEqual(h.number.y,s.number.y,accuracy:0.0000011,"\(row.spec.name) numberY \(s.wall)")

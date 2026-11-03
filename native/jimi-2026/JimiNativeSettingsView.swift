@@ -3,7 +3,7 @@ import UIKit
 /// UIKit presentation only. The existing web settings/save owner supplies every
 /// value and accepts mutations; this view never creates a preference store.
 @MainActor
-final class JimiNativeSettingsView: UIView {
+final class JimiNativeSettingsView: UIView, UIGestureRecognizerDelegate {
     var onBack: (() -> Void)?
     var onDeveloperClose: (() -> Void)?
     var onPreference: ((String, Bool, Int) -> Void)?
@@ -85,7 +85,9 @@ final class JimiNativeSettingsView: UIView {
             button.isHidden = true; scroll.addSubview(button);button.enableCartoonBounce(); developerButtons.append(button)
         }
         for i in keys.indices {
-            let row = UIView(); scroll.addSubview(row); rows.append(row)
+            let row = UIView(); row.tag = i; scroll.addSubview(row); rows.append(row)
+            let tap = UITapGestureRecognizer(target:self,action:#selector(tapPreferenceRow(_:)))
+            tap.delegate = self; tap.cancelsTouchesInView = false; row.addGestureRecognizer(tap)
             let status = UILabel(); status.font = assets.font(size: 32, weight: "ExtraBold"); status.textColor = UIColor(red: 232/255, green: 116/255, blue: 74/255, alpha: 1)
             status.accessibilityIdentifier = "native.settings.status.\(keys[i])"
             row.addSubview(status); statuses.append(status)
@@ -159,37 +161,49 @@ final class JimiNativeSettingsView: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         let top = safeAreaInsets.top
+        let tablet=NativeTabletLayout.applies(bounds.size)
+        let contentWidth=NativeTabletLayout.settingsWidth(bounds.size)
         let row=JimiV9NavigationHeader.RowLayout(bounds:bounds,safeAreaTop:top)
-        let headerTop=row.top
-        place(header, in: CGRect(x:0,y:0,width:bounds.width,height:headerTop+66))
-        title.frame = row.titleFrame
-        back.frame = row.buttonFrame(x:24)
-        developer.frame = row.buttonFrame(x:bounds.width-68)
+        place(header, in: CGRect(x:0,y:0,width:bounds.width,height:row.headerHeight()))
+        NativeTabletLayout.labelFont(title,size:row.titleFontSize)
+        title.frame = row.titleFrame(for:title)
+        back.frame = row.buttonFrame(x:24,visibleInset:13)
+        back.imageEdgeInsets=row.iconInsets(UIEdgeInsets(top:10,left:10,bottom:10,right:10),imageHeight:24,inkCenterY:0.5104166666666666)
+        // Original gear paints through46/48of its26pt inset image box.
+        developer.frame = row.buttonFrame(x:bounds.width-68,visibleInset:9+26*2/48)
+        developer.imageEdgeInsets=row.iconInsets(UIEdgeInsets(top:9,left:9,bottom:9,right:9),imageHeight:26,inkCenterY:0.4791666666666667)
+        // The original24pt chevron paints from x3 inside its10pt inset.
+        // Tablet rows share the Backpack grid's32pt inner content inset.
+        let bodyInset:CGFloat=tablet ? 32:back.frame.minX+back.imageEdgeInsets.left+3
         let footerHeight: CGFloat = min(165, max(110,bounds.height*0.2))
-        place(footer, in: CGRect(x: 24, y: bounds.height-safeAreaInsets.bottom-footerHeight, width: max(0,bounds.width-48), height: footerHeight))
+        place(footer, in: CGRect(x:(bounds.width-contentWidth)/2+bodyInset,y:bounds.height-safeAreaInsets.bottom-footerHeight,width:max(0,contentWidth-bodyInset*2), height: footerHeight))
         footerCopy.frame = CGRect(x: 0, y: 0, width: footer.bounds.width, height: footerHeight-40)
         privacy.setCartoonBounceFrame(CGRect(x: 0, y: footerHeight-44, width: footer.bounds.width, height: 44))
-        scroll.frame = CGRect(x: 0, y: header.center.y+header.bounds.height/2, width: bounds.width, height: max(0,(footer.center.y-footer.bounds.height/2)-(header.center.y+header.bounds.height/2)))
-        developerSummary.frame = CGRect(x: 24,y: 20,width: max(0,bounds.width-48),height: 64)
-        let columns = bounds.width <= 374 ? 1 : 3
-        let buttonWidth = max(0,(bounds.width-48-CGFloat(columns-1)*10)/CGFloat(columns))
+        scroll.frame = CGRect(x:(bounds.width-contentWidth)/2,y:header.center.y+header.bounds.height/2,width:contentWidth, height: max(0,(footer.center.y-footer.bounds.height/2)-(header.center.y+header.bounds.height/2)))
+        developerSummary.frame = CGRect(x: 24,y: 20,width: max(0,contentWidth-48),height: 64)
+        let columns = contentWidth <= 374 ? 1 : 3
+        let buttonWidth = max(0,(contentWidth-48-CGFloat(columns-1)*10)/CGFloat(columns))
         for (index,button) in developerButtons.enumerated() {
             button.titleLabel?.font = assets.font(size: columns == 1 ? 18 : 16,weight: "ExtraBold")
             button.setCartoonBounceFrame(CGRect(x: 24+CGFloat(index%columns)*(buttonWidth+10),y: 100+CGFloat(index/columns)*64,width: buttonWidth,height: 48))
             button.layer.shadowPath = UIBezierPath(roundedRect: button.bounds,cornerRadius: 18).cgPath
         }
         let firstPlayY = 100+CGFloat((developerButtons.count+columns-1)/columns)*64
-        firstPlay.setCartoonBounceFrame(CGRect(x: 24,y: firstPlayY,width: max(0,bounds.width-48),height: 48))
+        firstPlay.setCartoonBounceFrame(CGRect(x: 24,y: firstPlayY,width: max(0,contentWidth-48),height: 48))
         firstPlay.titleLabel?.font = assets.font(size: columns == 1 ? 18 : 16,weight: "ExtraBold")
         firstPlay.layer.shadowPath = UIBezierPath(roundedRect: firstPlay.bounds,cornerRadius: 18).cgPath
         for i in rows.indices {
-            let rowWidth = max(0,scroll.bounds.width-48)
-            place(rows[i], in: CGRect(x: 24, y: CGFloat(i)*126, width: rowWidth, height: 124))
+            let rowWidth = max(0,scroll.bounds.width-bodyInset*2)
+            // Include the toggle's transparent right hit padding in the row
+            // so UIKit's parent hit testing preserves the complete control.
+            place(rows[i], in: CGRect(x: bodyInset, y: CGFloat(i)*126, width: rowWidth+8, height: 124))
             let statusWidth = min(max(0,rowWidth-83),ceil(statuses[i].sizeThatFits(CGSize(width: max(0,rowWidth-83),height: 36)).width))
             place(statuses[i], in: CGRect(x: 0, y: 31, width: statusWidth, height: 36))
             descriptions[i].frame = CGRect(x: 0, y: 67, width: max(0,rowWidth-83), height: 28)
-            switches[i].frame = CGRect(x: max(0,rowWidth-67), y: 43, width: 67, height: 45)
-            if i < dividers.count { place(dividers[i], in: CGRect(x: 24, y: CGFloat(i+1)*126-1, width: rowWidth, height: 2)) }
+            // The51pt pill is centred inside its67pt hit area. Its visible
+            // right edge shares the copy inset while the hit padding remains.
+            switches[i].frame = CGRect(x: max(0,rowWidth-67+8), y: 43, width: 67, height: 45)
+            if i < dividers.count { place(dividers[i], in: CGRect(x: bodyInset, y: CGFloat(i+1)*126-1, width: rowWidth, height: 2)) }
         }
         scroll.contentSize = CGSize(width: scroll.bounds.width, height: developerPanelVisible ? firstPlay.cartoonBounceFrame.maxY+32 : 378)
     }
@@ -233,6 +247,22 @@ final class JimiNativeSettingsView: UIView {
                 to: .scale(enter ? 1 : 0, opacity: enter ? 1 : 0),
                 ease: enter ? .backOut(1.7) : .backIn(1.7))]))
         }
+    }
+    func gestureRecognizer(_ gestureRecognizer:UIGestureRecognizer,shouldReceive touch:UITouch)->Bool {
+        // The existing toggle consumes its own tap; the row handles only the
+        // label and empty space, without competing with scroll gestures.
+        var target=touch.view
+        while let view=target,view !== gestureRecognizer.view {
+            if view is UIControl {return false}
+            target=view.superview
+        }
+        return true
+    }
+    @objc private func tapPreferenceRow(_ sender:UITapGestureRecognizer) {
+        guard sender.state == .ended,let index=sender.view?.tag,
+              switches.indices.contains(index),!developerPanelVisible,
+              switches[index].isEnabled,switches[index].isUserInteractionEnabled else {return}
+        switches[index].sendActions(for:.touchUpInside)
     }
     @objc private func changePreference(_ sender: JimiNativeSettingsToggle) {
         guard keys.indices.contains(sender.tag) else { return }
@@ -307,10 +337,12 @@ final class JimiNativePrivacyController: UIViewController {
     }
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews();backdrop.frame = view.bounds
-        let width = min(390,max(0,view.bounds.width-48)), textWidth = max(0,width-80)
+        let modalBounds=NativeTabletLayout.modalBounds(in:view,card:card)
+        let modalSafeInsets=NativeTabletLayout.modalSafeInsets(in:view)
+        let width = min(390,max(0,modalBounds.width-48)), textWidth = max(0,width-80)
         let wanted = copy.sizeThatFits(CGSize(width:textWidth,height:CGFloat.greatestFiniteMagnitude)).height+80
-        let height = min(wanted,view.bounds.height-view.safeAreaInsets.top-view.safeAreaInsets.bottom-48)
-        card.bounds = CGRect(x:0,y:0,width:width,height:height);card.center = CGPoint(x:view.bounds.midX,y:view.bounds.midY+height*0.05)
+        let height = min(wanted,modalBounds.height-modalSafeInsets.top-modalSafeInsets.bottom-48)
+        card.bounds = CGRect(x:0,y:0,width:width,height:height);card.center = CGPoint(x:modalBounds.midX,y:modalBounds.midY+height*0.05)
         flip.bounds = card.bounds;flip.center = CGPoint(x:width/2,y:height*0.46)
         idle.bounds = card.bounds;idle.center = CGPoint(x:width/2,y:height*0.52)
         JimiNativeModalV10.paperLayout(paper,bounds:idle.bounds,bottomExtension:96)

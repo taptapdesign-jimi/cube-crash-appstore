@@ -197,9 +197,13 @@ final class NativeSplashGlyphField: UIView {
         }
     }
     private func idleScale(_ glyph: Glyph,time: TimeInterval) -> CGFloat {
+        Self.captionIdleScale(time:time,bounce:glyph.bounce)
+    }
+    /// Shared Merge6 caption pulse, sampled by each visible owner's existing clock.
+    static func captionIdleScale(time:TimeInterval,bounce:CGFloat)->CGFloat {
         let phase = max(0,time).truncatingRemainder(dividingBy: 0.7)/0.35, p = phase <= 1 ? phase : 2-phase
         func elasticOut(_ t: Double) -> Double { t == 0 ? 0 : t == 1 ? 1 : pow(2,-10*t)*sin((t-0.05)*(.pi*2/0.2))+1 }
         let eased = p < 0.5 ? (1-elasticOut(1-p*2))/2 : 0.5+elasticOut((p-0.5)*2)/2
-        return 1+(glyph.bounce-1)*CGFloat(eased)
+        return 1+(bounce-1)*CGFloat(eased)
     }
 }

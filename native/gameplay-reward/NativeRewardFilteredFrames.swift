@@ -10,6 +10,17 @@ nonisolated final class NativeRewardPreparationLease:@unchecked Sendable {
 /// serial queue prepares its carrier; disposed screens reject late completion.
 nonisolated enum NativeRewardFilteredFrames {
     private static let queue=DispatchQueue(label:"stacktosix.native-reward.filters",qos:.userInitiated)
+    static func prepareFaceEffects(_ image:CGImage,lease:NativeRewardPreparationLease,completion:@escaping (NativeMagicCardSource.Node)->Void) {
+        queue.async {
+            guard !lease.cancelled else{return}
+            let root=NativeMagicCardSource.Node("g",[:])
+            let face=NativeMagicCardSource.Node("image",["x":"0","y":"0","width":"360","height":"533"])
+            face.image=image;root.children=[face]
+            NativeMagicCardSource.prepareFaceEffects(face,lease:lease)
+            guard !lease.cancelled else{return}
+            Task { @MainActor in guard !lease.cancelled else{return};completion(root) }
+        }
+    }
     static func prepare(_ images:[String:UIImage],lease:NativeRewardPreparationLease,completion:@escaping ([String:UIImage])->Void) {
         queue.async {
             let context=CIContext(options:[.cacheIntermediates:false]);var result:[String:UIImage]=[:]
