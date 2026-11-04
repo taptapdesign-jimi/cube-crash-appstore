@@ -370,6 +370,7 @@ final class JimiHomeHubController: UIViewController {
     }
 
     private func homeTracks(enter: Bool) -> [(UIView, JimiV9Motion.Track)] {
+        if enter {home.startAmbientForEntry()}
         var parts: [(UIView, JimiV9Motion.Part)] = [(home.heroView, .hero), (home.logoImageView, .logo),
             (home.ctaContainerView, .ctaContainer), (home.ctaView, .cta), (home.navView, .navigation),
             (home.fixedShadowView, .fixedShadow)]
@@ -390,7 +391,7 @@ final class JimiHomeHubController: UIViewController {
                 return (target, JimiV9Motion.Track(tweens: [replacement] + track.tweens.dropFirst(), anchorX: track.anchorX, anchorY: track.anchorY))
             }
             return (target, track)
-        } + home.cloudRouteTracks(enter:enter)
+        } + home.cloudRouteTracks(enter:enter) + home.ambientRouteTracks(enter:enter)
     }
 
     private func hubTracks(enter: Bool, selectedWorldID: Int? = nil) -> [(UIView, JimiV9Motion.Track)] {
@@ -830,6 +831,10 @@ final class JimiHomeHubController: UIViewController {
         animation.duration = JimiV9Motion.sliderDuration
         home.sliderTrack.layer.add(animation, forKey: "native-slide-selection")
         if !animatedLayers.contains(where: { $0 === home.sliderTrack.layer }) { animatedLayers.append(home.sliderTrack.layer) }
+        for layer in home.ambientSlideLayers {
+            layer.add(animation,forKey:"native-slide-selection")
+            if !animatedLayers.contains(where:{$0 === layer}) {animatedLayers.append(layer)}
+        }
         for (target, slide, oldBounds, oldPosition) in navigation {
             let layer = target.layer
             let newBounds = layer.bounds, newPosition = layer.position

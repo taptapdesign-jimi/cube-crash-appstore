@@ -125,7 +125,7 @@ public struct NativeSaveEnvelope: Codable, Equatable, Sendable {
     public static func isCoherentRun(_ board:NativeBoardState)->Bool {boardIssues(board).isEmpty}
     private static func boardIssues(_ board: NativeBoardState) -> [String] {
         var issues = board.validationIssues()
-        if board.board < 1 || board.wildSpawnCount < 0 || board.earnedComboBonus < 0 { issues.append("invalid-board-counter") }
+        if board.board < 1 || board.wildSpawnCount < 0 || board.earnedComboBonus < 0 || board.efficiencyComboContinuations < 0 || board.efficiencyFastComboContinuations < 0 || board.efficiencyFastComboContinuations > board.efficiencyComboContinuations { issues.append("invalid-board-counter") }
         if board.tiles.contains(where: { $0.pendingRemoval || $0.transientSpawn || $0.magnetOwned || $0.resolutionOwned || $0.merge6CleanupOwned || (!$0.isWild && $0.value == 6) || ($0.isWild && $0.value != 6) || ($0.value == 0 && !$0.locked) || (!$0.locked && (!$0.visible || $0.alpha <= 0.01)) }) { issues.append("transient-or-incoherent-save") }
         return issues
     }

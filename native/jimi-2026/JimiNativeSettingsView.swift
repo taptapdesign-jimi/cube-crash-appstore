@@ -75,7 +75,7 @@ final class JimiNativeSettingsView: UIView, UIGestureRecognizerDelegate {
             case .legendary: palette = (0xD6A13D,0xA87824)
             case .reset: palette = (0x735C4C,0x5A4639)
             case .newCard: palette = (0xF35F37,0xC64A2A)
-            case .clean: palette = (0xE9A03A,0xBD7627)
+            case .clean,.arcadeClean,.beachClean,.area55Clean: palette = (0xE9A03A,0xBD7627)
             default: palette = (0xE8744A,0xC95E39)
             }
             styleDeveloperButton(button,fill: palette.0,depth: palette.1)
@@ -162,6 +162,7 @@ final class JimiNativeSettingsView: UIView, UIGestureRecognizerDelegate {
         super.layoutSubviews()
         let top = safeAreaInsets.top
         let tablet=NativeTabletLayout.applies(bounds.size)
+        let contentScale:CGFloat=tablet ? 1.40:1
         let contentWidth=NativeTabletLayout.settingsWidth(bounds.size)
         let row=JimiV9NavigationHeader.RowLayout(bounds:bounds,safeAreaTop:top)
         place(header, in: CGRect(x:0,y:0,width:bounds.width,height:row.headerHeight()))
@@ -174,11 +175,13 @@ final class JimiNativeSettingsView: UIView, UIGestureRecognizerDelegate {
         developer.imageEdgeInsets=row.iconInsets(UIEdgeInsets(top:9,left:9,bottom:9,right:9),imageHeight:26,inkCenterY:0.4791666666666667)
         // The original24pt chevron paints from x3 inside its10pt inset.
         // Tablet rows share the Backpack grid's32pt inner content inset.
-        let bodyInset:CGFloat=tablet ? 32:back.frame.minX+back.imageEdgeInsets.left+3
-        let footerHeight: CGFloat = min(165, max(110,bounds.height*0.2))
+        let bodyInset:CGFloat=tablet ? 32*contentScale:back.frame.minX+back.imageEdgeInsets.left+3
+        let footerHeight: CGFloat = min(165, max(110,bounds.height*0.2))*contentScale
+        NativeTabletLayout.labelFont(footerCopy,size:16*contentScale)
+        NativeTabletLayout.buttonFont(privacy,size:14*contentScale)
         place(footer, in: CGRect(x:(bounds.width-contentWidth)/2+bodyInset,y:bounds.height-safeAreaInsets.bottom-footerHeight,width:max(0,contentWidth-bodyInset*2), height: footerHeight))
-        footerCopy.frame = CGRect(x: 0, y: 0, width: footer.bounds.width, height: footerHeight-40)
-        privacy.setCartoonBounceFrame(CGRect(x: 0, y: footerHeight-44, width: footer.bounds.width, height: 44))
+        footerCopy.frame = CGRect(x: 0, y: 0, width: footer.bounds.width, height: footerHeight-40*contentScale)
+        privacy.setCartoonBounceFrame(CGRect(x: 0, y: footerHeight-44*contentScale, width: footer.bounds.width, height: 44*contentScale))
         scroll.frame = CGRect(x:(bounds.width-contentWidth)/2,y:header.center.y+header.bounds.height/2,width:contentWidth, height: max(0,(footer.center.y-footer.bounds.height/2)-(header.center.y+header.bounds.height/2)))
         developerSummary.frame = CGRect(x: 24,y: 20,width: max(0,contentWidth-48),height: 64)
         let columns = contentWidth <= 374 ? 1 : 3
@@ -193,19 +196,21 @@ final class JimiNativeSettingsView: UIView, UIGestureRecognizerDelegate {
         firstPlay.titleLabel?.font = assets.font(size: columns == 1 ? 18 : 16,weight: "ExtraBold")
         firstPlay.layer.shadowPath = UIBezierPath(roundedRect: firstPlay.bounds,cornerRadius: 18).cgPath
         for i in rows.indices {
-            let rowWidth = max(0,scroll.bounds.width-bodyInset*2)
-            // Include the toggle's transparent right hit padding in the row
-            // so UIKit's parent hit testing preserves the complete control.
-            place(rows[i], in: CGRect(x: bodyInset, y: CGFloat(i)*126, width: rowWidth+8, height: 124))
-            let statusWidth = min(max(0,rowWidth-83),ceil(statuses[i].sizeThatFits(CGSize(width: max(0,rowWidth-83),height: 36)).width))
-            place(statuses[i], in: CGRect(x: 0, y: 31, width: statusWidth, height: 36))
-            descriptions[i].frame = CGRect(x: 0, y: 67, width: max(0,rowWidth-83), height: 28)
-            // The51pt pill is centred inside its67pt hit area. Its visible
-            // right edge shares the copy inset while the hit padding remains.
-            switches[i].frame = CGRect(x: max(0,rowWidth-67+8), y: 43, width: 67, height: 45)
-            if i < dividers.count { place(dividers[i], in: CGRect(x: bodyInset, y: CGFloat(i+1)*126-1, width: rowWidth, height: 2)) }
+            let rowWidth=max(0,scroll.bounds.width-bodyInset*2)
+            NativeTabletLayout.labelFont(statuses[i],size:32*contentScale)
+            NativeTabletLayout.labelFont(descriptions[i],size:18*contentScale)
+            // Scale static geometry, not the bounce/route transform owners.
+            // Keep the complete transparent toggle hit padding inside its row.
+            place(rows[i],in:CGRect(x:bodyInset,y:CGFloat(i)*126*contentScale,width:rowWidth+8*contentScale,height:124*contentScale))
+            let copyWidth=max(0,rowWidth-83*contentScale)
+            let statusWidth=min(copyWidth,ceil(statuses[i].sizeThatFits(CGSize(width:copyWidth,height:36*contentScale)).width))
+            place(statuses[i],in:CGRect(x:0,y:31*contentScale,width:statusWidth,height:36*contentScale))
+            descriptions[i].frame=CGRect(x:0,y:67*contentScale,width:copyWidth,height:28*contentScale)
+            switches[i].presentationScale=contentScale
+            switches[i].frame=CGRect(x:max(0,rowWidth-59*contentScale),y:43*contentScale,width:67*contentScale,height:45*contentScale)
+            if i<dividers.count {place(dividers[i],in:CGRect(x:bodyInset,y:(CGFloat(i+1)*126-1)*contentScale,width:rowWidth,height:2*contentScale))}
         }
-        scroll.contentSize = CGSize(width: scroll.bounds.width, height: developerPanelVisible ? firstPlay.cartoonBounceFrame.maxY+32 : 378)
+        scroll.contentSize=CGSize(width:scroll.bounds.width,height:developerPanelVisible ? firstPlay.cartoonBounceFrame.maxY+32:378*contentScale)
     }
     private func styleDeveloperButton(_ button: UIButton, fill: UInt32, depth: UInt32) {
         func color(_ value: UInt32) -> UIColor {
@@ -410,6 +415,12 @@ final class JimiNativeSettingsToggle: UIControl {
     private let pill = UIView()
     private let knob = UIView()
     private(set) var isOn = false
+    var presentationScale:CGFloat=1 {
+        didSet {if presentationScale != oldValue {setNeedsLayout()}}
+    }
+    private func knobFrame(on:Bool)->CGRect {
+        CGRect(x:(on ? 22:2)*presentationScale,y:2*presentationScale,width:27*presentationScale,height:27*presentationScale)
+    }
     var onTintColor = UIColor(red: 232/255, green: 116/255, blue: 74/255, alpha: 1)
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -428,15 +439,19 @@ final class JimiNativeSettingsToggle: UIControl {
     required init?(coder: NSCoder) { fatalError("Use init(frame:)") }
     override func layoutSubviews() {
         super.layoutSubviews()
-        pill.bounds = CGRect(x: 0,y: 0,width: 51,height: 31)
+        pill.bounds = CGRect(x:0,y:0,width:51*presentationScale,height:31*presentationScale)
+        pill.layer.cornerRadius=15.5*presentationScale
+        pill.layer.shadowOffset=CGSize(width:0,height:2*presentationScale);pill.layer.shadowRadius=2*presentationScale
+        knob.layer.cornerRadius=13.5*presentationScale
+        knob.layer.shadowOffset=CGSize(width:0,height:2*presentationScale);knob.layer.shadowRadius=2*presentationScale
         pill.center = CGPoint(x: bounds.midX,y: bounds.midY)
-        knob.frame = CGRect(x: isOn ? 22 : 2,y: 2,width: 27,height: 27)
+        knob.frame=knobFrame(on:isOn)
     }
     func setOn(_ value: Bool, animated: Bool) {
         isOn = value; accessibilityValue = value ? "On" : "Off"
         let update = {
             self.pill.backgroundColor = value ? self.onTintColor : UIColor(red: 223/255,green: 211/255,blue: 206/255,alpha: 1)
-            self.knob.frame = CGRect(x: value ? 22 : 2,y: 2,width: 27,height: 27)
+            self.knob.frame=self.knobFrame(on:value)
         }
         if animated && !UIAccessibility.isReduceMotionEnabled {
             UIView.animate(withDuration: 0.3,delay: 0,options: [.beginFromCurrentState,.allowUserInteraction],animations: update)

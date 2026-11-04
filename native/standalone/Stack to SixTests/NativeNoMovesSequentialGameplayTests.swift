@@ -27,7 +27,7 @@ import StackToSixNativeState
         let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=host;window.makeKeyAndVisible()
         defer{host.dispose();window.isHidden=true;previous?.makeKeyAndVisible();try? FileManager.default.removeItem(at:directory)}
         host.loadViewIfNeeded();let app=try XCTUnwrap(host.children.first as? NativeAppController)
-        try await wait("Visible Home"){!app.home.isHidden && app.home.isUserInteractionEnabled}
+        try await wait("Visible Home"){!app.home.isHidden && (!app.home.isEntering && app.home.isUserInteractionEnabled)}
         let first=try await enterAndCompleteNoMoves(app,board:1)
         let firstReceipt=try XCTUnwrap(first.engine.completedSourceNoMovesReceipt)
         XCTAssertEqual(firstReceipt.generation,1);XCTAssertEqual(firstReceipt.planToken,1)

@@ -113,7 +113,81 @@ enum JimiV9Motion {
     static func homeCloudPanoramaOffset(slideX:Double,width:Double,foreground:Bool)->Double {
         guard width>0 else{return 0}
         let page=max(0,min(2,1.5-slideX/width))
-        return (1-page)*min(foreground ? 50:32,width*(foreground ? 0.12:0.08))*1.20*1.60*1.60*1.60
+        return (page-1)*min(foreground ? 50:32,width*(foreground ? 0.12:0.08))*1.20*1.60*1.60*1.60
+    }
+    /// Cubic Hermite motion keeps velocity when a finger reverses or releases,
+    /// then arrives with zero velocity. Sampled once into Core Animation.
+    struct HomeCloudCurve {
+        let start:Double,end:Double,initialVelocity:Double,duration:Double,delay:Double
+        var staggered=false,followThrough=false
+        var coastScale=1.0,returnScale=1.0,extraDistance=0.70
+        private var glides:Bool {followThrough && abs(end-start)>0.5}
+        private var coastDuration:Double {1.5*1.40/4.20*coastScale}
+        private var returnDuration:Double {1.8*1.40/4.20*returnScale}
+        // Idle exchange offsets never enter this curve. Bound release speed
+        // and reject opposite-way carry so a fast retarget cannot fling clouds.
+        private var releaseVelocity:Double {
+            let direction=end>start ? 1.0:-1.0
+            return direction*min(max(0,initialVelocity*direction),max(12,abs(end-start)*0.75))
+        }
+        private var waiting:Double {abs(releaseVelocity)>1 ? 0:delay}
+        private var forwardDuration:Double {duration+coastDuration+(delay-waiting)}
+        private var apex:Double {start+(end-start)*(1+extraDistance)}
+        var totalDuration:Double {glides ? waiting+forwardDuration+returnDuration:delay+duration}
+        func position(at elapsed:Double)->Double {
+            let t=max(0,elapsed)
+            if t>=totalDuration {return end}
+            if glides {
+                if t<waiting {return start}
+                let age=t-waiting
+                if age<forwardDuration {
+                    let u=age/forwardDuration,u2=u*u,u3=u2*u
+                    return start+(apex-start)*(3*u2-2*u3)+releaseVelocity*forwardDuration*(u3-2*u2+u)
+                }
+                let u=min(1,(age-forwardDuration)/returnDuration)
+                return apex+(end-apex)*(3*u*u-2*u*u*u)
+            }
+            if staggered {
+                if delay>0,t<delay {return start+initialVelocity*(t-t*t/(2*delay))}
+                let origin=start+(delay>0 ? initialVelocity*delay/2:0)
+                let speed=delay>0 ? 0:initialVelocity
+                let u=max(0,min(1,(t-delay)/duration)),tail=1-u,distance=end-origin
+                return origin+distance*(1-pow(tail,5))+(speed*duration-5*distance)*u*pow(tail,4)
+            }
+            if t<=delay {return start}
+            let u=(t-delay)/duration,u2=u*u,u3=u2*u
+            return start+(end-start)*(3*u2-2*u3)+initialVelocity*duration*(u3-2*u2+u)
+        }
+        func velocity(at elapsed:Double)->Double {
+            let t=max(0,elapsed)
+            if t>=totalDuration {return 0}
+            if glides {
+                if t<waiting {return 0}
+                let age=t-waiting
+                if age<forwardDuration {
+                    let u=age/forwardDuration
+                    return (apex-start)*(6*u-6*u*u)/forwardDuration+releaseVelocity*(3*u*u-4*u+1)
+                }
+                let u=min(1,(age-forwardDuration)/returnDuration)
+                return (end-apex)*(6*u-6*u*u)/returnDuration
+            }
+            if staggered {
+                if delay>0,t<delay {return initialVelocity*(1-t/delay)}
+                let origin=start+(delay>0 ? initialVelocity*delay/2:0)
+                let speed=delay>0 ? 0:initialVelocity
+                let u=max(0,min(1,(t-delay)/duration)),tail=1-u,distance=end-origin
+                return (5*distance*pow(tail,4)+(speed*duration-5*distance)*pow(tail,3)*(1-5*u))/duration
+            }
+            if t<delay {return 0}
+            let u=(t-delay)/duration
+            return (end-start)*(6*u-6*u*u)/duration+initialVelocity*(3*u*u-4*u+1)
+        }
+    }
+    static func homeCloudSettlingProfile(index:Int)->(coast:Double,settle:Double,extra:Double) {
+        let profiles:[(Double,Double,Double)]=[
+            (0.75,1.25,0.30),(1.05,0.90,0.55),(1.30,1.60,0.85),
+            (0.90,1.90,0.40),(1.45,1.10,0.95),(1.15,1.45,0.70)]
+        return profiles[max(0,index)%profiles.count]
     }
     static func homeCloudTravelDuration(slot:Int,foreground:Bool)->Double {
         let durations=[0.46,0.74,0.52,0.84,0.60,0.40,0.68,0.55]

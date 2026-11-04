@@ -50,6 +50,22 @@ final class NativeResultArea55FlybysTests: XCTestCase {
         owner.paint(seconds:6.7,generation:31); XCTAssertTrue(owner.disposed); XCTAssertEqual(owner.shipCount,0); XCTAssertEqual(finished,1); XCTAssertEqual(resources.releases,1)
         owner.paint(seconds:10,generation:31); owner.dispose(); XCTAssertEqual(finished,1); XCTAssertEqual(resources.releases,1)
     }
+    func testTabletShipsUsePhoneCanvasProjectionAndLargerArtwork() throws {
+        let resources=Resources(root:root),size=CGSize(width:820,height:1180)
+        let overlay=UIView(frame:CGRect(origin:.zero,size:size)),content=UIView();overlay.addSubview(content)
+        let owner=NativeResultArea55Flybys(root:root,viewport:size,generation:81,resources:resources,reducedMotion:false,random:{0.5})
+        defer{owner.dispose()}
+        owner.mount(overlay:overlay,content:content);resources.completion?(true)
+        let ships=overlay.subviews.compactMap{$0 as? UIImageView}
+        XCTAssertEqual(ships.count,2)
+        let scale=Double(size.width)/390
+        XCTAssertEqual(ships[0].bounds.width,62*scale,accuracy:0.0001)
+        XCTAssertEqual(ships[1].bounds.width,74*scale,accuracy:0.0001)
+        owner.paint(seconds:2,generation:81)
+        let reference=NativeResultArea55FlightPlan.make(depth:.behind,viewport:NativeTabletLayout.animationViewport(size),random:{0.5}).sample(seconds:2)
+        XCTAssertEqual(ships[0].center.x,reference.x*scale+ships[0].bounds.width/2,accuracy:0.0001)
+        XCTAssertEqual(ships[0].center.y,reference.y*scale+ships[0].bounds.height/2,accuracy:0.0001)
+    }
     func testLatePreparationAfterDisposeCannotReadOrMountOriginalAsset() {
         let resources = Resources(root:root),overlay = UIView(),content = UIView(); overlay.addSubview(content)
         let owner = NativeResultArea55Flybys(root:root,viewport:.init(width:390,height:844),generation:32,resources:resources,reducedMotion:false,random:{0.5})

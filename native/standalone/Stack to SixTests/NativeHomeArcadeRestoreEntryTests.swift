@@ -26,9 +26,9 @@ import StackToSixNativeState
             let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=host;window.makeKeyAndVisible()
             defer{host.dispose();window.isHidden=true;try? FileManager.default.removeItem(at:directory)}
             host.loadViewIfNeeded();let app=try XCTUnwrap(host.children.first as? NativeAppController)
-            try await wait("Home ready, scenario \(scenario)"){app.route == .home && !app.home.isHidden && app.home.isUserInteractionEnabled}
+            try await wait("Home ready, scenario \(scenario)"){app.route == .home && !app.home.isHidden && (!app.home.isEntering && app.home.isUserInteractionEnabled)}
             app.home.onActivate?(1)
-            try await wait("Hub ready"){app.route == .arcadeHub && app.arcadeHub.hub.scrollView.isUserInteractionEnabled}
+            try await wait("Hub ready"){app.route == .arcadeHub && !app.transitioning && app.arcadeHub.hub.scrollView.isUserInteractionEnabled}
             for (index,id) in app.arcadeHub.hub.worldIDs.enumerated() {
                 app.arcadeHub.hub.onWorld?(id)
                 try await wait("Modal ready"){self.button(app.view,id:"native.arcade-world-modal.play")?.isEnabled == true}
@@ -61,7 +61,7 @@ import StackToSixNativeState
         let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=host;window.makeKeyAndVisible()
         defer{host.dispose();window.isHidden=true;previous?.makeKeyAndVisible();try? FileManager.default.removeItem(at:directory)}
         host.loadViewIfNeeded();let app=try XCTUnwrap(host.children.first as? NativeAppController)
-        try await wait("Home CTA ready"){app.route == .home && !app.home.isHidden && app.home.isUserInteractionEnabled}
+        try await wait("Home CTA ready"){app.route == .home && !app.home.isHidden && (!app.home.isEntering && app.home.isUserInteractionEnabled)}
         let first=try await enterFromActualHome(app,expected:saved)
         let beforeExit=first.engine.state
         first.onExit?()
@@ -69,7 +69,7 @@ import StackToSixNativeState
         let exit=try XCTUnwrap(button(modal.view,id:"native.end-run.exit"))
         try await wait("Exit modal ready"){modal.view.isUserInteractionEnabled && exit.isUserInteractionEnabled}
         exit.sendActions(for:.touchUpInside)
-        try await wait("Authored return to Arcade hub"){app.route == .arcadeHub && !app.arcadeHub.isHidden && app.arcadeHub.hub.scrollView.isUserInteractionEnabled && first.parent == nil}
+        try await wait("Authored return to Arcade hub"){app.route == .arcadeHub && !app.transitioning && !app.arcadeHub.isHidden && app.arcadeHub.hub.scrollView.isUserInteractionEnabled && first.parent == nil}
         XCTAssertNil(first.sourceScope)
         let durable=try XCTUnwrap(store.load()?.arcadeRun)
         assertGameplay(durable,matches:beforeExit)
@@ -92,7 +92,7 @@ import StackToSixNativeState
             app.home.ctaView.sendActions(for:.touchUpInside)
         }
         try await wait("Arcade hub ready") {
-            app.route == .arcadeHub && !app.arcadeHub.isHidden && app.arcadeHub.hub.scrollView.isUserInteractionEnabled
+            app.route == .arcadeHub && !app.transitioning && !app.arcadeHub.isHidden && app.arcadeHub.hub.scrollView.isUserInteractionEnabled
         }
         let endurance = try XCTUnwrap(app.arcadeHub.hub.worldUnits.first { $0.tag == 1 })
         endurance.sendActions(for:.touchUpInside)

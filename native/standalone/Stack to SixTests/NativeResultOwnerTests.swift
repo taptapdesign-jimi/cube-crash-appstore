@@ -11,13 +11,22 @@ final class NativeResultOwnerTests:XCTestCase {
             var arcade=NativeBoardState(tiles:[],mode:.arcade,board:3,stage:3,moves:30,score:1200,arcadeVariant:variant)
             arcade.earnedComboBonus=350
             var journey=arcade;journey.mode = .journey
-            let expected=1200+350+NativeRewardMath.efficiencyBonus(baseBonus:900,remainingMoves:30,maxMoves:arcade.maxMoves,maxStackDepth:arcade.maxStackDepth)
+            let expected=1200+350+NativeRewardMath.cleanEfficiencyBonus(state:arcade)
             XCTAssertEqual(NativeResultOwner.finalScore(state:arcade,clean:true),expected)
             XCTAssertEqual(NativeResultOwner.finalScore(state:arcade,clean:true),NativeResultOwner.finalScore(state:journey,clean:true))
             XCTAssertEqual(NativeResultOwner.finalScore(state:arcade,clean:false),1200)
         }
     }
 
+    func testEnhancedEfficiencyFeedsSameFinalScoreInBothModes() {
+        for mode in [NativeRunMode.journey,.arcade] {
+            var state=NativeBoardState(tiles:[],mode:mode,board:2,moves:10,score:20000,earnedComboBonus:350)
+            state.efficiencyComboContinuations=10;state.efficiencyFastComboContinuations=10
+            XCTAssertEqual(NativeRewardMath.cleanEfficiencyBonus(state:state),9000)
+            XCTAssertEqual(NativeResultOwner.finalScore(state:state,clean:true),29350)
+            XCTAssertEqual(NativeResultOwner.finalScore(state:state,clean:false),20000)
+        }
+    }
     func testFailTitleSpeechUsesDisplayedSelectionOnceAtTitleEntry() {
         for index in [0,19,93] {
             let result=controller(clean:false,headlineRandom:(Double(index)+0.5)/Double(NativeResultHeadlines.fail.count))

@@ -35,12 +35,37 @@ final class NativeSharedSmokeRootTests:XCTestCase {
         baseline.advanceSourceAnimation(seconds:0.5);larger.advanceSourceAnimation(seconds:0.5)
         let old=baseline.children.compactMap{$0 as? SKSpriteNode},new=larger.children.compactMap{$0 as? SKSpriteNode}
         XCTAssertEqual(old.count,12);XCTAssertEqual(new.count,12)
-        let matchingBarrelFactor=(1.694*1.2*1.30*0.80)/(NativeTntFinale.smokeScale*Double(NativeTabletLayout.animationScale(size)))
+        let matchingBarrelFactor=(1.694*1.2*1.30*0.80*0.80)/(NativeTntFinale.smokeScale*Double(NativeTabletLayout.animationScale(size)))
         for (a,b) in zip(old,new) where a.xScale>0 {XCTAssertEqual(Double(b.xScale/a.xScale),matchingBarrelFactor,accuracy:0.0001);XCTAssertEqual(b.alpha,a.alpha)}
         let oldDice=baseline.children.filter{!($0 is SKSpriteNode)},newDice=larger.children.filter{!($0 is SKSpriteNode)}
         for (a,b) in zip(oldDice,newDice) {XCTAssertEqual(a.position,b.position);XCTAssertEqual(a.xScale,b.xScale)}
-        XCTAssertEqual(NativeTabletLayout.smokeSpriteBoost(CGSize(width:390,height:844)),1)
+        XCTAssertEqual(NativeTabletLayout.smokeSpriteBoost(CGSize(width:390,height:844)),0.8)
     }
+    func testTabletBlossomProjectionEnlargesCaptionWithoutEnlargingFlowerArtwork() throws {
+        let size=CGSize(width:820,height:1180),logical=NativeTabletLayout.animationViewport(size)
+        let stage=UIView(frame:CGRect(origin:.zero,size:size)),projection=NativeTabletLayout.animationScale(size)
+        let old=NativeTntVariantPresentation(resourceRoot:NativeTestResources.root,variant:.flower,viewport:logical,smokePresentationScale:1.694,bushPresentationScale:1.15,blossomCaptionFillsWidth:true,random:{0.5})
+        let fixed=NativeTntVariantPresentation(resourceRoot:NativeTestResources.root,variant:.flower,viewport:logical,smokePresentationScale:1.694,bushPresentationScale:1.15,blossomCaptionFillsWidth:true,flowerArtworkScale:1/projection,random:{0.5})
+        defer{old.dispose();fixed.dispose()}
+        stage.addSubview(old);stage.addSubview(fixed)
+        old.center=CGPoint(x:size.width/2,y:size.height/2)
+        NativeTabletLayout.projectAnimation(fixed,viewport:size)
+        old.layoutIfNeeded();fixed.layoutIfNeeded()
+        for time in [0.6,0.95,1.4] {
+            old.paint(seconds:time);fixed.paint(seconds:time)
+            let before=old.subviews.compactMap{$0 as? UIImageView},after=fixed.subviews.compactMap{$0 as? UIImageView}
+            XCTAssertEqual(before.count,after.count)
+            for (a,b) in zip(before,after) where a.alpha>0.01 {
+                let x=a.convert(a.bounds,to:stage),y=b.convert(b.bounds,to:stage)
+                XCTAssertEqual(x.minX,y.minX,accuracy:0.001);XCTAssertEqual(x.minY,y.minY,accuracy:0.001)
+                XCTAssertEqual(x.width,y.width,accuracy:0.001);XCTAssertEqual(x.height,y.height,accuracy:0.001)
+            }
+        }
+        let caption=try XCTUnwrap(fixed.subviews.first{$0 is NativeSplashGlyphField})
+        let container=try XCTUnwrap(caption.subviews.first)
+        XCTAssertGreaterThan(container.convert(container.bounds,to:stage).width,size.width*0.80)
+    }
+
     func testTabletBlossomUsesPoofSpriteFactorWithoutMovingPathsOrGlyphs() throws {
         let viewport=CGSize(width:390,height:561)
         let baseline=NativeTntVariantPresentation(resourceRoot:NativeTestResources.root,variant:.flower,viewport:viewport,random:{0.5})

@@ -282,7 +282,8 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
         CATransaction.commit()
         // Resize every tablet character variant without shifting the existing
         // logo composition, authored pivot, entry/exit scale or frame clock.
-        let characterSizeScale:CGFloat=tablet ? 1.5*0.70:1
+        let selectedCharacterScale:CGFloat=tablet ? (character.key == "lik-pas-SVG" ? 1.20:["pas-novine","lik-laptop"].contains(character.key) ? 1.10:1):1
+        let characterSizeScale:CGFloat=(tablet ? 1.5*0.70:1)*selectedCharacterScale
         characterView.bounds=CGRect(x:0,y:0,width:charWidth*characterSizeScale,height:charHeight*characterSizeScale)
         characterView.layer.position=CGPoint(x:canvas.midX+character.x,y:top+logoHeight+20+charHeight*characterView.layer.anchorPoint.y+character.y)
         fallback.frame=characterView.bounds

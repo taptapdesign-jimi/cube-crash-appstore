@@ -398,6 +398,16 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
     }
     private func animate(_ view:UIView,track originalTrack:JimiV9Motion.Track,key:String,fromBaseTransform:CATransform3D? = nil) {
         var track = originalTrack
+        let cloudBridge=key == "world.exit" && view.accessibilityIdentifier?.hasSuffix(".cloud") == true ? view.layer.animation(forKey:Self.exitPoseKey) as? CAAnimationGroup:nil
+        let cloudSamples=(cloudBridge?.animations?.first as? CAKeyframeAnimation)?.values as? [NSValue] ?? []
+        let bridgeAge=cloudBridge.map {view.layer.convertTime(CACurrentMediaTime(),from:nil)-$0.beginTime} ?? 0
+        func cloudOffset(_ age:Double)->CGPoint {
+            guard cloudSamples.count>1 else{return .zero}
+            let position=max(0,min(1,age))*Double(cloudSamples.count-1)
+            let i=min(cloudSamples.count-2,Int(position)),mix=position-Double(i)
+            let a=cloudSamples[i].caTransform3DValue,b=cloudSamples[i+1].caTransform3DValue
+            return CGPoint(x:a.m41+(b.m41-a.m41)*mix,y:a.m42+(b.m42-a.m42)*mix)
+        }
         if key == "world.exit", view.layer.animation(forKey:"world.enter") != nil || view.layer.animation(forKey:Self.exitPoseKey) != nil {
             let painted = view.layer.presentation()
             let incoming = (view.layer.animation(forKey:"world.enter") ?? view.layer.animation(forKey:Self.exitPoseKey)) as? CAAnimationGroup
@@ -433,8 +443,9 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
         animation.values = sampled.poses.enumerated().map { index,pose in
             let seconds=sampled.duration*Double(index)/Double(max(1,sampled.poses.count-1))
             let bounce=interimContact ? NativeHUDTapMotion.pose(at:seconds):NativeHUDTapMotion.Pose(x:1,y:1,offset:0)
+            let initial=cloudOffset(bridgeAge),future=cloudOffset(bridgeAge+seconds)
             return NSValue(caTransform3D:CATransform3DConcat(baseTransform,CATransform3DConcat(
-                CATransform3DMakeTranslation(pose.x,pose.y+bounce.offset,0),
+                CATransform3DMakeTranslation(pose.x+future.x-initial.x,pose.y+bounce.offset+future.y-initial.y,0),
                 CATransform3DMakeScale(pose.scaleX*bounce.x,pose.scaleY*bounce.y,1))))
         }
         animation.duration = sampled.duration; animation.fillMode = .both; animation.isRemovedOnCompletion = false
@@ -548,24 +559,50 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
         view.layer.add(animation,forKey:"world.idle.beam")
     }
     private static let exitPoseKey = "world.idle.exit-pose"
+    /// Authored ramp/loop keyframes are linear samples. Measure the active
+    /// local clock, excluding the future loop until its actual begin time.
+    static func idleTranslationVelocity(on layer:CALayer,axis:String,at time:CFTimeInterval)->Double {
+        func value(_ time:Double)->Double? {
+            let key="world.idle.\(axis)"
+            let candidates=[layer.animation(forKey:key),layer.animation(forKey:key+".onset")]
+            guard let animation=candidates.compactMap({$0 as? CAKeyframeAnimation}).first(where:{time >= $0.beginTime}),
+                  let values=animation.values as? [NSNumber],values.count>1,animation.duration>0 else{return nil}
+            let age=max(0,(time-animation.beginTime)*Double(animation.speed)+animation.timeOffset)
+            let local=animation.repeatCount>0 ? age.truncatingRemainder(dividingBy:animation.duration):min(age,animation.duration)
+            let position=local/animation.duration*Double(values.count-1)
+            let index=min(values.count-2,Int(position)),mix=position-Double(index)
+            return values[index].doubleValue+(values[index+1].doubleValue-values[index].doubleValue)*mix
+        }
+        let step=1.0/240
+        guard let before=value(time-step),let after=value(time+step) else{return 0}
+        let velocity=(after-before)/(2*step)
+        return velocity.isFinite ? max(-100,min(100,velocity)):0
+    }
     private func stopWave(_ view:UIView,preservingPoseForExit:Bool = false) {
         if let peers = depthPlanes[view.tag],units[view.tag] === view {peers.forEach {stopWave($0,preservingPoseForExit:preservingPoseForExit)}}
         let keys=(view.layer.animationKeys() ?? []).filter {$0.hasPrefix("world.idle.") && $0 != Self.exitPoseKey}
+        // A repeated preserving stop must retain the already captured bridge.
+        if preservingPoseForExit,keys.isEmpty,view.layer.animation(forKey:Self.exitPoseKey) != nil {return}
         let painted=preservingPoseForExit && !keys.isEmpty ? view.layer.presentation():nil
         let pose=painted?.transform,alpha=painted?.opacity
+        let now=view.layer.convertTime(CACurrentMediaTime(),from:nil)
+        let cloud=preservingPoseForExit && view.accessibilityIdentifier?.hasSuffix(".cloud") == true
+        let velocity=cloud ? CGPoint(x:Self.idleTranslationVelocity(on:view.layer,axis:"x",at:now),y:Self.idleTranslationVelocity(on:view.layer,axis:"y",at:now)):.zero
         keys.forEach {view.layer.removeAnimation(forKey:$0)}
         view.layer.removeAnimation(forKey:Self.exitPoseKey)
         guard let pose,let alpha else{return}
-        // Finite compositor-only bridge: parents transfer this pose into their
-        // exit track; nested clouds/beams hold it until their Unit is hidden.
-        // Longest World exit is 0.8008s including stagger. No model mutation,
-        // delegate, timer, retained closure or new rendering loop. The existing
-        // World exit completion explicitly retires hidden child holds.
+        // Finite compositor bridge: retain position and gently decay cloud
+        // velocity instead of freezing it. Existing World completion retires it.
         let transform=CAKeyframeAnimation(keyPath:"transform")
-        transform.values=[NSValue(caTransform3D:pose),NSValue(caTransform3D:pose)];transform.duration=1
+        transform.values=(0...60).map {step -> NSValue in
+            let t=min(0.6,Double(step)/60),distance=t-t*t/1.2
+            var next=pose;next.m41 += velocity.x*distance;next.m42 += velocity.y*distance
+            return NSValue(caTransform3D:next)
+        }
+        transform.duration=1;transform.calculationMode = .linear
         let opacity=CAKeyframeAnimation(keyPath:"opacity");opacity.values=[alpha,alpha];opacity.duration=1
         let hold=CAAnimationGroup();hold.animations=[transform,opacity];hold.duration=1
-        hold.beginTime=view.layer.convertTime(CACurrentMediaTime(),from:nil)
+        hold.beginTime=now
         view.layer.add(hold,forKey:Self.exitPoseKey)
     }
     private func retireExitPoses() {
@@ -613,7 +650,7 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
         if pauseBees {units.values.forEach{$0.subviews.forEach{$0.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey)}}}
         backpackAlert.setActive(false)
         NativeHubBackpackFeedback.setIdle(on:backpackButton,active:false)
-        discardCardWaves()
+        if preservingWavesForExit {resumeCardWaves()} else {discardCardWaves()}
         ambient?.update(enabled:false,viewport:contentViewport,scale:scale)
         if pauseBees {bees?.update(enabled:false,viewport:contentViewport,scale:scale)};interimOwners.values.forEach {$0.stop()};units.values.forEach {stopWave($0,preservingPoseForExit:preservingWavesForExit);JimiNativeWorldEffects.stop($0); partViews($0).forEach {stopWave($0,preservingPoseForExit:preservingWavesForExit);JimiNativeWorldEffects.stop($0)}}; main.subviews.forEach {stopWave($0,preservingPoseForExit:preservingWavesForExit)}}
     private func quiesceRibbons(){units.values.flatMap{$0.subviews}.flatMap{$0.subviews}.compactMap{$0 as? JimiNativeNewRibbonView}.forEach{$0.quiesce()}}
@@ -625,7 +662,7 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
             guard let self else {return}
             guard let id = sourceID,let unit = self.units[id],let card = unit.subviews.first(where:{$0.accessibilityIdentifier?.hasSuffix(".card") == true}) else {self.exit(completion:completion);return}
             let contactPose=card.layer.presentation()?.transform ?? card.layer.transform
-            if regularModal {self.stopIdle()} else {self.interimOwners[id]?.stop()}
+            if !regularModal {self.interimOwners[id]?.stop()}
             self.admitted = false;self.scrollView.isScrollEnabled = false
             let token = self.generation
             CATransaction.begin()
@@ -636,7 +673,7 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
                     JimiNativeWorldEffects.smoke(at:card.frame,in:unit,scale:self.scale)
                     // Card collapse and the surrounding World exit have distinct
                     // targets and share the authoritative final completion.
-                    self.exit(completion:completion)
+                    self.exit(preservingIdlePose:true,completion:completion)
                 }
                 self.animate(card,track:.init(tweens:[.init(begin:0,duration:0.120/0.98,from:.scale(1),to:.scale(1.14),ease:.backOut(2.4))]),key:"card.tap.exit")
             } else {

@@ -6,6 +6,8 @@ import UIKit
 final class NativeArcadeHubView: UIView {
     let hub: JimiV9HubView
     var onClose: (() -> Void)?
+    var onWillSelectIsland:((Int)->Bool)?
+    private(set) var isEntering=false
     var onCrate: (() -> Void)?
     var onPlay: ((String) -> Void)?
     var onPlayExit: ((@escaping ()->Void)->Void)?
@@ -47,7 +49,7 @@ final class NativeArcadeHubView: UIView {
         }
         hub.onBackpack = { [weak self] in
             self?.recordInputDiagnostic("crate.callback")
-            guard let self,self.active,self.foreground,!self.closeRequested,!self.crateRequested,
+            guard let self,self.active,self.foreground,!self.isEntering,!self.closeRequested,!self.crateRequested,
                   self.hub.scrollView.isUserInteractionEnabled,
                   self.modal == nil,self.pendingWorldTap == nil,let onCrate=self.onCrate else { return }
             self.crateRequested = true
@@ -58,7 +60,9 @@ final class NativeArcadeHubView: UIView {
         hub.onWorld = { [weak self] id in
             self?.recordInputDiagnostic("world.callback id=\(id)")
             guard let self, self.active, self.foreground, !self.crateRequested, !self.closeRequested, self.modal == nil, self.pendingWorldTap == nil,
-                  let index = self.hub.worldIDs.firstIndex(of: id) else { return }
+                  self.hub.scrollView.isUserInteractionEnabled,!self.hub.scrollView.isDragging,!self.hub.scrollView.isDecelerating,
+                  (!self.isEntering || self.hub.isWorldVisibleForSelection(id)),
+                  let index = self.hub.worldIDs.firstIndex(of: id),self.onWillSelectIsland?(id) ?? true else { return }
             let token=UUID();self.pendingWorldTap=token
             self.recordInputDiagnostic("world.accepted id=\(id)")
             self.hub.stopIdle();self.hub.setContentInteractionEnabled(false)
@@ -81,30 +85,38 @@ final class NativeArcadeHubView: UIView {
     func present() {
         recordInputDiagnostic("present")
         active = true; foreground = true; closeRequested = false; crateRequested = false; isHidden = false; hub.accessibilityElementsHidden = false; hub.resetIdlePose(); hub.resetScroll()
-        hub.setContentInteractionEnabled(false)
+        isEntering=true;setContentInteractionEnabled(true)
     }
-    func setContentInteractionEnabled(_ enabled: Bool) { hub.setContentInteractionEnabled(enabled) }
+    func setContentInteractionEnabled(_ enabled: Bool) {
+        hub.setContentInteractionEnabled(enabled && active && foreground && !closeRequested && !crateRequested && modal == nil && pendingWorldTap == nil && pendingPlayExit == nil)
+    }
+    func finishEntering() {
+        isEntering=false
+        guard active,foreground,!closeRequested,!crateRequested else{return}
+        setContentInteractionEnabled(true)
+        if modal == nil,pendingWorldTap == nil,pendingPlayExit == nil {hub.startIdle()}
+    }
     func resume() {
         recordInputDiagnostic("resume")
         foreground = true
         guard active else { return }
         modal?.setForeground(true)
-        if modal == nil { hub.startIdle() }
+        if modal == nil,!isEntering {setContentInteractionEnabled(true);hub.startIdle()}
     }
     func suspend() { foreground = false; cancelWorldTap(); hub.stopIdle(); modal?.setForeground(false) }
     func hide() {
-        active = false;pendingPlayExit=nil; cancelWorldTap(); hub.stopIdle(); modal?.dispose(); modal = nil; hub.accessibilityElementsHidden = false; isHidden = true
+        active = false;isEntering=false;pendingPlayExit=nil; cancelWorldTap(); hub.stopIdle(); modal?.dispose(); modal = nil; hub.accessibilityElementsHidden = false; isHidden = true
     }
     private func cancelWorldTap() {
         let wasPending=pendingWorldTap != nil
         pendingWorldTap=nil;hub.cancelWorldTap()
-        if wasPending {hub.setContentInteractionEnabled(active)}
+        if wasPending {setContentInteractionEnabled(active)}
         if modal?.isWaitingForEntry == true {
             modal?.dispose();modal=nil;hub.accessibilityElementsHidden=false
         }
     }
-    override var isHidden: Bool { didSet { if isHidden { cancelWorldTap();hub.stopIdle();modal?.setForeground(false) } } }
-    override func didMoveToWindow() { super.didMoveToWindow(); if window == nil { cancelWorldTap();hub.stopIdle();modal?.setForeground(false) } }
+    override var isHidden: Bool { didSet { if isHidden {isEntering=false;cancelWorldTap();hub.stopIdle();modal?.setForeground(false) } } }
+    override func didMoveToWindow() { super.didMoveToWindow(); if window == nil {isEntering=false;cancelWorldTap();hub.stopIdle();modal?.setForeground(false) } }
 
     private func open(_ index: Int,contactEpoch:CFTimeInterval) {
         recordInputDiagnostic("modal.construct-start index=\(index)")
@@ -134,7 +146,7 @@ final class NativeArcadeHubView: UIView {
             guard let self, self.modal === sheet else { return }
             self.modal?.dispose(); self.modal = nil; self.hub.accessibilityElementsHidden = false
             if play {modalFinished=true;complete()}
-            else if self.active && self.foreground {self.hub.setContentInteractionEnabled(true);self.hub.startIdle()}
+            else if self.active && self.foreground {self.setContentInteractionEnabled(true);if !self.isEntering {self.hub.startIdle()}}
         }
 
         onFeedback?("exit-modal")
@@ -145,7 +157,7 @@ final class NativeArcadeHubView: UIView {
         recordInputDiagnostic("modal.reveal-scheduled index=\(index) start=\(start)")
     }
 
-    func tracks(enter: Bool) -> [(UIView, JimiV9Motion.Track)] {
+    func tracks(enter: Bool,fromPaintedPose:Bool=false) -> [(UIView, JimiV9Motion.Track)] {
         let reduced = UIAccessibility.isReduceMotionEnabled
         let order = enter ? hub.worldUnits : hub.worldUnits.shuffled()
         var result: [(UIView, JimiV9Motion.Track)] = order.enumerated().map { i, unit in
@@ -161,7 +173,8 @@ final class NativeArcadeHubView: UIView {
                 .init(begin:delay+0.18,duration:0.336,from:peak,to:.scale(0),ease:.backIn(1.7))],anchorY:0.54))
         }
         result.append((hub.header, enter ? .init(tweens:[.init(begin:0,duration:reduced ? 0.2 : 0.56,from:.scale(reduced ? 0.96 : 0.65,y:reduced ? 8 : 30,opacity:0),to:.scale(1),ease:reduced ? .powerOut(1) : .backOut(1.8))]) : JimiV9Motion.journeyNavigationExit(reducedMotion:reduced)))
-        return hub.includingCloudTracks(result)
+        let tracks=hub.includingCloudTracks(result)
+        return fromPaintedPose ? NativeRouteMotion.retargetPaintedHubTracks(tracks,enter:enter):tracks
     }
 }
 
@@ -258,14 +271,16 @@ final class NativeArcadeWorldModal: UIView {
         let modalSafeInsets=NativeTabletLayout.modalSafeInsets(in:self)
         // Backpack detail's content-sized paper recipe. Reserve real safe-area
         // and floor-shadow room, rather than centering a fixed tall card.
-        let w=NativeTabletLayout.paperWidth(modalBounds.size)
+        let contentWidth=NativeTabletLayout.paperWidth(modalBounds.size)
+        let w=contentWidth*(NativeTabletLayout.applies(bounds.size) ? 1.20:1)
+        let contentInset=(w-contentWidth)/2
         let textScale=NativeTabletLayout.textScale(modalBounds.size)
         NativeTabletLayout.labelFont(heading,size:NativeTabletLayout.modalTitleSize(bounds.size,phone:28*textScale))
         NativeTabletLayout.labelFont(subtitle,size:18*textScale)
         NativeTabletLayout.buttonFont(play,size:28*textScale)
         let titleHeight=NativeTabletLayout.applies(bounds.size) ? max(38.4*textScale,ceil(heading.font.lineHeight)):38.4*textScale
-        heading.frame = CGRect(x:w*0.1,y:28+19.2*textScale-titleHeight/2,width:w*0.8,height:titleHeight)
-        let subtitleWidth = modeIndex == 1 ? w*0.8 : (w < 300 ? max(0,w-16):w*0.8)
+        heading.frame = CGRect(x:contentInset+contentWidth*0.1,y:28+19.2*textScale-titleHeight/2,width:contentWidth*0.8,height:titleHeight)
+        let subtitleWidth = modeIndex == 1 ? contentWidth*0.8 : (contentWidth < 300 ? max(0,contentWidth-16):contentWidth*0.8)
         let subtitleHeight = ceil(subtitle.sizeThatFits(CGSize(width:subtitleWidth,height:CGFloat.greatestFiniteMagnitude)).height)
         subtitle.frame = CGRect(x:(w-subtitleWidth)/2,y:28+38.4*textScale+12,width:subtitleWidth,height:subtitleHeight)
         // Lift the illustration/footer together while keeping title and top edge fixed.
@@ -283,7 +298,7 @@ final class NativeArcadeWorldModal: UIView {
         let availableHeight = max(0,safeBottom-safeTop)
         // Match Journey info Play/Continue at this same viewport exactly.
         let journeyScale=NativeTabletLayout.journeyScale(modalBounds.size)
-        let ctaWidth=max(0,min(w-32,min(238*journeyScale,326*journeyScale-32)*0.9))
+        let ctaWidth=max(0,min(contentWidth-32,min(238*journeyScale,326*journeyScale-32)*0.9))
         let footerHeight:CGFloat = 32+72+40
         let artworkHeight = min(scaledArtworkHeight,max(0,availableHeight-(artworkY+contentLift)-footerHeight))
         art.bounds=CGRect(x:0,y:0,width:artworkHeight*aspect,height:artworkHeight)
@@ -292,7 +307,7 @@ final class NativeArcadeWorldModal: UIView {
         // widths and opacity. Overlap is intentional, on one stable2D plane.
         // Clouds inherit the complete paper entry, drag, idle and exit.
         // Unclipped clouds intentionally extend beyond the paper silhouette.
-        cloudStage.frame=CGRect(x:12-50,y:artworkY-8,width:w-24+50,height:artworkHeight+56)
+        cloudStage.frame=CGRect(x:contentInset+12-50,y:artworkY-8,width:contentWidth-24+50,height:artworkHeight+56)
         let cw=cloudStage.bounds.width-50,ch=cloudStage.bounds.height-40
         let bank:[(CGFloat,CGFloat,CGFloat)]=[(0.33,0.30,272),(0.18,0.56,188),
             (0.67,0.34,248),(0.82,0.60,166),(0.50,0.72,184),(0.24,0.24,180)]

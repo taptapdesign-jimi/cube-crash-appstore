@@ -24,10 +24,10 @@ enum NativeTabletLayout {
         animation.transform=CGAffineTransform(scaleX:scale,y:scale)
     }
     static func smokeSpriteBoost(_ size:CGSize)->CGFloat {
-        // Keep the corrected raster basis, then scale the last TNT size down20%.
+        // Latest sizing: another20% reduction of TNT smoke only on both devices.
         // Core TNT already
         // owns its1.4*1.2*1.2 enlargement AND the full-width scene projection.
-        applies(size) ? (1.694*1.2*1.30*0.80)/(1.4*1.2*1.2*animationScale(size)):1
+        (applies(size) ? (1.694*1.2*1.30*0.80)/(1.4*1.2*1.2*animationScale(size)):1)*0.80
     }
     static func smokeVerticalOffset(_ size:CGSize)->CGFloat {applies(size) ? animationViewport(size).height*0.1:0}
     static func tntSmokeVerticalOffset(_ size:CGSize)->CGFloat {

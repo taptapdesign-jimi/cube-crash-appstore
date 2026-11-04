@@ -772,16 +772,28 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
     private var heroCartoonShells:[UIView]=[]
     // One continuous, unclipped panorama independent of the illustration track.
     // The middle stays visible; swipes expose only a little of either side.
+    let breeze=NativeHomeBreeze()
     private let homeCloudPlane=UIView()
     private let frontCloudPlane=UIView(),cloudDragCarrier=UIView(),frontCloudDragCarrier=UIView()
     private let cloudBanks=(0..<3).map{_ in UIView()}
     private let frontCloudBanks=(0..<3).map{_ in UIView()}
-    private var cloudFrontFlags=Array(repeating:false,count:24)
+    private var cloudBaseCount=24
+    private var cloudFrontFlags=Array(repeating:false,count:33)
+    private func cloudGroup(_ index:Int)->Int {
+        index<24 ? index/8:index<cloudBaseCount ? 1:(index-cloudBaseCount)/2
+    }
+    private func cloudSlot(_ index:Int)->Int {
+        index<24 ? index%8:index<cloudBaseCount ? 8+index-24:11+(index-cloudBaseCount)%2
+    }
     private static let cloudDragKey="native-home-cloud-drag"
     private let activeCloudGroups:Set<Int>=[1]
     private var homeClouds:[UIImageView]=[]
     private var cloudRouteShells:[UIView]=[]
-    private var cloudRestX=Array(repeating:CGFloat.zero,count:24)
+    private var cloudRestX=Array(repeating:CGFloat.zero,count:33)
+    private struct CloudMotionState {
+        let startTime:CFTimeInterval,curve:JimiV9Motion.HomeCloudCurve
+    }
+    private var cloudMotionStates=Array<CloudMotionState?>(repeating:nil,count:33)
     private struct CloudDrift {
         let x:CGFloat,y:CGFloat,duration:Double,scale:CGFloat
     }
@@ -795,6 +807,26 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
     private var ctaPressShells: [UIView] = []
     private var ctaCartoonShells: [UIView] = []
     private var ctaIdleShells:[UIView]=[]
+    private var ctaIdleBounceShells:[UIView]=[]
+    static let ctaIdleBounceKey="native-home-cta-idle-cartoon"
+    private(set) var isEntering=false
+    func beginEntering(){isEntering=true}
+    func finishEntering(){isEntering=false}
+    var ctaIdleBounceView:UIView {ctaIdleBounceShells[selectedSlide]}
+    func isPaintedControlVisible(_ view:UIView)->Bool {
+        guard window != nil,!isHidden else{return false}
+        var node:UIView?=view
+        while let current=node,current !== self {
+            let painted=current.layer.presentation()
+            if painted == nil,current.layer.animation(forKey:"native-route") != nil {return false}
+            let layer=painted ?? current.layer
+            if layer.opacity<=0.10 || abs(layer.transform.m11)<=0.10 {return false}
+            node=current.superview
+        }
+        return node === self
+    }
+    var isNavigationPaintedVisible:Bool {isPaintedControlVisible(navView)}
+    var isArtworkPaintedVisible:Bool {isPaintedControlVisible(heroView)}
     private let ctaIdleDirections=(0..<3).map{_ in CGPoint(x:CGFloat.random(in:-6...6),y:CGFloat.random(in:4...8))}
     private let ctaIdleTilts=(0..<3).map{_ in CGFloat.random(in:-1.4...1.4)}
     private let ctaIdleRates=(0..<3).map{_ in Double.random(in:1.13...1.29)}
@@ -854,7 +886,9 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         frontCloudPlane.isUserInteractionEnabled=false
         frontCloudPlane.accessibilityIdentifier="native.home.foreground-cloud-plane"
         cloudDragCarrier.isUserInteractionEnabled=false;frontCloudDragCarrier.isUserInteractionEnabled=false
+        viewport.addSubview(breeze.rearPlane)
         viewport.addSubview(cloudDragCarrier);cloudDragCarrier.addSubview(homeCloudPlane)
+        viewport.addSubview(breeze.balloonStagePlane)
         viewport.addSubview(sliderTrack)
         viewport.addSubview(frontCloudDragCarrier);frontCloudDragCarrier.addSubview(frontCloudPlane)
         for (index,bank) in cloudBanks.enumerated() {
@@ -865,13 +899,17 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             front.accessibilityIdentifier="native.home.front-cloud-bank.\(index)"
             frontCloudPlane.addSubview(front)
         }
-        for slot in 0..<24 {
+        // Breeze stays behind the main rear clouds as well as the foreground:
+        // only the farthest cloud (z=-2) sits behind its middle depth (z=-1.5).
+        cloudBanks[1].addSubview(breeze.middlePlane);breeze.middlePlane.layer.zPosition = -1.5
+        cloudBaseCount=NativeTabletLayout.applies(frame.size) ? 27:24
+        for slot in 0..<(cloudBaseCount+6) {
             let cloud=UIImageView()
             cloud.contentMode = .scaleAspectFit;cloud.isUserInteractionEnabled=false
             cloud.accessibilityIdentifier="native.home.cloud.shared.\(slot)"
             let shell=UIView();shell.isUserInteractionEnabled=false
             shell.accessibilityIdentifier="native.home.cloud-route.shared.\(slot)"
-            shell.addSubview(cloud);cloudBanks[slot/8].addSubview(shell)
+            shell.addSubview(cloud);cloudBanks[cloudGroup(slot)].addSubview(shell)
             homeClouds.append(cloud);cloudRouteShells.append(shell)
         }
         addSubview(logoView)
@@ -888,6 +926,8 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         bottomShadow.alpha = 0.55
         addSubview(bottomShadow)
         addSubview(navView)
+        // Noninteractive bottom-born Arcade balloons may pass above all Home artwork.
+        addSubview(breeze.frontPlane)
         navView.accessibilityIdentifier = "native.home.navigation"
 
         let paths = ["journey", "crash-cubes-homepage", "settings-slider"]
@@ -925,7 +965,9 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             previewShell.addSubview(cta);pressShell.addSubview(previewShell)
             ctaCartoonShells.append(previewShell)
             let idleShell=JimiV9OverflowView();idleShell.accessibilityIdentifier="native.home.cta-idle.\(index)"
-            idleShell.addSubview(pressShell);ctaContainer.addSubview(idleShell);ctaIdleShells.append(idleShell)
+            let bounce=JimiV9OverflowView();bounce.accessibilityIdentifier="native.home.cta-idle-cartoon.\(index)"
+            bounce.addSubview(pressShell);idleShell.addSubview(bounce);ctaIdleBounceShells.append(bounce)
+            ctaContainer.addSubview(idleShell);ctaIdleShells.append(idleShell)
             ctaContainer.layer.zPosition=2
             panel.addSubview(ctaContainer)
             ctaPressShells.append(pressShell)
@@ -967,8 +1009,9 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
     required init?(coder: NSCoder) { fatalError("Use init(frame:assets:)") }
 
     /// Called on real Home route entry, never on a tab switch or foreground
-    /// resume. Reuse24views and six original images in this lease.
+    /// resume. Reuse30phone/33tablet views and six original images in this lease.
     func prepareCloudsForVisit() {
+        breeze.stop()
         stopCloudPanorama(preservePaintedPose:false)
         let paths=["oblak-forest1","oblak-forest2","oblak+srednji","oblak mali ljevo","oblak mali desno","oblak veliki ljevo dole"]
         let choices=(0..<3).map { group -> [String] in
@@ -985,7 +1028,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         }
         previousCloudChoices=choices
         cloudDrifts=homeClouds.enumerated().map { index,cloud in
-            let group=index/8,slot=index%8
+            let group=cloudGroup(index),slot=cloudSlot(index)
             cloud.layer.removeAnimation(forKey:Self.cloudIdleKey)
             cloud.layer.speed=1;cloud.layer.timeOffset=0;cloud.layer.beginTime=0
             cloud.layer.transform=CATransform3DIdentity
@@ -997,84 +1040,126 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             cloud.layer.zPosition=0
             cloudRouteShells[index].layer.zPosition=front ? 1:(slot == 4 ? -2:-1)
             cloudRouteShells[index].transform = .identity;cloudRouteShells[index].alpha=1
-            cloud.alpha=front ? 0.20:[0.78,0.74,0.76,0.72,0.76,0.64,0.68,0.66][slot]
+            cloud.alpha=front ? 0.20:[0.78,0.74,0.76,0.72,0.76,0.64,0.68,0.66,0.64,0.62,0.66,0.68,0.66][slot]
+            let puffy = !front
             return CloudDrift(x:CGFloat.random(in:0.02...0.035)*(Bool.random() ? 1:-1),
-                y:CGFloat.random(in:front ? 4...8:10...16)*(Bool.random() ? 1:-1),
-                duration:Double.random(in:8...10),scale:CGFloat.random(in:1.02...1.04))
+                y:CGFloat.random(in:puffy ? 24...38:(front ? 4...8:10...16))*(Bool.random() ? 1:-1),
+                duration:Double.random(in:puffy ? 5...7:8...10),
+                scale:CGFloat.random(in:puffy ? 1.06...1.10:1.02...1.04))
         }
         setNeedsLayout()
     }
 
     func cloudRouteTracks(enter:Bool)->[(UIView,JimiV9Motion.Track)] {
         let base=enter ? JimiV9Motion.homeEnter(.hero):JimiV9Motion.homeExit(.hero)
-        return cloudRouteShells.enumerated().sorted{ ($0.offset/8 == 1 ? 0:1,$0.offset) < ($1.offset/8 == 1 ? 0:1,$1.offset) }.enumerated().map { index,item in
+        return cloudRouteShells.enumerated().sorted{ (cloudGroup($0.offset) == 1 ? 0:1,$0.offset) < (cloudGroup($1.offset) == 1 ? 0:1,$1.offset) }.enumerated().map { index,item in
             (item.element,JimiV9Motion.cloudCascade(on:item.element,base:base,enter:enter,index:index))
         }
     }
 
+    /// All ambient depths join the selected Home's authored bounce-out. Inner
+    /// flight clocks are frozen by stopHeroIdle; the shared route registry owns
+    /// the outer planes and retires all content when Home becomes hidden.
+    func ambientRouteTracks(enter:Bool)->[(UIView,JimiV9Motion.Track)] {
+        let track=enter ? JimiV9Motion.homeEnter(.hero):JimiV9Motion.homeExit(.hero,reducedMotion:UIAccessibility.isReduceMotionEnabled)
+        return [breeze.rearPlane,breeze.middlePlane,breeze.frontPlane,breeze.balloonStagePlane].map{($0,track)}
+    }
+
+    var ambientSlideLayers:[CALayer] {breeze.slideLayers}
     var cloudRenderViews:[UIView] {cloudRouteShells}
     var cloudPanoramaLayers:[CALayer] {cloudRouteShells.map{$0.layer}}
-    var cloudPanoramaSnapshot:[CGFloat] {cloudPanoramaLayers.map{ $0.presentation()?.position.x ?? $0.position.x }}
+    struct CloudPanoramaSnapshot {
+        let positions:[CGFloat],velocities:[Double]
+    }
+    var cloudPanoramaSnapshot:CloudPanoramaSnapshot {
+        var positions:[CGFloat]=[],velocities:[Double]=[]
+        for (index,layer) in cloudPanoramaLayers.enumerated() {
+            let state=cloudMotionStates[index]
+            let moving=layer.animation(forKey:Self.cloudDragKey) != nil || layer.animation(forKey:"native-slide-selection") != nil
+            let elapsed=layer.convertTime(CACurrentMediaTime(),from:nil)-(state?.startTime ?? 0)
+            let fallback=moving ? state.map{CGFloat($0.curve.position(at:elapsed))}:nil
+            positions.append(layer.presentation()?.position.x ?? fallback ?? layer.position.x)
+            velocities.append(moving ? state?.curve.velocity(at:elapsed) ?? 0:0)
+        }
+        return .init(positions:positions,velocities:velocities)
+    }
 
     /// One fixed panorama, viewed a little left or right of its middle. No
     /// pages, opacity swaps, completion queues, timers or per-frame callbacks.
-    private func panoramaOffset(slideX:CGFloat,foreground:Bool)->CGFloat {
-        CGFloat(JimiV9Motion.homeCloudPanoramaOffset(slideX:Double(slideX),width:Double(bounds.width),foreground:foreground))
+    private func panoramaOffset(slideX:CGFloat,index:Int)->CGFloat {
+        let slot=cloudSlot(index)
+        let farther=[0,2,5,8,10].contains(slot)
+        return CGFloat(JimiV9Motion.homeCloudPanoramaOffset(slideX:Double(slideX),width:Double(bounds.width),
+            foreground:cloudFrontFlags[index]))*(farther ? 1.50:1)*CGFloat([1.0,1.0,1.15,1.28,1.40][index%5])*0.60
+    }
+    private let cloudTravelTimeScale:Double=0.50/1.40
+    private func animateCloud(_ index:Int,from start:CGFloat,velocity:Double,duration:Double,delay:Double,key:String,staggered:Bool=false) {
+        let layer=cloudRouteShells[index].layer
+        let selecting=key=="native-slide-selection"
+        let profile=JimiV9Motion.homeCloudSettlingProfile(index:index)
+        let curve=JimiV9Motion.HomeCloudCurve(start:Double(start),end:Double(layer.position.x),
+            initialVelocity:staggered ? velocity:(delay>0 ? 0:velocity),duration:duration,delay:delay,
+            staggered:staggered,followThrough:selecting,coastScale:selecting ? profile.coast:1,
+            returnScale:selecting ? profile.settle:1,extraDistance:selecting ? profile.extra:0.70)
+        cloudMotionStates[index] = .init(startTime:layer.convertTime(CACurrentMediaTime(),from:nil),curve:curve)
+        let motion=CAKeyframeAnimation(keyPath:"position.x")
+        let samples=key==Self.cloudDragKey ? 12:180
+        motion.values=(0...samples).map {curve.position(at:curve.totalDuration*Double($0)/Double(samples))}
+        motion.duration=curve.totalDuration
+        motion.timingFunction=CAMediaTimingFunction(name:.linear)
+        layer.add(motion,forKey:key)
     }
     @discardableResult
-    func installCloudPanorama(from snapshot:[CGFloat])->[CALayer] {
+    func installCloudPanorama(from snapshot:CloudPanoramaSnapshot)->[CALayer] {
         guard !UIAccessibility.isReduceMotionEnabled else{return []}
-        for (index,layer) in cloudPanoramaLayers.enumerated() {
-            let start=snapshot.indices.contains(index) ? snapshot[index]:layer.position.x
-            let destination=layer.position.x
-            let slot=index%8
-            let rank=destination>=start ? slot:7-slot
-            let delay=Double(rank)*0.028
-            let travel=JimiV9Motion.homeCloudTravelDuration(slot:slot,foreground:cloudFrontFlags[index])
-            let total=delay+travel
-            let motion=CAKeyframeAnimation(keyPath:"position.x")
-            motion.values=(0...72).map { sample in
-                let t=max(0,min(1,(total*Double(sample)/72-delay)/travel))
-                return start+(destination-start)*CGFloat(JimiV9Motion.sliderEase.value(t))
-            }
-            motion.duration=total
-            layer.add(motion,forKey:"native-slide-selection")
+        // Inner floating begins/continues immediately while outer shells settle.
+        if UIApplication.shared.applicationState == .active,!isHidden {startCloudIdle()}
+        let layers=cloudPanoramaLayers
+        let cascade=layers.indices.filter{$0%5>=2}.sorted{layers[$0].position.x<layers[$1].position.x}
+        for (index,layer) in layers.enumerated() {
+            let start=snapshot.positions.indices.contains(index) ? snapshot.positions[index]:layer.position.x
+            let velocity=snapshot.velocities.indices.contains(index) ? snapshot.velocities[index]:0
+            let staggered=index%5>=2
+            let ordinal=cascade.firstIndex(of:index) ?? 0
+            let rank=layer.position.x>=start ? ordinal:max(0,cascade.count-1-ordinal)
+            let delay=staggered ? Double(rank)*JimiV9Motion.cloudCascadeStagger/4.20:0
+            let travel=(staggered ? 0.85+Double(index%3)*0.06:0.90)/4.20
+            animateCloud(index,from:start,velocity:velocity,duration:travel,delay:delay,
+                key:"native-slide-selection",staggered:staggered)
         }
         return cloudPanoramaLayers
     }
-    private func updateCloudPanorama(slideX:CGFloat) {
+    private func updateCloudPanorama(slideX:CGFloat,from initial:CloudPanoramaSnapshot?=nil) {
         guard !UIAccessibility.isReduceMotionEnabled else{return}
+        let snapshot=initial ?? cloudPanoramaSnapshot
         CATransaction.begin();CATransaction.setDisableActions(true)
         for (index,layer) in cloudPanoramaLayers.enumerated() {
-            let current=layer.presentation()?.position.x ?? layer.position.x
-            let destination=cloudRestX[index]+panoramaOffset(slideX:slideX,foreground:cloudFrontFlags[index])
-            layer.position.x=destination
-            let lag=CABasicAnimation(keyPath:"position.x")
-            lag.fromValue=current;lag.toValue=destination
-            lag.duration=JimiV9Motion.homeCloudTravelDuration(slot:index%8,foreground:cloudFrontFlags[index])*0.24
-            lag.timingFunction=CAMediaTimingFunction(name:.easeOut)
-            layer.add(lag,forKey:Self.cloudDragKey)
+            layer.position.x=cloudRestX[index]+panoramaOffset(slideX:slideX,index:index)
+            let lag=JimiV9Motion.homeCloudTravelDuration(slot:index%8,foreground:cloudFrontFlags[index])*0.32*cloudTravelTimeScale
+            animateCloud(index,from:snapshot.positions[index],velocity:snapshot.velocities[index],duration:lag,delay:0,key:Self.cloudDragKey)
         }
         CATransaction.commit()
     }
     private func stopCloudPanorama(preservePaintedPose:Bool) {
+        let snapshot=preservePaintedPose ? cloudPanoramaSnapshot:nil
         CATransaction.begin();CATransaction.setDisableActions(true)
         for (index,layer) in cloudPanoramaLayers.enumerated() {
-            let position=preservePaintedPose ? layer.presentation()?.position.x ?? layer.position.x:
-                cloudRestX[index]+panoramaOffset(slideX:bounds.width*(1.5-CGFloat(selectedSlide)),foreground:cloudFrontFlags[index])
+            let position=snapshot?.positions[index] ??
+                cloudRestX[index]+panoramaOffset(slideX:bounds.width*(1.5-CGFloat(selectedSlide)),index:index)
             layer.removeAnimation(forKey:Self.cloudDragKey)
             layer.removeAnimation(forKey:"native-slide-selection")
             layer.speed=1;layer.timeOffset=0;layer.beginTime=0;layer.position.x=position
+            cloudMotionStates[index]=nil
         }
         CATransaction.commit()
     }
 
     private var sharedCloudLayers:[CALayer] {homeClouds.map{$0.layer}}
-    private var activeCloudLayers:[CALayer] {homeClouds.enumerated().filter{activeCloudGroups.contains($0.offset/8)}.map{$0.element.layer}}
+    private var activeCloudLayers:[CALayer] {homeClouds.enumerated().filter{activeCloudGroups.contains(cloudGroup($0.offset))}.map{$0.element.layer}}
     private func startCloudIdle() {
         guard cloudDrifts.count==homeClouds.count else{return}
         for (index,cloud) in homeClouds.enumerated() {
-            guard activeCloudGroups.contains(index/8) else {
+            guard activeCloudGroups.contains(cloudGroup(index)) else {
                 if cloud.layer.speed != 0 {
                     cloud.layer.timeOffset=cloud.layer.convertTime(CACurrentMediaTime(),from:nil);cloud.layer.speed=0
                 }
@@ -1090,11 +1175,22 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             }
             cloud.layer.speed=1;cloud.layer.timeOffset=0;cloud.layer.beginTime=0
             let drift=cloudDrifts[index]
-            let peak=CATransform3DScale(CATransform3DMakeTranslation(drift.x*bounds.width*0.90*1.60,drift.y*0.90,0),drift.scale,drift.scale,1)
+            let peak=CATransform3DScale(CATransform3DMakeTranslation(drift.x*1.55*bounds.width*0.90*1.60,drift.y*0.90,0),drift.scale,drift.scale,1)
             let animation=CAKeyframeAnimation(keyPath:"transform")
             animation.values=[CATransform3DIdentity,peak,CATransform3DIdentity].map{NSValue(caTransform3D:$0)}
             animation.keyTimes=[0,0.5,1];animation.duration=drift.duration
-            animation.timingFunctions=Array(repeating:CAMediaTimingFunction(name:.easeInEaseOut),count:2)
+            if !cloudFrontFlags[index] {
+                // One continuous compositor loop: float through both sides of
+                // rest while the cloud gently inflates and softens its shape.
+                let puff=drift.scale-1
+                let rise=CATransform3DScale(CATransform3DMakeTranslation(
+                    drift.x*1.55*bounds.width*0.90*1.60,drift.y*0.90,0),drift.scale,1+puff*0.75,1)
+                let fall=CATransform3DScale(CATransform3DMakeTranslation(
+                    -drift.x*1.55*bounds.width*0.45,-drift.y*0.65,0),1-puff*0.30,1+puff*0.20,1)
+                animation.values=[CATransform3DIdentity,rise,fall,CATransform3DIdentity].map{NSValue(caTransform3D:$0)}
+                animation.keyTimes=[0,0.30,0.72,1]
+            }
+            animation.timingFunctions=Array(repeating:CAMediaTimingFunction(name:.easeInEaseOut),count:(animation.values?.count ?? 3)-1)
             animation.repeatCount = .infinity
             cloud.layer.add(animation,forKey:Self.cloudIdleKey)
         }
@@ -1109,6 +1205,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         draggedPositionX = nil
         // The fixed panorama follows this slide through its own small offset.
         selectedSlide = index
+        breeze.selectSlide(index)
         for i in panels.indices {
             panels[i].accessibilityElementsHidden = i != index
             panels[i].isUserInteractionEnabled = i == index
@@ -1118,6 +1215,9 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         }
         setNeedsLayout()
         layoutIfNeeded()
+        if window != nil,!isHidden,UIApplication.shared.applicationState == .active,!UIAccessibility.isReduceMotionEnabled {
+            breeze.activatePrepared(slide:index)
+        }
     }
 
     override func layoutSubviews() {
@@ -1168,6 +1268,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         }
 
         viewport.frame = bounds
+        breeze.layout(size:bounds.size)
         for carrier in [cloudDragCarrier,frontCloudDragCarrier] {
             carrier.bounds=viewport.bounds
             carrier.layer.position=CGPoint(x:width/2,y:height/2)
@@ -1183,6 +1284,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         }
         sliderTrack.bounds = CGRect(x: 0, y: 0, width: width*3, height: height)
         sliderTrack.center = CGPoint(x: draggedPositionX ?? (width*1.5 - CGFloat(selectedSlide)*width), y: height/2)
+        breeze.setSlideX(sliderTrack.layer.position.x)
         // v10 mobile: the 336px image overflows its 280px shell by 28px
         // and relative top:5% adds 14px, leaving a net -14px displacement.
         // Its CTA has the same net correction (-34 text + 12px margin).
@@ -1205,25 +1307,35 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             let artSize = heroSide * Self.heroArtworkScale * (tablet ? 0.95*0.95 : 1)
             // Arcade's taller composition fits between Journey's visual rulers.
             // Keep this in rest geometry so route/idle transforms retain ownership.
-            let imageSide = artSize * (i == 1 ? 0.95 : 1)
+            let imageSide = artSize * (i == 1 ? 0.95 : 1) * (tablet ? 1.10 : 1)
             heroImages[i].bounds = CGRect(x:0,y:0,width:imageSide,height:imageSide)
             heroCartoonShells[i].bounds=CGRect(x:0,y:0,width:heroSide,height:heroSide)
             heroCartoonShells[i].center=CGPoint(x:heroSide/2,y:heroSide/2)
-            heroImages[i].center = CGPoint(x:heroSide/2,y:heroSide/2 - (i == 1 ? artSize*0.004 : 0))
+            heroImages[i].center = CGPoint(x:heroSide/2,y:heroSide/2 - (i == 1 ? artSize*0.004 : 0) + (i == 2 ? 4:0))
             // Lay out the fixed panorama once, independently of panel position.
             if i==0 {
-                let cloudWidths:[CGFloat]=[272,198,188,166,248,166,188,154]
+                let cloudWidths:[CGFloat]=[272,198,188,166,248,166,188,154,180,160,190,272*1.20,272*1.20]
                 let cloudCenters:[CGPoint]=[CGPoint(x:0.17,y:0.25),CGPoint(x:0.84,y:0.35),
                     CGPoint(x:0.12,y:0.72),CGPoint(x:0.86,y:0.80),CGPoint(x:0.50,y:0.50),
-                    CGPoint(x:0.52,y:0.13),CGPoint(x:0.02,y:0.47),CGPoint(x:0.94,y:0.55)]
+                    CGPoint(x:0.52,y:0.13),CGPoint(x:0.02,y:0.47),CGPoint(x:0.94,y:0.55),
+                    CGPoint(x:0.35,y:0.24),CGPoint(x:0.55,y:0.58),CGPoint(x:0.70,y:0.90),
+                    CGPoint(x:0.42,y:0.36),CGPoint(x:0.58,y:0.64)]
                 for (index,cloud) in homeClouds.enumerated() {
-                    let group=index/8,slot=index%8
+                    let group=cloudGroup(index),slot=cloudSlot(index)
                     let shell=cloudRouteShells[index]
                     let front=cloudFrontFlags[index]
                     var w=cloudWidths[slot]*heroSide/360*(front ? 0.90:1)
                     let ratio=(cloud.image?.size.height ?? 1)/max(1,cloud.image?.size.width ?? 1)
                     var size=CGSize(width:w,height:w*ratio)
                     var centerY=heroTop+heroSide*cloudCenters[slot].y
+                    if !front {
+                        // Shared panorama spreads rear clouds above and below
+                        // the illustration on phone and tablet alike.
+                        centerY=heroTop+heroSide*(0.50+(cloudCenters[slot].y-0.50)*1.55+0.05)
+                        let drift=cloudDrifts.indices.contains(index) ? cloudDrifts[index]:nil
+                        let lowerEnvelope=size.height*(drift?.scale ?? 1.10)/2+abs(drift?.y ?? 38)*0.90
+                        centerY=min(centerY,tabletDividerY-lowerEnvelope-2)
+                    }
                     if front {
                         // Fixed lower band: the cloud's full envelope stays below
                         // the upper boundary of the illustration's bottom20%.
@@ -1245,7 +1357,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
                     shell.layer.position=CGPoint(x:center.x+(shell.layer.anchorPoint.x-0.5)*size.width,
                         y:center.y+(shell.layer.anchorPoint.y-0.5)*size.height)
                     cloudRestX[index]=shell.layer.position.x
-                    shell.layer.position.x += panoramaOffset(slideX:draggedPositionX ?? width*(1.5-CGFloat(selectedSlide)),foreground:front)
+                    shell.layer.position.x += panoramaOffset(slideX:draggedPositionX ?? width*(1.5-CGFloat(selectedSlide)),index:index)
                     shell.layer.opacity=1
                     cloud.bounds=CGRect(origin:.zero,size:size)
                     cloud.center=CGPoint(x:size.width/2,y:size.height/2)
@@ -1255,6 +1367,8 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             ctaContainers[i].bounds = CGRect(x: 0, y: 0, width: width, height: containerHeight)
             ctaContainers[i].center = CGPoint(x: width/2, y:tablet ? tabletCTABottom-homeCTASize.height/2-32:heroTop + 360)
             ctas[i].bounds = CGRect(origin:.zero,size:homeCTASize)
+            ctaIdleBounceShells[i].bounds=ctas[i].bounds
+            ctaIdleBounceShells[i].center=CGPoint(x:ctas[i].bounds.midX,y:ctas[i].bounds.midY)
             ctaPressShells[i].bounds = ctas[i].bounds
             ctaIdleShells[i].bounds=ctas[i].bounds
             ctaIdleShells[i].center=CGPoint(x:width/2,y:tablet ? containerHeight/2:72+height*0.0225)
@@ -1263,11 +1377,15 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             ctas[i].center = CGPoint(x:ctas[i].bounds.midX,y:ctas[i].bounds.midY)
             ctas[i].layer.shadowPath = UIBezierPath(roundedRect: ctas[i].bounds, cornerRadius: 32).cgPath
         }
+        let selectedArt=heroImages[selectedSlide]
+        breeze.configure(origin:CGPoint(x:width/2,y:heroTop+selectedArt.center.y+selectedArt.bounds.height*0.30),
+            balloonMaximum:heroImages[1].bounds.width*0.23,
+            leafOriginY:heroTop+selectedArt.center.y+selectedArt.bounds.height*0.43)
         if tablet {
             // Original divider artwork paints x17...377 in its390pt canvas.
             // Add16pt at each visible edge, preserving vertical geometry.
             let dividerScale=heroSide*Self.heroArtworkScale*0.95/360
-            let dividerXScale=(heroSide*Self.heroArtworkScale*0.95+32)/360
+            let dividerXScale=(heroSide*Self.heroArtworkScale*0.95+32)/360*1.05
             bottomShadow.contentMode = .scaleToFill
             bottomShadow.bounds=CGRect(x:0,y:0,width:390*dividerXScale,height:49*dividerScale)
             bottomShadow.center=CGPoint(x:width/2-2*dividerXScale,y:tabletDividerY+bottomShadow.bounds.height/2)
@@ -1296,6 +1414,13 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         }
     }
 
+    /// Prepare before the visible incoming route begins,then let existing outer
+    /// route shells reveal already-flying particles without waiting for idle.
+    func startAmbientForEntry() {
+        guard window != nil,!isHidden,UIApplication.shared.applicationState == .active,!UIAccessibility.isReduceMotionEnabled else{return}
+        layoutIfNeeded();breeze.start(resourceRoot:artwork.resourceRoot,slide:selectedSlide)
+    }
+
     /// journey-fluidity-v10 slider-optimized.css: only active artwork advances.
     /// Inner artwork owns idle; route/selection motion remains on the hero button.
     func startHeroIdle() {
@@ -1305,13 +1430,14 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             target.beginTime=target.convertTime(CACurrentMediaTime(),from:nil)-offset
         }
         startCloudIdle()
+        breeze.start(resourceRoot:artwork.resourceRoot,slide:selectedSlide)
         let layer = heroImages[selectedSlide].layer
         if idleSlide == selectedSlide, layer.animation(forKey:"native-hero-idle") != nil {
-            for target in ([layer,ctaIdleView.layer,logoIdleView.layer]+shards.map{$0.layer}+navIdleShells.map{$0.layer}+activeCloudLayers) where target.speed == 0 {
+            for target in ([layer,ctaIdleView.layer,ctaIdleBounceView.layer,logoIdleView.layer]+shards.map{$0.layer}+navIdleShells.map{$0.layer}+activeCloudLayers) where target.speed == 0 {
                 let offset=target.timeOffset;target.speed=1;target.timeOffset=0;target.beginTime=0
                 target.beginTime=target.convertTime(CACurrentMediaTime(),from:nil)-offset
             }
-            return
+            startCTAIdleBounce();return
         }
         stopHeroIdle(preserveLogoIdle:true,preserveCloudIdle:true)
         let duration = [4.0,3.0,3.5][selectedSlide]
@@ -1392,14 +1518,40 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
                 layer.beginTime=layer.convertTime(CACurrentMediaTime(),from:nil)-offset
             }
         }
+        startCTAIdleBounce()
     }
+    private func startCTAIdleBounce() {
+        guard window != nil,!isHidden,!isEntering,!dragging,idleSlide==selectedSlide,
+              UIApplication.shared.applicationState == .active,!UIAccessibility.isReduceMotionEnabled else{return}
+        let layer=ctaIdleBounceView.layer
+        if layer.animation(forKey:Self.ctaIdleBounceKey) != nil {
+            if layer.speed==0 {
+                let offset=layer.timeOffset;layer.speed=1;layer.timeOffset=0;layer.beginTime=0
+                layer.beginTime=layer.convertTime(CACurrentMediaTime(),from:nil)-offset
+            }
+            return
+        }
+        let cycle:Double=5
+        let intensity:Double=0.5
+        let bounce=CAKeyframeAnimation(keyPath:"transform")
+        bounce.values=NativeHUDTapMotion.poses.map { pose in
+            NSValue(caTransform3D:CATransform3DScale(CATransform3DMakeTranslation(0,pose.offset*intensity,0),1+(pose.x-1)*intensity,1+(pose.y-1)*intensity,1))
+        }+[NSValue(caTransform3D:CATransform3DIdentity)]
+        bounce.keyTimes=NativeHUDTapMotion.phases.map{NSNumber(value:$0*NativeHUDTapMotion.duration/cycle)}+[1]
+        bounce.timingFunctions=Array(repeating:CAMediaTimingFunction(name:.easeInEaseOut),count:NativeHUDTapMotion.poses.count)
+        bounce.duration=cycle;bounce.repeatCount = .infinity
+        bounce.beginTime=layer.convertTime(CACurrentMediaTime(),from:nil)+cycle
+        layer.add(bounce,forKey:Self.ctaIdleBounceKey)
+    }
+
     func pauseHeroIdle(preserveLogoIdle:Bool=false) {
         heroCartoonShells.forEach{$0.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey)}
         var layers:[CALayer]=preserveLogoIdle ? []:([logoIdleView.layer]+shards.map{$0.layer}+navIdleShells.map{$0.layer})
-        if let i=idleSlide {layers += [heroImages[i].layer,ctaIdleShells[i].layer]}
+        if let i=idleSlide {layers += [heroImages[i].layer,ctaIdleShells[i].layer,ctaIdleBounceShells[i].layer]}
         // Selection/drag pauses only the moving slide, keeping this fixed
         // background's phase continuous. Real background pauses the full bank.
         if !preserveLogoIdle {
+            breeze.pause()
             layers += sharedCloudLayers+cloudPanoramaLayers
         }
         for layer in layers where layer.speed != 0 {
@@ -1407,7 +1559,10 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         }
     }
     func stopHeroIdle(preservePaintedPose:Bool = false,preserveLogoIdle:Bool=false,preserveCloudIdle:Bool=false) {
-        if !preserveCloudIdle {stopCloudPanorama(preservePaintedPose:preservePaintedPose)}
+        if !preserveCloudIdle {
+            if preservePaintedPose {breeze.pause()}else{breeze.stop()}
+            stopCloudPanorama(preservePaintedPose:preservePaintedPose)
+        }
         if !preservePaintedPose {heroCartoonShells.forEach{$0.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey)}}
         CATransaction.begin();CATransaction.setDisableActions(true)
         for cloud in homeClouds where !preserveCloudIdle {
@@ -1420,6 +1575,12 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             let layer = image.layer
             let painted = preservePaintedPose ? layer.presentation()?.transform ?? layer.transform : CATransform3DIdentity
             layer.removeAnimation(forKey:"native-hero-idle");layer.speed = 1;layer.timeOffset = 0;layer.beginTime = 0;layer.transform = painted
+        }
+        for shell in ctaIdleBounceShells {
+            let layer=shell.layer
+            let painted=preservePaintedPose ? layer.presentation()?.transform ?? layer.transform:CATransform3DIdentity
+            layer.removeAnimation(forKey:Self.ctaIdleBounceKey)
+            layer.speed=1;layer.timeOffset=0;layer.beginTime=0;layer.transform=painted
         }
         for shell in ctaIdleShells {
             let layer=shell.layer
@@ -1448,11 +1609,11 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         }
         idleSlide = nil;CATransaction.commit()
     }
-    override var isHidden: Bool {didSet {if isHidden {stopHeroIdle()}}}
-    override func didMoveToWindow() {super.didMoveToWindow();if window == nil {stopHeroIdle()}}
+    override var isHidden: Bool {didSet {if isHidden {finishEntering();stopHeroIdle()}}}
+    override func didMoveToWindow() {super.didMoveToWindow();if window == nil {finishEntering();stopHeroIdle()}}
 
     @objc private func activate(_ button: UIButton) {
-        guard !dragging, !ctaActivationPending, button.tag == selectedSlide else { return }
+        guard !dragging, !ctaActivationPending, button.tag == selectedSlide,(!isEntering || isPaintedControlVisible(button)) else { return }
         guard button === ctas[selectedSlide] else {
             NativeHubBackpackFeedback.play(on:heroCartoonShells[selectedSlide])
             onHeroContact?()
@@ -1469,14 +1630,16 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
     }
 
     @objc private func pressCTA(_ button: UIButton) {
-        guard !dragging, !ctaActivationPending else { return }
+        guard !dragging, !ctaActivationPending,(!isEntering || isPaintedControlVisible(button)) else { return }
+        let idle=ctaIdleBounceShells[button.tag].layer
+        if idle.speed != 0 {idle.timeOffset=idle.convertTime(CACurrentMediaTime(),from:nil);idle.speed=0}
         NativeHubBackpackFeedback.play(on:ctaCartoonShells[button.tag])
         animateCTA(button.tag, pressed: true)
     }
 
     @objc private func cancelCTA(_ button: UIButton) {
         guard !ctaActivationPending else { return }
-        animateCTA(button.tag, pressed: false)
+        animateCTA(button.tag, pressed: false) {[weak self] in self?.startCTAIdleBounce()}
     }
 
     private func animateCTA(_ index: Int, pressed: Bool, completion: (() -> Void)? = nil) {
@@ -1520,6 +1683,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
     }
 
     @objc private func selectTab(_ button: UIButton) {
+        guard !isEntering || isPaintedControlVisible(button) else{return}
         onSlideSelected?(button.tag)
     }
 
@@ -1546,6 +1710,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         case .began:
             // Sample before the controller retires a previous selection owner.
             let paintedX = sliderTrack.layer.presentation()?.position.x ?? sliderTrack.layer.position.x
+            let paintedClouds=cloudPanoramaSnapshot
             guard onPanBegan?() == true else { cancelPan(); return }
             dragging = true
             dragStartPositionX = paintedX
@@ -1554,7 +1719,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             // Adopt the painted pose, then start finger-relative movement there;
             // adding that recognition distance would jump on the first frame.
             recognizer.setTranslation(.zero, in: viewport)
-            updatePanPosition(0)
+            updatePanPosition(0,cloudStart:paintedClouds)
         case .changed:
             guard dragging else { return }
             updatePanPosition(translation)
@@ -1574,13 +1739,14 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         }
     }
 
-    private func updatePanPosition(_ translation: CGFloat) {
+    private func updatePanPosition(_ translation: CGFloat,cloudStart:CloudPanoramaSnapshot?=nil) {
         let displacement=JimiV9Motion.sliderDragDisplacement(selectedSlide:selectedSlide,distance:Double(translation))
         let position=dragStartPositionX+CGFloat(displacement)
         draggedPositionX=position
         CATransaction.begin();CATransaction.setDisableActions(true)
         sliderTrack.layer.position.x=position
+        breeze.setSlideX(position)
         CATransaction.commit()
-        updateCloudPanorama(slideX:position)
+        updateCloudPanorama(slideX:position,from:cloudStart)
     }
 }

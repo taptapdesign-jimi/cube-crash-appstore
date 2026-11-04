@@ -1001,6 +1001,47 @@ final class JimiNativeWorldTests: XCTestCase {
         }
     }
 
+    func testExitCloudVelocityUsesCurrentRampBeforeFutureLoop() {
+        let layer=CALayer()
+        let ramp=CAKeyframeAnimation(keyPath:"transform.translation.x")
+        ramp.values=[0,10];ramp.duration=2;ramp.beginTime=10;ramp.fillMode = .forwards;ramp.isRemovedOnCompletion=false
+        let loop=CAKeyframeAnimation(keyPath:"transform.translation.x")
+        loop.values=[10,0,10];loop.duration=4;loop.beginTime=12;loop.repeatCount = .infinity
+        layer.add(ramp,forKey:"world.idle.x.onset");layer.add(loop,forKey:"world.idle.x")
+        XCTAssertEqual(JimiNativeWorldView.idleTranslationVelocity(on:layer,axis:"x",at:11),5,accuracy:0.001)
+        XCTAssertEqual(JimiNativeWorldView.idleTranslationVelocity(on:layer,axis:"x",at:13),-5,accuracy:0.001)
+        XCTAssertEqual(JimiNativeWorldView.idleTranslationVelocity(on:layer,axis:"x",at:15),5,accuracy:0.001)
+    }
+    func testRegularPlayCloudDriftsThroughContactAndExitWithoutNeutralReset() async throws {
+        guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Authored motion")}
+        for size in [CGSize(width:390,height:844),CGSize(width:820,height:1180)] {
+            var raw=fixture();var definitions=try XCTUnwrap(raw["units"] as? [[String:Any]])
+            definitions[0]["interim"]=false
+            var parts=definitions[0]["parts"] as! [[String:Any]]
+            parts.append(["asset":"assets/close-icon.png","role":"cloud","x":0,"y":0,"width":100,"height":50,"rotation":0,"opacity":1,"zIndex":1])
+            definitions[0]["parts"]=parts;raw["units"]=definitions
+            let world=try XCTUnwrap(JimiNativeWorldView(snapshot:raw,assets:art))
+            let host=UIViewController(),window=UIWindow(frame:CGRect(origin:.zero,size:size))
+            window.rootViewController=host;window.makeKeyAndVisible();world.frame=window.bounds;host.view.addSubview(world)
+            defer{world.cleanup();window.isHidden=true}
+            world.layoutIfNeeded();world.enter{};try await settle();world.finishPresentationAdmission()
+            let board=(definitions[0]["boardID"] as? Int) ?? 1
+            let cloud=try XCTUnwrap(descendant(world,"native.world.part.\(board).cloud"))
+            world.openCard(boardID:board)
+            try await awaitCardOpening(try XCTUnwrap(world.subviews.compactMap{$0 as? JimiNativeWorldCardView}.first))
+            var completed=0;world.prepareGameplayExit(boardID:board){completed+=1}
+            try await Task.sleep(for:.milliseconds(680))
+            XCTAssertNotNil(cloud.layer.animation(forKey:"world.idle.x"),"Contact retains original cloud wave")
+            try await Task.sleep(for:.milliseconds(140))
+            let bridge=try XCTUnwrap(cloud.layer.animation(forKey:"world.idle.exit-pose") as? CAAnimationGroup)
+            let transform=try XCTUnwrap(bridge.animations?.first as? CAKeyframeAnimation)
+            let values=try XCTUnwrap(transform.values as? [NSValue])
+            XCTAssertEqual(values.count,61)
+            XCTAssertEqual(values[36].caTransform3DValue.m41,values[60].caTransform3DValue.m41,accuracy:0.0001)
+            try await settle(1)
+            XCTAssertEqual(completed,1);XCTAssertNil(cloud.layer.animation(forKey:"world.idle.exit-pose"))
+        }
+    }
     func testInterimTapKeepsWorldMovingThenTransfersPaintedPoseIntoFiniteExit() async throws {
         guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Authored motion")}
         for worldID in 1...3 {

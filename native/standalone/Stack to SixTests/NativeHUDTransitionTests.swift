@@ -6,6 +6,19 @@ import StackToSixGameplay
 
 @MainActor
 final class NativeHUDTransitionTests:XCTestCase {
+    func testTabletArcadeRoundPillKeepsPhoneVisibleBottomGap() {
+        let font=UIFont.systemFont(ofSize:18,weight:.semibold)
+        let indicator=NativeRoundIndicator(font:font)
+        let phone=CGSize(width:390,height:844),tablet=CGSize(width:820,height:1180)
+        let base=CGPoint(x:195,y:43)
+        let phoneCenter=indicator.restCenter(base,viewport:phone,arcade:true)
+        let tabletCenter=indicator.restCenter(base,viewport:tablet,arcade:true)
+        let height=font.lineHeight+10
+        XCTAssertEqual(phoneCenter,base)
+        XCTAssertEqual(phoneCenter.y-height/2,tabletCenter.y-height*1.4/2,accuracy:0.000001)
+        XCTAssertEqual(indicator.restCenter(base,viewport:tablet,arcade:false),base)
+    }
+
     private func oracle(_ name:String)throws->Any {
         let url=try XCTUnwrap(Bundle(for:Self.self).url(forResource:name,withExtension:"json"))
         return try JSONSerialization.jsonObject(with:Data(contentsOf:url))

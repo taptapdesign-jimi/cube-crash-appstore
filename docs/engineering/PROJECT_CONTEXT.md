@@ -8,10 +8,12 @@ Fresh Native profiles default every player preference to ON: Game sounds, Music 
 
 ## Native-first main decision (2026-10-07)
 
-User-selected Native production/continuation baseline (2026-10-30): immutable
-`native-benchmark-v20` — Journey modal card; see [NATIVE_BENCHMARK_V20.md](NATIVE_BENCHMARK_V20.md).
-Continue Native work from v20. Historical v6 and subsequent tags remain protected. This checkpoint preserves known open physical
-acceptance/parity issues and does not replace the approved PWA recovery tags.
+User-selected Native production/continuation baseline (2026-11-04): immutable
+`native-benchmark-v22-ipad-iphone`; see
+[NATIVE_BENCHMARK_V22_IPAD_IPHONE.md](NATIVE_BENCHMARK_V22_IPAD_IPHONE.md).
+Continue Native work from this iPad + iPhone checkpoint. All historical Native
+tags remain protected. Known physical acceptance/parity limits remain open;
+this checkpoint does not replace the approved PWA recovery tags.
 
 The user designates `main` as the **Stack to Six Native** development project,
 with a **100% native** destination. The active development target is the separate

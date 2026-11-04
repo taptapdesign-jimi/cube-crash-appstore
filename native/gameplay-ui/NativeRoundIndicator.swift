@@ -7,6 +7,7 @@ import StackToSixGameplay
 @MainActor
 final class NativeRoundIndicator:SKNode {
     private let painted=SKNode(),content=SKNode(),label=SKLabelNode(),pill=SKShapeNode(),lines=SKShapeNode()
+    private static let tabletScale:CGFloat=1.4
     private let lineHeight:CGFloat
     private var round:Int?
     private var sourceDividerMaskLeases=Set<UUID>()
@@ -32,12 +33,17 @@ final class NativeRoundIndicator:SKNode {
         addChild(painted);painted.addChild(lines);painted.addChild(content);content.addChild(pill);content.addChild(label)
     }
     required init?(coder:NSCoder){fatalError("Use preserved source font")}
+    /// Preserve the phone's visible bottom gap when the complete pill grows.
+    func restCenter(_ base:CGPoint,viewport:CGSize,arcade:Bool)->CGPoint {
+        guard arcade,NativeTabletLayout.applies(viewport) else{return base}
+        return CGPoint(x:base.x,y:base.y+(lineHeight+10)*(Self.tabletScale-1)/2)
+    }
     func synchronize(round:Int,arcade:Bool,viewport:CGSize,alpha:CGFloat,variant:NativeArcadeVariant = .endurance) {
         isHidden = !arcade
         guard arcade else {painted.removeAllActions();content.removeAllActions();return}
         let changed=self.round != nil && self.round != round;self.round=round
         label.text="\(variant.title) - \(NativeScoreDisplay.padded(max(1,round)))"
-        let scale=NativeTabletLayout.applies(viewport) ? CGFloat(1.4):1
+        let scale=NativeTabletLayout.applies(viewport) ? Self.tabletScale:1
         label.fontSize=18*scale
         let width=label.frame.width+122*scale,height=(lineHeight+10)*scale
         pill.path=CGPath(roundedRect:CGRect(x:-width/2,y:-height/2,width:width,height:height),cornerWidth:min(32,height/2),cornerHeight:min(32,height/2),transform:nil)

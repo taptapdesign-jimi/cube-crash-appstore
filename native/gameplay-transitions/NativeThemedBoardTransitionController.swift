@@ -292,7 +292,12 @@ final class NativeThemedBoardTransitionController:UIViewController {
         if let shake {let p=shake.sample(seconds);view.transform=CGAffineTransform(translationX:p.x,y:p.y)}
         for (key,sprite) in sceneImages {if let p=scenePlan.pose(key:key,seconds:seconds){
             if theme == .beach,(key=="beach-bottle" || key=="beach-ball"),seconds>=(key=="beach-bottle" ? 0.7115:0.79655),sprite.layer.anchorPoint.y != 0.5 {let layer=NativeTransitionSceneGeometry.layers(theme:theme,viewport:viewport,variation:variation).first{$0.definition.key==key}!;sprite.layer.anchorPoint=CGPoint(x:0.5,y:0.5);sprite.layer.position=CGPoint(x:layer.left,y:scene.bounds.height-layer.bottom-layer.height/2-beachPropLift)}
-            sprite.alpha=min(1,max(0,p.opacity));sprite.transform=CGAffineTransform(translationX:p.x,y:p.y).rotated(by:p.rotation * .pi/180).scaledBy(x:p.sx,y:p.sy)}}
+            let phoneBall=theme == .beach && key == "beach-ball" && !NativeTabletLayout.applies(presentationViewport)
+            // Apply to the complete sampled pose so entry/anchor-change/exit
+            // retain one continuous16pt lower path on phone only.
+            sprite.alpha=min(1,max(0,p.opacity))
+            sprite.transform=CGAffineTransform(translationX:p.x*(phoneBall ? 0.65:1),y:p.y+(phoneBall ? 16:0))
+                .rotated(by:p.rotation * (phoneBall ? 0.50:1) * .pi/180).scaledBy(x:p.sx,y:p.sy)}}
         for index in clouds.indices {
             guard !clouds[index].retired else{continue}
             let cloud=clouds[index],plan=cloud.plan,host=cloud.host,sprite=cloud.sprite

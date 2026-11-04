@@ -21,7 +21,7 @@ final class NativeBeeFinalePresentation: NativeFinitePresentation {
         return (early+late).enumerated().map {("haptic-\($0.offset)",$0.element)}
     }()
     private var facing=1,candidateFacing=1,candidateSince=0.0,priorTime=0.0,cancelled=false,receipts=Set<String>()
-    init(resourceRoot:URL,viewport:CGSize,origin:CGPoint?,preparedArtwork:JimiV9Artwork?=nil,kite:Bool=false,random:()->Double={Double.random(in:0..<1)}) {
+    init(resourceRoot:URL,viewport:CGSize,origin:CGPoint?,preparedArtwork:JimiV9Artwork?=nil,kite:Bool=false,captionPresentationScale:CGFloat=1,random:()->Double={Double.random(in:0..<1)}) {
         self.kite=kite
         let roll=random(),phase=(roll.isFinite ? min(1-Double.ulpOfOne,max(0,roll)):0.5)*2 * .pi
         route=NativeBeeFinaleMotion(width:Double(viewport.width),height:Double(viewport.height),origin:origin.map {NativeBeeFinaleMotion.Point(x:Double($0.x),y:Double($0.y))},seed:phase)
@@ -81,7 +81,9 @@ final class NativeBeeFinalePresentation: NativeFinitePresentation {
             let frames=(kite ? [1]:[1,3]).map {frameIndex->UIImageView in let image=UIImageView(image:artwork.image(kite ? NativeKiteArt.backgroundPath:"assets/shop/honey/bee\(frameIndex).png",densityAware:true));image.frame=host.bounds;image.contentMode = kite ? .scaleToFill:.scaleAspectFit;host.addSubview(image);return image}
             ambient.append(AmbientOwner(host:host,frames:frames))
         }
-        glyphs.frame=bounds;addSubview(glyphs)
+        glyphs.frame=bounds
+        if kite {glyphs.transform=CGAffineTransform(scaleX:captionPresentationScale,y:captionPresentationScale)}
+        addSubview(glyphs)
         if kite {hero.accessibilityIdentifier="native-kite-hero";hero.removeFromSuperview();addSubview(hero);glyphs.layer.zPosition=3;bringSubviewToFront(glyphs)}
     }
     required init?(coder:NSCoder) {fatalError("init(coder:) has not been implemented")}

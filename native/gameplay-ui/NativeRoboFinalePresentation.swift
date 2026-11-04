@@ -10,8 +10,10 @@ final class NativeRoboFinalePresentation:NativeFinitePresentation {
     let assetReady:Bool
     static let assets=(1...12).map {"assets/shop/robo/robo\($0).png"}+(1...4).map {"assets/shop/robo/neon\($0).png"}
     private let viewport:CGSize,plan:NativeRoboFinaleMotion.Plan,glyphs:NativeSplashGlyphField,random:()->Double,previousExit:Int?
+    private let headPresentationScale:CGFloat
     private var runtime:NativeRoboFinaleMotion.Runtime,headFrames:[UIImage],neonImages:[UIImageView]=[],head=UIImageView(),beats=Set<Int>(),exitFrame:Int?,paintedFrame = -1,cancelled=false
-    init(resourceRoot:URL,viewport:CGSize,previousExitFrame:Int?=nil,preparedArtwork:JimiV9Artwork?=nil,random:@escaping ()->Double={Double.random(in:0..<1)}) {
+    init(resourceRoot:URL,viewport:CGSize,previousExitFrame:Int?=nil,preparedArtwork:JimiV9Artwork?=nil,headPresentationScale:CGFloat=1,random:@escaping ()->Double={Double.random(in:0..<1)}) {
+        self.headPresentationScale=headPresentationScale
         self.viewport=viewport;self.random=random;previousExit=previousExitFrame
         let artwork=preparedArtwork ?? JimiV9Artwork(resourceRoot:resourceRoot)
         glyphs=NativeSplashGlyphField(artwork:artwork,text:"BIBI - RIBI",colors:[UIColor(red:163.0/255,green:233.0/255,blue:236.0/255,alpha:1),UIColor(red:32.0/255,green:231.0/255,blue:247.0/255,alpha:1)],splitIndex:5.5,deferExitRotationCapture:true,random:random)
@@ -44,7 +46,7 @@ final class NativeRoboFinalePresentation:NativeFinitePresentation {
         }
         let pose=NativeRoboFinaleMotion.head(viewport:viewport,drift:plan.drift,seconds:seconds,exitFrame:exitFrame)
         if pose.frame != paintedFrame {
-            let image=headFrames[pose.frame],width=min(viewport.width*0.576,288)
+            let image=headFrames[pose.frame],width=min(viewport.width*0.576,288)*headPresentationScale
             head.image=image;head.bounds=CGRect(x:0,y:0,width:width,height:width*image.size.height/max(1,image.size.width));paintedFrame=pose.frame
         }
         head.layer.position=CGPoint(x:pose.x,y:pose.y);head.isHidden = !pose.visible

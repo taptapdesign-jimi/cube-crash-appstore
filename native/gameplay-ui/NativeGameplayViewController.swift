@@ -567,7 +567,7 @@ final class NativeGameplayViewController: UIViewController {
                     mushroom.onHaptic={ [weak self] style in guard self?.engine.state.generation == generation else {return};self?.onHaptic?(style)}
                     owner=mushroom
                 } else {
-                    let robo=NativeRoboFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.finaleViewport,previousExitFrame:self.lastRoboExitFrame,preparedArtwork:self.selectedFinaleArtwork())
+                    let robo=NativeRoboFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.finaleViewport,previousExitFrame:self.lastRoboExitFrame,preparedArtwork:self.selectedFinaleArtwork(),headPresentationScale:NativeTabletLayout.applies(self.view.bounds.size) ? 0.90:1)
                     guard robo.assetReady else {robo.dispose();return false}
                     robo.onHaptic={ [weak self] style in guard self?.engine.state.generation == generation else {return};self?.onHaptic?(style)}
                     robo.onExitFrameSelected={ [weak self] frame in guard self?.engine.state.generation == generation else {return};self?.lastRoboExitFrame=frame}
@@ -584,7 +584,11 @@ final class NativeGameplayViewController: UIViewController {
                     if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
                     completion()
                 }
-                NativeTabletLayout.projectAnimation(owner,viewport:self.view.bounds.size);self.bindFinalMergeProgress(owner,generation:generation);owner.start();return true
+                NativeTabletLayout.projectAnimation(owner,viewport:self.view.bounds.size)
+                if variant == "robo-cube",NativeTabletLayout.applies(self.view.bounds.size) {
+                    owner.transform=owner.transform.scaledBy(x:0.80,y:0.80)
+                }
+                self.bindFinalMergeProgress(owner,generation:generation);owner.start();return true
             }
             if variant == "baloon" {
                 guard let resources=self.finaleArtworkOwner?.baloonResources,let artwork=self.selectedFinaleArtwork() else{return false}
@@ -643,7 +647,7 @@ final class NativeGameplayViewController: UIViewController {
                 NativeTabletLayout.projectAnimation(owner,viewport:self.view.bounds.size);self.bindFinalMergeProgress(owner,generation:generation);owner.start();return true
             }
             if variant == "bee" || variant == "kite" {
-                let owner=NativeBeeFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.finaleViewport,origin:origin,preparedArtwork:self.selectedFinaleArtwork(),kite:variant == "kite")
+                let owner=NativeBeeFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.finaleViewport,origin:origin,preparedArtwork:self.selectedFinaleArtwork(),kite:variant == "kite",captionPresentationScale:NativeTabletLayout.applies(self.view.bounds.size) ? 1.20:1)
                 guard owner.assetReady else {owner.dispose();return false}
                 self.area55Finales[variant]?.dispose()
                 self.area55Finales[variant]=owner;self.area55Generations[variant]=generation
@@ -665,7 +669,7 @@ final class NativeGameplayViewController: UIViewController {
                 NativeTabletLayout.projectAnimation(owner,viewport:self.view.bounds.size);self.bindFinalMergeProgress(owner,generation:generation);owner.start();return true
             }
             if variant == "kanta" {
-                let owner = NativeKantaFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.finaleViewport,preparedArtwork:self.selectedFinaleArtwork(),artworkScale:NativeTabletLayout.applies(self.view.bounds.size) ? 0.85:1,artworkVerticalOffset:NativeTabletLayout.applies(self.view.bounds.size) ? 16/NativeTabletLayout.animationScale(self.view.bounds.size):0)
+                let owner = NativeKantaFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.finaleViewport,preparedArtwork:self.selectedFinaleArtwork(),artworkScale:NativeTabletLayout.applies(self.view.bounds.size) ? 0.85:1,artworkVerticalOffset:NativeTabletLayout.applies(self.view.bounds.size) ? 60/NativeTabletLayout.animationScale(self.view.bounds.size):0)
                 guard owner.assetReady else {owner.dispose();return false}
                 self.area55Finales[variant]?.dispose()
                 self.area55Finales[variant] = owner;self.area55Generations[variant] = generation
@@ -830,8 +834,9 @@ final class NativeGameplayViewController: UIViewController {
                   let owner=self.area55Finales[variant],owner.superview != nil else{return nil}
             // These requested tablet finales must retain their full-screen
             // projection throughout shake and its final zero-offset paint.
-            // Barrel/Flower keep their existing rendered reference size.
-            let preservesProjection=variant == "coconut" || variant == "beach-ball" || variant == "laser-gun" || variant == "bloob-ball"
+            // Flower keeps the projection for its caption; its art is
+            // compensated locally to retain the accepted physical sprite size.
+            let preservesProjection=variant == "flower" || variant == "coconut" || variant == "beach-ball" || variant == "laser-gun" || variant == "bloob-ball"
             let scale=preservesProjection ? NativeTabletLayout.animationScale(self.view.bounds.size):1
             return NativeSourceScreenShakeOverlayTarget(read:{[weak owner] in
                 guard let owner else{return .zero};return CGPoint(x:owner.transform.tx,y:owner.transform.ty)
@@ -1285,7 +1290,7 @@ final class NativeGameplayViewController: UIViewController {
             guard ball.assetsReady else { ball.dispose(); return false }
             ball.onGameplayReady = onGameplayReady; owner = ball
         } else {
-            let tnt = NativeTntVariantPresentation(resourceRoot:resourceRoot,variant:variant == "coconut" ? .coconut:variant == "flower" ? .flower:variant == "bloob-ball" ? .bloobGas:.barell,viewport:finaleViewport,preparedArtwork:selectedFinaleArtwork(),coconutBoardBodySize:boardScene.map{$0.coconutFinaleBodySize/NativeTabletLayout.animationScale(view.bounds.size)},smokePresentationScale:NativeTabletLayout.applies(view.bounds.size) ? 1.694*(variant == "barell" ? 1.15:1):1,smokeVerticalOffset:NativeTabletLayout.smokeVerticalOffset(view.bounds.size),bushPresentationScale:NativeTabletLayout.applies(view.bounds.size) && variant == "flower" ? 1.15:1,blossomCaptionFillsWidth:NativeTabletLayout.applies(view.bounds.size))
+            let tnt = NativeTntVariantPresentation(resourceRoot:resourceRoot,variant:variant == "coconut" ? .coconut:variant == "flower" ? .flower:variant == "bloob-ball" ? .bloobGas:.barell,viewport:finaleViewport,preparedArtwork:selectedFinaleArtwork(),coconutBoardBodySize:boardScene.map{$0.coconutFinaleBodySize/NativeTabletLayout.animationScale(view.bounds.size)},smokePresentationScale:NativeTabletLayout.applies(view.bounds.size) ? 1.694*(variant == "barell" ? 1.15:1):1,smokeVerticalOffset:NativeTabletLayout.smokeVerticalOffset(view.bounds.size),bushPresentationScale:NativeTabletLayout.applies(view.bounds.size) && variant == "flower" ? 1.15:1,blossomCaptionFillsWidth:UIDevice.current.userInterfaceIdiom == .pad,flowerArtworkScale:NativeTabletLayout.applies(view.bounds.size) && variant == "flower" ? 1/NativeTabletLayout.animationScale(view.bounds.size):1)
             guard tnt.assetsReady else { tnt.dispose(); return false }
             if variant == "coconut" {tnt.bindScreenShake(to:view)}
             if variant == "bloob-ball" {tnt.bindBoardReaction(boardScene?.makeBloobBoardReaction())}
@@ -1308,7 +1313,8 @@ final class NativeGameplayViewController: UIViewController {
             if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
             completion()
         }
-        NativeTabletLayout.projectAnimation(owner,viewport:view.bounds.size);bindFinalMergeProgress(owner,generation:generation);owner.start(); return true
+        NativeTabletLayout.projectAnimation(owner,viewport:view.bounds.size)
+        bindFinalMergeProgress(owner,generation:generation);owner.start(); return true
     }
 
     func setSuspended(_ value: Bool) {

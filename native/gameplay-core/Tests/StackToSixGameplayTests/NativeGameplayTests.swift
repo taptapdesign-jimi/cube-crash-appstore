@@ -226,6 +226,27 @@ final class NativeGameplayTests: XCTestCase {
             engine.expireCombo(now:deadline);XCTAssertEqual(engine.state.combo,0)
         }
     }
+    func testEnhancedEfficiencyUsesLargerFloorThenFastShare() {
+        XCTAssertEqual(NativeRewardMath.enhancedEfficiencyBonus(originalBonus:800,score:20000,fastCombos:0,totalCombos:10),6000)
+        XCTAssertEqual(NativeRewardMath.enhancedEfficiencyBonus(originalBonus:800,score:20000,fastCombos:5,totalCombos:10),7500)
+        XCTAssertEqual(NativeRewardMath.enhancedEfficiencyBonus(originalBonus:800,score:20000,fastCombos:10,totalCombos:10),9000)
+        XCTAssertEqual(NativeRewardMath.enhancedEfficiencyBonus(originalBonus:800,score:1000,fastCombos:0,totalCombos:0),2400)
+        XCTAssertEqual(NativeRewardMath.enhancedEfficiencyBonus(originalBonus:800,score:20000,fastCombos:99,totalCombos:0),6000)
+        XCTAssertEqual(NativeRewardMath.enhancedEfficiencyBonus(originalBonus:800,score:20000,fastCombos:99,totalCombos:10),9000)
+        XCTAssertEqual(NativeRewardMath.enhancedEfficiencyBonus(originalBonus:999999,score:999999,fastCombos:10,totalCombos:10),999999)
+    }
+    func testEfficiencyCountersPersistAndLegacySavesDefaultToZero() throws {
+        var state=NativeBoardState(tiles:[])
+        state.efficiencyComboContinuations=10;state.efficiencyFastComboContinuations=5
+        let data=try JSONEncoder().encode(state)
+        let restored=try JSONDecoder().decode(NativeBoardState.self,from:data)
+        XCTAssertEqual(restored.efficiencyComboContinuations,10)
+        XCTAssertEqual(restored.efficiencyFastComboContinuations,5)
+        var legacy=try XCTUnwrap(JSONSerialization.jsonObject(with:data) as? [String:Any])
+        legacy.removeValue(forKey:"efficiencyComboContinuations");legacy.removeValue(forKey:"efficiencyFastComboContinuations")
+        let old=try JSONDecoder().decode(NativeBoardState.self,from:JSONSerialization.data(withJSONObject:legacy))
+        XCTAssertEqual(old.efficiencyComboContinuations,0);XCTAssertEqual(old.efficiencyFastComboContinuations,0)
+    }
     func testSpeedBonusCurveAndInvalidClockBoundaries() {
         XCTAssertEqual(NativeRewardMath.comboIncrement(from:2,to:3,elapsed:0),450)
         XCTAssertEqual(NativeRewardMath.comboIncrement(from:2,to:3,elapsed:1),350)
@@ -250,6 +271,8 @@ final class NativeGameplayTests: XCTestCase {
                 XCTAssertEqual(engine.state.combo,gap<3.5 ? 3:1)
                 let saved=try JSONDecoder().decode(NativeBoardState.self,from:JSONEncoder().encode(engine.state))
                 XCTAssertEqual(saved.earnedComboBonus,expected)
+                XCTAssertEqual(saved.efficiencyComboContinuations,gap<3.5 ? 2:1)
+                XCTAssertEqual(saved.efficiencyFastComboContinuations,gap==1 ? 2:1)
                 engine.expireCombo(now:30);XCTAssertEqual(engine.state.earnedComboBonus,expected)
                 engine.restart(state:saved)
                 XCTAssertTrue(move(engine,"d",tile("e",1,4),now:31).accepted)
@@ -268,7 +291,10 @@ final class NativeGameplayTests: XCTestCase {
         let plan=engine.pendingOrdinarySix!
         XCTAssertTrue(engine.commitOrdinarySix(receiptID:plan.id,generation:plan.generation).accepted)
         XCTAssertEqual(engine.state.earnedComboBonus,350) // speed uses accepted drop time, excluding absorb animation
+        XCTAssertEqual(engine.state.efficiencyComboContinuations,2)
+        XCTAssertEqual(engine.state.efficiencyFastComboContinuations,2)
         XCTAssertFalse(engine.commitOrdinarySix(receiptID:plan.id,generation:plan.generation).accepted)
+        XCTAssertEqual(engine.state.efficiencyComboContinuations,2)
         XCTAssertEqual(engine.state.earnedComboBonus,350)
     }
     func testSpecialSpeedBonusIsCapturedAtAcceptedMove() {
@@ -287,6 +313,8 @@ final class NativeGameplayTests: XCTestCase {
             XCTAssertTrue(engine.commitSpecialBoard(transactionID:plan.id).accepted)
             let expected=NativeRewardMath.comboIncrement(from:2,to:engine.state.combo,elapsed:1)
             XCTAssertEqual(engine.state.earnedComboBonus,expected)
+            XCTAssertEqual(engine.state.efficiencyComboContinuations,2)
+            XCTAssertEqual(engine.state.efficiencyFastComboContinuations,2)
             XCTAssertFalse(engine.commitSpecialBoard(transactionID:plan.id).accepted)
             XCTAssertEqual(engine.state.earnedComboBonus,expected)
         }

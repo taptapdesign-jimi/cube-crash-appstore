@@ -61,7 +61,7 @@ import StackToSixNativeState
         let window=UIWindow(frame:.init(x:0,y:0,width:tablet ? 820:390,height:tablet ? 1180:844));window.rootViewController=host;window.makeKeyAndVisible()
         defer{timeoutDiagnostic=nil;host.dispose();window.isHidden=true;previous?.makeKeyAndVisible();try? FileManager.default.removeItem(at:directory)}
         host.loadViewIfNeeded();let app=try XCTUnwrap(host.children.first as? NativeAppController)
-        try await wait{!app.home.isHidden && app.home.isUserInteractionEnabled}
+        try await wait{!app.home.isHidden && (!app.home.isEntering && app.home.isUserInteractionEnabled)}
         app.navigate(.world(2),interrupt:true)
         try await wait{if app.children.contains(where:{$0 is NativeGameplayViewController}){return true};app.world?.onRequest?(continueSaved ? "continue":"play",14);return false}
         let game=try XCTUnwrap(app.children.compactMap{$0 as? NativeGameplayViewController}.first)
@@ -616,7 +616,7 @@ import StackToSixNativeState
         let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=host;window.makeKeyAndVisible()
         defer{host.dispose();window.isHidden=true;previous?.makeKeyAndVisible();try? FileManager.default.removeItem(at:directory)}
         host.loadViewIfNeeded();let app=try XCTUnwrap(host.children.first as? NativeAppController)
-        try await wait{!app.home.isHidden && app.home.isUserInteractionEnabled}
+        try await wait{!app.home.isHidden && (!app.home.isEntering && app.home.isUserInteractionEnabled)}
         if let board {
             app.navigate(.world((board-1)/10+1),interrupt:true)
             try await wait{if app.children.contains(where:{$0 is NativeGameplayViewController}){return true};app.world?.onRequest?("continue",board);return false}

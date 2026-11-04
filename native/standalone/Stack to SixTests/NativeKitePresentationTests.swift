@@ -53,6 +53,9 @@ import StackToSixGameplay
             let field=try XCTUnwrap(flight.subviews.first),hero=try XCTUnwrap(flight.subviews.first{$0.accessibilityIdentifier=="native-kite-hero"})
             XCTAssertEqual(hero.bounds.size,CGSize(width:390,height:390))
             XCTAssertTrue(flight.subviews.last === flight.subviews.first{$0 is NativeSplashGlyphField},"FLY AWAY stays above all three kites")
+            func captionLabels(_ view:UIView)->[UILabel] {view.subviews.compactMap{$0 as? UILabel}+view.subviews.flatMap{captionLabels($0)}}
+            let letters=captionLabels(try XCTUnwrap(flight.subviews.last)).filter{$0.text != " "}
+            XCTAssertFalse(letters.isEmpty);XCTAssertTrue(letters.allSatisfy{$0.font.pointSize>=72})
             XCTAssertGreaterThan(try XCTUnwrap(flight.subviews.last).layer.zPosition,hero.layer.zPosition)
             func glowColors(_ view:UIView)->Set<Int> {
                 var colors=Set<Int>()

@@ -47,10 +47,10 @@ import StackToSixNativeState
         // Play entry makes a new demo; it must not borrow the old guide board.
         XCTAssertEqual(try store.load()?.arcadeRun,seed.arcadeRun)
         let app=try XCTUnwrap(host.children.first as? NativeAppController)
-        try await waitUntil { app.route == .home && app.home.isUserInteractionEnabled }
+        try await waitUntil { app.route == .home && (!app.home.isEntering && app.home.isUserInteractionEnabled) }
         app.home.onActivate?(journey ? 0:1)
         if !journey {
-            try await waitUntil { app.route == .arcadeHub && app.arcadeHub.hub.scrollView.isUserInteractionEnabled }
+            try await waitUntil { app.route == .arcadeHub && !app.transitioning && app.arcadeHub.hub.scrollView.isUserInteractionEnabled }
             let endurance=try XCTUnwrap(app.arcadeHub.hub.worldUnits.first { $0.tag == 1 })
             endurance.sendActions(for:.touchUpInside)
             func findPlay(_ root:UIView)->UIButton? {

@@ -652,6 +652,8 @@ public final class NativeGameplayEngine {
     private var specialComboElapsed:Double?
     private var comboLastAcceptedMoveTime:Double?
     private var comboWindow: Double = 2
+    /// Device tuning is runtime-only: saved earned charge is never rescaled.
+    public let wildMeterChargeScale:Double
     public let sourceMathRandom:NativeSourceMathRandomStream?
     private var randomChoices: [Double]
     private let rewardPicker: ((NativeBoardState, Double, () -> Double) -> NativeWildRewardChoice?)?
@@ -661,13 +663,15 @@ public final class NativeGameplayEngine {
     private var arcadeChargeMultiplier: Double {
         guard meterDropAllowed else { return 0 }
         let variant = state.effectiveArcadeVariant
+        // The first-play tutorial retains its authored guide and assist milestones.
+        let chargeScale=state.tutorial?.done == false ? 1:wildMeterChargeScale
         // Keep the single drop near the same part of every round, rather than
         // inheriting Endurance's progressively slower stage/spawn modifiers.
         if variant == .pureDice {
             let normalGain = NativeWildMeterRules.increment(base:1,mode:.arcade,board:state.stage,spawnCount:state.wildSpawnCount)
-            return variant.meterMultiplier * 1.15 / normalGain
+            return variant.meterMultiplier * 1.15 / normalGain * chargeScale
         }
-        return variant.meterMultiplier
+        return variant.meterMultiplier * chargeScale
     }
     private func consumeMeterCharge() {
         if state.effectiveArcadeVariant == .pureDice {
@@ -681,8 +685,8 @@ public final class NativeGameplayEngine {
         if state.effectiveArcadeVariant != .slowBurn { state.wildMeter = 0 }
     }
 
-    public init(state: NativeBoardState, recordedRandomChoices: [Double] = [], rewardPicker: ((NativeBoardState, Double) -> NativeWildRewardChoice?)? = nil, sourceMathRandom:NativeSourceMathRandomStream?=nil) { self.sourceMathRandom=sourceMathRandom; self.state = state; randomChoices = recordedRandomChoices; self.rewardPicker = rewardPicker.map { picker in { state, roll, _ in picker(state,roll) } } }
-    public init(state: NativeBoardState, recordedRandomChoices: [Double] = [], rewardPicker: @escaping (NativeBoardState, Double, () -> Double) -> NativeWildRewardChoice?, sourceMathRandom:NativeSourceMathRandomStream?=nil) { self.sourceMathRandom=sourceMathRandom; self.state = state; randomChoices = recordedRandomChoices; self.rewardPicker = rewardPicker }
+    public init(state: NativeBoardState, recordedRandomChoices: [Double] = [], rewardPicker: ((NativeBoardState, Double) -> NativeWildRewardChoice?)? = nil, sourceMathRandom:NativeSourceMathRandomStream?=nil, wildMeterChargeScale:Double=1) { self.wildMeterChargeScale=wildMeterChargeScale.isFinite ? max(0,min(1,wildMeterChargeScale)):1; self.sourceMathRandom=sourceMathRandom; self.state = state; randomChoices = recordedRandomChoices; self.rewardPicker = rewardPicker.map { picker in { state, roll, _ in picker(state,roll) } } }
+    public init(state: NativeBoardState, recordedRandomChoices: [Double] = [], rewardPicker: @escaping (NativeBoardState, Double, () -> Double) -> NativeWildRewardChoice?, sourceMathRandom:NativeSourceMathRandomStream?=nil, wildMeterChargeScale:Double=1) { self.wildMeterChargeScale=wildMeterChargeScale.isFinite ? max(0,min(1,wildMeterChargeScale)):1; self.sourceMathRandom=sourceMathRandom; self.state = state; randomChoices = recordedRandomChoices; self.rewardPicker = rewardPicker }
     public func setInputLock(_ reason: String, active: Bool, wildOnly: Bool = false) { if active { locks[reason] = wildOnly } else { locks.removeValue(forKey: reason) } }
     public func setRuntimeFlags(_ flags: NativeGameplayRuntimeFlags) { self.flags = flags; if let plan = pendingSpecial { self.flags.pendingSpecialMutation = true; self.flags.wildMagnetPullInProgress = plan.archetype == .magnet }; if pendingDirectWild != nil && !directWildGameplayCommitted { self.flags.pendingSpecialMutation = true } }
     public func canBeginDrag(tileID:String,ignoringInputLock:String?=nil)->Bool {
@@ -839,8 +843,13 @@ public final class NativeGameplayEngine {
         guard state.combo>0,let last=comboLastAcceptedMoveTime,now.isFinite,last.isFinite,now>=last else{return nil}
         return now-last
     }
-    private func comboBonus(from:Int,to:Int,elapsed:Double?)->Int {
-        NativeRewardMath.comboIncrement(from:from,to:to,elapsed:comboSpeedBonusEnabled ? elapsed:nil)
+    private func awardComboBonus(from:Int,to:Int,elapsed:Double?)->Int {
+        // Called once by each accepted ordinary/Special commit, including TNT main only.
+        if from>0,to>from,let elapsed,elapsed.isFinite,elapsed>=0 {
+            state.efficiencyComboContinuations += 1
+            if elapsed<=1 {state.efficiencyFastComboContinuations += 1}
+        }
+        return NativeRewardMath.comboIncrement(from:from,to:to,elapsed:comboSpeedBonusEnabled ? elapsed:nil)
     }
     public func drop(target: NativeCell?, pointerID: Int = 0, now: Double = 0) -> NativeMoveResult {
         guard let owned = drag else { return rejected("no_active_drag") }
@@ -939,7 +948,7 @@ public final class NativeGameplayEngine {
         let hudStars = captureHUDStars(source:source,destination:destination,starOrbitCapture:committingDirectWild ? pendingDirectWild?.sourceStarOrbitCapture:nil,finalMerge:final.isFinalMerge)
         state.longestCombo = max(state.longestCombo,state.combo)
         let comboAcceptedTime=committingDirectWild ? (pendingDirectWild?.startedAt ?? now):now
-        let deltaBonus = comboBonus(from:oldCombo,to:state.combo,elapsed:comboElapsed(now:comboAcceptedTime))
+        let deltaBonus = awardComboBonus(from:oldCombo,to:state.combo,elapsed:comboElapsed(now:comboAcceptedTime))
         state.earnedComboBonus = min(999999, state.earnedComboBonus + max(0, deltaBonus))
         comboLastAcceptedMoveTime=comboAcceptedTime
         comboLastMutationTime = now
@@ -1369,7 +1378,7 @@ public final class NativeGameplayEngine {
         if pendingSourceSpecialAbsorb?.transactionID==plan.id {sourceSpecialAbsorbMainEntered=true}
         let previousCombo = state.combo
         state.combo = state.combo+1; state.longestCombo = max(state.longestCombo,state.combo)
-        state.earnedComboBonus = min(999999,state.earnedComboBonus+comboBonus(from:previousCombo,to:state.combo,elapsed:specialComboElapsed))
+        state.earnedComboBonus = min(999999,state.earnedComboBonus+awardComboBonus(from:previousCombo,to:state.combo,elapsed:specialComboElapsed))
         comboLastAcceptedMoveTime=specialMoveTime
         comboLastMutationTime = specialMoveTime+0.08; comboWindow = 4
         let visual = NativeSpecialDiceRegistry.finale(source:plan.source,destination:plan.destination)
@@ -1777,7 +1786,7 @@ public final class NativeGameplayEngine {
         }
         if plan.archetype != .tnt { state.moves = max(0,state.moves-1) }
         state.longestCombo = max(state.longestCombo,state.combo)
-        if plan.archetype != .tnt { state.earnedComboBonus = min(999999,state.earnedComboBonus+comboBonus(from:oldCombo,to:state.combo,elapsed:specialComboElapsed)) }
+        if plan.archetype != .tnt { state.earnedComboBonus = min(999999,state.earnedComboBonus+awardComboBonus(from:oldCombo,to:state.combo,elapsed:specialComboElapsed)) }
         state.bestScore = max(state.bestScore,state.score)
         if plan.archetype != .tnt { comboLastAcceptedMoveTime=specialMoveTime; comboLastMutationTime = specialMoveTime; comboWindow = 4 }
         flags.pendingSpecialMutation = false; flags.wildMagnetPullInProgress = false
@@ -2540,6 +2549,19 @@ public enum NativeRewardMath {
         let factor = 0.30 + 0.70 * max(0,min(1,moves*0.6+stack*0.4)) + 4 * moves * moves
         return Int((Double(bonus)*factor).rounded(.toNearestOrAwayFromZero))
     }
+    /// Score is the pre-result gameplay score, excluding combo and Efficiency awards.
+    public static func cleanEfficiencyBonus(state:NativeBoardState)->Int {
+        let original=efficiencyBonus(baseBonus:500+(state.board-1)*200,remainingMoves:state.moves,
+            maxMoves:state.maxMoves,maxStackDepth:state.maxStackDepth)
+        return enhancedEfficiencyBonus(originalBonus:original,score:state.score,
+            fastCombos:state.efficiencyFastComboContinuations,totalCombos:state.efficiencyComboContinuations)
+    }
+    public static func enhancedEfficiencyBonus(originalBonus:Int,score:Int,fastCombos:Int,totalCombos:Int)->Int {
+        let base=max(3*Double(max(0,originalBonus)),0.30*Double(max(0,score)))
+        let total=max(0,totalCombos),fast=max(0,min(total,fastCombos))
+        let fraction=total>0 ? Double(fast)/Double(total):0
+        return Int(min(999999,(base*(1+0.5*fraction)).rounded(.toNearestOrAwayFromZero)))
+    }
     public static func finalScore(currentScore: Int, comboBonus: Int, efficiencyBonus: Int, scoreCap: Int = 999999) -> Int { min(max(0,scoreCap),max(0,currentScore)+max(0,comboBonus)+max(0,efficiencyBonus)) }
 }
 public enum NativeSpawnRules {
@@ -2690,7 +2712,7 @@ extension NativeGameplayEngine {
         expireCombo(now:plan.startedAt+0.08)
         let oldCombo=state.combo;state.combo=state.combo+1
         state.longestCombo=max(state.longestCombo,state.combo)
-        state.earnedComboBonus=min(999999,state.earnedComboBonus+comboBonus(from:oldCombo,to:state.combo,elapsed:comboElapsed(now:plan.startedAt)))
+        state.earnedComboBonus=min(999999,state.earnedComboBonus+awardComboBonus(from:oldCombo,to:state.combo,elapsed:comboElapsed(now:plan.startedAt)))
         comboLastAcceptedMoveTime=plan.startedAt
         comboLastMutationTime=plan.startedAt+0.08;comboWindow=2
         state.moves=max(0,state.moves-1);state.cubesCracked += 1

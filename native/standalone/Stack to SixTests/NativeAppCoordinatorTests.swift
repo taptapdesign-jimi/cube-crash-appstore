@@ -15,18 +15,114 @@ final class NativeAppCoordinatorTests:XCTestCase {
             let root=NativeAppController(resourceRoot:resources(),services:services)
             let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=root;window.makeKeyAndVisible()
             defer{root.dispose();window.isHidden=true}
-            try await waitFor{root.home.isUserInteractionEnabled}
+            try await waitFor{(!root.home.isEntering && root.home.isUserInteractionEnabled)}
             root.home.selectSlide(1,animated:false)
             var cues:[String]=[];root.onFeedback={cues.append($0)}
             let hero=try XCTUnwrap(root.home.heroView as? UIButton)
             let button=cta ? root.home.ctaView:hero
             button.sendActions(for:.touchUpInside);button.sendActions(for:.touchUpInside)
             XCTAssertEqual(cues.filter{$0 == "home-arcade-character-tap"}.count,1)
-            try await waitFor{root.route == .arcadeHub && root.arcadeHub.hub.scrollView.isUserInteractionEnabled}
+            try await waitFor{root.route == .arcadeHub && !root.transitioning && root.arcadeHub.hub.scrollView.isUserInteractionEnabled}
             root.home.onHeroContact?()
             XCTAssertEqual(cues.filter{$0 == "home-arcade-character-tap"}.count,1,"Hidden Home cannot emit")
         }
     }
+    func testHomeReturnFromJourneyArcadeAndSettingsAcceptsVisibleCTAImmediately() async throws {
+        guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Full entry window required")}
+        let sources:[NativeAppController.Route]=[.hub,.arcadeHub,.settings]
+        for (index,source) in sources.enumerated() {
+            let (root,window)=try worldEntryFixture{_,ready in ready()}
+            defer{root.dispose();window.isHidden=true}
+            try await waitFor{!root.transitioning && root.home.isUserInteractionEnabled}
+            root.home.selectSlide(index,animated:false);root.navigate(source)
+            try await waitFor{root.route==source && !root.transitioning}
+            root.navigate(.home)
+            try await waitFor{root.home.isEntering && root.home.isPaintedControlVisible(root.home.ctaView)}
+            XCTAssertTrue(root.transitioning);XCTAssertTrue(root.home.isUserInteractionEnabled)
+            let button=try XCTUnwrap(root.home.ctaView as? UIButton)
+            button.sendActions(for:.touchUpInside);button.sendActions(for:.touchUpInside)
+            XCTAssertFalse(root.home.isEntering)
+            try await waitFor{root.route==source && !root.transitioning}
+        }
+    }
+
+    func testEarlyHomeReturnTabCanBeRetargetedWithoutFrozenEntry() async throws {
+        let (root,window)=try worldEntryFixture{_,ready in ready()}
+        defer{root.dispose();window.isHidden=true}
+        try await waitFor{!root.transitioning && root.home.isUserInteractionEnabled}
+        root.navigate(.settings);try await waitFor{root.route == .settings && !root.transitioning}
+        root.navigate(.home)
+        try await waitFor{root.home.isEntering && root.home.isNavigationPaintedVisible}
+        root.home.navigationButtonViews[1].sendActions(for:.touchUpInside)
+        root.home.navigationButtonViews[2].sendActions(for:.touchUpInside)
+        try await waitFor{!root.home.isEntering}
+        XCTAssertEqual(root.home.selectedSlide,2);XCTAssertFalse(root.transitioning)
+        XCTAssertNotNil(root.home.ctaIdleBounceView.layer.animation(forKey:JimiV9HomeView.ctaIdleBounceKey))
+    }
+
+    func testAllArcadeIslandsAcceptVisibleTapBeforeEntryAndKeepModalExclusive() async throws {
+        guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Full entry window required")}
+        for (id,cue) in [(1,"endurance"),(3,"pureDice"),(2,"slowBurn")] {
+            let (root,window)=try worldEntryFixture{_,ready in ready()}
+            defer{root.dispose();window.isHidden=true}
+            try await waitFor{(!root.home.isEntering && root.home.isUserInteractionEnabled)}
+            root.navigate(.arcadeHub)
+            try await waitFor{root.arcadeHub.isEntering && root.arcadeHub.hub.isWorldVisibleForSelection(id)}
+            XCTAssertTrue(root.transitioning)
+            var cues:[String]=[];root.onFeedback={cues.append($0)}
+            let button=try XCTUnwrap(root.arcadeHub.hub.worldUnits.first{$0.tag==id})
+            button.sendActions(for:.touchUpInside)
+            XCTAssertFalse(root.transitioning,"Modal input must not wait for the full incoming cascade")
+            XCTAssertEqual(cues.filter{$0.hasPrefix("arcade-island-")},["arcade-island-"+cue])
+            let sheet=try XCTUnwrap(root.arcadeHub.subviews.first{$0.accessibilityIdentifier=="native.arcade-world-modal"})
+            button.sendActions(for:.touchUpInside)
+            XCTAssertEqual(root.arcadeHub.subviews.filter{$0.accessibilityIdentifier=="native.arcade-world-modal"}.count,1)
+            try await waitFor{!root.arcadeHub.isEntering}
+            XCTAssertTrue(sheet.superview === root.arcadeHub)
+            XCTAssertFalse(root.arcadeHub.hub.scrollView.isUserInteractionEnabled,"Entry completion cannot unlock islands behind a modal")
+            XCTAssertEqual(cues.filter{$0.hasPrefix("arcade-island-")}.count,1)
+        }
+    }
+
+    func testAllThreeWorldsAcceptVisibleTapBeforeHubEnterFinishesOnce() async throws {
+        guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Full entry window required")}
+        for id in [1,2,3] {
+            var preparations=0
+            let (root,window)=try worldEntryFixture { _,ready in preparations+=1;ready() }
+            defer{root.dispose();window.isHidden=true}
+            try await waitFor{(!root.home.isEntering && root.home.isUserInteractionEnabled)}
+            root.navigate(.hub)
+            try await waitFor{root.incomingHubEnter && root.hub.isWorldVisibleForSelection(id)}
+            XCTAssertTrue(root.transitioning)
+            XCTAssertTrue(root.hub.scrollView.isUserInteractionEnabled)
+            let button=try XCTUnwrap(root.hub.worldUnits.first{$0.tag==id})
+            button.sendActions(for:.touchUpInside)
+            XCTAssertFalse(root.incomingHubEnter)
+            XCTAssertTrue(root.transitioning)
+            XCTAssertEqual(preparations,1)
+            button.sendActions(for:.touchUpInside)
+            XCTAssertEqual(preparations,1,"Repeated taps cannot replace the accepted outgoing selection")
+            try await waitFor{root.route == .world(id) && root.world?.isReadyForInput==true}
+            XCTAssertEqual(preparations,1)
+        }
+    }
+
+    func testEarlyHubSelectionFailureRestoresEntryWithoutStaleWorldRoute() async throws {
+        let services=NativeAppServices(settings:{[:]},setPreference:{_,_ in},worldSnapshot:{_,_,_ in throw FixtureError.unavailable},markViewed:{_ in},makeGameplay:{_,_ in throw FixtureError.unavailable},flush:{})
+        let root=NativeAppController(resourceRoot:resources(),services:services)
+        let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=root;window.makeKeyAndVisible()
+        defer{root.dispose();window.isHidden=true}
+        try await waitFor{(!root.home.isEntering && root.home.isUserInteractionEnabled)}
+        root.navigate(.hub)
+        try await waitFor{root.incomingHubEnter && root.hub.isWorldVisibleForSelection(1)}
+        root.hub.onWorld?(1)
+        XCTAssertEqual(root.route,.hub)
+        try await waitFor{!root.transitioning}
+        XCTAssertFalse(root.incomingHubEnter)
+        for unit in root.hub.worldUnits {XCTAssertEqual(unit.layer.opacity,1)}
+        XCTAssertTrue(root.hub.scrollView.isUserInteractionEnabled)
+    }
+
     func testWorldHubSpeechOnlyFollowsAcceptedWorldButtonOnce() async throws {
         let (controller,window)=try worldEntryFixture(prepare:{_,ready in ready()})
         defer{controller.dispose();window.isHidden=true}
@@ -34,7 +130,7 @@ final class NativeAppCoordinatorTests:XCTestCase {
         controller.hub.onWorld?(1)
         XCTAssertFalse(cues.contains{$0.hasPrefix("world-hub-")},"Hidden hub cannot speak")
         controller.navigate(.hub,interrupt:true)
-        try await waitFor{controller.route == .hub && controller.hub.scrollView.isUserInteractionEnabled}
+        try await waitFor{controller.route == .hub && !controller.transitioning && controller.hub.scrollView.isUserInteractionEnabled}
         for (id,cue) in [(1,"world-hub-forest"),(3,"world-hub-space"),(2,"world-hub-beach")] {
             cues.removeAll();controller.hub.setContentInteractionEnabled(false);controller.hub.onWorld?(id)
             XCTAssertTrue(cues.isEmpty);controller.hub.setContentInteractionEnabled(true)
@@ -48,7 +144,7 @@ final class NativeAppCoordinatorTests:XCTestCase {
             button.sendActions(for:.touchUpInside)
             XCTAssertEqual(cues.filter{$0.hasPrefix("world-hub-")},[cue])
             controller.navigate(.hub)
-            try await waitFor{controller.route == .hub && controller.hub.scrollView.isUserInteractionEnabled}
+            try await waitFor{controller.route == .hub && !controller.transitioning && controller.hub.scrollView.isUserInteractionEnabled}
         }
     }
     func testWorldHubSpeechDoesNotPlayOnFailedWorldPreparation() async throws {
@@ -57,7 +153,7 @@ final class NativeAppCoordinatorTests:XCTestCase {
         let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=controller;window.makeKeyAndVisible()
         defer{controller.dispose();window.isHidden=true}
         controller.navigate(.hub,interrupt:true)
-        try await waitFor{controller.route == .hub && controller.hub.scrollView.isUserInteractionEnabled}
+        try await waitFor{controller.route == .hub && !controller.transitioning && controller.hub.scrollView.isUserInteractionEnabled}
         var cues:[String]=[];controller.onFeedback={cues.append($0)}
         controller.hub.worldUnits.first{$0.tag==1}?.sendActions(for:.touchUpInside)
         XCTAssertFalse(cues.contains{$0.hasPrefix("world-hub-")});XCTAssertEqual(controller.route,.hub)
@@ -80,13 +176,13 @@ final class NativeAppCoordinatorTests:XCTestCase {
         }
         func count(_ id:Int)->String? {controller.hub.worldUnits.first{$0.tag==id}.flatMap{label($0)}}
         controller.navigate(.hub,interrupt:true)
-        try await waitFor{controller.route == .hub && controller.hub.scrollView.isUserInteractionEnabled}
+        try await waitFor{controller.route == .hub && !controller.transitioning && controller.hub.scrollView.isUserInteractionEnabled}
         XCTAssertEqual(count(1),"2 / 10");XCTAssertEqual(count(2),"0 / 10");XCTAssertEqual(count(3),"0 / 10")
         controller.navigate(.settings)
         try await waitFor{controller.route == .settings && controller.settingsView.isUserInteractionEnabled}
         finish(3);finish(11);finish(21);finish(22);finish(1,mode:.arcade)
         controller.navigate(.hub)
-        try await waitFor{controller.route == .hub && controller.hub.scrollView.isUserInteractionEnabled}
+        try await waitFor{controller.route == .hub && !controller.transitioning && controller.hub.scrollView.isUserInteractionEnabled}
         XCTAssertEqual(count(1),"3 / 10");XCTAssertEqual(count(2),"1 / 10");XCTAssertEqual(count(3),"2 / 10")
         XCTAssertEqual(progression.completedJourneyBoards,[1,2,3,11,21,22])
     }
@@ -100,7 +196,7 @@ final class NativeAppCoordinatorTests:XCTestCase {
         defer{controller.dispose();window.isHidden=true}
         XCTAssertFalse(controller.home.isUserInteractionEnabled)
         let deadline=Date().addingTimeInterval(5)
-        while !controller.home.isUserInteractionEnabled,Date()<deadline {try await Task.sleep(for:.milliseconds(20))}
+        while !(!controller.home.isEntering && controller.home.isUserInteractionEnabled),Date()<deadline {try await Task.sleep(for:.milliseconds(20))}
         XCTAssertTrue(controller.home.isUserInteractionEnabled)
         XCTAssertEqual(controller.route,.home)
         var cues:[String]=[];controller.onFeedback={cues.append($0)}
@@ -137,7 +233,7 @@ final class NativeAppCoordinatorTests:XCTestCase {
         intro.subviews.forEach{$0.layer.removeAllAnimations()}
         intro.animationDidStop(CAAnimation(),finished:false)
         NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
-        try await waitFor{controller.route == .home && controller.home.isUserInteractionEnabled}
+        try await waitFor{controller.route == .home && (!controller.home.isEntering && controller.home.isUserInteractionEnabled)}
         XCTAssertTrue(intro.isRetired);XCTAssertNil(intro.superview)
         XCTAssertFalse(controller.home.isHidden)
         XCTAssertNil(findIntro(controller.view))
@@ -146,7 +242,7 @@ final class NativeAppCoordinatorTests:XCTestCase {
         XCTAssertEqual(controller.home.selectedSlide,1);XCTAssertEqual(cues,["tab","swipe"])
         // Route admission also proves the intro no longer blocks navigate().
         controller.navigate(.arcadeHub)
-        try await waitFor{controller.route == .arcadeHub && controller.arcadeHub.hub.scrollView.isUserInteractionEnabled}
+        try await waitFor{controller.route == .arcadeHub && !controller.transitioning && controller.arcadeHub.hub.scrollView.isUserInteractionEnabled}
         XCTAssertFalse(controller.arcadeHub.isHidden)
     }
     func testCommittedHomeSwipeEmitsNavigationContactButSnapBackDoesNot()async throws {
@@ -156,7 +252,7 @@ final class NativeAppCoordinatorTests:XCTestCase {
         let controller=NativeAppController(resourceRoot:resources(),services:services)
         let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=controller;window.makeKeyAndVisible()
         defer{controller.dispose();window.isHidden=true;window.rootViewController=nil}
-        try await waitFor{controller.home.isUserInteractionEnabled}
+        try await waitFor{(!controller.home.isEntering && controller.home.isUserInteractionEnabled)}
         var cues:[String]=[];controller.onFeedback={cues.append($0)}
         controller.home.onPanEnded?(1,false)
         XCTAssertEqual(controller.home.selectedSlide,1);XCTAssertEqual(cues,["tab-swipe","swipe"])
@@ -182,7 +278,7 @@ final class NativeAppCoordinatorTests:XCTestCase {
         let (root,window)=try worldEntryFixture(prepare:{_,ready in ready()})
         defer {root.dispose();window.isHidden=true}
         root.navigate(.hub,interrupt:true)
-        try await waitFor{root.route == .hub && root.hub.scrollView.isUserInteractionEnabled}
+        try await waitFor{root.route == .hub && !root.transitioning && root.hub.scrollView.isUserInteractionEnabled}
         var backs=0,homeArrivals=0
         root.onFeedback={if $0 == "back" {backs += 1}}
         root.onRoute={if $0 == .home {homeArrivals += 1}}
@@ -192,7 +288,7 @@ final class NativeAppCoordinatorTests:XCTestCase {
             root.hub.backButton.sendActions(for:.touchUpInside)
         }
         XCTAssertEqual(backs,1,"Repeated back must not cancel and restart the outgoing Journey pose")
-        try await waitFor{root.route == .home && root.home.isUserInteractionEnabled}
+        try await waitFor{root.route == .home && (!root.home.isEntering && root.home.isUserInteractionEnabled)}
         XCTAssertEqual(homeArrivals,1)
     }
     func testLateNavigationCompletionCannotReplaceNewerDestination() async {
@@ -236,7 +332,7 @@ final class NativeAppCoordinatorTests:XCTestCase {
         let (controller,window)=try worldEntryFixture{_,completion in replies.append(completion)}
         defer{controller.dispose();window.isHidden=true}
         controller.navigate(.hub,interrupt:true)
-        try await waitFor{controller.route == .hub && controller.hub.scrollView.isUserInteractionEnabled}
+        try await waitFor{controller.route == .hub && !controller.transitioning && controller.hub.scrollView.isUserInteractionEnabled}
         let unit=try XCTUnwrap(controller.hub.worldUnits.first{$0.tag==1})
         func findArt(_ view:UIView)->UIView? {
             if view.accessibilityIdentifier=="native.hub.art.1" {return view}
@@ -266,13 +362,13 @@ final class NativeAppCoordinatorTests:XCTestCase {
         let (controller,window)=try worldEntryFixture{_,completion in replies.append(completion)}
         defer{controller.dispose();window.isHidden=true}
         controller.navigate(.hub,interrupt:true)
-        try await waitFor{controller.route == .hub && controller.hub.scrollView.isUserInteractionEnabled}
+        try await waitFor{controller.route == .hub && !controller.transitioning && controller.hub.scrollView.isUserInteractionEnabled}
         controller.navigate(.world(1));let prepared=try XCTUnwrap(controller.world)
         controller.navigate(.home,interrupt:true);replies[0]()
-        try await waitFor{controller.route == .home && controller.home.isUserInteractionEnabled}
+        try await waitFor{controller.route == .home && (!controller.home.isEntering && controller.home.isUserInteractionEnabled)}
         XCTAssertTrue(prepared.isHidden)
         controller.navigate(.hub)
-        try await waitFor{controller.route == .hub && controller.hub.scrollView.isUserInteractionEnabled}
+        try await waitFor{controller.route == .hub && !controller.transitioning && controller.hub.scrollView.isUserInteractionEnabled}
         controller.navigate(.world(1));XCTAssertEqual(replies.count,2)
         XCTAssertTrue(controller.world === prepared,"Cancellation must retain the same warm World")
         replies[0]();XCTAssertEqual(controller.route,.hub)
@@ -284,7 +380,7 @@ final class NativeAppCoordinatorTests:XCTestCase {
         let (controller,window)=try worldEntryFixture{_,completion in replies.append(completion)}
         defer{controller.dispose();window.isHidden=true}
         controller.navigate(.hub,interrupt:true)
-        try await waitFor{controller.route == .hub && controller.hub.scrollView.isUserInteractionEnabled}
+        try await waitFor{controller.route == .hub && !controller.transitioning && controller.hub.scrollView.isUserInteractionEnabled}
         controller.navigate(.world(1))
         try await waitFor{controller.route == .world(1)}
         let prepared=try XCTUnwrap(controller.world)
@@ -301,7 +397,7 @@ final class NativeAppCoordinatorTests:XCTestCase {
         let (controller,window)=try worldEntryFixture{_,completion in replies.append(completion)}
         defer{controller.dispose();window.isHidden=true}
         controller.navigate(.hub,interrupt:true)
-        try await waitFor{controller.route == .hub && controller.hub.scrollView.isUserInteractionEnabled}
+        try await waitFor{controller.route == .hub && !controller.transitioning && controller.hub.scrollView.isUserInteractionEnabled}
         controller.navigate(.world(1));XCTAssertEqual(replies.count,1)
         NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
         replies[0]();XCTAssertEqual(controller.route,.hub)
@@ -367,7 +463,7 @@ final class NativeAppCoordinatorTests:XCTestCase {
         var cues:[String]=[];controller.onFeedback={cues.append($0)}
         defer{controller.dispose();window.isHidden=true}
         controller.navigate(.hub,interrupt:true)
-        try await waitFor{controller.route == .hub && controller.hub.scrollView.isUserInteractionEnabled}
+        try await waitFor{controller.route == .hub && !controller.transitioning && controller.hub.scrollView.isUserInteractionEnabled}
         for id in 1...3 {
             controller.navigate(.world(id))
             try await waitFor{controller.route == .world(id) && controller.world?.isReadyForInput==true}
@@ -397,12 +493,12 @@ final class NativeAppCoordinatorTests:XCTestCase {
             XCTAssertEqual(world.scrollView.contentOffset.y,offset.y,accuracy:0.5)
         }
         controller.world?.backButton.sendActions(for:.touchUpInside)
-        try await waitFor{controller.route == .hub && controller.hub.scrollView.isUserInteractionEnabled}
+        try await waitFor{controller.route == .hub && !controller.transitioning && controller.hub.scrollView.isUserInteractionEnabled}
         controller.hub.backpackButton.sendActions(for:.touchUpInside)
         try await waitFor{controller.route == .backpack && controller.backpackView?.isUserInteractionEnabled==true}
         XCTAssertEqual(controller.backpackView?.sections.map(\.title),["Forest","Area 55","Beach"],"Hub entry must not retain the previous World priority")
         controller.backpackView?.close.sendActions(for:.touchUpInside)
-        try await waitFor{controller.route == .hub && controller.hub.scrollView.isUserInteractionEnabled}
+        try await waitFor{controller.route == .hub && !controller.transitioning && controller.hub.scrollView.isUserInteractionEnabled}
     }
     func testEveryGameplayReturnFlipsItsUnitOnceAndRetainsPendingExitAcrossBackground() async throws {
         guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Reduced Motion preserves its no-flip policy")}
@@ -457,7 +553,7 @@ final class NativeAppCoordinatorTests:XCTestCase {
             world.scrollView.setContentOffset(.init(x:0,y:shifted),animated:false)
             XCTAssertEqual(world.scrollView.contentOffset.y,shifted,accuracy:0.5,"Flip must retain user scroll")
             controller.navigate(.hub,interrupt:true)
-            try await waitFor{controller.route == .hub && controller.hub.scrollView.isUserInteractionEnabled}
+            try await waitFor{controller.route == .hub && !controller.transitioning && controller.hub.scrollView.isUserInteractionEnabled}
             XCTAssertNil(find(world,"native.world.return-reminder"),"Back cancels the owned reminder")
             controller.navigate(.world(2))
             try await waitFor{controller.world?.isReadyForInput==true}
@@ -521,7 +617,7 @@ final class NativeAppCoordinatorTests:XCTestCase {
             let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=controller;window.makeKeyAndVisible()
             defer{controller.dispose();window.isHidden=true}
             controller.navigate(.hub,interrupt:true)
-            try await waitFor{controller.route == .hub && controller.hub.scrollView.isUserInteractionEnabled}
+            try await waitFor{controller.route == .hub && !controller.transitioning && controller.hub.scrollView.isUserInteractionEnabled}
             controller.navigate(.world(1))
             try await waitFor{controller.world?.isReadyForInput==true}
             controller.world?.onRequest?("play",1)
@@ -546,9 +642,9 @@ final class NativeAppCoordinatorTests:XCTestCase {
         let controller=NativeAppController(resourceRoot:resources(),services:services)
         let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=controller;window.makeKeyAndVisible()
         defer{controller.dispose();window.isHidden=true}
-        try await waitFor{controller.home.isUserInteractionEnabled}
+        try await waitFor{(!controller.home.isEntering && controller.home.isUserInteractionEnabled)}
         controller.navigate(.arcadeHub)
-        try await waitFor{controller.route == .arcadeHub && controller.arcadeHub.hub.scrollView.isUserInteractionEnabled}
+        try await waitFor{controller.route == .arcadeHub && !controller.transitioning && controller.arcadeHub.hub.scrollView.isUserInteractionEnabled}
         controller.arcadeHub.onPlay?("endurance")
         try await waitFor{replies.count==1}
         let oldCancels=cancels
@@ -556,7 +652,7 @@ final class NativeAppCoordinatorTests:XCTestCase {
         XCTAssertGreaterThan(cancels,oldCancels)
         replies[0](true);XCTAssertEqual(made,0)
         NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
-        try await waitFor{controller.route == .arcadeHub && controller.arcadeHub.hub.scrollView.isUserInteractionEnabled}
+        try await waitFor{controller.route == .arcadeHub && !controller.transitioning && controller.arcadeHub.hub.scrollView.isUserInteractionEnabled}
         replies[0](true);XCTAssertEqual(made,0)
     }
     private func containsWebView(_ view:UIView)->Bool {

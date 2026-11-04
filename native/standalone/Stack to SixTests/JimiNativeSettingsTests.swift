@@ -109,7 +109,7 @@ final class JimiNativeSettingsTests: XCTestCase {
         for button in settings.developerButtons { button.sendActions(for: .touchUpInside) }
         XCTAssertTrue(actions.isEmpty)
         settings.setDeveloperPanelVisible(true); settings.layoutSubviews()
-        XCTAssertEqual(settings.developerButtons.compactMap { $0.title(for: .normal) },["Show Card","Hide Card","Legendary Card","Reset Stage","New Card","Clean Stage","End Game","LAST MERGE"])
+        XCTAssertEqual(settings.developerButtons.compactMap { $0.title(for: .normal) },["Show Card","Hide Card","Legendary Card","Reset Stage","New Card","Clean Stage","Clean Arcade","Clean Beach","Clean Area 55","End Game","LAST MERGE"])
         for button in settings.developerButtons {
             XCTAssertFalse(button.isHidden); XCTAssertGreaterThanOrEqual(button.cartoonBounceFrame.minX,24)
             XCTAssertLessThanOrEqual(button.cartoonBounceFrame.maxX,296); XCTAssertGreaterThanOrEqual(button.bounds.height,44)
@@ -333,6 +333,30 @@ final class JimiNativeSettingsTests: XCTestCase {
                 XCTAssertLessThanOrEqual(toggle.frame.maxX,settings.scroll.bounds.width)
                 XCTAssertEqual(toggle.frame.size,CGSize(width:67,height:45))
             }
+        }
+    }
+
+    func testTabletSettingsScalesTextControlsAndHitGeometryTogether() throws {
+        let settings=JimiNativeSettingsView(frame:CGRect(x:0,y:0,width:820,height:1180),assets:JimiV9Artwork(resourceRoot:root))
+        XCTAssertTrue(settings.apply(preferences));settings.layoutSubviews()
+        let labels=settings.rows[0].subviews.compactMap{$0 as? UILabel}
+        let status=try XCTUnwrap(labels.first{$0.accessibilityIdentifier?.contains("status") == true})
+        let description=try XCTUnwrap(labels.first{$0 !== status})
+        XCTAssertEqual(status.font.pointSize,44.8,accuracy:0.001)
+        XCTAssertEqual(description.font.pointSize,25.2,accuracy:0.001)
+        XCTAssertEqual(settings.rows[1].center.y-settings.rows[0].center.y,176.4,accuracy:0.001)
+        let toggle=settings.switches[0];toggle.layoutIfNeeded()
+        XCTAssertEqual(toggle.bounds.width,93.8,accuracy:0.001)
+        XCTAssertEqual(toggle.bounds.height,63,accuracy:0.001)
+        let pill=try XCTUnwrap(toggle.subviews.first),knob=try XCTUnwrap(pill.subviews.first)
+        XCTAssertEqual(pill.bounds.width,71.4,accuracy:0.001)
+        XCTAssertEqual(pill.bounds.height,43.4,accuracy:0.001)
+        for on in [true,false,true,false] {
+            toggle.setOn(on,animated:false);toggle.layoutSubviews()
+            XCTAssertEqual(knob.frame.minX,(on ? 22:2)*1.4,accuracy:0.001)
+            XCTAssertEqual(knob.bounds.width,37.8,accuracy:0.001)
+            XCTAssertEqual(pill.frame.maxX+toggle.frame.minX,settings.rows[0].bounds.width-11.2,accuracy:0.001)
+            XCTAssertLessThanOrEqual(toggle.frame.maxX,settings.rows[0].bounds.width+0.001)
         }
     }
 

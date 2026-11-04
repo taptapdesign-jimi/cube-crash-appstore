@@ -5731,7 +5731,7 @@ final class NativeBoardScene: SKScene {
         boardShake = .init(canvas:canvas,indicator:indicator,bottomDecor:decor)
         canvasRoot.position=CGPoint(x:canvas.x,y:-canvas.y)
         sourceTutorialMeterHUD?.setCanvasShakeOffset(NativeTabletLayout.applies(size) ? .zero:canvasRoot.position)
-        let base=NativeGameplayChromePlan.make(viewport:size,safeTop:safeInsets.top).roundCenter
+        let base=roundIndicatorRestCenter
         roundIndicator.position=CGPoint(x:base.x+indicator.x,y:base.y-indicator.y)
         // Internal publication precedes external footer callback. Reentrant C
         // must observe painted pose; retired A has no post-callback writes.
@@ -6008,6 +6008,10 @@ final class NativeBoardScene: SKScene {
         addChild(roundIndicator)
     }
 
+    private var roundIndicatorRestCenter:CGPoint {
+        let base=NativeGameplayChromePlan.make(viewport:size,safeTop:safeInsets.top).roundCenter
+        return roundIndicator.restCenter(base,viewport:size,arcade:engine.state.mode == .arcade)
+    }
     private var gameplayChromePlan:NativeGameplayChromePlan {
         var boardBounds:CGRect?
         if NativeTabletLayout.applies(size),engine.state.columns==7 {
@@ -6071,7 +6075,7 @@ final class NativeBoardScene: SKScene {
                 sourceTutorialMeterRatio=engine.state.wildMeter
                 owner.setProgress(engine.state.wildMeter,animated:true)
             }
-            roundIndicator.position=chrome.roundCenter
+            roundIndicator.position=roundIndicatorRestCenter
             return
         }
         let barHeight=rect.height
@@ -6081,7 +6085,7 @@ final class NativeBoardScene: SKScene {
         let ratio=NativeGameplayChromePlan.visibleMeterRatio(engine.state.wildMeter)
         meter.isHidden=ratio<=0
         meter.path=CGPath(roundedRect:CGRect(x:0,y:barY,width:rect.width*ratio,height:barHeight),cornerWidth:radius,cornerHeight:radius,transform:nil)
-        roundIndicator.position=chrome.roundCenter
+        roundIndicator.position=roundIndicatorRestCenter
 
     }
 
@@ -8320,7 +8324,7 @@ final class NativeBoardScene: SKScene {
         onJourneyBottomDecorShake?(pose.bottomDecor,engine.state.generation)
         boardShake=pose;canvasRoot.position=CGPoint(x:pose.canvas.x,y:-pose.canvas.y)
         sourceTutorialMeterHUD?.setCanvasShakeOffset(NativeTabletLayout.applies(size) ? .zero:canvasRoot.position)
-        let base=NativeGameplayChromePlan.make(viewport:size,safeTop:safeInsets.top).roundCenter
+        let base=roundIndicatorRestCenter
         roundIndicator.position=CGPoint(x:base.x+pose.indicator.x,y:base.y-pose.indicator.y)
     }
 

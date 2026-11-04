@@ -28,8 +28,7 @@ final class NativeResultOwner {
     var onSourceFinalCleanup:((NativeSourceNoMovesCompletedReceipt)->Void)?
     var prepareExit:((@escaping (Bool)->Void)->Void)?
     static func finalScore(state:NativeBoardState,clean:Bool)->Int {
-        let efficiency=clean ? NativeRewardMath.efficiencyBonus(baseBonus:500+(state.board-1)*200,
-            remainingMoves:state.moves,maxMoves:state.maxMoves,maxStackDepth:state.maxStackDepth) : 0
+        let efficiency=clean ? NativeRewardMath.cleanEfficiencyBonus(state:state) : 0
         return NativeRewardMath.finalScore(currentScore:state.score,comboBonus:clean ? state.earnedComboBonus:0,efficiencyBonus:efficiency)
     }
     private static func removeReward(_ card:NativeJourneyRewardController,completion:@escaping ()->Void) {
@@ -67,8 +66,7 @@ final class NativeResultOwner {
         // clears retain their existing automatic cue and carry the raw score.
         // The captured fail resolution still prevents next-round progression.
         let awardsCleanBonus=clean && (state.mode != .arcade || arcadeReached)
-        let efficiency=awardsCleanBonus ? NativeRewardMath.efficiencyBonus(baseBonus:500+(state.board-1)*200,
-            remainingMoves:state.moves,maxMoves:state.maxMoves,maxStackDepth:state.maxStackDepth) : 0
+        let efficiency=awardsCleanBonus ? NativeRewardMath.cleanEfficiencyBonus(state:state) : 0
         let combo=awardsCleanBonus ? state.earnedComboBonus : 0
         let score=Self.finalScore(state:state,clean:awardsCleanBonus)
         let showResult:()->Void = { [weak self,weak gameplay] in
@@ -216,7 +214,7 @@ final class NativeResultController:UIViewController {
     var onHaptic:((String)->Void)?
     private var sentMoments:Set<String>=[]
     var celebrationTheme:NativeResultCelebrationTheme {
-        if state.mode == .arcade {return state.lastSpecialMergeWorld.flatMap(NativeResultCelebrationTheme.init(rawValue:)) ?? .area55}
+        if state.mode == .arcade {return .arcade}
         return state.board>20 ? .area55:state.board>10 ? .beach:.forest
     }
     private var arcadeCue:Bool {clean && state.mode == .arcade && !arcadeReached}
@@ -318,6 +316,7 @@ final class NativeResultController:UIViewController {
             let theme=celebrationTheme
             let canvas=NativeResultConfettiCanvas(root:resourceRoot,theme:theme,viewport:view.bounds.size,generation:state.generation)
             canvas.autoresizingMask=[.flexibleWidth,.flexibleHeight];canvas.layer.zPosition=3;view.addSubview(canvas);confetti=canvas
+            if theme == .arcade {content.layer.zPosition=1}
             if theme == .forest {
                 content.layer.zPosition=1
                 let bees=NativeResultForestBees(viewport:view.bounds.size,artwork:assets)

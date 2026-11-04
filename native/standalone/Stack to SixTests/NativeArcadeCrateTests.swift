@@ -44,9 +44,9 @@ final class NativeArcadeCrateTests: XCTestCase {
             let window = UIWindow(frame: CGRect(origin: .zero, size: size))
             window.rootViewController = root; window.makeKeyAndVisible(); root.loadViewIfNeeded()
             defer { root.dispose(); window.isHidden = true }
-            try await waitFor { root.home.isUserInteractionEnabled }
+            try await waitFor { (!root.home.isEntering && root.home.isUserInteractionEnabled) }
             root.home.onActivate?(1)
-            try await waitFor { root.route == .arcadeHub && root.arcadeHub.hub.scrollView.isUserInteractionEnabled }
+            try await waitFor { root.route == .arcadeHub && !root.transitioning && root.arcadeHub.hub.scrollView.isUserInteractionEnabled }
             root.arcadeHub.onCrate?()
             try await waitFor { root.route == .backpack && root.backpackView?.isUserInteractionEnabled == true }
             let screen = try XCTUnwrap(root.backpackView)
@@ -141,7 +141,7 @@ final class NativeArcadeCrateTests: XCTestCase {
         defer{root.dispose();window.isHidden=true}
         root.navigate(.arcadeHub,interrupt:true)
         let deadline=Date().addingTimeInterval(8)
-        while !(root.route == .arcadeHub && root.arcadeHub.hub.scrollView.isUserInteractionEnabled),Date()<deadline {try await Task.sleep(for:.milliseconds(20))}
+        while !(root.route == .arcadeHub && !root.transitioning && root.arcadeHub.hub.scrollView.isUserInteractionEnabled),Date()<deadline {try await Task.sleep(for:.milliseconds(20))}
         XCTAssertEqual(root.route,.arcadeHub);XCTAssertTrue(root.arcadeHub.hub.scrollView.isUserInteractionEnabled)
         var speech=0;root.onFeedback={if $0 == "collection-icon-speech" {speech += 1}}
         root.arcadeHub.hub.backpackButton.sendActions(for:.touchUpInside)

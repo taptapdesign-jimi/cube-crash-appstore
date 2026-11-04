@@ -32,12 +32,12 @@ final class NativeArcadeNavigationTests: XCTestCase {
             let(root,window)=mount(source)
             defer{root.dispose();window.isHidden=true}
             root.navigate(.arcadeHub,interrupt:true)
-            try await waitFor{root.route == .arcadeHub && root.arcadeHub.hub.scrollView.isUserInteractionEnabled}
+            try await waitFor{root.route == .arcadeHub && !root.transitioning && root.arcadeHub.hub.scrollView.isUserInteractionEnabled}
             root.arcadeHub.onPlay?(variant.rawValue)
             try await waitFor{root.route == .gameplay}
             XCTAssertEqual(events,["select","prepare","make"])
             returnToHub?()
-            try await waitFor{root.route == .arcadeHub && root.arcadeHub.hub.scrollView.isUserInteractionEnabled}
+            try await waitFor{root.route == .arcadeHub && !root.transitioning && root.arcadeHub.hub.scrollView.isUserInteractionEnabled}
             XCTAssertFalse(root.arcadeHub.isHidden)
         }
     }
@@ -61,7 +61,7 @@ final class NativeArcadeNavigationTests: XCTestCase {
             let (root, window) = mount(source)
             defer { root.dispose(); window.isHidden = true }
             root.navigate(.arcadeHub, interrupt: true)
-            try await waitFor { root.route == .arcadeHub && root.arcadeHub.hub.scrollView.isUserInteractionEnabled }
+            try await waitFor { root.route == .arcadeHub && !root.transitioning && root.arcadeHub.hub.scrollView.isUserInteractionEnabled }
             root.arcadeHub.onPlay?(variant.rawValue)
             try await waitFor { root.route == .gameplay }
             XCTAssertEqual(events, ["select", "prepare", "make"])
@@ -76,7 +76,7 @@ final class NativeArcadeNavigationTests: XCTestCase {
         let(root,window)=mount(source)
         defer{root.dispose();window.isHidden=true}
         root.navigate(.arcadeHub,interrupt:true)
-        try await waitFor{root.route == .arcadeHub && root.arcadeHub.hub.scrollView.isUserInteractionEnabled}
+        try await waitFor{root.route == .arcadeHub && !root.transitioning && root.arcadeHub.hub.scrollView.isUserInteractionEnabled}
         root.arcadeHub.onPlay?(NativeArcadeVariant.slowBurn.rawValue)
         try await waitFor{replies.count==1}
         NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
@@ -84,7 +84,7 @@ final class NativeArcadeNavigationTests: XCTestCase {
         root.arcadeHub.onPlay?(NativeArcadeVariant.pureDice.rawValue)
         XCTAssertEqual(selected,1);XCTAssertEqual(made,0)
         NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
-        try await waitFor{root.route == .arcadeHub && root.arcadeHub.hub.scrollView.isUserInteractionEnabled}
+        try await waitFor{root.route == .arcadeHub && !root.transitioning && root.arcadeHub.hub.scrollView.isUserInteractionEnabled}
         replies[0](true);XCTAssertEqual(made,0)
     }
     func testActiveGuideResumeRetainsSelectedWorldRewardAndBoard()async throws {

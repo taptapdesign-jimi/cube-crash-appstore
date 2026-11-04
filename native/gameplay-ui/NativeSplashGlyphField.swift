@@ -29,14 +29,17 @@ final class NativeSplashGlyphField: UIView {
     private let compactLaser: Bool
     private let fitToWidth:Bool
     private let fillsCaptionWidth:Bool
+    private let tabletBlossom:Bool
     private var exitRotationsCaptured:Bool
     init(artwork: JimiV9Artwork,text: String,colors: [UIColor],splitIndex: Double,
          letterColors: [UIColor]? = nil,letterOpacityRange: ClosedRange<Double>? = nil,compactLaser: Bool = false,fitToWidth:Bool = false,neonGlow: Bool = false,glowPalette:[UIColor]? = nil,deferExitRotationCapture:Bool = false,sourcePlan:NativeSourceSplashGlyphPlan? = nil,whiteGlowTreatment:Bool = true,fillsCaptionWidth:Bool = false,
          random: () -> Double = { Double.random(in: 0..<1) }) {
         let letters = Array(text)
+        let readableFinaleCaption = text == "BLOSSOM" || text == "FLY AWAY"
+        tabletBlossom=text == "BLOSSOM" && fillsCaptionWidth
         roboNameplate = text == "BIBI - RIBI"
         self.glowPalette=glowPalette
-        self.compactLaser = compactLaser;self.fitToWidth = fitToWidth || whiteGlowTreatment;self.fillsCaptionWidth=fillsCaptionWidth
+        self.compactLaser = compactLaser;self.fitToWidth = fitToWidth || whiteGlowTreatment;self.fillsCaptionWidth=fillsCaptionWidth || readableFinaleCaption
         exitRotationsCaptured = sourcePlan == nil && !deferExitRotationCapture
         exitStart = compactLaser ? .infinity : 0.3+Double(max(0,letters.count-1))*0.05+0.54
         duration = compactLaser ? 0.04+Double(max(0,letters.count-1))*0.025+0.28 : exitStart+Double(max(0,letters.count-1))*0.06+0.60+0.05
@@ -55,7 +58,8 @@ final class NativeSplashGlyphField: UIView {
         for index in letters.indices {
             let bucket = buckets[(index+offset)%buckets.count]
             let base = bucket[min(bucket.count-1,max(0,Int(random()*Double(bucket.count))))]
-            sizes.append(CGFloat((max(index == 0 || (text == "COCO-LOCO" && index == 5) ? 75 : 28,base+random()*10-5)*10).rounded()/10))
+            let minimum:Double = max(index == 0 || (text == "COCO-LOCO" && index == 5) ? 75:28,readableFinaleCaption && letters[index] != " " ? (tabletBlossom ? 96:72):0)
+            sizes.append(CGFloat((max(minimum,base+random()*10-5)*10).rounded()/10))
         }
         }
         for (index,character) in letters.enumerated() {
@@ -100,12 +104,13 @@ final class NativeSplashGlyphField: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         let widths = glyphs.map { ($0.label.text! as NSString).size(withAttributes: [.font: $0.label.font as Any]).width }
-        let before:[CGFloat]=glyphs.map {glyph in glyph.index==0 ? 0:roboNameplate && glyph.label.text=="-" ? 3:-4.2}
+        let before:[CGFloat]=glyphs.map {glyph in glyph.index==0 ? 0:roboNameplate && glyph.label.text=="-" ? 3:(tabletBlossom ? -8.4:-4.2)}
         let after:[CGFloat]=glyphs.map {glyph in roboNameplate && glyph.label.text=="-" ? 7:0}
         let total = widths.reduce(0,+)+before.reduce(0,+)+after.reduce(0,+)
         if fitToWidth {
             let angle=atan2(container.transform.b,container.transform.a)
-            let fitted=Self.readableCaptionWidth(bounds.width)/max(1,total)
+            let target=tabletBlossom ? max(0,bounds.width-32)/1.12:Self.readableCaptionWidth(bounds.width)
+            let fitted=target/max(1,total)
             let scale=fillsCaptionWidth ? fitted:min(1,fitted)
             container.transform=CGAffineTransform(rotationAngle:angle).scaledBy(x:scale,y:scale)
         }

@@ -423,7 +423,7 @@ final class NativeBootstrap {
         let engine = NativeGameplayEngine(state: initial, rewardPicker: { state, roll, nextRoll in
             NativeWildRewardPolicy.choose(state:state,roll:roll,plainStarUnlocked:plainStarUnlocked,mushroomUnlocked:mushroomUnlocked,unlockedJourneyDice:unlockedJourneyDice,nextRoll:nextRoll)
         }, sourceMathRandom:sourceLogicalMathRandomEnabled && (!sourceTutorialEarnedMeterEnabled || needsTutorial ||
-            (sourceConstruction != nil && (sourceFreshOrdinaryPresentationEnabled || sourceRestoredOrdinaryPresentationEnabled))) ? sourceContext.mathRandom:nil)
+            (sourceConstruction != nil && (sourceFreshOrdinaryPresentationEnabled || sourceRestoredOrdinaryPresentationEnabled))) ? sourceContext.mathRandom:nil, wildMeterChargeScale:UIDevice.current.userInterfaceIdiom == .pad ? 0.70:1)
         engine.comboHUDCoinRewardsEnabled=true
         engine.comboWindowExtension=1.5
         engine.wildComboWindowExtension=1
@@ -654,7 +654,7 @@ final class NativeBootstrap {
                   gameplay.sourcePresentationFailureGeneration != gameplay.engine.state.generation else{return nil}
             let state=gameplay.engine.state
             return NativeResultController(root:self.root,state:state,clean:true,combo:state.earnedComboBonus,
-                efficiency:NativeRewardMath.efficiencyBonus(baseBonus:500+(state.board-1)*200,remainingMoves:state.moves,maxMoves:state.maxMoves,maxStackDepth:state.maxStackDepth),
+                efficiency:NativeRewardMath.cleanEfficiencyBonus(state:state),
                 finalScore:NativeResultOwner.finalScore(state:state,clean:true),interimJourney:self.interimJourney,arcadeCelebrationPresented:true)
         }
         gameplay.prepareJourneyRewardController = { [weak self,weak gameplay] result in
@@ -1743,9 +1743,11 @@ final class NativeBootstrap {
             routeFeedback("modal-open");presenter.present(picker,animated: false)
         case .newCard:
             presentDeveloperReward(board: board,score: envelope.progression.boardStats[board]?.highScore ?? 0,presenter: presenter)
-        case .clean:
-            let state = NativeBoardState(tiles: [],board: board,stage: board,score: 2500)
-            let preview = NativeResultController(root: root,state: state,clean: true,combo: 0,efficiency: 500,finalScore: 3000)
+        case .clean,.arcadeClean,.beachClean,.area55Clean:
+            let arcadePreview=action == .arcadeClean
+            let previewBoard=action == .beachClean ? 11:action == .area55Clean ? 21:arcadePreview ? 2:board
+            let state = NativeBoardState(tiles: [],mode:arcadePreview ? .arcade:.journey,board:previewBoard,stage:previewBoard,score:2500)
+            let preview = NativeResultController(root: root,state: state,clean: true,combo: 0,efficiency: 500,finalScore: 3000,arcadeReached:arcadePreview)
             preview.onCommit = {} // Authored result presentation, no attempt commit.
             let previewGeneration=routeLease
             preview.onMoment = { [weak self] kind,index,duration in

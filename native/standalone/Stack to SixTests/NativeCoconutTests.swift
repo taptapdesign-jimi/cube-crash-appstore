@@ -254,6 +254,21 @@ import StackToSixNativeState
   XCTAssertTrue(faces[0].subviews.allSatisfy{$0.layer.shadowColor==UIColor.red.cgColor})
   XCTAssertTrue(faces[3].subviews.allSatisfy{$0.layer.shadowColor==UIColor.blue.cgColor})
  }
+ func testTabletBlossomIncreasesRenderedLetterSizeAfterWidthFitting()async throws {
+  let selected=try await prepared();defer{selected.dispose()}
+  func renderedMinimum(_ tablet:Bool)throws->CGFloat {
+   let owner=NativeTntVariantPresentation(resourceRoot:NativeTestResources.root,variant:.flower,viewport:.init(width:390,height:566),preparedArtwork:selected.artwork,blossomCaptionFillsWidth:tablet,random:{0.5})
+   defer{owner.dispose()}
+   owner.layoutIfNeeded()
+   let field=try XCTUnwrap(owner.subviews.compactMap{$0 as? NativeSplashGlyphField}.first)
+   field.layoutIfNeeded();let line=try XCTUnwrap(field.subviews.first)
+   func labels(_ view:UIView)->[UILabel] {view.subviews.compactMap{$0 as? UILabel}+view.subviews.flatMap{labels($0)}}
+   let smallest=try XCTUnwrap(labels(field).map{$0.font.pointSize}.min())
+   return smallest*hypot(field.transform.a,field.transform.b)*hypot(line.transform.a,line.transform.b)
+  }
+  let phone=try renderedMinimum(false),tablet=try renderedMinimum(true)
+  XCTAssertGreaterThan(tablet,phone*1.20*1.20,"At least20percent larger than the previous tablet caption after fitting")
+ }
  func testBlossomUsesWhiteLettersAndFlyingFlowerPinkYellowGlow()async throws {
   let selected=try await prepared();defer{selected.dispose()}
   let owner=NativeTntVariantPresentation(resourceRoot:NativeTestResources.root,variant:.flower,viewport:.init(width:390,height:844),preparedArtwork:selected.artwork,random:{0.5});defer{owner.dispose()}
@@ -262,6 +277,7 @@ import StackToSixNativeState
   owner.paint(seconds:1.4)
   let all=labels(owner),faces=all.filter{!($0.superview is UILabel)},glows=all.filter{$0.layer.shadowOpacity>0}
   XCTAssertEqual(faces.compactMap(\.text).joined(),"BLOSSOM")
+  XCTAssertTrue(faces.allSatisfy{$0.font.pointSize>=72},"Every BLOSSOM letter stays readable")
   XCTAssertTrue(faces.allSatisfy{$0.textColor.withAlphaComponent(1) == .white})
   XCTAssertEqual(glows.count,28)
   for glow in glows {

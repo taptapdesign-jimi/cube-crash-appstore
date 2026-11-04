@@ -69,12 +69,15 @@ final class NativeBackpackDetail:UIViewController {
         let modalBounds=NativeTabletLayout.modalBounds(in:view,card:card)
         let modalSafeInsets=NativeTabletLayout.modalSafeInsets(in:view)
         worldIllustration.frame=view.bounds.insetBy(dx:-view.bounds.width*0.2,dy:0)
-        let width=NativeTabletLayout.paperWidth(modalBounds.size),scale=width/390
+        let contentWidth=NativeTabletLayout.paperWidth(modalBounds.size),scale=contentWidth/390
+        // Same wider tablet paper as Arcade selection; preserve inner geometry.
+        let width=contentWidth*(NativeTabletLayout.applies(view.bounds.size) ? 1.20:1)
+        let contentInset=(width-contentWidth)/2
         let textScale=NativeTabletLayout.textScale(modalBounds.size)
         NativeTabletLayout.labelFont(heading,size:NativeTabletLayout.modalTitleSize(view.bounds.size,phone:32*textScale));NativeTabletLayout.labelFont(copy,size:18*textScale)
-        heading.frame=CGRect(x:width*0.1,y:28,width:width*0.8,height:38.4*textScale)
-        let copyHeight=ceil(copy.sizeThatFits(CGSize(width:width*0.8,height:CGFloat.greatestFiniteMagnitude)).height)
-        copy.frame=CGRect(x:width*0.1,y:heading.frame.maxY+12,width:width*0.8,height:copyHeight)
+        heading.frame=CGRect(x:contentInset+contentWidth*0.1,y:28,width:contentWidth*0.8,height:38.4*textScale)
+        let copyHeight=ceil(copy.sizeThatFits(CGSize(width:contentWidth*0.8,height:CGFloat.greatestFiniteMagnitude)).height)
+        copy.frame=CGRect(x:contentInset+contentWidth*0.1,y:heading.frame.maxY+12,width:contentWidth*0.8,height:copyHeight)
         let subtitleGap:CGFloat=48*textScale
         // House the floor shadow and lower paper inset.
         let bottomGap:CGFloat=96*textScale
@@ -83,7 +86,7 @@ final class NativeBackpackDetail:UIViewController {
         let artworkSpace=max(0,availableHeight-copy.frame.maxY-subtitleGap-bottomGap)
         let envelopeRatio=preview?.presentationHeightRatio ?? 1
         let artworkScale:CGFloat=die.id=="cubero" ? 1.33:die.id=="wild-magnet" ? 0.8:die.id=="laser-gun" ? 1.15:(11...20).contains(die.board) ? 0.9:1
-        let artworkHeight=min(min(180*textScale*artworkScale,artworkSpace/envelopeRatio)/artworkVisibleBounds.height,(width-40*scale)*artworkScale/artworkAspect)
+        let artworkHeight=min(min(180*textScale*artworkScale,artworkSpace/envelopeRatio)/artworkVisibleBounds.height,(contentWidth-40*scale)*artworkScale/artworkAspect)
         hero.bounds=CGRect(x:0,y:0,width:artworkHeight*artworkAspect,height:artworkHeight)
         let visibleHeight=hero.bounds.height*artworkVisibleBounds.height
         let envelopeHeight=visibleHeight*envelopeRatio
@@ -98,7 +101,7 @@ final class NativeBackpackDetail:UIViewController {
         JimiNativeModalV10.paperLayout(paper,bounds:card.bounds,bottomExtension:96)
         if let preview {
             preview.frame=idle.bounds
-            preview.artworkFrame=CGRect(x:0,y:artworkTop,width:width,height:envelopeHeight)
+            preview.artworkFrame=CGRect(x:contentInset,y:artworkTop,width:contentWidth,height:envelopeHeight)
             preview.layoutArtwork()
         }
         speechButton.frame=hero.frame

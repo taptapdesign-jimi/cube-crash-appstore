@@ -147,7 +147,8 @@ import StackToSixNativeState
     func testAllOutgoingBlobsUseBoundedLateSquashStretch() {
         var seed:UInt64=727
         let motion=NativeBloobFinaleMotion(viewport:CGSize(width:390,height:844),random:{seed=seed &* 6364136223846793005 &+ 1;return Double(seed>>11)/Double(UInt64.max>>11)})
-        XCTAssertEqual(NativeBloobFinaleMotion.fakeDieFlightSpeed,1.2)
+        XCTAssertEqual(NativeBloobFinaleMotion.fakeDieFlightSpeed,2.4)
+        XCTAssertLessThan(motion.fakeDice.map(\.exit).max()!,motion.exitTimes.dropFirst().max()!)
         let burst=NativeBloobFinaleMotion.scatterStart
         for i in motion.reverseBalls.indices.dropFirst() {
             let duration=motion.exitTimes[i]-burst

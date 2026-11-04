@@ -18,7 +18,7 @@ final class NativeHapticRuntimeTests:XCTestCase {
         bootstrap.start(in:host)
         defer{bootstrap.dispose();window.isHidden=true;try? FileManager.default.removeItem(at:directory)}
         let app=try XCTUnwrap(host.children.first as? NativeAppController)
-        try await wait{app.home.isUserInteractionEnabled}
+        try await wait{(!app.home.isEntering && app.home.isUserInteractionEnabled)}
         try await Task.sleep(for:.milliseconds(600));outputs.removeAll()
         for index in 0..<16 {
             app.home.navigationButtonViews[index%3].sendActions(for:.touchUpInside)

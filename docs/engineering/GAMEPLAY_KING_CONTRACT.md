@@ -1,3 +1,14 @@
+Native iPad Wild-meter tuning override (user decision 2026-11-04):
+Normal Native gameplay on iPad credits 70% of the previous Wild-meter gain per
+accepted action, including Journey and every Arcade mode. The device factor
+multiplies existing mode/stage/spawn modifiers once; Slow Burn remains at its
+existing half-rate relative to Endurance (effective 0.35 before stage/spawn
+modifiers on iPad). iPhone retains factor1. First-play tutorial milestones through completion,
+already-earned/saved charge, thresholds, drop animation, rewards, one-drop limit,
+carry/reset, RNG, input and save schema remain unchanged. NativeBootstrap selects
+the runtime factor by actual device idiom, not saved board dimensions. This is an
+approximate feel adjustment; proportional cell-count fairness is not established.
+
 Native World-final result override(user2026-11-01): successful local Stage10
 (boards10,20,30),both first clear and replay,shows Back to World as primary
 and Play again as white secondary. Primary uses existing Journey exit/World
@@ -16,6 +27,17 @@ completion retains its existing Continue->World exception,including imported
 profiles with an already completed tutorial Stage.
 
 # Stack to Six Gameplay KING Contract
+
+Native Efficiency override(user2026-11-04): at existing eligible Clean Board result,
+Efficiency=round(max(3*authoredEfficiency,0.30*preResultGameplayScore)*(1+0.5*fastShare)).
+fastShare is accepted combo continuations within1second divided by all timed
+accepted combo continuations;zero measured continuations gives0. Existing combo
+speed awards remain unchanged. Special transactions count once at canonical
+commit,using captured accepted time,not animation duration. Additive board-save
+counters default0 for legacy saves;restart/new board resets them with the board.
+Existing eligibility,raw Arcade round carry,result countdown,one-time commit,
+Journey ranking thresholds and999999total cap remain. This supersedes earlier
+instructions below to keep Efficiency unchanged;no retroactive score rewrite.
 
 Native speed-combo override (user decision2026-11-01): ordinary continuation
 remains3.5s;after Wild/Special it is5.0s(previously5.5s). NativeBootstrap opts

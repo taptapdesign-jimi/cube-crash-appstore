@@ -4,7 +4,9 @@ import CoreGraphics
 /// Every random choice belongs to this finite presentation, never its paint loop.
 struct NativeBloobFinaleMotion {
     static let fakeDiceCount=24
-    static let fakeDieFlightSpeed=1.2
+    // Keep the authored scatter budget so Bloob remnants retain their timing.
+    private static let authoredFakeDieFlightSpeed=1.2
+    static let fakeDieFlightSpeed=authoredFakeDieFlightSpeed*2
     static let floatingBallCount=66
     static let reverseBallCount=1+floatingBallCount
     static let heroGrowthDuration=0.52
@@ -99,7 +101,7 @@ struct NativeBloobFinaleMotion {
         }
         // Preserve the outgoing phase’s extra second as a maximum budget.
         // Gravity may retire late survivors earlier, never leaving an idle tail.
-        let lastExit=max(originalExits.dropFirst().max() ?? Self.scatterStart,originalDice.map{Self.scatterStart+($0.exit-Self.scatterStart)/Self.fakeDieFlightSpeed}.max() ?? Self.scatterStart)
+        let lastExit=max(originalExits.dropFirst().max() ?? Self.scatterStart,originalDice.map{Self.scatterStart+($0.exit-Self.scatterStart)/Self.authoredFakeDieFlightSpeed}.max() ?? Self.scatterStart)
         let originalDuration=max(0.001,lastExit-Self.scatterStart)
         originalScatterDuration=originalDuration
         let timeScale=(originalDuration+1)/originalDuration

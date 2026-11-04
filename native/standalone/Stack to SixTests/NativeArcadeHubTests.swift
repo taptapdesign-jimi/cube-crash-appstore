@@ -23,7 +23,7 @@ final class NativeArcadeHubTests: XCTestCase {
                 let host=UIViewController(),window=UIWindow(frame:CGRect(origin:.zero,size:size))
                 window.rootViewController=host;window.makeKeyAndVisible();host.loadViewIfNeeded()
                 let view=NativeArcadeHubView(frame:host.view.bounds,assets:assets)
-                host.view.addSubview(view);view.present();view.layoutIfNeeded();view.hub.layoutIfNeeded()
+                host.view.addSubview(view);view.present();view.finishEntering();view.layoutIfNeeded();view.hub.layoutIfNeeded()
                 let motion=NativeRouteMotion(home:JimiV9HomeView(frame:view.bounds,assets:assets),hub:view.hub)
                 defer{motion.cancel();view.hide();window.isHidden=true}
                 let scroll=view.hub.scrollView,height=scroll.contentSize.height
@@ -61,7 +61,7 @@ final class NativeArcadeHubTests: XCTestCase {
         }
     }
     func testWorldSelectionUsesMatchingModalAndCleanupRejectsStalePlay() {
-        let view = make(); view.present(); view.layoutIfNeeded()
+        let view = make(); view.present();view.finishEntering(); view.layoutIfNeeded()
         var cues:[String]=[];view.onFeedback={cues.append($0)}
         for (index,title) in ["Endurance","One Lucky Drop","Slow Burn"].enumerated() {
             view.hub.onWorld?(view.hub.worldIDs[index])
@@ -76,11 +76,11 @@ final class NativeArcadeHubTests: XCTestCase {
             view.hide(); view.hide()
             XCTAssertFalse(view.subviews.contains { $0 === modal })
             XCTAssertFalse(view.hub.accessibilityElementsHidden)
-            view.present()
+            view.present();view.finishEntering()
         }
     }
     func testCascadeAndHiddenLifecycleStayBounded() {
-        let view = make(); view.present(); view.layoutIfNeeded()
+        let view = make(); view.present();view.finishEntering(); view.layoutIfNeeded()
         XCTAssertEqual(view.tracks(enter:true).count,4)
         XCTAssertEqual(view.tracks(enter:false).count,4)
         for (_,track) in view.tracks(enter:false).prefix(3) {XCTAssertEqual(track.tweens.first?.begin,0)}
@@ -107,7 +107,7 @@ final class NativeArcadeHubTests: XCTestCase {
         for size in [CGSize(width:320,height:568),CGSize(width:375,height:812),CGSize(width:390,height:844)] {
             let view=NativeArcadeHubView(frame:CGRect(origin:.zero,size:size),assets:JimiV9Artwork(resourceRoot:NativeTestResources.root))
             for id in view.hub.worldIDs {
-                view.present();view.layoutIfNeeded();view.hub.onWorld?(id)
+                view.present();view.finishEntering();view.layoutIfNeeded();view.hub.onWorld?(id)
                 let text=try XCTUnwrap(find(view,"native.arcade-world-modal.description") as? UILabel)
                 let art=try XCTUnwrap(find(view,"native.arcade-world-modal.art"))
                 let play=try XCTUnwrap(find(view,"native.arcade-world-modal.play") as? JimiV9PlainButton)
@@ -166,9 +166,9 @@ final class NativeArcadeHubTests: XCTestCase {
             let window=UIWindow(frame:CGRect(origin:.zero,size:size));window.rootViewController=controller;window.makeKeyAndVisible()
             defer { controller.dispose();window.isHidden=true }
             controller.loadViewIfNeeded()
-            try await waitFor { controller.home.isUserInteractionEnabled }
+            try await waitFor { (!controller.home.isEntering && controller.home.isUserInteractionEnabled) }
             controller.home.onActivate?(1)
-            try await waitFor { controller.route == .arcadeHub && controller.arcadeHub.hub.scrollView.isUserInteractionEnabled }
+            try await waitFor { controller.route == .arcadeHub && !controller.transitioning && controller.arcadeHub.hub.scrollView.isUserInteractionEnabled }
             let suffix=size.width == 390 ? "" : "-320"
             try capture(controller.view,"arcade-hub-preview"+suffix+".png")
             var previousArtworkTop:CGFloat=0

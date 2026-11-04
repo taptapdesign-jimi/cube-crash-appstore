@@ -1,3 +1,13 @@
+Native Journey gameplay-exit continuity correction(user2026-11-04): regular
+card Play retains current cloud/Unit waves through card contact,then uses the
+same painted-pose-preserving World exit as interim Continue. Preserve active
+ramp/loop phase before removing frozen modal waves;repeated preservation must
+not delete an existing bridge. Nested cloud bridges continue captured local
+translation velocity with gentle0.6s deceleration inside existing finite1s
+bridge;directly animated main clouds consume that continuation exactlyonce in
+their existing exit track. Completion/park/disposal retire bridges. No neutral
+reset,no extra clock,no parent Unit/card duration or gameplay/input changes.
+
 # Journey Animation Contract
 
 This document defines what the user means by **enter animation**, **exit animation**, and **cjelina / Unit** when discussing the Journey screen. Treat these values and lifecycle rules as the project benchmark unless the user explicitly requests a different motion.

@@ -52,7 +52,7 @@ import UIKit
         let host=UIViewController(),window=UIWindow(frame:.init(x:0,y:0,width:390,height:844))
         window.rootViewController=host;window.makeKeyAndVisible()
         let hub=NativeArcadeHubView(frame:window.bounds,assets:JimiV9Artwork(resourceRoot:NativeTestResources.root))
-        host.view.addSubview(hub);hub.present();hub.resume();hub.layoutIfNeeded()
+        host.view.addSubview(hub);hub.present();hub.finishEntering();hub.resume();hub.layoutIfNeeded()
         defer{hub.hide();window.isHidden=true}
         XCTAssertFalse(hub.hub.scrollView.delaysContentTouches)
         XCTAssertTrue(hub.hub.scrollView.canCancelContentTouches)
@@ -102,7 +102,7 @@ import UIKit
         defer{hub.hide();hub.removeFromSuperview();window.isHidden=true;previous?.makeKeyAndVisible()}
         for action in 0..<3 {
             if hub.superview==nil{host.view.addSubview(hub)}
-            hub.present();hub.resume();hub.layoutIfNeeded()
+            hub.present();hub.finishEntering();hub.resume();hub.layoutIfNeeded()
             hub.hub.onWorld?(hub.hub.worldIDs[0])
             let pending=try XCTUnwrap(modal(hub),"Modal enter is scheduled when contact is accepted")
             XCTAssertEqual(pending.accessibilityValue,"entering")
@@ -113,7 +113,7 @@ import UIKit
             XCTAssertNil(modal(hub),"Canceled contact cannot publish a stale modal")
             hub.hide()
         }
-        host.view.addSubview(hub);hub.present();hub.resume();hub.layoutIfNeeded()
+        host.view.addSubview(hub);hub.present();hub.finishEntering();hub.resume();hub.layoutIfNeeded()
         hub.hub.onWorld?(hub.hub.worldIDs[1]);hub.hub.onWorld?(hub.hub.worldIDs[2])
         let deadline=Date().addingTimeInterval(3)
         while modal(hub)==nil,Date()<deadline{try await Task.sleep(for:.milliseconds(10))}

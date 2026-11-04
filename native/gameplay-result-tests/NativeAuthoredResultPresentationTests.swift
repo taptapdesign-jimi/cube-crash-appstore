@@ -105,4 +105,94 @@ final class NativeAuthoredResultPresentationTests:XCTestCase {
         let stale=Resources(),disposed=NativeResultConfettiCanvas(root:URL(fileURLWithPath:"/unused"),theme:.forest,viewport:CGSize(width:390,height:844),generation:10,resources:stale,random:{0.5})
         disposed.dispose();stale.completion?(true);XCTAssertFalse(disposed.assetsReady);XCTAssertEqual(disposed.plannedParticleCount,0);XCTAssertEqual(stale.releases,1)
     }
+    func testArcadeCoinsBorrowHUDSizeAndFanButDecelerateAtTop() {
+        for size in [CGSize(width:390,height:844),CGSize(width:820,height:1180)] {
+            let rng=Random(19),coins=NativeResultConfettiPlan.arcade(width:size.width,height:size.height,random:rng.next)
+            XCTAssertEqual(coins.count,24)
+            XCTAssertEqual(Set(coins.map(\.asset)),Set(0..<6))
+            for index in 1..<coins.count {XCTAssertEqual(coins[index].birth-coins[index-1].birth,1.0/3.6,accuracy:0.000001)}
+            for coin in coins {
+                let scale=NativeSourceHUDStarPlan.coinEnlargement(for:size)/1.20
+                XCTAssertGreaterThanOrEqual(coin.size,48*scale)
+                XCTAssertLessThanOrEqual(coin.size,115.2*scale)
+                XCTAssertLessThanOrEqual(coin.birth+coin.lifetime,NativeResultConfettiPlan.maximumRuntime)
+                let start=coin.sample(seconds:coin.birth),end=coin.sample(seconds:coin.birth+coin.lifetime)
+                XCTAssertGreaterThan(start.y,Double(size.height));XCTAssertLessThan(end.y,0)
+                var previous=start.y
+                for sample in 1..<100 {
+                    let pose=coin.sample(seconds:coin.birth+coin.lifetime*Double(sample)/100)
+                    XCTAssertLessThan(pose.y,previous);previous=pose.y
+                    if pose.y<=0 {XCTAssertEqual(pose.scale,0.5)}
+                }
+                let y80=coin.sample(seconds:coin.birth+coin.lifetime*0.80).y
+                let y85=coin.sample(seconds:coin.birth+coin.lifetime*0.85).y
+                let y90=coin.sample(seconds:coin.birth+coin.lifetime*0.90).y
+                let y95=coin.sample(seconds:coin.birth+coin.lifetime*0.95).y
+                XCTAssertGreaterThan(y80-y85,y90-y95,"No final trophy acceleration")
+                XCTAssertFalse(end.visible)
+                XCTAssertEqual(start.scale,1);XCTAssertEqual(end.scale,0.5)
+                XCTAssertGreaterThan(coin.sample(seconds:coin.birth+coin.lifetime/2).scale,0.5)
+                XCTAssertLessThan(coin.sample(seconds:coin.birth+coin.lifetime/2).scale,1)
+                XCTAssertLessThan(end.y+coin.size*0.72,0)
+                XCTAssertEqual(coin.sample(seconds:coin.birth+coin.lifetime*0.99).opacity,1)
+            }
+            XCTAssertLessThanOrEqual(coins.map(\.size).max()!/coins.map(\.size).min()!,2.4)
+        }
+    }
+    func testArcadeCanvasSharesClockAndRetiresLayersResourcesAndLatePreparation() {
+        let resources=Resources(),host=UIView(frame:CGRect(x:0,y:0,width:390,height:844))
+        var canvas:NativeResultConfettiCanvas?=NativeResultConfettiCanvas(root:URL(fileURLWithPath:"/unused"),
+            theme:.arcade,viewport:host.bounds.size,generation:7,resources:resources,reducedMotion:false,random:{0.5})
+        weak var released=canvas
+        host.addSubview(canvas!)
+        resources.completion?(true)
+        XCTAssertEqual(resources.prepared.count,6);XCTAssertEqual(canvas!.arcadeCoinLayerCount,24);XCTAssertEqual(canvas!.arcadeRearCoinLayerCount,10)
+        canvas!.paint(seconds:1,generation:7);let active=canvas!.activeParticleCount
+        canvas!.setForeground(false);canvas!.paint(seconds:9.8,generation:7)
+        XCTAssertEqual(canvas!.activeParticleCount,active);XCTAssertEqual(resources.releases,0)
+        canvas!.setForeground(true);canvas!.paint(seconds:9.8,generation:8)
+        XCTAssertEqual(resources.releases,0)
+        canvas!.paint(seconds:9.8,generation:7)
+        XCTAssertEqual(resources.releases,1);XCTAssertEqual(canvas!.arcadeCoinLayerCount,0);XCTAssertEqual(canvas!.arcadeRearCoinLayerCount,0)
+        XCTAssertEqual(host.subviews.count,1)
+        resources.completion?(true);canvas!.dispose();canvas!.dispose()
+        XCTAssertEqual(resources.releases,1);canvas!.removeFromSuperview();canvas=nil;XCTAssertNil(released)
+        let reduced=Resources(),quiet=NativeResultConfettiCanvas(root:URL(fileURLWithPath:"/unused"),
+            theme:.arcade,viewport:host.bounds.size,generation:8,resources:reduced,reducedMotion:true,random:{0.5})
+        reduced.completion?(true);XCTAssertEqual(reduced.prepared.count,0)
+        XCTAssertEqual(quiet.arcadeCoinLayerCount,0)
+        quiet.dispose();reduced.completion?(true);XCTAssertEqual(quiet.arcadeCoinLayerCount,0)
+        XCTAssertEqual(reduced.releases,1)
+    }
+
+    func testArcadeCoinFieldHasBoundedMassWeightedCollisionsAndSharedTime() {
+        typealias Coin=NativeResultConfettiPlan.Coin
+        let small=Coin(birth:0,lifetime:3,size:20,spin:0,phase:0,
+            points:[CGPoint(x:100,y:500),CGPoint(x:180,y:-80)],viewportHeight:500,asset:0)
+        let large=Coin(birth:0,lifetime:3,size:60,spin:0,phase:0,
+            points:[CGPoint(x:180,y:500),CGPoint(x:100,y:-80)],viewportHeight:500,asset:1)
+        var field=NativeResultConfettiPlan.CoinField(coins:[small,large])
+        for frame in 0...90 {field.advance(to:Double(frame)/60)}
+        XCTAssertGreaterThan(field.collisionCount,0)
+        let a=field.pose(0),b=field.pose(1)
+        XCTAssertGreaterThan(abs(a.x-small.sample(seconds:field.elapsed).x),abs(b.x-large.sample(seconds:field.elapsed).x))
+        XCTAssertNotEqual(a.rotation,0)
+        for pose in [a,b] {XCTAssertTrue(pose.x.isFinite && pose.y.isFinite && pose.rotation.isFinite)}
+        let held=field.elapsed;field.advance(to:held-1);XCTAssertEqual(field.elapsed,held)
+        field.advance(to:100);XCTAssertEqual(field.elapsed,NativeResultConfettiPlan.maximumRuntime,accuracy:0.000001)
+        XCTAssertFalse(field.pose(0).visible)
+        XCTAssertFalse(NativeResultConfettiCanvas.assets(.arcade).contains{$0.contains("board transition")})
+    }
+
+    func testArcadeBirthAndExitUseFullWidthInsteadOfCentralEmitter() {
+        for roll in [0.0,1.0] {
+            let coins=NativeResultConfettiPlan.arcade(width:390,height:844,random:{roll})
+            for coin in coins {
+                if roll==0 {XCTAssertLessThanOrEqual(coin.points.first!.x,coin.size/2+5.001)}
+                else {XCTAssertGreaterThanOrEqual(coin.points.first!.x,390-coin.size/2-5.001)}
+                XCTAssertEqual(coin.points.last!.x,coin.size/2+roll*(390-coin.size),accuracy:0.000001)
+            }
+        }
+    }
+
 }

@@ -60,6 +60,7 @@ final class NativeResultArea55Flybys {
     let generation: UInt64
     private let resources: any NativeResultConfettiResources
     private let resourceOwner: Int
+    private let artworkScale:CGFloat
     private var plans: [NativeResultArea55FlightPlan] = []
     private var ships: [UIImageView] = []
     private var elapsed = 0.0,foreground = true,released = false,resourceRequested = false
@@ -69,10 +70,11 @@ final class NativeResultArea55Flybys {
     var shipCount: Int { ships.filter{$0.superview != nil}.count }
     init(root: URL,viewport: CGSize,generation: UInt64,resources: (any NativeResultConfettiResources)? = nil,
          reducedMotion: Bool? = nil,random: () -> Double = {Double.random(in:0..<1)}) {
+        artworkScale=NativeTabletLayout.animationScale(viewport)
         self.generation = generation; self.resources = resources ?? JimiNativeWorldResources(root:root)
         resourceOwner = -110000000-Int(generation%10000)
         guard !(reducedMotion ?? UIAccessibility.isReduceMotionEnabled) else { assetsReady = true; return }
-        plans = [NativeResultArea55FlightPlan.Depth.behind,.front].map{NativeResultArea55FlightPlan.make(depth:$0,viewport:viewport,random:random)}
+        plans = [NativeResultArea55FlightPlan.Depth.behind,.front].map{NativeResultArea55FlightPlan.make(depth:$0,viewport:NativeTabletLayout.animationViewport(viewport),random:random)}
         ships = plans.map { plan in
             let image = UIImageView(); image.isUserInteractionEnabled = false; image.layer.zPosition = plan.depth == .behind ? 0 : 2
             return image
@@ -83,7 +85,7 @@ final class NativeResultArea55Flybys {
             guard accepted,let image = self.resources.image(Self.asset,owner:self.resourceOwner) else { self.onAssetFailure?(); self.dispose(); return }
             self.assetsReady = true
             for (index,ship) in self.ships.enumerated() {
-                let width = self.plans[index].depth == .behind ? 62.0 : 74.0
+                let width = (self.plans[index].depth == .behind ? 62.0 : 74.0)*Double(self.artworkScale)
                 ship.image = image; ship.bounds = CGRect(x:0,y:0,width:width,height:width*Double(image.size.height/image.size.width))
             }
             if self.foreground { self.paintCurrent() }
@@ -106,7 +108,7 @@ final class NativeResultArea55Flybys {
     private func paintCurrent() {
         for (ship,plan) in zip(ships,plans) {
             let pose = plan.sample(seconds:elapsed)
-            ship.center = CGPoint(x:pose.x+Double(ship.bounds.width)/2,y:pose.y+Double(ship.bounds.height)/2)
+            ship.center = CGPoint(x:pose.x*Double(artworkScale)+Double(ship.bounds.width)/2,y:pose.y*Double(artworkScale)+Double(ship.bounds.height)/2)
             ship.transform = CGAffineTransform(rotationAngle:pose.rotation * .pi/180).scaledBy(x:pose.scale,y:pose.scale)
             ship.alpha = pose.opacity
         }

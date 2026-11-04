@@ -22,7 +22,7 @@ import StackToSixNativeState
         let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
         let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=app;window.makeKeyAndVisible()
         defer{app.dispose();window.isHidden=true;previous?.makeKeyAndVisible()}
-        try await wait("Home admitted"){app.home.isUserInteractionEnabled}
+        try await wait("Home admitted"){(!app.home.isEntering && app.home.isUserInteractionEnabled)}
         app.navigate(.hub)
         try await wait("Journey Hub entering"){app.route == .hub}
         XCTAssertFalse(app.hub.scrollView.isUserInteractionEnabled)
@@ -62,15 +62,15 @@ import StackToSixNativeState
         let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
         let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=app;window.makeKeyAndVisible()
         defer{app.dispose();window.isHidden=true;previous?.makeKeyAndVisible()}
-        try await wait("Home admitted"){app.home.isUserInteractionEnabled}
+        try await wait("Home admitted"){(!app.home.isEntering && app.home.isUserInteractionEnabled)}
         app.navigate(.arcadeHub)
         try await wait("Arcade entering"){app.route == .arcadeHub}
-        XCTAssertFalse(app.arcadeHub.hub.scrollView.isUserInteractionEnabled,"Reproduce the phone tap before route admission")
+        XCTAssertTrue(app.arcadeHub.hub.scrollView.isUserInteractionEnabled,"World islands accept early taps while Crate remains gated")
         let closed=app.arcadeHub.hub.backpackButton.image(for:.normal)
         app.arcadeHub.hub.backpackButton.sendActions(for:.touchUpInside)
         XCTAssertEqual(app.route,.arcadeHub)
         XCTAssertTrue(app.arcadeHub.hub.backpackButton.image(for:.normal) === closed)
-        try await wait("Arcade admitted"){app.arcadeHub.hub.scrollView.isUserInteractionEnabled}
+        try await wait("Arcade admitted"){!app.transitioning && app.arcadeHub.hub.scrollView.isUserInteractionEnabled}
         app.arcadeHub.hub.worldUnits[0].sendActions(for:.touchUpInside)
         try await wait("World modal opens after rejected early crate tap"){
             app.arcadeHub.subviews.contains{$0.accessibilityIdentifier=="native.arcade-world-modal"}
@@ -88,9 +88,9 @@ import StackToSixNativeState
         app.arcadeHub.hub.backpackButton.sendActions(for:.touchUpInside)
         try await wait("Crate still opens after admission"){app.route == .backpack && app.backpackView?.isUserInteractionEnabled==true}
         app.backpackView?.close.sendActions(for:.touchUpInside)
-        try await wait("Crate returned to Arcade"){app.route == .arcadeHub && app.arcadeHub.hub.scrollView.isUserInteractionEnabled}
+        try await wait("Crate returned to Arcade"){app.route == .arcadeHub && !app.transitioning && app.arcadeHub.hub.scrollView.isUserInteractionEnabled}
         app.arcadeHub.hub.backButton.sendActions(for:.touchUpInside)
-        try await wait("Back remains usable"){app.route == .home && app.home.isUserInteractionEnabled}
+        try await wait("Back remains usable"){app.route == .home && (!app.home.isEntering && app.home.isUserInteractionEnabled)}
     }
     func testJourneyVisitAcknowledgesOnlySeenCardsAfterExit() async throws {
         var progress=NativeProgressionState();progress.announceJourneyDie("bee",board:1);progress.announceJourneyDie("fish",board:12)
@@ -100,7 +100,7 @@ import StackToSixNativeState
         let app=NativeAppController(resourceRoot:NativeTestResources.root,services:services)
         let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=app;window.makeKeyAndVisible()
         defer{app.dispose();window.isHidden=true}
-        try await wait("Home"){app.home.isUserInteractionEnabled};app.navigate(.hub)
+        try await wait("Home"){(!app.home.isEntering && app.home.isUserInteractionEnabled)};app.navigate(.hub)
         try await wait("Hub"){app.route == .hub && app.hub.scrollView.isUserInteractionEnabled}
         app.navigate(.backpack)
         try await wait("Backpack"){app.route == .backpack && app.backpackView?.isUserInteractionEnabled == true}
@@ -126,9 +126,9 @@ import StackToSixNativeState
         let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
         let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=app;window.makeKeyAndVisible()
         defer{app.dispose();window.isHidden=true;previous?.makeKeyAndVisible()}
-        try await wait("Home admitted"){app.home.isUserInteractionEnabled}
+        try await wait("Home admitted"){(!app.home.isEntering && app.home.isUserInteractionEnabled)}
         app.navigate(.arcadeHub)
-        try await wait("Arcade Hub admitted"){app.route == .arcadeHub && app.arcadeHub.hub.scrollView.isUserInteractionEnabled}
+        try await wait("Arcade Hub admitted"){app.route == .arcadeHub && !app.transitioning && app.arcadeHub.hub.scrollView.isUserInteractionEnabled}
         let closedCrate=app.arcadeHub.hub.backpackButton.image(for:.normal)
         app.arcadeHub.hub.backpackButton.sendActions(for:.touchUpInside)
         XCTAssertNotNil(app.arcadeHub.hub.backpackButton.imageView?.layer.animation(forKey:NativeHubBackpackFeedback.switchKey))
@@ -167,7 +167,7 @@ import StackToSixNativeState
         try await wait("Detail closed into Crate"){app.presentedViewController==nil && crate.isUserInteractionEnabled}
         XCTAssertEqual(app.route,.backpack);XCTAssertTrue(app.backpackView === crate)
         crate.close.sendActions(for:.touchUpInside)
-        try await wait("Crate returned to Arcade"){app.route == .arcadeHub && app.arcadeHub.hub.scrollView.isUserInteractionEnabled}
+        try await wait("Crate returned to Arcade"){app.route == .arcadeHub && !app.transitioning && app.arcadeHub.hub.scrollView.isUserInteractionEnabled}
         XCTAssertTrue(app.arcadeHub.hub.backpackButton.image(for:.normal) === closedCrate)
         app.navigate(.hub)
         try await wait("Journey Hub admitted"){app.route == .hub && app.hub.scrollView.isUserInteractionEnabled}

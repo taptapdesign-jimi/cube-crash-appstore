@@ -1873,7 +1873,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
             guard let cohort=sourceBeeFrames,cohort.generation==sourceGeneration,cohort.handles.count>=2,
                   cohort.handles.allSatisfy({textures.isSourceTextureHandleCurrent($0)}) else{return false}
         }
-        return !disposed && !sourceWildStateCleared && (!sourceRegistryPaused || keepsDirectArtworkDuringRegistryPressure) && !sourceIdleDeferred && !sourceRegistryPending && ((!frames.isEmpty && definition.idleSheet != nil) || variant == "bee" || variant == "flower" || variant == "cubero" || variant == "kite" || variant == "bottle" || variant == "baloon" || variant == "spaceship" || variant == "fish" && artworkPhaseID != nil && !artworkRunning || honeyIdle?.hasActiveMotion==true || idleFizz?.isRunning==true || mushroomSmoke != nil || kantaIdle?.assetReady == true)
+        return !disposed && !sourceWildStateCleared && (!sourceRegistryPaused || keepsDirectArtworkDuringRegistryPressure) && !sourceIdleDeferred && !sourceRegistryPending && ((!frames.isEmpty && definition.idleSheet != nil) || variant == "bee" || variant == "flower" || variant == "cubero" || variant == "kite" || variant == "bottle" || variant == "baloon" || variant == "spaceship" || variant == "laser-gun" && scene is NativeBoardScene || variant == "fish" && artworkPhaseID != nil && !artworkRunning || honeyIdle?.hasActiveMotion==true || idleFizz?.isRunning==true || mushroomSmoke != nil || kantaIdle?.assetReady == true)
     }
     var authoredArtworkReceipt:(frame:Int,elapsed:Double,running:Bool,pending:Bool,paused:Bool) {(paintedFrame,artworkElapsed,artworkRunning,sourceRegistryPending,sourceRegistryPaused)}
     var hasPresentationActions: Bool { hasActions() || visual.hasActions() || shadow.hasActions() }
@@ -2379,6 +2379,9 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
             motion.lastPaint=nil;sourceBeeHostMotion=motion
         }
         dragging = active
+        if variant == "laser-gun",scene is NativeBoardScene {
+            face.position = .zero;face.zRotation=0;face.setScale(1)
+        }
         paintBaloonIdle()
         reconcileTntFuseVisibility()
         sourceHoneyIdle?.setDragging(active || sourceRegistryPaused)
@@ -2481,6 +2484,25 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
             paintArtwork()
         } else if variant == "bottle" {
             if !dragging,sourceBottleIdle==nil {bottleElapsed+=delta};paintBottle()
+        } else if variant == "laser-gun",scene is NativeBoardScene {
+            // Inner artwork only: the existing registry/scene clock still owns
+            // pause, drag and retirement; board hit geometry stays settled.
+            if !dragging {
+                let phase=elapsed * .pi*2/2.4
+                let admission=CGFloat(min(1,elapsed/0.3))
+                let bounce=CGFloat(sin(phase)+0.22*sin(phase*2))
+                face.position=CGPoint(x:CGFloat(sin(phase*0.7))*7*admission,y:bounce*14*admission)
+                // Counterclockwise only: 30 percent of a quarter turn (27deg).
+                face.zRotation=CGFloat(0.5-0.5*cos(phase*0.8))*27 * .pi/180*admission
+                // Same short spring profile as selected Backpack Laser, with
+                // quiet gaps instead of continuously breathing/stretching.
+                let age=max(0,elapsed-3.4)
+                let local=age.truncatingRemainder(dividingBy:3.4)
+                let pulse=elapsed>=3.4 && local<NativeRegularIdleMotion.duration
+                let motion=NativeRegularIdleMotion(variantDraw:Int(age/3.4)%2==0 ? 1:0,directionDraw:1,tiltDraw:0.5)
+                let pose=pulse ? motion.sample(local):.init(x:1,y:1,rotation:0)
+                face.xScale=1+(pose.x-1)*0.65;face.yScale=1+(pose.y-1)*0.65
+            }
         } else if variant == "spaceship" {
             spaceshipElapsed+=delta
             let pose=NativeSpaceshipIdleMotion.sample(seconds:spaceshipElapsed)

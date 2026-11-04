@@ -58,6 +58,7 @@ final class NativeAppController: UIViewController {
     private var backpack:NativeHubBackpackFeedback?
     private var generation = 0
     private(set) var transitioning = false
+    private(set) var incomingHubEnter = false
     private var navigationDestination:Route?
     private var suspended = false
     private var deferredReveal:Route?
@@ -122,19 +123,45 @@ final class NativeAppController: UIViewController {
         backpack=NativeHubBackpackFeedback(button:hub.backpackButton)
         hub.onBackpack = { [weak self] in guard let self else{return};self.navigate(.backpack) }
         home.onActivate = { [weak self] index in
-            guard let self else{return}
-            self.navigate(index == 0 ? .hub : index == 1 ? .arcadeHub : .settings)
+            guard let self,!self.disposed,!self.suspended,self.route == .home,
+                  !self.transitioning || self.home.isEntering,self.home.navigationButtonViews.indices.contains(index) else{return}
+            self.navigate(index == 0 ? .hub : index == 1 ? .arcadeHub : .settings,interrupt:self.home.isEntering)
         }
         home.onSlideSelected = { [weak self] index in self?.selectSlide(index) }
         home.onHeroContact = {[weak self] in
-            guard let self,!self.disposed,!self.suspended,!self.transitioning,self.route == .home else{return}
+            guard let self,!self.disposed,!self.suspended,(!self.transitioning || self.home.isEntering),self.route == .home else{return}
             self.onFeedback?(self.home.selectedSlide == 0 ? "home-journey-character-tap" : self.home.selectedSlide == 1 ? "home-arcade-character-tap" : "home-settings-character-tap")
         }
         home.onPanBegan = { [weak self] in
-            guard let self,!self.transitioning,self.route == .home else{return false}
-            self.motion.cancel();self.home.pauseHeroIdle(preserveLogoIdle:true);return true
+            guard let self,!self.disposed,!self.suspended,self.route == .home,
+                  (!self.transitioning || self.home.isEntering),(!self.home.isEntering || self.home.isArtworkPaintedVisible) else{return false}
+            let entering=self.home.isEntering
+            if entering {self.generation+=1;self.transitioning=false}
+            self.motion.cancel()
+            if entering {
+                let owner=self.generation
+                self.motion.animate(self.motion.homeTracks(enter:true,fromPaintedPose:true)) {[weak self] in
+                    guard let self,self.generation==owner,self.route == .home else{return}
+                    self.home.finishEntering()
+                }
+            }
+            self.home.pauseHeroIdle(preserveLogoIdle:true);return true
         }
         home.onPanEnded = { [weak self] index,_ in self?.selectSlide(index,feedback:"tab-swipe") }
+        arcadeHub.onWillSelectIsland = {[weak self] _ in
+            guard let self,!self.disposed,!self.suspended,self.route == .arcadeHub,
+                  !self.transitioning || self.arcadeHub.isEntering else{return false}
+            if self.transitioning {
+                // Retire the full-entry receipt without waiting for decorations.
+                self.motion.cancel();self.generation+=1;let owner=self.generation
+                self.transitioning=false
+                self.motion.animate(self.arcadeHub.tracks(enter:true,fromPaintedPose:true)) {[weak self] in
+                    guard let self,self.generation==owner,self.route == .arcadeHub,!self.disposed else{return}
+                    self.arcadeHub.finishEntering()
+                }
+            }
+            return true
+        }
         arcadeHub.onCrate = {[weak self] in
             guard let self,!self.disposed,!self.suspended,!self.transitioning,self.route == .arcadeHub else{return}
             self.navigate(.backpack)
@@ -142,7 +169,9 @@ final class NativeAppController: UIViewController {
         arcadeHub.onClose = {[weak self] in self?.navigate(.home,interrupt:true)}
         arcadeHub.onPlayExit = {[weak self] done in
             guard let self,!self.disposed,!self.suspended,self.route == .arcadeHub else{return}
-            self.motion.animate(self.arcadeHub.tracks(enter:false),completion:done)
+            let entering=self.arcadeHub.isEntering
+            if entering {self.motion.cancel()}
+            self.motion.animate(self.arcadeHub.tracks(enter:false,fromPaintedPose:entering),completion:done)
         }
         arcadeHub.onPlay = {[weak self] identifier in
             guard let self,!self.disposed,!self.suspended,!self.transitioning,self.route == .arcadeHub,
@@ -153,12 +182,13 @@ final class NativeAppController: UIViewController {
         }
         hub.onBack = { [weak self] in self?.navigate(.home,interrupt:true) }
         hub.onWorld = { [weak self] id in
-            guard let self,!self.disposed,!self.suspended,!self.transitioning,self.route == .hub,
+            guard let self,!self.disposed,!self.suspended,(!self.transitioning || self.incomingHubEnter),self.route == .hub,
+                  (!self.incomingHubEnter || self.hub.isWorldVisibleForSelection(id)),
                   self.hub.scrollView.isUserInteractionEnabled,!self.hub.scrollView.isDragging,
                   !self.hub.scrollView.isDecelerating,
                   let cue=[1:"world-hub-forest",2:"world-hub-beach",3:"world-hub-space"][id] else{return}
             let previous=self.generation
-            self.navigate(.world(id))
+            self.navigate(.world(id),interrupt:self.incomingHubEnter)
             guard self.generation != previous,self.transitioning else{return}
             self.onFeedback?(cue)
         }
@@ -215,13 +245,16 @@ final class NativeAppController: UIViewController {
         _ = settingsView.apply(value)
     }
     private func selectSlide(_ index:Int,feedback:String="tab") {
-        guard !disposed,!suspended,!transitioning,route == .home,home.navigationButtonViews.indices.contains(index) else{return}
+        guard !disposed,!suspended,(!transitioning || home.isEntering),route == .home,home.navigationButtonViews.indices.contains(index),(!home.isEntering || home.isNavigationPaintedVisible) else{return}
         let changed=index != home.selectedSlide
         if feedback != "tab-swipe" || changed {onFeedback?(feedback)}
         if changed {onFeedback?("swipe")}
-        motion.selectSlide(index) { [weak self] in
-            guard let self,self.route == .home,!self.suspended,!self.transitioning else{return}
-            self.home.startHeroIdle()
+        let entering=home.isEntering
+        if entering {generation+=1;transitioning=false}
+        let owner=generation
+        motion.selectSlide(index,resumingHomeEntry:entering) { [weak self] in
+            guard let self,self.generation==owner,self.route == .home,!self.suspended,!self.transitioning else{return}
+            self.home.finishEntering();self.home.startHeroIdle()
         }
     }
     func navigate(_ next:Route,interrupt:Bool = false) {
@@ -243,8 +276,13 @@ final class NativeAppController: UIViewController {
         retireStatHistory()
         cancelWorldEntryPreparation()
         cancelGameplayLaunchPreparation()
+        let interruptedHomeEntry = route == .home && home.isEntering
+        home.finishEntering()
+        let interruptedHubEntry = route == .hub && incomingHubEnter
+        let interruptedArcadeEntry = route == .arcadeHub && arcadeHub.isEntering
+        incomingHubEnter=false
         navigationDestination=next
-        if transitioning {motion.cancel()} else {motion.cancelSelectionLayout()}
+        if transitioning || interruptedArcadeEntry || interruptedHomeEntry {motion.cancel()} else {motion.cancelSelectionLayout()}
         generation += 1;let owner = generation;transitioning = true
         settingsView.setDeveloperPanelVisible(false)
         backpack?.setActive(false,generation:generation)
@@ -263,7 +301,17 @@ final class NativeAppController: UIViewController {
         // Resource readiness never replaces that exit's completion receipt.
         if route == .hub,case .world(let id)=next {
             do {try prepareWorldEntry(id:id,owner:owner)}catch {
-                transitioning=false;hub.setContentInteractionEnabled(true);hub.startIdle();showFault(error);return
+                navigationDestination=nil
+                showFault(error);hub.setContentInteractionEnabled(true)
+                if interruptedHubEntry {
+                    incomingHubEnter=true
+                    motion.animate(motion.hubTracks(enter:true,fromPaintedPose:true)) { [weak self] in
+                        guard let self,self.generation==owner,!self.disposed else{return}
+                        self.transitioning=false;self.incomingHubEnter=false
+                        if !self.suspended {self.hub.startIdle();self.backpack?.setActive(true,generation:owner)}
+                    }
+                } else {transitioning=false;hub.startIdle()}
+                return
             }
         }
         if next == .backpack {onFeedback?("collection-icon-speech")}
@@ -278,12 +326,12 @@ final class NativeAppController: UIViewController {
         case .backpack:
             retireBackpackDetail()
             motion.animate(backpackView?.tracks(enter:false) ?? [],completion:complete)
-        case .home:motion.animate(motion.homeTracks(enter:false),completion:complete)
+        case .home:motion.animate(motion.homeTracks(enter:false,fromPaintedPose:interruptedHomeEntry),completion:complete)
         case .hub:
             let id:Int? = {if case .world(let id) = next{return id};return nil}()
             if let id {hub.playJourneyWorldContact(id)}
-            motion.animate(motion.hubTracks(enter:false,selectedWorldID:id),completion:complete)
-        case .arcadeHub:motion.animate(arcadeHub.tracks(enter:false),completion:complete)
+            motion.animate(motion.hubTracks(enter:false,selectedWorldID:id,fromPaintedPose:interruptedHubEntry),completion:complete)
+        case .arcadeHub:motion.animate(arcadeHub.tracks(enter:false,fromPaintedPose:interruptedArcadeEntry),completion:complete)
         case .settings:motion.animate(settingsView.tracks(enter:false),completion:complete)
         case .world:world?.exit(completion:complete)
         case .gameplay:break
@@ -296,11 +344,13 @@ final class NativeAppController: UIViewController {
             for id in (backpackView?.seenUnreadDice ?? []).sorted() {_ = services.readJourneyDie(id)}
         }
         if route == .backpack || next == .backpack {motion.cancel()}
+        let returningHome = next == .home && route != .home
         home.isUserInteractionEnabled=false
         home.isHidden = true;hub.isHidden = true;arcadeHub.hide();settingsView.isHidden = true;world?.isHidden = true
         backpackView?.isHidden=true
         let returningFromBackpack = route == .backpack
         backpackReturnWorldClose=returningFromBackpack && {if case .world = next{return true};return false}()
+        incomingHubEnter=false
         route = next;navigationDestination=nil;onRoute?(next);fault.isHidden = true
         let journeyDestination:Bool = {if next == .hub{return true};if case .world = next{return true};return false}()
         if journeyDestination {
@@ -320,8 +370,9 @@ final class NativeAppController: UIViewController {
         let owner = generation
         let admitted:()->Void = { [weak self] in
             guard let self,self.generation == owner else{return}
-            self.transitioning = false
+            self.transitioning = false;self.incomingHubEnter=false
             self.backpack?.setActive(self.route == .hub && !self.suspended,generation:self.generation)
+            if self.route == .home {self.home.finishEntering()}
             self.home.isUserInteractionEnabled = self.route == .home
             self.hub.setContentInteractionEnabled(self.route == .hub)
             self.settingsView.isUserInteractionEnabled = self.route == .settings
@@ -329,7 +380,7 @@ final class NativeAppController: UIViewController {
             self.backpackView?.setAlertsActive(self.route == .backpack && !self.suspended)
             if self.route == .home {self.home.startHeroIdle()}
             if self.route == .hub {self.hub.startIdle()}
-            if self.route == .arcadeHub {self.arcadeHub.setContentInteractionEnabled(true);self.arcadeHub.resume()}
+            if self.route == .arcadeHub {self.arcadeHub.finishEntering();self.arcadeHub.resume()}
         }
         switch next {
         case .backpack:
@@ -350,6 +401,8 @@ final class NativeAppController: UIViewController {
         case .home:
             home.prepareCloudsForVisit()
             home.isHidden = false;home.selectSlide(home.selectedSlide,animated:false)
+            if returningHome {home.beginEntering();home.isUserInteractionEnabled=true}
+            home.startAmbientForEntry()
             onFeedback?("home-haptic-enter")
             motion.animate(motion.homeTracks(enter:true),completion:admitted)
             let prepared=beforeHomeReveal;beforeHomeReveal=nil;prepared?()
@@ -361,7 +414,9 @@ final class NativeAppController: UIViewController {
                 return ["worldId":id,"completed":boards.filter(progression.completedJourneyBoards.contains).count,
                         "total":boards.count,"hasInterimCard":progression.interimBoard(world:id) != nil] as [String:Any]
             })
+            incomingHubEnter=true
             hub.isHidden = false;hub.isUserInteractionEnabled = true
+            hub.setContentInteractionEnabled(true)
             motion.animate(motion.hubTracks(enter:true),completion:admitted)
         case .arcadeHub:
             arcadeHub.present()
@@ -781,6 +836,7 @@ final class NativeAppController: UIViewController {
         hub?.backpackButton.imageView?.layer.removeAnimation(forKey:NativeHubBackpackFeedback.switchKey)
         world?.backpackButton.imageView?.layer.removeAnimation(forKey:NativeHubBackpackFeedback.switchKey)
         studioIntro?.dispose();studioIntro=nil
+        incomingHubEnter=false
         disposed=true;backpackView?.setAlertsActive(false);retireDeveloperPresentation();cancelGameplayReturnPreparation()
         cancelGameplayLaunchPreparation()
         cancelWorldEntryPreparation()

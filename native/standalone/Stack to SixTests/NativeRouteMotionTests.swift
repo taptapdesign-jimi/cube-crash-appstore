@@ -4,16 +4,145 @@ import UIKit
 
 @MainActor
 final class NativeRouteMotionTests:XCTestCase {
-    func testHomePanoramaUsesSmallContinuousOffsetsInsteadOfPageTravel() {
+    func testInterruptedHubExitStartsAtFrozenEnterPoseAndKeepsPendingIslandsHidden() throws {
+        let motion=owner(),hub=motion.hub
+        hub.frame=CGRect(x:0,y:0,width:390,height:844);hub.layoutIfNeeded()
+        let selected=try XCTUnwrap(hub.worldUnits.first{$0.tag==2})
+        selected.layer.transform=CATransform3DMakeScale(0.78,0.78,1)
+        selected.layer.opacity=0.45
+        let pending=try XCTUnwrap(hub.worldUnits.first{$0.tag==3});pending.layer.opacity=0
+        let tracks=motion.hubTracks(enter:false,selectedWorldID:2,fromPaintedPose:true)
+        let chosen=try XCTUnwrap(tracks.first{$0.0===selected}?.1.tweens.first)
+        XCTAssertEqual(chosen.from.scaleX,0.78,accuracy:0.001)
+        XCTAssertEqual(chosen.from.opacity,0.45,accuracy:0.001)
+        let hidden=try XCTUnwrap(tracks.first{$0.0===pending}?.1)
+        for sample in 0...40 {XCTAssertEqual(hidden.pose(at:hidden.duration*Double(sample)/40).opacity,0)}
+    }
+
+    func testHomePanoramaUsesContinuousOffsetsOppositeTheIllustration() {
         for width in [390.0,820.0] {
             for foreground in [false,true] {
                 let limit=min(foreground ? 50.0:32.0,width*(foreground ? 0.12:0.08))*1.20*1.60*1.60*1.60
                 for page in [0.0,0.25,0.5,1.0,1.5,2.0] {
                     let offset=JimiV9Motion.homeCloudPanoramaOffset(slideX:width*(1.5-page),width:width,foreground:foreground)
-                    XCTAssertEqual(offset,(1-page)*limit,accuracy:0.000001)
+                    XCTAssertEqual(offset,(page-1)*limit,accuracy:0.000001)
                 }
                 XCTAssertLessThanOrEqual(2*limit,(foreground ? 491.52:314.5728)+0.000001)
             }
+        }
+    }
+
+    func testCloudSettlingVariesApexAndReturnButKeepsCanonicalLanding() {
+        var durations=Set<Double>(),apexes=Set<Double>()
+        for index in 0..<6 {
+            let profile=JimiV9Motion.homeCloudSettlingProfile(index:index)
+            let curve=JimiV9Motion.HomeCloudCurve(start:0,end:100,initialVelocity:35,duration:0.60,delay:0,
+                followThrough:true,coastScale:profile.coast,returnScale:profile.settle,extraDistance:profile.extra)
+            let turn=curve.totalDuration-1.8*1.40/4.20*profile.settle
+            XCTAssertEqual(curve.position(at:turn),100*(1+profile.extra),accuracy:0.000001)
+            XCTAssertEqual(curve.velocity(at:turn),0,accuracy:0.000001)
+            XCTAssertEqual(curve.position(at:curve.totalDuration),100)
+            durations.insert(curve.totalDuration);apexes.insert(curve.position(at:turn))
+        }
+        XCTAssertEqual(durations.count,6);XCTAssertEqual(apexes.count,6)
+    }
+
+    func testCloudReleaseRejectsOppositeCarryAndBoundsFastRetarget() {
+        let opposite=JimiV9Motion.HomeCloudCurve(start:0,end:100,initialVelocity:-900,duration:0.9,delay:0,followThrough:true)
+        XCTAssertEqual(opposite.velocity(at:0),0)
+        XCTAssertGreaterThan(opposite.position(at:0.2),0)
+        let fast=JimiV9Motion.HomeCloudCurve(start:0,end:100,initialVelocity:9000,duration:0.9,delay:0,followThrough:true)
+        XCTAssertEqual(fast.velocity(at:0),75,accuracy:0.000001)
+        for step in 0...100 {
+            let t=fast.totalDuration*Double(step)/100
+            XCTAssertGreaterThanOrEqual(fast.position(at:t),-0.000001)
+            XCTAssertLessThanOrEqual(fast.position(at:t),170.000001)
+        }
+    }
+
+    func testCloudReleaseNeverRestartsOrReversesBeforeItsSingleApex() {
+        let curve=JimiV9Motion.HomeCloudCurve(start:0,end:100,initialVelocity:500,duration:0.9,delay:0.2,staggered:true,followThrough:true)
+        let apexTime=curve.totalDuration-1.8*1.40/4.20
+        XCTAssertEqual(curve.velocity(at:0),75,accuracy:0.000001)
+        var previous=curve.position(at:0)
+        for step in 1...120 {
+            let t=apexTime*Double(step)/120
+            XCTAssertGreaterThanOrEqual(curve.velocity(at:t),-0.000001)
+            let position=curve.position(at:t)
+            XCTAssertGreaterThanOrEqual(position,previous-0.000001);previous=position
+        }
+        XCTAssertLessThan(curve.velocity(at:apexTime+0.3),0)
+        XCTAssertEqual(curve.position(at:curve.totalDuration),100)
+    }
+
+    func testCloudSwipeGlidesPastTargetThenReturnsWithContinuousVelocity() {
+        for staggered in [false,true] {
+            let curve=JimiV9Motion.HomeCloudCurve(start:0,end:100,initialVelocity:40,duration:0.48,delay:staggered ? 0.1:0,staggered:staggered,followThrough:true)
+            let mainEnd=curve.delay+curve.duration,coastEnd=mainEnd+1.5*1.40/4.20
+            XCTAssertGreaterThan(curve.velocity(at:mainEnd),0)
+            XCTAssertEqual(curve.position(at:coastEnd),170,accuracy:0.000001)
+            XCTAssertEqual(curve.velocity(at:coastEnd),0,accuracy:0.000001)
+            for boundary in [mainEnd,coastEnd] {
+                XCTAssertEqual(curve.position(at:boundary-0.000001),curve.position(at:boundary+0.000001),accuracy:0.001)
+                XCTAssertEqual(curve.velocity(at:boundary-0.000001),curve.velocity(at:boundary+0.000001),accuracy:0.01)
+            }
+            XCTAssertEqual(curve.position(at:curve.totalDuration),100)
+            XCTAssertEqual(curve.velocity(at:curve.totalDuration),0)
+        }
+    }
+
+    func testCloudCascadeCoastsThroughDelayAndSettlesWithoutVelocityJump() {
+        let curve=JimiV9Motion.HomeCloudCurve(start:20,end:-100,initialVelocity:80,duration:0.48,delay:0.14,staggered:true)
+        XCTAssertEqual(curve.position(at:0),20,accuracy:0.000001)
+        XCTAssertEqual(curve.velocity(at:0),80,accuracy:0.000001)
+        XCTAssertGreaterThan(curve.position(at:0.07),20)
+        XCTAssertEqual(curve.position(at:0.14),25.6,accuracy:0.000001)
+        XCTAssertEqual(curve.velocity(at:0.14),0,accuracy:0.000001)
+        for t in [0.139999,0.140001] {
+            XCTAssertEqual(curve.position(at:t),25.6,accuracy:0.001)
+            XCTAssertEqual(curve.velocity(at:t),0,accuracy:0.1)
+        }
+        XCTAssertEqual(curve.position(at:curve.totalDuration),-100)
+        XCTAssertEqual(curve.velocity(at:curve.totalDuration),0)
+        let reversed=JimiV9Motion.HomeCloudCurve(start:curve.position(at:0.3),end:90,initialVelocity:curve.velocity(at:0.3),duration:0.45,delay:0.1,staggered:true)
+        XCTAssertEqual(reversed.velocity(at:0),curve.velocity(at:0.3),accuracy:0.000001)
+    }
+
+    func testCloudHermiteRetargetPreservesVelocityAndStopsSoftly() {
+        let first=JimiV9Motion.HomeCloudCurve(start:0,end:120,initialVelocity:0,duration:0.8,delay:0)
+        XCTAssertEqual(first.velocity(at:0),0)
+        let t=0.24,start=first.position(at:t),speed=first.velocity(at:t)
+        let reversed=JimiV9Motion.HomeCloudCurve(start:start,end:-70,initialVelocity:speed,duration:0.6,delay:0)
+        XCTAssertEqual(reversed.position(at:0),start,accuracy:0.000001)
+        XCTAssertEqual(reversed.velocity(at:0),speed,accuracy:0.000001)
+        XCTAssertEqual(reversed.position(at:0.6),-70,accuracy:0.000001)
+        XCTAssertEqual(reversed.velocity(at:0.6),0)
+        XCTAssertEqual(reversed.position(at:4),-70)
+        for i in 0...60 {
+            let p=reversed.position(at:Double(i)/100)
+            XCTAssertTrue(p.isFinite);XCTAssertLessThan(abs(p),150)
+        }
+        let stagger=JimiV9Motion.HomeCloudCurve(start:5,end:70,initialVelocity:0,duration:0.5,delay:0.12)
+        XCTAssertEqual(stagger.position(at:0.1),5)
+        XCTAssertEqual(stagger.velocity(at:0.12),0)
+        XCTAssertEqual(stagger.velocity(at:stagger.totalDuration),0)
+    }
+
+    func testHomeCTAFiveSecondIdleCartoonPausesAndRetires() throws {
+        guard !UIAccessibility.isReduceMotionEnabled,UIApplication.shared.applicationState == .active else{throw XCTSkip("Active motion required")}
+        let home=JimiV9HomeView(frame:CGRect(x:0,y:0,width:390,height:844),assets:JimiV9Artwork(resourceRoot:NativeTestResources.root))
+        let host=UIViewController(),window=UIWindow(frame:home.bounds);window.rootViewController=host;window.makeKeyAndVisible();host.view.addSubview(home)
+        defer{home.stopHeroIdle();home.removeFromSuperview();window.isHidden=true;window.rootViewController=nil}
+        for index in 0..<3 {
+            home.selectSlide(index,animated:false);home.startHeroIdle()
+            let layer=home.ctaIdleBounceView.layer
+            let bounce=try XCTUnwrap(layer.animation(forKey:JimiV9HomeView.ctaIdleBounceKey) as? CAKeyframeAnimation)
+            XCTAssertEqual(bounce.duration,5);XCTAssertEqual(bounce.repeatCount,.infinity)
+            XCTAssertEqual(bounce.values?.count,NativeHUDTapMotion.poses.count+1)
+            home.pauseHeroIdle();XCTAssertEqual(layer.speed,0)
+            home.startHeroIdle();XCTAssertEqual(layer.speed,1)
+            home.stopHeroIdle();home.stopHeroIdle()
+            XCTAssertNil(layer.animation(forKey:JimiV9HomeView.ctaIdleBounceKey))
         }
     }
 
@@ -22,8 +151,8 @@ final class NativeRouteMotionTests:XCTestCase {
         let motion=owner(),home=motion.home
         home.frame=CGRect(x:0,y:0,width:390,height:844);home.layoutIfNeeded()
         let clouds=home.cloudRenderViews
-        XCTAssertEqual(clouds.count,24)
-        XCTAssertEqual(home.cloudPanoramaLayers.count,24)
+        XCTAssertEqual(clouds.count,30)
+        XCTAssertEqual(home.cloudPanoramaLayers.count,30)
         for destination in [2,0,1,2,0] {
             motion.selectSlide(destination){}
             XCTAssertEqual(home.cloudRenderViews.map{ObjectIdentifier($0)},clouds.map{ObjectIdentifier($0)})
@@ -88,7 +217,7 @@ final class NativeRouteMotionTests:XCTestCase {
         host.view.addSubview(motion.home);motion.home.frame=window.bounds;motion.home.layoutIfNeeded()
         defer{motion.cancel();motion.home.stopHeroIdle();window.isHidden=true}
         let incoming=motion.home.cloudRouteTracks(enter:true)
-        XCTAssertEqual(incoming.count,24)
+        XCTAssertEqual(incoming.count,30)
         for (index,item) in incoming.enumerated() {
             XCTAssertFalse(item.0.isDescendant(of:motion.home.heroView))
             XCTAssertEqual(try XCTUnwrap(item.1.tweens.first).begin,0.145+Double(index)*0.014,accuracy:0.000001)

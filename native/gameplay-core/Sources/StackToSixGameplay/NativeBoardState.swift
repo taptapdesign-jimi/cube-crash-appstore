@@ -109,6 +109,8 @@ public struct NativeBoardState: Equatable, Codable, Sendable {
     public var longestCombo: Int
     public var cubesCracked: Int
     public var combo: Int
+    public var efficiencyComboContinuations: Int = 0
+    public var efficiencyFastComboContinuations: Int = 0
     public var earnedComboBonus: Int
     public var wildMeter: Double
     public var luckyDropUsed: Bool = false
@@ -263,7 +265,7 @@ extension NativeTile {
     }
 }
 extension NativeBoardState {
-    private enum CodingKeys: String, CodingKey { case earnedJourneyDice,forestMushroomIntroduced,lastSpecialMergeWorld,luckyDropUsed,columns,rows,tiles,mode,board,stage,generation,revision,moves,maxMoves,score,starsCount,bestScore,maxStackDepth,longestCombo,cubesCracked,combo,earnedComboBonus,wildMeter,wildSpawnCount,lastWildDropType,wildDropTypeStreak,rngState,terminal,tutorial,sourceDetachedGridTileIDs,arcadeVariant }
+    private enum CodingKeys: String, CodingKey { case efficiencyComboContinuations,efficiencyFastComboContinuations,earnedJourneyDice,forestMushroomIntroduced,lastSpecialMergeWorld,luckyDropUsed,columns,rows,tiles,mode,board,stage,generation,revision,moves,maxMoves,score,starsCount,bestScore,maxStackDepth,longestCombo,cubesCracked,combo,earnedComboBonus,wildMeter,wildSpawnCount,lastWildDropType,wildDropTypeStreak,rngState,terminal,tutorial,sourceDetachedGridTileIDs,arcadeVariant }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy:CodingKeys.self)
         self.init(columns:try c.decode(Int.self,forKey:.columns),rows:try c.decode(Int.self,forKey:.rows),tiles:try c.decode([NativeTile].self,forKey:.tiles),
@@ -276,6 +278,8 @@ extension NativeBoardState {
             wildSpawnCount:try c.decodeIfPresent(Int.self,forKey:.wildSpawnCount) ?? 0,lastWildDropType:try c.decodeIfPresent(NativeWildArchetype.self,forKey:.lastWildDropType),
             wildDropTypeStreak:try c.decodeIfPresent(Int.self,forKey:.wildDropTypeStreak) ?? 0,rngState:try c.decodeIfPresent(UInt64.self,forKey:.rngState) ?? 1,
             terminal:try c.decodeIfPresent(NativeResolution.self,forKey:.terminal),tutorial:try c.decodeIfPresent(NativeTutorialState.self,forKey:.tutorial),sourceDetachedGridTileIDs:try c.decodeIfPresent(Set<String>.self,forKey:.sourceDetachedGridTileIDs),arcadeVariant:try c.decodeIfPresent(NativeArcadeVariant.self,forKey:.arcadeVariant))
+        efficiencyComboContinuations=max(0,try c.decodeIfPresent(Int.self,forKey:.efficiencyComboContinuations) ?? 0)
+        efficiencyFastComboContinuations=min(efficiencyComboContinuations,max(0,try c.decodeIfPresent(Int.self,forKey:.efficiencyFastComboContinuations) ?? 0))
         lastSpecialMergeWorld = try c.decodeIfPresent(String.self,forKey:.lastSpecialMergeWorld)
         luckyDropUsed = try c.decodeIfPresent(Bool.self,forKey:.luckyDropUsed) ?? false
         earnedJourneyDice = try c.decodeIfPresent(Set<String>.self,forKey:.earnedJourneyDice)

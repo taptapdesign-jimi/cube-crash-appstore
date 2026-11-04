@@ -75,7 +75,7 @@ import StackToSixNativeState
                 let result=try XCTUnwrap(game.presentedViewController as? NativeResultController)
                 XCTAssertEqual(result.clean,board>1,"Only a run with a cleared round earns the clean summary")
                 let terminal=game.engine.state
-                let efficiency=board>1 ? NativeRewardMath.efficiencyBonus(baseBonus:500+(board-1)*200,remainingMoves:terminal.moves,maxMoves:terminal.maxMoves,maxStackDepth:terminal.maxStackDepth):0
+                let efficiency=board>1 ? NativeRewardMath.cleanEfficiencyBonus(state:terminal):0
                 let expected=NativeRewardMath.finalScore(currentScore:123,comboBonus:board>1 ? terminal.earnedComboBonus:0,efficiencyBonus:efficiency)
                 XCTAssertEqual(result.finalScore,expected)
                 XCTAssertEqual(result.combo,board>1 ? terminal.earnedComboBonus:0)
@@ -99,10 +99,10 @@ import StackToSixNativeState
             }
         }
     }
-    func testArcadeCleanRunThemeUsesLastSpecialWorldInsteadOfRoundNumber() async throws {
-        let cases:[(String?,NativeResultCelebrationTheme)]=[(nil,.area55),("forest",.forest),("beach",.beach),("area55",.area55)]
-        for (world,expected) in cases {
-            let f=try Fixture(variant:.slowBurn,tiles:[
+    func testArcadeCleanRunUsesDedicatedThemeForEveryModeAndLastSpecialWorld() async throws {
+        let worlds:[String?]=[nil,"forest","beach","area55"]
+        for variant in NativeArcadeVariant.allCases {for world in worlds {
+            let f=try Fixture(variant:variant,tiles:[
                 .init(id:"five-a",cell:.init(column:2,row:4),value:5,stackDepth:2),
                 .init(id:"two",cell:.init(column:0,row:6),value:2),
                 .init(id:"five-b",cell:.init(column:4,row:8),value:5)
@@ -112,10 +112,10 @@ import StackToSixNativeState
             try await wait("Last-special-world clean summary"){game.presentedViewController is NativeResultController}
             let result=try XCTUnwrap(game.presentedViewController as? NativeResultController)
             XCTAssertTrue(result.clean)
-            XCTAssertEqual(result.celebrationTheme,expected)
+            XCTAssertEqual(result.celebrationTheme,.arcade)
             XCTAssertEqual(result.finalScore,NativeResultOwner.finalScore(state:game.engine.state,clean:true))
             XCTAssertEqual(game.engine.state.lastSpecialMergeWorld,world)
-        }
+        }}
     }
     func testPureDiceMergeSixRefillToFivePresentsNoMoves() async throws {
         let f=try Fixture(variant:.pureDice,tiles:[

@@ -23,12 +23,12 @@ final class NativeRouteMotion {
         let base=LayerBase(layer);layerBases[key]=base;return base
     }
     init(home: JimiV9HomeView, hub: JimiV9HubView) {self.home = home;self.hub = hub}
-    func homeTracks(enter: Bool) -> [(UIView, JimiV9Motion.Track)] {
+    func homeTracks(enter: Bool,fromPaintedPose:Bool=false) -> [(UIView, JimiV9Motion.Track)] {
         var parts: [(UIView, JimiV9Motion.Part)] = [(home.heroView, .hero), (home.logoImageView, .logo),
             (home.ctaContainerView, .ctaContainer), (home.ctaView, .cta), (home.navView, .navigation),
             (home.fixedShadowView, .fixedShadow)]
         parts += home.shardViews.map { ($0, .shard) }
-        return parts.map { target, part in
+        let entries=parts.map { target, part in
             let track = enter ? JimiV9Motion.homeEnter(part) : JimiV9Motion.homeExit(part, reducedMotion: UIAccessibility.isReduceMotionEnabled)
             if !enter,(part == .hero || part == .ctaContainer),let painted = target.layer.presentation(),
                target.layer.animation(forKey: "native-route") != nil, let first = track.tweens.first {
@@ -44,10 +44,11 @@ final class NativeRouteMotion {
                 return (target, JimiV9Motion.Track(tweens: [replacement] + track.tweens.dropFirst(), anchorX: track.anchorX, anchorY: track.anchorY))
             }
             return (target, track)
-        } + home.cloudRouteTracks(enter:enter)
+        } + home.cloudRouteTracks(enter:enter) + home.ambientRouteTracks(enter:enter)
+        return fromPaintedPose ? Self.retargetPaintedHubTracks(entries,enter:enter):entries
     }
 
-    func hubTracks(enter: Bool, selectedWorldID: Int? = nil) -> [(UIView, JimiV9Motion.Track)] {
+    func hubTracks(enter: Bool, selectedWorldID: Int? = nil, fromPaintedPose:Bool = false) -> [(UIView, JimiV9Motion.Track)] {
         var tracks: [(UIView, JimiV9Motion.Track)] = []
         let reduced = UIAccessibility.isReduceMotionEnabled
         let order = enter ? hub.worldUnits : (selectedWorldID == nil ? hub.worldUnits.shuffled() : Array(hub.worldUnits.reversed()))
@@ -81,7 +82,31 @@ final class NativeRouteMotion {
             tracks.append((target.view, JimiV9Motion.hubBanner(worldID: target.worldID, enter: enter,
                 width: Double(hub.bannerWidth(for: target.worldID)), firstWorldStart: reduced ? 0 : 0.08, reducedMotion: reduced)))
         }
-        return hub.includingCloudTracks(tracks)
+        let entries=hub.includingCloudTracks(tracks)
+        return fromPaintedPose ? Self.retargetPaintedHubTracks(entries,enter:enter):entries
+    }
+
+    static func retargetPaintedHubTracks(_ entries:[(UIView,JimiV9Motion.Track)],enter:Bool)->[(UIView,JimiV9Motion.Track)] {
+        return entries.map { target,track in
+            guard let first=track.tweens.first else{return (target,track)}
+            // cancel() freezes the incoming presentation into the model first.
+            let layer=target.layer,t=layer.transform
+            let dx=(track.anchorX-layer.anchorPoint.x)*layer.bounds.width
+            let dy=(track.anchorY-layer.anchorPoint.y)*layer.bounds.height
+            let pose=JimiV9Motion.Pose(scaleX:t.m11,scaleY:t.m22,
+                x:t.m41+dx*(t.m11-1),y:t.m42+dy*(t.m22-1),opacity:Double(layer.opacity))
+            if !enter,layer.opacity<=0.01 {
+                func hidden(_ p:JimiV9Motion.Pose)->JimiV9Motion.Pose {
+                    .init(scaleX:p.scaleX,scaleY:p.scaleY,x:p.x,y:p.y,opacity:0)
+                }
+                return (target,JimiV9Motion.Track(tweens:track.tweens.map {
+                    .init(begin:$0.begin,duration:$0.duration,from:hidden($0.from),to:hidden($0.to),ease:$0.ease)
+                },anchorX:track.anchorX,anchorY:track.anchorY))
+            }
+            let replacement=JimiV9Motion.Tween(begin:first.begin,duration:first.duration,
+                from:pose,to:first.to,ease:first.ease)
+            return (target,JimiV9Motion.Track(tweens:[replacement]+track.tweens.dropFirst(),anchorX:track.anchorX,anchorY:track.anchorY))
+        }
     }
 
     func animate(_ entries: [(UIView, JimiV9Motion.Track)], completion: @escaping () -> Void) {
@@ -110,7 +135,7 @@ final class NativeRouteMotion {
 
     /// Slider selection shares route cancellation and background ownership.
     /// Capture the painted track/nav before committing the new layout.
-    func selectSlide(_ index: Int, completion: @escaping () -> Void) {
+    func selectSlide(_ index: Int,resumingHomeEntry:Bool=false, completion: @escaping () -> Void) {
         guard home.navigationButtonViews.indices.contains(index) else { return }
         let changed = index != home.selectedSlide
         let cloudStart = home.cloudPanoramaSnapshot
@@ -130,6 +155,9 @@ final class NativeRouteMotion {
         slide.duration = JimiV9Motion.sliderDuration
         home.sliderTrack.layer.add(slide, forKey: "native-slide-selection")
         register(home.sliderTrack.layer)
+        for layer in home.ambientSlideLayers {
+            layer.add(slide,forKey:"native-slide-selection");register(layer)
+        }
         for layer in home.installCloudPanorama(from:cloudStart) {register(layer)}
         for (target, index, oldBounds, oldPosition) in navigation {
             let layer = target.layer, bounds = layer.bounds, position = layer.position
@@ -155,6 +183,10 @@ final class NativeRouteMotion {
         // The artwork owns contact; the button/nav ancestors own layout and exit.
         // An immediate route replacement must not cancel the tapped icon's bounce.
         NativeHubBackpackFeedback.play(on:home.navigationIconViews[index])
+        if resumingHomeEntry {
+            animate(homeTracks(enter:true,fromPaintedPose:true),completion:completion)
+            return
+        }
         animate(changed ? [(home.heroView, JimiV9Motion.selectedHeroBounce)] : [], completion: completion)
         if changed {
             // Keep the original hero completion/idle admission at810ms. The

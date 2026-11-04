@@ -1,7 +1,8 @@
 import Foundation
+import CoreGraphics
 
 /// Exact source confetti-system.ts birth plans. Seconds replace browser milliseconds.
-enum NativeResultCelebrationTheme:String {case area55,forest,beach}
+enum NativeResultCelebrationTheme:String {case area55,forest,beach,arcade}
 enum NativeResultConfettiPlan {
     static let maximumRuntime=9.8
     struct Area {
@@ -83,6 +84,112 @@ enum NativeResultConfettiPlan {
                 size:size,scale:0.75+random()*0.35,opacity:opacities[i],asset:i%6))
         }
         return result
+    }
+    /// Arcade borrows the real HUD fan geometry, with its own symmetric clock.
+    /// No reward receipt, trophy pull, final acceleration or score side effect.
+    struct Coin {
+        let birth,lifetime,size,spin,phase:Double
+        let points:[CGPoint]
+        let viewportHeight:Double
+        let asset:Int
+        func sample(seconds:Double)->Pose {
+            let age=seconds-birth,t=min(1,max(0,age/lifetime))
+            let progress=(1-cos(.pi*t))/2
+            let offset=progress*Double(points.count-1),index=min(points.count-2,Int(offset)),mix=offset-Double(index)
+            let a=points[index],b=points[index+1],y=a.y+(b.y-a.y)*mix
+            let ascent=min(1,max(0,(viewportHeight-y)/max(1,viewportHeight)))
+            return Pose(visible:age>=0 && age<lifetime,x:a.x+(b.x-a.x)*mix,y:y,
+                opacity:1,scale:1-0.5*ascent,rotation:phase+age*spin,skewX:0,imageScaleX:1,imageScaleY:1)
+        }
+    }
+    static func arcade(width:Double,height:Double,random:()->Double)->[Coin] {
+        let viewport=CGSize(width:width,height:height)
+        let enlargement=NativeSourceHUDStarPlan.coinEnlargement(for:viewport)
+        var result:[Coin]=[]
+        for ordinal in 0..<24 {
+            let size=(40+random()*56)*(enlargement/1.20)*1.20
+            let margin=size/2,span=max(0,width-size)
+            let start=CGPoint(x:margin+random()*span,y:height+size+8)
+            let target=CGPoint(x:margin+random()*span,y:-size*1.5-8)
+            var previousArrival=0.0,previousEnd=0.0
+            let source=NativeSourceHUDStarPlan.construct(ordinal:ordinal%3,sizes:[30,42,56],origin:start,target:target,
+                textureWidth:128,previousArrival:&previousArrival,random:random)
+            let flight=source.readableCoin(ordinal:ordinal,previousEnd:&previousEnd,gentleLaunch:true)
+            let birth=Double(ordinal)/3.6 //40% fewer births over the same emission window.
+            let life=2.75+random()*0.50
+            result.append(Coin(birth:birth,lifetime:life,size:size,spin:(random()<0.5 ? -1:1)*(35+random()*55),
+                phase:random()*360,points:flight.points,viewportHeight:height,asset:ordinal%6))
+        }
+        return result
+    }
+    /// Visual-only soft-disc collisions. Fixed substeps borrow the result clock;
+    /// at most15 catch-up steps are admitted after delayed asset readiness.
+    struct CoinField {
+        let coins:[Coin]
+        private(set) var elapsed=0.0,collisionCount=0
+        private var retired=Set<Int>()
+        private var offsets:[CGPoint],velocities:[CGPoint],turns:[Double],spinVelocity:[Double]
+        init(coins:[Coin]) {
+            self.coins=coins;offsets=Array(repeating:.zero,count:coins.count)
+            velocities=offsets;turns=Array(repeating:0,count:coins.count);spinVelocity=turns
+        }
+        mutating func advance(to time:Double) {
+            guard time.isFinite,time>=elapsed else{return}
+            let target=min(maximumRuntime,time)
+            // A hidden/preparing canvas has no visible collision history to replay.
+            if target-elapsed>0.25 {elapsed=target-0.25}
+            let dt=1.0/60
+            while elapsed+dt<=target+0.000001 {elapsed += dt;step(dt:dt)}
+        }
+        func pose(_ index:Int,at time:Double?=nil)->Pose {
+            let p=coins[index].sample(seconds:time ?? elapsed),o=offsets[index]
+            return Pose(visible:p.visible && !retired.contains(index),x:p.x+o.x,y:p.y+o.y,opacity:p.opacity,scale:p.scale,
+                rotation:p.rotation+turns[index],skewX:0,imageScaleX:1,imageScaleY:1)
+        }
+        private mutating func step(dt:Double) {
+            var positions=Array(repeating:CGPoint.zero,count:coins.count),baseVelocities=positions
+            var visibleSizes=Array(repeating:0.0,count:coins.count)
+            var active:[Int]=[]
+            for i in coins.indices {
+                let p=coins[i].sample(seconds:elapsed)
+                guard p.visible,!retired.contains(i) else{continue};active.append(i)
+                visibleSizes[i]=coins[i].size*p.scale
+                let previous=coins[i].sample(seconds:elapsed-dt)
+                baseVelocities[i]=CGPoint(x:(p.x-previous.x)/dt,y:(p.y-previous.y)/dt)
+                offsets[i].x += velocities[i].x*dt;offsets[i].y += velocities[i].y*dt
+                velocities[i].x *= exp(-2.2*dt);velocities[i].y *= exp(-2.2*dt)
+                turns[i] += spinVelocity[i]*dt;spinVelocity[i] *= exp(-1.8*dt)
+                positions[i]=CGPoint(x:p.x+offsets[i].x,y:p.y+offsets[i].y)
+            }
+            for left in active.indices {for right in active.indices where right>left {
+                let i=active[left],j=active[right],a=positions[i],b=positions[j]
+                let dx=b.x-a.x,dy=b.y-a.y,distance=hypot(dx,dy),contact=(visibleSizes[i]+visibleSizes[j])*0.41
+                guard distance<contact else{continue}
+                let nx=distance>0.001 ? dx/distance:(i.isMultiple(of:2) ? 1.0:-1.0)
+                let ny=distance>0.001 ? dy/distance:0
+                let invA=1600/(coins[i].size*coins[i].size),invB=1600/(coins[j].size*coins[j].size),total=invA+invB
+                let correction=(contact-distance)*0.75
+                let pushA=correction*invA/total,pushB=correction*invB/total
+                offsets[i].x -= nx*pushA;offsets[i].y -= ny*pushA
+                offsets[j].x += nx*pushB;offsets[j].y += ny*pushB
+                positions[i].x -= nx*pushA;positions[i].y -= ny*pushA
+                positions[j].x += nx*pushB;positions[j].y += ny*pushB
+                let closing=(baseVelocities[j].x+velocities[j].x-baseVelocities[i].x-velocities[i].x)*nx
+                    +(baseVelocities[j].y+velocities[j].y-baseVelocities[i].y-velocities[i].y)*ny
+                guard closing<0 else{continue}
+                let impulse=min(220,-1.65*closing/total);collisionCount += 1
+                velocities[i].x -= impulse*invA*nx;velocities[i].y -= impulse*invA*ny
+                velocities[j].x += impulse*invB*nx;velocities[j].y += impulse*invB*ny
+                spinVelocity[i] -= impulse*invA*(nx+0.3);spinVelocity[j] += impulse*invB*(nx+0.3)
+            }}
+            for i in active {
+                velocities[i].x=min(140,max(-140,velocities[i].x));velocities[i].y=min(60,max(-60,velocities[i].y))
+                offsets[i].x=min(140,max(-140,offsets[i].x));offsets[i].y=min(coins[i].size*0.5,max(-coins[i].size*0.5,offsets[i].y))
+                spinVelocity[i]=min(180,max(-180,spinVelocity[i]))
+                // Retire only after the entire rotated footprint clears the top.
+                if coins[i].sample(seconds:elapsed).y+offsets[i].y+visibleSizes[i]*0.72<0 {retired.insert(i)}
+            }
+        }
     }
     private static let areaSamples=(0...256).map {i in
         let p=Double(i)/256;var lo=0.0,hi=1.0
