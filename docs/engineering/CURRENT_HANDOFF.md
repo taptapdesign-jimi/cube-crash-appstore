@@ -8,8 +8,11 @@ remains untracked/outside public payload, consistent with previous checkpoints.
 Git diff whitespace and credential-pattern checks PASS; standing no-QA retained,
 no suites/build/install/launch or device/save changes in this Git-only task.
 Prior build/delivery evidence below retains its original scope; physical
-acceptance remains NEEDS PHYSICAL TEST. Remote publication is verified from
-origin branch/tag refs after push; this record does not preclaim that result.
+acceptance remains NEEDS PHYSICAL TEST. Payload commit `4a26a20e1313f94ac3e0efa236ba6f04475a5b48` and annotated tag
+pushed atomically to origin; live `git ls-remote` confirmed both main and peeled
+tag resolve to that exact payload. 66 project files committed. This follow-up
+receipt leaves the immutable benchmark tag on the payload commit. Only unrelated
+local `output/pdf/` remains untracked; no project changes left uncommitted.
 
 ## iPad Journey another8px down and2percent smaller · 2026-11-04
 
