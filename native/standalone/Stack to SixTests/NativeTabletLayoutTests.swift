@@ -170,9 +170,9 @@ final class NativeTabletLayoutTests:XCTestCase {
             let top=size.height-chrome.meterRect.minY,bottom=size.height-size.width*0.20
             let height=(8*NativeBoardGeometry.tile+7*NativeBoardGeometry.gap)*geometry.scale
             let actualTop=size.height-geometry.origin.y-height
-            XCTAssertEqual(actualTop-32-top,bottom-(size.height-geometry.origin.y-32),accuracy:0.001)
+            XCTAssertEqual(actualTop-40-top,bottom-(size.height-geometry.origin.y-40),accuracy:0.001)
             XCTAssertGreaterThanOrEqual(actualTop,top)
-            XCTAssertLessThanOrEqual(size.height-geometry.origin.y,bottom+32)
+            XCTAssertLessThanOrEqual(size.height-geometry.origin.y,bottom+40)
             let boardWidth=(7*NativeBoardGeometry.tile+6*NativeBoardGeometry.gap)*geometry.scale
             let aligned=NativeGameplayChromePlan.make(viewport:size,safeTop:24,boardBounds:CGRect(x:geometry.origin.x,y:0,width:boardWidth,height:0))
             XCTAssertEqual(aligned.meterRect.minX,geometry.origin.x,accuracy:0.001)
@@ -222,7 +222,44 @@ final class NativeTabletLayoutTests:XCTestCase {
             let closeRight=close.position.x+NativeHUDCloseNode.radius*scale
             let leftGap=help.frame.minX-closeRight
             let middleGap=score.frame.minX-help.frame.maxX
-            XCTAssertEqual(leftGap,middleGap,accuracy:0.01)
+            XCTAssertEqual(leftGap,middleGap+24,accuracy:0.01)
+        }
+    }
+    func testTabletHUDAnchorsIgnoreValueChangesFeedbackAndCanvasShake() throws {
+        let values:[(Int,Int)]=[(0,0),(111,1),(888,8),(999,9),(1000,10),(12345,12),(9999999,123)]
+        let scales:[(CGFloat,CGFloat)]=[(1,1),(1.76,1),(2.50,1.3),(3.20,1.6),(1.2,1.1)]
+        for size in sizes {
+            var baseline:[CGPoint]?
+            for (scoreValue,comboValue) in values {
+                var state=NativeBoardFactory.make(mode:.journey,board:1,columns:7,rows:8)
+                state.score=scoreValue;state.combo=comboValue
+                let scene=NativeBoardScene(engine:NativeGameplayEngine(state:state),resourceRoot:NativeTestResources.root,size:size)
+                defer {scene.dispose()}
+                scene.layout(size:size,insets:.init(top:24,left:0,bottom:20,right:0))
+                let icons=try ["native-game-close","native-game-help","native-game-score-art","native-game-combo-art"].map {
+                    try XCTUnwrap(scene.childNode(withName:"//"+$0))
+                }
+                let number=try XCTUnwrap(scene.childNode(withName:"//native-game-combo-value") as? SKLabelNode)
+                let score=try XCTUnwrap(icons[2].parent?.children.compactMap{$0 as? SKLabelNode}.first{$0 !== number && $0.text==NativeScoreDisplay.text(state.score)})
+                let canvas=try XCTUnwrap(scene.childNode(withName:"native-gameplay-canvas"))
+                let multiplier=try XCTUnwrap(icons[3].parent?.children.compactMap{$0 as? SKLabelNode}.first{$0.text=="x"})
+                XCTAssertEqual(number.position.x,multiplier.position.x+multiplier.frame.width,accuracy:0.001,"Reserve balloon clearance after the value, not between x and its digits")
+                if baseline==nil {baseline=icons.map{$0.convert(.zero,to:scene)}}
+                let positions=try XCTUnwrap(baseline)
+                for (comboScale,scoreScale) in scales {
+                    number.setScale(comboScale);score.setScale(scoreScale)
+                    scene.synchronize(animateEntry:false)
+                    for offset in [CGPoint.zero,CGPoint(x:2,y:-3),CGPoint(x:-1.5,y:2)] {
+                        canvas.position=offset
+                        for (icon,position) in zip(icons,positions) {
+                            let actual=icon.convert(.zero,to:scene)
+                            XCTAssertEqual(actual.x,position.x,accuracy:0.001)
+                            XCTAssertEqual(actual.y,position.y,accuracy:0.001)
+                        }
+                    }
+                    canvas.position = .zero
+                }
+            }
         }
     }
     func testPhoneAndTabletHUDProjectionExportsActualMountedPaint() async throws {
@@ -390,12 +427,12 @@ final class NativeTabletLayoutTests:XCTestCase {
                 XCTAssertLessThanOrEqual(rect.maxY,size.height+16)
                 XCTAssertGreaterThanOrEqual(rect.minX,0)
                 XCTAssertLessThanOrEqual(rect.maxX,size.width)
-                let originalClouds=original.subviews.compactMap{$0 as? UIImageView}.filter{$0.accessibilityIdentifier == nil}
+                let originalClouds=all(phone.cloudUnits[unit.tag]!).compactMap{$0 as? UIImageView}.filter{$0.accessibilityIdentifier == nil}
                 let carrier=try XCTUnwrap(hub.cloudUnits[unit.tag])
                 let plane=try XCTUnwrap(carrier.superview)
                 XCTAssertTrue(plane.superview === unit.superview)
                 XCTAssertLessThan(plane.superview!.subviews.firstIndex(of:plane)!,unit.superview!.subviews.firstIndex(of:unit)!,"All clouds must paint behind every World")
-                let clouds=carrier.subviews.compactMap{$0 as? UIImageView}.filter{$0.accessibilityIdentifier == nil}
+                let clouds=all(carrier).compactMap{$0 as? UIImageView}.filter{$0.accessibilityIdentifier == nil}
                 let fill=try XCTUnwrap(all(carrier).first{$0.accessibilityIdentifier=="native.hub.left-cloud.\(unit.tag)"})
                 XCTAssertFalse(fill.isHidden)
                 let fillRect=fill.convert(fill.bounds,to:hub)
@@ -446,8 +483,8 @@ final class NativeTabletLayoutTests:XCTestCase {
             let hub=JimiV9HubView(frame:CGRect(origin:.zero,size:size),assets:assets)
             root.view.addSubview(hub);hub.layoutSubviews();hub.startIdle()
             let clouds=hub.worldUnits.flatMap { unit -> [UIImageView] in
-                let parent:UIView=tablet ? hub.cloudUnits[unit.tag]!:unit
-                return parent.subviews.compactMap{$0 as? UIImageView}.filter{!$0.isHidden}
+                let parent:UIView=hub.cloudUnits[unit.tag]!
+                return parent.subviews.flatMap{ $0.subviews }.compactMap{$0 as? UIImageView}.filter{!$0.isHidden}
             }
             XCTAssertEqual(clouds.count,tablet ? 16:13)
             var originals:[(Double,CGFloat)]=[]
@@ -468,11 +505,16 @@ final class NativeTabletLayoutTests:XCTestCase {
                 let entries=motion.hubTracks(enter:false,selectedWorldID:1)
                 for unit in hub.worldUnits {
                     let source=try XCTUnwrap(entries.first{$0.0 === unit}?.1)
-                    let mirror=try XCTUnwrap(entries.first{$0.0 === hub.cloudUnits[unit.tag]}?.1)
-                    XCTAssertEqual(source.duration,mirror.duration)
-                    XCTAssertEqual(source.anchorY,mirror.anchorY)
+                    let carrier=try XCTUnwrap(hub.cloudUnits[unit.tag])
+                    let clouds=entries.filter{$0.0.superview === carrier}
+                    XCTAssertFalse(clouds.isEmpty)
+                    for (_,cloud) in clouds {
+                        XCTAssertEqual(source.anchorY,cloud.anchorY)
+                        XCTAssertEqual(source.tweens.map(\.duration),cloud.tweens.map(\.duration))
+                        XCTAssertGreaterThan(cloud.duration,source.duration)
+                    }
                 }
-            } else {baseline=originals;XCTAssertTrue(hub.cloudUnits.values.allSatisfy(\.isHidden))}
+            } else {baseline=originals;XCTAssertTrue(hub.cloudUnits.values.allSatisfy{!$0.isHidden})}
             hub.stopIdle()
             XCTAssertTrue(clouds.allSatisfy{$0.layer.animation(forKey:key)==nil})
             hub.startIdle();hub.isHidden=true

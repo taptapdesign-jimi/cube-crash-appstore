@@ -147,10 +147,10 @@ final class JimiV9Artwork {
         self.prepareRaster=prepareRaster
     }
 
-    func image(_ relativePath: String, densityAware: Bool = false) -> UIImage? {
-        let requestKey=imageRequestKey(relativePath,densityAware:densityAware)
+    func image(_ relativePath: String, densityAware: Bool = false,minimumDensity:Int=1) -> UIImage? {
+        let requestKey=imageRequestKey(relativePath,densityAware:densityAware,minimumDensity:minimumDensity)
         if let cached=resolvedImages[requestKey] {return cached}
-        let candidates=imageCandidates(relativePath,densityAware:densityAware)
+        let candidates=imageCandidates(relativePath,densityAware:densityAware,minimumDensity:minimumDensity)
         let url=resourceRoot.appendingPathComponent(relativePath)
         for (candidate, scale) in candidates {
             if let cached=images[candidate.path],let pixels=cached.cgImage {
@@ -168,13 +168,13 @@ final class JimiV9Artwork {
 
     /// Same density resolution as display; selected preparation never invents
     /// a second bitmap cache or uploads UIKit-only artwork into SpriteKit.
-    private func imageRequestKey(_ path:String,densityAware:Bool)->String {
-        (densityAware ? "density\(Int(UIScreen.main.scale.rounded(.up))):":"exact:")+path
+    private func imageRequestKey(_ path:String,densityAware:Bool,minimumDensity:Int=1)->String {
+        (densityAware ? "density\(min(3,max(minimumDensity,Int(UIScreen.main.scale.rounded(.up))))):":"exact:")+path
     }
-    private func imageCandidates(_ relativePath:String,densityAware:Bool)->[(URL,CGFloat)] {
+    private func imageCandidates(_ relativePath:String,densityAware:Bool,minimumDensity:Int=1)->[(URL,CGFloat)] {
         let path = relativePath.hasPrefix("./") ? String(relativePath.dropFirst(2)) : relativePath
         let url = resourceRoot.appendingPathComponent(path)
-        let density = min(3, max(1, Int(UIScreen.main.scale.rounded(.up))))
+        let density = min(3, max(1,minimumDensity,Int(UIScreen.main.scale.rounded(.up))))
         var candidates: [(URL, CGFloat)] = []
         if densityAware, density > 1 {
             for scale in stride(from: density, through: 2, by: -1) {

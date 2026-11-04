@@ -148,9 +148,11 @@ final class NativeGameplayBackpackController:UIViewController {
         let modalSafeInsets=NativeTabletLayout.modalSafeInsets(in:view)
         let width=tabletJourney ? projectedPaperWidth:min(390,max(0,modalBounds.width-48))
         screen?.useModalLayout(columns:tabletJourney ? 3:2)
-        heading.frame=CGRect(x:24,y:28,width:max(0,width-48),height:38.4)
+        NativeTabletLayout.labelFont(heading,size:NativeTabletLayout.modalTitleSize(view.bounds.size,phone:28))
+        let titleHeight=NativeTabletLayout.applies(view.bounds.size) ? max(38.4,ceil(heading.font.lineHeight)):38.4
+        heading.frame=CGRect(x:24,y:47.2-titleHeight/2,width:max(0,width-48),height:titleHeight)
         let subtitleHeight=ceil(subtitle.sizeThatFits(CGSize(width:max(0,width-48),height:CGFloat.greatestFiniteMagnitude)).height)
-        subtitle.frame=CGRect(x:24,y:heading.frame.maxY+12,width:max(0,width-48),height:subtitleHeight)
+        subtitle.frame=CGRect(x:24,y:78.4,width:max(0,width-48),height:subtitleHeight)
         let count=includesArcade ? NativeBackpackCatalog.arcade.count:sections.first?.dice.count ?? 0
         let columns:CGFloat=tabletJourney ? 3:2,side=floor((width-48-(columns-1)*16)/columns)
         let rows=ceil(CGFloat(count)/columns),gridHeight=rows*side+max(0,rows-1)*16

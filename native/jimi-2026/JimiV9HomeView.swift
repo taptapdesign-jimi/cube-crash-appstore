@@ -770,6 +770,24 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
     private var heroes: [UIButton] = []
     private(set) var heroImages: [UIImageView] = []
     private var heroCartoonShells:[UIView]=[]
+    // One continuous, unclipped panorama independent of the illustration track.
+    // The middle stays visible; swipes expose only a little of either side.
+    private let homeCloudPlane=UIView()
+    private let frontCloudPlane=UIView(),cloudDragCarrier=UIView(),frontCloudDragCarrier=UIView()
+    private let cloudBanks=(0..<3).map{_ in UIView()}
+    private let frontCloudBanks=(0..<3).map{_ in UIView()}
+    private var cloudFrontFlags=Array(repeating:false,count:24)
+    private static let cloudDragKey="native-home-cloud-drag"
+    private let activeCloudGroups:Set<Int>=[1]
+    private var homeClouds:[UIImageView]=[]
+    private var cloudRouteShells:[UIView]=[]
+    private var cloudRestX=Array(repeating:CGFloat.zero,count:24)
+    private struct CloudDrift {
+        let x:CGFloat,y:CGFloat,duration:Double,scale:CGFloat
+    }
+    private var cloudDrifts:[CloudDrift]=[]
+    private var previousCloudChoices:[[String]]=[]
+    private static let cloudIdleKey="native-home-cloud-idle"
     static let heroArtworkScale: CGFloat = 1.05
     private var idleSlide: Int?
     private var ctas: [JimiV9PlainButton] = []
@@ -818,9 +836,9 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
 
     init(frame: CGRect, assets: JimiV9Artwork) {
         artwork=assets
-        // bootstrap-ui.ts:134–185: the logo is the original 1x source; its
-        // lower-right shard is the mirrored lower-left asset, not dole desni.
-        logoImage = UIImageView(image: assets.image("assets/logo-cube-crash.png"))
+        // Keep the existing logo carrier and shard motion with the new artwork.
+        // The lower-right shard mirrors the lower-left asset, not dole desni.
+        logoImage = UIImageView(image: assets.image("assets/logo-stacktosix.png",densityAware:true))
         shards = ["gore ljevo shards", "shards gore desno", "dole ljevi shards", "dole ljevi shards"].map {
             UIImageView(image: assets.image("assets/logo addons/\($0).png"))
         }
@@ -831,7 +849,31 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         clipsToBounds = true
         viewport.clipsToBounds = true
         addSubview(viewport)
+        homeCloudPlane.isUserInteractionEnabled=false
+        homeCloudPlane.accessibilityIdentifier="native.home.shared-cloud-plane"
+        frontCloudPlane.isUserInteractionEnabled=false
+        frontCloudPlane.accessibilityIdentifier="native.home.foreground-cloud-plane"
+        cloudDragCarrier.isUserInteractionEnabled=false;frontCloudDragCarrier.isUserInteractionEnabled=false
+        viewport.addSubview(cloudDragCarrier);cloudDragCarrier.addSubview(homeCloudPlane)
         viewport.addSubview(sliderTrack)
+        viewport.addSubview(frontCloudDragCarrier);frontCloudDragCarrier.addSubview(frontCloudPlane)
+        for (index,bank) in cloudBanks.enumerated() {
+            bank.isUserInteractionEnabled=false
+            bank.accessibilityIdentifier="native.home.cloud-bank.\(index)"
+            homeCloudPlane.addSubview(bank)
+            let front=frontCloudBanks[index];front.isUserInteractionEnabled=false
+            front.accessibilityIdentifier="native.home.front-cloud-bank.\(index)"
+            frontCloudPlane.addSubview(front)
+        }
+        for slot in 0..<24 {
+            let cloud=UIImageView()
+            cloud.contentMode = .scaleAspectFit;cloud.isUserInteractionEnabled=false
+            cloud.accessibilityIdentifier="native.home.cloud.shared.\(slot)"
+            let shell=UIView();shell.isUserInteractionEnabled=false
+            shell.accessibilityIdentifier="native.home.cloud-route.shared.\(slot)"
+            shell.addSubview(cloud);cloudBanks[slot/8].addSubview(shell)
+            homeClouds.append(cloud);cloudRouteShells.append(shell)
+        }
         addSubview(logoView)
         for i in shards.indices {
             shards[i].contentMode = .scaleAspectFit
@@ -852,6 +894,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         let icons = ["stats-nav", "cube-nav", "settings-nav"]
         for index in 0..<3 {
             let panel = UIView()
+            panel.clipsToBounds=true
             sliderTrack.addSubview(panel)
             panels.append(panel)
             let hero = JimiV9PlainButton(type: .custom)
@@ -859,7 +902,8 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             hero.accessibilityLabel = titles[index]
             hero.accessibilityIdentifier = "native.home.hero.\(index)"
             hero.addTarget(self, action: #selector(activate(_:)), for: .touchUpInside)
-            let art = UIImageView(image: assets.image("assets/\(paths[index]).png", densityAware: true))
+            let sourceImage=assets.image("assets/\(paths[index]).png",densityAware:true)
+            let art = UIImageView(image:sourceImage)
             art.contentMode = .scaleAspectFit
             let cartoon=UIView();cartoon.isUserInteractionEnabled=false
             hero.addSubview(cartoon);cartoon.addSubview(art);heroCartoonShells.append(cartoon)
@@ -882,6 +926,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             ctaCartoonShells.append(previewShell)
             let idleShell=JimiV9OverflowView();idleShell.accessibilityIdentifier="native.home.cta-idle.\(index)"
             idleShell.addSubview(pressShell);ctaContainer.addSubview(idleShell);ctaIdleShells.append(idleShell)
+            ctaContainer.layer.zPosition=2
             panel.addSubview(ctaContainer)
             ctaPressShells.append(pressShell)
             ctaContainers.append(ctaContainer)
@@ -915,18 +960,154 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         panGesture.cancelsTouchesInView = true
         panGesture.delegate = self
         viewport.addGestureRecognizer(panGesture)
+        prepareCloudsForVisit()
         selectSlide(0, animated: false)
     }
 
     required init?(coder: NSCoder) { fatalError("Use init(frame:assets:)") }
 
+    /// Called on real Home route entry, never on a tab switch or foreground
+    /// resume. Reuse24views and six original images in this lease.
+    func prepareCloudsForVisit() {
+        stopCloudPanorama(preservePaintedPose:false)
+        let paths=["oblak-forest1","oblak-forest2","oblak+srednji","oblak mali ljevo","oblak mali desno","oblak veliki ljevo dole"]
+        let choices=(0..<3).map { group -> [String] in
+            let shuffled=paths.shuffled()
+            guard previousCloudChoices.indices.contains(group) else{return shuffled}
+            let previous=previousCloudChoices[group]
+            if zip(shuffled,previous).allSatisfy({$0.0 != $0.1}) {return shuffled}
+            // A bounded fallback guarantees every slot gets another shape.
+            let shift=Int.random(in:1..<paths.count)
+            return previous.indices.map{previous[($0+shift)%previous.count]}
+        }
+        let foregroundSlots=(0..<3).map { group in
+            previousCloudChoices.isEmpty ? (Bool.random() ? 6:7):(cloudFrontFlags[group*8+6] ? 7:6)
+        }
+        previousCloudChoices=choices
+        cloudDrifts=homeClouds.enumerated().map { index,cloud in
+            let group=index/8,slot=index%8
+            cloud.layer.removeAnimation(forKey:Self.cloudIdleKey)
+            cloud.layer.speed=1;cloud.layer.timeOffset=0;cloud.layer.beginTime=0
+            cloud.layer.transform=CATransform3DIdentity
+            cloud.image=artwork.image("assets/board transition/\(choices[group][slot%paths.count]).png",densityAware:true)
+            let front=slot==foregroundSlots[group]
+            cloudFrontFlags[index]=front
+            let parent=front ? frontCloudBanks[group]:cloudBanks[group]
+            parent.addSubview(cloudRouteShells[index])
+            cloud.layer.zPosition=0
+            cloudRouteShells[index].layer.zPosition=front ? 1:(slot == 4 ? -2:-1)
+            cloudRouteShells[index].transform = .identity;cloudRouteShells[index].alpha=1
+            cloud.alpha=front ? 0.20:[0.78,0.74,0.76,0.72,0.76,0.64,0.68,0.66][slot]
+            return CloudDrift(x:CGFloat.random(in:0.02...0.035)*(Bool.random() ? 1:-1),
+                y:CGFloat.random(in:front ? 4...8:10...16)*(Bool.random() ? 1:-1),
+                duration:Double.random(in:8...10),scale:CGFloat.random(in:1.02...1.04))
+        }
+        setNeedsLayout()
+    }
+
+    func cloudRouteTracks(enter:Bool)->[(UIView,JimiV9Motion.Track)] {
+        let base=enter ? JimiV9Motion.homeEnter(.hero):JimiV9Motion.homeExit(.hero)
+        return cloudRouteShells.enumerated().sorted{ ($0.offset/8 == 1 ? 0:1,$0.offset) < ($1.offset/8 == 1 ? 0:1,$1.offset) }.enumerated().map { index,item in
+            (item.element,JimiV9Motion.cloudCascade(on:item.element,base:base,enter:enter,index:index))
+        }
+    }
+
+    var cloudRenderViews:[UIView] {cloudRouteShells}
+    var cloudPanoramaLayers:[CALayer] {cloudRouteShells.map{$0.layer}}
+    var cloudPanoramaSnapshot:[CGFloat] {cloudPanoramaLayers.map{ $0.presentation()?.position.x ?? $0.position.x }}
+
+    /// One fixed panorama, viewed a little left or right of its middle. No
+    /// pages, opacity swaps, completion queues, timers or per-frame callbacks.
+    private func panoramaOffset(slideX:CGFloat,foreground:Bool)->CGFloat {
+        CGFloat(JimiV9Motion.homeCloudPanoramaOffset(slideX:Double(slideX),width:Double(bounds.width),foreground:foreground))
+    }
+    @discardableResult
+    func installCloudPanorama(from snapshot:[CGFloat])->[CALayer] {
+        guard !UIAccessibility.isReduceMotionEnabled else{return []}
+        for (index,layer) in cloudPanoramaLayers.enumerated() {
+            let start=snapshot.indices.contains(index) ? snapshot[index]:layer.position.x
+            let destination=layer.position.x
+            let slot=index%8
+            let rank=destination>=start ? slot:7-slot
+            let delay=Double(rank)*0.028
+            let travel=JimiV9Motion.homeCloudTravelDuration(slot:slot,foreground:cloudFrontFlags[index])
+            let total=delay+travel
+            let motion=CAKeyframeAnimation(keyPath:"position.x")
+            motion.values=(0...72).map { sample in
+                let t=max(0,min(1,(total*Double(sample)/72-delay)/travel))
+                return start+(destination-start)*CGFloat(JimiV9Motion.sliderEase.value(t))
+            }
+            motion.duration=total
+            layer.add(motion,forKey:"native-slide-selection")
+        }
+        return cloudPanoramaLayers
+    }
+    private func updateCloudPanorama(slideX:CGFloat) {
+        guard !UIAccessibility.isReduceMotionEnabled else{return}
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        for (index,layer) in cloudPanoramaLayers.enumerated() {
+            let current=layer.presentation()?.position.x ?? layer.position.x
+            let destination=cloudRestX[index]+panoramaOffset(slideX:slideX,foreground:cloudFrontFlags[index])
+            layer.position.x=destination
+            let lag=CABasicAnimation(keyPath:"position.x")
+            lag.fromValue=current;lag.toValue=destination
+            lag.duration=JimiV9Motion.homeCloudTravelDuration(slot:index%8,foreground:cloudFrontFlags[index])*0.24
+            lag.timingFunction=CAMediaTimingFunction(name:.easeOut)
+            layer.add(lag,forKey:Self.cloudDragKey)
+        }
+        CATransaction.commit()
+    }
+    private func stopCloudPanorama(preservePaintedPose:Bool) {
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        for (index,layer) in cloudPanoramaLayers.enumerated() {
+            let position=preservePaintedPose ? layer.presentation()?.position.x ?? layer.position.x:
+                cloudRestX[index]+panoramaOffset(slideX:bounds.width*(1.5-CGFloat(selectedSlide)),foreground:cloudFrontFlags[index])
+            layer.removeAnimation(forKey:Self.cloudDragKey)
+            layer.removeAnimation(forKey:"native-slide-selection")
+            layer.speed=1;layer.timeOffset=0;layer.beginTime=0;layer.position.x=position
+        }
+        CATransaction.commit()
+    }
+
+    private var sharedCloudLayers:[CALayer] {homeClouds.map{$0.layer}}
+    private var activeCloudLayers:[CALayer] {homeClouds.enumerated().filter{activeCloudGroups.contains($0.offset/8)}.map{$0.element.layer}}
+    private func startCloudIdle() {
+        guard cloudDrifts.count==homeClouds.count else{return}
+        for (index,cloud) in homeClouds.enumerated() {
+            guard activeCloudGroups.contains(index/8) else {
+                if cloud.layer.speed != 0 {
+                    cloud.layer.timeOffset=cloud.layer.convertTime(CACurrentMediaTime(),from:nil);cloud.layer.speed=0
+                }
+                continue
+            }
+            if cloud.layer.animation(forKey:Self.cloudIdleKey) != nil {
+                if cloud.layer.speed==0 {
+                    let offset=cloud.layer.timeOffset
+                    cloud.layer.speed=1;cloud.layer.timeOffset=0;cloud.layer.beginTime=0
+                    cloud.layer.beginTime=cloud.layer.convertTime(CACurrentMediaTime(),from:nil)-offset
+                }
+                continue
+            }
+            cloud.layer.speed=1;cloud.layer.timeOffset=0;cloud.layer.beginTime=0
+            let drift=cloudDrifts[index]
+            let peak=CATransform3DScale(CATransform3DMakeTranslation(drift.x*bounds.width*0.90*1.60,drift.y*0.90,0),drift.scale,drift.scale,1)
+            let animation=CAKeyframeAnimation(keyPath:"transform")
+            animation.values=[CATransform3DIdentity,peak,CATransform3DIdentity].map{NSValue(caTransform3D:$0)}
+            animation.keyTimes=[0,0.5,1];animation.duration=drift.duration
+            animation.timingFunctions=Array(repeating:CAMediaTimingFunction(name:.easeInEaseOut),count:2)
+            animation.repeatCount = .infinity
+            cloud.layer.add(animation,forKey:Self.cloudIdleKey)
+        }
+    }
+
     /// Applies only the settled state; `animated` is deliberately a controller
     /// concern. Call inside the controller's owned animation transaction.
     func selectSlide(_ index: Int, animated: Bool) {
         guard titles.indices.contains(index) else { return }
-        if index != selectedSlide { stopHeroIdle(preserveLogoIdle:true) }
+        if index != selectedSlide { stopHeroIdle(preserveLogoIdle:true,preserveCloudIdle:true) }
         resetCTAFeedback()
         draggedPositionX = nil
+        // The fixed panorama follows this slide through its own small offset.
         selectedSlide = index
         for i in panels.indices {
             panels[i].accessibilityElementsHidden = i != index
@@ -946,7 +1127,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         let tablet=NativeTabletLayout.applies(bounds.size)
         if tabletLogoSelected != tablet {
             tabletLogoSelected=tablet
-            logoImage.image=artwork.image(tablet ? "assets/logo-cube-crash@3x.png":"assets/logo-cube-crash.png")
+            logoImage.image=artwork.image("assets/logo-stacktosix.png",densityAware:true,minimumDensity:tablet ? 3:1)
         }
         let logoLayoutScale:CGFloat=tablet ? 1.28:1
         let logoScale=logoLayoutScale*(tablet ? 0.95:1)
@@ -987,6 +1168,19 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         }
 
         viewport.frame = bounds
+        for carrier in [cloudDragCarrier,frontCloudDragCarrier] {
+            carrier.bounds=viewport.bounds
+            carrier.layer.position=CGPoint(x:width/2,y:height/2)
+        }
+        for plane in [homeCloudPlane,frontCloudPlane] {
+            plane.bounds=CGRect(x:0,y:0,width:width*3,height:height)
+            plane.layer.position=CGPoint(x:width*0.5,y:height/2)
+        }
+        for index in cloudBanks.indices {
+            let frame=CGRect(x:CGFloat(index)*width,y:0,width:width,height:height)
+            cloudBanks[index].frame=frame;frontCloudBanks[index].frame=frame
+            cloudBanks[index].alpha=1;frontCloudBanks[index].alpha=1
+        }
         sliderTrack.bounds = CGRect(x: 0, y: 0, width: width*3, height: height)
         sliderTrack.center = CGPoint(x: draggedPositionX ?? (width*1.5 - CGFloat(selectedSlide)*width), y: height/2)
         // v10 mobile: the 336px image overflows its 280px shell by 28px
@@ -1009,10 +1203,54 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
                 x: width/2 + (heroes[i].layer.anchorPoint.x - 0.5) * heroSide,
                 y: heroTop + heroes[i].layer.anchorPoint.y * heroSide)
             let artSize = heroSide * Self.heroArtworkScale * (tablet ? 0.95*0.95 : 1)
-            heroImages[i].bounds = CGRect(x:0,y:0,width:artSize,height:artSize)
+            // Arcade's taller composition fits between Journey's visual rulers.
+            // Keep this in rest geometry so route/idle transforms retain ownership.
+            let imageSide = artSize * (i == 1 ? 0.95 : 1)
+            heroImages[i].bounds = CGRect(x:0,y:0,width:imageSide,height:imageSide)
             heroCartoonShells[i].bounds=CGRect(x:0,y:0,width:heroSide,height:heroSide)
             heroCartoonShells[i].center=CGPoint(x:heroSide/2,y:heroSide/2)
-            heroImages[i].center = CGPoint(x:heroSide/2,y:heroSide/2)
+            heroImages[i].center = CGPoint(x:heroSide/2,y:heroSide/2 - (i == 1 ? artSize*0.004 : 0))
+            // Lay out the fixed panorama once, independently of panel position.
+            if i==0 {
+                let cloudWidths:[CGFloat]=[272,198,188,166,248,166,188,154]
+                let cloudCenters:[CGPoint]=[CGPoint(x:0.17,y:0.25),CGPoint(x:0.84,y:0.35),
+                    CGPoint(x:0.12,y:0.72),CGPoint(x:0.86,y:0.80),CGPoint(x:0.50,y:0.50),
+                    CGPoint(x:0.52,y:0.13),CGPoint(x:0.02,y:0.47),CGPoint(x:0.94,y:0.55)]
+                for (index,cloud) in homeClouds.enumerated() {
+                    let group=index/8,slot=index%8
+                    let shell=cloudRouteShells[index]
+                    let front=cloudFrontFlags[index]
+                    var w=cloudWidths[slot]*heroSide/360*(front ? 0.90:1)
+                    let ratio=(cloud.image?.size.height ?? 1)/max(1,cloud.image?.size.width ?? 1)
+                    var size=CGSize(width:w,height:w*ratio)
+                    var centerY=heroTop+heroSide*cloudCenters[slot].y
+                    if front {
+                        // Fixed lower band: the cloud's full envelope stays below
+                        // the upper boundary of the illustration's bottom20%.
+                        let limit=(0..<3).map { page -> CGFloat in
+                            let side=artSize*(page==1 ? 0.95:1),source=heroImages[page].image?.size ?? CGSize(width:1,height:1)
+                            let painted=side*min(1,source.height/max(1,source.width))
+                            return heroTop+heroSide/2-(page==1 ? artSize*0.004:0)+painted*0.30
+                        }.max() ?? heroTop+heroSide*0.80
+                        let idleY=cloudDrifts.indices.contains(index) ? cloudDrifts[index].y:8
+                        let reserve=abs(idleY)*0.90*1.35
+                        let ctaTop=tablet ? tabletCTABottom-homeCTASize.height-32:heroTop+380+height*0.0225-homeCTASize.height/2
+                        let maxHeight=max(0,(ctaTop-limit-reserve-10)/1.40)
+                        if size.height>maxHeight {size=CGSize(width:maxHeight/max(0.01,ratio),height:maxHeight);w=size.width}
+                        centerY=limit+size.height*0.70+max(0,-idleY)*0.90*1.35
+                    }
+                    let extraLeft:CGFloat=group==1 && slot==0 ? w*0.20+min(32,width*0.08):0
+                    let center=CGPoint(x:width/2-heroSide/2+heroSide*cloudCenters[slot].x-extraLeft,y:centerY)
+                    shell.bounds=CGRect(origin:.zero,size:size)
+                    shell.layer.position=CGPoint(x:center.x+(shell.layer.anchorPoint.x-0.5)*size.width,
+                        y:center.y+(shell.layer.anchorPoint.y-0.5)*size.height)
+                    cloudRestX[index]=shell.layer.position.x
+                    shell.layer.position.x += panoramaOffset(slideX:draggedPositionX ?? width*(1.5-CGFloat(selectedSlide)),foreground:front)
+                    shell.layer.opacity=1
+                    cloud.bounds=CGRect(origin:.zero,size:size)
+                    cloud.center=CGPoint(x:size.width/2,y:size.height/2)
+                }
+            }
             let containerHeight:CGFloat=tablet ? max(104,homeCTASize.height):104
             ctaContainers[i].bounds = CGRect(x: 0, y: 0, width: width, height: containerHeight)
             ctaContainers[i].center = CGPoint(x: width/2, y:tablet ? tabletCTABottom-homeCTASize.height/2-32:heroTop + 360)
@@ -1062,15 +1300,20 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
     /// Inner artwork owns idle; route/selection motion remains on the hero button.
     func startHeroIdle() {
         guard !isHidden, UIApplication.shared.applicationState == .active, !UIAccessibility.isReduceMotionEnabled else {stopHeroIdle();return}
+        for target in cloudPanoramaLayers where target.speed==0 {
+            let offset=target.timeOffset;target.speed=1;target.timeOffset=0;target.beginTime=0
+            target.beginTime=target.convertTime(CACurrentMediaTime(),from:nil)-offset
+        }
+        startCloudIdle()
         let layer = heroImages[selectedSlide].layer
         if idleSlide == selectedSlide, layer.animation(forKey:"native-hero-idle") != nil {
-            for target in ([layer,ctaIdleView.layer,logoIdleView.layer]+shards.map{$0.layer}+navIdleShells.map{$0.layer}) where target.speed == 0 {
+            for target in ([layer,ctaIdleView.layer,logoIdleView.layer]+shards.map{$0.layer}+navIdleShells.map{$0.layer}+activeCloudLayers) where target.speed == 0 {
                 let offset=target.timeOffset;target.speed=1;target.timeOffset=0;target.beginTime=0
                 target.beginTime=target.convertTime(CACurrentMediaTime(),from:nil)-offset
             }
             return
         }
-        stopHeroIdle(preserveLogoIdle:true)
+        stopHeroIdle(preserveLogoIdle:true,preserveCloudIdle:true)
         let duration = [4.0,3.0,3.5][selectedSlide]
         let y = [-6.0,-8.0,-7.0][selectedSlide]
         let rotation = [-1.0,1.0,2.0][selectedSlide]
@@ -1154,13 +1397,25 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         heroCartoonShells.forEach{$0.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey)}
         var layers:[CALayer]=preserveLogoIdle ? []:([logoIdleView.layer]+shards.map{$0.layer}+navIdleShells.map{$0.layer})
         if let i=idleSlide {layers += [heroImages[i].layer,ctaIdleShells[i].layer]}
+        // Selection/drag pauses only the moving slide, keeping this fixed
+        // background's phase continuous. Real background pauses the full bank.
+        if !preserveLogoIdle {
+            layers += sharedCloudLayers+cloudPanoramaLayers
+        }
         for layer in layers where layer.speed != 0 {
             let time=layer.convertTime(CACurrentMediaTime(),from:nil);layer.speed=0;layer.timeOffset=time
         }
     }
-    func stopHeroIdle(preservePaintedPose:Bool = false,preserveLogoIdle:Bool=false) {
+    func stopHeroIdle(preservePaintedPose:Bool = false,preserveLogoIdle:Bool=false,preserveCloudIdle:Bool=false) {
+        if !preserveCloudIdle {stopCloudPanorama(preservePaintedPose:preservePaintedPose)}
         if !preservePaintedPose {heroCartoonShells.forEach{$0.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey)}}
         CATransaction.begin();CATransaction.setDisableActions(true)
+        for cloud in homeClouds where !preserveCloudIdle {
+            let layer=cloud.layer
+            let painted=preservePaintedPose ? layer.presentation()?.transform ?? layer.transform:CATransform3DIdentity
+            layer.removeAnimation(forKey:Self.cloudIdleKey)
+            layer.speed=1;layer.timeOffset=0;layer.beginTime=0;layer.transform=painted
+        }
         for image in heroImages {
             let layer = image.layer
             let painted = preservePaintedPose ? layer.presentation()?.transform ?? layer.transform : CATransform3DIdentity
@@ -1276,13 +1531,12 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
 
     /// Route/background owner cancels without requesting another selection.
     func cancelPan(preservingCTAFeedback: Bool = false) {
-        if !preservingCTAFeedback { resetCTAFeedback() }
+        if !preservingCTAFeedback {resetCTAFeedback()}
+        stopCloudPanorama(preservePaintedPose:true)
         sliderTrack.layer.removeAnimation(forKey:"native-slide-selection")
         for node in navigationLayoutTargets {node.view.layer.removeAnimation(forKey:"native-slide-selection")}
-        dragging = false
-        draggedPositionX = nil
-        panGesture.isEnabled = false
-        panGesture.isEnabled = true
+        dragging=false;draggedPositionX=nil
+        panGesture.isEnabled=false;panGesture.isEnabled=true
         setNeedsLayout()
     }
 
@@ -1321,11 +1575,12 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
     }
 
     private func updatePanPosition(_ translation: CGFloat) {
-        let displacement = JimiV9Motion.sliderDragDisplacement(selectedSlide: selectedSlide, distance: Double(translation))
-        let position = dragStartPositionX + CGFloat(displacement)
-        draggedPositionX = position
-        CATransaction.begin(); CATransaction.setDisableActions(true)
-        sliderTrack.layer.position.x = position
+        let displacement=JimiV9Motion.sliderDragDisplacement(selectedSlide:selectedSlide,distance:Double(translation))
+        let position=dragStartPositionX+CGFloat(displacement)
+        draggedPositionX=position
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        sliderTrack.layer.position.x=position
         CATransaction.commit()
+        updateCloudPanorama(slideX:position)
     }
 }

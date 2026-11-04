@@ -71,7 +71,7 @@ final class NativeBackpackDetail:UIViewController {
         worldIllustration.frame=view.bounds.insetBy(dx:-view.bounds.width*0.2,dy:0)
         let width=NativeTabletLayout.paperWidth(modalBounds.size),scale=width/390
         let textScale=NativeTabletLayout.textScale(modalBounds.size)
-        NativeTabletLayout.labelFont(heading,size:32*textScale);NativeTabletLayout.labelFont(copy,size:18*textScale)
+        NativeTabletLayout.labelFont(heading,size:NativeTabletLayout.modalTitleSize(view.bounds.size,phone:32*textScale));NativeTabletLayout.labelFont(copy,size:18*textScale)
         heading.frame=CGRect(x:width*0.1,y:28,width:width*0.8,height:38.4*textScale)
         let copyHeight=ceil(copy.sizeThatFits(CGSize(width:width*0.8,height:CGFloat.greatestFiniteMagnitude)).height)
         copy.frame=CGRect(x:width*0.1,y:heading.frame.maxY+12,width:width*0.8,height:copyHeight)

@@ -83,8 +83,9 @@ final class NativeTntFinale: SKNode, NativeSourceAnimationParticipant {
     private var finishedDice = Set<Int>()
     private var finishedLetters = Set<Int>()
 
-    init(textures: NativeBoardTextures, fontName: String, viewport: CGSize, showsTitle: Bool = true,smokePresentationScale:CGFloat = 1,smokeVerticalOffset:CGFloat = 0,sourceConstruction:SourceConstruction?=nil,sourceRandom:(()->Double)?=nil, random: () -> Double = { Double.random(in: 0..<1) }) {
-        self.smokeVerticalOffset=smokeVerticalOffset
+    init(textures: NativeBoardTextures, fontName: String, viewport: CGSize, showsTitle: Bool = true,smokePresentationScale:CGFloat = 1,smokeVerticalOffset:CGFloat = 0,usesCanonicalSmokeSize:Bool=false,sourceConstruction:SourceConstruction?=nil,sourceRandom:(()->Double)?=nil, random: () -> Double = { Double.random(in: 0..<1) }) {
+        // SpriteKit's positive Y points up; move only the smoke down24pt.
+        self.smokeVerticalOffset=smokeVerticalOffset-24
         center = CGPoint(x: viewport.width/2,y: viewport.height/2)
         titleExitStart = 0.3 + 3*0.05 + 0.3 + 0.12 + 0.12
         super.init()
@@ -113,10 +114,18 @@ final class NativeTntFinale: SKNode, NativeSourceAnimationParticipant {
         }
         for letter in letters { letter.node.position.x -= (x+4.2)/2 }
         }
+        func smokeSize(_ size:CGSize,_ texture:SKTexture)->CGSize {
+            // UIImage already applies @2x density; the historical texture
+            // logicalSize can divide it again. Match the retained raster's
+            // canonical width without decoding or changing the phone recipe.
+            guard usesCanonicalSmokeSize,size.width>0,
+                  let width=textures.sourceRasterLogicalWidth(for:texture),width.isFinite,width>0 else{return size}
+            return CGSize(width:width,height:size.height*width/size.width)
+        }
         if let sourceConstruction {
             for recipe in sourceConstruction.frames {
                 let sprite=SKSpriteNode(texture:recipe.handle.texture)
-                sprite.size=recipe.logicalSize;sprite.position=CGPoint(x:center.x,y:center.y+smokeVerticalOffset);sprite.zPosition=CGFloat(recipe.index)
+                sprite.size=smokeSize(recipe.logicalSize,recipe.handle.texture);sprite.position=CGPoint(x:center.x,y:center.y+self.smokeVerticalOffset);sprite.zPosition=CGFloat(recipe.index)
                 sprite.zRotation = -recipe.rotation;sprite.alpha=0;sprite.setScale(0);addChild(sprite)
                 frames.append(.init(sprite:sprite,index:recipe.index,size:CGFloat(recipe.scale)*smokePresentationScale,bounceSize:nil,bounceY:nil))
             }
@@ -124,7 +133,7 @@ final class NativeTntFinale: SKNode, NativeSourceAnimationParticipant {
             let path = "assets/shop/explosion pack/animation/tnt\(index+1).png"
             guard let texture = textures.texture(path), let size = textures.logicalSize(path) else { continue }
             let sprite = SKSpriteNode(texture: texture)
-            sprite.size = size; sprite.position = CGPoint(x:center.x,y:center.y+smokeVerticalOffset); sprite.zPosition = CGFloat(index)
+            sprite.size = smokeSize(size,texture); sprite.position = CGPoint(x:center.x,y:center.y+self.smokeVerticalOffset); sprite.zPosition = CGFloat(index)
             sprite.zRotation = -(random()-0.5)*20 * .pi/180
             sprite.alpha = 0; sprite.setScale(0); addChild(sprite)
             // User-approved smoke-only enlargement; dice/title retain their original scale.

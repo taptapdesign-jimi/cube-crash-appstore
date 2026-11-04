@@ -119,14 +119,18 @@ import StackToSixGameplay
         let pull=NativeSixSourceShakeGraph.Configuration.magnetPull
         XCTAssertEqual(pull.strength,28);XCTAssertEqual(pull.duration,0.36);XCTAssertEqual(pull.steps,28)
         XCTAssertEqual(pull.ease,.sineInOut);XCTAssertFalse(pull.alsoShakeOverlay)
-        XCTAssertNil(NativeSixSourceShakeGraph.Configuration.laserImpact(index:0))
-        XCTAssertNil(NativeSixSourceShakeGraph.Configuration.laserImpact(index:1))
+        for index in 0..<2 {
+            let contact=NativeSixSourceShakeGraph.Configuration.laserImpact(index:index)!
+            XCTAssertEqual(contact.strength,15.36,accuracy:0.000001);XCTAssertEqual(contact.duration,0.18);XCTAssertEqual(contact.steps,10)
+            XCTAssertEqual(contact.yScale,0.72);XCTAssertEqual(contact.ease,.power2Out);XCTAssertTrue(contact.alsoShakeOverlay)
+        }
         let third=NativeSixSourceShakeGraph.Configuration.laserImpact(index:2)!
         let fourth=NativeSixSourceShakeGraph.Configuration.laserImpact(index:3)!
-        XCTAssertEqual(third.strength,9);XCTAssertEqual(third.duration,0.18);XCTAssertEqual(third.steps,10)
-        XCTAssertEqual(fourth.strength,12);XCTAssertEqual(fourth.duration,0.22);XCTAssertEqual(fourth.steps,12)
+        XCTAssertEqual(third.strength,21.6,accuracy:0.000001);XCTAssertEqual(third.duration,0.18);XCTAssertEqual(third.steps,10)
+        XCTAssertEqual(fourth.strength,28.8,accuracy:0.000001);XCTAssertEqual(fourth.duration,0.22);XCTAssertEqual(fourth.steps,12)
         XCTAssertEqual(third.yScale,0.72);XCTAssertEqual(fourth.ease,.power2Out)
         XCTAssertTrue(third.alsoShakeOverlay);XCTAssertNil(NativeSixSourceShakeGraph.Configuration.laserImpact(index:4))
+        XCTAssertNil(NativeSixSourceShakeGraph.Configuration.laserImpact(index:-1))
     }
     func testV9SineShakeIndependentOverlayInitialAndDownOnlyFooter() {
         let configuration=NativeSixSourceShakeGraph.Configuration.wild(archetype:.tnt,isFinal:false,tntTargetCount:1)

@@ -94,6 +94,7 @@
     ]
   },
   "laser-gun": {
+    "nativeImpactShakePolicy": "User2026-11-04:accepted beam impacts multiply original shake amplitudes by1.92(first two15.36,third21.6,fourth28.8),additional20percent over previous1.60. Existing180/220ms durations,10/12steps,power2Out,yScale0.72,overlay projection,draw counts and actual contact callback retained. NativeSixSourceSurfaceOwner/Source clock retain finite replacement,pause,zero reset and disposal;no new scheduler,resource,audio or gameplay owner. NativeSixSourceSurfaceTests expectations updated;NOT executed under standing noQA. Physical feel unverified.",
     "archetype": "wild-tnt",
     "idleOwner": "src/modules/special-dice-idle.ts",
     "finaleOwner": "src/modules/lasergun-finale-scene.ts",
@@ -153,7 +154,9 @@
     "nativeUIKitFinaleCleanupPolicy": "Live/active family reconciliation retires unused image aliases and per-request tokens before queued decode/publication. Background or explicit suspension cancels pending speculative preparation, retaining admitted active pixels; foreground reselects only actual live families. Generation replacement, Source failure and disposal retire all preparation and bitmap references; mounted UIKit images retain their own pixels. Fish preserves existing exact HEVC owner.",
     "nativeUIKitFinaleTests": [
       "native/standalone/Stack to SixTests/NativeSelectedFinaleRasterTests.swift"
-    ]
+    ],
+    "nativeIntakeShakeOwner": "native/gameplay-area55/NativeSpaceshipFinalePresentation.swift; NativeBloobScreenShakeBinding; NativeFinitePresentation.resetTransientEffects",
+    "nativeIntakeShakePolicy": "Finite existing3.8s sample clock; physical6.6pt capped host-sublayer displacement(previousamplitude*1.20),35msattack and55ms exponential fast onset then broad3to1.2Hzintegratedwaves until last decorative intake arrival minus250ms. ReducedMotion zero. Pause/background/detach/completion resets own offset;dispose/deinit releases weak binding. Shared affine projection/frame/input unaffected. No new timer/RNG/audio/gameplay/save owner."
   },
   "bottle": {
     "archetype": "wild-magnet",

@@ -69,7 +69,7 @@ import StackToSixGameplay
     }
     private func mountStar(_ id:String,_ plan:NativeSourceHUDStarPlan)->Bool {
         guard current(),sprites[id]==nil,container.parent === stage else{return false}
-        coinSoundSizes[id]=NativeSourceHUDStarPlan.relativeCoinSize(plan.size,enlargement:1.2)
+        coinSoundSizes[id]=NativeSourceHUDStarPlan.relativeCoinSize(plan.size,enlargement:NativeSourceHUDStarPlan.coinEnlargement(for:stage?.scene?.size))
         let selected=coinAnimations.isEmpty ? nil:selectCoinVariant()
         guard current() else{return false}
         let variant=selected.map{min(5,max(0,$0))}

@@ -40,8 +40,8 @@ struct NativeBoardGeometry: Equatable {
             let previousAvailable=max(1,viewport.height-(top+24)-24-safeInsets.bottom)
             let previousHeight=CGFloat(max(9,self.rows))*Self.tile+CGFloat(max(9,self.rows)-1)*Self.gap
             scale=max(0.001,min(bounds.width/width,bounds.height/height,previousAvailable/previousHeight))
-            // SpriteKit y grows upwards: translate the complete board32pt down.
-            origin=CGPoint(x:viewport.width/2-width*scale/2,y:bounds.midY-height*scale/2-32)
+            // SpriteKit y grows upwards: translate the complete board40pt down.
+            origin=CGPoint(x:viewport.width/2-width*scale/2,y:bounds.midY-height*scale/2-40)
             return
         }
         let meterBottom=viewport.height-chrome.meterRect.minY
@@ -55,7 +55,7 @@ struct NativeBoardGeometry: Equatable {
         let renderedWidth=width*scale,renderedHeight=height*scale
         let left=min(max(((viewport.width-renderedWidth)/2).rounded(),padding),viewport.width-padding-renderedWidth)
         let top=(dynamicHudBottom+(available-renderedHeight)/2-12).rounded()
-        origin=CGPoint(x:left,y:viewport.height-top-renderedHeight)
+        origin=CGPoint(x:left,y:viewport.height-top-renderedHeight-(NativeTabletLayout.applies(viewport) ? 8:0))
     }
 
     var tileSize: CGFloat { Self.tile * scale }

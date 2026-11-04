@@ -48,16 +48,43 @@ final class NativeThemedBoardTransitionController:UIViewController {
     private let presentationViewport:CGSize
     private let composition=UIView()
     private static let tabletContentScale:CGFloat=0.7*1.15
+    private static let forestSceneryScale:CGFloat=1.05*1.05*1.05
+    private var tabletArtworkScale:CGFloat {theme == .beach ? 0.85:theme == .area55 ? 0.90:1}
+    private var tabletCompositionScale:CGFloat {Self.tabletContentScale*tabletArtworkScale}
+    private var sceneryCompositionDrop:CGFloat {
+        guard NativeTabletLayout.applies(presentationViewport) else{return 0}
+        // Height-relative offsets from the1180pt review viewport. Convert
+        // once through the complete projection; NN/paper cancel this offset.
+        let fraction:CGFloat
+        switch theme {
+        case .forest:fraction=50.0/1180.0
+        case .area55:fraction=40.0/1180.0+0.20
+        case .beach:fraction=60.0/1180.0+0.20
+        }
+        return presentationViewport.height*fraction/(NativeTabletLayout.animationScale(presentationViewport)*tabletCompositionScale)
+    }
+    private var beachPropLift:CGFloat {
+        guard NativeTabletLayout.applies(presentationViewport) else{return 0}
+        return 32/(NativeTabletLayout.animationScale(presentationViewport)*tabletCompositionScale)
+    }
+    private var forestFenceCompensation:CGFloat {
+        guard theme == .forest,NativeTabletLayout.applies(presentationViewport) else{return 0}
+        // Fences retain the previous20pt group placement. Cancel only the
+        // additional drop, including the lower scenery's own uniform scale.
+        let previousDrop=presentationViewport.height*(20.0/1180.0)/(NativeTabletLayout.animationScale(presentationViewport)*tabletCompositionScale)
+        return (sceneryCompositionDrop-previousDrop)/Self.forestSceneryScale
+    }
     private var forestSceneryDrop:CGFloat {
         guard theme == .forest,NativeTabletLayout.applies(presentationViewport) else{return 0}
         // Uniform downscaling around screen centre lifted the lower scene by
         // this physical gutter. Restore its authored bottom anchoring only.
-        let physicalDrop=presentationViewport.height*(1-Self.tabletContentScale)/2
-        return physicalDrop/(NativeTabletLayout.animationScale(presentationViewport)*Self.tabletContentScale)
+        let physicalDrop=presentationViewport.height*(1-tabletCompositionScale)/2
+        return physicalDrop/(NativeTabletLayout.animationScale(presentationViewport)*tabletCompositionScale)
     }
     private let paper=UIImageView(),scene=UIView(),paperCover=UIView(),digitUnit=UIView()
     private struct MountedCloud {
         let plan:NativeTransitionCloudPlan.Cloud,host:UIView,sprite:UIImageView
+        let tabletTopClearance:CGFloat?,tabletDriftDistance:CGFloat?
         var retired=false
     }
     private var sceneImages:[String:UIImageView]=[:],clouds:[MountedCloud]=[]
@@ -87,7 +114,8 @@ final class NativeThemedBoardTransitionController:UIViewController {
         composition.frame=CGRect(origin:.zero,size:viewport);composition.isUserInteractionEnabled=false
         if NativeTabletLayout.applies(presentationViewport) {
             view.addSubview(composition);NativeTabletLayout.projectAnimation(composition,viewport:presentationViewport)
-            composition.transform=composition.transform.scaledBy(x:Self.tabletContentScale,y:Self.tabletContentScale)
+            composition.transform=composition.transform.scaledBy(x:tabletCompositionScale,y:tabletCompositionScale)
+            composition.center.y+=sceneryCompositionDrop*NativeTabletLayout.animationScale(presentationViewport)*tabletCompositionScale
         }
         // Keep the already painted gameplay paper visible while this captured
         // cover prepares. A flat opaque placeholder must never replace it.
@@ -95,18 +123,31 @@ final class NativeThemedBoardTransitionController:UIViewController {
         let gradient=CAGradientLayer();gradient.frame=canvas.bounds;gradient.colors=[UIColor(red:243/255,green:238/255,blue:232/255,alpha:1).cgColor,UIColor(red:252/255,green:236/255,blue:223/255,alpha:1).cgColor,UIColor(red:252/255,green:236/255,blue:223/255,alpha:1).cgColor];gradient.locations=[0,0.6,1];paperCover.layer.insertSublayer(gradient,at:0)
         paper.frame=canvas.bounds;paper.contentMode = .scaleAspectFill;paper.isUserInteractionEnabled=false;paperCover.addSubview(paper);let tint=UIView(frame:canvas.bounds);tint.backgroundColor=UIColor(red:243/255,green:238/255,blue:232/255,alpha:0.4);tint.isUserInteractionEnabled=false;paperCover.addSubview(tint)
         // Keep the opaque paper full-screen while artwork/digits/clouds shrink.
-        if NativeTabletLayout.applies(presentationViewport) {paperCover.transform=CGAffineTransform(scaleX:1/Self.tabletContentScale,y:1/Self.tabletContentScale)}
+        if NativeTabletLayout.applies(presentationViewport) {
+            paperCover.transform=CGAffineTransform(scaleX:1/tabletCompositionScale,y:1/tabletCompositionScale)
+            paperCover.center.y-=sceneryCompositionDrop
+        }
         scene.frame=NativeTransitionSceneGeometry.sceneFrame(viewport:viewport).offsetBy(dx:0,dy:forestSceneryDrop);scene.isUserInteractionEnabled=false;scene.clipsToBounds=false;scene.backgroundColor = .clear;scene.layer.zPosition=4;canvas.addSubview(scene)
         if theme == .forest,NativeTabletLayout.applies(presentationViewport) {
             // Grow the whole lower scenery around its bottom edge, retaining
             // the accepted ground alignment instead of zooming the screen.
-            let sceneryScale:CGFloat=1.05*1.05*1.05
+            let sceneryScale=Self.forestSceneryScale
             scene.center.y-=scene.bounds.height*(sceneryScale-1)/2
             scene.transform=CGAffineTransform(scaleX:sceneryScale,y:sceneryScale)
         }
         // PWA's NN Unit is a fixed stacking context. Keep each digit's authored
         // 3D exit inside it so perspective cannot reorder scene/cloud siblings.
         digitUnit.frame=canvas.bounds;digitUnit.isUserInteractionEnabled=false;digitUnit.clipsToBounds=false;digitUnit.backgroundColor = .clear;digitUnit.layer.zPosition=10;canvas.addSubview(digitUnit)
+        // Cancel the group translation only for NN; all scenery/bee/cloud
+        // siblings keep the common shift and their original depth ordering.
+        digitUnit.center.y-=sceneryCompositionDrop
+        if theme == .forest,NativeTabletLayout.applies(presentationViewport) {
+            digitUnit.center.y-=24/(NativeTabletLayout.animationScale(presentationViewport)*tabletCompositionScale)
+        }
+        if NativeTabletLayout.applies(presentationViewport) {
+            // Scene-only size corrections never change the NN size or pose.
+            digitUnit.transform=CGAffineTransform(scaleX:1/tabletArtworkScale,y:1/tabletArtworkScale)
+        }
     }
     private var canvas:UIView {NativeTabletLayout.applies(presentationViewport) ? composition:view}
     static func assets(theme:NativeBoardTransitionPlan.Theme)->[String] {
@@ -149,14 +190,67 @@ final class NativeThemedBoardTransitionController:UIViewController {
         for layer in layers {
             let key=layer.definition.key
             guard !key.hasPrefix("robo-fighter"),!key.hasPrefix("robo-beam") else{continue}
-            let sprite=UIImageView(image:try image(layer.definition.asset));sprite.bounds=CGRect(origin:.zero,size:layer.frame.size);sprite.layer.anchorPoint=CGPoint(x:0.5,y:1);sprite.layer.position=CGPoint(x:layer.left,y:scene.bounds.height-layer.bottom);sprite.contentMode = .scaleAspectFit;sprite.layer.zPosition=CGFloat(layer.definition.depth);scene.addSubview(sprite);sceneImages[key]=sprite
+            let sprite=UIImageView(image:try image(layer.definition.asset));sprite.bounds=CGRect(origin:.zero,size:layer.frame.size);sprite.layer.anchorPoint=CGPoint(x:0.5,y:1);sprite.layer.position=CGPoint(x:layer.left,y:scene.bounds.height-layer.bottom);sprite.contentMode = .scaleAspectFit;sprite.layer.zPosition=CGFloat(layer.definition.depth)
+            if theme == .beach,(key == "beach-bottle" || key == "beach-ball") {sprite.layer.position.y-=beachPropLift}
+            if key == "fence-left" || key == "fence-right" {sprite.layer.position.y-=forestFenceCompensation}
+            if theme == .forest,key == "mountain",NativeTabletLayout.applies(presentationViewport) {
+                // Convert physical displacement through both composition and scenery.
+                sprite.layer.position.y+=60/(NativeTabletLayout.animationScale(presentationViewport)*tabletCompositionScale*Self.forestSceneryScale)
+            }
+            if NativeTabletLayout.applies(presentationViewport) {
+                if theme == .beach,key.hasPrefix("beach-sea-") {
+                    sprite.bounds.size=CGSize(width:layer.frame.width*1.20,height:layer.frame.height*1.20)
+                }
+                if theme == .area55,(key == "robo-front" || key == "robo-walker") {
+                    // Preserve the rest centre during resize, then lift the
+                    // front120pt/rear20pt through the full tablet projection.
+                    // One cumulative offset includes each requested40pt upward adjustment.
+                    let height=layer.frame.height*0.85
+                    sprite.bounds.size=CGSize(width:layer.frame.width*0.85,height:height)
+                    let lift:CGFloat=(key == "robo-front" ? 120:20)/(NativeTabletLayout.animationScale(presentationViewport)*tabletCompositionScale)
+                    sprite.layer.position.y-=(layer.frame.height-height)/2+lift
+                }
+                if theme == .area55,key.hasPrefix("robo-fence") {
+                    sprite.layer.position.y-=24/(NativeTabletLayout.animationScale(presentationViewport)*tabletCompositionScale)
+                }
+            }
+            scene.addSubview(sprite);sceneImages[key]=sprite
         }
+        let tabletUpperCloudCount=cloudPlans.filter{$0.depth != 415 && $0.yPercent<32}.count
+        var tabletUpperCloudIndex=0
         for plan in cloudPlans {let host=UIView(frame:CGRect(x:0,y:0,width:plan.width,height:plan.height));host.backgroundColor = .clear;host.isUserInteractionEnabled=false;host.clipsToBounds=false
+            var tabletTopClearance:CGFloat?,tabletDriftDistance:CGFloat?
             let sprite=UIImageView(image:try image(NativeTransitionCloudPlan.assets[plan.asset]));sprite.frame=host.bounds;sprite.contentMode = .scaleAspectFit;host.addSubview(sprite)
             if plan.depth==415 {host.layer.position=CGPoint(x:viewport.width*plan.xPercent/100,y:scene.bounds.height*plan.yPercent/100);host.layer.zPosition=15;scene.addSubview(host)}
             else {host.layer.position=CGPoint(x:viewport.width*plan.xPercent/100,y:viewport.height*plan.yPercent/100);host.layer.zPosition=CGFloat(plan.depth);canvas.addSubview(host)}
+            if theme == .beach,NativeTabletLayout.applies(presentationViewport) {
+                // Layout only: use the phone's original sampled animation,
+                // placing its six clouds above the sea in physical screen space.
+                // No drift override or per-frame vertical correction on Beach.
+                let spreadX=min(98,max(2,50+(plan.xPercent-50)*1.20))
+                let physicalCenter=CGPoint(x:presentationViewport.width*spreadX/100,
+                    y:presentationViewport.height*(0.16+plan.yPercent*0.002))
+                host.layer.position=canvas.convert(physicalCenter,from:view)
+            }
+            if theme == .area55,NativeTabletLayout.applies(presentationViewport) {
+                host.layer.position.y-=presentationViewport.height*0.35/(NativeTabletLayout.animationScale(presentationViewport)*tabletCompositionScale)
+            }
+            if theme == .forest,NativeTabletLayout.applies(presentationViewport),plan.depth != 415,plan.yPercent<32 {
+                let projection=NativeTabletLayout.animationScale(presentationViewport)*tabletCompositionScale
+                let lane=CGFloat(tabletUpperCloudIndex)/CGFloat(max(1,tabletUpperCloudCount-1))
+                // Separate screen-wide lanes instead of crossing the upper
+                // clouds into one cluster. Outer lanes travel outward; the
+                // centre retains a small independent drift and a lower tier.
+                host.layer.position.x=canvas.convert(CGPoint(x:presentationViewport.width*(0.04+0.92*lane),y:0),from:view).x
+                host.layer.position.y-=presentationViewport.height*0.20/projection
+                let tier:CGFloat=lane<0.25 ? 0:lane>0.75 ? 0.045:0.10
+                tabletTopClearance=40+presentationViewport.height*tier
+                let travel:CGFloat=lane<0.25 ? -0.32:lane>0.75 ? 0.32:(plan.driftDistance<0 ? -0.08:0.08)
+                tabletDriftDistance=presentationViewport.width*travel/projection
+                tabletUpperCloudIndex+=1
+            }
             host.isHidden=true;sprite.alpha=0
-            clouds.append(MountedCloud(plan:plan,host:host,sprite:sprite))
+            clouds.append(MountedCloud(plan:plan,host:host,sprite:sprite,tabletTopClearance:tabletTopClearance,tabletDriftDistance:tabletDriftDistance))
         }
         var frames:[NativeTransitionInterpolation.Frame]=[]
         for index in 0..<20 {let intensity=15*(1-Double(index)/20);frames.append(.init(duration:0.025,to:.init(x:(random()-0.5)*intensity*2,y:(random()-0.5)*intensity*2),ease:.linear))}
@@ -177,7 +271,10 @@ final class NativeThemedBoardTransitionController:UIViewController {
     }
     private func mountCombat(layers:[NativeTransitionSceneGeometry.Layer]) throws {
         for side in [NativeTransitionRoboCombatPlan.Side.left,.right] {let key=side == .left ? "robo-fighter-left":"robo-fighter-right",layer=layers.first{$0.definition.key==key}!
-            let host=UIView(frame:layer.frame.offsetBy(dx:scene.frame.minX,dy:scene.frame.minY));host.isUserInteractionEnabled=false;host.backgroundColor = .clear;host.clipsToBounds=false
+            // Independent extra drops use each ship's authored height, so its
+            // complete existing flight/hover/exit path is translated uniformly.
+            let shipDrop=NativeTabletLayout.applies(presentationViewport) ? layer.height*(side == .left ? 0.40:0.15):0
+            let host=UIView(frame:layer.frame.offsetBy(dx:scene.frame.minX,dy:scene.frame.minY+shipDrop));host.isUserInteractionEnabled=false;host.backgroundColor = .clear;host.clipsToBounds=false
             let sprite=UIImageView(image:try image(layer.definition.asset));sprite.frame=host.bounds;sprite.contentMode = .scaleAspectFit;host.addSubview(sprite);canvas.addSubview(host);fighterViews[side]=(host,sprite)
         }
         for key in ["robo-beam-hit","robo-beam-final"] {let layer=layers.first{$0.definition.key==key}!,sprite=UIImageView(image:try image(layer.definition.asset));sprite.bounds=CGRect(origin:.zero,size:layer.frame.size);sprite.layer.anchorPoint=CGPoint(x:0.88,y:0.75);sprite.contentMode = .scaleAspectFit;sprite.layer.zPosition=29;scene.addSubview(sprite);beamViews[key]=sprite}
@@ -194,7 +291,7 @@ final class NativeThemedBoardTransitionController:UIViewController {
         CATransaction.setDisableActions(true)
         if let shake {let p=shake.sample(seconds);view.transform=CGAffineTransform(translationX:p.x,y:p.y)}
         for (key,sprite) in sceneImages {if let p=scenePlan.pose(key:key,seconds:seconds){
-            if theme == .beach,(key=="beach-bottle" || key=="beach-ball"),seconds>=(key=="beach-bottle" ? 0.7115:0.79655),sprite.layer.anchorPoint.y != 0.5 {let layer=NativeTransitionSceneGeometry.layers(theme:theme,viewport:viewport,variation:variation).first{$0.definition.key==key}!;sprite.layer.anchorPoint=CGPoint(x:0.5,y:0.5);sprite.layer.position=CGPoint(x:layer.left,y:scene.bounds.height-layer.bottom-layer.height/2)}
+            if theme == .beach,(key=="beach-bottle" || key=="beach-ball"),seconds>=(key=="beach-bottle" ? 0.7115:0.79655),sprite.layer.anchorPoint.y != 0.5 {let layer=NativeTransitionSceneGeometry.layers(theme:theme,viewport:viewport,variation:variation).first{$0.definition.key==key}!;sprite.layer.anchorPoint=CGPoint(x:0.5,y:0.5);sprite.layer.position=CGPoint(x:layer.left,y:scene.bounds.height-layer.bottom-layer.height/2-beachPropLift)}
             sprite.alpha=min(1,max(0,p.opacity));sprite.transform=CGAffineTransform(translationX:p.x,y:p.y).rotated(by:p.rotation * .pi/180).scaledBy(x:p.sx,y:p.sy)}}
         for index in clouds.indices {
             guard !clouds[index].retired else{continue}
@@ -207,9 +304,18 @@ final class NativeThemedBoardTransitionController:UIViewController {
                 continue
             }
             host.isHidden=p.opacity==0
-            host.transform=CGAffineTransform(translationX:p.wrapperX,y:0)
+            let drift=cloud.tabletDriftDistance.map{$0*CGFloat(plan.driftDistance == 0 ? 0:p.wrapperX/plan.driftDistance)} ?? CGFloat(p.wrapperX)
+            host.transform=CGAffineTransform(translationX:drift,y:0)
             sprite.alpha=p.opacity
             sprite.transform=CGAffineTransform(translationX:0,y:p.imageY).rotated(by:plan.rotation * .pi/180).scaledBy(x:p.scaleX,y:p.scaleY)
+            if let clearance=cloud.tabletTopClearance {
+                // Bound the complete rotated/bouncing silhouette in physical
+                // screen points, including entry overshoot and root shake.
+                // Start from the authored pose each frame; never accumulate a lift.
+                let top=sprite.convert(sprite.bounds,to:view).minY+view.transform.ty
+                let correction=max(0,clearance-top)/(NativeTabletLayout.animationScale(presentationViewport)*tabletCompositionScale)
+                host.transform=CGAffineTransform(translationX:drift,y:correction)
+            }
         }
         for (index,digit) in digitViews.enumerated(){let exit=scenePlan.exitAt+0.35+Double(index)*0.4,p=seconds>=exit ? NativeBoardTransitionPlan.digitExit(seconds-exit,index:index,rotation:digitRotations[index]):NativeBoardTransitionPlan.digitEnter(seconds-NativeBoardTransitionPlan.digitEnterStart(theme:theme,index:index),rotation:digitRotations[index]);digit.alpha=min(1,max(0,p.alpha));var matrix=CATransform3DIdentity;matrix.m34 = -1/1000;matrix=CATransform3DTranslate(matrix,0,0,p.z);matrix=CATransform3DRotate(matrix,p.rotation * .pi/180,0,0,1);matrix=CATransform3DRotate(matrix,p.rotationX * .pi/180,1,0,0);matrix=CATransform3DRotate(matrix,p.rotationY * .pi/180,0,1,0);digit.layer.transform=CATransform3DScale(matrix,p.scale,p.scale,1)}
         paintCombat(seconds:seconds)

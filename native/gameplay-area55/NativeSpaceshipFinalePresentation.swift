@@ -15,13 +15,24 @@ final class NativeSpaceshipFinalePresentation: NativeFinitePresentation {
     private let saucerRig = UIView(),beamRig = UIView(),saucer = UIImageView(),leftBeam = UIImageView(),rightBeam = UIImageView()
     private let glyphs: NativeSplashGlyphField
     private let frames: [UIImage]
+    private let saucerVisualScale:CGFloat
     private let entry: Int,lane: Double
     private let leftSteps,rightSteps: [BeamStep]
     private var debris: [Debris] = [],bitmapIndex = -1,beamRetired = false
     private var deliveredCues = Set<String>()
+    private var screenShake:NativeBloobScreenShakeBinding?
+    private var shakeViewport=CGSize.zero
+    private let intakeShakeEnd:Double
+    func bindScreenShake(to view:UIView) {
+        screenShake?.dispose();screenShake=NativeBloobScreenShakeBinding(view:view)
+        shakeViewport=view.bounds.size
+    }
+    override func resetTransientEffects(){screenShake?.paint(.zero)}
+    override func dispose(){screenShake?.dispose();screenShake=nil;super.dispose()}
     init(resourceRoot: URL,viewport: CGSize,origin: CGPoint,generation: UInt64,
-         preparedArtwork:JimiV9Artwork?=nil,random: () -> Double = { Double.random(in: 0..<1) }) {
+         preparedArtwork:JimiV9Artwork?=nil,saucerVisualScale:CGFloat=1,random: () -> Double = { Double.random(in: 0..<1) }) {
         self.generation = generation
+        self.saucerVisualScale=saucerVisualScale
         let artwork = preparedArtwork ?? JimiV9Artwork(resourceRoot: resourceRoot)
         entry = max(0,min(3,Int(NativeArea55Motion.clamp(random(),0,0.999999)*4)))
         lane = random() < 0.5 ? -1 : 1
@@ -62,6 +73,7 @@ final class NativeSpaceshipFinalePresentation: NativeFinitePresentation {
         rightSteps = Self.makeBeamSteps(left: false,random: random); leftSteps = Self.makeBeamSteps(left: true,random: random)
         for plan in NativeArea55Motion.additionalSideDebris+NativeArea55Motion.additionalCargo {prepare(plan)}
         debris = prepared
+        intakeShakeEnd=min(3.8,prepared.map{$0.plan.arrival-0.25}.max() ?? 0)
         assetReady = allAssets && FileManager.default.fileExists(atPath: resourceRoot.appendingPathComponent("assets/fonts/Baloo2-ExtraBold.ttf").path)
         super.init(viewport: viewport,duration: 3.8)
         clipsToBounds = true
@@ -79,7 +91,8 @@ final class NativeSpaceshipFinalePresentation: NativeFinitePresentation {
         super.layoutSubviews()
         let w = min(bounds.width*0.76,297),h = w*202/297
         for rig in [beamRig,saucerRig] { rig.bounds = CGRect(x: 0,y: 0,width: w,height: h) }
-        saucer.frame = saucerRig.bounds
+        saucer.bounds=saucerRig.bounds;saucer.center=CGPoint(x:w/2,y:h/2)
+        saucer.transform=CGAffineTransform(scaleX:saucerVisualScale,y:saucerVisualScale)
         for (beam,x,width) in [(leftBeam,-0.40*w,1.32*w),(rightBeam,-0.0225*w,1.455*w)] {
             let imageSize = beam.image?.size ?? .init(width: 1,height: 1),height = width*imageSize.height/imageSize.width
             beam.bounds = CGRect(x: 0,y: 0,width: width,height: height)
@@ -89,6 +102,7 @@ final class NativeSpaceshipFinalePresentation: NativeFinitePresentation {
         glyphs.frame = bounds; glyphs.layoutIfNeeded()
     }
     override func paint(seconds: TimeInterval) {
+        screenShake?.paint(UIAccessibility.isReduceMotionEnabled ? .zero:Self.intakeShakeOffset(seconds:seconds,end:intakeShakeEnd,viewport:shakeViewport))
         let pose = NativeArea55Motion.rigPose(seconds: seconds,entry: entry,lane: lane,viewport: bounds.size)
         apply(pose,to: saucerRig)
         if seconds >= 2.94 {
@@ -134,6 +148,16 @@ final class NativeSpaceshipFinalePresentation: NativeFinitePresentation {
         for (time,name) in [(0.0,"spaceship-start"),(0.34,"spaceship-beam"),(2.62,"spaceship-exit")] where seconds >= time && !deliveredCues.contains(name) {
             deliveredCues.insert(name); onCue?(name,0)
         }
+    }
+    /// Brief fast onset settles exponentially into broad3→1.2Hz waves.
+    /// Integrating frequency keeps phase continuous throughout deceleration.
+    static func intakeShakeOffset(seconds:Double,end:Double,viewport:CGSize)->CGPoint {
+        guard seconds>0,end>0,seconds<end else{return .zero}
+        let u=seconds/end,attack=min(1,seconds/0.035)
+        let amplitude=min(5.5,Double(min(viewport.width,viewport.height))*0.014)*1.20*attack*pow(1-u,0.9)
+        let cycles=3*seconds-0.9*seconds*seconds/end+18*0.055*(1-exp(-seconds/0.055))
+        let phase=2*Double.pi*cycles
+        return CGPoint(x:amplitude*sin(phase)/1.1,y:amplitude*0.45*sin(phase*0.82+0.7)/1.1)
     }
     private func apply(_ pose: NativeArea55Motion.RigPose,to rig: UIView) {
         rig.layer.position = CGPoint(x: Double(bounds.width)/2+pose.x,y: Double(rig.bounds.height)*0.45+pose.y)

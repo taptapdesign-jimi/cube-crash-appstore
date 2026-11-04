@@ -23,11 +23,24 @@ enum NativeTabletLayout {
         animation.center=CGPoint(x:viewport.width/2,y:viewport.height/2)
         animation.transform=CGAffineTransform(scaleX:scale,y:scale)
     }
-    static func smokeSpriteBoost(_ size:CGSize)->CGFloat {applies(size) ? 2.541:1}
+    static func smokeSpriteBoost(_ size:CGSize)->CGFloat {
+        // Keep the corrected raster basis, then scale the last TNT size down20%.
+        // Core TNT already
+        // owns its1.4*1.2*1.2 enlargement AND the full-width scene projection.
+        applies(size) ? (1.694*1.2*1.30*0.80)/(1.4*1.2*1.2*animationScale(size)):1
+    }
     static func smokeVerticalOffset(_ size:CGSize)->CGFloat {applies(size) ? animationViewport(size).height*0.1:0}
+    static func tntSmokeVerticalOffset(_ size:CGSize)->CGFloat {
+        // SpriteKit Y points up. Convert the20pt screen-space lift once.
+        -smokeVerticalOffset(size)+(applies(size) ? 20/animationScale(size):0)
+    }
     // Match the current iPad navigation icon factor with one whole-modal
     // projection. All inner dimensions remain the authored390pt phone recipe.
     static func modalScale(_ size:CGSize)->CGFloat {applies(size) ? 1.4:1}
+    // Modal titles stay32pt on screen, independent of the paper projection.
+    static func modalTitleSize(_ viewport:CGSize,phone:CGFloat)->CGFloat {
+        applies(viewport) ? 32/modalScale(viewport):phone
+    }
     @MainActor static func modalBounds(in host:UIView,card:UIView,referenceWidth:CGFloat=390,isolatesDepth:Bool=false)->CGRect {
         guard applies(host.bounds.size) else {
             if let old=card.superview as? NativeModalProjectionView {

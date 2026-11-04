@@ -66,8 +66,9 @@ final class NativeSixSourceShakeGraph {
         }
         static let magnetPull=Self(strength:28,duration:0.36,steps:28,ease:.sineInOut,yScale:1)
         static func laserImpact(index:Int)->Self? {
-            guard index==2 || index==3 else{return nil}
-            return .init(strength:index==2 ? 9:12,duration:index==2 ? 0.18:0.22,steps:index==2 ? 10:12,ease:.power2Out,yScale:0.72,alsoShakeOverlay:true)
+            guard (0..<4).contains(index) else{return nil}
+            let strength:Double=(index<2 ? 8:index==2 ? 11.25:15)*1.92
+            return .init(strength:strength,duration:index==3 ? 0.22:0.18,steps:index==3 ? 12:10,ease:.power2Out,yScale:0.72,alsoShakeOverlay:true)
         }
         var totalDuration:Double {Double(steps)*max(0.01,duration/Double(max(1,steps)))+min(0.12,duration*0.45)}
     }

@@ -102,7 +102,7 @@ nonisolated final class NativeSourceHUDStarPlanTests:XCTestCase {
                 if let lastDelay {launchGaps.append(coin.delay-lastDelay);XCTAssertLessThan(coin.delay,Double(ordinal)*interval!)}
                 lastDelay=coin.delay
                 XCTAssertEqual(coin.points.first,original.points.first);XCTAssertEqual(coin.points.last,original.points.last)
-                XCTAssertEqual(coin.size,original.size*1.2,accuracy:1e-10)
+                XCTAssertEqual(coin.size,original.size*1.2*1.3*1.3,accuracy:1e-10)
                 let midpoint=coin.points[32]
                 left = left || midpoint.x<120;right = right || midpoint.x>270
                 // Equal time steps through the former burst/pause boundary:

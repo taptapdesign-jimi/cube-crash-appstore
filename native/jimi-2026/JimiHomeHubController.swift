@@ -332,7 +332,7 @@ final class JimiHomeHubController: UIViewController {
             onDiagnosticEvent?(.start(requestID: requestID, label: "world-return-to-native-hub:incoming-only"))
         } else { enterOwner = nil }
         update(snapshot)
-        if next == .home { home.selectSlide(snapshot["homeSlide"] as? Int ?? 0, animated: false) }
+        if next == .home { home.selectSlide(snapshot["homeSlide"] as? Int ?? 0, animated: false);home.prepareCloudsForVisit();home.layoutIfNeeded() }
         home.isHidden = next != .home; hub.isHidden = next != .hub; settings.isHidden = next != .settings
         view.isHidden = false; web.accessibilityElementsHidden = true
         status.text = nil; status.accessibilityValue = animateHubEnter ? "transitioning" : "ready"
@@ -390,7 +390,7 @@ final class JimiHomeHubController: UIViewController {
                 return (target, JimiV9Motion.Track(tweens: [replacement] + track.tweens.dropFirst(), anchorX: track.anchorX, anchorY: track.anchorY))
             }
             return (target, track)
-        }
+        } + home.cloudRouteTracks(enter:enter)
     }
 
     private func hubTracks(enter: Bool, selectedWorldID: Int? = nil) -> [(UIView, JimiV9Motion.Track)] {
@@ -811,6 +811,7 @@ final class JimiHomeHubController: UIViewController {
                 return
             }
         }
+        let cloudStart = home.cloudPanoramaSnapshot
         let oldX = home.sliderTrack.layer.presentation()?.position.x ?? home.sliderTrack.layer.position.x
         let navigation = home.navigationLayoutTargets.map { target in
             let layer = target.view.layer.presentation() ?? target.view.layer
@@ -819,6 +820,10 @@ final class JimiHomeHubController: UIViewController {
         home.cancelPan()
         cancelMotion()
         home.selectSlide(index, animated: false)
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        for layer in home.installCloudPanorama(from:cloudStart) {
+            if !animatedLayers.contains(where:{$0 === layer}) {animatedLayers.append(layer)}
+        }
         let newX = home.sliderTrack.layer.position.x
         let animation = CAKeyframeAnimation(keyPath: "position.x")
         animation.values = (0...80).map { oldX + (newX-oldX)*JimiV9Motion.sliderEase.value(Double($0)/80) }
@@ -847,6 +852,7 @@ final class JimiHomeHubController: UIViewController {
             layer.add(group, forKey: "native-slide-selection")
             if !animatedLayers.contains(where: { $0 === layer }) { animatedLayers.append(layer) }
         }
+        CATransaction.commit()
         if changed { animate([(home.heroView, JimiV9Motion.selectedHeroBounce)]) { [weak self] in
             guard let self,self.active,!self.transitioning,self.route == .home else{return};self.home.startHeroIdle()
         } } else {home.startHeroIdle()}
@@ -946,7 +952,12 @@ final class JimiHomeHubController: UIViewController {
         incomingHubEnter = false
         generation += 1
         CATransaction.begin(); CATransaction.setDisableActions(true)
-        for layer in animatedLayers { layer.removeAnimation(forKey: "native-route"); layer.removeAnimation(forKey: "native-slide-selection"); layer.transform = CATransform3DIdentity; layer.opacity = baseOpacity[ObjectIdentifier(layer)] ?? 1; restoreAnchor(layer) }
+        for layer in animatedLayers {
+            if layer.animation(forKey:"native-slide-selection") != nil,let painted=layer.presentation() {
+                layer.position=painted.position;layer.bounds=painted.bounds
+            }
+            layer.removeAnimation(forKey: "native-route"); layer.removeAnimation(forKey: "native-slide-selection"); layer.transform = CATransform3DIdentity; layer.opacity = baseOpacity[ObjectIdentifier(layer)] ?? 1; restoreAnchor(layer)
+        }
         animatedLayers.removeAll(); CATransaction.commit()
     }
     private func restoreAnchor(_ layer: CALayer) {

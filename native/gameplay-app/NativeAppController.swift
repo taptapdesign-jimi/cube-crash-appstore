@@ -58,6 +58,7 @@ final class NativeAppController: UIViewController {
     private var backpack:NativeHubBackpackFeedback?
     private var generation = 0
     private(set) var transitioning = false
+    private var navigationDestination:Route?
     private var suspended = false
     private var deferredReveal:Route?
     private var pendingGameplayReturnWorldID:Int?
@@ -224,7 +225,8 @@ final class NativeAppController: UIViewController {
         }
     }
     func navigate(_ next:Route,interrupt:Bool = false) {
-        guard studioIntro == nil,route != next,(!transitioning || interrupt),route != .gameplay else{return}
+        guard studioIntro == nil,route != next,(!transitioning || interrupt),
+              !(transitioning && navigationDestination == next),route != .gameplay else{return}
         if next == .backpack {
             // The visible source must have completed its real entry admission.
             // An early header tap cannot claim navigation while its parent rejects it.
@@ -241,6 +243,7 @@ final class NativeAppController: UIViewController {
         retireStatHistory()
         cancelWorldEntryPreparation()
         cancelGameplayLaunchPreparation()
+        navigationDestination=next
         if transitioning {motion.cancel()} else {motion.cancelSelectionLayout()}
         generation += 1;let owner = generation;transitioning = true
         settingsView.setDeveloperPanelVisible(false)
@@ -298,7 +301,7 @@ final class NativeAppController: UIViewController {
         backpackView?.isHidden=true
         let returningFromBackpack = route == .backpack
         backpackReturnWorldClose=returningFromBackpack && {if case .world = next{return true};return false}()
-        route = next;onRoute?(next);fault.isHidden = true
+        route = next;navigationDestination=nil;onRoute?(next);fault.isHidden = true
         let journeyDestination:Bool = {if next == .hub{return true};if case .world = next{return true};return false}()
         if journeyDestination {
             let button:UIButton? = next == .hub ? hub.backpackButton:world?.backpackButton
@@ -345,6 +348,7 @@ final class NativeAppController: UIViewController {
             backpackView?.apply(crate ? []:NativeBackpackCatalog.sections(services.journeyProgression(),prioritizingWorld:originWorld))
             motion.animate(backpackView?.tracks(enter:true) ?? [],completion:admitted)
         case .home:
+            home.prepareCloudsForVisit()
             home.isHidden = false;home.selectSlide(home.selectedSlide,animated:false)
             onFeedback?("home-haptic-enter")
             motion.animate(motion.homeTracks(enter:true),completion:admitted)

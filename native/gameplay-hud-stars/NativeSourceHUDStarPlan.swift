@@ -3,6 +3,12 @@ import Foundation
 /// Immutable Source fx.ts construction values. JSC's three-element random-sort
 /// comparison order is pinned by the original function running in JavaScriptCore.
 nonisolated struct NativeSourceHUDStarPlan {
+    static let readableCoinEnlargement=1.20*1.30*1.30
+    static func coinEnlargement(for viewport:CGSize?)->Double {
+        // Match the existing portrait tablet admission; phone keeps Git's1.20.
+        guard let viewport,viewport.width>=600,viewport.height>=850,viewport.height>viewport.width else{return 1.20}
+        return readableCoinEnlargement
+    }
     let points:[CGPoint],delay:Double,duration:Double,size:Double,rotation:Double,textureWidth:Double
     var launchPower:Double=0
     var originalMotionDuration:Double=0
@@ -11,7 +17,7 @@ nonisolated struct NativeSourceHUDStarPlan {
     var sourceDuration:Double {Self.round7(duration)}
     struct Pose {let point:CGPoint,scale:Double,rotation:Double,arrived:Bool,elapsed:Double}
     /// Normalize the authored30...56pt width plus +/-1.25pt variation.
-    /// Capture before the common28pt trophy shrink; readable Native coins are1.2x.
+    /// Capture before the common28pt trophy shrink; readable Native coins use the shared display enlargement.
     static func relativeCoinSize(_ width:Double,enlargement:Double=1)->Double {
         guard width.isFinite,enlargement.isFinite,enlargement>0 else{return 0}
         return min(1,max(0,(width/enlargement-28.75)/(57.25-28.75)))
@@ -56,6 +62,7 @@ nonisolated struct NativeSourceHUDStarPlan {
     /// Native coin fan reuses captured randomness; Source plans stay literal.
     /// All displacement is finite and the existing job still owns HUD arrival.
     func readableCoin(ordinal:Int,previousEnd:inout Double,viewport:CGSize?=nil,gentleLaunch:Bool=false,launchInterval:Double?=nil)->Self {
+        let enlargement=Self.coinEnlargement(for:viewport)
         let variation=abs(sin(rotation*17.13+size*0.731+Double(ordinal)*2.399))
         let baseFlight=duration*1.25*1.30/(0.60*1.20*2*0.90)*(0.82+variation*0.36)
         let flight=baseFlight*(gentleLaunch ? 1:0.82)
@@ -71,7 +78,7 @@ nonisolated struct NativeSourceHUDStarPlan {
         var start=points[0]
         let target=points[points.count-1]
         if let viewport,viewport.width>0,viewport.height>0 {
-            let margin=min(min(viewport.width,viewport.height)/2,size*1.2*0.75+2)
+            let margin=min(min(viewport.width,viewport.height)/2,size*enlargement*0.75+2)
             start.x=min(viewport.width-margin,max(margin,start.x))
             start.y=min(viewport.height-margin,max(margin,start.y))
         }
@@ -87,14 +94,14 @@ nonisolated struct NativeSourceHUDStarPlan {
             var point=CGPoint(x:start.x+dx*t+lane*fan,y:start.y+dy*t)
             if let viewport,viewport.width>0,viewport.height>0 {
                 let shrink=min(1,max(0,(t-0.7)/0.3))
-                let margin=min(min(viewport.width,viewport.height)/2,(size*1.2+(28-size*1.2)*shrink)*0.75+2)
+                let margin=min(min(viewport.width,viewport.height)/2,(size*enlargement+(28-size*enlargement)*shrink)*0.75+2)
                 point.x=min(viewport.width-margin,max(margin,point.x))
                 point.y=min(viewport.height-margin,max(margin,point.y))
             }
             if i==64 {return target}
             return point
         }
-        return Self(points:burstPoints,delay:launch,duration:acceleratedDuration,size:size*1.20,
+        return Self(points:burstPoints,delay:launch,duration:acceleratedDuration,size:size*enlargement,
             rotation:rotation,textureWidth:textureWidth,launchPower:power,originalMotionDuration:flight,accelerationStart:accelerationStart)
     }
     /// Bloob-only radial departure and crossing lanes, captured from the existing plan.

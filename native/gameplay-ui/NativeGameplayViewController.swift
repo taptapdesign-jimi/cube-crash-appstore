@@ -532,7 +532,8 @@ final class NativeGameplayViewController: UIViewController {
             if variant == "spaceship" || variant == "laser-gun" {
                 let owner: NativeFinitePresentation,ready: Bool
                 if variant == "spaceship" {
-                    let spaceship = NativeSpaceshipFinalePresentation(resourceRoot: self.resourceRoot,viewport: self.finaleViewport,origin: origin,generation: generation,preparedArtwork:self.selectedFinaleArtwork())
+                    let spaceship = NativeSpaceshipFinalePresentation(resourceRoot: self.resourceRoot,viewport: self.finaleViewport,origin: origin,generation: generation,preparedArtwork:self.selectedFinaleArtwork(),saucerVisualScale:NativeTabletLayout.applies(self.view.bounds.size) ? 0.8:1)
+                    spaceship.bindScreenShake(to:self.view)
                     owner = spaceship; ready = spaceship.assetReady
                 } else {
                     let laser = NativeLaserGunFinalePresentation(resourceRoot: self.resourceRoot,viewport: self.finaleViewport,origin: origin,generation: generation,preparedArtwork:self.selectedFinaleArtwork())
@@ -664,7 +665,7 @@ final class NativeGameplayViewController: UIViewController {
                 NativeTabletLayout.projectAnimation(owner,viewport:self.view.bounds.size);self.bindFinalMergeProgress(owner,generation:generation);owner.start();return true
             }
             if variant == "kanta" {
-                let owner = NativeKantaFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.finaleViewport,preparedArtwork:self.selectedFinaleArtwork())
+                let owner = NativeKantaFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.finaleViewport,preparedArtwork:self.selectedFinaleArtwork(),artworkScale:NativeTabletLayout.applies(self.view.bounds.size) ? 0.85:1,artworkVerticalOffset:NativeTabletLayout.applies(self.view.bounds.size) ? 16/NativeTabletLayout.animationScale(self.view.bounds.size):0)
                 guard owner.assetReady else {owner.dispose();return false}
                 self.area55Finales[variant]?.dispose()
                 self.area55Finales[variant] = owner;self.area55Generations[variant] = generation
@@ -684,7 +685,9 @@ final class NativeGameplayViewController: UIViewController {
                     if let self {self.prepareSelectedFinaleArtwork(self.engine.state)}
                     completion()
                 }
-                NativeTabletLayout.projectAnimation(owner,viewport:self.view.bounds.size);self.bindFinalMergeProgress(owner,generation:generation);owner.start();return true
+                NativeTabletLayout.projectAnimation(owner,viewport:self.view.bounds.size)
+                if NativeTabletLayout.applies(self.view.bounds.size) {owner.center.y += 40}
+                self.bindFinalMergeProgress(owner,generation:generation);owner.start();return true
             }
             if variant == "bottle" {
                 self.area55Finales["spaceship"]?.dispose()
@@ -825,9 +828,14 @@ final class NativeGameplayViewController: UIViewController {
                   ["coconut","flower","barell","beach-ball","laser-gun","bloob-ball"].contains(variant),
                   self.area55SourceOwnerIDs[variant]==ownerID,self.area55Generations[variant]==generation,
                   let owner=self.area55Finales[variant],owner.superview != nil else{return nil}
+            // These requested tablet finales must retain their full-screen
+            // projection throughout shake and its final zero-offset paint.
+            // Barrel/Flower keep their existing rendered reference size.
+            let preservesProjection=variant == "coconut" || variant == "beach-ball" || variant == "laser-gun" || variant == "bloob-ball"
+            let scale=preservesProjection ? NativeTabletLayout.animationScale(self.view.bounds.size):1
             return NativeSourceScreenShakeOverlayTarget(read:{[weak owner] in
                 guard let owner else{return .zero};return CGPoint(x:owner.transform.tx,y:owner.transform.ty)
-            },paint:{[weak owner] offset in owner?.transform=CGAffineTransform(translationX:offset.x,y:offset.y)},current:{[weak self,weak owner] in
+            },paint:{[weak owner] offset in owner?.transform=CGAffineTransform(a:scale,b:0,c:0,d:scale,tx:offset.x,ty:offset.y)},current:{[weak self,weak owner] in
                 guard let self,let owner else{return false}
                 return !self.disposed && self.engine.state.generation==generation &&
                     self.area55Finales[variant] === owner && self.area55SourceOwnerIDs[variant]==ownerID && owner.superview != nil
@@ -1277,7 +1285,7 @@ final class NativeGameplayViewController: UIViewController {
             guard ball.assetsReady else { ball.dispose(); return false }
             ball.onGameplayReady = onGameplayReady; owner = ball
         } else {
-            let tnt = NativeTntVariantPresentation(resourceRoot:resourceRoot,variant:variant == "coconut" ? .coconut:variant == "flower" ? .flower:variant == "bloob-ball" ? .bloobGas:.barell,viewport:finaleViewport,preparedArtwork:selectedFinaleArtwork(),coconutBoardBodySize:boardScene.map{$0.coconutFinaleBodySize/NativeTabletLayout.animationScale(view.bounds.size)},smokePresentationScale:NativeTabletLayout.applies(view.bounds.size) ? 1.694:1,smokeVerticalOffset:NativeTabletLayout.smokeVerticalOffset(view.bounds.size))
+            let tnt = NativeTntVariantPresentation(resourceRoot:resourceRoot,variant:variant == "coconut" ? .coconut:variant == "flower" ? .flower:variant == "bloob-ball" ? .bloobGas:.barell,viewport:finaleViewport,preparedArtwork:selectedFinaleArtwork(),coconutBoardBodySize:boardScene.map{$0.coconutFinaleBodySize/NativeTabletLayout.animationScale(view.bounds.size)},smokePresentationScale:NativeTabletLayout.applies(view.bounds.size) ? 1.694*(variant == "barell" ? 1.15:1):1,smokeVerticalOffset:NativeTabletLayout.smokeVerticalOffset(view.bounds.size),bushPresentationScale:NativeTabletLayout.applies(view.bounds.size) && variant == "flower" ? 1.15:1,blossomCaptionFillsWidth:NativeTabletLayout.applies(view.bounds.size))
             guard tnt.assetsReady else { tnt.dispose(); return false }
             if variant == "coconut" {tnt.bindScreenShake(to:view)}
             if variant == "bloob-ball" {tnt.bindBoardReaction(boardScene?.makeBloobBoardReaction())}

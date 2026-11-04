@@ -339,6 +339,15 @@ final class JimiNativePrivacyController: UIViewController {
         super.viewDidLayoutSubviews();backdrop.frame = view.bounds
         let modalBounds=NativeTabletLayout.modalBounds(in:view,card:card)
         let modalSafeInsets=NativeTabletLayout.modalSafeInsets(in:view)
+        if let source=copy.attributedText {
+            let text=NSMutableAttributedString(attributedString:source)
+            let titleRange=(text.string as NSString).range(of:"Privacy Policy\n")
+            let titleSize=NativeTabletLayout.modalTitleSize(view.bounds.size,phone:32)
+            if titleRange.location != NSNotFound,let current=text.attribute(.font,at:titleRange.location,effectiveRange:nil) as? UIFont,abs(current.pointSize-titleSize)>0.001 {
+                text.addAttribute(.font,value:assets.font(size:titleSize,weight:"ExtraBold"),range:titleRange)
+                copy.attributedText=text
+            }
+        }
         let width = min(390,max(0,modalBounds.width-48)), textWidth = max(0,width-80)
         let wanted = copy.sizeThatFits(CGSize(width:textWidth,height:CGFloat.greatestFiniteMagnitude)).height+80
         let height = min(wanted,modalBounds.height-modalSafeInsets.top-modalSafeInsets.bottom-48)

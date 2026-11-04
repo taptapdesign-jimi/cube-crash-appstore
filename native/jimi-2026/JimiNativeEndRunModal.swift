@@ -400,7 +400,7 @@ final class JimiNativeEndRunModal: UIViewController {
         super.viewDidLayoutSubviews();backdrop.frame = view.bounds
         let modalBounds=NativeTabletLayout.modalBounds(in:view,card:card)
         let u=NativeTabletLayout.textScale(modalBounds.size)
-        NativeTabletLayout.labelFont(heading,size:32*u)
+        NativeTabletLayout.labelFont(heading,size:synchronizesBoardCTAEntry ? 32*u:NativeTabletLayout.modalTitleSize(view.bounds.size,phone:32*u))
         NativeTabletLayout.labelFont(subtitle,size:18*u)
         buttons.forEach{NativeTabletLayout.buttonFont($0,size:28*u)}
         let width=NativeTabletLayout.paperWidth(modalBounds.size,padding:synchronizesBoardCTAEntry ? 80:48)

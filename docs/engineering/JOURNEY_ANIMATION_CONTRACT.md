@@ -519,3 +519,33 @@ CATransformLayer carrier1.4matching navigation. Existing carriers retain
 enter/flip/idle/drag/exit ownership,epochs and durations. Shared drag translation
 converts physical delta to local distance;physical dismissal threshold retained.
 Phone path unchanged. No fullscreen reward/result/tutorial change.
+
+Journey slow card scrub continuity(user2026-11-03):on either face,pan begin retains
+the existing paper float,settled-bounce and info tile/star tracks. Short scrubs
+that return to the same face retain those phases as well. Rotor scrub/reflection
+and vertical resistance remain on existing outer owners;accepted flips,exit,
+background and disposal retain their existing retirement/pause paths. No new
+clock or resources. Tablet Stage title matches HUD32logical under1.4projection
+(44.8physical here);phone title and Exit game modal remain unchanged.
+
+Journey iPad close assembly correction(user2026-11-03):selected info card's
+X hit area,glyph,stone circle,corner offsets,texture sampling and bevel thickness
+scale together with its physical card width/326. Phone retains factor1.
+The existing joined-slab outline,contact/flip/idle/exit owners remain unchanged.
+
+User correction2026-11-03 supersedes preceding modal-title sizes:all tablet
+paper modal headings are32VISIBLE pt,with projection compensated in the existing
+local label font(32/1.4);direct Journey Stage uses32physical. Includes history
+and ordinary HUD Score/Combo,Backpack/Box/detail,Arcade,Privacy and nonboard
+confirmations. Only in-board Exit retains its existing font. Phone unchanged.
+No paper/content/icon/motion scaling change.
+
+
+### Selection-screen cloud cascade (user2026-11-04)
+
+Home, Arcade selection and Journey World-selection clouds use independent finite
+outer route shells:100ms after their artwork track,14ms between clouds (30percent
+less than20ms). Keep each source track's durations,eases,pivot and inner idle.
+Journey Forest/Beach/Area55 Stage/Unit screens retain complete-Unit motion with
+no internal cloud stagger. Existing route completion,pause,cancel and Reduced
+Motion own all shells;no new timer or recurring work.

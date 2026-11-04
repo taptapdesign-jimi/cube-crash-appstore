@@ -20,8 +20,11 @@ struct NativeGameplayChromePlan {
             // The board requests scaleTopHUD:false to retain its reserved band.
             let baseScale=viewport.width/390,factor=scaleTopHUD ? tabletTopHUDScale/baseScale:1
             let scale=baseScale*factor,anchorY=safeTop+30.5*baseScale
-            let row=anchorY+(safeTop+20*baseScale-anchorY)*factor
-            let meterHeight=10*scale,meterTop=row+33*scale
+            // Screen-space tablet spacing; keep the board's reserved band unchanged.
+            let hudOffset:CGFloat=scaleTopHUD ? 12:0
+            let meterGap:CGFloat=scaleTopHUD ? 8:0
+            let row=anchorY+(safeTop+20*baseScale-anchorY)*factor+hudOffset
+            let meterHeight=10*scale,meterTop=row+33*scale+meterGap
             let left=boardBounds?.minX ?? 40,barWidth=boardBounds?.width ?? max(120,viewport.width-80)
             return Self(hudTop:row-20,valueRowY:viewport.height-row,
                 meterRect:CGRect(x:left,y:viewport.height-meterTop-meterHeight,

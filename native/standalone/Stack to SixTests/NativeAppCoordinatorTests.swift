@@ -178,6 +178,23 @@ final class NativeAppCoordinatorTests:XCTestCase {
         XCTAssertEqual(writes,0)
         XCTAssertFalse(containsWebView(controller.view))
     }
+    func testRapidJourneyBackIsAcceptedOnceWithoutRestartingExit() async throws {
+        let (root,window)=try worldEntryFixture(prepare:{_,ready in ready()})
+        defer {root.dispose();window.isHidden=true}
+        root.navigate(.hub,interrupt:true)
+        try await waitFor{root.route == .hub && root.hub.scrollView.isUserInteractionEnabled}
+        var backs=0,homeArrivals=0
+        root.onFeedback={if $0 == "back" {backs += 1}}
+        root.onRoute={if $0 == .home {homeArrivals += 1}}
+        root.hub.backButton.sendActions(for:.touchUpInside)
+        for _ in 0..<12 {
+            try await Task.sleep(for:.milliseconds(12))
+            root.hub.backButton.sendActions(for:.touchUpInside)
+        }
+        XCTAssertEqual(backs,1,"Repeated back must not cancel and restart the outgoing Journey pose")
+        try await waitFor{root.route == .home && root.home.isUserInteractionEnabled}
+        XCTAssertEqual(homeArrivals,1)
+    }
     func testLateNavigationCompletionCannotReplaceNewerDestination() async {
         let services = NativeAppServices(settings:{["gameSoundsEnabled":false,"musicEnabled":true,"hapticsEnabled":true]},
             setPreference:{_,_ in},worldSnapshot:{_,_,_ in throw FixtureError.unavailable},markViewed:{_ in},

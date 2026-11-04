@@ -26,6 +26,9 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
     private(set) var worldUnits: [UIButton] = []
     private var counts: [Int: UILabel] = [:]
     private var cloudViews: [(UIImageView, CGRect)] = []
+    private var cloudRouteShells:[ObjectIdentifier:UIView]=[:]
+    private var arcadeCloudDrifts:[CGPoint]=[]
+    private var arcadeCloudDurations:[Double]=[]
     private var leftFillClouds: [Int: UIImageView] = [:]
     private let cloudPlane=UIView()
     private(set) var cloudUnits: [Int:UIView] = [:]
@@ -100,17 +103,33 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
                      "assets/journey assets/beach/Beacj world/beach-main.png"]
         let names = arcade ? ["Endurance", "One Lucky Drop", "Slow Burn"] : ["Forest", "Area 55", "Beach"]
         let cloudPaths = ["oblak-forest1", "oblak-forest2", "oblak+srednji", "oblak mali ljevo", "oblak mali desno", "oblak veliki ljevo dole"]
-        let clouds: [(Int, CGFloat, CGFloat, CGFloat, CGFloat)] = [
+        let journeyClouds: [(Int, CGFloat, CGFloat, CGFloat, CGFloat)] = [
             (5,-70,-6,272,0.78),(1,-92,58,188,0.74),(5,100,6,248,0.76),(2,200,138,166,0.72),
             (2,-34,76,286,0.8),(0,214,58,184,0.72),(5,24,222,214,0.78),(2,168,240,198,0.76),
             (3,-22,400,176,0.68),(2,136,418,236,0.78),(0,32,576,214,0.72),(5,198,598,184,0.68),(2,-10,632,198,0.62)]
+        // Arcade owns exactly five clouds per island. Marker Y retains the
+        // existing World grouping; physical layout below spans the empty lanes.
+        let arcadeClouds:[(Int,CGFloat,CGFloat,CGFloat,CGFloat)]=worldIDs.flatMap { id in
+            let choices=Array(cloudPaths.indices.shuffled().prefix(5))
+            return choices.enumerated().map { slot,choice in
+                (choice,CGFloat(0),CGFloat(id == 1 ? 100:id == 3 ? 300:600),
+                 [CGFloat(272),198,188,166,248][slot],[CGFloat(0.78),0.74,0.76,0.72,0.76][slot])
+            }
+        }
+        let clouds=arcade ? arcadeClouds:journeyClouds
         for (index,x,y,width,alpha) in clouds {
             let image = assets.image("assets/board transition/\(cloudPaths[index]).png")
             let cloud = UIImageView(image: image)
             cloud.contentMode = .scaleAspectFit; cloud.alpha = alpha
+            cloud.isUserInteractionEnabled=false
+            if arcade {cloud.tag=cloudViews.count%5;cloud.accessibilityIdentifier="native.arcade.cloud.\(cloudViews.count)"}
             let ratio = (image?.size.height ?? 1) / (image?.size.width ?? 1)
             let rect = CGRect(x: x + (arcade ? CGFloat.random(in: -12...12) : 0), y: y, width: width, height: width*ratio)
-            cloudViews.append((cloud, rect)); content.addSubview(cloud)
+            cloudViews.append((cloud, rect))
+            let shell=UIView();shell.isUserInteractionEnabled=false
+            shell.accessibilityIdentifier="native.\(arcade ? "arcade":"hub").cloud-route.\(cloudViews.count-1)"
+            shell.addSubview(cloud);content.addSubview(shell)
+            cloudRouteShells[ObjectIdentifier(cloud)]=shell
         }
         for index in 0..<3 {
             let id = worldIDs[index]
@@ -125,11 +144,16 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
                 cloud.contentMode = .scaleAspectFit; cloud.alpha=0.80
                 cloud.isUserInteractionEnabled=false
                 cloud.accessibilityIdentifier="native.hub.left-cloud.\(id)"
-                button.addSubview(cloud);leftFillClouds[id]=cloud
+                let shell=UIView();shell.isUserInteractionEnabled=false
+                shell.accessibilityIdentifier="native.hub.cloud-route.fill.\(id)"
+                shell.addSubview(cloud);button.addSubview(shell)
+                cloudRouteShells[ObjectIdentifier(cloud)]=shell
+                leftFillClouds[id]=cloud
             }
-            // One complete Unit owns route motion, including its clouds.
+            // Cloud route shells move independently; artwork keeps its Unit route.
             for (cloud, rect) in cloudViews where cloudWorldID(rect.minY) == id {
-                button.addSubview(cloud)
+                let target=cloudRouteShells[ObjectIdentifier(cloud)] ?? cloud
+                if arcade,cloud.tag == 4 {button.insertSubview(target,at:0)}else{button.addSubview(target)}
             }
             let floating = UIView(), tilt = UIView()
             floating.isUserInteractionEnabled = false
@@ -277,9 +301,9 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
             // (which jumps every World upward before/during its collapse).
             unit.layer.position = CGPoint(x: rect.minX + rect.width * unit.layer.anchorPoint.x,
                                           y: rect.minY + rect.height * unit.layer.anchorPoint.y)
-            let cloudParent:UIView=tablet ? cloudUnits[id]! : unit
+            let cloudParent:UIView=cloudUnits[id]!
             if let carrier=cloudUnits[id] {
-                carrier.isHidden = !tablet
+                carrier.isHidden = false
                 carrier.bounds=unit.bounds
                 carrier.layer.position=CGPoint(x:rect.minX+rect.width*carrier.layer.anchorPoint.x,y:rect.minY+rect.height*carrier.layer.anchorPoint.y)
             }
@@ -295,7 +319,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
             else if arcade,index == 1 {artworkCenterX = width-16-x-visualSize/2}
             else {artworkCenterX = buttonWidth/2+artworkShift.x}
             let islandOffset:CGPoint = arcade ? [CGPoint(x:-4,y:-32),CGPoint(x:14,y:-26),CGPoint(x:-8,y:16)][index] : .zero
-            let floatingCenterY=(arcade ? buttonHeight/2 : buttonHeight*0.48)+artworkShift.y+islandOffset.y+(tablet && arcade && id == 1 ? 24:0)
+            let floatingCenterY=(arcade ? buttonHeight/2 : buttonHeight*0.48)+artworkShift.y+islandOffset.y+(tablet && arcade && id == 1 ? 24:0)+(arcade && index == 1 ? (tablet ? 24:12):0)
             floats[id]?.center = CGPoint(x:artworkCenterX+islandOffset.x,y:floatingCenterY)
             tilts[id]?.bounds = CGRect(x: 0, y: 0, width: visualSize, height: visualHeight)
             tilts[id]?.layer.anchorPoint = CGPoint(x: 0.5, y: 0.54)
@@ -330,20 +354,26 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
             let ownedClouds=cloudViews.filter {cloudWorldID($0.1.minY) == id}
             let cloudBounds=tablet && !arcade ? ownedClouds.reduce(CGRect.null) {$0.union($1.1)} : .zero
             for (cloud, authored) in ownedClouds {
-                if cloud.superview !== cloudParent {cloudParent.addSubview(cloud)}
+                let routeShell=cloudRouteShells[ObjectIdentifier(cloud)]
+                let target=routeShell ?? cloud
+                if target.superview !== cloudParent {
+                    if arcade,cloud.tag == 4 {cloudParent.insertSubview(target,at:0)}else{cloudParent.addSubview(target)}
+                }
                 // Endurance moves its complete cloud group; the other worlds
                 // move only their upper cloud row, preserving lower clouds.
                 let cloudShift:CGFloat = !arcade ? 0 : id == 1 ? 40 : (id == 3 && authored.minY < 400 || id == 2 && authored.minY < 632) ? 24 : 0
                 let cloudRect: CGRect
-                if tablet && arcade {
-                    // Scatter the phone cloud bank across the wider tablet,
-                    // retaining each island's local vertical relationship.
-                    let scale=buttonWidth/(min(390*0.676,273)*1.2)
-                    let cloudScale=max(scale,width/600)
-                    let cloudSize=CGSize(width:authored.width*cloudScale,height:authored.height*cloudScale)
-                    let center=CGPoint(x:(authored.midX+(id == 3 ? 40:0))*width/390,
-                        y:rect.minY+(82+authored.midY-[118,323,557][index]+cloudShift)*scale)
-                    cloudRect=CGRect(x:center.x-cloudSize.width/2,y:center.y-cloudSize.height/2,width:cloudSize.width,height:cloudSize.height)
+                if arcade {
+                    // Full-width rear bank fills the opposite-side lanes and
+                    // gaps between staggered islands without moving artwork.
+                    let slot=cloud.tag
+                    let xs:[CGFloat]=[0.12,0.86,0.15,0.90,0.50]
+                    let ys:[CGFloat]=[-0.35,-0.15,0.45,0.55,0.12]
+                    let cloudWidth=authored.width*width/390
+                    let ratio=(cloud.image?.size.height ?? 1)/max(1,cloud.image?.size.width ?? 1)
+                    let size=CGSize(width:cloudWidth,height:cloudWidth*ratio)
+                    let center=CGPoint(x:width*xs[slot],y:rect.minY+floatingCenterY+visualHeight*ys[slot])
+                    cloudRect=CGRect(x:center.x-size.width/2,y:center.y-size.height/2,width:size.width,height:size.height)
                 } else if tablet && !arcade {
                     // Fill the complete screen behind each World with the same
                     // bounded cloud group. Uniform image scale preserves shape;
@@ -361,7 +391,13 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
                     let phoneCloudY:CGFloat = !tablet && !arcade ? (id == 3 ? (authored.minY < 400 ? 80:-24)+phoneRowOffset : id == 2 ? -76:0):0
                     cloudRect = authored.offsetBy(dx: x-originalX+(arcade && id == 3 ? 40:0)+phoneCloudX, dy: top+82 + (arcade ? y - [118,323,557][index] : 0)+cloudShift+phoneCloudY)
                 }
-                cloud.frame = cloudRect.offsetBy(dx: -rect.minX, dy: -rect.minY)
+                let local=cloudRect.offsetBy(dx:-rect.minX,dy:-rect.minY)
+                if let routeShell {
+                    routeShell.bounds=CGRect(origin:.zero,size:local.size)
+                    routeShell.layer.position=CGPoint(x:local.minX+local.width*routeShell.layer.anchorPoint.x,
+                        y:local.minY+local.height*routeShell.layer.anchorPoint.y)
+                    cloud.bounds=routeShell.bounds;cloud.center=CGPoint(x:local.width/2,y:local.height/2)
+                }else{cloud.frame=local}
                 overflow = overflow.union(cloudRect)
             }
             if tablet && arcade {
@@ -376,7 +412,9 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
                 overflow=overflow.union(artRect)
             }
             if let cloud=leftFillClouds[id] {
-                if cloud.superview !== cloudParent {cloudParent.insertSubview(cloud,at:0)}
+                let shell=cloudRouteShells[ObjectIdentifier(cloud)]!
+                if shell.superview !== cloudParent {cloudParent.insertSubview(shell,at:0)}
+                shell.isHidden = !tablet
                 cloud.isHidden = !tablet
                 if tablet {
                     // Static, bounded left-side fill travels with its complete
@@ -387,7 +425,11 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
                     // fill below preceding artwork so it cannot veil a World.
                     let cloudTop=max(precedingArtworkBottom+8,rect.minY+buttonHeight*0.48+visualSize*0.12-cloudWidth*ratio/2)
                     let cloudRect=CGRect(x:-width*0.18,y:cloudTop,width:cloudWidth,height:cloudWidth*ratio)
-                    cloud.frame=cloudRect.offsetBy(dx:-rect.minX,dy:-rect.minY)
+                    let local=cloudRect.offsetBy(dx:-rect.minX,dy:-rect.minY)
+                    shell.bounds=CGRect(origin:.zero,size:local.size)
+                    shell.layer.position=CGPoint(x:local.minX+local.width*shell.layer.anchorPoint.x,
+                        y:local.minY+local.height*shell.layer.anchorPoint.y)
+                    cloud.bounds=shell.bounds;cloud.center=CGPoint(x:local.width/2,y:local.height/2)
                     overflow=overflow.union(cloudRect)
                 }
             }
@@ -419,13 +461,22 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
     }
     private func cloudWorldID(_ y: CGFloat) -> Int { y < 220 ? 1 : y < 560 ? 3 : 2 }
 
-    /// Same finite route tracks/pivots for split paint planes. Keeping clouds
-    /// in the back plane prevents any later World's cloud veiling earlier art.
+    /// Home-style individual cloud routes on selection screens only.
+    /// Journey Stage/Unit screens have their own unchanged motion owner.
     func includingCloudTracks(_ tracks:[(UIView,JimiV9Motion.Track)])->[(UIView,JimiV9Motion.Track)] {
-        guard NativeTabletLayout.applies(bounds.size) else {return tracks}
-        return tracks.flatMap { target,track in
-            guard worldUnits.contains(where:{$0 === target}),let cloud=cloudUnits[target.tag] else {return [(target,track)]}
-            return [(target,track),(cloud,track)]
+        var sequence=0
+        return tracks.flatMap { target,track -> [(UIView,JimiV9Motion.Track)] in
+            guard worldUnits.contains(where:{$0 === target}) else{return [(target,track)]}
+            let enter=(track.tweens.last?.to.scaleX ?? 0)>=1
+            var result:[(UIView,JimiV9Motion.Track)]=[(target,track)]
+            var images=cloudViews.filter{cloudWorldID($0.1.minY) == target.tag}.map{ $0.0 }
+            if NativeTabletLayout.applies(bounds.size),let fill=leftFillClouds[target.tag] {images.append(fill)}
+            for cloud in images {
+                guard let shell=cloudRouteShells[ObjectIdentifier(cloud)] else{continue}
+                result.append((shell,JimiV9Motion.cloudCascade(on:shell,base:track,enter:enter,index:sequence,stagger:arcade && enter ? 0.014/1.40:0.014)))
+                sequence += 1
+            }
+            return result
         }
     }
 
@@ -456,6 +507,10 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
         stopIdle()
         idleClocks.removeAll()
         pausedIdleOffsets.removeAll()
+        if arcade {
+            arcadeCloudDrifts=cloudViews.map {_ in CGPoint(x:CGFloat.random(in:0.15...0.20)*(Bool.random() ? 1:-1),y:CGFloat.random(in:32...48)*(Bool.random() ? 1:-1))}
+            arcadeCloudDurations=cloudViews.map {_ in Double.random(in:8...10)}
+        }
         CATransaction.begin(); CATransaction.setDisableActions(true)
         for id in worldIDs {
             floats[id]?.layer.transform = CATransform3DIdentity
@@ -512,9 +567,20 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
             (8,-5,6.4,1.02),(-7,6,5.8,1.04),(-9,5,7.2,1.02),(7,-5,6.9,1.03),
             (8,5,6.1,1.05),(-8,6,6.6,1.03),(7,-5,5.9,1.04),(-7,5,7.1,1.03),(-6,4,7.6,1.04)]
         for (index, item) in cloudViews.enumerated() where cloudWorldID(item.1.minY) == id {
-            let (dx,dy,duration,scale) = motions[index]
-            let travel:CGFloat=NativeTabletLayout.applies(bounds.size) && !arcade ? 1.4:1
-            let cloudPeak = CATransform3DScale(CATransform3DMakeTranslation(dx*travel,dy,0),scale,scale,1)
+            let dx:CGFloat,dy:CGFloat,duration:Double,scale:CGFloat
+            if arcade {
+                // Same wide Home-cloud excursion; fixed captured profiles are
+                // renewed only by resetIdlePose on real Arcade entry.
+                let drift=arcadeCloudDrifts.indices.contains(index) ? arcadeCloudDrifts[index]:CGPoint(x:0.175,y:40)
+                dx=drift.x*bounds.width*0.90;dy=drift.y*0.90
+                duration=arcadeCloudDurations.indices.contains(index) ? arcadeCloudDurations[index]:9
+                scale=1.03
+            }else{
+                let motion=motions[index]
+                dx=motion.0*(NativeTabletLayout.applies(bounds.size) ? 1.4:1)
+                dy=motion.1;duration=motion.2;scale=motion.3
+            }
+            let cloudPeak = CATransform3DScale(CATransform3DMakeTranslation(dx,dy,0),scale,scale,1)
             addLoop(item.0.layer, keyPath: "transform", values: transforms([CATransform3DIdentity,cloudPeak,CATransform3DIdentity]),
                     times: [0,0.5,1], duration: duration)
         }

@@ -1,0 +1,4 @@
+Built-in imagegen, 2026-11-04. Unapproved illustration candidate, no runtime integration.
+References: three current user attachments for man and dog identity.
+Prompt: cinematic low-angle three-quarter action camera; slim standing gray-haired man squints with one eyebrow raised while carefully placing the last wooden die atop one tall stack; sneaky dog peeks from behind a bush and reaches toward bottom die; complete floating concrete island with parking pavers, excavated broken concrete underside and concrete fragments. Clean warm volumetric 3D, transparent background.
+Visual review: requested concentrated face, raised eyebrow, tall wooden dice stack, concealed dog and concrete island/paving are visible. Camera perspective is low but Dutch tilt is restrained. Dog paw is very close to the bottom die. Concrete texture is stronger than character material texture. Upper hand has a tight canvas margin. User approval pending.

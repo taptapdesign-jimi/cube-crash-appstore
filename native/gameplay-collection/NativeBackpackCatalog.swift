@@ -8,7 +8,9 @@ struct NativeBackpackCatalog {
         let id:String,title:String,copy:String,board:Int
         var artwork:NativeDiceArtwork {
             if id=="barell" {return NativeDiceArtwork(path:"assets/shop/barell/barell.png")}
-            return NativeDiceArtwork.definition(kind:id,variant:NativeSpecialDiceRegistry.variants[id] == nil ? nil:id)
+            let source=NativeDiceArtwork.definition(kind:id,variant:NativeSpecialDiceRegistry.variants[id] == nil ? nil:id)
+            if id=="kanta" {return NativeDiceArtwork(path:"assets/shop/kanta/kanta.png",size:source.size,anchor:source.anchor,idleSheet:source.idleSheet)}
+            return source
         }
     }
     struct Section {

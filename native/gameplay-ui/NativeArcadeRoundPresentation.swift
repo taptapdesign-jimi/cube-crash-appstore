@@ -44,6 +44,7 @@ final class NativeArcadeRoundPresentation: UIView {
     private var enteredDigits = Set<Int>()
     private var observations: [NSObjectProtocol] = []
     private var thumbRest = CGPoint.zero
+    private var clearedGroupScale:CGFloat=1
 
     private var titleEnterEnd: TimeInterval { Double(max(0,titleGlyphs.count-1))*0.02+0.44 }
     private var subtitleEnterEnd: TimeInterval { titleEnterEnd+Double(max(0,subtitleGlyphs.count-1))*0.02+0.44 }
@@ -122,6 +123,7 @@ final class NativeArcadeRoundPresentation: UIView {
         let thumbMargin: CGFloat = compact ? 16 : min(40,max(22,bounds.height*0.044))
         let titleFont=artwork.font(size:titleSize,weight:"ExtraBold")
         let titleHeight:CGFloat
+        var clearedTextWidth:CGFloat=0
         if let composition=boardClearedTextComposition {
             // Keep the authored irregular glyph recipe in one centered row.
             let ranges=[titleGlyphs.indices]
@@ -133,6 +135,7 @@ final class NativeArcadeRoundPresentation: UIView {
                     sum+(item.0.text! as NSString).size(withAttributes:[.font:artwork.font(size:item.1,weight:"ExtraBold")]).width
                 }-4.2*CGFloat(labels.count-1)
                 let fit=min(1,(cardWidth-36)/max(1,width))
+                clearedTextWidth=width*fit
                 let height=(sizes.max() ?? titleSize)*fit
                 _=layoutGlyphs(labels,font:titleFont,factors:sizes.map{$0*fit/titleSize},width:cardWidth,lineHeight:height,spacing:-4.2*fit,gap:0,wrap:false)
                 for label in labels {label.center.y += y}
@@ -167,6 +170,22 @@ final class NativeArcadeRoundPresentation: UIView {
             clearCard.center=stage.convert(CGPoint(x:bounds.midX,y:bounds.midY),from:self)
             shadow.frame=CGRect(x:(cardWidth-thumbSize*0.74)/2,y:bottom+12,
                 width:thumbSize*0.74,height:thumbSize*0.10)
+            clearedGroupScale=1
+            if NativeTabletLayout.applies(bounds.size) {
+                // Match the readable Shroomy caption footprint. One parent
+                // scale grows lettering, either thumb image and shadow together.
+                let canvas=NativeTabletLayout.animationViewport(bounds.size)
+                let target=NativeSplashGlyphField.readableCaptionWidth(canvas.width)*NativeTabletLayout.animationScale(bounds.size)
+                let desired=target/max(1,clearedTextWidth)
+                let horizontal=(bounds.width-48)/max(1,max(clearedTextWidth*1.12,thumbSize*1.40))
+                let vertical=(bounds.height-64)/max(1,clearCard.bounds.height*1.40)
+                clearedGroupScale=max(1,min(desired,horizontal,vertical))
+                let density=max(1,(window?.screen.scale ?? traitCollection.displayScale)*clearedGroupScale)
+                for label in titleGlyphs where abs(label.contentScaleFactor-density)>0.001 {
+                    label.contentScaleFactor=density;label.setNeedsDisplay()
+                }
+            }
+            clearCard.transform=CGAffineTransform(scaleX:clearedGroupScale,y:clearedGroupScale)
         }
         let digitSize = compact ? min(276,max(168,bounds.width*0.49)) : min(332,max(190,bounds.width*0.56))
         let labelHeight = layoutGlyphs(roundGlyphs,font: artwork.font(size: subtitleSize),width: cardWidth,
@@ -388,21 +407,23 @@ final class NativeArcadeRoundPresentation: UIView {
     }
 
     private func shake(_ view: UIView,time: TimeInterval,thumbArrival: Bool) {
+        let groupScale=boardClearedOnly && view === clearCard ? clearedGroupScale:1
+        let resting=CGAffineTransform(scaleX:groupScale,y:groupScale)
         let poses: [(CGFloat,CGFloat,CGFloat,Double)] = thumbArrival
             ? [(-14,5,-2.8,0.055),(13,-4,2.6,0.055),(-10,3,-2,0.05),(8,-2,1.6,0.05),(-5,1.5,-1,0.045),(3,-1,0.6,0.045),(0,0,0,0.12)]
             : [(-18,7,-0.6,0.05),(16,-6,0.6,0.055),(-13,5,-0.45,0.05),(10,-4,0.35,0.05),(-7,3,-0.25,0.045),(5,-2,0.18,0.045),(-3,1,-0.1,0.04),(0,0,0,0.14)]
-        guard time >= 0 else { view.transform = .identity; return }
+        guard time >= 0 else { view.transform = resting; return }
         var passed: TimeInterval = 0, previous: (CGFloat,CGFloat,CGFloat) = (0,0,0)
         for (index,pose) in poses.enumerated() {
             if time <= passed+pose.3 {
                 let ease: NativeBoardMotion.Ease = index == 0 ? .power2Out : index == poses.count-1 ? .backOut(thumbArrival ? 2.4 : 2.2) : .power2InOut
                 let p = ease.sample(CGFloat((time-passed)/pose.3))
                 let x = previous.0+(pose.0-previous.0)*p,y = previous.1+(pose.1-previous.1)*p,rotation = previous.2+(pose.2-previous.2)*p
-                view.transform = CGAffineTransform(translationX: x,y: y).rotated(by: rotation * .pi/180); return
+                view.transform = CGAffineTransform(translationX: x,y: y).rotated(by: rotation * .pi/180).scaledBy(x:groupScale,y:groupScale); return
             }
             passed += pose.3; previous = (pose.0,pose.1,pose.2)
         }
-        view.transform = .identity
+        view.transform = resting
     }
 
     private func finish(completed: Bool) {

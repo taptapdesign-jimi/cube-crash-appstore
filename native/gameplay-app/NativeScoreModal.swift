@@ -244,7 +244,7 @@ final class NativeScoreModal:UIViewController,CAAnimationDelegate {
         if tablet {view.bringSubviewToFront(foreground)}
         let modalBounds=NativeTabletLayout.modalBounds(in:modalHost,card:card,isolatesDepth:true)
         let u=NativeTabletLayout.textScale(modalBounds.size)
-        heading.font=assets.font(size:32,weight:"ExtraBold")
+        heading.font=assets.font(size:NativeTabletLayout.modalTitleSize(view.bounds.size,phone:32),weight:"ExtraBold")
         subtitle.attributedText=NativeModalTypography.attributedSubtitle(model.subtitle,font:assets.font(size:18*u,weight:"Medium"))
         if model.history != nil {layoutHistory();return}
         let width=NativeTabletLayout.paperWidth(modalBounds.size,padding:48),subtitleHeight:CGFloat=(model.stats.count == 1 && model.title == "Combo" ? 52:26)*u

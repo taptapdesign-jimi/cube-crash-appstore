@@ -235,9 +235,10 @@ final class NativeArcadeWorldModal: UIView {
         cloudStage.isUserInteractionEnabled=false;cloudStage.accessibilityElementsHidden=true
         cloudStage.accessibilityIdentifier="native.arcade-world-modal.clouds"
         idle.addSubview(cloudStage)
-        for (ordinal,name) in ["oblak veliki ljevo dole","oblak-forest2","oblak veliki ljevo dole","oblak+srednji","oblak-forest1"].enumerated() {
+        let cloudNames=["oblak veliki ljevo dole","oblak-forest2","oblak veliki ljevo dole","oblak+srednji","oblak-forest1","oblak-forest2"]
+        for (ordinal,name) in cloudNames.enumerated() {
             let cloud=UIImageView(image:assets.image("assets/board transition/\(name).png",densityAware:true))
-            cloud.contentMode = .scaleAspectFit;cloud.alpha=[0.78,0.74,0.76,0.72,0.72][ordinal]
+            cloud.contentMode = .scaleAspectFit;cloud.alpha=[0.78,0.74,0.76,0.72,0.72,0.74][ordinal]
             cloud.accessibilityIdentifier="native.arcade-world-modal.cloud.\(ordinal)"
             cloudStage.addSubview(cloud);clouds.append(cloud)
         }
@@ -259,13 +260,14 @@ final class NativeArcadeWorldModal: UIView {
         // and floor-shadow room, rather than centering a fixed tall card.
         let w=NativeTabletLayout.paperWidth(modalBounds.size)
         let textScale=NativeTabletLayout.textScale(modalBounds.size)
-        NativeTabletLayout.labelFont(heading,size:28*textScale)
+        NativeTabletLayout.labelFont(heading,size:NativeTabletLayout.modalTitleSize(bounds.size,phone:28*textScale))
         NativeTabletLayout.labelFont(subtitle,size:18*textScale)
         NativeTabletLayout.buttonFont(play,size:28*textScale)
-        heading.frame = CGRect(x:w*0.1,y:28,width:w*0.8,height:38.4*textScale)
+        let titleHeight=NativeTabletLayout.applies(bounds.size) ? max(38.4*textScale,ceil(heading.font.lineHeight)):38.4*textScale
+        heading.frame = CGRect(x:w*0.1,y:28+19.2*textScale-titleHeight/2,width:w*0.8,height:titleHeight)
         let subtitleWidth = modeIndex == 1 ? w*0.8 : (w < 300 ? max(0,w-16):w*0.8)
         let subtitleHeight = ceil(subtitle.sizeThatFits(CGSize(width:subtitleWidth,height:CGFloat.greatestFiniteMagnitude)).height)
-        subtitle.frame = CGRect(x:(w-subtitleWidth)/2,y:heading.frame.maxY+12,width:subtitleWidth,height:subtitleHeight)
+        subtitle.frame = CGRect(x:(w-subtitleWidth)/2,y:28+38.4*textScale+12,width:subtitleWidth,height:subtitleHeight)
         // Lift the illustration/footer together while keeping title and top edge fixed.
         let contentLift:CGFloat = 16
         let artworkY = subtitle.frame.maxY+24-contentLift
@@ -288,16 +290,17 @@ final class NativeArcadeWorldModal: UIView {
         art.center=CGPoint(x:w/2,y:artworkY+artworkHeight/2)
         // Connected cloud bank borrows the main Arcade Hub's shapes, relative
         // widths and opacity. Overlap is intentional, on one stable2D plane.
-        // Extra room accommodates two local offsets without resizing/reflowing.
+        // Clouds inherit the complete paper entry, drag, idle and exit.
+        // Unclipped clouds intentionally extend beyond the paper silhouette.
         cloudStage.frame=CGRect(x:12-50,y:artworkY-8,width:w-24+50,height:artworkHeight+56)
         let cw=cloudStage.bounds.width-50,ch=cloudStage.bounds.height-40
         let bank:[(CGFloat,CGFloat,CGFloat)]=[(0.33,0.30,272),(0.18,0.56,188),
-            (0.67,0.34,248),(0.82,0.60,166),(0.50,0.72,184)]
+            (0.67,0.34,248),(0.82,0.60,166),(0.50,0.72,184),(0.24,0.24,180)]
         for (index,cloud) in clouds.enumerated() {
             let (x,y,authoredWidth)=bank[index]
             let ratio=(cloud.image?.size.height ?? 1)/max(1,cloud.image?.size.width ?? 1)
-            let preferred=(art.bounds.width+20)*authoredWidth/390*1.20
-            let width=max(0,min(preferred,cw-20,(ch-20)/max(0.001,ratio)))
+            let preferred=(art.bounds.width+20)*authoredWidth/390*1.48
+            let width=max(0,min(preferred,cw+24,(ch+12)/max(0.001,ratio)))
             let height=width*ratio
             cloud.bounds=CGRect(x:0,y:0,width:width,height:height)
             let minX=width/2+10,maxX=cw-width/2-10
@@ -315,6 +318,34 @@ final class NativeArcadeWorldModal: UIView {
             if index == lowered { center.y += 40 }
             center.x += 50
             if index == leftward { center.x -= 50 }
+            // User-authored modal accents, relative to the same illustration on
+            // phone and tablet. Preserve the mode-specific accents.
+            if modeIndex == 0,index == 5 {
+                center=CGPoint(x:50+max(minX,cw*0.24),y:max(minY,ch*0.20))
+            } else if modeIndex == 2,index == 0 {
+                center.x -= cw*0.16
+                center.y += ch*0.20
+            } else if modeIndex == 2,index == 5 {
+                center=CGPoint(x:50+min(maxX,cw*0.82),y:min(maxY+24,ch*0.80))
+            }
+            if index == 5,modeIndex == 1 {
+                center=CGPoint(x:50+cw*0.82,y:ch*0.70)
+            }
+            // Spread the existing cloud positions 20% farther from the
+            // illustration centre without stretching their original artwork.
+            let bankMidX=50+cw/2
+            center.x=bankMidX+(center.x-bankMidX)*1.20
+            // Reference-directed offsets on the authored phone canvas. The
+            // existing whole-modal projection scales these by1.4 on iPad.
+            switch (modeIndex,index) {
+            case (0,5):center.x -= 40 // Endurance upper-left accent.
+            case (0,2):center.x += 40 // Endurance right bank.
+            case (1,5):center.x -= 24 // Lucky Drop lower-right accent.
+            case (1,4):center.x -= 8  // Lucky Drop left bank.
+            case (2,0),(2,3):center.x += 32 // Slow Burn left / upper-right.
+            case (2,5):center.x -= 32 // Bring the far lower-right cloud back in.
+            default:break
+            }
             cloud.center=center
         }
         let playY=artworkY+artworkHeight+16
@@ -371,8 +402,8 @@ final class NativeArcadeWorldModal: UIView {
     func refreshCloudIdle(reducedMotion:Bool) {
         guard entered,foreground,!closing,!disposed else{return}
         if reducedMotion {freezeClouds();return}
-        let periods:[Double]=[7.3,6.8,7.1,6.7,6.4],amplitudes:[CGFloat]=[1.25,-1,1.25,-1.25,1.25]
-        let drifts:[CGFloat]=[-8,-7,-7,7,-8]
+        let periods:[Double]=[7.3,6.8,7.1,6.7,6.4,7.0],amplitudes:[CGFloat]=[1.25,-1,1.25,-1.25,1.25,-1]
+        let drifts:[CGFloat]=[-8,-7,-7,7,-8,7]
         for (index,cloud) in clouds.enumerated() {
             JimiNativeModalV10.startIdle(on:cloud,key:"arcade.modal.cloud.idle",drift:drifts[index]*1.5,
                 amplitude:amplitudes[index]*1.5,duration:periods[index],depth:false)

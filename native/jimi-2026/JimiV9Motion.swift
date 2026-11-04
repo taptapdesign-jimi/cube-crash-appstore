@@ -110,7 +110,17 @@ enum JimiV9Motion {
 
     static let homeEnterEase = Ease.cubicBezier(0.175, 0.885, 0.32, 1.275)
     static let homeExitEase = Ease.cubicBezier(0.60, -0.28, 0.735, 0.045)
-    static let sliderDuration = 0.4
+    static func homeCloudPanoramaOffset(slideX:Double,width:Double,foreground:Bool)->Double {
+        guard width>0 else{return 0}
+        let page=max(0,min(2,1.5-slideX/width))
+        return (1-page)*min(foreground ? 50:32,width*(foreground ? 0.12:0.08))*1.20*1.60*1.60*1.60
+    }
+    static func homeCloudTravelDuration(slot:Int,foreground:Bool)->Double {
+        let durations=[0.46,0.74,0.52,0.84,0.60,0.40,0.68,0.55]
+        return durations[max(0,min(7,slot))]*(foreground ? 0.80:1)
+    }
+    static let sliderDuration = 0.65
+    static let cloudCascadeStagger=0.014
     static let sliderEase = Ease.powerOut(2)
     static let navigationSelectionDuration = 0.38
     static let navigationActiveSizeEase = Ease.powerOut(3)
@@ -161,6 +171,28 @@ enum JimiV9Motion {
     }
 
     // animations.ts:312–318,1402–1593; cta-system.ts:38–49,244–263.
+    /// One finite route timeline owns every cloud; idle remains on its image.
+    /// Pending/hidden incoming clouds stay hidden if the route is interrupted.
+    @MainActor static func cloudCascade(on target:UIView,base:Track,enter:Bool,index:Int,stagger:Double=JimiV9Motion.cloudCascadeStagger) -> Track {
+        let delay=0.100+Double(index)*stagger
+        let painted=target.layer.presentation() ?? target.layer
+        let t=painted.transform
+        let dx=(base.anchorX-target.layer.anchorPoint.x)*target.bounds.width
+        let dy=(base.anchorY-target.layer.anchorPoint.y)*target.bounds.height
+        let start=Pose(scaleX:t.m11,scaleY:t.m22,x:t.m41+dx*(t.m11-1),
+                       y:t.m42+dy*(t.m22-1),opacity:Double(painted.opacity))
+        let hidden = !enter && (painted.opacity <= 0.001 || abs(t.m11) <= 0.001)
+        if UIAccessibility.isReduceMotionEnabled {
+            return one(delay:0,duration:0.16,from:enter ? .scale(0.96,opacity:0):start,
+                to:hidden ? .scale(0,opacity:0):.scale(enter ? 1:0.96,opacity:enter ? 1:0),ease:.powerOut(1))
+        }
+        return Track(tweens:base.tweens.enumerated().map { i,tween in
+            Tween(begin:tween.begin+delay,duration:tween.duration,
+                  from:hidden ? .scale(0,opacity:0):(!enter && i == 0 ? start:tween.from),
+                  to:hidden ? .scale(0,opacity:0):tween.to,ease:tween.ease)
+        },anchorX:base.anchorX,anchorY:base.anchorY)
+    }
+
     static func homeEnter(_ part: Part) -> Track {
         switch part {
         case .navigation, .fixedShadow:

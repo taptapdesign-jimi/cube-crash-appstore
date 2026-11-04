@@ -144,7 +144,9 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
         let unlocked=includesArcade && indexPath.section==0 || sections[indexPath.section-(includesArcade ? 1:0)].unlocked.contains(die.id)
         let threeColumns = embedded ? modalColumns==3 : !arcadeCrate || NativeTabletLayout.applies(bounds.size)
         let alertOnRight=threeColumns ? indexPath.item%3 != 0:indexPath.item%2==1
-        cell.apply(die,unlocked:unlocked,right:indexPath.item%2==1,arcade:includesArcade && indexPath.section==0 && !arcadeCrate,assets:assets,edgeAligned:tabletGridMetrics != nil,illustrationScale:arcadeCrate ? (die.id=="wild-magnet" ? 0.8:die.id=="tnt" ? 0.95:1):1,alertOnRight:alertOnRight)
+        let viewport=window?.bounds.size ?? UIScreen.main.bounds.size
+        let projectionScale=embedded ? NativeTabletLayout.modalScale(viewport):1
+        cell.apply(die,unlocked:unlocked,right:indexPath.item%2==1,arcade:includesArcade && indexPath.section==0 && !arcadeCrate,assets:assets,edgeAligned:tabletGridMetrics != nil,illustrationScale:arcadeCrate ? (die.id=="wild-magnet" ? 0.8:die.id=="tnt" ? 0.95:1):1,alertOnRight:alertOnRight,projectionScale:projectionScale,minimumDensity:NativeTabletLayout.applies(viewport) ? 3:1)
         let section=indexPath.section-(includesArcade ? 1:0)
         cell.setAlert(unread:unlocked && section>=0 && sections[section].unread.contains(die.id),active:alertsActive && !isHidden);return cell
     }
@@ -280,7 +282,10 @@ private final class NativeBackpackFrameView:UIView {
 @MainActor
 private final class NativeBackpackCell:UICollectionViewCell {
     static let ink=UIColor(red:0.68,green:0.53,blue:0.46,alpha:1)
-    private let artworkGroup=UIView()
+    // A regular CALayer flattens the perspective card before the iPad's1.4x
+    // modal projection, losing source detail. Keep coplanar artwork leaves in
+    // the compositor's3D tree; the phone retains its existing layer owner.
+    private let artworkGroup:UIView = NativeTabletLayout.applies(UIScreen.main.bounds.size) ? JimiNativeModalTransformView():UIView()
     private let holder=NativeBackpackFrameView(frame:.zero),die=UIImageView()
     let alert=NativeBackpackAlertView()
     private var alertRight=false
@@ -289,15 +294,18 @@ private final class NativeBackpackCell:UICollectionViewCell {
     private var artworkSize=CGSize(width:80,height:80)
     private var artworkOffset=CGPoint.zero
     private var artworkActive=false
+    private var projectionScale:CGFloat=1
     private var artworkIdentity:String?
     private var artworkIdleOffset:CFTimeInterval=0
     private var artworkIdleMotion=NativeBackpackArtworkIdleMotion(id:"")
     private static let artworkIdleKey="backpack.artwork.idle"
     override func didMoveToWindow(){super.didMoveToWindow();configureArtworkSampling();reconcileArtworkIdle()}
     private func configureArtworkSampling(){
-        let scale=window?.screen.scale ?? traitCollection.displayScale
+        let scale=(window?.screen.scale ?? traitCollection.displayScale)*projectionScale
         artworkGroup.layer.contentsScale=max(1,scale)
-        if holder.contentScaleFactor != max(1,scale) {holder.contentScaleFactor=max(1,scale)}
+        for view in [holder as UIView,die,alert] where view.contentScaleFactor != max(1,scale) {
+            view.contentScaleFactor=max(1,scale);view.setNeedsDisplay()
+        }
         artworkGroup.layer.allowsEdgeAntialiasing=true
         for image in [holder as UIView,die] {
             image.layer.allowsEdgeAntialiasing=true
@@ -332,14 +340,16 @@ private final class NativeBackpackCell:UICollectionViewCell {
     }
     override init(frame:CGRect){super.init(frame:frame);for image in [holder as UIView,die]{artworkGroup.addSubview(image)};die.contentMode = .scaleAspectFit;artworkGroup.addSubview(alert);contentView.addSubview(artworkGroup);artworkGroup.accessibilityIdentifier="native.backpack.idle-group";isAccessibilityElement=true}
     required init?(coder:NSCoder){fatalError("Use frame")}
-    func apply(_ item:NativeBackpackCatalog.Die,unlocked:Bool,right:Bool,arcade:Bool,assets:JimiV9Artwork,edgeAligned:Bool=false,illustrationScale:CGFloat=1,alertOnRight:Bool?=nil) {
+    func apply(_ item:NativeBackpackCatalog.Die,unlocked:Bool,right:Bool,arcade:Bool,assets:JimiV9Artwork,edgeAligned:Bool=false,illustrationScale:CGFloat=1,alertOnRight:Bool?=nil,projectionScale:CGFloat=1,minimumDensity:Int=1) {
         if artworkIdentity != item.id {stopArtworkIdle(reset:true);artworkIdentity=item.id}
         artworkIdleMotion=NativeBackpackArtworkIdleMotion(id:item.id)
         self.edgeAligned=edgeAligned;self.arcade=arcade;alertRight=alertOnRight ?? right;alert.clockwise=alertRight
-        alert.image=assets.image("assets/nav/new.png",densityAware:true)
+        self.projectionScale=projectionScale
+        let density=max(minimumDensity,Int(ceil((window?.screen.scale ?? traitCollection.displayScale)*projectionScale)))
+        alert.image=assets.image("assets/nav/new.png",densityAware:true,minimumDensity:density)
         let holderSuffix = !unlocked ? " locked" : arcade ? (item.id=="baloon" ? " middle" : item.id=="tnt" ? " desno" : "") : (right ? " desno" : "")
-        holder.image=assets.image("assets/backpack/dice holder\(holderSuffix).png",densityAware:true)
-        die.image=assets.image(unlocked ? item.artwork.path:"assets/backpack/lokot.png",densityAware:true)
+        holder.image=assets.image("assets/backpack/dice holder\(holderSuffix).png",densityAware:true,minimumDensity:density)
+        die.image=assets.image(unlocked ? item.artwork.path:"assets/backpack/lokot.png",densityAware:true,minimumDensity:density)
         artworkSize=arcade ? CGSize(width:80,height:80):CGSize(width:120,height:120);artworkOffset = arcade ? .zero:CGPoint(x:-0.5,y:-0.5)
         if arcade,unlocked,let image=die.image,let tntDie=NativeBackpackCatalog.arcade.first(where:{$0.id=="tnt"}),let tnt=assets.image(tntDie.artwork.path,densityAware:true) {
             let originalTntHeight=min(60/tnt.size.width,80/tnt.size.height)*tnt.size.height

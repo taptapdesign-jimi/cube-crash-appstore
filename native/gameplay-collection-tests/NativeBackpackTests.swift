@@ -42,6 +42,7 @@ final class NativeBackpackTests:XCTestCase {
             XCTAssertTrue(frame.layer.allowsEdgeAntialiasing)
             XCTAssertTrue(art.layer.allowsEdgeAntialiasing)
             XCTAssertFalse(group.layer.shouldRasterize,"No low-resolution flattened cache or per-frame CPU raster")
+            XCTAssertEqual(group.layer is CATransformLayer,NativeTabletLayout.applies(UIScreen.main.bounds.size),"Tablet perspective must preserve the artwork subtree before modal projection; phone keeps its existing CALayer")
             print("[BackpackRaster] \(cell.accessibilityIdentifier ?? "?") pixels=\(pixels.width)x\(pixels.height) imageScale=\(art.image!.scale) bounds=\(art.bounds) contentsScale=\(art.layer.contentsScale) groupScale=\(group.layer.contentsScale)")
             let id=(cell.accessibilityIdentifier ?? "").replacingOccurrences(of:"native.backpack.die.",with:"")
             group.layer.transform=NativeBackpackArtworkIdleMotion(id:id).poses(scale:1)[1]

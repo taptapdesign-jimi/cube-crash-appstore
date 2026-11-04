@@ -57,10 +57,17 @@ class NativeFinitePresentation: UIView,NativeSourceAnimationParticipant {
     }
     override func didMoveToWindow() { super.didMoveToWindow(); updatePause() }
     func setSuspended(_ value: Bool) { suspended = value; updatePause() }
-    private func updatePause(){deliveryLease?.setSuspended(suspended || backgrounded || window == nil)}
+    /// Subclasses release transient host offsets while their sampled clock is quiet.
+    func resetTransientEffects() {}
+    private func updatePause(){
+        let paused=suspended || backgrounded || window == nil
+        if paused {resetTransientEffects()}
+        deliveryLease?.setSuspended(paused)
+    }
     private func finish(_ success: Bool) {
         guard !disposed else{return}
         if let lease=deliveryLease{deliveryLease=nil;lease.cancel(success:success);return}
+        resetTransientEffects()
         disposed=true
         observations.forEach(NotificationCenter.default.removeObserver); observations.removeAll()
         let completion = completionReceipt.take(); onFinished = nil; onCue = nil; onProgress = nil

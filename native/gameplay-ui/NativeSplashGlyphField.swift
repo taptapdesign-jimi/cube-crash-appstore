@@ -6,10 +6,10 @@ import StackToSixGameplay
 @MainActor
 final class NativeSplashGlyphField: UIView {
     /// Shared authored Kanta treatment, also requested for Bloob and Woombuu.
-    static func clankStyle(artwork:JimiV9Artwork,text:String,backgroundColors:[UIColor]?=nil,random:()->Double={Double.random(in:0..<1)})->NativeSplashGlyphField {
+    static func clankStyle(artwork:JimiV9Artwork,text:String,backgroundColors:[UIColor]?=nil,fillsCaptionWidth:Bool=false,random:()->Double={Double.random(in:0..<1)})->NativeSplashGlyphField {
         NativeSplashGlyphField(artwork:artwork,text:text,
             colors:[.white],
-            splitIndex:0,letterOpacityRange:0.8...1.0,fitToWidth:true,neonGlow:true,glowPalette:backgroundColors,random:random)
+            splitIndex:0,letterOpacityRange:0.8...1.0,fitToWidth:true,neonGlow:true,glowPalette:backgroundColors,fillsCaptionWidth:fillsCaptionWidth,random:random)
     }
     private struct Glyph { let label: UILabel; let index: Int; let bounce: CGFloat; var exitRotation: CGFloat; let splitLabels: [UILabel]; let glowLabels:[UILabel] }
     static let neonGlowLayers:[(CGFloat,UIColor,Float)]=[
@@ -28,14 +28,15 @@ final class NativeSplashGlyphField: UIView {
     private let glowPalette:[UIColor]?
     private let compactLaser: Bool
     private let fitToWidth:Bool
+    private let fillsCaptionWidth:Bool
     private var exitRotationsCaptured:Bool
     init(artwork: JimiV9Artwork,text: String,colors: [UIColor],splitIndex: Double,
-         letterColors: [UIColor]? = nil,letterOpacityRange: ClosedRange<Double>? = nil,compactLaser: Bool = false,fitToWidth:Bool = false,neonGlow: Bool = false,glowPalette:[UIColor]? = nil,deferExitRotationCapture:Bool = false,sourcePlan:NativeSourceSplashGlyphPlan? = nil,whiteGlowTreatment:Bool = true,
+         letterColors: [UIColor]? = nil,letterOpacityRange: ClosedRange<Double>? = nil,compactLaser: Bool = false,fitToWidth:Bool = false,neonGlow: Bool = false,glowPalette:[UIColor]? = nil,deferExitRotationCapture:Bool = false,sourcePlan:NativeSourceSplashGlyphPlan? = nil,whiteGlowTreatment:Bool = true,fillsCaptionWidth:Bool = false,
          random: () -> Double = { Double.random(in: 0..<1) }) {
         let letters = Array(text)
         roboNameplate = text == "BIBI - RIBI"
         self.glowPalette=glowPalette
-        self.compactLaser = compactLaser;self.fitToWidth = fitToWidth || whiteGlowTreatment
+        self.compactLaser = compactLaser;self.fitToWidth = fitToWidth || whiteGlowTreatment;self.fillsCaptionWidth=fillsCaptionWidth
         exitRotationsCaptured = sourcePlan == nil && !deferExitRotationCapture
         exitStart = compactLaser ? .infinity : 0.3+Double(max(0,letters.count-1))*0.05+0.54
         duration = compactLaser ? 0.04+Double(max(0,letters.count-1))*0.025+0.28 : exitStart+Double(max(0,letters.count-1))*0.06+0.60+0.05
@@ -95,6 +96,7 @@ final class NativeSplashGlyphField: UIView {
         }
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    static func readableCaptionWidth(_ viewportWidth:CGFloat)->CGFloat {max(0,viewportWidth-40)/1.12}
     override func layoutSubviews() {
         super.layoutSubviews()
         let widths = glyphs.map { ($0.label.text! as NSString).size(withAttributes: [.font: $0.label.font as Any]).width }
@@ -103,7 +105,8 @@ final class NativeSplashGlyphField: UIView {
         let total = widths.reduce(0,+)+before.reduce(0,+)+after.reduce(0,+)
         if fitToWidth {
             let angle=atan2(container.transform.b,container.transform.a)
-            let scale=min(1,max(0,bounds.width-40)/max(1,total*1.12))
+            let fitted=Self.readableCaptionWidth(bounds.width)/max(1,total)
+            let scale=fillsCaptionWidth ? fitted:min(1,fitted)
             container.transform=CGAffineTransform(rotationAngle:angle).scaledBy(x:scale,y:scale)
         }
         let height = glyphs.map { $0.label.font.lineHeight }.max() ?? 0

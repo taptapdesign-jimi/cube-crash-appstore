@@ -8,9 +8,11 @@ final class NativeKantaFinalePresentation: NativeFinitePresentation {
     var onAudioFade: ((Double) -> Void)?
     let assetReady: Bool
     private let motion: NativeKantaFinaleMotion,glyphs: NativeSplashGlyphField
+    private let artworkScale:CGFloat,artworkVerticalOffset:CGFloat
     private var robots:[UIImageView]=[],cans:[UIImageView]=[],composites:[UIImageView]=[]
     private var receipts=Set<String>(),cancelled=false
-    init(resourceRoot:URL,viewport:CGSize,preparedArtwork:JimiV9Artwork?=nil,random:()->Double={Double.random(in:0..<1)}) {
+    init(resourceRoot:URL,viewport:CGSize,preparedArtwork:JimiV9Artwork?=nil,artworkScale:CGFloat=1,artworkVerticalOffset:CGFloat=0,random:()->Double={Double.random(in:0..<1)}) {
+        self.artworkScale=artworkScale;self.artworkVerticalOffset=artworkVerticalOffset
         motion=NativeKantaFinaleMotion.make(viewport:viewport,random:random)
         let artwork=preparedArtwork ?? JimiV9Artwork(resourceRoot:resourceRoot)
         glyphs=NativeSplashGlyphField.clankStyle(artwork:artwork,text:"CLANK!",backgroundColors:[UIColor(red:229.0/255,green:182.0/255,blue:135.0/255,alpha:1),UIColor(red:167.0/255,green:139.0/255,blue:119.0/255,alpha:1)],random:random)
@@ -30,8 +32,8 @@ final class NativeKantaFinalePresentation: NativeFinitePresentation {
     override func start() {guard assetReady else {dispose();return};super.start()}
     private func fire(_ token:String,_ callback:()->Void) {if receipts.insert(token).inserted {callback()}}
     private func paint(_ view:UIImageView,_ pose:NativeKantaFinaleMotion.Pose) {
-        view.layer.position=CGPoint(x:bounds.width/2+CGFloat(pose.x),y:bounds.height/2+CGFloat(pose.y)+view.bounds.height/2)
-        view.transform=CGAffineTransform(rotationAngle:CGFloat(pose.rotation) * .pi/180).scaledBy(x:CGFloat(pose.scaleX),y:CGFloat(pose.scaleY))
+        view.layer.position=CGPoint(x:bounds.width/2+CGFloat(pose.x)*artworkScale,y:bounds.height/2+(CGFloat(pose.y)+view.bounds.height/2)*artworkScale+artworkVerticalOffset)
+        view.transform=CGAffineTransform(rotationAngle:CGFloat(pose.rotation) * .pi/180).scaledBy(x:CGFloat(pose.scaleX)*artworkScale,y:CGFloat(pose.scaleY)*artworkScale)
         view.alpha=CGFloat(pose.alpha);view.layer.zPosition=CGFloat(pose.depth)
     }
     override func paint(seconds time:TimeInterval) {

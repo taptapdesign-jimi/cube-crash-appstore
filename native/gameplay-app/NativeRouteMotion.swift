@@ -44,7 +44,7 @@ final class NativeRouteMotion {
                 return (target, JimiV9Motion.Track(tweens: [replacement] + track.tweens.dropFirst(), anchorX: track.anchorX, anchorY: track.anchorY))
             }
             return (target, track)
-        }
+        } + home.cloudRouteTracks(enter:enter)
     }
 
     func hubTracks(enter: Bool, selectedWorldID: Int? = nil) -> [(UIView, JimiV9Motion.Track)] {
@@ -113,6 +113,7 @@ final class NativeRouteMotion {
     func selectSlide(_ index: Int, completion: @escaping () -> Void) {
         guard home.navigationButtonViews.indices.contains(index) else { return }
         let changed = index != home.selectedSlide
+        let cloudStart = home.cloudPanoramaSnapshot
         let oldX = home.sliderSelectionStartX
         let navigation = home.navigationLayoutTargets.map { target in
             let layer = target.view.layer.presentation() ?? target.view.layer
@@ -129,6 +130,7 @@ final class NativeRouteMotion {
         slide.duration = JimiV9Motion.sliderDuration
         home.sliderTrack.layer.add(slide, forKey: "native-slide-selection")
         register(home.sliderTrack.layer)
+        for layer in home.installCloudPanorama(from:cloudStart) {register(layer)}
         for (target, index, oldBounds, oldPosition) in navigation {
             let layer = target.layer, bounds = layer.bounds, position = layer.position
             let sizeEase = JimiV9Motion.Ease.powerOut(index == home.selectedSlide ? 3 : 2)
@@ -236,7 +238,8 @@ final class NativeRouteMotion {
                 // Selection owns geometry only. Sampling an icon's independent
                 // contact bounce into the model would permanently freeze its squash.
                 if layer.animation(forKey:"native-route") != nil {
-                    layer.transform = painted.transform; layer.opacity = painted.opacity
+                    layer.transform = painted.transform
+                    layer.opacity = painted.opacity
                 }
                 if layer.animation(forKey: "native-slide-selection") != nil {
                     layer.position = painted.position; layer.bounds = painted.bounds

@@ -5,7 +5,25 @@ import SpriteKit
 
 @MainActor
 final class NativeSharedSmokeRootTests:XCTestCase {
-    func testTabletTntBoostOnlyEnlargesSmokeSpritesAndLeavesDiceUnchanged() throws {
+    func testTabletTntSmokeUsesSameLogicalRasterSizeAsBarrelInBothConstructionPaths() throws {
+        let textures=NativeBoardTextures(root:NativeTestResources.root)
+        let artwork=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+        defer{textures.dispose()}
+        let source=try XCTUnwrap(NativeTntFinale.captureSourceConstruction(textures:textures,current:{true},random:{0.5},prepareGlyphs:{true}))
+        let constructions:[NativeTntFinale.SourceConstruction?]=[nil,source]
+        for construction in constructions {
+            let owner=NativeTntFinale(textures:textures,fontName:"Helvetica",viewport:.init(width:390,height:561),showsTitle:false,usesCanonicalSmokeSize:true,sourceConstruction:construction,random:{0.5})
+            defer{owner.dispose()}
+            let sprites=owner.children.compactMap{$0 as? SKSpriteNode}
+            XCTAssertEqual(sprites.count,12)
+            for (index,sprite) in sprites.enumerated() {
+                let image=try XCTUnwrap(artwork.image("assets/shop/explosion pack/animation/tnt\(index+1).png",densityAware:true))
+                XCTAssertEqual(sprite.size.width,image.size.width,accuracy:0.001)
+                XCTAssertEqual(sprite.size.height,image.size.height,accuracy:0.001)
+            }
+        }
+    }
+    func testTabletTntSmokeReducesPreviousSizeByTwentyPercentAndLeavesDiceUnchanged() throws {
         let size=CGSize(width:820,height:1180),viewport=NativeTabletLayout.animationViewport(size)
         let textures=NativeBoardTextures(root:NativeTestResources.root);defer{textures.dispose()}
         let baseline=NativeTntFinale(textures:textures,fontName:"Helvetica",viewport:viewport,showsTitle:false,random:{0.5})
@@ -17,7 +35,8 @@ final class NativeSharedSmokeRootTests:XCTestCase {
         baseline.advanceSourceAnimation(seconds:0.5);larger.advanceSourceAnimation(seconds:0.5)
         let old=baseline.children.compactMap{$0 as? SKSpriteNode},new=larger.children.compactMap{$0 as? SKSpriteNode}
         XCTAssertEqual(old.count,12);XCTAssertEqual(new.count,12)
-        for (a,b) in zip(old,new) where a.xScale>0 {XCTAssertEqual(b.xScale/a.xScale,2.541,accuracy:0.0001);XCTAssertEqual(b.alpha,a.alpha)}
+        let matchingBarrelFactor=(1.694*1.2*1.30*0.80)/(NativeTntFinale.smokeScale*Double(NativeTabletLayout.animationScale(size)))
+        for (a,b) in zip(old,new) where a.xScale>0 {XCTAssertEqual(Double(b.xScale/a.xScale),matchingBarrelFactor,accuracy:0.0001);XCTAssertEqual(b.alpha,a.alpha)}
         let oldDice=baseline.children.filter{!($0 is SKSpriteNode)},newDice=larger.children.filter{!($0 is SKSpriteNode)}
         for (a,b) in zip(oldDice,newDice) {XCTAssertEqual(a.position,b.position);XCTAssertEqual(a.xScale,b.xScale)}
         XCTAssertEqual(NativeTabletLayout.smokeSpriteBoost(CGSize(width:390,height:844)),1)
@@ -42,10 +61,10 @@ final class NativeSharedSmokeRootTests:XCTestCase {
             XCTAssertGreaterThan(scaled,0)
         }
     }
-    func testTabletBarrelPoofRetainsReducedLargeSmokeSprites() throws {
+    func testTabletBarrelPoofAddsFifteenPercentToSmokeSprites() throws {
         let viewport=CGSize(width:390,height:561)
         let old=NativeTntVariantPresentation(resourceRoot:NativeTestResources.root,variant:.barell,viewport:viewport,random:{0.5})
-        let new=NativeTntVariantPresentation(resourceRoot:NativeTestResources.root,variant:.barell,viewport:viewport,smokePresentationScale:1.694,random:{0.5})
+        let new=NativeTntVariantPresentation(resourceRoot:NativeTestResources.root,variant:.barell,viewport:viewport,smokePresentationScale:1.694*1.15,random:{0.5})
         defer{old.dispose();new.dispose()}
         XCTAssertTrue(old.assetsReady);XCTAssertTrue(new.assetsReady)
         old.paint(seconds:0.8);new.paint(seconds:0.8)
@@ -53,8 +72,8 @@ final class NativeSharedSmokeRootTests:XCTestCase {
         var enlarged=0
         for (a,b) in zip(old.subviews,new.subviews) {
             XCTAssertEqual(a.center,b.center);XCTAssertEqual(a.alpha,b.alpha)
-            if a is UIImageView,abs(a.transform.a)>0.001,abs(b.transform.a/a.transform.a-1.694)<0.001 {
-                enlarged+=1;XCTAssertEqual(b.transform.d/a.transform.d,1.694,accuracy:0.001)
+            if a is UIImageView,abs(a.transform.a)>0.001,abs(b.transform.a/a.transform.a-1.694*1.15)<0.001 {
+                enlarged+=1;XCTAssertEqual(b.transform.d/a.transform.d,1.694*1.15,accuracy:0.001)
             } else {XCTAssertEqual(a.transform,b.transform)}
         }
         XCTAssertEqual(enlarged,12)

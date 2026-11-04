@@ -1238,7 +1238,7 @@ final class NativeBoardScene: SKScene {
             smokeDisabled:{[weak self] in self?.sourceTutorialSmokeFrozen != false},
             current:{[weak self,weak scope] in guard let self,let scope else{return false};return self.sourceAnimationBindingAdmissionOpen && scope.current && self.sourceMeterHUDScope === scope && self.engine.state.generation==generation},
             visualRandom:{[scope] in scope.mathRandom.next()})
-        owner.setCanvasShakeOffset(canvasRoot.position)
+        owner.setCanvasShakeOffset(NativeTabletLayout.applies(size) ? .zero:canvasRoot.position)
         sourceTutorialMeterHUD=owner;sourceTutorialMeterRect=rect;sourceTutorialMeterRatio=engine.state.wildMeter
         // One loader replaces the two prototype top-level shapes. Its original
         // loader role is now captured by the actual tutorial HUD dim owner.
@@ -1902,6 +1902,7 @@ final class NativeBoardScene: SKScene {
     private let comboNumber = SKLabelNode()
     private lazy var comboNumberMotion = NativeComboNumberMotion(number:comboNumber)
     private var hudIconSide:CGFloat=0
+    private var tabletHUDTextWidths:(fontSize:CGFloat,score:CGFloat,combo:CGFloat)?
     private var scoreHitRect = CGRect.zero
     private var comboHitRect = CGRect.zero
     private let roundIndicator: NativeRoundIndicator
@@ -3014,7 +3015,7 @@ final class NativeBoardScene: SKScene {
     }
     private(set) var sourceWildFXDrawingPhase:String?
     private(set) var sourceWildScreenShakeInvocations:[NativeSixSourceShakeGraph.Configuration]=[]
-    @discardableResult private func playSourceWildScreenShake(_ configuration:NativeSixSourceShakeGraph.Configuration,ownerID:String,variant:String?,generation:UInt64)->Bool {
+    @discardableResult private func playSourceWildScreenShake(_ configuration:NativeSixSourceShakeGraph.Configuration,ownerID:String,variant:String?,generation:UInt64,visualRandom:(()->Double)?=nil)->Bool {
         guard sourceAnimationBindingAdmissionOpen,let scope=sourceSixScope,scope.current,
               engine.state.generation==generation,engine.sourceMathRandom === scope.mathRandom,
               let surfaces=sourceSixSurfaces else{return false}
@@ -3032,7 +3033,7 @@ final class NativeBoardScene: SKScene {
         let initial=NativeSixSourceShakeGraph.Pose(canvas:[Double(pose.canvas.x),Double(pose.canvas.y)],
             indicator:[Double(pose.indicator.x),Double(pose.indicator.y)],decor:[Double(pose.bottomDecor.x),Double(pose.bottomDecor.y)],
             overlay:overlay.map{[Double($0.x),Double($0.y)]},overlayInvocationID:invocationID)
-        guard surfaces.startShake(configuration:configuration,initial:initial,random:scope.mathRandom.next) != nil,
+        guard surfaces.startShake(configuration:configuration,initial:initial,random:visualRandom ?? scope.mathRandom.next) != nil,
               sourceAnimationBindingAdmissionOpen,scope.current,sourceSixScope === scope,engine.state.generation==generation else{return false}
         shakeAdmitted=true
         if sourceWildScreenShakeInvocations.count==64 {sourceWildScreenShakeInvocations.removeFirst()}
@@ -5729,7 +5730,7 @@ final class NativeBoardScene: SKScene {
         let canvas=CGPoint(x:pose.canvas[0],y:pose.canvas[1]),indicator=CGPoint(x:pose.indicator[0],y:pose.indicator[1]),decor=CGPoint(x:pose.decor[0],y:pose.decor[1])
         boardShake = .init(canvas:canvas,indicator:indicator,bottomDecor:decor)
         canvasRoot.position=CGPoint(x:canvas.x,y:-canvas.y)
-        sourceTutorialMeterHUD?.setCanvasShakeOffset(canvasRoot.position)
+        sourceTutorialMeterHUD?.setCanvasShakeOffset(NativeTabletLayout.applies(size) ? .zero:canvasRoot.position)
         let base=NativeGameplayChromePlan.make(viewport:size,safeTop:safeInsets.top).roundCenter
         roundIndicator.position=CGPoint(x:base.x+indicator.x,y:base.y-indicator.y)
         // Internal publication precedes external footer callback. Reentrant C
@@ -5848,7 +5849,10 @@ final class NativeBoardScene: SKScene {
             if sourceInitialConstruction.adopt(engine:engine,scene:self) {nodesByID=sourceInitialConstruction.nodes;lastGeneration=engine.state.generation;sourceInitialEntryPending=true}
             else {sourceInitialStartupRejected=true;sourceInitialConstruction.dispose()}
         }
-        canvasRoot.addChild(ghosts);canvasRoot.addChild(effects);canvasRoot.addChild(hud);canvasRoot.addChild(hudStarFlights)
+        canvasRoot.addChild(ghosts);canvasRoot.addChild(effects)
+        // Tablet controls stay in scene space while the dice canvas shakes.
+        (NativeTabletLayout.applies(size) ? self:canvasRoot).addChild(hud)
+        canvasRoot.addChild(hudStarFlights)
         canvasRoot.addChild(dragTrail);dragTrail.zPosition=17999
         dragTrail.onTailChanged = {[weak self] active in
             guard let self else{return}
@@ -5931,6 +5935,8 @@ final class NativeBoardScene: SKScene {
         }
         cancelEntry()
         self.size = size; safeInsets = insets
+        let hudParent:SKNode=NativeTabletLayout.applies(size) ? self:canvasRoot
+        if hud.parent !== hudParent {hud.removeFromParent();hudParent.addChild(hud)}
         cancelDrag()
         geometry = nil
         synchronize(animateEntry: animateEntry)
@@ -5967,7 +5973,7 @@ final class NativeBoardScene: SKScene {
         }
         score.fontSize = 18
         score.horizontalAlignmentMode = .left
-        score.fontColor = UIColor(red: 181.0/255,green: 133.0/255,blue: 115.0/255,alpha: 1)
+        score.fontColor = NativeTextPalette.modalTitle
         for label in [comboX,comboNumber] {
             label.fontName = fontName; label.horizontalAlignmentMode = .left; label.verticalAlignmentMode = .center
             label.fontColor = UIColor(red: 231.0/255,green: 116.0/255,blue: 73.0/255,alpha: 1); hud.addChild(label)
@@ -6823,8 +6829,10 @@ final class NativeBoardScene: SKScene {
     }
 
     private func layoutComboValue(top:CGFloat) {
-        let normalNumberWidth=comboNumber.frame.width/max(0.00001,abs(comboNumber.xScale))
         let tablet=NativeTabletLayout.applies(size),gap=4*NativeGameplayChromePlan.hudScale(for:size)
+        // Fixed text slots keep icons still when the value changes digit width
+        // or digit count. Only the value paints inside its reserved slot.
+        let normalNumberWidth=tablet ? tabletHUDReservedTextWidths.combo:comboNumber.frame.width/max(0.00001,abs(comboNumber.xScale))
         let width=comboArt.size.width+gap+comboX.frame.width+normalNumberWidth
         let chrome=tablet ? gameplayChromePlan:nil
         let right=chrome?.meterRect.maxX ?? (size.width-12)
@@ -6832,23 +6840,41 @@ final class NativeBoardScene: SKScene {
         comboArt.position=CGPoint(x:center,y:top)
         comboX.position=CGPoint(x:center+comboArt.size.width/2+gap,y:top)
         comboNumber.position=CGPoint(x:comboX.position.x+comboX.frame.width,y:top)
-        let overflow=max(0,comboNumber.frame.maxX-right)
+        // Balloon feedback changes painted bounds, never the tablet row's
+        // layout width. Using frame.maxX here pulled every icon left each tick.
+        let numberRight=tablet ? comboNumber.position.x+normalNumberWidth:comboNumber.frame.maxX
+        let overflow=max(0,numberRight-right)
         if overflow>0 {comboArt.position.x-=overflow;comboX.position.x-=overflow;comboNumber.position.x-=overflow}
         if let chrome {
-            let alignment=right-comboNumber.frame.maxX
+            let alignment=right-(comboNumber.position.x+normalNumberWidth)
             comboArt.position.x+=alignment;comboX.position.x+=alignment;comboNumber.position.x+=alignment
+            // Keep x/value compact. Trailing slot/screen padding is balloon
+            // clearance, not a gap between glyphs. Let the value expand into
+            // that padding before guarding the actual screen edge.
+            comboNumber.position.x-=max(0,comboNumber.frame.maxX-(size.width-12))
             comboHitRect=CGRect(x:comboArt.frame.minX-12,y:top-36,width:comboNumber.frame.maxX-comboArt.frame.minX+24,height:72)
-            layoutTabletHUDGroups(top:top,comboLeft:comboArt.frame.minX,left:chrome.meterRect.minX)
+            layoutTabletHUDGroups(top:top,comboLeft:comboArt.position.x-comboArt.size.width/2,left:chrome.meterRect.minX)
         } else {comboHitRect=CGRect(x:center-53,y:top-30,width:106,height:60)}
+    }
+
+    private var tabletHUDReservedTextWidths:(score:CGFloat,combo:CGFloat) {
+        if let cached=tabletHUDTextWidths,cached.fontSize==score.fontSize {return (cached.score,cached.combo)}
+        // Two bounded font measurements only when typography changes. No
+        // live label frames, feedback scales or per-frame glyph allocation.
+        let measure=SKLabelNode(fontNamed:fontName);measure.fontSize=score.fontSize
+        measure.text="999.999.999";let scoreWidth=measure.frame.width
+        measure.text="999";let comboWidth=measure.frame.width
+        tabletHUDTextWidths=(score.fontSize,scoreWidth,comboWidth)
+        return (scoreWidth,comboWidth)
     }
 
     private func layoutTabletHUDGroups(top:CGFloat,comboLeft:CGFloat,left:CGFloat) {
         guard NativeTabletLayout.applies(size),let help=hud.childNode(withName:"native-game-help") as? SKSpriteNode else{return}
         let scale=NativeGameplayChromePlan.hudScale(for:size)
         let closeWidth=NativeHUDCloseNode.radius*2*scale
-        let scoreWidth=scoreArt.size.width+6*scale+score.frame.width
+        let scoreWidth=scoreArt.size.width+6*scale+tabletHUDReservedTextWidths.score
         let gap=max(8*scale,(comboLeft-left-closeWidth-help.size.width-scoreWidth)/3)
-        let helpLeft=left+closeWidth+gap,scoreLeft=helpLeft+help.size.width+gap
+        let helpLeft=left+closeWidth+gap+40,scoreLeft=helpLeft+help.size.width+gap+16
         let helpPosition=CGPoint(x:helpLeft+help.size.width/2,y:top)
         let scoreIconPosition=CGPoint(x:scoreLeft+scoreArt.size.width/2,y:top)
         let scorePosition=CGPoint(x:scoreLeft+scoreArt.size.width+6*scale,y:top)
@@ -8293,7 +8319,7 @@ final class NativeBoardScene: SKScene {
     private func applyBoardShake(_ pose:NativeRegularSixSpritePresentation.ShakeReceipt) {
         onJourneyBottomDecorShake?(pose.bottomDecor,engine.state.generation)
         boardShake=pose;canvasRoot.position=CGPoint(x:pose.canvas.x,y:-pose.canvas.y)
-        sourceTutorialMeterHUD?.setCanvasShakeOffset(canvasRoot.position)
+        sourceTutorialMeterHUD?.setCanvasShakeOffset(NativeTabletLayout.applies(size) ? .zero:canvasRoot.position)
         let base=NativeGameplayChromePlan.make(viewport:size,safeTop:safeInsets.top).roundCenter
         roundIndicator.position=CGPoint(x:base.x+pose.indicator.x,y:base.y-pose.indicator.y)
     }
@@ -9376,7 +9402,7 @@ final class NativeBoardScene: SKScene {
                 onTntGlyphClock?(clockID,NativeTntFinale.duration,true)
                 onSourcePresentationFailure?("source_tnt_direct_final_constructor_unavailable",generation);return
             }
-            let owner=NativeTntFinale(textures:textures,fontName:finaleFontName,viewport:finaleViewport,showsTitle:false,smokePresentationScale:NativeTabletLayout.smokeSpriteBoost(size),smokeVerticalOffset:-NativeTabletLayout.smokeVerticalOffset(size),
+            let owner=NativeTntFinale(textures:textures,fontName:finaleFontName,viewport:finaleViewport,showsTitle:false,smokePresentationScale:NativeTabletLayout.smokeSpriteBoost(size),smokeVerticalOffset:NativeTabletLayout.tntSmokeVerticalOffset(size),usesCanonicalSmokeSize:NativeTabletLayout.applies(size),
                 sourceConstruction:captured,sourceRandom:{[weak scope] in scope?.mathRandom.next() ?? .nan})
             sourceTntFinaleSourceConstructionCount+=1
             configureTntGlyphClock(owner,id:clockID);owner.setScale(NativeTabletLayout.animationScale(size));owner.zPosition=999998;effects.addChild(owner)
@@ -9404,7 +9430,7 @@ final class NativeBoardScene: SKScene {
             }
             return
         }
-        let owner = NativeTntFinale(textures: textures,fontName: finaleFontName,viewport: finaleViewport,showsTitle: onTntGlyphClock == nil,smokePresentationScale:NativeTabletLayout.smokeSpriteBoost(size),smokeVerticalOffset:-NativeTabletLayout.smokeVerticalOffset(size))
+        let owner = NativeTntFinale(textures: textures,fontName: finaleFontName,viewport: finaleViewport,showsTitle: onTntGlyphClock == nil,smokePresentationScale:NativeTabletLayout.smokeSpriteBoost(size),smokeVerticalOffset:NativeTabletLayout.tntSmokeVerticalOffset(size),usesCanonicalSmokeSize:NativeTabletLayout.applies(size))
         configureTntGlyphClock(owner)
         owner.setScale(NativeTabletLayout.animationScale(size));owner.zPosition = 999998; effects.addChild(owner)
         let receipt = beginVisual(); onRenderingDemand?(true)
@@ -10142,7 +10168,7 @@ final class NativeBoardScene: SKScene {
                 sourceRandom = {[weak scope] in scope?.mathRandom.next() ?? .nan}
                 sourceTntFinaleSourceConstructionCount+=1
             }
-            let owner = NativeTntFinale(textures: textures,fontName: finaleFontName,viewport: finaleViewport,showsTitle: onTntGlyphClock == nil,smokePresentationScale:NativeTabletLayout.smokeSpriteBoost(size),smokeVerticalOffset:-NativeTabletLayout.smokeVerticalOffset(size),
+            let owner = NativeTntFinale(textures: textures,fontName: finaleFontName,viewport: finaleViewport,showsTitle: onTntGlyphClock == nil,smokePresentationScale:NativeTabletLayout.smokeSpriteBoost(size),smokeVerticalOffset:NativeTabletLayout.tntSmokeVerticalOffset(size),usesCanonicalSmokeSize:NativeTabletLayout.applies(size),
                 sourceConstruction:sourceConstruction,sourceRandom:sourceRandom,random:draw)
             configureTntGlyphClock(owner,id:clockID); owner.setScale(NativeTabletLayout.animationScale(size));owner.zPosition = 999998; effects.addChild(owner)
             if sourceTntMainScope != nil {registerSourceCoreTntShakeTarget(owner,ownerID:plan.id,generation:plan.generation)}
@@ -10244,7 +10270,9 @@ final class NativeBoardScene: SKScene {
             guard self.consumeSourceSpecialHUDCall(result,previous:previous,origin:origin) else {self.laserSpawnCallbacks.removeValue(forKey:id);pendingSpawns.remove(id);return false}
             if self.sourceStackCoreFaceReceiptsEnabled,
                let configuration=NativeSixSourceShakeGraph.Configuration.laserImpact(index:index),
-               !self.playSourceWildScreenShake(configuration,ownerID:plan.id,variant:plan.variant,generation:plan.generation) {
+               // Newly added first/second contact shakes must not consume the
+               // shared Source random stream used by later dice/FX decisions.
+               !self.playSourceWildScreenShake(configuration,ownerID:plan.id,variant:plan.variant,generation:plan.generation,visualRandom:index<2 ? {Double.random(in:0..<1)}:nil) {
                 self.onSourcePresentationFailure?("source_laser_impact_screen_shake_rejected",plan.generation);return false
             }
             self.onSpecialMoment?("laser-gun","impact",index)

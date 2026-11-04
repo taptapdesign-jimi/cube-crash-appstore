@@ -54,8 +54,9 @@ private final class JimiWorldStoneCloseSurface:UIView {
         // Never add a rectangular patch or a guessed connector over the slab's top edge.
         face.frame=bounds;material.frame=face.bounds
         faceMask.frame=face.bounds;faceMask.path=UIBezierPath(ovalIn:face.bounds).cgPath
-        texture.frame=CGRect(x:-244,y:-35,width:326,height:506)
-        blend.frame=CGRect(x:244,y:35,width:bounds.width,height:bounds.height)
+        let scale=bounds.width/56
+        texture.frame=CGRect(x:-244*scale,y:-35*scale,width:326*scale,height:506*scale)
+        blend.frame=CGRect(x:244*scale,y:35*scale,width:bounds.width,height:bounds.height)
         bevel.frame=material.bounds;bevelMask.frame=bevel.bounds
         let center=CGPoint(x:bounds.midX,y:bounds.midY),radius=bounds.width/2
         let exposed=UIBezierPath();var previousWasExposed=false
@@ -69,7 +70,7 @@ private final class JimiWorldStoneCloseSurface:UIView {
             previousWasExposed=outside
         }
         // Five-point visible sculpted rim, meeting the actual slab edge at both ends.
-        bevelMask.path=exposed.cgPath.copy(strokingWithWidth:10,lineCap:.round,lineJoin:.round,miterLimit:2)
+        bevelMask.path=exposed.cgPath.copy(strokingWithWidth:10*scale,lineCap:.round,lineJoin:.round,miterLimit:2)
         CATransaction.commit()
     }
 }
@@ -378,13 +379,14 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
     required init?(coder:NSCoder) {fatalError("init(coder:) has not been implemented")}
     override func layoutSubviews() {
         super.layoutSubviews(); backdrop.frame = bounds;cameraStage.frame = bounds
-        closeButton.bounds = CGRect(x:0,y:0,width:52,height:52)
-        closeButton.center = CGPoint(x:carrier.bounds.width-20,y:36)
+        let closeScale=NativeTabletLayout.applies(bounds.size) ? carrier.bounds.width/326:1
+        closeButton.bounds = CGRect(x:0,y:0,width:52*closeScale,height:52*closeScale)
+        closeButton.center = CGPoint(x:carrier.bounds.width-20*closeScale,y:36*closeScale)
         closeButton.transform = CGAffineTransform(rotationAngle:-backTilt*2)
-        closePaper.bounds = CGRect(x:0,y:0,width:56,height:56)
+        closePaper.bounds = CGRect(x:0,y:0,width:56*closeScale,height:56*closeScale)
         closePaper.center = closeButton.center
-        closeButton.layer.shadowPath = UIBezierPath(ovalIn:closeButton.bounds.insetBy(dx:-2,dy:-2)).cgPath
-        closeIcon.frame = CGRect(x:14,y:14,width:24,height:24)
+        closeButton.layer.shadowPath = UIBezierPath(ovalIn:closeButton.bounds.insetBy(dx:-2*closeScale,dy:-2*closeScale)).cgPath
+        closeIcon.frame = CGRect(x:14*closeScale,y:14*closeScale,width:24*closeScale,height:24*closeScale)
         let size = carrier.bounds.size;dragShell.frame = carrier.bounds;effectShell.frame = carrier.bounds;pinchShell.frame = carrier.bounds;rotorShell.frame = carrier.bounds
         frontFloat.bounds = carrier.bounds;frontFloat.center = CGPoint(x:size.width/2,y:size.height/2);frontSettle.bounds=carrier.bounds;frontSettle.center=frontFloat.center;front.bounds = carrier.bounds;front.center = CGPoint(x:size.width/2,y:size.height/2);backFloat.bounds = carrier.bounds;backFloat.center = front.center;backSettle.bounds=carrier.bounds;backSettle.center=front.center;back.bounds = carrier.bounds;back.center = front.center;panel.frame = carrier.bounds
         // Keep the existing carrier/front and every live control fixed. Only the
@@ -394,7 +396,8 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         let layoutScale = min(size.width/326,size.height/481.76)
         panel.frame = CGRect(x:0,y:0,width:size.width,height:size.height+Self.infoPanelBottomExtension*layoutScale)
         let textScale=NativeTabletLayout.textScale(bounds.size)*(NativeTabletLayout.applies(bounds.size) ? 1.105:1)
-        NativeTabletLayout.labelFont(title,size:28*textScale)
+        // This card uses physical coordinates, so no projection compensation.
+        NativeTabletLayout.labelFont(title,size:NativeTabletLayout.applies(bounds.size) ? 32:28*textScale)
         NativeTabletLayout.buttonFont(cta,size:28*textScale)
         let ctaHeight=JimiV9PlainButton.primaryCTAHeight*textScale
         let ctaWidth:CGFloat = min(238*layoutScale,size.width-32)*0.9
@@ -409,7 +412,8 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
             star.transform = index == 1 ? CGAffineTransform(translationX:0,y:-8*layoutScale) : CGAffineTransform(rotationAngle:index == 0 ? -8 * .pi/180 : 8 * .pi/180)
         }
         let titleWidth = min(ceil(title.intrinsicContentSize.width),max(0,size.width-72))
-        title.frame = CGRect(x:(size.width-titleWidth)/2,y:118*layoutScale,width:titleWidth,height:36*layoutScale)
+        let titleHeight=NativeTabletLayout.applies(bounds.size) ? max(36*layoutScale,ceil(title.font.lineHeight)):36*layoutScale
+        title.frame = CGRect(x:(size.width-titleWidth)/2,y:136*layoutScale-titleHeight/2,width:titleWidth,height:titleHeight)
         let sideInset:CGFloat = 24*layoutScale
         let lineGap:CGFloat = 12
         let oldLineWidth = max(0,title.frame.minX-sideInset-lineGap)*0.8
@@ -790,7 +794,11 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         guard acceptsCardPan else{return}
         switch pan.state {
         case .began:
-            stopInfoMotion(preserveStars:true);setStarMotionPaused(true);captureCardForPan()
+            // Scrub on the existing floating face. Removing its tracks here
+            // exposes the model pose and snaps both paper and tiles to centre.
+            let interruptedFlip=manualFlipInFlight
+            captureCardForPan()
+            if interruptedFlip {playInfoMotion()}
             effects?.cancel();frontDrag = !isBackFacing;dragAxis = nil;dragStartAngle = angle;rotor.removeAnimation(forKey:"card.flip")
         case .changed:
             let delta = pan.translation(in:self)
@@ -813,7 +821,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
                 // Return along the nearest equivalent angle, never a full revolution.
                 let from=sampled+((angle-sampled)/(2 * .pi)).rounded()*2 * .pi
                 rotate(from:from,to:angle,duration:0.18)
-                settleDrag();effects?.present(frontFacing:!isBackFacing);playInfoMotion()
+                settleDrag();effects?.present(frontFacing:!isBackFacing)
             }
         default:break
         }

@@ -17,7 +17,7 @@ final class NativeTntVariantPresentation: NativeFinitePresentation {
     private var frontPalms:[UIImageView]=[],rearPalms:[NativeCoconutPalmView]=[]
     private var coconutMotion:NativeCoconutFinaleMotion?
     private var wholeCoconuts:[UIView]=[]
-    private let smokePresentationScale:CGFloat,smokeVerticalOffset:CGFloat
+    private let smokePresentationScale:CGFloat,smokeVerticalOffset:CGFloat,bushPresentationScale:CGFloat
     private let variant: Variant
     private let glyphs: NativeSplashGlyphField
     private let effectCenter: CGPoint
@@ -40,9 +40,11 @@ final class NativeTntVariantPresentation: NativeFinitePresentation {
         }
         return (1...12).map { variant == .bloobGas ? "assets/shop/bloog ball/gas animation/gas\($0)@2x.png":"assets/shop/explosion pack/animation/tnt\($0)@2x.png" }+(1...6).map { "assets/shop/barell/wood\($0).png" }+["assets/tile.png"]
     }
-    init(resourceRoot: URL,variant: Variant,viewport: CGSize,preparedArtwork:JimiV9Artwork?=nil,coconutBoardBodySize:CGFloat?=nil,smokePresentationScale:CGFloat=1,smokeVerticalOffset:CGFloat=0,random: @escaping () -> Double = { Double.random(in:0..<1) }) {
+    init(resourceRoot: URL,variant: Variant,viewport: CGSize,preparedArtwork:JimiV9Artwork?=nil,coconutBoardBodySize:CGFloat?=nil,smokePresentationScale:CGFloat=1,smokeVerticalOffset:CGFloat=0,bushPresentationScale:CGFloat=1,blossomCaptionFillsWidth:Bool=false,random: @escaping () -> Double = { Double.random(in:0..<1) }) {
         self.smokePresentationScale=(variant == .barell || variant == .flower) ? smokePresentationScale:1
-        self.smokeVerticalOffset=variant == .barell ? smokeVerticalOffset:0
+        self.bushPresentationScale=variant == .flower ? bushPresentationScale:1
+        // UIKit's positive Y points down; only Barrel smoke gets the24pt shift.
+        self.smokeVerticalOffset=variant == .barell ? smokeVerticalOffset+24:0
         self.variant = variant; effectCenter = CGPoint(x:viewport.width/2,y:viewport.height/2)
         let artwork = preparedArtwork ?? JimiV9Artwork(resourceRoot:resourceRoot)
         if variant == .coconut || variant == .flower {
@@ -50,7 +52,7 @@ final class NativeTntVariantPresentation: NativeFinitePresentation {
             let glowColors: [UIColor] = variant == .flower
                 ? [UIColor(red:1,green:156.0/255,blue:171.0/255,alpha:1),UIColor(red:253.0/255,green:233.0/255,blue:177.0/255,alpha:1)]
                 : [UIColor(red:101.0/255,green:119.0/255,blue:30.0/255,alpha:1),UIColor(red:130.0/255,green:148.0/255,blue:36.0/255,alpha:1)]
-            glyphs = NativeSplashGlyphField.clankStyle(artwork:artwork,text:variant == .flower ? "BLOSSOM":"COCO-LOCO",backgroundColors:glowColors,random:random)
+            glyphs = NativeSplashGlyphField.clankStyle(artwork:artwork,text:variant == .flower ? "BLOSSOM":"COCO-LOCO",backgroundColors:glowColors,fillsCaptionWidth:variant == .flower && blossomCaptionFillsWidth,random:random)
         } else if variant == .bloobGas {
             glyphs = NativeSplashGlyphField.clankStyle(artwork:artwork,text:"GASSS!",random:random)
         } else {
@@ -188,7 +190,7 @@ final class NativeTntVariantPresentation: NativeFinitePresentation {
                 opacity += (min(opacity,0.4)-opacity)*exitBlend
             }
             let hold=gas ? Self.smoothUnit((time-settle-0.1)/0.18)*(1-Self.smoothUnit((time-exit)/0.13)):0
-            let base=scale*Double(smokePresentationScale)*(gas ? 0.7*(1+0.4*hold):1)*(variant == .barell ? 1.2:1)
+            let base=scale*Double(smokePresentationScale)*Double(bushPresentationScale)*(gas ? 0.7*(1+0.4*hold):1)*(variant == .barell ? 1.2:1)
             cloud.view.alpha=CGFloat(min(1,max(0,alpha))*opacity)
             cloud.view.transform=CGAffineTransform(rotationAngle:rotation).scaledBy(x:CGFloat(base*(1+squeeze))*(variant == .flower ? 0.84:1),y:CGFloat(base*(1-squeeze))*(variant == .barell ? 1.4:1))
         }

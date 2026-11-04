@@ -1,0 +1,12 @@
+Polish ONLY the rendering/material finish of the most recently attached floating-island illustration. This specific attached image is the exact edit target. Preserve its composition, all subjects, poses, face identities, facial expressions, anatomy, geometry, proportions, camera, framing, cards and their printed patterns, locations of every prop, trees, fence, bees, honey, stars, dog leap, running man, backpack, log and floating stones. Do not redesign or add/remove content.
+
+User asks for a slightly WARMER and visibly CLEANER polished game render with NO strange textures or artifacts. Make a meticulous surface-quality cleanup:
+- Remove gritty grain, speckles, mottled patches, procedural noise, crosshatching, fabric weave on skin, muddy smeared textures, compression-like artifacts and rough fibrous surfaces.
+- Skin is clean smooth matte peach/cream with continuous diffuse gradients and absolutely NO shiny forehead/nose/hand hotspots. Preserve face shapes and recognizable man.
+- Grass and tree layers are smooth rounded matte sculpted forms with clean broad shading, not felt/fuzz/cloth or noisy carpet.
+- Clothes, backpack, shoes, cards, island underside and log have calm clean material surfaces and only minimal intentional structural detail. Keep wood rings and card graphics, but remove dirty random texture.
+- Dog stays recognizable with same markings/muzzle/pose, fur simplified into clean softly rounded masses with very quiet controlled hair cues rather than gritty noise. Hair/beard also keep coherent shape with quiet short detail.
+- Bees remain crisp and clean, softly modeled. Honey retains smooth controlled liquid highlights. Stars retain their existing soft luminous golden appearance.
+- Slightly warmer pale cream light and peach reflected tones, balanced natural warm pastel colors, preserve blue jeans and olive greens. No orange/sepia cast, no extra saturation, no washed-out highlights or white haze.
+- Absolutely NO ink strokes, drawn outlines, uniform brown/beige contour bands or cel shading. Real eyeglass frames, printed ornamental card borders and existing authored symbols remain.
+Keep crisp edges and dimensional soft shading, never use overall blur to conceal texture. Preserve actual transparent alpha background with clean anti-aliased edges; eliminate stray background specks/color contamination around silhouettes without cutting off intended flight trails or props. No backdrop, no text, no watermark. Minimal change to approved scene, substantial improvement in rendering cleanliness.
