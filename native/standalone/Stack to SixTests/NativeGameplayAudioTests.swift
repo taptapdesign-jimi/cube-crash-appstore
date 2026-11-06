@@ -6,6 +6,43 @@ import StackToSixGameplay
 
 @MainActor
 final class NativeGameplayAudioTests:XCTestCase {
+    func testSVGLogoContactPlanUsesExplicitPoofPufAndFiniteWoodenSpringLayers() {
+        let cues=NativeGameplayAudioOwner.studioLogoMotionCues
+        XCTAssertEqual(cues.count,17);XCTAssertEqual(Set(cues.map(\.voice)).count,17)
+        XCTAssertEqual(Set(cues.map(\.delay)).count,11)
+        XCTAssertTrue(cues.contains{$0.source=="assets/sound/card reveal/poof.wav" && $0.delay==NativeGameplayAudioOwner.studioLogoMoment(0.84)})
+        XCTAssertTrue(cues.contains{$0.source=="assets/sound/card reveal/puf.wav" && $0.delay==NativeGameplayAudioOwner.studioLogoMoment(3.56)})
+        XCTAssertFalse(cues.contains{$0.source.localizedCaseInsensitiveContains("boing")})
+        let swings=NativeGameplayAudioOwner.studioLogoSwingContacts
+        XCTAssertEqual(swings.count,7)
+        XCTAssertEqual(Set(swings.map{$0.cue.source}),Set([1,3,4].map{"assets/sound/crate and backpack animaitons/crate/crate \($0).wav"}))
+        XCTAssertTrue(swings.allSatisfy{$0.cue.delay>=NativeStudioIntroView.presentsEntryStart && $0.cue.delay<NativeStudioIntroView.characterExitTime-0.10+0.65})
+        XCTAssertGreaterThan(swings[0].cue.gain,swings[5].cue.gain)
+
+        XCTAssertTrue(cues.contains{$0.source=="assets/sound/merge 6/wood.wav"})
+        XCTAssertTrue(cues.contains{$0.voice=="native-studio-logo-fall-crate2" && $0.gain==0.54})
+        XCTAssertTrue(cues.contains{$0.voice=="native-studio-logo-exit-crate3" && $0.gain==0.54})
+        XCTAssertTrue(cues.allSatisfy{!$0.looping && $0.gain>0 && $0.gain<=0.85})
+        XCTAssertTrue(cues.allSatisfy{$0.delay+($0.stopAfter ?? 0)<NativeStudioIntroView.duration})
+    }
+    func testSVGLogoVisualEventsPlayImmediatelyAndMuteDuplicateAndStopRemainOwned() {
+        let main=Transport(),owner=NativeGameplayAudioOwner(root:URL(fileURLWithPath:"/unused"),sceneSpeech:[:],enabled:false,transport:main)
+        owner.studioLogoMotion(event:.fall,receipt:1,generation:1);XCTAssertTrue(main.cues.isEmpty)
+        owner.setEnabled(true);owner.studioLogoMotion(event:.fall,receipt:1,generation:1)
+        XCTAssertTrue(main.cues.isEmpty)
+        owner.studioLogoMotion(event:.prepare,receipt:2,generation:1);XCTAssertTrue(main.cues.isEmpty)
+        owner.studioLogoMotion(event:.fall,receipt:3,generation:1);XCTAssertEqual(main.cues.count,2)
+        owner.studioLogoMotion(event:.fall,receipt:3,generation:1);XCTAssertEqual(main.cues.count,2)
+        owner.studioLogoMotion(event:.landing,receipt:4,generation:1);XCTAssertEqual(main.cues.count,4)
+        owner.studioLogoMotion(event:.exitSmoke,receipt:5,generation:1);XCTAssertEqual(main.cues.count,6)
+        XCTAssertTrue(main.cues.contains{$0.voice=="native-studio-logo-exitSmoke-wood" && abs($0.gain-0.273*NativeGameplayAudioOwner.studioLogoGainScale)<0.000001})
+        owner.studioLogoMotion(event:.exit,receipt:6,generation:1);XCTAssertEqual(main.cues.count,8)
+        XCTAssertTrue(main.cues.allSatisfy{$0.delay==0})
+        owner.studioLogoMotion(event:.stop,receipt:7,generation:1)
+        XCTAssertEqual(main.stopped,Set(NativeGameplayAudioOwner.studioLogoMotionCues.map(\.voice)))
+        owner.setForeground(false);owner.studioLogoMotion(event:.exit,receipt:8,generation:1)
+        XCTAssertEqual(main.cues.count,8);owner.dispose();owner.dispose()
+    }
     func testRecordedSceneRegistryMatchesEveryCompiledLineAndPlayableWAV()throws {
         let path="assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/manifest.json"
         let manifest=try JSONSerialization.jsonObject(with:Data(contentsOf:NativeTestResources.root.appendingPathComponent(path))) as! [String:Any]
@@ -17,11 +54,22 @@ final class NativeGameplayAudioTests:XCTestCase {
         let journey=try JSONSerialization.jsonObject(with:Data(contentsOf:NativeTestResources.root.appendingPathComponent(journeyPath))) as! [String:Any]
         let reward=try JSONSerialization.jsonObject(with:Data(contentsOf:NativeTestResources.root.appendingPathComponent("assets/sound/card reveal/reward-voices-v1/manifest.json"))) as! [String:Any]
         let clips=(manifest["clips"] as! [[String:Any]])+(supplement["clips"] as! [[String:Any]])+(leash["clips"] as! [[String:Any]])+(journey["clips"] as! [[String:Any]])+(reward["clips"] as! [[String:Any]])
+        let replacementPath="assets/sound/SPEECH/settings-arcade-voices-v1/manifest.json"
+        let replacement=try JSONSerialization.jsonObject(with:Data(contentsOf:NativeTestResources.root.appendingPathComponent(replacementPath))) as! [String:Any]
+        let settingsPath="assets/sound/SPEECH/settings-voices-v2/manifest.json"
+        let settings=try JSONSerialization.jsonObject(with:Data(contentsOf:NativeTestResources.root.appendingPathComponent(settingsPath))) as! [String:Any]
+        let activeOverrides=(replacement["activeSources"] as! [String:[String]]).merging(settings["activeSources"] as! [String:[String]]){_,new in new}
+        XCTAssertEqual((settings["clips"] as! [[String:Any]]).count,5)
+        for name in ["005-little-tweak.wav","006-stacked-up.wav","007-nailed-it.wav","008-just-right.wav"] {
+            XCTAssertFalse(FileManager.default.fileExists(atPath:NativeTestResources.root.appendingPathComponent("assets/sound/SPEECH/settings-arcade-voices-v1/"+name).path),"Explicitly deleted old Settings take must not be packaged")
+        }
+        XCTAssertEqual((replacement["clips"] as! [[String:Any]]).count,6)
         XCTAssertEqual(clips.count,176);XCTAssertEqual(NativeRecordedSceneSpeech.sources.count,46)
+        XCTAssertEqual(NativeRecordedSceneSpeech.sources.values.reduce(0){$0+$1.count},182)
         XCTAssertEqual(NativeRecordedSceneSpeech.scene(forDie:"kanta"),"dice-detail-kanta")
         XCTAssertEqual(NativeRecordedSceneSpeech.sources["dice-detail-kanta"]?.count,4)
         for scene in NativeRecordedSceneSpeech.sources.keys.sorted() {
-            let expected=clips.filter{$0["sceneId"] as? String == scene}.map{clip -> String in
+            let expected=activeOverrides[scene] ?? clips.filter{$0["sceneId"] as? String == scene}.map{clip -> String in
                 let source=clip["source"] as! String
                 if source.hasPrefix("assets/sound/card reveal/reward-voices-v1/") {return source.replacingOccurrences(of:"reward-voices-v1/",with:"reward-voices-v1/plus3db-v1/")}
                 if source.hasSuffix("journey-cards-v1/012-stage-06.wav") {return source.replacingOccurrences(of:"journey-cards-v1/",with:"journey-cards-v1/wonder-extra2db-v1/")}
@@ -40,6 +88,62 @@ final class NativeGameplayAudioTests:XCTestCase {
             }
         }
         XCTAssertEqual(NativeRecordedSceneSpeech.scene(forDie:"bee"),"dice-detail")
+    }
+    func testCuratedSettingsAndArcadePoolsNeverSelectRetiredOrLegacyLines() {
+        let old="assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/"
+        let new="assets/sound/SPEECH/settings-arcade-voices-v1/"
+        let pools:[(String,[String],Bool)] = [
+            ("home-settings-character-tap",["001-little-tweak.wav","002-stacked-up.wav","003-nailed-it.wav","004-just-right.wav","005-set-it-up.wav"].map{"assets/sound/SPEECH/settings-voices-v2/"+$0},false),
+            ("arcade-island-pureDice",["001-sandwich.wav","002-lunch.wav","003-one-bite.wav","004-save-a-bite.wav"].map{new+$0}+["0054-arena-grill-02.wav","0056-arena-grill-04.wav","0057-arena-grill-05.wav"].map{old+$0},true),
+            ("arcade-island-slowBurn",["009-mind-my-tea.wav","010-reading-here.wav"].map{new+$0}+["0061-arena-slow-01.wav","0062-arena-slow-02.wav","0063-arena-slow-03.wav"].map{old+$0},true),
+            ("scene-speech:arena-modal-grill",[old+"0059-arena-modal-grill-02.wav"]+["001-sandwich.wav","002-lunch.wav","003-one-bite.wav","004-save-a-bite.wav"].map{new+$0},false),
+            ("scene-speech:arena-modal-slow",["009-mind-my-tea.wav","010-reading-here.wav"].map{new+$0},false),
+        ]
+        for (event,expected,island) in pools {
+            var heard=Set<String>()
+            // Dense draws include the upper end where old legacy choices used to live.
+            for index in 0..<100 {
+                let main=Transport(),tail=Transport()
+                let owner=NativeGameplayAudioOwner(root:NativeTestResources.root,enabled:true,transport:main,arcadeTailFactory:{tail},navigationSpeechFactory:{tail},random:{Double(index)/100})
+                owner.routeFeedback(event,receipt:1,generation:1)
+                let human=tail.cues.filter{!$0.voice.contains("dog")}
+                XCTAssertEqual(human.count,1,event)
+                if let source=human.first?.source {XCTAssertTrue(expected.contains(source),source);heard.insert(source)}
+                XCTAssertEqual(tail.cues.filter{$0.voice.contains("dog")}.count,island ? 1:0)
+                owner.dispose();XCTAssertEqual(tail.disposals,1)
+            }
+            XCTAssertEqual(heard,Set(expected),event)
+        }
+        let tail=Transport(),owner=NativeGameplayAudioOwner(root:NativeTestResources.root,sceneSpeech:[:],enabled:true,transport:Transport(),arcadeTailFactory:{tail},navigationSpeechFactory:{tail})
+        owner.routeFeedback("home-settings-character-tap",receipt:1,generation:1)
+        XCTAssertTrue(tail.cues.isEmpty) // An unavailable curated registry stays silent.
+        owner.routeFeedback("arcade-island-pureDice",receipt:2,generation:1)
+        XCTAssertEqual(tail.cues.count,1);XCTAssertTrue(tail.cues[0].voice.contains("dog"))
+        owner.dispose()
+    }
+    func testActualArcadeIslandTapPlaysNewSpeechWhileModalOpensWithoutAnotherArtTap() async throws {
+        func descendants(_ view:UIView)->[UIView] {[view]+view.subviews.flatMap{descendants($0)}}
+        for (worldID,file) in [(3,"001-sandwich.wav"),(2,"009-mind-my-tea.wav")] {
+            let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+            let host=UIViewController();window.rootViewController=host;window.makeKeyAndVisible()
+            let tail=Transport(),owner=NativeGameplayAudioOwner(root:NativeTestResources.root,enabled:true,transport:Transport(),arcadeTailFactory:{tail},navigationSpeechFactory:{Transport()},random:{0})
+            let hub=NativeArcadeHubView(frame:window.bounds,assets:JimiV9Artwork(resourceRoot:NativeTestResources.root))
+            host.view.addSubview(hub);hub.layoutIfNeeded();hub.present();hub.finishEntering()
+            var receipt:UInt64=0,events:[String]=[]
+            hub.onFeedback={event in events.append(event);receipt += 1;owner.routeFeedback(event,receipt:receipt,generation:1)}
+            let button=try XCTUnwrap(descendants(hub).first{$0.accessibilityIdentifier=="native.hub.world.\(worldID)"} as? UIButton)
+            button.sendActions(for:.touchUpInside)
+            let human=tail.cues.filter{!$0.voice.contains("dog")}
+            XCTAssertEqual(human.map(\.source),["assets/sound/SPEECH/settings-arcade-voices-v1/"+file])
+            XCTAssertEqual(human.first?.delay,0)
+            XCTAssertNotNil(descendants(hub).first{$0.accessibilityIdentifier=="native.arcade-world-modal.art"})
+            button.sendActions(for:.touchUpInside)
+            try await Task.sleep(for:.milliseconds(500))
+            XCTAssertEqual(tail.cues.filter{!$0.voice.contains("dog")}.count,1,"Opening the sheet must not duplicate the accepted island speech")
+            XCTAssertFalse(events.contains{$0.hasPrefix("scene-speech:")},"No extra modal-art tap required")
+            XCTAssertEqual(owner.activeArcadeTailCount,1,"Modal entry preserves the selected audible island package")
+            hub.hide();owner.dispose();window.isHidden=true
+        }
     }
     func testWonderLegendaryLineHasExactlyTwoMoreDecibelsAndKeepsTheOtherHint()throws {
         let path="assets/sound/SPEECH/Jimbo voice compilation/journey-cards-v1/"
@@ -314,7 +418,7 @@ final class NativeGameplayAudioTests:XCTestCase {
     func testRecordedArcadeKeepsBothVoicesUntilNaturalCompletion() {
         let tail=Transport(),owner=NativeGameplayAudioOwner(root:NativeTestResources.root,enabled:true,transport:Transport(),arcadeTailFactory:{tail},random:{0})
         owner.routeFeedback("arcade-island-pureDice",receipt:1,generation:1)
-        XCTAssertEqual(tail.cues.count,2);XCTAssertTrue(tail.cues.contains{$0.source.contains("arena-grill")});XCTAssertTrue(tail.cues.contains{$0.voice.contains("dog")})
+        XCTAssertEqual(tail.cues.count,2);XCTAssertTrue(tail.cues.contains{NativeRecordedSceneSpeech.sources["arena-grill"]!.contains($0.source)});XCTAssertTrue(tail.cues.contains{$0.voice.contains("dog")})
         owner.stop();XCTAssertEqual(owner.activeArcadeTailCount,1)
         for cue in tail.cues {tail.finish(cue.voice,.ended)}
         XCTAssertEqual(owner.activeArcadeTailCount,0);XCTAssertEqual(tail.disposals,1);owner.dispose()
@@ -622,7 +726,7 @@ final class NativeGameplayAudioTests:XCTestCase {
     func testLaterCharacterContactsRetireScoreSpeechAndHardStopsNeverReplayIt() {
         for next in ["world-hub-forest","arcade-island-endurance","home-journey-character-tap","collection-icon-speech","home-settings-character-tap","round-won"] {
             let tail=Transport();var calls=0
-            let owner=NativeGameplayAudioOwner(root:NativeTestResources.root,sceneSpeech:[:],enabled:true,transport:Transport(),arcadeTailFactory:{Transport()},roundWonTailFactory:{Transport()},worldTailFactory:{Transport()},navigationSpeechFactory:{calls += 1;return calls==1 ? tail:Transport()})
+            let owner=NativeGameplayAudioOwner(root:NativeTestResources.root,sceneSpeech:["home-settings":NativeRecordedSceneSpeech.sources["home-settings"]!],enabled:true,transport:Transport(),arcadeTailFactory:{Transport()},roundWonTailFactory:{Transport()},worldTailFactory:{Transport()},navigationSpeechFactory:{calls += 1;return calls==1 ? tail:Transport()})
             owner.routeFeedback("high-score-modal-speech",receipt:1,generation:1)
             if next=="round-won" {owner.roundWon(receipt:2,generation:1)}else{owner.routeFeedback(next,receipt:2,generation:1)}
             XCTAssertEqual(tail.disposals,1);owner.dispose()
@@ -878,17 +982,20 @@ final class NativeGameplayAudioTests:XCTestCase {
     func testArcadeIslandSpeechMappingConsumesDuplicateMutedAndStaleContacts() {
         for choice in 0..<11 {
             for (id,file) in [("endurance","arcade-endurance"),("pureDice","arcade-lucky-drop"),("slowBurn","arcade-slow-burn")] {
-                let transport=Transport(),owner=NativeGameplayAudioOwner(root:NativeTestResources.root,sceneSpeech:[:],enabled:true,transport:Transport(),arcadeTailFactory:{transport},random:{(Double(choice)+0.1)/11})
+                let transport=Transport(),owner=NativeGameplayAudioOwner(root:NativeTestResources.root,sceneSpeech:["arena-grill":NativeRecordedSceneSpeech.sources["arena-grill"]!,"arena-slow":NativeRecordedSceneSpeech.sources["arena-slow"]!],enabled:true,transport:Transport(),arcadeTailFactory:{transport},random:{(Double(choice)+0.1)/11})
                 defer{owner.dispose()}
                 let kind="arcade-island-"+id
                 owner.routeFeedback(kind,receipt:1,generation:1)
                 XCTAssertEqual(transport.cues.count,2)
-                XCTAssertEqual(transport.cues.first?.source,id == "slowBurn" && choice >= 6 ? "assets/sound/SPEECH/my tea.mp3":"assets/sound/SPEECH/\(file).wav")
-                XCTAssertEqual(transport.cues.first?.gain,0.72);XCTAssertEqual(transport.cues.first?.delay,0)
-                XCTAssertNil(transport.cues.first?.stopAfter)
-                XCTAssertEqual(transport.cues.last?.source,NativeAuthoredAudioCatalog.groups["arcadeIslandDog\(choice)"]?.first?.source)
-                XCTAssertEqual(transport.cues.last?.delay,1);XCTAssertEqual(transport.cues.last?.gain,0.42)
-                XCTAssertNil(transport.cues.last?.stopAfter)
+                let human=transport.cues.first{!$0.voice.contains("dog")}
+                let dog=transport.cues.first{$0.voice.contains("dog")}
+                let expected=id == "pureDice" ? NativeRecordedSceneSpeech.sources["arena-grill"]![Int((Double(choice)+0.1)/11*7)]:id == "slowBurn" ? NativeRecordedSceneSpeech.sources["arena-slow"]![Int((Double(choice)+0.1)/11*5)]:"assets/sound/SPEECH/\(file).wav"
+                XCTAssertEqual(human?.source,expected)
+                XCTAssertEqual(human?.gain,0.72);XCTAssertEqual(human?.delay,0)
+                XCTAssertNil(human?.stopAfter)
+                XCTAssertEqual(dog?.source,NativeAuthoredAudioCatalog.groups["arcadeIslandDog\(choice)"]?.first?.source)
+                XCTAssertEqual(dog?.delay,1);XCTAssertEqual(dog?.gain,0.42)
+                XCTAssertNil(dog?.stopAfter)
                 owner.routeFeedback(kind,receipt:1,generation:1)
                 owner.setEnabled(false);owner.routeFeedback(kind,receipt:2,generation:1)
                 owner.setEnabled(true);owner.routeFeedback(kind,receipt:2,generation:1)
@@ -899,7 +1006,7 @@ final class NativeGameplayAudioTests:XCTestCase {
     }
     func testArcadeTailSurvivesPlayStageAndReleasesAfterBothNaturalEnds() {
         let main=Transport(),tail=Transport()
-        let owner=NativeGameplayAudioOwner(root:NativeTestResources.root,sceneSpeech:[:],enabled:true,transport:main,arcadeTailFactory:{tail},random:{0.99})
+        let owner=NativeGameplayAudioOwner(root:NativeTestResources.root,sceneSpeech:["arena-slow":NativeRecordedSceneSpeech.sources["arena-slow"]!],enabled:true,transport:main,arcadeTailFactory:{tail},random:{0.99})
         owner.routeFeedback("arcade-island-slowBurn",receipt:1,generation:1)
         XCTAssertEqual(tail.cues.count,2)
         owner.routeFeedback("cta",receipt:2,generation:1)
@@ -953,8 +1060,8 @@ final class NativeGameplayAudioTests:XCTestCase {
             }
         }
     }
-    func testSettingsThreeAndCollectionSevenSpeechChoicesUseOneSelectedFile() {
-        for (kind,groups) in [("home-settings-character-tap",["homeSettingsSpeech","settingsSpeech0","settingsSpeech1"]),("collection-icon-speech",(0..<7).map{"collectionSpeech\($0)"})] {
+    func testCollectionSevenSpeechChoicesUseOneSelectedFile() {
+        for (kind,groups) in [("collection-icon-speech",(0..<7).map{"collectionSpeech\($0)"})] {
             for choice in groups.indices {
                 let main=Transport(),tail=Transport(),owner=NativeGameplayAudioOwner(root:NativeTestResources.root,sceneSpeech:[:],enabled:true,transport:main,navigationSpeechFactory:{tail},random:{(Double(choice)+0.1)/Double(groups.count)})
                 owner.routeFeedback(kind,receipt:1,generation:1)
@@ -973,7 +1080,7 @@ final class NativeGameplayAudioTests:XCTestCase {
     func testNavigationSpeechHardStopsConsumeSuppressedContactsAndNeverReplay() {
         for kind in ["home-settings-character-tap","collection-icon-speech"] {
             for boundary in 0..<6 {
-                let tail=Transport(),owner=NativeGameplayAudioOwner(root:NativeTestResources.root,sceneSpeech:[:],enabled:true,transport:Transport(),navigationSpeechFactory:{tail})
+                let tail=Transport(),owner=NativeGameplayAudioOwner(root:NativeTestResources.root,enabled:true,transport:Transport(),navigationSpeechFactory:{tail})
                 owner.routeFeedback(kind,receipt:1,generation:1)
                 switch boundary {
                 case 0:owner.setEnabled(false);owner.routeFeedback(kind,receipt:2,generation:1);owner.setEnabled(true);owner.routeFeedback(kind,receipt:2,generation:1)
@@ -990,7 +1097,7 @@ final class NativeGameplayAudioTests:XCTestCase {
     }
     func testSettingsToCollectionSpeechReplacesOnlyOwnedTailAndRejectsOldEnd() {
         let first=Transport(),second=Transport(),main=Transport();var count=0
-        let owner=NativeGameplayAudioOwner(root:NativeTestResources.root,sceneSpeech:[:],enabled:true,transport:main,navigationSpeechFactory:{count += 1;return count == 1 ? first:second})
+        let owner=NativeGameplayAudioOwner(root:NativeTestResources.root,enabled:true,transport:main,navigationSpeechFactory:{count += 1;return count == 1 ? first:second})
         owner.routeFeedback("home-settings-character-tap",receipt:1,generation:1)
         let stale=first.finishes[first.cues[0].voice]!
         owner.routeFeedback("collection-icon-speech",receipt:2,generation:1)
@@ -998,12 +1105,12 @@ final class NativeGameplayAudioTests:XCTestCase {
         XCTAssertEqual(main.stops,0);second.finish(second.cues[0].voice,.ended)
         XCTAssertEqual(second.disposals,1);owner.dispose()
     }
-    func testSettingsEntrySpeechUsesOriginalOnceAndConsumesSuppressedContact() {
-        let transport=Transport(),owner=NativeGameplayAudioOwner(root:NativeTestResources.root,sceneSpeech:[:],enabled:true,transport:Transport(),navigationSpeechFactory:{transport},random:{0})
+    func testSettingsEntrySpeechUsesCurrentTowerLineOnceAndConsumesSuppressedContact() {
+        let transport=Transport(),owner=NativeGameplayAudioOwner(root:NativeTestResources.root,enabled:true,transport:Transport(),navigationSpeechFactory:{transport},random:{0})
         defer{owner.dispose()}
         owner.routeFeedback("home-settings-character-tap",receipt:1,generation:1)
         XCTAssertEqual(transport.cues.count,1)
-        XCTAssertEqual(transport.cues.first?.source,"assets/sound/SPEECH/settings guy.mp3")
+        XCTAssertEqual(transport.cues.first?.source,NativeRecordedSceneSpeech.sources["home-settings"]!.first!)
         XCTAssertEqual(transport.cues.first?.gain,0.72)
         XCTAssertNil(transport.cues.first?.stopAfter)
         owner.routeFeedback("home-settings-character-tap",receipt:1,generation:1)

@@ -190,6 +190,7 @@ final class NativeArcadeWorldModal: UIView {
     private let play = JimiV9PlainButton(type:.custom), assets: JimiV9Artwork
     private let modeIndex: Int
     private let idle = UIView(), tilt = UIView()
+    private let restTiltDegrees=JimiNativeModalV10.restTiltDegrees()
     private let cloudStage=UIView()
     private var clouds:[UIImageView]=[]
     private(set) var modalDrag:JimiNativeModalDrag?
@@ -208,7 +209,7 @@ final class NativeArcadeWorldModal: UIView {
         backdrop.addTarget(self,action:#selector(dismissSheet),for:.touchUpInside); addSubview(backdrop)
         addSubview(card); card.addSubview(flip); flip.addSubview(tilt); tilt.addSubview(idle); idle.addSubview(paper)
         // Stable artwork tilt stays independent of enter, drag and idle motion.
-        let tiltDegrees = CGFloat(Int.random(in: -5...5)) * 0.5
+        let tiltDegrees = restTiltDegrees
         tilt.transform = CGAffineTransform(rotationAngle: tiltDegrees * .pi / 180)
         var camera = CATransform3DIdentity; camera.m34 = -1/920; layer.sublayerTransform = camera
         flip.layer.anchorPoint = CGPoint(x:0.5,y:1)
@@ -240,10 +241,10 @@ final class NativeArcadeWorldModal: UIView {
         play.addTarget(self,action:#selector(releasePlay),for:[.touchUpOutside,.touchDragExit,.touchCancel])
         play.addTarget(self,action:#selector(playGame),for:.touchUpInside)
         play.accessibilityIdentifier = "native.arcade-world-modal.play"; play.isEnabled = false
-        close.setBackgroundImage(paper.image,for:.normal); close.layer.cornerRadius = 26; close.clipsToBounds = true
+        close.setBackgroundImage(paper.image,for:.normal); close.layer.cornerRadius = 16; close.clipsToBounds = true
         close.setImage(assets.image("assets/close-icon.png",densityAware:true),for:.normal)
         close.imageView?.contentMode = .scaleAspectFit; close.artworkOpacity = 0.8; close.imageEdgeInsets = UIEdgeInsets(top:14,left:14,bottom:14,right:14)
-        close.accessibilityLabel = "Close"; close.accessibilityIdentifier = "native.arcade-world-modal.close"; close.enableArtworkTapFeedback()
+        close.accessibilityLabel = "Close"; close.accessibilityIdentifier = "native.arcade-world-modal.close"; close.enableArtworkTapFeedback(wholeControl:true)
         close.addTarget(self,action:#selector(dismissSheet),for:.touchUpInside)
         cloudStage.isUserInteractionEnabled=false;cloudStage.accessibilityElementsHidden=true
         cloudStage.accessibilityIdentifier="native.arcade-world-modal.clouds"
@@ -373,7 +374,7 @@ final class NativeArcadeWorldModal: UIView {
         tilt.bounds=flip.bounds;tilt.center=CGPoint(x:w/2,y:h/2)
         idle.bounds=tilt.bounds;idle.center=CGPoint(x:w/2,y:h/2)
         JimiNativeModalV10.paperLayout(paper,bounds:card.bounds,bottomExtension:96)
-        close.frame = CGRect(x:w-42,y:-10,width:52,height:52)
+        JimiNativeModalV10.layoutClose(close,frame:CGRect(x:w-42,y:-10,width:52,height:52),modalTilt:restTiltDegrees)
     }
     private var entryRequested=false
     private var entryBeginTime:CFTimeInterval?

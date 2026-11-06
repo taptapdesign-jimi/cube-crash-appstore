@@ -1,0 +1,14 @@
+Built-in image_gen local edit candidate; no runtime integration.
+
+Make a PRECISE SUBTLE LOCAL GEOMETRY CORRECTION to the recent FULL PEACH SMARTPHONE asset. The user's newest close-up of bottom/right corner shows the issue: cream screen bezel is too close to outside shell edge and pinched unevenly. The full phone immediately before close-up is EDIT TARGET; close-up is diagnostic detail only.
+
+Keep the full phone's current tall rounded silhouette, overall size, diagonal tilt, three-quarter perspective showing left side, peach case material and color, top earpiece, two left physical buttons, blank ivory glass reflections, NO home button, both pairs of vibration arcs with peach outer/ivory inner colors. Do not redesign phone.
+
+Adjust ONLY the display/bezel fit slightly:
+- Move lower edge of entire cream screen-frame/glass assembly modestly INWARD/UP from outside lower shell edge, creating a little more visible PEACH CASE margin at bottom, but do NOT restore the old large empty bottom chin.
+- Similarly create slightly more breathing room along RIGHT side, particularly lower-right curved corner. Natural consistent three-quarter perspective: lower/right outer peach margin should be visibly comfortable and balanced, not paper-thin or pinched. Aim a modest increase of existing margin, around5-8% of phone width at bottom including curved edge thickness, and proportional side clearance. This remains a large modern nearly full-front display.
+- Correct bottom-right nested curves so outer peach shell, cream bezel and inner glass have harmonious smooth concentric corner shapes; no bulging, melted corners, sharp flat spots or uneven asymmetric pinch.
+- Cream bezel itself retains even rounded width and soft physically believable relief, not a thick doubled rim.
+- Minimize changes to top and left screen edges. Preserve original lighting/shading and exact identity.
+
+Output ONE entire full phone asset, NOT cropped detail. All four detached vibration arcs fully visible, same spacing/pair geometry, no new objects/text/background. Genuinely transparent PNG background, preserve original square framing and padding, clean alpha. No checkerboard baked in.

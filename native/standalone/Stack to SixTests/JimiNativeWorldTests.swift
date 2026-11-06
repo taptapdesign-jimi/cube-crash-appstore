@@ -33,6 +33,106 @@ final class JimiNativeWorldTests: XCTestCase {
         let isolatedQADevices:Set<String> = ["1018BE2D-491B-465F-8F75-3E5BEB38C22A", "8787CAC9-BA3D-4D0A-B62B-7418DE4BCCE7", "307A050F-B708-45CC-BA31-8769809284D8"]
         guard let device=ProcessInfo.processInfo.environment["SIMULATOR_UDID"],isolatedQADevices.contains(device) else { throw XCTSkip("Isolated QA Simulator only") }
     }
+    func testCloudDragIsVisibleBoundedAndRetainsIndependentIdle() {
+        let host=UIView(frame:CGRect(x:0,y:0,width:820,height:1180))
+        let cloud=UIView(frame:CGRect(x:0,y:300,width:120,height:80));host.addSubview(cloud)
+        let owner=JimiWorldCloudDrag(),rest=cloud.layer.position.y
+        let idle=CABasicAnimation(keyPath:"transform.translation.x");idle.duration=10
+        cloud.layer.add(idle,forKey:"world.idle.x")
+        owner.register(cloud);owner.begin(offset:500);owner.update(offset:400)
+        let localDelta=cloud.layer.position.y-rest
+        XCTAssertLessThan(localDelta,-20);XCTAssertGreaterThan(localDelta,-40)
+        owner.update(offset:600)
+        XCTAssertGreaterThan(cloud.layer.position.y-rest,0)
+        owner.update(offset:100_000);XCTAssertLessThanOrEqual(abs(cloud.layer.position.y-rest),40)
+        XCTAssertNotNil(cloud.layer.animation(forKey:"world.idle.x"))
+        owner.finish();XCTAssertEqual(cloud.layer.position.y,rest)
+        XCTAssertNotNil(cloud.layer.animation(forKey:"world.cloud.drag-settle"))
+        owner.stop(restore:true);XCTAssertNil(cloud.layer.animation(forKey:"world.cloud.drag-settle"))
+    }
+    func testCloudDragLateResourceReversalFreezeAndIdempotentRetirement() {
+        let host=UIView(),owner=JimiWorldCloudDrag()
+        let first=UIView(frame:CGRect(x:0,y:200,width:100,height:100));host.addSubview(first)
+        owner.register(first);owner.begin(offset:0);owner.update(offset:120)
+        let late=UIView(frame:CGRect(x:0,y:500,width:100,height:100));host.addSubview(late)
+        let lateRest=late.layer.position.y;owner.register(late);let joined=late.layer.position.y;owner.update(offset:120)
+        XCTAssertEqual(late.layer.position.y,joined,accuracy:0.001)
+        XCTAssertLessThanOrEqual(abs(joined-lateRest),40)
+        owner.update(offset:-110);XCTAssertLessThan(late.layer.position.y,lateRest)
+        owner.stop(restore:false);let frozen=first.layer.position.y
+        owner.update(offset:900);XCTAssertEqual(first.layer.position.y,frozen)
+        owner.begin(offset:900);owner.update(offset:890)
+        XCTAssertLessThan(first.layer.position.y,250)
+        XCTAssertLessThanOrEqual(abs(first.layer.position.y-250),40)
+        owner.clear();owner.clear();XCTAssertEqual(first.layer.position.y,250)
+        XCTAssertEqual(late.layer.position.y,lateRest)
+        XCTAssertNil(first.layer.animation(forKey:"world.cloud.drag-settle"))
+    }
+    func testForestCloudPlaneStaysBehindEveryUnitOnBothDevices() async throws {
+        for size in [CGSize(width:820,height:1180),CGSize(width:390,height:844)] {
+            var raw=fixture();var definitions=raw["units"] as! [[String:Any]]
+            for i in definitions.indices {
+                var parts=definitions[i]["parts"] as! [[String:Any]]
+                parts.append(["asset":"assets/close-icon.png","role":"cloud","x":0,"y":0,"width":100,"height":80,"zIndex":0])
+                definitions[i]["parts"]=parts
+            }
+            raw["units"]=definitions
+            let host=UIView(frame:CGRect(origin:.zero,size:size))
+            let world=try XCTUnwrap(JimiNativeWorldView(snapshot:raw,assets:art))
+            host.addSubview(world);world.frame=host.bounds;world.layoutIfNeeded()
+            await withCheckedContinuation{c in world.prepare{c.resume()}}
+            let unit=try XCTUnwrap(descendant(world,"native.world.card.1"))
+            let cloud=try XCTUnwrap(descendant(world,"native.world.part.1.cloud"))
+            do {
+                XCTAssertFalse(cloud.superview === unit)
+                for id in [1,2] {
+                    let other=try XCTUnwrap(descendant(world,"native.world.card.\(id)"))
+                    XCTAssertLessThan(cloud.superview!.layer.zPosition,other.layer.zPosition)
+                }
+            }
+            world.cleanup();world.cleanup()
+        }
+    }
+    func testJourneyIndividualCloudsHaveIndependentGainLagAndSlowReturn() async throws {
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        let controller=UIViewController();window.rootViewController=controller;window.makeKeyAndVisible()
+        defer {window.isHidden=true;window.rootViewController=nil}
+        let host=try XCTUnwrap(controller.view),owner=JimiWorldCloudDrag(strength:2,individualClouds:true)
+        let clouds=(0..<6).map {index -> UIView in
+            let cloud=UIView(frame:CGRect(x:0,y:CGFloat(index)*100,width:100,height:80))
+            host.addSubview(cloud);owner.register(cloud);return cloud
+        }
+        let rests=clouds.map{$0.layer.position.y}
+        let idle=CABasicAnimation(keyPath:"transform.translation.x");idle.duration=10
+        clouds[0].layer.add(idle,forKey:"independent.idle")
+        owner.begin(offset:0);owner.update(offset:200)
+        let offsets=zip(clouds,rests).map{$0.layer.position.y-$1}
+        XCTAssertGreaterThan(Set(offsets.map{Int($0)}).count,3)
+        XCTAssertTrue(offsets.allSatisfy{abs($0)<=80})
+        let lags=clouds.compactMap{$0.layer.animation(forKey:"world.cloud.drag-settle")?.duration}
+        XCTAssertGreaterThan(Set(lags).count,3)
+        try await Task.sleep(for:.milliseconds(120))
+        owner.finish()
+        let returns=clouds.compactMap{$0.layer.animation(forKey:"world.cloud.drag-settle")?.duration}
+        XCTAssertTrue(returns.allSatisfy{$0>=1 && $0<=1.6})
+        XCTAssertGreaterThan(Set(returns).count,3)
+        owner.begin(offset:200)
+        XCTAssertTrue(zip(clouds,rests).contains{abs($0.layer.position.y-$1)>0.1})
+        owner.update(offset:200)
+        XCTAssertNotNil(clouds[0].layer.animation(forKey:"independent.idle"))
+        owner.stop(restore:false)
+        XCTAssertTrue(clouds.allSatisfy{$0.layer.animation(forKey:"world.cloud.drag-settle")==nil})
+        owner.clear();owner.clear()
+        for (cloud,rest) in zip(clouds,rests) {XCTAssertEqual(cloud.layer.position.y,rest)}
+    }
+    func testCloudDragDoesNotRetainRetiredCloudViews() {
+        let owner=JimiWorldCloudDrag();weak var released:UIView?
+        autoreleasepool {
+            let host=UIView(),cloud=UIView();host.addSubview(cloud)
+            owner.register(cloud);released=cloud;cloud.removeFromSuperview()
+        }
+        XCTAssertNil(released);owner.begin(offset:0);owner.finish();owner.clear()
+    }
     private var root: URL { NativeTestResources.root }
     private var art: JimiV9Artwork { JimiV9Artwork(resourceRoot: root) }
     private func fixture(_ revision: Int = 1) -> [String: Any] {
@@ -51,6 +151,132 @@ final class JimiNativeWorldTests: XCTestCase {
         return root.subviews.lazy.compactMap { self.descendant($0,identifier) }.first
     }
     private func settle(_ seconds: Double = 1.3) async throws { try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000)) }
+    func testDifferentUnitOpensDuringReturnWithoutOldCompletionOwningNewModal() async throws {
+        for size in [CGSize(width:390,height:844),CGSize(width:820,height:1180)] {
+            var raw=fixture(),definitions=fixture()["units"] as! [[String:Any]]
+            definitions[1]["locked"]=false;definitions[1]["allowedActions"]=["openCard","play"];raw["units"]=definitions
+            let world=try XCTUnwrap(JimiNativeWorldView(snapshot:raw,assets:art))
+            let window=UIWindow(frame:CGRect(origin:.zero,size:size)),host=UIViewController()
+            window.rootViewController=host;host.view.addSubview(world);world.frame=window.bounds;window.makeKeyAndVisible()
+            defer{world.cleanup();window.isHidden=true;window.rootViewController=nil}
+            await withCheckedContinuation{c in world.prepare{c.resume()}}
+            await withCheckedContinuation{c in world.enter{c.resume()}};world.finishPresentationAdmission()
+            let firstButton=try XCTUnwrap(descendant(world,"native.world.card.1") as? UIButton)
+            let secondButton=try XCTUnwrap(descendant(world,"native.world.card.2") as? UIButton)
+            var requests=[Int]()
+            world.onRequest={ [weak world] action,board in
+                guard action=="openCard",let board else{return};requests.append(board);world?.openCard(boardID:board)
+            }
+            firstButton.sendActions(for:.touchUpInside)
+            var first:JimiNativeWorldCardView?=try XCTUnwrap(descendant(world,"native.world.card.modal") as? JimiNativeWorldCardView)
+            weak var releasedFirst=first
+            try await awaitCardOpening(try XCTUnwrap(first))
+            let returnedFirst=expectation(description:"First return"),returnedSecond=expectation(description:"Second return")
+            var firstFinished=false
+            world.closeCard{firstFinished=true;returnedFirst.fulfill()}
+            XCTAssertFalse(firstFinished)
+            firstButton.sendActions(for:.touchUpInside)
+            XCTAssertEqual(requests,[1],"Only the exact returning Unit remains guarded")
+            secondButton.sendActions(for:.touchUpInside)
+            XCTAssertEqual(requests,[1,2],"A different Unit must be admitted synchronously at Close")
+            let second=try XCTUnwrap(descendant(world,"native.world.card.modal") as? JimiNativeWorldCardView)
+            XCTAssertEqual(second.boardID,2)
+            XCTAssertEqual(first?.layer.speed,1,"Covered finite flight keeps its original duration")
+            XCTAssertEqual(first?.isHidden,true,"Old carrier cannot overlap the successor or pop back later")
+            XCTAssertEqual(first?.takeReturnBackdropOpacity(),0,"A returning dimmer transfers at most once")
+            first=nil
+            try await settle(1.4)
+            XCTAssertFalse(firstFinished,"The old landing waits behind the successor modal")
+            XCTAssertNil(releasedFirst,"Finished hidden flight releases its modal before the successor closes")
+            XCTAssertTrue(descendant(world,"native.world.card.modal") === second)
+            XCTAssertTrue(second.acceptsCardPan)
+            world.closeCard{returnedSecond.fulfill()}
+            await fulfillment(of:[returnedFirst,returnedSecond],timeout:6)
+            XCTAssertFalse(world.hasActiveCard);XCTAssertFalse(world.hasPendingCardLanding)
+            try await settle(0.05)
+            XCTAssertNil(releasedFirst,"Independent return releases its modal after actual completion")
+            XCTAssertFalse(try XCTUnwrap(descendant(world,"native.world.part.1.card")).isHidden)
+            XCTAssertFalse(try XCTUnwrap(descendant(world,"native.world.part.2.card")).isHidden)
+        }
+    }
+    func testReturningLandingPausesBehindNewModalAndParkRetiresOldCallbacks() async throws {
+        var raw=fixture(),definitions=fixture()["units"] as! [[String:Any]]
+        definitions[1]["locked"]=false;definitions[1]["allowedActions"]=["openCard","play"];raw["units"]=definitions
+        let world=try XCTUnwrap(JimiNativeWorldView(snapshot:raw,assets:art))
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),host=UIViewController()
+        window.rootViewController=host;host.view.addSubview(world);world.frame=window.bounds;window.makeKeyAndVisible()
+        defer{world.cleanup();window.isHidden=true;window.rootViewController=nil}
+        await withCheckedContinuation{c in world.prepare{c.resume()}}
+        await withCheckedContinuation{c in world.enter{c.resume()}};world.finishPresentationAdmission()
+        world.openCard(boardID:1)
+        try await awaitCardOpening(try XCTUnwrap(descendant(world,"native.world.card.modal") as? JimiNativeWorldCardView))
+        var retiredCompletion=0
+        world.closeCard{retiredCompletion+=1}
+        let source=try XCTUnwrap(descendant(world,"native.world.part.1.card"))
+        let deadline=CACurrentMediaTime()+4
+        while source.layer.animation(forKey:"world.card.landing")==nil,CACurrentMediaTime()<deadline {try await settle(0.005)}
+        XCTAssertNotNil(source.layer.animation(forKey:"world.card.landing"))
+        world.openCard(boardID:2)
+        XCTAssertEqual(source.layer.speed,0)
+        let paused=source.layer.timeOffset
+        world.setActive(false);try await settle(0.12);world.setActive(true)
+        XCTAssertEqual(source.layer.speed,0);XCTAssertEqual(source.layer.timeOffset,paused)
+        XCTAssertEqual(retiredCompletion,0)
+        world.memoryWarning();world.closeCard();world.enter{}
+        XCTAssertFalse(world.hasActiveCard,"A new route entry retires every old return before changing its generation")
+        world.park();world.park()
+        XCTAssertEqual(source.layer.speed,1);XCTAssertNil(source.layer.animation(forKey:"world.card.landing"))
+        XCTAssertFalse(world.hasActiveCard);XCTAssertFalse(world.hasPendingCardLanding)
+        world.setActive(true)
+        await withCheckedContinuation{c in world.enter{c.resume()}};world.finishPresentationAdmission()
+        world.openCard(boardID:2)
+        let successor=try XCTUnwrap(descendant(world,"native.world.card.modal") as? JimiNativeWorldCardView)
+        try await settle(1.5)
+        XCTAssertEqual(retiredCompletion,0)
+        XCTAssertTrue(descendant(world,"native.world.card.modal") === successor)
+        world.cleanup();world.cleanup()
+    }
+    func testRetiredReturnReleasesWorldAndModalAfterLateCompletions() async throws {
+        var world:JimiNativeWorldView?=try XCTUnwrap(JimiNativeWorldView(snapshot:fixture(),assets:art))
+        weak var releasedWorld=world
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),host=UIViewController()
+        window.rootViewController=host;host.view.addSubview(try XCTUnwrap(world));world?.frame=window.bounds;window.makeKeyAndVisible()
+        await withCheckedContinuation{c in world?.prepare{c.resume()}}
+        await withCheckedContinuation{c in world?.enter{c.resume()}};world?.finishPresentationAdmission()
+        world?.openCard(boardID:1)
+        var card:JimiNativeWorldCardView?=try XCTUnwrap(descendant(try XCTUnwrap(world),"native.world.card.modal") as? JimiNativeWorldCardView)
+        weak var releasedCard=card
+        try await awaitCardOpening(try XCTUnwrap(card))
+        world?.closeCard()
+        world?.park();world?.cleanup();world?.cleanup();world?.removeFromSuperview()
+        card=nil;world=nil;window.isHidden=true;window.rootViewController=nil
+        try await settle(0.15)
+        XCTAssertNil(releasedWorld);XCTAssertNil(releasedCard)
+        try await settle(0.6)
+        XCTAssertNil(releasedWorld);XCTAssertNil(releasedCard)
+    }
+    func testPlayFromSuccessorRetiresPriorReturnBeforeGameplayExit() async throws {
+        var raw=fixture(),definitions=fixture()["units"] as! [[String:Any]]
+        definitions[1]["locked"]=false;definitions[1]["allowedActions"]=["openCard","play"];raw["units"]=definitions
+        let world=try XCTUnwrap(JimiNativeWorldView(snapshot:raw,assets:art))
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),host=UIViewController()
+        window.rootViewController=host;host.view.addSubview(world);world.frame=window.bounds;window.makeKeyAndVisible()
+        defer{world.cleanup();window.isHidden=true;window.rootViewController=nil}
+        await withCheckedContinuation{c in world.prepare{c.resume()}}
+        await withCheckedContinuation{c in world.enter{c.resume()}};world.finishPresentationAdmission()
+        world.openCard(boardID:1)
+        try await awaitCardOpening(try XCTUnwrap(descendant(world,"native.world.card.modal") as? JimiNativeWorldCardView))
+        var obsoleteCompletion=0,gameplayCompletion=0
+        world.closeCard{obsoleteCompletion+=1};world.openCard(boardID:2)
+        try await awaitCardOpening(try XCTUnwrap(descendant(world,"native.world.card.modal") as? JimiNativeWorldCardView))
+        world.prepareGameplayExit(boardID:2){gameplayCompletion+=1}
+        XCTAssertFalse(world.hasPendingCardLanding)
+        XCTAssertEqual(world.gameplayTransitionPreparationBoard,2)
+        XCTAssertEqual(obsoleteCompletion,0)
+        world.park();try await settle(0.8)
+        XCTAssertEqual(obsoleteCompletion,0);XCTAssertEqual(gameplayCompletion,0)
+        XCTAssertFalse(world.hasActiveCard)
+    }
     private func awaitCardOpening(_ card:JimiNativeWorldCardView,file:StaticString = #filePath,line:UInt = #line) async throws {
         for _ in 0..<200 where !card.acceptsCardPan {try await settle(0.01)}
         XCTAssertTrue(card.acceptsCardPan,"Opening must complete before settled-card actions",file:file,line:line)
@@ -359,8 +585,13 @@ final class JimiNativeWorldTests: XCTestCase {
         defer{world.cleanup();window.isHidden=true;window.rootViewController=nil;previous?.makeKey()}
         let prepared=expectation(description:"World ready");world.prepare{prepared.fulfill()};await fulfillment(of:[prepared],timeout:10)
         let entered=expectation(description:"World entered");world.enter{entered.fulfill()};await fulfillment(of:[entered],timeout:5);world.finishPresentationAdmission()
-        try await settle(0.4)
         let unit=try XCTUnwrap(descendant(world,"native.world.card.1"))
+        // A future loop is deliberately removed while its finite onset owns
+        // the painted pose. Exercise the actual loop for this loop-clock test.
+        let loopDeadline=CACurrentMediaTime()+5
+        while let loop=unit.layer.animation(forKey:"world.idle.y"),
+              unit.layer.convertTime(CACurrentMediaTime(),from:nil)<loop.beginTime,
+              CACurrentMediaTime()<loopDeadline {try await settle(0.01)}
         let original=try XCTUnwrap(unit.layer.animation(forKey:"world.idle.y"))
         let paintedBefore=try XCTUnwrap(unit.layer.presentation()).transform.m42
         world.openCard(boardID:1)
@@ -473,6 +704,10 @@ final class JimiNativeWorldTests: XCTestCase {
             XCTAssertEqual(rotor.bounds.height,481.76,accuracy:0.001)
             let close=try XCTUnwrap(descendant(card,"native.world.card.close"))
             XCTAssertEqual(close.center.y,36,accuracy:0.001)
+            let holder=try XCTUnwrap(descendant(card,"native.world.card.close.stone-circle"))
+            XCTAssertEqual(holder.transform,close.transform,"The holder and X share the same local tilt")
+            XCTAssertGreaterThanOrEqual(abs(atan2(close.transform.b,close.transform.a))*180 / .pi,6-0.001)
+
             let closeTexture=try XCTUnwrap(descendant(card,"native.world.card.close.stone-texture") as? UIImageView)
             XCTAssertTrue(closeTexture.image === resources.image(card.infoPanelAssetPath,owner:board))
             XCTAssertNil(descendant(card,"native.world.card.close.stone-depth"))
@@ -1738,7 +1973,7 @@ final class JimiNativeWorldTests: XCTestCase {
         world.reconcile(fixture(1));XCTAssertEqual(regular.accessibilityValue,"interim","Stale snapshot cannot relabel current admission")
     }
 
-    func testForestHeaderKeepsGeometryWithSoftDownwardNavigationShadow() throws {
+    func testForestHeaderKeepsGeometryWithHomeDividerTrial() throws {
         let world = try XCTUnwrap(JimiNativeWorldView(snapshot:fixture(),assets:art))
         world.frame = CGRect(x:0,y:0,width:390,height:844);world.layoutIfNeeded()
         defer {world.cleanup()}
@@ -1748,37 +1983,97 @@ final class JimiNativeWorldTests: XCTestCase {
         let geometry = world.headerGeometrySnapshot()
         let header = try XCTUnwrap(geometry["header"]),title = try XCTUnwrap(geometry["title"])
         let target = try XCTUnwrap(geometry["backTarget"]),artwork = try XCTUnwrap(geometry["backArtwork"])
-        XCTAssertEqual(header.minY,0,accuracy:0.001);XCTAssertEqual(header.height,top+58,accuracy:0.001)
-        XCTAssertEqual(title.minY,top+10,accuracy:0.001);XCTAssertEqual(title.height,32,accuracy:0.001)
-        XCTAssertEqual(target.minX,22,accuracy:0.001);XCTAssertEqual(target.minY,top+4,accuracy:0.001)
+        // LOCKED user2026-11-06: World must match Hub/Settings66pt row.
+        let heightReduction=(top+66)*0.2
+        XCTAssertEqual(header.minY,0,accuracy:0.001);XCTAssertEqual(header.height,(top+66)*0.8,accuracy:0.001)
+        XCTAssertEqual(title.minY,top+10-heightReduction/2+8,accuracy:0.001);XCTAssertEqual(title.height,32,accuracy:0.001)
+        XCTAssertEqual(target.minX,22,accuracy:0.001);XCTAssertEqual(target.minY,top+4-heightReduction/2+8,accuracy:0.001)
         XCTAssertEqual(target.width,44,accuracy:0.001);XCTAssertEqual(target.height,44,accuracy:0.001)
-        XCTAssertEqual(artwork.minX,32,accuracy:0.001);XCTAssertEqual(artwork.minY,top+14,accuracy:0.001)
-        XCTAssertEqual(artwork.width,24,accuracy:0.001);XCTAssertEqual(artwork.height,24,accuracy:0.001)
-        XCTAssertNil(geometry["divider"]);XCTAssertNil(geometry["shadow"])
-        XCTAssertEqual(world.header.layer.shadowOffset,CGSize(width:0,height:4))
-        XCTAssertEqual(world.header.layer.shadowRadius,6)
-        XCTAssertEqual(world.header.layer.shadowOpacity,0.16,accuracy:0.001)
-        XCTAssertEqual(try XCTUnwrap(world.header.layer.shadowPath).boundingBox,world.header.bounds)
-        world.alpha=1;world.backgroundColor=NativeAppPaperSurface.base
+        XCTAssertTrue(world.header.hitTest(CGPoint(x:target.midX,y:target.maxY-0.5),with:nil) === world.backButton,"The shifted control retains its full lower hit edge")
+        XCTAssertTrue(target.contains(artwork),"Arched close artwork stays inside the unchanged hit target")
+        let divider=try XCTUnwrap(descendant(world.header,"native.navigation.home-divider") as? UIImageView)
+        XCTAssertNotEqual(divider.image?.pngData(),art.image("assets/home-shadow.png")?.pngData())
+        XCTAssertEqual(JimiV9NavigationHeader.dividerDrop(at:0),0)
+        XCTAssertEqual(JimiV9NavigationHeader.dividerDrop(at:1),0)
+        XCTAssertEqual(JimiV9NavigationHeader.dividerDrop(at:0.5),9.8,accuracy:0.0001)
+        XCTAssertEqual(JimiV9NavigationHeader.dividerDrop(at:0.25),7.35,accuracy:0.0001)
+        XCTAssertEqual(divider.frame.minX,0,accuracy:0.000001)
+        XCTAssertEqual(divider.frame.minY,header.height,accuracy:0.000001)
+        XCTAssertEqual(divider.frame.width,390,accuracy:0.000001)
+        XCTAssertEqual(divider.frame.height,58.8,accuracy:0.000001)
+        let cached=divider.image
+        world.header.setNeedsLayout();world.header.layoutIfNeeded()
+        XCTAssertTrue(divider.image === cached,"Ordinary relayout must not create another raster")
+        XCTAssertEqual(divider.alpha,0.55,accuracy:0.001)
+        XCTAssertFalse(divider.isHidden);XCTAssertFalse(divider.isUserInteractionEnabled)
+        XCTAssertEqual(world.header.layer.shadowOpacity,0)
+        XCTAssertNil(world.header.layer.shadowPath)
+        XCTAssertEqual(world.header.layer.backgroundColor?.alpha,0,"The old flat UIView fill must be clear")
+        let surface=try XCTUnwrap(world.header.layer.sublayers?.first{$0.name == "navigationDecoration"}?.sublayers?.first{$0.name == "native.navigation.arched-surface"} as? CAShapeLayer)
+        XCTAssertEqual(surface.fillColor?.alpha ?? -1,0,accuracy:0.0001)
+        XCTAssertNotNil(surface.contents)
+        let mask=try XCTUnwrap(surface.mask as? CAShapeLayer)
+        XCTAssertEqual(mask.path,surface.path)
+        let path=try XCTUnwrap(surface.path)
+        XCTAssertEqual(path.boundingBoxOfPath.maxY,header.height+9.8,accuracy:0.0001)
+        for fraction in [CGFloat(0.1),0.25,0.5,0.75,0.9] {
+            let x=header.width*fraction,y=header.height+JimiV9NavigationHeader.dividerDrop(at:fraction)
+            XCTAssertTrue(path.contains(CGPoint(x:x,y:y-0.05)))
+            XCTAssertFalse(path.contains(CGPoint(x:x,y:y+0.05)))
+        }
+        world.alpha=1;world.backgroundColor = .clear
+        let forest=try XCTUnwrap(art.image("assets/journey assets/forest/forest world/1Forest main.png"))
         let preview=UIGraphicsImageRenderer(size:CGSize(width:390,height:160)).image {context in
+            NativeAppPaperSurface.base.setFill();context.fill(CGRect(x:0,y:0,width:390,height:160))
+            forest.draw(in:CGRect(x:0,y:-75,width:390,height:350))
             world.layer.render(in:context.cgContext)
         }
-        let attachment=XCTAttachment(image:preview);attachment.name="native-navigation-soft-shadow";attachment.lifetime = .keepAlways;add(attachment)
+        let attachment=XCTAttachment(image:preview);attachment.name="native-navigation-home-divider-trial";attachment.lifetime = .keepAlways;add(attachment)
+        try preview.pngData()?.write(to:URL(fileURLWithPath:"/tmp/native-navigation-home-divider-trial.png"))
     }
 
-    func testWorldNavigationShadowFadeSharesActualExitGroupAndReducedMotionClock() throws {
+    func testHomeDividerTrialSharesHeaderExitWithoutShadowFade() throws {
         let world=try XCTUnwrap(JimiNativeWorldView(snapshot:fixture(),assets:art))
         world.frame = .init(x:0,y:0,width:390,height:844);world.layoutIfNeeded()
         defer {world.cleanup()}
         world.exit{}
         let group=try XCTUnwrap(world.header.layer.animation(forKey:"world.exit") as? CAAnimationGroup)
-        let fade=try XCTUnwrap(group.animations?.compactMap{$0 as? CABasicAnimation}.first{$0.keyPath=="shadowOpacity"})
-        XCTAssertEqual(fade.beginTime,0.2);XCTAssertEqual(fade.duration,0.16)
+        XCTAssertNil(group.animations?.compactMap{$0 as? CABasicAnimation}.first{$0.keyPath=="shadowOpacity"})
         let reduced=CAAnimationGroup();reduced.duration=0.16
         world.header.appendExitShadowFade(to:reduced,track:JimiV9Motion.journeyNavigationExit(reducedMotion:true))
-        XCTAssertEqual(reduced.animations?.first?.beginTime,0.1)
-        XCTAssertEqual(reduced.animations?.first?.duration ?? -1,0.06,accuracy:0.000001)
-        XCTAssertEqual(world.header.layer.shadowOpacity,0.16,accuracy:0.001,"Model paint remains ready for re-entry")
+        XCTAssertEqual((reduced.value(forKey:"nativeNavigationDecorationFade") as? CABasicAnimation)?.keyPath,"opacity")
+        XCTAssertEqual(world.header.layer.shadowOpacity,0,"Trial cannot restore the removed shadow on re-entry")
+    }
+    func testNavigationDecorationFadeRendersAndCancelsWithRouteGroup() throws {
+        let scene=try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.first)
+        let previous=scene.windows.first{$0.isKeyWindow},window=UIWindow(windowScene:scene),host=UIViewController()
+        window.frame=CGRect(x:0,y:0,width:390,height:844);window.rootViewController=host
+        let header=JimiV9NavigationHeader(frame:CGRect(x:0,y:0,width:390,height:80))
+        header.backgroundColor = .white;header.setBackgroundImage(art.image("assets/nav/nav-bg.png",densityAware:true))
+        host.view.addSubview(header);window.makeKeyAndVisible();header.layoutIfNeeded()
+        defer {window.isHidden=true;window.rootViewController=nil;previous?.makeKey()}
+        let decoration=try XCTUnwrap(header.layer.sublayers?.first{$0.name == "navigationDecoration"})
+        let group=CAAnimationGroup();group.duration=0.48
+        header.appendExitShadowFade(to:group,track:JimiV9Motion.journeyNavigationExit())
+        group.speed=0;group.timeOffset=0.4
+        header.layer.add(group,forKey:"fade-probe");CATransaction.flush()
+        RunLoop.current.run(until:Date().addingTimeInterval(0.1))
+        XCTAssertLessThan(try XCTUnwrap(decoration.presentation()).opacity,0.05)
+        XCTAssertEqual(header.layer.presentation()?.opacity ?? 0,1,accuracy:0.001,"Buttons keep their own route opacity")
+        header.layer.removeAnimation(forKey:"fade-probe");CATransaction.flush()
+        RunLoop.current.run(until:Date().addingTimeInterval(0.1))
+        XCTAssertEqual(try XCTUnwrap(decoration.presentation()).opacity,1,accuracy:0.001)
+        header.layer.add(group,forKey:"old-exit");CATransaction.flush()
+        let incoming=CAAnimationGroup();incoming.duration=0.4
+        header.layer.add(incoming,forKey:"different-enter")
+        XCTAssertNil(decoration.animation(forKey:"old-exit"),"Route replacement retires decoration even with a different key")
+        header.layer.removeAllAnimations();XCTAssertNil(decoration.animationKeys())
+        let home=JimiV9HomeView(frame:window.bounds,assets:art)
+        let homeGroup=CAAnimationGroup();homeGroup.duration=0.7
+        home.appendNavigationDecorationFade(to:homeGroup,track:JimiV9Motion.homeExit(.fixedShadow))
+        let fade=try XCTUnwrap(homeGroup.animations?.last as? CABasicAnimation)
+        XCTAssertEqual(fade.keyPath,"opacity");XCTAssertEqual(fade.beginTime,0.44,accuracy:0.0001)
+        XCTAssertEqual(fade.duration,0.16,accuracy:0.0001)
     }
     private func rotatedInterimCard() -> (UIView,UIView) {
         let parent = UIView(frame:CGRect(x:0,y:0,width:390,height:844))

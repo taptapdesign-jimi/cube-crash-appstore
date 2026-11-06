@@ -1,4 +1,5 @@
 import XCTest
+import StackToSixGameplay
 @testable import StackToSixNativeState
 
 final class NativeJourneyStarRankingTests:XCTestCase {
@@ -13,6 +14,29 @@ final class NativeJourneyStarRankingTests:XCTestCase {
             XCTAssertEqual(NativeJourneyContent.earnedStars(score:three[i]-1,board:board),2)
             XCTAssertEqual(NativeJourneyContent.earnedStars(score:three[i],board:board),3)
             XCTAssertEqual(NativeJourneyContent.earnedStars(score:999999,board:board,completed:false),0)
+        }
+    }
+    func testEnhancedEfficiencyParticipatesInCompletedLevelStarsAndSavedAward() throws {
+        // Keep approved v1 thresholds: the enhanced result changes the earned
+        // grade through the same final score used by result and reward owners.
+        for (base, combo, fast, total, expectedStars) in [(11000, 1000, 0, 0, 2), (25000, 1000, 1, 1, 3)] {
+            var state=NativeBoardFactory.make(mode:.journey,board:1)
+            state.score=base;state.earnedComboBonus=combo;state.moves=10
+            state.maxStackDepth=1
+            state.efficiencyFastComboContinuations=fast
+            state.efficiencyComboContinuations=total
+            let original=NativeRewardMath.efficiencyBonus(baseBonus:500,remainingMoves:10,maxMoves:state.maxMoves,maxStackDepth:1)
+            let previous=NativeRewardMath.finalScore(currentScore:base,comboBonus:combo,efficiencyBonus:original)
+            XCTAssertEqual(NativeJourneyContent.earnedStars(score:previous,board:1),expectedStars-1)
+            let enhanced=NativeRewardMath.cleanEfficiencyBonus(state:state)
+            let score=NativeRewardMath.finalScore(currentScore:base,comboBonus:combo,efficiencyBonus:enhanced)
+            XCTAssertEqual(NativeJourneyContent.earnedStars(score:score,board:1),expectedStars)
+            var progression=NativeProgressionState()
+            progression.finishAttempt(mode:.journey,board:1,score:score,longestCombo:3,cubesCracked:4,clean:true)
+            let loaded=try JSONDecoder().decode(NativeProgressionState.self,from:JSONEncoder().encode(progression))
+            XCTAssertEqual(loaded.journeyStars(board:1),expectedStars)
+            XCTAssertEqual(loaded.boardStats[1]?.highScore,score)
+            XCTAssertEqual(loaded.boardStats[1]?.starRankingVersion,1)
         }
     }
     func testFailedJourneyCannotRecordStatsOrPromoteLaterLowCompletion()throws {

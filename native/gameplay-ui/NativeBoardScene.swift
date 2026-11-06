@@ -10579,6 +10579,9 @@ final class NativeBoardScene: SKScene {
         let elapsedDelta=lastFrame.map {max(0,currentTime-$0)} ?? 0
         dragTrail.advance(delta:elapsedDelta,timeMilliseconds:rawMilliseconds)
         let delta=min(0.05,elapsedDelta)
+        sourceTutorialMeterHUD?.advanceCandy(delta:delta,
+            visible:!exitInProgress && engine.state.terminal == nil && !hud.isHidden && hud.alpha>0 && gameplayRenderHost?.renderView.window != nil && sourceShimmerCanvasPaintable,
+            reducedMotion:UIAccessibility.isReduceMotionEnabled)
         if engine.state.combo>=5 {
             comboHUDMotion.advance(delta:delta,visible:!exitInProgress && engine.state.terminal == nil && !hud.isHidden && hud.alpha>0 && gameplayRenderHost?.renderView.window != nil && sourceShimmerCanvasPaintable,reducedMotion:UIAccessibility.isReduceMotionEnabled)
         }

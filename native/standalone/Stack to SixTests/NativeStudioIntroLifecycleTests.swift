@@ -54,6 +54,9 @@ import ImageIO
         }
     }
     func testLogoBounceEntryUsesSharedHomeRecipeThenOriginalExit() {
+        XCTAssertEqual(NativeStudioIntroView.duration,4.33,accuracy:0.000001)
+        XCTAssertGreaterThan(NativeStudioIntroView.logoMotionSpeed,0.70)
+        XCTAssertEqual(NativeStudioIntroView.logoStartDelay+NativeStudioIntroView.logoDuration+0.05,4.33,accuracy:0.000001)
         let track=JimiV9Motion.homeEnter(.logo)
         XCTAssertEqual(NativeStudioIntroView.logoEntryDuration,track.duration)
         for index in 0...100 {
@@ -62,42 +65,49 @@ import ImageIO
         }
         XCTAssertGreaterThan((0...100).map{NativeStudioIntroView.scale(at:Double($0)/100*track.duration,character:false)}.max() ?? 0,1.05)
         XCTAssertEqual(NativeStudioIntroView.scale(at:1,character:false),1)
-        XCTAssertEqual(NativeStudioIntroView.scale(at:3.68,character:false),1)
-        XCTAssertEqual(NativeStudioIntroView.scale(at:4.33,character:false),0,accuracy:0.000001)
+        XCTAssertEqual(NativeStudioIntroView.scale(at:NativeStudioIntroView.logoExitStart,character:false),1)
+        XCTAssertEqual(NativeStudioIntroView.scale(at:NativeStudioIntroView.duration,character:false),0,accuracy:0.000001)
         for index in 0...100 {
             let scale=NativeStudioIntroView.scale(at:Double(index)/100*0.16,character:false,reducedMotion:true)
             XCTAssertGreaterThanOrEqual(scale,0);XCTAssertLessThanOrEqual(scale,1)
         }
     }
-    func testLogoUsesFiniteWorldsHubFloatWithLockedSheenPauseAndCleanup()async throws {
+    func testPresentsExitsPerLetterWithCharacterBeforePlaque() {
+        let start=NativeStudioIntroView.characterExitTime
+        XCTAssertEqual(NativeStudioIntroView.presentsPose(at:start+0.31,index:0).alpha,0,accuracy:0.000001)
+        XCTAssertGreaterThan(NativeStudioIntroView.presentsPose(at:start+0.31,index:7).alpha,0.9)
+        for i in 0..<8 {XCTAssertEqual(NativeStudioIntroView.presentsPose(at:start+0.66,index:i).alpha,0,accuracy:0.000001)}
+        XCTAssertGreaterThan(NativeStudioIntroView.logoExitStart,start+0.66)
+    }
+    func testDropLogoKeepsFiniteShimmerAndParentPauseAndCleanup()async throws {
         let(controller,window,prior)=mount(),view=intro()
         controller.view.addSubview(view)
         defer{view.dispose();window.isHidden=true;prior?.makeKeyAndVisible()}
         view.start{};try await wait{view.timelineStarted}
         let unit=try XCTUnwrap(view.subviews.first)
-        let images=unit.subviews.compactMap{$0 as? UIImageView}
-        XCTAssertEqual(images.count,2)
-        let animations=try images.map{try XCTUnwrap($0.layer.animation(forKey:NativeStudioIntroView.logoIdleKey) as? CAKeyframeAnimation)}
-        XCTAssertEqual(animations[0].beginTime,animations[1].beginTime,accuracy:0.000001)
-        for animation in animations {
-            XCTAssertEqual(animation.duration,4.4);XCTAssertEqual(animation.repeatCount,0)
-            XCTAssertEqual(animation.keyTimes,[0,0.5,1])
-            let values=try XCTUnwrap(animation.values as? [NSValue])
-            XCTAssertEqual(values[1].caTransform3DValue.m42,-8,accuracy:0.000001)
-            XCTAssertEqual(hypot(values[1].caTransform3DValue.m11,values[1].caTransform3DValue.m12),1.018,accuracy:0.000001)
+        let drop=try XCTUnwrap(unit.subviews.first{$0.accessibilityIdentifier=="native.studio-intro.drop-logo"})
+        func layers(_ root:CALayer)->[CALayer] {
+            [root]+(root.sublayers ?? []).flatMap(layers)+(root.mask.map{layers($0)} ?? [])
         }
-        try await Task.sleep(for:.milliseconds(1100))
-        let first=try XCTUnwrap(images[0].layer.presentation())
-        XCTAssertLessThan(first.transform.m42,-0.1)
-        XCTAssertEqual(first.transform.m42,try XCTUnwrap(images[1].layer.presentation()).transform.m42,accuracy:0.001)
+        let owned=layers(drop.layer)
+        let animations=owned.flatMap{layer in (layer.animationKeys() ?? []).compactMap{layer.animation(forKey:$0)}}
+        XCTAssertEqual(animations.filter{abs($0.duration-NativeStudioIntroView.logoDuration)<0.000001}.count,21)
+        XCTAssertTrue(owned.contains{$0.animation(forKey:"native-studio-drop-shimmer") != nil})
+        XCTAssertTrue(animations.allSatisfy{$0.repeatCount==0})
+        let caption=try XCTUnwrap(unit.subviews.first{$0.accessibilityLabel=="PRESENTS"})
+        XCTAssertNotNil(caption.layer.animation(forKey:"native-studio-presents-follow"))
+
+        XCTAssertTrue(unit.subviews.compactMap{$0 as? UIImageView}.allSatisfy{$0.isHidden})
         NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
-        try await Task.sleep(for:.milliseconds(50))
-        let paused=try XCTUnwrap(images[0].layer.presentation()).transform.m42
-        try await Task.sleep(for:.milliseconds(150))
-        XCTAssertEqual(try XCTUnwrap(images[0].layer.presentation()).transform.m42,paused,accuracy:0.01)
+        XCTAssertEqual(unit.layer.speed,0)
+        let parked=unit.layer.timeOffset
+        try await Task.sleep(for:.milliseconds(120))
+        XCTAssertEqual(unit.layer.timeOffset,parked)
         NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
-        view.dispose()
-        for image in images{XCTAssertNil(image.layer.animation(forKey:NativeStudioIntroView.logoIdleKey))}
+        XCTAssertEqual(unit.layer.speed,1)
+        view.dispose();view.dispose()
+        XCTAssertTrue(owned.allSatisfy{($0.animationKeys() ?? []).isEmpty})
+        XCTAssertNil(drop.superview)
     }
     func testReducedMotionOmitsOnlyTheNewLogoFloat()async throws {
         let(controller,window,prior)=mount()

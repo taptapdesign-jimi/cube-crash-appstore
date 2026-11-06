@@ -1,3 +1,196 @@
+Latest gentle navigation(user2026-11-06): shared actual Journey Hub recipes
+replace rapid nav poses:0.56s backOut1.8 scale0.65->1 with90ms stagger;exit0.18s
+anticipation+0.336s backIn1.7 collapse with45ms stagger. Header exit holds long
+enough for child tail;start immediately with bar and-24pt parent spring retained.
+Per-device modal paper corners match Settings final radius22ptphone/24pttablet,
+compensating existing1.4projection. Arch,content and locked66pt nav stay.
+
+Navigation latest enter(user2026-11-06): title/left/right content sequence starts
+with actual bar entry,no percentage wait. Whole shared bar enters from-24pt with
+backOut1.7 spring settling to its unchanged rest;background,divider,title/icons
+inherit that parent motion. Existing scale/fade retained,actual duration excludes
+route hold,ReducedMotion skips drop. Locked66pt layout remains unchanged.
+
+Modal paper bottom arch(user2026-11-06): shared modal depth is1.3times prior
+navigation-reference depth,scaled to paper width,with same centre and safety cap.
+Navigation divider geometry remains locked and unchanged. Original Journey stone
+rolled outline remains authored;shared paper mask and explicit shadows agree.
+
+Navigation latest motion(user2026-11-06): another50percent faster arrival uses
+full time scale1/1.95,actual header milestone35.897percent and51/103ms icon gaps.
+Explicit entry scale0->1.16->0.95->1.035->1;fast147ms reveal/fade plus100ms visible
+settle makes final scale-down readable. Exit title,left,right from painted pose
+through1.10anticipation to0,with fade,147ms per element. Finite held exit samples
+retire on route cancellation/reentry;model layout and locked header remain.
+
+Navigation latest arrival(user2026-11-06): user reports late elements and
+requests another30percent faster appearance. Divide complete content timing by
+1.3,including header milestone(70/1.3percent),left/right gaps(100/200ms divided
+by1.3) and existing bounce/fade duration. Keep order,curve,geometry and clocks.
+
+Navigation latest timing(user2026-11-06): each whole-element bounce/fade is
+50percent faster,duration0.43/1.5seconds. Title first,left X/back at+100ms,right
+icon at+200ms. Keep start at70percent of background/divider entry and same curve.
+
+Home latest correction(user2026-11-06): remove CTA-button parallax/lag entirely.
+Only illustration parallax remains;CTA follows ordinary slider and retains its
+original idle/contact. This supersedes paired illustration/CTA depth below.
+
+Home swipe depth(user2026-11-06): illustration and CTA use small opposite local
+parallax offsets during finger travel and distinct finite release settling,
+meeting at selected centre. Existing Home slider/cloud/route/input owners remain;
+use painted position/velocity on regrab,no extra frame clock.
+
+Navigation entry latest user2026-11-06: whole title bounce/fade starts at70percent
+of parent navigation background/divider entry;explicit clarification of700typo.
+Left icon follows55ms later,right110ms later. All use0->100percent opacity plus
+existing0.43s backOut1.7 scale from zero,sharing paused parent clock. No per-letter
+animation. Existing locked navigation height,curvature and geometry remain.
+
+Latest navigation entry(user2026-11-06): remove PRESENTS per-letter animation.
+Whole title bounces from zero,then left X/back at55ms,then right Backpack/Box at
+110ms,using shared backOut1.7/0.43s enter. Static glyph curvature and locked header
+geometry remain;finite route-owned tracks,ReducedMotion/cancellation unchanged.
+This supersedes all earlier per-letter speed/bounce rules below.
+
+Latest navigation title speed(user2026-11-06): another50percent over1.8x
+sets2.7x original PRESENTS rate. Letter duration0.74/2.7 and stagger0.12/2.7;
+keep the same pose curve,arc,layout,lifecycle and intro PRESENTS timing.
+
+Latest navigation speed override(user2026-11-06): another50percent faster
+than prior1.2x means1.8x original PRESENTS rate;divide both letter duration
+and stagger by1.8. Intro PRESENTS timing stays.
+
+Latest Close right-rim join override(user2026-11-06): rounded right contour
+uses continuously tapered thickness and static opacity fade at both ends.
+No rectangular clipping or hard end caps;lower end melts into stone at join,
+upper highlight narrows/fades. Reference3palette,texture and right-only depth stay.
+
+Native navigation letter-entry override(user2026-11-06): all shared arched
+navigation titles use PRESENTS-style per-glyph entry at1.2x speed. Shared header
+entry group starts finite child tracks on its existing paused clock;exit or
+interruption cancels while ordinary header completion preserves the letter tail.
+Static CoreText glyph positions,tangents,font/ink and locked66pt header geometry
+remain. ReducedMotion settles immediately;no recurring clock/audio owner.
+
+Native info Close right-rim-only override(user2026-11-06): rolled bevel and
+material highlight appear only on the curved right edge for subtle3D depth.
+No top/left/bottom border;this supersedes panel-contact clipping. Retain full
+source stone texture,reference3cream/beige palette,union shadow and bounce.
+
+Native Close join glow override(user2026-11-06): omit bright bevel/highlight
+on left-side contact band and wherever holder overlaps actual transformed panel
+outline plus2pt join margin,including lower-right meeting point. Preserve source
+texture,reference3palette,exposed outer right rim,union shadow and contact bounce.
+This narrows the prior complete-ring styling only at the joined edges.
+
+Native Close contact override(user2026-11-06): whole filled holder and X
+play the existing finite0.4s cartoon contact together on touchDown. Stage stone
+sibling follows the same contact;retain per-presentation model tilt through
+all poses and final return. Release never replays an already-started contact.
+Repeated taps replace one key;ReducedMotion skips,hidden/detach clear both.
+No extra recurring clock or changed close/exit timing.
+
+Native Stage Close palette override(user2026-11-06): supplied reference3
+cream/peach/beige swatches supersede darker brown/ochre rim colours. Retain
+full source texture and rolled rim geometry;use pale ivory highlight,peach
+cream midtone and muted sandy beige depth. No geometry or motion change.
+
+Native Stage Close slab-match override(user2026-11-06): user rejected the faded
+smooth holder. Use full-opacity original upper-right slab texture at existing
+physical scale,complete rolled ivory rim with inset light/material highlight and
+warm brown depth around the whole Close,including its right edge. This supersedes
+the prior texture fade and panel-subtracted rim. Keep opaque stone core,shared
+union shadow and current placement/rotation/size;no original asset modification.
+
+Native Stage Close material correction(user2026-11-06): opaque cream stone core
+prevents world-colour bleed through its texture blend. Sample interior original
+stone;use warm brown lower shading,continuous rounded rim minus the joined slab,
+and one union silhouette for the panel/rotated-holder shadow. No open arc end-cap
+patch at the neck. Existing layout,rotation,size,texture assets and motion remain.
+
+Native Close refinement(user2026-11-06): existing holder/X rotation magnitude
+is increased1percent together, preserving its direction.
+
+Native Close inset override(user2026-11-06): every filled modal Close holder
+and X move together6logical points left and down from the original position
+(previous4pt plus latest2pt refinement).
+Stage uses its existing card-relative device scale for the same inset.
+Existing rotation,shape,hit size and motion owners remain.
+
+Native modal rest-tilt override(user2026-11-06): default settled paper modals
+always lean left/right by1.75...2.75degrees, sampled once per presentation with
+no zero or near-zero draw. Existing Stage front/back tilts remain nonzero.
+Filled Close holder and X rotate together8.5degrees opposite the paper lean;
+Stage holder shares the X local rotation at3x opposite backTilt. Existing16pt
+corners,centres,52pthitbounds,entrance/idle/drag/exit clocks remain. Transient
+entry/exit/manual drag are not clamped; static rest pose is independent.
+
+Native Close shape override(user2026-11-06): all filled circular Close containers
+use soft dice-like rounded squares,16pt corner radius at52pt side. Stage stone
+holder retains56pt/device-scaled footprint and same16/52corner proportion;
+its exposed bevel follows the rounded perimeter against the live panel outline.
+Original textures,X,positions,hitboxes,feedback and animation owners remain.
+This supersedes historical circular silhouette requirements only.
+
+Native Journey Stage/Unit individual-cloud override(user2026-11-05):only
+Forest/Beach/Area55 screens on both devices use independent cloud drag profiles.
+Reuse HomeCloudCurve and Home travel/settling profiles on each cloud position.y;
+existing inner idle/Unit route transforms remain independent. Each visible leased
+cloud retains its own gain/limit(48–80pt),144–302ms response lag and1.055–1.505s
+release return. Same painted position AND velocity survive retarget/regrab;
+release ends at zero velocity. Current80pt maximum and authored rear depth stay.
+Late resources join current drag;modal/exit/background freeze or restore and
+cleanup retire position tracks/curve receipts with weak view leases. No new
+clock,callback,decoder,artwork,audio/haptic/save owner. Worlds Hub and Arcade
+retain their current shared drag/per-entry strength behavior.
+
+Latest Journey parallax choice(user2026-11-05): return Journey Hub/WorldUnit
+clouds to maximum80pt,strength2/0.60response onbothdevices. Supersedes160pt trial.
+Arcade per-entry60..80pt/strength1 and other motion/depth/lifecycle stay unchanged.
+
+Latest Journey cloud parallax correction(user2026-11-05): use160pt rather than
+80pt on Journey Hub and Forest/Beach/Area55,bothdevices. Strength4 gives160pt cap/
+1.20initialresponse;Arcade strength1/random60..80 remains unchanged. Same bounded
+local curve,rear-depth,280ms return and existing input/lifecycle ownership.
+
+Native Journey cloud parallax double-strength(user2026-11-05): Journey Worlds
+Hub and Forest/Beach/Area55 Unit screens on phone+iPad use80pt cap/60percent
+initial response,exactly2x former40pt/30percent curve for the same drag. Arcade
+retains its independent per-visit60..80pt cap/30percent response. Existing rear
+depth,280ms return,painted regrab,weak leases,ReducedMotion and lifecycle remain.
+
+Native Arcade selection cloud drag override(user2026-11-05):sample one
+maximum displacement uniformly in60...80screen points per Arcade presentation,
+on both devices. Retain that value through drags,relayout,modal/foreground resume.
+Use existing resetIdlePose entry boundary;Journey Units/Worlds Hub retain40pt.
+Same30percent gain,280ms return,cloud idle/routes and lifecycle owners.
+
+Native selection cloud drag extension(user2026-11-05):same40screen-point
+counter-drag helper now drives cloud images in Journey Worlds Hub and Arcade
+selection on iPhone/iPad. Existing cloud route shells and inner idle transforms
+remain independent. Admission requires settled active idle/scroll interaction;
+modal/route/background freeze,reset restores,window-detach clears weak leases.
+No added clock or new resources. Stage/Unit screens use the same40pt cap.
+
+Native Journey World cloud drag override(user2026-11-05): iPhone and iPad
+both admit visible local counter-finger displacement relative to each Unit:
+30percent initial gain,40screen-point soft cap,existing gentle idle unchanged.
+Release returns in280ms easeOut on position.y;regrab captures painted offset.
+No unbounded scroll compensation. Forest cloud rear planes now apply on both
+devices so moving clouds stay behind EVERY Unit/card/terrain. Existing resource,
+route,background,modal,ReducedMotion and disposal owners retire the finite track.
+Supersedes previous tablet-only1.5percent/2pt response.
+
+Native iPad Unit layout override(user2026-11-04): Forest, Beach and Area55
+use their own authored390pt phone Unit composition, uniformly scaled1.105
+before the existing capped680pt canvas projection (current Forest Unit1 size).
+Preserve the current first-row vertical anchor under the unchanged main hero;
+scale complete Unit positions/parts about canvas centre195. No tablet row-gap,
+column spread, pair compression or special Stage10 centring in this opt-in.
+Cards, clouds, islands, stars, stumps, beams, hit frames and locked offsets share
+this geometry. Phone defaults and all existing motion/lifecycle owners remain.
+
 Native Journey gameplay-exit continuity correction(user2026-11-04): regular
 card Play retains current cloud/Unit waves through card contact,then uses the
 same painted-pose-preserving World exit as interim Continue. Preserve active
@@ -559,3 +752,33 @@ less than20ms). Keep each source track's durations,eases,pivot and inner idle.
 Journey Forest/Beach/Area55 Stage/Unit screens retain complete-Unit motion with
 no internal cloud stagger. Existing route completion,pause,cancel and Reduced
 Motion own all shells;no new timer or recurring work.
+
+
+## World cloud idle and Forest entry choice · 2026-11-05
+
+Worlds Hub cloud idle travel doubles on both axes, including its existing tablet
+left-fill cloud. Journey Unit-screen cloud-only idle uses14/20 logical-point
+amplitudes; main and Unit artwork retain7. Existing periods, independent routes,
+visibility/foreground/modal/Reduced Motion gates and cleanup remain authoritative.
+
+Each new Forest bee planner captures one50/50 choice: original roaming startup,
+or all nine existing bees start behind the wooden gate and depart using the
+existing entry splines. The gate branch reveals only after crossing the far gate
+edge, then resumes the original independent roam/entry/exit cycle. No paint-time
+randomness, new animation clock, resource owner, gameplay RNG or asset change.
+
+
+## Manual card Close admits other Units immediately · 2026-11-05
+
+Accepted manual Close releases the active modal slot at return start. The exact
+returning Unit remains guarded until its own flight/landing retires; other
+unlocked Units can open immediately. Each existing Unit has at most one finite
+return receipt with captured source/card identity, original motion, paint barrier
+and landing. A successor modal owns its input and dimming independently; covered
+flight hides and completes at its original finite duration, then releases its
+modal. Pending/active landing and Unit waves pause and resume the same clocks;
+background also pauses the flight. A returning backdrop
+transfers its painted opacity once to the successor, then stays clear. No old
+completion may clear a successor modal or restart its covered idle. Route exit,
+accepted gameplay, park and cleanup retire old receipts before animation removal.
+Gameplay-return choreography, content/saves, original assets and timings remain.

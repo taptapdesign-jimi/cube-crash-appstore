@@ -1,3 +1,1064 @@
+## Git checkpoint — PRODUCTION 95% ready · 2026-11-06
+
+User requests all current project work saved online with this exact milestone
+name. Native continuation tag `production-95-percent-ready` on main;record in
+PRODUCTION_95_PERCENT_READY.md and approved baseline updated. Payload includes
+all saved project modifications,new artwork/audio,tests,contracts and development
+design candidates. Unrelated local contract PDF under output/pdf remains outside
+payload,as in v22. Prior tags preserved;no force update. Git-only publication:
+whitespace/staged credential-pattern checks;no fresh QA/build/install or release
+submission. Latest normal Native Debug/iPhone+iPad Simulator evidence remains
+/tmp/candy-barber-irregular-20261106. Milestone name is not a quantified release
+readiness certification;physical acceptance remains separate. Remote branch and
+annotated tag identities are checked after atomic push.
+
+## Candy active bar irregular barber movement · 2026-11-06
+
+User likes candy and requests random spacing,continuous barber-shop motion,less yellow light band. Existing NativeWildMeterHUDPresentation captures7visual-only irregular width/gap pairs per instance;one repeat texture covers maximum+period,clips to existing fill path,and translates seamlessly at1.8bar-heights/sec. Light band FFD2A0->FFB57D. Existing Scene update supplies visible delta;no new clock/action/timer/gameplay RNG. Hidden/terminal/exit/background/suspended/ReducedMotion/disposed do not advance;phase retained. Original assets,track,progress,consumption,tutorial,smoke,input,saves untouched. QA/tests skipped per ongoing instruction. Complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching binaries,stable production Swift inputs,2982 original assets byte-exact and both freshly captured canonical saves unchanged through initial launch. Evidence /tmp/candy-barber-irregular-20261106 and per-device delivery.json. SpringBoard phone SilentMode1/iPad0(existing control limitation). No physical install;stripe motion/color feel awaits user review.
+
+## Home navigation painted horizontal centres · 2026-11-06
+
+User reports centre dice appears left of midpoint. Fixed-slot model centres already symmetric;actual original alpha bounds are stats64x64 x4...63,cube56x56 x3...51,settings48x48 x4...46. UIImageView x compensation now centres painted bounds within each slot,scaled with selected size. Existing idle intentionally drifted dice left1.5...3pt and sides right1.5...3pt;horizontal idle translation removed from all three while vertical float,tilt,scale,phase,duration,selection/press/entry remain. Both device branches;no assets/hit targets/progress/save changes. QA/tests skipped per ongoing direction. Complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over and normal launch verified matching binaries,stable production Swift inputs,2982 original assets byte-exact and both fresh canonical saves unchanged through initial launch. Evidence /tmp/home-nav-painted-center-20261106 and per-device delivery.json. SpringBoard Silent Mode phone1/iPad0(existing limitation). No physical install;final visual centring awaits user review.
+
+## Active preload candy material trial · 2026-11-06
+
+User requests only active preload fill in candy reference style: retain orange E7744A,replace white with light orange FFD2A0,double orange spacing between diagonal bands. NativeWildMeterHUDPresentation uses one bounded static generated texture rebuilt on existing resize,masked by exact active fill path and inherited tutorial/fill transforms. Gentle cross-section gloss;track,geometry,progress,consumption,smoke,clocks,assets and saves unchanged. No extra animation owner. QA/tests skipped per ongoing direction. Normal complete-current-tree Debug BUILD SUCCEEDED;retained iPhone and iPad Simulator install-over/normal launch verified built/installed binary identity,stable production Swift inputs,2982 original assets byte-exact and both fresh canonical saves unchanged through initial launch. Evidence /tmp/candy-active-preload-20261106 and per-device delivery.json. Actual SpringBoard Silent Mode phone1/iPad0(existing iPad control limitation). No physical install;visual candy appearance awaits user review.
+
+## Navigation background original image at100percent opacity · 2026-11-06
+
+User requests removing additional20percent transparency from nav-bg.png. Journey Hub,Settings and all Journey Worlds now explicitly pass opacity1 to existing shared setBackgroundImage;Arcade remains1. Original PNGs,header66pt geometry,divider,title/icons and motion unchanged. Only three call-site constants changed;no new runtime owners. qa:ios PASS. Complete-current-tree normal Debug BUILD SUCCEEDED;retained Jimi2026 QA iPhone13 Simulator install-over and normal launch verified matching built/installed binaries,stable Swift inputs,2982 packaged original assets byte-exact and both canonical saves unchanged through initial launch. Actual SpringBoard SBRingerMuted1 after launch. Evidence /tmp/navigation-bg-opacity100-20261106,delivery.json under retained Simulator UUID. Full QA PASS(all selected gates;530suites/4011tests plus KING330). Deterministic verdict PASS;visual opacity acceptance remains user review. No physical install.
+
+## Per-device Settings-reference paper corners + gentle Journey-style navigation · 2026-11-06
+
+User requests same rounded paper edges throughout modals/inner strips as device Settings cards,and reiterates iPad Settings24px only. Shared NativeTabletLayout policy22ptphone/24pttablet;paper corner helper detects existing modal projection and compensates tablet local radius24/1.4 so final rendered radius is24pt,not33.6. Shared paperLayout/applyBottomArch and Score history row holders use policy;explicit shadows follow. iPad Settings worn mask corners now actual circular24pt cubic arcs,phone quadratic22pt outline unchanged. Existing masks/notches/crop/70percent Settings alpha and modal bottom arch retained. Close controls and separate original rolled stone/Tutorial paper assets retain their own approved shapes.
+
+User rejects fast sharp nav and requests same rhythmic spring entry/exit as Journey Hub islands. Extracted original pure Hub recipes and reused in both Hub callers without changing their delays/selected policies,and in shared nav content:0.56s scale0.65->1/y30->0 backOut1.8,90ms title-left-right stagger;exit0.18s anticipation to1.144x1.12 then0.336s backIn1.7 collapse,45ms stagger. Removed old rapid explicit keyposes/speed ratios. Start with bar and inherited-24pt spring retained. Header exit gets bounded finite initial hold/retimed terminal hold so last child finishes before bar disappears;same existing route group/clock and ReducedMotion/cancellation. No new timer/resource/input/save/audio owner. QA/tests skipped per ongoing direction. Initial build and both Simulator deliveries succeeded at /tmp/paper-device-corners-gentle-nav-20261106. Final source review additionally deduplicates consumed terminal hold key times so exit arrays remain strictly ordered;Final complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching built/installed binaries,stable Swift inputs,2982 packaged original assets byte-exact and both freshly captured canonical saves unchanged through initial launch. Final evidence /tmp/paper-corners-gentle-nav-final-20261106 and per-device delivery.json. Source review confirms old fast nav poses/rates removed,Hub callers preserve original recipes/delays,projection-aware paper radius22phone/24tablet and strict exit key times. SpringBoard phone1/iPad0(existing control limitation). No original asset edits or physical install;final paper-corner/motion feel remains user review.
+
+## Navigation immediate content + whole-bar spring from24pt above · 2026-11-06
+
+User requests title/icons begin with navigation bar and whole bar start24px above,descending springily together. Shared route layer now copies entry group transform samples,preserves original scale/x/opacity and replaces y with backOut1.7 -24pt->slight positive overshoot->authored final y over actual header motion duration. Full background/divider/title/icons inherit same parent motion. Content title-left-right sequence starts at group epoch+actual lead,no percentage delay;existing brief icon stagger,explicit bounce/fade/exit retained. ReducedMotion bypasses added drop;no second timer/clock/model geometry change,locked66pt header preserved. Feature owner updated. QA/tests skipped per ongoing direction. Final complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching built/installed binaries,stable Swift inputs,2982 packaged original assets byte-exact and both canonical saves unchanged through initial launch. Evidence /tmp/navigation-immediate-spring-down24-20261106 and per-device delivery.json. SpringBoard phone1/iPad0(existing control limitation). No original asset edits or physical install;final spring/entry feel remains user review.
+
+## Shared paper modal bottom arch30percent deeper · 2026-11-06
+
+User requests slightly larger bottom arch across modals. Shared JimiNativeModalV10.bottomArchDepth now1.3times prior navigation-reference depth,retaining width projection,height safety cap,centre/bottom extent and tangent joins. Applies through existing paperLayout/applyBottomArch to Score/Combo/history,EndRun,Privacy,Arcade info,Backpack collection/detail and Developer picker papers;EndRun explicit shadow uses same helper. Navigation divider/locked geometry unchanged. Journey original rolled stone panel retains authored arch/material (already about11pt at326width;new generic paper depth about10.65pt at326). No content/input/save/animation/asset changes. Existing Native bottom-arch ratio expectation updated for newly requested1.3factor;QA/tests not run per ongoing direction. Final complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching built/installed binaries,stable Swift inputs,2982 packaged original assets byte-exact and both canonical saves unchanged through initial launch. Evidence /tmp/modal-bottom-arch-plus30-20261106 and per-device delivery.json. SpringBoard phone1/iPad0(existing control limitation). No original asset edits or physical install;final modal arch appearance remains user review.
+
+## Gameplay HUD dashed Close matches modal rounded-square corners · 2026-11-06
+
+User requests dashed HUD X outline use same rounded edges as modal Close instead of circle. Existing NativeHUDCloseNode ring path now rounded44pt square,corner44*16/52(~13.54pt),preserving modal16/52corner proportion. Original6pt dash/6pt gap,2pt stroke,colour/opacity,X artwork,size/position,tablet scale,hitRect and contact/gameplay owners retained. One existing SKShapeNode,no new resources/clock. QA/tests skipped per ongoing visual iteration direction. Final complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching built/installed binaries,stable Swift inputs,2982 packaged original assets byte-exact and both freshly captured canonical saves unchanged through initial launch. Evidence /tmp/hud-close-dashed-rounded-square-20261106 and per-device delivery.json. SpringBoard phone1/iPad0(existing control limitation). No original asset edits or physical install;final HUD appearance remains user review.
+
+## Home bottom navigation fixed horizontal icon anchors · 2026-11-06
+
+User reports Dice shifts left on Settings selection and Backpack right on Journey selection. Cause: row accumulated current selected icon widths,so enlarged active slot displaced neighbouring centres by4pt. Fixed symmetric horizontal slot anchors now independent of selectedSlide;active icon grows around its own centre. Selection interpolation also uses the same size ease for descendant horizontal positions and bounds,avoiding subpixel resize drift. Existing active sizes,vertical lift,idle/tap feedback,footer shape,iPad group8pt lift and phone/device geometry otherwise retained. No new motion/resource/input/save owner. QA/tests skipped per ongoing direction. Final complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching built/installed binaries,stable Swift inputs,2982 packaged original assets byte-exact and both freshly captured canonical saves unchanged through initial launch. Evidence /tmp/home-nav-fixed-horizontal-slots-20261106 and per-device delivery.json. SpringBoard phone1/iPad0(existing control limitation). No original asset edits or physical install;final visual selection feel remains user review.
+
+## Settings icon cartoon contact before faster opacity fade · 2026-11-06
+
+User requests icon bounce80ms before opacity change and shorter OFF/ON fade timing. Existing accepted active same-epoch icon target change now starts shared finite0.4s cartoon contact immediately;one140ms opacity fade starts at same epoch+80ms in both directions(previous150/160ms wait and200ms fade superseded). OFF target0.5,ON1 unchanged. Repeated toggles replace both keys from painted values;initial binding/ReducedMotion settle immediately;exit/hide/detach/Developer/background retire both tracks. Existing whole-card/status/toggle contact remains independent. No timer,new preference/audio/save/resource owner. QA/tests skipped per ongoing direction. Final complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching built/installed binaries,stable Swift inputs,2982 packaged original assets byte-exact and both freshly captured canonical saves unchanged through initial launch. Evidence /tmp/settings-icon-bounce-fast-fade-20261106 and per-device delivery.json. SpringBoard phone1/iPad0(existing control limitation). No original asset edits or physical install;final bounce/fade feel remains user review.
+
+## Navigation faster arrival + explicit visible bounce-in/bounce-out · 2026-11-06
+
+Latest user requests another50percent faster appearance,matching bounce-out exit,and reports missing visible final scale-down. Shared full time scale1/(1.3*1.5):actual header milestone35.897percent,icon offsets51.282/102.564ms,reveal147.009ms. Entry now explicit0->1.16->0.95->1.035->1 scales;fade finishes at fast reveal,then100ms visible settling tail makes scale-down leg visible. Exit accepted at parent route start,title then left/right,painted starting pose/opacity->1.10 anticipation->0 with fade,147.009ms per element. Exit samples hold0 finitely until route cancellation/reentry,without changing model transforms/geometry. Shared header66pt,actual-duration metadata,curvature,fonts,input and existing clocks retained;no timer. Prior iPad bottom icon group8pt lift included. QA/tests skipped per ongoing direction. Final complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching built/installed binaries,stable Swift inputs,2982 packaged original assets byte-exact and both canonical saves unchanged through initial launch. Evidence /tmp/navigation-fast-explicit-bounce-in-out-20261106 and per-device delivery.json. Includes iPad-only Home bottom icon group8pt lift. SpringBoard phone1/iPad0(existing control limitation). No original asset edits or physical install;final bounce/fade feel remains user review.
+
+## Navigation content full arrival another30percent faster + iPad icons up8pt · 2026-11-06
+
+User reports navigation elements lag background too long and requests another30percent faster appearance. Shared entryTimeScale1/1.3 now applies to entire content timeline:header milestone70->53.846percent,relative left/right offsets100/200->76.923/153.846ms,and bounce/fade286.667->220.513ms. This advances appearance as well as motion speed,preserving title-left-right order and curve. Includes preceding tablet-only Home bottom icon group8pt lift,without footer/divider/phone shifts. Source review additionally found sampled header groups retain a terminal hold until longer sibling entries finish. Header now annotates actual track lead/motion duration before the exit-only decoration guard;content milestone reads those values rather than full held group duration. This removes unrelated route waiting from appearance. Initial pre-metadata Debug/iPhone delivery at /tmp/navigation-earlier30-ipad-icons8-20261106 superseded;Final actual-entry complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching built/installed binaries,stable Swift inputs,2982 packaged original assets byte-exact and both canonical saves unchanged through initial launch. Evidence /tmp/navigation-actual-entry30-ipad8-20261106 and per-device delivery.json. Includes iPad-only Home bottom icon group8pt lift. SpringBoard phone1/iPad0(existing control limitation). No original asset edits or physical install;final visual timing remains user review. QA/tests skipped per ongoing direction.
+
+## iPad Home bottom navigation icons group up8pt · 2026-11-06
+
+User requests entire lower navigation icon group only move8px upward on iPad. navView centre.y adds tablet-only-8pt,carrying all three controls/artwork/shadows/idle together. Divider/footer surface,CTA,illustration and phone geometry unchanged. QA/tests skipped per ongoing direction. Initial normal Debug/iPhone/iPad delivery verified at /tmp/home-ipad-bottom-icons-up8-20261106;combined latest navigation timing delivery follows above.
+
+## Navigation entry50percent faster with100ms stagger · 2026-11-06
+
+User requests50percent faster navigation elements and title first,left X/back100ms later,right icon last. Shared bounce/fade duration0.43->0.43/1.5(~286.7ms);offsets0/55/110->0/100/200ms. Start remains70percent parent background/divider entry. Existing curve,opacity,geometry and lifecycle retained. QA/tests skipped per ongoing direction. Final complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching built/installed binaries,stable Swift inputs,2982 packaged original assets byte-exact and both canonical saves unchanged through initial launch. Evidence /tmp/navigation-faster50-stagger100-20261106 and per-device delivery.json. SpringBoard phone1/iPad0(existing control limitation). No original asset edits or physical install;final stagger feel remains user review.
+
+## Remove CTA parallax + delayed Settings icon fades · 2026-11-06
+
+Latest user requests removal of last CTA-button parallax/function. Removed CTA planes,target sign/amplitude,120ms follow,740ms settle and associated states. Remaining hero-only owner renamed throughout,three states/planes only;CTA again follows ordinary0.65s shared slider,original idle/contact retained. Illustration parallax remains as separately requested. No extra view/clock.
+
+User also requests icon fade toward50percent begin160ms after OFF,toward100percent begin150ms after ON. Existing canonical Settings apply changes animate only actual active same-epoch target changes,using one200ms ease opacity track with delayed begin/backwards fill. Repeated toggles replace key from painted opacity;initial binding/ReducedMotion immediate. Hide/detach/Developer/background cleanup removes finite fade to canonical target. No timer/preference/audio/save owner. QA/tests skipped per ongoing direction. Final complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching built/installed binaries,stable Swift inputs,2982 packaged original assets byte-exact and both freshly captured canonical saves unchanged through initial launch. Evidence /tmp/home-no-cta-parallax-icon-fade-20261106 and per-device delivery.json. Source review confirms no CTA sublayerTransform parallax path remains;hero-only state/targets count3. SpringBoard phone1/iPad0(existing control limitation). No original asset edits or physical install;final delay/fade and hero movement feel remain user review.
+
+## Home illustration/CTA live swipe parallax · 2026-11-06
+
+User requests slight independent movement speeds/opposite depth while swiping and on slide release/tab change,converging at centred rest. Reuse existing hero/CTA container sublayerTransform planes(no new views) and HomeCloudCurve:bounded opposite local target fields hero<=24pt/6percentwidth,CTA<=18pt/4.5percentwidth;finger response75/120ms,release520/740ms. Snapshot painted relative offset/velocity before cancel/retarget so rapid reversals continue through existing six finite scalar tracks. Main slide0.65s,cloud panorama,hero/contact/CTA idle and input/save/audio remain owned separately. Selected rest0;offscreen planes keep bounded depth offset for upcoming swipe. CancelPan freezes;route/hide/detach idle retirement clears,ReducedMotion neutral;frozen selected pose can settle on idle readmission. Feature owner updated. QA/tests skipped per ongoing visual iteration direction. Initial complete-tree Debug/iPhone/iPad delivery verified at /tmp/home-hero-cta-parallax-20261106;CUA tab change to Arcade observed centred settled artwork/CTA. User subsequently removes CTA part;latest authoritative delivery recorded above.
+
+## Settings copy gap +2pt and OFF icon50percent · 2026-11-06
+
+Latest user steering adds2pt visible gap between ON/OFF and description on both devices. Existing ink-aware copyGap2->4 before same compensation;group remains vertically centred. OFF icon alpha0.5,ON1,through existing canonical preference apply loop. Includes pending worn/varied Settings paper and navigation70percent bounce/fade. No new preference/save/animation owner. QA/tests skipped per ongoing user direction. Final complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching built/installed binaries,stable Swift inputs,2982 packaged original assets byte-exact and both canonical saves unchanged through initial launch. Includes new per-visit original-paper crops/nicked outlines,70percent delayed navigation bounce/fade,latest2pt copygap andOFF icon alpha. Evidence /tmp/settings-paper-gap-off-nav70-final-20261106 and per-device delivery.json. SpringBoard phone1/iPad0(existing control limitation). No original asset edits or physical install;final worn-paper/animation visual acceptance remains user review.
+
+## Distinct worn Settings paper + navigation70percent bounce/fade · 2026-11-06
+
+User requests always different paper placement and subtly worn/nicked Settings card containers,then bounce enter with0->100percent opacity beginning at70percent navigation background/divider entry (700percent clarified explicitly as70). Original paper remains unchanged:three separated per-visit crop bands,optional horizontal mirror and independent static22-notch outline seeds;stable through layout/preferences/idle/contact/background,renew on next entry. Texture kept uniform aspect ratio,original width fit,no enlarged source asset or new bitmap. Existing per-device corner radius,70percent background opacity,content/hit bounds and gentle idle retained. Shadow follows same worn outline.
+
+Shared nav layer converts parent entry epoch plus0.7*duration to content clock;title starts there,left icon+55ms,right+110ms. Existing backOut1.7/0.43s bounce now groups explicit0->target opacity with transform. ReducedMotion/cancellation/inherited clocks retained,no timer or per-letter motion. Feature records updated. QA/tests skipped per ongoing user direction. Final combined delivery including latest copygap/OFF icon steering recorded above.
+
+## Settings CTA-like card idle/iPad half tilt + whole navigation stagger · 2026-11-06
+
+User requests iPad Settings card tilt50percent smaller,CTA-like independent idle float on both devices,and replaces PRESENTS per-letter navigation motion with whole-element bounce from zero:title first,left X/back55ms later,right Backpack/Box110ms later. Shared backOut1.7/0.43s finite nav contact keeps static arched glyph geometry;removed per-letter motion/stagger/extra squeeze entirely. Existing shared header66pt geometry and route clocks retained.
+
+Settings halves tablet static sampled tilt bands only;phone unchanged. Extracted existing gentle CTA idle generator without changing CTA parameters;Settings reuses it on three existing row sublayerTransforms,independent per-card profiles. Route-complete callbacks admit idle;exit,hide,detach,Developer,Privacy and controller deactivation remove it. Background copies freeze exact CA phase with speed0;foreground resumes preserved phase. Existing inner-surface static tilt and contact remain independent. No new timer/displaylink,audio/save/resource owner;max3 bounded compositor idle tracks explicitly requested by user. Feature owners updated. QA/tests skipped per ongoing user direction. Final complete-current-tree normal Debug BUILD SUCCEEDED after fresh retry for final controller admission guard;retained iPhone/iPad Simulator install-over/normal launch verified matching built/installed binaries,stable production Swift inputs,2982 packaged original assets byte-exact and both canonical saves unchanged through initial launch. Evidence /tmp/settings-idle-nav-stagger-20261106 and per-device delivery.json. CUA iPad observation showed settled Forest navigation,title and both icons intact;external navigation activity prevented Settings-specific animation observation. No frame-by-frame/stress/physical acceptance claimed. Source review confirms no PRESENTS/per-glyph timing references remain in navigation class and shared CTA profile parameters unchanged. SpringBoard phone1/iPad0(existing control limitation). No physical install or original asset edits;final idle/stagger feel remains user review.
+
+## Navigation letter bounce strength +50percent · 2026-11-06
+
+User requests50percent stronger existing letter bounce. Shared finite glyph squash/stretch ceiling2->3percent and lift ceiling0.55->0.825pt;same damped envelope,2.7x speed,stagger,arc,entry/opacity,endpoint rest and lifecycle. Includes latest iPad-only Settings card24pt corners and matching shadow;phone22pt retained. QA/tests skipped per ongoing direction. Final complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching built/installed binaries,stable Swift inputs,2982 original packaged assets byte-exact and both canonical saves unchanged through initial launch. Evidence /tmp/nav-bounce-plus50-ipad24-20261106 and per-device delivery.json. SpringBoard phone1/iPad0(existing mode-control limitation). No physical install or original asset edits;final visual/animation feel remains user review.
+
+## Settings iPad card corners24pt · 2026-11-06
+
+User requests24px rounding only on iPad Settings cards. Existing actual radius22pt;tablet layout now uses24pt for paper cornerRadius and matching rowSurface shadow silhouette. Phone stays22pt. Existing70percent background opacity,tilts,padding,copygap,card feedback and preferences retained. QA/tests skipped per ongoing direction. Initial normal Debug/iPhone delivery succeeded at /tmp/settings-ipad-corners24-20261106;combined final delivery with stronger letter contact follows above.
+
+## Navigation letters tiny cartoon squash/stretch · 2026-11-06
+
+User requests a very small cartoon bounce on every navigation letter. Added one bounded damped sine squeeze/stretch inside the existing finite per-glyph transform samples:2percent amplitude ceiling and0.55pt lift ceiling,zero at both endpoints. Existing2.7x rate,stagger,entry/opacity,arc/model pose and route/ReducedMotion cleanup unchanged. Same group/key/clock,no added timer or recurring owner. QA/tests skipped per ongoing direction. Final complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching built/installed binaries,stable Swift inputs,2982 original packaged assets byte-exact and both canonical saves unchanged through initial launch. Evidence /tmp/navigation-title-tiny-bounce-20261106 and per-device delivery.json. SpringBoard phone1/iPad0(existing mode-control limitation). No physical install or original asset edits;final subtle animation feel remains user review.
+
+## Navigation title letters another50percent faster:2.7x · 2026-11-06
+
+User requests another50percent speed increase after seeing options. Shared navigation glyph rate1.8->2.7x original PRESENTS;both finite letter duration and stagger divide by2.7. Shape,curve,opacity,nav geometry,lifecycle and intro PRESENTS unchanged. QA/tests skipped per ongoing visual iteration direction. Final complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching built/installed binaries,stable Swift inputs,2982 original packaged assets byte-exact and both canonical saves unchanged through initial launch. Evidence /tmp/navigation-title-speed270-20261106 and per-device delivery.json. SpringBoard phone1/iPad0(existing mode-control limitation). No physical install or original asset edits;final animation feel remains user review.
+
+## Close right rim tapered fade + navigation letters another50percent faster · 2026-11-06
+
+User rejects hard upper/lower Close rim cuts and marks lower join where rim should blend into stone. Replace rectangular right-strip intersection with continuous sampled rounded-right contour;rim/glint thickness smoothsteps to zero at both ends,plus static gradient alpha fades over upper24percent/lower28percent. Original texture remains visible below,reference3palette and right-only depth retained;no cap/clip cutoff. Two static masks,no new animation clock. Additional steering speeds navigation letters50percent over prior1.2x:rate1.8x original PRESENTS,letter duration0.74/1.8 and stagger0.12/1.8. Intro PRESENTS untouched. QA/tests skipped per ongoing direction. Final complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching built/installed binaries,stable Swift inputs,2982 original packaged assets byte-exact and both canonical saves unchanged through initial launch. Evidence /tmp/close-taper-nav-speed180-20261106 and per-device delivery.json. SpringBoard phone1/iPad0(existing mode-control limitation). No physical install or original asset edits. Final fade/animation visual acceptance remains user review.
+
+## Navigation PRESENTS-style letter entry + Settings paper70percent · 2026-11-06
+
+User requests PRESENTS per-letter animation on every navigation title20percent faster,then Settings card background only70percent opacity. Shared arched title keeps CoreText glyph/font/colour/centred positions and divider tangents,rendered as bounded static glyph layers. Existing header route entry starts finite per-letter original entry recipe at1.2x speed,shared stagger0.12/1.2 and duration0.74/1.2;exit/interruption/detach cancels,normal header completion retains letter tail. Existing parent clocks own pause/resume;no recurring clock or newaudio. Shared header66pt/locked geometry untouched. Covers Journey/Arcade/Settings/Forest/Beach/Area55/Backpack/Box. Settings paper.alpha0.7 only;icons,text,toggles retain opacity. Feature owner updated. QA/tests skipped per ongoing user direction. Final complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching built/installed binaries,stable Swift inputs,2982 original packaged assets byte-exact and both canonical saves unchanged through initial launch. Actual iPhone Journey Hub opened through CUA;settled glyph-layer title visible with preserved arched composition. No frame-by-frame motion or physical acceptance claimed. Evidence /tmp/navigation-letter-entry-bg70-20261106 and per-device delivery.json. SpringBoard phone1/iPad0(existing mode-control limitation). No physical install or original asset edits;animation feel and final Settings translucency remain user review.
+
+## Journey info Close right-edge depth only · 2026-11-06
+
+User requests only right border/shadow on info-modal Close to retain subtle3D. Stone bevel/highlight masks now intersect the rightmost0.65corner-width strip,retaining curved right edge and reference3cream/beige depth without top/left/bottom outline. Removed superseded panel-contact subtraction/mapping;union silhouette shadow,source texture,size,position,rotation and contact bounce retained. QA/tests skipped per ongoing user direction. Final complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching built/installed binaries,stable production Swift inputs,2982 original packaged assets byte-exact and both canonical saves unchanged through initial launch. Evidence /tmp/close-right-rim-only-20261106 and per-device delivery.json. SpringBoard phone1/iPad0(existing mode-control limitation). No physical install or original asset modification;final visual acceptance remains user review.
+
+## PRESENTS +20percent and80percent ink opacity · 2026-11-06
+
+Latest user steering increases PRESENTS size20percent and applies80percent opacity to its existing colour. Glyph font15->18pt,height15->18pt and tracking0.9->1.08pt;centred composition and measured plaque-edge baseline retained. Text ink alpha1->0.8;existing entry/exit layer opacity remains multiplicative. Both device projections follow shared source. Final combined complete-current-tree normal Debug BUILD SUCCEEDED,including Close join glow removal and intro edge alignment. Retained iPhone/iPad Simulator install-over/normal launch verified matching built/installed binaries,stable Swift inputs,2982 original packaged assets byte-exact and both canonical saves unchanged through initial launch. Evidence /tmp/intro-presents-size20-ink80-final-20261106 and per-device delivery.json. iPhone initially SilentMode0;CUA toolbar switched ON and actual SpringBoard SBRingerMuted=1 independently verified afterward. iPad existing mode0/control limitation retained. No physical install,asset edits or test suites;final visual alignment/glow acceptance remains user review. QA/tests skipped per ongoing direction.
+
+## Close join without inner glow + aligned PRESENTS · 2026-11-06
+
+User requests no glow from lower-left through upper-left Close rim or at lower-right slab join. Rim/highlight masks now exclude left-side contact band and transformed live panel outline expanded2logical points for clean overlap. Existing full-opacity stone texture,reference3palette,outer right rim,shared shadow,position,rotation and bounce retained. Reuses static masks;no new animation/resource owner. Also retains pending intro PRESENTS baked-edge alignment. QA/tests skipped per ongoing direction;final combined delivery with PRESENTS size/opacity recorded above.
+
+## Intro PRESENTS baseline matches baked plaque edge · 2026-11-06
+
+User reports PRESENTS visually misaligned with falling logo edge. Existing caption already follows dynamic swing but glyph baseline was horizontal while original embedded560x337 plaque has baked lower-edge tilt/curvature. Extracted original first SVG image for read-only measurement;opaque lower silhouette central175..385px fitted y318.658+8.091u+0.525u²,u=(x-280)/100. Static per-glyph carriers now follow fitted baseline and local tangent(~4.6degree centre) at exact dropLogo source projection,under existing shared follow animation. Existing glyph enter/exit still owns child labels;no timing,offsetcentre,logo/character motion,asset or audio changes. Fallback flat baseline retained. Eight static wrappers,no new clock. QA/tests skipped per ongoing direction;build/preview pending.
+
+## Whole modal Close holder/X cartoon contact · 2026-11-06
+
+User additionally requests Close holder bounce with X. Shared artwork feedback now has opt-in whole-control contact and weak companion. All filled Close owners opt in;Stage button/icon and separate stone holder animate together. Existing0.4s HUD recipe retains per-presentation model tilt through every pose;touchDown/release deduplication remains. Hide/detach cancels both targets;ReducedMotion skips;no new timer/resource/audio/save owner. Settings card feedback from same task retained. Feature record updated. QA/tests skipped by ongoing direction. Final complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching built/installed runtime binaries,stable Swift inputs,2982 original packaged assets byte-exact and both freshly captured canonical saves unchanged through install/initial launch. Includes both Settings whole-card contact and all filled Close holder/X contact. Evidence /tmp/settings-card-and-close-bounce-20261106 and per-device delivery.json. SpringBoard phone1/iPad0(existing mode limitation). No physical install,asset edits or new preference/save owner. Source/delivery confirmed;animation feel remains user review.
+
+## Settings whole-card gentle cartoon contact · 2026-11-06
+
+User requests whole Settings card squeeze/stretch on row or toggle tap. Existing valueChanged convergence starts one finite NativeHUDTapMotion0.4s track at35percent strength on rowSurface,composed with retained random model tilt. Both row forwarding and toggle/accessibility activation converge once;no second preference mutation. Repeated taps replace same key from painted pose. Existing exit,hide,detach and Developer cleanup retires card tracks alongside status bounce;ReducedMotion skips. Existing toggle/status feedback retained. Feature owner updated;no new timer,audio,haptic,resource or save owner. QA/tests skipped per ongoing user direction. Final complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching built/installed binaries,stable production Swift inputs,2982 original packaged assets byte-exact and both canonical saves unchanged through initial launch. Evidence /tmp/close-right-rim-only-20261106 and per-device delivery.json. SpringBoard phone1/iPad0(existing mode-control limitation). No physical install or original asset modification;final visual acceptance remains user review.
+
+## Close rim palette from reference3 · 2026-11-06
+
+User supplied cream/peach/beige swatch reference3 and requests those tones on Close shadow/rim. Existing stone bevel shifts from dark ochre-brown to pale ivory,peach cream and muted sandy beige;inner material highlight follows same palette. Shape,texture,placement,tilt and shadow geometry retained. Previous iPad Settings additional16pt text gap already delivered. QA/tests skipped per ongoing visual iteration direction. Normal complete-current-tree Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching built/installed binaries,stable production inputs,2982 original packaged assets byte-exact and both canonical saves unchanged through install/initial launch. Evidence /tmp/close-ref3-cream-peach-20261106 and per-device delivery.json. SpringBoard phone1/iPad0(existing limitation);no physical install or asset changes. Final swatch/render acceptance remains user review.
+
+## iPad Settings text gap additional16pt · 2026-11-06
+
+User requests another16pt between icon and text on iPad. Shared Settings copyX adds tablet-only16pt,moving status and description together;available copy width follows existing calculation. Phone,icon,toggle,64pt outer padding,card tilt and spacing retained. QA/tests skipped per ongoing user direction. Complete-current-tree normal Debug build succeeded;retained iPhone/iPad Simulator install-over/normal launch verified matching installed/built binaries,stable Swift inputs,2982 original packaged files byte-exact and both canonical saves unchanged through install/launch. Evidence /tmp/settings-ipad-copy-gap16-20261106 and per-device delivery.json. No physical install.
+
+## Journey Close matches original slab material and rolled rim · 2026-11-06
+
+User rejects washed-out Close and requests same texture/right rim as large slab. Restore full-opacity original upper-right slab texture at existing physical scale;remove texture-fade mask. Opaque cream core retained. Continuous complete sculpted rim uses ivory upper lip,warm brown lower depth and inset material highlight,including right edge previously omitted by slab-subtraction. No trimmed arc caps or neck transparency. Remove obsolete panel-outline sampling/join work;shared union shadow retained. Placement,rotation,size and source artwork unchanged. QA/tests skipped per ongoing visual iteration direction. Normal complete-current-tree Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching built/installed binaries,stable production inputs,2982 packaged original assets byte-exact and both fresh canonical saves unchanged through initial launch. CUA observed actual iPhone Area55 Stage01 info card:original stone cracks now visible on Close,complete ivory rolled rim and warm brown right/lower depth match the large slab material. Position/rotation/size retained;user visual approval pending. Evidence /tmp/close-matching-slab-20261106 and per-device delivery.json. SpringBoard phone1/iPad0(existing mode limitation). External Simulator navigation occurred during visual observation;no broad touch/physical acceptance claimed. No physical install or original asset edits.
+
+## Shared lower arch on floating paper modals · 2026-11-06
+
+User requested all game modals have a slight lower arch like navigation. JimiNativeModalV10.paperLayout reuses one paper-owned static CAShapeLayer mask:downward parabola,depth=navigation9.8pt*paperWidth/390,centre at oldbottom extent,lower sides recede with tangential roundedcorners. Original topcorner/texturecover/contentsRect/crop/content/CTA/Close geometry andentry/exit/drag/idle/input/audio/save owners preserved. EndRun explicit shadow intersects original roundedpaperoutline with arch,retaining latestClose continuation. All Arcade info3modes,Score/Combo/HUD/history,GameplayBackpackcollection,selecteddieDetails,Privacy,Exit/EndRun inherit. Plain Developerpicker opts into same staticshape. Journey Stage stone alreadyhas authoredrolledbottomarch andretainsart/shape;fullscreenresult/reward/screens,Settingsrows,statstrips/buttons retain silhouettes. Featurecontract/runtimepolicy updated;no sourceasset transformation,newtimer/media/cache/resource owner.
+
+PASS:feature-runtime40owners/34surfaces,qa:fast,no-sync qa:full530suites/4011tests plusKING24suites/330tests,qa:ios atown delivery,diff whitespace,serialized5hostedNative methods. Actualmodal-familytest covers24phone/tabletfixtures;geometry provescentre/depth/edgecut,samemaskthroughresize/zero-size,no maskanimations. Existingpapercover/componentrotation andmountedArcadeentrydispose/idle/background/short+longdrag/close tests pass. Rendergallery inspected under /tmp/modal-bottom-arch-20261106/renders. Boundedautorelease scopes/file-backedattachments keepgallery resourceslocal;intermediate nestedtesthelper@MainActor annotation corrected before finalpass.
+
+InitialbroadNative selection included stale NativeTabletLayoutTests.testActualArcadeAndDetailUseLargerGeometryAndDisposeDuringEntry expectations310/434/72/100.8 versusalready-current372/520.8/80.64 andtiltedconvertedframes(18assertions);notchanged bythistask. Twoother runs wereinterrupted by concurrentnormalinstalls/replacingtesthost(SIGKILL/missingPlugIns),notcountedassuccess. Waitedfor observedexternaldelivery,then cleanserialized5/0 PASS9.080s(native-serialized.log). Earlierfailedlogs retained. No blanketlegacyNative-suitegreenclaim;visual/physical acceptance NEEDS PHYSICAL TEST.
+
+Own normal complete-current-tree Debug BUILD SUCCEEDED;retained iPhonePID48789/iPadPID49023 install-over/normal launch,exact .native,no Web.bundle/testPlugIns,2982nonmetadata originalsbyte-exact,both canonical saves perdevice backedup/byte-identical throughinstall/initiallaunch. Subsequent separatelyauthorized sharedClose/Settings tasks continued delivery;do not reinstallolderownartifact. Final bounded installed-binary verification uses latest /tmp/settings-padding64-distinct-20261106 normalbuild/receipts,which include this arch andlatest other savedchanges. See /tmp/modal-bottom-arch-20261106/{final-shared-delivery-check.json,final-shared-swift-inputs.json} for actuallatestPIDs,binarymatch/sourcechange state,save-preserving receipts andSpringBoardmodes. Later livegameplayprogress remainsintact,no save restore. Existing phoneSilentMode1/iPad0control limitation retained;no game/macOSaudio edits. No physical/PWA/legacy operations,reset/uninstall orassettransforms. Other evidence /tmp/modal-bottom-arch-20261106/{feature,ios-delivery,fast,full,native-serialized,build-deliver}.log,perdevice receipts,renders/.
+
+## Settings iPad64pt padding and distinct random card tilts · 2026-11-06
+
+User requests64pt inner padding from card edge on iPad and always different random card tilts on both devices. Tablet padding40->64pt;phone retains32pt. Per-visit samples use three separated bands[-2,-1],[-0.5,0.5],[1,2]degrees,randomly assigned to cards,guaranteeing at least0.5degree pairwise separation and both lean directions. Existing per-visit lifetime,16pt painted gaps,route motion,preferences and artwork retained. QA/tests skipped per ongoing visual iteration instruction. Normal complete-current-tree Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over and normal launches verified matching installed/built binaries,stable production inputs,2982 original packaged assets byte-exact and both canonical saves unchanged through install/launch. Evidence /tmp/settings-padding64-distinct-20261106 and per-device delivery.json. SpringBoard phone1/iPad0(existing mode-control limitation). CUA Settings navigation attempt interrupted repeatedly by external Simulator activity/window changes;no screenshot/layout acceptance claimed. No physical install or asset changes.
+
+## Journey Close warm continuous stone rim/shadow · 2026-11-06
+
+User reports greenish rim,abrupt lower shadow and dirty patch below Close. Stone holder now has opaque cream material under its blended texture,which samples interior slab instead of baked edge. Warm darker brown lower bevel replaces desaturated tan;continuous rounded perimeter minus actual joined panel replaces sampled open arcs/round end caps. Back shadow uses panel/rotated-holder union to remove internal shadow boundary below Close. Existing placement,1percent rotation,size and original assets retained. QA/tests remain skipped per visual iteration direction. Normal complete-current-tree Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over and normal launches verified with matching installed/built binaries,stable production inputs,2982 packaged original assets byte-exact and both fresh canonical saves unchanged through install/initial launch. Actual iPhone Forest Stage01 card opened through CUA and screenshot inspected:clean opaque holder,no green bleed or dark lower end-cap patch at the joint;current placement/rotation preserved. Only this rendered Stage variant visually reviewed,no universal/physical acceptance claim. Evidence /tmp/close-stone-shadow-fix-20261106 and per-device delivery.json. SpringBoard phone1/iPad0(existing no-Mute-control limitation). No QA/test suites,original asset edits,physical install or save reset.
+
+## All modal Close additional2pt inset and1percent rotation · 2026-11-06
+
+User requested Close holder/X together another2pt left/down and1percent more existing rotation. Shared inset4->6pt,tilt magnitude8.5->8.585degrees;Stage center(-24,+40)->(-26,+42) times existing closeScale and local tilt multiplier3->3.03. Existing rotation direction,shape,size,artwork and lifecycle retained. QA/tests skipped by user;separate concurrent hosted tests are another task. Concurrent hosted test process ended before delivery. Normal complete-current-tree Debug BUILD SUCCEEDED;retained iPhone and iPad Simulator install-over/normal launch verified matching installed/built binaries,stable production Swift inputs,2982 packaged original assets byte-exact,both canonical saves unchanged through each install/launch. Evidence /tmp/close-inset6-tilt1percent-20261106 and per-device delivery.json. SpringBoard mode phone1/iPad0,existing iPad no-Mute-control limitation retained. No QA/tests performed by this task,no physical install. Visual acceptance remains user review.
+
+## iPad Pure Dice additional16pt right · 2026-11-06
+
+User reported previous shift not visible and requested another16pt right plus iPad refresh. Tablet-only index1 offset(32,-46)->(48,-46);previous8pt upward shift retained. Phone and other islands unchanged. QA/tests skipped per ongoing instruction. Normal complete-current-tree Debug BUILD SUCCEEDED;fresh install-over/normal launch on retained iPhone and iPad Simulators verified matching installed/built binaries,stable production inputs,original packaged assets byte-exact and both canonical saves unchanged through each install/launch. Evidence /tmp/ipad-pure-dice-extra16-20261106 and per-device delivery.json. iPad window explicitly selected through CUA;opened Home Arcade slide then CTA and observed actual Arcade Hub with sandwich island in current position. Left iPad Arcade visible for user review. No automated QA/tests or physical install. Existing SpringBoard mode phone1/iPad0 limitation retained.
+
+## iPad Pure Dice island +16x/-8y · 2026-11-06
+
+User requested sandwich/Pure Dice Arcade island move16pt right and8pt up on iPad only. Existing tabletIslandShift index1 changes(16,-38)->(32,-46),cumulative with previous offsets. Other islands,phone,clouds,artwork size and motion owners retained. QA/tests skipped during this visual iteration per user direction. Normal complete-current-tree Debug build succeeded; retained iPhone and existing iPad Simulator install-over/normal launches verified,installed binaries match built,exact .native/no Web.bundle/test PlugIns,2982 original packaged assets byte-exact,both canonical saves per device unchanged through install/launch,production inputs stable. Evidence /tmp/ipad-pure-dice-offset-20261106 and per-device delivery.json. SpringBoard Silent Mode phone1/iPad0; CUA I/O menu on iPad exposes volume controls but no Mute control,retaining prior iPad mode limitation;no game/macOS audio preference changes. No QA/tests or physical install. Visual acceptance remains user review.
+
+## Modal Close inset 4pt left/down · 2026-11-06
+
+User requested all modal Close X/holders move together4logical points left and down. Shared JimiNativeModalV10.layoutClose covers EndRun,Privacy,Arcade info,Backpack collection/detail and both Score layouts;Stage close button and matching stone surface share the same inset through existing card-relative device scale. Existing tilt,radius,size and motion retained. QA/tests explicitly skipped by user. Normal complete-current-tree Debug BUILD SUCCEEDED; retained iPhone Simulator install-over/normal launch com.taptapdesign.stacktosix.native: 45017. Final installed launcher/dylib hashes match built app; exact .native identity, no Web.bundle/test PlugIns,2982 original assets byte-exact,both freshly captured canonical saves byte-identical through final install/launch,production Swift inputs stable,SpringBoard Silent Mode=1. Initial install hash check failed; fresh second build/install succeeded. Evidence /tmp/close-inset4-20261106/build-deliver.log and per-device delivery.json. No QA/tests run; visual acceptance remains user review. No physical phone install.
+
+## Nonzero modal and Close rest tilt · 2026-11-06
+
+User rejected flat Close holders/X and flat settled modal papers. Shared static rest-pose helper now samples signed1.75...2.75degrees once per presentation, excluding zero/near-zero and retaining the exact draw through relayout, pause/resume and drag return. Applies to EndRun, both Score modal paths, Privacy, Arcade info, Backpack collection and die detail on both devices. Existing Stage front/back angles already exclude zero. Filled Close holder/X rotate together8.5degrees opposite the paper lean; Stage holder now shares X local-3*backTilt (6...9.75degrees). Stage bevel tests the live panel outline converted into rotated holder coordinates. Bounds/centre layout avoids transformed-frame resizing; EndRun shadow uses actual rotated Close outline. Existing16pt corners,52pt local hit bounds,artwork,timings and lifecycle owners remain. Privacy uses a static CATransformLayer between existing flip/idle planes; no new animation,clock,cache,resource or save owner. Default settled pose is protected; transient entrance/exit and manual drag are not clamped. PASS qa:ios,qa:fast,feature-runtime,no-sync qa:full (530 suites/4011 tests plus KING24 suites/330 tests),diff whitespace and six focused mounted Native methods across final runs: deterministic signed angle samples including midpoint/invalid input; stable close bounds/angle through relayout; drag/background/close preservation; EndRun entry/input/cleanup; Privacy geometry/close; Score close; all30 Stage layouts with shared holder/X tilt. Initial fixtures updated from historical CTA70 to existing HEAD73.5 (production size unchanged) and transformed close.frame to local close.bounds. One combined run was interrupted during Stage coverage by SIGKILL while another task installed /tmp/native-nav-height-lock-derived into the same Simulator; result JSON records signal kill. Standalone Stage retry PASS30 layouts/37.304s. Actual UIKit EndRun and Stage renders inspected at /tmp/modal-nonflat-20261106/{end-run,stage-1,stage-11,stage-21}.png.
+
+Final normal complete-current-tree Debug BUILD SUCCEEDED; retained iPhone Simulator install-over and normal launch com.taptapdesign.stacktosix.native: 43182; exact .native/no Web.bundle/test PlugIns,2982 original packaged files byte-exact,production Swift manifest stable through delivery/final check,both latest canonical saves freshly backed up and byte-identical through install/launch/final check. Actual SpringBoard Silent Mode=1. Generated hosted-test PlugIns safely moved to task evidence before normal build. No physical/PWA/legacy install or reset;no source asset changes. Evidence /tmp/modal-nonflat-20261106/{ios,fast,feature,full,native-final,native-stage-retry,build-deliver}.log,swift-inputs.json and per-device delivery.json. Deterministic gates/delivery PASS; visual/physical acceptance NEEDS PHYSICAL TEST.
+
+## Locked shared Journey navigation height · 2026-11-06
+
+User reports shorter World navigation/divider than Journey Hub and Settings and explicitly locks the corrected geometry until further user instruction. Root cause: JimiNativeWorldView passed58pt to RowLayout versus shared66pt, producing6.4pt shorter header after0.8compression. Removed the per-screen height parameter; RowLayout now owns fixed66pt content height with existing safe-area, tablet32pt addition, compression, curve and content offsets. Forest/Beach/Area55 now match Hub/Settings on both devices. Existing artwork, scrolling, motion, audio, gameplay and saves retained. AGENTS.md and PROJECT_CONTEXT.md carry the explicit lock. Source contract rejects overrides; mounted tablet comparison asserts all eight navigation surfaces match; phone formula and World geometry regressions use66pt.
+
+PASS qa:fast, qa:ios, no-sync qa:full (530 suites/4011 tests plus KING330) and three hosted Native tests (phone layout across safe areas, mounted tablet navigation with rendered headers and Forest divider/hit geometry). All eight tablet headers measured122.08pt at820x1180 in this mounted fixture; Forest header inspected. Hub and Forest observed through CUA on iPhone Simulator with matching divider. Final complete-current-tree normal Debug BUILD SUCCEEDED; retained iPhone and iPad Simulator install-over and normal launch verified exact.native identity, no Web.bundle/testPlugIns,2982 original packaged assets byte-exact, both canonical saves byte-identical through install/launch. Final save recheck: iPad still byte-identical; phone changed after delivery during concurrent Simulator activity, so no final phone save-equivalence claim and no restore/reset performed. Production Swift inputs stable through delivery; a transient final-check mismatch from concurrent editing cleared on immediate recheck. Actual SpringBoard Silent Mode phone1/iPad0; prior iPad control limitation remains, no game/macOS audio preference changes. No physical/PWA/legacy operation or reset/uninstall. evidence /tmp/nav-height-lock-20261106. Parallel modal edits invalidated the initial delivery input receipt and briefly broke compilation; retry required. Two compile-only references repaired in parallel modal work: CGPoint.zero in JimiWorldStoneCloseView.join resolves the CGPoint/CGRect overload; JimiNativeModalV10.bottomArchPath qualifies the shared shadow helper. Neither changes the intended geometry. Physical visual acceptance NEEDS PHYSICAL TEST. Existing unrelated dirty work and broader Native findings below remain preserved.
+
+## Close corner radius 16pt · 2026-11-06
+
+Latest user correction reduces Close radius by4 from20 to16pt at52pt side across all seven filled Close owners. Journey stone mask/perimeter and shadow scale by16/52; EndRun shadow uses16pt too. Supersedes preceding20pt geometry only. Existing footprint,texture,X,hit/animation/lifecycle/save owners remain. PASS qa:ios,qa:fast,diff whitespace. Prior full530suites/4010tests plusKING330 and3mountedNative tests remain preceding evidence;not repeated for scalar radius correction. Complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone Simulator install-over and normal launch com.taptapdesign.stacktosix.native: 36297; exact .native,no Web.bundle/testPlugIns,2982 original assets byte-exact, production Swift inputs stable through delivery,both latest canonical saves freshly backed up/byte-identical through install/launch. Actual SpringBoard Silent Mode=1. First installed-binary hash check failed;second fresh build/install verified matching launcher and dylib hashes. Final evidence /tmp/close-radius16-20261106/{ios,fast,build-deliver}.log,swift-inputs.json and per-device delivery.json. No physical/PWA/legacy install or reset. Visual/physical acceptance NEEDS PHYSICAL TEST.
+
+## Settings refreshed phone icon,16pt card gaps and per-visit random tilt · 2026-11-06
+
+Latest user requests updated telefon icon,16ptgap between Settings cards and independent small randomdirection rotation up to2degrees eachtime. Supplied assets/nav/telefon{,@2x}.png inspected and refreshed through Native-only byte-exact artwork preparation;strong-alpha x26/160 corrects its32ptphone/40pttablet visualpadding. Existing source originals untouched. Three static rowSurfaces now contain paper/shadow/icon/status/description/toggle inside original row route carriers. Each Settings tracks(enter:true) samples independent-2..2degree pose once;layout,snapshots,preference taps,Developer visibility andexit retainit. No newclock/loop/animationowner. Existing finite scale enter/exit/collapse remainsoutercarrier,staticvisualpose staysinner surface. Layout uses abs(h*cos)+abs(w*sin) to retain16ptgap between rotated boundingboxes including onwideiPad,avoiding cornercollision. Same firstpaintedtop80ptoffset,unrotatedwidth/navinkanchors andcardheight;scrollcontentheight followsrotatedextent. Input/epoch/save/audio/hapticowners unchanged.
+
+Cumulative preceding steering retained:ON/OFF32ptExtraBold above descriptions,Sounds rename,visibleglyphgaproughlyhalf(previous390render64px->30px;CoreTextfontleading),32ptphone/40pttablet horizontalpadding tovisibleicon/track edges,latest50percentfaded OFFbrown,Boxnavigation canvasmatch. Interim completed spacing-only proofs remain /tmp/settings-spacing-final-20261106,including full530suites/4010tests plusKING330,4hostedtests andbothSimulator saves/delivery;latest authoritative proof is tilt16 below.
+
+PASS: qa:ios,no-sync qa:full530suites/4010tests plusKING330,5hostedNative tests (mounted320/390/430/820geometry/padding,tilt<=2degrees,16ptpaintedgaps,actualrotatedtogglehitTest,stableposeafterlayout/apply,tabletfonts/controlscale,statusbounce,routepivots/stagger),diff whitespace. Actual iPhone/iPad tilted renders inspected andcopied to /tmp/settings-tilt16-20261106/{iphone,ipad}.png. Normal complete-current-tree Debug BUILD SUCCEEDED;retained iPhone/iPad install-over/normal launch,exact .native,no Web.bundle/testPlugIns,2982 nonmetadata originalfiles byte-exact. Both canonical saves perdevice freshlybackedup/byte-identical through final check;production Swift inputs stable throughdelivery/finalcheck. SpringBoard Silent Mode phone1/iPad0;existingiPadCUA/screenshot/control limitation retained,no game/macOSaudio preference edits. No physical/PWA/legacy operations,reset/uninstall orsourceassettransforms. Evidence /tmp/settings-tilt16-20261106/{assets,ios,full,native,build-deliver}.log,swift-inputs.json,perdevice delivery.json. Visual/physical acceptance NEEDS PHYSICAL TEST;prior broader Native findings retained below.
+
+## Dice-shaped Close containers · 2026-11-06
+
+User requested filled circular Close containers become cute rounded squares like dice, then increased the corner radius by another 8: final radius is 20pt at 52pt side (initial 12pt superseded). Applies to EndRun, Privacy, Arcade info, Backpack modal/detail and Score history. Journey Stage stone holder retains its 56pt/device-scaled footprint and uses the same 20/52 corner proportion; original selected slab texture and exposed 5pt bevel follow the new rounded perimeter against the live panel outline. EndRun silhouette shadow matches. Existing X artwork, centres, hitboxes, tablet scaling, feedback, motion, lifecycle and saves remain. Bare navigation X and dashed gameplay HUD ring have no filled circular container and retain their presentation. No original assets or runtime owners added/changed.
+
+PASS qa:fast, no-sync qa:full (530 suites/4010 tests plus KING 24 suites/330 tests), qa:ios and diff whitespace. Three hosted Native tests passed: all 30 Stage card layouts/materials, Privacy lifecycle Close and Score close feedback/duplicate rejection. Stage1 UIKit render inspected at initial 12pt; latest 20pt changes only shape constants and matching shadow, so no broad suite repeat. Final qa:ios-radius20 PASS. Complete current-tree normal Debug BUILD SUCCEEDED; retained iPhone Simulator install-over and normal launch verified exact .native identity, no Web.bundle or test PlugIns, original packaged assets byte-exact, production Swift inputs stable through final check and both canonical saves byte-identical through install/launch/final check. Actual SpringBoard Silent Mode=1. Normal app Home and Journey Hub observed through CUA; further card inspection interrupted when active Simulator switched to iPad. No final20pt screenshot/physical visual acceptance claimed. Initial normal delivery was blocked by leftover hosted-test PlugIns in this task-specific build output; safely moved that generated folder to evidence/qa-test-plugins, rebuilt and delivered normal product. No physical/PWA/legacy install or reset. Evidence /tmp/close-dice-20261106. Visual/physical acceptance NEEDS PHYSICAL TEST.
+
+## Settings navigation-edge alignment, status-first copy and compact spacing · 2026-11-06
+
+Final cumulative user steering: paper containers align with visual outer navigation Back/gear edges;horizontal32ptpadding on iPhone and40pton iPad measured from paperedge to visible icon/visible toggletrack;8ptgap between cards onbothdevices;ON/OFF32ptExtraBold like renderedHighScore/Combo title,above description;visible status/description whitespace reduced50percent;Game sounds renamedSounds. Existing subtitle font/color/weight preserved. Original chevron35/216left andgear2/48right ink margins combine with existing device-scaled nav insets;paper canvas expands ontablet to new anchors,phone follows its actualanchors. Original navmini-object strong-alpha left fractions align visible artwork inside exact padding rather than transparent PNGcanvas;toggle's8ptscaled transparent hitpadding excluded. Compact320phone uses48pticoncanvas (others64/tablet89.6);all descriptions singleline and retain authoredauto-fit. CoreText finite line inkbounds account for fontleading when halving whitespace;no clock/cache/resource owner added. Rowheight110*deviceScale,firstrow80ptoffset,footer,nav,route,epoch,save/preferences andoriginal assets retained. Pitch=rowheight+8;scrollcontentheight follows threecards plusgaps. Feature policy updated.
+
+PASS: final qa:ios,no-sync qa:full530suites/4010tests plusKING330,4hostedNative tests (mounted320/390/430/820alignment/padding/gaps/statusordering/singleline,tablettext/controlscale,statusbounce,cancelledroutepivots),diff whitespace. Actual static renders /tmp/settings-aligned-{320,390,430,820}.png andXCTestattachments inspected on390/820;prior320last-letterwrap fixed before finalsinglelineSounds version. Original visiblefirstrowglyph gap64pixels ->30pixels at3x afternewspacing/name,roughlyhalf withglyph/rasterrounding;proof /tmp/settings-spacing-final-20261106/glyph-gap.json andbefore390/820renders. Earlier alignment-only interimtest/fullpasses retained under /tmp/settings-aligned-padding-20261106;finalcurrentdelivery is spacing-final directory. Prior broader Native Home findings remain below;visual/physical acceptance NEEDS PHYSICAL TEST.
+
+Final complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad install-over/normal launch verified exact .native,no Web.bundle/testPlugIns,2982 nonmetadata original files byte-exact. Both canonical saves perdevice freshly backed up/byte-identical through final check;production Swift inputs stable through delivery/final check. Actual SpringBoard Silent Mode phone1/iPad0;existingiPadCUA/screenshot/control limitation retained,no game/macOSaudio preference edits. IncludeslatestSettings50percentfadedbrown andBoxnavigation size correction. No physical/PWA/legacy operations,reset/uninstall orassettransforms. Evidence /tmp/settings-spacing-final-20261106/{ios,full,native,build-deliver}.log,swift-inputs.json,perdevice delivery.json.
+
+## Box navigation matches Backpack on iPhone and iPad · 2026-11-06
+
+User screenshot reports ArcadeBox materially smaller than JourneyBackpack;explicit follow-up includes iPhone too. Root cause:36ptcrate original is capped at intrinsic UIButton imageRect size while64ptbackpack downscales to authored40ptphone/56pttablet canvas. Added local JimiV9HubNavigationButton imageRect override,enabled only forArcade,tofill existing image-inset canvas. Box now40x40phone/56x56tablet(with UIKit<=1pixelrounding),matchingBackpack canvas;Backpack retains super layout. Removed former crate4.8/0.8inset reduction,uses4/0sameasBackpack. Root40x48scaledhitgeometry,forwardedcrate hit area,title/back,route/idle/tap/curve owners retained;only crate's tablet optical-edge alignment follows new zero inset. No asset bytes transformed,new clocks/resources/audio/save changes.
+
+PASS: qa:ios,no-sync qa:full530suites/4010tests plusKING330,feature-runtime40owners/34surfaces,diff whitespace,two hosted Native tests:phone/tablet actualmounted UIButton imagecanvas regression plus alltablet navigation render/geometry. Initial exact0.01pttest tolerance rejected UIKit0.133ptrounding;final uses1physicalpixeltolerance and passes. Actual rendered Journey/Arcade icon PNGs inspected at /tmp/ipad-navigation-down4-20261103/{Journey,Arcade}-icon1.png;matching visible scale. XCTest includes phone/tablet comparative header attachments. Physical visual/feel acceptance NEEDS PHYSICAL TEST;prior broader Native class findings below remain.
+
+Complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhonePID16502/iPadPID16660 install-over/normal launch,exact .native,no Web.bundle/testPlugIns,2982 nonmetadata originals byte-exact,both canonical saves perdevice backed up/byte-identical through final check,production Swift inputs stable. Includes user's prior Settings50percentfade. Actual SpringBoard Silent Mode phone1/iPad0;known iPad CUA/screenshot/control limitation retained,no game/macOSaudio preferences changed. No physical/PWA/legacy operations,reset/uninstall or original asset transforms. Evidence /tmp/nav-box-size-20261106/{ios,full,feature,native,native-final,build-deliver}.log,swift-inputs.json,perdevice delivery.json.
+
+## Settings brown faded50percent and both Simulator previews refreshed · 2026-11-06
+
+User requests current brown50percent lighter and explicitly refresh iPad too. OFF gradient now DAC2AE to E1CCB8:each previous B5845C/C39870 RGB channel blended halfway toward255,opaque so paper/alpha does not alter hue. Shared iPhone/iPad palette;ON/knob/geometry/preferences unchanged. Feature policy updated.
+
+PASS: qa:ios,no-sync qa:full530suites/4010tests plusKING330,diff whitespace,normal Debug BUILD SUCCEEDED. Complete current-tree install-over/normal launch on retained iPhonePID13146 and iPadPID13360;exact .native,no Web.bundle/testPlugIns,2982 nonmetadata originals byte-exact. Both canonical saves perdevice backed up/byte-identical through final check;production Swift inputs stable at delivery. Actual SpringBoard Silent Mode phone1/iPad0. CUA selected iPad window but screenshot unavailable and subsequent menu-element controls became invalid;existing iPad audio-mode limitation remains,no game/macOS preferences changed. No physical/PWA/legacy operations,reset/uninstall or asset transforms. Evidence /tmp/settings-fade50-20261106/{ios,full,build-deliver}.log,perdevice delivery.json,swift-inputs.json. Visual/physical acceptance NEEDS PHYSICAL TEST;broader prior Native findings below.
+
+## Settings OFF darker wood shade from Home icon reference · 2026-11-06
+
+User requests one of the darker brown shades from supplied Home backpack/die/gear reference. Shared OFF track now B5845C to C39870 (previous C7A080 to D8B99C),a darker warm wood brown inspired by backpack/gear shadows. iPhone/iPad share the palette;ONorange,creamknob,all geometry,input,animation and preferences unchanged. Feature policy updated.
+
+PASS: qa:ios,no-sync qa:full530suites/4010tests plusKING330,diff whitespace,complete-current-tree normal Debug BUILD SUCCEEDED. Retained iPhoneSimulator install-over/normal launch verified exact .native,no Web.bundle/testPlugIns,2982 nonmetadata originals byte-exact,both canonical saves backed up/byte-identical through final check,production Swift inputs stable. Actual SpringBoard Silent Mode1 after launch. iPad source updated;its Simulator not refreshed. No physical/PWA/legacy operation,asset edits,reset/uninstall. Evidence /tmp/settings-dark-wood-20261106/{ios,full,build-deliver}.log,swift-inputs.json,device delivery.json. Color/physical acceptance NEEDS PHYSICAL TEST;earlier broader Native class findings retained below.
+
+## Settings OFF toggle warmer wood-brown · 2026-11-06
+
+User requested less green/grey and a little more brown for wooden feel. Shared JimiNativeSettingsToggle OFF track now gradients C7A080 to D8B99C (previous D7BCA0 to E2CFB9) on iPhone/iPad. Only two OFF palette literals changed; orange ON,cream knob,labels,geometry,animation,input and preferences preserved. Feature policy updated.
+
+PASS: qa:ios,no-sync qa:full530suites/4010tests plusKING330,diff whitespace,complete-current-tree normal Debug BUILD SUCCEEDED. Retained iPhoneSimulator install-over/normal launch PID8764,exact .native,no Web.bundle/test PlugIns,2982 nonmetadata original files byte-exact. Both canonical saves backed up and byte-identical through final check;production inputs stable through build/delivery/final check. Actual SpringBoard Silent Mode1 after final launch. iPad source shares the new palette;its Simulator was not refreshed in this follow-up. No physical/PWA/legacy operation,asset edits,reset or uninstall. Evidence /tmp/settings-warm-off-20261106/{ios,full,build-deliver}.log,swift-inputs.json,device delivery.json. Color/physical acceptance NEEDS PHYSICAL TEST;earlier broader Native class findings remain below.
+
+## Settings reference paper rows and orange toggles · 2026-11-06
+
+User requested reference-style Settings controls, existing Game sounds/Music/Vibration copy with Special detail subtitle typography, score-history paper holders, supplied nav icons, and content beginning80pt lower. Existing JimiNativeSettingsView rows now contain original density-aware modals/paper.png with ScoreHistory22pt continuous corners/warm shadow and nav/zvucnik,gitara,telefon PNGs. Names use NativeModalTypography18pt Medium/subtitle palette (tablet existing1.4scale);ON/OFF below names,orange ON/beige OFF. Toggle retains51x31track,27pt cream knob,67x45hit area,finite slide/bounce;static orange/beige/cream gradients only. Row starts at prior origin+80pt on both device branches;110pt card/126pt pitch,phone20pt side insets. Existing footer,header,Developer,epoch,preference persistence,row/toggle tap and route owners retained. Clear interleaved dividers preserve authored route stagger. No new clock/audio/save owner or source asset transformations. Feature policy updated;Native-only preparation copied3094 original files byte-exact.
+
+PASS: qa:ios; no-sync qa:full530suites/4010tests plusKING330; six focused hosted Settings tests (status bounce,Developer entry,phone viewport,collapsed pivots,route tracks,tablet geometry),Swift parse,diff whitespace. iPhone/iPad static paper renders inspected at /tmp/settings-paper-20261106/{preview,ipad}.png. Final test render exports use XCTest attachments. Initial broader JimiNativeSettingsTests run FAIL: old glyph-width assertion caught interim wide status bounce (corrected and final test passes);old header shadow expectations updated to current shared header (final passes). Two additional unchanged Home/return tests still assert old hero artwork width352.8vs335.16 and native-hero-idle layer/speed rather than current Home owners;not repaired by this Settings task. Broad Native class is not claimed green. Visual/physical acceptance NEEDS PHYSICAL TEST.
+
+Complete-current-tree normal Debug BUILD SUCCEEDED;retained Jimi2026iPhone13 install-over/normal launch verified exact com.taptapdesign.stacktosix.native,no Web.bundle/no test PlugIns,2982 nonmetadata original files byte-exact (preparation inventory3094 includes metadata). Both canonical saves freshly backed up and byte-identical through final check;production Swift inputs stable through delivery/final check. Actual SpringBoard SBRingerMuted=1 after final launch;game/macOS audio preferences untouched. No physical/PWA/legacy operation,reset or uninstall. Evidence /tmp/settings-paper-20261106/{ios,full,native,native-final,build-deliver}.log,swift-inputs.json,and device delivery.json.
+
+## Upper navigation content down8pt and Home side icons down4pt · 2026-11-06
+
+User asks back/X,title,right Backpack/Box (Settings gear included)8pt lower on both iPhone/iPad. Shared RowLayout.centerY adds8pt;header height,background/divider geometry,curve poses,opacity and font/icon/hit sizes unchanged. Shifted button hit rectangles follow content;shared header point-inside admits interactive child portions extending past decorative bounds so the lower hit edge stays usable. Hosted World test verifies lower edge resolves to the actual back control. Tablet row is now prior midpoint+4 plus8 = midpoint+12. Updated geometry expectations preserve precision tolerances.
+
+Follow-up asks Home backpack/index0 and Settings/index2 only4pt lower;nav button centre adds4pt for those indices,central die/index1 unchanged. Selected-size/active12pt lift,curve pose,idle,contact shadow and route animation retained. Divider and texture positions/opacity unchanged. Feature policy updated,no new recurring work/resources/asset edits.
+
+PASS: qa:ios,no-sync qa:full530suites/4010tests plusKING330,three upper-header hosted methods and subsequent Home footer hosted render method,diff whitespace. Settings/Journey and Home static renders inspected and copied into evidence dir. Complete current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad install-over/normal launch,exact .native/no Web.bundle/no test PlugIns,2976 original assets byte-exact. Production Swift manifest stable and both canonical saves perdevice freshly backed up/byte-identical through install/launch/final check. Actual Silent Mode phone1/iPad0;existing iPad/CUA limitation unchanged,no game/macOS audio changes. Evidence /tmp/navigation-row-down8-20261106/{ios,full,native,native-home,build-deliver}.log,Settings-header.png,Journey-header.png,home-footer.png,swift-inputs.json,per-device delivery.json. No physical/PWA/legacy operations,reset/uninstall or asset transformations. Visual/physical acceptance NEEDS PHYSICAL TEST. Earlier unrelated27-failure Home baseline remains documented below.
+
+Delivery: com.taptapdesign.stacktosix.native: 93517, com.taptapdesign.stacktosix.native: 93605; installed dylib 1e34b0cbfff57d4e250be6d154a7e4908fcc987b8dace9b9326d81214f12074a.
+
+## Journey and Settings nav texture opacity80percent · 2026-11-06
+
+Latest user instruction sets original nav-bg PNG layer opacity0.8 on Journey World-selection Hub and individual World screens, and replaces Settings/Developer prior0.5 with0.8. Shared Arcade Hub explicitly remains1;Home footer remains0.5 and standalone Backpack/Box1. Only texture opacity changed;intrinsic PNG alpha,divider/title/icon alpha,curve geometry,tap/idle/exit animation,assets and saves preserved. Feature policy updated.
+
+PASS: qa:ios,no-sync qa:full530suites/4010tests plusKING330,two existing hosted Native header/paint methods,diff whitespace. Forest contrast render inspected (forest-preview.png);complete-current-tree normal Debug build/install-over/launch on retained iPhonePID89824 and iPadPID89926. Exact .native/no Web.bundle/no test PlugIns,2976 original assets byte-exact,production Swift manifest stable and both canonical saves perdevice freshly backed up/byte-identical through install/launch/final check. Installed dylib a266c412a1f9984f7b1ede2765b01e309b38ee3b156fe9b9d1282448c1fa6cc7 matches build. Actual Silent Mode phone1/iPad0;existing iPad/CUA limitation unchanged,no game/macOS audio settings changed. Evidence /tmp/journey-settings-opacity80-20261106/{ios,full,native,build-deliver}.log,forest-preview.png,swift-inputs.json,per-device delivery.json. No physical/PWA/legacy operations,asset transforms,reset or uninstall. Visual/physical acceptance NEEDS PHYSICAL TEST. Prior unrelated27-failure Home baseline remains documented below.
+
+## Navigation title glyphs and icon artwork follow divider curve · 2026-11-06
+
+User requested matching title arches and tangent icon rotation on all navigation headers and Home footer. JimiV9ArchedNavigationTitle remains UILabel for accessibility/text/font/attributed colors;drawText uses original CoreText runs/glyphs positioned on the exact shared divider parabola with local tangent rotation. Original font sizes,letter advances,colors (including orange/brown Your Box),title bounds and accessible string retained. No generated/raster text asset or persistent glyph cache;finite draw work only on ordinary label invalidation. All four shared header consumers now use this label:Hub Journey/Arcade,Worlds,Settings/Developer,standaloneBackpack/Box.
+
+Shared applyCurve computes divider tangent and curve-relative vertical offset at each icon's x. Static button layer.sublayerTransform moves only visual descendants;root hit frame/size/route transform remain unchanged. Existing image idle/tap/switch transform owners compose inside that pose,including World close artwork and alert. Home three icons and contact shadows use the opposite footer parabola on the same static sublayerTransform. No new timers/observers/recurring work,audio,haptics,saves or source asset edits. Prior80percent header height,Home/Settings half-opacity,footer6pt offset and authored exit fades retained. Feature runtime policy updated.
+
+PASS: qa:ios,no-sync qa:full530suites/4010tests plusKING330,seven hosted Native methods covering symmetric tangents/root-hit preservation/Home opposite signs,phone row dimensions,tablet all-header render,World artwork contained in original target,fade/cancel and footer bound. Initial compiler rejected deprecated CGColorGetTypeID API;used SDK-required CGColor.typeID before final passing build/tests. Original exact axis-aligned artwork-box expectation now asserts curved paint remains contained in unchanged hit target. Reviewed iPhone Forest/Home and iPad Arcade/Journey/Settings/Backpack/Box render images under /tmp/navigation-content-arch-20261106;sharp readable text,retained multicolor title and shallow tangent poses. Known unrelated27-failure broad Home baseline test remains documented below;not rerun or changed here. Visual/feel/physical acceptance NEEDS PHYSICAL TEST.
+
+Complete-current-tree normal Debug BUILD SUCCEEDED,retained iPhone/iPad install-over/normal launch,exact .native/no Web.bundle/no test PlugIns,2976 original assets byte-exact. Production Swift manifest stable through delivery and final check;both canonical saves perdevice freshly backed up/byte-identical after install/launch/final check. Actual Silent Mode phone1/iPad0;existing iPad/CUA limitation unchanged,no game/macOS audio settings changed. No physical/PWA/legacy operations,asset transformations,reset or uninstall. Evidence /tmp/navigation-content-arch-20261106/{ios,full,native,build-deliver}.log,static render PNGs,swift-inputs.json,per-device delivery.json.
+
+Delivery: com.taptapdesign.stacktosix.native: 87312, com.taptapdesign.stacktosix.native: 87495; installed dylib 44f9d0f34561e94f2b27601d0ab39d732cce2ed659acd67a923383603e7eb01a.
+
+## Upper navigation 80percent height and Home/Settings half-opacity texture · 2026-11-06
+
+User requested upper navigation height80to64ratio and then half previous nav-bg opacity on Home slider and Settings. Shared RowLayout.headerHeight now returns80percent of prior height on phone/tablet;row recentres within shortened header while font/icon/hit dimensions remain unchanged. Shared upper header texture/arch follows reduced bounds;Home footer retains its existing width/arch/6pt offset. Home footer texture CALayer opacity0.5;Settings setBackgroundImage opacity0.5,other upper backgrounds remain1. Intrinsic PNG alpha preserved;divider/icon opacity and authored exit fade unchanged. Static property/layout change only,no new jobs/timers/owners,source assets preserved. Feature policy updated.
+
+PASS: final qa:ios, no-sync qa:full530suites/4010tests plusKING330, six final hosted Native tests covering compressed phone row at multiple safe insets,tablet headers/Settings paint,World header geometry,rendered decoration fade/cancel,header exit and Home bound. Updated expected phone geometry uses float tolerance. Settings/Journey static header renders inspected and copied to evidence directory. Previous broad Home test's27 controlled-baseline failures remain documented below,not part of final selected scope. Physical visual/feel acceptance NEEDS PHYSICAL TEST.
+
+Complete current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad install-over and normal launch,exact .native/no Web.bundle/no test PlugIns,2976 original assets byte-exact. Source manifest stable through delivery/final check and both canonical saves perdevice freshly backed up/byte-identical through install/launch/final check. Actual Silent Mode phone1/iPad0;existing iPad/CUA limitation unchanged,no game/macOS audio settings changed. No physical/PWA/legacy operations,asset transforms,reset or uninstall. Evidence /tmp/navigation-height-opacity-20261106/{ios-final,full,native-final,build-deliver}.log,Settings-header.png,Journey-header.png,swift-inputs.json and per-device delivery.json.
+
+Delivery: com.taptapdesign.stacktosix.native: 82893, com.taptapdesign.stacktosix.native: 82980; installed dylib a34cb5e983fd183757830f1cfcd1d101f83bd51e5650a4aba178746b9d5cb5de.
+
+## Home divider full width, 6pt lower edge and navigation decoration exit fade · 2026-11-06
+
+User refinements: Home divider image canvas now spans100percent viewport width like Journey headers (original PNG transparent margins preserved), independently of the old route carrier's bounds. Home divider and texture top move6pt down together, shortening the background6pt while icons/hit targets and arch depth remain unchanged. Existing fixed-shadow route geometry retained. Source image assets unchanged.
+
+Exit fade: Home fixed-shadow carrier's route group now has the old shadow-style160ms opacity fade starting200ms into its240ms-delayed exit. Upper shared header wraps divider and texture in one noninteractive decoration view; buttons remain direct header children. JimiV9NavigationRouteLayer mirrors the finite fade group onto decoration with exact parent duration/beginTime/speed/timeOffset; it propagates removeAnimation/removeAllAnimations and clears previous decoration groups on any replacement. Model decoration opacity remains1. Parent pause inheritance and exact route cancellation own lifecycle, with no scheduler, recurring work or separate animation lifetime. Initial attempt to animate a nested named-layer key path compiled but rendered no fade; the mounted presentation test caught it and that attempt was removed. Final mounted test proves actual decoration fades while header/buttons keep their own opacity, cancellation restores decoration, differently keyed enter retires old exit, and removal leaves no child animations. Home delay0.44/duration0.16 asserted. Feature policy updated.
+
+Final PASS: qa:ios (ios-delivery.log), feature-runtime40owners/34surfaces, no-sync qa:full530suites/4010tests plusKING330 (full-fade.log), four hosted Native tests including rendered fade/cancellation, upper geometry/exit and phone/tablet6pt lower bound (native-delivery.log), diff whitespace. Prior broad Home test's controlled-baseline27 existing failures remain as documented in the preceding entry; no unrelated layout changed to satisfy them. Initial full-width normal Home screenshot inspected at iphone.png; final source/test proves additional6pt offset. Physical visual/feel acceptance NEEDS PHYSICAL TEST.
+
+Final complete-current-tree normal Debug BUILD SUCCEEDED; install-over/normal launch on both retained Simulators, exact com.taptapdesign.stacktosix.native/no Web.bundle/no test PlugIns.2976 source assets byte-exact, production Swift manifest stable through delivery and final check, both canonical saves perdevice freshly backed up/byte-identical after install/launch/final check. Actual Silent Mode phone1/iPad0; existing iPad/CUA limitation unchanged, game/macOS audio settings untouched. No physical/PWA/legacy operations, source asset transformations, reset or uninstall. Evidence /tmp/home-divider-width-20261106/{ios-delivery,feature-delivery,full-fade,native-delivery,build-deliver-current}.log,swift-inputs.json,per-device delivery.json.
+
+Delivery: com.taptapdesign.stacktosix.native: 79458, com.taptapdesign.stacktosix.native: 79620; installed dylib c0ed1e131878487eb27fe2a567b68bfbc76f1e6835f3c9eac6c7d62afe353006.
+
+## Home bottom navigation texture and bounded upward arch · 2026-11-06
+
+User requested the same nav-bg texture/arch treatment on Home bottom navigation, with highest point fixed at the prior divider line. JimiV9BottomNavigationSurface is noninteractive decoration under the existing fixedShadow route carrier: original density-aware nav-bg texture clipped to a 9.8pt upward parabola, centre at the former painted line and endpoints 9.8pt lower. Original Home divider pixels use a single per-size/density cached warped raster, with original inset/painted width. Parent carrier bounds/centre remain unchanged; icon/hit/CTA/hero/upper-nav layout and all source assets preserved. Existing route animation owns surface enter/exit; no new timer, worker or global cache. Texture retains PNG alpha. Feature owner policy updated.
+
+PASS: qa:ios, no-sync qa:full530 suites/4010 tests plus KING330, final hosted three Native tests (bottom apex bound/phone+tablet, upper header geometry/texture and header exit), diff whitespace. UIKit footer renders /tmp/home-bottom-arch-{390,820}.png inspected; normal Simulator iPhone full Home screenshot inspected at /tmp/bottom-navigation-arch-20261106/iphone-screen.png. An additionally selected old testAllHomeSlidesHaveLargerContainedArtworkAndStableExitPivot FAILS27 assertions for pre-existing CTA44vs64, dynamic hero widths and CTA gap40.64vs20.64. Controlled baseline run with this task's Home changes removed reproduces the identical27 failures; baseline-comparison.json sameFailures=true. No production geometry changed to satisfy obsolete expectations. Final selected scope passes; the broader old Native test remains known FAIL.
+
+Complete-current-tree normal Debug build/install-over/launch verified on retained iPhone and iPad. Both canonical saves freshly backed up and byte-identical after install/launch/final check; production Swift manifest stable;2976 original assets byte-exact, exact .native identity/no Web.bundle/no test PlugIns. Receipts contain installed binary hashes and actual Silent Mode phone1/iPad0 (existing iPad/CUA limitation; no game/macOS audio settings changed). No physical/PWA/legacy operations, asset transforms, reset or uninstall. Evidence /tmp/bottom-navigation-arch-20261106/{ios,full,native-test,baseline-test,native-final,build-deliver}.log, baseline-comparison.json, swift-inputs.json, per-device delivery.json. Physical visual/interaction acceptance NEEDS PHYSICAL TEST.
+
+Delivery: com.taptapdesign.stacktosix.native: 70701, com.taptapdesign.stacktosix.native: 70811; dylib 13ccc5f6f6f7cb27da25dc864455184b9138cfdf162b36c243472a6ed7f6164f.
+
+## Navigation uses nav-bg texture inside existing arch · 2026-11-05
+
+User requested original assets/nav/nav-bg.png instead of the white navigation fill. Shared header now holds original density-aware UIImage CGImage as static layer contents at full layer opacity, with its embedded PNG alpha preserved. One header-owned CAShapeLayer mask follows the existing exact 9.8pt parabola and meets the unchanged curved Home divider. White shape fill is clear while texture is present; existing color remains a missing-image fallback. Settings, Hub/Arcade, Journey and Backpack use their existing artwork cache to supply the texture. Header/title/button/hit/route geometry and source asset bytes unchanged. No recurring work, new cache or external owner; image/mask lifetime remains header-scoped. Feature policy updated.
+
+Initial qa:ios correctly reported three newly supplied nav PNGs absent from NativeAssets.bundle; explicit Native-only artwork preparation copied originals byte-exact, final qa:ios PASS. A test-only invalid CGImage conditional cast was corrected before final compile. Final two hosted Native header/exit tests PASS; texture clipping curve and clear backing asserted; Forest contrast UIKit preview inspected at /tmp/navigation-texture-20261105/preview.png. Final no-sync qa:full PASS (530 suites/4010 tests plus KING330), diff whitespace PASS.
+
+Normal current-tree Debug BUILD SUCCEEDED, .native identity/no Web.bundle/no test PlugIns verified, retained iPhone normal launch PID65302 and iPad PID65437. Installed dylib49048ef031ccc6876a8e3363d2271aa5966e5e42a45f2f9d62ae572f7b522237 matches build;2976 source assets byte-exact. Production source manifest stable and both canonical saves per device freshly backed up/byte-identical through install-over, launch and final recheck. Actual SpringBoard Silent Mode phone1/iPad0; existing iPad/CUA limitation unchanged, no game/macOS audio settings changed. Evidence /tmp/navigation-texture-20261105/{ios,assets,native-test,full,build-deliver}.log plus preview.png,texture-sha256.txt,swift-inputs.json,per-device delivery.json. No physical/PWA/legacy install/reset/uninstall or original asset transforms. Visual/physical user acceptance NEEDS PHYSICAL TEST.
+
+## Navigation surface follows divider arch · 2026-11-05
+
+Fixed the screenshot-reported straight white navigation background under the curved Home divider. Shared JimiV9NavigationHeader now paints its existing RGBA navigation color into one static CAShapeLayer whose lower edge follows the exact divider parabola: endpoints at header bottom, centre 9.8pt below. UIView rectangular background paint is clear during the reversible trial. Fill and divider meet as one surface without masking the divider. Original color/alpha, header bounds, titles, buttons, hit targets, route clocks and original Home PNG remain unchanged. No additional timers or animation owners; feature runtime policy updated.
+
+PASS: Swift parse, diff whitespace, qa:ios, two hosted Native header/exit tests, and no-sync qa:full (530 suites/4010 tests plus gameplay-lock 330). Forest illustration contrast render inspected at /tmp/navigation-arched-surface-20261105/preview.png; this verifies the curved fill seam in UIKit, not physical visual acceptance.
+
+Complete current-tree normal Debug BUILD SUCCEEDED and install-over/normal launch on retained iPhone 1018BE2D-491B-465F-8F75-3E5BEB38C22A (PID60751) and iPad 43A75086-0C64-464C-B71C-FDD01AF59C32 (PID61000). Bundle com.taptapdesign.stacktosix.native; installed dylib SHA256 92826100ef543c80a3704ed7ff61502dedc13851da9f1b24056e6485da7c776f matches build. All 2973 current original assets byte-identical; source manifest stable through delivery and final recheck; both canonical saves per device freshly backed up and byte-identical after install/launch/final recheck. Actual SpringBoard Silent Mode phone1/iPad0; existing iPad/CUA native-pipe limitation remains, no game or macOS audio settings changed. Evidence /tmp/navigation-arched-surface-20261105/{native-test,full,ios,build-deliver}.log, swift-inputs.json, and per-device delivery.json. No physical/PWA/legacy operations, reset, uninstall or source asset edits. User visual/physical acceptance: NEEDS PHYSICAL TEST.
+
+## Navigation Home divider shallow downward arch20percent · 2026-11-05
+
+User asks whether divider can bow downward like a very shallow upside-down hill without harming original asset. Implemented reversible render-only trial:20percent means existing49ptdivider-band height,not viewportwidth. Parabola drops centre9.8pt relative to canvas endpoints;endpoints unchanged. Original assets/home-shadow.png SHA256 verified identical before/after(ae4d1646a1a32eaf64a0188cafbff746c779f5cdfe09e909940f5c14170327e4);no source/image asset edits or generated packaged replacement. Home slider remains straight;only shared navigation divider bends. Header/title/icon/hit geometry,route motion/opacity,input/gameplay/audio/saves unchanged.
+
+JimiV9NavigationHeader owns originalUIImage and one derived size/density-cachedUIImage.32pixel-aligned affine strips draw original pixels into58.8ptcanvas,curve error<0.01pt;no columns-as-layers,new timers,observers,per-frame raster,decoder or globalcache. Ordinary relayout reuses exactUIImage identity;newsize/density/source replaces priorcache,view lifetime releases it. Phone/iPad share same shallow9.8ptdepth. Existing fallbackshadowtrialflag retained. Feature policy updated.
+
+Native2unique methods PASS:actualheaderframe/hits,curve endpoints/centre/quarterdepth,derived image/cached identity,unchanged title/buttons,and header exit/reduced-motion/no shadowfade. Initial exactCGRect equality failed at2e-14pt rounding;fixture now uses1e-6accuracy,no production workaround. Static390x160UIKit preview.png inspected:smooth shallow down-bow,same white/warm Home finish. qa:ios and final no-sync qa:full530suites/4010tests plusKING330/runtimeadmissions PASS. This is render/code proof,not physicalvisual/thermalacceptance.
+
+Complete-current-tree normal Debug BUILD SUCCEEDED build-delivery-1.log;retained phonecom.taptapdesign.stacktosix.native: 55856 and iPadcom.taptapdesign.stacktosix.native: 56017 install-over/normal launch. Exact.native/noWeb/testplugins,2973current originalassets byte-identical,source manifest stable,installedlauncher/dylibmatchbuild(runtimeb942c892a81c56eb769d27bc9629ee3fc2c7b708f291917216398d3339620417). Both canonical saves perdevice freshly backedup/byte-identical throughfinalinstall/launch/check. ActualSpringBoardSilentMode phone1/iPad0;previous iPad/Cua nativepipe limitations unchanged,no game/macOS audio preferences changed. Evidence /tmp/navigation-divider-arch20-20261105/{native-test,native-test-final,full,ios,build-delivery-1}.log,preview.png,original-sha256.txt,swift-inputs.json and device/delivery.json. No physical/PWA/legacy install/reset/uninstall or originalasset edits. Trial needs user visual/physical review;NEEDS PHYSICAL TEST.
+
+## Trial navigation bottom uses Home divider instead of layer shadow · 2026-11-05
+
+User requests a reversible visual trial. Shared JimiV9NavigationHeader adds the exact original Home assets/home-shadow.png atalpha0.55(full header width,49ptband starting at bounds.height). Settings,WorldsHub/Arcade,JourneyUnits and standaloneBackpack configure it through their existing JimiV9Artwork cache. Home slider itself unchanged. Noninteractive divider inherits header route transform/opacity. Navigation/title/icon/row/hit geometry unchanged;CALayer shadowopacity0/pathnil and obsolete shadow-only exit fade skipped during trial. Original shadow recipe remains behind static usesHomeDividerTrial=false for easy visual rollback. This is a trial,NOT a newly approved production baseline. Existing original asset bytes,resources,fonts,input,audio/gameplay/saves unchanged;one static image view,nonew clock/decoder/global owner. Feature policy updated. Scoped pretask snapshots under before/ preserve exact rollback reference without discarding unrelated dirty work.
+
+Native2/0PASS: actual header geometry+exactHomePNG/alpha/bottomplacement and header exit/reduced-motion path with no shadow animation. Static390x160UIKit header render inspected and saved preview.png;this is not a full-scene/physicalacceptance screenshot. qa:ios and final no-sync qa:full530suites/4010tests plusKING330/runtimeadmissions PASS. Swift parse/scoped callsite/diff review PASS.
+
+Normal complete-current-tree Debug BUILD SUCCEEDED build-delivery-1.log;retained phonecom.taptapdesign.stacktosix.native: 44821 and iPadcom.taptapdesign.stacktosix.native: 44927 install-over/normallaunch. Exact.native/noWeb/testplugins,2973originalassets byte-identical,production inputmanifest stable,installedlauncher/dylib matchartifact(runtime564b26889f6df0ba2539854174c65614e6c99820a5a40e39309f353e2b28220e). Both canonical saves perdevice freshlybackedup/byte-identical throughfinalinstall/launch/check. ActualSpringBoardSilentMode phone1/iPad0;existing iPad limitation and unavailable CUA native pipe from prior task remain;no game/macOS audio preferences changed. Evidence /tmp/navigation-divider-trial-20261105/{native-test,full,ios,build-delivery-1}.log,preview.png,swift-inputs.json and device/delivery.json. No physical/PWA/legacyinstall/reset/uninstall or asset edits. Fullscene/animation/physicalvisual acceptance NEEDS PHYSICAL TEST/usertrial review.
+
+## Home first-slide falling leaves and flowers50percent larger · 2026-11-05
+
+User requests leaves+flowers50percentlarger on Home slider1,and repeats scale-up. NativeHomeBreeze.configure multiplies only Family.leaf painted layer bounds by1.50,on phone+iPad. Flower shares this family;all3first-slide slots get the exact uniform multiplier. Flight.side,seed/RNG draws,origins/control points,sampler,flutter/rotation/opacity,speed,birth/count/depth,images/preparation and other families remain unchanged. Swipe departure copies inherit painted bounds with existing footprint-aware offscreen retirement. No asset/audio/save/gameplay/new timer/owner change. Feature policy and existing mounted layer-bounds fixture updated.
+
+Native4unique selected tests ultimately PASS:actual Home layer bounds50percent+retirement/weak-release,flower colors/family,sparse population/timing,and independent flight sampler. Initial pre-existing sampler fixture incorrectly demanded6distinct gravity values even though canonical max320gravity floor can be shared. Test now checks uniqueness of gravity/velocityY/lifetime input tuple rather than forbidding the physical floor;production flight math unchanged. Initial failure retained native-test.log,corrected sampler-final.log PASS. Swift parse/scoped display-only diff review and qa:ios/no-sync qa:full530suites/4010tests plusKING330/runtime admissions PASS.
+
+Complete-current-tree normal Debug BUILD SUCCEEDED build-delivery-1.log;retained phonecom.taptapdesign.stacktosix.native: 39792 and iPadcom.taptapdesign.stacktosix.native: 39968 install-over/normal launch. Exact.native/noWeb/testplugins,2973current originalassets byte-identical;latest Settings/Arcade audio working-tree changes included,4retired Settings cuts remain absent from built bundle. Installed launcher/dylib match artifact(runtime14d0d15ea5732acf346d587578ce24145d9f90b8e1e21e325b2b78f9491073f3),source stable throughfinalcheck. Bothcanonical saves perdevice freshlybackedup/byte-identical throughfinalinstall/launch/check. ActualSpringBoardSilentMode phone1/iPad0;Cua native pipe startup failed twice including session reset,so toolbar/SilentModeOn could not be driven or visually verified. Existing gamepreferences/macOS audio unchanged,no workaround through production audio policy. Evidence /tmp/home-leaves-flowers-plus50-20261105/{native-test,sampler-final,full,ios,build-delivery-1}.log,swift-inputs.json and device/delivery.json. No physical/PWA/legacy install/reset/uninstall or originalasset edits. Rendered visual feel/physicalacceptance NEEDS PHYSICAL TEST;code/test and Simulator install proof remain separate.
+
+## Five new Settings takes replace and delete four old cuts · 2026-11-05
+
+User supplies new `assets/sound/SPEECH/settings voices.mp3` (SHA256 ba571304b14d2d386f2a6003a88ec986711b3c5dcef5e4676553e320f9090893) and explicitly asks deletion of the four older generated Settings takes. Added `scripts/prepare-settings-voices-v2.py` and five PCM48k mono16 files in `settings-voices-v2/`:One little tweak,All stacked up,Steady nailed it,Juuuust right,Lets set it up. Leading laughter belongs to following phrase and is preserved;quiet-valley cuts at3.2575/5.48/7.905/10.105seconds,3msedge fades,no gain/pitch/speed changes. Original new MP3 unchanged;manifest records hashes/times/peaks. Local ASR/format/hash/no-clipping/zero-endpoint checks PASS.
+
+Home Settings accepted hero/CTA event now selects only these five files through existing home-settings/nonrepeat/navigationSpeech owner,gain0.72,delay0 and existing Sounds/foreground/receipt/generation/replacement/disposal gates. Exact old generated005-little-tweak/006-stacked-up/007-nailed-it/008-just-right in settings-arcade-voices-v1 were explicitly deleted from source and Native resource copies;generator now skips them,old manifest/runtime owner references removed. Source master and all six Arcade cuts retained. Original archived wrench/helper assets preserved but remain excluded from selection. Runtime sources182scene entries/176distinct recordings. Existing same-turn Arcade island correction remains:tap island starts sandwich or tea/newspaper pool before modal opens,no required art tap/no duplicate automatic modal voice.
+
+NativeGameplayAudioTests95/0 PASS(native-tests.log),including five-way Settings selection,exact current registry/playable WAVs,absence of four deleted packaged files,missing-registry silence,receipt/mute/background/replacement/completion and mounted actual Arcade island opening. qa:fast,finalqa:ios,no-sync qa:full530suites/4010tests plusKING330 PASS. Complete-current-tree normal Debug BUILD SUCCEEDED build-delivery.log;retained iPhone13Simulator1018BE2D-491B-465F-8F75-3E5BEB38C22A install-over/normal launch com.taptapdesign.stacktosix.native PID48023,noWeb/testplugins,2973non-Finder assets byte-identical,allfive new Settings andsix Arcade cuts/manifests pluslauncher/dylibmatchbuild(runtime2f02da750afadd7f5de5d2f82f496d65174efba0a0d04f74855d390a07d5152f).3865productioninputhashes stable throughfinalcheck (Finder metadata excluded).
+
+Both canonical save snapshots backed up before tests;only lifecycle timestamp/set-order/previous rotation permitted after semantic verification,then exact pretest bytes restored while stopped. Both byte-identical through final install/launch;latest user Music OFF/Sounds ON/Haptics ON preserved. ActualSpringBoardSilentMode=false for audio review. Normal Home screenshot inspected. Evidence `/tmp/settings-voices-v2-20261105/` (build products reuse previous DerivedData),delivery.json and deleted-old-cuts.json. No physical/iPad/PWA/legacy install/reset/uninstall. NEEDS PHYSICAL TEST for audible laughter/timing/mix;Simulator test/build/package proof is separate from listening acceptance.
+
+## Arcade island speech correction: accepted tap starts the new voice · 2026-11-05
+
+User clarifies sandwich and tea/newspaper speech must start on the island tap while its modal opens,without requiring an extra modal-art tap. Earlier mapping put all six new lines only in modal hero pools;island pools stayed old. Corrected `arena-grill` to four new sandwich clips plus the three previously retained island lines;`arena-slow` to two new tea/newspaper clips plus its existing three island lines. Both curated island pools now reject legacy fallback. Existing `NativeArcadeHubView` already emits its admitted island contact before sheet construction;no second modal-open speech is added,so one human+existing delayed Nala package accompanies opening. Modal hero remains optional deliberate replay. Settings/modal pools,original clip bytes/gain0.72,nonrepeat,transport/lifecycle and UI motion/gameplay/saves unchanged. Generator+manifest activeSources and runtime owner policy updated;181scene entries/175distinct recordings.
+
+Mounted `testActualArcadeIslandTapPlaysNewSpeechWhileModalOpensWithoutAnotherArtTap` sends actual UIButton touchUpInside through Hub→onFeedback→NativeGameplayAudioOwner for both islands. Asserts immediate matching new source at delay0,constructed modal,no duplicate speech after500ms,no art-tap event and still-live Arcade tail. Dense pool/missing-registry/gating/tail regression coverage retained. Final NativeGameplayAudioTests95/0 PASS(native-tests-final2.log);qa:fast,no-sync qa:full530suites/4010tests plusKING330,and finalqa:ios PASS. Initial interrupted test run used previously compiled legacy fixture;later source test expectation corrected to current pool membership and all95rerun PASS. No production transport/lifecycle workaround.
+
+Normal current-tree Debug BUILD SUCCEEDED build-delivery.log;retained iPhone13Simulator install-over/normal launch com.taptapdesign.stacktosix.native PID44786,2970non-Finder originalassets byte-identical,noWeb/testplugins,all10installed clips/manifest pluslauncher/dylibmatchbuild(runtimee26099f99504518a5187589b8d5483c6c9eb8231617c9a11a9b5628f0d1ebdfc).3974productioninputhashes captured;both canonical pretest snapshots restored byte-exact after verifying lifecycle-only timestamp/set ordering and previous-file rotation to current. User's latest Music OFF remains intact. Final bothsavesbyte-identical;actualSpringBoardSilentMode=false for audio review. Normal Home screenshot inspected. Evidence `/tmp/arcade-island-speech-fix-20261105/` (build products reuse prior DerivedData). No physical/iPad/PWA/legacy install/reset/uninstall. NEEDS PHYSICAL TEST for audible timing/mix;source and mounted Simulator event proof do not establish physical listening acceptance.
+
+## Settings / One Lucky Drop / Slow Burn voice replacement · 2026-11-05
+
+User supplied `assets/sound/SPEECH/settings slwo burn and pure cide voices.mp3` (SHA256 0fa497575067d3ac37ce46061954f0b83a15f5a1e7dbba57dc5dd13e606efbd2). New immutable `settings-arcade-voices-v1/` contains ten complete PCM48k mono16 clips in supplied order, with laughter and natural pitch/level retained; only3ms quiet-edge fades. Generator `scripts/prepare-settings-arcade-voices.py` and local word timestamps/quiet valleys document boundaries. Manifest records exact source hash, clip hashes/times/peaks and active pools. Original MP3 and retired original assets preserved.
+
+NativeRecordedSceneSpeech: Home Settings now only four new tower lines (005–008), no legacy wrench/helper fallback. One Lucky Drop island/internal pureDice retains only0054 “You smell a challenge”,0056 “My helper seems hungry”,0057 “best shot”; no old lucky-drop fallback. Its modal/arena-modal-grill retains only0059 “Nala, leave a bite for me!” plus new four sandwich lines001–004. Slow Burn modal replaces0064–0067 with new009 tea and010 newspaper. Slow Burn island and Home Arcade speech unchanged. Existing selected-file navigationSpeech/arcadeTail,nonrepeat,0.72gain,Sounds/background/interruption/reset/replacement/disposal and Nala policies remain;no new engine/player type/clock/preload. Existing Native audio runtime owner has source references/policy.
+
+Audio hash/format/peak/endpoints checks PASS;10cuts,no clipping,original MP3 unchanged. qa:audio-runtime,qa:fast,final qa:ios and no-sync qa:full PASS(530suites/4010tests,KING330). Final NativeGameplayAudioTests94/0 PASS in native-tests-final2.log. Dense draws cover all current pools,absence of retired/legacy lines,Nala,missing-registry silence,and existing mute/background/replacement/completion lifecycle. Prior failures were stale first/last legacy-cue expectations;test now identifies human/dog by voice. Existing logo assertion corrected to exact0.273*current gain scale rather than inaccurate rounded constant;production logo unchanged. Five stale artwork COPIES present only in NativeAssets.bundle were archived outside resource roots under evidence/stale-bundle-copies,then package verified byte-exact;source assets untouched.
+
+Complete-current-tree normal Stack to Six Debug BUILD SUCCEEDED build-delivery.log. Retained iPhone13 Simulator1018BE2D-491B-465F-8F75-3E5BEB38C22A install-over/normal launch com.taptapdesign.stacktosix.native PID37712;no test plugins/Web.bundle,2970non-Finder original assets byte-identical,all10installed new WAV hashes and launcher/dylib match build(runtime1de774295b86b968046b6cb0737e82ecb64267767b3c8c031237c8a94d64aadb).3974production input hashes stable through delivery. Both canonical saves backed up before tests;hosted launch only changed savedAt/unordered-set serialization,semantic contents verified equal and exact original bytes restored while stopped. Both remain byte-identical through final install/launch. Normal Home screenshot inspected. Evidence `/tmp/settings-arcade-voices-20261105/`,delivery.json and final-preview.png.
+
+Audio review Silent Mode was OFF before tests(actual SBRingerMuted=false,toolbarOff). Final launch actual SBRingerMuted=true;CUA repeatedly fails “Sky Computer Use native pipe startup failed” including fresh session,so final unmute cannot be completed through UI. User told to set Simulator Mute OFF for listening. Game Sounds/Music preferences,macOS output and production session unchanged. No physical/iPad/PWA/legacy install/reset/uninstall. NEEDS PHYSICAL TEST for audible laughter/timing/mix;Simulator source/build/test delivery does not establish listening acceptance.
+
+## Journey manual Close immediately admits another Unit · 2026-11-05
+
+User asks clean conflict-free removal of1–2s cross-card lock during return. Manual Close now releases only active modal slot at accepted return start. Exact returning Unit keeps local guard;another unlocked Unit admits synchronous ordinary open immediately. Each existing Unit(max10) owns at most1UI-only CardReturn receipt with exact source/card identity,original finite flight,2paint barrier and0.79slanding. Old callbacks never read/clear successor modal or resume its covered idle. Root resource preparation/eviction and memory warning retain exact returning source until receipt retires. Source shake/motion/assets/timings/gameplay/save/audio/haptics unchanged. No new renderer/timer/decoder/cache/audio owner. Existing two-paint barrier class reused with bounded receipt ownership.
+
+Successor backdrop takes painted return opacity once,clears old dimmer,adopts before entry. Covered old flight permanently hides and finishes original finite duration;modal/view/callbacks release at actual flight completion,while lightweight pending landing waits behind successor. Landing+Unit clocks pause behind modal/background and resume exact pose. Background also pauses flight. Gameplay launch,route entry/exit,park/disposal remove receipt identity BEFORE animation teardown,clear callbacks,restore source and defeat late completions. Shared DEBUG/hybrid host releases accepted close-action busy immediately instead of retaining a stale animation callback;active NativeApp canonical request/save routing unchanged. Active modal/pending input/drag/lock/foreground/back-request guards retained. Feature policy/Journey contract updated.
+
+Native SDK10unique selected methods ultimately PASS across native-test.log,wave-test-final.log,native-regressions.log,lifetime-final.log,visibility-final.log,route-final.log. New mounted phone+iPad tests prove immediate next-Unit admission,duplicate same-Unit guard,once dimmer handoff,no old-carrier paint/popback,old modal weak-release while successor stays active,landing pause/background,route replacement,Play from successor,late callbacks,doublepark/cleanup and actual World/modal weak-deallocation. Existing actualApp history return,all3Worlds QuickPlay transition warmup,regular cloud-return motion,NEWribbon close and original wave clocks pass. Initial existing wavefixture sampled future loop during finite onset;unchanged pauseCardWaves intentionally removes future loop. Fixture now waits actual loop start;corrected real clock test PASS,earlier failedlog retained. Independent read-only agent review reports no high/medium source findings;NEEDS PHYSICAL TEST for rapid touch and visible continuity.
+
+qa:fast(final fast-terminal),no-sync qa:full(final full-final)530suites/4010tests plusKING330/runtime admissions,andqa:ios PASS. Complete-current-tree normal Debug BUILD SUCCEEDED build-delivery-1.log;earlier intermediate deliveries retained under intermediate/ and intermediate-visibility/. Final retained phonecom.taptapdesign.stacktosix.native: 17712 and iPadcom.taptapdesign.stacktosix.native: 17788 install-over/normal launch,exact.native/noWeb/testplugins,2958originalassets byte-identical. Installed launcher/dylib match build(runtimed52f46502efff4eeb63733eb8295d6bc7c8ead72fc074e451b9a864c062259ff),production input manifest stable throughfinalcheck. Both canonical saves perdevice freshlybackedup/byte-identical throughfinalinstall/launch/check. ActualSpringBoardSilentMode phone1/iPad0(existing iPad limitation),gamepreferences untouched. Evidence /tmp/journey-card-return-input-20261105/. No physical/PWA/legacy install/reset/uninstall or asset edits. Render/touch/thermal/physicalacceptance NEEDS PHYSICAL TEST;normal Simulator preview ready.
+
+## iPad-only Barrel smoke30percent larger · 2026-11-05
+
+User explicitly scopes change exclusively to iPad Barrel smoke. Only NativeGameplayViewController tablet+barell caller multiplies existing1.694*1.15 by1.30(1.9481→2.53253). Phone expression is byte-identical;TNT/Flower/Gas/Coconut/other variants,POOOF caption,wood/dice,all positions/timing/RNG/audio/receipts/input/gameplay/saves/assets unchanged. Existing performance/feature policies updated. Existing mounted tablet Barrel fixture now compares prioracceptedscale versus additional1.30and proves exactly12smoke-image X/Yscales change,allcentres/alpha/othertransforms remain equal. Hosted test1/0PASS;rendered820x1180PNG inspected. This is static/actualowner proof,not physical acceptance.
+
+qa:ios and final no-sync qa:full530suites/4010tests plusKING330/runtimeadmissions PASS. Normal complete-current-tree Debug BUILD SUCCEEDED build-delivery-1.log. Sameartifact install-over/normal launch retained phonecom.taptapdesign.stacktosix.native: 70605 and iPadcom.taptapdesign.stacktosix.native: 70988;phone refresh satisfies standing sharedpreview and changes no phonebranch. Exact.native/noWeb/testplugins,2958originalassets byte-identical,source stablethroughfinalcheck,installedlauncher/dylibmatchbuild(runtime9804a9944342376c5eb26a8e01869a7cd8d0314968ecdc25870050ff127296a4). Bothcanonical saves perdevice freshlybackedup/byte-identical throughinstall/finalcheck. ActualSpringBoardSilentMode phone1/iPad0;existing iPad0limitation persists. CUA ControlCenter attempt failed windowNotFoundAtPosition;no game preferences/macOS audio changed. PhoneHome/MuteOn observed;CUA window switched during attempted final iPad read,so no false iPadSilentOn/animationacceptance claim. Evidence /tmp/ipad-barrel-smoke-plus30-20261105/{native-test,full,ios,build-delivery-1}.log,{before,after}.png,swift-inputs.json and eachdevice/delivery.json. No physicalphone/iPaddevice/PWA/legacyinstall/reset/uninstall or originalasset edits. New rendered animation/size physicalacceptance NEEDS PHYSICAL TEST.
+
+## Phone Barrel smoke another20percent: rendered owner proof · 2026-11-05
+
+User suspects conflicting sizing and requests another20percent Barrel smoke on phone. Inspected caller→constructor→per-frame cloud transform and shared screen-shake ownership. Historic0.80constructor/0.70artwork/1.20shape factors are stable recipe terms;no second cloud transform writer found in inspected path. Kept them to preserve accepted motion/tablet appearance. Only phone+barell caller gains1.20:1.716→2.0592. Previous whole-Barrel5percentheightdrop retained. TNT/tablet/other variants/title-size/wood/dice/timing/audio/input/gameplay/saves/assets untouched. Existing policies updated.
+
+Added focused mounted real UIKit-owner regression testPhoneBarrelAdditionalTwentyPercentReachesAllTwelvePaintedSmokeFrames. Identical deterministic before/after owners are sampled0.50/0.80/1.20s;all12smoke views visible at0.80s;live X/Y transform ratios1.20,positions/alpha unchanged. Bounded test-only BARREL_SMOKE_SCALE diagnostics preserve actual per-frame evidence. Same0.80s before/after PNGs rendered and visually inspected:larger smoke,unchanged caption. This is real-owner/staticrender evidence,not a live physical/gameplay-frame acceptance. No production diagnostics/new runtime owner. Native hosted test1/0 PASS. qa:ios and final no-sync qa:full530suites/4010tests plusKING330/runtime admissions PASS.
+
+Normal current-tree Debug BUILD SUCCEEDED build-delivery-1.log;retained iPhone13Simulator install-over/normal launchcom.taptapdesign.stacktosix.native: 40318. Exact.native/noWeb/testplugins,2958originalassets byte-identical,source stable,installedruntimehashmatchesbuild(0a56158d5fe8c20be50edc796107ff25deb0bfe70f06821f97e345c294a9bcd6). Both canonical saves backedup beforetests/install and byte-identical through finalcheck. ActualSpringBoardSilentMode1,toolbarMuteOn;normalHome visibly verified. Evidence /tmp/barrel-phone-plus20-20261105/{native-test,full,ios,build-delivery-1}.log,{before,after}.png,swift-inputs.json and device/delivery.json. No physical/iPad/PWA/legacyinstall,reset/uninstall or asset edits. Explicitly told user previous changes are Simulator-only;physicalphone remains older authorizedRelease. Physical animation/size acceptance NEEDS PHYSICAL TEST.
+
+## Phone smoke another10percent and whole Barrel5percent lower · 2026-11-05
+
+User asks only another10percent size and Barrel animation5percent lower on phone. Phone TNT smokeSpriteBoost0.80*1.20*1.30→same*1.10(1.248→1.3728),all3existingScene callers. Phone Barrel smokePresentationScale1.20*1.30→same*1.10(1.56→1.716). After existing projectAnimation,only phone+barell wholeowner.center.y gains view.bounds.height*0.05(42.2pt at844height). Smoke,POOOF caption,wood,dice share same translation;TNT position unchanged. Source shake changes transform only and retains this centre. Tablet expressions/positions,other variants,local offsets,paths/timing/RNG/audio/input/gameplay/save/assets unchanged. Existing performance/feature policies and prior factor assertion updated. Swift parse/scopedratio/callsite/transform/whitespace review PASS;no new tests for reversible visual constants.
+
+Normal complete-current-tree Debug BUILD SUCCEEDED build-delivery-1.log;retained iPhone13Simulator install-over/normal launchcom.taptapdesign.stacktosix.native: 26350. Exact.native/noWeb/testplugins,2958originalassets byte-identical,source stable throughdelivery,installedruntimehashmatchesbuild(756fe521aab1710fb1b61cc0b2fd1084c7f15abd677f6691bcb3c4d224b528f9). Bothcanonical saves freshly backedup/byte-identical throughinstall/initiallaunch;actualSpringBoardSBRingerMuted1,gamepreferencesunchanged. qa:ios and final no-sync qa:full PASS(530suites/4010tests plusKING330/runtime admissions). Normal Home and toolbarMuteOn visibly verified;final source manifest and both canonical saves unchanged. No Swift suite rerun for this constant/placement-only followup. Evidence /tmp/phone-smoke-plus10-down5-20261105/. No physical/iPad/PWA/legacyinstall/reset/uninstall or asset edits. Newrenderedplacement/size acceptance NEEDS PHYSICAL TEST.
+
+## Phone Barrel/POOOF and TNT smoke another30percent larger · 2026-11-05
+
+User screenshot requests another30percent from current size,phone only. NativeTabletLayout.smokeSpriteBoost phone0.80*1.20→0.80*1.20*1.30(0.96→1.248),shared by all3NativeBoardScene TNT constructors. NativeGameplayViewController Barrel-only phone smokePresentationScale1.20→1.20*1.30(1.56). Both axes scale uniformly around the existing smoke anchor. Tablet expressions retain exact prior arithmetic;caption/wood/dice/debris,offsets,paths,timing/RNG/audio/receipt/lifecycle/gameplay/saves/assets unchanged. Existing feature/performance policies and phone factor expectation updated. Scoped callsite/ratio/diff review PASS;no new tests for reversible visual constants.
+
+Normal complete-current-tree Debug BUILD SUCCEEDED build-delivery-1.log;retained iPhone13Simulator install-over/normal launch com.taptapdesign.stacktosix.native: 22603. Exact.native/noWeb/testplugins,2958originalassets byte-identical,production inputs stable,installed launcher/dylib match built(dylib328191f81299f5b76b1d7143f8017ab2d102e6438446a45ff72dac1311572a35). Both canonical saves freshly backed up/byte-identical through install/initiallaunch. Actual SpringBoardSBRingerMuted1;game preferences unchanged. qa:ios and final no-sync qa:full PASS(530suites/4010tests plusKING330 and runtime admissions). Existing phone-factor fixture updated but no Swift suite rerun for this reversible constant-only followup. Final production-source manifest and both canonical saves still match delivery;normal Home and toolbarMuteOn visibly verified. Evidence /tmp/phone-smoke-plus30-20261105/. No physical/iPad/PWA/legacy install/reset/uninstall or asset edits. Screenshot-based new-size/animation acceptance NEEDS PHYSICAL TEST.
+
+## Native task batch: stars, Arcade identity, balloon/cloud/bee motion and phone POOOF · 2026-11-05
+
+Final dependency evidence: normal Debug compiled shipping audit rejects its DEBUG-only WebKit/JavaScriptCore test references (compiled-audit.log); this artifact is the development preview, not shipping-dependency proof. Built current normal unsigned iOS Release separately in existing native-dual-release-derived: BUILD SUCCEEDED and compiled Native/original-assets/dependency audit PASS(release-build.log/release-compiled-audit.log). Production inputs still match delivered Debug source manifest. Release was not installed; normal Simulator preview remains PID14441/Home. No outstanding selected deterministic failure.
+
+User requested parallel agents and complete TODO; tracked in NATIVE_TODO_2026_11_05.md. Settings WAV replacement explicitly deferred. User confirmed POOOF means Barrel smoke. Three agents implemented independent scopes, root integrated, and independent read-only review found no high/medium defect. Existing unrelated dirty work preserved.
+
+Enhanced Efficiency already feeds NativeResultOwner final score, result stars, reward/progression and persisted best award. Approved Nov04 KING policy explicitly retains v1 star thresholds; no difficulty recalibration or old-score rewrite. Added state1/2/3boundary/persistence and mounted filled-star tests. Offline Forest-ranking probe now uses canonical cleanEfficiencyBonus, current speed-combo/window policy, and ignores unlimited sentinel99 in overshoot diagnostics. Bounded12000synthetic runs yielded2968complete/9032fail,zero validation errors/trace mismatches; not calibration or maximum-score proof. Arcade already owns separate Endurance(legacy arcadeStats),SlowBurn/PureDice(arcadeVariantStats) scores/history; new HighScore/Combo subtitles identify selected variant. Reload/reset/history isolation fixtures added; no duplicate stats model or migration.
+
+NativeHomeBreeze disables only Arcade/index1 slide-window clipping, including live/draining balloons; outer physical viewport retained. WorldsHub cloud idle X/Y travel doubles, including tablet left fill; Journey cloud-only idle amplitudes14/20vs7/10,main/Unit artwork retains7. Existing route/foreground/ReducedMotion/modal/resource/cleanup owners unchanged. Forest planner captures one50/50pervisit choice: existing roaming or all9bees start behind wooden gate on existing entry spline,reveal beyond far edge,then resume original independent cycles. Canonical original-motion oracle explicitly opts into old startup. No new clock/resource/asset/gameplay owner.
+
+Phone-only TNT smokeSpriteBoost0.80->0.96 across all3Scene callers; Barrel/POOOF smokePresentationScale1->1.20 once. Tablet scale/offsets,labels,dice/debris,timing/RNG/audio/receipts retained. Feature/performance policies and Journey motion contract updated.
+
+Validation PASS: qa:fast,final no-sync qa:full530suites/4010tests,GameplayKING24/330,qa:ios,and runtime admissions. State tests10scoring/persistence+5Forest PASS. Mounted SDK29unique selected tests ultimately PASS,covering real result stars,Arcade modal,balloon mask/retirement and shared smoke geometry/lifecycle. Initial failures retained: source-string checks expected old spacing/header expression; fixtures updated to current CTA guard/RowLayout. Swift test compilation required explicit CGPoint.zero and AnyObject image identity rather than invalid conditional CF casts. Two existing runtime fixtures were stale: modal logicalUIFont must account for accepted1.4tablet projection to remain32physical; TNT size was sampled at collapsedscale0,now sampled visible0.8s and normalized by live scale. Corrected2/2rerun PASS,no production workaround.
+
+Normal complete-current-tree Debug BUILD SUCCEEDED build-delivery-1.log;retained1018BE2D-491B-465F-8F75-3E5BEB38C22A install-over/noargumentlaunchPID14441,exactcom.taptapdesign.stacktosix.native,noWeb/testplugins.2958originalassets byte-identical;productionSwiftstable through finalcheck;installedlauncher/dylibmatchbuild(runtime7118a0a5bedcc329089d28b09ca7914b38dec5312a200c5d7dc13a824c7b4fbd). Both canonical saves backedup beforetests/preinstall and byte-identical through tests/install/finalHome review. Actual SpringBoardSBRingerMuted1 and toolbarMuteOn;gamepreferences untouched. CUA normal Home/Arcade/Settings slides viewed and returnedHome;this is not animated boundary/physicalacceptance. Evidence /tmp/native-batch-20261105/{fast,full,full-final,ios,native-tests-retry,native-fixtures-final,build-delivery-1}.log,{swift-inputs,final-check}.json and1018.../delivery.json. No physical/iPad/PWA/legacyinstall,reset/uninstall/commit. Visual motion/clipping/door-emergence/physicaltouch/audio/thermal acceptance NEEDS PHYSICAL TEST.
+
+## Reward collect text immediate staggered bounce exit · 2026-11-05
+
+User screenshot Legendary!/Unlocked Bibi-Ribi:copy should exit immediately on accepted card tap,one after another,on phone+iPad. NativeJourneyRewardController.collect now starts heading Home.hero inflate/backIn exit at shared motionStart(delay0),subtitle80ms later;previously both waited card contact bounce+firstflip+80/160ms. Card contact/turn/collapse,root final fade/handoff and reward action/input/save/audio ownership retained. Captures current painted transforms and shares existing epoch/foreground/pause/disposal markers;ReducedMotion uses immediate linear reduced exit with no stagger. No new timer/resource/asset/owner. Feature policy and existing fixture updated for text-first/card-last ordering and original monotonic card collapse;fixture NOT EXECUTED under standing no-QA. Swift parse/scoped lifecycle/diff review and static qa:feature-runtime PASS. No gameplay change/suites/newtests. Visual timing/physical acceptance NEEDS PHYSICAL TEST.
+
+Complete-current-tree normal Debug BUILD SUCCEEDED build-delivery-1.log. Both retained Simulators install-over/normal launch86829/86941,exact.native/noWeb/testplugins,2958originalassets byte-exact,both canonical saves perdevice backed up/byte-identical through install/initiallaunch. Production inputs stable through delivery;installed launcher/dylib match build(dylibb84baf797bc1ec92dd5deafaa2464d902124138c7830abe06cc205b07468a817). ActualSilentMode phone1/iPad0,game settings untouched. NormalHome previews retained. Evidence /tmp/reward-text-immediate-exit-20261105/. Physicalphone retains prior authorized Release install;no new physical/iPad-device/PWA/legacy/reset action.
+
+## iPad BIBI–RIBI10percent smaller with fixed bottom clipping · 2026-11-05
+
+User requests uniform10percent reduction while retaining actual bottom edge/offscreen travel from previousfix. NativeRoboFinalePresentation adds static bottomAnchoredScale(default1);existing layout applies layer.sublayerTransform scale0.90with local translationH*(1-scale)/2only on tablet caller. All painted head/neons/caption scale around bottomcentre;full-screen parent bounds/projection/clipping remain exact. Head entry/exit below physical screen preserved. Phoneidentity. No newview/clock/resource/asset,framepath/timing/RNG/audio/haptic/receipt/input/gameplay/save change. Performance ownership policy updated.
+
+Swift parse/scoped caller+layout/lifecycle review/git diff check PASS. Actual compiled UIKit comparison PASS4viewports×6times:exact0.90paintedwidth and bottom-anchored position vs baseline,full-height clipping,offscreenhead0and2.505s;phoneidentity. iPad0.12s static render inspected,no insetbottomcut. Standing no-QA:no suites/newtests;animated/physical acceptance NEEDS PHYSICAL TEST.
+
+Normal complete-current-tree Debug BUILD SUCCEEDED build-delivery-1.log. Both retained Simulators install-over/normal launchphone85619/iPad85728,exact.native/noWeb/testplugins,2958originalassets byte-identical,both canonical saves perdevice freshly backed up/byte-identical through install/initiallaunch. Installed executable+dylib match build,productionSwift manifest unchanged through finalcheck. ActualSilentMode phone1/iPad0existing limitation,gamepreferences untouched. Evidence /tmp/robo-ipad-bottom-minus10-20261105/{presentation-before.swift,controller-before.swift,build-run.log,build-delivery-1.log,swift-inputs.json,probe.swift,probe-runtime.log,geometry.json,render-*.png,<simulatorUUID>/delivery.json}. No physical/PWA/legacy/reset/commit.
+
+## Nala & Newspaper phone intro4percent smaller · 2026-11-05
+
+User explicitly phone-version-only intro correction:NativeStudioIntroView pas-novine selectedCharacterScale phone1→0.96(exact4percent down),iPad1.21retained. Character base scale/position,all other variants,logo/timing/audio/resource/lifecycle/original assets/gameplay/saves unchanged. Swift parse/scoped one-value branch/ratio/caller review PASS;standing no-QA:no suites/newtests for reversible visual constant. Own normal current-tree arm64 Debug BUILD SUCCEEDED(build.log).
+
+To avoid competing installs,adopted concurrent full-current-tree normal Debug shared build/delivery /tmp/robo-ipad-full-edge-20261105/build-delivery-2.log FINAL_FRESH_DELIVERY. Shared full production Swift manifest explicitly matches current phone0.96source and all other saved changes. Both retained Simulators install-over/normal launch verified;exact.native/noWeb/testplugins,2958originalassets byte-identical,both canonical saves perdevice backed up/byte-identical through install/initiallaunch. Installed executable+dylib independently rehashed against both receipts;source current at final check. ActualSilentMode phone1/iPad0existing limitation;game settings untouched. No physical/PWA/legacy/reset actions. Visual composition NEEDS PHYSICAL TEST;not screenshot-accepted. Evidence /tmp/nala-newspaper-phone-minus4-20261105/{before.swift,scoped.diff,build.log,shared-delivery-swift-inputs.json,<simulatorUUID>/shared-delivery.json}.
+
+## iPad BIBI–RIBI full-screen entry/exit restored · 2026-11-05
+
+User reports robo head clipped above physical bottom after merge6 and requests phone size ratios. NativeGameplayViewController Robo branch removes tablet-only0.80whole-carrier shrink and0.90extra-head shrink;retains existing NativeTabletLayout full-width phone-canvas projection. Previous0.80carrier inset clipping boundary10percentviewportheight(118pt on820x1180);now owner covers actual screen,head/neons enter/exit below physical bottom. Head baseline57.6percentwidth matches phone. Phone path unchanged;same originalframes/neons/text,palette,RNG,path,finiteclock/haptics/audio/receipt/input/save/resources/lifecycle. Native performance policy updated.
+
+Swift parse/scoped5line diff review/git diff check PASS. Actual compiled UIKit owner geometry executable PASS4viewports(390x844,768x1024,820x1180,1024x1366):full-height clip,head fully below screen at0and2.505s,same57.6percentwidth rest ratio. Static phone+iPad0.12s render inspected:head emerges across actual bottom,no inset cut. Probe uses finite manual sampling,no gameplay/profile mutations. Standing no-QA:no suites/newtests;animated/physical acceptance NEEDS PHYSICAL TEST.
+
+Complete-current-tree normal Debug BUILD SUCCEEDED build-delivery-2.log(first delivery freshness guard caught concurrent intro edit,rebuild included it). Both retained Simulators install-over/normal launchphone84054/iPad84160,exact.native/noWeb/testplugins,2958originalassets byte-identical,installed executable/dylib match build,both canonical saves perdevice backed up/byte-identical through install/initiallaunch. Production source manifest stable through finalcheck. ActualSilentMode phone1/iPad0(existing limitation),game settings untouched. Evidence /tmp/robo-ipad-full-edge-20261105/{before.swift,build-run.log,build-delivery-2.log,swift-inputs.json,probe.swift,probe-runtime.log,geometry.json,render-*.png,<simulatorUUID>/delivery.json}. No physical/PWA/legacy/reset/commit.
+
+## Laser board float reduced70percent · 2026-11-05
+
+User reports excessive downward excursion beyond placeholder. NativeDiceNode laser-gun+NativeBoardScene branch only reduces both translation amplitudes7x14→2.1x4.2logical points,exact0.30remaining on phone+iPad. Existing harmonic bounce,2.4s phase,0.3s admission,left-only0..27degree rotation and short periodic spring remain. Pointer reset/drag suppression,registry pause/retirement,outer pose/hit geometry,collection Laser,finale/audio/gameplay/RNG/saves/assets unchanged. Native special-dice performance ownership boardIdlePolicy updated.
+
+Swift parse/scoped one-line amplitude/caller/scene-guard/lifecycle review PASS;standing no-QA:no suites/newtests for reversible visual constants. Normal complete-current-tree arm64 Debug BUILD SUCCEEDED(build.log). Frozen artifact install-over/normal launch retained iPhone82162/iPad82259,exact.native/noWeb/testplugins,2958originalassets byte-identical,installed executable+dylib match built(runtimecd97946e994a910c4e5989a24ee62066b69aa76a35c574f14c751d8813ce556c),source stable through receipts and final check. Both canonical saves perdevice freshly backed up and byte-identical through install/initiallaunch. ActualSilentMode phone1/iPad0(existing limitation),game preferences untouched. No physical/PWA/legacy/reset actions. Rendered placeholder fit NEEDS PHYSICAL TEST;not visually accepted. Evidence /tmp/laser-board-float-minus70-20261105/{before.swift,scoped.diff,build.log,swift-inputs.json,<simulatorUUID>/delivery.json}.
+
+## Current Native installed on wired iPhone13blue · 2026-11-05
+
+User explicitly requests install now. Verified paired/unlocked wired iPhone13blue0F62B71E-0B04-53C3-906E-EC28F5D2390B. Complete-current-tree signed normal Release BUILD SUCCEEDED build-2.log(first successful build refreshed after concurrent source changes). Source target audit and compiled Native/assets/dependency audit PASS;codesign --verify --deep --strict PASS. Exact com.taptapdesign.stacktosix.native,noWeb/testplugins. Production source/project inputs stable through build/install/launch. Includes all current saved intro layout/audio/order/smoke and other working-tree changes.
+
+Install-over explicit App installed receipt at5482627B-3115-4E8D-9110-C7455BCD157F;normal launch with NO arguments succeededPID4384,confirmed in device process listing. Both canonical saves freshly backed up immediately before install and byte-identical after install,before launch(state47ad48410fc5edfd6107b042c05cf96f60d004688d5e5b11e57c736fd2b1c063;previous721ab6c053c0fe8fb02f750ff2eaf54741c18e4cf08b2199d4d678cdd9037623). No restore/reset/uninstall/import. Release executableSHA8aac1577eab5803bfd4fae0725d9133c295080f522505629f818ce5817f914ae. Evidence /tmp/native-phone-current-20261105/{delivery.json,install.json,launch.json,processes.json,inputs.json,built-audit.log,source-audit.log,save-preinstall,save-installed}. No physicalaudio/SilentMode/settings change,no iPad/PWA/legacy action,no broad suites. Physical visual/audio/gameplay acceptance NEEDS PHYSICAL TEST;installation/launch PASS. Dedicated Simulators retain latest preview from earlier task;no new implementation in this install task.
+
+## iPad intro four character anchor adjustments · 2026-11-05
+
+User refinements in NativeStudioIntroView,tablet branch only:Sleeping Jimbo/lik-kauc up3percent canonicalheight(0.05→0.02);Dice Player/lik-board up3percent(0.10→0.07);Guitar/lik-gitara down2percent(0.03→0.05);Groceries/lik-speceraj down2percent(0.03→0.05). Phone fractions unchanged(Groceries0.02,others0). Selected/base sizes,authored y,projection,logo,other characters,timing/audio/resource/lifecycle/assets/save/gameplay owners unchanged. Sleeping separated from unchanged Gamer/Gardener group.
+
+Swift syntax and exact scoped switch/delta/phone-branch review PASS. Standing no-QA:no suites/new tests. Complete-current-tree normal arm64 Debug BUILD SUCCEEDED(build-final2.log) including all four incoming requests;frozen artifact installed over both retained Simulators and normally launched phone78500/iPad78608. Exact.native/noWeb/testplugins,2958originalassets byte-exact;installed launcher/dylib match build(runtime7f16869be14c266aef8d8ee1f7b461483422b574458755121466e3f1f1982316). Production Swift stable through both receipts and final source check. Both canonical saves perdevice freshly backed up and byte-identical through install/initiallaunch. Actual SilentMode phone1/iPad0(existing limitation),game settings untouched. No physical/PWA/legacy/reset actions. Visual composition NEEDS PHYSICAL TEST;not screenshot-accepted. Evidence /tmp/sleeping-jimbo-ipad-up3-20261105/{before.swift,scoped.diff,build-final2.log,swift-inputs.json,<simulatorUUID>/delivery.json}.
+
+## Intro iPad Sleeping Jimbo,Newspaper and Gardener · 2026-11-05
+
+User tablet-only refinements:Sleeping Jimbo(lik-kauc) selectedscale1→1.15(+15percent),offset+0.05canonicalheight;Nala & Newspaper(pas-novine) selected1.10→1.21(another10percent),offset+0.04;Gardener(lik-cvijet) selected1→1.10(+10percent),offset+0.05. Phone branches remain1/zero,base character scales and authored y retained. Existing tablet projection and every other variant/layout/timing/audio/resource/lifecycle/save/gameplay/asset owner unchanged. Swift parse/scoped branch/ratio review PASS;standing no-QA:no suites/newtests. Final complete-current-tree Debug BUILD SUCCEEDED build-delivery-3.log after earlier freshness guards caught incoming user edits. Both retained Simulators install-over/normal launch76016/76104,exact.native/noWeb/testplugins,2958originalassets byte-exact,both canonical saves perdevice backed up/byte-identical through install/initiallaunch. Production inputs stable through delivery;installed launcher/dylib match build(dylib5b23d9b76c18a7b68bb79dedd018e7ae44d13e266fb302839013129a15ca7187). ActualSilentMode phone1/iPad0,game settings untouched. NormalHome previews retained. Evidence /tmp/intro-sleeping-jimbo-ipad-20261105/. No physical/PWA/legacy/reset action. Visual fit awaits user review;NEEDS PHYSICAL TEST.
+
+## Intro per-device character composition refinements · 2026-11-05
+
+Latest cumulative user edits in NativeStudioIntroView only:
+- Jimbo & Nala: iPad2percent smaller(selected1.20→1.176),another2percent up,total canonicalheight offset-0.06;phone10percent larger(selected1.10),offset-0.04. Base1.2768 retained.
+- Groceries: iPad another1percent down,total+0.03;phone remains+0.02. Base1.37214 retained.
+- Dice player: iPad selected1.10(+10percent),offset+0.10;phone unchanged.
+- Rocking chair:iPad offset+0.02,previous size retained;phone unchanged.
+- Guitar:phone selected1.05(+5percent);iPad1.15(+15percent) and offset+0.03.
+- Gamer:iPad selected1.10(+10percent),offset+0.05;phone unchanged.
+- Photographer:phone selected1.05(+5percent),offset+0.04;iPad1.10(+10percent),offset+0.05.
+
+All fractions are canonical composition height before existing tablet projection,added to prior authored character.y. Device-selected scale/offset switches replace equivalent growing ternaries;all prior variants and global tablet projection retained. Same anchors/pivots/logo/timing/audio/resource/lifecycle/assets/save/gameplay owners. Swift parse and scoped branch/ratio/source review PASS;standing no-QA:no suites/newtests. Visual fit/physical acceptance NEEDS PHYSICAL TEST. Final complete-current-tree Debug BUILD SUCCEEDED(build-delivery-1.log);both retained Simulators install-over/normal launch74580/74694,exact.native/noWeb/testplugins,2958originalassets byte-exact,both canonical saves perdevice backed up/byte-identical through install/initiallaunch. Production inputs stable through delivery;installed launcher/dylib match build(dylib1d51c2ddd958887735ecf3f980a96f572e62f0be207bd59d6135289ae37c4389). ActualSilentMode phone1/iPad0,game preferences untouched. NormalHome previews retained. Evidence /tmp/intro-photographer-device-layout-20261105/. No physical/PWA/legacy/reset action.
+
+## Intro Jimbo & Nala iPad lift and Groceries additional8percent · 2026-11-05
+
+User corrects Jimbo & Nala only on iPad:subtract4percent canonical composition height from character anchor(tablet && lik-pas-SVG),retaining current size and phone anchor. Incoming user request also enlarges Groceries another8percent on both devices:1.2705→1.37214,previous2percent lower anchor retained. Scoped ratios/tablet predicate/layout review and Swift parse PASS. No timing/audio/assets/resource/lifecycle/save/gameplay changes. Standing no-QA:no suites/newtests. Visual composition still user-reviewable/NEEDS PHYSICAL TEST.
+
+Full-current-tree Debug BUILD SUCCEEDED build-delivery-2.log after first build caught incoming Groceries source edit. Both retained Simulators install-over/normal launch71335/71421,exact.native/noWeb/testplugins,2958originalassets byte-exact,both canonical saves perdevice backed up/byte-identical through install/initiallaunch. Production inputs stable through delivery;installed launcher/dylib match built(dylib6e82734e1d4f67164abfc7270ef019ce7bd6c2a92a023c222a5c45abcb6bff11). Actual SilentMode phone1/iPad0,game preferences untouched. Evidence /tmp/intro-jimbo-nala-ipad-lift-20261105/. No physical/PWA/legacy/reset action.
+
+## Intro selected character sizes · 2026-11-05
+
+User requests cumulative current-relative changes on phone+iPad:Rocking chair(lik-laptop) +20percent,scale1.452→1.7424;Jimbo & Nala(lik-pas-SVG) +14percent,1.12→1.2768;Groceries(lik-speceraj) +5percent,1.21→1.2705,and down2percent canonical canvas height;Nala & Newspaper(pas-novine) +30percent,1.1→1.43. Existing tablet projection/selected boosts retained,so ratios match both devices. Other character anchors,size,timing,audio/resources/lifecycle and assets unchanged. Swift parse and scoped ratio/layout/source review PASS;standing no-QA:no suites/new tests. Visual size/clipping awaits user review,physical acceptance NEEDS PHYSICAL TEST.
+
+Full current-tree Debug BUILD SUCCEEDED build-delivery-3.log after first2 freshness guards caught incoming user edits and rebuilt. Both retained Simulators install-over/normal launch69207/69326,exact.native/noWeb/testplugins,2958originalassets byte-exact,both canonical saves perdevice backed up/byte-identical through install/initiallaunch. Production inputs stable through delivery;installed executable/dylib match built(dylibb7d24c92587e3681a5b9c8ec2e4cc77443e7b78f37e470549358caac7934b808). Actual SilentMode phone1/iPad0,game preferences untouched. Evidence /tmp/intro-character-sizes-20261105/. No physical/PWA/legacy/reset action.
+
+## Journey Stage individual clouds and soft Home-style return · 2026-11-05
+
+User rejects clouds moving/returning as one group and requests Home-slider-like individual response on Journey screens with Units. Existing JimiWorldCloudDrag gains opt-in individualClouds mode ONLY for JimiNativeWorldView(Forest/Beach/Area55),phone+iPad,strength2/current80pt ceiling retained. Reuses actual JimiV9Motion.HomeCloudCurve/homeCloudTravelDuration/homeCloudSettlingProfile:stable per-visible-cloud index drives different gain/local limit48–80pt,144–302ms drag lag and1.055–1.505s release. Each weak Pose has its own painted offset/velocity and finite curve receipt;no arbitrary first-cloud alignment in this mode. Retarget/regrab preserves both position/velocity,late resource joins current drag,neutral no-op schedules no track. Position.y separate from existing idle/route transform. Existing root scroll/input/modal/route/background/disposal boundaries stop/freeze/restore/remove tracks,prune unloaded views;profile index bounded modulo24,no new clock/timer/callback/image/audio/haptic/save owner. Worlds Hub/Arcade shared mode,existing80pt JourneyHub and per-entry60..80Arcade remain unchanged. Feature policy/animation contract and focused mounted-window fixture updated.
+
+Standing no-QA:no suites/gates executed. Swift parse and scoped source/entry/late-resource/modal/background/cleanup/compatibility review PASS. Ad-hoc Simulator UIKit executable compiled from exact helper AND Home curve source PASS:6distinct targets44.42/63.30/54.36/76.32/61.08/51.69pt for200pt drag,6distinct lags,returns1.2125/1.055/1.37/1.505/1.145/1.3025s;regrab initial-position jump<0.001pt,late resource/reversal/80pt envelope,independent idle retained,freeze/update rejection,doubleclear and autorelease weak release;default Hub280ms unchanged. Harness initially exposed detached UIKit animations disappearing across async yield and autorelease lifetime;corrected probe to synchronous CA-owner sampling/autorelease pool,and test fixture mounts real window. No game-source workaround for harness. This is owner/configuration proof,NOT rendered gesture acceptance.
+
+Normal complete-current-tree arm64 Debug build-final.log BUILD SUCCEEDED. Frozen app install-over/normal launch iPhone67790/iPad67937;exact.native/noWeb/testplugins,2958originalassets byte-exact,installed executable+dylib match built(runtime4c07b92829ea6e6ac7e7c0abf13431e7109e3971c654f7c10c5778ccc014d116),source stable through both receipts. Both canonical saves perSimulator backed up and byte-identical through install/initial launch. PhoneSilentMode0initial→CUAMuteON;iPad0existing limitation,game preferences untouched. Attempted actual drag review encountered concurrent user/Simulator focus change while leaving Developer/Settings;no actual drag/visual acceptance claimed. Physical/rendered feel NEEDS PHYSICAL TEST. No physical/PWA/legacy/reset actions. Evidence /tmp/journey-individual-clouds-20261105/{scoped.diff,build-final.log,ActualCloudDrag.swift,ActualHomeCurve.swift,probe.swift,probe.log,swift-inputs.json,<simulatorUUID>/delivery.json}. Final audit after receipts:independent intro-character-sizes task edited only NativeStudioIntroView and replaced phone preview while iPad still matched own snapshot. Its current source manifest /tmp/intro-character-sizes-20261105/swift-inputs.json explicitly includes the exact current individual-cloud source;shared follow-on build/delivery in progress. Do not treat own receipt as validation of later intro edits.
+
+## DEV selected-character intro preview · 2026-11-05
+
+Settings Developer now has Intro. Existing single-select picker lists all10 shipping characters; OK presents exact NativeStudioIntroView with selected character, paper and current authored logo/character audio. Existing preview host closes on natural finish or Close DEV; release disposes intro/preparation/markers and one disposable existing NativeGameplayAudioOwner. Settings epoch/modal guards retained; no profile/progression/next-launch selection writes. Ordinary random startup intro unchanged. Feature/audio ownership records updated. Existing DEV test expectations use explicit LAST MERGE index and dynamic allCases count.
+
+Swift parse,git diff check,feature-runtime and audio-runtime PASS. No suites run under standing no-QA. Complete-current-tree normal Debug BUILD SUCCEEDED; both retained Simulators installed-over/launched normally. Exact native bundle,2958 original assets byte-identical,both canonical saves per device backed up/byte-identical through install and initiallaunch;production hashes stable. Evidence /tmp/native-dev-intro-picker-20261105/{build-run.log,build-delivery-1.log,swift-inputs.json,per-device delivery.json}. Phone launch67084;actual SilentMode phone1/iPad0(existing tablet limitation),game preferences untouched.
+
+Interactive iPhone review confirmed DEV Intro button,all10 choices and selection. First preview exposed an overly strict window guard before start;removed guard and rebuilt/redelivered. Final end-to-end playback/close review remains unverified because repeated external Simulator changes interrupted CUA input. NEEDS PHYSICAL TEST for perceived selected animation/audio;no physical install/PWA/legacy/reset/commit.
+
+## Intro visible-logo-first corrected and filmed on both Simulators · 2026-11-05
+
+User rejects prior100ms character delay:source plaque still travelled above viewport,so character painted first. Keep logo clock0.0s and full drop;delay character entry to0.45s so visible plaque clears viewport first. Total4.33s,exit order,300ms smoke lead,gain and assets retained. Same finite tracks/lifecycle owners. Full current-tree Debug BUILD SUCCEEDED;production inputs stable through final review. Both retained Simulators install-over/normal launch62800/62893,installed launcher/dylib match build(dylib0aa8ef5b2ee4cd50595fd8077dc137eb9bdd4209cc18a020859e4bed5d6ea295),2958originalassets byte-exact,both canonical saves perdevice backed up/byte-identical through install/initiallaunch.
+
+Recorded normal relaunchesphone62950/iPad63030 and inspected125ms contact sheets. Visible ordering PASS:phone recording2.12s plaque edge,2.25s plaque without character,2.38s character begins; iPad2.12s plaque without character,2.25s faint character. Both complete normalHome handoff. Dedicatedphone CUA MuteON observed,but concurrent review subsequently changed it OFF(actualSpringBoard0);second mute attempt interrupted by externalSimulator changes. Game settings untouched. Evidence /tmp/intro-visible-logo-first-20261105/{phone.mov,phone.png,ipad.mov,ipad.png,build-delivery-1.log,swift-inputs.json,per-device receipts}. No suites/newtests under standing no-QA;no physical/PWA/legacy/reset. Physical timing acceptance separate.
+
+## Intro logo enters before character · 2026-11-05
+
+User reverses entry order:logo starts0.0s,character0.10s. Existing constants now characterEntryStart0.10/logoStartDelay0;derived timing retains total4.33s and0.10s hold. PRESENTS/logo contact markers follow existing derived logo clock;character-first exit and latest300ms visual exit-puff lead remain. No audio gain/source,asset,layout,owner,lifecycle,save/gameplay change. Feature policy updated. Swift parse,JSON validation and scoped source review PASS;normal complete-current-tree Debug BUILD SUCCEEDED. Standing no-QA:no suites/new tests. Retained iPhone Simulator install-over/normal launch59969,exact.native/noWeb/testplugins,2958originalassets byte-exact,both canonical saves backed up/byte-identical through install and initiallaunch. Production inputs stable through delivery,installed launcher/dylib match build(dylib984a2b07e67b110239019cc8e129da25e1c917fdc70d0df76e75e0503631aefa). Normal Home final preview;CUA MuteON,actual SpringBoard1,game preferences untouched. Evidence /tmp/intro-logo-first-20261105/. Visual timing awaits user review;no physical/iPad/PWA/legacy/reset action.
+
+## iPad CLEARED composition restored to uniform phone proportions · 2026-11-05
+
+User authorizes reducing CLEARED/paw/human thumb/shadow as one group. Tablet-only
+boardClearedOnly layout uses exact390x844phone local metrics,then one parent
+scale min(viewportWidth/390,viewportHeight/844). Removed Shroomy/randomglyph-width
+matching;authored random letter styling retained. Both assets now share stable
+226.2pt local thumb size;820x1180projects316.251pt(26.80095percentheight likephone),
+previous464–551pt(~32–43percent smaller). Same centre and existing shake/entry/
+float/exit/audio/finality/input/save/resource owners. Phone and ordinary Arcade
+Round metrics unchanged;original art bytes retained,no new clock/cache.
+
+Swift parse/scoped source review PASS. Existing fixture expanded for same-seed
+phone/tablet local text/thumb/shadow geometry/shared parent/three widths/bothassets,
+NOT EXECUTED under standing no-QA. Standalone Simulator executable linked ACTUAL
+new compiled UIKit owner PASS for12layouts/3seeds/phone+3tablets;scale and thumb
+height share independent of text seed. Corrected final static rest renders forpaw
+andhand visually inspected;diagnostic hides unused nextCard and only paintsCLEARED.
+No gameplay/result receipts/active clock/profile writes from this diagnostic.
+
+Own normal complete-tree Debug BUILD SUCCEEDED(build-delivery-1.log),both retained
+Simulators initially refreshed. Concurrent later intro-only source edit was then
+included via complete-current-tree normal Debug shared build /tmp/intro-logo-first-
+20261105/build-delivery-1.log. Adopted its final phone receipt and installed SAME
+shared artifact over retained iPad. Final full production manifest matchescurrent,
+both installed executable+dylib independently reverified. Exact.native/noWeb/test
+plugins,2958originalassets byte-identical,both canonical saves perSimulator freshly
+backed up/byte-identical through each install/initiallaunch. Actual SilentMode
+phone0/iPad0infinal delivery receipts;CUAthen toggledphoneMuteOFF→ON for visual
+review,actual SpringBoard1verified;finalphoneSilentON/iPad0existinglimitation.
+Game preferences untouched.
+Final receipt:final-current-tree-delivery.json. No physical/PWA/legacy install/reset. Physical
+visual/animated acceptance NEEDS PHYSICAL TEST;static layout proof is separate.
+Evidence /tmp/cleared-ipad-phone-proportions-20261105/.
+
+## Journey parallax returned to maximum80px · 2026-11-05
+
+Latest user requests return from160 to max80px. Only Journey World/Unit and
+nonArcade Worlds Hub instance strength4→2,restoring80pt cap/0.60response onphone+
+iPad. Arcade strength1/per-entry60..80 remains unchanged. Existing rear-depth,
+280ms return,regrab,weak resource/input/lifecycle owners,art/layout/audio/gameplay/
+saves unchanged. Swift parse/scoped two-value review PASS;standing no-QA:no suites/
+new tests. Normal complete-current-tree Debug BUILD SUCCEEDED(build-delivery-1.log),
+source stable through retained iPhone+iPad install-over/normal launch. Exact.native/
+noWeb/testplugins,2958 original assets byte-identical,installed executable+dylib match
+built. Both canonical saves perSimulator freshly backed up and byte-identical
+through install/initial launch. Actual Silent Mode phone1/iPad0(existing limitation),
+game preferences untouched. No physical/PWA/legacy install/reset or manual drag
+acceptance. Physical drag feel NEEDS PHYSICAL TEST. Evidence:
+/tmp/journey-parallax-back80-20261105/.
+
+## Journey parallax160px supersedes80px · 2026-11-05
+
+Immediate user correction requests160px,not80. Journey World/Unit and nonArcade
+Worlds Hub instance strength2→4:cap80→160pt,response0.60→1.20,another2x exactsame-
+drag curve. Appliesphone+iPad. Arcade strength1/per-entry60..80 cap unchanged.
+Onlytwo existing instance constants change. Existing rear-depth,280ms return,
+painted regrab,weak/current-resource lease,ReducedMotion/modal/background/route/
+cleanup/input owners remain. No layout/art/audio/gameplay/save/resource changes.
+Swift parse/scoped two-value review PASS;standing no-QA:no suites/new tests.
+Normal complete-current-tree Debug BUILD SUCCEEDED(build-delivery-1.log),source
+stable through retained iPhone+iPad install-over/normal launch. Exact.native/noWeb/
+testplugins,2958originalassets byte-identical,installed executable+dylib match built.
+Both canonical saves perSimulator freshly backed up/byte-identical through install/
+initial launch. Actual Silent Mode phone1/iPad0(existing limitation),preferences
+untouched. No physical/PWA/legacy install/reset. Physical drag feel NEEDS PHYSICAL
+TEST;no manual drag acceptance claimed. Evidence /tmp/journey-parallax160-20261105/.
+
+## Intro exit smoke200ms earlier · 2026-11-05
+
+User requests exit-logo smoke another200ms earlier. Visual puff now uses existing finite CA contact receipt at logoExitStart-0.30s(previously-0.10s);wood/swoosh contacts and logo/character/PRESENTS timing remain unchanged. Same weak/token/background guards and cleanup;additional visual marker removed explicitly on retirement. No new owner/timer/asset/audio/gameplay/save changes. Scoped lifecycle/source review and Swift parse PASS;normal full-current-tree Debug BUILD SUCCEEDED. Standing no-QA:no suites/new tests. Retained iPhone Simulator install-over/normal launch53226;exact.native/noWeb/testplugins,2958originalassets byte-exact,both canonical saves backed up/byte-identical through install/initiallaunch;production inputs stable through delivery,installed executable/dylib match built(dylibd8e03558d8327cd6859965268a3a197e46854d2097536791ccd0b254567a115c). Actual SilentMode ON(1),game settings untouched. Evidence /tmp/intro-smoke-earlier-20261105/. Visual timing awaits user review;no physical/iPad/PWA/legacy/reset action.
+
+## Journey cloud parallax doubled on both devices · 2026-11-05
+
+User requests2x Journey cloud parallax. Existing JimiWorldCloudDrag gains immutable
+instance strength(default1);Journey World/Unit and nonArcade Worlds Hub choose2:
+maximum40→80pt,initialresponse0.30→0.60. Scaling both preserves exact2x same-drag
+curve,not merely a larger saturation limit. Arcade chooses1 and retains existing
+per-entry random60..80pt/0.30 response. Home unchanged. All clouds retain existing
+rear depth,280ms finite return,painted regrab,weak/visible resource leases,
+ReducedMotion/modal/background/route/disposal gates and transform idle. No new
+scheduler/resource/asset/audio/gameplay/save changes. Scoped callsite/formula and
+Swift parse/diff review PASS;standing no-QA:no suites/new tests. Independent curve
+comparison confirms exact2x at6 positive/negative drag samples,not a runtime suite.
+Normal complete-current-tree Debug BUILD SUCCEEDED(build-delivery-1.log),source
+stable through both retained Simulator install-over/normal launch receipts. Exact
+.native/noWeb/testplugins,2958originalassets byte-identical,installed executable+
+dylib match built. Both canonical saves perSimulator freshly backed up/byte-identical
+through install/initial launch. Actual Silent Mode phone1/iPad0(existing limitation),
+game preferences untouched. CUAphoneMuteON observed;final Journey UI opening not
+performed because state tool timed out30s/reset. No manual touch/drag acceptance
+claimed. No physical/PWA/legacy install/reset. Physical drag feel NEEDS PHYSICAL TEST.
+Evidence /tmp/journey-parallax-double-20261105/.
+
+## Intro logo final additional2dB reduction · 2026-11-05
+
+User clarified Simulator and only wooden-sign sounds,then explicitly requested final2dB reduction and finish. Existing studioLogoGainScale0.56→0.444823811 (=0.56*10^(-2/20));all logo crate/wood/air/poof/puf layers reduced another2dB once at transport submission. Character speech/SFX and Music unchanged. No timing/asset/owner/lifecycle changes. Updated audio ownership note and existing transported wood expectation0.1214319;fixture not executed under standing no-QA. Swift parse and qa:audio-runtime PASS. Normal complete-current-tree Debug BUILD SUCCEEDED;stable production inputs through retained iPhone Simulator install-over/normal launch50990. Bundle exact.native,noWeb/testplugins,2958assets byte-exact,both canonical saves freshly backed up and byte-identical through install/initiallaunch. Installed executable/dylib match built;dylib95d176a3b68fbb6f4892fbeecbbd30028614cd3adb56f7d8fea01a860b4ad6e3. Actual SpringBoard Silent Mode OFF(0),game preferences untouched. Evidence /tmp/intro-logo-minus2db-20261105/.
+
+Earlier diagnostic per-Native-process CoreAudio capture produced silence due stale process identity/SilentMode;NOT valid audition evidence and no claim heard. User final instruction superseded further diagnostic work. Temporary capture/tap/aggregate all retired. iPad app was temporarily terminated for isolation;data preserved,no iPad install this final step. No physical phone/PWA/legacy/reset. Subjective speaker loudness NEEDS PHYSICAL TEST;final review is normal retained iPhone Simulator app.
+
+## Intro logo another20percent quieter · 2026-11-05
+
+User requests another20percent reduction for all intro-logo sound layers. Existing studioLogoGainScale0.70→0.56(0.70*0.80),applied once at studioLogoMotion transport submission. Same relative mix,contact timing,crate/wood/air/poof/puf voices;character speech/SFX and Music unchanged. Ownership note and existing transported wood expectation0.15288 updated;fixture NOT EXECUTED under standing no-QA. No new test/owner/resource/asset change. Swift parse/scoped source/diff review PASS;static qa:audio-runtime PASS;normal complete-current-tree Debug BUILD SUCCEEDED build-delivery-1.log,source stable through both deliveries.
+
+Retained Native install-over/normal launch:com.taptapdesign.stacktosix.native: 39344 / com.taptapdesign.stacktosix.native: 39438. Exact.native/noWeb/testplugins,2958originalassets byte-identical;installed executable+dylib match built(runtime 7c860b9e2cf8c6095860b1d7bb5183094d5d4db3a36d7c84be1dfa7058df15dc). Both canonical saves perSimulator freshly backed up and byte-identical through install/initiallaunch. Actual Silent Mode phone1/iPad0,preferences untouched. Evidence /tmp/intro-logo-volume56-20261105/ including build.log,audio-runtime.log,swift-inputs.json,per-device receipts. No broad suites/manual speaker audition/physical/PWA/legacy/reset. Subjective mix/physical acceptance NEEDS PHYSICAL TEST.
+
+## Intro logo all sound layers additional30percent quieter · 2026-11-05
+
+User explicitly lowers ALL intro-logo sounds another30percent. NativeGameplayAudioOwner.studioLogoGainScale0.70 multiplies gain once at existing studioLogoMotion transport submission,covering crate swings/fall/exit,wood,air,poof,puf. Relative mix,timing/contacts,selection/prewarm/mute/stop and character speech/SFX/Music unchanged. No new audio/animation/resource owner or asset edits. Audio ownership record updated;existing transported wood assertion now0.273*0.70=0.1911,fixture NOT EXECUTED under standing no-QA. Swift parse/scoped source/diff review PASS;static qa:audio-runtime PASS. Normal complete-current-tree Debug BUILD SUCCEEDED build-delivery-1.log; production Swift stable through both deliveries.
+
+Retained Native Simulator install-over/normal launch:com.taptapdesign.stacktosix.native: 37610 / com.taptapdesign.stacktosix.native: 37698. Exact.native/noWeb/testplugins,2958originalassets byte-identical;installed executable+dylib match built(runtime fd9a979ce83db650187da87e0427e9714e638dd951b1fa5359f2801b862b1f8b). Both canonical saves perSimulator freshly backed up and byte-identical through install/initiallaunch. Actual Silent Mode phone0/iPad0,game preferences untouched. Evidence /tmp/intro-logo-volume70-20261105/ build.log,audio-runtime.log,swift-inputs.json,per-device delivery.json. No broad suites/manual speaker audition/physical/PWA/legacy/reset. Subjective mix/physical acceptance NEEDS PHYSICAL TEST.
+
+## Native intro final100ms stagger,letter exit,wood/crate mix and clouds · 2026-11-05
+
+Final visual policy: character enters first; SVG drop starts100ms later with original240ms hidden anticipation trimmed. PRESENTS stays directly below plaque and follows its source translate/jitter/pivot rotation. Shared Arcade per-letter exit starts100ms BEFORE character exit,50ms stagger/300ms glyph(total650ms);plaque exits180ms after character completion. Current accepted4.33s budget/derived speed/0.10s hold from parallel timing task preserved. Masked two-pass shimmer stays60percent weaker(0.288). Landing smoke is20physicalpt higher and1.40x footprint;second same-sized randomized under-plaque burst100ms before upward exit. No geometry/character-art/frame-cadence/save/gameplay change.
+
+NativeStudioIntroView bounded original-SVG adapter:3embeddedWebP images under2MiB,original rope gradients/paths/keyTimes/splines,21finite CA tracks. Existing selected serial worker/token/epoch,parent pause/background/terminal cleanup retained,no browser/new timer/frame loop/asset derivative. SVG/contact epoch admitted AFTER glyph/frame/character-cue preparation to match parent/character CA commit;100ms stagger cannot advance during setup. Existing tablet canonical390 projection retained. Shared NativeArcadeRoundPresentation.exit exposed internally for reuse only;other callers unchanged. Two smoke owners and all contact receipts/animations/images/callbacks retire idempotently. Reduced Motion retains settled/faded logo and no smoke.
+
+Final logo audio: BOING REMOVED. Original wood.wav gains0.273landing,0.231/0.189first swings,0.273finalwood(30percent below prior+50percent request). Crate2 fall/crate3 exit gains0.54. Seven finite swing contacts alternatecrate3/4/1,matched to angular strength and source cubic peak-velocity fraction0.237125. Measured short-window attacks3=75ms,4=65ms,1=135ms;late345/615ms spikes excluded via240ms one-shots/40ms fade,preventing late knocks. Gain0.54*sqrt(angle/27),floor0.16. Contacts only while PRESENTS is available. Finalwood+swoosh admitted100ms before upward exit so their body lands during ascent. Existing poof/puf/character sound layers preserved. Same NativeGameplayAudioOwner17-cue plan/32voice transport,Settings/prewarm/receipt/foreground/interruption/stop boundaries;no new audio transport/cache/timer/original asset changes. Source WAVs48kHz16bitstereo.
+
+Validation: Swift parse/scoped callsite,source,lifecycle/resource and diff review PASS. Static qa:audio-runtime PASS(/tmp/intro-crate-wood-mix-20261105/audio-runtime-final.log). Existing lifecycle/letter-exit/audio-plan fixtures updated,NOT EXECUTED;no broad suites under standing no-QA. Full current-tree normal Debug BUILD SUCCEEDED(/tmp/intro-crate-wood-mix-20261105/final-build.log,actual xcode log /tmp/native-intro-logo-drop-20261104/build-delivery-1.log). Both retained Simulators install-over/normal launch:com.taptapdesign.stacktosix.native: 32699 / com.taptapdesign.stacktosix.native: 32801. Exact.native/noWeb/testplugins,2958originalassets byte-identical;installed executable+dylib match built(runtime fa95488dec30b99ccaab75e8b7a0ffa7126bd116ed79fda042238f5246586db6). Production Swift/installed hashes reverified after review. Both canonical saves backed up/byte-identical through install/initiallaunch;final iPad byte-exact,phone normal resave onlysavedAt/Set order with both gameplay payloads semantically identical. No save restoration/reset.
+
+Actual Silent Mode OFF onboth for explicit audio task:phone visible banner verified byCUA,post-launch SBRingerMuted0both(final-proof.json);game preferences untouched. Earlier exact-timestamp phone/iPad intro recordings confirm ordering/normal Home handoff;new smoke contact sheet inspected(/tmp/intro-crate-wood-mix-20261105/ipad-smoke-review.png). Latest audio gains/timing have source/build/admission evidence;physical speaker mix/subjective motion/startup/thermal/memory acceptance NEEDS PHYSICAL TEST,not claimed heard/accepted. Final normal Home preview retained;no test runner,physical/PWA/legacy/uninstall/reset. Evidence also /tmp/intro-crate-wood-mix-20261105/wave-metrics.json and /tmp/native-intro-logo-drop-20261104/ per-device receipts/movies. Older intermediate long-duration/ordering movies in that temp directory are superseded.
+
+## Arcade per-entry random60–80px parallax · 2026-11-05
+
+User requests Arcade only random60...80px each entry,on phone+iPad. Existing helper maximumOffset becomes instance configuration with default40;setMaximumOffset resets old gesture/settle before adopting limit. Existing Arcade resetIdlePose/present samples CGFloat.random(in:60...80) once alongside existing per-visit cloud profiles. Retained through drags/layout/modal/foreground resume;new Arcade visit resamples. Journey World/Unit and Worlds Hub helper instances retain40. Same30percent initial gain/280ms return/idle/routes/depth/weak resource/lifecycle owners,no new clock,asset,audio/gameplay/save owner. Source/caller/presentation-boundary review and Swift parse PASS. Standing no-QA:no suites/new tests. Ad-hoc Simulator UIKit executable from exact helper source PASS for60/70/80 caps in both directions,reset-to-rest and independent Journey default40. Rendered randomness/drag feel not visually accepted;NEEDS PHYSICAL TEST.
+
+Normal complete-current-tree arm64 Debug build-final.log BUILD SUCCEEDED after initial delivery freshness guard caught concurrent intro/audio source edits. Frozen artifact final install-over/normal launch retained iPhone25204/iPad25329;exact.native/noWeb/testplugins,2958originalassets byte-identical,installed executable+dylib match built(runtimeb1678e16fc4fb9906890b4a76b84927a8d136cbd34d8e3ae1e32a16086d76216),source stable through both receipts and final check. Both canonical saves perSimulator freshly backed up and byte-identical through install/initial launch. Phone SilentMode0initial→CUAMuteON with actual visible SilentModeOn banner and final SpringBoard1;iPad0existing limitation,game preferences untouched. Arcade opened normally on iPhone for review. No physical/PWA/legacy/reset actions. Evidence /tmp/arcade-parallax60-80-20261105/{world.diff,hub.diff,build-final.log,probe.log,swift-inputs.json,<simulatorUUID>/delivery.json}.
+
+## Journey + Worlds Hub + Arcade cloud parallax40px · 2026-11-05
+
+User increases shared cloud counter-drag cap24→40screen points and requests same behavior on Journey Worlds Hub and Arcade selection,phone+iPad. Existing JimiWorldCloudDrag exposes maximumOffset40;30percent initial gain,280ms finite return,regrab/weak leases/idle transform separation remain. JimiV9HubView registers existing cloud image layers after layout(including visible tablet left fills),uses existing UIScrollView begin/update/end delegate and shared helper. Admission requires active settled idle,enabled scroll,visible/window and ReducedMotion OFF;stopIdle/modal/exit/background freeze,reset restores,window detach clears. Existing route shells/idle clocks,World/Arcade art size/layout/taps/assets/audio/save owners unchanged. Same40cap on Stage/Unit screens. Policy and existing bounds fixtures updated;no suites/new tests under standing no-QA.
+
+Swift parse/scoped diff/callsite/lifecycle review PASS. Ad-hoc simulator UIKit executable compiled from exact actual helper source PASS:±200pt scroll produces±36.20593pt local response,40pt hard envelope,finite return retained,independent idle retained,50 cycles no accumulation,double cleanup. This is real UIKit owner execution,NOT actual touch/gesture or visual acceptance. Own normal arm64 Debug build-final.log BUILD SUCCEEDED after concurrent intro source freshness rebuild. To avoid competing installs,adopted concurrent complete-current-tree normal Debug shared delivery /tmp/native-intro-contact-audio-poof-20261105/build-delivery-2.log and FINAL_FRESH_DELIVERY. Shared manifest explicitly matches current WorldView+HubView40px and all current production Swift. Both retained Simulators install-over/normal launch,exact.native/noWeb/testplugins,all original assets byte-identical,both canonical saves perSimulator freshly backed up and byte-identical through install/initial launch,production stable through receipts. Installed executable+dylib independently rehashed again against shared receipts. Silent Mode phone1/iPad0(existing limitation),game preferences untouched. No physical/PWA/legacy/reset actions. Rendered drag/clipping/feel NEEDS PHYSICAL TEST;no manual gesture acceptance claimed.
+Evidence /tmp/journey-hub-arcade-parallax40-20261105/{world.diff,hub.diff,build-final.log,ActualCloudDrag.swift,probe.swift,probe.log,shared-delivery-swift-inputs.json,<simulatorUUID>/shared-delivery.json}.
+
+## Native logo stronger contact-driven spring/wind + explicit poof/puf/smoke · 2026-11-05
+
+User rejects weak/unmatched SFX and explicitly selects card reveal poof.wav on
+landing,puf.wav when exit starts,plus landing smoke. Replaced sparse stylizedboing
+with original comical rubber-spring firstburst + short original woodclick;fall uses
+stronger immediate airy#4. Seven stable voices/5selected original sources:fallair
+0.85,landing spring0.48/wood0.26/poof0.43,exit spring0.35/air0.65/puf0.85;finite short
+runtime stops/fades avoid repeated bursts. No original asset edits. Warm selected
+sources at intro.start before character preparation. Runtime events now playdelay0
+from three finite CA start markers on existing label borderWidth0→0:shared exact
+SVGepoch/source0.52fastfall,0.84landing,3.56exit,including sourceLead/hold mapping.
+Removed independent delayed voice schedule. Epoch/dedup/weak/background/dispose
+retirement blocks stale/replayed callbacks;global Sounds/generation/fullstop still
+owns transport. Existing character speech untouched. Same4.33s duration/geometry.
+
+Landing event emits sound then one small existing JimiNativeWorldEffects landing
+smoke strip beneath plaque,using original bounded white shape/normalblend recipe.
+No newtimer/player/engine/decoder/image;existing parent clock/weak finite smoke
+completion and explicit background/dispose retirement own cleanup. Reduced Motion
+skips contactmarkers/smoke;original fallback skips motion cues. Audio owner/runtime
+feature policies updated. Static audio-runtime PASS;Swift parse/scoped source review
+PASS. Focused real-owner fixtures updated for eventplaydelay0,poof/puf identity,
+stronger plan/mute/duplicate/localstop,NOT EXECUTED perstanding no-QA. Initial mix
+analysis checked sum of landing/exit layers;final gains keep stronger samples
+bounded(final landing sum peak-3.042dBFS,no clipped samples;exit sum-4.077dBFS).
+Normal complete-current-tree Debug BUILD SUCCEEDED(build-delivery-1.log). Both
+retained Simulators installed over/normally launched,source stable through both
+receipts;exact.native/noWeb/testplugins,2958originalassets byte-identical,installed
+executable+dylib match built. Both canonical saves per Simulator freshly backed
+up and byte-identical through install/initial launch. Phone initiallySilent1;CUA
+MuteOFF initially disagreed with SpringBoard1. CUA toggledMuteONthenOFF and
+actual SpringBoard0 verified onboth;final fresh phone install-over/normal launch
+with same built artifact recorded in phone-audible-final.log,canonical saves
+again byte-identical through launch. iPad0retained. Game/macOS
+audio preferences untouched. Normal iPad launch recorded intro-review.mov;actual
+landing-sheet2.70/2.85s shows small white puff beneath settled plaque,confirming
+shared contact marker fires at visible landing. This video contains no audio,so
+no speaker mix/listening acceptance claimed. Review-launch save hashes unchanged.
+No physical/PWA/legacy install/reset. Physical mix/contact/puff visual acceptance
+NEEDS PHYSICAL TEST. Evidence /tmp/native-intro-contact-audio-poof-20261105/.
+
+## Journey cloud parallax24px on both devices · 2026-11-05
+
+User reports no visible drag parallax on BOTH Simulators,explicitly rejects2px and requests increase. Root evidence:phone registration/begin were gated off;tablet helper only1.5percent gain/2pt cap. Existing JimiWorldCloudDrag now30percent initial gain/24screen-point soft bound on both,relative counter-finger displacement around authored Unit position;NO full scroll compensation. Release finite280ms easeOut on position.y prevents24px snap;regrab captures presentation offset,late visible-resource registration adopts current displacement. Existing idle transform untouched. Weak leases/prune,modal/route freeze,background stop,cleanup/doubleclear remove finite position track. Forest rear cloud plane now both devices atz-1 belowEVERYUnit,avoiding cloud overlap onto cards/terrain;otherWorld rear planes retained. Phone layouts/art/hits remain otherwise unchanged. No new timer/decoder/asset/audio/save owner.
+
+Existing helper/mounted parent fixtures updated to visible24pt bound/finite settle and both-device rear depth,NOT EXECUTED under standing no-QA. Swift parse/scoped source/callsite/lifecycle review PASS; normal current-tree arm64 Debug BUILD SUCCEEDED /tmp/journey-cloud-parallax24-20261105/build.log. Frozen app installed over retained iPhone PID15499/iPad15693; exact.native/noWeb/testplugins,2958 original assets byte-identical,installed executable+dylib match built(runtime4a5893035e9e7196b0756561c6cc9406248f8829d41605834c2a421b1ed5701d),production source stable through both receipts. Both canonical saves perSimulator freshly backed up and byte-identical through install/initial launch. SilentMode receipt phone0/iPad0;CUA toggledphoneON but subsequent parallel intro work reset audio/focus/preview. Current installed app later overwritten by independent intro/audio build(ec12718e...),and those source edits happened after own receipts. Attempted actual Forest drag recording did NOT capture a drag:concurrent launches/focus changes and one30s CUA timeout interrupted UI,so NO rendered drag/motion acceptance claimed. Video artifacts are interrupted setup only. Last UI showed concurrent intro review;do not treat that as parallax evidence. Physical/visual acceptance NEEDS PHYSICAL TEST. No physical/PWA/legacy/reset actions. Evidence /tmp/journey-cloud-parallax24-20261105/{before.swift,scoped.diff,build.log,swift-inputs.json,<simulatorUUID>/delivery.json}.
+
+## Native intro restored to original4.33s length · 2026-11-05
+
+User rejects ~7second intro and requests former total length with faster logo.
+NativeStudioIntroView restores explicit4.33s active timeline and reduces extra
+hold1.0→0.10s. Concurrent initial offscreen lead trim0.24s/startDelay0.10s preserved;
+logoMotionSpeed derives from remaining source duration and exact4.33s budget
+(current~0.92157,was0.70). All later logo/character exit anchors derive that speed. Existing selected character frames retain original frame
+rates;no geometry/artwork/selection/pause/cleanup/admission changes. SVG/letter
+tracks and all4logo audio contacts derive same constants. Air cues shortened to
+fallrate1.50/0.50s andexitrate1.15/0.38s with existing finite fades;boingmix remains.
+Entryair/contact delays subtract preserved source lead;exitair finishes before
+completion. Character speech natural tail unchanged.
+Static qa:audio-runtime PASS. Existing lifecycle fixture gains exact4.33s check,
+NOT EXECUTED perstanding no-QA;no broad suites. Swift parse/scoped source review
+PASS. Coordinated final complete-current-tree normal Debug BUILD SUCCEEDED via
+shared intro task /tmp/native-intro-logo-drop-20261104/build-delivery-3.log;own
+competing builder retired to avoid repeated Simulator install races. Shared final
+source manifest matches complete current production Swift,including exact4.33s
+budget/sourcelead-aware audio. Both retained Simulators installed over/normally
+launched;both installed executable+dylib hashes independently reverified against
+shared receipts. Exact.native/noWeb/testplugins,2958 original assets byte-identical;
+both canonical saves per Simulator freshly backed up/byte-identical through install
+and initial launch. Actual Silent Mode0onboth for continuing audio/timing review,
+game preferences untouched. Receipt copied to own shared-current-tree-delivery.json.
+No physical/PWA/legacy install/reset. Physical motion/audio fit NEEDS PHYSICAL TEST.
+Evidence /tmp/native-intro-restore433-20261105/.
+
+## Native SVG studio logo wind/boing drop and exit audio · 2026-11-05
+
+User requests existing card-like wind/swoosh on falling SVG logo,boing on landing,
+then similar boing+swoosh on exit. Existing NativeGameplayAudioOwner gains one
+four-voice logo plan,independent of unchanged character speech/SFX:original card
+flip soft.wav gain0.25/rate1.15 atlogoStartDelay+0.24/speed;original stylized TOONBoing
+gain0.32/rate1.10 atlogoStartDelay+0.84/speed(first drop contact);exitboing0.24/rate1.30
+atlogoExitStart-0.10,original card swoosh back.wav0.30 atlogoExitStart+0.04.
+Bounded0.72/0.78/0.42s runtime tails/fades;no source modification. Same current
+SVG70percent speed/hold constants on phone/tablet. NativeAppServices callback starts
+only actualSVG/nonReducedMotion timeline once;dispose/focusloss/background stops
+only4stable logo voice IDs. Existing global Sounds/generation/interruption/stop
+retire all scheduled/playing cues,no replay/resume. Shared selected preparation
+warms only3sources;no new transport/session/timer/cache/gesture/resource owner.
+Static qa:audio-runtime PASS. WAV source metrics recorded:48kHz stereo16bit,zero
+clipping/nearzeroDC,2.0/1.0/0.4339s originals preserved. Focused real-owner cue plan/
+Settings/duplicate/generation/foreground/localstop fixtures added,NOT EXECUTED under
+standing no-QA;no broad QA suites. Swift parse/source/lifecycle review PASS.
+Normal complete-current-tree Debug BUILD SUCCEEDED(build-delivery-1.log);production
+Swift stable through retained iPhone+iPad install-over/normal launch. Exact.native/
+noWeb/testplugins,2958 original assets byte-identical,installed executable+dylib
+match built. Both canonical saves per Simulator freshly backed up and byte-identical
+through install/initial launch. Audio review actual SpringBoard Silent Mode0 onboth,
+phone toolbar MuteOff also observed. Game preference/macOS audio unchanged. No
+physical/PWA/legacy install/reset. Physical audio mix/contact fit NEEDS PHYSICAL
+TEST;no listening acceptance claimed. Evidence /tmp/native-svg-logo-audio-20261105/.
+
+## Forest03 large left cloud also on iPhone · 2026-11-05
+
+User explicitly extends the existing iPad Forest03 cloud to iPhone. NativeBootstrap moves only the existing cloud append outside tablet-only offsets into a Forest-only branch; same asset/local(-180,35)/width260/opacity0.82/depth1 multiplied by existing unitVisualScale(phone1,tablet1.105). Tablet geometry/offsets unchanged; rear-plane/resource/idle/route/cloud-drag retirement ownership retained. Swift parse and scoped raw diff/callsite review PASS; standing no-QA:no suites/gates/new tests. Initial build blocked by concurrent shared DerivedData lock; isolated arm64 normal Debug build-final.log BUILD SUCCEEDED under /tmp/iphone-forest03-cloud-derived. Freshness rebuild included concurrent StudioIntro edit; frozen app snapshot used for delivery. Retained Jimi iPhone install-over/normal launch PID10079,exact.native/noWeb/testplugins,2958originalassets byte-identical,installed executable+dylib match built(ffde33b8762a3a96e2dfe6f7809be8e642de3b8fdc9ae361355667189305e6e6). Both canonical saves backed up and byte-identical through install/initial launch. Silent Mode ON visibly verified via banner before delivery and SpringBoard1 after final launch. Source stable through delivery; subsequent independent StudioIntro/ArcadeRound edits happened after delivery and are not this preview's evidence. Journey opened on iPhone, but concurrent UI focus switch to iPad prevented final Forest03 screenshot review. Physical/visual acceptance NEEDS PHYSICAL TEST. No physical/iPad/PWA/legacy/reset install. Evidence /tmp/iphone-forest03-left-cloud-20261105/{before.swift,build-final.log,swift-inputs.json,1018BE2D-491B-465F-8F75-3E5BEB38C22A/delivery.json}.
+
+## iPad Journey cloud drag corrected to tiny attached response/rear depth · 2026-11-05
+
+User screenshot rejects clouds migrating/covering Units. Root cause:first drag
+implementation compensated entire content scroll and added48pt counter-motion,
+allowing local cloud displacement of hundreds of points;Forest cloud child could
+also paint above preceding sibling Units. Latest correction removes ALL content
+compensation and420ms settle. Existing helper now writes only authored localY+
+2*tanh(dragContentDelta*0.015/2),bounded2pt/no accumulation. Release restores localY
+directly,no extra animation. Existing gentle idle remains on separate transform.
+Forest tablet adds one noninteractive cloud-only plane perUnit atz-1 below every
+Unit/card/terrain;existing depthPlanes frame/enter/exit/idle/cleanup owns it. Main
+hierarchy and Beach/Area55 existing rear planes retained;phone Forest original
+parent preserved,including viewport branch restoration. No new clock,decoder,
+asset,audio,haptic,gameplay/save owner. Helper weak leases/current lifecycle gates
+retained. Tests updated for tiny bound/no settle/nonaccumulation and actual mounted
+Forest tablet-vs-phone parent/depth ownership,NOT EXECUTED perstanding no-QA.
+Swift parse/scoped source/lifecycle review PASS. Final complete-current-tree Debug
+BUILD SUCCEEDED(build-delivery-1.log/run-final.log after prior freshness failures
+from concurrent intro edits). Both retained Simulators install-over/normal launch
+verified;exact.native/noWeb/testplugins,2958 original assets byte-identical,
+installed executable+dylib matched build and production Swift stable through
+receipts. Both canonical saves per Simulator freshly backed up and byte-identical
+through install/initial launch. Initial Silent Mode phone0/iPad0;CUA phoneMute ON
+and actual SpringBoard1 verified,iPad0 existing limitation. Game preferences
+untouched. CUA normal iPad Forest first viewport confirms clouds behind terrain/
+cards. Attempted drag then encountered concurrent focus switch to phone,so no
+full lower-scroll/motion acceptance claimed. No physical/PWA/legacy install/reset.
+After this delivery,concurrent NativeStudioIntroView/NativeArcadeRoundPresentation
+edits were observed;this receipt describes its own built snapshot,not validation
+of those later edits. Physical visual acceptance NEEDS PHYSICAL TEST. Supersedes
+prior section.
+Evidence /tmp/journey-ipad-cloud-drag-subtle-20261105/.
+
+## iPad Forest03 large cloud to the left · 2026-11-05
+
+User screenshot requests a large cloud immediately left/behind Flower Day Unit03, iPad only. NativeBootstrap existing tablet+Forest snapshot branch appends one preserved oblak veliki ljevo dole.png part to board3: local(-180,35),width260, all multiplied by existing unitVisualScale1.105; opacity0.82/depth1/rolecloud match authored cloud policy. Existing Unit rear depth plane/resource preparation/idle/route/scroll/background/disposal own it; no new timer/resource owner/assets/input/gameplay/save changes. Phone/other Units/worlds unchanged by this edit. Swift parse and scoped part/role/caller review PASS. Standing no-QA:no suites/gates/new tests. Normal complete-current-tree Debug BUILD SUCCEEDED build-final3.log after freshness guards caught concurrent WorldView/StudioIntro edits. Final source stable through deliveries; retained iPad normal launch6814/iPhone7339,exact.native/noWeb/testplugins,2958originalassets byte-identical,installed executable+dylib match build(runtime4ed3eeb6d89e219562f96902c4d2ef9f17e683831c27b561b34a7b1b4536855c). Initial phone stub mismatch fixed by frozen temp app copy with refreshed executable mtime and reinstall-over; no source/asset byte mutation. Both canonical saves perSimulator backed up and byte-identical through final install/initial launch. Actual Silent Mode phone0/iPad0; attempted CUA final-mode/visual review blocked by unavailable Simulator screenshot and stale menu IDs, so visual placement and SilentMode restoration unverified. Game preferences untouched. Physical visual acceptance NEEDS PHYSICAL TEST. Evidence /tmp/ipad-forest03-left-cloud-20261105/{before.swift,build-final3.log,swift-inputs.json,<simulatorUUID>/delivery.json}. No physical/PWA/legacy/reset actions.
+
+## iPad Journey World opposite cloud drag with retained idle · 2026-11-05
+
+User requests homepage-like opposite cloud response while dragging Forest/Beach/
+Area55 screens;explicitly chooses drag PLUS existing gentle floating. Existing
+UIScrollView delegates own begin/update/end;JimiWorldCloudDrag weakly leases only
+currently loaded main/Unit cloud views and writes position.y,while existing idle/
+route transform tracks remain authoritative. Content-offset compensation plus
+48pt*tanh(delta*0.18/48) makes cloud screen travel opposite finger;no cumulative
+per-drag layout drift. On release finite420ms ease-out returns authored local Y.
+Regrab uses painted position;late-loaded cloud joins current gesture without jump.
+Entry restores neutral positions;modal/exit freeze painted positions,card resume
+settles,background stops work,park/double-cleanup release. No new timer,gesture,
+frame callback,layer,image,decode,audio/haptic/gameplay/save owner;phone and Reduced
+Motion bypass gesture admission. Runtime feature record and animation contract
+updated. Focused actual helper fixtures cover direction/reversal/idle coexistence,
+late resource/freeze/regrab/doublecleanup/weak release,NOT EXECUTED under standing
+no-QA. Swift syntax and source/lifecycle review PASS. Normal complete-current-tree
+Debug BUILD SUCCEEDED(build-delivery-1.log). Retained iPhone+iPad install-over/normal
+launch verified,production Swift stable through both receipts;exact.native/noWeb/
+testplugins,2958 original assets byte-identical,installed executable+dylib match
+built. Both canonical saves per Simulator freshly backed up and byte-identical
+through install/initial launch. Actual Silent Mode phone1/iPad0(existing limitation),
+game preferences untouched. CUA found user Window/tiling menu active;left interaction
+undisturbed,no manual drag acceptance claimed. No physical/PWA/legacy install/reset.
+Physical drag/settle/thermal acceptance NEEDS PHYSICAL TEST.
+Evidence /tmp/journey-ipad-cloud-drag-20261105/.
+
+## iPad Home logo shard individual offsets · 2026-11-04
+
+User specifies individual logo shards only: bottom-left4px left/4px down,
+bottom-right10px right/4px down,top-right4px right/4px down,top-left6px left/4px up.
+JimiV9HomeView adds tablet-only screen-point centre deltas in existing shard order
+TL(-6,-4),TR(+4,+4),BL(-4,+4),BR(+10,+4) after original logoScale projection.
+Logo itself,shard size/rotation/idle/parent motion,hero/CTA/footer/nav/phone
+geometry and existing resource/input/gameplay/save/audio/assets remain unchanged.
+Swift parse/scoped centre-delta review and diff check PASS. Standing no-QA:no
+suites/gates/new tests. Normal complete-current-tree Debug BUILD SUCCEEDED
+(build-delivery-1.log),production Swift stable through both retained Simulator
+install-over/normal launches. Exact.native/noWeb/testplugins,2958 original assets
+byte-identical,installed executable+dylib match built. Both canonical saves per
+Simulator freshly backed up and byte-identical through install/initial launch.
+Initial Silent Mode phone0/iPad0; CUA toggled phone Mute ON and verified actual
+visible Silent Mode On banner/SpringBoard1,then normal Native relaunch. iPad0
+retains existing limitation;game preferences untouched.
+No physical/PWA/legacy install/reset.
+Physical visual acceptance NEEDS PHYSICAL TEST. Evidence:
+/tmp/home-ipad-logo-shard-offsets-20261104/.
+
+## iPad Forest next manual offsets + Home CTA up4 final delivery · 2026-11-04
+
+Latest user additional moves: Forest07 left20pt,09 right40pt,10 right16pt,
+03 right60pt,02 up16pt. Applied cumulatively to current reviewed positions.
+Final offsets from original phone-composition tablet layout:
+01(-10,0),02(0,-40),03(+84,-4),04(+16,-8),05(-14,0),06(-16,-16),
+07(-70,0),08(+24,-4),09(+100,-4),10(+16,-4),visible screen points.
+Only existing Forest/tablet complete-Unit frame table changes;whole decoration/
+card/hit destination geometry follows. Home Journey/Arcade/Settings CTA additional
+4pt up(-8→-12) retained from immediately preceding request. Phone,other worlds,
+artwork,size,motion,input/resource/gameplay/save/audio owners unchanged.
+Swift parse/scoped one-table review and diff check PASS. Standing no-QA:no
+suites/gates/new tests. Normal complete-current-tree Debug BUILD SUCCEEDED
+(build-delivery-1.log),production Swift stable through both retained Simulator
+install-over/normal launches. Exact.native/noWeb/testplugins,2958 original assets
+byte-identical,installed executable+dylib match built. Both canonical saves per
+Simulator freshly backed up and byte-identical through install/initial launch.
+Actual Silent Mode phone1/iPad0(existing limitation),game preferences untouched.
+No physical/PWA/legacy install/reset. Physical visual acceptance NEEDS PHYSICAL TEST. Evidence:
+/tmp/forest-next-offsets-cta-up4-20261104/.
+
+## iPad Home three CTAs another4px up · 2026-11-04
+
+User requests Journey/Arcade/Settings Home CTA another4px up. Existing tablet
+CTA centre correction-8→-12;dependent cloud-to-CTA clearance follows same4pt.
+All three complete CTA containers move together. Phone,logo/shards,main images,
+Journey0.97scale,other sizes,footer/nav and all motion/input/resource owners remain.
+No asset/gameplay/save/audio changes. Swift parse/scoped two-value review and
+diff check PASS. Standing no-QA:no suites/gates/new tests. Complete-tree builds
+PASS but final install hash proofs invalidated by parallel intro task installing
+same retained apps. Waited for that delivery to finish; new Forest instructions
+arrived before final isolated delivery,so latest combined proof is in section above.
+Physical visual acceptance remains
+NEEDS PHYSICAL TEST. Evidence /tmp/home-ipad-cta-up4-more-20261104/.
+
+
+## iPad Home logo+shards/images up8px; CTAs up4px · 2026-11-04
+
+User requests complete Stack to Six logo+shards8px up,all three main Home images
+8px up,and CTAs4px up. Tablet-only existing anchors: logoView centre correction
+16→8 (shardShells remain actual children),heroImages centre correction24→16,
+CTA centre-4→-8 with dependent cloud-to-CTA clearance following same4pt shift.
+Journey image0.97scale retained. Phone,other sizes,hero route pivot,logo/shard
+relative positions,footer/nav and existing motion/input/resource/gameplay/save/
+audio/asset owners unchanged. Source/scoped four-value diff and Swift parse PASS.
+Standing no-QA:no suites/gates/new tests. Normal complete-current-tree Debug
+BUILD SUCCEEDED(build-delivery-1.log),production Swift stable through both retained
+Simulator install-over/normal launches. Exact.native/noWeb/testplugins,2958 original
+assets byte-identical,installed executable+dylib match built. Both canonical saves
+per Simulator freshly backed up and byte-identical through install/initial launch.
+Actual Silent Mode phone1/iPad0(existing limitation),game preferences untouched.
+No physical/PWA/legacy install/reset. Physical visual acceptance NEEDS PHYSICAL TEST. Evidence:
+/tmp/home-ipad-up8-up4-20261104/.
+
+## iPad Journey Home illustration3percent smaller only · 2026-11-04
+
+User explicitly requests only Journey Homepage image scale reduced3percent on
+iPad. Existing JimiV9HomeView imageSide gains factor0.97 only for tablet&&i==0.
+Image centre/outer hero/route pivot,CTA/cloud/logo/footer/nav positions,Arcade/
+Settings/phone sizing and existing motion/resource owners unchanged. No artwork,
+gameplay/save/audio changes. Existing breeze continues deriving its origin from
+actual image geometry. Scoped one-expression source diff and Swift parse PASS.
+Standing no-QA:no suites/gates/new tests for this visual constant. Final complete-tree
+Debug BUILD SUCCEEDED(build-delivery-2.log after concurrent intro update). Both
+retained Simulators installed over/normally launched; source inputs stable
+through receipts,exact.native/noWeb/testplugins,2958 original assets byte-identical,
+installed executable+dylib match build. Both canonical saves per Simulator freshly
+backed up and byte-identical through install/initial launch. Actual Silent Mode
+phone1/iPad0(existing limitation);game preferences untouched. Concurrent separate
+intro task also refreshing Simulators; receipts describe this delivery instant.
+No physical/PWA/legacy install/reset. Physical visual acceptance remains
+NEEDS PHYSICAL TEST. Evidence /tmp/home-journey-ipad-scale97-20261104/.
+
+## iPad Home Journey/Arcade/Settings CTA another20px down · 2026-11-04
+
+User requests all three Home slider CTA buttons20px lower. Existing tablet CTA
+centre correction changes-24→-4,exact+20 screen points; dependent cloud-to-CTA
+clearance top follows same offset. Shared CTA containers carry artwork,label,
+idle/press/cartoon shells and hit areas together. Phone branches,hero images,
+logo/footer/nav,motion/resource/lifecycle/gameplay/audio/assets/saves unchanged.
+Concurrent Home hero/flower refinements preserved. Swift syntax/scoped two-value
+source review and diff check PASS. Standing no-QA:no suites/gates/new tests.
+Initial build PASS but delivery asset check found concurrent new original
+assets/logo addons/logo drop.svg missing from Native copy. Explicit native-only
+prepare copied source bytes; its exact-inventory check failed on5 preexisting
+extra destination arcade PNGs,which were preserved under asset protection.
+No source assets altered/deleted. Final rebuilt artifact source-asset hash check
+is authoritative below. Final complete-current-tree Debug BUILD SUCCEEDED(build-delivery-2.log after
+concurrent intro updates invalidated earlier freshness proofs). Both retained
+Simulators installed over and normally launched; production Swift stable through
+final delivery,exact.native/noWeb/testplugins,2958 original assets byte-identical,
+installed executable+dylib match built on both. Both canonical saves per Simulator
+freshly backed up and byte-identical through install/initial launch. Actual Silent
+Mode phone1/iPad0(existing limitation),game preferences untouched. No physical/
+PWA/legacy install/reset. Final run receipt run-final.log. Physical visual
+acceptance NEEDS PHYSICAL TEST. Evidence /tmp/home-ipad-cta-down20-20261104/.
+
+## iPad Home three hero images +5percent/down24px; CTA down8px · 2026-11-04
+
+User requests all three Home slider CTA buttons8px lower and main illustrations24px lower/5percent larger, iPad only. JimiV9HomeView keeps existing hero/route/cartoon anchors and layouts: inner heroImages imageSide tablet1.10 gains1.05, each image centre gains24physicalpt on tablet. Existing Arcade relative size/Y correction and Settings4px retained. All three CTA outer containers tablet centre changes-32→-24; dependent cloud-to-CTA clearance uses same new top. Breeze derives birth origin/max balloon size from final image bounds/centre as before. Logo/footer/nav/phone geometry and existing motion/lifecycle/input/resource owners unchanged. No new clock/assets/audio/gameplay/save changes.
+
+Standing no-QA:no suites/gates/new tests for reversible layout constants. Swift parse/scoped source and device-branch/diff review PASS. Complete-current-tree normal Debug BUILD SUCCEEDED. Retained iPhone install-over/normal launch com.taptapdesign.stacktosix.native: 88720, iPad com.taptapdesign.stacktosix.native: 88838; productionSwift stable through both deliveries. Exact.native/noWeb/testplugins,2957 original assets byte-identical, installed executable+dylib match build(runtime aea9175d33a0e5a7b4842b3ef98be917af544c2545713668cbcbff860934b883). Both canonical saves perSimulator freshly backed up and byte-identical through install/initiallaunch. Actual Silent Mode phone1/iPad0(existing limitation),game preferences untouched. Evidence /tmp/home-ipad-lower-larger-20261104/ includes before source/build-delivery-1.log/swift-inputs.json/per-device delivery.json. No physical/PWA/legacy/reset. Rendered subjective layout/physical acceptance NEEDS PHYSICAL TEST; no manual visual acceptance claimed.
+
+## Home flower random enlargement up to50percent · 2026-11-04
+
+User asks falling Home slider flowers randomly larger50percent. NativeHomeBreeze flower-slot-only size multiplier changes1.00..1.20 to1.00..1.50 per flight using same existing unit54 seed. Existing base randomsize, phone/tablet projection, white/yellow/pink palette,40percent front depth, flight/cadence/layer/resource/cleanup owners unchanged. Leaves/balloons/dice unchanged. One reversible visual constant; no new tests or QA suites under standing no-QA. Swift parse and scoped diff review PASS; complete-current-tree normal Debug BUILD SUCCEEDED. Both retained Simulators install-over/normal launch: com.taptapdesign.stacktosix.native: 87875 / com.taptapdesign.stacktosix.native: 88003. Exact.native/noWeb/testplugins,2957 original assets byte-identical, installed executable+dylib match built(runtime 9f3291fa533f164fd9e82418b4d5b27fc3eb4cd8c560bc19e308be0de1a06acf);productionSwift stable through both deliveries. Both canonical saves perSimulator backed up and byte-identical through install/initiallaunch. Actual Silent Mode phone1/iPad0(existing limitation),game preferences untouched. Evidence /tmp/home-flowers-random50-20261104/. No physical/PWA/legacy/reset actions. Subjective rendered size/physical acceptance NEEDS PHYSICAL TEST; no manual animation acceptance claimed.
+
+## iPad Forest latest Unit03/06/09 refinements · 2026-11-04
+
+User adds Unit06 another20px left and Unit09 another60px right while previous
+Unit03+60px task is active. All three are included in final current tree.
+Cumulative offsets from original phone-composition tablet layout:
+01(-10,0),02(0,-24),03(+24,-4),04(+16,-8),05(-14,0),06(-16,-16),
+07(-50,0),08(+24,-4),09(+60,-4),10(0,-4),visible screen points.
+Only existing tablet/Forest complete-Unit x offsets change,with all parts/card/
+hit destinations following final frames. No phone/other worlds/size/motion/
+resource/gameplay/save/audio/asset changes. Standing no-QA:no suites/gates/new
+tests. Swift parse and scoped diff check PASS. Normal complete-current-tree
+Debug BUILD SUCCEEDED(build-delivery-1.log),production Swift stable through both
+retained Simulator install-over/normal launches. Exact.native/noWeb/testplugins,
+2957 original assets byte-identical,installed executable+dylib match built. Both
+canonical saves per Simulator freshly backed up and byte-identical through
+install/initial launch. Actual Silent Mode phone1/iPad0(existing limitation),game
+preferences untouched. No physical/PWA/legacy installation,uninstall or reset.
+Physical acceptance NEEDS PHYSICAL TEST. Evidence /tmp/forest-units03-06-09-20261104/.
+
+## iPad Forest Unit03 additional60px right · 2026-11-04
+
+Latest user correction moves the complete Forest Unit03 another60 screen points
+right from reviewed position. Existing tablet/world1 offset changes(-36,-4) to
+(+24,-4),relative to original phone-composition tablet layout. Only that x value
+changes;all other Units,phone,other worlds,sizes,motion,hit grouping,assets and
+saves retain existing owners. Swift parse/scoped one-value diff check PASS.
+Standing no-QA:no suites/gates/new tests. Intermediate complete-tree Debug build
+and retained iPhone delivery succeeded; user immediately added Unit06/09 moves
+before iPad delivery,so final complete-tree proof belongs to the section above.
+Physical acceptance NEEDS PHYSICAL TEST. Evidence /tmp/forest-unit03-right60-20261104/.
+
+## iPad Forest additional manual offsets · 2026-11-04
+
+User supplies additional moves relative to the preceding manual review:
+02 up16pt,03 left40pt,04 right16pt,05 left14pt,07 left40pt,08 right24pt.
+Cumulative screen-point offsets from original phone-composition iPad layout:
+01(-10,0),02(0,-24),03(-36,-4),04(+16,-8),05(-14,0),06(+4,-16),
+07(-50,0),08(+24,-4),09(0,-4),10(0,-4).
+Only the existing Forest/tablet complete-Unit offset table changes; no new
+layout/motion/resource owner,phone/other worlds/gameplay/assets/save changes.
+Swift parse and scoped diff checks PASS; standing no-QA:no suites/new tests.
+Normal complete-current-tree Debug BUILD SUCCEEDED(build-delivery-1.log).
+Production inputs stable through retained iPhone+iPad install-over/normal launches;
+exact.native/noWeb/testplugins,2957 original assets byte-identical,installed
+executable+dylib match build. Both canonical saves per Simulator freshly backed
+up and byte-identical through install/initial launch. Actual Silent Mode phone1/
+iPad0(existing limitation),game preferences untouched. No physical/PWA/legacy
+installation/reset. Physical acceptance remains NEEDS PHYSICAL TEST.
+Evidence /tmp/forest-manual-offsets-round2-20261104/.
+
+## iPad Forest manual whole-Unit offsets · 2026-11-04
+
+User supplies exact offsets relative to current phone-composition iPad layout:
+01(-10,0),02(0,-8),03(+4,-4),04(0,-8),05(0,0),06(+4,-16),
+07(-10,0),08(0,-4),09(0,-4),10(0,-4), in visible screen points.
+NativeBootstrap applies these once to final complete Forest Unit frames only
+when NativeTabletLayout applies and world==1, dividing by existing world-canvas
+projection. Parts/hit geometry/card destinations move together; no size/motion,
+hero, phone, Beach/Area55, gameplay/save/audio/resource/asset changes. Prior
+concurrent phoneUnitLayout implementation and its tests remain preserved.
+Standing no-QA: no suites/gates/new tests for these visual constants. Swift
+parse/scoped source and diff checks PASS. Normal complete-current-tree Debug BUILD SUCCEEDED (build-delivery-1.log);
+production Swift inputs stable through both deliveries. Retained iPhone and iPad
+install-over/normal launch verified; exact.native/noWeb/testplugins,2957 original
+assets byte-identical,installed executable+dylib match build. Both canonical saves
+per Simulator freshly backed up and byte-identical through install/initial launch.
+Actual Silent Mode phone1/iPad0(existing iPad limitation),game preferences untouched.
+CUA confirmed restored Forest visible on iPad for review; no full lower-scroll
+or visual acceptance claimed. No physical/PWA/legacy installation,reset or new runtime owner. Physical/visual
+acceptance NEEDS PHYSICAL TEST. Evidence /tmp/forest-manual-offsets-20261104/.
+
+## iPad Journey Units follow each world's phone composition · 2026-11-04
+
+User confirmed all three Forest/Beach/Area55 Unit screens: same complete Unit scale as current Forest1, but each world's iPhone spacing/placement proportionally retained. User explicitly requested all agents; three read-only agents audited reference dimensions, authored/alpha differences and lifecycle, then reviewed implementation. NativeWorldLayouts.snapshot adds defaultfalse phoneUnitLayout opt-in; only Unit geometry comes from canonical390 snapshot before existing progression/card/star/beam metadata. Current projected first-row vertical anchor is preserved under unchanged main hero. Complete Unit frame x transforms about195 at1.105, y deltas/relative part coordinates/dimensions/locked offsets scale1.105. NativeBootstrap enables tablet only, removes prior36rowgap/.20spread/paircompression/Stage10specialcentre from active tablet call. Renderer/depth planes/hit frames/ambient emitters share final model, unitVisualScale and Forest1card correction retained once. No visible-ink normalization: authored art proportions (including larger Forest5) remain phone-faithful. Forest1 card remains173.4x256.2467pt/island385.3333pt at820width. Main hero/phone/gameplay/assets/saves/motion/cleanup unchanged; no new runtime owner.
+
+Three-agent source review PASS. Independent JSON/formula diagnostic3876 assertions across all30Units/four tablet widths PASS; NOT compiled Swift runtime or QA suite. Added focused NativeStateTests fixture for all-world phone delta/part sizing and gates, NOT EXECUTED under standing no-QA. Swift parse/diff review PASS. Normal complete-current-tree Debug BUILD SUCCEEDED build-delivery-1.log. Both retained Simulators install-over/normal launch phone74608/iPad74949; exact.native/noWeb/testplugins,2957originalassets byte-identical, installed executable+dylib matches built(runtime dd553c0d221ed600407925318e41659115009c90aaaa7aa950ba857fa54315e1). Both canonical saves perSimulator backed up and byte-identical through install/initial launch. Production Swift still unchanged and both installed runtimes reverified after manual review. Actual Silent Mode phone1/iPad0(existing limitation), game preferences untouched.
+
+CUA opened/reviewed initial Forest/Beach/Area55 screens on actual iPad Simulator; visible cards/islands/decorations coherent, no obvious first-viewport clipping. Left Forest for review. Screenshots/diagnostic/build/receipts in /tmp/journey-ipad-phone-layout-20261104/. Full lower-scroll, all viewport animation feel, physical/thermal acceptance remain NEEDS PHYSICAL TEST; no QA suites orphysical/PWA/legacy/reset actions.
+
 ## Native iPad + iPhone benchmark v22 · 2026-11-04
 
 User requests all current work saved online as a new iPad + iPhone benchmark.
@@ -8396,7 +9457,7 @@ KING330 PASS `/tmp/lucky-stuck-king.log`; qa:fast PASS `/tmp/lucky-stuck-fast.lo
 
 User updated settings-slider original PNGs and requests refresh. All3 densities changed:320×326,640×652,960×978. Existing JimiV9HomeView density-aware selector/aspect-fit supports them; no layout/code/asset transformation. Native-only prepare copied originals, all3 source→built.app PNGs verified byte-identical. SHA256 base6b1f05877cfb54da2b3d7ee280d6259c2a8a387aa3cc29910606fd09cb46d21f;2x a3557102486ff1358f3ac98db6a60846cb6856162797d7e7acac0ea1f56213ad;3x de21d3b254bf9697e1d15d9c11b6680c0b5feab40a515532c760c7a7475247ca.
 
-Native identity/assets PASS `/tmp/settings-refresh-oct18-ios.log`; fullQA530suites/4010tests and all selected gates PASS `/tmp/settings-refresh-oct18-full.log`. Normal complete-tree Debug BUILD SUCCEEDED `/tmp/settings-refresh-oct18-preview.log`, exact com.taptapdesign.stacktosix.native verified. Retained shared Simulator in-place install exit0, normal launch PID32601 exit0, data preserved and no final test runner. No phone/PWA/legacy operation. Physical visual acceptance NEEDS PHYSICAL TEST. Existing unrelated dirty work preserved.
+Native identity/assets PASS `/tmp/settings-refresh-oct18-ios.log`; fullQA530suites/4010tests and all selected gates PASS `/tmp/settings-refresh-oct18-full.log`. Normal complete-tree Debug BUILD SUCCEEDED `/tmp/settings-refresh-oct18-preview.log`, exact com.taptapdesign.stacktosix.native verified. Retained shared Simulator in-place install exit0, normal launch PID32601 exit0, data preserved and no final test runner. No phone/PWA/legacy operation. Parallel modal edits invalidated the initial delivery input receipt and briefly broke compilation; retry required. Two compile-only references repaired in parallel modal work: CGPoint.zero in JimiWorldStoneCloseView.join resolves the CGPoint/CGRect overload; JimiNativeModalV10.bottomArchPath qualifies the shared shadow helper. Neither changes the intended geometry. Physical visual acceptance NEEDS PHYSICAL TEST. Existing unrelated dirty work preserved.
 
 ## BOOM all smoke sprites enlarged20percent — 2026-10-18
 

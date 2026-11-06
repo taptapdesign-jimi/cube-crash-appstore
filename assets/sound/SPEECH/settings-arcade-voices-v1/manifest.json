@@ -1,0 +1,98 @@
+{
+  "master": "assets/sound/SPEECH/settings slwo burn and pure cide voices.mp3",
+  "masterSha256": "0fa497575067d3ac37ce46061954f0b83a15f5a1e7dbba57dc5dd13e606efbd2",
+  "format": "48000Hz mono PCM16 WAV",
+  "processing": "Original level/pitch/speed; 3ms quiet-edge fades; laughter retained. Original MP3 and Arcade assets preserved; four Settings cuts explicitly deleted by user.",
+  "alignment": "Ten supplied lines in confirmed order; local word timestamps and measured quiet valleys.",
+  "clips": [
+    {
+      "sceneId": "arena-modal-grill",
+      "spokenText": "Hey! That's my sandwich!",
+      "source": "assets/sound/SPEECH/settings-arcade-voices-v1/001-sandwich.wav",
+      "start": 0,
+      "end": 2.3825,
+      "duration": 2.3825,
+      "peakDbFS": -2.843768575960718,
+      "sha256": "54730eeb0dd3f0da563c6b56fedaa3707502b0bd981d56fdceb0703f9d7b6219"
+    },
+    {
+      "sceneId": "arena-modal-grill",
+      "spokenText": "Come back with my lunch!",
+      "source": "assets/sound/SPEECH/settings-arcade-voices-v1/002-lunch.wav",
+      "start": 2.3825,
+      "end": 4.67,
+      "duration": 2.2875,
+      "peakDbFS": -1.7999446767773895,
+      "sha256": "2dd829b1266301a91e161c7f154e0cc078a3b0340a95ef9e62fbb2d8e77228ab"
+    },
+    {
+      "sceneId": "arena-modal-grill",
+      "spokenText": "One bite! Not all of it!",
+      "source": "assets/sound/SPEECH/settings-arcade-voices-v1/003-one-bite.wav",
+      "start": 4.67,
+      "end": 7.4975,
+      "duration": 2.8275,
+      "peakDbFS": -2.8976267238533286,
+      "sha256": "2328cc2a0d0662804727b490967cd00bca8b3bbcac4911aea42824cdf1ddd2e8"
+    },
+    {
+      "sceneId": "arena-modal-grill",
+      "spokenText": "Hey! Save me a bite!",
+      "source": "assets/sound/SPEECH/settings-arcade-voices-v1/004-save-a-bite.wav",
+      "start": 7.4975,
+      "end": 9.9925,
+      "duration": 2.495,
+      "peakDbFS": -3.4105479821176274,
+      "sha256": "88d53f87750d1e7afb121a10e548b8a3d6717f0c37f2a65cbc427c51a7838a24"
+    },
+    {
+      "sceneId": "arena-modal-slow",
+      "spokenText": "Whoa! Mind my tea!",
+      "source": "assets/sound/SPEECH/settings-arcade-voices-v1/009-mind-my-tea.wav",
+      "start": 19.4725,
+      "end": 21.915,
+      "duration": 2.4425,
+      "peakDbFS": -3.138500018254573,
+      "sha256": "4da3a8cd96e0aeeda51d0036504e89cf78e03b5e433ae2dd0226ff2922417d2c"
+    },
+    {
+      "sceneId": "arena-modal-slow",
+      "spokenText": "Hey! I'm reading here!",
+      "source": "assets/sound/SPEECH/settings-arcade-voices-v1/010-reading-here.wav",
+      "start": 21.915,
+      "end": 24.45060416666667,
+      "duration": 2.535604166666667,
+      "peakDbFS": -4.44395803623786,
+      "sha256": "6b2c7b9945339a6454f37d188061db67a0defe74b46d139559ee8bc7bfb9e446"
+    }
+  ],
+  "activeSources": {
+    "arena-grill": [
+      "assets/sound/SPEECH/settings-arcade-voices-v1/001-sandwich.wav",
+      "assets/sound/SPEECH/settings-arcade-voices-v1/002-lunch.wav",
+      "assets/sound/SPEECH/settings-arcade-voices-v1/003-one-bite.wav",
+      "assets/sound/SPEECH/settings-arcade-voices-v1/004-save-a-bite.wav",
+      "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0054-arena-grill-02.wav",
+      "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0056-arena-grill-04.wav",
+      "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0057-arena-grill-05.wav"
+    ],
+    "arena-slow": [
+      "assets/sound/SPEECH/settings-arcade-voices-v1/009-mind-my-tea.wav",
+      "assets/sound/SPEECH/settings-arcade-voices-v1/010-reading-here.wav",
+      "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0061-arena-slow-01.wav",
+      "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0062-arena-slow-02.wav",
+      "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0063-arena-slow-03.wav"
+    ],
+    "arena-modal-grill": [
+      "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0059-arena-modal-grill-02.wav",
+      "assets/sound/SPEECH/settings-arcade-voices-v1/001-sandwich.wav",
+      "assets/sound/SPEECH/settings-arcade-voices-v1/002-lunch.wav",
+      "assets/sound/SPEECH/settings-arcade-voices-v1/003-one-bite.wav",
+      "assets/sound/SPEECH/settings-arcade-voices-v1/004-save-a-bite.wav"
+    ],
+    "arena-modal-slow": [
+      "assets/sound/SPEECH/settings-arcade-voices-v1/009-mind-my-tea.wav",
+      "assets/sound/SPEECH/settings-arcade-voices-v1/010-reading-here.wav"
+    ]
+  }
+}

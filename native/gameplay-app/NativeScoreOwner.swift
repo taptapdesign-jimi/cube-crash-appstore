@@ -77,7 +77,7 @@ final class NativeGameplayBackpackController:UIViewController {
     private let motion:NativeRouteMotion
     let card=UIView(),heading=UILabel(),subtitle=UILabel()
     private let restTilt=JimiNativeModalTransformView()
-    private let restTiltDegrees=CGFloat.random(in: -2...2)
+    private let restTiltDegrees=JimiNativeModalV10.restTiltDegrees()
     private let flip=JimiNativeModalTransformView(),idle=UIView(),paper=UIImageView(),backdrop=JimiV9PlainButton(type:.custom),closeButton=JimiV9PlainButton(type:.custom)
     private(set) var screen:NativeBackpackView?
     private(set) var detail:NativeBackpackDetail?
@@ -127,8 +127,8 @@ final class NativeGameplayBackpackController:UIViewController {
         let screen=NativeBackpackView(frame:.zero,assets:assets,title:includesArcade ? "Box":"Backpack",arcadeCrate:includesArcade);self.screen=screen
         screen.useModalLayout();screen.apply(sections,includesArcade:includesArcade);idle.addSubview(screen)
         screen.onDie={[weak self] die in self?.open(die)}
-        closeButton.setBackgroundImage(paper.image,for:.normal);closeButton.layer.cornerRadius=26;closeButton.clipsToBounds=true
-        closeButton.setImage(assets.image("assets/close-icon.png",densityAware:true),for:.normal);closeButton.imageView?.contentMode = .scaleAspectFit;closeButton.artworkOpacity = 0.8;closeButton.enableArtworkTapFeedback()
+        closeButton.setBackgroundImage(paper.image,for:.normal);closeButton.layer.cornerRadius=16;closeButton.clipsToBounds=true
+        closeButton.setImage(assets.image("assets/close-icon.png",densityAware:true),for:.normal);closeButton.imageView?.contentMode = .scaleAspectFit;closeButton.artworkOpacity = 0.8;closeButton.enableArtworkTapFeedback(wholeControl:true)
         closeButton.imageEdgeInsets=UIEdgeInsets(top:14,left:14,bottom:14,right:14);closeButton.accessibilityIdentifier="native.gameplay.backpack.close"
         closeButton.accessibilityLabel=includesArcade ? "Close Box":"Close Backpack";closeButton.addTarget(self,action:#selector(close),for:.touchUpInside);idle.addSubview(closeButton)
         modalDrag=JimiNativeModalDrag(target:card,idle:idle,viewport:view,canDrag:{[weak self] in
@@ -160,12 +160,12 @@ final class NativeGameplayBackpackController:UIViewController {
         // Preserve the authored55% animation pivot while centering the visible paper.
         card.bounds=CGRect(x:0,y:0,width:width,height:height);card.center=CGPoint(x:modalBounds.midX,y:modalBounds.midY+height*(card.layer.anchorPoint.y-0.5))
         restTilt.bounds=card.bounds;restTilt.center=CGPoint(x:width/2,y:height/2)
-        restTilt.layer.transform=CATransform3DMakeRotation((NativeTabletLayout.applies(view.bounds.size) ? restTiltDegrees:0) * .pi/180,0,0,1)
+        restTilt.layer.transform=CATransform3DMakeRotation(restTiltDegrees * .pi/180,0,0,1)
         flip.bounds=card.bounds;flip.center=CGPoint(x:width/2,y:height);idle.bounds=card.bounds;idle.center=CGPoint(x:width/2,y:height*0.52)
         // Crop the authored folded paper tail just as selected Backpack details do.
         JimiNativeModalV10.paperLayout(paper,bounds:idle.bounds,bottomExtension:96)
         screen?.frame=CGRect(x:0,y:subtitle.frame.maxY+24,width:width,height:max(0,height-subtitle.frame.maxY-24-32))
-        closeButton.frame=CGRect(x:width-42,y:-10,width:52,height:52)
+        JimiNativeModalV10.layoutClose(closeButton,frame:CGRect(x:width-42,y:-10,width:52,height:52),modalTilt:restTiltDegrees)
     }
     override func viewDidAppear(_ animated:Bool) {
         super.viewDidAppear(animated);guard !closing,!entered,!disposed else{return};entered=true;card.alpha=1

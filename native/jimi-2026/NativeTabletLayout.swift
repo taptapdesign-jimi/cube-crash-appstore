@@ -24,10 +24,10 @@ enum NativeTabletLayout {
         animation.transform=CGAffineTransform(scaleX:scale,y:scale)
     }
     static func smokeSpriteBoost(_ size:CGSize)->CGFloat {
-        // Latest sizing: another20% reduction of TNT smoke only on both devices.
-        // Core TNT already
-        // owns its1.4*1.2*1.2 enlargement AND the full-width scene projection.
-        (applies(size) ? (1.694*1.2*1.30*0.80)/(1.4*1.2*1.2*animationScale(size)):1)*0.80
+        // Phone smoke gains another10% after its previous20% and30% increases; tablet retains
+        // its accepted sizing. Core TNT already owns its1.4*1.2*1.2
+        // enlargement AND the full-width scene projection.
+        applies(size) ? (1.694*1.2*1.30*0.80*0.80)/(1.4*1.2*1.2*animationScale(size)):0.80*1.20*1.30*1.10
     }
     static func smokeVerticalOffset(_ size:CGSize)->CGFloat {applies(size) ? animationViewport(size).height*0.1:0}
     static func tntSmokeVerticalOffset(_ size:CGSize)->CGFloat {
@@ -36,6 +36,13 @@ enum NativeTabletLayout {
     }
     // Match the current iPad navigation icon factor with one whole-modal
     // projection. All inner dimensions remain the authored390pt phone recipe.
+    static func settingsPaperCornerRadius(_ viewport:CGSize)->CGFloat {applies(viewport) ? 24:22}
+    @MainActor static func paperCornerRadius(in surface:UIView)->CGFloat {
+        var root=surface,ancestor:UIView?=surface,projected=false
+        while let view=ancestor {root=view;if view is NativeModalProjectionView {projected=true};ancestor=view.superview}
+        let viewport=surface.window?.bounds.size ?? root.bounds.size
+        return settingsPaperCornerRadius(viewport)/(projected ? modalScale(viewport):1)
+    }
     static func modalScale(_ size:CGSize)->CGFloat {applies(size) ? 1.4:1}
     // Modal titles stay32pt on screen, independent of the paper projection.
     static func modalTitleSize(_ viewport:CGSize,phone:CGFloat)->CGFloat {

@@ -102,3 +102,13 @@ It defines the accepted soft, light, creamy rendering and elongated cartoony
 limbs, with original project images as visual references. Distinguish review,
 prompt writing and actual image editing from the user's request. This phrase
 refers to illustration appearance, not runtime renderer performance.
+
+## Locked Native navigation height (user decision 2026-11-06)
+
+Journey Hub, Settings and Journey World screens (Forest, Beach, Area 55) must
+share `JimiV9NavigationHeader.RowLayout` height and divider geometry on each
+device. The shared content height is 66pt; retain the existing safe-area,
+compression and tablet rules. No per-screen shorter navigation override.
+Do not change this geometry or weaken its regression checks without an explicit
+user instruction. Existing navigation content offsets and motion remain owned
+by the shared header.

@@ -4,6 +4,7 @@ import UIKit
 @MainActor
 final class NativeBackpackDetail:UIViewController {
     let die:NativeBackpackCatalog.Die
+    private let restTiltDegrees=JimiNativeModalV10.restTiltDegrees()
     private let assets:JimiV9Artwork,motion:NativeRouteMotion
     private let flip=JimiNativeModalTransformView(),tilt=UIView(),idle=UIView()
     let speechButton=NativeSceneSpeechTapView()
@@ -31,7 +32,7 @@ final class NativeBackpackDetail:UIViewController {
     override func viewDidLoad(){
         super.viewDidLoad();view.backgroundColor = .clear
         var camera=CATransform3DIdentity;camera.m34 = -1/920;view.layer.sublayerTransform=camera
-        card.addSubview(flip);flip.addSubview(tilt);tilt.addSubview(idle);tilt.transform=CGAffineTransform(rotationAngle:-1.5 * .pi/180);idle.layer.isDoubleSided=false
+        card.addSubview(flip);flip.addSubview(tilt);tilt.addSubview(idle);tilt.transform=CGAffineTransform(rotationAngle:restTiltDegrees * .pi/180);idle.layer.isDoubleSided=false
         card.layer.anchorPoint=CGPoint(x:0.5,y:0.55);flip.layer.anchorPoint=CGPoint(x:0.5,y:1);idle.layer.anchorPoint=CGPoint(x:0.5,y:0.52)
         let illustrationPath:String?
         if usesForestWorldIllustration,(1...10).contains(die.board) {
@@ -57,7 +58,7 @@ final class NativeBackpackDetail:UIViewController {
         speechButton.accessibilityLabel="Hear Jimbo";speechButton.accessibilityHint="Tap for another line"
         speechButton.accessibilityIdentifier="native.backpack.detail.speech"
         speechButton.onTap={[weak self] in self?.speechTapped()}
-        close.setBackgroundImage(paper.image,for:.normal);close.clipsToBounds=true;close.layer.cornerRadius=26;close.setImage(assets.image("assets/close-icon.png",densityAware:true),for:.normal);close.imageView?.contentMode = .scaleAspectFit;close.artworkOpacity = 0.8;close.enableArtworkTapFeedback();close.imageEdgeInsets=UIEdgeInsets(top:14,left:14,bottom:14,right:14);close.addTarget(self,action:#selector(closeTapped),for:.touchUpInside);close.accessibilityLabel="Close dice details";close.accessibilityIdentifier="native.backpack.detail.close"
+        close.setBackgroundImage(paper.image,for:.normal);close.clipsToBounds=true;close.layer.cornerRadius=16;close.setImage(assets.image("assets/close-icon.png",densityAware:true),for:.normal);close.imageView?.contentMode = .scaleAspectFit;close.artworkOpacity = 0.8;close.enableArtworkTapFeedback(wholeControl:true);close.imageEdgeInsets=UIEdgeInsets(top:14,left:14,bottom:14,right:14);close.addTarget(self,action:#selector(closeTapped),for:.touchUpInside);close.accessibilityLabel="Close dice details";close.accessibilityIdentifier="native.backpack.detail.close"
         modalDrag=JimiNativeModalDrag(target:card,idle:idle,viewport:view,mediaSafeIdleAnimationKeys:["backpack.detail.idle",JimiNativeModalV10.settledBounceKey],canDrag:{[weak self] in guard let self else{return false};return self.foreground && self.entered && self.card.isUserInteractionEnabled && !self.closing && !self.disposed},onDismiss:{[weak self] in self?.closeTapped()})
         card.accessibilityIdentifier="native.backpack.detail";card.alpha=0;card.isUserInteractionEnabled=false;view.accessibilityViewIsModal=true
         let exitTap=UILongPressGestureRecognizer(target:self,action:#selector(exitSelectionPressed(_:)))
@@ -105,7 +106,7 @@ final class NativeBackpackDetail:UIViewController {
             preview.layoutArtwork()
         }
         speechButton.frame=hero.frame
-        close.frame=CGRect(x:width-42,y:-10,width:52,height:52)
+        JimiNativeModalV10.layoutClose(close,frame:CGRect(x:width-42,y:-10,width:52,height:52),modalTilt:restTiltDegrees)
     }
     /// Read once from a bounded preview of the original PNG. Transparent
     /// margins must not make a nominal 180pt hero visibly smaller.

@@ -48,6 +48,11 @@ import UIKit
     private let smokeResources:SmokeResources
     private var owner:NativeWildMeterHUDOwner!
     private var smoke:NativeWildMeterSmokeOwner!
+    private let candyCrop=SKCropNode(),candyMask=SKShapeNode(),candySurface=SKSpriteNode()
+    private let candyBands=(0..<7).map { _ in
+        (width:CGFloat.random(in:0.60...1.05),gap:CGFloat.random(in:1.2...2.5))
+    }
+    private var candyPeriod:CGFloat=1,candyOffset:CGFloat=0
     private var barHeight:CGFloat=10
     private var closed=false
     private var tutorialPulseActive=false,tutorialPulseEpoch:UInt64=0
@@ -117,6 +122,9 @@ import UIKit
         fillSpatialLayer.name="wildMeterFillSpatialLayer";fillSpatialLayer.zPosition=5000
         fillBounceLayer.name="wildMeterFillBounceLayer";fill.zPosition=0;fill.strokeColor = .clear;fill.lineWidth=0
         fill.fillColor=SKColor(red:231/255,green:116/255,blue:74/255,alpha:1)
+        candyMask.fillColor = .white;candyMask.strokeColor = .clear;candyMask.lineWidth=0
+        candyCrop.maskNode=candyMask;candySurface.anchorPoint=CGPoint(x:0,y:0.5)
+        candyCrop.addChild(candySurface);fill.addChild(candyCrop)
         fillBounceLayer.addChild(fill);fillSpatialLayer.addChild(fillBounceLayer);container.addChild(background);container.addChild(fillSpatialLayer)
         hudStage.addChild(container)
         smoke=NativeWildMeterSmokeOwner(driver:driver,wall:wall,resources:smokeResources,geometry:{[weak self] in
@@ -133,9 +141,47 @@ import UIKit
         owner=NativeWildMeterHUDOwner(driver:driver,maximum:maximum,initialWidth:0,isPad:isPad,draw:{[weak self] pose in
             guard let self else{return}
             let path=Self.barPath(left:pose.left,width:pose.width,height:self.barHeight)
-            self.fill.path=path
+            self.fill.path=path;self.candyMask.path=path
         },drawBounce:{[weak self] y in self?.fillBounceLayer.position.y = -CGFloat(y)},stopSmoke:{[weak self] in self?.smoke.stopSmoke()},stopEmission:{[weak self] in self?.smoke.stopEmission()},startSmoke:{[weak self] in self?.smoke.startEmission()},verticalBounceEnabled:false)
         resize(maximum:maximum,sourceOrigin:sourceOrigin)
+    }
+    /// Seven captured irregular bands repeat seamlessly under the active mask.
+    /// Existing Scene frames alone advance the texture; no action/timer owner.
+    private func prepareCandySurface(maximum:Double) {
+        candyPeriod=candyBands.reduce(0) {$0+($1.width+$1.gap)*barHeight}
+        candyOffset=candyOffset.truncatingRemainder(dividingBy:candyPeriod)
+        let size=CGSize(width:max(1,CGFloat(maximum))+candyPeriod,height:max(1,barHeight))
+        let format=UIGraphicsImageRendererFormat();format.scale=2;format.opaque=false
+        let image=UIGraphicsImageRenderer(size:size,format:format).image { context in
+            let cg=context.cgContext,rect=CGRect(origin:.zero,size:size)
+            cg.setFillColor(UIColor(red:231/255,green:116/255,blue:74/255,alpha:1).cgColor);cg.fill(rect)
+            let slant=size.height*0.7
+            cg.setFillColor(UIColor(red:1,green:181/255,blue:125/255,alpha:1).cgColor)
+            var origin = -candyPeriod
+            while origin<size.width+slant {
+                var x=origin
+                for stripe in candyBands {
+                    let band=stripe.width*size.height
+                    cg.move(to:CGPoint(x:x,y:size.height));cg.addLine(to:CGPoint(x:x+band,y:size.height))
+                    cg.addLine(to:CGPoint(x:x+band+slant,y:0));cg.addLine(to:CGPoint(x:x+slant,y:0))
+                    cg.closePath();cg.fillPath();x+=band+stripe.gap*size.height
+                }
+                origin+=candyPeriod
+            }
+            let colors=[UIColor.white.withAlphaComponent(0.48).cgColor,UIColor.white.withAlphaComponent(0.06).cgColor,UIColor.clear.cgColor,UIColor(red:0.55,green:0.22,blue:0.08,alpha:0.18).cgColor] as CFArray
+            if let gloss=CGGradient(colorsSpace:CGColorSpaceCreateDeviceRGB(),colors:colors,locations:[0,0.32,0.58,1]) {
+                cg.drawLinearGradient(gloss,start:.zero,end:CGPoint(x:0,y:size.height),options:[])
+            }
+        }
+        let texture=SKTexture(image:image);texture.filteringMode = .linear
+        candySurface.texture=texture;candySurface.size=size;candySurface.position=CGPoint(x:-candyOffset,y:-5)
+    }
+    func advanceCandy(delta:Double,visible:Bool,reducedMotion:Bool) {
+        guard !closed,current(),visible,!reducedMotion,owner.width>0,
+              !container.isHidden,container.alpha>0,candyPeriod>0 else{return}
+        candyOffset=(candyOffset+CGFloat(max(0,min(delta,0.05)))*barHeight*1.8)
+            .truncatingRemainder(dividingBy:candyPeriod)
+        candySurface.position.x = -candyOffset
     }
     private static func barPath(left:Double,width:Double,height:CGFloat)->CGPath {
         // Retain the original local centre y=-5 as thickness grows. Both
@@ -156,6 +202,7 @@ import UIKit
     func resize(maximum:Double,sourceOrigin:CGPoint,barHeight:CGFloat?=nil){
         guard !closed else{return};if let barHeight {self.barHeight=barHeight};container.position=sourceToNative(sourceOrigin)
         if let base=tutorialPulseBase {tutorialPulseBase=(container.position,base.1,base.2)}
+        prepareCandySurface(maximum:maximum)
         owner.setWidth(maximum){[weak self] width in guard let self else{return};self.background.path=Self.barPath(left:0,width:width,height:self.barHeight)}
     }
     func stopSmoke(){smoke.stopSmoke()}

@@ -480,6 +480,38 @@ final class NativeStateTests: XCTestCase {
             }}
         }
     }
+    func testTabletPhoneUnitLayoutPreservesEveryWorldCompositionAtForestReferenceScale() throws {
+        let layouts=try NativeWorldLayouts()
+        func n(_ object:[String:Any],_ key:String)->Double {(object[key] as! NSNumber).doubleValue}
+        for complete in [false,true] {
+            var progress=NativeProgressionState();if complete {progress.completedJourneyBoards=Set(1...30)}
+            for world in 1...3 {
+                let phone=try layouts.snapshot(world:world,width:390,height:844,generation:1,progression:progress)
+                let old=try layouts.snapshot(world:world,width:820,height:1180,generation:1,progression:progress,proportionalCards:true,unitScale:1.105)
+                let tablet=try layouts.snapshot(world:world,width:820,height:1180,generation:1,progression:progress,proportionalCards:true,phoneUnitLayout:true,unitScale:1.105)
+                let before=phone["units"] as! [[String:Any]],after=tablet["units"] as! [[String:Any]]
+                let oldFirst=(old["units"] as! [[String:Any]])[0]
+                let anchor=n(oldFirst["frame"] as! [String:Any],"y")
+                let phoneTop=n(before[0]["frame"] as! [String:Any],"y")
+                for (a,b) in zip(before,after) {
+                    let af=a["frame"] as! [String:Any],bf=b["frame"] as! [String:Any]
+                    XCTAssertEqual(n(bf,"x"),195+(n(af,"x")-195)*1.105,accuracy:0.000001)
+                    XCTAssertEqual(n(bf,"y"),anchor+(n(af,"y")-phoneTop)*1.105,accuracy:0.000001)
+                    for key in ["width","height"] {XCTAssertEqual(n(bf,key),n(af,key)*1.105,accuracy:0.000001)}
+                    for (ap,bp) in zip(a["parts"] as! [[String:Any]],b["parts"] as! [[String:Any]]) {
+                        for key in ["x","y","width","height"] where ap[key] != nil {
+                            XCTAssertEqual(n(bp,key),n(ap,key)*1.105,accuracy:0.000001)
+                        }
+                        XCTAssertEqual(ap["role"] as? String,bp["role"] as? String)
+                    }
+                    XCTAssertEqual(a["locked"] as? Bool,b["locked"] as? Bool)
+                    XCTAssertEqual(a["allowedActions"] as? [String],b["allowedActions"] as? [String])
+                }
+                XCTAssertTrue(NSDictionary(dictionary:old["mainFrame"] as! [String:Any]).isEqual(to:tablet["mainFrame"] as! [String:Any]))
+                XCTAssertEqual(tablet["unitVisualScale"] as? Double,1.105)
+            }
+        }
+    }
     func testTabletUnitGrowthScalesEveryPartAndCardAndReflowsRowsWithoutChangingGates() throws {
         let layouts=try NativeWorldLayouts()
         for complete in [false,true] {
@@ -612,7 +644,7 @@ final class NativeStateTests: XCTestCase {
         let root=try XCTUnwrap(JSONSerialization.jsonObject(with:Data(contentsOf:url)) as? [String:Any])
         let cycles=root["cycles"] as! [[[String:Any]]]
         var seed:UInt32=7
-        let planner=NativeForestBeePlanning(contentTop:138,mainX:0,mainY:154,mainWidth:390,mainHeight:350,random:{seed=seed &* 1664525 &+ 1013904223;return Double(seed)/4294967296})
+        let planner=NativeForestBeePlanning(contentTop:138,mainX:0,mainY:154,mainWidth:390,mainHeight:350,startsBehindGate:false,random:{seed=seed &* 1664525 &+ 1013904223;return Double(seed)/4294967296})
         for cycle in cycles.indices {
             let actual=planner.next(ids:[0,2,5,7,9]),expected=cycles[cycle]
             XCTAssertEqual(actual.map {$0["id"] as! Int},[0,2,5,7,9])

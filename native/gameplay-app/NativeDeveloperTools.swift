@@ -5,7 +5,7 @@ import StackToSixNativeState
 /// Native Settings DEV commands are admitted by the app
 /// route owner; the panel itself has no save or gameplay authority.
 enum NativeDeveloperAction: String, CaseIterable {
-    case show, hide, legendary, reset, newCard = "new-card", clean = "clean-board", arcadeClean = "arcade-clean-board", beachClean = "beach-clean-board", area55Clean = "area55-clean-board", endGame = "end-game", lastMerge = "last-merge"
+    case show, hide, legendary, reset, newCard = "new-card", clean = "clean-board", arcadeClean = "arcade-clean-board", beachClean = "beach-clean-board", area55Clean = "area55-clean-board", endGame = "end-game", lastMerge = "last-merge", intro
     var title: String {
         switch self {
         case .show: return "Show Card"
@@ -19,6 +19,7 @@ enum NativeDeveloperAction: String, CaseIterable {
         case .area55Clean: return "Clean Area 55"
         case .endGame: return "End Game"
         case .lastMerge: return "LAST MERGE"
+        case .intro: return "Intro"
         }
     }
 }
@@ -78,6 +79,7 @@ final class NativeDeveloperPicker: UIViewController {
         super.viewDidLayoutSubviews()
         let height = min(600, view.bounds.height-view.safeAreaInsets.top-view.safeAreaInsets.bottom-32)
         card.frame = CGRect(x: 24, y: max(view.safeAreaInsets.top+16,(view.bounds.height-height)/2), width: view.bounds.width-48, height: height)
+        JimiNativeModalV10.applyBottomArch(to:card)
         heading.frame = CGRect(x: 16, y: 16, width: card.bounds.width-32, height: 40)
         scroll.frame = CGRect(x: 16, y: 72, width: card.bounds.width-32, height: height-152)
         let width = (scroll.bounds.width-8)/2

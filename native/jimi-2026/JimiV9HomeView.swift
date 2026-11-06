@@ -36,9 +36,12 @@ class JimiV9PlainButton: UIButton {
         didSet {if let artworkOpacity {imageView?.alpha=artworkOpacity};setNeedsLayout()}
     }
     private weak var tapFeedbackArtwork:UIView?
+    private weak var tapFeedbackCompanion:UIView?
+    private var wholeControlFeedback=false
     private var artworkContactStarted=false
-    func enableArtworkTapFeedback(on artwork:UIView?=nil) {
+    func enableArtworkTapFeedback(on artwork:UIView?=nil,wholeControl:Bool=false,companion:UIView?=nil) {
         tapFeedbackArtwork=artwork
+        wholeControlFeedback=wholeControl;tapFeedbackCompanion=companion
         removeTarget(self,action:#selector(artworkContactBegan),for:.touchDown)
         removeTarget(self,action:#selector(artworkContactCancelled),for:[.touchCancel,.touchUpOutside])
         addTarget(self,action:#selector(artworkContactBegan),for:.touchDown)
@@ -47,14 +50,24 @@ class JimiV9PlainButton: UIButton {
     @objc private func artworkContactBegan() {
         guard isEnabled,isUserInteractionEnabled,!isHidden else{return}
         artworkContactStarted=true
-        NativeHubBackpackFeedback.play(on:tapFeedbackArtwork ?? imageView ?? self)
+        playArtworkContact()
     }
     @objc private func artworkContactCancelled() {artworkContactStarted=false}
     func playArtworkTapFeedback() {
         // A long press may finish its bounce before release. Never replay it
         // behind the modal exit; programmatic/backdrop dismissal still gets feedback.
         if artworkContactStarted {artworkContactStarted=false;return}
-        NativeHubBackpackFeedback.play(on:tapFeedbackArtwork ?? imageView ?? self)
+        playArtworkContact()
+    }
+    private func playArtworkContact() {
+        NativeHubBackpackFeedback.play(on:wholeControlFeedback ? self:(tapFeedbackArtwork ?? imageView ?? self),preservingTransform:wholeControlFeedback)
+        if let companion=tapFeedbackCompanion {NativeHubBackpackFeedback.play(on:companion,preservingTransform:true)}
+    }
+    private func cancelArtworkContact() {
+        guard wholeControlFeedback else{return}
+        layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey)
+        tapFeedbackCompanion?.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey)
+        artworkContactStarted=false
     }
     private weak var cartoonSurface:NativeCartoonBounceSurface?
     var cartoonBounceLayoutView:UIView {cartoonSurface ?? self}
@@ -77,8 +90,8 @@ class JimiV9PlainButton: UIButton {
         surface.bounds=CGRect(origin:.zero,size:rect.size);surface.center=CGPoint(x:rect.midX,y:rect.midY);layoutCartoonContent()
     }
     func layoutCartoonContent(){guard let surface=cartoonSurface else{return};bounds=surface.bounds;center=CGPoint(x:bounds.midX,y:bounds.midY)}
-    override var isHidden:Bool {didSet{if isHidden{cancelModalCTAEntryCue()};cartoonSurface?.isHidden=isHidden;if isHidden{cartoonSurface?.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey)};updateModalCTAIdle();ctaShimmer?.refresh()}}
-    override func didMoveToWindow(){super.didMoveToWindow();if window==nil{cancelModalCTAEntryCue();cartoonSurface?.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey)};updateModalCTAIdle();ctaShimmer?.rebindVisibility()}
+    override var isHidden:Bool {didSet{if isHidden{cancelModalCTAEntryCue();cancelArtworkContact()};cartoonSurface?.isHidden=isHidden;if isHidden{cartoonSurface?.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey)};updateModalCTAIdle();ctaShimmer?.refresh()}}
+    override func didMoveToWindow(){super.didMoveToWindow();if window==nil{cancelModalCTAEntryCue();cancelArtworkContact();cartoonSurface?.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey)};updateModalCTAIdle();ctaShimmer?.rebindVisibility()}
     deinit {NotificationCenter.default.removeObserver(self)}
     @objc private func modalCTAWillResignActive(){layer.removeAnimation(forKey:Self.modalIdleKey)}
     @objc private func modalCTADidBecomeActive(){updateModalCTAIdle()}
@@ -102,19 +115,22 @@ class JimiV9PlainButton: UIButton {
             idle.timingFunctions=Array(repeating:CAMediaTimingFunction(controlPoints:0.42,0,0.58,1),count:5)
             layer.add(idle,forKey:Self.modalIdleKey);return
         }
-        let settled=CATransform3DMakeRotation(ctaRestTiltDegrees * .pi/180,0,0,1)
-        let strength:CGFloat=pairedModalCTA ? 0.30:1
+        layer.add(Self.gentleIdle(direction:modalIdleDirection,tilt:modalIdleTilt,phase:modalIdlePhase,duration:modalIdleDuration,restTilt:ctaRestTiltDegrees,paired:pairedModalCTA),forKey:Self.modalIdleKey)
+    }
+    static func gentleIdle(direction:CGPoint,tilt:CGFloat,phase:Double,duration:Double,restTilt:CGFloat=0,paired:Bool=true)->CAKeyframeAnimation {
+        let settled=CATransform3DMakeRotation(restTilt * .pi/180,0,0,1)
+        let strength:CGFloat=paired ? 0.30:1
         // Keep the established small vertical drift while making sway visible.
-        let verticalStrength:CGFloat=pairedModalCTA ? 0.15:1
-        var peak=CATransform3DMakeTranslation(modalIdleDirection.x*strength,modalIdleDirection.y*verticalStrength,0)
-        peak=CATransform3DRotate(peak,(ctaRestTiltDegrees+modalIdleTilt*strength) * .pi/180,0,0,1)
+        let verticalStrength:CGFloat=paired ? 0.15:1
+        var peak=CATransform3DMakeTranslation(direction.x*strength,direction.y*verticalStrength,0)
+        peak=CATransform3DRotate(peak,(restTilt+tilt*strength) * .pi/180,0,0,1)
         peak=CATransform3DScale(peak,1+0.03*strength,1+0.03*strength,1)
         let idle=CAKeyframeAnimation(keyPath:"sublayerTransform")
         idle.values=[settled,peak,settled].map{NSValue(caTransform3D:$0)}
-        idle.keyTimes=[0,NSNumber(value:modalIdlePhase),1]
-        idle.duration=modalIdleDuration;idle.repeatCount = .infinity
+        idle.keyTimes=[0,NSNumber(value:phase),1]
+        idle.duration=duration;idle.repeatCount = .infinity
         idle.timingFunctions=Array(repeating:CAMediaTimingFunction(controlPoints:0.42,0,0.58,1),count:2)
-        layer.add(idle,forKey:Self.modalIdleKey)
+        return idle
     }
     /// Stacked actions use thirty percent sway/scale with fifteen percent vertical
     /// float, retaining the 1.2pt vertical drift bound without moving hit boxes.
@@ -766,6 +782,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
     private let shardIdlePhases=(0..<4).map{_ in Double.random(in:0.32...0.68)}
     private let shardIdleScales=(0..<4).map{_ in CGFloat.random(in:0.96...0.98)}
     private let bottomShadow: UIImageView
+    private let bottomNavigationSurface:JimiV9BottomNavigationSurface
     private var panels: [UIView] = []
     private var heroes: [UIButton] = []
     private(set) var heroImages: [UIImageView] = []
@@ -837,7 +854,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
     private var navButtons: [UIButton] = []
     private var navImages: [UIImageView] = []
     private var navIdleShells:[UIView]=[]
-    private let navIdleDirections=(0..<3).map{index in CGPoint(x:CGFloat.random(in:1.5...3)*(index==1 ? -1:1),y:-CGFloat.random(in:4...7))}
+    private let navIdleDirections=(0..<3).map{index in CGPoint(x:0,y:-CGFloat.random(in:4...7))}
     private let navIdleTilts=(0..<3).map{index in CGFloat.random(in:1...2)*(index==1 ? -1:1)}
     private let navIdleDurations=(0..<3).map{index in 4.1+Double(index)*0.8+Double.random(in:0...0.3)}
     private let navIdlePhases=(0..<3).map{_ in Double.random(in:0.35...0.65)}
@@ -848,6 +865,57 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
     private var draggedPositionX: CGFloat?
     private var dragStartPositionX: CGFloat = 0
     private var dragRecognitionTranslation: CGFloat = 0
+    private static let heroParallaxKey="native.home.hero-parallax"
+    struct HeroParallaxSnapshot {let offsets:[CGFloat],velocities:[Double]}
+    private struct HeroParallaxState {let epoch:CFTimeInterval,curve:JimiV9Motion.HomeCloudCurve}
+    private var heroParallaxStates:[HeroParallaxState?]=Array(repeating:nil,count:3)
+    private var heroParallaxLayers:[CALayer] {heroes.map{$0.layer}}
+    var heroParallaxSnapshot:HeroParallaxSnapshot {
+        var offsets:[CGFloat]=[],velocities:[Double]=[]
+        for (i,layer) in heroParallaxLayers.enumerated() {
+            let state=heroParallaxStates[i],moving=layer.animation(forKey:Self.heroParallaxKey) != nil
+            let age=layer.convertTime(CACurrentMediaTime(),from:nil)-(state?.epoch ?? 0)
+            offsets.append(layer.presentation()?.sublayerTransform.m41 ?? (moving ? state.map{CGFloat($0.curve.position(at:age))}:nil) ?? layer.sublayerTransform.m41)
+            velocities.append(moving ? state?.curve.velocity(at:age) ?? 0:0)
+        }
+        return .init(offsets:offsets,velocities:velocities)
+    }
+    private func heroParallaxOffset(slideX:CGFloat,index:Int)->CGFloat {
+        guard !UIAccessibility.isReduceMotionEnabled,bounds.width>0 else{return 0}
+        let delta=slideX-bounds.width*(1.5-CGFloat(index))
+        let amplitude=min(24,bounds.width*0.06)
+        return CGFloat(tanh(Double(delta/bounds.width)))*amplitude
+    }
+    private func animateHeroParallax(from snapshot:HeroParallaxSnapshot,slideX:CGFloat,settling:Bool) {
+        guard !UIAccessibility.isReduceMotionEnabled else{stopHeroParallax(preservePaintedPose:false);return}
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        for (i,layer) in heroParallaxLayers.enumerated() {
+            let end=heroParallaxOffset(slideX:slideX,index:i)
+            let start=snapshot.offsets.indices.contains(i) ? snapshot.offsets[i]:layer.sublayerTransform.m41
+            let velocity=snapshot.velocities.indices.contains(i) ? snapshot.velocities[i]:0
+            let duration:Double=settling ? 0.52:0.075
+            let curve=JimiV9Motion.HomeCloudCurve(start:Double(start),end:Double(end),initialVelocity:velocity,duration:duration,delay:0)
+            heroParallaxStates[i] = .init(epoch:layer.convertTime(CACurrentMediaTime(),from:nil),curve:curve)
+            layer.sublayerTransform=CATransform3DMakeTranslation(end,0,0)
+            let motion=CAKeyframeAnimation(keyPath:"sublayerTransform"),samples=settling ? 90:12
+            motion.values=(0...samples).map{NSValue(caTransform3D:CATransform3DMakeTranslation(CGFloat(curve.position(at:duration*Double($0)/Double(samples))),0,0))}
+            motion.duration=duration;motion.calculationMode = .linear
+            layer.add(motion,forKey:Self.heroParallaxKey)
+        }
+        CATransaction.commit()
+    }
+    func installHeroParallax(from snapshot:HeroParallaxSnapshot) {
+        animateHeroParallax(from:snapshot,slideX:sliderTrack.layer.position.x,settling:true)
+    }
+    private func stopHeroParallax(preservePaintedPose:Bool) {
+        let snapshot=preservePaintedPose ? heroParallaxSnapshot:nil
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        for (i,layer) in heroParallaxLayers.enumerated() {
+            let x=snapshot?.offsets[i] ?? heroParallaxOffset(slideX:bounds.width*(1.5-CGFloat(selectedSlide)),index:i)
+            layer.removeAnimation(forKey:Self.heroParallaxKey);layer.sublayerTransform=CATransform3DMakeTranslation(x,0,0);heroParallaxStates[i]=nil
+        }
+        CATransaction.commit()
+    }
     var sliderSelectionStartX: CGFloat { draggedPositionX ?? sliderTrack.layer.presentation()?.position.x ?? sliderTrack.layer.position.x }
 
     var heroView: UIView { heroes[selectedSlide] }
@@ -864,6 +932,11 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         }
     }
     var fixedShadowView: UIImageView { bottomShadow }
+    func appendNavigationDecorationFade(to group:CAAnimationGroup,track:JimiV9Motion.Track) {
+        guard (track.tweens.last?.to.scaleX ?? 1)<0.01 else{return}
+        JimiV9NavigationHeader.appendDecorationFade(to:group,keyPath:"opacity",
+            from:bottomShadow.layer.presentation()?.opacity ?? 1,delay:track.tweens.first?.begin ?? 0)
+    }
     var animationUnits: [UIView] { [logoView, heroView, ctas[selectedSlide], bottomShadow, navView] }
 
     init(frame: CGRect, assets: JimiV9Artwork) {
@@ -874,7 +947,8 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         shards = ["gore ljevo shards", "shards gore desno", "dole ljevi shards", "dole ljevi shards"].map {
             UIImageView(image: assets.image("assets/logo addons/\($0).png"))
         }
-        bottomShadow = UIImageView(image: assets.image("assets/home-shadow.png"))
+        bottomShadow = UIImageView()
+        bottomNavigationSurface=JimiV9BottomNavigationSurface(assets:assets)
         super.init(frame: frame)
         accessibilityIdentifier = "native.home"
         backgroundColor = .clear
@@ -923,7 +997,9 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         logoView.addSubview(logoIdleView);logoIdleView.addSubview(logoImage)
         logoView.isUserInteractionEnabled = false
         bottomShadow.contentMode = .scaleAspectFill
-        bottomShadow.alpha = 0.55
+        bottomShadow.alpha = 1
+        bottomShadow.isUserInteractionEnabled=false
+        bottomShadow.addSubview(bottomNavigationSurface)
         addSubview(bottomShadow)
         addSubview(navView)
         // Noninteractive bottom-born Arcade balloons may pass above all Home artwork.
@@ -1247,7 +1323,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         // Percentage Journey relative-top with an auto-height container is 0.
         let logoTop = tablet ? min(tabletHeroTop-logoLayoutHeight-20,max(topInset+innerInset,(height-160-(logoLayoutHeight+32+heroSide+40+88))/2)):topInset + innerInset + height * 0.02 - 30
         logoView.bounds = CGRect(x: 0, y: 0, width: 208*logoScale, height: logoHeight)
-        logoView.center = CGPoint(x: width/2, y: logoTop + logoLayoutHeight/2 + (tablet ? 16:0))
+        logoView.center = CGPoint(x: width/2, y: logoTop + logoLayoutHeight/2 + (tablet ? 8:0))
         // Route motion writes a collapsed model transform before playback.
         // UIView.frame is undefined under that transform (including scale 0);
         // layout must not resize the logo out from under its authored track.
@@ -1260,9 +1336,11 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             CGPoint(x: -208*0.032 + 29.5 + 2, y: 127 - 127*0.023 - 29.5 - 16),
             CGPoint(x: 208 + 208*0.018 - 29.5 - 8, y: 127 + 127*0.019 - 29.5 - 14),
         ]
+        let tabletShardOffsets:[CGPoint]=[CGPoint(x:-6,y:-4),CGPoint(x:4,y:4),CGPoint(x:-4,y:4),CGPoint(x:10,y:4)]
         for i in shards.indices {
             shardShells[i].bounds = CGRect(x: 0, y: 0, width:59*logoScale,height:59*logoScale)
-            shardShells[i].center = CGPoint(x:shardCenters[i].x*logoScale,y:shardCenters[i].y*logoScale)
+            let offset=tablet ? tabletShardOffsets[i]:.zero
+            shardShells[i].center = CGPoint(x:shardCenters[i].x*logoScale+offset.x,y:shardCenters[i].y*logoScale+offset.y)
             shards[i].bounds = shardShells[i].bounds
             shards[i].center = CGPoint(x:29.5*logoScale,y:29.5*logoScale)
         }
@@ -1307,11 +1385,11 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             let artSize = heroSide * Self.heroArtworkScale * (tablet ? 0.95*0.95 : 1)
             // Arcade's taller composition fits between Journey's visual rulers.
             // Keep this in rest geometry so route/idle transforms retain ownership.
-            let imageSide = artSize * (i == 1 ? 0.95 : 1) * (tablet ? 1.10 : 1)
+            let imageSide = artSize * (i == 1 ? 0.95 : 1) * (tablet ? 1.10*1.05 : 1) * (tablet && i == 0 ? 0.97:1)
             heroImages[i].bounds = CGRect(x:0,y:0,width:imageSide,height:imageSide)
             heroCartoonShells[i].bounds=CGRect(x:0,y:0,width:heroSide,height:heroSide)
             heroCartoonShells[i].center=CGPoint(x:heroSide/2,y:heroSide/2)
-            heroImages[i].center = CGPoint(x:heroSide/2,y:heroSide/2 - (i == 1 ? artSize*0.004 : 0) + (i == 2 ? 4:0))
+            heroImages[i].center = CGPoint(x:heroSide/2,y:heroSide/2 - (i == 1 ? artSize*0.004 : 0) + (i == 2 ? 4:0) + (tablet ? 16:0))
             // Lay out the fixed panorama once, independently of panel position.
             if i==0 {
                 let cloudWidths:[CGFloat]=[272,198,188,166,248,166,188,154,180,160,190,272*1.20,272*1.20]
@@ -1346,7 +1424,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
                         }.max() ?? heroTop+heroSide*0.80
                         let idleY=cloudDrifts.indices.contains(index) ? cloudDrifts[index].y:8
                         let reserve=abs(idleY)*0.90*1.35
-                        let ctaTop=tablet ? tabletCTABottom-homeCTASize.height-32:heroTop+380+height*0.0225-homeCTASize.height/2
+                        let ctaTop=tablet ? tabletCTABottom-homeCTASize.height-12:heroTop+380+height*0.0225-homeCTASize.height/2
                         let maxHeight=max(0,(ctaTop-limit-reserve-10)/1.40)
                         if size.height>maxHeight {size=CGSize(width:maxHeight/max(0.01,ratio),height:maxHeight);w=size.width}
                         centerY=limit+size.height*0.70+max(0,-idleY)*0.90*1.35
@@ -1365,7 +1443,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             }
             let containerHeight:CGFloat=tablet ? max(104,homeCTASize.height):104
             ctaContainers[i].bounds = CGRect(x: 0, y: 0, width: width, height: containerHeight)
-            ctaContainers[i].center = CGPoint(x: width/2, y:tablet ? tabletCTABottom-homeCTASize.height/2-32:heroTop + 360)
+            ctaContainers[i].center = CGPoint(x: width/2, y:tablet ? tabletCTABottom-homeCTASize.height/2-12:heroTop + 360)
             ctas[i].bounds = CGRect(origin:.zero,size:homeCTASize)
             ctaIdleBounceShells[i].bounds=ctas[i].bounds
             ctaIdleBounceShells[i].center=CGPoint(x:ctas[i].bounds.midX,y:ctas[i].bounds.midY)
@@ -1376,6 +1454,8 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             ctaCartoonShells[i].bounds=ctas[i].bounds;ctaCartoonShells[i].center=CGPoint(x:ctas[i].bounds.midX,y:ctas[i].bounds.midY)
             ctas[i].center = CGPoint(x:ctas[i].bounds.midX,y:ctas[i].bounds.midY)
             ctas[i].layer.shadowPath = UIBezierPath(roundedRect: ctas[i].bounds, cornerRadius: 32).cgPath
+            let slideX=draggedPositionX ?? width*(1.5-CGFloat(selectedSlide))
+            heroes[i].layer.sublayerTransform=CATransform3DMakeTranslation(heroParallaxOffset(slideX:slideX,index:i),0,0)
         }
         let selectedArt=heroImages[selectedSlide]
         breeze.configure(origin:CGPoint(x:width/2,y:heroTop+selectedArt.center.y+selectedArt.bounds.height*0.30),
@@ -1394,23 +1474,41 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             bottomShadow.bounds = CGRect(x: 0, y: 0, width: width * 1.2 - 96, height: 49)
             bottomShadow.center = CGPoint(x: 40 - width * 0.1 + bottomShadow.bounds.width/2, y: height - 81 - 24.5)
         }
+        // Latest Home adjustment places the arch apex6pt below the old line.
+        // The edges descend into the footer; no new upward layout intrusion.
+        let paintedHeight=tablet ? bottomShadow.bounds.height:max(49,bottomShadow.bounds.width*49/390)
+        let surfaceTopOffset:CGFloat=6
+        let apexY=bottomShadow.center.y-paintedHeight/2+surfaceTopOffset
+        bottomNavigationSurface.configure(size:CGSize(width:width,height:height-apexY),
+            dividerRect:CGRect(x:0,y:0,width:width,height:paintedHeight))
+        bottomNavigationSurface.frame.origin=CGPoint(x:bottomShadow.bounds.width/2-bottomShadow.center.x,
+            y:bottomShadow.bounds.height/2-paintedHeight/2+surfaceTopOffset)
         navView.bounds = CGRect(x: 0, y: 0, width: width, height: 120)
-        navView.center = CGPoint(x: width/2, y: height - 60)
+        navView.center = CGPoint(x: width/2, y: height - 60 - (tablet ? 8:0))
         let rowWidth = tablet ? min(600,width-64):(width - 32) * 0.935
-        let sizes = navButtons.indices.map { CGFloat($0 == selectedSlide ? (tablet ? 84:72):(tablet ? 76:64)) }
-        let gap = (rowWidth - 24 - sizes.reduce(0, +))/2 * (tablet ? 0.8:1)
-        let left = tablet ? (width-sizes.reduce(0,+)-gap*2)/2:(width - rowWidth)/2 + 12
-        var x = left
+        let inactiveSize:CGFloat=tablet ? 76:64,activeSize:CGFloat=tablet ? 84:72
+        let sizes = navButtons.indices.map { $0 == selectedSlide ? activeSize:inactiveSize }
+        let fixedGroupWidth=inactiveSize*2+activeSize
+        let gap = (rowWidth - 24 - fixedGroupWidth)/2 * (tablet ? 0.8:1)
+        let left = tablet ? (width-fixedGroupWidth-gap*2)/2:(width - rowWidth)/2 + 12
+        let centreStep=gap+(inactiveSize+activeSize)/2
+        // Original PNG alpha bounds: centre painted artwork, not transparent canvas.
+        // stats64:(4...63), cube56:(3...51), settings48:(4...46).
+        let paintedCenterCorrections:[CGFloat]=[-1.5/64,1/56,-1/48]
         for i in navButtons.indices {
             let size = sizes[i]
             navButtons[i].bounds = CGRect(x: 0, y: 0, width: size, height: size)
-            navButtons[i].center = CGPoint(x: x + size/2, y: 92 - size/2)
+            // Fixed slots: selecting a larger icon cannot push its neighbours sideways.
+            navButtons[i].center = CGPoint(x:left+inactiveSize/2+CGFloat(i)*centreStep,y:92-size/2+(i == 1 ? 0:4))
             navIdleShells[i].bounds=navButtons[i].bounds;navIdleShells[i].center=CGPoint(x:size/2,y:size/2)
-            navImages[i].frame = CGRect(x: 0, y: i == selectedSlide ? -12 : 0, width: size, height: size)
+            navImages[i].frame = CGRect(x: paintedCenterCorrections[i]*size, y: i == selectedSlide ? -12 : 0, width: size, height: size)
             navShadows[i].frame = CGRect(x: (size-60)/2, y: size-19, width: 60, height: 15)
             navShadows[i].layer.shadowPath = UIBezierPath(ovalIn: navShadows[i].bounds).cgPath
             navShadows[i].isHidden = i != selectedSlide
-            x += size + gap
+            let fraction=navButtons[i].center.x/max(1,width)
+            let shift=JimiV9BottomNavigationSurface.topEdge(at:fraction)
+            let angle=JimiV9NavigationHeader.tangentAngle(at:navButtons[i].center.x,width:width,bottom:true)
+            navButtons[i].layer.sublayerTransform=CATransform3DRotate(CATransform3DMakeTranslation(0,shift,0),angle,0,0,1)
         }
     }
 
@@ -1424,6 +1522,14 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
     /// journey-fluidity-v10 slider-optimized.css: only active artwork advances.
     /// Inner artwork owns idle; route/selection motion remains on the hero button.
     func startHeroIdle() {
+        if !dragging,!isEntering,!isHidden,window != nil,
+           heroParallaxLayers.allSatisfy({$0.animation(forKey:Self.heroParallaxKey)==nil}) {
+            let snapshot=heroParallaxSnapshot
+            let selected=selectedSlide
+            if snapshot.offsets.indices.contains(selected),abs(snapshot.offsets[selected])>0.05 {
+                installHeroParallax(from:snapshot)
+            }
+        }
         guard !isHidden, UIApplication.shared.applicationState == .active, !UIAccessibility.isReduceMotionEnabled else {stopHeroIdle();return}
         for target in cloudPanoramaLayers where target.speed==0 {
             let offset=target.timeOffset;target.speed=1;target.timeOffset=0;target.beginTime=0
@@ -1559,6 +1665,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         }
     }
     func stopHeroIdle(preservePaintedPose:Bool = false,preserveLogoIdle:Bool=false,preserveCloudIdle:Bool=false) {
+        if !preserveCloudIdle {stopHeroParallax(preservePaintedPose:preservePaintedPose)}
         if !preserveCloudIdle {
             if preservePaintedPose {breeze.pause()}else{breeze.stop()}
             stopCloudPanorama(preservePaintedPose:preservePaintedPose)
@@ -1697,6 +1804,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
     func cancelPan(preservingCTAFeedback: Bool = false) {
         if !preservingCTAFeedback {resetCTAFeedback()}
         stopCloudPanorama(preservePaintedPose:true)
+        stopHeroParallax(preservePaintedPose:true)
         sliderTrack.layer.removeAnimation(forKey:"native-slide-selection")
         for node in navigationLayoutTargets {node.view.layer.removeAnimation(forKey:"native-slide-selection")}
         dragging=false;draggedPositionX=nil
@@ -1711,6 +1819,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             // Sample before the controller retires a previous selection owner.
             let paintedX = sliderTrack.layer.presentation()?.position.x ?? sliderTrack.layer.position.x
             let paintedClouds=cloudPanoramaSnapshot
+            let paintedHero=heroParallaxSnapshot
             guard onPanBegan?() == true else { cancelPan(); return }
             dragging = true
             dragStartPositionX = paintedX
@@ -1719,7 +1828,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             // Adopt the painted pose, then start finger-relative movement there;
             // adding that recognition distance would jump on the first frame.
             recognizer.setTranslation(.zero, in: viewport)
-            updatePanPosition(0,cloudStart:paintedClouds)
+            updatePanPosition(0,cloudStart:paintedClouds,heroStart:paintedHero)
         case .changed:
             guard dragging else { return }
             updatePanPosition(translation)
@@ -1739,7 +1848,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         }
     }
 
-    private func updatePanPosition(_ translation: CGFloat,cloudStart:CloudPanoramaSnapshot?=nil) {
+    private func updatePanPosition(_ translation: CGFloat,cloudStart:CloudPanoramaSnapshot?=nil,heroStart:HeroParallaxSnapshot?=nil) {
         let displacement=JimiV9Motion.sliderDragDisplacement(selectedSlide:selectedSlide,distance:Double(translation))
         let position=dragStartPositionX+CGFloat(displacement)
         draggedPositionX=position
@@ -1748,5 +1857,6 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         breeze.setSlideX(position)
         CATransaction.commit()
         updateCloudPanorama(slideX:position,from:cloudStart)
+        animateHeroParallax(from:heroStart ?? heroParallaxSnapshot,slideX:position,settling:false)
     }
 }

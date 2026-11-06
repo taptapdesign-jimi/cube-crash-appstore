@@ -1,5 +1,7 @@
 import XCTest
 import UIKit
+import StackToSixGameplay
+import StackToSixNativeState
 @testable import Stack_to_Six
 
 @MainActor
@@ -87,6 +89,76 @@ final class JimiNativeEndRunTests: XCTestCase {
         defer{modal.dispose();window.isHidden=true;window.rootViewController=nil}
         await fulfillment(of:[entered],timeout:4)
 
+    }
+
+    func testModalBottomArchKeepsCentreAndReusesMaskAcrossResize() throws {
+        let paper=UIImageView(image:UIGraphicsImageRenderer(size:CGSize(width:400,height:200)).image{_ in UIColor.white.setFill();UIRectFill(CGRect(x:0,y:0,width:400,height:200))})
+        paper.layer.cornerRadius=40;paper.clipsToBounds=true
+        var retained:CAShapeLayer?
+        for size in [CGSize(width:310,height:220),CGSize(width:342,height:640),CGSize(width:500,height:360),CGSize(width:310,height:220)] {
+            JimiNativeModalV10.paperLayout(paper,bounds:CGRect(origin:.zero,size:size),bottomExtension:16)
+            let mask=try XCTUnwrap(paper.layer.mask as? CAShapeLayer),path=try XCTUnwrap(mask.path)
+            if let retained {XCTAssertTrue(mask === retained)}else{retained=mask}
+            XCTAssertEqual(JimiNativeModalV10.bottomArchDepth(width:size.width)/size.width,JimiV9NavigationHeader.dividerArchDepth*1.3/390,accuracy:0.000001)
+            XCTAssertTrue(path.contains(CGPoint(x:size.width/2,y:size.height-0.01)))
+            XCTAssertFalse(path.contains(CGPoint(x:size.width*0.1,y:size.height-0.1)))
+            XCTAssertTrue(path.contains(CGPoint(x:size.width/2,y:10)))
+            XCTAssertEqual(path.boundingBoxOfPath.maxY,size.height,accuracy:0.001)
+            XCTAssertNil(mask.animationKeys());XCTAssertTrue(mask.sublayers?.isEmpty ?? true)
+        }
+        JimiNativeModalV10.paperLayout(paper,bounds:.zero)
+        XCTAssertTrue(paper.layer.mask === retained)
+        XCTAssertTrue(try XCTUnwrap(retained?.path).isEmpty)
+    }
+
+    func testAllFloatingPaperModalFamiliesUseArchOnPhoneAndTablet() throws {
+        let root=NativeTestResources.root
+        let folder=URL(fileURLWithPath:"/tmp/modal-bottom-arch-20261106/renders")
+        try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
+        func descendants(_ view:UIView)->[UIView] {[view]+view.subviews.flatMap(descendants)}
+        func verify(_ name:String,_ view:UIView,_ size:CGSize) throws {
+            let surfaces=descendants(view).filter{$0.layer.mask?.name==JimiNativeModalV10.bottomArchMaskName}
+            XCTAssertEqual(surfaces.count,1,"\(name) must use one main paper arch")
+            let paper=try XCTUnwrap(surfaces.first),mask=try XCTUnwrap(paper.layer.mask as? CAShapeLayer)
+            XCTAssertEqual(mask.path?.boundingBoxOfPath.maxY ?? -1,paper.bounds.maxY,accuracy:0.001)
+            let painted=paper is UIImageView ? try XCTUnwrap(paper.superview):paper
+            try autoreleasepool {
+                let output=folder.appendingPathComponent("\(name)-\(Int(size.width)).png")
+                try UIGraphicsImageRenderer(bounds:painted.bounds).pngData{painted.layer.render(in:$0.cgContext)}.write(to:output)
+                let attachment=XCTAttachment(contentsOfFile:output);attachment.name="\(name) arch \(Int(size.width))";attachment.lifetime = .keepAlways;add(attachment)
+            }
+        }
+        for size in [CGSize(width:390,height:844),CGSize(width:820,height:1180)] {
+            try autoreleasepool {
+            let art=JimiV9Artwork(resourceRoot:root)
+            @MainActor func motion()->NativeRouteMotion {NativeRouteMotion(home:JimiV9HomeView(frame:.zero,assets:art),hub:JimiV9HubView(frame:.zero,assets:art))}
+            for index in 0..<3 {
+                let modal=NativeArcadeWorldModal(frame:CGRect(origin:.zero,size:size),assets:art,index:index)
+                modal.layoutSubviews();try verify("arcade\(index)",modal,size);modal.dispose()
+            }
+            let exit=JimiNativeEndRunModal(id:1,model:try XCTUnwrap(JimiNativeEndRunModel(dto)),assets:art)
+            exit.loadViewIfNeeded();exit.view.frame=CGRect(origin:.zero,size:size);exit.viewDidLayoutSubviews()
+            try verify("exit",exit.view,size);exit.dispose()
+            for combo in [false,true] {for history in [false,true] {
+                let model=history ? NativeScoreModalModel(boardStats:NativeBoardStats(),combo:combo):NativeScoreModalModel(state:NativeBoardFactory.make(mode:.journey,board:1),progression:NativeProgressionState(),combo:combo)
+                let score=NativeScoreModal(model:model,root:root,deferredEntry:true)
+                score.loadViewIfNeeded();score.view.frame=CGRect(origin:.zero,size:size);score.viewDidLayoutSubviews()
+                try verify("score-\(combo)-\(history)",score.view,size);score.dispose()
+            }}
+            let detail=NativeBackpackDetail(die:NativeBackpackCatalog.arcade.first!,assets:art,motion:motion())
+            detail.loadViewIfNeeded();detail.view.frame=CGRect(origin:.zero,size:size);detail.viewDidLayoutSubviews()
+            try verify("detail",detail.view,size);detail.dispose()
+            let collection=NativeGameplayBackpackController(root:root,sections:[.init(title:"Forest",dice:NativeBackpackCatalog.forest,unlocked:[])],includesArcade:false,motion:motion())
+            collection.loadViewIfNeeded();collection.view.frame=CGRect(origin:.zero,size:size);collection.viewDidLayoutSubviews()
+            try verify("collection",collection.view,size);collection.dispose()
+            let privacy=JimiNativePrivacyController(assets:art)
+            privacy.loadViewIfNeeded();privacy.view.frame=CGRect(origin:.zero,size:size);privacy.viewDidLayoutSubviews()
+            try verify("privacy",privacy.view,size);privacy.viewDidDisappear(false)
+            let developer=NativeDeveloperPicker(root:root,title:"Preview",choices:[.init(title:"Forest",value:"1")],multiple:false)
+            developer.loadViewIfNeeded();developer.view.frame=CGRect(origin:.zero,size:size);developer.viewDidLayoutSubviews()
+            try verify("developer",developer.view,size)
+            }
+        }
     }
 
     func testV10PaperCoverTopAndComponentRotationThroughCollapse() {
@@ -326,7 +398,7 @@ final class JimiNativeEndRunTests: XCTestCase {
         }
         XCTAssertNil(releasedDrag)
     }
-    func testFreshEndRunRestTiltSamplesOnceAndStaysWithinTwoDegrees()throws {
+    func testFreshEndRunRestTiltAndCloseNeverSettleFlat()throws {
         let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
         var freshAngles:[CGFloat]=[]
         for sample in [0.0,0.25,0.5,0.75,1.0,-2,3,Double.nan] {
@@ -336,20 +408,30 @@ final class JimiNativeEndRunTests: XCTestCase {
             modal.loadViewIfNeeded();modal.view.frame=CGRect(x:0,y:0,width:390,height:844);modal.view.layoutIfNeeded()
             let tilt=try XCTUnwrap(modal.card.subviews.first{$0.accessibilityIdentifier=="native.end-run.rest-tilt"})
             XCTAssertTrue(tilt.layer is CATransformLayer);XCTAssertTrue(modal.flip.superview === tilt)
-            XCTAssertLessThanOrEqual(abs(modal.restTiltDegrees),2)
-            let expected=CGFloat(min(1,max(0,sample.isFinite ? sample:0.5))*4-2)
+            XCTAssertGreaterThanOrEqual(abs(modal.restTiltDegrees),1.75)
+            XCTAssertLessThanOrEqual(abs(modal.restTiltDegrees),2.75)
+            let value=min(1,max(0,sample.isFinite ? sample:0.5))
+            let expected=CGFloat(1.75+(value<0.5 ? value*2:(value-0.5)*2))*(value<0.5 ? -1:1)
             XCTAssertEqual(modal.restTiltDegrees,expected)
             XCTAssertEqual(atan2(tilt.layer.transform.m12,tilt.layer.transform.m11)*180 / .pi,expected,accuracy:0.000001)
+            let closeAngle=atan2(modal.close.transform.b,modal.close.transform.a)*180 / .pi
+            XCTAssertEqual(closeAngle,expected<0 ? 8.5:-8.5,accuracy:0.000001)
+            XCTAssertGreaterThan(abs(expected+closeAngle),5)
+            XCTAssertEqual(modal.close.bounds.size,CGSize(width:52,height:52))
+            let closeCentre=modal.close.center
             let painted=tilt.layer.transform
             for width in [CGFloat(320),390,430] {
                 modal.view.frame=CGRect(x:0,y:0,width:width,height:844);modal.view.setNeedsLayout();modal.view.layoutIfNeeded()
                 XCTAssertTrue(CATransform3DEqualToTransform(tilt.layer.transform,painted))
                 XCTAssertEqual(tilt.bounds,modal.card.bounds)
+                XCTAssertEqual(modal.close.bounds.size,CGSize(width:52,height:52))
+                XCTAssertEqual(modal.close.center.y,closeCentre.y)
+                XCTAssertEqual(atan2(modal.close.transform.b,modal.close.transform.a)*180 / .pi,closeAngle,accuracy:0.000001)
             }
             modal.suspend();modal.resume();XCTAssertEqual(draws,1)
             if sample>=0 && sample<=1 {freshAngles.append(modal.restTiltDegrees)}
         }
-        XCTAssertEqual(freshAngles,[-2,-1,0,1,2],"Each new opening selects its own rest angle")
+        XCTAssertEqual(freshAngles,[-1.75,-2.25,1.75,2.25,2.75],"Each new opening selects its own rest angle")
     }
     func testMountedRestTiltSurvivesDragBackgroundAndCloseWithoutReset()async throws {
         let prior=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
@@ -388,7 +470,7 @@ final class JimiNativeEndRunTests: XCTestCase {
         XCTAssertTrue(modal.view.isUserInteractionEnabled)
         XCTAssertEqual(modal.card.bounds.width,342)
         XCTAssertEqual(modal.card.layer.anchorPoint.y,0.55);XCTAssertEqual(modal.flip.layer.anchorPoint.y,1)
-        XCTAssertEqual(modal.buttons[0].bounds.height,70)
+        XCTAssertEqual(modal.buttons[0].bounds.height,73.5)
         let image=UIGraphicsImageRenderer(size:window.bounds.size).image{_ in window.drawHierarchy(in:window.bounds,afterScreenUpdates:true)}
         try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/cta-compact-mounted.png"))
         XCTAssertLessThanOrEqual(modal.subtitle.sizeThatFits(CGSize(width:modal.subtitle.bounds.width,height:1000)).height,52)

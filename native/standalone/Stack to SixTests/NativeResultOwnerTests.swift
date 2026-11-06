@@ -27,6 +27,29 @@ final class NativeResultOwnerTests:XCTestCase {
             XCTAssertEqual(NativeResultOwner.finalScore(state:state,clean:false),20000)
         }
     }
+    func testCompletedResultShowsStarsFromEnhancedEfficiencyFinalScore() throws {
+        func find(_ view:UIView,_ id:String)->UIView? {
+            if view.accessibilityIdentifier == id {return view}
+            return view.subviews.lazy.compactMap{find($0,id)}.first
+        }
+        for (base, fast, total, expectedStars) in [(1000,0,0,1),(11000,0,0,2),(25000,1,1,3)] {
+            var state=NativeBoardState(tiles:[],mode:.journey,board:1,moves:10,score:base,earnedComboBonus:1000)
+            state.efficiencyComboContinuations=total;state.efficiencyFastComboContinuations=fast
+            let score=NativeResultOwner.finalScore(state:state,clean:true)
+            let result=NativeResultController(root:NativeTestResources.root,state:state,clean:true,
+                combo:state.earnedComboBonus,efficiency:NativeRewardMath.cleanEfficiencyBonus(state:state),finalScore:score)
+            let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+            window.rootViewController=result;window.makeKeyAndVisible()
+            defer{result.dispose();window.isHidden=true;window.rootViewController=nil}
+            result.tick(0)
+            for frame in 1...150 {result.tick(Double(frame)/60)}
+            for index in 0..<3 {
+                let star=try XCTUnwrap(find(result.view,"native.result.star.filled.\(index)"))
+                XCTAssertEqual(star.isHidden,index>=expectedStars)
+                if index<expectedStars {XCTAssertGreaterThan(star.transform.a,0)}
+            }
+        }
+    }
     func testFailTitleSpeechUsesDisplayedSelectionOnceAtTitleEntry() {
         for index in [0,19,93] {
             let result=controller(clean:false,headlineRandom:(Double(index)+0.5)/Double(NativeResultHeadlines.fail.count))

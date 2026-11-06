@@ -7,7 +7,7 @@ public final class NativeForestBeePlanning {
     private struct Flight {
         var points=[Float](repeating:0,count:16)
         var duration=11.0,elapsed=0.0,onScreen=0.0,bounce=0.0,width=40.0,scale=1.0,passage=0.12
-        var unit=0,side = -1,gate=true,phase="roam"
+        var unit=0,side = -1,gate=true,gateDeparture=false,phase="roam"
         mutating func set(_ index:Int,_ x:Double,_ y:Double) {points[index*2]=Float(x);points[index*2+1]=Float(y)}
         func read(_ index:Int,_ axis:Int,cyclic:Bool=false)->Double {
             let bounded=cyclic ? (index%7+7)%7 : min(7,max(0,index))
@@ -20,7 +20,7 @@ public final class NativeForestBeePlanning {
     }
     private let random:()->Double,contentTop:Double,left:Double,right:Double,top:Double,bottom:Double,leftPine:Double,rightPine:Double,mainBottom:Double
     private var bees:[Bee]=[]
-    public init(contentTop:Double,mainX:Double,mainY:Double,mainWidth:Double,mainHeight:Double,random:@escaping ()->Double={Double.random(in:0..<1)}) {
+    public init(contentTop:Double,mainX:Double,mainY:Double,mainWidth:Double,mainHeight:Double,startsBehindGate:Bool?=nil,random:@escaping ()->Double={Double.random(in:0..<1)}) {
         self.random=random;self.contentTop=contentTop
         left=mainX+160.92/390*mainWidth;right=mainX+205.08/390*mainWidth
         top=mainY-contentTop+60/350*mainHeight;bottom=mainY-contentTop+85/350*mainHeight
@@ -37,6 +37,19 @@ public final class NativeForestBeePlanning {
             all.append(flight)
         }
         bees=Self.retainedIDs.enumerated().map {Bee(flight:all[$0.element],asset:$0.offset%2==0 ? "bee1" : "bee3")}
+        // Capture one choice per Forest visit, after the original roam draws.
+        // Explicit false retains the exact canonical roam path and RNG sequence.
+        if startsBehindGate ?? (sample()<0.5) {
+            for index in bees.indices {
+                var flight=bees[index].flight
+                resetEntry(&flight,startX:flight.read(7,0),startY:flight.read(7,1))
+                // The existing entry spline passes through the wooden gate
+                // between knots 3 and 4. Begin there, then leave by the far edge.
+                flight.elapsed=flight.duration*(0.44+Double(index)*0.006)
+                flight.gateDeparture=true
+                bees[index].flight=flight;bees[index].behind=true
+            }
+        }
     }
     private func clamp(_ value:Double,_ low:Double,_ high:Double)->Double {min(high,max(low,value))}
     private func sample()->Double {let v=random();return v.isFinite ? clamp(v,0,1) : 0.5}
@@ -57,7 +70,7 @@ public final class NativeForestBeePlanning {
             let texture=sweep ? centered()*12 : 0
             p.set(point,px,clamp(y+(vertical+texture)*0.82,max(42,center-72),min(1428,center+72)))
         }
-        p.set(7,x,y);p.phase="roam";p.duration=11;p.elapsed=clamp(initial,0,0.94)*11
+        p.set(7,x,y);p.gateDeparture=false;p.phase="roam";p.duration=11;p.elapsed=clamp(initial,0,0.94)*11
         if !continuous {p.bounce=sample()*Double.pi*2}
         p.width=36+sample()*8
     }
@@ -131,7 +144,7 @@ public final class NativeForestBeePlanning {
                 bee.blend=min(0.08,bee.blend+(frame>0 ? dt : 0))
                 let wave=sin(p*Double.pi*2*6+bee.flight.bounce),entry=bee.flight.phase=="entry" ? 0.5+0.5*clamp(p/0.5,0,1) : 1
                 let area=0.5+0.5*clamp((point[1]-mainBottom)/40,0,1),size=min(entry,area),center=point[0]+bee.flight.width*bee.flight.scale/2
-                if bee.flight.phase=="entry" && (bee.flight.side == -1 ? center>=left : center<=right) {bee.behind=false}
+                if bee.flight.phase=="entry" && (bee.flight.side == -1 ? center >= (bee.flight.gateDeparture ? right : left) : center <= (bee.flight.gateDeparture ? left : right)) {bee.behind=false}
                 if bee.flight.phase=="exit" && p>=0.3 && (bee.flight.side == -1 ? center<=right : center>=left) {bee.behind=true}
                 var output:[String:Any]=["time":Double(frame)*dt,"x":point[0],"y":contentTop+point[1],"width":bee.flight.width,"scaleX":bee.flight.scale*size*(1+wave*0.045*1.125),"scaleY":bee.flight.scale*size*(1-wave*0.035*1.125),"rotation":sin(p*Double.pi*2*7+bee.flight.bounce)*7,"asset":"./assets/shop/honey/\(bee.asset).png","blend":clamp(bee.blend/0.08,0,1),"depth":bee.behind ? "behind" : "front"]
                 if let previous=bee.previous {output["previousAsset"]="./assets/shop/honey/\(previous).png"}

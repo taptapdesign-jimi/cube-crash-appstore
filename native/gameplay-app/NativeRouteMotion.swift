@@ -55,20 +55,14 @@ final class NativeRouteMotion {
         for (i, unit) in order.enumerated() {
             let selected = selectedWorldID != nil && hub.worldUnits.firstIndex(of: unit).map { hub.worldIDs[$0] == selectedWorldID } == true
             if enter {
-                tracks.append((unit, .init(tweens: [.init(begin: (reduced ? 0 : 0.08) + Double(i)*(reduced ? 0.02 : 0.09), duration: reduced ? 0.2 : 0.56,
-                    from: .scale(reduced ? 0.96 : 0.65, y: reduced ? 8 : 30, opacity: 0), to: .scale(1), ease: reduced ? .powerOut(1) : .backOut(1.8))])))
+                tracks.append((unit,JimiV9Motion.worldHubElementEnter(begin:(reduced ? 0:0.08)+Double(i)*(reduced ? 0.02:0.09),reducedMotion:reduced)))
             } else {
                 if reduced && !selected {
                     tracks.append((unit, .init(tweens: [.init(begin: Double(i)*0.012, duration: 0.16, from: .scale(1), to: .scale(0.96, y: 8, opacity: 0), ease: .powerIn(1))])))
                     continue
                 }
-                let peak = JimiV9Motion.Pose(scaleX: selected ? 1.18 : 1.144, scaleY: selected ? 1.15 : 1.12)
                 let delay = selected ? 0 : Double(i)*(selectedWorldID == nil ? 0.045 : 0.065)
-                let bounceDuration = reduced ? 0.15 : 0.18
-                let collapseDuration = reduced ? 0.28 : 0.336
-                tracks.append((unit, .init(tweens: [
-                    .init(begin: delay, duration: bounceDuration, from: .scale(1), to: peak, ease: .powerIn(2)),
-                    .init(begin: delay+bounceDuration, duration: collapseDuration, from: peak, to: .scale(0), ease: .backIn(1.7))], anchorY: 0.54)))
+                tracks.append((unit,JimiV9Motion.worldHubElementExit(begin:delay,selected:selected,reducedMotion:reduced)))
             }
         }
         if enter {
@@ -234,6 +228,7 @@ final class NativeRouteMotion {
             opacity.keyTimes = sampled.keyTimes?.map { NSNumber(value: $0) }
             let group = CAAnimationGroup(); group.animations = [transform, opacity]; group.duration = sampled.duration
             (target as? JimiV9NavigationHeader)?.appendExitShadowFade(to:group,track:track)
+            if target === home.fixedShadowView {home.appendNavigationDecorationFade(to:group,track:track)}
             group.timingFunction = CAMediaTimingFunction(name: .linear)
             CATransaction.setDisableActions(true)
             let final = poses.last!

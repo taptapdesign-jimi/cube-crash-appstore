@@ -31,7 +31,7 @@ final class NativeScoreModalTests:XCTestCase {
         let top=NativeScoreModalModel(boardStats:stats,combo:true)
         XCTAssertEqual(top.title,"Best combo");XCTAssertEqual(top.history?.map(\.value),[8,8,4]);XCTAssertEqual(top.history?.first?.date,12)
     }
-    func testScoreAndComboTitlesRetainFull32ptWithoutHeightShrink() throws {
+    func testScoreAndComboTitlesRetainVisible32ptWithoutHeightShrink() throws {
         for size in [CGSize(width:320,height:568),CGSize(width:390,height:844),CGSize(width:820,height:1180)] {
             for combo in [false,true] {for history in [false,true] {
                 let model=history ? NativeScoreModalModel(boardStats:NativeBoardStats(),combo:combo)
@@ -41,7 +41,16 @@ final class NativeScoreModalTests:XCTestCase {
                 modal.loadViewIfNeeded();modal.view.frame=CGRect(origin:.zero,size:size);modal.view.setNeedsLayout();modal.view.layoutIfNeeded()
                 func labels(_ view:UIView)->[UILabel] {((view as? UILabel).map{[$0]} ?? []) + view.subviews.flatMap(labels)}
                 let title=try XCTUnwrap(labels(modal.view).first{$0.text==model.title})
-                XCTAssertEqual(title.font.pointSize,32)
+                // Accepted Nov03 policy compensates the tablet paper's1.4x
+                // projection. Test the visible size, not only logical UIFont.
+                let expectedLogical:CGFloat=size.width == 820 ? 32/1.4:32
+                XCTAssertEqual(title.font.pointSize,expectedLogical,accuracy:0.001)
+                var projectedScale:CGFloat=1,ancestor:UIView?=title
+                while let current=ancestor,current !== modal.view {
+                    projectedScale *= hypot(current.transform.a,current.transform.b)
+                    ancestor=current.superview
+                }
+                XCTAssertEqual(title.font.pointSize*projectedScale,32,accuracy:0.001)
                 XCTAssertFalse(title.adjustsFontSizeToFitWidth)
                 XCTAssertGreaterThanOrEqual(title.bounds.height,title.font.lineHeight)
                 XCTAssertLessThanOrEqual((model.title as NSString).size(withAttributes:[.font:title.font!]).width,title.bounds.width)
@@ -112,9 +121,12 @@ final class NativeScoreModalTests:XCTestCase {
         for (index, variant) in NativeArcadeVariant.allCases.enumerated() {
             let state = NativeBoardFactory.make(mode: .arcade, board: 1, arcadeVariant: variant)
             let score = NativeScoreModalModel(state: state, progression: progression, combo: false)
+            XCTAssertEqual(score.subtitle, variant.title)
             XCTAssertEqual(score.stats.first?.value, ((index + 1) * 1234).formatted())
             XCTAssertEqual(score.stats.last?.value, String(format: "%02d", index + 3))
-            XCTAssertEqual(NativeScoreModalModel(state: state, progression: progression, combo: true).stats.first?.value, (index + 3).formatted())
+            let combo = NativeScoreModalModel(state: state, progression: progression, combo: true)
+            XCTAssertEqual(combo.subtitle, variant.title)
+            XCTAssertEqual(combo.stats.first?.value, (index + 3).formatted())
         }
     }
     func testTutorialHudCannotPresentOrMutateTheLiveRun() throws {

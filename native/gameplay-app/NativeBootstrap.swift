@@ -143,13 +143,38 @@ final class NativeBootstrap {
             worldSnapshot: { [weak self] world, size, generation in
                 guard let self else { throw CancellationError() }
                 let tablet=NativeTabletLayout.applies(size)
-                let canvas=NativeTabletLayout.worldFrame(CGRect(origin:.zero,size:size)).width
-                let bleed=tablet ? max(0,(size.width-canvas)/2-16)/(canvas/390):0
-                return try self.layouts.snapshot(world: world, width: size.width, height: size.height,
+                var snapshot=try self.layouts.snapshot(world: world, width: size.width, height: size.height,
                     generation: generation, progression: self.envelope.progression,
                     resumableBoards: Set(self.envelope.journeyRuns.keys.filter {
                         self.envelope.resumedRun(mode: .journey, board: $0) != nil
-                    }), returnBoard: self.lastReturnBoard, proportionalCards: tablet, unitScale: tablet ? 1.105:1, unitHorizontalBleed:bleed, unitRowGap:tablet ? 36:0, unitColumnSpread:tablet ? 0.20:0, unitPairCompression:tablet, lastUnitCenterX:tablet ? 195+size.width*0.10/(canvas/390):nil)
+                    }), returnBoard: self.lastReturnBoard, proportionalCards: tablet, phoneUnitLayout: tablet, unitScale: tablet ? 1.105:1)
+                if tablet,world == 1,var units=snapshot["units"] as? [[String:Any]] {
+                    // User-authored screen-space offsets move each complete Forest
+                    // Unit, including its decoration, card and input geometry.
+                    let offsets:[CGPoint]=[CGPoint(x:-10,y:0),CGPoint(x:0,y:-40),CGPoint(x:84,y:-4),CGPoint(x:16,y:-8),CGPoint(x:-14,y:0),CGPoint(x:-16,y:-16),CGPoint(x:-70,y:0),CGPoint(x:24,y:-4),CGPoint(x:100,y:-4),CGPoint(x:16,y:-4)]
+                    let scale=NativeTabletLayout.worldFrame(CGRect(origin:.zero,size:size)).width/390
+                    for index in units.indices where index < offsets.count {
+                        guard var frame=units[index]["frame"] as? [String:Double] else{continue}
+                        frame["x"]! += Double(offsets[index].x/scale)
+                        frame["y"]! += Double(offsets[index].y/scale)
+                        units[index]["frame"]=frame
+                    }
+                    snapshot["units"]=units
+                }
+                if world == 1,var units=snapshot["units"] as? [[String:Any]] {
+                    // Fill the reviewed gap left of Forest03, behind its whole
+                    // artwork. Existing Unit cloud planes own motion and resources.
+                    if let index=units.firstIndex(where:{$0["boardID"] as? Int == 3}),
+                       var parts=units[index]["parts"] as? [[String:Any]] {
+                        let visualScale=snapshot["unitVisualScale"] as? Double ?? 1
+                        parts.append(["asset":"./assets/board transition/oblak veliki ljevo dole.png",
+                            "x":-180*visualScale,"y":35*visualScale,"width":260*visualScale,
+                            "rotation":0,"opacity":0.82,"zIndex":1,"role":"cloud"])
+                        units[index]["parts"]=parts
+                    }
+                    snapshot["units"]=units
+                }
+                return snapshot
             },
             markViewed: { [weak self] board in
                 guard let self else { return }
@@ -170,6 +195,10 @@ final class NativeBootstrap {
             try self?.openDeveloperAction(action, presenter: presenter)
         }
         services.showsStudioIntro=showStudioIntro
+        services.studioLogoMotionCue = { [weak self] event in
+            guard let self else{return};self.audioReceipt &+= 1
+            self.audio?.studioLogoMotion(event:event,receipt:self.audioReceipt,generation:self.audio?.generation ?? 1)
+        }
         services.studioIntroCue = { [weak self] character in
             guard let self else{return};self.audioReceipt &+= 1
             self.audio?.studioIntro(character:character,receipt:self.audioReceipt,generation:self.audio?.generation ?? 1)
@@ -1741,6 +1770,21 @@ final class NativeBootstrap {
             picker.onCTAEnter = {[weak self] in self?.routeFeedback("paired-modal-cta-enter",includesHaptic:false)}
             picker.onCloseRequested = {[weak self] in self?.routeFeedback("modal-close")}
             routeFeedback("modal-open");presenter.present(picker,animated: false)
+        case .intro:
+            let titles=["lik-kauc":"Sleeping Jimbo","lik-gitara":"Guitar","lik-slikanje":"Photographer",
+                "lik-cvijet":"Gardener","lik-board":"Dice player","lik-game":"Gamer",
+                "lik-laptop":"Rocking chair","lik-pas-SVG":"Jimbo & Nala","lik-speceraj":"Groceries",
+                "pas-novine":"Nala & newspaper"]
+            let choices=NativeStudioIntroView.characters.map{NativeDeveloperPicker.Choice(title:titles[$0.key] ?? $0.key,value:$0.key)}
+            let picker=NativeDeveloperPicker(root:root,title:"Intro character",choices:choices,multiple:false)
+            picker.onSelect={ [weak self,weak presenter] values in
+                guard let self,let presenter,current(),let key=values.first,
+                      let character=NativeStudioIntroView.characters.first(where:{$0.key==key}) else{return}
+                self.presentDeveloperIntro(character:character,presenter:presenter)
+            }
+            picker.onCTAEnter = {[weak self] in self?.routeFeedback("paired-modal-cta-enter",includesHaptic:false)}
+            picker.onCloseRequested = {[weak self] in self?.routeFeedback("modal-close")}
+            routeFeedback("modal-open");presenter.present(picker,animated:false)
         case .newCard:
             presentDeveloperReward(board: board,score: envelope.progression.boardStats[board]?.highScore ?? 0,presenter: presenter)
         case .clean,.arcadeClean,.beachClean,.area55Clean:
@@ -1778,6 +1822,30 @@ final class NativeBootstrap {
             picker.onCTAEnter = {[weak self] in self?.routeFeedback("paired-modal-cta-enter",includesHaptic:false)}
             picker.onCloseRequested = {[weak self] in self?.routeFeedback("modal-close")}
             routeFeedback("modal-open");presenter.present(picker,animated: false)
+        }
+    }
+    private func presentDeveloperIntro(character:NativeStudioIntroView.Character,presenter:UIViewController) {
+        let preview=UIViewController()
+        preview.view=NativeAppPaperSurface(artwork:JimiV9Artwork(resourceRoot:root))
+        let intro=NativeStudioIntroView(root:root,character:character)
+        intro.frame=preview.view.bounds;intro.autoresizingMask=[.flexibleWidth,.flexibleHeight]
+        preview.view.addSubview(intro)
+        // A disposable preview owner borrows the shipping transport and settings.
+        // No progression/profile or persistent next-launch selection is written.
+        let previewAudio=NativeGameplayAudioOwner(root:root,enabled:envelope.settings.gameSoundsEnabled)
+        var receipt:UInt64=0
+        intro.onCharacterCue={ [weak previewAudio] key in
+            guard let audio=previewAudio else{return};receipt &+= 1
+            audio.studioIntro(character:key,receipt:receipt,generation:audio.generation)
+        }
+        intro.onLogoMotionCue={ [weak previewAudio] event in
+            guard let audio=previewAudio else{return};receipt &+= 1
+            audio.studioLogoMotion(event:event,receipt:receipt,generation:audio.generation)
+        }
+        let host=NativeDeveloperPreviewHost(preview:preview,release:{intro.dispose();previewAudio.dispose()})
+        presenter.present(host,animated:false){ [weak intro,weak host] in
+            guard let intro,let host,!host.isBeingDismissed else{return}
+            intro.start{[weak host] in host?.finish()}
         }
     }
     private func presentDeveloperReward(board: Int, score: Int, presenter: UIViewController) {

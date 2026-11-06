@@ -1,8 +1,8 @@
 import UIKit
 import SpriteKit
 
-/// hud-helpers.ts live circle owner; the later unstroked X wrapper only
-/// contributes its long hit area. Stage uses typographic advance, not ink bounds.
+/// Native HUD Close keeps the source hit area and modal-style rounded corners.
+/// Stage uses typographic advance, not ink bounds.
 @MainActor
 final class NativeHUDCloseNode:SKNode {
     static let radius:CGFloat=22
@@ -17,14 +17,9 @@ final class NativeHUDCloseNode:SKNode {
     private var tapPosition:CGPoint?
     init(texture:SKTexture?,stageFont:UIFont) {
         stageAdvance=("Stage" as NSString).size(withAttributes:[.font:stageFont]).width
-        let path=CGMutablePath(),circumference=2*CGFloat.pi*Self.radius
-        let segments=Int(floor(circumference/12))
-        for i in 0..<segments {
-            let start=CGFloat(i)*12/Self.radius,end=start+6/Self.radius
-            // CSS/Pixi y grows down; reflect the exact original arcs for SpriteKit.
-            path.move(to:CGPoint(x:cos(start)*Self.radius,y:-sin(start)*Self.radius))
-            path.addArc(center:.zero,radius:Self.radius,startAngle:-start,endAngle:-end,clockwise:true)
-        }
+        let side=Self.radius*2,corner=side*16/52
+        let outline=UIBezierPath(roundedRect:CGRect(x:-Self.radius,y:-Self.radius,width:side,height:side),cornerRadius:corner).cgPath
+        let path=outline.copy(dashingWithPhase:0,lengths:[6,6])
         ring=SKShapeNode(path:path);ring.strokeColor=UIColor(red:232.0/255,green:212.0/255,blue:199.0/255,alpha:1)
         ring.fillColor = .clear;ring.lineWidth=2;ring.lineCap = .butt;ring.lineJoin = .miter;ring.miterLimit=10;ring.isAntialiased=true
         icon=SKSpriteNode(texture:texture)

@@ -40,12 +40,12 @@ final class JimiNativeSettingsTests: XCTestCase {
         defer { window.isHidden = true }
         var value = preferences
         XCTAssertTrue(view.apply(value))
-        let labels = try view.rows.map { row in try XCTUnwrap(row.subviews.compactMap { $0 as? UILabel }.first { $0.accessibilityIdentifier?.hasPrefix("native.settings.status.") == true }) }
+        let labels = try view.rows.map { row in try XCTUnwrap(row.subviews.first!.subviews.compactMap { $0 as? UILabel }.first { $0.accessibilityIdentifier?.hasPrefix("native.settings.status.") == true }) }
         let key = NativeHubBackpackFeedback.animationKey
         XCTAssertTrue(labels.allSatisfy { $0.layer.animation(forKey:key) == nil })
         value["musicEnabled"] = false
         XCTAssertTrue(view.apply(value)); XCTAssertEqual(labels[1].text,"OFF")
-        XCTAssertEqual(labels[1].frame.minX,0,accuracy:0.001)
+        XCTAssertEqual(labels[1].frame.minX,91.2,accuracy:0.001)
         XCTAssertLessThan(labels[1].bounds.width,100,"Text bounces around its own glyphs, not the wide row")
         if !UIAccessibility.isReduceMotionEnabled {
             XCTAssertNotNil(labels[1].layer.animation(forKey:key))
@@ -73,9 +73,9 @@ final class JimiNativeSettingsTests: XCTestCase {
         XCTAssertEqual(settings.header.frame.minX,0)
         XCTAssertEqual(settings.header.bounds.width,settings.bounds.width)
         XCTAssertNil(settings.header.viewWithTag(99))
-        XCTAssertEqual(settings.header.layer.shadowOpacity,0.16,accuracy:0.001)
+        XCTAssertEqual(settings.header.layer.shadowOpacity,0,accuracy:0.001)
         XCTAssertEqual(settings.header.layer.shadowOffset,CGSize(width:0,height:4))
-        XCTAssertEqual(settings.header.layer.shadowPath?.boundingBox,settings.header.bounds)
+        XCTAssertNil(settings.header.layer.shadowPath)
         let paper=NativeAppPaperSurface(artwork:JimiV9Artwork(resourceRoot:root))
         paper.frame=settings.bounds;paper.layoutIfNeeded()
         let image=UIGraphicsImageRenderer(bounds:settings.bounds).image{context in
@@ -109,7 +109,7 @@ final class JimiNativeSettingsTests: XCTestCase {
         for button in settings.developerButtons { button.sendActions(for: .touchUpInside) }
         XCTAssertTrue(actions.isEmpty)
         settings.setDeveloperPanelVisible(true); settings.layoutSubviews()
-        XCTAssertEqual(settings.developerButtons.compactMap { $0.title(for: .normal) },["Show Card","Hide Card","Legendary Card","Reset Stage","New Card","Clean Stage","Clean Arcade","Clean Beach","Clean Area 55","End Game","LAST MERGE"])
+        XCTAssertEqual(settings.developerButtons.compactMap { $0.title(for: .normal) },["Show Card","Hide Card","Legendary Card","Reset Stage","New Card","Clean Stage","Clean Arcade","Clean Beach","Clean Area 55","End Game","LAST MERGE","Intro"])
         for button in settings.developerButtons {
             XCTAssertFalse(button.isHidden); XCTAssertGreaterThanOrEqual(button.cartoonBounceFrame.minX,24)
             XCTAssertLessThanOrEqual(button.cartoonBounceFrame.maxX,296); XCTAssertGreaterThanOrEqual(button.bounds.height,44)
@@ -120,7 +120,7 @@ final class JimiNativeSettingsTests: XCTestCase {
         XCTAssertLessThanOrEqual(settings.firstPlay.frame.maxY,settings.scroll.contentSize.height)
         settings.back.sendActions(for: .touchUpInside)
         for button in settings.developerButtons { XCTAssertTrue(button.isHidden); button.sendActions(for: .touchUpInside) }
-        XCTAssertEqual(actions.count,8)
+        XCTAssertEqual(actions.count,NativeDeveloperAction.allCases.count)
     }
 
     func testDeveloperPreviewCloseReleasesOnceEvenBeforeAssetsAreReady() {
@@ -263,7 +263,8 @@ final class JimiNativeSettingsTests: XCTestCase {
                 let index=try XCTUnwrap(NativeDeveloperAction.allCases.firstIndex(of:.endGame))
                 app.settingsView.developerButtons[index].sendActions(for:.touchUpInside)
             } else {
-                try XCTUnwrap(app.settingsView.developerButtons.last).sendActions(for: .touchUpInside)
+                let index=try XCTUnwrap(NativeDeveloperAction.allCases.firstIndex(of:.lastMerge))
+                app.settingsView.developerButtons[index].sendActions(for:.touchUpInside)
             }
             let picker = try XCTUnwrap(app.presentedViewController as? NativeDeveloperPicker)
             picker.loadViewIfNeeded()
@@ -339,12 +340,15 @@ final class JimiNativeSettingsTests: XCTestCase {
     func testTabletSettingsScalesTextControlsAndHitGeometryTogether() throws {
         let settings=JimiNativeSettingsView(frame:CGRect(x:0,y:0,width:820,height:1180),assets:JimiV9Artwork(resourceRoot:root))
         XCTAssertTrue(settings.apply(preferences));settings.layoutSubviews()
-        let labels=settings.rows[0].subviews.compactMap{$0 as? UILabel}
+        let paper=NativeAppPaperSurface(artwork:JimiV9Artwork(resourceRoot:root));paper.frame=settings.bounds;paper.layoutIfNeeded()
+        let image=UIGraphicsImageRenderer(bounds:settings.bounds).image{context in paper.layer.render(in:context.cgContext);settings.layer.render(in:context.cgContext)}
+        let attachment=XCTAttachment(image:image);attachment.name="Settings paper rows on iPad";attachment.lifetime = .keepAlways;add(attachment)
+        let labels=settings.rows[0].subviews.first!.subviews.compactMap{$0 as? UILabel}
         let status=try XCTUnwrap(labels.first{$0.accessibilityIdentifier?.contains("status") == true})
         let description=try XCTUnwrap(labels.first{$0 !== status})
-        XCTAssertEqual(status.font.pointSize,44.8,accuracy:0.001)
+        XCTAssertEqual(status.font.pointSize,32,accuracy:0.001)
         XCTAssertEqual(description.font.pointSize,25.2,accuracy:0.001)
-        XCTAssertEqual(settings.rows[1].center.y-settings.rows[0].center.y,176.4,accuracy:0.001)
+        XCTAssertEqual(settings.rows[1].center.y-settings.rows[0].center.y,170,accuracy:0.001)
         let toggle=settings.switches[0];toggle.layoutIfNeeded()
         XCTAssertEqual(toggle.bounds.width,93.8,accuracy:0.001)
         XCTAssertEqual(toggle.bounds.height,63,accuracy:0.001)
@@ -355,29 +359,60 @@ final class JimiNativeSettingsTests: XCTestCase {
             toggle.setOn(on,animated:false);toggle.layoutSubviews()
             XCTAssertEqual(knob.frame.minX,(on ? 22:2)*1.4,accuracy:0.001)
             XCTAssertEqual(knob.bounds.width,37.8,accuracy:0.001)
-            XCTAssertEqual(pill.frame.maxX+toggle.frame.minX,settings.rows[0].bounds.width-11.2,accuracy:0.001)
+            XCTAssertEqual(pill.frame.maxX+toggle.frame.minX,settings.rows[0].bounds.width-40,accuracy:0.001)
             XCTAssertLessThanOrEqual(toggle.frame.maxX,settings.rows[0].bounds.width+0.001)
         }
     }
 
-    func testSettingsAnimationViewportIsFullWidthAndNeverClipsPaddedRows() {
-        for width in [CGFloat(320),390,430] {
-            let settings = JimiNativeSettingsView(frame:CGRect(x:0,y:0,width:width,height:844),assets:JimiV9Artwork(resourceRoot:root))
-            settings.layoutSubviews()
-            XCTAssertEqual(settings.scroll.frame.minX,0)
-            XCTAssertEqual(settings.scroll.bounds.width,width)
+    func testSettingsAnimationViewportIsFullWidthAndNeverClipsPaddedRows() throws {
+        for size in [CGSize(width:320,height:844),CGSize(width:390,height:844),CGSize(width:430,height:844),CGSize(width:820,height:1180)] {
+            let settings=JimiNativeSettingsView(frame:CGRect(origin:.zero,size:size),assets:JimiV9Artwork(resourceRoot:root))
+            XCTAssertTrue(settings.apply(preferences));settings.layoutIfNeeded()
+            settings.back.layoutIfNeeded();settings.developer.layoutIfNeeded()
             XCTAssertFalse(settings.clipsToBounds);XCTAssertFalse(settings.scroll.clipsToBounds)
-            XCTAssertEqual(settings.switches[0].convert(settings.switches[0].bounds,to:settings).maxX-8,width-37,accuracy:0.001)
-            for row in settings.rows {
-                XCTAssertEqual(row.frame.minX,37);XCTAssertEqual(row.bounds.width,width-66)
-                var parent: UIView? = row
-                while let view = parent {XCTAssertFalse(view.clipsToBounds);parent = view.superview}
-                // The authored overshoot may paint beyond the padded layout box.
-                row.transform = CGAffineTransform(scaleX:1.12,y:1.12)
-                XCTAssertLessThan(row.frame.minX,37)
-                XCTAssertGreaterThan(row.frame.maxX,width-37)
+            let scale:CGFloat=NativeTabletLayout.applies(size) ? 1.4:1
+            let padding:CGFloat=NativeTabletLayout.applies(size) ? 40:32
+            let left=settings.back.frame.minX+settings.back.imageEdgeInsets.left+24*35/216*scale
+            let right=settings.developer.frame.maxX-settings.developer.imageEdgeInsets.right-26*2/48*scale
+            for (i,row) in settings.rows.enumerated() {
+                let rect=row.convert(row.bounds,to:settings)
+                XCTAssertEqual(rect.minX,left,accuracy:0.01);XCTAssertEqual(rect.maxX,right,accuracy:0.01)
+                let labels=row.subviews.first!.subviews.compactMap{$0 as? UILabel}
+                let status=try XCTUnwrap(labels.first{$0.accessibilityIdentifier?.contains("status") == true})
+                let description=try XCTUnwrap(labels.first{$0 !== status})
+                XCTAssertEqual(status.font.pointSize,32,accuracy:0.001)
+                XCTAssertLessThan(status.center.y,description.center.y)
+                if description.text == "Vibration" {XCTAssertEqual(description.numberOfLines,1,"Never split the final letter onto a second line")}
+                let toggle=settings.switches[i];toggle.layoutIfNeeded()
+                let pill=try XCTUnwrap(toggle.subviews.first)
+                XCTAssertEqual(row.bounds.width-pill.convert(pill.bounds,to:row).maxX,padding,accuracy:0.01)
+                XCTAssertGreaterThanOrEqual(toggle.frame.minX,0);XCTAssertLessThanOrEqual(toggle.frame.maxX,row.bounds.width)
+                let images=row.subviews.first!.subviews.compactMap{$0 as? UIImageView}
+                let icon=try XCTUnwrap(images.last)
+                let alphaX:[CGFloat]=[29/160,39/160,26/160]
+                XCTAssertEqual(icon.frame.minX+icon.bounds.width*alphaX[i],padding,accuracy:0.01)
+                XCTAssertLessThanOrEqual(description.frame.maxY,row.bounds.height)
             }
-            for divider in settings.dividers {XCTAssertEqual(divider.frame.minX,37);XCTAssertEqual(divider.bounds.width,width-74)}
+            XCTAssertEqual(settings.rows[1].frame.minY-settings.rows[0].frame.maxY,16,accuracy:0.01)
+            XCTAssertEqual(settings.rows[2].frame.minY-settings.rows[1].frame.maxY,16,accuracy:0.01)
+            _ = settings.tracks(enter:true)
+            var painted:[CGRect]=[]
+            let poses=settings.rows.map{ $0.subviews.first!.transform }
+            for (index,row) in settings.rows.enumerated() {
+                let surface=try XCTUnwrap(row.subviews.first)
+                XCTAssertLessThanOrEqual(abs(atan2(surface.transform.b,surface.transform.a)*180 / .pi),2.0001)
+                painted.append(surface.convert(surface.bounds,to:settings.scroll))
+                let toggle=settings.switches[index],point=toggle.convert(CGPoint(x:toggle.bounds.midX,y:toggle.bounds.midY),to:settings)
+                XCTAssertTrue(settings.hitTest(point,with:nil) === toggle,"Rotated toggle must retain real touch admission")
+            }
+            XCTAssertEqual(painted[1].minY-painted[0].maxY,16,accuracy:0.01)
+            XCTAssertEqual(painted[2].minY-painted[1].maxY,16,accuracy:0.01)
+            settings.layoutSubviews();XCTAssertTrue(settings.apply(preferences))
+            XCTAssertEqual(settings.rows.map{$0.subviews.first!.transform},poses,"Layout and snapshots must not reroll the visit pose")
+            let paper=NativeAppPaperSurface(artwork:JimiV9Artwork(resourceRoot:root));paper.frame=settings.bounds;paper.layoutIfNeeded()
+            let image=UIGraphicsImageRenderer(bounds:settings.bounds).image{paper.layer.render(in:$0.cgContext);settings.layer.render(in:$0.cgContext)}
+            let attachment=XCTAttachment(image:image);attachment.name="Settings aligned40pt \(Int(size.width))";attachment.lifetime = .keepAlways;add(attachment)
+            try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/settings-aligned-\(Int(size.width)).png"))
         }
     }
 
@@ -404,7 +439,13 @@ final class JimiNativeSettingsTests: XCTestCase {
         XCTAssertEqual(privacy.paper.layer.contentsRect.minY,0)
         XCTAssertEqual(privacy.paper.layer.cornerRadius,40)
         XCTAssertNotNil(privacy.paper.image)
-        XCTAssertEqual(privacy.close.frame.size,CGSize(width:52,height:52))
+        XCTAssertEqual(privacy.close.bounds.size,CGSize(width:52,height:52))
+        let rest=try XCTUnwrap(privacy.idle.superview)
+        let angle=atan2(rest.layer.transform.m12,rest.layer.transform.m11)*180 / .pi
+        XCTAssertGreaterThanOrEqual(abs(angle),1.75)
+        XCTAssertLessThanOrEqual(abs(angle),2.75)
+        let closeAngle=atan2(privacy.close.transform.b,privacy.close.transform.a)*180 / .pi
+        XCTAssertGreaterThan(abs(angle+closeAngle),5)
         XCTAssertTrue(privacy.copy.text.contains("Read Privacy Policy"))
         XCTAssertEqual(privacy.card.layer.animation(forKey:"privacy-enter")?.duration,0.65)
         XCTAssertEqual(privacy.idle.layer.animation(forKey:"privacy-idle")?.duration,6.8)

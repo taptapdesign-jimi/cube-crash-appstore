@@ -58,15 +58,15 @@ final class NativeJourneyRewardTests:XCTestCase {
             return animation
         }.sorted{$0.beginTime<$1.beginTime}
         XCTAssertEqual(exits.count,3)
-        if let values=exits.first?.values as? [NSValue] {
+        if let values=exits.last?.values as? [NSValue] {
             let scales=values.map{$0.caTransform3DValue.m11}
             XCTAssertEqual(scales.first,1);XCTAssertEqual(scales.last,0)
             for index in 1..<scales.count {XCTAssertLessThan(scales[index],scales[index-1],"Card must shrink from the first sample, without an anticipation plateau")}
         }
         if exits.count==3 {
             XCTAssertEqual(exits[1].beginTime-exits[0].beginTime,0.08,accuracy:0.01)
-            XCTAssertEqual(exits[2].beginTime-exits[1].beginTime,0.08,accuracy:0.01)
-            let values=try XCTUnwrap(exits[0].values as? [NSValue])
+            XCTAssertGreaterThan(exits[2].beginTime,exits[1].beginTime,"Text exits before the card finishes its contact bounce")
+            let values=try XCTUnwrap(exits[2].values as? [NSValue])
             for (index,value) in values.enumerated() {
                 let progress=Double(index)/Double(values.count-1)
                 XCTAssertEqual(value.caTransform3DValue.m11,NativeRewardMotion.collectCardExitScale(progress:progress),accuracy:0.000001)

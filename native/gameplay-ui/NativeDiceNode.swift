@@ -2491,7 +2491,8 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
                 let phase=elapsed * .pi*2/2.4
                 let admission=CGFloat(min(1,elapsed/0.3))
                 let bounce=CGFloat(sin(phase)+0.22*sin(phase*2))
-                face.position=CGPoint(x:CGFloat(sin(phase*0.7))*7*admission,y:bounce*14*admission)
+                // Keep only30% of the board float excursion near the placeholder.
+                face.position=CGPoint(x:CGFloat(sin(phase*0.7))*2.1*admission,y:bounce*4.2*admission)
                 // Counterclockwise only: 30 percent of a quarter turn (27deg).
                 face.zRotation=CGFloat(0.5-0.5*cos(phase*0.8))*27 * .pi/180*admission
                 // Same short spring profile as selected Backpack Laser, with

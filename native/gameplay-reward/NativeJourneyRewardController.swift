@@ -355,8 +355,8 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         for (index,target) in exitLayers.enumerated(){target.transform=exitPoses[index]}
         CATransaction.commit()
         onSoundMoment?("new-card-collect",0,generation);onHaptic?("selection")
-        // Retain Home text exits; the card must visibly shrink with its return flip.
-        // Card, rarity and Unlocked each retain their painted pose until their turn.
+        // Text exits start at tap: rarity first, then Unlocked80ms later.
+        // The card retains its contact bounce and collapse with the return flip.
         let track=JimiV9Motion.homeExit(.hero)
         let duration=reducedMotion ? 0.16:track.duration*NativeRewardMotion.collectExitTimeScale
         let flipDuration=reducedMotion ? 0:NativeRewardMotion.collectFlipDuration(forExitDuration:track.duration)
@@ -383,7 +383,8 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
                 let sy=index==0 && !reducedMotion ? NativeRewardMotion.collectCardExitScale(progress:progress):frame.scaleY
                 return NSValue(caTransform3D:CATransform3DScale(start,sx,sy,1))
             }
-            keyframes(target,"transform",values:values,times:(0...count).map{Double($0)/Double(count)},duration:targetDuration,delay:bounceDuration+flipDuration+Double(index)*stagger,final:values.last,startTime:motionStart)
+            let exitDelay=index==0 ? bounceDuration+flipDuration:Double(index-1)*stagger
+            keyframes(target,"transform",values:values,times:(0...count).map{Double($0)/Double(count)},duration:targetDuration,delay:exitDelay,final:values.last,startTime:motionStart)
         }
         if !reducedMotion {
             // The original World automatic-return backface turns with the same

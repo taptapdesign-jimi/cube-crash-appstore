@@ -92,7 +92,7 @@ final class NativeHomeBreeze {
             case .die:source="assets/tile.png"
             }
             if family == .balloon {side=min(180,balloonMaximum)*CGFloat(stageBorn || foreground ? 1:0.40+unit(8)*0.55)}
-            else if family == .leaf {side=CGFloat(20+unit(20)*40)*(NativeTabletLayout.applies(size) ? 1:0.5)*(index==NativeHomeBreeze.flowerSlotIndex ? CGFloat(1+unit(54)*0.20):1)}
+            else if family == .leaf {side=CGFloat(20+unit(20)*40)*(NativeTabletLayout.applies(size) ? 1:0.5)*(index==NativeHomeBreeze.flowerSlotIndex ? CGFloat(1+unit(54)*0.50):1)}
             else if family == .die {side=CGFloat(20+unit(50)*(NativeTabletLayout.applies(size) ? 40:10))}
             else {side=CGFloat([20.0,40,60][index%3])*(family == .shard ? 0.65:1)}
             birth=family == .leaf ? (index==0 ? 0:Double(index)*0.40+unit(16)*0.22):Double(index)/Double(max(1,NativeHomeBreeze.slots(family)-1))*0.36
@@ -229,7 +229,10 @@ final class NativeHomeBreeze {
             let strip=UIView();strip.isUserInteractionEnabled=false
             plane.addSubview(strip);slideStrips[ObjectIdentifier(plane)]=strip
             slideWindows[ObjectIdentifier(plane)]=(0..<3).map {index in
-                let window=UIView();window.isUserInteractionEnabled=false;window.clipsToBounds=true
+                let window=UIView();window.isUserInteractionEnabled=false
+                // Arcade balloons retain their full painted silhouette while
+                // crossing a neighbouring slide; the viewport owns screen clipping.
+                window.clipsToBounds=index != 1
                 window.layer.name="native-home-ambient-slide-\(index)"
                 strip.addSubview(window);return window
             }
@@ -443,7 +446,10 @@ final class NativeHomeBreeze {
         let image=images[flight.source]
         layer.contents=image
         let ratio=CGFloat(image?.height ?? 1)/CGFloat(max(1,image?.width ?? 1))
-        layer.bounds=flight.family == .balloon ? CGRect(x:0,y:0,width:flight.side/max(1,ratio),height:flight.side*min(1,ratio)):CGRect(x:0,y:0,width:flight.side,height:flight.side)
+        // Enlarge only Home Journey leaves/flowers; keep the authored flight
+        // side, origins, paths and clocks unchanged.
+        let side=flight.side*(flight.family == .leaf ? 1.50:1)
+        layer.bounds=flight.family == .balloon ? CGRect(x:0,y:0,width:side/max(1,ratio),height:side*min(1,ratio)):CGRect(x:0,y:0,width:side,height:side)
         if flight.family == .die,(layer.sublayers?.first?.name != "ambient-pips-\(flight.value)" || layer.sublayers?.first?.bounds.size != layer.bounds.size) {
             layer.sublayers?.forEach{$0.removeFromSuperlayer()};addPips(to:layer,value:flight.value)
         }

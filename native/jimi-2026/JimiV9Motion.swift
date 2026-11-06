@@ -237,6 +237,19 @@ enum JimiV9Motion {
     /// journey-boards-manager.ts@v9:10296–10345 and Hub Back's embedded
     /// NAV exit: collapse upward to the top-center pivot, not the World's
     /// downward/shallow exit. Incoming recipes are intentionally unchanged.
+    /// Canonical Journey island contact-free route recipes, also used by navigation content.
+    static func worldHubElementEnter(begin:Double=0,reducedMotion:Bool=false)->Track {
+        .init(tweens:[.init(begin:begin,duration:reducedMotion ? 0.2:0.56,
+            from:.scale(reducedMotion ? 0.96:0.65,y:reducedMotion ? 8:30,opacity:0),to:.scale(1),
+            ease:reducedMotion ? .powerOut(1):.backOut(1.8))])
+    }
+    static func worldHubElementExit(begin:Double=0,selected:Bool=false,reducedMotion:Bool=false)->Track {
+        let peak=Pose(scaleX:selected ? 1.18:1.144,scaleY:selected ? 1.15:1.12)
+        let anticipation=reducedMotion ? 0.15:0.18,collapse=reducedMotion ? 0.28:0.336
+        return .init(tweens:[.init(begin:begin,duration:anticipation,from:.scale(1),to:peak,ease:.powerIn(2)),
+            .init(begin:begin+anticipation,duration:collapse,from:peak,to:.scale(0),ease:.backIn(1.7))],anchorY:0.54)
+    }
+
     static func journeyNavigationExit(reducedMotion: Bool = false) -> Track {
         let track = one(delay: 0, duration: reducedMotion ? 0.16 : 0.48,
                         from: .scale(1), to: .scale(0.04, y: -10, opacity: 0),

@@ -54,9 +54,10 @@ final class NativeHubBackpackFeedback {
     /// Core Animation retires this finite track; repeated taps replace only this key.
     /// Shared icon contact borrows the alert's active squash/stretch bounce,
     /// compressed into one0.4s track without its idle pause or notification tilt.
-    static func play(on target:UIView,beginTime:CFTimeInterval? = nil){
+    static func play(on target:UIView,beginTime:CFTimeInterval? = nil,preservingTransform:Bool=false){
         guard !UIAccessibility.isReduceMotionEnabled else{return}
-        let painted=target.layer.presentation()?.transform ?? CATransform3DIdentity
+        let base=preservingTransform ? target.layer.transform:CATransform3DIdentity
+        let painted=target.layer.presentation()?.transform ?? base
         target.layer.removeAnimation(forKey:idleKey)
         target.layer.removeAnimation(forKey:animationKey)
         let poses=NativeHUDTapMotion.poses
@@ -64,7 +65,7 @@ final class NativeHubBackpackFeedback {
         motion.values=poses.enumerated().map{index,pose in
             if index==0{return NSValue(caTransform3D:painted)}
             let (x,y,offset)=(CGFloat(pose.x),CGFloat(pose.y),CGFloat(pose.offset))
-            return NSValue(caTransform3D:CATransform3DScale(CATransform3DMakeTranslation(0,offset,0),x,y,1))
+            return NSValue(caTransform3D:CATransform3DScale(CATransform3DTranslate(base,0,offset,0),x,y,1))
         }
         motion.keyTimes=NativeHUDTapMotion.phases.map{NSNumber(value:$0)}
         motion.duration=NativeHUDTapMotion.duration

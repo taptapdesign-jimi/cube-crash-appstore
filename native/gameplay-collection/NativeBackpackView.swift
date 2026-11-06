@@ -8,7 +8,7 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
     private let assets:JimiV9Artwork
     let header=JimiV9NavigationHeader(frame:.zero),close=JimiV9PlainButton(type:.custom)
     let grid:UICollectionView
-    private let title=UILabel()
+    private let title=JimiV9ArchedNavigationTitle()
     private(set) var includesArcade=false
     let arcadeCrate:Bool
     private var alertsActive=false
@@ -74,6 +74,8 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
         grid.dataSource=self;grid.delegate=self;grid.isPrefetchingEnabled=false
         addSubview(grid);addSubview(header)
         header.backgroundColor=UIColor(red:243/255,green:238/255,blue:232/255,alpha:0.8);header.isOpaque=false
+        header.setHomeDividerImage(assets.image("assets/home-shadow.png"))
+        header.setBackgroundImage(assets.image("assets/nav/nav-bg.png",densityAware:true))
         self.title.font=assets.font(size:28);self.title.textColor=NativeTextPalette.navigationTitle;self.title.attributedText=NativeModalTypography.attributedCollectionTitle(title,baseColor:NativeTextPalette.navigationTitle);self.title.textAlignment = .center
         header.addSubview(self.title);header.addSubview(close)
         close.setImage(assets.image("assets/close-icon.png",densityAware:true),for:.normal)
@@ -91,6 +93,7 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
         title.frame=row.titleFrame(for:title)
         close.frame=row.buttonFrame(x:22,visibleInset:10)
         close.imageEdgeInsets=row.iconInsets(UIEdgeInsets(top:10,left:10,bottom:10,right:10),imageHeight:24,inkCenterY:0.5153061224489796)
+        header.applyCurve(to:title,icons:[close])
         let previousTop=grid.contentInset.top,previousOffset=grid.contentOffset
         let contentWidth=embedded ? bounds.width:NativeTabletLayout.collectionWidth(bounds.size,crate:arcadeCrate)
         grid.frame=CGRect(x:bounds.midX-contentWidth/2,y:0,width:contentWidth,height:bounds.height)

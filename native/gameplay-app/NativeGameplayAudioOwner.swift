@@ -2,6 +2,8 @@ import UIKit
 import AVFAudio
 import StackToSixGameplay
 
+enum NativeStudioLogoAudioEvent:String {case prepare,fall,landing,swing1,swing2,swing3,swing4,swing5,swing6,swing7,exitSmoke,exit,stop}
+
 struct NativeAudioCue:Equatable {
     let source:String
     let voice:String
@@ -151,6 +153,63 @@ final class NativeGameplayAudioOwner {
         receipts[category]=receipt // OFF consumes the contact; ON never replays it.
         return enabled && foreground && !interrupted
     }
+    static func studioLogoMoment(_ sourceTime:Double)->Double {
+        let lead=NativeStudioIntroView.logoSourceLead
+        return NativeStudioIntroView.logoStartDelay+max(0,sourceTime-lead)/NativeStudioIntroView.logoMotionSpeed+(sourceTime>2.96 ? NativeStudioIntroView.logoExtraHold:0)
+    }
+    static var studioLogoSwingContacts:[(event:NativeStudioLogoAudioEvent,cue:NativeAudioCue)] {
+        // Measured5ms attack peaks inside short retained windows: crate3=75ms,
+        // crate4=65ms,crate1=135ms. Later345/615ms peaks are excluded so they
+        // cannot knock after a small swing has settled. Source cubic(.28,0,.23,1)
+        // reaches maximum angular velocity at23.7125percent of each segment.
+        let speedPeak=0.2371254081
+        let plan:[(NativeStudioLogoAudioEvent,Double,Double,Int,Double,Double)]=[
+            (.swing1,0.97,27,3,1.00,0.075),
+            (.swing2,1.04+0.24*speedPeak,23,4,1.05,0.065),
+            (.swing3,1.28+0.28*speedPeak,14,1,1.08,0.135),
+            (.swing4,1.56+0.28*speedPeak,7.5,3,1.05,0.075),
+            (.swing5,1.84+0.32*speedPeak,3.3,4,1.08,0.065),
+            (.swing6,2.16+0.28*speedPeak,0.8,1,1.10,0.135),
+            (.swing7,2.72+0.24*speedPeak,15,3,1.00,0.075)]
+        let visibleEnd=NativeStudioIntroView.characterExitTime-0.10+0.65
+        return plan.compactMap {event,sourceTime,angle,variant,rate,attack in
+            let time=max(NativeStudioIntroView.presentsEntryStart,studioLogoMoment(sourceTime)-attack/rate)
+            guard time<visibleEnd else{return nil}
+            let gain=max(0.16,0.54*sqrt(angle/27))
+            return (event,NativeAudioCue(source:"assets/sound/crate and backpack animaitons/crate/crate \(variant).wav",voice:"native-studio-logo-\(event.rawValue)-crate\(variant)",gain:gain,rate:rate,delay:time,stopAfter:0.24,fadeOut:0.04))
+        }
+    }
+    static let studioLogoGainScale=0.444823811
+    static var studioLogoMotionCues:[NativeAudioCue] {
+        let wood="assets/sound/merge 6/wood.wav"
+        let air="assets/sound/cjelina flip/Gentle_airy_whoosh_w_#4-1789152312787.wav"
+        return [
+            .init(source:air,voice:"native-studio-logo-fall-air",gain:0.85,rate:0.95,delay:studioLogoMoment(0.52),stopAfter:0.42,fadeOut:0.06),
+            .init(source:"assets/sound/crate and backpack animaitons/crate/crate2.wav",voice:"native-studio-logo-fall-crate2",gain:0.54,delay:studioLogoMoment(0.52),stopAfter:0.45,fadeOut:0.06),
+            .init(source:wood,voice:"native-studio-logo-swing1-wood",gain:0.231,rate:1.05,delay:studioLogoSwingContacts[0].cue.delay,stopAfter:0.18,fadeOut:0.04),
+            .init(source:wood,voice:"native-studio-logo-swing2-wood",gain:0.189,rate:0.98,delay:studioLogoSwingContacts[1].cue.delay,stopAfter:0.18,fadeOut:0.04),
+            .init(source:wood,voice:"native-studio-logo-landing-wood",gain:0.273,delay:studioLogoMoment(0.84),stopAfter:0.22,fadeOut:0.04),
+            .init(source:"assets/sound/card reveal/poof.wav",voice:"native-studio-logo-landing-poof",gain:0.43,delay:studioLogoMoment(0.84),stopAfter:0.70,fadeOut:0.08),
+            .init(source:"assets/sound/crate and backpack animaitons/crate/crate 3.wav",voice:"native-studio-logo-exit-crate3",gain:0.54,delay:studioLogoMoment(3.56),stopAfter:0.36,fadeOut:0.06),
+            .init(source:wood,voice:"native-studio-logo-exitSmoke-wood",gain:0.273,delay:studioLogoMoment(3.56)-0.10,stopAfter:0.22,fadeOut:0.04),
+            .init(source:air,voice:"native-studio-logo-exitSmoke-air",gain:0.65,rate:1.20,delay:studioLogoMoment(3.56)-0.10,stopAfter:0.36,fadeOut:0.05),
+            .init(source:"assets/sound/card reveal/puf.wav",voice:"native-studio-logo-exit-puf",gain:0.85,delay:studioLogoMoment(3.56),stopAfter:0.43,fadeOut:0.06)
+        ]+studioLogoSwingContacts.map(\.cue)
+    }
+    func studioLogoMotion(event:NativeStudioLogoAudioEvent,receipt:UInt64,generation:UInt64) {
+        let cues=Self.studioLogoMotionCues
+        if event == .stop {transport.stopVoices(Set(cues.map(\.voice)));return}
+        guard admit("studio-logo-"+event.rawValue,receipt:receipt,generation:generation) else{return}
+        if event == .prepare {
+            _=transport.prepareSelectedSources(Array(Set(cues.map(\.source))).sorted(),capture:"studio-logo-\(generation)-\(receipt)",generation:generation)
+            return
+        }
+        let prefix="native-studio-logo-"+event.rawValue+"-"
+        for cue in cues where cue.voice.hasPrefix(prefix) {
+            transport.play(NativeAudioCue(source:cue.source,voice:cue.voice,gain:cue.gain*Self.studioLogoGainScale,rate:cue.rate,delay:0,stopAfter:cue.stopAfter,fadeOut:cue.fadeOut))
+        }
+    }
+
     func studioIntro(character:String,receipt:UInt64,generation:UInt64) {
         guard admit("studio-intro",receipt:receipt,generation:generation) else{return}
         let hasSpeech=playRecordedScene("intro-"+character)
@@ -313,14 +372,16 @@ final class NativeGameplayAudioOwner {
         }
         if ["arcade-island-endurance","arcade-island-pureDice","arcade-island-slowBurn"].contains(kind) {
             let scene=["arcade-island-endurance":"arena-endurance","arcade-island-pureDice":"arena-grill","arcade-island-slowBurn":"arena-slow"][kind]!
-            let legacy=kind == "arcade-island-slowBurn" ? [kind,"arcadeSlowBurnTea"]:[kind]
+            let curated=kind != "arcade-island-endurance"
+            let legacy=curated ? []:[kind]
             if let cue=sceneSpeechCue(scene,legacy:legacy) {startArcadeTail(groups:[chooseNalaGroup("arcadeIslandDog")],additionalSpeech:cue);return}
-            let speech=kind == "arcade-island-slowBurn" && pick(2) == 1 ? "arcadeSlowBurnTea":kind
-            startArcadeTail(groups:[speech,chooseNalaGroup("arcadeIslandDog")]);return
+            // Sandwich/tea island taps use current recorded pools without old fallbacks.
+            if curated {startArcadeTail(groups:[chooseNalaGroup("arcadeIslandDog")]);return}
+            startArcadeTail(groups:[kind,chooseNalaGroup("arcadeIslandDog")]);return
         }
         if kind == "home-settings-character-tap" {
-            if playRecordedScene("home-settings",legacy:["homeSettingsSpeech","settingsSpeech0","settingsSpeech1"]) {return}
-            startNavigationSpeech(group:["homeSettingsSpeech","settingsSpeech0","settingsSpeech1"][pick(3)]);return
+            // Only the five current tower lines; no old wrench/helper fallback.
+            _=playRecordedScene("home-settings");return
         }
         if kind == "collection-icon-speech" {startNavigationSpeech(group:"collectionSpeech\(pick(7))");return}
         if kind == "home-arcade-character-tap" {

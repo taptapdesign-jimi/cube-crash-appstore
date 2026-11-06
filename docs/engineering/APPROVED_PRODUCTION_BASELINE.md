@@ -1,15 +1,15 @@
 # Approved Production Baseline
 
-Updated: 2026-11-04
+Updated: 2026-11-06
 
-## Current Native production benchmark — v22 iPad + iPhone
+## Current Native checkpoint — PRODUCTION 95% ready
 
-User explicitly requests saving all current work online as a new iPad + iPhone
-benchmark on 2026-11-04. Immutable tag: `native-benchmark-v22-ipad-iphone`.
-See [NATIVE_BENCHMARK_V22_IPAD_IPHONE.md](NATIVE_BENCHMARK_V22_IPAD_IPHONE.md).
-This is the Native continuation and recovery reference, superseding v21.
-Historical Native tags and preserved PWA recovery remain immutable. Benchmark
-promotion does not establish physical touch, animation, audio or thermal acceptance.
+User explicitly requests saving all current project work online with this milestone
+name on 2026-11-06. Immutable tag: `production-95-percent-ready`.
+See [PRODUCTION_95_PERCENT_READY.md](PRODUCTION_95_PERCENT_READY.md).
+This is the latest Native continuation/recovery reference, superseding v22.
+The label records the user's milestone and does not establish independent release
+or physical acceptance. Historical Native/PWA references remain immutable.
 
 ## Historical Native development boundary (2026-10-07)
 
@@ -53,7 +53,7 @@ remote publication must be reported separately and is not implied here.
 
 ## Interpretation rule
 
-When the user says **approved version**, **approved baseline**, **perfect version**, **the version that was super**, **production benchmark**, **benchmark fluidnost**, **stable release**, or otherwise refers to the last version they personally accepted, for the preserved PWA treat `production-benchmark-v9` as the exact source reference. Native uses `native-benchmark-v22-ipad-iphone` above.
+When the user says **approved version**, **approved baseline**, **perfect version**, **the version that was super**, **production benchmark**, **benchmark fluidnost**, **stable release**, or otherwise refers to the last version they personally accepted, for the preserved PWA treat `production-benchmark-v9` as the exact source reference. Native uses `production-95-percent-ready` above.
 
 Do not infer approval from a successful build, QA pass, device installation, merge, release, or positive comment about one isolated change. Only an explicit user statement that a newer complete state is approved may supersede this file.
 

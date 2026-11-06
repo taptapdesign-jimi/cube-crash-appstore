@@ -59,7 +59,8 @@ struct NativeScoreModalModel {
         let value = combo ? (arcade ? arcadeStats.longestCombo : board.longestCombo)
             : (arcade ? arcadeStats.highScore : board.highScore)
         title = combo ? "Combo" : "High Score"
-        subtitle = combo ? "Stack and merge quickly\nto boost your score." : "Your best score so far."
+        subtitle = arcade ? state.effectiveArcadeVariant.title
+            : (combo ? "Stack and merge quickly\nto boost your score." : "Your best score so far.")
         var rows = [Stat(value:combo ? NativeComboDisplay.text(value):NativeScoreDisplay.text(value),label:combo ? "Best combo" : "High score",
             icon:combo ? "assets/combo-icon.png" : "assets/highscore-icon.png")]
         if arcade && !combo {rows.append(.init(value:NativeScoreDisplay.padded(max(1,arcadeStats.highestStageOpened)),
@@ -143,7 +144,7 @@ struct NativeScoreModalModel {
         // Preserve the original grain's aspect ratio; smooth continuous corners
         // replace the repeated zigzag edge. Only shadow geometry needs layout.
         CATransaction.begin();CATransaction.setDisableActions(true)
-        if showsPaperHolder {layer.shadowPath=UIBezierPath(roundedRect:bounds,cornerRadius:min(22,h/2)).cgPath}
+        if showsPaperHolder {JimiNativeModalV10.applyPaperCorners(to:paper);layer.shadowPath=UIBezierPath(roundedRect:bounds,cornerRadius:min(paper.layer.cornerRadius,h/2)).cgPath}
         CATransaction.commit()
         if scoreLayout {
             divider.isHidden=false
@@ -166,6 +167,7 @@ struct NativeScoreModalModel {
 /// Its only decision is dismissal; pause and persistence belong to the owner.
 @MainActor
 final class NativeScoreModal:UIViewController,CAAnimationDelegate {
+    private let restTiltDegrees=JimiNativeModalV10.restTiltDegrees()
     var onClosed:(()->Void)?,onCloseRequested:(()->Void)?,onCloseReturnReady:(()->Void)?
     private let closeProgressLayer=CALayer()
     private var closeReturnDelivered=false
@@ -188,7 +190,7 @@ final class NativeScoreModal:UIViewController,CAAnimationDelegate {
         backdrop.backgroundColor=model.isGameplayHistory || model.history == nil ? JimiNativeModalV10.backdropColor:.clear;backdrop.alpha=0
         backdrop.addTarget(self,action:#selector(requestClose),for:.touchUpInside);view.addSubview(backdrop)
         view.addSubview(foreground);view.addSubview(card);card.addSubview(flip);flip.addSubview(tilt);tilt.addSubview(idle);idle.addSubview(paper)
-        if model.history != nil {tilt.transform=CGAffineTransform(rotationAngle:-1.5 * .pi/180)}
+        tilt.transform=CGAffineTransform(rotationAngle:restTiltDegrees * .pi/180)
         card.layer.anchorPoint=CGPoint(x:0.5,y:0.55);flip.layer.anchorPoint=CGPoint(x:0.5,y:1);idle.layer.anchorPoint=CGPoint(x:0.5,y:0.52)
         card.alpha=0;card.accessibilityIdentifier="native.score-modal";idle.layer.isDoubleSided=false
         paper.image=assets.image("assets/modals/paper.png");paper.layer.cornerRadius=40;paper.clipsToBounds=true
@@ -225,8 +227,8 @@ final class NativeScoreModal:UIViewController,CAAnimationDelegate {
             let row=NativeScoreStatRow(stat:stat,assets:assets)
             idle.addSubview(row);rows.append(row);statTracks.append(row)
         }
-        close.setBackgroundImage(paper.image,for:.normal);close.layer.cornerRadius=26;close.clipsToBounds=true
-        close.setImage(assets.image("assets/close-icon.png",densityAware:true),for:.normal);close.imageView?.contentMode = .scaleAspectFit;close.artworkOpacity = 0.8;close.enableArtworkTapFeedback()
+        close.setBackgroundImage(paper.image,for:.normal);close.layer.cornerRadius=16;close.clipsToBounds=true
+        close.setImage(assets.image("assets/close-icon.png",densityAware:true),for:.normal);close.imageView?.contentMode = .scaleAspectFit;close.artworkOpacity = 0.8;close.enableArtworkTapFeedback(wholeControl:true)
         close.imageEdgeInsets=UIEdgeInsets(top:14,left:14,bottom:14,right:14);close.accessibilityIdentifier="native.score-modal.close"
         close.addTarget(self,action:#selector(requestClose),for:.touchUpInside);idle.addSubview(close)
         drag=JimiNativeModalDrag(target:card,idle:idle,viewport:view,canDrag:{[weak self] in self?.ready == true && self?.closing == false},onDismiss:{[weak self] in self?.requestClose()})
@@ -263,7 +265,7 @@ final class NativeScoreModal:UIViewController,CAAnimationDelegate {
         var y=statsY
         for track in statTracks {let h:CGFloat=rows.contains(where:{$0 === track}) ? rowHeight : 2
             if h==2 {y += 8};track.frame=CGRect(x:width*0.1,y:y,width:width*0.8,height:h);y += h+(h==2 ? 8 : 0)}
-        close.frame=CGRect(x:width-42,y:-10,width:52,height:52)
+        JimiNativeModalV10.layoutClose(close,frame:CGRect(x:width-42,y:-10,width:52,height:52),modalTilt:restTiltDegrees)
     }
     private func layoutHistory() {
         let modalBounds=NativeTabletLayout.modalBounds(in:modalHost,card:card,isolatesDepth:true)
@@ -292,7 +294,7 @@ final class NativeScoreModal:UIViewController,CAAnimationDelegate {
         for (index,row) in rows.enumerated() {
             row.frame=CGRect(x:inset,y:top+CGFloat(index)*(rowHeight+gap),width:max(0,width-2*inset),height:rowHeight)
         }
-        close.frame=CGRect(x:width-42,y:-10,width:52,height:52)
+        JimiNativeModalV10.layoutClose(close,frame:CGRect(x:width-42,y:-10,width:52,height:52),modalTilt:restTiltDegrees)
     }
     override func viewDidAppear(_ animated:Bool) {
         NativeHistoryTransitionTrace.event("score.didAppear")

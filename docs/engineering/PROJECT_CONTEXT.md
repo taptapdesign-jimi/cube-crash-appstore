@@ -303,3 +303,9 @@ Kite2 opposed flight/visibility override2026-10-25:strict100pt radius/same-side 
 For title, subtitle, font, color, CTA sizing or consistency work, read [DESIGN_SYSTEM.md](../../DESIGN_SYSTEM.md) and its measured inventory. The development-only visual page is named **DESIGN SYSTEM**, under `design-library/typography/`. Alongside requested UI style changes, refresh affected real Native captures, data, HTML, generated Markdown and portable ZIP. User-facing sizes are logical design px mapped numerically 1:1 to UIKit points; physical screenshot pixels are separate. Keep these artifacts outside app resources.
 
 DESIGN SYSTEM also has a development-only dog inspector: selected-element context, local semantic comparisons, microphone dictation and optional API-backed chat. Start `python3 design-library/typography/serve.py --port 8766`; see [ASSISTANT.md](../../design-library/typography/ASSISTANT.md). No application code/save edits are exposed through this inspector.
+
+Native navigation height is locked by user decision2026-11-06: Journey Hub,
+Settings and Forest/Beach/Area55 use one RowLayout with66pt content height,
+existing safe-area/compression/tablet rules and identical divider geometry per
+device. No screen-specific override or geometry/test change without explicit
+user instruction. See AGENTS.md.

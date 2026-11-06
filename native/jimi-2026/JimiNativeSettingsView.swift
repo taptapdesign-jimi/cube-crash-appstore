@@ -1,4 +1,58 @@
 import UIKit
+import CoreText
+
+/// Static original-paper crop and lightly nicked silhouette, renewed only per visit.
+@MainActor
+private final class NativeSettingsPaperSurface:UIView {
+    private let texture:UIImageView
+    private let edgeMask=CAShapeLayer()
+    private var crop:CGFloat=0.5,mirrored=false,seed:UInt64=1
+    var circularCorners=false {didSet{if circularCorners != oldValue {setNeedsLayout()}}}
+    var cornerRadius:CGFloat=22 {didSet{if cornerRadius != oldValue {setNeedsLayout()}}}
+    private(set) var outline:CGPath=CGMutablePath()
+    init(image:UIImage?){texture=UIImageView(image:image);super.init(frame:.zero);isUserInteractionEnabled=false;addSubview(texture);layer.mask=edgeMask}
+    required init?(coder:NSCoder){fatalError("Original paper initializer")}
+    func renew(crop:CGFloat,mirrored:Bool,seed:UInt64){self.crop=crop;self.mirrored=mirrored;self.seed=seed;setNeedsLayout()}
+    override func layoutSubviews(){
+        super.layoutSubviews();guard bounds.width>0,bounds.height>0 else{return}
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        let size=texture.image?.size ?? CGSize(width:390,height:525)
+        let scale=max(bounds.width/max(1,size.width),bounds.height/max(1,size.height))
+        texture.bounds=CGRect(x:0,y:0,width:size.width*scale,height:size.height*scale)
+        texture.center=CGPoint(x:bounds.midX,y:texture.bounds.height/2-(texture.bounds.height-bounds.height)*crop)
+        texture.transform=mirrored ? CGAffineTransform(scaleX:-1,y:1):.identity
+        var state=seed
+        func random()->CGFloat {state=state &* 6364136223846793005 &+ 1442695040888963407;return CGFloat(state>>40)/CGFloat(1<<24)}
+        let w=bounds.width,h=bounds.height,r=min(cornerRadius,min(w,h)/2),path=UIBezierPath()
+        func side(from start:CGPoint,to end:CGPoint,inward:CGPoint,count:Int){
+            let dx=end.x-start.x,dy=end.y-start.y,length=hypot(dx,dy)
+            guard length>0 else{return}
+            for slot in 0..<count {
+                let t=(CGFloat(slot)+0.35+random()*0.3)/CGFloat(count)
+                let half=min(3.4,1.4+random()*2)/length,depth=0.55+random()*1.45
+                let before=CGPoint(x:start.x+dx*max(0,t-half),y:start.y+dy*max(0,t-half))
+                let tip=CGPoint(x:start.x+dx*t+inward.x*depth,y:start.y+dy*t+inward.y*depth)
+                let after=CGPoint(x:start.x+dx*min(1,t+half),y:start.y+dy*min(1,t+half))
+                path.addLine(to:before);path.addQuadCurve(to:tip,controlPoint:CGPoint(x:(before.x+tip.x)/2,y:(before.y+tip.y)/2));path.addLine(to:after)
+            }
+            path.addLine(to:end)
+        }
+        path.move(to:CGPoint(x:r,y:0));side(from:CGPoint(x:r,y:0),to:CGPoint(x:w-r,y:0),inward:CGPoint(x:0,y:1),count:8)
+        if circularCorners {path.addCurve(to:CGPoint(x:w,y:r),controlPoint1:CGPoint(x:w-r+r*0.55228475,y:0),controlPoint2:CGPoint(x:w,y:r-r*0.55228475))}
+        else {path.addQuadCurve(to:CGPoint(x:w,y:r),controlPoint:CGPoint(x:w,y:0))}
+        side(from:CGPoint(x:w,y:r),to:CGPoint(x:w,y:h-r),inward:CGPoint(x:-1,y:0),count:3)
+        if circularCorners {path.addCurve(to:CGPoint(x:w-r,y:h),controlPoint1:CGPoint(x:w,y:h-r+r*0.55228475),controlPoint2:CGPoint(x:w-r+r*0.55228475,y:h))}
+        else {path.addQuadCurve(to:CGPoint(x:w-r,y:h),controlPoint:CGPoint(x:w,y:h))}
+        side(from:CGPoint(x:w-r,y:h),to:CGPoint(x:r,y:h),inward:CGPoint(x:0,y:-1),count:8)
+        if circularCorners {path.addCurve(to:CGPoint(x:0,y:h-r),controlPoint1:CGPoint(x:r-r*0.55228475,y:h),controlPoint2:CGPoint(x:0,y:h-r+r*0.55228475))}
+        else {path.addQuadCurve(to:CGPoint(x:0,y:h-r),controlPoint:CGPoint(x:0,y:h))}
+        side(from:CGPoint(x:0,y:h-r),to:CGPoint(x:0,y:r),inward:CGPoint(x:1,y:0),count:3)
+        if circularCorners {path.addCurve(to:CGPoint(x:r,y:0),controlPoint1:CGPoint(x:0,y:r-r*0.55228475),controlPoint2:CGPoint(x:r-r*0.55228475,y:0))}
+        else {path.addQuadCurve(to:CGPoint(x:r,y:0),controlPoint:.zero)};path.close()
+        outline=path.cgPath;edgeMask.frame=bounds;edgeMask.path=outline
+        CATransaction.commit()
+    }
+}
 
 /// UIKit presentation only. The existing web settings/save owner supplies every
 /// value and accepts mutations; this view never creates a preference store.
@@ -25,13 +79,23 @@ final class JimiNativeSettingsView: UIView, UIGestureRecognizerDelegate {
     private(set) var switches: [JimiNativeSettingsToggle] = []
     private var statuses: [UILabel] = []
     private var descriptions: [UILabel] = []
-    private let title = UILabel()
+    private var papers: [NativeSettingsPaperSurface] = []
+    private var icons: [UIImageView] = []
+    private var rowSurfaces:[UIView]=[]
+    private var rowTilts:[CGFloat]=[0,0,0]
+    private var idleAdmitted=false,idleForeground=true
+    private let idleDirections=(0..<3).map{_ in CGPoint(x:CGFloat.random(in:-6...6),y:CGFloat.random(in:4...8))}
+    private let idleTilts=(0..<3).map{_ in CGFloat.random(in:-1.4...1.4)}
+    private let idlePhases=(0..<3).map{_ in Double.random(in:0.35...0.65)}
+    private let idleDurations=(0..<3).map{_ in Double.random(in:3.4...4.6)}
+    private let title = JimiV9ArchedNavigationTitle()
     private let footerCopy = UILabel()
     private let privacy = JimiV9PlainButton(type: .custom)
     private(set) var presentationEpoch = -1
     private(set) var snapshot: [String: Any] = [:]
     private let keys = ["gameSoundsEnabled", "musicEnabled", "hapticsEnabled"]
-    private let labels = ["Game sounds", "Music", "Vibration"]
+    private let labels = ["Sounds", "Music", "Vibration"]
+    private static let iconOpacityKey="native.settings.icon-opacity"
     private let ink = UIColor(red: 153/255, green: 103/255, blue: 84/255, alpha: 1)
     private let accent = UIColor(red: 232/255, green: 116/255, blue: 74/255, alpha: 1)
 
@@ -41,6 +105,8 @@ final class JimiNativeSettingsView: UIView, UIGestureRecognizerDelegate {
         accessibilityIdentifier = "native.settings"
         addSubview(header); addSubview(scroll); addSubview(footer)
         header.backgroundColor = UIColor(red:243/255,green:238/255,blue:232/255,alpha:0.8)
+        header.setHomeDividerImage(assets.image("assets/home-shadow.png"))
+        header.setBackgroundImage(assets.image("assets/nav/nav-bg.png",densityAware:true),opacity:1)
         // Padding belongs to the rows, never to a clipping animation viewport.
         clipsToBounds = false; scroll.clipsToBounds = false
         scroll.alwaysBounceVertical = false
@@ -86,19 +152,30 @@ final class JimiNativeSettingsView: UIView, UIGestureRecognizerDelegate {
         }
         for i in keys.indices {
             let row = UIView(); row.tag = i; scroll.addSubview(row); rows.append(row)
+            // Static tilted surface is separate from the existing route scale carrier.
+            let surface=UIView();surface.accessibilityIdentifier="native.settings.row.surface"
+            row.addSubview(surface);rowSurfaces.append(surface)
+            let paper=NativeSettingsPaperSurface(image:assets.image("assets/modals/paper.png",densityAware:true))
+            paper.alpha=0.7
+            surface.addSubview(paper);papers.append(paper)
+            surface.layer.shadowColor=UIColor(red:0.68,green:0.40,blue:0.20,alpha:1).cgColor
+            surface.layer.shadowOpacity=0.18;surface.layer.shadowRadius=6;surface.layer.shadowOffset=CGSize(width:0,height:4)
+            let icon=UIImageView(image:assets.image("assets/nav/\(["zvucnik","gitara","telefon"][i]).png",densityAware:true))
+            icon.contentMode = .scaleAspectFit;surface.addSubview(icon);icons.append(icon)
             let tap = UITapGestureRecognizer(target:self,action:#selector(tapPreferenceRow(_:)))
             tap.delegate = self; tap.cancelsTouchesInView = false; row.addGestureRecognizer(tap)
             let status = UILabel(); status.font = assets.font(size: 32, weight: "ExtraBold"); status.textColor = UIColor(red: 232/255, green: 116/255, blue: 74/255, alpha: 1)
             status.accessibilityIdentifier = "native.settings.status.\(keys[i])"
-            row.addSubview(status); statuses.append(status)
+            surface.addSubview(status); statuses.append(status)
             let label = UILabel(); label.text = labels[i]; label.font = assets.font(size: 18, weight: "Medium"); label.textColor = NativeTextPalette.subtitle
-            row.addSubview(label); descriptions.append(label)
-            let toggle = JimiNativeSettingsToggle(); toggle.tag = i; toggle.onTintColor = accent
+            label.adjustsFontSizeToFitWidth=true;label.minimumScaleFactor=0.75
+            surface.addSubview(label); descriptions.append(label)
+            let toggle = JimiNativeSettingsToggle(); toggle.tag = i
             toggle.accessibilityLabel = labels[i]; toggle.accessibilityIdentifier = "native.settings.\(keys[i])"
             toggle.addTarget(self, action: #selector(changePreference(_:)), for: .valueChanged)
-            row.addSubview(toggle); switches.append(toggle)
+            surface.addSubview(toggle); switches.append(toggle)
             if i < keys.count-1 {
-                let divider = UIView(); divider.backgroundColor = ink.withAlphaComponent(0.08)
+                let divider = UIView(); divider.backgroundColor = .clear
                 scroll.addSubview(divider); dividers.append(divider)
             }
         }
@@ -121,14 +198,16 @@ final class JimiNativeSettingsView: UIView, UIGestureRecognizerDelegate {
         var changedStatuses: [UILabel] = []
         for (i, enabled) in [sounds, music, haptics].enumerated() {
             switches[i].setOn(enabled, animated: false)
+            updateIconOpacity(at:i,enabled:enabled,animated:animateChanges)
             let text = enabled ? "ON" : "OFF"
             if statuses[i].text != text {
                 if animateChanges && statuses[i].text != nil { changedStatuses.append(statuses[i]) }
                 else { statuses[i].layer.removeAnimation(forKey: NativeHubBackpackFeedback.animationKey) }
                 statuses[i].text = text
+                statuses[i].textColor = enabled ? accent : UIColor(red:199/255,green:161/255,blue:135/255,alpha:1)
             }
         }
-        developerSummary.attributedText = NSAttributedString(string: "DEV\nJourney card tools",attributes: [.font: assets.font(size: 18),.foregroundColor: NativeTextPalette.subtitle])
+        developerSummary.attributedText = NSAttributedString(string: "DEV\nJourney & Intro tools",attributes: [.font: assets.font(size: 18),.foregroundColor: NativeTextPalette.subtitle])
         let summary = NSMutableAttributedString(attributedString: developerSummary.attributedText!)
         summary.addAttributes([.font: assets.font(size: 28,weight: "ExtraBold"),.foregroundColor: accent],range: NSRange(location: 0,length: 3))
         developerSummary.attributedText = summary
@@ -146,6 +225,7 @@ final class JimiNativeSettingsView: UIView, UIGestureRecognizerDelegate {
     func setDeveloperPanelVisible(_ visible: Bool) {
         if visible { cancelStatusBounces() }
         developerPanelVisible = visible
+        updateCardIdle()
         scroll.clipsToBounds = visible
         title.text = visible ? "Developer" : "Settings"
         developer.isHidden = visible || snapshot["developerToolsAvailable"] as? Bool != true
@@ -173,6 +253,7 @@ final class JimiNativeSettingsView: UIView, UIGestureRecognizerDelegate {
         // Original gear paints through46/48of its26pt inset image box.
         developer.frame = row.buttonFrame(x:bounds.width-68,visibleInset:9+26*2/48)
         developer.imageEdgeInsets=row.iconInsets(UIEdgeInsets(top:9,left:9,bottom:9,right:9),imageHeight:26,inkCenterY:0.4791666666666667)
+        header.applyCurve(to:title,icons:[back,developer])
         // The original24pt chevron paints from x3 inside its10pt inset.
         // Tablet rows share the Backpack grid's32pt inner content inset.
         let bodyInset:CGFloat=tablet ? 32*contentScale:back.frame.minX+back.imageEdgeInsets.left+3
@@ -195,22 +276,60 @@ final class JimiNativeSettingsView: UIView, UIGestureRecognizerDelegate {
         firstPlay.setCartoonBounceFrame(CGRect(x: 24,y: firstPlayY,width: max(0,contentWidth-48),height: 48))
         firstPlay.titleLabel?.font = assets.font(size: columns == 1 ? 18 : 16,weight: "ExtraBold")
         firstPlay.layer.shadowPath = UIBezierPath(roundedRect: firstPlay.bounds,cornerRadius: 18).cgPath
+        // Align the paper to the original PNG ink edges, not the control hit boxes.
+        // Chevron ink begins35/216 across its24pt image;gear ends2/48 before its26pt edge.
+        let paperLeft=back.frame.minX+back.imageEdgeInsets.left+24*35/216*row.iconScale
+        let paperRight=developer.frame.maxX-developer.imageEdgeInsets.right-26*2/48*row.iconScale
+        let inset=paperLeft-scroll.frame.minX
+        let rowWidth=max(0,paperRight-paperLeft)
+        let padding:CGFloat=tablet ? 64:32
+        let compact = !tablet && rowWidth<280
+        let iconCanvas:CGFloat=compact ? 48:64*contentScale
+        // Strong-alpha left bounds of the original density-aware nav artwork.
+        let iconInkLeft:[CGFloat]=[29/160,39/160,26/160]
+        let copyX=padding+iconCanvas*108/160+(compact ? 10:16)+(tablet ? 16:0)
+        let copyWidth=max(0,rowWidth-padding-51*contentScale-12-copyX)
+        let rowHeight=110*contentScale
+        var nextPaintedY:CGFloat=80
         for i in rows.indices {
-            let rowWidth=max(0,scroll.bounds.width-bodyInset*2)
-            NativeTabletLayout.labelFont(statuses[i],size:32*contentScale)
+            NativeTabletLayout.labelFont(statuses[i],size:32)
             NativeTabletLayout.labelFont(descriptions[i],size:18*contentScale)
-            // Scale static geometry, not the bounce/route transform owners.
-            // Keep the complete transparent toggle hit padding inside its row.
-            place(rows[i],in:CGRect(x:bodyInset,y:CGFloat(i)*126*contentScale,width:rowWidth+8*contentScale,height:124*contentScale))
-            let copyWidth=max(0,rowWidth-83*contentScale)
-            let statusWidth=min(copyWidth,ceil(statuses[i].sizeThatFits(CGSize(width:copyWidth,height:36*contentScale)).width))
-            place(statuses[i],in:CGRect(x:0,y:31*contentScale,width:statusWidth,height:36*contentScale))
-            descriptions[i].frame=CGRect(x:0,y:67*contentScale,width:copyWidth,height:28*contentScale)
+            descriptions[i].attributedText=NativeModalTypography.attributedSubtitle(labels[i],font:assets.font(size:18*contentScale,weight:"Medium"),alignment:.left)
+            // The whole content starts an additional80pt below its previous origin.
+            // Paper and icon share the existing row's finite route animation.
+            let angle=rowTilts[i] * .pi/180
+            let paintedHeight=abs(rowHeight*cos(angle))+abs(rowWidth*sin(angle))
+            place(rows[i],in:CGRect(x:inset,y:nextPaintedY+(paintedHeight-rowHeight)/2,width:rowWidth,height:rowHeight))
+            place(rowSurfaces[i],in:rows[i].bounds)
+            papers[i].frame=rowSurfaces[i].bounds
+            let cardCornerRadius=NativeTabletLayout.settingsPaperCornerRadius(bounds.size)
+            papers[i].circularCorners=tablet;papers[i].cornerRadius=cardCornerRadius;papers[i].setNeedsLayout();papers[i].layoutIfNeeded()
+            rowSurfaces[i].layer.shadowPath=papers[i].outline
+            nextPaintedY += paintedHeight+16
+            icons[i].frame=CGRect(x:padding-iconCanvas*iconInkLeft[i],y:(rows[i].bounds.height-iconCanvas)/2,width:iconCanvas,height:iconCanvas)
+            descriptions[i].numberOfLines=1
+            let statusHeight=ceil(statuses[i].font.lineHeight)
+            let descriptionHeight=ceil(18*contentScale*1.3)*CGFloat(descriptions[i].numberOfLines)
+            // Halve the visible glyph gap, including the fonts' internal leading.
+            // Merely halving the2pt frame gap leaves almost all whitespace intact.
+            func ink(_ text:String,_ font:UIFont)->CGRect {
+                CTLineGetBoundsWithOptions(CTLineCreateWithAttributedString(NSAttributedString(string:text,attributes:[.font:font])),.useGlyphPathBounds)
+            }
+            let statusInk=ink(statuses[i].text ?? "ON",statuses[i].font)
+            let descriptionInk=ink(labels[i],descriptions[i].font)
+            let statusBaseline=(statusHeight-statuses[i].font.lineHeight)/2+statuses[i].font.ascender
+            let descriptionBaseline=(descriptionHeight-descriptions[i].font.lineHeight)/2+descriptions[i].font.ascender
+            let previousGlyphGap=statusHeight+2+descriptionBaseline-descriptionInk.maxY-statusBaseline+statusInk.minY
+            let copyGap=4-max(0,previousGlyphGap)*0.5
+            let copyTop=(rows[i].bounds.height-statusHeight-copyGap-descriptionHeight)/2
+            let statusWidth=min(copyWidth,ceil(statuses[i].sizeThatFits(CGSize(width:copyWidth,height:statusHeight)).width))
+            place(statuses[i],in:CGRect(x:copyX,y:copyTop,width:statusWidth,height:statusHeight))
+            descriptions[i].frame=CGRect(x:copyX,y:copyTop+statusHeight+copyGap,width:copyWidth,height:descriptionHeight)
             switches[i].presentationScale=contentScale
-            switches[i].frame=CGRect(x:max(0,rowWidth-59*contentScale),y:43*contentScale,width:67*contentScale,height:45*contentScale)
-            if i<dividers.count {place(dividers[i],in:CGRect(x:bodyInset,y:(CGFloat(i+1)*126-1)*contentScale,width:rowWidth,height:2*contentScale))}
+            switches[i].frame=CGRect(x:max(0,rowWidth-padding-59*contentScale),y:32.5*contentScale,width:67*contentScale,height:45*contentScale)
+            if i<dividers.count {place(dividers[i],in:CGRect(x:inset,y:nextPaintedY-8,width:rowWidth,height:2*contentScale))}
         }
-        scroll.contentSize=CGSize(width:scroll.bounds.width,height:developerPanelVisible ? firstPlay.cartoonBounceFrame.maxY+32:378*contentScale)
+        scroll.contentSize=CGSize(width:scroll.bounds.width,height:developerPanelVisible ? firstPlay.cartoonBounceFrame.maxY+32:nextPaintedY)
     }
     private func styleDeveloperButton(_ button: UIButton, fill: UInt32, depth: UInt32) {
         func color(_ value: UInt32) -> UIColor {
@@ -227,17 +346,88 @@ final class JimiNativeSettingsView: UIView, UIGestureRecognizerDelegate {
         target.bounds = CGRect(origin: .zero, size: rect.size)
         target.center = CGPoint(x: rect.midX, y: rect.midY)
     }
+    private func updateIconOpacity(at index:Int,enabled:Bool,animated:Bool) {
+        let icon=icons[index],target:CGFloat=enabled ? 1:0.5
+        guard animated else{icon.layer.removeAnimation(forKey:Self.iconOpacityKey);icon.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey);icon.alpha=target;return}
+        guard abs(icon.alpha-target)>0.001 else{return}
+        let from=icon.layer.presentation()?.opacity ?? Float(icon.alpha)
+        icon.layer.removeAnimation(forKey:Self.iconOpacityKey)
+        CATransaction.begin();CATransaction.setDisableActions(true);icon.alpha=target;CATransaction.commit()
+        guard !UIAccessibility.isReduceMotionEnabled else{icon.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey);return}
+        let epoch=CACurrentMediaTime()
+        NativeHubBackpackFeedback.play(on:icon,beginTime:epoch,preservingTransform:true)
+        let fade=CABasicAnimation(keyPath:"opacity");fade.fromValue=from;fade.toValue=Float(target)
+        fade.beginTime=icon.layer.convertTime(epoch+0.080,from:nil)
+        fade.duration=0.14;fade.fillMode = .backwards;fade.timingFunction=CAMediaTimingFunction(name:.easeInEaseOut)
+        icon.layer.add(fade,forKey:Self.iconOpacityKey)
+    }
     private func cancelStatusBounces() {
         for label in statuses { label.layer.removeAnimation(forKey: NativeHubBackpackFeedback.animationKey) }
+        for surface in rowSurfaces { surface.layer.removeAnimation(forKey: NativeHubBackpackFeedback.animationKey) }
+        for icon in icons {icon.layer.removeAnimation(forKey:Self.iconOpacityKey);icon.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey)}
+    }
+    private func playCardFeedback(at index:Int) {
+        guard rowSurfaces.indices.contains(index),window != nil,!isHidden,!developerPanelVisible,
+              !UIAccessibility.isReduceMotionEnabled else{return}
+        let layer=rowSurfaces[index].layer,base=rowSurfaces[index].layer.transform
+        let painted=layer.presentation()?.transform ?? base
+        layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey)
+        let motion=CAKeyframeAnimation(keyPath:"transform")
+        let strength:CGFloat=0.35
+        motion.values=NativeHUDTapMotion.poses.enumerated().map { i,pose in
+            if i==0 {return NSValue(caTransform3D:painted)}
+            let translated=CATransform3DTranslate(base,0,CGFloat(pose.offset)*strength,0)
+            return NSValue(caTransform3D:CATransform3DScale(translated,1+(CGFloat(pose.x)-1)*strength,1+(CGFloat(pose.y)-1)*strength,1))
+        }
+        motion.keyTimes=NativeHUDTapMotion.phases.map{NSNumber(value:$0)}
+        motion.duration=NativeHUDTapMotion.duration
+        motion.timingFunctions=Array(repeating:CAMediaTimingFunction(name:.easeInEaseOut),count:NativeHUDTapMotion.poses.count-1)
+        layer.add(motion,forKey:NativeHubBackpackFeedback.animationKey)
+    }
+    func setIdleActive(_ active:Bool){idleAdmitted=active;updateCardIdle()}
+    func setIdleForeground(_ foreground:Bool) {
+        guard idleForeground != foreground else{return}
+        idleForeground=foreground
+        if !foreground {for icon in icons {icon.layer.removeAnimation(forKey:Self.iconOpacityKey);icon.layer.removeAnimation(forKey:NativeHubBackpackFeedback.animationKey)}}
+        for row in rows {
+            guard let motion=row.layer.animation(forKey:JimiV9PlainButton.modalIdleKey)?.copy() as? CAAnimation else{continue}
+            let now=row.layer.convertTime(CACurrentMediaTime(),from:nil)
+            if foreground {motion.speed=1;motion.beginTime=now}
+            else {motion.timeOffset=(motion.timeOffset+max(0,now-motion.beginTime)).truncatingRemainder(dividingBy:motion.duration);motion.speed=0;motion.beginTime=0}
+            row.layer.add(motion,forKey:JimiV9PlainButton.modalIdleKey)
+        }
+        if foreground {updateCardIdle()}
+    }
+    private func updateCardIdle() {
+        let visible=idleAdmitted && window != nil && !isHidden && !developerPanelVisible && !UIAccessibility.isReduceMotionEnabled
+        for (i,row) in rows.enumerated() {
+            guard visible else{row.layer.removeAnimation(forKey:JimiV9PlainButton.modalIdleKey);continue}
+            guard idleForeground,row.layer.animation(forKey:JimiV9PlainButton.modalIdleKey)==nil else{continue}
+            let motion=JimiV9PlainButton.gentleIdle(direction:idleDirections[i],tilt:idleTilts[i],phase:idlePhases[i],duration:idleDurations[i])
+            motion.beginTime=row.layer.convertTime(CACurrentMediaTime(),from:nil)
+            row.layer.add(motion,forKey:JimiV9PlainButton.modalIdleKey)
+        }
     }
     override func didMoveToWindow() {
         super.didMoveToWindow()
-        if window == nil { cancelStatusBounces() }
+        if window == nil { cancelStatusBounces();idleAdmitted=false }
+        updateCardIdle()
     }
     override var isHidden: Bool {
-        didSet { if isHidden { cancelStatusBounces() } }
+        didSet { if isHidden { cancelStatusBounces();idleAdmitted=false };updateCardIdle() }
     }
     func tracks(enter: Bool) -> [(UIView, JimiV9Motion.Track)] {
+        setIdleActive(false)
+        if enter {
+            // Disjoint bands guarantee different poses; sample once per admitted visit.
+            rowTilts=[CGFloat.random(in:-2 ... -1),CGFloat.random(in:-0.5 ... 0.5),CGFloat.random(in:1 ... 2)].shuffled().map{$0 * (NativeTabletLayout.applies(bounds.size) ? 0.5:1)}
+            let cropBands:[CGFloat]=[CGFloat.random(in:0.08...0.23),CGFloat.random(in:0.40...0.59),CGFloat.random(in:0.77...0.92)].shuffled()
+            for i in rowSurfaces.indices {
+                papers[i].renew(crop:cropBands[i],mirrored:Bool.random(),seed:UInt64.random(in:1...UInt64.max))
+                rowSurfaces[i].transform=CGAffineTransform(rotationAngle:rowTilts[i] * .pi/180)
+            }
+            setNeedsLayout();layoutIfNeeded()
+        }
         if !enter { cancelStatusBounces() }
         var ordered: [UIView] = []
         for i in rows.indices { ordered.append(rows[i]); if i < dividers.count { ordered.append(dividers[i]) } }
@@ -271,6 +461,7 @@ final class JimiNativeSettingsView: UIView, UIGestureRecognizerDelegate {
     }
     @objc private func changePreference(_ sender: JimiNativeSettingsToggle) {
         guard keys.indices.contains(sender.tag) else { return }
+        playCardFeedback(at:sender.tag)
         onPreference?(keys[sender.tag], sender.isOn, presentationEpoch)
     }
     @objc private func goBack() {
@@ -294,6 +485,8 @@ final class JimiNativeSettingsView: UIView, UIGestureRecognizerDelegate {
 @MainActor
 final class JimiNativePrivacyController: UIViewController {
     var onCloseRequested:(()->Void)?
+    private let restTilt=JimiNativeModalTransformView()
+    private let restTiltDegrees=JimiNativeModalV10.restTiltDegrees()
     private let assets: JimiV9Artwork
     let card = UIView(), flip = JimiNativeModalTransformView(), idle = UIView(), paper = UIImageView()
     let copy = UITextView(), close = JimiV9PlainButton(type: .custom), backdrop = UIButton(type: .custom)
@@ -309,7 +502,8 @@ final class JimiNativePrivacyController: UIViewController {
         backdrop.backgroundColor = JimiNativeModalV10.backdropColor
         backdrop.addTarget(self,action:#selector(closeSheet),for:.touchUpInside); view.addSubview(backdrop)
         card.alpha = 0;backdrop.alpha = 0
-        view.addSubview(card);card.addSubview(flip);flip.addSubview(idle);idle.addSubview(paper)
+        view.addSubview(card);card.addSubview(flip);flip.addSubview(restTilt);restTilt.addSubview(idle);idle.addSubview(paper)
+        restTilt.layer.transform=CATransform3DMakeRotation(restTiltDegrees * .pi/180,0,0,1)
         card.layer.anchorPoint = CGPoint(x:0.5,y:0.55);flip.layer.anchorPoint = CGPoint(x:0.5,y:0.46);idle.layer.anchorPoint = CGPoint(x:0.5,y:0.52)
         paper.image = assets.image("assets/modals/paper.png");paper.contentMode = .scaleToFill
         paper.layer.cornerRadius = 40;paper.clipsToBounds = true
@@ -331,9 +525,9 @@ final class JimiNativePrivacyController: UIViewController {
         }
         copy.attributedText = content;copy.linkTextAttributes = [.foregroundColor:orange,.underlineStyle:NSUnderlineStyle.single.rawValue]
         idle.addSubview(copy)
-        close.backgroundColor = UIColor(red:1,green:250/255,blue:244/255,alpha:1);close.layer.cornerRadius = 26
+        close.backgroundColor = UIColor(red:1,green:250/255,blue:244/255,alpha:1);close.layer.cornerRadius = 16
         close.setBackgroundImage(paper.image,for:.normal);close.clipsToBounds = true
-        close.setImage(assets.image("assets/close-icon.png",densityAware:true),for:.normal);close.imageView?.contentMode = .scaleAspectFit;close.artworkOpacity = 0.8;close.enableArtworkTapFeedback()
+        close.setImage(assets.image("assets/close-icon.png",densityAware:true),for:.normal);close.imageView?.contentMode = .scaleAspectFit;close.artworkOpacity = 0.8;close.enableArtworkTapFeedback(wholeControl:true)
         close.imageEdgeInsets = UIEdgeInsets(top:14,left:14,bottom:14,right:14)
         close.accessibilityLabel = "Close Privacy Policy";close.accessibilityIdentifier = "native.settings.privacy.close"
         close.addTarget(self,action:#selector(closeSheet),for:.touchUpInside);idle.addSubview(close)
@@ -358,11 +552,12 @@ final class JimiNativePrivacyController: UIViewController {
         let height = min(wanted,modalBounds.height-modalSafeInsets.top-modalSafeInsets.bottom-48)
         card.bounds = CGRect(x:0,y:0,width:width,height:height);card.center = CGPoint(x:modalBounds.midX,y:modalBounds.midY+height*0.05)
         flip.bounds = card.bounds;flip.center = CGPoint(x:width/2,y:height*0.46)
+        restTilt.bounds=card.bounds;restTilt.center=CGPoint(x:width/2,y:height/2)
         idle.bounds = card.bounds;idle.center = CGPoint(x:width/2,y:height*0.52)
         JimiNativeModalV10.paperLayout(paper,bounds:idle.bounds,bottomExtension:96)
         copy.frame = CGRect(x:40,y:40,width:textWidth,height:max(0,height-80))
         copy.isScrollEnabled = wanted>height
-        close.frame = CGRect(x:width-42,y:-10,width:52,height:52)
+        JimiNativeModalV10.layoutClose(close,frame:CGRect(x:width-42,y:-10,width:52,height:52),modalTilt:restTiltDegrees)
     }
     private func pose(_ y:CGFloat,_ z:CGFloat,_ rx:CGFloat,_ ry:CGFloat,_ scale:CGFloat,_ rz:CGFloat = 0)->CATransform3D {
         var t = CATransform3DIdentity
@@ -414,6 +609,8 @@ final class JimiNativePrivacyController: UIViewController {
 final class JimiNativeSettingsToggle: UIControl {
     private let pill = UIView()
     private let knob = UIView()
+    private let trackGradient=CAGradientLayer()
+    private let knobGradient=CAGradientLayer()
     private(set) var isOn = false
     var presentationScale:CGFloat=1 {
         didSet {if presentationScale != oldValue {setNeedsLayout()}}
@@ -421,10 +618,14 @@ final class JimiNativeSettingsToggle: UIControl {
     private func knobFrame(on:Bool)->CGRect {
         CGRect(x:(on ? 22:2)*presentationScale,y:2*presentationScale,width:27*presentationScale,height:27*presentationScale)
     }
-    var onTintColor = UIColor(red: 232/255, green: 116/255, blue: 74/255, alpha: 1)
+    var onTintColor = UIColor(red: 1, green: 105/255, blue: 40/255, alpha: 1)
     override init(frame: CGRect) {
         super.init(frame: frame)
         addSubview(pill); pill.addSubview(knob)
+        trackGradient.startPoint=CGPoint(x:0,y:0);trackGradient.endPoint=CGPoint(x:1,y:1)
+        pill.layer.insertSublayer(trackGradient,at:0)
+        knobGradient.colors=[UIColor(red:1,green:253/255,blue:244/255,alpha:1).cgColor,UIColor(red:246/255,green:234/255,blue:216/255,alpha:1).cgColor]
+        knob.layer.insertSublayer(knobGradient,at:0)
         pill.isUserInteractionEnabled = false
         pill.layer.cornerRadius = 15.5
         pill.layer.shadowColor = UIColor.black.cgColor
@@ -446,11 +647,19 @@ final class JimiNativeSettingsToggle: UIControl {
         knob.layer.shadowOffset=CGSize(width:0,height:2*presentationScale);knob.layer.shadowRadius=2*presentationScale
         pill.center = CGPoint(x: bounds.midX,y: bounds.midY)
         knob.frame=knobFrame(on:isOn)
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        trackGradient.frame=pill.bounds;trackGradient.cornerRadius=pill.layer.cornerRadius
+        knobGradient.frame=knob.bounds;knobGradient.cornerRadius=knob.layer.cornerRadius
+        CATransaction.commit()
     }
     func setOn(_ value: Bool, animated: Bool) {
         isOn = value; accessibilityValue = value ? "On" : "Off"
         let update = {
-            self.pill.backgroundColor = value ? self.onTintColor : UIColor(red: 223/255,green: 211/255,blue: 206/255,alpha: 1)
+            let off=UIColor(red:225/255,green:204/255,blue:184/255,alpha:1)
+            self.pill.backgroundColor = value ? self.onTintColor : off
+            CATransaction.begin();CATransaction.setDisableActions(true)
+            self.trackGradient.colors=value ? [UIColor(red:1,green:128/255,blue:62/255,alpha:1).cgColor,self.onTintColor.cgColor] : [UIColor(red:218/255,green:194/255,blue:174/255,alpha:1).cgColor,off.cgColor]
+            CATransaction.commit()
             self.knob.frame=self.knobFrame(on:value)
         }
         if animated && !UIAccessibility.isReduceMotionEnabled {

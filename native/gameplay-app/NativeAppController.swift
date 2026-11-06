@@ -8,6 +8,7 @@ struct NativeAppServices {
     var developerAction: ((NativeDeveloperAction, UIViewController) throws -> Void)?
     var showsStudioIntro=false
     var studioIntroCue:((String)->Void)?
+    var studioLogoMotionCue:((NativeStudioLogoAudioEvent)->Void)?
     var readJourneyDie: (String)->Bool = {_ in false}
     var journeyProgression: () -> NativeProgressionState = {NativeProgressionState()}
     var settings: () -> [String: Any]
@@ -232,6 +233,7 @@ final class NativeAppController: UIViewController {
             let intro=NativeStudioIntroView(root:resourceRoot);studioIntro=intro
             intro.frame=view.bounds;intro.autoresizingMask=[.flexibleWidth,.flexibleHeight];view.addSubview(intro)
             intro.onCharacterCue=services.studioIntroCue
+            intro.onLogoMotionCue=services.studioLogoMotionCue
             intro.start { [weak self] in guard let self,!self.disposed else{return};self.studioIntro=nil;self.reveal(.home) }
         }else{reveal(.home)}
     }

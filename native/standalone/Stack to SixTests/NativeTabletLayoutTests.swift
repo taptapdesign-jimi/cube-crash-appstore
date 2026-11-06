@@ -49,29 +49,60 @@ final class NativeTabletLayoutTests:XCTestCase {
     }
 
 
-    func testPhoneNavigationRetainsOriginalHeaderAndRowGeometry() {
+    func testPhoneNavigationCompressesHeaderWithUnchangedIconAndTitleSizes() {
         for size in [CGSize(width:390,height:844),CGSize(width:430,height:932)] {
             for safeTop:CGFloat in [0,47,59] {
                 let top=max(0,safeTop+size.height*0.02-16)
-                for base:CGFloat in [58,66] {
-                    let row=JimiV9NavigationHeader.RowLayout(bounds:CGRect(origin:.zero,size:size),safeAreaTop:safeTop,contentHeight:base)
-                    XCTAssertEqual(row.headerHeight(),top+base,accuracy:0.000001,"iPhone must have zero tablet height extension")
-                    XCTAssertEqual(row.centerY,top+26,accuracy:0.000001)
+                let base:CGFloat=66
+                do {
+                    let row=JimiV9NavigationHeader.RowLayout(bounds:CGRect(origin:.zero,size:size),safeAreaTop:safeTop)
+                    let inset=(top+base)*0.1
+                    XCTAssertEqual(row.headerHeight(),(top+base)*0.8,accuracy:0.000001)
+                    XCTAssertEqual(row.centerY,top+26-inset+8,accuracy:0.000001)
                     XCTAssertEqual(row.iconScale,1);XCTAssertEqual(row.titleFontSize,28)
                     let label=UILabel();label.font=assets.font(size:28);label.text="Journey"
-                    XCTAssertEqual(row.titleFrame(for:label),CGRect(x:72,y:top+10,width:size.width-144,height:32))
-                    XCTAssertEqual(row.buttonFrame(x:24),CGRect(x:24,y:top+4,width:44,height:44))
+                    let title=row.titleFrame(for:label)
+                    XCTAssertEqual(title.minY,top+10-inset+8,accuracy:0.000001)
+                    XCTAssertEqual(title.minX,72);XCTAssertEqual(title.width,size.width-144);XCTAssertEqual(title.height,32)
+                    let button=row.buttonFrame(x:24)
+                    XCTAssertEqual(button.minY,top+4-inset+8,accuracy:0.000001)
+                    XCTAssertEqual(button.minX,24);XCTAssertEqual(button.size,CGSize(width:44,height:44))
                     XCTAssertEqual(row.iconInsets(UIEdgeInsets(top:10,left:10,bottom:10,right:10),imageHeight:24,inkCenterY:0.5104166667),UIEdgeInsets(top:10,left:10,bottom:10,right:10))
                 }
             }
         }
     }
+    func testBoxNavigationArtworkFillsSameCanvasAsBackpackOnPhoneAndTablet() throws {
+        for size in [CGSize(width:390,height:844),CGSize(width:820,height:1180)] {
+            let window=UIWindow(frame:CGRect(origin:.zero,size:size)),host=UIViewController()
+            window.rootViewController=host;window.makeKeyAndVisible()
+            defer{window.isHidden=true}
+            var artworkSizes:[CGSize]=[]
+            for arcade in [false,true] {
+                let view=JimiV9HubView(frame:CGRect(origin:.zero,size:size),assets:assets,arcade:arcade)
+                host.view.addSubview(view);view.layoutIfNeeded();view.header.layoutIfNeeded();view.backpackButton.layoutIfNeeded()
+                let image=try XCTUnwrap(view.backpackButton.imageView)
+                artworkSizes.append(image.bounds.size)
+                let scale:CGFloat=NativeTabletLayout.applies(size) ? 1.4:1
+                XCTAssertEqual(image.bounds.width,40*scale,accuracy:0.01)
+                XCTAssertEqual(image.bounds.height,40*scale,accuracy:1/UIScreen.main.scale,"Small crate originals must upscale beyond intrinsic36pt")
+                XCTAssertEqual(view.backpackButton.bounds.size,CGSize(width:40*scale,height:48*scale))
+                let attachment=XCTAttachment(image:UIGraphicsImageRenderer(bounds:view.header.bounds).image{view.header.layer.render(in:$0.cgContext)})
+                attachment.name="\(arcade ? "Box":"Backpack") navigation \(Int(size.width))";attachment.lifetime = .keepAlways;add(attachment)
+                view.removeFromSuperview()
+            }
+            XCTAssertEqual(artworkSizes[0].width,artworkSizes[1].width,accuracy:1/UIScreen.main.scale)
+            XCTAssertEqual(artworkSizes[0].height,artworkSizes[1].height,accuracy:1/UIScreen.main.scale)
+        }
+    }
+
     func testTabletNavigationSitsFourPointsBelowHeaderCentreAndExportsPaintEvidence() throws {
         let size=CGSize(width:820,height:1180),art=assets
         let window=UIWindow(frame:CGRect(origin:.zero,size:size)),host=UIViewController()
         window.rootViewController=host;window.makeKeyAndVisible()
         defer{window.isHidden=true}
         var records:[[String:Any]]=[]
+        var expectedHeaderHeight:CGFloat?
         let folder=URL(fileURLWithPath:"/tmp/ipad-navigation-down4-20261103")
         try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
         func rect(_ r:CGRect)->[Double] {[Double(r.minX),Double(r.minY),Double(r.width),Double(r.height)]}
@@ -79,6 +110,9 @@ final class NativeTabletLayoutTests:XCTestCase {
             host.view.addSubview(view);view.frame=CGRect(origin:.zero,size:size)
             view.setNeedsLayout();view.layoutIfNeeded();header.layoutIfNeeded()
             header.layer.transform=CATransform3DIdentity;header.alpha=1
+            if let expectedHeaderHeight {
+                XCTAssertEqual(header.bounds.height,expectedHeaderHeight,accuracy:0.001,"LOCKED: all navigation dividers must match Hub/Settings")
+            } else {expectedHeaderHeight=header.bounds.height}
             let title=try XCTUnwrap(header.subviews.compactMap{$0 as? UILabel}.first)
             XCTAssertEqual(title.font.pointSize,39.2,accuracy:0.0001)
             let format=UIGraphicsImageRendererFormat();format.scale=4;format.opaque=false
@@ -89,7 +123,7 @@ final class NativeTabletLayoutTests:XCTestCase {
             try png(header,name+"-header.png");try png(title,name+"-title.png")
             var icons:[[String:Any]]=[]
             for (i,button) in header.subviews.compactMap({$0 as? UIButton}).enumerated() {
-                XCTAssertEqual(button.frame.midY,header.bounds.midY+4,accuracy:0.001)
+                XCTAssertEqual(button.frame.midY,header.bounds.midY+12,accuracy:0.001)
                 button.layoutIfNeeded()
                 let image=button.imageView?.image != nil ? button.imageView:button.subviews.compactMap{$0 as? UIImageView}.first{$0.image != nil}
                 if let image,image.image != nil {
@@ -252,7 +286,7 @@ final class NativeTabletLayoutTests:XCTestCase {
                     for offset in [CGPoint.zero,CGPoint(x:2,y:-3),CGPoint(x:-1.5,y:2)] {
                         canvas.position=offset
                         for (icon,position) in zip(icons,positions) {
-                            let actual=icon.convert(.zero,to:scene)
+                            let actual=icon.convert(CGPoint.zero,to:scene)
                             XCTAssertEqual(actual.x,position.x,accuracy:0.001)
                             XCTAssertEqual(actual.y,position.y,accuracy:0.001)
                         }
@@ -331,6 +365,50 @@ final class NativeTabletLayoutTests:XCTestCase {
         scene.onBackdropOcclusion={_ in}
         scene.dispose();XCTAssertNil(scene.onBackdropOcclusion);XCTAssertTrue(scene.backdropOcclusionCutouts().isEmpty)
     }
+    func testNavigationArtworkFollowsCurveWithoutRotatingHitTargets() {
+        for width:CGFloat in [390,820] {
+            let header=JimiV9NavigationHeader(frame:CGRect(x:0,y:0,width:width,height:80))
+            let title=JimiV9ArchedNavigationTitle(frame:CGRect(x:72,y:20,width:width-144,height:40))
+            title.font=assets.font(size:28);title.text="Journey"
+            let left=UIButton(frame:CGRect(x:22,y:20,width:44,height:44))
+            let right=UIButton(frame:CGRect(x:width-66,y:20,width:44,height:44))
+            [title,left,right].forEach{header.addSubview($0)}
+            let targets=[left.frame,right.frame]
+            header.applyCurve(to:title,icons:[left,right])
+            XCTAssertEqual(left.frame,targets[0]);XCTAssertEqual(right.frame,targets[1])
+            XCTAssertTrue(CATransform3DIsIdentity(left.layer.transform))
+            XCTAssertGreaterThan(left.layer.sublayerTransform.m12,0)
+            XCTAssertLessThan(right.layer.sublayerTransform.m12,0)
+            XCTAssertEqual(left.layer.sublayerTransform.m12,-right.layer.sublayerTransform.m12,accuracy:0.000001)
+            XCTAssertEqual(left.layer.sublayerTransform.m42,right.layer.sublayerTransform.m42,accuracy:0.000001)
+            XCTAssertEqual(JimiV9NavigationHeader.tangentAngle(at:width/2,width:width),0)
+            let home=JimiV9HomeView(frame:CGRect(x:0,y:0,width:width,height:1180),assets:assets)
+            home.layoutSubviews()
+            XCTAssertLessThan(home.navigationButtonViews.first!.layer.sublayerTransform.m12,0)
+            XCTAssertGreaterThan(home.navigationButtonViews.last!.layer.sublayerTransform.m12,0)
+        }
+    }
+    func testHomeBottomArchStaysBelowExistingDividerLine() throws {
+        for size in [CGSize(width:390,height:844),CGSize(width:820,height:1180)] {
+            let home=JimiV9HomeView(frame:CGRect(origin:.zero,size:size),assets:assets)
+            home.layoutSubviews()
+            let shadow=home.fixedShadowView
+            let paintedHeight=shadow.contentMode == .scaleToFill ? shadow.bounds.height:max(shadow.bounds.height,shadow.bounds.width*49/390)
+            let oldLine=shadow.center.y-paintedHeight/2
+            let surface=try XCTUnwrap(shadow.subviews.first as? JimiV9BottomNavigationSurface)
+            XCTAssertEqual(surface.convert(CGPoint.zero,to:home).y,oldLine+6,accuracy:0.0001)
+            XCTAssertEqual(JimiV9BottomNavigationSurface.topEdge(at:0.5),0,accuracy:0.0001)
+            for fraction in [CGFloat(0),0.25,0.5,0.75,1] {
+                XCTAssertGreaterThanOrEqual(JimiV9BottomNavigationSurface.topEdge(at:fraction),0)
+            }
+            let preview=UIGraphicsImageRenderer(size:CGSize(width:size.width,height:200)).image {context in
+                NativeAppPaperSurface.base.setFill();context.fill(CGRect(x:0,y:0,width:size.width,height:200))
+                context.cgContext.translateBy(x:0,y:200-size.height)
+                home.layer.render(in:context.cgContext)
+            }
+            try preview.pngData()?.write(to:URL(fileURLWithPath:"/tmp/home-bottom-arch-\(Int(size.width)).png"))
+        }
+    }
     func testAllHomeSlidesHaveLargerContainedArtworkAndStableExitPivot() {
         for size in sizes {
             let home=JimiV9HomeView(frame:CGRect(origin:.zero,size:size),assets:assets)
@@ -341,7 +419,7 @@ final class NativeTabletLayoutTests:XCTestCase {
                 XCTAssertLessThan(hero.bounds.width,size.width-96)
                 let cta=button.convert(button.bounds,to:home)
                 XCTAssertGreaterThan(cta.minY,hero.frame.maxY)
-                let shadow=home.fixedShadowView,image=shadow.image!
+                let shadow=home.fixedShadowView,image=assets.image("assets/home-shadow.png")!
                 let paintedHeight=shadow.contentMode == .scaleToFill ? shadow.bounds.height:max(shadow.bounds.height,shadow.bounds.width*image.size.height/image.size.width)
                 let dividerY=shadow.frame.midY-paintedHeight/2
                 XCTAssertEqual(dividerY-cta.maxY,64,accuracy:0.01)

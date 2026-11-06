@@ -54,6 +54,10 @@ Use one screen lifetime and render cards from the canonical dice/unlock registry
 Register presentation and performance ownership only after defining gameplay semantics in `special-dice-archetype-owners.json`. The archetype must participate in the real Arcade and Journey final-merge matrix, distinguish final completion from a remaining playable blocker, serialize board mutation through the shared special transaction, defer endgame while gameplay work remains, release or roll back every token, preserve versioned save/load identity, use the central input gate, and connect reward/spawn, finale cleanup and modular audio. A skin that reuses Star, Juice, Magnet or TNT gameplay remains a variant of that proven archetype; it must not create a parallel resolver.
 
 
+## Modal bottom arch — user decision 2026-11-06
+
+Floating paper modals share a shallow downward bottom parabola through `JimiNativeModalV10.paperLayout`. Match the existing navigation curvature with depth `JimiV9NavigationHeader.dividerArchDepth * paperWidth / 390`; keep the centre at the existing bottom and recede the lower sides. Reuse one paper-owned static shape mask across layout/resize, retaining original top corners, texture scale/crop, content, controls, shadows and existing motion/lifecycle owners. Explicit paper shadow silhouettes must follow the same arch. Plain Developer picker cards opt into the shared shape; Journey Stage's original rolled stone silhouette already supplies a bottom arch and remains authored. Full-screen result/reward surfaces, Settings rows, score strips and buttons retain their own shapes.
+
 ## Adaptive modal paper texture — user decision 2026-10-30
 
 When a paper modal grows or shrinks with its content, keep the current paper style, visible grain and edge detail. Resize the texture uniformly (the same scale on both axes) and preserve balanced, symmetric presentation; never stretch width and height independently or fix a larger container by strongly zooming away its textured borders.

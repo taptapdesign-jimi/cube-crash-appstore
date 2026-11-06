@@ -1,0 +1,18 @@
+Built-in image_gen edit. Design preview only, no runtime integration.
+
+Edit the recent FULL PORTRAIT Stack to Six Settings mockup with paper holders and miniature actual speaker, guitar and peach smartphone. The newly attached small footer screenshot is the layout reference ONLY. Produce the entire full portrait phone mockup, same framing and resolution as full screen source, not a footer-only crop.
+
+Preserve the upper screen exactly: black phone frame and notch, Settings header/back/gear, warm paper background, all three paper settings holders, miniature speaker/guitar/phone, Game sounds ON, Music OFF, Vibration ON, toggles, their size and positions. Make ONLY the bottom footer redesign.
+
+Replace the current oversized footer ('Made with heart in Croatia', 'by Tap Tap Design', separated Version:1.0, big pill Privacy Policy button) with an elegant compact footer closely based on attached small screenshot:
+- Place footer comfortably near bottom within existing safe area, with generous blank breathing space above.
+- First centered line: 'Made with ♥ in Croatia', small quiet warm muted terracotta text, small red heart.
+- Second centered line: 'Tap Tap Design', slightly larger friendly rounded semibold warm brown/terracotta, omit 'by'.
+- After modest spacing, a single delicate pale warm line running across the inner screen width, with balanced horizontal margins, not touching phone frame.
+- Beneath divider ONE centered horizontal line: 'Version 1.0   ·   Privacy Policy'. Version lighter muted brown, separator quiet, Privacy Policy warm darker terracotta and delicately underlined. Font small but clearly legible.
+- No pill/button/card behind Privacy Policy. No large standalone version. No icon or decoration added.
+- Footer background should blend seamlessly with the existing warm cream paper screen, no white rectangle, no sharply edged tinted block, no extra drop shadow.
+- Match original rounded game typography but restrained weights and scale. Make the brand line primary within footer, all footer text subordinate to settings controls. At full screen 870px width, credit about 20-23px high, brand 26-30px, version/link about 18-22px. Original big footer was much too heavy.
+- Preserve visible entire footer, comfortable bottom padding above inner screen rounded edge.
+- Keep all typography crisp and exact, no accidental changes elsewhere.
+Result is a polished local footer edit of the full original game settings screen.

@@ -79,7 +79,11 @@ final class NativeHomeBreezeTests:XCTestCase {
         for seed in 0..<32 {
             let leaves=Array(flights[(seed*6)..<(seed*6+6)])
             for i in 1..<leaves.count {XCTAssertGreaterThan(leaves[i].birth-leaves[i-1].birth,0.17)}
-            XCTAssertEqual(Set(leaves.compactMap{ $0.leafMotion?.gravity }).count,6)
+            // The physical gravity floor may be shared; the captured flight
+            // inputs must still remain independent for every leaf.
+            XCTAssertEqual(Set(leaves.compactMap{flight in
+                flight.leafMotion.map{[$0.gravity,$0.velocityY,$0.lifetime]}
+            }).count,6)
             XCTAssertEqual(Set(leaves.compactMap{ $0.leafMotion?.flutter }).count,6)
         }
         let phone=NativeHomeBreeze.Flight(family:.leaf,index:0,size:CGSize(width:390,height:844),seed:51)
@@ -218,17 +222,17 @@ final class NativeHomeBreezeTests:XCTestCase {
         XCTAssertEqual(breeze.emittingFamilies,[.balloon])
         func liveBalloonImages()->Set<ObjectIdentifier> {
             Set(breeze.particles.filter{($0.animation(forKey:NativeHomeBreeze.animationKey) as? CAAnimationGroup)?.delegate != nil}
-                .compactMap{$0.contents as? CGImage}.map{ObjectIdentifier($0)})
+                .compactMap{$0.contents}.map{ObjectIdentifier($0 as AnyObject)})
         }
         XCTAssertEqual(liveBalloonImages().count,2,"Active balloon slots must have different colors")
         let balloon=try XCTUnwrap(breeze.particles.filter {($0.animation(forKey:NativeHomeBreeze.animationKey) as? CAAnimationGroup)?.delegate != nil}.min {
             $0.animation(forKey:NativeHomeBreeze.animationKey)!.beginTime < $1.animation(forKey:NativeHomeBreeze.animationKey)!.beginTime
         })
         let balloonFlight=try XCTUnwrap(balloon.animation(forKey:NativeHomeBreeze.animationKey))
-        let previousBalloonImage=try XCTUnwrap(balloon.contents as? CGImage)
+        let previousBalloonImage=try XCTUnwrap(balloon.contents) as AnyObject
         XCTAssertEqual(balloonFlight.repeatCount,0)
         balloonFlight.delegate?.animationDidStop?(balloonFlight,finished:true)
-        XCTAssertFalse(previousBalloonImage === (balloon.contents as? CGImage))
+        XCTAssertFalse(previousBalloonImage === (balloon.contents as AnyObject?))
         XCTAssertEqual(liveBalloonImages().count,2,"Renewal must preserve a mixed palette")
         XCTAssertNotNil(balloon.animation(forKey:NativeHomeBreeze.animationKey))
         let secondBalloon=try XCTUnwrap(breeze.particles.first {$0 !== balloon && ($0.animation(forKey:NativeHomeBreeze.animationKey) as? CAAnimationGroup)?.delegate != nil})
@@ -289,12 +293,17 @@ final class NativeHomeBreezeTests:XCTestCase {
             for (plan,layer) in zip(home.breeze.plans,home.breeze.particles) {
                 let slide=plan.family == .leaf ? 0:plan.family == .die ? 2:1
                 XCTAssertEqual(layer.superlayer?.name,"native-home-ambient-slide-\(slide)")
-                XCTAssertTrue(layer.superlayer?.masksToBounds == true)
+                XCTAssertEqual(layer.superlayer?.masksToBounds,slide != 1)
+                XCTAssertEqual(max(layer.bounds.width,layer.bounds.height),plan.side*(plan.family == .leaf ? 1.50:1),accuracy:0.0001)
             }
             XCTAssertEqual(home.ambientSlideLayers.count,4)
             home.selectSlide(1,animated:false)
             for layer in home.ambientSlideLayers {XCTAssertEqual(layer.position.x,home.sliderTrack.layer.position.x)}
             XCTAssertEqual(home.breeze.emittingFamilies,[.balloon])
+            for (plan,layer) in zip(home.breeze.plans,home.breeze.particles) where plan.family == .balloon {
+                XCTAssertEqual(layer.superlayer?.name,"native-home-ambient-slide-1")
+                XCTAssertEqual(layer.superlayer?.masksToBounds,false,"Full balloon crosses neighbouring slides")
+            }
             home.selectSlide(2,animated:false)
             XCTAssertEqual(home.breeze.emittingFamilies,[.die])
             let tracks=home.ambientRouteTracks(enter:false)

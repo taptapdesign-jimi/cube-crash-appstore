@@ -53,6 +53,33 @@ final class NativeArcadePresentationTests: XCTestCase {
         }
     }
 
+    func testTabletClearedUniformlyProjectsPhoneCompositionForBothImagesAndGlyphSeeds() throws {
+        func all(_ view:UIView)->[UIView]{[view]+view.subviews.flatMap{all($0)}}
+        for sample in [0.1,0.5,0.9] {
+            let phone=NativeArcadeRoundPresentation(resourceRoot:root,clearedRound:1,nextRound:2,boardClearedOnly:true,random:{sample})
+            phone.frame=CGRect(x:0,y:0,width:390,height:844);phone.layoutIfNeeded()
+            defer{phone.dispose()}
+            let phoneThumb=try XCTUnwrap(all(phone).first{$0.accessibilityIdentifier=="native.board-cleared.thumb"})
+            let phoneText=try XCTUnwrap(all(phone).first{$0.accessibilityIdentifier=="native.board-cleared.text"})
+            let phoneShadow=try XCTUnwrap(all(phone).first{$0 is NativeArcadeThumbShadow})
+            for size in [CGSize(width:768,height:1024),CGSize(width:820,height:1180),CGSize(width:1024,height:1366)] {
+                let pad=NativeArcadeRoundPresentation(resourceRoot:root,clearedRound:1,nextRound:2,boardClearedOnly:true,random:{sample})
+                pad.frame=CGRect(origin:.zero,size:size);pad.layoutIfNeeded();defer{pad.dispose()}
+                let thumb=try XCTUnwrap(all(pad).first{$0.accessibilityIdentifier=="native.board-cleared.thumb"})
+                let text=try XCTUnwrap(all(pad).first{$0.accessibilityIdentifier=="native.board-cleared.text"})
+                let shadow=try XCTUnwrap(all(pad).first{$0 is NativeArcadeThumbShadow})
+                let group=try XCTUnwrap(thumb.superview),scale=min(size.width/390,size.height/844)
+                XCTAssertTrue(text.superview === group);XCTAssertTrue(shadow.superview === group)
+                XCTAssertEqual(thumb.bounds,phoneThumb.bounds);XCTAssertEqual(text.bounds,phoneText.bounds)
+                XCTAssertEqual(shadow.bounds,phoneShadow.bounds)
+                XCTAssertEqual(group.transform.a,scale,accuracy:0.000001)
+                XCTAssertEqual(group.transform.d,scale,accuracy:0.000001)
+                XCTAssertEqual(thumb.bounds.width*scale/size.height,phoneThumb.bounds.width/844,accuracy:0.000001)
+                XCTAssertEqual(group.convert(CGPoint(x:group.bounds.midX,y:group.bounds.midY),to:pad).x,size.width/2,accuracy:0.001)
+                XCTAssertEqual(group.convert(CGPoint(x:group.bounds.midX,y:group.bounds.midY),to:pad).y,size.height/2,accuracy:0.001)
+            }
+        }
+    }
     func testClearedThumbFloatsSixteenPointsAndHoldsItsPoseIntoExit() {
         for sample in [0.0,0.99] {
             let owner=NativeArcadeRoundPresentation(resourceRoot:root,clearedRound:1,nextRound:2,boardClearedOnly:true,random:{sample})

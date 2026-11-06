@@ -8,6 +8,16 @@ private final class JimiV9HubScrollView: UIScrollView {
     }
 }
 
+/// The36pt crate source must fill its authored navigation box on tablet too.
+/// UIKit's default UIButton image rect caps small originals at intrinsic size.
+@MainActor
+final class JimiV9HubNavigationButton:JimiV9PlainButton {
+    var fillsArtworkBox=false
+    override func imageRect(forContentRect contentRect:CGRect)->CGRect {
+        fillsArtworkBox ? contentRect.inset(by:imageEdgeInsets):super.imageRect(forContentRect:contentRect)
+    }
+}
+
 /// Original v9 Hub composition. Data comes from the canonical web progression
 /// owner; this view never reads or writes saves. Parent owns motion and routes.
 @MainActor
@@ -19,13 +29,14 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
     let backButton = JimiV9PlainButton(type: .custom)
     let backpackAlert=NativeBackpackAlertView()
     func setBackpackUnread(_ unread:Bool){backpackAlert.setUnreadVisible(unread && !arcade);backpackAlert.setActive(unread && !arcade && idleRequested && !isHidden)}
-    let backpackButton = JimiV9PlainButton(type: .custom)
+    let backpackButton = JimiV9HubNavigationButton(type: .custom)
     private let content = UIView()
     private let arcade: Bool
-    private let title = UILabel()
+    private let title = JimiV9ArchedNavigationTitle()
     private(set) var worldUnits: [UIButton] = []
     private var counts: [Int: UILabel] = [:]
     private var cloudViews: [(UIImageView, CGRect)] = []
+    private let cloudDrag:JimiWorldCloudDrag
     private var cloudRouteShells:[ObjectIdentifier:UIView]=[:]
     private var arcadeCloudImages:[UIImage?]=[]
     private var arcadeCloudChoices:[[Int]]=[]
@@ -81,6 +92,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
 
     init(frame: CGRect, assets: JimiV9Artwork, arcade: Bool = false) {
         self.arcade = arcade
+        cloudDrag=JimiWorldCloudDrag(strength:arcade ? 1:2)
         super.init(frame: frame)
         navigationTarget.isAccessibilityElement = false
         navigationTarget.addTarget(self,action:#selector(back),for:.touchUpInside)
@@ -196,15 +208,18 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
             content.addSubview(button); worldUnits.append(button)
         }
         header.backgroundColor = UIColor(red: 243/255, green: 238/255, blue: 232/255, alpha: 0.8)
+        header.setHomeDividerImage(assets.image("assets/home-shadow.png"))
+        header.setBackgroundImage(assets.image("assets/nav/nav-bg.png",densityAware:true),opacity:1)
         addSubview(header)
         backButton.setImage(assets.image("assets/chevron-back.png",densityAware:true), for: .normal)
         backButton.imageView?.contentMode = .scaleAspectFit
         backButton.imageEdgeInsets = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
         backButton.accessibilityLabel = "Back to slider"; backButton.accessibilityIdentifier = "native.hub.back"
         backButton.addTarget(self, action: #selector(back), for: .touchUpInside)
+        backpackButton.fillsArtworkBox=arcade
         backpackButton.setImage(assets.image(arcade ? "assets/hud/crate - hud.png" : "assets/nav/stats-nav.png", densityAware: true), for: .normal)
         backpackButton.imageView?.contentMode = .scaleAspectFit
-        backpackButton.imageEdgeInsets = arcade ? UIEdgeInsets(top:4.8,left:0.8,bottom:4.8,right:0.8) : UIEdgeInsets(top:4,left:0,bottom:4,right:0)
+        backpackButton.imageEdgeInsets = UIEdgeInsets(top:4,left:0,bottom:4,right:0)
         backpackButton.accessibilityLabel = arcade ? "Box" : "Backpack"; backpackButton.accessibilityIdentifier = arcade ? "native.arcade-hub.crate" : "native.hub.backpack"
         backpackButton.addTarget(self, action: #selector(backpack), for: .touchUpInside)
         backpackButton.isHidden = false
@@ -248,7 +263,10 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
         return painted.opacity>0.10 && abs(painted.transform.m11)>0.10
     }
 
-    func setContentInteractionEnabled(_ enabled: Bool) { scrollView.isUserInteractionEnabled = enabled }
+    func setContentInteractionEnabled(_ enabled: Bool) {
+        if !enabled {cloudDrag.stop(restore:false)}
+        scrollView.isUserInteractionEnabled = enabled
+    }
     override func layoutSubviews() {
         super.layoutSubviews()
         let width = bounds.width, top = safeAreaInsets.top
@@ -323,7 +341,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
             let islandEnlargement:CGFloat=tablet && arcade ? 1.15*0.95*pureDiceRefinement:1
             let visualSize = arcade ? buttonWidth*0.96*artworkScale*islandEnlargement : min(journeyWidth*0.65,254)*journeyGroupScale*(tablet ? 1.05*((id == 1 || id == 2) ? 0.97:1)*0.98:1)
             let visualHeight = arcade ? buttonHeight*0.96*artworkScale*islandEnlargement : visualSize
-            let tabletIslandShift:CGPoint=tablet && arcade ? [CGPoint(x:8,y:26),CGPoint(x:16,y:-38),CGPoint(x:36,y:-66)][index]:.zero
+            let tabletIslandShift:CGPoint=tablet && arcade ? [CGPoint(x:8,y:26),CGPoint(x:48,y:-46),CGPoint(x:36,y:-66)][index]:.zero
             floats[id]?.bounds = CGRect(x: 0, y: 0, width: visualSize, height: visualHeight)
             // Artwork adjustments are independent of the Unit/cloud motion owner.
             let artworkShift:CGPoint = arcade ? [CGPoint(x:3,y:20),CGPoint(x:-19,y:8),CGPoint(x:11,y:-17)][index] : (tablet && id == 3 ? CGPoint(x:0,y:21):.zero)
@@ -421,6 +439,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
                         y:local.minY+local.height*routeShell.layer.anchorPoint.y)
                     cloud.bounds=routeShell.bounds;cloud.center=CGPoint(x:local.width/2,y:local.height/2)
                 }else{cloud.frame=local}
+                cloudDrag.register(cloud)
                 overflow = overflow.union(cloudRect)
             }
             if tablet && arcade {
@@ -453,6 +472,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
                     shell.layer.position=CGPoint(x:local.minX+local.width*shell.layer.anchorPoint.x,
                         y:local.minY+local.height*shell.layer.anchorPoint.y)
                     cloud.bounds=shell.bounds;cloud.center=CGPoint(x:local.width/2,y:local.height/2)
+                    cloudDrag.register(cloud)
                     overflow=overflow.union(cloudRect)
                 }
             }
@@ -475,11 +495,12 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
         backButton.imageEdgeInsets=row.iconInsets(UIEdgeInsets(top:10,left:10,bottom:10,right:10),imageHeight:24,inkCenterY:0.5104166666666666)
         navigationTarget.frame = backButton.frame
         backpackAlert.frame=row.iconRect(CGRect(x:21,y:1,width:28,height:28))
-        backpackButton.frame = row.buttonFrame(x:width-64,width:40,height:48,visibleInset:arcade ? 0.8:40/64)
-        backpackButton.imageEdgeInsets=row.iconInsets(arcade ? UIEdgeInsets(top:4.8,left:0.8,bottom:4.8,right:0.8):UIEdgeInsets(top:4,left:0,bottom:4,right:0),imageHeight:arcade ? 38.4:40,inkCenterY:arcade ? 0.5138888888888888:0.4765625)
+        backpackButton.frame = row.buttonFrame(x:width-64,width:40,height:48,visibleInset:arcade ? 0:40/64)
+        backpackButton.imageEdgeInsets=row.iconInsets(UIEdgeInsets(top:4,left:0,bottom:4,right:0),imageHeight:40,inkCenterY:arcade ? 0.5138888888888888:0.4765625)
         crateNavigationTarget.frame = backpackButton.frame.insetBy(dx:-2,dy:0)
         NativeTabletLayout.labelFont(title,size:row.titleFontSize)
         title.frame = row.titleFrame(for:title)
+        header.applyCurve(to:title,icons:[backButton,backpackButton])
         updateIdleAdmission()
     }
     private func cloudWorldID(_ y: CGFloat) -> Int { y < 220 ? 1 : y < 560 ? 3 : 2 }
@@ -508,6 +529,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
     func startIdle() {
         backpackAlert.setActive(!backpackAlert.isHidden && !isHidden && window != nil)
         guard window != nil, !isHidden, alpha > 0, !UIAccessibility.isReduceMotionEnabled else { return }
+        if !idleRequested {cloudDrag.finish()}
         idleRequested = true
         NativeHubBackpackFeedback.setIdle(on:backpackButton,active:true)
         updateIdleAdmission()
@@ -516,6 +538,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
     /// Freeze currently painted inner poses before removing all idle owners so
     /// an outgoing Unit does not jump back to its neutral art underneath it.
     func stopIdle() {
+        cloudDrag.stop(restore:false)
         cancelWorldTap()
         backpackAlert.setActive(false)
         NativeHubBackpackFeedback.setIdle(on:backpackButton,active:false)
@@ -528,9 +551,11 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
     func resetIdlePose() {
         cancelWorldTap()
         stopIdle()
+        cloudDrag.stop(restore:true)
         idleClocks.removeAll()
         pausedIdleOffsets.removeAll()
         if arcade {
+            cloudDrag.setMaximumOffset(CGFloat.random(in:60...80))
             // Sample once per visit, while hidden. Relayout and foreground resume
             // retain this composition and the existing fixed cloud/route owners.
             for (cloud,_) in cloudViews {arcadeCloudOffsets[ObjectIdentifier(cloud)]=CGPoint(x:CGFloat.random(in:-0.10...0.10),y:CGFloat.random(in:-0.16...0.16))}
@@ -570,9 +595,21 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
     override var isHidden: Bool { didSet { if isHidden { cancelWorldTap();stopIdle() } } }
     override func didMoveToWindow() {
         super.didMoveToWindow()
-        if window == nil { cancelWorldTap();stopIdle() }
+        if window == nil { cancelWorldTap();stopIdle();cloudDrag.clear() }
     }
-    func scrollViewDidScroll(_ scrollView: UIScrollView) { updateIdleAdmission() }
+    func scrollViewWillBeginDragging(_ scrollView:UIScrollView) {
+        guard idleRequested,!isHidden,window != nil,scrollView.isUserInteractionEnabled,
+              !UIAccessibility.isReduceMotionEnabled else{return}
+        cloudDrag.begin(offset:scrollView.contentOffset.y)
+    }
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        if idleRequested,scrollView.isDragging,scrollView.isUserInteractionEnabled,
+           !UIAccessibility.isReduceMotionEnabled {cloudDrag.update(offset:scrollView.contentOffset.y)}
+        updateIdleAdmission()
+    }
+    func scrollViewDidEndDragging(_ scrollView:UIScrollView,willDecelerate decelerate:Bool) {
+        if idleRequested {cloudDrag.finish()}else{cloudDrag.stop(restore:false)}
+    }
 
     private func updateIdleAdmission() {
         guard idleRequested, !isHidden, window != nil else { return }
@@ -622,15 +659,15 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
                 scale=1.03
             }else{
                 let motion=motions[index]
-                dx=motion.0*(NativeTabletLayout.applies(bounds.size) ? 1.4:1)
-                dy=motion.1;duration=motion.2;scale=motion.3
+                dx=motion.0*2*(NativeTabletLayout.applies(bounds.size) ? 1.4:1)
+                dy=motion.1*2;duration=motion.2;scale=motion.3
             }
             let cloudPeak = CATransform3DScale(CATransform3DMakeTranslation(dx,dy,0),scale,scale,1)
             addLoop(item.0.layer, keyPath: "transform", values: transforms([CATransform3DIdentity,cloudPeak,CATransform3DIdentity]),
                     times: [0,0.5,1], duration: duration)
         }
         if NativeTabletLayout.applies(bounds.size),!arcade,let cloud=leftFillClouds[id] {
-            let peak=CATransform3DMakeTranslation((id == 3 ? -8:8)*1.4,0,0)
+            let peak=CATransform3DMakeTranslation((id == 3 ? -8:8)*2*1.4,0,0)
             addLoop(cloud.layer,keyPath:"transform",values:transforms([CATransform3DIdentity,peak,CATransform3DIdentity]),times:[0,0.5,1],duration:id == 1 ? 7.3:id == 3 ? 6.8:7.1)
         }
         guard !arcade else { return } // Arcade has no progress flags to animate.

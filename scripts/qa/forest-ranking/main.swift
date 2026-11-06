@@ -28,7 +28,8 @@ func engine(_ state: NativeBoardState) -> NativeGameplayEngine {
     let e = NativeGameplayEngine(state:state,rewardPicker:{ state, roll, next in
         NativeWildRewardPolicy.choose(state:state,roll:roll,plainStarUnlocked:true,nextRoll:next)
     })
-    e.comboWindowExtension=1.5; e.comboHUDCoinRewardsEnabled=true
+    e.comboWindowExtension=1.5; e.wildComboWindowExtension=1
+    e.comboSpeedBonusEnabled=true; e.comboHUDCoinRewardsEnabled=true
     e.stagedTntActivation=true
     return e
 }
@@ -119,12 +120,11 @@ func play(board:Int,seed:Int,cap:Int,policy:String,variant:Int,replay:[Action]?=
             if !e.commitHUDStarArrival(receiptID:receipt.id,generation:receipt.generation).accepted {errors += 1}
         }
         errors += e.state.validationIssues().count
-        if e.state.combo>cap {overshoots += 1}
+        if cap<99 && e.state.combo>cap {overshoots += 1}
         trace.append(action)
     }
     let s=e.state, clean=outcome=="complete"
-    let efficiency=clean ? NativeRewardMath.efficiencyBonus(baseBonus:500+(board-1)*200,
-        remainingMoves:s.moves,maxMoves:s.maxMoves,maxStackDepth:s.maxStackDepth):0
+    let efficiency=clean ? NativeRewardMath.cleanEfficiencyBonus(state:s):0
     return Row(board:board,seed:seed,policy:policy,cap:cap,outcome:outcome,reason:reason,
         actions:trace.count,base:s.score,comboBonus:clean ? s.earnedComboBonus:0,
         efficiency:efficiency,final:NativeRewardMath.finalScore(currentScore:s.score,

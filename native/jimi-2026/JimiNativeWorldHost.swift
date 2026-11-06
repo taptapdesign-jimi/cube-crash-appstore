@@ -190,9 +190,8 @@ final class JimiNativeWorldHost {
                 if let boardID { worldView.openCard(boardID: boardID,presentationHasNewRibbon:presentationHasNewRibbon) }
                 self.finishAction()
             case "close":
-                worldView.closeCard { [weak self] in
-                    guard self?.generation == owner else { return }; self?.finishAction()
-                }
+                worldView.closeCard()
+                self.finishAction()
             case "back":
                 self.finishAction(); self.onBack?()
             case "play", "continue":

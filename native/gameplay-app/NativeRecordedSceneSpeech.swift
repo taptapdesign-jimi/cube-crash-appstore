@@ -1,6 +1,7 @@
 import Foundation
 
-/// Studio batch1822e815ea044f35a41a201a973be51b plus3 Bloob Bucket additions and1leash laugh;176 recordings,46 scenes including Journey card/stage and reward unlock/interim voices.
+/// Preserved Studio recordings plus user2026-11-05 Settings/Arcade replacements.
+/// 182 scene entries (176 distinct recordings) across46 scenes; retired source assets remain preserved.
 /// Static selected-source paths only. NativeGameplayAudioOwner owns admission,
 /// non-repeat choice,one finite speech transport,Settings and all cleanup.
 enum NativeRecordedSceneSpeech {
@@ -72,9 +73,11 @@ enum NativeRecordedSceneSpeech {
             "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0042-home-arcade-06.wav",
         ],
         "home-settings": [
-            "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0043-home-settings-01.wav",
-            "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0044-home-settings-02.wav",
-            "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0045-home-settings-03.wav",
+            "assets/sound/SPEECH/settings-voices-v2/001-little-tweak.wav",
+            "assets/sound/SPEECH/settings-voices-v2/002-stacked-up.wav",
+            "assets/sound/SPEECH/settings-voices-v2/003-nailed-it.wav",
+            "assets/sound/SPEECH/settings-voices-v2/004-just-right.wav",
+            "assets/sound/SPEECH/settings-voices-v2/005-set-it-up.wav",
         ],
         "arena-endurance": [
             "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0046-arena-endurance-01.wav",
@@ -88,27 +91,31 @@ enum NativeRecordedSceneSpeech {
             "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0052-arena-modal-endurance-04.wav",
         ],
         "arena-grill": [
-            "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0053-arena-grill-01.wav",
+            "assets/sound/SPEECH/settings-arcade-voices-v1/001-sandwich.wav",
+            "assets/sound/SPEECH/settings-arcade-voices-v1/002-lunch.wav",
+            "assets/sound/SPEECH/settings-arcade-voices-v1/003-one-bite.wav",
+            "assets/sound/SPEECH/settings-arcade-voices-v1/004-save-a-bite.wav",
             "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0054-arena-grill-02.wav",
-            "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0055-arena-grill-03.wav",
             "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0056-arena-grill-04.wav",
             "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0057-arena-grill-05.wav",
         ],
         "arena-modal-grill": [
-            "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0058-arena-modal-grill-01.wav",
             "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0059-arena-modal-grill-02.wav",
-            "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0060-arena-modal-grill-03.wav",
+            "assets/sound/SPEECH/settings-arcade-voices-v1/001-sandwich.wav",
+            "assets/sound/SPEECH/settings-arcade-voices-v1/002-lunch.wav",
+            "assets/sound/SPEECH/settings-arcade-voices-v1/003-one-bite.wav",
+            "assets/sound/SPEECH/settings-arcade-voices-v1/004-save-a-bite.wav",
         ],
         "arena-slow": [
+            "assets/sound/SPEECH/settings-arcade-voices-v1/009-mind-my-tea.wav",
+            "assets/sound/SPEECH/settings-arcade-voices-v1/010-reading-here.wav",
             "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0061-arena-slow-01.wav",
             "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0062-arena-slow-02.wav",
             "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0063-arena-slow-03.wav",
         ],
         "arena-modal-slow": [
-            "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0064-arena-modal-slow-01.wav",
-            "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0065-arena-modal-slow-02.wav",
-            "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0066-arena-modal-slow-03.wav",
-            "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0067-arena-modal-slow-04.wav",
+            "assets/sound/SPEECH/settings-arcade-voices-v1/009-mind-my-tea.wav",
+            "assets/sound/SPEECH/settings-arcade-voices-v1/010-reading-here.wav",
         ],
         "dice-detail": [
             "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0068-dice-detail-01.wav",

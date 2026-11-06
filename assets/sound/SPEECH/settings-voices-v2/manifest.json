@@ -1,0 +1,68 @@
+{
+  "master": "assets/sound/SPEECH/settings voices.mp3",
+  "masterSha256": "ba571304b14d2d386f2a6003a88ec986711b3c5dcef5e4676553e320f9090893",
+  "format": "48000Hz mono PCM16 WAV",
+  "processing": "Original level/pitch/speed; all leading laughter retained; 3ms quiet-edge fades.",
+  "alignment": "Five supplied lines in order; local word timestamps and measured quiet valleys.",
+  "clips": [
+    {
+      "sceneId": "home-settings",
+      "spokenText": "One little tweak... perfect!",
+      "source": "assets/sound/SPEECH/settings-voices-v2/001-little-tweak.wav",
+      "start": 0,
+      "end": 3.2575,
+      "duration": 3.2575,
+      "peakDbFS": -3.0011111620987903,
+      "sha256": "97336b3f7b43071868374449a105d9e3302480853da2e7707457542024864654"
+    },
+    {
+      "sceneId": "home-settings",
+      "spokenText": "All stacked up!",
+      "source": "assets/sound/SPEECH/settings-voices-v2/002-stacked-up.wav",
+      "start": 3.2575,
+      "end": 5.48,
+      "duration": 2.2225,
+      "peakDbFS": -2.6874194343377003,
+      "sha256": "1805b6c487e925481f9cd4bf1189950a45ce186e2d06f3ee030005bd351aa390"
+    },
+    {
+      "sceneId": "home-settings",
+      "spokenText": "Steady... nailed it!",
+      "source": "assets/sound/SPEECH/settings-voices-v2/003-nailed-it.wav",
+      "start": 5.48,
+      "end": 7.905,
+      "duration": 2.425,
+      "peakDbFS": -3.7732724952264545,
+      "sha256": "9cfde7540c720460e80b25aca2142bb984a4e2f7508cd0e0cd78e9a783a95f8d"
+    },
+    {
+      "sceneId": "home-settings",
+      "spokenText": "Juuuust right!",
+      "source": "assets/sound/SPEECH/settings-voices-v2/004-just-right.wav",
+      "start": 7.905,
+      "end": 10.105,
+      "duration": 2.2,
+      "peakDbFS": -3.155255652547675,
+      "sha256": "022a46dd4b76258cb000a8f60a1351cdafb44d96ea791704b3fa2c42e2406ce1"
+    },
+    {
+      "sceneId": "home-settings",
+      "spokenText": "Let's set it up!",
+      "source": "assets/sound/SPEECH/settings-voices-v2/005-set-it-up.wav",
+      "start": 10.105,
+      "end": 11.546104166666666,
+      "duration": 1.4411041666666666,
+      "peakDbFS": -3.490602831191106,
+      "sha256": "68e48dcb5de338aa9671edc51950a401b07968b7e7ae730ad9143636b6d0199f"
+    }
+  ],
+  "activeSources": {
+    "home-settings": [
+      "assets/sound/SPEECH/settings-voices-v2/001-little-tweak.wav",
+      "assets/sound/SPEECH/settings-voices-v2/002-stacked-up.wav",
+      "assets/sound/SPEECH/settings-voices-v2/003-nailed-it.wav",
+      "assets/sound/SPEECH/settings-voices-v2/004-just-right.wav",
+      "assets/sound/SPEECH/settings-voices-v2/005-set-it-up.wav"
+    ]
+  }
+}

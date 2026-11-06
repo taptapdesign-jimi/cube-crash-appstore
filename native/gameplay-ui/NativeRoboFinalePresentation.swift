@@ -10,10 +10,10 @@ final class NativeRoboFinalePresentation:NativeFinitePresentation {
     let assetReady:Bool
     static let assets=(1...12).map {"assets/shop/robo/robo\($0).png"}+(1...4).map {"assets/shop/robo/neon\($0).png"}
     private let viewport:CGSize,plan:NativeRoboFinaleMotion.Plan,glyphs:NativeSplashGlyphField,random:()->Double,previousExit:Int?
-    private let headPresentationScale:CGFloat
+    private let headPresentationScale:CGFloat,bottomAnchoredScale:CGFloat
     private var runtime:NativeRoboFinaleMotion.Runtime,headFrames:[UIImage],neonImages:[UIImageView]=[],head=UIImageView(),beats=Set<Int>(),exitFrame:Int?,paintedFrame = -1,cancelled=false
-    init(resourceRoot:URL,viewport:CGSize,previousExitFrame:Int?=nil,preparedArtwork:JimiV9Artwork?=nil,headPresentationScale:CGFloat=1,random:@escaping ()->Double={Double.random(in:0..<1)}) {
-        self.headPresentationScale=headPresentationScale
+    init(resourceRoot:URL,viewport:CGSize,previousExitFrame:Int?=nil,preparedArtwork:JimiV9Artwork?=nil,headPresentationScale:CGFloat=1,bottomAnchoredScale:CGFloat=1,random:@escaping ()->Double={Double.random(in:0..<1)}) {
+        self.headPresentationScale=headPresentationScale;self.bottomAnchoredScale=bottomAnchoredScale
         self.viewport=viewport;self.random=random;previousExit=previousExitFrame
         let artwork=preparedArtwork ?? JimiV9Artwork(resourceRoot:resourceRoot)
         glyphs=NativeSplashGlyphField(artwork:artwork,text:"BIBI - RIBI",colors:[UIColor(red:163.0/255,green:233.0/255,blue:236.0/255,alpha:1),UIColor(red:32.0/255,green:231.0/255,blue:247.0/255,alpha:1)],splitIndex:5.5,deferExitRotationCapture:true,random:random)
@@ -36,7 +36,14 @@ final class NativeRoboFinalePresentation:NativeFinitePresentation {
     required init?(coder:NSCoder) {fatalError("init(coder:) has not been implemented")}
     override var progressDuration:TimeInterval {max(NativeRoboFinaleMotion.headEnd,runtime.motionEnd ?? duration)}
     override func start() {guard assetReady else {dispose();return};super.start()}
-    override func layoutSubviews() {super.layoutSubviews();glyphs.frame=bounds}
+    override func layoutSubviews() {
+        super.layoutSubviews();glyphs.frame=bounds
+        // Scale only painted children around the bottom centre. The owner's
+        // full-screen clipping rectangle and offscreen entry/exit stay fixed.
+        var projection=CATransform3DMakeScale(bottomAnchoredScale,bottomAnchoredScale,1)
+        projection.m42=bounds.height*(1-bottomAnchoredScale)/2
+        layer.sublayerTransform=projection
+    }
     override func paint(seconds:Double) {
         guard !cancelled,assetReady else {return}
         let poses=runtime.sample(seconds:seconds,viewport:viewport,random:random)

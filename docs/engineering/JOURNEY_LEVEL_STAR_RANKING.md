@@ -4,6 +4,23 @@ Aktivirano odlukom korisnika 2026-10-21, globalno za svih 30 Native Journey
 nivoa: Forest, Beach i Area 55. Ovo je **rangiranje završetka pojedinog nivoa
 za 1, 2 ili 3 zvjezdice**, a ne Arcade rangiranje ili novi izračun bodova.
 
+## Efficiency promjena i postojeći pragovi · 2026-11-05
+
+Native Efficiency promjena od 2026-11-04 već ulazi u završni rezultat prije
+odabira 1/2/3 zvjezdice, prikaza rezultata, kartice i trajnog zapisa najboljeg
+uspješnog pokušaja. Koristi se `NativeRewardMath.cleanEfficiencyBonus(state:)`:
+`round(max(3 × originalEfficiency, 0.30 × gameplayScore) × (1 + 0.5 × fastShare))`.
+Combo se dodaje jednom. `fastShare` mjeri prihvaćene combo nastavke unutar jedne
+sekunde; bez mjerenih nastavaka iznosi 0.
+
+Prema izričitom Efficiency overrideu u `GAMEPLAY_KING_CONTRACT.md`, postojeći
+Journey pragovi ostaju v1. Povećan Efficiency zato može promovirati novi
+uspješni pokušaj preko istih pragova. To nije nova kalibracija težine. Stare
+nagrade ostaju trajne. Offline ranking probe sada također koristi isti
+kanonski `cleanEfficiencyBonus`, umjesto stare formule bez novog pojačanja;
+probe uključuje i postojeći speed combo te 5-sekundni Wild prozor kao Native
+Bootstrap. Nove simulacije ne mijenjaju tablicu automatski.
+
 ## Pravilo
 
 - Neuspješan pokušaj: 0 zvjezdica.

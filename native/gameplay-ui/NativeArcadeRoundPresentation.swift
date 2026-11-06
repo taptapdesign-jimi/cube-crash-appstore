@@ -115,15 +115,17 @@ final class NativeArcadeRoundPresentation: UIView {
         super.layoutSubviews()
         let top = max(118,safeAreaInsets.top+96), bottom = max(112,safeAreaInsets.bottom+92)
         stage.frame = CGRect(x: 0,y: top,width: bounds.width,height: max(1,bounds.height-top-bottom))
-        let compact = bounds.height <= 720,cardWidth = min(bounds.width*0.84,440)
-        let titleSize = compact ? min(76,max(58,bounds.width*0.12)) : min(86,max(65,bounds.width*0.14))
-        let subtitleSize = min(34,max(24,bounds.width*0.054))
-        let thumbSize = compact ? min(bounds.width*0.46,230) : min(bounds.width*0.58,300)
+        let tabletCleared=boardClearedOnly && NativeTabletLayout.applies(bounds.size)
+        // One canonical phone composition,projected uniformly only for tablet CLEARED.
+        let reference=tabletCleared ? CGSize(width:390,height:844):bounds.size
+        let compact = reference.height <= 720,cardWidth = min(reference.width*0.84,440)
+        let titleSize = compact ? min(76,max(58,reference.width*0.12)) : min(86,max(65,reference.width*0.14))
+        let subtitleSize = min(34,max(24,reference.width*0.054))
+        let thumbSize = compact ? min(reference.width*0.46,230) : min(reference.width*0.58,300)
         let subtitleMargin: CGFloat = compact ? 10 : 16
-        let thumbMargin: CGFloat = compact ? 16 : min(40,max(22,bounds.height*0.044))
+        let thumbMargin: CGFloat = compact ? 16 : min(40,max(22,reference.height*0.044))
         let titleFont=artwork.font(size:titleSize,weight:"ExtraBold")
         let titleHeight:CGFloat
-        var clearedTextWidth:CGFloat=0
         if let composition=boardClearedTextComposition {
             // Keep the authored irregular glyph recipe in one centered row.
             let ranges=[titleGlyphs.indices]
@@ -135,7 +137,6 @@ final class NativeArcadeRoundPresentation: UIView {
                     sum+(item.0.text! as NSString).size(withAttributes:[.font:artwork.font(size:item.1,weight:"ExtraBold")]).width
                 }-4.2*CGFloat(labels.count-1)
                 let fit=min(1,(cardWidth-36)/max(1,width))
-                clearedTextWidth=width*fit
                 let height=(sizes.max() ?? titleSize)*fit
                 _=layoutGlyphs(labels,font:titleFont,factors:sizes.map{$0*fit/titleSize},width:cardWidth,lineHeight:height,spacing:-4.2*fit,gap:0,wrap:false)
                 for label in labels {label.center.y += y}
@@ -171,15 +172,10 @@ final class NativeArcadeRoundPresentation: UIView {
             shadow.frame=CGRect(x:(cardWidth-thumbSize*0.74)/2,y:bottom+12,
                 width:thumbSize*0.74,height:thumbSize*0.10)
             clearedGroupScale=1
-            if NativeTabletLayout.applies(bounds.size) {
-                // Match the readable Shroomy caption footprint. One parent
-                // scale grows lettering, either thumb image and shadow together.
-                let canvas=NativeTabletLayout.animationViewport(bounds.size)
-                let target=NativeSplashGlyphField.readableCaptionWidth(canvas.width)*NativeTabletLayout.animationScale(bounds.size)
-                let desired=target/max(1,clearedTextWidth)
-                let horizontal=(bounds.width-48)/max(1,max(clearedTextWidth*1.12,thumbSize*1.40))
-                let vertical=(bounds.height-64)/max(1,clearCard.bounds.height*1.40)
-                clearedGroupScale=max(1,min(desired,horizontal,vertical))
+            if tabletCleared {
+                // Fit by BOTH viewport axes; never resize the whole group to a
+                // random glyph width. Paw,hand,text and shadow share this scale.
+                clearedGroupScale=min(bounds.width/reference.width,bounds.height/reference.height)
                 let density=max(1,(window?.screen.scale ?? traitCollection.displayScale)*clearedGroupScale)
                 for label in titleGlyphs where abs(label.contentScaleFactor-density)>0.001 {
                     label.contentScaleFactor=density;label.setNeedsDisplay()
@@ -295,7 +291,7 @@ final class NativeArcadeRoundPresentation: UIView {
         }
         return Pose(rotation: rotation)
     }
-    private static func exit(_ local: TimeInterval,index: Int,rotation: CGFloat,digit: Bool = false,startRotation: CGFloat = 0) -> Pose {
+    static func exit(_ local: TimeInterval,index: Int,rotation: CGFloat,digit: Bool = false,startRotation: CGFloat = 0) -> Pose {
         let grow = digit ? 0.15 : 0.13,collapse = digit ? 0.3 : 0.17
         guard local >= 0 else { return Pose(rotation: startRotation) }
         if local < grow {

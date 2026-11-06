@@ -20,57 +20,78 @@ private final class JimiWorldTitleDivider:UIView {
     }
 }
 
-/// Circular continuation whose exposed rim is resolved against the live slab outline.
+/// Soft dice-shaped continuation whose exposed rim follows the live slab outline.
 private final class JimiWorldStoneCloseSurface:UIView {
     let texture=UIImageView()
     private let face=UIView(),material=UIView()
-    private let bevel=CAGradientLayer(),blend=CAGradientLayer()
-    private let bevelMask=CAShapeLayer(),faceMask=CAShapeLayer()
-    private var joinedPanelOutline:CGPath?
+    private let bevel=CAGradientLayer(),highlight=CAGradientLayer()
+    private let bevelMask=CAShapeLayer(),highlightMask=CAShapeLayer(),faceMask=CAShapeLayer()
+    private let bevelFade=CAGradientLayer(),highlightFade=CAGradientLayer()
     override init(frame:CGRect){
         super.init(frame:frame);isUserInteractionEnabled=false;backgroundColor = .clear
         addSubview(face);face.addSubview(material);material.addSubview(texture)
-        face.layer.mask=faceMask;texture.layer.mask=blend;material.layer.addSublayer(bevel)
+        face.layer.mask=faceMask;material.layer.addSublayer(bevel);material.layer.addSublayer(highlight)
+        // An opaque stone core prevents world colours bleeding through the neck.
+        material.backgroundColor=UIColor(red:0.985,green:0.956,blue:0.901,alpha:1)
         texture.contentMode = .scaleToFill;texture.layer.minificationFilter = .trilinear
         texture.layer.allowsEdgeAntialiasing=true
-        // The inner neck disappears into the slab rather than outlining a separate coin.
-        blend.colors=[UIColor.clear.cgColor,UIColor.white.cgColor,UIColor.white.cgColor]
-        blend.locations=[0,0.48,1];blend.startPoint=CGPoint(x:0,y:1);blend.endPoint=CGPoint(x:1,y:0)
-        bevel.colors=[UIColor(red:1,green:0.985,blue:0.94,alpha:0.95).cgColor,UIColor(red:0.97,green:0.93,blue:0.86,alpha:0.85).cgColor,UIColor(red:0.74,green:0.61,blue:0.47,alpha:0.42).cgColor]
-        bevel.locations=[0,0.52,1];bevel.startPoint=CGPoint(x:0,y:0);bevel.endPoint=CGPoint(x:1,y:1);bevel.mask=bevelMask
+        // Same ivory rolled lip and warm stone depth as the original large slab.
+        // Keep the source texture opaque; the old blend washed out its cracks.
+        bevel.colors=[UIColor(red:1,green:0.975,blue:0.925,alpha:1).cgColor,UIColor(red:0.965,green:0.875,blue:0.765,alpha:1).cgColor,UIColor(red:0.83,green:0.69,blue:0.54,alpha:1).cgColor]
+        bevel.locations=[0,0.55,1];bevel.startPoint=CGPoint(x:0,y:0);bevel.endPoint=CGPoint(x:0.85,y:1);bevel.mask=bevelMask
+        highlight.colors=[UIColor(red:1,green:0.99,blue:0.95,alpha:1).cgColor,UIColor(red:1,green:0.965,blue:0.905,alpha:0.85).cgColor,UIColor(red:0.94,green:0.835,blue:0.705,alpha:0.55).cgColor]
+        highlight.locations=[0,0.6,1];highlight.startPoint=CGPoint(x:0,y:0);highlight.endPoint=CGPoint(x:0.7,y:1);highlight.mask=highlightMask
+        // Both ends dissolve into the original stone instead of ending at a clip.
+        for fade in [bevelFade,highlightFade] {
+            fade.colors=[UIColor.clear.cgColor,UIColor.white.cgColor,UIColor.white.cgColor,UIColor.clear.cgColor]
+            fade.locations=[0,0.24,0.72,1];fade.startPoint=CGPoint(x:0,y:0);fade.endPoint=CGPoint(x:0,y:1)
+        }
+        bevelMask.mask=bevelFade;highlightMask.mask=highlightFade
         bevel.name="native.world.card.close.stone-bevel"
         face.accessibilityIdentifier="native.world.card.close.flush-face"
     }
     required init?(coder:NSCoder){fatalError("init(coder:) has not been implemented")}
     func setTexture(_ image:UIImage?){texture.image=image}
-    func join(panel:JimiWorldInfoPanelView) {
-        var translation=CGAffineTransform(translationX:panel.frame.minX-frame.minX,y:panel.frame.minY-frame.minY)
-        joinedPanelOutline=panel.shadowOutline.copy(using:&translation)
-        setNeedsLayout()
+    func outline(in view:UIView)->CGPath {
+        let origin=convert(CGPoint.zero,to:view)
+        let x=convert(CGPoint(x:1,y:0),to:view),y=convert(CGPoint(x:0,y:1),to:view)
+        var mapping=CGAffineTransform(a:x.x-origin.x,b:x.y-origin.y,c:y.x-origin.x,d:y.y-origin.y,tx:origin.x,ty:origin.y)
+        return UIBezierPath(roundedRect:bounds,cornerRadius:bounds.width*16/52).cgPath.copy(using:&mapping)!
     }
     override func layoutSubviews(){
         super.layoutSubviews();CATransaction.begin();CATransaction.setDisableActions(true)
-        // A true circle; the main slab already supplies the inside part of its silhouette.
-        // Never add a rectangular patch or a guessed connector over the slab's top edge.
+        // The rounded square keeps the same footprint and texture connection to the slab.
         face.frame=bounds;material.frame=face.bounds
-        faceMask.frame=face.bounds;faceMask.path=UIBezierPath(ovalIn:face.bounds).cgPath
+        let corner=bounds.width*16/52
+        faceMask.frame=face.bounds;faceMask.path=UIBezierPath(roundedRect:face.bounds,cornerRadius:corner).cgPath
         let scale=bounds.width/56
+        // Original upper-right stone at the same physical texture scale as the slab.
         texture.frame=CGRect(x:-244*scale,y:-35*scale,width:326*scale,height:506*scale)
-        blend.frame=CGRect(x:244*scale,y:35*scale,width:bounds.width,height:bounds.height)
         bevel.frame=material.bounds;bevelMask.frame=bevel.bounds
-        let center=CGPoint(x:bounds.midX,y:bounds.midY),radius=bounds.width/2
-        let exposed=UIBezierPath();var previousWasExposed=false
-        for step in 0...360 {
-            let angle=CGFloat(step)*2 * .pi/360
-            let point=CGPoint(x:center.x+cos(angle)*radius,y:center.y+sin(angle)*radius)
-            let outside = !(joinedPanelOutline?.contains(point) ?? false)
-            if outside {
-                if previousWasExposed {exposed.addLine(to:point)}else{exposed.move(to:point)}
-            }
-            previousWasExposed=outside
+        highlight.frame=material.bounds;highlightMask.frame=highlight.bounds
+        // Follow the actual rounded right contour. Thickness reaches zero at
+        // both ends; no rectangular clip can leave a horizontal cut or cap.
+        func contourX(_ y:CGFloat)->CGFloat {
+            let distance=y<corner ? corner-y:(y>bounds.height-corner ? y-(bounds.height-corner):0)
+            return bounds.width-corner+sqrt(max(0,corner*corner-distance*distance))
         }
-        // Five-point visible sculpted rim, meeting the actual slab edge at both ends.
-        bevelMask.path=exposed.cgPath.copy(strokingWithWidth:10*scale,lineCap:.round,lineJoin:.round,miterLimit:2)
+        func taper(_ t:CGFloat)->CGFloat {
+            let v=min(1,max(0,min(t/0.24,(1-t)/0.28)))
+            return v*v*(3-2*v)
+        }
+        let edge=UIBezierPath(),glint=UIBezierPath()
+        var outer:[CGPoint]=[],inner:[CGPoint]=[],shineOuter:[CGPoint]=[],shineInner:[CGPoint]=[]
+        for step in 0...120 {
+            let t=CGFloat(step)/120,y=bounds.height*t,x=contourX(y),amount=taper(t)
+            outer.append(CGPoint(x:x,y:y));inner.append(CGPoint(x:x-3.5*scale*amount,y:y))
+            shineOuter.append(CGPoint(x:x-1.5*scale*amount,y:y));shineInner.append(CGPoint(x:x-2.7*scale*amount,y:y))
+        }
+        for (path,front,back) in [(edge,outer,inner),(glint,shineOuter,shineInner)] {
+            path.move(to:front[0]);front.dropFirst().forEach{path.addLine(to:$0)}
+            back.reversed().forEach{path.addLine(to:$0)};path.close()
+        }
+        bevelMask.path=edge.cgPath;highlightMask.path=glint.cgPath
+        bevelFade.frame=bevelMask.bounds;highlightFade.frame=highlightMask.bounds
         CATransaction.commit()
     }
 }
@@ -360,7 +381,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         cta.setPairedModalCTA() // Gentle local drift; main motion follows info face.
         stableCTAEnabled = unit.actions.contains(action);cta.isEnabled = stableCTAEnabled; cta.addAction(UIAction { [weak self] _ in guard let self,self.active,!self.disposed,!self.closing,!self.animating,!self.pinching else {return}; self.onFeedback?("cta"); self.onRequest?(action) },for:.touchUpInside); back.addSubview(cta);cta.enableCartoonBounce()
         closePaper.setTexture(panel.image);back.addSubview(closePaper);back.bringSubviewToFront(closeButton)
-        closeIcon.image = assets.image("assets/close-icon.png",densityAware:true);closeIcon.contentMode = .scaleAspectFit;closeIcon.alpha = 0.8;closeIcon.isUserInteractionEnabled = false;closeButton.addSubview(closeIcon);closeButton.enableArtworkTapFeedback(on:closeIcon)
+        closeIcon.image = assets.image("assets/close-icon.png",densityAware:true);closeIcon.contentMode = .scaleAspectFit;closeIcon.alpha = 0.8;closeIcon.isUserInteractionEnabled = false;closeButton.addSubview(closeIcon);closeButton.enableArtworkTapFeedback(wholeControl:true,companion:closePaper)
         closeTexture.accessibilityIdentifier = "native.world.card.close.stone-texture"
         closePaper.accessibilityIdentifier = "native.world.card.close.stone-circle"
         closeButton.layer.shadowColor = UIColor(red:0.83,green:0.71,blue:0.59,alpha:1).cgColor
@@ -381,11 +402,12 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         super.layoutSubviews(); backdrop.frame = bounds;cameraStage.frame = bounds
         let closeScale=NativeTabletLayout.applies(bounds.size) ? carrier.bounds.width/326:1
         closeButton.bounds = CGRect(x:0,y:0,width:52*closeScale,height:52*closeScale)
-        closeButton.center = CGPoint(x:carrier.bounds.width-20*closeScale,y:36*closeScale)
-        closeButton.transform = CGAffineTransform(rotationAngle:-backTilt*2)
+        closeButton.center = CGPoint(x:carrier.bounds.width-26*closeScale,y:42*closeScale)
+        closeButton.transform = CGAffineTransform(rotationAngle:-backTilt*3*1.01)
         closePaper.bounds = CGRect(x:0,y:0,width:56*closeScale,height:56*closeScale)
         closePaper.center = closeButton.center
-        closeButton.layer.shadowPath = UIBezierPath(ovalIn:closeButton.bounds.insetBy(dx:-2*closeScale,dy:-2*closeScale)).cgPath
+        closePaper.transform=closeButton.transform
+        closeButton.layer.shadowPath = UIBezierPath(roundedRect:closeButton.bounds.insetBy(dx:-2*closeScale,dy:-2*closeScale),cornerRadius:56*closeScale*16/52).cgPath
         closeIcon.frame = CGRect(x:14*closeScale,y:14*closeScale,width:24*closeScale,height:24*closeScale)
         let size = carrier.bounds.size;dragShell.frame = carrier.bounds;effectShell.frame = carrier.bounds;pinchShell.frame = carrier.bounds;rotorShell.frame = carrier.bounds
         frontFloat.bounds = carrier.bounds;frontFloat.center = CGPoint(x:size.width/2,y:size.height/2);frontSettle.bounds=carrier.bounds;frontSettle.center=frontFloat.center;front.bounds = carrier.bounds;front.center = CGPoint(x:size.width/2,y:size.height/2);backFloat.bounds = carrier.bounds;backFloat.center = front.center;backSettle.bounds=carrier.bounds;backSettle.center=front.center;back.bounds = carrier.bounds;back.center = front.center;panel.frame = carrier.bounds
@@ -425,8 +447,9 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         stats.setNeedsLayout();stats.layoutIfNeeded()
         stars.setNeedsLayout();stars.layoutIfNeeded()
         panel.setNeedsLayout();panel.layoutIfNeeded()
-        closePaper.join(panel:panel);closePaper.layoutIfNeeded()
-        back.layer.shadowPath = panel.shadowOutline
+        closePaper.setNeedsLayout();closePaper.layoutIfNeeded()
+        // One outer silhouette avoids an internal slab shadow underneath Close.
+        back.layer.shadowPath = panel.shadowOutline.union(closePaper.outline(in:back))
         cta.layer.shadowPath = UIBezierPath(roundedRect:cta.bounds,cornerRadius:32).cgPath
         if let newRibbon {JimiNativeWorldRibbon.layout(newRibbon,cardSize:front.bounds.size,scale:1,portal:true,compact:bounds.width<=768)}
         effects?.layout()
@@ -850,6 +873,22 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
             CATransaction.begin();CATransaction.setDisableActions(true);pinchShell.layer.transform = CATransform3DIdentity;pinchShell.layer.add(animation,forKey:"card.pinch.return");CATransaction.commit();effects?.present(frontFacing:!isBackFacing)
         default:break
         }
+    }
+    /// Transfer the existing dimming to a successor modal before freezing a
+    /// covered return. A paused old backdrop must never darken the new one twice.
+    private var didTransferReturnBackdrop=false
+    func takeReturnBackdropOpacity()->Float {
+        guard closing,!didTransferReturnBackdrop else{return 0}
+        didTransferReturnBackdrop=true
+        let opacity=backdrop.layer.presentation()?.opacity ?? backdrop.layer.opacity
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        backdrop.layer.removeAnimation(forKey:"card.backdrop.fade");backdrop.layer.opacity=0
+        CATransaction.commit();return opacity
+    }
+    func adoptReturnBackdropOpacity(_ opacity:Float) {
+        guard !closing else{return}
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        backdrop.layer.opacity=max(0,min(1,opacity));CATransaction.commit()
     }
     func close(to destination:CGRect,gameplay:Bool = false,returnOffset:((Double)->CGPoint)? = nil,completion:@escaping () -> Void) {
         cancelGameplayPreparation()

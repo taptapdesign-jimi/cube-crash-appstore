@@ -29,7 +29,7 @@ final class JimiHomeHubController: UIViewController {
     private let status = UILabel()
     private let policy = UILabel()
     private var route: Route = .home
-    private var active = false
+    private var active = false {didSet{if !active {settings.setIdleActive(false)}}}
     private var disposed = false
     private var hasBootstrapped = false
     private var journeyRequiresTutorial = false
@@ -136,6 +136,11 @@ final class JimiHomeHubController: UIViewController {
             guard let self, self.active, !self.transitioning, self.route == .settings, self.presentedViewController == nil else { return }
             let sheet = JimiNativePrivacyController(assets: self.assets)
             sheet.modalPresentationStyle = .overFullScreen
+            self.settings.setIdleActive(false)
+            sheet.onCloseRequested={ [weak self] in
+                guard let self,self.active,self.route == .settings else{return}
+                self.settings.setIdleActive(true)
+            }
             self.present(sheet, animated: false)
         }
         settings.onDeveloper = { [weak self] epoch in self?.openDeveloperTools(epoch: epoch) }
@@ -350,6 +355,7 @@ final class JimiHomeHubController: UIViewController {
             settings.isUserInteractionEnabled = false; transitioning = true
             animate(settings.tracks(enter: true)) { [weak self] in
                 self?.transitioning = false; self?.settings.isUserInteractionEnabled = true
+                self?.settings.setIdleActive(self?.active == true && self?.route == .settings)
                 self?.status.accessibilityValue = "ready"
             }
         }
@@ -401,20 +407,14 @@ final class JimiHomeHubController: UIViewController {
         for (i, unit) in order.enumerated() {
             let selected = selectedWorldID != nil && hub.worldUnits.firstIndex(of: unit).map { hub.worldIDs[$0] == selectedWorldID } == true
             if enter {
-                tracks.append((unit, .init(tweens: [.init(begin: (reduced ? 0 : 0.08) + Double(i)*(reduced ? 0.02 : 0.09), duration: reduced ? 0.2 : 0.56,
-                    from: .scale(reduced ? 0.96 : 0.65, y: reduced ? 8 : 30, opacity: 0), to: .scale(1), ease: reduced ? .powerOut(1) : .backOut(1.8))])))
+                tracks.append((unit,JimiV9Motion.worldHubElementEnter(begin:(reduced ? 0:0.08)+Double(i)*(reduced ? 0.02:0.09),reducedMotion:reduced)))
             } else {
                 if reduced && !selected {
                     tracks.append((unit, .init(tweens: [.init(begin: Double(i)*0.012, duration: 0.16, from: .scale(1), to: .scale(0.96, y: 8, opacity: 0), ease: .powerIn(1))])))
                     continue
                 }
-                let peak = JimiV9Motion.Pose(scaleX: selected ? 1.18 : 1.144, scaleY: selected ? 1.15 : 1.12)
                 let delay = selected ? 0 : Double(i)*(selectedWorldID == nil ? 0.045 : 0.065)
-                let bounceDuration = reduced ? 0.15 : 0.18
-                let collapseDuration = reduced ? 0.28 : 0.336
-                tracks.append((unit, .init(tweens: [
-                    .init(begin: delay, duration: bounceDuration, from: .scale(1), to: peak, ease: .powerIn(2)),
-                    .init(begin: delay+bounceDuration, duration: collapseDuration, from: peak, to: .scale(0), ease: .backIn(1.7))], anchorY: 0.54)))
+                tracks.append((unit,JimiV9Motion.worldHubElementExit(begin:delay,selected:selected,reducedMotion:reduced)))
             }
         }
         if enter {
@@ -632,6 +632,7 @@ final class JimiHomeHubController: UIViewController {
             self.status.accessibilityValue = "ready"
             if self.route == .hub { self.hub.startIdle() }
             if self.route == .home { self.home.startHeroIdle() }
+            if self.route == .settings { self.settings.setIdleActive(self.active) }
             self.onDiagnosticEvent?(.finish(requestID: id, outcome: "native-input-ready"))
         }
     }
@@ -812,6 +813,7 @@ final class JimiHomeHubController: UIViewController {
                 return
             }
         }
+        let heroStart = home.heroParallaxSnapshot
         let cloudStart = home.cloudPanoramaSnapshot
         let oldX = home.sliderTrack.layer.presentation()?.position.x ?? home.sliderTrack.layer.position.x
         let navigation = home.navigationLayoutTargets.map { target in
@@ -826,6 +828,7 @@ final class JimiHomeHubController: UIViewController {
             if !animatedLayers.contains(where:{$0 === layer}) {animatedLayers.append(layer)}
         }
         let newX = home.sliderTrack.layer.position.x
+        home.installHeroParallax(from:heroStart)
         let animation = CAKeyframeAnimation(keyPath: "position.x")
         animation.values = (0...80).map { oldX + (newX-oldX)*JimiV9Motion.sliderEase.value(Double($0)/80) }
         animation.duration = JimiV9Motion.sliderDuration
@@ -849,7 +852,8 @@ final class JimiHomeHubController: UIViewController {
             }
             positionMotion.values = (0...80).map { step in
                 let t = positionEase.value(Double(step)/80)
-                return NSValue(cgPoint: CGPoint(x: oldPosition.x+(newPosition.x-oldPosition.x)*t,
+                let horizontal=sizeEase.value(Double(step)/80)
+                return NSValue(cgPoint: CGPoint(x: oldPosition.x+(newPosition.x-oldPosition.x)*horizontal,
                     y: oldPosition.y+(newPosition.y-oldPosition.y)*t))
             }
             boundsMotion.duration = 0.38; positionMotion.duration = 0.38
@@ -921,6 +925,7 @@ final class JimiHomeHubController: UIViewController {
             opacity.keyTimes = sampled.keyTimes?.map { NSNumber(value: $0) }
             let group = CAAnimationGroup(); group.animations = [transform, opacity]; group.duration = sampled.duration
             (target as? JimiV9NavigationHeader)?.appendExitShadowFade(to:group,track:track)
+            if target === home.fixedShadowView {home.appendNavigationDecorationFade(to:group,track:track)}
             group.timingFunction = CAMediaTimingFunction(name: .linear)
             CATransaction.setDisableActions(true)
             let final = poses.last!
@@ -1050,6 +1055,7 @@ final class JimiHomeHubController: UIViewController {
     }
 
     func suspend() {
+        settings.setIdleForeground(false)
         home.pauseHeroIdle()
         endRunHost?.suspend()
         settingsCommandTimeout?.cancel(); settingsCommandTimeout = nil; settingsCommandID = UUID()
@@ -1092,6 +1098,8 @@ final class JimiHomeHubController: UIViewController {
         cancelMotion(); hub.stopIdle()
     }
     func resume() {
+        settings.setIdleForeground(true)
+        if active,route == .settings,!transitioning {settings.setIdleActive(true)}
         endRunHost?.resume()
         if let token = returnPreparationResumeToken {
             returnPreparationResumeToken = nil

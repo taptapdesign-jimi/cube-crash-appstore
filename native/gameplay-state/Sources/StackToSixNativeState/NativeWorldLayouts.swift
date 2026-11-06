@@ -19,7 +19,7 @@ public final class NativeWorldLayouts {
         guard let object = try JSONSerialization.jsonObject(with:source) as? [String:Any], let projections = object["viewports"] as? [String:[[String:Any]]], projections["390"]?.count == 3, projections["768"]?.count == 3 else { throw NativeSaveError.invalidState(["invalid-authored-world-layout"]) }
         viewports=projections
     }
-    public func snapshot(world: Int, width: Double, height: Double, generation: Int, revision: Int = 0, progression: NativeProgressionState, resumableBoards: Set<Int> = [], returnBoard: Int? = nil, proportionalCards: Bool = false, unitScale: Double = 1, unitHorizontalBleed: Double = 0, unitRowGap: Double = 0, unitColumnSpread: Double = 0, unitPairCompression: Bool = false, lastUnitCenterX: Double? = nil) throws -> [String:Any] {
+    public func snapshot(world: Int, width: Double, height: Double, generation: Int, revision: Int = 0, progression: NativeProgressionState, resumableBoards: Set<Int> = [], returnBoard: Int? = nil, proportionalCards: Bool = false, phoneUnitLayout: Bool = false, unitScale: Double = 1, unitHorizontalBleed: Double = 0, unitRowGap: Double = 0, unitColumnSpread: Double = 0, unitPairCompression: Bool = false, lastUnitCenterX: Double? = nil) throws -> [String:Any] {
         guard (1...3).contains(world),width.isFinite,height.isFinite,width > 0,height > 0,generation > 0,unitScale.isFinite,(1...1.5).contains(unitScale),unitHorizontalBleed.isFinite,(0...200).contains(unitHorizontalBleed),unitRowGap.isFinite,(0...80).contains(unitRowGap),unitColumnSpread.isFinite,(0...0.2).contains(unitColumnSpread),lastUnitCenterX.map({$0.isFinite && (0...780).contains($0)}) ?? true else { throw NativeSaveError.invalidState(["invalid-world-request"]) }
         let scale = width/390
         // Every authored layout scalar is constant or A+B/scale. Interpolate reciprocal width
@@ -48,6 +48,17 @@ public final class NativeWorldLayouts {
         snapshot["contentHeight"]=max(snapshot["contentHeight"] as? Double ?? 0,height/scale)
         if let returnBoard { snapshot["returnBoardID"]=returnBoard }
         var units=snapshot["units"] as! [[String:Any]]
+        var phoneUnitOriginY:Double?
+        if phoneUnitLayout {
+            // Tablet reuses each world's complete phone composition. Keep the
+            // existing first-row vertical anchor beneath the unchanged hero.
+            let phoneUnits=viewports["390"]![world-1]["units"] as! [[String:Any]]
+            let firstFrame=units[0]["frame"] as! [String:Double]
+            let firstIsland=(units[0]["parts"] as! [[String:Any]]).first{$0["role"] as? String == "island"}!
+            let phoneIsland=(phoneUnits[0]["parts"] as! [[String:Any]]).first{$0["role"] as? String == "island"}!
+            phoneUnitOriginY=firstFrame["y"]!+(firstIsland["y"] as! Double)-(phoneIsland["y"] as! Double)
+            units=phoneUnits
+        }
         for index in units.indices {
             let board=(world-1)*10+index+1
             let stats=progression.boardStats[board] ?? NativeBoardStats()
@@ -115,7 +126,7 @@ public final class NativeWorldLayouts {
             units[index]["parts"]=parts
             if returnBoard == board {units[index]["enterDelayOffset"]=0.24}
         }
-        if unitScale != 1 || unitRowGap != 0 || unitColumnSpread != 0 {
+        if phoneUnitLayout || unitScale != 1 || unitRowGap != 0 || unitColumnSpread != 0 {
             let originY=(units[0]["frame"] as! [String:Double])["y"]!
             for index in units.indices {
                 var frame=units[index]["frame"] as! [String:Double]
@@ -128,8 +139,13 @@ public final class NativeWorldLayouts {
                 // Expand both columns equally away from the canvas centre.
                 // Retain the caller's screen-edge clearance for wider islands.
                 let center=unitColumnSpread == 0 ? baseCenter:min(maxCenter,max(minCenter,195+(baseCenter-195)*(1+unitColumnSpread)))
-                frame["x"]=center-((island["x"] as! Double)+(island["width"] as! Double)/2)*unitScale
-                frame["y"]=originY+(frame["y"]!-originY+Double(index)*unitRowGap)*unitScale
+                if let phoneUnitOriginY {
+                    frame["x"]=195+(frame["x"]!-195)*unitScale
+                    frame["y"]=phoneUnitOriginY+(frame["y"]!-originY)*unitScale
+                } else {
+                    frame["x"]=center-((island["x"] as! Double)+(island["width"] as! Double)/2)*unitScale
+                    frame["y"]=originY+(frame["y"]!-originY+Double(index)*unitRowGap)*unitScale
+                }
                 frame["width"]! *= unitScale;frame["height"]! *= unitScale
                 for part in parts.indices {
                     for key in ["x","y","width","height"] {
@@ -143,7 +159,7 @@ public final class NativeWorldLayouts {
         }
         // Tablet-only caller opt-in. Measure each pair's original island-row
         // anchor before moving any frame, so shifts never compound on relayout.
-        if unitPairCompression {
+        if unitPairCompression && !phoneUnitLayout {
             let fractions=[0.0,0.1,0.2,0.4,0.8]
             let anchors=units.map { unit -> Double in
                 let frame=unit["frame"] as! [String:Double]
@@ -166,7 +182,7 @@ public final class NativeWorldLayouts {
         }
         // The tablet caller places local Stage10 as a complete group, using
         // the painted island centre rather than the asymmetric card envelope.
-        if let lastUnitCenterX,let index=units.indices.last {
+        if !phoneUnitLayout,let lastUnitCenterX,let index=units.indices.last {
             var frame=units[index]["frame"] as! [String:Double]
             let parts=units[index]["parts"] as! [[String:Any]]
             let island=parts.first{$0["role"] as? String == "island"}!

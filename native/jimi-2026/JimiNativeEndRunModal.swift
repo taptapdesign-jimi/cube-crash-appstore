@@ -15,6 +15,25 @@ enum JimiNativeModalV10 {
     /// One shared Native modal tint; retain the original hue at 50percent opacity.
     static var backdropColor:UIColor {UIColor(red:220/255,green:183/255,blue:163/255,alpha:0.5)}
 
+    /// Stable per-presentation pose; no neutral/near-zero draw, including Reduced Motion.
+    static func restTiltDegrees(sample:Double = Double.random(in:0..<1))->CGFloat {
+        let value=min(1,max(0,sample.isFinite ? sample:0.5))
+        let left=value<0.5,phase=left ? value*2:(value-0.5)*2
+        return CGFloat(1.75+phase)*(left ? -1:1)
+    }
+    /// Inset holder and X together 6pt left/down; strengthen their tilt by1percent.
+    static func layoutClose(_ close:UIView,frame:CGRect,modalTilt:CGFloat) {
+        close.bounds=CGRect(origin:.zero,size:frame.size);close.center=CGPoint(x:frame.midX-6,y:frame.midY+6)
+        close.transform=CGAffineTransform(rotationAngle:(modalTilt<0 ? 8.5:-8.5) * 1.01 * .pi/180)
+    }
+    static func closeOutline(_ close:UIView)->CGPath {
+        let path=UIBezierPath(roundedRect:close.bounds,cornerRadius:16)
+        var transform=close.transform
+        transform.tx=close.center.x-transform.a*close.bounds.midX-transform.c*close.bounds.midY
+        transform.ty=close.center.y-transform.b*close.bounds.midX-transform.d*close.bounds.midY
+        path.apply(transform);return path.cgPath
+    }
+
     static let settledBounceKey="native.modal.settled-bounce"
     /// The slider's small CTA bounce, starting immediately after modal entry.
     /// Additive scale composes with the existing paper float/tilt owner.
@@ -65,9 +84,49 @@ enum JimiNativeModalV10 {
             target.layer.add(a,forKey:key)
         }
     }
+    static let bottomArchMaskName="native.modal.paper-bottom-arch"
+    /// Modal paper uses a30percent deeper parabola than the navigation reference.
+    /// Centre retains the accepted bottom extent; only the lower sides recede.
+    static func bottomArchDepth(width:CGFloat)->CGFloat {
+        JimiV9NavigationHeader.dividerArchDepth*1.3*max(0,width)/390
+    }
+    static func bottomArchPath(in rect:CGRect,cornerRadius:CGFloat)->CGPath {
+        guard rect.width>0,rect.height>0 else{return CGMutablePath()}
+        let x=rect.minX,y=rect.minY,w=rect.width,h=rect.height
+        let depth=min(bottomArchDepth(width:w),h*0.08)
+        let r=max(0,min(cornerRadius,w/2,(h-depth)/2))
+        let t=r/w,endY=y+h-depth+4*depth*t*(1-t)
+        let sideY=y+h-depth-r,k:CGFloat=0.5522847498
+        let slope=4*depth/w*(1-2*t)
+        let path=UIBezierPath()
+        // Top corners stay owned by the original layer.cornerRadius/curve.
+        path.move(to:CGPoint(x:x,y:y));path.addLine(to:CGPoint(x:x+w,y:y))
+        path.addLine(to:CGPoint(x:x+w,y:sideY))
+        path.addCurve(to:CGPoint(x:x+w-r,y:endY),controlPoint1:CGPoint(x:x+w,y:sideY+k*r),controlPoint2:CGPoint(x:x+w-r+k*r,y:endY-slope*k*r))
+        path.addQuadCurve(to:CGPoint(x:x+r,y:endY),controlPoint:CGPoint(x:x+w/2,y:2*(y+h)-endY))
+        path.addCurve(to:CGPoint(x:x,y:sideY),controlPoint1:CGPoint(x:x+r-k*r,y:endY-slope*k*r),controlPoint2:CGPoint(x:x,y:sideY+k*r))
+        path.close();return path.cgPath
+    }
+    static func applyPaperCorners(to surface:UIView) {
+        surface.layer.cornerRadius=NativeTabletLayout.paperCornerRadius(in:surface)
+        surface.layer.cornerCurve = surface.traitCollection.userInterfaceIdiom == .pad ? .circular:.continuous;surface.clipsToBounds=true
+    }
+    /// One static mask per existing paper owner, reused on resize and reopen.
+    static func applyBottomArch(to surface:UIView) {
+        applyPaperCorners(to:surface)
+        let mask:CAShapeLayer
+        if let existing=surface.layer.mask as? CAShapeLayer,existing.name==bottomArchMaskName {mask=existing}
+        else {mask=CAShapeLayer();mask.name=bottomArchMaskName;surface.layer.mask=mask}
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        mask.frame=surface.bounds
+        mask.path=bottomArchPath(in:surface.bounds,cornerRadius:surface.layer.cornerRadius)
+        CATransaction.commit()
+    }
+
     static func paperLayout(_ paper: UIImageView, bounds: CGRect, bottomExtension: CGFloat = 0) {
         paper.frame = bounds
         paper.contentMode = .scaleToFill
+        applyBottomArch(to:paper)
         guard let image = paper.image, bounds.width > 0, bounds.height > 0 else { return }
         let bleed=bounds.width>=450 ? min(bottomExtension,16):bottomExtension
         let cover = max(bounds.width / image.size.width, (bounds.height+bleed) / image.size.height)
@@ -331,7 +390,7 @@ final class JimiNativeEndRunModal: UIViewController {
     }
     init(id:Int,model:JimiNativeEndRunModel,assets:JimiV9Artwork,dismissalAllowed:Bool = true,synchronizesBoardCTAEntry:Bool = false,restTiltRandom:()->Double = {Double.random(in:0..<1)}) {
         let sample=restTiltRandom()
-        restTiltDegrees=CGFloat(min(1,max(0,sample.isFinite ? sample:0.5))*4-2)
+        restTiltDegrees=JimiNativeModalV10.restTiltDegrees(sample:sample)
         requestID = id; self.model = model; self.assets = assets;self.dismissalAllowed=dismissalAllowed;self.synchronizesBoardCTAEntry=synchronizesBoardCTAEntry
         super.init(nibName:nil,bundle:nil); modalPresentationStyle = .overFullScreen
         traceHUDLatency("exit-modal-init-body-end")
@@ -379,8 +438,8 @@ final class JimiNativeEndRunModal: UIViewController {
             button.addTarget(self,action:#selector(requestButton(_:)),for:.touchUpInside);idle.addSubview(button);button.enableCartoonBounce(preserves3D:true)
         }
         traceHUDLatency("exit-cta-style-end")
-        close.setBackgroundImage(paper.image,for:.normal);close.layer.cornerRadius = 26;close.clipsToBounds = true
-        close.setImage(assets.image("assets/close-icon.png",densityAware:true),for:.normal);close.imageView?.contentMode = .scaleAspectFit;close.artworkOpacity = 0.8;close.enableArtworkTapFeedback()
+        close.setBackgroundImage(paper.image,for:.normal);close.layer.cornerRadius = 16;close.clipsToBounds = true
+        close.setImage(assets.image("assets/close-icon.png",densityAware:true),for:.normal);close.imageView?.contentMode = .scaleAspectFit;close.artworkOpacity = 0.8;close.enableArtworkTapFeedback(wholeControl:true)
         close.imageEdgeInsets = UIEdgeInsets(top:14,left:16,bottom:14,right:12)
         close.accessibilityLabel = "Close "+model.title;close.accessibilityIdentifier = "native.end-run.close"
         close.addTarget(self,action:#selector(requestClose),for:.touchUpInside);idle.addSubview(close)
@@ -423,12 +482,16 @@ final class JimiNativeEndRunModal: UIViewController {
             }
             button.layoutCartoonContent()
         }
-        close.frame = CGRect(x:width-42,y:-10,width:52,height:52)
+        JimiNativeModalV10.layoutClose(close,frame:CGRect(x:width-42,y:-10,width:52,height:52),modalTilt:restTiltDegrees)
         CATransaction.begin();CATransaction.setDisableActions(true)
         paperShadow.frame=idle.bounds;paperShadow.contentsScale=view.window?.screen.scale ?? view.traitCollection.displayScale
         let silhouette=CGMutablePath()
-        silhouette.addRoundedRect(in:paper.frame,cornerWidth:40,cornerHeight:40)
-        if !close.isHidden {silhouette.addEllipse(in:close.frame)}
+        let paperOutline=UIBezierPath(roundedRect:paper.frame,cornerRadius:paper.layer.cornerRadius)
+        let archedPaper=CGMutablePath();archedPaper.addPath(JimiNativeModalV10.bottomArchPath(in:paper.frame,cornerRadius:paper.layer.cornerRadius))
+        // The mask has square top corners so the original corner owner remains exact.
+        // Intersect with that original rounded outline for the explicit shadow too.
+        silhouette.addPath(archedPaper.intersection(paperOutline.cgPath))
+        if !close.isHidden {silhouette.addPath(JimiNativeModalV10.closeOutline(close))}
         paperShadow.shadowPath=silhouette
         CATransaction.commit()
     }

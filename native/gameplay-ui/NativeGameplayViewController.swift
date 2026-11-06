@@ -567,7 +567,7 @@ final class NativeGameplayViewController: UIViewController {
                     mushroom.onHaptic={ [weak self] style in guard self?.engine.state.generation == generation else {return};self?.onHaptic?(style)}
                     owner=mushroom
                 } else {
-                    let robo=NativeRoboFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.finaleViewport,previousExitFrame:self.lastRoboExitFrame,preparedArtwork:self.selectedFinaleArtwork(),headPresentationScale:NativeTabletLayout.applies(self.view.bounds.size) ? 0.90:1)
+                    let robo=NativeRoboFinalePresentation(resourceRoot:self.resourceRoot,viewport:self.finaleViewport,previousExitFrame:self.lastRoboExitFrame,preparedArtwork:self.selectedFinaleArtwork(),bottomAnchoredScale:NativeTabletLayout.applies(self.view.bounds.size) ? 0.90:1)
                     guard robo.assetReady else {robo.dispose();return false}
                     robo.onHaptic={ [weak self] style in guard self?.engine.state.generation == generation else {return};self?.onHaptic?(style)}
                     robo.onExitFrameSelected={ [weak self] frame in guard self?.engine.state.generation == generation else {return};self?.lastRoboExitFrame=frame}
@@ -585,9 +585,6 @@ final class NativeGameplayViewController: UIViewController {
                     completion()
                 }
                 NativeTabletLayout.projectAnimation(owner,viewport:self.view.bounds.size)
-                if variant == "robo-cube",NativeTabletLayout.applies(self.view.bounds.size) {
-                    owner.transform=owner.transform.scaledBy(x:0.80,y:0.80)
-                }
                 self.bindFinalMergeProgress(owner,generation:generation);owner.start();return true
             }
             if variant == "baloon" {
@@ -1290,7 +1287,7 @@ final class NativeGameplayViewController: UIViewController {
             guard ball.assetsReady else { ball.dispose(); return false }
             ball.onGameplayReady = onGameplayReady; owner = ball
         } else {
-            let tnt = NativeTntVariantPresentation(resourceRoot:resourceRoot,variant:variant == "coconut" ? .coconut:variant == "flower" ? .flower:variant == "bloob-ball" ? .bloobGas:.barell,viewport:finaleViewport,preparedArtwork:selectedFinaleArtwork(),coconutBoardBodySize:boardScene.map{$0.coconutFinaleBodySize/NativeTabletLayout.animationScale(view.bounds.size)},smokePresentationScale:NativeTabletLayout.applies(view.bounds.size) ? 1.694*(variant == "barell" ? 1.15:1):1,smokeVerticalOffset:NativeTabletLayout.smokeVerticalOffset(view.bounds.size),bushPresentationScale:NativeTabletLayout.applies(view.bounds.size) && variant == "flower" ? 1.15:1,blossomCaptionFillsWidth:UIDevice.current.userInterfaceIdiom == .pad,flowerArtworkScale:NativeTabletLayout.applies(view.bounds.size) && variant == "flower" ? 1/NativeTabletLayout.animationScale(view.bounds.size):1)
+            let tnt = NativeTntVariantPresentation(resourceRoot:resourceRoot,variant:variant == "coconut" ? .coconut:variant == "flower" ? .flower:variant == "bloob-ball" ? .bloobGas:.barell,viewport:finaleViewport,preparedArtwork:selectedFinaleArtwork(),coconutBoardBodySize:boardScene.map{$0.coconutFinaleBodySize/NativeTabletLayout.animationScale(view.bounds.size)},smokePresentationScale:NativeTabletLayout.applies(view.bounds.size) ? 1.694*(variant == "barell" ? 1.15*1.30:1):(variant == "barell" ? 1.20*1.30*1.10*1.20:1),smokeVerticalOffset:NativeTabletLayout.smokeVerticalOffset(view.bounds.size),bushPresentationScale:NativeTabletLayout.applies(view.bounds.size) && variant == "flower" ? 1.15:1,blossomCaptionFillsWidth:UIDevice.current.userInterfaceIdiom == .pad,flowerArtworkScale:NativeTabletLayout.applies(view.bounds.size) && variant == "flower" ? 1/NativeTabletLayout.animationScale(view.bounds.size):1)
             guard tnt.assetsReady else { tnt.dispose(); return false }
             if variant == "coconut" {tnt.bindScreenShake(to:view)}
             if variant == "bloob-ball" {tnt.bindBoardReaction(boardScene?.makeBloobBoardReaction())}
@@ -1314,6 +1311,9 @@ final class NativeGameplayViewController: UIViewController {
             completion()
         }
         NativeTabletLayout.projectAnimation(owner,viewport:view.bounds.size)
+        if variant == "barell",!NativeTabletLayout.applies(view.bounds.size) {
+            owner.center.y += view.bounds.height*0.05
+        }
         bindFinalMergeProgress(owner,generation:generation);owner.start(); return true
     }
 

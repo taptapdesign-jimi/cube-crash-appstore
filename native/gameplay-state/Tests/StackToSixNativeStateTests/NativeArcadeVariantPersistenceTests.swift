@@ -14,6 +14,33 @@ final class NativeArcadeVariantPersistenceTests: XCTestCase {
         XCTAssertEqual(progression.arcadeStats(for: .endurance).highScore, 1234)
         XCTAssertEqual(progression.arcadeStats(for: .slowBurn).highScore, 1234)
     }
+    func testRecordsHistoriesAndResetRemainIndependentAfterSaveReload() throws {
+        var progression=NativeProgressionState()
+        for (index, variant) in NativeArcadeVariant.allCases.enumerated() {
+            progression.beginAttempt(mode:.arcade,board:index+2,arcadeVariant:variant,now:100)
+            progression.finishAttempt(mode:.arcade,board:index+2,score:(index+1)*1000,
+                longestCombo:index+3,cubesCracked:index+4,clean:true,arcadeVariant:variant,now:101)
+            progression.finishAttempt(mode:.arcade,board:index+3,score:(index+1)*100,
+                longestCombo:1,cubesCracked:2,clean:false,arcadeVariant:variant,now:102)
+        }
+        var loaded=try JSONDecoder().decode(NativeProgressionState.self,from:JSONEncoder().encode(progression))
+        for (index, variant) in NativeArcadeVariant.allCases.enumerated() {
+            let stats=loaded.arcadeStats(for:variant)
+            XCTAssertEqual(stats.highScore,(index+1)*1000)
+            XCTAssertEqual(stats.longestCombo,index+3)
+            XCTAssertEqual(stats.cubesCracked,index+6)
+            XCTAssertEqual(stats.highestStageOpened,index+3)
+            XCTAssertEqual(stats.scoreHistory?.map(\.value),[(index+1)*1000,(index+1)*100])
+            XCTAssertEqual(stats.comboHistory?.map(\.value),[index+3,1])
+        }
+        let endurance=loaded.arcadeStats(for:.endurance),slow=loaded.arcadeStats(for:.slowBurn)
+        loaded.resetArcadeStats(for:.pureDice)
+        let reset=try JSONDecoder().decode(NativeProgressionState.self,from:JSONEncoder().encode(loaded))
+        XCTAssertEqual(reset.arcadeStats(for:.pureDice),NativeArcadeStats())
+        XCTAssertEqual(reset.arcadeStats(for:.endurance),endurance)
+        XCTAssertEqual(reset.arcadeStats(for:.slowBurn),slow)
+        XCTAssertTrue(reset.boardStats.isEmpty)
+    }
     func testLegacyDocumentDefaultsToEnduranceWithoutLosingRunOrRecord() throws {
         var original = NativeSaveEnvelope()
         original.arcadeRun = NativeBoardFactory.make(mode: .arcade, board: 3)

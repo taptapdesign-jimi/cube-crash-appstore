@@ -37,7 +37,7 @@ describe('native Home/Hub outgoing-pose source contracts', () => {
     expect(activation).toContain('onActivate?(selectedSlide)');
     expect(activation).not.toContain('self.onActivate');
     expect(method('navigate')).toContain('home.cancelPan(preservingCTAFeedback: true)');
-    expect(home).toContain('if !preservingCTAFeedback { resetCTAFeedback() }');
+    expect(home).toMatch(/if !preservingCTAFeedback\s*\{\s*resetCTAFeedback\(\)\s*\}/);
   });
   test('Settings and Arcade exit natively before retiring the cover; tutorial still uses its canonical source', () => {
     expect(method('navigate')).toContain('if isWebSource && !nativeHomeExit');
@@ -67,7 +67,8 @@ describe('native Home/Hub outgoing-pose source contracts', () => {
   test('Journey header layout preserves authored bounds and top edge while its route pivot changes', () => {
     const layout = hub.slice(hub.indexOf('override func layoutSubviews()'), hub.indexOf('private func cloudWorldID'))
       .replace(/\/\/[^\n]*/g, '');
-    expect(layout).toContain('header.bounds = CGRect(x: 0, y: 0, width: width, height: headerTop + 66)');
+    expect(layout).toContain('let row=JimiV9NavigationHeader.RowLayout(bounds:bounds,safeAreaTop:top)');
+    expect(layout).toContain('header.bounds = CGRect(x: 0, y: 0, width: width, height: row.headerHeight())');
     expect(layout).toContain('header.layer.position = CGPoint(x: width * header.layer.anchorPoint.x,');
     expect(layout).toContain('y: header.bounds.height * header.layer.anchorPoint.y)');
     expect(layout).not.toContain('header.frame =');
@@ -216,4 +217,16 @@ describe('native Home/Hub outgoing-pose source contracts', () => {
     ordered(body,'self.generation == owner','guard case .success(let accepted)','self.releaseStaleNativeWorldCoverage()','self.nativeWorld.worldView?.finishPresentationAdmission()');
     expect(body).toContain('"generation": snapshot.generation, "revision": snapshot.revision');
   });
+});
+
+// User2026-11-06: changing this contract requires an explicit user request.
+test('LOCKED shared navigation height has no World-specific override', () => {
+  const artwork = fs.readFileSync('native/jimi-2026/JimiV9Artwork.swift', 'utf8');
+  expect(artwork).toContain('static let contentHeight:CGFloat=66');
+  expect(artwork).toContain('init(bounds:CGRect,safeAreaTop:CGFloat)');
+  for (const file of ['JimiNativeWorldView.swift', 'JimiV9HubView.swift', 'JimiNativeSettingsView.swift']) {
+    const source = fs.readFileSync(`native/jimi-2026/${file}`, 'utf8');
+    expect(source).not.toMatch(/RowLayout\([^\n]*contentHeight:/);
+    expect(source).toMatch(/height:\s*row\.headerHeight\(\)/);
+  }
 });
