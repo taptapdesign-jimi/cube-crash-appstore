@@ -1,3 +1,14 @@
+## 2026-11-08 · Verified iPhone-first Git publication
+
+Physical install/normal launch completed before commit or push. Source checkpoint
+`6da66e8329304cb26d037653aaaa29953a7844e9` (98project files) was pushed to
+`origin/main` at https://github.com/taptapdesign-jimi/cube-crash-appstore.git;
+independent ls-remote returned that exact SHA. All current project changes saved;
+only the unrelated private legal PDF remains untracked/local. Prior immutable
+production-ready-v1 and benchmark tags were not moved. This receipt-only follow-up
+has no runtime change;final remote verification is also retained in
+`/tmp/native-phone-git-20261108/git-publication.json`.
+
 ## 2026-11-08 · Current Native Release installed on iPhone13blue before Git checkpoint
 
 User explicitly requests physical installation first,then save all project changes
