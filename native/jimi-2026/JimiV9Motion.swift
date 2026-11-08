@@ -401,13 +401,47 @@ enum JimiV9Motion {
 /// changing the authored shape or the other coach callers.
 @MainActor
 enum NativeCoachCopyMotion {
+    static let collectHoldExtension=1.3
+    static let collectLifespan=2.8+collectHoldExtension
+    static func collectGlyph(_ letter:Character,font:UIFont)->UILabel {
+        let glyph=UILabel();glyph.text=String(letter);glyph.font=font;glyph.textColor = .white
+        glyph.shadowColor=nil;glyph.shadowOffset = .zero;glyph.layer.shadowOpacity=0
+        glyph.textAlignment = .center;glyph.isAccessibilityElement=false;glyph.isUserInteractionEnabled=false;glyph.clipsToBounds=false
+        glyph.layer.opacity=0;glyph.layer.isDoubleSided=false
+        for (radius,_,opacity) in NativeSplashGlyphField.neonGlowLayers.reversed() {
+            let halo=UILabel();halo.text=glyph.text;halo.font=glyph.font;halo.textColor = .white;halo.textAlignment = .center
+            halo.isUserInteractionEnabled=false;halo.isAccessibilityElement=false;halo.clipsToBounds=false
+            halo.shadowColor=nil;halo.shadowOffset = .zero
+            halo.layer.shadowColor=UIColor(red:244/255,green:141/255,blue:89/255,alpha:1).cgColor
+            halo.layer.shadowOpacity=opacity*0.5;halo.layer.shadowRadius=radius;halo.layer.shadowOffset = .zero
+            glyph.addSubview(halo)
+        }
+        return glyph
+    }
+    static func layoutCollectGlyphs(_ glyphs:[UILabel],in bounds:CGRect,font:UIFont) {
+        let attributes:[NSAttributedString.Key:Any]=[.font:font]
+        let text=glyphs.compactMap(\.text).joined()
+        var x=(bounds.width-(text as NSString).size(withAttributes:attributes).width)/2
+        for glyph in glyphs {
+            let width=((glyph.text ?? "") as NSString).size(withAttributes:attributes).width
+            glyph.bounds=CGRect(x:0,y:0,width:width+4,height:bounds.height)
+            glyph.center=CGPoint(x:x+width/2,y:bounds.midY);x+=width
+            glyph.subviews.compactMap{$0 as? UILabel}.forEach{$0.frame=glyph.bounds}
+        }
+    }
+    static func installCollect(on layer:CALayer,index:Int,key:String,beginTime:CFTimeInterval) {
+        install(on:layer,index:index,lifespan:collectLifespan,key:key,beginTime:beginTime,speedMultiplier:2.25,staggerMultiplier:0.4,breathes:true,letterExit:true,holdExtension:collectHoldExtension)
+    }
     static let rate=1.5
     static let fadeDuration=0.15
-    static func pose(at elapsed:Double,index:Int,lifespan:Double=2.8,speedMultiplier:Double=1,staggerMultiplier:Double=1,breathes:Bool=false,letterExit:Bool=false)->NativeArcadeRoundPresentation.Pose {
-        var result=NativeStudioIntroView.presentsPose(at:NativeStudioIntroView.presentsEntryStart+elapsed*rate*speedMultiplier+Double(index)*NativeStudioIntroView.presentsLetterStagger*(1-staggerMultiplier),index:index)
+    static func pose(at elapsed:Double,index:Int,lifespan:Double=2.8,speedMultiplier:Double=1,staggerMultiplier:Double=1,breathes:Bool=false,letterExit:Bool=false,holdExtension:Double=0)->NativeArcadeRoundPresentation.Pose {
+        let letterDuration=NativeStudioIntroView.presentsEntryDuration-7*NativeStudioIntroView.presentsLetterStagger
+        let settledAt=(letterDuration+Double(index)*NativeStudioIntroView.presentsLetterStagger*staggerMultiplier)/(rate*speedMultiplier)
+        // Insert a settled hold before the inherited Studio exit as well as
+        // delaying the explicit letter exit; extending only lifespan exits too early.
+        let sourceAge=elapsed<=settledAt ? elapsed:max(settledAt,elapsed-max(0,holdExtension))
+        var result=NativeStudioIntroView.presentsPose(at:NativeStudioIntroView.presentsEntryStart+sourceAge*rate*speedMultiplier+Double(index)*NativeStudioIntroView.presentsLetterStagger*(1-staggerMultiplier),index:index)
         if breathes {
-            let letterDuration=NativeStudioIntroView.presentsEntryDuration-7*NativeStudioIntroView.presentsLetterStagger
-            let settledAt=(letterDuration+Double(index)*NativeStudioIntroView.presentsLetterStagger*staggerMultiplier)/(rate*speedMultiplier)
             if elapsed>=settledAt {
                 result.scale *= NativeSplashGlyphField.captionIdleScale(time:elapsed-settledAt,bounce:1.03+CGFloat(index%4)*0.01)
             }
@@ -425,10 +459,10 @@ enum NativeCoachCopyMotion {
     }
     /// beginTime is the caller's shared host epoch, converted to each glyph's
     /// local clock so letter staggering remains encoded solely in the recipe.
-    static func install(on layer:CALayer,index:Int,lifespan:Double=2.8,key:String="native.coach.copy",beginTime:CFTimeInterval?=nil,speedMultiplier:Double=1,staggerMultiplier:Double=1,breathes:Bool=false,letterExit:Bool=false) {
+    static func install(on layer:CALayer,index:Int,lifespan:Double=2.8,key:String="native.coach.copy",beginTime:CFTimeInterval?=nil,speedMultiplier:Double=1,staggerMultiplier:Double=1,breathes:Bool=false,letterExit:Bool=false,holdExtension:Double=0) {
         guard lifespan.isFinite,lifespan>0 else{return}
         let count=max(1,Int(ceil(lifespan*120)))
-        let poses=(0...count).map{pose(at:lifespan*Double($0)/Double(count),index:index,lifespan:lifespan,speedMultiplier:speedMultiplier,staggerMultiplier:staggerMultiplier,breathes:breathes,letterExit:letterExit)}
+        let poses=(0...count).map{pose(at:lifespan*Double($0)/Double(count),index:index,lifespan:lifespan,speedMultiplier:speedMultiplier,staggerMultiplier:staggerMultiplier,breathes:breathes,letterExit:letterExit,holdExtension:holdExtension)}
         let transform=CAKeyframeAnimation(keyPath:"transform"),opacity=CAKeyframeAnimation(keyPath:"opacity")
         transform.values=poses.map{NSValue(caTransform3D:$0.transform)}
         opacity.values=poses.map{NSNumber(value:Double($0.alpha))}

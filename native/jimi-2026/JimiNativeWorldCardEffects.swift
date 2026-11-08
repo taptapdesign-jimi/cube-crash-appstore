@@ -1,18 +1,11 @@
 import UIKit
 
-/// Installation-local onboarding; deliberately separate from game/profile saves.
+/// Screen-local inactivity configuration; no installation or save acknowledgement.
 @MainActor
 final class JimiNativeWorldCardCoachPolicy {
-    static let shared=JimiNativeWorldCardCoachPolicy(defaults:.standard)
-    private static let seenKey="native.journey.card.dragFlipHintSeen.v1"
-    private let defaults:UserDefaults?
-    private var claimed=false
-    init(defaults:UserDefaults?=nil){self.defaults=defaults}
-    var immediateDragAvailable:Bool {!claimed && !(defaults?.bool(forKey:Self.seenKey) ?? false)}
-    func claimImmediateDrag()->Bool {
-        guard immediateDragAvailable else{return false}
-        claimed=true;defaults?.set(true,forKey:Self.seenKey);return true
-    }
+    static let shared=JimiNativeWorldCardCoachPolicy()
+    let idleInterval:Double
+    init(idleInterval:Double=10){self.idleInterval=max(2.1,idleInterval)}
 }
 
 /// Authored finite modal-only effects. No display link, recurring timer, bitmap
@@ -21,6 +14,7 @@ final class JimiNativeWorldCardCoachPolicy {
 final class JimiNativeWorldCardEffects {
     private weak var front: UIImageView?
     private weak var impact: UIView?
+    private weak var flip:CALayer?
     private weak var overlay: UIView?
     private let foil = CALayer(), gold = CAGradientLayer(), rainbow = CAGradientLayer()
     private let hand = UIImageView(), copy = UIView()
@@ -31,16 +25,20 @@ final class JimiNativeWorldCardEffects {
     private var active = true, ended = false
     private var frontFacing = false
     private var permitted = false
-    private var openingCoachPending=false
-    private var pointerPreparationFinished=false
+    private final class IdleReceipt:NSObject,CAAnimationDelegate {
+        weak var owner:JimiNativeWorldCardEffects?
+        init(_ owner:JimiNativeWorldCardEffects){self.owner=owner}
+        func animationDidStop(_ animation:CAAnimation,finished:Bool){owner?.idleCompleted(self,finished:finished)}
+    }
+    private var idleReceipt:IdleReceipt?
     private let coachSession:JimiNativeWorldCardCoachPolicy
     private var originalGold: [CGColor] = [], originalRainbow: [CGColor] = []
 
     init(front: UIImageView? = nil, impact: UIView, overlay: UIView, assets: JimiV9Artwork,
-         resources: JimiNativeWorldResources, boardID: Int, rarity: String = "common",
+         resources: JimiNativeWorldResources, boardID: Int, rarity: String = "common",flip:CALayer?=nil,
          coachSession:JimiNativeWorldCardCoachPolicy? = nil) {
         self.coachSession=coachSession ?? .shared
-        self.front = front; self.impact = impact; self.overlay = overlay
+        self.front = front; self.impact = impact; self.overlay = overlay;self.flip=flip
         self.assets = assets; self.rarity = rarity
         if let front {idleShine=NativeCardIdleShine(front:front)}
         foil.name = "modal.legendary.foil";rainbow.name = "modal.legendary.rainbow";gold.name = "modal.legendary.gold"
@@ -57,16 +55,15 @@ final class JimiNativeWorldCardEffects {
         foil.addSublayer(rainbow); foil.addSublayer(gold); if rarity == "legendary" {front?.layer.addSublayer(foil)}
         resources.prepare(["assets/hand-pointer.png"],owner:boardID) { [weak self,weak resources] accepted in
             guard let self,!self.ended else{return}
-            self.pointerPreparationFinished=true
             if accepted {self.hand.image = resources?.image("assets/hand-pointer.png",owner:boardID)}
             self.layout()
-            if self.openingCoachPending,self.active,self.permitted {
-                self.present(frontFacing:self.frontFacing,opening:self.hand.image != nil)
+            if self.active,self.permitted {
+                self.present(frontFacing:self.frontFacing)
             }
         }
         hand.contentMode = .scaleAspectFit; hand.isUserInteractionEnabled = false; hand.layer.opacity = 0
         hand.layer.shadowColor = color(132,82,63,1);hand.layer.shadowOpacity = 0.24;hand.layer.shadowOffset = CGSize(width:0,height:12);hand.layer.shadowRadius = 16
-        copy.isUserInteractionEnabled = false; overlay.addSubview(hand);overlay.addSubview(copy)
+        copy.accessibilityIdentifier="native.world.card.coach-copy";copy.isUserInteractionEnabled = false; overlay.addSubview(hand);overlay.addSubview(copy)
     }
     private func color(_ r:CGFloat,_ g:CGFloat,_ b:CGFloat,_ a:CGFloat) -> CGColor { UIColor(red:r/255,green:g/255,blue:b/255,alpha:a).cgColor }
     func layout() {
@@ -82,6 +79,7 @@ final class JimiNativeWorldCardEffects {
         let width = min(overlay.bounds.width*0.36,168), aspect = (hand.image?.size.height ?? 1)/max(1,hand.image?.size.width ?? 1)
         hand.bounds = CGRect(x:0,y:0,width:width,height:width*aspect);hand.center = CGPoint(x:overlay.bounds.midX,y:overlay.bounds.height*0.56)
         copy.frame = CGRect(x:0,y:overlay.bounds.height-overlay.safeAreaInsets.bottom-72,width:overlay.bounds.width,height:38)
+        NativeCoachCopyMotion.layoutCollectGlyphs(letters,in:copy.bounds,font:assets.font(size:32,weight:"ExtraBold"))
         CATransaction.commit()
     }
     private func animate(_ layer:CALayer,key:String,values:[Any],times:[Double],duration:Double,delay:Double = 0,path:String) {
@@ -90,22 +88,35 @@ final class JimiNativeWorldCardEffects {
         animation.timingFunctions = Array(repeating:CAMediaTimingFunction(controlPoints:0.22,1,0.36,1),count:max(0,times.count-1))
         animation.isRemovedOnCompletion = true;layer.add(animation,forKey:key)
     }
-    func present(frontFacing:Bool = false,opening:Bool = false) {
-        cancel(handoff:false);self.frontFacing = frontFacing;permitted = true
-        openingCoachPending=opening
-        guard active,!ended,!UIAccessibility.isReduceMotionEnabled else {return}
-        // Opening flight normally covers pointer preparation. If decoding is
-        // late, retain this visible opening rather than consuming an unseen cue.
-        if opening,coachSession.immediateDragAvailable,hand.image == nil,!pointerPreparationFinished {return}
-        openingCoachPending=false
-        let immediate=opening && hand.image != nil && openingVisible && coachSession.claimImmediateDrag()
+    func present(frontFacing:Bool = false) {
+        cancel(handoff:false);self.frontFacing=frontFacing;permitted=true
+        guard active,!ended,!UIAccessibility.isReduceMotionEnabled else{return}
         if frontFacing {
             idleShine?.setVisible(true)
             if rarity == "legendary" {holo()}
         }
-        if immediate {coach()}
+        scheduleIdleCoach()
     }
-    private var openingVisible:Bool {
+    func resetInactivity() {
+        idleReceipt?.owner=nil;idleReceipt=nil;copy.layer.removeAnimation(forKey:"modal.coach.idle")
+        scheduleIdleCoach()
+    }
+    private func scheduleIdleCoach() {
+        guard active,permitted,!ended,!UIAccessibility.isReduceMotionEnabled,
+              hand.image != nil,surfaceVisible else{return}
+        let receipt=IdleReceipt(self);idleReceipt=receipt
+        // A finite neutral compositor track owns the wait; no timer/display link.
+        let wait=CABasicAnimation(keyPath:"opacity");wait.fromValue=1;wait.toValue=1
+        wait.duration=coachSession.idleInterval;wait.delegate=receipt
+        copy.layer.add(wait,forKey:"modal.coach.idle")
+    }
+    private func idleCompleted(_ receipt:IdleReceipt,finished:Bool) {
+        guard idleReceipt === receipt else{return}
+        receipt.owner=nil;idleReceipt=nil
+        guard finished,active,permitted,!ended,surfaceVisible,!UIAccessibility.isReduceMotionEnabled else{return}
+        coach();scheduleIdleCoach()
+    }
+    private var surfaceVisible:Bool {
         guard let overlay,overlay.window != nil else{return false}
         var surface:UIView?=overlay
         while let current=surface {
@@ -151,6 +162,14 @@ final class JimiNativeWorldCardEffects {
         guard let impact else {return}
         let times=[0.0,0.28,0.68,1]
         let values=[0.0,-34,38,0].map{NSValue(caTransform3D:CATransform3DMakeTranslation($0,0,0))}
+        if let flip {
+            let turn=CAKeyframeAnimation(keyPath:"transform.rotation.y")
+            turn.values=[0.0,-0.3 * Double.pi,0.3 * Double.pi,0];turn.keyTimes=times.map(NSNumber.init(value:))
+            turn.duration=2.1;turn.isAdditive=true
+            turn.beginTime=flip.convertTime(CACurrentMediaTime(),from:nil)+delay
+            turn.timingFunctions=Array(repeating:CAMediaTimingFunction(controlPoints:0.22,1,0.36,1),count:3)
+            flip.add(turn,forKey:"modal.coach.flip")
+        }
         animate(impact.layer,key:"modal.coach.impact",values:values,times:times,duration:2.1,delay:delay,path:"transform")
         let handStops:[(Double,Double,Double,Double,Double,Double)] = [(0,0,0.18,-10,0.78,0),(0.16,-34,0,-10,0.96,1),(0.68,38,0,-5,0.96,1),(1,0,0.18,-7,0.84,0)]
         let transforms = handStops.map { stop -> NSValue in var pose = CATransform3DMakeTranslation(stop.1,stop.2*hand.bounds.height,80);pose = CATransform3DRotate(pose,stop.3 * .pi/180,0,0,1);return NSValue(caTransform3D:CATransform3DScale(pose,stop.4,stop.4,1)) }
@@ -158,32 +177,41 @@ final class JimiNativeWorldCardEffects {
         animate(hand.layer,key:"modal.coach.hand.alpha",values:handStops.map{$0.5},times:handStops.map{$0.0},duration:2.1,delay:delay,path:"opacity")
         letters.forEach{$0.removeFromSuperview()};letters.removeAll()
         let text = "DRAG TO FLIP"
-        var x:CGFloat = 0
         let copyEpoch=CACurrentMediaTime()+delay
         for (index,character) in text.enumerated() {
-            let label = UILabel();label.text = String(character);label.font = assets.font(size:32*(index%3 == 0 ? 0.92 : index%3 == 1 ? 1.06 : 1),weight:"ExtraBold")
-            label.textColor = .white;label.layer.shadowColor = color(159,105,82,1);label.layer.shadowOpacity = 0.34;label.layer.shadowOffset = CGSize(width:0,height:3);label.layer.shadowRadius = 0
-            label.sizeToFit();let width:CGFloat = character == " " ? 32*0.34 : max(1,label.bounds.width-1.2)
-            label.frame = CGRect(x:x,y:0,width:width,height:38);x += width;label.layer.opacity = 0;copy.addSubview(label);letters.append(label)
-            NativeCoachCopyMotion.install(on:label.layer,index:index,lifespan:2.1,key:"modal.coach.copy",beginTime:copyEpoch)
+            let label=NativeCoachCopyMotion.collectGlyph(character,font:assets.font(size:32,weight:"ExtraBold"))
+            copy.addSubview(label);letters.append(label)
+            NativeCoachCopyMotion.installCollect(on:label.layer,index:index,key:"modal.coach.copy",beginTime:copyEpoch)
         }
-        for letter in letters {letter.frame.origin.x += (copy.bounds.width-x)/2}
+        NativeCoachCopyMotion.layoutCollectGlyphs(letters,in:copy.bounds,font:assets.font(size:32,weight:"ExtraBold"))
     }
     func cancel(handoff:Bool = true) {
         permitted = false
         idleShine?.setVisible(false)
-        openingCoachPending=false
+        idleReceipt?.owner=nil;idleReceipt=nil;copy.layer.removeAnimation(forKey:"modal.coach.idle")
         if let impact {let pose = impact.layer.presentation()?.transform ?? impact.layer.transform;let coached = impact.layer.animation(forKey:"modal.coach.impact") != nil;impact.layer.removeAnimation(forKey:"modal.coach.impact")
             if handoff,coached,active,!UIAccessibility.isReduceMotionEnabled {animate(impact.layer,key:"modal.coach.handoff",values:[NSValue(caTransform3D:pose),NSValue(caTransform3D:CATransform3DIdentity)],times:[0,1],duration:0.16,path:"transform")}
             else {impact.layer.removeAllAnimations()}}
+        if let flip {
+            let coached=flip.animation(forKey:"modal.coach.flip") != nil || flip.animation(forKey:"modal.coach.flip-handoff") != nil
+            let painted=(flip.presentation()?.value(forKeyPath:"transform.rotation.y") as? NSNumber)?.doubleValue ?? 0
+            let base=(flip.value(forKeyPath:"transform.rotation.y") as? NSNumber)?.doubleValue ?? 0
+            let delta=atan2(sin(painted-base),cos(painted-base))
+            flip.removeAnimation(forKey:"modal.coach.flip");flip.removeAnimation(forKey:"modal.coach.flip-handoff")
+            if coached,handoff,active,!UIAccessibility.isReduceMotionEnabled {
+                let settle=CABasicAnimation(keyPath:"transform.rotation.y");settle.fromValue=delta;settle.toValue=0
+                settle.isAdditive=true;settle.duration=0.16;settle.timingFunction=CAMediaTimingFunction(controlPoints:0.22,1,0.36,1)
+                flip.add(settle,forKey:"modal.coach.flip-handoff")
+            }
+        }
         for layer in [foil,gold,rainbow,hand.layer] {layer.removeAllAnimations()}
         letters.forEach{$0.layer.removeAllAnimations()}
         CATransaction.begin();CATransaction.setDisableActions(true);foil.opacity = 0;gold.colors = originalGold;rainbow.colors = originalRainbow;gold.transform = CATransform3DIdentity;rainbow.transform = CATransform3DIdentity;CATransaction.commit()
     }
     func setActive(_ value:Bool) {
-        guard active != value,!ended else{return};let wasPermitted = permitted,wasOpening=openingCoachPending;active = value
-        if !value {cancel(handoff:false);permitted = wasPermitted;openingCoachPending=wasOpening}
-        else if wasPermitted {present(frontFacing:frontFacing,opening:wasOpening)}
+        guard active != value,!ended else{return};let wasPermitted = permitted;active = value
+        if !value {cancel(handoff:false);permitted = wasPermitted}
+        else if wasPermitted {present(frontFacing:frontFacing)}
     }
     func cleanup(){guard !ended else{return};ended = true;cancel(handoff:false);idleShine?.dispose();idleShine=nil;foil.mask?.contents=nil;foil.mask=nil;foil.removeFromSuperlayer();hand.removeFromSuperview();copy.removeFromSuperview()}
 }

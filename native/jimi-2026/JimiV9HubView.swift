@@ -8,13 +8,15 @@ private final class JimiV9HubScrollView: UIScrollView {
     }
 }
 
-/// The36pt crate source must fill its authored navigation box on tablet too.
-/// UIKit's default UIButton image rect caps small originals at intrinsic size.
+/// Crate artwork uses90percent of its authored box for optical Backpack parity.
+/// Keep the full button/hit area and upscale the small source on tablet.
 @MainActor
 final class JimiV9HubNavigationButton:JimiV9PlainButton {
     var fillsArtworkBox=false
     override func imageRect(forContentRect contentRect:CGRect)->CGRect {
-        fillsArtworkBox ? contentRect.inset(by:imageEdgeInsets):super.imageRect(forContentRect:contentRect)
+        guard fillsArtworkBox else{return super.imageRect(forContentRect:contentRect)}
+        let artwork=contentRect.inset(by:imageEdgeInsets)
+        return artwork.insetBy(dx:artwork.width*0.05,dy:artwork.height*0.05)
     }
 }
 

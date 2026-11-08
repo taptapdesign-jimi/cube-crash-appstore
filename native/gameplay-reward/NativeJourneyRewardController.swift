@@ -107,19 +107,8 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         coach.clipsToBounds=false;coach.isAccessibilityElement=true
         coach.shadowColor=nil;coach.shadowOffset = .zero;coach.layer.shadowOpacity=0
         coachGlyphs=Array(coach.text ?? "").enumerated().map { index,letter in
-            let glyph=UILabel();glyph.text=String(letter);glyph.font=coach.font;glyph.textColor = .white
-            glyph.shadowColor=nil;glyph.shadowOffset = .zero;glyph.layer.shadowOpacity=0
-            glyph.textAlignment = .center;glyph.isAccessibilityElement=false;glyph.isUserInteractionEnabled=false;glyph.clipsToBounds=false
-            glyph.accessibilityIdentifier="native.reward.coach-glyph.\(index)";glyph.layer.opacity=0;glyph.layer.isDoubleSided=false
-            // Preserve the four original orange glow decorations on each letter.
-            for (radius,_,opacity) in NativeSplashGlyphField.neonGlowLayers.reversed() {
-                let halo=UILabel();halo.text=glyph.text;halo.font=glyph.font;halo.textColor = .white;halo.textAlignment = .center
-                halo.isUserInteractionEnabled=false;halo.isAccessibilityElement=false;halo.clipsToBounds=false
-                halo.shadowColor=nil;halo.shadowOffset = .zero
-                halo.layer.shadowColor=UIColor(red:244/255,green:141/255,blue:89/255,alpha:1).cgColor
-                halo.layer.shadowOpacity=opacity*0.5;halo.layer.shadowRadius=radius;halo.layer.shadowOffset = .zero
-                glyph.addSubview(halo)
-            }
+            let glyph=NativeCoachCopyMotion.collectGlyph(letter,font:coach.font)
+            glyph.accessibilityIdentifier="native.reward.coach-glyph.\(index)"
             coach.addSubview(glyph);return glyph
         }
         hero.accessibilityIdentifier="native.reward.card";hero.accessibilityLabel="Reveal \(NativeRewardPresentation.name(board:board))";hero.accessibilityTraits = .button
@@ -187,15 +176,7 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         backTransform=CATransform3DRotate(backTransform,.pi,0,1,0)
         collectBack.layer.transform=CATransform3DScale(backTransform,NativeRewardPresentation.unlockedArtworkScale,NativeRewardPresentation.unlockedArtworkScale,1)
         place(hand,layout.hand);place(coach,layout.coach)
-        let copy=coach.text ?? "",attributes:[NSAttributedString.Key:Any]=[.font:coach.font!]
-        let copyWidth=(copy as NSString).size(withAttributes:attributes).width
-        var copyX=(coach.bounds.width-copyWidth)/2
-        for glyph in coachGlyphs {
-            let width=((glyph.text ?? "") as NSString).size(withAttributes:attributes).width
-            glyph.bounds=CGRect(x:0,y:0,width:width+4,height:coach.bounds.height)
-            glyph.center=CGPoint(x:copyX+width/2,y:coach.bounds.midY);copyX+=width
-            glyph.subviews.compactMap{$0 as? UILabel}.forEach{$0.frame=glyph.bounds}
-        }
+        NativeCoachCopyMotion.layoutCollectGlyphs(coachGlyphs,in:coach.bounds,font:coach.font)
         CATransaction.begin();CATransaction.setDisableActions(true)
         let effectScale=view.window?.screen.scale ?? view.traitCollection.displayScale
         for layer in [glow] {layer.contentsScale=max(1,effectScale);layer.allowsEdgeAntialiasing=true;layer.edgeAntialiasingMask=[.layerLeftEdge,.layerRightEdge,.layerTopEdge,.layerBottomEdge];layer.minificationFilter = .trilinear;layer.magnificationFilter = .linear}
@@ -444,18 +425,18 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         guard !reducedMotion,foreground,!disposed,revealed,!resolved else{return}
         later("coach",after:after) { [weak self] in
             guard let self else{return}
-            let life=2.8,epoch=CACurrentMediaTime()
-            self.keyframes(self.hand.layer,"opacity",values:[0,1,1,0],times:[0,0.12/life,2.65/life,1],duration:life)
+            let life=NativeCoachCopyMotion.collectLifespan,handLife=2.8,epoch=CACurrentMediaTime()
+            self.keyframes(self.hand.layer,"opacity",values:[0,1,1,0],times:[0,0.12/handLife,2.65/handLife,1],duration:handLife)
             let heights=[-0.28,-0.50,-0.38,-0.52,-0.34],rotations=[-8.0,-8,-6,-8,-7],scales=[0.78,0.96,0.84,1,0.84]
             var handPoses=(0..<5).map{NSValue(caTransform3D:self.spatial(scale:scales[$0],y:(heights[$0]+0.28)*self.hand.bounds.height,z:rotations[$0],depth:80))}
             handPoses.append(handPoses.last!)
-            self.keyframes(self.hand.layer,"transform",values:handPoses,times:[0,0.2*2.1/life,0.42*2.1/life,0.58*2.1/life,2.1/life,1],duration:life)
+            self.keyframes(self.hand.layer,"transform",values:handPoses,times:[0,0.2*2.1/handLife,0.42*2.1/handLife,0.58*2.1/handLife,2.1/handLife,1],duration:handLife)
             self.keyframes(self.pose.layer,"transform",values:[1,1,0.965,1.06,0.988,1,1].map{NSValue(caTransform3D:self.spatial(scale:$0))},times:[0,0.34,0.43,0.57,0.7,0.82,1],duration:2.1)
             self.keyframes(self.coach.layer,"opacity",values:[1,1],times:[0,1],duration:life)
             for (index,glyph) in self.coachGlyphs.enumerated() {
-                NativeCoachCopyMotion.install(on:glyph.layer,index:index,lifespan:life,key:"native.reward.coach.copy",beginTime:epoch,speedMultiplier:2.25,staggerMultiplier:0.4,breathes:true,letterExit:true)
+                NativeCoachCopyMotion.installCollect(on:glyph.layer,index:index,key:"native.reward.coach.copy",beginTime:epoch)
             }
-            self.scheduleCoach(after:4)
+            self.scheduleCoach(after:4+NativeCoachCopyMotion.collectHoldExtension)
         }
     }
     private func shine() {

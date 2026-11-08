@@ -25,6 +25,15 @@ nonisolated enum NativeRewardFilteredFrames {
             Task { @MainActor in guard !lease.cancelled else{return};completion(frames,glow) }
         }
     }
+    /// One selected final-score glyph raster, capped by the caller at512x160.
+    static func prepareResultScore(_ image:CGImage,lease:NativeRewardPreparationLease,completion:@escaping ([CGImage])->Void) {
+        queue.async {
+            guard !lease.cancelled else{return}
+            let frames=JimiNativeInterimEffect.renderBurn(image:image,size:CGSize(width:image.width,height:image.height),density:1,radius:0,exactAlpha:true,includeArtwork:false,uniformHighlight:true,cancelled:{lease.cancelled})
+            guard !lease.cancelled else{return}
+            Task { @MainActor in guard !lease.cancelled else{return};completion(frames) }
+        }
+    }
     static func prepareFaceEffects(_ image:CGImage,lease:NativeRewardPreparationLease,completion:@escaping (NativeMagicCardSource.Node)->Void) {
         queue.async {
             guard !lease.cancelled else{return}

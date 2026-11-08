@@ -176,6 +176,11 @@ final class NativeResultController:UIViewController {
     private let scoreBlurScale:CGFloat=2
     private let scoreBlurPadding:CGFloat=12
     private var scoreAccentVisible=false
+    private let scoreBurn=CALayer()
+    private var scoreBurnFrames:[CGImage]=[]
+    private var scoreBurnLease:NativeRewardPreparationLease?
+    private var scoreBurnSize=CGSize.zero
+    private var scoreBurnFinished=false
     private let stars=UIView()
     private var empty:[UIImageView]=[]
     private var filled:[UIImageView]=[]
@@ -256,7 +261,7 @@ final class NativeResultController:UIViewController {
             front.accessibilityIdentifier="native.result.star.filled.\(index)"
             empty.append(back);filled.append(front)
             if clean,index<earnedStars,front.image?.cgImage != nil {
-                starEffects.append(NativeResultStarEffect(star:front,index:index))
+                starEffects.append(NativeResultStarEffect(star:front,readyAt:0.6+Double(max(0,earnedStars-1))*0.5+0.6))
             }
             holder.transform=CGAffineTransform(rotationAngle:index == 0 ? -.pi*8/180 : index == 2 ? .pi*8/180 : 0)
         }
@@ -424,6 +429,7 @@ final class NativeResultController:UIViewController {
             content.transform = .identity
             content.center=CGPoint(x:view.bounds.midX,y:view.bounds.midY)
         }
+        prepareScoreBurn()
         confetti?.frame=view.bounds
     }
     /// Entry and exit poses can be zero-scale during a layout pass. UIKit's
@@ -537,6 +543,7 @@ final class NativeResultController:UIViewController {
             let shown=plan.displayedScore
             score.text=NativeScoreDisplay.text(shown)
             paintScoreAccent()
+            paintScoreBurn()
             moment("clean-score-stop",at:NativeResultPresentationPlan.finalScoreBounceStart(baseScore:state.score,combo:combo,efficiency:efficiency,arcadeReached:scoreOnlyArcadeSummary))
             if lastCounterValue != shown {
                 let previous=lastCounterValue;lastCounterValue=shown
@@ -572,6 +579,7 @@ final class NativeResultController:UIViewController {
         guard closingAt == nil,!disposed else {return}
         onMoment?("modal-exit",0,nil)
         if arcadeCue {dispose();dismiss(animated:false,completion:completion);return}
+        retireScoreBurn()
         retireScoreAccent()
         retireStarEffects()
         capturedStarScales=(0..<3).map{NativeResultPresentationPlan.filledStarScale(seconds:elapsed,index:$0)}
@@ -587,6 +595,47 @@ final class NativeResultController:UIViewController {
     private func retireStarEffects() {
         starEffectLease?.cancel();starEffectLease=nil
         starEffects.forEach{$0.dispose()};starEffects.removeAll();starEffectFrames.removeAll();starEffectGlow=nil
+    }
+    private func prepareScoreBurn() {
+        guard clean,!arcadeCue,!disposed,closingAt == nil,!scoreBurnFinished,
+              !UIAccessibility.isReduceMotionEnabled,score.bounds.width>0,score.bounds.height>0 else{return}
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        scoreBurn.frame=score.frame
+        CATransaction.commit()
+        guard scoreBurnSize != score.bounds.size else{return}
+        scoreBurnLease?.cancel();scoreBurnFrames.removeAll();scoreBurn.contents=nil
+        scoreBurnSize=score.bounds.size
+        let glyph=UILabel(frame:score.bounds)
+        glyph.font=score.font;glyph.textColor=score.textColor;glyph.textAlignment=score.textAlignment
+        glyph.text=NativeScoreDisplay.text(finalScore)
+        let format=UIGraphicsImageRendererFormat();format.opaque=false
+        format.scale=min(2,512/score.bounds.width,160/score.bounds.height)
+        let image=UIGraphicsImageRenderer(size:score.bounds.size,format:format).image{_ in glyph.drawText(in:glyph.bounds)}
+        guard let cg=image.cgImage else{return}
+        scoreBurn.name="native.result.score.burn";scoreBurn.opacity=0;scoreBurn.contentsGravity = .resize
+        if scoreBurn.superlayer == nil {scoreShake.layer.addSublayer(scoreBurn)}
+        let lease=NativeRewardPreparationLease();scoreBurnLease=lease
+        NativeRewardFilteredFrames.prepareResultScore(cg,lease:lease) { [weak self] frames in
+            guard let self,!self.disposed,self.closingAt == nil,!self.scoreBurnFinished else{return}
+            self.scoreBurnFrames=frames;self.paintScoreBurn()
+        }
+    }
+    /// Same epoch as clean-score-stop; one finite pass on the existing result clock.
+    private func paintScoreBurn() {
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        defer{CATransaction.commit()}
+        let start=NativeResultPresentationPlan.finalScoreBounceStart(baseScore:state.score,combo:combo,efficiency:efficiency,arcadeReached:scoreOnlyArcadeSummary)
+        let age=elapsed-start,duration=NativeStarBurnTiming.duration
+        if age>=duration {retireScoreBurn();return}
+        guard clean,!disposed,!suspended,presentationAdmitted,closingAt == nil,
+              !UIAccessibility.isReduceMotionEnabled,viewIfLoaded?.window != nil,
+              age>=0,!scoreBurnFrames.isEmpty,!scoreBurnFinished else{scoreBurn.opacity=0;return}
+        scoreBurn.contents=scoreBurnFrames[min(scoreBurnFrames.count-1,Int(age/duration*Double(scoreBurnFrames.count)))]
+        scoreBurn.opacity=1
+    }
+    private func retireScoreBurn() {
+        scoreBurnFinished=true;scoreBurnLease?.cancel();scoreBurnLease=nil;scoreBurnFrames.removeAll()
+        scoreBurn.opacity=0;scoreBurn.contents=nil;scoreBurn.removeFromSuperlayer()
     }
     private func paintScoreAccent() {
         let accent=NativeResultPresentationPlan.counterAccent(seconds:elapsed,baseScore:state.score,combo:combo,efficiency:efficiency,arcadeReached:scoreOnlyArcadeSummary,reducedMotion:UIAccessibility.isReduceMotionEnabled)
@@ -644,14 +693,14 @@ final class NativeResultController:UIViewController {
         guard value || presentationAdmitted else{return}
         if clean,state.mode == .journey,(1...10).contains(state.board),closingAt == nil,!disposed {onForestAmbience?(true,value)}
         buttons.forEach{$0.setModalCTAIdleSuspended(value || disposed)}
-        suspended=value;paintStarEffects();lastTime=nil;link?.isPaused=value;arcadePresentation?.setSuspended(value);confetti?.setForeground(!value);area55Flybys?.setForeground(!value)
+        suspended=value;paintStarEffects();paintScoreBurn();lastTime=nil;link?.isPaused=value;arcadePresentation?.setSuspended(value);confetti?.setForeground(!value);area55Flybys?.setForeground(!value)
         if destinationPreparation != nil {
             if value {destinationLease &+= 1;destinationReady=false;destinationPending=false;paperFadeAt=nil;view.alpha=1}
             else {preparationFrames=2}
         }
     }
     func dispose() {
-        guard !disposed else {return};disposed=true;retireStarEffects();retireScoreAccent();buttons.forEach{$0.setModalCTAIdleSuspended(true)};onForestAmbience?(false,false);onForestAmbience=nil;link?.invalidate();link=nil;clockTarget=nil
+        guard !disposed else {return};disposed=true;retireScoreBurn();retireStarEffects();retireScoreAccent();buttons.forEach{$0.setModalCTAIdleSuspended(true)};onForestAmbience?(false,false);onForestAmbience=nil;link?.invalidate();link=nil;clockTarget=nil
         scoreBlurContext?.clearCaches();scoreBlurContext=nil
         arcadePresentation?.dispose();arcadePresentation=nil;confetti?.dispose();confetti=nil;area55Flybys?.dispose();area55Flybys=nil;forestBees?.dispose();forestBees=nil
         for observer in observations {NotificationCenter.default.removeObserver(observer)};observations.removeAll()
@@ -671,10 +720,10 @@ private final class NativeResultClockTarget:NSObject {
 @MainActor
 private final class NativeResultStarEffect {
     private weak var star:UIImageView?
-    private let index:Int
+    private var timing:NativeStarBurnTiming
     private let burn=CALayer(),glow=CALayer()
-    init(star:UIImageView,index:Int) {
-        self.star=star;self.index=index
+    init(star:UIImageView,readyAt:Double) {
+        self.star=star;timing=NativeStarBurnTiming(readyAt:readyAt)
         burn.name="native.result.star.burn";glow.name="native.result.star.burn-glow"
         for layer in [glow,burn] {layer.opacity=0;layer.contentsGravity = .resizeAspect;star.layer.addSublayer(layer)}
     }
@@ -685,20 +734,16 @@ private final class NativeResultStarEffect {
         CATransaction.commit()
     }
     func paint(seconds:Double,active:Bool,frames:[CGImage],glow image:CGImage?) {
-        let age=seconds-(0.6+Double(index)*0.5)
         CATransaction.begin();CATransaction.setDisableActions(true)
         defer{CATransaction.commit()}
-        guard active,age>=0,let star,!star.isHidden else{burn.opacity=0;glow.opacity=0;return}
-        // Match the interim-card burn's 0.63s lead, 1.1/1.3s pass and 3s cycle.
-        let phase=(age-0.63).truncatingRemainder(dividingBy:3),duration=1.1/1.3
-        let burning=age>=0.63 && phase<duration && !frames.isEmpty
-        burn.opacity=burning ? 1:0;glow.opacity=0
-        if burning {
-            burn.contents=frames[min(frames.count-1,Int(phase/duration*Double(frames.count)))]
-            let p=phase/duration,local=p<0.56 ? p/0.56:(p-0.56)/0.44
-            let eased=NativeResultPresentationPlan.bezier(local,0,0,0.58,1)
-            glow.contents=image;glow.opacity=Float(p<0.56 ? eased:1-eased)
-        }
+        guard active,let star,!star.isHidden,!frames.isEmpty,
+              let phase=timing.phase(at:seconds) else{burn.opacity=0;glow.opacity=0;return}
+        let duration=NativeStarBurnTiming.duration
+        burn.opacity=1;glow.opacity=0
+        burn.contents=frames[min(frames.count-1,Int(phase/duration*Double(frames.count)))]
+        let p=phase/duration,local=p<0.56 ? p/0.56:(p-0.56)/0.44
+        let eased=NativeResultPresentationPlan.bezier(local,0,0,0.58,1)
+        glow.contents=image;glow.opacity=Float(p<0.56 ? eased:1-eased)
     }
     func dispose() {
         for layer in [burn,glow] {layer.contents=nil;layer.mask=nil;layer.removeFromSuperlayer()}

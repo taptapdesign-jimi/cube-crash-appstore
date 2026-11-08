@@ -7,6 +7,73 @@ import StackToSixNativeState
 
 @MainActor
 final class NativeBackpackTests:XCTestCase {
+    func testBackpackAndBoxVisibleDiceOpenDuringFullscreenEntry() async throws {
+        for origin in [NativeAppController.Route.hub,.arcadeHub] {
+            var progression=NativeProgressionState();progression.lastOpenedJourneyBoard=2;progression.announceJourneyDie("bee",board:1)
+            var services=NativeAppServices(settings:{[:]},setPreference:{_,_ in},worldSnapshot:{_,_,_ in throw CancellationError()},markViewed:{_ in},makeGameplay:{_,_ in UIViewController()},flush:{})
+            services.journeyProgression={progression}
+            let app=NativeAppController(resourceRoot:NativeTestResources.root,services:services),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+            window.rootViewController=app;window.makeKeyAndVisible()
+            defer{app.dispose();window.isHidden=true;window.rootViewController=nil}
+            app.navigate(origin,interrupt:true)
+            try await waitForRetap{app.route==origin && !app.transitioning}
+            app.navigate(.backpack)
+            try await waitForRetap{app.route == .backpack && app.backpackView?.entrySelectionEnabled==true}
+            let screen=try XCTUnwrap(app.backpackView)
+            screen.layoutIfNeeded();screen.grid.layoutIfNeeded()
+            let cell=try XCTUnwrap(screen.grid.cellForItem(at:IndexPath(item:0,section:0)))
+            try await waitForRetap{(cell.layer.presentation().map{hypot($0.transform.m11,$0.transform.m12)} ?? 0)>0.15}
+            XCTAssertTrue(app.transitioning,"Select before the remaining grid entry completes")
+            XCTAssertTrue(screen.grid.isUserInteractionEnabled)
+            let painted=try XCTUnwrap(cell.layer.presentation())
+            let point=painted.convert(CGPoint(x:painted.bounds.midX,y:painted.bounds.midY),to:window.layer.presentation() ?? window.layer)
+            let die=try XCTUnwrap(screen.revealedDie(atWindowPoint:point))
+            screen.selectRevealedEntryDie(atWindowPoint:point)
+            let detail=try XCTUnwrap(app.presentedViewController as? NativeBackpackDetail)
+            XCTAssertEqual(detail.die.id,die.id)
+            screen.selectRevealedEntryDie(atWindowPoint:point)
+            XCTAssertTrue(app.presentedViewController === detail)
+            try await waitForRetap{!app.transitioning}
+            XCTAssertFalse(screen.isUserInteractionEnabled,"Late entry completion cannot enable covered grid")
+            try await waitForRetap{detail.card.isUserInteractionEnabled}
+            detail.closeTapped()
+            try await waitForRetap{app.presentedViewController==nil && screen.isUserInteractionEnabled}
+            XCTAssertTrue(screen.grid.isUserInteractionEnabled)
+        }
+    }
+    func testGameplayBackpackAndBoxVisibleDiceOpenDuringPaperEntry() async throws {
+        for arcade in [false,true] {
+            let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+            var progression=NativeProgressionState();progression.announceJourneyDie("bee",board:1)
+            let sections=NativeBackpackCatalog.sections(progression)
+            let controller=NativeGameplayBackpackController(root:NativeTestResources.root,sections:arcade ? []:[sections[0]],includesArcade:arcade,motion:NativeRouteMotion(home:JimiV9HomeView(frame:.zero,assets:assets),hub:JimiV9HubView(frame:.zero,assets:assets)))
+            let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+            window.rootViewController=host;window.makeKeyAndVisible()
+            defer{controller.dispose();host.dismiss(animated:false);window.isHidden=true;window.rootViewController=nil}
+            host.present(controller,animated:false)
+            let screen=try XCTUnwrap(controller.screen)
+            try await waitForRetap{screen.entrySelectionEnabled && controller.card.layer.animation(forKey:"gameplay.backpack.enter") != nil}
+            screen.layoutIfNeeded();screen.grid.layoutIfNeeded()
+            let cell=try XCTUnwrap(screen.grid.cellForItem(at:IndexPath(item:0,section:0)))
+            try await Task.sleep(for:.milliseconds(170))
+            XCTAssertTrue(screen.entrySelectionEnabled)
+            let painted=cell.layer.presentation() ?? cell.layer
+            let point=painted.convert(CGPoint(x:painted.bounds.midX,y:painted.bounds.midY),to:window.layer.presentation() ?? window.layer)
+            let die=try XCTUnwrap(screen.revealedDie(atWindowPoint:point))
+            controller.setForeground(false)
+            screen.selectRevealedEntryDie(atWindowPoint:point);XCTAssertNil(controller.detail)
+            controller.setForeground(true)
+            screen.selectRevealedEntryDie(atWindowPoint:point)
+            let detail=try XCTUnwrap(controller.detail)
+            XCTAssertEqual(detail.die.id,die.id);XCTAssertTrue(controller.switchingDetail)
+            XCTAssertFalse(controller.view.isUserInteractionEnabled)
+            try await Task.sleep(for:.milliseconds(750))
+            XCTAssertTrue(controller.detail === detail)
+            XCTAssertFalse(controller.view.isUserInteractionEnabled,"Stale paper-enter completion must not reactivate collection")
+            controller.dispose();controller.dispose()
+        }
+    }
+
     func testFullscreenNavigationOpacityFollowsScrollAndReset() throws {
         let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
         window.rootViewController=host;window.makeKeyAndVisible();defer{window.isHidden=true}
@@ -800,7 +867,7 @@ final class NativeBackpackTests:XCTestCase {
         var closed=0;controller.onClosed={closed += 1}
         host.present(controller,animated:false)
         let deadline=Date().addingTimeInterval(5)
-        while !controller.view.isUserInteractionEnabled,Date()<deadline {try await Task.sleep(for:.milliseconds(20))}
+        while (!controller.view.isUserInteractionEnabled || controller.screen?.entrySelectionEnabled==true),Date()<deadline {try await Task.sleep(for:.milliseconds(20))}
         XCTAssertTrue(controller.view.isUserInteractionEnabled)
         let drag=try XCTUnwrap(controller.modalDrag)
         XCTAssertTrue(drag.pan.view === controller.card)
@@ -831,7 +898,7 @@ final class NativeBackpackTests:XCTestCase {
         defer{controller.dispose();host.dismiss(animated:false);window.isHidden=true}
         host.present(controller,animated:false)
         let enterDeadline=Date().addingTimeInterval(5)
-        while !controller.view.isUserInteractionEnabled,Date()<enterDeadline {try await Task.sleep(for:.milliseconds(20))}
+        while (!controller.view.isUserInteractionEnabled || controller.screen?.entrySelectionEnabled==true),Date()<enterDeadline {try await Task.sleep(for:.milliseconds(20))}
         XCTAssertTrue(controller.view.isUserInteractionEnabled)
         let collectionIdle=try XCTUnwrap(controller.heading.superview)
         if !UIAccessibility.isReduceMotionEnabled {
@@ -1057,7 +1124,7 @@ final class NativeBackpackTests:XCTestCase {
         var legacy=NativeProgressionState();legacy.unlockedSpecialDice=["flower","juice"]
         XCTAssertEqual(NativeBackpackCatalog.sections(legacy).map(\.count),[0,0,0])
     }
-    func testGridStartsWithForestAndTwoWorldColumnsAndLockedTapIsInert() throws {
+    func testGridStartsWithForestAndThreeWorldColumnsAndLockedTapIsInert() throws {
         let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
         let screen=NativeBackpackView(frame:CGRect(x:0,y:0,width:390,height:844),assets:assets)
         var progress=NativeProgressionState();progress.lastOpenedJourneyBoard=1
@@ -1081,7 +1148,7 @@ final class NativeBackpackTests:XCTestCase {
         XCTAssertEqual(screen.numberOfSections(in:screen.grid),3)
         XCTAssertEqual(screen.collectionView(screen.grid,numberOfItemsInSection:0),6)
         let world=screen.collectionView(screen.grid,layout:screen.grid.collectionViewLayout,sizeForItemAt:IndexPath(item:0,section:0))
-        XCTAssertEqual(world.width,153)
+        XCTAssertEqual(world.width,98)
         var opened:[String]=[];screen.onDie={opened.append($0.id)}
         screen.collectionView(screen.grid,didSelectItemAt:IndexPath(item:1,section:0));XCTAssertTrue(opened.isEmpty)
         screen.collectionView(screen.grid,didSelectItemAt:IndexPath(item:0,section:0));XCTAssertEqual(opened,["bee"])

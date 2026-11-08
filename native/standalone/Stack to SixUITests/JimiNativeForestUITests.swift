@@ -78,7 +78,7 @@ final class JimiNativeForestUITests: XCTestCase {
             interim.tap(); quiet(8)
             capture("hybrid-forest-same-build-interim-game")
             app.coordinate(withNormalizedOffset:CGVector(dx:45/390.0,dy:67/844.0)).tap(); quiet()
-            let exit = app.buttons["Exit Stage"]
+            let exit = app.buttons["Exit"]
             XCTAssertTrue(exit.waitForExistence(timeout:8)); XCTAssertTrue(exit.isHittable)
             exit.tap(); quiet(5)
             XCTAssertTrue(close.isHittable); capture("hybrid-forest-same-build-manual-exit-return")
@@ -159,7 +159,7 @@ final class JimiNativeForestUITests: XCTestCase {
         // Canonical Pixi HUD Close at390×844; screenshot retained for proof.
         XCTAssertEqual(app.frame.width, 390, accuracy: 1); XCTAssertEqual(app.frame.height, 844, accuracy: 1)
         app.coordinate(withNormalizedOffset: CGVector(dx:45/390.0,dy:67/844.0)).tap(); quiet()
-        let exit = app.buttons["Exit Stage"]
+        let exit = app.buttons["Exit"]
         XCTAssertTrue(exit.waitForExistence(timeout: 8)); XCTAssertTrue(exit.isHittable)
         exit.tap(); quiet(5)
         XCTAssertTrue(item("native.world.1").exists)
@@ -210,9 +210,9 @@ final class JimiNativeForestUITests: XCTestCase {
         XCTAssertFalse(item("native.world.back").isHittable)
         capture("native-forest-interim-real-game")
         app.coordinate(withNormalizedOffset:CGVector(dx:45/390.0,dy:67/844.0)).tap(); quiet()
-        let exit = app.buttons["Exit Stage"]
+        let exit = app.buttons["Exit"]
         XCTAssertTrue(exit.waitForExistence(timeout:8)); XCTAssertTrue(exit.isHittable)
-        let cancel = app.buttons["Close Exit Stage?"]
+        let cancel = app.buttons["Close Exit"]
         XCTAssertTrue(cancel.isHittable); cancel.tap(); quiet()
         XCTAssertFalse(exit.isHittable); XCTAssertFalse(item("native.world.back").isHittable)
         app.coordinate(withNormalizedOffset:CGVector(dx:45/390.0,dy:67/844.0)).tap(); quiet()
@@ -249,7 +249,7 @@ final class JimiNativeForestUITests: XCTestCase {
                 XCTAssertFalse(item("native.world.back").isHittable)
                 capture("native-world-\(worldID)-canonical-gameplay")
                 app.coordinate(withNormalizedOffset:CGVector(dx:45/390.0,dy:67/844.0)).tap();quiet()
-                let exit = app.buttons["Exit Stage"];XCTAssertTrue(exit.waitForExistence(timeout:8));XCTAssertTrue(exit.isHittable);exit.tap();quiet(5)
+                let exit = app.buttons["Exit"];XCTAssertTrue(exit.waitForExistence(timeout:8));XCTAssertTrue(exit.isHittable);exit.tap();quiet(5)
                 XCTAssertTrue(item("native.world.\(worldID)").exists);XCTAssertTrue(item("native.world.back").isHittable)
                 capture("native-world-\(worldID)-retained-manual-exit-return")
             } else if card.value as? String == "locked" {

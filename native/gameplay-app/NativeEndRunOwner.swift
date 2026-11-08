@@ -51,9 +51,9 @@ final class NativeEndRunOwner {
     private func showModal(gameplay:NativeGameplayViewController,owner:Int) {
         let state = gameplay.engine.state,arcade = state.mode == .arcade
         let progress = arcade ? String(format:"Round %02d",state.stage) : "Stage \((state.board-1)%10+1)"
-        guard let model = JimiNativeEndRunModel(["title":arcade ? "Exit Game?" : "Exit Stage?",
+        guard let model = JimiNativeEndRunModel(["title":"Exit",
             "subtitle":"Come back anytime.\n\(progress) progress saved.",
-            "restartLabel":arcade ? "New Game" : "Restart","exitLabel":arcade ? "Exit Game" : "Exit Stage"]) else {gameplay.setSuspended(false);return}
+            "restartLabel":arcade ? "New Game" : "Restart","exitLabel":"Exit"]) else {gameplay.setSuspended(false);return}
         traceHUDLatency("exit-modal-init-begin")
         let sheet = JimiNativeEndRunModal(id:owner,model:model,assets:assets,synchronizesBoardCTAEntry:true);modal = sheet
         traceHUDLatency("exit-modal-init-end")

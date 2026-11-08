@@ -64,6 +64,8 @@ import UIKit
     private var isPad:Bool {initiallyPad || stage.scene.map{NativeTabletLayout.applies($0.size)} == true}
     private var canonicalMaximum=0.0
     private var closed=false,preloadPrimed=false,preloadSurfaceDetached=false
+    private var preloadEntryRestart=false,preloadBubbleStep=0
+    static let entryBubbleInterval=0.08
     private var tutorialPulseActive=false,tutorialPulseEpoch:UInt64=0
     private var tutorialPulseCancel:(()->Void)?
     private var tutorialPulseBase:(CGPoint,CGFloat,CGFloat)?
@@ -224,7 +226,11 @@ import UIKit
     func ownsPreloadSurface(_ node:SKNode)->Bool{preloadBar?.container === node}
     var fillPose:NativeWildMeterConsumptionPlan.Pose{.init(left:owner.left,width:owner.width)}
     var consumeActive:Bool{owner.consumeActive}
-    func setProgress(_ ratio:Double,animated:Bool){guard !closed else{return};owner.setProgress(ratio,animated:animated)}
+    func setProgress(_ ratio:Double,animated:Bool){
+        guard !closed else{return}
+        let fraction = animated && !owner.consumeActive ? preloadBar?.handEntryFillToGameplay():nil
+        owner.setProgress(ratio,animated:animated,presentationWidth:fraction.map{owner.width*$0})
+    }
     func consume(_ ratio:Double,reducedMotion:Bool){guard !closed else{return};owner.consume(ratio,reducedMotion:reducedMotion)}
     func resize(maximum:Double,sourceOrigin:CGPoint,barHeight:CGFloat?=nil){
         guard !closed else{return};canonicalMaximum=maximum;if let barHeight {self.barHeight=barHeight};container.position=sourceToNative(sourceOrigin)
@@ -255,9 +261,21 @@ import UIKit
     func restorePreloadPresentation(_ visual:NativePreloadBarPresentation){
         guard !closed else{visual.dispose();return};preloadSurfaceDetached=false;preloadBar=visual;visual.onMotionChanged=onPreloadMotionChanged;preloadPrimed=false;attachPreloadSurface();visual.cancelBoardExit()
     }
-    func primeBoardEntry(restart:Bool=false){guard !closed else{return};preloadPrimed = !restart;attachPreloadSurface();preloadBar?.primeBoardEntry(restart:restart)}
-    func beginBoardEntry(restart:Bool=false){guard !closed else{return};preloadPrimed=false;attachPreloadSurface();preloadBar?.beginBoardEntry(restart:restart)}
-    func paintPreloadBoardEntry(_ elapsed:Double){guard !closed else{return};preloadBar?.paintBoardEntry(elapsed)}
+    func primeBoardEntry(restart:Bool=false){guard !closed else{return};preloadEntryRestart=restart;preloadBubbleStep=0;preloadPrimed = !restart;attachPreloadSurface();preloadBar?.primeBoardEntry(restart:restart)}
+    func beginBoardEntry(restart:Bool=false){guard !closed else{return};preloadEntryRestart=restart;preloadBubbleStep=0;preloadPrimed=false;attachPreloadSurface();preloadBar?.beginBoardEntry(restart:restart)}
+    func paintPreloadBoardEntry(_ elapsed:Double){
+        guard !closed,let preloadBar else{return}
+        let wasArriving=preloadBar.phase == .arriving
+        preloadBar.paintBoardEntry(elapsed)
+        guard wasArriving,!UIAccessibility.isReduceMotionEnabled else{return}
+        let fillAge=max(0,elapsed-NativePreloadBarPresentation.holderEntryDuration(restart:preloadEntryRestart))
+        let step=Int(min(NativePreloadBarPresentation.entryFillDuration,fillAge)/Self.entryBubbleInterval)
+        if step>preloadBubbleStep {
+            preloadBubbleStep=step
+            // No catch-up burst after a delayed frame; bounded to two new particles.
+            smoke.emitEntryBubbles()
+        }
+    }
     func synchronizePreloadSurfaceVisibility(){guard !closed,let preloadBar else{return};preloadBar.container.position=preloadDesignMeterPosition;preloadBar.container.xScale=container.xScale;preloadBar.container.yScale=container.yScale;preloadBar.container.alpha=container.alpha;preloadBar.container.isHidden=preloadPrimed || stage.isHidden}
     func cancelBoardExit(){guard !closed else{return};preloadPrimed=false;preloadBar?.cancelBoardExit()}
     func stopSmoke(){smoke.stopSmoke()}

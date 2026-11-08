@@ -192,3 +192,21 @@ struct NativeHUDNumberCounter {
     }
     mutating func settle(){value=target;active=false;elapsed=0}
 }
+
+/// Cosmetic timing uses system randomness, independent of gameplay/source RNG.
+struct NativeStarBurnTiming {
+    static let duration=1.1/1.3
+    static func delay(first:Bool,random:()->Double={Double.random(in:0..<1)})->Double {
+        let value=min(1,max(0,random()))
+        return first ? 0.2+1.6*value:1.1+2.9*value
+    }
+    private(set) var start:Double
+    init(readyAt:Double,random:()->Double={Double.random(in:0..<1)}) {
+        start=readyAt+Self.delay(first:true,random:random)
+    }
+    mutating func phase(at seconds:Double,random:()->Double={Double.random(in:0..<1)})->Double? {
+        if seconds>=start+Self.duration {start=seconds+Self.delay(first:false,random:random)}
+        guard seconds>=start,seconds<start+Self.duration else{return nil}
+        return seconds-start
+    }
+}

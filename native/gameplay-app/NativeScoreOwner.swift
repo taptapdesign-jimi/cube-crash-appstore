@@ -84,6 +84,7 @@ final class NativeGameplayBackpackController:UIViewController {
     private(set) var modalDrag:JimiNativeModalDrag?
     private let exchangeMarker=CALayer()
     private var exchangeGeneration=0
+    private var collectionEntryEpoch=0
     private var pendingDie:NativeBackpackCatalog.Die?
     private var returningDetail=false
     private(set) var returnSelectionPress:UILongPressGestureRecognizer?
@@ -127,6 +128,7 @@ final class NativeGameplayBackpackController:UIViewController {
         let screen=NativeBackpackView(frame:.zero,assets:assets,title:includesArcade ? "Box":"Backpack",arcadeCrate:includesArcade);self.screen=screen
         screen.useModalLayout();screen.apply(sections,includesArcade:includesArcade);idle.addSubview(screen)
         screen.onDie={[weak self] die in self?.open(die)}
+        screen.installEntrySelectionCapture(on:view)
         closeButton.setBackgroundImage(paper.closeMaterial,for:.normal);closeButton.layer.cornerRadius=16;closeButton.clipsToBounds=true
         closeButton.setImage(assets.image("assets/close-icon.png",densityAware:true),for:.normal);closeButton.imageView?.contentMode = .scaleAspectFit;closeButton.artworkOpacity = 0.8;closeButton.enableArtworkTapFeedback(wholeControl:true)
         closeButton.imageEdgeInsets=UIEdgeInsets(top:14,left:14,bottom:14,right:14);closeButton.accessibilityIdentifier="native.gameplay.backpack.close"
@@ -170,14 +172,19 @@ final class NativeGameplayBackpackController:UIViewController {
     override func viewDidAppear(_ animated:Bool) {
         super.viewDidAppear(animated);guard !closing,!entered,!disposed else{return};entered=true;card.alpha=1
         if UIAccessibility.isReduceMotionEnabled {completeEnter();backdrop.alpha=1;return}
+        collectionEntryEpoch += 1;let epoch=collectionEntryEpoch
+        view.isUserInteractionEnabled=foreground;screen?.setEntrySelectionEnabled(true)
         let paperEpoch=CACurrentMediaTime()
         JimiNativeModalV10.enterClose(closeButton,beginTime:paperEpoch)
-        CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in self?.completeEnter()}
+        CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in
+            guard let self,self.collectionEntryEpoch==epoch else{return};self.completeEnter()
+        }
         JimiNativeModalV10.enter(card:card,flip:flip,key:"gameplay.backpack.enter",beginTime:paperEpoch);CATransaction.commit()
         UIView.animate(withDuration:0.5){self.backdrop.alpha=1}
     }
     private func completeEnter(){
         guard !closing,!disposed else{return};admitted=true
+        screen?.setEntrySelectionEnabled(false)
         JimiNativeModalV10.startIdle(on:idle,key:"backpack.collection.idle")
         view.isUserInteractionEnabled=foreground && !switchingDetail;screen?.isUserInteractionEnabled=foreground && !switchingDetail
         screen?.setAlertsActive(foreground && !switchingDetail)
@@ -199,7 +206,9 @@ final class NativeGameplayBackpackController:UIViewController {
         view.isUserInteractionEnabled=true;card.isUserInteractionEnabled=false;screen?.isUserInteractionEnabled=false;returnSelectionPress?.isEnabled=true
     }
     private func open(_ die:NativeBackpackCatalog.Die) {
-        guard foreground,admitted,!closing,!disposed,!switchingDetail,detail==nil,presentedViewController==nil else{return}
+        guard foreground,(admitted || screen?.entrySelectionEnabled==true),!closing,!disposed,!switchingDetail,detail==nil,presentedViewController==nil else{return}
+        let entryPose:([UIView],[CATransform3D])? = admitted ? nil:([card,flip],[card,flip].map{($0.layer.presentation() ?? $0.layer).transform})
+        collectionEntryEpoch += 1;screen?.setEntrySelectionEnabled(false)
         screen?.setAlertsActive(false)
         pendingDie=nil;returningDetail=false;returnSelectionPress?.isEnabled=false
         onFeedback?("tab")
@@ -237,6 +246,12 @@ final class NativeGameplayBackpackController:UIViewController {
             JimiNativeModalV10.exit(card,flip:false,key:"gameplay.backpack.detail.exit")
             JimiNativeModalV10.exit(flip,flip:true,key:"gameplay.backpack.detail.exit")
         }
+        if let entryPose {
+            for (target,pose) in zip(entryPose.0,entryPose.1) {
+                target.layer.removeAnimation(forKey:"gameplay.backpack.enter")
+                retargetEntryExit(target,from:pose,key:"gameplay.backpack.detail.exit")
+            }
+        }
         scheduleExchange(after:0.65*0.3){[weak self,weak detail] in
             guard let self,let detail,!self.disposed,!self.closing,self.detail === detail else{return}
             self.present(detail,animated:false){[weak self,weak detail] in
@@ -244,6 +259,34 @@ final class NativeGameplayBackpackController:UIViewController {
                 detail.beginImmediatePresentation()
             }
         }
+    }
+
+    /// Keep early selection continuous through the existing exit anticipation.
+    private func retargetEntryExit(_ target:UIView,from start:CATransform3D,key:String){
+        guard let animation=target.layer.animation(forKey:key)?.copy() as? CAKeyframeAnimation,
+              let values=animation.values as? [NSValue],let times=animation.keyTimes else{return}
+        animation.values=zip(values,times).map{value,time in
+            var pose=value.caTransform3DValue
+            let weight=max(0,1-time.doubleValue/0.18)
+            pose.m11 += (start.m11-1)*CGFloat(weight)
+            pose.m12 += (start.m12)*CGFloat(weight)
+            pose.m13 += (start.m13)*CGFloat(weight)
+            pose.m14 += (start.m14)*CGFloat(weight)
+            pose.m21 += (start.m21)*CGFloat(weight)
+            pose.m22 += (start.m22-1)*CGFloat(weight)
+            pose.m23 += (start.m23)*CGFloat(weight)
+            pose.m24 += (start.m24)*CGFloat(weight)
+            pose.m31 += (start.m31)*CGFloat(weight)
+            pose.m32 += (start.m32)*CGFloat(weight)
+            pose.m33 += (start.m33-1)*CGFloat(weight)
+            pose.m34 += (start.m34)*CGFloat(weight)
+            pose.m41 += (start.m41)*CGFloat(weight)
+            pose.m42 += (start.m42)*CGFloat(weight)
+            pose.m43 += (start.m43)*CGFloat(weight)
+            pose.m44 += (start.m44-1)*CGFloat(weight)
+            return NSValue(caTransform3D:pose)
+        }
+        target.layer.add(animation,forKey:key)
     }
 
     /// A finite marker shares the outgoing modal's root clock, including background pauses.
@@ -281,7 +324,7 @@ final class NativeGameplayBackpackController:UIViewController {
         let layer=view.layer
         if !value,layer.speed != 0 {layer.timeOffset=layer.convertTime(CACurrentMediaTime(),from:nil);layer.speed=0}
         else if value,layer.speed==0 {let t=layer.timeOffset;layer.speed=1;layer.timeOffset=0;layer.beginTime=0;layer.beginTime=layer.convertTime(CACurrentMediaTime(),from:nil)-t}
-        view.isUserInteractionEnabled=value && admitted && !closing && !switchingDetail;screen?.isUserInteractionEnabled=value && admitted && detail==nil
+        view.isUserInteractionEnabled=value && (admitted || screen?.entrySelectionEnabled==true) && !closing && !switchingDetail;screen?.isUserInteractionEnabled=value && (admitted || screen?.entrySelectionEnabled==true) && detail==nil
         if value,!admitted {admitReturnTap()}
     }
     @objc private func close(){
@@ -299,5 +342,5 @@ final class NativeGameplayBackpackController:UIViewController {
         }
     }
     private func finishClose(){guard !disposed else{return};seenUnreadDice=screen?.seenUnreadDice ?? [];let completed=onClosed;dispose();dismiss(animated:false,completion:completed)}
-    func dispose(){guard !disposed else{return};screen?.setAlertsActive(false);onReadDie=nil;modalDrag?.dispose();modalDrag=nil;disposed=true;pendingDie=nil;returningDetail=false;returnSelectionPress.map{view.removeGestureRecognizer($0)};returnSelectionPress=nil;exchangeGeneration += 1;exchangeMarker.removeAllAnimations();exchangeMarker.removeFromSuperlayer();motion.cancel();detail?.dispose();detail?.dismiss(animated:false);detail=nil;screen?.onClose=nil;screen?.onDie=nil;[card,restTilt,flip,idle,backdrop,closeButton].forEach{$0.layer.removeAllAnimations()};onHUDCloseRequested=nil;onCloseRequested=nil;onClosed=nil;onFeedback=nil}
+    func dispose(){guard !disposed else{return};screen?.setEntrySelectionEnabled(false);screen?.setAlertsActive(false);onReadDie=nil;modalDrag?.dispose();modalDrag=nil;disposed=true;pendingDie=nil;returningDetail=false;returnSelectionPress.map{view.removeGestureRecognizer($0)};returnSelectionPress=nil;exchangeGeneration += 1;exchangeMarker.removeAllAnimations();exchangeMarker.removeFromSuperlayer();motion.cancel();detail?.dispose();detail?.dismiss(animated:false);detail=nil;screen?.onClose=nil;screen?.onDie=nil;[card,restTilt,flip,idle,backdrop,closeButton].forEach{$0.layer.removeAllAnimations()};onHUDCloseRequested=nil;onCloseRequested=nil;onClosed=nil;onFeedback=nil}
 }

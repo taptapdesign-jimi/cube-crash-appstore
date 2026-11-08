@@ -628,7 +628,7 @@ final class NativeJourneyRewardTests:XCTestCase {
             for halo in glyph.subviews {XCTAssertEqual(halo.layer.shadowOffset,.zero);XCTAssertLessThanOrEqual(halo.layer.shadowOpacity,0.49)}
             XCTAssertEqual(glyph.subviews.compactMap{$0 as? UILabel}.count,4,"Four static orange glow decorations per letter")
             let group=try XCTUnwrap(glyph.layer.animation(forKey:"native.reward.coach.copy") as? CAAnimationGroup)
-            XCTAssertEqual(group.duration,2.8);XCTAssertTrue(group.isRemovedOnCompletion)
+            XCTAssertEqual(group.duration,4.1,accuracy:0.000001);XCTAssertTrue(group.isRemovedOnCompletion)
             let opacity=try XCTUnwrap(group.animations?.first{$0 is CAKeyframeAnimation && ($0 as? CAKeyframeAnimation)?.keyPath=="opacity"} as? CAKeyframeAnimation)
             let values=try XCTUnwrap(opacity.values as? [NSNumber])
             XCTAssertEqual(values.first?.doubleValue,0);XCTAssertEqual(values.last?.doubleValue,0)
@@ -636,8 +636,9 @@ final class NativeJourneyRewardTests:XCTestCase {
             let transformValues=try XCTUnwrap(transforms.values as? [NSValue])
             for sample in [12,24,48,72] {
                 let elapsed=Double(sample)/120
-                var expected=NativeStudioIntroView.presentsPose(at:NativeStudioIntroView.presentsEntryStart+elapsed*3.375+Double(index)*NativeStudioIntroView.presentsLetterStagger*0.6,index:index)
                 let settledAt=(0.74+Double(index)*0.048)/3.375
+                let heldAge=elapsed<=settledAt ? elapsed:max(settledAt,elapsed-1.3)
+                var expected=NativeStudioIntroView.presentsPose(at:NativeStudioIntroView.presentsEntryStart+heldAge*3.375+Double(index)*NativeStudioIntroView.presentsLetterStagger*0.6,index:index)
                 if elapsed>=settledAt {expected.scale *= NativeSplashGlyphField.captionIdleScale(time:elapsed-settledAt,bounce:1.03+CGFloat(index%4)*0.01)}
                 XCTAssertEqual(values[sample].doubleValue,Double(max(0,min(1,expected.alpha))),accuracy:0.000001,"Reward letters use another50%faster entry and compressed offsets for one overlapping wave")
                 let actual=transformValues[sample].caTransform3DValue,wanted=expected.transform
@@ -646,19 +647,21 @@ final class NativeJourneyRewardTests:XCTestCase {
                 for (value,target) in zip(a,b) {XCTAssertEqual(value,target,accuracy:0.000001)}
             }
 
-            XCTAssertEqual(NativeCoachCopyMotion.pose(at:2.6,index:index,lifespan:2.8).alpha,1,accuracy:0.00001)
-            XCTAssertEqual(NativeCoachCopyMotion.pose(at:2.8,index:index,lifespan:2.8).alpha,0,accuracy:0.00001)
+            // Extraction must preserve the complete existing authored recipe,
+            // including the underlying Studio exit rather than assuming a late opaque pose.
+            let reference=CALayer()
+            NativeCoachCopyMotion.install(on:reference,index:index,lifespan:4.1,key:"reference",beginTime:CACurrentMediaTime(),speedMultiplier:2.25,staggerMultiplier:0.4,breathes:true,letterExit:true,holdExtension:1.3)
+            let expectedTrack=try XCTUnwrap(reference.animation(forKey:"reference") as? CAAnimationGroup)
+            let expectedOpacity=try XCTUnwrap(expectedTrack.animations?.last as? CAKeyframeAnimation)
+            let expectedTransform=try XCTUnwrap(expectedTrack.animations?.first as? CAKeyframeAnimation)
+            XCTAssertEqual(opacity.values as? [NSNumber],expectedOpacity.values as? [NSNumber])
+            let oldPoses=try XCTUnwrap(expectedTransform.values as? [NSValue])
+            XCTAssertEqual(transformValues.count,oldPoses.count)
+            for (actual,old) in zip(transformValues,oldPoses) {XCTAssertTrue(CATransform3DEqualToTransform(actual.caTransform3DValue,old.caTransform3DValue))}
         }
         let enteringAtOnce=(0..<14).filter{NativeCoachCopyMotion.pose(at:0.08,index:$0,lifespan:2.8,speedMultiplier:2.25,staggerMultiplier:0.4).alpha>0}
         XCTAssertGreaterThan(enteringAtOnce.count,4,"Several letters must enter together as a wave")
         XCTAssertEqual(NativeCoachCopyMotion.pose(at:0.42,index:13,lifespan:2.8,speedMultiplier:2.25,staggerMultiplier:0.4).scale,1,accuracy:0.000001,"The entire wave settles in less than half a second")
-        for index in 0..<14 {
-            let settledAt=(0.74+Double(index)*0.048)/3.375
-            let peak=NativeCoachCopyMotion.pose(at:settledAt+0.35,index:index,speedMultiplier:2.25,staggerMultiplier:0.4,breathes:true)
-            let rest=NativeCoachCopyMotion.pose(at:settledAt+0.70,index:index,speedMultiplier:2.25,staggerMultiplier:0.4,breathes:true)
-            XCTAssertEqual(peak.scale,1.03+CGFloat(index%4)*0.01,accuracy:0.0001)
-            XCTAssertEqual(rest.scale,1,accuracy:0.0001)
-        }
         let hand=try XCTUnwrap(view.view.subviews.compactMap{$0 as? UIImageView}.first)
         let opacity=try XCTUnwrap(hand.layer.animation(forKey:"reward.opacity.0.0") as? CAKeyframeAnimation)
         XCTAssertEqual(opacity.duration,2.8);XCTAssertEqual(opacity.values as? [Int],[0,1,1,0])
@@ -668,13 +671,9 @@ final class NativeJourneyRewardTests:XCTestCase {
         XCTAssertEqual(motion.duration,2.8);XCTAssertEqual(poses.count,6)
         XCTAssertTrue(CATransform3DEqualToTransform(poses[4].caTransform3DValue,poses[5].caTransform3DValue),"Original2.1s gesture holds its final pose through2.8s")
         XCTAssertEqual(motion.keyTimes?[4].doubleValue,2.1/2.8)
-        XCTAssertTrue(clock.jobs.contains{!$0.token.cancelled && abs($0.at-(firstCoachAt+4))<0.001},"A4s repeat leaves1.2s between visible coaches")
+        XCTAssertTrue(clock.jobs.contains{!$0.token.cancelled && abs($0.at-(firstCoachAt+5.3))<0.001},"A5.3s repeat preserves1.2s after the longer copy")
         view.setForeground(false);XCTAssertEqual(view.view.layer.speed,0);clock.advance(10)
         XCTAssertTrue(glyphs.allSatisfy{$0.layer.animation(forKey:"native.reward.coach.copy") != nil})
-        // The finite idle tail retires letters in order instead of a group fade.
-        let first=NativeCoachCopyMotion.pose(at:2.55,index:0,lifespan:2.8,speedMultiplier:2.25,staggerMultiplier:0.4,breathes:true,letterExit:true)
-        let last=NativeCoachCopyMotion.pose(at:2.55,index:13,lifespan:2.8,speedMultiplier:2.25,staggerMultiplier:0.4,breathes:true,letterExit:true)
-        XCTAssertLessThan(first.alpha,last.alpha)
         view.setForeground(true);view.activate()
         XCTAssertEqual(coach.alpha,1,"Collect keeps the parent visible while letters exit")
         let firstExit=try XCTUnwrap(glyphs[0].layer.animation(forKey:"reward.opacity.0.0"))

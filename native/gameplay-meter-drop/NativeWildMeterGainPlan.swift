@@ -3,6 +3,7 @@ import Foundation
 // original timeline roots by future adapter. No Scene, input or charge ownership.
 struct NativeWildMeterGainPlan {
     let maximum:Double,initial:Double,ratio:Double,isPad:Bool
+    private let overshootScale:Double
     var target:Double {maximum*ratio}
     var growing:Bool {target>initial+0.5}
     var full:Bool {ratio>=0.999}
@@ -14,7 +15,8 @@ struct NativeWildMeterGainPlan {
     var duration:Double {((growing ? firstDuration+secondDuration+thirdDuration+fourthDuration:baseDuration)*1e7).rounded()/1e7}
     enum BounceTrigger { case none, atStart, afterActualCompletion }
     var bounceTrigger:BounceTrigger { full ? .afterActualCompletion : growing ? .atStart : .none }
-    init(maximum:Double,initial:Double,ratio:Double,isPad:Bool) {
+    init(maximum:Double,initial:Double,ratio:Double,isPad:Bool,overshootScale:Double=1) {
+        self.overshootScale=overshootScale
         self.maximum=max(0,maximum);self.initial=initial
         self.ratio=ratio.isFinite ? max(0,min(1,ratio)):0;self.isPad=isPad
     }
@@ -28,8 +30,8 @@ struct NativeWildMeterGainPlan {
         if !growing {
             let p=clamp(t/baseDuration);width=initial+(target-initial)*(1-pow(1-p,3))
         } else if t<duration {
-            let distance=max(3.5,target*0.05),over=target+distance
-            let under=max(0,target-max(1.5,distance*0.36)),over2=target+max(2,distance*0.58)
+            let distance=max(3.5,target*0.05)*overshootScale,over=target+distance
+            let under=max(0,target-max(1.5*overshootScale,distance*0.36)),over2=target+max(2*overshootScale,distance*0.58)
             if t<firstDuration {let p=clamp(t/firstDuration);width=initial+(over-initial)*(1-pow(1-p,5))}
             else if t<firstDuration+secondDuration {let p=clamp((t-firstDuration)/secondDuration);width=over+(under-over)*(1-cos(.pi*p))/2}
             else if t<firstDuration+secondDuration+thirdDuration {let p=clamp((t-firstDuration-secondDuration)/thirdDuration);width=under+(over2-under)*sin(.pi*p/2)}

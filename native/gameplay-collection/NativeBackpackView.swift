@@ -4,7 +4,7 @@ import StackToSixGameplay
 /// Reusable cells load only when they intersect the scroll viewport.
 /// The existing visible presentation lease also owns unlocked artwork idle.
 @MainActor
-final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionViewDelegateFlowLayout {
+final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionViewDelegateFlowLayout,UIGestureRecognizerDelegate {
     private let assets:JimiV9Artwork
     let header=JimiV9NavigationHeader(frame:.zero),close=JimiV9PlainButton(type:.custom)
     let grid:UICollectionView
@@ -67,6 +67,32 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
         if changed {grid.collectionViewLayout.invalidateLayout();grid.reloadData();setNeedsLayout()}
     }
     private(set) var sections:[NativeBackpackCatalog.Section]=[]
+    private lazy var entrySelectionTap:UITapGestureRecognizer = {
+        let tap=UITapGestureRecognizer(target:self,action:#selector(entrySelectionTapped(_:)))
+        tap.delegate=self;tap.isEnabled=false;return tap
+    }()
+    func installEntrySelectionCapture(on view:UIView){
+        let tap=UITapGestureRecognizer(target:self,action:#selector(entrySelectionTapped(_:)))
+        tap.delegate=self;view.addGestureRecognizer(tap)
+    }
+    var entrySelectionEnabled:Bool {entrySelectionTap.isEnabled}
+    func setEntrySelectionEnabled(_ enabled:Bool){entrySelectionTap.isEnabled=enabled}
+    func gestureRecognizer(_ gestureRecognizer:UIGestureRecognizer,shouldReceive touch:UITouch)->Bool {
+        guard entrySelectionEnabled else{return false}
+        return revealedDie(atWindowPoint:touch.location(in:window)) != nil
+    }
+    func gestureRecognizer(_ gestureRecognizer:UIGestureRecognizer,shouldRecognizeSimultaneouslyWith other:UIGestureRecognizer)->Bool {
+        entrySelectionEnabled && gestureRecognizer is UITapGestureRecognizer && other is UITapGestureRecognizer
+    }
+    @objc private func entrySelectionTapped(_ tap:UITapGestureRecognizer){
+        guard tap.state == .ended else{return}
+        selectRevealedEntryDie(atWindowPoint:tap.location(in:window))
+    }
+    func selectRevealedEntryDie(atWindowPoint point:CGPoint){
+        guard entrySelectionEnabled,isUserInteractionEnabled,grid.isUserInteractionEnabled,
+              let die=revealedDie(atWindowPoint:point,playSelectionFeedback:true) else{return}
+        onDie?(die)
+    }
     var onClose:(()->Void)?,onDie:((NativeBackpackCatalog.Die)->Void)?
     init(frame:CGRect,assets:JimiV9Artwork,title:String="Backpack",arcadeCrate:Bool=false) {
         self.assets=assets;self.arcadeCrate=arcadeCrate
@@ -79,6 +105,7 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
         grid.register(NativeBackpackCell.self,forCellWithReuseIdentifier:"die")
         grid.register(NativeBackpackSectionHeader.self,forSupplementaryViewOfKind:UICollectionView.elementKindSectionHeader,withReuseIdentifier:"section")
         grid.dataSource=self;grid.delegate=self;grid.isPrefetchingEnabled=false
+        addGestureRecognizer(entrySelectionTap)
         addSubview(grid);addSubview(header)
         header.backgroundColor=UIColor(red:243/255,green:238/255,blue:232/255,alpha:0.8);header.isOpaque=false
         header.setHomeDividerImage(assets.image("assets/home-shadow.png"))
@@ -178,7 +205,7 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
     }
     func collectionView(_ collectionView:UICollectionView,layout collectionViewLayout:UICollectionViewLayout,referenceSizeForHeaderInSection section:Int)->CGSize {CGSize(width:grid.bounds.width,height:embedded ? 0:includesArcade && section==0 && !arcadeCrate ? 156:100)}
     func collectionView(_ collectionView:UICollectionView,didSelectItemAt indexPath:IndexPath) {
-        guard isUserInteractionEnabled else{return}
+        guard isUserInteractionEnabled,!entrySelectionEnabled else{return}
         let die=includesArcade && indexPath.section==0 ? NativeBackpackCatalog.arcade[indexPath.item]:sections[indexPath.section-(includesArcade ? 1:0)].dice[indexPath.item]
         guard (includesArcade && indexPath.section==0) || sections[indexPath.section-(includesArcade ? 1:0)].unlocked.contains(die.id) else{return}
         (collectionView.cellForItem(at:indexPath) as? NativeBackpackCell)?.playSelectionFeedback()
@@ -194,7 +221,15 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
         guard paintedGrid.bounds.contains(paintedGrid.convert(point,from:windowLayer)) else{return nil}
         for cell in grid.visibleCells {
             let painted=cell.layer.presentation() ?? cell.layer
-            guard painted.bounds.contains(painted.convert(point,from:windowLayer)),let index=grid.indexPath(for:cell) else{continue}
+            guard painted.opacity>0.01,hypot(painted.transform.m11,painted.transform.m12)>0.01 else{continue}
+            var ancestor:CALayer?=cell.layer
+            var visible=true
+            while let layer=ancestor {
+                let pose=layer.presentation() ?? layer
+                if layer.isHidden || pose.opacity<=0.01 {visible=false;break}
+                ancestor=layer.superlayer
+            }
+            guard visible,painted.bounds.contains(painted.convert(point,from:windowLayer)),let index=grid.indexPath(for:cell) else{continue}
             let die:NativeBackpackCatalog.Die
             if includesArcade,index.section==0 {die=NativeBackpackCatalog.arcade[index.item]}
             else {

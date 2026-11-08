@@ -117,6 +117,15 @@ public struct NativeBoardState: Equatable, Codable, Sendable {
     public var wildSpawnCount: Int
     /// Completed Journey drops in this run; nil preserves legacy first-drop guarantees.
     public var earnedJourneyDice: Set<String>? = nil
+    /// Completed Beach03 Ball drops; absent in older saves.
+    public var beachBallDropCount: Int? = nil
+    public var completedBeachBallDrops: Int {
+        if let beachBallDropCount {return max(0,beachBallDropCount)}
+        // Legacy runs retain their introduction receipt. Visible dice provide
+        // a lower bound when an older save has no per-identity count.
+        let introduced=earnedJourneyDice?.contains("beach-ball") ?? (wildSpawnCount>0)
+        return max(introduced ? 1:0,tiles.filter{$0.variant=="beach-ball" && !$0.transientSpawn}.count)
+    }
     /// Per-run Unit6 introduction receipt. Missing in legacy saves is valid.
     public var forestMushroomIntroduced: Bool? = nil
     /// Last committed Wild/Special merge-six presentation world; ordinary merges retain it.
@@ -265,7 +274,7 @@ extension NativeTile {
     }
 }
 extension NativeBoardState {
-    private enum CodingKeys: String, CodingKey { case efficiencyComboContinuations,efficiencyFastComboContinuations,earnedJourneyDice,forestMushroomIntroduced,lastSpecialMergeWorld,luckyDropUsed,columns,rows,tiles,mode,board,stage,generation,revision,moves,maxMoves,score,starsCount,bestScore,maxStackDepth,longestCombo,cubesCracked,combo,earnedComboBonus,wildMeter,wildSpawnCount,lastWildDropType,wildDropTypeStreak,rngState,terminal,tutorial,sourceDetachedGridTileIDs,arcadeVariant }
+    private enum CodingKeys: String, CodingKey { case beachBallDropCount,efficiencyComboContinuations,efficiencyFastComboContinuations,earnedJourneyDice,forestMushroomIntroduced,lastSpecialMergeWorld,luckyDropUsed,columns,rows,tiles,mode,board,stage,generation,revision,moves,maxMoves,score,starsCount,bestScore,maxStackDepth,longestCombo,cubesCracked,combo,earnedComboBonus,wildMeter,wildSpawnCount,lastWildDropType,wildDropTypeStreak,rngState,terminal,tutorial,sourceDetachedGridTileIDs,arcadeVariant }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy:CodingKeys.self)
         self.init(columns:try c.decode(Int.self,forKey:.columns),rows:try c.decode(Int.self,forKey:.rows),tiles:try c.decode([NativeTile].self,forKey:.tiles),
@@ -283,6 +292,7 @@ extension NativeBoardState {
         lastSpecialMergeWorld = try c.decodeIfPresent(String.self,forKey:.lastSpecialMergeWorld)
         luckyDropUsed = try c.decodeIfPresent(Bool.self,forKey:.luckyDropUsed) ?? false
         earnedJourneyDice = try c.decodeIfPresent(Set<String>.self,forKey:.earnedJourneyDice)
+        beachBallDropCount = try c.decodeIfPresent(Int.self,forKey:.beachBallDropCount).map{max(0,$0)}
         forestMushroomIntroduced = try c.decodeIfPresent(Bool.self,forKey:.forestMushroomIntroduced)
     }
 }

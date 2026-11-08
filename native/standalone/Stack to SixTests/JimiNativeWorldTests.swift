@@ -1242,7 +1242,10 @@ final class JimiNativeWorldTests: XCTestCase {
         for _ in 0..<150 where (first.layer.sublayers?.contains{$0.name=="native.world.card.star.burn"} != true) {try await settle(0.01)}
         let burn=try XCTUnwrap(first.layer.sublayers?.first{$0.name=="native.world.card.star.burn"})
         let track=try XCTUnwrap(burn.animation(forKey:"card.info.star.burn") as? CAAnimationGroup)
-        XCTAssertEqual(track.duration,3);XCTAssertEqual(track.animations?.count,2)
+        XCTAssertGreaterThanOrEqual(track.duration,0.2+NativeStarBurnTiming.duration)
+        XCTAssertLessThanOrEqual(track.duration,1.8+NativeStarBurnTiming.duration)
+        XCTAssertEqual(track.repeatCount,0,"Every completion draws a fresh gap instead of repeating a fixed rhythm")
+        XCTAssertEqual(track.animations?.count,2)
         XCTAssertEqual((track.animations?.first as? CAKeyframeAnimation)?.values?.count,32)
         XCTAssertNotNil(second.layer.sublayers?.first{$0.name=="native.world.card.star.burn"})
         XCTAssertTrue(empty.layer.sublayers?.isEmpty ?? true)
@@ -1253,32 +1256,34 @@ final class JimiNativeWorldTests: XCTestCase {
         XCTAssertGreaterThan(visibleRect.width,30);XCTAssertGreaterThan(visibleRect.minX,0);XCTAssertLessThan(visibleRect.maxX,390)
         // Seek the existing slot clock into a real visible burn frame.
         let clock=try XCTUnwrap(first.superview?.layer)
-        clock.speed=0;clock.timeOffset=track.beginTime+0.3
+        let current=try XCTUnwrap(burn.animation(forKey:"card.info.star.burn") as? CAAnimationGroup)
+        let lead=try XCTUnwrap(current.animations?.first).beginTime
+        clock.speed=0;clock.timeOffset=current.beginTime+lead+0.3
         try await settle(0.05)
         XCTAssertGreaterThan(try XCTUnwrap(burn.presentation()).opacity,0.9)
         XCTAssertNotNil(burn.presentation()?.contents)
         let format=UIGraphicsImageRendererFormat();format.scale=3
         let image=UIGraphicsImageRenderer(bounds:window.bounds,format:format).image{_ in window.drawHierarchy(in:window.bounds,afterScreenUpdates:true)}
-        try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/native-journey-star-burn-20261108/preview.png"))
+        try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/native-organic-star-burn-20261108/journey-preview.png"))
         card!.playInfoMotion(reducedMotion:false)
         XCTAssertEqual(clock.speed,1)
         card!.setActive(false)
         let frozen=burn.convertTime(CACurrentMediaTime(),from:nil);try await settle(0.06)
         XCTAssertEqual(burn.convertTime(CACurrentMediaTime(),from:nil),frozen,accuracy:0.001)
         card!.setActive(true)
-        XCTAssertEqual(burn.animation(forKey:"card.info.star.burn")?.beginTime,track.beginTime)
+        XCTAssertNotNil(burn.animation(forKey:"card.info.star.burn"))
         card!.tapToFlip();try await settle(0.6)
         XCTAssertEqual(clock.speed,0)
         let frontTime=burn.convertTime(CACurrentMediaTime(),from:nil);try await settle(0.06)
         XCTAssertEqual(burn.convertTime(CACurrentMediaTime(),from:nil),frontTime,accuracy:0.001)
         card!.tapToFlip();try await settle(0.6)
         XCTAssertEqual(clock.speed,1)
-        XCTAssertEqual(burn.animation(forKey:"card.info.star.burn")?.beginTime,track.beginTime)
+        XCTAssertNotNil(burn.animation(forKey:"card.info.star.burn"))
         XCTAssertTrue(card!.hideForStatHistory());try await settle(0.9)
         let historyTime=burn.convertTime(CACurrentMediaTime(),from:nil);try await settle(0.06)
         XCTAssertEqual(burn.convertTime(CACurrentMediaTime(),from:nil),historyTime,accuracy:0.001)
         card!.restoreFromStatHistory();try await settle(0.7)
-        XCTAssertEqual(burn.animation(forKey:"card.info.star.burn")?.beginTime,track.beginTime)
+        XCTAssertNotNil(burn.animation(forKey:"card.info.star.burn"))
         card!.playInfoMotion(reducedMotion:true)
         XCTAssertNil(burn.superlayer);XCTAssertNil(burn.animation(forKey:"card.info.star.burn"));XCTAssertNil(burn.contents)
         card!.cleanup();card!.cleanup();card!.removeFromSuperview();card=nil
@@ -1814,63 +1819,63 @@ final class JimiNativeWorldTests: XCTestCase {
         effects.cleanup();effects.cleanup();XCTAssertTrue(overlay.subviews.isEmpty)
     }
 
-    func testJourneyOpeningCoachIsImmediateOncePerInstallationAcrossWorldsAndRelaunch() async throws {
+    func testJourneyCoachRepeatsAfterTenIdleSecondsOnEitherFace() async throws {
         guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Coach respects Reduced Motion")}
-        let prior=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
-        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),controller=UIViewController()
-        window.rootViewController=controller;window.makeKeyAndVisible();controller.loadViewIfNeeded()
-        let suite="journey-coach-test-"+UUID().uuidString
-        let defaults=try XCTUnwrap(UserDefaults(suiteName:suite))
-        defer{defaults.removePersistentDomain(forName:suite)}
-        let resources=JimiNativeWorldResources(root:root),session=JimiNativeWorldCardCoachPolicy(defaults:defaults)
-        var effects:[JimiNativeWorldCardEffects]=[]
-        defer{effects.forEach{$0.cleanup()};resources.cleanup();window.isHidden=true;prior?.makeKeyAndVisible()}
-        func make(_ board:Int,_ session:JimiNativeWorldCardCoachPolicy)async throws->(JimiNativeWorldCardEffects,UIView,UIView) {
-            let ready=expectation(description:"Prepared coach pointer \(board)")
-            resources.prepare(["assets/hand-pointer.png"],owner:board){ok in XCTAssertTrue(ok);ready.fulfill()}
-            await fulfillment(of:[ready],timeout:3)
-            let overlay=UIView(frame:window.bounds),impact=UIView();controller.view.addSubview(overlay)
-            let owner=JimiNativeWorldCardEffects(impact:impact,overlay:overlay,assets:art,resources:resources,boardID:board,coachSession:session)
-            effects.append(owner);owner.layout()
-            try await settle(0.05)
-            return(owner,overlay,impact)
+        XCTAssertEqual(JimiNativeWorldCardCoachPolicy.shared.idleInterval,10)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),host=UIViewController()
+        window.rootViewController=host;window.makeKeyAndVisible()
+        let resources=JimiNativeWorldResources(root:root)
+        let overlay=UIView(frame:window.bounds),impact=UIView();host.view.addSubview(overlay)
+        let flip=CALayer();impact.layer.addSublayer(flip)
+        var owner:JimiNativeWorldCardEffects?=JimiNativeWorldCardEffects(impact:impact,overlay:overlay,assets:art,resources:resources,boardID:1,flip:flip)
+        weak var retired=owner
+        defer{owner?.cleanup();resources.cleanup();window.isHidden=true;window.rootViewController=nil}
+        owner!.layout();owner!.present()
+        try await settle(0.15)
+        let copy=try XCTUnwrap(overlay.subviews.first{$0.accessibilityIdentifier=="native.world.card.coach-copy"})
+        func pending()throws->CAAnimation {try XCTUnwrap(copy.layer.animation(forKey:"modal.coach.idle"))}
+        let first=try pending();XCTAssertEqual(first.duration,10);XCTAssertNil(impact.layer.animation(forKey:"modal.coach.impact"))
+        // Complete the actual compositor receipt deterministically, without a10s wall wait.
+        first.delegate?.animationDidStop?(first,finished:true)
+        XCTAssertNotNil(impact.layer.animation(forKey:"modal.coach.impact"))
+        XCTAssertEqual(copy.subviews.compactMap{($0 as? UILabel)?.text}.joined(),"DRAG TO FLIP")
+        for glyph in copy.subviews {
+            let track=try XCTUnwrap(glyph.layer.animation(forKey:"modal.coach.copy") as? CAAnimationGroup)
+            XCTAssertEqual(track.duration,4.1,accuracy:0.000001);XCTAssertEqual(track.repeatCount,0)
+            let label=try XCTUnwrap(glyph as? UILabel)
+            XCTAssertEqual(label.font.pointSize,32);XCTAssertEqual(label.layer.shadowOpacity,0)
+            XCTAssertEqual(label.subviews.count,4)
+            for halo in label.subviews {XCTAssertEqual(halo.layer.shadowOffset,.zero);XCTAssertLessThanOrEqual(halo.layer.shadowOpacity,0.49)}
+            let reference=CALayer()
+            NativeCoachCopyMotion.installCollect(on:reference,index:copy.subviews.firstIndex(of:glyph)!,key:"reference",beginTime:CACurrentMediaTime())
+            let expected=try XCTUnwrap(reference.animation(forKey:"reference") as? CAAnimationGroup)
+            let actualOpacity=try XCTUnwrap(track.animations?.last as? CAKeyframeAnimation)
+            let expectedOpacity=try XCTUnwrap(expected.animations?.last as? CAKeyframeAnimation)
+            XCTAssertEqual(actualOpacity.values as? [NSNumber],expectedOpacity.values as? [NSNumber])
         }
-        func remainingDelay(_ impact:UIView)throws->Double {
-            let animation=try XCTUnwrap(impact.layer.animation(forKey:"modal.coach.impact"))
-            return animation.beginTime-impact.layer.convertTime(CACurrentMediaTime(),from:nil)
-        }
-        let(first,overlay,impact)=try await make(1,session)
-        XCTAssertTrue(session.immediateDragAvailable,"Preparation cannot consume the opening")
-        overlay.isHidden=true;first.present(opening:true)
-        XCTAssertTrue(session.immediateDragAvailable,"An attached but hidden card cannot consume the visible opening")
-        overlay.isHidden=false
-        first.present(opening:true)
-        XCTAssertFalse(session.immediateDragAvailable)
-        XCTAssertLessThanOrEqual(try remainingDelay(impact),0.05)
-        let text=overlay.subviews.flatMap(\.subviews).compactMap{($0 as? UILabel)?.text}.joined()
-        XCTAssertEqual(text,"DRAG TO FLIP")
-        let glyphs=overlay.subviews.flatMap(\.subviews).compactMap{$0 as? UILabel}
-        XCTAssertEqual(glyphs.count,12)
-        for glyph in glyphs {
-            let group=try XCTUnwrap(glyph.layer.animation(forKey:"modal.coach.copy") as? CAAnimationGroup)
-            XCTAssertEqual(group.duration,2.1);XCTAssertEqual(group.repeatCount,0)
-            XCTAssertTrue(group.isRemovedOnCompletion)
-            XCTAssertEqual(group.animations?.count,2)
-        }
-        first.cancel();first.present()
-        XCTAssertTrue(glyphs.allSatisfy{($0.layer.animationKeys() ?? []).isEmpty})
-        XCTAssertNil(impact.layer.animation(forKey:"modal.coach.impact"),"Interaction cannot schedule another hint")
-        first.setActive(false);first.setActive(true)
-        XCTAssertNil(impact.layer.animation(forKey:"modal.coach.impact"),"Resume cannot schedule another hint")
-        first.cleanup();first.cleanup()
-        let(second,_,secondImpact)=try await make(21,session)
-        second.present(opening:true)
-        XCTAssertNil(secondImpact.layer.animation(forKey:"modal.coach.impact"),"A different World cannot repeat onboarding")
-        let fresh=JimiNativeWorldCardCoachPolicy(defaults:try XCTUnwrap(UserDefaults(suiteName:suite)))
-        let(third,_,thirdImpact)=try await make(11,fresh)
-        third.present(opening:true)
-        XCTAssertFalse(fresh.immediateDragAvailable,"A new policy instance reads persisted installation acknowledgement")
-        XCTAssertNil(thirdImpact.layer.animation(forKey:"modal.coach.impact"),"Relaunch cannot repeat onboarding")
+        let impactTrack=try XCTUnwrap(impact.layer.animation(forKey:"modal.coach.impact") as? CAKeyframeAnimation)
+        let poses=try XCTUnwrap(impactTrack.values as? [NSValue]).map(\.caTransform3DValue)
+        XCTAssertEqual(poses[1].m41,-34);XCTAssertEqual(poses[2].m41,38)
+        XCTAssertTrue(CATransform3DIsIdentity(poses.last!))
+        let turn=try XCTUnwrap(flip.animation(forKey:"modal.coach.flip") as? CAKeyframeAnimation)
+        XCTAssertTrue(turn.isAdditive);XCTAssertEqual(turn.duration,2.1)
+        XCTAssertEqual(turn.values?.compactMap{($0 as? NSNumber)?.doubleValue},[0,-.pi*0.3,.pi*0.3,0])
+        let second=try pending();XCTAssertEqual(second.duration,10)
+        owner!.cancel();owner!.present(frontFacing:true)
+        XCTAssertNil(impact.layer.animation(forKey:"modal.coach.impact"),"Interaction ends the current hint")
+        second.delegate?.animationDidStop?(second,finished:true)
+        XCTAssertNil(impact.layer.animation(forKey:"modal.coach.impact"),"Canceled receipt cannot admit a hint")
+        owner!.resetInactivity()
+        let artworkWait=try pending();XCTAssertEqual(artworkWait.duration,10)
+        artworkWait.delegate?.animationDidStop?(artworkWait,finished:true)
+        XCTAssertNotNil(impact.layer.animation(forKey:"modal.coach.impact"),"Illustrated face repeats too")
+        owner!.setActive(false);XCTAssertNil(copy.layer.animation(forKey:"modal.coach.idle"))
+        XCTAssertNil(flip.animation(forKey:"modal.coach.flip"));XCTAssertNil(flip.animation(forKey:"modal.coach.flip-handoff"))
+        XCTAssertNil(impact.layer.animation(forKey:"modal.coach.impact"))
+        owner!.setActive(true);XCTAssertEqual(try pending().duration,10)
+        let late=try pending();owner!.cleanup();owner!.cleanup();owner=nil
+        late.delegate?.animationDidStop?(late,finished:true)
+        XCTAssertTrue(overlay.subviews.isEmpty);XCTAssertNil(retired)
     }
 
     func testCoachLettersUseExactPresentsRecipeAtOnePointFiveRateAndFiniteClock() throws {
@@ -1884,9 +1889,11 @@ final class JimiNativeWorldTests: XCTestCase {
             XCTAssertEqual(actual.z,expected.z,accuracy:0.000001)
         }}
         for lifespan in [2.1,2.8] {
-            XCTAssertEqual(NativeCoachCopyMotion.pose(at:lifespan-0.15,index:13,lifespan:lifespan).alpha,1,accuracy:0.000001)
-            XCTAssertEqual(NativeCoachCopyMotion.pose(at:lifespan-0.075,index:13,lifespan:lifespan).alpha,0.5,accuracy:0.000001)
-            XCTAssertEqual(NativeCoachCopyMotion.pose(at:lifespan,index:13,lifespan:lifespan).alpha,0,accuracy:0.000001)
+            for index in 0..<12 {for (tail,fade) in [(0.15,1.0),(0.075,0.5),(0.0,0.0)] {
+                let age=lifespan-tail
+                let authored=NativeStudioIntroView.presentsPose(at:NativeStudioIntroView.presentsEntryStart+age*1.5,index:index)
+                XCTAssertEqual(NativeCoachCopyMotion.pose(at:age,index:index,lifespan:lifespan).alpha,max(0,min(1,authored.alpha))*fade,accuracy:0.000001)
+            }}
             let parent=CALayer(),glyph=CALayer();parent.addSublayer(glyph)
             parent.speed=0;parent.timeOffset=123
             let epoch=CACurrentMediaTime()
@@ -1897,55 +1904,55 @@ final class JimiNativeWorldTests: XCTestCase {
             XCTAssertTrue(group.isRemovedOnCompletion)
             let animations=try XCTUnwrap(group.animations as? [CAKeyframeAnimation])
             XCTAssertEqual(animations.compactMap(\.keyPath),["transform","opacity"])
-            XCTAssertEqual((animations[1].values?.last as? NSNumber)?.doubleValue,0)
+            XCTAssertEqual((animations[1].values?.last as? NSNumber)?.doubleValue ?? -1,0,accuracy:0.000001)
             XCTAssertEqual(glyph.opacity,0)
             glyph.removeAllAnimations();XCTAssertNil(glyph.animationKeys())
         }
     }
-    func testUnopenedInactiveAndRetiredCoachDoNotSpendTheSessionOpening()async throws {
-        let resources=JimiNativeWorldResources(root:root),session=JimiNativeWorldCardCoachPolicy()
-        let overlay=UIView(frame:CGRect(x:0,y:0,width:390,height:844)),impact=UIView()
-        let owner=JimiNativeWorldCardEffects(impact:impact,overlay:overlay,assets:art,resources:resources,boardID:1,coachSession:session)
-        owner.setActive(false);owner.present(opening:true)
-        XCTAssertTrue(session.immediateDragAvailable)
-        owner.cleanup();owner.cleanup()
-        try await settle(0.1)
-        XCTAssertTrue(session.immediateDragAvailable,"A late pointer completion after disposal cannot consume the first opening")
-        XCTAssertTrue(overlay.subviews.isEmpty)
-        resources.cleanup()
-    }
-
-    func testActualJourneyCardEntryClaimsCoachOnlyAfterMountedFlight()async throws {
+    func testActualJourneyCardSchedulesIdleCoachAfterEntryAndFlip() async throws {
         guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Coach respects Reduced Motion")}
-        let prior=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
         let unit=try XCTUnwrap(JimiNativeWorldSnapshot(fixture())?.units.first)
-        let resources=JimiNativeWorldResources(root:root),session=JimiNativeWorldCardCoachPolicy()
+        let resources=JimiNativeWorldResources(root:root)
         let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),host=UIViewController()
-        window.rootViewController=host;window.makeKeyAndVisible();host.loadViewIfNeeded()
-        let card=JimiNativeWorldCardView(unit:unit,assets:art,resources:resources,coachSession:session)
-        defer{card.cleanup();resources.cleanup();window.isHidden=true;prior?.makeKeyAndVisible()}
+        window.rootViewController=host;window.makeKeyAndVisible()
+        let card=JimiNativeWorldCardView(unit:unit,assets:art,resources:resources)
+        defer{card.cleanup();resources.cleanup();window.isHidden=true;window.rootViewController=nil}
         card.frame=window.bounds;host.view.addSubview(card);card.layoutIfNeeded()
-        XCTAssertTrue(session.immediateDragAvailable)
+        let copy=try XCTUnwrap(descendant(card,"native.world.card.coach-copy"))
+        XCTAssertNil(copy.layer.animation(forKey:"modal.coach.idle"))
         card.enter(from:CGRect(x:30,y:400,width:90,height:120))
-        let deadline=Date().addingTimeInterval(3)
-        while session.immediateDragAvailable,Date()<deadline {try await settle(0.02)}
-        XCTAssertFalse(session.immediateDragAvailable,"The actual Journey modal must claim its first opening after flight")
-        func labels(_ view:UIView)->[UILabel] {(view as? UILabel).map{[$0]} ?? view.subviews.flatMap(labels)}
-        XCTAssertEqual(labels(card).filter{$0.layer.animation(forKey:"modal.coach.copy") != nil}.compactMap(\.text).joined(),"DRAG TO FLIP")
-        card.cleanup();card.cleanup()
+        for _ in 0..<150 where copy.layer.animation(forKey:"modal.coach.idle")==nil {try await settle(0.02)}
+        XCTAssertEqual(copy.layer.animation(forKey:"modal.coach.idle")?.duration,10)
+        let hint=try XCTUnwrap(copy.layer.animation(forKey:"modal.coach.idle"))
+        hint.delegate?.animationDidStop?(hint,finished:true)
+        try await settle(0.55)
+        let panel=try XCTUnwrap(descendant(card,"native.world.card.info-panel"))
+        XCTAssertGreaterThan(panel.bounds.width,300,"Actual mounted card must have a full visible layout before coaching")
+        try FileManager.default.createDirectory(atPath:"/tmp/native-flip-collect-style-20261108",withIntermediateDirectories:true)
+        let screenshot=UIGraphicsImageRenderer(bounds:window.bounds).image{_ in window.drawHierarchy(in:window.bounds,afterScreenUpdates:true)}
+        try screenshot.pngData()?.write(to:URL(fileURLWithPath:"/tmp/native-flip-collect-style-20261108/preview.png"))
+        card.tapToFlip();XCTAssertNil(copy.layer.animation(forKey:"modal.coach.idle"))
+        try await settle(0.65)
+        XCTAssertEqual(copy.layer.animation(forKey:"modal.coach.idle")?.duration,10)
+        XCTAssertTrue(card.hideForStatHistory());XCTAssertNil(copy.layer.animation(forKey:"modal.coach.idle"))
+        card.cleanup();XCTAssertNil(copy.layer.animation(forKey:"modal.coach.idle"))
     }
 
-    func testFailedPointerPreparationShowsNoCoachWithoutSpendingInstallationHint()async throws {
-        guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Coach respects Reduced Motion")}
-        let resources=JimiNativeWorldResources(root:URL(fileURLWithPath:NSTemporaryDirectory()).appendingPathComponent(UUID().uuidString))
-        let session=JimiNativeWorldCardCoachPolicy(),impact=UIView(),overlay=UIView(frame:CGRect(x:0,y:0,width:390,height:844))
-        let owner=JimiNativeWorldCardEffects(impact:impact,overlay:overlay,assets:art,resources:resources,boardID:1,coachSession:session)
-        defer{owner.cleanup();resources.cleanup()}
-        owner.setActive(false);owner.present(opening:true)
-        try await settle(0.2)
-        owner.setActive(true)
+    func testHiddenInactiveMissingPointerAndDisposedCoachCannotSchedule() async throws {
+        let resources=JimiNativeWorldResources(root:root)
+        let overlay=UIView(frame:CGRect(x:0,y:0,width:390,height:844)),impact=UIView()
+        let owner=JimiNativeWorldCardEffects(impact:impact,overlay:overlay,assets:art,resources:resources,boardID:1)
+        owner.present();try await settle(0.15)
+        let copy=try XCTUnwrap(overlay.subviews.first{$0.accessibilityIdentifier=="native.world.card.coach-copy"})
+        XCTAssertNil(copy.layer.animation(forKey:"modal.coach.idle"),"Unmounted owner stays quiet")
+        owner.setActive(false);owner.present();owner.cleanup();owner.cleanup()
+        try await settle(0.1);XCTAssertTrue(overlay.subviews.isEmpty)
+        resources.cleanup()
+        let missing=JimiNativeWorldResources(root:URL(fileURLWithPath:NSTemporaryDirectory()).appendingPathComponent(UUID().uuidString))
+        let late=JimiNativeWorldCardEffects(impact:impact,overlay:overlay,assets:art,resources:missing,boardID:1)
+        late.present();try await settle(0.15)
         XCTAssertNil(impact.layer.animation(forKey:"modal.coach.impact"))
-        XCTAssertTrue(session.immediateDragAvailable,"A missing pointer never spends the one visible opening")
+        late.cleanup();missing.cleanup()
     }
 
     func testLegendaryFoilFollowsDragAndRetiresWithoutCommonShine() throws {

@@ -454,9 +454,11 @@ final class NativeAppController: UIViewController {
             self.home.isUserInteractionEnabled = self.route == .home
             self.hub.setContentInteractionEnabled(self.route == .hub)
             self.settingsView.isUserInteractionEnabled = self.route == .settings
-            self.backpackView?.isUserInteractionEnabled = self.route == .backpack
+            let collectionActive=self.route == .backpack && !self.suspended && self.backpackDetail==nil
+            self.backpackView?.setEntrySelectionEnabled(false)
+            self.backpackView?.isUserInteractionEnabled = collectionActive
             self.backpackView?.grid.isUserInteractionEnabled = self.route == .backpack
-            self.backpackView?.setAlertsActive(self.route == .backpack && !self.suspended)
+            self.backpackView?.setAlertsActive(collectionActive,artworkIdle:self.route == .backpack && !self.suspended)
             if self.route == .home {self.home.startHeroIdle()}
             if self.route == .hub {self.hub.startIdle()}
             if self.route == .arcadeHub {self.arcadeHub.finishEntering();self.arcadeHub.resume()}
@@ -480,7 +482,8 @@ final class NativeAppController: UIViewController {
             }
             backpackView?.header.continuousBackground=softNavigationBackground
             backpackView?.isHidden=false;backpackView?.isUserInteractionEnabled=true
-            backpackView?.grid.isUserInteractionEnabled=false
+            backpackView?.grid.isUserInteractionEnabled=true
+            backpackView?.setEntrySelectionEnabled(true)
             let originWorld:Int? = {if case .world(let id)=backpackReturnRoute{return id};return nil}()
             backpackView?.apply(crate ? []:NativeBackpackCatalog.sections(services.journeyProgression(),prioritizingWorld:originWorld))
             if let header=backpackView?.header {installNavigationHandoff(on:header)}
@@ -872,7 +875,7 @@ final class NativeAppController: UIViewController {
 
     private func retireStatHistory(){statHistoryModal?.dispose();statHistoryModal?.dismiss(animated:false);statHistoryModal=nil}
     private func openBackpackDetail(_ die:NativeBackpackCatalog.Die) {
-        guard !disposed,!suspended,!transitioning,route == .backpack,backpackDetail == nil,presentedViewController == nil else{return}
+        guard !disposed,!suspended,route == .backpack,navigationDestination == nil,backpackDetail == nil,presentedViewController == nil else{return}
         onFeedback?("tab")
         let detail=NativeBackpackDetail(die:die,assets:JimiV9Artwork(resourceRoot:resourceRoot),motion:NativeRouteMotion(home:home,hub:hub))
         pendingBackpackDie=nil;backpackDetail=detail;backpackView?.isUserInteractionEnabled=false;backpackView?.setAlertsActive(false,artworkIdle:true)
@@ -884,7 +887,7 @@ final class NativeAppController: UIViewController {
         }
         detail.onCloseRequested={[weak self] in self?.onFeedback?("modal-close")}
         detail.onExitSelection={[weak self,weak detail] point in
-            guard let self,let detail,self.backpackDetail === detail,self.route == .backpack,self.pendingBackpackDie == nil,!self.transitioning,!self.suspended,!self.disposed else{return}
+            guard let self,let detail,self.backpackDetail === detail,self.route == .backpack,self.pendingBackpackDie == nil,self.navigationDestination == nil,!self.suspended,!self.disposed else{return}
             if let die=self.backpackView?.revealedDie(atWindowPoint:point,playSelectionFeedback:true){self.pendingBackpackDie=die}
         }
         detail.onClose={[weak self,weak detail] in
@@ -892,7 +895,7 @@ final class NativeAppController: UIViewController {
             self.backpackDetail=nil
             self.backpackView?.setAlertsActive(self.route == .backpack && !self.suspended && !self.transitioning)
             let next=self.pendingBackpackDie;self.pendingBackpackDie=nil
-            self.backpackView?.isUserInteractionEnabled = self.route == .backpack && !self.transitioning && !self.suspended
+            self.backpackView?.isUserInteractionEnabled = self.route == .backpack && self.navigationDestination == nil && !self.suspended
             if let next {self.openBackpackDetail(next)}
         }
         present(detail,animated:false)

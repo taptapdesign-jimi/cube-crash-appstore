@@ -614,7 +614,15 @@ final class JimiNativeEndRunModal: UIViewController {
         idle.bounds = card.bounds;idle.center = CGPoint(x:width/2,y:height*0.52);JimiNativeModalV10.paperLayout(paper,bounds:idle.bounds)
         heading.frame = CGRect(x:24*u,y:52*u,width:width-48*u,height:32*u)
         subtitle.frame = CGRect(x:24*u,y:96*u,width:width-48*u,height:52*u)
-        let baseActionWidth=JimiV9PlainButton.modalCTAWidth(buttons,maxWidth:width-32)
+        var baseActionWidth=JimiV9PlainButton.modalCTAWidth(buttons,maxWidth:width-32)
+        if model.restartLabel=="Restart",model.exitLabel=="Exit",let primary=buttons.first {
+            // Journey uses the Arcade New Game reference with identical typography.
+            let title=primary.attributedTitle(for:.normal)
+            let attributes=title.flatMap{$0.length>0 ? $0.attributes(at:0,effectiveRange:nil):nil}
+                ?? [.font:primary.titleLabel?.font ?? UIFont.systemFont(ofSize:28,weight:.heavy)]
+            let reference=NSAttributedString(string:"New Game",attributes:attributes).size().width
+            baseActionWidth=min(width-32,max(72,ceil(reference)+48)*1.05)
+        }
         let actionWidth=synchronizesBoardCTAEntry ? min(width-16,baseActionWidth*1.05):baseActionWidth
         for (i,button) in buttons.enumerated() {
             let size=CGSize(width:actionWidth,height:JimiV9PlainButton.pairedModalCTAHeight*1.05*u)

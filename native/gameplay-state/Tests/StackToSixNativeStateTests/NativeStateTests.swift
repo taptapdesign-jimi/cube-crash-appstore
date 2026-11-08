@@ -251,7 +251,9 @@ final class NativeStateTests: XCTestCase {
         }
     }
     func testJourneyLaterDropsRetainEqualNonMushroomWeightsWithoutHistoryOverride() throws {
-        for board in 1...30 {
+        // Beach03 uses the user-authored decreasing Ball weights, covered by
+        // NativeBeachBallRarityTests instead of the uniform pool contract.
+        for board in 1...30 where board != 13 {
             let pool = NativeJourneyContent.rewardPool(board:board)
             for (index,name) in pool.enumerated() {
                 let roll:Double

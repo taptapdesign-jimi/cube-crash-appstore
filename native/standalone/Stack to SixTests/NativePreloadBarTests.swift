@@ -6,6 +6,37 @@ import StackToSixNativeState
 @testable import Stack_to_Six
 
 @MainActor final class NativePreloadBarTests:XCTestCase {
+    func testLiveStackAndSixGainTakeOverEntryFromPaintedEdgeAndKeepLatestProgress() throws {
+        for pad in [false,true] {for restart in [false,true] {for fillAge in [-0.10,0.15,0.65] {
+            var wall=0.0
+            let scene=SKScene(size:CGSize(width:390,height:844)),stage=SKNode()
+            scene.addChild(stage)
+            let view=SKView(frame:CGRect(origin:.zero,size:scene.size));view.presentScene(scene)
+            let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{wall}),timeouts=NativeSourceAppTimeoutOwner()
+            let owner=NativeWildMeterHUDPresentation(hudStage:stage,service:service,timeouts:timeouts,generation:1,maximum:343.2,isPad:pad,sourceOrigin:CGPoint(x:24,y:144),preloadDividerRoot:NativeTestResources.root,sourceToNative:{CGPoint(x:$0.x,y:844-$0.y)},nativeToSource:{CGPoint(x:$0.x,y:844-$0.y)},smokeDisabled:{true},current:{true},visualRandom:{0.5})
+            defer{owner.dispose();timeouts.cancelAll();service.dispose();view.presentScene(nil)}
+            owner.setProgress(0.4,animated:false);owner.primeBoardEntry(restart:restart);owner.beginBoardEntry(restart:restart)
+            let bar=try XCTUnwrap(scene.children.first{$0.name=="native-preload-bar"})
+            let ribbon=try XCTUnwrap(bar.children.first{$0 is SKCropNode})
+            let paint=try XCTUnwrap(ribbon.children.compactMap{$0 as? SKSpriteNode}.last)
+            let elapsed=NativePreloadBarPresentation.holderEntryDuration(restart:restart)+fillAge
+            owner.paintPreloadBoardEntry(elapsed)
+            let edge=try XCTUnwrap(paint.shader?.uniformNamed("u_right")).floatValue
+            let mask=try XCTUnwrap(paint.shader?.uniformNamed("u_reveal")).floatValue
+            owner.setProgress(0.5,animated:true)
+            XCTAssertEqual(try XCTUnwrap(paint.shader?.uniformNamed("u_right")).floatValue,edge,accuracy:0.001,"Handoff must capture the painted edge without flashing restored charge")
+            XCTAssertEqual(try XCTUnwrap(paint.shader?.uniformNamed("u_reveal")).floatValue,mask,"Live gain retains the holder mask")
+            for ms in stride(from:10.0,through:100.0,by:10){wall=ms;service.deliver(wallMilliseconds:wall)}
+            XCTAssertGreaterThan(try XCTUnwrap(paint.shader?.uniformNamed("u_right")).floatValue,edge,"A fast stack must grow the red edge before entry advances")
+            owner.setProgress(0.72,animated:true)
+            for ms in stride(from:110.0,through:1800.0,by:10){wall=ms;service.deliver(wallMilliseconds:wall)}
+            XCTAssertEqual(owner.fillPose.width,343.2*0.72,accuracy:0.001)
+            XCTAssertEqual(try XCTUnwrap(paint.shader?.uniformNamed("u_right")).floatValue,Float(343.2*0.72),accuracy:0.001,"Entry must not mask a rapid follow-up six gain")
+            owner.paintPreloadBoardEntry(NativePreloadBarPresentation.chromeDuration(entering:true,restart:restart))
+            XCTAssertEqual(owner.fillPose.width,343.2*0.72,accuracy:0.001,"Late entry completion cannot restore old charge")
+            XCTAssertEqual(service.activeParticipantCount,0)
+        }}}
+    }
     private func mount(_ bar:NativePreloadBarPresentation)->(UIWindow,SKView,SKScene){
         let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),host=UIViewController()
         window.rootViewController=host;window.makeKeyAndVisible()
@@ -63,7 +94,7 @@ import StackToSixNativeState
             try capture("holder-complete-liquid-empty")
             XCTAssertEqual(bar.lifecycleReveal,1)
             XCTAssertEqual(bar.liquidFillFraction,0)
-            bar.paintBoardEntry(maskEnd+NativePreloadBarPresentation.entryFillDuration/2)
+            bar.paintBoardEntry(maskEnd+NativePreloadBarPresentation.entryFillTravelDuration/2)
             XCTAssertEqual(bar.lifecycleReveal,1)
             XCTAssertGreaterThan(bar.liquidFillFraction,0);XCTAssertLessThan(bar.liquidFillFraction,1)
             XCTAssertLessThan(try XCTUnwrap(paint.shader?.uniformNamed("u_right")).floatValue,240)
@@ -75,6 +106,124 @@ import StackToSixNativeState
             bar.paintBoardEntry(NativePreloadBarPresentation.chromeDuration(entering:true,restart:restart))
             XCTAssertEqual(bar.phase,.idle);XCTAssertEqual(bar.liquidFillFraction,1)
             XCTAssertEqual(try XCTUnwrap(paint.shader?.uniformNamed("u_right")).floatValue,240,accuracy:0.001)
+        }}
+    }
+
+    func testEntryLiquidUsesSlightlyStrongerGameplayEdgeBounceAndSettles() throws {
+        let bar=NativePreloadBarPresentation(reducedMotion:{false}),mounted=mount(bar)
+        defer{bar.dispose();mounted.1.presentScene(nil);mounted.0.isHidden=true;mounted.0.rootViewController=nil}
+        bar.resize(maximum:343.2,barHeight:10);bar.setNativeFill(left:0,width:240,maximum:343.2)
+        bar.beginBoardEntry()
+        let onset=NativePreloadBarPresentation.holderEntryDuration()
+        let ordinary=NativeWildMeterGainPlan(maximum:343.2,initial:0,ratio:240/343.2,isPad:false)
+        var peak=0.0,recoil=2.0
+        for step in 0...200 {
+            let t=Double(step)/200
+            bar.paintBoardEntry(onset+t*NativePreloadBarPresentation.entryFillDuration)
+            XCTAssertEqual(bar.lifecycleReveal,1)
+            peak=max(peak,bar.liquidFillFraction)
+            if t>NativePreloadBarPresentation.entryFillTravelDuration/NativePreloadBarPresentation.entryFillDuration {recoil=min(recoil,bar.liquidFillFraction)}
+        }
+        XCTAssertGreaterThan(peak,1.05,"Entry boing slightly exceeds ordinary five-percent overshoot")
+        XCTAssertLessThanOrEqual(peak,1.061)
+        XCTAssertLessThan(recoil,1,"Edge recoils before settling")
+        XCTAssertEqual(bar.liquidFillFraction,1)
+        XCTAssertEqual(ordinary.width(seconds:ordinary.firstDuration),252,accuracy:0.001,"In-game bounce remains unchanged")
+    }
+
+    func testInitialLiquidEmitsStrongerBubblesDuringWholeSweepAndThenStops() throws {
+        for (ratio,disabled) in [(0.65,false),(0.0,false),(0.65,true)] {
+            var wall=0.0,randomCursor=0.1
+            let scene=SKScene(size:CGSize(width:390,height:844)),stage=SKNode()
+            scene.backgroundColor=UIColor(red:0.97,green:0.94,blue:0.9,alpha:1)
+            scene.addChild(stage)
+            let view=SKView(frame:CGRect(origin:.zero,size:scene.size));view.presentScene(scene)
+            let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{wall}),timeouts=NativeSourceAppTimeoutOwner()
+            let owner=NativeWildMeterHUDPresentation(hudStage:stage,service:service,timeouts:timeouts,generation:1,maximum:343.2,isPad:false,sourceOrigin:CGPoint(x:24,y:144),preloadDividerRoot:NativeTestResources.root,sourceToNative:{CGPoint(x:$0.x,y:844-$0.y)},nativeToSource:{CGPoint(x:$0.x,y:844-$0.y)},smokeDisabled:{disabled},current:{true},visualRandom:{randomCursor=(randomCursor+0.61803398875).truncatingRemainder(dividingBy:1);return randomCursor})
+            defer{owner.dispose();timeouts.cancelAll();service.dispose();view.presentScene(nil)}
+            owner.setProgress(ratio,animated:false)
+            let canonical=owner.fillPose
+            owner.primeBoardEntry();owner.beginBoardEntry()
+            let end=NativePreloadBarPresentation.chromeDuration(entering:true)
+            let onset=NativePreloadBarPresentation.holderEntryDuration()
+            owner.paintPreloadBoardEntry(onset)
+            XCTAssertEqual(owner.activeSmokeCount,0,"Holder-only reveal emits nothing")
+            let expected = ratio>0 && !disabled && !UIAccessibility.isReduceMotionEnabled
+            wall=(onset+0.12)*1000;owner.paintPreloadBoardEntry(onset+0.12);service.deliver(wallMilliseconds:wall)
+            let firstCount=owner.activeSmokeCount
+            if expected {XCTAssertGreaterThan(firstCount,0)} else {XCTAssertEqual(firstCount,0)}
+            owner.paintPreloadBoardEntry(onset+0.12)
+            XCTAssertEqual(owner.activeSmokeCount,firstCount,"Same animation sample cannot emit twice")
+            for elapsed in stride(from:onset+0.16,through:end,by:0.04){
+                wall=elapsed*1000;owner.paintPreloadBoardEntry(elapsed);service.deliver(wallMilliseconds:wall)
+            }
+            owner.paintPreloadBoardEntry(end)
+            let count=owner.activeSmokeCount
+            if expected {XCTAssertGreaterThan(count,6,"Stronger particles continue across the sweep")}
+            XCTAssertLessThanOrEqual(count,2*Int(NativePreloadBarPresentation.entryFillDuration/NativeWildMeterHUDPresentation.entryBubbleInterval))
+            owner.paintPreloadBoardEntry(end+1);XCTAssertEqual(owner.activeSmokeCount,count,"Settled bar must stop emitting")
+            let births=Dictionary(uniqueKeysWithValues:stage.children.filter{$0.name=="wild-meter-smoke"}.map{(ObjectIdentifier($0),$0.position)})
+            let finishedAt=wall
+            for ms in stride(from:finishedAt+10,through:finishedAt+300,by:10){wall=ms;service.deliver(wallMilliseconds:wall)}
+            let bubbles=stage.children.compactMap{$0 as? SKShapeNode}.filter{$0.name=="wild-meter-smoke"}
+            if expected {
+                XCTAssertTrue(bubbles.contains{$0.alpha>0})
+                for bubble in bubbles {if let birth=births[ObjectIdentifier(bubble)] {XCTAssertGreaterThan(bubble.position.y,birth.y)}}
+                let texture=try XCTUnwrap(view.texture(from:scene))
+                let attachment=XCTAttachment(image:UIImage(cgImage:texture.cgImage()))
+                attachment.name="entry-red-bubbles-during-sweep";attachment.lifetime = .keepAlways;add(attachment)
+            }
+            for ms in stride(from:finishedAt+310,through:finishedAt+2000,by:10){wall=ms;service.deliver(wallMilliseconds:wall)}
+            XCTAssertEqual(owner.activeSmokeCount,0);XCTAssertEqual(service.activeParticipantCount,0)
+            XCTAssertEqual(owner.fillPose.left,canonical.left);XCTAssertEqual(owner.fillPose.width,canonical.width)
+            owner.dispose();owner.dispose();owner.paintPreloadBoardEntry(end)
+            XCTAssertTrue(stage.children.allSatisfy{$0.name != "wild-meter-smoke"})
+        }
+    }
+
+    func testInitialRedSweepMatchesActualHolderMaskPaceBeforeBoing() throws {
+        for pad in [false,true] {
+            let bar=NativePreloadBarPresentation(isPad:pad,reducedMotion:{false}),mounted=mount(bar)
+            defer{bar.dispose();mounted.1.presentScene(nil);mounted.0.isHidden=true;mounted.0.rootViewController=nil}
+            bar.resize(maximum:343.2,barHeight:10);bar.setNativeFill(left:0,width:240,maximum:343.2)
+            bar.beginBoardEntry()
+            let travel=NativePreloadBarPresentation.entryFillTravelDuration
+            let maskEnd=NativePreloadBarPresentation.holderEntryDuration()
+            let fractions=[0.25,0.5,0.75]
+            let mask=fractions.map{fraction in
+                bar.paintBoardEntry(maskEnd-travel+travel*fraction);return bar.lifecycleReveal
+            }
+            let plan=NativeWildMeterGainPlan(maximum:343.2,initial:0,ratio:240/343.2,isPad:pad,overshootScale:1.2)
+            let peak=plan.width(seconds:plan.firstDuration)/240
+            for (fraction,reveal) in zip(fractions,mask) {
+                bar.paintBoardEntry(maskEnd+travel*fraction)
+                XCTAssertEqual(bar.lifecycleReveal,1)
+                XCTAssertEqual(bar.liquidFillFraction/peak,reveal,accuracy:0.000001,"Red growth must follow the actual holder's pace")
+            }
+            bar.paintBoardEntry(maskEnd+travel)
+            XCTAssertEqual(bar.liquidFillFraction,peak,accuracy:0.000001)
+            bar.paintBoardEntry(NativePreloadBarPresentation.chromeDuration(entering:true))
+            XCTAssertEqual(bar.phase,.idle);XCTAssertEqual(bar.liquidFillFraction,1)
+        }
+    }
+
+    func testExitRetractsRedImmediatelyAndHolderStartsOneHundredMillisecondsLater() throws {
+        for pad in [false,true] {for restart in [false,true] {
+            let bar=NativePreloadBarPresentation(isPad:pad,reducedMotion:{false}),mounted=mount(bar)
+            defer{bar.dispose();mounted.1.presentScene(nil);mounted.0.isHidden=true;mounted.0.rootViewController=nil}
+            bar.resize(maximum:343.2,barHeight:10);bar.setNativeFill(left:0,width:240,maximum:343.2)
+            bar.beginBoardEntry(restart:restart)
+            bar.paintBoardEntry(NativePreloadBarPresentation.chromeDuration(entering:true,restart:restart))
+            let duration=bar.beginBoardExit(restart:restart)
+            bar.paintBoardExit(0.05)
+            XCTAssertEqual(bar.lifecycleReveal,1,"Holder must remain full during red lead")
+            XCTAssertLessThan(bar.liquidFillFraction,1,"Red starts retracting immediately")
+            bar.paintBoardExit(NativePreloadBarPresentation.exitLiquidLead)
+            XCTAssertEqual(bar.lifecycleReveal,1)
+            bar.paintBoardExit(NativePreloadBarPresentation.exitLiquidLead+0.04)
+            XCTAssertLessThan(bar.lifecycleReveal,1,"Holder follows at100ms")
+            bar.paintBoardExit(duration)
+            XCTAssertEqual(bar.phase,.gone);XCTAssertEqual(bar.lifecycleReveal,0)
         }}
     }
 

@@ -11,7 +11,7 @@ public enum NativeWildRewardPolicy {
             // Before this marker existed, Unit6's very first committed drop
             // was always Mushroom. Preserve that evidence in legacy saves.
             let introduced=(state.forestMushroomIntroduced ?? (state.wildSpawnCount>0)) || state.lastWildDropType == .juice || state.tiles.contains{$0.variant=="mushroom"}
-            guard let reward=NativeJourneyContent.reward(board:state.board,wildSpawnCount:state.wildSpawnCount,roll:roll,previous:state.lastWildDropType,mushroomIntroduced:introduced,unlockedDice:unlockedJourneyDice,introducedDice:state.earnedJourneyDice) else {return nil}
+            guard let reward=NativeJourneyContent.reward(board:state.board,wildSpawnCount:state.wildSpawnCount,roll:roll,previous:state.lastWildDropType,mushroomIntroduced:introduced,unlockedDice:unlockedJourneyDice,introducedDice:state.earnedJourneyDice,beachBallDropCount:state.completedBeachBallDrops) else {return nil}
             return NativeWildRewardChoice(reward.archetype,variant:reward.variant)
         }
         if allowEnduranceTrial,enduranceBaloonFirstDropTrialEnabled,state.effectiveArcadeVariant == .endurance,

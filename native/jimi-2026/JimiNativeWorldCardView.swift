@@ -237,6 +237,16 @@ private final class JimiWorldStatTileView: UIView {
 private final class JimiWorldStarSlotView:UIView {
     let artwork:UIImageView,empty:UIImageView?
     private var burnLayers:[CALayer]=[]
+    private var burnFrames:[CGImage]=[]
+    private var burnGlow:CGImage?
+    private var burnGeneration=0
+    private final class BurnReceipt:NSObject,CAAnimationDelegate {
+        weak var owner:JimiWorldStarSlotView?
+        let generation:Int
+        init(owner:JimiWorldStarSlotView,generation:Int){self.owner=owner;self.generation=generation}
+        func animationDidStop(_ animation:CAAnimation,finished:Bool){owner?.finishBurn(self,finished:finished)}
+    }
+    private var burnReceipt:BurnReceipt?
     init(index:Int,earned:Bool,resources:JimiNativeWorldResources,owner:Int) {
         artwork=UIImageView(image:resources.image(earned ? "assets/modals/star.png":"assets/modals/star-empty.png",owner:owner))
         empty=earned ? UIImageView(image:resources.image("assets/modals/star-empty.png",owner:owner)):nil
@@ -253,36 +263,50 @@ private final class JimiWorldStarSlotView:UIView {
     }
     func installBurn(frames:[CGImage],glow:CGImage?,begin:CFTimeInterval) {
         guard burnLayers.isEmpty,!frames.isEmpty else{return}
-        let duration=1.1/1.3,period=3.0
         let burn=CALayer(),halo=CALayer()
         burn.name="native.world.card.star.burn";halo.name="native.world.card.star.burn-glow"
         for layer in [halo,burn] {
             layer.opacity=0;layer.contentsGravity = .resizeAspect;layer.frame=artwork.bounds
             artwork.layer.addSublayer(layer)
         }
+        burnLayers=[halo,burn];burnFrames=frames;burnGlow=glow
+        scheduleBurn(begin:max(begin,burn.convertTime(CACurrentMediaTime(),from:nil)),first:true)
+    }
+    private func scheduleBurn(begin:CFTimeInterval,first:Bool){
+        guard burnLayers.count==2,!burnFrames.isEmpty else{return}
+        let halo=burnLayers[0],burn=burnLayers[1],frames=burnFrames
+        let duration=NativeStarBurnTiming.duration,delay=NativeStarBurnTiming.delay(first:first)
         let contents=CAKeyframeAnimation(keyPath:"contents")
         contents.values=frames+[frames.last!]
-        contents.keyTimes=(0..<frames.count).map{NSNumber(value:Double($0)/Double(frames.count)*duration/period)}+[1]
-        contents.calculationMode = .discrete;contents.duration=period
+        contents.keyTimes=(0..<frames.count).map{NSNumber(value:Double($0)/Double(frames.count))}+[1]
+        contents.calculationMode = .discrete;contents.duration=duration;contents.beginTime=delay
         let visible=CAKeyframeAnimation(keyPath:"opacity")
-        visible.values=[1,0,0];visible.keyTimes=[0,NSNumber(value:duration/period),1]
-        visible.calculationMode = .discrete;visible.duration=period
-        let group=CAAnimationGroup();group.animations=[contents,visible];group.duration=period
-        group.repeatCount = .infinity;group.beginTime=begin+0.63
+        visible.values=[1,0];visible.keyTimes=[0,1]
+        visible.calculationMode = .discrete;visible.duration=duration;visible.beginTime=delay
+        let receipt=BurnReceipt(owner:self,generation:burnGeneration);burnReceipt=receipt
+        let group=CAAnimationGroup();group.animations=[contents,visible];group.duration=delay+duration
+        group.beginTime=begin;group.delegate=receipt
         burn.add(group,forKey:"card.info.star.burn")
-        halo.contents=glow
+        halo.contents=burnGlow
         let light=CAKeyframeAnimation(keyPath:"opacity")
         let times=(0...90).map{Double($0)/90*duration}
         light.values=times.map {time -> Double in
             let p=time/duration,local=p<0.56 ? p/0.56:(p-0.56)/0.44
             let eased=NativeResultPresentationPlan.bezier(local,0,0,0.58,1)
             return p<0.56 ? eased:1-eased
-        }+[0]
-        light.keyTimes=times.map{NSNumber(value:$0/period)}+[1]
-        light.calculationMode = .linear;light.duration=period;light.repeatCount = .infinity;light.beginTime=begin+0.63
-        halo.add(light,forKey:"card.info.star.burn-glow");burnLayers=[halo,burn]
+        }
+        light.keyTimes=times.map{NSNumber(value:$0/duration)}
+        light.calculationMode = .linear;light.duration=duration;light.beginTime=begin+delay
+        halo.add(light,forKey:"card.info.star.burn-glow")
+    }
+    private func finishBurn(_ receipt:BurnReceipt,finished:Bool){
+        guard burnReceipt === receipt,receipt.generation==burnGeneration else{return}
+        receipt.owner=nil;burnReceipt=nil
+        guard finished,let burn=burnLayers.last else{return}
+        scheduleBurn(begin:burn.convertTime(CACurrentMediaTime(),from:nil),first:false)
     }
     func retireBurn() {
+        burnGeneration += 1;burnReceipt?.owner=nil;burnReceipt=nil;burnFrames.removeAll();burnGlow=nil
         for layer in burnLayers {layer.removeAllAnimations();layer.contents=nil;layer.removeFromSuperlayer()}
         burnLayers.removeAll()
     }
@@ -448,7 +472,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         cta.addTarget(self,action:#selector(releaseCTA),for:[.touchUpInside,.touchUpOutside,.touchCancel,.touchDragExit])
         var perspective = CATransform3DIdentity; perspective.m34 = -1/1050; cameraStage.layer.sublayerTransform = perspective
         for face in [front as UIView,back] {face.layer.shadowColor = UIColor(red:165/255,green:124/255,blue:98/255,alpha:1).cgColor;face.layer.shadowOpacity = 0.86;face.layer.shadowRadius = 18;face.layer.shadowOffset = CGSize(width:0,height:14)}
-        effects = JimiNativeWorldCardEffects(front:front,impact:effectShell,overlay:self,assets:assets,resources:resources,boardID:boardID,rarity:unit.cardRarity,coachSession:coachSession)
+        effects = JimiNativeWorldCardEffects(front:front,impact:effectShell,overlay:self,assets:assets,resources:resources,boardID:boardID,rarity:unit.cardRarity,flip:rotor,coachSession:coachSession)
 
     }
     required init?(coder:NSCoder) {fatalError("init(coder:) has not been implemented")}
@@ -463,7 +487,11 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         closePaper.transform=closeButton.transform
         closeButton.layer.shadowPath = UIBezierPath(roundedRect:closeButton.bounds.insetBy(dx:-2*closeScale,dy:-2*closeScale),cornerRadius:56*closeScale*16/52).cgPath
         closeIcon.frame = CGRect(x:14*closeScale,y:14*closeScale,width:24*closeScale,height:24*closeScale)
-        let size = carrier.bounds.size;dragShell.frame = carrier.bounds;effectShell.frame = carrier.bounds;pinchShell.frame = carrier.bounds;rotorShell.frame = carrier.bounds
+        let size = carrier.bounds.size
+        // Bounds/center preserve the spatial pose while the coach rotates in3D.
+        for shell in [dragShell,effectShell,pinchShell,rotorShell] {
+            shell.bounds=carrier.bounds;shell.center=CGPoint(x:size.width/2,y:size.height/2)
+        }
         frontFloat.bounds = carrier.bounds;frontFloat.center = CGPoint(x:size.width/2,y:size.height/2);frontSettle.bounds=carrier.bounds;frontSettle.center=frontFloat.center;front.bounds = carrier.bounds;front.center = CGPoint(x:size.width/2,y:size.height/2);backFloat.bounds = carrier.bounds;backFloat.center = front.center;backSettle.bounds=carrier.bounds;backSettle.center=front.center;back.bounds = carrier.bounds;back.center = front.center;panel.frame = carrier.bounds
         // Keep the existing carrier/front and every live control fixed. Only the
         // info artwork extends24pt downward, scaled with narrow/short viewports.
@@ -573,7 +601,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         (newRibbon as? JimiNativeNewRibbonView)?.enter()
         scheduleGameplayPreparation()
         transitionBackdrop(to:1,duration:duration)
-        base = destination; carrier.frame = base; layoutIfNeeded();effects?.layout();cta.isEnabled = false
+        base = destination; carrier.frame = base; setNeedsLayout();layoutIfNeeded();effects?.layout();cta.isEnabled = false
         // PWA entry starts its spatial flight immediately. The rotor turns
         // during 32–68% of that same flight; no resident contact prefix.
         animateBackStats(entering:true,delay:duration*0.5,infoFlipDuration:UIAccessibility.isReduceMotionEnabled ? 0.18:duration)
@@ -591,7 +619,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         }
         fly(from:origin,to:base,returning:false) { [weak self] in
             guard let self,!self.disposed,!self.closing else{return}
-            CATransaction.begin();CATransaction.setDisableActions(true);self.carrier.layer.transform = CATransform3DMakeRotation(self.backTilt,0,0,1);self.carrier.layer.removeAnimation(forKey:"card.flight");CATransaction.commit();self.refreshCTAAdmission();self.effects?.present(frontFacing:!self.isBackFacing,opening:true);self.playInfoMotion();self.playSettledInfoBounce();(self.newRibbon as? JimiNativeNewRibbonView)?.setForeground(self.active && !self.isBackFacing)
+            CATransaction.begin();CATransaction.setDisableActions(true);self.carrier.layer.transform = CATransform3DMakeRotation(self.backTilt,0,0,1);self.carrier.layer.removeAnimation(forKey:"card.flight");CATransaction.commit();self.refreshCTAAdmission();self.effects?.present(frontFacing:!self.isBackFacing);self.playInfoMotion();self.playSettledInfoBounce();(self.newRibbon as? JimiNativeNewRibbonView)?.setForeground(self.active && !self.isBackFacing)
             if let path = self.cardArt2x,let resources = self.resources {let token = self.generation;resources.prepare([path],owner:self.boardID,required:false) { [weak self,weak resources] accepted in guard accepted,let self,self.generation == token else {return};if let image = resources?.image(path,owner:self.boardID) {self.front.image = image;self.effects?.layout()} } }
         }
         // Schedule against the just-installed opening flight, before placement.
@@ -638,6 +666,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
     }
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
         guard active,!disposed,!closing,(!animating || (gestureRecognizer is UIPanGestureRecognizer && manualFlipInFlight)) else {return false}
+        effects?.resetInactivity()
         var view = touch.view
         while let current = view {if current is UIControl {return false};view = current.superview}
         return true
@@ -787,8 +816,8 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
     }
     private func installStarBurn() {
         guard !disposed,!closing,!starBurnReducedMotion else{return}
+        guard let begin=starPulseBeginTimes.values.max() else{return}
         for (index,slot) in starSlots.enumerated() where index<earnedStarCount {
-            guard let begin=starPulseBeginTimes[index] else{continue}
             slot.installBurn(frames:starBurnFrames,glow:starBurnGlow,begin:begin)
         }
     }

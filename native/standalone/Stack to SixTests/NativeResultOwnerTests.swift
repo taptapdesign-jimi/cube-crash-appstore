@@ -6,6 +6,32 @@ import StackToSixNativeState
 
 @MainActor
 final class NativeResultOwnerTests:XCTestCase {
+    func testStarBurnRandomizesEveryGapWithoutDrawingOnEveryFrame() {
+        // Any slot can start first: no index-based lead or evenly spaced order.
+        for first in 0..<3 {
+            let starts=(0..<3).map {index in NativeStarBurnTiming(readyAt:2,random:{index==first ? 0:0.9}).start}
+            XCTAssertEqual(starts.firstIndex(of:starts.min()!),first)
+        }
+        var draws=0
+        var timing=NativeStarBurnTiming(readyAt:2,random:{0.5})
+        let initial=timing.start
+        XCTAssertEqual(initial,3,accuracy:0.0001)
+        let random:()->Double={draws += 1;return draws==1 ? 0:1}
+        XCTAssertNil(timing.phase(at:initial-0.1,random:random))
+        XCTAssertEqual(timing.phase(at:initial+0.2,random:random) ?? -1,0.2,accuracy:0.0001)
+        XCTAssertEqual(timing.phase(at:initial+0.2,random:random) ?? -1,0.2,accuracy:0.0001)
+        XCTAssertEqual(draws,0,"Frozen or ordinary frame updates do not resample the pending burn")
+        let end=initial+NativeStarBurnTiming.duration
+        XCTAssertNil(timing.phase(at:end,random:random))
+        XCTAssertEqual(timing.start,end+1.1,accuracy:0.0001)
+        let nextEnd=timing.start+NativeStarBurnTiming.duration
+        XCTAssertNil(timing.phase(at:nextEnd,random:random))
+        XCTAssertEqual(timing.start,nextEnd+4,accuracy:0.0001)
+        XCTAssertEqual(draws,2,"Each completed burn gets a fresh unequal quiet gap")
+        XCTAssertNil(timing.phase(at:100,random:random))
+        XCTAssertGreaterThan(timing.start,100,"A time jump cannot produce catch-up bursts")
+    }
+
     func testStarBurnUsesEvenHighlightWithoutRadialHotSpots() throws {
         let format=UIGraphicsImageRendererFormat();format.scale=1
         let source=UIGraphicsImageRenderer(size:CGSize(width:16,height:16),format:format).image {ctx in
@@ -50,14 +76,17 @@ final class NativeResultOwnerTests:XCTestCase {
         let burn=try XCTUnwrap(first.layer.sublayers?.first{$0.name=="native.result.star.burn"})
         XCTAssertTrue(third.layer.sublayers?.isEmpty ?? true)
         result.setSuspended(false);result.tick(0)
-        for frame in 1...114 {result.tick(Double(frame)/60)}
+        for frame in 1...600 {
+            result.tick(Double(frame)/60)
+            if burn.opacity==1 {break}
+        }
         XCTAssertEqual(burn.opacity,1);XCTAssertNotNil(burn.contents)
         XCTAssertFalse(second.layer.sublayers?.contains{$0.name=="native.result.star.shimmer"} ?? false)
         XCTAssertNotNil(second.layer.sublayers?.first{$0.name=="native.result.star.burn"})
         XCTAssertTrue((burn.animationKeys() ?? []).isEmpty,"Burn uses the existing result clock")
         let format=UIGraphicsImageRendererFormat();format.scale=3
         let shot=UIGraphicsImageRenderer(bounds:window.bounds,format:format).image{_ in window.drawHierarchy(in:window.bounds,afterScreenUpdates:true)}
-        try shot.pngData()?.write(to:URL(fileURLWithPath:"/tmp/native-result-star-burn-only-20261108/preview.png"))
+        try shot.pngData()?.write(to:URL(fileURLWithPath:"/tmp/native-organic-star-burn-20261108/result-preview.png"))
         let before=result.elapsed;result.setSuspended(true);result.tick(200)
         XCTAssertEqual(result.elapsed,before);XCTAssertEqual(burn.opacity,0)
         result.setSuspended(false);result.tick(201)
@@ -431,6 +460,40 @@ final class NativeResultOwnerTests:XCTestCase {
         XCTAssertEqual(complete.displayedScore,2725);XCTAssertEqual(complete.displayedCombo,0);XCTAssertEqual(complete.displayedEfficiency,0)
         XCTAssertEqual(6.62-NativeResultPresentationPlan.cleanPrimaryCTAStart,1.23,accuracy:0.001)
     }
+    func testFinalScoreBurnRunsOnceWithRegisterAndRetires() async throws {
+        let result=controller()
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=result;window.makeKeyAndVisible()
+        defer{result.dispose();window.isHidden=true;window.rootViewController=nil}
+        result.view.layoutIfNeeded();result.setSuspended(true)
+        try await Task.sleep(for:.milliseconds(400))
+        func find(_ layer:CALayer)->CALayer? {
+            if layer.name=="native.result.score.burn" {return layer}
+            return layer.sublayers?.lazy.compactMap{find($0)}.first
+        }
+        let burn=try XCTUnwrap(find(result.view.layer))
+        XCTAssertEqual(burn.opacity,0)
+        var cues=0;result.onMoment={kind,_,_ in if kind=="clean-score-stop" {cues += 1;XCTAssertEqual(burn.opacity,1)}}
+        result.setSuspended(false);result.tick(0)
+        let end=NativeResultPresentationPlan.finalScoreBounceStart(baseScore:100,combo:50,efficiency:500,arcadeReached:false)
+        for frame in 1...Int(ceil((end+0.35)*120)) {result.tick(Double(frame)/120)}
+        XCTAssertEqual(cues,1);XCTAssertEqual(burn.opacity,1);XCTAssertNotNil(burn.contents)
+        XCTAssertTrue((burn.animationKeys() ?? []).isEmpty,"Finite burn shares the existing result clock")
+        let shot=UIGraphicsImageRenderer(bounds:window.bounds).image{_ in window.drawHierarchy(in:window.bounds,afterScreenUpdates:true)}
+        try shot.pngData()?.write(to:URL(fileURLWithPath:"/tmp/native-final-score-burn-20261108/preview.png"))
+        let before=result.elapsed;result.setSuspended(true);result.tick(200)
+        XCTAssertEqual(result.elapsed,before);XCTAssertEqual(burn.opacity,0)
+        result.setSuspended(false);result.tick(201)
+        XCTAssertEqual(result.elapsed,before);XCTAssertEqual(burn.opacity,1)
+        for frame in 1...240 {result.tick(201+Double(frame)/120)}
+        XCTAssertNil(burn.superlayer);XCTAssertNil(burn.contents);XCTAssertEqual(cues,1)
+        result.view.setNeedsLayout();result.view.layoutIfNeeded()
+        XCTAssertNil(find(result.view.layer),"Later layout cannot replay the one-shot")
+        result.dispose();result.dispose()
+        let late=controller();late.loadViewIfNeeded();late.view.layoutIfNeeded();late.dispose()
+        try await Task.sleep(for:.milliseconds(100))
+        XCTAssertNil(find(late.view.layer),"Retired worker cannot publish a burn after disposal")
+    }
+
     func testCleanRegisterStartsOnceWithFinalCounterBounce() {
         let result=controller();var stops:[Int]=[];var cueTimes:[Double]=[]
         result.onMoment={kind,index,_ in if kind=="clean-score-stop" {stops.append(index);cueTimes.append(result.elapsed)}}

@@ -179,7 +179,7 @@ import SpriteKit
         await fulfillment(of:[delivered],timeout:1)
         let bubble=try XCTUnwrap(stage.children.first{$0.name=="wild-meter-smoke"} as? SKShapeNode)
         XCTAssertTrue(bubble.parent === stage);XCTAssertFalse(bubble.parent === presentation.container)
-        XCTAssertEqual(bubble.zPosition,2000)
+        XCTAssertEqual(bubble.zPosition,12000,"Retain approved production bubble plane above the preload surface")
         print("[METER_BIRTH] paused=\(service.sourceAnimationSeconds) bubbleAlpha=\(bubble.alpha) count=\(presentation.activeSmokeCount) position=\(bubble.position)")
         XCTAssertEqual(bubble.alpha,0,"A wall-emitted bubble must stay hidden until its motion clock advances")
         XCTAssertEqual(bubble.position.x,74,accuracy:1e-6);XCTAssertEqual(bubble.position.y,787,accuracy:1e-6)

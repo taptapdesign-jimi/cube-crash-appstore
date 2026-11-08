@@ -2394,6 +2394,10 @@ public final class NativeGameplayEngine {
         let cell = state.tutorial?.waitingForWild == true ? (NativeTutorialRules.preferredWildCell(state:state) ?? available[min(available.count-1,Int(nextRandom()*Double(available.count)))]) : available[min(available.count-1,Int(nextRandom()*Double(available.count)))]
         let choice = state.tutorial?.waitingForWild == true ? (state.tutorial?.reward ?? NativeWildRewardChoice(.star)) : rewardPicker?(state,nextRandom(),{ self.nextRandom() })
         guard let reward = choice, reward.variant == nil || NativeSpecialDiceRegistry.compatibleVariant(reward.variant!,core:reward.archetype) != nil else { return false }
+        // Freeze legacy evidence before the newly reserved die joins the roster.
+        if state.mode == .journey,state.board==13,state.beachBallDropCount==nil {
+            state.beachBallDropCount=state.completedBeachBallDrops
+        }
         state.removeSourceGridOwner(at:cell)
         var tile = freshTile(cell:cell,value:6); tile.archetype = reward.archetype; tile.variant = reward.variant
         if reward.archetype == .star { tile.starOrbitCount = initialStarDropCount(variant:reward.variant) }
@@ -2424,6 +2428,9 @@ public final class NativeGameplayEngine {
 
     private func recordEarnedJourneyDie(archetype:NativeWildArchetype,variant:String?) {
         guard state.mode == .journey else{return}
+        if state.board==13,variant=="beach-ball" {
+            state.beachBallDropCount=min(6,min(6,state.beachBallDropCount ?? 0)+1)
+        }
         // A missing receipt on an already-running legacy save stays legacy;
         // creating an empty set there would forget its former first-drop guarantee.
         if state.earnedJourneyDice == nil,state.wildSpawnCount==0 {state.earnedJourneyDice=[]}
@@ -4470,6 +4477,9 @@ extension NativeGameplayEngine {
             let actualID=holder?.id ?? request.tile.id
             guard tileID==actualID else{pendingMeterOpen=request;return rejected("foreign_meter_open_node")}
             var opened=request.tile;opened.id=actualID
+            if state.mode == .journey,state.board==13,state.beachBallDropCount==nil {
+                state.beachBallDropCount=state.completedBeachBallDrops
+            }
             state.removeSourceGridOwner(at:request.tile.cell);state.tiles.append(opened)
             var events=[NativeGameplayEvent(.meterDropOpenCreated,tileIDs:[opened.id],archetype:request.tile.archetype,reason:id,variant:request.tile.variant)]
             if meterOpenCancelled {

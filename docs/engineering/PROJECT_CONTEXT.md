@@ -64,11 +64,18 @@ User decision2026-11-02: iPad visual/layout/motion adaptations are tablet-only. 
 
 Native Journey gameplay returns (2026-10-25): Clean Board, Fail and deliberate Exit Stage each run the existing automatic flip on the exact played Unit once, preserving scroll and the existing Reduced Motion policy. Ordinary World/Backpack visits do not replay it.
 
-Journey card flip onboarding (2026-10-24): the first visible card modal shows
-the immediate DRAG TO FLIP text/hand motion once per installation, acknowledged
-in namespaced local UserDefaults separately from player saves. Later card
-openings, flips, foreground returns and app relaunches show no automatic hint.
-This supersedes the earlier once-per-process exception and delayed repeat hints.
+Journey card flip reminder (user2026-11-08): the existing DRAG TO FLIP hand/text
+and finite2.1s impact repeat every10seconds of inactivity on either info or artwork
+face. Visible settled entry,completed flip/gesture and foreground/history return
+start a fresh10s wait;touch resets it. Background,history,close and disposal cancel
+wait and hint. Pointer readiness and Reduced Motion retain their guards. The old
+installation-local acknowledgement no longer gates this reminder;game saves remain
+unchanged. One finite neutral compositor receipt owns each wait,no timer/displaylink.
+User2026-11-08 follow-up:copy shares exact TAP TO COLLECT styling/motion via
+NativeCoachCopyMotion collect helpers(32pt white/four orange glows,4.1s copy lifetime with1.3s added settled hold before
+entry-source/letter exit). Existing2.1s hand motion now adds a finite additive
+54degreeYturn in each direction on the actual manual rotor,returning to neutral.
+Captured-pose160ms handoff yields to gestures without changing canonical face angle.
 
 Native Backpack player-facing name for internal die `kanta` is **BLOOB BUCKET**
 (renamed2026-10-24),replacing BLOB/BLOOB BARREL. This is distinct from `bloob-ball`

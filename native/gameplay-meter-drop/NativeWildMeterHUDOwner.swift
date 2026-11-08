@@ -35,7 +35,7 @@ import Foundation
         guard !disposed else { return }
         left=max(0,min(maximum,pose.left));width=max(0,min(maximum*1.05,pose.width));draw(.init(left:left,width:width))
     }
-    func setProgress(_ ratio: Double, animated: Bool) {
+    func setProgress(_ ratio: Double, animated: Bool, presentationWidth:Double?=nil) {
         guard !disposed else { return }
         mutation &+= 1;let captured=mutation
         if consumption.active {
@@ -44,6 +44,10 @@ import Foundation
             }
         }
         guard !disposed,mutation==captured else{return}
+        if let presentationWidth {
+            paint(.init(left:0,width:presentationWidth))
+            guard !disposed,mutation==captured else{return}
+        }
         gain.adoptPaintedWidth(width)
         gain.setProgress(ratio, animated: animated, maximum: maximum, isPad: isPad)
     }

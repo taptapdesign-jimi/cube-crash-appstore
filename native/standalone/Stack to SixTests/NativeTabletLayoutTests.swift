@@ -102,7 +102,7 @@ final class NativeTabletLayoutTests:XCTestCase {
             }
         }
     }
-    func testBoxNavigationArtworkFillsSameCanvasAsBackpackOnPhoneAndTablet() throws {
+    func testBoxNavigationArtworkIsTenPercentSmallerWithSameHitFrameOnPhoneAndTablet() throws {
         for size in [CGSize(width:390,height:844),CGSize(width:820,height:1180)] {
             let window=UIWindow(frame:CGRect(origin:.zero,size:size)),host=UIViewController()
             window.rootViewController=host;window.makeKeyAndVisible()
@@ -114,15 +114,18 @@ final class NativeTabletLayoutTests:XCTestCase {
                 let image=try XCTUnwrap(view.backpackButton.imageView)
                 artworkSizes.append(image.bounds.size)
                 let scale:CGFloat=NativeTabletLayout.applies(size) ? 1.4:1
-                XCTAssertEqual(image.bounds.width,40*scale,accuracy:0.01)
-                XCTAssertEqual(image.bounds.height,40*scale,accuracy:1/UIScreen.main.scale,"Small crate originals must upscale beyond intrinsic36pt")
+                XCTAssertEqual(image.bounds.width,(arcade ? 36:40)*scale,accuracy:0.01)
+                XCTAssertEqual(image.bounds.height,(arcade ? 36:40)*scale,accuracy:1/UIScreen.main.scale)
+                let original=view.backpackButton.bounds.inset(by:view.backpackButton.imageEdgeInsets)
+                XCTAssertEqual(image.center.x,original.midX,accuracy:0.01)
+                XCTAssertEqual(image.center.y,original.midY,accuracy:1/UIScreen.main.scale)
                 XCTAssertEqual(view.backpackButton.bounds.size,CGSize(width:40*scale,height:48*scale))
                 let attachment=XCTAttachment(image:UIGraphicsImageRenderer(bounds:view.header.bounds).image{view.header.layer.render(in:$0.cgContext)})
                 attachment.name="\(arcade ? "Box":"Backpack") navigation \(Int(size.width))";attachment.lifetime = .keepAlways;add(attachment)
                 view.removeFromSuperview()
             }
-            XCTAssertEqual(artworkSizes[0].width,artworkSizes[1].width,accuracy:1/UIScreen.main.scale)
-            XCTAssertEqual(artworkSizes[0].height,artworkSizes[1].height,accuracy:1/UIScreen.main.scale)
+            XCTAssertEqual(artworkSizes[0].width*0.9,artworkSizes[1].width,accuracy:1/UIScreen.main.scale)
+            XCTAssertEqual(artworkSizes[0].height*0.9,artworkSizes[1].height,accuracy:1/UIScreen.main.scale)
         }
     }
 

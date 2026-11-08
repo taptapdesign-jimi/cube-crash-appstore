@@ -32,7 +32,7 @@ final class JimiNativeEndRunTests: XCTestCase {
             try XCTUnwrap(UIImage(cgImage:raster).pngData()).write(to:dir.appendingPathComponent(name))
         }}}
     }
-    private var dto:[String:Any] {["title":"Exit Game?","subtitle":"Come back anytime.\nRound 01 progress saved.","restartLabel":"New Game","exitLabel":"Exit Game"]}
+    private var dto:[String:Any] {["title":"Exit","subtitle":"Come back anytime.\nRound 01 progress saved.","restartLabel":"New Game","exitLabel":"Exit"]}
     func testBundledExitFacesMatchCurrentRecipeAcrossBothWidthsAndDensities() throws {
         let root=NativeTestResources.root,artwork=JimiV9Artwork(resourceRoot:NativeTestResources.root)
         func pixels(_ image:CGImage)->Data {
@@ -248,6 +248,24 @@ final class JimiNativeEndRunTests: XCTestCase {
                 XCTAssertLessThanOrEqual(expected,modal.card.bounds.width-32)
                 XCTAssertEqual(modal.buttons[1].cartoonBounceFrame.minY-modal.buttons[0].cartoonBounceFrame.maxY,12,accuracy:0.001)
             }
+        }
+    }
+
+    func testJourneyRestartExitMatchesArcadeNewGameExitWidths() throws {
+        let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+        for viewport in [CGSize(width:320,height:693),CGSize(width:390,height:844),CGSize(width:430,height:932),CGSize(width:744,height:1133),CGSize(width:820,height:1180)] {
+            var journey=dto;journey["restartLabel"]="Restart"
+            let stage=JimiNativeEndRunModal(id:101,model:try XCTUnwrap(JimiNativeEndRunModel(journey)),assets:assets,synchronizesBoardCTAEntry:true)
+            let arcade=JimiNativeEndRunModal(id:102,model:try XCTUnwrap(JimiNativeEndRunModel(dto)),assets:assets,synchronizesBoardCTAEntry:true)
+            defer{stage.dispose();arcade.dispose()}
+            for modal in [stage,arcade] {modal.loadViewIfNeeded();modal.view.frame=CGRect(origin:.zero,size:viewport);modal.viewDidLayoutSubviews()}
+            for index in 0...1 {
+                XCTAssertEqual(stage.buttons[index].bounds.width,arcade.buttons[index].bounds.width,accuracy:0.001)
+                XCTAssertEqual(stage.buttons[index].bounds.height,arcade.buttons[index].bounds.height)
+                XCTAssertEqual(stage.buttons[index].cartoonBounceLayoutView.center,arcade.buttons[index].cartoonBounceLayoutView.center)
+            }
+            XCTAssertEqual(stage.buttons[0].title(for:.normal),"Restart")
+            XCTAssertEqual(stage.buttons[1].title(for:.normal),"Exit")
         }
     }
 
@@ -630,7 +648,7 @@ final class JimiNativeEndRunTests: XCTestCase {
 
     func testEndRunCTAEntryKeepsSharpPaintLeavesAndRetiresThroughRealClose()async throws {
         guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Motion disabled")}
-        let model=try XCTUnwrap(JimiNativeEndRunModel(["title":"Exit Stage?","subtitle":"Come back anytime.\nStage 1 progress saved.","restartLabel":"Restart","exitLabel":"Exit Stage"]))
+        let model=try XCTUnwrap(JimiNativeEndRunModel(["title":"Exit","subtitle":"Come back anytime.\nStage 1 progress saved.","restartLabel":"Restart","exitLabel":"Exit"]))
         var modal:JimiNativeEndRunModal?=JimiNativeEndRunModal(id:74,model:model,assets:JimiV9Artwork(resourceRoot:NativeTestResources.root),synchronizesBoardCTAEntry:true)
         weak var released=modal
         let scene=try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.first),prior=scene.windows.first{$0.isKeyWindow}
@@ -664,6 +682,8 @@ final class JimiNativeEndRunTests: XCTestCase {
         host.present(try XCTUnwrap(modal),animated:false)
         await fulfillment(of:[installed,ready],timeout:5)
         XCTAssertTrue(modal?.view.isUserInteractionEnabled==true)
+        let snapshot=UIGraphicsImageRenderer(bounds:window.bounds).image{_ in window.drawHierarchy(in:window.bounds,afterScreenUpdates:true)}
+        let attachment=XCTAttachment(image:snapshot);attachment.name="journey-exit-arcade-width";attachment.lifetime = .keepAlways;add(attachment)
         modal?.suspend();XCTAssertFalse(modal?.view.isUserInteractionEnabled ?? true);modal?.resume()
         modal?.buttons[0].sendActions(for:.touchUpInside);XCTAssertEqual(actions,["restart"])
         modal?.closeFromOwner();await fulfillment(of:[closed],timeout:3)

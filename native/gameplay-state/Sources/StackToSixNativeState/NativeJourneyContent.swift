@@ -115,11 +115,20 @@ public enum NativeJourneyContent {
         guard let name = rewardPool(board:board).first(where:{!prior.contains($0)}) else { return nil }
         return reward(named:name)
     }
-    public static func reward(board: Int, wildSpawnCount: Int, roll: Double, previous: NativeWildArchetype? = nil,mushroomIntroduced:Bool=false,unlockedDice:Set<String>=[],introducedDice:Set<String>?=nil) -> NativeWildReward? {
+    public static func reward(board: Int, wildSpawnCount: Int, roll: Double, previous: NativeWildArchetype? = nil,mushroomIntroduced:Bool=false,unlockedDice:Set<String>=[],introducedDice:Set<String>?=nil,beachBallDropCount:Int?=nil) -> NativeWildReward? {
         var pool = availableRewardPool(board:board,unlockedDice:unlockedDice)
         guard !pool.isEmpty else { return nil }
         var bounded = roll.isFinite ? max(0,min(1-Double.ulpOfOne,roll)) : 0
         var mushroomProbability=NativeWildRewardPolicy.mushroomProbability
+        if board==13 {
+            let count=max(0,beachBallDropCount ?? ((introducedDice?.contains("beach-ball") ?? (wildSpawnCount>0)) ? 1:0))
+            let chances=[0.40,0.20,0.10,0.05,0.02]
+            let chance=count==0 ? 1/Double(max(1,3-wildSpawnCount)):chances[min(count-1,chances.count-1)]
+            if bounded<chance {return reward(named:"beach-ball")}
+            pool.removeAll{$0=="beach-ball"}
+            bounded=(bounded-chance)/(1-chance)
+            return reward(named:pool[min(pool.count-1,Int(bounded*Double(pool.count)))])
+        }
         // Uniform first-appearance slot: 1/3 now, 1/2 if still absent on
         // drop two, then guaranteed. Reuse the same draw for the other pool.
         // Legacy runs retain evidence of their former first-drop guarantee.

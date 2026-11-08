@@ -27,10 +27,13 @@ import UIKit
     private var chromePose=ChromePose(),exitChromePose=ChromePose()
     private var restartChrome=false
     static let hudExitLead=0.05
+    static let exitLiquidLead=0.100
     private static var barMotionDuration:Double{JimiV9ArchedNavigationTitle.elementDuration+2*JimiV9ArchedNavigationTitle.elementStagger}
     // Keep the early board/HUD arrival clear; divider joins the stationary mask reveal.
     private static var barEntryDelay:Double{JimiV9ArchedNavigationTitle.elementDuration}
-    static let entryFillDuration=0.64
+    static var entryFillTravelDuration:Double{barMotionDuration}
+    static let entryFillBounceDuration=0.42
+    static var entryFillDuration:Double{entryFillTravelDuration+entryFillBounceDuration}
     static func holderEntryDuration(reduced:Bool=false,restart:Bool=false)->Double {
         if reduced{return JimiV9ArchedNavigationTitle.reducedDuration(entering:true)}
         return (restart ? 0:barEntryDelay)+barMotionDuration
@@ -38,6 +41,9 @@ import UIKit
     static func chromeDuration(entering:Bool,reduced:Bool=false,restart:Bool=false)->Double {
         if reduced{return JimiV9ArchedNavigationTitle.reducedDuration(entering:entering)}
         if entering{return holderEntryDuration(restart:restart)+entryFillDuration}
+        return holderExitDuration(restart:restart)+exitLiquidLead
+    }
+    private static func holderExitDuration(restart:Bool)->Double {
         if restart{return barMotionDuration/1.3}
         return hudExitLead+3*JimiV9ArchedNavigationTitle.elementStagger+JimiV9ArchedNavigationTitle.elementDuration
     }
@@ -152,14 +158,36 @@ import UIKit
     }
     var barCenterY:Double {isPad ? -5:8.750637429882714/2*maximum/(390*0.88)}
     var lifecycleReveal:Double{chromePose.reveal}
-    private var exitLiquidFraction=1.0
+    private var exitLiquidFraction=1.0,exitLead=0.0
+    private var entryFillHandedToGameplay=false
+    /// Retain the mask/divider track while the ordinary gain owner takes over
+    /// from the liquid edge actually visible at the first live progress change.
+    func handEntryFillToGameplay()->Double? {
+        guard !closed,phase == .arriving,!entryFillHandedToGameplay else{return nil}
+        let fraction=liquidFillFraction
+        entryFillHandedToGameplay=true
+        return fraction
+    }
     var liquidFillFraction:Double {
         if phase == .gone{return 0}
-        if phase == .boardLeaving{return exitLiquidFraction}
-        guard phase == .arriving,!reducedMotion() else{return 1}
+        if phase == .boardLeaving {
+            guard !reducedMotion() else{return exitLiquidFraction}
+            let t=Self.unit(max(0,time-phaseAt)/(Self.barMotionDuration/1.3))
+            return exitLiquidFraction*(1-t*t*(3-2*t))
+        }
+        guard phase == .arriving,!entryFillHandedToGameplay,!reducedMotion() else{return 1}
         let age=max(0,time-phaseAt)-Self.holderEntryDuration(restart:restartChrome)
-        let t=Self.unit(age/Self.entryFillDuration)
-        return 1-pow(1-t,3)
+        let target=maximum*max(0,nativeRight-nativeLeft)
+        guard target>0 else{return 0}
+        // Reuse gameplay's edge overshoot/recoil,20percent stronger only here.
+        let plan=NativeWildMeterGainPlan(maximum:maximum,initial:0,ratio:target/max(1,maximum),isPad:isPad,overshootScale:1.2)
+        if age<=Self.entryFillTravelDuration {
+            let t=Self.unit(age/Self.entryFillTravelDuration)
+            // Match the holder's smooth mask sweep before the existing recoil.
+            return plan.width(seconds:plan.firstDuration)/target*t*t*(3-2*t)
+        }
+        let tail=Self.unit((age-Self.entryFillTravelDuration)/Self.entryFillBounceDuration)
+        return plan.width(seconds:plan.firstDuration+(plan.duration-plan.firstDuration)*tail)/target
     }
     var smokeAdmitted:Bool{phase != .gone && chromePose.barAlpha>0.01 && chromePose.reveal>0 && liquidFillFraction>0}
     func smokePoint(atX x:Double,in stage:SKNode)->CGPoint{liquidRoot.convert(CGPoint(x:x,y:barCenterY),to:stage)}
@@ -218,7 +246,9 @@ import UIKit
         var p=ChromePose()
         if phase == .gone {p.barAlpha=0;p.dividerAlpha=restartChrome ? 1:0;p.reveal=0}
         else if entering || leaving {
-            let duration=max(0.001,entering ? Self.holderEntryDuration(reduced:reducedMotion(),restart:restartChrome):boardEnd),t=Self.unit(elapsed/duration)
+            let duration=max(0.001,entering ? Self.holderEntryDuration(reduced:reducedMotion(),restart:restartChrome):(reducedMotion() ? boardEnd:Self.holderExitDuration(restart:restartChrome)))
+            let lead=leaving ? exitLead:0
+            let t=Self.unit((elapsed-lead)/duration)
             if restartChrome {
                 let u=entering ? t:1-t
                 p.reveal=u*u*(3-2*u)
@@ -228,7 +258,7 @@ import UIKit
             }else if reducedMotion(){
                 let a=entering ? t:1-t;p.barAlpha=a;p.dividerAlpha=a;p.reveal=entering ? 1:exitChromePose.reveal
             }else{
-                let delay=entering ? Self.barEntryDelay:0
+                let delay=entering ? Self.barEntryDelay:exitLead
                 // Exit starts before HUD and moves at1.30x the former bar speed.
                 let travel=Self.barMotionDuration/(entering ? 1:1.3)
                 let u=Self.unit((elapsed-delay)/travel),sampleTime=entering ? u:1-u
@@ -288,12 +318,15 @@ import UIKit
         container.isHidden = !restart;paint()
     }
     func beginBoardEntry(restart:Bool=false){
-        guard !closed else{return};restartChrome=restart;container.isHidden=false;phase = .arriving
+        guard !closed else{return};entryFillHandedToGameplay=false;restartChrome=restart;container.isHidden=false;phase = .arriving
         phaseAt=time;boardEnd=Self.chromeDuration(entering:true,reduced:reducedMotion(),restart:restart);paint()
     }
     func beginBoardExit(restart:Bool=false)->Double{
         guard !closed else{return 0};exitLiquidFraction=liquidFillFraction;restartChrome=restart;exitChromePose=chromePose;phaseAt=time
-        boardEnd=Self.chromeDuration(entering:false,reduced:reducedMotion(),restart:restart);phase = .boardLeaving
+        exitLead = !reducedMotion() && exitLiquidFraction>0 && nativeRight>nativeLeft ? Self.exitLiquidLead:0
+        boardEnd=Self.chromeDuration(entering:false,reduced:reducedMotion(),restart:restart)
+        if !reducedMotion(){boardEnd-=Self.exitLiquidLead-exitLead}
+        phase = .boardLeaving
         paint();return boardEnd
     }
     func paintBoardExit(_ elapsed:Double){

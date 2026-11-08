@@ -40,6 +40,17 @@ profiles with an already completed tutorial Stage.
 
 # Stack to Six Gameplay KING Contract
 
+Native Beach Unit03 Ball probability override(user2026-11-08): on Journey board13,
+the first Ball remains uniformly introduced among the first three Special drops.
+After each completed Ball, its next-drop probability becomes40%,20%,10%,5%,then2%
+and stays2%. Other identities share the remaining weight in the existing eligible
+Beach pool,including discovered replay dice. An additive per-run Ball count is
+serialized and advances only through canonical completed meter-drop bookkeeping;
+reservation,cancellation and non-Ball drops do not advance it. New/restarted runs
+reset naturally. Legacy saves preserve introduction evidence and use visible Balls
+as a lower bound where the former save had no count. Other boards,Arcade,Ball refill,
+assets,input,charge and terminal ownership remain unchanged.
+
 Native Efficiency override(user2026-11-04): at existing eligible Clean Board result,
 Efficiency=round(max(3*authoredEfficiency,0.30*preResultGameplayScore)*(1+0.5*fastShare)).
 fastShare is accepted combo continuations within1second divided by all timed

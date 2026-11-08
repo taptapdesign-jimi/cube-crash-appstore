@@ -66,6 +66,8 @@ import Foundation
         guard bubbles[bubble.id] === bubble else{return}
         bubbles.removeValue(forKey:bubble.id);retire(bubble)
     }
+    /// Two normal particles per admitted entry step; no wall emission starts.
+    func emitEntryBubbles(){for _ in 0..<2 {emit()}}
     func emitTutorialBubble(){emit(tutorial:true)}
     private func emit(tutorial:Bool=false){
         guard valid(),tutorial || !disabled() else{return}
