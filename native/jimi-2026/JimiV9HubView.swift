@@ -209,7 +209,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
         }
         header.backgroundColor = UIColor(red: 243/255, green: 238/255, blue: 232/255, alpha: 0.8)
         header.setHomeDividerImage(assets.image("assets/home-shadow.png"))
-        header.setBackgroundImage(assets.image("assets/nav/nav-bg.png",densityAware:true),opacity:1)
+        header.setBackgroundImage(assets.image("assets/nav/nav-bg.png",densityAware:true),opacity:0.5)
         addSubview(header)
         backButton.setImage(assets.image("assets/chevron-back.png",densityAware:true), for: .normal)
         backButton.imageView?.contentMode = .scaleAspectFit
@@ -501,6 +501,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
         NativeTabletLayout.labelFont(title,size:row.titleFontSize)
         title.frame = row.titleFrame(for:title)
         header.applyCurve(to:title,icons:[backButton,backpackButton])
+        header.updateBackgroundForScroll(scrollView)
         updateIdleAdmission()
     }
     private func cloudWorldID(_ y: CGFloat) -> Int { y < 220 ? 1 : y < 560 ? 3 : 2 }
@@ -603,6 +604,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
         cloudDrag.begin(offset:scrollView.contentOffset.y)
     }
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        header.updateBackgroundForScroll(scrollView)
         if idleRequested,scrollView.isDragging,scrollView.isUserInteractionEnabled,
            !UIAccessibility.isReduceMotionEnabled {cloudDrag.update(offset:scrollView.contentOffset.y)}
         updateIdleAdmission()

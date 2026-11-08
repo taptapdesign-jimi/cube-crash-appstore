@@ -99,9 +99,9 @@ final class JimiNativeEndRunTests: XCTestCase {
             JimiNativeModalV10.paperLayout(paper,bounds:CGRect(origin:.zero,size:size),bottomExtension:16)
             let mask=try XCTUnwrap(paper.layer.mask as? CAShapeLayer),path=try XCTUnwrap(mask.path)
             if let retained {XCTAssertTrue(mask === retained)}else{retained=mask}
-            XCTAssertEqual(JimiNativeModalV10.bottomArchDepth(width:size.width)/size.width,JimiV9NavigationHeader.dividerArchDepth*1.3/390,accuracy:0.000001)
+            XCTAssertEqual(JimiNativeModalV10.bottomArchDepth(width:size.width)/size.width,0,accuracy:0.000001)
             XCTAssertTrue(path.contains(CGPoint(x:size.width/2,y:size.height-0.01)))
-            XCTAssertFalse(path.contains(CGPoint(x:size.width*0.1,y:size.height-0.1)))
+            XCTAssertTrue(path.contains(CGPoint(x:size.width*0.25,y:size.height-0.1)))
             XCTAssertTrue(path.contains(CGPoint(x:size.width/2,y:10)))
             XCTAssertEqual(path.boundingBoxOfPath.maxY,size.height,accuracy:0.001)
             XCTAssertNil(mask.animationKeys());XCTAssertTrue(mask.sublayers?.isEmpty ?? true)
@@ -111,16 +111,40 @@ final class JimiNativeEndRunTests: XCTestCase {
         XCTAssertTrue(try XCTUnwrap(retained?.path).isEmpty)
     }
 
-    func testAllFloatingPaperModalFamiliesUseArchOnPhoneAndTablet() throws {
+    func testAllFloatingPaperModalFamiliesUseFlatBottomOnPhoneAndTablet() throws {
         let root=NativeTestResources.root
-        let folder=URL(fileURLWithPath:"/tmp/modal-bottom-arch-20261106/renders")
+        let folder=URL(fileURLWithPath:"/tmp/native-ipad-refresh-20261108/modals")
         try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
         func descendants(_ view:UIView)->[UIView] {[view]+view.subviews.flatMap(descendants)}
+        func verifyClose(_ view:UIView) throws {
+            let ids:Set<String>=["native.end-run.close","native.score-modal.close","native.backpack.detail.close","native.gameplay.backpack.close","native.settings.privacy.close","native.arcade-world-modal.close"]
+            for button in descendants(view).compactMap({$0 as? UIButton}) where ids.contains(button.accessibilityIdentifier ?? "") {
+                button.setNeedsLayout();button.layoutIfNeeded()
+                let image=try XCTUnwrap(button.imageView)
+                XCTAssertNotNil(image.image)
+                XCTAssertEqual(button.bounds.size,CGSize(width:52,height:52))
+                XCTAssertEqual(button.center.x,(button.superview?.bounds.width ?? 0)-22,accuracy:0.01,"Preserve main Close position")
+                XCTAssertEqual(button.center.y,22,accuracy:0.01,"Preserve main Close vertical position")
+                XCTAssertEqual(image.frame.midX,button.bounds.midX,accuracy:0.01,"X must be horizontally centred in its holder: \(button.accessibilityIdentifier ?? "")")
+                XCTAssertEqual(image.frame.midY,button.bounds.midY,accuracy:0.01,"X must be vertically centred in its holder")
+            }
+        }
         func verify(_ name:String,_ view:UIView,_ size:CGSize) throws {
-            let surfaces=descendants(view).filter{$0.layer.mask?.name==JimiNativeModalV10.bottomArchMaskName}
+            try verifyClose(view)
+            let surfaces=descendants(view).filter{$0 is NativeModalPaperView || $0.layer.mask?.name==JimiNativeModalV10.bottomArchMaskName}
             XCTAssertEqual(surfaces.count,1,"\(name) must use one main paper arch")
-            let paper=try XCTUnwrap(surfaces.first),mask=try XCTUnwrap(paper.layer.mask as? CAShapeLayer)
-            XCTAssertEqual(mask.path?.boundingBoxOfPath.maxY ?? -1,paper.bounds.maxY,accuracy:0.001)
+            let paper=try XCTUnwrap(surfaces.first)
+            if let adaptive=paper as? NativeModalPaperView {
+                let image=try XCTUnwrap(adaptive.image)
+                let original=try XCTUnwrap(JimiV9Artwork(resourceRoot:root).image(adaptive.assetPath))
+                XCTAssertEqual(image.size,original.size,"Reuse the original paper, without per-size rasterization")
+                XCTAssertEqual(image.scale,original.scale)
+                XCTAssertNotNil(adaptive.layer.mask);XCTAssertEqual(adaptive.layer.cornerRadius,40)
+                XCTAssertNotNil(adaptive.closeMaterial)
+            } else {
+                let mask=try XCTUnwrap(paper.layer.mask as? CAShapeLayer)
+                XCTAssertEqual(mask.path?.boundingBoxOfPath.maxY ?? -1,paper.bounds.maxY,accuracy:0.001)
+            }
             let painted=paper is UIImageView ? try XCTUnwrap(paper.superview):paper
             try autoreleasepool {
                 let output=folder.appendingPathComponent("\(name)-\(Int(size.width)).png")
@@ -128,14 +152,20 @@ final class JimiNativeEndRunTests: XCTestCase {
                 let attachment=XCTAttachment(contentsOfFile:output);attachment.name="\(name) arch \(Int(size.width))";attachment.lifetime = .keepAlways;add(attachment)
             }
         }
-        for size in [CGSize(width:390,height:844),CGSize(width:820,height:1180)] {
+        for size in [CGSize(width:390,height:844),CGSize(width:744,height:1133),CGSize(width:820,height:1180),CGSize(width:1032,height:1376)] {
             try autoreleasepool {
             let art=JimiV9Artwork(resourceRoot:root)
             @MainActor func motion()->NativeRouteMotion {NativeRouteMotion(home:JimiV9HomeView(frame:.zero,assets:art),hub:JimiV9HubView(frame:.zero,assets:art))}
-            for index in 0..<3 {
+            for index in 0..<3 {try autoreleasepool {
                 let modal=NativeArcadeWorldModal(frame:CGRect(origin:.zero,size:size),assets:art,index:index)
-                modal.layoutSubviews();try verify("arcade\(index)",modal,size);modal.dispose()
-            }
+                modal.layoutSubviews()
+                // Arcade mode sheets now use the user-selected torn PNG alpha,
+                // whose perimeter must not be cropped by the shared flat mask.
+                let paper=try XCTUnwrap(descendants(modal).first{$0.accessibilityIdentifier=="native.arcade-world-modal.paper"} as? UIImageView)
+                XCTAssertNotNil(paper.layer.mask);XCTAssertEqual(paper.layer.cornerRadius,40)
+                XCTAssertTrue(NativeArcadeWorldModal.paperPaths.contains(modal.paperAssetPath))
+                XCTAssertNotNil(paper.image);try verifyClose(modal);modal.dispose()
+            }}
             let exit=JimiNativeEndRunModal(id:1,model:try XCTUnwrap(JimiNativeEndRunModel(dto)),assets:art)
             exit.loadViewIfNeeded();exit.view.frame=CGRect(origin:.zero,size:size);exit.viewDidLayoutSubviews()
             try verify("exit",exit.view,size);exit.dispose()

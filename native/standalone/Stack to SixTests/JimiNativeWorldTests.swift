@@ -26,6 +26,89 @@ private final class WorldCardPan: UIPanGestureRecognizer {
 /// These complement actual routing UI tests; they do not prove terminal parity.
 @MainActor
 final class JimiNativeWorldTests: XCTestCase {
+    func testForestEndOfRoadIsStandaloneArtworkOnPhoneAndTabletAndReleasesWithViewport() async throws {
+        try await assertWorldEnding(worldID:1)
+    }
+    func testBeachClosedIsStandaloneArtworkOnPhoneAndTabletAndReleasesWithViewport() async throws {
+        try await assertWorldEnding(worldID:2)
+    }
+    func testArea55NoTrespassingIsStandaloneArtworkOnPhoneAndTabletAndReleasesWithViewport() async throws {
+        try await assertWorldEnding(worldID:3)
+    }
+    private func assertWorldEnding(worldID:Int) async throws {
+        let lastBoard=worldID*10,sevenBoard=(worldID-1)*10+7
+        let role=worldID == 1 ? "end-of-road":worldID == 2 ? "beach-closed":"no-trespassing"
+        let identifier="native.world.part.\(lastBoard).\(role)"
+        for size in [CGSize(width:390,height:844),CGSize(width:820,height:1180)] {
+            let tablet=NativeTabletLayout.applies(size)
+            let raw=try NativeWorldLayouts().snapshot(world:worldID,width:Double(size.width),height:Double(size.height),generation:1,progression:NativeProgressionState(),proportionalCards:tablet,phoneUnitLayout:tablet,unitScale:tablet ? 1.105:1)
+            let world=try XCTUnwrap(JimiNativeWorldView(snapshot:raw,assets:art))
+            let window=UIWindow(frame:CGRect(origin:.zero,size:size)),controller=UIViewController()
+            window.rootViewController=controller;window.makeKeyAndVisible()
+            defer{window.isHidden=true;window.rootViewController=nil}
+            let host=try XCTUnwrap(controller.view);host.frame=window.bounds;host.backgroundColor = .init(red:1,green:0.96,blue:0.88,alpha:1)
+            host.addSubview(world);world.frame=host.bounds;world.layoutIfNeeded()
+            let scroll=world.scrollView
+            scroll.contentOffset.y=max(0,scroll.contentSize.height-size.height)
+            await withCheckedContinuation{c in world.prepare{c.resume()}}
+            let ending=try XCTUnwrap(descendant(world,identifier) as? UIImageView)
+            let stage=try XCTUnwrap(descendant(world,"native.world.card.\(lastBoard)") as? UIButton)
+            XCTAssertTrue(ending.superview === stage || ending.superview?.superview === stage.superview)
+            XCTAssertFalse(ending.isUserInteractionEnabled)
+            XCTAssertEqual(ending.subviews.count,0,"No stump, stars, card or stage number on the ending")
+            XCTAssertEqual(world.snapshot.units.count,10,"Ending must never become a playable eleventh Stage")
+            let seven=try XCTUnwrap(world.snapshot.units.first{$0.boardID == sevenBoard})
+            let leftIsland=try XCTUnwrap(seven.parts.first{$0.role == "island"})
+            let scale=NativeTabletLayout.worldFrame(world.bounds).width/390
+            let rect=ending.convert(ending.bounds,to:stage.superview)
+            let last=try XCTUnwrap(world.snapshot.units.last)
+            let cloudParts=last.parts.filter{$0.role == "cloud"}
+            let clouds=stage.superview!.subviews.flatMap(\.subviews).compactMap{$0 as? UIImageView}.filter{$0.accessibilityIdentifier == "native.world.part.\(lastBoard).cloud"}
+            XCTAssertEqual(clouds.count,cloudParts.count)
+            for (cloud,part) in zip(clouds,cloudParts) {
+                let drop:CGFloat=part.asset.hasSuffix("oblak+srednji.png") || part.asset.hasSuffix("oblak veliki ljevo dole.png") ? (worldID == 2 ? 120:80):0
+                XCTAssertEqual(cloud.center.y,part.frame.minY*scale+cloud.bounds.height/2+drop,accuracy:0.001)
+                let island=try XCTUnwrap(last.parts.first{$0.role == "island"})
+                let shift=drop == 0 ? 0:ending.frame.midX-island.frame.midX*scale
+                XCTAssertEqual(cloud.center.x,part.frame.midX*scale+shift,accuracy:0.001,"Ending clouds follow the left island, retaining authored rotation")
+            }
+            let originalBottom=last.parts.map {part->CGFloat in
+                var height=part.frame.height
+                if height<=0,let image=art.image(part.asset){height=part.frame.width*image.size.height/image.size.width}
+                let extent=abs(sin(part.rotation))*part.frame.width/2+abs(cos(part.rotation))*height/2
+                return last.frame.minY+part.frame.minY+height/2+extent
+            }.max() ?? 0
+            let fixedHeight=max(size.height, max(originalBottom*scale,rect.maxY)+24*scale-40)+(tablet ? 40:0)
+            XCTAssertEqual(scroll.contentSize.height,fixedHeight,accuracy:0.001,"Cloud paint offset must not add scroll space")
+            XCTAssertEqual(rect.midX,(seven.frame.minX+leftIsland.frame.midX)*scale+(worldID == 3 ? 16:0)+(worldID == 1 && tablet ? 60:0)-(worldID == 2 && tablet ? 40:0),accuracy:0.001)
+            if worldID == 1 {
+                let five=try XCTUnwrap(world.snapshot.units.first{$0.boardID == 5})
+                let nine=try XCTUnwrap(world.snapshot.units.first{$0.boardID == 9})
+                let fifthIsland=try XCTUnwrap(five.parts.first{$0.role == "island"})
+                let ninthIsland=try XCTUnwrap(nine.parts.first{$0.role == "island"})
+                let row=seven.frame.minY+leftIsland.frame.minY-five.frame.minY-fifthIsland.frame.minY
+                let originalY=(nine.frame.minY+ninthIsland.frame.minY+row-leftIsland.frame.width*(218.0/200.0)*0.36)*scale
+                XCTAssertEqual(rect.minY,originalY-(tablet ? 40:0),accuracy:0.001)
+            }
+            XCTAssertEqual(rect.width,leftIsland.frame.width*scale*(worldID == 3 ? 1.2:1),accuracy:0.001)
+            XCTAssertLessThan(rect.midX,stage.frame.midX)
+            XCTAssertGreaterThanOrEqual(scroll.contentSize.height,rect.maxY-20*scale)
+            let endingImage=try XCTUnwrap(ending.image)
+            XCTAssertEqual(ending.bounds.height/ending.bounds.width,endingImage.size.height/endingImage.size.width,accuracy:0.001,"Ending preserves original artwork aspect")
+            XCTAssertFalse(world.preparationHasMissingResources)
+            world.alpha=1
+            let image=UIGraphicsImageRenderer(bounds:host.bounds).image{host.layer.render(in:$0.cgContext)}
+            try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/world-\(worldID)-ending-\(Int(size.width)).png"))
+            scroll.contentOffset = .zero
+            world.scrollViewDidScroll(scroll)
+            XCTAssertNil(descendant(world,identifier),"Offscreen Stage10 lease retires the ending too")
+            scroll.contentOffset.y=max(0,scroll.contentSize.height-size.height)
+            await withCheckedContinuation{c in world.prepare{c.resume()}}
+            XCTAssertNotNil(descendant(world,identifier))
+            world.cleanup();world.cleanup()
+            XCTAssertEqual(world.decodedArtworkBytes,0)
+        }
+    }
     override func setUpWithError() throws {
         #if !targetEnvironment(simulator)
         throw XCTSkip("Simulator only")
@@ -448,8 +531,7 @@ final class JimiNativeWorldTests: XCTestCase {
             world.frame=CGRect(x:0,y:0,width:width,height:844);world.layoutIfNeeded()
             defer{world.cleanup()}
             let scroll=try XCTUnwrap(world.subviews.compactMap{$0 as? UIScrollView}.first)
-            let exported=(raw["contentHeight"] as! Double)*Double(width/390)
-            if width==390 {XCTAssertLessThan(scroll.contentSize.height,exported,"Remove the phone export's excess trailing spacer")}
+            // All Worlds add a decorative ending below their final Stage.
             // Tablet export can already be shorter than its final cloud artwork;
             // the actual artwork clearance below remains the authoritative check.
             let bottom=max(0,scroll.contentSize.height-scroll.bounds.height)
@@ -462,7 +544,21 @@ final class JimiNativeWorldTests: XCTestCase {
             // Include the independent depth planes used by Beach and Area55.
             let content=try XCTUnwrap(unit.superview)
             let peers=content.subviews.filter{$0.frame==unit.frame}
-            let visualBottom=peers.flatMap(\.subviews).map{$0.frame.maxY+unit.frame.minY}.max() ?? unit.frame.maxY
+            var visualBottom=peers.flatMap(\.subviews).map{$0.frame.maxY+unit.frame.minY}.max() ?? unit.frame.maxY
+            if (1...3).contains(id) {
+                // The two ending clouds deliberately paint80pt lower without
+                // extending scroll. Measure authored extents plus the ending.
+                let last=try XCTUnwrap(world.snapshot.units.last),scale=width/390
+                let authored=last.parts.map {part->CGFloat in
+                    var height=part.frame.height
+                    if height<=0,let image=art.image(part.asset){height=part.frame.width*image.size.height/image.size.width}
+                    let extent=abs(sin(part.rotation))*part.frame.width/2+abs(cos(part.rotation))*height/2
+                    return (last.frame.minY+part.frame.minY+height/2+extent)*scale
+                }.max() ?? unit.frame.maxY
+                let role=id == 1 ? "end-of-road":id == 2 ? "beach-closed":"no-trespassing"
+                let ending=try XCTUnwrap(descendant(world,"native.world.part.\(lastID).\(role)"))
+                visualBottom=max(authored,ending.convert(ending.bounds,to:content).maxY)
+            }
             XCTAssertEqual(scroll.contentSize.height-visualBottom,24*width/390-40,accuracy:0.5,
                            "Every World removes another40 viewport points from its previous trailing extent")
             if width==390 {
@@ -1163,6 +1259,8 @@ final class JimiNativeWorldTests: XCTestCase {
         locked.sendActions(for:.touchUpInside); XCTAssertTrue(requests.isEmpty)
         unlocked.sendActions(for:.touchUpInside); XCTAssertEqual(requests,["openCard"])
         XCTAssertTrue(world.scrollView.touchesShouldCancel(in:unlocked), "Vertical scroll must cancel a pending button touch")
+        XCTAssertFalse(world.scrollView.delaysContentTouches,"Journey cards must receive touches without the scroll-view waiting window")
+        XCTAssertTrue(world.scrollView.canCancelContentTouches,"Immediate card touches must remain cancellable by scrolling")
         world.park(); unlocked.sendActions(for:.touchUpInside); XCTAssertEqual(requests.count,1)
         world.cleanup(); world.cleanup(); XCTAssertFalse(world.isReadyForInput)
     }
@@ -1193,7 +1291,9 @@ final class JimiNativeWorldTests: XCTestCase {
                 XCTAssertEqual(action,"openCard");XCTAssertEqual(id,board);requests+=1
                 world.openCard(boardID:board)
             }
+            let tapStart=CACurrentMediaTime()
             unit.sendActions(for:.touchUpInside);unit.sendActions(for:.touchUpInside)
+            print("JOURNEY_CARD_RESPONSE board=\(board) mountedFlightSetupMs=\((CACurrentMediaTime()-tapStart)*1000)")
             XCTAssertEqual(requests,1,"Mounted modal rejects duplicate Unit activation")
             XCTAssertTrue(source.isHidden,"Visible flight belongs to the replacement carrier")
             let modal=try XCTUnwrap(world.subviews.compactMap{$0 as? JimiNativeWorldCardView}.first)
@@ -2643,5 +2743,121 @@ final class JimiNativeWorldTests: XCTestCase {
             }
         }
     }
+
+    func testJourneyCardFlightStartsWhileCTAFaceIsSuspendedAndResumesSameEntry() async throws {
+        guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Authored flight clock required")}
+        for size in [CGSize(width:390,height:844),CGSize(width:820,height:1180)] {
+            let resources=JimiNativeWorldResources(root:root)
+            let unit=try XCTUnwrap(JimiNativeWorldSnapshot(fixture())).units[0]
+            let card=JimiNativeWorldCardView(unit:unit,assets:art,resources:resources)
+            let cta=try XCTUnwrap(descendant(card,"native.world.card.play") as? JimiV9PlainButton)
+            cta.setSculptedFacePreparationSuspended(true)
+            let window=UIWindow(frame:CGRect(origin:.zero,size:size)),host=UIViewController()
+            window.rootViewController=host;window.makeKeyAndVisible();host.view.addSubview(card);card.frame=window.bounds
+            defer{card.cleanup();card.removeFromSuperview();resources.cleanup();window.isHidden=true;window.rootViewController=nil}
+            card.enter(from:CGRect(x:40,y:250,width:90,height:120))
+            let camera=try XCTUnwrap(descendant(card,"native.world.card.camera"))
+            let carrier=try XCTUnwrap(camera.subviews.first{$0.layer.animation(forKey:"card.flight") != nil})
+            let flight=try XCTUnwrap(carrier.layer.animation(forKey:"card.flight") as? CAKeyframeAnimation)
+            XCTAssertEqual(flight.beginTime,0);XCTAssertEqual(flight.duration,0.520/0.98,accuracy:0.000001)
+            XCTAssertFalse(cta.isSculptedFacePrepared);XCTAssertNil(cta.sculptedFaceRasterForTesting())
+            XCTAssertEqual(cta.alpha,0);XCTAssertFalse(cta.isEnabled,"A pending face cannot expose a text-only Play control")
+            let initial=try XCTUnwrap((flight.values as? [NSValue])?.first).caTransform3DValue
+            try await settle(0.07)
+            let painted=try XCTUnwrap(carrier.layer.presentation()).transform
+            XCTAssertGreaterThan(hypot(painted.m11,painted.m12),hypot(initial.m11,initial.m12),"Card already moves while its CTA preparation is held")
+            XCTAssertNil(cta.sculptedFaceRasterForTesting());XCTAssertEqual(cta.alpha,0);XCTAssertFalse(cta.isEnabled)
+            card.setActive(false)
+            let paused=card.layer.timeOffset
+            try await settle(0.08)
+            XCTAssertEqual(card.layer.timeOffset,paused);XCTAssertEqual(card.layer.speed,0)
+            XCTAssertNil(cta.sculptedFaceRasterForTesting());XCTAssertFalse(cta.isEnabled)
+            XCTAssertNotNil(carrier.layer.animation(forKey:"card.flight"),"Background cannot retire the captured entry")
+            card.setActive(true)
+            // Keep readiness later than the entire entry, as can also happen
+            // with Reduced Motion or an already-busy shared paint queue.
+            cta.setSculptedFacePreparationSuspended(true)
+            let resumed=try XCTUnwrap(carrier.layer.animation(forKey:"card.flight") as? CAKeyframeAnimation)
+            XCTAssertEqual(resumed.beginTime,flight.beginTime);XCTAssertEqual(resumed.duration,flight.duration)
+            XCTAssertEqual(resumed.keyTimes,flight.keyTimes);XCTAssertEqual(resumed.values?.count,flight.values?.count)
+            try await awaitCardOpening(card)
+            XCTAssertNil(carrier.layer.animation(forKey:"card.flight"))
+            XCTAssertFalse(cta.isSculptedFacePrepared)
+            XCTAssertEqual(cta.alpha,0);XCTAssertFalse(cta.isEnabled)
+            cta.setSculptedFacePreparationSuspended(false)
+            cta.prepareSculptedFaceForEntrance()
+            let deadline=Date().addingTimeInterval(8)
+            while !cta.isSculptedFacePrepared,Date()<deadline {try await settle(0.01)}
+            XCTAssertTrue(cta.isSculptedFacePrepared);XCTAssertNotNil(cta.sculptedFaceRasterForTesting())
+            XCTAssertEqual(cta.alpha,1);XCTAssertTrue(cta.isEnabled,"Prepared Play becomes usable after the existing real entry completes")
+            XCTAssertNil(carrier.layer.animation(forKey:"card.flight"))
+        }
+    }
+
+    func testJourneyPendingCTAFaceCannotPublishAfterCloseOrCleanupAndReleasesCard() async throws {
+        for closeFirst in [true,false] {
+            let resources=JimiNativeWorldResources(root:root)
+            let unit=try XCTUnwrap(JimiNativeWorldSnapshot(fixture())).units[0]
+            var card:JimiNativeWorldCardView?=JimiNativeWorldCardView(unit:unit,assets:art,resources:resources)
+            weak var released=card
+            let cta=try XCTUnwrap(descendant(try XCTUnwrap(card),"native.world.card.play") as? JimiV9PlainButton)
+            let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),host=UIViewController()
+            window.rootViewController=host;window.makeKeyAndVisible();host.view.addSubview(try XCTUnwrap(card));card?.frame=window.bounds
+            defer{card?.cleanup();card?.removeFromSuperview();resources.cleanup();window.isHidden=true;window.rootViewController=nil}
+            card?.enter(from:CGRect(x:40,y:250,width:90,height:120))
+            XCTAssertFalse(cta.isSculptedFacePrepared,"Main actor has not yielded to the queued worker publication")
+            XCTAssertNil(cta.sculptedFaceRasterForTesting());XCTAssertEqual(cta.alpha,0)
+            if closeFirst {
+                let closed=expectation(description:"Existing finite Journey close")
+                card?.close(to:CGRect(x:40,y:250,width:90,height:120)){closed.fulfill()}
+                await fulfillment(of:[closed],timeout:5)
+                XCTAssertNil(cta.sculptedFaceRasterForTesting(),"Close suspends preparation before a pending result can paint")
+                XCTAssertFalse(cta.isEnabled)
+            }
+            card?.cleanup();card?.cleanup();card?.removeFromSuperview();card=nil
+            try await settle(0.15)
+            XCTAssertNil(released,"Pending worker and animation callbacks cannot retain a retired Journey card")
+            XCTAssertNil(cta.sculptedFaceRasterForTesting());XCTAssertNil(cta.onSculptedFacePrepared)
+            try await settle(0.2)
+            XCTAssertNil(released);XCTAssertNil(cta.sculptedFaceRasterForTesting(),"Late work cannot restore a retired face")
+        }
+    }
+
+    func testJourneyPlayAndContinueWorkerFacesMatchOriginalRecipeAtActualDensity() async throws {
+        func pixels(_ image:CGImage)->[UInt8] {
+            var bytes=[UInt8](repeating:0,count:image.width*image.height*4)
+            let painted=bytes.withUnsafeMutableBytes{storage->Bool in
+                guard let context=CGContext(data:storage.baseAddress,width:image.width,height:image.height,bitsPerComponent:8,bytesPerRow:image.width*4,space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue) else{return false}
+                context.draw(image,in:CGRect(x:0,y:0,width:image.width,height:image.height));return true
+            }
+            XCTAssertTrue(painted);return bytes
+        }
+        for (size,action) in [(CGSize(width:390,height:844),"play"),(CGSize(width:820,height:1180),"continue")] {
+            var raw=fixture(),definitions=fixture()["units"] as! [[String:Any]]
+            definitions[0]["allowedActions"]=["openCard",action];raw["units"]=definitions
+            let resources=JimiNativeWorldResources(root:root)
+            let unit=try XCTUnwrap(JimiNativeWorldSnapshot(raw)).units[0]
+            let card=JimiNativeWorldCardView(unit:unit,assets:art,resources:resources)
+            let window=UIWindow(frame:CGRect(origin:.zero,size:size)),host=UIViewController()
+            window.rootViewController=host;window.makeKeyAndVisible();host.view.addSubview(card);card.frame=window.bounds
+            defer{card.cleanup();card.removeFromSuperview();resources.cleanup();window.isHidden=true;window.rootViewController=nil}
+            card.enter(from:CGRect(x:40,y:250,width:90,height:120))
+            let cta=try XCTUnwrap(descendant(card,"native.world.card.\(action)") as? JimiV9PlainButton)
+            let deadline=Date().addingTimeInterval(8)
+            while !cta.isSculptedFacePrepared,Date()<deadline {try await settle(0.01)}
+            let actual=try XCTUnwrap(cta.sculptedFaceRasterForTesting()),reference=try XCTUnwrap(cta.sculptedFaceRasterForTesting(original:true))
+            let face=try XCTUnwrap(descendant(cta,"native.cta.sculpted-face"))
+            XCTAssertEqual(actual.width,Int(ceil(face.bounds.width*face.contentScaleFactor)))
+            XCTAssertEqual(actual.height,Int(ceil(face.bounds.height*face.contentScaleFactor)))
+            XCTAssertEqual(actual.width,reference.width);XCTAssertEqual(actual.height,reference.height)
+            let a=pixels(actual),b=pixels(reference)
+            guard a.count==b.count else{XCTFail("Journey face raster dimensions differ");continue}
+            var totalError=0.0,outliers=0
+            for index in a.indices {let difference=abs(Int(a[index])-Int(b[index]));totalError+=Double(difference);if difference>8 {outliers+=1}}
+            XCTAssertLessThanOrEqual(totalError/Double(a.count),0.75,"\(action) material/orientation matches original drawing")
+            XCTAssertLessThanOrEqual(Double(outliers)/Double(a.count),0.002,"Only bounded raster edge rounding may differ")
+        }
+    }
+
 
 }

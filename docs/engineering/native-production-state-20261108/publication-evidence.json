@@ -1,0 +1,46 @@
+{
+  "checkpoint_tag": "native-app-production-state-skoro-pa-gotovo",
+  "qa_full": "PASS (20 gates)",
+  "qa_ios": "PASS",
+  "payload_checks_before_final_documentation": {
+    "files": 307,
+    "payload_MiB": 231.42,
+    "oversized_files": [],
+    "credential_findings": []
+  },
+  "installed_and_retained_read_only": {
+    "1018BE2D-491B-465F-8F75-3E5BEB38C22A": {
+      "app_path": "/Users/user/Library/Developer/CoreSimulator/Devices/1018BE2D-491B-465F-8F75-3E5BEB38C22A/data/Containers/Bundle/Application/B0E5A02D-F565-4F66-8BE5-E1E72A540C21/Stack to Six.app",
+      "binaries": {
+        "Stack to Six": "9a692ef76bba2d40bbb67aa3af0ca517cade5ffe2f759d282d7eb1d340cc3ede",
+        "Stack to Six.debug.dylib": "fb52d8d5fda92480f02d12bf5d512893b0afdf32ef3272da9fb8449fceb30333"
+      },
+      "data_path": "/Users/user/Library/Developer/CoreSimulator/Devices/1018BE2D-491B-465F-8F75-3E5BEB38C22A/data/Containers/Data/Application/E8B2C709-9D41-48AA-9F57-AB80912ADD83",
+      "saves": {
+        "Library/Application Support/StackToSixNative/state-v1.previous.json": "38dcd5658a000f725cadacb351149cd8463f02bfc7096f6292cf61e9b0d2d572",
+        "Library/Application Support/StackToSixNative/state-v1.json": "c28f227d6f3d4e808d48a627d7de788cd6942464ee1445fdf66ba0c2a506d0c7"
+      }
+    },
+    "43A75086-0C64-464C-B71C-FDD01AF59C32": {
+      "app_path": "/Users/user/Library/Developer/CoreSimulator/Devices/43A75086-0C64-464C-B71C-FDD01AF59C32/data/Containers/Bundle/Application/BA737F83-E707-4B22-B7A8-F98B90810615/Stack to Six.app",
+      "binaries": {
+        "Stack to Six": "c291e30cdaa3fca68707866a31a48e2f0d3a6affc2aa0f6bafe385e241542061",
+        "Stack to Six.debug.dylib": "ece6ff4fc321d5489996b9bf2b4b8ae3d214c2ee27a95b874183b4eb84b5898e"
+      },
+      "data_path": "/Users/user/Library/Developer/CoreSimulator/Devices/43A75086-0C64-464C-B71C-FDD01AF59C32/data/Containers/Data/Application/DFB63B50-870A-4125-977E-82EE40346665",
+      "saves": {
+        "Library/Application Support/StackToSixNative/state-v1.previous.json": "86f4537832ddbc99330e57bb67ffdc4accdbfb8c8015870083689a66c6ebdbca",
+        "Library/Application Support/StackToSixNative/state-v1.json": "d9d76c660b95880bd1310457b2806ce8460a82f8fbd73efafa23f1d5291d6dfe"
+      }
+    },
+    "retained_build": {
+      "path": "/private/tmp/home-bottom-nav-normal-derived/Build/Products/Debug-iphonesimulator/Stack to Six.app",
+      "binaries": {
+        "Stack to Six": "9a692ef76bba2d40bbb67aa3af0ca517cade5ffe2f759d282d7eb1d340cc3ede",
+        "Stack to Six.debug.dylib": "fb52d8d5fda92480f02d12bf5d512893b0afdf32ef3272da9fb8449fceb30333"
+      },
+      "bundle": "com.taptapdesign.stacktosix.native"
+    }
+  },
+  "note": "Source publication only; save hashes are evidence, not save backups. Existing device app versions differ. No fresh physical installation/test."
+}

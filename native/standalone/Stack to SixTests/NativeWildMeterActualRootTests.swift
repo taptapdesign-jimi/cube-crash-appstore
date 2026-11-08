@@ -36,6 +36,9 @@ import StackToSixNativeState
         let gameplay=try XCTUnwrap(game()),scene=try XCTUnwrap(gameplay.boardScene)
         XCTAssertTrue(scene.sourceTutorialMeterHUDReady,"Restored gameplay must mount the actual Source owner, not prototype fill")
         XCTAssertFalse(scene.sourceTutorialMeterSmokeFrozen)
+        let productionBar=try XCTUnwrap(scene.childNode(withName:"//native-preload-bar"),"Normal production root must mount the integrated bar")
+        XCTAssertNil(scene.childNode(withName:"//native-jump-pop-meter"),"Production has no dependency on the LAB cube renderer")
+        NSLog("[PRELOAD_INTEGRATION] production bar mounted parent=%@",productionBar.parent?.name ?? "unnamed")
         func assertSavedFill(file:StaticString=#filePath,line:UInt=#line)throws {
             let loader=try XCTUnwrap(scene.childNode(withName:"//wildLoader"),file:file,line:line)
             let track=try XCTUnwrap(loader.children.compactMap{$0 as? SKShapeNode}.first?.path,file:file,line:line)

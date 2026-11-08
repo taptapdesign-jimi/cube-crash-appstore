@@ -1,0 +1,82 @@
+{
+  "tool": "built-in image_gen",
+  "status": "Three unapproved visual proposals; no runtime asset replacement",
+  "references": [
+    "/tmp/arcade-paper-20261106/renders/paper-0-390.png",
+    "/tmp/arcade-paper-20261106/renders/paper-2-390.png"
+  ],
+  "entries": [
+    {
+      "name": "01-medium-frayed",
+      "prompt": "Use case: precise-object-edit. Input image1 is the blank lightened modal paper EDIT TARGET; image2 is the accepted more-torn paper STYLE reference. Create ONE new blank reusable game UI paper panel, isolated with real alpha transparency outside. Match the exact very pale creamy near-white color, subtle soft paper fibres, thickness and gentle material shading of image1. Preserve a tall portrait rounded rectangle, front-on orthographic, straight vertical orientation, entire silhouette visible with narrow transparent margin. Broad calm intact light center reserved for text, at least central70percent width. Change only edge wear and a few localized shallow crumple creases. No text,numbers,icons,buttons,X,UI,characters,watermarks,black lines,brown outlines,dirty stains,yellow/orange tint,scene background,checkerboard pixels,exterior cast shadow or glow. No folded-over,rolled or curled corners. Tears are real irregular missing-paper notches/narrow inward slits with softly frayed fibres and delicate natural relief, not a regular serrated pattern. Paper stays one intact continuous sheet. Preserve current pale finish; do not darken to aged parchment. Output exactly one transparent PNG paper candidate. Variant A: medium wear. Approximately12small-to-medium organically spaced edge nicks and V-shaped paper tears across all4edges, asymmetrically distributed, with3more noticeable short tears of2\u20133percent panel width. Gently rubbed rounded corners. Add2localized shallow crumpled ripple patches near upper-left edge and lower-right edge; faint,soft and physical. Keep most central area quiet. Clearly more character than the nearly smooth target, but balanced and soft.",
+      "source": "/Users/user/.codex/generated_images/01a1b2c3-61c1-72b0-b446-2e9819b7b164/exec-6ba1cab6-f9df-4156-aae7-904f9e77b7ac.png",
+      "file": "01-medium-frayed.png",
+      "size": [
+        962,
+        1634
+      ],
+      "alpha": {
+        "range": [
+          0,
+          254
+        ],
+        "transparentPixels": 6399,
+        "centerAlpha": 252,
+        "cornerAlpha": [
+          0,
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "name": "02-deep-irregular",
+      "prompt": "Use case: precise-object-edit. Input image1 is the blank lightened modal paper EDIT TARGET; image2 is the accepted more-torn paper STYLE reference. Create ONE new blank reusable game UI paper panel, isolated with real alpha transparency outside. Match the exact very pale creamy near-white color, subtle soft paper fibres, thickness and gentle material shading of image1. Preserve a tall portrait rounded rectangle, front-on orthographic, straight vertical orientation, entire silhouette visible with narrow transparent margin. Broad calm intact light center reserved for text, at least central70percent width. Change only edge wear and a few localized shallow crumple creases. No text,numbers,icons,buttons,X,UI,characters,watermarks,black lines,brown outlines,dirty stains,yellow/orange tint,scene background,checkerboard pixels,exterior cast shadow or glow. No folded-over,rolled or curled corners. Tears are real irregular missing-paper notches/narrow inward slits with softly frayed fibres and delicate natural relief, not a regular serrated pattern. Paper stays one intact continuous sheet. Preserve current pale finish; do not darken to aged parchment. Output exactly one transparent PNG paper candidate. Variant B: stronger torn character. Approximately9unequal edge cuts, including4deeper irregular narrow fissures3\u20135percent of panel width, distinct varied notch shapes on left/right plus2shorter top/bottom tears. Alternate intact rounded stretches with clusters of frayed torn fibres. Add a small compressed wrinkle fan near one side edge and a faint diagonal crease near the opposite lower corner. No sharp graphic outlines or dark cracks. The silhouette should be visibly different from variantA,with confident deeper but tasteful edge loss.",
+      "source": "/Users/user/.codex/generated_images/01a1b2c3-61c1-72b0-b446-2e9819b7b164/exec-745cb153-522d-4cda-b2bd-6660bb72a573.png",
+      "file": "02-deep-irregular.png",
+      "size": [
+        962,
+        1634
+      ],
+      "alpha": {
+        "range": [
+          0,
+          253
+        ],
+        "transparentPixels": 41397,
+        "centerAlpha": 252,
+        "cornerAlpha": [
+          0,
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "name": "03-crumpled-worn",
+      "prompt": "Use case: precise-object-edit. Input image1 is the blank lightened modal paper EDIT TARGET; image2 is the accepted more-torn paper STYLE reference. Create ONE new blank reusable game UI paper panel, isolated with real alpha transparency outside. Match the exact very pale creamy near-white color, subtle soft paper fibres, thickness and gentle material shading of image1. Preserve a tall portrait rounded rectangle, front-on orthographic, straight vertical orientation, entire silhouette visible with narrow transparent margin. Broad calm intact light center reserved for text, at least central70percent width. Change only edge wear and a few localized shallow crumple creases. No text,numbers,icons,buttons,X,UI,characters,watermarks,black lines,brown outlines,dirty stains,yellow/orange tint,scene background,checkerboard pixels,exterior cast shadow or glow. No folded-over,rolled or curled corners. Tears are real irregular missing-paper notches/narrow inward slits with softly frayed fibres and delicate natural relief, not a regular serrated pattern. Paper stays one intact continuous sheet. Preserve current pale finish; do not darken to aged parchment. Output exactly one transparent PNG paper candidate. Variant C: stronger localized crumpling plus mixed edge tears. Create an organic timeworn sheet with8\u201311mixed medium and strong edge notches, including an irregular double tear on one side,one short deep bottom split,and softened uneven rounded corners. Place3distinct shallow crumple areas around upper-right,mid-left and lower-left perimeter,with softly intersecting short crease ridges and delicate relief. Center remains broad,clean,mostly smooth and nearly white. Flat sheet,no folded corner flaps. Silhouette and wrinkle arrangement must feel unique,not repetitive or tiled.",
+      "source": "/Users/user/.codex/generated_images/01a1b2c3-61c1-72b0-b446-2e9819b7b164/exec-5149724d-6340-4f10-bcd2-0950476d3aed.png",
+      "file": "03-crumpled-worn.png",
+      "size": [
+        962,
+        1634
+      ],
+      "alpha": {
+        "range": [
+          0,
+          253
+        ],
+        "transparentPixels": 34790,
+        "centerAlpha": 252,
+        "cornerAlpha": [
+          0,
+          0,
+          1,
+          0
+        ]
+      }
+    }
+  ]
+}

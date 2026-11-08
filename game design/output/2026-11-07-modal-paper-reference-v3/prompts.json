@@ -1,0 +1,64 @@
+{
+  "tool": "built-in image_gen",
+  "status": "Removed from runtime rotation AND runtime assets by user2026-11-07;archival generation masters retained outside app resource roots",
+  "reference": "Latest user screenshot:Wee Bee on pale torn paper;only paper material/silhouette and amount of cuts retained;all UI removed",
+  "entries": [
+    {
+      "name": "01-reference-balanced",
+      "detail": "Variant1: balanced organically worn edge arrangement very close to the screenshot. Scatter short nicks unevenly,with a few small paired cuts on left and right;keep rounded corners soft.",
+      "prompt": "Use case: precise-object-edit / background-extraction. The latest attached screenshot is the ONLY specific paper design authority. Extract/re-render ONLY its blank paper modal as a standalone reusable transparent PNG. Remove the bee and its shadow,ALL text,numbers,icons,closeX and its small holder,all UI and peach background;fill former content areas seamlessly with matching paper. Exactly ONE upright front-facing blank portrait sheet,proportions width:height390:544,fully visible with narrow transparent margin. Match the reference's very pale soft creamy near-white paper,fine subtle fibres,soft thick frayed edges,rounded corners,quiet matte flat central writing surface,and overall AMOUNT/PERCENTAGE/DEPTH of edge cuts. Same moderate edge wear as reference:irregular short narrow slits and little missing-paper nicks,mostly shallow,a few medium,distributed organically across all4edges. Do not turn into extreme jagged/deep torn parchment. IMPORTANT: IGNORE previous strongly creased/crumpled candidates. NO strong diagonal fold lines,NO crumple ridges,NO broad folded facets,NO crease clusters,NO rolled or folded-over corners. At most extremely faint natural texture undulation like this screenshot;center smooth,calm and intact. Preserve this current light finish,do not make brown,yellow,dirty or vintage sepia. Material-defined edge relief,not drawn brown outlines. Paper opaque,with genuine alpha transparency outside its silhouette. No exterior drop shadow,glow,background,color matte,checkerboard pixels,watermark,decorations,text or illustration. This is a blank resource,not an app screenshot or a comparison board. Variant1: balanced organically worn edge arrangement very close to the screenshot. Scatter short nicks unevenly,with a few small paired cuts on left and right;keep rounded corners soft.",
+      "source": "/Users/user/.codex/generated_images/01a1b2c3-61c1-72b0-b446-2e9819b7b164/exec-621a90b9-f077-4d01-a220-072426d5d9af.png",
+      "file": "01-reference-balanced.png",
+      "dimensions": [
+        1062,
+        1480
+      ],
+      "alpha": {
+        "range": [
+          0,
+          255
+        ],
+        "center": 253,
+        "transparentPixels": 130496
+      }
+    },
+    {
+      "name": "02-reference-offset-cuts",
+      "detail": "Variant2: same amount/depth of wear and same material as reference,with a different staggered arrangement of short edge slits. Put two medium modest slits at different heights on opposite sides,and vary smaller top/bottom nicks. This is NOT a more damaged or folded version.",
+      "prompt": "Use case: precise-object-edit / background-extraction. The latest attached screenshot is the ONLY specific paper design authority. Extract/re-render ONLY its blank paper modal as a standalone reusable transparent PNG. Remove the bee and its shadow,ALL text,numbers,icons,closeX and its small holder,all UI and peach background;fill former content areas seamlessly with matching paper. Exactly ONE upright front-facing blank portrait sheet,proportions width:height390:544,fully visible with narrow transparent margin. Match the reference's very pale soft creamy near-white paper,fine subtle fibres,soft thick frayed edges,rounded corners,quiet matte flat central writing surface,and overall AMOUNT/PERCENTAGE/DEPTH of edge cuts. Same moderate edge wear as reference:irregular short narrow slits and little missing-paper nicks,mostly shallow,a few medium,distributed organically across all4edges. Do not turn into extreme jagged/deep torn parchment. IMPORTANT: IGNORE previous strongly creased/crumpled candidates. NO strong diagonal fold lines,NO crumple ridges,NO broad folded facets,NO crease clusters,NO rolled or folded-over corners. At most extremely faint natural texture undulation like this screenshot;center smooth,calm and intact. Preserve this current light finish,do not make brown,yellow,dirty or vintage sepia. Material-defined edge relief,not drawn brown outlines. Paper opaque,with genuine alpha transparency outside its silhouette. No exterior drop shadow,glow,background,color matte,checkerboard pixels,watermark,decorations,text or illustration. This is a blank resource,not an app screenshot or a comparison board. Variant2: same amount/depth of wear and same material as reference,with a different staggered arrangement of short edge slits. Put two medium modest slits at different heights on opposite sides,and vary smaller top/bottom nicks. This is NOT a more damaged or folded version.",
+      "source": "/Users/user/.codex/generated_images/01a1b2c3-61c1-72b0-b446-2e9819b7b164/exec-3e10b034-61b0-4701-ba69-4d9d2632ae89.png",
+      "file": "02-reference-offset-cuts.png",
+      "dimensions": [
+        1062,
+        1482
+      ],
+      "alpha": {
+        "range": [
+          0,
+          255
+        ],
+        "center": 253,
+        "transparentPixels": 184517
+      }
+    },
+    {
+      "name": "03-reference-soft-fray",
+      "detail": "Variant3: same amount/depth of wear as reference,with a distinct organic arrangement of little notches and soft frayed stretches;leave alternating long calm edge runs. Maintain the same quiet flat center and softness,without stronger creasing.",
+      "prompt": "Use case: precise-object-edit / background-extraction. The latest attached screenshot is the ONLY specific paper design authority. Extract/re-render ONLY its blank paper modal as a standalone reusable transparent PNG. Remove the bee and its shadow,ALL text,numbers,icons,closeX and its small holder,all UI and peach background;fill former content areas seamlessly with matching paper. Exactly ONE upright front-facing blank portrait sheet,proportions width:height390:544,fully visible with narrow transparent margin. Match the reference's very pale soft creamy near-white paper,fine subtle fibres,soft thick frayed edges,rounded corners,quiet matte flat central writing surface,and overall AMOUNT/PERCENTAGE/DEPTH of edge cuts. Same moderate edge wear as reference:irregular short narrow slits and little missing-paper nicks,mostly shallow,a few medium,distributed organically across all4edges. Do not turn into extreme jagged/deep torn parchment. IMPORTANT: IGNORE previous strongly creased/crumpled candidates. NO strong diagonal fold lines,NO crumple ridges,NO broad folded facets,NO crease clusters,NO rolled or folded-over corners. At most extremely faint natural texture undulation like this screenshot;center smooth,calm and intact. Preserve this current light finish,do not make brown,yellow,dirty or vintage sepia. Material-defined edge relief,not drawn brown outlines. Paper opaque,with genuine alpha transparency outside its silhouette. No exterior drop shadow,glow,background,color matte,checkerboard pixels,watermark,decorations,text or illustration. This is a blank resource,not an app screenshot or a comparison board. Variant3: same amount/depth of wear as reference,with a distinct organic arrangement of little notches and soft frayed stretches;leave alternating long calm edge runs. Maintain the same quiet flat center and softness,without stronger creasing.",
+      "source": "/Users/user/.codex/generated_images/01a1b2c3-61c1-72b0-b446-2e9819b7b164/exec-0205c8ff-44ac-4763-a6e7-416e8a9c096b.png",
+      "file": "03-reference-soft-fray.png",
+      "dimensions": [
+        1062,
+        1480
+      ],
+      "alpha": {
+        "range": [
+          0,
+          255
+        ],
+        "center": 253,
+        "transparentPixels": 131859
+      }
+    }
+  ]
+}

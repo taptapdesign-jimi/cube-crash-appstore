@@ -8,6 +8,76 @@ final class JimiNativeModalTransformView: UIView {
     override class var layerClass: AnyClass { CATransformLayer.self }
 }
 
+/// Selected static material shared only by ordinary paper modals. The existing
+/// presenting sheet owns its image/view lifetime; no new clock, task or cache.
+@MainActor
+final class NativeModalPaperView:UIImageView {
+    // Benchmark material: one cached original PNG, no runtime color/raster work.
+    static let paths=["assets/modals/paper.png"]
+    let variant=0
+    var assetPath:String {Self.paths[0]}
+    private(set) var closeMaterial:UIImage?
+    private var source:UIImage?
+    private var fittedSize:CGSize = .zero
+    private(set) var bodyFrame:CGRect = .zero
+    private weak var joinedClose:UIButton?
+    private let joinedMask=CAShapeLayer()
+    private struct JoinGeometry:Equatable{var body:CGRect,bounds:CGRect,center:CGPoint,transform:CGAffineTransform}
+    private var joinGeometry:JoinGeometry?
+    private(set) var fitCount=0
+    private(set) var textureScale:CGFloat=0
+    init(variant:Int=0){super.init(frame:.zero);isUserInteractionEnabled=false;contentMode = .scaleToFill;layer.cornerRadius=40;clipsToBounds=true}
+    required init?(coder:NSCoder){fatalError("Use paper initializer")}
+    func prepare(assets:JimiV9Artwork){
+        guard source==nil,let original=assets.image(assetPath) else{return}
+        source=original;image=original;closeMaterial=Self.closePaper(original);accessibilityValue=assetPath
+    }
+    func fit(in bounds:CGRect){
+        bodyFrame=bounds
+        guard source != nil,bounds.width>0,bounds.height>0 else{return}
+        if fittedSize != bounds.size{fittedSize=bounds.size;fitCount+=1;joinGeometry=nil}
+        if let close=joinedClose,close.superview === superview{updateJoinedPaper(close)}
+        else{frame=bounds;clipsToBounds=true;layer.mask=nil;fitTexture(to:bounds.size)}
+    }
+    private func fitTexture(to size:CGSize){
+        guard let source else{return}
+        // Cover from the opaque inner paper so the source's torn alpha edge
+        // stays outside the smooth rounded silhouette. Uniform scale keeps grain aspect.
+        let inset=min(28,min(source.size.width,source.size.height)*0.075)
+        // Sample a little farther inside the top/right texture for the Close tab.
+        // Body and tab keep one continuous UV plane, without image processing.
+        let usable=CGRect(x:inset,y:inset+12,width:source.size.width-inset*2-16,height:source.size.height-inset*2-12)
+        let cover=max(size.width/usable.width,size.height/usable.height)
+        let width=size.width/cover,height=size.height/cover
+        layer.contentsRect=CGRect(x:(usable.midX-width/2)/source.size.width,y:usable.minY/source.size.height,width:width/source.size.width,height:height/source.size.height);textureScale=cover
+    }
+    func joinClose(_ close:UIButton){
+        guard close.superview === superview else{return}
+        joinedClose=close;close.setBackgroundImage(nil,for:.normal);close.backgroundColor = .clear
+        updateJoinedPaper(close)
+    }
+    private func updateJoinedPaper(_ close:UIButton){
+        guard bodyFrame.width>0,bodyFrame.height>0 else{return}
+        let geometry=JoinGeometry(body:bodyFrame,bounds:close.bounds,center:close.center,transform:close.transform)
+        guard geometry != joinGeometry else{return};joinGeometry=geometry
+        // One original PNG under both shapes: no overlapping alpha/UV seam.
+        let tab=JimiNativeModalV10.closeOutline(close),extent=bodyFrame.union(tab.boundingBoxOfPath).integral
+        let silhouette=CGMutablePath();silhouette.addPath(UIBezierPath(roundedRect:bodyFrame,cornerRadius:40).cgPath);silhouette.addPath(tab)
+        var offset=CGAffineTransform(translationX:-extent.minX,y:-extent.minY)
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        frame=extent;clipsToBounds=false;fitTexture(to:extent.size)
+        joinedMask.frame=self.bounds;joinedMask.fillColor=UIColor.black.cgColor;joinedMask.fillRule = .nonZero
+        joinedMask.path=silhouette.copy(using:&offset);layer.mask=joinedMask
+        CATransaction.commit()
+    }
+    static func closePaper(_ image:UIImage)->UIImage?{
+        guard let pixels=image.cgImage else{return nil}
+        let side=min(CGFloat(pixels.width),CGFloat(pixels.height),96*image.scale)
+        guard let crop=pixels.cropping(to:CGRect(x:CGFloat(pixels.width)-side,y:0,width:side,height:side)) else{return nil}
+        return UIImage(cgImage:crop,scale:image.scale,orientation:.up)
+    }
+}
+
 /// v10 CSS interpolates transform components, including the rotation at scale zero.
 /// Matrix interpolation cannot recover that rotation from the collapsed endpoint.
 @MainActor
@@ -25,6 +95,7 @@ enum JimiNativeModalV10 {
     static func layoutClose(_ close:UIView,frame:CGRect,modalTilt:CGFloat) {
         close.bounds=CGRect(origin:.zero,size:frame.size);close.center=CGPoint(x:frame.midX-6,y:frame.midY+6)
         close.transform=CGAffineTransform(rotationAngle:(modalTilt<0 ? 8.5:-8.5) * 1.01 * .pi/180)
+        if let button=close as? UIButton,let paper=close.superview?.subviews.compactMap({$0 as? NativeModalPaperView}).first{paper.joinClose(button)}
     }
     static func closeOutline(_ close:UIView)->CGPath {
         let path=UIBezierPath(roundedRect:close.bounds,cornerRadius:16)
@@ -32,6 +103,42 @@ enum JimiNativeModalV10 {
         transform.tx=close.center.x-transform.a*close.bounds.midX-transform.c*close.bounds.midY
         transform.ty=close.center.y-transform.b*close.bounds.midX-transform.d*close.bounds.midY
         path.apply(transform);return path.cgPath
+    }
+
+    static let paperEnterDuration:CFTimeInterval=0.65
+    static let closeEnterDuration:CFTimeInterval=0.38/1.6/0.6
+    // Finish80percent of the Close track at the exact paper-entry boundary.
+    static var closeEnterDelay:CFTimeInterval {paperEnterDuration-closeEnterDuration*0.8}
+    static let closeEnterKey="native.modal.close-enter"
+    /// Finite child track shares the paper epoch and ancestor pause/disposal.
+    /// Full matrices retain the authored counter-tilt even through relayout.
+    static func enterClose(_ close:UIView,beginTime:CFTimeInterval? = nil) {
+        guard !UIAccessibility.isReduceMotionEnabled,!close.isHidden else{return}
+        let rest=close.transform
+        let motion=CAKeyframeAnimation(keyPath:"transform")
+        let frames:[(Double,CGFloat,CGFloat,CGFloat)]=[
+            (0,0,0,22),(0.42,1.32,0.86,-6),(0.64,0.87,1.16,2),
+            (0.82,1.07,0.96,-1),(1,1,1,0)]
+        let times=Array(Set((0...80).map{Double($0)/80}+frames.map{$0.0})).sorted()
+        motion.keyTimes=times.map{NSNumber(value:$0)}
+        motion.values=times.map { time in
+            let i=min(frames.count-2,max(0,(frames.lastIndex(where:{$0.0<=time}) ?? 0)))
+            let a=frames[i],b=frames[i+1]
+            let t=CGFloat(JimiV9Motion.Ease.powerOut(2).value((time-a.0)/(b.0-a.0)))
+            var pose=rest.scaledBy(x:a.1+(b.1-a.1)*t,y:a.2+(b.2-a.2)*t)
+            pose.ty += a.3+(b.3-a.3)*t
+            return NSValue(caTransform3D:CATransform3DMakeAffineTransform(pose))
+        }
+        motion.duration=closeEnterDuration;motion.calculationMode = .linear
+        let fade=CABasicAnimation(keyPath:"opacity")
+        fade.fromValue=0;fade.toValue=close.layer.opacity;fade.duration=0.20/1.6/0.6
+        fade.timingFunction=CAMediaTimingFunction(name:.easeOut)
+        fade.fillMode = .forwards;fade.isRemovedOnCompletion=false
+        let animation=CAAnimationGroup()
+        animation.animations=[motion,fade];animation.duration=closeEnterDuration
+        animation.beginTime=close.layer.convertTime(beginTime ?? CACurrentMediaTime(),from:nil)+closeEnterDelay
+        animation.fillMode = .backwards
+        close.layer.add(animation,forKey:closeEnterKey)
     }
 
     static let settledBounceKey="native.modal.settled-bounce"
@@ -71,6 +178,7 @@ enum JimiNativeModalV10 {
 
     /// Shared Exit Game / High Score / Backpack entrance planes and timing.
     static func enter(card:UIView,flip:UIView,key:String,beginTime:CFTimeInterval? = nil) {
+        let epoch=beginTime ?? CACurrentMediaTime()
         func pose(_ y:CGFloat,_ z:CGFloat,_ rx:CGFloat,_ ry:CGFloat,_ scale:CGFloat,_ rz:CGFloat=0)->CATransform3D {
             var t=CATransform3DMakeTranslation(0,y,z)
             t=CATransform3DRotate(t,rx * .pi/180,1,0,0);t=CATransform3DRotate(t,ry * .pi/180,0,1,0);t=CATransform3DRotate(t,rz * .pi/180,0,0,1)
@@ -78,18 +186,15 @@ enum JimiNativeModalV10 {
         }
         for (target,poses,times) in [(card,[pose(88,0,0,0,0.72,-2),pose(-10,0,0,0,1.07,0.8),pose(4,0,0,0,0.98,-0.35),CATransform3DIdentity],[0,0.55,0.76,1]),
             (flip,[pose(88,-180,17,-88,0.72),CATransform3DIdentity],[0,1])] {
-            let a=CAKeyframeAnimation(keyPath:"transform");a.duration=0.65;a.values=poses.map{NSValue(caTransform3D:$0)};a.keyTimes=times.map{NSNumber(value:$0)}
+            let a=CAKeyframeAnimation(keyPath:"transform");a.duration=paperEnterDuration;a.values=poses.map{NSValue(caTransform3D:$0)};a.keyTimes=times.map{NSNumber(value:$0)}
             a.timingFunctions=Array(repeating:target === card ? CAMediaTimingFunction(controlPoints:0.22,1.18,0.36,1) : CAMediaTimingFunction(controlPoints:0.16,1,0.3,1),count:poses.count-1)
-            if let beginTime {a.beginTime=target.layer.convertTime(beginTime,from:nil);a.fillMode = .backwards}
+            a.beginTime=target.layer.convertTime(epoch,from:nil);a.fillMode = .backwards
             target.layer.add(a,forKey:key)
         }
     }
     static let bottomArchMaskName="native.modal.paper-bottom-arch"
-    /// Modal paper uses a30percent deeper parabola than the navigation reference.
-    /// Centre retains the accepted bottom extent; only the lower sides recede.
-    static func bottomArchDepth(width:CGFloat)->CGFloat {
-        JimiV9NavigationHeader.dividerArchDepth*1.3*max(0,width)/390
-    }
+    /// Shared paper bottoms are straight; retain the existing mask/shadow owner.
+    static func bottomArchDepth(width:CGFloat)->CGFloat {0}
     static func bottomArchPath(in rect:CGRect,cornerRadius:CGFloat)->CGPath {
         guard rect.width>0,rect.height>0 else{return CGMutablePath()}
         let x=rect.minX,y=rect.minY,w=rect.width,h=rect.height
@@ -124,6 +229,7 @@ enum JimiNativeModalV10 {
     }
 
     static func paperLayout(_ paper: UIImageView, bounds: CGRect, bottomExtension: CGFloat = 0) {
+        if let adaptive=paper as? NativeModalPaperView {adaptive.fit(in:bounds);return}
         paper.frame = bounds
         paper.contentMode = .scaleToFill
         applyBottomArch(to:paper)
@@ -349,7 +455,7 @@ final class JimiNativeEndRunButton:JimiV9PlainButton {
 final class JimiNativeEndRunModal: UIViewController {
     let requestID: Int
     let model: JimiNativeEndRunModel
-    let card = UIView(), flip = JimiNativeModalTransformView(), idle = JimiNativeModalTransformView(), paper = UIImageView()
+    let card = UIView(), flip = JimiNativeModalTransformView(), idle = JimiNativeModalTransformView(), paper = NativeModalPaperView()
     private let restTilt=JimiNativeModalTransformView()
     let restTiltDegrees:CGFloat
     private let paperShadow=CALayer()
@@ -409,7 +515,7 @@ final class JimiNativeEndRunModal: UIViewController {
         restTilt.layer.transform=CATransform3DMakeRotation(restTiltDegrees * .pi/180,0,0,1)
         card.layer.anchorPoint = CGPoint(x:0.5,y:0.55);flip.layer.anchorPoint = CGPoint(x:0.5,y:1);idle.layer.anchorPoint = CGPoint(x:0.5,y:0.52)
         card.alpha = 0;card.accessibilityIdentifier = "native.end-run"
-        paper.image = assets.image("assets/modals/paper.png");paper.contentMode = .scaleToFill;paper.layer.cornerRadius = 40;paper.clipsToBounds = true
+        paper.prepare(assets:assets)
         // Keep the authored shadow on its own paint leaf. A shadow-bearing
         // ordinary idle container flattens live text before the outer3D flip.
         paperShadow.name="native.end-run.paper-shadow";paperShadow.isDoubleSided=false
@@ -438,9 +544,9 @@ final class JimiNativeEndRunModal: UIViewController {
             button.addTarget(self,action:#selector(requestButton(_:)),for:.touchUpInside);idle.addSubview(button);button.enableCartoonBounce(preserves3D:true)
         }
         traceHUDLatency("exit-cta-style-end")
-        close.setBackgroundImage(paper.image,for:.normal);close.layer.cornerRadius = 16;close.clipsToBounds = true
+        close.setBackgroundImage(paper.closeMaterial,for:.normal);close.layer.cornerRadius = 16;close.clipsToBounds = true
         close.setImage(assets.image("assets/close-icon.png",densityAware:true),for:.normal);close.imageView?.contentMode = .scaleAspectFit;close.artworkOpacity = 0.8;close.enableArtworkTapFeedback(wholeControl:true)
-        close.imageEdgeInsets = UIEdgeInsets(top:14,left:16,bottom:14,right:12)
+        close.imageEdgeInsets = UIEdgeInsets(top:14,left:14,bottom:14,right:14)
         close.accessibilityLabel = "Close "+model.title;close.accessibilityIdentifier = "native.end-run.close"
         close.addTarget(self,action:#selector(requestClose),for:.touchUpInside);idle.addSubview(close)
         close.isHidden = !dismissalAllowed;backdrop.isUserInteractionEnabled=dismissalAllowed
@@ -486,11 +592,8 @@ final class JimiNativeEndRunModal: UIViewController {
         CATransaction.begin();CATransaction.setDisableActions(true)
         paperShadow.frame=idle.bounds;paperShadow.contentsScale=view.window?.screen.scale ?? view.traitCollection.displayScale
         let silhouette=CGMutablePath()
-        let paperOutline=UIBezierPath(roundedRect:paper.frame,cornerRadius:paper.layer.cornerRadius)
-        let archedPaper=CGMutablePath();archedPaper.addPath(JimiNativeModalV10.bottomArchPath(in:paper.frame,cornerRadius:paper.layer.cornerRadius))
-        // The mask has square top corners so the original corner owner remains exact.
-        // Intersect with that original rounded outline for the explicit shadow too.
-        silhouette.addPath(archedPaper.intersection(paperOutline.cgPath))
+        let paperOutline=UIBezierPath(roundedRect:paper.bodyFrame,cornerRadius:paper.layer.cornerRadius)
+        silhouette.addPath(paperOutline.cgPath)
         if !close.isHidden {silhouette.addPath(JimiNativeModalV10.closeOutline(close))}
         paperShadow.shadowPath=silhouette
         CATransaction.commit()
@@ -522,8 +625,10 @@ final class JimiNativeEndRunModal: UIViewController {
         traceHUDLatency(buttons.allSatisfy({$0.isSculptedFacePrepared}) ? "exit-appear-faces-ready":"exit-appear-awaits-faces")
         revealPreparedCTAs()
         if UIAccessibility.isReduceMotionEnabled { completeEnter();backdrop.alpha = 1;return }
+        let paperEpoch=CACurrentMediaTime()
+        JimiNativeModalV10.enterClose(close,beginTime:paperEpoch)
         CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in self?.completeEnter()}
-        JimiNativeModalV10.enter(card:card,flip:flip,key:"end-run-enter")
+        JimiNativeModalV10.enter(card:card,flip:flip,key:"end-run-enter",beginTime:paperEpoch)
         CATransaction.commit()
         UIView.animate(withDuration:0.5){self.backdrop.alpha = 1}
     }
@@ -544,13 +649,15 @@ final class JimiNativeEndRunModal: UIViewController {
         defer{onEntryAnimationsInstalledForTesting?()}
         #endif
         traceHUDLatency("exit-paper-entry-start")
+        let paperEpoch=entryEpoch ?? CACurrentMediaTime()
+        JimiNativeModalV10.enterClose(close,beginTime:paperEpoch)
         CATransaction.begin()
         revealPreparedCTAs()
         if UIAccessibility.isReduceMotionEnabled {
             completeEnter();backdrop.alpha=1;CATransaction.commit();return
         }
         CATransaction.setCompletionBlock{[weak self] in self?.completeEnter()}
-        JimiNativeModalV10.enter(card:card,flip:flip,key:"end-run-enter",beginTime:entryEpoch)
+        JimiNativeModalV10.enter(card:card,flip:flip,key:"end-run-enter",beginTime:paperEpoch)
         CATransaction.commit()
         UIView.animate(withDuration:0.5){self.backdrop.alpha=1}
     }

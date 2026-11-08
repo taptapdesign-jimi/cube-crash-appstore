@@ -1,15 +1,17 @@
 # Approved Production Baseline
 
-Updated: 2026-11-06
+Updated: 2026-11-08
 
-## Current Native checkpoint — PRODUCTION 95% ready
+## Current Native checkpoint — Native app - production state skoro pa gotovo
 
-User explicitly requests saving all current project work online with this milestone
-name on 2026-11-06. Immutable tag: `production-95-percent-ready`.
-See [PRODUCTION_95_PERCENT_READY.md](PRODUCTION_95_PERCENT_READY.md).
-This is the latest Native continuation/recovery reference, superseding v22.
-The label records the user's milestone and does not establish independent release
-or physical acceptance. Historical Native/PWA references remain immutable.
+User explicitly requests saving all current project work online with this name
+on 2026-11-08 and selects it as the latest Native benchmark. Immutable tag:
+`native-app-production-state-skoro-pa-gotovo`.
+See [NATIVE_APP_PRODUCTION_STATE_SKORO_PA_GOTOVO.md](NATIVE_APP_PRODUCTION_STATE_SKORO_PA_GOTOVO.md).
+This supersedes `production-95-percent-ready` for Native continuation/recovery.
+The milestone records the user's accepted current state; existing physical,
+performance and release acceptance limits remain explicit. Preserve every
+historical Native and PWA reference.
 
 ## Historical Native development boundary (2026-10-07)
 
@@ -53,7 +55,7 @@ remote publication must be reported separately and is not implied here.
 
 ## Interpretation rule
 
-When the user says **approved version**, **approved baseline**, **perfect version**, **the version that was super**, **production benchmark**, **benchmark fluidnost**, **stable release**, or otherwise refers to the last version they personally accepted, for the preserved PWA treat `production-benchmark-v9` as the exact source reference. Native uses `production-95-percent-ready` above.
+When the user says **approved version**, **approved baseline**, **perfect version**, **the version that was super**, **production benchmark**, **benchmark fluidnost**, **stable release**, or otherwise refers to the last version they personally accepted, for the preserved PWA treat `production-benchmark-v9` as the exact source reference. Native uses `native-app-production-state-skoro-pa-gotovo` above.
 
 Do not infer approval from a successful build, QA pass, device installation, merge, release, or positive comment about one isolated change. Only an explicit user statement that a newer complete state is approved may supersede this file.
 

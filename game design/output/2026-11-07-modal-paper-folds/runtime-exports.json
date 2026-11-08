@@ -1,0 +1,35 @@
+{
+  "method": "sips uniform width-based resampling;preserved alpha and source finish",
+  "exports": [
+    {
+      "source": "game design/output/2026-11-07-modal-paper-folds/01-soft-diagonal-folds.png",
+      "asset": "assets/modals/arcade-paper/paper-04-soft-folds.png",
+      "density": 1
+    },
+    {
+      "source": "game design/output/2026-11-07-modal-paper-folds/01-soft-diagonal-folds.png",
+      "asset": "assets/modals/arcade-paper/paper-04-soft-folds@2x.png",
+      "density": 2
+    },
+    {
+      "source": "game design/output/2026-11-07-modal-paper-folds/01-soft-diagonal-folds.png",
+      "asset": "assets/modals/arcade-paper/paper-04-soft-folds@3x.png",
+      "density": 3
+    },
+    {
+      "source": "game design/output/2026-11-07-modal-paper-folds/03-local-crumple-folds.png",
+      "asset": "assets/modals/arcade-paper/paper-05-crumpled-folds.png",
+      "density": 1
+    },
+    {
+      "source": "game design/output/2026-11-07-modal-paper-folds/03-local-crumple-folds.png",
+      "asset": "assets/modals/arcade-paper/paper-05-crumpled-folds@2x.png",
+      "density": 2
+    },
+    {
+      "source": "game design/output/2026-11-07-modal-paper-folds/03-local-crumple-folds.png",
+      "asset": "assets/modals/arcade-paper/paper-05-crumpled-folds@3x.png",
+      "density": 3
+    }
+  ]
+}

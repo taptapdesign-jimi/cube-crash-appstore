@@ -170,6 +170,9 @@ final class NativeGameplayViewController: UIViewController {
     private var hasPresentedScene = false
     var waitsForFirstFrameOnReplacement=false
     var keepsGameplayChromeVisibleOnEntry=false
+    var replaysRestartChrome=false
+    var restartPreparationForeground:Bool{!disposed && !backgrounded}
+    var onRestartPreparationResume:(()->Void)?
     private var firstBoardFrameReady=false
     var incomingOriginalThemedCoverExpected=false
     private var incomingOriginalCoverCompletion:(()->Void)?
@@ -339,6 +342,7 @@ final class NativeGameplayViewController: UIViewController {
         super.viewDidLoad()
         let scene = NativeBoardScene(engine: engine, resourceRoot: resourceRoot, size: view.bounds.size,sourceInitialConstruction:sourceInitialConstruction)
         scene.keepsHUDVisibleOnEntry=keepsGameplayChromeVisibleOnEntry
+        scene.replaysRestartChrome=replaysRestartChrome
         scene.sourceWildShimmerEnabled=sourceWildShimmerPresentationEnabled
         if (sourceInitialConstruction != nil || sourceSpecialIdlePresentationEnabled),!sourceSmallStackPresentationEnabled,let sourceContext {
             sourceScope=sourceContext.beginScene(engine:engine) { [weak self] in self?.boardScene?.retireSourceAnimationBindings() }
@@ -916,7 +920,7 @@ final class NativeGameplayViewController: UIViewController {
                 MainActor.assumeIsolated { self?.backgrounded = true; self?.applySuspension() }
             },
             NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.backgrounded = false; self?.applySuspension() }
+                MainActor.assumeIsolated { self?.backgrounded = false; self?.applySuspension();self?.onRestartPreparationResume?() }
             }
         ]
     }
@@ -1619,7 +1623,18 @@ final class NativeGameplayViewController: UIViewController {
         // its registry lease already unhooked; Core still seals the old flow.
         return engine.finishSourceNoMovesFinalCleanup(receipt:receipt)
     }
-    func animateBoardExit(finalMerge:Bool=false,completion: @escaping (Bool) -> Void) {
+    /// Restart hands off after its own fast chrome exit; tile/footer exits
+    /// retain their existing owners until replacement's first frame or dispose.
+    func animateRestartExit(completion:@escaping(Bool)->Void) {
+        var finished=false
+        let settle:(Bool)->Void={success in
+            guard !finished else{return};finished=true;completion(success)
+        }
+        animateBoardExit(restartChrome:true,chromeCompletion:settle){success in
+            if !success {settle(false)}
+        }
+    }
+    func animateBoardExit(finalMerge:Bool=false,restartChrome:Bool=false,chromeCompletion:((Bool)->Void)?=nil,completion: @escaping (Bool) -> Void) {
         guard let boardScene,!disposed,!exitingBoard else {completion(false);return}
         if let plan=engine.pendingSourceNoMoves {boardScene.traceNoMovesHandoff("board-exit-begin",token:plan.token)}
         exitingBoard=true
@@ -1655,7 +1670,7 @@ final class NativeGameplayViewController: UIViewController {
             },completion:settled)
         } else {
             journeyBottomDecor?.exit(completion:settled)
-            boardScene.animateExit(completion:settled)
+            boardScene.animateExit(restartChrome:restartChrome,chromeCompletion:chromeCompletion,completion:settled)
         }
     }
 
@@ -1710,6 +1725,7 @@ final class NativeGameplayViewController: UIViewController {
     }
 
     func dispose() {
+        onRestartPreparationResume=nil
         retirePreparedJourneyReward();retirePreparedJourneyResult();retireJourneyRewardChildren();prepareJourneyRewardController=nil;prepareJourneyResultController=nil
         restoreTutorialSpecialBarSiblings()
         beforeSourceInitialBoardReveal=nil

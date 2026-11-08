@@ -96,12 +96,12 @@ final class NativeBootstrap {
     private var sourcePreparedArcadeSaveGeneration:UInt64?
     @MainActor private final class InitialTexturePreparation {
         let board:Int?,number:Int,tutorial:Bool,saved:NativeBoardState?,textures:NativeBoardTextures
-        let freshEntry:FreshGameplayEntry?,callerCurrent:()->Bool
+        let freshEntry:FreshGameplayEntry?,callerCurrent:()->Bool,onCancellation:()->Void
         var ready=false
         init(board:Int?,number:Int,tutorial:Bool,saved:NativeBoardState?,textures:NativeBoardTextures,
-             freshEntry:FreshGameplayEntry?,callerCurrent:@escaping()->Bool){
+             freshEntry:FreshGameplayEntry?,callerCurrent:@escaping()->Bool,onCancellation:@escaping()->Void){
             self.board=board;self.number=number;self.tutorial=tutorial;self.saved=saved;self.textures=textures
-            self.freshEntry=freshEntry;self.callerCurrent=callerCurrent
+            self.freshEntry=freshEntry;self.callerCurrent=callerCurrent;self.onCancellation=onCancellation
         }
     }
     private var initialTexturePreparation:InitialTexturePreparation?
@@ -225,7 +225,7 @@ final class NativeBootstrap {
         services.prepareGameplayEntry = {[weak self] board,completion in
             guard let self else{completion(false);return};self.prepareGameplayEntry(board:board,completion:completion)
         }
-        services.cancelGameplayEntry = {[weak self] in self?.cancelGameplayEntryPreparation()}
+        services.cancelGameplayEntry = {[weak self] in self?.cancelGameplayEntryPreparation(callerCancellation:true)}
         let controller = NativeAppController(resourceRoot: root, services: services)
         self.controller = controller
         let transport = JimiNativeMusic(root:root)
@@ -321,13 +321,16 @@ final class NativeBootstrap {
         var consumesPendingArcade:Bool {if case .arcadeContinuation=self{return true};return false}
         var alreadyAnnouncedArcade:Bool {consumesPendingArcade}
         var skipsBoardAnnouncement:Bool {if case .restart(_,let origin)=self{return origin.skipsBoardAnnouncement};return false}
+        var isExitMenuRestart:Bool {if case .restart(_, .exitMenu)=self{return true};return false}
         var keepsGameplayChromeVisible:Bool {if case .restart(_, .exitMenu)=self{return true};return consumesPendingArcade}
     }
-    private func cancelGameplayEntryPreparation(){
-        let old=initialTexturePreparation;initialTexturePreparation=nil;old?.textures.dispose()
+    private func cancelGameplayEntryPreparation(callerCancellation:Bool=false){
+        let old=initialTexturePreparation;initialTexturePreparation=nil
+        if callerCancellation {old?.onCancellation()}
+        old?.textures.dispose()
     }
     private func prepareGameplayEntry(board:Int?,freshEntry:FreshGameplayEntry?=nil,
-        callerCurrent:@escaping()->Bool={true},completion:@escaping(Bool)->Void){
+        callerCurrent:@escaping()->Bool={true},onCancellation:@escaping()->Void={},completion:@escaping(Bool)->Void){
         cancelGameplayEntryPreparation()
         guard !disposed,callerCurrent(),!disposed else{completion(false);return}
         guard sourceInitialFreshStartupEnabled || sourceInitialRegularResumeEnabled || sourceInitialWildResumeEnabled else{completion(true);return}
@@ -338,7 +341,7 @@ final class NativeBootstrap {
         let saved=tutorial ? envelope.firstPlayRun : (freshEntry != nil || mode == .arcade && envelope.pendingArcadeRound != nil ? nil:envelope.resumedRun(mode:mode,board:number))
         let textures=NativeBoardTextures(root:root)
         let lease=InitialTexturePreparation(board:board,number:number,tutorial:tutorial,saved:saved,textures:textures,
-            freshEntry:freshEntry,callerCurrent:callerCurrent)
+            freshEntry:freshEntry,callerCurrent:callerCurrent,onCancellation:onCancellation)
         initialTexturePreparation=lease
         var additional:[String]=[NativeComboHUDMotion.atlasPath]
         for tile in saved?.tiles ?? [] where tile.isWild {
@@ -479,7 +482,8 @@ final class NativeBootstrap {
             engine.configureTutorialReward(reward)
         }
         let gameplay = NativeGameplayViewController(engine: engine, resourceRoot: root)
-        gameplay.keepsGameplayChromeVisibleOnEntry=freshEntry?.keepsGameplayChromeVisible == true
+        gameplay.replaysRestartChrome=freshEntry?.isExitMenuRestart == true && engine.state.mode == .journey && !needsTutorial
+        gameplay.keepsGameplayChromeVisibleOnEntry = !gameplay.replaysRestartChrome && freshEntry?.keepsGameplayChromeVisible == true
         gameplay.waitsForFirstFrameOnReplacement=freshEntry?.skipsBoardAnnouncement == true || freshEntry?.consumesPendingArcade == true
         gameplay.sourceContext=sourceContext
         // The profile remains incomplete until the later result is acknowledged.
@@ -1297,15 +1301,62 @@ final class NativeBootstrap {
                   scope.current,controller.canReplaceGameplay(previous) else{return false}
             return true
         }
-        prepareGameplayEntry(board:board,freshEntry:entry,callerCurrent:current){[weak self,weak previous,weak controller] ready in
-            guard let self,let previous,let controller,current() else{return}
-            guard ready else {
-                if previous.sourcePresentationFailureGeneration==generation {
-                    self.presentSourceFailureRecovery(previous);return
-                }
-                self.finishGameplayExit();self.showError("Unable to prepare Native board resources");return
-            }
+        // Keep the old Source scope current while its finite exit and the
+        // successor's resource preparation run together. The fast HUD receipt,
+        // rather than the tiles/footer deadline, admits successor construction.
+        let replay=entry.isExitMenuRestart && previous.engine.state.mode == .journey && previous.engine.state.tutorial?.active != true
+        var resourcesReady=false,exitReady = !replay,replaced=false
+        let replaceIfReady:()->Void = {[weak self,weak previous,weak controller] in
+            guard resourcesReady,exitReady,!replaced,current(),let self,let previous,let controller,(!replay || previous.restartPreparationForeground) else{return}
+            replaced=true;previous.onRestartPreparationResume=nil
             self.replacePreparedSourceGameplay(previous,controller:controller,board:board,entry:entry,exit:exit)
+        }
+        var preparationPending=false,preparationEpoch=0
+        let prepare:()->Void = {[weak self,weak previous] in
+            guard let self,let previous,current() else{return}
+            preparationPending=true;preparationEpoch += 1
+            let epoch=preparationEpoch
+            var preparationCancelled=false
+            self.prepareGameplayEntry(board:board,freshEntry:entry,callerCurrent:current,onCancellation:{
+                guard epoch==preparationEpoch else{return}
+                preparationCancelled=true;preparationPending=false;resourcesReady=false
+            }){[weak self,weak previous] ready in
+                guard epoch==preparationEpoch else{return}
+                preparationPending=false
+                guard let self,let previous,current() else{return}
+                guard ready else {
+                    if preparationCancelled && replay {return}
+                    // Background cancels the existing launch preparation. The
+                    // old Scene's exit pauses with it; retry only after that
+                    // same exit resumes and finishes, without hidden work.
+                    if replay && !exitReady {return}
+                    previous.onRestartPreparationResume=nil
+                    if previous.sourcePresentationFailureGeneration==generation {
+                        self.presentSourceFailureRecovery(previous);return
+                    }
+                    self.finishGameplayExit();self.showError("Unable to prepare Native board resources");return
+                }
+                resourcesReady=true;replaceIfReady()
+            }
+        }
+        if replay {
+            previous.onRestartPreparationResume={
+                guard current(),exitReady else{return}
+                if !resourcesReady,!preparationPending {prepare()}
+                replaceIfReady()
+            }
+        }
+        prepare()
+        if replay,current() {
+            previous.animateRestartExit{[weak self] success in
+                guard current(),let self else{return}
+                exitReady=success
+                // An already-ready foundation can also be retired by the
+                // background lifecycle without another completion callback.
+                if resourcesReady,self.initialTexturePreparation?.ready != true {resourcesReady=false}
+                if success,!resourcesReady,!preparationPending {prepare()}
+                replaceIfReady()
+            }
         }
     }
     private func replacePreparedSourceGameplay(_ previous:NativeGameplayViewController,controller:NativeAppController,

@@ -1,0 +1,133 @@
+{
+  "viewport": {
+    "width": 390,
+    "height": 844,
+    "safeTop": 47,
+    "safeBottom": 34
+  },
+  "coordinateSystem": "UIKit points,top-left. SpriteKitY=height-HTMLY. Responsive preview applies ONE uniform outer scale.",
+  "sourceHashes": {
+    "native/gameplay-ui/NativeGameplayChromePlan.swift": "c746db9d2f2e785d2d3966eaefbb69324460c29a1aff089228d233afeb75c186",
+    "native/gameplay-ui/NativeBoardGeometry.swift": "813f37198ec0748bd46da012d3e6b0a4176384bdcac57e8352c6775b672fac4e",
+    "native/gameplay-ui/NativeHUDCloseNode.swift": "3d5b8d62a78de2321a630268e8558fc3131ec8b215befb2af5955ca9144823fe",
+    "native/gameplay-ui/NativeBoardScene.swift": "05ca51753371fadcce553107b81015224d9553a2a2f6930e4f5eb2f97ed15f25",
+    "native/gameplay-app/NativeAppPaperSurface.swift": "d9c90ebab1fdc3a4bbeb303121adbd9e5d374ff8c45d6f19b288bfa4dfd53db3",
+    "native/gameplay-bottom-decor/NativeJourneyBottomDecorOwner.swift": "7fa7b6a47b3aa216f50fb9c45b0b30798f8ba1c08e77f9e4ca6f8a556e286303",
+    "native/gameplay-meter-drop/NativeJumpPopMeterPresentation.swift": "3ce5e1ce3dfe3fa0f689a489be06354fda0eda291fb7be82a2e5b2ed27a95f73"
+  },
+  "assets": {
+    "paper.png": {
+      "source": "assets/paper-bg@3x.png",
+      "sha256": "2b3d36276f7f48b1f312df7347be7ee1f72af7f5b8d0e1a69db3c3a6676e9819"
+    },
+    "backpack.png": {
+      "source": "assets/nav/stats-nav@3x.png",
+      "sha256": "d9810689c6a9819e9681ffc9aa3a0a73198843750720d20f82bd58ad169d04d3"
+    },
+    "trophy.png": {
+      "source": "assets/hud/score-hud@3x.png",
+      "sha256": "0edcc6b9d2a17b6be7b8ab888c59f410c3becf80ba96402c33d1d7f7f29fc85a"
+    },
+    "combo.png": {
+      "source": "assets/hud/combo-hud@3x.png",
+      "sha256": "3d665f8737b1bfd6c9c46a8a597d930a0c7e13b5bc4237d7c8c87f62686df01b"
+    },
+    "close.png": {
+      "source": "assets/close-icon@3x.png",
+      "sha256": "32398c01e5e73cea8b0748080ac6418136b9199c47478a0f261edb79eee9b0c1"
+    },
+    "tile.png": {
+      "source": "assets/tile@3x.png",
+      "sha256": "bf58dad814aacb7a7ab4d19d997e2fa06754064f9f6e6bbe5e9a4cb28215edd3"
+    },
+    "ghost.png": {
+      "source": "assets/ghost-placeholder@2x.png",
+      "sha256": "9119026f448d6cb1eb9dbb2ae2e8d208fb6b6788e802745c8d1e063f620e9769"
+    },
+    "divider.png": {
+      "source": "assets/home-shadow@3x.png",
+      "sha256": "c40fb6509c94d36991a2a2ee983384c0d733383f047952418bbde8d28005b7f0"
+    },
+    "footer.png": {
+      "source": "assets/journey assets/bottom4@2x.png",
+      "sha256": "98c4a9ac2bfd06ffa934c2f2d7d431423e574dd841d20af6e33bcb4bb446c37b"
+    },
+    "Baloo2-Bold.ttf": {
+      "source": "assets/fonts/Baloo2-Bold.ttf",
+      "sha256": "31a2115ea92ea3ae2c5d3cec385be100fcf076c6507ff3ec60722ddfff884b91"
+    },
+    "Baloo2-Regular.ttf": {
+      "source": "assets/fonts/Baloo2-Regular.ttf",
+      "sha256": "421e87b5163bea7907266aa22b53a878c853f82ae51ad94e1c7be64a9572ae28"
+    },
+    "body1.png": {
+      "source": "assets/tile_numbers@3x.png",
+      "sha256": "bf58dad814aacb7a7ab4d19d997e2fa06754064f9f6e6bbe5e9a4cb28215edd3"
+    },
+    "body2.png": {
+      "source": "assets/tile_numbers2@3x.png",
+      "sha256": "967328603a975bdc746abded0f0e644f03e2ca2f966a11a25f06237b9c00f47e"
+    },
+    "body3.png": {
+      "source": "assets/tile_numbers3@3x.png",
+      "sha256": "f5dcdf36c7b095a986390f2667e6e225a68bbe76d66abfc4656015b3efe48128"
+    },
+    "body4.png": {
+      "source": "assets/tile_numbers4@3x.png",
+      "sha256": "967328603a975bdc746abded0f0e644f03e2ca2f966a11a25f06237b9c00f47e"
+    },
+    "nav-bg.png": {
+      "source": "assets/nav/nav-bg@3x.png",
+      "sha256": "03e45e74ab15f6ff37c1e74d3db384584f8c88354b5cef819b13ff04e6110c0a"
+    },
+    "nav-bg-worn-v1.png": {
+      "source": "game design/output/2026-11-07-worn-navigation-paper/nav-paper-worn-v1.png",
+      "sha256": "3845359bb6f397253c3f407da4bbfbbdc5f856500b5aa5baeebd6103d3e02ecc",
+      "status": "generated editor-only candidate,not approved Native artwork"
+    },
+    "nav-bg-worn-white-v2.png": {
+      "source": "game design/output/2026-11-07-worn-navigation-paper/nav-paper-worn-white-v2.png",
+      "sha256": "99471485b591bbcab82155b17b9b93354111c63d491e20998bc20884b861eb6f",
+      "status": "generated editor-only bleached white candidate"
+    },
+    "nav-bg-bleached-wood-v1.png": {
+      "source": "game design/output/2026-11-07-bleached-wood-navigation/nav-bleached-wood-v1.png",
+      "sha256": "46e6a86035c4261fe63a5c7c1acc67c9d6c2d8e42d7b1708d732f3f5c5904124",
+      "references": [
+        "assets/tile@3x.png",
+        "assets/logo-stacktosix.png",
+        "game design/output/2026-11-07-worn-navigation-paper/nav-paper-worn-white-v2.png"
+      ],
+      "status": "editor-only generated bleached wood candidate,noNative approval"
+    },
+    "nav-bg-worn-solid-wood-v2.png": {
+      "source": "game design/output/2026-11-07-bleached-wood-navigation/nav-worn-solid-wood-v2.png",
+      "sha256": "115e12e1f6b2b5a395c16dda443ce35d7d35103a1231be384519f58fdbacbf9a",
+      "references": [
+        "assets/tile@3x.png",
+        "assets/logo-stacktosix.png"
+      ],
+      "status": "editor-only generated rigid wornwood candidate"
+    },
+    "nav-bg-worn-solid-wood-v3.png": {
+      "source": "game design/output/2026-11-07-bleached-wood-navigation/nav-worn-solid-wood-v3.png",
+      "sha256": "45f67288d773502bc38f8ba2179a65ca7c5467e01740fbc63754730256dc6804",
+      "status": "editor-only solid wornwood paler fullbleed refinement"
+    }
+  },
+  "baseline": "Source-derived static Six LAB layout;sample tile occupancy follows supplied reference. Native pixel-comparison pending.",
+  "navigationItemLibrary": {
+    "source": "native/jimi-2026/JimiV9Artwork.swift",
+    "sha256": "7b247d1a9b858a55490ae76722f1d734e0aca247a1845c101d44d24fa78ca914",
+    "archDepth": 14.111999999999998,
+    "archSlices": 32,
+    "transparentArtworkOnly": false,
+    "iconAngle": "atan(4*depth*(1-2*innerArcX/width)/width)*1.8",
+    "initiallyParked": [
+      "navDivider",
+      "navClose",
+      "navBackpack"
+    ],
+    "background": "Original nav-bg.png clipped to same divider parabola;independent navBackgroundOpacity0..100"
+  }
+}

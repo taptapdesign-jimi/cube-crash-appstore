@@ -1,3 +1,1559 @@
+## 2026-11-08 · Native app - production state skoro pa gotovo checkpoint
+
+User explicitly selects the complete current Native state as the latest benchmark
+and requests online Git publication under **Native app - production state skoro pa
+gotovo**, followed by old-build cleanup. New immutable annotated tag:
+`native-app-production-state-skoro-pa-gotovo`. Scope and recovery boundaries:
+[NATIVE_APP_PRODUCTION_STATE_SKORO_PA_GOTOVO.md](NATIVE_APP_PRODUCTION_STATE_SKORO_PA_GOTOVO.md).
+Includes all current project code, tests, runtime contracts, original assets,
+development-only candidates and HTML prototypes since production-95-percent-ready;
+unrelated local contract PDF excluded consistently with prior checkpoints.
+
+PASS current full no-sync qa:full (all20gates) and qa:ios, Git diff hygiene,
+payload size and credential-pattern checks. Raw logs/planned cleanup inventory:
+`/tmp/native-production-almost-done-20261108/`. Existing phone/tablet Simulator
+build/install receipts remain as recorded below; this checkpoint publication
+performs no new build/install or physical test. Live read-only inspection confirms
+retained main build binaries match installed Jimi iPhone Simulator binaries;
+existing iPad installation is separately preserved. Both canonical saves on each
+Simulator were inventoried by hashes without reading them into Git. Publication
+and subsequent cleanup evidence will be appended after actual completion. No
+PWA/legacy sync, Simulator reset or save migration. Historical tags preserved;
+remaining physical/performance/release acceptance limits remain explicit.
+
+## 2026-11-08 · Beach Closed iPhone rightward correction; iPad unchanged
+
+Latest user explicitly corrects direction to right on iPhone. Applied40screen-pt RIGHT relative to prior delivered -40pt position, returning iPhone ending to its original left-column anchor; iPad retains -40pt left. The intermediate additional-left interpretation was superseded before normal delivery. Accompanying clouds follow existing ending centre; Y/size/aspect/scroll/other Worlds and runtime owners unchanged. Focused mounted phone/tablet ending/resource test PASS on final corrected source; qa:fast and qa:ios PASS. Broad no-sync qa:full already passed immediately preceding numeric adjustment; not repeated for this device-only follow-up.
+
+Normal complete-current-tree Debug BUILD SUCCEEDED, exact com.taptapdesign.stacktosix.native install-over/normal launch on retained1018QA Simulator. Receipt /tmp/native-beach-phone-right-20261108/main-delivery.json verifies matching built/installed binaries, stable complete inputs, noXCTestPlugIns/Web.bundle, both canonical saves restored after tests and byte-identical through initial launch, actual Silent Mode true. No physical/PWA/legacy operation; final visual acceptance remains user review.
+
+## 2026-11-08 · Stronger HUD divider entry spring
+
+User requests a larger spring bounce during HUD entry. NativePreloadBarPresentation ordinary entry now starts hidden16screen-pt below rest and samples a finite damped three-half-wave spring over the existing bar reveal travel: pronounced upward overshoot, small downward rebound, exact rest. Existing reveal onset, fade, scale pivot, final geometry, exit, Restart gentle bounce and Reduced Motion retain their owners/policy. Same Scene HUD elapsed clock, no new action/timer/resource/gameplay/save owner. Mounted phone/tablet divider check now asserts visible >4pt overshoot and <-0.5pt rebound plus existing exact settlement and finite demand cleanup. PASS qa:fast, no-sync qa:full, qa:ios and19focused mounted Native preload/HUD transition tests (phone/tablet spring, Restart, interruption, Reduced Motion, cleanup and relayout). Initial runner exited before test bootstrap; retry19/19PASS. Normal complete-working-tree Debug BUILD SUCCEEDED; exact retained1018Simulator install-over/normal launch com.taptapdesign.stacktosix.native: 98744. Matching built/installed binaries and all six ending PNG hashes, stable complete production inputs, noXCTestPlugIns/Web.bundle, both current canonical saves unchanged through install/initial launch, actual SpringBoard Silent Mode true. Evidence `/tmp/native-hud-spring-20261108/`. No physical/PWA/legacy operation. Deterministic PASS; physical animation feel remains NEEDS PHYSICAL TEST/user review.
+
+## 2026-11-08 · Beach Closed whole ending40px left
+
+User requests complete Beach Closed ending40px left. Beach-only ending X now subtracts40/scale, yielding40screen-pt left on phone/tablet. Existing two accompanying clouds follow the same ending centre automatically. Width, aspect,40pt vertical drop,120pt cloud drop, scroll extent, other Worlds, original assets and existing viewport/motion/resource owners retained. Existing mounted phone/tablet ending assertion updated; focused test PASS and actual390render inspected at /tmp/world-2-ending-390.png.
+
+PASS qa:fast, no-sync qa:full and qa:ios. Normal complete-working-tree Stack to Six Debug BUILD SUCCEEDED; exact com.taptapdesign.stacktosix.native installed over retained1018QA Simulator and launched normally(PID92896). main-delivery.json verifies matching built/installed launcher+dylib, stable production inputs, noXCTestPlugIns/Web.bundle, both current canonical saves backed up/restored after focused test and byte-identical through install/initial launch, actual SpringBoard Silent Mode true. Evidence /tmp/native-beach-left-20261108/. CUA found Simulator menu focus changed to user iPad window; no final live Beach interaction claimed. Mounted placement PASS; final aesthetic/physical acceptance remains user review. No physical/PWA/legacy operation.
+
+## 2026-11-08 · iPad End of Road offset and equal HUD icon spacing
+
+User requests Forest End of Road60screen-pt right/40screen-pt up on iPad only, then Trophy/Combo closer with all four HUD controls equally spaced on iPad. Existing tablet Forest branch adds60/scale and-40/scale; ending resource/scroll owners remain shared, cloud X follows existing ending anchor. Tablet HUD places Close/Trophy/Combo/Backpack at three equal icon-center intervals between retained outer anchors. Value changes and feedback do not move anchors; cached combo-width helper remains available. Phone branches, artwork bytes, gameplay and save rules unchanged. Concurrent Beach/score-arc edits preserved.
+
+PASS qa:fast, no-sync qa:full (530suites/4011tests plus KING24suites/330tests), qa:ios and focused mounted Forest phone/tablet offset/resource/cleanup plus exact tablet HUD spacing tests2/2. Shared mounted HUD value/feedback stability, long-value contacts and phone/tablet export checks alsoPASS; inspected actual HUD exports and820Forest render (layer-render clouds flatten over art; no live optical acceptance). Initial attempts used a non-test scheme, then exposed a concurrently retired combo-width reference and shared build-database locks; current helper restored and final focused checksPASS. Final complete-working-tree normal Debug BUILD SUCCEEDED using shared build `/tmp/native-score-arch-20261108/debug-build-final.log`; current production hashes verified against that build snapshot. Final own install-over/normal launch com.taptapdesign.stacktosix.native: 93171 on retained1018QA Simulator, matching built/installed launcher+dylib, noXCTestPlugIns/Web.bundle, both current canonical saves unchanged through install/initial launch, actual SpringBoard Silent Mode true. Evidence `/tmp/native-ipad-end-road-20261108/main-delivery.json`. No physical/PWA/legacy operation; aesthetic acceptance remains user review.
+
+## 2026-11-08 · Trophy score follows header arc on iPhone and iPad
+
+User requests curved score digits with the correct angle beside the trophy, explicitly identical on iPad. NativeArchedHUDScore now lays out cached individual glyphs against the shared navigation parabola/tangent using the actual settled score anchor and viewport width; the score root keeps existing arrival/entry scale ownership. Trophy, combo, other icons, shared66pt navigation geometry, original artwork, gameplay and saves retain their current owners. Glyph-frame bounds include painted digits for existing score hit regions. Existing tablet reserved combo-width measurement stays cached after the concurrent equal-icon-spacing update; no missing retired text-width dependency. No recurring work or new audio/resource owner.
+
+PASS qa:fast, no-sync qa:full (530suites/4011tests plus KING24suites/330tests), final qa:ios. Focused mounted HUD phone/tablet renders and stable tablet anchors PASS; final4Native checks PASS for glyph curve/root-scale reuse, long-value tap bounds and actual score-arrival/retirement. Initial focused checks exposed zero-sized SKNode frame and float-exact expectation; painted frame is now explicit and scale uses numeric tolerance. Arrival test now asserts the current shared modalTitle palette instead of an obsolete RGB literal. Actual4.648 phone/tablet HUD renders inspected and copied to `/tmp/native-score-arch-20261108/score-arch-{iphone,ipad}.png`.
+
+Normal complete-working-tree Debug BUILD SUCCEEDED, including latest concurrently saved Native source after final incremental rebuild. Exact retained1018QA Simulator install-over/normal launch com.taptapdesign.stacktosix.native:92444; main-delivery.json verifies stable3887inputs, matching built/installed binaries, noXCTestPlugIns/Web.bundle, both canonical saves unchanged through install/initial launch and actual SpringBoard Silent Mode true. Evidence `/tmp/native-score-arch-20261108/`. CUA screenshot/control unavailable; mounted render inspection is the visual evidence. Physical devices, preserved PWA and legacy shell untouched. Deterministic PASS; physical aesthetic acceptance remains NEEDS PHYSICAL TEST.
+
+## 2026-11-08 · iPad gameplay HUD, curved preload and modal parity
+
+User authorizes the proposed iPad adaptation. Tablet HUD now uses Close/score/combo/backpack order with the phone's authored tilts, existing1.4 typography and stable reserved score/combo slots. Ordinary tablet entry/exit uses the same four finite Scene-owned carriers; Restart retains Close/backpack anchors and the existing two-group/bar-mask sequence. Touch regions follow actual rotated painted groups with disjoint boundaries; retired static score/combo rectangles removed. iPad grid, upper navigation66pt contract, original assets, canonical gain/consume/audio/save owners remain unchanged. Curved ribbon and gameplay divider now render on tablet; divider paper covers the full viewport even when the grid is narrower. Shared modal paper/projection already supplies current appearance; all ordinary families and Close placement verified at744/820/1032 plus phone, with no modal redesign needed.
+
+Actual normal iPad preview exposed a late-layout issue: Source meter can be constructed at phone dimensions before the Scene expands to tablet, retaining phone Y/width over the first dice row. NativeWildMeterHUDPresentation and NativePreloadBarPresentation now resolve visual tablet geometry from the currently attached Scene; ribbon cache also invalidates when that policy changes at unchanged span. Canonical initial gain-policy flag is preserved. No new clock, resource owner or per-frame raster work. Regression mounts the actual presentation at390 then relayouts to all three tablet sizes, checking origin, shader span/radius, full-width divider and clearance above the unchanged board. Original strict CGPoint equality exposed only SpriteKit float rounding; corrected to0.001pt tolerance.
+
+PASS initial29 affected Native tests covering HUD hit/anchor stability, phone containment, ordinary first-frame entry and suspension on phone/tablet, Restart/interruption/disposal, Reduced Motion, collection and all modal-family geometry. Final isolated iPad run passes10tests:9preload cases including bootstrap-relayout/same-span regression and actual production Source root gain/smoke/retirement. Full source QA PASS530suites/4011tests plus Gameplay KING24suites/330tests; qa:fast,feature41 and qa:ios PASS. Shared build/host attempts were interrupted by overlapping work, and an iPad attempt skipped the guarded modal class; these are retained in raw logs, not counted as passes. Final tests used task-owned DerivedData and existing iPad Simulator. Broader inherited Native-suite failures remain as previously documented. Evidence `/tmp/native-ipad-refresh-20261108/`, especially native-before-bootstrap-fix.log,native-relayout-final.log,qa-full-final.log and renders/modals.
+
+Final normal Stack to Six Debug BUILD SUCCEEDED from complete current production inputs. Exact com.taptapdesign.stacktosix.native installed and launched normally on retained1018iPhone(PID83759) and existing43A750iPad(PID84386); installed launcher/dylib hashes match, no XCTest PlugIns/Web.bundle, complete production inputs stable through final verification. Both original canonical saves on each Simulator were backed up before tests, restored afterward and byte-identical through initial launch; receipts main-delivery.json,ipad-delivery.json,final-verification.json. Xcode shut down the iPad after isolated tests; same Simulator booted again before final normal delivery. Dedicated iPhone actual Silent Mode true; existing iPad Silent Mode false left unchanged, game/Mac sound preferences unchanged. CUA inspected mounted tablet HUD/modals and the actual pre-fix gameplay issue; after final install observed normal Home then user-driven Forest navigation/scroll and stopped input. Final corrected gameplay optical feel remains user review; save-equality claim ends before normal review navigation. No physical/PWA/legacy operation. Physical touch,FPS,thermal and aesthetic acceptance: NEEDS PHYSICAL TEST.
+
+## 2026-11-08 · Beach FLY AWAY collectible09 original refresh
+
+User replaces Beach common09 and legendary09-gold, each1x516×764 and2x1032×1528. Inspected actual supplied2x originals: man/adult dog flying with green leaf kite, FLY AWAY title and distinct original rarity frames. Original PNG bytes and existing NativeJourneyContent rarity/density mappings preserved; native-only package refresh PASS3110 byte-exact assets. No Swift/layout/gameplay changes in this task.
+
+PASS qa:ios and no-sync qa:full (530suites/4011tests plus KING24suites/330tests). Normal complete-working-tree Debug BUILD SUCCEEDED; install-over and normal launch com.taptapdesign.stacktosix.native:81394 on retained1018QA Simulator. All four09 source/package/built/installed PNG hashes match; launcher/dylib match, production inputs stable from snapshot through delivery, noXCTestPlugIns/Web.bundle. Both current canonical saves backed up and byte-identical through install/initial launch; actual SpringBoard Silent Mode true. Evidence `/tmp/native-beach09-refresh-20261108/`, including main-delivery.json. Initial sandboxed build could not write Xcode caches; authorized unrestricted retry succeeded. CUA preview observation unavailable (native pipe closed); no collection navigation or live aesthetic acceptance claimed. Physical/PWA/legacy untouched; no PWA bundle sync (source QA generated only local dist). Asset inclusion PASS; appearance remains user review.
+
+## 2026-11-08 · Beach BONKERS collectible05 original refresh verified
+
+User replaces Beach common05 and legendary05-gold, both1x516×764 and2x1032×1528. Inspected actual common/gold2x originals: mature dog/coconut scene, BONKERS title and distinct original rarity frames. All four supplied PNG hashes match NativeAssets.bundle, final build-input snapshot and installed retained1018Simulator app. The just-completed normal main Debug delivery already includes these exact assets; no duplicate rebuild/install or source/card-mapping changes needed. Shared NativeJourneyContent rarity/density resolver remains unchanged. qa:ios recheckPASS; receipt `/tmp/native-final-art-refresh-20261108/collectible05-verification.json`.
+
+Shared delivery: Debug BUILD SUCCEEDED, install-over/normal launch com.taptapdesign.stacktosix.native:64265; matching launcher/dylib, noPlugIns/Web.bundle, canonical saves preserved through initial launch, actual Silent Mode true. No physical/PWA/legacy operation. Asset inclusion PASS; in-app aesthetic/physical acceptance remains user review.
+
+## 2026-11-08 · Intro character exits keep their own center
+
+User reports leash intro collapses upward while couch character collapses into itself; requests audit/fix of every intro animation. All ten production characters share the same finite scale recipe; only lik-pas-SVG has an authored top entry pivot. Existing parent CA track now compensates that pivot only during exit, holding the resting character center through inflate/collapse. Entry, resting position/size, frame timing, original assets, logo/PRESENTS and lifecycle owners remain unchanged. No new timer/resource/audio/save owner. Existing all-selection mounted test now covers ten characters at390×844 and820×1180, checking every actual attached transform sample for fixed exit center and unchanged entry plus rendered frame playback, source durations, bounded memory and cleanup.
+
+PASS qa:fast, no-sync qa:full (530suites/4011tests plus KING24suites/330tests), qa:ios and15Native intro lifecycle tests including all20device/character selections. Additional scrubbed render snapshot test initially aborted when attempting to edit the read-only CAAnimation returned by layer.animation(forKey:); test now copies the track before scrubbing and captures with finite XCTest callbacks. A concurrent shared-build database lock caused one retry; only this task's overlapping build was stopped, then builds were serialized using full process arguments. Final dedicated rendered-exit test PASS with copied CA track; actual presentation center stays fixed in rest/inflate/collapse samples, all three mounted screenshots visually inspected. Total16focused Native intro tests pass. Normal Debug BUILD SUCCEEDED; exact com.taptapdesign.stacktosix.native install-over/normal launch com.taptapdesign.stacktosix.native: 76183 on retained1018QA Simulator. main-delivery.json verifies matching built/installed launcher+dylib, complete production inputs stable during build/install, noXCTestPlugIns/Web.bundle, both canonical saves restored after tests and unchanged through install/initial launch, actual SpringBoard Silent Mode true. CUA observed normal Journey Hub on the exact retained iPhone window with Mute ON; no navigation/gameplay input. Deterministic checks PASS; physical motion feel remains NEEDS PHYSICAL TEST. Evidence `/tmp/native-intro-center-20261108/`; current canonical saves backed up before tests. No physical/PWA/legacy operation.
+
+## 2026-11-08 · Six LAB retired at user request
+
+User explicitly requests deletion of the entire isolated Six LAB. Removed its dirty worktree `/Users/user/cube-crash.worktrees/jump-pop-meter-native`, branch `experiment/jump-pop-meter-native`, and identity-verified dedicated Simulator `7334E33E-DC68-4482-A9A5-35356151D08A` (Six LAB bundle `com.taptapdesign.stacktosix.native.jumppop`). Removed two verified LAB DerivedData folders and 21 receipt/log-verified temporary LAB delivery/run folders. Deletion inventory: `/tmp/six-lab-removal-20261108/receipt.json`. Main working tree, accepted LAB-derived main functionality, original assets, retained Jimi Simulator, other experiments and main canonical saves are preserved. No physical/PWA/legacy operation. Verified LAB worktree, branch and dedicated Simulator absent; retained Jimi Simulator remains booted. Current main artwork delivery completed successfully after disk recovery.
+
+## 2026-11-08 · Refresh No Trespassing original densities
+
+User additionally replaces No Trespassing1x220×220 /2x440×440. Inspected both actual images: fence/sign with cyan drips/puddle on compact cracked sand island. Square aspect remains correct; retain accepted1.2Area55 size and16pt right offset, left ending anchor, clouds and other Worlds. Native package refreshed from current original assets without transforms; final normal retained Simulator Debug BUILD SUCCEEDED / install-over / normal launch PASS (PID64265), verifying all six Forest/Beach/Area55 ending PNG hashes. Built/installed launcher and dylib hashes match, complete production inputs stable, no XCTest PlugIns/Web.bundle, canonical save bytes unchanged through install and initial launch, actual SpringBoard Silent Mode true. Current artwork packaging PASS3110 byte-exact originals and qa:ios PASS. Two Beach common05 originals changed during first final-delivery attempt; regenerated package and repeated final delivery successfully from current complete inputs. Evidence `/tmp/native-final-art-refresh-20261108/`; current canonical saves backed up. Full source QA passed in the immediately preceding Forest refresh, qa:ios rechecks current package. No physical/PWA/legacy operation.
+
+## 2026-11-08 · End of Road Forest-style artwork refresh
+
+User replaces both End of Road PNGs with the newly Forest-matched pine/grass/stone render. Inspected actual2x400×436 and1x200×218 metadata; original bytes preserved. Only Forest ending aspect updates215/200→218/200; current width/left-column/landing anchors and all clouds, Beach40pt offset/square artwork and Area55 scale/offset remain. Native original-byte artwork package refresh, full source QA and normal Debug build/install/launch PASS; complete source inputs, current1x/2x art and save hashes verified. Evidence `/tmp/native-forest-art-refresh-20261108/`. No physical/PWA/legacy operations.
+
+## 2026-11-08 · Beach Closed hanging-sign artwork refresh
+
+User supplies new Beach closed1x207×207 /2x414×414: pale driftwood hanging plaque with green BEACH CLOSED letters, coral underline, deep compact sandy island, starfish/shell. Inspected both actual originals. Native package refreshed byte-exact; only Beach ending aspect changes to1:1 to preserve the new PNG geometry. Retain existing width/left anchor and40screen-pt down offset with120pt lowered accompanying clouds; Forest/Area55 and other Units unchanged. Existing ending viewport/resource/motion/cleanup owners retained. Existing mounted ending test now also checks source image aspect. No original art transformation or new runtime owner.
+
+PASS qa:fast, qa:ios and4focused mounted Native ending/resource/scroll tests on phone/tablet, including source-aspect preservation. Full source run passed529suites with one ENOSPC fixture-creation failure in feature-runtime-audit.test.ts; that entire4-test suite passed on isolated retry, all other full gatesPASS. Actual mounted390Beach ending render inspected: new hanging plaque and deeper island, no squeezing. Normal main Debug BUILD SUCCEEDED; exact retained1018Simulator install-over/normal launch com.taptapdesign.stacktosix.native:52356. Both installed Beach1x/2x PNG hashes and launcher/dylib match built/source files; complete production inputs stable, noPlugIns/Web.bundle. Both canonical saves restored after tests and unchanged through install/initial launch; actual SpringBoard Silent Mode true. Evidence `/tmp/native-beach-concept-refresh-20261108/`. No physical/PWA/legacy operation. Aesthetic/physical acceptance remains user review / NEEDS PHYSICAL TEST.
+
+## 2026-11-08 · End of Road refresh and Beach ending40pt lower
+
+Latest user steering keeps the supplied Beach refresh and moves only its complete ending image plus two accompanying clouds40screen-pt down on both devices. Existing80pt cloud drop becomes120pt only in Beach; ending width/left anchor, remaining Units and Forest/Area55 offsets retained. User then replaces End of Road1x200×215 /2x400×430; inspected actual new sign/pine/mushrooms/flowers art and updated Forest aspect to215/200 so it is not squeezed. Both source densities remain original bytes, and all four Forest/Beach PNGs are verified during final delivery. Native package byte-exact3110files and qa:ios PASS. Existing full source QA from preceding Beach refresh passed; final focused Forest+Beach mounted phone/tablet placement/cloud/scroll/lifecycle checks PASS (3cases including all-World scroll). Actual new Forest mounted390render inspected; layer-render cloud flattening is not live optical acceptance. Normal Debug BUILD SUCCEEDED; exact install-over/normal launch com.taptapdesign.stacktosix.native: 47036 on retained1018Simulator, matching built/installed binaries and all four Forest/Beach PNG hashes, complete production inputs stable, noPlugIns/Web.bundle, both canonical save bytes unchanged through install/initial launch, actual Silent Mode true. Evidence `/tmp/native-ending-refresh-20261108/`. Physical aesthetic acceptance remains user review. No physical/PWA/legacy operations.
+
+## 2026-11-08 · Area 55 ending +20percent / +16pt right
+
+Numeric user follow-up: only No Trespassing composite artwork scales1.2 around its prior center, then moves16screen-pt right on phone/tablet. Shared ending resource bounds and scroll extent derive from adjusted frame; the same two cloud anchors follow its center. Forest/Beach keep current saved geometry and aspect, PNG bytes unchanged. Updated existing mounted ending assertions for scale and center shift; no new runtime owner or motion.
+
+PASS qa:fast retry, qa:ios,4focused mounted Native ending/scroll/resource tests and530source suites/4011tests. Full QA initially failed only KING on disk exhaustion; isolated KING retry24suites/330testsPASS, all other full stepsPASS. Disk exhaustion also interrupted first Native attempt; removed only identity-verified inactive temporary Native ModuleCache/Index/Intermediates under home-leaf-final-derived and arcade-depth24-derived, retaining products/source/assets/saves. Next test host was killed before test connection; serialized retry4/4PASS. Mounted390bottom render inspected. Evidence and cleanup receipt `/tmp/native-no-trespassing-size-20261108/`. Normal main Debug BUILD SUCCEEDED; exact retained1018Simulator install-over/normal launch com.taptapdesign.stacktosix.native:43179. main-delivery.json verifies matching binaries and ending PNG, stable complete production inputs, noPlugIns/Web.bundle, both canonical saves restored after tests and unchanged through install/initial launch, actual SpringBoard Silent Mode true. No physical/PWA/legacy delivery. Visual/physical acceptance remains NEEDS PHYSICAL TEST.
+
+## 2026-11-08 · Refresh user-replaced Beach closed artwork
+
+User replaces both original Beach closed PNG densities. Inspected actual1x218×192 and2x436×384; image now has the smooth sandy island, pink starfish/shell and large turquoise sign. Preserve both source files byte-exact. Updated only Beach ending aspect from300×240 to218×192, retaining existing width, left-column anchor, sign-landing alignment, clouds and all other Worlds. Native artwork package refreshed byte-exact (3110files), qa:ios PASS and focused mounted Beach phone/tablet geometry, cloud, scroll, resource-release/reload and cleanup test PASS. Actual mounted390render inspected with new starfish/shell artwork. Initial Native compile and first full-QA attempt failed during disk exhaustion. Reclaimed only identity-checked inactive generated Release products/intermediates inside `/tmp/home-bottom-nav-normal-derived`; kept Debug products, Simulator, sources, assets and saves. Focused retry passed. Full source QA retry PASS (530suites/4011tests plus KING330); evidence `/tmp/native-beach-refresh-20261108/`.
+
+Normal Debug BUILD SUCCEEDED; exact com.taptapdesign.stacktosix.native install-over/normal launch com.taptapdesign.stacktosix.native: 43442 on retained1018Simulator. Both installed Beach1x/2x PNG hashes match supplied originals, built/installed binaries match, complete source inputs stable, noPlugIns/Web.bundle, both canonical save bytes unchanged through install/initial launch and actual Silent Mode true. No physical/PWA/legacy operation. Aesthetic/physical acceptance remains user review.
+
+## 2026-11-08 · Area 55 No Trespassing standalone ending
+
+User requests the Forest ending pattern for `no trespassing.png`: only the composite image and two surrounding clouds. Added the latest approved compact PNG unchanged to `assets/journey assets/robo/robo world/no trespassing.png`; shared ending helper now covers Area55, preserving Forest/Beach geometry. Square aspect, below local09/left of10 aligned with07; no added number, stars, card, button or playable Stage. Existing final Stage30 viewport lease, resource preparation, complete-Unit motion, idle/depth/cleanup own it. The same two ending clouds shift left and80screen-pt down without extra cloud-driven scroll space. Original artwork retained; Native package prepared byte-exact (3109files). No new runtime owner, scheduler, audio, gameplay or save rule.
+
+PASS qa:fast, no-sync qa:full, qa:ios and4focused Native tests covering all three endings and trailing scroll geometry on phone/tablet, viewport unload/reload and idempotent cleanup. Initial mounted Area55 assertion measured rotated frame bounds rather than centers; corrected test preserves original rotations, final4/4PASS. Inspected mounted390/820bottom renders: compact ending with surrounding clouds and no extra Stage chrome. Evidence `/tmp/native-no-trespassing-20261108/`. Normal Stack to Six Debug BUILD SUCCEEDED; exact com.taptapdesign.stacktosix.native install-over/normal launch PID36655 on retained1018QA Simulator. main-delivery.json verifies matching built/installed binaries and ending PNG, stable complete production inputs, noPlugIns/Web.bundle, both canonical saves restored after tests and byte-identical through initial launch, actual SpringBoard Silent Mode true. CUA selected retained iPhone and observed normal Home→Journey→Area55; scroll/drag automation did not move the viewport, so final live bottom optical inspection is not claimed. Normal Area55 preview remains available for user review. No physical/PWA/legacy install. Aesthetic/physical acceptance remains NEEDS PHYSICAL TEST.
+
+## 2026-11-08 · Restart divider gentle bounce only
+
+Scoped user follow-up: incoming Restart divider gets a small damped vertical bounce from its settled anchor (3pt envelope), stays opacity1 and scale1, and settles exactly at its original position. Uses existing finite preload/HUD elapsed clock; no new owner or delay. Restart exit, mask, ordinary entry/fade, HUD icons, geometry and Reduced Motion remain unchanged. Only NativePreloadBarPresentation and its existing mounted Restart expectation changed, plus this handoff.
+
+PASS qa:fast, no-sync qa:full, qa:ios and17focused Native HUD/preload tests; mounted Restart checks small upward/downward movement, unchanged opacity/scale/bar and exact settled anchor. Normal main Debug BUILD SUCCEEDED; retained1018Simulator install-over/normal launch com.taptapdesign.stacktosix.native:30861. /tmp/native-divider-restart-20261108/main-delivery.json verifies matching built/installed binaries, complete stable production inputs, noPlugIns/Web.bundle, both current canonical saves restored after tests and unchanged through install/initial launch, actual SpringBoard Silent Mode true. No physical/PWA/legacy delivery. Bounce feel remains user review / NEEDS PHYSICAL TEST.
+
+## 2026-11-08 · Beach closed standalone ending, iPhone + iPad
+
+User requests the identical Forest-ending principle for original `assets/journey assets/beach/Beacj world/beach closed.png` and `@2x`. Existing renderer ending helper now covers Forest and Beach only, preserving Forest geometry, and Beach uses its original300×240 aspect. Final Beach ending sits below local09/left of10 aligned with07, has no extra number/stump/stars/card/button or unlock/progression rule. Final Stage20's existing resource/depth/motion/idle/cleanup owners carry it; large/medium clouds shift to the LEFT ending and retain80screen-pt drop. Authored cloud positions still determine content-height clearance; no cloud-driven extra bottom spacer. Area55 unchanged. Original asset bytes untouched; Native package refresh uses prepare-native-artwork only.
+
+PASS qa:fast, no-sync qa:full (530suites/4011tests plus KING330), qa:ios and three focused Native cases: Forest and Beach endings mounted at390×844/820×1180, left-column geometry,80pt clouds, preserved aspect/scroll clearance, offscreen resource release/reload and zero decoded bytes after idempotent cleanup. First run hit an old scroll assertion that measured lowered clouds as extra content; corrected measurement to authored parts plus ending, preserving the user-required paint-only cloud drop; final3/3 PASS. Mounted Beach ending render inspected (`/tmp/world-2-ending-390.png`;820 counterpart also captured). Evidence `/tmp/native-beach-ending-20261108/`.
+
+Normal Stack to Six Debug BUILD SUCCEEDED; exact com.taptapdesign.stacktosix.native install-over/normal launch com.taptapdesign.stacktosix.native: 26964 on retained1018Simulator. Complete production inputs unchanged during delivery, built/installed binaries and Beach ending PNG hashes match, noPlugIns/Web.bundle. Both canonical save bytes restored after tests while stopped and unchanged through install/initial launch; actual SpringBoard Silent Mode true. CUA selected retained iPhone, opened Home→Journey→Beach and observed normal scene; scroll automation returned windowNotFoundAtPosition, so live bottom optical inspection is not claimed. Normal Beach preview left for user review. No physical/PWA/legacy install. Overall aesthetic/physical acceptance remains NEEDS PHYSICAL TEST.
+
+## 2026-11-08 · Gameplay divider waits for preload mask reveal
+
+User requests divider absent during initial dice/HUD arrival, then an approximately8pt upward bounce/fade as the preload mask starts revealing. NativePreloadBarPresentation now holds ordinary entry divider at alpha0 and8screen-pt below its resting anchor through existing barEntryDelay; the existing finite Scene HUD clock then samples back-out upward movement and smooth opacity0→1 alongside the stationary mask reveal. Final divider geometry, original textures, bar timing, Restart retained divider, exits, tablet-hidden divider and Reduced Motion behavior remain unchanged. No new runtime owner/timer/audio/save behavior.
+
+PASS qa:fast, no-sync qa:full (530suites/4011tests plus KING330), qa:ios and17focused mounted Native HUD/preload tests including hidden initial divider, simultaneous mask onset, overshoot, settled opacity/position, Restart and interruption/disposal. Initial Native attempts were blocked by disk exhaustion/AssetCatalogSimulatorAgent handshake; reclaimed only verified inactive temporary Native generated build/cache directories, keeping current main and newer LAB products. Disk-recovery receipts and logs: /tmp/native-divider-entry-20261108/.
+
+Normal main Debug BUILD SUCCEEDED; exact com.taptapdesign.stacktosix.native install-over and normal launch PID21029 on retained1018QA Simulator. main-delivery.json verifies matching built/installed launcher+dylib, unchanged complete production inputs during build, noPlugIns/Web.bundle, both current canonical saves restored after tests and byte-identical through install/initial launch; actual SpringBoard Silent Mode true. Normal preview screenshot inspected; temporal/aesthetic acceptance remains NEEDS PHYSICAL TEST. No physical/PWA/legacy install.
+
+## 2026-11-08 · Fast Restart HUD and immediate ordinary board entry
+
+Latest user steering supersedes the earlier board-duration-scaled Restart. Trophy/combo and stationary mask now sample natural HUD/bar exit time (about0.44s/0.40s); removed tile-duration scaling. A scoped callback from the existing HUD exit action admits Restart replacement when prepared resources and foreground are ready, without joining slower tile/footer exit. Existing old tile/footer exit, input locks and cleanup continue until first-frame replacement/disposal; cancellation clears the chrome callback, and VC settles the early handoff once. Main navigation/Close positions and gameplay/save owners are unchanged.
+
+All ordinary Journey/Arcade board entries, including retained-chrome bar entry, start existing HUD/preload owner on the first visible Scene update, parallel with tiles. Source tutorial admission remains unchanged. Normal stationary bar still waits only for its own divider settle; Restart already has a settled divider, so no hold. No original asset/audio/haptic changes or new timer/observer. PASS:26selected Native tests (native.log), including first-update ordinary entry before dice complete, independent fast chrome while tile actions remain active, callback cancellation once on disposal, phone/tablet direction, real Forest/Beach/Area55/Arcade Restart, source scope/save retirement and background. Full source QA530suites/4011tests plus KING330,fast,feature41,ios gates pass. Native test API compile mismatch was corrected before the successful run. Current canonical save backup and source snapshots: /tmp/native-fast-hud-20261108/. Initial Native attempt hit another Release build's shared build.db lock; no build was killed, serialized retry now compiles. Normal main Debug BUILD SUCCEEDED; install-over on retained1018QA Simulator, normal launch com.taptapdesign.stacktosix.native:9341. main-delivery.json verifies exact built/installed launcher+dylib, unchanged production inputs during build, noPlugIns/Web.bundle, both latest canonical saves restored after tests and byte-identical through install/initial launch, actual SpringBoard Silent Mode True. Final production build includes current other saved main work (including concurrent WorldView updates); this task did not edit upper navigation or Close geometry. CUA observed normal current Forest screen, left user control, and performed no navigation or gameplay moves. Save byte-equality claim ends at initial launch before user review. No physical/PWA/legacy delivery. Optical feel/FPS/touch/thermal acceptance remains NEEDS PHYSICAL TEST.
+
+## 2026-11-08 · Forest End of Road artwork, iPhone + iPad
+
+User authorizes original `assets/journey assets/forest/forest world/end of road.png` and `@2x` as the standalone Forest ending below09, left of10, aligned with07. Renderer derives its left-column anchor and next row from existing05/07/09 geometry on each device; the PNG includes its sign/bush/flowers/path. No additional stump/stars/number/card/button, eleventh Stage, unlock/save or gameplay change. Stage10's existing offscreen resource lease, finite route motion, idle and cleanup own the decorative image; resource viewport and trailing scroll extent include it. Original bytes preserved through `prepare-native-artwork.mjs` (3106 assets). Existing unrelated dirty work retained.
+
+PASS qa:fast, no-sync qa:full (530 suites/4011 tests plus Gameplay KING330), qa:ios, byte-exact Native asset package and four targeted mounted Native tests (phone/tablet geometry, offscreen unload/reload, zero decoded bytes after cleanup, unchanged Stage count, cloud depth, locked numbers and trailing artwork clearance). The first targeted run failed only its former Forest-export spacer expectation; updated it for the additional ending while retaining actual artwork-clearance checks, then final4/4 PASS. Inspected phone/tablet mounted renders; layer-render images flatten cloud depth, so final normal on-screen preview was also checked. Evidence `/tmp/native-end-of-road-20261108/`; mounted images `/tmp/forest-end-of-road-{390,820}.png`.
+
+Latest user correction: the two lowered clouds must surround the LEFT End of Road island, not Stage10 at right. Their paint-only X translation now follows the difference between ending and Stage10 island centres, derived from current device layout; existing80screen-pt drop and authored trailing-height inputs remain unchanged. Scoped mounted phone/tablet X/Y, retained80pt Y, unchanged content-height, viewport release/reload and cleanup check PASS. Normal Debug BUILD SUCCEEDED and exact install-over/normal launch com.taptapdesign.stacktosix.native: 11014; matching binaries/ending PNG/current source hashes, no PlugIns/Web.bundle, both canonical saves unchanged through install/initial launch, actual Silent Mode true. Evidence `/tmp/native-end-cloud-left-20261108/`. CUA selected retained iPhone window and opened actual normal Forest; subsequent scroll attempts failed windowNotFoundAtPosition, so final lower-cloud optical inspection is not claimed. User then requested a separate Beach art candidate; no physical/PWA/legacy operations.
+
+User final refinement: only the existing Stage10 large lower-left and medium clouds paint80screen-pt lower on both device sizes. Their authored geometry still determines trailing content height, so the already-approved scroll end does not extend. Cloud idle, drag, route and resources stay on existing owners. Final focused mounted phone/tablet check PASS (cloud positions exactly+80pt, unchanged content height, ending placement, viewport unload/reload and cleanup). Its first retry could not compile because the concurrent HUD test used unsupported `inOrder`; after that separate work corrected its test, the scoped ending/cloud test passed. No additional broad suites for this numeric paint-only follow-up. Final normal Debug refresh is shared with `/tmp/native-fast-hud-20261108/main-delivery.json`: matching complete source-input hashes include current Forest/cloud code; normal launch PID9341 on retained1018Simulator, no PlugIns/Web.bundle, actual Silent Mode true and both canonical save hashes identical to this task backup. CUA rechecked actual Forest bottom: clouds lower around ending, same scroll end. Source/full-QA evidence above predates only the cloud paint offset; final focused check is `/tmp/native-end-of-road-20261108/cloud-offset-test-final.log`.
+
+Additional compiled Debug dependency audit reports WebKit from the retained `#if DEBUG` hybrid UI test fixtures (`JimiNativeWorldHost`, `JimiHomeHubController`, `JimiNativeEndRunModal`); no active web gameplay fallback or packaged Web.bundle. Additional Release audit build canceled when user narrowed follow-up to the two cloud positions; no Release completion claim.
+
+Normal `Stack to Six` Debug BUILD SUCCEEDED; exact `com.taptapdesign.stacktosix.native` install-over and normal launch on retained1018Simulator. Built/installed launcher+dylib hashes and ending PNG match; no test PlugIns/Web.bundle, complete production inputs stable through delivery. Both canonical pre-test save files restored while stopped and byte-identical through install/initial launch. Actual SpringBoard Silent Mode true. CUA observed actual normal Forest bottom with ending below09/left of10, clear sign and no added stump/stars/number; left this preview for user review. No physical/PWA/legacy install. Physical aesthetic acceptance remains NEEDS PHYSICAL TEST.
+
+## 2026-11-08 · Exit Stage Restart chrome sequence
+
+User requests ordinary Journey Restart: trophy/combo bounce down, preload masks left, then incoming trophy/combo rise from below while mask reveals right. Bootstrap now joins the existing finite old-board exit and successor foundation preparation before constructing/retiring Source scope. The Scene's finite HUD action owns both directions; Close/backpack keep main anchors, divider stays painted through first-frame replacement, no normal divider delay or midpoint replay on incoming Restart. Tablet uses the same isolated motion wrappers without geometry changes. Default routes, Arcade New Game, tutorial/result/fail and canonical save owners are retained. No new timer/audio/haptic/resource-preparation owner. Retained old divider is quiet and disposed with old Scene.
+
+PASS: full source QA (530 suites/4011 tests plus KING330), fast, feature41 and ios. Native mounted phone/tablet motion, real Forest/Beach/Area55/Arcade Restart, announcement policy, disposal and background:24 selected tests pass in native-verified.log. Final foreground/cancellation/epoch protection then rebuilt and passed5affected real lifecycle/replacement cases in native-lifecycle.log. Background cancels foundation preparation; scoped existing-VC foreground callback retries, per-attempt epoch rejects late callbacks, no hidden successor constructor. Earlier stale all-HUD-still/single-bounce-instant assertions were updated; initial background regression is fixed. No new observer/timer.
+
+Normal main Debug BUILD SUCCEEDED, installed over retained1018QA Simulator and normal launch com.taptapdesign.stacktosix.native:99850. /tmp/native-restart-20261108/main-delivery.json verifies exact built/installed launcher+dylib, noPlugIns/Web.bundle, unchanged production inputs during build, both current canonical saves restored after tests and byte-identical through install/initial launch. Actual SpringBoard Silent Mode True. Protected main navigation11files remain exact previous hashes. Current backups/source snapshots and raw logs live in that task directory. CUA selected exact main QA iPhone window, observed normal Home, opened Forest Stage01 Play (completed replay) and inspected the settled bar/HUD. Attempt to open Close returned windowNotFoundAtPosition; requery showed active user gameplay (score458 and charged orange bar), so all further interaction stopped. No agent gameplay moves or Restart action were performed. Normal current gameplay preview is left under user control. Save byte-equality claim ends at initial launch, before ordinary review navigation. No physical/PWA/legacy operations. Optical motion/FPS/touch/thermal acceptance remains NEEDS PHYSICAL TEST.
+
+## 2026-11-08 · Integrated selected Six LAB visuals into main; upper navigation and Close preserved
+
+User authorizes selective integration of latest preload, gameplay HUD/divider and ordinary paper; adds gentle Arcade reveal at70percent of existing island contact and explicitly retains main Close position. Integration is in main working tree, preserving prior dirty work; no whole-branch merge/commit/push. Backups of both pre-integration working trees and main canonical saves live in /tmp/native-lab-integration-20261107/. Main upper navigation's11source/assets SHA256 values remain exact (protected-main-navigation.json);NativeAppController,NativeRouteMotion,JimiV9Artwork and associated header/Home/World/Settings changes were not replaced by LAB copies.
+
+Production NativePreloadBarPresentation ports only active bar/divider: #EA8B57→#E7744A,round unsheared tip,matching birth-color bubbles,stationary monotonic mask reveal after divider entry;existing finite Scene HUD clock and capture own enter/exit. No cube atlas/legacy physics/LAB flags,identifier or save directory dependency. Canonical NativeWildMeterHUDOwner gain/consume/drain/refill and original smoke scheduling/RNG stay unchanged. Phone HUD/layout/grid adopts reviewed LAB positions with small/wide phone containment;tablet main HUD/grid geometry and flat meter baseline stay,including744pt iPad mini. Tutorial focus explicitly excludes the new sibling bar while dimming the board;real Source tutorial focus/drag dismissal retains same pickup. New original-byte preload-navigation-paper PNG copies the approved LAB divider material;all prior assets remain protected.
+
+Shared ordinary paper uses cached original paper.png and uniform cover with rounded body+Close silhouette,without runtime per-pixel processing/per-size fitted rasters. Main Close52pt bounds,center(parentWidth-22,22),countertilt and centered14pt image insets retained;all-family mounted regressions verify phone/tablet placement. Repeated layout no longer resets the joined paper frame before the cached mask can be reused. Arcade modal onset50→70percent of0.48s contact (336ms),same gentle650ms shared enter/lifecycle;top navigation untouched.
+
+PASS qa:feature-runtime,qa:fast,final no-sync qa:full(530suites/4011tests),Gameplay KING330,and qa:ios. 51distinct affected Native cases PASS across final48,mini7,production-root1 and tutorial3 runs (repeats overlap);actual default root logs native-preload-bar mounted under native-gameplay-canvas. Normal unsigned Release Simulator BUILD SUCCEEDED and actual compiled Native identity/original-assets/dependency audit PASS;this is not a physical/archive/signing proof. Wider first Native selection was not green:15baseline methods were rerun against exact pre-integration main sources;14failed there too. Known inherited CTA/icon/Home/collection assertions retained as evidence in native-baseline.log/preexisting-native-failures.json,not silently reported green. Current iPad8pt-gap fixture aligned to existing main geometry;affected new appearance/Close/HUD expectations updated. Initial test API/import compile failures and failed broad run preserved in logs. No claim of a globally green Native suite.
+
+Final normal Debug scheme BUILD SUCCEEDED;exact com.taptapdesign.stacktosix.native install-over/normal launch com.taptapdesign.stacktosix.native: 83540 on retained Jimi1018Simulator. Matching built/installed launcher+dylib hashes,new paper asset,noWeb.bundle/noPlugIns and unchanged complete production input hashes verified. Both pre-test canonical save files restored while stopped,and byte-identical through install/initial launch (main-delivery.json). Actual SpringBoard Silent Mode True;game Sounds/Music settings untouched. CUA observed normal Home then actual gameplay with new bar/HUD/round cap;attempted Arcade selection was rejected as UI changed during user interaction,so no further content actions/gameplay moves were performed. Current normal stage preview left for user;main-preview.png saved. Save-equality claim ends at initial launch,before ordinary user review navigation. Physical iPhone/PWA/legacy untouched. Overall optical,touch,FPS and thermal acceptance remains NEEDS PHYSICAL TEST.
+
+## 2026-11-07 · Six LAB selected original-orange gradient
+
+Latest user screenshot supersedes previous endpoint values: preload start#EA8B57/end#E7744A. Changed only shared endpoint constants in LAB NativeJumpPopMeterPresentation,so birth-color bubbles automatically follow this exact gradient. Fixed rounded tip,arch,dimensions,stationary enter/reveal,exit,holder,Native gain/drain/refill,smoke and gameplay unchanged. Applied snapshot and isolated HTML comparison candidate defaults updated to exact selected values;original assets/source export unchanged.
+
+PASS qa:full,qa:ios,scoped diff check and HTML JS syntax. Normal LAB Debug BUILD SUCCEEDED /tmp/lab-original-orange-delivery/build.log. Exact .jumppop install-over on retained7334Simulator;normal launch com.taptapdesign.stacktosix.native.jumppop: 54952. Receipt verifies matching built/installed binaries,noWeb.bundle/PlugIns,bothLABsaves unchanged through install/initiallaunch,actualSilentMode True. No new Native behavior test or visual acceptance claim for this numeric color-only update;physical optical acceptance remains NEEDS PHYSICAL TEST. No main Native app/physical/PWA/legacy build/install or original asset edits.
+
+## 2026-11-07 · Six LAB selected peach gradient and fixed rounded tip
+
+User screenshot selects start#F9A771/end#E76A14 and requests rounded trailing fill tip like start,with no angled cut. LAB NativeJumpPopMeterPresentation now shares those exact endpoint colors between original resize-owned gradient and birth-color bubble interpolation. Shader retains antialiased semicircular cap but removes shear uniform;retired cosmetic front-angle state,clock sampling and independent visual angle RNG. No change to Native charge/drain/refill,bar dimensions/arch/stationary mask enter,exit,HQ feather,holder,smoke cadence/fade,radius or saves. Applied design snapshot records explicit new color/round-tip override;supplied source export stays unchanged. HTML comparison candidate defaults updated to selection;both preview fills use round-capped quadratic segments instead of flat clipping,old palette retained atleft. No new timer/resource owner or original asset edits.
+
+PASS qa:full,qa:ios,scoped Swift diff check and HTML JS syntax. Normal LAB Debug BUILD SUCCEEDED /tmp/lab-peach-round-delivery/build.log. Exact .jumppop install-over on retained7334Simulator;normal launch com.taptapdesign.stacktosix.native.jumppop: 49083. Receipt verifies matching built/installed binaries,noWeb.bundle/PlugIns,bothLABsaves unchanged through install/initial launch,actualSilentMode True. CUA selected LAB window only,navigated Home→Journey→Forest→Stage01 Continue,inspected actual new peach-orange bar and round right tip;left normal stage preview. Saved /tmp/lab-peach-round-delivery/preview.png. No gameplay moves performed. Optical/frame-pacing physical acceptance remains NEEDS PHYSICAL TEST;Simulator appearance observed. Main Native app/physical/PWA/legacy build/install untouched.
+
+## 2026-11-07 · HTML preload color comparison
+
+User requests visual color selection in existing HTML only. Added prototypes/domino-meter/board-editor/color-compare.html and color-compare.js, linked as Boje bara from existing Board editor. Side-by-side A current LAB #FFB561→#E76813; B actual Native combo-label #E77449→current darker #E76813 (verified NativeBoardScene combo fontColor231/116/73). Same original copied paper/HUD/tile assets and illustrative board layout,shared fill slider,static birth-color bubble swatches; candidate endpoint color pickers and reset. No timers,storage/game integration,runtime art or Native changes. JS syntax PASS, local HTTP200. Existing5188server reused; attempted duplicate server exited address-in-use. Browserhost unavailable; nativeSafari fallback opened http://127.0.0.1:5188/board-editor/color-compare.html. CUA inspected both actual rendered variants;user adjusted fill to71percent during review,retained. No full QA suites/build/install for isolated reversible HTML preview. Native color adoption requires user selection.
+
+## 2026-11-07 · Six LAB bubbles match local preload gradient
+
+User requests only orange bubble colors match the two-color bar below their birth position. Shared LAB bar endpoint colors FF B5 61 and E7 68 13 now also drive birth-only RGB interpolation for each bubble, using its X converted through the actual liquidRoot coordinate space and clamped to bar width. Same alpha0.5, radius, flight, fade, emission cadence, RNG draws, arch offset and preload enter/exit retained. Birth callback uses weak references and is cleared on disposal; no new recurring work/resource owner. Changes exist only in isolated LAB worktree NativeJumpPopMeterPresentation.swift and NativeWildMeterHUDPresentation.swift; production main app source/assets unchanged.
+
+PASS qa:full and qa:ios; scoped diff check PASS. Normal LAB Debug BUILD SUCCEEDED /tmp/lab-bubble-gradient-delivery/build.log. Exact .jumppop install-over on retained7334Simulator; normal launch com.taptapdesign.stacktosix.native.jumppop: 41318. Receipt verifies matching built/installed binaries, no Web.bundle/PlugIns, both LAB saves unchanged through install/initial launch, actual SpringBoard Silent Mode True. Normal Home preview screenshot captured and viewed (preview.png); color interpolation compiled, actual emitted bubble optical matching remains user review/NEEDS PHYSICAL TEST. No gameplay moves, main-app/physical/PWA/legacy install or original asset edits.
+
+## 2026-11-07 · Six LAB stationary preload mask entry
+
+User explicitly scopes correction to Six LAB: remove preload arrival from below and begin mask unroll when lower divider is ready. NativeJumpPopMeterPresentation entry now keeps barY=0, both scales=1 and alpha=1 while existing smoothstep mask reveals. Entry delay is the same elementDuration used by divider completion (0.35897s); existing bar reveal duration0.52564s retained, finite total0.88462s. Previous sampled navigation travel/scale and damped spring run only on exit, preserving exit1.3x timing/interruption capture. Reduced Motion, HUD/divider motion, gain/consume/smoke, resources and saves unchanged. No added owner/timer/readiness gate. Main Native app source/install untouched.
+
+PASS qa:fast, qa:full and qa:ios; scoped diff check PASS. Normal LAB Debug BUILD SUCCEEDED; exact .jumppop bundle identity/noWeb.bundle/noPlugIns and matching installed binary hashes verified. Install-over on retained7334E33E-DC68-4482-A9A5-35356151D08A, normal launch PID38264. Both LAB saves byte-identical through install/initial launch; actual SpringBoard Silent Mode True. Evidence /tmp/lab-stationary-unroll-delivery/{build.log,qa-fast.log,qa-full.log,qa-ios.log,receipt.json}. CUA opened ForestStage01 Continue and left normal gameplay preview, without gameplay moves. Recorded entry.mp4 and inspected 100ms samples29.5–30.9s: stationary unroll after divider; fixed left orange pixel span92–98 in every sample30.1–31.0s (390px-wide frames), visual-samples.json and unroll-contact.png. This establishes sampled Simulator motion, not physical frame pacing/feel: NEEDS PHYSICAL TEST. Requested original20261107230905238.mp4 unavailable in accessible locations; no claim it was watched. No main-app/physical/PWA/legacy install or original asset edits.
+
+## 2026-11-07 · Six LAB HUD enters above; divider/bar below; cleaner Close texture
+
+Applied user steering only: four top HUD groups enter from above (positive SpriteKit Y); their exit stays upward. Divider now enters from below, while its exit remains upward. Bar's last/below entry, first 1.3x exit and spring tail are unchanged. Existing HUD clock, delays and resource ownership retained.
+
+Moved the shared paper sampling window 12 source points farther from the top and 16 from the right, reducing heavy edge texture under Close. Modal and Close retain one seamless original-PNG plane, aspect-cover, smooth rounded bottom and cached geometry mask. No per-pixel processing, new raster, timer or asset edits.
+
+Normal LAB Debug BUILD SUCCEEDED: /tmp/lab-enter-direction-clean-close-delivery/build.log. Exact .jumppop install-over on retained7334Simulator;normal launch com.taptapdesign.stacktosix.native.jumppop: 34114. Receipt verifies matching built/installed binaries, no Web.bundle/PlugIns, both LAB saves unchanged through install/initial launch, actual Silent Mode True. Scoped diff check passed; no QA suites/tests. Main app/physical/PWA/legacy untouched. Optical/motion acceptance remains user review.
+
+## 2026-11-07 · Six LAB smooth rounded modal edge/aspect-cover paper
+
+UserrequestsroundedbottomwithoutjaggedsourcePNGedge. SharedNativeModalPaperView texturecovernowusesopaqueinnerrect(28ptinset,capped7.5percentminaxis),uniformaspect-cover andcenter-topUVmapping. Originalfrayedalpha borderstaysoutsidemodal/Closeunionsilhouette;existing40ptmaskdefinescleanshape. Read-onlysourcealphainspectionalongcroppedbottom/left/right:min253/252/252,nonebelow200. SamecachedoriginalPNG/seamlessCloseunion;noCPUimageprocessing/newbitmap/timer. Modalgeometry/shadows/button/HUD/bar unchanged.
+
+Normal LAB Debug BUILD SUCCEEDED /tmp/lab-rounded-modal-bottom-delivery/build.log;exact .jumppop install-over on7334Simulator,normal launch com.taptapdesign.stacktosix.native.jumppop: 32818. Matchingbinaries,noWeb.bundle/PlugIns,bothLABsavesunchangedthroughinstall/initiallaunch,actualSilentMode True. Scoped diffcheckPASS,noQA suites/tests. No main-app/physical/PWA/legacybuild/install ororiginalassetedits. Runtimeopticalacceptancependinguserreview.
+
+## 2026-11-07 · Six LAB upward HUD exit and bar-first/bar-last spring cadence
+
+UsercorrectsHUDexitdirectionandrequestsbarfirst/30percentfasterexit,lastentry,springfinish. PhoneHUDgroup exitYnowpositiveSpriteKit(up);divideralreadyexitsup andretainsnavigationrecipe. Preloadexitstarts0;HUDfirstgroupstarts50mslater;barretractformer0.52564s/1.3=0.40434s,HUD/dividerjoin0.65897s. Entrybarstarts0.39744s(afterallfourHUDgroupstarts),finishes0.92308s. Existinghud-enteractiondurationextendedtosamplethatfinitebar tail;noinput/readinessgate/newtimer. Final32percentofunroll/retracthasdampedsinehorizontalstretch/y-squeeze/2.5ptsettlingbounce,endsidentityexactly. Maskrevealremainsmonotonic,roundandHQ. InterruptioncaptureincludesbarXscale,smokegeometryalreadyusesactualcarrier. Reducedfade/Nativegain/drain/material/63percentshadow/lightweightjoinedpaperunchanged.
+
+Normal LAB Debug BUILD SUCCEEDED /tmp/lab-bar-order-spring-delivery/build.log;exact .jumppop install-over on7334Simulator,normal launch com.taptapdesign.stacktosix.native.jumppop: 31867. Receipt verifiesmatchingbinaries,noWeb.bundle/PlugIns,LABsavesunchangedthroughinstall/initiallaunch,actualSilentMode True. ScopeddiffcheckPASS,noQA suites/tests. No main-app/physical/PWA/legacybuild/install orassetedits. ContinuousmotionfeelremainsuserSimulatorreview.
+
+## 2026-11-07 · Six LAB game-board divider shadow30percent lower
+
+Userrequests onlyshadowopacity reduction. Activeboardarchlower-shadowmultiplier0.90→0.63 (relative30percent reduction);crispupperedgealpha1,background0.17,geometry,bar,HUDmotion andmodalsunchanged. EffectiveappliedJSONshadow90→63/nativeMapping0.63 retained. Originalassetsuntouched.
+
+NormalisolatedDebug BUILD SUCCEEDED /tmp/lab-divider-shadow63-delivery/build.log. Exact .jumppop install-over on7334Simulator;normal launch com.taptapdesign.stacktosix.native.jumppop: 30475. Matchingbuilt/installedbinaries,noWeb.bundle/PlugIns,bothLABsavesunchangedthroughinstall/initiallaunch,actualSilentMode True. Scopeddiffcheckpassed,noQA suites/tests. No main-app/physical/PWA/legacybuild/install. Useropticalreviewpending.
+
+## 2026-11-07 · Six LAB seamless Close paper continuation
+
+User reports top-rightcrop looks like a separate mismatchedpatch. SharedNativeModalPaperView now paints one cachedoriginalpaperPNG acrossbody+Closeholder unionextent,clippedbytwojoinedroundedoutlines inoneCAShapeLayer. SameUVscale/alpha/texture acrossjunction,nooverlappingpaperlayers. Closebuttonnormalbackground clearedatlayout;Xicon/touch/ownmotion remainbuttonowned. Modalbody40ptroundedgeometry and16pttiltedholderoutline retained. Weakbuttonrefandgeometrycache(body,bounds,center,transform) avoidcycles/rebuildingunchangedlayout. bodyFrame retainedforordinarymodalshadowoutline. No per-pixelprocessing,fullraster,extraUIImageView,timer orassetedits;onecachedPNG andsmallmaskonly. Existingcheapupperright96crop remainsfallbackmetadata. Affectedexistingmaterialtestassertionsupdatedforjoinedmask/nobackgroundimage,unexecuted.
+
+Normal LAB Debug BUILD SUCCEEDED /tmp/lab-seamless-close-delivery/build.log. Exact .jumppop install-over onretained7334Simulator;normal launch com.taptapdesign.stacktosix.native.jumppop: 29114. Receipt verifiesmatchingbinaries,noWeb.bundle/PlugIns,bothLABsavesunchangedthroughinstall/initiallaunch,actualSilentMode True. Scoped diffcheckPASS,noQA suites/tests. CUA openedArcade/Endurancewithoutstartinggame,inspectedactualjoinedpaper/Close andleftmodalopenforuserreview. No main-app/phone/PWA/legacybuild/install ororiginalassetmodifications. Opticalacceptance remainsuserreview.
+
+## 2026-11-07 · Six LAB tap-freeze audit and user-chosen simple benchmark paper
+
+Three agents audited paper CPU work,HUD/lifecycle andshader/resources afteruserreportsmultisecondfreezes. Concrete bottleneck introducedbyrecentmaterialchange: @MainActor prepare() synchronously ran1.909Mpixelremap(~5.73Mchanneloperations)foreachsheet,plusfit raster/seams. Exactcopiedinnerloop hostunoptimizedbenchmark1.1858s excludesdecode/draw/fit andisnotSimulatorlatency. Evidence /tmp/lab-freeze-audit/paper-inner-loop-before.swift andresult.txt. Runtimebefore4ssample mostlymainrunloopidle,footprint212.2M/peak289.4M;notafroz entapcapture,noleakproof. Agentstaticreleasechainfoundnoconcretenewleak/unboundedlease.
+
+Userexplicitlychooses old native-benchmark-v1 material. Verifiedgitreference: originalassets/modals/paper.png exact1xrequest,40ptroundedclip,center-topcovercontentsRect. RestoredthatpathinsharedNativeModalPaperView. SourceUIImageusesexistingJimiV9Artworkcache;Close isonecheap96ptupperrightcropfromsameimage. Deletedperpixel/histogramcolortransformandper-sizeUIGraphics/seamgenerationentirely. No newbakedassetsneeded,nooriginalPNG edits/deletes. Simplifiedordinarypaper shadowtoroundedoutline. Existingaffectedmaterialtestsupdatedforimageidentity/cheapcrop,unexecuted. Agentalsoremoved280hiddenlegacycube/shadow/accentnodesandunusedatlas/textureinitializationfrombarconstructor,plusper-painthideloops;activeHQbar/Nativegain/smoke/HUDtimingunchanged.
+
+Normal LAB Debug BUILD SUCCEEDED /tmp/lab-simple-paper-delivery/build.log. Exact .jumppop install-over onretained7334Simulator;normal launch com.taptapdesign.stacktosix.native.jumppop: 25539. Receipt verifiesmatchingbinaries,noWeb.bundle/PlugIns,bothLABsavesunchangedthroughinstall/initiallaunch,actualSilentMode True. Scoped diffcheckPASS,noQA suites/tests. CUA selectedLABwindowonly (mainwindow initiallyfront,noappcontentactions),openedArcadeHubandEndurancemodal,repeatedopen/close(twoverifiedcompleteHubreturns;thirdopen/closeoverlappedusernavigationtogameplay). Inspectedactualbenchmarkpaper/Close. No gameplaymovesperformedbyagent. Post3ssamplemainthread250/315samplesrunloopwait,noCPUrecolorpath,footprint227.9M/peak281M;differentappstates/RSSnotlike-for-likeleakbenchmark. No claimoffullphysicalFPS/leakabsence. No main-app/phone/PWA/legacybuild/install;no manualsavewrites. Userfeelreviewpending.
+
+## 2026-11-07 · Six LAB always-rounded preload tip
+
+User requests no sharp tip at any random tilt. Replaced straight shaderfront with arch-aware analytic half-height round cap;randomshear retained with smooth tangent shoulders. Whole-bar enter/exit reveal onbothholder/fill uses same roundedcapgeometry,so lifecycleedge also remainsround. ExistingHQalpha/0.75physicalpixelfeather/nativepaintedwidth andHUDtiming preserved. Three resize-only geometryuniforms,no newtimer/per-frameimages/assets. Puretwo-color gradient/holderF0E0D3/modalpaper unchanged.
+
+Normal LAB Debug BUILD SUCCEEDED /tmp/lab-rounded-front-delivery/build.log;exact .jumppop install-over onretained7334Simulator,normal launch com.taptapdesign.stacktosix.native.jumppop: 18410. Receipt verifiesmatchingbinaries,noWeb.bundle/PlugIns,bothLABsavesunchangedthroughinstall/initiallaunch,actualSilentMode True. Scoped diffcheckpassed,noQA suites/tests. No main-app/physical/PWA/legacy changes. User optical acceptance pending.
+
+## 2026-11-07 · Six LAB synchronized divider/bar lifecycle and textured pale modal paper
+
+User explicitly requests agents. Two read-only reviewers audited current navigation timing,lifecycle/masks,late mount and paper material. Found actual mismatches:bar still used40randomcube plans for entry duration,divider only hid atgone,and whole-bar onlyfaded. LAB now stores generation+primed/runningElapsed/settled receipt inScene and samples HUD groups,bar anddivider fromsame existing hud-enter action. No newSource lease/timer. Late-mounted meter joins existingelapsed;keepsHUDVisible stillrunsfinitechrome action;tablet fallbackpasseselapsed. Entry0.67308s,exit0.60897s. Bar samplesworldHubElementEnter bounce frombelow with monotonic shader reveal left→right onbothholder/fill;exitreverse retracts towardleft. HQ3xalpha retained,nohardCrop reveal. Divider carrier uses actualvisible-arch pivot,sharednavigation backOut1.7/14.4pt above-entry and delayed reverseexit,smallnonshrinkingpulse. Capturedexittransform/alpha/reveal staysfrozenuntilmanualHUDexit sampling;nointerruptionjump. Receipt/generation/disposal guards and reducedfade retained. Cancel restoresidentity. Native gain/drain/refill remains canonical.
+
+ExistingNative smoke follows animatedbar coordinates and intersects revealed nativefill. Exittransfer stops newemission while livebubblescontinueauthoredflight;detachedowner rejectsgeometry ratherthanfallingbacktostockcoordinates. No originalsmoke cadence/RNG/fade/flight/colorchanges.
+
+Userrejects white82percent modalwash,wants history-row style withvisibleperimetertexture. Reviewer tracedNativeScoreHistoryRow to originalassets/modals/paper.png. Selectedordinarysource now processedonce:unpremultiplyRGB,pale center(255,253,250),35percent retainedsourcecontrast,preserveoriginalalpha,thenre-premultiply. Originalfolds/tornsilhouette retained;no whitewashduringfit. Close cropssameprocessedupperrightsource,notdoublewhitened. OriginalPNGs,specialStagecards,modalgeometry/shadows/motion unchanged.
+
+Final normal isolatedDebug BUILD SUCCEEDED /tmp/lab-chrome-sync-delivery/build.log. Exact .jumppop install-over onretained7334Simulator;normal launch com.taptapdesign.stacktosix.native.jumppop: 15960. Receipt verifiesmatchingbuilt/installedbinaries,noWeb.bundle/PlugIns,bothLABsavesunchangedthroughinstall/initiallaunch,actualSilentMode True. Scoped diffcheckpassed. NoQA suites/tests perprioruserdirection;agentinspection/build/normalpreviewseparatefromsubjectivemotionacceptance. No main-app/phone/PWA/legacy build/install or originalassetedits. CUA normalLAB preview reachedboard,openedExitStageandinspectedactualpaper/Closematerial,thenExitStagereturnednormallytoForest;no gameplaymerges. Continuousmotionfeelnotclaimedfromstills;userreviewpending.
+
+## 2026-11-07 · Six LAB faded neutral ordinary-modal paper
+
+User requests less yellow paper matching original pale paper-bg texture. Inspected original paper-bg and modal PNGs. LAB NativeModalPaperView shared source-atop wash now neutral white82percent(previous warm-white70percent),retaining18percent source fold/wear detail and original cutout alpha. Same treatment applies to exact upper-right Close material crop. Ordinary-modal layout,shadow,backdrop,motion,sourcePNGs and special Stage card art unchanged. No new runtime/resource owner.
+
+Normal isolated Debug BUILD SUCCEEDED /tmp/lab-modal-neutral-delivery/build.log. Exact .jumppop install-over/normal launch com.taptapdesign.stacktosix.native.jumppop: 10775 on retained7334Simulator. Receipt verifiesmatchingbuilt/installedbinaries,noWeb.bundle/PlugIns,LABsavesunchangedthroughinstall/initiallaunch,actualSilentMode True. NoQA suites/tests peruserinstruction. No main-app/phone/PWA/legacy install or original-asset edits. CUA opened ForestStage01 without gameplay merges,then opened Exit Stage and inspected actual pale paper/Close material,left modal open for review;save equality claim ends at initial launch. User optical acceptance pending.
+
+## 2026-11-07 · Six LAB organic front, navigation HUD enter/exit and HQ two-color bar
+
+User adds HUD exit parity to entry request,then removes dark preload shading and requests HQ edges. LAB-only phone HUD now samples existing JimiV9Motion.worldHubElementEnter through JimiV9ArchedNavigationTitle navigationSpeed/stagger:score,Close,combo,bag enter independently frombelow;exit uses reversed same sampled track,Close/bag/combo/score. Title-style score overshoot matches20percent accent. Four identity-at-rest carriers isolate number/artwork/tap motion;bag recursive lookup,feedback parent guards,pause ancestor admission and world-converted tap bounds updated. Tutorial retains existing HUD branch;tablet remains unchanged. Existing hud-enter/hud-exit actions,reveal receipts,scope/generation/cancel and frame-capture owners retained. Cancellation restores carriers;ReducedMotion fades only. Meter exit join uses navigation duration instead of old40cube timeline.
+
+Native canonical painted fill callback samples a smooth random front angle±65degrees,0.65–1.45s smoothstep plans,clamped active callback delta/no idle lease. Existing Native gain/consume/smoke remain unchanged. Holder remainsF0E0D3. Fill is exactly horizontalFFB561→E76813,gloss/volume/shadow removed. Resize-only max(3,screenScale) RGBA ribbon textures preserve CGContext antialias alpha,linear filtering. Removed interior SKCrop ribbon/front masks;instance-owned shader clips front with0.75physicalpixel smoothstep and multiplies inherited opacity. No per-frame image generation/new timer/decoder/audio/haptic/save owner. Effective JSON records user overrides;original inputs preserved.
+
+Final normal LAB Debug BUILD SUCCEEDED /tmp/lab-native-bar-delivery/build.log. Exact .jumppop install-over on7334Simulator;normal launch com.taptapdesign.stacktosix.native.jumppop: 9444. Receipt verifiesmatchingbinaries,noWeb.bundle/PlugIns,canonicalLABsavesunchangedthroughinstall/initiallaunch,actualSpringBoardSilentMode True. NoQA suites/tests peruserinstruction. No main-app/phone/PWA/legacy build/install or original-asset modifications. Rendered motion/optical acceptance remains user review.
+
+## 2026-11-07 · Six LAB latest JSON, Native meter owner and visible smoke
+
+Applied user attachment f4d90e11-0320-4fb7-b410-cc83e6ac2396 Pasted text.txt, with explicit follow-up holder override #f0e0d3. Exact source retained as six-lab-board-design-source-20261107.json;effective snapshot six-lab-board-design-applied.json. Classic bar:343.2pt width,100percent scale,height8.75063743pt from40/-2percent geometry,arch7.96818359pt,meter floor107.06736002. FF B5 61→E7 68 13 gradient65degrees,highlight150percent,volume0,frontangle-69,no taper/no wave/no navigation mask. One active arch divider585pt/scale86percent/depth20.31649947,x1.0873/y4.785687,shadow90percent,wornwhiteBG17percent. Score/combo/navicons restored to latest exported offsets;grid/touch geometry retained. Sample fill100 remains editor-only,not saved to gameplay.
+
+NativeWildMeterHUDOwner is the sole source of painted left/width gain/spring/consume/drain/refill samples. LAB surface now receives those poses directly;its previous cosmetic gain/full-cycle timeline is not admitted. Existing NativeWildMeterSmokeOwner,wall cadence,RNG slots,intensity,fade,flight,radius and teardown remain original;unhidden actual smoke,above-fill z order. New birth-only arch offsets are captured per bubble and removed on destroy;geometry follows moved bar in HUD coordinates. Weak mapping cleared at disposal;no new timer/decoder/audio/haptic/save owner. Bounded texture/path caches stay resize-owned. Board entry/exit retains existing finite owner.
+
+Final normal isolated Debug BUILD SUCCEEDED /tmp/lab-native-bar-delivery/build.log (initial ambiguous CGPoint.zero compiler error fixed;build-initial.log retained). Install-over exact .jumppop on retained7334Simulator;normal launch com.taptapdesign.stacktosix.native.jumppop: 4680. Receipt verifiesbuilt/installed launcher+dylib identity,noWeb.bundle/PlugIns,bothLABsavesunchangedthroughinstall/initiallaunch,actualSpringBoardSilentMode True. NoQA suites/tests peruserinstruction. No main-app/phone/PWA/legacy build/install or original-asset changes. User visual/motion/smoke acceptance remains pending.
+
+## 2026-11-07 · HTML Liquid uses Native consumption lifecycle
+
+Ported normalized NativeWildMeterConsumptionPlan timing into shared clockless native-bar-cycle.js:already-full fill10ms,hold100ms,380ms cubic-in-out drain with left edge moving right,340ms backOut1.35 refill toward pending ratio(default0in standalone preview). Board bar profiles Auto/full and Cube bar full/Auto/manual pop now use this finite cycle, retaining empty holder, arch and material;no bar shards/smoke/fade. Existing Board/Cube RAF and visibility/disposal ownership retained. Native source inspected only,not modified/built. Syntax/scoped diff checks only,noQA suites;rendered acceptance pending.
+
+## 2026-11-07 · Travel X jump then randomized self-collapse
+
+Shared finite travel-cycle plan now drives both editors: at full charge X performs one squash/stretch spinning hop, collapses downward into its own position on landing, then dashes self-collapse in a shuffled stagger. No Travel shards; refill resets after last collapse. Board Auto/+1/+6/full and Cube full/Auto/manual pop use existing RAF owners; plan bounded by count,reset/profile/pause cleanup and visibility freeze retained. Other shapes retain previous burst behavior. Syntax/scoped whitespace checks only;noQA suites/Native change. Motion acceptance pending user preview.
+
+## 2026-11-07 · Travel follows only the chosen arch
+
+Removed extra sinusoidal Travel route offset from Board static/live and Cube renderers. Board dashes and X now share existing curveAt geometry/tangent, including divider-synced arch, without material-specific shape distortion. Cube Travel samples its parabolic arch at actual compressed dash positions and rotates dashes/X to tangent. Charge hops remain temporary motion; resting arch/positions are deterministic. Syntax/scoped diff checks only, noQA suites/Native change.
+
+## 2026-11-07 · Editable legacy Board meter materials and motion
+
+Preloader controls are now available for legacy cubes/bar too. Merely opening inspector preserves legacy profile; first material edit creates normalized custom profile, keeping row transform/arch/width/count/gap. Height,filled start/end/empty colors with HEX,gradient/angle,highlight,volume,grain and working floor shadow;tile bounce/lift/rotation and Auto duration added. Fluid speed/organic front controls exposed where relevant. Custom profile persists through existing history/versions/JSON. Uses same bounded canvas/material cache and Board RAF. JS syntax/scoped diff checks only,noQA suites/Native change;visual acceptance pending.
+
+## 2026-11-07 · Board playback ordinary cube correction
+
+User reports ordinary cubes still charge like liquid. Board playback now admits bounded per-tile completion hop plans for all tile profiles including legacy cubes, not Travel only. Cube/Travel faces switch on completed step; stars retain partial fill. Existing squash/stretch,randomrotation/lift and Source-independent Board single RAF reused. Raster reserves rotation/jump bounds for all tiles, full auto hold permits landing, changing profile stops stale playback. No Native change or QA suites/tests. JS syntax and scoped diff checks pass; rendered motion acceptance pending.
+
+## 2026-11-07 · Six LAB user JSON Liquid board layout
+
+Applied user attachment 1ef96470 Pasted text.txt verbatim to LAB docs/engineering/six-lab-board-design-applied.json. Export requests Liquid solid bar (not Travel):4pt thickness,0.915 width,0.89 row scale,14.8810747 arch depth before scale,holderEFE3D8,FFEDDB→FF6600 gradient8degrees,front-12degrees,taper50/50 with65percent tips. Native LAB now draws a single curved/tapered holder with cached gradient and nested ribbon/front/navigation crop nodes; bounded analytic wave sampled only during existing finite Source-owned motion. No new timer,decoder,audio,haptic or save owner. Idle tile hops/shards disabled for this bar. Full charge holds350ms then existing arrival transaction restores canonical latest; sample fill30.3 is not written to gameplay. Six visual steps remain cosmetic. Existing entry/exit/reduced-motion/current/disposal owners retained.
+
+Exact exported HUD offsets,rotations and centered meter floor115.1135026 applied. Primary arch only:width585,scale87percent,depth32.4576,y-8.872394,alpha1,shadow0.55,worn-whitebackground0.15;parked secondary/third/flat/Sonic omitted. MeterBelow mask clips navigation-side pixels at the primary divider curve. Existing grid(1.4,7.5),relocated touch bounds and stable combo anchor retained.
+
+Final normal isolated Debug BUILD SUCCEEDED /tmp/lab-liquid-delivery/build.log. Install-over exact com.taptapdesign.stacktosix.native.jumppop on7334E33E-DC68-4482-A9A5-35356151D08A;normal launchPID76969. Receipt verifiesmatchinglauncher/dylib,noWeb.bundle/PlugIns,bothLABsavesbyte-identicalthroughinstall/initiallaunch,actualSpringBoardSilentModeON. No QA suites/tests per user instruction. No main-app/phone/PWA/legacy build/install or original-asset changes. Initial build curved Liquid board screenshot observed;final build continued existing ForestStage01 without gameplay moves. Subjective feel/full-cycle acceptance remains user review.
+
+## 2026-11-07 · Travel endpoint spacing and charge
+
+Travel reserves 2% more row width between final dash and X without moving the endpoint or changing the outer width/arch. X uses empty color then fills orange left-to-right as the final additional progress step. Cube/Board step increments and completion triggers include endpoint step. Cached two tint surfaces, no new scheduler. Syntax/whitespace checks only; no QA suites/Native changes.
+
+## 2026-11-07 · Travel X matches empty material color
+
+Travel endpoint X now uses design.empty in Cube and Board static/live previews, matching unfilled dashes. Source alpha silhouette preserved via one bounded cached tint canvas; original PNG unchanged. Syntax/whitespace checks only; no QA suites or Native changes.
+
+## 2026-11-07 · Travel wooden X endpoint
+
+Added existing wooden Close PNG as bold Travel endpoint in Cube row/mini and Board static/live snapshots. Dashes reserve final slot for X; Board endpoint follows arch tangent. Shared cached marker preparation, no new assets or timers. Syntax checks only, no QA suites/Native change.
+
+## 2026-11-07 · Board Travel completion hops
+
+Corrected missing Board live motion: Travel dashes now switch color when each step completes and play bounded squash/stretch, jump and randomized rotation using the existing Board playback RAF. Per-step plans capped by meter count; reset/stop clears plans. Snapshot reserves vertical jump room; finite transport remains alive through landing. Existing bars retain continuous fill. Syntax/diff checks only; no QA suites or Native changes. Browser visual review pending.
+
+## 2026-11-07 · Travel animated dash variant (HTML only)
+
+Appended Travel · jump & rotate preset, preserving existing preset indices and Treasure trail. New normalized travel shape uses a code-native rounded dash material with editable colors/highlights and gentle route offset. Reuses tile fill/hop/rotation/burst/refill owner in Cube editor; no additional scheduler. Shared material/snapshot also expose the variant in Board picker and retain board geometry. Existing rotation chance, lift and squash controls apply in Cube. Syntax and scoped whitespace checks only; no QA suites, Native build or install. Browser visual acceptance pending.
+
+## 2026-11-07 · Board live controls and Treasure trail start/end markers
+
+AddedcompactAuto/+1/+6/100%/resettransportbelowsidebartitle;removedleadsubtitletoavoidverticalgrowth. OneruntimeRAFpaintsONLYpreloaderCanvasinaforeignObject,respectingcurrenttransform/arch/mask/visibility. Reusesoneoutputandflatbufferandtwo1-profilematerialcaches;noPNGencodingormainboardrerendereachframe. Autocycleschargewith0.4sfullhold;+1/+6/100smoothfinitegains. Hidden/pagehidecancelsRAFandfreezesclock;pause/export/save/undo/resetreturnstaticPNGsurface,animatedcanvasesneverserialize. Frozenwavesampletime retainedonpause. Userlayouteditskeeppreview;manualfillsliderstopsit. Safari actualAutoclickandrunningcurvedLiquidpreviewinspected.
+
+Userthenrequestsflagstart/chestendforTreasuretrail. Addedsharedtrail-markers.js with2decodedimages/onecachedpreparation,smallroundedwarmSVGstarflag(code-nativebasedonreference) andoriginalgamechestPNG. Trailreservedspacesavoidcollisions;checkboxoffrestoresX. Markersfollowworldcurveandtangent inBoardsnapshot/live;toprasterboundsreserveextraheight. SameprofileinCube/Board/history/JSON;existingtrailprofilesnormalizeflag/cheston. InitialtinyJourneychestlookedblurredinactualSafari;selectedsource04openchestfromshop1254PNGforHQsibling,sourceunchanged,draw-timealphabounds216/124/890/1040,preservingratio. SVGflagandinitialchestCubeviewsinspected;HQreplacementsourceviewedbutnotclaimedfinalbrowserreview.
+
+JSsyntax/scopeddiffchecksPASS,noQA suites/tests/Nativechange. NoNativebuild/install/assets/savechanges;allnewfilesdevelopmentprototypeonly. Existingimagespreserved.
+
+## 2026-11-07 · Treasure trail dashed liquid preloader
+
+Added sharedTreasuretrailXmarksthespotpreset appendedafterexistingpresets(stableindices). NewbarStyle solid/trail,trailThicknessandSpacing;defaultsretainexistingbars. Sharedholderpathdrawsroundedlightdashesalonggentleanalytic2πrouteplusroundedXatendpoint;liquid/gradientclipprogressfillsdashesandXwithsame4directionlogic. Emptyrouteusestheindependentholdercolor;noPNG/newtimer. Xfinalgeometryslimmedto0.156hstroke/1.08hlengthforclearcrossshape. BothCubeShapeandBoardPreloaderexposeappearance/thickness/spacing;boarddropdownpickssamepresetandretainsarch/pose/count/gap. Profiles/history/JSONcarrynewfields.
+
+JSsyntax/scopeddiffcheckPASS,noQA suites/tests/Nativechange. ActualSafariobservedTreasuretrailrow/enlarged/HUDduringuser-activeautocycleandpop;controlsselectedtrail. FinalXstrokeclarityadjustmentissource-onlyafterscreenshot. NoNativebuild/install/assets/saveschanges.
+
+## 2026-11-07 · Tapered preload, divider occlusion mask and Navigation arch link
+
+User asks line→fullheight→line silhouette,archdivider mask forBelowpreload,andNativeheaderarchcheckbox. SharedtracePreloadHolder nowownsbarholder/fill/glowsilhouette inCubeandBoardsnapshot;optionalTanki krajevi,independent1–50%start/end taperand0–100%tipthickness(default0line). Smoothstepwidthprofile,originalroundholderdefaultunchanged. BoardPreloadercontrols andCubeShapecontrols persistprofilefields throughnormalizedhistory/versions/JSON.
+
+Eachof3archdividers hasMaskirajpreloaderBelow:whencheckedanddivideronboard,explicitSVGmaskclipsbehind-navigationregionabovecurve,usingexactdividerworldtransform;wrapperoutsidepreloadertransformpreservestheboardspacecut. OnlyBelowadmitsthemask;opacity/shadowremainindependent. Multiplecheckedplanescombine. Savedpreviewwhitelistincludesmaskattributes. No timer/filter/physicsowner.
+
+Navigationarch checkboxmatchesJimiV9NavigationHeader dividerArchDepth49*.288 over390ptwidth. Linkderivesbend100*(widthFactor²)*scaleFactor,sochangingwidth/scale retainsNativepaintedcurvaturewithoutmovingitem. Manualarchslider/explicitothersyncunlink;uncheckretainspose. Defaultoffpreservesoldlayouts. Usesexistingcommit/normalization,nomutationduringrender.
+
+JSsyntax/sharedmodule/scopeddiffcheckPASS,noQA suites/tests/Nativechange. Safari actualTanki krajeviclick enabledandinspectedcurvedLiquidtaper;lefttaperenabled. Thenactualfirstarchselected,Arch&syncshowsNavigationarchandMaskirajpreloadercheckboxes,bothleftoff(noforcedlayoutchange). Maskgeometricocclusionnotmanuallyexercised;userreviewpending. NoNativebuild/install/savechanges.
+
+## 2026-11-07 · Board editor third independent arch divider
+
+Added Divider arch3 asparkeditem withindependentgeometry/material/background/shadow,sharedrenderer/controls/export. Olddrafts/historynormalizeitintofirstfreeparkingslot;inventory16slotsfitsall15layers. Thirddivider syncbuttons usefirstdivider;existing1↔2sync retained. Noexistingpose/assets/nativechanges. JSsyntaxchecked,noQA suites/tests.
+
+## 2026-11-07 · Board preloader thickness and independent empty-holder color
+
+User narrows requirement tobar thickness andemptyholdercolor. Preloaderpanel nowplaces Boja praznog holderafirstwithpicker+HEX;updatesonlyprofile.holder usedbygraybackgrounddraw,notstart/endfillcolors. Separateheightptcontrolaffectssnapshotthicknesswithoutchangingarch/width;defaultpreservesoldthickness. Presetchoosernowselectsmeter;Preloaderchip/defaultrestorationselectmeterwhenprofileactive,headerUredipreloaderbuttonavoidseditingparkeddivider. Materialeditfieldsremainavailableforcopiedprofile. State/history/versions/exportcarrycustomprofile/thickness. JSsyntaxchecked,noQA suites/tests/Nativechange.
+
+## 2026-11-07 · Board editor preload picker and independent chip sidebars
+
+User requests allCubeeditorpreloadstyles onBoard while preservingcurrentgeometry,thenfixedboardwithsmallerindependentlyscrollingcontrols. AddedPreloaderdropdown with12sharedpresetsandread-onlyCubeIndexedDBsavedversions(refreshbutton). Copiesnormalizedmaterialprofile only;meterx/y/width/scale/rotation/count/gap/arch/Sonicsnapshot/AboveBelow retained. Export/history/boardSavedversionscarrycopiedprofile. Sharedcube-designs.js andpreload-material.js nowownpresets/defaults/normalization/material/clip/gradient forboth editors,avoidingstylefork. Newpreload-snapshot.js doesstaticPNGrow,tangenttile/starand64stripcurvedbar,oneboundedlastrastercache/twodecodedshapes. Savedthumbnail whitelistallowsboundedPNGdataURIs,notSVG/remoteURLs. Cubeeditor uses wrappersoversamesharedfunctions;existingmotion ownerretained.
+
+Rightinspectorreorganizedintofixedheader/layerpicker andchips:Položaj,Izgled,Preloader,Arch&sync,Export. Originalcontrolnodes/IDs/handlersmovedintopanels;selected-layervisibilityretainedforstandalonecontrols. Desktopbodyfixed,boardanchored;leftinventoryandrightpanelownscrollwithcontainmentandvisiblescrollbar. Mobileinspectoruses55vhscrollarea. Presentationnavigationdoesnotmutatelayoutstate.
+
+JSsyntax/sharedmodules/scopeddiffcheckPASS,noQA suites/tests/Nativechange. ActualSafariobservedPreloaderdropdownLiquidselection(useractiveconcurrently),curvedLiquidbarwithretainedrowgeometry;refreshedandclickedPreloaderchip,inspectedfixedboard/leftandrightpanels. LeftPreloadersectionopen. NoNativebuild/install/savechanges.
+
+## 2026-11-07 · Cube editor organic random fill angle
+
+Added Organski random kut checkbox and5–70degree randomrange. One shared analytic tiltplan samples varied0.7–2.2stransitions and0.1–0.55sholds,smoothstepinterpolatesrandomanglesaroundmanualbase,clamped±70;all3canvasviewsuseoneangleperframe. ExplicitcheckboxadmitsexistingRAFcontinuously;visibility/pagehidepause andrestoredcheckboxresume retained,noextratimer. State/history/versions/JSONnormalizeolddefaultoff. JSsyntaxchecked,noQA suites/tests/Nativechange.
+
+## 2026-11-07 · Cube editor fill-front angle
+
+Added Kut vrha punjenja -70…70degrees underfillstyle. Sharedfillclip addscenteredlinearfronttilt independentlyofwave,forbar/cube/star andall4directions. Default0preservesexistingdesigns;fullyempty/fullboundariesstayexact. Knownfieldpersistsinhistory/versions/JSON. JSsyntaxchecked,HTMLonly,noQA suites/tests/Nativechange.
+
+## 2026-11-07 · Cube editor gray-holder preload bar and fluid fills
+
+Added independent mode tiles/bar;existingcube/star drafts normalize totilemode. Continuousroundedgrayholder withwidth/height/color controls;sharedgradient/highlight/volume/shadow/glow,fillcontrols,auto,finitepop/shard/smokerefills. Classic,Liquidhorizontal,Liquidvertical,Sludge,Gas,Jellypresets;4directions pluswaveamplitude/speed/bubble controls underPunjenje. Analytic32segmentfront,bounded22particles,3existingcanvasviews,no newtimer/displayloop. SurfacePlaying is explicitpreview-only viafluidpreset/toggle;oneexistingRAF respectsvisibility/pagehide/pause. Classicselection retiressurfacemotion. Tile-onlyshape/motioncontrols hiddeninbarmode,countbecomesfillstepcount. Existinghistory/IndexedDB/JSONcarryknownnewfields;Native/originaldemo unchanged.
+
+JSsyntax/scopeddiffcheckPASS,noQA suites/tests. ActualSafari selectedLiquid→ thenGas;main,enlarged andHUDholder/fill previewsinspected;leftGassurfacepreviewselected. Lastlabelcleanupchanges enlargedcaptiontobarcontext. NoNativebuild/install/resources/savechanges.
+
+## 2026-11-07 · MAIN Native Close samples exact upper-right corner
+
+User clarifies upper-right corner ratherthanrightedgemidpoint. SharedNativeModalPaperView.closePaper croporigin now(pixelWidth-side,0),same96ptsize,wash/alpha/controlmask/icon/layout retained. MainDebug BUILD SUCCEEDED /tmp/native-modal-top-right-build.log;retained1018installover/normallaunchPID15539. Receipt /tmp/native-modal-top-right-delivery/receipt.json verifiesexact.native identity,matchingbinaries,noWeb.bundle/PlugIns,canonicalprimary/recoverysavesunchangedthroughinstall/initiallaunch,actualSilentModeON. NoQA suites/tests,physical/LAB/PWA/legacy/editorchanges. Uservisualreviewopen.
+
+## 2026-11-07 · MAIN Native Close BG uses right paper edge
+
+User explicitly moves request fromeditor toMAINNative. NativeModalPaperView.closePaper nowcrops96pt squareflushwithrightedge,verticallycentered,insteadofcenter. Existingselectedpaper,whitewash,rounded16ptmask,icon,opacity,layout,motion andlifetime unchanged. SharedordinarypaperClose consumers receivechange. NoLAB/editormutation thisturn,nooriginalassetedits.
+
+Normal complete-tree mainDebug BUILD SUCCEEDED /tmp/native-modal-right-edge-build.log. Installedover retained1018mainSimulator,exactcom.taptapdesign.stacktosix.native;normallaunchPID13799. Receipt /tmp/native-modal-right-edge-delivery/receipt.json verifiesbuilt/installedlauncher+dylibmatch,noWeb.bundle/PlugIns,canonicalprimary/recoverysavehashesunchangedthroughinstall/initiallaunch,actualSpringBoardSilentModeON. Scopedsource/diffcheckpassed,noQA suites/tests peruserinstruction. No physicalphone/PWA/legacy/LAB install. Renderedappearance/useracceptanceremainsunverified;noCUAmodalreviewclaimed.
+
+## 2026-11-07 · Modal editor Close samples right paper edge
+
+User overrides center sampling:Close BG now takes same96ptcrop from selectedpaper rightedge,verticallycentered;conceptfallbackviewport movedright too. Samewash,alpha,roundedmask andicon retained. Editoronly,Nativeunchanged. JSsyntaxchecked,noQA suites/tests.
+
+## 2026-11-07 · Modal editor matched to installed MAIN Native paper/X
+
+User flags mismatch with Stack to Six main,explicitly notLAB. Read-only queried retained1018 main .native app:installed asset/binary references include originalpaper01/02/03,notconcept06/07/08. All3original@3xPNGbytes matchworkingtree andcopiededitorassets. Editorpreviouslyusedconceptbalancedpaper andsolidcolorCloseBG;defaulticonwasrecolored. AddedNativeCut/Worn/Cracked options,defaultCut andlegacydefaultbalancedmigration(nativePaperRevision1). Canvaspreparation ports actualNativewidth-preservingfit/middleblend andsource-atopwash RGB255/254.142857/252,alpha0.7. Close nowcenter96ptcrop ofsamepaper+samewash,rounded16/52mask,fullBGopacity andunrecoloredoriginalX at0.8alpha. Existingcustomcolors/conceptoptions/layouts preserved. Onefittedcache+3smallClosecrops;decoded3sources,noRAF/newclock. Savedthumbnail clipreferences namespaced.
+
+ActualSafari inspectedNativeCut selection,paper/Xmaterial andsavedcard. JSsyntax/scopeddiffcheckPASS;assetbytesverifiedagainstinstalledMAIN. This is source/material matching,notclaimedpixel-exactcross-platformrendercomparison. No Nativecode/resources/build/install/launch/save changes,noQA suites/tests.
+
+## 2026-11-07 · Cube editor puffy star fill variants
+
+Added shape selector and two presets: Puffy star original (exact existing yellow PNG matching supplied reference) and Puffy star beige→orange (same alpha/lighting,editable gradient). Original assets/modals/star@2x.png copied byte-exact into editor-owned asset with source SHA;no image generation/original mutation. Empty star follows existing beige material;original variant full pixels retain PNG colors,alternate follows current material controls. Both use existing4fill directions,distribution,dimensions and finiteanimationeffects. Shape persists throughhistory/savedversions/JSON;olderdrafts defaultcube. Two decoded128pixel source buffers,stillonlytwoactive materialcanvases/sharedRAF. Optionalvalidatedshapequery supports preview.
+
+JS syntax checked. Safari inspectedactualyellowstarrow/partialenlargedstar/HUD,thenorangevariant withsamepuffyform. Leftorange selected;noQA suites/tests,Native/runtime/build/install changes.
+
+## 2026-11-07 · Standalone HTML Cube editor
+
+Added prototypes/domino-meter/cube-editor on existing5188server,linked from original/backpack/board/modal pages. Separate animatedCanvas studio:count/width/height/gap/arch;four filldirections andsequential/simultaneousdistribution;solid/linear/radialgradient,angle,emptycolor,highlight/volume/grain;bounce/lift/rotationchance,floorshadow/glow,expressions/smoke/shards. Sharedmaterialpreview inmainrow,enlargedsingletile andHUDrow. Fourpresets,fillcontrols,+1/+6/full/pop/refill/auto,Undo/Redo,namedversions andJSONimport/export. OwnIndexedDB sts-cube-editor,serialsnapshotwrites,closedtransactions/blockedlateopenhandling;validatedknownscalarfields/colors/enums/1MBimportlimit. Original PNGalpha/lightingsampled once;two128cachedmaterialcanvases,one finite analyticRAF,quiet sleep,visibility/pagehidepause,ResizeObserver3canvases/dpr2. OriginalmotiondemoJS andNative unchanged.
+
+JS syntax andscopeddiffcheckpassed,noQA suites/tests orNative build/install. Safari openedneweditor andvisuallyinspectedloaded24row,45percentpartialhorizontalfill,enlarged55percenttile,HUDrow andshapecontrols. Editorleftopenatdefaultdesign. This is a separate lightweightmotionstudy,notfullNativeanimationparity/physicalacceptance.
+
+## 2026-11-07 · Modal editor full CTA rim color correction
+
+User clarifies entire button rim,not just lower shadow. Replaced bottom-only gradient mask with full-perimeter mask excluding rounded center face and softly blending inner boundary. Existing independent color now affects top/side rim and deeper lower lip,retaining original PNG lighting/alpha. Inspector renamed Boja obruba buttona and Izvorni obrub;stored fields/previous designs remain compatible. JS syntax checked;HTML only,no Native change or QA suites/tests.
+
+## 2026-11-07 · Modal editor independent CTA lower-edge color
+
+Both button layers now expose Boja donjeg ruba / sjene with color picker,HEX,palette and reset to original. Separate source-PNG tint overlay masked to lower70–84% transition preserves upper face;default disabled preserves original bytes/render. Known shadowColor/shadowCustom fields normalized into old drafts,history,savedversions and JSON. Saved thumbnail references now namespace masks/gradients too. HTML only; JS syntax checked,no QA suites/tests or Native changes.
+
+## 2026-11-07 · Modal editor inspector chips
+
+Replaced expanded Scene/shadow disclosure with top-right inspector chip navigation: Element and Scene & shadow. Element is default; Scene chip shows only scene/shadow controls. Selecting a layer returns to Element. Existing scene control IDs,values,persistence and JSON actions retained. HTML only; JS syntax checked,no QA suites/tests or Native change.
+
+## 2026-11-07 · Standalone HTML Modal editor
+
+Added prototypes/domino-meter/modal-editor at http://127.0.0.1:5188/modal-editor/, linked from board editor and motion prototype. Development-only seven-layer SVG design tool: whole modal,paper,title,body,primary/secondary CTA andClose. Original byte-copied modal/CTA art and Baloo fonts;source hashes in asset-sources.json. Fourpaper variants,color/HEX/swatches forpaper/button/text,dimensions,font,wrap,scale/rotation/opacity/visibility;scene dim andpaper shadow separate. Drag,Shiftaxis lock,1pt/Shift4ptnudge,horizontalworldcenter. Non-defaultcolor useslighting-preservingSVGtint,notpixel-parityNativeclaim.
+
+Dedicated IndexedDB draft/sessionhistory/namedversions avoids board localStorage quota;serialwrites,DBclosesoncompletion/abort/versionchange,blockedlateopencloseswithoutwrite. JSON schema stack-to-six-modal-layout/v1,knownscalar normalization/hex/materialwhitelists and2MBimportlimit. No importedmarkup/URLs. Originalassets preserved;no Native/runtime/bundle/Simulator/save changes. JS syntax andscopeddiffcheckpassed,noQA suites/tests. In-appbrowser hostunavailable;fallbackSafari inspectedactualpreview,greenprimaryswatch/lighting,Undo restoration,andExitStageoriginalsavedcardretainedafterrefresh. Editorleftopenwithoriginalpaperselectedandbaseline saved. Userdesignacceptanceopen.
+
+## 2026-11-07 · Six LAB combo fixed anchor and relocated HUD touch zones
+
+User reports combo gradually sinks and requests touch areas match relocated HUD. Root cause: comboNumberMotion refresh called layoutComboValue with comboArt.position.y after the LAB -1.3pt transform; repeated calls accumulated that offset. Refresh now uses gameplayChromePlan.valueRowY, so LAB offset is applied exactly once. Removed layoutHUD overwrite of the already relocated score hit rectangle. Phone LAB dispatch now computes four independent HUD-local rectangles from actual moved/rotated node frames, unions icon+number/text, adds8pt padding/min44pt target, clips adjacent zones at icon-center midpoints, and converts actual pointer into HUD coordinates. This retires the old long invisible Close wrapper in LAB dispatch and gives Backpack its own padded target. Shared canonical input/tutorial/navigation guards and tablet branch remain intact. No main sources/game rules/save schema changed.
+
+Final normal isolated Debug BUILD SUCCEEDED /tmp/lab-combo-touch-build.log, scoped diffcheck passed. SixLAB retained7334 install-over and normal launchPID87837; receipt /tmp/lab-combo-touch-delivery/receipt.json verifies exact .jumppop bundle, matching built/installed binaries, no Web.bundle/PlugIns, both canonical saves byte-identical through install/initial launch, actualSpringBoard SilentModeON. No QA suites/tests per user instruction; touch/animation feel remains user review, not claimed manually tested. No phone/main-app/PWA/legacy install or manual save writes.
+
+## 2026-11-07 · Six LAB updated from Downloads/novo.json
+
+Applied exact novo.json snapshot (retained in LAB docs/engineering/six-lab-board-design-applied.json). Differences from prior export:40→24cubes,gap-2→6%,meterY-9.675→-7,arch249→151%,meterarch120.94→73.34%,primary dividerY+18pt,secondary+12pt with matching lower arch188.395%. Other HUD/grid/material/width/scale values retained. Existing meter animation/charge owners remain authoritative; no main runtime change.
+
+Normal isolated Debug BUILD SUCCEEDED /tmp/lab-novo-build.log. Installed over retained SixLAB7334Simulator, exact bundle com.taptapdesign.stacktosix.native.jumppop, normalPID83446. Receipt /tmp/lab-novo-delivery/receipt.json:built/installed launcher+dylib hashes match,no Web.bundle/PlugIns,both canonical saves byte-identical through install and initial launch,actual SpringBoard SilentModeON. CUA opened Forest Stage01 Continue and inspected actual board with24curved cubes and lower dividers. No QA suites/tests,phone/PWA/main-app install,merge or manual save changes. User visual/motion acceptance remains open.
+
+## 2026-11-07 · Applied six-lab-board-design (1) to isolated Native LAB
+
+Applied Downloads/six-lab-board-design (1).json to experiment/jump-pop-meter-native only; exact provenance retained as docs/engineering/six-lab-board-design-applied.json. 40 cubes, 88% width with 98% row scale, curved floor/tangent rotation, locked-board empty face at 25%, no per-cube floor shadows. Reuses original orange atlas. Two independently styled arched dividers and 14% worn-white navigation background rendered once into a bounded width/density/root cache; source images preserved. HUD icon/text positions/rotations and phone board offset follow export. Parked Sonic Wave/flat divider omitted; actual charge/score/combo/save/animation owners remain authoritative rather than exported sample fill100.
+
+Normal isolated arm64 Debug BUILD SUCCEEDED: /tmp/lab-layout-design-build.log. Installed over Six LAB bundle com.taptapdesign.stacktosix.native.jumppop on retained7334E33E-DC68-4482-A9A5-35356151D08A; normal launchPID68932. Built/installed launcher and dylib hashes match, no Web.bundle/PlugIns. Initial save check used obsolete container URL after install relocation; reacquired current data container and confirmed both saves byte-identical to preinstall backups and initial launch. Receipt /tmp/lab-layout-design-delivery/receipt.json; SpringBoard SBRingerMuted=true. CUA opened existing Forest Stage01 Continue and inspected actual board with curved cube row/two dividers/HUD, no gameplay merge performed. User visual/motion acceptance remains NEEDS PHYSICAL TEST. No QA suites/tests per user instruction. No main-app/phone/PWA/legacy build/install/merge; main sources untouched by this task.
+
+## 2026-11-07 · Cube width preserves curve
+
+Changing the cube row width now compensates parabolic arch depth by the squared width ratio, preserving previously matched curvature rather than compressing/stretching the arch. Sonic Wave snapshots already retain wavelength and height independently of cube row width. Manual arch control and explicit sync remain authoritative. Existing persistence and Undo/Redo retained. HTML only; JavaScript syntax and scoped diff checks passed, no QA suites or Native build/install.
+
+## 2026-11-07 · HTML divider arch-only sync
+
+Added a separate Sync samo arch button in both arch divider inspectors, alongside existing full sync. Copies only curvature with squared width ratio and scale compensation, preserving destination width, position, rotation, opacity, material and shadow. Arch slider range expands for resulting values; Undo/Redo and existing persistence apply. HTML only. JavaScript syntax and scoped whitespace checks passed; no QA suites or Native build/install.
+
+## 2026-11-07 · HTML meter Sonic Wave sync
+
+Added Sync with Sonic Wave directly below Above/Below in cube controls. Copies an independent wave snapshot (peak count, wavelength, height, scale compensation) into the cube row, including tangent rotation. Preserves cube position/width and source divider. Existing arch sync or manual arch edit restores ordinary arch geometry. Snapshot persists through drafts, saved layouts, Undo/Redo and JSON export. HTML only; no Native build/install or QA suites.
+
+## 2026-11-07 · HTML board editor: Sonic Wave
+
+Added independent Sonic Wave divider to the item list and visual layer picker. Reuses original divider PNG and separate lower-shadow control, with symmetric cosine hills (1–4), per-hill width and wave height. Narrowing hills shortens the complete wave. Supports existing positioning, centering, parking, saved versions, JSON export and Undo/Redo; older drafts receive the layer in a free slot. Preview restored Sonic Wave onto the board, selected in Safari at localhost:5188/board-editor/. No Native source/build/install changes or QA suites. JavaScript syntax checked; Safari confirmed controls and rendered wave.
+
+## HTML shadow/arch sliders beforedividerSync andmatchedshadowcopy · 2026-11-07
+
+User movesbackgroundopacity,archstrength andlowershadowstrength aboveSyncbutton. MovedexistingSync intoarch-only group immediatelyaftershadowcontrols;othercontrolIDs/values retained. Priorreportdivider2looksfainter:bothalreadyshareexactrenderer,butSync copiedonlygeometry. Syncnowcopies selectedsource parentopacity,archopacity andshadowstrength too,alongwithgeometry;material/backgroundopacity stayindependent. OneUndo entry,existingdefaults/saves unchangeduntilSync clicked. Source syntax checked,noQA/tests/Native change.
+
+## HTML divider lower-shadow strength independent ofsharpedge · 2026-11-07
+
+User requests no-shadow option/control withoutfadingdivideritself. OriginalPNGnowdrawnasunchanged2pttopband plusseparatelycropped47ptlowerfade. Newyellow Jačina donje sjene0..100andBez donje sjene button changeonlylowerfade;topband/navbackground andexistingdivideropacity unchanged. Independentvalueperflatdivider/botharcheddividers,default100preservespriorlook;draft/history/Savedversions/exportcarrynewfields. Nooriginalimageedits/Native change/newfilter.
+
+JS syntax PASS. Safari actualBez donje sjeneclick onfirstarcheddivider100→0;sharpedge/background retained,backgroundopacity100 anddivideropacity55 unchanged. Leftzero-shadowpreview;Undo637→638. NoQA suites/tests/build/install.
+
+## HTML remove cube floor shadows,soften internal volume · 2026-11-07
+
+User removesper-cubefloorshadows andrequests onlyfaintinternalvolume matchingfade-taildividerhue. RemoveddividerPNGdrawunder eachcube. Existinglockedtile0.25base retained;lowerbevelnowwarm#d7a179(sampledividercenter60percentfade,R215G161B121A19/255),0→2.5→7.5percentmaxalphainbottomregion instead12/32percent. Fullorangereceivesnooverlay;partialoverlayfadeswithfill. Shape/geometry/arch/AboveBelow/state unchanged. Originalassets preserved. JS syntax checked,noQA/tests/Native change.
+
+## HTML cube Above/Below divider layer buttons · 2026-11-07
+
+User requests twosmallbuttons toplacecube row infrontoforbehinddivider. Added Above/Below undercubecontrols,pressedstate visible. DefaultAbove retainscurrentpaintorder;Below insertswholemeter(includingper-cubeshadows) beforedividerplanes. Samepose/arch/opacity retained;oneUndo andfocusreturnsboard. State meterLayer persistedinsnapshots/history/export. No newassets/timers/Native change. JS syntax checked,noQA/tests/build/install.
+
+## HTML individual cube shadows match divider warmth · 2026-11-07
+
+User requests smallcubes shadowlike divider andwarmer lowerbody shading. Eachcube reuses actual divider.png beneathownbottom(width1.24side,height0.42side,alpha0.55),following itsownarchtangent;notonelongrowshadow. Added subtlewarm#bf9069 lowerbevel gradientonbody,strongerempty/lighterfullorange. Existinglockedtile emptybase0.25andorangeatlas preserved. Gradientstop-opacity whitelisted forSavedversions thumbnails. No newassets/filters/clock orNative change;centering stillmeasuresvisibleface viewportsexcludingshadows.
+
+JS syntax PASS. ActualSafari refreshedpreview inspected:individualwarmunderside shadows/loweredges visibleonemptycubes,orange/sourcegeometry andsavedcards retained. NoQA suites/tests/build/install.
+
+## HTML empty preload cubes use lockedtile material · 2026-11-07
+
+User requests empty(non-orange)preloadcube samecoloraslockedboardtile. Emptyframe nowreuses exactexisting tile.png atsame0.25opacity aslockedboardcells,initsown128x128viewport. Orange andpartiallyfilledatlasframes remainunchanged;shape/motion/layout/state unaffected. Originalatlas/assets preserved;noNative change. Source syntax checked,noQA/tests/build/install.
+
+## HTML selection immediately arms arrow movement · 2026-11-07
+
+User requests selectedlayer immediatelynudgeable afterlistorboardclick. SharedfocusSelectedElement focusespersistentSVGroot withpreventScroll aftervisualpicker/legacyselect/inventoryselection,restore anddragfinish. Boardpointer selection focusesafterinspectorrefresh. Arrowhandler staysSVG-owned andignoresCmd/Ctrl/Alt andparkeditems;numeric/text/rangeinputs retainnativeediting. Existing1px/Shift4px,parent-space mapping,Undo/axislock preserved.
+
+JS syntax PASS. Safari actualvisualpickerselected originalarcheddivider,AXfocus immediatelyboard withoutboardclick. DownY17.9→18.9;ShiftDown→22.9;ShiftUp+Up restored17.9,X-1.2unchanged. Focusremainedboard acrossrerenders. NoQA suites/tests/Native change.
+
+## HTML cube centering excludes hidden atlas frames · 2026-11-07
+
+User reports Centriraj shiftscube row incorrectly. Rootcause:SVGgetBBox includes fullfour-frame512wide atlasimage beyondnestedviewport crop,so measurementdepends onfill frame. Metercenter nowunions actualviewportcorners foroneface perrigidcube,throughown tangentrotation andparentpose;hiddenatlasframes/blends excluded. Archeddivider usescanonicalcroppedbounds too. Translation remainsboardXonly. Tiny<0.0001roundoff correction ignoredtoavoidrepeatUndo jitter;inspectoroffsets formatted4decimals.
+
+JS syntax PASS. ActualSafari meter20cubes/47.7percentarch/42percentfill centeredX-0.6→-0.000004715(~0),Y-11.2retained;visiblerow centeredwithsameheight/curve. NoQA suites/tests/Native change. User's exactall-grey currentbrowserdraft notaltered bymanualsource write.
+
+## HTML Shift drag axis lock and4px nudges · 2026-11-07
+
+User requests Figma-like Shiftconstraint andShift+Down4px versusDown1px. Board drag nowcapturesinverseparent once;Shift chooses dominant horizontal/verticalaxis fromstart andholds it untilrelease,thenfreedrag resumes. Pointerdelta andarrow nudges map throughparentinverse so actualboard-space directions/distances remaincorrect underHUDrotation/scale. Allarrows1px,Shift+arrows4px. OneUndo perdrag,existingkeyboardUndo perstep/cancel preserved. Hintupdated. JS syntax checked,noQA/tests/Native change.
+
+## HTML horizontal-only center snap nearGuides · 2026-11-07
+
+User requests button attopnexttoVodilice centeringselectedelement horizontallyonly. Added ↔Centriraj. Computes transformedselectedSVG bounds midpoint andtranslates toboardX195;inverseparentvector preserves actualboardY evenwithrotated/scaledHUDparent. Onlyselectedpose offsets updated,oneUndo entry;scale/rotation/width andotheritems unchanged. Disabledforparkeditems. IDs/state/export retained. JS syntax checked,noQA/tests/Native change.
+
+## HTML bidirectional divider geometry sync · 2026-11-07
+
+User requests selectedarcheddivider copyotherdivider's arch/position/width. Added dynamic Sync sa dividerom2onfirst,Sync sa dividerom1onsecond. Oneclick copies x/y/scale/rotation andarchWidth/archBend into selecteddestination,oneUndo entry;independent opacity/material/background/parking retained. No livebinding orsource mutation. Existing persistence/export carriescopiedvalues. JS syntax checked,noQA/tests/Native change.
+
+## HTML divider arch controls moved up · 2026-11-07
+
+User requests navigation-background opacity andarchstrength amongupperdividercontrols. Moved existingarchControls(material,backgroundopacity,archstrength) immediatelyabovegenericOpacity/Rotation. Botharcheddividers retainselectedprofile routing;IDs/listeners/state/history untouched. Source syntax checked,noQA/tests/Native change.
+
+## HTML second independent arched divider initem list · 2026-11-07
+
+User requests oneadditional arched divider initemlist. Added navDivider2(Divider · arch2),initiallyparked withindependentpose,width,alpha,archbend,background material/opacity(default0). Shared rendering helper draws both withuniqueclipIDs;inspector routes arch controls toselecteddivider. Existingmeter/icon Sync continuesusingoriginal navDivider. Normalization adds newitem tofirstfreeparkingslot withoutoccupying existingitems;inventory expands12to14slots. Olddrafts/history/savedversions retainothergeometry;exportincludes botharchsettings. Originalassets unchanged,noNative change.
+
+JS syntax PASS. Safari rendered new Divider · arch2card inleftitemarea,existingwoodnavigation/layout andsavedcardsretained. Newdivider remainsparked foruser. NoQA/tests/build/install.
+
+## HTML meter controls grouped above opacity · 2026-11-07
+
+User additionally moves Napunjeno andArch kockica up,all aboveOpacity. Inspector order nowwidth,count/gap,fill,independentarch+sync,opacity,rotation. Existingmeter-onlyvisibility andglobalfill visibility/IDs/handlers/state/export preserved. No QA/tests/Native build/install;source syntax checked.
+
+## HTML cube sizing controls above rotation · 2026-11-07
+
+User requests Broj kockica andRazmak između kockica aboveRotacija. Moved existingcontrols into meter-only sizinggroup immediatelybefore rotation;IDs/listeners/state/history/export unchanged. Arch/sync controls retain lowerposition. JS syntax checked,noQA/tests/Native build/install.
+
+## HTML saved layout cards quota repair · 2026-11-07
+
+User screenshot shows failed saved-version write(full localStorage) andrequests immediate small item-like savedcard,clickloads layout. Moved savedversions to IndexedDB sts-native-board-editor/versions,single-record atomicwrites separate from localStorageUndoquota. Legacyversions migrate byid without deleting originals;existingDB/legacy versions remain available evenifmigrationwrite fails. DBopens peroperation andcloses oncomplete/abort/versionchange;blockedlateopen closes without latewrite. Save captures click-time state,disables duplicate save until persistence,thenimmediately inserts card;failure neverclaims success orremoves priorversions. Card now106px item-style house with66px fullboard preview/name,activeoutline. Load still restores complete normalized snapshot in oneUndo step. No Native data/runtime orasset changes.
+
+JS syntax PASS. Safari migrated existingcard,saved Drvena navigacija via newDB,refreshed andretained bothcards. Click oldcard switchedboardmaterial;clicknewcard immediately restoredwood layout andactivecard,Undo613→614→615. Actual squarecards/thumbnail rendering inspected. User's fullquota condition supplied byscreenshot;notartificially recreated inSafari. No QA suites/tests/build/install.
+
+## HTML solid wornwood replaces paper-like wood feel · 2026-11-07
+
+User rejects paper-like look andrequests genuinelybroken/wornwood. Generated fresh fromtile+logo references withoutpaper reference:solidwood checks,grain,knot,chipped dents. Firstv2had unwantedouterbevel/loosechips;targetedbuilt-in editv3removes frame/chips,bleaches towardivory andextendsface edge-to-edge,retaining angular solidwood cracks. New source nav-worn-solid-wood-v3.png andexactprompts under game design/output/2026-11-07-bleached-wood-navigation;editor asset nav-bg-worn-solid-wood-v3.png,hashrecorded. New wood-split option Pohabana daska · napukline i iverje selected;oldwood/paper resources remain for savedversions. Existingarch clip/positions/opacity unchanged;noNative integration.
+
+Actual PNG andselectedSafari preview inspected at100opacity;woodgrain/cracks visible,existinglayout/savedversion retained. Undo612to613. JS syntax PASS,noQA/tests/build/install. Useraesthetic acceptance pending.
+
+## HTML bleached worn wood navigation candidate · 2026-11-07
+
+User requests replacing paper feel with verypale slightlybeige worn wooden plank in existingasset/logo style. Inspected actual assets/logo-stacktosix.png andtile@3x.png. Built-in imagegen uses tilematerial,logopalette andpriorwhitenav formatreference;new2172x724opaque texture has horizontal softgrain,faintsideknot androunded worn grooves,quietcenter. Source/prompt in game design/output/2026-11-07-bleached-wood-navigation;editor bytecopy assets/nav-bg-bleached-wood-v1.png,hash/references inmanifest. Added wood option under renamed Materijal navigacije;original andpaper variants preserved. Central materiallookup serves render/export. No Native integration/original artwork edits.
+
+Actual PNG andselectedSafari preview inspected at100opacity,existingarch/pose/row/grid/savedversion retained;Undo611to612. JS syntax PASS,noQA/tests/build/install. User aesthetic approval pending.
+
+## HTML worn navigation paper bleached white · 2026-11-07
+
+User requests less brown andmore faded white. Built-in imagegen color-only edit of wornv1 preserves folds/peels andlightens paper toward warmwhite withsoft grey relief. New sibling game design/output/2026-11-07-worn-navigation-paper/nav-paper-worn-white-v2.png,exactprompt PROMPT-white-v2.txt,editor bytecopy assets/nav-bg-worn-white-v2.png,hash inmanifest. Added third Papir navigacije choice Izblijedjeli bijeli papir;v1/original remain for oldsaves. Currentdraft selected white via actual UI. Existing arch/geometry/opacity/savedversions remain.
+
+Actual image andselected Safari navigation preview inspected:nearwhite folds visible at100opacity;X-1.2/Y17.9,width127,arch100 retained. Undo610to611. JS syntax PASS;noQA/tests/Native build/install ororiginal edits.
+
+## HTML navigation-only worn paper candidate · 2026-11-07
+
+User requests more ripped/folded/worn background andexplicitly clarifies navigation only. Built-in imagegen edit using original nav-bg@3xreference produced new2172x724opaque sibling,soft cream folds/lifted fibers/tiny edgepeels,quiet center. Candidate/source prompt in game design/output/2026-11-07-worn-navigation-paper;byte-identical editor copy assets/nav-bg-worn-v1.png andhash in manifest. New Papir navigacije selector chooses Originalni/Pohabani;existing arch clip,pose,opacity andrest ofboard remain. Defaultoriginal preserves oldsaved layouts;selection participates in currentdraft/Undo/Savedversions/JSON. No Native integration ororiginal replacement.
+
+Actual generated PNG inspected;Safari selected Pohabani andvisibly rendered creases/peels within existingarch at100opacity. Width127,X-1.2/Y17.9,arch100 andexistingboard/savedversion retained;Undo609to610. JS syntax PASS,noQA/tests/build/install. Candidate aesthetic acceptance remains user review.
+
+## HTML Saved versions andHUD tangent sync · 2026-11-07
+
+User requests HUD score/combo align rotation with arched divider at their current positions,then named saved-layout cards below left itemarea. Added one-shot Sync rotation with divider arch for Close/Backpack/Score/Combo andarched X/bag. Actual group anchor maps through composed SVG transforms into divider coordinates;curve tangent maps back through divider theninverse HUDparent,so nested moves/scales/rotations are respected. Only selected rotation changes;existing Undo/export retain it. Combo actual click0→-3degrees,X/Y0retained;score nearcenter0degrees.
+
+Saved versions stores immutable named full-state snapshots plus SVG previews under separate localStorage key sts-native-board-saved-versions-v1. Left2column cards load whole normalized state with one Undo entry;save does not change design oroverwrite prior versions. Snapshot name/time,parking/all parameters/arches/background included. SVG thumbnail clones whitelist generated tags/attrs andassets-only hrefs,namespace per-card gradient/clipIDs,andexclude guides. Thumbnail DOM rebuild only on list changes;active card follows currentstate. Storage failure preserves previous list andoffers existingJSON export. Existing draft/fullhistory retained;no Codex memory file write orNative change.
+
+node --check PASS. Safari saved actual current layout,refreshed andfound retained card;changed parked dividerX3.4→4 thenclicked savedcard restoring3.4,Undo608→609. Actual card thumbnail/art/background rendered andactive highlight visible;left saved layout loaded. No QA suites/tests/build/install.
+
+## HTML arched navigation background andyellow opacity controls · 2026-11-07
+
+User adds original navigation background joined to arch divider,with independent0..100opacity;then requests all opacity sliders yellow. Copied original assets/nav/nav-bg@3x.png byte-exact to editor assets/nav-bg.png andrecorded source hash. Existing navDivider group owns backdrop anddivider transform/parking/width/arch;backdrop clips to same parabolic lower edge. Group paints behind HUD/cube/grid content so backdrop cannot cover controls. Own navBackgroundOpacity slider defaults100,0transparent;divider alpha remains independent. Existing normalized drafts/history/Undo/Redo/JSON carry new value. Both generic element/divider opacity andbackground opacity ranges use yellow accent;other ranges remain orange. No Native runtime/source/original asset changes or new clocks.
+
+JS syntax PASS. Safari observed navigation backdrop100percent following arched divider,current geometry retained;both opacity tracks yellow andother controls orange. No QA suites/tests/build/install.
+
+## HTML independent cube arch andone-shot Sync · 2026-11-07
+
+User replaces live arch-follow link with independent Arch kockica slider andSync with divider arch button. Cubes retain own transform,width,count,gap andcenter-floor anchor. Button copies curvature once,accounting for rendered width andscale ratio;does not copy divider pose or create a persistent link. Slider supports reverse/flat/positive arch;rigid PNGs follow local tangents. Legacy linked drafts/history normalize to independent geometry preserving painted pose;unchecked drafts retain existing geometry. Existing Undo/Redo andJSON export now carry independent meterArchBend/depth. Removed live-link UI/runtime branch andidentity pose helper;no Native code/assets touched.
+
+JS syntax PASS. Safari actual click Sync changed arch0to47.7percent;cube X-0.6/Y-11.2,width87.7percent,scale100,rotation0,count20 retained. Undo advanced604to605;visible row arched,button/status rendered. Left copied curvature for review. No QA suites/tests/build/install.
+
+## HTML visual layer picker · 2026-11-07
+
+User requests visual representation at selected-layer control. Replaced visible text-only select with selected thumbnail/name/status and expandable3column12layer thumbnail chooser,using actual current SVG layer clones/original images. Selected card highlighted;parked items marked Odloženo. Clicking chooses existing inspector layer without changing design/history;legacy select binding retained hidden. Existing board selection,inventory,arch link,Undo/Redo/export preserved. Also park-button label now reads actual selected item parking state rather than shared pose owner. No new assets/timers/runtime dependency.
+
+JS syntax PASS. Safari visibly rendered expanded thumbnails for all12layers including curved divider,cube row,HUD andfooter;current Divider highlighted. Existing draft preserved. No QA suites/tests/Native build/install.
+
+## HTML preload row linked to divider arch · 2026-11-07
+
+User requests preload cubes as a whole snap/follow the manipulated arched divider. Added opt-in Prati divider arch · snap4px to existing static board editor,plus Jačina archa. Both use one curve;rigid PNG cubes follow individual tangents4local points above divider. Shared divider X/Y/scale/rotation andrelative width keep row attached while manipulating divider;dragging row moves shared divider. Initial row spans artwork80percent;count/gap/fill remain editable. Disconnect restores prior independent flat transform. Link/depth/ratio participate in existing normalized drafts,Undo/Redo andJSON Native mapping,effective width/center floor exported. Corrected malformed meter/HUD select option tags that prevented inspector selection. Original assets untouched,no new clock/gameplay/save owner.
+
+node --check PASS;local server200. Native Safari visibly showed24cube row following default100percent then180percent arch,with link checked andUndo advanced once per edit. Left180percent preview for review;no QA suites/tests/Native build/install or main/LAB runtime edits. Geometry/visual preference remains user review.
+
+## HTML item inventory,arched navigation library andcube reflow · 2026-11-07
+
+User requests side hold/item area with drag/snap andreturn,plus transparent arched navigation divider,tangent-rotated X/backpack;then cube-count reflow,gap/width controls andscale/width/opacity for every element. Added12slots,drag proxy,occupied-slot swap,exact last-position return snap within18Nativept,cancel restore,inspector/keyboard return andpersistent Undo for parking/placement/parameters. Existing drafts/history normalized,not reset. Three navigation templates initiallyparked,using actual shared-header depth/32slice tangent formulas andoriginaltransparent artwork;no background rectangle. All elements getscale,width,opacity,rotation. Meter count6..48 andgap define exact full-width fit,so fewer cubes grow automatically;normal/arch dividers have independent controls. Native export includes item states andall layout parameters.
+
+Native Safari observed rendered inventory/assets;actual drag parked HUD backpack into slot4 then returned it toboard,with1history entry each. Later keyboard inspection switched Safari toHistory during concurrent user activity;no claim of completed keyboard Undo verification. Source syntax checked,noQA/tests/Native build/install. Original assets/currentdesigns preserved.
+
+## HTML board editor persistent Undo/Redo · 2026-11-07
+
+User requests Undo all the way to initial layout. Added baseline-rooted snapshot history for all inspector edits,arrow nudges,drag completion and reset. Single drag is one entry. Undo/Redo buttons and Cmd/Ctrl+Z / Cmd/Ctrl+Shift+Z,Ctrl+Y. Full history+cursor persists across refresh;new edits after Undo discard redo branch. No arbitrary depth cap;storage quota failure explicitly keeps session-only history. Pre-feature saved draft preserved as one snapshot over Native baseline,not fabricated historical actions. No QA/tests/Native build/install. JS syntax checked.
+
+## Static HTML Native board editor + upward/higher motion steering · 2026-11-07
+
+User requests static board preview with exact Native spacing for later design transfer. Added prototypes/domino-meter/board-editor/ with original byte-copied density assets/fonts,literal390x844phone geometry and source SHA256manifest. Native anchors:HUD67,cube floor124,divider128,gridtop136,tile60.8/stride70.3. Full5x9reference-like sample occupancy,matching footer,paper/tint and safearea. Editable/drag/nudge/scale layers,divider95percent/55percent art or line,localdraft/reset,JSON export with top-left->NativeY mapping. Native Safari visibly renders board andcontrols;4pt divider move reports128->132,reset restored128. No per-pixel Native screenshot comparison claim;sample board identities/occupancy are illustrative. Existing HTML versions retained,no runtime editor import.
+
+Steering during task:all starts/refills onlyfrombelow,remove topdrop;hop40percent higher,longer randomized per-profile gravity timing. Applied to originalHTML and separateLAB. LAB normal build/install/launch:com.taptapdesign.stacktosix.native.jumppop: 48556,receipt /tmp/lab-below-higher-20261107. No QA/tests;actualSilentModeON,normal isolatedLAB preview,no main/phone/PWA install. Original assets/saves preserved from manual modification.
+
+## HTML small-HUD shard magnet and late/fast bag opening · 2026-11-07
+
+User requests animated shard intake in existing mini HUD. Added actual backpack icon,HUD-spanning canvas,cached real icon target,explicit Shardovi u ruksak preview button and varied scatter->accelerating cubic magnetic flights. Same paused RAF;new row enters below at half height during final collection;finite receipt bounce. User then delays bag opening until shards are very close and accelerates closing:within18px admits5existing poses over45ms;closing60ms after no close shard remains. Both render scales own bounded pose state,reset clears it;no new scheduler/audio/save owner. No QA/tests/Native build/install. JS syntax check only;native Safari page/button observed,preview click CUA timeout means final visual review remains user-owned.
+
+## HTML static Native HUD and first-row reference · 2026-11-07
+
+User requests magnet shards to HUD Backpack,then steers to static positions first. Added static390x235Native-style HUD/first-row inline SVG above original HTML demo,using preserved runtime artwork copied to prototype assets only. Native source geometry supplies main anchors and iPhone390x844 safe47/34 baseline:HUDy67,Backpackx118/34pt,trophyx192,meterx24/342width,LAB cube bottom124,divider95percent at128,board top132/tile60.8. Close/combo text positions illustrative,not pixel-perfect Native acceptance. Existing animated demo untouched;magnet shards not yet implemented pending layout review. No QA/tests/build/install.
+
+## HTML new board drop,gameplay refill only below · 2026-11-07
+
+User clarifies routing:new game/new board starts with top drop;within game post-shard replacement only enters from below. Original HTML default refill now always reverse/upward,no random drop. Restart now starts new board with top drop,label updated. Explicit manual new-row drop preview button remains a direct study control. Prior50percent refill hop height retained. Native/LAB unchanged. No QA/tests/build/install.
+
+## HTML post-shard refill half-height rebound · 2026-11-07
+
+User requests at most50percent previous bounce travel when new cubes arrive after shards. Original left-to-right prototype refill-only reverse-entry lift is multiplied.5;its derived rebound energy follows same height. Drop-refill rebound input velocity multiplied sqrt(.5),halving ballistic rebound heights while preserving gravity. Initial board entry/restart,ordinary charge hops,shards and original fall origin unchanged. No QA/tests/build/install.
+
+## HTML orange cube bodies highlight only · 2026-11-07
+
+User removes dark body shading from orange cubes too. Prototype atlas preparation now handles all pixels:grey and original sampled orange body colors retain only positive soft reflections,negative body shading removed. Alpha,ground shadows,motion,orange-only excitement and separate backpack candidate retained. Original source PNG unchanged. No QA/tests/build/install.
+
+## HTML grey cube bodies highlight only · 2026-11-07
+
+User removes dark body shading from grey empty cubes. Prototype decode now clamps negative luminance shading to zero and retains only soft positive highlights above grey#E7DFD7. Orange material,ground/contact shadows,motion and backpack candidate unchanged. Original PNG bytes preserved. No QA/tests/build/install.
+
+## HTML left-to-right grey empties and orange-only strokes · 2026-11-07
+
+User requests original left-to-right HTML with excitement strokes only on fully orange cubes and soft grey empty material from supplied preload reference. Original index/demo variant now gates strokes on displayed amount>=.999 and delays charge accents to240ms. Empty atlas portions repainted once during canvas preparation toward#E7DFD7 with original shading/alpha;orange/original PNGs preserved. Backpack candidate unchanged. No QA/tests/build/install;user visual review pending.
+
+## HTML backpack remove stacked duplicates · 2026-11-07
+
+User rejects stacked-cube duplication. Candidate profiles now have24unique horizontal positions in a single continuous depth-curved row;removed both duplicate-x stacked accents. Paired filling,upper-opening intake and bag motion retained. Original version unchanged. No QA/tests/build/install.
+
+## HTML backpack reference depth and top-opening intake · 2026-11-07
+
+User rejects shallow random spacing and asks reference-led focal depth plus orange cubes flying into upper bag opening. Backpack candidate now uses authored sag/rise profiles,two stacked accents,depth scale and paint order;endpoints flank bag. Compatible-height ambient trade restriction preserves stack structure.5existing backpack poses open before paired arcing flights;flight endpoint is inside upper cavity,with original front lip/body composited over incoming cubes. Bag stays open/still through final arrival,then bounce/collapse/enter. Original variant and Native/LAB unchanged,no QA/tests. Native Safari preview reviewed authored stack/curve. Final intake review interrupted by user Safari window/activity change;no final animation acceptance claimed. Orange cubes settle during opening before intake;original5-frame opening and closing use the same finite paused clock.
+
+## HTML additional central-backpack depth candidate · 2026-11-07
+
+Added prototypes/domino-meter/backpack.html + backpack.js/css as separate linked version;original demo.js/motion retained.24depth-offset cubes flank existing backpack artwork12/side;paired fill advances simultaneously from outer edges inward. Full charge gathers cubes,bag bounce/scales into itself/backOut enters,then new row. Top mini-HUD backpack removed only in candidate. Same paused/demand animation lifecycle,no runtime/save/audio/haptic changes. Original art untouched;alpha-trimmed backpack copies live only in prototype assets. No QA/tests per user request. Initial CUA browser host unavailable;native Safari fallback visibly renders new version,25percent paired fill,inward progression and full-charge return toCycle1. Exact bounce feel remains user review. No Native/LAB build/install.
+
+## Six LAB New Game cadence repair and divider · 2026-11-07
+
+New Game meter motion previously outlasted board-entry renderer demand, allowing configured15fps fallback during its remaining entry/rebounds/emotions. Added finite cosmetic jump-pop-meter Source frame capture and existing60Hz render demand while actual motion runs, excluding quiet ambient waiting and tutorial/gameplay-settled gates. Prime/completion/retirement/disposal release ownership. Removed redundant50ms elapsed clamp;body geometry only resizes on layout and atlas assignment only changes material. All24cubes and motion recipes retained. Focused actual Source runtime/cadence/budget executable PASS:reproduced fallback,verified60fps demand until release,duplicate reuse,gate neutrality,reopen/stop. SDK regressions added but not executed;no broad suites. Configured cadence is not measured device FPS.
+
+Added original Home assets/home-shadow.png density source as a static cached divider,top anchor4pt below resting cubes,Home inset/alpha0.55. No new recurring work or original artwork edits. Initial curved divider delivery normal Debug BUILD SUCCEEDED /tmp/lab-meter-divider-20261107/build-final.log;LAB install-over/normal launchPID89711,matching debug dylib0b1f0547149aea6fca7aea069541888f2ec2c08f37d462febb7cb0c8b5fe2e98,2995assets byte-exact,both saves unchanged through that install. Concurrent later flat-divider refinement supersedes curved source and installed preview;preserve its latest changes (/tmp/lab-flat-divider-20261107/build.log BUILD SUCCEEDED). CUA observed divider below24cube row in normal LAB gameplay;actual SpringBoard Silent Mode1 verified after toolbar correction. Latest source differs from initial delivery manifest due flat refinement;no stale receipt claim. Scoped diff hygiene PASS. No main-app/phone/PWA/legacy install or experiment merge. Motion feel/performance remains user review/NEEDS PHYSICAL TEST.
+
+## Old Native build disk cleanup · 2026-11-07
+
+## Six LAB full HTML lifecycle port,Restart upward,HUD-bound drop · 2026-11-07
+
+User requests all HTML46logic/design in LAB,then steers Restart to upward entry and top drops to start2px below HUD icons. Existing selected round PNG/24touching cubes/shadows/random emotion/8pt offset/ambient retained. Board HUD receipt starts downward entry;Restart fresh-entry flag via Bootstrap/VC/Scene selects upward variant. Refills after shards choose50/50down/up. Old directional waves removed. Both variants share gravity48tile-heights/s²,1–2energy-losing rebounds/contact squash/settle. Fall origin now top2pt below resting icon bottom;duration follows actual shortened height. Restored ratio/latest progress and a bounded pending consume survive entry;no canonical/save/rule mutation. HTML47updated too.
+
+Component mounted as fixed-rest HUD-parent sibling,with tutorial container scale/alpha/visibility forwarded. Synchronous first pose prevents old-row flash;prime is hidden/quiet,HUD receipt admits entry. Scene takes outgoing surface before Source retirement. Existing raw HUD/board SKAction drives shuffled per-cube exit,height,nearest14percent single turns,bottom-anchored collapse,and waits for final cube (also Arcade retained chrome). Source lease retires before manual exit;success/disposal removes outgoing root,cancel restores only to original current owner. No extra clock/timer/audio/haptic owner. Source and lifecycle review/Swift parse PASS;no QA suites/tests executed.
+
+Final normal Six LAB Debug BUILD SUCCEEDED /tmp/lab-board-lifecycle-20261107/build-space-retry.log;earlier restart-origin/low-space attempts failed because disk filled. Removed only verified generated compiler/index caches from inactive Native workspace DerivedData and this task's temporary failed build data;no source/build-product/save cleanup elsewhere. Script uses arm64/ONLY_ACTIVE_ARCH and disables indexing. Exact LAB install-over/normal launchPID77253 on7334E33E-DC68-4482-A9A5-35356151D08A;built/installed launcher+dylib hashes match,2995current original assets byte-exact,no testPlugIns/Web.bundle,production inputs stable through final observation. Both LAB saves unchanged through install. ActualSilentMode1. Evidence delivery.json/source-inputs.json/cache-cleanup.json in same folder. CUA foreground was active main Simulator and target-selection actions rejected due ongoing user activity;no manual LAB animation acceptance claimed. No main-app/physical/PWA/legacy build/install/merge. User review remains pending.
+
+
+User authorizes retiring old builds while retaining latest two. Removed 57 inactive generated directories under `/private/tmp`: older verified Native DerivedData Build/cache folders and `.app` snapshots whose Info.plist confirms exact Native/main or LAB identity. Preserved latest LAB `/tmp/jump-pop-native-derived` and main `/tmp/home-bottom-nav-normal-derived`; both app products verified present. Live xcodebuild paths checked before planning and deletion; no active build directory removed. Reclaimed 41,952,890,880 bytes (39.07 GiB); final free space approximately 39.84 GiB. Disk write plus fsync probe PASS. Source, original assets, Git, installed apps, Simulator containers and canonical saves were outside deletion scope. No build/install/launch or gameplay changes. Receipt `/tmp/stacktosix-build-cleanup-20261107-receipt.json`; inventories and exact plan beside it. Application save retry remains user review; disk write proof is not app save acceptance.
+
+## Restore original3paper levels;delete rejected5asset families · 2026-11-07
+
+## HTML upward refill soft gravity rebound · 2026-11-07
+
+User requests top-drop-style gentle rebound after upward new-row entry. Both variants share captured gravity/restitution rebound plans and the same painter. Reverse hop peak determines incoming energy;1–2smaller ballistic rebounds/contact squash/final settle extend entry deadline. No new timer/Native/LAB changes. JS syntax checked;cache reverse-gravity-rebound-46,user visual review pending.
+
+
+## HTML board always drops,shard refill chooses two variants · 2026-11-07
+
+User changes routing:board load always gravity-drop;after full-orange shard burst,new row chooses50/50drop or zero-scale upward reverse-exit. Removed old directional wave planner/painter/reset phase. Shared finite entry-plan owner reused;refill preserves existing debris epoch,queued gain and auto,while mini HUD stays fixed. Board entry drops HUD as before. Buttons identify board entry and two direct new-row previews. JS syntax checked,no suites/tests/Native/LAB changes. Cache board-drop-refill-random-45,user visual review in existing HTML demo.
+
+
+## HTML two random board-entry variants · 2026-11-07
+
+User requests a literal reverse-exit entry plus existing drop,chosen randomly per board. Whole entry mode captures50/50drop/reverse. Shared exitTilePose trajectory sampled backwards for reverse:zero-scale floor growth,hop/rotation,slot settle;captured random delays/heights and14percent turns retained. Added direct Samo drop/Samo reverse jump review buttons beside Random dolazak;label identifies chosen mode. Same finite RAF/paused clock,no new resources/timers,existing full-charge cycle unchanged. JS syntax checked,no suites/tests/Native/LAB changes. Browser host unavailable;visual feel remains user review at http://127.0.0.1:5188/ cachetwo-random-board-entries-44.
+
+
+User explicitly removes latest3reference and prior2crumpled papers from rotation AND assets;keep original ordinary/medium/strong(01worn/02cracked/03cut). Restored shared registry3;existing count-driven random/clamp retained. Removed finished-source bypass;all3retain accepted pale wash and matching Close texture. Latest branch-specific Close crop/smooth rounded shape unchanged. Deleted only authorized04/05/06/07/08family density PNGs from runtime source/prepared resources,with built/installed absence gate pending. Archival generated candidates outside assets retained. Mirrored focused changes to separate LAB without experiment merge. Final evidence `/tmp/modal-original-three-20261107`:qa:fast,qa:full530suites/4011tests plusKING330,qa:ios,feature/audio/native gates and diff hygiene PASS. Native2/0 PASS4.174s covers exact original3registry,all15rejected resource filenames absent,source wash/alpha/density,matching Close color/crop,27mounted size/mode/variant cases,stable choice/fit reuse/resume and weak retirement. Explicit authorized deletion recorded in removed-assets.json(60source/prepared PNG copies across main+LAB);rejected files also removed from generated build copies. Final built AND installed bundle checks show exactly9paperPNGs(original3at1x/2x/3x),zero04..08. Both normal clean arm64Debug builds PASS. Main retained1018Simulator install-over/normal launchPID61393 verifies matching binaries,stable inputs,2991source assets byte-exact,both canonical saves unchanged through install/initial launch,and actualSilentMode1. SixLAB7334Simulator install-over/normal launchPID62080 verifies matching binaries,stable inputs,2995assets byte-exact,both LAB saves unchanged through install/initial launch,and actualSilentMode1. Final main screenshot inspected:normalArcadeHub,no agent UI/gameplay input. Old inactive native-nav-height-lock/nav-atomic Build+Index caches only retired after workspace/active-path checks to keep disk space;receipt cache-cleanup.json. No new images,no physical/PWA/legacy install. Aesthetic/physical acceptance remains user review/NEEDS PHYSICAL TEST.
+
+## Smooth rounded modal Close restored · 2026-11-07
+
+User rejects torn/notched Close silhouette. Shared NativeModalPaperView.closePaper now crops the selected sheet interior instead of its top-right cut edge; existing16pt rounded control clipping supplies the smooth outline. Shared ordinary modal consumers retain texture selection,finish,X,bounce,position and paper silhouettes. No asset bytes changed. Normal main Native Debug BUILD SUCCEEDED; retained1018Simulator install-over/normal launchPID57425,matching launcher/dylib hashes,3006original assets byte-exact,both canonical saves unchanged through initial launch,stable production Swift inputs,and actualSpringBoardSilentMode1. Evidence `/tmp/modal-close-smooth-20261107`. No suites/tests run;visual acceptance remains user review. No physical/LAB/PWA/legacy install.
+
+## Three calm reference papers replace folded rotation · 2026-11-07
+
+## HTML shared entry gravity and14percent exit turns · 2026-11-07
+
+User rejects stiff entry bounce and excessive exit spins. Entry now solves fall time from height/initial velocity using shared48tile-heights/s² gravity;rebound velocity derives from impact with.30–.36restitution and further energy loss. Same gravity determines rebound durations;26ms impact squash/subtle flight stretch/80ms settle,1–2rebounds retained. Exit samples fixed random subset nearest14percent(3of24),one complete turn;rest only bounce/collapse. Existing random exit onset/height retained. JS syntax checked,no suites/tests/Native/LAB changes. Cache gravity-entry-exit14-43,user visual review in existing HTML demo.
+
+
+## HTML entry half as many rebounds · 2026-11-07
+
+User asks50percent fewer entry rebounds. Captured count2–4->1–2;individual height/shape/duration unchanged. Deadline already follows actual rebound count. Exit unchanged. Cache entry-half-rebounds-42. JS syntax checked,no suites/tests/Native changes.
+
+
+## HTML stronger random landing rebounds and staggered exit · 2026-11-07
+
+User asks stronger random repeated arrival bounces and nonuniform exit. Entry captures2–4rebounds per cube,200–275ms each,decreasing heights,40ms strong squash then stretch/flight and110ms final settle. Deadline includes all rebounds. Exit captures shuffled independent onset,random360–510ms flight,height,turn count/direction/shape;waiting cubes retain actual poses. Each separately collapses after its own contact,never below floor. Single finite RAF/local paused clock retained,no new timer. JS syntax checked,no suites/tests/Native/LAB changes. Existing browser host unavailable;user visual review http://127.0.0.1:5188/ cache random-exit-multi-bounce-41.
+
+
+## HTML board-entry random drop and game-end hop/sink · 2026-11-07
+
+User requests HTML first. Existing prototype now has explicit Dolazak ploče and Kraj igre buttons. Entry captures shuffled per-slot order,random flight duration340–570ms,delay,height and1–2signed turns;tiles fall straight into original slots,contact squash/rebound,mini HUD drop on same epoch. Exit captures actual current poses/colors,stops ambient/auto/effects,all visible tiles hop then collapse into bottom anchors at440ms contact over160ms,no below-floor travel/no fade. Gone state sleeps;re-entry/reset replace plans. Same demand RAF/visibility pause,no new timer. Selected round user PNG copied from existing LAB atlas into prototype only. Existing charged-meter shard/reset animation preserved. JS syntax/HTTP200 checked,no suites/tests/Native/LAB build/install/runtime changes. CUA browser host unavailable; no browser visual acceptance claimed. Review http://127.0.0.1:5188/ cacheboard-drop-and-sink-40.
+
+
+User approves latest3WeeBee-reference papers and explicitly removes previous2crumpled variants. Shared ordinary modal rotation now5equal choices:existing02cracked/03cut plus new06balanced/07offset-cuts/08soft-fray. Smooth01and folded04/05are outside selection;every source/original file retained. Registry-driven random/default/clamp from interrupted integration retained. New3sources uniformly exported at390/780/1170width,preserving1062x1480/1482aspect. Approved pale finish and alpha preserved,legacy wash bypassed for new3sheet AND matchingClose crop. Existing fit cache/adaptive seams,geometry,motion/lifecycle and gameplay/saves retained. Focused changes/new9PNGs mirrored to separate LAB,without experiment merge. Tests cover5variants/45mounted combinations,source finish,Close parity,retired-fold exclusion and stable lifecycle. Final evidence `/tmp/modal-reference-rotation-20261107`:qa:fast,qa:full530suites/4011tests plusKING330,qa:ios,feature/audio/native admission and diff hygiene PASS. Numeric finish/alpha/Close test PASS0.594s. Initial mounted material test failed only3height expectations because sips truncates uniform upsample height by1pixel;fixture corrected to actual floor export rule,then1/0 PASS5.415s covers all5variants/45mounted combinations,stable choice,fit reuse,resume,Close texture and weak retirement. No production geometry weakened. All3actual fitted new390renders viewed. First generic normal build failedENOSPC. Verified inactive Native DerivedData info.plists and no live xcodebuild,retired only old arcade-paper/close-dice Build+Index caches,receipt cache-cleanup.json;source assets/saves untouched. Final normal arm64Debug builds succeeded. Main retained1018Simulator install-over/normal launchPID53390 verified matching launcher/dylib,stable inputs,3006source asset files byte-exact,both canonical saves unchanged through install/initial launch,and actualSpringBoardSilentMode1. Separate SixLAB7334Simulator install-over/normal launchPID54387 verified matching binaries,stable inputs,3010assets byte-exact,both LAB saves unchanged through install/initial launch,and actualSilentMode1. No testPlugIns/Web.bundle left. Final main screenshot inspected:normalHome;no gameplay input. Physical fit/feel remains user review/NEEDS PHYSICAL TEST. No physical/PWA/legacy install.
+
+## Three new paper renders match Wee Bee reference · 2026-11-07
+
+## Six LAB exact user-selected round PNG · 2026-11-07
+
+User attaches/selects the alternate round pillowy4state sheet. Copied exact generated exec-9ad05702-2677-4ba7-a711-4d8d7ab8c8d1.png bytes into game design/output/2026-11-07-preload-selected-round/fill-states-master.png,no regeneration/recolor. Existing trim/resize-only packer produces sibling assets/hud/jump-pop-meter-selected-round-v4.png(512x128);LAB scene selects it. Prior PNGs preserved. Emotion geometry fix,all motion and total8pt lower offset retained.
+
+Initial generic build failed at lipo(No space left on device). Removed only this task's temporary LAB DerivedData/cache,never app data/original assets. LAB build script now targets host arm64Simulator with ONLY_ACTIVE_ARCH=YES;clean normal Debug BUILD SUCCEEDED. Postbuild own intermediate/index caches retired to leave installation space. Native identity/original-asset audit PASS3001byte-exact assets;no QA suites/tests. Exact LAB bundle install-over/normal launchPID44419 on7334E33E-DC68-4482-A9A5-35356151D08A;built/installed launcher/dylib hashes match,all3001assets match,no testPlugIns/Web.bundle,production inputs stable. LAB saves unchanged through install. CUA observed normal LAB Home/no board moves;actualSilentMode1. Evidence /tmp/lab-selected-round-20261107(build.log failed generic,build-arm64.log,delivery.json,source-inputs.json). No main-app/physical/PWA/legacy build/install/merge. User visual acceptance pending.
+
+
+After explicitly stopping prior integration,user asks for3new renders matching latest Wee Bee paper screenshot's cut/edge-wear amount and surface;ignore strong folds/crumpling. Built-in image_gen uses latest screenshot as sole specific paper reference,removes all UI/bee/Close and returns3blank pale papers with different modest-cut arrangements and calm flat centers. Saved masters/prompts/alpha measurements in `game design/output/2026-11-07-modal-paper-reference-v3`. Viewed outputs have no strong folds/crease clusters;portrait aspect approximately390:544. New candidates only;no runtime source/assets/build/install/save change. Prior interrupted rotation integration is not resumed or represented as delivered. User selection pending.
+
+## Approved fold papers join random modal rotation · 2026-11-07
+
+## Six LAB+1orange,stable emotion geometry,another4pt down · 2026-11-07
+
+User rejects+2as too pale,selects+1reference,reports one-frame stretched emotion strokes,and asks another4px downward offset. LAB selects new sibling atlas assets/hud/jump-pop-meter-orange-plus1-v3.png;previous PNGs preserved. Four-state generated source under game design/output/2026-11-07-preload-orange-plus1,packed without recolouring by updated configurable pack-jump-pop-soft-atlas.py. Orange strokes#EA865F. Stroke sizes/anchors now assigned only on resize with scale/rotation at identity;per-frame accent painting updates transforms/alpha/color only. Removes the scaled SKSpriteNode.size-setter compensation path known to create extent spikes;constant .28tileheight geometry retains random1–3angles/bounce. Floor now total8pt below initial baseline (another4pt). Other motion unchanged.
+
+First build stopped in artwork inventory because6new saved paper assets appeared during copy;no source assets removed. Repeated complete-tree build/native identity audit PASS3000byte-exact assets;normal Six LAB Debug BUILD SUCCEEDED. No QA suites/tests executed. Installed over exact LAB bundle on7334E33E-DC68-4482-A9A5-35356151D08A,normal launchPID38581;built/installed binaries match,all3000assets match,no PlugIns/Web.bundle,stable captured inputs. LAB saves unchanged through install. CUA observed normal LAB Home,not a test runner;no gameplay moves performed. Actual Silent Mode verifiedON. Evidence /tmp/lab-orange-plus1-strokes-20261107(build.log initial failure,build-final.log,delivery.json,source-inputs.json). No main-app/physical/PWA/legacy build/install/merge. Final observation:only NativeArcadeModalMotionTests.swift drifted during parallel test-source editing;normal app production inputs remain byte-stable,that test source is excluded from this build. Saves changed after initial launch/observation;no restore/write performed,no unchanged-through-play claim. User optical review of the brief artifact remains pending;source/build proof is separate.
+
+
+User authorizes refined1/3fold papers in random modal rotation. Smooth original paper-01-worn is removed from selection per original replacement request,but all original files remain. Four equal-probability stable choices:existing cracked/cut plus new paper-04-soft-folds/paper-05-crumpled-folds. Shared default and Arcade sampler/clamp now derive from registry count. New PNGs use uniform width export390/780/1170 preserving962x1634master aspect(heights662/1325/1987),not stretched to old544height. Their already-approved pale finish bypasses legacy wash in both fitted sheet and matching Close crop. Existing adaptive fit,geometry,motion,lifecycle and saves retained. Mirrored focused integration/new assets to separate LAB without merging experiment. Tests cover all4variants at phone/small/tablet sizes,finish/alpha/density/Close parity,stable choice and retirement. Evidence `/tmp/modal-fold-rotation-20261107`;validation/preview pending.
+
+## Paper proposals refined toward folds/crumpling · 2026-11-07
+
+User accepts previous1and3tear level,rejects2as too torn,and requests more soft physical folds/crumpling like supplied close-up. Built-in image_gen refines1and3separately using exact2base candidates plus supplied close-up. Outputs and full prompts/alpha measurements in `game design/output/2026-11-07-modal-paper-folds`;original candidates preserved. Viewed results:more readable soft diagonal folds,localized perimeter crumpling,pale creamy material and quiet text center,without new large holes or curled corners. Generated silhouette remains approximate. These refinements await user review;no runtime source/asset/build/install/save change.
+
+## Three lighter torn-paper proposals · 2026-11-06
+
+User likes current lightened paper and requests3replacement proposals for smoothest paper-01-worn,with medium/strong tears and occasional crumpling. Built-in image_gen created3separate transparent962x1634candidates,stored non-destructively in `game design/output/2026-11-06-modal-paper-tears-v2` with complete prompts/references/alpha measurements. Viewed current smooth/cut rendered papers and Journey master before generation. Candidates preserve pale cream,quiet center,flat sheet/no UI and vary edge cuts/localized creases. Near-opaque generated centeralpha252/255 and a few low-alpha exterior pixels remain candidate-preparation limits,not runtime assets. No runtime/original asset,code,build,install or save change. Design-library verification reports20existing source/reference snapshot differences;no originals/references refreshed. User selection pending.
+
+## Shared modal paper40percent less warm · 2026-11-06
+
+## Six LAB lighter orange+2 and soft volumetric highlights · 2026-11-06
+
+User selects+2orange concept and asks its soft rounded specular highlights applied to LAB cubes. Built-in imagegen uses previous atlas and selected+2comparison as references;new0/30/60/100sprite master under game design/output/2026-11-06-preload-soft-orange. Deterministic trim/resize packing via scripts/pack-jump-pop-soft-atlas.py creates sibling assets/hud/jump-pop-meter-soft-orange-v2.png(512x128,unchanged256KiB decoded budget). Previous atlas bytes preserved. LAB NativeBoardScene selects sibling;charging strokes match#ED9875. Broader top-bevel highlight,lighter apricot material and open lower/side shading;existing motion,geometry and4pt downward offset unchanged. Feature resource record updated.
+
+Normal clean Six LAB Debug BUILD SUCCEEDED;Native identity/asset audit PASS2993files. No QA suites/tests executed. Exact LAB bundle install-over/normal launchPID31198 on7334E33E-DC68-4482-A9A5-35356151D08A verified matching launcher/dylib hashes,all2993assets byte-exact,stable inputs,no testPlugIns/Web.bundle. Both LAB saves unchanged through install;continued existing Area55Stage01 for preview without board moves. CUA observed lighter meter and hop in normal gameplay(score633);actualSilentMode1. Original saves never restored/reset. Evidence /tmp/lab-soft-orange-20261106(build.log,delivery.json,source-inputs.json). No main-app/physical/PWA/legacy build/install/merge. Optical feel remains user acceptance.
+
+
+## Six LAB HTML candidate port and meter4pt lower · 2026-11-06
+
+User requests current HTML candidate in existing Six LAB,entire meter4pt lower. Implemented only in experiment/jump-pop-meter-native worktree:24touching cubes over full original width,individual warm shadows,random1–3tilted bouncy strokes(pale brown birth/orange charge),cached landing smoke,50/50rotation and two lift heights,forward pop,40percent fewer shards(up to115),fade300ms earlier,cumulatively earlier random-origin row entry,and living single-cube breath/same-color2slot swaps with70percent arrival handoff,max2phrases/1.5s admission. Existing Source union-clock finite renewable lease owns all motion,with scope pause/current guards and synchronous disposal;no new timer/displaylink/audio/haptic/gameplay/save owner. Reduced Motion stays static. Native identity/asset audit and compiled normal LAB Debug build PASS;initial compiler type-check complexity failure was corrected by splitting closure;no suites/tests executed per iteration scope. Updated affected existing test expectations remain unexecuted. First failed build log /tmp/lab-cute-meter-build.log;final BUILD SUCCEEDED /tmp/lab-cute-meter-build-final.log.
+
+Exact com.taptapdesign.stacktosix.native.jumppop Six LAB install-over/normal launchPID26207 on7334E33E-DC68-4482-A9A5-35356151D08A. Built/installed launcher and dylib hashes match;2992original runtime assets byte-exact;production inputs stable;no testPlugIns/Web.bundle. Both LAB canonical saves byte-identical through install. Subsequent user play changed saves before final observation;no restore/write/reset performed and no unchanged-through-play claim. CUA observed normal gameplay with dense24row;did not perform gameplay input. Actual SpringBoard Silent Mode verified ON after toolbar toggle. Evidence /tmp/lab-cute-meter-20261106/delivery.json and source-inputs.json. No main-app/physical/PWA/legacy build/install/merge. Visual feel/thermal acceptance remains user review.
+
+
+User requests all3new modal backgrounds less brown/yellow and matching small Close containers. Shared NativeModalPaperView now composites60percent of the previously softened warm image plus40percent neutral white,folded into one source-atop fill(original source30percent,wash70percent). The same washColor serves fitted paper and the existing same-variant Close crop across every ordinary modal consumer. Alpha,original3texture bytes,grain/density,fit cache,variant selection,geometry,motion and gameplay/saves unchanged. Focused identical helper/test refinement mirrored to separate LAB without merging its experiment. Evidence `/tmp/modal-paper-less-yellow40-20261106`:focused Native2/0 PASS4.231s verifies numeric40percent wash at2x/3x for all3variants,unchanged alpha/density,27mounted mode/variant/size combinations,Close material,fit reuse,foreground/reopen and weak retirement. All3rendered papers inspected. qa:fast,feature/audio/native admissions,qa:ios,KING330,lint/typecheck,build and bundle gates PASS. Initial qa:full Tests gate stopped on ENOSPC while writing Jest reporter output;other gates passed. Removed only generated inactive task Xcode intermediary/index caches;exact failed Jest command rerun PASS530suites/4011tests74.036s. Original failed run retained. No test failure weakened or assets removed. Main complete-current-tree normal Debug build/install-over/normal launchPID28669 verified matching runtime hashes,stable production inputs,2991assets byte-exact,both canonical saves unchanged through install/initial launch,and actualSpringBoardSBRingerMuted1. Separate clean SixLAB normal Debug build/install-over/launchPID29521 verified matching runtime hashes,stable inputs,2992assets byte-exact,both LAB saves unchanged through install/initial launch,and actualSpringBoardSBRingerMuted1. Only shared material/test refinement mirrored,no experiment merge. Main normal High Score modal and matching Close texture inspected in final screenshot;CUA screenshot timed out,simctl screenshot fallback showed exact visible result without UI input. User visual preference remains review/NEEDS PHYSICAL TEST. No physical/PWA/legacy install.
+
+## Upper navigation exit bounce reduced30percent · 2026-11-06
+
+User requests30percent less exit-only background bounce. Shared outgoing upper paper/divider travel14.4→10.08pt downward;same spring curve,onset41.667ms between first/second beats,duration358.974ms,opacity and scale. Entry remains14.4pt/12percent incoming pulse;Home bottom,title/icons,geometry,route/lifecycle/input,Reduced Motion and original assets/audio/saves unchanged. Existing mounted matrix asserts exact10.08pt endpoint. Mounted Native1/0 PASS0.099s covers phone/tablet full/continuous/immediate profiles,exact10.08pt downward exit,first<background<second timing,unchanged duration,fade,pause/resume and cancellation. Full QA530suites/4011tests plusKING330,qa:ios and diff hygiene PASS. Normal complete-current-tree Debug BUILD SUCCEEDED;retained main Simulator exact-native install-over/normal launch `com.taptapdesign.stacktosix.native: 25550` verified matching runtime binaries,stable production Swift inputs,2991 source assets byte-exact,both canonical saves unchanged through install/initial launch,and actual SpringBoardSBRingerMuted1. No test plugin/runner or diagnostic launch args. Evidence `/tmp/nav-background-exit70-20261106` (native-tests.log,qa-full.log,qa-ios.log,build.log,delivery.log,per-device delivery.json). Physical animation feel/visual acceptance NEEDS PHYSICAL TEST/user review;no physical/PWA/legacy/LAB operation.
+
+## Upper navigation background between first and second exit beats · 2026-11-06
+
+## HTML meter birth/charge emotion colors · 2026-11-06
+
+New-row emotion strokes use very pale brown#E3D1BE;charging strokes retain orange#E77449. Color captured with accent profile;random angles/bounce/timing unchanged. Cache accent-birth-cream-charge-orange-39. JS syntax checked,no suites/build/install/Native changes.
+
+
+## HTML meter shard fade300ms earlier · 2026-11-06
+
+User shifts shard fade exit onset300ms earlier. Existing280ms fade duration/curve retained,thus disappearance also300ms earlier. Gravity,arrival deadline and other motion unchanged. Cache shard-fade-earlier300-38. JS syntax checked,no suites/build/install/Native changes.
+
+
+## HTML meter idle spacing1.5seconds · 2026-11-06
+
+User retunes idle admission timeout2000->1500ms. Other limits/motion unchanged. Cache idle-spacing1500-37. JS syntax checked,no suites/build/install/Native changes.
+
+
+## HTML meter idle admission spacing2seconds · 2026-11-06
+
+Idle admission timeout fixed2000ms(previous random120–420ms). Same2phrase limit,short travel,motion and lifecycle. Cache idle-spacing2s-36. JS syntax checked,no suites/build/install/Native changes.
+
+
+## HTML meter at most one cube skipped,two idle animations · 2026-11-06
+
+User supersedes20percent travel with max2slot destination distance(skips at most1cube). Ambient concurrency now max2phrases rather than4reserved participants;each swap is one phrase,so2swaps may reserve4unique cubes. Existing occupied-slot exclusion,color/handoff/motion unchanged. Cache two-idles-short-travel-35. JS syntax checked,no suites/build/install/Native changes.
+
+
+## HTML meter swap travel limited20percent · 2026-11-06
+
+User caps displacement at20percent from original position;interpreted as20percent of full meter width. Candidate slot distance bounded by floor(rowWidth*.20/slot),max4slots at24cubes. Same-color/random matching and4participant cap retained. Cache travel-limit20-34. JS syntax checked,no suites/build/install/Native changes.
+
+
+## HTML meter up to4concurrent ambient participants · 2026-11-06
+
+User requests overlapping animations,max4cubes at once. Bounded phrase collection reserves at most4unique participants;swaps cost2,breathing1. Occupied/actively charging cubes excluded from new selection;two swaps or mixed singles can overlap. One admission timeout/shared RAF retained;gain drops affected empty-slot phrases,reset/burst/hidden retire all. Cache four-active-cubes-33. JS syntax checked,no suites/build/install/Native changes.
+
+
+## HTML meter random whole-row same-colour trades · 2026-11-06
+
+User allows distant swaps but forbids colour changes during them. Ambient exchange selects any settled matching fully-orange/or-empty candidate across row,matching current and target charge. Removed prior changing-colour charge-switch variant;ordinary charging hops retained. New progress reaching a trading empty slot cancels its trade before charging. Same exact hop/rotation and70percent-distance handoff. Cache random-same-color-trades-32. JS syntax checked,no suites/build/install/Native changes.
+
+
+## HTML meter additional charging switcharoo · 2026-11-06
+
+Rotating ordinary charge hop can exchange with settled already-filled left neighbour when target will fully charge both,outside final-burst admission. First travels/overlays neighbour;second starts at70percent arrival distance,using inverse-smoothstep handoff~302ms. Both share exact charging motion. Ambient exchange uses same corrected distance milestone;ambient phrases wait for charge exchange. Same RAF,reset/burst cleanup,progress color order retained. Cache charge-switcharoo-31. JS syntax checked,no suites/build/install/Native changes;visual overlap remains user review.
+
+
+## HTML meter charging-motion exchange with70percent handoff · 2026-11-06
+
+User wants identical joyful charging jump/rotation while moving,and second cube to follow at70percent flight. Both exchange cubes now reuse exact jumpPose with captured ordinary profiles and one complete turn;horizontal movement follows60–440ms flight. Second hop starts326ms(60+380*.70) after first,retaining full620ms motion/rebound each,total946ms phrase. Standalone breathing unchanged. Cache happy-hop-exchange70-30. JS syntax checked,no suites/build/install/Native changes;visual timing awaits user review.
+
+
+User retunes onset only: paper/divider exit now begins halfway between first and second icons,0.5*elementStagger=41.667ms(first0,second83.333ms). Replaces third-beat onset;retains downward14.4pt spring/fade,duration358.974ms,title166.667ms,entry,Reduced Motion,route/lifecycle/input,Home bottom timing and original assets/audio/saves. Existing phone/tablet timing matrix now asserts strict first<background<second. Mounted targeted Native1/0 PASS0.064s covers phone/tablet full/continuous/immediate profiles,strict first<background<second onset,downward endpoint,unchanged duration,fade,pause/resume and cancellation. Full QA530suites/4011tests plusKING330,qa:ios and diff hygiene PASS. Normal complete-current-tree Debug BUILD SUCCEEDED;retained main Simulator exact-native install-over/normal launch `com.taptapdesign.stacktosix.native: 16909` verified matching runtime binaries,stable production Swift inputs,2991 source assets byte-exact,both canonical saves unchanged through install/initial launch,and actual SpringBoardSBRingerMuted1. No test plugin/runner or diagnostic launch args. Evidence `/tmp/nav-background-between-20261106` (native-tests.log,qa-full.log,qa-ios.log,build.log,delivery.log,per-device delivery.json). Physical animation feel/visual acceptance NEEDS PHYSICAL TEST/user review;no physical/PWA/legacy/LAB operation.
+
+## Upper navigation exit bounce goes downward · 2026-11-06
+
+## HTML meter lively620ms exchange · 2026-11-06
+
+User requests exchange speed equal to ordinary jump/rotation. Single-cube breath and exchange now share existing jumpDuration620ms;swap starts60ms into phrase and completes by620ms,instead of760ms wait/1600ms phrase. Existing height,probabilities,pause,neighbour displacement and lifecycle retained. Cache lively-exchange-29. JS syntax checked,no suites/build/install/Native changes.
+
+
+## HTML meter single living cube and neighbour hop-exchange · 2026-11-06
+
+User rejects swelling wave and idle-only admission. Throughout fill(including auto/progress),one selected settled cube breathes30–50percent taller with smaller lateral bulge,pushes neighbours,then deflates. Captured65percent exchange admission selects adjacent settled identical charge-state neighbour:it hops over while first slides to its place. Meter charge remains ordered;no cross-state swap. Finite1100/1600ms phrase,120–420ms pause,same cancellable timeout/shared RAF,burst/reset/hidden cancellation. Charging hop/floor remains composed. Cache living-cubes-28. JS syntax checked,no suites/build/install/Native changes;visual feel pending user review.
+
+
+## HTML meter stronger frequent idle with neighbour displacement · 2026-11-06
+
+User asks visibly stronger/more frequent swelling that spreads the row. Idle strength18–30percent width plus soft height inflation/squeeze;quiet pause450–1100ms. Each width expansion displaces neighbours by half its growth,maintaining touching edges and smoothly restoring row geometry. Existing finite phrase/single sleep timeout/hidden cancellation retained. Cache strong-pushy-idle-27. JS syntax checked,no suites/build/install/Native changes;visual feel pending user review.
+
+
+## HTML meter random emotion-stroke tilt · 2026-11-06
+
+Each1–3stroke appearance captures fresh random overall tilt±.32rad and per-stroke angle variation±.12rad. Stable throughout existing bounce,no paint-time RNG. Same factory covers initial/reset arrival and charge. Cache random-accent-tilt-26. JS syntax checked,no suites/build/install/Native changes.
+
+
+## HTML meter cute neighbour-squeeze idle · 2026-11-06
+
+User requests random idle squeeze sequences. Prototype selects3–6adjacent cubes,direction and6–10.5percent shape strength once per finite phrase.85ms stagger,740ms per-cube squeeze/restore,tiny lateral nudge,ground anchoring/no new gaps. Existing RAF paints only active phrases;one owned cancellable1.4–3.2s timeout sleeps between them. Gain/reset/hidden/pagehide cancel idle;no catch-up or concurrent recurring renderer. Auto filling retains normal motion. Cache idle-cuddle-25. JS syntax checked,no QA suites/build/install/Native changes;visual feel awaits user.
+
+
+## HTML meter random entry-wave origin · 2026-11-06
+
+Every initial/new/reset row captures equal-chance wave origin left/middle/two-thirds. PNG entry,emotion strokes and landing smoke share per-tile distance delays;interior origins expand toward both ends. Delay span preserves previous overall duration and cumulative earlier admission. No paint-time randomness/new scheduler. Cache random-entry-wave-24. JS syntax checked,no suites/build/install/Native changes;user visual review pending.
+
+
+## HTML meter new row another30percent earlier · 2026-11-06
+
+User requests cumulative30percent earlier fresh-cube arrival. Prototype captured deadline*.80*.70(previous*.80),still clamped after final destruction. Entry duration,debris and other motion unchanged. Cache arrival-earlier30-23. JS syntax checked,no suites/build/install/Native changes.
+
+
+## HTML meter independent50/50 rotation and lift · 2026-11-06
+
+Charging/final hop profiles now independently sample50percent one complete rotation versus50percent zero rotation (no tilt/rebound angle),and50percent prior maximum lift1.45 versus50percent lift.87(40percent lower). Direction still random on rotating hops;profile captured once,existing shape variation/floor/continuity retained. Cache equal-hop-chances-22. JS syntax checked,no suites/build/install/Native changes.
+
+
+## HTML meter touching cube row · 2026-11-06
+
+User removes visible gaps between cubes. Prototype slot pitch1.02->.98tilewidth,slight overlap compensates sprite-edge antialiasing;full available row width retained by existing fit. Other motion/shadows/smoke unchanged. Cache touching-cubes-21. JS syntax checked,no suites/build/install/Native change;user visual review pending.
+
+
+## HTML meter varied charging/final hops · 2026-11-06
+
+User asks more visible simple randomness. Each admitted charge/final hop captures tilt-only25percent/one-turn60percent/two-turn15percent,random rotation direction,lift.55–1.45 and shape.85–1.15. Existing low lift baseline,strong bounce,floor guard and continuous carry/blend retained;entry stays nonrotating. Profile sampled once,shared RAF unchanged. Cache varied-hops-20. JS syntax checked,no suites/build/install/Native changes;visual feel remains user review.
+
+
+## HTML meter individual shadows40percent wider · 2026-11-06
+
+User expands each shadow width40percent: .88*1.40=1.232tilewidth. Retains individual per-cube drawing,2CSSpx upward offset,height,alpha and motion. Cache shadow-width40-19. JS syntax checked;no suites/build/install/Native changes.
+
+
+## HTML meter shadow2px upward · 2026-11-06
+
+Each individual ground shadow drawn2CSSpx higher in both demo sizes. Other geometry/alpha/motion unchanged;cache shadow-up2-18. JS syntax checked,no suites/build/install/Native changes.
+
+
+## HTML meter happy strokes on every cube · 2026-11-06
+
+User replaces endpoint-only emotion with random1–3strokes per cube. Prototype captures count once for each row-entry and charging hop,retains sequential65ms bounce/finite lifetime and shared demand RAF. No paint-time RNG/new owner. Shadows,smoke,debris,arrival and Native/LAB unchanged. JS syntax checked,no suites/build/install. Cache random-happy-strokes-17;HTML visual review pending.
+
+
+## HTML meter individual shadows · 2026-11-06
+
+User rejects connected long shadow. Local prototype shadow footprint narrowed1.65->.88tilewidth,height.30->.22tileheight;strong warm alpha retained per cube. Adjacent footprints no longer overlap. Smoke,arrival,shards and other motion unchanged. Cache individual-shadow-16. JS syntax only,no suites/build/install/Native changes;visual review in existing HTML demo.
+
+
+User changes only outgoing upper navigation background direction: shared fade-profile paper/divider now leaves+14.4pt downward instead of-14.4pt upward. Same reversed spring samples,third-beat166.667ms onset,358.974ms duration,fade,scale and lifecycle. Entry,Home bottom navigation,title/icons,route admission/geometry,Reduced Motion,assets/audio/gameplay/saves stay unchanged. Existing mounted third-beat matrix now asserts downward endpoint. Mounted Native31/0 PASS7.858s verifies downward endpoint across phone/tablet full/continuous/immediate profiles and retained third-beat timing,fade,pause,cancel,Reduced Motion and route admission. Full QA530suites/4011tests plusKING330,qa:ios and diff hygiene PASS. Normal complete-current-tree Debug BUILD SUCCEEDED;retained main Simulator exact-native install-over/normal launch `com.taptapdesign.stacktosix.native: 7096` verified matching runtime binaries,stable production Swift inputs,2991 source assets byte-exact,both canonical saves unchanged through install/initial launch,and actual SpringBoardSBRingerMuted1. No test plugin/runner or diagnostic launch args. Evidence `/tmp/nav-background-down-20261106` (native-tests.log,qa-full.log,qa-ios.log,build.log,delivery.log,per-device delivery.json). Physical animation feel/visual acceptance NEEDS PHYSICAL TEST/user review;no physical/PWA/legacy/LAB operation.
+
+## Upper navigation background exits third · 2026-11-06
+
+## HTML meter shadow,landing smoke,earlier arrival,less debris · 2026-11-06
+
+Only prototypes/domino-meter: stronger warm cached floor shadow(.48/.28 core/shoulder),two cached cream cloud puffs per arriving/charging cube first landing with460ms lifetime. Adjacent contacts spread dust over their combined width;single existing demand RAF owns scheduled contacts/puffs and hidden pause/reset cleanup. New-row captured deadline20percent earlier than prior timing,clamped after last destruction. Shard count40percent lower with cumulative rounding(24cube old192,new115). Same dense24,forward destruction,emotion strokes,PNG/color/gravity/bounce. No QA suites/tests per iteration scope;JS syntax/HTTP only,no Native/LAB/PWA/build/install/save/art asset changes. Cache shadow-smoke-early-15;visual review at http://127.0.0.1:5188/.
+
+
+User requests top navigation paper/divider leave third rather than first. Shared fade-profile transform and opacity now start at the existing title exit beat2*elementStagger=166.667ms,after left0/right83.333ms. Same358.974ms reverse-spring/fade,14.4pt travel,entry,title/icon motion,parent route lifetime,content admission/readiness and Reduced Motion retained. Home bottom navigation timing remains untouched. Existing finite decoration continuation,pause/cancel/dispose own the delay;no new timer,resource,audio/gameplay/save owner. Mounted Native31/0 PASS7.600s includes new phone/tablet third-beat matrix across continuous/full and immediate flags plus existing route suspension,cancellation,ReducedMotion and admission regressions. Both transform and opacity hold through first two beats and retain full duration inside existing parent lifetime. Full QA530suites/4011tests plusKING330,qa:ios and diff hygiene PASS. Normal complete-current-tree Debug BUILD SUCCEEDED;retained main Simulator exact-native install-over/normal launch `com.taptapdesign.stacktosix.native: 3580` verified matching runtime binaries,stable production Swift inputs,2991 source assets byte-exact,both canonical saves unchanged through install/initial launch,and actual SpringBoardSBRingerMuted1. No hosted test plugin/runner or diagnostic launch args. Evidence `/tmp/nav-background-third-20261106` (native-tests.log,qa-full.log,qa-ios.log,build.log,delivery.log,per-device delivery.json). Physical animation feel/visual acceptance NEEDS PHYSICAL TEST/user review;no physical/PWA/legacy/LAB operation.
+
+## Centre modal X ink in its holder · 2026-11-06
+
+## HTML meter: dense24,three-stroke endpoint accent,forward pop · 2026-11-06
+
+Local standalone prototypes/domino-meter only. User requests near-touching cubes,soft ground shadow,and three sequential cartoony bounce strokes only above the final filled cube of a progress batch(+1 or+6),not every cube. Default24,pitch1.02width,full-strip fit;cached existing PNG/shadow retained. Finite780ms accent with65ms stagger uses same demand RAF,tracks cube bounds,stops on destruction/reset. User explicitly confirmed final destruction left-to-right;captured low-hop wave/continuous pose handoff,debris gravity and80percent-fall new-row timing retained. No Native/main-app/LAB/PWA build/install/save/original asset change,no QA suites/tests per prototype iteration scope. JS syntax and HTTP checked. Browser CUA host unavailable;manual visual feel remains user review at http://127.0.0.1:5188/. Cache keycute-accent-forward-14.
+
+
+User flags X appearing2–4px right of its backing and asks all modals checked. Audit found EndRun/Exit alone had left16/right12 image insets,causing exactly2pt right shift;now symmetric14/14 like Arcade,Score/Combo,Backpack detail/collection and Privacy. Source close PNG alpha centroid is horizontally centred;Stage separate24pt icon frame is centred in52pt holder. No paper/holder position,tilt,52pt hit bounds,motion,source asset,gameplay/audio/save change. Existing phone/tablet modal-family matrix extended to measure actual UIImageView centres for all paper Close families. Native modal-family matrix1/0 PASS5.335s covers all paper families at390×844/820×1180,asserting actual Close UIImageView horizontal/vertical centres within0.01pt;EndRun render inspected after correction. Full QA530suites/4011tests plusKING330,qa:ios,diff hygiene PASS. Normal complete-tree Debug BUILD SUCCEEDED;retained main Simulator exact-native install-over/normal launch `com.taptapdesign.stacktosix.native: 97385` verified matching runtime binaries,stable production Swift inputs,2991 source assets byte-exact,both canonical saves unchanged through install/initial launch and actual SpringBoardSBRingerMuted1. CUA observed user-active separate JumpPop LAB window after delivery;no UI navigation/action performed and LAB left untouched. Main delivery proven by exact-device receipt;visual preference/physical acceptance remains NEEDS PHYSICAL TEST/user review. Evidence `/tmp/modal-x-centre-20261106` (native-tests.log,qa-full.log,qa-ios.log,build.log,delivery.log,per-device delivery.json,renders/exit-390.png and exit-820.png). No physical/PWA/legacy operation.
+
+## Separate Jump&Pop LAB experiment · 2026-11-06
+
+User requested a branch,then separate icon and NEW Simulator. Implemented only in /Users/user/cube-crash.worktrees/jump-pop-meter-native on experiment/jump-pop-meter-native. Six LAB bundlecom.taptapdesign.stacktosix.native.jumppop is open on Jump Pop LAB iPhone13 Simulator7334E33E-DC68-4482-A9A5-35356151D08A with its own fresh JumpPopLab save;no main merge or profile import. Shared main/retained1018... app stays separate and its installed binary has no experimental meter class. Full QA PASS530/4011+KING330;LABNative16/0 PASS. Existing combo-HUD icon-identity test fails identically on main and is recorded,not changed by this experiment. Source/build/launch/asset/identity evidence and complete owner map in the experiment worktree handoff and /tmp/jump-pop-native-20261106/lab-delivery.json. Main initial save checkpoint changed during parallel main use;no main restore/write was done. Physical/subjective acceptance remains user review. Future LAB changes build only the separate bundle/device via scripts/build-jump-pop-lab.py in that worktree.
+
+## Shared upper navigation fade/scale standard · 2026-11-06
+
+User requests the existing Journey/Forest background transition everywhere, including Backpack opening and reverse/Close. NativeAppController now applies the same existing upper-header fade profile to Journey/World/Backpack/Box/Arcade/Settings in both directions and on Home destinations: incoming12percent scale pulse from1.025 with120ms first-title-epoch fade;outgoing reverse backOut1.7 upward14.4pt plus358.974ms fade from exit start. Existing title handoff/content admission/66pt geometry/scroll opacity/Reduced Motion and Home bottom navigation remain. New Backpack headers receive the profile at shared handoff installation. Preparation bridge explicitly stays clear;existing finite outgoing continuation includes the real background tail instead of truncating it when content hides. No new animation clock,resource,audio,gameplay/save or original asset changes. Updated actual mounted route-matrix/readiness/repeated-Close regressions and stale amplitude expectations. Final evidence `/tmp/nav-background-standard-20261106`: qa:fast,qa:feature-runtime,qa:ios,qa:full(530suites/4011tests plusKING330),and diff hygiene PASS. Native mounted68distinct tests covered full top-route matrix,forced readiness,repeatClose,interruptions/background/pause/ReducedMotion and cleanup. Initial run65passed/3fixture failures;three final reruns PASS26.404s after fixing hidden-control tap assumptions and stale uncompressed/unrotated geometry assertions. Geometry fixture retains explicit66pt lock and now checks existing20percent compression,8pt offset,curve shift and rotated24pt artwork bounds;no layout production change. Initial failures/export-before-result-close error retained. Exact Forest-restored and clear-readiness-gap attachments exported/viewed. Normal complete-current-tree Debug BUILD SUCCEEDED;retained iPhone13 install-over/normal launchPID85624 verified exact native ID,matching runtime hashes,stable production inputs,2991original assets byte-exact,both canonical saves identical through install/initial launch,and actual SpringBoardSBRingerMuted1. Final screenshot inspected:normal Home,no test runner/diagnostic arguments. No physical/PWA/legacy install. Animation feel and physical acceptance NEEDS PHYSICAL TEST/user review.
+
+## Arcade modal starts at50percent of island contact · 2026-11-06
+
+Latest user changes only onset70->50percent:240ms of480ms selected-island bounce. NativeArcadeHubView retains full650ms shared paper recipe,easing,Close epoch and all other modal behavior. Timing test asserts240ms;contract/owner record aligned. Mounted Native3/0 PASS5.833s verifies actual240ms onset,full650ms paper duration,hidden opacity gate,retained Hub,Close return and cancellation beyond contact. qa:fast,qa:ios,qa:full530suites/4011tests plusKING330,and diff hygiene PASS. Shared paper helper SHA exactly unchanged from70percent delivered version. Normal complete-current-tree Debug BUILD SUCCEEDED;retained phone Simulator install-over/normal launch `com.taptapdesign.stacktosix.native: 77232` verified matching binaries,stable production inputs through delivery(and refreshed check after other task started),2991 source assets byte-exact,both canonical saves byte-identical through install/initial launch,and actual SpringBoardSBRingerMuted1. CUA observed normal Forest route with Mute on;no agent UI navigation. Waited for pre-existing Xcode operation before own tests/build;separate JumpPop lab-bundle tests started after successful delivery. Evidence `/tmp/arcade-modal-50-20261106` (native-tests.log,qa-*.log,validation-preview.log,build-delivery-1.log,per-device delivery.json). FullQA rebuilt dist with Native sync skipped. No physical/PWA/legacy install. Subjective feel NEEDS PHYSICAL TEST/user review.
+
+## Upper navigation bounce final40percent reduction · 2026-11-06
+
+User supersedes70percent trial with only40percent smaller bounce from original. Shared upper background scale pulse now0.12(20percent original*0.60);vertical full/return travel14.4pt(24pt original*0.60). Opacity/fade,timing,rest1.025,title/icons,route readiness/lifecycle and Home bottom navigation retained. Existing amplitude expectations aligned to12percent/peak1.148,not executed. Owner policy updated. No QA/tests/manual animation review per ongoing explicit direction. Normal complete-current-tree Debug BUILD SUCCEEDED;retained iPhone13/iPadA16 Simulator install-over/normal exact-native launch verified matching binaries,stable production inputs through delivery,2991 packaged original assets byte-exact and both canonical saves unchanged through initial launch on each device. Actual SpringBoard SilentModephone1/iPad0(existing iPad limitation). QA/tests/manual animation review skipped as requested;user reviews final feel. Evidence /tmp/upper-navigation-bounce-minus40-20261106. No physical install.
+
+## Arcade modal starts at70percent of island contact · 2026-11-06
+
+Latest user requests opening before the clicked island finishes bouncing. NativeArcadeHubView now precommits paper/tint at contactEpoch+arcadeContactDuration*0.70:336ms of480ms contact,overlapping the last144ms. Supersedes prior full-contact wait. Full650ms shared Backpack/Cubero paper enter,easing,Close epoch,retained Hub,immediate feedback,Reduced Motion,pause/cancellation/disposal remain unchanged. Mounted timing regression now asserts336ms. Runtime contract/owner record aligned. Final Native13/0 PASS21.627s,qa:fast,qa:ios,qa:full530suites/4011tests plusKING330,and diff hygiene PASS. Initial timing run sampled opacity after an async100ms wait that could resume beyond336ms on busy Simulator;changed fixture to assert actual hidden opacity gate/backwards fill/shared entry epoch,then full13tests passed. User briefly questioned perceived gentleness during ongoing testing,then explicitly withdrew concern and requested finishing unchanged;shared paper helper SHA matches prior delivered sequential version. No speculative easing/duration change made. Normal complete-current-tree Debug BUILD SUCCEEDED; waited for separate JumpPop hosted tests before install. Removed only stale generated xctest plugin from reused build product. Retained phone Simulator install-over/normal launch `com.taptapdesign.stacktosix.native: 74212`,matching runtime hashes,stable production inputs,2991 source assets byte-exact,both canonical saves byte-identical through install/initial launch,and actual SpringBoardSBRingerMuted1 verified. CUA observed normal Arcade selection with all3islands and Mute on. Evidence `/tmp/arcade-modal-70-20261106` (native-tests-final.log,qa-*.log,build-and-preview.log,build-delivery-1.log,per-device delivery.json). No new resource/gameplay/save/audio/artwork owner; no physical/PWA/legacy install. Full QA rebuilt dist with Native sync skipped. Subjective feel NEEDS PHYSICAL TEST/user review.
+
+## Upper navigation background bounce70percent smaller · 2026-11-06
+
+User requests70percent smaller bounce when upper navigation screens change,retaining opacity change,and explicitly skips QA/tests. Shared JimiV9NavigationRouteLayer incoming internal scale pulse0.20->0.06;full/background-return vertical travel24->7.2pt. Settled1.025geometry,opacity/fade samples,timing/epochs,title/icon motion,readiness/handoff/cleanup and bottom Home navigation unchanged. Existing two scale-amplitude expectations aligned to6percent(peak1.0865),not executed. Feature owner updated. No asset/resource/audio/save owner changes. No QA/test commands run.
+
+Normal complete-current-tree Debug BUILD SUCCEEDED. Retained iPhone13 and iPadA16 Simulator install-over/normal exact-native launch verified matching binaries,production inputs stable through delivery,2991 original assets byte-exact,and both canonical saves unchanged through initial launch on each device. Waited for separately running hosted tests before phone preview installation;this task ran no QA/tests/manual animation review as requested. Actual SpringBoard SilentModephone1/iPad0(existing iPad limitation). Evidence /tmp/upper-navigation-bounce-minus70-20261106. Final bounce/opacity feel remains user review;no physical install.
+
+## Sequential Arcade modal entry matching Backpack Special detail · 2026-11-06
+
+User requires gentle Arcade opening consistent with Special-die detail and explicitly requests agent review. Both already share JimiNativeModalV10.enter (650ms, same card/flip keyframes/easing); the mismatch was Arcade starting200ms into480ms selected-island contact. NativeArcadeHubView now precommits paper/tint at the full shared arcadeContactDuration boundary, with full650ms enter after preparation and the existing shared Close epoch. Supersedes the older overlapping200ms policy. Immediate contact/feedback, retained Hub/scroll, Reduced Motion, pending cancellation, subtree pause and disposal unchanged; no new timer/resource/audio/gameplay/save/artwork owner. Runtime contract/owner record updated. Mounted regression now requires contact-end admission and cancellation beyond the480ms boundary; new test compares all three Arcade tracks against an actual mounted Cubero detail. Independent read-only agent found no high/medium issue; low cancellation-wait suggestion applied. Final mounted Native13/0 PASS21.817s verifies actual Cubero/all3Arcade paper keyframes, all numeric easing control points, full sequential admission, cancellation700ms, Close/Play/idle/background/disposal neighbors. First parity fixture compared CAMediaTimingFunction object identity and failed despite equal curves; corrected to actual numeric control points and reran complete13tests PASS. qa:fast final,qa:ios,qa:full530suites/4011tests plusKING330,and diff hygiene PASS. Normal complete-current-tree Debug BUILD SUCCEEDED; stale generated PlugIns/Stack to SixTests.xctest left by hosted tests was removed only from the build product before clean-preview admission. Retained Simulator install-over and normal launch PID68049 verified exact native identity, matching runtime hashes, stable production Swift inputs,2991 original assets byte-exact,both canonical saves byte-identical through install/initial launch,and actual SpringBoardSBRingerMuted1. CUA observed normal Home and toolbar Mute on. Evidence `/tmp/arcade-modal-sequential-20261106` (native-tests-final.log,qa-*.log,build-delivery-*.log,delivery.log,per-device delivery.json); initial stale-plugin admission failures retained. Full QA rebuilt dist with native sync skipped. No physical/PWA/legacy installation. Subjective animation feel NEEDS PHYSICAL TEST.
+
+## Synchronized slower modal Close bounce · 2026-11-06
+
+User requests40percent lower X animation speed and approximately80percent Close progress at the paper finish. Agent review confirms duration395.833ms(previous237.5/0.6),onset333.333ms(650-duration*.8),fade208.333ms,and79.167ms final settling tail. Strong cartoon keyframes,rise,rest geometry and650ms paper entry remain. All ordinary modal callers now share one captured epoch for paper and Close;Privacy reuses the matching shared paper recipe and its idle follows that epoch. Close remains outside content completion transaction;ancestor pause,Reduced Motion and explicit disposal retained. No new resources/audio/gameplay/save owners. Read-only agent review found no synchronization/lifecycle defect. Installed CA tests verify80percent phase at actual paper end and79.167ms tail. Initial affected Native23 tests had22passes and one pre-existing Privacy cornerRadius40 assertion inconsistent with the already-approved NativeModalPaperView PNG silhouette. Fixture now correctly asserts radius0,masknil,uniform texture scale and exact paper/X/idle clock alignment;final focused2/0 PASS0.306s. Existing centred geometry,content,52pt Close,tilt and lifecycle assertions retained;initial failure log preserved.
+
+Full QA530suites/4011tests plusKING330,qa:ios and diff hygiene PASS. Normal complete-tree Debug BUILD SUCCEEDED;exact-native retained Simulator install-over/normal launch `com.taptapdesign.stacktosix.native: 64759` verified matching runtime binaries,stable production Swift inputs,2991 source assets byte-exact,both canonical saves byte-identical through install/initial launch,and actual SpringBoardSBRingerMuted1. CUA observed normal Home after final launch;no test plugin/runner/diagnostic arguments remain. Evidence `/tmp/modal-close-sync-20261106` (native-tests.log,native-tests-final.log,qa-full.log,qa-ios.log,build.log,delivery.log,per-device delivery.json). Physical animation feel/visual acceptance NEEDS PHYSICAL TEST and user review;no physical/PWA/legacy install.
+
+## Jump&Pop new-row arrival at80percent debris fall · 2026-11-06
+
+User retunes immediate row arrival to80percent shard fall(interpreted8'aposto as80percent). Prototype captures each shard first descent apex-to-floor80percent crossing analytically from its existing gravity/velocity/floor radius;new-row deadline is latest crossing across reverse burst wave. Not an opacity/lifetime percentage. Fragments live at least220ms after their own crossing;debris epoch/overlap with arriving row retained. Supersedes immediate-last-break admission below. Cache keyarrival-fall80-13. JS syntax checked,no fullQA/Native/PWA/runtime/original asset/save/build/install change. User review at http://127.0.0.1:5188/.
+
+## Jump&Pop overlapping debris and new-row arrival · 2026-11-06
+
+User removes empty time between debris and new row. Prototype new-row scale-hop now begins immediately at final reverse destruction boundary,removing prior950ms debris wait. Shards retain an independent captured epoch/end deadline and continue across reset/entry/fill using the SAME RAF;new row no longer clears them. Renderer paints debris over arriving cubes and keeps frames alive through the last fragment fade. No new owner/timer,random or motion tuning change. Cache keyoverlap-arrival-12. JS syntax checked. Local demo only,no Native/PWA runtime/build/install/save/original asset change. Visual timing remains user review.
+
+## Jump&Pop captured random turn counts · 2026-11-06
+
+User requests some cubes to turn once and others multiple times for variety. Prototype charging hops sample1/2/3full turns once on hop admission,weighted60/30/10percent. Reverse-hop plans independently capture the same distribution once;existing airborne last/waiting jumps and captured from-poses retain their original charging turn count through ending handoff. No render-time RNG,extra timer,resource or height/bounce/timing change. Initial/reset row scale-hop entry remains without extra rotation. Cache keyrandom-turns-11. JS syntax checked;subjective visual feel remains user review. No Native/PWA runtime/build/install/save/original asset change.
+
+## Earlier, stronger cartoon modal Close enter · 2026-11-06
+
+User approves rise/fade direction and requests60percent faster X appearance,starting at50percent paper entry,with much stronger cartoon bounce. Shared enterClose now starts325ms into650ms paper entry and lasts237.5ms(380/1.6);fade125ms(200/1.6). Retained22pt rise,then32percent wide/14percent short overshoot,13percent narrow/16percent tall rebound,7percent wide settling bounce,exact resting tilt/size. Same finite CA group,Reduced Motion,ancestor pause,completion-independent input timing and disposal;no new resource/timer/audio/gameplay/save owner. Current mounted targeted Native3/0 PASS2.047s verifies325ms epoch,237.5ms duration,125ms fade,both cartoon scale peaks,retained rest/rise/geometry,pause/disposal and neighboring Score entry/close. Full QA530suites/4011tests plusKING330,qa:ios and diff hygiene PASS. Normal complete-tree Debug BUILD SUCCEEDED;exact-native retained Simulator install-over/normal launch `com.taptapdesign.stacktosix.native: 59582` verified matching runtime binaries,stable production Swift inputs,2991 source assets byte-exact,both canonical saves byte-identical through install/initial launch,and actual SpringBoardSBRingerMuted1. CUA final observation shows normal One Lucky Drop modal with Close/Play;no UI navigation performed by agent. Evidence `/tmp/modal-close-cartoon-20261106` (native-tests.log,qa-full.log,qa-ios.log,build.log,delivery.log,per-device delivery.json). Physical animation feel/visual approval NEEDS PHYSICAL TEST;no physical/PWA/legacy install.
+
+## Jump&Pop new row scale-from-zero hop arrival · 2026-11-06
+
+User requests every new row to spring into place after all cubes shatter,not merely fade. Prototype reset/initial entry now renders opaque PNGs at scale0->1 using560ms backOut2.2,15ms per-tile stagger,existing strong Ball squash/stretch plus low in-place hop and landing rebound. No entry opacity tween and no extra rotation. Existing70percent reduced lift/Jak shape character preserved. Entry owns the full620ms hop of last tile before queued fill starts,avoiding an early entry cutoff. Floor remains exact. Same singleRAF and cachedPNG/shadow resources. Cache keyrow-scale-hop-10. JS syntax checked;visual feel for user review. No Native/PWA runtime or game build/install/save/original asset change.
+
+## Jump&Pop strong bounce with70percent lower lift · 2026-11-06
+
+User likes Scale bounceJAK and requests preserving that squash/stretch while reducing current jump height70percent. Prototype default bounce4->12 and matching HTML slider/labelJak. Only vertical lift gains additional0.30 multiplier,including normal/final jumps and landing rebound;strong scale excursions and rotation remain unchanged,as do floor guard,reverse ending,shards and timings. Cache keystrong-low-hop-9. JS syntax checked;no QA suite,Native/PWA runtime/build/install change. Visual feel remains user review at http://127.0.0.1:5188/.
+
+## Jump&Pop lower hops, last-first immediate pop and reverse ending · 2026-11-06
+
+User requests20percent lower normal jump/turn height,80percent lower final pop hop,and immediate airborne destruction of the final fully charged cube followed by a reverse right-to-left jumping/pop cascade while it shatters. Prototype jump amplitudes now ordinary2.1*.80 and final2.8*.20(tile-height units),ordinary rebound likewise20percent lower. Full charge immediately admits ending;removed settle phase. Last cube continues its exact current charging pose until96ms jump age(just after60ms takeoff) then breaks;already-airborne last cube breaks immediately,and an already-landed last cube gets a fresh low hop before breaking. Remaining reverse onsets start at that first pop,spread over existing captured speed(default200ms);each breaks150ms into its low turn. Waiting cubes continue actual charging jumps;120ms pose blend into their reverse takeoff prevents one-frame ground reset. Captured per-tile break poses also place shards exactly at airborne destruction. PNG/fixed slots,colors,gravity/floor/shadows,oneRAF and queued progress retained. Source cache keyreverse-low-pop-8,README updated. JS syntax PASS;isolated18scenario check confirms reverse destruction order,airborne break,floor and exact ending-handoff pose continuity(count10/16/24,last-jump ages20/80/200/470/550/2000ms). Initial checker lacked shardPatterns import;corrected actual-template rerun PASS. No full QA suites or Native/PWA build/install/runtime/original-art/save change. Previous CUA native pipe failure leaves this new visual sequence for user review at http://127.0.0.1:5188/.
+
+## Paper-modal X scale-bounce entry · 2026-11-06
+
+User requests navigation-like Close appearance with slightly more bounce near80percent modal entry. Shared JimiNativeModalV10.enterClose gives the entire Close paper/X holder a finite380ms scale0→1 backOut2.2 with22pt rise from below and200ms fade-in at520ms of650ms paper entry. Full sampled matrices preserve counter-tilt;52pt geometry and original artwork stay. Wired to Arcade,Exit/EndRun,Score/Combo,Backpack detail/gameplay collection including return,and Privacy. Journey Stage info/table remains untouched. Track installed outside content completion transaction so existing input/idle timing remains;ancestor layer clock owns pause/resume and existing subtree disposal retires it. Reduced Motion skips. No new timer,resource,audio,haptic,gameplay/save owner.
+
+Final current-source Native21/0 PASS27.887s (`native-rise-final.log`): Close grouped rise/scale/fade timing,retained tilt,overshoot,52pt geometry,ancestor pause,retirement/weak release plus all Arcade/Score modal regressions. Cold mounted history fixture now waits for actual idle readiness within2s rather than assuming800ms includes font/layout startup. Earlier compile/signature and fixed-wait/entry-completion failures retained in evidence;paper-enter API stays backward-compatible and Close track is outside content completion. qa:fast(final rise),qa:ios(final rise),qa:feature-runtime(final rise),diff hygiene PASS. Full deterministic QA530suites/4011tests plusKING330 PASS before final rise/fade refinement;affected final Swift tests and final source gates cover that refinement.
+
+Normal complete-current-tree Debug BUILD SUCCEEDED;exact-native retained iPhone13 Simulator install-over/normal launch PID55371 verified matching runtime binaries,stable production Swift inputs,2991 source assets byte-exact,both canonical saves byte-identical through install/initial launch,and actual SpringBoardSBRingerMuted1. CUA observed normal Home after final launch;no test runner/plugin/diagnostic arguments remain. Evidence `/tmp/modal-close-bounce-20261106` (build-and-preview.log,build-delivery-1.log,per-device delivery.json,native-rise-final.log,qa-rise-*.log,qa-full.log). No physical/PWA/legacy operation. Animation feel/visual acceptance NEEDS PHYSICAL TEST and user review.
+
+## Hub → World background normal upward bounce exit · 2026-11-06
+
+User supersedes quick outgoing120ms fade:existing navigation background now uses the same reverse-backOut1.7 spring,24pt upward exit,and normal element duration0.56/1.56s(358.974ms),starting with outgoing navigation. Existing incoming120ms fade/20percent pulse,prepared invisible gap,scroll-dependent inner alpha and other routes remain unchanged. Same existing CA route group owns transform/opacity,pause/cancel/replacement/disposal;no new owner/timer/resources/gameplay/save/artwork change. Journey animation contract corrected.
+
+Mounted Native31/0 PASS14.658s covers outgoing duration/epoch,anticipation/upward24pt endpoint,alpha1→0,forced preparation gap,incoming reveal,and30shared route/lifecycle/ReducedMotion regressions. Completed Forest iPhone13 render inspected;readiness-gap attachment retained. qa:fast,qa:ios,qa:full(530suites/4011tests plusKING330) and diff hygiene PASS. Full QA rebuilt dist with native sync skipped. Evidence `/tmp/journey-nav-bounce-20261106`(native-tests.log,native.xcresult,renders,qa-*.log,build-and-preview.log,device delivery.json). Complete-current-tree normal Debug BUILD SUCCEEDED;exact-native retained iPhone13 Simulator install-over/normal launch com.taptapdesign.stacktosix.native: 48893,matching runtime hashes,stable production inputs,2991 original assets byte-exact,both canonical saves byte-identical through install/initial launch,and actual SpringBoardSBRingerMuted1. No test plugin/diagnostic flags remain. Physical motion feel NEEDS PHYSICAL TEST;no physical/PWA/legacy installation.
+
+## Isolated Jump & Pop replaces domino motion · 2026-11-06
+
+User changes prototype direction:fixed-slot cubes jump/squash/stretch/turn once while changing color;on last charge,every cube rapidly launches in sequence and shatters in the air,then a new row. Retained local prototypes/domino-meter URL http://127.0.0.1:5188/,now titledJump&Pop,modulecachejump-pop-7. Removed ALL domino contact/projection/lean/spacing/frozen-pose code. Fixed slots preserve horizontal positions throughout. Adapted actual NativeBeachBallPlanning squash1.26/.70,release.84/1.18,backOut1.7 settle to620ms single-turn jump+small landing rebound. Color develops during takeoff/flight using actual cached PNG sprite surfaces. After final charging jump completes,200ms default launch-onset cascade;each cube breaks250ms after its own sequence start,at airborne apex. Original template polygon shapes,85percent orange/15percent brown,captured random scatter/spin,analytic gravity/floor bounce retained with origins sampled at airborne break. Entire rotating/stretched PNG and debris stay above floor;static ground shadows shrink/fade with height. One demand-driven RAF,hidden pause,queued progress,cached dimensions preserved. Dice-like square dimensions and prior40percent width reduction retained. JS syntax/HTTP200 PASS. Isolated motion samples atbounce0/4/12,ordinary/final trajectories verify finite above-floor poses and authored boundary continuity(max normalized transform delta0.00000417). No full QA suite. CUA native pipe closed before new visual inspection;earlier screenshot evidence is domino-only,new visual/feel acceptance remains user review. Prototype README rewritten for current behavior. No Native/PWA runtime source/build/install,original art/audio/save change.
+
+## Hub → World navigation background fade · 2026-11-06
+
+User requests only an opacity transition for the isolated navigation background between Journey Hub and Forest/Beach/Area55. NativeAppController selects fadeBackgroundDuringHandoff for forward Hub→World only and resets all retained headers on each next navigation. JimiV9NavigationRouteLayer retains the existing continuous geometry/20percent incoming scale pulse but fades its decoration1→0 over120ms from outgoing start;the copied readiness bridge stays transparent. Incoming0→1 fade120ms starts at the first navigation element entry epoch,including existing handoff deadline. Inner scroll-dependent artwork alpha,header/divider geometry,title/icons,route completion and all other routes remain unchanged. Reduced Motion borrows its existing short alpha-only group. Same CA route lifecycle owns pause/resume/cancel/disposal;no new task/clock/resources/assets/save/gameplay change. Journey contract updated.
+
+qa:fast,qa:full(530suites/4011tests plusKING330),qa:ios,diff hygiene PASS. Mounted Native32/0 PASS29.409s includes30route/lifecycle/ReducedMotion tests,new forced World-readiness gap plus incoming fade epoch,and repeated Backpack return continuity. Final screenshot test1/0 PASS;inspected iPhone13 readiness-gap image has no navigation surface/divider and completed Forest has restored navigation. Evidence `/tmp/journey-nav-fade-20261106` (native-tests.log,render-test.log,native.xcresult,render.xcresult,renders,qa-*.log). Complete-current-tree normal Debug BUILD SUCCEEDED;exact-native retained iPhone13 Simulator install-over/normal launch PID45962,matching runtime binaries,stable production Swift inputs,2991 original assets byte-exact,both canonical saves byte-identical through install/initial launch,and actual SpringBoardSBRingerMuted1 verified in device delivery.json. No test plugin/diagnostic args remain. Physical animation feel NEEDS PHYSICAL TEST;no physical/PWA/legacy install. Full QA rebuilt dist with native sync explicitly skipped.
+
+## Domino demo square dice, touching fall and soft ground shadow · 2026-11-06
+
+User requests touching fallen tiles,30percent lower final lean,shorter dice-like proportions,and then a gentle ground shadow. Local demo keeps PNG width at prior40percent reduction;tile height now equals width. Final angle0.98*1.30=1.274rad. Replaced fixed pivot spacing with direct projected-rectangle contact distance from four face axes in one forward pass(no iterative solver/engine);neighbor angle cascade,continuous authored scale/lean and burst pose freeze retained. Row recentres continuously from complete retained pose bounds rather than from only surviving tiles. Shard origins use the same packed positions. Ground constraint retained. New subtle ground shadow is one prepainted96x32radial texture reused under each tile;no per-frame blur/filter. PNG material image remains original candidate,compressed to current dice proportions at render. CUA native Chrome refreshed actual demo and observed packed orange/cream dice with ground alignment;subjective feel remains user review. JS syntax PASS,no QA suites. Current module cache keydice-touch-shadow-6. Updated prototype README. No Native/PWA runtime or original asset/save/build/install changes.
+
+## Domino PNG animation simplified; grounded contact and gravity · 2026-11-06
+
+User requires actual PNGs and existing game scale-bounce,ground contact/no penetration,more random orange/brown shards with gravity,then40percent narrower tiles,and reports one-frame repositioning at full charge. Local prototypes/domino-meter now actually draws4decoded cached PNG sprite surfaces from upright-wide-fill-states.png,adjacent-state crossfades. Row enter560ms backOut1.8(scale.65->1,15ms stagger);charge pop105ms backOut2.5 and settle170ms backOut1.9 from NativeRegularSixHeroMotion. Width40percent narrower with height/centres/spacing retained. Bottom-right hinge/scale anchor and screen-space floor clip prevent below-floor tiles;no ground shadow added.
+
+Discarded per-frame iterativeSAT/contact fallback could snap all angles upright. Replaced by one forward closed-form scalar contact pass with a fixed maximum-scale envelope;no physics engine/velocity states/iterations. Freeze exact tile poses at burst admission until each vanishes,so shatter doesnot reconfigure survivors. Original polygon templates now8of12definitions/tile,bounded to current row;85percent orange/15percent original brown,random velocities/spin,analytic gravity+one ground bounce,rotated-radius floor bound. No numeric integration loop. Preserve one demand-driven frame owner,hidden pause,queue and new-row reset. Cache canvas sizes via oneResizeObserver;write HUD text only when changed. JS syntax/HTTP PASS and1001sample contact separation check within floating-point epsilon. Native ChromeUI preview viaCUA confirms actual PNGs,charged lean,destruction and subsequent cycle;browser connector remained unavailable. User changed Chrome during one earlier inspection;no stale action retried. Subjective smoothness/physical performance remains user review,not claimed by screenshots. Demo http://127.0.0.1:5188/,versioned module for cache refresh. No QA/test suites,Native/PWA runtime change/build/install/original asset/save modification.
+
+## Domino prototype upright proportions and rapid whole-row destruction · 2026-11-06
+
+User corrects first flat interpretation:cream tiles start upright and become orange with bounce,then lean onto next tile as they charge,matching original concept. Follow-up replaces last-only break with very fast sequential destruction of EVERY tile on full meter;after fragments clear,a NEW upright cream row assembles. Isolated demo now projects thick rounded 3D prisms,default whole-row shatter onset cascade200ms,per-tile original merge6-template polygons at half definition density,meter-scaled. One demand-driven frame owner/hidden pause/queued progress retained. Current destruction timing captured per burst so slider changes cannot split visibility/shard epochs. Latest user requests slightly wider/lower:code dimensions +15percent width/depth and-15percent height versus first upright version. No ground shadow per user;add separately later. Generated transparent unapproved upright PNG empty/30/60/100bottom-up orange states,then wider/lower candidate game design/output/2026-11-06-domino-tiles/upright-wide-fill-states.png;shown only as material reference below demo,not used as animated textures. Prior flat PNG rejected/superseded. Demo remains http://127.0.0.1:5188/. JS syntax/HTTP checked,no QA/test suites;browser host unavailable,rendered/touch acceptance remains user review. No Native/PWA/runtime original asset/save/build/install change.
+
+## Backpack navigation scroll opacity parity · 2026-11-06
+
+Confirmed fullscreen NativeBackpackView configured the shared navigation artwork at50percent but never forwarded scroll changes. Its existing UICollectionView delegate now calls JimiV9NavigationHeader.updateBackgroundForScroll before unread accounting;layout also synchronizes after content-inset changes. Same Journey quadratic50→100percent over80pt,clamped overscroll and immediate reversal;apply/reset returns to50percent. Existing title/Close/divider geometry,motion,embedded hidden-header collections,artwork idle and unread admission remain unchanged. Shared fullscreen Box inherits the same header behavior;no new clock/resource owner,asset/gameplay/save change.
+
+Mounted iPhone13 Native regression1/0 PASS0.864s covers0/40/80/160pt,reverse,pull-down,relayout at retained offset and apply/reset;title/Close parent alpha stays1. Exported before/after attachments inspected as isolated transparent-background fixtures,not full composition acceptance. qa:fast,qa:full(530suites/4011tests plusKING330),qa:ios and diff hygiene PASS. Evidence `/tmp/backpack-opacity-20261106` (native-test.log,opacity-qa.xcresult,renders,qa-fast.log,qa-full.log,qa-ios.log). Normal complete-current-tree Debug BUILD SUCCEEDED;exact-native retained iPhone13 Simulator install-over and normal launch PID35151 verified matching runtime binaries,stable production Swift inputs,2991 source assets byte-exact,both canonical saves byte-identical through install/initial launch,and actual SpringBoardSBRingerMuted1. Delivery receipt in same evidence directory under device UUID;no hosted test plugin or diagnostic arguments in final preview. Physical visual/scroll acceptance NEEDS PHYSICAL TEST;no physical/PWA/legacy operation.
+
+## Isolated domino meter prototype and PNG material proposal · 2026-11-06
+
+User requests separate playground before any game integration: unmarked cream tiles fill orange with small bounce,then rapid domino chain,last tile breaks into existing merge6-style shards,reset/repeat. Added prototypes/domino-meter buildless HTML/Canvas demo,local-only at http://127.0.0.1:5188/ with add/finish/auto/reset and speed/bounce/count controls plus same-state HUD-size preview. One demand-driven RAF,hidden pause and queued during-collapse progress. Copied original Native shard template definitions;ported polygon/color/cubic travel+fade recipe at meter scale,not PNG debris. JS syntax/HTTP200 checked;CUA browser host unavailable so no rendered/touch acceptance claim. No QA/test suites. User additionally requests PNG design variants:unapproved transparent strip empty/30/60/100percent orange coverage saved game design/output/2026-11-06-domino-tiles/fill-states.png and shown as material reference in demo;animated tiles remain code-drawn. Original runtime assets untouched. No Native/PWA source/build/install/save change;no Simulator refresh necessary for this isolated prototype. Source/limits/run command in prototype README. Runtime integration requires subsequent user selection.
+
+## Shared worn-paper fit for ordinary modals · 2026-11-06
+
+User explicitly asks to reuse the three existing papers across all current paper-background modals and preserve Journey Stage info/table completely. Shared NativeModalPaperView in JimiNativeEndRunModal.swift now serves Arcade selection,Exit/EndRun,Score/Combo incl1–3history entries,individual Backpack/Box die detail,gameplay Backpack/Box collection and Privacy. Each sheet chooses one of the same three existing1x/2x/3x resources uniformly once,independent of mode/die;matching96pt X crop retains52pt touch geometry and existing motion. No new/duplicated source art. Settings row cards,individual history strips,plain Developer card and fullscreen result/reward surfaces retain their existing material/layout. Hash-verified JimiNativeWorldCardView.swift,JimiNativeWorldView.swift and original modal paper PNGs unchanged throughout this task.
+
+Uniform source scaling derives only from actual paper width. Short bodies retain top/bottom source sections;longer bodies add centre sections with24pt soft alpha joins. Band cuts align to physical pixels to prevent hairline seams. Entire composed paper receives the accepted50percent warm ivory#FFFDF8 wash. One current fitted bitmap per sheet/actual size,one borrowed selected source and small close crop;unchanged layout/resume reuse bitmap,variant and crop. No size-history/global derived cache,new clock,async job,media/input/save/gameplay owner. Existing fit/content/spacing/pivots/shadows/entry/drag/idle/exit remain. EndRun shadow keeps its original rounded soft silhouette independently of PNG cutout. Feature owners and architecture contract updated.
+
+Initial tiled fitting showed visible seams and was replaced before delivery. Initial final tests correctly exposed test assumptions about fractional UIImage bitmap dimensions and byte-exact PNG comparisons at nearly transparent antialiased fibres;fixtures now assert exact physical-pixel-rounded sizes and decoded premultiplied-corner match(mean error<0.5/255,max12 at AA fringe). Broader affected Native22/0 PASS35.180s;final pixel-aligned compositor4/0 PASS13.322s covers all paper variants/modes,short280/420/620pt bodies,repeated sizing/cache identity,1/2/3history growth onphone390/tablet820,matchingX,weak release,and all ordinary modal families. Existing Score/Combo/Arcade admission/audio/close/drag/background/disposal checks pass. Source qa:feature-runtime,qa:fast(final),qa:ios and qa:full PASS(full530suites/4011tests plusKING330). Mounted Exit,die-detail,Highscore1/3and tall-paper renders inspected;no visible tile seams after final pixel alignment. User visual/physical acceptance remains NEEDS PHYSICAL TEST.
+
+Complete-current-tree normal Debug BUILD SUCCEEDED;exact-native retained iPhone13 Simulator install-over/normal launch verified matching built/installed binaries,stable production Swift inputs,2991 source assets byte-exact,both canonical saves byte-identical through install/initial launch,actual SpringBoardSBRingerMuted1. Evidence `/tmp/shared-paper-20261106`(build-delivery-1.log,per-device delivery.json,native-tests-pixel-aligned.log,native-tests-seam-final.log,qa-full.log,qa-fast-delivery.log,protected.json,renders). Scratch hosted-test plugin removed before final normal build;no test runner/diagnostic arguments remain in preview. No physical/PWA/legacy install.
+
+## Arcade random worn-paper materials and matching close · 2026-11-06
+
+User authorizes three additive `assets/modals/arcade-paper/paper-0{1,2,3}` resources, each1x390×544/2x780×1088/3x1170×1632. NativeArcadeWorldModal selects one uniformly with presentation-only System RNG once per construction, independently of Endurance/OneLuckyDrop/SlowBurn; repeats are allowed. Stable through layout/drag/background/resume. Selected density-aware image alone enters the existing JimiV9Artwork cache. Original assets remain unchanged. User color correction halves selected RGB toward near-white warm ivory#FFFDF8 using sourceAtop; one finite selected static UIKit raster per sheet preserves original alpha/density, never redrawn on layout/resume and retires with sheet.64pt nine-slice corners and PNG alpha replace cover crop/corner mask only on Arcade mode paper. Close background borrows96pt top-right crop of the exact same softened material;52pt touch bounds,16pt corner clipping,X artwork,content geometry and existing animation/audio/input/save owners preserved. Other modal families unchanged. Existing feature owner updated.
+
+Final NativeArcadeModalMotionTests8/0 PASS14.789s covers all3variants×3modes×phone320/390 and tablet820 geometry,2x/3x resources,measured50percent RGB wash/alpha preservation,stable paper/X image identity through layout/resume,weak release,entry/disposal/drag/Play/close/audio ownership. Earlier shared modal-family mask regression1/0 PASS;now explicitly recognizes Arcade alpha silhouette while retaining other family checks. qa:fast(final close),qa:ios(final close),full deterministic QA530suites/4011tests plusKING330/all selected gates PASS. Paper-only mounted390 renders inspected;final full Arcade/X composition remains user visual review.
+
+Complete-current-tree normal Debug BUILD SUCCEEDED and retained iPhone13 exact-native install-over/normal launch verified matching built/installed binaries,stable production Swift manifest,2991 packaged source assets byte-exact,both canonical saves byte-identical through install/initial launch,actual SpringBoardSBRingerMuted1. Latest evidence `/tmp/arcade-paper-20261106/latest-build-and-preview.log`,per-device delivery.json,native-tests-close.log,qa-full-soft.log,qa-fast-close.log. Additional final refresh includes subsequently saved JimiV9Motion work from parallel task. Earlier normal-preview attempts rejected stale generated test PlugIns/hash or concurrent Swift changes;failure logs retained. Only scratch hosted-test plugin removed before final normal build. Final preview has no test plugin/runner or launch diagnostics. CUA observed normal Home;user then changed Simulator to Journey,so further UI navigation stopped. Subsequent latest normal launch is verified by simctl receipt. Subjective color/edge/touch acceptance NEEDS PHYSICAL TEST. No physical/PWA/legacy installation.
+
+## Reverted all conversation Home exit timing experiments · 2026-11-06
+
+User rejects delayed navigation icons and explicitly requests original pre-conversation behavior. Restored JimiV9Motion.homeNavigation exactly to original timing:icon exits0/100/200ms,paper/divider shared backgroundExitDelay250ms. All100ms-lead/500ms-lead and earlier150ms paper adjustments below are superseded and rejected. Entry,duration,curve,ReducedMotion and unrelated saved work preserved. No QA/tests run per standing user instruction. Normal complete-current-tree Simulator Debug BUILD SUCCEEDED;exact-native install-over/normal launch on retained Jimi2026 QA iPhone13 verified matching launcher+debug dylib(PID20123),both canonical saves unchanged,actual SpringBoardSBRingerMuted1. Evidence /tmp/home-exit-100ms-20261106/simulator-rollback-build.log and simulator-rollback-delivery.json. No physical install. Original visual timing restored for user review.
+
+## Home paper/divider leads navigation icons by500ms · 2026-11-06
+
+User changes lead from100ms to.50seconds. Home bottom paper/divider exit stays0;first navigation icon now starts500ms,then existing100ms staggers(500/600/700ms). Entry,duration,curve and ReducedMotion unchanged. No task QA/tests run per user instruction. Normal complete-tree Simulator Debug BUILD SUCCEEDED. Unrelated concurrent hosted tests initially replaced preview;after they finished,repeated exact-native install-over/normal launch verified matching built/installed launcher+debug dylib(PID18848),both canonical saves unchanged,actual SpringBoardSBRingerMuted1. Evidence /tmp/home-exit-100ms-20261106/simulator-lead500-build.log and simulator-lead500-delivery-final.json. Simulator only,no physical install. Timing preference remains user review/NEEDS PHYSICAL TEST.
+
+## Home paper/divider leads first navigation icon by100ms · 2026-11-06
+
+User clarifies previous interpretation: lower Home background/divider must start100ms BEFORE navigation dice. Supersedes prior250->150ms adjustment below. JimiV9Motion.homeNavigation now starts paper/divider exit at0 and first icon at100ms,then existing100ms icon staggers(100/200/300ms);entry,duration,curve and ReducedMotion unchanged. No QA/tests per explicit request. Complete-current-tree normal Simulator Debug BUILD SUCCEEDED. First delivery had binary mismatch during overlapping install;repeat exact-native install-over/normal launch verified matching installed/built launcher+debug dylib(PID17016),both canonical saves unchanged,actual SpringBoardSBRingerMuted1. Evidence /tmp/home-exit-100ms-20261106/simulator-relative-build.log and simulator-relative-delivery-final.json. Simulator only;no physical installation. Visual timing remains user review/NEEDS PHYSICAL TEST.
+
+## iPhone history-card radius matches Settings · 2026-11-06
+
+User rejects capsule-shaped Best combo strips and requests Settings-like iPhone corners. NativeScoreHistoryRow now overrides only phone paper radius with existing Settings22pt policy after shared modal setup; shadow follows the same22pt outline. High score and Best combo history strips share this owner. Tablet retains existing modal radius; paper texture,content,layout,tilt,motion,gameplay,saves and audio unchanged. Focused detached phone/tablet geometry regression for both history types PASS1test/0failures0.567s. qa:fast,qa:full and qa:ios PASS(full530suites/4011tests plusKING330). Initial test used normal non-test scheme;corrected to Stack to Six QA. Own normal complete-tree Debug build/install-over/normal exact-native launch PASS with2991current original assets byte-exact,both canonical saves unchanged,stable inputs and actualSpringBoardSBRingerMuted1. Concurrent arcade-paper delivery later superseded own binary and further source/test work resumed. CUA reviewed actual Forest Stage01->Best combo48/19rows: visibly smaller rectangular-rounded corners and no visible clipping. Screenshot /tmp/history-radius-20261106/preview.png. Final refresh after concurrent tests:normal Debug BUILD SUCCEEDED and own exact-native install-over/normal launch PID16233;stable complete production inputs,2991current original assets byte-exact,both canonical saves unchanged through install/initial launch and SpringBoardSBRingerMuted1. Evidence /tmp/history-radius-20261106 (build-delivery-1.log,swift-inputs.json,device delivery.json). Deterministic PASS;subjective/physical acceptance NEEDS PHYSICAL TEST. No physical install/PWA/legacy operation in this task.
+
+## Home bottom navigation paper/divider exit minus100ms · 2026-11-06
+
+User requests Home lower navigation background/divider to start exit100ms earlier,explicitly without QA/tests. JimiV9Motion.homeNavigation(index:nil) now uses max(0,shared backgroundExitDelay-0.100):250->150ms. Existing icon tracks,entry,duration,curve,geometry and ReducedMotion remain unchanged. No QA/tests run. User clarified delivery is Simulator only. Initial physical build compiled but failed signing __preview.dylib(errSecInternalComponent);no physical installation/launch occurred. Complete-current-tree normal Simulator Debug BUILD SUCCEEDED;exact com.taptapdesign.stacktosix.native verified,install-over and normal launch on retained Jimi2026 QA iPhone13 succeeded(PID15374),both canonical saves unchanged,actual SpringBoard SBRingerMuted1. Evidence /tmp/home-exit-100ms-20261106/simulator-build.log and simulator-delivery.json. Timing/visual acceptance remains user review/NEEDS PHYSICAL TEST.
+
+## Upper navigation title arch additional10percent · 2026-11-06
+
+User requests another10percent curvature after prior15percent. Shared JimiV9ArchedNavigationTitle titleArchScale1.15->1.265(1.15*1.10);matching baseline/tangent scaling retains center,header geometry,divider,icons,route motion and scroll opacity. No asset/save/audio/gameplay change. qa:ios/diff hygiene PASS. Complete-current-tree Debug BUILD SUCCEEDED;retained iPhone13 exact-native install-over/normal launch verified installed/built hashes,stable Swift inputs,2982 original assets byte-exact,both canonical saves unchanged through initial launch,and SpringBoardSBRingerMuted1. Evidence /tmp/nav-title-arch10-20261106. FullQA PASS(all selected deterministic gates;530suites/4011tests plusKING330). CUA reviewed settled Journey navigation with additional title curve and no visible glyph clipping;left Journey Hub open. Visual preference NEEDS PHYSICAL TEST. No physical install.
+
+## Upper navigation scroll opacity and title arch · 2026-11-06
+
+User requests upper navigation background50percent at rest, smoothly strengthening as content scrolls underneath. Shared JimiV9NavigationHeader now owns image-only opacity0.5->1 using clamped80pt scroll distance and quadratic ease-in. Hub(Journey/Arcade), Forest/Beach/Area55 and Settings feed existing scroll callbacks plus layout/restored offsets;negative bounce remains0.5 and reversing scroll restores the same continuous curve. Follow-up increases only the existing downward title parabola depth by15percent(1.15 multiplier),with matching glyph tangent atan(slope*1.15);center anchor,icons and divider unchanged. No timer,new animation/resource owner,gameplay/audio/save or image-asset edit. Settings header now stays above its unclipped scrolling rows. Locked66pt shared geometry,divider,title/icons and existing route motion remain unchanged. qa:fast,qa:full and finalqa:ios PASS(all selected deterministic gates). Complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone13 exact-native install-over/normal launch verified matching installed/built binaries,stable production Swift inputs,2982 original assets byte-exact,both canonical saves unchanged through install/initial launch,and actual SpringBoardSBRingerMuted1. Initial final delivery attempts saw concurrent app replacement/hash mismatch;attempt3 plus final repeat delivery passed exact installed hashes after other work ended. Evidence /tmp/nav-scroll-20261106(build-delivery-3.log and device delivery.json);QA logs /tmp/nav-scroll-qa-{fast,full,ios-final}.log. CUA reviewed settled Journey/Forest header/title with no visible clipping;drag/wheel did not visibly scroll,so no rendered scroll-transition claim. Forest remains open for review. Final visual/scroll feel NEEDS PHYSICAL TEST. No physical install/PWA/legacy operation.
+
+## Home bottom paper/divider earlier exit onset · 2026-11-06
+
+User requests matching upper navigation paper/divider exit placement while retaining Home icons/die. Shared JimiV9Motion.homeNavigation(index:nil) exit onset now JimiV9ArchedNavigationTitle.backgroundExitDelay=250ms instead of Home300ms;unchanged430.769ms duration/curve/downward exit and all icon order/staggers/1.3speed,entry,geometry and ReducedMotion. Bottom paper and divider already share bottomShadow/JimiV9BottomNavigationSurface,so one track moves/fades both together. User-updated nav PNGs preserved. Existing regression asserts shared250ms plus unchanged icon delays,decoration duration and entry;existing suspend/resume/cancel checks retained. Mounted Native regression PASS on retained iPhone1/0 (0.165s) and iPad1/0 (0.133s),including track onset/duration,unchanged icon order,entry and suspend/resume/double-cancel/reentry. qa:ios and diff hygiene PASS. Evidence `/tmp/home-bottom-exit-onset-20261106`;Full deterministic qa:full PASS530suites/4011tests plusKING330/all selected gates. Complete-tree normal Debug BUILD SUCCEEDED(attempt3 after concurrent JimiV9Artwork edit). Overlapping installs caused binary-verification mismatches;failed attempts are not delivery proof. Serialized own installs succeeded both devices,then the parallel nav-scroll final phone install superseded own phone binary. Rather than overwrite another complete-tree build again,verified its current full production manifest(including this JimiV9Motion change),matching installed binary hashes and all2982 current original asset bytes. Final phone normal preview evidence `/tmp/nav-scroll-20261106/1018BE2D-491B-465F-8F75-3E5BEB38C22A/delivery.json`;final iPad own per-device receipt under this task folder. Independent unified final-preview.json verifies both current source manifests,installed binaries and originals byte-exact. Both canonical saves unchanged through each recorded install/initial launch. No hosted runner/diagnostic flag in final previews;actualSpringBoardSilentMode phone1/iPad0(existing frontend limitation). No physical/PWA/legacy operation. Deterministic PASS;subjective timing acceptance remains user review/NEEDS PHYSICAL TEST.
+
+## User-updated navigation background refreshed · 2026-11-06
+
+User updated all three original assets/nav/nav-bg PNGs (390x80,780x160,1170x240) and requested Native refresh. Native-only prepare copied current original bytes;no runtime source or geometry/opacity/motion changes in this task. qa:ios PASS. Complete-current-tree normal Debug BUILD SUCCEEDED;retained Jimi2026 QA iPhone13 install-over/normal exact-native launch verified matching binaries,stable production Swift inputs,2982 original runtime assets byte-exact,and both canonical saves unchanged through install/initial launch. All three installed nav PNG hashes independently match updated source. Actual SpringBoard SBRingerMuted1. Settled Home screenshot reviewed with updated lower navigation texture and no visible edge clipping. Evidence /tmp/nav-bg-refresh-20261106 (build-delivery-1.log,installed-nav-hashes.json,preview.png,device delivery.json). Full deterministic qa:full PASS (all selected gates;530 suites/4011 tests plus KING330). Final visual preference/physical acceptance NEEDS PHYSICAL TEST. No physical installation/PWA/legacy operation.
+
+## Journey info-card first-motion latency — sculpted CTA paint · 2026-11-06
+
+User requests safe fix after measured tap pause. Bounded raw CA delegate plus presentation-layer probe confirms original315ms start/318ms first sampled movement on normal-profile autoactivation without explicit CUA reads near tap;prior MainActor callback-only measurement was insufficient to distinguish task latency. Explicit-flush diagnostic blocks277ms (351ms under CPU sampling),and commit sample236 main-thread samples includes217layout/display,211display-list drawing,188executeEntries,157gradient shading. Journey Play/Continue still used synchronous NativeSculptedCTAFace vector paint:~120 gradients at unchanged displayScale*2 backing density. AX-scoping candidate showed no improvement;AX changes and explicit flush both discarded. No animation-epoch or speed workaround.
+
+JimiNativeWorldCardView now opts only its selected Play/Continue into existing immutable background CTA painter. Same full-density/material/shape/text/geometry;no new queue/cache/timer,asset or save change. Flight/rotor remain original520/0.98ms and32–68percent;preparation never gates card motion. CTA alpha/input stay gated until painted plus existing back-face/admission. Background/history/Close suspend pending paint retaining completed pixels;resume uses existing face layout;cleanup clears weak callback and retires existing lease. Read-only independent source/lifecycle review PASS. Late readiness after entire entry is explicitly covered,including ReducedMotion-like short entry/shared queue delay,without changing system settings.
+
+Normal-profile controlled candidate measurement: first installed90.652ms,reconcile97.788ms,rawCAstart112.293ms,first sampled movement136.692ms,CTAready301.665ms,flightcomplete637.120ms. Second34.362/42.994/67.194/75.681/255.754/609.036ms. CTA ready before rotor first back-face exposure(rawstart+265.306ms) in both. Baseline auto installed80.769,reconcile87.854,raw314.682,first317.872,complete851.551ms. These are Simulator presentation-layer samples/callback timings,not screen-pixel/physical-device acceptance. Existing synchronous save/snapshot authority unchanged. Comparison and raw evidence in `/tmp/journey-tap-boundary-20261106/comparison.json`,auto/app-trace.log,offmain/app-trace.log and flush/commit-sample.txt. Temporary probes/automatic activation/raw display-link and runloop observer completely removed from source;no diagnostic owner ships. Final source extends feature ownership record and Journey contract. Full deterministic QA PASS530suites/4011tests plusKING330/all selected gates;qa:ios PASS. Native phone8/0 PASS44.543s: late readiness beyond complete entry+pause/resume2.102s,pending close/cleanup/weak release1.422s,phonePlay/tabletContinue actual-density pixel equivalence2.077s,actual history route13.389s,three-World unchanged flight4.728s,successor/return9.006/4.793s,real save+NEW reopen7.015s. Real iPad820x1180 coordinator test1/0 PASS6.912s verifies both opens painted/enabled after entry and face raster retired on return. qa:fast and independent final source/log review PASS. Source diff hygiene PASS. Final complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone13 and iPadA16 exact-native install-over/normal no-probe launch verified matching built/installed binaries,stable production inputs,2982 original assets byte-exact,and both canonical saves unchanged through install/initial launch on each. Evidence final/build-delivery-1.log and final/device delivery.json under same folder. No hosted runner/diagnostic flag remains in either preview. Actual SpringBoardSilentMode phone1/iPad0(existing iPad frontend limitation);game/macOS audio preferences unchanged. No physical installation/PWA/legacy operation. Deterministic and independent source review PASS;subjective/physical first-pixel/touch acceptance remains NEEDS PHYSICAL TEST.
+
+## Measured normal-profile Journey Stage01 opening · 2026-11-06
+
+User asks to measure remaining perceived pause after prior touch-delay correction. Opt-in temporary DEBUG `--cc-journey-tap-probe` timestamps captured on retained iPhone13 Simulator normal player profile through CUA Home Journey CTA->Hub Forest->Stage01,then Close/reopen. Same original flight/rotor/save/resource ordering;no behavioral fix in this measurement task. First console pipe run buffered stdout and yielded no usable rows;restarted with simctl --console-pty and captured2complete openings in `/tmp/journey-tap-measure-20261106/app-trace-pty.log`;computed rows in measurements.json. Opening1 accepted->flight installed72.297ms,reconcile79.872ms,existing animation-start receipt325.288ms,flight completion848.611ms. Opening2 installed31.286ms,reconcile39.886ms,start receipt282.157ms,completion822.811ms. Save31.978/4.826ms,snapshot13.836/14.651ms. Dominant unaccounted interval after reconciliation to start callback245.416/242.271ms. Existing start receipt is CAAnimationDelegate->MainActor Task;these are compositor-callback timings,not independently measured first-screen-pixel/hardware latency. Do not claim exact first-visible-frame or diagnose specific raster/shadow/decode culprit without more tracing. Two normal-profile samples support remaining dispatch/commit/render-boundary delay;prior isolated small-fixture handler timings did not establish its absence. Motion still~530ms after admission;end-to-end completion~823–849ms. Previous delaysContentTouches=false fix alone is insufficient for reported pause. All temporary instrumentation source restored byte-for-byte to the pre-measurement three source files,verified no residual helper/log prefix. No animation speed change,new persistent diagnostics owner,save-schema/artwork/audio/gameplay change or physical install. Restored complete-current-tree normal Debug BUILD SUCCEEDED;qa:ios/diff hygiene PASS. Exact Native retained iPhone install-over and normal launch verified matching built/installed binaries,stable source inputs,2982 original assets byte-exact,both canonical saves unchanged through install/initial launch,actual SpringBoardSilentMode1. Evidence normal/build-delivery-1.log and normal/device delivery.json in same folder. No diagnostic argument or hosted testrunner remains in final preview. Existing iPad normal build untouched. Previous full QA remains applicable to byte-restored runtime;no new full suite rerun for temporary removed logging. Runtime measurement verdict PASS for stated callback intervals;first-visible-pixel/subjective physical acceptance NEEDS PHYSICAL TEST.
+
+## Journey Unit card touch response · 2026-11-06
+
+User authorizes agents and smallest safe fix for perceived~500ms tap-to-info-card pause. Two bounded read-only agents confirm no authored500ms hold; World scroll delayed control touch delivery while Hub already did not. JimiNativeWorldView now sets delaysContentTouches=false on shared Forest/Beach/Area55 scroll. Existing canCancelContentTouches=true, JimiWorldScroll control cancellation, touchUpInside and active/admitted/drag/deceleration/modal/return guards retained. Save/snapshot ordering, failed-save retry semantics, NEW capture, 520/0.98ms flight and rotor32–68percent, close/landing/background and all resources/assets remain unchanged; no new runtime owner. Independent isolated source review PASS. Existing mounted phone5/0 PASS23.174s covers all3World flight/rendered movement at70ms, other-Unit reopening, paused return/park, NEW exit and admission/cancellation. Modal-only setup11.1/12.2/13.8ms. New mounted real-coordinator test with isolated small real NativeSaveStore/NativeWorldLayouts profile PASS7.479s verifies durable viewed before handler returns, one save/snapshot per admitted opening, duplicate rejection, first-only NEW and close/reopen cleanup. First/second handler72.4/37.8ms, save1.48/0.70ms, snapshot15.55/15.59ms; small-profile measurements do not establish full-profile or physical latency. qa:full PASS530suites/4011tests plus KING330/all selected gates;qa:ios PASS. No claim that all reported500ms is measured/eliminated: sendActions bypasses UIKit touch delivery; real-touch feel remains NEEDS PHYSICAL TEST. Evidence `/tmp/journey-card-response-20261106`. iPad real-coordinator test PASS7.196s (handler73.8/32.0ms;save1.71/0.32ms;snapshot13.70/13.10ms). Five World-class tests were skipped by their existing phone-only isolated-Simulator guard,not counted as iPad coverage. Final complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone13 and iPadA16 exact-native install-over/normal launch verified matching built/installed binaries,stable production inputs,2982 original assets byte-exact,and both canonical saves unchanged through install/initial launch on each. No hosted runner remains as preview. Actual SpringBoardSilentMode phone1/iPad0(existing iPad frontend limitation);game/macOS audio preferences unchanged. CUA normal iPad build review opened Home->Journey->Forest,opened Stage01 info,closed and reopened it;left info visible for user review. Coordinate drag/wheel attempts did not visibly scroll,so no CUA scroll-cancellation claim;mounted cancellation tests/source guards remain evidence. CUA cannot resolve exact tap-to-first-frame latency. No physical installation/PWA/legacy operation. Final visual/touch acceptance remains user review/NEEDS PHYSICAL TEST.
+
+## Home icon navigation divider padding minus5percent · 2026-11-06
+
+User requests a wider Home icon-navigation divider on iPhone and iPad by reducing each side padding5percent. JimiV9BottomNavigationSurface original-artwork draw inset changes0.10->0.095 of dividerRect width per side (relative5percent reduction;total draw span80->81percent). Shared phone/tablet path;only Home lower-divider draw rect changes. Upper shared66pt header/divider,icons,arch/background,vertical geometry,motion,assets,gameplay,audio and saves remain unchanged. No runtime owner or test added for this visual constant. qa:fast/qa:full/qa:ios PASS (530suites/4011tests plus KING330);diff hygiene PASS. Final complete-current-tree normal Debug BUILD SUCCEEDED (attempt2 after concurrent navigation source edits);retained iPhone Simulator install-over and normal exact-native launch verified matching binaries,stable production inputs,2982 original packaged assets byte-exact,both canonical saves unchanged through initial launch,actual SpringBoardSilentMode1. CUA reviewed settled Home with visible divider/no edge clipping. Evidence /tmp/home-divider-padding5-20261106 (build-delivery-2.log and per-device delivery.json). iPad shares changed draw path;no new iPad install/visual review or physical install. Deterministic PASS;final device visual preference NEEDS PHYSICAL TEST.
+
+## Implemented shared navigation title handoff gap · 2026-11-06
+
+User approved diagnosis/fix below. Root implementation schedules every top->top incoming header at max(actual readiness,installed outgoing exit epoch+Forest reference670.8ms). Same1.56 playback,element/stagger/bounce remain;nominal titlegap209.262ms instead of Backpack overlap61.538ms. Existing400ms Backpack content reveal/actual input and readiness ownership unchanged. Header.entryNotBefore is one-use global-monotonic input converted to the target layer clock;continuous bg stays1 in backwards fill while title/icons wait. No walltimer or extra animation owner. Pending controller deadline retained for same-route deferred World reveal,shifted once across background;World header outside Motion registry explicitly pauses/resumes same clock and pending body-entry can resume active state. New navigation/replacement clears old deadlines/flags,source route+generation guard captures actual exit only,dispose clears. Source review PASS. Phone primary titlegap test12.778s PASS measures Hub+World exactly.2092615384754s,actual screen reveal~259/260ms before header epoch;22route matrix41.397s,delayedclock13.436s,flash16.159s,earlyClose21.903s PASS. Initial pending-background assertion included synchronous foreground handler work in paused interval;test interval corrected to capture resume request before handler,strict20ms bound retained. Corrected phone3/0 PASS includes pending/stale/late11.927s,installed future Worldpause7.585s,and actual normal/reduced layer-clock.289s. Final iPad4/0 PASS: both actual gaps.2092615384754s12.738s,installed futurepause7.157s,pending/stale/late11.616s,normal/reducedclock.291s. Shared ReducedMotion ignores/consumes futuredeadline without added wait. Full deterministic QA PASS530suites/4011tests plus KING330/all selected gates;finalqa:ios/diff hygiene PASS. Final normal complete-current-tree Debug BUILD SUCCEEDED;retained iPhone13 and iPadA16 install-over/normal exact-native launch verified matching built/installed binaries,stable production inputs through delivery,2982 original assets byte-exact,and both canonical saves byte-identical through initial launch on each. Evidence `/tmp/navigation-title-gap-20261106` including native-tests.log,corrected clock-tests.log,ipad-tests.log,qa-full.log,build-delivery-1.log and per-device delivery.json. No hosted testrunner left as preview. Actual SpringBoard SilentMode phone1/iPad0(existing frontend-setting limitation);no game/macOS audio preference changes. Deterministic/mounted and independent review PASS;subjective visual/physical acceptance remains user review/NEEDS PHYSICAL TEST. No physical install.
+
+## Settings card paper opacity80percent on iPhone and iPad · 2026-11-06
+
+User requests Settings container transparency strength80percent on both device classes. Actual prior paper alpha0.7;NativeSettingsPaperSurface instance alpha now0.8 for the three existing Settings row backgrounds,unconditionally shared phone/tablet. Icons/status/labels/toggles,shadow,card geometry/corners/crop,nav,animations/preferences/assets unchanged. Feature paperVariationPolicy reflects80percent. No new runtime owner or test needed for this visual constant.
+
+qa:ios PASS. Complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone Simulator install-over/normal exact-native launch verified matching binaries,stable production inputs,2982 original packaged assets byte-exact,both canonical saves unchanged through initial launch and actual SpringBoardSilentMode1. Retained iPadA16 Simulator install-over/normal exact-native launch also verified matching binaries,stable production inputs,2982 original assets byte-exact and both canonical saves unchanged through initial launch. Actual iPad SpringBoardSilentMode0(existing iPad control limitation);no game audio preference changes. CUA opened iPad Settings and reviewed all three80percent cards with no edge clipping;left Settings visible for review. Full QA PASS(all selected deterministic gates;530suites/4011tests plus KING330). Evidence /tmp/settings-paper-opacity80-20261106. Final visual opacity acceptance remains user review/NEEDS PHYSICAL TEST. No physical install/PWA/legacy operation.
+
+## Navigation title handoff gap diagnosis — 2026-11-06
+
+User distinguishes title-to-title waiting rhythm from equal animation speed: Hub<->Forest and Forest->Backpack feel consistent; Backpack->Forest feels immediate and Backpack->Hub faster. Read-only source investigation; no new runtime change/build/install. Confirmed architecture: next header starts at destination reveal,which follows outgoing CONTENT exit/readiness,not outgoing title completion plus common gap. Backpack content exits400ms;Forest at top main artwork exits234+436.8=670.8ms;Hub uses island/cloud exit tracks. Common outgoing title authored end525.641ms, incoming title lead64.103ms. Thus nominal Backpack->Hub incoming title starts464.103ms (61.538ms BEFORE outgoing title track ends);Backpack->Forest adds resource preparation at reveal,so usually slightly later. Forest-top->Hub/Backpack title starts734.903ms (~209.262ms AFTER outgoing title ends). These are authored/source-derived milestones,not a fresh video timing measurement;viewport,interruption and readiness can vary. Prior duration-only matrices did not assert this handoff gap and do not establish perceived rhythm equality.
+
+Proposed correction pending user direction: measure accepted reference actual title-end->title-start gap; own that same gap centrally in navigation choreography and schedule incoming title/icons against outgoing navigation clock,independently of shorter Backpack content exit. Keep current1.56 playback curves and background continuity;do not fix with another speed change or arbitrary per-screen timeout. Existing finite CA epoch can schedule delay with proper pause/replacement ownership,no new timer required. No implementation applied.
+
+## Initial intro logo exits just before characters · 2026-11-06
+
+User clarifies initial intro,not Home slider. Final plaque SVG source3.56...4.0 tail plays1.2x(20percent)faster;preceding source drop/swing/100ms hold and sound contact moments remain unchanged. Shared forward/inverse logo source-time mapping also drives PRESENTS carrier so caption follows the compressed exit. Plaque finishes4.198475s;character collapse retains0.65s duration and is positioned to finish4.278475s(80ms later). Scene remains4.33s,51.5ms final padding. PRESENTS per-letter exit follows character timing. Static fallback and ReducedMotion logo fade use the same shorter tail. No new clock/timer/resources/audio/save owner or original asset edits. Existing pause/retire route owns all tracks.
+
+Broader intro validation found stale pre-SVG fixture assumptions(PRESENTS source-start and hidden fallback sheen),a capture directory dependency,and incomplete descendant animation retirement in drop-logo dispose. Tests now exercise actual SVG shimmer,source-based PRESENTS start,and create their own test-only capture directory. Drop-logo dispose recursively clears existing subtree/masks inside disabled-actions transaction before release. Initial15-test failure retained in native-tests.log;corrected full mounted intro lifecycle15/0 PASS,including prepared pixels/all characters,source mapping/exit ordering,shimmer,background/resume,dispose,malformed fallback and once-only natural Home handoff. Full QA PASS(all selected gates;530suites/4011tests plus KING330);final qa:ios/feature-runtime PASS. Final complete-current-tree normal Debug BUILD SUCCEEDED;retained Jimi2026 QA iPhone13 Simulator install-over/normal exact-native launch verified matching binaries,stable production Swift inputs through delivery,2982 packaged original assets byte-exact,both canonical saves unchanged through initial launch and actual SpringBoard SilentMode1. Normal app supersedes test host;build-delivery-1.log and per-device delivery.json. Evidence /tmp/intro-logo-exit-before-character-20261106. Visual timing/physical acceptance remains user review/NEEDS PHYSICAL TEST;no physical install.
+
+## All top navigation same20percent faster rhythm · 2026-11-06
+
+User explicitly requests all agents and consistent upper-navigation enter/exit across every route and return,reference Journey->Units20percent faster. Shared JimiV9ArchedNavigationTitle/JimiV9NavigationRouteLayer now uses1.3*1.2=1.56,one add-time epoch (World top-only80ms lead removed). Same directional rhythm across Home/Journey/Arcade Hub,all3World Units,Backpack/Box,Settings,Back/Close/early Close. Element358.974ms,title lead64.103ms,83.333ms stagger,total enter589.744ms/exit608.974ms. ReducedMotion consistent no-bounce monotone166.667/133.333ms on title/icons;root and continuous decoration stay opaque so longer screen content cannot expose a gap. Full bg follows same directional fade. Screen content/admission/readiness timing,full-vs-continuous bg roles,existing20percent pulse,66pt geometry/assets/saves retained. Bottom Home explicitly preserves prior1.3 speed.
+
+Audit also found previously empty init(layer:) exit continuations,which let short screens truncate header tails. Both existing finite background bridge and exit continuation now share explicit shallow painted-property copy plus their existing recursive subtree/animation/lifetime owners. Original glyph paths/images/shapes/masks populated,no new raster/cache/clock/route delay. Source audit covers all4header construction sites. Final shared finite content admission now uses one bounded CAAnimationDelegate receipt on an existing longest held contentgroup,not broad CATransaction completion. All original samples/durations/holdUntil/visibility clocks remain. Diagnostic evidence ruled out stalegeneration,paused46targets/ancestors,hostwindow occlusion and earlyambientstart omission;receipt makes Home return finish at its actual owned finite endpoint. Existing generation/identity/finished guards plus replacement/cancel retire callbacks before reentry;weak-release and unrelated-animation tests cover it. Ambientcall restored;all temporary production diagnostics removed. Independent review PASS. World generic updateIdle no longer removes active headerentry,which belongs to its own shared clock/replacement/park. User later reports occasional fast Backpack return after time;actual two delayed visits with1200ms idle and200ms appbackground/resume now PASS13.536s,full .608974/.589744 outgoing/incoming durations and fresh localage3.5–6.7ms even after nonzero resumed layer.beginTime. No adaptive acceleration branch. Initial broad Native run found2preexisting stale Home cloud-duration/root-shadow tests; corrected assertions to unchanged accepted cloud profiles and current divider owner,without changing those production behaviors. Home content-admission diagnostic now resolved by owned finite receipt. Initial continuity poll caught8.8ms presentation publication window;test now flushes pending commits before coherent presentation snapshot,retaining4ms cadence and forced120ms bridge geometry/payload invariants. Final phone Native34/0 PASS106.286s includes22hop actual route matrix41.739s,Homefulladmission6.249s,repeatedbridge16.264s,early Close and29RouteMotion tests (pulse/tail/reduced subtree/continuation clock/weak-callback retirement/pause-cancel). Latest final-source full deterministic QA PASS530suites/4011tests plus KING330/all selected gates;qa:ios/diff hygiene PASS. iPad final-source Native3/0 PASS59.035s: delayed/resumed return13.166s,actual22hop matrix41.225s,World-content admission cannot truncate active header4.644s (park stillretirestest). Same .608974/.589744 full durations with fresh3–20.5ms localages after longidle/realresume. Final normal complete-current-tree Debug BUILD SUCCEEDED;retained iPhone13 and requested iPadA16 install-over/normal exact-native launch verified matching binaries,stable production inputs,2982 original assets byte-exact,both canonical saves byte-identical through initial launch on each. Evidence `/tmp/navigation-consistency-20-20261106` (build-delivery-1.log,per-device delivery.json,ipad-final.png). Actual SpringBoard phoneSilentMode1/iPad0;CUA opened real iPadHome but iPad controlcenter gesture didnot change mode;no game/macOS audio preference modified. CUA then observed user/window change to iPhoneJourney;stopped UI actions for userreview. Both normal apps replace hosted testrunners. Deterministic/mounted regressions and independent source review PASS;subjective feel afterlongrealuse/physical remains NEEDS PHYSICAL TEST. No physical install. No physical installation.
+
+## Backpack detail repeat tap contact + visible grid idle · 2026-11-06
+
+User authorized agents: after detail Close/reopen, contact missing and all grid icons freeze about1s. Source establishes two owners: fullscreen detail disabled alerts through same flag as whole-cell artwork idle; queued closing-overlay tap bypassed didSelect/contact then resumed/stopped idle in one frame. NativeBackpackView now splits optional artworkIdle admission from alerts (all other callers retain old defaults); fullscreen detail keeps visible grid artwork loops/phases through preparation/presentation/close while input/read/alerts remain gated. Valid closing-overlay revealed-cell hit immediately plays existing400ms contentView contact and queues same die; auto reopen never replays contact. Existing hidden/background/route/dispose stop paths and resume admission preserved. No timing,asset,save,decode/cache or scheduler changes. Agents source review PASS. Final phone mounted4/0 PASS (retap/continuous actual idle14.714s;queued close/background8.295s;selected unread5.172s;locked/idle lifecycle0.811s). Normal post-dismiss setup measured15.2/25.0ms with~385/375ms of400ms contact remaining, actual painted squash/stretch at66.8/87.7ms; no measured1s synchronous setup hitch in fixture. New test initial private-cell cast compile error corrected to UICollectionViewCell;old/new fixture early-route waits corrected to actual Hub and Backpack grid admission (Close-only root now intentionally enabled earlier), no shipping gate weakened. Full QA PASS530suites/4011tests,all selected gates including KING330;qa:ios/feature-runtime/diff hygiene PASS. iPad actual mounted retap regression1/0 PASS14.346s,normal repeated didSelect13.8/21.9ms with actual visible contact. Final complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone13 and requested iPadA16 install-over/normal exact-native launch verified matching binary hashes,stable production inputs,2982 packaged original assets byte-exact,and both canonical saves byte-identical through initial launch on each device. Logs/receipts in `/tmp/backpack-detail-idle-20261106`,normal iPad screenshot `ipad-final.png`. No test runner left as preview. Phone actual SpringBoardSilentMode1; iPad0 remains documented frontend-selection limitation, game/macOS audio preferences unchanged. Deterministic/mounted regression and source review PASS; subjective physical feel NEEDS PHYSICAL TEST. No physical installation. No evidence of measured synchronous1s decode hitch; do not claim one.
+
+Earlier requested iPad refresh completed before this new fix: normal complete-current-tree Debug build/install-over/normal exact-native launch on iPadA16 `43A75086-0C64-464C-B71C-FDD01AF59C32`, matching binaries/stable inputs,2982 original assets byte-exact,both canonical saves unchanged through initial launch. Receipt `/tmp/navigation-second-return-20261106/43A75086-0C64-464C-B71C-FDD01AF59C32/delivery.json`. Actual iPad SpringBoardSilentMode0; toolbar/window selection CUA blocked by duplicate Simulator installations/timeouts, no claim that Silent Mode was changed. This receipt predates current detail idle fix.
+
+## Repeated Backpack return bridge + visible Close correction · 2026-11-06
+
+User authorized agents and fix for confirmed repeated Backpack->Forest navigation flash, then reported X blocked near/end entry. Bounded runtime NAVFLASH boundary trace proves static readiness bridge and children have0x0 geometry despite alpha1: CALayer(layer:) did not make populated standalone copies. JimiV9NavigationHeader.retainNavigationBackground now explicitly copies painted geometry, original CGImage/shape/mask properties recursively; no decode/raster/timer/readiness delay. Existing atomic bridge replacement, one-owner retirement,20percent incoming pulse,66pt navigation/divider geometry and screen timing remain. Temporary production traces removed; evidence retained `/tmp/navigation-second-return-20261106/app-trace.log`.
+
+Backpack now enables visible header Close during entry, with collection grid gated until actual entry completion. Painted-position hit test follows rising X; existing interrupt/generation and painted exit retarget reject duplicate/outgoing/covered/background closes. Applies Backpack/Box returns to Hub/World/Arcade. Agent source review PASS. Focused geometry/payload regression fails old implementation as expected (bridge width0/image payload absent); initial opacity-only test PASS was insufficient and is explicitly superseded. Final mounted Native4/0 PASS: actual repeated sequence with120ms readiness hold16.208s; early visible-X hit-testing/interrupt from Hub,World,Arcade21.790s; readiness/dispose/return bounce11.640s; shared phone/tablet20percent pulse/timing0.044s. Full QA passed530suites/4011tests plus KING330 and all other selected gates, except feature-runtime initially rejected method names in tests-file registry; corrected to actual source path and reran qa:feature-runtime PASS40groups/34surfaces. qa:ios and diff hygiene PASS. Final complete-current-tree normal Debug BUILD SUCCEEDED; exact Native install-over/normal launch verified matching binaries,stable production inputs,2982 original assets byte-exact,both canonical saves unchanged through initial launch,actual SpringBoardSBRingerMuted1. Delivery receipt and logs under `/tmp/navigation-second-return-20261106`. Actual normal-app CUA repeated full original route; `fixed-review.mp4` plus inspected `fixed-second-60hz.png` (53.150–53.533s) show uninterrupted nav background/divider through second return; original50ms blank gap absent. Simulator remains on Forest Units. Source review PASS; Simulator regression PASS. Physical touch/motion acceptance NEEDS PHYSICAL TEST; no physical install. No physical install, gameplay or original-asset change.
+
+## Reproduced second Backpack return navigation flash · 2026-11-06
+
+User-directed Simulator reproduction only: normal exact Native launch, Home -> Journey Hub -> Backpack -> Hub -> Forest Units -> Backpack -> Forest -> Backpack -> Forest. Actual retained iPhone13 CUA route completed; no implementation/build/install or physical-device change. Recording `/tmp/navigation-second-return-20261106/repro.mp4` and inspected `second-return-60hz.png` confirm second return loses background AND divider around56.950–56.983s, restored by57.000s (roughly50ms sampled gap). This is a real decoration handoff discontinuity, beyond intended title/icon exit. Existing prior continuity tests/receipt do not establish this repeated-route visual acceptance. Visual regression verdict FAIL; exact owner cause and fix remain pending. Simulator left normally on Forest Units. No QA suites run for read-only reproduction; original assets/gameplay/saves unmodified by code.
+
+## Backpack navigation continuity + same scale bounce on return · 2026-11-06
+
+User again rejects Backpack->Journey flash and requests consistent navigation;latest steering explicitly approves incoming background scale bounce and requests it on return too. NativeAppController now owns at most one static original-layer decoration bridge across outgoing hide/cancel and async World resource readiness,captured before cancellation and retired atomically when actual incoming entry installs. Synchronous Hub/Backpack/Box destinations retire within reveal;World waits for real prepare callback. Noninternal replacement/dispose retire it;late callbacks cannot recreate it. No timer/raster/decode/input/readiness wait. Existing finite title/icon continuation remains independent.
+
+Final policy:existing20percent incoming background scale pulse applies forward AND on Back/Close return,including Backpack->World/Hub;outgoing internal background stays settled so a mid-exit route handoff cannot jump. Starts/ends at1.025rest,peaks1.23,y0. Initial stationary-collection trial was explicitly superseded by user's latest approval of scale bounce;its flags were removed. Other authored Home/full header motion,locked66pt geometry,10percent divider inset,assets/saves/audio/gameplay remain. Feature owner updated.
+
+Initial mounted Native2/0 PASS covers forced delayed World readiness/static bridge/atomic retirement/dispose-stale cleanup and everyWorld return identity/scroll. Stationary intermediate test1/0 PASS superseded;latest test additionally asserts return pulse first/last1.025,peak1.23,y0 while preserving bridge readiness/lifecycle. Full QA PASS(all selected gates;530suites/4011tests plus KING330) for continuity implementation;latest qa:fast PASS after user pulse steering. Latest mounted Native return-bounce/lifecycle test1/0 PASS. Final complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone Simulator install-over and exact-native normal launch verified matching binaries,production inputs stable through delivery,2982 packaged original assets byte-exact,both canonical saves unchanged through initial launch and actual SpringBoard SBRingerMuted1. Latest build-delivery-1.log/delivery.json supersede stationary intermediate receipts. qa:ios PASS. Manual CUA completed actual Forest->Backpack->Forest;video return-review-final.mp4 captures intermediate stationary policy,not final approved return bounce. Initial recorder was busy/concurrent UI changed;later independent recording succeeded. Frame-level final-bounce acceptance remains user review/NEEDS PHYSICAL TEST. Evidence /tmp/navigation-backpack-continuous-20261106. No physical install.
+
+## Internal navigation background visible20percent bounce · 2026-11-06
+
+User reports internal nav-bg looks static(Hub->Journey example),requests about
+20percent scale-up/return. Root cause:continuousBackground profile deliberately
+used only0.004absolute scale pulse. Shared route layer now performs incoming-only
+sin-squared20percent pulse relative to settled scale(1.025->1.23->1.025). Outgoing
+continuous decoration stays settled because content may hand off before its
+track finishes;avoids truncated large outgoing pulse/snapping at reveal. Applies
+to existing Hub<->World and Backpack internal profile. Home full drop/fade profile,
+navspeed1.3,screen-admission/readiness waits,zero internal translation/full opacity,
+66pt row,divider10percent horizontal inset,background artwork and all saves stay.
+Existing finite route clock/cancel/pause/ReducedMotion ownership;no new owners.
+
+Focused mounted Native1/0 PASS at phone/tablet widths verifies actual installed
+animation samples:exact20percent peak and same start/end,settled outgoing,no
+translation/fade,unchanged durations/delays,pause/resume and idempotent cancellation.
+qa:ios PASS. Full QA PASS(all selected gates,530suites/4011tests plus KING330).
+Complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone Simulator
+install-over/normal exact-native launch verified matching current binaries,2982
+original assets byte-exact,stable Swift inputs,both fresh canonical saves unchanged
+through initial launch and actual SpringBoardSilentMode1. Waited for another
+hosted QA run before installation. CUA observed normal app and Hub->Forest Journey
+navigation,settled header visible;recorded review.mp4. Recording is retained,not
+frame-analyzed;test proves authored samples,not subjective animation feel.
+Evidence:/tmp/navigation-background-bounce-20261106. Final motion feel remains
+user review/NEEDS PHYSICAL TEST;no physical installation.
+
+## Navigation divider horizontal inset · 2026-11-06
+
+User requests10percent padding per side on all upper navigation dividers and
+Home slider bottom navigation;nav backgrounds explicitly preserved. Only the two
+existing static divider source draw rectangles in JimiV9Artwork.swift now inset
+horizontally10percent(80percent artwork width). Full-width background masks,
+parabolic geometry,shared66pt RowLayout,vertical bands,opacity,icons,titles and
+motion remain unchanged;phone/tablet share this requested edit. Original PNGs
+unchanged;no new runtime owners. Existing unrelated working-tree edits preserved.
+
+qa:ios PASS. Complete-current-tree normal Debug BUILD SUCCEEDED;retained Jimi
+2026 QA iPhone13 install-over and normal exact-native launch verified matching
+binaries,2982 original assets byte-exact,production inputs stable through delivery,
+both canonical saves byte-identical through initial launch and SpringBoard
+SBRingerMuted1. Home screenshot reviewed with inset divider and full-width footer
+background. Evidence:/tmp/navigation-divider-inset-20261106. Full QA PASS(all
+selected deterministic gates,530suites/4011tests plus KING330);
+final visual/physical acceptance remains user review/NEEDS PHYSICAL TEST.
+No physical installation or PWA/legacy operation.
+
+Final current-tree normal Debug BUILD SUCCEEDED;both retained iPhone/iPad
+Simulator install-over/normal launch completed with matching built/installed
+binaries,stable production Swift inputs,2982 original assets byte-exact and both
+fresh canonical saves unchanged through initial launch. Evidence
+/tmp/nav-consistency-settings-final-20261106 and per-device delivery.json.
+Independent agent PASS on atomic/flag fixes and Settings parity;Settings actual
+content exit lengthens~540->716ms(+176ms) as explicitly requested rhythm change,
+not an added timer/navbar gate. Other screen waits/navspeed1.3 unchanged.
+Post-fix recording after.mp4 did capture Close return around23.0..23.4 despite
+CUA timeout;60Hz-requested local frames and bg-strip metrics retained under
+/tmp/nav-backpack-flash-20261106. No abrupt white/empty bg evident in inspected
+handoff samples;not a full physical/FPS verdict. Play/interim path source-reviewed,
+no gameplay attempt created during this UI investigation. QA suites skipped.
+SpringBoard phoneSilentMode1/iPad0(existing limitation);no new physical install.
+
+## Settings Back->Home uses Arcade exit motion · 2026-11-06
+
+User says Settings Back feels early/inconsistent versus Arcade->Home. Settings
+content previously0.34s single backIn differed from Arcade0.18anticipation+
+0.336collapse. Non-reduced Settings rows/footer now borrow shared Hub/Arcade exit,
+retaining existing40ms order. Entry,ReducedMotion and navspeed1.3 unchanged.
+Home remains driven by actual content completion;no added wait/timer/navbar gate.
+This is explicit user-requested Settings-only timing correction,other seamless
+screen waits retained. Agent independent source review requested. Previous fixes
+for Backpack atomic handoff and Play/interim immediate bg exit remain. Final
+current-tree build/retained preview follows all saved changes.
+
+## Active Home die snap-back/downward correction · 2026-11-06
+
+User rejects first active-die sway because of visible snap back/down. Supersedes prior active recipe:seven-pose random alternating1.5...3degree slow sway now rotation only about existing centre,translation0/scale1 throughout. No periodic vertical reset or active scaling. Switching between active rotation and inactive original float now captures outgoing painted transform and fades it additively to identity over650ms,easeInOut,on existing shell. One finite native-home-nav-profile-handoff key;existing shell pause/resume clock and stop/hidden/detach cleanup remove it together with native-home-nav-idle. Existing other icons,selection geometry/contact,route tracks and saves unchanged. No new recurring owner/timer/resource.
+
+Focused mounted Native1/0 PASS verifies both tilt signs/limits,duration,zero translation/unit scale,selection profile restoration,finite additive650ms handoff and idempotent retirement of both keys. qa:ios PASS. Full QA PASS(all selected gates;530suites/4011tests plus KING330). Final complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone Simulator install-over/normal launch verified matching binaries,2982 packaged original assets byte-exact,stable production inputs through delivery,both canonical saves unchanged through initial launch and actual SpringBoard Silent Mode1. Simulator was subsequently observed on SpringBoard during user interaction;normal exact-native-bundle relaunch verified Home and CUA confirmed selected Arcade/die. No fresh crash report. User continued interacting with Simulator;no further UI actions after confirming selected die. Evidence /tmp/home-die-sway-no-snap-20261106. Final snap/motion acceptance remains user review/NEEDS PHYSICAL TEST.
+
+## Final validation notes for navigation flash/gameplay bg fix · 2026-11-06
+
+Independent nav_flash_review source verdict PASS after checking atomic handoff,
+non-gating sibling transactions,one-shot immediate bg flag and unchanged actual
+readiness/content-exit join. Before video/frame sheets retained at
+/tmp/nav-backpack-flash-20261106. After recording attempted but CUA calls timed out/
+Simulator focus and running app were changed concurrently;latest crash report
+predates this review,no current crash evidence. Frame-level post-fix verdict is
+NOT established;do not claim visual acceptance. Other saved HomeView edits changed
+production input after prior preview;one final current-tree rebuild/refresh follows.
+No change to screen wait predicates or navigation speed1.3. No full QA suites.
+
+## Active Home die gentle random left/right idle rotation · 2026-11-06
+
+User requests slight gentle random left/right rotation on active Home slider die. Existing native-home-nav-idle transform recipe now switches only centre die when selectedSlide1:one bounded seven-pose recipe per activation,alternating random left/right1.5...3degrees,random initial direction,existing cycle*3(~15s),easeInOut. Existing slight vertical float/1.025scale retained. Other icons/inactive die retain previous three-pose idle;deselection restores it. Same existing shell/key/CA clock and Home pause/resume/stop/hidden/detach/ReducedMotion ownership;no new scheduler,callback,resource,audio,haptic or save owner. Contact/route/selection transforms stay separate. Feature owner updated.
+
+Focused mounted Native1/0 PASS:both angle signs,bounds/duration,pause/resume,deselection profile restore,idempotent cleanup. qa:ios PASS. Normal complete-current-tree Debug BUILD SUCCEEDED;retained iPhone Simulator install-over/normal launch verified matching binaries,2982 original assets byte-exact,stable production inputs,both canonical saves unchanged through initial launch and SpringBoard Silent Mode1. CUA selected native.home.slide.1 and confirmed Arcade selected for active-die review. Evidence /tmp/home-active-die-sway-20261106. Full QA pending;final motion feel NEEDS PHYSICAL TEST. No physical install.
+
+Final agent read-only source review PASS:atomic transactions preserve gate timing,
+regular/interim/no-card gameplay paths share immediate bg exit flag with resets.
+Agent noted first full->soft rest mismatch1.025->1.015;fixed by sharing1.025rest
+for all backgrounds. Soft remains tiny0.004pulse/y0,no side-edge exposure. Final
+frame-level comparison and normal Simulator refresh follow current-tree build.
+
+## Backpack Close atomic background handoff and gameplay bg departure · 2026-11-06
+
+User requests independent agent investigation of one-frame Backpack Close bg flash,
+and Play/Continue/interim bg exit without added board-transition waits. Agent
+nav_flash_review found Backpack-only motion.cancel exposes retained incoming
+header settled model before new entry,plus soft bg resets4pt/scale1 at handoff.
+Recorded actual Close before fix at /tmp/nav-backpack-flash-20261106/before.mp4;
+coarse/fine contact sheets show divider handoff geometry jump around9.2s.
+reveal and async World entry now commit cancellation/hide/prime/unhide atomically.
+Soft bg remains settled1.015/y0 with0.004scale pulse rather than reset/drop;
+full Home profile retained. World.prepareGameplayExit resets soft and admits bg
+reverse/fade immediately,finishing0.431s under existing content exit for regular
+and interim launches. Existing required-art/exit-receipt join already warms in
+parallel,no new wait/timer or gameplay admission change. Source wait/speed1.3
+benchmark retained. QA suites skipped per ongoing direction;final Debug/retained
+preview pending. Agent review continued read-only;no parallel edits/builds.
+
+## Home bottom navigation mirrored upper-nav entry/exit and selected-size contrast · 2026-11-06
+
+User requests bottom navigation follow current upper navigation rhythm mirrored vertically: icons exit down one-by-one in one shuffled order per route;divider/texture exit down after icon starts;entry rises from below. Added pure JimiV9Motion.homeNavigation recipe using shared upper-nav1.3speed,0.56/1.3duration,0.13/1.3stagger,entry0.10/1.3lead. Icons use exact backOut1.8 entry/time-reverse backIn1.8 exit,scale0.65/y30/fade;footer uses24pt mirrored backOut/backIn1.7 with scale1...1.025. Both NativeRouteMotion and JimiHomeHubController remove whole navView collapse and route the three existing buttons and existing divider/texture carrier independently. Exit snapshots painted pose,hidden pending controls remain hidden. Existing finite native-route registry,generation,cancel,pause/resume,ReducedMotion and input admission remain owners;no new timers/resources/audio/haptics/save behavior. Previous independent tap/idle shells retained. Inactive icons size*0.9 and active*1.1 relative to previous sizes on phone/tablet;fixed horizontal slot anchors and iPad8pt group lift retained. Feature owner updated.
+
+Focused actual mounted Native tests2/0 PASS:separate tracks/direction/delay,pause/resume,idempotent cancellation/reentry,phone/tablet sizes and fixed x anchors. First test invocation used normal scheme(no TestAction),corrected to existing Stack to Six QA;both logs retained. qa:ios PASS. Full QA PASS(all selected gates;530suites/4011tests plus KING330). Normal complete-current-tree Debug BUILD SUCCEEDED in dedicated clean /tmp/home-bottom-nav-normal-derived;retained iPhone Simulator install-over/normal launch verified matching binaries,2982 packaged original assets byte-exact,both canonical saves unchanged through initial launch and SpringBoard Silent Mode1. Initial shared test DerivedData retained PlugIns and was correctly refused before installation;isolated clean build resolves it. First clean build detected concurrent AppController/World/header saves and automatically rebuilt;second build stayed stable through delivery. A subsequent saved header/World refinement triggered one additional complete-tree build/delivery,again BUILD SUCCEEDED with stable production inputs through final install/normal launch;latest build-delivery-1.log and delivery.json supersede prior receipts. Settled Home screenshot viewed:three icons/footer visible with no edge clipping;final-preview-settled.png. No physical installation. Evidence /tmp/home-bottom-nav-mirrored-20261106. Final motion/size visual feel NEEDS PHYSICAL TEST;no physical install requested.
+
+## Full Home vs minimal internal navigation background profiles · 2026-11-06
+
+Latest user clarifies minimal bg bounce Hub<->World and Backpack entry/return,
+full enter from Home slider toJourney/Arcade. No bg scaleDOWN exposing side edges:
+full bg24pt travel+fade/scale1->1.025;soft4pt travel/no broad fade/scale1->1.015.
+Reverse exit uses same profiles,absolute scale>=1;model rests atzoomed endpoint,
+no end snap. App route flag captures source/destination,including lazily created
+Backpack and preparedWorld. Soft outgoing continuation omits background,retaining
+fast handoff;title/icon remaining finite layer tail survives screen hide/cancel.
+Latest1.3speed and screen admission wait benchmark unchanged. Manual CUA observed
+Forest->Hub and Hub->Forest complete without crash;subsequent user navigation
+changed toHome during attemptedBackpack review,so no Backpack visual verdict.
+QA suites skipped per ongoing direction. Final complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching binaries,stable production Swift inputs,2982 original assets byte-exact and both fresh canonical saves unchanged through initial launch. Evidence /tmp/nav-full-soft-scaleup-profiles-20261106 and per-device delivery.json. Source review:finite one-tail owner,no delegates/sounds/idle copied,explicit epochs/model rests and recursive lifecycle cleanup;Gameplay admission resets soft profile so unrelated return retains normal default. SpringBoard Silent Mode phone1/iPad0(existing limitation). No new physical install;final animation/cross-route feel remains user review.
+
+## Navigation completion parity and Hub->World background continuity · 2026-11-06
+
+User reports Backpack full enter/exit finish but other headers cut;retain latest
+30percent speedup. Conflicting lifetimes found: screen content finishes/hides or
+cancels header before independent0.731s navigation tail. Root model also still
+held original route's collapsed endpoint;now model rests stable and only visual
+children animate. World header explicit epochs now use layer-local time.
+NativeAppController keeps at most one finite noninteractive painted-layer tail in
+existing host before old screen hide/cancel:shared image/path contents and only
+remaining navigation tracks(no delegates/idle/contact/audio callbacks),no raster,
+assets,timer or new screen wait. Completion/replacement/dispose recursively clears;
+app background pauses exact root and resumes phase. Hub->World bg stays in place;
+accepted World->Hub fast bg behavior retained by excluding bg from Journey-pair
+outgoing tail. Title/icons keep latest1.3speed and recipes. Source controller owns
+continuation,existing route receipt/admission untouched. QA/tests skipped per
+ongoing direction;normal Debug/retained preview pending.
+
+## Explicit navigation recipe30percent faster · 2026-11-06
+
+Latest steering speeds entire new navigation enter/exit30percent. Shared speed1.3
+scales all durations/delays together:background/element0.56->0.43077s,title lead
+100->76.92ms,stagger130->100ms. Entry total~707.69ms,exit~730.77ms. Same explicit
+bg/title/left/right order,reversed motion/fade,title overshoot+20percent and static
+root carrier. Screen-route admission benchmark and owner files untouched in this
+task. Previous slower explicit recipe built/refreshed phone Simulator;latest
+complete-current-tree normal Debug/retained preview pending. QA/tests skipped per
+ongoing direction.
+
+## Explicit independent navigation enter/reversed exit rhythm · 2026-11-06
+
+User locks current seamless screen-transition waits as benchmark;no route owner/
+admission changes in this task. Shared header now uses static root carrier so
+bg motion cannot cancel child rise/merge exits. Separate bg+divider0.56s spring
+from-24pt/scale0.65. Title from below y30 starts100ms after bg,left230/right360ms;
+title positive settling scale overshoot20percent stronger. Exit uses literal
+reversed entry samples:left0/right130/title260/bg390ms;bg moves up/reverses spring
+before fading,instead of fade-only. Removed prior parent-exit-tail retiming and
+separate old fade path from normal-motion ownership;ReducedMotion fallback kept.
+Existing route clock/generation/pause/cancel retained;no new recurring owner or
+assets. QA/tests skipped per ongoing direction;normal Debug/retained preview pending.
+
+## Top navigation no longer gates Hub/World screen transitions · 2026-11-06
+
+User reports Hub->Forest delay and requests independent constant navigation enter/
+exit. Root cause: extended header parent-hold duration participated in screen
+CATransaction completion,so decorative exit delayed destination reveal. Both
+NativeRouteMotion/JimiHomeHubController now classify shared headers with decorative
+continuations,outside route completion/holdUntil;own generation-guarded completion
+restores header anchors,existing cancellation/pause registry still includes them.
+World enter/exit similarly install header in sibling transaction before content
+gate. Content/island completion again controls route admission,not navigation.
+Existing nav curves/stagger/bg fade/tilt and locked geometry retained. No new
+clock/resource/save owner. QA/tests skipped per ongoing direction;normal Debug/
+retained preview finished: complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching binaries,stable production Swift inputs,2982 original assets byte-exact and both fresh canonical saves unchanged through initial launch. Evidence /tmp/nav-independent-screen-admission-20261106 and per-device delivery.json. Source review confirms headers outside all affected route/World content-completion transactions,constant header recipes preserved,independent anchors generation-guarded and existing cancellation registry unchanged. SpringBoard Silent Mode phone1/iPad0(existing limitation). No new physical install;actual transition feel awaits user review.
+
+## Navigation bg/divider leave earlier during sequential content exit · 2026-11-06
+
+User likes sequential exit but requests nav-bg/divider begin earlier. Decoration
+fade no longer receives held-parent extra offset;original roughly200ms start/
+160ms duration retained on same decoration group. Background/divider now fade
+during content sequence,while shared header transform/opacity hold still prevents
+common collapse from masking title/left/right exits. No change to accepted child
+sequence,spring curves,geometry,route/lifecycle or resources. QA/tests skipped
+per ongoing direction. Complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching binaries,stable production Swift inputs,2982 original assets byte-exact and both fresh canonical saves unchanged through initial launch. Evidence /tmp/nav-decoration-earlier-exit-20261106 and per-device delivery.json. SpringBoard Silent Mode phone1/iPad0(existing limitation). No new physical install;final decoration timing awaits user review.
+
+## Navigation exit visibly sequential before parent collapse · 2026-11-06
+
+User reports top icons still exit symmetrically together. Existing85ms stagger
+was masked by common header collapse beginning before child exits finished;
+previous hold only aligned parent end with final child end. Exit stagger now
+130ms matching enter(title,left,right after40ms lead). Parent transform/opacity/
+decoration hold first pose until final child end+20ms,then original header exit
+plays. Existing finite group extends route transaction completion,not a timer;
+normal interruption/background/ReducedMotion ownership retained. Entry unchanged.
+QA/tests skipped per ongoing direction. Complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching binaries,stable production Swift inputs,2982 original assets byte-exact and both fresh canonical saves unchanged through initial launch. Evidence /tmp/nav-exit-sequential-parent-hold-20261106 and per-device delivery.json. SpringBoard Silent Mode phone1/iPad0(existing limitation). No new physical install;final exit rhythm awaits user review.
+
+## Navigation content slightly delayed with clearer enter/exit rhythm · 2026-11-06
+
+User requests slightly later navigation content and more noticeable sequential
+appearance/disappearance. Shared title/left/right content begins40ms later;
+entry stagger90->130ms,exit45->85ms. Same0.56s gentle Hub enter and0.514s exit
+recipes,opacity/scale/inner icon tilt and header geometry. Parent exit tail uses
+same shared content delay+2*exitStagger so right icon finishes before parent
+leaves. Existing route clock/ReducedMotion/pause/cancel retained,no new owner.
+QA/tests skipped per ongoing direction. Complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching binaries,stable production Swift inputs,2982 original assets byte-exact and both fresh canonical saves unchanged through initial launch. Evidence /tmp/nav-content-rhythm-stagger-20261106 and per-device delivery.json. SpringBoard Silent Mode phone1/iPad0(existing limitation). No new physical install;final rhythm feel awaits user review.
+
+## Navigation icon tilt follows inner arc toward title · 2026-11-06
+
+User reports left/right icon tilt insufficient and clarifies reference is inner
+arched area beside artwork toward main/title arc,not terminal screen edge.
+Shared applyCurve now samples tangent half icon width inward from its centre
+and emphasises angle1.8times. Retains existing centre-based vertical drop,all
+screen/device header rules,hit bounds,title curve,Home icon angles and motion.
+No new animation/resource owner. QA/tests skipped per ongoing direction;
+Complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching binaries,stable production Swift inputs,2982 original assets byte-exact and both fresh canonical saves unchanged through initial launch. Evidence /tmp/nav-icons-inner-arch-tilt-20261106 and per-device delivery.json. SpringBoard Silent Mode phone1/iPad0(existing limitation). No new physical install;final icon tilt awaits user review.
+
+## Modal paper corners40pt · 2026-11-06
+
+User requests40px rounded modal edges. Shared modal paperCornerRadius32->40pt
+on screen for both devices,including inner paper history strips,with existing
+tablet local40/1.4 projection compensation. Settings22/24pt,Close shapes,flat
+modal bottoms,arch geometry and motion retained. QA/tests skipped per ongoing
+direction. Complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching binaries,stable production Swift inputs,2982 original assets byte-exact and both fresh canonical saves unchanged through initial launch. Evidence /tmp/modal-paper-corners40-20261106 and per-device delivery.json. SpringBoard Silent Mode phone1/iPad0(existing limitation). No new physical install;final corners await user review.
+
+## Additional20percent navigation/Home arch and32pt modal paper corners · 2026-11-06
+
+User requests another20percent stronger arch,matching icon/title curves and32px
+modal corners. Shared depth11.76->14.112pt(49*0.288);verified all title glyph
+baseline/angle and header/Home icon offsets/tangents derive from same helpers,
+so no disconnected manual offsets introduced. Row66pt/safe-area/tablet rules
+retained. Modal paperCornerRadius now32pt on screen both devices,tablet local
+32/1.4 for projected modals;main paper/history strips/shadows share helper.
+Settings own22phone/24tablet policy retained. Modal lower edge stays flat.
+QA/tests skipped per ongoing direction. Complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching binaries,stable production Swift inputs,2982 original assets byte-exact and both fresh canonical saves unchanged through initial launch. Evidence /tmp/navigation-arch-plus20-modal32-20261106 and per-device delivery.json. SpringBoard Silent Mode phone1/iPad0(existing limitation). No new physical install;final curve/corners appearance awaits user review.
+
+## Home/navigation arch20percent stronger · 2026-11-06
+
+User explicitly requests20percent stronger arch on Home divider,top navigation
+divider and navigation background. Shared dividerArchDepth9.8->11.76pt(49*0.24),
+so existing Home surface/divider,header bg mask/divider raster and tangent-following
+content remain aligned. Locked66pt content row,safe-area/device rules/anchors
+retained;modal paper bottom depth0 remains unchanged. No new assets/clocks.
+QA/tests skipped per ongoing direction. Complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching binaries,stable production Swift inputs,2982 original assets byte-exact and both fresh canonical saves unchanged through initial launch. Evidence /tmp/navigation-home-arch-plus20-20261106 and per-device delivery.json. SpringBoard Silent Mode phone1/iPad0(existing limitation). No new physical install;latest phone delivery remains prior flat-paper/preload-rim version. Final arch appearance awaits user review.
+
+## Final current-tree physical iPhone + Simulator delivery · 2026-11-06
+
+Completed all latest user refinements together: shared paper modal bottoms flat,
+inner Score/Combo history paper rests distinct within±1degree,original orange
+preload with dark lower shading removed and narrower/crisper CTA-like upper lip.
+No candy stripes or recurring candy motion. Signed Release BUILD SUCCEEDED;
+source Native identity and compiled bundle/assets/dependency audits PASS,codesign
+--verify --deep --strict PASS,production Swift/project inputs stable through delivery.
+Installed over existing com.taptapdesign.stacktosix.native on wired iPhone13blue
+0F62B71E-0B04-53C3-906E-EC28F5D2390B;normal no-argument launch and runningPID9796
+verified. Both canonical saves byte-identical before/after install AND launch.
+App SHA25682af1c30c95f90ff8d740415ab0f2d5ca37a27ad6d9f4780e5b7270ba19e267b.
+Evidence /tmp/native-phone-orange-current-20261106/delivery.json,source-audit.log,
+built-audit.log,signed-release-build.log and local save copies. No reset/uninstall.
+Retained iPhone/iPad Simulator complete-current-tree normal Debug refresh also
+finished,matching built/installed binaries,stable production Swift inputs,2982
+original assets byte-exact and both fresh saves unchanged through initial launch.
+Simulator evidence /tmp/flat-modal-paper-tilts-preview-20261106 and per-device
+delivery.json;SpringBoard phoneSilentMode1/iPad0(existing limitation). No web/PWA/
+legacy operation or Git publication. QA suites skipped per ongoing direction;
+physical visual/touch/FPS/audio acceptance remains user review. Simulator had
+remained old while Release was compiling;explicitly refreshed before final phone
+installation after user asked why changes were not visible.
+
+## Preload remove dark lower shading,sharpen rim · 2026-11-06
+
+User reports bar too dark and requests removing drop-shadow tone and sharper shine.
+Static material lower brown18percent gradient removed(replaced clear);top gloss
+white48->28percent and spread narrowed. Upper rim white42->60percent,inset0.75->0.55pt,
+stroke0.065->0.055height(min0.5pt). Original orange/geometry/progress retained.
+Current signed build interrupted before install to incorporate latest refinement;
+complete tree rebuilt before phone delivery and retained Simulator refresh.
+No new clock/assets;QA/tests skipped per ongoing direction.
+
+## Preload subtle CTA-like upper rim · 2026-11-06
+
+User additionally requests CTA-reference edge shine specifically on preload bar.
+Original orange/inner shading retained;one static SKShape upper lip,inset0.75pt,
+white42percent and0.065height stroke follows existing live progress path updates.
+Clipped by existing material mask,no animation/timer/assets. Signed build for flat
+modal changes interrupted before install to include this latest request;complete
+current tree rebuilt next. QA/tests skipped per ongoing direction.
+
+## Straight paper modal bottoms and subtle random history-card tilts · 2026-11-06
+
+User requests flat lower modal edges and individual roughly1degree random paper
+container tilts. Shared bottomArchDepth now0,retaining existing rounded corners,
+mask/shadow owners and all paperLayout consumers. Score/Combo history paper rows
+capture shuffled distinct negative/nearzero/positive ranges within±1degree per
+modal;current no-paper row stays unrotated. Layout uses bounds/centre to preserve
+geometry under rotation;existing finite entry/exit scale tracks remain. Settings
+existing random paper/card tilts retained. Existing mask expectation updated,not
+run per ongoing no-QA direction. Signed old orange Release built/audited before
+this new request,but was not installed;rebuilding complete current tree before
+physical delivery. Simulator refresh follows same current source. No assets changed.
+
+## Original orange active bar with retained inner shading · 2026-11-06
+
+User requests complete candy removal,original orange and retained inner gradient/
+shadow only. Active fill/base E7744A restored;all stripe drawing,second color,
+phase/period state and Scene advanceCandy hook removed. Static bounded material
+keeps prior top gloss and bottom shading,existing fill mask and resize ownership.
+No extra recurring work;progress,track,tutorial,consumption,smoke/assets unchanged.
+QA/tests skipped per ongoing direction. Complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching binaries,stable production Swift inputs,2982 original assets byte-exact and both fresh canonical saves unchanged through initial launch. Evidence /tmp/orange-meter-retained-inner-shading-20261106 and per-device delivery.json. SpringBoard Silent Mode phone1/iPad0(existing limitation). No physical install;final orange/shading appearance awaits user review.
+
+## Candy two light peach shades · 2026-11-06
+
+User requests replacing dark orange with a shade lighter than current light stripe.
+Active material base and backing E7744A->FFE4C7;existing stripe FFD2AA retained.
+Both alternating shades are light;density,equal spacing,reversed0.324height/sec
+motion,gloss,track,progress and existing lifecycle unchanged. QA/tests skipped per
+ongoing direction. Complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching binaries,stable production Swift inputs,2982 original assets byte-exact and both fresh canonical saves unchanged through initial launch. Evidence /tmp/candy-two-light-shades-20261106 and per-device delivery.json. SpringBoard Silent Mode phone1/iPad0(existing limitation). No physical install;final colors await user review.
+
+## Candy double stripe density and40percent slower · 2026-11-06
+
+User requests twice as many stripes and additional40percent slower movement.
+Light band and orange gap2.5->1.25bar-heights each,period5->2.5heights;existing
+speed0.54->0.324bar-heights/sec. Light FFD2AA,base E7744A,direction,gloss,progress
+and existing clock/lifecycle unchanged. No assets altered. QA/tests skipped per
+ongoing direction. Complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching binaries,stable production Swift inputs,2982 original assets byte-exact and both fresh canonical saves unchanged through initial launch. Evidence /tmp/candy-double-density-slower40-20261106 and per-device delivery.json. SpringBoard Silent Mode phone1/iPad0(existing limitation). No physical install;final stripe motion awaits user review.
+
+## Candy many evenly spaced bands · 2026-11-06
+
+User rejects single stripe and requests many evenly distributed bands. Existing
+material now repeats2.5bar-height light stripes with equal2.5height orange gaps,
+period5heights. Retains light FFD2AA,base E7744A,gloss,reversed0.54height/sec speed,
+progress and existing Scene/lifecycle ownership. No assets altered. QA/tests
+skipped per ongoing direction. Complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching binaries,stable production Swift inputs,2982 original assets byte-exact and both fresh canonical saves unchanged through initial launch. Evidence /tmp/candy-many-even-bands-20261106 and per-device delivery.json. SpringBoard Silent Mode phone1/iPad0(existing limitation). No physical install;final band distribution awaits user review.
+
+## Candy single band four times wider and lighter · 2026-11-06
+
+User requests much wider,lighter single moving band. Width2.5->10bar-heights
+(four times previous);light colorFFC698->FFD2AA. One-band repetition,original
+orange,gloss,reversed0.54height/sec motion,progress and lifecycle unchanged.
+QA/tests skipped per ongoing direction. Complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching binaries,stable production Swift inputs,2982 original assets byte-exact and both fresh canonical saves unchanged through initial launch. Evidence /tmp/candy-single-band-wide4x-20261106 and per-device delivery.json. SpringBoard Silent Mode phone1/iPad0(existing limitation). No physical install;final width/color awaits user review.
+
+## Candy single broad light band · 2026-11-06
+
+User rejects subtle many bands and requests former lighter shade with only one
+moving light stripe. FFC698 restored;one2.5bar-height stripe,repetition period
+maximum+stripe+slant ensures no simultaneous second stripe inside track. Removed
+random repeated-band array. Same reversed0.54height/sec motion,mask,gloss,existing
+Scene clock/lifecycle guards and progress. No original asset changes. QA/tests
+skipped per ongoing direction. Complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching binaries,stable production Swift inputs,2982 original assets byte-exact and both fresh canonical saves unchanged through initial launch. Evidence /tmp/candy-single-light-band-20261106 and per-device delivery.json. SpringBoard Silent Mode phone1/iPad0(existing limitation). No physical install;final single-band look awaits user review.
+
+## Candy barber broad subtle-tone bands · 2026-11-06
+
+User requests very wide lighter barber bands. Captured light-band widths now
+1.8...3.15bar-heights,three times previous0.60...1.05;final user refinement uses subtle ED8A62 versus base E7744A instead of pale FFC698.
+Random orange gaps1.2...2.5heights,original strong orange,gloss,reversed0.54height/sec
+speed,progress and existing rendering/lifecycle owners remain. No assets altered.
+QA/tests skipped per ongoing direction. Final complete-current-tree normal Debug BUILD SUCCEEDED;retained iPhone/iPad Simulator install-over/normal launch verified matching binaries,stable production Swift inputs,2982 original assets byte-exact and both fresh canonical saves unchanged through initial launch. Evidence /tmp/candy-barber-wide-subtle-20261106 and per-device delivery.json. SpringBoard Silent Mode phone1/iPad0(existing limitation). No physical install;final subtle color/width appearance awaits user review.
+
+## Candy barber reverse and70percent slower · 2026-11-06
+
+User requests reverse candy motion and70percent slower speed. Existing advanceCandy
+offset now decrements at0.54bar-heights/sec(previous1.8),with positive periodic wrap.
+Same texture,random spacing,color,gloss,progress,visibility/lifecycle guards and
+existing Scene clock. PRODUCTION95percent tag remains immutable. QA/tests skipped
+per ongoing direction. Complete-current-tree normal Debug BUILD SUCCEEDED;retained
+iPhone/iPad Simulator install-over/normal launch verified matching binaries,stable
+production Swift inputs,2982 original assets byte-exact and both fresh canonical
+saves unchanged through initial launch. Evidence /tmp/candy-barber-reverse-slower70-20261106
+and per-device delivery.json. SpringBoard Silent Mode phone1/iPad0(existing limitation).
+No physical install;final motion feel awaits user review.
+
 ## Git checkpoint — PRODUCTION 95% ready · 2026-11-06
 
 User requests all current project work saved online with this exact milestone

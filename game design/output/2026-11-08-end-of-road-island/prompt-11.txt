@@ -1,0 +1,3 @@
+ONLY HORIZONTALLY MIRROR this exact supplied empty island image, keeping absolutely all shapes, colors, textures, proportions, objects, camera, lighting and transparent background unchanged, with one text correction. Sign now on LEFT; three trees on RIGHT; mushrooms RIGHT; flowers LEFT; all path and floating stones mirrored. The sign must continue reading normally left to right EXACTLY 'End of' on top line and 'Road' on bottom line in the SAME chunky rounded orange font and same paint/weathering details; do not mirror the letters backwards. Preserve current enlarged sign size. No people or dog, no additions. Full transparent PNG, no backdrop/haze/outline. Mirror transformation only, not redesign.
+
+Built-in image_gen. Separate candidate; no runtime integration.

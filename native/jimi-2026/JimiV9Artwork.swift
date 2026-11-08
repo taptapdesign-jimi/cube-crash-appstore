@@ -45,6 +45,37 @@ final class JimiV9ArchedNavigationTitle:UILabel {
     private weak var leftEntryIcon:UIView?
     private weak var rightEntryIcon:UIView?
     private static let entryKey="native.navigation.content.enter"
+    static let navigationAcceleration:Double=1.2
+    static let navigationSpeed:Double=1.3*navigationAcceleration
+    static let titleEntryDelay:Double=0.10/navigationSpeed
+    static let elementStagger:Double=0.13/navigationSpeed
+    static let elementDuration:Double=0.56/navigationSpeed
+    static let backgroundExitDelay:Double=elementStagger*3
+    // Accepted Forest main-art exit is the reference handoff window. Incoming
+    // titles retain its gap even when a collection's content exits sooner.
+    static let handoffWindow:Double=0.234+0.4368
+    static var titleHandoffGap:Double {handoffWindow+titleEntryDelay-contentDelay(index:0,entering:false)-elementDuration}
+    static func contentDelay(index:Int,entering:Bool)->Double {
+        if entering {return titleEntryDelay+Double(index)*elementStagger}
+        return Double(index == 0 ? 2:index-1)*elementStagger // left,right,title
+    }
+    static func visualDuration(entering:Bool)->Double {
+        entering ? titleEntryDelay+2*elementStagger+elementDuration:backgroundExitDelay+elementDuration
+    }
+    static func reducedDuration(entering:Bool)->Double {(entering ? 0.20:0.16)/navigationAcceleration}
+    /// Directional accessibility recipe shared by every top header. Input is
+    /// explicit so callers can inspect it without changing device preferences.
+    static func reducedNavigationGroup(_ source:CAAnimationGroup,entering:Bool,rest:CATransform3D,initialOpacity:Float)->CAAnimationGroup {
+        let duration=reducedDuration(entering:entering)
+        let parent=source.copy() as! CAAnimationGroup
+        parent.duration=duration
+        let hold=CAKeyframeAnimation(keyPath:"transform")
+        hold.values=[NSValue(caTransform3D:rest),NSValue(caTransform3D:rest)];hold.duration=duration
+        let alpha=CAKeyframeAnimation(keyPath:"opacity")
+        alpha.values=[entering ? 0:initialOpacity,entering ? 1:0];alpha.duration=duration
+        parent.animations=[hold,alpha]
+        return parent
+    }
     override func drawText(in rect:CGRect) {} // Original CoreText geometry is painted by static glyph layers.
     override func layoutSubviews(){super.layoutSubviews();prepareGlyphs()}
     private func prepareGlyphs() {
@@ -69,8 +100,10 @@ final class JimiV9ArchedNavigationTitle:UILabel {
             let ink=attrs[kCTForegroundColorAttributeName] ?? attrs[NSAttributedString.Key.foregroundColor.rawValue]
             for index in glyphs.indices {
                 let localX=startX+positions[index].x,midX=frame.minX+localX+advances[index].width/2
-                let shift=JimiV9NavigationHeader.dividerDrop(at:midX/width)-JimiV9NavigationHeader.dividerArchDepth
-                let angle=JimiV9NavigationHeader.tangentAngle(at:midX,width:width)
+                // User2026-11-06: cumulative title curvature +15percent, then +10percent.
+                let titleArchScale:CGFloat=1.265
+                let shift=(JimiV9NavigationHeader.dividerDrop(at:midX/width)-JimiV9NavigationHeader.dividerArchDepth)*titleArchScale
+                let angle=atan(tan(JimiV9NavigationHeader.tangentAngle(at:midX,width:width))*titleArchScale)
                 let carrier=CALayer();carrier.anchorPoint = .zero;carrier.position=CGPoint(x:localX+advances[index].width/2,y:baseline-positions[index].y+shift)
                 carrier.transform=CATransform3DMakeRotation(angle,0,0,1)
                 let shape=CAShapeLayer();shape.anchorPoint = .zero
@@ -86,33 +119,45 @@ final class JimiV9ArchedNavigationTitle:UILabel {
         CATransaction.commit()
     }
     func configureEntryIcons(_ icons:[UIView]){leftEntryIcon=icons.first;rightEntryIcon=icons.count>1 ? icons.last:nil}
-    func startNavigationEntry(at epoch:CFTimeInterval){animateNavigationContent(at:epoch,entering:true)}
-    func startNavigationExit(at epoch:CFTimeInterval){animateNavigationContent(at:epoch,entering:false)}
-    private func animateNavigationContent(at epoch:CFTimeInterval,entering:Bool) {
-        let stagger=entering ? 0.09:0.045
+    func startNavigationEntry(at epoch:CFTimeInterval,reducedMotion:Bool=UIAccessibility.isReduceMotionEnabled){animateNavigationContent(at:epoch,entering:true,reducedMotion:reducedMotion)}
+    func startNavigationExit(at epoch:CFTimeInterval,reducedMotion:Bool=UIAccessibility.isReduceMotionEnabled){animateNavigationContent(at:epoch,entering:false,reducedMotion:reducedMotion)}
+    private func animateNavigationContent(at epoch:CFTimeInterval,entering:Bool,reducedMotion:Bool) {
         let targets:[UIView?]=[self,leftEntryIcon,rightEntryIcon]
         let painted=targets.map{target -> (CATransform3D,Float) in
             guard let target else{return (CATransform3DIdentity,1)}
             return (target.layer.presentation()?.transform ?? target.layer.transform,target.layer.presentation()?.opacity ?? target.layer.opacity)
         }
         cancelNavigationEntry();layoutIfNeeded();prepareGlyphs()
-        guard !UIAccessibility.isReduceMotionEnabled,window != nil else{return}
-        let recipe=entering ? JimiV9Motion.worldHubElementEnter():JimiV9Motion.worldHubElementExit()
-        let sampled=JimiV9Motion.sampledTrack(recipe)
+        guard window != nil else{return}
+        if reducedMotion {
+            for (index,item) in targets.enumerated() {
+                guard let target=item else{continue}
+                let source=CAAnimationGroup();source.fillMode=entering ? .backwards:.both;source.isRemovedOnCompletion=entering
+                let animation=Self.reducedNavigationGroup(source,entering:entering,rest:target.layer.transform,initialOpacity:painted[index].1)
+                animation.beginTime=target.layer.convertTime(epoch,from:layer)
+                target.layer.add(animation,forKey:Self.entryKey)
+            }
+            return
+        }
+        let sampled=JimiV9Motion.sampledTrack(JimiV9Motion.worldHubElementEnter())
+        let poses=entering ? sampled.poses:Array(sampled.poses.reversed())
         for (index,item) in targets.enumerated() {
             guard let target=item else{continue}
             let base=entering ? target.layer.transform:painted[index].0
             let motion=CAKeyframeAnimation(keyPath:"transform"),opacity=CAKeyframeAnimation(keyPath:"opacity")
-            motion.values=sampled.poses.map { pose in
-                let local=CATransform3DScale(CATransform3DMakeTranslation(pose.x,pose.y,0),pose.scaleX,pose.scaleY,1)
+            motion.values=poses.map { pose in
+                // Only the title's settling overshoot grows20percent; start size stays.
+                let sx=index == 0 && pose.scaleX>1 ? 1+(pose.scaleX-1)*1.2:pose.scaleX
+                let sy=index == 0 && pose.scaleY>1 ? 1+(pose.scaleY-1)*1.2:pose.scaleY
+                let local=CATransform3DScale(CATransform3DMakeTranslation(pose.x,pose.y,0),sx,sy,1)
                 return NSValue(caTransform3D:CATransform3DConcat(base,local))
             }
-            opacity.values=sampled.poses.map { pose in
-                NSNumber(value:entering ? max(0,min(1,pose.opacity))*Double(target.layer.opacity):max(0,min(1,Double(pose.scaleX)))*Double(painted[index].1))
+            opacity.values=poses.map { pose in
+                NSNumber(value:max(0,min(1,pose.opacity))*Double(entering ? target.layer.opacity:painted[index].1))
             }
-            for track in [motion,opacity] {track.duration=sampled.duration;track.keyTimes=sampled.keyTimes?.map{NSNumber(value:$0)}}
-            let animation=CAAnimationGroup();animation.animations=[motion,opacity];animation.duration=sampled.duration
-            animation.beginTime=target.layer.convertTime(epoch+Double(index)*stagger,from:layer);animation.fillMode=entering ? .backwards:.both
+            for track in [motion,opacity] {track.duration=sampled.duration/Self.navigationSpeed;track.keyTimes=sampled.keyTimes?.map{NSNumber(value:$0)}}
+            let animation=CAAnimationGroup();animation.animations=[motion,opacity];animation.duration=sampled.duration/Self.navigationSpeed
+            animation.beginTime=target.layer.convertTime(epoch+Self.contentDelay(index:index,entering:entering),from:layer);animation.fillMode=entering ? .backwards:.both
             animation.isRemovedOnCompletion=entering;target.layer.add(animation,forKey:Self.entryKey)
         }
     }
@@ -128,88 +173,150 @@ final class JimiV9ArchedNavigationTitle:UILabel {
 final class JimiV9NavigationRouteLayer:CALayer {
     weak var decorationLayer:CALayer?
     weak var navigationTitle:JimiV9ArchedNavigationTitle?
+    var continuousBackground=false
+    var fadeBackgroundDuringHandoff=false
+    var immediateBackgroundExit=false
+    /// Global monotonic deadline, consumed once by the incoming route group.
+    var entryNotBefore:CFTimeInterval?
+    private var exitEnd:CFTimeInterval?
+    var hasUnfinishedExit:Bool {exitEnd.map {convertTime(CACurrentMediaTime(),from:nil)<$0} ?? false}
     override func add(_ original:CAAnimation,forKey key:String?) {
-        let anim=MainActor.assumeIsolated {Self.springEntry(original)}
+        let reducedMotion=MainActor.assumeIsolated {UIAccessibility.isReduceMotionEnabled}
+        installNavigation(original,forKey:key,reducedMotion:reducedMotion)
+    }
+    /// The same installation boundary serves each route's explicit motion policy.
+    func installNavigation(_ original:CAAnimation,forKey key:String?,reducedMotion:Bool) {
+        let prepared=MainActor.assumeIsolated {prepareNavigation(original,reducedMotion:reducedMotion)}
+        if prepared.entering == false {immediateBackgroundExit=false}
         decorationLayer?.removeAllAnimations()
-        if let group=anim as? CAAnimationGroup,
-           let fade=group.value(forKey:"nativeNavigationDecorationFade") as? CABasicAnimation,
-           let decorationLayer {
-            let child=group.copy() as! CAAnimationGroup
-            child.animations=[fade]
+        if let decoration=prepared.decoration,let decorationLayer {
+            decorationLayer.add(decoration,forKey:key)
+        }else if let group=original as? CAAnimationGroup,
+                 let fade=group.value(forKey:"nativeNavigationDecorationFade") as? CABasicAnimation,
+                 let decorationLayer {
+            // Retain the existing reduced-motion fallback.
+            let child=group.copy() as! CAAnimationGroup;child.animations=[fade]
             if group.beginTime != 0 {child.beginTime=decorationLayer.convertTime(group.beginTime,from:self)}
             decorationLayer.add(child,forKey:key)
         }
-        super.add(anim,forKey:key)
-        if let group=anim as? CAAnimationGroup,
-           let track=group.animations?.compactMap({$0 as? CAKeyframeAnimation}).first(where:{$0.keyPath=="transform"}),
-           let first=(track.values?.first as? NSValue)?.caTransform3DValue,
-           let last=(track.values?.last as? NSValue)?.caTransform3DValue {
+        exitEnd=prepared.entering == false ? prepared.parent.beginTime+prepared.parent.duration:nil
+        super.add(prepared.parent,forKey:key)
+        if let entering=prepared.entering {
+            let epoch=prepared.parent.beginTime
             MainActor.assumeIsolated {
-                if hypot(last.m11,last.m12)>hypot(first.m11,first.m12) {
-                    let epoch=group.beginTime==0 ? convertTime(CACurrentMediaTime(),from:nil):group.beginTime
-                    let lead=(group.value(forKey:"nativeNavigationEntryLead") as? NSNumber)?.doubleValue ?? 0
-                    if let navigationTitle {navigationTitle.startNavigationEntry(at:navigationTitle.layer.convertTime(epoch+lead,from:self))}
-                }else{
-                    let epoch=group.beginTime==0 ? convertTime(CACurrentMediaTime(),from:nil):group.beginTime
-                    if let navigationTitle {navigationTitle.startNavigationExit(at:navigationTitle.layer.convertTime(epoch,from:self))}
+                if let navigationTitle {
+                    let titleEpoch=navigationTitle.layer.convertTime(epoch,from:self)
+                    if entering {navigationTitle.startNavigationEntry(at:titleEpoch,reducedMotion:reducedMotion)}
+                    else {navigationTitle.startNavigationExit(at:titleEpoch,reducedMotion:reducedMotion)}
                 }
             }
         }
     }
-    @MainActor private static func springEntry(_ animation:CAAnimation)->CAAnimation {
-        guard !UIAccessibility.isReduceMotionEnabled,let group=animation as? CAAnimationGroup,
+    /// Background and content borrow the existing route clock independently.
+    /// The root stays still, so its transform cannot cancel the title's rise or
+    /// collapse every child together. These groups never gate screen admission.
+    @MainActor private func prepareNavigation(_ original:CAAnimation,reducedMotion:Bool)->(parent:CAAnimation,decoration:CAAnimationGroup?,entering:Bool?) {
+        guard let group=original as? CAAnimationGroup,
               let track=group.animations?.compactMap({$0 as? CAKeyframeAnimation}).first(where:{$0.keyPath=="transform"}),
               let values=track.values as? [NSValue],values.count>1,
-              let first=values.first?.caTransform3DValue,let last=values.last?.caTransform3DValue else{return animation}
-        if hypot(last.m11,last.m12)<hypot(first.m11,first.m12) {return exitWithContentTail(group)}
-        guard hypot(last.m11,last.m12)>hypot(first.m11,first.m12) else{return animation}
-        let lead=(group.value(forKey:"nativeNavigationEntryLead") as? NSNumber)?.doubleValue ?? 0
-        let duration=(group.value(forKey:"nativeNavigationEntryDuration") as? NSNumber)?.doubleValue ?? group.duration
-        let moved=track.copy() as! CAKeyframeAnimation
-        moved.values=values.enumerated().map { index,value in
-            var pose=value.caTransform3DValue
-            let time=(track.keyTimes?[index].doubleValue ?? Double(index)/Double(values.count-1))*group.duration
-            let progress=duration>0 ? (time-lead)/duration:1
-            pose.m42=last.m42-24*CGFloat(1-JimiV9Motion.Ease.backOut(1.7).value(progress))
-            return NSValue(caTransform3D:pose)
-        }
-        let revised=group.copy() as! CAAnimationGroup
-        revised.animations=group.animations?.map { item in
-            (item as? CAKeyframeAnimation)?.keyPath=="transform" ? moved:item
-        }
-        return revised
-    }
-    @MainActor private static func exitWithContentTail(_ group:CAAnimationGroup)->CAAnimationGroup {
-        let oldDuration=max(0.001,group.duration)
-        let lead=(group.value(forKey:"nativeNavigationEntryLead") as? NSNumber)?.doubleValue ?? 0
-        let motionDuration=(group.value(forKey:"nativeNavigationEntryDuration") as? NSNumber)?.doubleValue ?? oldDuration
-        let oldEnd=lead+motionDuration
-        let extra=max(0.14,JimiV9Motion.worldHubElementExit().duration+0.09+0.02-oldEnd)
-        let newEnd=oldEnd+extra,newDuration=max(oldDuration,newEnd)
-        let revised=group.copy() as! CAAnimationGroup
-        revised.duration=newDuration
-        revised.animations=group.animations?.map { item in
-            if let track=item as? CAKeyframeAnimation,let values=track.values,values.count>1 {
-                let copy=track.copy() as! CAKeyframeAnimation
-                var frames:[Any]=[values[0]],times:[NSNumber]=[0]
-                for i in values.indices {
-                    let time=(track.keyTimes?[i].doubleValue ?? Double(i)/Double(values.count-1))*oldDuration
-                    let mapped=time<=oldEnd+0.000001 ? time+extra:newEnd+(time-oldEnd)*max(0,newDuration-newEnd)/max(0.001,oldDuration-oldEnd)
-                    let fraction=min(1,mapped/newDuration)
-                    // A consumed route hold must not leave duplicate terminal key times.
-                    if abs(fraction-(times.last?.doubleValue ?? -1))<0.000001 {frames[frames.count-1]=values[i]}
-                    else {frames.append(values[i]);times.append(NSNumber(value:fraction))}
-                }
-                copy.values=frames;copy.keyTimes=times
-                copy.duration=newDuration;return copy
+              let first=values.first?.caTransform3DValue,let last=values.last?.caTransform3DValue,
+              abs(hypot(last.m11,last.m12)-hypot(first.m11,first.m12))>0.00001 else{return(original,nil,nil)}
+        let entering=hypot(last.m11,last.m12)>hypot(first.m11,first.m12)
+        // Navigation owns its handoff epoch independently of screen content.
+        // A shorter outgoing collection must not advance the next title.
+        let now=convertTime(CACurrentMediaTime(),from:nil)
+        let requested=entering ? entryNotBefore:nil
+        if entering {entryNotBefore=nil}
+        let epoch=entering && !reducedMotion ? max(now,requested.map{convertTime($0,from:nil)} ?? now):now
+        if reducedMotion {
+            let duration=JimiV9ArchedNavigationTitle.reducedDuration(entering:entering)
+            let rest=entering ? last:first
+            let parent=group.copy() as! CAAnimationGroup
+            parent.beginTime=epoch;parent.duration=duration
+            let hold=CAKeyframeAnimation(keyPath:"transform")
+            hold.values=[NSValue(caTransform3D:rest),NSValue(caTransform3D:rest)];hold.duration=duration
+            let alpha=CAKeyframeAnimation(keyPath:"opacity");alpha.values=[1,1];alpha.duration=duration
+            parent.animations=[hold,alpha]
+            transform=rest;opacity=1
+            guard let decorationLayer else{return(parent,nil,entering)}
+            let paintedAlpha=decorationLayer.presentation()?.opacity ?? decorationLayer.opacity
+            let settled=CATransform3DMakeScale(1.025,1.025,1)
+            decorationLayer.transform=settled;decorationLayer.opacity=1
+            let decoration=JimiV9ArchedNavigationTitle.reducedNavigationGroup(group,entering:entering,rest:settled,initialOpacity:paintedAlpha)
+            if continuousBackground && !fadeBackgroundDuringHandoff {
+                let opacity=decoration.animations?.compactMap{$0 as? CAKeyframeAnimation}.first{$0.keyPath=="opacity"}
+                opacity?.values=[1,1]
             }
-            let copy=item.copy() as! CAAnimation;copy.beginTime+=extra;return copy
+            decoration.beginTime=decorationLayer.convertTime(epoch,from:self);decoration.duration=duration
+            decoration.fillMode = .both;decoration.isRemovedOnCompletion=entering
+            return(parent,decoration,entering)
         }
-        if let fade=group.value(forKey:"nativeNavigationDecorationFade") as? CABasicAnimation {
-            let copy=fade.copy() as! CABasicAnimation;copy.beginTime+=extra
-            revised.setValue(copy,forKey:"nativeNavigationDecorationFade")
+        let duration=JimiV9ArchedNavigationTitle.visualDuration(entering:entering)
+        let parent=group.copy() as! CAAnimationGroup
+        parent.duration=duration
+        parent.beginTime=epoch
+        let rest=entering ? last:first
+        let hold=CAKeyframeAnimation(keyPath:"transform");hold.values=[NSValue(caTransform3D:rest),NSValue(caTransform3D:rest)];hold.duration=duration
+        let sourceOpacity=group.animations?.compactMap({$0 as? CAKeyframeAnimation}).first(where:{$0.keyPath=="opacity"})
+        let restAlpha=(entering ? sourceOpacity?.values?.last:sourceOpacity?.values?.first) as? NSNumber ?? NSNumber(value:1)
+        let alpha=CAKeyframeAnimation(keyPath:"opacity");alpha.values=[restAlpha,restAlpha];alpha.duration=duration
+        parent.animations=[hold,alpha]
+        // Stable model geometry prevents layout/anchor restoration from snapping
+        // a still-visible header to the route track's collapsed endpoint.
+        transform=rest;opacity=restAlpha.floatValue
+        guard let decorationLayer else{return(parent,nil,entering)}
+        let painted=decorationLayer.presentation()
+        let base=entering ? CATransform3DIdentity:(painted?.transform ?? decorationLayer.transform)
+        let baseAlpha=entering ? decorationLayer.opacity:(painted?.opacity ?? decorationLayer.opacity)
+        let growth:CGFloat=0.025 // Same rest geometry across full and soft profiles.
+        let baseScale=max(0.001,hypot(base.m11,base.m12))
+        // Background always covers the full width; only a small scale-UP is allowed.
+        decorationLayer.transform=CATransform3DMakeScale(1+growth,1+growth,1)
+        decorationLayer.opacity=1
+        let transform=CAKeyframeAnimation(keyPath:"transform"),opacity=CAKeyframeAnimation(keyPath:"opacity")
+        var transforms:[NSValue]=[],alphas:[NSNumber]=[]
+        for index in 0...80 {
+            let t=Double(index)/80
+            // Keep reversed spring progress; the outgoing fade profile leaves downward.
+            let p=entering ? t:1-t,e=JimiV9Motion.Ease.backOut(1.7).value(p)
+            // Incoming internal navigation grows12percent then returns. Keep
+            // outgoing decoration settled: content can hand off mid-track.
+            let settledScale=entering ? 1+growth:baseScale
+            let pulse=entering ? CGFloat(pow(sin(.pi*t),2))*settledScale*0.12:0
+            let absoluteScale=continuousBackground ? settledScale+pulse:max(1,entering ? 1+growth*CGFloat(e):1+(baseScale-1)*CGFloat(e))
+            let scale=entering ? absoluteScale:absoluteScale/baseScale
+            let bouncesOut=fadeBackgroundDuringHandoff && !entering
+            let y=continuousBackground && !bouncesOut ? 0:CGFloat((bouncesOut ? 14.4*0.7:-14.4)*(1-e))
+            let local=CATransform3DScale(CATransform3DMakeTranslation(0,y,0),scale,scale,1)
+            transforms.append(NSValue(caTransform3D:CATransform3DConcat(base,local)))
+            alphas.append(NSNumber(value:(continuousBackground && !bouncesOut ? 1:max(0,min(1,e)))*Double(baseAlpha)))
         }
-        return revised
+        transform.values=transforms;opacity.values=alphas
+        for motion in [transform,opacity] {
+            motion.duration=JimiV9ArchedNavigationTitle.elementDuration
+            motion.beginTime=entering || immediateBackgroundExit ? 0:JimiV9ArchedNavigationTitle.backgroundExitDelay
+            motion.fillMode = .both;motion.isRemovedOnCompletion=false
+        }
+        if fadeBackgroundDuringHandoff && !entering {
+            // Paper/divider leaves halfway between the first and second icons.
+            // Keep the existing downward spring/fade and finite route owner.
+            let betweenIcons=JimiV9ArchedNavigationTitle.elementStagger*0.5
+            transform.beginTime=betweenIcons;opacity.beginTime=betweenIcons
+        }
+        if fadeBackgroundDuringHandoff && entering {
+            // Borrow the same route epoch and lifecycle. The surface stays
+            // clear through preparation and the title handoff, then returns
+            // with the first incoming navigation element.
+            opacity.values=[0,baseAlpha]
+            opacity.keyTimes=[0,1]
+            opacity.duration=0.12
+            opacity.beginTime=entering ? JimiV9ArchedNavigationTitle.contentDelay(index:0,entering:true):0
+            opacity.timingFunction=CAMediaTimingFunction(name:.easeOut)
+        }
+        let decoration=CAAnimationGroup();decoration.animations=[transform,opacity]
+        decoration.duration=duration;decoration.fillMode = .both;decoration.isRemovedOnCompletion=entering
+        decoration.beginTime=decorationLayer.convertTime(parent.beginTime,from:self)
+        return(parent,decoration,entering)
     }
     override func removeAnimation(forKey key:String) {
         decorationLayer?.removeAnimation(forKey:key)
@@ -220,17 +327,154 @@ final class JimiV9NavigationRouteLayer:CALayer {
         super.removeAnimation(forKey:key)
     }
     override func removeAllAnimations() {
+        exitEnd=nil;entryNotBefore=nil
         decorationLayer?.removeAllAnimations();MainActor.assumeIsolated{navigationTitle?.cancelNavigationEntry()};super.removeAllAnimations()
+    }
+}
+
+/// Populated static painted properties shared by both finite navigation copies.
+/// Subtree selection, animations and lifetime remain with each existing owner.
+@MainActor private enum JimiV9NavigationLayerCopy {
+    static func painted(_ source:CALayer)->CALayer {
+        let visual=source.presentation() ?? source
+        // init(layer:) is Core Animation's presentation-copy initializer;
+        // it does not produce a populated standalone static layer tree.
+        // Copy the painted properties explicitly while sharing image/path
+        // references, so the readiness bridge has real geometry/content.
+        let result:CALayer
+        if visual is CAShapeLayer {result=CAShapeLayer()}
+        else if visual is CAGradientLayer {result=CAGradientLayer()}
+        else if visual is CATextLayer {result=CATextLayer()}
+        else if visual is CATransformLayer {result=CATransformLayer()}
+        else {result=CALayer()}
+        result.name=source.name
+        result.bounds=visual.bounds;result.position=visual.position
+        result.anchorPoint=visual.anchorPoint;result.anchorPointZ=visual.anchorPointZ
+        result.zPosition=visual.zPosition;result.transform=visual.transform
+        result.sublayerTransform=visual.sublayerTransform
+        result.opacity=visual.opacity;result.isHidden=visual.isHidden
+        result.contents=visual.contents;result.contentsScale=visual.contentsScale
+        result.contentsFormat=visual.contentsFormat;result.isOpaque=visual.isOpaque
+        result.contentsRect=visual.contentsRect;result.contentsCenter=visual.contentsCenter
+        result.contentsGravity=visual.contentsGravity
+        result.minificationFilter=visual.minificationFilter;result.magnificationFilter=visual.magnificationFilter
+        result.isGeometryFlipped=visual.isGeometryFlipped
+        result.masksToBounds=visual.masksToBounds;result.isDoubleSided=visual.isDoubleSided
+        result.backgroundColor=visual.backgroundColor;result.cornerRadius=visual.cornerRadius
+        result.maskedCorners=visual.maskedCorners;result.cornerCurve=visual.cornerCurve
+        result.borderWidth=visual.borderWidth;result.borderColor=visual.borderColor
+        result.shadowColor=visual.shadowColor;result.shadowOpacity=visual.shadowOpacity
+        result.shadowOffset=visual.shadowOffset;result.shadowRadius=visual.shadowRadius
+        result.shadowPath=visual.shadowPath
+        result.allowsGroupOpacity=visual.allowsGroupOpacity
+        result.allowsEdgeAntialiasing=visual.allowsEdgeAntialiasing;result.edgeAntialiasingMask=visual.edgeAntialiasingMask
+        if let shape=visual as? CAShapeLayer,let target=result as? CAShapeLayer {
+            target.path=shape.path;target.fillColor=shape.fillColor;target.fillRule=shape.fillRule
+            target.strokeColor=shape.strokeColor;target.strokeStart=shape.strokeStart;target.strokeEnd=shape.strokeEnd
+            target.lineWidth=shape.lineWidth;target.lineCap=shape.lineCap;target.lineJoin=shape.lineJoin
+            target.miterLimit=shape.miterLimit;target.lineDashPhase=shape.lineDashPhase;target.lineDashPattern=shape.lineDashPattern
+        }
+        if let gradient=visual as? CAGradientLayer,let target=result as? CAGradientLayer {
+            target.colors=gradient.colors;target.locations=gradient.locations
+            target.startPoint=gradient.startPoint;target.endPoint=gradient.endPoint;target.type=gradient.type
+        }
+        if let text=visual as? CATextLayer,let target=result as? CATextLayer {
+            target.string=text.string;target.font=text.font;target.fontSize=text.fontSize
+            target.foregroundColor=text.foregroundColor;target.isWrapped=text.isWrapped
+            target.alignmentMode=text.alignmentMode;target.truncationMode=text.truncationMode
+            target.allowsFontSubpixelQuantization=text.allowsFontSubpixelQuantization
+        }
+        result.delegate=nil;result.actions=[:]
+        result.speed=1;result.timeOffset=0;result.beginTime=0
+        return result
+    }
+}
+
+/// At most one finite, noninteractive visual continuation in the app host.
+/// Copies painted layers and the remaining authored navigation tracks, sharing
+/// original CGImage/path contents; no new assets, timer, raster pass or callbacks.
+@MainActor final class JimiV9NavigationExitContinuation {
+    private var root:CALayer?
+    init?(header:JimiV9NavigationHeader,host:CALayer,includeBackground:Bool) {
+        guard let source=header.layer as? JimiV9NavigationRouteLayer,source.hasUnfinishedExit else{return nil}
+        var tracks:[(CALayer,CAAnimation,String)]=[]
+        let keys:Set<String>=["native-route","world.enter","world.exit","native.navigation.content.enter"]
+        func copyTree(_ layer:CALayer)->CALayer {
+            let result=JimiV9NavigationLayerCopy.painted(layer)
+            result.speed=layer.speed;result.timeOffset=layer.timeOffset;result.beginTime=layer.beginTime
+            for child in layer.sublayers ?? [] where includeBackground || child.name != "navigationDecoration" {result.addSublayer(copyTree(child))}
+            if let mask=layer.mask {result.mask=copyTree(mask)}
+            for key in layer.animationKeys() ?? [] where keys.contains(key) {
+                if let animation=layer.animation(forKey:key)?.copy() as? CAAnimation {
+                    animation.delegate=nil;tracks.append((result,animation,key))
+                }
+            }
+            return result
+        }
+        let copied=copyTree(source);root=copied
+        copied.name="native.navigation.exit-continuation";copied.zPosition=1000
+        copied.position=host.convert(source.position,from:source.superlayer)
+        let now=CACurrentMediaTime(),local=source.convertTime(now,from:nil)
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        CATransaction.setCompletionBlock {[weak self] in self?.dispose()}
+        host.addSublayer(copied)
+        if copied.speed != 0 {copied.beginTime=host.convertTime(now,from:nil)-(local-copied.timeOffset)/Double(copied.speed)}
+        for (layer,animation,key) in tracks {layer.add(animation,forKey:key)}
+        CATransaction.commit()
+    }
+    func pause() {
+        guard let root,root.speed != 0 else{return}
+        let time=root.convertTime(CACurrentMediaTime(),from:nil);root.speed=0;root.timeOffset=time
+    }
+    func resume() {
+        guard let root,root.speed==0 else{return}
+        let time=root.timeOffset;root.speed=1;root.timeOffset=0;root.beginTime=0
+        root.beginTime=root.convertTime(CACurrentMediaTime(),from:nil)-time
+    }
+    func dispose(){
+        func clear(_ layer:CALayer){layer.sublayers?.forEach(clear);if let mask=layer.mask {clear(mask)};layer.removeAllAnimations()}
+        if let root {clear(root);root.removeFromSuperlayer()};root=nil
     }
 }
 
 /// Shared arched navigation surface; its existing parent owns all motion.
 @MainActor
 final class JimiV9NavigationHeader: UIView {
+    var fadeBackgroundDuringHandoff:Bool {
+        get {(layer as? JimiV9NavigationRouteLayer)?.fadeBackgroundDuringHandoff ?? false}
+        set {(layer as? JimiV9NavigationRouteLayer)?.fadeBackgroundDuringHandoff=newValue}
+    }
+    var entryNotBefore:CFTimeInterval? {
+        get {(layer as? JimiV9NavigationRouteLayer)?.entryNotBefore}
+        set {(layer as? JimiV9NavigationRouteLayer)?.entryNotBefore=newValue}
+    }
+    var continuousBackground:Bool {
+        get {(layer as? JimiV9NavigationRouteLayer)?.continuousBackground ?? false}
+        set {(layer as? JimiV9NavigationRouteLayer)?.continuousBackground=newValue}
+    }
+    var immediateBackgroundExit:Bool {
+        get {(layer as? JimiV9NavigationRouteLayer)?.immediateBackgroundExit ?? false}
+        set {(layer as? JimiV9NavigationRouteLayer)?.immediateBackgroundExit=newValue}
+    }
     // Reversible visual trial: false restores the original navigation shadow.
     override class var layerClass:AnyClass {JimiV9NavigationRouteLayer.self}
     static let usesHomeDividerTrial=true
     private let homeDivider=UIImageView()
+    /// Static bridge across asynchronous internal-route preparation. Original
+    /// image/path references only; no animation, rasterization or extra clock.
+    func retainNavigationBackground(in host:CALayer)->CALayer {
+        func copy(_ source:CALayer)->CALayer {
+            let result=JimiV9NavigationLayerCopy.painted(source)
+            for child in source.sublayers ?? [] {result.addSublayer(copy(child))}
+            if let mask=source.mask {result.mask=copy(mask)}
+            return result
+        }
+        let bridge=copy(navigationDecoration.layer)
+        bridge.name="native.navigation.background-handoff";bridge.zPosition=900
+        bridge.position=host.convert(navigationDecoration.layer.position,from:layer)
+        host.addSublayer(bridge)
+        return bridge
+    }
     private let navigationDecoration=UIView()
     private let navigationSurface=CAShapeLayer()
     private let navigationSurfaceMask=CAShapeLayer()
@@ -248,7 +492,7 @@ final class JimiV9NavigationHeader: UIView {
     private var dividerWidth:CGFloat = -1
     private var dividerDensity:CGFloat=0
     static let dividerBandHeight:CGFloat=49
-    static let dividerArchDepth:CGFloat=dividerBandHeight*0.20
+    static let dividerArchDepth:CGFloat=dividerBandHeight*0.288
     static func dividerDrop(at fraction:CGFloat)->CGFloat {
         let x=max(0,min(1,fraction))
         return 4*dividerArchDepth*x*(1-x)
@@ -276,7 +520,11 @@ final class JimiV9NavigationHeader: UIView {
         for icon in icons {
             let x=icon.center.x
             let shift=Self.dividerDrop(at:x/max(1,bounds.width))-Self.dividerArchDepth
-            let angle=Self.tangentAngle(at:x,width:bounds.width)
+            // Read the inner arc beside the artwork, toward the title; the
+            // outer screen corner is not its visual orientation reference.
+            let inward:CGFloat=x<bounds.width/2 ? 1:-1
+            let innerArcX=x+inward*icon.bounds.width/2
+            let angle=Self.tangentAngle(at:innerArcX,width:bounds.width)*1.8
             icon.layer.sublayerTransform=CATransform3DRotate(CATransform3DMakeTranslation(0,shift,0),angle,0,0,1)
         }
         CATransaction.commit()
@@ -285,10 +533,25 @@ final class JimiV9NavigationHeader: UIView {
         if dividerSource !== image {dividerSource=image;dividerWidth = -1;setNeedsLayout()}
         homeDivider.isHidden = !Self.usesHomeDividerTrial || image == nil
     }
-    func setBackgroundImage(_ image:UIImage?,opacity:Float=1) {
+    /// Scroll drives the existing surface directly, including restored offsets.
+    /// No timer or queued fade can outlive the owning screen or lag a reversal.
+    private var restingBackgroundOpacity:Float=0.5
+    private var backgroundScrollDistance:CGFloat=0
+    static func backgroundOpacity(resting:Float,scrollDistance:CGFloat)->Float {
+        let progress=max(0,min(1,scrollDistance/80))
+        return resting+(1-resting)*Float(progress*progress)
+    }
+    func updateBackgroundForScroll(_ scrollView:UIScrollView) {
+        backgroundScrollDistance=max(0,scrollView.contentOffset.y+scrollView.adjustedContentInset.top)
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        navigationSurface.opacity=Self.backgroundOpacity(resting:restingBackgroundOpacity,scrollDistance:backgroundScrollDistance)
+        CATransaction.commit()
+    }
+    func setBackgroundImage(_ image:UIImage?,opacity:Float=0.5) {
         CATransaction.begin();CATransaction.setDisableActions(true)
         navigationSurface.contents=image?.cgImage
-        navigationSurface.opacity=opacity
+        restingBackgroundOpacity=max(0,min(1,opacity))
+        navigationSurface.opacity=Self.backgroundOpacity(resting:restingBackgroundOpacity,scrollDistance:backgroundScrollDistance)
         navigationSurface.contentsScale=image?.scale ?? 1
         navigationSurface.contentsGravity = .resize
         navigationSurface.fillColor=image == nil ? surfaceColor?.cgColor:UIColor.clear.cgColor
@@ -316,7 +579,8 @@ final class JimiV9NavigationHeader: UIView {
                 context.saveGState()
                 context.clip(to:CGRect(x:x0,y:0,width:x1-x0,height:height))
                 context.concatenate(CGAffineTransform(a:1,b:slope,c:0,d:1,tx:0,ty:y0-slope*x0))
-                source.draw(in:CGRect(x:0,y:0,width:width,height:Self.dividerBandHeight))
+                // Inset only divider artwork; retain the full-width background curve.
+                source.draw(in:CGRect(x:width*0.1,y:0,width:width*0.8,height:Self.dividerBandHeight))
                 context.restoreGState()
             }
         }
@@ -399,11 +663,8 @@ final class JimiV9NavigationHeader: UIView {
     /// The route group owns this fade, including pause, cancellation and replay.
     /// Shadow starts fading200ms into the rectangle’s authored bounce.
     func appendExitShadowFade(to group:CAAnimationGroup,track:JimiV9Motion.Track) {
-        // The route group may hold the settled header while other elements enter.
-        // Content timing follows the header's actual motion, excluding that hold.
-        let lead=track.tweens.first?.begin ?? 0
-        group.setValue(NSNumber(value:lead),forKey:"nativeNavigationEntryLead")
-        group.setValue(NSNumber(value:max(0,track.duration-lead)),forKey:"nativeNavigationEntryDuration")
+        // Normal motion is authored by the independent navigation recipe;
+        // retain this fade only for the reduced-motion/legacy fallback.
         guard track.tweens.last?.to.opacity == 0 else{return}
         if Self.usesHomeDividerTrial {
             let carrier=CAAnimationGroup();carrier.duration=group.duration
@@ -502,7 +763,7 @@ final class JimiV9BottomNavigationSurface:UIView {
                 let slope=(y1-y0)/(x1-x0)
                 context.saveGState();context.clip(to:CGRect(x:x0,y:0,width:x1-x0,height:divider.bounds.height))
                 context.concatenate(CGAffineTransform(a:1,b:slope,c:0,d:1,tx:0,ty:y0-slope*x0))
-                source.draw(in:dividerRect);context.restoreGState()
+                source.draw(in:dividerRect.insetBy(dx:dividerRect.width*0.095,dy:0));context.restoreGState()
             }
         }
     }

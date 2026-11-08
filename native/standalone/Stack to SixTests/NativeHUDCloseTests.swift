@@ -386,7 +386,10 @@ final class NativeHUDCloseTests:XCTestCase {
         defer{scene.dispose()}
         scene.layout(size:scene.size,insets:UIEdgeInsets(top:47,left:0,bottom:34,right:0))
         let close=try XCTUnwrap(scene.childNode(withName:"//native-game-close") as? NativeHUDCloseNode)
-        XCTAssertEqual(close.position.y,NativeGameplayChromePlan.make(viewport:scene.size,safeTop:47).valueRowY)
-        XCTAssertEqual(close.children.count,2);XCTAssertEqual(close.parent?.parent?.name,"native-gameplay-canvas")
+        XCTAssertEqual(close.position.x,44.1,accuracy:0.0001)
+        XCTAssertGreaterThan(close.position.y,NativeGameplayChromePlan.make(viewport:scene.size,safeTop:47).valueRowY)
+        XCTAssertTrue(close.ring.isHidden);XCTAssertEqual(close.children.count,2)
+        let hud=try XCTUnwrap(scene.childNode(withName:"//native-game-hud"))
+        XCTAssertTrue(close.parent === hud || close.parent?.parent === hud)
     }
 }

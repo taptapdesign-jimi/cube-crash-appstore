@@ -8,12 +8,13 @@ Fresh Native profiles default every player preference to ON: Game sounds, Music 
 
 ## Native-first main decision (2026-10-07)
 
-User-selected Native production/continuation baseline (2026-11-04): immutable
-`native-benchmark-v22-ipad-iphone`; see
-[NATIVE_BENCHMARK_V22_IPAD_IPHONE.md](NATIVE_BENCHMARK_V22_IPAD_IPHONE.md).
-Continue Native work from this iPad + iPhone checkpoint. All historical Native
-tags remain protected. Known physical acceptance/parity limits remain open;
-this checkpoint does not replace the approved PWA recovery tags.
+User-selected Native production/continuation baseline (2026-11-08): immutable
+`native-app-production-state-skoro-pa-gotovo`, named **Native app - production
+state skoro pa gotovo**. See
+[NATIVE_APP_PRODUCTION_STATE_SKORO_PA_GOTOVO.md](NATIVE_APP_PRODUCTION_STATE_SKORO_PA_GOTOVO.md).
+This supersedes `production-95-percent-ready` and v22 for Native continuation.
+All historical Native tags remain protected. Existing physical acceptance/parity
+limits remain explicit; this does not replace the approved PWA recovery tags.
 
 The user designates `main` as the **Stack to Six Native** development project,
 with a **100% native** destination. The active development target is the separate

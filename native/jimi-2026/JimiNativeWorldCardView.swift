@@ -377,9 +377,15 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         let action = unit.actions.contains("continue") ? "continue" : "play"
         cta.accessibilityIdentifier = "native.world.card.\(action)"
         cta.setTitle(action == "continue" ? "Continue" : "Play",for:.normal)
-        cta.applyModalCTA(artwork:assets)
+        // Paint the unchanged high-density sculpted face on its existing
+        // bounded worker while the artwork face begins its original flight.
+        cta.applyModalCTA(artwork:assets,preparesSculptedFaceOffMain:true)
+        cta.onSculptedFacePrepared = { [weak self] in
+            guard let self,!self.disposed,!self.closing else{return}
+            self.refreshCTAAdmission()
+        }
         cta.setPairedModalCTA() // Gentle local drift; main motion follows info face.
-        stableCTAEnabled = unit.actions.contains(action);cta.isEnabled = stableCTAEnabled; cta.addAction(UIAction { [weak self] _ in guard let self,self.active,!self.disposed,!self.closing,!self.animating,!self.pinching else {return}; self.onFeedback?("cta"); self.onRequest?(action) },for:.touchUpInside); back.addSubview(cta);cta.enableCartoonBounce()
+        stableCTAEnabled = unit.actions.contains(action);refreshCTAAdmission(); cta.addAction(UIAction { [weak self] _ in guard let self,self.active,!self.disposed,!self.closing,!self.animating,!self.pinching else {return}; self.onFeedback?("cta"); self.onRequest?(action) },for:.touchUpInside); back.addSubview(cta);cta.enableCartoonBounce()
         closePaper.setTexture(panel.image);back.addSubview(closePaper);back.bringSubviewToFront(closeButton)
         closeIcon.image = assets.image("assets/close-icon.png",densityAware:true);closeIcon.contentMode = .scaleAspectFit;closeIcon.alpha = 0.8;closeIcon.isUserInteractionEnabled = false;closeButton.addSubview(closeIcon);closeButton.enableArtworkTapFeedback(wholeControl:true,companion:closePaper)
         closeTexture.accessibilityIdentifier = "native.world.card.close.stone-texture"
@@ -536,7 +542,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
             playStarMotion(reducedMotion:false,delay:max(0,duration-0.3))
         }
         fly(from:origin,to:base,returning:false) { [weak self] in
-            guard let self,!self.disposed,!self.closing else {return};CATransaction.begin();CATransaction.setDisableActions(true);self.carrier.layer.transform = CATransform3DMakeRotation(self.backTilt,0,0,1);self.carrier.layer.removeAnimation(forKey:"card.flight");CATransaction.commit();self.cta.isEnabled = self.stableCTAEnabled;self.effects?.present(frontFacing:!self.isBackFacing,opening:true);self.playInfoMotion();self.playSettledInfoBounce();(self.newRibbon as? JimiNativeNewRibbonView)?.setForeground(self.active && !self.isBackFacing)
+            guard let self,!self.disposed,!self.closing else {return};CATransaction.begin();CATransaction.setDisableActions(true);self.carrier.layer.transform = CATransform3DMakeRotation(self.backTilt,0,0,1);self.carrier.layer.removeAnimation(forKey:"card.flight");CATransaction.commit();self.refreshCTAAdmission();self.effects?.present(frontFacing:!self.isBackFacing,opening:true);self.playInfoMotion();self.playSettledInfoBounce();(self.newRibbon as? JimiNativeNewRibbonView)?.setForeground(self.active && !self.isBackFacing)
             if let path = self.cardArt2x,let resources = self.resources {let token = self.generation;resources.prepare([path],owner:self.boardID,required:false) { [weak self,weak resources] accepted in guard accepted,let self,self.generation == token else {return};if let image = resources?.image(path,owner:self.boardID) {self.front.image = image;self.effects?.layout()} } }
         }
     }
@@ -775,6 +781,15 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
     }
 
     func tapToFlip() {guard active,!disposed,!closing,!animating,!pinching else{return};interactiveFlip(direction:isBackFacing ? -1 : 1)}
+    private func refreshCTAAdmission() {
+        let prepared=cta.isSculptedFacePrepared
+        // Never expose a text-only control if preparation is interrupted or
+        // unusually late. Painting does not hold the card's flight or flip.
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        cta.alpha=prepared ? 1:0
+        CATransaction.commit()
+        cta.isEnabled=prepared && stableCTAEnabled && active && !disposed && !closing && !animating && !historyVisible && isBackFacing
+    }
     private var isBackFacing:Bool {abs(cos(angle)) > 0.001 && cos(angle) < 0}
     private func interactiveFlip(direction:Double? = nil,from incoming:Double? = nil) {
         guard active,!disposed,!closing,!animating,!pinching else{return}
@@ -795,7 +810,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         animation.keyTimes = [0.0,0.20/0.46,(0.20+0.26*0.38)/0.46,1].map {NSNumber(value:$0)}
         animation.timingFunctions = [.init(name:.linear),.init(controlPoints:0.45,0,0.55,1),.init(controlPoints:0.22,1,0.36,1)]
         animation.duration = UIAccessibility.isReduceMotionEnabled ? 0.001 : 0.46
-        CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in guard let self,self.flipGeneration == token,!self.disposed,!self.closing else{return};self.rotor.removeAnimation(forKey:"card.flip");self.angle = canonical;CATransaction.begin();CATransaction.setDisableActions(true);self.rotor.transform = CATransform3DMakeRotation(canonical,0,1,0);CATransaction.commit();self.animating = false;self.manualFlipInFlight = false;self.cta.isEnabled = self.stableCTAEnabled && self.isBackFacing;self.effects?.present(frontFacing:!self.isBackFacing);if self.active && !self.isBackFacing && !self.didSpeakRarity {self.didSpeakRarity=true;self.onFeedback?("scene-speech:journey-card-"+self.cardRarity)};self.playInfoMotion();self.playSettledInfoBounce();(self.newRibbon as? JimiNativeNewRibbonView)?.setForeground(self.active && !self.isBackFacing)}
+        CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in guard let self,self.flipGeneration == token,!self.disposed,!self.closing else{return};self.rotor.removeAnimation(forKey:"card.flip");self.angle = canonical;CATransaction.begin();CATransaction.setDisableActions(true);self.rotor.transform = CATransform3DMakeRotation(canonical,0,1,0);CATransaction.commit();self.animating = false;self.manualFlipInFlight = false;self.refreshCTAAdmission();self.effects?.present(frontFacing:!self.isBackFacing);if self.active && !self.isBackFacing && !self.didSpeakRarity {self.didSpeakRarity=true;self.onFeedback?("scene-speech:journey-card-"+self.cardRarity)};self.playInfoMotion();self.playSettledInfoBounce();(self.newRibbon as? JimiNativeNewRibbonView)?.setForeground(self.active && !self.isBackFacing)}
         CATransaction.setDisableActions(true);rotor.transform = CATransform3DMakeRotation(to,0,1,0);rotor.add(animation,forKey:"card.flip");CATransaction.commit()
     }
     private func animateFaceTilt(_ target:CGFloat) {
@@ -858,7 +873,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         angle=sampled+((angle-sampled)/(2 * .pi)).rounded()*2 * .pi
         CATransaction.begin();CATransaction.setDisableActions(true)
         rotor.transform=CATransform3DMakeRotation(angle,0,1,0);rotor.removeAnimation(forKey:"card.flip")
-        CATransaction.commit();cta.isEnabled=stableCTAEnabled && isBackFacing
+        CATransaction.commit();refreshCTAAdmission()
     }
     @objc private func pinched(_ pinch:UIPinchGestureRecognizer) {
         guard active,!disposed,!closing,!animating else{return}
@@ -892,7 +907,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
     }
     func close(to destination:CGRect,gameplay:Bool = false,returnOffset:((Double)->CGPoint)? = nil,completion:@escaping () -> Void) {
         cancelGameplayPreparation()
-        guard !disposed,!closing else {completion();return};closing = true;flipGeneration += 1;effects?.cancel(handoff:false)
+        guard !disposed,!closing else {completion();return};closing = true;cta.setSculptedFacePreparationSuspended(true);flipGeneration += 1;effects?.cancel(handoff:false)
         (newRibbon as? JimiNativeNewRibbonView)?.exit(fadeOnly:true);newRibbon = nil
         if frontDrag {onFeedback?("modal-exit")}
         onFeedback?(frontDrag ? "card-manual-flip" : "card-return-flip")
@@ -921,7 +936,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
     @discardableResult func hideForStatHistory(onReady:(()->Void)?=nil)->Bool {
         guard active,!disposed,!closing,!animating,!historyVisible else{return false}
         NativeHistoryTransitionTrace.event("source.exit-request")
-        historyVisible=true;historyEntryReady=onReady;historyEntryMilestoneReached=false
+        historyVisible=true;cta.setSculptedFacePreparationSuspended(true);refreshCTAAdmission();historyEntryReady=onReady;historyEntryMilestoneReached=false
         isUserInteractionEnabled=false;cancelGameplayPreparation();effects?.setActive(false)
         CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in
             guard let self,!self.disposed,self.historyVisible else{return}
@@ -947,7 +962,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         JimiNativeModalV10.exit(pinchShell,flip:true,key:"history.flip.exit")
     }
     func restoreFromStatHistory(){
-        guard !disposed,historyVisible else{return};historyVisible=false
+        guard !disposed,historyVisible else{return};historyVisible=false;cta.setSculptedFacePreparationSuspended(!active)
         historyEntryReady=nil;historyEntryReceipt?.cancel();historyEntryReceipt=nil
         if carrier.layer.speed==0 {
             let paused=carrier.layer.timeOffset;carrier.layer.speed=1;carrier.layer.timeOffset=0;carrier.layer.beginTime=0
@@ -955,7 +970,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         }
         carrier.isHidden=false;dragShell.layer.removeAnimation(forKey:"history.exit");pinchShell.layer.removeAnimation(forKey:"history.flip.exit")
         CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in
-            guard let self,!self.disposed,!self.historyVisible else{return};self.isUserInteractionEnabled=true;self.effects?.setActive(self.active);self.scheduleGameplayPreparation();self.playHistoryReturnCTABounce()
+            guard let self,!self.disposed,!self.historyVisible else{return};self.isUserInteractionEnabled=true;self.effects?.setActive(self.active);self.scheduleGameplayPreparation();self.refreshCTAAdmission();self.playHistoryReturnCTABounce()
         }
         CATransaction.setDisableActions(true)
         dragShell.layer.transform=CATransform3DIdentity;pinchShell.layer.transform=CATransform3DIdentity
@@ -967,7 +982,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         JimiNativeModalV10.startSettledBounce(on:cta,extraDuration:0)
     }
     func setActive(_ value:Bool) {front.subviews.compactMap{$0 as? JimiNativeNewRibbonView}.forEach{$0.setForeground(value && !isBackFacing && !historyVisible)};
-        guard !disposed,active != value else{return};active = value;effects?.setActive(value && !historyVisible)
+        guard !disposed,active != value else{return};active = value;cta.setSculptedFacePreparationSuspended(!value || closing || historyVisible);refreshCTAAdmission();effects?.setActive(value && !historyVisible)
         if value,!historyVisible {scheduleGameplayPreparation()}else{cancelGameplayPreparation()}
         if !value {CATransaction.begin();CATransaction.setDisableActions(true);cta.layer.removeAllAnimations();cta.layer.transform = CATransform3DIdentity;CATransaction.commit()}
         guard (layer.speed == 0) == value else {return}
@@ -979,7 +994,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
             if starMotionEpoch == nil || faceFloat == nil {playInfoMotion()}
         }
     }
-    func cleanup() {guard !disposed else{return};historyEntryReady=nil;historyEntryReceipt?.cancel();historyEntryReceipt=nil;stopInfoMotion();front.subviews.compactMap{$0 as? JimiNativeNewRibbonView}.forEach{$0.quiesce()};cancelGameplayPreparation();onPrepareGameplayAssets=nil;disposed = true;active = false;entryFlipReceipt=nil;generation += 1;flipGeneration += 1;effects?.cleanup();effects = nil;[carrier,dragShell,effectShell,pinchShell,rotorShell,frontFloat,frontSettle,backFloat,backSettle,cta,backdrop].forEach{$0.layer.removeAllAnimations()};carrier.gestureRecognizers?.forEach{carrier.removeGestureRecognizer($0)};stats.arrangedSubviews.forEach{$0.layer.removeAllAnimations()};onRequest = nil;onFeedback = nil;isUserInteractionEnabled = false}
+    func cleanup() {guard !disposed else{return};cta.onSculptedFacePrepared=nil;cta.retireSculptedFacePreparation();historyEntryReady=nil;historyEntryReceipt?.cancel();historyEntryReceipt=nil;stopInfoMotion();front.subviews.compactMap{$0 as? JimiNativeNewRibbonView}.forEach{$0.quiesce()};cancelGameplayPreparation();onPrepareGameplayAssets=nil;disposed = true;active = false;entryFlipReceipt=nil;generation += 1;flipGeneration += 1;effects?.cleanup();effects = nil;[carrier,dragShell,effectShell,pinchShell,rotorShell,frontFloat,frontSettle,backFloat,backSettle,cta,backdrop].forEach{$0.layer.removeAllAnimations()};carrier.gestureRecognizers?.forEach{carrier.removeGestureRecognizer($0)};stats.arrangedSubviews.forEach{$0.layer.removeAllAnimations()};onRequest = nil;onFeedback = nil;isUserInteractionEnabled = false}
 }
 
 

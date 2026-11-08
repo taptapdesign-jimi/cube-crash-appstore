@@ -4,6 +4,152 @@ import UIKit
 
 @MainActor
 final class NativeArcadeModalMotionTests: XCTestCase {
+    func testAllArcadePaperTracksMatchMountedCuberoDetail() throws {
+        guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Full motion parity")}
+        let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible();host.loadViewIfNeeded()
+        let motion=NativeRouteMotion(home:JimiV9HomeView(frame:.zero,assets:assets),hub:JimiV9HubView(frame:.zero,assets:assets))
+        let detail=NativeBackpackDetail(die:try XCTUnwrap(NativeBackpackCatalog.arcade.first{$0.id=="cubero"}),assets:assets,motion:motion)
+        detail.entersImmediately=true
+        host.addChild(detail);detail.view.frame=window.bounds;host.view.addSubview(detail.view);detail.didMove(toParent:host)
+        detail.beginImmediatePresentation()
+        defer{detail.dispose();detail.view.removeFromSuperview();detail.removeFromParent();motion.cancel();window.isHidden=true}
+        func tracks(_ root:UIView,key:String)->[CAKeyframeAnimation] {
+            (root.layer.animation(forKey:key).flatMap{$0 as? CAKeyframeAnimation}.map{[$0]} ?? []) + root.subviews.flatMap{tracks($0,key:key)}
+        }
+        let reference=tracks(detail.view,key:"backpack.detail.enter")
+        XCTAssertEqual(reference.count,2)
+        for index in 0..<3 {
+            let modal=NativeArcadeWorldModal(frame:window.bounds,assets:assets,index:index)
+            host.view.addSubview(modal);modal.reveal()
+            defer{modal.dispose()}
+            let actual=tracks(modal,key:"arcade.modal.enter")
+            XCTAssertEqual(actual.count,reference.count)
+            for (arcade,backpack) in zip(actual,reference) {
+                XCTAssertEqual(arcade.duration,backpack.duration,accuracy:0.0001)
+                XCTAssertEqual(arcade.keyTimes,backpack.keyTimes)
+                XCTAssertTrue(NSArray(array:arcade.values ?? []).isEqual(to:backpack.values ?? []))
+                let arcadeCurves=try XCTUnwrap(arcade.timingFunctions),backpackCurves=try XCTUnwrap(backpack.timingFunctions)
+                XCTAssertEqual(arcadeCurves.count,backpackCurves.count)
+                for (a,b) in zip(arcadeCurves,backpackCurves) {for point in 0...3 {
+                    var actual=[Float](repeating:0,count:2),expected=actual
+                    a.getControlPoint(at:point,values:&actual);b.getControlPoint(at:point,values:&expected)
+                    XCTAssertEqual(actual,expected)
+                }}
+                XCTAssertEqual(arcade.fillMode,backpack.fillMode)
+            }
+        }
+    }
+
+    func testModalCloseEnterSharesEpochRetainsTiltAndRetiresWithModal() throws {
+        guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Full motion fixture")}
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),host=UIViewController()
+        window.rootViewController=host;window.makeKeyAndVisible();host.loadViewIfNeeded()
+        defer{window.isHidden=true}
+        weak var retired:UIView?
+        try autoreleasepool {
+            let card=UIView(frame:host.view.bounds),flip=UIView(frame:host.view.bounds),close=UIView()
+            retired=close;host.view.addSubview(card);card.addSubview(flip);flip.addSubview(close)
+            JimiNativeModalV10.layoutClose(close,frame:CGRect(x:300,y:0,width:52,height:52),modalTilt:2)
+            let rest=close.transform,epoch=CACurrentMediaTime()+0.1
+            JimiNativeModalV10.enterClose(close,beginTime:epoch)
+            JimiNativeModalV10.enter(card:card,flip:flip,key:"test.enter",beginTime:epoch)
+            let animation=try XCTUnwrap(close.layer.animation(forKey:JimiNativeModalV10.closeEnterKey) as? CAAnimationGroup)
+            let motion=try XCTUnwrap(animation.animations?.first as? CAKeyframeAnimation)
+            let fade=try XCTUnwrap(animation.animations?.last as? CABasicAnimation)
+            XCTAssertEqual(fade.keyPath,"opacity");XCTAssertEqual(fade.fromValue as? Int,0)
+            XCTAssertEqual(fade.duration,0.20/1.6/0.6,accuracy:0.0001)
+            XCTAssertEqual(animation.beginTime,close.layer.convertTime(epoch,from:nil)+1.0/3,accuracy:0.0001)
+            XCTAssertEqual(animation.duration,0.38/1.6/0.6,accuracy:0.0001)
+            XCTAssertEqual(animation.fillMode,.backwards)
+            let paper=try XCTUnwrap(card.layer.animation(forKey:"test.enter"))
+            let paperEnd=card.layer.convertTime(paper.beginTime+paper.duration,to:close.layer)
+            XCTAssertEqual((paperEnd-animation.beginTime)/animation.duration,0.8,accuracy:0.0001)
+            XCTAssertEqual(animation.beginTime+animation.duration-paperEnd,0.0791666667,accuracy:0.0001)
+            let values=try XCTUnwrap(motion.values as? [NSValue]).map{$0.caTransform3DValue}
+            XCTAssertEqual(hypot(values[0].m11,values[0].m12),0,accuracy:0.0001)
+            XCTAssertGreaterThan(values.map{hypot($0.m11,$0.m12)}.max() ?? 0,1.30)
+            XCTAssertGreaterThan(values.map{hypot($0.m21,$0.m22)}.max() ?? 0,1.15)
+            XCTAssertEqual(values.last!.m11,rest.a,accuracy:0.0001)
+            XCTAssertEqual(values.last!.m12,rest.b,accuracy:0.0001)
+            XCTAssertEqual(values.first!.m42,rest.ty+22,accuracy:0.0001)
+            XCTAssertLessThan(values.map{$0.m42}.min() ?? 0,rest.ty)
+            XCTAssertEqual(values.last!.m42,rest.ty,accuracy:0.0001)
+            // A later layout keeps the model rest pose while CA owns the reveal.
+            JimiNativeModalV10.layoutClose(close,frame:CGRect(x:300,y:0,width:52,height:52),modalTilt:2)
+            XCTAssertEqual(close.transform,rest);XCTAssertEqual(close.bounds.width,52)
+            card.layer.speed=0;XCTAssertEqual(close.layer.convertTime(epoch,from:nil),close.layer.convertTime(epoch+1,from:nil),accuracy:0.0001)
+            close.layer.removeAllAnimations();card.layer.removeAllAnimations();flip.layer.removeAllAnimations();card.removeFromSuperview()
+            XCTAssertNil(close.layer.animation(forKey:JimiNativeModalV10.closeEnterKey))
+        }
+        XCTAssertNil(retired)
+    }
+    func testBenchmarkPaperReusesOriginalImageAndCropsExactUpperRightForClose() throws {
+        let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+        let original=try XCTUnwrap(assets.image("assets/modals/paper.png"))
+        let paper=NativeModalPaperView();paper.prepare(assets:assets)
+        XCTAssertTrue(paper.image === original)
+        let expected=try XCTUnwrap(NativeModalPaperView.closePaper(original))
+        XCTAssertEqual(paper.closeMaterial?.pngData(),expected.pngData())
+        paper.fit(in:CGRect(x:0,y:0,width:320,height:440));let count=paper.fitCount
+        for _ in 0..<10{paper.fit(in:CGRect(x:0,y:0,width:320,height:440));XCTAssertTrue(paper.image === original)}
+        XCTAssertEqual(paper.fitCount,count);XCTAssertEqual(paper.layer.cornerRadius,40)
+        XCTAssertEqual(NativeModalPaperView.paths,["assets/modals/paper.png"])
+    }
+    func testPaperVariantsKeepAlphaDensityAndStableChoiceAcrossLayoutAndResume() throws {
+        let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+        let folder=URL(fileURLWithPath:"/tmp/arcade-paper-20261106/renders")
+        try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
+        for path in NativeArcadeWorldModal.paperPaths {
+            for density in [2,3] {
+                let url=NativeTestResources.root.appendingPathComponent(path.replacingOccurrences(of:".png",with:"@\(density)x.png"))
+                let image=try XCTUnwrap(UIImage(contentsOfFile:url.path)?.cgImage)
+                XCTAssertEqual(image.width,390*density)
+                XCTAssertEqual(image.height,544*density)
+                XCTAssertTrue([CGImageAlphaInfo.last,.first,.premultipliedLast,.premultipliedFirst].contains(image.alphaInfo))
+            }
+        }
+        for size in [CGSize(width:320,height:568),CGSize(width:390,height:844),CGSize(width:820,height:1180)] {
+            let window=UIWindow(frame:CGRect(origin:.zero,size:size)),host=UIViewController()
+            window.rootViewController=host;window.makeKeyAndVisible();host.loadViewIfNeeded()
+            defer{window.isHidden=true}
+            for mode in 0..<3 {for variant in NativeArcadeWorldModal.paperPaths.indices {
+                weak var retired:NativeArcadeWorldModal?
+                try autoreleasepool {
+                    let modal=NativeArcadeWorldModal(frame:window.bounds,assets:assets,index:mode,paperVariant:variant)
+                    retired=modal;host.view.addSubview(modal);modal.layoutIfNeeded()
+                    let paper=try XCTUnwrap(descendant(modal,id:"native.arcade-world-modal.paper") as? UIImageView)
+                    let image=try XCTUnwrap(paper.image),rect=paper.frame
+                    let close=try XCTUnwrap(descendant(modal,id:"native.arcade-world-modal.close") as? JimiV9PlainButton)
+                    let closeMaterial=try XCTUnwrap((paper as? NativeModalPaperView)?.closeMaterial)
+                    XCTAssertNil(close.backgroundImage(for:.normal),"One joined paper plane replaces the separate Close patch")
+                    XCTAssertEqual(closeMaterial.size,CGSize(width:96,height:96))
+                    XCTAssertEqual(closeMaterial.scale,image.scale)
+                    XCTAssertEqual(close.bounds.size,CGSize(width:52,height:52))
+                    XCTAssertEqual(close.layer.cornerRadius,16)
+                    XCTAssertEqual(modal.paperAssetPath,NativeArcadeWorldModal.paperPaths[variant])
+                    XCTAssertEqual(paper.accessibilityValue,modal.paperAssetPath)
+                    XCTAssertTrue(image === assets.image("assets/modals/paper.png"))
+                    XCTAssertGreaterThan(paper.layer.contentsRect.width,0);XCTAssertLessThanOrEqual(paper.layer.contentsRect.width,1)
+                    XCTAssertGreaterThan(paper.layer.contentsRect.height,0);XCTAssertLessThanOrEqual(paper.layer.contentsRect.height,1)
+                    XCTAssertNotNil(paper.layer.mask);XCTAssertEqual(paper.layer.cornerRadius,40)
+                    for _ in 0..<3 {
+                        modal.setForeground(false);modal.setForeground(true);modal.setNeedsLayout();modal.layoutIfNeeded()
+                        XCTAssertTrue(paper.image === image);XCTAssertEqual(paper.frame,rect)
+                        XCTAssertTrue((paper as? NativeModalPaperView)?.closeMaterial === closeMaterial)
+                        XCTAssertEqual(modal.paperAssetPath,NativeArcadeWorldModal.paperPaths[variant])
+                    }
+                    if mode == 0 {
+                        let data=UIGraphicsImageRenderer(bounds:paper.bounds).pngData{paper.layer.render(in:$0.cgContext)}
+                        try data.write(to:folder.appendingPathComponent("paper-\(variant)-\(Int(size.width)).png"))
+                    }
+                    modal.dispose();modal.removeFromSuperview()
+                }
+                XCTAssertNil(retired,"Paper must not retain a retired modal")
+            }}
+        }
+    }
     private func wait(_ condition: () -> Bool) async throws {
         let end = Date().addingTimeInterval(4)
         while !condition(), Date() < end { try await Task.sleep(for: .milliseconds(20)) }

@@ -47,7 +47,7 @@ import UIKit
             XCTAssertTrue(CATransform3DIsIdentity(art.layer.transform))
         }
     }
-    func testMountedSelectedIslandBouncesStronglyThenModalCoversRetainedHub()async throws {
+    func testMountedModalStartsAtSeventyPercentOfSelectedIslandContact()async throws {
         guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Reduced Motion skips contact")}
         let host=UIViewController(),window=UIWindow(frame:.init(x:0,y:0,width:390,height:844))
         window.rootViewController=host;window.makeKeyAndVisible()
@@ -65,7 +65,8 @@ import UIKit
         XCTAssertEqual(bounce.duration,0.48)
         let entry=try XCTUnwrap(card.layer.animation(forKey:"arcade.modal.enter"))
         let contactStart=shell.layer.convertTime(bounce.beginTime,to:nil)
-        XCTAssertEqual(card.layer.convertTime(entry.beginTime,to:nil)-contactStart,0.20,accuracy:0.02)
+        XCTAssertEqual(card.layer.convertTime(entry.beginTime,to:nil)-contactStart,0.336,accuracy:0.02)
+        XCTAssertEqual(entry.duration,JimiNativeModalV10.paperEnterDuration,accuracy:0.0001)
         let poses=try XCTUnwrap(bounce.values as? [NSValue]).map{ $0.caTransform3DValue }
         XCTAssertGreaterThan(poses[1].m11,1.22)
         XCTAssertLessThan(poses[1].m22,0.75)
@@ -75,8 +76,12 @@ import UIKit
             XCTAssertTrue(CATransform3DIsIdentity(unit.layer.transform))
             XCTAssertEqual(unit.layer.opacity,1)
         }
-        try await Task.sleep(for:.milliseconds(100))
-        XCTAssertLessThan(try XCTUnwrap(card.layer.presentation()).opacity,0.01,"Contact remains visible before the scheduled overlap")
+        // Assert the actual CA visibility gate; an async100ms sleep may resume
+        // after240ms on a busy Simulator and no longer samples the held phase.
+        let visibility=try XCTUnwrap(card.layer.animation(forKey:"arcade.modal.visibility") as? CABasicAnimation)
+        XCTAssertEqual(visibility.fromValue as? Int,0)
+        XCTAssertEqual(visibility.fillMode,.backwards)
+        XCTAssertEqual(visibility.beginTime,entry.beginTime,accuracy:0.0001)
         let deadline=Date().addingTimeInterval(4)
         while sheet.accessibilityValue != "ready",Date()<deadline {try await Task.sleep(for:.milliseconds(10))}
         XCTAssertEqual(sheet.accessibilityValue,"ready")
@@ -109,7 +114,7 @@ import UIKit
             if action==0{hub.hide()}else if action==1{hub.suspend()}else{hub.removeFromSuperview()}
             XCTAssertNil(modal(hub),"Canceling before reveal must dispose the mounted pending modal")
             XCTAssertNil(pending.superview)
-            try await Task.sleep(for:.milliseconds(450))
+            try await Task.sleep(for:.milliseconds(700))
             XCTAssertNil(modal(hub),"Canceled contact cannot publish a stale modal")
             hub.hide()
         }

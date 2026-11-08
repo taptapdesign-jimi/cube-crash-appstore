@@ -437,7 +437,10 @@ final class JimiNativeSettingsTests: XCTestCase {
         XCTAssertEqual(privacy.card.center.y-privacy.card.bounds.height*0.05,422,accuracy:0.001)
         XCTAssertEqual(privacy.flip.layer.anchorPoint.y,0.46)
         XCTAssertEqual(privacy.paper.layer.contentsRect.minY,0)
-        XCTAssertEqual(privacy.paper.layer.cornerRadius,40)
+        // Worn-paper PNG owns its alpha silhouette; no UIKit corner clipping.
+        XCTAssertEqual(privacy.paper.layer.cornerRadius,0)
+        XCTAssertNil(privacy.paper.layer.mask)
+        XCTAssertEqual(privacy.paper.textureScale,privacy.paper.bounds.width/390,accuracy:0.0001)
         XCTAssertNotNil(privacy.paper.image)
         XCTAssertEqual(privacy.close.bounds.size,CGSize(width:52,height:52))
         let rest=try XCTUnwrap(privacy.idle.superview)
@@ -448,6 +451,14 @@ final class JimiNativeSettingsTests: XCTestCase {
         XCTAssertGreaterThan(abs(angle+closeAngle),5)
         XCTAssertTrue(privacy.copy.text.contains("Read Privacy Policy"))
         XCTAssertEqual(privacy.card.layer.animation(forKey:"privacy-enter")?.duration,0.65)
+        if !UIAccessibility.isReduceMotionEnabled {
+            let paper=try XCTUnwrap(privacy.card.layer.animation(forKey:"privacy-enter"))
+            let x=try XCTUnwrap(privacy.close.layer.animation(forKey:JimiNativeModalV10.closeEnterKey))
+            let end=privacy.card.layer.convertTime(paper.beginTime+paper.duration,to:privacy.close.layer)
+            XCTAssertEqual((end-x.beginTime)/x.duration,0.8,accuracy:0.0001)
+            let idle=try XCTUnwrap(privacy.idle.layer.animation(forKey:"privacy-idle"))
+            XCTAssertEqual(idle.beginTime,privacy.card.layer.convertTime(paper.beginTime+paper.duration,to:privacy.idle.layer),accuracy:0.0001)
+        }
         XCTAssertEqual(privacy.idle.layer.animation(forKey:"privacy-idle")?.duration,6.8)
         privacy.close.sendActions(for:.touchUpInside)
         XCTAssertEqual(privacy.card.layer.animation(forKey:"privacy-exit")?.duration,0.65)

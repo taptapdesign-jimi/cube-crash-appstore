@@ -1,0 +1,52 @@
+[
+  {
+    "asset": "paper-balanced.png",
+    "source": "game design/output/2026-11-07-modal-paper-reference-v3/01-reference-balanced.png",
+    "sha256": "57a18267976ce8592c7934b1c30ec888522a081700836eea8574d797ec675b45"
+  },
+  {
+    "asset": "paper-cuts.png",
+    "source": "game design/output/2026-11-07-modal-paper-reference-v3/02-reference-offset-cuts.png",
+    "sha256": "c38b32330a925e28c6e84161cf097135a545f25b437767bd891610c50e6b4582"
+  },
+  {
+    "asset": "paper-fray.png",
+    "source": "game design/output/2026-11-07-modal-paper-reference-v3/03-reference-soft-fray.png",
+    "sha256": "2ac64c455ac859efadf520a1735ecd81d7cace98851ce1d44cd5e7caef020c6c"
+  },
+  {
+    "asset": "paper-cracked.png",
+    "source": "assets/modals/arcade-paper/paper-02-cracked@3x.png",
+    "sha256": "de306831beafa2fc9f6e2402f69d66321cc32e39c8d269c53aaec7cc1b20c864"
+  },
+  {
+    "asset": "primary.png",
+    "source": "assets/ui/native-end-run-cta-balanced-v1/restart-249-4x.png",
+    "sha256": "feced5b698d1afbd730ff185a27c3e9560ae05a828c503d61fb1713c677c1b8c"
+  },
+  {
+    "asset": "secondary.png",
+    "source": "assets/ui/native-end-run-cta-balanced-v1/exit-249-4x.png",
+    "sha256": "d04fcdf48dd65a101d1561752fc321782ccbaa7b895fccf8ea1926baa448b7b2"
+  },
+  {
+    "asset": "Baloo2-ExtraBold.ttf",
+    "source": "assets/fonts/Baloo2-ExtraBold.ttf",
+    "sha256": "343d0a4a7a0621a9bc431a23ebd09ac281801465cced528f4334aed9ccea4f7e"
+  },
+  {
+    "asset": "paper-native-worn.png",
+    "source": "assets/modals/arcade-paper/paper-01-worn@3x.png",
+    "sha256": "c2eb2e074b00c75e87b6e8d47c9dbbf6421c2553773e2d3db46077c546f3df1a"
+  },
+  {
+    "asset": "paper-native-cracked.png",
+    "source": "assets/modals/arcade-paper/paper-02-cracked@3x.png",
+    "sha256": "de306831beafa2fc9f6e2402f69d66321cc32e39c8d269c53aaec7cc1b20c864"
+  },
+  {
+    "asset": "paper-native-cut.png",
+    "source": "assets/modals/arcade-paper/paper-03-cut@3x.png",
+    "sha256": "f95d6c70b754f9040f6e22230948684a1c4489b2a69e2e08133064cdb1fd8e34"
+  }
+]

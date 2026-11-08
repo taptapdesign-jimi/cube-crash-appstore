@@ -1,0 +1,50 @@
+{
+  "method": "Uniform width-based sips resampling;source color and alpha retained",
+  "exports": [
+    {
+      "source": "game design/output/2026-11-07-modal-paper-reference-v3/01-reference-balanced.png",
+      "asset": "assets/modals/arcade-paper/paper-06-reference-balanced.png",
+      "density": 1
+    },
+    {
+      "source": "game design/output/2026-11-07-modal-paper-reference-v3/01-reference-balanced.png",
+      "asset": "assets/modals/arcade-paper/paper-06-reference-balanced@2x.png",
+      "density": 2
+    },
+    {
+      "source": "game design/output/2026-11-07-modal-paper-reference-v3/01-reference-balanced.png",
+      "asset": "assets/modals/arcade-paper/paper-06-reference-balanced@3x.png",
+      "density": 3
+    },
+    {
+      "source": "game design/output/2026-11-07-modal-paper-reference-v3/02-reference-offset-cuts.png",
+      "asset": "assets/modals/arcade-paper/paper-07-reference-offset-cuts.png",
+      "density": 1
+    },
+    {
+      "source": "game design/output/2026-11-07-modal-paper-reference-v3/02-reference-offset-cuts.png",
+      "asset": "assets/modals/arcade-paper/paper-07-reference-offset-cuts@2x.png",
+      "density": 2
+    },
+    {
+      "source": "game design/output/2026-11-07-modal-paper-reference-v3/02-reference-offset-cuts.png",
+      "asset": "assets/modals/arcade-paper/paper-07-reference-offset-cuts@3x.png",
+      "density": 3
+    },
+    {
+      "source": "game design/output/2026-11-07-modal-paper-reference-v3/03-reference-soft-fray.png",
+      "asset": "assets/modals/arcade-paper/paper-08-reference-soft-fray.png",
+      "density": 1
+    },
+    {
+      "source": "game design/output/2026-11-07-modal-paper-reference-v3/03-reference-soft-fray.png",
+      "asset": "assets/modals/arcade-paper/paper-08-reference-soft-fray@2x.png",
+      "density": 2
+    },
+    {
+      "source": "game design/output/2026-11-07-modal-paper-reference-v3/03-reference-soft-fray.png",
+      "asset": "assets/modals/arcade-paper/paper-08-reference-soft-fray@3x.png",
+      "density": 3
+    }
+  ]
+}

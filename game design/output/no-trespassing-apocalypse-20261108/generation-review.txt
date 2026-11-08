@@ -1,0 +1,7 @@
+Tool: built-in image_gen. Reference: ../no-trespassing-islands-20261108/no-trespassing-island-3-tall-fence.png, derived from user sandy island reference.
+Shared prompt: preserve creamy warm fine sandy texture, rounded sandstone underside, soft volumetric 3D lighting and camera; make island narrow; tall broken chain-link fence on viewer left; oversized crooked weathered white metal sign with exact NO / TRESPASSING, chipped paint lettering, dents, localized rust, cyan liquid spilling over top and dripping to tiny puddle; actual transparent background; no outlines or extra subjects.
+1: curved sandbar, petrol-blue lettering, clockwise sign, curled corner, torn right mesh.
+2: tapered wedge, burgundy lettering, counterclockwise sign, diagonal cyan spill, collapsed upper fence.
+3: pinched capsule, charcoal lettering, faded mustard markings, bent post, cyan top drips.
+4: shallow crescent, cobalt lettering, rusty fasteners, bent edges, missing upper-right mesh.
+Visual review: all four retain sandy island render and implement weathered white metal signs, torn mesh, distressed readable letters and cyan drips. Fence tops have tight margins; these are concept candidates, not final runtime-approved assets. No runtime integration.

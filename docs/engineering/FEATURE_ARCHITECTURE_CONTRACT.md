@@ -67,3 +67,33 @@ The latest accepted Score/Combo paper example is the upper limit for texture enl
 Adapt to the actual container dimensions while retaining the original texture aspect ratio and a clean, filled, rounded finish. Hide only the narrow torn lower fringe with the smallest necessary crop/bleed; preserve the surrounding authored paper detail. If extra space cannot be covered within the reference's visual scale, adjust the content/container layout or extend an interior paper region without visible seams instead of increasing texture zoom. Do not alter protected original image files.
 
 Review both short and tall content states against the same reference. Verify visible paper detail and closed bottom corners, not just the image-view rectangle. The existing 40px top-to-first-visible-icon-pixel and 40px below the final result strip remain separate layout requirements for Score/Combo history modals.
+
+
+### Reused worn-paper material — user decision 2026-11-06
+
+Ordinary modal paper surfaces reuse three original worn-paper PNG families. NativeModalPaperView selects once per presentation and preserves the warm ivory softened a further40percent toward neutral white and matching close-button crop. Uniform width-based source scaling plus softly joined middle bands preserve texture aspect as modal content grows. Reuse one size-cached static fitted raster, redrawn only on actual size change; never independently stretch texture axes or zoom to hide missing borders. Preserve complete top/bottom edges and avoid visible tile seams. Existing Score/Combo history sizing, spacing and row-card geometry stay unchanged. The original Journey Stage info/table panel and its assets are explicitly excluded. Settings row cards, score-history strips, plain Developer card and fullscreen result/reward backgrounds retain their existing owners. No source asset mutation or duplicate per-modal resource sets.
+
+User2026-11-06 paper color refinement: all three shared worn-paper variants and the matching Close crop retain60percent of the previously softened image plus40percent neutral white. One combined source-atop wash preserves alpha,grain/density,fit cache and stable per-presentation choice. Original asset bytes and modal geometry/motion remain unchanged.
+
+User2026-11-07 rotation: retire smooth paper-01-worn from selection while preserving its original files. Uniformly choose from existing cracked/cut plus new soft-fold/crumpled-fold variants once per presentation. New fold PNGs carry their approved pale finish already;skip the legacy wash for both sheet and matching Close crop. Width-based uniform resampling and existing adaptive fit preserve grain/aspect,with original tall master aspect retained. No change to modal geometry,enter/exit or Journey Stage stone paper.
+
+User2026-11-07 latest rotation supersedes folded variants:five equal-probability choices(existing cracked/cut plus3approved calm WeeBee-reference papers06/07/08). Exclude both04/05fold papers and smooth01from rotation while preserving every original file. New3papers retain approved source finish and uniform aspect;Close crops the same chosen source without another wash. Existing renderer/entry/exit/lifecycle and Journey Stage stone paper stay unchanged.
+
+User2026-11-07 latest:restore exactly original01worn/02cracked/03cut as ordinary/medium/strong tear levels. Remove05crumpled,04folds and06/07/08reference variants from selection AND runtime asset roots at all densities,as explicitly authorized by user. Retain original three files,40percent less-warm finish,stable per-presentation draw,matching smooth Close texture,geometry/motion/lifecycle. No new generation. Historical design candidates outside runtime remain archival. Supersedes five-variant policies above.
+
+## Production preload and modal integration (2026-11-07)
+
+User authorizes selective Six LAB adoption: production preload uses #EA8B57 to #E7744A, rounded unsheared tip and matching birth-color smoke; shared finite HUD clock samples stationary reveal after divider entry. Canonical charge/consume/save/audio owners remain unchanged. Original cached modal paper and seamless rounded Close holder replace runtime paper fitting/color processing; main Close geometry and main upper navigation stay authoritative. Arcade modal reveal starts at70percent of existing island contact. Old experiment atlases and LAB profile are not production dependencies.
+
+### iPad parity (2026-11-08)
+
+Tablet gameplay uses the same Close, score, combo, backpack order, authored tilts,
+curved preload and gameplay divider as the phone. Keep the accepted tablet grid,
+meter centre and 1.4 HUD typography. Reserve stable score/combo slots so changing
+digits or finite feedback cannot move the icons. Painted, rotated group bounds
+own disjoint touch regions. The existing Scene HUD action owns all four ordinary
+enter/exit groups; Restart replays only score/combo and the bar mask while Close,
+backpack and the divider retain their existing replacement contract. Include the
+744pt iPad mini in the shared tablet predicate. No new scheduler, gameplay/save,
+audio or resource owner. Shared original modal paper, joined Close and existing
+tablet modal projection remain authoritative; verify all families on tablet.

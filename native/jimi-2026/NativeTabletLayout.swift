@@ -41,7 +41,8 @@ enum NativeTabletLayout {
         var root=surface,ancestor:UIView?=surface,projected=false
         while let view=ancestor {root=view;if view is NativeModalProjectionView {projected=true};ancestor=view.superview}
         let viewport=surface.window?.bounds.size ?? root.bounds.size
-        return settingsPaperCornerRadius(viewport)/(projected ? modalScale(viewport):1)
+        // Modals use40pt on screen; Settings retains its own22/24pt policy.
+        return 40/(projected ? modalScale(viewport):1)
     }
     static func modalScale(_ size:CGSize)->CGFloat {applies(size) ? 1.4:1}
     // Modal titles stay32pt on screen, independent of the paper projection.

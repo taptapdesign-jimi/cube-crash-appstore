@@ -56,7 +56,8 @@ import ImageIO
     func testLogoBounceEntryUsesSharedHomeRecipeThenOriginalExit() {
         XCTAssertEqual(NativeStudioIntroView.duration,4.33,accuracy:0.000001)
         XCTAssertGreaterThan(NativeStudioIntroView.logoMotionSpeed,0.70)
-        XCTAssertEqual(NativeStudioIntroView.logoStartDelay+NativeStudioIntroView.logoDuration+0.05,4.33,accuracy:0.000001)
+        XCTAssertEqual(NativeStudioIntroView.characterExitTime+0.65-(NativeStudioIntroView.logoStartDelay+NativeStudioIntroView.logoDuration),0.08,accuracy:0.000001)
+        XCTAssertLessThan(NativeStudioIntroView.characterExitTime+0.65,NativeStudioIntroView.duration)
         let track=JimiV9Motion.homeEnter(.logo)
         XCTAssertEqual(NativeStudioIntroView.logoEntryDuration,track.duration)
         for index in 0...100 {
@@ -72,12 +73,21 @@ import ImageIO
             XCTAssertGreaterThanOrEqual(scale,0);XCTAssertLessThanOrEqual(scale,1)
         }
     }
-    func testPresentsExitsPerLetterWithCharacterBeforePlaque() {
+    func testPresentsExitsPerLetterAndPlaqueFinishesBeforeCharacter() {
         let start=NativeStudioIntroView.characterExitTime
         XCTAssertEqual(NativeStudioIntroView.presentsPose(at:start+0.31,index:0).alpha,0,accuracy:0.000001)
         XCTAssertGreaterThan(NativeStudioIntroView.presentsPose(at:start+0.31,index:7).alpha,0.9)
         for i in 0..<8 {XCTAssertEqual(NativeStudioIntroView.presentsPose(at:start+0.66,index:i).alpha,0,accuracy:0.000001)}
-        XCTAssertGreaterThan(NativeStudioIntroView.logoExitStart,start+0.66)
+        XCTAssertEqual(NativeStudioIntroView.scale(at:NativeStudioIntroView.logoDuration,character:false),0,accuracy:0.000001)
+        XCTAssertGreaterThan(NativeStudioIntroView.scale(at:NativeStudioIntroView.logoDuration,character:true),0)
+        for source in [0.24,0.52,0.84,0.95,2.5,2.96,3.2,3.56,3.8,4.0] {
+            let time=NativeStudioIntroView.logoTime(forSource:source)
+            XCTAssertEqual(NativeStudioIntroView.logoSourceTime(at:time),source,accuracy:0.000001)
+            if source<=3.56 {
+                let old=(source-NativeStudioIntroView.logoSourceLead)/NativeStudioIntroView.logoMotionSpeed+(source>2.96 ? NativeStudioIntroView.logoExtraHold:0)
+                XCTAssertEqual(time,old,accuracy:0.000001)
+            }
+        }
     }
     func testDropLogoKeepsFiniteShimmerAndParentPauseAndCleanup()async throws {
         let(controller,window,prior)=mount(),view=intro()
@@ -122,10 +132,10 @@ import ImageIO
 
     func testPresentsUsesArcadeLetterEntryStretchedByExactlyOneSecond()async throws {
         XCTAssertEqual(NativeStudioIntroView.presentsEntryDuration,1.58,accuracy:0.000001)
-        XCTAssertEqual(NativeStudioIntroView.presentsEntryStart,0.95,accuracy:0.000001)
+        XCTAssertEqual(NativeStudioIntroView.presentsEntryStart,NativeStudioIntroView.logoTime(forSource:0.95),accuracy:0.000001)
         let stretch=(1.58-7*0.12)/0.44
         for index in 0..<8 {for local in [-0.1,0,0.12,0.24,0.34,0.44,0.7] {
-            let actual=NativeStudioIntroView.presentsPose(at:0.95+Double(index)*0.12+local*stretch,index:index)
+            let actual=NativeStudioIntroView.presentsPose(at:NativeStudioIntroView.presentsEntryStart+Double(index)*0.12+local*stretch,index:index)
             let reference=NativeArcadeRoundPresentation.entry(local,overshoot:1.32,dip:0.90)
             XCTAssertEqual(actual.scale,reference.scale,accuracy:0.000001)
             XCTAssertEqual(actual.alpha,reference.alpha,accuracy:0.000001)
@@ -167,9 +177,19 @@ import ImageIO
         XCTAssertTrue(rows.allSatisfy{$0.masksToBounds})
         XCTAssertEqual(rows[0].frame.maxY,rows[1].frame.minY,accuracy:0.001)
         let bands=try rows.map{try XCTUnwrap($0.sublayers?.first)}
-        let passes=try bands.map{try XCTUnwrap($0.animation(forKey:"native-studio-sheen") as? CAAnimationGroup)}
-        XCTAssertEqual(passes[0].duration,1.05);XCTAssertEqual(passes[1].duration,1.05)
-        XCTAssertEqual(passes[1].beginTime-passes[0].beginTime,1.15,accuracy:0.01)
+        if let drop=unit.subviews.first(where:{$0.accessibilityIdentifier=="native.studio-intro.drop-logo"}) {
+            func descendants(_ layer:CALayer)->[CALayer] {[layer]+(layer.sublayers ?? []).flatMap(descendants)}
+            let sequence=try XCTUnwrap(descendants(drop.layer).compactMap{$0.animation(forKey:"native-studio-drop-shimmer") as? CAAnimationGroup}.first)
+            let passes=try XCTUnwrap(sequence.animations)
+            XCTAssertEqual(passes.count,2)
+            XCTAssertEqual(passes[0].duration,1.05);XCTAssertEqual(passes[1].duration,1.05)
+            XCTAssertEqual(passes[1].beginTime-passes[0].beginTime,1.15,accuracy:0.01)
+            XCTAssertTrue(bands.allSatisfy{$0.animation(forKey:"native-studio-sheen")==nil},"Hidden fallback sheen has no animation owner")
+        } else {
+            let passes=try bands.map{try XCTUnwrap($0.animation(forKey:"native-studio-sheen") as? CAAnimationGroup)}
+            XCTAssertEqual(passes[0].duration,1.05);XCTAssertEqual(passes[1].duration,1.05)
+            XCTAssertEqual(passes[1].beginTime-passes[0].beginTime,1.15,accuracy:0.01)
+        }
         func capture(_ name:String)throws {
             let image=UIGraphicsImageRenderer(bounds:view.bounds).image{_ in
                 XCTAssertTrue(view.drawHierarchy(in:view.bounds,afterScreenUpdates:true))
@@ -177,12 +197,16 @@ import ImageIO
             try XCTUnwrap(image.pngData()).write(to:URL(fileURLWithPath:"/tmp/"+name+".png"))
         }
         try await Task.sleep(for:.milliseconds(1150))
-        XCTAssertGreaterThan(try XCTUnwrap(bands[0].presentation()).opacity,0.9)
-        XCTAssertLessThan(try XCTUnwrap(bands[1].presentation()).opacity,0.01)
+        if !unit.subviews.contains(where:{$0.accessibilityIdentifier=="native.studio-intro.drop-logo"}) {
+            XCTAssertGreaterThan(try XCTUnwrap(bands[0].presentation()).opacity,0.9)
+            XCTAssertLessThan(try XCTUnwrap(bands[1].presentation()).opacity,0.01)
+        }
         try capture("native-studio-sheen-tap-tap")
         try await Task.sleep(for:.milliseconds(1150))
-        XCTAssertLessThan(try XCTUnwrap(bands[0].presentation()).opacity,0.01)
-        XCTAssertGreaterThan(try XCTUnwrap(bands[1].presentation()).opacity,0.9)
+        if !unit.subviews.contains(where:{$0.accessibilityIdentifier=="native.studio-intro.drop-logo"}) {
+            XCTAssertLessThan(try XCTUnwrap(bands[0].presentation()).opacity,0.01)
+            XCTAssertGreaterThan(try XCTUnwrap(bands[1].presentation()).opacity,0.9)
+        }
         try capture("native-studio-sheen-design")
         view.start{XCTFail("Repeated start cannot replace the original handoff")}
         view.animationDidStop(CAAnimation(),finished:true)
@@ -191,45 +215,116 @@ import ImageIO
         view.animationDidStop(CAAnimation(),finished:true)
         XCTAssertEqual(cues,1);XCTAssertEqual(handoffs,1)
     }
+    private func assertCenteredCharacterExit(_ view:NativeStudioIntroView)throws {
+        let layer=try XCTUnwrap(view.animatedCharacterLayer.superlayer)
+        let group=try XCTUnwrap(layer.animation(forKey:"native-studio-intro") as? CAAnimationGroup)
+        let track=try XCTUnwrap(group.animations?.first as? CAKeyframeAnimation)
+        let values=try XCTUnwrap(track.values as? [NSValue])
+        let rest=view.character.scale,anchor=layer.anchorPoint,bounds=layer.bounds
+        let localCenter=CGPoint(x:(0.5-anchor.x)*bounds.width,y:(0.5-anchor.y)*bounds.height)
+        let restingCenter=CGPoint(x:layer.position.x+localCenter.x*rest,y:layer.position.y+localCenter.y*rest)
+        var sawOvershoot=false,sawCollapse=false
+        for (index,value) in values.enumerated() {
+            let seconds=group.duration*Double(index)/Double(values.count-1),t=value.caTransform3DValue
+            XCTAssertEqual(t.m11,NativeStudioIntroView.scale(at:seconds,character:true,rest:Double(rest)),accuracy:0.000001,view.character.key)
+            XCTAssertEqual(t.m11,t.m22,accuracy:0.000001)
+            if seconds<NativeStudioIntroView.characterExitTime {
+                XCTAssertEqual(t.m41,0);XCTAssertEqual(t.m42,0,"Original entry and idle stay unchanged")
+            } else {
+                let center=CGPoint(x:layer.position.x+localCenter.x*t.m11+t.m41,y:layer.position.y+localCenter.y*t.m22+t.m42)
+                XCTAssertEqual(center.x,restingCenter.x,accuracy:0.0001,view.character.key)
+                XCTAssertEqual(center.y,restingCenter.y,accuracy:0.0001,view.character.key)
+                sawOvershoot = sawOvershoot || t.m11>rest
+                sawCollapse = sawCollapse || t.m11<rest*0.01
+            }
+        }
+        XCTAssertTrue(sawOvershoot);XCTAssertTrue(sawCollapse)
+    }
     func testAllMountedProductionSelectionsUsePreparedPixelsOriginalTimingAndBoundedMemory()async throws {
         XCTAssertEqual(NativeStudioIntroView.characters.count,10)
         let(controller,window,prior)=mount()
         defer{window.isHidden=true;prior?.makeKeyAndVisible()}
-        for character in NativeStudioIntroView.characters {
-            // Exact production initializer used by NativeAppController.
-            let view=NativeStudioIntroView(root:NativeTestResources.root,character:character)
-            view.frame=controller.view.bounds;controller.view.addSubview(view);view.layoutIfNeeded()
-            var cues=0;view.onCharacterCue={_ in cues+=1};view.start{}
-            defer{view.dispose()}
-            try await wait{view.timelineStarted}
-            let durations=try originalDurations(character)
-            XCTAssertEqual(view.preparedFrameCount,durations.count,character.key)
-            XCTAssertEqual(view.preparedFrameDurations,durations,character.key)
-            XCTAssertEqual(view.selectedMotionSource,"animated-webp-predecoded",character.key);XCTAssertEqual(cues,1)
-            let animation=try XCTUnwrap(view.animatedCharacterLayer.animation(forKey:NativeStudioIntroView.frameAnimationKey) as? CAKeyframeAnimation)
-            XCTAssertEqual(animation.calculationMode,.discrete)
-            let total=durations.reduce(0,+)
-            XCTAssertEqual(animation.duration,total,accuracy:0.000001)
-            let images=try XCTUnwrap(animation.values as? [CGImage])
-            XCTAssertEqual(images.count,durations.count+1)
-            XCTAssertEqual(animation.keyTimes?.count,images.count)
-            var elapsed=0.0
-            for (index,delay) in durations.enumerated(){
-                XCTAssertEqual(try XCTUnwrap(animation.keyTimes?[index]).doubleValue,elapsed/total,accuracy:0.000001)
-                elapsed+=delay
-                XCTAssertEqual(images[index].bitsPerPixel,32)
-                XCTAssertNotNil(images[index].dataProvider?.data,"Prepared bitmap pixels must be materialized")
+        for size in [CGSize(width:390,height:844),CGSize(width:820,height:1180)] {
+            for character in NativeStudioIntroView.characters {
+                // Exact production initializer used by NativeAppController.
+                let view=NativeStudioIntroView(root:NativeTestResources.root,character:character)
+                view.frame=CGRect(origin:.zero,size:size);controller.view.addSubview(view);view.layoutIfNeeded()
+                var cues=0;view.onCharacterCue={_ in cues+=1};view.start{}
+                defer{view.dispose()}
+                try await wait{view.timelineStarted}
+                try assertCenteredCharacterExit(view)
+                let durations=try originalDurations(character)
+                XCTAssertEqual(view.preparedFrameCount,durations.count,character.key)
+                XCTAssertEqual(view.preparedFrameDurations,durations,character.key)
+                XCTAssertEqual(view.selectedMotionSource,"animated-webp-predecoded",character.key);XCTAssertEqual(cues,1)
+                let animation=try XCTUnwrap(view.animatedCharacterLayer.animation(forKey:NativeStudioIntroView.frameAnimationKey) as? CAKeyframeAnimation)
+                XCTAssertEqual(animation.calculationMode,.discrete)
+                let total=durations.reduce(0,+)
+                XCTAssertEqual(animation.duration,total,accuracy:0.000001)
+                let images=try XCTUnwrap(animation.values as? [CGImage])
+                XCTAssertEqual(images.count,durations.count+1)
+                XCTAssertEqual(animation.keyTimes?.count,images.count)
+                var elapsed=0.0
+                for (index,delay) in durations.enumerated(){
+                    XCTAssertEqual(try XCTUnwrap(animation.keyTimes?[index]).doubleValue,elapsed/total,accuracy:0.000001)
+                    elapsed+=delay
+                    XCTAssertEqual(images[index].bitsPerPixel,32)
+                    XCTAssertNotNil(images[index].dataProvider?.data,"Prepared bitmap pixels must be materialized")
+                }
+                XCTAssertEqual(animation.keyTimes?.last,1)
+                let decodedBytes=images.prefix(durations.count).reduce(0){$0+$1.bytesPerRow*$1.height}
+                XCTAssertEqual(view.preparedDecodedBytes,decodedBytes)
+                XCTAssertGreaterThan(decodedBytes,0)
+                XCTAssertLessThanOrEqual(decodedBytes,NativeStudioIntroView.preparedMemoryBudgetBytes)
+                try await wait(timeout:2){self.presentationPixels(view) != nil}
+                let first=try XCTUnwrap(presentationPixels(view),character.key)
+                try await wait(timeout:2){self.presentationPixels(view).map{$0 != first} ?? false}
+                print("[NativeStudioIntroProof] character=\(character.key) prepared=\(durations.count) bytes=\(decodedBytes) duration=\(total) preparation=\(view.preparationDuration) renderedPixelsChanged=true")
+                view.dispose();assertReleased(view)
             }
-            XCTAssertEqual(animation.keyTimes?.last,1)
-            let decodedBytes=images.prefix(durations.count).reduce(0){$0+$1.bytesPerRow*$1.height}
-            XCTAssertEqual(view.preparedDecodedBytes,decodedBytes)
-            XCTAssertGreaterThan(decodedBytes,0)
-            XCTAssertLessThanOrEqual(decodedBytes,NativeStudioIntroView.preparedMemoryBudgetBytes)
-            try await wait(timeout:2){self.presentationPixels(view) != nil}
-            let first=try XCTUnwrap(presentationPixels(view),character.key)
-            try await wait(timeout:2){self.presentationPixels(view).map{$0 != first} ?? false}
-            print("[NativeStudioIntroProof] character=\(character.key) prepared=\(durations.count) bytes=\(decodedBytes) duration=\(total) preparation=\(view.preparationDuration) renderedPixelsChanged=true")
-            view.dispose();assertReleased(view)
+        }
+    }
+    func testRenderedLeashExitKeepsRestingCenter()throws {
+        let(controller,window,prior)=mount()
+        defer{window.isHidden=true;prior?.makeKeyAndVisible()}
+        let character=try XCTUnwrap(NativeStudioIntroView.characters.first{$0.key == "lik-pas-SVG"})
+        let view=NativeStudioIntroView(root:NativeTestResources.root,character:character)
+        view.frame=controller.view.bounds;controller.view.addSubview(view);view.layoutIfNeeded()
+        defer{view.dispose()}
+        let done=expectation(description:"Rendered center through leash exit")
+        view.start{}
+        DispatchQueue.main.asyncAfter(deadline:.now()+1.5) {
+            do {
+                XCTAssertTrue(view.timelineStarted)
+                let carrier=try XCTUnwrap(view.animatedCharacterLayer.superlayer)
+                let group=try XCTUnwrap(carrier.animation(forKey:"native-studio-intro")?.copy() as? CAAnimationGroup)
+                let center=CGPoint(x:carrier.position.x,y:carrier.position.y+carrier.bounds.height*character.scale/2)
+                // Scrub the attached CA track with an explicit nonzero epoch.
+                carrier.speed=0;carrier.beginTime=0;group.beginTime=0.000001
+                carrier.add(group,forKey:"native-studio-intro")
+                self.captureLeashExit(view,carrier:carrier,center:center,index:0,done:done)
+            } catch {XCTFail("\(error)");done.fulfill()}
+        }
+        wait(for:[done],timeout:20)
+    }
+    private func captureLeashExit(_ view:NativeStudioIntroView,carrier:CALayer,center:CGPoint,index:Int,done:XCTestExpectation) {
+        let names=["rest","inflate","collapse"],offsets=[0.0,0.25,0.54]
+        carrier.timeOffset=NativeStudioIntroView.characterExitTime+offsets[index]+0.000001
+        CATransaction.flush()
+        DispatchQueue.main.asyncAfter(deadline:.now()+0.1) {
+            do {
+                let rendered=try XCTUnwrap(carrier.presentation()),t=rendered.transform
+                let painted=CGPoint(x:rendered.position.x+(0.5-rendered.anchorPoint.x)*rendered.bounds.width*t.m11+t.m41,
+                                    y:rendered.position.y+(0.5-rendered.anchorPoint.y)*rendered.bounds.height*t.m22+t.m42)
+                XCTAssertEqual(painted.x,center.x,accuracy:0.1,names[index])
+                XCTAssertEqual(painted.y,center.y,accuracy:0.1,names[index])
+                let image=UIGraphicsImageRenderer(bounds:view.bounds).image{_ in
+                    XCTAssertTrue(view.drawHierarchy(in:view.bounds,afterScreenUpdates:true))
+                }
+                let url=URL(fileURLWithPath:"/tmp/native-intro-center-20261108/leash-"+names[index]+".png")
+                try XCTUnwrap(image.pngData()).write(to:url)
+                if index<2 {self.captureLeashExit(view,carrier:carrier,center:center,index:index+1,done:done)}else{done.fulfill()}
+            } catch {XCTFail("\(error)");done.fulfill()}
         }
     }
     private func exerciseStudioLeashReplacement(_ mounted:(NativeStudioIntroView)->Void)async throws {
@@ -262,7 +357,9 @@ import ImageIO
             let image=UIGraphicsImageRenderer(bounds:view.bounds).image{_ in
                 XCTAssertTrue(view.drawHierarchy(in:view.bounds,afterScreenUpdates:true))
             }
-            try XCTUnwrap(image.pngData()).write(to:URL(fileURLWithPath:"/tmp/native-leash-v1/mounted.png"))
+            let captureURL=URL(fileURLWithPath:"/tmp/native-leash-v1/mounted.png")
+            try FileManager.default.createDirectory(at:captureURL.deletingLastPathComponent(),withIntermediateDirectories:true)
+            try XCTUnwrap(image.pngData()).write(to:captureURL)
             NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
             try await wait(timeout:2){self.presentationPixels(view).map{$0 != paused} ?? false}
             try await wait(timeout:7){handoffs==1}

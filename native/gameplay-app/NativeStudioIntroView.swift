@@ -144,8 +144,8 @@ nonisolated private enum NativeStudioDropSource {
         if let t=a["transform"] {child.transform=NativeStudioDropSource.transform(NativeStudioDropSource.numbers(t),type:t.hasPrefix("translate") ? "translate":"rotate")}
         parent.addSublayer(child);node.children.forEach{build($0,in:animatedShape ?? child)}
     }
-    // Fit the source logo and100ms hold to the original4.33s intro.
-    // Character and letter-by-letter PRESENTS retire first; plaque follows180ms later.
+    // Preserve the source drop/swing/hold; only the final plaque exit speeds up.
+    // The plaque finishes80ms before the character's final pose.
     private static func extendHold(_ animation:CAKeyframeAnimation) {
         guard var values=animation.values,let sourceTimes=animation.keyTimes else{return}
         let speed=NativeStudioIntroView.logoMotionSpeed,hold=NativeStudioIntroView.logoExtraHold,duration=NativeStudioIntroView.logoDuration,lead=NativeStudioIntroView.logoSourceLead
@@ -155,7 +155,7 @@ nonisolated private enum NativeStudioDropSource {
             seconds.removeFirst();values.removeFirst();if !eases.isEmpty {eases.removeFirst()}
         }
         guard let i=seconds.firstIndex(where:{abs($0-2.96)<0.000001}) else{return}
-        var times=seconds.map{NSNumber(value:(($0-lead)/speed+($0>2.9600001 ? hold:0))/duration)}
+        var times=seconds.map{NSNumber(value:NativeStudioIntroView.logoTime(forSource:$0)/duration)}
         values.insert(values[i],at:i+1);times.insert(NSNumber(value:((2.96-lead)/speed+hold)/duration),at:i+1)
         eases.insert(CAMediaTimingFunction(name:.linear),at:i)
         animation.values=values;animation.keyTimes=times;animation.timingFunctions=eases;animation.duration=duration
@@ -163,9 +163,7 @@ nonisolated private enum NativeStudioDropSource {
     private func sample(_ id:String,at seconds:Double)->[Double] {
         guard let track=captionTracks[id] else{return [0,0]}
         let times=track.times,values=track.values,splines=track.splines
-        let hold=NativeStudioIntroView.logoExtraHold*NativeStudioIntroView.logoMotionSpeed
-        let authored=seconds+NativeStudioIntroView.logoSourceLead
-        let source=authored<=2.96 ? authored:authored<=2.96+hold ? 2.96:min(4,authored-hold)
+        let source=NativeStudioIntroView.logoSourceTime(at:seconds)
         let t=source/4
         guard let i=times.indices.dropLast().first(where:{t<times[$0+1]}) else{return values.last ?? [0,0]}
         let n=splines[i],fraction=(t-times[i])/(times[i+1]-times[i])
@@ -177,7 +175,7 @@ nonisolated private enum NativeStudioDropSource {
         let scale=bounds.width/800,point=CGPoint(x:center.x/scale,y:center.y/scale)
         let animation=CAKeyframeAnimation(keyPath:"transform")
         animation.values=(0...1040).map { index in
-            let time=max(0,NativeStudioIntroView.duration*Double(index)/1040-NativeStudioIntroView.logoStartDelay)*NativeStudioIntroView.logoMotionSpeed,drop=sample("dropTranslate",at:time),jitter=sample("microJitter",at:time),swing=sample("swingRotate",at:time)
+            let time=max(0,NativeStudioIntroView.duration*Double(index)/1040-NativeStudioIntroView.logoStartDelay),drop=sample("dropTranslate",at:time),jitter=sample("microJitter",at:time),swing=sample("swingRotate",at:time)
             let angle=swing[0] * .pi/180,x=point.x-swing[1],y=point.y-swing[2]
             let dx=drop[0]+jitter[0]+swing[1]+cos(angle)*x-sin(angle)*y-point.x
             let dy=drop[1]+jitter[1]+swing[2]+sin(angle)*x+cos(angle)*y-point.y
@@ -207,7 +205,13 @@ nonisolated private enum NativeStudioDropSource {
             }
         }
     }
-    func dispose(){tracks.forEach{$0.0.removeAllAnimations()};shimmerBands.forEach{$0.removeAllAnimations()};shimmerBands.removeAll();tracks.removeAll();captionTracks.removeAll();canvas.sublayers?.forEach{$0.removeFromSuperlayer()}}
+    func dispose(){
+        func clear(_ layer:CALayer){layer.sublayers?.forEach(clear);if let mask=layer.mask {clear(mask)};layer.removeAllAnimations()}
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        clear(canvas);canvas.sublayers?.forEach{$0.removeFromSuperlayer()}
+        shimmerBands.removeAll();tracks.removeAll();captionTracks.removeAll()
+        CATransaction.commit()
+    }
 }
 
 /// Releases notification tokens even if an unstarted intro is dropped.
@@ -349,9 +353,24 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
     // clear that travel before admitting the character.
     static let characterEntryStart=0.45,logoStartDelay=0.0,logoSourceLead=0.24
     static let logoMotionSpeed=(4-logoSourceLead)/(duration-logoStartDelay-logoExtraHold-0.05)
-    static let logoDuration=(4-logoSourceLead)/logoMotionSpeed+logoExtraHold
+    static let logoExitSpeed=1.2
     static let logoExitStart=logoStartDelay+(3.56-logoSourceLead)/logoMotionSpeed+logoExtraHold
-    static let characterExitTime=logoExitStart-0.65-0.18
+    static let logoDuration=logoTime(forSource:4)
+    static let characterExitTime=logoStartDelay+logoDuration+0.08-0.65
+    /// Retain every earlier SVG/contact time; compress only source3.56...4.0.
+    static func logoTime(forSource source:Double)->Double {
+        let normal=max(0,min(4,source)-logoSourceLead)/logoMotionSpeed+(source>2.9600001 ? logoExtraHold:0)
+        let exit=logoExitStart-logoStartDelay
+        return normal<=exit ? normal:exit+(normal-exit)/logoExitSpeed
+    }
+    static func logoSourceTime(at seconds:Double)->Double {
+        let exit=logoExitStart-logoStartDelay
+        let normal=seconds<=exit ? seconds:exit+(seconds-exit)*logoExitSpeed
+        let holdStart=(2.96-logoSourceLead)/logoMotionSpeed
+        if normal<=holdStart {return max(logoSourceLead,logoSourceLead+normal*logoMotionSpeed)}
+        if normal<=holdStart+logoExtraHold {return 2.96}
+        return min(4,logoSourceLead+(normal-logoExtraHold)*logoMotionSpeed)
+    }
     static let logoEntryDuration=JimiV9Motion.homeEnter(.logo).duration
     static let logoIdleKey="native-studio-logo-idle"
     private let reducedMotion:Bool
@@ -555,7 +574,8 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
             return rest*((character ? 0.82:0.92)+(character ? 0.18:0.08)*e)
         }
         if seconds<exit{return rest}
-        return rest*(1-JimiV9Motion.Ease.backIn(2.2).value(min(1,(seconds-exit)/0.65)))
+        let exitDuration=character ? 0.65:logoDuration-(logoExitStart-logoStartDelay)
+        return rest*(1-JimiV9Motion.Ease.backIn(2.2).value(min(1,(seconds-exit)/exitDuration)))
     }
     func start(completion:@escaping()->Void){
         guard !started,!disposed else{return};started=true;self.completion=completion;layoutIfNeeded()
@@ -652,13 +672,23 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
             let scale=CAKeyframeAnimation(keyPath:"transform"),opacity=CAKeyframeAnimation(keyPath:"opacity")
             let samples=1040
             scale.values=(0...samples).map{index in
-                let value = !isCharacter && self.dropLogo != nil ? 1:Self.scale(at:Self.duration*Double(index)/Double(samples),character:isCharacter,rest:isCharacter ? Double(character.scale):1,reducedMotion:reducedMotion)
-                return NSValue(caTransform3D:CATransform3DMakeScale(value,value,1))
+                let seconds=Self.duration*Double(index)/Double(samples)
+                let value = !isCharacter && self.dropLogo != nil ? 1:Self.scale(at:seconds,character:isCharacter,rest:isCharacter ? Double(character.scale):1,reducedMotion:reducedMotion)
+                var transform=CATransform3DMakeScale(value,value,1)
+                if isCharacter,seconds>=Self.characterExitTime {
+                    // Keep the authored entry pivot and resting composition.
+                    // Every character exits around its own resting center,
+                    // including the leash scene whose entry is top-anchored.
+                    let delta=CGFloat(value)-character.scale
+                    transform.m41=(target.layer.anchorPoint.x-0.5)*target.bounds.width*delta
+                    transform.m42=(target.layer.anchorPoint.y-0.5)*target.bounds.height*delta
+                }
+                return NSValue(caTransform3D:transform)
             }
             opacity.values=(0...samples).map{index -> NSNumber in
                 let seconds=Self.duration*Double(index)/Double(samples),begin=isCharacter ? Self.characterEntryStart:0,enter=isCharacter ? 0.55:0.45
                 if !isCharacter,self.dropLogo != nil {
-                    return NSNumber(value:self.reducedMotion ? max(0,min(1,(Self.logoStartDelay+Self.logoDuration-seconds)/(0.44/Self.logoMotionSpeed))):1)
+                    return NSNumber(value:self.reducedMotion ? max(0,min(1,(Self.logoStartDelay+Self.logoDuration-seconds)/(0.44/(Self.logoMotionSpeed*Self.logoExitSpeed)))):1)
                 }
                 return NSNumber(value:min(1,max(0,(seconds-begin)/enter)))
             }

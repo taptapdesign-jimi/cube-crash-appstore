@@ -150,9 +150,9 @@ final class NativeArcadeHubView: UIView {
         }
 
         onFeedback?("exit-modal")
-        // Precommit modal entry200ms into the contact. No delayed
-        // completion callback or extra preparation at the reveal boundary.
-        let start=UIAccessibility.isReduceMotionEnabled ? CACurrentMediaTime():max(contactEpoch+0.20,CACurrentMediaTime())
+        // Start the full shared paper enter at70percent of the island contact.
+        // Precommit on the same clock; preparation cannot consume paper time.
+        let start=UIAccessibility.isReduceMotionEnabled ? CACurrentMediaTime():max(contactEpoch+JimiV9HubView.arcadeContactDuration*0.70,CACurrentMediaTime())
         sheet.reveal(beginTime:start)
         recordInputDiagnostic("modal.reveal-scheduled index=\(index) start=\(start)")
     }
@@ -182,10 +182,13 @@ final class NativeArcadeHubView: UIView {
 /// sheet. One paused layer subtree suspends finite motion and recurring idle.
 @MainActor
 final class NativeArcadeWorldModal: UIView {
+    static let paperPaths = NativeModalPaperView.paths
+    /// Presentation-only choice: sampled once, independent of gameplay RNG.
+    let paperAssetPath: String
     var onFinish: ((Bool) -> Void)?
     var onPlayExitStart:(()->Void)?
     var onFeedback:((String)->Void)?
-    private let backdrop = JimiV9PlainButton(type:.custom), card = UIView(), flip = JimiNativeModalTransformView(), paper = UIImageView()
+    private let backdrop = JimiV9PlainButton(type:.custom), card = UIView(), flip = JimiNativeModalTransformView(), paper:NativeModalPaperView
     private let heading = UILabel(), subtitle = UILabel(), art = UIImageView(), close = JimiV9PlainButton(type:.custom)
     private let play = JimiV9PlainButton(type:.custom), assets: JimiV9Artwork
     private let modeIndex: Int
@@ -200,9 +203,11 @@ final class NativeArcadeWorldModal: UIView {
     private var ready = false {
         didSet { play.isEnabled = ready && foreground && !closing; accessibilityValue = ready ? "ready" : "entering" }
     }
-    init(frame: CGRect, assets: JimiV9Artwork, index: Int,continuing:Bool=false) {
+    init(frame: CGRect, assets: JimiV9Artwork, index: Int,continuing:Bool=false,paperVariant:Int = Int.random(in:NativeModalPaperView.paths.indices)) {
         self.assets = assets
+        self.paper = NativeModalPaperView(variant:paperVariant)
         self.modeIndex = index
+        self.paperAssetPath = Self.paperPaths[min(Self.paperPaths.count-1,max(0,paperVariant))]
         super.init(frame:frame)
         accessibilityViewIsModal = true; accessibilityIdentifier = "native.arcade-world-modal"
         backdrop.backgroundColor = JimiNativeModalV10.backdropColor
@@ -213,9 +218,12 @@ final class NativeArcadeWorldModal: UIView {
         tilt.transform = CGAffineTransform(rotationAngle: tiltDegrees * .pi / 180)
         var camera = CATransform3DIdentity; camera.m34 = -1/920; layer.sublayerTransform = camera
         flip.layer.anchorPoint = CGPoint(x:0.5,y:1)
-        paper.image = assets.image("assets/modals/paper.png"); paper.contentMode = .scaleToFill
+        // Keep the cutout silhouette and corner detail at varying modal heights.
+        // Only the selected density-aware image is loaded; no extra raster owner.
+        paper.prepare(assets:assets)
+        paper.contentMode = .scaleToFill
         paper.accessibilityIdentifier = "native.arcade-world-modal.paper"
-        paper.layer.cornerRadius = 40; paper.clipsToBounds = true
+        paper.accessibilityValue = paperAssetPath
         card.layer.shadowColor = UIColor(red:185/255,green:145/255,blue:119/255,alpha:1).cgColor
         card.layer.shadowOpacity = 0.8; card.layer.shadowRadius = 16.8; card.layer.shadowOffset = CGSize(width:0,height:13)
         heading.text = ["Endurance","One Lucky Drop","Slow Burn"][index]
@@ -241,7 +249,7 @@ final class NativeArcadeWorldModal: UIView {
         play.addTarget(self,action:#selector(releasePlay),for:[.touchUpOutside,.touchDragExit,.touchCancel])
         play.addTarget(self,action:#selector(playGame),for:.touchUpInside)
         play.accessibilityIdentifier = "native.arcade-world-modal.play"; play.isEnabled = false
-        close.setBackgroundImage(paper.image,for:.normal); close.layer.cornerRadius = 16; close.clipsToBounds = true
+        close.setBackgroundImage(paper.closeMaterial,for:.normal); close.layer.cornerRadius = 16; close.clipsToBounds = true
         close.setImage(assets.image("assets/close-icon.png",densityAware:true),for:.normal)
         close.imageView?.contentMode = .scaleAspectFit; close.artworkOpacity = 0.8; close.imageEdgeInsets = UIEdgeInsets(top:14,left:14,bottom:14,right:14)
         close.accessibilityLabel = "Close"; close.accessibilityIdentifier = "native.arcade-world-modal.close"; close.enableArtworkTapFeedback(wholeControl:true)
@@ -373,7 +381,8 @@ final class NativeArcadeWorldModal: UIView {
         flip.bounds = card.bounds; flip.center = CGPoint(x:w/2,y:h)
         tilt.bounds=flip.bounds;tilt.center=CGPoint(x:w/2,y:h/2)
         idle.bounds=tilt.bounds;idle.center=CGPoint(x:w/2,y:h/2)
-        JimiNativeModalV10.paperLayout(paper,bounds:card.bounds,bottomExtension:96)
+        // Unlike the shared cover-cropped texture, this PNG owns its alpha edge.
+        JimiNativeModalV10.paperLayout(paper,bounds:card.bounds)
         JimiNativeModalV10.layoutClose(close,frame:CGRect(x:w-42,y:-10,width:52,height:52),modalTilt:restTiltDegrees)
     }
     private var entryRequested=false
@@ -388,6 +397,7 @@ final class NativeArcadeWorldModal: UIView {
         // Hold the prepared pose until the shared contact clock reaches entry.
         let start=beginTime ?? CACurrentMediaTime()
         entryBeginTime=start
+        JimiNativeModalV10.enterClose(close,beginTime:start)
         CATransaction.begin();CATransaction.setDisableActions(true)
         CATransaction.setCompletionBlock { [weak self] in guard let self,!self.disposed,!self.closing else { return }; self.completeEnter() }
         JimiNativeModalV10.enter(card:card,flip:flip,key:"arcade.modal.enter",beginTime:start)

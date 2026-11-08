@@ -931,6 +931,23 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             [(navButtons[index] as UIView, index), (navImages[index] as UIView, index), (navShadows[index], index)]
         }
     }
+    func navigationRouteTracks(enter:Bool)->[(UIView,JimiV9Motion.Track)] {
+        let reduced=UIAccessibility.isReduceMotionEnabled
+        // Sample one order per accepted route, never during animation/layout.
+        let controls=enter ? navButtons:navButtons.shuffled()
+        let entries:[(UIView,JimiV9Motion.Track)]=controls.enumerated().map { index,control in
+            (control,JimiV9Motion.homeNavigation(enter:enter,index:index,reducedMotion:reduced))
+        }+[(bottomShadow,JimiV9Motion.homeNavigation(enter:enter,index:nil,reducedMotion:reduced))]
+        guard !enter else{return entries}
+        return entries.map { target,track in
+            let painted=target.layer.presentation() ?? target.layer,t=painted.transform
+            let first=track.tweens[0]
+            let start=JimiV9Motion.Pose(scaleX:t.m11,scaleY:t.m22,x:t.m41,y:t.m42,opacity:Double(painted.opacity))
+            var end=first.to
+            if painted.opacity<=0.001 {end.opacity=0}
+            return (target,.init(tweens:[.init(begin:first.begin,duration:first.duration,from:start,to:end,ease:first.ease)]))
+        }
+    }
     var fixedShadowView: UIImageView { bottomShadow }
     func appendNavigationDecorationFade(to group:CAAnimationGroup,track:JimiV9Motion.Track) {
         guard (track.tweens.last?.to.scaleX ?? 1)<0.01 else{return}
@@ -1487,7 +1504,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         navView.center = CGPoint(x: width/2, y: height - 60 - (tablet ? 8:0))
         let rowWidth = tablet ? min(600,width-64):(width - 32) * 0.935
         let inactiveSize:CGFloat=tablet ? 76:64,activeSize:CGFloat=tablet ? 84:72
-        let sizes = navButtons.indices.map { $0 == selectedSlide ? activeSize:inactiveSize }
+        let sizes = navButtons.indices.map { $0 == selectedSlide ? activeSize*1.1:inactiveSize*0.9 }
         let fixedGroupWidth=inactiveSize*2+activeSize
         let gap = (rowWidth - 24 - fixedGroupWidth)/2 * (tablet ? 0.8:1)
         let left = tablet ? (width-fixedGroupWidth-gap*2)/2:(width - rowWidth)/2 + 12
@@ -1608,7 +1625,12 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         }
         for index in navIdleShells.indices {
             let layer=navIdleShells[index].layer
-            if layer.animation(forKey:"native-home-nav-idle") == nil {
+            let activeDie=index==1 && selectedSlide==1
+            let prior=layer.animation(forKey:"native-home-nav-idle")
+            let priorActive=(prior?.value(forKey:"nativeHomeActiveDie") as? NSNumber)?.boolValue ?? false
+            if prior == nil || priorActive != activeDie {
+                let profileStart=prior != nil ? (layer.presentation()?.transform ?? layer.transform):nil
+                layer.removeAnimation(forKey:"native-home-nav-profile-handoff")
                 let direction=navIdleDirections[index]
                 var peak=CATransform3DMakeTranslation(direction.x,direction.y,0)
                 peak=CATransform3DRotate(peak,navIdleTilts[index] * .pi/180,0,0,1)
@@ -1617,8 +1639,34 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
                 drift.values=[CATransform3DIdentity,peak,CATransform3DIdentity].map{NSValue(caTransform3D:$0)}
                 drift.keyTimes=[0,NSNumber(value:navIdlePhases[index]),1]
                 drift.duration=navIdleDurations[index];drift.repeatCount = .infinity
-                drift.beginTime=layer.convertTime(CACurrentMediaTime(),from:nil);drift.timingFunctions=animation.timingFunctions
+                if activeDie {
+                    // One bounded random recipe per activation, on the existing
+                    // idle shell/clock; contact and route transforms stay separate.
+                    let side=Bool.random() ? 1.0:-1.0
+                    var poses=[CATransform3DIdentity]
+                    for step in 0..<5 {
+                        let angle=CGFloat(side*(step.isMultiple(of:2) ? 1:-1))*CGFloat.random(in:1.5...3) * .pi/180
+                        poses.append(CATransform3DMakeRotation(angle,0,0,1))
+                    }
+                    poses.append(CATransform3DIdentity)
+                    drift.values=poses.map{NSValue(caTransform3D:$0)}
+                    drift.keyTimes=(0...6).map{NSNumber(value:Double($0)/6)}
+                    drift.duration=navIdleDurations[index]*3
+                    drift.timingFunctions=Array(repeating:CAMediaTimingFunction(name:.easeInEaseOut),count:6)
+                } else {drift.timingFunctions=animation.timingFunctions}
+                drift.setValue(NSNumber(value:activeDie),forKey:"nativeHomeActiveDie")
+                drift.beginTime=layer.convertTime(CACurrentMediaTime(),from:nil)
                 layer.add(drift,forKey:"native-home-nav-idle")
+                if let profileStart {
+                    // Ease out the outgoing painted offset/tilt instead of
+                    // resetting it when the selected idle profile changes.
+                    let handoff=CABasicAnimation(keyPath:"transform")
+                    handoff.fromValue=NSValue(caTransform3D:profileStart)
+                    handoff.toValue=NSValue(caTransform3D:CATransform3DIdentity)
+                    handoff.isAdditive=true;handoff.duration=0.65
+                    handoff.timingFunction=CAMediaTimingFunction(name:.easeInEaseOut)
+                    layer.add(handoff,forKey:"native-home-nav-profile-handoff")
+                }
             }else if layer.speed == 0 {
                 let offset=layer.timeOffset;layer.speed=1;layer.timeOffset=0;layer.beginTime=0
                 layer.beginTime=layer.convertTime(CACurrentMediaTime(),from:nil)-offset
@@ -1711,7 +1759,8 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             for shell in navIdleShells {
                 let layer=shell.layer
                 let painted=preservePaintedPose ? layer.presentation()?.transform ?? layer.transform:CATransform3DIdentity
-                layer.removeAnimation(forKey:"native-home-nav-idle");layer.speed=1;layer.timeOffset=0;layer.beginTime=0;layer.transform=painted
+                layer.removeAnimation(forKey:"native-home-nav-idle");layer.removeAnimation(forKey:"native-home-nav-profile-handoff")
+                layer.speed=1;layer.timeOffset=0;layer.beginTime=0;layer.transform=painted
             }
         }
         idleSlide = nil;CATransaction.commit()

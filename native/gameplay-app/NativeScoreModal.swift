@@ -107,10 +107,11 @@ struct NativeScoreModalModel {
 @MainActor private final class NativeScoreHistoryRow:UIView {
     private let paper=UIImageView(),value=UILabel(),date=UILabel(),divider=UIView()
     private let scoreLayout:Bool,showsPaperHolder:Bool
-    init(index:Int,point:NativeJourneyStatPoint,dateText:String,combo:Bool,assets:JimiV9Artwork,showsPaperHolder:Bool=true) {
+    init(index:Int,point:NativeJourneyStatPoint,dateText:String,combo:Bool,assets:JimiV9Artwork,showsPaperHolder:Bool=true,tiltDegrees:CGFloat=0) {
         scoreLayout = !combo;self.showsPaperHolder=showsPaperHolder
         super.init(frame:.zero)
         if showsPaperHolder {
+            transform=CGAffineTransform(rotationAngle:tiltDegrees * .pi/180)
             paper.image=assets.image("assets/modals/paper.png",densityAware:true)
             paper.contentMode = .scaleAspectFill;paper.clipsToBounds=true
             paper.layer.cornerRadius=22;paper.layer.cornerCurve = .continuous
@@ -141,10 +142,19 @@ struct NativeScoreModalModel {
     override func layoutSubviews() {
         super.layoutSubviews();paper.frame=bounds
         let w=bounds.width,h=bounds.height
-        // Preserve the original grain's aspect ratio; smooth continuous corners
-        // replace the repeated zigzag edge. Only shadow geometry needs layout.
+        // Short phone strips use the Settings-card radius, not the40pt modal
+        // radius that turns a58pt history row into a capsule.
         CATransaction.begin();CATransaction.setDisableActions(true)
-        if showsPaperHolder {JimiNativeModalV10.applyPaperCorners(to:paper);layer.shadowPath=UIBezierPath(roundedRect:bounds,cornerRadius:min(paper.layer.cornerRadius,h/2)).cgPath}
+        if showsPaperHolder {
+            JimiNativeModalV10.applyPaperCorners(to:paper)
+            var root:UIView=self
+            while let parent=root.superview {root=parent}
+            let viewport=window?.bounds.size ?? root.bounds.size
+            if !NativeTabletLayout.applies(viewport) {
+                paper.layer.cornerRadius=NativeTabletLayout.settingsPaperCornerRadius(viewport)
+            }
+            layer.shadowPath=UIBezierPath(roundedRect:bounds,cornerRadius:min(paper.layer.cornerRadius,h/2)).cgPath
+        }
         CATransaction.commit()
         if scoreLayout {
             divider.isHidden=false
@@ -174,11 +184,14 @@ final class NativeScoreModal:UIViewController,CAAnimationDelegate {
     private let foreground=NativeScoreForegroundView()
     private var modalHost:UIView {NativeTabletLayout.applies(view.bounds.size) ? foreground:view}
     private let model:NativeScoreModalModel,assets:JimiV9Artwork
-    private let backdrop=JimiV9PlainButton(type:.custom),card=UIView(),flip=JimiNativeModalTransformView(),tilt=UIView(),idle=UIView(),paper=UIImageView()
+    private let backdrop=JimiV9PlainButton(type:.custom),card=UIView(),flip=JimiNativeModalTransformView(),tilt=UIView(),idle=UIView(),paper=NativeModalPaperView()
     private let historyIcon=UIImageView()
     private var historyIconAlphaBounds=CGRect(x:0,y:0,width:1,height:1)
     private let heading=UILabel(),subtitle=UILabel(),close=JimiV9PlainButton(type:.custom)
     private var rows:[UIView]=[],statTracks:[UIView]=[],drag:JimiNativeModalDrag?
+    private let paperRowTilts:[CGFloat]=[
+        CGFloat.random(in:-1 ... -0.4),CGFloat.random(in:-0.3...0.3),CGFloat.random(in:0.4...1)
+    ].shuffled()
     private var ready=false,closing=false,disposed=false,entryStarted=false
     private let deferredEntry:Bool
     init(model:NativeScoreModalModel,root:URL,deferredEntry:Bool=false) {self.model=model;self.deferredEntry=deferredEntry;assets=JimiV9Artwork(resourceRoot:root);super.init(nibName:nil,bundle:nil);modalPresentationStyle = .overFullScreen}
@@ -193,7 +206,7 @@ final class NativeScoreModal:UIViewController,CAAnimationDelegate {
         tilt.transform=CGAffineTransform(rotationAngle:restTiltDegrees * .pi/180)
         card.layer.anchorPoint=CGPoint(x:0.5,y:0.55);flip.layer.anchorPoint=CGPoint(x:0.5,y:1);idle.layer.anchorPoint=CGPoint(x:0.5,y:0.52)
         card.alpha=0;card.accessibilityIdentifier="native.score-modal";idle.layer.isDoubleSided=false
-        paper.image=assets.image("assets/modals/paper.png");paper.layer.cornerRadius=40;paper.clipsToBounds=true
+        paper.prepare(assets:assets)
         idle.layer.shadowColor=UIColor(red:185/255,green:145/255,blue:119/255,alpha:1).cgColor
         idle.layer.shadowOpacity=0.8;idle.layer.shadowOffset=CGSize(width:0,height:13);idle.layer.shadowRadius=16.8
         heading.text=model.title;heading.font=assets.font(size:32,weight:"ExtraBold");heading.textAlignment = .center
@@ -202,8 +215,6 @@ final class NativeScoreModal:UIViewController,CAAnimationDelegate {
         subtitle.attributedText=NativeModalTypography.attributedSubtitle(model.subtitle,font:assets.font(size:18,weight:"Medium"));subtitle.numberOfLines=0
         idle.addSubview(heading);idle.addSubview(subtitle)
         if let history=model.history {
-            paper.image=assets.image("assets/modals/paper.png",densityAware:true)
-            paper.layer.cornerRadius=32;paper.layer.cornerCurve = .continuous
             let now=Date()
             historyIcon.image=model.historyIcon.flatMap{assets.image($0,densityAware:true)}
             if let image=historyIcon.image {historyIconAlphaBounds=NativeArtworkAlphaBounds.measure(image,maximumDimension:1024,alphaThreshold:0)}
@@ -218,7 +229,7 @@ final class NativeScoreModal:UIViewController,CAAnimationDelegate {
             for (offset,point) in history.prefix(model.isGameplayHistory ? 2:3).enumerated() {
                 let index=offset+(model.isGameplayHistory ? 1:0)
                 let text=NativeScoreHistoryDate.text(point.date,now:now)
-                let row=NativeScoreHistoryRow(index:index,point:point,dateText:text,combo:model.historyIcon == "assets/combo-icon.png",assets:assets)
+                let row=NativeScoreHistoryRow(index:index,point:point,dateText:text,combo:model.historyIcon == "assets/combo-icon.png",assets:assets,tiltDegrees:paperRowTilts[offset % paperRowTilts.count])
                 idle.addSubview(row);rows.append(row);statTracks.append(row)
             }
         }
@@ -227,7 +238,7 @@ final class NativeScoreModal:UIViewController,CAAnimationDelegate {
             let row=NativeScoreStatRow(stat:stat,assets:assets)
             idle.addSubview(row);rows.append(row);statTracks.append(row)
         }
-        close.setBackgroundImage(paper.image,for:.normal);close.layer.cornerRadius=16;close.clipsToBounds=true
+        close.setBackgroundImage(paper.closeMaterial,for:.normal);close.layer.cornerRadius=16;close.clipsToBounds=true
         close.setImage(assets.image("assets/close-icon.png",densityAware:true),for:.normal);close.imageView?.contentMode = .scaleAspectFit;close.artworkOpacity = 0.8;close.enableArtworkTapFeedback(wholeControl:true)
         close.imageEdgeInsets=UIEdgeInsets(top:14,left:14,bottom:14,right:14);close.accessibilityIdentifier="native.score-modal.close"
         close.addTarget(self,action:#selector(requestClose),for:.touchUpInside);idle.addSubview(close)
@@ -292,7 +303,8 @@ final class NativeScoreModal:UIViewController,CAAnimationDelegate {
         heading.frame=CGRect(x:inset,y:92+headerShift+19.2*u-titleHeight/2,width:max(0,width-2*inset),height:titleHeight)
         subtitle.frame=CGRect(x:inset,y:138*u+headerShift,width:max(0,width-2*inset),height:subtitleHeight)
         for (index,row) in rows.enumerated() {
-            row.frame=CGRect(x:inset,y:top+CGFloat(index)*(rowHeight+gap),width:max(0,width-2*inset),height:rowHeight)
+            row.bounds=CGRect(x:0,y:0,width:max(0,width-2*inset),height:rowHeight)
+            row.center=CGPoint(x:width/2,y:top+CGFloat(index)*(rowHeight+gap)+rowHeight/2)
         }
         JimiNativeModalV10.layoutClose(close,frame:CGRect(x:width-42,y:-10,width:52,height:52),modalTilt:restTiltDegrees)
     }
@@ -307,9 +319,11 @@ final class NativeScoreModal:UIViewController,CAAnimationDelegate {
         guard !disposed,!closing,!entryStarted,isViewLoaded,view.window != nil else{return}
         entryStarted=true;card.alpha=1
         if UIAccessibility.isReduceMotionEnabled {completeEnter();backdrop.alpha=1;return}
+        let paperEpoch=CACurrentMediaTime()
+        JimiNativeModalV10.enterClose(close,beginTime:paperEpoch)
         CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in self?.completeEnter()}
         NativeHistoryTransitionTrace.event("score.enter-install")
-        JimiNativeModalV10.enter(card:card,flip:flip,key:"score.enter")
+        JimiNativeModalV10.enter(card:card,flip:flip,key:"score.enter",beginTime:paperEpoch)
         animateStats(enter:true);CATransaction.commit();UIView.animate(withDuration:0.5){self.backdrop.alpha=1}
     }
     private func completeEnter() {

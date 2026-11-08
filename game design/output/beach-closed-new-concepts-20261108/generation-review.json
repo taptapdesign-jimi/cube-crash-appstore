@@ -1,0 +1,15 @@
+{
+  "tool": "built-in image_gen",
+  "reference_roles": {
+    "assets/journey assets/beach/Beacj world/beach-beach8.png": "Primary camera elevation, compact island silhouette, sand texture, deep tapered underside",
+    "assets/journey assets/beach/Beacj world/beach closed.png": "Old wording and beach props only; flat broad base explicitly rejected",
+    "game design/style-masters/journey-approved-20261028.png": "Supporting soft warm volumetric 3D render only"
+  },
+  "shared_prompt": "One isolated compact rounded triangular floating sand island and one BEACH CLOSED sign assembly. Match beach-beach8 camera tilt and top foreshortening, deep rounded sandstone root, cream-gold sand, fine subdued grain, no outlines. Tiny starfish left, seashell right, sparse green tuft; small floating stones below. Entire subject on transparent background, generous margins. No clouds, game stars, bucket, cards, stage numbers or other islands.",
+  "concepts": {
+    "concept-1-green-board.png": "Single seafoam green driftwood board with cream BEACH CLOSED letters, short oak post and rope.",
+    "concept-2-hanging-plaque.png": "Ivory BEACH CLOSED plaque with teal letters, two rope suspension points, small pale driftwood A-frame and coral underline.",
+    "concept-3-lifebuoy.png": "Ivory BEACH CLOSED board with dark teal lettering on two short stakes, coral/cream life-ring tucked behind upper-left."
+  },
+  "visual_review": "Viewed all three generated outputs: readable BEACH CLOSED text, three distinct sign constructions, compact deeper tapered bases replacing old flat oval; warm soft sandy volumetric rendering retained. Exact camera matching remains visual candidate review, not pixel-exact. No runtime assets/code replaced or builds/installs performed."
+}

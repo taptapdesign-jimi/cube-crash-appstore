@@ -1,0 +1,47 @@
+{
+  "tool": "built-in image_gen",
+  "status": "Removed from runtime rotation AND runtime assets by user2026-11-07;archival generation masters retained outside app resource roots",
+  "references": [
+    "User crop of a soft diagonal lower-left paper crease",
+    "2026-11-06-modal-paper-tears-v2/01-medium-frayed.png",
+    "2026-11-06-modal-paper-tears-v2/03-crumpled-worn.png"
+  ],
+  "entries": [
+    {
+      "name": "01-soft-diagonal-folds",
+      "prompt": "Use case: precise-object-edit. Three input images: Image1 is the user's small close-up screenshot of a soft diagonal paper fold,STYLE reference only,ignore its dark app chrome/text/icons; Image2 is blank full-sheet candidate1; Image3 is blank full-sheet candidate3. EDIT ONLY THE SPECIFIED TARGET. Preserve its pale near-white creamy color,soft fibers,existing edge tears,rounded silhouette,portrait proportions,flat front-on orientation and calm center. User approves existing modest tears and rejects deeper damage: DO NOT add or deepen tears,notches,holes or cracks. Desired change is MORE SOFT FOLDS AND LOCALIZED CRUMPLING like Image1: physically pressed paper relief,not ripped gaps,not brown drawn cracks. Keep central text area broadly quiet. Opaque paper on true alpha transparency outside,full silhouette with narrow transparent margin,no background,cast shadow,UI,text,icons,frame,watermark,burn marks,dirty stains,orange/yellow cast,rolled or folded-over corners. One isolated blank sheet only. Target: Image2, the first full-sheet paper previously numbered1. Increase soft fold character with4to6longer gentle diagonal crease impressions entering from corners and side edges,similar to the broad diagonal lower-left fold in the cropped screenshot. A clear lower-left-to-lower-middle crease,one short upper-right crease,and small softly crushed ripple patches near two other edges. Each fold has a delicate raised ridge and broad feathered pale shadow,readable but subtle. Preserve the same current modest tear count and positions.",
+      "source": "/Users/user/.codex/generated_images/01a1b2c3-61c1-72b0-b446-2e9819b7b164/exec-a9164069-dc0a-4a55-94e2-b357f31f744d.png",
+      "file": "01-soft-diagonal-folds.png",
+      "dimensions": [
+        962,
+        1634
+      ],
+      "alpha": {
+        "range": [
+          0,
+          255
+        ],
+        "center": 252,
+        "transparentPixels": 10653
+      }
+    },
+    {
+      "name": "03-local-crumple-folds",
+      "prompt": "Use case: precise-object-edit. Three input images: Image1 is the user's small close-up screenshot of a soft diagonal paper fold,STYLE reference only,ignore its dark app chrome/text/icons; Image2 is blank full-sheet candidate1; Image3 is blank full-sheet candidate3. EDIT ONLY THE SPECIFIED TARGET. Preserve its pale near-white creamy color,soft fibers,existing edge tears,rounded silhouette,portrait proportions,flat front-on orientation and calm center. User approves existing modest tears and rejects deeper damage: DO NOT add or deepen tears,notches,holes or cracks. Desired change is MORE SOFT FOLDS AND LOCALIZED CRUMPLING like Image1: physically pressed paper relief,not ripped gaps,not brown drawn cracks. Keep central text area broadly quiet. Opaque paper on true alpha transparency outside,full silhouette with narrow transparent margin,no background,cast shadow,UI,text,icons,frame,watermark,burn marks,dirty stains,orange/yellow cast,rolled or folded-over corners. One isolated blank sheet only. Target: Image3, the second full-sheet paper previously numbered3. Add6to8organic soft crease impressions and localized crushed-paper folds,with2small intersecting fold clusters near opposite perimeter areas plus a longer shallow diagonal fold near the lower-left edge like the cropped screenshot. More visible softly crumpled relief than the other candidate,but do not cover the whole center. Slight broad compressions of paper with pale highlights/shadows,not etched lines. Preserve the existing accepted modest tears and silhouette.",
+      "source": "/Users/user/.codex/generated_images/01a1b2c3-61c1-72b0-b446-2e9819b7b164/exec-46aadfb1-415c-4b45-aedf-b85fa162367a.png",
+      "file": "03-local-crumple-folds.png",
+      "dimensions": [
+        962,
+        1634
+      ],
+      "alpha": {
+        "range": [
+          0,
+          255
+        ],
+        "center": 253,
+        "transparentPixels": 37344
+      }
+    }
+  ]
+}

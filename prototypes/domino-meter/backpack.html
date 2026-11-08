@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="hr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Backpack · Dva kraka — Stack to Six</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="backpack.css?v=1"></head>
+<body><main>
+<header><a class="brand" href="#">STACK TO SIX <span>PLAYGROUND / 02</span></a><span class="tag">SAMOSTALNI PROTOTIP</span></header>
+<nav class="versions"><a href="index.html">01 · Originalni red</a><a href="backpack.html" aria-current="page">02 · Ruksak u sredini</a><a href="cube-editor/">05 · Cube editor ↗</a></nav><section class="intro"><p class="eyebrow">MALI POKRET. VELIKA NAGRADA.</p><h1>S dvije strane.<br><em>U isti ruksak.</em></h1><p>Kockice ispred i iza, ruksak u sredini.<br>Boja putuje istodobno s oba ruba prema ruksaku.</p></section>
+<section class="playground" aria-label="Jump and Pop demonstracija">
+<div class="stage-top"><span><i></i> BACKPACK · DVA KRAKA</span><span id="phase" aria-live="polite">SPREMNO ZA PUNJENJE</span></div>
+<canvas id="scene" aria-label="Animirani Jump and Pop metar"></canvas>
+<div class="stage-bottom"><span id="progress">0% NAPUNJENO</span><span>SPACE = DODAJ PUNJENJE</span></div>
+</section>
+<section class="controls"><div class="actions"><button id="enterBoard">↓ Dolazak ploče</button><button id="forceDrop">Novi red · drop</button><button id="forceReverse">Novi red · odozdo</button><button id="exitBoard">Kraj igre · skoči i nestani</button><button class="primary" id="add">+1 par</button><button id="addSix">+3 para</button><button id="finish">Napuni do kraja ↗</button><button id="auto" aria-pressed="false">▷ Auto ciklus</button><button id="reset" class="quiet">Restart · odozdo</button></div>
+<div class="sliders"><label>Trajanje skupljanja <output id="speedValue">200 ms</output><input id="speed" type="range" min="100" max="400" step="10" value="200"></label><label>Scale bounce <output id="bounceValue">Jak</output><input id="bounce" type="range" min="0" max="12" step="1" value="12"></label><label>Broj pločica <output id="countValue">24</output><input id="count" type="range" min="10" max="24" step="2" value="24"></label></div></section>
+<section class="real-size"><div><p class="eyebrow">PROVJERA U MALOM</p><h2>Kako se čita u HUD-u?</h2><p>Ista animacija, na širini iPhonea.</p></div><div class="phone-strip"><div class="hud"><span>×</span><span>1.525</span><span class="orange">⚡ ×8</span></div><canvas id="mini" aria-label="Jump and Pop metar u veličini HUD-a"></canvas></div></section>
+<section class="art-reference"><p class="eyebrow">PNG PRIJEDLOG · ŠIRE I NIŽE</p><h2>PNG materijal pločica.</h2><img src="assets/selected-round-fill-states.png" alt="Šire i niže uspravne pločice: prazna, 30, 60 i 100 posto narančasta"><div><span>0%</span><span>30%</span><span>60%</span><span>100%</span></div><p>PNG prijedlog materijala. Animacija iznad koristi upravo ove PNG pločice.</p></section><footer>Motion study · Bez promjena u igri · Originalni merge‑6 uzorci shardova, prilagođeni veličini metra</footer>
+</main><script type="module" src="backpack.js?v=single-row-3"></script></body></html>

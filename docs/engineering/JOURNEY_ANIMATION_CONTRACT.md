@@ -1,3 +1,119 @@
+Shared upper navigation background standard(user2026-11-06): all upper headers use the same existing Journey fade/scale profile in both directions, including Backpack/Box opening, Close, World Back, Settings and Arcade. Incoming settled1.025 scale pulses12percent with zero vertical travel and fades0->1 over120ms at the first title epoch. Outgoing reverse backOut1.7 leaves downward10.08pt(30percent less than prior14.4pt) and fades1->0 over0.56/1.56s halfway BETWEEN first and second exit beats at0.5*0.13/1.56=41.667ms,left0/right83.333ms;title remains166.667ms. Preparation bridge stays clear; finite outgoing continuation keeps the real remaining track. Existing title handoff gap, content/input/readiness,66pt geometry,scroll opacity,Reduced Motion,pause/cancel/dispose and Home bottom navigation remain. Supersedes route-specific continuous/no-fade exceptions below. No new clock/resources.
+
+Paper-modal Close bounce(user2026-11-06): holder and X reveal together at333.333ms of650ms paper entry,395.833ms cartoon scale0->1 with32percent wide squash,16percent tall rebound and7percent settling bounce,22pt rise from below and208.333ms fade-in. Preserve counter-tilt,52pt touch bounds and parent entry/idle/drag/exit. One captured epoch aligns paper and Close;paper end is exactly80percent Close progress with79.167ms settling tail. Close track sits outside paper completion transaction,so admission timing remains unchanged;existing ancestor pause/disposal owns it. Reduced Motion skips. Applies to ordinary shared paper sheets,including collection/detail and Privacy;Journey Stage info/table remains unchanged.
+
+Home lower navigation exit placement(user2026-11-06): only the shared paper/divider shell starts at the upper header backgroundExitDelay (250ms rather than300ms). Paper and divider remain one retained surface/clock. Home icon/die order,1.3playback,curves,durations,entry,geometry and ReducedMotion remain unchanged. This is an onset-only exception to the Home bottom independent timing below.
+
+Navigation title handoff gap(user2026-11-06): identical1.56 playback alone didnot equalize visual rhythm. All top->top routes now schedule incoming header noearlierthan actual outgoing header exit epoch+670.8ms (Forest mainexit reference234+436.8ms). At current curves this leaves209.262ms minimum between outgoingtitle end525.641ms and incomingtitle start734.903ms. Shorter Backpack content still reveals at400ms;incoming navigation waits on its existing CA group clock,not a timer/content gate. Late resource readiness mayextend butnever shorten gap. Pending global deadline shifts by background pause and installed World headers pause/resume same compositorclock;next route/dispose retire state. Shared speed/bounce/geometry,background continuity and ReducedMotion policy retained. Supersedes unconditional add-time onset only for incoming top->top handoffs.
+
+Top navigation unified speed(user2026-11-06): Journey reference top-navigation motion is20percent faster than prior1.3,now shared1.56. Every actual upper header (Journey/Arcade Hub,Forest/Beach/Area55 Units,Backpack/Box,Settings;forward/Back/Close) uses the same add-time onset and direction-specific title/icon/background rhythm. Removes World header-only80ms lead;screen content/readiness remain unchanged. Enter element358.974ms,title lead64.103ms,element stagger83.333ms,total589.744ms;exit total608.974ms with existing reversed order. ReducedMotion top entry166.667ms/exit133.333ms use stable monotone fade,no bounce. Populated explicit painted-layer copy preserves original finite exit tail across early content hide;same clock/pause/retire owner as before. Full-vs-continuous background appearance,20percent internal incoming pulse,locked66pt geometry/divider and original assets retained. Home bottom navigation retains prior1.3 timing. This supersedes prior top-navigation1.3 speed and route-specific top lead/fallback timing.
+
+Backpack navigation continuity correction(user2026-11-06): static readiness bridge explicitly copies painted geometry and original image/shape/mask references; CALayer(layer:) alone produced empty0x0 copies. Existing incoming20percent pulse and real content/readiness handoff unchanged. Visible Backpack/Box Close may interrupt entry through existing route cancellation/painted-pose exit; collection input remains gated until real content completion. No added delay/clock or geometry change.
+
+Internal navigation background bounce(user2026-11-06):Hub<->World and Backpack
+entry/return retain their existing continuous background profile and timing,but
+replace near-static0.004pulse with20percent growth relative to captured settled
+scale(1.025->1.23->1.025 on ordinary entry). Incoming-only symmetric sin-squared pulse;outgoing background stays settled to
+avoid a truncated pulse at content handoff. Zero translation,no broad fade;full
+Home departure/entry remains unchanged. Existing
+route compositor clock,ReducedMotion,pause/cancel and continuation own it;no new
+route gate or timer. Divider horizontal10percent insets remain preserved.
+
+Latest Settings Back exit(user2026-11-06): use actual Arcade/Hub0.18s contact-
+free anticipation+0.336s collapse for non-header Settings content,retaining40ms
+content stagger. Replaces abrupt0.34s single backIn,so Home follows naturally
+completed content exit. No artificial wait/nav gate;navspeed1.3 retained. Entry/
+ReducedMotion unchanged. Other screen-transition benchmark retained.
+
+Navigation final shared background rest(user2026-11-06): full and soft profiles
+both finish at scale1.025/y0. Soft pulse starts from same1.025 baseline,removing
+full->soft as well as Backpack-return pose discontinuity;strength/speed unchanged.
+
+Navigation clean handoff(user2026-11-06): Backpack Close cancellation and
+incoming hide/prime/reveal are atomic disabled-actions transactions(including
+async World entry). Soft backgrounds stay at identical settled1.015scale/y0
+with tiny0.004scale pulse,no4pt reset. Play/Continue/interim gameplay exit always
+retires bg immediately with full reverse/fade0.431s;no soft persistent bg there.
+Actual destination readiness and original content-exit receipt remain parallel
+join owners;no new wait/timer. Navigation speed1.3 and screen benchmark retained.
+
+Latest background profiles(user2026-11-06): Home slider->Journey/Arcade full
+24pt spring/drop+fade;Hub<->World and Backpack entry/return minimal4pt/no broad
+fade. Backgrounds only small scaleUP1->1.025full/1.015soft,never below1,including
+reverse exit. Model rests at zoomed endpoint to avoid snap. All content remains
+1.3speed;seamless route waits retained. Soft background omitted from outgoing
+continuation,matching accepted fast nav-bg handoff without hiding content tails.
+
+Navigation completion parity(user2026-11-06): preserve30percent speed and all
+screen waits. Outgoing content/nav lifetimes may differ;existing app host keeps
+one finite painted-layer navigation tail when screen hides,without delaying next
+screen. Shared layer contents/remaining tracks only,no raster/assets/timer or
+copied delegates. Exact pause/resume and completion/replacement/dispose cleanup.
+Header root model stays rest;World header epochs are layer-local. Hub->World bg
+stays in place(no full exit/enter);World->Hub fast bg remains current reference.
+The Journey pair excludes background from outgoing tail,retaining content only.
+
+Latest navigation speed(user2026-11-06): all explicit navigation recipe enter/
+exit durations AND offsets divide by1.3(30percent faster),including bg/title/
+left/right. Same reversed curves,order,title+20percent overshoot. Screen admission
+benchmark unchanged. Normal nav totals~708ms enter/~731ms exit.
+
+Navigation explicit rhythm benchmark(user2026-11-06): screen wait/admission
+unchanged from independent-route benchmark. Root carrier stays still;bg+divider
+own-24pt spring drop0.56s. Title rises from y30 at100ms,then left230/right360ms;
+title settling scale overshoot+20percent. Exit uses time-reversed entry samples:
+left0/right130/title260/bg390ms. Background reverses drop/scale before opacity
+falls. Same existing finite route clock,pause,cancel and ReducedMotion ownership.
+
+Latest navigation route ownership(user2026-11-06): header visual entry/exit
+is independent decorative continuation and NEVER part of screen admission gate.
+Shared route owners install headers outside content completion transactions,
+without screen holdUntil;World entry/exit use sibling header transactions.
+Same constant header/content curves/stagger/decoration and cancellation/pause
+ownership remain. Canonical content completion controls transition speed.
+
+Latest navigation decoration exit(user2026-11-06): nav-bg and divider retain
+original early fade(~200ms start/160ms duration),without delayed parent offset.
+Independent title/left/right130ms sequence and shared-parent hold retained.
+Decoration shares same finite group/clock and cancellation/background ownership.
+
+Latest navigation exit correction(user2026-11-06): exit stagger now130ms,
+matching enter. Hold header/decoration at first pose until title,left icon,right
+icon all finish their independent bounce exits(+20ms),then run original parent
+exit. Earlier end-aligned hold allowed common scale to obscure stagger. Same
+route transaction/completion and interruption/ReducedMotion ownership retained.
+
+Latest navigation rhythm(user2026-11-06): content starts40ms after route epoch
+on entry/exit. Title then left Back/Close then right Backpack/Crate use130ms
+entry and85ms exit gaps. Existing Hub spring curves/durations retained;parent
+exit tail derives same shared constants so all three finish visibly.
+
+Latest top navigation icon tilt(user2026-11-06): orient toward inner arc next
+to each icon toward title,not terminal screen corner. Sample tangent half icon
+width inward from centre,with1.8visual emphasis. Header/title/Home curve and
+existing position/hit bounds/motion stay.
+
+Latest modal paper corners(user2026-11-06): final on-screen40pt on phone/tablet,
+local40/1.4 under tablet projection. Supersedes32pt;Settings remains22/24pt.
+
+Latest curve and modal corners(user2026-11-06): additional20percent navigation/
+Home arch depth11.76->14.112pt(shared49*0.288). Navigation title glyph baselines/
+rotations and icon offsets/tangents follow same curve. Header66pt row retained.
+Paper modal surfaces/inner history strips now final32pt corners on both devices,
+compensating tablet1.4projection. Settings cards retain22phone/24tablet;modal
+bottoms stay flat. Existing motion/Close shapes remain.
+
+Latest navigation arch(user2026-11-06): user explicitly requests20percent
+stronger Home divider plus top navigation divider/background arch. Shared depth
+49*0.20->49*0.24(9.8->11.76pt);all surfaces and tangents share same owner.
+Locked66pt row/safe-area/tablet rules retained. Modal paper bottoms remain flat.
+
+Latest paper-modal geometry(user2026-11-06): lower paper edge is straight,
+shared bottomArchDepth0 supersedes prior30percent-deeper arch. Device-specific
+rounded corners and shared mask/shadow ownership retained. Inner score-history
+paper cards capture distinct random rests within±1degree;existing finite scale
+entry/exit and parent modal clocks unchanged. Navigation arch remains locked.
+
 Latest gentle navigation(user2026-11-06): shared actual Journey Hub recipes
 replace rapid nav poses:0.56s backOut1.8 scale0.65->1 with90ms stagger;exit0.18s
 anticipation+0.336s backIn1.7 collapse with45ms stagger. Header exit holds long
@@ -295,6 +411,8 @@ Navigation rules:
 - Native navigation's underside shadow begins its 160ms ease-out fade 200ms after the header bounce-out starts (Reduced Motion retains its 100ms hold plus 60ms fade). Keep the rectangle's existing motion; the same route group owns shadow pause/cancellation, and entry restores the accepted static shadow.
 - Card modal X/header exit should begin immediately on X tap, not after the card/stat content has mostly finished exiting.
 - An accepted ordinary Unit-card tap starts its portaled flight immediately, matching the preserved PWA (user2026-10-30 correction). No complete 0.40s resident-contact prefix before flight. One carrier owns the original PWA 520/0.98ms spatial path, overshoot/settle and rotor turn during32–68% of that same flight; the existing finite animation-start receipt owns its flip cue. Native flight and rotor must both use commit-relative beginTime=0, never an earlier absolute rotor timestamp: first32% stays front-facing, physical edge at50%, turn complete at68% of the same rendered flight. Star/input admission follows this opening timeline. Interim contact/launch remains unchanged; Reduced Motion retains its short entry. Exact 2x artwork, modal chrome decode, and front/back prepaint must never gate the first visible motion; the already-painted 1x World card is the entry carrier.
+- Native World card touch response (user2026-11-06): Forest/Beach/Area55 scroll views deliver touches without the UIScrollView delay window. Retain control-touch cancellation by vertical scrolling, touchUpInside activation, and dragging/deceleration/admission guards. This removes input waiting only; preserve durable viewed-save ordering, NEW capture and all flight/flip/return timings.
+- Journey info-card CTA paint (user2026-11-06): Play/Continue uses the existing selected-button background painter for the identical sculpted material at unchanged density. Main-thread gradient rasterization must not precede first card motion. Flight/rotor/stat timing stays unchanged and never waits for the worker. Pending CTA stays hidden and disabled until prepared plus normal back-face/input admission; late completion does not restart entry. Background/history/Close suspend pending paint, completed pixels stay retained, and cleanup retires the existing worker lease. Other CTA families retain their existing choices.
 - Card-modal pointerdown and ordinary Common-card flip handoff are write-only: they
   sample the active WAAPI owner's cached pose and must not call computed-style,
   geometry or layout APIs. Ordinary flips remain compositor-owned without a
@@ -628,9 +746,13 @@ bounded3degree settling lean,0.48s duration. Latest quicker-response request:
 Arcade disables scroll touch delay while retaining touchUpInside/drag cancellation.
 Stop idle and submit/flush contact immediately on accepted tap,before feedback or
 selected modal preparation. Mount/layout selected modal hidden,then precommit
-standard entry on contact epoch+0.20s,overlapping the final0.28s (latest user:another200ms earlier);late preparation
-enters immediately. Existing opacity fills hold paper/tint hidden until entry. No collapse,
-background route exit,extra gentle-scale pulse or percentage delay. Close simply
+standard entry on contact epoch+50percent of the0.48s contact duration (240ms).
+Latest user2026-11-06 supersedes the70percent onset and full-contact wait; the last240ms of island
+settling overlaps the beginning of the modal.
+Paper retains the same full650ms duration/easing as Backpack Special detail;
+Close shares its paper epoch and existing settle timing. Late preparation enters
+immediately with the full paper duration. Existing opacity fills hold paper/tint hidden until entry. No collapse,
+background route exit,extra gentle-scale pulse or timer. Close simply
 uncovers retained Hub, preserving scroll and idle phase;Play alone retains
 original complete Hub exit. Pending tokens and existing animation key own
 background/hide/detach cancellation;Reduced Motion skips contact. Journey and
@@ -782,3 +904,53 @@ transfers its painted opacity once to the successor, then stays clear. No old
 completion may clear a successor modal or restart its covered idle. Route exit,
 accepted gameplay, park and cleanup retire old receipts before animation removal.
 Gameplay-return choreography, content/saves, original assets and timings remain.
+
+
+## Hub to World navigation background fade · 2026-11-06
+
+For Journey World-selection Hub → Forest/Beach/Area55 only,the existing
+continuous navigation surface keeps its accepted geometry/scale pulse but
+exits upward24pt with the existing reversed backOut1.7 spring and fades to zero
+over the normal navigation element duration(0.56/1.56s),from outgoing navigation
+start. This supersedes the initial120ms outgoing fade. It stays clear through
+resource preparation and the existing title handoff deadline. Incoming surface
+fades0→1 over120ms at the first navigation element's entry epoch. The inner
+scroll-dependent artwork opacity remains separate and unchanged. Both fades
+use the existing route group,including pause/cancel/replacement/disposal;no new
+clock or route-admission wait. Backpack and reverse World→Hub retain their
+existing continuous-background policy. Reduced Motion uses its existing short
+alpha-only navigation profile.
+
+### Exit Stage Restart chrome (user 2026-11-08)
+
+Ordinary Journey Restart from Exit Stage joins the existing board exit with
+asynchronous foundation preparation before constructing the next Source scope.
+Trophy and combo bounce out downward, while the stationary preload mask retracts
+left; Close/backpack and lower divider retain their settled main positions. The
+mask and two HUD groups share the finite board-exit deadline. The old divider
+remains painted until replacement's first frame. The incoming Scene's existing
+HUD entry receipt starts on its first visible update: mask reveals right without
+normal divider delay, trophy/combo enter upward from below. No midpoint replay,
+new timer, canonical-state owner or save policy. Default entry/exit, Arcade New
+Game, automatic continuation, result/fail actions and tutorial stay unchanged.
+Reduced Motion stays finite. Scene disposal retires the retained old divider.
+
+Restart background policy: existing launch cancellation retires pending/ready
+foundation preparation without treating caller cancellation as resource failure.
+The old board exit pauses under the current VC lifecycle. Its completion or the
+VC's existing foreground notification resumes the same request; per-attempt
+epoch rejects stale completion, replacement requires foreground, and disposal
+clears the scoped resume callback. No additional observer or recurring work.
+
+### Immediate ordinary HUD entry and fast Restart exit (user 2026-11-08 follow-up)
+
+Supersedes the board-exit deadline scaling above. Ordinary Journey/Arcade HUD
+and preload owner start on the first visible Scene update, parallel with dice;
+retain tutorial admission. The stationary normal mask follows its own divider
+settle, independent of tiles. Restart trophy/combo and bar exit at natural speed
+(about0.44s HUD,0.40s mask), without tile-duration rescaling. A scoped completion
+from that finite HUD action joins successor resource readiness and foreground;
+it admits the new Scene without waiting for slower tile/footer exit. Existing
+old tile/footer owners keep their clocks/input locks until normal first-frame
+replacement/disposal. No new timer, observer or gameplay mutation. Cancellation
+releases the chrome receipt; existing background retry/epoch guards stay.

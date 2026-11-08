@@ -311,14 +311,16 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
         accessibilityIdentifier = "native.world.\(snapshot.worldID)"
         scrollView.delegate = self; scrollView.alwaysBounceVertical = true
         scrollView.contentInsetAdjustmentBehavior = .never; scrollView.showsVerticalScrollIndicator = false
-        scrollView.delaysContentTouches = true; scrollView.canCancelContentTouches = true
+        // Deliver card touches immediately; JimiWorldScroll still cancels a
+        // pending control touch when a vertical drag takes ownership.
+        scrollView.delaysContentTouches = false; scrollView.canCancelContentTouches = true
         addSubview(scrollView); scrollView.addSubview(content); content.addSubview(main)
         addSubview(header); header.addSubview(title); header.addSubview(backButton); header.addSubview(backpackButton)
         title.font = assets.font(size: 28, weight: "ExtraBold"); title.textAlignment = .center
         title.textColor = NativeTextPalette.navigationTitle; title.text = snapshot.title
         header.backgroundColor = UIColor(red:243/255,green:238/255,blue:232/255,alpha:0.8)
         header.setHomeDividerImage(assets.image("assets/home-shadow.png"))
-        header.setBackgroundImage(assets.image("assets/nav/nav-bg.png",densityAware:true),opacity:1)
+        header.setBackgroundImage(assets.image("assets/nav/nav-bg.png",densityAware:true),opacity:0.5)
         backButton.configuration = nil;backArtwork.image = assets.image("assets/close-icon.png",densityAware:true);backArtwork.contentMode = .scaleAspectFit;backArtwork.isUserInteractionEnabled = false;backButton.addSubview(backArtwork)
         backButton.setTitleColor(title.textColor, for: .normal)
         backButton.accessibilityIdentifier = "native.world.back"
@@ -362,6 +364,43 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
     }
     private var tabletContentDrop:CGFloat {NativeTabletLayout.applies(bounds.size) ? 40:0}
     private var contentViewport:CGRect {CGRect(x:scrollView.contentOffset.x,y:scrollView.contentOffset.y-tabletContentDrop,width:scrollView.bounds.width,height:scrollView.bounds.height)}
+    private var endingRole:String {snapshot.worldID == 1 ? "end-of-road":snapshot.worldID == 2 ? "beach-closed":"no-trespassing"}
+    /// World endings are decoration, never an eleventh playable Stage. Borrow
+    /// the final Stage's existing viewport lease and complete-Unit motion/cleanup.
+    private func artworkParts(for unit:JimiNativeWorldSnapshot.Unit)->[JimiNativeWorldSnapshot.Part] {
+        guard (1...3).contains(snapshot.worldID),unit.boardID == snapshot.worldID*10,
+              let five=snapshot.units.first(where:{$0.boardID == (snapshot.worldID-1)*10+5}),
+              let seven=snapshot.units.first(where:{$0.boardID == (snapshot.worldID-1)*10+7}),
+              let nine=snapshot.units.first(where:{$0.boardID == (snapshot.worldID-1)*10+9}),
+              let fifthIsland=five.parts.first(where:{$0.role == "island"}),
+              let leftIsland=seven.parts.first(where:{$0.role == "island"}),
+              let ninthIsland=nine.parts.first(where:{$0.role == "island"}) else{return unit.parts}
+        let baseWidth=leftIsland.frame.width
+        let baseHeight=baseWidth*(snapshot.worldID == 1 ? 218.0/200.0:1)
+        let width=baseWidth*(snapshot.worldID == 3 ? 1.2:1)
+        let height=baseHeight*(snapshot.worldID == 3 ? 1.2:1)
+        let tabletForest=snapshot.worldID == 1 && NativeTabletLayout.applies(bounds.size)
+        let beachLeftOffset:CGFloat=snapshot.worldID == 2 && NativeTabletLayout.applies(bounds.size) ? 40:0
+        let offsetX=(baseWidth-width)/2+(snapshot.worldID == 3 ? 16/scale:0)+(tabletForest ? 60/scale:0)-beachLeftOffset/scale
+        let offsetY=(baseHeight-height)/2+(snapshot.worldID == 2 ? 40/scale:0)-(tabletForest ? 40/scale:0)
+        // Repeat the05→07 left-column spacing below09. The sign occupies the
+        // upper36% of the PNG, above its landing, unlike plain islands.
+        let row=seven.frame.minY+leftIsland.frame.minY-five.frame.minY-fifthIsland.frame.minY
+        let ending=JimiNativeWorldSnapshot.Part([
+            "asset":snapshot.worldID == 1 ? "assets/journey assets/forest/forest world/end of road.png":snapshot.worldID == 2 ? "assets/journey assets/beach/Beacj world/beach closed.png":"assets/journey assets/robo/robo world/no trespassing.png",
+            "role":endingRole,"x":seven.frame.minX+leftIsland.frame.minX-unit.frame.minX+offsetX,
+            "y":nine.frame.minY+ninthIsland.frame.minY+row-baseHeight*0.36-unit.frame.minY+offsetY,
+            "width":width,"height":height,"zIndex":2
+        ])
+        return unit.parts+[ending]
+    }
+    private func resourceFrame(for unit:JimiNativeWorldSnapshot.Unit)->CGRect {
+        var frame=unit.frame
+        for part in artworkParts(for:unit) where part.role == endingRole {
+            frame=frame.union(part.frame.offsetBy(dx:unit.frame.minX,dy:unit.frame.minY))
+        }
+        return frame.applying(CGAffineTransform(scaleX:scale,y:scale))
+    }
     override func layoutSubviews() {
         super.layoutSubviews(); scrollView.frame = bounds
         // Forest clouds need a shared rear depth beneath EVERY Unit,
@@ -388,11 +427,12 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
         navigationTarget.frame = backButton.frame
         backArtwork.frame = row.iconRect(CGRect(x:10,y:10,width:24,height:24),inkCenterY:0.5153061224489796)
         header.applyCurve(to:title,icons:[backButton,backpackButton])
+        header.updateBackgroundForScroll(scrollView)
         // Authored export includes a large trailing spacer. Bound scrolling by
         // actual Unit artwork and safe-area. User review requests another40pt
         // reduction of the trailing scroll extent in every World.
         if trailingArtworkBottom == nil,let unit=snapshot.units.last {
-            let bottom=unit.parts.map { part -> CGFloat in
+            let bottom=artworkParts(for:unit).map { part -> CGFloat in
                 var height=part.frame.height
                 if height<=0 {
                     let path=part.asset.hasPrefix("./") ? String(part.asset.dropFirst(2)):part.asset
@@ -421,6 +461,16 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
             guard let image = resources.image(part.asset, owner: owner) else { preparationHasMissingResources = true; onResourceFailure?(part.asset); continue }
             let view = UIImageView(image: image); view.contentMode = .scaleAspectFit
             var rect = part.frame
+            // Paint-only final World clouds follow the LEFT ending island,
+            // Beach follows its ending's extra40pt drop; other Worlds retain80pt.
+            if (1...3).contains(snapshot.worldID),owner == snapshot.worldID*10,part.role == "cloud",
+               part.asset.hasSuffix("oblak+srednji.png") || part.asset.hasSuffix("oblak veliki ljevo dole.png") {
+                if let ending=parts.first(where:{$0.role == endingRole}),
+                   let island=parts.first(where:{$0.role == "island"}) {
+                    rect.origin.x += ending.frame.midX-island.frame.midX
+                }
+                rect.origin.y += (snapshot.worldID == 2 ? 120:80) / scale
+            }
             if owner == 1 && part.role == "card" { rect.origin.x += NativeTabletLayout.applies(bounds.size) ? 12*snapshot.unitVisualScale : 12 / scale }
             if owner == 0 { rect.origin.x -= snapshot.mainFrame.minX; rect.origin.y -= snapshot.mainFrame.minY }
             if rect.height <= 0 { rect.size.height = rect.width * image.size.height / max(1,image.size.width) }
@@ -450,7 +500,8 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
             self.preparing.remove(owner)
             guard accepted else {self.preparationHasMissingResources = !self.resources.missingAssets.isEmpty;return}
             let viewport = self.contentViewport.insetBy(dx:0,dy:-220*self.scale)
-            guard viewport.intersects(owner == 0 ? self.main.frame : target.frame) else {self.resources.release(owner);return}
+            let frame=owner == 0 ? self.main.frame:self.snapshot.units.first(where:{$0.boardID == owner}).map{self.resourceFrame(for:$0)} ?? target.frame
+            guard viewport.intersects(frame) else {self.resources.release(owner);return}
             // Route-motion is a no-decode/no-allocation presentation boundary.
             guard !self.transition,self.cardReturns[owner] == nil else {return}
             self.populate(target,parts:parts,owner:owner); self.loaded.insert(owner); self.dirtyUnits.remove(owner); self.updateIdle()
@@ -468,7 +519,7 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
         if let ambient {remaining += 1;ambient.prepareVisible(viewport:viewport,scale:scale) { [weak self] accepted in if let self,self.resourceEpoch==epoch {self.preparationHasMissingResources = self.preparationHasMissingResources || !accepted};finish() }}
         bees?.prepareVisible(viewport:viewport,scale:scale) { [weak self] accepted in if let self {self.preparationHasMissingResources = self.preparationHasMissingResources || !accepted};finish() }
         for (owner,target,parts) in [(0,main,snapshot.mainParts)] + snapshot.units.compactMap({ unit -> (Int,UIView,[JimiNativeWorldSnapshot.Part])? in
-            guard let target = units[unit.boardID],viewport.intersects(target.frame) else {return nil}; return (unit.boardID,target,unit.parts)
+            guard let target = units[unit.boardID],viewport.intersects(resourceFrame(for:unit)) else {return nil}; return (unit.boardID,target,artworkParts(for:unit))
         }) {
             if loaded.contains(owner) && !dirtyUnits.contains(owner) {continue}
             remaining += 1
@@ -489,8 +540,8 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
         if (!loaded.contains(0) || dirtyUnits.contains(0)) && viewport.intersects(main.frame) { scheduleParts(snapshot.mainParts,target:main,owner:0) }
         for unit in snapshot.units {
             guard let view = units[unit.boardID],cardReturns[unit.boardID] == nil else { continue }
-            if viewport.intersects(view.frame) {
-                if !loaded.contains(unit.boardID) || dirtyUnits.contains(unit.boardID) { scheduleParts(unit.parts,target:view,owner:unit.boardID) }
+            if viewport.intersects(resourceFrame(for:unit)) {
+                if !loaded.contains(unit.boardID) || dirtyUnits.contains(unit.boardID) { scheduleParts(artworkParts(for:unit),target:view,owner:unit.boardID) }
             } else if loaded.contains(unit.boardID), modal?.boardID != unit.boardID, reminderSource?.superview !== view {
                 interimOwners.removeValue(forKey:unit.boardID)?.stop(); view.layer.removeAllAnimations(); depthPlanes[unit.boardID]?.forEach {$0.layer.removeAllAnimations()};partViews(view).forEach { $0.layer.removeAllAnimations();$0.removeFromSuperview() }
                 resources.release(unit.boardID); loaded.remove(unit.boardID)
@@ -503,6 +554,7 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
         cloudDrag.begin(offset:scrollView.contentOffset.y)
     }
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        header.updateBackgroundForScroll(scrollView)
         if !transition {
             if isReadyForInput,modal == nil,scrollView.isDragging {cloudDrag.update(offset:scrollView.contentOffset.y)}
             updateResources()
@@ -571,6 +623,7 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
         units[id]?.subviews.flatMap{$0.subviews}.compactMap{$0 as? JimiNativeNewRibbonView}.forEach{$0.setForeground(true);$0.enter(replay:true)}
     }
     func enter(terminal: Bool = false, completion: @escaping () -> Void) {
+        header.immediateBackgroundExit=false
         cancelCardReturns()
         cloudDrag.stop(restore:true)
         pendingReturnAlert=terminal && !UIAccessibility.isReduceMotionEnabled ? snapshot.returnBoardID:nil
@@ -583,11 +636,17 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
         let ids = [snapshot.worldID == 1 ? "forest-main" : snapshot.worldID == 2 ? "beach-main" : "robo-main"] + snapshot.units.map { $0.id }
         var offsets = JimiNativeWorldMotion.enterOffsets(ids:ids,reduced:reduced)
         for (index,unit) in snapshot.units.enumerated() {if let explicit = unit.enterDelayOffset {offsets[index+1] = explicit}}
-        CATransaction.begin(); cancelHiddenReturnPose(); CATransaction.setCompletionBlock { [weak self] in
+        cancelHiddenReturnPose()
+        // Header owns a finite visual continuation outside World admission.
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        animate(header,track:.init(tweens:[.init(begin:lead+offsets[0],duration:reduced ? 0.20:0.56,
+            from:.scale(reduced ? 0.96:0.65,y:reduced ? 8:30,opacity:0),to:.scale(1),ease:reduced ? .powerOut(1):.backOut(1.8))]),key:"world.enter")
+        CATransaction.commit()
+        CATransaction.begin(); CATransaction.setCompletionBlock { [weak self] in
             guard let self, self.generation == token else { return }
             self.transition = false; self.updateResources(); if terminal {self.presentReturnReminder();if self.reminder==nil {self.revealReturnAlert()}}; completion()
         }
-        for target in visible {
+        for target in visible where target !== header {
             let unitIndex = snapshot.units.firstIndex { units[$0.boardID] === target }.map { $0+1 } ?? 0
             target.subviews.flatMap{$0.subviews}.compactMap{$0 as? JimiNativeNewRibbonView}.forEach{if target.tag==pendingReturnAlert {$0.deferUntilReturn()}else{$0.setForeground(true);$0.enter(delay:lead+offsets[unitIndex],replay:true)}}
             animate(target, track: .init(tweens: [.init(begin: lead + offsets[unitIndex], duration: reduced ? 0.20 : 0.56,
@@ -604,6 +663,9 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
         units.values.forEach {$0.subviews.forEach {$0.layer.removeAnimation(forKey:"world.card.landing")};$0.layer.sublayers?.filter {$0.name == "world.smoke.feedback"}.forEach {$0.sublayers?.forEach {$0.removeAllAnimations()};$0.removeAllAnimations();$0.removeFromSuperlayer()}}
         cancelReminder()
         generation += 1; let token = generation; transition = true; admitted = false; animationReceipts.removeAll(); stopIdle(pauseBees:false,preservingWavesForExit:preservingIdlePose); bees?.exit(); isUserInteractionEnabled = true; scrollView.isScrollEnabled = false
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        animate(header,track:JimiV9Motion.journeyNavigationExit(reducedMotion:UIAccessibility.isReduceMotionEnabled),key:"world.exit")
+        CATransaction.commit()
         CATransaction.begin(); CATransaction.setCompletionBlock { [weak self] in
             guard let self, self.generation == token else { return }; if preservingIdlePose {self.retireExitPoses()}; self.active = false; self.transition = false; completion()
         }
@@ -612,7 +674,6 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
         // Canonical WorldBack moves the main group last before reversing, so its longer exit starts first.
         let exitOrder = [main].filter {liveUnits.contains($0)} + liveUnits.reversed().filter {$0 !== main}
         let stagger = liveUnits.count > 1 ? min(0.03,(reduced ? 0.06 : 0.13)/Double(liveUnits.count-1)) : 0
-        animate(header,track:JimiV9Motion.journeyNavigationExit(reducedMotion:reduced),key:"world.exit")
         for (index,target) in exitOrder.enumerated() {
             let delay = Double(index)*stagger
             target.subviews.flatMap{$0.subviews}.compactMap{$0 as? JimiNativeNewRibbonView}.forEach{$0.exit(remove:false,delay:delay)}
@@ -701,7 +762,7 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
         let opacity = CAKeyframeAnimation(keyPath:"opacity"); opacity.values = sampled.poses.map {$0.opacity}; opacity.duration = sampled.duration; opacity.fillMode = .both; opacity.isRemovedOnCompletion = false
         let group = CAAnimationGroup(); group.animations = [animation,opacity]; group.duration = sampled.duration; group.fillMode = .both; group.isRemovedOnCompletion = false
         (view as? JimiV9NavigationHeader)?.appendExitShadowFade(to:group,track:shifted)
-        group.beginTime = CACurrentMediaTime()+delay
+        group.beginTime = (view === header ? view.layer.convertTime(CACurrentMediaTime(),from:nil):CACurrentMediaTime())+delay
         let token = generation
         if view !== header && (view === main || units.values.contains(where:{$0 === view}) || (view.superview === main && view.accessibilityIdentifier?.hasSuffix(".cloud") != true)) {
             let boardID:Int? = view.tag > 0 ? view.tag : nil
@@ -779,7 +840,10 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
                 for (cloud,child) in partViews(unit).filter({$0.accessibilityIdentifier?.hasSuffix(".cloud") == true}).enumerated() {startWave(child,axis:"x",index:index+1,cloud:cloud)}
             } else {interimOwners[definition.boardID]?.stop();stopWave(unit); JimiNativeWorldEffects.stop(unit); partViews(unit).forEach {stopWave($0);JimiNativeWorldEffects.stop($0)}}
         }
-        main.layer.removeAnimation(forKey:"world.enter"); header.layer.removeAnimation(forKey:"world.enter")
+        main.layer.removeAnimation(forKey:"world.enter")
+        // Content admission and later idle updates do not own the independent
+        // header clock. Keep its full authored entry until completion; the next
+        // route replacement or park retires its settled finite group.
         if viewport.intersects(main.frame) {
             for (index,child) in main.subviews.enumerated() {
                 startWave(child,axis:"y",index:child.accessibilityIdentifier?.hasSuffix(".cloud") == true ? 1 : 0)
@@ -931,6 +995,9 @@ final class JimiNativeWorldView: UIView, UIScrollViewDelegate {
         updateCardReturns()
     }
     func prepareGameplayExit(boardID:Int? = nil,completion: @escaping () -> Void) {
+        // Gameplay departure must retire the background too, including interim
+        // launches after an internal soft-background navigation visit.
+        header.continuousBackground=false;header.immediateBackgroundExit=true
         let sourceID = boardID ?? modal?.boardID
         let regularModal = modal != nil
         cancelCardReturns()

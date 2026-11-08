@@ -55,7 +55,7 @@ struct NativeBoardGeometry: Equatable {
         let renderedWidth=width*scale,renderedHeight=height*scale
         let left=min(max(((viewport.width-renderedWidth)/2).rounded(),padding),viewport.width-padding-renderedWidth)
         let top=(dynamicHudBottom+(available-renderedHeight)/2-12).rounded()
-        origin=CGPoint(x:left,y:viewport.height-top-renderedHeight-(NativeTabletLayout.applies(viewport) ? 8:0))
+        origin=CGPoint(x:left+(NativeTabletLayout.applies(viewport) ? 0:1.4),y:viewport.height-top-renderedHeight-(NativeTabletLayout.applies(viewport) ? 8:7.5))
     }
 
     var tileSize: CGFloat { Self.tile * scale }

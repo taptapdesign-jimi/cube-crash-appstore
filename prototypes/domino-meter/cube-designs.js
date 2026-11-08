@@ -1,0 +1,22 @@
+const copy=v=>structuredClone(v),clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
+const defaults={version:1,shape:'cube',mode:'tiles',barStyle:'solid',trailMarkers:true,trailThickness:24,trailSpacing:65,fillStyle:'classic',frontAngle:0,taperEnds:false,taperStart:25,taperEnd:25,taperTip:0,randomFrontAngle:false,randomAngleRange:40,barWidth:92,barHeight:12,holder:'#e7dfd7',wave:65,flowSpeed:100,bubbles:45,count:24,width:30,height:30,gap:0,arch:0,direction:'right',distribution:'sequential',gradient:'linear',angle:90,start:'#f9a16f',end:'#e87545',empty:'#e7dfd7',highlight:65,volume:40,grain:8,shadow:35,glow:0,bounce:100,lift:40,rotation:50,expressions:true,smoke:true,shards:60,duration:4,burstOnFull:true};
+const ranges={trailThickness:[10,70],trailSpacing:[20,150],taperStart:[1,50],taperEnd:[1,50],taperTip:[0,100],randomAngleRange:[5,70],frontAngle:[-70,70],barWidth:[30,100],barHeight:[4,70],wave:[0,100],flowSpeed:[10,200],bubbles:[0,100],count:[4,48],width:[8,80],height:[8,100],gap:[-8,24],arch:[-40,60],angle:[0,360],highlight:[0,150],volume:[0,100],grain:[0,40],shadow:[0,100],glow:[0,100],bounce:[0,150],lift:[0,100],rotation:[0,100],shards:[0,100],duration:[1,15]};
+const enums={barStyle:{solid:'Puni bar',trail:'Treasure trail · zastavica + blago'},mode:{tiles:'Kockice / zvjezdice',bar:'Preload bar · sivi holder'},fillStyle:{classic:'Classic · čisto punjenje',liquid:'Liquid · mekani val',sludge:'Sludge · gusta lava',gas:'Gas · maglica i mjehurići',jelly:'Jelly · elastični val'},shape:{travel:'Travel · skakutave crtice',cube:'Kockica · postojeći PNG','star-original':'Puffy star · originalna tekstura','star-color':'Puffy star · bež → narančasta'},direction:{right:'Vodoravno →',left:'Vodoravno ←',up:'Okomito ↑',down:'Okomito ↓'},distribution:{sequential:'Jedna za drugom',together:'Sve istovremeno'},gradient:{solid:'Jedna boja',linear:'Linearni gradient',radial:'Radijalni gradient'}};
+function normalize(v){if(v?.version!==1)throw Error('Odaberi Cube editor dizajn.');const out=copy(defaults);for(const[k,def]of Object.entries(defaults)){if(ranges[k])out[k]=Number.isFinite(v[k])?clamp(v[k],...ranges[k]):def;else if(enums[k])out[k]=enums[k][v[k]]?v[k]:def;else if(typeof def==='boolean')out[k]=typeof v[k]==='boolean'?v[k]:def;else if(typeof def==='string')out[k]=/^#[0-9a-f]{6}$/i.test(v[k])?v[k]:def;}out.count=Math.round(out.count);return out;}
+const presets=[
+ ['Preload · Classic','Sivi holder · originalni orange bar',{mode:'bar',barHeight:10,gradient:'solid',start:'#eb754b',burstOnFull:false}],
+ ['Liquid →','Valovito vodoravno punjenje',{mode:'bar',fillStyle:'liquid',barHeight:18}],
+ ['Liquid ↑','Okomito punjenje cijelog holdera',{mode:'bar',fillStyle:'liquid',direction:'up',barHeight:28}],
+ ['Sludge lava','Gusta, spora i puffy površina',{mode:'bar',fillStyle:'sludge',barHeight:24,start:'#ffb071',end:'#d7683d',flowSpeed:55}],
+ ['Gas cloud','Prozračna maglica i mjehurići',{mode:'bar',fillStyle:'gas',barHeight:22,start:'#f9c899',end:'#ed946d'}],
+ ['Jelly candy','Elastičan val · topli gradient',{mode:'bar',fillStyle:'jelly',barHeight:20}],
+ ['Puffy star · original','Tvoja žuta PNG tekstura · punjenje →',{shape:'star-original',width:34,height:34,gap:0}],
+ ['Puffy star · orange','Bež → narančasta · ista puffy forma',{shape:'star-color',width:34,height:34,gap:0}],
+ ['Horizontal peach','Punjenje → · mekani orange',{direction:'right'}],
+ ['Vertical cream','Punjenje ↑ · krem i narančasta',{direction:'up',start:'#ffc291',end:'#ef8157',height:36,width:28}],
+ ['Mint energy','Vodoravno · mint glow',{direction:'right',start:'#d1e8b8',end:'#7ebda4',glow:30}],
+ ['Long capsules','Šire i niže · sve istovremeno',{count:16,width:44,height:24,direction:'right',distribution:'together',gap:2}],
+ ['Treasure trail · zastavica → blago','Iscrtkan put · od zastavice do škrinje',{mode:'bar',barStyle:'trail',fillStyle:'liquid',barHeight:20,holder:'#d8cbbb',start:'#f5a574',end:'#e77b4b',highlight:35,volume:20,shadow:12,bubbles:15,wave:35,flowSpeed:65,taperEnds:false}]
+ ,['Travel · jump & rotate','Iscrtkan put · crtice skaču kao kockice',{mode:'tiles',shape:'travel',count:24,width:30,height:30,gap:10,direction:'right',rotation:50,lift:40,bounce:100,start:'#f5a574',end:'#e77b4b',empty:'#d8cbbb',highlight:35,volume:20,shadow:12,grain:0}]
+];
+export {defaults as cubeDefaults,ranges as cubeRanges,enums as cubeEnums,normalize as normalizeCubeDesign,presets as cubePresets};

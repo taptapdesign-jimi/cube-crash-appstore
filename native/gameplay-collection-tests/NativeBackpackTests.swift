@@ -7,6 +7,33 @@ import StackToSixNativeState
 
 @MainActor
 final class NativeBackpackTests:XCTestCase {
+    func testFullscreenNavigationOpacityFollowsScrollAndReset() throws {
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible();defer{window.isHidden=true}
+        let screen=NativeBackpackView(frame:window.bounds,assets:JimiV9Artwork(resourceRoot:NativeTestResources.root))
+        host.view.addSubview(screen)
+        let sections=[NativeBackpackCatalog.Section(title:"Forest",dice:NativeBackpackCatalog.forest,unlocked:Set(NativeBackpackCatalog.forest.map(\.id)))]
+        screen.apply(sections);screen.layoutIfNeeded();screen.grid.layoutIfNeeded()
+        func surface(_ layer:CALayer)->CALayer? {
+            if layer.name=="native.navigation.arched-surface" {return layer}
+            return layer.sublayers?.compactMap{surface($0)}.first
+        }
+        let background=try XCTUnwrap(surface(screen.header.layer))
+        let top = -screen.grid.adjustedContentInset.top
+        for distance:CGFloat in [0,40,80,160,40,-20,0] {
+            screen.grid.setContentOffset(CGPoint(x:0,y:top+distance),animated:false)
+            XCTAssertEqual(background.opacity,JimiV9NavigationHeader.backgroundOpacity(resting:0.5,scrollDistance:distance),accuracy:0.001)
+            XCTAssertEqual(screen.header.alpha,1,"Only the background fades; title and Close remain visible")
+        }
+        screen.grid.setContentOffset(CGPoint(x:0,y:top+80),animated:false)
+        screen.setNeedsLayout();screen.layoutIfNeeded();XCTAssertEqual(background.opacity,1,accuracy:0.001)
+        screen.apply(sections);XCTAssertEqual(background.opacity,0.5,accuracy:0.001)
+        for distance:CGFloat in [0,80] {
+            screen.grid.setContentOffset(CGPoint(x:0,y:top+distance),animated:false);CATransaction.flush()
+            let attachment=XCTAttachment(image:UIGraphicsImageRenderer(bounds:window.bounds).image{_ in window.drawHierarchy(in:window.bounds,afterScreenUpdates:true)})
+            attachment.name="Backpack navigation scroll \(distance)";attachment.lifetime = .keepAlways;add(attachment)
+        }
+    }
     func testRecordedSpeechButtonFollowsSelectedVisibleDetailAndDisposes() async throws {
         let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
         let detail=NativeBackpackDetail(die:NativeBackpackCatalog.beach.first{$0.id=="fish"}!,assets:assets,motion:NativeRouteMotion(home:JimiV9HomeView(frame:.zero,assets:assets),hub:JimiV9HubView(frame:.zero,assets:assets)))
@@ -476,8 +503,8 @@ final class NativeBackpackTests:XCTestCase {
         let app=NativeAppController(resourceRoot:NativeTestResources.root,services:services),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
         window.rootViewController=app;window.makeKeyAndVisible();defer{app.dispose();window.isHidden=true}
         app.navigate(.hub,interrupt:true)
-        try await waitForRetap{app.hub.scrollView.isUserInteractionEnabled};app.navigate(.backpack)
-        try await waitForRetap{app.backpackView?.isUserInteractionEnabled==true}
+        try await waitForRetap{app.route == .hub && !app.transitioning && app.hub.scrollView.isUserInteractionEnabled};app.navigate(.backpack)
+        try await waitForRetap{app.route == .backpack && !app.transitioning && app.backpackView?.grid.isUserInteractionEnabled==true}
         XCTAssertEqual(progression.unreadJourneyDice,["bee","wild-star"],"Opening collection does not mark details read")
         app.backpackView?.onDie?(NativeBackpackCatalog.forest[1])
         try await waitForRetap{!progression.unreadJourneyDice.contains("wild-star")}
@@ -524,8 +551,8 @@ final class NativeBackpackTests:XCTestCase {
         let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=app;window.makeKeyAndVisible()
         defer{app.dispose();window.isHidden=true}
         app.navigate(.hub,interrupt:true)
-        try await waitForRetap{app.hub.scrollView.isUserInteractionEnabled};app.navigate(.backpack)
-        try await waitForRetap{app.backpackView?.isUserInteractionEnabled==true}
+        try await waitForRetap{app.route == .hub && !app.transitioning && app.hub.scrollView.isUserInteractionEnabled};app.navigate(.backpack)
+        try await waitForRetap{app.route == .backpack && !app.transitioning && app.backpackView?.grid.isUserInteractionEnabled==true}
         let screen=try XCTUnwrap(app.backpackView)
         let star=try XCTUnwrap(screen.revealedDie(atWindowPoint:retapPoint(screen,window:window)))
         screen.onDie?(star)
@@ -549,6 +576,97 @@ final class NativeBackpackTests:XCTestCase {
         try await Task.sleep(for:.milliseconds(150))
         XCTAssertNil(app.presentedViewController,"Background cancels queued intent")
     }
+    func testMainBackpackDetailRetapKeepsGridIdleAndPlaysOneImmediateContact() async throws {
+        guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Artwork idle and contact motion required")}
+        var progression=NativeProgressionState();progression.lastOpenedJourneyBoard=2
+        progression.announceJourneyDie("wild-star",board:2)
+        var services=NativeAppServices(settings:{[:]},setPreference:{_,_ in},worldSnapshot:{_,_,_ in throw CancellationError()},markViewed:{_ in},makeGameplay:{_,_ in UIViewController()},flush:{})
+        services.journeyProgression={progression}
+        let app=NativeAppController(resourceRoot:NativeTestResources.root,services:services)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=app;window.makeKeyAndVisible()
+        defer{app.dispose();window.isHidden=true}
+        app.navigate(.hub,interrupt:true)
+        try await waitForRetap{app.route == .hub && !app.transitioning && app.hub.scrollView.isUserInteractionEnabled};app.navigate(.backpack)
+        try await waitForRetap{app.route == .backpack && !app.transitioning}
+        let screen=try XCTUnwrap(app.backpackView)
+        let index=IndexPath(item:1,section:0)
+        let cell=try XCTUnwrap(screen.grid.cellForItem(at:index))
+        let idle=try XCTUnwrap(cell.contentView.subviews.first{$0.accessibilityIdentifier == "native.backpack.idle-group"})
+        let idleKey="backpack.artwork.idle",contactKey=NativeHubBackpackFeedback.animationKey
+        let original=try XCTUnwrap(idle.layer.animation(forKey:idleKey))
+        func assertSameRunningIdle(file:StaticString=#filePath,line:UInt=#line) throws {
+            let current=try XCTUnwrap(idle.layer.animation(forKey:idleKey),"Visible collection continues its existing float behind details",file:file,line:line)
+            XCTAssertEqual(current.beginTime,original.beginTime,accuracy:0.00001,"Detail changes must not restart the idle clock",file:file,line:line)
+            XCTAssertEqual(current.timeOffset,original.timeOffset,accuracy:0.00001,file:file,line:line)
+            XCTAssertEqual(idle.layer.speed,1,file:file,line:line)
+        }
+        screen.collectionView(screen.grid,didSelectItemAt:index)
+        let first=try XCTUnwrap(app.presentedViewController as? NativeBackpackDetail)
+        try assertSameRunningIdle()
+        try await waitForRetap{first.card.isUserInteractionEnabled}
+        let before=try XCTUnwrap(idle.layer.presentation()).transform
+        try await Task.sleep(for:.milliseconds(140))
+        let after=try XCTUnwrap(idle.layer.presentation()).transform
+        XCTAssertGreaterThan(abs(after.m41-before.m41)+abs(after.m42-before.m42)+abs(after.m12-before.m12),0.00001,"Existing float actually advances while the detail covers the grid")
+        first.closeTapped()
+        try assertSameRunningIdle()
+        try await Task.sleep(for:.milliseconds(480))
+        let point=try retapPoint(screen,window:window)
+        XCTAssertNil(cell.contentView.layer.animation(forKey:contactKey),"The original finite contact has retired before retap")
+        first.captureExitSelection(atWindowPoint:point)
+        let queuedContact=try XCTUnwrap(cell.contentView.layer.animation(forKey:contactKey),"Accepted overlay tap bounces the visible cell immediately, before dismissal")
+        XCTAssertTrue(app.presentedViewController === first)
+        first.captureExitSelection(atWindowPoint:point)
+        XCTAssertEqual(try XCTUnwrap(cell.contentView.layer.animation(forKey:contactKey)).beginTime,queuedContact.beginTime,accuracy:0.000001,"Duplicate exit contact cannot replay or replace the accepted bounce")
+        try assertSameRunningIdle()
+        try await waitForRetap{(app.presentedViewController as? NativeBackpackDetail).map{$0 !== first} ?? false}
+        let queued=try XCTUnwrap(app.presentedViewController as? NativeBackpackDetail)
+        XCTAssertEqual(queued.die.id,"wild-star")
+        try assertSameRunningIdle()
+        try await waitForRetap{queued.card.isUserInteractionEnabled}
+        queued.closeTapped()
+        try await waitForRetap{app.presentedViewController == nil && screen.isUserInteractionEnabled}
+        try assertSameRunningIdle()
+
+        // Ordinary taps after complete dismissal retain their authored contact on
+        // every reopen, independently of the artwork's continuous float owner.
+        var previousContact=queuedContact.beginTime
+        for attempt in 1...2 {
+            let callStarted=CACurrentMediaTime()
+            screen.collectionView(screen.grid,didSelectItemAt:index)
+            let callReturned=CACurrentMediaTime()
+            let contact=try XCTUnwrap(cell.contentView.layer.animation(forKey:contactKey))
+            let remaining=contact.beginTime+contact.duration-cell.contentView.layer.convertTime(callReturned,from:nil)
+            print("BACKPACK_RETAP attempt=\(attempt) didSelectElapsed=\(callReturned-callStarted) contactRemaining=\(remaining)")
+            XCTAssertGreaterThan(contact.beginTime,previousContact);previousContact=contact.beginTime
+            let detail=try XCTUnwrap(app.presentedViewController as? NativeBackpackDetail)
+            await Task.yield()
+            try await Task.sleep(for:.milliseconds(16))
+            let firstPaint=cell.contentView.layer.presentation()?.transform
+            print("BACKPACK_RETAP attempt=\(attempt) firstPaintElapsed=\(CACurrentMediaTime()-callStarted) sx=\(firstPaint?.m11 ?? -1) sy=\(firstPaint?.m22 ?? -1) y=\(firstPaint?.m42 ?? -1)")
+            try assertSameRunningIdle()
+            try await waitForRetap{detail.card.isUserInteractionEnabled}
+            detail.closeTapped()
+            try await waitForRetap{app.presentedViewController == nil && screen.isUserInteractionEnabled}
+            try assertSameRunningIdle()
+        }
+        screen.collectionView(screen.grid,didSelectItemAt:index)
+        let covered=try XCTUnwrap(app.presentedViewController as? NativeBackpackDetail)
+        try await waitForRetap{covered.card.isUserInteractionEnabled}
+        try assertSameRunningIdle()
+        NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
+        XCTAssertNil(idle.layer.animation(forKey:idleKey),"Background stops visible-grid work even when a detail covers it")
+        NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
+        XCTAssertNotNil(idle.layer.animation(forKey:idleKey),"Foreground restores visible collection idle behind its retained detail")
+        XCTAssertFalse(screen.isUserInteractionEnabled,"Restoring artwork does not admit grid input behind a detail")
+        covered.closeTapped()
+        try await waitForRetap{app.presentedViewController == nil && screen.isUserInteractionEnabled}
+        app.navigate(.hub)
+        try await waitForRetap{app.route == .hub && !app.transitioning}
+        XCTAssertTrue(screen.isHidden)
+        XCTAssertNil(idle.layer.animation(forKey:idleKey),"Hidden collection retires its existing idle")
+    }
+
     func testGameplayBackpackReturnTailAcceptsOnePressBeforeEnterFinishes() async throws {
         let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
         let controller=NativeGameplayBackpackController(root:NativeTestResources.root,sections:[NativeBackpackCatalog.Section(title:"Forest",dice:NativeBackpackCatalog.forest,unlocked:["wild-star"])],includesArcade:false,motion:NativeRouteMotion(home:JimiV9HomeView(frame:.zero,assets:assets),hub:JimiV9HubView(frame:.zero,assets:assets)))

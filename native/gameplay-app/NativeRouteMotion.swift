@@ -7,6 +7,28 @@ final class NativeRouteMotion {
     let hub: JimiV9HubView
     private var generation = 0
     private var animatedLayers: [CALayer] = []
+    /// One receipt observes the existing longest finite content clock. A broad
+    /// CATransaction completion can also wait for unrelated compositor work.
+    private final class CompletionReceipt:NSObject,CAAnimationDelegate {
+        weak var owner:NativeRouteMotion?
+        let generation:Int
+        var completion:(()->Void)?
+        init(owner:NativeRouteMotion,generation:Int){self.owner=owner;self.generation=generation}
+        func animationDidStop(_ animation:CAAnimation,finished:Bool){
+            guard let owner else{retire();return}
+            owner.finish(self,finished:finished)
+        }
+        func retire(){owner=nil;completion=nil}
+    }
+    private var completionReceipt:CompletionReceipt?
+    private func finish(_ receipt:CompletionReceipt,finished:Bool) {
+        guard completionReceipt === receipt else{receipt.retire();return}
+        completionReceipt=nil
+        let callback=finished && generation == receipt.generation ? receipt.completion:nil
+        receipt.retire()
+        callback?()
+    }
+    private func retireCompletion(){completionReceipt?.retire();completionReceipt=nil}
     private final class LayerBase {
         weak var layer:CALayer?
         let opacity:Float,anchor:CGPoint
@@ -25,8 +47,7 @@ final class NativeRouteMotion {
     init(home: JimiV9HomeView, hub: JimiV9HubView) {self.home = home;self.hub = hub}
     func homeTracks(enter: Bool,fromPaintedPose:Bool=false) -> [(UIView, JimiV9Motion.Track)] {
         var parts: [(UIView, JimiV9Motion.Part)] = [(home.heroView, .hero), (home.logoImageView, .logo),
-            (home.ctaContainerView, .ctaContainer), (home.ctaView, .cta), (home.navView, .navigation),
-            (home.fixedShadowView, .fixedShadow)]
+            (home.ctaContainerView, .ctaContainer), (home.ctaView, .cta)]
         parts += home.shardViews.map { ($0, .shard) }
         let entries=parts.map { target, part in
             let track = enter ? JimiV9Motion.homeEnter(part) : JimiV9Motion.homeExit(part, reducedMotion: UIAccessibility.isReduceMotionEnabled)
@@ -44,7 +65,7 @@ final class NativeRouteMotion {
                 return (target, JimiV9Motion.Track(tweens: [replacement] + track.tweens.dropFirst(), anchorX: track.anchorX, anchorY: track.anchorY))
             }
             return (target, track)
-        } + home.cloudRouteTracks(enter:enter) + home.ambientRouteTracks(enter:enter)
+        } + home.navigationRouteTracks(enter:enter) + home.cloudRouteTracks(enter:enter) + home.ambientRouteTracks(enter:enter)
         return fromPaintedPose ? Self.retargetPaintedHubTracks(entries,enter:enter):entries
     }
 
@@ -105,25 +126,37 @@ final class NativeRouteMotion {
 
     func animate(_ entries: [(UIView, JimiV9Motion.Track)], completion: @escaping () -> Void) {
         pruneRetiredLayerBases()
+        retireCompletion()
         generation += 1; let owner = generation
         // Banners are decorative continuations, not an extra 200ms input gate.
         // Install them outside the route completion transaction, with the same
         // generation and cancellation registry as all other owned layers.
         let bannerIDs = Set(hub.bannerRevealTargets.map { ObjectIdentifier($0.view) })
-        let decoration = entries.filter { bannerIDs.contains(ObjectIdentifier($0.0)) }
-        let routeEntries = entries.filter { !bannerIDs.contains(ObjectIdentifier($0.0)) }
+        // Navigation is a decorative continuation, never a route admission gate.
+        let independent: (UIView) -> Bool = { $0 is JimiV9NavigationHeader || bannerIDs.contains(ObjectIdentifier($0)) }
+        let decoration = entries.filter { independent($0.0) }
+        let routeEntries = entries.filter { !independent($0.0) }
         CATransaction.begin(); CATransaction.setDisableActions(true)
+        CATransaction.setCompletionBlock { [weak self] in
+            guard let self,self.generation == owner else{return}
+            CATransaction.begin();CATransaction.setDisableActions(true)
+            for (target,_) in decoration where target is JimiV9NavigationHeader {self.restoreAnchor(target.layer)}
+            CATransaction.commit()
+        }
         installTracks(decoration)
         CATransaction.commit()
-        CATransaction.begin()
-        CATransaction.setCompletionBlock { [weak self] in
-            guard let self, self.generation == owner else { return }
+        guard !routeEntries.isEmpty else{completion();return}
+        let receipt=CompletionReceipt(owner:self,generation:owner)
+        receipt.completion = { [weak self] in
+            guard let self,self.generation == owner else{return}
             CATransaction.begin(); CATransaction.setDisableActions(true)
             for (target, _) in routeEntries { self.restoreAnchor(target.layer) }
             CATransaction.commit()
             completion()
         }
-        installTracks(routeEntries, holdUntil: routeEntries.map { $0.1.duration }.max())
+        completionReceipt=receipt
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        installTracks(routeEntries,holdUntil:routeEntries.map{$0.1.duration}.max(),completionReceipt:receipt)
         CATransaction.commit()
     }
 
@@ -206,8 +239,9 @@ final class NativeRouteMotion {
         if !animatedLayers.contains(where: { $0 === layer }) { animatedLayers.append(layer) }
     }
 
-    private func installTracks(_ entries: [(UIView, JimiV9Motion.Track)], holdUntil: Double? = nil) {
-        for (target, track) in entries {
+    private func installTracks(_ entries: [(UIView, JimiV9Motion.Track)], holdUntil: Double? = nil,completionReceipt:CompletionReceipt?=nil) {
+        for (index,entry) in entries.enumerated() {
+            let (target,track)=entry
             let layer = target.layer
             let alpha=base(for:layer).opacity
             let oldAnchor = layer.anchorPoint
@@ -227,6 +261,9 @@ final class NativeRouteMotion {
             opacity.duration = sampled.duration
             opacity.keyTimes = sampled.keyTimes?.map { NSNumber(value: $0) }
             let group = CAAnimationGroup(); group.animations = [transform, opacity]; group.duration = sampled.duration
+            // Every admitted content group shares holdUntil. Observe one true
+            // completion without adding a timer or another animation clock.
+            if index == entries.count-1 {group.delegate=completionReceipt}
             (target as? JimiV9NavigationHeader)?.appendExitShadowFade(to:group,track:track)
             if target === home.fixedShadowView {home.appendNavigationDecorationFade(to:group,track:track)}
             group.timingFunction = CAMediaTimingFunction(name: .linear)
@@ -259,6 +296,7 @@ final class NativeRouteMotion {
         }
     }
     func cancel() {
+        retireCompletion()
         generation += 1
         for layer in animatedLayers {
             if let painted = layer.presentation() {

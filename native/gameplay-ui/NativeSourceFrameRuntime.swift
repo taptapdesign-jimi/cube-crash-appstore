@@ -1,7 +1,8 @@
 import Foundation
 
 /// Private integration draft. Scene owns all timestamps and rendering delivery.
-/// Kinds name actual source leases; no generic visual-owner lease is admitted.
+/// Kinds name actual Source leases and the explicitly registered preload bar.
+/// No anonymous or persistent visual-owner lease is admitted.
 final class NativeSourceFrameRuntime {
     enum Kind:String,CaseIterable {
         case boardEntry="board-entry",boardPopIn="board-popin",boardExit="board-exit"
@@ -12,13 +13,14 @@ final class NativeSourceFrameRuntime {
         case magnetPull="magnet-pull",honeyPull="honey-pull",hudStarFlight="hud-star-flight"
         case regularIdleBounce="regular-tile-idle-bounce",hudExit="hud-exit"
         case dragTrail="drag-trail"
+        case preloadBar="preload-bar"
         case starHalo="wild-star-shared-halo"
         case starFinale="wild-star-finale",magnetFinale="magnet-swoop-finale",tntFinale="tnt-flower-finale",juiceFinale="juice-family-finale",cleanBoardHandoff="clean-board-handoff"
         var tailMs:Double {
             switch self {
             case .starHalo:return 0
             case .regularMergeHandoff,.hudExit,.starFinale,.magnetFinale,.tntFinale,.juiceFinale,.cleanBoardHandoff:return 180
-            case .hudStarFlight,.regularIdleBounce:return 60
+            case .hudStarFlight,.regularIdleBounce,.preloadBar:return 60
             default:return 100
             }
         }
@@ -47,7 +49,7 @@ final class NativeSourceFrameRuntime {
     var reducedFx:Bool {budget.isReduced}
     var snapshot:NativeBoardFrameCadence.Snapshot {cadence.snapshot}
     func hasActivePresentation(generation:UInt64)->Bool {
-        owners.keys.contains {$0.generation==generation && $0.kind != .starHalo && $0.kind != .regularIdleBounce}
+        owners.keys.contains {$0.generation==generation && $0.kind != .starHalo && $0.kind != .regularIdleBounce && $0.kind != .preloadBar}
     }
     var isSpecialIdleSuspended:Bool {owners.keys.contains {$0.kind.suspendsSpecialIdle}}
 

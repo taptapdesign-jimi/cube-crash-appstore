@@ -371,6 +371,9 @@ import StackToSixNativeState
     func testDisposalAtActualRestartPreparationCannotConstructOrWriteSuccessor()async throws {
         try await exerciseRestart(board:nil,disposeAtPreparation:true)
     }
+    func testJourneyRestartWaitsForForegroundExitBeforeConstructingSuccessor()async throws {
+        try await exerciseRestart(board:1,backgroundRestart:true)
+    }
     func testJourneyDisposalAtRestartPreparationPreservesPreviousAttempt()async throws {
         try await exerciseRestart(board:14,disposeAtPreparation:true)
     }
@@ -601,7 +604,7 @@ import StackToSixNativeState
         }
     }
 
-    private func exerciseRestart(board:Int?,disposeAtPreparation:Bool=false,warmupOnly:Bool=false,pauseWarmup:Bool=false,backgroundWarmup:Bool=false)async throws {
+    private func exerciseRestart(board:Int?,disposeAtPreparation:Bool=false,warmupOnly:Bool=false,pauseWarmup:Bool=false,backgroundWarmup:Bool=false,backgroundRestart:Bool=false)async throws {
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("native-fresh-rebuild-"+UUID().uuidString)
         let store=NativeSaveStore(directory:directory)
         var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
@@ -670,6 +673,19 @@ import StackToSixNativeState
         // must not construct two fresh generations.
         let durableBeforeRestart=try Data(contentsOf:directory.appendingPathComponent("state-v1.json"))
         restart.sendActions(for:.touchUpInside);restart.sendActions(for:.touchUpInside)
+        if backgroundRestart {
+            let closed=try XCTUnwrap(modal.onClosed);var backgrounded=false
+            modal.onClosed={
+                closed()
+                NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
+                backgrounded=true
+            }
+            try await wait{backgrounded}
+            try await Task.sleep(for:.milliseconds(300))
+            XCTAssertTrue(app.children.contains{$0 === old})
+            XCTAssertTrue(old.sourceScope?.current==true)
+            NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
+        }
         if disposeAtPreparation {
             // The genuine modal's close completion dispatches restart. Dispose
             // immediately after that dispatch while its asynchronous foundation
@@ -682,7 +698,17 @@ import StackToSixNativeState
             XCTAssertEqual(try Data(contentsOf:directory.appendingPathComponent("state-v1.json")),durableBeforeRestart)
             return
         }
-        try await wait{app.children.compactMap{$0 as? NativeGameplayViewController}.first.map{$0 !== old}==true}
+        var sawOldExit=false
+        try await wait{
+            if old.boardScene?.childNode(withName:"//native-game-hud")?.action(forKey:"hud-exit") != nil {
+                sawOldExit=true
+                if let combo=old.boardScene?.childNode(withName:"//preload-navigation-hud-2"),combo.alpha>0.001 {
+                    XCTAssertTrue(old.sourceScope?.current==true,"Successor construction must wait for the fast chrome exit, not the slower tiles")
+                }
+            }
+            return app.children.compactMap{$0 as? NativeGameplayViewController}.first.map{$0 !== old}==true
+        }
+        XCTAssertEqual(sawOldExit,board != nil,"Only Exit Stage Restart replays the old chrome")
         let fresh=try XCTUnwrap(app.children.compactMap{$0 as? NativeGameplayViewController}.first)
         timeoutDiagnostic = {[weak fresh] in
             guard let fresh else{return "fresh released"}
@@ -691,7 +717,9 @@ import StackToSixNativeState
         defer{timeoutDiagnostic=nil}
         XCTAssertFalse(containsAnnouncement(fresh),"Exit Restart must not mount an announcement before the fresh board's entry")
         XCTAssertFalse(fresh.incomingOriginalThemedCoverExpected)
-        XCTAssertTrue(fresh.keepsGameplayChromeVisibleOnEntry)
+        XCTAssertEqual(fresh.keepsGameplayChromeVisibleOnEntry,board==nil)
+        XCTAssertEqual(fresh.replaysRestartChrome,board != nil)
+        XCTAssertEqual(fresh.boardScene?.replaysRestartChrome,board != nil)
         XCTAssertTrue(try XCTUnwrap(fresh.sourceInitialConstruction).borrowedPreparedFoundation,"A cold restart must adopt the asynchronously prepared resource owner before constructor draws")
         XCTAssertEqual(fresh.engine.state.generation,oldGeneration+1);XCTAssertEqual(fresh.engine.state.board,board ?? 1)
         XCTAssertEqual(fresh.engine.state.moves,50);XCTAssertEqual(fresh.engine.state.score,0)
@@ -700,13 +728,13 @@ import StackToSixNativeState
         try await wait{
             sawAnnouncement = sawAnnouncement || self.containsAnnouncement(fresh)
             if let chrome=fresh.boardScene?.boardChromeReceipt {
-                sawChromeReplay = sawChromeReplay || chrome.offset != 0 || chrome.alpha != 1 || chrome.entering
+                sawChromeReplay = sawChromeReplay || chrome.offset != 0 || chrome.alpha != 1
             }
             return fresh.boardScene?.completedSourceBoardEntry != nil && fresh.boardScene?.gameplayRenderHost?.renderView.window != nil &&
                 fresh.boardScene?.isBoardEntryComplete==true && fresh.beforeSourceGameplayAdmission==nil
         }
         XCTAssertFalse(sawAnnouncement,"Journey/Arcade Exit Restart must stay announcement-free throughout actual entry readiness")
-        XCTAssertFalse(sawChromeReplay,"Exit Restart must keep the top HUD settled while dice enter")
+        XCTAssertFalse(sawChromeReplay,"HUD carrier must stay fixed while the finite mask and selected groups enter")
         XCTAssertFalse(fresh.engine.state.tiles.contains(where: \.isWild),"Restart must wait for the earned Backpack drop")
 
         if let footer=fresh.journeyBottomDecor {

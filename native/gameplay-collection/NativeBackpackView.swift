@@ -12,15 +12,19 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
     private(set) var includesArcade=false
     let arcadeCrate:Bool
     private var alertsActive=false
+    private var artworkIdleActive=false
     private(set) var seenUnreadDice=Set<String>()
-    func setAlertsActive(_ active:Bool){alertsActive=active;refreshVisibleAlerts()}
+    /// The fullscreen grid remains painted behind its selected detail. That
+    /// caller can retain artwork idle while alert/read admission stays paused.
+    /// Other collection callers retain the existing shared visibility policy.
+    func setAlertsActive(_ active:Bool,artworkIdle:Bool?=nil){alertsActive=active;artworkIdleActive=artworkIdle ?? active;refreshVisibleAlerts()}
     func markRead(_ id:String){for i in sections.indices {sections[i].unread.remove(id)};refreshVisibleAlerts()}
     private func refreshVisibleAlerts(){
         for path in grid.indexPathsForVisibleItems {
             guard let cell=grid.cellForItem(at:path) as? NativeBackpackCell else{continue}
             let section=path.section-(includesArcade ? 1:0)
             let unread=section>=0 && sections.indices.contains(section) && sections[section].unread.contains(sections[section].dice[path.item].id)
-            cell.setAlert(unread:unread,active:alertsActive && !isHidden)
+            cell.setAlert(unread:unread,active:alertsActive && !isHidden,artworkIdle:artworkIdleActive && !isHidden)
         }
         recordSeenUnread()
     }
@@ -42,12 +46,15 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
         if !intersection.isNull,card.width>0,card.height>0,
            intersection.width*intersection.height >= card.width*card.height*0.5 {seenUnreadDice.insert(die.id)}
     }
-    func scrollViewDidScroll(_ scrollView:UIScrollView){recordSeenUnread()}
+    func scrollViewDidScroll(_ scrollView:UIScrollView){
+        header.updateBackgroundForScroll(scrollView)
+        recordSeenUnread()
+    }
     override var isHidden:Bool {didSet{refreshVisibleAlerts()}}
     func collectionView(_ collectionView:UICollectionView,willDisplay cell:UICollectionViewCell,forItemAt indexPath:IndexPath){
         let section=indexPath.section-(includesArcade ? 1:0)
         let unread=section>=0 && sections.indices.contains(section) && sections[section].unread.contains(sections[section].dice[indexPath.item].id)
-        (cell as? NativeBackpackCell)?.setAlert(unread:unread,active:alertsActive && !isHidden)
+        (cell as? NativeBackpackCell)?.setAlert(unread:unread,active:alertsActive && !isHidden,artworkIdle:artworkIdleActive && !isHidden)
         recordSeenUnread(at:indexPath,cell:cell)
     }
     func collectionView(_ collectionView:UICollectionView,didEndDisplaying cell:UICollectionViewCell,forItemAt indexPath:IndexPath){(cell as? NativeBackpackCell)?.setAlert(unread:false,active:false)}
@@ -75,7 +82,7 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
         addSubview(grid);addSubview(header)
         header.backgroundColor=UIColor(red:243/255,green:238/255,blue:232/255,alpha:0.8);header.isOpaque=false
         header.setHomeDividerImage(assets.image("assets/home-shadow.png"))
-        header.setBackgroundImage(assets.image("assets/nav/nav-bg.png",densityAware:true))
+        header.setBackgroundImage(assets.image("assets/nav/nav-bg.png",densityAware:true),opacity:0.5)
         self.title.font=assets.font(size:28);self.title.textColor=NativeTextPalette.navigationTitle;self.title.attributedText=NativeModalTypography.attributedCollectionTitle(title,baseColor:NativeTextPalette.navigationTitle);self.title.textAlignment = .center
         header.addSubview(self.title);header.addSubview(close)
         close.setImage(assets.image("assets/close-icon.png",densityAware:true),for:.normal)
@@ -102,6 +109,7 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
             grid.setContentOffset(CGPoint(x:previousOffset.x,y:previousOffset.y+previousTop-height),animated:false)
         }
         grid.contentInset.bottom=embedded ? 16:safeAreaInsets.bottom+16
+        header.updateBackgroundForScroll(grid)
         if embedded,let layout=grid.collectionViewLayout as? UICollectionViewFlowLayout {
             let inset=max(24,(bounds.width-CGFloat(modalColumns)*modalItemSide-CGFloat(modalColumns-1)*16)/2)
             layout.sectionInset=UIEdgeInsets(top:0,left:inset,bottom:0,right:inset);layout.minimumLineSpacing=16
@@ -151,7 +159,7 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
         let projectionScale=embedded ? NativeTabletLayout.modalScale(viewport):1
         cell.apply(die,unlocked:unlocked,right:indexPath.item%2==1,arcade:includesArcade && indexPath.section==0 && !arcadeCrate,assets:assets,edgeAligned:tabletGridMetrics != nil,illustrationScale:arcadeCrate ? (die.id=="wild-magnet" ? 0.8:die.id=="tnt" ? 0.95:1):1,alertOnRight:alertOnRight,projectionScale:projectionScale,minimumDensity:NativeTabletLayout.applies(viewport) ? 3:1)
         let section=indexPath.section-(includesArcade ? 1:0)
-        cell.setAlert(unread:unlocked && section>=0 && sections[section].unread.contains(die.id),active:alertsActive && !isHidden);return cell
+        cell.setAlert(unread:unlocked && section>=0 && sections[section].unread.contains(die.id),active:alertsActive && !isHidden,artworkIdle:artworkIdleActive && !isHidden);return cell
     }
     func collectionView(_ collectionView:UICollectionView,viewForSupplementaryElementOfKind kind:String,at indexPath:IndexPath)->UICollectionReusableView {
         let header=collectionView.dequeueReusableSupplementaryView(ofKind:kind,withReuseIdentifier:"section",for:indexPath) as! NativeBackpackSectionHeader
@@ -178,7 +186,7 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
     }
     /// The closing overlay may collect one tap on a revealed, unlocked cell.
     /// Presentation coordinates preserve the incoming collection's animated pose.
-    func revealedDie(atWindowPoint point:CGPoint)->NativeBackpackCatalog.Die? {
+    func revealedDie(atWindowPoint point:CGPoint,playSelectionFeedback:Bool=false)->NativeBackpackCatalog.Die? {
         guard let window,!isHidden,window.bounds.contains(point) else{return nil}
         if !header.isHidden,header.frame.contains(convert(point,from:window)){return nil}
         let windowLayer=window.layer.presentation() ?? window.layer
@@ -187,9 +195,16 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
         for cell in grid.visibleCells {
             let painted=cell.layer.presentation() ?? cell.layer
             guard painted.bounds.contains(painted.convert(point,from:windowLayer)),let index=grid.indexPath(for:cell) else{continue}
-            if includesArcade,index.section==0 {return NativeBackpackCatalog.arcade[index.item]}
-            let section=sections[index.section-(includesArcade ? 1:0)],die=section.dice[index.item]
-            return section.unlocked.contains(die.id) ? die:nil
+            let die:NativeBackpackCatalog.Die
+            if includesArcade,index.section==0 {die=NativeBackpackCatalog.arcade[index.item]}
+            else {
+                let section=sections[index.section-(includesArcade ? 1:0)]
+                let selected=section.dice[index.item]
+                guard section.unlocked.contains(selected.id) else{return nil}
+                die=selected
+            }
+            if playSelectionFeedback {(cell as? NativeBackpackCell)?.playSelectionFeedback()}
+            return die
         }
         return nil
     }
@@ -203,7 +218,25 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
             return (target,.init(tweens:[.init(begin:delay,duration:reduced ? 0.16:enter ? 0.56:0.40,from:.scale(enter ? 0:1),to:.scale(enter ? 1:0),ease:enter ? .backOut(1.8):.backIn(1.7))]))
         }
     }
-    @objc private func closeTapped(){close.playArtworkTapFeedback();onClose?()}
+    /// Close has its own visible admission; collection entry can finish later.
+    var isClosePaintedVisible:Bool {
+        guard window != nil,isUserInteractionEnabled,header.isUserInteractionEnabled,close.isUserInteractionEnabled,
+              !isHidden,!header.isHidden,!close.isHidden,alpha>0.01 else{return false}
+        let headerPose=header.layer.presentation() ?? header.layer
+        let closePose=close.layer.presentation() ?? close.layer
+        return headerPose.opacity*closePose.opacity>0.01 &&
+            hypot(closePose.transform.m11,closePose.transform.m12)>0.01
+    }
+    override func hitTest(_ point:CGPoint,with event:UIEvent?)->UIView? {
+        // UIKit uses model frames; the visible X can still be rising on its
+        // finite entry track. Admit the actual painted hit area as well.
+        if isClosePaintedVisible,let painted=close.layer.presentation() {
+            let local=painted.convert(point,from:layer.presentation() ?? layer)
+            if painted.bounds.contains(local) {return close}
+        }
+        return super.hitTest(point,with:event)
+    }
+    @objc private func closeTapped(){guard isClosePaintedVisible else{return};close.playArtworkTapFeedback();onClose?()}
 }
 
 /// Per-character Worlds-Hub-style pose recipes; one existing layer loop per visible card.
@@ -380,7 +413,7 @@ private final class NativeBackpackCell:UICollectionViewCell {
         die.tag=unlocked ? 1:0;accessibilityLabel=item.title+(unlocked ? "":" Locked");accessibilityTraits=unlocked ? .button:.image
         accessibilityIdentifier="native.backpack.die.\(item.id)";die.accessibilityIdentifier="native.backpack.idle-artwork";reconcileArtworkIdle();setNeedsLayout()
     }
-    func setAlert(unread:Bool,active:Bool){alert.isHidden = !unread;alert.setActive(unread && active);artworkActive=active;layoutIfNeeded();reconcileArtworkIdle()}
+    func setAlert(unread:Bool,active:Bool,artworkIdle:Bool?=nil){alert.isHidden = !unread;alert.setActive(unread && active);artworkActive=artworkIdle ?? active;layoutIfNeeded();reconcileArtworkIdle()}
     override func layoutSubviews(){super.layoutSubviews();configureArtworkSampling();artworkGroup.bounds=contentView.bounds;artworkGroup.center=CGPoint(x:contentView.bounds.midX,y:contentView.bounds.midY);let scale=contentView.bounds.width/(arcade ? 98:153);holder.bounds=CGRect(x:0,y:0,width:contentView.bounds.width+(die.tag==0 && !edgeAligned ? 2*scale:0),height:contentView.bounds.height);holder.center=CGPoint(x:contentView.bounds.midX,y:contentView.bounds.midY);let size=die.tag==0 ? CGSize(width:70*scale,height:80*scale):CGSize(width:artworkSize.width*scale,height:artworkSize.height*scale);die.bounds=CGRect(origin:.zero,size:size);die.center=CGPoint(x:contentView.bounds.midX-artworkOffset.x*scale,y:contentView.bounds.midY-artworkOffset.y*scale)
         alert.bounds=CGRect(x:0,y:0,width:58*1.1*scale,height:58*1.1*scale);alert.center=CGPoint(x:alertRight ? contentView.bounds.width-14*scale:14*scale,y:14*scale)
         reconcileArtworkIdle()

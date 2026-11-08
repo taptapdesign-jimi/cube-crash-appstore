@@ -6,6 +6,93 @@ import StackToSixNativeState
 
 @MainActor
 final class NativeScoreModalTests:XCTestCase {
+    func testAdaptivePaperPreservesCornerPixelsAndMaterialAcrossShortTallResize() throws {
+        let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+        let output=URL(fileURLWithPath:"/tmp/shared-paper-20261106/renders")
+        try FileManager.default.createDirectory(at:output,withIntermediateDirectories:true)
+        for variant in 0..<3 {
+            weak var retired:NativeModalPaperView?
+            try autoreleasepool {
+                let paper=NativeModalPaperView(variant:variant);retired=paper;paper.prepare(assets:assets)
+                let close=try XCTUnwrap(paper.closeMaterial)
+                var firstCorner:Data?
+                for height in [CGFloat(280),420,620,280] {
+                    JimiNativeModalV10.paperLayout(paper,bounds:CGRect(x:0,y:0,width:310,height:height),bottomExtension:96)
+                    paper.layoutIfNeeded()
+                    XCTAssertEqual(paper.image?.size,paper.bounds.size);XCTAssertTrue(paper.closeMaterial === close)
+                    XCTAssertEqual(paper.textureScale,310/390,accuracy:0.000001)
+                    XCTAssertNil(paper.layer.mask);XCTAssertEqual(paper.layer.contentsRect,CGRect(x:0,y:0,width:1,height:1))
+                    let format=UIGraphicsImageRendererFormat();format.scale=1;format.opaque=false
+                    let rendered=UIGraphicsImageRenderer(bounds:paper.bounds,format:format).image{paper.layer.render(in:$0.cgContext)}
+                    let corner=try XCTUnwrap(rendered.cgImage?.cropping(to:CGRect(x:0,y:0,width:48,height:48)))
+                    var pixels=[UInt8](repeating:0,count:48*48*4)
+                    try pixels.withUnsafeMutableBytes { buffer in
+                        let context=try XCTUnwrap(CGContext(data:buffer.baseAddress,width:48,height:48,bitsPerComponent:8,bytesPerRow:48*4,space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue))
+                        context.draw(corner,in:CGRect(x:0,y:0,width:48,height:48))
+                    }
+                    let bytes=Data(pixels)
+                    if let firstCorner {
+                        // Ignore subpixel antialias quantization at nearly
+                        // transparent fibres; compare decoded premultiplied pixels.
+                        let differences=zip(bytes,firstCorner).map{abs(Int($0)-Int($1))}
+                        XCTAssertLessThan(Double(differences.reduce(0,+))/Double(differences.count),0.5,"A growing modal cannot stretch paper corners")
+                        XCTAssertLessThanOrEqual(differences.max() ?? 0,12)
+                    } else {firstCorner=bytes}
+                    try rendered.pngData()?.write(to:output.appendingPathComponent("material-\(variant)-\(Int(height)).png"))
+                    let fitted=paper.image,count=paper.fitCount
+                    paper.prepare(assets:assets);paper.fit(in:paper.frame)
+                    XCTAssertTrue(paper.image === fitted);XCTAssertEqual(paper.fitCount,count)
+                }
+            }
+            XCTAssertNil(retired)
+        }
+    }
+    func testOneTwoThreeHistoryRowsUseSameTextureDensityWithoutChangingCardSpacing() throws {
+        func all(_ view:UIView)->[UIView] {[view]+view.subviews.flatMap(all)}
+        let output=URL(fileURLWithPath:"/tmp/shared-paper-20261106/renders")
+        try FileManager.default.createDirectory(at:output,withIntermediateDirectories:true)
+        for size in [CGSize(width:390,height:844),CGSize(width:820,height:1180)] {for combo in [false,true] {
+            var previous:CGFloat=0
+            for count in 1...3 {
+                var stats=NativeBoardStats()
+                stats.scoreHistory=(1...count).map{.init(value:$0*1000,date:Double($0))}
+                stats.comboHistory=(1...count).map{.init(value:$0*10,date:Double($0))}
+                let modal=NativeScoreModal(model:.init(boardStats:stats,combo:combo),root:NativeTestResources.root,deferredEntry:true)
+                defer{modal.dispose()}
+                modal.loadViewIfNeeded();modal.view.frame=CGRect(origin:.zero,size:size);modal.view.setNeedsLayout();modal.view.layoutIfNeeded()
+                let paper=try XCTUnwrap(all(modal.view).compactMap{$0 as? NativeModalPaperView}.first)
+                let image=try XCTUnwrap(paper.image)
+                XCTAssertEqual(image.size,paper.bounds.size)
+                XCTAssertEqual(paper.textureScale,paper.bounds.width/390,accuracy:0.000001)
+                XCTAssertGreaterThan(paper.bounds.height,previous);previous=paper.bounds.height
+                XCTAssertEqual(all(modal.view).filter{$0.accessibilityIdentifier?.hasPrefix("native.score-history.row.")==true}.count,count)
+                let close=try XCTUnwrap(all(modal.view).first{$0.accessibilityIdentifier=="native.score-modal.close"} as? UIButton)
+                XCTAssertTrue(close.backgroundImage(for:.normal) === paper.closeMaterial)
+                let painted=try XCTUnwrap(paper.superview)
+                try UIGraphicsImageRenderer(bounds:painted.bounds).pngData{painted.layer.render(in:$0.cgContext)}.write(to:output.appendingPathComponent("history-\(combo)-\(count)-\(Int(size.width)).png"))
+            }
+        }}
+    }
+    func testHistoryStripsUseSettingsRadiusOnPhoneAndRetainTabletModalRadius() throws {
+        for size in [CGSize(width:390,height:844),CGSize(width:820,height:1180)] {
+            for combo in [false,true] {
+                var stats=NativeBoardStats()
+                stats.scoreHistory=[.init(value:4800,date:1)]
+                stats.comboHistory=[.init(value:48,date:1)]
+                let modal=NativeScoreModal(model:.init(boardStats:stats,combo:combo),root:NativeTestResources.root,deferredEntry:true)
+                defer {modal.dispose()}
+                modal.loadViewIfNeeded();modal.view.frame=CGRect(origin:.zero,size:size)
+                modal.view.setNeedsLayout();modal.view.layoutIfNeeded()
+                func all(_ view:UIView)->[UIView] {[view]+view.subviews.flatMap(all)}
+                let row=try XCTUnwrap(all(modal.view).first{$0.accessibilityIdentifier=="native.score-history.row.0"})
+                row.setNeedsLayout();row.layoutIfNeeded()
+                let paper=try XCTUnwrap(row.subviews.first{$0 is UIImageView})
+                let expected=NativeTabletLayout.applies(size) ? NativeTabletLayout.paperCornerRadius(in:paper):NativeTabletLayout.settingsPaperCornerRadius(size)
+                XCTAssertEqual(paper.layer.cornerRadius,expected,accuracy:0.001)
+                XCTAssertEqual(row.layer.shadowPath,UIBezierPath(roundedRect:row.bounds,cornerRadius:min(expected,row.bounds.height/2)).cgPath)
+            }
+        }
+    }
     func testHistoryDatesUseMinutesTodayYesterdayThenOriginalDate() throws {
         var calendar=Calendar(identifier:.gregorian)
         calendar.timeZone=try XCTUnwrap(TimeZone(identifier:"Europe/Zagreb"))
@@ -62,8 +149,12 @@ final class NativeScoreModalTests:XCTestCase {
         let modal=NativeScoreModal(model:.init(boardStats:stats,combo:false),root:NativeTestResources.root)
         let window=UIWindow(frame:.init(x:0,y:0,width:320,height:568));window.rootViewController=modal;window.makeKeyAndVisible()
         defer{modal.dispose();window.isHidden=true}
-        try await Task.sleep(for:.milliseconds(800))
         func all(_ v:UIView)->[UIView]{[v]+v.subviews.flatMap(all)}
+        // Wait for actual mounted entry completion, including cold font/layout work.
+        let deadline=Date().addingTimeInterval(2)
+        while !UIAccessibility.isReduceMotionEnabled,
+              !all(modal.view).contains(where:{$0.layer.animation(forKey:"score.idle") != nil}),
+              Date()<deadline {try await Task.sleep(for:.milliseconds(20))}
         let views=all(modal.view)
         XCTAssertEqual(views.filter{$0.accessibilityIdentifier?.hasPrefix("native.score-history.row.")==true}.count,3)
         XCTAssertEqual(views.contains{$0.layer.animation(forKey:"score.idle") != nil},!UIAccessibility.isReduceMotionEnabled)

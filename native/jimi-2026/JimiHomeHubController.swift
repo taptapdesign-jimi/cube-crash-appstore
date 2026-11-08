@@ -378,8 +378,7 @@ final class JimiHomeHubController: UIViewController {
     private func homeTracks(enter: Bool) -> [(UIView, JimiV9Motion.Track)] {
         if enter {home.startAmbientForEntry()}
         var parts: [(UIView, JimiV9Motion.Part)] = [(home.heroView, .hero), (home.logoImageView, .logo),
-            (home.ctaContainerView, .ctaContainer), (home.ctaView, .cta), (home.navView, .navigation),
-            (home.fixedShadowView, .fixedShadow)]
+            (home.ctaContainerView, .ctaContainer), (home.ctaView, .cta)]
         parts += home.shardViews.map { ($0, .shard) }
         return parts.map { target, part in
             let track = enter ? JimiV9Motion.homeEnter(part) : JimiV9Motion.homeExit(part, reducedMotion: UIAccessibility.isReduceMotionEnabled)
@@ -397,7 +396,7 @@ final class JimiHomeHubController: UIViewController {
                 return (target, JimiV9Motion.Track(tweens: [replacement] + track.tweens.dropFirst(), anchorX: track.anchorX, anchorY: track.anchorY))
             }
             return (target, track)
-        } + home.cloudRouteTracks(enter:enter) + home.ambientRouteTracks(enter:enter)
+        } + home.navigationRouteTracks(enter:enter) + home.cloudRouteTracks(enter:enter) + home.ambientRouteTracks(enter:enter)
     }
 
     private func hubTracks(enter: Bool, selectedWorldID: Int? = nil) -> [(UIView, JimiV9Motion.Track)] {
@@ -883,9 +882,17 @@ final class JimiHomeHubController: UIViewController {
         // Install them outside the route completion transaction, with the same
         // generation and cancellation registry as all other owned layers.
         let bannerIDs = Set(hub.bannerRevealTargets.map { ObjectIdentifier($0.view) })
-        let decoration = entries.filter { bannerIDs.contains(ObjectIdentifier($0.0)) }
-        let routeEntries = entries.filter { !bannerIDs.contains(ObjectIdentifier($0.0)) }
+        // Navigation is a decorative continuation, never a route admission gate.
+        let independent: (UIView) -> Bool = { $0 is JimiV9NavigationHeader || bannerIDs.contains(ObjectIdentifier($0)) }
+        let decoration = entries.filter { independent($0.0) }
+        let routeEntries = entries.filter { !independent($0.0) }
         CATransaction.begin(); CATransaction.setDisableActions(true)
+        CATransaction.setCompletionBlock { [weak self] in
+            guard let self,self.generation == owner else{return}
+            CATransaction.begin();CATransaction.setDisableActions(true)
+            for (target,_) in decoration where target is JimiV9NavigationHeader {self.restoreAnchor(target.layer)}
+            CATransaction.commit()
+        }
         installTracks(decoration)
         CATransaction.commit()
         CATransaction.begin()

@@ -516,6 +516,10 @@ import StackToSixNativeState
                         while let node=cursor{path.append("\(node.name ?? String(describing:type(of:node))):\(node.alpha)");cursor=node.parent}
                         XCTAssertEqual(effectiveAlpha(loader),1,accuracy:1e-6,"meter ancestry: \(path.joined(separator:" -> "))")
                     }
+                    let integratedBar=try XCTUnwrap(scene.childNode(withName:"//native-preload-bar"))
+                    XCTAssertEqual(effectiveAlpha(integratedBar),1,accuracy:1e-6,"Integrated meter stays bright while its sibling board dims")
+                    scene.synchronize()
+                    XCTAssertEqual(effectiveAlpha(integratedBar),1,accuracy:1e-6,"A canonical refresh must not dim the independent meter")
                     var meterBubbles:[SKNode]=[]
                     scene.enumerateChildNodes(withName:"//wild-meter-smoke"){node,_ in meterBubbles.append(node)}
                     XCTAssertFalse(meterBubbles.isEmpty,"tutorial focus emits original meter bubbles")

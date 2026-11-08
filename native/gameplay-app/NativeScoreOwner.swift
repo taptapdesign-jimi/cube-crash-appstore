@@ -78,7 +78,7 @@ final class NativeGameplayBackpackController:UIViewController {
     let card=UIView(),heading=UILabel(),subtitle=UILabel()
     private let restTilt=JimiNativeModalTransformView()
     private let restTiltDegrees=JimiNativeModalV10.restTiltDegrees()
-    private let flip=JimiNativeModalTransformView(),idle=UIView(),paper=UIImageView(),backdrop=JimiV9PlainButton(type:.custom),closeButton=JimiV9PlainButton(type:.custom)
+    private let flip=JimiNativeModalTransformView(),idle=UIView(),paper=NativeModalPaperView(),backdrop=JimiV9PlainButton(type:.custom),closeButton=JimiV9PlainButton(type:.custom)
     private(set) var screen:NativeBackpackView?
     private(set) var detail:NativeBackpackDetail?
     private(set) var modalDrag:JimiNativeModalDrag?
@@ -106,7 +106,7 @@ final class NativeGameplayBackpackController:UIViewController {
         view.addSubview(backdrop);view.addSubview(card);card.addSubview(restTilt);restTilt.addSubview(flip);flip.addSubview(idle);idle.addSubview(paper)
         card.layer.anchorPoint=CGPoint(x:0.5,y:0.55);flip.layer.anchorPoint=CGPoint(x:0.5,y:1);idle.layer.anchorPoint=CGPoint(x:0.5,y:0.52)
         card.alpha=0;card.accessibilityIdentifier="native.gameplay.backpack-modal";idle.layer.isDoubleSided=false
-        paper.image=assets.image("assets/modals/paper.png");paper.layer.cornerRadius=40;paper.clipsToBounds=true
+        paper.prepare(assets:assets)
         idle.layer.shadowColor=UIColor(red:185/255,green:145/255,blue:119/255,alpha:1).cgColor
         idle.layer.shadowOpacity=0.8;idle.layer.shadowOffset=CGSize(width:0,height:13);idle.layer.shadowRadius=16.8
         heading.text=includesArcade ? "Box":"Backpack";heading.textAlignment = .center
@@ -127,7 +127,7 @@ final class NativeGameplayBackpackController:UIViewController {
         let screen=NativeBackpackView(frame:.zero,assets:assets,title:includesArcade ? "Box":"Backpack",arcadeCrate:includesArcade);self.screen=screen
         screen.useModalLayout();screen.apply(sections,includesArcade:includesArcade);idle.addSubview(screen)
         screen.onDie={[weak self] die in self?.open(die)}
-        closeButton.setBackgroundImage(paper.image,for:.normal);closeButton.layer.cornerRadius=16;closeButton.clipsToBounds=true
+        closeButton.setBackgroundImage(paper.closeMaterial,for:.normal);closeButton.layer.cornerRadius=16;closeButton.clipsToBounds=true
         closeButton.setImage(assets.image("assets/close-icon.png",densityAware:true),for:.normal);closeButton.imageView?.contentMode = .scaleAspectFit;closeButton.artworkOpacity = 0.8;closeButton.enableArtworkTapFeedback(wholeControl:true)
         closeButton.imageEdgeInsets=UIEdgeInsets(top:14,left:14,bottom:14,right:14);closeButton.accessibilityIdentifier="native.gameplay.backpack.close"
         closeButton.accessibilityLabel=includesArcade ? "Close Box":"Close Backpack";closeButton.addTarget(self,action:#selector(close),for:.touchUpInside);idle.addSubview(closeButton)
@@ -170,8 +170,10 @@ final class NativeGameplayBackpackController:UIViewController {
     override func viewDidAppear(_ animated:Bool) {
         super.viewDidAppear(animated);guard !closing,!entered,!disposed else{return};entered=true;card.alpha=1
         if UIAccessibility.isReduceMotionEnabled {completeEnter();backdrop.alpha=1;return}
+        let paperEpoch=CACurrentMediaTime()
+        JimiNativeModalV10.enterClose(closeButton,beginTime:paperEpoch)
         CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in self?.completeEnter()}
-        JimiNativeModalV10.enter(card:card,flip:flip,key:"gameplay.backpack.enter");CATransaction.commit()
+        JimiNativeModalV10.enter(card:card,flip:flip,key:"gameplay.backpack.enter",beginTime:paperEpoch);CATransaction.commit()
         UIView.animate(withDuration:0.5){self.backdrop.alpha=1}
     }
     private func completeEnter(){
@@ -266,8 +268,10 @@ final class NativeGameplayBackpackController:UIViewController {
         [card,flip].forEach{$0.layer.removeAllAnimations();$0.layer.transform=CATransform3DIdentity}
         card.alpha=1
         if UIAccessibility.isReduceMotionEnabled {completeEnter();return}
+        let paperEpoch=CACurrentMediaTime()
+        JimiNativeModalV10.enterClose(closeButton,beginTime:paperEpoch)
         CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in self?.completeEnter()}
-        JimiNativeModalV10.enter(card:card,flip:flip,key:"gameplay.backpack.return")
+        JimiNativeModalV10.enter(card:card,flip:flip,key:"gameplay.backpack.return",beginTime:paperEpoch)
         CATransaction.commit()
     }
     func setForeground(_ value:Bool){
@@ -295,5 +299,5 @@ final class NativeGameplayBackpackController:UIViewController {
         }
     }
     private func finishClose(){guard !disposed else{return};seenUnreadDice=screen?.seenUnreadDice ?? [];let completed=onClosed;dispose();dismiss(animated:false,completion:completed)}
-    func dispose(){guard !disposed else{return};screen?.setAlertsActive(false);onReadDie=nil;modalDrag?.dispose();modalDrag=nil;disposed=true;pendingDie=nil;returningDetail=false;returnSelectionPress.map{view.removeGestureRecognizer($0)};returnSelectionPress=nil;exchangeGeneration += 1;exchangeMarker.removeAllAnimations();exchangeMarker.removeFromSuperlayer();motion.cancel();detail?.dispose();detail?.dismiss(animated:false);detail=nil;screen?.onClose=nil;screen?.onDie=nil;[card,restTilt,flip,idle,backdrop].forEach{$0.layer.removeAllAnimations()};onHUDCloseRequested=nil;onCloseRequested=nil;onClosed=nil;onFeedback=nil}
+    func dispose(){guard !disposed else{return};screen?.setAlertsActive(false);onReadDie=nil;modalDrag?.dispose();modalDrag=nil;disposed=true;pendingDie=nil;returningDetail=false;returnSelectionPress.map{view.removeGestureRecognizer($0)};returnSelectionPress=nil;exchangeGeneration += 1;exchangeMarker.removeAllAnimations();exchangeMarker.removeFromSuperlayer();motion.cancel();detail?.dispose();detail?.dismiss(animated:false);detail=nil;screen?.onClose=nil;screen?.onDie=nil;[card,restTilt,flip,idle,backdrop,closeButton].forEach{$0.layer.removeAllAnimations()};onHUDCloseRequested=nil;onCloseRequested=nil;onClosed=nil;onFeedback=nil}
 }

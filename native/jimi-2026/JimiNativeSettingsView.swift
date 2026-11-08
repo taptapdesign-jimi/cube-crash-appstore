@@ -57,7 +57,7 @@ private final class NativeSettingsPaperSurface:UIView {
 /// UIKit presentation only. The existing web settings/save owner supplies every
 /// value and accepts mutations; this view never creates a preference store.
 @MainActor
-final class JimiNativeSettingsView: UIView, UIGestureRecognizerDelegate {
+final class JimiNativeSettingsView: UIView, UIGestureRecognizerDelegate, UIScrollViewDelegate {
     var onBack: (() -> Void)?
     var onDeveloperClose: (() -> Void)?
     var onPreference: ((String, Bool, Int) -> Void)?
@@ -103,12 +103,13 @@ final class JimiNativeSettingsView: UIView, UIGestureRecognizerDelegate {
         self.assets = assets
         super.init(frame: frame)
         accessibilityIdentifier = "native.settings"
-        addSubview(header); addSubview(scroll); addSubview(footer)
+        addSubview(scroll); addSubview(footer); addSubview(header)
         header.backgroundColor = UIColor(red:243/255,green:238/255,blue:232/255,alpha:0.8)
         header.setHomeDividerImage(assets.image("assets/home-shadow.png"))
-        header.setBackgroundImage(assets.image("assets/nav/nav-bg.png",densityAware:true),opacity:1)
+        header.setBackgroundImage(assets.image("assets/nav/nav-bg.png",densityAware:true),opacity:0.5)
         // Padding belongs to the rows, never to a clipping animation viewport.
         clipsToBounds = false; scroll.clipsToBounds = false
+        scroll.delegate = self
         scroll.alwaysBounceVertical = false
         scroll.showsVerticalScrollIndicator = false
         title.text = "Settings"; title.font = assets.font(size: 28); title.textColor = NativeTextPalette.navigationTitle
@@ -156,7 +157,7 @@ final class JimiNativeSettingsView: UIView, UIGestureRecognizerDelegate {
             let surface=UIView();surface.accessibilityIdentifier="native.settings.row.surface"
             row.addSubview(surface);rowSurfaces.append(surface)
             let paper=NativeSettingsPaperSurface(image:assets.image("assets/modals/paper.png",densityAware:true))
-            paper.alpha=0.7
+            paper.alpha=0.8
             surface.addSubview(paper);papers.append(paper)
             surface.layer.shadowColor=UIColor(red:0.68,green:0.40,blue:0.20,alpha:1).cgColor
             surface.layer.shadowOpacity=0.18;surface.layer.shadowRadius=6;surface.layer.shadowOffset=CGSize(width:0,height:4)
@@ -238,6 +239,10 @@ final class JimiNativeSettingsView: UIView, UIGestureRecognizerDelegate {
         scroll.setContentOffset(.zero,animated: false)
         setNeedsLayout()
     }
+    func scrollViewDidScroll(_ scrollView:UIScrollView) {
+        header.updateBackgroundForScroll(scrollView)
+    }
+
     override func layoutSubviews() {
         super.layoutSubviews()
         let top = safeAreaInsets.top
@@ -263,6 +268,7 @@ final class JimiNativeSettingsView: UIView, UIGestureRecognizerDelegate {
         place(footer, in: CGRect(x:(bounds.width-contentWidth)/2+bodyInset,y:bounds.height-safeAreaInsets.bottom-footerHeight,width:max(0,contentWidth-bodyInset*2), height: footerHeight))
         footerCopy.frame = CGRect(x: 0, y: 0, width: footer.bounds.width, height: footerHeight-40*contentScale)
         privacy.setCartoonBounceFrame(CGRect(x: 0, y: footerHeight-44*contentScale, width: footer.bounds.width, height: 44*contentScale))
+        header.updateBackgroundForScroll(scroll)
         scroll.frame = CGRect(x:(bounds.width-contentWidth)/2,y:header.center.y+header.bounds.height/2,width:contentWidth, height: max(0,(footer.center.y-footer.bounds.height/2)-(header.center.y+header.bounds.height/2)))
         developerSummary.frame = CGRect(x: 24,y: 20,width: max(0,contentWidth-48),height: 64)
         let columns = contentWidth <= 374 ? 1 : 3
@@ -435,6 +441,11 @@ final class JimiNativeSettingsView: UIView, UIGestureRecognizerDelegate {
         else { ordered.insert(footer, at: 0); ordered.reverse(); ordered.append(header) }
         return ordered.enumerated().map { i, target in
             let delay = enter ? (i == 0 ? 0 : 0.05+Double(i-1)*0.08) : Double(i)*0.04+(target === header ? 0.05 : 0)
+            if !enter,!UIAccessibility.isReduceMotionEnabled,target !== header {
+                // Same visible anticipation/collapse as Arcade; the existing
+                // content receipt owns reveal, without an artificial wait.
+                return (target,JimiV9Motion.worldHubElementExit(begin:delay))
+            }
             return (target, JimiV9Motion.Track(tweens: [JimiV9Motion.Tween(
                 begin: UIAccessibility.isReduceMotionEnabled ? 0 : delay,
                 duration: UIAccessibility.isReduceMotionEnabled ? 0.01 : (enter ? 0.5 : 0.34),
@@ -488,7 +499,7 @@ final class JimiNativePrivacyController: UIViewController {
     private let restTilt=JimiNativeModalTransformView()
     private let restTiltDegrees=JimiNativeModalV10.restTiltDegrees()
     private let assets: JimiV9Artwork
-    let card = UIView(), flip = JimiNativeModalTransformView(), idle = UIView(), paper = UIImageView()
+    let card = UIView(), flip = JimiNativeModalTransformView(), idle = UIView(), paper = NativeModalPaperView()
     let copy = UITextView(), close = JimiV9PlainButton(type: .custom), backdrop = UIButton(type: .custom)
     private var closing = false
     private var modalDrag: JimiNativeModalDrag?
@@ -505,8 +516,7 @@ final class JimiNativePrivacyController: UIViewController {
         view.addSubview(card);card.addSubview(flip);flip.addSubview(restTilt);restTilt.addSubview(idle);idle.addSubview(paper)
         restTilt.layer.transform=CATransform3DMakeRotation(restTiltDegrees * .pi/180,0,0,1)
         card.layer.anchorPoint = CGPoint(x:0.5,y:0.55);flip.layer.anchorPoint = CGPoint(x:0.5,y:0.46);idle.layer.anchorPoint = CGPoint(x:0.5,y:0.52)
-        paper.image = assets.image("assets/modals/paper.png");paper.contentMode = .scaleToFill
-        paper.layer.cornerRadius = 40;paper.clipsToBounds = true
+        paper.prepare(assets:assets)
         idle.layer.shadowColor = UIColor(red:185/255,green:145/255,blue:119/255,alpha:1).cgColor
         idle.layer.shadowOpacity = 0.8;idle.layer.shadowOffset = CGSize(width:0,height:13);idle.layer.shadowRadius = 16.8
         copy.backgroundColor = .clear; copy.isEditable = false;copy.isSelectable = true
@@ -526,7 +536,7 @@ final class JimiNativePrivacyController: UIViewController {
         copy.attributedText = content;copy.linkTextAttributes = [.foregroundColor:orange,.underlineStyle:NSUnderlineStyle.single.rawValue]
         idle.addSubview(copy)
         close.backgroundColor = UIColor(red:1,green:250/255,blue:244/255,alpha:1);close.layer.cornerRadius = 16
-        close.setBackgroundImage(paper.image,for:.normal);close.clipsToBounds = true
+        close.setBackgroundImage(paper.closeMaterial,for:.normal);close.clipsToBounds = true
         close.setImage(assets.image("assets/close-icon.png",densityAware:true),for:.normal);close.imageView?.contentMode = .scaleAspectFit;close.artworkOpacity = 0.8;close.enableArtworkTapFeedback(wholeControl:true)
         close.imageEdgeInsets = UIEdgeInsets(top:14,left:14,bottom:14,right:14)
         close.accessibilityLabel = "Close Privacy Policy";close.accessibilityIdentifier = "native.settings.privacy.close"
@@ -565,23 +575,18 @@ final class JimiNativePrivacyController: UIViewController {
         t = CATransform3DRotate(t,ry * .pi/180,0,1,0);t = CATransform3DRotate(t,rz * .pi/180,0,0,1)
         return CATransform3DScale(t,scale,scale,scale)
     }
-    private func animate(_ target:UIView,poses:[CATransform3D],times:[NSNumber],key:String,duration:Double,repeats:Bool = false) {
-        let a = CAKeyframeAnimation(keyPath:"transform");a.values = poses.map{NSValue(caTransform3D:$0)};a.keyTimes = times;a.duration = duration
-        a.repeatCount = repeats ? .infinity : 0
-        let timing = key == "privacy-exit" ? CAMediaTimingFunction(controlPoints:0.4,0,0.2,1) : (target === card ? CAMediaTimingFunction(controlPoints:0.22,1.18,0.36,1) : CAMediaTimingFunction(controlPoints:0.16,1,0.3,1))
-        a.timingFunctions = Array(repeating:timing,count:max(0,poses.count-1));target.layer.add(a,forKey:key)
-    }
     override func viewDidAppear(_ animated:Bool) {
         super.viewDidAppear(animated)
         guard !closing else{return}
         card.alpha = 1
         UIView.animate(withDuration:UIAccessibility.isReduceMotionEnabled ? 0.01 : 0.5){self.backdrop.alpha = 1}
         guard !UIAccessibility.isReduceMotionEnabled else{return}
-        animate(card,poses:[pose(88,0,0,0,0.72,-2),pose(-10,0,0,0,1.07,0.8),pose(4,0,0,0,0.98,-0.35),CATransform3DIdentity],times:[0,0.55,0.76,1],key:"privacy-enter",duration:0.65)
-        animate(flip,poses:[pose(88,-180,17,-88,0.72),CATransform3DIdentity],times:[0,1],key:"privacy-enter",duration:0.65)
+        let paperEpoch=CACurrentMediaTime()
+        JimiNativeModalV10.enterClose(close,beginTime:paperEpoch)
+        JimiNativeModalV10.enter(card:card,flip:flip,key:"privacy-enter",beginTime:paperEpoch)
         let float = CAKeyframeAnimation(keyPath:"transform")
         float.values = [pose(0,0,0,0,1),pose(-3,3,0,0,1.003),pose(0,0,0,0,1),pose(-3.75,4,0,0,1.004),pose(0,0,0,0,1),pose(-4,8,0,0,1.015),pose(1,0,0,0,0.995),pose(-1,3,0,0,1.006),pose(0,0,0,0,1)].map{NSValue(caTransform3D:$0)}
-        float.keyTimes = [0,0.18,0.38,0.58,0.76,0.84,0.89,0.94,1];float.duration = 6.8;float.repeatCount = .infinity;float.beginTime = CACurrentMediaTime()+0.65
+        float.keyTimes = [0,0.18,0.38,0.58,0.76,0.84,0.89,0.94,1];float.duration = 6.8;float.repeatCount = .infinity;float.beginTime = idle.layer.convertTime(paperEpoch,from:nil)+JimiNativeModalV10.paperEnterDuration
         idle.layer.add(float,forKey:"privacy-idle")
     }
     @objc private func closeSheet() {
@@ -599,7 +604,7 @@ final class JimiNativePrivacyController: UIViewController {
     override func viewDidDisappear(_ animated:Bool) {
         super.viewDidDisappear(animated)
         modalDrag?.dispose();modalDrag = nil;onCloseRequested=nil
-        for target in [card,flip,idle] {target.layer.removeAllAnimations()}
+        for target in [card,flip,idle,close] {target.layer.removeAllAnimations()}
     }
 }
 

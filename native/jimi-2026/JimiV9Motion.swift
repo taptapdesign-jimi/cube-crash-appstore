@@ -280,6 +280,26 @@ enum JimiV9Motion {
         },anchorX:base.anchorX,anchorY:base.anchorY)
     }
 
+    /// Bottom navigation retains its accepted rhythm independently of top-nav
+    /// speed tuning. Individual controls own tracks; their parent stays at rest.
+    @MainActor static func homeNavigation(enter:Bool,index:Int?,reducedMotion:Bool=false)->Track {
+        let speed:Double=1.3
+        let titleEntryDelay=0.10/speed,elementStagger=0.13/speed
+        let duration=reducedMotion ? 0.16:0.56/speed
+        let delay:Double
+        if let index {
+            delay=reducedMotion ? 0:(enter ? titleEntryDelay:0)+Double(index)*elementStagger
+        } else {
+            // Match the upper paper/divider exit placement only. Home icons
+            // retain their own 1.3-speed order, durations and entry recipe.
+            delay=enter || reducedMotion ? 0:JimiV9ArchedNavigationTitle.backgroundExitDelay
+        }
+        let hidden=Pose.scale(index == nil ? 1:(reducedMotion ? 0.96:0.65),y:reducedMotion ? 0:(index == nil ? 24:30),opacity:0)
+        let rest=Pose.scale(index == nil ? 1.025:1)
+        return one(delay:delay,duration:duration,from:enter ? hidden:rest,to:enter ? rest:hidden,
+            ease:reducedMotion ? .powerOut(1):(enter ? .backOut(index == nil ? 1.7:1.8):.backIn(index == nil ? 1.7:1.8)))
+    }
+
     static func homeEnter(_ part: Part) -> Track {
         switch part {
         case .navigation, .fixedShadow:

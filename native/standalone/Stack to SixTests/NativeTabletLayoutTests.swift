@@ -252,11 +252,18 @@ final class NativeTabletLayoutTests:XCTestCase {
             let number=try XCTUnwrap(scene.childNode(withName:"//native-game-combo-value") as? SKLabelNode)
             XCTAssertEqual(number.fontSize,18*scale,accuracy:0.001)
             XCTAssertEqual(try XCTUnwrap(track.path).boundingBox.height,10*scale,accuracy:0.001)
-            XCTAssertEqual(close.position.y-(track.position.y+5*scale),38*scale,accuracy:0.001)
-            let closeRight=close.position.x+NativeHUDCloseNode.radius*scale
-            let leftGap=help.frame.minX-closeRight
-            let middleGap=score.frame.minX-help.frame.maxX
-            XCTAssertEqual(leftGap,middleGap+24,accuracy:0.01)
+            XCTAssertEqual(close.position.y-(track.position.y+5*scale),38*scale+8,accuracy:0.001)
+            XCTAssertLessThan(close.position.x,score.position.x)
+            XCTAssertLessThan(score.position.x,combo.position.x)
+            XCTAssertLessThan(combo.position.x,help.position.x)
+            let interval=score.position.x-close.position.x
+            XCTAssertEqual(combo.position.x-score.position.x,interval,accuracy:0.001)
+            XCTAssertEqual(help.position.x-combo.position.x,interval,accuracy:0.001)
+            XCTAssertEqual(close.zRotation,-14 * .pi/180,accuracy:0.0001)
+            XCTAssertEqual(help.zRotation,14 * .pi/180,accuracy:0.0001)
+            XCTAssertTrue(close.ring.isHidden)
+            XCTAssertEqual(score.zRotation,-3.42235500034373 * .pi/180,accuracy:0.0001)
+            XCTAssertEqual(combo.zRotation,2.3749138871645905 * .pi/180,accuracy:0.0001)
         }
     }
     func testTabletHUDAnchorsIgnoreValueChangesFeedbackAndCanvasShake() throws {
@@ -274,10 +281,13 @@ final class NativeTabletLayoutTests:XCTestCase {
                     try XCTUnwrap(scene.childNode(withName:"//"+$0))
                 }
                 let number=try XCTUnwrap(scene.childNode(withName:"//native-game-combo-value") as? SKLabelNode)
-                let score=try XCTUnwrap(icons[2].parent?.children.compactMap{$0 as? SKLabelNode}.first{$0 !== number && $0.text==NativeScoreDisplay.text(state.score)})
+                let score=try XCTUnwrap(icons[2].parent?.children.compactMap{$0 as? NativeArchedHUDScore}.first{$0.text==NativeScoreDisplay.text(state.score)})
                 let canvas=try XCTUnwrap(scene.childNode(withName:"native-gameplay-canvas"))
                 let multiplier=try XCTUnwrap(icons[3].parent?.children.compactMap{$0 as? SKLabelNode}.first{$0.text=="x"})
-                XCTAssertEqual(number.position.x,multiplier.position.x+multiplier.frame.width,accuracy:0.001,"Reserve balloon clearance after the value, not between x and its digits")
+                let angle=multiplier.zRotation;multiplier.zRotation=0
+                let intrinsicWidth=multiplier.frame.width;multiplier.zRotation=angle
+                XCTAssertEqual(number.position.x,multiplier.position.x+intrinsicWidth*cos(angle),accuracy:0.001)
+                XCTAssertEqual(number.position.y,multiplier.position.y+intrinsicWidth*sin(angle),accuracy:0.001)
                 if baseline==nil {baseline=icons.map{$0.convert(.zero,to:scene)}}
                 let positions=try XCTUnwrap(baseline)
                 for (comboScale,scoreScale) in scales {
@@ -302,7 +312,8 @@ final class NativeTabletLayoutTests:XCTestCase {
         var evidence:[[String:Any]]=[]
         for size in [CGSize(width:390,height:844),CGSize(width:820,height:1180)] {
             let tablet=NativeTabletLayout.applies(size),safeTop:CGFloat=tablet ? 24:47
-            let engine=NativeGameplayEngine(state:NativeBoardFactory.make(mode:.journey,board:1,columns:7,rows:8))
+            var state=NativeBoardFactory.make(mode:.journey,board:1,columns:7,rows:8);state.score=4648
+            let engine=NativeGameplayEngine(state:state)
             let scene=NativeBoardScene(engine:engine,resourceRoot:NativeTestResources.root,size:size)
             let renderer=SKView(frame:CGRect(origin:.zero,size:size)),controller=UIViewController()
             controller.view=renderer
@@ -320,13 +331,13 @@ final class NativeTabletLayoutTests:XCTestCase {
             let scale=NativeGameplayChromePlan.hudScale(for:size)
             let bar=try XCTUnwrap(meter.path).boundingBox
             XCTAssertEqual(max(close.icon.size.width,close.icon.size.height)/scale,24,accuracy:0.001)
-            XCTAssertEqual(max(help.size.width,help.size.height)/scale,NativeGameplayChromePlan.backpackBaseSide(for:size),accuracy:0.001)
+            XCTAssertEqual(max(help.size.width,help.size.height)/scale,tablet ? NativeGameplayChromePlan.backpackBaseSide(for:size):36.8,accuracy:0.001)
             XCTAssertEqual(max(score.size.width,score.size.height)/scale,28,accuracy:0.001)
             XCTAssertEqual(max(combo.size.width,combo.size.height)/scale,28,accuracy:0.001)
             XCTAssertEqual(number.fontSize/scale,18,accuracy:0.001)
             XCTAssertEqual(bar.height/scale,10,accuracy:0.001)
             let distance=close.position.y-meter.position.y-bar.midY
-            XCTAssertEqual(distance/scale,38,accuracy:0.001)
+            XCTAssertEqual(distance/scale,tablet ? 38+8/scale:43.37,accuracy:0.001)
             let bandHeight=size.height-meter.position.y+24*scale
             // Capture the full Scene first. SKView's Scene+crop overload
             // reprojects its viewport into the crop and distorts the image.
@@ -340,6 +351,64 @@ final class NativeTabletLayoutTests:XCTestCase {
             evidence.append(["device":name,"scale":scale,"close":max(close.icon.size.width,close.icon.size.height),"backpack":max(help.size.width,help.size.height),"score":max(score.size.width,score.size.height),"combo":max(combo.size.width,combo.size.height),"font":number.fontSize,"barHeight":bar.height,"rowToBarCentre":distance])
         }
         try JSONSerialization.data(withJSONObject:evidence,options:[.prettyPrinted,.sortedKeys]).write(to:folder.appendingPathComponent("geometry.json"))
+    }
+    func testTabletGameplayExportsSharedPreloadAndHUD() async throws {
+        let folder=URL(fileURLWithPath:"/tmp/native-ipad-refresh-20261108/renders")
+        try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
+        for size in sizes {for mode in [NativeRunMode.journey,.arcade] {
+            var state=NativeBoardFactory.make(mode:mode,board:1,columns:7,rows:8)
+            state.score=1234567;state.combo=123
+            let scene=NativeBoardScene(engine:NativeGameplayEngine(state:state),resourceRoot:NativeTestResources.root,size:size)
+            let renderer=SKView(frame:CGRect(origin:.zero,size:size)),controller=UIViewController()
+            controller.view=renderer
+            let window=UIWindow(frame:renderer.bounds);window.rootViewController=controller;window.makeKeyAndVisible()
+            renderer.presentScene(scene);scene.layout(size:size,insets:.init(top:24,left:0,bottom:20,right:0))
+            let track=try XCTUnwrap(scene.childNode(withName:"//native-game-wild-meter-track") as? SKShapeNode)
+            let hud=try XCTUnwrap(track.parent),rect=try XCTUnwrap(track.path).boundingBox
+            let bar=NativePreloadBarPresentation(isPad:true,dividerResourceRoot:NativeTestResources.root,reducedMotion:{false})
+            hud.addChild(bar.container);bar.container.position=CGPoint(x:track.position.x,y:track.position.y+rect.height)
+            bar.resize(maximum:rect.width,barHeight:rect.height);bar.setNativeFill(left:0,width:rect.width*0.55,maximum:rect.width)
+            track.isHidden=true;scene.childNode(withName:"//native-game-wild-meter-fill")?.isHidden=true
+            defer{bar.dispose();scene.dispose();renderer.presentScene(nil);window.isHidden=true;window.rootViewController=nil}
+            try await Task.sleep(for:.milliseconds(200))
+            let divider=try XCTUnwrap(bar.container.childNode(withName:"//native-preload-divider") as? SKSpriteNode)
+            XCTAssertFalse(divider.isHidden);XCTAssertNotNil(divider.texture)
+            XCTAssertGreaterThanOrEqual(divider.size.width,size.width,"Divider paper must cover the entire tablet, even when the grid is narrower")
+            for name in ["native-game-close","native-game-score-art","native-game-combo-art","native-game-help"] {
+                let node=try XCTUnwrap(scene.childNode(withName:"//"+name)),parent=try XCTUnwrap(node.parent)
+                let f=node.frame,a=scene.convert(CGPoint(x:f.minX,y:f.minY),from:parent),b=scene.convert(CGPoint(x:f.maxX,y:f.maxY),from:parent)
+                XCTAssertGreaterThanOrEqual(a.x,0);XCTAssertLessThanOrEqual(b.x,size.width)
+                XCTAssertLessThanOrEqual(b.y,size.height-24)
+            }
+            let texture=try XCTUnwrap(renderer.texture(from:scene))
+            let format=UIGraphicsImageRendererFormat();format.scale=1
+            let image=UIGraphicsImageRenderer(size:size,format:format).image { context in
+                NativeAppPaperSurface.base.setFill();context.fill(CGRect(origin:.zero,size:size))
+                UIImage(cgImage:texture.cgImage()).draw(in:CGRect(origin:.zero,size:size))
+            }
+            try XCTUnwrap(image.pngData()).write(to:folder.appendingPathComponent("gameplay-\(mode)-\(Int(size.width)).png"))
+        }}
+    }
+    func testTabletHUDContactsFollowTiltedArtworkAndLongValues() throws {
+        for size in sizes {
+            var state=NativeBoardFactory.make(mode:.journey,board:1,columns:7,rows:8)
+            state.score=999999999;state.combo=999
+            let scene=NativeBoardScene(engine:NativeGameplayEngine(state:state),resourceRoot:NativeTestResources.root,size:size)
+            defer{scene.dispose()}
+            scene.layout(size:size,insets:.init(top:24,left:0,bottom:20,right:0))
+            var hits:[String]=[]
+            scene.onExitRequest={hits.append("close")};scene.onScoreRequest={hits.append("score")}
+            scene.onComboRequest={hits.append("combo")};scene.onHelpRequest={hits.append("bag")}
+            for (name,expected) in [("native-game-close","close"),("native-game-score-art","score"),("native-game-combo-art","combo"),("native-game-help","bag")] {
+                let node=try XCTUnwrap(scene.childNode(withName:"//"+name))
+                XCTAssertTrue(scene.handleHUDContact(at:node.convert(.zero,to:scene)))
+                XCTAssertEqual(hits.last,expected)
+            }
+            let scoreIcon=try XCTUnwrap(scene.childNode(withName:"//native-game-score-art"))
+            let value=try XCTUnwrap(scoreIcon.parent?.children.compactMap{$0 as? NativeArchedHUDScore}.first{$0.text==NativeScoreDisplay.text(state.score)})
+            XCTAssertTrue(scene.handleHUDContact(at:value.convert(CGPoint(x:value.frame.width-4,y:0),to:scene)))
+            XCTAssertEqual(hits.last,"score","The last digit must not trigger Combo")
+        }
     }
     func testActualPaintedLockedAndGhostCutoutsFollowMotionVisibilityAndRetirement() throws {
         let size=CGSize(width:820,height:1180)

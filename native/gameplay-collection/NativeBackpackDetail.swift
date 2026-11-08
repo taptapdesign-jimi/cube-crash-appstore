@@ -9,7 +9,7 @@ final class NativeBackpackDetail:UIViewController {
     private let flip=JimiNativeModalTransformView(),tilt=UIView(),idle=UIView()
     let speechButton=NativeSceneSpeechTapView()
     let card=UIView(),hero=UIImageView(),close=JimiV9PlainButton(type:.custom)
-    private let paper=UIImageView(),heading=UILabel(),copy=UILabel(),backdrop=UIButton(type:.custom)
+    private let paper=NativeModalPaperView(),heading=UILabel(),copy=UILabel(),backdrop=UIButton(type:.custom)
     let worldIllustration=UIImageView()
     private(set) var worldIllustrationPath:String?
     private var artworkAspect:CGFloat=1,artworkVisibleBounds=CGRect(x:0,y:0,width:1,height:1)
@@ -46,7 +46,7 @@ final class NativeBackpackDetail:UIViewController {
         }
         backdrop.accessibilityIdentifier="native.backpack.detail.backdrop"
         backdrop.alpha=0;backdrop.backgroundColor=usesParentBackdrop ? .clear:JimiNativeModalV10.backdropColor;backdrop.addTarget(self,action:#selector(closeTapped),for:.touchUpInside);view.addSubview(backdrop);view.addSubview(card)
-        paper.image=assets.image("assets/modals/paper.png");paper.layer.cornerRadius=40;paper.clipsToBounds=true;paper.accessibilityIdentifier="native.backpack.detail.paper";idle.addSubview(paper)
+        paper.prepare(assets:assets);paper.accessibilityIdentifier="native.backpack.detail.paper";idle.addSubview(paper)
         idle.layer.shadowColor=UIColor(red:185/255,green:145/255,blue:119/255,alpha:1).cgColor;idle.layer.shadowOpacity=0.8;idle.layer.shadowOffset=CGSize(width:0,height:13);idle.layer.shadowRadius=16.8
         heading.textAlignment = .center;heading.font=assets.font(size:30,weight:"ExtraBold");heading.textColor=NativeTextPalette.modalTitle
         let displayTitle=die.id=="tnt" ? "TNT":die.title.capitalized
@@ -58,7 +58,7 @@ final class NativeBackpackDetail:UIViewController {
         speechButton.accessibilityLabel="Hear Jimbo";speechButton.accessibilityHint="Tap for another line"
         speechButton.accessibilityIdentifier="native.backpack.detail.speech"
         speechButton.onTap={[weak self] in self?.speechTapped()}
-        close.setBackgroundImage(paper.image,for:.normal);close.clipsToBounds=true;close.layer.cornerRadius=16;close.setImage(assets.image("assets/close-icon.png",densityAware:true),for:.normal);close.imageView?.contentMode = .scaleAspectFit;close.artworkOpacity = 0.8;close.enableArtworkTapFeedback(wholeControl:true);close.imageEdgeInsets=UIEdgeInsets(top:14,left:14,bottom:14,right:14);close.addTarget(self,action:#selector(closeTapped),for:.touchUpInside);close.accessibilityLabel="Close dice details";close.accessibilityIdentifier="native.backpack.detail.close"
+        close.setBackgroundImage(paper.closeMaterial,for:.normal);close.clipsToBounds=true;close.layer.cornerRadius=16;close.setImage(assets.image("assets/close-icon.png",densityAware:true),for:.normal);close.imageView?.contentMode = .scaleAspectFit;close.artworkOpacity = 0.8;close.enableArtworkTapFeedback(wholeControl:true);close.imageEdgeInsets=UIEdgeInsets(top:14,left:14,bottom:14,right:14);close.addTarget(self,action:#selector(closeTapped),for:.touchUpInside);close.accessibilityLabel="Close dice details";close.accessibilityIdentifier="native.backpack.detail.close"
         modalDrag=JimiNativeModalDrag(target:card,idle:idle,viewport:view,mediaSafeIdleAnimationKeys:["backpack.detail.idle",JimiNativeModalV10.settledBounceKey],canDrag:{[weak self] in guard let self else{return false};return self.foreground && self.entered && self.card.isUserInteractionEnabled && !self.closing && !self.disposed},onDismiss:{[weak self] in self?.closeTapped()})
         card.accessibilityIdentifier="native.backpack.detail";card.alpha=0;card.isUserInteractionEnabled=false;view.accessibilityViewIsModal=true
         let exitTap=UILongPressGestureRecognizer(target:self,action:#selector(exitSelectionPressed(_:)))
@@ -128,8 +128,10 @@ final class NativeBackpackDetail:UIViewController {
         // Install selected animation before the first visible modal frame.
         animateHero();onPresentationStarted?();card.alpha=1
         if UIAccessibility.isReduceMotionEnabled {completeEnter();backdrop.alpha=1;if usesForestWorldIllustration {worldIllustration.alpha=1};return}
+        let paperEpoch=CACurrentMediaTime()
+        JimiNativeModalV10.enterClose(close,beginTime:paperEpoch)
         CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in self?.completeEnter()}
-        JimiNativeModalV10.enter(card:card,flip:flip,key:"backpack.detail.enter")
+        JimiNativeModalV10.enter(card:card,flip:flip,key:"backpack.detail.enter",beginTime:paperEpoch)
         CATransaction.commit();UIView.animate(withDuration:0.5){self.backdrop.alpha=1;if self.usesForestWorldIllustration {self.worldIllustration.alpha=1}}
     }
     private func completeEnter(){guard !disposed,!closing else{return};card.isUserInteractionEnabled=true;JimiNativeModalV10.startIdle(on:idle,key:"backpack.detail.idle")}
@@ -194,7 +196,7 @@ final class NativeBackpackDetail:UIViewController {
         }
     }
     @objc private func speechTapped(){guard entered,presentationStarted,foreground,card.isUserInteractionEnabled,!closing,!disposed else{return};onSpeechRequested?()}
-    func dispose(){guard !disposed else{return};speechButton.retire();modalDrag?.dispose();modalDrag=nil;disposed=true;exitSelectionPress.map{view.removeGestureRecognizer($0)};exitSelectionPress=nil;onExitSelection=nil;motion.cancel();[card,flip,tilt,idle,hero,worldIllustration].forEach{$0.layer.removeAllAnimations()};hero.image=nil;worldIllustration.image=nil;worldIllustration.removeFromSuperview();preview?.dispose();preview?.removeFromSuperview();preview=nil;assets.retireImagePreparation();onClose=nil;onCloseRequested=nil;onPresentationStarted=nil;onSpeechRequested=nil}
+    func dispose(){guard !disposed else{return};speechButton.retire();modalDrag?.dispose();modalDrag=nil;disposed=true;exitSelectionPress.map{view.removeGestureRecognizer($0)};exitSelectionPress=nil;onExitSelection=nil;motion.cancel();[card,flip,tilt,idle,hero,worldIllustration,close].forEach{$0.layer.removeAllAnimations()};hero.image=nil;worldIllustration.image=nil;worldIllustration.removeFromSuperview();preview?.dispose();preview?.removeFromSuperview();preview=nil;assets.retireImagePreparation();onClose=nil;onCloseRequested=nil;onPresentationStarted=nil;onSpeechRequested=nil}
 }
 private enum NativeBackpackCellPalette {static let ink=UIColor(red:173/255,green:134/255,blue:117/255,alpha:1)}
 

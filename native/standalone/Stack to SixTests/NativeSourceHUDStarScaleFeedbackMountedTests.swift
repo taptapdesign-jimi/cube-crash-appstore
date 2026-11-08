@@ -22,12 +22,8 @@ import StackToSixGameplay
         let view=SKView(frame:.init(x:0,y:0,width:390,height:844));view.ignoresSiblingOrder=false;view.presentScene(scene);view.isPaused=true
         defer{scene.dispose();context.dispose();service.dispose();view.presentScene(nil)}
         let icon=try XCTUnwrap(scene.childNode(withName:"//native-game-score-art") as? SKSpriteNode)
-        let label=try XCTUnwrap(icon.parent?.children.compactMap{$0 as? SKLabelNode}.first{
-            abs($0.position.x-(icon.position.x+icon.size.width/2+6))<0.000001 && abs($0.position.y-icon.position.y)<0.000001
-        })
-        var red:CGFloat=0,green:CGFloat=0,blue:CGFloat=0,alpha:CGFloat=0
-        XCTAssertTrue(try XCTUnwrap(label.fontColor).getRed(&red,green:&green,blue:&blue,alpha:&alpha))
-        XCTAssertEqual(red,181.0/255,accuracy:0.000001);XCTAssertEqual(green,133.0/255,accuracy:0.000001);XCTAssertEqual(blue,115.0/255,accuracy:0.000001)
+        let label=try XCTUnwrap(scene.childNode(withName:"//native-game-score-value") as? NativeArchedHUDScore)
+        XCTAssertEqual(label.fontColor,NativeTextPalette.modalTitle)
         let base=icon.xScale,originalPosition=label.position,font=label.fontName,color=label.fontColor
         var observed:[Int]=[],onFrameScale:[CGFloat]=[]
         scene.sourceHUDStarJobsPresentationEnabled=true
