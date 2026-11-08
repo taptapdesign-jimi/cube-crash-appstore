@@ -85,6 +85,55 @@ final class NativeArcadeModalMotionTests: XCTestCase {
         }
         XCTAssertNil(retired)
     }
+    func testClosePaperTabBouncesWithXOnPhoneAndTablet() throws {
+        guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Full motion fixture")}
+        let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+        for width:CGFloat in [390,820] {
+            let window=UIWindow(frame:CGRect(x:0,y:0,width:width,height:1180)),host=UIViewController()
+            window.rootViewController=host;window.makeKeyAndVisible();host.loadViewIfNeeded()
+            defer{window.isHidden=true}
+            let parent=UIView(frame:window.bounds),paper=NativeModalPaperView(),close=UIButton()
+            host.view.addSubview(parent);parent.addSubview(paper);parent.addSubview(close)
+            paper.prepare(assets:assets);paper.fit(in:CGRect(x:0,y:0,width:width-70,height:440))
+            JimiNativeModalV10.layoutClose(close,frame:CGRect(x:width-112,y:-10,width:52,height:52),modalTilt:2)
+            let epoch=CACurrentMediaTime()+0.1
+            JimiNativeModalV10.enterClose(close,beginTime:epoch)
+            let icon=try XCTUnwrap(close.layer.animation(forKey:JimiNativeModalV10.closeEnterKey) as? CAAnimationGroup)
+            let tab=try XCTUnwrap(paper.layer.mask?.sublayers?.first)
+            let group=try XCTUnwrap(tab.animation(forKey:JimiNativeModalV10.closeEnterKey) as? CAAnimationGroup)
+            let transform=try XCTUnwrap(icon.animations?.first as? CAKeyframeAnimation)
+            let shape=try XCTUnwrap(group.animations?.first as? CAKeyframeAnimation)
+            XCTAssertEqual(group.beginTime,tab.convertTime(icon.beginTime,from:close.layer),accuracy:0.0001)
+            XCTAssertEqual(group.duration,icon.duration);XCTAssertEqual(group.fillMode,icon.fillMode)
+            XCTAssertEqual(shape.keyTimes,transform.keyTimes)
+            XCTAssertEqual((group.animations?.last as? CABasicAnimation)?.duration,(icon.animations?.last as? CABasicAnimation)?.duration)
+            let paths=try XCTUnwrap(shape.values as? [CGPath]),poses=try XCTUnwrap(transform.values as? [NSValue])
+            XCTAssertEqual(paths.count,poses.count)
+            for (path,value) in zip(paths,poses) {
+                var pose=CATransform3DGetAffineTransform(value.caTransform3DValue)
+                pose.tx += close.center.x-pose.a*close.bounds.midX-pose.c*close.bounds.midY-paper.frame.minX
+                pose.ty += close.center.y-pose.b*close.bounds.midX-pose.d*close.bounds.midY-paper.frame.minY
+                let expected=try XCTUnwrap(UIBezierPath(roundedRect:close.bounds,cornerRadius:16).cgPath.copy(using:&pose))
+                XCTAssertEqual(path,expected)
+            }
+            let restBounds=try XCTUnwrap((tab as? CAShapeLayer)?.path).boundingBoxOfPath
+            XCTAssertEqual(paths.last!.boundingBoxOfPath.minX,restBounds.minX,accuracy:0.0001)
+            XCTAssertEqual(paths.last!.boundingBoxOfPath.maxY,restBounds.maxY,accuracy:0.0001)
+            parent.layer.speed=0
+            XCTAssertEqual(tab.convertTime(epoch,from:nil),tab.convertTime(epoch+1,from:nil),accuracy:0.0001)
+            parent.layer.speed=1
+            close.layer.removeAllAnimations();tab.removeAllAnimations()
+            close.setImage(assets.image("assets/close-icon.png",densityAware:true),for:.normal)
+            close.imageEdgeInsets=UIEdgeInsets(top:14,left:14,bottom:14,right:14)
+            for (label,index) in [("start",0),("squash",try XCTUnwrap(shape.keyTimes?.firstIndex(of:0.42))),("rest",paths.count-1)] {
+                close.transform=CATransform3DGetAffineTransform(poses[index].caTransform3DValue)
+                (tab as? CAShapeLayer)?.path=paths[index]
+                let data=UIGraphicsImageRenderer(bounds:CGRect(x:0,y:-80,width:width,height:560)).pngData{parent.layer.render(in:$0.cgContext)}
+                try data.write(to:URL(fileURLWithPath:"/tmp/native-close-unit-20261108/close-\(Int(width))-\(label).png"))
+            }
+            parent.removeFromSuperview()
+        }
+    }
     func testBenchmarkPaperReusesOriginalImageAndCropsExactUpperRightForClose() throws {
         let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
         let original=try XCTUnwrap(assets.image("assets/modals/paper.png"))

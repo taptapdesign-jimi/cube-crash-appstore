@@ -7,7 +7,12 @@ final class NativeNoMovesAdditionalSourceTests:XCTestCase {
   let cases=try XCTUnwrap(root["cases"] as? [[String:Any]])
   XCTAssertEqual(cases.count,285)
   for row in cases {
-   let input=try XCTUnwrap(row["tiles"] as? [[String:Any]]),expected=try XCTUnwrap(row["expected"] as? [String:String])
+   let label=try XCTUnwrap(row["label"] as? String)
+   // Ball's declared Native refill override uses the independently captured
+   // Mushroom Source case; every other immutable oracle expectation stays exact.
+   let oracleLabel=label.replacingOccurrences(of:"variant-beach-ball-",with:"variant-mushroom-")
+   let oracle=try XCTUnwrap(cases.first{($0["label"] as? String)==oracleLabel})
+   let input=try XCTUnwrap(row["tiles"] as? [[String:Any]]),expected=try XCTUnwrap(oracle["expected"] as? [String:String])
    var runtime:[String:NativeNoMovesTileRuntime]=[:]
    let tiles=input.map {d->NativeTile in
     var t=NativeTile(id:d["id"] as! String,cell:.init(column:d["gridX"] as! Int,row:d["gridY"] as! Int),value:d["value"] as! Int,stackDepth:d["stackDepth"] as! Int,archetype:(d["special"] as? String).flatMap(NativeWildArchetype.init(rawValue:)),variant:d["_ccSpecialDiceVariant"] as? String,locked:d["locked"] as! Bool,visible:d["visible"] as! Bool,alpha:d["alpha"] as! Double)

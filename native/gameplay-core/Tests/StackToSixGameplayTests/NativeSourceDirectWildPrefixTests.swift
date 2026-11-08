@@ -221,7 +221,8 @@ nonisolated final class NativeSourceDirectWildPrefixTests:XCTestCase {
   for row in rows {
    let choice=try XCTUnwrap(row["choice"] as? [String:Any]),special=try XCTUnwrap(choice["special"] as? String),archetype=try XCTUnwrap(NativeWildArchetype(rawValue:special)),final=try XCTUnwrap(row["final"] as? Bool)
    let e=engine(.init(archetype,variant:choice["variant"] as? String),destinationWild:true,final:final)
-   if !final && (archetype == .magnet || archetype == .tnt) {
+   let gameplayArchetype=(choice["variant"] as? String).flatMap{NativeSpecialDiceRegistry.variants[$0]?.archetype} ?? archetype
+   if !final && (gameplayArchetype == .magnet || gameplayArchetype == .tnt) {
     XCTAssertTrue(e.beginDrag(tileID:"src"));XCTAssertTrue(e.drop(target:.init(column:1,row:0)).accepted)
     let special=try XCTUnwrap(e.pendingSpecial),before=e.state
     XCTAssertFalse(e.prepareSourceDirectWildPrefix(receiptID:special.id,generation:special.generation).accepted)

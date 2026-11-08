@@ -1355,7 +1355,7 @@ public final class NativeGameplayEngine {
         // Barrel whole-board experiment: retain the existing ordinary-target
         // eligibility and transaction, but capture every eligible die once.
         if NativeSpecialDiceRegistry.usesBarrelFlow(variant) { return candidates }
-        if variant == "beach-ball" || variant == "laser-gun" { return NativeTntRules.separatedTargets(candidates,count:4,random:{ self.nextRandom() }) }
+        if variant == "laser-gun" { return NativeTntRules.separatedTargets(candidates,count:4,random:{ self.nextRandom() }) }
         var captured=state
         let capturedFlags=flags,capturedLocks=locks
         guard let selected=NativeSourceTntTargetSort.select(candidateIDs:candidates.map(\.id),random:{
@@ -2142,15 +2142,17 @@ public final class NativeGameplayEngine {
             return finalMerge ? prepareHUDStars(count:1,origin:destination.cell,variant:nil,finalMerge:true):[]
         }
 
+        let juiceRewardProvenance=wild.archetype == .juice || (!finalMerge && wild.variant == "beach-ball")
         if comboHUDCoinRewardsEnabled {
-            // Keep the existing Juice selection draw so the board RNG stream is unchanged.
-            if wild.archetype == .juice {_ = nextRandom()}
+            // Ball's nonfinal refill now shares Mushroom's exact draw order,
+            // including old saved TNT/Magnet provenance.
+            if juiceRewardProvenance {_ = nextRandom()}
             return prepareHUDStars(count:NativeComboCoinPolicy.count(combo:state.combo),origin:destination.cell,variant:wild.variant,archetype:wild.gameplayArchetype,finalMerge:finalMerge)
         }
         let count: Int
         // Final TNT gameplay, including legacy variant provenance, earns three
         // HUD coins without entering the nonfinal target/respawn graph.
-        if finalMerge && NativeSpecialDiceRegistry.finale(source:source,destination:destination,gameplay:true) == .tnt {
+        if finalMerge && (wild.variant == "beach-ball" || NativeSpecialDiceRegistry.finale(source:source,destination:destination,gameplay:true) == .tnt) {
             if wild.archetype == .juice {_ = nextRandom()} // retain legacy reward-selection draw
             count=3
         }
@@ -2161,7 +2163,7 @@ public final class NativeGameplayEngine {
                 if count==0 {return []} // Original missing texture poses skips HUD call.
             } else {count = wild.effectiveStarDropCount}
         }
-        else if wild.archetype == .juice { count = 1+Int(nextRandom()*3) }
+        else if juiceRewardProvenance { count = 1+Int(nextRandom()*3) }
         else if finalMerge {count=1}
         else { return [] }
         return prepareHUDStars(count:count,origin:destination.cell,variant:wild.variant,archetype:wild.gameplayArchetype,finalMerge:finalMerge)
@@ -2334,8 +2336,8 @@ public final class NativeGameplayEngine {
         state.mode == .arcade && archetype != .star
     }
     private func spawnDirectWildMerge6(at cell: NativeCell, archetype: NativeWildArchetype, depth: Int, avoiding: Int, starOrbitCount: Int, variant:String?=nil, events: inout [NativeGameplayEvent]) {
-        // One captured draw per genuine non-final Mushroom or BLOOB merge.
-        let mushroomBonusCount = (variant == "mushroom" || variant == "bloob") ? 4+min(2,max(0,Int(nextRandom()*3))) : nil
+        // One captured draw per genuine non-final Mushroom, Ball or BLOOB merge.
+        let mushroomBonusCount = (variant == "mushroom" || variant == "beach-ball" || variant == "bloob") ? 4+min(2,max(0,Int(nextRandom()*3))) : nil
         let effectiveOrbitCount:Int
         if archetype == .star,committingDirectWild,let plan=pendingDirectWild,
             let capture=plan.sourceStarOrbitCapture,capture.generation==state.generation {

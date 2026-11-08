@@ -216,6 +216,68 @@ final class JimiNativeWorldTests: XCTestCase {
         }
         XCTAssertNil(released);owner.begin(offset:0);owner.finish();owner.clear()
     }
+    func testWorldExitUsesLocalCardClockAfterAccumulatedCoveredLandingPauses() async throws {
+        let world=try XCTUnwrap(JimiNativeWorldView(snapshot:fixture(),assets:art))
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;host.view.addSubview(world);world.frame=window.bounds;window.makeKeyAndVisible()
+        defer{world.cleanup();window.isHidden=true;window.rootViewController=nil}
+        await withCheckedContinuation{c in world.prepare{c.resume()}}
+        await withCheckedContinuation{c in world.enter{c.resume()}};world.finishPresentationAdmission()
+        let card=try XCTUnwrap(descendant(world,"native.world.part.1.card"))
+        // This is the exact surviving local-clock state produced by repeated
+        // CardReturn pause/resume while another modal covers the landing.
+        card.layer.beginTime += 9
+        let began=CACurrentMediaTime(),done=expectation(description:"Actual finite World exit")
+        let oldGlobalEpochDelay=card.layer.convertTime(began,to:nil)-began
+        XCTAssertGreaterThan(oldGlobalEpochDelay,8.9)
+        print("NATIVE_ROUTE_CLOCK legacyPredictedDelay=\(oldGlobalEpochDelay)")
+        world.exit{done.fulfill()}
+        let exit=try XCTUnwrap(card.layer.animation(forKey:"card.tap.exit"))
+        let wallStart=card.layer.convertTime(exit.beginTime,to:nil)
+        XCTAssertLessThan(wallStart-began,0.25,"Covered time cannot become an invisible navigation delay")
+        await fulfillment(of:[done],timeout:1.8)
+        XCTAssertLessThan(CACurrentMediaTime()-began,1.8)
+    }
+    func testCachedWorldPreparationBypassesBlockedDecodeQueueAndAcquiresLease() throws {
+        let queue=DispatchQueue(label:"world.cached-regression"),gate=DispatchSemaphore(value:0)
+        queue.async{gate.wait()};defer{gate.signal()}
+        let resources=JimiNativeWorldResources(root:root,preparationQueue:queue);defer{resources.cleanup()}
+        let image=try XCTUnwrap(resources.image("assets/close-icon.png",owner:1)),bytes=resources.decodedBytes
+        var accepted:Bool?
+        resources.prepare(["./assets/close-icon.png"],owner:2){accepted=$0}
+        XCTAssertEqual(accepted,true,"Warm navigation must not queue behind unrelated optional media")
+        resources.release(1);XCTAssertEqual(resources.decodedBytes,bytes)
+        XCTAssertTrue(resources.image("assets/close-icon.png",owner:2) === image)
+        resources.release(2);XCTAssertEqual(resources.decodedBytes,0)
+    }
+    func testRetiredWorldPreparationSkipsQueuedDecodeBeforeDoingAnyImageWork() async {
+        for cleanup in [false,true] {
+            let queue=DispatchQueue(label:"world.retired-regression"),gate=DispatchSemaphore(value:0),probe=WorldDecodeProbe()
+            queue.async{gate.wait()}
+            let resources=JimiNativeWorldResources(root:root,preparationQueue:queue,decode:{_,_ in probe.hit();return nil})
+            let finished=expectation(description:"Canceled worker settles once")
+            resources.prepare(["assets/paper-bg.png","assets/close-icon.png"],owner:7){accepted in XCTAssertFalse(accepted);finished.fulfill()}
+            if cleanup {resources.cleanup()}else{resources.release(7)}
+            gate.signal()
+            await fulfillment(of:[finished],timeout:2)
+            XCTAssertEqual(probe.count,0,"A stale publication guard alone still wastes decode work")
+            XCTAssertEqual(resources.decodedBytes,0);resources.cleanup()
+        }
+    }
+    func testWorldPreparationRetirementDrainsOnlyTheAlreadyRunningDecode() async {
+        let queue=DispatchQueue(label:"world.inflight-regression"),gate=DispatchSemaphore(value:0),probe=WorldDecodeProbe()
+        let started=expectation(description:"First ImageIO work admitted"),finished=expectation(description:"Retired request settles")
+        let resources=JimiNativeWorldResources(root:root,preparationQueue:queue,decode:{_,_ in
+            probe.hit();started.fulfill();gate.wait();return nil
+        })
+        defer{gate.signal();resources.cleanup()}
+        resources.prepare(["a.png","b.png","c.png"],owner:7){accepted in XCTAssertFalse(accepted);finished.fulfill()}
+        await fulfillment(of:[started],timeout:2)
+        resources.release(7);gate.signal()
+        await fulfillment(of:[finished],timeout:2)
+        XCTAssertEqual(probe.count,1,"Only the already-running noninterruptible decode may drain")
+        XCTAssertEqual(resources.decodedBytes,0)
+    }
     private var root: URL { NativeTestResources.root }
     private var art: JimiV9Artwork { JimiV9Artwork(resourceRoot: root) }
     private func fixture(_ revision: Int = 1) -> [String: Any] {
@@ -234,6 +296,81 @@ final class JimiNativeWorldTests: XCTestCase {
         return root.subviews.lazy.compactMap { self.descendant($0,identifier) }.first
     }
     private func settle(_ seconds: Double = 1.3) async throws { try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000)) }
+    func testOpeningCardLandsWithOneBackgroundImpactAndRetiresOnInterruption() async throws {
+        let world=try XCTUnwrap(JimiNativeWorldView(snapshot:fixture(),assets:art))
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),controller=UIViewController()
+        window.rootViewController=controller;window.makeKeyAndVisible()
+        controller.view.addSubview(world);world.frame=controller.view.bounds;world.layoutIfNeeded()
+        defer{world.cleanup();window.isHidden=true}
+        await withCheckedContinuation{c in world.prepare{c.resume()}}
+        await withCheckedContinuation{c in world.enter{c.resume()}}
+        world.finishPresentationAdmission()
+        let key="world.card.landing-impact",position=world.scrollView.layer.position
+        world.openCard(boardID:1)
+        let scheduled=try XCTUnwrap(world.scrollView.layer.animation(forKey:key))
+        let now=world.scrollView.layer.convertTime(CACurrentMediaTime(),from:nil)
+        XCTAssertEqual(scheduled.beginTime-now,(0.520/0.98)*0.60,accuracy:0.035)
+        try await settle(0.50)
+        let impact=try XCTUnwrap(world.scrollView.layer.animation(forKey:key) as? CAKeyframeAnimation)
+        XCTAssertEqual(impact.duration,0.70,accuracy:0.000001);XCTAssertTrue(impact.isAdditive);XCTAssertEqual(impact.repeatCount,0)
+        let poses=try XCTUnwrap(impact.values as? [NSValue]).map{ $0.cgPointValue }
+        XCTAssertEqual(poses,NativeRewardMotion.screenShakeOffsets(strength:6.6*1.40).map{CGPoint(x:$0.x*0.60,y:$0.y)})
+        XCTAssertEqual(impact.keyTimes,NativeRewardMotion.screenShakeTimes.map{NSNumber(value:$0)})
+        XCTAssertEqual(world.scrollView.layer.position,position,"Impact never mutates the scroll layout")
+        let modal=try XCTUnwrap(descendant(world,"native.world.card.modal") as? JimiNativeWorldCardView)
+        XCTAssertNil(modal.layer.animation(forKey:key),"Card remains independent from background contact")
+        world.setActive(false);XCTAssertNil(world.scrollView.layer.animation(forKey:key))
+        world.setActive(true);try await settle(0.5)
+        XCTAssertNil(world.scrollView.layer.animation(forKey:key),"Foreground does not replay the impact")
+        modal.tapToFlip();try await settle(0.6)
+        XCTAssertNil(world.scrollView.layer.animation(forKey:key),"Manual flip does not repeat entry impact")
+        world.closeCard()
+        let returning=try XCTUnwrap(world.scrollView.layer.animation(forKey:key) as? CAKeyframeAnimation)
+        let returnNow=world.scrollView.layer.convertTime(CACurrentMediaTime(),from:nil)
+        XCTAssertEqual(returning.beginTime-returnNow,(0.520/0.98)*0.90*1.15,accuracy:0.035)
+        XCTAssertEqual(returning.duration,0.50,accuracy:0.000001)
+        let returnPoses=try XCTUnwrap(returning.values as? [NSValue]).map{$0.cgPointValue}
+        XCTAssertEqual(returnPoses,NativeRewardMotion.screenShakeOffsets(strength:3.96*1.40).map{CGPoint(x:-$0.x*0.60,y:$0.y)})
+        XCTAssertEqual(returning.keyTimes,[0,0.16,0.32,0.50,0.70,1].map{NSNumber(value:$0)})
+        XCTAssertEqual(world.scrollView.layer.position,position)
+        world.setActive(false)
+        XCTAssertNil(world.scrollView.layer.animation(forKey:key))
+        world.setActive(true);try await settle(0.75)
+        XCTAssertNil(world.scrollView.layer.animation(forKey:key),"Foreground does not replay return shake")
+    }
+    func testPlayReturnShakesOnlyAtLandingAndSurvivesWorldExit() async throws {
+        guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Authored motion")}
+        let world=try XCTUnwrap(JimiNativeWorldView(snapshot:fixture(),assets:art))
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),host=UIViewController()
+        window.rootViewController=host;window.makeKeyAndVisible()
+        host.view.addSubview(world);world.frame=window.bounds;world.layoutIfNeeded()
+        defer{world.cleanup();window.isHidden=true}
+        await withCheckedContinuation{c in world.prepare{c.resume()}}
+        await withCheckedContinuation{c in world.enter{c.resume()}}
+        world.finishPresentationAdmission();world.openCard(boardID:1)
+        try await awaitCardOpening(try XCTUnwrap(descendant(world,"native.world.card.modal") as? JimiNativeWorldCardView))
+        let key="world.card.landing-impact",position=world.scrollView.layer.position
+        world.prepareGameplayExit(boardID:1){}
+        XCTAssertNil(world.scrollView.layer.animation(forKey:key))
+        try await settle(0.45)
+        XCTAssertNil(world.scrollView.layer.animation(forKey:key),"Play flight does not shake before contact")
+        for _ in 0..<30 {
+            if world.scrollView.layer.animation(forKey:key) != nil {break}
+            try await settle(0.02)
+        }
+        let impact=try XCTUnwrap(world.scrollView.layer.animation(forKey:key) as? CAKeyframeAnimation)
+        let now=world.scrollView.layer.convertTime(CACurrentMediaTime(),from:nil)
+        XCTAssertEqual(impact.beginTime,now,accuracy:0.10)
+        XCTAssertEqual(impact.duration,0.50,accuracy:0.000001)
+        XCTAssertEqual(try XCTUnwrap(impact.values as? [NSValue]).map{$0.cgPointValue},
+            NativeRewardMotion.screenShakeOffsets(strength:3.96*1.40).map{CGPoint(x:-$0.x*0.60,y:$0.y)})
+        XCTAssertEqual(impact.keyTimes,[0,0.16,0.32,0.50,0.70,1].map{NSNumber(value:$0)})
+        try await settle(0.20)
+        XCTAssertNotNil(world.header.layer.animation(forKey:"world.exit"))
+        XCTAssertNotNil(world.scrollView.layer.animation(forKey:key),"Gameplay World exit preserves the contact tail")
+        XCTAssertEqual(world.scrollView.layer.position,position)
+        world.setActive(false);XCTAssertNil(world.scrollView.layer.animation(forKey:key))
+    }
     func testDifferentUnitOpensDuringReturnWithoutOldCompletionOwningNewModal() async throws {
         for size in [CGSize(width:390,height:844),CGSize(width:820,height:1180)] {
             var raw=fixture(),definitions=fixture()["units"] as! [[String:Any]]
@@ -418,7 +555,7 @@ final class JimiNativeWorldTests: XCTestCase {
             XCTAssertTrue(app?.presentedViewController === detail,"Return occurs before detail dismissal")
             returnReady?();returned=true
             XCTAssertFalse(carrier.isHidden)
-            if !UIAccessibility.isReduceMotionEnabled {XCTAssertNotNil(dragShell.layer.animation(forKey:"history.return"))}
+            if !UIAccessibility.isReduceMotionEnabled {XCTAssertNotNil(dragShell.layer.animation(forKey:"history.return"),"The retained whole card gently enters on history return")}
         }
         detail.requestClose()
         if !UIAccessibility.isReduceMotionEnabled {
@@ -1085,6 +1222,73 @@ final class JimiNativeWorldTests: XCTestCase {
         XCTAssertNil(whole.layer.animation(forKey:"card.info.float"))
         XCTAssertNil(descendant(card,"native.world.card.stat.0.wood-surface")?.layer.animation(forKey:"card.info.joy"))
         XCTAssertNil(icon.layer.animation(forKey:"card.info.joy"));XCTAssertNil(star.layer.animation(forKey:"card.info.star.intro"));XCTAssertNil(star.layer.animation(forKey:"card.info.star.pulse"))
+    }
+
+    func testInfoStarsBurnOnlySharesPhasePausesAndRetires() async throws {
+        let resources=JimiNativeWorldResources(root:root)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),host=UIViewController()
+        window.rootViewController=host;window.makeKeyAndVisible()
+        defer{resources.cleanup();window.isHidden=true;window.rootViewController=nil}
+        var data=fixture(),units=fixture()["units"] as! [[String:Any]]
+        units[0]["stars"]=2;data["units"]=units
+        let unit=try XCTUnwrap(JimiNativeWorldSnapshot(data)?.units.first)
+        var card:JimiNativeWorldCardView?=JimiNativeWorldCardView(unit:unit,assets:art,resources:resources)
+        weak var retired=card
+        card!.frame=host.view.bounds;host.view.addSubview(card!)
+        card!.enter(from:CGRect(x:30,y:400,width:90,height:133))
+        let first=try XCTUnwrap(descendant(card!,"native.world.card.star.0"))
+        let second=try XCTUnwrap(descendant(card!,"native.world.card.star.1"))
+        let empty=try XCTUnwrap(descendant(card!,"native.world.card.star.2"))
+        for _ in 0..<150 where (first.layer.sublayers?.contains{$0.name=="native.world.card.star.burn"} != true) {try await settle(0.01)}
+        let burn=try XCTUnwrap(first.layer.sublayers?.first{$0.name=="native.world.card.star.burn"})
+        let track=try XCTUnwrap(burn.animation(forKey:"card.info.star.burn") as? CAAnimationGroup)
+        XCTAssertEqual(track.duration,3);XCTAssertEqual(track.animations?.count,2)
+        XCTAssertEqual((track.animations?.first as? CAKeyframeAnimation)?.values?.count,32)
+        XCTAssertNotNil(second.layer.sublayers?.first{$0.name=="native.world.card.star.burn"})
+        XCTAssertTrue(empty.layer.sublayers?.isEmpty ?? true)
+        XCTAssertFalse(first.layer.sublayers?.contains{$0 is CAGradientLayer || ($0.name ?? "").contains("shimmer")} ?? false)
+        for _ in 0..<100 where !card!.acceptsCardPan {try await settle(0.01)}
+        XCTAssertTrue(card!.acceptsCardPan)
+        let visibleRect=first.convert(first.bounds,to:host.view)
+        XCTAssertGreaterThan(visibleRect.width,30);XCTAssertGreaterThan(visibleRect.minX,0);XCTAssertLessThan(visibleRect.maxX,390)
+        // Seek the existing slot clock into a real visible burn frame.
+        let clock=try XCTUnwrap(first.superview?.layer)
+        clock.speed=0;clock.timeOffset=track.beginTime+0.3
+        try await settle(0.05)
+        XCTAssertGreaterThan(try XCTUnwrap(burn.presentation()).opacity,0.9)
+        XCTAssertNotNil(burn.presentation()?.contents)
+        let format=UIGraphicsImageRendererFormat();format.scale=3
+        let image=UIGraphicsImageRenderer(bounds:window.bounds,format:format).image{_ in window.drawHierarchy(in:window.bounds,afterScreenUpdates:true)}
+        try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/native-journey-star-burn-20261108/preview.png"))
+        card!.playInfoMotion(reducedMotion:false)
+        XCTAssertEqual(clock.speed,1)
+        card!.setActive(false)
+        let frozen=burn.convertTime(CACurrentMediaTime(),from:nil);try await settle(0.06)
+        XCTAssertEqual(burn.convertTime(CACurrentMediaTime(),from:nil),frozen,accuracy:0.001)
+        card!.setActive(true)
+        XCTAssertEqual(burn.animation(forKey:"card.info.star.burn")?.beginTime,track.beginTime)
+        card!.tapToFlip();try await settle(0.6)
+        XCTAssertEqual(clock.speed,0)
+        let frontTime=burn.convertTime(CACurrentMediaTime(),from:nil);try await settle(0.06)
+        XCTAssertEqual(burn.convertTime(CACurrentMediaTime(),from:nil),frontTime,accuracy:0.001)
+        card!.tapToFlip();try await settle(0.6)
+        XCTAssertEqual(clock.speed,1)
+        XCTAssertEqual(burn.animation(forKey:"card.info.star.burn")?.beginTime,track.beginTime)
+        XCTAssertTrue(card!.hideForStatHistory());try await settle(0.9)
+        let historyTime=burn.convertTime(CACurrentMediaTime(),from:nil);try await settle(0.06)
+        XCTAssertEqual(burn.convertTime(CACurrentMediaTime(),from:nil),historyTime,accuracy:0.001)
+        card!.restoreFromStatHistory();try await settle(0.7)
+        XCTAssertEqual(burn.animation(forKey:"card.info.star.burn")?.beginTime,track.beginTime)
+        card!.playInfoMotion(reducedMotion:true)
+        XCTAssertNil(burn.superlayer);XCTAssertNil(burn.animation(forKey:"card.info.star.burn"));XCTAssertNil(burn.contents)
+        card!.cleanup();card!.cleanup();card!.removeFromSuperview();card=nil
+        try await settle(0.05);XCTAssertNil(retired)
+        // A fast disposal retires worker preparation before it can publish layers.
+        let late=JimiNativeWorldCardView(unit:unit,assets:art,resources:resources)
+        late.frame=host.view.bounds;host.view.addSubview(late);late.enter(from:CGRect(x:30,y:400,width:90,height:133))
+        let lateStar=try XCTUnwrap(descendant(late,"native.world.card.star.0"))
+        late.cleanup();try await settle(0.15)
+        XCTAssertTrue(lateStar.layer.sublayers?.isEmpty ?? true);late.removeFromSuperview()
     }
 
     func testCompletedCardStarSequenceUsesOnlyEarnedSlotsAndRetiresBeforeLanding() async throws {
@@ -1939,7 +2143,12 @@ final class JimiNativeWorldTests: XCTestCase {
             let horizontal=CGPoint(x:face==0 ? -100:100,y:4)
             send(.began,.zero);send(.changed,horizontal);send(.ended,horizontal)
             XCTAssertEqual(feedback.filter{$0=="card-manual-flip"}.count,count+1)
+            // Retire an unfinished first reveal behind the artwork face; do not
+            // snap a still-visible info child while the outgoing face turns.
             try await settle(0.6)
+            XCTAssertNil(descendant(card,"native.world.card.stage-title")?.layer.animation(forKey:"card.stage-title.presentation"))
+            XCTAssertNil(descendant(card,"native.world.card.play")?.layer.animation(forKey:"card.cta.presentation"))
+            for index in 0..<2 {XCTAssertNil(descendant(card,"native.world.card.title-divider.\(index)")?.layer.animation(forKey:"card.title-divider.presentation"))}
             XCTAssertEqual(card.stableFaceAngle,face==0 ? 0:-Double.pi,accuracy:0.000001)
         }
         send(.began,.zero);send(.changed,CGPoint(x:0,y:200));send(.ended,CGPoint(x:0,y:200))
@@ -2744,6 +2953,147 @@ final class JimiNativeWorldTests: XCTestCase {
         }
     }
 
+    func testManualInfoReturnKeepsSettledElementsAndExistingStarIdle() async throws {
+        guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Authored star idle")}
+        var data=fixture(),units=fixture()["units"] as! [[String:Any]]
+        units[0]["stars"]=2;data["units"]=units
+        let unit=try XCTUnwrap(JimiNativeWorldSnapshot(data)?.units.first)
+        let resources=JimiNativeWorldResources(root:root)
+        let card=JimiNativeWorldCardView(unit:unit,assets:art,resources:resources)
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible();host.view.addSubview(card);card.frame=window.bounds
+        defer{card.cleanup();resources.cleanup();window.isHidden=true;window.rootViewController=nil}
+        var cues=0;card.onFeedback={if $0=="paired-modal-cta-enter" {cues+=1}}
+        card.enter(from:CGRect(x:30,y:400,width:90,height:133));try await settle(1.8)
+        let star=try XCTUnwrap(descendant(card,"native.world.card.star.0")),slot=try XCTUnwrap(star.superview)
+        let pulse=try XCTUnwrap(star.layer.animation(forKey:"card.info.star.pulse"))
+        let originalCues=cues;XCTAssertEqual(originalCues,1)
+        card.tapToFlip();try await settle(0.6)
+        XCTAssertEqual(slot.layer.speed,0)
+        let frozen=star.layer.convertTime(CACurrentMediaTime(),from:nil)
+        try await settle(0.15)
+        XCTAssertEqual(star.layer.convertTime(CACurrentMediaTime(),from:nil),frozen,accuracy:0.001)
+        card.tapToFlip();try await settle(0.6)
+        XCTAssertEqual(slot.layer.speed,1)
+        XCTAssertEqual(star.layer.animation(forKey:"card.info.star.pulse")?.beginTime,pulse.beginTime)
+        XCTAssertNil(slot.layer.animation(forKey:"card.info.star.slot-enter"))
+        for (id,key) in [("stage-title","card.stage-title.presentation"),("play","card.cta.presentation"),("title-divider.0","card.title-divider.presentation"),("title-divider.1","card.title-divider.presentation")] {
+            let view=try XCTUnwrap(descendant(card,"native.world.card."+id))
+            XCTAssertNil(view.layer.animation(forKey:key));XCTAssertEqual(view.layer.opacity,1)
+        }
+        try await settle(0.5);XCTAssertEqual(cues,originalCues,"Manual face return cannot replay CTA entry audio")
+        XCTAssertTrue(card.hideForStatHistory())
+        try await settle(0.8)
+        let beforeHistoryReturn=star.layer.convertTime(CACurrentMediaTime(),from:nil)
+        card.restoreFromStatHistory();try await settle(0.05)
+        let camera=try XCTUnwrap(descendant(card,"native.world.card.camera"))
+        let carrier=try XCTUnwrap(camera.subviews.first),drag=try XCTUnwrap(carrier.subviews.first)
+        let entrance=try XCTUnwrap(drag.layer.animation(forKey:"history.return") as? CAKeyframeAnimation)
+        XCTAssertEqual(entrance.duration,JimiNativeModalV10.paperEnterDuration,accuracy:0.001)
+        XCTAssertGreaterThan(entrance.duration,0.5,"History return must retain its gentle whole-card entry")
+        XCTAssertFalse(card.isUserInteractionEnabled,"Input waits for the real card return")
+        card.setActive(false);try await settle(0.03)
+        let beforePause=try XCTUnwrap(drag.layer.presentation()).transform
+        let pausedClock=drag.layer.convertTime(CACurrentMediaTime(),from:nil)
+        try await settle(0.10)
+        let held=try XCTUnwrap(drag.layer.presentation()).transform
+        XCTAssertEqual(held.m11,beforePause.m11,accuracy:0.01)
+        XCTAssertEqual(drag.layer.convertTime(CACurrentMediaTime(),from:nil),pausedClock,accuracy:0.001)
+        card.setActive(true)
+        XCTAssertNil(descendant(card,"native.world.card.stage-title")?.layer.animation(forKey:"card.stage-title.presentation"))
+        XCTAssertNil(descendant(card,"native.world.card.play")?.layer.animation(forKey:"card.cta.presentation"))
+        XCTAssertNil(descendant(card,"native.world.card.info-float")?.layer.animation(forKey:"card.info.float"))
+        XCTAssertNil(descendant(card,"native.world.card.stat.0")?.layer.animation(forKey:"card.info.joy"))
+        XCTAssertEqual(star.layer.animation(forKey:"card.info.star.pulse")?.beginTime,pulse.beginTime)
+        XCTAssertGreaterThan(star.layer.convertTime(CACurrentMediaTime(),from:nil),beforeHistoryReturn)
+        card.setActive(false);try await settle(0.05);card.setActive(true);try await settle(0.05)
+        XCTAssertNil(descendant(card,"native.world.card.info-float")?.layer.animation(forKey:"card.info.float"))
+        try await settle(0.8);XCTAssertTrue(card.isUserInteractionEnabled)
+        XCTAssertNil(drag.layer.animation(forKey:"history.return"))
+        XCTAssertEqual(cues,originalCues,"High Score return and foreground cannot replay child CTA entry audio")
+        card.playInfoMotion(reducedMotion:true)
+        XCTAssertNil(star.layer.animation(forKey:"card.info.star.pulse"),"Quiet-return state must still respect Reduced Motion")
+    }
+
+    func testStageTitleAndPlayCTAUseSharedNavigationAndExitStageTracks() async throws {
+        guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Authored title/CTA tracks")}
+        for size in [CGSize(width:390,height:844),CGSize(width:820,height:1180)] {
+            let resources=JimiNativeWorldResources(root:root)
+            let unit=try XCTUnwrap(JimiNativeWorldSnapshot(fixture())).units[0]
+            let card=JimiNativeWorldCardView(unit:unit,assets:art,resources:resources)
+            let host=UIViewController(),window=UIWindow(frame:CGRect(origin:.zero,size:size))
+            window.rootViewController=host;window.makeKeyAndVisible();host.view.addSubview(card);card.frame=window.bounds
+            defer{card.cleanup();card.removeFromSuperview();resources.cleanup();window.isHidden=true;window.rootViewController=nil}
+            var cues:[String]=[],requests:[String]=[];card.onFeedback={cues.append($0)};card.onRequest={requests.append($0)}
+            let entryEpoch=card.layer.convertTime(CACurrentMediaTime(),from:nil)
+            card.enter(from:CGRect(x:40,y:250,width:90,height:120))
+            // Freeze the real mounted compositor subtree while its existing
+            // bounded face worker completes, so both entry tracks stay observable.
+            let held=card.layer.convertTime(CACurrentMediaTime(),from:nil)
+            card.layer.speed=0;card.layer.timeOffset=held
+            let title=try XCTUnwrap(descendant(card,"native.world.card.stage-title"))
+            let cta=try XCTUnwrap(descendant(card,"native.world.card.play") as? JimiV9PlainButton)
+            let titleEntry=try XCTUnwrap(title.layer.animation(forKey:"card.stage-title.presentation") as? CAAnimationGroup)
+            let flipDuration=0.520/0.98
+            let revealDelay=flipDuration*0.98-0.100
+            XCTAssertEqual(titleEntry.duration-0.43,flipDuration*0.98,accuracy:0.001,"Stage title follows the star and divider reveals")
+            for index in 0..<3 {
+                let star=try XCTUnwrap(descendant(card,"native.world.card.star.\(index)"))
+                let slot=try XCTUnwrap(star.superview)
+                let intro=try XCTUnwrap(slot.layer.animation(forKey:"card.info.star.slot-enter") as? CAAnimationGroup)
+                XCTAssertEqual(intro.beginTime-entryEpoch,flipDuration*0.58+Double(index)*0.055,accuracy:0.03)
+                let movement=try XCTUnwrap(intro.animations?.first as? CAKeyframeAnimation)
+                let offsets=try XCTUnwrap(movement.values as? [Double])
+                XCTAssertTrue(movement.isAdditive);XCTAssertEqual(offsets.first!,-28,accuracy:0.001)
+                XCTAssertGreaterThan(offsets.max() ?? 0,0,"Star falls past its resting point before settling")
+                XCTAssertEqual(offsets.last!,0,accuracy:0.001)
+            }
+            for index in 0..<2 {
+                let divider=try XCTUnwrap(descendant(card,"native.world.card.title-divider.\(index)"))
+                let intro=try XCTUnwrap(divider.layer.animation(forKey:"card.title-divider.presentation") as? CAAnimationGroup)
+                XCTAssertEqual(intro.duration-0.34,flipDuration*0.98+0.43*0.5,accuracy:0.001)
+                let movement=try XCTUnwrap(intro.animations?.first as? CAKeyframeAnimation)
+                let poses=try XCTUnwrap(movement.values as? [NSValue]).map{$0.caTransform3DValue}
+                XCTAssertEqual(poses.first!.m41,index==0 ? -28:28,accuracy:0.001)
+                XCTAssertEqual(poses.last!.m41,0,accuracy:0.001)
+                let opacity=try XCTUnwrap(intro.animations?[1] as? CAKeyframeAnimation)
+                let values=try XCTUnwrap(opacity.values as? [Double])
+                XCTAssertEqual(values.first!,0);XCTAssertEqual(values.last!,1)
+            }
+            let titleMotion=try XCTUnwrap(titleEntry.animations?.first as? CAKeyframeAnimation)
+            let titlePoses=try XCTUnwrap(titleMotion.values as? [NSValue]).map{$0.caTransform3DValue}
+            XCTAssertTrue(titlePoses.allSatisfy{abs($0.m42)<0.001},"Stage grows in place without rising")
+            XCTAssertEqual(titlePoses.first!.m11,0,accuracy:0.001)
+            XCTAssertGreaterThan(titlePoses.map{$0.m11}.max() ?? 0,1)
+            let deadline=Date().addingTimeInterval(8)
+            while cta.layer.animation(forKey:"card.cta.presentation")==nil,Date()<deadline {try await settle(0.01)}
+            let entry=try XCTUnwrap(cta.layer.animation(forKey:"card.cta.presentation") as? CAAnimationGroup)
+            XCTAssertEqual(entry.beginTime-entryEpoch,revealDelay,accuracy:0.03,"CTA and boing precede the Stage title")
+            let titleOnset=cta.layer.convertTime(titleEntry.beginTime+titleEntry.duration-0.43,from:title.layer)
+            XCTAssertEqual(entry.beginTime,titleOnset-0.100,accuracy:0.03,"CTA precedes the visible Stage title by100ms on the same compositor clock")
+            XCTAssertEqual(entry.duration,0.34,accuracy:0.0001)
+            let poses=try XCTUnwrap((entry.animations?.first as? CAKeyframeAnimation)?.values as? [NSValue]).map{$0.caTransform3DValue}
+            XCTAssertEqual(poses.first!.m11,0,accuracy:0.001);XCTAssertEqual(poses.first!.m42,18,accuracy:0.001)
+            XCTAssertEqual(cues.filter{$0=="paired-modal-cta-enter"}.count,0,"Paused compositor cannot emit delayed entry audio")
+            cta.sendActions(for:.touchUpInside);XCTAssertTrue(requests.isEmpty,"Hidden CTA before its scheduled entry cannot start gameplay")
+            card.layer.speed=1;card.layer.timeOffset=0;card.layer.beginTime=0
+            card.layer.beginTime=card.layer.convertTime(CACurrentMediaTime(),from:nil)-held
+            try await awaitCardOpening(card)
+            try await settle(0.70)
+            cta.sendActions(for:.touchUpInside);XCTAssertEqual(requests,["play"])
+            XCTAssertEqual(cues.filter{$0=="paired-modal-cta-enter"}.count,1)
+            card.close(to:CGRect(x:40,y:250,width:90,height:120)){}
+            let exit=try XCTUnwrap(cta.layer.animation(forKey:"card.cta.presentation") as? CAAnimationGroup)
+            XCTAssertEqual(exit.duration,0.31+max(0,(0.520/0.98)*0.5-0.225),accuracy:0.0001)
+            card.cleanup();try await settle(0.04)
+            XCTAssertNil(cta.layer.animation(forKey:"card.cta.presentation"))
+            XCTAssertNil(title.layer.animation(forKey:"card.stage-title.presentation"))
+            for index in 0..<2 {XCTAssertNil(descendant(card,"native.world.card.title-divider.\(index)")?.layer.animation(forKey:"card.title-divider.presentation"))}
+            for index in 0..<3 {XCTAssertNil(descendant(card,"native.world.card.star.\(index)")?.superview?.layer.animation(forKey:"card.info.star.slot-enter"))}
+            XCTAssertEqual(cues.filter{$0=="paired-modal-cta-enter"}.count,1)
+        }
+    }
+
     func testJourneyCardFlightStartsWhileCTAFaceIsSuspendedAndResumesSameEntry() async throws {
         guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Authored flight clock required")}
         for size in [CGSize(width:390,height:844),CGSize(width:820,height:1180)] {
@@ -2791,6 +3141,17 @@ final class JimiNativeWorldTests: XCTestCase {
             XCTAssertTrue(cta.isSculptedFacePrepared);XCTAssertNotNil(cta.sculptedFaceRasterForTesting())
             XCTAssertEqual(cta.alpha,1);XCTAssertTrue(cta.isEnabled,"Prepared Play becomes usable after the existing real entry completes")
             XCTAssertNil(carrier.layer.animation(forKey:"card.flight"))
+            let ctaEntry=try XCTUnwrap(cta.layer.animation(forKey:"card.cta.presentation"))
+            try await settle(0.04);card.setActive(false);try await settle(0.03)
+            let heldCTA=try XCTUnwrap(cta.layer.presentation()).transform
+            try await settle(0.08)
+            let pausedCTA=try XCTUnwrap(cta.layer.presentation()).transform
+            XCTAssertEqual(heldCTA.m11,pausedCTA.m11,accuracy:0.001);XCTAssertEqual(heldCTA.m42,pausedCTA.m42,accuracy:0.001)
+            let pausedEntry=try XCTUnwrap(cta.layer.animation(forKey:"card.cta.presentation"))
+            XCTAssertEqual(pausedEntry.beginTime,ctaEntry.beginTime);XCTAssertEqual(pausedEntry.duration,ctaEntry.duration)
+            card.setActive(true)
+            let resumedCTA=try XCTUnwrap(cta.layer.animation(forKey:"card.cta.presentation"))
+            XCTAssertEqual(resumedCTA.beginTime,ctaEntry.beginTime);XCTAssertEqual(resumedCTA.duration,ctaEntry.duration)
         }
     }
 
@@ -2860,4 +3221,10 @@ final class JimiNativeWorldTests: XCTestCase {
     }
 
 
+}
+
+private final class WorldDecodeProbe:@unchecked Sendable {
+    private let lock=NSLock();private var hits=0
+    var count:Int {lock.lock();defer{lock.unlock()};return hits}
+    func hit(){lock.lock();hits+=1;lock.unlock()}
 }

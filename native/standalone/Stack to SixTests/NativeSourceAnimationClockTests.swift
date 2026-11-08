@@ -5,6 +5,48 @@ import SpriteKit
 
 @MainActor
 final class NativeSourceAnimationClockV5Tests:XCTestCase {
+    func testVisibleHandoffUsesUpdatedSourceBirthAndRetiresBeforeCallback()throws {
+        var wall=0.0,calls=0
+        let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{wall},sourceFrameTransportEnabled:true)
+        let keeper=Participant(),entry=Participant()
+        let keep=try XCTUnwrap(service.register(participant:keeper,duration:5,domain:.sourceGSAP(.timeline),cleanup:{_ in}))
+        var timeline:NativeSourceAnimationClockService.Lease?
+        defer{timeline?.cancel(success:false);keep.cancel(success:false);service.dispose()}
+        wall=200
+        let receipt=try XCTUnwrap(service.afterNextSourceRootDelivery(ownerID:"restart",generation:1){
+            calls+=1
+            XCTAssertEqual(service.sourceTickerListenerCount,0,"Finite handoff must retire before entry can reenter the service")
+            timeline=service.register(participant:entry,duration:0.5,domain:.sourceGSAP(.timeline),cleanup:{_ in})
+        })
+        service.deliver(wallMilliseconds:wall)
+        XCTAssertEqual(calls,1);XCTAssertFalse(receipt.active)
+        wall=217;service.deliver(wallMilliseconds:wall)
+        XCTAssertLessThan(try XCTUnwrap(entry.values.last),0.05,"Entry must not inherit the 200ms before its visible handoff")
+        wall=234;service.deliver(wallMilliseconds:wall);XCTAssertEqual(calls,1)
+    }
+    func testVisibleHandoffCancellationAndGlobalPauseKeepCallbackUnconsumed()throws {
+        var wall=0.0,calls=0
+        let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{wall},sourceFrameTransportEnabled:true)
+        defer{service.dispose()}
+        XCTAssertTrue(service.setSourceGlobalPaused(true))
+        let cancelled=try XCTUnwrap(service.afterNextSourceRootDelivery(ownerID:"cancelled",generation:1){XCTFail("Cancelled handoff ran")})
+        cancelled.cancel()
+        let receipt=try XCTUnwrap(service.afterNextSourceRootDelivery(ownerID:"paused",generation:1){calls+=1;XCTAssertEqual(service.sourceTickerListenerCount,0)})
+        wall=16;service.deliver(wallMilliseconds:wall)
+        XCTAssertTrue(receipt.active);XCTAssertEqual(calls,0)
+        XCTAssertTrue(service.setSourceGlobalPaused(false))
+        wall=32;service.deliver(wallMilliseconds:wall)
+        XCTAssertFalse(receipt.active);XCTAssertEqual(calls,1)
+    }
+    func testVisibleHandoffSynchronousWakeCanDisposeWithoutRetainedListener()throws {
+        let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0},sourceFrameTransportEnabled:true)
+        var calls=0
+        let receipt=service.afterNextSourceRootDelivery(ownerID:"wake",generation:1){
+            calls+=1;XCTAssertEqual(service.sourceTickerListenerCount,0);service.dispose()
+        }
+        service.deliver(wallMilliseconds:16)
+        XCTAssertEqual(calls,1);XCTAssertFalse(receipt?.active ?? false);XCTAssertEqual(service.sourceTickerListenerCount,0)
+    }
     private final class Participant:NativeSourceAnimationParticipant {
         var values:[Double]=[],onAdvance:((Double)->Void)?
         func advanceSourceAnimation(seconds:Double){values.append(seconds);onAdvance?(seconds)}

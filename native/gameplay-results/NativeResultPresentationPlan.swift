@@ -162,3 +162,33 @@ enum NativeResultPresentationPlan {
         let start=1+0.08*e(0.42/0.6);return start+(1-start)*e((age-0.42)/0.55)
     }
 }
+
+/// Finite HUD projection on the existing Scene clock, using Clean Board easing.
+/// Canonical score/combo, save state and feedback transforms remain external.
+struct NativeHUDNumberCounter {
+    private(set) var value=0
+    private(set) var target=0
+    private(set) var active=false
+    private var generation:UInt64?
+    private var start=0
+    private var elapsed=0.0
+    private var duration=0.0
+
+    mutating func synchronize(_ next:Int,generation:UInt64,animated:Bool) {
+        guard self.generation==generation,animated,next>=target else {
+            self.generation=generation;target=next;settle();return
+        }
+        guard target != next else{return}
+        start=value;target=next;elapsed=0
+        duration=NativeResultPresentationPlan.cleanCounterDuration(from:start,to:target)
+        active=value != target
+    }
+    mutating func advance(delta:Double,visible:Bool,reducedMotion:Bool) {
+        guard active else{return}
+        guard visible,!reducedMotion else{settle();return}
+        elapsed+=max(0,delta)
+        value=NativeResultPresentationPlan.counter(from:start,to:target,age:elapsed,duration:duration)
+        if elapsed>=duration {settle()}
+    }
+    mutating func settle(){value=target;active=false;elapsed=0}
+}

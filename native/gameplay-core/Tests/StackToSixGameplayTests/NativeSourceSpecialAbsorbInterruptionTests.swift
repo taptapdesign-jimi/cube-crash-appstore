@@ -98,6 +98,25 @@ extension NativeSourceSpecialAbsorbInterruptionTests {
   let url=try XCTUnwrap(Bundle.module.url(forResource:"SourceSpecialPullInterruptOracle",withExtension:"json")),gold=try JSONDecoder().decode(Gold.self,from:Data(contentsOf:url))
   XCTAssertEqual(gold.mainRows.count,27)
   for row in gold.mainRows {
+   if row.family == "beach-ball" {
+    // The Native override now follows Mushroom's direct receipt. Validate its
+    // real pre/main cancellation boundary instead of calling the old TNT API.
+    let e=engine(.init(.tnt,variant:"beach-ball"))
+    e.stagedDirectWildMoves=true;e.stagedDirectWildAssignments=true
+    XCTAssertTrue(e.beginDrag(tileID:"src"));XCTAssertTrue(e.drop(target:.init(column:1,row:0)).accepted)
+    let plan=try XCTUnwrap(e.pendingDirectWild),before=e.state
+    XCTAssertNil(e.pendingSpecial)
+    if row.mainEntered {
+     XCTAssertTrue(e.prepareSourceDirectWildPrefix(receiptID:plan.id,generation:plan.generation).accepted)
+     XCTAssertTrue(e.commitDirectWildGameplay(transactionID:plan.id).accepted)
+     XCTAssertFalse(e.cancelSourceMergeSixAbsorb(receiptID:plan.id,generation:plan.generation).accepted)
+    } else {
+     XCTAssertTrue(e.cancelSourceMergeSixAbsorb(receiptID:plan.id,generation:plan.generation).accepted)
+     XCTAssertNil(e.pendingDirectWild);XCTAssertEqual(accounting(e.state),accounting(before))
+    }
+    e.cancelForBackground();XCTAssertTrue(row.settled)
+    continue
+   }
    let magnet=["magnet","spaceship","bottle","honey"].contains(row.family)
    let e=engine(.init(magnet ? .magnet:.tnt,variant:["magnet","tnt"].contains(row.family) ? nil:row.family)),plan=try reserve(e),receipt=try register(e,plan)
    var before=e.state

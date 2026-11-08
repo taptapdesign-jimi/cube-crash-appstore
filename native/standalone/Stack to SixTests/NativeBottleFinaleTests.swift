@@ -6,6 +6,24 @@ import StackToSixGameplay
 
 @MainActor
 final class NativeBottleFinaleTests: XCTestCase {
+    func testPhoneSOSFillsSharedCaptionWidthAndRetainsTimingAndTabletSize() throws {
+        let size=CGSize(width:390,height:844),host=UIViewController(),window=UIWindow(frame:CGRect(origin:.zero,size:size))
+        window.rootViewController=host;window.makeKeyAndVisible();host.loadViewIfNeeded();defer{window.isHidden=true}
+        let before=NativeBottleFinalePresentation(resourceRoot:NativeTestResources.root,viewport:size,random:{0.5})
+        let after=NativeBottleFinalePresentation(resourceRoot:NativeTestResources.root,viewport:size,captionFillsWidth:true,captionPresentationScale:0.70,random:{0.5})
+        defer{before.dispose();after.dispose()}
+        for owner in [before,after] {host.view.addSubview(owner);owner.layoutIfNeeded();owner.paint(seconds:0.8)}
+        let a=try XCTUnwrap(before.subviews.compactMap{$0 as? NativeSplashGlyphField}.first)
+        let b=try XCTUnwrap(after.subviews.compactMap{$0 as? NativeSplashGlyphField}.first)
+        let old=try XCTUnwrap(a.subviews.first),new=try XCTUnwrap(b.subviews.first)
+        XCTAssertEqual(a.exitStart,b.exitStart);XCTAssertEqual(a.duration,b.duration)
+        XCTAssertGreaterThan(hypot(new.transform.a,new.transform.b),hypot(old.transform.a,old.transform.b))
+        XCTAssertEqual(new.bounds.width*hypot(new.transform.a,new.transform.b)*hypot(b.transform.a,b.transform.b),NativeSplashGlyphField.readableCaptionWidth(size.width)*0.70,accuracy:0.001)
+        for (left,right) in zip(old.subviews,new.subviews) {XCTAssertTrue(CATransform3DEqualToTransform(left.layer.transform,right.layer.transform));XCTAssertEqual(left.alpha,right.alpha)}
+        before.isHidden=true
+        let data=UIGraphicsImageRenderer(size:size).pngData{host.view.layer.render(in:$0.cgContext)}
+        try data.write(to:URL(fileURLWithPath:"/tmp/native-sos-minus30-20261108/sos-phone.png"))
+    }
     private var root: URL { Bundle.main.bundleURL.appendingPathComponent("NativeAssets.bundle") }
     func testOldGridCannotPaintOrResetSuccessorOnSameArtworkSurface()throws {
         let surface=SKNode()

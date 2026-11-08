@@ -3,10 +3,91 @@ import UIKit
 import SpriteKit
 import QuartzCore
 import StackToSixGameplay
+import StackToSixNativeState
 @testable import Stack_to_Six
 
 @MainActor
 final class NativeComboHUDMotionTests: XCTestCase {
+    func testHUDCountingSharesCleanBoardCurveAndRetargetsPaintedValue() {
+        var counter=NativeHUDNumberCounter()
+        counter.synchronize(100,generation:1,animated:true)
+        XCTAssertEqual(counter.value,100)
+        counter.synchronize(1100,generation:1,animated:true)
+        counter.advance(delta:0.2,visible:true,reducedMotion:false)
+        XCTAssertEqual(counter.value,NativeResultPresentationPlan.counter(from:100,to:1100,age:0.2,duration:NativeResultPresentationPlan.cleanCounterDuration(from:100,to:1100)))
+        let painted=counter.value
+        counter.synchronize(2100,generation:1,animated:true)
+        XCTAssertEqual(counter.value,painted)
+        counter.synchronize(2100,generation:1,animated:true)
+        counter.advance(delta:0.1,visible:true,reducedMotion:false)
+        XCTAssertEqual(counter.value,NativeResultPresentationPlan.counter(from:painted,to:2100,age:0.1,duration:NativeResultPresentationPlan.cleanCounterDuration(from:painted,to:2100)))
+        counter.advance(delta:2,visible:true,reducedMotion:false)
+        XCTAssertEqual(counter.value,2100);XCTAssertFalse(counter.active)
+    }
+    func testHUDCountingRetiresOnHiddenReducedMotionReplacementAndExpiry() {
+        for reason in 0..<6 {
+            var counter=NativeHUDNumberCounter()
+            counter.synchronize(10,generation:1,animated:true)
+            counter.synchronize(1000,generation:1,animated:true)
+            counter.advance(delta:0.1,visible:true,reducedMotion:false)
+            switch reason {
+            case 0:counter.advance(delta:0,visible:false,reducedMotion:false)
+            case 1:counter.advance(delta:0,visible:true,reducedMotion:true)
+            case 2:counter.synchronize(22,generation:2,animated:true)
+            case 3:counter.synchronize(0,generation:1,animated:true)
+            case 4:counter.synchronize(1000,generation:1,animated:false)
+            default:counter.settle();counter.settle()
+            }
+            let expected=reason==2 ? 22:reason==3 ? 0:1000
+            XCTAssertEqual(counter.value,expected);XCTAssertFalse(counter.active)
+            counter.advance(delta:10,visible:true,reducedMotion:false)
+            XCTAssertEqual(counter.value,expected)
+        }
+    }
+    func testMountedHUDCountsCommittedScoreAndSettlesOnSuspend() async throws {
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent("hud-count-"+UUID().uuidString)
+        let store=NativeSaveStore(directory:directory)
+        var save=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
+        save.progression.firstPlayTutorialComplete=true
+        save.arcadeRun = .init(tiles:[.init(id:"a",cell:.init(column:0,row:0),value:3),.init(id:"b",cell:.init(column:1,row:0),value:3),.init(id:"other",cell:.init(column:4,row:8),value:2)],mode:.arcade,board:3,stage:3,generation:9,moves:37)
+        save.arcadeRunSavedAt=Date().timeIntervalSince1970;try store.save(save)
+        let host=NativeStandaloneViewController(resourceRoot:NativeTestResources.root,store:store,sourceVisualRandom:{0.1},completeNativeGameplayEnabled:true)
+        let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=host;window.makeKeyAndVisible();host.loadViewIfNeeded()
+        defer {host.dispose();window.isHidden=true;previous?.makeKeyAndVisible();try? FileManager.default.removeItem(at:directory)}
+        func wait(_ predicate:()->Bool) async throws {
+            let end=Date().addingTimeInterval(25)
+            while !predicate(),Date()<end {try await Task.sleep(for:.milliseconds(10))}
+            XCTAssertTrue(predicate());if !predicate(){throw CancellationError()}
+        }
+        let app=try XCTUnwrap(host.children.first as? NativeAppController)
+        try await wait{!app.home.isHidden};app.navigate(.gameplay,interrupt:true)
+        var game:NativeGameplayViewController? {app.children.compactMap{$0 as? NativeGameplayViewController}.first}
+        try await wait{game?.boardScene?.isBoardEntryComplete==true && game?.beforeSourceGameplayAdmission==nil && game?.engine.hasUnsavableSourceGameplayState==false}
+        let gameplay=try XCTUnwrap(game),scene=try XCTUnwrap(gameplay.boardScene)
+        let score=try XCTUnwrap(scene.childNode(withName:"//native-game-score-value") as? NativeArchedHUDScore)
+        let combo=try XCTUnwrap(scene.childNode(withName:"//native-game-combo-value") as? SKLabelNode)
+        let initialScore=gameplay.engine.state.score
+        let source=try XCTUnwrap(scene.sourceNativeTileNode("a")),target=try XCTUnwrap(scene.sourceNativeTileNode("b"))
+        let from=scene.convert(source.position,from:try XCTUnwrap(source.parent)),to=scene.convert(target.position,from:try XCTUnwrap(target.parent))
+        XCTAssertTrue(scene.beginDrag(at:from));scene.moveDrag(to:to,now:CACurrentMediaTime())
+        try await Task.sleep(for:.milliseconds(160))
+        XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:to,now:CACurrentMediaTime())).accepted)
+        try await wait{gameplay.engine.state.score>initialScore}
+        if !UIAccessibility.isReduceMotionEnabled {
+            XCTAssertNotEqual(score.text,NativeScoreDisplay.text(gameplay.engine.state.score),"Actual coin arrival starts count rather than jumping")
+            try await wait{score.text != NativeScoreDisplay.text(initialScore)}
+        }
+        let attachment=XCTAttachment(image:UIGraphicsImageRenderer(bounds:gameplay.view.bounds).image {_ in
+            gameplay.view.drawHierarchy(in:gameplay.view.bounds,afterScreenUpdates:true)
+        });attachment.name="hud-clean-board-counting";attachment.lifetime = .keepAlways;add(attachment)
+        gameplay.setSuspended(true)
+        XCTAssertEqual(score.text,NativeScoreDisplay.text(gameplay.engine.state.score))
+        XCTAssertEqual(combo.text,NativeComboDisplay.text(gameplay.engine.state.combo))
+        let painted=score.text
+        try await Task.sleep(for:.milliseconds(80));XCTAssertEqual(score.text,painted)
+        gameplay.setSuspended(false)
+    }
     func testAuthoredSVGTransitionsHoldCanonicalTiersAndRetireOnReplacement() throws {
         let artwork = SKSpriteNode()
         let motion = NativeComboHUDMotion(artwork: artwork)

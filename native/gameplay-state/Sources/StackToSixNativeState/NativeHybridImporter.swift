@@ -99,7 +99,7 @@ public enum NativeHybridImporter {
             if let open=tile["open"] as? Bool,open==locked {throw NativeSaveError.invalidState(["legacy-lock-open-conflict"])}
             let variant=tile["specialDiceVariant"] as? String ?? tile["_ccSpecialDiceVariant"] as? String
             if let variant {
-                guard let definition=NativeSpecialDiceRegistry.variants[variant],definition.archetype==archetype || (variant=="beach-ball" && (archetype == .juice || archetype == .magnet)) else {throw NativeSaveError.invalidState(["legacy-variant-archetype-mismatch"])}
+                guard let definition=NativeSpecialDiceRegistry.variants[variant],definition.archetype==archetype || (variant=="beach-ball" && archetype.map{NativeSpecialDiceRegistry.compatibleVariant(variant,core:$0) != nil}==true) else {throw NativeSaveError.invalidState(["legacy-variant-archetype-mismatch"])}
             }
             tiles.append(NativeTile(id:"import-\(mode.rawValue)-\(board)-\(row)-\(column)",cell:NativeCell(column:column,row:row),value:number,archetype:archetype,variant:variant,locked:locked))
         } }

@@ -179,6 +179,10 @@ final class NativeResultController:UIViewController {
     private let stars=UIView()
     private var empty:[UIImageView]=[]
     private var filled:[UIImageView]=[]
+    private var starEffects:[NativeResultStarEffect]=[]
+    private var starEffectFrames:[CGImage]=[]
+    private var starEffectGlow:CGImage?
+    private var starEffectLease:NativeRewardPreparationLease?
     private let heading=UILabel(),scoreLabel=UILabel(),score=UILabel(),status=UILabel(),bonus=UILabel(),bonusLabel=UILabel()
     private let buttons=[JimiV9PlainButton(type:.custom),JimiV9PlainButton(type:.custom)]
     private let thumb=UIImageView()
@@ -251,7 +255,18 @@ final class NativeResultController:UIViewController {
             back.accessibilityIdentifier="native.result.star.empty.\(index)"
             front.accessibilityIdentifier="native.result.star.filled.\(index)"
             empty.append(back);filled.append(front)
+            if clean,index<earnedStars,front.image?.cgImage != nil {
+                starEffects.append(NativeResultStarEffect(star:front,index:index))
+            }
             holder.transform=CGAffineTransform(rotationAngle:index == 0 ? -.pi*8/180 : index == 2 ? .pi*8/180 : 0)
+        }
+        if !starEffects.isEmpty,let image=filled.first?.image?.cgImage {
+            let lease=NativeRewardPreparationLease();starEffectLease=lease
+            NativeRewardFilteredFrames.prepareResultStar(image,lease:lease) { [weak self] frames,glow in
+                guard let self,!self.disposed,self.closingAt == nil else{return}
+                self.starEffectFrames=frames;self.starEffectGlow=glow
+                self.paintStarEffects()
+            }
         }
         let orange=NativeTextPalette.accentOrange
         let brown=NativeTextPalette.subtitle
@@ -373,6 +388,7 @@ final class NativeResultController:UIViewController {
             // Filled stars are initially scale zero; assigning frame then destroys bounds.
             place(empty[index],in:holder.bounds);place(filled[index],in:holder.bounds)
         }
+        starEffects.forEach{$0.layout()}
         place(headlineContent,in:layout.title.offsetBy(dx:-layout.card.minX,dy:-layout.card.minY))
         // CSS line-height permits glyph overhang outside the title's line box.
         // Keep motion on that box while UILabel draws in a padded inner carrier.
@@ -511,6 +527,7 @@ final class NativeResultController:UIViewController {
                 empty[index].transform=CGAffineTransform(scaleX:scale,y:scale)
             }
         }
+        paintStarEffects()
         if clean {
             let comboVisible=elapsed<NativeResultPresentationPlan.cleanEfficiencyReveal
             bonus.isHidden=scoreOnlyArcadeSummary;bonusLabel.isHidden=scoreOnlyArcadeSummary
@@ -556,11 +573,20 @@ final class NativeResultController:UIViewController {
         onMoment?("modal-exit",0,nil)
         if arcadeCue {dispose();dismiss(animated:false,completion:completion);return}
         retireScoreAccent()
+        retireStarEffects()
         capturedStarScales=(0..<3).map{NativeResultPresentationPlan.filledStarScale(seconds:elapsed,index:$0)}
         onForestAmbience?(false,false)
         confetti?.dispose();confetti=nil;area55Flybys?.dispose();area55Flybys=nil;forestBees?.dispose();forestBees=nil;closingAt=elapsed;closed=completion
         destinationPreparation=prepareDestination;self.paperFadeDuration=max(0.001,paperFadeDuration)
         preparationFrames=prepareDestination == nil ? 0:2
+    }
+    private func paintStarEffects() {
+        let active = !disposed && !suspended && presentationAdmitted && closingAt == nil && !UIAccessibility.isReduceMotionEnabled && viewIfLoaded?.window != nil
+        for effect in starEffects {effect.paint(seconds:elapsed,active:active,frames:starEffectFrames,glow:starEffectGlow)}
+    }
+    private func retireStarEffects() {
+        starEffectLease?.cancel();starEffectLease=nil
+        starEffects.forEach{$0.dispose()};starEffects.removeAll();starEffectFrames.removeAll();starEffectGlow=nil
     }
     private func paintScoreAccent() {
         let accent=NativeResultPresentationPlan.counterAccent(seconds:elapsed,baseScore:state.score,combo:combo,efficiency:efficiency,arcadeReached:scoreOnlyArcadeSummary,reducedMotion:UIAccessibility.isReduceMotionEnabled)
@@ -618,14 +644,14 @@ final class NativeResultController:UIViewController {
         guard value || presentationAdmitted else{return}
         if clean,state.mode == .journey,(1...10).contains(state.board),closingAt == nil,!disposed {onForestAmbience?(true,value)}
         buttons.forEach{$0.setModalCTAIdleSuspended(value || disposed)}
-        suspended=value;lastTime=nil;link?.isPaused=value;arcadePresentation?.setSuspended(value);confetti?.setForeground(!value);area55Flybys?.setForeground(!value)
+        suspended=value;paintStarEffects();lastTime=nil;link?.isPaused=value;arcadePresentation?.setSuspended(value);confetti?.setForeground(!value);area55Flybys?.setForeground(!value)
         if destinationPreparation != nil {
             if value {destinationLease &+= 1;destinationReady=false;destinationPending=false;paperFadeAt=nil;view.alpha=1}
             else {preparationFrames=2}
         }
     }
     func dispose() {
-        guard !disposed else {return};disposed=true;retireScoreAccent();buttons.forEach{$0.setModalCTAIdleSuspended(true)};onForestAmbience?(false,false);onForestAmbience=nil;link?.invalidate();link=nil;clockTarget=nil
+        guard !disposed else {return};disposed=true;retireStarEffects();retireScoreAccent();buttons.forEach{$0.setModalCTAIdleSuspended(true)};onForestAmbience?(false,false);onForestAmbience=nil;link?.invalidate();link=nil;clockTarget=nil
         scoreBlurContext?.clearCaches();scoreBlurContext=nil
         arcadePresentation?.dispose();arcadePresentation=nil;confetti?.dispose();confetti=nil;area55Flybys?.dispose();area55Flybys=nil;forestBees?.dispose();forestBees=nil
         for observer in observations {NotificationCenter.default.removeObserver(observer)};observations.removeAll()
@@ -638,4 +664,44 @@ private final class NativeResultClockTarget:NSObject {
     weak var owner:NativeResultController?
     init(owner:NativeResultController) {self.owner=owner}
     @objc func tick(_ link:CADisplayLink) {owner?.tick(link.timestamp)}
+}
+
+/// Decorative layers share the result clock and selected immutable star pixels.
+/// No timers, observers, compositor loops or per-frame decoding.
+@MainActor
+private final class NativeResultStarEffect {
+    private weak var star:UIImageView?
+    private let index:Int
+    private let burn=CALayer(),glow=CALayer()
+    init(star:UIImageView,index:Int) {
+        self.star=star;self.index=index
+        burn.name="native.result.star.burn";glow.name="native.result.star.burn-glow"
+        for layer in [glow,burn] {layer.opacity=0;layer.contentsGravity = .resizeAspect;star.layer.addSublayer(layer)}
+    }
+    func layout() {
+        guard let star else{return}
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        for layer in [burn,glow] {layer.frame=star.bounds}
+        CATransaction.commit()
+    }
+    func paint(seconds:Double,active:Bool,frames:[CGImage],glow image:CGImage?) {
+        let age=seconds-(0.6+Double(index)*0.5)
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        defer{CATransaction.commit()}
+        guard active,age>=0,let star,!star.isHidden else{burn.opacity=0;glow.opacity=0;return}
+        // Match the interim-card burn's 0.63s lead, 1.1/1.3s pass and 3s cycle.
+        let phase=(age-0.63).truncatingRemainder(dividingBy:3),duration=1.1/1.3
+        let burning=age>=0.63 && phase<duration && !frames.isEmpty
+        burn.opacity=burning ? 1:0;glow.opacity=0
+        if burning {
+            burn.contents=frames[min(frames.count-1,Int(phase/duration*Double(frames.count)))]
+            let p=phase/duration,local=p<0.56 ? p/0.56:(p-0.56)/0.44
+            let eased=NativeResultPresentationPlan.bezier(local,0,0,0.58,1)
+            glow.contents=image;glow.opacity=Float(p<0.56 ? eased:1-eased)
+        }
+    }
+    func dispose() {
+        for layer in [burn,glow] {layer.contents=nil;layer.mask=nil;layer.removeFromSuperlayer()}
+        star=nil
+    }
 }

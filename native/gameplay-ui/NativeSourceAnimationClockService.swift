@@ -245,6 +245,20 @@ final class NativeSourceAnimationClockService {
         var cleanup:(()->Void)?
         init(id:UInt64,ownerID:String,participant:any NativeSourceTickerParticipant,cleanup:@escaping()->Void){self.id=id;self.ownerID=ownerID;self.participant=participant;self.cleanup=cleanup}
     }
+    /// Finite mounted-host handoff. Runs after the existing Source root clock
+    /// advances, so a newly installed entry timeline cannot inherit hidden time.
+    @MainActor final class SourceRootDeliveryLease:NativeSourceTickerParticipant {
+        fileprivate var ticker:SourceTickerLease?
+        fileprivate var callback:(()->Void)?
+        fileprivate var ready:(()->Bool)?
+        var active:Bool {callback != nil}
+        fileprivate init(_ callback:@escaping()->Void){self.callback=callback}
+        func cancel(){callback=nil;ready=nil;let captured=ticker;ticker=nil;captured?.cancel()}
+        func advanceSourceTicker(seconds:Double,deltaMilliseconds:Double,frame:UInt64){
+            guard ready?()==true else{return}
+            let captured=callback;cancel();captured?()
+        }
+    }
     private let sourceWallMillisecondsNow:()->Double
     private static let defaultShared=NativeSourceAnimationClockService(wallOriginMilliseconds:floor(Date().timeIntervalSince1970*1000))
     private static weak var appShared:NativeSourceAnimationClockService?
@@ -537,6 +551,7 @@ final class NativeSourceAnimationClockService {
             }
     }
     /// Only literal source gsap.ticker.add callsites use this captured lifetime.
+    /// Mounted replacement handoff uses the typed finite companion below.
     /// This is not a nativeRaw presentation or a generic visibility activity.
     func registerSourceTickerListener(ownerID:String,generation:UInt64,participant:any NativeSourceTickerParticipant,cleanup:@escaping()->Void)->SourceTickerLease? {
         guard !disposed,sourceFrameTransportEnabled else{return nil}
@@ -545,6 +560,18 @@ final class NativeSourceAnimationClockService {
         refreshSourceTickerToken();refreshDemand()
         guard !disposed,sourceTickerListeners[id] != nil else{return nil}
         return SourceTickerLease(service:self,id:id,ownerID:ownerID,generation:generation)
+    }
+    func afterNextSourceRootDelivery(ownerID:String,generation:UInt64,callback:@escaping()->Void)->SourceRootDeliveryLease? {
+        guard !disposed,sourceFrameTransportEnabled else{return nil}
+        let receipt=SourceRootDeliveryLease(callback)
+        receipt.ready={[weak self] in guard let self else{return false};return !self.disposed && self.sourceForeground && !self.source.globallyPaused}
+        sourceTickerListenerSequence &+= 1;let id=sourceTickerListenerSequence
+        sourceTickerListeners[id]=SourceTickerEntry(id:id,ownerID:ownerID,participant:receipt,cleanup:{[weak receipt] in receipt?.callback=nil})
+        // Install cancellation before a sleeping ticker can synchronously wake.
+        receipt.ticker=SourceTickerLease(service:self,id:id,ownerID:ownerID,generation:generation)
+        refreshSourceTickerToken();refreshDemand()
+        guard !disposed else{receipt.cancel();return nil}
+        return receipt
     }
     private func wakeSourceTickerForAPIMutation(){
         guard !disposed,!sourceTickerState.awake else{return}

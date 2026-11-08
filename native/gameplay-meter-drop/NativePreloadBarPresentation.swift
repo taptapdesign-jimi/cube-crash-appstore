@@ -30,10 +30,16 @@ import UIKit
     private static var barMotionDuration:Double{JimiV9ArchedNavigationTitle.elementDuration+2*JimiV9ArchedNavigationTitle.elementStagger}
     // Keep the early board/HUD arrival clear; divider joins the stationary mask reveal.
     private static var barEntryDelay:Double{JimiV9ArchedNavigationTitle.elementDuration}
+    static let entryFillDuration=0.64
+    static func holderEntryDuration(reduced:Bool=false,restart:Bool=false)->Double {
+        if reduced{return JimiV9ArchedNavigationTitle.reducedDuration(entering:true)}
+        return (restart ? 0:barEntryDelay)+barMotionDuration
+    }
     static func chromeDuration(entering:Bool,reduced:Bool=false,restart:Bool=false)->Double {
         if reduced{return JimiV9ArchedNavigationTitle.reducedDuration(entering:entering)}
-        if restart{return barMotionDuration/(entering ? 1:1.3)}
-        return entering ? barEntryDelay+barMotionDuration:hudExitLead+3*JimiV9ArchedNavigationTitle.elementStagger+JimiV9ArchedNavigationTitle.elementDuration
+        if entering{return holderEntryDuration(restart:restart)+entryFillDuration}
+        if restart{return barMotionDuration/1.3}
+        return hudExitLead+3*JimiV9ArchedNavigationTitle.elementStagger+JimiV9ArchedNavigationTitle.elementDuration
     }
     private let holderShader=SKShader(source:"""
         void main() {
@@ -146,7 +152,16 @@ import UIKit
     }
     var barCenterY:Double {isPad ? -5:8.750637429882714/2*maximum/(390*0.88)}
     var lifecycleReveal:Double{chromePose.reveal}
-    var smokeAdmitted:Bool{phase != .gone && chromePose.barAlpha>0.01 && chromePose.reveal>0}
+    private var exitLiquidFraction=1.0
+    var liquidFillFraction:Double {
+        if phase == .gone{return 0}
+        if phase == .boardLeaving{return exitLiquidFraction}
+        guard phase == .arriving,!reducedMotion() else{return 1}
+        let age=max(0,time-phaseAt)-Self.holderEntryDuration(restart:restartChrome)
+        let t=Self.unit(age/Self.entryFillDuration)
+        return 1-pow(1-t,3)
+    }
+    var smokeAdmitted:Bool{phase != .gone && chromePose.barAlpha>0.01 && chromePose.reveal>0 && liquidFillFraction>0}
     func smokePoint(atX x:Double,in stage:SKNode)->CGPoint{liquidRoot.convert(CGPoint(x:x,y:barCenterY),to:stage)}
     private static let liquidStartColor=color(0xEA8B57),liquidEndColor=color(0xE7744A)
     func smokeColor(_ point:CGPoint,in stage:SKNode)->UIColor{
@@ -191,9 +206,10 @@ import UIKit
             for (name,value) in [("u_span",w+pad*2),("u_height",artHeight),("u_pad",pad),("u_center",h/2),("u_feather",0.75/Double(UIScreen.main.scale))]{holderShader.uniformNamed(name)?.floatValue=Float(value)}
             for shader in [holderShader,liquidShader]{for (name,value) in [("u_width",w),("u_arch",archDepth),("u_radius",h/2)]{shader.uniformNamed(name)?.floatValue=Float(value)}}
         }
+        let paintedRight=nativeLeft+(nativeRight-nativeLeft)*liquidFillFraction
         liquidShader.uniformNamed("u_left")?.floatValue=Float(w*nativeLeft-pad)
-        liquidShader.uniformNamed("u_right")?.floatValue=Float(nativeRight>=1 ? w+h/2+pad:w*nativeRight)
-        liquidShader.uniformNamed("u_visible")?.floatValue=nativeRight>nativeLeft ? 1:0
+        liquidShader.uniformNamed("u_right")?.floatValue=Float(paintedRight>=1 ? w+h/2+pad:w*paintedRight)
+        liquidShader.uniformNamed("u_visible")?.floatValue=paintedRight>nativeLeft ? 1:0
         liquidRoot.isHidden=phase == .gone
         // Whole-surface lifecycle is sampled with HUD elapsed, below.
     }
@@ -202,11 +218,12 @@ import UIKit
         var p=ChromePose()
         if phase == .gone {p.barAlpha=0;p.dividerAlpha=restartChrome ? 1:0;p.reveal=0}
         else if entering || leaving {
-            let duration=max(0.001,boardEnd),t=Self.unit(elapsed/duration)
+            let duration=max(0.001,entering ? Self.holderEntryDuration(reduced:reducedMotion(),restart:restartChrome):boardEnd),t=Self.unit(elapsed/duration)
             if restartChrome {
                 let u=entering ? t:1-t
                 p.reveal=u*u*(3-2*u)
-                if entering && !reducedMotion() {p.dividerY=3*sin(2*Double.pi*t)*pow(1-t,2)}
+                // Restart keeps the divider fixed while only the ribbon mask
+                // leaves/arrives. It is the shared old/new board anchor.
                 if leaving {p.reveal *= exitChromePose.reveal}
             }else if reducedMotion(){
                 let a=entering ? t:1-t;p.barAlpha=a;p.dividerAlpha=a;p.reveal=entering ? 1:exitChromePose.reveal
@@ -264,13 +281,18 @@ import UIKit
         homeDivider.isHidden=dividerResourceRoot==nil || phase == .gone && !restartChrome
         paintLiquid();paintChrome();reportMotion()
     }
-    func primeBoardEntry(){guard !closed else{return};phase = .gone;container.isHidden=true;reportMotion()}
+    func primeBoardEntry(restart:Bool=false){
+        guard !closed else{return};restartChrome=restart;phase = .gone
+        // A replacement's first paint already contains the stationary divider;
+        // only the ribbon remains hidden until its existing HUD entry track.
+        container.isHidden = !restart;paint()
+    }
     func beginBoardEntry(restart:Bool=false){
         guard !closed else{return};restartChrome=restart;container.isHidden=false;phase = .arriving
         phaseAt=time;boardEnd=Self.chromeDuration(entering:true,reduced:reducedMotion(),restart:restart);paint()
     }
     func beginBoardExit(restart:Bool=false)->Double{
-        guard !closed else{return 0};restartChrome=restart;exitChromePose=chromePose;phaseAt=time
+        guard !closed else{return 0};exitLiquidFraction=liquidFillFraction;restartChrome=restart;exitChromePose=chromePose;phaseAt=time
         boardEnd=Self.chromeDuration(entering:false,reduced:reducedMotion(),restart:restart);phase = .boardLeaving
         paint();return boardEnd
     }

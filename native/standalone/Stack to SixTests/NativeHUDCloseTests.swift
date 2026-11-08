@@ -8,6 +8,95 @@ import StackToSixNativeState
 
 @MainActor
 final class NativeHUDCloseTests:XCTestCase {
+    func testSettledOwnedMetalHUDKeepsFullAncestorOpacityAfterPauseAndResume() async throws {
+        let engine=NativeGameplayEngine(state:NativeBoardState(tiles:[NativeTile(id:"opacity-fixture",cell:NativeCell(column:0,row:0),value:1)]))
+        let metal=try XCTUnwrap(NativeOwnedMetalGameplayView())
+        let controller=NativeGameplayViewController(engine:engine,resourceRoot:NativeTestResources.root,renderSurfaceFactory:{metal})
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=controller;window.makeKeyAndVisible()
+        defer{controller.dispose();window.isHidden=true}
+        controller.view.layoutIfNeeded()
+        try await Task.sleep(for:.milliseconds(1800))
+        let scene=try XCTUnwrap(controller.boardScene)
+        let hud=try XCTUnwrap(scene.childNode(withName:"//native-game-hud"))
+        func check()throws {
+            XCTAssertFalse(metal.isHidden);XCTAssertEqual(metal.alpha,1)
+            var view:UIView?=metal
+            while let current=view {XCTAssertEqual(current.alpha,1,"Ancestor \(type(of:current))");view=current.superview}
+            for i in 0..<4 {
+                let group=try XCTUnwrap(hud.childNode(withName:"preload-navigation-hud-\(i)"))
+                var node:SKNode?=group
+                while let current=node {XCTAssertEqual(current.alpha,1,accuracy:0.00001,"Ancestor \(current.name ?? "unnamed")");node=current.parent}
+            }
+        }
+        try check()
+        controller.setSuspended(true);try await Task.sleep(for:.milliseconds(100));controller.setSuspended(false)
+        try await Task.sleep(for:.milliseconds(150));try check()
+    }
+    func testHUDMetalColorAndOpacityAgainstUIKitOriginals() throws {
+        let device=try XCTUnwrap(MTLCreateSystemDefaultDevice()),queue=try XCTUnwrap(device.makeCommandQueue())
+        let textures=NativeBoardTextures(root:NativeTestResources.root)
+        defer{textures.dispose()}
+        let width=192,canvas=CGSize(width:64,height:64)
+        let format=UIGraphicsImageRendererFormat();format.scale=3;format.opaque=false;format.preferredRange = .standard
+        func metal(_ texture:SKTexture,side:CGFloat)throws->UIImage {
+            let descriptor=MTLTextureDescriptor.texture2DDescriptor(pixelFormat:.bgra8Unorm,width:width,height:width,mipmapped:false)
+            descriptor.usage=[.renderTarget,.shaderRead];descriptor.storageMode = .shared
+            let target=try XCTUnwrap(device.makeTexture(descriptor:descriptor))
+            let scene=SKScene(size:canvas);scene.scaleMode = .fill;scene.backgroundColor = .clear
+            let icon=SKSpriteNode(texture:texture);icon.size=CGSize(width:side,height:side);icon.position=CGPoint(x:32,y:32);scene.addChild(icon)
+            let renderer=SKRenderer(device:device);renderer.scene=scene;renderer.update(atTime:1)
+            defer{renderer.scene=nil}
+            let pass=MTLRenderPassDescriptor();pass.colorAttachments[0].texture=target
+            pass.colorAttachments[0].clearColor=MTLClearColorMake(0,0,0,0)
+            pass.colorAttachments[0].loadAction = .clear;pass.colorAttachments[0].storeAction = .store
+            let command=try XCTUnwrap(queue.makeCommandBuffer())
+            renderer.render(withViewport:CGRect(x:0,y:0,width:width,height:width),commandBuffer:command,renderPassDescriptor:pass)
+            command.commit();command.waitUntilCompleted();XCTAssertEqual(command.status,.completed)
+            var bytes=[UInt8](repeating:0,count:width*width*4)
+            bytes.withUnsafeMutableBytes{target.getBytes($0.baseAddress!,bytesPerRow:width*4,from:MTLRegionMake2D(0,0,width,width),mipmapLevel:0)}
+            let cg=try bytes.withUnsafeMutableBytes { buffer in
+                try XCTUnwrap(CGContext(data:buffer.baseAddress,width:width,height:width,bitsPerComponent:8,bytesPerRow:width*4,
+                    space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGBitmapInfo.byteOrder32Little.rawValue|CGImageAlphaInfo.premultipliedFirst.rawValue)?.makeImage())
+            }
+            return UIImage(cgImage:cg,scale:3,orientation:.up)
+        }
+        // Integral alpha and color avoid false differences from image orientation
+        // and subpixel edge placement. Normalize both paths to the same sRGB bytes.
+        func metrics(_ image:UIImage)throws->[Double] {
+            var bytes=[UInt8](repeating:0,count:width*width*4)
+            try bytes.withUnsafeMutableBytes { buffer in
+                let context=try XCTUnwrap(CGContext(data:buffer.baseAddress,width:width,height:width,bitsPerComponent:8,bytesPerRow:width*4,
+                    space:CGColorSpace(name:CGColorSpace.sRGB)!,bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue))
+                context.draw(try XCTUnwrap(image.cgImage),in:CGRect(x:0,y:0,width:width,height:width))
+            }
+            var sums=[Double](repeating:0,count:4)
+            for pixel in stride(from:0,to:bytes.count,by:4){for c in 0..<4{sums[c]+=Double(bytes[pixel+c])}}
+            return [sums[0]/sums[3]*255,sums[1]/sums[3]*255,sums[2]/sums[3]*255,sums[3]]
+        }
+        let artwork=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+        var rows:[[UIImage]]=[]
+        for path in ["assets/close-icon.png","assets/nav/stats-nav.png","assets/hud/score-hud.png"] {
+            let original=try XCTUnwrap(artwork.image(path,densityAware:true))
+            let side:CGFloat=path.contains("stats-nav") ? 36:path.contains("close-icon") ? 24:28
+            let ui=UIGraphicsImageRenderer(size:canvas,format:format).image{_ in original.draw(in:CGRect(x:32-side/2,y:32-side/2,width:side,height:side))}
+            let raw=SKTexture(image:original);raw.filteringMode = .linear
+            let rawImage=try metal(raw,side:side),filteredImage=try metal(XCTUnwrap(textures.texture(path)),side:side)
+            let reference=try metrics(ui)
+            for (name,image) in [("metal-original",rawImage),("metal-filtered",filteredImage)] {
+                let measured=try metrics(image)
+                print("[HUD_COLOR_PARITY] \(path) \(name) UIKit=\(reference) Metal=\(measured)")
+                XCTAssertEqual(measured[3]/reference[3],1,accuracy:0.03,"\(path) \(name) preserves opacity coverage")
+                for c in 0..<3 {XCTAssertEqual(measured[c],reference[c],accuracy:5,"\(path) \(name) channel \(c)")}
+            }
+            rows.append([ui,rawImage,filteredImage])
+        }
+        let sheetFormat=UIGraphicsImageRendererFormat();sheetFormat.scale=3;sheetFormat.opaque=true
+        let sheet=UIGraphicsImageRenderer(size:CGSize(width:192,height:192),format:sheetFormat).image{context in
+            NativeAppPaperSurface.base.setFill();context.fill(CGRect(x:0,y:0,width:192,height:192))
+            for (y,row) in rows.enumerated(){for (x,image) in row.enumerated(){image.draw(in:CGRect(x:x*64,y:y*64,width:64,height:64))}}
+        }
+        let attachment=XCTAttachment(image:sheet);attachment.name="UIKit | Metal original | Metal filtered (X, Backpack, Trophy)";attachment.lifetime = .keepAlways;add(attachment)
+    }
     func testModalCloseOpacitySurvivesUIKitLayoutAndStateRefresh() async throws {
         let modal=NativeScoreModal(model:.init(state:NativeBoardState(tiles:[]),progression:.init(),combo:false),root:NativeTestResources.root)
         let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=modal;window.makeKeyAndVisible()

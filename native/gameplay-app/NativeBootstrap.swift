@@ -482,7 +482,7 @@ final class NativeBootstrap {
             engine.configureTutorialReward(reward)
         }
         let gameplay = NativeGameplayViewController(engine: engine, resourceRoot: root)
-        gameplay.replaysRestartChrome=freshEntry?.isExitMenuRestart == true && engine.state.mode == .journey && !needsTutorial
+        gameplay.replaysRestartChrome=freshEntry?.isExitMenuRestart == true && !needsTutorial
         gameplay.keepsGameplayChromeVisibleOnEntry = !gameplay.replaysRestartChrome && freshEntry?.keepsGameplayChromeVisible == true
         gameplay.waitsForFirstFrameOnReplacement=freshEntry?.skipsBoardAnnouncement == true || freshEntry?.consumesPendingArcade == true
         gameplay.sourceContext=sourceContext
@@ -1301,10 +1301,11 @@ final class NativeBootstrap {
                   scope.current,controller.canReplaceGameplay(previous) else{return false}
             return true
         }
-        // Keep the old Source scope current while its finite exit and the
-        // successor's resource preparation run together. The fast HUD receipt,
-        // rather than the tiles/footer deadline, admits successor construction.
-        let replay=entry.isExitMenuRestart && previous.engine.state.mode == .journey && previous.engine.state.tutorial?.active != true
+        // Keep the old Source scope current while its complete board/HUD exit
+        // and successor resource preparation run together. Explicit Restart and
+        // Arcade New Game construct only after that real exit completes; the
+        // retained X/Backpack/divider cover the incoming first-frame handoff.
+        let replay=entry.isExitMenuRestart && previous.engine.state.tutorial?.active != true
         var resourcesReady=false,exitReady = !replay,replaced=false
         let replaceIfReady:()->Void = {[weak self,weak previous,weak controller] in
             guard resourcesReady,exitReady,!replaced,current(),let self,let previous,let controller,(!replay || previous.restartPreparationForeground) else{return}

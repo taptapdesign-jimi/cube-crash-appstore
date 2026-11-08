@@ -5,6 +5,32 @@ import SpriteKit
 
 @MainActor
 final class NativeSharedSmokeRootTests:XCTestCase {
+    func testTntPaintedSmokeMatchesBarrelOnPhoneAndTabletInBothConstructionPaths() throws {
+        let textures=NativeBoardTextures(root:NativeTestResources.root);defer{textures.dispose()}
+        let source=try XCTUnwrap(NativeTntFinale.captureSourceConstruction(textures:textures,current:{true},random:{0.5},prepareGlyphs:{true}))
+        for size in [CGSize(width:390,height:844),CGSize(width:820,height:1180)] {
+            let viewport=NativeTabletLayout.animationViewport(size)
+            let barrelScale:CGFloat=NativeTabletLayout.applies(size) ? 1.694*1.15*1.30:1.20*1.30*1.10*1.20
+            for construction in [nil,source] {
+                let barrel=NativeTntVariantPresentation(resourceRoot:NativeTestResources.root,variant:.barell,viewport:viewport,smokePresentationScale:barrelScale,random:{0.5})
+                let tnt=NativeTntFinale(textures:textures,fontName:"Helvetica",viewport:viewport,showsTitle:false,smokePresentationScale:NativeTabletLayout.smokeSpriteBoost(size),usesCanonicalSmokeSize:true,sourceConstruction:construction,sourceRandom:{0.5},random:{0.5})
+                let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0},sourceFrameTransportEnabled:true)
+                defer{barrel.dispose();tnt.dispose();service.dispose()}
+                XCTAssertTrue(tnt.playSource(service:service,current:{true},frameSix:{},completion:{}))
+                for time in [0.15,0.50,0.80,1.20,1.60] {
+                    barrel.paint(seconds:time);tnt.advanceSourceAnimation(seconds:time)
+                    let images=Array(barrel.subviews.compactMap{$0 as? UIImageView}.suffix(12))
+                    let sprites=tnt.children.compactMap{$0 as? SKSpriteNode}
+                    XCTAssertEqual(images.count,12);XCTAssertEqual(sprites.count,12)
+                    for (image,sprite) in zip(images,sprites) where image.alpha>0.01 {
+                        XCTAssertEqual(sprite.size.width,image.bounds.width*hypot(image.transform.a,image.transform.b),accuracy:0.01)
+                        XCTAssertEqual(sprite.size.height,image.bounds.height*hypot(image.transform.c,image.transform.d),accuracy:0.01)
+                        XCTAssertEqual(sprite.alpha,image.alpha,accuracy:0.001)
+                    }
+                }
+            }
+        }
+    }
     func testPhoneBarrelAdditionalTwentyPercentReachesAllTwelvePaintedSmokeFrames() throws {
         let size=CGSize(width:390,height:844),window=UIWindow(frame:CGRect(origin:.zero,size:size)),host=UIViewController()
         window.rootViewController=host;window.makeKeyAndVisible()
@@ -68,7 +94,7 @@ final class NativeSharedSmokeRootTests:XCTestCase {
             }
         }
     }
-    func testTabletTntSmokeReducesPreviousSizeByTwentyPercentAndLeavesDiceUnchanged() throws {
+    func testTabletTntSmokeMatchesBarrelFactorAndLeavesDiceUnchanged() throws {
         let size=CGSize(width:820,height:1180),viewport=NativeTabletLayout.animationViewport(size)
         let textures=NativeBoardTextures(root:NativeTestResources.root);defer{textures.dispose()}
         let baseline=NativeTntFinale(textures:textures,fontName:"Helvetica",viewport:viewport,showsTitle:false,random:{0.5})
@@ -80,11 +106,11 @@ final class NativeSharedSmokeRootTests:XCTestCase {
         baseline.advanceSourceAnimation(seconds:0.5);larger.advanceSourceAnimation(seconds:0.5)
         let old=baseline.children.compactMap{$0 as? SKSpriteNode},new=larger.children.compactMap{$0 as? SKSpriteNode}
         XCTAssertEqual(old.count,12);XCTAssertEqual(new.count,12)
-        let matchingBarrelFactor=(1.694*1.2*1.30*0.80*0.80)/(NativeTntFinale.smokeScale*Double(NativeTabletLayout.animationScale(size)))
+        let matchingBarrelFactor=(1.694*1.15*1.30*0.80*0.70*1.20)/NativeTntFinale.smokeScale
         for (a,b) in zip(old,new) where a.xScale>0 {XCTAssertEqual(Double(b.xScale/a.xScale),matchingBarrelFactor,accuracy:0.0001);XCTAssertEqual(b.alpha,a.alpha)}
         let oldDice=baseline.children.filter{!($0 is SKSpriteNode)},newDice=larger.children.filter{!($0 is SKSpriteNode)}
         for (a,b) in zip(oldDice,newDice) {XCTAssertEqual(a.position,b.position);XCTAssertEqual(a.xScale,b.xScale)}
-        XCTAssertEqual(NativeTabletLayout.smokeSpriteBoost(CGSize(width:390,height:844)),0.8*1.2*1.3*1.1)
+        XCTAssertEqual(NativeTabletLayout.smokeSpriteBoost(CGSize(width:390,height:844)),(1.20*1.30*1.10*1.20*0.80*0.70*1.20)/NativeTntFinale.smokeScale,accuracy:0.00001)
     }
     func testTabletBlossomProjectionEnlargesCaptionWithoutEnlargingFlowerArtwork() throws {
         let size=CGSize(width:820,height:1180),logical=NativeTabletLayout.animationViewport(size)

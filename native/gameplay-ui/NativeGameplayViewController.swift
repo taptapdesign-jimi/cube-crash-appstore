@@ -698,7 +698,7 @@ final class NativeGameplayViewController: UIViewController {
                 self.area55Finales["spaceship"]?.dispose()
                 self.honeyFinale?.dispose()
                 self.bottleFinale?.dispose()
-                let owner = NativeBottleFinalePresentation(resourceRoot: self.resourceRoot,viewport: self.finaleViewport,preparedArtwork:self.selectedFinaleArtwork())
+                let owner = NativeBottleFinalePresentation(resourceRoot: self.resourceRoot,viewport: self.finaleViewport,preparedArtwork:self.selectedFinaleArtwork(),captionFillsWidth:!NativeTabletLayout.applies(self.view.bounds.size),captionPresentationScale:NativeTabletLayout.applies(self.view.bounds.size) ? 1:0.70)
                 let plan=self.engine.pendingSpecial
                 let excluded=Set((plan?.targets.map(\.id) ?? [])+[plan?.source.id,plan?.destination.id].compactMap{$0})
                 owner.bindBoardReaction(self.boardScene?.makeBloobBoardReaction(excluding:excluded),pullComplete:{[weak scene=self.boardScene] in
@@ -1623,16 +1623,10 @@ final class NativeGameplayViewController: UIViewController {
         // its registry lease already unhooked; Core still seals the old flow.
         return engine.finishSourceNoMovesFinalCleanup(receipt:receipt)
     }
-    /// Restart hands off after its own fast chrome exit; tile/footer exits
-    /// retain their existing owners until replacement's first frame or dispose.
+    /// Restart replacement is admitted only after the complete old board/footer
+    /// exit. Its fast chrome track stays independent, never the handoff clock.
     func animateRestartExit(completion:@escaping(Bool)->Void) {
-        var finished=false
-        let settle:(Bool)->Void={success in
-            guard !finished else{return};finished=true;completion(success)
-        }
-        animateBoardExit(restartChrome:true,chromeCompletion:settle){success in
-            if !success {settle(false)}
-        }
+        animateBoardExit(restartChrome:true,completion:completion)
     }
     func animateBoardExit(finalMerge:Bool=false,restartChrome:Bool=false,chromeCompletion:((Bool)->Void)?=nil,completion: @escaping (Bool) -> Void) {
         guard let boardScene,!disposed,!exitingBoard else {completion(false);return}

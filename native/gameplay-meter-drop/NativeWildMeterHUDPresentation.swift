@@ -150,7 +150,7 @@ import UIKit
             if let preview=self.preloadBar {
                 let a=preview.smokeBaseline(in:self.stage),b=preview.smokePoint(atX:preview.visualMaximum,in:self.stage)
                 let source=self.nativeToSource(a),span=max(0,Double(b.x-a.x)),scale=span/max(1,self.canonicalMaximum)
-                let left=(self.owner?.left ?? 0)*scale,right=min(span*preview.lifecycleReveal,((self.owner?.left ?? 0)+(self.owner?.width ?? 0))*scale)
+                let left=(self.owner?.left ?? 0)*scale,right=min(span*preview.lifecycleReveal,((self.owner?.left ?? 0)+(self.owner?.width ?? 0)*preview.liquidFillFraction)*scale)
                 return .init(x:Double(source.x),y:Double(source.y)-5,left:left,width:max(0,right-left),fillAlive:!self.closed && !preview.container.isHidden && preview.smokeAdmitted,parentAttached:preview.container.parent != nil,maximum:span)
             }
             let source=self.nativeToSource(self.container.position)
@@ -244,7 +244,10 @@ import UIKit
         if preloadBar.container.parent !== parent {preloadBar.container.removeFromParent();parent.addChild(preloadBar.container)}
         // Resting HUD coordinates,without inheriting its drop/rise or fade.
         preloadBar.container.position=preloadDesignMeterPosition
-        preloadBar.container.zPosition=stage.zPosition+container.zPosition+6000
+        // This surface includes translucent navigation paper as well as the
+        // divider. Keep it above the board but behind the HUD: its entrance
+        // must not wash over already opaque Close/score/combo/Backpack artwork.
+        preloadBar.container.zPosition=stage.zPosition-1
     }
     func takePreloadExitPresentation()->NativePreloadBarPresentation? {
         guard !closed else{return nil};attachPreloadSurface();smoke.stopEmission();preloadSurfaceDetached=true;let visual=preloadBar;preloadBar=nil;return visual
@@ -252,7 +255,7 @@ import UIKit
     func restorePreloadPresentation(_ visual:NativePreloadBarPresentation){
         guard !closed else{visual.dispose();return};preloadSurfaceDetached=false;preloadBar=visual;visual.onMotionChanged=onPreloadMotionChanged;preloadPrimed=false;attachPreloadSurface();visual.cancelBoardExit()
     }
-    func primeBoardEntry(){guard !closed else{return};preloadPrimed=true;attachPreloadSurface();preloadBar?.primeBoardEntry()}
+    func primeBoardEntry(restart:Bool=false){guard !closed else{return};preloadPrimed = !restart;attachPreloadSurface();preloadBar?.primeBoardEntry(restart:restart)}
     func beginBoardEntry(restart:Bool=false){guard !closed else{return};preloadPrimed=false;attachPreloadSurface();preloadBar?.beginBoardEntry(restart:restart)}
     func paintPreloadBoardEntry(_ elapsed:Double){guard !closed else{return};preloadBar?.paintBoardEntry(elapsed)}
     func synchronizePreloadSurfaceVisibility(){guard !closed,let preloadBar else{return};preloadBar.container.position=preloadDesignMeterPosition;preloadBar.container.xScale=container.xScale;preloadBar.container.yScale=container.yScale;preloadBar.container.alpha=container.alpha;preloadBar.container.isHidden=preloadPrimed || stage.isHidden}

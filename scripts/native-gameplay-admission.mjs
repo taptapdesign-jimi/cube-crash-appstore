@@ -19,7 +19,9 @@ for (const file of files) {
   if (/\bimport\s+WebKit\b|\bWKWebView\b|\bevaluateJavaScript\s*\(|\bcallAsyncJavaScript\s*\(/.test(code)) errors.push(`${file}: native gameplay dependency on web runtime`);
 }
 const sourceIDs = [...read('src/modules/special-dice-registry.ts').matchAll(/^\s+id: '([^']+)'/gm)].map(match => match[1]).sort();
-const nativeIDs = [...read('native/gameplay-core/Sources/StackToSixGameplay/NativeSpecialDiceRegistry.swift').matchAll(/Variant\("([^"]+)"/g)].map(match => match[1]).sort();
+const nativeRegistry = read('native/gameplay-core/Sources/StackToSixGameplay/NativeSpecialDiceRegistry.swift');
+const nativeDefinitions = new Map([...nativeRegistry.matchAll(/Variant\("([^"]+)",\s*\.(star|juice|magnet|tnt),/g)].map(match => [match[1],`wild-${match[2]}`]));
+const nativeIDs = [...nativeDefinitions.keys()].sort();
 const nativeManifest = JSON.parse(read('docs/engineering/native-special-dice-performance-owners.json'));
 const additions = nativeManifest.nativeOnlyVariants ?? {};
 for (const [id,record] of Object.entries(additions)) {
@@ -28,7 +30,24 @@ for (const [id,record] of Object.entries(additions)) {
 const expectedIDs = [...sourceIDs,...Object.keys(additions)].sort();
 if (JSON.stringify(expectedIDs) !== JSON.stringify(nativeIDs)) errors.push('Native Special registry differs from preserved registry plus declared Native-only identities');
 const sourcePerformance = JSON.parse(read('docs/engineering/special-dice-performance-owners.json'));
-const nativePerformance = JSON.parse(read('docs/engineering/native-special-dice-performance-owners.json')).variants;
+const nativePerformance = nativeManifest.variants;
+const gameplayOverrides = nativeManifest.nativeGameplayOverrides ?? {};
+const archetypeIDs = ['wild-star','wild-juice','wild-magnet','wild-tnt'];
+for (const [id,override] of Object.entries(gameplayOverrides)) {
+  if (!sourceIDs.includes(id) || !sourcePerformance[id]) errors.push(`${id}: Native gameplay override has no preserved source identity`);
+  if (override.sourceArchetype !== sourcePerformance[id]?.archetype) errors.push(`${id}: Native gameplay override source archetype is missing or stale`);
+  if (!archetypeIDs.includes(override.archetype) || override.archetype === override.sourceArchetype || override.archetype !== nativeDefinitions.get(id)) errors.push(`${id}: Native gameplay override differs from Swift registry archetype`);
+  if (!override.reason?.trim()) errors.push(`${id}: Native gameplay override lacks explicit decision reason`);
+  if (!Array.isArray(override.tests) || override.tests.length === 0) errors.push(`${id}: Native gameplay override lacks regression tests`);
+  for (const file of override.tests ?? []) {
+    if (!file?.startsWith('native/') || !file.endsWith('.swift') || !fs.existsSync(path.join(root,file))) {
+      errors.push(`${id}: Native gameplay override missing regression ${file}`);
+    } else if (!/XCTestCase/.test(read(file)) || !/func\s+test/.test(read(file))) {
+      errors.push(`${id}: Native gameplay override regression has no XCTest cases ${file}`);
+    }
+    if (!nativePerformance[id]?.tests?.includes(file)) errors.push(`${id}: Native gameplay override has unowned regression ${file}`);
+  }
+}
 const sharedIdleTests = [
   'native/standalone/Stack to SixTests/NativeSourceRegularResumeConstructionTests.swift',
   'native/standalone/Stack to SixTests/NativeSourceSpecialIdleMountedTests.swift',
@@ -36,7 +55,8 @@ const sharedIdleTests = [
 for (const id of expectedIDs) {
   const record = nativePerformance[id];
   if (!record) {errors.push(`${id}: missing native performance owner`);continue;}
-  if (record.archetype !== (sourcePerformance[id] ?? additions[id])?.archetype) errors.push(`${id}: native performance archetype mismatch`);
+  const expectedArchetype = gameplayOverrides[id]?.archetype ?? (sourcePerformance[id] ?? additions[id])?.archetype;
+  if (record.archetype !== expectedArchetype || record.archetype !== nativeDefinitions.get(id)) errors.push(`${id}: native performance archetype mismatch`);
   for (const key of ['warmupPolicy','cleanupPolicy','hudDepthPolicy','physicalAcceptance']) if (!record[key]?.trim()) errors.push(`${id}: missing native ${key}`);
   for (const file of [record.idleOwner,record.finaleOwner,...record.tests ?? []]) if (!file?.startsWith('native/') || !fs.existsSync(path.join(root,file))) errors.push(`${id}: missing native performance owner/test ${file}`);
   for (const file of sharedIdleTests) if (!record.tests?.includes(file)) errors.push(`${id}: missing shared Native restore/idle regression ${file}`);

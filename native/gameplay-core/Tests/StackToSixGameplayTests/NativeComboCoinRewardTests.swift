@@ -29,7 +29,7 @@ final class NativeComboCoinRewardTests:XCTestCase {
     func testTntSplitsComboBudgetBetweenCenterAndEveryActualImpact()throws {
         for mode in [NativeRunMode.journey,.arcade] {
             for staged in [false,true] {
-                for variant in [nil,"flower","barell","laser-gun","beach-ball","bloob-ball"] as [String?] {
+                for variant in [nil,"flower","barell","laser-gun","bloob-ball"] as [String?] {
                     for extra in 1...6 {for (combo,reward) in thresholds where combo>0 {
                         let e=engine(.tnt,variant,combo:combo-1,extra:extra,mode:mode)
                         e.stagedTntActivation=staged
@@ -73,6 +73,20 @@ final class NativeComboCoinRewardTests:XCTestCase {
                 }
             }
         }
+    }
+    func testBallMushroomRefillKeepsOneCommittedComboBudgetAcrossLegacyCores() throws {
+        for mode in [NativeRunMode.journey,.arcade] {for legacy in [NativeWildArchetype.juice,.magnet,.tnt] {for (combo,count) in thresholds where combo>0 {
+            let e=engine(legacy,"beach-ball",combo:combo-1,extra:2,mode:mode)
+            XCTAssertTrue(e.beginDrag(tileID:"s"));XCTAssertTrue(e.drop(target:.init(column:1,row:0)).accepted)
+            XCTAssertNil(e.pendingSpecial);XCTAssertEqual(e.pendingHUDStars.count,count)
+            XCTAssertTrue(e.pendingHUDStars.allSatisfy{$0.archetype == .juice})
+            let score=e.state.score,receipts=e.pendingHUDStars
+            for coin in receipts {
+                XCTAssertTrue(e.commitHUDStarArrival(receiptID:coin.id,generation:coin.generation).accepted)
+                XCTAssertFalse(e.commitHUDStarArrival(receiptID:coin.id,generation:coin.generation).accepted)
+            }
+            XCTAssertEqual(e.state.score,score+100*count)
+        }}}
     }
     func testMagnetRewardUsesResultingComboIncludingPulls()throws {
         for variant in [nil,"honey","bottle","spaceship"] as [String?] {

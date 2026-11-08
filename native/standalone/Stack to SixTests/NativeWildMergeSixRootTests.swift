@@ -32,11 +32,16 @@ final class NativeWildMergeSixRootTests:XCTestCase {
         }}
     }
     func testBeachBallMergeKeepsUnrelatedBoardDiceFullSize()async throws {
-        try await exercise(archetype:.tnt,variant:"beach-ball",reverse:false,disposeDuringMain:false,moves:49,verifyBoardScale:true)
+        try await exercise(archetype:.juice,variant:"beach-ball",reverse:false,disposeDuringMain:false,moves:49,verifyBoardScale:true)
     }
     func testBloobFourToSixBonusDiceSettleInActualJourneyAndArcadeSourceRoots()async throws {
         for arcade in [false,true] {for reverse in [false,true] {
             try await exercise(archetype:.star,variant:"bloob",reverse:reverse,disposeDuringMain:false,moves:49,arcadeRun:arcade)
+        }}
+    }
+    func testBeachBallMushroomRefillSettlesInActualJourneyAndArcadeSourceRoots()async throws {
+        for arcade in [false,true] {for reverse in [false,true] {
+            try await exercise(archetype:.juice,variant:"beach-ball",reverse:reverse,disposeDuringMain:false,moves:49,arcadeRun:arcade)
         }}
     }
     func testMushroomFourToSixBonusDiceSettleInActualJourneyAndArcadeSourceRoots()async throws {
@@ -473,7 +478,7 @@ final class NativeWildMergeSixRootTests:XCTestCase {
 
     func testBeachBallBoardClearFollowsActualLastBallInBothModesAndDirections()async throws {
         for (arcade,reverse) in [(true,false),(true,true),(false,false)] {
-            try await exercise(archetype:.tnt,variant:"beach-ball",reverse:reverse,disposeDuringMain:false,
+            try await exercise(archetype:.juice,variant:"beach-ball",reverse:reverse,disposeDuringMain:false,
                 moves:49,finalOnly:true,arcadeRun:arcade,verifyBoardCleared:true)
         }
     }
@@ -1177,7 +1182,7 @@ final class NativeWildMergeSixRootTests:XCTestCase {
             XCTAssertGreaterThan(queuedSamples,0)
             print("[LockedPopDiag] settled queued=\(queuedBonus.count) samples=\(queuedSamples)")
         }
-        if variant=="mushroom" || variant=="bloob" {
+        if variant=="mushroom" || variant=="bloob" || variant=="beach-ball" {
             let before=board.activeTiles.count
             XCTAssertTrue((before+3...before+5).contains(gameplay.engine.state.activeTiles.count),"One primary plus4–6 extras replaces the consumed pair: "+label)
         }

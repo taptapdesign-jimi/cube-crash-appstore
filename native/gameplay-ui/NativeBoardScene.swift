@@ -145,6 +145,12 @@ final class NativeBoardScene: SKScene {
         mountedLifecycleHost=host;host.renderView.isMultipleTouchEnabled=true
         let sourceInitialEntry=sourceInitialEntryPending;sourceInitialEntryPending=false
         synchronize(animateEntry:lastGeneration==nil || sourceInitialEntry)
+        if !hasMountedInitialHUD {
+            hasMountedInitialHUD=true
+            // Cold Source preparation and safe-area layout may have settled an
+            // unmounted HUD. Its first visible reveal starts only on this host.
+            primeVisibleHUDEntry()
+        }
         guard !disposed,mountedLifecycleHost === host,host.renderedScene === self else{return}
         retainSourceRendererDragTransport()
     }
@@ -1329,7 +1335,7 @@ final class NativeBoardScene: SKScene {
     private func beginPreloadMeterEntry(){
         guard let owner=sourceTutorialMeterHUD else{return}
         guard preloadChromeGeneration==engine.state.generation,!preloadChromeSettled else{owner.cancelBoardExit();return}
-        guard let elapsed=preloadChromeElapsed else{owner.primeBoardEntry();return}
+        guard let elapsed=preloadChromeElapsed else{owner.primeBoardEntry(restart:replaysRestartChrome);return}
         owner.beginBoardEntry(restart:replaysRestartChrome)
         owner.paintPreloadBoardEntry(elapsed)
     }
@@ -1991,6 +1997,7 @@ final class NativeBoardScene: SKScene {
     private var meterTimeoutIDs=Set<String>()
     private var hudStarVisualReceipts: [String:UInt64] = [:]
     private let score = NativeArchedHUDScore()
+    private var scoreCounter=NativeHUDNumberCounter(),comboCounter=NativeHUDNumberCounter()
     private let scoreArt = SKSpriteNode()
     private let comboArt = SKSpriteNode()
     private let comboArtImage = SKSpriteNode()
@@ -5881,14 +5888,24 @@ final class NativeBoardScene: SKScene {
     private var preloadHUDExitBase:[(scale:CGPoint,offset:CGPoint,alpha:CGFloat)]=[]
     private var entryInProgress = false
     private var entryOwners = 0
+    private var hasMountedInitialHUD=false
+    private(set) var restartEntryHandoffReleased=false
+    private var restartEntryHandoffReadyGeneration:UInt64?
+    private var restartEntryRootDelivery:NativeSourceAnimationClockService.SourceRootDeliveryLease?
+    private var restartEntryMotionWasPrimed=false
+    private var usesRestartEntryHandoff:Bool {replaysRestartChrome && sourceBoardEntryEnabled && sourceInitialConstruction != nil}
+    private var holdsRestartEntryForVisibleHandoff:Bool {
+        usesRestartEntryHandoff && !restartEntryHandoffReleased && !UIAccessibility.isReduceMotionEnabled
+    }
     private var hudEntryReveal=NativeHUDEntryReveal()
     private var hudEntryReceipt:NativeHUDEntryReveal.Receipt?
     var roundChromeReceipt:(offset:CGFloat,alpha:CGFloat,hidden:Bool,animating:Bool) {roundIndicator.presentationReceipt}
     var keepsHUDVisibleOnEntry=false
     var replaysRestartChrome=false
     private var preloadExitIsRestart=false
+    private var preloadExitKeepsHUD=false
     private var restartChromeCompletion:((Bool)->Void)?
-    var boardChromeReceipt:(offset:CGFloat,alpha:CGFloat,entering:Bool) {(hud.position.y,hud.alpha,hud.action(forKey:"hud-enter") != nil)}
+    var boardChromeReceipt:(offset:CGFloat,alpha:CGFloat,entering:Bool) {(hud.position.y,hud.alpha,hud.action(forKey:"hud-enter") != nil || hud.action(forKey:"hud-enter-delay") != nil)}
     private(set) var isHUDRevealPending=false
     private var suspended = false
     private var hudFeedbackPausedNodes:[(SKNode,Bool)]=[]
@@ -5912,6 +5929,9 @@ final class NativeBoardScene: SKScene {
         sourcePresentationFailureGeneration=generation
         return true
     }
+    /// Historical completion receipt remains readable after Source scope/host
+    /// retirement so a successor can prove it never overlapped an exiting board.
+    var hasCompletedBoardExit:Bool {completedExitGeneration==engine.state.generation && !exitInProgress}
     private var exitInProgress = false
     // The exited surface remains owned until a fresh board replaces it. UIKit
     // result mounting may relayout the old SpriteKit view before its next paint.
@@ -6017,6 +6037,7 @@ final class NativeBoardScene: SKScene {
     }
 
     override func willMove(from view:SKView) {
+        settleHUDNumbers()
         retireSourceRendererDragTransport()
         if mountedLifecycleHost === view {mountedLifecycleHost=nil}
         super.willMove(from:view)
@@ -6035,6 +6056,7 @@ final class NativeBoardScene: SKScene {
             }
             finishExit(completed: false)
         }
+        let pendingVisibleHUD=hasMountedInitialHUD && (isHUDRevealPending || hud.action(forKey:"hud-enter-delay") != nil)
         cancelEntry()
         self.size = size; safeInsets = insets
         let hudParent:SKNode=NativeTabletLayout.applies(size) ? self:canvasRoot
@@ -6042,6 +6064,7 @@ final class NativeBoardScene: SKScene {
         cancelDrag()
         geometry = nil
         synchronize(animateEntry: animateEntry)
+        if pendingVisibleHUD {primeVisibleHUDEntry()}
         // A same-route relayout settles the interrupted entrance to canonical
         // geometry. Source load finally resumes deferred idle on that current
         // route; a replacement entrance retains the defer until it completes.
@@ -6093,7 +6116,7 @@ final class NativeBoardScene: SKScene {
             let help = SKSpriteNode(texture: textures.texture(engine.state.mode == .arcade ? "assets/hud/crate - hud.png":"assets/nav/stats-nav.png"))
             help.name = "native-game-help"; let helpDimensions=help.texture?.size() ?? CGSize(width:28,height:28)
             // Tablet Backpack matches the Journey navigation40pt base artwork.
-            let helpScale=NativeGameplayChromePlan.backpackBaseSide(for:size)*NativeGameplayChromePlan.hudScale(for:size)/max(1,max(helpDimensions.width,helpDimensions.height))
+            let helpScale=NativeGameplayChromePlan.backpackBaseSide(for:size)*NativeGameplayChromePlan.hudScale(for:size)*(engine.state.mode == .arcade ? 0.8:1)/max(1,max(helpDimensions.width,helpDimensions.height))
             help.size = CGSize(width:helpDimensions.width*helpScale,height:helpDimensions.height*helpScale); hud.addChild(help)
         }
         scoreArt.texture = textures.texture("assets/hud/score-hud.png")
@@ -6146,7 +6169,7 @@ final class NativeBoardScene: SKScene {
             }
             if let help=hud.childNode(withName:"//native-game-help") as? SKSpriteNode {
                 let dimensions=help.texture?.size() ?? CGSize(width:34,height:34)
-                let scale=NativeGameplayChromePlan.backpackBaseSide(for:size)*uiScale/max(1,max(dimensions.width,dimensions.height))
+                let scale=NativeGameplayChromePlan.backpackBaseSide(for:size)*uiScale*(engine.state.mode == .arcade ? 0.8:1)/max(1,max(dimensions.width,dimensions.height))
                 help.size=CGSize(width:dimensions.width*scale,height:dimensions.height*scale)
             }
             comboHUDMotion.layoutArtwork(fallbackSize:comboArt.size);hudIconSide=targetIconSide
@@ -6916,7 +6939,7 @@ final class NativeBoardScene: SKScene {
         }
         refreshSourceIdlePopulation()
         renderGhosts(state: state, geometry: geometry)
-        score.text = NativeScoreDisplay.text(state.score)
+        synchronizeHUDScore()
         synchronizeComboHUD()
         // Source startup owns its initial fade; after guide completion the
         // completion-assist HUD lock still owns dimming, including cleanup refreshes.
@@ -6928,7 +6951,7 @@ final class NativeBoardScene: SKScene {
         // Resetting it here flashes every live particle between Source frames.
         preloadHUDTutorialAlpha=tutorialHUDAlpha
         for child in hud.children where child !== noMoves && sourceTutorialHUD?.owns(child) != true && sourceTutorialMeterHUD?.ownsSmoke(child) != true && tutorialSpecialBarFocus.isEmpty {if let index=preloadHUDGroups.firstIndex(where:{$0.root === child}){child.alpha=tutorialHUDAlpha*preloadHUDMotionAlpha[index]}else{child.alpha=tutorialHUDAlpha}}
-        if animateEntry && !UIAccessibility.isReduceMotionEnabled {
+        if (animateEntry || holdsRestartEntryForVisibleHandoff) && !UIAccessibility.isReduceMotionEnabled {
             animateBoardEntry(tiles: live,geometry: geometry)
         } else if !entryInProgress { inputAdmitted = state.terminal == nil && pendingTerminal == nil;roundIndicator.enter(animated:false) }
         if preparedEntryGeneration == state.generation {inputAdmitted=false;navigationLocked=true}
@@ -6976,7 +6999,7 @@ final class NativeBoardScene: SKScene {
         let navRow=navTop+26-((navTop+66)-navHeight)/2+8
         func y(_ x:Double)->Double {navRow+4*depth*(x/390)*(1-x/390)-depth}
         if let close=closeButton {close.position=CGPoint(x:44.1*phoneScale,y:size.height-y(44)+0.4);close.zRotation = -14*Double.pi/180;close.ring.isHidden=true;close.icon.alpha=1}
-        if let bag=hud.childNode(withName:"//native-game-help") as? SKSpriteNode {bag.position=CGPoint(x:338.9*phoneScale,y:size.height-y(346)+1.6);bag.zRotation=14*Double.pi/180;bag.size=CGSize(width:36.8,height:36.8)}
+        if let bag=hud.childNode(withName:"//native-game-help") as? SKSpriteNode {bag.position=CGPoint(x:338.9*phoneScale,y:size.height-y(346)+1.6);bag.zRotation=14*Double.pi/180;let side:CGFloat=36.8*(engine.state.mode == .arcade ? 0.8:1);bag.size=CGSize(width:side,height:side)}
     }
 
     private var tabletHUDComboWidthCache:(fontSize:CGFloat,width:CGFloat)?
@@ -6995,7 +7018,7 @@ final class NativeBoardScene: SKScene {
         // Equal icon-center intervals keep all four controls balanced even
         // when score/combo values or their feedback scales change.
         let closeCenter=left+NativeHUDCloseNode.radius*scale
-        let helpCenter=left+width-help.size.width/2
+        let helpCenter=left+width-help.size.width/(engine.state.mode == .arcade ? 0.8:1)/2
         let step=(helpCenter-closeCenter)/3
         let scoreLeft=closeCenter+step-scoreArt.size.width/2
         let comboStart=closeCenter+2*step-comboArt.size.width/2
@@ -7021,9 +7044,38 @@ final class NativeBoardScene: SKScene {
         help.zRotation=14 * .pi/180
     }
 
+    private var hudNumbersMayAnimate:Bool {
+        !disposed && !suspended && !exitInProgress && engine.state.terminal == nil &&
+        !UIAccessibility.isReduceMotionEnabled && !hud.isHidden && hud.alpha>0 &&
+        gameplayRenderHost?.renderView.window != nil
+    }
+    private func synchronizeHUDScore() {
+        scoreCounter.synchronize(engine.state.score,generation:engine.state.generation,animated:hudNumbersMayAnimate)
+        score.text=NativeScoreDisplay.text(scoreCounter.value)
+    }
+    private func settleHUDNumbers() {
+        scoreCounter.synchronize(engine.state.score,generation:engine.state.generation,animated:false)
+        comboCounter.synchronize(engine.state.combo,generation:engine.state.generation,animated:false)
+        score.text=NativeScoreDisplay.text(scoreCounter.value)
+        comboNumber.text=NativeComboDisplay.text(comboCounter.value)
+    }
+    private func advanceHUDNumbers(delta:Double) {
+        guard scoreCounter.active || comboCounter.active else{return}
+        let visible=hudNumbersMayAnimate && sourceShimmerCanvasPaintable
+        scoreCounter.advance(delta:delta,visible:visible,reducedMotion:UIAccessibility.isReduceMotionEnabled)
+        comboCounter.advance(delta:delta,visible:visible,reducedMotion:UIAccessibility.isReduceMotionEnabled)
+        score.text=NativeScoreDisplay.text(scoreCounter.value)
+        let text=NativeComboDisplay.text(comboCounter.value)
+        if comboNumber.text != text {
+            comboNumber.text=text
+            layoutComboValue(top:gameplayChromePlan.valueRowY)
+        }
+    }
+
     private func synchronizeComboHUD() {
         let combo = engine.state.combo
-        comboNumber.text = NativeComboDisplay.text(combo)
+        comboCounter.synchronize(combo,generation:engine.state.generation,animated:hudNumbersMayAnimate)
+        comboNumber.text = NativeComboDisplay.text(comboCounter.value)
         if exitInProgress || engine.state.terminal != nil {comboNumberMotion.stop()}
         else {comboNumberMotion.synchronize(combo:combo,generation:engine.state.generation,reducedMotion:UIAccessibility.isReduceMotionEnabled)}
         if !comboHUDMotion.usesAuthoredFrames {
@@ -7045,6 +7097,17 @@ final class NativeBoardScene: SKScene {
     }
 
     private func animateBoardEntry(tiles: [NativeTile],geometry: NativeBoardGeometry) {
+        if holdsRestartEntryForVisibleHandoff {
+            // Keep the existing entry/input boundary occupied while the old
+            // exited host covers this replacement's first two paints. Source
+            // constructor visibility stays held; its wave draws/timing are not
+            // acquired until that actual visible handoff completes.
+            restartEntryMotionWasPrimed=true
+            entryInProgress=true;entryOwners=0;inputAdmitted=false
+            if hudEntryReceipt==nil {hudEntryReceipt=hudEntryReveal.begin(generation:engine.state.generation,tileCount:tiles.count)}
+            isHUDRevealPending=true;primeHUDForBoardEntry();requestRendering(true)
+            return
+        }
         // Repeated UIKit layout must not recapture the in-flight alpha/scale
         // as a new destination or replace the current entry receipt.
         guard !entryInProgress else{return}
@@ -7162,10 +7225,52 @@ final class NativeBoardScene: SKScene {
         preloadHUDExitBase.removeAll()
         for i in preloadHUDGroups.indices{preloadHUDGroups[i].root.setScale(1);preloadHUDGroups[i].root.position = .zero;preloadHUDMotionAlpha[i]=1;preloadHUDGroups[i].root.alpha=preloadHUDTutorialAlpha}
     }
+    private func releaseRestartEntryAfterVisibleHandoffIfReady() {
+        guard !disposed,!suspended,!exitInProgress,completedExitGeneration != engine.state.generation,
+              usesRestartEntryHandoff,!restartEntryHandoffReleased,
+              restartEntryHandoffReadyGeneration==engine.state.generation,
+              sourceAnimationBindingAdmissionOpen,sourceInitialConstruction?.isCurrent==true else{return}
+        if restartEntryMotionWasPrimed && !UIAccessibility.isReduceMotionEnabled {
+            guard restartEntryRootDelivery?.active != true,let scope=sourceBoardEntryScope else{return}
+            let receipt=scope.service.afterNextSourceRootDelivery(ownerID:"restart-visible-entry",generation:engine.state.generation){[weak self] in
+                guard let self else{return}
+                self.restartEntryRootDelivery=nil
+                self.completeRestartEntryVisibleHandoff()
+            }
+            if receipt?.active==true {restartEntryRootDelivery=receipt}
+            return
+        }
+        completeRestartEntryVisibleHandoff()
+    }
+    private func completeRestartEntryVisibleHandoff() {
+        guard !disposed,!suspended,!exitInProgress,completedExitGeneration != engine.state.generation,
+              usesRestartEntryHandoff,!restartEntryHandoffReleased,
+              restartEntryHandoffReadyGeneration==engine.state.generation,
+              sourceAnimationBindingAdmissionOpen,sourceInitialConstruction?.isCurrent==true else{return}
+        // Readiness survives a reentrant suspension; a later actual painted
+        // callback retries this same generation. Consume even a motion-skipped
+        // handoff so disabling Reduced Motion later cannot reactivate it.
+        restartEntryHandoffReleased=true;restartEntryHandoffReadyGeneration=nil
+        entryInProgress=false
+        if !restartEntryMotionWasPrimed || UIAccessibility.isReduceMotionEnabled {
+            sourceInitialConstruction?.releaseToExistingNativeEntry()
+            cancelEntry();synchronize(animateEntry:false);resumeSourceEntryDeferredIdle()
+        }else{synchronize(animateEntry:true)}
+    }
+    private func primeVisibleHUDEntry() {
+        guard !disposed,!exitInProgress,!keepsHUDVisibleOnEntry,
+              engine.state.tutorial?.active != true,!UIAccessibility.isReduceMotionEnabled else{return}
+        if hudEntryReceipt==nil {hudEntryReceipt=hudEntryReveal.begin(generation:engine.state.generation,tileCount:0)}
+        isHUDRevealPending=true
+        primeHUDForBoardEntry()
+    }
     private func primeHUDForBoardEntry() {
-        preloadChromeGeneration=engine.state.generation;preloadChromeElapsed=nil;preloadChromeSettled=false
-        sourceTutorialMeterHUD?.primeBoardEntry()
-        hud.removeAction(forKey:"hud-enter");preparePreloadHUDGroups()
+        preloadChromeGeneration=engine.state.generation;preloadChromeElapsed=nil;preloadChromeSettled=keepsHUDVisibleOnEntry
+        if keepsHUDVisibleOnEntry {
+            sourceTutorialMeterHUD?.cancelBoardExit()
+            if let receipt=hudEntryReceipt {hudEntryReveal.cancel(receipt)}
+        }else{sourceTutorialMeterHUD?.primeBoardEntry(restart:replaysRestartChrome)}
+        hud.removeAction(forKey:"hud-enter-delay");hud.removeAction(forKey:"hud-enter");preparePreloadHUDGroups()
         if !preloadHUDGroups.isEmpty {
             hud.position = .zero;hud.alpha=1
             if keepsHUDVisibleOnEntry {restorePreloadHUD();isHUDRevealPending=false;roundIndicator.enter(animated:false)}else{paintPreloadHUD(0,entering:true);roundIndicator.primeEntry()}
@@ -7175,19 +7280,27 @@ final class NativeBoardScene: SKScene {
             isHUDRevealPending=false;hud.position = .zero;hud.alpha=1;roundIndicator.enter(animated:false)
         } else {hud.position.y=140;hud.alpha=0;roundIndicator.primeEntry()}
     }
+    static let ordinaryHUDEntryDelay:TimeInterval=0.100
+    /// This finite wait belongs to the existing HUD action subtree. Suspension,
+    /// entry replacement and disposal retire it with the reveal receipt.
+    private func scheduleHUDDrop(_ receipt:NativeHUDEntryReveal.Receipt) {
+        guard !disposed,!exitInProgress,hudEntryReceipt==receipt,engine.state.generation==receipt.generation,
+              hud.action(forKey:"hud-enter-delay")==nil else{return}
+        hud.run(.sequence([.wait(forDuration:Self.ordinaryHUDEntryDelay),.run{[weak self] in
+            guard let self,!self.disposed,!self.exitInProgress,self.hudEntryReceipt==receipt,self.engine.state.generation==receipt.generation else{return}
+            self.startHUDDrop(receipt)
+        }]),withKey:"hud-enter-delay")
+    }
     private func startHUDDrop(_ receipt:NativeHUDEntryReveal.Receipt) {
         guard !disposed,!exitInProgress,hudEntryReceipt==receipt,engine.state.generation==receipt.generation else{return}
         isHUDRevealPending=false
-        preloadChromeElapsed=0
-        beginPreloadMeterEntry()
         if keepsHUDVisibleOnEntry {
             hud.position = .zero;hud.alpha=1;roundIndicator.enter(animated:false)
-            let duration=NativePreloadBarPresentation.chromeDuration(entering:true,reduced:UIAccessibility.isReduceMotionEnabled,restart:replaysRestartChrome)
-            hud.run(.sequence([.customAction(withDuration:duration){[weak self] _,elapsed in
-                guard let self,!self.disposed,!self.exitInProgress,self.hudEntryReceipt==receipt,self.engine.state.generation==receipt.generation else{return};self.paintPreloadChromeEntry(Double(elapsed))
-            },.run{[weak self] in self?.finishPreloadChromeEntry(receipt)}]),withKey:"hud-enter")
-            onHUDDrop?(receipt.generation);return
+            sourceTutorialMeterHUD?.cancelBoardExit();preloadChromeSettled=true
+            return
         }
+        preloadChromeElapsed=0
+        beginPreloadMeterEntry()
         if !preloadHUDGroups.isEmpty {
             hud.position = .zero;hud.alpha=1
             hud.run(.sequence([.customAction(withDuration:max(preloadHUDDuration(entering:true),NativePreloadBarPresentation.chromeDuration(entering:true,reduced:UIAccessibility.isReduceMotionEnabled,restart:replaysRestartChrome))){[weak self] _,time in
@@ -7223,7 +7336,7 @@ final class NativeBoardScene: SKScene {
         finishSourceEntry()
         if let receipt=hudEntryReceipt {hudEntryReveal.cancel(receipt)}
         hudEntryReceipt=nil;isHUDRevealPending=false
-        removeAction(forKey:"hud-midpoint");hud.removeAction(forKey:"hud-enter")
+        removeAction(forKey:"hud-midpoint");hud.removeAction(forKey:"hud-enter-delay");hud.removeAction(forKey:"hud-enter")
         if restoreHUD {preloadChromeSettled=true;restorePreloadHUD();hud.position = .zero;hud.alpha=1;roundIndicator.cancelExit();sourceTutorialMeterHUD?.cancelBoardExit()}
         guard entryInProgress else { return }
         entryInProgress = false; entryOwners = 0; removeAction(forKey: "entry-admission")
@@ -7300,7 +7413,12 @@ final class NativeBoardScene: SKScene {
         let groups:[[SKNode]]=[closeButton.map{[$0]} ?? [],[scoreArt,score],[comboArt,comboX,comboNumber],bag.map{[$0]} ?? []]
         func center(_ node:SKNode?,fallback:CGFloat)->CGFloat {guard let node,let parent=node.parent else{return fallback};return hud.convert(node.position,from:parent).x}
         func frame(_ node:SKNode)->CGRect {
-            guard let parent=node.parent else{return .null};let f=node.frame
+            guard let parent=node.parent else{return .null}
+            var f=node.frame
+            // Keep the original Box touch area after reducing only its artwork.
+            if node === bag,engine.state.mode == .arcade {
+                f=f.insetBy(dx:-(f.width/0.8-f.width)/2,dy:-(f.height/0.8-f.height)/2)
+            }
             let points=[CGPoint(x:f.minX,y:f.minY),CGPoint(x:f.maxX,y:f.minY),CGPoint(x:f.maxX,y:f.maxY),CGPoint(x:f.minX,y:f.maxY)].map{hud.convert($0,from:parent)}
             return points.reduce(CGRect.null){$0.union(CGRect(origin:$1,size:CGSize(width:0.001,height:0.001)))}
         }
@@ -9652,7 +9770,7 @@ final class NativeBoardScene: SKScene {
                 onTntGlyphClock?(clockID,NativeTntFinale.duration,true)
                 onSourcePresentationFailure?("source_tnt_direct_final_constructor_unavailable",generation);return
             }
-            let owner=NativeTntFinale(textures:textures,fontName:finaleFontName,viewport:finaleViewport,showsTitle:false,smokePresentationScale:NativeTabletLayout.smokeSpriteBoost(size),smokeVerticalOffset:NativeTabletLayout.tntSmokeVerticalOffset(size),usesCanonicalSmokeSize:NativeTabletLayout.applies(size),
+            let owner=NativeTntFinale(textures:textures,fontName:finaleFontName,viewport:finaleViewport,showsTitle:false,smokePresentationScale:NativeTabletLayout.smokeSpriteBoost(size),smokeVerticalOffset:NativeTabletLayout.tntSmokeVerticalOffset(size),usesCanonicalSmokeSize:true,
                 sourceConstruction:captured,sourceRandom:{[weak scope] in scope?.mathRandom.next() ?? .nan})
             sourceTntFinaleSourceConstructionCount+=1
             configureTntGlyphClock(owner,id:clockID);owner.setScale(NativeTabletLayout.animationScale(size));owner.zPosition=999998;effects.addChild(owner)
@@ -9680,7 +9798,7 @@ final class NativeBoardScene: SKScene {
             }
             return
         }
-        let owner = NativeTntFinale(textures: textures,fontName: finaleFontName,viewport: finaleViewport,showsTitle: onTntGlyphClock == nil,smokePresentationScale:NativeTabletLayout.smokeSpriteBoost(size),smokeVerticalOffset:NativeTabletLayout.tntSmokeVerticalOffset(size),usesCanonicalSmokeSize:NativeTabletLayout.applies(size))
+        let owner = NativeTntFinale(textures: textures,fontName: finaleFontName,viewport: finaleViewport,showsTitle: onTntGlyphClock == nil,smokePresentationScale:NativeTabletLayout.smokeSpriteBoost(size),smokeVerticalOffset:NativeTabletLayout.tntSmokeVerticalOffset(size),usesCanonicalSmokeSize:true)
         configureTntGlyphClock(owner)
         owner.setScale(NativeTabletLayout.animationScale(size));owner.zPosition = 999998; effects.addChild(owner)
         let receipt = beginVisual(); onRenderingDemand?(true)
@@ -10000,7 +10118,7 @@ final class NativeBoardScene: SKScene {
         let scaleClock=NativeSourceHUDStarScaleClockAdapter(service:scope.service)
         let scales=NativeSourceHUDStarScaleFeedback(hooks:.init(current:current,
             text:{[weak self] in self?.score.text ?? ""},
-            setText:{[weak self] value in self?.score.text=value},
+            setText:{[weak self] _ in self?.synchronizeHUDScore()},
             readScale:{[weak self] target in
                 guard let self else{return .init(x:1,y:1)}
                 let node:SKNode=target == .number ? self.score:self.scoreArt
@@ -10418,7 +10536,7 @@ final class NativeBoardScene: SKScene {
                 sourceRandom = {[weak scope] in scope?.mathRandom.next() ?? .nan}
                 sourceTntFinaleSourceConstructionCount+=1
             }
-            let owner = NativeTntFinale(textures: textures,fontName: finaleFontName,viewport: finaleViewport,showsTitle: onTntGlyphClock == nil,smokePresentationScale:NativeTabletLayout.smokeSpriteBoost(size),smokeVerticalOffset:NativeTabletLayout.tntSmokeVerticalOffset(size),usesCanonicalSmokeSize:NativeTabletLayout.applies(size),
+            let owner = NativeTntFinale(textures: textures,fontName: finaleFontName,viewport: finaleViewport,showsTitle: onTntGlyphClock == nil,smokePresentationScale:NativeTabletLayout.smokeSpriteBoost(size),smokeVerticalOffset:NativeTabletLayout.tntSmokeVerticalOffset(size),usesCanonicalSmokeSize:true,
                 sourceConstruction:sourceConstruction,sourceRandom:sourceRandom,random:draw)
             configureTntGlyphClock(owner,id:clockID); owner.setScale(NativeTabletLayout.animationScale(size));owner.zPosition = 999998; effects.addChild(owner)
             if sourceTntMainScope != nil {registerSourceCoreTntShakeTarget(owner,ownerID:plan.id,generation:plan.generation)}
@@ -10820,13 +10938,14 @@ final class NativeBoardScene: SKScene {
         if let diagnosticStart {diagnosticCadenceWorstMs=max(diagnosticCadenceWorstMs,(CACurrentMediaTime()-diagnosticStart)*1000)}
         if let receipt=hudEntryReceipt {
             if receipt.generation != engine.state.generation {cancelEntry()}
-            else if engine.state.tutorial?.active != true,preloadChromeElapsed==nil,!preloadChromeSettled {
+            else if !holdsRestartEntryForVisibleHandoff,engine.state.tutorial?.active != true,preloadChromeElapsed==nil,!preloadChromeSettled {
                 hudEntryReveal.cancel(receipt)
-                startHUDDrop(receipt)
+                scheduleHUDDrop(receipt)
             } else if hudEntryReveal.renderedCallback(receipt) {startHUDDrop(receipt)}
         }
         let elapsedDelta=lastFrame.map {max(0,currentTime-$0)} ?? 0
         dragTrail.advance(delta:elapsedDelta,timeMilliseconds:rawMilliseconds)
+        advanceHUDNumbers(delta:elapsedDelta>0.5 ? 0.033:elapsedDelta)
         let delta=min(0.05,elapsedDelta)
         if engine.state.combo>=5 {
             comboHUDMotion.advance(delta:delta,visible:!exitInProgress && engine.state.terminal == nil && !hud.isHidden && hud.alpha>0 && gameplayRenderHost?.renderView.window != nil && sourceShimmerCanvasPaintable,reducedMotion:UIAccessibility.isReduceMotionEnabled)
@@ -10930,8 +11049,14 @@ final class NativeBoardScene: SKScene {
             // Startup may precede attaching the SKScene to its visible SKView.
             // Resolve that real first-paint visibility handoff immediately.
             for node in nodesByID.values {node.reconcileSourceIdleBubbleVisibility()}
-            firstBoardFrameCount+=1;if firstBoardFrameCount==2 {onFirstBoardFrame?()}
+            firstBoardFrameCount+=1
+            if firstBoardFrameCount==2 {
+                if usesRestartEntryHandoff {restartEntryHandoffReadyGeneration=engine.state.generation}
+                onFirstBoardFrame?() // Existing coordinator removes the old cover.
+            }
         }
+        releaseRestartEntryAfterVisibleHandoffIfReady()
+        guard !disposed,!suspended else{return}
         sourceMeterRenderEpoch &+= 1
         sourceMeterCaller?.painted(epoch:sourceMeterRenderEpoch,
             onscreen:gameplayRenderHost?.renderView.window != nil && gameplayRenderHost?.renderView.isHidden==false && gameplayRenderHost?.renderingPaused==false,
@@ -10968,7 +11093,7 @@ final class NativeBoardScene: SKScene {
     var hasActiveHUDTapFeedback:Bool {!pendingHUDTapFeedback.isEmpty || hudTapFeedbackNodes.contains {$0.action(forKey:"hud-tap-bounce") != nil}}
     /// Foreground sheets freeze the board, while an already-visible HUD may
     /// finish its finite entrance and contact feedback on the existing Scene clock.
-    var hasActiveHUDPresentationFeedback:Bool {hasActiveHUDTapFeedback || hud.action(forKey:"hud-enter") != nil || hud.childNode(withName:"//native-game-help")?.action(forKey:"backpack-icon-swap") != nil}
+    var hasActiveHUDPresentationFeedback:Bool {hasActiveHUDTapFeedback || hud.action(forKey:"hud-enter") != nil || hud.action(forKey:"hud-enter-delay") != nil || hud.childNode(withName:"//native-game-help")?.action(forKey:"backpack-icon-swap") != nil}
     private func finishHUDTapFeedback() {
         if suspended && !hasActiveHUDPresentationFeedback {
             isPaused=true;canvasRoot.isPaused=true
@@ -11022,6 +11147,7 @@ final class NativeBoardScene: SKScene {
     }
 
     func setSuspended(_ value: Bool,allowHUDFeedback:Bool=false) {
+        if value {restartEntryRootDelivery?.cancel();restartEntryRootDelivery=nil}
         if value {renderPipelineProbe?.cancel(scene:self,reason:"suspended")}
         guard !sourceDisposalInProgress else {return }
         guard !disposed else {return}
@@ -11038,6 +11164,7 @@ final class NativeBoardScene: SKScene {
                 if let origin=hudTapFeedbackPositions.removeValue(forKey:ObjectIdentifier(node)){node.position=origin}
             }
         }
+        if value {settleHUDNumbers()}
         suspended=value;lastFrame=nil
         if value {retireSourceRendererDragTransport();let transport=sourceDragTransport;sourceDragTransport=nil;transport?.cancel()}
         else {retainSourceDragTransport()}
@@ -11145,19 +11272,28 @@ final class NativeBoardScene: SKScene {
     func animateExit(keepsHUDVisible:Bool=false,restartChrome:Bool=false,chromeCompletion:((Bool)->Void)?=nil,afterResidualExit:(()->Void)?=nil,hudExitDelay:(()->TimeInterval)?=nil,completion: @escaping (Bool) -> Void) {
         guard !sourceDisposalInProgress else {completion(false); return }
         guard !disposed, !exitInProgress,completedExitGeneration != engine.state.generation else { completion(false); return }
+        restartEntryRootDelivery?.cancel();restartEntryRootDelivery=nil
         let capturedGeneration=engine.state.generation
         stopSourceRegularIdle()
         guard !disposed,!exitInProgress,completedExitGeneration != capturedGeneration,engine.state.generation==capturedGeneration else{completion(false);return}
         cancelEntry(restoreHUD:false); cancelDrag(); cancelCandidate(); inputAdmitted = false; navigationLocked = true
         retireSourceSpawns()
         exitInProgress = true; exitCompletion = completion
-        preloadExitIsRestart=restartChrome;restartChromeCompletion=restartChrome ? chromeCompletion:nil
+        preloadExitIsRestart=restartChrome;preloadExitKeepsHUD=keepsHUDVisible;restartChromeCompletion=restartChrome ? chromeCompletion:nil
         if restartChrome {preparePreloadHUDGroups()}
         // Transfer the independent cosmetic surface before the Source scope can
         // retire. Existing raw board/HUD exit ownership now drives its lifetime.
         outgoingPreloadMeter=sourceTutorialMeterHUD?.takePreloadExitPresentation()
-        outgoingPreloadMeterDuration=outgoingPreloadMeter?.beginBoardExit(restart:restartChrome) ?? 0
-        comboHUDMotion.stop();comboNumberMotion.stop()
+        if !keepsHUDVisible {
+            outgoingPreloadMeterDuration=outgoingPreloadMeter?.beginBoardExit(restart:restartChrome) ?? 0
+        }else{
+            // The next Source scope retires the old meter owner before replacing
+            // its rendered host. Retain the settled cosmetic surface in this
+            // Scene until actual replacement, without playing any exit track.
+            outgoingPreloadMeterDuration=0;outgoingPreloadMeter?.cancelBoardExit()
+            restorePreloadHUD();hud.position = .zero;hud.alpha=1;roundIndicator.enter(animated:false)
+        }
+        settleHUDNumbers();comboHUDMotion.stop();comboNumberMotion.stop()
         engine.setInputLock("native-board-exit",active: true)
         suspended = false; isPaused = false; requestRendering(true)
         let generation = engine.state.generation
@@ -11259,7 +11395,7 @@ final class NativeBoardScene: SKScene {
         }
         // Keep the settled divider painted under the successor's first frame.
         // Scene disposal retires this finite, action-free retained surface.
-        let retainsDivider=completed && preloadExitIsRestart
+        let retainsDivider=completed && (preloadExitIsRestart || preloadExitKeepsHUD)
         let outgoing=retainsDivider ? nil:outgoingPreloadMeter
         if !retainsDivider {outgoingPreloadMeter=nil}
         outgoingPreloadMeterDuration=0;setPreloadMeterMotionActive(false)
@@ -11310,11 +11446,12 @@ final class NativeBoardScene: SKScene {
     }
 
     func dispose() {
+        restartEntryRootDelivery?.cancel();restartEntryRootDelivery=nil
         retireClearedResidualExit()
         restoreHUDFeedbackPause()
         guard !disposed,!sourceDisposalInProgress else {return}
         outgoingPreloadMeter?.dispose();outgoingPreloadMeter=nil
-        comboHUDMotion.dispose();comboNumberMotion.stop()
+        settleHUDNumbers();comboHUDMotion.dispose();comboNumberMotion.stop()
         onTutorialBoardFocusSettled=nil;tutorialBoardOpacity.dispose();onTutorialWildAnimationProgress=nil;onTutorialSpecialDropStarted=nil;onTutorialSpecialDropContact=nil;onTutorialSpecialDropLanded=nil;onJourneyDieLanded=nil;onHUDCoinArrival=nil;unreadJourneyDice={[]};backpackAlertRefreshPending=false;hud.childNode(withName:"//native-game-help")?.removeAction(forKey:"backpack-icon-swap");backpackAlert?.removeFromParent();backpackAlert=nil
         renderPipelineProbe?.cancel(scene:self,reason:"disposed")
         retireSourceWildSkinAssets()

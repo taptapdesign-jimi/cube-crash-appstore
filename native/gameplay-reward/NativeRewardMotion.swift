@@ -4,6 +4,11 @@ import QuartzCore
 /// Interpolating finished matrices loses the exit angles at zero scale and
 /// follows different geometry throughout the inflate/collapse/enter tracks.
 enum NativeRewardMotion {
+    /// Shared New Card Unlocked contact shake, also used by Journey Stage landing.
+    static let screenShakeTimes:[Double]=[0,0.12,0.24,0.38,0.54,1]
+    static func screenShakeOffsets(strength:Double)->[CGPoint] {
+        [(0.0,0.0),(strength,-strength*0.45),(-strength*0.85,strength*0.35),(strength*0.55,-strength*0.25),(-strength*0.25,strength*0.12),(0.0,0.0)].map{CGPoint(x:$0.0,y:$0.1)}
+    }
     static let cardEnterDuration=0.6
     /// Shared finite spring for interim SVG and unlocked faces. Each turning
     /// point has zero velocity, so expansion flows into compression smoothly.

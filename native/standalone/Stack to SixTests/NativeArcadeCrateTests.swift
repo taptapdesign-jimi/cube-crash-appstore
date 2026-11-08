@@ -122,6 +122,7 @@ final class NativeArcadeCrateTests: XCTestCase {
         try await Task.sleep(for:.seconds(1))
         let help=try XCTUnwrap(scene.childNode(withName:"//native-game-help") as? SKSpriteNode)
         let closed=help.texture,size=help.size,before=engine.state
+        XCTAssertEqual(size.width,36.8*0.8,accuracy:0.001);XCTAssertEqual(size.height,36.8*0.8,accuracy:0.001)
         scene.setBackpackPresented(true);scene.setSuspended(true,allowHUDFeedback:true)
         let open=help.texture
         XCTAssertTrue(scene.backpackPresented);XCTAssertFalse(open === closed);XCTAssertEqual(help.size,size)

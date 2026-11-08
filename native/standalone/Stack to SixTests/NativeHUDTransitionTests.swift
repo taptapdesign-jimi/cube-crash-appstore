@@ -80,28 +80,91 @@ final class NativeHUDTransitionTests:XCTestCase {
         }
     }
 
-    func testOrdinaryHUDStartsOnFirstUpdateBeforeDiceFinishAndHoldsDuringSuspension()throws {
-        for size in [CGSize(width:390,height:844),CGSize(width:744,height:1133),CGSize(width:820,height:1180)] {
-        let scene=makeScene(size:size,count:40)
-        let window=UIWindow(frame:CGRect(origin:.zero,size:size)),controller=UIViewController(),renderer=SKView(frame:window.bounds)
+    func testColdAndWarmHUDRevealWaitsOneHundredMillisecondsAndPausesWithScene() async throws {
+        guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Full HUD motion fixture")}
+        for coldRelayout in [false,true] {
+            let size=CGSize(width:390,height:844),scene=makeScene(size:size,count:40)
+            let window=UIWindow(frame:CGRect(origin:.zero,size:size)),controller=UIViewController(),renderer=SKView(frame:window.bounds)
+            controller.view=renderer;window.rootViewController=controller;renderer.isPaused=true
+            defer{renderer.presentScene(nil);scene.dispose();window.isHidden=true}
+            scene.layout(size:scene.size,insets:UIEdgeInsets(top:47,left:0,bottom:34,right:0),animateEntry:true)
+            if coldRelayout {
+                // A cold controller's admission/preparation may finish only after
+                // a static safe-area layout has settled its unmounted entry.
+                scene.layout(size:scene.size,insets:UIEdgeInsets(top:48,left:0,bottom:34,right:0),animateEntry:false)
+                XCTAssertFalse(scene.isHUDRevealPending)
+            }
+            let hud=try XCTUnwrap(scene.childNode(withName:"//native-game-hud"))
+            var revealed=0,revealTime:CFTimeInterval?,installedEntry=false
+            let entered=expectation(description:"One delayed actual HUD reveal")
+            scene.onHUDDrop={_ in
+                revealed+=1;revealTime=CACurrentMediaTime();installedEntry=hud.action(forKey:"hud-enter") != nil;entered.fulfill()
+            }
+            window.makeKeyAndVisible();renderer.presentScene(scene)
+            XCTAssertTrue(scene.isHUDRevealPending)
+            // Install through the real Scene callback while the mounted renderer
+            // is paused, so the100ms action cannot finish before a test poll.
+            scene.update(ProcessInfo.processInfo.systemUptime)
+            XCTAssertNotNil(hud.action(forKey:"hud-enter-delay"))
+            XCTAssertNil(hud.action(forKey:"hud-enter"));XCTAssertEqual(revealed,0)
+            scene.setSuspended(true);renderer.isPaused=false
+            try await Task.sleep(for:.milliseconds(150))
+            XCTAssertEqual(revealed,0);XCTAssertTrue(scene.isHUDRevealPending)
+            scene.setSuspended(false)
+            let resumed=CACurrentMediaTime()
+            await fulfillment(of:[entered],timeout:4)
+            XCTAssertGreaterThanOrEqual(try XCTUnwrap(revealTime)-resumed,0.085)
+            XCTAssertEqual(revealed,1);XCTAssertFalse(scene.isHUDRevealPending)
+            XCTAssertTrue(installedEntry)
+            try await Task.sleep(for:.milliseconds(150))
+            XCTAssertEqual(revealed,1,"A late dice midpoint cannot replay the reveal")
+        }
+    }
+    func testSafeAreaRelayoutKeepsPendingHUDHiddenUntilItsVisibleReveal() async throws {
+        guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Full HUD motion fixture")}
+        for startsWaiting in [false,true] {
+            let scene=makeScene(count:40),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),controller=UIViewController(),renderer=SKView(frame:CGRect(x:0,y:0,width:390,height:844))
+            controller.view=renderer;window.rootViewController=controller;renderer.isPaused=true
+            defer{renderer.presentScene(nil);scene.dispose();window.isHidden=true}
+            scene.layout(size:scene.size,insets:.zero,animateEntry:true)
+            let entered=expectation(description:"Relayout preserves one visible HUD entry")
+            var reveals=0;scene.onHUDDrop={_ in reveals+=1;entered.fulfill()}
+            window.makeKeyAndVisible();renderer.presentScene(scene)
+            let hud=try XCTUnwrap(scene.childNode(withName:"//native-game-hud"))
+            if startsWaiting {
+                scene.update(ProcessInfo.processInfo.systemUptime)
+                XCTAssertNotNil(hud.action(forKey:"hud-enter-delay"))
+                XCTAssertTrue(scene.isHUDRevealPending,"The100ms wait remains a pending reveal")
+            }
+            scene.layout(size:scene.size,insets:UIEdgeInsets(top:47,left:0,bottom:34,right:0),animateEntry:false)
+            XCTAssertTrue(scene.isHUDRevealPending)
+            let groups=hud.children.filter{$0.name?.hasPrefix("preload-navigation-hud-")==true}
+            XCTAssertEqual(groups.count,4)
+            for group in groups {XCTAssertEqual(group.alpha,0,accuracy:0.000001)}
+            XCTAssertEqual(reveals,0)
+            scene.update(ProcessInfo.processInfo.systemUptime)
+            XCTAssertNotNil(hud.action(forKey:"hud-enter-delay"))
+            renderer.isPaused=false
+            await fulfillment(of:[entered],timeout:4)
+            XCTAssertEqual(reveals,1)
+            try await Task.sleep(for:.milliseconds(150));XCTAssertEqual(reveals,1)
+        }
+    }
+    func testExitBeforeDelayedHUDRevealCancelsItWithoutLatePlayback() async throws {
+        let scene=makeScene(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),controller=UIViewController(),renderer=SKView(frame:CGRect(x:0,y:0,width:390,height:844))
         controller.view=renderer;window.rootViewController=controller
         defer{renderer.presentScene(nil);scene.dispose();window.isHidden=true}
-        renderer.isPaused=true
-        scene.layout(size:scene.size,insets:UIEdgeInsets(top:47,left:0,bottom:34,right:0),animateEntry:true)
-        let hud=try XCTUnwrap(scene.childNode(withName:"//native-game-hud"))
-        XCTAssertEqual(hud.children.filter{$0.name?.hasPrefix("preload-navigation-hud-")==true}.count,4)
-        var revealed=0;scene.onHUDDrop={_ in revealed+=1}
+        scene.layout(size:scene.size,insets:.zero,animateEntry:true)
+        var reveals=0;scene.onHUDDrop={_ in reveals+=1}
         window.makeKeyAndVisible();renderer.presentScene(scene)
-        let clock=ProcessInfo.processInfo.systemUptime
-        scene.setSuspended(true);scene.update(clock)
-        XCTAssertTrue(scene.isHUDRevealPending);XCTAssertEqual(revealed,0)
-        scene.setSuspended(false);scene.update(clock+0.016)
-        XCTAssertFalse(scene.isHUDRevealPending);XCTAssertEqual(revealed,1)
-        XCTAssertFalse(scene.isBoardEntryComplete,"HUD must not wait for the tile wave")
-        XCTAssertNotNil(scene.childNode(withName:"//native-game-hud")?.action(forKey:"hud-enter"))
-        scene.update(clock+0.032);scene.update(clock+0.048)
-        XCTAssertEqual(revealed,1,"Original midpoint cannot replay the admitted first-frame HUD")
-    }
+        let hud=try XCTUnwrap(scene.childNode(withName:"//native-game-hud"))
+        let deadline=Date().addingTimeInterval(3)
+        while hud.action(forKey:"hud-enter-delay")==nil,Date()<deadline {try await Task.sleep(for:.milliseconds(5))}
+        let exited=expectation(description:"Captured exit settles")
+        scene.animateExit{success in XCTAssertTrue(success);exited.fulfill()}
+        XCTAssertNil(hud.action(forKey:"hud-enter-delay"))
+        await fulfillment(of:[exited],timeout:4)
+        XCTAssertEqual(reveals,0)
     }
 
     func testRestartChromeFinishesAtItsOwnFastSpeedBeforeBoardExit()async throws {

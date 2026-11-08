@@ -1,3 +1,15 @@
+Native Ball refill override (user clarification2026-11-08): Beach Ball must create
+exactly the same number and cell arrangement of new dice as Shroomy/Mushroom.
+Canonical Native Beach Ball gameplay is Juice with Mushroom's captured4–6 bonus
+count and shared primary/closed/active allocation, in Journey and Arcade. Old
+saved Ball TNT/Juice/Magnet provenance remains compatible and normalizes through
+the existing restore owner; no save reset or schema change. Retain the authored
+Ball finale, its original media, input/transaction/lifecycle ownership and existing
+production combo-based coin policy; the legacy non-combo final-pair branch keeps
+its three coins. Final merges still produce no board or meter dice.
+This supersedes Ball's former four-target TNT replacement behavior only; other
+variants, preserved PWA rules and immutable historical references are unchanged.
+
 Native iPad Wild-meter tuning override (user decision 2026-11-04):
 Normal Native gameplay on iPad credits 70% of the previous Wild-meter gain per
 accepted action, including Journey and every Arcade mode. The device factor

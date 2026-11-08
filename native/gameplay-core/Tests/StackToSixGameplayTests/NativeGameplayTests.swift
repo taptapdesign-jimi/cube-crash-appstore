@@ -35,13 +35,13 @@ final class NativeGameplayTests: XCTestCase {
             XCTAssertEqual(result.events.first?.variant,variant.id)
         }
     }
-    func testBeachBallGameplayRemainsTntAndVisualJuiceAcrossLegacySaves() {
+    func testBeachBallGameplayUsesMushroomJuiceRefillAcrossLegacySaves() {
         for legacy in [NativeWildArchetype.juice,.magnet,.tnt] {
             XCTAssertNotNil(NativeSpecialDiceRegistry.compatibleVariant("beach-ball",core:legacy))
             let ball = tile("ball",6,0,wild:legacy,variant:"beach-ball")
-            XCTAssertEqual(ball.gameplayArchetype,.tnt)
+            XCTAssertEqual(ball.gameplayArchetype,.juice)
             XCTAssertEqual(NativeSpecialDiceRegistry.finale(source:ball,destination:tile("r",1,1)),.juice)
-            XCTAssertEqual(NativeSpecialDiceRegistry.finale(source:ball,destination:tile("r",1,1),gameplay:true),.tnt)
+            XCTAssertEqual(NativeSpecialDiceRegistry.finale(source:ball,destination:tile("r",1,1),gameplay:true),.juice)
         }
     }
     func testHiddenResidueAndFaintLockedPlaceholdersDoNotBlockFinality() {

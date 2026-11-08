@@ -466,8 +466,8 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
     }
     private func shake(strength:Double,duration:Double,delay:Double=0,startTime:Double?=nil,base:CATransform3D=CATransform3DIdentity) {
         guard !reducedMotion else{return}
-        let points=[(0.0,0.0),(strength,-strength*0.45),(-strength*0.85,strength*0.35),(strength*0.55,-strength*0.25),(-strength*0.25,strength*0.12),(0.0,0.0)]
-        keyframes(view.layer,"transform",values:points.map{NSValue(caTransform3D:CATransform3DTranslate(base,$0.0,$0.1,0))},times:[0,0.12,0.24,0.38,0.54,1],duration:duration,delay:delay,startTime:startTime)
+        let points=NativeRewardMotion.screenShakeOffsets(strength:strength)
+        keyframes(view.layer,"transform",values:points.map{NSValue(caTransform3D:CATransform3DTranslate(base,$0.x,$0.y,0))},times:NativeRewardMotion.screenShakeTimes,duration:duration,delay:delay,startTime:startTime)
     }
     @objc private func panned(_ gesture:UIPanGestureRecognizer) {
         guard rewardActionsAdmitted,revealed,!revealRunning,!resolved,!disposed else{return};let delta=gesture.translation(in:view)

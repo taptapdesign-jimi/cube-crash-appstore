@@ -22,6 +22,7 @@ final class NativeModalPaperView:UIImageView {
     private(set) var bodyFrame:CGRect = .zero
     private weak var joinedClose:UIButton?
     private let joinedMask=CAShapeLayer()
+    private let closeMask=CAShapeLayer()
     private struct JoinGeometry:Equatable{var body:CGRect,bounds:CGRect,center:CGPoint,transform:CGAffineTransform}
     private var joinGeometry:JoinGeometry?
     private(set) var fitCount=0
@@ -61,14 +62,49 @@ final class NativeModalPaperView:UIImageView {
         let geometry=JoinGeometry(body:bodyFrame,bounds:close.bounds,center:close.center,transform:close.transform)
         guard geometry != joinGeometry else{return};joinGeometry=geometry
         // One original PNG under both shapes: no overlapping alpha/UV seam.
-        let tab=JimiNativeModalV10.closeOutline(close),extent=bodyFrame.union(tab.boundingBoxOfPath).integral
-        let silhouette=CGMutablePath();silhouette.addPath(UIBezierPath(roundedRect:bodyFrame,cornerRadius:40).cgPath);silhouette.addPath(tab)
+        let tab=JimiNativeModalV10.closeOutline(close)
+        let settledExtent=bodyFrame.union(tab.boundingBoxOfPath).integral
+        // Reserve paint for the finite squash/rise without cropping its top/right.
+        let extent=bodyFrame.union(tab.boundingBoxOfPath.insetBy(dx:-24,dy:-30)).integral
+        let silhouette=UIBezierPath(roundedRect:bodyFrame,cornerRadius:40).cgPath
         var offset=CGAffineTransform(translationX:-extent.minX,y:-extent.minY)
         CATransaction.begin();CATransaction.setDisableActions(true)
-        frame=extent;clipsToBounds=false;fitTexture(to:extent.size)
+        frame=extent;clipsToBounds=false;fitTexture(to:settledExtent.size)
+        let uv=layer.contentsRect,ux=uv.width/settledExtent.width,uy=uv.height/settledExtent.height
+        layer.contentsRect=CGRect(x:uv.minX+(extent.minX-settledExtent.minX)*ux,y:uv.minY+(extent.minY-settledExtent.minY)*uy,width:extent.width*ux,height:extent.height*uy)
         joinedMask.frame=self.bounds;joinedMask.fillColor=UIColor.black.cgColor;joinedMask.fillRule = .nonZero
         joinedMask.path=silhouette.copy(using:&offset);layer.mask=joinedMask
+        closeMask.frame=self.bounds;closeMask.fillColor=UIColor.black.cgColor
+        closeMask.path=tab.copy(using:&offset)
+        if closeMask.superlayer !== joinedMask {joinedMask.addSublayer(closeMask)}
         CATransaction.commit()
+    }
+    /// The tab remains on the same texture plane, while its mask follows the X.
+    /// Both finite tracks inherit the modal clock, suspension and retirement.
+    func enterJoinedClose(_ close:UIView,motion:CAKeyframeAnimation,fade:CABasicAnimation,epoch:CFTimeInterval) {
+        guard joinedClose === close,let poses=motion.values as? [NSValue] else{return}
+        let shape=CAKeyframeAnimation(keyPath:"path")
+        shape.keyTimes=motion.keyTimes;shape.duration=motion.duration;shape.calculationMode=motion.calculationMode
+        shape.values=poses.map { value -> CGPath in
+            var pose=CATransform3DGetAffineTransform(value.caTransform3DValue)
+            pose.tx += close.center.x-pose.a*close.bounds.midX-pose.c*close.bounds.midY-frame.minX
+            pose.ty += close.center.y-pose.b*close.bounds.midX-pose.d*close.bounds.midY-frame.minY
+            return UIBezierPath(roundedRect:close.bounds,cornerRadius:16).cgPath.copy(using:&pose)!
+        }
+        let animation=CAAnimationGroup();animation.animations=[shape,fade]
+        animation.duration=motion.duration;animation.fillMode = .backwards
+        animation.beginTime=closeMask.convertTime(epoch,from:nil)+JimiNativeModalV10.closeEnterDelay
+        closeMask.add(animation,forKey:JimiNativeModalV10.closeEnterKey)
+        if let shadow=superview?.layer.sublayers?.first(where:{$0.name=="native.end-run.paper-shadow"}),let paths=shape.values as? [CGPath] {
+            let track=CAKeyframeAnimation(keyPath:"shadowPath")
+            track.values=paths.map { tab -> CGPath in
+                let outline=CGMutablePath();outline.addPath(UIBezierPath(roundedRect:bodyFrame,cornerRadius:40).cgPath)
+                outline.addPath(tab,transform:CGAffineTransform(translationX:frame.minX,y:frame.minY));return outline
+            }
+            track.keyTimes=shape.keyTimes;track.duration=shape.duration;track.calculationMode = .linear;track.fillMode = .backwards
+            track.beginTime=shadow.convertTime(epoch,from:nil)+JimiNativeModalV10.closeEnterDelay
+            shadow.add(track,forKey:JimiNativeModalV10.closeEnterKey)
+        }
     }
     static func closePaper(_ image:UIImage)->UIImage?{
         guard let pixels=image.cgImage else{return nil}
@@ -136,9 +172,11 @@ enum JimiNativeModalV10 {
         fade.fillMode = .forwards;fade.isRemovedOnCompletion=false
         let animation=CAAnimationGroup()
         animation.animations=[motion,fade];animation.duration=closeEnterDuration
-        animation.beginTime=close.layer.convertTime(beginTime ?? CACurrentMediaTime(),from:nil)+closeEnterDelay
+        let epoch=beginTime ?? CACurrentMediaTime()
+        animation.beginTime=close.layer.convertTime(epoch,from:nil)+closeEnterDelay
         animation.fillMode = .backwards
         close.layer.add(animation,forKey:closeEnterKey)
+        close.superview?.subviews.compactMap{$0 as? NativeModalPaperView}.first?.enterJoinedClose(close,motion:motion,fade:fade,epoch:epoch)
     }
 
     static let settledBounceKey="native.modal.settled-bounce"

@@ -1259,6 +1259,71 @@ final class NativeAppCoordinatorTests:XCTestCase {
             XCTAssertFalse(try XCTUnwrap(find(world,"native.world.part.4.card")).isHidden)
         }
     }
+    func testRepeatedBeachCardsAndNestedHistoryReleaseBeforePromptBackpackAndHubRoutes() async throws {
+        let layouts=try NativeWorldLayouts()
+        var progression=NativeProgressionState();progression.firstPlayTutorialComplete=true;progression.completedJourneyBoards=Set(1...20)
+        var services=NativeAppServices(settings:{[:]},setPreference:{_,_ in},worldSnapshot:{world,size,generation in
+            try layouts.snapshot(world:world,width:size.width,height:size.height,generation:generation,progression:progression)
+        },markViewed:{progression.markViewed(board:$0)},makeGameplay:{_,_ in throw FixtureError.unavailable},flush:{})
+        services.journeyProgression={progression}
+        let controller=NativeAppController(resourceRoot:resources(),services:services)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.windowLevel=UIWindow.Level(rawValue:UIWindow.Level.alert.rawValue+1)
+        window.rootViewController=controller;window.makeKeyAndVisible()
+        defer{controller.dispose();window.isHidden=true;window.rootViewController=nil}
+        func find(_ view:UIView,_ id:String)->UIView? {if view.accessibilityIdentifier==id{return view};return view.subviews.lazy.compactMap{find($0,id)}.first}
+        func isReady(_ view:UIView)->Bool {view.layer.animation(forKey:"score.idle") != nil || view.subviews.contains{isReady($0)}}
+        controller.navigate(.world(2),interrupt:true)
+        try await waitFor{controller.world?.isReadyForInput==true && !controller.transitioning}
+        let world=try XCTUnwrap(controller.world)
+        var settledBytesByBoard:[Int:Int]=[:]
+        for index in 0..<12 {
+            let board=11+index%3,button=try XCTUnwrap(find(world,"native.world.card.\(board)") as? UIButton)
+            world.scrollView.setContentOffset(CGPoint(x:0,y:max(0,button.frame.minY-160)),animated:false)
+            try await waitFor{find(world,"native.world.part.\(board).card") != nil}
+            button.sendActions(for:.touchUpInside)
+            var card=try XCTUnwrap(find(world,"native.world.card.modal") as? JimiNativeWorldCardView) as JimiNativeWorldCardView?
+            weak var retiredCard=card
+            try await waitFor{card?.acceptsCardPan==true}
+            if index==0 {
+                let data=UIGraphicsImageRenderer(size:window.bounds.size).pngData{_ in controller.view.drawHierarchy(in:controller.view.bounds,afterScreenUpdates:true)}
+                try data.write(to:URL(fileURLWithPath:"/tmp/native-phone-regressions-20261108/stage-phone.png"))
+            }
+            world.onRequest?(index%2==0 ? "scoreHistory":"comboHistory",board)
+            var history=try XCTUnwrap(controller.presentedViewController as? NativeScoreModal) as NativeScoreModal?
+            weak var retiredHistory=history
+            try await waitFor{history.map{isReady($0.view)}==true}
+            history?.requestClose();history=nil
+            try await waitFor{controller.presentedViewController==nil}
+            try await waitFor{retiredHistory==nil}
+            let returned=expectation(description:"Beach card \(index) return/landing")
+            world.closeCard{returned.fulfill()};card=nil
+            await fulfillment(of:[returned],timeout:5)
+            try await waitFor{retiredCard==nil}
+            XCTAssertFalse(world.hasActiveCard);XCTAssertFalse(world.hasPendingCardLanding)
+            let bytes=world.decodedArtworkBytes
+            // The first three distinct cards legitimately warm their visible2x
+            // images. Repeated visits after that bounded cohort must stabilize.
+            if index>=3 {
+                if let previous=settledBytesByBoard[board] {XCTAssertLessThanOrEqual(bytes,previous+8*1024*1024,"Repeated warm-viewport modals must not accumulate decoded media")}
+                else{settledBytesByBoard[board]=bytes}
+            }
+        }
+        let source=try XCTUnwrap(find(world,"native.world.part.13.card"))
+        source.layer.beginTime += 8
+        let backpackStart=CACurrentMediaTime();controller.navigate(.backpack)
+        try await waitFor{controller.route == .backpack && !controller.transitioning}
+        let backpackElapsed=CACurrentMediaTime()-backpackStart
+        XCTAssertLessThan(backpackElapsed,3,"Repeated history/modal visits cannot become a10second route gate")
+        print("NATIVE_ROUTE_STRESS cycles=12 backpackSeconds=\(backpackElapsed) decodedBytes=\(world.decodedArtworkBytes)")
+        let screenshot=UIGraphicsImageRenderer(size:window.bounds.size).pngData{_ in controller.view.drawHierarchy(in:controller.view.bounds,afterScreenUpdates:true)}
+        try screenshot.write(to:URL(fileURLWithPath:"/tmp/native-phone-regressions-20261108/backpack-phone.png"))
+        controller.navigate(.world(2),interrupt:true)
+        try await waitFor{controller.world?.isReadyForInput==true && !controller.transitioning}
+        let hubStart=CACurrentMediaTime();controller.world?.onRequest?("back",nil)
+        try await waitFor{controller.route == .hub && !controller.transitioning}
+        let hubElapsed=CACurrentMediaTime()-hubStart
+        XCTAssertLessThan(hubElapsed,3);print("NATIVE_ROUTE_STRESS hubSeconds=\(hubElapsed)")
+    }
     private func containsWebView(_ view:UIView)->Bool {
         NSStringFromClass(type(of:view)).contains("WKWebView") || view.subviews.contains(where:containsWebView)
     }

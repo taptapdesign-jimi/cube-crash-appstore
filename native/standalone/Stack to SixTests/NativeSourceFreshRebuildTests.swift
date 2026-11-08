@@ -16,6 +16,24 @@ import StackToSixNativeState
         if let value=root as? UIButton,value.accessibilityIdentifier==id{return value}
         return root.subviews.lazy.compactMap{self.button($0,id:id)}.first
     }
+    func testJourneyRestartHasNoPaintedBoardOverlapOrThreeFrameChromeFlash() async throws {
+        try await exerciseRestart(board:11,auditPaintFrames:true)
+    }
+    func testArcadeNewGameHasNoPaintedBoardOverlapOrThreeFrameChromeFlash() async throws {
+        try await exerciseRestart(board:nil,auditPaintFrames:true)
+    }
+    func testJourneyRestartPaintHandoffWaitsForForegroundWithoutChromeFlash() async throws {
+        try await exerciseRestart(board:11,backgroundRestart:true,auditPaintFrames:true)
+    }
+    func testDisposalDuringRestartPaintHandoffCannotExposeIncomingGeneration() async throws {
+        try await exerciseRestart(board:11,disposeAtPreparation:true,auditPaintFrames:true)
+    }
+    func testRestartExactFirstVisibleHandoffResumesZeroPoseAfterCallbackBackground() async throws {
+        try await exerciseRestart(board:11,auditPaintFrames:true,pauseAtHandoff:true)
+    }
+    func testNewGameExactFirstVisibleHandoffExitCannotStartRetiredEntryWave() async throws {
+        try await exerciseRestart(board:nil,auditPaintFrames:true,exitAtHandoff:true)
+    }
     func testActualArcadeRestartBorrowsPreparedFoundationAndStartsFreshRoundOne()async throws {
         try await exerciseRestart(board:nil)
     }
@@ -34,6 +52,47 @@ import StackToSixNativeState
     func testNormalBottleUnlockPlayReachesPlayableBoardWithoutPresentationFailure()async throws {
         try await exerciseBottleEntry(continueSaved:false)
     }
+    func testColdJourneyTransitionRevealsOneMountedHUDWithOneHundredMillisecondDelay() async throws {
+        try await exerciseBottleEntry(continueSaved:false,verifyColdHUD:true)
+    }
+    func testColdForestOneDividerNeverWashesOverHUDDuringEntry() async throws {
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent("native-forest-hud-"+UUID().uuidString)
+        let store=NativeSaveStore(directory:directory)
+        var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
+        seed.progression.firstPlayTutorialComplete=true
+        try store.save(seed)
+        let host=NativeStandaloneViewController(resourceRoot:NativeTestResources.root,store:store,sourceVisualRandom:{0.1},completeNativeGameplayEnabled:true)
+        let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+        let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=host;window.makeKeyAndVisible()
+        defer{observeTransitionPaint=nil;host.dispose();window.isHidden=true;previous?.makeKeyAndVisible();try? FileManager.default.removeItem(at:directory)}
+        host.loadViewIfNeeded();let app=try XCTUnwrap(host.children.first as? NativeAppController)
+        try await wait{!app.home.isEntering && app.home.isUserInteractionEnabled}
+        app.navigate(.world(1),interrupt:true)
+        try await wait{if app.children.contains(where:{$0 is NativeGameplayViewController}){return true};app.world?.onRequest?("play",1);return false}
+        let game=try XCTUnwrap(app.children.compactMap{$0 as? NativeGameplayViewController}.first)
+        let scene=try XCTUnwrap(game.boardScene),hud=try XCTUnwrap(scene.childNode(withName:"//native-game-hud"))
+        func alpha(_ node:SKNode)->CGFloat {var result:CGFloat=1,node:SKNode?=node;while let current=node{result *= current.alpha;node=current.parent};return result}
+        func depth(_ node:SKNode)->CGFloat {var result:CGFloat=0,node:SKNode?=node;while let current=node{result += current.zPosition;node=current.parent};return result}
+        var sampled=0,sawDividerArrival=false,sawSettledHUD=false,maximumPaperDepthAboveHUD:CGFloat = -.infinity
+        let start=CACurrentMediaTime()
+        observeTransitionPaint = {
+            guard !game.children.contains(where:{$0 is NativeThemedBoardTransitionController}),
+                  let divider=scene.childNode(withName:"//native-preload-divider"),!divider.isHidden,
+                  let close=hud.childNode(withName:"preload-navigation-hud-1"),alpha(close)>0.9 else{return}
+            sampled+=1
+            let dividerAlpha=alpha(divider)
+            if dividerAlpha>0.01 {
+                sawDividerArrival=true
+                maximumPaperDepthAboveHUD=max(maximumPaperDepthAboveHUD,depth(divider)-depth(close))
+            }
+            sawSettledHUD = sawSettledHUD || dividerAlpha>0.99 && hud.action(forKey:"hud-enter")==nil
+            if sampled%10==1 {print("[FOREST_01_HUD_FRAME] t=\(CACurrentMediaTime()-start) closeAlpha=\(alpha(close)) dividerAlpha=\(dividerAlpha) closeZ=\(depth(close)) dividerZ=\(depth(divider))")}
+        }
+        try await wait{sawSettledHUD && game.boardScene?.isBoardEntryComplete==true}
+        for _ in 0..<10 {observeTransitionPaint?();try await Task.sleep(for:.milliseconds(20))}
+        XCTAssertGreaterThan(sampled,5);XCTAssertTrue(sawDividerArrival);XCTAssertTrue(sawSettledHUD)
+        XCTAssertLessThan(maximumPaperDepthAboveHUD,0,"The divider includes17percent paper across the navigation area;it must paint behind HUD icons throughout entry and at rest")
+    }
     func testNormalSavedBottleContinueKeepsExistingDieAndReachesPlayableBoard()async throws {
         try await exerciseBottleEntry(continueSaved:true)
     }
@@ -42,7 +101,7 @@ import StackToSixNativeState
         try await exerciseBottleEntry(continueSaved:false,tablet:true)
         try await exerciseBottleEntry(continueSaved:true,tablet:true)
     }
-    private func exerciseBottleEntry(continueSaved:Bool,tablet:Bool=false)async throws {
+    private func exerciseBottleEntry(continueSaved:Bool,tablet:Bool=false,verifyColdHUD:Bool=false)async throws {
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("native-bottle-entry-"+UUID().uuidString)
         let store=NativeSaveStore(directory:directory)
         var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
@@ -66,11 +125,48 @@ import StackToSixNativeState
         try await wait{if app.children.contains(where:{$0 is NativeGameplayViewController}){return true};app.world?.onRequest?(continueSaved ? "continue":"play",14);return false}
         let game=try XCTUnwrap(app.children.compactMap{$0 as? NativeGameplayViewController}.first)
         timeoutDiagnostic = {[weak game] in game.map{"\($0.sourceEntryDiagnostic());failure=\(String(describing:$0.sourcePresentationFailureGeneration))"} ?? "game released"}
+        let initialScene=try XCTUnwrap(game.boardScene)
+        let previousHUDDrop=initialScene.onHUDDrop
+        var visibleHUDReveals=0,sawThemedTransition=false,firstFrameReadyAt:CFTimeInterval?,visibleHUDAt:CFTimeInterval?
+        if verifyColdHUD {
+            XCTAssertFalse(UIAccessibility.isReduceMotionEnabled,"Full-motion cold Journey fixture")
+            game.whenFirstBoardFrameReady {firstFrameReadyAt=CACurrentMediaTime()}
+            initialScene.onHUDDrop = {[weak game,weak initialScene] generation in
+                previousHUDDrop?(generation)
+                guard let game,let scene=initialScene else{XCTFail("Cold HUD owner retired before reveal");return}
+                visibleHUDReveals+=1;visibleHUDAt=CACurrentMediaTime()
+                XCTAssertEqual(generation,game.engine.state.generation)
+                XCTAssertTrue(game.boardScene === scene)
+                XCTAssertTrue(scene.gameplayRenderHost?.renderedScene === scene)
+                XCTAssertNotNil(scene.gameplayRenderHost?.renderView.window)
+                XCTAssertFalse(scene.gameplayRenderHost?.renderView.isHidden ?? true)
+                XCTAssertFalse(game.children.contains{$0 is NativeThemedBoardTransitionController},"Cold HUD must not consume its entrance under the transition cover")
+                XCTAssertNotNil(firstFrameReadyAt,"Actual board paint must have released the transition before the visible HUD starts")
+                let delay=scene.childNode(withName:"//native-game-hud")?.action(forKey:"hud-enter-delay")
+                XCTAssertEqual(delay?.duration ?? -1,NativeBoardScene.ordinaryHUDEntryDelay,accuracy:0.000001)
+                XCTAssertNotNil(scene.childNode(withName:"//native-game-hud")?.action(forKey:"hud-enter"))
+            }
+            try await wait{
+                sawThemedTransition = sawThemedTransition || game.children.contains{$0 is NativeThemedBoardTransitionController}
+                return sawThemedTransition
+            }
+        }
+        defer{if verifyColdHUD {initialScene.onHUDDrop=previousHUDDrop}}
         try await wait{game.beforeSourceGameplayAdmission==nil && game.boardScene?.isBoardEntryComplete==true && game.boardScene?.gameplayRenderHost?.renderView.window != nil}
         let scene=try XCTUnwrap(game.boardScene)
         let bottles=game.engine.state.tiles.filter{$0.variant=="bottle"}
         XCTAssertNil(game.sourcePresentationFailureGeneration);XCTAssertNil(game.presentedViewController)
         XCTAssertEqual(app.route,.gameplay)
+        if verifyColdHUD {
+            try await wait{visibleHUDReveals>0 && scene.childNode(withName:"//native-game-hud")?.action(forKey:"hud-enter")==nil}
+            XCTAssertTrue(sawThemedTransition)
+            XCTAssertEqual(visibleHUDReveals,1)
+            let first=try XCTUnwrap(firstFrameReadyAt),reveal=try XCTUnwrap(visibleHUDAt)
+            XCTAssertGreaterThanOrEqual(reveal,first)
+            XCTAssertFalse(scene.isHUDRevealPending)
+            try await Task.sleep(for:.milliseconds(150));XCTAssertEqual(visibleHUDReveals,1)
+            print("COLD_JOURNEY_HUD_PROOF firstPaintToHUD=\(reveal-first) configuredDelay=\(NativeBoardScene.ordinaryHUDEntryDelay) reveals=\(visibleHUDReveals)")
+        }
         if tablet {
             XCTAssertEqual(game.engine.state.columns,7);XCTAssertEqual(game.engine.state.rows,8)
             scene.didFinishUpdate();XCTAssertNotNil(scene.onBackdropOcclusion)
@@ -226,6 +322,10 @@ import StackToSixNativeState
         XCTAssertTrue(scene.beginDrag(at:from));scene.moveDrag(to:to,now:CACurrentMediaTime())
         try await Task.sleep(for:.milliseconds(160))
         XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:to,now:CACurrentMediaTime())).accepted)
+        if variant == "beach-ball" {
+            XCTAssertNil(gameplay.engine.pendingSpecial,"Ball now shares Mushroom's direct refill owner")
+            XCTAssertNotNil(gameplay.engine.pendingDirectWild)
+        }
         try await wait{
             if gameplay.sourcePresentationFailure != nil {
                 XCTFail("Authored TNT subsequent reward failure: \(gameplay.sourcePresentationFailure!)")
@@ -503,13 +603,22 @@ import StackToSixNativeState
         try await wait{app.children.compactMap{$0 as? NativeGameplayViewController}.first?.boardScene?.isBoardEntryComplete==true}
         let old=try XCTUnwrap(app.children.compactMap{$0 as? NativeGameplayViewController}.first),scene=try XCTUnwrap(old.boardScene)
         try await wait{!old.engine.hasUnsavableSourceGameplayState && old.beforeSourceGameplayAdmission==nil}
-        var sawUpperHUDHidden=false,sawLowerHUDHidden=false
+        var sawUpperHUDHidden=false,sawLowerHUDHidden=false,sawDividerHidden=false
         if verifyChrome {
             try await wait{scene.boardChromeReceipt.alpha==1 && scene.boardChromeReceipt.offset==0 && !scene.boardChromeReceipt.entering && scene.roundChromeReceipt.alpha==1 && !scene.roundChromeReceipt.animating}
             observeTransitionPaint={
                 let visible=old.parent != nil ? old:app.children.compactMap{$0 as? NativeGameplayViewController}.first
                 if let chrome=visible?.boardScene?.boardChromeReceipt {
                     sawUpperHUDHidden = sawUpperHUDHidden || chrome.alpha != 1 || chrome.offset != 0 || chrome.entering
+                }
+                if let surface=visible?.boardScene?.childNode(withName:"//native-preload-bar"),
+                   let divider=surface.childNode(withName:"//native-preload-divider") {
+                    let hidden=surface.isHidden || surface.alpha<0.999 || divider.isHidden || divider.alpha<0.999 || abs(divider.xScale-1)>0.001 || abs(divider.yScale-1)>0.001
+                    if hidden && !sawDividerHidden {print("ARCADE_DIVIDER_HANDOFF owner=\(visible === old ? "outgoing":"incoming") rootHidden=\(surface.isHidden) rootAlpha=\(surface.alpha) dividerHidden=\(divider.isHidden) dividerAlpha=\(divider.alpha) scale=\(divider.xScale),\(divider.yScale)")}
+                    sawDividerHidden = sawDividerHidden || hidden
+                }else{
+                    if !sawDividerHidden {print("ARCADE_DIVIDER_HANDOFF owner=\(visible === old ? "outgoing":"incoming") missing-surface")}
+                    sawDividerHidden=true
                 }
                 if let lower=visible?.boardScene?.roundChromeReceipt {
                     sawLowerHUDHidden = sawLowerHUDHidden || lower.hidden || lower.alpha != 1 || lower.offset != 0
@@ -582,6 +691,7 @@ import StackToSixNativeState
         if verifyChrome {
             observeTransitionPaint?()
             XCTAssertFalse(sawUpperHUDHidden,"Arcade Round01→02 must keep upper HUD settled through clean cue and next-board entry")
+            XCTAssertFalse(sawDividerHidden,"Arcade continuation must retain the full divider/ribbon instead of replaying its exit/entry")
             XCTAssertFalse(sawLowerHUDHidden,"Arcade Round01→02 must keep lower Round pill visible through clean cue and next-board entry")
         }
         if board != nil {
@@ -604,7 +714,7 @@ import StackToSixNativeState
         }
     }
 
-    private func exerciseRestart(board:Int?,disposeAtPreparation:Bool=false,warmupOnly:Bool=false,pauseWarmup:Bool=false,backgroundWarmup:Bool=false,backgroundRestart:Bool=false)async throws {
+    private func exerciseRestart(board:Int?,disposeAtPreparation:Bool=false,warmupOnly:Bool=false,pauseWarmup:Bool=false,backgroundWarmup:Bool=false,backgroundRestart:Bool=false,auditPaintFrames:Bool=false,pauseAtHandoff:Bool=false,exitAtHandoff:Bool=false)async throws {
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("native-fresh-rebuild-"+UUID().uuidString)
         let store=NativeSaveStore(directory:directory)
         var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
@@ -616,7 +726,9 @@ import StackToSixNativeState
         try store.save(seed)
         let host=NativeStandaloneViewController(resourceRoot:NativeTestResources.root,store:store,sourceVisualRandom:{0.1},completeNativeGameplayEnabled:true)
         let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
-        let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=host;window.makeKeyAndVisible()
+        let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844))
+        if auditPaintFrames {window.windowScene=try XCTUnwrap(previous?.windowScene,"Paint audit requires the real Simulator UIWindowScene")}
+        window.rootViewController=host;window.makeKeyAndVisible()
         defer{host.dispose();window.isHidden=true;previous?.makeKeyAndVisible();try? FileManager.default.removeItem(at:directory)}
         host.loadViewIfNeeded();let app=try XCTUnwrap(host.children.first as? NativeAppController)
         try await wait{!app.home.isHidden && (!app.home.isEntering && app.home.isUserInteractionEnabled)}
@@ -669,6 +781,125 @@ import StackToSixNativeState
         modal.onReady={modalReady=true;originalReady?()}
         let restart=try XCTUnwrap(button(modal.view,id:"native.end-run.restart"))
         try await wait{modalReady && restart.isUserInteractionEnabled && modal.view.isUserInteractionEnabled}
+        // Polling every20ms misses a three-frame flash and final-state checks
+        // cannot prove the first incoming paint. Sample each display opportunity
+        // plus the real Scene post-update/pre-encode boundary on both owners.
+        let paintSampler=NativeRestartPaintSampler()
+        var paintHooks:[NativeRestartRenderHook]=[],paintHookIDs=Set<ObjectIdentifier>()
+        var paintRows:[[String:Any]]=[],paintFailures=Set<String>(),incomingVisibleSamples=0,paintSamples=0
+        var incomingRenderSerials=Set<UInt64>(),firstIncomingPaintScales:[CGFloat]=[],incomingHandoffSamples=0
+        var firstIncomingGeometry:(CGSize,UIEdgeInsets,[String:CGFloat])?
+        var incomingWavePaintEpoch:CFTimeInterval?
+        var handoffInterrupted=false,handoffResumed=false,handoffPausedAt:CFTimeInterval?,handoffExitResult:Bool?
+        let oldScene=try XCTUnwrap(old.boardScene)
+        let oldBoardNodes=old.engine.state.tiles.compactMap{oldScene.sourceNativeTileNode($0.id)}
+        let fixedNames=["native-game-close","native-game-help","native-preload-divider"]
+        func nodeAlpha(_ node:SKNode)->CGFloat {
+            var value:CGFloat=1,current:SKNode?=node
+            while let n=current {if n.isHidden {return 0};value *= n.alpha;current=n.parent}
+            return value
+        }
+        func chrome(_ game:NativeGameplayViewController)->[String:(point:CGPoint,alpha:CGFloat)] {
+            guard let scene=game.boardScene,let render=scene.gameplayRenderHost else{return [:]}
+            return Dictionary(uniqueKeysWithValues:fixedNames.compactMap{name in
+                guard let node=scene.childNode(withName:"//"+name) else{return nil}
+                let point=render.scenePointToView(node.convert(.zero,to:scene),scene:scene)
+                return (name,(point:render.renderView.convert(point,to:window),alpha:nodeAlpha(node)))
+            })
+        }
+        let fixedChrome=chrome(old)
+        if auditPaintFrames {XCTAssertEqual(fixedChrome.count,3);XCTAssertTrue(fixedChrome.values.allSatisfy{$0.alpha>0.01})}
+        func requirePaint(_ condition:Bool,key:String,message:String) {
+            if !condition,paintFailures.insert(key).inserted {XCTFail(message)}
+        }
+        func samplePaint(_ phase:String) {
+            guard auditPaintFrames else{return}
+            let sampleTime=CACurrentMediaTime()
+            let games=app.children.compactMap{$0 as? NativeGameplayViewController}
+            for game in games {
+                guard let scene=game.boardScene,paintHookIDs.insert(ObjectIdentifier(scene)).inserted else{continue}
+                let hook=NativeRestartRenderHook(scene:scene,previous:scene.onRenderSurfacePreparation,first:scene.onFirstBoardFrame);paintHooks.append(hook)
+                scene.onRenderSurfacePreparation = {[weak scene] in
+                    hook.previous?();guard scene != nil else{return};samplePaint("render")
+                }
+                scene.onFirstBoardFrame = {[weak scene,weak game] in
+                    // Original VC receipt first retires old coverage. Scene's
+                    // dormant Restart wave resumes only after this returns.
+                    hook.first?();guard let scene,let game else{return};samplePaint("handoff")
+                    guard scene !== oldScene,!handoffInterrupted else{return}
+                    if pauseAtHandoff {
+                        handoffInterrupted=true;handoffPausedAt=CACurrentMediaTime()
+                        NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
+                    } else if exitAtHandoff {
+                        handoffInterrupted=true
+                        game.animateRestartExit{handoffExitResult=$0}
+                    }
+                }
+            }
+            let incoming=games.first{$0 !== old}
+            if incoming != nil {
+                requirePaint(oldScene.hasCompletedBoardExit,key:"incoming-before-exit",message:"Incoming generation mounted before the full old board exit receipt")
+                requirePaint(oldBoardNodes.allSatisfy{$0.alpha<0.01 || abs($0.xScale)<0.001 || abs($0.yScale)<0.001},key:"old-dice-not-retired",message:"Old playable/locked holders remained visibly painted when the incoming board mounted")
+            }
+            // The retained old view is actual coverage until replacement's
+            // existing first-frame receipt removes it. Never count both models
+            // as if two opaque UIKit boards were simultaneously on screen.
+            guard let displayed=old.parent != nil ? old:incoming,let scene=displayed.boardScene,
+                  let render=scene.gameplayRenderHost,render.renderView.window != nil,
+                  !render.renderView.isHidden,displayed.view.alpha>0.001 else{return}
+            let fresh=displayed !== old,points=chrome(displayed)
+            for name in fixedNames {
+                guard let expected=fixedChrome[name],let actual=points[name] else{requirePaint(false,key:"missing-"+name,message:"Fixed chrome disappeared from a mounted Restart frame: "+name);continue}
+                requirePaint(hypot(actual.point.x-expected.point.x,actual.point.y-expected.point.y)<0.1,key:"anchor-"+name,message:"Restart/New Game moved fixed chrome across a painted frame: "+name)
+                requirePaint(abs(actual.alpha-expected.alpha)<0.01,key:"alpha-"+name,message:"Restart/New Game flashed fixed chrome during the replacement gap: "+name)
+            }
+            var scale:CGFloat=0,rawScale:CGFloat=0
+            var paintedDiceCount=0,hiddenDiceCount=0
+            if fresh {
+                let nodes=displayed.engine.state.tiles.filter{$0.value>0 && !$0.locked}.compactMap{scene.sourceNativeTileNode($0.id)}
+                rawScale=nodes.map{max(abs($0.sourceLocalScale.x),abs($0.sourceLocalScale.y))}.max() ?? 0
+                // Constructor-held roots can legitimately retain local scale1.
+                // Measure painted geometry through the actual ancestor chain,
+                // while keeping raw scale in evidence to expose that distinction.
+                let painted=nodes.filter{nodeAlpha($0)>0.001}
+                paintedDiceCount=painted.count;hiddenDiceCount=nodes.count-painted.count
+                scale=painted.map{max(abs($0.sourceLocalScale.x),abs($0.sourceLocalScale.y))}.max() ?? 0
+                if phase=="render" {paintSamples+=1}
+                if phase=="handoff" {
+                    incomingWavePaintEpoch=sampleTime
+                    incomingHandoffSamples+=1
+                    requirePaint(scale<0.001,key:"handoff-already-grown",message:"Actual first-visible handoff must retain zero-pose dice before the Source wave starts")
+                }
+                if let epoch=incomingWavePaintEpoch,sampleTime-epoch<0.04 {
+                    // Existing20ms delay +180ms grow cannot reach this scale
+                    // within40ms, even allowing8ms callback scheduling variance.
+                    requirePaint(scale<0.8,key:"entry-clock-catchup",message:"Incoming Source wave consumed time from before its visible handoff")
+                }
+                if incomingRenderSerials.insert(scene.freshFaceRenderSerial).inserted,firstIncomingPaintScales.count<3 {firstIncomingPaintScales.append(scale)}
+                if incomingVisibleSamples==0 {
+                    requirePaint(scale<0.35,key:"incoming-already-grown",message:"First visible incoming board had already consumed its entry wave under the old cover")
+                    requirePaint(scene.size==render.renderView.bounds.size,key:"initial-scene-size",message:"First incoming paint used pre-mount Scene geometry")
+                    requirePaint(displayed.view.safeAreaInsets==window.safeAreaInsets,key:"initial-safe-area",message:"First incoming paint used a stale safe-area inset")
+                    firstIncomingGeometry=(scene.size,displayed.view.safeAreaInsets,Dictionary(uniqueKeysWithValues:nodes.map{($0.tileID,$0.sourceGeometryScale)}))
+                }
+                incomingVisibleSamples+=1
+            }
+            if paintRows.count<3000 {
+                paintRows.append(["phase":phase,"time":sampleTime,"wallMilliseconds":Date().timeIntervalSince1970*1000,"generation":displayed.engine.state.generation,"incoming":fresh,"oldExitComplete":oldScene.hasCompletedBoardExit,"maxActiveDieScale":scale,"maxRawActiveDieScale":rawScale,"paintedDiceCount":paintedDiceCount,"hiddenDiceCount":hiddenDiceCount,"renderSerial":scene.freshFaceRenderSerial,"safeTop":displayed.view.safeAreaInsets.top,"sceneWidth":scene.size.width,"sceneHeight":scene.size.height,"chrome":points.mapValues{["x":$0.point.x,"y":$0.point.y,"alpha":$0.alpha]}])
+            }
+        }
+        if auditPaintFrames {paintSampler.onFrame={samplePaint("display")};samplePaint("before-tap");paintSampler.start()}
+        defer {
+            paintSampler.stop()
+            for hook in paintHooks {if let scene=hook.scene,scene.gameplayRenderHost != nil {scene.onRenderSurfacePreparation=hook.previous;scene.onFirstBoardFrame=hook.first}}
+            if auditPaintFrames {
+                let suffix=(board == nil ? "arcade-new-game":"journey-restart")+(backgroundRestart ? "-background":disposeAtPreparation ? "-dispose":pauseAtHandoff ? "-handoff-background":exitAtHandoff ? "-handoff-exit":"")
+                do {
+                    let data=try JSONSerialization.data(withJSONObject:paintRows,options:[.sortedKeys])
+                    try data.write(to:URL(fileURLWithPath:"/tmp/native-restart-"+suffix+"-paint-audit.json"))
+                } catch {XCTFail("Unable to save per-paint Restart evidence: \(error)")}
+            }
+        }
         // Use the genuine owner action after its ready admission. Double input
         // must not construct two fresh generations.
         let durableBeforeRestart=try Data(contentsOf:directory.appendingPathComponent("state-v1.json"))
@@ -696,6 +927,10 @@ import StackToSixNativeState
             try await Task.sleep(for:.milliseconds(600))
             XCTAssertTrue(host.children.isEmpty)
             XCTAssertEqual(try Data(contentsOf:directory.appendingPathComponent("state-v1.json")),durableBeforeRestart)
+            if auditPaintFrames {
+                XCTAssertFalse(paintRows.contains{($0["incoming"] as? Bool)==true},"Disposed preparation must never paint a successor")
+                XCTAssertTrue(paintFailures.isEmpty)
+            }
             return
         }
         var sawOldExit=false
@@ -703,12 +938,12 @@ import StackToSixNativeState
             if old.boardScene?.childNode(withName:"//native-game-hud")?.action(forKey:"hud-exit") != nil {
                 sawOldExit=true
                 if let combo=old.boardScene?.childNode(withName:"//preload-navigation-hud-2"),combo.alpha>0.001 {
-                    XCTAssertTrue(old.sourceScope?.current==true,"Successor construction must wait for the fast chrome exit, not the slower tiles")
+                    XCTAssertTrue(old.sourceScope?.current==true,"Successor construction must wait for full board exit, including tiles and chrome")
                 }
             }
             return app.children.compactMap{$0 as? NativeGameplayViewController}.first.map{$0 !== old}==true
         }
-        XCTAssertEqual(sawOldExit,board != nil,"Only Exit Stage Restart replays the old chrome")
+        XCTAssertTrue(sawOldExit,"Journey Restart and Arcade New Game both wait for old board/chrome exit")
         let fresh=try XCTUnwrap(app.children.compactMap{$0 as? NativeGameplayViewController}.first)
         timeoutDiagnostic = {[weak fresh] in
             guard let fresh else{return "fresh released"}
@@ -717,21 +952,54 @@ import StackToSixNativeState
         defer{timeoutDiagnostic=nil}
         XCTAssertFalse(containsAnnouncement(fresh),"Exit Restart must not mount an announcement before the fresh board's entry")
         XCTAssertFalse(fresh.incomingOriginalThemedCoverExpected)
-        XCTAssertEqual(fresh.keepsGameplayChromeVisibleOnEntry,board==nil)
-        XCTAssertEqual(fresh.replaysRestartChrome,board != nil)
-        XCTAssertEqual(fresh.boardScene?.replaysRestartChrome,board != nil)
+        XCTAssertFalse(fresh.keepsGameplayChromeVisibleOnEntry)
+        XCTAssertTrue(fresh.replaysRestartChrome)
+        XCTAssertEqual(fresh.boardScene?.replaysRestartChrome,true)
         XCTAssertTrue(try XCTUnwrap(fresh.sourceInitialConstruction).borrowedPreparedFoundation,"A cold restart must adopt the asynchronously prepared resource owner before constructor draws")
         XCTAssertEqual(fresh.engine.state.generation,oldGeneration+1);XCTAssertEqual(fresh.engine.state.board,board ?? 1)
         XCTAssertEqual(fresh.engine.state.moves,50);XCTAssertEqual(fresh.engine.state.score,0)
         XCTAssertTrue(fresh.engine.state.tiles.allSatisfy{$0.id != saved.tiles.first?.id})
+        if exitAtHandoff {
+            try await wait{handoffExitResult != nil}
+            XCTAssertTrue(handoffInterrupted);XCTAssertEqual(handoffExitResult,true)
+            let scene=try XCTUnwrap(fresh.boardScene)
+            XCTAssertTrue(scene.hasCompletedBoardExit)
+            XCTAssertFalse(scene.restartEntryHandoffReleased)
+            XCTAssertNil(scene.completedSourceBoardEntry)
+            try await Task.sleep(for:.milliseconds(150))
+            XCTAssertFalse(scene.restartEntryHandoffReleased,"A later rendered frame cannot revive an exited dormant wave")
+            XCTAssertNil(scene.completedSourceBoardEntry);XCTAssertTrue(paintFailures.isEmpty)
+            return
+        }
         var sawAnnouncement=false,sawChromeReplay=false
         try await wait{
+            if pauseAtHandoff,let paused=handoffPausedAt,!handoffResumed,CACurrentMediaTime()-paused>=0.15 {
+                let scene=fresh.boardScene
+                XCTAssertFalse(scene?.restartEntryHandoffReleased ?? true)
+                let nodes=fresh.engine.state.tiles.filter{$0.value>0 && !$0.locked}.compactMap{scene?.sourceNativeTileNode($0.id)}
+                XCTAssertTrue(nodes.allSatisfy{nodeAlpha($0)<=0.001 || (abs($0.sourceLocalScale.x)<0.001 && abs($0.sourceLocalScale.y)<0.001)},"Background callback must hold unpainted zero-pose entry")
+                handoffResumed=true
+                incomingWavePaintEpoch=CACurrentMediaTime()
+                NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
+            }
             sawAnnouncement = sawAnnouncement || self.containsAnnouncement(fresh)
             if let chrome=fresh.boardScene?.boardChromeReceipt {
                 sawChromeReplay = sawChromeReplay || chrome.offset != 0 || chrome.alpha != 1
             }
             return fresh.boardScene?.completedSourceBoardEntry != nil && fresh.boardScene?.gameplayRenderHost?.renderView.window != nil &&
                 fresh.boardScene?.isBoardEntryComplete==true && fresh.beforeSourceGameplayAdmission==nil
+        }
+        if auditPaintFrames {
+            samplePaint("settled")
+            XCTAssertGreaterThanOrEqual(incomingRenderSerials.count,3,"Audit must observe at least three distinct incoming renderer updates")
+            XCTAssertGreaterThan(paintSamples,0,"Audit must wrap the actual incoming Scene paint boundary")
+            XCTAssertEqual(incomingHandoffSamples,1,"Audit must observe exactly one first-visible old-to-new handoff")
+            if pauseAtHandoff {XCTAssertTrue(handoffInterrupted);XCTAssertTrue(handoffResumed)}
+            let initial=try XCTUnwrap(firstIncomingGeometry),scene=try XCTUnwrap(fresh.boardScene)
+            XCTAssertEqual(initial.0,scene.size);XCTAssertEqual(initial.1,fresh.view.safeAreaInsets)
+            for (id,scale) in initial.2 {if let node=scene.sourceNativeTileNode(id) {XCTAssertEqual(node.sourceGeometryScale,scale,accuracy:0.00001,"Incoming die geometry changed after its first visible paint")}}
+            XCTAssertTrue(paintFailures.isEmpty,"Per-paint Restart audit: \(paintFailures.sorted())")
+            print("RESTART_PAINT_PROOF board=\(String(describing:board)) incomingSamples=\(incomingVisibleSamples) renders=\(paintSamples) uniquePaints=\(incomingRenderSerials.count) firstThreeScales=\(firstIncomingPaintScales) rows=\(paintRows.count)")
         }
         XCTAssertFalse(sawAnnouncement,"Journey/Arcade Exit Restart must stay announcement-free throughout actual entry readiness")
         XCTAssertFalse(sawChromeReplay,"HUD carrier must stay fixed while the finite mask and selected groups enter")
@@ -748,6 +1016,20 @@ import StackToSixNativeState
         if let board {XCTAssertNil(durable.journeyRuns[board])}
         else {XCTAssertNil(durable.arcadeRun)}
     }
+}
+
+@MainActor private final class NativeRestartPaintSampler:NSObject {
+    var onFrame:(()->Void)?
+    private var link:CADisplayLink?
+    func start(){guard link==nil else{return};let value=CADisplayLink(target:self,selector:#selector(frame(_:)));value.preferredFrameRateRange=CAFrameRateRange(minimum:60,maximum:60,preferred:60);link=value;value.add(to:.main,forMode:.common)}
+    @objc private func frame(_ link:CADisplayLink){onFrame?()}
+    func stop(){link?.invalidate();link=nil;onFrame=nil}
+}
+@MainActor private final class NativeRestartRenderHook {
+    weak var scene:NativeBoardScene?
+    let previous:(()->Void)?
+    let first:(()->Void)?
+    init(scene:NativeBoardScene,previous:(()->Void)?,first:(()->Void)?){self.scene=scene;self.previous=previous;self.first=first}
 }
 
 /// Incident board captured before the 2026-10-19 Spaceship freeze. This mounts

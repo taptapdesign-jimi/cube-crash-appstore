@@ -11,6 +11,36 @@ final class NativeTabletLayoutTests:XCTestCase {
     private func all(_ view:UIView)->[UIView] {[view]+view.subviews.flatMap(all)}
     private var assets:JimiV9Artwork {JimiV9Artwork(resourceRoot:NativeTestResources.root)}
 
+    func testPhoneHomeRearCloudsSpanTopToDividerWithoutChangingHeroOrHorizontalPlacement() throws {
+        for size in [CGSize(width:320,height:568),CGSize(width:390,height:844),CGSize(width:430,height:932)] {
+            let home=JimiV9HomeView(frame:CGRect(origin:.zero,size:size),assets:assets)
+            home.layoutSubviews()
+            let hero=home.heroView.bounds,heroPosition=home.heroView.layer.position
+            let shells=all(home).filter{$0.accessibilityIdentifier?.hasPrefix("native.home.cloud-route.shared.")==true}
+            XCTAssertEqual(shells.count,30)
+            let frames=Dictionary(uniqueKeysWithValues:shells.map{($0.accessibilityIdentifier!,$0.frame)})
+            let dividerY=size.height-105.5-max(49,(size.width*1.2-96)*49/390)/2
+            for group in 0..<3 {
+                let rear=shells.filter{$0.superview?.accessibilityIdentifier=="native.home.cloud-bank.\(group)"}
+                XCTAssertEqual(rear.count,9)
+                let top=try XCTUnwrap(rear.min{$0.center.y<$1.center.y})
+                let bottom=try XCTUnwrap(rear.max{$0.center.y<$1.center.y})
+                let largest=try XCTUnwrap(rear.max{$0.bounds.width<$1.bounds.width})
+                XCTAssertEqual(top.center.y,0,accuracy:0.001)
+                XCTAssertLessThan(top.frame.minY,0)
+                XCTAssertGreaterThan(bottom.frame.maxY,dividerY-100)
+                XCTAssertLessThan(bottom.frame.maxY,dividerY)
+                XCTAssertGreaterThan(largest.bounds.width,top.bounds.width)
+                XCTAssertGreaterThan(largest.bounds.width,bottom.bounds.width)
+                XCTAssertGreaterThan(largest.center.y,top.center.y)
+                XCTAssertLessThan(largest.center.y,bottom.center.y)
+            }
+            home.layoutSubviews()
+            XCTAssertEqual(home.heroView.bounds,hero);XCTAssertEqual(home.heroView.layer.position,heroPosition)
+            for shell in shells {XCTAssertEqual(shell.frame,frames[shell.accessibilityIdentifier!]!,"Relayout must preserve this visit's random cloud composition")}
+            home.isHidden=true
+        }
+    }
     func testModalProjectionScalesCircleGlyphAndContentTogetherWithoutAccumulation() {
         let host=UIView(frame:CGRect(x:0,y:0,width:820,height:1180)),backdrop=UIView(),card=UIView()
         backdrop.frame=host.bounds;host.addSubview(backdrop);host.addSubview(card)

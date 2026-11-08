@@ -221,7 +221,7 @@ final class JimiNativeInterimEffect {
             }
         }
     }
-    nonisolated static func renderBurn(image:CGImage,size:CGSize,density:CGFloat,radius:CGFloat,exactAlpha:Bool=false,includeArtwork:Bool=true,cancelled:()->Bool) -> [CGImage] {
+    nonisolated static func renderBurn(image:CGImage,size:CGSize,density:CGFloat,radius:CGFloat,exactAlpha:Bool=false,includeArtwork:Bool=true,uniformHighlight:Bool=false,cancelled:()->Bool) -> [CGImage] {
         let width = Int(ceil(size.width*density)),height = Int(ceil(size.height*density))
         guard width > 0,height > 0,width <= 512,height <= 768 else {return []}
         let space = CGColorSpaceCreateDeviceRGB()
@@ -241,11 +241,17 @@ final class JimiNativeInterimEffect {
             let alpha = alphas[segment]+(alphas[segment+1]-alphas[segment])*eased,p = t*t*(3-2*t)
             let burnWidth = 0.72*size.width,burnHeight = 1.16*size.height
             context.setBlendMode(.screen);context.setAlpha(alpha)
-            context.translateBy(x:-0.62*size.width+burnWidth/2+2.25*burnWidth*p,y:-0.08*size.height+burnHeight/2+burnHeight*(-0.5+p))
-            context.rotate(by:.pi/4);let scale = 0.94+0.10*p;context.scaleBy(x:scale,y:scale)
-            context.translateBy(x:-burnWidth/2,y:-burnHeight/2)
-            context.translateBy(x:burnWidth/2,y:burnHeight*0.48);context.scaleBy(x:burnWidth/2,y:burnHeight*0.52)
-            context.drawRadialGradient(gradient,startCenter:.zero,startRadius:0,endCenter:.zero,endRadius:1,options:[.drawsBeforeStartLocation])
+            if uniformHighlight {
+                // Small stars use a whole-silhouette burn, with no radial hot spot/rings.
+                context.setFillColor(CGColor(red:1,green:235/255,blue:142/255,alpha:0.86))
+                context.fill(CGRect(origin:.zero,size:size))
+            } else {
+                context.translateBy(x:-0.62*size.width+burnWidth/2+2.25*burnWidth*p,y:-0.08*size.height+burnHeight/2+burnHeight*(-0.5+p))
+                context.rotate(by:.pi/4);let scale = 0.94+0.10*p;context.scaleBy(x:scale,y:scale)
+                context.translateBy(x:-burnWidth/2,y:-burnHeight/2)
+                context.translateBy(x:burnWidth/2,y:burnHeight*0.48);context.scaleBy(x:burnWidth/2,y:burnHeight*0.52)
+                context.drawRadialGradient(gradient,startCenter:.zero,startRadius:0,endCenter:.zero,endRadius:1,options:[.drawsBeforeStartLocation])
+            }
             context.restoreGState()
             if exactAlpha {context.setBlendMode(.destinationIn);context.draw(image,in:CGRect(origin:.zero,size:size))}
             return context.makeImage()

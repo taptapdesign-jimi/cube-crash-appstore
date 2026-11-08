@@ -380,6 +380,31 @@ final class NativeStateTests: XCTestCase {
         let payload=try JSONSerialization.data(withJSONObject:["product":"com.taptapdesign.stacktosix.Stack-to-Six","storage":[:]])
         XCTAssertThrowsError(try NativeHybridImporter.importExport(payload)) {XCTAssertEqual($0 as? NativeSaveError,.wrongProduct)}
     }
+    func testHybridImportPreservesAllHistoricalBeachBallCoresAndProgress() throws {
+        for core in ["wild-tnt","wild-juice","wild-magnet"] {
+            let grid:[[Any]]=[[["value":6,"special":core,"specialDiceVariant":"beach-ball","locked":false,"open":true,"gridX":0,"gridY":0],["value":2,"locked":false,"gridX":1,"gridY":0]]]
+            let save:[String:Any]=["schemaVersion":2,"boardNumber":13,"level":13,"grid":grid,"moves":42,"score":510,"wildMeter":0.7,"wildSpawnCount":3,"runComboBonus":["version":1,"earnedBonus":225],"timestamp":1000000]
+            let json=String(data:try JSONSerialization.data(withJSONObject:save),encoding:.utf8)!
+            let payload=try JSONSerialization.data(withJSONObject:["product":"com.taptapdesign.stacktosix.native","storage":["cc_saved_game_board_13":json]])
+            let envelope=try NativeHybridImporter.importExport(payload,now:1000),board=try XCTUnwrap(envelope.journeyRuns[13])
+            let ball=try XCTUnwrap(board.tiles.first{$0.variant=="beach-ball"})
+            XCTAssertEqual(ball.archetype?.rawValue,core);XCTAssertEqual(ball.gameplayArchetype,.juice)
+            XCTAssertEqual(board.score,510);XCTAssertEqual(board.moves,42);XCTAssertEqual(board.wildSpawnCount,3);XCTAssertEqual(board.earnedComboBonus,225)
+            let restored=try JSONDecoder().decode(NativeSaveEnvelope.self,from:JSONEncoder().encode(envelope))
+            XCTAssertEqual(restored,envelope)
+        }
+    }
+    func testBallImportCompatibilityDoesNotBroadenOtherVariantLegacyDecisions() throws {
+        // Native save compatibility separately permits historical BLOOB state;
+        // this hybrid-import boundary already rejected that source mismatch.
+        let grid:[[Any]]=[[["value":6,"special":"wild","specialDiceVariant":"bloob-ball","locked":false,"open":true,"gridX":0,"gridY":0],["value":2,"locked":false,"gridX":1,"gridY":0]]]
+        let save:[String:Any]=["schemaVersion":2,"boardNumber":13,"level":13,"grid":grid,"moves":42,"score":510,"timestamp":1000000]
+        let json=String(data:try JSONSerialization.data(withJSONObject:save),encoding:.utf8)!
+        let payload=try JSONSerialization.data(withJSONObject:["product":"com.taptapdesign.stacktosix.native","storage":["cc_saved_game_board_13":json]])
+        XCTAssertThrowsError(try NativeHybridImporter.importExport(payload,now:1000)) {
+            XCTAssertEqual($0 as? NativeSaveError,.invalidState(["legacy-variant-archetype-mismatch"]))
+        }
+    }
     func testHybridImportPreservesVariantCountRewardAndCompletedTombstone() throws {
         let grid:[[Any]]=[[ ["value":6,"special":"wild","specialDiceVariant":"bee","locked":false,"open":true,"gridX":0,"gridY":0], ["value":2,"locked":false,"gridX":1,"gridY":0] ]]
         let save:[String:Any]=["schemaVersion":2,"boardNumber":2,"level":2,"grid":grid,"moves":42,"score":510,"wildMeter":0.7,"wildSpawnCount":3,"runComboBonus":["version":1,"earnedBonus":225],"timestamp":1000000]

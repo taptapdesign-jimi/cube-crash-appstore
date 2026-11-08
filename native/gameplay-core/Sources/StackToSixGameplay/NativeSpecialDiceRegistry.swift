@@ -1,6 +1,6 @@
 import Foundation
 
-/// Exact identity map from src/modules/special-dice-registry.ts. Artwork names never decide gameplay.
+/// Preserved identity map plus declared Native gameplay overrides. Artwork names never decide gameplay.
 public enum NativeSpecialDiceRegistry {
     public struct Variant: Equatable, Sendable {
         public let id: String
@@ -29,7 +29,7 @@ public enum NativeSpecialDiceRegistry {
         Variant("mushroom", .juice, "assets/shop/mushroom/mushroom.png", ratio: 0.30),
         Variant("robo-cube", .juice, "assets/shop/robo/robo-cube1.png", ratio: 0.30),
         Variant("cubero", .star, "assets/shop/cubero/cubero.png"),
-        Variant("beach-ball", .tnt, "assets/shop/ball/ball.png", visualFinale: .juice, ratio: 0.30)
+        Variant("beach-ball", .juice, "assets/shop/ball/ball.png", ratio: 0.30)
     ].map { ($0.id, $0) })
     /// Mirrors NativeBackpackCatalog world membership. Arcade-only originals use
     /// the existing neutral Area55 celebration, not the current round number.
@@ -59,11 +59,11 @@ public enum NativeSpecialDiceRegistry {
         guard let variant = variants[id] else { return nil }
         if variant.archetype == core { return variant }
         if id == "bloob-ball" && core == .star { return variant } // Preserve historical saved Bloob identity.
-        if id == "beach-ball" && (core == .juice || core == .magnet) { return variant }
+        if id == "beach-ball" && (core == .tnt || core == .magnet) { return variant }
         return nil
     }
     /// Admission uses the canonical gameplay identity, including historical
-    /// Beach Ball saves, rather than treating authored artwork as a new rule.
+    /// Beach Ball saves normalized to its current Juice refill rule, rather than treating authored artwork as a new rule.
     public static func admits(_ tile: NativeTile, as archetype: NativeWildArchetype) -> Bool {
         guard tile.isWild, tile.gameplayArchetype == archetype else { return false }
         guard let variant = tile.variant else { return true }

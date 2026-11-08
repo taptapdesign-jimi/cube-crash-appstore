@@ -3,7 +3,7 @@ import XCTest
 
 final class NativeFinalHUDCoinTests:XCTestCase {
     func testFinalPairAllFamiliesVariantsModesAndDirectionsEarnCoinsWithoutSpawning() throws {
-        let identities:[(NativeWildArchetype?,String?)]=[(nil,nil),(.star,nil),(.juice,nil),(.tnt,nil),(.magnet,nil),(.juice,"beach-ball"),(.magnet,"beach-ball")] + NativeSpecialDiceRegistry.variants.values.map{(Optional($0.archetype),Optional($0.id))}
+        let identities:[(NativeWildArchetype?,String?)]=[(nil,nil),(.star,nil),(.juice,nil),(.tnt,nil),(.magnet,nil),(.juice,"beach-ball"),(.magnet,"beach-ball"),(.tnt,"beach-ball")] + NativeSpecialDiceRegistry.variants.values.map{(Optional($0.archetype),Optional($0.id))}
         for mode in [NativeRunMode.journey,.arcade] {for (archetype,variant) in identities {for reverse in [false,true] {
             let tag="\(mode)/\(String(describing:archetype))/\(variant ?? "base")/\(reverse)"
             let first=NativeTile(id:"a",cell:.init(column:0,row:0),value:archetype==nil ? 3:6,starOrbitCount:3,archetype:archetype,variant:variant)
@@ -25,7 +25,7 @@ final class NativeFinalHUDCoinTests:XCTestCase {
             if let plan=engine.pendingDirectWild {XCTAssertTrue(plan.isFinal,tag);result=engine.commitDirectWildGameplay(transactionID:plan.id)}
             XCTAssertTrue(result.accepted,tag)
             let count=try XCTUnwrap(result.events.first{$0.kind == .hudStarsPrepared},tag).tileIDs.count
-            XCTAssertEqual(count,first.gameplayArchetype == .tnt ? 3:archetype == .star ? (variant == "bee" ? 1:3):archetype == .juice ? 2:1,tag)
+            XCTAssertEqual(count,(first.gameplayArchetype == .tnt || variant == "beach-ball") ? 3:archetype == .star ? (variant == "bee" ? 1:3):archetype == .juice ? 2:1,tag)
             XCTAssertTrue(engine.state.tiles.isEmpty,tag);XCTAssertTrue(engine.pendingMeterRewards.isEmpty,tag)
             XCTAssertFalse(result.events.contains{$0.kind == .spawned},tag)
             XCTAssertTrue(engine.pendingHUDStars.allSatisfy(\.isFinalMerge),tag)

@@ -6,6 +6,74 @@ import StackToSixNativeState
 
 @MainActor
 final class NativeResultOwnerTests:XCTestCase {
+    func testStarBurnUsesEvenHighlightWithoutRadialHotSpots() throws {
+        let format=UIGraphicsImageRendererFormat();format.scale=1
+        let source=UIGraphicsImageRenderer(size:CGSize(width:16,height:16),format:format).image {ctx in
+            UIColor.white.setFill();ctx.fill(CGRect(x:4,y:0,width:12,height:16))
+        }
+        let image=try XCTUnwrap(source.cgImage)
+        func frames(uniform:Bool)->[CGImage] {
+            JimiNativeInterimEffect.renderBurn(image:image,size:CGSize(width:128,height:128),density:1,radius:0,exactAlpha:true,includeArtwork:false,uniformHighlight:uniform,cancelled:{false})
+        }
+        func alpha(_ image:CGImage,_ x:Int,_ y:Int)throws->UInt8 {
+            var bytes=[UInt8](repeating:0,count:128*128*4)
+            let context=try XCTUnwrap(CGContext(data:&bytes,width:128,height:128,bitsPerComponent:8,bytesPerRow:128*4,space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue))
+            context.draw(image,in:CGRect(x:0,y:0,width:128,height:128))
+            return bytes[(y*128+x)*4+3]
+        }
+        let even=frames(uniform:true),radial=frames(uniform:false)
+        XCTAssertEqual(even.count,31);XCTAssertEqual(radial.count,31)
+        let sample=even[15],baseline=try alpha(sample,64,64)
+        XCTAssertGreaterThan(baseline,0);XCTAssertEqual(try alpha(sample,8,64),0,"Original transparent silhouette stays clear")
+        for x in [48,64,96,112] {for y in [16,48,80,112] {XCTAssertEqual(try alpha(sample,x,y),baseline,"No bright or dark round patches anywhere inside the star")}}
+        XCTAssertNotEqual(try alpha(radial[15],64,64),try alpha(radial[15],112,16),"Card default keeps its original radial effect")
+        XCTAssertEqual(try alpha(even[0],64,64),0);XCTAssertEqual(try alpha(even[30],64,64),0)
+    }
+
+    func testEarnedStarBurnOnlyPauseResumeAndRetirement() async throws {
+        let state=NativeBoardState(tiles:[],mode:.journey,board:1,score:100)
+        let result=NativeResultController(root:NativeTestResources.root,state:state,clean:true,combo:0,efficiency:0,finalScore:20000,headlineRandom:0)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=result;window.makeKeyAndVisible()
+        defer{result.dispose();window.isHidden=true;window.rootViewController=nil}
+        result.view.layoutIfNeeded();result.setSuspended(true)
+        // Selected worker preparation is bounded and admitted independently of playback.
+        try await Task.sleep(for:.milliseconds(300))
+        func star(_ index:Int)->UIView? {
+            func find(_ v:UIView)->UIView? {
+                if v.accessibilityIdentifier=="native.result.star.filled.\(index)" {return v}
+                return v.subviews.lazy.compactMap{find($0)}.first
+            }
+            return find(result.view)
+        }
+        let first=try XCTUnwrap(star(0)),second=try XCTUnwrap(star(1)),third=try XCTUnwrap(star(2))
+        XCTAssertFalse(first.layer.sublayers?.contains{$0.name=="native.result.star.shimmer"} ?? false)
+        let burn=try XCTUnwrap(first.layer.sublayers?.first{$0.name=="native.result.star.burn"})
+        XCTAssertTrue(third.layer.sublayers?.isEmpty ?? true)
+        result.setSuspended(false);result.tick(0)
+        for frame in 1...114 {result.tick(Double(frame)/60)}
+        XCTAssertEqual(burn.opacity,1);XCTAssertNotNil(burn.contents)
+        XCTAssertFalse(second.layer.sublayers?.contains{$0.name=="native.result.star.shimmer"} ?? false)
+        XCTAssertNotNil(second.layer.sublayers?.first{$0.name=="native.result.star.burn"})
+        XCTAssertTrue((burn.animationKeys() ?? []).isEmpty,"Burn uses the existing result clock")
+        let format=UIGraphicsImageRendererFormat();format.scale=3
+        let shot=UIGraphicsImageRenderer(bounds:window.bounds,format:format).image{_ in window.drawHierarchy(in:window.bounds,afterScreenUpdates:true)}
+        try shot.pngData()?.write(to:URL(fileURLWithPath:"/tmp/native-result-star-burn-only-20261108/preview.png"))
+        let before=result.elapsed;result.setSuspended(true);result.tick(200)
+        XCTAssertEqual(result.elapsed,before);XCTAssertEqual(burn.opacity,0)
+        result.setSuspended(false);result.tick(201)
+        XCTAssertEqual(result.elapsed,before);XCTAssertEqual(burn.opacity,1)
+        result.close{};XCTAssertNil(burn.superlayer)
+        result.dispose();result.dispose()
+        // Fast close also cancels selected worker results before publication.
+        let late=NativeResultController(root:NativeTestResources.root,state:state,clean:true,combo:0,efficiency:0,finalScore:20000)
+        late.loadViewIfNeeded();late.dispose();try await Task.sleep(for:.milliseconds(100))
+        func decorativeCount(_ v:UIView)->Int {
+            (v.layer.sublayers?.filter{($0.name ?? "").hasPrefix("native.result.star.")}.count ?? 0)+v.subviews.reduce(0){$0+decorativeCount($1)}
+        }
+        XCTAssertEqual(decorativeCount(late.view),0)
+        let fail=controller(clean:false);fail.loadViewIfNeeded();XCTAssertEqual(decorativeCount(fail.view),0);fail.dispose()
+    }
+
     func testEveryArcadeReachedRunSummaryAddsSameBonusesAsJourney() {
         for variant in [NativeArcadeVariant.endurance,.pureDice,.slowBurn] {
             var arcade=NativeBoardState(tiles:[],mode:.arcade,board:3,stage:3,moves:30,score:1200,arcadeVariant:variant)

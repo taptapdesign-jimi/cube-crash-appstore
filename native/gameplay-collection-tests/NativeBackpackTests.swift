@@ -51,6 +51,101 @@ final class NativeBackpackTests:XCTestCase {
         _ = detail.speechButton.accessibilityActivate();XCTAssertEqual(requests,1);XCTAssertNil(detail.onSpeechRequested)
         detail.removeFromParent();detail.view.removeFromSuperview();window.isHidden=true
     }
+    func testCollectionSectionTitleThenCountReuseHUDEntryAndExit() throws {
+        for crate in [false,true] {
+            let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+            window.rootViewController=host;window.makeKeyAndVisible();host.loadViewIfNeeded()
+            let screen=NativeBackpackView(frame:window.bounds,assets:JimiV9Artwork(resourceRoot:NativeTestResources.root),arcadeCrate:crate)
+            host.view.addSubview(screen)
+            screen.apply([.init(title:"Forest",dice:NativeBackpackCatalog.forest,unlocked:Set(NativeBackpackCatalog.forest.map(\.id)))])
+            defer{screen.removeFromSuperview();window.isHidden=true;window.rootViewController=nil}
+            for entering in [true,false] {
+                let tracks=screen.tracks(enter:entering)
+                let title=try XCTUnwrap(tracks.first{$0.0.accessibilityIdentifier=="native.backpack.section.title"})
+                let count=try XCTUnwrap(tracks.first{$0.0.accessibilityIdentifier=="native.backpack.section.count"})
+                let titleBegin=try XCTUnwrap(title.1.tweens.first).begin,countBegin=try XCTUnwrap(count.1.tweens.first).begin
+                let gap=UIAccessibility.isReduceMotionEnabled || !entering ? 0:JimiV9ArchedNavigationTitle.elementStagger
+                XCTAssertEqual(countBegin-titleBegin,gap,accuracy:0.000001)
+                XCTAssertEqual(titleBegin,entering ? 0.135:0.100,accuracy:0.000001)
+                for (view,track) in [title,count] {
+                    let label=try XCTUnwrap(view as? UILabel)
+                    let ink=label.textRect(forBounds:label.bounds,limitedToNumberOfLines:label.numberOfLines)
+                    XCTAssertEqual(track.anchorX*label.bounds.width,ink.midX,accuracy:0.001)
+                    XCTAssertEqual(track.pose(at:0).opacity,entering ? 0:1,accuracy:0.001)
+                    if entering && !UIAccessibility.isReduceMotionEnabled {XCTAssertGreaterThan(track.pose(at:0).y,0,"UIKit arrival starts below its final position")}
+                }
+                let expected=JimiV9Motion.worldHubElementEnter()
+                for step in 0...20 {
+                    let progress=Double(step)/20
+                    let a=title.1.pose(at:titleBegin+JimiV9ArchedNavigationTitle.elementDuration*progress)
+                    let b=expected.pose(at:expected.duration*(entering ? progress:1-progress))
+                    if entering && !UIAccessibility.isReduceMotionEnabled {
+                        XCTAssertEqual(a.y,b.y,accuracy:0.000001);XCTAssertEqual(a.x,0,accuracy:0.000001);XCTAssertEqual(a.scaleX,b.scaleX,accuracy:0.000001);XCTAssertEqual(a.opacity,b.opacity,accuracy:0.000001)
+                    }
+                }
+                if !entering {
+                    let owner=NativeRouteMotion(home:JimiV9HomeView(frame:window.bounds,assets:JimiV9Artwork(resourceRoot:NativeTestResources.root)),hub:JimiV9HubView(frame:window.bounds,assets:JimiV9Artwork(resourceRoot:NativeTestResources.root)))
+                    owner.animate(tracks){}
+                    defer{owner.cancel()}
+                    for (view,_) in [title,count] {
+                        XCTAssertNil(view.superview?.layer.animation(forKey:"native-route"),"No section-parent scale may compose with caption exit")
+                        let group=try XCTUnwrap(view.layer.animation(forKey:"native-route") as? CAAnimationGroup)
+                        let motion=try XCTUnwrap(group.animations?.first{($0 as? CAPropertyAnimation)?.keyPath == "transform"} as? CAKeyframeAnimation)
+                        let values=try XCTUnwrap(motion.values as? [NSValue])
+                        let opacity=try XCTUnwrap(group.animations?.first{($0 as? CAPropertyAnimation)?.keyPath == "opacity"} as? CAKeyframeAnimation)
+                        let alphas=try XCTUnwrap(opacity.values as? [NSNumber])
+                        let poses=values.map{ $0.caTransform3DValue }
+                        for pose in poses {XCTAssertEqual(pose.m41,0,accuracy:0.000001)}
+                        if !UIAccessibility.isReduceMotionEnabled {
+                            let minimum=try XCTUnwrap(poses.map(\.m42).min())
+                            let peak=try XCTUnwrap(poses.map(\.m11).max())
+                            XCTAssertLessThan(minimum,0);XCTAssertGreaterThanOrEqual(minimum,-4)
+                            XCTAssertGreaterThan(peak,1);XCTAssertLessThan(peak,1.05)
+                            let trough=try XCTUnwrap(poses.firstIndex{$0.m42==minimum})
+                            for index in (trough+1)..<poses.count {XCTAssertGreaterThanOrEqual(poses[index].m42,poses[index-1].m42-0.000001)}
+                            XCTAssertEqual(poses.last!.m11,0.65,accuracy:0.000001)
+                            XCTAssertEqual(poses.last!.m42,30,accuracy:0.000001)
+                        }
+                        print("[CaptionExit] crate=\(crate) id=\(view.accessibilityIdentifier ?? "?") samples=\(values.count) minY=\(poses.map(\.m42).min()!) peakScale=\(poses.map(\.m11).max()!)")
+                        XCTAssertEqual(alphas.last!.doubleValue,0,accuracy:0.000001)
+                    }
+                }
+                XCTAssertFalse(tracks.contains{ $0.0 is UICollectionReusableView && !($0.0 is UICollectionViewCell) },"Section root must not collapse its independently staggered captions")
+            }
+        }
+    }
+
+    func testCaptionExitRelayoutPreservesRestGeometry() throws {
+        for crate in [false,true] {
+            let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+            let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+            window.rootViewController=host;window.makeKeyAndVisible()
+            let screen=NativeBackpackView(frame:window.bounds,assets:assets,arcadeCrate:crate)
+            host.view.addSubview(screen)
+            screen.apply([.init(title:"Forest",dice:NativeBackpackCatalog.forest,unlocked:Set(NativeBackpackCatalog.forest.map(\.id)))])
+            let tracks=screen.tracks(enter:false)
+            let captions=tracks.filter{$0.0.accessibilityIdentifier?.hasPrefix("native.backpack.section.") == true}
+            XCTAssertEqual(captions.count,2)
+            let rest=captions.map{$0.0.frame}
+            let owner=NativeRouteMotion(home:JimiV9HomeView(frame:window.bounds,assets:assets),hub:JimiV9HubView(frame:window.bounds,assets:assets))
+            defer{owner.cancel();screen.removeFromSuperview();window.isHidden=true;window.rootViewController=nil}
+            owner.animate(tracks){}
+            for (index,entry) in captions.enumerated() {
+                let label=entry.0,rect=rest[index]
+                // Real exit installs a nonidentity terminal MODEL transform before
+                // UIKit's next layout; the presentation still starts at identity.
+                if !UIAccessibility.isReduceMotionEnabled {XCTAssertLessThan(label.layer.transform.m11,1)}
+                label.superview?.setNeedsLayout();label.superview?.layoutIfNeeded()
+                let anchor=label.layer.anchorPoint
+                print("[CaptionLayout] crate=\(crate) id=\(label.accessibilityIdentifier ?? "?") rest=\(rect) bounds=\(label.bounds) position=\(label.layer.position) anchor=\(anchor)")
+                XCTAssertEqual(label.bounds.width,rect.width,accuracy:0.001)
+                XCTAssertEqual(label.bounds.height,rect.height,accuracy:0.001)
+                XCTAssertEqual(label.layer.position.x,rect.minX+rect.width*anchor.x,accuracy:0.001)
+                XCTAssertEqual(label.layer.position.y,rect.minY+rect.height*anchor.y,accuracy:0.001)
+            }
+        }
+    }
+
     func testMountedCollectionArtworkResolutionAndRetinaSnapshot() throws {
         let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
         window.rootViewController=host;window.makeKeyAndVisible();defer{window.isHidden=true}
@@ -1025,9 +1120,11 @@ final class NativeBackpackTests:XCTestCase {
         XCTAssertEqual(app.route,.backpack);XCTAssertTrue(app.backpackView?.isUserInteractionEnabled == true)
         let exitTracks=try XCTUnwrap(app.backpackView).tracks(enter:false)
         XCTAssertGreaterThan(exitTracks.count,1)
-        for (_,track) in exitTracks {
-            XCTAssertEqual(track.tweens.first?.begin,0,"Every visible Backpack part exits immediately on X")
-            XCTAssertEqual(track.duration,UIAccessibility.isReduceMotionEnabled ? 0.16:0.40,accuracy:0.001)
+        for (view,track) in exitTracks {
+            let caption=view.accessibilityIdentifier?.hasPrefix("native.backpack.section.") == true
+            XCTAssertEqual(track.tweens.first?.begin,caption ? 0.100:0,"Captions follow other visible Backpack parts by100ms")
+            let duration=caption ? (UIAccessibility.isReduceMotionEnabled ? JimiV9ArchedNavigationTitle.reducedDuration(entering:false):JimiV9ArchedNavigationTitle.elementDuration):(UIAccessibility.isReduceMotionEnabled ? 0.16:0.40)
+            XCTAssertEqual(track.duration,duration+(caption ? 0.100:0),accuracy:0.001)
         }
         app.backpackView?.close.sendActions(for:.touchUpInside);XCTAssertEqual(app.route,.backpack)
         XCTAssertNotNil(app.backpackView?.close.imageView?.layer.animation(forKey:NativeHubBackpackFeedback.animationKey))

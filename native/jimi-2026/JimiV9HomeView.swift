@@ -337,6 +337,18 @@ private final class NativeCTAShimmerAnimationDelegate:NSObject,CAAnimationDelega
 final class NativeCTAShimmer:NSObject {
     private lazy var animationDelegate=NativeCTAShimmerAnimationDelegate(owner:self)
     static let animationKey="native.cta.shimmer"
+    // Shared with result stars; the CTA remains the recipe authority.
+    static let opacityValues:[Double]=[0,0,0.62,0.62,0,0,0,0.52,0.52,0,0,0]
+    static let opacityTimes:[Double]=[0,0.12,0.12+0.04/1.3,0.12+0.15/1.3,0.12+0.20/1.3,0.33,0.38,0.38+0.04/1.3,0.38+0.15/1.3,0.38+0.20/1.3,0.59,1]
+    static let sweepValues:[Double]=[-0.85,-0.85,1.85,-0.85,-0.85,1.85,1.85]
+    static let sweepTimes:[Double]=[0,0.12,0.12+0.20/1.3,0.33,0.38,0.38+0.20/1.3,1]
+    static func sample(seconds:Double,values:[Double],times:[Double])->Double {
+        let t=max(0,seconds).truncatingRemainder(dividingBy:10)/10
+        let i=min(values.count-2,times.lastIndex(where:{$0<=t}) ?? 0)
+        let progress=NativeResultPresentationPlan.bezier((t-times[i])/(times[i+1]-times[i]),0.42,0,0.58,1)
+        return values[i]+(values[i+1]-values[i])*progress
+    }
+
     private weak var button:JimiV9PlainButton?
     let highlight=CAGradientLayer(),band=CAGradientLayer()
     private var observations:[NSKeyValueObservation]=[]
@@ -412,13 +424,13 @@ final class NativeCTAShimmer:NSObject {
         guard !running,let button else{return}
         running=true
         let opacity=CAKeyframeAnimation(keyPath:"opacity")
-        opacity.values=[0,0,0.62,0.62,0,0,0,0.52,0.52,0,0,0]
-        opacity.keyTimes=[0,0.12,0.12+0.04/1.3,0.12+0.15/1.3,0.12+0.20/1.3,0.33,0.38,0.38+0.04/1.3,0.38+0.15/1.3,0.38+0.20/1.3,0.59,1].map{NSNumber(value:$0)}
+        opacity.values=Self.opacityValues
+        opacity.keyTimes=Self.opacityTimes.map{NSNumber(value:$0)}
         opacity.duration=10;opacity.delegate=animationDelegate
         opacity.timingFunctions=Array(repeating:CAMediaTimingFunction(controlPoints:0.42,0,0.58,1),count:11)
         let sweep=CAKeyframeAnimation(keyPath:"position.x")
-        sweep.values=[-0.85,-0.85,1.85,-0.85,-0.85,1.85,1.85].map{$0*button.bounds.width}
-        sweep.keyTimes=[0,0.12,0.12+0.20/1.3,0.33,0.38,0.38+0.20/1.3,1].map{NSNumber(value:$0)};sweep.duration=10
+        sweep.values=Self.sweepValues.map{$0*button.bounds.width}
+        sweep.keyTimes=Self.sweepTimes.map{NSNumber(value:$0)};sweep.duration=10
         sweep.timingFunctions=Array(repeating:CAMediaTimingFunction(controlPoints:0.42,0,0.58,1),count:6)
         highlight.add(opacity,forKey:Self.animationKey);band.add(sweep,forKey:Self.animationKey)
     }
@@ -815,6 +827,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         let x:CGFloat,y:CGFloat,duration:Double,scale:CGFloat
     }
     private var cloudDrifts:[CloudDrift]=[]
+    private var phoneRearSkyProgress:[CGFloat]=[]
     private var previousCloudChoices:[[String]]=[]
     private static let cloudIdleKey="native-home-cloud-idle"
     static let heroArtworkScale: CGFloat = 1.05
@@ -1140,6 +1153,25 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
                 duration:Double.random(in:puffy ? 5...7:8...10),
                 scale:CGFloat.random(in:puffy ? 1.06...1.10:1.02...1.04))
         }
+        if cloudBaseCount==24 {
+            phoneRearSkyProgress=Array(repeating:0.5,count:homeClouds.count)
+            // 11 upper / 16 middle-lower clouds across the three banks (~40/60).
+            // Choose once per Home visit; relayout/slide/foreground never reroll.
+            let upperCounts=[4,4,3].shuffled()
+            for group in 0..<3 {
+                let indices=homeClouds.indices.filter{cloudGroup($0)==group && !cloudFrontFlags[$0]}.shuffled()
+                let upperCount=upperCounts[group]
+                for (rank,index) in indices.enumerated() {
+                    let upper=rank<upperCount
+                    let local=upper ? rank:rank-upperCount
+                    let count=upper ? upperCount:indices.count-upperCount
+                    var progress=(CGFloat(local)+CGFloat.random(in:0.15...0.85))/CGFloat(count)
+                    if upper && local==0 {progress=0}
+                    if !upper && local==count-1 {progress=1}
+                    phoneRearSkyProgress[index]=(upper ? 0:0.5)+progress*0.5
+                }
+            }
+        }
         setNeedsLayout()
     }
 
@@ -1410,6 +1442,8 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             // Lay out the fixed panorama once, independently of panel position.
             if i==0 {
                 let cloudWidths:[CGFloat]=[272,198,188,166,248,166,188,154,180,160,190,272*1.20,272*1.20]
+                // Keep the broad clouds around the illustrations; the expanded
+                // phone sky gets medium/small clouds at its upper/lower edges.
                 let cloudCenters:[CGPoint]=[CGPoint(x:0.17,y:0.25),CGPoint(x:0.84,y:0.35),
                     CGPoint(x:0.12,y:0.72),CGPoint(x:0.86,y:0.80),CGPoint(x:0.50,y:0.50),
                     CGPoint(x:0.52,y:0.13),CGPoint(x:0.02,y:0.47),CGPoint(x:0.94,y:0.55),
@@ -1419,17 +1453,30 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
                     let group=cloudGroup(index),slot=cloudSlot(index)
                     let shell=cloudRouteShells[index]
                     let front=cloudFrontFlags[index]
-                    var w=cloudWidths[slot]*heroSide/360*(front ? 0.90:1)
+                    let originalWidth=cloudWidths[slot]*heroSide/360*(front ? 0.90:1)
+                    let skyProgress=phoneRearSkyProgress.indices.contains(index) ? phoneRearSkyProgress[index]:min(1,max(0,(cloudCenters[slot].y-0.13)/0.67))
+                    var w=originalWidth
+                    if !tablet && !front {
+                        let edge=skyProgress<0.20 || skyProgress>0.90
+                        let middle=skyProgress>=0.30 && skyProgress<=0.78
+                        w=(middle ? max(248,cloudWidths[slot]):min(edge ? 132:180,cloudWidths[slot]))*heroSide/360
+                    }
                     let ratio=(cloud.image?.size.height ?? 1)/max(1,cloud.image?.size.width ?? 1)
                     var size=CGSize(width:w,height:w*ratio)
                     var centerY=heroTop+heroSide*cloudCenters[slot].y
                     if !front {
-                        // Shared panorama spreads rear clouds above and below
-                        // the illustration on phone and tablet alike.
-                        centerY=heroTop+heroSide*(0.50+(cloudCenters[slot].y-0.50)*1.55+0.05)
                         let drift=cloudDrifts.indices.contains(index) ? cloudDrifts[index]:nil
                         let lowerEnvelope=size.height*(drift?.scale ?? 1.10)/2+abs(drift?.y ?? 38)*0.90
-                        centerY=min(centerY,tabletDividerY-lowerEnvelope-2)
+                        if tablet {
+                            centerY=heroTop+heroSide*(0.50+(cloudCenters[slot].y-0.50)*1.55+0.05)
+                            centerY=min(centerY,tabletDividerY-lowerEnvelope-2)
+                        } else {
+                            // Phone clouds occupy the full sky, independently of
+                            // the hero's square. The highest bank may bleed at
+                            // the screen top; the lowest full idle envelope ends
+                            // at the divider, retaining X/depth/size/clock owners.
+                            centerY=skyProgress*max(0,tabletDividerY-lowerEnvelope-2)
+                        }
                     }
                     if front {
                         // Fixed lower band: the cloud's full envelope stays below
@@ -1446,7 +1493,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
                         if size.height>maxHeight {size=CGSize(width:maxHeight/max(0.01,ratio),height:maxHeight);w=size.width}
                         centerY=limit+size.height*0.70+max(0,-idleY)*0.90*1.35
                     }
-                    let extraLeft:CGFloat=group==1 && slot==0 ? w*0.20+min(32,width*0.08):0
+                    let extraLeft:CGFloat=group==1 && slot==0 ? originalWidth*0.20+min(32,width*0.08):0
                     let center=CGPoint(x:width/2-heroSide/2+heroSide*cloudCenters[slot].x-extraLeft,y:centerY)
                     shell.bounds=CGRect(origin:.zero,size:size)
                     shell.layer.position=CGPoint(x:center.x+(shell.layer.anchorPoint.x-0.5)*size.width,

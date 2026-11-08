@@ -1,3 +1,169 @@
+Backpack/Box exit onset follow-up(user2026-11-08): mini-title/count initial
+upward bounce starts100ms after other exiting content. Both captions share
+this exit delay;retain accepted enter+100ms and title/count entry gap. Same
+finite route clock owns the leading hold and full exit completion;no timer.
+Small lift/neutral layout/top navigation pending-review boundary unchanged.
+
+Backpack/Box small initial lift(user2026-11-08): with the proven caption
+layout fix retained,mini titles/counts now need a small upward anticipation
+before downward exit. Existing backIn1.8 replaces monotone powerIn2 for this
+caption exit only;duration/endpose/enter+100ms unchanged. Resulting lift stays
+under4pt and peak scale under1.05. Top navigation remains unchanged pending
+user visual approval of this mini-caption preview;then apply same accepted
+bounce there only after that confirmation. No recurrence of frame-under-transform.
+
+Stage return speed/onset update(user2026-11-08): Close shake onset is15percent
+later relative to previous90percent:flight*0.90*1.15=103.5percent(~549.184ms).
+Both Close and Play return shake playback is30percent faster:650/1.30=500ms.
+Retain all spatial offsets/amplitudes/keyTimes and opening shake unchanged.
+Play still starts on actual landing;existing finite retirement/no-replay rules.
+
+Backpack/Box caption layout correction(user video title.mp4,2026-11-08):
+section layout must never assign UILabel.frame under active route model scale/
+translation. Use neutral bounds and layer.position derived from layout rect and
+current anchor,with implicit actions disabled. Keep actual text-centered pivot,
+existing target rectangles and current enter/exit curves. Regression must force
+section relayout after exit installs its terminal model transform and verify
+bounds/position,not only CA keyframe values. This fixes immediate up/outward jump.
+
+Stage shake stronger/narrower(user2026-11-08): both existing shakes use
+strength*1.40 and horizontal offsets*0.60;opening base6.6 and return base3.96.
+Retain opening60percent/700ms and Close return90percent/650ms. Play return uses
+identical return recipe,admitted by actual flight completion after source-card
+restoration;no guessed timer. Preserve its finite tail through gameplay World
+exit;ordinary navigation,background,park and cleanup retire it. ReducedMotion
+skips. This supersedes older Stage amplitudes and no-Play-shake restriction.
+
+Backpack/Box no-bounce exit correction(user2026-11-08): independent review
+found no duplicate owner;reversed navigation enter itself adds unwanted initial
+rise/enlargement. Latest explicit no-bounce requirement supersedes that recipe
+for section captions only. Exit uses existing powerIn2,scale1->0.65,Y0->+30,
+opacity1->0,shared elementDuration;all samples monotonic. Keep accepted HUD
+enter+100ms,title/count gap,top navigation/cells and ReducedMotion unchanged.
+
+Journey Stage shake update(user2026-11-08): opening amplitude is halved
+13.2->6.6pt; retain60percent onset and700ms duration. Interactive Close back
+to Unit adds a gentler mirrored3.96pt shake at90percent of the actual return
+flight,650ms with keyTimes0/0.16/0.32/0.50/0.70/1. Same finite additive World
+scroll/header owner;no timer,layout mutation or gameplay-launch shake.
+Background,route exit,park,cleanup and opening another card retire it;
+foreground doesnot replay. ReducedMotion skips both. Supersedes older Stage
+strength rules;New Card Unlocked remains unchanged.
+
+Backpack/Box captions latest correction(user2026-11-08): exit must be
+identical to upper navigation title:reuse navigationCaption(entering:false)
+with its sampled reversed curve,20percent overshoot amplification,downward30pt
+translation,scale to0.65,opacity0 and shared1.56 speed. No fade-only exception.
+Keep accepted HUD enter plus100ms and text-centered pivots;exit captions together.
+
+Backpack/Box captions follow-up(user2026-11-08): accepted upward HUD enter
+starts100ms later globally;retain title/count83.333ms gap. Exit only fades
+captions in place together using existing reduced navigation fade duration;
+no reverse bounce,scale or translation. Supersedes reverse exit below.
+
+Backpack/Box section captions (user2026-11-08): Forest, Area55, Beach and
+section counts reuse the HUD spring at shared navigation speed: opacity0,
+30pt below final UIKit position, gentle upward backOut1.8 arrival, reversed
+backIn1.8 exit. Title precedes count by shared83.333ms stagger. Pivot each
+caption around its actual text center, not the empty label width; no lateral
+text-center travel or section-parent scaling. Keep cell/header recipes,
+geometry, route cancellation/pause/ReducedMotion and original assets unchanged.
+
+Journey Stage shake strength/speed override(user2026-11-08):retain60percent
+flip onset;reduce Stage contact offsets40percent(strength13.2) and playback
+speed40percent(duration700ms rather than420ms). Shared path/keyTimes stay;
+New Card Unlocked itself remains22/420ms. Existing lifecycle/no-replay rules stay.
+
+Journey Stage latest shake onset override(user2026-11-08):60percent of the
+initial info flip/flight(~318.367ms into530.612ms),superseding75percent.
+Same shared New Card Unlocked strength22/duration420ms and lifecycle rules.
+
+Journey Stage latest shake onset override(user2026-11-08):75percent of the
+initial info flip/flight(~397.959ms into530.612ms),superseding20percent.
+Same shared New Card Unlocked strength22/duration420ms and lifecycle rules.
+
+Journey Stage shake onset override(user2026-11-08): start the same shared
+New Card Unlocked shake at20percent of initial info flip/flight duration
+(~106.122ms into530.612ms opening),instead of waiting for full placement.
+Existing finite background CA tracks own leading delay;no new timer/callback.
+Keep strength22,duration420ms,ReducedMotion skip and retirement/no replay rules.
+
+Journey Stage first-opening contact(user2026-11-08): when the existing card
+flight reaches full placement, apply the exact shared New Card Unlocked SVG
+screen-shake recipe(strength22,duration420ms) to World scroll/header together.
+NativeRewardMotion owns offsets/times for both routes;the reward appearance
+remains unchanged. Keep card independent;no manual-flip/history-return replay,
+newtimer,audio or layout mutation. Existing flight completion admits it;
+inactive/close/history/park/disposal retires it,foreground doesnot replay.
+ReducedMotion skips. Supersedes the earlier proposed slower single recoil.
+
+Journey history whole-card return correction(user2026-11-08): High Score/
+Best Combo Close restores original gentle shared modal enter on the retained
+card shells. Inner title/dividers/CTA stay settled and silent;existing stars
+resume idle phase. Manual face-flip quiet return remains. Existing compositor
+completion owns input admission and pause/disposal;no extra timer or resource.
+
+Journey CTA-before-title override(user2026-11-08): initial CTA/boing starts
+100ms before visible Stage title onset(max0,titleDelay-0.100s),superseding
+divider70percent dependence. Divider Stage-midpoint timing,initial stars and
+quiet manual/history returns stay. Existing late face-readiness safety remains.
+
+Journey final info-return override(user2026-11-08): initial CTA/boing starts
+at70percent of divider motion(divider onset+0.70duration),superseding completion
+wait. High Score/Combo return restores the retained card statically,without
+modal flip,bounce,title/divider/CTA enter or cue. Both manual and history info
+returns resume only existing star idle/swap phase;non-star info idles stay quiet
+through foreground resume. Keep initial four-reference reveal and history exit.
+
+Journey manual face-flip override(user2026-11-08): info contents enter only
+on first opening. Manual flip to art/back settles and retires any remaining
+outer star-slot/title/divider/CTA reveal and pending CTA cue;on return everything
+is already in place. Preserve and resume exact existing inner star idle/swap
+clock,no repeated enter or boing. Initial CTA-after-divider sequence stays.
+
+Journey info CTA dependency(user2026-11-08): supersedes earlier150ms CTA
+advance. CTA/boing starts exactly after divider entry settles:divider onset plus
+its existing motion duration(0.34s normal/0.12s ReducedMotion). Both share the
+paused compositor clock;no independent guessed offset or new timer. Divider
+onset remains50percent of visible Stage motion;other tracks/exit stay.
+
+Journey info numeric follow-up(user2026-11-08): CTA/boing begins150ms earlier
+than fourth-reference beat(max0,1.40flipduration-0.150s). Dividers begin halfway
+through the visible Stage centre-scale/fade:Stage onset+0.5titleMotionDuration,
+not halfway through its leading delay. Other reference tracks/exit stay.
+
+Journey info-card four-reference sequence(user2026-11-08): supersedes shared
+90percent Stage/CTA onset. On the existing opening/return-to-info flip clock,
+start gray/earned star slots from above with downward bounce and55ms stagger,
+then divider pair(left from left/right from right,opacity+bounce),then Stage NN
+scale+fade from its own centre with Home enter ease and zero travel,then CTA
+with its original boing. Chosen relative beats are0.58/0.78/0.98/1.40 of the
+existing flip duration;stats,flight,earned-gray/gold swap,idle,art and saves stay.
+Use finite inherited CA tracks only;pause/close/history/dispose own retirement.
+
+Journey info-face caption/CTA onset(user2026-11-08): start Stage title and
+Play/Continue bounce at90percent of the initial modal opening and manual flip
+toward info. Keep both hidden until that local CA boundary;existing CTA entry
+marker emits its original boing once at the same reveal. Keep stats/stars,flip/
+flight,input,exit,history return and Backpack/Box section-caption route timing.
+Reuse paused compositor tracks and pending-face readiness;no new timer/voice.
+
+Restart / Arcade Exit New Game override(user2026-11-08): complete the actual
+old board/ghost/footer exit before successor construction. Resource preparation
+may overlap that exit, but fast HUD completion no longer admits replacement.
+Keep only X, Backpack and divider fixed through the existing successor first-two-
+paint handoff. Incoming Restart divider is visible from its first paint without
+the former3pt wobble; its ribbon/score/combo and board enter through their
+existing ordered owners. The incoming Source wave must not age invisibly under
+old-host coverage: retain its existing dormant entry/input state until that cover
+is removed, then admit its actual wave once after the existing Source root
+updates its epoch. A finite receipt retires before creating entry and its child
+callbacks; suspension/exit/disposal cancel it and global pause defers it. This
+prevents an awake ticker from assigning stale birth time. No fixed wait/new timer/renderer,
+asset or gameplay rule. Automatic Arcade next-round keeps its separate full-HUD
+retention policy; ordinary entry spring and other restart origins remain owned
+by their existing contracts. Supersedes historical fast-chrome admission below.
+
 Shared upper navigation background standard(user2026-11-06): all upper headers use the same existing Journey fade/scale profile in both directions, including Backpack/Box opening, Close, World Back, Settings and Arcade. Incoming settled1.025 scale pulses12percent with zero vertical travel and fades0->1 over120ms at the first title epoch. Outgoing reverse backOut1.7 leaves downward10.08pt(30percent less than prior14.4pt) and fades1->0 over0.56/1.56s halfway BETWEEN first and second exit beats at0.5*0.13/1.56=41.667ms,left0/right83.333ms;title remains166.667ms. Preparation bridge stays clear; finite outgoing continuation keeps the real remaining track. Existing title handoff gap, content/input/readiness,66pt geometry,scroll opacity,Reduced Motion,pause/cancel/dispose and Home bottom navigation remain. Supersedes route-specific continuous/no-fade exceptions below. No new clock/resources.
 
 Paper-modal Close bounce(user2026-11-06): holder and X reveal together at333.333ms of650ms paper entry,395.833ms cartoon scale0->1 with32percent wide squash,16percent tall rebound and7percent settling bounce,22pt rise from below and208.333ms fade-in. Preserve counter-tilt,52pt touch bounds and parent entry/idle/drag/exit. One captured epoch aligns paper and Close;paper end is exactly80percent Close progress with79.167ms settling tail. Close track sits outside paper completion transaction,so admission timing remains unchanged;existing ancestor pause/disposal owns it. Reduced Motion skips. Applies to ordinary shared paper sheets,including collection/detail and Privacy;Journey Stage info/table remains unchanged.

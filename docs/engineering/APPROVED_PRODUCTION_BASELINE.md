@@ -2,7 +2,17 @@
 
 Updated: 2026-11-08
 
-## Current Native checkpoint — Native app - production state skoro pa gotovo
+## Current Native checkpoint — Production ready v1
+
+User explicitly selects the complete current project as the new **Production
+ready v1** benchmark on 2026-11-08 and requests online Git preservation.
+Immutable annotated tag: `production-ready-v1`. See
+[PRODUCTION_READY_V1.md](PRODUCTION_READY_V1.md).
+This supersedes `native-app-production-state-skoro-pa-gotovo` for Native
+continuation/recovery. Preserve all historical Native and PWA tags. The milestone
+name records user acceptance; documented physical/release/QA limits remain.
+
+## Historical Native checkpoint — Native app - production state skoro pa gotovo
 
 User explicitly requests saving all current project work online with this name
 on 2026-11-08 and selects it as the latest Native benchmark. Immutable tag:
@@ -55,11 +65,14 @@ remote publication must be reported separately and is not implied here.
 
 ## Interpretation rule
 
-When the user says **approved version**, **approved baseline**, **perfect version**, **the version that was super**, **production benchmark**, **benchmark fluidnost**, **stable release**, or otherwise refers to the last version they personally accepted, for the preserved PWA treat `production-benchmark-v9` as the exact source reference. Native uses `native-app-production-state-skoro-pa-gotovo` above.
+When the user says **approved version**, **approved baseline**, **perfect version**, **the version that was super**, **production benchmark**, **benchmark fluidnost**, **stable release**, or otherwise refers to the last version they personally accepted, for the preserved PWA treat `production-benchmark-v9` as the exact source reference. Native uses `production-ready-v1` above.
 
 Do not infer approval from a successful build, QA pass, device installation, merge, release, or positive comment about one isolated change. Only an explicit user statement that a newer complete state is approved may supersede this file.
 
 ## Protection rule
+
+- Never move, recreate, force-update, or delete `production-ready-v1`.
+- Preserve `native-app-production-state-skoro-pa-gotovo` and all earlier Native tags.
 
 - Never move, recreate, force-update, or delete `production-benchmark-v1`.
 - Never move, recreate, force-update, or delete `production-benchmark-v2`.

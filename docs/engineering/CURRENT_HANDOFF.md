@@ -1,3 +1,1040 @@
+## 2026-11-08 · Production ready v1 benchmark selected
+
+User explicitly accepts complete current project and requests online Git
+preservation as Production ready v1. New immutable annotated tag:
+`production-ready-v1`;main branch,origin GitHub repository unchanged. This
+supersedes native-app-production-state-skoro-pa-gotovo for Native continuation;
+all historical Native/PWA tags protected. See PRODUCTION_READY_V1.md.
+Includes all tracked changes plus two new engineering repair/checklist docs.
+Unrelated private contract PDF stays local as before;ignored build/packaged
+copies,caches and save backups are outside payload. No further source edits,
+new Native build/install/launch or physical/PWA/legacy operation.
+
+Publication QA:full command19/20gates PASS,530suites/4011tests and KING330PASS;
+qa:ios PASS. Sole FAIL is production postbuild copying assets into dist:ENOSPC.
+Only own incomplete ignored dist removed to recover disk space;no full
+production PASS claimed. Diff/payload/credential preflight PASS.
+Commit/tag publication pending remote verification in this preparation entry.
+Evidence `/tmp/native-production-ready-v1-20261108/`.
+
+## 2026-11-08 · Conservative old build-cache cleanup
+
+User authorizes removing unnecessary old builds while preserving current state
+and asks for further space advice. Identity-checked/inactive older Native
+DerivedData Build(empty),Index,SDK and Compilation caches removed:49,340,416
+logical bytes(~47MiB),free space1,001,164,800->1,052,065,792bytes. Current
+`/private/tmp/native-stage-return-shake-20261108/derived` fully retained.
+No active xcodebuild/compiler at deletion checks. Current product and installed
+Native executable/dylib hashes plus both canonical saves unchanged;write/fsync
+probe PASS. No build/install/launch,Simulator/PWA/legacy/source/assets/Git change.
+Preserved QA videos(~5.12GiB across50 top-level recordings) and two older source
+snapshots(~2.82GiB);these are advice candidates only,not deleted. No second
+completed Native app product found in verified older candidates;installed app
+and sole current build both retained. Evidence/explicit plan/hash receipt:
+`/tmp/native-build-cleanup-20261108/`.
+
+## 2026-11-08 · Holder fully opens before restored preload liquid
+
+User rejects liquid outrunning holder during resume entry. NativePreloadBarPresentation
+now holds liquid shader u_visible0 through complete holder reveal,then cubic-out
+fills to live canonical charge over0.64s. Existing Scene HUD clock includes this
+finite tail; original holder/divider reveal timing stays. Phone/tablet/Restart
+share policy;ReducedMotion retains quick static-fill fade. Smoke admission/geometry
+follows painted liquid fraction. Interrupted exit captures current fraction to
+avoid full-charge flash;canonical meter/gameplay/save/audio/assets unchanged.
+
+PASS fastQA,ios audit and23focused Native preload/HUD transition tests0failures
+12.854s. Additional actual SpriteKit render test1/0 PASS:exported+visually inspected
+full empty holder followed by liquid filling under already-full mask. Source full
+QA530suites/4011tests and KING330 PASS;full gate FAIL only ENOSPC during webasset
+postbuild copy. No full production PASS. Removed only own incomplete ignored dist
+for Native build space. Evidence `/tmp/native-holder-before-fill-20261108/`.
+Normal complete-current-tree Debug BUILD SUCCEEDED;retained Jimi2026QA Simulator
+install-over/normal launch com.taptapdesign.stacktosix.native: 88103 PASS. Verified bundle/native
+binary/input hashes,no testPlugIns/Web.bundle,both canonical saves restored after
+tests and unchanged at install/launch,actual SpringBoard SilentMode=true.
+No physical/PWA/legacy operation. Subjective feel NEEDS PHYSICAL TEST.
+
+## 2026-11-08 · Star burn has no circular hot spots
+
+User rejects visible balls inside star burn. The inherited interim radial
+burn makes round hot spots on tiny stars. Both result and Journey info stars
+now request uniformHighlight:even warm fill through original star alpha with
+same burn envelope/glow/cadence and existing lifecycle. Interim/reward cards
+keep default radial rendering. Original artwork untouched. PASS fastQA/ios and
+3mounted Native checks/0failures6.087s:uniform opacity across opaque interior,
+original alpha mask and clear endpoints,unchanged default card radial pass,
+actual result/Journey burn,pause/flip/history/ReducedMotion/retirement/late cancel.
+Both actual mounted previews inspected:no round hot spot/rings or rectangular
+bleed. Full source gates PASS(530suites/4011tests,KING330) through an external copy of qa-gate with the
+three web-build/built-bundle steps explicitly excluded for established repeated
+ENOSPC boundary;repository QA gate unchanged,no full production PASS claimed.
+Normal complete-current-tree Debug build/install-over/launchPID81566 PASS on
+retained Jimi2026QA Simulator;bundle/binaries/source fingerprints verified,no
+testPlugIns/Web.bundle. Both canonical saves restored after tests and unchanged
+at install/launch. Actual SpringBoard SilentMode=true;CUA observed normal Home.
+No physical install;NEEDS PHYSICAL TEST for subjective effect feel. Evidence
+`/tmp/native-star-uniform-burn-20261108/`.
+
+## 2026-11-08 · Journey info stars burn-in
+
+User adds result-style burn-in to earned gold stars in Journey info card modal.
+Same selected star burn/glow frame preparation,one modal lease/shared bounded
+frame set. Existing star-slot CA clock owns cadence after gold intro;front,
+history/background pause same phase. Reduced Motion,close and cleanup retire
+layers/preparation. Original star artwork/geometry/swap/pulse,CTA effects and
+all gameplay/save/audio unchanged. PASS fastQA/ios,530source suites4011tests
+and Gameplay KING330checks. Native earned-star sequence and burn lifecycle:
+2tests/0failures8.085s;final visible fixture1test/0failures4.346s including actual
+presented burn,preserved phase through background/front/history,ReducedMotion,
+weak cleanup and late worker cancellation. Initial screenshot fixture laid out
+before card bounds were assigned;corrected fixture order and visually inspected
+actual full-size modal with gold burn/no rectangle or shimmer. Original scene
+layout unchanged. Full QA and separate production retry FAIL only on ENOSPC
+postbuild asset copy;do not claim uninterrupted full PASS. Removed only task
+incomplete ignored dist and identity-checked inactive older caption generated
+Build/Products for space;current app/saves/source/assets untouched. Initial
+normal Native refresh also hit ENOSPC;retry after dropping incomplete generated
+web output PASS:normal complete-current-tree Debug build/install-over/launch
+PID76610 on retained Jimi2026QA Simulator. Bundle/binaries/source fingerprints
+verified,no testPlugIns/Web.bundle. Both canonical saves restored after tests,
+hashes unchanged at install/launch;actual SpringBoard SilentMode=true,CUA
+observed normal Home. Evidence `/tmp/native-journey-star-burn-20261108/`.
+No physical install;NEEDS PHYSICAL TEST for subjective burn feel.
+
+## 2026-11-08 · Result stars burn-in only
+
+Latest user follow-up removes shimmer from result stars. Removed only the
+star-owned sheen/highlight/gradient and CTA sample; kept existing interim burn,
+glow,stagger,clock,pause and retirement. Original stars,CTA shimmer and all
+other result behavior stay unchanged. Updated focused mounted check and runtime
+ownership record. PASS fastQA,ios,full no-sync QA(530suites/4011tests,Gameplay
+KING and production build),2mounted Native checks/0failures1.615s. Actual
+preview.png inspected:gold silhouette/material and empty star retained,no band
+or rectangular bleed. Initial Native test build failed ENOSPC;retry PASS after
+identity-checked inactive caption build intermediates/module cache cleanup.
+Removed only this task ignored generated dist after successful full QA for space.
+Normal complete-current-tree Debug build/install-over/launchPID72336 PASS on
+retained Jimi2026QA Simulator. Native bundle/binary/source fingerprints verified;
+no testPlugIns/Web.bundle. Both canonical saves restored after tests and hashes
+unchanged at install/launch. Actual SpringBoard SilentMode=true;CUA observed
+normal Home after final launch. Evidence
+`/tmp/native-result-star-burn-only-20261108/`. No physical installation;
+NEEDS PHYSICAL TEST for subjective burn-in feel.
+
+## 2026-11-08 · Result stars CTA shimmer and interim burn
+
+User requests CTA-style shimmer and interim-card burn on earned result stars.
+NativeResultController retains existing elapsed clock,star layout/transform/
+stagger. Only earned gold stars receive alpha-masked warm sheen using shared
+NativeCTAShimmer values/times,plus exact JimiNativeInterimEffect burn renderer
+and interim glow filter(0.63s lead,1.1/1.3s pass,3s cadence). Empty/fail stars,
+original artwork,scoring/save/actions/audio/haptics unchanged. One selected
+serial worker lease prepares31 shared128x128 burn frames(~2MiB),checks cancel
+before every frame/publication;weak completion,close/dispose cancel/clear layers
+and images. Background freezes clock/zeros effects;ReducedMotion suppresses.
+Feature runtime record updated;no new timer,observer,displaylink or CA loop.
+
+PASS qa:fast,qa:ios and mounted Native2tests/0failures2.261s:earned-only mask,
+shared CTA sample,actual burn frame,background freeze/resume,close/double-dispose,
+canceled late completion and unchanged CTA animation. Actual preview.png
+inspected:original gold silhouette/material,empty star unchanged,no rectangular
+bleed. Scoped lifecycle/source review PASS. Full source QA530suites/4011tests
+and Gameplay KING330tests PASS;initial full command FAIL only at postbuild asset
+copy ENOSPC. Removed this task's incomplete ignored dist and partially cleared
+identity-checked inactive caption generated intermediates(stopped on disappearing
+temporary object);retained app/source/originalassets/saves. No-sync production
+build retry PASS,Web.bundle sync skipped. Original full command was not an
+uninterrupted PASS.
+
+Normal complete-production-tree Debug build/install-over/launchPID58786 PASS
+on retained Jimi2026QA Simulator,exact native bundle/binaries verified,no test
+PlugIns/Web.bundle. Rebuilt once because production inputs changed midbuild.
+Final production-source fingerprint zero mismatches;one unrelated test-only
+NativeComboHUDMotionTests.swift change after launch does not affect normal app.
+Both canonical saves restored after tests and hashes unchanged at install/launch.
+Actual SpringBoard SilentMode=true;CUA observes normal Home after final launch.
+No physical install;NEEDS PHYSICAL TEST for shimmer/burn feel.
+Evidence `/tmp/native-result-star-effects-20261108/`:mounted-checks.xcresult,
+preview.png,full.log,production-retry.log,main-delivery.json.
+
+## 2026-11-08 · HUD values reuse Clean Board counting
+
+User requests Clean Board number effect when HUD values change. Score and combo
+now use its exact counter easing/duration via NativeHUDNumberCounter, two finite
+value-only projections on existing Scene update. Rapid increases continue from
+painted value; first/restore/new generation,decrease,Reduced Motion,hidden,
+suspension,exit,detach/dispose settle canonical targets. Source HUD-star feedback
+routes through same score projection; original number/icon scales and arch/layout
+retain existing owners. No new scheduler,assets,audio,haptics,save/rules.
+
+PASS full no-sync QA530suites/4011tests plus KING330,production build and all
+admission/audits;final fastQA and ios Native target/originalasset audit PASS.
+PASS12focused Native tests/0failures14.796s,including actual complete Source
+resume/drag/coin-arrival HUD counting and suspension,exact Clean Board samples,
+rapid retarget/replacement/expiry/reduced-motion and existing scale feedback.
+Initial simplified fixtures missed staged gameplay/coin admission and failed;
+replaced with real Source root,not weakened shipping behavior. Exported and
+visually inspected actual HUD counting screenshot;glyphs contained at390pt.
+Earlier Swift parallel compilation interrupted without diagnostic;bounded-jobs
+retry compiles and passes. Evidence `/tmp/native-hud-count-20261108/`.
+
+Normal complete-current-tree Stack to Six Debug build/install-over/launch PASS:
+com.taptapdesign.stacktosix.native: 62404. Verified native bundle/binary/input hashes,no testPlugIns or
+Web.bundle,both canonical saves unchanged at install/launch,actual SpringBoard
+SilentMode=true. Retained Jimi2026QA Simulator only;no physical installation.
+NEEDS PHYSICAL TEST for subjective counting feel. Disk exhaustion recovered by
+identity-checking inactive Native iPad derived app and removing only generated
+Products/Intermediates/ModuleCache;also retired inactive prior Stage intermediate/
+module caches while preserving its built product. No saves or source assets removed.
+
+## 2026-11-08 · Mini-caption exit starts100ms after other elements
+
+Latest steering adds100ms leading hold before mini title/count upward bounce
+on shared Backpack/Box exit. Both exit captions start at100ms;cells remain0.
+Keep small backIn1.8 lift(~3.3pt),same collapse/fade,accepted entry+100ms and
+neutral-bounds layout repair. Existing finite route tracks own hold/completion;
+no timer or extra owner. Top navigation conditional on visual acceptance of
+this mini-caption preview remains unchanged. Previous no-delay small-lift
+variant passed2mounted tests0.507s,fastQA/ios and normal delivery. Latest delay fastQA/ios PASS. Native focused retry build failed from
+ENOSPC dependency/constvalues/result writes,no assertion failure claimed;
+pre-delay lift/geometry2checks remain PASS. Removed only inactive generated
+Swift arm64 outputs in native-ball-core,ball-core-baseline-build,ball-state temp
+build caches after verifying Native package identity/no active owner;source/
+snapshots/evidence/checkouts retained. Avoided competing with other active
+shared Simulator builds. Latest normal complete-tree result-star-effects build
+contains exact current caption source and is installed/launchedPID58786;both
+canonical saves preserved,SilentMode=true. Full recorded Native input hashes
+checked;see final-shared-delivery.json for any mismatch list. CUA normal
+Home->Journey->Backpack,settled preview visually inspected and left open for X
+review. No physical install. Evidence
+`/tmp/native-caption-small-lift-delay-20261108/`.
+
+## 2026-11-08 · Mini-caption exit gains small initial upward anticipation
+
+User now explicitly requests a little upward bounce before downward exit;
+layout-conflict repair remains accepted. hudCaption exit uses existing backIn1.8
+instead of monotone powerIn2 at unchanged duration/endpose. Actual installed
+CA samples show -3.305543pt minY and1.0385647 peak scale,then smooth descent/
+shrink/fade to0.65/Y30/alpha0. Accepted enter+100ms,title/count gap,neutral bounds/
+current-anchor position layout,top navigation,cells/assets/gameplay unchanged.
+
+User conditionally requests same bounce on navigation titles if this preview
+looks good. Preserve top-navigation motion pending visual acceptance of mini
+caption bounce;do not change it prematurely. PASS2focused mounted tests0.507s,
+including forced relayout(no geometry jump) and bounded upward anticipation
+on title/count for Backpack/Box. PASS fastQA and ios Native/originalassets audit.
+Normal shared Simulator refresh pending;no physical install. Evidence
+`/tmp/native-caption-small-lift-20261108/`. Only prior session generated ignored
+dist removed for Simulator build space;original assets/PWA bundle untouched.
+
+## 2026-11-08 · Return shake15percent later +30percent faster
+
+Latest request concerns temporal wave interval,not amplitude/spatial width.
+Close onset90percent*1.15=103.5percent of return flight(~549.184ms),15percent
+later than prior477.551ms. Both Close and Play return shake650->500ms for
+30percent faster playback. Existing offsets,keyTimes,opening and actual Play
+landing admission unchanged. Same finite CA owner,no extra timer or resources.
+PASS fastQA/ios target-originalassets audit and mounted Native2tests/0failures
+5.811s:later Close onset,500ms return duration,Play landing-only admission,
+exit tail and retirement/no replay;all spatial paths retained. Normal complete-
+current-tree Debug build/install-over/launchPID50717 on retained Jimi2026QA
+Simulator;bundle/binary/input hashes verified,no testPlugIns/Web.bundle,both
+canonical saves restored after tests and unchanged at install/launch,actual
+SpringBoard SilentMode=true. No physical install;NEEDS PHYSICAL TEST for feel.
+Full no-sync QA PASS530suites/4011tests,Gameplay KING and production build. Evidence
+`/tmp/native-stage-return-faster-20261108/`.
+
+## 2026-11-08 · title.mp4 reveals real caption layout/transform conflict
+
+User supplies `/Users/user/Downloads/title.mp4`(2.533s,350x720,30fps).
+Decoded/visually inspected original frames via AVFoundation under
+`/tmp/title-video-review-20261108/`:at0.300->0.400s mini title jumps left,
+count right,both upward while tile-grid rows stay anchored. Earlier easing-only
+fixes and CA-value-only tests missed this visible geometry mutation.
+
+Actual cause:NativeBackpackSectionHeader.layoutSubviews assigned UILabel.frame
+while NativeRouteMotion already installed terminal model scale0.65/Y30,so UIKit
+rewrote neutral bounds/position underneath the still-visible entry pose. Mounted
+before regression reproduces12failures:heading250x40->384.615x61.538,count80x40
+->123.077x61.538,positionY60->30. Independent agent confirms video/source diagnosis.
+Fix ONLY section-caption geometry:neutral bounds plus layer.position derived from
+same rect/current anchor,implicit actions disabled. No resets of anchor/transform,
+no timing/easing changes;accepted HUD entry+100ms and latest smooth exit retained.
+All3labels covered,original geometry/assets/cells/topnavigation unchanged.
+Independent post-change source review PASS.
+
+Before regression evidence `/tmp/native-caption-layout-repair-20261108/before.xcresult`;
+after-verified.xcresult PASS2tests/0failures0.501s:neutral bounds/position
+preserved for Backpack/Box plus actual CA exit values. PASS fastQA and ios
+Native target/originalasset audit. Full sourceQA asserts530suites/4011tests PASS
+and KING330 but gate failed on ENOSPC writing Jest perf-cache/production build;
+no fullgate PASS claimed. Recovered no-sync production build PASS after space
+recovery;PWA Web.bundle untouched. Cleaned only identity-checked inactive old
+home-bottom-nav-normal-derived and native-phone-current generated products/
+intermediate/module caches,plus this task's incomplete ignored dist(rebuilt
+successfully);original assets/source,physical and Simulator saves retained.
+
+Own normal Debug build PASS;install/launch completed but binary verification
+caught overlapping stage-shake-narrow-play delivery. Kept latest complete-tree
+normal deliveryPID36066,verified every recorded Native input hash matches current
+working tree (zero mismatches),both saves preserved,SilentMode=true,no testPlugIns/
+Web.bundle. Evidence final-shared-delivery.json references exact latest receipt.
+CUA exercised normal Home->Journey->Backpack->Close->Hub and recorded
+`/tmp/title-video-review-20261108/fixed-exit.mov`. Decoded18.000->18.767s at30fps
+samples and visually inspected:old immediate up/outward geometry jump absent;
+steady captions shrink/descend/fade. Review clip fixed-exit-short.mp4(1.5s) exported.
+Independent agent review PASS. Original user video untouched;initial sandbox
+decode failed,authorized macOS media-service decode succeeded. No physical
+install;subjective physical acceptance remains NEEDS PHYSICAL TEST.
+
+## 2026-11-08 · Stage stronger/narrower shake + Play landing contact
+
+User requests both shakes40percent stronger with40percent less horizontal
+sweep. Shared Stage owner now multiplies strength1.40 and X offsets0.60;
+opening/Close timing and durations retained. Play gets exact return variant
+from actual flight completion after source restoration,before Unit collapse.
+Gameplay World exit preserves that finite tail;ordinary exit/background/park/
+cleanup/new-card admission still retire it. No new timer,audio,save or asset.
+PASS fast/full no-sync QA530suites/4011tests,Gameplay KING and ios assets/target
+audit. PASS two mounted Native tests5.829s/0failures:both exact reshaped paths,
+Close90percent,Play no shake before contact,immediate landing shake and preserved
+World-exit tail;interruption/no replay/no layout mutation. First hosted attempt
+exited before connection;retry passed. Waited for concurrent caption hosted test to release the shared Simulator.
+Normal complete-current-tree Debug build/install-over/launchPID36066 PASS;
+verified source fingerprint,bundle and installed binaries,no testPlugIns or
+Web.bundle,both canonical saves restored after tests and unchanged at install/
+launch. Actual SpringBoard SilentMode=true. No physical install;
+NEEDS PHYSICAL TEST for subjective shake feel.
+Evidence
+`/tmp/native-stage-shake-narrow-play-20261108/`.
+
+## 2026-11-08 · Agent diagnosis: caption bounce was authored, not two owners
+
+User still rejects visible mini-title/count exit bounce and explicitly requests
+agent. Independent read-only agent found no duplicate fullscreen owner:section
+parents excluded,one NativeAppController->NativeRouteMotion exit;anchor restore
+occurs after opacity0. Previous exact reversed-navigation recipe itself first
+scales up~5percent and travels up. Latest no-bounce direction supersedes that
+caption recipe only. hudCaption exit now uses existing powerIn2 directly from
+scale1/Y0/alpha1 to0.65/+30/0 at same elementDuration;no reversal/overshoot.
+Accepted HUD enter+100ms and83.333ms gap,top navigation/cells/geometry/assets/
+gameplay remain unchanged. Independent post-change source review PASS.
+
+Focused test now inspects actual installed CA samples on title/count in both
+Backpack/Box:scale/alpha never increase,Y never decreases,X0,no animated section
+parent. Diagnostic [CaptionExit] records samples/final pose. Existing real
+Backpack close/return test's stale all-track400ms assertion corrected for shorter
+caption tracks. PASS installed-CA exit test0.340s:four captions89samples each,finalscale0.65,
+Y30,alpha0,no enlargement/upward bounce. Real close/return route assertions pass;
+two pre-existing finite icon-contact observations fail (switchKey on opening,
+animationKey on Close after synchronous sendActions). Agent confirms correct
+owner;timing expiry is an unproven inference,not a caption regression diagnosis.
+Do not claim this2-test run wholly PASS. Full QA aborted in JS tests while disk
+was full;fastQA PASS and ios Native target/originalasset audit PASS. Normal complete-tree
+Debug build/install-over/launch PASS (com.taptapdesign.stacktosix.native: 28749);source/binary hashes,
+no testPlugIns/Web.bundle,both canonical saves preserved at install/launch,
+SpringBoardSilentMode=true verified. Subsequent shared stage90percent delivery
+PID28933 verified to contain exact current JimiV9Motion source hash;normal
+Home then real Journey->Backpack->Close->Hub manually exercised through CUA.
+No physical feel acceptance. Broader validation remains FAIL/incomplete due
+2contact-observation assertions and aborted fullQA;no claim of fullQA PASS. Stopped only this completed failed test
+runnerPID24916. Identity-checked inactive generated
+`/tmp/native-hud-opacity-tests-20261108/derived` removed to reclaim~2GiB;logs,
+receipts,source,original assets and retained Simulator data untouched.
+Evidence `/tmp/native-backpack-no-bounce-20261108/`. No physical install.
+
+## 2026-11-08 · Return shake onset90percent only
+
+User latest numeric correction:interactive Stage card return shake begins at
+90percent of return flight(~477.551ms),superseding60percent. Only onset and its
+focused assertion changed;opening,amplitudes,path,cadence and duration retained.
+PASS mounted Native check1/0failures3.573s;fast QA and ios target/assets audit.
+Normal complete-tree Debug build/install-over/launchPID28933 on retained
+Jimi2026QA iPhone13;bundle/binaries/input hashes verified,no testPlugIns or
+Web.bundle,both canonical saves restored after test and unchanged at install/
+launch,actual SpringBoard SilentMode=true. Initial test/fullQA ran out of disk;
+removed only failed own generated DerivedData and reused existing build cache.
+Full QA retry PASS530suites/4011tests,Gameplay KING and no-sync build. No physical install;NEEDS PHYSICAL TEST for feel.
+Evidence `/tmp/native-stage-return-shake-90pct-20261108/`.
+
+## 2026-11-08 · Stage opening shake half amplitude + gentle return shake
+
+User requests50percent less opening shake plus a similar gentler variant at
+60percent when the flip card returns to its Unit. Opening strength13.2->6.6pt,
+existing60percent onset/700ms retained. Interactive Close schedules mirrored
+3.96pt return shake at60percent of actual card flight,650ms with a more relaxed
+recoil cadence. Gameplay Play close remains separate. Same finite additive
+scroll/header animation key,no timer/layout/save/audio changes. Existing
+background/exit/park/cleanup retire it;new card opening replaces old shake;
+foreground doesnot replay. ReducedMotion skips. Weak callback belongs to card
+and is cleared on cleanup. Existing unrelated dirty tree preserved.
+PASS fast/full no-sync QA530suites/4011tests,Gameplay KING gate and ios
+Native target/original-asset audit. PASS mounted focused opening/return and
+interruption/no-replay test1/0failures3.441s. Normal complete-current-tree Debug
+build/install-over/launchPID23441 on retained Jimi2026QA iPhone13;verified
+bundle/binary/input hashes,no testPlugIns/Web.bundle,both canonical saves
+restored after hosted test and unchanged at install/launch. Actual SpringBoard
+SilentMode=true. Final normal preview captured. No physical install;
+NEEDS PHYSICAL TEST for subjective motion feel. Evidence:
+`/tmp/native-stage-return-shake-20261108/` including xcresult/video,QA logs,
+main-delivery.json and final-preview.png.
+
+## 2026-11-08 · Backpack/Box captions now use exact navigation-title exit
+
+Latest explicit reference requests mini-title/count exit identical to Backpack
+navigation title:downward scale+fade,not prior fade-only. Changed hudCaption exit
+to existing navigationCaption(entering:false) with actual ReducedMotion policy.
+This directly reuses sampled reversed worldHubElementEnter,20percent amplified
+navigation-title overshoot,shared1.56 speed,30pt downward end,0.65 end scale and
+opacity0. Text-centered pivots and simultaneous caption exit retained. Accepted
+HUD entry plus100ms and83.333ms title/count gap unchanged. Shared Backpack/Box
+owner;no assets,geometry,cell animation,gameplay or new scheduler changes.
+
+Mounted NativeBackpackTests compares every exit sample against actual mounted
+JimiV9ArchedNavigationTitle CA transform/opacity values for Backpack and Box.
+PASS focused mounted test1/0failures0.212s against actual navigation-title
+samples for both Backpack/Box. PASS full no-sync QA530suites/4011tests plus
+KING330,build/audits and ios Native target/original-assets audit. Normal complete
+current-tree Debug build/install-over/launch PASS (com.taptapdesign.stacktosix.native: 22940);
+input/binary hashes verified,no testPlugIns/Web.bundle,both canonical saves
+unchanged at install/launch,actual SpringBoard SilentMode=true. No physical
+install or new visual-feel acceptance;NEEDS PHYSICAL TEST for feel.
+Evidence `/tmp/native-backpack-navigation-exit-20261108/`:captions-final.xcresult,
+main-delivery.json,full/ios/build logs. Initial comparison harness
+needed renderer opacity clamping and1e-6 terminal float tolerance;sampled
+translation/scale/duration matched reference. No physical install.
+
+## 2026-11-08 · Confirmed Forest01 HUD washout — divider paper layering fixed
+
+User frame sequence exposed a gap in earlier opacity tests:they checked icon/
+ancestor alpha and isolated texture rendering,not the complete production chrome
+composition. Reproduced fresh Home→Forest→Play01 using NativeStandalone bootstrap,
+temporary canonical save(tutorial complete),real themed transition and source meter.
+New test samples entry frames:HUD Close alpha reaches1 while divider alpha0→1;
+previous divider effectiveZ16997 exceeded HUD10000. Divider texture contains the
+existing17percent navigation paper,so its enter visibly washed over all HUD art.
+Before-fix regression FAIL exactly on this draw-order invariant;recorded and
+inspected100ms frame sequence matches user's screenshots. This supersedes the
+previous inconclusive overlay investigation;it was a real layering regression.
+
+Only production change:NativeWildMeterHUDPresentation.attachPreloadSurface now
+places existing detached preload surface at stage.zPosition-1(divider effective
+Z9996),behind HUD and above board. No color/alpha/asset,geometry,timing,HUD motion,
+input,gameplay or save change. Same owner covers phone/tablet,initial entry,
+restore and restart;existing independent meter lifecycle retained.
+
+PASS26targeted Native tests/0failures72.301s,including the exact formerly failing
+Forest01 path,12HUD transitions,10preload/divider/ReducedMotion/phone-tablet
+checks,raw/filtered UIKit-Metal color parity,Journey restart and Arcade New Game
+paint handoffs. Recorded and visually inspected matching post-fix100ms frames:
+HUD remains clear as divider enters. Fast/full QA,ios target/originalasset audit
+PASS(full530suites/4011tests;gameplay-lock330). No PWA sync.
+
+Normal complete-current-tree Debug build PASS,verified bundle/binaries and
+install-over/normal launchPID16494 on retained Jimi2026QA iPhone13. Both latest
+canonical saves unchanged at install/launch;normal app,no testPlugIns/Web.bundle.
+Final screenshot shows normal Backpack after user navigation;left undisturbed.
+Actual SpringBoard SBRingerMuted=true after launch. CUA inspection timed out;
+final visual inspection used simctl screenshot,not guessed UI state. No physical
+install;NEEDS PHYSICAL TEST for final iPhone/iPad aesthetic acceptance.
+Evidence `/tmp/native-forest-hud-overlay-20261108/`:before-fix and after-fix logs/
+xcresults/mp4s,100ms sheets,`forest-01-layer-timeline.json`,
+`forest-01-before-after.png`,fast/full/ios-final logs,main-delivery.json,
+final-production-inputs.json and final-preview.png.
+
+## 2026-11-08 · Backpack/Box caption exit fades in place; entry +100ms
+
+User accepts upward caption entry but rejects outgoing title/count flight.
+Keep accepted HUD enter exactly,add100ms to each visible section-caption onset
+in shared NativeBackpackView (Backpack and Arcade Box),retain title->count gap.
+Exit now uses existing reduced navigation fade in place for every caption,
+simultaneously:scale1,zeroXY,monotonic opacity1->0. No reverse bounce or travel.
+Cells,upper navigation,geometry,original assets and gameplay remain untouched.
+Same finite route CA owner/cancellation/background/ReducedMotion paths.
+
+PASS full no-sync QA530suites/4011tests,gameplay-lock330,build/audits and ios
+original-assets/Native target audit. PASS focused Native test1/0failures0.239s after exclusive retry,including
+41exit samples per caption proving identity scale,zeroXY,monotonic fade and
+exact+100ms entry offset. Normal complete-tree Debug build/install-over/launch
+PID16813 PASS;verified bundle/binary/input hashes,no testPlugIns/Web.bundle,
+both current canonical saves unchanged at install/launch,SpringBoard SilentMode
+true. Simulator AX showed normal app content;follow-up screenshot/AX calls
+then timed out,so no new visual-feel acceptance claimed. NEEDS PHYSICAL TEST.
+Evidence under `/tmp/native-backpack-caption-fade-20261108/`:captions-verified
+xcresult,main-delivery.json,full/ios/build logs.
+Initial shared DerivedData attempt hit another session's buildDB lock;isolated
+compile succeeded but Simulator host connection was interrupted by overlapping
+other session test. Retrying only after that test has completed;do not interpret
+those infrastructure attempts as caption assertion failures. No physical install.
+
+## 2026-11-08 · Backpack section captions rise around painted text
+
+User rejects section-title/count enlargement and sideways motion; requests HUD
+upward opacity/bounce arrival, title then count. Existing independent-caption
+work preserved. Corrected UIKit hidden Y from-30 to+30 (upward arrival, matching
+Restart trophy/combo); retained canonical worldHubElementEnter spring,0.65->1
+scale,backOut1.8,shared1.56 speed,83.333ms title/count stagger and reverse exit.
+Each caption pivots around its actual textRect center rather than empty label
+width, eliminating horizontal text-center drift. Visible section headers sort
+by Y. No gameplay,cell motion,top navigation geometry,asset or save change.
+Same finite route CA owner,pause/cancel/retirement and ReducedMotion fallback.
+
+PASS focused NativeBackpackTests title/count test:1test/0failures0.187s,checking
+both Backpack/Arcade crate,enter/exit samples,opacity,direction,stagger and text
+pivot. PASS fast QA and ios target/original-asset audit. Full QA PASS including
+no-sync production build,530suites/4011tests and gameplay-lock330.
+Normal complete-current-tree Debug build PASS;installed over retained Jimi2026
+QA iPhone13,normal bundlePID10918,no testPlugIns/Web.bundle. Input and installed
+binary hashes verified;both canonical saves unchanged at install/launch.
+SpringBoard SBRingerMuted=true verified after final launch. Backpack settled
+preview visually inspected;user subsequently navigated into Forest,which was
+left undisturbed. No physical install. NEEDS PHYSICAL TEST for subjective feel.
+Evidence `/tmp/native-backpack-hud-rise-20261108/` including captions-verified
+xcresult,fast/full/ios logs and main-delivery.json. First sandboxed Xcode attempt
+couldnot access caches;authorized cache/CoreSimulator invocation passed.
+
+## 2026-11-08 · HUD opacity investigation — rendered tests, no visual change
+
+User requested tests comparing gameplay HUD against Forest Close/Backpack.
+Added two focused NativeHUDCloseTests: same original density-aware Close,
+Backpack and Trophy rendered through UIKit vs production-format transparent
+SKRenderer Metal target, both raw and existing filtered textures; and mounted
+NativeOwnedMetalGameplayView/NativeGameplayViewController verifying all four
+HUD group ancestor alpha values plus UIKit ancestors settle at1 and retain1
+across suspend/resume. No production rendering, colors, assets or motion changed.
+
+PASS2new tests/0failures2.626s in isolated DerivedData;PASS12existing
+NativeHUDTransitionTests/0failures11.348s. RGB mean-channel differences <0.66/255;
+integral alpha coverage differences <=1.96percent,consistent with raster edges,
+not a large uniform fade. Exported comparison visually inspected:Close/Backpack
+match;existing Trophy filter softens detail. This doesnot establish absence of
+an intermittent overlay in the user's long-lived phone navigation state;that
+specific physical state remains unreplicated. First harness used default opaque
+Metal clear and was corrected to production clearRGBA0;shared-host disappearance
+then interrupted a repeat,so final two tests use separate DerivedData. All raw
+attempts retained. Full sourceQA PASS530suites/4011tests,gameplay-lock330,ios audit
+PASS;no PWA sync. Evidence `/tmp/native-hud-opacity-tests-20261108/`:
+`hud-isolated.xcresult`,`hud-checks.log`(12transition passes),`color-metrics.json`,
+`hud-comparison.png`,`full.log`,`ios.log`.
+
+Normal complete-current-tree Debug build PASS;installed over retained Jimi2026
+QA iPhone13 and launched normal bundlePID7398. Verified bundle/binary hashes,
+no testPlugIns/Web.bundle;latest two canonical saves preserved at install and
+launch. Actual iOS Silent Mode ON banner and normal Home preview inspected.
+Receipt `main-delivery.json`;latest tree fingerprint `final-production-inputs.json`.
+No physical install. NEEDS PHYSICAL TEST for the reported intermittent visual state.
+
+## 2026-11-08 · Stage shake40percent softer and slower
+
+Latest steering retains60percent initial flip onset(~318.367ms),reduces Stage
+shake strength22->13.2 and playback speed to60percent(duration420->700ms).
+Shared New Card Unlocked path/keyTimes remain;reward effect unchanged. Existing
+finite tracks/ReducedMotion/retirement/no-replay ownership stays. PASS latest mounted focused test/0failures2.665s proves60percent delay,
+13.2pt path scale/700ms duration,unchanged layout/card and retirement/no replay.
+Fast/full no-sync sourceQA and ios target/originalassets audit PASS. Normal
+complete-tree Debug build/install-over/launchPID4985 on retained Jimi2026QA
+iPhone13;stable current input fingerprints and installed binary hashes verified,
+no testPlugIns/Web.bundle,both current canonical saves restored after tests and
+unchanged at install/launch,actualSilentModeON. Initial delivery retries correctly
+refused source churn and a concurrent hosted-test PlugIns artifact;waited for
+shared QA to finish before normal final refresh. No physical installation;
+NEEDS PHYSICAL TEST for subjective motion feel. Other dirty work preserved.
+Evidence `/tmp/native-card-impact-60pct-20261108/softened-checks.xcresult`.
+
+## 2026-11-08 · Latest Stage screen-shake onset60percent
+
+User numeric follow-up supersedes75percent:initial info flip/flight now schedules
+the same shake at60percent(~318.367ms). Strength22/duration420ms,all other
+motion/lifecycle rules and other dirty work preserved. Focused Native check and
+normal shared Simulator refresh completed in latest softer/slower entry above:
+`/tmp/native-card-impact-60pct-20261108/`.
+
+## 2026-11-08 · Latest Stage screen-shake onset75percent
+
+User numeric follow-up supersedes20percent:existing initial info flip/flight
+now schedules same shared New Card Unlocked shake at75percent(~397.959ms).
+Strength22/duration420ms,all other motion and lifecycle rules unchanged.
+PASS3focused Native tests/0failures6.815s,including measured75percent leading
+delay,exact shared shake,no layout mutation,retirement/no replay and original
+reward arrival/reveal checks. Latestfast and ios target/originalassets audit
+PASS;full sourceQA/no-sync build in20percent folder finishedPASS(including
+KING330,feature/audio/special admission). Normal complete-tree Debug build/install-over/launchPID334 on retained Jimi2026QA
+iPhone13;input/binary hashes verified,no testPlugIns/Web.bundle,both current
+canonical saves unchanged at install/launch,actualSilentModeON. Normal Forest
+preview visually inspected. No physical install;NEEDS PHYSICAL TEST for feel.
+Evidence `/tmp/native-card-impact-75pct-20261108/`.
+
+Previous20percent variant passed5Native checks/0failures11.192s and normal
+complete-tree Debug build/install-over/launchPID98310;exact input/binary hashes,
+both current canonical saves preserved at install/launch,actualSilentModeON.
+User actively navigated preview into gameplay;left that state undisturbed.
+Source fast/full no-sync sourceQA and ios audit PASS in20percent evidence folder.
+No physical install;other dirty work preserved.
+
+## 2026-11-08 · Stage screen shake starts at20percent of opening flip
+
+User rejects full-placement onset as too late. Same New Card Unlocked shake now
+starts at20percent of existing initial info flip/flight(~106.122ms),rather than
+flight completion. Finite additive scroll/header CA tracks own the leading
+delay;no timer or animation callback. Existing intensity22/duration420ms,
+manual/history/foreground no-replay,close/inactive/dispose retirement and
+ReducedMotion skip remain. Original flip/content timing and other dirty work
+preserved. Focused checks and final shared Simulator refresh in progress:
+`/tmp/native-card-impact-20pct-20261108/`.
+
+## 2026-11-08 · Gentle whole-info-card return restored after score/combo Close
+
+User clarifies static child content doesnot mean instant whole-card return.
+Restored original `JimiNativeModalV10.enter(card:dragShell,flip:pinchShell)` on
+restoreFromStatHistory. The shared gentle shell entry and its CA completion own
+return/input again;title/dividers/CTA stay settled/silent,existing star idle phase
+continues. Quiet info foreground/manual-return policy and initial CTA100ms before
+Stage remain. No Score/Combo modal geometry/exit,audio resource or save changes.
+
+PASS8focused mounted Native tests/0failures36.798s,including real App high-score/
+combo close route,retained star phase,no child enter/boing,whole-shell shared
+entry duration>0.5s,actual pause/pose/input completion,manual return,RМ,late face
+readiness and close cleanup. Source fast/full no-sync QA,ios target/original
+assets audit and final feature41PASS. Prior unrelated broad idle-test debt stays.
+
+Our first normal build failed65 only because another authorized Native build
+held shared build.db. Didnot delete/force it. Concurrent Backpack/card-impact
+QA and final normal preview completed;accepted that shared complete-current-tree
+Debug build instead of overwriting its newer save baseline. Independently
+verified every Native/asset fingerprint,installed bundleID and binary hashes,
+normal scheme,no testPlugIns/Web.bundle. Shared launchPID94998 on retained Jimi
+2026QA iPhone13;actualSilentModeON. Latest card-impact canonical save baseline
+preserved at install/launch by shared delivery;original and current task backups
+retained separately,no successful install from failed attempt. Preview currently
+shows normal Backpack and was left undisturbed. Evidence:
+`/tmp/native-info-gentle-return-20261108/`(gentle-return-checks.xcresult,
+main-delivery.json with shared provenance,final-production-inputs.json,
+final-preview.png,debug-delivery-0.log);normal shared delivery source
+`/tmp/native-backpack-hud-20261108/final-preview/`. Latest tree includes concurrent
+Backpack/card-impact work;all current input hashes match shared final build.
+No physical install;NEEDS PHYSICAL TEST for final animation/speaker acceptance.
+Our sourceQA rebuilt localdist without Native sync;PWA/legacy untouched.
+
+## 2026-11-08 · Journey Stage landing uses New Card Unlocked screen shake
+
+Latest user reference supersedes the proposed slow single-recoil effect:reuse
+exact New Card Unlocked SVG arrival shake,strength22/duration420ms. Shared
+NativeRewardMotion offsets/times now feed both existing reward owner(unchanged
+appearance) and finite additive World scroll/header contact. Existing first
+card-flight completion admits it at full placement;modal itself remains
+independent. Manual flip/history restore/foreground never replay. Close,history,
+inactive,park and disposal retire tracks;ReducedMotion skips. No timer,audio,
+asset,layout,gameplay or save change. Other dirty work preserved.
+
+PASS5focused mounted Native tests/0failures11.597s:Stage landing admission,
+shared exact offsets/times/strength/duration,no layout/card mutation,background
+retirement/no foreground/manual replay,close-during-flip,late CTA readiness and
+both existing reward arrival/reveal checks. Earlier640ms draft3/0 also retained.
+Reference fast/full no-sync sourceQA and ios target/originalasset audit PASS;
+fullQA includes KING330,feature/audio/special admission. Normal complete-tree
+Debug native build/install-over/launchPID94876 on retained Jimi2026QA iPhone13;
+source fingerprints and installed binary hashes match,no testPlugIns/Web.bundle,
+both canonical saves restored after tests and unchanged at install/launch.
+ActualSilentModeON. Normal ForestStage02 modal opened and visually inspected;
+final preview remains there. Evidence `/tmp/native-card-impact-20261108/`:
+reference-checks.xcresult,reference-checks.mp4,main-delivery.json,
+final-production-inputs.json,reference-fast/full/ios logs. No physical install;
+NEEDS PHYSICAL TEST for subjective shake feel. SourceQA rebuilt localdist
+without native/PWA sync;preserved PWA/legacy products untouched.
+
+## 2026-11-08 · Backpack section captions use gentle HUD motion
+
+User reference: Forest title and 6/6 section counter reuse Combo/Trophy HUD
+enter/exit feel. `NativeBackpackSectionHeader` now uses `JimiV9Motion.hudCaption`:
+exact Combo worldHubElementEnter spring, original scale0.65/fade/30pt displacement,
+shared navigation speed1.56 and mathematically reversed exit. UIKit flips the
+SpriteKit Y direction. Removes the navigation-title-only peak amplification;
+caption stagger, section/cell layout and existing finite route owner remain.
+ReducedMotion keeps the existing alpha-only profile. No timer/resource/save or
+asset change. Existing unrelated dirty changes preserved.
+
+PASS mounted NativeBackpackTests/testCollectionSectionTitleThenCountReuseHUDEntryAndExit:
+1test/0failures; checks both enter/exit against HUD source poses and section-root
+ownership. PASS no-sync qa:fast,qa:full,qa:ios. Logs `/tmp/backpack-hud-{fast,full,ios}.log`;
+Native evidence `/tmp/native-backpack-hud-20261108/` with backpack-checks.xcresult.
+Normal complete-tree Debug build succeeded; verified native bundle, installed-over
+and normally launched PID92644 on retained Jimi2026QA iPhone13. Both canonical
+saves restored after test and byte-identical through install/launch; actual Silent
+ModeON; no testPlugIns/Web.bundle. Receipt main-delivery.json. Another active
+Native task subsequently ran Simulator tests. Final complete-tree normal Debug
+build/install-over/launch PID94998 completed after those tests, preserving their
+latest pre-test canonical saves (current eee82f75…, previous 4984f6db…). Evidence
+`/tmp/native-backpack-hud-20261108/final-preview/main-delivery.json`; installed
+binaries rechecked against receipt after UI review, no test plugin, actual Silent
+ModeON. Opened Backpack and visually inspected settled Forest6/6, Area556/6,
+Beach3/6 and unchanged layout. Preview remains in Backpack. No physical install;
+NEEDS PHYSICAL TEST for subjective motion.
+
+## 2026-11-08 · Initial CTA enters before Stage title
+
+Latest onset request supersedes divider70percent dependence:initial CTA/boing now
+starts100ms before visible Stage title(max0,titleDelay-0.100s). Initial CTA420ms,
+Stage520ms,divider735ms. Other initial reference tracks and quiet manual/HighScore/
+Combo returns remain. Existing late sculpted-face readiness safety stays;no new
+owner,timer,asset,gameplay/save change. Updated mounted relative-onset check;
+hidden CTA input assertion now observes the paused pre-entry phase,not the later
+card landing when CTA is intentionally already visible.
+
+PASS8focused Native tests/0failures36.267s,including exact CTA-before-title,
+manual/history star-phase continuity,quiet foreground/RM and lateface/close/input.
+Source fast/full no-sync QA,ios audit and feature41PASS. Normal complete-tree
+Debug native build/install-over/launchPID86571 on retained Jimi2026QA iPhone13;
+stable Native inputs and matching binaries verified,no testPlugIns/Web.bundle,
+both current canonical saves restored after tests and unchanged at install/launch,
+actualSilentModeON. Evidence `/tmp/native-cta-before-title-20261108/`:
+before-title-checks.xcresult,main-delivery.json,final-production-inputs.json;
+source gates `/tmp/native-cta-before-title-{fast,full,ios,feature}.log`.
+No physical install;NEEDS PHYSICAL TEST for final feel/speaker acceptance.
+No-sync sourceQA rebuilds localdist;PWA/legacy products untouched. Other dirty work kept.
+
+## 2026-11-08 · CTA at divider70%; quiet manual and High Score info returns
+
+Latest combined user steering:initial CTA/boing starts at70percent of divider
+motion(visible active duration,excluding its leading delay),superseding completion
+wait and previous150ms advance. Initial Stage onset520ms,divider onset735ms,
+CTA onset973ms. Initial reference star/divider/centre-Stage tracks remain.
+Manual card face flips never replay element enters/boing. Info->art preserves
+unfinished painted tracks until the face is hidden,then settles/retiresthem;
+art->info starts with all elements in place. Exact inner star idle/swap phase
+pauses/resumes. High Score/Combo return also restores the retained card statically:
+no modal return flip/enter,settled bounce,title/divider/CTA enter or cue.
+An instance-owned quiet-info flag keeps non-star idles quiet through foreground;
+ReducedMotion still statically retires star pulse. Existing history exit and
+route milestones,initial reveal,art-side motion,input/resources/saves stay.
+Removed obsolete playHistoryReturnCTABounce caller/method. No new timer/voice.
+
+PASS8focused mounted Native tests/0failures36.702s,including actual App history
+route,score/combo retained-card phase,manual+history quiet return/foreground/RM,
+exact initial divider70->CTA timing,hidden-button rejection,lateface preparation,
+close/disposal and drag flip. Early test assertions were corrected to measure
+70percent of active divider motion rather than70percent of group-with-leading-
+delay,and inspect settled retirement after the outgoing face is hidden;initial
+failure logs remain separate. Source fast/full no-sync QA,ios target/original
+asset audit and feature41PASS. Prior broader idle-test debt is separate/unrun.
+
+Normal complete-tree Debug native build/install-over/launchPID83736 on retained
+Jimi2026QA iPhone13 UUID1018BE2D-491B-465F-8F75-3E5BEB38C22A;stable inputs and
+matching binaries verified,no testPlugIns/Web.bundle. Both latest canonical
+saves restored after tests and byte-identical at install/launch. Actual Silent
+ModeON. Evidence `/tmp/native-info-cta-after-divider-20261108/`:
+verified-static-return-checks.xcresult,main-delivery.json,
+final-production-inputs.json;latest source gates `/tmp/native-info-static-return-*.log`.
+No physical install;NEEDS PHYSICAL TEST for final aesthetic/speaker acceptance.
+Localdist rebuilt without Native sync;PWA/legacy untouched. Other dirty work kept.
+
+## 2026-11-08 · Journey CTA -150ms; dividers at Stage midpoint
+
+Latest numeric follow-up supersedes only these two reference beats:Play/Continue
+and its existing boing start max(0,1.40flipduration-0.150s);dividers begin at Stage
+onset+half its visible motion duration(0.215s normal/0.08s ReducedMotion),excluding
+leading delay. Initial opening now CTA592.857ms,dividers735ms;manual infoflip
+CTA494ms,dividers665.8ms. Stage centre bounce,star slots/stagger,all other motion,
+exit,assets,input/save/gameplay owners stay. Updated exact mounted onset checks.
+
+PASS5focused Native tests,0failures;source fast/full no-sync QA,ios audit and
+feature admission PASS. Normal complete-tree Debug native build/install-over/
+launchPID71897 on retained Jimi2026QA iPhone13;stable source/assets fingerprints,
+matching binaries,no testPlugIns/Web.bundle,both latest canonical saves restored
+and unchanged at install/launch,actualSilentModeON. Normal Home preview visually
+checked. Evidence `/tmp/native-info-beats-tuning-20261108/`(beats-checks.xcresult,
+main-delivery.json,final-production-inputs.json,final-preview.png);source logs
+`/tmp/native-info-beats-tuning-{fast,full,ios,feature}.log`. No physical install;
+NEEDS PHYSICAL TEST for final animation/speaker feel. Prior broad idle-test debt
+is unchanged and was not rerun;see previous entry. Other dirty work preserved.
+
+## 2026-11-08 · Journey info four-reference staggered reveal
+
+Latest user references supersede previous simultaneous90percent Stage/CTA onset.
+Existing info-card flip/flight clock now sequences:all3star slots descend from
+above with55ms stagger and additive backOut bounce(first0.58flipduration),then
+left/right dividers enter from their own sides with fade/backOut(0.78),then
+Stage NN scales/fades from its own centre using Home enter ease,noYtravel(0.98),
+then existing Play/Continue CTA+boing(1.40). Initial0.520/0.98s opening yields
+~308/414/520/743ms;manual0.46s return-to-info uses same beats. Existing stat entry,
+star gray-to-gold swap/earned count/inner pulse,slot tilt/raisedcentre,art,flight,
+layout,history return,gameplay and saves remain. Finite slot translation is additive
+so it doesnot compete with gold/pulse transforms. Parent/slot CA clocks own pause;
+close/history/cleanup retire tracks and button marker. Hidden CTA contact/action
+rejects until its presentation opacity is visible. No timer/newvoice/resource.
+
+Source fast/full no-sync QA,ios identity/originalassets audit and feature41PASS.
+Mounted run8tests:7PASS,one older broad idle testFAIL with2assertions. New staged
+phone/tablet checks verify first-hidden poses,star downward overshoot/stagger,
+left/right divider direction/fade,centre-only title overshoot,last CTA,onecue,
+hidden-button rejection,cleanup;manualflip,latefacepause,close,pendingpreparation,
+actual history route and original earnedstar sequence pass. Older
+`testInfoTilesAndCompletedFlipStarSwapsRetainIdleAcrossFlip` expects outer stat
+float3repeats although unchanged `playInfoMotion` uses infinity,and expects info
+settle replay despite existing once-per-card guard. Test+playInfoMotion identical
+toHEAD;this task didnot alter those policies/assertions. Preserve this explicit
+FAIL rather than changing unrelated idle to green. Evidence:
+`/tmp/native-info-sequence-20261108/legacy-idle-test-evidence.json` and raw xcresult.
+
+Normal complete-tree Debug native app built/installed over retained Jimi2026QA
+Simulator and launchedPID67941;current input fingerprints/binary hashes verified,
+no testPlugIns/Web.bundle,both latest canonical saves restored after QA and unchanged
+at install/launch,actualSilentModeON. Real normal-app ForestStage02 video decoded
+and visually reviewed:fine frames show first/second/third slots~12.10/12.13/12.20s,
+dividers before tiny centred Stage~12.30s,and CTA begins~12.50s alongside first
+gold reveal. Final preview remains on this ready info modal. Evidence directory
+`/tmp/native-info-sequence-20261108/`:info-sequence-checks.xcresult,
+final-reference-sequence.mp4,fine/contact.png,main-delivery.json,
+final-production-inputs.json;source logs `/tmp/native-info-sequence-{fast,full,ios,feature}.log`.
+NEEDS PHYSICAL TEST for final feel/speaker mix;no physical install this task.
+Localdist rebuilt by no-sync sourceQA;no PWA/legacy operation. Previous cloud,
+Restart/HUD and other dirty work preserved.
+
+## 2026-11-08 · Phone Home clouds: size hierarchy and random 60/40 visit composition
+
+User accepts full-height rear-cloud spread,requests largest clouds around main
+illustrations,medium/small at top/bottom,then approximately60percent density in
+middle/lower area and40percent upper,random on each actual Home entry. Existing
+27phone rear views now sample11upper/16middle-lower positions once inside
+prepareCloudsForVisit. Three banks shuffle3/4/4upper allocations,then stratified
+jitter;each bank retains one top and one divider-safe bottom anchor. No reroll
+on slide/relayout/foreground;existing NativeAppController Home route is the owner.
+Main-band widths are at least248referencepoints(retain existing larger originals),
+outer bands cap180,and extreme top/bottom cap132. Preserve original horizontal
+anchors,front clouds,tablet branch,art counts/bytes,panorama/idle/route motion,
+input,gameplay and saves;no new recurring work or view/resource owner.
+
+PASS existing mounted cloud viewport regression across320/390/430phone widths
+and cloud route pause/cancel test(2tests,0failures). Viewport test now checks
+random-bank top/bottom coverage,large middle vs small edge widths and exact same
+composition on relayout instead of obsolete fixed-slot positions. Fast/full
+no-sync QA,ios original-asset/native-target audit and feature41PASS. Local dist
+rebuilt by sourceQA;no native Web.bundle sync or PWA install. Normal complete-tree
+Debug build/install-over/launchPID61411 on retained Jimi2026QA iPhone13 native
+bundle;current source/assets fingerprint and installed binaries verified,no test
+PlugIns/Web.bundle,both latest canonical saves restored after tests and unchanged
+at install/launch. Actual SilentModeON. Final normal Home screenshot visually
+reviewed. Evidence `/tmp/native-home-cloud-hierarchy-20261108/`:
+cloud-density-checks.xcresult,main-delivery.json,final-production-inputs.json,
+final-home.png;latest source logs `/tmp/native-home-cloud-density-{fast,full,ios,feature}.log`.
+NEEDS PHYSICAL TEST for subjective composition/motion acceptance;no physical
+installation this task. Prior Restart/CTA and all other dirty work preserved.
+
+## 2026-11-08 · Journey info title/CTA reveal moved to 90percent
+
+User follow-up: Stage and Play/Continue bounce/boing were consumed behind the
+opening Journey info flip. Initial caption/CTA onset moves from50percent to
+90percent of existing opening0.520/0.98s timeline(~477.55ms);manual flip toward
+info now delays them90percent of0.46s(~414ms). Initial ReducedMotion uses90percent
+of actual0.18s opening. Existing stats/stars,flight/flip curves,section captions in
+Backpack/Box,exit/history return,input gates,sculpted-face readiness and shared
+bounce recipes remain unchanged. Existing CTA compositor cue follows the delayed
+entry once;no timer,voice,resource,asset,gameplay or save change.
+
+PASS5mounted Native checks/0failures10.658s: Stage/CTA tracks at phone+tablet
+sizes,manual flip timing,paused/late CTA readiness,close/dispose and interrupted
+flip cleanup. Updated existing feature/audio records;fast/full no-sync QA and
+ios target audit PASS. Normal Debug complete-tree build/install-over/launch
+PID55492 on retained Jimi2026QA iPhone13 nativebundle;binary freshness verified,
+no testPlugIns/Web.bundle,both current canonical saves restored and unchanged
+at install/launch. Real normal-app Forest Stage01 opening captured and visually
+reviewed:caption+CTA stay hidden on opening face and bounce in near landing.
+Final preview remains on this info modal. Evidence:
+`/tmp/native-journey-info-onset-20261108/`(info-onset-checks.xcresult,
+final-modal-review.mp4,visual/contact.png,main-delivery.json,final-review.json);
+source gates `/tmp/native-journey-info-onset-{fast,full,ios}.log`.
+Simulator SilentModeOff banner observed during setup;later external UI changed
+Mute toON and final SpringBoard state isON,respected without changing game
+Sounds/Music preferences. NEEDS PHYSICAL TEST for final feel/speaker mix;
+no physical installation this follow-up. All preceding dirty work preserved.
+
+## 2026-11-08 · Restart and Arcade New Game flash repaired and preview refreshed
+
+User's original Downloads/blic.mp4 decoded unchanged:244frames30fps350x720,
+8.133s. Frame131at4.3667s still shows old dice;132at4.400s switches to an already
+advanced new board. Root+same3agents repaired this explicit Restart/NewGame flow;
+all previous uncommitted corrections preserved. Full record:
+[NATIVE_RESTART_FLASH_REPAIR_2026-11-08.md](NATIVE_RESTART_FLASH_REPAIR_2026-11-08.md).
+
+VC now waits full Scene/ghost/footer exit plus existing resource readiness before
+successor construction, for Journey Restart and Arcade Exit NewGame. X/Backpack/
+divider stay fixed;incoming preload prime already paints its divider without3pt
+wobble. Source wave remains dormant under existing2-painted-frame coverage.
+After uncover, a finite receipt on the existing Source ticker waits for the root
+clock update before creating the unchanged wave/haptic/midpoint children together.
+This closes measured stale-clock catchup(first18ms scale1.0549) that remained even
+after old/new ownership was repaired. No global clock reset,newtimer/transport or
+RNG/gameplay/save change. Receipt retires before callback, waits globalpause,
+cancels on Scene suspension/exit/disposal and retries exact readygeneration after
+foreground;ReducedMotion releases ctor visibility statically. Normal entry,
+tutorial,Raw and automatic Arcade continuation remain separate.
+
+PASS78selected mounted Native tests/0failures:12HUD,10preload,45Source-clock,
+11actual-root flows. Journey+Arcade per-paint audits show initial paintedscale0,
+all incoming after full old exit,exact0pt/0alpha error on fixedchrome,59/60distinct
+incoming render serials. Background,callbackexit/dispose,coldJourneyHUD and Arcade
+Round01->02 continuity pass. Final captured Journey+Arcade30fps frames visually
+reviewed:tiny-to-full ordered wave,no original reposition flash. Source fast/full
+no-sync QA PASS(full530suites4011tests,KING24suites330tests),Native target/unchanged
+original asset audit PASS,feature41PASS;independent ownership review PASS.
+First failed audits and compilefixture corrections remain in separate logs.
+
+Normal Debug Stack to Six built from stable complete workingtree;verified native
+bundle,install-over and normal launchPID52258 on retained Jimi2026QA iPhone13
+UUID1018BE2D-491B-465F-8F75-3E5BEB38C22A. Built/installed binary hashes match;
+normal Home visually checked,no testPlugIns/Web.bundle. Both canonical saves
+restored after tests and byte-identical at install/launch;SpringBoard actual
+SilentModeON. Evidence `/tmp/native-restart-flash-20261108/`:
+`restart-final2.xcresult`,`.mp4`,paint-summary.json,final-*/contact.png,
+main-delivery.json,final-production-inputs.json,final-preview.png.
+NEEDS PHYSICAL TEST for final iPhone feel/FPS/touch;no physical install this task.
+FullsourceQA rebuilds dist without Native sync;no PWA/legacy product operation.
+
+## 2026-11-08 · Ten physical-review reports repaired with four-agent validation
+
+User reports cold Journey HUD,100ms HUD lead, Ball/Shroomy refill, Stage/section
+caption motion, Stage CTA/boing, long Beach Close/Backpack waits, phone Home cloud
+spread and Arcade divider continuity. Root+3agents implemented and independently
+reviewed bounded owner-level changes. Full checklist, diagnoses and evidence:
+[NATIVE_PHONE_BUGFIX_CHECKLIST_2026-11-08.md](NATIVE_PHONE_BUGFIX_CHECKLIST_2026-11-08.md).
+
+Ordinary HUD re-primes on first actual mounted host, retains pending safe-area
+entry and waits0.100s on its existing paused/cancelable action. Dice/Source wave,
+input/admission and tutorial ordering stay unchanged. Actual cold Journey test
+observes exactlyone reveal after the transition cover is removed. Arcade keeps
+all HUD controls and transfers its settled divider/meter into the existing
+outgoing cosmetic owner until successor-first-frame disposal;no exit/reentry.
+Stage NN and section title→count reuse shared navigation samples;Stage Play/
+Continue reuse Exit Stage CTA tracks and existing cleanCTA0 cue. Phone rear Home
+clouds span top→divider;tablet,hero,X,size and existing idle owners retained.
+
+Explicit user clarification authorizes Ball's same4–6new-die count/cell layout as
+Shroomy. Native Ball now uses shared Juice refill with its authored Ball finale;
+all3historical core saves/imports remain compatible. Production combo-coin policy
+and legacy non-combo final3coins retain prior behavior. Preserved web/oracles stay
+unchanged;strict owned Native override metadata and rejection tests added.
+
+World route delay was a concrete local-clock bug: covered return landings shift
+a card layer clock;old global exit epochs scheduled its exit9s into the future.
+Every World exit now converts the epoch locally. Cached resource requests acquire
+leases immediately;retired queued/between-file ImageIO jobs stop before work,
+with only one admitted decode draining. Ordinary exits cancel optional preparation;
+gameplay retains its required transition lease. Twelve real Beach card+Score/Combo
+cycles release all weak modal references and stabilize decoded bytes after first
+bounded warmup. Measured full Backpack admission2.009s,Hub1.792s;existing authored
+exit/entry durations retained. Old9sclock-offset fixture completes exit1.482s.
+
+PASS latest fast/full no-sync QA,feature41,audio runtime,Native target and strict
+Native override15tests. Across final reruns32distinct mounted Native checks PASS;
+initial failures remain in logs and were corrected/retested. Ball affected Core
+49/49PASS;state107/107PASS. Broad Core560tests retains15inherited assertions also
+failing at untouched HEAD557tests/17assertions (legacy Kite/BLOOB coins and roster/
+count assumptions);no introduced Ball failure remains. This is not an all-Core
+PASS. Independent final source reviews have no high/medium findings.
+
+Complete-current-tree normal Debug BUILD SUCCEEDED; exact .native installed over
+retained1018QA Simulator and launched normally (com.taptapdesign.stacktosix.native: 24482). Matching installed
+binaries and production inputs reverified;no XCTest PlugIns/Web.bundle. Both
+canonical saves restored after tests and byte-identical through final preview
+observation. Mounted Stage/Backpack exports and live Home cloud spread inspected.
+Actual iOS Silent Mode Off banner observed for CTA review;subsequent Mute On state
+was observed in toolbar+SpringBoard and preserved,final silentMode=true. Game/Mac
+preferences unchanged. Receipts/raw logs `/tmp/native-phone-regressions-20261108/`.
+No physical/PWA/legacy install or operation in this task;local dist regenerated by
+no-sync source QA only. Physical feel,touch,sustained FPS/thermal remain
+NEEDS PHYSICAL TEST/user review;phone remains on preceding installed Release.
+
+## 2026-11-08 · Phone install with S.O.S. reduced30percent on iPhone
+
+User explicitly requests installation on the phone, then reduces S.O.S. by30percent
+on iPhone only before installation. Bottle's phone-only filled caption now uses
+existing-owner presentation scale0.70 around its retained center; tablet stays1.
+Letter bounce/timing, fonts/glow recipe, bottle/bubble geometry, original assets,
+audio and gameplay remain unchanged. The superseded physical build was stopped
+before installation; no earlier candidate was installed during this task.
+
+PASS final qa:fast, no-sync qa:full, qa:ios and focused mounted caption test:
+painted width is exactly70percent of prior filled-caption width, per-letter
+transform/alpha/exit/duration remain identical. Actual exported smaller caption
+inspected. Final complete-current-tree normal Debug BUILD SUCCEEDED and retained
+1018iPhone Simulator install-over/normal launch (com.taptapdesign.stacktosix.native: 18018), matching binaries,
+no test PlugIns/Web.bundle, both canonical saves restored after test and unchanged
+through initial launch, actual SpringBoard Silent Mode true. Evidence:
+`/tmp/native-sos-minus30-20261108/`. iPad source branch/installed preview unchanged.
+
+Final signed Release BUILD SUCCEEDED from current production inputs, codesign
+--verify --deep --strict PASS, compiled Native dependency/original-asset audit
+PASS. Exact com.taptapdesign.stacktosix.native installed over existing app on live
+verified wired iPhone13blue, then launched normally without diagnostic arguments;
+actual running PID16790 verified. Both state-v1.json and
+state-v1.previous.json backed up before build and again immediately before
+install, byte-identical through installation and initial normal launch. Source/
+asset input hashes stable through delivery. Includes prior TNT/Barrel size parity,
+smaller Arcade Box and whole Close-container bounce. No uninstall/reset, physical
+iPad, PWA or legacy operation. Receipts/raw logs:
+`/tmp/native-phone-current-20261108/` (delivery.json, signed-release-build.log,
+built-audit.log, save-preinstall/save-installed/save-launched).
+Delivery PASS; physical visual/touch/FPS/thermal acceptance remains user review.
+
+## 2026-11-08 · TNT smoke matches Barrel; readable phone S.O.S.
+
+User requests only TNT sprite size match Barrel, then explicitly authorizes the
+previously proposed phone Bottle S.O.S. size correction. Core TNT's smoke-only
+presentation factor now matches Barrel's complete current device recipe,
+including its0.8material/0.7artwork/1.2smoke factors. All three genuine Source/Raw
+TNT constructors use the canonical raster size, preventing cold/warm density
+metadata from changing the painted result. Existing twelve sprite curves,
+position, stretch, timing, dice/debris, BOOM caption, RNG, gameplay and resources
+retain their owners. Barrel is unchanged. Bottle's production phone constructor
+opts into the existing caption-width fill; shared glyph owner, letter sizes,
+color/glow, bounce, timing, bottles/bubbles and tablet caption remain unchanged.
+No new assets, timers, audio or lifecycle/resource owner.
+
+PASS qa:fast, no-sync qa:full, qa:ios and3focused Native checks. Every visible TNT
+frame's width/height/alpha matches actual Barrel frames at0.15/0.50/0.80/1.20/1.60s,
+phone/tablet and both Source/Raw construction; dice retain prior geometry. Mounted
+phone S.O.S. fills the shared readable width while matching old individual letter
+transforms, alpha and exit/duration. Exported sos-phone.png visually inspected
+(layer-render glow is not a live optical/physical acceptance claim).
+
+Normal complete-current-tree Debug BUILD SUCCEEDED; verified exact .native
+install-over/normal launches on retained1018iPhone and43A750iPad, matching built/
+installed binaries, no XCTest PlugIns/Web.bundle. Both canonical saves restored
+after phone tests and byte-identical through initial launch on each Simulator.
+Actual phone SpringBoard Silent Mode true; CUA observed normal Home with Mute ON,
+no gameplay input. Receipts and raw logs: `/tmp/native-tnt-sos-20261108/`.
+No physical/PWA/legacy operation. Deterministic PASS; physical animation feel and
+final aesthetic acceptance remain NEEDS PHYSICAL TEST/user review.
+
+## 2026-11-08 · Modal Close bounces as a whole; smaller Arcade Box
+
+User requests X and its small paper container bounce together on iPhone/iPad,
+then proportional reduction of the oversized Arcade gameboard Box. Shared
+NativeModalPaperView now separates body/tab mask paths on the same original UV
+plane; the tab follows every existing Close transform/fade sample and epoch.
+Finite mask/shadow tracks inherit ancestor suspension and automatic completion;
+no new timer, bitmap, input/admission or resource owner. Reserved paint extent
+prevents squash/rise clipping while preserving settled texture coordinates,
+normal rounded silhouette, counter-tilt, timing and Reduced Motion behavior.
+End-run shadow follows the same path. Arcade Box artwork is20percent smaller on
+phone/tablet, closed/open alike; original centers, tablet HUD intervals and touch
+bounds retained. Journey Backpack, original assets, gameplay and saves unchanged.
+
+PASS qa:fast, no-sync qa:full and qa:ios; mounted phone/tablet mask trajectory,
+epoch/fade, pause, settled geometry, disposal and real Arcade open/close checks:
+initial4/4PASS plus final-current-source3/3PASS. Six rendered start/squash/rest
+frames exported; phone squash/tablet rest visually inspected. Final normal full
+working-tree Debug BUILD SUCCEEDED; verified exact .native bundle installed over
+retained1018iPhone and43A750iPad, launched normally with matching built/installed
+binaries, no XCTest PlugIns/Web.bundle. Both canonical saves restored after phone
+tests and byte-identical through initial launch on both Simulators. Actual phone
+SpringBoard Silent Mode true. CUA observed the final normal Endurance01 gameboard
+and smaller Box on the retained iPhone; no gameplay input. Evidence:
+`/tmp/native-close-unit-20261108/` (main-delivery.json,ipad-delivery.json,
+native-final.log and close-*.png); source full QA `/tmp/native-close-unit-full.log`.
+No physical/PWA/legacy operation. Deterministic PASS; physical animation feel and
+final aesthetic acceptance remain NEEDS PHYSICAL TEST/user review.
+
 ## 2026-11-08 · Verified online checkpoint and authorized old-build cleanup
 
 Published **Native app - production state skoro pa gotovo**, immutable annotated

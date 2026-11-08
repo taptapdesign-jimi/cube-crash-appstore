@@ -243,6 +243,36 @@ enum JimiV9Motion {
             from:.scale(reducedMotion ? 0.96:0.65,y:reducedMotion ? 8:30,opacity:0),to:.scale(1),
             ease:reducedMotion ? .powerOut(1):.backOut(1.8))])
     }
+    /// Flat captions reuse the upper navigation title's exact sampled rise,
+    /// overshoot and reversed exit without adopting its curved glyph geometry.
+    @MainActor static func navigationCaption(entering:Bool,begin:Double=0,reducedMotion:Bool=UIAccessibility.isReduceMotionEnabled)->Track {
+        if reducedMotion {return .init(tweens:[.init(begin:begin,duration:JimiV9ArchedNavigationTitle.reducedDuration(entering:entering),from:.scale(1,opacity:entering ? 0:1),to:.scale(1,opacity:entering ? 1:0),ease:.linear)])}
+        let sample=sampledTrack(worldHubElementEnter())
+        let poses=(entering ? sample.poses:Array(sample.poses.reversed())).map {pose -> Pose in
+            var value=pose
+            if value.scaleX>1 {value.scaleX=1+(value.scaleX-1)*1.2}
+            if value.scaleY>1 {value.scaleY=1+(value.scaleY-1)*1.2}
+            return value
+        }
+        let step=sample.duration/JimiV9ArchedNavigationTitle.navigationSpeed/Double(poses.count-1)
+        return .init(tweens:(1..<poses.count).map {index in .init(begin:begin+Double(index-1)*step,duration:step,from:poses[index-1],to:poses[index],ease:.linear)})
+    }
+    /// HUD upward arrival, matching Restart trophy/combo in UIKit coordinates.
+    /// Keep the original spring rather than the navigation title's amplified peak.
+    @MainActor static func hudCaption(entering:Bool,begin:Double=0,reducedMotion:Bool=UIAccessibility.isReduceMotionEnabled)->Track {
+        if reducedMotion {return navigationCaption(entering:entering,begin:begin,reducedMotion:true)}
+        if !entering {
+            // Small authored anticipation rises before the downward collapse.
+            // Neutral caption geometry stays owned by the section layout.
+            return .init(tweens:[.init(begin:begin,duration:JimiV9ArchedNavigationTitle.elementDuration,
+                from:.scale(1),to:.scale(0.65,y:30,opacity:0),ease:.backIn(1.8))])
+        }
+        let source=worldHubElementEnter().tweens[0]
+        let hidden=source.from
+        return .init(tweens:[.init(begin:begin,duration:source.duration/JimiV9ArchedNavigationTitle.navigationSpeed,
+            from:entering ? hidden:source.to,to:entering ? source.to:hidden,
+            ease:entering ? source.ease:.backIn(1.8))])
+    }
     static func worldHubElementExit(begin:Double=0,selected:Bool=false,reducedMotion:Bool=false)->Track {
         let peak=Pose(scaleX:selected ? 1.18:1.144,scaleY:selected ? 1.15:1.12)
         let anticipation=reducedMotion ? 0.15:0.18,collapse=reducedMotion ? 0.28:0.336

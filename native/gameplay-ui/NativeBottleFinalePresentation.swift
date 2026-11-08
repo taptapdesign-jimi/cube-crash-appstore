@@ -41,14 +41,16 @@ final class NativeBottleFinalePresentation: NativeFinitePresentation {
     private let glyphs: NativeSplashGlyphField
     private let random: () -> Double
     private let viewport: CGSize
+    private let captionPresentationScale:CGFloat
     private let pack = "assets/shop/bottle/bottle animation pack/"
     private func roll() -> CGFloat { CGFloat(min(1-Double.ulpOfOne,max(0,random()))) }
-    init(resourceRoot: URL,viewport: CGSize,preparedArtwork:JimiV9Artwork?=nil,random: @escaping () -> Double = { Double.random(in: 0..<1) }) {
+    init(resourceRoot: URL,viewport: CGSize,preparedArtwork:JimiV9Artwork?=nil,captionFillsWidth:Bool=false,captionPresentationScale:CGFloat=1,random: @escaping () -> Double = { Double.random(in: 0..<1) }) {
         self.random = random
+        self.captionPresentationScale=captionPresentationScale
         self.viewport = CGSize(width: max(320,viewport.width),height: max(520,viewport.height))
         let artwork = preparedArtwork ?? JimiV9Artwork(resourceRoot: resourceRoot)
         let color = UIColor(red: 179.0/255,green: 217.0/255,blue: 191.0/255,alpha: 1)
-        glyphs = NativeSplashGlyphField(artwork: artwork,text: "S.O.S.",colors: [color],splitIndex: 0,random: random)
+        glyphs = NativeSplashGlyphField(artwork: artwork,text: "S.O.S.",colors: [color],splitIndex: 0,fillsCaptionWidth:captionFillsWidth,random: random)
         // Source particle completion 0.30 + 5.35, followed by 0.05 cleanup.
         super.init(viewport: viewport,duration: 5.70)
         clipsToBounds = true; accessibilityIdentifier = "native-bottle-finale"
@@ -97,7 +99,8 @@ final class NativeBottleFinalePresentation: NativeFinitePresentation {
         image.contentMode = .scaleToFill; image.alpha = 0; image.layer.zPosition = z; addSubview(image); return image
     }
     override func layoutSubviews() {
-        super.layoutSubviews(); glyphs.frame = bounds
+        super.layoutSubviews(); glyphs.bounds = bounds;glyphs.center=CGPoint(x:bounds.midX,y:bounds.midY)
+        glyphs.transform=CGAffineTransform(scaleX:captionPresentationScale,y:captionPresentationScale)
         for bottle in bottles {
             let width = bounds.width*bottle.spec.widthPercent/100
             let aspect = bottle.image.image.map { $0.size.height/max(1,$0.size.width) } ?? 1

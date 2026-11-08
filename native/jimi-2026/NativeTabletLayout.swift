@@ -24,10 +24,10 @@ enum NativeTabletLayout {
         animation.transform=CGAffineTransform(scaleX:scale,y:scale)
     }
     static func smokeSpriteBoost(_ size:CGSize)->CGFloat {
-        // Phone smoke gains another10% after its previous20% and30% increases; tablet retains
-        // its accepted sizing. Core TNT already owns its1.4*1.2*1.2
-        // enlargement AND the full-width scene projection.
-        applies(size) ? (1.694*1.2*1.30*0.80*0.80)/(1.4*1.2*1.2*animationScale(size)):0.80*1.20*1.30*1.10
+        // Match Barrel's complete smoke-only scale on the same canonical raster
+        // and390pt projection. Dice, captions and trajectories keep their owners.
+        let barrel:CGFloat=applies(size) ? 1.694*1.15*1.30:1.20*1.30*1.10*1.20
+        return barrel*0.80*0.70*1.20/(1.4*1.2*1.2)
     }
     static func smokeVerticalOffset(_ size:CGSize)->CGFloat {applies(size) ? animationViewport(size).height*0.1:0}
     static func tntSmokeVerticalOffset(_ size:CGSize)->CGFloat {

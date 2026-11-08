@@ -38,7 +38,7 @@ final class NativeBarrelWholeBoardTests: XCTestCase {
     }
 
     func testOtherTntVariantsRetainFourTargetLimit() throws {
-        for variant in [nil,"flower","beach-ball","laser-gun"] as [String?] {
+        for variant in [nil,"flower","laser-gun"] as [String?] {
             let (engine,destination,_) = fixture(variant:variant)
             XCTAssertTrue(engine.beginDrag(tileID:"barrel"))
             XCTAssertTrue(engine.drop(target:destination.cell,now:1).accepted)

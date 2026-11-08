@@ -211,12 +211,19 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
     func tracks(enter:Bool)->[(UIView,JimiV9Motion.Track)] {
         layoutIfNeeded();grid.layoutIfNeeded()
         let visible=grid.visibleCells.sorted{$0.frame.minY == $1.frame.minY ? $0.frame.minX<$1.frame.minX:$0.frame.minY<$1.frame.minY}
-        let labels=grid.visibleSupplementaryViews(ofKind:UICollectionView.elementKindSectionHeader)
+        let labels=grid.visibleSupplementaryViews(ofKind:UICollectionView.elementKindSectionHeader).sorted{$0.frame.minY<$1.frame.minY}
+        // Retain every cell's original ordinal/stagger while replacing only
+        // the section parent's transform with independently animated captions.
         let targets=[header as UIView]+labels+visible
-        return (enter ? targets:Array(targets.reversed())).enumerated().map {i,target in
+        var tracks=(enter ? targets:Array(targets.reversed())).enumerated().compactMap {i,target -> (UIView,JimiV9Motion.Track)? in
+            guard !(target is NativeBackpackSectionHeader) else{return nil}
             let reduced=UIAccessibility.isReduceMotionEnabled,delay=reduced || !enter ? 0:Double(i)*0.035
             return (target,.init(tweens:[.init(begin:delay,duration:reduced ? 0.16:enter ? 0.56:0.40,from:.scale(enter ? 0:1),to:.scale(enter ? 1:0),ease:enter ? .backOut(1.8):.backIn(1.7))]))
         }
+        for (index,section) in labels.compactMap({$0 as? NativeBackpackSectionHeader}).enumerated() {
+            tracks += section.captionTracks(entering:enter,begin:enter ? 0.100+Double(index+1)*0.035:0.100)
+        }
+        return tracks
     }
     /// Close has its own visible admission; collection entry can finish later.
     var isClosePaintedVisible:Bool {
@@ -424,10 +431,44 @@ private final class NativeBackpackCell:UICollectionViewCell {
 @MainActor
 private final class NativeBackpackSectionHeader:UICollectionReusableView {
     private let heading=UILabel(),detail=UILabel(),count=UILabel()
-    override init(frame:CGRect){super.init(frame:frame);[heading,detail,count].forEach{addSubview($0)};detail.numberOfLines=2}
+    override init(frame:CGRect){super.init(frame:frame);[heading,detail,count].forEach{addSubview($0)};detail.numberOfLines=2
+        heading.accessibilityIdentifier="native.backpack.section.title";count.accessibilityIdentifier="native.backpack.section.count"}
+    func captionTracks(entering:Bool,begin:Double)->[(UIView,JimiV9Motion.Track)] {
+        let gap=UIAccessibility.isReduceMotionEnabled || !entering ? 0:JimiV9ArchedNavigationTitle.elementStagger
+        func caption(_ label:UILabel,delay:Double)->(UIView,JimiV9Motion.Track) {
+            var track=JimiV9Motion.hudCaption(entering:entering,begin:delay)
+            // HUD carriers pivot around painted content, not empty label width.
+            // Keep the text center fixed horizontally throughout the bounce.
+            let ink=label.textRect(forBounds:label.bounds,limitedToNumberOfLines:label.numberOfLines)
+            if label.bounds.width>0 {track.anchorX=Double(ink.midX/label.bounds.width)}
+            return (label,track)
+        }
+        var tracks:[(UIView,JimiV9Motion.Track)]=[caption(heading,delay:begin)]
+        if count.text != nil {tracks.append(caption(count,delay:begin+gap))}
+        if detail.text != nil {tracks.append(caption(detail,delay:begin+gap))}
+        return tracks
+    }
+    override func prepareForReuse(){super.prepareForReuse();for view in [heading,detail,count] {view.layer.removeAllAnimations();view.layer.transform=CATransform3DIdentity;view.layer.opacity=1}}
+
     required init?(coder:NSCoder){fatalError("Use frame")}
     func apply(title:String,detail:String?,count:String?,assets:JimiV9Artwork){heading.font=assets.font(size:28,weight:"ExtraBold");heading.textColor=NativeTextPalette.navigationTitle;heading.attributedText=title == "Area 55" ? NSAttributedString(string:title,attributes:[.foregroundColor:NativeTextPalette.navigationTitle]):NativeModalTypography.attributedCollectionTitle(title,baseColor:NativeTextPalette.navigationTitle);self.detail.text=detail;self.detail.font=assets.font(size:18,weight:"Medium");if let detail {self.detail.attributedText=NativeModalTypography.attributedSubtitle(detail,font:assets.font(size:18,weight:"Medium"),alignment:.left)};self.detail.textColor=NativeTextPalette.subtitle;self.count.text=count;self.count.font=assets.font(size:24,weight:"ExtraBold");self.count.textColor=NativeTextPalette.accentOrange;self.count.textAlignment = .right}
-    override func layoutSubviews(){super.layoutSubviews();let top:CGFloat=detail.text == nil ? 40:32;heading.frame=CGRect(x:32,y:top,width:bounds.width-140,height:40);count.frame=CGRect(x:bounds.width-112,y:top,width:80,height:40);detail.frame=CGRect(x:32,y:top+48,width:bounds.width-64,height:56)}
+    override func layoutSubviews(){
+        super.layoutSubviews()
+        let top:CGFloat=detail.text == nil ? 40:32
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        func place(_ label:UILabel,in rect:CGRect){
+            // Route motion has already installed its terminal model transform.
+            // Writing frame here would resize/reposition the untransformed text
+            // beneath the still-visible presentation animation.
+            label.bounds=CGRect(origin:.zero,size:rect.size)
+            let anchor=label.layer.anchorPoint
+            label.layer.position=CGPoint(x:rect.minX+rect.width*anchor.x,y:rect.minY+rect.height*anchor.y)
+        }
+        place(heading,in:CGRect(x:32,y:top,width:bounds.width-140,height:40))
+        place(count,in:CGRect(x:bounds.width-112,y:top,width:80,height:40))
+        place(detail,in:CGRect(x:32,y:top+48,width:bounds.width-64,height:56))
+        CATransaction.commit()
+    }
 }
 
 /// One visible-cell decoration, independent of the card selection/route transform.

@@ -10,6 +10,21 @@ nonisolated final class NativeRewardPreparationLease:@unchecked Sendable {
 /// serial queue prepares its carrier; disposed screens reject late completion.
 nonisolated enum NativeRewardFilteredFrames {
     private static let queue=DispatchQueue(label:"stacktosix.native-reward.filters",qos:.userInitiated)
+    /// One star-sized frame set shared by the three selected result stars.
+    static func prepareResultStar(_ image:CGImage,lease:NativeRewardPreparationLease,completion:@escaping ([CGImage],CGImage?)->Void) {
+        queue.async {
+            guard !lease.cancelled else{return}
+            let frames=JimiNativeInterimEffect.renderBurn(image:image,size:CGSize(width:128,height:128),density:1,radius:0,exactAlpha:true,includeArtwork:false,uniformHighlight:true,cancelled:{lease.cancelled})
+            guard !lease.cancelled else{return}
+            let original=CIImage(cgImage:image)
+            let bright=original.applyingFilter("CIColorMatrix",parameters:["inputRVector":CIVector(x:1.312,y:0,z:0,w:0),"inputGVector":CIVector(x:0,y:1.312,z:0,w:0),"inputBVector":CIVector(x:0,y:0,z:1.312,w:0)])
+                .applyingFilter("CIColorControls",parameters:[kCIInputSaturationKey:1.156])
+                .applyingFilter("CISepiaTone",parameters:[kCIInputIntensityKey:0.065])
+            let glow=CIContext(options:[.cacheIntermediates:false]).createCGImage(bright,from:original.extent)
+            guard !lease.cancelled else{return}
+            Task { @MainActor in guard !lease.cancelled else{return};completion(frames,glow) }
+        }
+    }
     static func prepareFaceEffects(_ image:CGImage,lease:NativeRewardPreparationLease,completion:@escaping (NativeMagicCardSource.Node)->Void) {
         queue.async {
             guard !lease.cancelled else{return}
