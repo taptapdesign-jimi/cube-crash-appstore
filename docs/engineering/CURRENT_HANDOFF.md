@@ -14,7 +14,12 @@ Publication QA:full command19/20gates PASS,530suites/4011tests and KING330PASS;
 qa:ios PASS. Sole FAIL is production postbuild copying assets into dist:ENOSPC.
 Only own incomplete ignored dist removed to recover disk space;no full
 production PASS claimed. Diff/payload/credential preflight PASS.
-Commit/tag publication pending remote verification in this preparation entry.
+Online publication verified: checkpoint052050d23dd445a7d05c847c56c49785cdeeba8d,
+annotated tag81f2fe4907da06454cf33396214de1e7535c59a0;origin main and peeled
+production-ready-v1 both resolve to checkpoint. All341existing remote tag refs
+(including peeled refs) unchanged. Documentation-only follow-up records this
+verification;immutable benchmark tag stays on complete checkpoint. Project tree
+clean after checkpoint except unrelated untracked private output/pdf document.
 Evidence `/tmp/native-production-ready-v1-20261108/`.
 
 ## 2026-11-08 · Conservative old build-cache cleanup

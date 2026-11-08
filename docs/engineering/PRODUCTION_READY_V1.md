@@ -95,3 +95,15 @@ payload. Production original assets and regeneration scripts stay preserved.
 
 Source recovery in Git is separate from installed apps and player data.
 No force push, historical-tag replacement, PWA sync or legacy-shell operation.
+
+## Verified online publication
+
+Checkpoint commit: `052050d23dd445a7d05c847c56c49785cdeeba8d`.
+Annotated tag object: `81f2fe4907da06454cf33396214de1e7535c59a0`.
+
+Atomic push of main and the new tag succeeded. Independent `git ls-remote`
+confirmed the branch and peeled tag at the checkpoint and preserved all 341
+previous remote tag refs (including peeled refs). A documentation-only follow-up
+records publication on main; the immutable benchmark remains at the checkpoint.
+
+[Online benchmark](https://github.com/taptapdesign-jimi/cube-crash-appstore/tree/production-ready-v1)
