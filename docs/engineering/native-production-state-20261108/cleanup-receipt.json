@@ -1,0 +1,269 @@
+{
+  "checkpoint_commit": "930b5c5e0be463f956391b9cd51a4589d517a769",
+  "checkpoint_tag": "native-app-production-state-skoro-pa-gotovo",
+  "remote_verified": {
+    "refs/heads/main": "930b5c5e0be463f956391b9cd51a4589d517a769",
+    "refs/tags/native-app-production-state-skoro-pa-gotovo": "07cd17ba62711ea1bb9aa08e35f26c007708c686",
+    "refs/tags/native-app-production-state-skoro-pa-gotovo^{}": "930b5c5e0be463f956391b9cd51a4589d517a769"
+  },
+  "retained_build_root": "/private/tmp/home-bottom-nav-normal-derived",
+  "removed": [
+    {
+      "path": "/Users/user/Stack to Six/DerivedData",
+      "kind": "derived-data",
+      "identity": "/Users/user/Stack to Six/Stack to Six.xcodeproj",
+      "bytes_before": 462290944,
+      "allocated_bytes_at_deletion": 462290944
+    },
+    {
+      "path": "/private/tmp/native-ipad-refresh-20261108/derived",
+      "kind": "derived-data",
+      "identity": "/Users/user/cube-crash/native/standalone/Stack to Six.xcodeproj",
+      "bytes_before": 2102292480,
+      "allocated_bytes_at_deletion": 2096701440
+    },
+    {
+      "path": "/private/tmp/iphone-forest03-cloud-derived",
+      "kind": "derived-data",
+      "identity": "/Users/user/cube-crash/native/standalone/Stack to Six.xcodeproj",
+      "bytes_before": 1622016,
+      "allocated_bytes_at_deletion": 1622016
+    },
+    {
+      "path": "/private/tmp/native-batch-20261105-derived",
+      "kind": "derived-data",
+      "identity": "/Users/user/cube-crash/native/standalone/Stack to Six.xcodeproj",
+      "bytes_before": 93802496,
+      "allocated_bytes_at_deletion": 93802496
+    },
+    {
+      "path": "/private/tmp/settings-arcade-voices-20261105/DerivedData",
+      "kind": "derived-data",
+      "identity": "/Users/user/cube-crash/native/standalone/Stack to Six.xcodeproj",
+      "bytes_before": 93237248,
+      "allocated_bytes_at_deletion": 93237248
+    },
+    {
+      "path": "/private/tmp/native-ipad-snapshot-derived",
+      "kind": "derived-data",
+      "identity": "/tmp/native-ipad-source-snapshot-20261104/native/standalone/Stack to Six.xcodeproj",
+      "bytes_before": 305811456,
+      "allocated_bytes_at_deletion": 305811456
+    },
+    {
+      "path": "/private/tmp/nav-bg-refresh-derived",
+      "kind": "derived-data",
+      "identity": "/Users/user/cube-crash/native/standalone/Stack to Six.xcodeproj",
+      "bytes_before": 1851392,
+      "allocated_bytes_at_deletion": 1851392
+    },
+    {
+      "path": "/private/tmp/ipad-journey-snapshot-derived",
+      "kind": "derived-data",
+      "identity": "/tmp/ipad-journey-source-20261104/native/standalone/Stack to Six.xcodeproj",
+      "bytes_before": 355815424,
+      "allocated_bytes_at_deletion": 355815424
+    },
+    {
+      "path": "/private/tmp/arcade-depth24-derived",
+      "kind": "derived-data",
+      "identity": "/tmp/arcade-depth24-source/native/standalone/Stack to Six.xcodeproj",
+      "bytes_before": 20443136,
+      "allocated_bytes_at_deletion": 20443136
+    },
+    {
+      "path": "/private/tmp/ipad-home-layout-derived",
+      "kind": "derived-data",
+      "identity": "/Users/user/cube-crash/native/standalone/Stack to Six.xcodeproj",
+      "bytes_before": 1847296,
+      "allocated_bytes_at_deletion": 1847296
+    },
+    {
+      "path": "/private/tmp/arcade-paper-derived",
+      "kind": "derived-data",
+      "identity": "/Users/user/cube-crash/native/standalone/Stack to Six.xcodeproj",
+      "bytes_before": 132567040,
+      "allocated_bytes_at_deletion": 132567040
+    },
+    {
+      "path": "/private/tmp/home-leaf-final-derived",
+      "kind": "derived-data",
+      "identity": "/tmp/home-ambient-cadence-20261104/native/standalone/Stack to Six.xcodeproj",
+      "bytes_before": 38379520,
+      "allocated_bytes_at_deletion": 38379520
+    },
+    {
+      "path": "/private/tmp/nav-atomic-preview-derived-20261106",
+      "kind": "derived-data",
+      "identity": "/Users/user/cube-crash/native/standalone/Stack to Six.xcodeproj",
+      "bytes_before": 1863680,
+      "allocated_bytes_at_deletion": 1863680
+    },
+    {
+      "path": "/private/tmp/native-intro-logo-drop-derived",
+      "kind": "derived-data",
+      "identity": "/Users/user/cube-crash/native/standalone/Stack to Six.xcodeproj",
+      "bytes_before": 1712128,
+      "allocated_bytes_at_deletion": 1712128
+    },
+    {
+      "path": "/private/tmp/native-ipad-install-derived",
+      "kind": "derived-data",
+      "identity": "/Users/user/cube-crash/native/standalone/Stack to Six.xcodeproj",
+      "bytes_before": 1716224,
+      "allocated_bytes_at_deletion": 1716224
+    },
+    {
+      "path": "/private/tmp/close-dice-derived",
+      "kind": "derived-data",
+      "identity": "/Users/user/cube-crash/native/standalone/Stack to Six.xcodeproj",
+      "bytes_before": 2129920,
+      "allocated_bytes_at_deletion": 2129920
+    },
+    {
+      "path": "/private/tmp/native-nav-height-lock-derived",
+      "kind": "derived-data",
+      "identity": "/Users/user/cube-crash/native/standalone/Stack to Six.xcodeproj",
+      "bytes_before": 2007040,
+      "allocated_bytes_at_deletion": 2007040
+    },
+    {
+      "path": "/private/tmp/native-dual-release-derived",
+      "kind": "derived-data",
+      "identity": "/Users/user/cube-crash/native/standalone/Stack to Six.xcodeproj",
+      "bytes_before": 1687552,
+      "allocated_bytes_at_deletion": 1687552
+    },
+    {
+      "path": "/private/tmp/home-phone-cloud-spread-derived",
+      "kind": "derived-data",
+      "identity": "/Users/user/cube-crash/native/standalone/Stack to Six.xcodeproj",
+      "bytes_before": 1847296,
+      "allocated_bytes_at_deletion": 1847296
+    },
+    {
+      "path": "/private/tmp/nav-scroll-derived",
+      "kind": "derived-data",
+      "identity": "/Users/user/cube-crash/native/standalone/Stack to Six.xcodeproj",
+      "bytes_before": 1875968,
+      "allocated_bytes_at_deletion": 1875968
+    },
+    {
+      "path": "/private/tmp/native-modal-right-edge-derived",
+      "kind": "derived-data",
+      "identity": "/Users/user/cube-crash/native/standalone/Stack to Six.xcodeproj",
+      "bytes_before": 111394816,
+      "allocated_bytes_at_deletion": 111394816
+    },
+    {
+      "path": "/Users/user/Library/Developer/Xcode/DerivedData/Stack_to_Six-ecsveioqnzuvvgcxshslsqgqdbhc",
+      "kind": "derived-data",
+      "identity": "/Users/user/Stack to Six/Stack to Six.xcodeproj",
+      "allocated_bytes_at_deletion": 1305231360
+    },
+    {
+      "path": "/Users/user/Library/Developer/Xcode/DerivedData/Stack_to_Six-exxxpoqezlbemqaryqlbecvxsfyt",
+      "kind": "derived-data",
+      "identity": "/Users/user/cube-crash/native/standalone/Stack to Six.xcodeproj",
+      "allocated_bytes_at_deletion": 34840576
+    },
+    {
+      "path": "/Users/user/Library/Developer/Xcode/Archives/2026-08-27/Stack to Six 1.0 (3).xcarchive",
+      "kind": "archive",
+      "identity": "com.taptapdesign.stacktosix.Stack-to-Six",
+      "allocated_bytes_at_deletion": 372334592
+    },
+    {
+      "path": "/Users/user/cube-crash/dist",
+      "kind": "generated-web-output",
+      "allocated_bytes_at_deletion": 1539997696
+    },
+    {
+      "path": "/private/tmp/native-dual-source-20261104/native/standalone/Stack to Six/Web.bundle",
+      "kind": "duplicate-generated-web-bundle",
+      "identity": "byte-identical to preserved main Web.bundle",
+      "bytes_before": 1209536512,
+      "allocated_bytes_at_deletion": 1209536512
+    },
+    {
+      "path": "/private/tmp/home-leaf-independent-20261104/native/standalone/Stack to Six/Web.bundle",
+      "kind": "duplicate-generated-web-bundle",
+      "identity": "byte-identical to preserved main Web.bundle",
+      "bytes_before": 1209536512,
+      "allocated_bytes_at_deletion": 1209536512
+    },
+    {
+      "path": "/private/tmp/home-balloon-mix-20261104/native/standalone/Stack to Six/Web.bundle",
+      "kind": "duplicate-generated-web-bundle",
+      "identity": "byte-identical to preserved main Web.bundle",
+      "bytes_before": 1209536512,
+      "allocated_bytes_at_deletion": 1209536512
+    },
+    {
+      "path": "/private/tmp/home-leaf-final-20261104/native/standalone/Stack to Six/Web.bundle",
+      "kind": "duplicate-generated-web-bundle",
+      "identity": "byte-identical to preserved main Web.bundle",
+      "bytes_before": 1209536512,
+      "allocated_bytes_at_deletion": 1209536512
+    },
+    {
+      "path": "/private/tmp/arcade-depth24-source/native/standalone/Stack to Six/Web.bundle",
+      "kind": "duplicate-generated-web-bundle",
+      "identity": "byte-identical to preserved main Web.bundle",
+      "bytes_before": 1209536512,
+      "allocated_bytes_at_deletion": 1209536512
+    },
+    {
+      "path": "/private/tmp/ipad-journey-source-20261104/native/standalone/Stack to Six/Web.bundle",
+      "kind": "duplicate-generated-web-bundle",
+      "identity": "byte-identical to preserved main Web.bundle",
+      "bytes_before": 1209536512,
+      "allocated_bytes_at_deletion": 1209536512
+    },
+    {
+      "path": "/private/tmp/native-ipad-source-snapshot-20261104/native/standalone/Stack to Six/Web.bundle",
+      "kind": "duplicate-generated-web-bundle",
+      "identity": "byte-identical to preserved main Web.bundle",
+      "bytes_before": 1209536512,
+      "allocated_bytes_at_deletion": 1209536512
+    },
+    {
+      "path": "/private/tmp/home-ambient-cadence-20261104/native/standalone/Stack to Six/Web.bundle",
+      "kind": "duplicate-generated-web-bundle",
+      "identity": "byte-identical to preserved main Web.bundle",
+      "bytes_before": 1209536512,
+      "allocated_bytes_at_deletion": 1209536512
+    }
+  ],
+  "free_bytes_before": 36159221760,
+  "source_file_count": 9067,
+  "source_comparison": {
+    "changed": [
+      "native/jimi-2026/JimiNativeEndRunModal.swift"
+    ],
+    "removed": [],
+    "added": []
+  },
+  "project_sources_removed": false,
+  "concurrent_source_edit_preserved": "native/jimi-2026/JimiNativeEndRunModal.swift changed outside cleanup; not overwritten or staged into cleanup receipt commit",
+  "installed_binaries_canonical_saves_and_retained_build_unchanged": false,
+  "removed_allocated_bytes": 16659300352,
+  "free_bytes_after": 41899085824,
+  "observed_free_space_increase": 5739864064,
+  "write_fsync_pass": true,
+  "protected_runtime_observed_differences": {
+    "1018BE2D-491B-465F-8F75-3E5BEB38C22A": [
+      "/Users/user/Library/Developer/CoreSimulator/Devices/1018BE2D-491B-465F-8F75-3E5BEB38C22A/data/Containers/Data/Application/E8B2C709-9D41-48AA-9F57-AB80912ADD83/Library/Application Support/StackToSixNative/state-v1.previous.json",
+      "/Users/user/Library/Developer/CoreSimulator/Devices/1018BE2D-491B-465F-8F75-3E5BEB38C22A/data/Containers/Data/Application/E8B2C709-9D41-48AA-9F57-AB80912ADD83/Library/Application Support/StackToSixNative/state-v1.json"
+    ],
+    "43A75086-0C64-464C-B71C-FDD01AF59C32": [],
+    "retained_build": []
+  },
+  "installed_and_retained_binaries_unchanged": true,
+  "canonical_saves_all_still_exist": true,
+  "save_scope_note": "Cleanup never writes or deletes installed app/data containers. iPhone Simulator save hashes changed during concurrent live work; they were preserved in place, not restored. iPad save hashes and all recorded app/build binaries are unchanged.",
+  "no_sources_or_original_assets_deleted": true,
+  "post_cleanup_qa_ios": "PASS; source target/root/membership and original asset bytes, no PWA sync",
+  "verification_status": "PASS cleanup scope and retained apps/build; byte equality excludes observed concurrent source/save writes",
+  "completed_utc": "2026-11-08T02:50:12Z"
+}

@@ -1,3 +1,39 @@
+## 2026-11-08 · Verified online checkpoint and authorized old-build cleanup
+
+Published **Native app - production state skoro pa gotovo**, immutable annotated
+tag `native-app-production-state-skoro-pa-gotovo`, payload `930b5c5e`. Verified
+remote main and peeled tag both equal the full payload commit before deletion;
+GitHub release published with complete Croatian scope/validation notes.
+
+Removed only 33 explicit inventoried old generated paths: inactive Native/PWA
+DerivedData, old PWA archive, ignored local dist, and 8 temporary Web.bundle copies
+verified byte-identical to the retained main historical Web.bundle. Retained
+`/tmp/home-bottom-nav-normal-derived` including latest normal Native app matching
+the installed Jimi iPhone app; retained PWA source/bundle, all production sources,
+original artwork/audio, installed apps, Simulator data, both canonical save files,
+Git history and old tags. No legacy operation or physical-device operation.
+Removed allocated folder sizes sum 15.515GiB; observed filesystem free-space
+increase 5.346GiB (free space 39.022GiB at receipt), which is distinct
+from summed sizes on a shared-block filesystem with concurrent activity.
+
+Read-only comparison of 9067 project files found no removed/added source paths;
+one concurrent edit in `native/jimi-2026/JimiNativeEndRunModal.swift` arrived after
+publication and was preserved outside the immutable benchmark and this receipt
+commit. Further concurrent modal-test edits arrived before the receipt commit and
+also remain local. Do not overwrite or silently include that subsequent work. All inventoried
+installed/retained binaries unchanged; iPad canonical save hashes unchanged.
+iPhone canonical save hashes changed during concurrent live activity; cleanup
+never writes save/container paths and did not restore or overwrite those files.
+Do not claim byte-identical phone saves across this live interval. Initial strict
+source-equality assertion correctly stopped finalization on the concurrent source
+edit after all deletions; investigation confirmed no source path was deleted.
+
+PASS post-cleanup qa:ios and write/fsync probe. Full no-sync qa:full 20 gates,
+530 source suites/4011 tests passed immediately before publication; no full-suite
+rerun for documentation-only receipt. Durable exact deletion/verification receipt:
+[native-production-state-20261108/cleanup-receipt.json](native-production-state-20261108/cleanup-receipt.json).
+No new build/install/launch or physical acceptance claimed.
+
 ## 2026-11-08 · Native app - production state skoro pa gotovo checkpoint
 
 User explicitly selects the complete current Native state as the latest benchmark
@@ -16,8 +52,10 @@ build/install receipts remain as recorded below; this checkpoint publication
 performs no new build/install or physical test. Live read-only inspection confirms
 retained main build binaries match installed Jimi iPhone Simulator binaries;
 existing iPad installation is separately preserved. Both canonical saves on each
-Simulator were inventoried by hashes without reading them into Git. Publication
-and subsequent cleanup evidence will be appended after actual completion. No
+Simulator were inventoried by hashes without reading them into Git. Published payload commit `930b5c5e0be463f956391b9cd51a4589d517a769`; remote main and
+annotated tag peeled identity verified before cleanup. GitHub release:
+https://github.com/taptapdesign-jimi/cube-crash-appstore/releases/tag/native-app-production-state-skoro-pa-gotovo.
+Cleanup evidence is recorded above and in the committed receipt. No
 PWA/legacy sync, Simulator reset or save migration. Historical tags preserved;
 remaining physical/performance/release acceptance limits remain explicit.
 
