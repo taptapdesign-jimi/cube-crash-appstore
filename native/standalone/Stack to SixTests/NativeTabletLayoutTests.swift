@@ -850,10 +850,7 @@ final class NativeTabletLayoutTests:XCTestCase {
             let scale=NativeTabletLayout.worldFrame(world.bounds).width/390*1.105
             XCTAssertEqual(card.bounds.width,90*scale,accuracy:0.01)
             XCTAssertEqual(card.bounds.height,133*scale,accuracy:0.01)
-            if worldID>1 {
-                let badge=try XCTUnwrap(all(card).first{$0.accessibilityIdentifier=="native.world.ribbon"})
-                XCTAssertEqual(badge.bounds.width,56*scale,accuracy:0.01)
-            }
+            XCTAssertNil(all(card).first{$0.accessibilityIdentifier=="native.world.ribbon"})
             XCTAssertEqual(unit.bounds.width,card.bounds.width,accuracy:0.01)
             let island=try XCTUnwrap(all(world).first{$0.accessibilityIdentifier=="native.world.part.\(id).island"})
             let islandRect=island.convert(island.bounds,to:world)

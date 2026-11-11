@@ -1245,7 +1245,7 @@ final class NativeAppCoordinatorTests:XCTestCase {
             XCTAssertTrue(try XCTUnwrap(store.load()).progression.viewedJourneyBoards.contains(4),"Viewed state is durable before the handler returns")
             let retained=try XCTUnwrap(world.snapshot.units.first{$0.boardID==4})
             XCTAssertTrue(retained.viewed);XCTAssertFalse(retained.newRibbon)
-            XCTAssertEqual(find(modal,"native.world.ribbon") != nil,opening==1,"Only the first presentation retains the captured NEW ribbon")
+            XCTAssertNil(find(modal,"native.world.ribbon"),"Journey cards never show NEW")
             print("JOURNEY_CARD_RESPONSE smallProfile opening=\(opening) saveMs=\((saveTimes.last ?? 0)*1000) snapshotMs=\((snapshotTimes.last ?? 0)*1000) handlerToInstalledModalMs=\(handlerTime*1000)")
             try await waitFor{modal.acceptsCardPan}
             let cta=try XCTUnwrap(find(modal,"native.world.card.play") as? JimiV9PlainButton)

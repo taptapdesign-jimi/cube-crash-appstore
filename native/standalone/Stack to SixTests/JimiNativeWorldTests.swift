@@ -782,35 +782,6 @@ final class JimiNativeWorldTests: XCTestCase {
         }
     }
 
-    func testNEWFlagWaitsForVisibleEntryThenAnimatesRemovalAndParkQuiescesIt() async throws {
-        var initial=fixture();var unit=(initial["units"] as! [[String:Any]])[0];unit["newRibbon"]=true;initial["units"]=[unit]
-        let world=try XCTUnwrap(JimiNativeWorldView(snapshot:initial,assets:art));world.frame=CGRect(x:0,y:0,width:390,height:844);world.layoutIfNeeded()
-        defer{world.cleanup()}
-        let ready=expectation(description:"Selected World ready");world.prepare{ready.fulfill()};await fulfillment(of:[ready],timeout:10)
-        let ribbon=try XCTUnwrap(descendant(world,"native.world.ribbon") as? JimiNativeNewRibbonView)
-        XCTAssertEqual(ribbon.layer.opacity,0);XCTAssertNil(ribbon.layer.animationKeys())
-        let entered=expectation(description:"Visible Unit enter");world.enter{entered.fulfill()}
-        XCTAssertNotNil(ribbon.layer.animation(forKey:"ribbon.motion"));await fulfillment(of:[entered],timeout:5);world.finishPresentationAdmission()
-        var next=initial;unit["newRibbon"]=false;next["units"]=[unit];next["stateRevision"]=2
-        world.reconcile(next);XCTAssertNotNil(ribbon.layer.animation(forKey:"ribbon.motion"));XCTAssertNotNil(ribbon.superview)
-        world.park();XCTAssertNil(ribbon.layer.animationKeys());XCTAssertNil(ribbon.superview)
-    }
-    func testNEWPortalRibbonExitsBeforeTheExistingCardReturnAndCleanup() async throws {
-        var initial=fixture();var unit=(initial["units"] as! [[String:Any]])[0];unit["newRibbon"]=true;initial["units"]=[unit]
-        let world=try XCTUnwrap(JimiNativeWorldView(snapshot:initial,assets:art));world.frame=CGRect(x:0,y:0,width:390,height:844);world.layoutIfNeeded()
-        let scene=try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.first),previous=scene.windows.first{$0.isKeyWindow}
-        let window=UIWindow(windowScene:scene),host=UIViewController();window.frame=world.frame;window.rootViewController=host;host.view.addSubview(world);window.makeKeyAndVisible()
-        defer{world.cleanup();window.isHidden=true;window.rootViewController=nil;previous?.makeKey()}
-        let prepared=expectation(description:"Ribbon card ready");world.prepare{prepared.fulfill()};await fulfillment(of:[prepared],timeout:10)
-        let entered=expectation(description:"World admission");world.enter{entered.fulfill()};await fulfillment(of:[entered],timeout:5);world.finishPresentationAdmission()
-        world.openCard(boardID:1)
-        try await awaitCardOpening(try XCTUnwrap(world.subviews.compactMap{$0 as? JimiNativeWorldCardView}.first))
-        let modal=try XCTUnwrap(descendant(world,"native.world.card.modal"))
-        let ribbon=try XCTUnwrap(descendant(modal,"native.world.ribbon") as? JimiNativeNewRibbonView)
-        let returned=expectation(description:"Original card return");world.closeCard{returned.fulfill()}
-        XCTAssertEqual(ribbon.layer.animation(forKey:"ribbon.motion")?.duration,0.24)
-        await fulfillment(of:[returned],timeout:5);XCTAssertNil(ribbon.superview);XCTAssertNil(ribbon.layer.animationKeys())
-    }
     func testCardCloseResumesExistingUnitWaveClockWithoutNewOnset() async throws {
         let world=try XCTUnwrap(JimiNativeWorldView(snapshot:fixture(),assets:art));world.frame=CGRect(x:0,y:0,width:390,height:844);world.layoutIfNeeded()
         let scene=try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.first),previous=scene.windows.first{$0.isKeyWindow}
@@ -2603,8 +2574,7 @@ final class JimiNativeWorldTests: XCTestCase {
             XCTAssertEqual(card.stableFaceAngle,0)
             XCTAssertNotNil(foil.animation(forKey:"modal.holo.alpha"))
             XCTAssertGreaterThan(foil.presentation()?.opacity ?? 0,0)
-            let badge=try XCTUnwrap(descendant(card,"native.world.ribbon") as? JimiNativeNewRibbonView)
-            XCTAssertGreaterThan(badge.layer.zPosition,CGFloat(foil.transform.m43))
+            XCTAssertNil(descendant(card,"native.world.ribbon"))
             let image=UIGraphicsImageRenderer(bounds:window.bounds).image{_ in window.drawHierarchy(in:window.bounds,afterScreenUpdates:true)}
             try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/legendary-alert-opaque.png"))
             card.tapToFlip();try await settle(0.65)

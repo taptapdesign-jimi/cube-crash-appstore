@@ -156,7 +156,6 @@ final class JimiNativeWorldHost {
             if pending { invalidateAction() }
         } else if pending { return }
         let state = worldView.snapshot
-        let presentationHasNewRibbon = action == "openCard" && state.units.first(where:{$0.boardID == boardID})?.newRibbon == true
         actionID += 1; generation += 1; let owner = generation
         pending = true; onBusy?(true)
         var payload: [String: Any] = ["id": actionID, "worldID": state.worldID,
@@ -187,7 +186,7 @@ final class JimiNativeWorldHost {
             }
             switch action {
             case "openCard":
-                if let boardID { worldView.openCard(boardID: boardID,presentationHasNewRibbon:presentationHasNewRibbon) }
+                if let boardID { worldView.openCard(boardID: boardID) }
                 self.finishAction()
             case "close":
                 worldView.closeCard()

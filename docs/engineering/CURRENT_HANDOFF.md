@@ -1,3 +1,28 @@
+## 2026-11-11 · Remove Journey NEW decoration on both branches
+
+User removes NEW from Journey World Unit cards and their info-modal artwork.
+Deleted the decoration view/factory, admission, finite animation, return replay,
+preload and host presentation override. Original image assets and legacy
+viewed/newRibbon snapshot metadata remain preserved; metadata paints no badge.
+Backpack NEW indicators retain their existing separate owner.
+The isolated main change is also applied to feature/contextual-tutorial-v2;
+existing uncommitted tutorial work stays separate and intact.
+PASS qa:fast, qa:ios, final feature-runtime and Swift syntax/diff checks.
+PASS real World/card open-close-reopen regression (legacy NEW flag true),
+NativeAppCoordinator viewed/reopen and rendered tablet-card checks:
+/tmp/journey-remove-new-native-retest.log and
+/tmp/journey-remove-new-native-tests.log. The first run's obsolete app-navigation
+fixture failed before World admission; replaced with direct mounted real World.
+Full QA: FAIL known preserved-web scene-builders asset assertion (4010 pass,
+1 fail); initial missing retired-test metadata was fixed and admission/fast
+rerun PASS. Logs /tmp/journey-remove-new-{fast,full,ios,feature-final}.log.
+Normal Debug build PASS /tmp/journey-remove-new-build.log; verified bundle
+com.taptapdesign.stacktosix.native, installed over retained QA iPhone Simulator
+and launched normally PID56484. Post-launch SBRingerMuted=1. Canonical save
+backup /tmp/journey-remove-new-save-backup is post-launch only (the pre-install
+backup attempt used a stale container path); no before/after hash claim.
+No physical/PWA/legacy installation.
+
 ## 2026-11-08 · Verified iPhone-first Git publication
 
 Physical install/normal launch completed before commit or push. Source checkpoint
