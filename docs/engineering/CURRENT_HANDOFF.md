@@ -31,7 +31,15 @@ Release compiled and compiled identity/assets/no-WebKit audit PASS
 in -release.log and -release-retry.log. SecurityAgent is active;user asked to
 approve Keychain codesign access locally per delivery skill. No physical install
 has happened. All4044 production input hashes stable through compilation.
-Normal Simulator install-over/launch and main merge evidence follows.
+Normal Debug Simulator install-over/launch PID48368;9boosted WAV hashes exact,
+no XCTest,both slots byte-identical to
+`/tmp/tutorial-cta-3db-simulator-saves-20261112-214109`. SBRingerMuted=1 at launch;
+final audio-mode/CUA check pending protected user Keychain handoff.
+Feature committed6c07a4fc and fast-forwarded into local main. Production hashes
+on main identical to compiled inputs;all other tracked Native/docs/audio work
+included in this contextual branch checkpoint. Studio/output untracked drafts
+left untouched;no remote push. Phone installation still pending local Keychain
+approval;do not claim installed/signed Release yet.
 
 ## 2026-11-12 · Tutorial reset after Special bar voice replacement
 
