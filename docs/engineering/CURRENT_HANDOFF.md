@@ -1,3 +1,35 @@
+## 2026-11-12 · Native main installed on iPhone13blue
+
+Explicit phone-install request fulfilled after CTA/speech update and local main
+merge. Runtime checkpoint6c07a4fc is ancestor of current main;no remote push.
+User saw no Keychain prompt. Same codesign command/key2631157 succeeded in a PTY
+(exit0),without entering credentials or changing Keychain policies. Earlier
+noninteractive Xcode signing errors remain in logs;do not label those builds
+BUILD SUCCEEDED. Existing fully linked Release binary was signed directly with
+its Xcode-generated entitlements. Apple certificate chain verified;strict/deep
+signature PASS `/tmp/tutorial-cta-3db-final-signature.log`;compiled identity,
+original assets and no-WebKit audit PASS `-final-release-audit.log`. All4044
+production file hashes match the compiled pre-main tree:
+`bbf7c317fccdd5ab6ec6bc06165aaced068f68463b594c64bfc155758b6d595a`.
+Profile includes phone UDID and is valid until2026-11-16T18:36:39Z.
+
+Installed over existing .native app on connected wired iPhone13blue
+0F62B71E-0B04-53C3-906E-EC28F5D2390B. `App installed` receipt:
+`/tmp/tutorial-phone-final-install.json` / .log;new installation UUID
+717ED9D2-E066-4D1E-BFBC-E925792AB217. Normal launch,arguments[];
+PID17382 confirmed running from that exact new installation executable via
+`/tmp/tutorial-phone-final-{launch,processes,running-receipt}.json`.
+Both state-v1.json and state-v1.previous.json byte-identical before install,
+after install,and after launch. Exact snapshots:
+`/tmp/tutorial-phone-final-delivery-20261112-224133/{before,after-install,after-launch}`.
+No reset/uninstall/PWA/legacy/iPad install or physical audio-setting change.
+
+Dedicated Simulator normal app also current;CUA observed New Reward because
+user continued playing. Kept current screen/save. Toolbar Mute off and actual
+SBRingerMuted=0. Existing PASS104 Native,fast/ios/audio/feature/KING330 gates;
+full QA retains only known preserved-web asset test failure,not falsely green.
+Physical optical/touch/speaker-mix/FPS/thermal acceptance remains user review.
+
 ## 2026-11-12 · All tutorial CTA feedback, speech+3dB and main delivery
 
 User requests all tutorial CTA clicks,spoken tutorial lines+3dB,then merge current
