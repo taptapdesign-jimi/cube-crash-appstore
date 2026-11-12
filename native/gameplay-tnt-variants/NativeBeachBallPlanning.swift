@@ -32,7 +32,6 @@ enum NativeBeachBallPlanning {
         func clamped(_ x:Double)->Double { min(1,max(0,x)) }
         func powerIn(_ p:Double)->Double { pow(clamped(p),3) }
         func powerOut(_ p:Double)->Double { 1-pow(1-clamped(p),3) }
-        func backOut(_ p:Double,_ strength:Double)->Double { let t=clamped(p)-1;return 1+t*t*((strength+1)*t+strength) }
         func mix(_ a:Double,_ b:Double,_ p:Double)->Double { a+(b-a)*p }
         let fall=plan.duration*0.52,bounceStart=fall+0.015,bounceEnd=bounceStart+plan.duration*0.26
         var x=plan.x,y=plan.y,rotation=0.0
@@ -41,19 +40,27 @@ enum NativeBeachBallPlanning {
         else if time<bounceEnd { let p=powerOut((time-bounceStart)/(plan.duration*0.26));x=mix(plan.x1,plan.x2,p);y=mix(plan.floorY,plan.bounceY,p);rotation=mix(plan.rotation,plan.rotation * -0.55,p) }
         else { let p=powerIn((time-bounceEnd)/(plan.duration*0.42));x=mix(plan.x2,plan.x3,p);y=mix(plan.bounceY,plan.exitY,p);rotation=mix(plan.rotation * -0.55,plan.rotation * -1.25,p) }
         if time<bounceStart { rotation=plan.rotation*powerOut((time-0.01)/0.045) }
-        // Stay round in free flight. Compression begins only at floor contact;
-        // the existing floor hold ends at the compression peak.
-        var sx=1.0,sy=1.0
-        if time>=fall && time<bounceStart {
-            let p=powerOut((time-fall)/0.015)
-            sx=mix(1,1.26,p);sy=mix(1,0.70,p)
-        } else if time>=bounceStart && time<bounceStart+0.055 {
-            let p=powerOut((time-bounceStart)/0.055)
-            sx=mix(1.26,0.84,p);sy=mix(0.70,1.18,p)
-        } else if time>=bounceStart+0.055 && time<bounceStart+0.145 {
-            let p=backOut((time-bounceStart-0.055)/0.09,1.7)
-            sx=mix(0.84,1,p);sy=mix(1.18,1,p)
-        }
+        let (sx,sy)=floorBounceScale(at:time-fall)
         return Pose(x:x,y:y,scaleX:plan.scale*sx,scaleY:plan.scale*sy,rotation:rotation,alpha:time>=plan.lifetime ? 0:plan.alpha)
     }
+    /// Shared authored Ball floor compression, launch stretch and spring recovery.
+    static func floorBounceScale(at time:Double)->(Double,Double) {
+        func clamp(_ p:Double)->Double {min(1,max(0,p))}
+        func powerOut(_ p:Double)->Double {1-pow(1-clamp(p),3)}
+        func backOut(_ p:Double,_ strength:Double)->Double {let t=clamp(p)-1;return 1+t*t*((strength+1)*t+strength)}
+        func mix(_ a:Double,_ b:Double,_ p:Double)->Double {a+(b-a)*p}
+        var sx=1.0,sy=1.0
+        if time>=0 && time<0.015 {
+            let p=powerOut(time/0.015)
+            sx=mix(1,1.26,p);sy=mix(1,0.70,p)
+        } else if time>=0.015 && time<0.070 {
+            let p=powerOut((time-0.015)/0.055)
+            sx=mix(1.26,0.84,p);sy=mix(0.70,1.18,p)
+        } else if time>=0.070 && time<0.160 {
+            let p=backOut((time-0.070)/0.09,1.7)
+            sx=mix(0.84,1,p);sy=mix(1.18,1,p)
+        }
+        return (sx,sy)
+    }
+
 }

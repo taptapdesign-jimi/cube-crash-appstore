@@ -20,6 +20,16 @@ final class NativeWildMergeSixRootTests:XCTestCase {
         }
         boardScaleAudit?()
     }
+    func testCoreMagnetRedShardsAndConsumedDestinationStayHiddenBothDirections()async throws {
+        for final in [false,true] {for reverse in [false,true] {
+            try await exercise(archetype:.magnet,variant:nil,reverse:reverse,disposeDuringMain:false,moves:49,finalOnly:final)
+        }}
+    }
+    func testCoreStarYellowShardsInNormalAndFinalMergesBothDirections()async throws {
+        for final in [false,true] {for reverse in [false,true] {
+            try await exercise(archetype:.star,variant:nil,reverse:reverse,disposeDuringMain:false,moves:49,finalOnly:final)
+        }}
+    }
     func testConsumedBottleDestinationDisposalAfterMainRetiresOldScene()async throws {
         try await exercise(archetype:.magnet,variant:"bottle",reverse:true,disposeDuringMain:true,moves:49)
     }
@@ -523,6 +533,7 @@ final class NativeWildMergeSixRootTests:XCTestCase {
         if let capturedBoard {board=capturedBoard;envelope.progression.completedJourneyBoards=Set(1..<board.board)}
         if arcadeTutorial || arcadeRun {board.mode = .arcade;board.board=1}
         let boardNumber=board.board
+        envelope.progression.beginAttempt(mode:board.mode,board:boardNumber)
         if arcadeTutorial || arcadeRun {envelope.arcadeRun=board;envelope.arcadeRunSavedAt=Date().timeIntervalSince1970}
         else {envelope.journeyRuns[boardNumber]=board}
         try store.save(envelope)
@@ -965,6 +976,27 @@ final class NativeWildMergeSixRootTests:XCTestCase {
         XCTAssertNil(failure,label);XCTAssertEqual(app.route,.gameplay,label);XCTAssertTrue(game() === gameplay,label)
         XCTAssertEqual(scene.sourceWildSixParticleAdmissions[mainKey],expectedMainCount,label)
         XCTAssertEqual(scene.sourceWildOrdinaryMergeSixShardCounts[mainKey].map{Array($0.dropFirst(priorMainShardCount))},[12],label)
+        if archetype == .magnet,variant == nil {
+            func descendants(_ node:SKNode)->[SKNode] {node.children.flatMap{[$0]+descendants($0)}}
+            let shardLayers=descendants(scene).filter{$0.zPosition==9993}
+            XCTAssertTrue(shardLayers.flatMap(\.children).compactMap{$0 as? SKShapeNode}.contains{
+                var r:CGFloat=0,g:CGFloat=0,b:CGFloat=0,a:CGFloat=0
+                return $0.fillColor.getRed(&r,green:&g,blue:&b,alpha:&a) && abs(r-242/255)<0.000001 && abs(g-96/255)<0.000001 && abs(b-52/255)<0.000001
+            },"Actual Magnet main mounts red shards")
+            if reverse {XCTAssertTrue(scene.sourceNativeTileNode(wildID).map{$0.sourceFinalResultChildrenHidden} ?? finalOnly,"Consumed Magnet must be hidden or already removed by the final merge")}
+            if reverse,!finalOnly {
+                let image=UIGraphicsImageRenderer(bounds:gameplay.view.bounds).image{_ in gameplay.view.drawHierarchy(in:gameplay.view.bounds,afterScreenUpdates:false)}
+                try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/magnet-merge-six-destination.png"))
+            }
+        }
+        if archetype == .star,variant == nil {
+            func descendants(_ node:SKNode)->[SKNode] {node.children.flatMap{[$0]+descendants($0)}}
+            let shards=descendants(scene).filter{$0.zPosition==9993}.flatMap(\.children).compactMap{$0 as? SKShapeNode}
+            XCTAssertTrue(shards.contains{
+                var r:CGFloat=0,g:CGFloat=0,b:CGFloat=0,a:CGFloat=0
+                return $0.fillColor.getRed(&r,green:&g,blue:&b,alpha:&a) && abs(r-1)<0.000001 && abs(g-203/255)<0.000001 && abs(b-71/255)<0.000001
+            },"Actual STAR Wild main mounts yellow shards")
+        }
         let ordinarySmoke=NativeSharedSmokeRecipes.regularSix(tileDepth:9993,reduced:false)
         let encoder=JSONEncoder();encoder.outputFormatting=[.sortedKeys]
         XCTAssertEqual(try scene.sourceWildOrdinaryMergeSixSmokeRecipes[mainKey]?.dropFirst(priorMainSmokeCount).map{try encoder.encode($0)},

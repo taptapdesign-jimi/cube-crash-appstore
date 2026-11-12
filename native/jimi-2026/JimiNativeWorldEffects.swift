@@ -227,7 +227,6 @@ final class JimiNativeInterimEffect {
         let space = CGColorSpaceCreateDeviceRGB()
         let colors = [CGColor(red:1,green:1,blue:238/255,alpha:0.98),CGColor(red:1,green:235/255,blue:142/255,alpha:0.86),CGColor(red:1,green:184/255,blue:76/255,alpha:0.56),CGColor(red:225/255,green:104/255,blue:55/255,alpha:0.20),CGColor(red:225/255,green:104/255,blue:55/255,alpha:0)]
         guard let gradient = CGGradient(colorsSpace:space,colors:colors as CFArray,locations:[0,0.18,0.43,0.68,0.88]) else {return []}
-        let times:[Double] = [0,0.18,0.52,0.82,1],alphas:[Double] = [0,0.32,0.611,0.26,0]
         return (0...30).compactMap { index in
             guard !cancelled() else {return nil}
             guard let context = CGContext(data:nil,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,space:space,bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue) else {return nil}
@@ -236,9 +235,7 @@ final class JimiNativeInterimEffect {
             context.saveGState()
             context.translateBy(x:0,y:size.height);context.scaleBy(x:1,y:-1)
             context.addPath(CGPath(roundedRect:CGRect(origin:.zero,size:size),cornerWidth:radius,cornerHeight:radius,transform:nil));context.clip()
-            let t = Double(index)/30,segment = min(3,times.lastIndex(where:{$0 <= t}) ?? 0)
-            let local = (t-times[segment])/(times[segment+1]-times[segment]),eased = local*local*(3-2*local)
-            let alpha = alphas[segment]+(alphas[segment+1]-alphas[segment])*eased,p = t*t*(3-2*t)
+            let t=Double(index)/30,alpha=NativeStarBurnTiming.burnAlpha(fraction:t),p=t*t*(3-2*t)
             let burnWidth = 0.72*size.width,burnHeight = 1.16*size.height
             context.setBlendMode(.screen);context.setAlpha(alpha)
             if uniformHighlight {

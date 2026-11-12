@@ -3,10 +3,11 @@ import CoreText
 
 /// Static original-paper crop and lightly nicked silhouette, renewed only per visit.
 @MainActor
-private final class NativeSettingsPaperSurface:UIView {
+final class NativeSettingsPaperSurface:UIView {
     private let texture:UIImageView
     private let edgeMask=CAShapeLayer()
     private var crop:CGFloat=0.5,mirrored=false,seed:UInt64=1
+    var edgeDetailScale:CGFloat=1 {didSet{if edgeDetailScale != oldValue {setNeedsLayout()}}}
     var circularCorners=false {didSet{if circularCorners != oldValue {setNeedsLayout()}}}
     var cornerRadius:CGFloat=22 {didSet{if cornerRadius != oldValue {setNeedsLayout()}}}
     private(set) var outline:CGPath=CGMutablePath()
@@ -29,7 +30,8 @@ private final class NativeSettingsPaperSurface:UIView {
             guard length>0 else{return}
             for slot in 0..<count {
                 let t=(CGFloat(slot)+0.35+random()*0.3)/CGFloat(count)
-                let half=min(3.4,1.4+random()*2)/length,depth=0.55+random()*1.45
+                let detail=max(0,min(1,edgeDetailScale))
+                let half=min(3.4,1.4+random()*2)*detail/length,depth=(0.55+random()*1.45)*detail
                 let before=CGPoint(x:start.x+dx*max(0,t-half),y:start.y+dy*max(0,t-half))
                 let tip=CGPoint(x:start.x+dx*t+inward.x*depth,y:start.y+dy*t+inward.y*depth)
                 let after=CGPoint(x:start.x+dx*min(1,t+half),y:start.y+dy*min(1,t+half))

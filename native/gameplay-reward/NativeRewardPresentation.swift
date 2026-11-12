@@ -28,7 +28,8 @@ struct NativeRewardPresentation {
             hero=CGRect(x:(width-heroWidth)/2,y:padding+titleHeight+26+subtitleHeight+clamp(height*0.125,70,116)-64+cardDrop,width:heroWidth,height:heroHeight)
             let handWidth=min(width*0.36,168),handHeight=handWidth*handAspect
             hand=CGRect(x:(width-handWidth)/2,y:height*0.56-handHeight*0.28+cardDrop,width:handWidth,height:handHeight)
-            coach=CGRect(x:16,y:height-bottomSafe-34-32,width:width-32,height:32)
+            let coachWidth=min(184,width-32)
+            coach=CGRect(x:(width-coachWidth)/2,y:height-40-48,width:coachWidth,height:48)
         }
     }
     struct Tilt {

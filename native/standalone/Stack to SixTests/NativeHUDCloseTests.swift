@@ -204,21 +204,47 @@ final class NativeHUDCloseTests:XCTestCase {
         XCTAssertEqual(checkpoints,savedBeforeDispose,"Retired modal must not checkpoint later")
     }
 
-    func testFailedExitCheckpointDismissesModalAndResumesBoard() async throws {
-        let engine=NativeGameplayEngine(state:.init(tiles:[.init(id:"one",cell:.init(column:0,row:0),value:1)]))
+    func testFailedEntryCheckpointKeepsExitModalPausedUntilExplicitClose() async throws {
+        let engine=NativeGameplayEngine(state:.init(tiles:[.init(id:"one",cell:.init(column:0,row:0),value:1),.init(id:"two",cell:.init(column:1,row:0),value:1)]))
         let controller=NativeGameplayViewController(engine:engine,resourceRoot:NativeTestResources.root)
         let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=controller;window.makeKeyAndVisible()
-        var checkpoints=0
-        let owner=NativeEndRunOwner(gameplay:controller,resourceRoot:NativeTestResources.root,save:{checkpoints += 1;return false},restart:{},exit:{})
+        var checkpoints=0,exits=0
+        let owner=NativeEndRunOwner(gameplay:controller,resourceRoot:NativeTestResources.root,save:{checkpoints += 1;return false},restart:{},exit:{exits += 1})
         defer{owner.dispose();controller.dispose();window.isHidden=true}
         controller.view.frame=window.bounds;controller.view.layoutIfNeeded()
         let scene=try XCTUnwrap(controller.boardScene);scene.layout(size:scene.size,insets:.zero,animateEntry:false)
         try await Task.sleep(for:.milliseconds(200))
+        let entryDeadline=Date().addingTimeInterval(5)
+        while scene.hasActiveHUDPresentationFeedback,Date()<entryDeadline {try await Task.sleep(for:.milliseconds(20))}
+        XCTAssertFalse(scene.hasActiveHUDPresentationFeedback)
         controller.onExit?()
         XCTAssertNotNil(controller.presentedViewController)
         let deadline=Date().addingTimeInterval(3)
-        while (checkpoints==0 || controller.presentedViewController != nil),Date()<deadline {try await Task.sleep(for:.milliseconds(20))}
-        XCTAssertEqual(checkpoints,1);XCTAssertNil(controller.presentedViewController);XCTAssertFalse(scene.isPaused)
+        while checkpoints==0,Date()<deadline {try await Task.sleep(for:.milliseconds(20))}
+        XCTAssertEqual(checkpoints,1)
+        let sheet=try XCTUnwrap(controller.presentedViewController as? JimiNativeEndRunModal)
+        XCTAssertTrue(scene.isPaused,"A refused checkpoint cannot resume an in-flight Special")
+        try await Task.sleep(for:.milliseconds(350))
+        XCTAssertTrue(controller.presentedViewController === sheet)
+        XCTAssertTrue(scene.isPaused)
+        sheet.onAction?("close")
+        let dismissDeadline=Date().addingTimeInterval(3)
+        while controller.presentedViewController != nil || !controller.tutorialVisualPresentationAllowed,Date()<dismissDeadline {try await Task.sleep(for:.milliseconds(20))}
+        XCTAssertNil(controller.presentedViewController)
+        XCTAssertFalse(scene.isPaused,"Only explicit Close resumes the board")
+        XCTAssertEqual(checkpoints,1,"Close must not require or retry an unsafe checkpoint")
+        controller.onExit?()
+        let reopened=try XCTUnwrap(controller.presentedViewController as? JimiNativeEndRunModal)
+        let readyDeadline=Date().addingTimeInterval(3)
+        while checkpoints<2,Date()<readyDeadline {try await Task.sleep(for:.milliseconds(20))}
+        XCTAssertTrue(scene.isPaused)
+        reopened.onAction?("exit")
+        let exitDeadline=Date().addingTimeInterval(3)
+        while controller.presentedViewController != nil || !controller.tutorialVisualPresentationAllowed,Date()<exitDeadline {try await Task.sleep(for:.milliseconds(20))}
+        XCTAssertNil(controller.presentedViewController)
+        XCTAssertEqual(checkpoints,3,"Confirmed Exit must still attempt its own coherent save")
+        XCTAssertEqual(exits,0,"A refused save must never leave gameplay")
+        XCTAssertFalse(scene.isPaused)
     }
 
     func testControllerModalPausePaintsEveryHUDContactAndNeverReplaysOnDismissal() async throws {

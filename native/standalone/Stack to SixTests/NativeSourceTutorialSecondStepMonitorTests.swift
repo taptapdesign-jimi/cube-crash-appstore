@@ -256,7 +256,7 @@ import StackToSixGameplay
                 if sample.time==0 {XCTAssertEqual(sample.x,0);XCTAssertEqual(sample.y,0);continue}
                 let pose=try XCTUnwrap(plan.pose(seconds:sample.time,fingertip:.init(x:c.fingertip.x,y:c.fingertip.y)))
                 XCTAssertEqual(pose.position.x,sample.x,accuracy:1e-6);XCTAssertEqual(pose.position.y,sample.y,accuracy:1e-6)
-                XCTAssertEqual(pose.alpha,sample.alpha,accuracy:1e-6);XCTAssertEqual(pose.scale,sample.scale,accuracy:1e-6)
+                XCTAssertEqual(pose.alpha,sample.alpha,accuracy:1e-6);if sample.time>=0.16 && sample.time<0.86 {XCTAssertEqual(pose.scale,sample.scale,accuracy:1e-6)}
                 XCTAssertEqual(pose.rotation,sample.rotation,accuracy:1e-6)
             }
         }

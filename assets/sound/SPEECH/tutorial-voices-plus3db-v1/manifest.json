@@ -1,0 +1,145 @@
+{
+  "sampleRate": 48000,
+  "channels": 1,
+  "format": "PCM16",
+  "policy": "PCM+1dB and cue+2dB relative to prior gain0.72; all other speech and Nala unchanged",
+  "activeSources": {
+    "tutorial-objective": [
+      "assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-objective.wav"
+    ],
+    "tutorial-stack": [
+      "assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-stack.wav"
+    ],
+    "tutorial-merge": [
+      "assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-merge.wav"
+    ],
+    "tutorial-special-bar": [
+      "assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-special-bar.wav"
+    ],
+    "tutorial-delivery": [
+      "assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-delivery.wav"
+    ],
+    "tutorial-special": [
+      "assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-special.wav"
+    ],
+    "tutorial-collection": [
+      "assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-collection.wav"
+    ],
+    "tutorial-combo": [
+      "assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-combo.wav"
+    ],
+    "tutorial-completion": [
+      "assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-completion.wav"
+    ]
+  },
+  "clips": [
+    {
+      "scene": "tutorial-objective",
+      "original": "assets/sound/SPEECH/tutorial-voices-v1/001-objective.wav",
+      "originalSHA256": "0e5d5d3f327a2a10a57765008440e0474599e8fe0180dbca4771c06cd33ae957",
+      "source": "assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-objective.wav",
+      "sha256": "d68926a3259cea5bf739090189c4cf9dcc68b59baacaa9963cd957a173a4b90d",
+      "duration": 1.35,
+      "peakDBFS": -3.026988273055529,
+      "pcmGainDB": 1,
+      "cueGain": 0.9064262964918004,
+      "totalPlaybackGainDB": 3
+    },
+    {
+      "scene": "tutorial-stack",
+      "original": "assets/sound/SPEECH/tutorial-voices-v1/002-stack.wav",
+      "originalSHA256": "b94e7e6302a38dd626c97502f51bf95bd4ac5900f0e10f1c8f28b158f9fa31c0",
+      "source": "assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-stack.wav",
+      "sha256": "6a1a1462d21bdb22cb8e2c73ee8ec841a70a1217cc9e529fcf0aee200224c395",
+      "duration": 1.24,
+      "peakDBFS": -2.077951333888274,
+      "pcmGainDB": 1,
+      "cueGain": 0.9064262964918004,
+      "totalPlaybackGainDB": 3
+    },
+    {
+      "scene": "tutorial-merge",
+      "original": "assets/sound/SPEECH/tutorial-voices-v1/003-merge.wav",
+      "originalSHA256": "e37628770b7e4a7783116500b4b0cf0bb192d72d0864657aef49454683186170",
+      "source": "assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-merge.wav",
+      "sha256": "3a53dd07454f1212b655008646afd349154ec09aa677a98010a5e9afeb85fcd5",
+      "duration": 1.63,
+      "peakDBFS": -2.043003417569322,
+      "pcmGainDB": 1,
+      "cueGain": 0.9064262964918004,
+      "totalPlaybackGainDB": 3
+    },
+    {
+      "scene": "tutorial-special-bar",
+      "original": "assets/sound/SPEECH/special bar voice.mp3",
+      "originalSHA256": "994005181319b153a709cbe130f0a8855d6573843577bb178d2c6265692c8fd8",
+      "source": "assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-special-bar.wav",
+      "sha256": "4b7f1e45eb061a1c6c5f3509e22170d3c13d41518faf5c9ec39f26b030dc1710",
+      "duration": 2.50775,
+      "peakDBFS": -2.606529581350037,
+      "pcmGainDB": 1,
+      "cueGain": 0.9064262964918004,
+      "totalPlaybackGainDB": 3
+    },
+    {
+      "scene": "tutorial-delivery",
+      "original": "assets/sound/SPEECH/tutorial-voices-v1/005-delivery.wav",
+      "originalSHA256": "e591c489ba8894b72f0441df03975ecf9f7e3068b0a7e83e4587f446ce44002f",
+      "source": "assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-delivery.wav",
+      "sha256": "0c3d03a1b99f07d4681bff1ad70fdd79e642cd98a9e63c8780da7d7997c56a66",
+      "duration": 1.56,
+      "peakDBFS": -1.6531392352957572,
+      "pcmGainDB": 1,
+      "cueGain": 0.9064262964918004,
+      "totalPlaybackGainDB": 3
+    },
+    {
+      "scene": "tutorial-special",
+      "original": "assets/sound/SPEECH/tutorial-voices-v1/006-special.wav",
+      "originalSHA256": "90979cf17141602b351dd3659e2ca4fa0985f1a68eb1580f93938961ec8560ec",
+      "source": "assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-special.wav",
+      "sha256": "f385328d6b69b2e37541feeeba09a3441a38b324b36465c0a5e465cf19d5796e",
+      "duration": 1.44,
+      "peakDBFS": -2.2434989829606313,
+      "pcmGainDB": 1,
+      "cueGain": 0.9064262964918004,
+      "totalPlaybackGainDB": 3
+    },
+    {
+      "scene": "tutorial-collection",
+      "original": "assets/sound/SPEECH/collection-little-helpers.wav",
+      "originalSHA256": "28420a064fadeb64e34231489e1c979f070780b7db3d97002ac173d59f9bf79f",
+      "source": "assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-collection.wav",
+      "sha256": "37ae5411d95d61936cdbdaa1a87ef4ca7802ec36a3e90deae2ed5fd92f0e4ddb",
+      "duration": 2.2506041666666667,
+      "peakDBFS": -2.713464100442592,
+      "pcmGainDB": 1,
+      "cueGain": 0.9064262964918004,
+      "totalPlaybackGainDB": 3
+    },
+    {
+      "scene": "tutorial-combo",
+      "original": "assets/sound/SPEECH/tutorial-voices-v1/011-combo.wav",
+      "originalSHA256": "0f47e9ea071250ba2fa72174b6405f14862f32ea4370fd85a9d03622a96cabe9",
+      "source": "assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-combo.wav",
+      "sha256": "ce1e2a14d2c2459f58d1a01e3c53351941895311c70742d3692b0ee2a522599a",
+      "duration": 2.45,
+      "peakDBFS": -1.3841597926860887,
+      "pcmGainDB": 1,
+      "cueGain": 0.9064262964918004,
+      "totalPlaybackGainDB": 3
+    },
+    {
+      "scene": "tutorial-completion",
+      "original": "assets/sound/SPEECH/tutorial-voices-v1/012-completion.wav",
+      "originalSHA256": "de2852bf1826b8c27c9ae434d6c0b00f35bc48c368752730019341806283b651",
+      "source": "assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-completion.wav",
+      "sha256": "9bd14203fec6f8e0fc7bcf7bae97e4e97a36bdffed59b8f1da00bd14a051f4e8",
+      "duration": 2.21,
+      "peakDBFS": -1.0910418440634015,
+      "pcmGainDB": 1,
+      "cueGain": 0.9064262964918004,
+      "totalPlaybackGainDB": 3
+    }
+  ]
+}

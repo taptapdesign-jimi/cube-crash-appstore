@@ -1,6 +1,27 @@
 import XCTest
 @testable import Stack_to_Six
 @MainActor final class NativeSourceWildShimmerTests:XCTestCase {
+ func testTutorialBackpackSweepMovesContinuouslyAndIsGoneAtSevenTenths(){
+  let playback=NativeSourceWildShimmerMotion.Playback.tutorialBackpack
+  XCTAssertEqual(playback.duration,0.70)
+  var previous = -Double.infinity
+  for n in 0...70 {
+   let p=playback.pose(seconds:Double(n)/100,width:379,height:438)
+   XCTAssertGreaterThan(p.x,previous);previous=p.x
+   XCTAssertGreaterThanOrEqual(p.alpha,0);XCTAssertLessThanOrEqual(p.alpha,0.3)
+  }
+  XCTAssertEqual(playback.pose(seconds:0,width:379,height:438).alpha,0)
+  XCTAssertEqual(playback.pose(seconds:0.70,width:379,height:438).alpha,0)
+  XCTAssertLessThan(playback.pose(seconds:0.65,width:379,height:438).alpha,0.12)
+  let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0},sourceFrameTransportEnabled:true)
+  defer{service.dispose()}
+  var alpha:Double=0
+  let owner=NativeSourceWildShimmerClock(service:service,width:379,height:438,playback:.tutorialBackpack,current:{true},random:{0.5},paint:{alpha=$0.alpha})
+  XCTAssertTrue(owner.start(immediate:true))
+  for n in 1...20 {service.deliver(wallMilliseconds:Double(n)*50)}
+  XCTAssertEqual(alpha,0,accuracy:0.00001);XCTAssertEqual(owner.activeRootCount,1,"Only the existing next-sweep delay remains")
+  owner.dispose();XCTAssertEqual(service.activeParticipantCount,0)
+ }
  func testEnvelopeMatchesExecutedOriginalGSAPTimeline(){
   // Actual fx.ts startWildShimmer with real GSAP; not computed by Swift.
   let rows:[(Double,Double,Double)]=[(0,0,-102.4),(0.07,0.173438,-102.4),(0.14,0.2625,-102.4),(0.28,0.3,-102.4),(0.78,0.3,-89.6),(1.28,0.3,0),(1.78,0.3,89.6),(2.28,0.3,102.4),(2.42,0.2625,102.4),(2.56,0,102.4)]

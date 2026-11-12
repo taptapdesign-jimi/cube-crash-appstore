@@ -4,6 +4,19 @@ import Foundation
 public struct NativeTutorialState: Equatable, Codable, Sendable {
     public enum Step: Int, Codable, Sendable { case stack = 1, mergeSix, freePlay, special }
     public var encouragementAcknowledged: Bool?
+    /// Nil keeps older in-progress tutorial saves on their existing entry path.
+    public var objectiveAcknowledged: Bool?
+    /// Armed by new tutorials or a genuine guide completion after this update.
+    /// Nil preserves already-completed older checkpoints without replaying copy.
+    public var collectionLessonAcknowledged: Bool?
+    /// Optional so an older in-progress guide keeps its original HUD path.
+    public var comboLessonAcknowledged: Bool?
+    /// Nil skips already-finished legacy lessons; current guides arm the final reading sheet.
+    public var completionLessonAcknowledged: Bool?
+    public var comboHUDRevealed: Bool?
+    public var comboLessonFastBaseline: Int?
+    public var comboLessonMoveCount: Int?
+    public func comboLessonReady(in mode:NativeRunMode)->Bool { (mode == .journey && collectionLessonAcknowledged == true) || (comboLessonMoveCount ?? 0)>=6 }
     public var needsEncouragement: Bool { guideCompleted && !done && encouragementAcknowledged != true }
     public var rewardArchetype: NativeWildArchetype?
     public var rewardVariant: String?
@@ -27,7 +40,7 @@ public struct NativeTutorialState: Equatable, Codable, Sendable {
     public var shouldLockHUD: Bool { active || requiresResultCompletion }
     public var requiresResultCompletion: Bool { guideCompleted && !done }
     public var usesLowValues: Bool { active || completionAssist }
-    public var meterMultiplier: Double { completionAssist ? 0.05 : 1 }
+    public var meterMultiplier: Double { completionAssist ? NativeWildMeterRules.tutorialCompletionChargeMultiplier : 1 }
 }
 public enum NativeTutorialRules {
     public static func guidedCells(columns: Int, rows: Int) -> (three: NativeCell, two: NativeCell, one: NativeCell) {
@@ -73,6 +86,7 @@ public enum NativeTutorialRules {
     }
     public static func finalChanceValue(state: NativeBoardState) -> Int? {
         guard state.tutorial?.completionAssist == true, (state.tutorial?.finalChanceSpawnCount ?? 99) < 99 else { return nil }
+        guard !state.tiles.contains(where:{$0.isWild && !$0.pendingRemoval}) else{return nil}
         guard let highest = state.activeTiles.filter({ !$0.isWild && !$0.locked && (1...5).contains($0.value) }).max(by: { $0.value < $1.value }) else { return nil }
         return max(1,min(5,6-highest.value))
     }

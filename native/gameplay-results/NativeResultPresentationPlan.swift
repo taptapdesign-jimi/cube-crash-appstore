@@ -196,6 +196,12 @@ struct NativeHUDNumberCounter {
 /// Cosmetic timing uses system randomness, independent of gameplay/source RNG.
 struct NativeStarBurnTiming {
     static let duration=1.1/1.3
+    nonisolated private static let burnTimes=[0.0,0.18,0.52,0.82,1],burnValues=[0.0,0.32,0.611,0.26,0]
+    nonisolated static func burnAlpha(fraction:Double)->Double {
+        let t=min(1,max(0,fraction)),segment=min(3,burnTimes.lastIndex(where:{$0<=t}) ?? 0)
+        let local=(t-burnTimes[segment])/(burnTimes[segment+1]-burnTimes[segment]),eased=local*local*(3-2*local)
+        return burnValues[segment]+(burnValues[segment+1]-burnValues[segment])*eased
+    }
     static func delay(first:Bool,random:()->Double={Double.random(in:0..<1)})->Double {
         let value=min(1,max(0,random()))
         return first ? 0.2+1.6*value:1.1+2.9*value

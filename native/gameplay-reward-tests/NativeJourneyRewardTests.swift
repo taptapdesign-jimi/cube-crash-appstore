@@ -207,8 +207,8 @@ final class NativeJourneyRewardTests:XCTestCase {
         func release(_ owner:Int){releases.append(owner)}
         func finish(){let callback=completion;completion=nil;callback?(true)}
     }
-    private func screen(_ clock:Clock,_ resources:Resources,reduced:Bool=false,stars:Int?=nil)->NativeJourneyRewardController {
-        let screen=NativeJourneyRewardController(root:URL(fileURLWithPath:"/unused"),board:11,score:1000,generation:77,awardedStars:stars,resources:resources,scheduler:clock,reducedMotion:reduced,random:{0.37},now:{clock.time});screen.prepareMagicCard={_,lease,completion in completion(NativeMagicCardSource.read(NativeTestResources.root.appendingPathComponent(NativeMagicCardSource.path),lease:lease))};screen.prepareFilteredFrames={images,_,completion in completion(images)};screen.loadViewIfNeeded();screen.view.frame=CGRect(x:0,y:0,width:390,height:844);screen.view.layoutIfNeeded();return screen
+    private func screen(_ clock:Clock,_ resources:Resources,reduced:Bool=false,stars:Int?=nil,root:URL=URL(fileURLWithPath:"/unused"))->NativeJourneyRewardController {
+        let screen=NativeJourneyRewardController(root:root,board:11,score:1000,generation:77,awardedStars:stars,resources:resources,scheduler:clock,reducedMotion:reduced,random:{0.37},now:{clock.time});screen.prepareMagicCard={_,lease,completion in completion(NativeMagicCardSource.read(NativeTestResources.root.appendingPathComponent(NativeMagicCardSource.path),lease:lease))};screen.prepareFilteredFrames={images,_,completion in completion(images)};screen.loadViewIfNeeded();screen.view.frame=CGRect(x:0,y:0,width:390,height:844);screen.view.layoutIfNeeded();return screen
     }
     func testInterimAndUnlockedHaveNoFloorShadowAndUnlockedBurnHasNoSweep() {
         let clock=Clock(),resources=Resources(),controller=screen(clock,resources,stars:3)
@@ -609,79 +609,54 @@ final class NativeJourneyRewardTests:XCTestCase {
         view.start();view.dispose();view.dispose();resources.finish();clock.advance(20)
         XCTAssertEqual(cancelled,1);XCTAssertTrue(resources.reads.isEmpty);XCTAssertEqual(clock.activeCount,0)
     }
-    func testRewardCoachUsesFasterPresentsEntryKeepsHandOpaqueAndRetiresGlowingLetters()throws {
-        let clock=Clock(),resources=Resources(),view=screen(clock,resources)
+    func testRewardCoachPaperEntersTogetherAndRetiresOnCollect()throws {
+        let clock=Clock(),resources=Resources(),view=screen(clock,resources,root:NativeTestResources.root)
         defer{view.dispose()}
         resources.finish();view.start();clock.advance(3);view.activate();clock.advance(1.4)
         XCTAssertEqual(view.phase,"unlocked")
         let firstCoachAt=try XCTUnwrap(clock.jobs.filter{!$0.token.cancelled}.map(\.at).min())
         clock.advance(firstCoachAt-clock.time+0.001)
         let coach=try XCTUnwrap(view.view.subviews.compactMap{$0 as? UILabel}.first{$0.accessibilityIdentifier=="native.reward.coach-copy"})
-        XCTAssertEqual(coach.text,"TAP TO COLLECT");XCTAssertEqual(coach.textColor,.clear);XCTAssertTrue(coach.isAccessibilityElement)
-        XCTAssertNil(coach.shadowColor);XCTAssertEqual(coach.layer.shadowOpacity,0)
-        let glyphs=coach.subviews.compactMap{$0 as? UILabel}
-        XCTAssertEqual(glyphs.map{$0.text ?? ""}.joined(),"TAP TO COLLECT")
-        XCTAssertEqual(glyphs.count,14)
-        for (index,glyph) in glyphs.enumerated() {
-            XCTAssertFalse(glyph.isAccessibilityElement)
-            XCTAssertNil(glyph.shadowColor);XCTAssertEqual(glyph.layer.shadowOpacity,0)
-            for halo in glyph.subviews {XCTAssertEqual(halo.layer.shadowOffset,.zero);XCTAssertLessThanOrEqual(halo.layer.shadowOpacity,0.49)}
-            XCTAssertEqual(glyph.subviews.compactMap{$0 as? UILabel}.count,4,"Four static orange glow decorations per letter")
-            let group=try XCTUnwrap(glyph.layer.animation(forKey:"native.reward.coach.copy") as? CAAnimationGroup)
-            XCTAssertEqual(group.duration,4.1,accuracy:0.000001);XCTAssertTrue(group.isRemovedOnCompletion)
-            let opacity=try XCTUnwrap(group.animations?.first{$0 is CAKeyframeAnimation && ($0 as? CAKeyframeAnimation)?.keyPath=="opacity"} as? CAKeyframeAnimation)
-            let values=try XCTUnwrap(opacity.values as? [NSNumber])
-            XCTAssertEqual(values.first?.doubleValue,0);XCTAssertEqual(values.last?.doubleValue,0)
-            let transforms=try XCTUnwrap(group.animations?.first{($0 as? CAKeyframeAnimation)?.keyPath=="transform"} as? CAKeyframeAnimation)
-            let transformValues=try XCTUnwrap(transforms.values as? [NSValue])
-            for sample in [12,24,48,72] {
-                let elapsed=Double(sample)/120
-                let settledAt=(0.74+Double(index)*0.048)/3.375
-                let heldAge=elapsed<=settledAt ? elapsed:max(settledAt,elapsed-1.3)
-                var expected=NativeStudioIntroView.presentsPose(at:NativeStudioIntroView.presentsEntryStart+heldAge*3.375+Double(index)*NativeStudioIntroView.presentsLetterStagger*0.6,index:index)
-                if elapsed>=settledAt {expected.scale *= NativeSplashGlyphField.captionIdleScale(time:elapsed-settledAt,bounce:1.03+CGFloat(index%4)*0.01)}
-                XCTAssertEqual(values[sample].doubleValue,Double(max(0,min(1,expected.alpha))),accuracy:0.000001,"Reward letters use another50%faster entry and compressed offsets for one overlapping wave")
-                let actual=transformValues[sample].caTransform3DValue,wanted=expected.transform
-                let a=[actual.m11,actual.m12,actual.m13,actual.m14,actual.m21,actual.m22,actual.m23,actual.m24,actual.m31,actual.m32,actual.m33,actual.m34,actual.m41,actual.m42,actual.m43,actual.m44]
-                let b=[wanted.m11,wanted.m12,wanted.m13,wanted.m14,wanted.m21,wanted.m22,wanted.m23,wanted.m24,wanted.m31,wanted.m32,wanted.m33,wanted.m34,wanted.m41,wanted.m42,wanted.m43,wanted.m44]
-                for (value,target) in zip(a,b) {XCTAssertEqual(value,target,accuracy:0.000001)}
-            }
-
-            // Extraction must preserve the complete existing authored recipe,
-            // including the underlying Studio exit rather than assuming a late opaque pose.
-            let reference=CALayer()
-            NativeCoachCopyMotion.install(on:reference,index:index,lifespan:4.1,key:"reference",beginTime:CACurrentMediaTime(),speedMultiplier:2.25,staggerMultiplier:0.4,breathes:true,letterExit:true,holdExtension:1.3)
-            let expectedTrack=try XCTUnwrap(reference.animation(forKey:"reference") as? CAAnimationGroup)
-            let expectedOpacity=try XCTUnwrap(expectedTrack.animations?.last as? CAKeyframeAnimation)
-            let expectedTransform=try XCTUnwrap(expectedTrack.animations?.first as? CAKeyframeAnimation)
-            XCTAssertEqual(opacity.values as? [NSNumber],expectedOpacity.values as? [NSNumber])
-            let oldPoses=try XCTUnwrap(expectedTransform.values as? [NSValue])
-            XCTAssertEqual(transformValues.count,oldPoses.count)
-            for (actual,old) in zip(transformValues,oldPoses) {XCTAssertTrue(CATransform3DEqualToTransform(actual.caTransform3DValue,old.caTransform3DValue))}
+        XCTAssertEqual(coach.text,"Tap to collect");XCTAssertTrue(coach.isAccessibilityElement)
+        let paper=try XCTUnwrap(coach.subviews.first{$0.accessibilityIdentifier=="native.reward.coach-paper"} as? NativeSettingsPaperSurface)
+        XCTAssertNotNil(paper.subviews.compactMap{$0 as? UIImageView}.first?.image)
+        XCTAssertEqual(paper.cornerRadius,12);XCTAssertEqual(paper.layer.borderWidth,0);XCTAssertEqual(paper.bounds,coach.bounds)
+        XCTAssertFalse(paper.outline.isEmpty);XCTAssertNotNil(coach.layer.shadowPath)
+        let caption=try XCTUnwrap(coach.subviews.compactMap{$0 as? UILabel}.first)
+        XCTAssertEqual(caption.attributedText?.string,"Tap to collect")
+        XCTAssertEqual(coach.bounds.height,48);XCTAssertLessThanOrEqual(coach.bounds.width,184)
+        let hero=try XCTUnwrap(view.view.subviews.first{$0.accessibilityIdentifier=="native.reward.card"})
+        XCTAssertGreaterThan(coach.layer.zPosition,hero.layer.zPosition)
+        XCTAssertEqual(coach.frame.maxY,view.view.bounds.height-40,accuracy:0.001)
+        XCTAssertEqual(coach.frame.midX,view.view.bounds.midX,accuracy:0.001)
+        XCTAssertNil(coach.layer.animation(forKey:"reward.position.0.0"))
+        let opacity=try XCTUnwrap(coach.layer.animation(forKey:"reward.opacity.0.0") as? CAKeyframeAnimation)
+        let transform=try XCTUnwrap(coach.layer.animation(forKey:"reward.transform.0.0") as? CAKeyframeAnimation)
+        let values=try XCTUnwrap(opacity.values as? [NSNumber])
+        let poses=try XCTUnwrap(transform.values as? [NSValue])
+        XCTAssertEqual(values.first?.doubleValue,0);XCTAssertEqual(values.last?.doubleValue,0)
+        XCTAssertEqual(poses.first?.caTransform3DValue.m42,18)
+        XCTAssertTrue(poses.contains{$0.caTransform3DValue.m42<0 && $0.caTransform3DValue.m11>1})
+        XCTAssertTrue(caption.layer.animationKeys()?.isEmpty ?? true,"One whole container owns entry")
+        clock.advance(2.1)
+        let idle=try XCTUnwrap(coach.layer.animation(forKey:"native.reward.coach.card-idle") as? CAKeyframeAnimation)
+        XCTAssertTrue(idle.isAdditive);XCTAssertEqual(idle.duration,6.8)
+        XCTAssertEqual(coach.frame.maxY,view.view.bounds.height-40,accuracy:0.001)
+        let originalAlpha=coach.alpha;coach.alpha=1
+        let previewSize=CGSize(width:coach.bounds.width+24,height:coach.bounds.height+24)
+        let preview=UIGraphicsImageRenderer(size:previewSize).image{context in
+            UIColor(red:243/255,green:238/255,blue:232/255,alpha:1).setFill()
+            context.fill(CGRect(origin:.zero,size:previewSize))
+            context.cgContext.translateBy(x:12,y:12);coach.layer.render(in:context.cgContext)
         }
-        let enteringAtOnce=(0..<14).filter{NativeCoachCopyMotion.pose(at:0.08,index:$0,lifespan:2.8,speedMultiplier:2.25,staggerMultiplier:0.4).alpha>0}
-        XCTAssertGreaterThan(enteringAtOnce.count,4,"Several letters must enter together as a wave")
-        XCTAssertEqual(NativeCoachCopyMotion.pose(at:0.42,index:13,lifespan:2.8,speedMultiplier:2.25,staggerMultiplier:0.4).scale,1,accuracy:0.000001,"The entire wave settles in less than half a second")
-        let hand=try XCTUnwrap(view.view.subviews.compactMap{$0 as? UIImageView}.first)
-        let opacity=try XCTUnwrap(hand.layer.animation(forKey:"reward.opacity.0.0") as? CAKeyframeAnimation)
-        XCTAssertEqual(opacity.duration,2.8);XCTAssertEqual(opacity.values as? [Int],[0,1,1,0])
-        XCTAssertEqual(opacity.keyTimes,[0,0.12/2.8,2.65/2.8,1].map{NSNumber(value:$0)})
-        let motion=try XCTUnwrap(hand.layer.animation(forKey:"reward.transform.0.0") as? CAKeyframeAnimation)
-        let poses=try XCTUnwrap(motion.values as? [NSValue])
-        XCTAssertEqual(motion.duration,2.8);XCTAssertEqual(poses.count,6)
-        XCTAssertTrue(CATransform3DEqualToTransform(poses[4].caTransform3DValue,poses[5].caTransform3DValue),"Original2.1s gesture holds its final pose through2.8s")
-        XCTAssertEqual(motion.keyTimes?[4].doubleValue,2.1/2.8)
-        XCTAssertTrue(clock.jobs.contains{!$0.token.cancelled && abs($0.at-(firstCoachAt+5.3))<0.001},"A5.3s repeat preserves1.2s after the longer copy")
+        try preview.pngData()?.write(to:URL(fileURLWithPath:"/tmp/reward-paper-coach-preview.png"))
+        coach.alpha=originalAlpha
         view.setForeground(false);XCTAssertEqual(view.view.layer.speed,0);clock.advance(10)
-        XCTAssertTrue(glyphs.allSatisfy{$0.layer.animation(forKey:"native.reward.coach.copy") != nil})
         view.setForeground(true);view.activate()
-        XCTAssertEqual(coach.alpha,1,"Collect keeps the parent visible while letters exit")
-        let firstExit=try XCTUnwrap(glyphs[0].layer.animation(forKey:"reward.opacity.0.0"))
-        let lastExit=try XCTUnwrap(glyphs[13].layer.animation(forKey:"reward.opacity.0.182"))
-        XCTAssertGreaterThan(lastExit.beginTime,firstExit.beginTime+0.17)
-        view.setForeground(false);XCTAssertEqual(view.view.layer.speed,0)
-        view.setForeground(true);view.dispose()
-        XCTAssertTrue(glyphs.allSatisfy{($0.layer.animationKeys() ?? []).isEmpty});XCTAssertEqual(clock.activeCount,0)
+        XCTAssertEqual(view.phase,"exiting")
+        XCTAssertNotNil(coach.layer.animation(forKey:"reward.opacity.0.0"))
+        view.dispose();XCTAssertTrue((coach.layer.animationKeys() ?? []).isEmpty)
+        XCTAssertEqual(clock.activeCount,0)
     }
     func testVisibleIdleBoundedAndReducedMotionSuppressesCoachLoops() {
         let clock=Clock(),resources=Resources(),view=screen(clock,resources,reduced:true);resources.finish();view.start();view.activate();clock.advance(1.6)

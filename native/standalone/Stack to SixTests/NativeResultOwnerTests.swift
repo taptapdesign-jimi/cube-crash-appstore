@@ -1142,6 +1142,37 @@ final class NativeResultOwnerTests:XCTestCase {
         XCTAssertEqual(secondary.backgroundColor,.clear);XCTAssertEqual(secondary.layer.borderWidth,0)
         XCTAssertNotNil(secondary.subviews.first{$0.accessibilityIdentifier=="native.cta.sculpted-face"})
     }
+    func testFullFinalScoreFitsWithStableLargestPossibleFont() throws {
+        for width in [CGFloat(320),390,430] {
+            for value in [1234,144000,999999,1440000,999999999] {
+                let state=NativeBoardState(tiles:[],mode:.journey,board:2,score:value)
+                let result=NativeResultController(root:NativeTestResources.root,state:state,clean:true,combo:0,efficiency:0,finalScore:value)
+                result.loadViewIfNeeded();result.view.frame=CGRect(x:0,y:0,width:width,height:844)
+                result.view.setNeedsLayout();result.view.layoutIfNeeded()
+                defer{result.dispose()}
+                let label=try XCTUnwrap(findUILabels(result.view).first{$0.accessibilityIdentifier=="native.result.score"})
+                let text=NativeScoreDisplay.text(value) as NSString
+                let fitted=label.font.pointSize
+                XCTAssertLessThanOrEqual(text.size(withAttributes:[.font:label.font!]).width,label.bounds.width)
+                XCTAssertLessThanOrEqual(fitted,80)
+                if fitted<79 {XCTAssertGreaterThan(text.size(withAttributes:[.font:label.font.withSize(fitted+1)]).width,label.bounds.width-1)}
+                result.tick(0);for index in 1...80{result.tick(Double(index)/10)}
+                XCTAssertEqual(label.text,NativeScoreDisplay.text(value))
+                XCTAssertEqual(label.font.pointSize,fitted)
+                if width==390 && value==144000 {
+                    let window=UIWindow(frame:result.view.bounds)
+                    window.windowLevel=UIWindow.Level(rawValue:UIWindow.Level.alert.rawValue+1)
+                    window.rootViewController=result;window.makeKeyAndVisible()
+                    result.view.layoutIfNeeded();result.setSuspended(true)
+                    let image=UIGraphicsImageRenderer(size:result.view.bounds.size).image{ctx in result.view.layer.render(in:ctx.cgContext)}
+                    try image.pngData()?.write(to:FileManager.default.temporaryDirectory.appendingPathComponent("score-fit-144000.png"))
+                    print("SCORE_FIT_FONT \(fitted)")
+                    window.isHidden=true;window.rootViewController=nil
+                }
+            }
+        }
+    }
+
     func testCleanScoreUsesDotThousandsGrouping() {
         let root=Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle")!
         let state=NativeBoardState(tiles:[],mode:.journey,board:1,score:1234)

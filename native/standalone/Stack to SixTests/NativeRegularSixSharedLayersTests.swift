@@ -31,6 +31,35 @@ final class NativeRegularSixSharedLayersTests:XCTestCase {
         func advance(to ms:Int){for time in stride(from:0,through:ms,by:10){runtime.deliver(wallMilliseconds:Double(time))}}
         func dispose(){context.dispose();renderer.dispose();runtime.dispose()}
     }
+    func testMagnetRedTintPreservesSharedGeometryRandomAndRetirement()throws {
+        let ordinary=Fixture(),magnet=Fixture();defer{ordinary.dispose();magnet.dispose()}
+        let baseline=ordinary.make()
+        let red=try NativeRegularSixSharedLayers(context:magnet.context,canvas:magnet.canvas,tile:magnet.tile,
+            origin:CGPoint(x:80,y:90),tileSize:96,destinationDepth:43,generation:1,reduced:false,shardColor:0xF26034)
+        XCTAssertEqual(red.shardCount,baseline.shardCount);XCTAssertEqual(magnet.draws,ordinary.draws)
+        let shapes=red.shardLayer.children.compactMap{$0 as? SKShapeNode}
+        XCTAssertEqual(shapes.count,12)
+        for shape in shapes {
+            var r:CGFloat=0,g:CGFloat=0,b:CGFloat=0,a:CGFloat=0
+            XCTAssertTrue(shape.fillColor.getRed(&r,green:&g,blue:&b,alpha:&a))
+            XCTAssertEqual(r,242/255,accuracy:0.000001);XCTAssertEqual(g,96/255,accuracy:0.000001)
+            XCTAssertEqual(b,52/255,accuracy:0.000001);XCTAssertEqual(a,1,accuracy:0.000001)
+        }
+        magnet.wall.fire();XCTAssertNil(red.shardLayer.parent);XCTAssertEqual(magnet.resources.activeShards,0)
+    }
+    func testStarYellowTintUsesExistingSharedShardsAndRetires()throws {
+        let f=Fixture();defer{f.dispose()}
+        let owner=try NativeRegularSixSharedLayers(context:f.context,canvas:f.canvas,tile:f.tile,origin:.zero,
+            tileSize:128,destinationDepth:9993,generation:1,reduced:false,stage:.shardsOnly,shardColor:0xFFCB47)
+        let shapes=owner.shardLayer.children.compactMap{$0 as? SKShapeNode};XCTAssertEqual(shapes.count,12)
+        for shape in shapes {
+            var r:CGFloat=0,g:CGFloat=0,b:CGFloat=0,a:CGFloat=0
+            XCTAssertTrue(shape.fillColor.getRed(&r,green:&g,blue:&b,alpha:&a))
+            XCTAssertEqual(r,1,accuracy:0.000001);XCTAssertEqual(g,203/255,accuracy:0.000001)
+            XCTAssertEqual(b,71/255,accuracy:0.000001)
+        }
+        f.wall.fire();XCTAssertNil(owner.shardLayer.parent);XCTAssertEqual(f.resources.activeShards,0)
+    }
     func testRealCapturedPoolsDepthAndIndependentSourceReceipts(){
         let f=Fixture(),owner=f.make();defer{f.dispose()}
         XCTAssertEqual(owner.shardCount,12);XCTAssertEqual(f.resources.cachedPatterns,1)

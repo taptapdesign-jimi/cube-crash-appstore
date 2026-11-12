@@ -1,3 +1,1789 @@
+## 2026-11-12 · All tutorial CTA feedback, speech+3dB and main delivery
+
+User requests all tutorial CTA clicks,spoken tutorial lines+3dB,then merge current
+feature/contextual-tutorial-v2 to main and install on iPhone13blue. Earlier phone
+Release `/tmp/tutorial-phone-release.log` was interrupted BEFORE install when
+scope changed;phone still has its prior app. Initial phone save backup:
+`/tmp/tutorial-phone-delivery-20261112-212918/before` (both valid JSON slots).
+Current feature and main initially both6b63a847,with full contextual feature in
+uncommitted Native/docs plus tutorial assets/audio/scripts. Local merge only;
+no request to publish remotely. Unrelated Studio/output drafts remain outside
+commit scope. Main merge/phone delivery evidence follows on completion.
+
+Accepted objective,Special bar,collection/box,combo,final now emit existing
+onFeedback->cta/tab once. Existing stack/merge/Special-use/Source delivery
+contacts retained. Collection return has explicit silent default;HUD/CTA open
+uses same accepted guard. In-flight exits/repeated tap/drag do not add clicks.
+Nine spoken lessons use fixed PCM+1dB derivatives and cue+2dB (0.9064262965),
+exact net+3dB without unity clamp or clipping. Sources preserved;Nala and other
+speech unchanged. Versioned `tutorial-voices-plus3db-v1` and preparation script
+record source/output hashes,48k mono16,durations and gain/headroom. Measured
+all9 gain deltas3.00000dB,maximum PCM peak-1.091dBFS;all lengths unchanged.
+
+PASS104 Native `/tmp/tutorial-cta-3db-native.log`:97audio cases,actual Forest Bee
+full guide,new actual Owner objective/collection/combo/final once-only CTA test,
+5Source CTA activation/cancel/pause tests. Fast/ios gates PASS. Full QA
+`/tmp/tutorial-cta-3db-full.log` FAIL only preserved-web scene-builders.test.ts:75
+(529suites/4010tests PASS,one failure);KING330 and all other gates PASS.
+Normal Debug BUILD SUCCEEDED `/tmp/tutorial-cta-3db-preview-build.log`.
+Release compiled and compiled identity/assets/no-WebKit audit PASS
+`/tmp/tutorial-cta-3db-release-audit.log`,but signing failed errSecInternalComponent
+in -release.log and -release-retry.log. SecurityAgent is active;user asked to
+approve Keychain codesign access locally per delivery skill. No physical install
+has happened. All4044 production input hashes stable through compilation.
+Normal Simulator install-over/launch and main merge evidence follows.
+
+## 2026-11-12 · Tutorial reset after Special bar voice replacement
+
+Explicit user reset on retained QA iPhone1018BE2D. Current NativeSaveStore helper
+cleared firstPlayRun and firstPlayTutorialComplete,tutorialCollectionGuidanceSeen,
+journeyIntroSeen. Validation/exact JSON comparison PASS:only those fields changed;
+other progression/cards/stats/normal runs/preferences retained. Both slots identical.
+Backup:`/tmp/tutorial-only-reset-20261112-212741`. Normal launch:`com.taptapdesign.stacktosix.native: 40465`.
+Actual SBRingerMuted=0 at launch. No build/uninstall/physical/iPad/PWA/legacy.
+
+## 2026-11-12 · Special bar replacement voice
+
+User selects `assets/sound/SPEECH/special bar voice.mp3` exclusively for
+`tutorial-special-bar`:Each stack and merge fills the bar. Original MP3 plays
+directly,mono44.1k/2.50775s;SHA256
+`994005181319b153a709cbe130f0a8855d6573843577bb178d2c6265692c8fd8`.
+Local cached-ASR confirms full line;temporary PCM inspection peak-3.61dBFS,
+DC-0.000613,no clipping. No source trim/normalization/gain/rate edit.
+Old004-special-bar.wav and original tutorial master preserved. Updated static
+mapping,manifest active override and reproducible preparation script;registered
+new source on existing audio owner. Existing sheet-enter admission,human0.72gain,
+Nala-after-natural-end and all cancellation/Settings policies unchanged.
+PASS3 focused tests `/tmp/special-bar-voice-native.log`:all nine actual mapped
+files decode including this MP3,paired-only bark,stop/late-callback/route/OFF,
+actual sheet landing/exit. Fast and ios gates PASS. Physical speaker acceptance
+remains separate. Normal Debug BUILD SUCCEEDED
+`/tmp/special-bar-voice-preview-build.log`;verified .native ID/no XCTest and
+new MP3 byte-exact in built bundle. Install-over retained Simulator1018BE2D,
+normal launch PID39096;CUA Home confirmed. Actual SBRingerMuted=0 for audio
+review. Both save slots byte-identical to immediate preinstall backup
+`/tmp/special-bar-voice-preinstall-20261112-212528`. No reset/phone/iPad/PWA/
+legacy changes. Full QA `/tmp/special-bar-voice-full.log` FAIL only known
+preserved-web scene-builders.test.ts:75 asset-existence case:529suites/4010tests
+PASS,one failure. KING330,audio/feature admission,other deterministic gates and
+production build(no native sync) PASS. No claim full QA or physical mix PASS.
+
+## 2026-11-12 · Tutorial reset for recorded-voice review
+
+Explicit user reset on retained QA iPhone1018BE2D. Current NativeSaveStore helper
+cleared firstPlayRun and firstPlayTutorialComplete,tutorialCollectionGuidanceSeen,
+journeyIntroSeen. Validation/exact JSON comparison PASS:only those fields change;
+all other progression/cards/stats/normal runs/preferences preserved. Both slots
+identical. Backup:`/tmp/tutorial-only-reset-20261112-211824`. Normal launch:`com.taptapdesign.stacktosix.native: 34710`.
+CUA confirmed normal Home and Mute ON;actual SBRingerMuted=1 retained for this
+reset-only task. No build/uninstall,
+full progression reset,physical/iPad/PWA/legacy change.
+
+## 2026-11-12 · Tutorial recorded speech and paired-art Nala
+
+User-supplied `assets/sound/SPEECH/tutorial voices.mp3` preserved byte-exact
+SHA256 `3badd8feae3498da9bccbf50ec1bc680d2f32a8fd717b5ae0289ef695265f409`.
+`scripts/prepare-tutorial-voices.py` produces12 PCM48k mono16 WAV derivatives
+in `tutorial-voices-v1`:ten complete utterances plus combo/final compounds.
+Manifest records source spans, hashes, peak/RMS/DC and nine semantic mappings.
+Waveform quiet valleys preserve consonants missed by ASR start timestamps;
+3ms edge fades only,no normalization/rate/pitch change. All12 cuts locally
+transcribed correctly by cached tiny.en;source peaks -5.04 to -2.09dBFS.
+Collection has no distinct line in master,so Your backpack/box reuses approved
+`collection-little-helpers.wav` (Let's get to know these little helpers!).
+
+NativeTutorialOverlay -> TutorialOwner -> Bootstrap -> existing AudioOwner
+admits each semantic line once on successful actual sheet enter/crossfade,
+not layout/overshoot/pointer. Early collection also waits genuine Special
+settlement readiness. Shared selected-file human transport/gain0.72;sheet
+exit/hide/suspension/dispose and route/generation retirement cancel it.
+Only actual paired top artwork sheets objective,Special bar,delivery,and final
+Clear the board select an existing short Nala bark (modalNala3/4,nonrepeat,
+gain0.42) after human natural completion. Other sheets/cancel/error stay silent.
+One scoped native-tutorial-nala voice has UUID completion/stop ownership;
+replacement never sends unrelated stop calls if no tutorial bark is active.
+No new engine/session/cache/timer,gameplay/save rule or original asset edits.
+Audio/feature runtime records updated.
+
+PASS99 Native tests `/tmp/tutorial-voices-native-verified.log`:entire97-test
+AudioOwner suite plus actual finite-sheet speech/exit and early collection
+readiness -> combo -> final. PASS actual Forest Bee full guide34.908s in
+`/tmp/tutorial-voices-native.log`. Initial broad run `-native-final.log` had
+two overly broad tutorial stop side effects,now corrected and all97 audio
+cases pass. Broader Intro suite also exposes20 old geometry/copy assertions
+in3 cases (old Clear the stage,two-line limit,equal Special-bar heights);
+left unchanged because this task changes no layout/copy. No claim full Native
+suite is green. Audio/feature/ios/fast gates PASS;full QA still FAIL only
+preserved-web scene-builders.test.ts:75 (529suites/4010tests PASS,1fail);
+KING330,production build(no native sync),other gates PASS.
+
+Native artwork copy preserved61 historical destination-only extras;strict
+inventory script reports mismatch,not deleted to force PASS. All12 new WAVs
+and untouched master hash verified in prepared bundle;native target audit PASS.
+Subjective timing/speaker mix/thermal remains NEEDS PHYSICAL TEST.
+Normal Debug BUILD SUCCEEDED `/tmp/tutorial-voices-preview-build.log`;actual
+built .native ID,no PlugIns/test runner,all12 cuts+master hashes verified.
+Installed over retained Simulator1018BE2D and launched normally PID34138.
+CUA observed Home;actual SBRingerMuted=0 (audio task). Both canonical save
+slots byte-identical to immediate backup
+`/tmp/tutorial-voices-preinstall-20261112-211734`. No reset/uninstall/phone/PWA/
+legacy installation;preferences and progression preserved. Final fast QA PASS
+`/tmp/tutorial-voices-fast-final.log`,audio/feature/ios gates PASS.
+
+## 2026-11-12 · Tutorial reset after fast shimmer/half-Special preview
+
+Explicit user reset on retained QA iPhone1018BE2D. Current NativeSaveStore helper
+cleared firstPlayRun and firstPlayTutorialComplete,tutorialCollectionGuidanceSeen,
+journeyIntroSeen. Validation/exact JSON comparison PASS:all other progression,
+cards,stats,normal runs and preferences retained;both canonical slots identical.
+Backup:/tmp/tutorial-only-reset-20261112-205356. Normal launch:com.taptapdesign.stacktosix.native: 20785.
+Actual SBRingerMuted=1 after launch.
+No build/code change,full progression reset,uninstall,physical/iPad/PWA/legacy.
+
+## 2026-11-12 · Fast Backpack shimmer and50percent Special collection preview
+
+User requests a passing shimmer without the long bright hold,and Your backpack
+sheet entry while Special animation is50percent complete. Tutorial Backpack
+selects shared shimmer clock Playback.tutorialBackpack:700ms continuous linear
+sweep,80ms in/140ms out,no endpoint dwell. Band/mask/colors/peak opacity and4–8s
+cadence retained. All Special dice retain literal Source2.56s default and golden
+motion. Existing two bounded roots/foreground/current/disposal owners retained.
+
+NativeTutorialOwner uses captured transaction progress>=0.5 to present same
+collection reading sheet once while Special continues. Preview HUD chrome is
+visual,generation-scoped;actual HUD/modal actions stay canonically locked and
+CTA/transparent target disabled until genuine Source settlement. Existing0.7
+canonical fourth-completion milestone unchanged. Genuine handoff acknowledges/
+pauses at original safe boundary,enables same already-mounted sheet without
+hiding/re-entering. Active-guide refresh cannot overwrite it. Hand still starts
+after paper lands. Disposal clears preview/callback and weak generation scope.
+No new timer,save field,RNG draw,resource,asset or gameplay completion boundary.
+
+PASS7 /tmp/tutorial-fast-shimmer-half-native-final.log:real contextual Bee full
+Source guide33.827s asserts first collection appearance in[0.5,0.6),normal Special
+settlement,replacement bounce/ownership and eventual hand. Mounted half-threshold
+preview/blocked early CTA/unchanged tutorial state/cancel-release1.091s;held masked
+shimmer/bounded roots/pause/dispose0.086s;four shimmer motion/default golden/
+clock cadence/visibility cases0.001–0.002s. Initial -native.log failed a standalone
+pointer expectation in a fixture without complete render-host targeting;removed
+that unrelated assertion,retaining late-hide/cancel checks and real full-host
+hand coverage. Latest production input gate also keeps underlying HUD locked.
+
+Latest qa:ios,feature-runtime,diff PASS. FullQA
+/tmp/tutorial-fast-shimmer-half-full.log FAIL only known preserved-web
+scene-builders.test.ts:75;529suites/4010tests PASS,1suite/test FAIL;KING330/other
+gates PASS. Extra generic Star fixture attempts in -star-native.log and
+-star-native-current-copy.log FAIL BEFORE Special progress,at old third-step/
+Special-bar expectations(the current random reward isBottle,not presumedStar).
+These are not green coverage for the new phase;copied expected-text adjustment
+was reverted. Related HUD-dim assertions now allow the intentional half-time
+Backpack preview while Close stays dim. Unrelated generic fixture repair and
+prior broader core catalog/coin assertion failures remain outside this task.
+
+Normal complete-tree Debug BUILD SUCCEEDED
+/tmp/tutorial-fast-shimmer-half-preview.log;executable newer than all Swift,
+exact .native ID/no XCTest verified;install-over retained QA iPhone1018BE2D.
+Both slots byte-identical to immediate preinstall backup /tmp/tutorial-fast-shimmer-half-save-backup-20261112-204758.
+Normal launch:com.taptapdesign.stacktosix.native: 17943;actual SBRingerMuted=1. No reset,
+physical/iPad install,PWA sync or legacy operation. CUA confirms normal Home.
+Physical timing/feel acceptance
+remains separate.
+
+## 2026-11-12 · Tutorial reset for combo/final-sheet review
+
+Explicit user reset on retained QA iPhone1018BE2D. Current NativeSaveStore helper
+cleared firstPlayRun and firstPlayTutorialComplete,tutorialCollectionGuidanceSeen,
+journeyIntroSeen. Validation/exact JSON comparison PASS:all other progression,
+cards,stats,normal runs and preferences retained;both canonical slots identical.
+Fresh guide will arm the new completionLessonAcknowledged receipt normally.
+Backup:/tmp/tutorial-only-reset-20261112-203248. Normal launch:com.taptapdesign.stacktosix.native: 9691.
+Actual SBRingerMuted=1;CUA confirms normal Home entry.
+No build/code change,full progression reset,uninstall,physical/iPad/PWA/legacy.
+
+## 2026-11-12 · Your combo → Clear the board! final tutorial sheet
+
+User-approved combo copy:Your combo / Stack and merge quickly / to boost your
+combo and score. / Next. Next exits existing combo sheet and opens step9:
+Clear the board! / Stack and merge anywhere. / Clear every die and have fun! /
+Keep going. Original clear board.png/@2x/@3x uses existing static character slot,
+bottom21pt over paper edge(1.4tablet),with torso resting on same top edge as
+prior Backpack art. No hand on final sheet. Outside touches blocked;input/combo
+pause retained continuously through combo exit,final entry/read/exit;only Keep
+going resumes gameplay. Existing NativeTutorialOwner owns both,shared finite
+sheet delegate,foreground clock,CTA preparation/feedback and disposal.
+
+Optional canonical completionLessonAcknowledged is false for new guides;current
+combo acknowledgement arms missing receipt. Bootstrap restores pending final
+checkpoints;nil for already-completed legacy combo remains quiet. Idempotent
+canonical final acknowledgement changes only this receipt. Same progress/results
+completion policy,score,moves,RNG,assets and audio owners;no new clock/cache.
+Tutorial-only reset helper rebuilt against current state/core types.
+
+PASS36 NativeTutorialTests /tmp/tutorial-final-sheet-core.log;PASS6state onboarding
+/tmp/tutorial-final-sheet-state.log;KING330 /tmp/tutorial-final-sheet-gameplay.log;
+qa:fast,latest qa:ios,feature-runtime and diff PASS. Mounted real Journey
+collection→combo→final→gameplay PASS22.730s/20.986s,phone/tablet art/copy1.266s:
+/tmp/tutorial-final-sheet-native.log. Real pending-final restore/cancel retains
+unacknowledged save PASS13.302s /tmp/tutorial-final-sheet-restore-native.log.
+Latest outside-input gate + restore/cancel PASS1.277s/13.304s:
+/tmp/tutorial-final-sheet-input-native.log. Inspected actual
+/tmp/tutorial-completion-real-root.png and phone/tablet geometry exports.
+FullQA /tmp/tutorial-final-sheet-full.log FAIL only known preserved-web
+scene-builders.test.ts:75;529suites/4010tests PASS,1suite/test FAIL;KING330 and
+other gates PASS. Latest one-line final outside-hit gate has separate final
+Native/source/feature checks above. Physical feel/FPS/touch acceptance separate.
+
+Native-only artwork preparation copied all original source assets but strict
+inventory reported61retained historical destination-only extras. Preserved all;
+missing source assets0,requested three clear-board densities byte-identical in
+prepared and final built bundle. Do not delete extras to force inventory green.
+Final normal complete-tree Debug BUILD SUCCEEDED
+/tmp/tutorial-final-sheet-final-preview.log;executable newer than all Swift,
+exact .native ID/no XCTest and art hashes verified. Install-over retained QA
+iPhone1018BE2D. Simulator relocated data container during install;initial stale
+path read failed,then re-query verified BOTH canonical slots byte-identical to
+immediate preinstall backup /tmp/tutorial-final-sheet-save-backup-20261112-194049. No restoration/reset.
+Normal launch:com.taptapdesign.stacktosix.native: 85689;actual SBRingerMuted=1.
+CUA confirms normal Home. Additional full Swift core run
+/tmp/tutorial-final-sheet-core-full.log:571tests,15assertion failures across
+5non-tutorial catalog/coin expectation cases(NativeFinalHUDCoin,NativeGameplay,
+NativeMeterHiddenHolder,NativeSourceSixAbsorbInterruption,NativeSpecialMergeWorld).
+Assertions expect old15variant/19selection totals vs current18/22,and three
+coins for Kite/Bloob vs current1. Inspected failing tests:ordinary/non-tutorial
+engines or direct registry assertions;new tutorial receipt/presentation paths
+are not involved. All tutorial-specific checks above PASS. This broader core
+run is FAIL,not a green release claim;unrelated registry/reward changes were
+not made in this task. No physical/iPad install,PWA sync or legacy operation.
+
+## 2026-11-12 · Tutorial reset after immediate combo/24pt spacing
+
+Explicit user reset on retained QA iPhone1018BE2D. Current NativeSaveStore helper
+cleared firstPlayRun and firstPlayTutorialComplete,tutorialCollectionGuidanceSeen,
+journeyIntroSeen. Validation/exact JSON comparison PASS:all other progression,
+cards,stats,normal runs and preferences retained;both canonical slots identical.
+Backup:/tmp/tutorial-only-reset-20261112-191804. Normal launch:com.taptapdesign.stacktosix.native: 72627.
+Actual SBRingerMuted=1;CUA confirms normal Home.
+No build/code change,full progression reset,uninstall,physical/iPad/PWA/legacy.
+
+## 2026-11-12 · Backpack24pt both gaps; Journey combo immediately after collection
+
+User sets Journey delivery Backpack top/title gap24pt each(supersedes16pt),
+then requests Play fast. Score big. immediately after Backpack visit before
+continuing gameplay. Carrier ink top24/title gap24;Arcade Box geometry unchanged.
+Canonical comboLessonReady(in:) now admits Journey with acknowledged collection
+without another move;engine and owner share it. Legacy nil collection receipt
+and Arcade retain six-move readiness. Existing acknowledgement refresh presents
+combo sheet and reading pause/input lock synchronously before next event loop;
+Got it dismisses existing combo owner and resumes normal play. Save schema,
+score,moves,RNG,art and authored motion unchanged.
+
+PASS geometry1.579s /tmp/tutorial-backpack24-native.log;PASS35 NativeTutorialTests
+/tmp/tutorial-combo-after-backpack-core.log including no-move Journey admission,
+Arcade/legacy cadence,save and pause rules. KING330 PASS
+/tmp/tutorial-combo-after-backpack-gameplay.log;latest qa:ios/feature/diff PASS.
+PASS3 real modal cases /tmp/tutorial-combo-after-backpack-native.log:Arcade
+walkthrough20.057s,Journey HUD20.988s,Journey CTA19.544s. Journey fixture asserts
+combo visible/paused,input blocked and unchanged37moves immediately on return,
+then acknowledges Got it and verifies gameplay/reopen without repeated hands.
+FullQA /tmp/tutorial-backpack24-full.log FAIL only known preserved-web
+scene-builders.test.ts:75;529suites/4010tests PASS,1suite/test FAIL;KING330/other
+gates PASS. Later combo edits have latest Native/core/gameplay/source/feature
+coverage above. Initial spacing-only normal build was not final installed app.
+
+Final complete-tree normal Debug BUILD SUCCEEDED
+/tmp/tutorial-backpack24-combo-preview.log;executable newer than all Swift,
+exact .native ID/no XCTest verified;install-over retained QA iPhone1018BE2D.
+Initial comparison to /tmp/tutorial-backpack24-saves/ failed because user
+continued during work(score385/moves41 ->559/35,collection/combo now acknowledged).
+Retained CURRENT saves unchanged by reset/restoration;never restored stale backup.
+Latest slots backed up to /tmp/tutorial-backpack24-combo-latest-saves/. Primary
+progression unchanged versus initial backup;firstPlayRun/savedAt legitimately
+advanced. Installed executable SHA256 matches final build. Normal launchPID71007,
+actual SBRingerMuted=1;CUA confirms normal Home. No reset,physical/iPad
+install,PWA sync or legacy operation.
+
+## 2026-11-12 · Tutorial reset after modal hand angle adjustment
+
+Explicit user reset on retained QA iPhone1018BE2D. Current NativeSaveStore helper
+cleared firstPlayRun and firstPlayTutorialComplete,tutorialCollectionGuidanceSeen,
+journeyIntroSeen. Validation/exact JSON comparison PASS:all other progression,
+cards,stats,normal runs and preferences retained;both canonical slots identical.
+Backup:/tmp/tutorial-only-reset-20261112-190735. Normal launch:com.taptapdesign.stacktosix.native: 66639.
+Actual SBRingerMuted=1 after launch.
+No build/code change,full progression reset,uninstall,physical/iPad/PWA/legacy.
+
+## 2026-11-12 · Modal X hands10degrees clockwise,+4right/+8down
+
+User requests small clockwise rotation(~10percent interpreted as10degrees),
+8pt down and4pt right for both tutorial modal hands. Detail-close and
+collection-close share10degree resting angle and physical viewport-relative
++4/+8 offset from visible X center;finite tap keyframes retain same angle.
+Same70percent hand size,first-die/HUD pointers,bounce enter/exit,pause and
+one-shot ownership retained. Geometry test measures rotated edge lengths,
+not larger axis-aligned bounding box. No asset,gameplay/save/audio change.
+
+PASS2 /tmp/tutorial-close-hand-angle-native-corrected.log:mounted actual
+Backpack walkthrough/return/reopen20.190s and projected phone/tablet hand
+size/rotation/offset0.030s. Initial -native.log failed test compilation on
+ambiguous convert(.zero) overload;fixture now explicitly uses CGPoint.zero.
+Inspected actual /tmp/tutorial-backpack-hand-detail.png;X hand rotated/lowered,
+text remains clear. qa:ios/diff PASS. Normal full-tree Debug BUILD SUCCEEDED
+/tmp/tutorial-close-hand-angle-preview.log;exact .native ID/no XCTest verified,
+install-over retained QA iPhone1018BE2D,normal launchPID65158.
+Both canonical saves byte-identical to /tmp/tutorial-close-hand-angle-saves/
+before launch;no reset. Actual SBRingerMuted=1. No physical/iPad install,
+PWA sync or legacy operation. CUA confirms normal Home. FullQA
+/tmp/tutorial-close-hand-angle-full.log FAIL only known preserved-web
+scene-builders.test.ts:75;529suites/4010tests PASS,1suite/test FAIL;KING330
+and remaining gates PASS. Physical aesthetic acceptance remains separate.
+
+## 2026-11-12 · Short two-line Journey delivery subtitle
+
+User-approved Journey Special delivery subtitle nowYour backpack drops / a random
+Special die. Arcade Box wording retained. Existing phone/tablet copy-fit and
+16pt carrier geometry test PASS1.442s /tmp/tutorial-delivery-copy2-native.log;
+qa:ios/diff PASS. Normal Debug BUILD SUCCEEDED
+/tmp/tutorial-delivery-copy2-preview.log;exact .native ID/no XCTest verified,
+install-over retained QA iPhone1018BE2D,normal launchPID61653.
+Both canonical saves byte-identical to /tmp/tutorial-delivery-copy2-saves/
+before launch;no reset. Actual SBRingerMuted=1. No physical/iPad install,
+PWA sync or legacy operation. No geometry,motion,gameplay or resource change.
+CUA confirms normal Home(initial native pipe closed,reacquired Simulator).
+FullQA /tmp/tutorial-delivery-copy2-full.log FAIL only known preserved-web
+scene-builders.test.ts:75;529suites/4010tests PASS,1suite/test FAIL;KING330
+and remaining gates PASS.
+
+## 2026-11-12 · Repeat tutorial-only reset after spacing/hand fix
+
+User requests another reset. Retained QA iPhone1018BE2D tutorial-only reset via
+current NativeSaveStore helper:cleared firstPlayRun and firstPlayTutorialComplete,
+tutorialCollectionGuidanceSeen,journeyIntroSeen. Exact JSON comparison PASS:
+progression/cards/stats/normal runs/settings otherwise unchanged;both canonical
+save slots identical. Backup:/tmp/tutorial-only-reset-20261112-185400. Normal launch:com.taptapdesign.stacktosix.native: 58497.
+Actual SBRingerMuted=1 after launch.
+No source/build/uninstall/full progress reset/physical/iPad/PWA/legacy operation.
+
+## 2026-11-12 · Backpack16pt spacing, shimmer only and finite sheet completion
+
+User requests16pt above/below Journey delivery Backpack and removal of burn,
+then reports one-frame hitch and missing/late top-right collection hand. Visible
+Backpack ink top is16pt from paper;title gap16pt. Arcade Box geometry retained.
+Removed tutorial carrier burn layer,participant,lease,recurrence and test-only
+burn API;existing masked Source shimmer/pause/disposal remains,max2shared roots.
+No ordinary/special die burn or jump/drop rule changed.
+
+Sheet translate completion now uses its own finite success-only animation
+delegate receipt instead of broad CATransaction completion. Replacement/disposal
+retires callbacks;existing ancestor pause and generation guards remain. Step8
+hand admits from that exact completion. Ordinary tutorial CTA face uses existing
+off-main preparation with overlay suspension/retirement,removing synchronous
+sculpted-face work from this transition. No new timer,scheduler,cache or asset.
+Actual physical frame pacing/hitch acceptance remains separate.
+
+PASS5 /tmp/tutorial-backpack16-shimmer-pointer-native.log:real collection CTA/
+return19.023s,real held carrier shimmer->higher jump/Ball rebound->Special15.766s,
+shared shimmer pause/bounded-root/disposal0.083s,phone/tablet/both-mode16pt
+geometry1.421s,compact collection sheet/hand with unrelated infinite ambient
+animation and pause during entry6.375s. Actual carrier screenshot inspected:
+/tmp/backpack-idle-cta-root.png. First /tmp/tutorial-backpack16-shimmer-native.log
+had bounce fixture FAIL because shimmer begins before624->780ms paper landing;
+fixture now waits actual sourceSheetTranslation zero before measuring jump.
+No production jump adjustment. Latest qa:ios and feature-runtime PASS:
+/tmp/tutorial-backpack16-shimmer-pointer-ios.log and -feature.log. FullQA
+/tmp/tutorial-backpack16-shimmer-full.log FAIL only known preserved-web
+scene-builders.test.ts:75;529suites/4010tests PASS,1suite/test FAIL;KING330 and
+other gates PASS. Latest Native delegate/preparation edits have separate mounted
+Native coverage and latest source/feature audits above. diff PASS.
+
+Normal full-tree Debug BUILD SUCCEEDED
+/tmp/tutorial-backpack16-shimmer-pointer-preview.log;executable newer than all
+Swift sources,exact .native ID/no XCTest verified,install-over retained QA
+iPhone1018BE2D,normal launchPID57574. Both canonical slots byte-identical to
+/tmp/tutorial-backpack16-shimmer-saves/ before launch;no reset. SBRingerMuted=1.
+CUA reopened actual retained Journey/Forest/Stage1 checkpoint(score260,
+collectionAckfalse) and confirms settled Your backpack sheet WITH visible
+top-right hand on real same saved board. Left that exact step ready for user;
+no gameplay move or collection acknowledgement performed. No physical/iPad
+install,PWA sync or legacy operation.
+
+## 2026-11-12 · Tutorial-only reset for another user pass
+
+Explicit user request:reset tutorial on retained QA iPhone1018BE2D. Terminated
+app,backed up both save slots to /tmp/tutorial-only-reset-20261112-184526,then current typed
+NativeSaveStore helper cleared firstPlayRun and firstPlayTutorialComplete,
+tutorialCollectionGuidanceSeen,journeyIntroSeen. Validation/readback PASS;
+JSON comparison confirms only these fields changed:progression,discoveries,
+normal runs,stats,settings and import provenance preserved. Both canonical
+slots identical. Normal launchPID53303,actual SBRingerMuted=1. No build/code
+change,full progression reset,uninstall,physical/iPad/PWA/legacy operation.
+
+## 2026-11-12 · Open backpack exits reading sheet before presenting modal
+
+Latest user request supersedes retained-visible-sheet policy. Journey step8
+Open backpack CTA and HUD target now run existing280ms downward sheet exit,
+then call existing NativeScoreOwner opener. Reading input/combo lock and durable
+lesson acknowledgement remain pending until actual modal dismissal returns.
+Missing opener leaves sheet retryable;rejected opening re-enters same lesson.
+Existing active observer resumes a pending sheet exit and only freezes hidden
+overlay during actual visit. On return hidden sheet finalizes directly without
+a second exit. Weak generation guards,disposal,one-shot collection hands and
+Arcade path retained. No new timer,resource,audio or save field.
+
+PASS3 mounted Native cases /tmp/tutorial-sheet-before-backpack-native.log:
+HUD visit/return/reopen20.457s,canceled visit14.418s,CTA18.535s. Assert no modal
+before exit,hidden reading sheet during modal,no early acknowledgement,existing
+pause/release and unchanged score/moves. qa:ios,diff PASS. FullQA
+/tmp/tutorial-sheet-before-backpack-full.log FAIL only known preserved-web
+scene-builders.test.ts:75;529suites/4010tests PASS,1suite/test FAIL;KING330
+and remaining gates PASS. Registry policy updated to final sequence.
+Normal full-tree Debug BUILD SUCCEEDED
+/tmp/tutorial-sheet-before-backpack-preview.log;exact .native ID/no XCTest
+verified,install-over retained QA iPhone1018BE2D,normal launchPID20984.
+Both canonical saves byte-identical to /tmp/tutorial-sheet-before-backpack-saves/
+before launch;no reset. Actual SBRingerMuted=1;CUA confirms normal Home. No physical/iPad install,
+PWA sync or legacy operation. Physical animation acceptance remains separate.
+
+## 2026-11-12 · Both collection X hands extend down/right to screen edge
+
+Latest user request supersedes prior above-X rotation and8pt offset for detail
+and collection close. NativeCollectionTutorialHand uses original unrotated,
+unmirrored hand;actual index fingertip(20,35)/176 anchors to visible X glyph
+center. Palm extends down/right toward screen edge;finite tap approaches
+up/left. Both modes share this phase-based policy. First-die/HUD hints,size70%,
+bounce enter/exit,pause,one-shot receipt and cleanup unchanged. No new clock,
+asset,gameplay or save owner. Inspected actual
+/tmp/tutorial-backpack-hand-detail.png and /tmp/tutorial-backpack-hand-close.png:
+X fingertips aligned,palms down/right,no title/description occlusion.
+
+PASS3 Native cases /tmp/tutorial-x-right-native.log:real first Backpack
+walkthrough/return/reopen20.449s,phone/tablet projected size/anchor geometry
+0.032s,finite bounce enter/exit retirement0.843s. qa:ios/diff PASS.
+Normal full-tree Debug BUILD SUCCEEDED /tmp/tutorial-x-right-preview.log;
+exact .native ID/no XCTest verified,install-over retained QA iPhone1018BE2D,
+normal launchPID18263. Both canonical slots byte-identical to
+/tmp/tutorial-x-right-saves/ before launch;no reset. SBRingerMuted=1;CUA
+confirms normal Home. FullQA /tmp/tutorial-x-right-full.log FAIL only known
+preserved-web scene-builders.test.ts:75;529suites/4010tests PASS,1suite/test
+FAIL;KING330 and other gates PASS.
+No physical/iPad install,PWA sync or legacy operation.
+
+## 2026-11-12 · Collection HUD hand waits until reading sheet settles
+
+User requests step8 top-right Backpack pointer only once Your backpack sheet
+arrives. Removed initial early step8 showPointer call. Existing generation-checked
+sheet enter completion now admits collectionPointerReady then existing bounce-in.
+Initial/replacement entry clears admission and hides pointer;layout/restore calls
+cannot reveal it before completion. Combo lesson timing retained. No delay,
+timer,new animation owner or resource/save/gameplay change;existing CA subtree
+pauses/resumes. Prior hands70percent and Journey Backpack up24pt retained.
+
+PASS mounted phone/744/834 compact-sheet test7.106s,including early restore,
+150ms hidden interval,pause850ms during entry,then visible after actual completion.
+PASS real Backpack visit/return/reopen20.501s. Evidence
+/tmp/tutorial-hand-after-sheet-native.log;qa:ios PASS,diff PASS.
+Normal full-tree Debug BUILD SUCCEEDED /tmp/tutorial-hand-after-sheet-preview.log;
+exact .native ID/no XCTest verified,install-over retained QA iPhone1018BE2D,
+normal launchPID16287. Both canonical saves byte-identical to
+/tmp/tutorial-hand-after-sheet-saves/ before launch;no reset. Actual
+SBRingerMuted=1;CUA confirms normal Home. FullQA
+/tmp/tutorial-hand-after-sheet-full.log FAIL only known preserved-web
+scene-builders.test.ts:75;529suites/4010tests PASS,1suite/test FAIL;KING330
+and all other gates PASS. No physical/iPad install,PWA sync or legacy operation.
+
+## 2026-11-12 · Journey tutorial Backpack raised24pt
+
+User requests more air above Special delivery title. Existing actual carrier
+frame now moves Journey Backpack24pt up only;visible top4pt below sheet and
+title gap48pt(previous28/24). Size,title,copy,CTA,sheet and character art stay
+fixed;Arcade Box retains28/24. Existing Source placement/paint/jump/idle owners
+consume the updated frame. Prior all-hands70percent change retained.
+PASS both phone/tablet,both modes carrier geometry and copy fit1.845s in
+/tmp/tutorial-backpack-up24-native.log;qa:ios PASS. Normal Debug BUILD SUCCEEDED
+/tmp/tutorial-backpack-up24-preview.log,exact .native ID/no XCTest verified,
+install-over retained QA iPhone1018BE2D,normal launchPID13847.
+Both save slots byte-identical to /tmp/tutorial-backpack-up24-saves/ before
+launch;no reset. Actual SBRingerMuted=1;CUA confirms normal Home.
+FullQA /tmp/tutorial-backpack-up24-full.log FAIL only known preserved-web
+scene-builders.test.ts:75;529suites/4010tests PASS,1suite/test FAIL;KING330
+and remaining gates PASS. diff PASS. No physical/iPad install/PWA/legacy.
+
+## 2026-11-12 · All tutorial hands reduced by30percent
+
+User requests all tutorial hands30percent smaller. Single existing shared
+NativeTutorialOverlay.handWidth now returns70percent of former viewport/cap
+size:92.82pt on390pt phone,133pt capped tablet. All Source intro/free/Special/
+HUD and Backpack/Box die/detail/close hands consume this same owner. Targets,
+fingertip anchors,rotation,offsets,enter/exit/tap motion and hit regions unchanged.
+No gameplay/save/resource/animation lifecycle change.
+
+FullQA /tmp/tutorial-hand70-full.log FAIL only unchanged preserved-web
+scene-builders.test.ts:75;529suites/4010tests PASS,1suite/test FAIL;KING330
+and remaining gates PASS. diff PASS.
+PASS mounted phone/tablet/projected-collection consistency case0.053s in
+/tmp/tutorial-hand70-native.log;qa:ios PASS. Normal Debug BUILD SUCCEEDED
+/tmp/tutorial-hand70-preview.log;exact .native ID/no XCTest verified,install-over
+retained QA iPhone1018BE2D,normal launchPID11430. Both save slots byte-identical
+to /tmp/tutorial-hand70-saves/ before launch;no reset. CUA navigated normal
+Journey/Forest/Stage1 and restored existing tutorial step4(score751)
+for user review;no gameplay move performed. Current checkpoint has no visible
+hand at rest;visual size acceptance remains with user. Actual SBRingerMuted=1.
+No physical phone,iPad install,PWA sync or legacy operation.
+
+## 2026-11-12 · Repeat fresh-profile reset for user iteration
+
+Explicit user request:reset retained QA iPhone1018BE2D again for first-time play.
+Terminated Native app,backed up both canonical save slots to /tmp/tutorial-once-fresh-profile-backup/iteration-20261112-171359,
+then reused current NativeSaveStore helper to write identical fresh primary/
+previous slots. Readback PASS:empty progression/stats/discoveries/unread/unlocks/
+runs/checkpoint,tutorial and collection guidance receiptsfalse;preferences
+preserved. Normal launchPID7277,actual SBRingerMuted=1. Existing installed build
+unchanged;no code/build/uninstall/physical/iPad/PWA/legacy operation.
+
+## 2026-11-12 · One-shot collection guidance, matching Box hand and fresh Simulator profile
+
+User requests collection hands only on first successful tutorial collection
+opening, identical lower-right first-die hand on Box and Backpack, and a complete
+first-time reset on retained QA iPhone. NativeScoreOwner now gates later visits
+with optional progression tutorialCollectionGuidanceSeen. First actual admitted
+entry records it through NativeBootstrap;current visit retains die/detail/close
+hands. Pending preparation does not consume;weak generation-scoped callback
+clears on disposal. Receipt survives relaunch/mode switches;legacy missing field
+falls back to tutorial completion. Both modes target90percent x/y of first card.
+No new timer,asset,audio owner or gameplay rule. Inspected actual first-die
+screenshots /tmp/tutorial-box-hand-first.png and /tmp/tutorial-backpack-hand-first.png.
+
+PASS6 state onboarding cases /tmp/tutorial-once-state.log,including receipt
+roundtrip and legacy decoding. PASS3 mounted Native cases in
+/tmp/tutorial-once-native-corrected.log:Box20.058s,Backpack20.105s,canceled
+visit14.218s;both first tours complete and repeat openings have no hands.
+Initial /tmp/tutorial-once-native.log failed test compilation because fixture
+read private admitted;corrected fixture uses actual public input admission.
+qa:fast,qa:ios,diff PASS. FullQA FAIL only known preserved-web
+scene-builders.test.ts:75;529suites/4010tests PASS,1suite/test FAIL;KING330PASS:
+/tmp/tutorial-once-full.log. Ownership and contextual onboarding policy updated.
+
+Normal full-tree Debug BUILD SUCCEEDED /tmp/tutorial-once-preview.log before
+user pause. On explicit resume verified executable newer than latest Swift,
+exact .native ID and no XCTest plugins;installed over retained QA iPhone
+1018BE2D and normal launchPID76160. Actual SBRingerMuted=1 after launch;
+CUA confirms normal Home. User-authorized full reset then validated by current
+NativeSaveStore helper /tmp/tutorial-once-reset:both canonical slots identical,
+default empty progression/runs/checkpoint/discoveries/unread/unlocks,first-play
+and collection guidance receiptsfalse,settings/import provenance preserved.
+Pre-reset slots backed up in /tmp/tutorial-once-fresh-profile-backup/ and
+resume-160758/. Do not restore these backups automatically:current fresh profile
+is intentional. No uninstall,physical phone,iPad,PWA sync or legacy operation.
+Physical animation/touch acceptance remains separate.
+
+## 2026-11-12 · Explain automatic Special delivery instead of manual opening
+
+User corrects delivery-step mental model:normal full Special bar automatically
+produces a random Special die;manual Open backpack belongs to the later collection
+lesson. Delivery title remains Special delivery!;description nowWhen the Special
+bar fills, / your backpack drops / a random Special die.(Arcade uses box).
+Ordinary and prewarmed sculpted delivery CTA both sayGot it,acknowledging only the
+teaching pause before existing automatic carrier/drop demonstration continues.
+Removed carrier-art UIButton/hit target/Open accessibility action. Later Journey
+collection Open backpack and retained-sheet visit semantics remain unchanged.
+No random-selection,drop,jump/burn/shimmer,save schema,asset or audio change.
+
+PASS9Native cases /tmp/tutorial-auto-delivery-native.log:actual passive-carrier
+hit region with unchanged hold then Got it->automatic complete drop16.978s,
+ordinary Got it16.756s,later collection CTA/retained visit18.923s;five actual Source
+CTA/prewarm/pause/cancel cases;phone/tablet both-mode text fit/geometry. Inspected
+actual /tmp/backpack-idle-cta-root.png:new balanced3-line description and Got it.
+Additional real restored below-threshold0.99->accepted move->full meter->same
+carrier/Got it->Special test PASS8.959s:
+/tmp/tutorial-auto-delivery-meter-corrected.log. Its earlier two runs FAIL at old
+fixture assumptions:direct .gameplay used Arcade entry instead of selected Journey
+World,and CTA lookup ignored its existing bounce wrapper. Fixture now unlocks/
+selects saved Beach World2/Stage11 through current route and looks up CTA recursively;
+no production navigation fix. Earlier receipts /tmp/tutorial-auto-delivery-meter.log
+and /tmp/tutorial-auto-delivery-meter-final.log retained,not claimed green.
+Source bootstrap old tap fixture updated to assert passive image then acknowledge.
+
+qa:fast,qa:ios,diff PASS;fullQA FAIL only known preserved-web scene-builders.test.ts:
+75,529suites/4010tests PASS,1suite/test FAIL;KING330/other gates PASS:
+/tmp/tutorial-auto-delivery-full.log. Ownership/contextual policy updated;prior
+manual-delivery guidance is superseded. Ignored dist refreshed with native sync
+disabled. Final normal full-tree Debug BUILD SUCCEEDED
+/tmp/tutorial-auto-delivery-preview.log;exact .native ID/no XCTest plugin verified.
+Install-over retained QA iPhone1018BE2D,normal launchPID66674;CUA confirms Home,
+actual SBRingerMuted=1. Both canonical save slots byte-identical to
+/tmp/tutorial-auto-delivery-saves/. No reset/uninstall,physical phone,iPad install,
+PWA sync or legacy operation. Physical acceptance remains separate.
+
+## 2026-11-12 · Journey collection lesson stays until actual Backpack return
+
+User requests Your backpack CTA Open backpack and retained reading sheet while
+performing the top-right Backpack action. Both Journey CTA and HUD target now
+open the existing NativeScoreOwner collection without dismissing/acknowledging.
+Sheet remains mounted/visible underneath;covered CA hand subtree is paused.
+Existing input/combo reading receipt stays until actual collection dismissal
+returns to the same board. Then existing sheet exit acknowledges canonically once.
+NativeGameplayViewController.onTutorialBackpackVisitClosed is a weak tutorial
+callback emitted by the existing generation/lease-guarded NativeScoreOwner close
+completion,after its normal resume/notification bookkeeping. Tutorial/gameplay
+disposal clear it. Rejected opening remains retryable,duplicate taps are guarded,
+app foreground does not resume the covered sheet,and canceled visits do not ack.
+No new scheduler/resource/audio/observer/save field. Arcade existing Got it and
+visit behavior retained. Ownership/contextual onboarding policy updated.
+
+PASS6focused Native cases /tmp/tutorial-collection-visit-native.log:Journey HUD
+18.714s and CTA18.666s full die/detail/X walkthroughs keep sheet and saved ack=false
+through modal,then ack only after actual return;nil onHelp rejection retries and
+foreground-notification covered-clock pause checked in both. Cancellation14.236s
+keeps durable ack=false and clears callback. Arcade Got it13.746s/full walkthrough
+18.279s retain prior behavior. Phone/tablet compact sheet/target geometry1.299s.
+Inspected actual /tmp/tutorial-dice-collection-sheet.png:Open backpack face fits.
+These are mounted handler/lifecycle checks;physical acceptance remains separate.
+
+qa:fast,qa:ios,diff PASS;fullQA FAIL only known preserved-web scene-builders.test.ts:
+75,529suites/4010tests PASS,1suite/test FAIL;KING330/other gates PASS:
+/tmp/tutorial-collection-visit-full.log. Feature admission via full PASS. Ignored
+dist refreshed with native sync disabled. Normal full-tree Debug BUILD SUCCEEDED
+/tmp/tutorial-collection-visit-preview.log;exact .native ID/no XCTest plugin
+verified. Install-over retained QA iPhone1018BE2D,normal launchPID59447;CUA confirms
+Home,actual SBRingerMuted=1. Both canonical save slots byte-identical to
+/tmp/tutorial-collection-visit-saves/. No reset/uninstall,physical phone,iPad install,
+PWA sync or legacy operation. Unrelated dirty work preserved.
+
+## 2026-11-12 · Backpack first-die hand lower-right corner
+
+User requests tutorial Backpack hand down/right with only10percent overlap at
+lower-right card edge. NativeCollectionTutorialHand first-die phase now anchors
+actual index fingertip20,35of176px at90percent of target cell width/height in
+Journey Backpack. Body extends down/right;original size,bounce/tap,input and
+lifecycle stay. Explicit controller parameter scopes this to Backpack;Arcade
+centred first-die and both Close hints keep existing positions. Ownership policy
+updated. Existing screenshot fixture waits530ms for hand entrance before capture.
+
+PASS3Native cases:actual Journey and Arcade full collection/detail/Close return
+18.704/18.712s plus phone/tablet projected hand-size/Close geometry23ms,
+/tmp/backpack-hand-corner-native.log. Inspected actual
+/tmp/tutorial-backpack-hand-first.png:Bee unobstructed,tip at lower-right border,
+hand body outside that card. User visual acceptance remains review.
+qa:fast,qa:ios,diff PASS;FullQA FAIL solely known preserved-web
+scene-builders.test.ts:75,529suites/4010tests PASS,1suite/test FAIL;KING330/other
+gates PASS:/tmp/backpack-hand-corner-full.log. Ignored dist refreshed with native
+sync disabled. No original asset,gameplay,save,audio or scheduler changes.
+
+Normal full-tree Debug BUILD SUCCEEDED /tmp/backpack-hand-corner-preview.log;
+exact .native ID/no XCTest plugin verified. Install-over retained QA iPhone1018BE2D
+and normal launchPID55169;CUA confirms Home,actual SBRingerMuted=1. Both canonical
+save slots byte-identical to /tmp/backpack-hand-corner-saves/. No reset/uninstall,
+physical phone,iPad install,PWA or legacy operation. Unrelated dirty work retained.
+
+## 2026-11-12 · Static delivery characters, Backpack idle/spring and all hand bounces
+
+User requests:remove delivery-character animation;Journey tutorial Backpack
+jumps30percent higher on both Open backpack and direct tap,has burn/shimmer while
+held,and returns at original anchor/scale before a cartoony Ball floor rebound.
+Follow-up:every tutorial hand appearance/exits bounces in/out. Existing hand size,
+targets and latest8pt up/left X offset remain.
+
+Removed delivery-header scale/depth animation and unused Source entry-progress
+adapter;both headers remain static on moving paper. Carrier80percent onset kept.
+Journey jump peak0.40->0.52closed-canvas heights;original-scale floor return0.44s,
+then0.18height second flight and smaller floor contact;opening at0.88s. Shared
+NativeBeachBallPlanning.floorBounceScale contains original exact Ball compression/
+launch/spring values;Ball oracle and rendering remain unchanged. Arcade retains
+0.48s pulse. Same Source carrier root owns full motion and actual opening/audio.
+
+Held Journey Backpack only:NativeTutorialCarrierIdleEffect borrows already-decoded
+original CPU raster as alpha mask for shared NativeStarBurnTiming gold wash and
+NativeSourceWildShimmerClock(immediate first sweep;default die behavior unchanged).
+At most3finite Source roots:burn,shimmer sweep/delay. No timer/link/renderer/decode/
+readback,gameplay RNG or original asset change. Actual carrier layer owns pose;
+CTA/tap retire effects before jump. Suspension pauses exact leases;prompt hide,
+replacement/disposal/stale-current release masks/jobs. ReducedMotion suppresses
+these idle effects. Normal drops and Arcade effects unchanged.
+
+Hands:existing first Source/World entrance stays;free/Special repeated gesture
+edges now backOut1.8 scale0->1/backIn1.7 to0 on existing160ms phases. Targets,
+shuffle/RNG,drag/rotation/alpha/cadence retained. Other overlay/collection hints
+borrow authored490ms pointer entry on image child. Disappearance creates at most
+one200ms original-image tail per host from current presentation geometry,with
+no snapshot/readback/input wait/controller retention. Weak completion removes it;
+hard cleanup removes tails and does not force pending modal views to load. Existing
+modal/overlay pause tree owns child CA motion. No asset/audio/save schema changes.
+
+PASS27focused Native cases /tmp/tutorial-backpack-hands-final.log:actual restored
+Journey Open CTA17.422s/direct tap16.116s verify idle effects,30percent higher jump,
+original landing,second rebound,real opening and committed Special;actual full
+Journey+Arcade collection hints/close/weak release18.171/18.031s;idle mask owner
+bounded roots over30simulated seconds,pause,resume,double cleanup/weak release;
+static characters;repeated hand boundaries,24original target/entropy/unchanged
+drag oracle cases,fourth-pointer oracle;finite UIKit hand exit/nonblocking input;
+original shimmer lifecycle,Ball oracle and all8meter drop cases. Inspected actual
+/tmp/backpack-idle-{cta,tap}-root.png and /tmp/tutorial-backpack-idle-burn-shimmer.png.
+Initial2actual delivery cases FAIL at Special completion:/tmp/tutorial-backpack-
+spring-native.log. Longer root subtraction yielded1.4049999999999998 vs1.405
+travel boundary. Exact final-boundary publication fixes this;final2cases above
+PASS real bookkeeping. Initial failure retained,not claimed green.
+
+qa:fast,qa:ios,diff PASS. FullQA FAIL only known preserved-web scene-builders.test.ts:
+75,529suites/4010tests PASS,1suite/test FAIL;KING330 and all other gates PASS:
+/tmp/tutorial-backpack-hands-full.log. Feature admission via fast/full PASS. Ignored
+dist refreshed with native sync disabled. Physical feel/FPS/heat remain
+NEEDS PHYSICAL TEST. Final normal full-tree Debug BUILD SUCCEEDED:
+/tmp/tutorial-backpack-hands-preview.log;exact .native ID/no XCTest plugin verified.
+Install-over retained QA iPhone1018BE2D and normal launchPID51840;CUA confirms Home.
+Actual SBRingerMuted=1;canonical primary/previous byte-identical to
+/tmp/tutorial-backpack-hands-saves/. No reset/uninstall,physical phone,iPad install,
+PWA sync or legacy operation. Unrelated dirty work preserved.
+
+## 2026-11-12 · User-requested tutorial-only reset on retained QA iPhone
+
+Terminated normal Native app,backed up both canonical slots to /tmp/tutorial-reset-20261112-120221. Removed firstPlayRun and set firstPlayTutorialComplete=false,
+journeyIntroSeen=false in the authoritative primary;published that coherent
+state to primary+previous so recovery cannot revive the old guide. Verified both
+JSON slots and exact equality of all other primary fields:normal runs,progress,
+stats,discoveries,settings and import provenance retained. Normal launch succeeded;
+actual SpringBoard SBRingerMuted=1. Fresh contextual guide starts on next selected
+Journey/Arcade entry. No build/test needed for data-only reset. No uninstall,
+iPad,physical phone,PWA or legacy operation.
+
+## 2026-11-12 · Delivery at80percent, layered header bounce and Close hint offset
+
+User requests: Backpack/Box starts at80percent of delivery sheet entry;header
+illustration scales/bounces behind paper then finishes in front. Both detail X
+and collection X hands move8pt up and left from the previous centred placement.
+
+NativeTutorialOwner retains its existing generation-owned delay/cancellation,
+now derived from NativeTutorialSheetMotion.duration*.8 =624ms of780ms in both
+Source and restored paths. Arrival/CTA/input/save ownership stays unchanged.
+NativeTutorialOverlay uses shared backOut1.8 scale0to1 about header lower edge;
+z-1 behind paper until bounce completes,z1 afterward. Source borrows progress
+from the same finite NativeSourceTutorialIntroOwner sheet participant,no extra
+clock/participant. Restored UIKit uses finite child CA tracks on the existing
+paused sheet subtree. Reduced Motion fades without scale. Neutral art bounds/
+position survive relayout during scale. Prompt retirement/replacement/disposal
+clears entry;Source epoch/current guards reject stale callbacks. Other lessons
+retain originalz0 stacking. Close hints compensate viewport projection for exact
+8pt up/left in both contexts;existing size,rotation,tap and lifetime retained.
+Ownership/contextual documentation updated. No asset-byte,gameplay,audio,haptic,
+save-schema,new renderer or recurring-work change.
+
+PASS6focused Native cases including actual Journey+Arcade collection walkthroughs,
+phone/tablet hand geometry,delivery art geometry and source clock motion:
+/tmp/tutorial-entrance-native.log. Final depth-isolation/capture refinement PASS3
+/tmp/tutorial-entrance-motion-final.log;restored finite child track pause/resume,
+retirement and double disposal PASS /tmp/tutorial-entrance-restored-final.log.
+Source test exercises both artwork modes,overshoot,behind/front depth,global
+pause,resume,relayout and late callback rejection after retirement. Inspected
+/tmp/tutorial-{backpack,box}-header-{enter,settled}.png and updated Close captures;
+header snapshots are overlay fixtures,not real carrier pixel proof. Actual carrier
+admission retains existing owner with new derived delay. Animation feel and
+physical acceptance remain NEEDS PHYSICAL TEST.
+
+qa:fast,qa:ios,feature-runtime,diff PASS. FullQA FAIL only known preserved-web
+scene-builders.test.ts:75(529suites/4010tests PASS,1suite/test FAIL);KING330 and all
+other gates PASS:/tmp/tutorial-entrance-full.log. Ignored dist refreshed with
+SKIP_NATIVE_BUNDLE_SYNC=true;no PWA sync. Final normal full-tree Debug BUILD
+SUCCEEDED /tmp/tutorial-entrance-preview-build.log;exact .native ID/no XCTest
+plugin verified. Install-over retained QA iPhone1018BE2D and normal launchPID39041.
+CUA confirms Home;actual SpringBoard SBRingerMuted=1. Canonical primary/previous
+slots byte-identical to /tmp/tutorial-entrance-preview-saves/. No reset/uninstall,
+physical phone,iPad install,PWA or legacy operation. Unrelated dirty work retained.
+
+## 2026-11-12 · Arcade delivery spacing, normal tutorial Special and unified hands
+
+User requests: Arcade delivery matches Journey Backpack spacing/size; header
+characters24pt lower;first earned Special normal size in both tutorials;all
+hands same size as initial3-on-2. Latest Close correction centres index fingertip
+on visible X and keeps palm above text, superseding separate16pt left offset.
+
+NativeTutorialOverlay now excludes closed Box transparent padding (ink112...370
+of290px width),matches Backpack visible height,28pt top/24pt title gaps. Arcade
+header offset24pt on phone/tablet;tablet retains its existing24pt. Journey sheet
+geometry/art retained. Removed passive1.3 tutorial Special multiplier from
+NativeDiceNode/Scene;normal Source geometry/local animation and burn stay.
+All steps and collection hints share min(viewportWidth*.34,190pt);collection
+compensates existing modal projection. Close hints rotate180degrees around real
+index fingertip20,35of176px,centred on visible button image;both detail/collection
+X use same owner. Original finite tap/input/foreground/disposal owners retained.
+No new scheduler/resource/audio,gameplay/save schema or source asset changes.
+
+PASS4Native scale/restore/Journey+Arcade and sheet geometry cases:
+/tmp/arcade-spacing-native-final.log. PASS5subsequent hand/geometry/actual-root
+Journey+Arcade walkthroughs /tmp/arcade-spacing-hands-final.log. Final Close
+correction PASS3including both full actual collection/detail/X walkthroughs and
+phone/tablet projected hand geometry /tmp/tutorial-close-pointing-final.log.
+Inspected final /tmp/tutorial-{box,backpack}-hand-{detail,close}.png:readable
+headings/descriptions with hand above X. Static overlay delivery captures prove
+header/copy geometry,not live carrier paint. Physical acceptance remains
+NEEDS PHYSICAL TEST.
+
+qa:fast and qa:ios PASS;explicit KING330PASS;diff check PASS. Latest fast receipt
+/tmp/tutorial-close-fast.log,ios /tmp/arcade-spacing-ios-final.log. FullQA FAIL
+known preserved-web scene-builders.test.ts:75,529suites/4010tests PASS,1FAIL:
+/tmp/arcade-spacing-full.log. Initial older full tutorial carrier fixture also
+FAILS before delivery at missing Special Bar/waitingForWild expectations(7
+assertions),/tmp/arcade-spacing-native.log;not claimed green or fixed here.
+It ran before Special-size/hand edits;new sheet geometry test already passed.
+Initial hand compile ambiguous .zero fixed with explicit CGPoint.zero;final
+compiled tests above pass. No PWA sync;fullQA may refresh ignored dist.
+
+Normal complete-working-tree Debug BUILD SUCCEEDED:
+/tmp/tutorial-polish-preview-build.log. Verified exact .native ID/no XCTest plugin;
+install-over retained QA iPhone1018BE2D and normal launchPID32605. CUA confirms
+normal Home;actual SpringBoard SBRingerMuted=1. Both canonical save slots remain
+byte-identical to /tmp/arcade-spacing-preview-saves/Library/Application Support/
+StackToSixNative/. No uninstall/reset,physical phone,iPad install,PWA or legacy
+operation. Existing unrelated dirty work preserved.
+
+## 2026-11-12 · Tutorial collection hand, Box header artwork and scoped iPad polish
+
+User requests: Arcade delivery header uses supplied zajedno likovi box.png;
+only iPad lowers that illustration24pt;Arcade delivery subtitle explicitly wraps
+Your box brings a special die / to help you. Tutorial gameplay Backpack/Box visits
+now guide first unlocked visible die -> detail X -> collection X after detail close.
+Normal non-tutorial/Hub/World collection visits retain existing presentation.
+
+NativeScoreOwner admits guidance only for a tutorial state before global completion.
+Existing gameplay collection controller owns one NativeCollectionTutorialHand;
+actual collection/detail enter completions retarget it inside the active modal's
+idle subtree. Original hand asset,two finite1.4s tap cycles then static;ReducedMotion
+static. First-die size<=120logical,close72 to retain readable titles/copy. Hint is
+noninteractive;existing drag/backdrop/Close/cell input stays available. Existing
+root foreground clock pauses it;transitions/close/disposal retire it. Detail adds
+weak entered/layout callbacks cleared on disposal. Layout resolves the current
+first visible unlocked cell after relayout and follows actual Close geometry.
+No gameplay/save schema,audio,haptic,new scheduler or asset-byte changes. Existing
+sheet/CTA/carrier geometry/motion retained except requested iPad Arcade art Y.
+Feature runtime and contextual onboarding ownership documented.
+
+PASS final actual-root Journey/Arcade full hand sequence,foreground pause,
+acknowledgement,same board and weak detail/hand release on retained iPhone:
+18.071/18.252s plus scoped phone/tablet art+copy geometry1.801s,
+/tmp/tutorial-hand-native-final.log. Same3cases PASS on actual iPad A16 with real
+full iPad viewport:Journey17.928s,Arcade18.297s,geometry.746s,
+/tmp/tutorial-hand-ipad.log. Earlier direct modal drag/foreground cleanup1.914s and
+pending-detail disposal/late callback rejection1.038s PASS in
+/tmp/tutorial-hand-native.log. That initial combined run FAILS two weak-detail
+waits because its async fixture retained its own strong local detail;moving that
+local to a synchronous helper made the deallocation measurement valid. No
+production release workaround;final runs above verify actual release. Initial
+run is not claimed green;its interrupted Xcode log-finalization was terminated
+before rerunning serially. Inspected all hand phases and Box illustration/wrap
+captures in /tmp/tutorial-hand-{phone,ipad}-evidence/. Renders show hints at real
+targets and no copy overlap after smaller Close hand correction. Physical touch,
+feel/FPS/heat remain NEEDS PHYSICAL TEST.
+
+Final qa:fast,qa:ios,feature-runtime,diff PASS. FullQA retains known preserved-web
+scene-builders.test.ts:75 failure(529suites/4010tests PASS,1suite/test FAIL);
+KING330/other gates PASS:/tmp/tutorial-hand-full.log. Earlier artwork-only gates
+also had the same known fullQA failure:/tmp/tutorial-box-art-full.log. Native
+art preparation copies originals but strict inventory still FAILS on historical
+extra packaged paths;none removed. All3 requested Box PNG density variants are
+byte-identical in final built app. No source original altered/deleted. FullQA
+rebuilt ignored dist with SKIP_NATIVE_BUNDLE_SYNC=true;no PWA sync.
+
+Final normal complete-working-tree Debug BUILD SUCCEEDED:
+/tmp/tutorial-hand-preview-build.log;exact .native identity/no XCTest plugins
+verified. Install-over and normal launch retained QA iPhonePID58414/iPadPID58453.
+Four canonical save slots byte-identical after final launch to immediately prior
+/tmp/tutorial-hand-preview-saves/. Earlier long artwork-stage snapshots differed
+while the user was actively playing;no old snapshot restored/no preservation
+claim from those unequal snapshots. Actual SBRingerMuted=true/false retains known
+iPad absent-Mute limitation;game preferences unchanged. No reset/uninstall,
+physical phone,PWA or legacy action. Unrelated working-tree work preserved.
+
+## 2026-11-12 · User-authorized fresh progress on both Native Simulators
+
+User explicitly requests iPhone and iPad progress reset to zero with tutorial ready.
+Scope is the two active review Simulators,not physical devices. Terminated only
+com.taptapdesign.stacktosix.native on retained QA iPhone and iPad A16;backed up both
+canonical slots from each to /tmp/stack-to-six-reset-20261112/{iphone,ipad}/.
+Temporary Swift helper built from current Native state/core objects generated and
+validated NativeSaveEnvelope defaults with each device's existing settings/import
+provenance. Wrote identical fresh primary+previous slots so recovery cannot revive
+old progress. No uninstall,Simulator erase,build,source/gameplay or asset change.
+
+PASS actual NativeSaveStore readback and post-launch verification on all4slots:
+zero scores/stats/completions/discoveries,no active normal/tutorial runs or pending
+rounds,firstPlayTutorialComplete=false,journeyIntroSeen=false. Default Stage1 is
+playable;fresh contextual tutorial starts on selected Journey/Arcade entry. Sound,
+Music,Vibration preferences retained. Normal launches QA iPhonePID44604/iPadPID44608.
+Actual SBRingerMuted=true/false retains existing iPad absent-Mute limitation.
+No test suite needed for this data-only reset. Physical phone,PWA,legacy and
+other Simulator profiles untouched. Old progress recoverable from external backup.
+
+## 2026-11-12 · Arcade tutorial consistently names Box
+
+User corrects Open crate to Open box,and supplies screenshot of collection lesson
+still showing Your backpack in Arcade. CTA was already Open box in source;iPad
+was running an older binary. Refreshed it,then corrected the separate resumed
+collection lesson:NativeTutorialOwner now supplies actual run mode when constructing
+NativeTutorialOverlay,so restored Arcade lessons do not depend on earlier delivery
+having set backpackArcade. Arcade uses Your box / Tap the box to meet your little
+helpers.,Open box accessibility labels,and box in both delivery descriptions.
+Journey retains backpack copy. Existing callback IDs,layout,motion,input pause,
+acknowledgements,assets and save behavior retained. Feature runtime policy updated.
+
+PASS2mounted actual-root restore/acknowledgement/board-preservation tests:
+Arcade14.183s and Journey13.679s /tmp/tutorial-box-copy-native.log. Inspected actual
+/tmp/tutorial-arcade-box-sheet.png:Your box and balanced Tap the box text fit;
+Got it and existing hand/Box target retained. qa:fast,qa:ios,feature-runtime,diff
+PASS. FullQA FAIL solely at existing preserved-web scene-builders.test.ts:75
+(529suites/4010tests PASS,1suite/test FAIL);KING330/other gates PASS:
+/tmp/tutorial-box-copy-full.log. Ignored dist rebuilt with native sync disabled.
+
+Normal full-tree Debug BUILD SUCCEEDED /tmp/tutorial-box-copy-build.log;verified
+exact .native identity. Install-over and normal launch retained QA iPhonePID43335
+and iPad A16PID43415. Four canonical save slots byte-identical after launches to
+/tmp/tutorial-box-copy-saves/. Actual SBRingerMuted=true on phone;existing iPad
+false/absent-Mute control limitation retained,game preferences unchanged. CUA
+confirmed normal Home on earlier iPad refresh;final iPad window selection through
+Simulator menu unavailable,no claim of live final-sheet UI navigation. Mounted
+render above is the actual changed-screen evidence. No reset/uninstall,physical
+phone,PWA or legacy action. User physical/aesthetic acceptance remains separate.
+
+## 2026-11-11 · Incomplete tutorial switches mode by starting fresh
+
+User decision: until global completion, same-mode return/relaunch resumes the
+current tutorial;starting the other mode replaces it with a fresh Journey/Arcade
+guide. Switching back cannot resurrect the discarded guide. Same-mode selected
+World/Arcade variant behavior is preserved. Browsing or canceled preparation alone
+does not discard a checkpoint. Global completion retains normal non-tutorial entry.
+
+NativeSaveEnvelope now resolves firstPlayDestination and matching checkpoint by
+selected mode/board. NativeBootstrap uses the same checkpoint for texture preparation,
+restore,prepared-lease admission and Special selection,so a Journey start cannot
+inherit an Arcade board,flags or random Special(and vice versa). Existing construction
+and disposal/retirement owners remain;mode replacement clears the retired checkpoint
+at construction commit before the normal coherent save owner publishes the new guide.
+No extra saved field,clock,resource,audio,asset or progression system. Normal run
+slots,settings,stats and global-completion ownership retained. Contextual onboarding,
+stable project context and feature runtime policy updated.
+
+PASS5State tests /tmp/tutorial-mode-switch-state.log. PASS2Native mounted tests
+/tmp/tutorial-mode-switch-native.log:new actual Bootstrap both-direction switch+
+process recreation matrix13.518s,and existing full actual Source Backpack guide
+28.019s. The matrix verifies fresh stack/objective/score,Journey Bee instead of old
+Star,one new durable checkpoint,same tiles/lesson state on relaunch,and real-run
+isolation. State test also covers mid-guide checkpoint,relaunch,canceled selection,
+switch-back discard and completed-profile bypass. qa:fast,qa:ios,diff PASS;
+feature-runtime via fast/full PASS. FullQA FAIL solely at known preserved-web
+scene-builders.test.ts:75(529suites/4010tests pass,1suite/test fails);KING330 and
+all other gates PASS:/tmp/tutorial-mode-switch-full.log. Ignored dist rebuilt with
+SKIP_NATIVE_BUNDLE_SYNC=true;no PWA sync. Physical UX/motion remains user review.
+
+Normal complete-current-tree Stack to Six Debug BUILD SUCCEEDED
+/tmp/tutorial-mode-switch-build.log;exact .native identity and no XCTest plugins
+verified. Install-over retained QA iPhone and normal launchPID33065. Both canonical
+slots byte-identical to /tmp/tutorial-mode-switch-save-backup after launch;actual
+SpringBoard SBRingerMuted=true. No reset/uninstall,physical phone,iPad,PWA or legacy
+operation. Existing unrelated working-tree edits preserved.
+
+## 2026-11-11 · Arcade tutorial delivery Open box and high-five artwork
+
+User requests Arcade delivery sheet CTA Open box and existing hi five.png header.
+NativeTutorialOverlay selects assets/tutorial/hi five.png only for Arcade delivery;
+Journey keeps ekipa backpack.png. Both actual prewarmed sculpted CTA and ordinary
+button use Open box in Arcade;this fixes the prewarmed face retaining Open backpack.
+No action,motion,carrier geometry,audio,gameplay or save changes.
+
+qa:fast,qa:ios,diff PASS. FullQA FAIL solely at known preserved-web scene-builders.test.ts:75
+(529 suites/4010 tests pass;1 suite/test fails);KING330 and all other gates PASS:
+/tmp/arcade-open-box-full.log.
+Native artwork preparation copied source bytes but its strict inventory gate FAILS
+because the package already contains extra historical paths absent from assets;
+none removed. No source paths missing;all three hi five density variants match
+source and built @3x bytes verified. Normal complete-tree Debug BUILD SUCCEEDED
+/tmp/arcade-open-box-build.log;verified com.taptapdesign.stacktosix.native,
+install-over and normal retained QA iPhone launch PID28335. Both canonical save
+slots byte-identical to /tmp/arcade-open-box-save-backup after launch. Actual
+SpringBoard SBRingerMuted=true after final launch. Simulator UI focus landed on
+existing iPad old app;menu selection unavailable,so no claim of live new-sheet
+visual inspection. Physical phone,iPad,PWA and legacy not installed or changed.
+
+## 2026-11-11 · Core Magnet red shards, STAR yellow shards and consumed Magnet face
+
+User reports missing red Magnet shards and the obsolete Star face at the merge
+position,then asks for the same yellow-shard correction on core STAR Wild.
+NativeBoardScene now supplies original F26034 for plain Magnet main/convergence
+and FFCB47 for plain STAR main to NativeRegularSixSharedLayers. Existing twelve
+shared shard geometry,pattern cursor,pools,RNG draws,clock,smoke and retirement
+remain;all other callers retain D4A584. No assets/rules/scoring/saves changed.
+NativeDiceNode keeps the actual consumed core-Magnet destination face receipt,
+but hides its visual/shadow children in that first face callback so the reserved
+carrier never paints the historical Star. Existing numbered-survivor bounce,
+physical ownership and final removal remain. Performance ownership updated.
+
+PASS18unique focused Native cases:16shared shard/resource/RNG/cleanup tests plus
+actual-root Magnet and STAR matrices,each covering ordinary/final merges in both
+directions. Magnet root73.349s /tmp/magnet-fix-root-final.log;STAR root69.884s and
+16shared cases /tmp/wild-colors-native.log. Earlier probes failed test-only color
+Float32 equality,missing beginAttempt on seeded resume and the already-removed
+final destination assumption;fixtures corrected without gameplay changes.
+Final fastPASS /tmp/magnet-fix-fast-final.log;special admissionPASS
+/tmp/magnet-fix-special-final.log;final qa:iosPASS /tmp/wild-colors-ios.log.
+Final fullQA retains the previously recorded preserved-web scene-builders.test.ts:75
+failure(4010pass/1fail);KING330and all other gatesPASS /tmp/wild-colors-full.log.
+FullQA regenerated ignored dist with SKIP_NATIVE_BUNDLE_SYNC=true;no PWA sync.
+Physical visual/motion acceptance NEEDS PHYSICAL TEST.
+
+Normal complete-tree Stack to Six Debug BUILD SUCCEEDED:
+/tmp/wild-colors-preview-build.log. Verified exact .native bundle and no XCTest
+plugins;install-over and normal launch on retained QA iPhonePID27072. Both
+canonical state-v1.json/state-v1.previous.json byte-identical after launch to
+/tmp/magnet-fix-save-backups/. Actual SpringBoard SBRingerMuted=1 after launch.
+No reset/uninstall,physical phone,iPad,PWA or legacy operation. Final Simulator
+capture /tmp/wild-colors-final-preview.png. Branch feature/contextual-tutorial-v2;
+unrelated existing working-tree changes preserved.
+
+## 2026-11-11 · Live Endurance04 apparently blocked board: invisible logical die confirmed
+
+User reports no stack/merge in retained QA iPhone Simulator. Inspected live normal
+Native PID11492 without restart/install/reset. Screenshot showed only five dice
+(5,5,5,4,3), while canonical Arcade save generation5/revision39/moves11/score28203
+contained SIX visible/unlocked logical dice, including value1 at column2,row0,
+ID native:5:15:2:0:die:7. Backed up both canonical slots and existing rejection
+history BEFORE interaction to /tmp/stack-blocked-20261111/. Dragged visible5 at
+column0,row1 onto visually EMPTY column2,row0 through Simulator UI: real merge
+six/burst/score28214 confirmed the invisible die was hittable. Subsequent settled
+score28215 and replacement3 visibly painted there; next actual3+3 also accepted,
+settled score28227 with visible replacement1 plus earned Star. Current board is
+playable; two investigation moves changed live run normally, no direct save writes.
+
+FAIL visible-board consistency. Proven symptom is missing die presentation, NOT
+global input deadlock. Exact underlying hidden/scale/frame/renderer owner and
+introducing commit NOT proven; do not blame current tutorial changes from dirty
+diff alone. Existing rejection history has no corresponding Arcade incident.
+Brief read-only LLDB attach/detach confirmed foreground PID11492; no runtime patch.
+No implementation/build/install/full QA or physical-phone/PWA/legacy action.
+Do not claim a permanent fix: current board recovered through ordinary merges.
+Keep original snapshot for isolated regression reproduction/source-owner diagnosis.
+
+Follow-up concurrency audit: during source diagnosis another xcodebuild process
+PID21425 started QA on the SAME retained iPhone UUID using
+/tmp/contextual-tutorial-v2-derived, selecting NativeRegularSixSharedLayersTests
+and NativeWildMergeSixRootTests/testCoreMagnetRedShardsAndConsumedDestinationStayHiddenBothDirections.
+By that observation original normal PID11492 had exited. This PROVES concurrent
+Simulator interference during investigation, NOT causation of the earlier hidden
+1. Read-only unified-log query for PID11492 yielded no retained incident rows.
+No historical per-node scale/visibility snapshot exists in canonical JSON, so
+saved logical visible=true cannot identify actual hidden/zero-scale/position/frame
+owner. Fresh-entry pending-scale and retained Magnet-face paths reviewed only;
+no speculative source repair or attribution made. Editing source alone does not
+mutate an already-running compiled app. No new tests/build/install started by this
+investigation while another QA process owned the device.
+
+## 2026-11-11 · Stronger tutorial Backpack jump during sheet descent
+
+User requests higher upward bounce and stronger squeeze while the delivery
+sheet descends,then return to rest. Existing NativeWildMeterDropPlan tutorial
+480ms emphasis now uses anticipation(1.18x/.80y),takeoff stretch(.84x/1.30y),
+crest1.14x/1.12y at-.40closed-carrier heights,landing1.28x/.76y,and back-out
+settle to exact identity. Crest230ms overlaps existing280ms sheet exit;original
+closed frame held through all480ms and source opening/audio resumes afterward.
+Same APP root,overlay ink bridge,resource/visibility/pause/dispose/current-owner
+fences. Scene owner forwards existing arcade flag so Arcade crate retains its
+prior uniform1→1.20→1pulse;normal deliveries/oracles unchanged. No assets,
+readback,clock,cache,audio cue,gameplay/RNG/input/save or handoff duration added.
+Feature runtime record updated with this scoped carrier motion policy.
+
+PASS22drop curve/normal renderer-oracle/resource/current-generation/disposal
+cases in /tmp/tutorial-backpack-hop-native-tests.log (first actual guide probe
+failed only its squash threshold while capturing a hierarchy screenshot mid-jump).
+Test now samples rest BEFORE CTA press and does no blocking snapshot/readback
+inside its finite motion sampler. Production motion unchanged during fixture
+correction. Final actual full Bee guide PASS34.244s:
+/tmp/tutorial-backpack-hop-flow-final.log. Live measured rise90.1425pt against
+225.3562pt carrier height(40percent),min sampled vertical scale.81825,max1.29692,
+returnedBeforeOpening=true. Model test verifies higher jump,squash/stretch,exact
+identity endpoint and unchanged crate pulse.23unique focused cases pass across
+these runs;initial combined run is not claimed green. Inspected captured
+/tmp/tutorial-backpack-upward-bounce.png showing held carrier raised/stretched
+during descending sheet. Physical feel/FPS/heat NEEDS PHYSICAL TEST.
+
+qa:fast,qa:ios,feature runtime via fast,diff PASS. FullQA retains known preserved-
+web scene-builders.test.ts:75 (4010pass/1fail);KING330/all other gates PASS:
+/tmp/tutorial-backpack-hop-full.log. Normal complete-tree Debug BUILD SUCCEEDED
+/tmp/tutorial-backpack-hop-build.log;exact .native/no XCTest plugins verified.
+Install-over retained QA iPhonePID11492/iPad A16PID11530,normal launch on both.
+Four canonical slots byte-identical after launch to
+/tmp/tutorial-backpack-hop-save-backups/. Actual SBRingerMuted=true/false retains
+existing iPad absent-Mute limitation;game settings unchanged. No reset/uninstall,
+physical phone,PWA or legacy action. Branch feature/contextual-tutorial-v2.
+
+## 2026-11-11 · Six approved tutorial copy changes
+
+User selects exactly six pairs;NativeTutorialOverlay now displays:
+- Let’s stack! / Drag 3 onto 2 to make 5.
+- Special bar / Merge to fill the bar. A Special die is waiting!
+- Special delivery! / Open your backpack and meet your Special die.
+- Let’s try your Special! / Merge it with any regular die. Either one can go on top.
+- Your backpack / Tap the backpack to meet your little helpers.
+- Play fast. Score big. / Quick merges build your combo and boost your score.
+
+Authored balanced line breaks preserve each sentence/wording. Objective Clear
+the board,Merge and clear/Drag 5 onto 1,Journey card intro,Arcade crate variant and
+actual Backpack modal copy retain prior strings. No gameplay,assets,motion,
+input,layout algorithm,audio or save change. Collection lesson text assertion
+and feature owner wording updated. Current Studio tone was reviewed in preceding
+copy review;no Studio catalog/database operation.
+
+PASS3mounted collection open/close same-board and phone/tablet compact/hand
+layout tests (15.747/1.142/1.792s) in /tmp/tutorial-brand-six-native-test.log.
+Initial combined actual Bee guide failed its Special-Bar milestone and8cascade
+assertions while other tests passed;same unchanged code/artifact passed isolated
+actual full guide34.335s /tmp/tutorial-brand-six-source-retry.log. Timing/order
+cause not proven,no gameplay adjustment made to mask test failure. Four unique
+selected cases pass across these runs;combined run is not claimed green.
+Inspected rendered /tmp/ipad-compact-tutorial-step-4.png,new combo preview and
+/tmp/tutorial-dice-collection-sheet.png:titles/descriptions fit with balanced
+lines. qa:fast,qa:ios,feature-runtime via fast,diff PASS. FullQA retains known
+preserved-web scene-builders.test.ts:75 (4010pass/1fail);KING330/other gates PASS:
+/tmp/tutorial-brand-six-full.log. Physical feel remains user review.
+
+Normal complete-tree Debug BUILD SUCCEEDED /tmp/tutorial-brand-six-build.log;
+exact .native/no XCTest plugins verified. Install-over and normal launch on
+retained QA iPhonePID5312/iPad A16PID5350. Four canonical slots byte-identical
+after launch to /tmp/tutorial-brand-six-save-backups/. Actual SBRingerMuted=true/
+false retains existing iPad absent-Mute limitation;game preferences unchanged.
+No reset/uninstall,physical phone,PWA or legacy action. Branch
+feature/contextual-tutorial-v2.
+
+## 2026-11-11 · Backpack collection explanation copy
+
+User asks playful/simple Studio-brand explanation that Backpack is for learning
+about dice rather than choosing them for play,and selects final exact wording:
+Backpack / Meet your little helpers. They’ll drop in as you play.
+NativeGameplayBackpackController retains Backpack heading and uses this single
+subtitle explanation,with authored newline between sentences,in Forest/Beach/
+Area55. Replaces former world items/tagline. Arcade Box copy,fullscreen section
+captions,tutorial collection sheet,grid/motion/assets/rules/saves unchanged.
+Reviewed current Studio library/guides/BRAND_LANGUAGE.md directly;no Studio
+catalog/database change. Other suggested titles/subtitles remain chat drafts.
+
+PASS final all-world modal copy/padding/layout test0.481s:
+/tmp/backpack-helpers-copy-test.log. Inspected final text in existing rendered
+/tmp/gameplay-forest-backpack-modal.png. Actual mounted collection open/close/
+same-board test alsoPASS16.063s during copy iteration:
+/tmp/backpack-brand-copy-test.log. That first run found stale test-only26pt
+line-height expectations;updated to current unchanged shared18pt/23.4pt rhythm,
+then all-world testPASS0.492s /tmp/backpack-brand-copy-layout-final.log and final
+wording testPASS0.481s. No runtime typography change. qa:ios and final qa:fast,
+diff PASS. FullQA during this copy task retains known preserved-web
+scene-builders.test.ts:75 (4010pass/1fail);KING330/other gates PASS:
+/tmp/backpack-brand-copy-full.log. Final shorter wording subsequently verified
+by Native test and qa:fast /tmp/backpack-helpers-copy-fast.log.
+
+Normal complete-tree Debug BUILD SUCCEEDED /tmp/backpack-helpers-copy-build.log;
+exact .native/no XCTest plugins verified;install-over and normal launch on
+retained QA iPhonePID91771/iPad A16PID91813. Four canonical slots byte-identical
+after launches to /tmp/backpack-helpers-copy-save-backups/. Actual Silent Mode
+true/false retains existing iPad absent-Mute limitation;game settings unchanged.
+No reset/uninstall,physical phone,PWA or legacy action. Branch
+feature/contextual-tutorial-v2. Physical feel remains user review.
+
+## 2026-11-11 · iPhone Backpack NEW/artwork quality correction
+
+User reports visibly jagged NEW text and low-quality unlocked card on phone.
+Reproduced in actual mounted gameplay Backpack3x capture:NEW visibly blocky,
+Bee/frame blurred while locked static cards and modal UILabel text remain sharp.
+Original NEW@2x240x230PNG is selected correctly and retained unchanged. Root
+cause is phone-only UIView/CALayer artworkGroup flattening its locally animated
+3D subtree;existing iPad path already uses CATransformLayer to avoid this.
+NativeBackpackCell now uses existing JimiNativeModalTransformView on phone too,
+retaining native-density artwork leaves under the same perspective/float recipe.
+Before/after same gameplay route confirms substantially smoother NEW and restored
+Bee wings,face and thin frame detail. No layout,artwork,source-density selection,
+motion timing,input,save,audio or timer/cache/decode-owner change. All shared
+phone Backpack/Box cells benefit;iPad uses its existing composition unchanged.
+Feature owner records this phone extension;existing mounted Retina regression
+now requires retained3D subtree on both idioms instead of preserving phone flatten.
+
+PASS fixed actual gameplay collection open/close/same-board test16.657s:
+/tmp/backpack-phone-quality-fixed-test.log. PASS5mounted Retina,unlocked/locked
+idle retirement,Arcade independent poses,alert tilt/pause and unclipped alert
+regressions5.035s /tmp/backpack-phone-quality-regressions.log. Total6focused
+Native tests0fail. Inspected original NEWPNG and native3x comparison:
+/tmp/backpack-phone-quality-before.png /tmp/backpack-phone-quality-after.png,
+matching cropped evidence -before-crop.png / -after-crop.png. Existing mounted
+root test now exports /tmp/backpack-phone-quality.png for quality review.
+qa:fast,qa:ios,feature-runtime via fast,diff PASS. FullQA retains known preserved-
+web scene-builders.test.ts:75 (4010pass/1fail);KING330 and other gates PASS:
+/tmp/backpack-phone-quality-full.log. Physical-device visual feel/thermal/FPS
+NEEDS PHYSICAL TEST;no physical installation performed.
+
+Normal complete-tree Stack to Six Debug BUILD SUCCEEDED
+/tmp/backpack-phone-quality-build.log. Verified .native bundle/no XCTest plugins;
+install-over retained QA iPhonePID79525/iPad A16PID79647 and normal launch.
+Four canonical slots byte-identical after launch to
+/tmp/backpack-phone-quality-save-backups/. Actual SBRingerMuted=true/false retains
+existing tablet absent-Mute limitation;game preferences unchanged. No reset,
+uninstall,PWA or legacy action. Branch feature/contextual-tutorial-v2.
+
+## 2026-11-11 · Preload fire bubble density +40percent on phone and tablet
+
+User requests40percent more fire bubbles/artifacts on iPhone and iPad preload
+bar. Existing SmokeResources now adds deterministic companions to2/5phone
+births and4/5tablet births: five logical particles render7phone circles instead
+of5,and14tablet circles instead of10. Retains prior primary/tablet companion
+size,color,flight,soft entry and lifetime. Same animation owner,emission cadence
+and shared RNG draws;no new clock,asset,gameplay or save change. All companions
+participate in ownership,shake compensation and synchronous destruction.
+Existing mounted phone/tablet companion test updated for the new density.
+
+PASS22Native HUD/smoke tests0fail /tmp/preload-density-native-tests.log;
+includes mounted companion motion/cleanup,low-fill fade and resize/oracle checks.
+qa:fast,qa:ios,diff PASS. FullQA retains known preserved-web
+scene-builders.test.ts:75failure (4010pass/1fail);all other gates including
+KING330 PASS /tmp/preload-density-full.log. Physical appearance/FPS/heat
+NEEDS PHYSICAL TEST.
+
+Normal Stack to Six Debug BUILD SUCCEEDED /tmp/preload-density-build.log;
+verified com.taptapdesign.stacktosix.native,install-over retained QA iPhone
+PID74040 and iPad A16PID74112;normal launch and visible iPad Home verified.
+No uninstall/reset or direct canonical save writes;both canonical slots on
+both devices remain readable valid JSON. Pre-install backup glob also matched
+historical QA copies,so byte-for-byte preservation is NOT claimed from that
+backup. Actual final SBRingerMuted=true on phone;tablet retains known false/
+absent-Mute limitation. No game preference,physical phone,PWA or legacy action.
+
+## 2026-11-11 · User-requested full reset on both retained QA Simulators
+
+User explicitly requests complete iPad+iPhone reset and hidden cards. Both
+canonical slots on each retained QA Simulator replaced with fresh Native v1
+profile:completed/viewed cards,all stats,runs,inventory and Special discoveries
+empty;tutorial/intro false;no firstPlayRun;settings fresh defaults all ON.
+Canonical first playable interim remains,with no previously completed artwork
+open. Original four slots backed up at
+/tmp/stacktosix-both-full-reset-20261111-220315/. Normal launchiPhonePID74188,
+iPadPID74211;both reset payloads on both verified after launch. Actual Silent
+Mode true/false retains existing iPad absent-Mute limitation. Current enlarged
+characters/diagonal Backpack tap/copy build unchanged. No uninstall,build,
+physical phone,PWA or legacy action. Branch feature/contextual-tutorial-v2.
+
+## 2026-11-11 · All iPad tutorial characters +40percent;Backpack diagonal tap/copy
+
+User broadens prior objective-only character enlargement to every illustrated
+tutorial sheet on iPad. NativeTutorialOverlay shared lessonArt now uses1.4factor
+on tablet for Clear the board,Special bar and Special delivery (360→504pt wide,
+proportional height). Corresponding authored bottom offsets37/29/21 scale by1.4
+to retain hands resting on paper edge. iPhone character art,copy/CTA/sheet sizes,
+separate carrier and original PNGs unchanged. Inspected all3original character
+assets. Existing mounted phone/tablet text-sheet regression PASS1.880s:
+/tmp/tutorial-all-ipad-art-test.log.
+
+User also requests collection hand20px left and diagonal lower-left→upper-right
+motion resembling a tap. Step8-only rest position shifts20pt left;shared CA
+owner now approaches(+x,-y),briefly compresses to0.9at contact,then returns/holds
+within unchanged1.4s cycle. Combo step7 motion untouched. Existing Reduce Motion,
+suspension,hide/dispose and hit rectangle ownership retained. User selects simpler
+copy: Your backpack / Find your dice and see what they do. Subtitle has authored
+balanced two-line break,without wording change. Feature owner record updated.
+
+PASS diagonal/collection layout+Got it+Backpack return3tests30.727s:
+/tmp/tutorial-backpack-diagonal-test.log. Final selected copy Got it+Backpack
+return2tests29.290s /tmp/tutorial-backpack-copy-final-test.log;balanced subtitle
+Got it test14.109s /tmp/tutorial-backpack-copy-layout-test.log. Inspected final
+/tmp/tutorial-dice-collection-sheet.png:balanced text,shifted fully visible hand.
+qa:fast,qa:ios,feature-runtime,diff PASS. FullQA retains existing preserved-web
+scene-builders.test.ts:75 (4010pass/1fail);KING330 and all other gates PASS:
+/tmp/tutorial-all-ipad-art-full.log. Physical animation feel NEEDS PHYSICAL TEST.
+
+Normal Debug BUILD SUCCEEDED /tmp/tutorial-backpack-final-build.log. Exact
+.native bundle verified,install-over retained QA iPhonePID72550/iPad A16PID72758,
+normal launch on both. Both canonical slots on both remain byte-identical after
+launch to /tmp/tutorial-backpack-final-save-backups/. Actual SBRingerMuted=true/
+false retains existing iPad absent-Mute limitation;game preferences unchanged.
+No reset,uninstall,physical/PWA/legacy action. Branch feature/contextual-tutorial-v2.
+
+## 2026-11-11 · User-requested complete iPad profile reset
+
+User explicitly requests all iPad cards closed and tutorial fully reset. Retained
+iPad A16 Simulator only: both canonical slots replaced with fresh Native v1
+profile defaults (all completed/viewed cards,stats,runs,Special discoveries and
+inventory empty;highestUnlockedJourneyBoard=1;no firstPlayRun;firstPlay tutorial
+and Journey intro flags false). Settings reset to fresh defaults all ON as part
+of requested full reset. Both exact reset payloads verified after normal
+launchPID64425. Original slots backed up at
+/tmp/stacktosix-ipad-full-reset-20261111-214845/. First normal playable interim
+remains per canonical fresh-profile rules;no completed card stays open. Actual
+SBRingerMuted=false retains existing iPad limitation. iPhone untouched;no
+uninstall,source/build,physical/PWA/legacy action. Latest enlarged-art build retained.
+
+## 2026-11-11 · iPad introductory tutorial character artwork +40percent
+
+User requests only the Clear the board Jimbo/Nala illustration40percent larger
+on iPad. NativeTutorialOverlay objective+tablet branch now uses504pt width
+instead of360pt,with proportional height and authored lower art offset37→51.8pt
+to retain hands on paper edge. Center,sheet height,copy,CTA and all other lesson
+art retain existing geometry;iPhone width/offset unchanged. Original PNG untouched.
+No gameplay,state,motion,timers,audio or resource-owner change.
+
+PASS existing resumed objective/stack UI test on390pt fixture36.312s and real
+full-width iPad37.170s: /tmp/tutorial-ipad-hero-test.log and
+/tmp/tutorial-ipad-hero-fullwidth-test.log. Existing test now uses real iPad
+screen bounds on iPad,retaining390pt phone fixture. Inspected actual full-width
+/tmp/tutorial-resumed-objective.png:larger illustration fully visible,hands on
+paper edge,copy/CTA intact. qa:fast,qa:ios,diff PASS. FullQA retains known
+preserved-web scene-builders.test.ts:75 (4010pass/1fail);KING330 and all remaining
+gates PASS /tmp/tutorial-ipad-hero-full.log. Visual feel NEEDS PHYSICAL TEST.
+
+Normal Stack to Six Debug BUILD SUCCEEDED /tmp/tutorial-ipad-hero-build.log;
+verified exact .native identity. Install-over and normal launch on retained QA
+iPhonePID62719 and iPad A16PID62743. Four canonical save slots byte-identical
+after launch to /tmp/tutorial-ipad-hero-save-backups/. Actual SBRingerMuted
+true/false retains existing iPad absent-Mute limitation;game preferences unchanged.
+No reset,uninstall,physical/PWA/legacy operation. Branch feature/contextual-tutorial-v2.
+
+## 2026-11-11 · iPad tutorial-only reset for collection review
+
+User requests iPad reset. Retained iPad A16 Simulator only: removed firstPlayRun
+and set firstPlayTutorialComplete=false,journeyIntroSeen=false in both canonical
+slots. Verified all other JSON fields unchanged;original slots backed up at
+/tmp/stacktosix-ipad-tutorial-reset-20261111-212646/. Normal native launchPID50719;
+reset payloads verified after launch. Existing SBRingerMuted=false/absent Mute
+limitation retained;game audio preferences unchanged. iPhone untouched. No
+uninstall,build,physical/PWA/legacy action. Current collection-lesson build remains.
+
+## 2026-11-11 · Optional tutorial dice collection lesson after Special merge
+
+User chose exact copy: “Your dice collection” / “Explore the dice you’ve unlocked
+and see what they do.” After genuine first guided Special settlement,existing
+NativeTutorialOwner shows compact step8 using the existing sheet/motion owners.
+Same combo pointing motion targets the existing Backpack HUD hit rectangle;
+step8-only mirrored hand stays left of icon and fully onscreen. Board/header
+input is intercepted except Backpack and Got it. Both acknowledge/persist the
+lesson;Got it continues,Backpack opens the existing NativeScoreOwner collection
+and closes to the exact same board. No new route,asset,audio or progression model.
+Existing combo lesson still waits six later accepted moves. Collection reading
+pauses combo expiry and speed-score timestamps through the shared Core pause
+owner;duplicate pause/release and acknowledgement ordering covered. Input lock,
+hand animation and callbacks release on exit/dispose. Foreground suspension
+uses existing tutorial/modal owners.
+
+Optional collectionLessonAcknowledged field is false for new tutorials and
+active legacy tutorials completing their real Special guide;old completed saves
+with nil skip the new lesson. Confirmation changes no board score,moves,RNG or
+charge. Pending collection persists across save/reopen without resetting tutorial.
+Existing feature-runtime record updated with lifecycle/persistence ownership.
+
+PASS Core41 tutorial/source-prefix tests /tmp/tutorial-collection-core-final.log.
+PASS mounted Got it + Backpack open/close same-board tests2/0 in29.305s,
+/tmp/tutorial-collection-native-final.log (first test action succeeded;accidental
+duplicate test action was interrupted before rerunning). PASS genuine Bee
+Special→collection + compact phone/tablet layout/hand tests2/0 in36.145s,
+/tmp/tutorial-collection-fresh-layout-tests.log. Inspected phone screenshot
+/tmp/tutorial-dice-collection-sheet.png and tablet layout fixture
+/tmp/tutorial-dice-collection-ipad.png. Independent read-only review PASS.
+qa:fast,feature-runtime,Native audit,diff PASS;fullQA KING330 PASS,remaining gates
+PASS except existing preserved-web scene-builders.test.ts:75 (4010pass/1fail):
+/tmp/tutorial-collection-full.log. Broad Core568 retains15 unrelated old
+catalog/count/coin expectation failures: /tmp/tutorial-collection-core-full.log;
+not claimed green or changed here. Physical touch/animation feel NEEDS PHYSICAL TEST.
+
+Normal Debug Stack to Six BUILD SUCCEEDED /tmp/tutorial-collection-build.log.
+Verified exact .native bundle;installed over retained QA iPhone and iPad A16,
+normal launchPID22896/PID23015. Both canonical slots on both Simulators byte-
+identical to /tmp/tutorial-collection-save-backups/{iphone,ipad}/ after launch.
+iPhone actual SBRingerMuted=true;iPad retains existing false/absent Mute control
+limitation;game sound preferences unchanged. No reset/uninstall,physical phone,
+PWA or legacy operation. Branch feature/contextual-tutorial-v2.
+
+## 2026-11-11 · User-requested tutorial-only reset on both QA Simulators
+
+User requests reset tutorial. Retained Native QA iPhone and iPad A16 only:
+removed firstPlayRun,firstPlayTutorialComplete=false,journeyIntroSeen=false in
+both canonical slots. Other progression,runs,stats,inventory and Settings retained
+in reset payload. Both slots verified immediately after normal launches;original
+slots backed up to /tmp/stacktosix-tutorial-only-reset-20261111-180608/{iphone,ipad}/.
+Normal iPhonePID98351/iPadPID98361. Follow-up iPhone still reset;during final
+verification iPad had already begun a new active Bee tutorial (43/50moves,
+score196,step3),so that new live progress was deliberately left untouched.
+Actual SBRingerMuted=true/false retains existing iPad absent-Mute limitation;
+game audio preferences unchanged. No source/build/install change,uninstall,
+physical/PWA/legacy operation. Branch feature/contextual-tutorial-v2;latest
+130percent Special/burn build remains installed.
+
+## 2026-11-11 · Tutorial-only Special130percent and Journey-star burn
+
+User requests Special die on board30percent larger exclusively in tutorial;
+clarifies burn-in means the warm burn of Journey Unit stars,not flames/bounce.
+NativeDiceNode composes a passive1.3presentation factor with canonical geometry
+and unchanged Source animation scale. Scene admits only active guided tutorial
+wildTileID on canvas after drop;normal dice/Specials,carrier drop and replacements
+remain factor1. Repeated layout,drag/idle animation and retirement preserve the
+original normalized pose. No Core/save/input geometry or asset change.
+
+Selected Special borrows current artwork textures into max8gold screen-blend
+alpha masks. Shared NativeStarBurnTiming.burnAlpha now owns the unchanged
+Journey-star envelope,also reused by existing filtered star frames;helper/arrays
+explicitly nonisolated for worker compatibility. Same846ms duration and first/
+repeat cosmetic delays;no source/gameplay RNG draw,new clock,readback,decode,
+cache,audio or haptic. One finite APP lease per cycle;node/epoch/generation/
+binding fences reject stale/reentrant registration. Registry pause,drag,hidden/
+background,consumption and dispose remove lease/masks;eligible visibility
+re-admits through existing Scene sampler. Reduce Motion suppresses burn.
+Transient masks excluded from absorb/finale artwork snapshots.
+
+PASS24focused Native tests37.136s:
+/tmp/tutorial-special-emphasis-final-tests.log (actual Bee tutorial including
+factor1.3,visible burn alpha>0.2,normal replacements1;8restore/pose tests;
+12HUD/burn tests;3Journey star recipe/pause tests). Inspected rendered
+/tmp/tutorial-special-enlarged.png with current Bee artwork and warm burn.
+Independent source review PASS;physical brightness/feel remain user review.
+qa:fast,Native audit,feature-runtime,KING330,diff PASS. FullQA retains known
+preserved-web scene-builders.test.ts:75 (4010pass/1fail),remaining gates PASS:
+/tmp/tutorial-special-emphasis-full.log. Broader exploratory ResultOwner suite
+also reports unrelated Home idle assertions and missing replay.png fixture
+(54tests/5assertion-or-error failures);not claimed green and not changed here.
+Initial pure-helper actor warning corrected;normal final build has no burnAlpha
+warning. Normal Debug BUILD SUCCEEDED /tmp/tutorial-special-emphasis-build.log.
+
+Verified exact .native bundle,install-over retained QA iPhone/iPad A16,normal
+launchPID85998/PID86042. Both canonical slots on both Simulators byte-identical
+again after launches to /tmp/tutorial-special-emphasis-save-backups/{iphone,ipad}/.
+iPhone SBRingerMuted=true;iPad retains existing false/absent Mute control;
+game settings unchanged. No reset,physical/PWA/legacy operation. Branch
+feature/contextual-tutorial-v2. Physical appearance/FPS/heat NEEDS PHYSICAL TEST.
+
+## 2026-11-11 · Compact iPad Special and combo text sheets
+
+User requests lower/smaller Try your Special and Play fast.Score big sheets on
+iPad,removing large blank space below Got it. They inherited the preceding
+Backpack illustration's cached reference height. NativeTutorialOverlay now uses
+its own measured content height for tablet steps4/7 only,retaining the original
+top/text/CTA spacing and max(12,safeAreaInsets.bottom) footer. Same bottom anchor,
+paper overshoot extension and entrance/exit owners. Phone and illustrated sheets
+retain the prior reference-height rule. No asset,progress or gameplay change.
+
+PASS mounted Backpack→step4→step7 regression on390/744/834pt widths,including
+nonzero inset: tablet460.83→292.64pt in the fixture with54pt effective safe-area
+bottom;phone retains437.21pt. Copy/CTA fit and footer exactly matches inset.
+Actual iPad uses its own existing inset. Initial broad text-fit assertion flagged
+unchanged phone38.4pt heading;scoped new fit check to tablet,kept phone baseline.
+Final test PASS1.857s: /tmp/tablet-text-sheets-final-tests.log.
+Inspected rendered /tmp/ipad-compact-tutorial-step-4.png and step-7.png.
+Read-only independent review PASS. Native audit,feature-runtime,KING330,diff PASS.
+FullQA /tmp/tablet-special-sheet-compact-full.log retains known preserved-web
+scene-builders.test.ts:75 (4010pass/1fail),all other gates PASS.
+Normal Debug BUILD SUCCEEDED /tmp/tablet-text-sheets-build.log,verified exact
+.native bundle. Installed over both retained QA Simulators;normal iPhonePID77389,
+iPadA16PID77438. Both canonical slots on both devices verified byte-identical
+again after launch to /tmp/tablet-text-sheets-save-backups/{iphone,ipad}/.
+iPhone actual SBRingerMuted=true;iPad retains existing false/absent Mute control;
+game audio preferences unchanged. No reset,physical/PWA/legacy operation.
+Branch feature/contextual-tutorial-v2. Physical aesthetic acceptance remains
+NEEDS PHYSICAL TEST/user review.
+
+## 2026-11-11 · Visible tutorial fresh-face bounce and stronger iPad bubbles
+
+User reports new numbered dice appear instant after tutorial Bee merge;also
+requests slightly larger/more preload bubbles generally on iPad. Current branch
+feature/contextual-tutorial-v2. Baseline actual Bee trace retained the original
+zero→sub-full→1.072overshoot→1 scale recipe. Two tutorial opacity channels could
+still compete with that fresh-face owner: general board focus omitted the real
+Source entry predicate,and fourth-exit alpha retained a holder's captured0.2
+target after opening. Both now yield to sourceOwnsNewFaceEntry;fourth-exit dice
+use live locked/open identity after entry retires,preventing later redimming.
+No scale/timing/input/gameplay/save change or new animation owner.
+
+The Bee regression now follows actual current Special Bar→Backpack→earned Bee
+arrival/drag,awaits genuine drag admission,and samples final didFinishUpdate
+opacity as well as scale.3new/opened faces:zero start,multiple growing poses,
+max~1.072,settle1,render-boundary alpha1,and no post-bounce dim. Captured
+/tmp/tutorial-special-visible-bounce-mid.png inspected. Initial investigation
+fixture used obsolete Clear copy and sampled before genuine drop admission;
+those fixture issues were corrected without altering product admission.
+
+Tablet SmokeResources creates one companion per logical particle;primary
+radius1.3x,companion1.1x,color alpha0.6. Phone original radius/count/color kept.
+Same pose/fade/lifetime/emitter/random draws;deterministic local flight spread.
+Companion is covered by existing ownsSmoke,canvas compensation and disposal.
+New tablet test verifies phone baseline,tablet2shapes,exact radius ratio,
+unchanged RNG/position,visible/diverging motion,shake and idempotent cleanup.
+Read-only independent agent review found no material source issue.
+
+PASS18focused Native tests in35.322s:
+/tmp/tutorial-visible-bounce-and-tablet-final-tests.log (7board restore,
+1actual contextual Bee,10HUD Source including tablet). Native audit,final
+feature-runtime,KING330,diff PASS. FullQA retains known preserved-web
+scene-builders.test.ts:75 failure(4010pass/1fail),other gates PASS:
+/tmp/tutorial-special-visible-bounce-full.log. Normal Debug BUILD SUCCEEDED:
+/tmp/tutorial-visible-bounce-and-tablet-build.log. Verified exact .native bundle;
+install-over both retained QA Simulators,normal iPhonePID73096/iPadA16PID73145.
+Both canonical slots on both devices byte-identical again after launches to
+/tmp/tutorial-visible-bounce-and-tablet-save-backups/{iphone,ipad}/.
+iPhone SBRingerMuted=true;iPad retains existing false/absent Mute limitation;
+game preferences unchanged. No reset,physical/PWA/legacy delivery. Visible
+animation feel and tablet density remain NEEDS PHYSICAL TEST/user review.
+
+## 2026-11-11 · Backpack in Special delivery500ms earlier
+
+User requests actual Backpack appear500ms earlier in Special delivery sheet.
+Existing Source and restored sheet owners now expose the entrance-start milestone;
+the existing generation-owned delivery timeout starts there at380ms, replacing
+100ms after the780ms entrance. Same carrier path,arrival/ready hold,CTA/input
+locks,resource preparation and disposal cancellation. Sheet motion unchanged;
+no new timer or save/asset change. Scope is tutorial delivery only.
+
+PASS actual Source Backpack hold→Open CTA (28.537s) and actual Backpack tap→same
+carrier continuation (28.107s): /tmp/tutorial-backpack-earlier-tests.log (2/0).
+Inspected /tmp/tutorial-backpack-foreground.png with original carrier/art/copy.
+Native audit,feature-runtime,KING330,diff PASS. Full QA retains known preserved
+web scene-builders.test.ts:75 failure (4010pass/1fail);all other gates PASS:
+/tmp/tutorial-backpack-earlier-full.log. Normal Debug BUILD SUCCEEDED:
+/tmp/tutorial-backpack-earlier-build.log;verified exact .native bundle.
+Install-over retained QA iPhone/iPad A16,normal launch PID64985/PID65009.
+Both canonical save slots on both devices byte-identical to
+/tmp/tutorial-backpack-earlier-save-backups/{iphone,ipad}/. iPhone actual
+SBRingerMuted=true;iPad retains existing false/absent Mute limitation;game audio
+preferences unchanged. No reset,physical/PWA/legacy operation. Branch remains
+feature/contextual-tutorial-v2. Perceived timing NEEDS PHYSICAL TEST.
+
+## 2026-11-11 · Restore event-bound tutorial meter particles
+
+User reports missing bubbles/fragments around Special bar while charge grows.
+NativeBoardScene kept ordinary gain emission frozen for every active tutorial,
+including after objective acknowledgement. Initial objective still freezes it;
+revealing the bar now releases that flag. Restored acknowledged stack/mergeSix/
+freePlay runs likewise admit the existing particles. Restored Special and the
+explicit completion freeze retain their previous admission. Same smoke recipe,
+existing event-bound emitter/driver,flight/fade/RNG slots and cleanup;no new
+idle emission,timer,asset or gameplay charge change.
+
+PASS actual fresh tutorial bootstrap (5.813s),ordinary restored production gain
+and synchronization/cleanup (15.799s),existing tutorial pulse (0.003s),in
+/tmp/tutorial-meter-particles-final-tests.log. That combined attempt exposed an
+invalid tutorial fixture on Unit02;corrected fixture uses canonical Unit01 and
+its existing tutorial admission milestone. Final isolated restored tutorial
+actual drag/gain/visible smoke/synchronization/retirement PASS12.443s:
+/tmp/tutorial-meter-particles-tutorial-test.log. Ordinary fixture now records
+its played-attempt stat to satisfy current resumedRun admission;product save
+rules unchanged. Inspected /tmp/tutorial-meter-gain-particles.png (live gain,
+small orange bubble above the bar at early fade). Source audit,feature-runtime,
+KING330 and diff PASS. Full QA /tmp/tutorial-meter-particles-full.log retains
+known preserved-web scene-builders.test.ts:75 (4010pass/1fail),other gates PASS.
+
+Normal Debug BUILD SUCCEEDED /tmp/tutorial-meter-particles-build.log,verified
+com.taptapdesign.stacktosix.native. Installed over retained QA iPhone/iPad A16;
+normal launches PID62443/PID62484. Both canonical save slots on both devices
+byte-identical to /tmp/tutorial-meter-particles-save-backups/{iphone,ipad}/.
+iPhone SBRingerMuted=true;iPad retains existing false/absent Mute limitation;
+game audio preferences unchanged. No progress reset,physical/PWA/legacy
+installation. Branch feature/contextual-tutorial-v2. Physical motion feel remains
+NEEDS PHYSICAL TEST.
+
+## 2026-11-11 · User-requested tutorial reset on both QA Simulators
+
+Explicit user request: reset iPhone and iPad to try from the beginning.
+Reset only the retained Native QA iPhone and iPad A16 Simulator profiles, both
+canonical save slots. Original saves backed up before replacement:
+/tmp/stacktosix-dual-tutorial-reset-20261111-164917/{iphone,ipad}/.
+Fresh progression/stats/no runs, firstPlayTutorialComplete=false and
+journeyIntroSeen=false verified again after normal launches: iPhone PID56427,
+iPad PID56437. Each device retains its own Sounds/Music/Haptics preferences.
+iPhone SBRingerMuted=true; iPad retains existing false/absent Mute limitation.
+No source/build/install change, app uninstall, physical phone/tablet, PWA or
+legacy operation. Branch remains feature/contextual-tutorial-v2.
+
+## 2026-11-11 · Fade guided3/2 during stack lesson entry
+
+User reports Let’s stack dice sheet visible while both target dice remain dim.
+Existing objective-to-stack handoff now notifies NativeTutorialOwner as the
+objective exits and the stack sheet begins entering, in both Source and restored
+native paths. That callback updates the existing board focus lease: same420ms
+opacity fade, guided3/2 to1, others0.2. Existing objective/input lock still releases
+at sheet settlement. No new timer, renderer, asset, save field or progress reset.
+
+PASS actual resumed objective test, both acknowledgement states; new assertion
+requires guided pair alpha>0.6 before the lesson pointer starts, followed by
+pair>0.99 and all others<=0.21. Actual fresh tutorial bootstrap also PASS:
+/tmp/tutorial-pair-fade-final-tests.log (2tests /0fail,43.523s).
+Inspected rendered /tmp/tutorial-stack-pair-fade.png:3/2 highlighted alongside
+Let’s stack dice and Got it. PASS Native audit,feature-runtime,KING330,diff.
+Full QA /tmp/tutorial-pair-fade-full.log retains the known preserved-web
+scene-builders.test.ts:75 failure (4010pass/1fail);all other gates PASS.
+Normal Debug BUILD SUCCEEDED /tmp/tutorial-pair-fade-build.log; verified exact
+.native bundle. Install-over + normal launches: QA iPhone PID51885, iPad A16
+PID51973. Both canonical save slots on both Simulators byte-identical to
+/tmp/tutorial-pair-fade-save-backups/{iphone,ipad}/. iPhone SBRingerMuted=true;
+iPad remains false with its existing absent Simulator Mute control. Game audio
+preferences unchanged. No physical/PWA/legacy delivery. Motion feel remains
+NEEDS PHYSICAL TEST. Branch feature/contextual-tutorial-v2.
+
+## 2026-11-11 · Restore resumed tutorial objective and skip Board Transition
+
+Branch feature/contextual-tutorial-v2. Restored the original Clear the board
+sheet with Jimbo/Nala when a saved tutorial still has objectiveAcknowledged=false.
+Got it uses the existing sheet exit into the guided lesson; acknowledged saves
+continue without repeating the objective. Original dimmed dice remain, as requested
+by the preceding revert. No progress reset or save-schema change.
+Central Journey transition admission now releases tutorial entry before claiming
+or constructing the random themed Board Transition, including restored interim
+card routes. Ordinary completed-tutorial gameplay retains its transition.
+
+PASS five focused Native tests: actual saved-run objective in both acknowledgement
+states, three transition-admission regressions, and actual fresh tutorial route.
+Logs: /tmp/tutorial-resume-objective-tests.log and final objective recheck
+/tmp/tutorial-resume-objective-final-test.log. Final screenshot after actual
+sheet-layer entry inspected: /tmp/tutorial-resumed-objective.png.
+PASS Native audit, feature-runtime admission, gameplay KING and diff check.
+Full QA /tmp/tutorial-resume-objective-full.log retains the known preserved-web
+scene-builders.test.ts:75 failure (4010 pass / 1 fail); remaining gates pass.
+Normal Debug BUILD SUCCEEDED: /tmp/tutorial-resume-objective-final-build.log.
+Verified built bundle com.taptapdesign.stacktosix.native, device families 1/2.
+Installed over both retained QA Simulators and launched normal app: iPhone
+PID39530, iPad A16 PID39675. Both canonical saves on both devices verified
+byte-identical to /tmp/tutorial-resume-objective-save-backups/{iphone,ipad}/.
+iPhone actual SBRingerMuted=true; iPad remains false with its existing absent
+Simulator Mute control (non-audio review limitation). Game audio preferences
+unchanged. No physical phone, PWA or legacy installation. Physical animation
+feel remains NEEDS PHYSICAL TEST.
+
+## 2026-11-11 · User rejects full-opacity objective; restore prior behavior
+
+User explicitly rejects the latest full-opacity iteration and asks to restore.
+Reverted only that iteration:objective again uses the original dim focus,
+Got it focus timing is restored,and transient fullOpacity API/tests/metadata
+removed. NativeSourceTutorialBoardRestoreOwner.swift is byte-identical to Git
+baseline. Prior delivery-hitch fix,repeat Journey cue and current saves remain.
+PASS Native audit,diff and normal Debug `/tmp/tutorial-opacity-revert-build.log`.
+Full QA `/tmp/tutorial-opacity-revert-full.log` retains known preserved-web
+scene-builders asset failure(4010pass/1fail);KING330 and remaining gates PASS.
+Verified .native bundle,install-over retained QA iPhone Simulator,normal
+launchPID33410,SBRingerMuted=1. Both canonical saves byte-identical to
+`/tmp/tutorial-opacity-revert-save-backup/`. No progress reset,physical/PWA or
+legacy installation. The preceding full-opacity handoff is historical/rejected.
+
+## 2026-11-11 · Full dice opacity during initial objective sheet
+
+User approves: Clear the board shows all dice at100percent;Got it then dims
+others and leaves3/2 focused before ordinary tutorial continuation.
+Existing NativeTutorialBoardOpacityOwner now has a transient full-opacity mode,
+including locked shells,selected only by objectiveAcknowledged=false. Canonical
+acknowledgement switches existing focus immediately at click,concurrent with
+sheet exit. Existing420ms opacity curve,input-lock release,Source roots,save
+schema,artwork and HUD remain unchanged;no new timer/animation owner.
+PASS initial fresh route (7.24s),actual scoped retirement (7.77s) and full Source
+objective→3/2 stack→Six→Special Bar (21.04s). Assertions check every node1 before
+Got it,and pair1/others0.2 after. `/tmp/tutorial-objective-opacity-focused.log`
+and `/tmp/tutorial-objective-opacity-tests.log`. Actual rendered objective
+`/tmp/tutorial-objective-full-opacity.png` inspected. Broader complete-guide
+fixture fails later at line684 on obsolete Special Bar subtitle expectation;
+that unrelated legacy copy assertion was not changed or claimed passed.
+PASS Native audit,feature gate,KING330,diff and normal Debug
+`/tmp/tutorial-objective-opacity-build.log`. Full QA retains known preserved-web
+scene-builders asset failure(4010pass/1fail):`/tmp/tutorial-objective-opacity-full.log`.
+Verified .native bundle,installed over retained QA iPhone Simulator,normal
+launchPID22040;SBRingerMuted=1. Both canonical saves byte-identical to
+`/tmp/tutorial-objective-opacity-save-backup/`. No reset,physical/PWA/legacy install.
+iPad shares the source rule;this task refreshed the standing QA iPhone preview.
+
+## 2026-11-11 · User-requested fresh tutorial progress
+
+User explicitly requests progress reset and confirms tutorial branch.
+Active branch remains feature/contextual-tutorial-v2. Only retained QA iPhone
+Simulator .native profile reset; original two canonical saves backed up to
+`/tmp/stacktosix-tutorial-progress-reset-20261111-132843/` before replacement.
+Both canonical slots now contain fresh progression/zero stats/no saved runs,
+firstPlayTutorialComplete=false and journeyIntroSeen=false;existing Sounds,
+Music and Haptics preferences preserved. No app uninstall or source/build change.
+Normal launchPID86602;both saves verified fresh after launch,SBRingerMuted=1.
+Physical phone,iPad,PWA and legacy untouched.
+
+## 2026-11-11 · Repeat Journey card guide after interrupted tutorial
+
+World entry now reuses the existing card cue,page shade and hand while canonical
+firstPlayTutorialComplete is false,even if journeyIntroSeen was recorded earlier.
+Original unseen-Journey intro policy remains;no checkpoint,step,charge or save
+reset. Same World-entry milestone and spotlight cleanup owners;no new animation.
+Mounted NativeAppCoordinator regression passes twice:already-seen incomplete
+profile→World→gameplay→interrupted return restores all three guide components;
+canonical tutorial completion suppresses the next return. Final hand assertion
+included: `/tmp/tutorial-world-resume-final-test.log` (1/0,8.63s).
+PASS Native audit,KING330,feature admission,diff and normal Debug
+`/tmp/tutorial-world-resume-build.log`. Full QA retains known preserved-web
+scene-builders asset failure(4010pass/1fail),remaining gates PASS:
+`/tmp/tutorial-world-resume-full.log`.
+Verified .native bundle,installed over retained QA iPhone Simulator and normally
+launchedPID85167;post-launch SBRingerMuted=1. Both canonical saves remain
+byte-identical to `/tmp/tutorial-world-resume-save-backup/`.
+No physical/PWA/legacy install;existing artwork,copy,geometry and motion retained.
+
+## 2026-11-11 · Fix tutorial full-meter Six → Special Delivery hitch
+
+User pinpointed the later ordinary Six after Special Bar acknowledgement,
+when charge0.84→1.06 opens Special Delivery. Two agents independently reviewed.
+Real mounted reproduction: Source delivery313–317ms; clock diagnostics locate
+368ms in CA commit. Sample `/tmp/tutorial-delivery-commit.sample.txt` shows
+CABackingStore/CGDisplayList gradient rasterization: CTA draw() only records
+commands(~3ms),then visible commit actually paints the sculpted face.
+Special Bar now prepares that exact upcoming CTA off-main through the existing
+cancellable static face owner. Hidden child retains future geometry and stays
+attached through admission; Source CTA motion/input/hit geometry unchanged.
+Background cancels pending preparation,resume restarts,retirement/disposal cancel.
+Generic non-delivery CTA retains immediate existing paint. No new clock/gate.
+Also removed measured53–76ms SKTexture.cgImage readback: existing carrier worker
+materializes only two closed original CPU rasters(<1.2MB total); immutable
+publication/exact texture identity supplies UIKit ink. Unknown/opening texture
+clears ink. Existing480ms closed pulse outlasts280ms sheet exit;resources dispose
+releases both rasters. Original pixels/asset bytes,charge,spawn and timings stay.
+PASS final8 Native tests: actual Six-to-full delivery via CTA and carrier tap,
+hidden prep/background/resume/retirement,generic CTA,input/exit,resource identity,
+bounded bytes and double disposal. `/tmp/tutorial-delivery-final-tests.log`:
+final delivery26.89/39.45ms,CA commit11.68/13.49ms;regression ceiling200ms.
+Stale legacy CTA test Continue expectation aligned with existing Got it copy.
+Rendered `/tmp/tutorial-backpack-foreground.png` inspected;temporary product
+profiling removed. No high/medium findings in independent lifecycle review.
+PASS Native audit,feature/gameplay gates,KING330,diff;full QA retains one known
+preserved-web scene-builders asset failure(4010pass/1fail):
+`/tmp/tutorial-delivery-final-full.log`. Earlier qa:fast PASS.
+Normal Debug PASS `/tmp/tutorial-delivery-final-preview-build.log`;Native source
+inputs unchanged through build. Verified .native bundle,installed over retained
+QA iPhone Simulator,normal launchPID81536,post-launch SBRingerMuted=1.
+Both canonical saves byte-identical to `/tmp/tutorial-delivery-final-save-backup/`.
+No physical/PWA/legacy install. NEEDS PHYSICAL TEST for device animation feel;
+measured Simulator hitch is corrected,not a physical FPS/thermal acceptance.
+
+## 2026-11-11 · Tutorial merge-six lag investigation
+
+User reports a roughly one-second visible Six hold only during tutorial.
+Two read-only agents traced ordinary/Special merge, monitor, cleanup and pause
+owners. No causal tutorial delay confirmed; existing tutorial-only child hide
+already runs at ordinary Six effect admission. No gameplay/runtime fix applied.
+Added production mounted guided1+5 timing regression in
+NativeSourceTutorialBootstrapTests: bounds both Source time<=160ms and real
+elapsed<500ms, preserving actual entry/input/merge/cleanup owners.
+PASS two runs: source32ms,real51.24ms then42.24ms, destination removed/hidden.
+Final `/tmp/merge-six-tutorial-timing-final.log` passes with wall-time assertion;
+existing second-merge regression also PASS. Initial unrelated
+NativeOrdinaryDepletedMainRootTests fails at line45 before merge (missing fixture
+node); `/tmp/merge-six-lag-native.log`, not claimed fixed.
+Full QA `/tmp/merge-six-lag-full.log`:4010 pass/1 known preserved-web
+scene-builders asset failure;KING330 and Native audit PASS. Diff hygiene PASS.
+Normal Debug `/tmp/merge-six-tutorial-preview-build.log` PASS; verified
+com.taptapdesign.stacktosix.native, installed over retained QA iPhone Simulator
+and launched normally PID67376. Both canonical saves remain byte-identical to
+`/tmp/merge-six-tutorial-save-backup/`;post-launch SBRingerMuted=1.
+No physical/PWA/legacy install. NEEDS PHYSICAL TEST: measured guided1+5 does not
+reproduce report or prove rendered frame pacing/other tutorijal merge paths.
+Exact reported tutorial merge requested asynchronously; no reply yet at handoff.
+
+## 2026-11-11 · Freeze combo during its tutorial sheet
+
+Combo sheet admission pauses Core expiry and the existing numeric counter,
+number inflation and combo art frame motion. Got it releases immediately;
+owner disposal releases idempotently for the captured generation. Core shifts
+both combo mutation and accepted-move timestamps by the actual paused duration,
+so reading consumes neither remaining combo window nor speed-bonus eligibility.
+Reset clears the transient receipt;no persisted schema/new ticker/asset.
+PASS28 NativeTutorialTests including long pause,repeated admission/release and
+post-dismiss expiry: `/tmp/tutorial-combo-freeze-core.log`.
+PASS Debug `/tmp/tutorial-combo-freeze-build.log`,Native target audit and diff.
+Full QA `/tmp/tutorial-combo-freeze-full.log`:known web scene-builders asset assertion only;gameplay-lock330 and remaining gates PASS.
+Installed over both normal Simulator apps and launched fresh with both canonical
+save backups: `/tmp/tutorial-single-shade-delivery-20261111-134533/`.
+iPhone PID60291,iPad PID60418;Silent Mode1/0(existing iPad limitation).
+No physical/PWA/legacy installation. Visual feel remains user review.
+
 ## 2026-11-11 · Remove Journey NEW decoration on both branches
 
 User removes NEW from Journey World Unit cards and their info-modal artwork.
@@ -22,6 +1808,1393 @@ and launched normally PID56484. Post-launch SBRingerMuted=1. Canonical save
 backup /tmp/journey-remove-new-save-backup is post-launch only (the pre-install
 backup attempt used a stale container path); no before/after hash claim.
 No physical/PWA/legacy installation.
+
+## 2026-11-11 · Tutorial carrier pulse overlaps sheet exit; consumed Six artwork
+
+Latest request supersedes squash/hop: tutorial carrier now scales uniformly
+1→1.20 over200ms,then1 over280ms,at its existing anchor. Start is moved to
+sheet-exit admission in both Source and restored paths;original sprite opening
+still follows the480ms closed-frame phase. Real mounted backpack overlap test
+PASS `/tmp/tutorial-concurrent-bounce-tests.log`;restored full-meter/drop PASS.
+Carrier boundary retest PASS `/tmp/tutorial-concurrent-bounce-retest.log`
+(relative original aspect is preserved,not forced to1).
+At tutorial ordinary Six effect admission,both Source and fallback presentation
+hide consumed destination artwork/shadow while preserving canonical identity,
+cleanup receipt,spawn/HUD timing and terminal rules. No asset/new clock/cache.
+Initial second-merge fixture asserted hidden children even after parent removal
+and then entered an outdated preload-bar check;corrected assertion accepts
+actual removal and fixture ends after its named Special Bar transition.
+Final second-merge test PASS `/tmp/tutorial-six-cleanup-final-test.log`.
+Normal Debug PASS `/tmp/tutorial-concurrent-bounce-final-build.log`.
+Verified bundle/install-over/fresh canonical saves with backups/normal launch
+both simulators: `/tmp/tutorial-single-shade-delivery-20261111-133822/`.
+iPhone PID56376,iPad PID56538;Silent Mode1/0(existing iPad limitation).
+No physical/PWA/legacy installation. A separate Journey build overlapped the
+first attempt;our final focused retry and normal delivery completed serially.
+Full QA `/tmp/tutorial-concurrent-bounce-full.log`:known web scene-builders
+asset assertion only;gameplay-lock330 and Native target audit pass.
+Animation smoothness remains user review,not a measured physical FPS claim.
+
+## 2026-11-11 · Navigation alert small clockwise correction
+
+World and Journey Hub backpack alert artwork now receives an additional2degree
+clockwise rotation through the existing NativeBackpackAlertView transform owner,
+including its resting pose and every bounce sample. Other alert consumers keep
+zero offset; geometry,assets,bounce cadence and navigation height unchanged.
+PASS diff hygiene and qa:ios (`/tmp/alert-tilt-ios.log`). Normal Debug build FAIL
+(`/tmp/alert-tilt-build.log`): existing unrelated dirty NativeBoardScene.swift:4247
+accesses private NativeDiceNode.shadow. No Simulator install/launch performed;
+retained iPhone Simulator SBRingerMuted=1. Physical/PWA/legacy untouched.
+Full QA still running at handoff: `/tmp/alert-tilt-full.log`; known scene-builders
+web asset assertion already FAIL. Gameplay-lock330,feature/audio/Native admission
+and type checks passed. Overall validation FAIL; visual review not performed.
+
+## 2026-11-11 · Tutorial backpack squash-hop before opening
+
+Tutorial held-carrier resume now plays480ms emphasis before original opening
+frames/audio continue:20percent wider/22percent shorter squash,18percent taller
+stretch with8percent carrier-height hop,soft landing and settle. Source sprite
+time stays0.28 throughout emphasis;existing Source finite root reserves the
+extra480ms and existing projection paints emphasis before forwarding the frame.
+No new ticker/timer,assets or alternate sprite. Ordinary non-held drops retain
+exact timing;input/one-shot resume and actual impact/handoff owners unchanged.
+PASS7 normal drop/oracle tests and restored real tutorial open/drop test:
+`/tmp/tutorial-backpack-open-bounce-tests.log`. Initial held-fixture completion
+assertion used old3500ms budget;updated to4000ms for requested480ms addition,
+with new closed-texture/squash/hop/post-bounce frame checks. Focused rerun PASS:
+`/tmp/tutorial-backpack-open-bounce-boundary-test.log`.
+PASS normal Debug `/tmp/tutorial-backpack-open-bounce-final-build.log`,diff and
+feature/gameplay gates. Full QA `/tmp/tutorial-backpack-open-bounce-full.log`
+retains known web asset assertion only(4010 pass/1 fail). Earlier independent
+Native reward deadline limitation remains below.
+Both normal apps installed/launched fresh with canonical save backups:
+`/tmp/tutorial-single-shade-delivery-20261111-132053/`.
+iPhone PID44393,iPad PID44477;Silent Mode1/0(known iPad limitation).
+Animation feel remains user review;no physical/PWA/legacy install.
+
+## 2026-11-11 · Combo lesson after six accepted moves
+
+Combo bottom sheet now waits for6 accepted ordinary/Special moves after the
+Special guide handoff,regardless of speed. New optional Codable tutorial field
+comboLessonMoveCount increments in the existing once-per-accepted-commit combo
+award owner,not on rejected drops. Shared comboLessonReady gates engine/UI;
+terminal runs remain excluded and already-admitted lessons preserve resume.
+Counter persists across save/load and repeated encouragement acknowledgement
+does not reset it. Legacy fast-baseline field remains for compatibility.
+PASS all28 NativeTutorialTests including six real slow moves,save at5,resume,
+invalid-drop exclusion,zero fast continuations and one-shot lesson admission:
+`/tmp/tutorial-combo-six-tests.log`. PASS normal Debug
+`/tmp/tutorial-combo-six-build.log`,diff,gameplay-lock330 and feature gates.
+Full QA `/tmp/tutorial-combo-six-full.log`:4010 source tests PASS,1 known web
+scene-builders asset failure. Earlier unrelated Native reward timing limitation
+remains documented below.
+Both normal apps installed/launched fresh with canonical backups:
+`/tmp/tutorial-single-shade-delivery-20261111-130049/`.
+iPhone PID33847,iPad PID33941;Silent Mode1/0(known iPad limit).
+No physical/PWA/legacy install;interactive acceptance remains user review.
+
+## 2026-11-11 · Journey Tap the card matches reward paper
+
+Replaced rounded outlined image capsule with the exact shared Settings paper
+surface used by Tap to collect:12pt corners,40percent edge detail,80percent
+paper opacity,warm shadow,no border. Existing150x40 caption geometry,8pt card
+gap,text colors,hand placement,slower enter and original-card tilt/bounce remain.
+A static paper child supplies the silhouette and the existing wrapper owns its
+shadow/entry;no new clock or asset. Runtime test verifies shared surface/shadow,
+original card parentage and retirement. Render inspected:
+`/tmp/journey-cue-paper-preview.png`.
+PASS focused Native `/tmp/journey-cue-paper-test.log`, normal Debug
+`/tmp/journey-cue-paper-final-build.log`, diff check and feature/gameplay gates.
+Full QA `/tmp/journey-cue-paper-full.log`:4010 source tests pass,1 known web
+scene-builders asset assertion fails. Prior Native reward timing limitation
+remains unchanged below.
+Both normal apps installed/launched fresh with canonical backups:
+`/tmp/tutorial-single-shade-delivery-20261111-125353/`.
+iPhone PID29633, iPad PID29732; Silent Mode1/0 (known iPad limitation).
+Visual motion acceptance remains user review; no physical/PWA/legacy install.
+
+## 2026-11-11 · Tap to collect follows card idle rhythm
+
+Cue retains Settings paper and centered40pt bottom anchor. Coach card bounce
+now shares scale samples/times and epoch with caption at half scale excursion
+and3pt peak lift. Slow rotor idle admits one finite additive caption transform
+on the same6.8s epoch/eased phases:1degree sway,3pt lateral movement,2pt lift,
+1.5percent growth. No new timer; existing enter/exit remains separate and whole
+cue is captured/retired by collect,drag,background and disposal owners.
+PASS focused Native idle/admission/anchor/collect/disposal test
+`/tmp/reward-coach-idle-test.log`, normal Debug
+`/tmp/reward-coach-idle-final-build.log` and diff check.
+Full QA `/tmp/reward-coach-idle-full.log`:4010 source tests pass,1 known web
+scene-builders asset failure; gameplay-lock330 and feature ownership pass.
+Prior unrelated Native reward deadline test limitation remains below.
+Normal apps installed/launched fresh with canonical save backups:
+`/tmp/tutorial-single-shade-delivery-20261111-125109/`.
+iPhone PID27634, iPad PID27779; Silent Mode1/0 (known iPad limitation).
+Visual feel remains user review; no physical/PWA/legacy install.
+
+## 2026-11-11 · Reward coach Settings paper and final40pt bottom placement
+
+Final user placement: Tap to collect horizontally centered,container bottom40pt
+from full screen bottom (not safe-area bottom),184x48. Cue z20 above card,handz30.
+Uses actual NativeSettingsPaperSurface shared rendering (made internal),12pt
+corners,40percent edge-detail amplitude for compact card,80percent texture and
+same warm Settings shadow. Settings defaults/geometry unchanged. No outline or
+oval pill. Orange Tap/brown text and existing finite rise/fade/cartoon bounce
+retained; no hand-follow position track. Render inspected:
+`/tmp/reward-paper-coach-preview.png`.
+PASS focused Native paper/entry/background/collect/retirement and centered40pt
+geometry test `/tmp/reward-coach-bottom40-test.log`, normal Debug
+`/tmp/reward-coach-bottom40-final-build.log`, diff and feature ownership checks.
+Full QA `/tmp/reward-settings-paper-full.log` retains only known web asset failure
+(4010 PASS/1 FAIL). Prior broader Native reward exit deadline failure remains
+unresolved below; not rerun/claimed fixed by this visual update.
+Both normal apps installed/launched fresh with canonical save backups:
+`/tmp/tutorial-single-shade-delivery-20261111-041438/`.
+iPhone PID88420, iPad PID88554; post-launch Silent Mode1/0 (known iPad limit).
+Visual feel remains user acceptance; no physical/PWA/legacy install.
+
+## 2026-11-11 · Reward Tap to collect paper capsule
+
+Replaced uppercase glowing per-letter reward coach with180x40 paper capsule
+matching tutorial Tap the card: original modals/paper.png,20pt radius,1pt warm
+border,17pt ExtraBold,orange Tap/brown to collect. Existing reward coach cadence
+now animates whole container from opacity0/scale.7/y18 to gentle1.035/y-2 peak
+at650ms,settles by900ms;4.1s lifetime/5.3s cadence retained. Original hand/card
+motion unchanged. Collect captures current whole-cue pose and exits it; existing
+foreground/drag/dispose owners retire all work. No new timer/assets/save owner.
+PASS focused Native coach entry/background/collect/dispose test with real paper
+and font; inspected `/tmp/reward-paper-coach-preview.png`. Full Native reward
+suite30/31 tests pass; testOpeningPauseAndLateSVGPreparationAreOwnedByRewardLifetime
+fails2 assertions289–290 (exiting vs disposed,1 remaining clock job); unresolved,
+no full-suite pass claimed. Logs `/tmp/reward-paper-coach-{test,preview-test}.log`.
+PASS normal Debug `/tmp/reward-paper-coach-final-build.log` and diff check.
+Full QA `/tmp/reward-paper-coach-full.log`:4010 pass,1 known preserved-web asset
+assertion fails; gameplay-lock330 and feature-runtime pass.
+Normal apps installed/launched both previews fresh with canonical backups:
+`/tmp/tutorial-single-shade-delivery-20261111-040611/`.
+iPhone PID83169, iPad PID83243; Silent Mode1/0 (known iPad limitation).
+No physical/PWA/legacy install; motion feel remains user acceptance.
+
+## 2026-11-11 · Requested fresh tutorial reset
+
+Reset both retained Simulator profiles to first play and launched current normal
+build. Canonical save backups/receipt:
+`/tmp/tutorial-single-shade-delivery-20261111-035747/`.
+iPhone PID78191, iPad PID78237; Silent Mode1/0 (known iPad limitation).
+No source/build changes or physical-device reset.
+
+## 2026-11-11 · Backpack characters3pt lower
+
+Only Backpack lessonArt top overlap18→21pt; other artwork/layout unchanged.
+PASS normal Debug `/tmp/tutorial-backpack-art-down3-build.log` and diff check.
+Scoped visual offset; no repeated suites. Normal apps installed/launched fresh
+with save backups `/tmp/tutorial-single-shade-delivery-20261111-035453/`.
+iPhone PID76747, iPad PID76789; Silent Mode1/0 (known iPad limitation).
+Earlier QA limitations remain below; visual acceptance remains user review.
+
+## 2026-11-11 · Backpack100ms admission, visible-ink spacing and character artwork
+
+Both fresh and restored carrier admission delays reduced300→100ms after sheet
+entry completion, using existing cancellable timeout owners. Tutorial Backpack
+keeps its live source sprite/hold/open behavior and size. Layout now excludes
+closed sprite transparent padding (379x438, visible y106..359):28pt visible top
+gap and24pt to title. Existing lessonArt displays original ekipa backpack image
+at paper top with18pt overlap. Only requested three1x/2x/3x originals copied
+byte-exact into NativeAssets.bundle; no source artwork changes.
+PASS normal Debug `/tmp/tutorial-backpack-spacing-final-build.log`, restored
+real-carrier hold/tap/open/drop Native regression `/tmp/tutorial-backpack-spacing-test.log`,
+new runtime artwork presence/edge-overlap assertions and inspected render
+`/tmp/tutorial-backpack-spacing-preview.png`. Full QA
+`/tmp/tutorial-backpack-spacing-full.log`: known preserved-web scene-builders
+asset failure only (529 suites/4010 tests PASS,1 suite/1 test FAIL); gameplay-lock
+330 and feature-runtime PASS. Prior fresh bootstrap fixture failure not rerun.
+Both normal previews installed/launched fresh; canonical save backups:
+`/tmp/tutorial-single-shade-delivery-20261111-035243/`.
+iPhone PID75346, iPad PID75530; post-launch Silent Mode1/0 (existing iPad limit).
+Visual motion acceptance remains user review; no physical/PWA/legacy install.
+
+## 2026-11-11 · Merge sheet matches compact Stack sheet
+
+Merge and clear copy now only Drag5 onto1; removed Make6 sentence. Both guided
+steps use the same compact one-line height reduction and identical title,
+subtitle and CTA geometry; other lessons unchanged. PASS normal Debug build
+`/tmp/tutorial-merge-compact-build.log` and diff check. Scoped copy/layout change;
+no additional suites. Previous full-QA and bootstrap limitations remain below.
+Normal app installed/launched both retained previews, fresh state backed up at
+`/tmp/tutorial-single-shade-delivery-20261111-034629/`.
+iPhone PID71559, iPad PID71607; post-launch Silent Mode1/0 (known iPad limit).
+Visual acceptance remains user review. Slower1.05s agent-reviewed cue included.
+
+## 2026-11-11 · Gentle cue entry after independent agent review
+
+User rejected fast Home ease. Agent review measured near-full scale in first
+200ms despite650ms nominal length. Tutorial cue alone now uses780ms smooth
+cubicBezier(.42,0,.2,1) scale0→1.025 then270ms gentle settle. All3 sampled
+child layers share a post-layout epoch and explicit linear CA timing. Hand
+idle waits until that entry ends; original card motion/geometry unchanged.
+Reduced Motion retains150ms fade. Agent read-only review PASS for composition,
+lifecycle and no new clocks; visual feel remains NEEDS PHYSICAL TEST/user review.
+PASS normal Debug `/tmp/tutorial-cue-gentle-final-build.log`, feature ownership,
+gameplay-lock330 checks and diff check. Full QA log:
+`/tmp/tutorial-cue-gentle-full.log`: FAIL only known preserved-web scene-builders asset assertion;529 suites/4010 tests PASS,1 suite/1 test FAIL.
+Normal apps installed-over/launched and reset fresh with both canonical backups:
+`/tmp/tutorial-single-shade-delivery-20261111-034407/`.
+iPhone PID69994, iPad PID70081. SBRingerMuted1/0 (existing iPad limitation).
+No physical/PWA/legacy install; earlier bootstrap test failure remains disclosed.
+
+## 2026-11-11 · Tap the card Home scale-in
+
+Hand image and card cue paper/title now enter together with the exact
+JimiV9Motion.homeEnter(.hero) scale-in recipe (45ms lead,650ms motion).
+Finite visual-child CA groups preserve independent hand idle and original
+card tilt/bounce. Reduced Motion uses150ms fade; disposal clears child motion.
+PASS normal Debug build `/tmp/tutorial-cue-scale-build.log`, feature-runtime
+`/tmp/tutorial-cue-scale-feature.log`, diff check. Scoped visual change; prior
+full-flow/QA failures above remain unresolved, no new full-suite pass claimed.
+Both normal apps installed/launched fresh with canonical save backups at
+`/tmp/tutorial-single-shade-delivery-20261111-034048/`.
+iPhone PID67762, iPad PID67815; post-launch SBRingerMuted1/0 respectively
+(existing iPad limitation). Visual acceptance remains user review.
+
+## 2026-11-11 · Earlier Journey cue and HUD-style tutorial backpack
+
+Journey hand moved 4pt left and 8pt up (offset32/2). A finite generation-guarded
+World layer-clock milestone reveals the original-card tutorial cue600ms before
+World entry completion, without changing shared navigation timing. Backpack's
+existing tutorial-only0.50s entry now samples worldHubElementEnter rise, opacity
+and bounce; its enlarged slot inside the sheet,300ms admission delay, closed
+hold and same-location CTA/tap opening remain unchanged. Normal drop untouched.
+
+PASS normal Debug build, gameplay-lock330 tests, feature-runtime, diff check,
+all7 NativeWildMeterDropTests and original-card cue parenting/retirement test.
+FAIL full bootstrap carrier test twice at earlier Special Bar assertions506–509
+(before carrier arrival); no full-flow pass claimed. Full QA:4010 tests pass,
+1 known preserved-web scene-builders asset assertion fails. Logs:
+`/tmp/tutorial-hud-arrival-{build,final-build,tests,carrier-retry,full,gameplay,feature}.log`.
+Normal app installed-over and launched BOTH simulators, fresh tutorial state
+with both canonical save backups in
+`/tmp/tutorial-single-shade-delivery-20261111-033746/`.
+iPhone PID66185, iPad PID66243. Post-launch SBRingerMuted: iPhone1, iPad0
+(existing iPad Silent Mode limitation; game audio preferences unchanged).
+Visual motion acceptance remains user review; no physical/PWA/legacy install.
+
+## 2026-11-11 · Compact one-line Stack sheet
+
+Only Let’s stack dice sheet now removes one shared subtitle line advance
+(23.4pt at18pt font) from its height and local CTA offset. This keeps CTA at its
+existing screen Y while moving title/subtitle down by one line, matching the
+last-line-to-button gap of two-line lessons. Other sheets/reference size remain
+unchanged. PASS normal Debug build and diff check; scoped geometry-only change,
+no new test suite. Visual acceptance remains user review.
+Normal app installed/launched both previews, reset fresh with backups:
+`/tmp/tutorial-single-shade-delivery-20261111-032708/`.
+iPhone PID59802; iPad PID59852. Build
+`/tmp/tutorial-stack-compact-final-build.log`.
+
+## 2026-11-11 · Backpack inside paper and shared subtitle alignment
+
+Tutorial Backpack now occupies an enlarged centered slot INSIDE its sheet above
+the title (width min216,50percent viewport; previously min180,42percent).
+Sheet height reserves original artwork aspect ratio. Original source carrier
+still owns arrival/hold/open/frame timing and position; its current borrowed
+sprite texture/pose is painted into an above-paper CALayer by the same Source
+advance callback. Keeps only one current CGImage, replacing on texture change;
+no extra renderer, timer, frame loop or asset load. Nil/release/retire clears
+image/layer; weak owner callbacks are cleared on dispose. Normal drops unchanged.
+Existing carrier tap region follows new slot. Real source sprite stays retained.
+
+One-line tutorial copy now top-aligns like the first line of multiline copy;
+reserved minimum56pt description slot positions CTA independently of line count.
+CUA verified normal first Stack title/subtitle/CTA match preceding objective
+positions; left iPhone on first Stack sheet before any merge. iPad fresh Home.
+
+PASS fresh real-carrier hold/CTA and saved-run meter->carrier->tap regressions,
+including visible above-paper ink assertion. Inspected actual screenshot
+`/tmp/tutorial-backpack-foreground.png`: larger bag inside paper above title.
+PASS gameplay-lock330, feature-runtime, diff check and normal Debug build.
+Initial test compile raced a newly added inspection property; final coherent
+rebuild/tests PASS. Logs `/tmp/tutorial-backpack-in-sheet-test2.log`,
+`/tmp/tutorial-backpack-sheet-final-build.log`.
+Full QA remains FAIL only known preserved-web missing-asset scene-builders test;
+all other gates pass (`/tmp/tutorial-backpack-sheet-full.log`). No PWA sync.
+Motion/performance physical acceptance remains NEEDS PHYSICAL TEST.
+
+Normal latest build installed/launched retained iPhone PID57053, iPad PID57231,
+valid fresh envelopes with backups per user workflow:
+`/tmp/tutorial-single-shade-delivery-20261111-032210/`.
+Actual SBRingerMuted checked true iPhone,false iPad (known iPad limitation).
+No physical install/main merge or asset edits.
+
+## 2026-11-11 · Requested fresh tutorial reset
+
+Reset both retained previews per explicit user request after resume fix.
+Both canonical envelopes backed up then replaced with valid fresh state;
+verified tutorialComplete=false, completedBoards empty, no firstPlayRun.
+Normal latest build launched iPhone PID52346 and iPad PID52398.
+Backup/receipt `/tmp/tutorial-single-shade-delivery-20261111-031402/`.
+
+## 2026-11-11 · Restore tutorial meter before Special delivery
+
+Fixed cold-resume freePlay falling through to the legacy generic step-3 sheet
+(which displayed Special delivery / Got it below full charge). Restored modern
+tutorials now stay in collection until meter >=1, then present Backpack through
+its actual animated carrier, 300ms post-sheet delay, closed arrival hold and
+same-location opening on CTA/tap. Existing generic restored Special contact/
+landing/pointer flow owns the subsequent lesson; fresh Source monitors unchanged.
+Restored stale waitingForWild with no actual Special is cleared before board
+construction, preserving meter/tiles/reward. Carrier callbacks/timer/input lock
+remain generation-owned and retire on disposal. CTA disabled before held arrival.
+
+Captured real incident save `/tmp/tutorial-resume-incident.json`: firstPlayRun,
+freePlay, acknowledged bar, waitingForWild=true, meter0.64, reward Bee.
+PASS new mounted save-resume->actual merge->full meter->held carrier->tap->one
+Special regression; restored unacknowledged bar continuation; restored Special
+hand and repeated owner cleanup. Fresh full tutorial test failed in grouped run
+at earlier Special Bar stage (same known intermittent fixture issue), then passed
+alone31.071s. Logs `/tmp/tutorial-resume-tests.log`,
+`/tmp/tutorial-resume-regression.log`, `/tmp/tutorial-resume-fresh-isolated.log`.
+PASS gameplay-lock330, Native target audit, feature-runtime, diff check, normal
+Debug build `/tmp/tutorial-resume-final-build.log`.
+Full QA FAIL solely preserved-web scene-builders missing-asset assertion:
+529 suites/4010 tests passed,1 suite/1 test failed. No asset edits/PWA sync.
+Log `/tmp/tutorial-resume-full.log`. Physical feel remains NEEDS PHYSICAL TEST.
+
+Installed normal app iPhone PID50391 with original incident envelope in both
+canonical files (prior current files backed up at
+`/tmp/tutorial-resume-before-incident-preview/`). CUA observed real resumed board
+with ~64 percent bar and no delivery sheet. User resumed interacting during
+verification; left that board playable instead of resetting their active run.
+iPad installed/launched PID50812 fresh per standing test workflow; receipt/backups
+`/tmp/tutorial-single-shade-delivery-20261111-031100/`.
+No commit/main merge, physical install or legacy target operation.
+
+## 2026-11-11 · Objective characters up 2pt
+
+Clear the board character artwork moved up 2pt (objective offset39 to37).
+Special Bar artwork offset29 and all other layout unchanged. PASS normal Debug
+build and diff check. Installed/launched retained iPhone PID44362 and iPad
+PID44417, reset fresh with backups per standing workflow:
+`/tmp/tutorial-single-shade-delivery-20261111-025919/`.
+Build `/tmp/tutorial-characters-up2-build.log`. Visual acceptance is user review.
+
+## 2026-11-11 · Try your Special copy
+
+Special interaction sheet now reads “Try your Special!” with explicit lines:
+“Merge it with any regular die.” / “It works both ways!”. Copy-only change;
+existing first-word orange treatment applies to Try. PASS normal Debug build
+and diff check. Both retained previews installed/launched fresh, iPhone
+PID43460 and iPad PID43518. Backups/receipt:
+`/tmp/tutorial-single-shade-delivery-20261111-025748/`.
+Build `/tmp/tutorial-try-special-build.log`.
+
+## 2026-11-11 · Special Bar explicit line break
+
+Subtitle explicitly wraps as “Merge to fill it and earn” / “a surprise Special
+die!” so the complete Special die phrase is on line two. PASS normal Debug
+build and diff check. Installed/launched both previews fresh: iPhone PID40953,
+iPad PID41003. Save backups/receipt:
+`/tmp/tutorial-single-shade-delivery-20261111-025252/`.
+Build `/tmp/tutorial-special-line-final-build.log`. Next user request is copy
+options for the Special interaction sheet; do not select/change it unasked.
+
+## 2026-11-11 · Merge lesson selected copy
+
+Second lesson now reads “Merge and clear!” with explicit two-line subtitle:
+“Drag 5 onto 1.” / “Make 6 to clear both dice.” Only copy changed.
+PASS normal Debug build and diff check. Installed/launched retained iPhone
+PID38194 and iPad PID38238, fresh progress with backups per standing workflow:
+`/tmp/tutorial-single-shade-delivery-20261111-024718/`.
+Build log `/tmp/tutorial-merge-copy-build.log`.
+
+## 2026-11-11 · Short Stack lesson copy
+
+First Stack sheet now reads “Let’s stack dice!” / “Drag 3 onto 2.” only,
+per user selection. No other copy or behavior changes. PASS normal Debug build
+and diff check. Installed/launched retained iPhone PID36214 and iPad PID36265,
+fresh progress with backups per standing workflow:
+`/tmp/tutorial-single-shade-delivery-20261111-024338/`.
+Build log `/tmp/tutorial-stack-copy-build.log`.
+
+## 2026-11-11 · User-authored tutorial copy
+
+Replaced Stack, Merge, Special Bar and Backpack lesson copy with supplied text:
+Let’s stack! / Stack and clear! / Special bar / Special delivery!.
+Numbered list interpreted as step labels, not rendered title prefixes. Existing
+orange first-word treatment retained. Subtitle now measures full wrapped copy
+instead of clipping at two lines; sheet height grows only as needed. Carrier
+anchor is captured after actual Backpack copy layout so it stays above paper.
+Arcade retains its Crate-specific description.
+
+PASS normal Debug build, feature-runtime and diff check. No added tests for
+copy/layout iteration; rendered acceptance remains user review. Normal app
+installed/launched on retained iPhone PID32744 and iPad PID32790, fresh progress
+with save backups: `/tmp/tutorial-single-shade-delivery-20261111-023720/`.
+Build log `/tmp/tutorial-copy-final-build.log`. No physical/PWA/legacy delivery.
+
+## 2026-11-11 · Smaller diagonal Combo pointer
+
+Combo sheet hand only: width reduced 10 percent, fingertip anchor +20pt right.
+Idle now gently translates upper-left/lower-right, total excursion 10 percent
+of hand width per axis (+/-5 percent), cubic interpolation on the existing
+owned layer animation. Interpreted user's `1' posto` as 10 percent and stated
+that assumption. Immediate sheet-entry visibility and cleanup unchanged.
+Journey pointer unchanged. PASS normal Debug build, feature-runtime and diff
+check. No additional tests for this scoped geometry/motion adjustment; motion
+acceptance remains user review / NEEDS PHYSICAL TEST.
+Installed and launched on retained iPhone PID27410 and iPad PID27462, fresh
+progress with backups per standing workflow. Receipt:
+`/tmp/tutorial-single-shade-delivery-20261111-022654/`.
+Build `/tmp/tutorial-combo-diagonal-build.log`.
+
+## 2026-11-11 · Journey hand additional offset
+
+User numeric follow-up: Journey card hand moved another +16pt right/-6pt up;
+net offset from original anchor is +36pt right/+10pt down. No other geometry
+or motion changed. PASS normal Debug build and diff check; no new tests for
+this coordinate-only adjustment. Installed and normally launched on retained
+iPhone PID24976 and iPad PID25024, both fresh per standing test workflow.
+Save backups/receipt: `/tmp/tutorial-single-shade-delivery-20261111-022234/`.
+Build: `/tmp/tutorial-hand-offset-build.log`. Visual acceptance remains user review.
+
+## 2026-11-11 · Tutorial cues and gentle Backpack arrival
+
+On feature/contextual-tutorial-v2. Tap the card paper/title now belong to the
+original animated card, centered 8pt above it, inheriting tilt/bounce. Journey
+hand alone moved +20pt right/+16pt down. Make stays brown and 6 orange.
+Combo uses shared initial hand dimensions, appears at sheet entry, and rocks
++/-3pt and +/-3 degrees with an owned layer animation retired on hide/dispose.
+
+Backpack sheet enters first; its completion schedules one cancellable Source
+app-timeout receipt for 300ms. Actual tutorial carrier arrives over 0.50s
+(original 0.28s source boundary), with gentle damped stretch/squash and bounce,
+then pauses closed. Same carrier opens at the same anchor after CTA or carrier
+tap through the same CTA owner. Input before arrival is guarded. Ordinary drop
+geometry/timing and asset ownership remain unchanged.
+
+PASS: final Native Backpack tap end-to-end and 7 drop tests (8 total), earlier
+Combo and card-parenting tests, gameplay-lock 330 tests, feature-runtime,
+special-dice admission, diff check and normal Debug build. Two intermediate
+Backpack runs failed before delivery at the earlier Special Bar fixture stage;
+final run passed without changing that earlier runtime path. Logs:
+`/tmp/tutorial-backpack-gentle-test.log`, `/tmp/tutorial-cues-gentle-build.log`.
+Inspected actual held-carrier and Combo screenshots. CUA verified normal
+launched iPhone Forest cue above the tilted original card and moved hand.
+Motion feel remains NEEDS PHYSICAL TEST/user review.
+
+Installed normal app over both retained previews and reset both canonical save
+envelopes to first play, backed up first per user request. Receipt/backups:
+`/tmp/tutorial-single-shade-delivery-20261111-022056/`.
+iPhone PID23904, iPad A16 PID24012. Left iPhone first Forest card unplayed;
+iPad fresh Home. Actual SpringBoard SBRingerMuted verified true on iPhone,
+false on iPad (known iPad Silent Mode limitation; no game audio preferences
+changed). No physical/PWA/legacy install, commit or main merge.
+
+## 2026-11-11 · Single full-page Journey spotlight
+
+Replaced separate content/header tutorial shades with one World-root shade
+covering bounds, including tablet side gutters. The original animated interim
+unit is temporarily parented above it with existing bounds/center/actions
+preserved; returns to its original content parent/order/depth when retired.
+Layout handles the leased parent on resize. Tutorial hand/label sit above both.
+Cleanup retires the spotlight. Shared navigation geometry remains unchanged.
+
+PASS: focused Native full-viewport/phone-to-tablet/return-without-jump geometry
+test, qa:fast and feature-runtime, normal Debug build. Initial geometry test
+incorrectly requested an unprepared artwork child; final test checks actual unit
+geometry. Same app installed over retained iPhone (PID16705) and iPad A16
+43A75086 (PID16754), both reset via valid fresh envelopes per user workflow.
+Backups and receipt `/tmp/tutorial-single-shade-delivery-20261111-020739/`.
+iPhone Silent Mode ON. CUA opened iPad Journey > Forest and visually verified
+one continuous full-page tint, no side gaps or doubled overlay rectangles,
+and original luminous card/hand above it. Left first-card cue visible, no board
+played. Physical motion acceptance remains NEEDS PHYSICAL TEST.
+
+## 2026-11-11 · Real tutorial carrier motion, Combo hand, repair guard, dual preview
+
+Replaced the paused CALayer image with the actual animated carrier. Before the
+first tutorial drop starts, its existing plan captures a centered anchor above
+the sheet and larger width. The same SpriteKit carrier animates there, pauses
+closed at 0.28s, then opens there after CTA; emitted die launches from that
+location toward its unchanged board target. No cloned artwork or extra clock.
+Normal non-tutorial drop geometry and RNG order remain unchanged.
+
+Combo explanation now shows the existing hand pointing at the live Combo HUD
+center. Its target is resolved at presentation time (initial mount can precede
+render-host attachment); hand is retired with the overlay. Screenshot inspected
+`/tmp/tutorial-combo-hand.png`. Original carrier screenshot inspected at
+`/tmp/tutorial-backpack-foreground.png`.
+
+Tutorial completion assistance now refuses to create an ordinary helper while
+any non-removing Special exists in the canonical or captured physical board.
+Both finalChanceValue/claim and Source repair paths enforce this. Assistance
+becomes eligible again after the Special is gone. 31 focused core tests PASS,
+including all four archetypes and both Source repair modes. 7 drop-plan tests
+PASS (normal oracle plus centered entry/opening/landing). Mounted Forest actual
+carrier pause/resume PASS; Combo hand mounted test PASS after fixing early
+nil-target capture. Gameplay-lock 24/330 PASS. qa:full only fails the known
+preserved-web scene-builders missing asset; other gates pass. Normal Debug
+build `/tmp/tutorial-final-dual-build.log` PASS.
+
+User explicitly requested simultaneous iPad and iPhone review and zero iPad
+progress. Same verified Native app installed over both devices, valid fresh
+canonical envelopes written to both (never delete saves), normally launched:
+Jimi1018 iPhone PID14080; iPad A16 `43A75086-0C64-464C-B71C-FDD01AF59C32` PID14235.
+Receipt and pre-reset backups `/tmp/tutorial-dual-delivery-20261111-020321/`.
+Earlier iPad progress backup `/tmp/ipad-first-play-reset-20261111-020151/`.
+iPhone actual Silent Mode ON. iPad has no toolbar Mute control; its prior
+SBRingerMuted=false remains, game audio preferences unchanged.
+CUA verified iPad Forest first-interim tutorial cue, stage1 interim, stages2–10
+locked; user is already interacting, do not reset again without request.
+Both Simulators remain booted. No physical install/main merge. Physical motion
+acceptance remains NEEDS PHYSICAL TEST.
+
+## 2026-11-11 · Centered tutorial Backpack and usable HUD
+
+Paused tutorial carrier now uses its original texture in a larger centered
+presentation: width 42% of viewport, capped at 180pt, bounds bottom 16pt above
+the sheet. Tutorial-only; normal drop geometry is unchanged. Same existing
+foreground lease restores the original carrier and resumes the drop on CTA.
+Inspected `/tmp/tutorial-backpack-foreground.png`: enlarged Backpack centered
+above Special delivery, clear of copy/CTA. Mounted Forest geometry/pause/resume
+and cleanup test PASS.
+
+Trophy, Combo and Backpack now admit their normal HUD routes once the tutorial
+chrome is revealed. Both scene hit dispatch and NativeScoreOwner use the same
+admission. Close retains the tutorial lock. Existing enter trigger is preserved:
+genuine guided Special completion/settlement acknowledges the handoff and runs
+`revealTutorialScoreComboBackpack` (opacity 0 to 1, upward entry). It does not
+wait for the later combo lesson. Mounted post-Special HUD test PASS, including
+all three actual hit callbacks. Gameplay-lock 24/330 PASS; feature-runtime and
+qa:ios PASS; normal Debug build PASS. No full-suite repeat for this scoped change.
+
+Installed over retained Jimi1018 and launched normal app PID7314. Per standing
+request, both canonical documents reset to VALID fresh envelopes, with progress
+backed up at `/tmp/tutorial-centered-hud-delivery-20261111-015135/` (receipt there).
+Actual Silent Mode ON. Branch remains feature/contextual-tutorial-v2, unmerged.
+Physical visual/motion acceptance remains NEEDS PHYSICAL TEST.
+
+## 2026-11-11 · Fresh-start review workflow (explicit user request)
+
+For this contextual tutorial test build on retained Jimi1018, reset progress
+before each future preview delivery so the user can test from first play.
+This overrides save preservation for this Simulator tutorial review only;
+back up canonical saves before resetting. Reset BOTH documents to valid fresh
+NativeSaveEnvelope content; never remove them, because missing documents trigger
+the original-profile import guard in this build. Do not add automatic destructive
+reset on every app launch; normal exit/re-entry still exercises persistence.
+No physical-device or production reset is authorized.
+
+Initial deletion was incorrect: it triggered the original-profile import error.
+Corrected by writing both canonical documents as valid fresh Native envelopes
+with zero progress/results, no runs, and both tutorial flags false. Normally
+relaunched PID4201. Prior files remain recoverable at
+`/tmp/tutorial-fresh-start-20261111-014509/`. No binary change or reinstall.
+Actual SpringBoard Silent Mode remains ON.
+
+## 2026-11-11 · Paused tutorial Backpack above the sheet
+
+On `feature/contextual-tutorial-v2`, the actual paused carrier now borrows its
+current texture into one passive foreground CALayer above the UIKit tutorial
+sheet. Geometry uses the mounted Native render host (not SKScene.view, which
+is absent with the owned renderer). Original pose/size are preserved; this is
+z-order only. The original sprite is hidden during this lease. Open backpack
+sheet exit restores that sprite, clears projected contents and resumes the
+same drop. Overlay disposal releases the lease too; no new animation clock.
+
+PASS: mounted Forest test `testTutorialBackpackPromptHoldsRealCarrierUntilOpenCTA`
+with full Native gameplay, onscreen foreground geometry, paused spawn count,
+CTA resume and projection cleanup assertions. Inspected
+`/tmp/tutorial-backpack-foreground.png`: real Backpack paints in front of the
+sheet/CTA at its original target position. Earlier fixture attempts failed
+before reaching the carrier; final complete-Native Forest fixture passes.
+qa:full: gameplay-lock 24 suites/330 tests and feature/special admission pass;
+only existing preserved-web scene-builders missing asset fails (529 suites and
+4010 tests pass). qa:ios PASS. Normal Debug build PASS, install-over and normal
+launch PID3119 on retained Jimi1018. Both canonical saves byte-identical through
+install/initial launch; `/tmp/tutorial-backpack-foreground-delivery/receipt.json`.
+Actual SpringBoard SBRingerMuted=true. No physical install or main merge.
+Physical touch/motion acceptance remains NEEDS PHYSICAL TEST.
+
+## 2026-11-11 · Post-Special free play, half-rate meter and full HUD
+
+On `feature/contextual-tutorial-v2`, removed the Now clear the board / Let's go
+sheet. After genuine Special settlement the existing encouragement checkpoint
+is acknowledged automatically, retaining the later fast-combo lesson and result
+completion. Post-guide completion-assist meter charge is now 50% of normal
+(formerly 5%), with normal device scaling; pre-Special guided charge unchanged.
+One shared policy constant covers actual rewards and preflight prediction.
+
+Trophy/score, Combo and Backpack enter immediately at that settled Special
+handoff. They keep full effective opacity through later synchronize/render
+passes, including the later combo sheet; only Close stays dim. Removed the
+former whole-HUD 20% clamp after the guide. Combo explanation now reads
+Play fast. Score big. / Quick merges build your combo / and boost your high
+score, with orange Play and a two-line body. No new timer or saved field.
+
+PASS: 40 focused Swift core tests, 2 mounted Native tests (finite-motion
+handoff without another sheet; free input and full effective HUD opacity after
+synchronize), qa:fast, qa:ios. qa:full ran with gameplay-lock 24/330 passing;
+only the existing web scene-builders missing asset test failed. Normal Debug
+build PASS; installed over retained Jimi1018 and normally launched PID96623.
+Exact Native bundle identity verified; both canonical save files byte-identical
+through install/initial launch, receipt `/tmp/tutorial-postspecial-delivery/receipt.json`.
+Actual SpringBoard SBRingerMuted=true. CUA resumed the saved Forest1 tutorial
+and verified the shorter combo heading/body in two readable lines, fully visible
+Trophy/Combo/Backpack, and dim Close. Left that sheet open for user review.
+Physical motion/touch remains NEEDS PHYSICAL TEST.
+
+## 2026-11-11 · User-requested tutorial restart
+
+Reset only the retained Jimi 2026 QA iPhone13 Native tutorial checkpoint:
+removed firstPlayRun, set firstPlayTutorialComplete=false and journeyIntroSeen=false
+in both canonical saves. Settings and other progress retained. Prior files backed
+up to `/tmp/tutorial-restart-20261111-012205/`. Installed binary unchanged;
+normal launch PID90208, CUA verified Home. Postlaunch save confirms no checkpoint
+and incomplete onboarding; actual SpringBoard SBRingerMuted=true. Journey now
+starts from its first-card cue and fresh tutorial instead of resuming mid-guide.
+
+## 2026-11-11 · Area 55 header divider and actual tutorial Backpack pause
+
+Branch `feature/contextual-tutorial-v2` remains unmerged. Area 55 no longer
+mounts the `home-shadow.png` header divider artwork: the unwanted white curved
+line below its navigation header is absent. Forest and Beach keep their
+existing divider. The shared 66pt navigation row, arched surface, title/icons
+and entry/exit owners are unchanged. First-interim spotlight header shade now
+covers the arched header extension, and the content shade begins at its exact
+bottom edge. The prior untinted band between header and page is closed without
+a transparent cutout or replacing the actual animated card. Focused Area 55
+header/spotlight geometry test PASS 1/1. The final normal Simulator preview
+showed continuous shade under Area 55 navigation, the actual card animated
+above it, and one-line orange `Tap the card` cue beside the card.
+
+The World first-card cue now reads only `Tap the card` on one line, with orange
+`Tap`, beside the actual animated interim card. Tutorial Clear the board and
+Special Bar character illustrations retain their latest 3pt lower adjustment.
+The Backpack explanation starts only when the genuine earned meter carrier
+has arrived closed on the board. The existing carrier clock pauses at that
+pose while the paper sheet says `Special delivery!` and its CTA says
+`Open Backpack`; CTA exit resumes that same carrier's opening and special-die
+drop. The prior synthetic Backpack image/presentation is removed. Focused
+Native carrier test and end-to-end Source tutorial pause/resume test PASS;
+`qa:gameplay-lock` 24 suites/330 tests, `qa:fast`, `qa:ios`, diff check PASS.
+Normal `Stack to Six` Debug BUILD SUCCEEDED, exact bundle ID
+`com.taptapdesign.stacktosix.native`; installed over retained Jimi 2026 QA
+iPhone13 Simulator and normally launched PID87700. No uninstall/reset; user
+continued interacting in Simulator after launch, so save hashes subsequently
+changed through normal gameplay rather than being claimed byte-identical.
+Simulator toolbar Mute is On; actual iOS Silent Mode On banner was observed
+in the preceding normal preview, while the final launch retained Mute On.
+Physical motion and touch remain NEEDS PHYSICAL TEST.
+
+## 2026-11-11 · World tutorial cue beside card and dice-first objective
+
+Branch `feature/contextual-tutorial-v2` remains unmerged. World spotlight uses
+one full brown backdrop in World content/header, with the actual first interim
+button above it, preserving authored glow/idle/tap/exit; there is no transparent
+hole or snapshot. The noninteractive paper cue is beside the card, with
+`Tap the card` on one line (orange `Tap`). Mounted
+iPhone13 Simulator review of the preceding two-line cue confirmed the side
+placement and real card transition; the latest copy still needs mounted review.
+Retiring the route removes both shades and restores card z.
+
+The first board's authored dice wave now finishes before the Clear the board
+sheet enters. The tutorial owner acquires its objective input lock at creation,
+so the dice cannot be dragged while appearing or before the sheet; Got it still
+releases the lock through the existing objective-to-Stack handoff. The clean
+board Jimbo/Nala illustration is a further 7pt lower (total 13pt from the
+earlier art position); the Special Bar illustration is 3pt lower too. Mounted
+Simulator review confirmed the previous 4pt objective adjustment; latest
+3pt adjustment still needs mounted review. The focused Native bootstrap
+entry/retirement and normal first-run tests each passed 1/1; normal Debug build, `qa:ios`, `qa:fast`,
+`qa:gameplay-lock` (24 suites/330 tests), and diff check passed. `qa:full`
+retains one existing web `scene-builders.test.ts` missing source/density asset
+failure; all other full gates passed. Physical motion/touch feel remains
+NEEDS PHYSICAL TEST. Latest complete-tree normal Simulator preview install/
+launch receipt follows after mounted review.
+
+## 2026-11-11 · First-play preload reveal, orphan successor repair, fresh QA reset
+
+Branch `feature/contextual-tutorial-v2` remains unmerged. The actual Native
+preload bar surface is opacity zero on frozen Clear the board entry and uses the
+existing generation-scoped Source driver for a finite upward/opacity enter when
+Stack from anywhere has entered. No new timer; interruption settles visible,
+and owner disposal cancels. Mounted fresh QA Simulator review confirmed the
+bar absent at Clear and present with the Stack lesson. The tutorial's real
+meter charge and ordinary board entry owners remain unchanged.
+
+Observed retained canonical Native save had Forest 2 run score 8203 but no
+Forest 2 boardStats/beginAttempt, while Forest 1 was complete. Such orphan
+successor runs are now rejected by resumedRun; real started attempts still
+resume. Future first Journey tutorial result commit also retires only the
+next board's stale run slot before showing its new interim. Focused
+NativeContextualOnboardingTests 4/4 PASS; normal Debug build PASS. Current
+canonical reset below supersedes the old orphan state for user review.
+
+At user's explicit request, all local Native results/progress and run slots on
+retained Jimi 2026 QA iPhone13 Simulator were reset to first-play defaults.
+Both original canonical save files were backed up at
+`/tmp/stacktosix-first-play-reset-20261111/` before replacement. New primary
+and previous copies are identical fresh Native envelopes, default Sounds/Music/
+Haptics true. Confirmed firstPlayTutorialComplete=false, journeyIntroSeen=false,
+completedJourneyBoards=[], boardStats={}, journeyRuns={}, Arcade highScore=0,
+firstPlayRun=nil. Normal Native launch PID57738 showed fresh Home. After QA, complete-tree Debug
+preview was installed over and normally launched PID60536; both reset save
+files kept SHA-256 d36bfb65... through install/launch. User then navigated in
+the retained Simulator (observed Area55 World); subsequent play can naturally
+write a new first-play checkpoint. Toolbar Mute was On after final launch.
+Physical phone, PWA, legacy shell and main were untouched. PASS: focused
+NativeContextualOnboardingTests 4/4, qa:gameplay-lock 24 suites/330 tests,
+qa:fast, qa:ios, Native Debug build. qa:full FAIL only existing web
+scene-builders.test.ts missing source/density asset (1 of 4011 tests); all
+other full gates passed. Native motion/visual feel NEEDS PHYSICAL TEST.
+
+## 2026-11-11 · Contextual first-play tutorial review branch
+
+Branch `feature/contextual-tutorial-v2` remains unmerged. First Journey World
+interim card is the real animated card, revealed through a tight rounded
+spotlight in the gentle brown modal shade; the old frozen snapshot was removed.
+`OPEN THE BOARD` reuses the Tap to Collect animated white glow glyph recipe.
+Tapping the original interim card starts with a brief 0.94 scale press/bounce
+before its existing card-to-board transition. The prompt repeats until the
+first Journey card is cleared; `journeyIntroSeen` is persisted only then.
+
+Frozen board entry shows the `clean board` Jimbo/Nala PNG resting on the top
+paper edge, then the two-line Clear the board objective and guided distant
+3-to-2 / 5-to-1 merges. Special Bar shows the `special dice` PNG on its sheet;
+copy is `Charge the Special Bar` / `Each merge powers it up. Fill it for a
+surprise Special Die!`. Tutorial headings are smaller and their first word is
+orange. Both supplied illustrations use density-aware PNGs and move with the
+sheet. The closed Backpack/Arcade Crate, real Special drop, first-run Combo
+explanation and progressive Trophy/Combo/Backpack HUD reveal stay in this branch.
+
+PASS: Native Debug build, `qa:fast`, `qa:ios`, `qa:feature-runtime`,
+`qa:gameplay-lock` (24 suites/330 tests), and mounted iPhone13 Simulator review
+of live interim card, coach text, tap transition and objective art/text. Six
+original tutorial PNGs are byte-exact in NativeAssets.bundle. The preparation
+script's global inventory comparison reports 61 pre-existing extra files in
+NativeAssets.bundle; no preserved assets were removed. Earlier `qa:full` fails
+only the existing web `scene-builders.test.ts` missing source/density asset.
+Special-sheet art and whole-run motion still need mounted/physical review.
+Complete-tree normal Debug preview installed over and launched on retained iPhone13
+Simulator (PID 52075), exact Native bundle. Both canonical save SHA-256 hashes
+matched before/after install and launch: fcd3ce20... / dfe43123.... Actual
+Silent Mode On banner observed after final launch. No phone, PWA, legacy
+shell or main merge.
+
+## 2026-11-10 · Current map-star bounce1.133787seconds
+
+Latest follow-up adds another10percent slowdown to filled map stars only:
+1.0204082/0.9=1.1337868s,35.28percent original speed. Existing squash/stretch1.3,
+burn frames/active duration,empty stars,other motion and Coco Loco remain.
+Existing finite max(burn,bounce) completion keeps full neutral return;no new work.
+Updated existing timing/whole-cycle assertions and feature record. PASS qa:fast,
+qa:ios,qa:feature-runtime and focused mounted star ownership/timing/cleanup test.
+Logs:/tmp/native-star-gentler3-{fast,ios,feature,tests}.log. No repeat broad suites
+for numeric follow-up;prior web-asset QA failure remains open. Motion/aesthetic
+acceptance NEEDS PHYSICAL TEST.
+
+Complete-current-tree normal Debug BUILD SUCCEEDED;exact Native bundle,
+noXCTestPlugIns/Web.bundle,stable input manifest,matching built/installed binaries,
+and both canonical saves unchanged through install-over on retained1018phone
+and43A750iPad. Normal launches:com.taptapdesign.stacktosix.native: 66042;com.taptapdesign.stacktosix.native: 66128.
+Receipts/logs/input manifests/backups:/tmp/native-star-gentler3-preview/ and
+/tmp/native-star-gentler3-ipad/. Silent Mode phone true,iPad false(existing
+frontend limitation);game/macOS audio preferences unchanged. Current iPad preview
+brought forward. No physical/PWA/legacy operation.
+
+## 2026-11-10 · Map-star bounce another30percent slower
+
+Latest direct follow-up:only filled Journey map-star bounce slows another30percent
+from0.7142857s to1.0204082s(39.2percent original speed). Existing1.3squash/stretch
+strength,empty stars,geometry,other contacts,Coco Loco changes and burn frames/
+active duration stay. Finite completion group now waits max(burn,bounce) before
+scheduling its next random gap,so the longer bounce reaches neutral without a
+completion callback truncating it. No new timer,owner,resource,audio or gameplay
+change. Updated existing timing/retirement test and ownership record.
+PASS qa:fast,qa:ios,qa:feature-runtime and focused mounted earned-only,burn,
+1.0204082s duration/full-cycle wait,background/cull/card-cover/stale completion/
+weak release test. Logs:/tmp/native-star-gentler2-{fast,ios,feature,tests}.log.
+Broad suites not repeated for numeric follow-up;preceding web-asset failure stays
+open. Self-review confirms default shared-contact motion and original assets/
+saves untouched. Aesthetic/physical motion acceptance NEEDS PHYSICAL TEST.
+
+Complete-current-tree normal Debug BUILD SUCCEEDED;exact Native identity,
+noXCTestPlugIns/Web.bundle,stable full input manifest,matching built/installed
+launcher+dylib and both canonical saves unchanged at install on retained1018phone
+and43A750iPad. Normal launches:com.taptapdesign.stacktosix.native: 64236;com.taptapdesign.stacktosix.native: 64327.
+Receipts/logs/input manifests/backups:/tmp/native-star-gentler2-preview/ and
+/tmp/native-star-gentler2-ipad/. Actual Silent Mode phone true,iPad false(existing
+frontend limitation);no game/macOS sound preference changes. Retained iPad brought
+to foreground for current review. No physical/PWA/legacy operation.
+
+## 2026-11-10 · Additional30percent gentler star bounce and opened retained iPad
+
+Latest numeric follow-up slows only filled map-star cartoon contact by another
+30percent:previous0.5s becomes0.5/0.7=0.7142857s (56percent original speed).
+Squash/stretch strength1.3,burn timing/frames/gaps,empty stars,Unit/modal motion,
+other contact defaults,gameplay/audio/assets/saves remain unchanged. Existing
+focused ownership test expectation and feature record updated;no new owner.
+PASS qa:fast,qa:ios,qa:feature-runtime and mounted earned-only map-star timing/
+burn/background/culling/card-cover/weak-cleanup test. Logs:/tmp/native-star-gentler-
+{fast,ios,feature,tests}.log. Broad suites not repeated for this numerical visual
+follow-up;previous documented web-asset failure remains open. User then asks to
+open iPad Simulator;retained iPad(A16)/iOS26.5 UUID43A75086-0C64-464C-B71C-FDD01AF59C32
+booted and opened. Complete-current-tree normal Debug BUILD SUCCEEDED;exact
+Native bundle,noXCTestPlugIns/Web.bundle,stable complete input manifest and
+matching built/installed launcher+dylib on both retained Simulators. Install-over
+preserved both canonical saves;backups and receipts in /tmp/native-star-gentler-
+preview/ and /tmp/native-star-gentler-ipad/. Normal launches:phone com.taptapdesign.stacktosix.native: 61459;iPad com.taptapdesign.stacktosix.native: 61647.
+Actual SpringBoard Silent Mode after launch:phone true;iPad false(existing
+frontend limitation:toolbar has noMute and I/O exposes only volume/output,
+CUA app screenshot unavailable). No game Sounds/Music or macOS volume/output
+changes. iPad window brought forward for user review. No physical install,
+PWA or legacy operation. Deterministic/build/install PASS;aesthetic/physical
+motion acceptance NEEDS PHYSICAL TEST.
+
+## 2026-11-10 · Coco Loco tablet coconuts and gentler map-star squash/stretch
+
+Latest user requests:30percent larger Coco Loco coconuts only on iPad;remove
+caption hyphen on iPhone/iPad;then make filled map stars more cartoon squash/
+stretch and20percent slower/gentler. NativeTntVariantPresentation applies1.3
+paint scale only for Coconut and existing tablet predicate. Analytic flight
+positions,contact radii,counts,timing,RNG,phone scale,original assets and palms
+stay unchanged. Visible finale caption now COCO LOCO;shared glyph owner retains
+large initial C/L treatment at same indices with the same9character/RNG count.
+Map stars alone opt into1.3times squash/stretch deviations and80percent speed:
+0.4->0.5s. Existing helper defaults remain1/1 for all other contacts;burn,empty
+stars,Unit geometry,visibility/cancellation owners and gameplay/saves stay.
+Performance/feature ownership records updated;self-review checked default
+callers,device isolation and symmetric existing cleanup. No new runtime owner.
+
+PASS qa:fast,qa:ios,qa:special-dice,qa:feature-runtime,qa:native:admission and3
+focused mounted Native checks:tablet1.3/phone1.0 actual coconut transform with
+unchanged analytic centres;COCO LOCO copy and large C/L;map-star0.5s timing,
+earned-only burn/bounce and interruption/weak cleanup. Logs:/tmp/native-coco-stars-
+{fast,ios,special,feature,admission,tests}.log. Broad full suite not repeated for
+this numeric visual/copy follow-up;preceding documented missing web-asset test
+failure remains open. Physical/aesthetic acceptance NEEDS PHYSICAL TEST.
+
+Normal complete-current-tree Debug Stack to Six BUILD SUCCEEDED,exact
+com.taptapdesign.stacktosix.native,install-over/normal launch com.taptapdesign.stacktosix.native: 59207
+on retained1018QA Simulator. Built/installed launcher+dylib match;complete
+input manifest stable,no XCTestPlugIns/Web.bundle,both canonical saves backed
+up and unchanged at installation;actual SpringBoard Silent Mode true in final
+launch receipt. Evidence:/tmp/native-coco-stars-preview/main-delivery.json,
+final-production-inputs.json,refresh-delivery-0.log and saves-preinstall/.
+No physical installation,PWA or legacy operation.
+
+## 2026-11-10 · Filled Journey map stars: cartoon bounce and burn
+
+User specifies stars beside complete Units on the World map,not the open card.
+JimiNativeWorldView now subclasses only star-filled artwork views; original
+empty stars,frame/rotation/depth,modal-star recipe,gameplay/progression/audio,
+asset bytes and saves remain unchanged. Visible admitted World owner shares at
+most3selected left/centre/right128px burn frame sets across all eligible Units.
+Existing NativeRewardFilteredFrames serial cancellable preparation,existing
+NativeStarBurnTiming random gaps and finite0.4s NativeHUDTapMotion squash/contact
+own playback. Each finite burn receipt weakly owns its star;no new timer,ticker,
+observer,per-frame raster or global cache. Modal cover,viewport cull,background,
+route/park,hidden/window detach,Reduced Motion and cleanup retire owned tracks,
+layers and leases;late preparation/completion cannot resurrect retired work.
+Feature runtime ownership updated. Self-review checked real admission/call sites,
+frame sharing,worker cancellation,outer tilt and symmetric retirement.
+
+PASS: qa:fast,qa:feature-runtime,qa:ios and2mounted Native tests on retained1018
+Simulator: earned-only motion/burn,original rotation,background/resume,stale
+completion,culling,card cover,repeated cleanup/weak world release,and actual
+original-World iPhone/tablet burn presentation. Initial test checked second shape
+before its async preparation finished;corrected fixture waits both shape leases;
+final2tests PASS. Actual iPhone/tablet PNGs inspected:
+/tmp/native-map-stars-{iphone,ipad}.png. Standalone fixture has no app-level paper
+background;black transparent regions do not represent normal product background.
+Full no-sync QA FAIL only existing scene-builders missing referenced web artwork:
+529/530suites,4010/4011tests PASS;KING24suites/330tests PASS;remaining full gates PASS.
+No unrelated asset repair. Logs:/tmp/native-map-stars-{fast,full,feature-final,
+ios-final,tests-final}.log.
+
+Normal complete-current-tree Debug Stack to Six BUILD SUCCEEDED,verified exact
+com.taptapdesign.stacktosix.native,noXCTestPlugIns/Web.bundle;install-over and
+normal launch PID53519 on retained1018Simulator. Built/installed launcher+dylib
+hashes match,complete inputs stable,both canonical saves unchanged through hosted
+tests/install/initial normal launch. Actual SpringBoard SBRingerMuted=1 after
+final launch. Receipt/build/input manifest/backups:/tmp/native-map-stars-preview/.
+No physical install;earlier iPad developer-trust launch block stays open. Effect
+lifecycle/build PASS;motion/thermal/aesthetic acceptance NEEDS PHYSICAL TEST.
+
+## 2026-11-09 · Native Release installed on physical iPad; launch blocked by iOS trust
+
+Explicit user request: install Stack to Six now on iPad. Verified connected wired
+jimi’s iPad (A16), CoreDevice372E1295-8391-54C8-A2B2-1C95EB989E19.
+Reused today's signed normal Release at /tmp/native-phone-current-20261109/derived/
+Build/Products/Release-iphoneos/Stack to Six.app after complete production input
+manifest comparison found no changed inputs. qa:ios, compiled Release identity/
+original-assets/dependency audit and codesign deep strict PASS. Exact Native
+bundle com.taptapdesign.stacktosix.native; no Web.bundle/XCTest PlugIns.
+Install-over PASS at23:50Zagreb. Both canonical saves backed up and byte-identical
+through installation. No reset/restore/uninstall. Installation PASS; launch FAIL:
+three normal launch attempts rejected by iOS Security/CoreDevice10002 citing code
+signature, entitlements or untrusted developer profile. Embedded development
+profile includes this exact iPad UDID and is unexpired; user-side developer trust
+verification remains needed. No gameplay acceptance claimed. Receipt/backups/logs:
+/tmp/native-ipad-20261109/; audits /tmp/stack-ipad-install-20261109-*.log.
+No code/assets changed; iPhone, Simulator, PWA and legacy shell untouched.
+
+## 2026-11-09 · Current Native Release installed on physical iPhone 13 blue
+
+User explicitly requests installation of the newest Native changes. Complete
+current-tree signed Release BUILD SUCCEEDED; qa:ios and compiled Release Native
+identity/original-assets/dependency audit PASS; codesign deep strict PASS.
+Verified exact com.taptapdesign.stacktosix.native, no Web.bundle or XCTest PlugIns.
+Wired iPhone13blue CoreDevice0F62B71E-0B04-53C3-906E-EC28F5D2390B received
+install-over at19:41Zagreb. Normal launch retry succeeded PID6262, confirmed
+running. Initial launch failed with transient CoreDevice Security/profile error;
+same signed app launched successfully without changing certificate or device trust.
+Executable SHA256194c042c8c20d206b71860894c0cbb258e2e01368356fc4da6d1931e9bf5f808.
+Production input manifest stayed fresh through build/install/final verification.
+
+Both canonical saves backed up initially and immediately before installation;
+original delivery script passed byte-identical post-install comparison before
+launch. After successful launch,normal runtime updated current save and rotated
+the preinstall current bytes into previous;current progression/Journey run also
+changed, so do not claim byte-identical saves after launch. No restore,reset or
+uninstall. Reverification initially overwrote save-installed capture with the
+post-launch state;retained save-preinstall remains the authoritative backup.
+Receipt:/tmp/native-phone-20261109/delivery.json; inputs.json, signed-release-build.log,
+install.json, launch-retry.json, processes.json and save-initial/save-preinstall/
+save-launched retain evidence. No code/assets changed, no repeat full QA suites;
+prior documented full-QA missing web-asset failure remains unresolved.
+Installation/normal launch PASS; subjective gameplay/motion NEEDS PHYSICAL TEST.
+Retained Simulator, preserved PWA and legacy shell untouched.
+
+## 2026-11-09 · Opened existing Native build on iPhone17 Simulator
+
+User requests iPhone18;local installed device types only reach iPhone17 family.
+User selects iPhone17. Booted existing iPhone17/iOS26.5 Simulator
+283C4BBE-1420-474D-A0CF-0438310A03E3. No app was installed there;installed the
+verified normal Native app from retained Jimi iPhone13 app bundle,no rebuild,
+no XCTest PlugIns/Web.bundle. Normal launch PID97958;visible initial Drag to
+stack tutorial confirmed. Independent fresh profile;no saves migrated or reset.
+qa:ios PASS. Silent Mode True after launch/action-button toggle.
+Receipt:/tmp/native-iphone17-open-20261109.json. No gameplay/source/assets change.
+Retained Jimi iPhone13 remains shutdown and its app/data unchanged;physical
+phone,preserved PWA and legacy shell untouched.
+
+## 2026-11-09 · Screen plus one caption v12 — current scoped design request
+
+User returns to StacktoSix and supplies v6/v7 reference crops,saying these were
+nearer but too fake/generic/inconsistent. Latest request:3concepts showing actual
+screen plus short description. Built3consistent1170x2532 prototypes in
+`game design/output/2026-11-09-screen-and-caption-v12`,overview three-screens.png.
+Actual physical WeeBee53.5s,Juice96s and JourneyHub32s frames reused proportionally
+at1070x2315.59,round34px corners/subtle warm shadow,original paper-bg@3x behind.
+Single coral caption below uses original Baloo2ExtraBold52pt;all fit1060px without
+truncation. Full frame preserved apart from rounded extreme corners;no board/HUD
+or characters redrawn,no external character/prop/footer/banner/logo added,no
+imagegen asset used. All9gameplay rows visible;actual JourneyHub shows3Worlds.
+Combined final PNG opened/visually inspected for consistency,full-screen retention
+and caption fit. Source hashes/geometry/copy in provenance.json. Concept test only;
+no Apple-license action,publication,app/source-asset/save/build/device changes.
+
+Prior v11 paper-story draft (3posters with logo,original worn paper,source-art
+cameos and native reward-unfolding frames) remains saved but was superseded by
+this narrower screen-and-caption request before a final delivery. User rejects
+v10 non-game palettes/CGI shapes/editorial font;current identity is actual original
+paper/assets/Baloo. Do not restore those rejected styles as default.
+
+## 2026-11-09 · Three entirely new device-free concept directions v10
+
+User clarifies concepts are TESTS,not production;do not seek Apple marketing
+license acceptance for these experiments. Agreement remains unaccepted and no
+Apple artwork used. User rejects v9 phone set and asks3new complete different
+concepts,allowing rounded screenshot edges/drop shadows. Generated3fresh separate
+backgrounds and composed actual captures/original card at
+`game design/output/2026-11-09-three-new-directions-v10`,overview three-new-concepts.png:
+01ForestGallery:ivory/coral sculptural arch,large closer crop of physical WeeBee
+capture53.5s,round corners/shadow;HUD/upper board preserved,lower rows intentionally
+cropped. 02JuiceColorPop:aqua/coral sculptural liquid shapes,complete physical
+Juice96s screenshot,clean editorial copy and small lower running duo. 03Legendary
+Spotlight:inkblue/gold studio,original TRANSPORT08gold card unchanged/proportionate,
+small duo/rocks/bucket at bottom,no external robots. New AvenirNext typography
+is separate layout,not generated UI. No phone frames,old footer plaques/gardens
+or tilted wooden tray. Initial Forest text/character overlap and Juice lower-copy
+contrast corrected before final visual inspection of actual images. All3are
+unapproved design candidates. No application code/assets,saves,build,install,
+Simulator,new physical capture or external publication changes.
+
+## 2026-11-09 · Large phone presentation v9 — working mockup, Apple license pending
+
+User requests improved concepts after preferring gameplay inside a dark phone.
+New Forest/Juice images use same1000px-wide straight black phone working mockup,
+actual retained physical screenshots with original aspect ratio,accepted3D footers,
+original paper and bottom-only bushes/palms. Actual full images/overview inspected:
+all9board rows and HUD visible,footer art overlaps decorative lower area only.
+Set at `game design/output/2026-11-09-app-store-iphone-v9`,three-concepts.png overview.
+Third Legendary concept is exact unchanged v8,retaining foreground card and small
+bottom Jimbo/Nala without external robots. No application/source asset/save,
+build/install/Simulator or new physical capture changes.
+
+Official Apple iPhone13bezel DMG downloaded from devimages-cdn to private tmp.
+Readonly mount requests AppStore Marketing Artwork License Agreement and canceled;
+no acceptance,extraction or official artwork use. Explicit async confirmation asked,
+no answer received before safe fallback. Delivered frames are our own code-native
+vector WORKING mockup (`art/draw-frame.swift`),not official Apple marketing assets.
+Do not claim package terms accepted or production marketing frame approved. User
+may authorize official license later;pending action is optional asset substitution,
+not permission to alter screenshots/game. provenance.json records this boundary.
+
+## 2026-11-09 · Card foreground v8 and phone-frame visual feedback
+
+User requests card as foreground hero,Jimbo/Nala only at very bottom,and no
+external robot characters;quiet rocks/buckets allowed. Created
+`game design/output/2026-11-09-app-store-cards-v8/legendary-card-foreground.png`
+1170x2532 using unchanged original TRANSPORT08gold,now1120px wide vs880px v7.
+New background removes external robot/flowers/foliage,keeps rocks/buckets,places
+small duo at bottom;original robots inside card retained. Actual final PNG opened
+and checked for card proportions,bottom placement and absence of external robots.
+Juice and original assets/code remain untouched;no build/device/QA changes.
+
+User then supplies an iPhone-framed gameplay reference and observes that the game
+looks better inside the phone. This is current visual feedback for next gameplay
+presentation:realistic dark device outline improves separation/contrast and
+preserves the familiar full-screen proportions. No new phone-frame candidate
+created or selected in this follow-up yet;do not revive rejected v5 tilted tray.
+
+## 2026-11-09 · Juice and Legendary card concepts v7 — v6 style continuation
+
+User selects improved v6 direction and requests Juice plus an unlock-cards concept
+using original Area55 Legendary08gold. Produced2 designs at
+`game design/output/2026-11-09-app-store-juice-cards-v7` with overview/provenance:
+01Juice physical capture96s laid out1170x2532 at1:1,generated integrated beach
+footer with same Jimbo/Nala identities and reference Juice shape. Copy:FRESH DICE.
+NEW MOVES./Juice adds new dice to your board. Confirmed catalog ability1regular+
+3closed. Upper1900px RGB byte-identical to actual capture;footer overlaps lower
+rows as v6. 02Cards is a marketing illustration,not gameplay/reward UI:exact
+original `assets/colelctibles/Area55/legendary/08-gold@2x.png` TRANSPORT scaled
+proportionally over original-style Area55 background/characters/robot. Original
+card SHA256bd6eb8794b8e47baa307db78660b1b738f8b79bc9bf4828f2a4fdf2a7cd821b6
+unchanged. Copy:UNLOCK LEGENDARY CARDS/Earn3stars in Journey. Verified actual
+NativeJourneyContent rarity condition stars>=3. Both actual final images and
+combined overview visually inspected for identity,card integrity,copy and layout.
+Design candidates await review;no AppStore upload,native code/assets,save,build,
+install,Simulator or physical-device changes. V5 visual direction stays rejected.
+
+## 2026-11-09 · Explicit v5 design rejection; single premium footer v6 candidate
+
+User explicitly says never reuse the v5 look:tilted tray,flat green-gradient
+poster and oversized top headline feel early2000s and below game's quality.
+That direction is rejected,not a fallback. Returned to user's original v2 footer
+composition with one unified reference-led Jimbo/Nala/WeeBee/foliage/3D-lettering
+transparent illustration. Actual original1170x2532 physical screenshot laid out1:1
+with exact original bush1/bush2 PNGs at outer edges and footer over lower rows.
+New candidate at `game design/output/2026-11-09-app-store-premium-v6/forest-premium-real-gameplay.png`;
+actual output inspected. No tilted tray,top marketing headline or generated board.
+Footer overlays some bottom board cells;candidate awaits user review. Original
+assets,application code,saves,Simulator and physical installation untouched.
+
+## 2026-11-09 · App Store depth v5 — alternate composition review
+
+User finds Forest frame v4 flat and requests a better direction. Produced2
+alternative1170x2532 PNGs in `game design/output/2026-11-09-app-store-depth-v5`:
+actual physical capture42s vs Wee Bee53.5s,large cropped board photograph tilted
+3degrees on a rounded graphic plate/shadow,large headline above,sage backdrop,
+original bee/pine transparent props and shared Jimbo/Nala duo. Native HUD and
+lower screenshot trim cropped for this promotional composition;no screenshot
+content generated/repainted. Footer caption/duo overlap corrected before final
+visual review. Actual outputs opened;candidates await user opinion. Source MOV
+retained from v3;no new device session,app code,build,install or save changes.
+
+## 2026-11-09 · Forest App Store concept v4 — restored illustrated surroundings
+
+User rejects sparse v3 margins and requests lush Forest surroundings like earlier
+Rumble Stars-inspired concept,using own cube-crash assets. Generated a Forest
+frame from original Forest main,pine1,Journey face/master and bee1 references;
+original assets unchanged. Inserted exact physical Wee Bee capture53.5s as one
+scaled image. Generated frame remains around edges and in lower promotional
+footer;all9board rows and HUD inspected/preserved. Original bottom scene trim
+covered by promotional footer. New Jimbo/Nala/bee art is a candidate,not runtime
+art. Output `game design/output/2026-11-09-app-store-forest-v4/forest-real-gameplay.png`
+1170x2532 plus frame,render script and provenance. Final actual PNG visually
+inspected for row preservation,orientation,caption fit and character framing.
+No application code,build,install,save or original artwork changes.
+
+## 2026-11-09 · App Store concepts v3 — actual physical Wee Bee / Juice captures
+
+User rejects generated gameplay and invented surrounding Worlds. Connected paired
+physical iPhone13blue,verified Native bundle in Xcode Devices,and captured115s
+of actual screen via QuickTime after user connected USB. User performed gestures;
+latest instruction narrows concepts to recorded Wee Bee and Juice only. Recording
+stopped/saved;no installation,build,reset,save edit or runtime change. Normal user
+play may persist its normal progression. No printer used.
+
+Four1170x2532 concepts at `game design/output/2026-11-09-app-store-real-v3`:
+01ForestBee,02BeachJuice,03ForestStack,04BeachJuice. Exact original video frames
+at53.5,84,54.5,96s retained under captures with source MOV and provenance.json.
+Each full screen is one proportionally scaled photo;board/HUD/effects are not
+redrawn or generated. Neutral margins and separate footer layout/text only.
+Same generated reference-led Jimbo/Nala transparent duo reused for consistency;
+footer bee/Juice props and Baloo font are original assets,unchanged. Footer duo
+is a design candidate awaiting user acceptance. Four layouts and overview rendered
+with development-only AppKit script and visually checked. Initial render had
+inverted image/text orientation;corrected graphics context before final delivery.
+No Area55/Arcade/Fishy claims or captures in the narrowed final set.
+
+Design-artifact validation only;no app QA/build/install requested or performed.
+Preserved PWA,legacy shell and retained Simulator app untouched. Original source
+video is private working material;only selected gameplay frames enter concepts.
+
+## 2026-11-09 · Home clouds bounded by logo ear and lower divider on phone/tablet
+
+User explicitly selects both iPhone and iPad. Home rear clouds now choose their
+vertical composition once per real Home visit within10pt above the original logo
+ear alpha and the visible lower divider. All clouds reserve their full idle
+translation/scale bounds;foreground clouds retain the existing lower-illustration
+guard. Original logo280x168 alpha begins at row3;rest layout anchors the band.
+The same unchanged pose factory supplies the existing compositor idle and its
+layout envelope. No timer,observer,resource,asset,save,audio or gameplay changes.
+Horizontal geometry,counts,depths,phone width bands and motion timings retained.
+Random positions survive relayout,tab changes and foreground;tablet now also
+rerolls vertically on actual Home entry. Existing unrelated Home nav fix retained.
+
+PASS final focused Native SDK2tests0failures0.382s:five visits on320/390/430pt
+phone and744/820/1032pt tablet views check all static clouds plus actual idle
+keyframe extrema,stable relayout,random next visit and hero preservation;existing
+panorama identity/slide/pause/disposal test also passes. Initial implementation
+failures and one Swift expression-wrap compile failure retained;final formula
+includes the logo alpha inset. Logs:/tmp/home-cloud-band-{sdk,diagnostic-sdk,
+exact-sdk,verified-sdk,final-sdk}.log. Final syntax parse PASS.
+PASS final qa:fast,qa:ios and diff whitespace. FullQA FAIL only on the existing
+web scene-builders missing source/density asset test:529suites/4010tests pass,
+1suite/1test fails;other gates including KING330 and no-sync build PASS.
+QA:/tmp/home-cloud-band-{fast-verified,ios-final,full}.log.
+
+Normal complete-current-tree Debug BUILD SUCCEEDED. Verified Native bundle and
+installed binary hashes,no XCTest PlugIns/Web.bundle. Install-over and normal
+retained Jimi2026QA iPhone13 launch PID16681. Both canonical saves backed up and
+byte-identical through installation/initial launch;actual SpringBoard Silent Mode
+ON. CUA visually inspected Journey,Arcade and Settings Home slides after launch:
+clouds stay below the logo-ear upper bound and above the divider. Final preview
+is the normal Home Settings slide. Evidence:/tmp/native-home-cloud-band-20261109/
+main-delivery.json,refresh-delivery-0.log and final-production-inputs.json.
+Physical phone,preserved PWA and legacy shell untouched.
+Physical/iPad visual acceptance remains separate;no physical installation requested.
+
+## 2026-11-09 · App Store themed concepts v2 — Rumble Stars layout reference
+
+Read official App Store listing and inspected4 actual Rumble Stars screenshots
+retrieved from public Apple lookup metadata. New original Forest,Beach,Area55
+and Arcade concepts use gameplay-dominant presentation,theme borders,lower-corner
+Jimbo/Nala and enlarged bee/Fishy/spaceship/magnet with static motion cues.
+Saved4 PNGs and references/limitations in
+`game design/output/2026-11-09-app-store-themed-v2`. Actual generated outputs
+visually inspected. These are design candidates,not final store captures:
+generated board geometry,fixture score/combo,Endurance caption on World concepts
+and illustrative glow/trails must be replaced with exact real gameplay captures
+before publication. No actual animation/video generated,no runtime/source-asset
+changes or build/install. Previous four phone-framed candidates retained.
+
+## 2026-11-09 · Four App Store presentation concepts — design only
+
+Generated4 independent reference-led portrait concepts at
+`game design/output/2026-11-09-app-store-concepts`:clouds,wooden stage,
+Jimbo/Nala guides and Journey island. Inspected rendered results against the
+approved Journey render/face and Endurance body references. Original art remains
+unchanged;no runtime integration or build/install. Candidates are exploratory,
+not approved production screenshots:generated logo and adapted board/QA fixture
+HUD must be replaced with original logo and exact real iPhone captures before
+publication. concepts.json records references and production limitations.
+Design-library verification reports snapshot drift/missing historical originals;
+no library/source assets restored or refreshed. Current master and selected
+original character/gameplay inputs were opened directly for this task.
+
+## 2026-11-09 · User-selected initial paid price
+
+User chose EUR3.99 as the initial one-time purchase price for Stack to Six.
+This is a product decision only;no App Store Connect pricing,subscription,
+monetization code or release metadata was changed. Revenue scenarios remain
+illustrations,not verified demand or sales forecasts.
+
+## 2026-11-09 · Laser Gun display name becomes Zapper
+
+User selected Zapper to fit the playful ZAP-ZAP identity. NativeBackpackCatalog
+now exposes ZAPPER for the existing laser-gun die; detail typography displays
+Zapper through its existing capitalization. Internal identity, saved discoveries,
+artwork, audio, rules and descriptive copy remain unchanged.
+
+PASS qa:fast,qa:ios and diff whitespace. Complete-current-tree normal Debug
+BUILD SUCCEEDED; verified Native bundle and installed binary hashes, install-over
+and normal retained Jimi2026QA iPhone13 Simulator launch PID79182. Both canonical
+saves backed up and byte-identical through install/initial launch. Actual
+SpringBoard Silent Mode ON after launch. No XCTest plug-in or Web.bundle.
+Evidence:/tmp/native-zapper-20261109/main-delivery.json and refresh-delivery-0.log.
+Full QA FAIL only on the existing web scene-builders missing source/density asset
+test:529suites/4010tests pass,1suite/1test fails;all remaining gates including
+KING330 and production no-sync build PASS. Logs:/tmp/zapper-{fast,full,ios}.log.
+Physical phone,preserved PWA and legacy shell untouched. Unrelated dirty work retained.
+
+## 2026-11-08 · Exit modal survives refused entry checkpoint
+
+NativeEndRunOwner no longer dismisses the entered Exit modal or resumes gameplay
+when its optional entry checkpoint returns false. A paused Special legitimately
+vetoes partial-state saves. The modal keeps its existing owner/pause until an
+explicit action. Close resumes as before;Restart remains unchanged;confirmed
+Exit still requires its own coherent save before leaving gameplay. No save
+veto was weakened,no retry/timer/observer added,and no Special animation or
+original asset changed. Existing weak generation/identity and disposal guards
+remain. Feature entry-owner record updated.
+
+Regression-before reproduced automatic dismissal/resume with3assertion failures.
+Initial expanded SDK batch also exposed older fixture issues:Journey/Arcade
+exit-root tests expect saved runs absent on current baseline;the existing HUD
+bounce test checks whole-scene pause during allowed HUD presentation work.
+All three reproduce unchanged with the original HEAD EndRun owner
+(baseline-neighbors.log:3tests,5assertion failures),so are not regressions of
+this fix. New regression fixture now waits for actual HUD entry completion
+and explicit dismissal callback before checking paused/resumed state/reopening.
+It also verifies refused confirmed Exit cannot call the exit continuation.
+Final mounted regression PASS1test0failures6.220s(focused-verified.log).
+Two mergeable dice keep this fixture nonterminal after explicit Close;the
+initial single-die fixture could end before reopening. Earlier raw failures
+retained in focused.log/focused-final.log;no shipping pause recipe changed.
+
+Final complete-current-tree normal Debug BUILD SUCCEEDED;verified exact Native
+bundle and built/installed binary hashes,no XCTest PlugIns or Web.bundle.
+Install-over and normal retained Jimi2026QA iPhone13 Simulator launch PID70199.
+Both canonical saves backed up and byte-identical through install/initial launch.
+Actual SpringBoard Silent Mode ON after final launch. Evidence:main-delivery.json,
+refresh-delivery-0.log and ios-final.log in the same evidence directory.
+Physical animation/touch remains NEEDS PHYSICAL TEST. Physical phone,preserved
+PWA and legacy shell untouched.
+
+PASS qa:fast,qa:ios,Gameplay KING330tests and diff whitespace. Full QA FAIL only
+on the existing web scene-builders missing source/density asset test:
+529suites/4010tests pass,1suite/1test fails;all other gates including no-sync
+production build pass. Evidence:/tmp/native-exit-checkpoint-20261108/.
+Unrelated dirty work retained;no commit/push or physical install requested.
+
+## 2026-11-08 · Info Close starts after initial landing; history return uses ordinary timing
+
+Initial Journey info opening now starts the existing shared Close X/container
+pop at full flight landing, rather than completing80percent during that flight.
+Only its existing CA epoch shifts; spring,fade,shadow,flip,layout,input and
+pause/retirement/Reduced Motion owners remain unchanged. User follow-up scopes
+High Score/Best Combo return to the ordinary shared modal timeframe: retain
+its paper epoch and333.333ms Close delay, without waiting for the full650ms
+paper entry. No extra timer or callback. Feature ownership text updated.
+
+PASS qa:fast,qa:ios and diff whitespace. Full QA FAIL on the same existing web
+scene-builders missing source/density asset test:529suites/4010tests pass,
+1suite/1test fails;other gates including production no-sync build pass.
+Original assets untouched. Final complete-current-tree normal Debug BUILD SUCCEEDED; verified Native
+bundle and installed binary hashes,install-over and normal launch PID64064.
+Both canonical saves backed up and byte-identical through install/initial launch.
+Actual SpringBoard Silent Mode ON after final launch. No XCTest plug-in or
+Web.bundle. Evidence:/tmp/native-info-close-20261108/main-delivery.json and
+refresh-delivery-0.log;QA:/tmp/native-info-close-{fast,full,ios}.log.
+Physical phone,preserved PWA and legacy shell untouched.
+Physical timing/feel remains NEEDS PHYSICAL TEST. Unrelated dirty work retained.
+
+## 2026-11-08 · Private provider evidence package — both active Suno themes
+
+At the user's request, collected original ElevenLabs, Suno and OpenAI billing
+documents through the signed-in accounts and existing Downloads. Private package:
+`/Users/user/Desktop/Stack to Six - Dokazi licenci - 2026-11-08` (outside Git).
+Contains13 unchanged original invoice/receipt PDFs,4 visually inspected summary
+PDFs,official terms snapshots,original music masters and SHA-256 manifests.
+No physical printing;no subscription/payment changes,uploads or legal attestations.
+
+User-requested permanent private archive now copied and verified at
+`/Users/user/TAP TAP d.o.o./STACK TO SIX/Commercial licenses and proof`.
+Main `STACK TO SIX - Commercial licenses and proof.pdf` has4 Croatian explanatory
+pages plus15 original-document appendix pages(13 original PDFs),19pages total;
+rendered review passed. Includes user's stated ElevenLabs/Suno origin separately
+from independently verified evidence;kept for own records/possible later request,
+not sent to Apple. Original source package on Desktop retained.45 archive files
+verified against regenerated SHA-256 manifest;original PDFs remain byte-identical.
+
+Both active Native music sources traced read-only through NativeSoundtrackRouteOwner
+and existing loop analysis:menu SIx theme -> Suno a8c1b675-7f9b-4b43-b166-9dbce6740e7d;
+Journey/Arcade TapTapDesign-Stacktosixtheme.wav -> Family Fun Time,
+06941bb4-f163-4ecb-8339-5e57a0bc0ec4. Provider pages identify taptapdesign and
+2026-09-13;original WAV metadata agrees. Both source/runtime hashes match analysis
+records;masters match Downloads byte-for-byte. Suno Pro annual invoice+receipt
+cover2026-09-13–2027-09-13. Embedded credentials retained,not cryptographically
+validated. Audio inventory1217 preserved files;143 exact download-match pairs,
+140 distinct project paths,85 renamed pairs. These are byte matches,not blanket
+licence clearance. Full per-sound history/date and per-image ChatGPT conversation
+matching remain unverified. Package is assembled evidence,not provider-issued
+certification or Apple approval. No app/source/assets/build/install changes;
+existing Native preview and unrelated dirty work remain intact.
+
+## 2026-11-08 · Complete result number and background-interrupted Home die recovery
+
+User requests no truncated result number and fixes the selected bottom-navigation
+die remaining small after leaving/returning to the app. NativeResultController
+fits its existing ExtraBold score font to the complete formatted final value at
+layout, reducing only as required and holding that size through the counter and
+its blur/burn glyphs. 144.000 uses75.0136pt instead of80 at390pt width. Existing
+positions,other text,artwork,gameplay,score/save math and motion stay unchanged.
+Actual mounted result raster inspected:score-fit-144000.png shows all digits.
+
+Root cause reproduced with the actual NativeAppController:background during
+selection plus iOS retirement of the finite hero animation leaves the nav idle
+profile needing replacement. Its replacement branch formerly skipped resuming
+the paused shell;child geometry/contact stayed frozen at61.867pt versus79.2pt.
+JimiV9HomeView now resumes the same shell clock before checking/replacing its
+idle profile. No new timer,observer,completion or reset;ordinary contact,sway,
+selection and route recipes retain their accepted timing. Regression before fix:
+12assertion failures. Final focused SDK5tests0failures25.371s covers six ordinary/
+retired-animation background windows,full numbers320/390/430pt through999.999.999,
+phone/tablet nav slots,sway/deselection and existing selection pause/cancel.
+Aligned an existing stale SDK expectation0.4 to the already-accepted0.65s slider;
+shipping slider duration is unchanged and HEAD already declares0.65.
+
+PASS final qa:fast and qa:ios. Full QA FAIL only for the preserved web scene's
+missing assets/logo-cube-crash.png reference:529suites/4010tests pass,one test fails;
+all other gates including KING,production no-sync build and bundle audits pass.
+User confirms old unrelated images were deliberately removed;none restored or
+modified. Scope verdict:Native fixes PASS deterministic/Simulator checks;
+physical lifecycle/feel remains NEEDS PHYSICAL TEST. No all-green full-QA claim.
+
+Normal complete-current-tree Stack to Six Debug BUILD SUCCEEDED,including the
+preceding saved World-card Close correction. Verified exact Native bundle and
+built/installed executable+dylib hashes,no XCTest PlugIns/Web.bundle. Install-over
+and normal retained Jimi2026QA iPhone13 Simulator launch PID38533. Both canonical
+saves backed up and byte-identical through install/initial launch. Initial
+pre-test backup also retained;normal earlier lifecycle flush changed only savedAt,
+unordered-set encoding and previous-save rotation,with gameplay/progression/
+settings semantically unchanged. No restore/reset/uninstall. Actual SpringBoard
+Silent Mode ON after boot and final launch. Manual normal Home->background->Home
+review shows selected Arcade die full-sized;final preview is normal app,not runner.
+Evidence:/tmp/native-score-resume-20261108/ (regression-before.log,
+focused-verified.log,fast-final.log,full.log,ios-final.log,score-fit-144000.png,
+main-delivery.json,final-production-inputs.json,saves-before,saves-preinstall).
+Physical iPhone,preserved PWA and legacy shell untouched. Prior unrelated dirty
+World-card/feature-record work and private PDF preserved;no commit/push requested.
+
+## 2026-11-08 · Journey info Close X/container share ordinary modal pop — source only
+
+User requests identical Close X and container animation on the main Journey info
+modal. Both existing leaves now use JimiNativeModalV10.enterClose on one epoch,
+with the same spring,fade,counter-tilt and finite duration. Shared80percent arrival
+alignment is relative to this card's existing flight landing;flight/flip stay
+unchanged. The joined stone/paper back shadowPath follows the exact sampled Close
+container matrices/keyTimes instead of painting a stationary tab during pop.
+History return uses the same existing paper epoch. Ordinary face flips do not
+replay. Root pause owns all three finite tracks;history hide/cleanup remove their
+keys idempotently;Reduced Motion retains the rest pose. Position,size,material,
+texture,X opacity,tap feedback/hit area,input,gameplay,audio and saves preserved.
+Feature record updated. No new timer,observer,callback or resource preparation.
+
+Continuing the user's no-tests/QA preference:no suites run. Source syntax reviewed;
+new build/Simulator refresh blocked by critically full host disk(about250MiB free,
+insufficient for fresh SDK build after prior cache cleanup). Existing phone and
+Simulator apps remain installed at the previous checkpoint;this change is not yet
+in either installed app and is not committed/pushed by this task. Manual/physical
+appearance pending. Cleanup to permit source writing retired only the verified
+previous temporary physical app build product and inactive Native SDK module
+caches;source/original assets/saves/installed apps and prior receipts retained.
+The earlier physical installation and Git publication remain valid historical
+receipts,though their temporary .app product has now been retired.
 
 ## 2026-11-08 · Verified iPhone-first Git publication
 

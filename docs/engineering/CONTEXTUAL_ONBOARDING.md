@@ -1,6 +1,68 @@
+User2026-11-12 latest motion:Your backpack paper begins at50percent of captured Special animation;visual preview only until genuine canonical settlement enables collection action. Tutorial Backpack shimmer is700ms continuous sweep with quick fade,using existing shared clock;ordinary/Special shimmer defaults retained.
+
+User2026-11-12 final lesson:Your combo / Stack and merge quickly / to boost your combo and score. / Next;then Clear the board! / Stack and merge anywhere. / Clear every die and have fun! / Keep going. Final clear board.png uses existing top-edge character slot. Canonical optional completionLessonAcknowledged restores pending final;input/combo remain paused until Keep going exits.
+
+User2026-11-12 latest:Journey shows Play fast. Score big. immediately after Backpack tutorial visit returns,before another gameplay move. Current collection acknowledgement makes combo ready;legacy nil collection receipt and Arcade retain six-move policy.
+
+User2026-11-12 latest Journey delivery copy:Your backpack drops / a random Special die. Two lines,CTA Got it. Arcade Box copy retained.
+
+Latest user2026-11-12 automatic-delivery explanation supersedes manual delivery
+wording/tap:Special delivery saysWhen the Special bar fills,your backpack(or box)
+drops a random Special die. CTA and prewarmed face sayGot it. This acknowledges
+the teaching pause;the existing automatic drop demonstration then resumes.
+Carrier art has no tap target or Open accessibility action. The later Journey
+collection lesson still uses Open backpack for the actual inspectable collection.
+Normal reward selection,drop,motion,save and later collection behavior stay.
+
+Latest user2026-11-12:Journey Your backpack lesson CTA is Open backpack. Both CTA
+and top-right tap open the actual collection while retaining the reading sheet
+underneath. Covered hand animation pauses;input/combo lock and durable unacknowledged
+lesson remain until actual collection dismissal returns to the same board. Then
+existing sheet exit acknowledges once. Failed opening and canceled/retired visits
+do not acknowledge. Existing collection/detail hand guidance remains advisory.
+Arcade behavior and save schema remain unchanged.
+
+Latest user2026-11-12:delivery header characters are static on their moving paper;
+remove their scale/depth entrance. Real carrier still starts at80percent. Journey
+Backpack jumps30percent higher,returns to original anchor/scale then has a second
+Ball-style floor rebound before opening(880ms total);Arcade pulse stays480ms.
+Idle held Journey Backpack borrows original-image alpha mask with shared gold
+burn/shimmer clocks;both click routes stop effects before jumping. All hand
+appearances/exits now bounce in/out on existing owners,including repeated Special
+and free-play hints,combo and collection hands. Size,targets,X offsets,drag motion,
+input and save receipts stay. No extra timer or original asset mutation.
+
+Latest user2026-11-12 delivery motion:real Backpack/Box admission is80percent of
+the780ms sheet entry(624ms),using the existing generation-owned timeout. Header
+illustration uses the same sheet entrance clock,lower-edge anchored scale-in
+backOut1.8,behind paper until its completed bounce then in front. Source borrows
+sheet progress;restored UIKit uses finite inherited CA tracks. Reduced Motion
+fades without scale. Close hints in both detail and collection move8physical pt
+up and left from centred X alignment,with existing modal projection compensated.
+
+Close hints now rotate the original hand180degrees around its actual index fingertip(20,35 of176px),centred on the visible X glyph. The palm stays above the text. Latest centred-fingertip request supersedes a separate16pt positional offset. Both detail and collection X use the same owner. User2026-11-12.
+
+All tutorial hands use the initial3-on-2 step size (min34percent viewport width,190pt),including combo,collection,detail-close and collection-close. Collection compensates its existing modal projection;authored tap/drag motion remains. User2026-11-12.
+
+Latest visual adjustment (user2026-11-12): Arcade delivery uses closed Box ink
+bounds to match Journey Backpack visible height,28pt paper-top gap and24pt title
+gap. Arcade header illustration sits24pt lower on both phone/tablet (tablet keeps
+its existing24pt offset). First earned tutorial Special retains its ordinary
+geometry in Journey and Arcade;the former1.3 emphasis scale is removed. Existing
+burn,drop/open/pointer motion,input,save and asset owners remain unchanged.
+
 # Contextual first-play onboarding
 
 User decision 2026-10-26. Supersedes the detached plain-Star tutorial.
+
+User2026-11-11 incomplete-guide routing: returning to the same mode resumes its
+single firstPlayRun, including after app relaunch. Starting Journey while Arcade
+practice is unfinished, or Arcade while Journey is unfinished, starts a fresh
+contextual guide and discards the previous guide's board, lesson flags and Special.
+Browsing/preparing and canceling does not discard a checkpoint. Successful new
+construction commits replacement through the existing save owner; switching back
+starts fresh again. Global completion ends this policy and retains normal gameplay.
+Real Journey/Arcade run slots, progression, settings and rewards remain preserved.
 
 - Journey CTA opens Worlds. First selected Unit Play starts the existing guide on
   the actual global board1/11/21, with Bee/Juice/Robo from the authored World pool.
@@ -93,3 +155,15 @@ Latest timing/gesture feedback: first paper entry begins on the existing board-e
 2026-10-28 next-sheet timing: Native first/second guided monitors start the hand and paper exits together. On the paper's actual exit completion, Merge dice or Special Bar enters immediately, with no wall90 gap or second hidden exit. Early paper does not release gameplay: first-step normalization/barrier preparation retries on the existing scoped120ms timeout, and Special Bar interaction/focus waits for the existing40ms settlement checks. Its committed second-merge barrier, not merely a changed pair, admits early Special Bar paper. Both CTAs require paper entry plus their real preparation; generation/scope retirement cancels waiting work. Source/oracle defaults retain their sequential exits and wall90. Tutorial CLEARED now bypasses the normal ordinary-contact/early-progress celebration and enters only from Scene's settled terminal callback, after final merge artwork and HUD receipts finish; ordinary non-tutorial celebration stays unchanged. No guessed500ms timer replaces actual final-artwork retirement.
 
 User2026-10-28 Arcade completion decision supersedes automatic fresh round1: Continue on Tutorial completed returns to Arcade hub/mode selection through the existing native return owner, with paper coverage until the hub's entry tracks are ready. It persists tutorial completion and clears only firstPlayRun, without creating/scoring a real Arcade run or changing existing Arcade stats. Journey completion routing remains separate. Completion cover typography now groups the default heading into two compact44pt lines at40pt font (34/37.4pt narrow),12pt heading/subtitle spacing, shared subtitle paragraph and an adaptive thumb area above a safe-area anchored Continue. Artwork, copy, motion/audio and cleanup remain preserved.
+
+User2026-11-12 collection walkthrough: while global onboarding is incomplete,
+opening the gameplay Backpack/Box shows one advisory hand at the first visible
+unlocked die. Actual detail entry points it to the detail X;completed return
+points it to the main collection X. Existing modal interactions stay available.
+The original hand performs two finite taps,then rests;Reduced Motion is static.
+It shares the active modal transform/foreground clock and retires on exchange,
+close or disposal. No extra saved lesson state,audio,haptic or scheduler.
+
+### Collection guidance once per first-time profile (2026-11-12)
+
+The first fully admitted tutorial Backpack or Box visit owns the die, detail-close and collection-close hands. NativeBootstrap persists `progression.tutorialCollectionGuidanceSeen` on entry admission, so subsequent visits and relaunches do not repeat them. Canceled preparation does not consume the receipt. Both modes point at the same lower-right card position (90% across and down). A fresh profile resets the receipt.

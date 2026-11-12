@@ -21,10 +21,23 @@ final class NativeWildMeterDropResources {
     /// publication. Only publish/dispose replaces this cache and its epoch.
     fileprivate final class TexturePublication {
         let textures:[String:SKTexture]
-        init(_ textures:[String:SKTexture]){self.textures=textures}
+        let closedCarrierImages:[(texture:SKTexture,image:CGImage)]
+        init(_ textures:[String:SKTexture],closedCarrierImages:[(texture:SKTexture,image:CGImage)]) {
+            self.textures=textures;self.closedCarrierImages=closedCarrierImages
+        }
     }
     private var publication:TexturePublication?
     private var textures:[String:SKTexture]{publication?.textures ?? [:]}
+    /// The tutorial mirrors only the closed carrier while its sheet is visible.
+    /// Borrow the two original decoded rasters instead of reading back a live GPU
+    /// texture. Exact texture identities and pixels retire with this publication.
+    func closedCarrierImage(for texture:SKTexture)->CGImage? {
+        guard !disposed else{return nil}
+        return publication?.closedCarrierImages.first(where:{$0.texture === texture})?.image
+    }
+    var retainedClosedCarrierBytes:Int {
+        publication?.closedCarrierImages.reduce(0){$0+$1.image.bytesPerRow*$1.image.height} ?? 0
+    }
     private var loadFailure:Failure?,stopToken=StopToken()
     private var sourceReadyEpoch:UInt64=0
     struct SynchronousPreparationReceipt {
@@ -63,6 +76,7 @@ final class NativeWildMeterDropResources {
         let root=self.root,paths=NativeWildMeterDropPlan.preloadSources,stop=stopToken
         io.async { [weak self] in
             var decoded:[Raster]=[],missing:[String]=[]
+            let closedPaths=Set([NativeWildMeterDropPlan.backpackSources[0],NativeWildMeterDropPlan.crateSources[0]])
             for path in paths {
                 if stop.isStopped(){break}
                 let relative=path.hasPrefix("./") ? String(path.dropFirst(2)):path
@@ -70,7 +84,12 @@ final class NativeWildMeterDropResources {
                       let source=CGImageSourceCreateWithURL(root.appendingPathComponent(relative) as CFURL,nil),
                       let image=CGImageSourceCreateImageAtIndex(source,0,[kCGImageSourceShouldCacheImmediately:true] as CFDictionary)
                 else{missing.append(path);continue}
-                decoded.append(Raster(path:path,image:image))
+                // UIKit must receive raw pixels, not an ImageIO provider that
+                // Core Animation could decode again during visible commit.
+                if closedPaths.contains(path) {
+                    guard let pixels=NativeSelectedFinaleRaster.materialize(image) else{missing.append(path);continue}
+                    decoded.append(Raster(path:path,image:pixels))
+                } else {decoded.append(Raster(path:path,image:image))}
             }
             let rasters=decoded,failures=missing
             Task { @MainActor [weak self] in
@@ -81,12 +100,18 @@ final class NativeWildMeterDropResources {
                 }
                 self.decodedBytes=rasters.reduce(0){$0+$1.image.bytesPerRow*$1.image.height}
                 var textures:[String:SKTexture]=[:]
-                for raster in rasters {let texture=SKTexture(cgImage:raster.image);texture.filteringMode = .linear;textures[raster.path]=texture}
+                let closedPaths=Set([NativeWildMeterDropPlan.backpackSources[0],NativeWildMeterDropPlan.crateSources[0]])
+                var closedCarrierImages:[(texture:SKTexture,image:CGImage)]=[]
+                for raster in rasters {
+                    let texture=SKTexture(cgImage:raster.image);texture.filteringMode = .linear;textures[raster.path]=texture
+                    if closedPaths.contains(raster.path){closedCarrierImages.append((texture,raster.image))}
+                }
+                let preparedCarrierImages=closedCarrierImages
                 let preparedTextures=textures
                 self.preload(Array(preparedTextures.values)) { [weak self] in
                     Task { @MainActor [weak self] in
                         guard let self,!self.disposed else{return}
-                        self.publication=TexturePublication(preparedTextures);self.loading=false;self.sourceReadyEpoch &+= 1;self.completeWaiters()
+                        self.publication=TexturePublication(preparedTextures,closedCarrierImages:preparedCarrierImages);self.loading=false;self.sourceReadyEpoch &+= 1;self.completeWaiters()
                     }
                 }
             }

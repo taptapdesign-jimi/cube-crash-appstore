@@ -67,6 +67,16 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
         if changed {grid.collectionViewLayout.invalidateLayout();grid.reloadData();setNeedsLayout()}
     }
     private(set) var sections:[NativeBackpackCatalog.Section]=[]
+    var firstUnlockedVisibleDieView:UIView? {
+        for path in grid.indexPathsForVisibleItems.sorted(by:{$0.section == $1.section ? $0.item<$1.item:$0.section<$1.section}) {
+            if includesArcade,path.section==0 {return grid.cellForItem(at:path)}
+            let section=path.section-(includesArcade ? 1:0)
+            guard sections.indices.contains(section),sections[section].dice.indices.contains(path.item),
+                  sections[section].unlocked.contains(sections[section].dice[path.item].id) else{continue}
+            if let cell=grid.cellForItem(at:path){return cell}
+        }
+        return nil
+    }
     private lazy var entrySelectionTap:UITapGestureRecognizer = {
         let tap=UITapGestureRecognizer(target:self,action:#selector(entrySelectionTapped(_:)))
         tap.delegate=self;tap.isEnabled=false;return tap
@@ -360,10 +370,10 @@ private final class NativeBackpackFrameView:UIView {
 @MainActor
 private final class NativeBackpackCell:UICollectionViewCell {
     static let ink=UIColor(red:0.68,green:0.53,blue:0.46,alpha:1)
-    // A regular CALayer flattens the perspective card before the iPad's1.4x
-    // modal projection, losing source detail. Keep coplanar artwork leaves in
-    // the compositor's3D tree; the phone retains its existing layer owner.
-    private let artworkGroup:UIView = NativeTabletLayout.applies(UIScreen.main.bounds.size) ? JimiNativeModalTransformView():UIView()
+    // Keep the perspective card's artwork leaves in the compositor's3D tree
+    // on every device. A regular UIView flattens the rotated badge and die
+    // before projection, losing detail even at the phone's native density.
+    private let artworkGroup=JimiNativeModalTransformView()
     private let holder=NativeBackpackFrameView(frame:.zero),die=UIImageView()
     let alert=NativeBackpackAlertView()
     private var alertRight=false
@@ -512,6 +522,14 @@ final class NativeBackpackAlertView:UIImageView,CAAnimationDelegate {
     static let motionKey="backpack.alert.idle"
     static let exitKey="backpack.alert.exit"
     private var exiting=false
+    /// Small authored correction for navigation artwork, applied throughout idle.
+    var rotationOffset:CGFloat=0 {
+        didSet {
+            guard rotationOffset != oldValue else{return}
+            epoch += 1;layer.removeAnimation(forKey:Self.motionKey)
+            layer.transform=restingTransform;reconcile()
+        }
+    }
     static func randomRotation(clockwise:Bool=true)->CGFloat {CGFloat.random(in:5...10) * (clockwise ? 1:-1) * .pi/180}
     var clockwise=true {
         didSet {
@@ -520,7 +538,7 @@ final class NativeBackpackAlertView:UIImageView,CAAnimationDelegate {
             layer.transform=restingTransform;reconcile()
         }
     }
-    private var restingRotation:CGFloat {(clockwise ? 1:-1) * .pi/18}
+    private var restingRotation:CGFloat {(clockwise ? 1:-1) * .pi/18+rotationOffset}
     private var restingTransform:CATransform3D {CATransform3DMakeRotation(restingRotation,0,0,1)}
     private var active=false
     private var epoch=0
@@ -566,8 +584,8 @@ final class NativeBackpackAlertView:UIImageView,CAAnimationDelegate {
         motion.values=poses.enumerated().map{index,pose in
             let (x,y,offset)=pose,weights:[CGFloat]=[0,0.35,1,0.55,0.2,0,0]
             // Keep the badge tilted at rest as well as during its bounce.
-            // Interpolation between the 10° rest and 5–10° peak stays bounded.
-            let angle=restingRotation+(cycleRotation-restingRotation)*weights[index]
+            // Preserve the 10° rest / 5–10° peak plus the authored artwork offset.
+            let angle=restingRotation+(cycleRotation+rotationOffset-restingRotation)*weights[index]
             let transform=CATransform3DRotate(CATransform3DMakeTranslation(0,offset,0),angle,0,0,1)
             return NSValue(caTransform3D:CATransform3DScale(transform,x,y,1))
         }

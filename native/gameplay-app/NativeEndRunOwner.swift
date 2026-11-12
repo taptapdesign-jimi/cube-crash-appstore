@@ -67,13 +67,11 @@ final class NativeEndRunOwner {
                   self.modal === sheet,self.gameplay === gameplay else{return}
             sheet.onReady = nil
             self.traceHUDLatency("exit-checkpoint-begin")
-            let saved=self.save()
+            // A paused Special can legitimately veto this optional entry
+            // checkpoint. Keep the modal and pause; explicit Exit still requires
+            // its own successful coherent save before leaving gameplay.
+            _=self.save()
             self.traceHUDLatency("exit-checkpoint-end")
-            guard saved else {
-                guard self.generation == owner,self.modal === sheet else{return}
-                self.modal = nil;sheet.dispose();sheet.dismiss(animated:false)
-                gameplay.setSuspended(false);return
-            }
         }
         traceHUDLatency("exit-feedback-begin")
         onFeedback?("exit-modal")

@@ -7,6 +7,45 @@ import StackToSixNativeState
 
 @MainActor
 final class NativeBootstrapTests:XCTestCase {
+    func testIncompleteTutorialModeSwitchReplacesCheckpointAndRelaunchResumesNewMode()async throws {
+        for oldMode in [NativeRunMode.arcade,.journey] {
+            let directory=FileManager.default.temporaryDirectory.appendingPathComponent("tutorial-mode-switch-\(UUID().uuidString)")
+            defer{try? FileManager.default.removeItem(at:directory)}
+            let store=NativeSaveStore(directory:directory)
+            var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
+            var old=NativeBoardFactory.make(mode:oldMode,board:1,tutorial:true)
+            var tutorial=NativeTutorialState();tutorial.step = .freePlay;tutorial.objectiveAcknowledged=true
+            tutorial.rewardArchetype = .star;tutorial.rewardVariant=nil
+            old.tutorial=tutorial;old.moves=37;old.score=123;seed.firstPlayRun=old;try store.save(seed)
+            let selected:NativeRunMode=oldMode == .arcade ? .journey:.arcade
+            var checkpoint:NativeBoardState?
+            // A second actual Bootstrap reads the first instance's durable save.
+            for launch in 0...1 {
+                let bootstrap=try NativeBootstrap(root:NativeTestResources.root,store:store,showStudioIntro:false)
+                let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+                window.rootViewController=host;window.makeKeyAndVisible();bootstrap.start(in:host)
+                defer{bootstrap.dispose();window.isHidden=true;window.rootViewController=nil}
+                let app=try XCTUnwrap(host.children.first as? NativeAppController)
+                if selected == .journey {
+                    app.navigate(.world(1),interrupt:true);try await waitUntil{app.world?.isReadyForInput==true}
+                    app.world?.onRequest?("continue",1)
+                }else{app.navigate(.gameplay,interrupt:true)}
+                try await waitUntil{app.route == .gameplay}
+                let game=try XCTUnwrap(app.children.first as? NativeGameplayViewController)
+                XCTAssertEqual(game.engine.state.mode,selected)
+                XCTAssertEqual(game.engine.state.score,0)
+                XCTAssertEqual(game.engine.state.tutorial?.step,.stack)
+                XCTAssertFalse(game.engine.state.tutorial?.objectiveAcknowledged ?? true)
+                if selected == .journey {XCTAssertEqual(game.engine.state.tutorial?.rewardVariant,"bee")}
+                let saved=try XCTUnwrap(store.load())
+                let current=try XCTUnwrap(saved.firstPlayRun)
+                XCTAssertEqual(current.mode,selected);XCTAssertFalse(saved.progression.firstPlayTutorialComplete)
+                XCTAssertNil(saved.arcadeRun);XCTAssertTrue(saved.journeyRuns.isEmpty)
+                if launch==0 {checkpoint=current}
+                else {XCTAssertEqual(current.tiles,checkpoint?.tiles);XCTAssertEqual(current.tutorial,checkpoint?.tutorial)}
+            }
+        }
+    }
     func testReplayForestOneUsesDiscoveredWholeWorldPoolThroughActualBootstrap() async throws {
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("journey-replay-pool-\(UUID().uuidString)")
         let store=NativeSaveStore(directory:directory)

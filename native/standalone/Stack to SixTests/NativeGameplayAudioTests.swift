@@ -6,6 +6,63 @@ import StackToSixGameplay
 
 @MainActor
 final class NativeGameplayAudioTests:XCTestCase {
+    func testTutorialVoicesUseEverySheetAndOnlyPairedArtworkDrawsBarkAfterNaturalEnd()throws {
+        XCTAssertEqual(NativeRecordedSceneSpeech.tutorialSources["tutorial-special-bar"],["assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-special-bar.wav"])
+        let main=Transport();var tails:[Transport]=[]
+        let owner=NativeGameplayAudioOwner(root:NativeTestResources.root,enabled:true,transport:main,navigationSpeechFactory:{let t=Transport();tails.append(t);return t},random:{0})
+        defer{owner.dispose()}
+        var receipt:UInt64=0;var dogs:[String]=[]
+        for scene in NativeRecordedSceneSpeech.tutorialSources.keys.sorted() {
+            receipt+=1;owner.routeFeedback("tutorial-speech:"+scene,receipt:receipt,generation:1)
+            let tail=try XCTUnwrap(tails.last)
+            XCTAssertEqual(tail.cues.first?.source,NativeRecordedSceneSpeech.tutorialSources[scene]?.first)
+            XCTAssertEqual(try XCTUnwrap(tail.cues.first?.gain),0.72*pow(10,2.0/20),accuracy:1e-12)
+            let file=try AVAudioFile(forReading:NativeTestResources.root.appendingPathComponent(try XCTUnwrap(tail.cues.first?.source)))
+            XCTAssertGreaterThan(file.length,0)
+            let count=main.cues.count
+            XCTAssertEqual(owner.activeNavigationSpeechCount,1)
+            tail.finish("native-scene-jimbo",.ended)
+            XCTAssertEqual(owner.activeNavigationSpeechCount,0)
+            let paired=NativeRecordedSceneSpeech.tutorialPairedCharacterSheets.contains(scene)
+            XCTAssertEqual(main.cues.count,count+(paired ? 1:0),scene)
+            if paired {let cue=try XCTUnwrap(main.cues.last);XCTAssertEqual(cue.voice,"native-tutorial-nala");XCTAssertEqual(cue.gain,0.42);dogs.append(cue.source)}
+        }
+        XCTAssertEqual(dogs.count,4)
+        XCTAssertTrue(zip(dogs,dogs.dropFirst()).allSatisfy{$0 != $1})
+    }
+    func testTutorialSpeechExitReplacementMuteBackgroundAndRouteCannotLeakOrReplayBarks()throws {
+        for ending in ["exit","replace","mute","background","route","generation","dispose","error"] {
+            let main=Transport();var tails:[Transport]=[]
+            let owner=NativeGameplayAudioOwner(root:NativeTestResources.root,enabled:true,transport:main,navigationSpeechFactory:{let t=Transport();tails.append(t);return t},random:{0})
+            owner.routeFeedback("tutorial-speech:tutorial-delivery",receipt:1,generation:1)
+            let old=try XCTUnwrap(tails.first),late=try XCTUnwrap(old.finishes["native-scene-jimbo"])
+            switch ending {
+            case "exit":owner.routeFeedback("tutorial-speech-stop",receipt:2,generation:1)
+            case "replace":owner.routeFeedback("tutorial-speech:tutorial-stack",receipt:2,generation:1)
+            case "mute":owner.setEnabled(false);owner.setEnabled(true)
+            case "background":owner.setForeground(false);owner.setForeground(true)
+            case "route":owner.stop()
+            case "generation":owner.beginGeneration(2)
+            case "dispose":owner.dispose()
+            default:old.finish("native-scene-jimbo",.unavailable)
+            }
+            late(.ended)
+            XCTAssertTrue(main.cues.isEmpty,ending)
+            XCTAssertEqual(old.disposals,1,ending)
+            XCTAssertEqual(owner.activeNavigationSpeechCount,ending=="replace" ? 1:0)
+            owner.dispose()
+        }
+        let main=Transport(),tail=Transport(),owner=NativeGameplayAudioOwner(root:NativeTestResources.root,enabled:false,transport:main,navigationSpeechFactory:{tail})
+        defer{owner.dispose()}
+        owner.routeFeedback("tutorial-speech:tutorial-objective",receipt:1,generation:1)
+        owner.setEnabled(true);owner.routeFeedback("tutorial-speech:tutorial-objective",receipt:1,generation:1)
+        XCTAssertTrue(tail.cues.isEmpty)
+        owner.routeFeedback("tutorial-speech:tutorial-objective",receipt:2,generation:1)
+        tail.finish("native-scene-jimbo",.ended)
+        XCTAssertEqual(main.cues.count,1)
+        owner.routeFeedback("tutorial-speech-stop",receipt:3,generation:1)
+        XCTAssertTrue(main.stopped.contains("native-tutorial-nala"))
+    }
     func testSVGLogoContactPlanUsesExplicitPoofPufAndFiniteWoodenSpringLayers() {
         let cues=NativeGameplayAudioOwner.studioLogoMotionCues
         XCTAssertEqual(cues.count,17);XCTAssertEqual(Set(cues.map(\.voice)).count,17)

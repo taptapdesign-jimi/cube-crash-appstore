@@ -645,6 +645,8 @@ public final class NativeGameplayEngine {
     private struct Drag { let id: String; let pointerID: Int; let generation: UInt64; let revision: UInt64; let origin:NativeCell }
     private var drag: Drag?
     private var locks: [String: Bool] = [:] // true = wild-only; false = entire gameplay
+    private var tutorialComboPauseStarted:Double?
+    public var tutorialComboPaused:Bool {tutorialComboPauseStarted != nil}
     private var comboLastMutationTime: Double?
     public var comboWindowExtension:Double=0
     public var wildComboWindowExtension:Double?
@@ -664,7 +666,7 @@ public final class NativeGameplayEngine {
         guard meterDropAllowed else { return 0 }
         let variant = state.effectiveArcadeVariant
         // The first-play tutorial retains its authored guide and assist milestones.
-        let chargeScale=state.tutorial?.done == false ? 1:wildMeterChargeScale
+        let chargeScale=state.tutorial?.done == false && state.tutorial?.completionAssist != true ? 1:wildMeterChargeScale
         // Keep the single drop near the same part of every round, rather than
         // inheriting Endurance's progressively slower stage/spawn modifiers.
         if variant == .pureDice {
@@ -736,7 +738,7 @@ public final class NativeGameplayEngine {
         pendingSourceSpecialAbsorb=nil;sourceSpecialAbsorbMainEntered=false
         pendingSourceSpecialWildDestinationFace=nil;completedSourceSpecialWildDestinationFace=nil
         pendingOrdinaryStack = nil; pendingOrdinarySix = nil; ordinarySixGameplayCommitted = false; pendingOrdinaryPostchecks.removeAll(); pendingOrdinarySpawns.removeAll(); ordinarySpawnPreparationPending=false;pendingOrdinaryAssignments.removeAll();pendingSourceOrdinaryLockedSettlement=nil;pendingSourceOrdinaryMinimumPhase=nil;sourceOrdinaryMinimumRescueStage=nil;sourceOrdinaryMinimumRuntime=nil;sourceOrdinaryMinimumRescueOpened=0;sourceOrdinaryMinimumPhaseEligible=false;pendingOrdinaryPrimaryArrival=nil;pendingOrdinaryDestinationCleanup=nil;ordinaryRefillRemaining=0;ordinaryRequestedOpenings=0;ordinarySuccessfulOpenings=0;ordinaryForcedCandidates=[];ordinaryForcedPass=false; committingOrdinaryStack = false
-        drag = nil; sourceHUDStarJobs.removeAll(); sourceHUDStarJobSequence=0; pendingHUDStars.removeAll(); pendingMeterRewards.removeAll(); tntReservationReleased = false; specialActivationCommitted = false; tntTargetsReserved = false;tntComboCoinReward = 0;tntCoinCounts.removeAll(); deferredFinalMerge = nil; locks.removeAll(); flags = NativeGameplayRuntimeFlags(); noMovesSignature = nil; comboLastMutationTime = nil; specialComboElapsed=nil; comboLastAcceptedMoveTime=nil
+        drag = nil; sourceHUDStarJobs.removeAll(); sourceHUDStarJobSequence=0; pendingHUDStars.removeAll(); pendingMeterRewards.removeAll(); tntReservationReleased = false; specialActivationCommitted = false; tntTargetsReserved = false;tntComboCoinReward = 0;tntCoinCounts.removeAll(); deferredFinalMerge = nil; locks.removeAll(); flags = NativeGameplayRuntimeFlags(); noMovesSignature = nil; comboLastMutationTime = nil; tutorialComboPauseStarted=nil; specialComboElapsed=nil; comboLastAcceptedMoveTime=nil
     }
     public func cancelForBackground() {
         pendingWildRecoveryChecks=[];pendingWildSpawnPresentations=[]
@@ -835,7 +837,22 @@ public final class NativeGameplayEngine {
         if resolution.kind == .fail && state.tutorial?.completionAssist == true { return NativeResolution(.wait,reason:"tutorial_final_chance_pending") }
         return resolution
     }
+    public func setTutorialComboPaused(_ paused:Bool,now:Double) {
+        guard now.isFinite else{return}
+        if paused {
+            let comboLesson=state.tutorial?.comboHUDRevealed==true && state.tutorial?.comboLessonAcknowledged==false
+            let collectionLesson=state.tutorial?.guideCompleted==true && state.tutorial?.encouragementAcknowledged==true && state.tutorial?.collectionLessonAcknowledged==false
+            guard tutorialComboPauseStarted==nil,comboLesson || collectionLesson || (state.tutorial?.guideCompleted==true && state.tutorial?.comboLessonAcknowledged==true && state.tutorial?.completionLessonAcknowledged==false) else{return}
+            tutorialComboPauseStarted=now
+        } else if let start=tutorialComboPauseStarted {
+            let duration=max(0,now-start)
+            if let last=comboLastMutationTime {comboLastMutationTime=last+duration}
+            if let last=comboLastAcceptedMoveTime {comboLastAcceptedMoveTime=last+duration}
+            tutorialComboPauseStarted=nil
+        }
+    }
     public func expireCombo(now: Double) {
+        guard !tutorialComboPaused else{return}
         guard let last = comboLastMutationTime, now - last >= comboWindow+max(0,comboWindow == 4 ? (wildComboWindowExtension ?? comboWindowExtension):comboWindowExtension) else { return }
         state.combo = 0; comboLastMutationTime = nil; comboLastAcceptedMoveTime=nil
     }
@@ -845,6 +862,12 @@ public final class NativeGameplayEngine {
     }
     private func awardComboBonus(from:Int,to:Int,elapsed:Double?)->Int {
         // Called once by each accepted ordinary/Special commit, including TNT main only.
+        if state.tutorial?.guideCompleted == true,state.tutorial?.encouragementAcknowledged == true,
+           state.tutorial?.collectionLessonAcknowledged != false,
+           state.tutorial?.comboLessonAcknowledged == false,state.tutorial?.comboHUDRevealed != true {
+            let moves=min(6,(state.tutorial?.comboLessonMoveCount ?? 0)+1)
+            state.tutorial?.comboLessonMoveCount=moves
+        }
         if from>0,to>from,let elapsed,elapsed.isFinite,elapsed>=0 {
             state.efficiencyComboContinuations += 1
             if elapsed<=1 {state.efficiencyFastComboContinuations += 1}
@@ -1943,7 +1966,7 @@ public final class NativeGameplayEngine {
         let cells=NativeTutorialRules.guidedCells(columns:state.columns,rows:state.rows)
         guard let three=state.tile(at:cells.three),let two=state.tile(at:cells.two),let one=state.tile(at:cells.one) else{return nil}
         let receipt=NativeSourceTutorialDemoActivationReceipt(id:"source-tutorial-demo:\(state.generation):\(sourceTutorialDemoActivationSequence)",generation:state.generation,revision:state.revision,threeID:three.id,twoID:two.id,oneID:one.id,originalTiles:state.tiles)
-        state.tutorial=NativeTutorialState();pendingSourceTutorialDemoActivation=receipt
+        state.tutorial=NativeTutorialState();state.tutorial?.objectiveAcknowledged=false;state.tutorial?.comboLessonAcknowledged=false;state.tutorial?.completionLessonAcknowledged=false;state.tutorial?.comboHUDRevealed=false;state.tutorial?.collectionLessonAcknowledged=false;pendingSourceTutorialDemoActivation=receipt
         return receipt
     }
     /// Must be invoked at genuine Source wall1250 prepare, paired with actual
@@ -1978,7 +2001,7 @@ public final class NativeGameplayEngine {
         guard state.terminal == nil, !flags.isWaiting, state.tutorial?.active != true, state.columns >= 3, state.rows >= 3 else { return rejected("tutorial_start_not_ready") }
         let cells = NativeTutorialRules.guidedCells(columns:state.columns,rows:state.rows)
         guard let three = state.tile(at:cells.three), let two = state.tile(at:cells.two), let one = state.tile(at:cells.one), Set([three.id,two.id,one.id]).count == 3 else { return rejected("tutorial_canonical_cells_unavailable") }
-        var tutorial = NativeTutorialState(); tutorial.guidedPair = [three.id,two.id]; tutorial.oneTileID = one.id
+        var tutorial = NativeTutorialState(); tutorial.guidedPair = [three.id,two.id]; tutorial.oneTileID = one.id; tutorial.objectiveAcknowledged=false; tutorial.comboLessonAcknowledged=false; tutorial.completionLessonAcknowledged=false; tutorial.comboHUDRevealed=false; tutorial.collectionLessonAcknowledged=false
         let reserved = Set([three.id,two.id,one.id])
         let ordered = state.tiles.filter { !reserved.contains($0.id) }.sorted { $0.cell.row != $1.cell.row ? $0.cell.row < $1.cell.row : $0.cell.column < $1.cell.column }
         for (offset,tile) in ordered.enumerated() where !tile.isWild && tile.value > 0 {
@@ -1995,6 +2018,15 @@ public final class NativeGameplayEngine {
     public func configureTutorialReward(_ reward:NativeWildRewardChoice) {
         guard state.tutorial != nil,state.tutorial?.rewardArchetype == nil else{return}
         state.tutorial?.rewardArchetype=reward.archetype;state.tutorial?.rewardVariant=reward.variant
+    }
+    public func acknowledgeTutorialObjective() -> NativeMoveResult {
+        guard state.terminal == nil,state.tutorial?.active == true,
+              state.tutorial?.step == .stack,state.tutorial?.objectiveAcknowledged == false else {
+            return rejected("tutorial_objective_not_ready")
+        }
+        state.tutorial?.objectiveAcknowledged=true
+        state.revision &+= 1
+        return NativeMoveResult(accepted:true,state:state,events:[],resolution:resolve())
     }
     public func beginTutorialSpecialBarInterval() -> NativeMoveResult {
         guard state.terminal == nil, state.tutorial?.active == true,
@@ -2098,6 +2130,7 @@ public final class NativeGameplayEngine {
             // Admitted Source fourth presentation still owns its wall60,
             // pointer/sheet exits and restoration. A merge cannot retire it.
             if sourceTutorialSubsequentPresentationEnabled,sourceTutorialFourthPreparation?.generation==state.generation{return}
+            if tutorial.collectionLessonAcknowledged == nil {tutorial.collectionLessonAcknowledged=false}
             tutorial.active = false; tutorial.guideCompleted = true; tutorial.completionAssist = true; tutorial.guidedPair = []
         }
         state.tutorial = tutorial
@@ -2114,6 +2147,7 @@ public final class NativeGameplayEngine {
         let wildConsumed=wild==nil || destroyed.contains(receipt.wildID) || wild?.isWild != true
         let hasSix=state.tiles.contains{!destroyed.contains($0.id) && !$0.locked && $0.gameplayArchetype==nil && $0.value==6 && $0.cell.row<=min(state.rows-1,5)}
         guard wildConsumed || hasSix else{return rejected("source_tutorial_fourth_completion_not_ready")}
+        if state.tutorial?.collectionLessonAcknowledged == nil {state.tutorial?.collectionLessonAcknowledged=false}
         state.tutorial?.active=false;state.tutorial?.guideCompleted=true;state.tutorial?.completionAssist=true;state.tutorial?.guidedPair=[]
         sourceTutorialFourthPreparation=nil
         return NativeMoveResult(accepted:true,state:state,events:[],resolution:resolve())
@@ -2121,7 +2155,43 @@ public final class NativeGameplayEngine {
     /// Result acknowledgement is scoped to a tutorial run that actually completed its guide.
     public func acknowledgeTutorialEncouragement() {
         guard state.tutorial?.guideCompleted == true else{return}
+        let fastContinuations=state.efficiencyFastComboContinuations
         state.tutorial?.encouragementAcknowledged=true
+        if state.tutorial?.comboLessonAcknowledged == false {
+            state.tutorial?.comboLessonFastBaseline=fastContinuations
+            if state.tutorial?.comboLessonMoveCount == nil {state.tutorial?.comboLessonMoveCount=0}
+        }
+    }
+    /// Post-Special collection copy acknowledges presentation only. Gameplay,
+    /// charge, accepted actions and logical random choices remain untouched.
+    public func acknowledgeTutorialCollectionLesson() -> NativeMoveResult {
+        guard state.terminal == nil,state.tutorial?.guideCompleted == true,
+              state.tutorial?.encouragementAcknowledged == true,
+              state.tutorial?.collectionLessonAcknowledged == false else{return rejected("tutorial_collection_not_ready")}
+        state.tutorial?.collectionLessonAcknowledged=true
+        return NativeMoveResult(accepted:true,state:state,events:[],resolution:resolve())
+    }
+    public func beginTutorialComboLesson() -> NativeMoveResult {
+        guard state.terminal == nil,state.tutorial?.guideCompleted == true,
+              state.tutorial?.encouragementAcknowledged == true,
+              state.tutorial?.collectionLessonAcknowledged != false,
+              state.tutorial?.comboLessonAcknowledged == false,
+              state.tutorial?.comboHUDRevealed == false,
+              state.tutorial?.comboLessonReady(in:state.mode) == true else{return rejected("tutorial_combo_not_ready")}
+        state.tutorial?.comboHUDRevealed=true
+        return NativeMoveResult(accepted:true,state:state,events:[],resolution:resolve())
+    }
+    public func acknowledgeTutorialComboLesson() {
+        guard state.tutorial?.comboHUDRevealed == true else{return}
+        state.tutorial?.comboLessonAcknowledged=true
+        if state.tutorial?.completionLessonAcknowledged == nil {state.tutorial?.completionLessonAcknowledged=false}
+    }
+    public func acknowledgeTutorialCompletionLesson() -> NativeMoveResult {
+        guard state.terminal == nil,state.tutorial?.guideCompleted == true,
+              state.tutorial?.comboLessonAcknowledged == true,
+              state.tutorial?.completionLessonAcknowledged == false else{return rejected("tutorial_completion_not_ready")}
+        state.tutorial?.completionLessonAcknowledged=true
+        return NativeMoveResult(accepted:true,state:state,events:[],resolution:resolve())
     }
     public func acknowledgeTutorialResult() -> Bool {
         guard state.terminal != nil, state.tutorial?.guideCompleted == true else { return false }
@@ -4732,6 +4802,8 @@ extension NativeGameplayEngine {
         guard state.terminal==nil,physical.generation==state.generation,
             state.tutorial?.completionAssist==true,state.tutorial?.done != true,
             !blocked,(state.tutorial?.finalChanceSpawnCount ?? 99)<99 else{return nil}
+        guard !state.tiles.contains(where:{$0.isWild && !$0.pendingRemoval}),
+              !physical.tiles.contains(where:{$0.isWild && !$0.pendingRemoval}) else{return nil}
         let candidates=physical.tiles.filter{!$0.locked && !$0.isWild && $0.visible && (1...5).contains($0.value)}
         guard !singleOnly || candidates.count==1,let target=candidates.enumerated().sorted(by:{a,b in
             a.element.value==b.element.value ? a.offset<b.offset:a.element.value>b.element.value

@@ -612,8 +612,41 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
             CATransaction.begin();CATransaction.setDisableActions(true);self.carrier.layer.transform = CATransform3DMakeRotation(self.backTilt,0,0,1);self.carrier.layer.removeAnimation(forKey:"card.flight");CATransaction.commit();self.refreshCTAAdmission();self.effects?.present(frontFacing:!self.isBackFacing);self.playInfoMotion();self.playSettledInfoBounce()
             if let path = self.cardArt2x,let resources = self.resources {let token = self.generation;resources.prepare([path],owner:self.boardID,required:false) { [weak self,weak resources] accepted in guard accepted,let self,self.generation == token else {return};if let image = resources?.image(path,owner:self.boardID) {self.front.image = image;self.effects?.layout()} } }
         }
+        // Start the shared Close pop only once the opening flight has landed.
+        // Compensate its ordinary-modal delay on the existing paused CA clock.
+        playCloseEnter(beginTime:CACurrentMediaTime()+duration-JimiNativeModalV10.closeEnterDelay)
         // Schedule against the just-installed opening flight, before placement.
         onEntryImpact?((UIAccessibility.isReduceMotionEnabled ? 0.18:duration)*0.60)
+    }
+    private func playCloseEnter(beginTime:CFTimeInterval) {
+        retireCloseEnter()
+        guard !disposed,!closing,!UIAccessibility.isReduceMotionEnabled else{return}
+        for target in [closeButton as UIView,closePaper] {
+            JimiNativeModalV10.enterClose(target,beginTime:beginTime)
+        }
+        // The joined stone tab's shadow follows the same finite sampled pop.
+        guard let group=closePaper.layer.animation(forKey:JimiNativeModalV10.closeEnterKey) as? CAAnimationGroup,
+              let motion=group.animations?.first as? CAKeyframeAnimation,
+              let poses=motion.values as? [NSValue] else{return}
+        let bounds=closePaper.bounds,center=closePaper.center,body=panel.shadowOutline
+        let shadow=CAKeyframeAnimation(keyPath:"shadowPath")
+        shadow.values=poses.map { value -> CGPath in
+            var transform=CATransform3DGetAffineTransform(value.caTransform3DValue)
+            transform.tx += center.x-transform.a*bounds.midX-transform.c*bounds.midY
+            transform.ty += center.y-transform.b*bounds.midX-transform.d*bounds.midY
+            let tab=UIBezierPath(roundedRect:bounds,cornerRadius:bounds.width*16/52).cgPath
+            let outline=CGMutablePath();outline.addPath(body);outline.addPath(tab,transform:transform)
+            return outline
+        }
+        shadow.keyTimes=motion.keyTimes;shadow.duration=group.duration
+        shadow.calculationMode = .linear;shadow.fillMode = .backwards
+        shadow.beginTime=closePaper.layer.convertTime(group.beginTime,to:back.layer)
+        back.layer.add(shadow,forKey:JimiNativeModalV10.closeEnterKey)
+    }
+    private func retireCloseEnter() {
+        for target in [closeButton as UIView,closePaper,back] {
+            target.layer.removeAnimation(forKey:JimiNativeModalV10.closeEnterKey)
+        }
     }
     /// v9 detail-modal preload: one captured 2400ms settled window, with at
     /// most eight900ms retries while the card is moving. No recurring ticker.
@@ -1119,6 +1152,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
     }
     @discardableResult func hideForStatHistory(onReady:(()->Void)?=nil)->Bool {
         guard active,!disposed,!closing,!animating,!historyVisible else{return false}
+        retireCloseEnter()
         NativeHistoryTransitionTrace.event("source.exit-request")
         animateInfoCaption(entering:false);historyVisible=true;cta.setSculptedFacePreparationSuspended(true);refreshCTAAdmission();historyEntryReady=onReady;historyEntryMilestoneReached=false
         isUserInteractionEnabled=false;cancelGameplayPreparation();effects?.setActive(false)
@@ -1159,7 +1193,11 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         }
         CATransaction.setDisableActions(true)
         dragShell.layer.transform=CATransform3DIdentity;pinchShell.layer.transform=CATransform3DIdentity
-        if !UIAccessibility.isReduceMotionEnabled {JimiNativeModalV10.enter(card:dragShell,flip:pinchShell,key:"history.return")}
+        if !UIAccessibility.isReduceMotionEnabled {
+            let epoch=CACurrentMediaTime()
+            JimiNativeModalV10.enter(card:dragShell,flip:pinchShell,key:"history.return",beginTime:epoch)
+            playCloseEnter(beginTime:epoch)
+        }
         CATransaction.commit()
     }
     func setActive(_ value:Bool) {
@@ -1182,5 +1220,5 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
             if starMotionEpoch == nil || faceFloat == nil {playInfoMotion()}
         }
     }
-    func cleanup() {guard !disposed else{return};retireStarBurn();cta.cancelModalCTAEntryCue();ctaRevealTime=nil;title.layer.removeAllAnimations();titleDividers.forEach{$0.layer.removeAllAnimations()};cta.onSculptedFacePrepared=nil;cta.retireSculptedFacePreparation();historyEntryReady=nil;historyEntryReceipt?.cancel();historyEntryReceipt=nil;stopInfoMotion();cancelGameplayPreparation();onPrepareGameplayAssets=nil;onEntryImpact=nil;onReturnImpact=nil;disposed = true;active = false;entryFlipReceipt=nil;generation += 1;flipGeneration += 1;effects?.cleanup();effects = nil;[carrier,dragShell,effectShell,pinchShell,rotorShell,frontFloat,frontSettle,backFloat,backSettle,cta,backdrop].forEach{$0.layer.removeAllAnimations()};carrier.gestureRecognizers?.forEach{carrier.removeGestureRecognizer($0)};stats.arrangedSubviews.forEach{$0.layer.removeAllAnimations()};onRequest = nil;onFeedback = nil;isUserInteractionEnabled = false}
+    func cleanup() {guard !disposed else{return};retireCloseEnter();retireStarBurn();cta.cancelModalCTAEntryCue();ctaRevealTime=nil;title.layer.removeAllAnimations();titleDividers.forEach{$0.layer.removeAllAnimations()};cta.onSculptedFacePrepared=nil;cta.retireSculptedFacePreparation();historyEntryReady=nil;historyEntryReceipt?.cancel();historyEntryReceipt=nil;stopInfoMotion();cancelGameplayPreparation();onPrepareGameplayAssets=nil;onEntryImpact=nil;onReturnImpact=nil;disposed = true;active = false;entryFlipReceipt=nil;generation += 1;flipGeneration += 1;effects?.cleanup();effects = nil;[carrier,dragShell,effectShell,pinchShell,rotorShell,frontFloat,frontSettle,backFloat,backSettle,cta,backdrop].forEach{$0.layer.removeAllAnimations()};carrier.gestureRecognizers?.forEach{carrier.removeGestureRecognizer($0)};stats.arrangedSubviews.forEach{$0.layer.removeAllAnimations()};onRequest = nil;onFeedback = nil;isUserInteractionEnabled = false}
 }

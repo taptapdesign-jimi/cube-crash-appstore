@@ -64,6 +64,9 @@ public struct NativeProgressionState: Codable, Equatable, Sendable {
     public var highestUnlockedJourneyBoard = 1
     public var lastOpenedJourneyBoard: Int?
     public var firstPlayTutorialComplete = false
+    public var journeyIntroSeen = false
+    /// First admitted tutorial collection visit owns the entire one-shot walkthrough.
+    public var tutorialCollectionGuidanceSeen = false
     public var unlockedSpecialDice: Set<String> = []
     public private(set) var announcedJourneyDice: Set<String> = []
     public private(set) var unreadJourneyDice: Set<String> = []
@@ -82,7 +85,7 @@ public struct NativeProgressionState: Codable, Equatable, Sendable {
     }
     public private(set) var wildStarUnlocked = false
     public init() {}
-    private enum CodingKeys:String,CodingKey {case completedJourneyBoards,viewedJourneyBoards,boardStats,arcadeStats,arcadeVariantStats,highestUnlockedJourneyBoard,lastOpenedJourneyBoard,firstPlayTutorialComplete,unlockedSpecialDice,wildStarUnlocked,announcedJourneyDice,unreadJourneyDice}
+    private enum CodingKeys:String,CodingKey {case completedJourneyBoards,viewedJourneyBoards,boardStats,arcadeStats,arcadeVariantStats,highestUnlockedJourneyBoard,lastOpenedJourneyBoard,firstPlayTutorialComplete,journeyIntroSeen,tutorialCollectionGuidanceSeen,unlockedSpecialDice,wildStarUnlocked,announcedJourneyDice,unreadJourneyDice}
     public init(from decoder:Decoder) throws {
         let fields=try decoder.container(keyedBy:CodingKeys.self)
         completedJourneyBoards=try fields.decode(Set<Int>.self,forKey:.completedJourneyBoards)
@@ -93,6 +96,8 @@ public struct NativeProgressionState: Codable, Equatable, Sendable {
         highestUnlockedJourneyBoard=try fields.decode(Int.self,forKey:.highestUnlockedJourneyBoard)
         lastOpenedJourneyBoard=try fields.decodeIfPresent(Int.self,forKey:.lastOpenedJourneyBoard)
         firstPlayTutorialComplete=try fields.decode(Bool.self,forKey:.firstPlayTutorialComplete)
+        tutorialCollectionGuidanceSeen=try fields.decodeIfPresent(Bool.self,forKey:.tutorialCollectionGuidanceSeen) ?? firstPlayTutorialComplete
+        journeyIntroSeen=try fields.decodeIfPresent(Bool.self,forKey:.journeyIntroSeen) ?? (!viewedJourneyBoards.isEmpty || !completedJourneyBoards.isEmpty || lastOpenedJourneyBoard != nil)
         unlockedSpecialDice=try fields.decodeIfPresent(Set<String>.self,forKey:.unlockedSpecialDice) ?? []
         wildStarUnlocked=try fields.decodeIfPresent(Bool.self,forKey:.wildStarUnlocked) ?? false
         unreadJourneyDice=try fields.decodeIfPresent(Set<String>.self,forKey:.unreadJourneyDice) ?? []

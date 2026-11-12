@@ -226,6 +226,7 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
         backpackButton.addTarget(self, action: #selector(backpack), for: .touchUpInside)
         backpackButton.isHidden = false
         backpackAlert.image=assets.image("assets/nav/alsert@2x.png") ?? assets.image("assets/nav/alert.png")
+        backpackAlert.rotationOffset=2 * .pi/180
         backpackButton.addSubview(backpackAlert)
         title.text = arcade ? "Arcade" : "Journey"; title.font = assets.font(size: 28, weight: "ExtraBold")
         title.textColor = NativeTextPalette.navigationTitle

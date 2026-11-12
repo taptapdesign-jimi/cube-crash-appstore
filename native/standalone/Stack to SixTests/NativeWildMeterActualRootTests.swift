@@ -10,18 +10,32 @@ import StackToSixNativeState
         let deadline=Date().addingTimeInterval(40)
         while !predicate(){guard Date()<deadline else{XCTFail(label);throw CancellationError()};try await Task.sleep(for:.milliseconds(5))}
     }
-    func testRestoredProductionRootKeepsGainOnBaselineWithTinySmokeAndRetiresThem()async throws {
+    func testRestoredProductionRootKeepsGainOnBaselineWithTinySmokeAndRetiresThem()async throws {try await verifyGainParticles(tutorial:false)}
+    func testRestoredTutorialGainShowsActualParticlesAndRetiresThem()async throws {try await verifyGainParticles(tutorial:true)}
+    private func verifyGainParticles(tutorial:Bool)async throws {
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("meter-hud-root-"+UUID().uuidString)
         let store=NativeSaveStore(directory:directory)
         var envelope=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
         envelope.progression.firstPlayTutorialComplete=true
-        var board=NativeBoardFactory.make(mode:.journey,board:2,generation:9,seed:7)
+        var board=NativeBoardFactory.make(mode:.journey,board:tutorial ? 1:2,generation:9,seed:7)
         envelope.progression.completedJourneyBoards=[1]
+        var playedStats=NativeBoardStats();playedStats.timesPlayed=1
+        envelope.progression.boardStats[2]=playedStats
         for index in board.tiles.indices{board.tiles[index].value=0;board.tiles[index].locked=true;board.tiles[index].alpha=0.25}
         for index in [0,1]{board.tiles[index].value=1;board.tiles[index].locked=false;board.tiles[index].alpha=1}
         // Only a run with a committed move is resumable under current save policy.
         board.moves=board.maxMoves-1
-        board.wildMeter=0.1;envelope.journeyRuns[2]=board
+        if tutorial {
+            let engine=NativeGameplayEngine(state:board)
+            XCTAssertTrue(engine.startTutorial().accepted)
+            XCTAssertTrue(engine.acknowledgeTutorialObjective().accepted)
+            board=engine.state;board.moves=board.maxMoves-1
+            envelope.progression.firstPlayTutorialComplete=false
+            envelope.progression.completedJourneyBoards=[]
+            envelope.firstPlayRun=board
+        }
+        board.wildMeter=0.1
+        if tutorial {envelope.firstPlayRun=board}else{envelope.journeyRuns[2]=board}
         envelope.journeyRunSavedAt[2]=Date().timeIntervalSince1970
         try store.save(envelope)
         let host=NativeStandaloneViewController(resourceRoot:NativeTestResources.root,store:store,sourceVisualRandom:{0.1},completeNativeGameplayEnabled:true)
@@ -31,8 +45,9 @@ import StackToSixNativeState
         host.loadViewIfNeeded();let app=try XCTUnwrap(host.children.first as? NativeAppController)
         func game()->NativeGameplayViewController?{app.children.compactMap{$0 as? NativeGameplayViewController}.first}
         try await wait("Home"){!app.home.isHidden};app.navigate(.world(1),interrupt:true)
-        try await wait("World request"){if game() != nil{return true};app.world?.onRequest?("continue",2);return false}
-        try await wait("Actual Source admission"){game()?.boardScene?.isBoardEntryComplete==true && game()?.beforeSourceGameplayAdmission==nil}
+        try await wait("World ready"){app.world?.isReadyForInput==true && !app.transitioning}
+        app.world?.onRequest?("continue",tutorial ? 1:2)
+        try await wait("Actual Source admission"){game()?.boardScene?.isBoardEntryComplete==true && (tutorial || game()?.beforeSourceGameplayAdmission==nil)}
         let gameplay=try XCTUnwrap(game()),scene=try XCTUnwrap(gameplay.boardScene)
         XCTAssertTrue(scene.sourceTutorialMeterHUDReady,"Restored gameplay must mount the actual Source owner, not prototype fill")
         XCTAssertFalse(scene.sourceTutorialMeterSmokeFrozen)
@@ -56,7 +71,8 @@ import StackToSixNativeState
         let loader=try XCTUnwrap(scene.childNode(withName:"//wildLoader"))
         let bounce=try XCTUnwrap(loader.childNode(withName:"//wildMeterFillBounceLayer"))
         func point(_ id:String)throws->CGPoint{let node=try XCTUnwrap(scene.sourceNativeTileNode(id));return scene.convert(node.position,from:try XCTUnwrap(node.parent))}
-        let from=try point(board.tiles[0].id),to=try point(board.tiles[1].id)
+        let ids=tutorial ? try XCTUnwrap(board.tutorial?.guidedPair):[board.tiles[0].id,board.tiles[1].id]
+        let from=try point(ids[0]),to=try point(ids[1])
         XCTAssertTrue(scene.beginDrag(at:from));scene.moveDrag(to:to)
         XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:to,now:CACurrentMediaTime())).accepted)
         for _ in 0..<10 {
@@ -70,6 +86,10 @@ import StackToSixNativeState
         // A real gameplay refresh must not repaint owner-controlled particle
         // opacity. Pure smoke-plan tests cannot catch a HUD sibling overwrite.
         try await wait("Moving bubble has partial opacity"){bubble.parent != nil && bubble.alpha>0.05 && bubble.alpha<0.6}
+        if tutorial {
+            let image=UIGraphicsImageRenderer(bounds:gameplay.view.bounds).image{_ in gameplay.view.drawHierarchy(in:gameplay.view.bounds,afterScreenUpdates:true)}
+            try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/tutorial-meter-gain-particles.png"))
+        }
         for refresh in 0..<3 {
             let particles=try XCTUnwrap(bubble.parent).children.filter{$0.name=="wild-meter-smoke"}
             XCTAssertFalse(particles.isEmpty)

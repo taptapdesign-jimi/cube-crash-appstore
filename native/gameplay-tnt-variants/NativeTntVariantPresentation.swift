@@ -18,6 +18,7 @@ final class NativeTntVariantPresentation: NativeFinitePresentation {
     private var coconutMotion:NativeCoconutFinaleMotion?
     private var wholeCoconuts:[UIView]=[]
     private let smokePresentationScale:CGFloat,smokeVerticalOffset:CGFloat,bushPresentationScale:CGFloat,flowerArtworkScale:CGFloat
+    private let coconutArtworkScale:CGFloat
     private let variant: Variant
     private let glyphs: NativeSplashGlyphField
     private let effectCenter: CGPoint
@@ -45,6 +46,7 @@ final class NativeTntVariantPresentation: NativeFinitePresentation {
         self.smokePresentationScale=(variant == .barell || variant == .flower) ? smokePresentationScale*(variant == .barell ? 0.80:1):1
         self.bushPresentationScale=variant == .flower ? bushPresentationScale:1
         self.flowerArtworkScale=variant == .flower ? flowerArtworkScale:1
+        coconutArtworkScale=variant == .coconut && NativeTabletLayout.applies(viewport) ? 1.3:1
         // UIKit's positive Y points down; only Barrel smoke gets the24pt shift.
         self.smokeVerticalOffset=variant == .barell ? smokeVerticalOffset+24:0
         self.variant = variant; effectCenter = CGPoint(x:viewport.width/2,y:viewport.height/2)
@@ -54,7 +56,7 @@ final class NativeTntVariantPresentation: NativeFinitePresentation {
             let glowColors: [UIColor] = variant == .flower
                 ? [UIColor(red:1,green:156.0/255,blue:171.0/255,alpha:1),UIColor(red:253.0/255,green:233.0/255,blue:177.0/255,alpha:1)]
                 : [UIColor(red:101.0/255,green:119.0/255,blue:30.0/255,alpha:1),UIColor(red:130.0/255,green:148.0/255,blue:36.0/255,alpha:1)]
-            glyphs = NativeSplashGlyphField.clankStyle(artwork:artwork,text:variant == .flower ? "BLOSSOM":"COCO-LOCO",backgroundColors:glowColors,fillsCaptionWidth:variant == .flower && blossomCaptionFillsWidth,random:random)
+            glyphs = NativeSplashGlyphField.clankStyle(artwork:artwork,text:variant == .flower ? "BLOSSOM":"COCO LOCO",backgroundColors:glowColors,fillsCaptionWidth:variant == .flower && blossomCaptionFillsWidth,random:random)
         } else if variant == .bloobGas {
             glyphs = NativeSplashGlyphField.clankStyle(artwork:artwork,text:"GASSS!",random:random)
         } else {
@@ -269,7 +271,7 @@ final class NativeTntVariantPresentation: NativeFinitePresentation {
             guard active else{continue}
             view.layer.zPosition = -0.25
             view.center=motion.position(flight,seconds:time)
-            let scale=flight.size/max(1,max(view.bounds.width,view.bounds.height))
+            let scale=flight.size*coconutArtworkScale/max(1,max(view.bounds.width,view.bounds.height))
             let squash=motion.squash(body:i,seconds:time)
             view.transform=CGAffineTransform(scaleX:squash.x,y:squash.y).rotated(by:motion.rotation(body:i,seconds:time)).scaledBy(x:scale,y:scale)
         }

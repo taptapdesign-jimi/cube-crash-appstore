@@ -40,7 +40,7 @@ final class NativeInteractionRepairTests: XCTestCase {
         home.layoutIfNeeded();let old=home.sliderTrack.layer.position.x
         motion.selectSlide(2) {}
         let a=try XCTUnwrap(home.sliderTrack.layer.animation(forKey:"native-slide-selection") as? CAKeyframeAnimation)
-        XCTAssertEqual(a.duration,0.4);let values=try XCTUnwrap(a.values as? [Double])
+        XCTAssertEqual(a.duration,0.65);let values=try XCTUnwrap(a.values as? [Double])
         XCTAssertEqual(values.first,Double(old));XCTAssertEqual(values.last,Double(home.sliderTrack.layer.position.x))
         XCTAssertEqual(values[40],Double(old)+(Double(home.sliderTrack.layer.position.x)-Double(old))*0.875,accuracy:1e-8)
         for target in home.navigationLayoutTargets {XCTAssertEqual(target.view.layer.animation(forKey:"native-slide-selection")?.duration,0.38)}

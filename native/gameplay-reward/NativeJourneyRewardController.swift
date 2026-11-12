@@ -56,7 +56,8 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
     static let unlockedArtworkEntryDelay=0.540
     private let collectBack=UIImageView()
     private let headingLabel=UILabel(),subtitle=UILabel(),coach=UILabel()
-    private var coachGlyphs:[UILabel]=[]
+    private lazy var coachPaper=NativeSettingsPaperSurface(image:assets.image("assets/modals/paper.png",densityAware:true))
+    private let coachCaption=UILabel()
     private let foil=NativeRewardFoil()
     private var holo:CALayer {foil.layer}
     private let glow=CALayer()
@@ -102,15 +103,18 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         for label in [headingLabel,subtitle,coach] {label.textAlignment = .center;label.isUserInteractionEnabled=false;view.addSubview(label)}
         headingLabel.text="New Reward";headingLabel.textColor=NativeTextPalette.accentOrange
         subtitle.text="Tap the card to reveal";subtitle.textColor=NativeTextPalette.subtitle
-        coach.text="TAP TO COLLECT";coach.accessibilityIdentifier="native.reward.coach-copy"
-        coach.font=assets.font(size:32,weight:"ExtraBold");coach.textColor = .clear;coach.alpha=0
-        coach.clipsToBounds=false;coach.isAccessibilityElement=true
-        coach.shadowColor=nil;coach.shadowOffset = .zero;coach.layer.shadowOpacity=0
-        coachGlyphs=Array(coach.text ?? "").enumerated().map { index,letter in
-            let glyph=NativeCoachCopyMotion.collectGlyph(letter,font:coach.font)
-            glyph.accessibilityIdentifier="native.reward.coach-glyph.\(index)"
-            coach.addSubview(glyph);return glyph
-        }
+        coach.text="Tap to collect";coach.accessibilityIdentifier="native.reward.coach-copy"
+        coach.textColor = .clear;coach.alpha=0;coach.isAccessibilityElement=true
+        coach.layer.zPosition=20;hand.layer.zPosition=30
+        coachPaper.cornerRadius=12;coachPaper.edgeDetailScale=0.4;coachPaper.alpha=0.8
+        coach.layer.shadowColor=UIColor(red:0.68,green:0.40,blue:0.20,alpha:1).cgColor
+        coach.layer.shadowOpacity=0.18;coach.layer.shadowRadius=6
+        coach.layer.shadowOffset=CGSize(width:0,height:4)
+        coachPaper.accessibilityIdentifier="native.reward.coach-paper"
+        let copy=NSMutableAttributedString(string:"Tap to collect",attributes:[.font:assets.font(size:17,weight:"ExtraBold"),.foregroundColor:NativeTextPalette.modalTitle])
+        copy.addAttribute(.foregroundColor,value:UIColor(red:231/255,green:116/255,blue:73/255,alpha:1),range:NSRange(location:0,length:3))
+        coachCaption.attributedText=copy;coachCaption.textAlignment = .center;coachCaption.isAccessibilityElement=false
+        coach.addSubview(coachPaper);coach.addSubview(coachCaption)
         hero.accessibilityIdentifier="native.reward.card";hero.accessibilityLabel="Reveal \(NativeRewardPresentation.name(board:board))";hero.accessibilityTraits = .button
         view.addSubview(hero);hero.layer.allowsGroupOpacity=false
         interim.layer.name="native.reward.interim-spatial";unlocked.layer.name="native.reward.unlocked-spatial"
@@ -126,7 +130,7 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         unlockedRotor.layer.addSublayer(glow)
         unlockedRotor.layer.addSublayer(holo)
         tap=UITapGestureRecognizer(target:self,action:#selector(tapped));pan=UIPanGestureRecognizer(target:self,action:#selector(panned(_:)));tap.delegate=self;pan.delegate=self;tap.require(toFail:pan);hero.addGestureRecognizer(tap);hero.addGestureRecognizer(pan)
-        ownedLayers=[view.layer,headingLabel.layer,subtitle.layer,hero.layer,pose.layer,interim.layer,unlocked.layer,interimRotor.layer,unlockedRotor.layer,front.layer,collectBack.layer,hand.layer,coach.layer,glow,holo]+coachGlyphs.map(\.layer)
+        ownedLayers=[view.layer,headingLabel.layer,subtitle.layer,hero.layer,pose.layer,interim.layer,unlocked.layer,interimRotor.layer,unlockedRotor.layer,front.layer,collectBack.layer,hand.layer,coach.layer,glow,holo,coachPaper.layer,coachCaption.layer]
         headingLabel.layer.opacity=0;subtitle.layer.opacity=0;hero.layer.opacity=0;front.layer.opacity=0;collectBack.layer.opacity=0
         applyFace(interim,scale:1,y:40,z:0,x:0,ry:0)
         applyFace(unlocked,scale:0,y:22,z:tilt.entryZ,x:tilt.entryX,ry:tilt.entryY,depth:-180)
@@ -176,7 +180,8 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         backTransform=CATransform3DRotate(backTransform,.pi,0,1,0)
         collectBack.layer.transform=CATransform3DScale(backTransform,NativeRewardPresentation.unlockedArtworkScale,NativeRewardPresentation.unlockedArtworkScale,1)
         place(hand,layout.hand);place(coach,layout.coach)
-        NativeCoachCopyMotion.layoutCollectGlyphs(coachGlyphs,in:coach.bounds,font:coach.font)
+        place(coachPaper,coach.bounds);place(coachCaption,coach.bounds)
+        coachPaper.setNeedsLayout();coachPaper.layoutIfNeeded();coach.layer.shadowPath=coachPaper.outline
         CATransaction.begin();CATransaction.setDisableActions(true)
         let effectScale=view.window?.screen.scale ?? view.traitCollection.displayScale
         for layer in [glow] {layer.contentsScale=max(1,effectScale);layer.allowsEdgeAntialiasing=true;layer.edgeAntialiasingMask=[.layerLeftEdge,.layerRightEdge,.layerTopEdge,.layerBottomEdge];layer.minificationFilter = .trilinear;layer.magnificationFilter = .linear}
@@ -314,7 +319,7 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         guard !disposed,!resolved,!revealRunning,revealed else{return}
         let exitLayers=[pose.layer,headingLabel.layer,subtitle.layer]
         let exitPoses=exitLayers.map{$0.presentation()?.transform ?? $0.transform}
-        let coachPoses=coachGlyphs.map{($0.layer.presentation()?.transform ?? $0.layer.transform,$0.layer.presentation()?.opacity ?? $0.layer.opacity)}
+        let coachPose=(coach.layer.presentation()?.transform ?? coach.layer.transform,coach.layer.presentation()?.opacity ?? coach.layer.opacity)
         let facePose=unlocked.layer.presentation()?.transform ?? unlocked.layer.transform
         let rotorPose=unlockedRotor.layer.presentation()?.transform ?? unlockedRotor.layer.transform
         let rootPose=view.layer.presentation()?.transform ?? view.layer.transform
@@ -322,14 +327,10 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         CATransaction.begin();CATransaction.setDisableActions(true)
         defer {CATransaction.commit()}
         resolved=true;preparationLease.cancel();phase="exiting";epoch &+= 1;cancelTasks();removeAnimations();hand.alpha=0;coach.alpha=1
-        // Keep the copy container visible: each painted glyph retires separately.
-        for (index,glyph) in coachGlyphs.enumerated() {
-            let (transform,opacity)=coachPoses[index]
-            let delay=reducedMotion ? 0:Double(index)*0.014
-            animate(glyph.layer,"opacity",from:opacity,to:Float(0),duration:0.18,delay:delay)
-            let end=CATransform3DScale(CATransform3DTranslate(transform,0,14,0),0.75,0.75,1)
-            animate(glyph.layer,"transform",from:NSValue(caTransform3D:transform),to:NSValue(caTransform3D:end),duration:0.18,delay:delay)
-        }
+        // Retire the complete paper cue from its current painted entry pose.
+        animate(coach.layer,"opacity",from:coachPose.1,to:Float(0),duration:0.18)
+        let coachEnd=CATransform3DScale(CATransform3DTranslate(coachPose.0,0,14,0),0.85,0.85,1)
+        animate(coach.layer,"transform",from:NSValue(caTransform3D:coachPose.0),to:NSValue(caTransform3D:coachEnd),duration:0.18)
         CATransaction.begin();CATransaction.setDisableActions(true)
         view.layer.transform=rootPose
         unlocked.layer.transform=facePose;unlockedRotor.layer.transform=rotorPose
@@ -416,7 +417,19 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         guard !reducedMotion,foreground,!disposed,revealed,!resolved else{return}
         later("idle",after:after) { [weak self] in
             guard let self,self.revealed,!self.revealRunning else{return}
-            self.cssTrack(self.unlockedRotor.layer,poses:[0,-21.6,0,21.6,0].map{NativeRewardMotion.pose(ry:$0)},offsets:[0,0.25,0.5,0.75,1],duration:6.8)
+            let idleEpoch=CACurrentMediaTime()
+            self.cssTrack(self.unlockedRotor.layer,poses:[0,-21.6,0,21.6,0].map{NativeRewardMotion.pose(ry:$0)},offsets:[0,0.25,0.5,0.75,1],duration:6.8,startTime:idleEpoch)
+            // Borrow the card's finite idle epoch and eased phases. Additive
+            // local motion preserves the cue's own enter/exit and40pt anchor.
+            let idle=NativeRewardMotion.cssTrack(poses:[NativeRewardMotion.pose(),.init(scaleX:1.015,scaleY:1.015,y:-2,rotationZ:-1),NativeRewardMotion.pose(),.init(scaleX:1.015,scaleY:1.015,y:-2,rotationZ:1),NativeRewardMotion.pose()],offsets:[0,0.25,0.5,0.75,1],interimOrder:false)
+            let movement=CAKeyframeAnimation(keyPath:"transform")
+            movement.values=idle.map { sample in
+                var value=sample;value.m34=0;value.m41=atan2(value.m12,value.m11)*180 / .pi*3
+                return NSValue(caTransform3D:value)
+            }
+            movement.duration=6.8;movement.isAdditive=true;movement.isRemovedOnCompletion=true
+            movement.beginTime=self.coach.layer.convertTime(idleEpoch,from:nil)
+            self.coach.layer.add(movement,forKey:"native.reward.coach.card-idle")
             if self.rarity=="legendary" {self.foil.idle()}
             self.later("idle",after:6.8) { [weak self] in guard let self else{return};self.foil.stop();self.holo.opacity=0;self.unlockedRotor.layer.transform=CATransform3DIdentity;self.scheduleUnlockedIdle(after:3) }
         }
@@ -430,12 +443,29 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
             let heights=[-0.28,-0.50,-0.38,-0.52,-0.34],rotations=[-8.0,-8,-6,-8,-7],scales=[0.78,0.96,0.84,1,0.84]
             var handPoses=(0..<5).map{NSValue(caTransform3D:self.spatial(scale:scales[$0],y:(heights[$0]+0.28)*self.hand.bounds.height,z:rotations[$0],depth:80))}
             handPoses.append(handPoses.last!)
-            self.keyframes(self.hand.layer,"transform",values:handPoses,times:[0,0.2*2.1/handLife,0.42*2.1/handLife,0.58*2.1/handLife,2.1/handLife,1],duration:handLife)
-            self.keyframes(self.pose.layer,"transform",values:[1,1,0.965,1.06,0.988,1,1].map{NSValue(caTransform3D:self.spatial(scale:$0))},times:[0,0.34,0.43,0.57,0.7,0.82,1],duration:2.1)
-            self.keyframes(self.coach.layer,"opacity",values:[1,1],times:[0,1],duration:life)
-            for (index,glyph) in self.coachGlyphs.enumerated() {
-                NativeCoachCopyMotion.installCollect(on:glyph.layer,index:index,key:"native.reward.coach.copy",beginTime:epoch)
+            self.keyframes(self.hand.layer,"transform",values:handPoses,times:[0,0.2*2.1/handLife,0.42*2.1/handLife,0.58*2.1/handLife,2.1/handLife,1],duration:handLife,startTime:epoch)
+            let cardScales=[1.0,1,0.965,1.06,0.988,1,1],cardTimes=[0.0,0.34,0.43,0.57,0.7,0.82,1]
+            self.keyframes(self.pose.layer,"transform",values:cardScales.map{NSValue(caTransform3D:self.spatial(scale:$0))},times:cardTimes,duration:2.1,startTime:epoch)
+            func cardBounce(_ seconds:Double)->Double {
+                let t=min(1,max(0,seconds/2.1))
+                for i in 1..<cardTimes.count where t<=cardTimes[i] {
+                    let u=(t-cardTimes[i-1])/(cardTimes[i]-cardTimes[i-1])
+                    return cardScales[i-1]+(cardScales[i]-cardScales[i-1])*u
+                }
+                return 1
             }
+            let cue=JimiV9Motion.Track(tweens:[
+                .init(begin:0,duration:0.65,from:.scale(0.7,y:18,opacity:0),to:.scale(1.035,y:-2),ease:.cubicBezier(0.42,0,0.2,1)),
+                .init(begin:0.65,duration:0.25,from:.scale(1.035,y:-2),to:.scale(1),ease:.cubicBezier(0.42,0,0.58,1)),
+                .init(begin:life-0.25,duration:0.25,from:.scale(1),to:.scale(0.96,y:8,opacity:0),ease:.powerIn(1))])
+            let count=Int(ceil(life*120))
+            let times=(0...count).map{Double($0)/Double(count)}
+            let poses=times.map{cue.pose(at:$0*life)}
+            self.keyframes(self.coach.layer,"opacity",values:poses.map{$0.opacity},times:times,duration:life,final:Float(0),startTime:epoch)
+            self.keyframes(self.coach.layer,"transform",values:poses.enumerated().map{index,pose in
+                let bounce=cardBounce(times[index]*life)-1
+                return NSValue(caTransform3D:self.spatial(scale:pose.scaleX*(1+bounce*0.5),y:pose.y-bounce*50))
+            },times:times,duration:life,final:NSValue(caTransform3D:CATransform3DIdentity),startTime:epoch)
             self.scheduleCoach(after:4+NativeCoachCopyMotion.collectHoldExtension)
         }
     }
@@ -455,7 +485,7 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         switch gesture.state {
         case .began:
             if let visible=unlockedRotor.layer.presentation()?.transform {dragAngle=atan2(-visible.m13,visible.m11)*180 / .pi;unlockedRotor.layer.transform=visible}
-            foil.stop();tasks.removeValue(forKey:"coach")?.cancel();tasks.removeValue(forKey:"idle")?.cancel();hand.layer.removeAllAnimations();coach.layer.removeAllAnimations();coachGlyphs.forEach{$0.layer.removeAllAnimations()};unlockedRotor.layer.removeAllAnimations();pose.layer.removeAllAnimations();dragStart=dragAngle;dragAxis=nil
+            foil.stop();tasks.removeValue(forKey:"coach")?.cancel();tasks.removeValue(forKey:"idle")?.cancel();hand.layer.removeAllAnimations();coach.layer.removeAllAnimations();unlockedRotor.layer.removeAllAnimations();pose.layer.removeAllAnimations();dragStart=dragAngle;dragAxis=nil
         case .changed:
             if max(abs(delta.x),abs(delta.y))>7 && dragAxis==nil {dragAxis=abs(delta.y)>abs(delta.x)*1.15 ? "vertical":"horizontal"}
             if dragAxis=="horizontal" {dragAngle=NativeRewardPresentation.dragTilt(start:dragStart,deltaX:delta.x,width:view.bounds.width);applyFace(unlockedRotor,scale:1,y:0,z:0,x:0,ry:dragAngle);if rarity=="legendary" {foil.paint(angle:dragAngle,idle:false)}}
@@ -495,9 +525,9 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         let samples=NativeRewardMotion.samples(from:from,to:to,ease:ease.value)
         keyframes(layer,"transform",values:samples.map{NSValue(caTransform3D:$0)},times:(0..<samples.count).map{Double($0)/Double(samples.count-1)},duration:reducedMotion ? min(0.16,duration):duration,delay:delay,final:NSValue(caTransform3D:to.transform))
     }
-    private func cssTrack(_ layer:CALayer,poses:[NativeRewardMotion.Pose],offsets:[Double],duration:Double,interimOrder:Bool=false,repeating:Bool=false) {
+    private func cssTrack(_ layer:CALayer,poses:[NativeRewardMotion.Pose],offsets:[Double],duration:Double,interimOrder:Bool=false,repeating:Bool=false,startTime:Double?=nil) {
         let samples=NativeRewardMotion.cssTrack(poses:poses,offsets:offsets,interimOrder:interimOrder)
-        keyframes(layer,"transform",values:samples.map{NSValue(caTransform3D:$0)},times:(0..<samples.count).map{Double($0)/Double(samples.count-1)},duration:duration,final:NSValue(caTransform3D:interimOrder ? poses.last!.interimIdleTransform:poses.last!.transform),repeating:repeating)
+        keyframes(layer,"transform",values:samples.map{NSValue(caTransform3D:$0)},times:(0..<samples.count).map{Double($0)/Double(samples.count-1)},duration:duration,final:NSValue(caTransform3D:interimOrder ? poses.last!.interimIdleTransform:poses.last!.transform),repeating:repeating,startTime:startTime)
     }
     private func applyFace(_ face:UIView,scale:Double,y:Double,z:Double,x:Double,ry:Double,depth:Double=0){face.layer.transform=spatial(scale:scale,y:y,z:z,x:x,ry:ry,depth:depth)}
     private func animate(_ layer:CALayer,_ key:String,from:Any,to:Any,duration:Double,delay:Double=0,ease:JimiV9Motion.Ease = .powerOut(2),startTime:Double?=nil) {

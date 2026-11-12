@@ -132,6 +132,88 @@ final class NativeArcadeNavigationTests: XCTestCase {
         scene.cancelDrag()
         XCTAssertFalse(try XCTUnwrap(store.load()).progression.firstPlayTutorialComplete)
     }
+    func testRestoredTutorialWaitsForFullMeterThenOpensRealBackpack()async throws {
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent("contextual-resume-\(UUID())")
+        let store=NativeSaveStore(directory:directory)
+        let engine=NativeGameplayEngine(state:NativeBoardFactory.make(mode:.journey,board:11,tutorial:true))
+        XCTAssertTrue(engine.startTutorial().accepted);engine.configureTutorialReward(.init(.juice))
+        var saved=engine.state
+        saved.tutorial?.step = .freePlay;saved.tutorial?.guidedPair=[]
+        saved.tutorial?.specialBarSuccessfulActions=2;saved.tutorial?.specialBarAcknowledged=true
+        saved.tutorial?.waitingForWild=true // previously saved by the premature fallback CTA
+        saved.tutorial?.objectiveAcknowledged=true;saved.wildMeter=0.99
+        var envelope=NativeSaveEnvelope();envelope.firstPlayRun=saved;envelope.progression.highestUnlockedJourneyBoard=11;try store.save(envelope)
+        let fifo=NativeSourceMicrotaskFIFO(),tasks=NativeSourceMicrotaskAdapters(fifo:fifo)
+        let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0},sourceFrameTransportEnabled:true)
+        service.sourceMicrotaskTasks=tasks
+        let context=NativeGameplaySourceContext(service:service,appOriginMilliseconds:0,sourceMicrotaskTasks:tasks)
+        var wall=0.0
+        func waitActive(_ predicate:()->Bool)async throws {
+            let deadline=Date().addingTimeInterval(10)
+            var accepted=predicate()
+            while !accepted,Date()<deadline {wall+=16;service.deliver(wallMilliseconds:wall);try await Task.sleep(for:.milliseconds(20));accepted=predicate()}
+            XCTAssertTrue(accepted)
+        }
+        let bootstrap=try NativeBootstrap(root:NativeTestResources.root,store:store,showStudioIntro:false,sourceContext:context)
+        bootstrap.sourceInitialFreshStartupEnabled=true;bootstrap.sourceBoardEntryEnabled=true
+        bootstrap.sourceInitialRegularResumeEnabled=true;bootstrap.sourceInitialWildResumeEnabled=true
+        bootstrap.sourceOrdinaryPresentationEnabled=true;bootstrap.sourceFreshOrdinaryPresentationEnabled=true
+        bootstrap.sourceRestoredOrdinaryPresentationEnabled=true;bootstrap.sourceDirectPresentationEnabled=true
+        bootstrap.sourceSpecialIdlePresentationEnabled=true;bootstrap.sourceLogicalMathRandomEnabled=true
+        bootstrap.sourceTutorialEarnedMeterEnabled=true;bootstrap.sourceMagnetPresentationEnabled=true
+        bootstrap.sourceOrdinaryEndgamePresentationEnabled=true;bootstrap.sourceTntPresentationEnabled=true
+        bootstrap.completeNativeGameplayEnabled=true;bootstrap.sourceCanonicalGameplaySaveEnabled=true
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible();bootstrap.start(in:host)
+        defer{bootstrap.dispose();context.dispose();service.dispose();window.isHidden=true;try? FileManager.default.removeItem(at:directory)}
+        let app=try XCTUnwrap(host.children.first as? NativeAppController)
+        // Current mode-selection policy resumes a Journey checkpoint through
+        // its selected World; direct .gameplay is the Arcade entry point.
+        try await waitActive{!app.home.isHidden && app.home.isUserInteractionEnabled && !app.transitioning}
+        app.navigate(.world(2),interrupt:true)
+        try await waitActive{app.world?.isReadyForInput==true && !app.transitioning}
+        app.world?.onRequest?("continue",11)
+        try await waitActive{app.children.contains{$0 is NativeGameplayViewController}}
+        let game=try XCTUnwrap(app.children.first as? NativeGameplayViewController)
+        XCTAssertEqual(game.engine.state.board,11);XCTAssertEqual(game.engine.state.mode,.journey)
+        XCTAssertEqual(game.engine.state.tutorial?.reward,.init(.juice))
+        XCTAssertEqual(game.engine.state.tiles,saved.tiles)
+        try await waitActive{game.sourceInitialConstruction?.pendingFaceCount==0 && game.boardScene?.isBoardEntryComplete==true}
+        XCTAssertNil(game.sourcePresentationFailure)
+        XCTAssertEqual(game.engine.state.tutorial?.waitingForWild,false)
+        XCTAssertEqual(game.engine.state.wildMeter,0.99,accuracy:0.000001)
+        XCTAssertFalse(game.view.subviews.compactMap{$0 as? NativeTutorialOverlay}.contains{!$0.isHidden && $0.backpackPromptVisible})
+        let scene=try XCTUnwrap(game.boardScene)
+        let tiles=game.engine.state.activeTiles
+        let a=try XCTUnwrap(tiles.first{$0.value==1}),b=try XCTUnwrap(tiles.first{$0.value==2})
+        let source=try XCTUnwrap(scene.sourceNativeTileNode(a.id)),target=try XCTUnwrap(scene.sourceNativeTileNode(b.id))
+        try await waitActive{guard let parent=source.parent else{return false};return scene.beginDrag(at:scene.convert(source.position,from:parent))}
+        let destination=scene.convert(target.position,from:try XCTUnwrap(target.parent))
+        scene.moveDrag(to:destination,now:1)
+        XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:destination,now:1.2)).accepted)
+        try await waitActive{scene.heldTutorialBackpackCarrier != nil}
+        XCTAssertNil(game.sourcePresentationFailure)
+        let overlay=try XCTUnwrap(game.view.subviews.compactMap{$0 as? NativeTutorialOverlay}.first)
+        XCTAssertTrue(overlay.backpackPromptVisible);XCTAssertFalse(overlay.isHidden)
+        let carrier=try XCTUnwrap(scene.heldTutorialBackpackCarrier)
+        let anchor=carrier.position
+        for _ in 0..<45{wall+=16;service.deliver(wallMilliseconds:wall)}
+        XCTAssertEqual(carrier.position,anchor)
+        XCTAssertFalse(overlay.subviews.contains{$0.accessibilityIdentifier=="native.tutorial.open-backpack"})
+        func descendants(_ view:UIView)->[UIView]{[view]+view.subviews.flatMap(descendants)}
+        let tap=try XCTUnwrap(descendants(overlay).first{$0.accessibilityIdentifier=="native.tutorial.got-it"} as? UIButton)
+        XCTAssertEqual(tap.title(for:.normal),"Got it")
+        let artwork=try XCTUnwrap(overlay.subviews.flatMap{$0.subviews}.first{$0.accessibilityIdentifier=="assets/tutorial/ekipa backpack.png"} as? UIImageView)
+        XCTAssertNotNil(artwork.image);XCTAssertFalse(artwork.isHidden)
+        XCTAssertLessThan(artwork.frame.minY,0);XCTAssertGreaterThan(artwork.frame.maxY,0)
+        let preview=UIGraphicsImageRenderer(bounds:game.view.bounds).image{_ in game.view.drawHierarchy(in:game.view.bounds,afterScreenUpdates:true)}
+        try preview.pngData()?.write(to:URL(fileURLWithPath:"/tmp/tutorial-backpack-spacing-preview.png"))
+        XCTAssertFalse(tap.isHidden);tap.sendActions(for:.touchUpInside)
+        try await waitActive{game.engine.state.tutorial?.step == .special && game.engine.state.wildSpawnCount==1}
+        XCTAssertFalse(overlay.backpackPromptVisible)
+        XCTAssertNil(scene.heldTutorialBackpackCarrier)
+        XCTAssertFalse(try XCTUnwrap(store.load()).progression.firstPlayTutorialComplete)
+    }
     func testFirstPlayHomeJourneyOpensWorldSelectionInsteadOfTutorial()async throws {
         var made=0
         var source=services{_,_ in made+=1;return UIViewController()};source.requiresTutorial={true}
@@ -140,28 +222,86 @@ final class NativeArcadeNavigationTests: XCTestCase {
         try await waitFor{root.route == .hub}
         XCTAssertEqual(made,0)
     }
-    func testPostSpecialEncouragementOwnsInputUntilContinueAndDoesNotRepeat()async throws {
+    func testPostSpecialResumesWithoutSheetAndRevealsFullOpacityHUD()async throws {
         var state=NativeBoardFactory.make(mode:.journey,board:1)
         var tutorial=NativeTutorialState();tutorial.active=false;tutorial.guideCompleted=true;tutorial.completionAssist=true
+        tutorial.comboLessonAcknowledged=false;tutorial.comboHUDRevealed=false
         state.tutorial=tutorial
         let game=NativeGameplayViewController(engine:NativeGameplayEngine(state:state),resourceRoot:NativeTestResources.root)
         let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=game;window.makeKeyAndVisible()
         let owner=NativeTutorialOwner(gameplay:game,root:NativeTestResources.root)
         defer{owner.dispose();game.dispose();window.isHidden=true}
         owner.refresh(game.engine.state)
-        let overlay=try XCTUnwrap(game.view.subviews.first{$0 is NativeTutorialOverlay} as? NativeTutorialOverlay)
-        let labels=overlay.subviews.flatMap{$0.subviews}.compactMap{$0 as? UILabel}
-        XCTAssertTrue(labels.contains{$0.text=="Great merge!"})
-        func findButton(_ v:UIView)->UIButton? {if let b=v as? UIButton,b.accessibilityIdentifier=="native.tutorial.got-it" {return b};return v.subviews.lazy.compactMap{findButton($0)}.first}
-        let button=try XCTUnwrap(findButton(overlay))
-        XCTAssertEqual(button.currentTitle,"Continue")
-        let target=try XCTUnwrap(state.activeTiles.first)
-        XCTAssertFalse(game.engine.canBeginDrag(tileID:target.id))
-        button.sendActions(for:.touchUpInside)
         try await waitFor{game.engine.state.tutorial?.encouragementAcknowledged==true}
+        let scene=try XCTUnwrap(game.boardScene)
+        try await Task.sleep(for:.milliseconds(1200))
+        scene.synchronize()
+        try await Task.sleep(for:.milliseconds(100))
+        XCTAssertFalse(game.view.subviews.contains{($0 is NativeTutorialOverlay) && !$0.isHidden})
+        XCTAssertEqual(game.engine.state.tutorial?.comboHUDRevealed,false,"HUD enters before the later combo lesson")
+        for name in ["native-game-score-art","native-game-score-value","native-game-combo-art","native-game-combo-value","native-game-help"] {
+            let node=try XCTUnwrap(scene.childNode(withName:"//"+name))
+            XCTAssertFalse(node.isHidden,name)
+            var alpha=node.alpha,parent=node.parent
+            while let ancestor=parent {alpha *= ancestor.alpha;parent=ancestor.parent}
+            XCTAssertEqual(alpha,1,accuracy:0.001,name)
+        }
+        var opened:[String]=[]
+        scene.onScoreRequest={opened.append("score")};scene.onComboRequest={opened.append("combo")}
+        scene.onHelpRequest={opened.append("backpack")};scene.onExitRequest={opened.append("close")}
+        for name in ["native-game-score-art","native-game-combo-art","native-game-help"] {
+            let node=try XCTUnwrap(scene.childNode(withName:"//"+name))
+            XCTAssertTrue(scene.handleHUDContact(at:node.convert(.zero,to:scene)))
+        }
+        XCTAssertEqual(opened,["score","combo","backpack"])
+        XCTAssertTrue(game.engine.state.tutorial?.shouldLockHUD == true,"Close remains locked until tutorial result")
+        let target=try XCTUnwrap(game.engine.state.activeTiles.first{game.engine.canBeginDrag(tileID:$0.id)})
+        XCTAssertTrue(game.engine.canBeginDrag(tileID:target.id))
+    }
+    func testJourneyCueInheritsOriginalCardMotionAndRetires() throws {
+        let card=UIView(frame:CGRect(x:60,y:300,width:150,height:200))
+        card.transform=CGAffineTransform(rotationAngle:-0.09)
+        let host=UIView(frame:CGRect(x:0,y:0,width:820,height:1180));host.addSubview(card)
+        let overlay=NativeTutorialOverlay(resourceRoot:NativeTestResources.root);overlay.frame=host.bounds;host.addSubview(overlay)
+        overlay.showWorldIntro(card:card,target:{card.convert(card.bounds,to:host)})
+        let paper=try XCTUnwrap(card.subviews.first{$0.accessibilityIdentifier=="native.tutorial.card-cue-paper"})
+        let title=try XCTUnwrap(card.subviews.first{$0.accessibilityIdentifier=="native.tutorial.card-cue-title"})
+        XCTAssertEqual(title.frame.maxY,-8)
+        XCTAssertEqual(title.frame.midX,card.bounds.midX)
+        XCTAssertTrue(title.superview === card);XCTAssertTrue(paper.superview === card)
+        let surface=try XCTUnwrap(paper.subviews.compactMap{$0 as? NativeSettingsPaperSurface}.first)
+        XCTAssertEqual(surface.cornerRadius,12);XCTAssertEqual(surface.edgeDetailScale,0.4)
+        XCTAssertEqual(paper.layer.borderWidth,0);XCTAssertNotNil(paper.layer.shadowPath)
+        let size=CGSize(width:paper.bounds.width+24,height:paper.bounds.height+24)
+        let preview=UIGraphicsImageRenderer(size:size).image{context in
+            UIColor(red:243/255,green:238/255,blue:232/255,alpha:1).setFill();context.fill(CGRect(origin:.zero,size:size))
+            context.cgContext.translateBy(x:12,y:12)
+            let paperAlpha=paper.alpha,titleAlpha=title.alpha
+            paper.alpha=1;title.alpha=1;paper.layer.render(in:context.cgContext);title.layer.render(in:context.cgContext)
+            paper.alpha=paperAlpha;title.alpha=titleAlpha
+        }
+        try preview.pngData()?.write(to:URL(fileURLWithPath:"/tmp/journey-cue-paper-preview.png"))
+        XCTAssertTrue(title.transform.isIdentity,"Original parent owns all tilt/bounce, without a second motion clock")
+        overlay.dispose()
+        XCTAssertNil(title.superview);XCTAssertNil(paper.superview)
+    }
+    func testComboLessonShowsHandAtLiveComboHUD()async throws {
+        var state=NativeBoardFactory.make(mode:.journey,board:1)
+        var tutorial=NativeTutorialState();tutorial.active=false;tutorial.guideCompleted=true;tutorial.completionAssist=true
+        tutorial.encouragementAcknowledged=true;tutorial.comboLessonAcknowledged=false;tutorial.comboHUDRevealed=true
+        state.tutorial=tutorial
+        let game=NativeGameplayViewController(engine:NativeGameplayEngine(state:state),resourceRoot:NativeTestResources.root)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=game;window.makeKeyAndVisible()
+        let owner=NativeTutorialOwner(gameplay:game,root:NativeTestResources.root)
+        defer{owner.dispose();game.dispose();window.isHidden=true}
+        owner.refresh(game.engine.state)
+        let overlay=try XCTUnwrap(game.view.subviews.compactMap{$0 as? NativeTutorialOverlay}.first)
+        try await waitFor{overlay.sourcePointerVisible}
+        XCTAssertNotNil(game.boardScene?.tutorialComboTargetScreen)
+        let preview=UIGraphicsImageRenderer(bounds:game.view.bounds).image{_ in game.view.drawHierarchy(in:game.view.bounds,afterScreenUpdates:true)}
+        try preview.pngData()?.write(to:URL(fileURLWithPath:"/tmp/tutorial-combo-hand.png"))
+        owner.dispose()
         XCTAssertNil(overlay.superview)
-        let again=NativeTutorialOwner(gameplay:game,root:NativeTestResources.root);again.refresh(game.engine.state)
-        XCTAssertFalse(game.view.subviews.contains{$0 is NativeTutorialOverlay});again.dispose()
     }
     func testJourneyTutorialCommitsOnlySelectedWorldAndArcadePracticeCommitsNoStage()async throws {
         for board in [1,11,21,0] {

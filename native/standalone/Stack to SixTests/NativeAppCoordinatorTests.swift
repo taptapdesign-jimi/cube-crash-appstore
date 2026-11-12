@@ -6,6 +6,53 @@ import StackToSixGameplay
 
 @MainActor
 final class NativeAppCoordinatorTests:XCTestCase {
+    func testInterruptedTutorialRestoresWorldCueUntilCanonicalCompletion()async throws {
+        let layouts=try NativeWorldLayouts()
+        var progression=NativeProgressionState()
+        progression.journeyIntroSeen=true
+        progression.firstPlayTutorialComplete=false
+        progression.markViewed(board:1)
+        var exitGameplay:(()->Void)?
+        var services=NativeAppServices(settings:{[:]},setPreference:{_,_ in},worldSnapshot:{world,size,generation in
+            try layouts.snapshot(world:world,width:size.width,height:size.height,generation:generation,progression:progression)
+        },markViewed:{progression.markViewed(board:$0)},makeGameplay:{_,exit in exitGameplay=exit;return UIViewController()},flush:{})
+        services.journeyProgression={progression}
+        services.requiresTutorial={!progression.firstPlayTutorialComplete}
+        let root=NativeAppController(resourceRoot:resources(),services:services)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.windowLevel=UIWindow.Level(rawValue:UIWindow.Level.alert.rawValue+1)
+        window.rootViewController=root;window.makeKeyAndVisible()
+        defer{root.dispose();window.isHidden=true;window.rootViewController=nil}
+        func find(_ view:UIView,_ id:String)->UIView? {
+            if view.accessibilityIdentifier==id{return view}
+            return view.subviews.lazy.compactMap{find($0,id)}.first
+        }
+        try await waitFor{root.home.isUserInteractionEnabled && !root.transitioning}
+        root.navigate(.world(1))
+        for interrupted in [true,false] {
+            try await waitFor{root.world?.isReadyForInput==true && !root.transitioning}
+            let world=try XCTUnwrap(root.world)
+            let shade=try XCTUnwrap(find(world,"native.world.tutorial.page-shade"))
+            let cue=try XCTUnwrap(find(world,"native.tutorial.card-cue-title") as? UILabel)
+            XCTAssertEqual(shade.frame,world.bounds)
+            XCTAssertFalse(cue.isHidden)
+            let intro=try XCTUnwrap(world.subviews.first{$0 is NativeTutorialOverlay} as? NativeTutorialOverlay)
+            XCTAssertTrue(intro.sourcePointerVisible,"The existing hand returns with the card cue and page shade")
+            XCTAssertTrue(try XCTUnwrap(find(world,"native.world.card.1")).superview === world)
+            XCTAssertTrue(progression.journeyIntroSeen,"Viewing the intro does not suppress an incomplete tutorial")
+            XCTAssertFalse(progression.firstPlayTutorialComplete)
+            if !interrupted {progression.firstPlayTutorialComplete=true}
+            world.onRequest?("continue",1)
+            try await waitFor{root.route == .gameplay}
+            XCTAssertNil(shade.superview)
+            try XCTUnwrap(exitGameplay)()
+            try await waitFor{root.route == .world(1) && root.world?.isReadyForInput==true && !root.transitioning}
+        }
+        let completedWorld=try XCTUnwrap(root.world)
+        XCTAssertNil(find(completedWorld,"native.world.tutorial.page-shade"))
+        XCTAssertNil(find(completedWorld,"native.tutorial.card-cue-title"))
+        XCTAssertFalse(completedWorld.subviews.contains{$0 is NativeTutorialOverlay})
+    }
     private func resources()->URL {
         Bundle.main.url(forResource:"NativeAssets",withExtension:"bundle")!
     }
@@ -211,6 +258,38 @@ final class NativeAppCoordinatorTests:XCTestCase {
         cues=[];controller.home.onHeroContact?()
         XCTAssertEqual(cues,["home-arcade-character-tap"])
     }
+    func testSelectedDieSurvivesBackgroundDuringAndAfterTabContact() async throws {
+        guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Full contact motion required")}
+        let (root,window)=try worldEntryFixture{_,ready in ready()}
+        defer{root.dispose();window.isHidden=true}
+        try await waitFor{!root.home.isEntering && root.home.isUserInteractionEnabled}
+        for (retiresHero,delay) in [(false,20),(false,1200),(true,20),(true,150),(true,600),(true,1200)] {
+            root.home.navigationButtonViews[0].sendActions(for:.touchUpInside)
+            try await Task.sleep(for:.milliseconds(900))
+            root.home.navigationButtonViews[1].sendActions(for:.touchUpInside)
+            try await Task.sleep(for:.milliseconds(delay))
+            NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
+            NotificationCenter.default.post(name:UIApplication.didEnterBackgroundNotification,object:nil)
+            // iOS can retire finite route animation while the app is hidden.
+            // No later hero completion may be required to unfreeze nav contact.
+            if retiresHero {root.home.heroView.layer.removeAnimation(forKey:"native-route")}
+            try await Task.sleep(for:.milliseconds(200))
+            root.view.setNeedsLayout();root.view.layoutIfNeeded()
+            NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
+            try await Task.sleep(for:.milliseconds(1500))
+            CATransaction.flush()
+            let icon=root.home.navigationIconViews[1]
+            let painted=try XCTUnwrap(icon.layer.presentation())
+            XCTAssertEqual(root.home.selectedSlide,1)
+            XCTAssertEqual(icon.bounds.width,79.2,accuracy:0.01)
+            XCTAssertEqual(painted.bounds.width,79.2,accuracy:0.01)
+            XCTAssertEqual(painted.transform.m11,1,accuracy:0.01)
+            XCTAssertEqual(painted.transform.m22,1,accuracy:0.01)
+            XCTAssertEqual(icon.layer.speed,1)
+            XCTAssertEqual(try XCTUnwrap(icon.superview).layer.speed,1)
+        }
+    }
+
     func testStartupAppSwitchRecoversActualHomeAndAdmitsNavigation()async throws {
         let prior=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
         var services=NativeAppServices(settings:{["gameSoundsEnabled":false,"musicEnabled":false,"hapticsEnabled":false]},

@@ -1,8 +1,106 @@
 import XCTest
 import SpriteKit
+import UIKit
 @testable import Stack_to_Six
 
 @MainActor final class NativeWildMeterHUDSourceTests: XCTestCase {
+    func testTutorialSpecialBurnSharesJourneyStarEnvelope() {
+        for (fraction,alpha) in [(0.0,0.0),(0.09,0.16),(0.18,0.32),(0.35,0.4655),(0.52,0.611),(0.82,0.26),(1.0,0.0)] {
+            XCTAssertEqual(NativeStarBurnTiming.burnAlpha(fraction:fraction),alpha,accuracy:0.000001)
+        }
+        XCTAssertEqual(NativeStarBurnTiming.burnAlpha(fraction:-1),0)
+        XCTAssertEqual(NativeStarBurnTiming.burnAlpha(fraction:2),0)
+    }
+    func testTutorialSpecialBurnUsesLiveTextureMaskAndRetiresAcrossVisibilityAndDrag()throws {
+        var wall=0.0
+        let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{wall})
+        let textures=NativeBoardTextures(root:NativeTestResources.root),scene=SKScene(size:CGSize(width:390,height:844))
+        let view=SKView(frame:CGRect(origin:.zero,size:scene.size));view.presentScene(scene)
+        let die=NativeDiceNode(id:"tutorial-burn",value:6,kind:"wild",variant:nil,depth:1,locked:false,textures:textures)
+        scene.addChild(die);die.position=CGPoint(x:150,y:250)
+        for child in die.visual.children {child.isHidden=true}
+        let image=UIGraphicsImageRenderer(size:CGSize(width:20,height:30)).image{context in
+            UIColor.white.setFill();context.fill(CGRect(x:3,y:4,width:14,height:22))
+        }
+        let body=SKSpriteNode(texture:SKTexture(image:image));body.size=CGSize(width:20,height:30);body.anchorPoint=CGPoint(x:0.2,y:0.8)
+        die.visual.addChild(body)
+        defer{die.dispose();textures.dispose();service.dispose();view.presentScene(nil)}
+        die.reconcileTutorialSpecialBurn(service:service,enabled:true,canvasPaintable:true)
+        XCTAssertTrue(die.tutorialSpecialBurnActive);XCTAssertEqual(die.tutorialSpecialBurnNodeCount,1)
+        let overlay=try XCTUnwrap(body.childNode(withName:"tutorial-special-burn") as? SKSpriteNode)
+        XCTAssertTrue(overlay.texture === body.texture);XCTAssertEqual(overlay.size,body.size);XCTAssertEqual(overlay.anchorPoint,body.anchorPoint)
+        XCTAssertEqual(overlay.blendMode,.screen);XCTAssertEqual(overlay.colorBlendFactor,1)
+        var maximumAlpha:CGFloat=0
+        for ms in stride(from:16.0,through:3100,by:16){wall=ms;service.deliver(wallMilliseconds:wall);maximumAlpha=max(maximumAlpha,overlay.alpha)}
+        XCTAssertGreaterThan(maximumAlpha,0.45);XCTAssertLessThanOrEqual(maximumAlpha,CGFloat(0.611*0.86)+0.00001)
+        body.texture=SKTexture(image:image);body.size=CGSize(width:32,height:18);body.anchorPoint=CGPoint(x:0.8,y:0.3)
+        die.reconcileTutorialSpecialBurn(service:service,enabled:true,canvasPaintable:true)
+        XCTAssertTrue(overlay.texture === body.texture);XCTAssertEqual(overlay.size,body.size);XCTAssertEqual(overlay.anchorPoint,body.anchorPoint)
+        XCTAssertEqual(overlay.position,.zero)
+        let carrier=die.detachedArtworkCarrier()
+        XCTAssertNil(carrier.childNode(withName:"//tutorial-special-burn"),"Transient tutorial light must not be captured into an absorb/finale")
+        die.reconcileTutorialSpecialBurn(service:service,enabled:true,canvasPaintable:false)
+        XCTAssertFalse(die.tutorialSpecialBurnActive);XCTAssertEqual(die.tutorialSpecialBurnNodeCount,0);XCTAssertEqual(service.activeParticipantCount,0)
+        for ms in stride(from:3120.0,through:6000,by:16){wall=ms;service.deliver(wallMilliseconds:wall)}
+        XCTAssertEqual(die.tutorialSpecialBurnNodeCount,0);XCTAssertEqual(service.activeParticipantCount,0)
+        die.reconcileTutorialSpecialBurn(service:service,enabled:true,canvasPaintable:true)
+        XCTAssertEqual(die.tutorialSpecialBurnNodeCount,1)
+        die.setDragging(true);XCTAssertFalse(die.tutorialSpecialBurnActive);XCTAssertEqual(die.tutorialSpecialBurnNodeCount,0)
+        die.setDragging(false);die.reconcileTutorialSpecialBurn(service:service,enabled:true,canvasPaintable:true)
+        XCTAssertEqual(die.tutorialSpecialBurnNodeCount,1)
+        die.isHidden=true;die.reconcileTutorialSpecialBurn(service:service,enabled:true,canvasPaintable:true)
+        XCTAssertEqual(die.tutorialSpecialBurnNodeCount,0);XCTAssertEqual(service.activeParticipantCount,0)
+        die.isHidden=false;die.reconcileTutorialSpecialBurn(service:service,enabled:true,canvasPaintable:true)
+        die.reconcileTutorialSpecialBurn(service:service,enabled:false,canvasPaintable:true)
+        XCTAssertEqual(die.tutorialSpecialBurnNodeCount,0);XCTAssertEqual(service.activeParticipantCount,0)
+        die.dispose();die.dispose();XCTAssertEqual(service.activeParticipantCount,0)
+    }
+    func testDenserBubbleCompanionsPreservePrimaryRecipeAndShareAnimationLifetime() throws {
+        try XCTSkipIf(UIAccessibility.isReduceMotionEnabled,"The existing tutorial pulse respects Reduce Motion")
+        var phoneRadius:CGFloat=0,phoneDraws=0,phonePosition=CGPoint.zero
+        for pad in [false,true] {
+            var wall=0.0,draws=0
+            let scene=SKScene(size:CGSize(width:pad ? 820:390,height:220)),stage=SKNode()
+            scene.addChild(stage)
+            let view=SKView(frame:CGRect(origin:.zero,size:scene.size));view.presentScene(scene)
+            let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{wall}),timeouts=NativeSourceAppTimeoutOwner()
+            let hud=NativeWildMeterHUDPresentation(hudStage:stage,service:service,timeouts:timeouts,generation:1,maximum:200,isPad:pad,sourceOrigin:.init(x:12,y:50),sourceToNative:{$0},nativeToSource:{$0},smokeDisabled:{true},current:{true},visualRandom:{draws+=1;return 0.5})
+            defer{hud.dispose();timeouts.cancelAll();service.dispose();view.presentScene(nil)}
+            hud.setProgress(0.6,animated:false);hud.startTutorialPulse()
+            for ms in [16.0,316,332,450] {wall=ms;service.deliver(wallMilliseconds:wall)}
+            let bubbles=stage.children.compactMap{$0 as? SKShapeNode}.filter{$0.name=="wild-meter-smoke"}
+            XCTAssertEqual(hud.activeSmokeCount,1,"Tablet detail must not create additional logical emissions")
+            XCTAssertEqual(bubbles.count,pad ? 3:2)
+            XCTAssertTrue(bubbles.allSatisfy{hud.ownsSmoke($0) && !$0.isHidden && $0.alpha>0})
+            let primary=try XCTUnwrap(bubbles.first)
+            let radius=try XCTUnwrap(primary.path).boundingBox.width/2
+            if pad {
+                XCTAssertEqual(radius,phoneRadius*1.3,accuracy:0.0001)
+                XCTAssertEqual(draws,phoneDraws,"Tablet visual density must preserve shared Source RNG")
+                XCTAssertEqual(primary.position.x,phonePosition.x,accuracy:0.0001)
+                XCTAssertEqual(primary.position.y,phonePosition.y,accuracy:0.0001)
+                XCTAssertEqual(primary.fillColor.cgColor.alpha,0.6,accuracy:0.0001)
+                let companion=bubbles[1],initialOffset=CGPoint(x:companion.position.x-primary.position.x,y:companion.position.y-primary.position.y)
+                XCTAssertGreaterThan(try XCTUnwrap(companion.path).boundingBox.width/2,phoneRadius)
+                XCTAssertGreaterThan(abs(initialOffset.x),phoneRadius)
+                wall=550;service.deliver(wallMilliseconds:wall)
+                XCTAssertNotEqual(companion.position.y-primary.position.y,initialOffset.y,"Companion follows a distinct local flight using the shared pose")
+                let before=bubbles.map(\.position)
+                hud.setCanvasShakeOffset(.init(x:7,y:-4))
+                for (bubble,position) in zip(bubbles,before) {
+                    XCTAssertEqual(bubble.position.x,position.x-7,accuracy:0.0001)
+                    XCTAssertEqual(bubble.position.y,position.y+4,accuracy:0.0001)
+                }
+            } else {
+                phoneRadius=radius;phoneDraws=draws;phonePosition=primary.position
+                XCTAssertEqual(primary.fillColor.cgColor.alpha,0.5,accuracy:0.0001)
+            }
+            hud.stopTutorialPulse();hud.stopTutorialPulse()
+            XCTAssertEqual(hud.activeSmokeCount,0);XCTAssertEqual(service.activeParticipantCount,0)
+            XCTAssertFalse(stage.children.contains{$0.name=="wild-meter-smoke"})
+            hud.dispose();hud.dispose()
+        }
+    }
     func testRenderedSolidOrangeSurvivesResizeAndRefill() throws {
         let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0})
         let timeouts=NativeSourceAppTimeoutOwner(),scene=SKScene(size:CGSize(width:440,height:40))

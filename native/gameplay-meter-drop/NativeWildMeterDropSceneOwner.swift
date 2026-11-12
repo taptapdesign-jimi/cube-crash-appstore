@@ -26,8 +26,16 @@ final class NativeWildMeterDropSceneOwner {
     private var presentation:NativeWildMeterDropPresentation?,handoff:NativeWildMeterDropNodeHandoff?
     private var stopAudio:(()->Void)?,endActivity:(()->Void)?,restoreDivider:(()->Void)?
     private var suspended=false,disposed=false,warmupReady=false,impactPhase=false,forwardedWarmup=false,interrupted=false
+    private var holdAtCarrierArrival=false,restartCarrierAudioOnResume=false
+    private var tutorialCarrierArrival=false
+    private var carrierResumeStart:Double?
+    private var carrierOpeningBounce=false
+    private(set) var carrierArrivalHeld=false
     var onDropStarted:(()->Void)?
+    var onCarrierArrived:(()->Void)?
+    var onCarrierPaint:((SKSpriteNode?)->Void)?
     private(set) var assetReady=false
+    var heldTutorialCarrier:SKSpriteNode? {carrierArrivalHeld && valid() ? presentation?.carrier:nil}
     var presentationMounted:Bool {presentation?.parent != nil}
     var restored:Bool {presentation?.runtime.restored == true}
     /// Actual retained carrier lifetime, including paused motion.
@@ -68,6 +76,14 @@ final class NativeWildMeterDropSceneOwner {
         self.renderEpoch=renderEpoch;self.isCurrent=isCurrent;self.stagePoint=stagePoint;self.makePlan=makePlan;self.makeHandoff=makeHandoff
     }
     private func valid()->Bool {guard !disposed else{return false};let current=isCurrent();return !disposed && current}
+    func pauseAtCarrierArrival() {holdAtCarrierArrival=true}
+    @discardableResult func resumeAfterCarrierArrival()->Bool {
+        guard carrierArrivalHeld,valid() else{return false}
+        carrierArrivalHeld=false;holdAtCarrierArrival=false
+        carrierOpeningBounce=true
+        clock?.suspend(suspended)
+        return true
+    }
     func start() {
         guard !disposed,request==nil,presentation==nil,valid() else{return}
         let newRequest=resources.prepare(arcade:arcade,capture:capture) { [weak self] result in
@@ -81,7 +97,9 @@ final class NativeWildMeterDropSceneOwner {
                 let owner=try NativeWildMeterDropPresentation(plan:plan,capture:self.capture,preparedTextures:textures,
                     stagePoint:self.stagePoint)
                 guard self.valid() else{owner.dispose();handoff.dispose();return}
+                self.tutorialCarrierArrival=plan.tutorialCarrierArrival
                 self.handoff=handoff;self.presentation=owner;stage.addChild(owner)
+                if plan.tutorialCarrierArrival {owner.onCarrierPaint={[weak self] node in self?.onCarrierPaint?(node)}}
                 owner.onTilePose={ [weak self] pose in guard let self,!self.disposed,self.valid() else{return};_ = self.handoff?.apply(pose)}
                 owner.onEvent={ [weak self] event in self?.receive(event) }
                 self.assetReady=true
@@ -100,16 +118,48 @@ final class NativeWildMeterDropSceneOwner {
     }
     private func startPhase(duration:Double,base:Double) {
         guard !disposed,valid() else{return}
-        let captured=attach(duration,{ [weak self] elapsed in
+        let slowArrival=tutorialCarrierArrival && base==0
+        let openingBounce=holdAtCarrierArrival && base==0
+        let bounceDuration=NativeWildMeterDropPlan.tutorialOpenBounceDurationFor(arcade:arcade)
+        let phaseDuration=duration+(slowArrival ? 0.22:0)+(openingBounce ? bounceDuration:0)
+        let captured=attach(phaseDuration,{ [weak self] clockElapsed in
             guard let self,!self.disposed,self.valid() else{return}
-            self.presentation?.advance(animationSeconds:base+elapsed,wallMilliseconds:self.wallNow(),renderEpoch:self.renderEpoch())
+            let elapsed=slowArrival ? (clockElapsed<=0.5 ? clockElapsed*0.28/0.5:clockElapsed-0.22):clockElapsed
+            if self.holdAtCarrierArrival && !self.carrierArrivalHeld && base==0 && elapsed>=0.28 {
+                self.presentation?.advance(animationSeconds:0.28,wallMilliseconds:self.wallNow(),renderEpoch:self.renderEpoch())
+                self.carrierResumeStart=clockElapsed
+                self.carrierArrivalHeld=true
+                self.clock?.suspend(true)
+                let stop=self.stopAudio;self.stopAudio=nil;stop?()
+                self.restartCarrierAudioOnResume=true
+                self.onCarrierArrived?()
+                return
+            }
+            if self.carrierArrivalHeld{return}
+            let resumed=base==0 && self.carrierResumeStart != nil
+            if self.carrierOpeningBounce,let start=self.carrierResumeStart {
+                let age=max(0,clockElapsed-start)
+                if age<bounceDuration {
+                    self.presentation?.advance(animationSeconds:0.28,wallMilliseconds:self.wallNow(),renderEpoch:self.renderEpoch(),carrierEmphasis:NativeWildMeterDropPlan.tutorialOpenBounce(at:age,arcade:self.arcade))
+                    return
+                }
+                self.carrierOpeningBounce=false
+                if self.restartCarrierAudioOnResume {
+                    self.restartCarrierAudioOnResume=false;self.stopAudio=self.onBeginAudio?()
+                }
+            }
+            // Addition/subtraction of the longer hold can end a root one ULP
+            // before genuine travel completion. Publish its exact final boundary.
+            let sourceTime=clockElapsed>=phaseDuration-1e-9 ? base+duration:
+                resumed ? max(0.28,base+elapsed-bounceDuration):base+elapsed
+            self.presentation?.advance(animationSeconds:sourceTime,wallMilliseconds:self.wallNow(),renderEpoch:self.renderEpoch())
         },{ [weak self] success in
             guard let self,!self.disposed,self.valid() else{return}
             if !success {self.interruptAcceptedAnimation()}
         })
         guard let captured else {onFailure?("Native meter Source clock root unavailable");return}
         guard valid() else {captured.cancel();return}
-        clock=captured;captured.suspend(suspended)
+        clock=captured;captured.suspend(suspended || carrierArrivalHeld)
     }
     private func receive(_ event:NativeWildMeterDropRuntime.Event) {
         guard !disposed,valid() else{return}
@@ -171,7 +221,7 @@ final class NativeWildMeterDropSceneOwner {
         presentation.onTilePose=nil;handoff?.dispose();handoff=nil
         return presentation.runtime.transferRestoredForeground(capture)
     }
-    func setCapturedChildSuspended(_ value:Bool) {guard !disposed else{return};suspended=value;clock?.suspend(value)}
+    func setCapturedChildSuspended(_ value:Bool) {guard !disposed else{return};suspended=value;clock?.suspend(value || carrierArrivalHeld)}
     /// Explicit Source kill is distinct from global pause/visibility.
     func interruptAcceptedAnimation() {
         guard !disposed,assetReady,valid(),!interrupted else{return}
@@ -189,6 +239,6 @@ final class NativeWildMeterDropSceneOwner {
         let restore=restoreDivider;restoreDivider=nil;restore?()
         // Obsolete generation disposal never mutates engine or replacement node.
         presentation?.dispose();presentation=nil;handoff?.dispose();handoff=nil
-        onDropStarted=nil;onReceipt=nil;onBeginActivity=nil;onBeginAudio=nil;onBeginDividerMask=nil;onFailure=nil
+        onDropStarted=nil;onCarrierArrived=nil;onCarrierPaint=nil;onReceipt=nil;onBeginActivity=nil;onBeginAudio=nil;onBeginDividerMask=nil;onFailure=nil
     }
 }

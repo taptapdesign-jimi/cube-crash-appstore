@@ -827,7 +827,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         let x:CGFloat,y:CGFloat,duration:Double,scale:CGFloat
     }
     private var cloudDrifts:[CloudDrift]=[]
-    private var phoneRearSkyProgress:[CGFloat]=[]
+    private var rearSkyProgress:[CGFloat]=[]
     private var previousCloudChoices:[[String]]=[]
     private static let cloudIdleKey="native-home-cloud-idle"
     static let heroArtworkScale: CGFloat = 1.05
@@ -1153,9 +1153,9 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
                 duration:Double.random(in:puffy ? 5...7:8...10),
                 scale:CGFloat.random(in:puffy ? 1.06...1.10:1.02...1.04))
         }
-        if cloudBaseCount==24 {
-            phoneRearSkyProgress=Array(repeating:0.5,count:homeClouds.count)
-            // 11 upper / 16 middle-lower clouds across the three banks (~40/60).
+        do {
+            rearSkyProgress=Array(repeating:0.5,count:homeClouds.count)
+            // Distribute the clouds through both halves of the bounded sky.
             // Choose once per Home visit; relayout/slide/foreground never reroll.
             let upperCounts=[4,4,3].shuffled()
             for group in 0..<3 {
@@ -1168,7 +1168,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
                     var progress=(CGFloat(local)+CGFloat.random(in:0.15...0.85))/CGFloat(count)
                     if upper && local==0 {progress=0}
                     if !upper && local==count-1 {progress=1}
-                    phoneRearSkyProgress[index]=(upper ? 0:0.5)+progress*0.5
+                    rearSkyProgress[index]=(upper ? 0:0.5)+progress*0.5
                 }
             }
         }
@@ -1281,6 +1281,23 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
 
     private var sharedCloudLayers:[CALayer] {homeClouds.map{$0.layer}}
     private var activeCloudLayers:[CALayer] {homeClouds.enumerated().filter{activeCloudGroups.contains(cloudGroup($0.offset))}.map{$0.element.layer}}
+    private func cloudIdlePoses(_ index:Int)->[CATransform3D] {
+        let drift=cloudDrifts[index]
+        let peak=CATransform3DScale(CATransform3DMakeTranslation(drift.x*1.55*bounds.width*0.90*1.60,drift.y*0.90,0),drift.scale,drift.scale,1)
+        if cloudFrontFlags[index] {return [CATransform3DIdentity,peak,CATransform3DIdentity]}
+        let puff=drift.scale-1
+        let rise=CATransform3DScale(CATransform3DMakeTranslation(
+            drift.x*1.55*bounds.width*0.90*1.60,drift.y*0.90,0),drift.scale,1+puff*0.75,1)
+        let fall=CATransform3DScale(CATransform3DMakeTranslation(
+            -drift.x*1.55*bounds.width*0.45,-drift.y*0.65,0),1-puff*0.30,1+puff*0.20,1)
+        return [CATransform3DIdentity,rise,fall,CATransform3DIdentity]
+    }
+    private func cloudVerticalInsets(_ index:Int,size:CGSize)->(top:CGFloat,bottom:CGFloat) {
+        let rect=CGRect(x:-size.width/2,y:-size.height/2,width:size.width,height:size.height)
+        let poses=cloudDrifts.indices.contains(index) ? cloudIdlePoses(index):[CATransform3DIdentity]
+        let frames=poses.map{rect.applying(CATransform3DGetAffineTransform($0))}
+        return (-(frames.map(\.minY).min() ?? rect.minY),frames.map(\.maxY).max() ?? rect.maxY)
+    }
     private func startCloudIdle() {
         guard cloudDrifts.count==homeClouds.count else{return}
         for (index,cloud) in homeClouds.enumerated() {
@@ -1300,21 +1317,10 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
             }
             cloud.layer.speed=1;cloud.layer.timeOffset=0;cloud.layer.beginTime=0
             let drift=cloudDrifts[index]
-            let peak=CATransform3DScale(CATransform3DMakeTranslation(drift.x*1.55*bounds.width*0.90*1.60,drift.y*0.90,0),drift.scale,drift.scale,1)
             let animation=CAKeyframeAnimation(keyPath:"transform")
-            animation.values=[CATransform3DIdentity,peak,CATransform3DIdentity].map{NSValue(caTransform3D:$0)}
-            animation.keyTimes=[0,0.5,1];animation.duration=drift.duration
-            if !cloudFrontFlags[index] {
-                // One continuous compositor loop: float through both sides of
-                // rest while the cloud gently inflates and softens its shape.
-                let puff=drift.scale-1
-                let rise=CATransform3DScale(CATransform3DMakeTranslation(
-                    drift.x*1.55*bounds.width*0.90*1.60,drift.y*0.90,0),drift.scale,1+puff*0.75,1)
-                let fall=CATransform3DScale(CATransform3DMakeTranslation(
-                    -drift.x*1.55*bounds.width*0.45,-drift.y*0.65,0),1-puff*0.30,1+puff*0.20,1)
-                animation.values=[CATransform3DIdentity,rise,fall,CATransform3DIdentity].map{NSValue(caTransform3D:$0)}
-                animation.keyTimes=[0,0.30,0.72,1]
-            }
+            animation.values=cloudIdlePoses(index).map{NSValue(caTransform3D:$0)}
+            animation.keyTimes=cloudFrontFlags[index] ? [0,0.5,1]:[0,0.30,0.72,1]
+            animation.duration=drift.duration
             animation.timingFunctions=Array(repeating:CAMediaTimingFunction(name:.easeInEaseOut),count:(animation.values?.count ?? 3)-1)
             animation.repeatCount = .infinity
             cloud.layer.add(animation,forKey:Self.cloudIdleKey)
@@ -1379,6 +1385,11 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         logoIdleView.bounds=logoView.bounds;logoIdleView.center=CGPoint(x:104*logoScale,y:63.5*logoScale)
         logoImage.bounds = CGRect(x: 0, y: 0, width: 208*logoScale, height: logoHeight)
         logoImage.center = CGPoint(x:104*logoScale,y:55.5*logoScale)
+        // Original logo alpha starts at row3 of its280×168 canvas (the ear).
+        // Use rest geometry so route/idle transforms cannot move the sky bounds.
+        let logoPaintScale=min(logoImage.bounds.width/280,logoImage.bounds.height/168)
+        let logoEarTop=logoView.center.y-logoHeight/2-8*logoScale+(logoHeight-168*logoPaintScale)/2+3*logoPaintScale
+        let cloudSkyTop=max(0,logoEarTop-10)
         let shardCenters = [
             CGPoint(x: -208*0.12 + 29.5, y: -127*0.16 + 29.5 - 8),
             CGPoint(x: 208 + 208*0.08 - 29.5 + 8, y: -127*0.16 + 29.5 - 8),
@@ -1454,7 +1465,7 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
                     let shell=cloudRouteShells[index]
                     let front=cloudFrontFlags[index]
                     let originalWidth=cloudWidths[slot]*heroSide/360*(front ? 0.90:1)
-                    let skyProgress=phoneRearSkyProgress.indices.contains(index) ? phoneRearSkyProgress[index]:min(1,max(0,(cloudCenters[slot].y-0.13)/0.67))
+                    let skyProgress=rearSkyProgress.indices.contains(index) ? rearSkyProgress[index]:min(1,max(0,(cloudCenters[slot].y-0.13)/0.67))
                     var w=originalWidth
                     if !tablet && !front {
                         let edge=skyProgress<0.20 || skyProgress>0.90
@@ -1465,18 +1476,10 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
                     var size=CGSize(width:w,height:w*ratio)
                     var centerY=heroTop+heroSide*cloudCenters[slot].y
                     if !front {
-                        let drift=cloudDrifts.indices.contains(index) ? cloudDrifts[index]:nil
-                        let lowerEnvelope=size.height*(drift?.scale ?? 1.10)/2+abs(drift?.y ?? 38)*0.90
-                        if tablet {
-                            centerY=heroTop+heroSide*(0.50+(cloudCenters[slot].y-0.50)*1.55+0.05)
-                            centerY=min(centerY,tabletDividerY-lowerEnvelope-2)
-                        } else {
-                            // Phone clouds occupy the full sky, independently of
-                            // the hero's square. The highest bank may bleed at
-                            // the screen top; the lowest full idle envelope ends
-                            // at the divider, retaining X/depth/size/clock owners.
-                            centerY=skyProgress*max(0,tabletDividerY-lowerEnvelope-2)
-                        }
+                        let envelope=cloudVerticalInsets(index,size:size)
+                        let upperCenter=cloudSkyTop+envelope.top
+                        let lowerCenter=max(upperCenter,tabletDividerY-envelope.bottom-2)
+                        centerY=upperCenter+skyProgress*(lowerCenter-upperCenter)
                     }
                     if front {
                         // Fixed lower band: the cloud's full envelope stays below
@@ -1493,6 +1496,8 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
                         if size.height>maxHeight {size=CGSize(width:maxHeight/max(0.01,ratio),height:maxHeight);w=size.width}
                         centerY=limit+size.height*0.70+max(0,-idleY)*0.90*1.35
                     }
+                    let envelope=cloudVerticalInsets(index,size:size)
+                    centerY=min(max(centerY,cloudSkyTop+envelope.top),max(cloudSkyTop+envelope.top,tabletDividerY-envelope.bottom-2))
                     let extraLeft:CGFloat=group==1 && slot==0 ? originalWidth*0.20+min(32,width*0.08):0
                     let center=CGPoint(x:width/2-heroSide/2+heroSide*cloudCenters[slot].x-extraLeft,y:centerY)
                     shell.bounds=CGRect(origin:.zero,size:size)
@@ -1672,6 +1677,13 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         }
         for index in navIdleShells.indices {
             let layer=navIdleShells[index].layer
+            // Background can interrupt selection before its new idle profile
+            // starts. Resume the shell even when replacing that profile, or its
+            // image/contact descendants remain frozen in the pressed pose.
+            if layer.speed == 0 {
+                let offset=layer.timeOffset;layer.speed=1;layer.timeOffset=0;layer.beginTime=0
+                layer.beginTime=layer.convertTime(CACurrentMediaTime(),from:nil)-offset
+            }
             let activeDie=index==1 && selectedSlide==1
             let prior=layer.animation(forKey:"native-home-nav-idle")
             let priorActive=(prior?.value(forKey:"nativeHomeActiveDie") as? NSNumber)?.boolValue ?? false
@@ -1714,9 +1726,6 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
                     handoff.timingFunction=CAMediaTimingFunction(name:.easeInEaseOut)
                     layer.add(handoff,forKey:"native-home-nav-profile-handoff")
                 }
-            }else if layer.speed == 0 {
-                let offset=layer.timeOffset;layer.speed=1;layer.timeOffset=0;layer.beginTime=0
-                layer.beginTime=layer.convertTime(CACurrentMediaTime(),from:nil)-offset
             }
         }
         startCTAIdleBounce()

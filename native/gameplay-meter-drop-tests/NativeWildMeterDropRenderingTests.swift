@@ -123,6 +123,17 @@ nonisolated final class NativeWildMeterDropRenderingTests:XCTestCase {
         _=catalog.prepare(arcade:false,capture:capture){backpack=try? $0.get()}
         XCTAssertEqual(backpack?.count,20);XCTAssertEqual(catalog.loadCount,1)
         XCTAssertEqual(backpack?[NativeWildMeterDropPlan.backpackSources[0]]?.size(),CGSize(width:379,height:438))
+        let closed=try XCTUnwrap(backpack?[NativeWildMeterDropPlan.backpackSources[0]])
+        let closedImage=try XCTUnwrap(catalog.closedCarrierImage(for:closed))
+        XCTAssertEqual(closedImage.width,379);XCTAssertEqual(closedImage.height,438)
+        XCTAssertTrue(catalog.closedCarrierImage(for:closed) === closedImage)
+        XCTAssertNotNil(catalog.closedCarrierImage(for:try XCTUnwrap(crate[NativeWildMeterDropPlan.crateSources[0]])))
+        XCTAssertNil(catalog.closedCarrierImage(for:SKTexture(cgImage:closedImage)),"A different texture cannot borrow the live publication's carrier")
+        XCTAssertNil(catalog.closedCarrierImage(for:try XCTUnwrap(backpack?[NativeWildMeterDropPlan.backpackSources[1]])))
+        XCTAssertGreaterThan(catalog.retainedClosedCarrierBytes,1_000_000)
+        XCTAssertLessThan(catalog.retainedClosedCarrierBytes,1_200_000,"Only the two closed source rasters are retained")
+        catalog.dispose();catalog.dispose()
+        XCTAssertNil(catalog.closedCarrierImage(for:closed));XCTAssertEqual(catalog.retainedClosedCarrierBytes,0)
     }
     @MainActor
     func testUnavailableOriginalArtworkFailsAdmissionAndDisposedWaiterCompletesOnce() async {

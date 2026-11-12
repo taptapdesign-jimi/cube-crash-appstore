@@ -9,6 +9,7 @@ final class NativeScoreOwner {
     private var sheet:NativeScoreModal?,lease=0
     private var backpack:NativeGameplayBackpackController?
     private var observers:[NSObjectProtocol]=[]
+    var onTutorialCollectionAdmitted:(()->Void)?
     var onReadDie:((String)->Bool)?
     var onFeedback:((String)->Void)?
     init(gameplay:NativeGameplayViewController,root:URL,progression:@escaping ()->NativeProgressionState) {
@@ -23,14 +24,14 @@ final class NativeScoreOwner {
     func presentBackpack() {
         guard let gameplay,backpack==nil,sheet==nil,gameplay.presentedViewController==nil,
               gameplay.boardScene?.navigationLocked != true,gameplay.engine.state.terminal==nil,
-              gameplay.engine.state.tutorial?.shouldLockHUD != true,
+              gameplay.boardScene?.tutorialInfoHUDUnlocked == true,
               UIApplication.shared.applicationState == .active else{return}
         let state=gameplay.engine.state
         let sections=NativeBackpackCatalog.sections(progression()).filter { section in
             state.mode == .journey && section.dice.contains {($0.board-1)/10 == (state.board-1)/10}
         }
         guard let app=gameplay.parent as? NativeAppController else{return}
-        let controller=NativeGameplayBackpackController(root:root,sections:sections,includesArcade:state.mode == .arcade,motion:NativeRouteMotion(home:app.home,hub:app.hub))
+        let controller=NativeGameplayBackpackController(root:root,sections:sections,includesArcade:state.mode == .arcade,motion:NativeRouteMotion(home:app.home,hub:app.hub),tutorialGuidance:state.tutorial != nil && !progression().firstPlayTutorialComplete && !progression().tutorialCollectionGuidanceSeen)
         backpack=controller;lease += 1;let token=lease;gameplay.boardScene?.setBackpackPresented(true);gameplay.setSuspended(true);onFeedback?("exit-modal");onFeedback?("collection-icon-speech")
         // A collection visit acknowledges only the notifications it displayed, and
         // only after dismissal returns to this exact board. Discovery never opens UI.
@@ -49,6 +50,12 @@ final class NativeScoreOwner {
             gameplay.setSuspended(false)
             gameplay.boardScene?.setBackpackPresented(false)
             gameplay.boardScene?.completeBackpackVisit()
+            gameplay.onTutorialBackpackVisitClosed?()
+        }
+        controller.onTutorialGuidanceAdmitted={[weak self,weak gameplay] in
+            guard let self,let gameplay,self.lease==token,self.gameplay === gameplay,
+                  gameplay.engine.state.generation==state.generation else{return}
+            self.onTutorialCollectionAdmitted?()
         }
         controller.onReadDie={[weak self] id in self?.onReadDie?(id) ?? false}
         controller.onFeedback={[weak self] cue in self?.onFeedback?(cue)}
@@ -57,7 +64,7 @@ final class NativeScoreOwner {
     func present(combo:Bool) {
         guard let gameplay,sheet==nil,gameplay.presentedViewController==nil,
             gameplay.boardScene?.navigationLocked != true,gameplay.engine.state.terminal==nil,
-            gameplay.engine.state.tutorial?.shouldLockHUD != true,
+            gameplay.boardScene?.tutorialInfoHUDUnlocked == true,
             UIApplication.shared.applicationState == .active else{return}
         gameplay.setSuspended(true);lease += 1;let token=lease
         let modal=NativeScoreModal(model:.init(state:gameplay.engine.state,progression:progression(),combo:combo),root:root)
@@ -66,7 +73,7 @@ final class NativeScoreOwner {
         modal.onClosed = { [weak self] in guard let self,self.lease==token else{return};self.sheet=nil;self.gameplay?.setSuspended(false) }
         gameplay.present(modal,animated:false)
     }
-    func dispose() {lease += 1;backpack?.dispose();backpack?.dismiss(animated:false);backpack=nil;sheet?.dispose();sheet?.dismiss(animated:false);sheet=nil;for token in observers {NotificationCenter.default.removeObserver(token)};observers.removeAll();gameplay?.onHelp=nil;gameplay?.onScore=nil;gameplay?.onCombo=nil;gameplay=nil;onFeedback=nil;onReadDie=nil}
+    func dispose() {lease += 1;backpack?.dispose();backpack?.dismiss(animated:false);backpack=nil;sheet?.dispose();sheet?.dismiss(animated:false);sheet=nil;for token in observers {NotificationCenter.default.removeObserver(token)};observers.removeAll();gameplay?.onHelp=nil;gameplay?.onScore=nil;gameplay?.onCombo=nil;gameplay=nil;onFeedback=nil;onReadDie=nil;onTutorialCollectionAdmitted=nil}
 }
 
 /// Gameplay retains its exact paused generation while the scoped collection modal is visible.
@@ -90,11 +97,16 @@ final class NativeGameplayBackpackController:UIViewController {
     private(set) var returnSelectionPress:UILongPressGestureRecognizer?
     private(set) var switchingDetail=false
     private var foreground=true,closing=false,entered=false,admitted=false,disposed=false
+    var onTutorialGuidanceAdmitted:(()->Void)?
+    private let tutorialGuidance:Bool
+    private var tutorialDetailVisited=false
+    private(set) var tutorialHand:NativeCollectionTutorialHand?
     var onReadDie:((String)->Bool)?
     var onHUDCloseRequested:(()->Void)?
     var onCloseRequested:(()->Void)?,onClosed:(()->Void)?,onFeedback:((String)->Void)?
-    init(root:URL,sections:[NativeBackpackCatalog.Section],includesArcade:Bool,motion:NativeRouteMotion) {
+    init(root:URL,sections:[NativeBackpackCatalog.Section],includesArcade:Bool,motion:NativeRouteMotion,tutorialGuidance:Bool=false) {
         assets=JimiV9Artwork(resourceRoot:root);self.sections=sections;self.includesArcade=includesArcade;self.motion=motion
+        self.tutorialGuidance=tutorialGuidance
         super.init(nibName:nil,bundle:nil);modalPresentationStyle = .overFullScreen
     }
     required init?(coder:NSCoder){fatalError("Use scoped initializer")}
@@ -113,15 +125,8 @@ final class NativeGameplayBackpackController:UIViewController {
         heading.text=includesArcade ? "Box":"Backpack";heading.textAlignment = .center
         heading.font=assets.font(size:28,weight:"ExtraBold");heading.textColor=NativeTextPalette.modalTitle
         idle.addSubview(heading)
-        let world=sections.first?.title ?? "Arcade"
-        let copy:String
-        switch world {
-        case "Forest":copy="Little wonders, big forest magic!"
-        case "Beach":copy="Splashy pals, sunny surprises!"
-        case "Area 55":copy="Cosmic pals, out-of-this-world surprises!"
-        default:copy="Boom, swoop, hop — ready to play!"
-        }
-        subtitle.text="\(world) \(includesArcade ? "crate":"backpack") items\n\(copy)";subtitle.numberOfLines=0;subtitle.textAlignment = .center
+        subtitle.text=includesArcade ? "Arcade crate items\nBoom, swoop, hop — ready to play!":"Meet your little helpers.\nThey’ll drop in as you play."
+        subtitle.numberOfLines=0;subtitle.textAlignment = .center
         subtitle.font=assets.font(size:18,weight:"Medium");subtitle.textColor=NativeTextPalette.subtitle
         subtitle.attributedText=NativeModalTypography.attributedSubtitle(subtitle.text ?? "",font:subtitle.font)
         idle.addSubview(subtitle)
@@ -168,6 +173,9 @@ final class NativeGameplayBackpackController:UIViewController {
         JimiNativeModalV10.paperLayout(paper,bounds:idle.bounds,bottomExtension:96)
         screen?.frame=CGRect(x:0,y:subtitle.frame.maxY+24,width:width,height:max(0,height-subtitle.frame.maxY-24-32))
         JimiNativeModalV10.layoutClose(closeButton,frame:CGRect(x:width-42,y:-10,width:52,height:52),modalTilt:restTiltDegrees)
+        if tutorialGuidance,admitted,detail==nil,!switchingDetail {
+            screen?.layoutIfNeeded();screen?.grid.layoutIfNeeded();updateTutorialHand()
+        }else{tutorialHand?.layout()}
     }
     override func viewDidAppear(_ animated:Bool) {
         super.viewDidAppear(animated);guard !closing,!entered,!disposed else{return};entered=true;card.alpha=1
@@ -183,7 +191,9 @@ final class NativeGameplayBackpackController:UIViewController {
         UIView.animate(withDuration:0.5){self.backdrop.alpha=1}
     }
     private func completeEnter(){
-        guard !closing,!disposed else{return};admitted=true
+        guard !closing,!disposed else{return}
+        if !admitted && tutorialGuidance {onTutorialGuidanceAdmitted?();onTutorialGuidanceAdmitted=nil}
+        admitted=true
         screen?.setEntrySelectionEnabled(false)
         JimiNativeModalV10.startIdle(on:idle,key:"backpack.collection.idle")
         view.isUserInteractionEnabled=foreground && !switchingDetail;screen?.isUserInteractionEnabled=foreground && !switchingDetail
@@ -191,7 +201,22 @@ final class NativeGameplayBackpackController:UIViewController {
         guard !switchingDetail else{return}
         returningDetail=false;returnSelectionPress?.isEnabled=false;card.isUserInteractionEnabled=true
         let next=pendingDie;pendingDie=nil
-        if let next,foreground {open(next)}
+        if let next,foreground {open(next)}else{updateTutorialHand()}
+    }
+    private func updateTutorialHand(){
+        guard tutorialGuidance,foreground,!closing,!disposed else{return}
+        let target:UIView,host:UIView,phase:String,mirrored:Bool
+        if let detail {
+            guard !returningDetail,detail.card.isUserInteractionEnabled,let parent=detail.close.superview else{return}
+            target=detail.close;host=parent;phase="detail-close";mirrored=true
+        }else{
+            guard admitted,!switchingDetail else{return}
+            if tutorialDetailVisited {target=closeButton;phase="collection-close";mirrored=true}
+            else {guard let first=screen?.firstUnlockedVisibleDieView else{tutorialHand?.retire();return};target=first;phase="first-die";mirrored=false}
+            host=idle
+        }
+        if tutorialHand==nil {tutorialHand=NativeCollectionTutorialHand(image:assets.image("assets/hand-pointer.png"))}
+        tutorialHand?.point(at:target,in:host,mirrored:mirrored,phase:phase,viewport:view,firstDieCorner:true)
     }
     @objc private func returnSelectionPressed(_ gesture:UILongPressGestureRecognizer){
         guard gesture.state == .began else{return}
@@ -207,6 +232,7 @@ final class NativeGameplayBackpackController:UIViewController {
     }
     private func open(_ die:NativeBackpackCatalog.Die) {
         guard foreground,(admitted || screen?.entrySelectionEnabled==true),!closing,!disposed,!switchingDetail,detail==nil,presentedViewController==nil else{return}
+        tutorialHand?.retire()
         let entryPose:([UIView],[CATransform3D])? = admitted ? nil:([card,flip],[card,flip].map{($0.layer.presentation() ?? $0.layer).transform})
         collectionEntryEpoch += 1;screen?.setEntrySelectionEnabled(false)
         screen?.setAlertsActive(false)
@@ -218,6 +244,13 @@ final class NativeGameplayBackpackController:UIViewController {
         let detail=NativeBackpackDetail(die:die,assets:assets,motion:motion)
         detail.usesParentBackdrop=true;detail.entersImmediately=true
         self.detail=detail;switchingDetail=true;admitted=false;view.isUserInteractionEnabled=false
+        detail.onEntered={[weak self,weak detail] in
+            guard let self,let detail,self.detail === detail,!self.disposed,!self.closing else{return}
+            self.tutorialDetailVisited=true;self.updateTutorialHand()
+        }
+        detail.onLayout={[weak self,weak detail] in
+            guard let self,self.detail === detail else{return};self.tutorialHand?.layout()
+        }
         detail.onSpeechRequested={[weak self] in self?.onFeedback?("scene-speech:"+NativeRecordedSceneSpeech.scene(forDie:die.id))}
         detail.onPresentationStarted={[weak self,weak detail] in
             guard let self,let detail,self.detail === detail,!self.disposed,self.foreground else{return}
@@ -226,6 +259,7 @@ final class NativeGameplayBackpackController:UIViewController {
         }
         detail.onCloseRequested={[weak self,weak detail] in
             guard let self,self.detail === detail,!self.disposed else{return}
+            self.tutorialHand?.retire()
             self.returningDetail=true;self.pendingDie=nil
             self.onFeedback?("modal-close")
             self.scheduleExchange(after:0.65*0.4){[weak self] in self?.enterCollection()}
@@ -326,9 +360,12 @@ final class NativeGameplayBackpackController:UIViewController {
         else if value,layer.speed==0 {let t=layer.timeOffset;layer.speed=1;layer.timeOffset=0;layer.beginTime=0;layer.beginTime=layer.convertTime(CACurrentMediaTime(),from:nil)-t}
         view.isUserInteractionEnabled=value && (admitted || screen?.entrySelectionEnabled==true) && !closing && !switchingDetail;screen?.isUserInteractionEnabled=value && (admitted || screen?.entrySelectionEnabled==true) && detail==nil
         if value,!admitted {admitReturnTap()}
+        tutorialHand?.view.isHidden = !value
+        if value {updateTutorialHand()}
     }
     @objc private func close(){
         guard admitted,!closing,!disposed,foreground,detail==nil else{return};closeButton.playArtworkTapFeedback();modalDrag?.cancel(preservePose:true);closing=true;view.isUserInteractionEnabled=false
+        tutorialHand?.retire()
         screen?.setAlertsActive(false);onCloseRequested?();onFeedback?("modal-close")
         if UIAccessibility.isReduceMotionEnabled {onHUDCloseRequested?();finishClose();return}
         CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in self?.finishClose()}
@@ -342,5 +379,70 @@ final class NativeGameplayBackpackController:UIViewController {
         }
     }
     private func finishClose(){guard !disposed else{return};seenUnreadDice=screen?.seenUnreadDice ?? [];let completed=onClosed;dispose();dismiss(animated:false,completion:completed)}
-    func dispose(){guard !disposed else{return};screen?.setEntrySelectionEnabled(false);screen?.setAlertsActive(false);onReadDie=nil;modalDrag?.dispose();modalDrag=nil;disposed=true;pendingDie=nil;returningDetail=false;returnSelectionPress.map{view.removeGestureRecognizer($0)};returnSelectionPress=nil;exchangeGeneration += 1;exchangeMarker.removeAllAnimations();exchangeMarker.removeFromSuperlayer();motion.cancel();detail?.dispose();detail?.dismiss(animated:false);detail=nil;screen?.onClose=nil;screen?.onDie=nil;[card,restTilt,flip,idle,backdrop,closeButton].forEach{$0.layer.removeAllAnimations()};onHUDCloseRequested=nil;onCloseRequested=nil;onClosed=nil;onFeedback=nil}
+    func dispose(){guard !disposed else{return};if isViewLoaded {NativeTutorialHandMotion.removeExits(in:view)};if let detail,detail.isViewLoaded{NativeTutorialHandMotion.removeExits(in:detail.view)};tutorialHand?.retire(animated:false);tutorialHand=nil;screen?.setEntrySelectionEnabled(false);screen?.setAlertsActive(false);onReadDie=nil;onTutorialGuidanceAdmitted=nil;modalDrag?.dispose();modalDrag=nil;disposed=true;pendingDie=nil;returningDetail=false;returnSelectionPress.map{view.removeGestureRecognizer($0)};returnSelectionPress=nil;exchangeGeneration += 1;exchangeMarker.removeAllAnimations();exchangeMarker.removeFromSuperlayer();motion.cancel();detail?.dispose();detail?.dismiss(animated:false);detail=nil;screen?.onClose=nil;screen?.onDie=nil;[card,restTilt,flip,idle,backdrop,closeButton].forEach{$0.layer.removeAllAnimations()};onHUDCloseRequested=nil;onCloseRequested=nil;onClosed=nil;onFeedback=nil}
+}
+
+/// One advisory hand follows the active modal's own transform/pause subtree.
+/// Two finite taps settle to a static pointing pose, with no scheduler or loop.
+@MainActor
+final class NativeCollectionTutorialHand {
+    let view=UIView()
+    private static let closeAngle:CGFloat = .pi/18
+    private let image=UIImageView()
+    private weak var target:UIView?,host:UIView?,viewport:UIView?
+    private var mirrored=false,firstDieCorner=false
+    private(set) var phase:String?
+    init(image:UIImage?){
+        self.image.image=image;self.image.contentMode = .scaleAspectFit
+        view.isUserInteractionEnabled=false;view.accessibilityIdentifier="native.tutorial.collection-hand"
+        view.addSubview(self.image)
+    }
+    func point(at target:UIView,in host:UIView,mirrored:Bool,phase:String,viewport:UIView?=nil,firstDieCorner:Bool=false){
+        let changed=self.target !== target || self.host !== host || self.phase != phase
+        if changed,self.phase != nil,let previousHost=self.host {NativeTutorialHandMotion.exit(image,in:previousHost)}
+        self.target=target;self.host=host;self.viewport=viewport;self.mirrored=mirrored;self.phase=phase;self.firstDieCorner=firstDieCorner
+        if view.superview !== host {host.addSubview(view)}else{host.bringSubviewToFront(view)}
+        view.isHidden=false;view.accessibilityValue=phase;layout()
+        if changed {NativeTutorialHandMotion.enter(image)}
+        guard changed,!UIAccessibility.isReduceMotionEnabled else{return}
+        let pointsClose=phase=="detail-close" || phase=="collection-close"
+        let tap=CAKeyframeAnimation(keyPath:"transform")
+        tap.duration=1.4;tap.repeatCount=2;tap.keyTimes=[0,0.32,0.46,0.65,1]
+        tap.values=zip([0.0,1.0,1.0,0.0,0.0],[1.0,1.0,0.9,1.0,1.0]).map{direction,scale in
+            let translation=CATransform3DMakeTranslation((!pointsClose && mirrored ? 1:-1)*direction*5,-direction*5,0)
+            let rotated=CATransform3DRotate(translation,pointsClose ? Self.closeAngle:0,0,0,1)
+            return NSValue(caTransform3D:CATransform3DScale(rotated,scale,scale,1))
+        }
+        view.layer.add(tap,forKey:"tutorial.collection-hand.tap")
+    }
+    func layout(){
+        guard let target,let host else{return}
+        let viewport=self.viewport ?? host
+        let origin=host.convert(CGPoint.zero,to:viewport),unit=host.convert(CGPoint(x:1,y:0),to:viewport)
+        let projectionScale=max(0.01,hypot(unit.x-origin.x,unit.y-origin.y))
+        let width=NativeTutorialOverlay.handWidth(in:viewport.bounds.width)/projectionScale
+        let height=width*(image.image?.size.height ?? 180)/max(1,image.image?.size.width ?? 180)
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        view.bounds=CGRect(x:0,y:0,width:width,height:height)
+        let pointsClose=phase=="detail-close" || phase=="collection-close"
+        // The original176px hand has its index fingertip centred at(20,35).
+        // Close hints extend down/right toward the screen edge from the X fingertip.
+        let corner=phase=="first-die" && firstDieCorner
+        view.layer.anchorPoint=pointsClose || corner ? CGPoint(x:20/176.0,y:35/176.0):CGPoint(x:mirrored ? 0.84:0.16,y:0.12)
+        if pointsClose,let glyph=(target as? UIButton)?.imageView,!glyph.bounds.isEmpty {
+            view.layer.position=glyph.convert(CGPoint(x:glyph.bounds.midX,y:glyph.bounds.midY),to:host)
+        }else{
+            let tip=corner ? CGPoint(x:target.bounds.maxX-target.bounds.width*0.1,y:target.bounds.maxY-target.bounds.height*0.1):CGPoint(x:target.bounds.midX,y:target.bounds.midY)
+            view.layer.position=target.convert(tip,to:host)
+        }
+        if pointsClose {
+            let point=host.convert(view.layer.position,to:viewport)
+            view.layer.position=host.convert(CGPoint(x:point.x+4,y:point.y+8),from:viewport)
+        }
+        view.transform=pointsClose ? CGAffineTransform(rotationAngle:Self.closeAngle):.identity
+        image.bounds=view.bounds;image.center=CGPoint(x:width/2,y:height/2)
+        image.transform=CGAffineTransform(scaleX:!pointsClose && mirrored ? -1:1,y:1)
+        CATransaction.commit()
+    }
+    func retire(animated:Bool=true){if animated,!view.isHidden,let host {NativeTutorialHandMotion.exit(image,in:host)};image.layer.removeAllAnimations();view.layer.removeAllAnimations();view.removeFromSuperview();target=nil;host=nil;viewport=nil;phase=nil}
 }

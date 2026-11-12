@@ -2,6 +2,21 @@ import XCTest
 @testable import StackToSixGameplay
 
 final class NativeSourceTutorialRepairTests:XCTestCase {
+    func testEveryPresentSpecialBlocksBothTutorialRepairPaths() {
+        for archetype in NativeWildArchetype.allCases {
+            var state=NativeBoardState(tiles:[NativeTile(id:"target",cell:.init(column:0,row:0),value:5),NativeTile(id:"special",cell:.init(column:1,row:0),value:0,archetype:archetype)],moves:7)
+            var tutorial=NativeTutorialState();tutorial.active=false;tutorial.completionAssist=true;tutorial.guideCompleted=true;state.tutorial=tutorial
+            let engine=NativeGameplayEngine(state:state,recordedRandomChoices:[0])
+            XCTAssertNil(NativeTutorialRules.finalChanceValue(state:state))
+            XCTAssertFalse(engine.claimTutorialFinalChance().accepted)
+            for singleOnly in [false,true] {XCTAssertNil(engine.beginSourceTutorialRepair(physical:state,singleOnly:singleOnly,blocked:false))}
+            XCTAssertEqual(engine.state,state)
+            state.tiles.removeAll{$0.id=="special"}
+            XCTAssertEqual(NativeTutorialRules.finalChanceValue(state:state),1)
+            let cleared=NativeGameplayEngine(state:state,recordedRandomChoices:[0])
+            XCTAssertEqual(cleared.beginSourceTutorialRepair(physical:state,singleOnly:true,blocked:false)?.accepted,true)
+        }
+    }
     func testExactComplementUsesActualRowMajorCellMathAndDoesNotDebitMoves(){
         var state=NativeBoardState(tiles:[NativeTile(id:"target",cell:.init(column:0,row:0),value:5)],moves:7)
         var tutorial=NativeTutorialState();tutorial.active=false;tutorial.completionAssist=true;tutorial.guideCompleted=true;state.tutorial=tutorial

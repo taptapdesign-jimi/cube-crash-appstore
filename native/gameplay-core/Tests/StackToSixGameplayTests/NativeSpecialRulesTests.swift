@@ -47,7 +47,7 @@ final class NativeSpecialRulesTests: XCTestCase {
     func testWildMeterFillRateAndReadinessBoundary() {
         XCTAssertEqual(NativeWildMeterRules.increment(base:0.22,mode:.arcade,board:1,spawnCount:0),0.253,accuracy:0.000001)
         XCTAssertEqual(NativeWildMeterRules.increment(base:0.10,mode:.journey,board:1,spawnCount:2),0.06,accuracy:0.000001)
-        XCTAssertEqual(NativeWildMeterRules.increment(base:0.10,mode:.arcade,board:8,spawnCount:2,tutorialSlow:true),0.0018,accuracy:0.000001)
+        XCTAssertEqual(NativeWildMeterRules.increment(base:0.10,mode:.arcade,board:8,spawnCount:2,tutorialSlow:true),0.018,accuracy:0.000001)
         XCTAssertEqual(NativeWildMeterRules.permission(meter:0.999999).action,.allow)
         XCTAssertEqual(NativeWildMeterRules.permission(meter:0.999998).reason,"wild-meter-not-ready")
     }

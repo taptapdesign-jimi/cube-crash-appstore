@@ -21,12 +21,12 @@ final class NativeRegularSixSharedLayers {
     var activeRootCount:Int{(shards?.activeRootCount ?? 0)+(smoke?.activeRootCount ?? 0)}
     init(context:NativeRegularSixSharedContext,canvas:SKNode,tile:SKNode,origin:CGPoint,tileSize:CGFloat,
          destinationDepth:CGFloat,generation:UInt64,reduced:Bool,
-         smokeRecipe:NativeSharedSmokeRecipe?=nil,targetImpact:Bool=false,stage:Stage = .all)throws{
+         smokeRecipe:NativeSharedSmokeRecipe?=nil,targetImpact:Bool=false,stage:Stage = .all,shardColor:UInt32=0xD4A584)throws{
         guard context.canAdmit,context.current(generation),NativeSharedSmokeSpritePresentation.opaqueAncestors(canvas) else{throw AdmissionError.stale}
         self.context=context;self.generation=generation
         smokeDone=stage == .shardsOnly
         let pattern=context.resources.smoke.nextRegularSixPattern()
-        shardResources=ShardResources(canvas:canvas,origin:origin,scale:tileSize/128,depth:destinationDepth,pool:context.resources.pool(for:pattern),fillAlpha:targetImpact ? 1:0.85)
+        shardResources=ShardResources(canvas:canvas,origin:origin,scale:tileSize/128,depth:destinationDepth,pool:context.resources.pool(for:pattern),fillAlpha:targetImpact ? 1:0.85,color:shardColor)
         shardLayer=shardResources.layer
         do{
             shards=try NativeRegularSixSharedShardOwner(patternIndex:pattern,reduced:reduced,targetImpact:targetImpact,generation:generation,sequence:context.nextSequence(),sourceOwnerID:context.sourceOwnerID,
@@ -65,13 +65,13 @@ final class NativeRegularSixSharedLayers {
 
     @MainActor private final class ShardResources:NativeRegularSixSharedShardResources{
         let layer=SKNode(),pool:NativeSharedVectorSpritePool
-        let fillAlpha:Double
+        let fillAlpha:Double,color:UInt32
         private weak var canvas:SKNode?
         private var leases:[Int:NativeSharedVectorSpritePool.Lease]=[:],retired=false
         var activeCount:Int{leases.count}
         var admitted:Bool{!retired && canvas != nil}
-        init(canvas:SKNode,origin:CGPoint,scale:CGFloat,depth:CGFloat,pool:NativeSharedVectorSpritePool,fillAlpha:Double){
-            self.canvas=canvas;self.pool=pool;self.fillAlpha=fillAlpha
+        init(canvas:SKNode,origin:CGPoint,scale:CGFloat,depth:CGFloat,pool:NativeSharedVectorSpritePool,fillAlpha:Double,color:UInt32){
+            self.canvas=canvas;self.pool=pool;self.fillAlpha=fillAlpha;self.color=color
             layer.position=origin;layer.setScale(scale);layer.zPosition=depth
         }
         func mount(){canvas?.addChild(layer)}
@@ -81,7 +81,7 @@ final class NativeRegularSixSharedLayers {
             let path=CGMutablePath()
             for i in stride(from:0,to:points.count,by:2){let p=CGPoint(x:points[i],y:-points[i+1]);if i==0{path.move(to:p)}else{path.addLine(to:p)}}
             path.closeSubpath();lease.node.path=path
-            lease.node.fillColor=UIColor(red:212/255,green:165/255,blue:132/255,alpha:1);lease.node.strokeColor = .clear
+            lease.node.fillColor=UIColor(red:CGFloat((color>>16)&255)/255,green:CGFloat((color>>8)&255)/255,blue:CGFloat(color&255)/255,alpha:1);lease.node.strokeColor = .clear
             lease.node.zRotation = -rotation;lease.node.alpha=NativeSharedSmokeSpritePresentation.sourcePackedAlpha(fillAlpha*alpha)
             layer.addChild(lease.node)
         }

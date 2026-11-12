@@ -43,6 +43,7 @@ final class NativeAppController: UIViewController {
     private(set) var arcadeHub: NativeArcadeHubView!
     private(set) var settingsView: JimiNativeSettingsView!
     private(set) var world: JimiNativeWorldView?
+    private var journeyIntro:NativeTutorialOverlay?
     private var gameplay: UIViewController?
     @MainActor private final class GameplayLaunchPreparation {
         let board:Int?,generation:Int
@@ -586,24 +587,46 @@ final class NativeAppController: UIViewController {
         // once-only Unit return flip after its selected World is ready.
         if lease.gameplayReturn {pendingGameplayReturnWorldID=nil}
         installNavigationHandoff(on:incoming.header)
-        incoming.enter(terminal:lease.gameplayReturn){[weak self,weak incoming] in
+        incoming.enter(terminal:lease.gameplayReturn,tutorialReveal:{[weak self,weak incoming] in
+            guard let self,let incoming,!self.disposed,!self.suspended,self.generation==lease.generation,
+                  self.route == .world(lease.id),self.world === incoming else{return}
+            self.presentJourneyIntroIfNeeded(in:incoming)
+        }){[weak self,weak incoming] in
             guard let self,let incoming,!self.disposed,self.generation==lease.generation,
                   self.route == .world(lease.id),self.world === incoming else{return}
             guard !self.suspended else{self.deferredReveal=self.route;return}
             incoming.finishPresentationAdmission();self.transitioning=false
+            self.presentJourneyIntroIfNeeded(in:incoming)
         }
         finishNavigationBackgroundHandoff()
+    }
+    private func presentJourneyIntroIfNeeded(in world:JimiNativeWorldView) {
+        let progression=services.journeyProgression()
+        guard journeyIntro == nil,(!progression.journeyIntroSeen || !progression.firstPlayTutorialComplete),
+              let (_,frame)=world.firstInterimCardFrame(),!frame.isEmpty,let card=world.firstInterimCardView(),
+              world.beginFirstInterimSpotlight() else{return}
+        let overlay=NativeTutorialOverlay(resourceRoot:resourceRoot)
+        overlay.frame=world.bounds;overlay.autoresizingMask=[.flexibleWidth,.flexibleHeight]
+        overlay.onWorldIntroRetire = {[weak world] animated in world?.endFirstInterimSpotlight(animated:animated)}
+        overlay.layer.zPosition=10_002
+        world.addSubview(overlay);journeyIntro=overlay
+        overlay.showWorldIntro(card:card,target:{[weak world] in world?.firstInterimCardFrame()?.1})
+    }
+    private func retireJourneyIntro(animated:Bool) {
+        guard let overlay=journeyIntro else{return};journeyIntro=nil
+        if animated {overlay.hide{[weak overlay] in overlay?.dispose()}}
+        else {overlay.dispose()}
     }
     private func cancelWorldEntryPreparation(){
         guard let lease=worldEntryPreparation else{return};worldEntryPreparation=nil
         lease.world.cancelPendingPreparation()
     }
     private func worldAction(_ action:String,boardID:Int?) {
-        if action == "back",case .world = route {navigate(.hub,interrupt:true);return}
+        if action == "back",case .world = route {retireJourneyIntro(animated:false);navigate(.hub,interrupt:true);return}
         guard !transitioning,case .world = route else{return}
         switch action {
-        case "back":navigate(.hub,interrupt:true)
-        case "backpack":navigate(.backpack)
+        case "back":retireJourneyIntro(animated:false);navigate(.hub,interrupt:true)
+        case "backpack":retireJourneyIntro(animated:false);navigate(.backpack)
         case "openCard":
             guard let boardID,let world else{return}
             do {
@@ -618,7 +641,11 @@ final class NativeAppController: UIViewController {
             if let boardID {openStatHistory(board:boardID,combo:action=="comboHistory")}
         case "close":world?.closeCard()
         case "play","continue":
-            guard let boardID else{return};transitioning = true
+            guard let boardID else{return}
+            if journeyIntro != nil {
+                retireJourneyIntro(animated:true)
+            }
+            transitioning = true
             prepareGameplayLaunch(boardID:boardID,exit:{[weak self] completion in
                 self?.world?.prepareGameplayExit(boardID:boardID,completion:completion)
             })
@@ -958,6 +985,7 @@ final class NativeAppController: UIViewController {
         finishNavigationBackgroundHandoff()
         navigationExitContinuation?.dispose();navigationExitContinuation=nil
         guard !disposed else{return}
+        retireJourneyIntro(animated:false)
         hub?.backpackButton.imageView?.layer.removeAnimation(forKey:NativeHubBackpackFeedback.switchKey)
         world?.backpackButton.imageView?.layer.removeAnimation(forKey:NativeHubBackpackFeedback.switchKey)
         studioIntro?.dispose();studioIntro=nil

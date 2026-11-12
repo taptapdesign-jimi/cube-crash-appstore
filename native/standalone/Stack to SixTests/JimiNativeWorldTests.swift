@@ -2319,6 +2319,41 @@ final class JimiNativeWorldTests: XCTestCase {
         try preview.pngData()?.write(to:URL(fileURLWithPath:"/tmp/native-navigation-home-divider-trial.png"))
     }
 
+    func testArea55HeaderHasNoFloatingDividerArtwork() throws {
+        var value=fixture()
+        value["worldID"]=3;value["title"]="Area 55"
+        var units=try XCTUnwrap(value["units"] as? [[String:Any]])
+        for index in units.indices {
+            let id=21+index
+            units[index]["boardID"]=id;units[index]["id"]="board-\(id)"
+        }
+        units[0]["interim"]=true
+        value["units"]=units
+        let world=try XCTUnwrap(JimiNativeWorldView(snapshot:value,assets:art))
+        world.frame=CGRect(x:0,y:0,width:390,height:844);world.layoutIfNeeded()
+        defer {world.cleanup()}
+        let divider=try XCTUnwrap(descendant(world.header,"native.navigation.home-divider") as? UIImageView)
+        XCTAssertTrue(divider.isHidden)
+        XCTAssertNil(divider.image)
+        XCTAssertEqual(world.header.bounds.height,JimiV9NavigationHeader.RowLayout(bounds:world.bounds,safeAreaTop:world.safeAreaInsets.top).headerHeight(),accuracy:0.001)
+        XCTAssertTrue(world.beginFirstInterimSpotlight())
+        let shade=try XCTUnwrap(descendant(world,"native.world.tutorial.page-shade"))
+        XCTAssertTrue(shade.superview === world)
+        XCTAssertEqual(shade.frame,world.bounds)
+        let unit=try XCTUnwrap(descendant(world,"native.world.card.21"))
+        XCTAssertTrue(unit.superview === world)
+        let before=unit.convert(unit.bounds,to:world)
+        world.frame=CGRect(x:0,y:0,width:820,height:1180);world.setNeedsLayout();world.layoutIfNeeded()
+        XCTAssertEqual(shade.frame,world.bounds,"Single shade covers tablet side gutters and header")
+        let tabletCard=unit.convert(unit.bounds,to:world)
+        XCTAssertTrue(tabletCard.intersects(world.bounds))
+        world.endFirstInterimSpotlight(animated:false)
+        XCTAssertNil(shade.superview)
+        XCTAssertEqual(unit.convert(unit.bounds,to:world),tabletCard,"Returning the original unit must not jump")
+        XCTAssertFalse(before.isEmpty)
+
+    }
+
     func testHomeDividerTrialSharesHeaderExitWithoutShadowFade() throws {
         let world=try XCTUnwrap(JimiNativeWorldView(snapshot:fixture(),assets:art))
         world.frame = .init(x:0,y:0,width:390,height:844);world.layoutIfNeeded()
@@ -2728,6 +2763,85 @@ final class JimiNativeWorldTests: XCTestCase {
             XCTAssertEqual(world.scrollView.contentOffset.y,80);card.sendActions(for:.touchUpInside);XCTAssertEqual(requests,[first])
             world.cleanup();world.cleanup();XCTAssertFalse(world.isReadyForInput)
         }
+    }
+
+    func testMapStarOriginalArtworkPhoneAndTabletPreview() async throws {
+        var progress=NativeProgressionState();progress.completedJourneyBoards=Set(1...10);progress.viewedJourneyBoards=Set(1...10)
+        for board in 1...10 {var stats=NativeBoardStats();stats.awardedStars=board == 1 ? 2:3;progress.boardStats[board]=stats}
+        for size in [CGSize(width:390,height:844),CGSize(width:820,height:1180)] {
+            let tablet=NativeTabletLayout.applies(size)
+            let raw=try NativeWorldLayouts().snapshot(world:1,width:Double(size.width),height:Double(size.height),generation:1,progression:progress,proportionalCards:tablet,phoneUnitLayout:tablet,unitScale:tablet ? 1.105:1)
+            let world=try XCTUnwrap(JimiNativeWorldView(snapshot:raw,assets:art))
+            let window=UIWindow(frame:CGRect(origin:.zero,size:size)),host=UIViewController()
+            window.rootViewController=host;window.makeKeyAndVisible();host.view.addSubview(world);world.frame=window.bounds;world.layoutIfNeeded()
+            defer{world.cleanup();window.isHidden=true;window.rootViewController=nil}
+            await withCheckedContinuation{c in world.prepare{c.resume()}}
+            let entered=expectation(description:"original map");world.enter{entered.fulfill()};await fulfillment(of:[entered],timeout:5);world.finishPresentationAdmission()
+            let first=try XCTUnwrap(descendant(world,"native.world.part.1.star"))
+            for _ in 0..<200 where first.layer.sublayers?.contains(where:{$0.name == "native.world.star.burn"}) != true {try await settle(0.01)}
+            let burn=try XCTUnwrap(first.layer.sublayers?.first{$0.name == "native.world.star.burn"})
+            let cycle=try XCTUnwrap(burn.animation(forKey:"world.star.burn") as? CAAnimationGroup)
+            first.layer.speed=0;first.layer.timeOffset=cycle.beginTime+(cycle.animations?.first?.beginTime ?? 0)+0.2
+            try await settle(0.05)
+            XCTAssertNotNil(burn.presentation()?.contents)
+            XCTAssertGreaterThan(burn.presentation()?.opacity ?? 0,0.9)
+            let image=UIGraphicsImageRenderer(bounds:window.bounds).image{_ in window.drawHierarchy(in:window.bounds,afterScreenUpdates:true)}
+            try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/native-map-stars-\(tablet ? "ipad":"iphone").png"))
+        }
+    }
+
+    func testMapEarnedStarsBounceBurnCullBackgroundAndRelease() async throws {
+        var value=fixture(),units=try XCTUnwrap(value["units"] as? [[String:Any]])
+        let paths=["star-filled-left.png","star-filled-center-1.png","star-empty-right-1.png"]
+        let parts:[[String:Any]]=paths.enumerated().map{index,path in
+            ["asset":"assets/journey assets/level stars/"+path,"role":"star","x":index*36,"y":5,"width":32,"height":32,"rotation":index == 0 ? -8:8,"opacity":1,"zIndex":5]
+        }
+        for index in units.indices {units[index]["parts"]=(units[index]["parts"] as? [[String:Any]] ?? [])+parts;units[index]["stars"]=2}
+        value["units"]=units
+        var world:JimiNativeWorldView?=try XCTUnwrap(JimiNativeWorldView(snapshot:value,assets:art))
+        weak var released=world
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),controller=UIViewController()
+        window.rootViewController=controller;window.makeKeyAndVisible()
+        controller.view.addSubview(world!);world!.frame=window.bounds;world!.layoutIfNeeded()
+        defer{world?.cleanup();window.isHidden=true;window.rootViewController=nil}
+        await withCheckedContinuation{c in world!.prepare{c.resume()}}
+        let entered=expectation(description:"map admitted");world!.enter{entered.fulfill()}
+        await fulfillment(of:[entered],timeout:5);world!.finishPresentationAdmission()
+        func stars()->[UIImageView]{
+            func collect(_ view:UIView)->[UIImageView]{
+                (view as? UIImageView).map{image in image.accessibilityIdentifier == "native.world.part.1.star" ? [image]:[]} ?? []
+            }
+            func walk(_ view:UIView)->[UIImageView]{collect(view)+view.subviews.flatMap{walk($0)}}
+            return walk(world!)
+        }
+        let views=stars();XCTAssertEqual(views.count,3)
+        for _ in 0..<200 where views.prefix(2).contains(where:{$0.layer.sublayers?.contains(where:{$0.name == "native.world.star.burn"}) != true}) {try await settle(0.01)}
+        let burn=try XCTUnwrap(views[0].layer.sublayers?.first{$0.name == "native.world.star.burn"})
+        let cycle=try XCTUnwrap(burn.animation(forKey:"world.star.burn") as? CAAnimationGroup)
+        XCTAssertEqual(cycle.repeatCount,0)
+        XCTAssertGreaterThanOrEqual(cycle.duration,(cycle.animations?.first?.beginTime ?? 0)+0.5/(0.7*0.7*0.9),"Next cycle waits for the slower bounce to finish")
+        XCTAssertEqual(try XCTUnwrap(views[0].layer.animation(forKey:NativeHubBackpackFeedback.animationKey)).duration,0.5/(0.7*0.7*0.9),accuracy:0.0001,"Map stars run another10percent slower")
+        XCTAssertNotNil(views[0].layer.animation(forKey:NativeHubBackpackFeedback.animationKey))
+        XCTAssertNotNil(views[1].layer.animation(forKey:NativeHubBackpackFeedback.animationKey))
+        XCTAssertNil(views[2].layer.animation(forKey:NativeHubBackpackFeedback.animationKey))
+        XCTAssertTrue(views[2].layer.sublayers?.isEmpty ?? true)
+        XCTAssertEqual(atan2(views[0].layer.transform.m12,views[0].layer.transform.m11),-8 * .pi/180,accuracy:0.0001)
+        world!.setActive(false)
+        XCTAssertNil(views[0].layer.animation(forKey:NativeHubBackpackFeedback.animationKey));XCTAssertNil(burn.superlayer)
+        cycle.delegate?.animationDidStop?(cycle,finished:true)
+        XCTAssertTrue(views[0].layer.sublayers?.isEmpty ?? true,"Stale completion cannot restart")
+        world!.setActive(true)
+        for _ in 0..<200 where views[0].layer.sublayers?.isEmpty != false {try await settle(0.01)}
+        XCTAssertFalse(views[0].layer.sublayers?.isEmpty ?? true)
+        world!.scrollView.contentOffset.y=1500
+        XCTAssertTrue(views[0].layer.sublayers?.isEmpty ?? true,"Retained evicted stars stop")
+        world!.scrollView.contentOffset.y=0
+        world!.setActive(false);world!.setActive(true)
+        world!.openCard(boardID:1)
+        let returningStars=stars()
+        XCTAssertTrue(returningStars.allSatisfy{$0.layer.animation(forKey:NativeHubBackpackFeedback.animationKey) == nil},"Covered map stars stop even during card opening")
+        world!.park();world!.cleanup();world!.cleanup();world!.removeFromSuperview();world=nil
+        try await settle(0.1);XCTAssertNil(released)
     }
 
     func testArea55BeamSequenceBoundsAndVisibilityCleanup() async throws {

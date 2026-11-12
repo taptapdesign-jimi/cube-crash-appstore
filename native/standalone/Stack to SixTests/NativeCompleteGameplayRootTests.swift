@@ -6,6 +6,324 @@ import StackToSixNativeState
 @testable import Stack_to_Six
 
 @MainActor final class NativeCompleteGameplayRootTests:XCTestCase {
+    func testRestoredBackpackCTAShowsIdleEffectsThenHigherJumpAndBallRebound()async throws {try await restoredDelivery(openByTap:false)}
+    func testDeliveryCarrierIsNotAnOpenControlAndGotItContinuesAutomaticDrop()async throws {try await restoredDelivery(openByTap:true)}
+    private func restoredDelivery(openByTap:Bool)async throws {
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent("backpack-delivery-"+UUID().uuidString)
+        let store=NativeSaveStore(directory:directory)
+        var board=NativeBoardFactory.make(mode:.journey,board:1,generation:9,seed:7)
+        var tutorial=NativeTutorialState();tutorial.step = .freePlay;tutorial.objectiveAcknowledged=true
+        tutorial.specialBarSuccessfulActions=6;tutorial.specialBarAcknowledged=true;tutorial.waitingForWild=false
+        tutorial.rewardArchetype = .star;tutorial.rewardVariant="bee"
+        board.tutorial=tutorial;board.wildMeter=1
+        var envelope=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
+        envelope.firstPlayRun=board;try store.save(envelope)
+        let host=NativeStandaloneViewController(resourceRoot:NativeTestResources.root,store:store,sourceVisualRandom:{0.1},completeNativeGameplayEnabled:true)
+        let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=host;window.makeKeyAndVisible()
+        defer{host.dispose();window.isHidden=true;previous?.makeKeyAndVisible();try? FileManager.default.removeItem(at:directory)}
+        host.loadViewIfNeeded();let app=try XCTUnwrap(host.children.first as? NativeAppController)
+        try await wait("delivery-home"){!app.home.isHidden && app.home.isUserInteractionEnabled}
+        app.navigate(.world(1),interrupt:true)
+        try await wait("delivery-world"){app.world?.isReadyForInput==true && !app.transitioning}
+        app.world?.onRequest?("continue",1)
+        try await wait("delivery-game"){self.game(app)?.boardScene?.isBoardEntryComplete==true}
+        let game=try XCTUnwrap(game(app)),scene=try XCTUnwrap(game.boardScene)
+        try await wait("delivery-idle"){game.view.subviews.compactMap{$0 as? NativeTutorialOverlay}.contains{$0.backpackIdleEffectActive}}
+        let overlay=try XCTUnwrap(game.view.subviews.compactMap{$0 as? NativeTutorialOverlay}.first)
+        try await wait("delivery-shimmer"){overlay.backpackIdleShimmerOpacity>0.1}
+        try await wait("delivery-sheet-settled"){abs(overlay.sourceSheetTranslation)<0.001}
+        XCTAssertTrue(overlay.backpackInkVisible)
+        let snapshot=UIGraphicsImageRenderer(bounds:game.view.bounds).image{_ in game.view.drawHierarchy(in:game.view.bounds,afterScreenUpdates:true)}
+        try snapshot.pngData()?.write(to:URL(fileURLWithPath:openByTap ? "/tmp/backpack-idle-tap-root.png":"/tmp/backpack-idle-cta-root.png"))
+        let carrier=try XCTUnwrap(scene.heldTutorialBackpackCarrier)
+        let render=try XCTUnwrap(scene.gameplayRenderHost)
+        func point()->CGPoint {render.scenePointToView(carrier.convert(.zero,to:scene),scene:scene)}
+        let anchor=point(),height=carrier.size.height*carrier.yScale,texture=carrier.texture
+        func all(_ view:UIView)->[UIView]{[view]+view.subviews.flatMap(all)}
+        XCTAssertFalse(all(overlay).contains{$0.accessibilityIdentifier=="native.tutorial.open-backpack"})
+        if openByTap {
+            let hit=overlay.hitTest(overlay.convert(point(),from:render.renderView),with:nil)
+            XCTAssertFalse(hit is UIControl,"Carrier art does not offer a manual opening action")
+            try await Task.sleep(for:.milliseconds(120))
+            XCTAssertTrue(scene.heldTutorialBackpackCarrier === carrier)
+            XCTAssertTrue(overlay.backpackIdleEffectActive)
+        }
+        let button=try XCTUnwrap(all(overlay).compactMap{$0 as? UIButton}.first{$0.accessibilityIdentifier=="native.tutorial.got-it"})
+        XCTAssertEqual(button.title(for:.normal),"Got it")
+        button.sendActions(for:.touchUpInside)
+        XCTAssertFalse(overlay.backpackIdleEffectActive)
+        var maximum:CGFloat=0,landed=false,rebounded=false
+        let deadline=Date().addingTimeInterval(4)
+        while carrier.texture === texture && Date()<deadline {
+            let rise=anchor.y-point().y;maximum=max(maximum,rise)
+            if maximum>height*0.45 && rise<height*0.04 {landed=true}
+            if landed && rise>height*0.12 {rebounded=true}
+            try await Task.sleep(for:.milliseconds(8))
+        }
+        XCTAssertGreaterThan(maximum,height*0.47);XCTAssertTrue(landed);XCTAssertTrue(rebounded)
+        XCTAssertFalse(carrier.texture === texture,"Original opening follows the completed closed-carrier rebound")
+        try await wait("delivery-special"){game.engine.state.wildSpawnCount>0}
+        XCTAssertFalse(overlay.backpackIdleEffectActive)
+        XCTAssertFalse(try XCTUnwrap(store.load()).progression.firstPlayTutorialComplete)
+    }
+    func testCollectionLessonCTAOpensBackpackAndAcknowledgesOnlyAfterReturn()async throws {try await collectionLesson(openBackpack:false)}
+    func testCollectionLessonCanceledVisitDoesNotAcknowledge()async throws {try await collectionLesson(openBackpack:true,cancelVisit:true)}
+    func testCollectionLessonBackpackReturnsToSameBoardWithoutRepeating()async throws {try await collectionLesson(openBackpack:true)}
+    func testArcadeCollectionLessonUsesBoxAfterCheckpointRestore()async throws {try await collectionLesson(openBackpack:false,arcade:true)}
+    func testArcadeCollectionWalkthroughPointsToDieThenBothCloseButtons()async throws {try await collectionLesson(openBackpack:true,arcade:true)}
+    func testCompletionLessonCheckpointRestoresAndCancelsWithoutAcknowledgement()async throws {try await collectionLesson(openBackpack:false,completionCheckpoint:true)}
+    private func collectionLesson(openBackpack:Bool,arcade:Bool=false,cancelVisit:Bool=false,completionCheckpoint:Bool=false)async throws {
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent("collection-lesson-"+UUID().uuidString)
+        let store=NativeSaveStore(directory:directory)
+        var board=NativeBoardFactory.make(mode:arcade ? .arcade:.journey,board:1,generation:9,seed:7)
+        board.moves=37;board.score=311
+        var tutorial=NativeTutorialState();tutorial.active=false;tutorial.guideCompleted=true;tutorial.completionAssist=true
+        tutorial.objectiveAcknowledged=true;tutorial.encouragementAcknowledged=true;tutorial.collectionLessonAcknowledged=false
+        tutorial.comboLessonAcknowledged=false;tutorial.comboHUDRevealed=false
+        if completionCheckpoint {
+            tutorial.collectionLessonAcknowledged=true;tutorial.comboLessonAcknowledged=true
+            tutorial.comboHUDRevealed=true;tutorial.completionLessonAcknowledged=false
+        }
+        board.tutorial=tutorial
+        var envelope=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
+        envelope.firstPlayRun=board;_ = envelope.progression.announceJourneyDie("bee",board:1);try store.save(envelope)
+        let host=NativeStandaloneViewController(resourceRoot:NativeTestResources.root,store:store,sourceVisualRandom:{0.1},completeNativeGameplayEnabled:true)
+        let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+        let window=UIWindow(frame:UIDevice.current.userInterfaceIdiom == .pad ? UIScreen.main.bounds:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=host;window.makeKeyAndVisible()
+        defer{host.dispose();window.isHidden=true;previous?.makeKeyAndVisible();try? FileManager.default.removeItem(at:directory)}
+        host.loadViewIfNeeded();let app=try XCTUnwrap(host.children.first as? NativeAppController)
+        try await wait("collection-home"){!app.home.isHidden && app.home.isUserInteractionEnabled}
+        if arcade {app.navigate(.gameplay,interrupt:true)}else{
+            app.navigate(.world(1),interrupt:true)
+            try await wait("collection-world"){app.world?.isReadyForInput==true && !app.transitioning}
+            app.world?.onRequest?("continue",1)
+        }
+        try await wait("collection-game"){self.game(app)?.boardScene?.isBoardEntryComplete==true}
+        let game=try XCTUnwrap(game(app)),scene=try XCTUnwrap(game.boardScene)
+        try await wait("collection-sheet"){game.view.subviews.contains{$0 is NativeTutorialOverlay && !$0.isHidden}}
+        let overlay=try XCTUnwrap(game.view.subviews.first{$0 is NativeTutorialOverlay} as? NativeTutorialOverlay)
+        func all(_ view:UIView)->[UIView]{[view]+view.subviews.flatMap(all)}
+        let cta=try XCTUnwrap(all(overlay).compactMap{$0 as? JimiV9PlainButton}.first{$0.accessibilityIdentifier=="native.tutorial.got-it"})
+        let sheet=try XCTUnwrap(cta.cartoonBounceLayoutView.superview)
+        try await wait("collection-entered"){sheet.layer.animation(forKey:"tutorial.sheet")==nil && abs((sheet.layer.presentation() ?? sheet.layer).transform.m42)<0.1}
+        if completionCheckpoint {
+            XCTAssertTrue(all(overlay).compactMap{$0 as? UILabel}.contains{$0.text=="Clear the board!"})
+            XCTAssertEqual(cta.title(for:.normal),"Keep going")
+            XCTAssertFalse(overlay.sourcePointerVisible);XCTAssertTrue(game.engine.tutorialComboPaused)
+            XCTAssertFalse(game.engine.canBeginDrag(tileID:try XCTUnwrap(game.engine.state.activeTiles.first).id))
+            XCTAssertEqual(try store.load()?.firstPlayRun?.tutorial?.completionLessonAcknowledged,false)
+            host.dispose()
+            XCTAssertEqual(try store.load()?.firstPlayRun?.tutorial?.completionLessonAcknowledged,false)
+            return
+        }
+        XCTAssertTrue(all(overlay).compactMap{$0 as? UILabel}.contains{$0.text==(arcade ? "Your box":"Your backpack")})
+        XCTAssertTrue(all(overlay).compactMap{$0 as? UILabel}.contains{$0.text?.replacingOccurrences(of:"\n",with:" ")=="Tap the \(arcade ? "box":"backpack") to meet your little helpers."})
+        XCTAssertEqual(cta.title(for:.normal),arcade ? "Got it":"Open backpack")
+        XCTAssertTrue(overlay.sourcePointerVisible);XCTAssertTrue(game.engine.tutorialComboPaused)
+        XCTAssertFalse(game.engine.canBeginDrag(tileID:try XCTUnwrap(game.engine.state.activeTiles.first).id))
+        let backpack=try XCTUnwrap(all(overlay).compactMap{$0 as? UIButton}.first{$0.accessibilityIdentifier=="native.tutorial.collection-backpack"})
+        XCTAssertEqual(backpack.accessibilityLabel,arcade ? "Open box":"Open backpack")
+        XCTAssertFalse(backpack.frame.isEmpty)
+        XCTAssertTrue(overlay.hitTest(CGPoint(x:backpack.frame.midX,y:backpack.frame.midY),with:nil) === backpack)
+        XCTAssertTrue(overlay.hitTest(CGPoint(x:10,y:400),with:nil) === overlay)
+        let shot=UIGraphicsImageRenderer(bounds:game.view.bounds).image{_ in game.view.drawHierarchy(in:game.view.bounds,afterScreenUpdates:true)}
+        try shot.pngData()?.write(to:URL(fileURLWithPath:arcade ? "/tmp/tutorial-arcade-box-sheet.png":"/tmp/tutorial-dice-collection-sheet.png"))
+        if !arcade {
+            let help=game.onHelp;game.onHelp=nil
+            cta.sendActions(for:.touchUpInside)
+            XCTAssertNil(game.presentedViewController);XCTAssertFalse(overlay.isHidden)
+            XCTAssertEqual(game.engine.state.tutorial?.collectionLessonAcknowledged,false)
+            game.onHelp=help
+        }
+        if openBackpack {backpack.sendActions(for:.touchUpInside)}else{cta.sendActions(for:.touchUpInside)}
+        if !arcade {
+            XCTAssertNil(game.presentedViewController,"Wait for the reading sheet exit before presenting Backpack")
+            XCTAssertFalse(overlay.isHidden)
+        }
+        if arcade {try await wait("collection-acknowledged"){game.engine.state.tutorial?.collectionLessonAcknowledged==true && overlay.isHidden}}
+        if openBackpack || !arcade {
+            try await wait("collection-modal"){game.presentedViewController is NativeGameplayBackpackController}
+            let modal=try XCTUnwrap(game.presentedViewController as? NativeGameplayBackpackController)
+            if !arcade {
+                XCTAssertTrue(overlay.isHidden,"The reading sheet exits before the actual modal opens")
+                XCTAssertEqual(game.engine.state.tutorial?.collectionLessonAcknowledged,false)
+                XCTAssertEqual(try store.load()?.firstPlayRun?.tutorial?.collectionLessonAcknowledged,false)
+                XCTAssertTrue(game.engine.tutorialComboPaused)
+                NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
+                let held=overlay.layer.convertTime(CACurrentMediaTime(),from:nil)
+                try await Task.sleep(for:.milliseconds(80))
+                XCTAssertEqual(overlay.layer.convertTime(CACurrentMediaTime(),from:nil),held,accuracy:0.005)
+            }
+            try await wait("collection-modal-ready"){modal.screen?.isUserInteractionEnabled==true && modal.view.isUserInteractionEnabled && modal.screen?.entrySelectionEnabled==false}
+            try await wait("collection-hand-first"){modal.tutorialHand?.phase=="first-die"}
+            XCTAssertEqual(try store.load()?.progression.tutorialCollectionGuidanceSeen,true)
+            if cancelVisit {
+                host.dispose()
+                XCTAssertNil(game.onTutorialBackpackVisitClosed)
+                XCTAssertEqual(try store.load()?.firstPlayRun?.tutorial?.collectionLessonAcknowledged,false)
+                return
+            }
+            weak var retiredHand=modal.tutorialHand
+            XCTAssertFalse(try XCTUnwrap(modal.tutorialHand).view.isUserInteractionEnabled)
+            try await Task.sleep(for:.milliseconds(530))
+            let firstScreenshot=UIGraphicsImageRenderer(bounds:modal.view.bounds).image{_ in modal.view.drawHierarchy(in:modal.view.bounds,afterScreenUpdates:true)}
+            try firstScreenshot.pngData()?.write(to:URL(fileURLWithPath:arcade ? "/tmp/tutorial-box-hand-first.png":"/tmp/tutorial-backpack-hand-first.png"))
+            modal.setForeground(false)
+            XCTAssertTrue(try XCTUnwrap(modal.tutorialHand).view.isHidden)
+            let paused=try XCTUnwrap(modal.tutorialHand).view.layer.convertTime(CACurrentMediaTime(),from:nil)
+            try await Task.sleep(for:.milliseconds(80))
+            XCTAssertEqual(try XCTUnwrap(modal.tutorialHand).view.layer.convertTime(CACurrentMediaTime(),from:nil),paused,accuracy:0.005)
+            modal.setForeground(true)
+            XCTAssertFalse(try XCTUnwrap(modal.tutorialHand).view.isHidden)
+            let screen=try XCTUnwrap(modal.screen),first=try XCTUnwrap(screen.firstUnlockedVisibleDieView as? UICollectionViewCell)
+            let path=try XCTUnwrap(screen.grid.indexPath(for:first))
+            screen.collectionView(screen.grid,didSelectItemAt:path)
+            XCTAssertNil(modal.tutorialHand?.view.superview,"Retire collection hand during exchange")
+            try await wait("collection-hand-detail"){modal.tutorialHand?.phase=="detail-close"}
+            let detailReleased=try closeTutorialDetail(modal,arcade:arcade)
+            try await wait("collection-hand-close"){modal.detail==nil && modal.tutorialHand?.phase=="collection-close"}
+            try await wait("collection-detail-released"){detailReleased()}
+            let closeScreenshot=UIGraphicsImageRenderer(bounds:modal.view.bounds).image{_ in modal.view.drawHierarchy(in:modal.view.bounds,afterScreenUpdates:true)}
+            try closeScreenshot.pngData()?.write(to:URL(fileURLWithPath:arcade ? "/tmp/tutorial-box-hand-close.png":"/tmp/tutorial-backpack-hand-close.png"))
+            let qualityImage=UIGraphicsImageRenderer(bounds:modal.view.bounds).image{_ in modal.view.drawHierarchy(in:modal.view.bounds,afterScreenUpdates:true)}
+            try qualityImage.pngData()?.write(to:URL(fileURLWithPath:"/tmp/backpack-phone-quality.png"))
+            let close=try XCTUnwrap(all(modal.view).compactMap{$0 as? UIButton}.first{$0.accessibilityIdentifier=="native.gameplay.backpack.close"})
+            if !arcade {
+                XCTAssertTrue(overlay.isHidden)
+                XCTAssertEqual(game.engine.state.tutorial?.collectionLessonAcknowledged,false)
+            }
+            close.sendActions(for:.touchUpInside)
+            try await wait("collection-modal-closed"){game.presentedViewController==nil && game.tutorialVisualPresentationAllowed}
+            XCTAssertNil(retiredHand,"Closing the modal releases its only tutorial hand")
+        }else{XCTAssertNil(game.presentedViewController)}
+        if !arcade {
+            try await wait("combo-immediately-after-collection"){game.engine.state.tutorial?.collectionLessonAcknowledged==true && game.engine.state.tutorial?.comboHUDRevealed==true && !overlay.isHidden}
+            XCTAssertTrue(game.engine.tutorialComboPaused)
+            XCTAssertFalse(game.engine.canBeginDrag(tileID:try XCTUnwrap(game.engine.state.activeTiles.first).id))
+            XCTAssertTrue(all(overlay).compactMap{$0 as? UILabel}.contains{$0.text=="Your combo"})
+            XCTAssertEqual(game.engine.state.moves,37)
+            try await wait("immediate-combo-sheet-settled"){sheet.layer.animation(forKey:"tutorial.sheet")==nil}
+            XCTAssertEqual(cta.title(for:.normal),"Next")
+            cta.sendActions(for:.touchUpInside)
+            try await wait("completion-sheet-after-combo"){game.engine.state.tutorial?.comboLessonAcknowledged==true && !overlay.isHidden && cta.title(for:.normal)=="Keep going"}
+            XCTAssertTrue(all(overlay).compactMap{$0 as? UILabel}.contains{$0.text=="Clear the board!"})
+            XCTAssertNotNil(all(overlay).compactMap{$0 as? UIImageView}.first{$0.accessibilityIdentifier=="assets/tutorial/clear board.png"}?.image)
+            XCTAssertFalse(overlay.sourcePointerVisible)
+            XCTAssertTrue(game.engine.tutorialComboPaused)
+            XCTAssertFalse(game.engine.canBeginDrag(tileID:try XCTUnwrap(game.engine.state.activeTiles.first).id))
+            XCTAssertEqual(try store.load()?.firstPlayRun?.tutorial?.completionLessonAcknowledged,false)
+            try await wait("completion-sheet-settled"){sheet.layer.animation(forKey:"tutorial.sheet")==nil}
+            let finalImage=UIGraphicsImageRenderer(bounds:game.view.bounds).image{_ in game.view.drawHierarchy(in:game.view.bounds,afterScreenUpdates:true)}
+            try finalImage.pngData()?.write(to:URL(fileURLWithPath:"/tmp/tutorial-completion-real-root.png"))
+            NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
+            let frozen=overlay.layer.convertTime(CACurrentMediaTime(),from:nil)
+            try await Task.sleep(for:.milliseconds(80))
+            XCTAssertEqual(overlay.layer.convertTime(CACurrentMediaTime(),from:nil),frozen,accuracy:0.005)
+            NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
+            cta.sendActions(for:.touchUpInside)
+            try await wait("completion-sheet-acknowledged"){game.engine.state.tutorial?.completionLessonAcknowledged==true && overlay.isHidden}
+        }
+        try await wait("collection-complete-after-return"){game.engine.state.tutorial?.collectionLessonAcknowledged==true && overlay.isHidden}
+        XCTAssertEqual(game.engine.state.score,311);XCTAssertEqual(game.engine.state.moves,37)
+        XCTAssertFalse(game.engine.tutorialComboPaused)
+        XCTAssertTrue(game.engine.canBeginDrag(tileID:try XCTUnwrap(game.engine.state.activeTiles.first).id))
+        game.refreshFromEngine();XCTAssertTrue(overlay.isHidden)
+        XCTAssertEqual(game.engine.state.tutorial?.comboLessonAcknowledged,!arcade)
+        XCTAssertEqual(try store.load()?.firstPlayRun?.tutorial?.collectionLessonAcknowledged,true)
+        XCTAssertEqual(scene.engine.state.generation,game.engine.state.generation)
+        if openBackpack {
+            game.onHelp?()
+            let repeatModal=try XCTUnwrap(game.presentedViewController as? NativeGameplayBackpackController)
+            try await wait("repeat-collection-admitted"){repeatModal.screen?.isUserInteractionEnabled==true && repeatModal.view.isUserInteractionEnabled && repeatModal.screen?.entrySelectionEnabled==false}
+            XCTAssertNil(repeatModal.tutorialHand,"The first admitted visit consumes guidance for both Backpack and Box")
+            let close=try XCTUnwrap(all(repeatModal.view).compactMap{$0 as? UIButton}.first{$0.accessibilityIdentifier=="native.gameplay.backpack.close"})
+            close.sendActions(for:.touchUpInside)
+            try await wait("repeat-collection-closed"){game.presentedViewController==nil}
+        }
+    }
+    // A synchronous scope prevents the async fixture frame retaining its local
+    // strong detail across the release wait being measured.
+    private func closeTutorialDetail(_ modal:NativeGameplayBackpackController,arcade:Bool)throws -> ()->Bool {
+        let detail=try XCTUnwrap(modal.detail)
+        XCTAssertTrue(modal.tutorialHand?.view.superview === detail.close.superview)
+        let screenshot=UIGraphicsImageRenderer(bounds:detail.view.bounds).image{_ in detail.view.drawHierarchy(in:detail.view.bounds,afterScreenUpdates:true)}
+        try screenshot.pngData()?.write(to:URL(fileURLWithPath:arcade ? "/tmp/tutorial-box-hand-detail.png":"/tmp/tutorial-backpack-hand-detail.png"))
+        detail.close.sendActions(for:.touchUpInside)
+        return {[weak detail] in detail==nil}
+    }
+    func testResumedTutorialKeepsObjectiveCharactersAndSkipsJourneyTransition()async throws {
+        for acknowledged in [false,true] {
+            let directory=FileManager.default.temporaryDirectory.appendingPathComponent("resumed-objective-"+UUID().uuidString)
+            let store=NativeSaveStore(directory:directory)
+            let seed=NativeGameplayEngine(state:NativeBoardFactory.make(mode:.journey,board:1,generation:9,seed:7))
+            XCTAssertTrue(seed.startTutorial().accepted)
+            if acknowledged {XCTAssertTrue(seed.acknowledgeTutorialObjective().accepted)}
+            var saved=seed.state;saved.score=123;saved.moves=37
+            var envelope=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
+            envelope.firstPlayRun=saved;try store.save(envelope)
+            let host=NativeStandaloneViewController(resourceRoot:NativeTestResources.root,store:store,sourceVisualRandom:{0.1},completeNativeGameplayEnabled:true)
+            let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+            let previewBounds=UIDevice.current.userInterfaceIdiom == .pad ? UIScreen.main.bounds:CGRect(x:0,y:0,width:390,height:844)
+            let window=UIWindow(frame:previewBounds);window.rootViewController=host;window.makeKeyAndVisible()
+            defer{host.dispose();window.isHidden=true;previous?.makeKeyAndVisible();try? FileManager.default.removeItem(at:directory)}
+            host.loadViewIfNeeded();let app=try XCTUnwrap(host.children.first as? NativeAppController)
+            try await wait("resumed-objective-home"){!app.home.isHidden && app.home.isUserInteractionEnabled}
+            app.navigate(.world(1),interrupt:true)
+            try await wait("resumed-objective-world"){app.world?.isReadyForInput==true && !app.transitioning}
+            app.world?.onRequest?("continue",1)
+            try await wait("resumed-objective-game"){self.game(app) != nil}
+            let game=try XCTUnwrap(game(app))
+            let deadline=Date().addingTimeInterval(30)
+            while game.boardScene?.isBoardEntryComplete != true && Date()<deadline {
+                XCTAssertFalse(game.incomingOriginalThemedCoverExpected,"Tutorial resume must not admit a themed/random Board Transition")
+                XCTAssertFalse(game.children.contains{$0 is NativeThemedBoardTransitionController})
+                try await Task.sleep(for:.milliseconds(10))
+            }
+            XCTAssertTrue(game.boardScene?.isBoardEntryComplete==true)
+            XCTAssertFalse(game.incomingOriginalThemedCoverExpected)
+            try await wait("resumed-objective-sheet"){game.view.subviews.contains{$0 is NativeTutorialOverlay}}
+            let overlay=try XCTUnwrap(game.view.subviews.first{$0 is NativeTutorialOverlay} as? NativeTutorialOverlay)
+            func find(_ view:UIView,_ id:String)->UIView? {
+                if view.accessibilityIdentifier==id{return view}
+                return view.subviews.lazy.compactMap{find($0,id)}.first
+            }
+            let cta=try XCTUnwrap(find(overlay,"native.tutorial.got-it") as? JimiV9PlainButton)
+            let sheet=try XCTUnwrap(cta.cartoonBounceLayoutView.superview)
+            try await wait("resumed-objective-enter"){
+                sheet.layer.animation(forKey:"tutorial.sheet")==nil && abs((sheet.layer.presentation() ?? sheet.layer).transform.m42)<0.1
+            }
+            XCTAssertEqual(overlay.objectiveSheetVisible,!acknowledged)
+            XCTAssertEqual(game.engine.state.score,123);XCTAssertEqual(game.engine.state.moves,37)
+            XCTAssertEqual(game.engine.state.tutorial?.guidedPair,saved.tutorial?.guidedPair)
+            if !acknowledged {
+                let artwork=try XCTUnwrap(find(overlay,"assets/tutorial/clean board.png") as? UIImageView)
+                XCTAssertFalse(artwork.isHidden);XCTAssertNotNil(artwork.image)
+                XCTAssertFalse(overlay.sourcePointerVisible)
+                let image=UIGraphicsImageRenderer(bounds:game.view.bounds).image{_ in game.view.drawHierarchy(in:game.view.bounds,afterScreenUpdates:true)}
+                try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/tutorial-resumed-objective.png"))
+                try XCTUnwrap(find(overlay,"native.tutorial.got-it") as? UIButton).sendActions(for:.touchUpInside)
+                try await wait("resumed-stack-entry-focus"){
+                    !overlay.objectiveSheetVisible && saved.tutorial!.guidedPair.allSatisfy{(game.boardScene?.sourceNativeTileNode($0)?.alpha ?? 0)>0.6}
+                }
+                XCTAssertFalse(overlay.sourcePointerVisible,"Pair fades during lesson sheet entry, before its pointer starts")
+                try await wait("resumed-objective-ack"){game.engine.state.tutorial?.objectiveAcknowledged==true && !overlay.objectiveSheetVisible && overlay.sourcePointerVisible}
+            }
+            XCTAssertFalse(overlay.objectiveSheetVisible)
+            let scene=try XCTUnwrap(game.boardScene)
+            let pair=Set(try XCTUnwrap(game.engine.state.tutorial?.guidedPair))
+            XCTAssertEqual(pair.count,2)
+            try await wait("resumed-stack-pair-faded-in"){
+                pair.allSatisfy{(scene.sourceNativeTileNode($0)?.alpha ?? 0)>0.99}
+            }
+            for tile in game.engine.state.tiles where !pair.contains(tile.id) {
+                XCTAssertLessThanOrEqual(try XCTUnwrap(scene.sourceNativeTileNode(tile.id)).alpha,0.21)
+            }
+            let focused=UIGraphicsImageRenderer(bounds:game.view.bounds).image{_ in game.view.drawHierarchy(in:game.view.bounds,afterScreenUpdates:true)}
+            try focused.pngData()?.write(to:URL(fileURLWithPath:"/tmp/tutorial-stack-pair-fade.png"))
+            XCTAssertEqual(game.engine.state.score,123);XCTAssertEqual(game.engine.state.moves,37)
+        }
+    }
     private var timeoutDiagnostic:(()->String)?
     private func wait(_ label:String,_ predicate:()->Bool)async throws {
         let deadline=Date().addingTimeInterval(40)

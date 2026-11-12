@@ -33,4 +33,18 @@ final class NativeDeviceMeterChargeTests:XCTestCase {
         XCTAssertFalse(phone.accepted)
         XCTAssertEqual(phone.resolution.reason,"native_wild_meter_spawn_pending")
     }
+    func testPostSpecialTutorialEarnsHalfNormalChargeOnEachDevice() {
+        for mode in [NativeRunMode.journey,.arcade] {
+            for deviceScale in [1.0,0.7] {
+                let initial=state(mode:mode)
+                let normal=move(NativeGameplayEngine(state:initial,wildMeterChargeScale:deviceScale))
+                var guided=initial,tutorial=NativeTutorialState()
+                tutorial.active=false;tutorial.guideCompleted=true;tutorial.completionAssist=true
+                guided.tutorial=tutorial
+                let result=move(NativeGameplayEngine(state:guided,wildMeterChargeScale:deviceScale))
+                XCTAssertTrue(result.accepted)
+                XCTAssertEqual(result.state.wildMeter,normal.state.wildMeter*0.5,accuracy:0.0000001)
+            }
+        }
+    }
 }

@@ -403,6 +403,14 @@ final class NativeResultController:UIViewController {
         place(scoreMotion,in:layout.score.offsetBy(dx:-layout.card.minX,dy:-layout.card.minY))
         scoreShake.bounds=scoreMotion.bounds;scoreShake.center=CGPoint(x:scoreMotion.bounds.midX,y:scoreMotion.bounds.midY)
         score.frame=scoreMotion.bounds
+        // Fit the complete final value once, so counting and its effects share
+        // one stable font and the last digits can never become an ellipsis.
+        let scoreText=NativeScoreDisplay.text(finalScore) as NSString
+        let naturalWidth=scoreText.size(withAttributes:[.font:score.font!]).width
+        if naturalWidth>score.bounds.width {
+            score.font=score.font.withSize(score.font.pointSize*max(1,score.bounds.width-1)/naturalWidth)
+        }
+        score.lineBreakMode = .byClipping
         scoreBlur.frame=scoreMotion.bounds.insetBy(dx:-scoreBlurPadding,dy:-scoreBlurPadding)
         place(statusContent,in:layout.status.offsetBy(dx:-layout.card.minX,dy:-layout.card.minY))
         place(status,in:statusContent.bounds)

@@ -41,6 +41,19 @@ public struct NativeSaveEnvelope: Codable, Equatable, Sendable {
         set { if activeArcadeVariant == .endurance { enduranceRunSavedAt = newValue } else { arcadeVariantRunSavedAt[activeArcadeVariant.rawValue] = newValue } }
     }
     public var firstPlayRun: NativeBoardState?
+    /// An unfinished guide resumes only within the mode the player selected.
+    /// Merely browsing/preparing the other mode does not discard its checkpoint.
+    public func firstPlayDestination(requestedBoard:Int?)->Int? {
+        guard !progression.firstPlayTutorialComplete else{return requestedBoard}
+        let mode:NativeRunMode=requestedBoard == nil ? .arcade:.journey
+        if let saved=firstPlayRun,saved.mode==mode {return mode == .journey ? saved.board:nil}
+        return requestedBoard.map{(($0-1)/10)*10+1}
+    }
+    public func firstPlayCheckpoint(mode:NativeRunMode,board:Int)->NativeBoardState? {
+        guard !progression.firstPlayTutorialComplete,let saved=firstPlayRun,
+              saved.mode==mode,saved.board==board else{return nil}
+        return saved
+    }
     public var importedHybrid: Bool
     public init(settings: NativeSettingsPreferences = .init(), progression: NativeProgressionState = .init(), journeyRuns: [Int: NativeBoardState] = [:], arcadeRun: NativeBoardState? = nil, importedHybrid: Bool = false) {
         self.settings = settings; self.progression = progression; self.journeyRuns = journeyRuns; self.enduranceRun = arcadeRun; self.importedHybrid = importedHybrid
@@ -160,6 +173,13 @@ public struct NativeSaveEnvelope: Codable, Equatable, Sendable {
         activeArcadeVariant=selected
     }
     public func resumedRun(mode: NativeRunMode, board: Int, now: TimeInterval = Date().timeIntervalSince1970) -> NativeBoardState? {
+        // A stale successor checkpoint can survive an older first-play profile
+        // without a matching beginAttempt. The first unlocked interim must then
+        // be constructed fresh; genuine attempts have a board stats record.
+        if mode == .journey,progression.firstPlayTutorialComplete,
+           progression.completedJourneyBoards.contains(board-1),
+           progression.interimBoard(world:(board-1)/10+1)==board,
+           (progression.boardStats[board]?.timesPlayed ?? 0)==0 {return nil}
         let timestamp = mode == .journey ? (journeyRunSavedAt[board] ?? savedAt) : (arcadeRunSavedAt ?? savedAt)
         guard now - timestamp < 7 * 24 * 60 * 60, now >= timestamp - 60 else { return nil }
         guard var run = mode == .journey ? journeyRuns[board] : arcadeRun, run.board == board, Self.hasRecordedMove(run) else { return nil }

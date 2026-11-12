@@ -16,6 +16,85 @@ import UIKit
         func deliver(_ value:Double){wall=value;service.deliver(wallMilliseconds:value)}
         func dispose(){owner.dispose();timeouts.cancelAll();service.dispose();fifo.dispose()}
     }
+    func testTutorialSpeechWaitsForActualSheetLandingAndStopsAtExitWithoutLayoutReplay()throws {
+        let f=try Fixture(immediate:true,nativeMotion:true);defer{f.dispose()}
+        let overlay=NativeTutorialOverlay(resourceRoot:NativeTestResources.root);defer{overlay.dispose()}
+        overlay.frame=CGRect(x:0,y:0,width:390,height:844)
+        var events:[String]=[];overlay.onSpeechEvent={events.append($0)}
+        XCTAssertTrue(overlay.showSourceIntro(from:nil,to:nil,service:f.service,timeouts:f.timeouts,boardGeneration:1,immediateSheet:true,deferInitialPointer:true,objectiveFirst:true,current:{f.current}))
+        for time in stride(from:16.0,through:768,by:16){f.deliver(time)}
+        XCTAssertTrue(events.isEmpty,"Native sheet crosses zero while bouncing; speech waits for settlement")
+        for time in stride(from:784.0,through:1008,by:16){f.deliver(time)}
+        XCTAssertEqual(events,["tutorial-speech:tutorial-objective"])
+        overlay.setNeedsLayout();overlay.layoutIfNeeded()
+        XCTAssertTrue(overlay.transitionObjectiveToStack(entered:{}))
+        XCTAssertEqual(events.last,"tutorial-speech-stop")
+        for time in stride(from:1024.0,through:2208,by:16){f.deliver(time)}
+        XCTAssertEqual(events.last,"tutorial-speech:tutorial-stack")
+        overlay.setSuspended(true);XCTAssertEqual(events.last,"tutorial-speech-stop")
+        let count=events.count;overlay.setSuspended(false)
+        overlay.setNeedsLayout();overlay.layoutIfNeeded()
+        for time in stride(from:2224.0,through:2608,by:16){f.deliver(time)}
+        XCTAssertEqual(events.count,count)
+        overlay.dispose();XCTAssertEqual(events.count,count)
+    }
+    func testDeliveryCharactersStayStaticThroughoutSourceAndRestoredEntry()throws {
+        for arcade in [false,true] {
+            let f=try Fixture(immediate:true,nativeMotion:true);defer{f.dispose()}
+            let overlay=NativeTutorialOverlay(resourceRoot:NativeTestResources.root,arcade:arcade);defer{overlay.dispose()}
+            overlay.frame=CGRect(x:0,y:0,width:390,height:844)
+            XCTAssertTrue(overlay.showSourceIntro(from:nil,to:nil,service:f.service,timeouts:f.timeouts,boardGeneration:1,immediateSheet:true,deferInitialPointer:true,current:{f.current}))
+            for time in stride(from:16.0,through:1000,by:16){f.deliver(time)}
+            let intro=try XCTUnwrap(overlay.sourceIntroOwner)
+            XCTAssertTrue(intro.exitSheet(completed:{}))
+            for time in stride(from:1008.0,through:1400,by:16){f.deliver(time)}
+            overlay.presentBackpackPrompt(arcade:arcade)
+            XCTAssertTrue(overlay.transitionSourceSheetToThirdStep(entered:{}))
+            let art=try XCTUnwrap(overlay.subviews.flatMap{$0.subviews}.compactMap{$0 as? UIImageView}.first{$0.accessibilityIdentifier?.contains(arcade ? "zajedno likovi":"ekipa backpack")==true})
+            let bounds=art.bounds,position=art.layer.position
+            for time in stride(from:1408.0,through:2400,by:16){
+                f.deliver(time);overlay.setNeedsLayout();overlay.layoutIfNeeded()
+                XCTAssertEqual(art.transform,.identity);XCTAssertEqual(art.layer.zPosition,0)
+                XCTAssertEqual(art.bounds,bounds);XCTAssertEqual(art.layer.position,position)
+            }
+            overlay.show(step:3,from:nil,to:nil,initial:true)
+            XCTAssertNil(art.layer.animation(forKey:"tutorial.delivery-art-enter"))
+            XCTAssertEqual(art.transform,.identity);XCTAssertEqual(art.layer.zPosition,0)
+            XCTAssertEqual(NativeTutorialSheetMotion.carrierRevealDelayMilliseconds,624)
+        }
+    }
+    func testHeldBackpackShimmerUseBoundedSharedRootsAndRetire()throws {
+        let f=try Fixture(immediate:true,nativeMotion:true);defer{f.dispose()}
+        let image=try XCTUnwrap(JimiV9Artwork(resourceRoot:NativeTestResources.root).image("assets/animations/backpack/backpack-1.png")?.cgImage)
+        let bounds=CGRect(x:0,y:0,width:379,height:438),container=CALayer()
+        container.frame=bounds;container.contents=image
+        var current=true
+        var effect:NativeTutorialCarrierIdleEffect?=NativeTutorialCarrierIdleEffect(image:image,bounds:bounds,service:f.service,current:{current})
+        weak var weakEffect=effect
+        container.addSublayer(try XCTUnwrap(effect?.layer))
+        var shimmer:Float=0,roots=0,wrote=false
+        for time in stride(from:16.0,through:3504,by:16){
+            f.deliver(time);shimmer=max(shimmer,effect?.shimmerOpacity ?? 0)
+            roots=max(roots,f.service.activeParticipantCount)
+            if !wrote,(effect?.shimmerOpacity ?? 0)>0.1 {
+                let snapshot=UIGraphicsImageRenderer(bounds:bounds).image{ctx in
+                    UIColor.white.setFill();ctx.fill(bounds);container.render(in:ctx.cgContext)
+                }
+                try snapshot.pngData()?.write(to:URL(fileURLWithPath:"/tmp/tutorial-backpack-idle-shimmer.png"));wrote=true
+            }
+        }
+        XCTAssertGreaterThan(shimmer,0.25);XCTAssertLessThanOrEqual(roots,2)
+        effect?.setSuspended(true)
+        let pausedShimmer=effect?.shimmerOpacity
+        for time in stride(from:3520.0,through:5504,by:16){f.deliver(time)}
+        XCTAssertEqual(effect?.shimmerOpacity,pausedShimmer)
+        effect?.setSuspended(false)
+        for time in stride(from:5520.0,through:30000,by:16){f.deliver(time);XCTAssertLessThanOrEqual(f.service.activeParticipantCount,2)}
+        current=false;effect?.dispose();effect?.dispose();effect=nil
+        XCTAssertNil(weakEffect);XCTAssertEqual(f.service.activeParticipantCount,0)
+        for time in stride(from:30016.0,through:32000,by:16){f.deliver(time)}
+        XCTAssertEqual(f.service.activeParticipantCount,0);XCTAssertTrue(container.sublayers?.isEmpty != false)
+    }
     func testEarlySecondAndSpecialPaperRequireEntryAndRealPreparationBeforeCTA()throws {
         let f=try Fixture();defer{f.dispose()}
         let overlay=NativeTutorialOverlay(resourceRoot:NativeTestResources.root);defer{overlay.dispose()}

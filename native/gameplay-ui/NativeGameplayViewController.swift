@@ -56,6 +56,7 @@ final class NativeGameplayViewController: UIViewController {
     var onHUDCoinArrival:((Double)->Void)?
     var onHUDTapContact:((String)->Void)?
     var onHelp: (() -> Void)?
+    var onTutorialBackpackVisitClosed:(()->Void)?
     var onScore: (() -> Void)?
     var onCombo: (() -> Void)?
     var onPointerState: ((Bool) -> Void)?
@@ -1745,7 +1746,7 @@ final class NativeGameplayViewController: UIViewController {
         sourceTntGlyphScopes.removeAll();sourceTntGlyphOwnerIDs.removeAll();tntGlyphs.values.forEach { $0.removeFromSuperview() }; tntGlyphs.removeAll(); spriteView.presentGameplayScene(nil); spriteView.surfacePaused = true
         onSourceGuidedSnapBack=nil;onSourceTutorialRetired=nil;onSourceTutorialPrepared=nil;onSourceTutorialBoardVisible=nil
         onSourceBoardEntrySound=nil;onSourceBoardEntryCompleted=nil
-        onExit = nil; onStateChange = nil; onRoundWon=nil; onTerminal = nil; onGameplayEvent = nil; onHUDTapContact=nil; onHelp = nil; onScore = nil; onCombo = nil; onPointerState = nil; onHaptic = nil; onBoardEntry = nil; onBoardExit = nil; onGameplayReceipt = nil; onSpecialMoment = nil; onHUDCoinArrival = nil; onSpecialFadeCapture = nil
+        onExit = nil; onStateChange = nil; onRoundWon=nil; onTerminal = nil; onGameplayEvent = nil; onHUDTapContact=nil; onHelp = nil; onTutorialBackpackVisitClosed=nil; onScore = nil; onCombo = nil; onPointerState = nil; onHaptic = nil; onBoardEntry = nil; onBoardExit = nil; onGameplayReceipt = nil; onSpecialMoment = nil; onHUDCoinArrival = nil; onSpecialFadeCapture = nil
     }
 }
 

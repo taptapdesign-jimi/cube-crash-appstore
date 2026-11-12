@@ -18,7 +18,7 @@ import CoreGraphics
  struct Move:Decodable{let from:Rect,to:Rect}
  struct Sample:Decodable{let time:Double,x:Double,y:Double,alpha:Double,scale:Double,rotation:Double}
  struct Case:Decodable{let candidates:[Candidate],moves:[Move],seed:Int,draws:Int,duration:Double,cycle:Double,samples:[Sample]}
- func testOriginal24CasesPreserveShuffleDrawOrderAndActualGSAPChannels()throws {
+ func testOriginal24CasesPreserveShuffleTargetsAndUnchangedDragChannels()throws {
   let cases=try JSONDecoder().decode([Case].self,from:Data(Self.original.utf8))
   for original in cases {
    var draws=0
@@ -32,8 +32,25 @@ import CoreGraphics
     let pose=try XCTUnwrap(plan.pose(seconds:sample.time,fingertip:CGPoint(x:18,y:24)))
     XCTAssertEqual(pose.position.x,sample.x,accuracy:2e-5,"seed \(original.seed), time \(sample.time)")
     XCTAssertEqual(pose.position.y,sample.y,accuracy:2e-5)
-    XCTAssertEqual(pose.alpha,sample.alpha,accuracy:2e-6);XCTAssertEqual(pose.scale,sample.scale,accuracy:2e-6);XCTAssertEqual(pose.rotation,sample.rotation,accuracy:2e-6)
+    XCTAssertEqual(pose.alpha,sample.alpha,accuracy:2e-6);XCTAssertEqual(pose.rotation,sample.rotation,accuracy:2e-6)
+    let remainder=sample.time.truncatingRemainder(dividingBy:plan.cycle)
+    let local=remainder==0 ? plan.cycle:remainder
+    let phase=local-Double(min(plan.moves.count-1,Int(local/1.08)))*1.08
+    // User2026-11-12 replaces entrance/exit scale only; preserve real drag.
+    if phase>=0.16 && phase<0.84 {XCTAssertEqual(pose.scale,sample.scale,accuracy:2e-6)}
    }
+  }
+ }
+ func testEveryGestureBouncesFromZeroAndBackToZero()throws {
+  let rect=CGRect(x:0,y:0,width:60,height:60),target=CGRect(x:180,y:0,width:60,height:60)
+  let free=NativeSourceTutorialFreePlayPlan(moves:[.init(from:rect,to:target)])
+  let fourth=NativeSourceTutorialFourthPointerPlan(from:rect,to:target)
+  let samples:[((Double)->NativeSourceTutorialFreePlayPlan.Pose?,Double,Double)]=[({free.pose(seconds:$0,fingertip:.zero)},1.0,0.84),({fourth.pose(seconds:$0,fingertip:.zero)},1.02,0.86)]
+  for (sample,end,exit) in samples {
+   XCTAssertEqual(try XCTUnwrap(sample(0)).scale,0,accuracy:1e-9)
+   XCTAssertGreaterThan(try XCTUnwrap(sample(0.08)).scale,1)
+   XCTAssertGreaterThan(try XCTUnwrap(sample(exit+0.06)).scale,0.94)
+   XCTAssertEqual(try XCTUnwrap(sample(end)).scale,0,accuracy:1e-9)
   }
  }
  func testRetirementDuringMathCannotConsumeRemainingDirections() {

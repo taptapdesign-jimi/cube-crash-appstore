@@ -13,11 +13,28 @@ import StackToSixNativeState
  func testLocoLeadingLAlwaysUsesLargeLetterTreatment() throws {
   let artwork=JimiV9Artwork(resourceRoot:NativeTestResources.root)
   for sample in [0.0,0.23,0.56,0.99] {
-   let field=NativeSplashGlyphField.clankStyle(artwork:artwork,text:"COCO-LOCO",random:{sample})
+   let field=NativeSplashGlyphField.clankStyle(artwork:artwork,text:"COCO LOCO",random:{sample})
    let labels=try XCTUnwrap(field.subviews.first).subviews.compactMap{$0 as? UILabel}
-   XCTAssertEqual(labels.map{$0.text ?? ""}.joined(),"COCO-LOCO")
+   XCTAssertEqual(labels.map{$0.text ?? ""}.joined(),"COCO LOCO")
    XCTAssertGreaterThanOrEqual(labels[0].font.pointSize,75)
    XCTAssertGreaterThanOrEqual(labels[5].font.pointSize,75)
+  }
+ }
+
+ func testCoconutFinaleTabletArtworkIsThirtyPercentLargerWithoutChangingFlights()async throws {
+  let selected=try await prepared();defer{selected.dispose()}
+  for viewport in [CGSize(width:390,height:844),CGSize(width:820,height:1180)] {
+   let owner=NativeTntVariantPresentation(resourceRoot:NativeTestResources.root,variant:.coconut,viewport:viewport,preparedArtwork:selected.artwork,random:{0.5});defer{owner.dispose()}
+   let motion=NativeCoconutFinaleMotion(viewport:viewport,random:{0.5}),time=0.9
+   owner.paint(seconds:time)
+   let views=owner.subviews.filter{$0.accessibilityIdentifier=="native-coconut-whole"}
+   XCTAssertEqual(views.count,motion.whole.count)
+   for (index,flight) in motion.whole.enumerated() where time>=flight.delay && time<flight.endTime {
+    let view=views[index],squash=motion.squash(body:index,seconds:time)
+    let expected=flight.size*(NativeTabletLayout.applies(viewport) ? 1.3:1)
+    XCTAssertEqual(hypot(view.transform.a,view.transform.c)*max(view.bounds.width,view.bounds.height)/squash.x,expected,accuracy:0.001)
+    XCTAssertEqual(view.center,motion.position(flight,seconds:time))
+   }
   }
  }
 

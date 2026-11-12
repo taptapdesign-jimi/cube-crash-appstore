@@ -7,6 +7,25 @@ import StackToSixNativeState
 
 @MainActor
 final class NativeBackpackTests:XCTestCase {
+    func testTutorialCollectionHandRetiresBeforePendingDetailCanPublish()async throws {
+        let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+        let controller=NativeGameplayBackpackController(root:NativeTestResources.root,sections:[],includesArcade:true,motion:NativeRouteMotion(home:JimiV9HomeView(frame:.zero,assets:assets),hub:JimiV9HubView(frame:.zero,assets:assets)),tutorialGuidance:true)
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible()
+        defer{controller.dispose();host.dismiss(animated:false);window.isHidden=true}
+        host.present(controller,animated:false)
+        try await waitForRetap{controller.tutorialHand?.phase=="first-die"}
+        weak var retiredHand=controller.tutorialHand
+        let screen=try XCTUnwrap(controller.screen)
+        let first=try XCTUnwrap(screen.firstUnlockedVisibleDieView as? UICollectionViewCell)
+        screen.collectionView(screen.grid,didSelectItemAt:try XCTUnwrap(screen.grid.indexPath(for:first)))
+        let detail=try XCTUnwrap(controller.detail),late=detail.onEntered
+        controller.dispose();controller.dispose();late?()
+        try await Task.sleep(for:.milliseconds(200))
+        XCTAssertNil(controller.tutorialHand);XCTAssertNil(retiredHand)
+        XCTAssertNil(detail.onEntered);XCTAssertNil(detail.onLayout)
+        XCTAssertNil(host.presentedViewController?.presentedViewController)
+    }
     func testBackpackAndBoxVisibleDiceOpenDuringFullscreenEntry() async throws {
         for origin in [NativeAppController.Route.hub,.arcadeHub] {
             var progression=NativeProgressionState();progression.lastOpenedJourneyBoard=2;progression.announceJourneyDie("bee",board:1)
@@ -231,7 +250,7 @@ final class NativeBackpackTests:XCTestCase {
             XCTAssertTrue(frame.layer.allowsEdgeAntialiasing)
             XCTAssertTrue(art.layer.allowsEdgeAntialiasing)
             XCTAssertFalse(group.layer.shouldRasterize,"No low-resolution flattened cache or per-frame CPU raster")
-            XCTAssertEqual(group.layer is CATransformLayer,NativeTabletLayout.applies(UIScreen.main.bounds.size),"Tablet perspective must preserve the artwork subtree before modal projection; phone keeps its existing CALayer")
+            XCTAssertTrue(group.layer is CATransformLayer,"Perspective must retain native-density artwork leaves on phone and tablet instead of flattening the badge and die")
             print("[BackpackRaster] \(cell.accessibilityIdentifier ?? "?") pixels=\(pixels.width)x\(pixels.height) imageScale=\(art.image!.scale) bounds=\(art.bounds) contentsScale=\(art.layer.contentsScale) groupScale=\(group.layer.contentsScale)")
             let id=(cell.accessibilityIdentifier ?? "").replacingOccurrences(of:"native.backpack.die.",with:"")
             group.layer.transform=NativeBackpackArtworkIdleMotion(id:id).poses(scale:1)[1]
@@ -1044,11 +1063,11 @@ final class NativeBackpackTests:XCTestCase {
             controller.loadViewIfNeeded();controller.view.frame=CGRect(x:0,y:0,width:390,height:844);controller.view.layoutIfNeeded()
             XCTAssertEqual(controller.modalPresentationStyle,.overFullScreen)
             XCTAssertEqual(controller.heading.text,"Backpack")
-            XCTAssertTrue(controller.subtitle.text?.hasPrefix("\(section.title) backpack items\n") == true)
+            XCTAssertEqual(controller.subtitle.text,"Meet your little helpers.\nThey’ll drop in as you play.")
             let attributed=try XCTUnwrap(controller.subtitle.attributedText)
             let paragraph=try XCTUnwrap(attributed.attribute(.paragraphStyle,at:0,effectiveRange:nil) as? NSParagraphStyle)
-            XCTAssertEqual(paragraph.minimumLineHeight,26,section.title)
-            XCTAssertEqual(paragraph.maximumLineHeight,26,section.title)
+            XCTAssertEqual(paragraph.minimumLineHeight,23.4,accuracy:0.001,section.title)
+            XCTAssertEqual(paragraph.maximumLineHeight,23.4,accuracy:0.001,section.title)
             XCTAssertEqual(paragraph.paragraphSpacing,0,section.title)
             XCTAssertLessThanOrEqual(controller.subtitle.bounds.height,78,section.title)
             XCTAssertEqual(controller.card.bounds.width,342)

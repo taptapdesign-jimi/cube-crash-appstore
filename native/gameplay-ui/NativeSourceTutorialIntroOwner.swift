@@ -4,6 +4,7 @@ import Foundation
 /// The paper surface must extend below the viewport by at least 25% of its height.
 enum NativeTutorialSheetMotion {
     static let duration=0.78
+    static let carrierRevealDelayMilliseconds=Int((duration*0.8*1000).rounded())
     static func progress(_ seconds:Double)->Double {
         let t=max(0,min(1,seconds/duration))
         func smooth(_ value:Double)->Double {let p=max(0,min(1,value));return p*p*p*(p*(p*6-15)+10)}
@@ -35,15 +36,17 @@ enum NativeTutorialSheetMotion {
     private var frame:NativeSourceAnimationClockService.SourceFrameLease?
     private var started=false,disposed=false,pointerEpoch:UInt64=0,sheetEpoch:UInt64=0
     private var paintedPointer=PointerPose(alpha:0,scale:0,rotation:-8),paintedSheet=1.0
+    private let sheetEntered:()->Void,sheetExiting:()->Void
     private let conceal:()->Void,dim:(Double)->Void
     private var dimPaint:Paint?,dimLease:NativeSourceAnimationClockService.Lease?,dimEpoch:UInt64=0,paintedDim=1.0
     private(set) var sheetStarted=false,pointerStarted=false
     var pendingTimerCount:Int{timers.count}
     init?(service:NativeSourceAnimationClockService,timeouts:NativeSourceAppTimeoutOwner,generation:UInt64,
           immediateSheet:Bool=false,nativeSheetMotion:Bool=false,deferInitialPointer:Bool=false,current:@escaping()->Bool,sheet:@escaping(Double)->Void,pointer:@escaping(PointerPose)->Void,
-          reveal:@escaping()->Void,focus:@escaping()->Void,conceal:@escaping()->Void={},dim:@escaping(Double)->Void={_ in}) {
+          reveal:@escaping()->Void,focus:@escaping()->Void,conceal:@escaping()->Void={},dim:@escaping(Double)->Void={_ in},sheetEntered:@escaping()->Void={},sheetExiting:@escaping()->Void={}) {
         guard generation>0,service.sourceMicrotaskRAFBoundaryInstalled,
               let tasks=service.sourceMicrotaskTasks,timeouts.sourceMicrotaskTasks === tasks,current() else{return nil}
+        self.sheetEntered=sheetEntered;self.sheetExiting=sheetExiting
         self.immediateSheet=immediateSheet;self.nativeSheetMotion=nativeSheetMotion
         self.deferInitialPointer=deferInitialPointer
         self.service=service;self.timeouts=timeouts;self.generation=generation
@@ -79,7 +82,7 @@ enum NativeTutorialSheetMotion {
         cancelSheet();let epoch=sheetEpoch
         let paint=Paint{[weak self] seconds in guard let self else{return};guard self.admitted() else{self.dispose();return};guard self.sheetEpoch==epoch else{return};self.paintSheet(self.entranceProgress(seconds))}
         sheetPaint=paint
-        sheetLease=service.register(participant:paint,duration:entranceDuration,domain:.sourceGSAP(.defaultLazyTween),cleanup:{[weak self] _ in guard let self,self.sheetEpoch==epoch else{return};self.sheetLease=nil;self.sheetPaint=nil})
+        sheetLease=service.register(participant:paint,duration:entranceDuration,domain:.sourceGSAP(.defaultLazyTween),cleanup:{[weak self] success in guard let self,self.sheetEpoch==epoch else{return};self.sheetLease=nil;self.sheetPaint=nil;if success,self.admitted(){self.sheetEntered()}})
         if sheetLease==nil{dispose()}
     }
     private func startPointer(scheduleFocus:Bool) {
@@ -148,7 +151,7 @@ enum NativeTutorialSheetMotion {
     @discardableResult func exitSheet(completed:@escaping()->Void)->Bool {exitSheet(duration:0.28,completed:completed)}
     @discardableResult func exitThirdSheetForWild(completed:@escaping()->Void)->Bool {exitSheet(duration:0.34,completed:completed)}
     private func exitSheet(duration:Double,completed:@escaping()->Void)->Bool {
-        guard admitted() else{return false};cancelSheet();let epoch=sheetEpoch,from=paintedSheet
+        guard admitted() else{return false};sheetExiting();cancelSheet();let epoch=sheetEpoch,from=paintedSheet
         let paint=Paint{[weak self] seconds in
             guard let self else{return};guard self.admitted() else{self.dispose();return};guard self.sheetEpoch==epoch else{return}
             let t=pow(max(0,min(1,seconds/duration)),3);self.paintSheet(from+(1-from)*t)
@@ -169,13 +172,13 @@ enum NativeTutorialSheetMotion {
         sheetPaint=paint
         sheetLease=service.register(participant:paint,duration:entranceDuration,domain:.sourceGSAP(.defaultLazyTween),cleanup:{[weak self] success in
             guard let self,self.sheetEpoch==epoch else{return};self.sheetLease=nil;self.sheetPaint=nil
-            guard success,self.admitted() else{return};completed()
+            guard success,self.admitted() else{return};self.sheetEntered();guard self.admitted(),self.sheetEpoch==epoch else{return};completed()
         })
         return sheetLease != nil
     }
     /// Adjacent lessons retain their paper; only the copy/CTA crossfade.
     @discardableResult func replaceSheetContent(prepare:@escaping()->Void,paint:@escaping(Double,Double)->Void,completed:@escaping()->Void)->Bool {
-        guard admitted() else{return false};cancelSheet();let epoch=sheetEpoch
+        guard admitted() else{return false};sheetExiting();cancelSheet();let epoch=sheetEpoch
         var replaced=false
         let participant=Paint{[weak self] seconds in
             guard let self,self.admitted(),self.sheetEpoch==epoch else{return}
@@ -187,7 +190,7 @@ enum NativeTutorialSheetMotion {
         sheetPaint=participant
         sheetLease=service.register(participant:participant,duration:0.38,domain:.sourceGSAP(.timeline),cleanup:{[weak self] success in
             guard let self,self.sheetEpoch==epoch else{return};self.sheetLease=nil;self.sheetPaint=nil
-            guard success,self.admitted() else{return};paint(1,0);completed()
+            guard success,self.admitted() else{return};paint(1,0);self.sheetEntered();guard self.admitted(),self.sheetEpoch==epoch else{return};completed()
         })
         return sheetLease != nil
     }

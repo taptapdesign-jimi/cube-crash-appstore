@@ -962,6 +962,10 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
     }
     /// The consumed six remains a reserved grid carrier until conversion, but
     /// none of its old artwork/idle receipts may reveal it during respawn.
+    func hideTutorialConsumedSixArtwork() {
+        guard !disposed,!isSpecial else{return}
+        visual.isHidden=true;shadow.isHidden=true
+    }
     func hideSourceConsumedMagnetSix() {
         guard !disposed,sourceWildStateCleared else{return}
         retireSourceBottleIdle(restoring:false)
@@ -1043,6 +1047,12 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
             self.face.alpha=1;self.face.isHidden=false;self.artwork.isHidden=true
             self.sourceResidualWildPresence=true;self.depth=1;self.stack.removeAllChildren()
             self.pips.removeAllChildren();self.pips.isHidden=true;self.shadow.isHidden=true
+            // Core Magnet's consumed destination is an invisible reserved
+            // carrier until its numbered replacement arrives. Keep the face
+            // receipt/accounting, but never expose the historical Star skin.
+            if original.gameplayArchetype == .magnet && original.variant == nil {
+                self.hideSourceWildDestinationFinalChildren()
+            }
             onFacePainted();return valid()
         },immediateStack:{[weak self] in
             guard let self,valid() else{return false}
@@ -1247,6 +1257,92 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
             rotation:motion.original.rotation+sin(t * .pi * 1.9 + .pi * 0.2)*0.025,
             x:motion.original.x*scale,y:motion.original.y*scale)
         paintSourceBeeHostPose(pose);motion.lastPaint=sourceBeeHostPose;sourceBeeHostMotion=motion
+    }
+
+    @MainActor private final class TutorialBurnPaint:NativeSourceAnimationParticipant {
+        let advance:(Double)->Void
+        init(_ advance:@escaping(Double)->Void){self.advance=advance}
+        func advanceSourceAnimation(seconds:Double){advance(seconds)}
+    }
+    private struct TutorialBurnMask {weak var source:SKSpriteNode?;let overlay:SKSpriteNode}
+    private var tutorialBurnMasks:[ObjectIdentifier:TutorialBurnMask]=[:]
+    private weak var tutorialBurnService:NativeSourceAnimationClockService?
+    private var tutorialBurnLease:NativeSourceAnimationClockService.Lease?,tutorialBurnPaint:TutorialBurnPaint?
+    private var tutorialBurnEpoch:UInt64=0,tutorialBurnCanvasPaintable=false,tutorialBurnEnabled=false,tutorialBurnHasPlayed=false
+    var tutorialSpecialBurnNodeCount:Int{tutorialBurnMasks.count}
+    var tutorialSpecialBurnActive:Bool{tutorialBurnLease?.active==true}
+    private var tutorialBurnCanPaint:Bool {
+        tutorialBurnEnabled && !UIAccessibility.isReduceMotionEnabled && !dragging && !sourceRegistryPaused && !sourceRegistryPending && !sourceIdleDeferred &&
+            isSpecial && !sourceWildStateCleared && !sourceResidualWildPresence && parent != nil &&
+            sourceIdleHostPaintable(canvasPaintable:tutorialBurnCanvasPaintable) && tutorialBurnService?.sourceForegroundAdmissionOpen==true
+    }
+    /// The selected tutorial die borrows Journey stars' finite whole-silhouette
+    /// gold burn. Existing artwork textures are live alpha masks, never read back.
+    func reconcileTutorialSpecialBurn(service:NativeSourceAnimationClockService?,enabled:Bool,canvasPaintable:Bool) {
+        if !enabled,!tutorialBurnEnabled,tutorialBurnLease==nil,tutorialBurnMasks.isEmpty {tutorialBurnHasPlayed=false;return}
+        tutorialBurnEnabled=enabled;tutorialBurnCanvasPaintable=canvasPaintable
+        if tutorialBurnService !== service {retireTutorialSpecialBurn();tutorialBurnService=service}
+        guard service != nil,tutorialBurnCanPaint else{retireTutorialSpecialBurn();if !enabled{tutorialBurnHasPlayed=false};return}
+        synchronizeTutorialBurnMasks()
+        guard !tutorialBurnMasks.isEmpty else{retireTutorialSpecialBurn();return}
+        if tutorialBurnLease==nil {startTutorialBurnCycle(first:!tutorialBurnHasPlayed)}
+    }
+    private func synchronizeTutorialBurnMasks() {
+        var candidates:[SKSpriteNode]=[],visited=0
+        func visit(_ node:SKNode){
+            guard visited<96,candidates.count<8,!node.isHidden,node.alpha>0.001 else{return};visited+=1
+            let name=(node.name ?? "").lowercased()
+            guard node !== shadow,node !== sourceShadowContainer,node !== pips,node !== stack,
+                !["tutorial-special-burn","shadow","shimmer","smoke","spark","orbit","halo","bubble","engine"].contains(where:{name.contains($0)}) else{return}
+            if let sprite=node as? SKSpriteNode,sprite.texture != nil,sprite.size.width>0,sprite.size.height>0 {candidates.append(sprite)}
+            for child in node.children {visit(child)}
+        }
+        visit(visual)
+        if let star=sourcePlainStarArtworkSprite,!candidates.contains(where:{$0 === star}),!star.isHidden,star.alpha>0.001,candidates.count<8 {candidates.append(star)}
+        let live=Set(candidates.map(ObjectIdentifier.init))
+        for id in Array(tutorialBurnMasks.keys) where !live.contains(id) {tutorialBurnMasks.removeValue(forKey:id)?.overlay.removeFromParent()}
+        for source in candidates {
+            let id=ObjectIdentifier(source),overlay:SKSpriteNode
+            if let mask=tutorialBurnMasks[id],mask.source === source {overlay=mask.overlay}
+            else {
+                overlay=SKSpriteNode();overlay.name="tutorial-special-burn"
+                overlay.color=SKColor(red:1,green:235/255,blue:142/255,alpha:1);overlay.colorBlendFactor=1;overlay.blendMode = .screen
+                overlay.zPosition=0.001;overlay.alpha=0;source.addChild(overlay)
+                tutorialBurnMasks[id]=TutorialBurnMask(source:source,overlay:overlay)
+            }
+            if overlay.texture !== source.texture {overlay.texture=source.texture}
+            overlay.size=source.size;overlay.anchorPoint=source.anchorPoint;overlay.position = .zero
+        }
+    }
+    private func startTutorialBurnCycle(first:Bool) {
+        guard tutorialBurnCanPaint,let service=tutorialBurnService,!tutorialBurnMasks.isEmpty else{return}
+        tutorialBurnEpoch &+= 1;let epoch=tutorialBurnEpoch,generation=sourceGeneration,revision=sourceBindingRevision
+        tutorialBurnHasPlayed=true
+        let paint=TutorialBurnPaint{[weak self] seconds in
+            guard let self,self.tutorialBurnEpoch==epoch else{return}
+            guard self.tutorialBurnCanPaint,self.sourceGeneration==generation,self.sourceBindingRevision==revision else{self.retireTutorialSpecialBurn();return}
+            self.synchronizeTutorialBurnMasks()
+            let alpha=CGFloat(NativeStarBurnTiming.burnAlpha(fraction:seconds/NativeStarBurnTiming.duration)*0.86)
+            for mask in self.tutorialBurnMasks.values {mask.overlay.alpha=alpha}
+            self.onResourceReady?()
+        }
+        tutorialBurnPaint=paint
+        let lease=service.register(participant:paint,duration:NativeStarBurnTiming.duration,domain:.sourceGSAP(.timeline),delay:NativeStarBurnTiming.delay(first:first),cleanup:{[weak self] success in
+            guard let self,self.tutorialBurnEpoch==epoch else{return}
+            self.tutorialBurnLease=nil;self.tutorialBurnPaint=nil
+            for mask in self.tutorialBurnMasks.values {mask.overlay.alpha=0}
+            guard success,self.tutorialBurnCanPaint,self.sourceGeneration==generation,self.sourceBindingRevision==revision else{self.retireTutorialSpecialBurn();return}
+            self.startTutorialBurnCycle(first:false)
+        })
+        guard tutorialBurnEpoch==epoch,tutorialBurnCanPaint,sourceGeneration==generation,sourceBindingRevision==revision else{lease?.cancel(success:false);return}
+        tutorialBurnLease=lease
+        if lease==nil {retireTutorialSpecialBurn()}
+    }
+    private func retireTutorialSpecialBurn() {
+        guard tutorialBurnLease != nil || tutorialBurnPaint != nil || !tutorialBurnMasks.isEmpty else{return}
+        tutorialBurnEpoch &+= 1
+        let lease=tutorialBurnLease;tutorialBurnLease=nil;tutorialBurnPaint=nil;lease?.cancel(success:false)
+        let masks=tutorialBurnMasks;tutorialBurnMasks.removeAll();for mask in masks.values{mask.overlay.removeFromParent()}
     }
 
     private var sourceWildShimmerID:UUID?
@@ -1681,7 +1777,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         self.position=position;xScale=x;yScale=y;zRotation=rotation;visual.position=innerPosition;visual.zRotation=innerRotation
     }
     func synchronizeSourceGeometry(_ scale:CGFloat) {
-        guard sourceOuterDriven else{setScale(scale);return}
+        guard sourceOuterDriven else{sourceNativeGeometryScale=scale;setScale(scale);return}
         let local=sourceLocalScale;sourceNativeGeometryScale=scale;paintSourceOuterScale(local)
     }
     func restoreSourceOuterForAcceptedDrop(){sourceOuterBridge?.restoreForAcceptedDrop()}
@@ -2324,6 +2420,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
     private func setSourceRegistryPaused(_ active:Bool,reconcileExistingPause:Bool=false) {
         guard !disposed,sourceRegistryPaused != active || reconcileExistingPause else{return}
         sourceRegistryPaused=active
+        if active {retireTutorialSpecialBurn()}
         // A foreground modal pauses the Source clock, not pointer ownership.
         // Drag APIs clear puffs/sparks and restart authored motion on release.
         let appliesPauseEffects=active && !preservesPausedSpecialVisuals
@@ -2350,6 +2447,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
         retireSourceBottleIdle(restoring:true)
         retireSourceHoneyIdle()
         retireSourceBeeHostMotion(restoring:restoringActiveBee);sourceBeeFrames=nil
+        retireTutorialSpecialBurn()
         sourceRegistryPending=sourceIdleEligible;sourceRegistryPaused=true;artworkGeneration+=1
         if let id=artworkPhaseID {textures.releaseIdlePhase(id)};artworkPhaseID=nil
         kantaIdle?.dispose();kantaIdle=nil;mushroomSmoke?.dispose();mushroomSmoke=nil
@@ -2379,6 +2477,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
             motion.lastPaint=nil;sourceBeeHostMotion=motion
         }
         dragging = active
+        if active {retireTutorialSpecialBurn()}
         if variant == "laser-gun",scene is NativeBoardScene {
             face.position = .zero;face.zRotation=0;face.setScale(1)
         }
@@ -2710,7 +2809,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
             } else {node=SKNode()}
             node.name=original.name;node.position=original.position;node.zPosition=original.zPosition
             node.xScale=original.xScale;node.yScale=original.yScale;node.zRotation=original.zRotation;node.alpha=original.alpha;node.isHidden=original.isHidden
-            for child in original.children {node.addChild(capture(child))}
+            for child in original.children where child.name != "tutorial-special-burn" {node.addChild(capture(child))}
             return node
         }
         return capture(visual)
@@ -2724,6 +2823,7 @@ final class NativeDiceNode: SKNode, NativeTileOuterPoseHost, NativeDragShadowHos
 
     func dispose() {
         guard !disposed else { return }
+        retireTutorialSpecialBurn()
         bloobBoardPlayback=nil;bloobBoardRotation=nil;bloobBoardEntryStart=nil
         sourceFreshFaceEntryPending=nil
         sourceGridCell=nil

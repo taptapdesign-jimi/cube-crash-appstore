@@ -27,6 +27,10 @@ import StackToSixGameplay
         let fault:(String)->Void
         let consume:(NativeMoveResult,NativeBoardState)->Void
         var onDropStarted:((NativeDiceNode)->Void)?=nil
+        var holdCarrierAtArrival:((NativeDiceNode)->Bool)?=nil
+        var tutorialCarrierLayout:(()->NativeWildMeterDropPlan.TutorialCarrier?)?=nil
+        var onCarrierArrived:((NativeDiceNode)->Void)?=nil
+        var onCarrierPaint:((SKSpriteNode?)->Void)?=nil
         var onDropContact:((NativeDiceNode)->Void)?=nil
         var onDropLanded:((NativeDiceNode)->Void)?=nil
         var sourceSkin:((NativeDiceNode)->Bool)?=nil
@@ -46,6 +50,22 @@ import StackToSixGameplay
     private let hooks:Hooks,random:()->Double,wallNow:()->Double
     private let sourcePromiseBookkeeping:Bool
     private var closed=false,sequence:UInt64=0,drops:[String:Drop]=[:]
+    func closedTutorialCarrierImage(for texture:SKTexture)->CGImage? {
+        guard valid() else{return nil}
+        return resources.closedCarrierImage(for:texture)
+    }
+    var heldTutorialCarrier:SKSpriteNode? {
+        guard valid() else{return nil}
+        let held=drops.values.filter{$0.owner?.carrierArrivalHeld==true}
+        guard held.count==1,let drop=held.first,valid(drop) else{return nil}
+        return drop.owner?.heldTutorialCarrier
+    }
+    @discardableResult func resumeHeldTutorialCarrier()->Bool {
+        guard valid() else{return false}
+        let held=drops.values.filter{$0.owner?.carrierArrivalHeld==true}
+        guard held.count==1,let drop=held.first,valid(drop) else{return false}
+        return drop.owner?.resumeAfterCarrierArrival() == true
+    }
     func captureSourceDropActiveCount()->Int? {
         guard sourcePromiseBookkeeping,valid() else{return nil}
         let captured=drops
@@ -282,7 +302,7 @@ import StackToSixGameplay
                 guard let self,let drop,let stage,self.valid(drop) else{return nil}
                 let viewport=self.hooks.viewport();guard self.valid(drop) else{return nil}
                 var canceled=false
-                let plan=NativeMeterSceneGeometry.plan(tile:drop.captured.lease.node,stage:stage,viewport:viewport,arcade:self.engine.state.mode == .arcade,random:{
+                let plan=NativeMeterSceneGeometry.plan(tile:drop.captured.lease.node,stage:stage,viewport:viewport,arcade:self.engine.state.mode == .arcade,tutorialCarrier:self.hooks.holdCarrierAtArrival?(drop.captured.lease.node)==true ? self.hooks.tutorialCarrierLayout?():nil,random:{
                     guard !canceled,self.valid(drop) else{canceled=true;return 0}
                     let value=self.random();if !self.valid(drop){canceled=true};return value
                 })
@@ -295,7 +315,10 @@ import StackToSixGameplay
                     })
             })
         drop.owner=owner
+        if hooks.holdCarrierAtArrival?(node)==true {owner.pauseAtCarrierArrival()}
         owner.onDropStarted={[weak self,weak drop] in guard let self,let drop,self.valid(drop) else{return};self.hooks.onDropStarted?(drop.captured.lease.node)}
+        owner.onCarrierPaint={[weak self] node in self?.hooks.onCarrierPaint?(node)}
+        owner.onCarrierArrived={[weak self,weak drop] in guard let self,let drop,self.valid(drop) else{return};self.hooks.onCarrierArrived?(drop.captured.lease.node)}
         owner.onBeginActivity={[weak self,weak drop] in guard let self,let drop,self.valid(drop) else{return nil};return self.hooks.sourceActivity(drop.runtime.id,drop.runtime.generation)}
         owner.onBeginAudio={[weak self,weak drop] in guard let self,let drop,self.valid(drop) else{return {}};return self.hooks.carrierAudio(self.engine.state.mode == .arcade,drop.runtime.id,drop.runtime.generation)}
         owner.onBeginDividerMask={[weak self,weak drop] in guard let self,let drop,self.valid(drop) else{return {}};return self.hooks.dividerMask()}

@@ -62,9 +62,9 @@ struct NativeSourceTutorialFreePlayPlan {
         let t=max(0,min(1,(time-0.16)/0.58)),drag=t<0.5 ? 2*t*t:1-pow(-2*t+2,2)/2
         let rotation = -8+((dx>=0 ? -1.0:-12.0)+8)*drag
         let alpha:Double,scale:Double
-        if time<0.16 {let t=max(0,min(1,time/0.16))-1,ease=1+2.8*t*t*t+1.8*t*t;alpha=ease;scale=0.9+0.1*ease}
+        if time<0.16 {let t=max(0,min(1,time/0.16))-1,ease=1+2.8*t*t*t+1.8*t*t;alpha=ease;scale=ease}
         else if time<0.84 {alpha=1;scale=1-0.06*drag}
-        else {let fade=1-cos(max(0,min(1,(time-0.84)/0.16))*Double.pi/2);alpha=1-fade;scale=0.94-0.08*fade}
+        else {let fade=1-cos(max(0,min(1,(time-0.84)/0.16))*Double.pi/2);alpha=1-fade;scale=0.94*NativeTutorialHandMotion.exitScale((time-0.84)/0.16)}
         return Pose(position:CGPoint(x:start.x+dx*drag,y:start.y+dy*drag),alpha:alpha,scale:scale,rotation:rotation)
     }
 }
@@ -81,9 +81,9 @@ struct NativeSourceTutorialFourthPointerPlan {
         let t=max(0,min(1,(time-0.16)/0.62)),drag=t<0.5 ? 2*t*t:1-pow(-2*t+2,2)/2
         let rotation = -8+((dx>=0 ? -1.0:-12.0)+8)*drag
         let alpha:Double,scale:Double
-        if time<0.16 {let t=max(0,min(1,time/0.16))-1,ease=1+2.8*t*t*t+1.8*t*t;alpha=ease;scale=0.9+0.1*ease}
+        if time<0.16 {let t=max(0,min(1,time/0.16))-1,ease=1+2.8*t*t*t+1.8*t*t;alpha=ease;scale=ease}
         else if time<0.86 {alpha=1;scale=1-0.06*drag}
-        else {let fade=1-cos(max(0,min(1,(time-0.86)/0.16))*Double.pi/2);alpha=1-fade;scale=0.94-0.08*fade}
+        else {let fade=1-cos(max(0,min(1,(time-0.86)/0.16))*Double.pi/2);alpha=1-fade;scale=0.94*NativeTutorialHandMotion.exitScale((time-0.86)/0.16)}
         return .init(position:CGPoint(x:start.x+dx*drag,y:start.y+dy*drag),alpha:alpha,scale:scale,rotation:rotation)
     }
 }

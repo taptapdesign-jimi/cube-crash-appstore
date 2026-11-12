@@ -7,38 +7,266 @@ import StackToSixGameplay
 
 @MainActor
 final class NativeTabletLayoutTests:XCTestCase {
+    func testArcadeDeliveryMatchesBackpackSpacingAndHasLoweredArtwork()throws {
+        for size in [CGSize(width:390,height:844),CGSize(width:834,height:1194)] {
+            for arcade in [false,true] {
+                let overlay=NativeTutorialOverlay(resourceRoot:NativeTestResources.root,arcade:arcade)
+                defer{overlay.dispose()}
+                overlay.frame=CGRect(origin:.zero,size:size)
+                overlay.presentBackpackPrompt(arcade:arcade);overlay.show(step:3,from:nil,to:nil,initial:true);overlay.layoutIfNeeded()
+                let path=arcade ? "assets/tutorial/zajedno likovi box.png":"assets/tutorial/ekipa backpack.png"
+                let art=try XCTUnwrap(all(overlay).compactMap{$0 as? UIImageView}.first{$0.accessibilityIdentifier==path})
+                XCTAssertNotNil(art.image)
+                let tablet=NativeTabletLayout.applies(size)
+                XCTAssertEqual(art.frame.maxY,21*(tablet ? 1.4:1)+(arcade ? 24:0),accuracy:0.001)
+                let carrier=overlay.tutorialCarrierFrame(arcade:arcade)
+                let inkTop=carrier.minY+carrier.width*(arcade ? 112/290.0:106/379.0)
+                let inkHeight=carrier.width*(arcade ? 258/290.0:253/379.0)
+                let title=try XCTUnwrap(all(overlay).compactMap{$0 as? UILabel}.first{$0.text=="Special delivery!"})
+                let sheet=try XCTUnwrap(title.superview)
+                XCTAssertEqual(inkTop-sheet.frame.minY,arcade ? 28:24,accuracy:0.001)
+                XCTAssertEqual(inkHeight,min(216,size.width*0.5)*253/379,accuracy:0.001)
+                XCTAssertEqual(sheet.convert(title.frame.origin,to:overlay).y-inkTop-inkHeight,24,accuracy:0.001)
+                for label in all(overlay).compactMap({$0 as? UILabel}) where label.text?.contains("random Special die")==true {
+                    XCTAssertGreaterThanOrEqual(label.bounds.height,ceil(label.sizeThatFits(CGSize(width:label.bounds.width,height:.greatestFiniteMagnitude)).height)-1)
+                }
+                let cta=try XCTUnwrap(all(overlay).compactMap{$0 as? UIButton}.first{$0.accessibilityIdentifier=="native.tutorial.got-it"})
+                XCTAssertEqual(cta.title(for:.normal),"Got it")
+                XCTAssertTrue(all(overlay).compactMap{$0 as? UILabel}.contains{$0.text==(arcade ? "When the Special bar fills,\nyour box drops\na random Special die.":"Your backpack drops\na random Special die.")})
+                if arcade {
+                    let rendered=UIGraphicsImageRenderer(size:size).image{overlay.layer.render(in:$0.cgContext)}
+                    try rendered.pngData()?.write(to:URL(fileURLWithPath:tablet ? "/tmp/tutorial-box-art-ipad.png":"/tmp/tutorial-box-art-phone.png"))
+                }
+            }
+        }
+    }
+    func testCompletionSheetUsesClearBoardArtAtPaperEdgeOnPhoneAndTablet()throws {
+        for size in [CGSize(width:390,height:844),CGSize(width:834,height:1194)] {
+            let overlay=NativeTutorialOverlay(resourceRoot:NativeTestResources.root)
+            defer{overlay.dispose()}
+            overlay.frame=CGRect(origin:.zero,size:size)
+            overlay.show(step:9,from:nil,to:nil,initial:true);overlay.layoutIfNeeded();overlay.restorePointer()
+            let art=try XCTUnwrap(all(overlay).compactMap{$0 as? UIImageView}.first{$0.accessibilityIdentifier=="assets/tutorial/clear board.png"})
+            XCTAssertNotNil(art.image);XCTAssertFalse(art.isHidden)
+            XCTAssertEqual(art.layer.anchorPoint,CGPoint(x:0.5,y:1))
+            XCTAssertEqual(art.layer.position.y,21*(NativeTabletLayout.applies(size) ? 1.4:1),accuracy:0.001)
+            XCTAssertEqual(art.layer.zPosition,0)
+            XCTAssertTrue(overlay.hitTest(CGPoint(x:10,y:100),with:nil) === overlay)
+            XCTAssertFalse(overlay.sourcePointerVisible)
+            XCTAssertTrue(all(overlay).compactMap{$0 as? UILabel}.contains{$0.text=="Clear the board!"})
+            let copy=try XCTUnwrap(all(overlay).compactMap{$0 as? UILabel}.first{$0.text=="Stack and merge anywhere.\nClear every die and have fun!"})
+            XCTAssertGreaterThanOrEqual(copy.bounds.height,ceil(copy.sizeThatFits(CGSize(width:copy.bounds.width,height:.greatestFiniteMagnitude)).height)-1)
+            XCTAssertEqual(all(overlay).compactMap{$0 as? UIButton}.first{$0.accessibilityIdentifier=="native.tutorial.got-it"}?.title(for:.normal),"Keep going")
+            let image=UIGraphicsImageRenderer(size:size).image{overlay.layer.render(in:$0.cgContext)}
+            try image.pngData()?.write(to:URL(fileURLWithPath:size.width==390 ? "/tmp/tutorial-completion-phone.png":"/tmp/tutorial-completion-tablet.png"))
+        }
+    }
+    func testHandBouncesInAndOutWithoutBlockingInputAndRetiresTail()async throws {
+        let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),controller=UIViewController()
+        window.rootViewController=controller;window.makeKeyAndVisible()
+        defer{window.isHidden=true;previous?.makeKeyAndVisible()}
+        let host=controller.view!,button=UIButton(frame:CGRect(x:270,y:120,width:52,height:52));host.addSubview(button)
+        let hand=NativeCollectionTutorialHand(image:assets.image("assets/hand-pointer.png"))
+        hand.point(at:button,in:host,mirrored:true,phase:"detail-close",viewport:host)
+        let image=try XCTUnwrap(hand.view.subviews.first as? UIImageView)
+        XCTAssertNotNil(image.layer.animation(forKey:"tutorial.hand.enter"))
+        try await Task.sleep(for:.milliseconds(520))
+        hand.retire()
+        XCTAssertNil(hand.view.superview);XCTAssertTrue(host.isUserInteractionEnabled);XCTAssertTrue(button.isEnabled)
+        let tail=try XCTUnwrap(host.subviews.first{$0.accessibilityIdentifier=="native.tutorial.hand-exit"})
+        XCTAssertFalse(tail.isUserInteractionEnabled)
+        XCTAssertNotNil(tail.layer.animation(forKey:"tutorial.hand.exit"))
+        try await Task.sleep(for:.milliseconds(250))
+        XCTAssertNil(tail.superview)
+    }
+    func testEveryTutorialHandMatchesFirstStackStepIncludingProjectedCollection()throws {
+        for size in [CGSize(width:390,height:844),CGSize(width:834,height:1194)] {
+            let overlay=NativeTutorialOverlay(resourceRoot:NativeTestResources.root)
+            defer{overlay.dispose()}
+            overlay.frame=CGRect(origin:.zero,size:size)
+            overlay.show(step:1,from:nil,to:nil,initial:true);overlay.layoutIfNeeded()
+            let first=overlay.sourcePointerSize
+            for step in [2,3,4,7,8] {
+                overlay.show(step:step,from:nil,to:nil,initial:true);overlay.layoutIfNeeded()
+                XCTAssertEqual(overlay.sourcePointerSize,first)
+            }
+            let viewport=UIView(frame:CGRect(origin:.zero,size:size)),host=UIView(frame:CGRect(x:0,y:0,width:310,height:500))
+            viewport.addSubview(host);host.transform=CGAffineTransform(scaleX:1.4,y:1.4)
+            let target=UIView(frame:CGRect(x:250,y:10,width:52,height:52));host.addSubview(target)
+            let hand=NativeCollectionTutorialHand(image:assets.image("assets/hand-pointer.png"))
+            defer{hand.retire()}
+            for phase in ["first-die","detail-close","collection-close"] {
+                hand.point(at:target,in:host,mirrored:phase != "first-die",phase:phase,viewport:viewport)
+                let zero=hand.view.convert(CGPoint.zero,to:viewport)
+                let right=hand.view.convert(CGPoint(x:hand.view.bounds.width,y:0),to:viewport)
+                let bottom=hand.view.convert(CGPoint(x:0,y:hand.view.bounds.height),to:viewport)
+                XCTAssertEqual(hypot(right.x-zero.x,right.y-zero.y),first.width,accuracy:0.001)
+                XCTAssertEqual(hypot(bottom.x-zero.x,bottom.y-zero.y),first.height,accuracy:0.001)
+                if phase != "first-die" {
+                    let targetPoint=target.convert(CGPoint(x:target.bounds.midX,y:target.bounds.midY),to:viewport)
+                    let finger=host.convert(hand.view.layer.position,to:viewport)
+                    XCTAssertEqual(finger.x,targetPoint.x+4,accuracy:0.001)
+                    XCTAssertEqual(finger.y,targetPoint.y+8,accuracy:0.001)
+                    XCTAssertEqual(hand.view.layer.anchorPoint,CGPoint(x:20/176.0,y:35/176.0))
+                    XCTAssertEqual(atan2(hand.view.transform.b,hand.view.transform.a),.pi/18,accuracy:0.001)
+                    XCTAssertGreaterThan(hand.view.frame.maxY,target.frame.maxY)
+                    XCTAssertGreaterThan(hand.view.frame.maxX,target.frame.maxX)
+                }
+            }
+        }
+    }
+    func testTutorialCollectionSpeechWaitsForLandingAndRealReadinessThenComboAndFinalSpeakOnce()async throws {
+        let overlay=NativeTutorialOverlay(resourceRoot:NativeTestResources.root)
+        let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),host=UIViewController()
+        window.rootViewController=host;window.makeKeyAndVisible();host.view.addSubview(overlay)
+        defer{overlay.dispose();window.isHidden=true;previous?.makeKeyAndVisible()}
+        overlay.frame=window.bounds
+        var events:[String]=[];overlay.onSpeechEvent={events.append($0)}
+        overlay.setCollectionInteractionReady(false)
+        let collection=expectation(description:"collection landed")
+        overlay.show(step:8,from:nil,to:nil,initial:true,entered:{collection.fulfill()})
+        XCTAssertTrue(events.isEmpty)
+        await fulfillment(of:[collection],timeout:3)
+        XCTAssertTrue(events.isEmpty,"Early preview cannot speak before genuine Special settlement")
+        overlay.setCollectionInteractionReady(true)
+        XCTAssertEqual(events,["tutorial-speech:tutorial-collection"])
+        overlay.setCollectionInteractionReady(true);overlay.layoutIfNeeded()
+        XCTAssertEqual(events.count,1)
+        for (step,key) in [(7,"combo"),(9,"completion")] {
+            let landed=expectation(description:key+" landed")
+            overlay.show(step:step,from:nil,to:nil,initial:true,entered:{landed.fulfill()})
+            XCTAssertEqual(events.last,"tutorial-speech-stop")
+            await fulfillment(of:[landed],timeout:3)
+            XCTAssertEqual(events.last,"tutorial-speech:tutorial-"+key)
+        }
+        overlay.dispose();XCTAssertEqual(events.last,"tutorial-speech-stop")
+    }
+    func testCollectionLessonUsesCompactSheetAndKeepsBackpackHandOnscreen()async throws {
+        for size in [CGSize(width:390,height:844),CGSize(width:744,height:1133),CGSize(width:834,height:1194)] {
+            let overlay=NativeTutorialOverlay(resourceRoot:NativeTestResources.root)
+            let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+            let window=UIWindow(frame:CGRect(origin:.zero,size:size)),host=UIViewController()
+            window.rootViewController=host;window.makeKeyAndVisible();host.view.addSubview(overlay)
+            defer{overlay.dispose();window.isHidden=true;previous?.makeKeyAndVisible()}
+            overlay.frame=CGRect(origin:.zero,size:size)
+            let target=CGRect(x:size.width-70,y:48,width:44,height:44)
+            overlay.collectionTargetFrame={target};overlay.comboTarget={CGPoint(x:target.midX,y:target.midY)}
+            let entered=expectation(description:"collection sheet fully entered")
+            let ambient=CABasicAnimation(keyPath:"opacity")
+            ambient.fromValue=0.9;ambient.toValue=1;ambient.duration=10;ambient.repeatCount = .infinity
+            CATransaction.begin()
+            host.view.layer.add(ambient,forKey:"test.unrelated.ambient")
+            overlay.show(step:8,from:nil,to:nil,initial:true,entered:{entered.fulfill()})
+            CATransaction.commit()
+            overlay.layoutIfNeeded();overlay.restorePointer()
+            XCTAssertFalse(overlay.sourcePointerVisible,"Restore/layout cannot admit the hand during sheet entry")
+            try await Task.sleep(for:.milliseconds(150))
+            XCTAssertFalse(overlay.sourcePointerVisible)
+            overlay.setSuspended(true)
+            try await Task.sleep(for:.milliseconds(850))
+            overlay.restorePointer();XCTAssertFalse(overlay.sourcePointerVisible,"Paused entry cannot reveal the hand")
+            overlay.setSuspended(false)
+            await fulfillment(of:[entered],timeout:3)
+            overlay.restorePointer()
+            XCTAssertLessThan(overlay.sourceSheetHeight,size.height*0.35)
+            XCTAssertTrue(overlay.sourcePointerVisible)
+            XCTAssertEqual(overlay.sourcePointerTransform.a,-1)
+            XCTAssertGreaterThanOrEqual(overlay.sourcePointerFrame.minX,0)
+            XCTAssertLessThanOrEqual(overlay.sourcePointerFrame.maxX,size.width)
+            let tap=try XCTUnwrap(all(overlay).compactMap{$0 as? UIButton}.first{$0.accessibilityIdentifier=="native.tutorial.collection-backpack"})
+            XCTAssertEqual(tap.frame,target)
+            if size.width==834 {
+                let image=UIGraphicsImageRenderer(size:size).image{overlay.layer.render(in:$0.cgContext)}
+                try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/tutorial-dice-collection-ipad.png"))
+            }
+        }
+    }
+    func testSpecialAndComboTutorialSheetsDropBackpackHeightOnlyOnTablet()throws {
+        for size in [CGSize(width:390,height:844),CGSize(width:744,height:1133),CGSize(width:834,height:1194)] {
+            let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+            let window=UIWindow(frame:CGRect(origin:.zero,size:size)),host=UIViewController()
+            window.rootViewController=host;host.additionalSafeAreaInsets.bottom=20
+            window.makeKeyAndVisible();host.view.layoutIfNeeded()
+            let overlay=NativeTutorialOverlay(resourceRoot:NativeTestResources.root)
+            overlay.frame=host.view.bounds;overlay.autoresizingMask=[.flexibleWidth,.flexibleHeight];host.view.addSubview(overlay)
+            defer{overlay.dispose();window.isHidden=true;previous?.makeKeyAndVisible()}
+            overlay.presentBackpackPrompt(arcade:false)
+            overlay.show(step:3,from:nil,to:nil,initial:true);overlay.layoutIfNeeded()
+            let button=try XCTUnwrap(all(overlay).compactMap{$0 as? JimiV9PlainButton}.first{$0.accessibilityIdentifier=="native.tutorial.got-it"})
+            let sheet=try XCTUnwrap(button.cartoonBounceLayoutView.superview)
+            let deliveryHeight=sheet.bounds.height
+            overlay.retireBackpackPrompt()
+            for step in [4,7] {
+                overlay.show(step:step,from:nil,to:nil,initial:true);overlay.layoutIfNeeded()
+                let bottomGap=sheet.bounds.height-button.cartoonBounceLayoutView.frame.maxY
+                if NativeTabletLayout.applies(size) {
+                    XCTAssertGreaterThan(overlay.safeAreaInsets.bottom,0)
+                    XCTAssertLessThan(sheet.bounds.height,deliveryHeight-100,"Text lessons measure their own copy instead of retaining the carrier slot")
+                    XCTAssertEqual(bottomGap,max(12,overlay.safeAreaInsets.bottom),accuracy:1)
+                    XCTAssertLessThan(sheet.bounds.height,size.height*0.3)
+                    for label in all(sheet).compactMap({$0 as? UILabel}) where !label.isHidden && label.text != nil {
+                        XCTAssertGreaterThanOrEqual(label.bounds.height,ceil(label.sizeThatFits(CGSize(width:label.bounds.width,height:.greatestFiniteMagnitude)).height)-1)
+                    }
+                } else {XCTAssertEqual(sheet.bounds.height,deliveryHeight,"Phone retains its current sheet geometry")}
+                XCTAssertGreaterThanOrEqual(button.cartoonBounceLayoutView.frame.minY,0)
+                XCTAssertLessThanOrEqual(button.cartoonBounceLayoutView.frame.maxY,sheet.bounds.height)
+                print("[TABLET_TEXT_SHEET] step=\(step) width=\(size.width) height=\(sheet.bounds.height) previous=\(deliveryHeight) bottom=\(bottomGap)")
+                if size.width==834 {
+                    let preview=UIGraphicsImageRenderer(size:size).image{context in
+                        UIColor(red:1,green:247/255,blue:239/255,alpha:1).setFill();context.fill(overlay.bounds)
+                        overlay.layer.render(in:context.cgContext)
+                    }
+                    try preview.pngData()?.write(to:URL(fileURLWithPath:"/tmp/ipad-compact-tutorial-step-\(step).png"))
+                }
+            }
+        }
+    }
     private let sizes=[CGSize(width:744,height:1133),CGSize(width:820,height:1180),CGSize(width:1032,height:1376)]
     private func all(_ view:UIView)->[UIView] {[view]+view.subviews.flatMap(all)}
     private var assets:JimiV9Artwork {JimiV9Artwork(resourceRoot:NativeTestResources.root)}
 
-    func testPhoneHomeRearCloudsSpanTopToDividerWithoutChangingHeroOrHorizontalPlacement() throws {
-        for size in [CGSize(width:320,height:568),CGSize(width:390,height:844),CGSize(width:430,height:932)] {
+    func testHomeCloudsStayBetweenLogoEarAndDividerAcrossVisitsOnPhoneAndTablet() throws {
+        for size in [CGSize(width:320,height:568),CGSize(width:390,height:844),CGSize(width:430,height:932)]+sizes {
             let home=JimiV9HomeView(frame:CGRect(origin:.zero,size:size),assets:assets)
+            defer{home.stopHeroIdle();home.isHidden=true}
             home.layoutSubviews()
             let hero=home.heroView.bounds,heroPosition=home.heroView.layer.position
-            let shells=all(home).filter{$0.accessibilityIdentifier?.hasPrefix("native.home.cloud-route.shared.")==true}
-            XCTAssertEqual(shells.count,30)
-            let frames=Dictionary(uniqueKeysWithValues:shells.map{($0.accessibilityIdentifier!,$0.frame)})
+            let logo=try XCTUnwrap(all(home.logoView).compactMap{$0 as? UIImageView}.first{$0.image?.cgImage?.width==280 && $0.image?.cgImage?.height==168})
+            let imageFrame=logo.convert(logo.bounds,to:home)
+            let imageScale=min(imageFrame.width/280,imageFrame.height/168)
+            let earTop=imageFrame.midY-168*imageScale/2+3*imageScale
+            let skyTop=max(0,earTop-10)
             let dividerY=size.height-105.5-max(49,(size.width*1.2-96)*49/390)/2
-            for group in 0..<3 {
-                let rear=shells.filter{$0.superview?.accessibilityIdentifier=="native.home.cloud-bank.\(group)"}
-                XCTAssertEqual(rear.count,9)
-                let top=try XCTUnwrap(rear.min{$0.center.y<$1.center.y})
-                let bottom=try XCTUnwrap(rear.max{$0.center.y<$1.center.y})
-                let largest=try XCTUnwrap(rear.max{$0.bounds.width<$1.bounds.width})
-                XCTAssertEqual(top.center.y,0,accuracy:0.001)
-                XCTAssertLessThan(top.frame.minY,0)
-                XCTAssertGreaterThan(bottom.frame.maxY,dividerY-100)
-                XCTAssertLessThan(bottom.frame.maxY,dividerY)
-                XCTAssertGreaterThan(largest.bounds.width,top.bounds.width)
-                XCTAssertGreaterThan(largest.bounds.width,bottom.bounds.width)
-                XCTAssertGreaterThan(largest.center.y,top.center.y)
-                XCTAssertLessThan(largest.center.y,bottom.center.y)
+            var prior:[CGFloat]=[]
+            for visit in 0..<5 {
+                if visit>0 {home.prepareCloudsForVisit();home.layoutSubviews()}
+                let shells=home.cloudRenderViews
+                XCTAssertEqual(shells.count,NativeTabletLayout.applies(size) ? 33:30)
+                let frames=shells.map{$0.frame}
+                if !prior.isEmpty {XCTAssertNotEqual(shells.map{$0.center.y},prior,"New Home visits must reroll the sky")}
+                prior=shells.map{$0.center.y}
+                for shell in shells {
+                    XCTAssertGreaterThanOrEqual(shell.frame.minY,skyTop-0.001)
+                    XCTAssertLessThanOrEqual(shell.frame.maxY,dividerY+0.001)
+                }
+                home.startHeroIdle()
+                for shell in shells {
+                    let cloud=try XCTUnwrap(shell.subviews.first)
+                    guard let animation=cloud.layer.animation(forKey:"native-home-cloud-idle") as? CAKeyframeAnimation,
+                          let poses=animation.values as? [NSValue] else{continue}
+                    for pose in poses {
+                        let local=CGRect(x:-cloud.bounds.width/2,y:-cloud.bounds.height/2,width:cloud.bounds.width,height:cloud.bounds.height)
+                        let painted=local.applying(CATransform3DGetAffineTransform(pose.caTransform3DValue)).offsetBy(dx:shell.center.x,dy:shell.center.y)
+                        XCTAssertGreaterThanOrEqual(painted.minY,skyTop-0.001,"Idle boundary size=\(size) shell=\(shell.accessibilityIdentifier ?? "") center=\(shell.center.y) h=\(cloud.bounds.height) sy=\(pose.caTransform3DValue.m22) ty=\(pose.caTransform3DValue.m42)")
+                        XCTAssertLessThanOrEqual(painted.maxY,dividerY+0.001,"Idle must stay above the divider")
+                    }
+                }
+                home.stopHeroIdle();home.layoutSubviews()
+                XCTAssertEqual(home.heroView.bounds,hero);XCTAssertEqual(home.heroView.layer.position,heroPosition)
+                XCTAssertEqual(shells.map{$0.frame},frames,"Relayout must preserve this visit's composition")
             }
-            home.layoutSubviews()
-            XCTAssertEqual(home.heroView.bounds,hero);XCTAssertEqual(home.heroView.layer.position,heroPosition)
-            for shell in shells {XCTAssertEqual(shell.frame,frames[shell.accessibilityIdentifier!]!,"Relayout must preserve this visit's random cloud composition")}
-            home.isHidden=true
         }
     }
     func testModalProjectionScalesCircleGlyphAndContentTogetherWithoutAccumulation() {

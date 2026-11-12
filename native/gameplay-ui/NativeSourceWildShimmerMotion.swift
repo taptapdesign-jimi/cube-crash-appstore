@@ -4,6 +4,17 @@ import Foundation
 /// the eventual renderer owns the single SpriteKit coordinate conversion.
 struct NativeSourceWildShimmerMotion {
     struct Pose:Equatable {let alpha:Double,x:Double,y:Double}
+    enum Playback {
+        case source,tutorialBackpack
+        var duration:Double {self == .source ? NativeSourceWildShimmerMotion.duration:0.70}
+        func pose(seconds:Double,width:Double,height:Double)->Pose {
+            guard self == .tutorialBackpack else{return NativeSourceWildShimmerMotion.pose(seconds:seconds,width:width,height:height)}
+            let t=max(0,min(duration,seconds)),progress=t/duration
+            let fadeIn=min(1,t/0.08),fadeOut=min(1,(duration-t)/0.14)
+            let alpha=0.3*max(0,min(fadeIn,fadeOut))
+            return .init(alpha:alpha,x:max(64,width)*(-0.95+1.9*progress),y:max(64,height)*(-0.95+1.9*progress))
+        }
+    }
     static let duration=2.56
     static func delay(random:Double)->Double {4+random*4}
     static func pose(seconds:Double,width:Double,height:Double)->Pose {
@@ -29,17 +40,19 @@ struct NativeSourceWildShimmerMotion {
     }
     private struct Entry {let participant:Participant,lease:NativeSourceAnimationClockService.Lease}
     private let service:NativeSourceAnimationClockService,current:()->Bool,random:()->Double
+    private let playback:NativeSourceWildShimmerMotion.Playback
     private let width:Double,height:Double,paint:(NativeSourceWildShimmerMotion.Pose)->Void
     private var delay:Entry?,sweep:Entry?,disposed=false,visible=true,epoch:UInt64=0
     var activeRootCount:Int {[delay?.lease.active==true,sweep?.lease.active==true].filter{$0}.count}
-    init(service:NativeSourceAnimationClockService,width:Double,height:Double,
+    init(service:NativeSourceAnimationClockService,width:Double,height:Double,playback:NativeSourceWildShimmerMotion.Playback = .source,
          current:@escaping()->Bool,random:@escaping()->Double,
          paint:@escaping(NativeSourceWildShimmerMotion.Pose)->Void){
-        self.service=service;self.width=width;self.height=height
+        self.service=service;self.width=width;self.height=height;self.playback=playback
         self.current=current;self.random=random;self.paint=paint
     }
-    @discardableResult func start()->Bool {
+    @discardableResult func start(immediate:Bool=false)->Bool {
         guard !disposed,delay==nil,sweep==nil,width.isFinite,height.isFinite,live() else{return false}
+        if immediate {beginSweep();return sweep != nil && live()}
         return schedule()
     }
     private func live()->Bool {
@@ -66,16 +79,16 @@ struct NativeSourceWildShimmerMotion {
         let captured=epoch
         let participant=Participant{[weak self] seconds in
             guard let self,self.epoch==captured,self.live() else{self?.dispose();return}
-            self.paint(NativeSourceWildShimmerMotion.pose(seconds:seconds,width:self.width,height:self.height))
+            self.paint(self.playback.pose(seconds:seconds,width:self.width,height:self.height))
         }
-        guard let lease=service.register(participant:participant,duration:NativeSourceWildShimmerMotion.duration,
+        guard let lease=service.register(participant:participant,duration:playback.duration,
             domain:.sourceGSAP(.timeline),initiallySuspended:!visible,cleanup:{[weak self] _ in
                 guard let self,!self.disposed,self.epoch==captured else{return};self.sweep=nil
             }) else{dispose();return}
         sweep = .init(participant:participant,lease:lease)
         // Source resets the sprite synchronously and schedules the next delay
         // when the sweep begins, not after its final fade completes.
-        paint(NativeSourceWildShimmerMotion.pose(seconds:0,width:width,height:height))
+        paint(playback.pose(seconds:0,width:width,height:height))
         guard live() else{dispose();return}
         _ = schedule()
     }

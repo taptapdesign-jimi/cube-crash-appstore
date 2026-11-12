@@ -34,7 +34,7 @@ struct NativeBackpackCatalog {
         Die(id:"robo-cube",title:"BIBI RIBI",copy:"Adds 1 regular die and\n3 closed dice to the board.",board:21),
         Die(id:"kanta",title:"BLOOB BUCKET",copy:"Adds 2–4 regular dice and\n4–6 closed dice to the board.",board:22),
         Die(id:"spaceship",title:"SPACESHIP",copy:"Beams and refills up to 4 dice.\nAdds 1 regular die and\n9 closed dice to the board.",board:23),
-        Die(id:"laser-gun",title:"LASER GUN",copy:"Shoots up to 4 regular dice.\nAdds 1 regular die and\n9 closed dice to the board.",board:24),
+        Die(id:"laser-gun",title:"ZAPPER",copy:"Shoots up to 4 regular dice.\nAdds 1 regular die and\n9 closed dice to the board.",board:24),
         Die(id:"bloob-ball",title:"BLOOB POD",copy:"Changes all regular dice.\nAdds 1 regular die and\n9 closed dice to the board.",board:26),
         Die(id:"bloob",title:"BLOOB",copy:"Adds 5–7 regular dice and\n7–9 closed dice to the board.",board:27)]
     static let beach:[Die] = [

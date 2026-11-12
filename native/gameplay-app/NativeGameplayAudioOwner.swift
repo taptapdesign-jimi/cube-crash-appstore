@@ -56,6 +56,7 @@ final class NativeGameplayAudioOwner {
     private let navigationSpeechFactory:()->any NativeGameplayAudioTransport
     private var navigationHumanVoices:Set<String>=[]
     private var previousSpeechSelections:[String:Int]=[:]
+    private var tutorialBarkID:UUID?
     private var navigationSpeech:(id:UUID,transport:any NativeGameplayAudioTransport)?
     var activeNavigationSpeechCount:Int {navigationSpeech == nil ? 0:1}
     private let worldTailFactory:()->any NativeGameplayAudioTransport
@@ -122,6 +123,7 @@ final class NativeGameplayAudioOwner {
     }
     func beginGeneration(_ value:UInt64) {
         guard !disposed,value != generation else{return}
+        if recordedNavigationScene?.hasPrefix("tutorial-") == true {finishNavigationSpeech()}
         bottleBoardWarmupCapture=nil;sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.stopAll();coconutLoopVoices.removeAll();generation=value;meterCarrierVoices.removeAll();receipts.removeAll();harpSequenceReady=false;ordinarySixContact=nil;transitionVoices.removeAll();transitionDigitVoices.removeAll()
     }
     func setEnabled(_ value:Bool) {guard !disposed else{return};enabled=value;transport.setSelectedPreparationEnabled(value);if !value {finishRewardTail();finishRewardSpeech();finishArcadeTail();finishRoundWonTail();finishWorldTail();finishNavigationSpeech();bottleBoardWarmupCapture=nil;sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.stopAll();coconutLoopVoices.removeAll()}}
@@ -324,6 +326,31 @@ final class NativeGameplayAudioOwner {
     }
     func routeFeedback(_ kind:String,receipt:UInt64,generation:UInt64,duration:Double?=nil) {
         guard admit("route",receipt:receipt,generation:generation) else{return}
+        if kind == "tutorial-speech-stop" {
+            if recordedNavigationScene?.hasPrefix("tutorial-") == true {finishNavigationSpeech()}
+            stopTutorialBark()
+            return
+        }
+        if kind.hasPrefix("tutorial-speech:") {
+            let scene=String(kind.dropFirst("tutorial-speech:".count))
+            guard let source=NativeRecordedSceneSpeech.tutorialSources[scene]?.first else{return}
+            stopCharacterSpeechForReplacement()
+            let speechGeneration=self.generation
+            startNavigationSpeech(cue:NativeAudioCue(source:source,voice:"native-scene-jimbo",gain:NativeRecordedSceneSpeech.tutorialSpeechGain),onEnded:{[weak self] in
+                guard let self,!self.disposed,self.generation==speechGeneration,self.enabled,self.foreground,!self.interrupted,
+                      NativeRecordedSceneSpeech.tutorialPairedCharacterSheets.contains(scene) else{return}
+                // Existing short bark recordings only. No whines, new player or timer.
+                let groups=["modalNala3","modalNala4"]
+                let index=self.chooseNonRepeatingSpeech("nala-tutorial-bark",count:groups.count)
+                guard let cue=NativeAuthoredAudioCatalog.groups[groups[index]]?.first else{return}
+                let id=UUID();self.tutorialBarkID=id
+                self.transport.play(NativeAudioCue(source:cue.source,voice:"native-tutorial-nala",gain:cue.gain,rate:cue.rate)){[weak self] _ in
+                    guard let self,self.tutorialBarkID==id else{return};self.tutorialBarkID=nil
+                }
+            })
+            recordedNavigationScene=scene
+            return
+        }
         if kind.hasPrefix("scene-speech-stop:") {if recordedNavigationScene == String(kind.dropFirst("scene-speech-stop:".count)) {finishNavigationSpeech()};return}
         if kind.hasPrefix("scene-speech:") {
             let scene=String(kind.dropFirst("scene-speech:".count))
@@ -783,7 +810,12 @@ final class NativeGameplayAudioOwner {
         let count=NativeAuthoredAudioCatalog.nalaGroupCounts[prefix] ?? 3
         return prefix+String(chooseNonRepeatingSpeech("nala-"+prefix,count:count))
     }
+    private func stopTutorialBark(){
+        guard tutorialBarkID != nil else{return};tutorialBarkID=nil
+        transport.stopVoices(["native-tutorial-nala"])
+    }
     private func stopCharacterSpeechForReplacement() {
+        stopTutorialBark()
         stopNavigationHumanVoices();finishWorldTail();finishArcadeTail();finishRoundWonTail()
     }
     private func startScoreModalSpeech(combo:Bool) {
@@ -813,12 +845,14 @@ final class NativeGameplayAudioOwner {
         guard let cue=NativeAuthoredAudioCatalog.groups[group]?.first else{return}
         startNavigationSpeech(cue:cue)
     }
-    private func startNavigationSpeech(cue:NativeAudioCue) {
+    private func startNavigationSpeech(cue:NativeAudioCue,onEnded:(()->Void)?=nil) {
+        stopTutorialBark()
         finishNavigationSpeech()
         let id=UUID(),tail=navigationSpeechFactory();navigationSpeech=(id,tail)
-        tail.play(cue){[weak self] _ in
+        tail.play(cue){[weak self] result in
             guard let self,self.navigationSpeech?.id==id else{return}
             self.finishNavigationSpeech()
+            if result == .ended {onEnded?()}
         }
     }
     private func finishNavigationSpeech() {
@@ -902,7 +936,7 @@ final class NativeGameplayAudioOwner {
     }
     // Selected die speech is a finite owner-held tail, independent of its closed UI.
     // Ordinary route retirement preserves it; replacement, full-stop and completion retire it.
-    func stop() {if let scene=recordedNavigationScene,scene.hasPrefix("intro-") || scene.hasPrefix("arena-modal-") {finishNavigationSpeech()};bottleBoardWarmupCapture=nil;sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.stopAll();coconutLoopVoices.removeAll();meterCarrierVoices.removeAll();generation &+= 1;receipts.removeAll();harpSequenceReady=false;ordinarySixContact=nil}
+    func stop() {if let scene=recordedNavigationScene,scene.hasPrefix("intro-") || scene.hasPrefix("arena-modal-") || scene.hasPrefix("tutorial-") {finishNavigationSpeech()};bottleBoardWarmupCapture=nil;sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;transport.stopAll();coconutLoopVoices.removeAll();meterCarrierVoices.removeAll();generation &+= 1;receipts.removeAll();harpSequenceReady=false;ordinarySixContact=nil}
     func dispose() {guard !disposed else{return};disposed=true;bottleBoardWarmupCapture=nil;finishRewardTail();finishRewardSpeech();finishArcadeTail();finishRoundWonTail();finishWorldTail();finishNavigationSpeech();sourceBoardEntryOwner=nil;magnetPullStopCapture=nil;magnetPullSilentGeneration=nil;meterCarrierVoices.removeAll();coconutLoopVoices.removeAll();transport.dispose();for observer in observers {NotificationCenter.default.removeObserver(observer)};observers.removeAll();receipts.removeAll()}
     private func notification(name:String,interruption:UInt?) {
         if name==UIApplication.willResignActiveNotification.rawValue {setForeground(false)}

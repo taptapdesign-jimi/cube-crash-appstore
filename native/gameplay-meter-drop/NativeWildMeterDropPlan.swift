@@ -29,6 +29,38 @@ nonisolated struct NativeWildMeterDropPlan: Sendable {
     static let carrierDepth=2_100_000, tileDepth=2_100_001
     static let carrierAnchor=Point(x:0.5,y:0.72)
     static let frameTailMilliseconds=100.0
+    static let tutorialOpenBounceDuration=0.88
+    static func tutorialOpenBounceDurationFor(arcade:Bool)->Double {arcade ? 0.48:tutorialOpenBounceDuration}
+    static func tutorialOpenBounce(at seconds:Double,arcade:Bool=false)->JimiV9Motion.Pose {
+        if arcade {
+            return JimiV9Motion.Track(tweens:[
+                .init(begin:0,duration:0.20,from:.scale(1),to:.scale(1.20),ease:.powerOut(2)),
+                .init(begin:0.20,duration:0.28,from:.scale(1.20),to:.scale(1),ease:.powerOut(2))]).pose(at:seconds)
+        }
+        // Y is a fraction of the closed carrier's height, in source Y-down.
+        // The jump peaks during sheet descent and settles before opening resumes.
+        let compressed=JimiV9Motion.Pose(scaleX:1.18,scaleY:0.80,y:0.025)
+        let airborne=JimiV9Motion.Pose(scaleX:0.84,scaleY:1.30,y:-0.34*1.3)
+        let crest=JimiV9Motion.Pose(scaleX:1.14,scaleY:1.12,y:-0.40*1.3)
+        let landing=JimiV9Motion.Pose(scaleX:1.28,scaleY:0.76,y:0.015)
+        if seconds>=0.44 {
+            let t=max(0,seconds-0.44)
+            let y:Double
+            if t<0.015 {y=0}
+            else if t<0.145 {y = -0.18*JimiV9Motion.Ease.powerOut(2).value((t-0.015)/0.13)}
+            else if t<0.28 {y = -0.18*(1-JimiV9Motion.Ease.powerIn(2).value((t-0.145)/0.135))}
+            else {y=0}
+            let contact=NativeBeachBallPlanning.floorBounceScale(at:t<0.28 ? t:t-0.28)
+            let strength=t<0.28 ? 1.0:0.5
+            return .init(scaleX:1+(contact.0-1)*strength,scaleY:1+(contact.1-1)*strength,y:y)
+        }
+        return JimiV9Motion.Track(tweens:[
+            .init(begin:0,duration:0.05,from:.scale(1),to:compressed,ease:.powerIn(2)),
+            .init(begin:0.05,duration:0.12,from:compressed,to:airborne,ease:.powerOut(2)),
+            .init(begin:0.17,duration:0.06,from:airborne,to:crest,ease:.powerOut(2)),
+            .init(begin:0.23,duration:0.14,from:crest,to:landing,ease:.powerIn(2)),
+            .init(begin:0.37,duration:0.07,from:landing,to:.scale(1),ease:.powerOut(2))]).pose(at:seconds)
+    }
     static let backpackSources=(1...20).map { "./assets/animations/backpack/backpack-\($0).png" }
     static let crateSources=(1...10).map { "./assets/animations/crate/box-\($0).png" }
     static var preloadSources: [String] { backpackSources+crateSources }
@@ -39,6 +71,8 @@ nonisolated struct NativeWildMeterDropPlan: Sendable {
         guard let variant else{return false}
         return ["fish","kanta","laser-gun","spaceship","barell","cubero"].contains(variant)
     }
+    struct TutorialCarrier:Sendable {let point:Point;let width:Double}
+    let tutorialCarrierArrival:Bool
     let arcade: Bool, usesUniformDropScale: Bool
     let viewport: Point, tileSize: Double, target: Point, stageTarget: Point
     let originalRotation: Double, originalZIndex: Double, visualScale: Double
@@ -47,7 +81,8 @@ nonisolated struct NativeWildMeterDropPlan: Sendable {
 
     init(arcade: Bool, viewport: Point, tileSize: Double, target: Point,
          parentWorld: Affine, stageWorld: Affine = Affine(), originalRotation: Double,
-         originalZIndex: Double, usesUniformDropScale: Bool, random: () -> Double) {
+         originalZIndex: Double, usesUniformDropScale: Bool, tutorialCarrier:TutorialCarrier?=nil, random: () -> Double) {
+        self.tutorialCarrierArrival=tutorialCarrier != nil
         self.arcade=arcade;self.viewport=viewport;self.tileSize=tileSize;self.target=target
         self.originalRotation=originalRotation;self.originalZIndex=originalZIndex
         self.usesUniformDropScale=usesUniformDropScale
@@ -56,13 +91,21 @@ nonisolated struct NativeWildMeterDropPlan: Sendable {
         var bp=stageWorld.unproject(Point(x:viewport.x-tileSize*s*1.15,y:viewport.y-tileSize*s*1.35+32))
         var wild=bp
         if arcade { bp.x-=24*s;bp.y-=(tileSize*0.1+58)*s;wild.y-=(tileSize*0.1+58)*s }
+        let defaultCarrierScale=tileSize*s*2.15*1.15/(arcade ? 290:379)*(arcade ? 0.95:1)
+        let selectedCarrierScale=tutorialCarrier.map{$0.width/(arcade ? 290:379)} ?? defaultCarrierScale
+        let origin:Point
+        if let tutorialCarrier {
+            let factor=selectedCarrierScale/defaultCarrierScale
+            origin=Point(x:tutorialCarrier.point.x+(wild.x-34*s-bp.x)*factor,
+                         y:tutorialCarrier.point.y+(wild.y-96*s-(arcade ? 48*s:0)-bp.y)*factor)
+            bp=tutorialCarrier.point
+        } else {origin=Point(x:wild.x-34*s,y:wild.y-96*s-(arcade ? 48*s:0))}
         backpackPoint=bp
-        let origin=Point(x:wild.x-34*s,y:wild.y-96*s-(arcade ? 48*s:0))
         start=origin;launch=Point(x:origin.x,y:origin.y-14*s)
         let destination=stageWorld.unproject(parentWorld.project(target));stageTarget=destination
         // Preserve Source construction/RNG order, including both carrier draws.
         carrierRotation=(random()<0.5 ? -1.0:1.0)*(4+random())*Double.pi/180
-        carrierScale=tileSize*s*2.15*1.15/(arcade ? 290:379)*(arcade ? 0.95:1)
+        carrierScale=selectedCarrierScale
         initialTileRotation=originalRotation-0.04+random()*0.08
         let dx=destination.x-launch.x,dy=destination.y-launch.y,side=dx>=0 ? 1.0:-1.0
         control=Point(x:launch.x+dx*0.48+side*(10+random()*12),y:launch.y+dy*0.22-max(54,min(112,abs(dy)*0.16+38)))
@@ -146,7 +189,16 @@ nonisolated struct NativeWildMeterDropPlan: Sendable {
         for i in 0..<20 {if t+1e-8>=frameTime {frame=i};frameTime += i>=10 ? 0.0225:0.0375;if i==9 {frameTime+=0.2}}
         var opacity=t<1.12 ? Self.quantize(Self.power2Out(t/0.08)):Self.quantize(1-pow(Self.clamp((t-1.12)/0.1),2))
         var y=t==0 ? backpackPoint.y+tileSize*visualScale*2.2:
-            Self.quantize(Self.lerp(backpackPoint.y+tileSize*visualScale*2.2,backpackPoint.y,Self.backOut(t/0.28,2.3)))
+            Self.quantize(Self.lerp(backpackPoint.y+tileSize*visualScale*2.2,backpackPoint.y,Self.backOut(t/0.28,tutorialCarrierArrival ? 1.35:2.3)))
+        if tutorialCarrierArrival && t<=0.45 {
+            // Sample the canonical HUD recipe on the existing carrier clock.
+            // Source 0.28 is the closed hold; opening resumes from that same pose.
+            let track=JimiV9Motion.worldHubElementEnter()
+            let pose=track.pose(at:min(1,max(0,t/0.28))*track.duration)
+            result=Point(x:b*pose.scaleX,y:b*pose.scaleY)
+            y=backpackPoint.y+pose.y
+            opacity=pose.opacity
+        }
         if !arcade && t>=1.08 {
             // Keep its physical size visible: a short anticipation lifts the bag,
             // then it travels below the viewport before the existing1.4s release.

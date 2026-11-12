@@ -1219,13 +1219,17 @@ final class NativeBoardScene: SKScene {
             drawBG:{[weak self] in guard let self,current() else{return};self.renderGhosts(state:self.engine.state,geometry:geometry)},
             fullOpacity:{[weak self] in
                 guard let self,current(),self.sourceTutorialActivationEnabled,self.engine.state.tutorial?.active==true else{return}
-                self.sourceTutorialEntryFullyVisible=true;self.onSourceTutorialBoardVisible?()
+                self.sourceTutorialEntryFullyVisible=true
             },
             finished:{[weak self,weak installation] completion in
                 guard let self,self.sourceBoardEntryOwner?.id==completion.id,self.sourceBoardEntryEpoch==epoch else{return}
                 self.sourceBoardEntryOwner=nil;self.sourceBoardEntryNodes.removeAll()
                 self.entryInProgress=false;self.entryOwners=0;self.finishSourceEntry()
                 guard completion.outcome == .normal || completion.outcome == .forced else{self.inputAdmitted=false;return}
+                if current(),self.sourceTutorialActivationEnabled,self.engine.state.tutorial?.active==true {
+                    self.sourceTutorialEntryFullyVisible=true
+                    self.onSourceTutorialBoardVisible?()
+                }
                 guard current(),let installation,self.sourceMicrotaskInstallation === installation,
                     installation.enqueue({[weak self] in
                         guard let self,current(),self.sourceBoardEntryOwner==nil,self.sourceBoardEntryEpoch==epoch else{return}
@@ -1293,7 +1297,8 @@ final class NativeBoardScene: SKScene {
         guard sourceAnimationBindingAdmissionOpen,scope.current,
             let tasks=scope.sourceMicrotaskTasks,sourceAppTimeouts.sourceMicrotaskTasks === tasks else{return false}
         let generation=engine.state.generation,rect=gameplayChromePlan.meterRect
-        sourceMeterHUDScope=scope;sourceTutorialSmokeFrozen=engine.state.tutorial?.active==true
+        sourceMeterHUDScope=scope
+        sourceTutorialSmokeFrozen=engine.state.tutorial.map{$0.active && ($0.objectiveAcknowledged != true || $0.step == .special)} ?? false
         let owner=NativeWildMeterHUDPresentation(hudStage:hud,service:scope.service,timeouts:sourceAppTimeouts,generation:generation,
             maximum:Double(rect.width),isPad:size.width>=768,sourceOrigin:.init(x:rect.minX,y:size.height-rect.maxY),barHeight:rect.height,preloadDividerRoot:preloadDividerResourceRoot,
             sourceToNative:{[weak self] point in .init(x:point.x,y:(self?.size.height ?? 0)-point.y)},
@@ -1307,6 +1312,9 @@ final class NativeBoardScene: SKScene {
         }
         owner.setCanvasShakeOffset(NativeTabletLayout.applies(size) ? .zero:canvasRoot.position)
         sourceTutorialMeterHUD=owner;sourceTutorialMeterRect=rect;sourceTutorialMeterRatio=engine.state.wildMeter
+        if engine.state.tutorial?.active==true,engine.state.tutorial?.objectiveAcknowledged==false {
+            owner.primeTutorialPreloadHidden()
+        }
         // One loader replaces the two prototype top-level shapes. Its original
         // loader role is now captured by the actual tutorial HUD dim owner.
         meter.removeFromParent();meterBackground.removeFromParent()
@@ -1338,6 +1346,13 @@ final class NativeBoardScene: SKScene {
         guard let elapsed=preloadChromeElapsed else{owner.primeBoardEntry(restart:replaysRestartChrome);return}
         owner.beginBoardEntry(restart:replaysRestartChrome)
         owner.paintPreloadBoardEntry(elapsed)
+    }
+    func revealTutorialPreloadMeter(){
+        guard !disposed,engine.state.tutorial?.active==true,engine.state.tutorial?.objectiveAcknowledged==true else{return}
+        // Objective retirement admits ordinary event-bound gain particles.
+        // Completion can still freeze them through the existing explicit owner.
+        sourceTutorialSmokeFrozen=false
+        sourceTutorialMeterHUD?.revealTutorialPreload()
     }
     private func paintPreloadChromeEntry(_ elapsed:Double){
         guard !disposed,!exitInProgress,preloadChromeGeneration==engine.state.generation,!preloadChromeSettled else{return}
@@ -1458,6 +1473,20 @@ final class NativeBoardScene: SKScene {
     var onTutorialSpecialDropContact:((NativeDiceNode)->Void)?
     var onTutorialSpecialDropLanded:((NativeDiceNode)->Void)?
     var onTutorialSpecialDropStarted:((NativeDiceNode)->Void)?
+    var onTutorialBackpackArrived:(()->Void)?
+    var onTutorialBackpackPaint:((SKSpriteNode?)->Void)?
+    var tutorialCarrierLayout:NativeWildMeterDropPlan.TutorialCarrier?
+    func placeTutorialCarrier(frame:CGRect,in view:UIView) {
+        guard let host=gameplayRenderHost else{return}
+        func stagePoint(_ point:CGPoint)->CGPoint {
+            canvasRoot.convert(host.viewPointToScene(host.renderView.convert(point,from:view),scene:self),from:self)
+        }
+        let anchor=stagePoint(CGPoint(x:frame.midX,y:frame.minY+frame.height*0.72))
+        let left=stagePoint(CGPoint(x:frame.minX,y:frame.midY)),right=stagePoint(CGPoint(x:frame.maxX,y:frame.midY))
+        tutorialCarrierLayout = .init(point:.init(x:anchor.x,y:size.height-anchor.y),width:hypot(right.x-left.x,right.y-left.y))
+    }
+    var heldTutorialBackpackCarrier:SKSpriteNode? {sourceMeterCaller?.heldTutorialCarrier}
+    @discardableResult func resumeTutorialBackpackCarrier()->Bool {sourceMeterCaller?.resumeHeldTutorialCarrier() == true}
     func sourceTutorialFourthDroppingWild()->NativeDiceNode? {
         guard sourceAnimationBindingAdmissionOpen,sourceTutorialSubsequentPresentationEnabled,
             sourceTutorialThirdPresentationActive,let scope=sourceTutorialScope,scope.current,
@@ -1759,11 +1788,23 @@ final class NativeBoardScene: SKScene {
     /// then completeFirstPlayTutorial restores again and restores HUD again.
     @MainActor private final class TutorialFourthExitAlpha:NativeSourceAnimationParticipant {
         struct Target {let node:SKNode,parent:SKNode?,from:CGFloat,to:CGFloat}
-        let targets:[Target],current:()->Bool
+        let targets:[Target],current:()->Bool,freshFaceOwned:(NativeDiceNode)->Bool
         var progress:CGFloat=0
-        init(targets:[Target],current:@escaping()->Bool){self.targets=targets;self.current=current}
+        init(targets:[Target],current:@escaping()->Bool,freshFaceOwned:@escaping(NativeDiceNode)->Bool){self.targets=targets;self.current=current;self.freshFaceOwned=freshFaceOwned}
         func advanceSourceAnimation(seconds:Double){guard current() else{return};progress=CGFloat(pow(max(0,min(1,seconds/0.28)),3));paint()}
-        func paint(){guard current() else{return};for target in targets where target.node.parent === target.parent{target.node.alpha=target.from+(target.to-target.from)*progress}}
+        func paint(){
+            guard current() else{return}
+            for target in targets where target.node.parent === target.parent {
+                var to=target.to
+                if let die=target.node as? NativeDiceNode {
+                    // A captured holder can open while the tutorial exits. Its
+                    // actual fresh-face owner keeps the visible bounce opaque.
+                    if freshFaceOwned(die){continue}
+                    to=die.sourceLocked ? 0.2:1
+                }
+                target.node.alpha=target.from+(to-target.from)*progress
+            }
+        }
     }
     private var sourceTutorialFourthExitAlpha:TutorialFourthExitAlpha?
     private var sourceTutorialFourthExitAlphaLease:NativeSourceAnimationClockService.Lease?
@@ -1781,7 +1822,7 @@ final class NativeBoardScene: SKScene {
                 let locked=engine.state.tutorial?.shouldLockHUD==true && node.name != "wildLoader" && node !== meter && node !== meterBackground
                 return TutorialFourthExitAlpha.Target(node:node,parent:node.parent,from:locked ? min(node.alpha,0.2):node.alpha,to:locked ? 0.2:1)
             }
-        let owner=TutorialFourthExitAlpha(targets:targets,current:{[weak self,weak scope] in guard let self,let scope else{return false};return self.sourceAnimationBindingAdmissionOpen && scope.current && self.sourceTutorialScope === scope && self.sourceTutorialEpoch==epoch && self.engine.state.generation==generation})
+        let owner=TutorialFourthExitAlpha(targets:targets,current:{[weak self,weak scope] in guard let self,let scope else{return false};return self.sourceAnimationBindingAdmissionOpen && scope.current && self.sourceTutorialScope === scope && self.sourceTutorialEpoch==epoch && self.engine.state.generation==generation},freshFaceOwned:{[weak self] in self?.sourceOwnsNewFaceEntry($0.tileID)==true})
         sourceTutorialFourthExitAlpha=owner
         guard let lease=scope.service.register(participant:owner,duration:0.28,domain:.sourceGSAP(.timeline),cleanup:{_ in}) else{sourceTutorialFourthExitAlpha=nil;return false}
         sourceTutorialFourthExitAlphaLease=lease;return true
@@ -1887,7 +1928,7 @@ final class NativeBoardScene: SKScene {
     private func paintTutorialBoardOpacity(){
         if tutorialBoardOpacity.paint(nodes:Array(nodesByID.values),generation:engine.state.generation,time:CACurrentMediaTime(),suspended:suspended || disposed || exitInProgress,externallyOwned:{[self] node in
             let owners=node.sourceOuterOwners
-            return owners.pendingRemoval || owners.beingRemoved || owners.cleanupQueued || owners.isBeingSpawned || owners.wildSpawnDropping || specialPresentationIDs.contains(node.tileID)
+            return sourceOwnsNewFaceEntry(node.tileID) || owners.pendingRemoval || owners.beingRemoved || owners.cleanupQueued || owners.isBeingSpawned || owners.wildSpawnDropping || specialPresentationIDs.contains(node.tileID)
         }){requestRendering(true)}
         if !tutorialBoardOpacity.active,let completed=onTutorialBoardFocusSettled {onTutorialBoardFocusSettled=nil;completed()}
     }
@@ -2004,6 +2045,59 @@ final class NativeBoardScene: SKScene {
     private lazy var comboHUDMotion = NativeComboHUDMotion(artwork:comboArtImage)
     private let comboX = SKLabelNode()
     private let comboNumber = SKLabelNode()
+    private var tutorialChromeEntering=false
+    private var tutorialChromeHasEntered=false
+    var tutorialComboTargetScreen:CGPoint? {
+        guard let host=gameplayRenderHost else{return nil}
+        return host.scenePointToView(comboArt.convert(.zero,to:self),scene:self)
+    }
+    var tutorialBackpackTargetScreen:CGRect? {
+        guard let host=gameplayRenderHost else{return nil}
+        let rect=preloadHUDHitRects()[3]
+        let a=host.scenePointToView(hud.convert(CGPoint(x:rect.minX,y:rect.minY),to:self),scene:self)
+        let b=host.scenePointToView(hud.convert(CGPoint(x:rect.maxX,y:rect.maxY),to:self),scene:self)
+        return CGRect(x:min(a.x,b.x),y:min(a.y,b.y),width:abs(b.x-a.x),height:abs(b.y-a.y))
+    }
+    var tutorialInfoHUDUnlocked:Bool {engine.state.tutorial?.shouldLockHUD != true || engine.state.tutorial?.encouragementAcknowledged == true}
+    private var tutorialCollectionPreviewGeneration:UInt64?
+    private var tutorialChromeRevealed:Bool {engine.state.tutorial?.encouragementAcknowledged == true || tutorialCollectionPreviewGeneration==engine.state.generation}
+    func setTutorialCollectionPreviewHUD(_ visible:Bool){
+        tutorialCollectionPreviewGeneration=visible ? engine.state.generation:nil
+        if visible {revealTutorialScoreComboBackpack()}
+        synchronizeTutorialChromeVisibility()
+    }
+    private var tutorialChromeNodes:[SKNode] {
+        [scoreArt,score,comboArt,comboX,comboNumber,hud.childNode(withName:"//native-game-help")].compactMap{$0}
+    }
+    func revealTutorialScoreComboBackpack() {
+        guard !tutorialChromeHasEntered,tutorialChromeRevealed else{return}
+        tutorialChromeHasEntered=true;tutorialChromeEntering=true
+        let nodes=tutorialChromeNodes
+        for (index,node) in nodes.enumerated() {
+            node.removeAction(forKey:"tutorial-chrome-enter")
+            node.isHidden=false;node.alpha=0
+            let base=node.position
+            node.position=CGPoint(x:base.x,y:base.y-18)
+            let delay=Double(index/2)*JimiV9ArchedNavigationTitle.elementStagger
+            let move=SKAction.move(to:base,duration:UIAccessibility.isReduceMotionEnabled ? 0.16:0.43)
+            move.timingMode = .easeOut
+            let fade=SKAction.fadeAlpha(to:1,duration:UIAccessibility.isReduceMotionEnabled ? 0.16:0.34)
+            node.run(.sequence([.wait(forDuration:delay),.group([move,fade])]),withKey:"tutorial-chrome-enter")
+        }
+        hud.run(.sequence([.wait(forDuration:0.43+2*JimiV9ArchedNavigationTitle.elementStagger),.run{[weak self] in
+            self?.tutorialChromeEntering=false
+            self?.synchronizeTutorialChromeVisibility()
+        }]),withKey:"tutorial-chrome-complete")
+        requestRendering(true)
+    }
+    private func synchronizeTutorialChromeVisibility() {
+        guard engine.state.tutorial?.comboHUDRevealed != nil else{return}
+        let revealed=tutorialChromeRevealed
+        for node in tutorialChromeNodes {
+            node.isHidden = !revealed
+            if revealed && !tutorialChromeEntering {node.alpha=1}
+        }
+    }
     private lazy var comboNumberMotion = NativeComboNumberMotion(number:comboNumber)
     private var hudIconSide:CGFloat=0
     private let roundIndicator: NativeRoundIndicator
@@ -3076,8 +3170,15 @@ final class NativeBoardScene: SKScene {
             sourceWildFXDrawingPhase=pull ? "pull-particles":"main-shards"
             defer {sourceWildFXDrawingPhase=previousPhase}
             do {
+                let shardColor:UInt32
+                switch (archetype,variant) {
+                case (.magnet,nil):shardColor=0xF26034
+                case (.star,nil):shardColor=0xFFCB47
+                default:shardColor=0xD4A584
+                }
                 let owner=try NativeRegularSixSharedLayers(context:shared,canvas:canvasRoot,tile:destination,origin:origin,
-                    tileSize:geometry.tileSize,destinationDepth:9993,generation:generation,reduced:false,stage:.shardsOnly)
+                    tileSize:geometry.tileSize,destinationDepth:9993,generation:generation,reduced:false,stage:.shardsOnly,
+                    shardColor:shardColor)
                 guard current() else{owner.dispose();return false}
                 sourceWildOrdinaryMergeSixShardCounts[appearanceKey,default:[]].append(owner.shardCount)
                 sourceWildSixShards[owner.id]=owner
@@ -4174,7 +4275,13 @@ final class NativeBoardScene: SKScene {
             if self.regularSixPresentations[plan.id] === owner {self.regularSixPresentations.removeValue(forKey:plan.id)}
             self.finishVisual(visual)
         }
-        owner.mount(in:canvasRoot);return true
+        owner.mount(in:canvasRoot)
+        // Keep the exact cleanup identity until its receipt, but do not leave
+        // a stationary Six over the burst during the tutorial cleanup delay.
+        if engine.state.tutorial?.active == true {
+            entry.destination.hideTutorialConsumedSixArtwork()
+        }
+        return true
     }
     private func retireSourceSixBindings() {
         let retainedDestinations=sourceDirectRetainedDestinations;sourceDirectRetainedDestinations.removeAll()
@@ -5587,6 +5694,10 @@ final class NativeBoardScene: SKScene {
         if ownsLifecycle {sourceMagnetBodyEnd(id:id,generation:generation)}
         sourceSpecialTransactions?.magnetHelperFinally(id:id,generation:generation,ownsLifecycle:ownsLifecycle)
     }
+    func tutorialBackpackInkImage(for texture:SKTexture)->CGImage? {
+        guard sourceAnimationBindingAdmissionOpen else{return nil}
+        return sourceMeterCaller?.closedTutorialCarrierImage(for:texture)
+    }
     private var sourceMeterCaller:NativeMeterSceneCaller?
     private var sourceMeterQueue:NativeMeterSourceQueueCoreBridge?
     private var sourceMeterLanding:NativeMeterLandingSourceOwner?
@@ -5699,6 +5810,10 @@ final class NativeBoardScene: SKScene {
                     else{self.onPresentationFailure?(reason)}
                 },consume:{[weak self] result,previous in guard admitted() else{return};self?.consume(result,previous:previous)},
                 onDropStarted:{[weak self] node in guard let self,admitted() else{return};self.onTutorialSpecialDropStarted?(node)},
+                holdCarrierAtArrival:{[weak self] _ in guard let self,admitted() else{return false};return self.engine.state.tutorial?.waitingForWild==true && self.engine.state.tutorial?.specialBarAcknowledged==true},
+                tutorialCarrierLayout:{[weak self] in self?.tutorialCarrierLayout},
+                onCarrierArrived:{[weak self] _ in guard let self,admitted() else{return};self.onTutorialBackpackArrived?()},
+                onCarrierPaint:{[weak self] node in self?.onTutorialBackpackPaint?(node)},
                 onDropContact:{[weak self] node in guard let self,admitted() else{return};self.onTutorialSpecialDropContact?(node)},
                 onDropLanded:{[weak self] node in guard let self,admitted() else{return};self.onTutorialSpecialDropLanded?(node);self.announceLandedJourneyDie(node)},
                 sourceSkin:microtasks == nil ? nil:{[weak self] node in
@@ -6779,6 +6894,12 @@ final class NativeBoardScene: SKScene {
         result.owners=markers;return result
     }
 
+    private func reconcileTutorialSpecialScale(_ node:NativeDiceNode,tile:NativeTile,state:NativeBoardState) {
+        let tutorialSpecial=state.tutorial?.active==true && state.tutorial?.wildTileID==tile.id && tile.isWild
+        let enabled=tutorialSpecial && node.parent === canvasRoot && sourceMeterCaller?.sourceTutorialWildDropping(node) != true
+        let scope=sourceTutorialScope ?? sourceIdleScope ?? sourceSixScope
+        node.reconcileTutorialSpecialBurn(service:scope?.current==true ? scope?.service:nil,enabled:enabled,canvasPaintable:sourceShimmerCanvasPaintable)
+    }
     func synchronize(animateEntry: Bool = false) {
         defer{sourceTutorialFourthExitAlpha?.paint()}
         guard !sourceDisposalInProgress else {return }
@@ -6888,6 +7009,7 @@ final class NativeBoardScene: SKScene {
             let node: NativeDiceNode
             if let existing = nodesByID[tile.id] {
                 node = existing
+                reconcileTutorialSpecialScale(node,tile:tile,state:state)
                 if sourceTutorialOwns(node) {continue}
                 if sourceBoardEntryOwns(node) {continue}
                 // Reservation locks the donors before .specialReserved starts
@@ -6915,6 +7037,7 @@ final class NativeBoardScene: SKScene {
                     self.requestRendering(!self.suspended)
                 }
                 nodesByID[tile.id] = node; canvasRoot.addChild(node);captureSourceTutorialObject(node)
+                reconcileTutorialSpecialScale(node,tile:tile,state:state)
             }
             if let sourceOuterTimelineDriver {
                 node.installSourceOuterDriver(sourceOuterTimelineDriver,generation:state.generation,geometryScale:geometry.scale)
@@ -6943,14 +7066,15 @@ final class NativeBoardScene: SKScene {
         synchronizeComboHUD()
         // Source startup owns its initial fade; after guide completion the
         // completion-assist HUD lock still owns dimming, including cleanup refreshes.
-        let tutorialHUDAlpha:CGFloat=state.tutorial?.shouldLockHUD==true && (!sourceTutorialHUDEnabled || state.tutorial?.active != true) ? 0.2:1
+        let tutorialHUDAlpha:CGFloat=state.tutorial?.shouldLockHUD==true && !tutorialChromeRevealed && (!sourceTutorialHUDEnabled || state.tutorial?.active != true) ? 0.2:1
         roundIndicator.synchronize(round:state.stage,arcade:state.mode == .arcade && state.tutorial?.shouldLockHUD != true,viewport:size,alpha:(!tutorialSpecialBarFocus.isEmpty || sourceTutorialHUD?.owns(roundIndicator)==true) ? roundIndicator.alpha:tutorialHUDAlpha,variant:state.effectiveArcadeVariant)
         layoutHUD()
         applyBoardShake(boardShake)
         // Smoke is mounted as HUD siblings, but its animation owns opacity.
         // Resetting it here flashes every live particle between Source frames.
         preloadHUDTutorialAlpha=tutorialHUDAlpha
-        for child in hud.children where child !== noMoves && sourceTutorialHUD?.owns(child) != true && sourceTutorialMeterHUD?.ownsSmoke(child) != true && tutorialSpecialBarFocus.isEmpty {if let index=preloadHUDGroups.firstIndex(where:{$0.root === child}){child.alpha=tutorialHUDAlpha*preloadHUDMotionAlpha[index]}else{child.alpha=tutorialHUDAlpha}}
+        for child in hud.children where child !== noMoves && sourceTutorialHUD?.owns(child) != true && sourceTutorialMeterHUD?.ownsSmoke(child) != true && tutorialSpecialBarFocus.isEmpty && !(tutorialChromeEntering && tutorialChromeNodes.contains(where:{$0 === child})) {if let index=preloadHUDGroups.firstIndex(where:{$0.root === child}){child.alpha=tutorialHUDAlpha*preloadHUDMotionAlpha[index]}else{child.alpha=tutorialHUDAlpha}}
+        synchronizeTutorialChromeVisibility()
         if (animateEntry || holdsRestartEntryForVisibleHandoff) && !UIAccessibility.isReduceMotionEnabled {
             animateBoardEntry(tiles: live,geometry: geometry)
         } else if !entryInProgress { inputAdmitted = state.terminal == nil && pendingTerminal == nil;roundIndicator.enter(animated:false) }
@@ -7063,7 +7187,7 @@ final class NativeBoardScene: SKScene {
         guard scoreCounter.active || comboCounter.active else{return}
         let visible=hudNumbersMayAnimate && sourceShimmerCanvasPaintable
         scoreCounter.advance(delta:delta,visible:visible,reducedMotion:UIAccessibility.isReduceMotionEnabled)
-        comboCounter.advance(delta:delta,visible:visible,reducedMotion:UIAccessibility.isReduceMotionEnabled)
+        if !engine.tutorialComboPaused {comboCounter.advance(delta:delta,visible:visible,reducedMotion:UIAccessibility.isReduceMotionEnabled)}
         score.text=NativeScoreDisplay.text(scoreCounter.value)
         let text=NativeComboDisplay.text(comboCounter.value)
         if comboNumber.text != text {
@@ -7073,6 +7197,7 @@ final class NativeBoardScene: SKScene {
     }
 
     private func synchronizeComboHUD() {
+        guard !engine.tutorialComboPaused else{return}
         let combo = engine.state.combo
         comboCounter.synchronize(combo,generation:engine.state.generation,animated:hudNumbersMayAnimate)
         comboNumber.text = NativeComboDisplay.text(comboCounter.value)
@@ -7169,7 +7294,7 @@ final class NativeBoardScene: SKScene {
     // Same authored navigation content track, sampled by the existing HUD
     // action. Carriers isolate it from live score/combo/tap feedback transforms.
     private func preparePreloadHUDGroups(){
-        guard engine.state.tutorial?.active != true else{return}
+        guard engine.state.tutorial?.active != true,engine.state.tutorial?.comboLessonAcknowledged != false else{return}
         if preloadHUDGroups.isEmpty {
             let content:[[SKNode]]=[[scoreArt,score],[closeButton].compactMap{$0},[comboArt,comboX,comboNumber],[hud.childNode(withName:"//native-game-help")].compactMap{$0}]
             for (index,nodes) in content.enumerated(){
@@ -7454,7 +7579,7 @@ final class NativeBoardScene: SKScene {
         }
         if hitBag {
             traceHUDLatency("backpack.hit")
-            guard inputAdmitted,!navigationLocked,engine.state.tutorial?.shouldLockHUD != true else {return true}
+            guard inputAdmitted,!navigationLocked,tutorialInfoHUDUnlocked else {return true}
             onHUDTapContact?("hud-icon-tap")
             if let icon=hud.childNode(withName:"//native-game-help") {playHUDTapFeedback(on:icon)}
             onHelpRequest?()
@@ -7462,7 +7587,7 @@ final class NativeBoardScene: SKScene {
         }
         if hitScore || hitCombo {
             traceHUDLatency("score.hit")
-            guard inputAdmitted,!navigationLocked,engine.state.tutorial?.shouldLockHUD != true else { return true }
+            guard inputAdmitted,!navigationLocked,tutorialInfoHUDUnlocked else { return true }
             onHUDTapContact?("hud-icon-tap")
             if hitCombo {playHUDTapFeedback(on:comboArt);onComboRequest?()}
             else {playHUDTapFeedback(on:scoreArt);onScoreRequest?()}
@@ -8682,6 +8807,9 @@ final class NativeBoardScene: SKScene {
             self.finishVisual(receipt)
         }
         owner.mount(in:canvasRoot)
+        if engine.state.tutorial?.active == true {
+            nodesByID[plan.destination.id]?.hideTutorialConsumedSixArtwork()
+        }
     }
 
     private func applyBoardShake(_ pose:NativeRegularSixSpritePresentation.ShakeReceipt) {
@@ -10874,9 +11002,12 @@ final class NativeBoardScene: SKScene {
     /// Shared renderer sampling only, mirroring Source's250ms visibility owner.
     /// Special registry/drag pressure never silently owns this separate gloss.
     func reconcileSourceWildShimmerVisibility(){
-        guard sourceWildShimmerEnabled else{return}
-        let paintable=sourceShimmerCanvasPaintable
-        for node in engine.state.tiles.compactMap({nodesByID[$0.id]}) {node.reconcileSourceWildShimmerVisibility(canvasPaintable:paintable)}
+        let paintable=sourceShimmerCanvasPaintable,state=engine.state
+        for tile in state.tiles {
+            guard let node=nodesByID[tile.id] else{continue}
+            if sourceWildShimmerEnabled {node.reconcileSourceWildShimmerVisibility(canvasPaintable:paintable)}
+            reconcileTutorialSpecialScale(node,tile:tile,state:state)
+        }
     }
 
     override func update(_ currentTime: TimeInterval) {
@@ -10947,11 +11078,11 @@ final class NativeBoardScene: SKScene {
         dragTrail.advance(delta:elapsedDelta,timeMilliseconds:rawMilliseconds)
         advanceHUDNumbers(delta:elapsedDelta>0.5 ? 0.033:elapsedDelta)
         let delta=min(0.05,elapsedDelta)
-        if engine.state.combo>=5 {
+        if engine.state.combo>=5 && !engine.tutorialComboPaused {
             comboHUDMotion.advance(delta:delta,visible:!exitInProgress && engine.state.terminal == nil && !hud.isHidden && hud.alpha>0 && gameplayRenderHost?.renderView.window != nil && sourceShimmerCanvasPaintable,reducedMotion:UIAccessibility.isReduceMotionEnabled)
         }
         let comboVisible = !exitInProgress && engine.state.terminal == nil && !hud.isHidden && hud.alpha>0 && gameplayRenderHost?.renderView.window != nil && sourceShimmerCanvasPaintable
-        if comboNumberMotion.advance(delta:elapsedDelta>0.5 ? 0.033:elapsedDelta,visible:comboVisible,reducedMotion:UIAccessibility.isReduceMotionEnabled) {
+        if !engine.tutorialComboPaused && comboNumberMotion.advance(delta:elapsedDelta>0.5 ? 0.033:elapsedDelta,visible:comboVisible,reducedMotion:UIAccessibility.isReduceMotionEnabled) {
             layoutComboValue(top:gameplayChromePlan.valueRowY)
         }
         // GSAP's source ticker uses full elapsed time for sub500ms hitches,
@@ -11017,6 +11148,11 @@ final class NativeBoardScene: SKScene {
         roundIndicator.isHidden=engine.state.mode != .arcade || engine.state.tutorial?.shouldLockHUD == true
         if engine.state.tutorial?.shouldLockHUD==true {
             for child in hud.children where child !== noMoves {
+                if tutorialChromeRevealed {
+                    let isClose=child === closeButton || preloadHUDGroups.contains{$0.root === child && $0.nodes.contains{$0 === closeButton}}
+                    if isClose {child.alpha=min(child.alpha,0.2)}
+                    continue
+                }
                 let meterFocused = (!tutorialSpecialBarFocus.isEmpty || engine.state.tutorial?.specialBarAcknowledged == true) && (child.name=="wildLoader" || child === meter || child === meterBackground)
                 let tutorialBubble = !tutorialSpecialBarFocus.isEmpty && child.name=="wild-meter-smoke"
                 if !tutorialBubble {child.alpha = meterFocused ? 1:min(child.alpha,0.2)}
@@ -11452,7 +11588,7 @@ final class NativeBoardScene: SKScene {
         guard !disposed,!sourceDisposalInProgress else {return}
         outgoingPreloadMeter?.dispose();outgoingPreloadMeter=nil
         settleHUDNumbers();comboHUDMotion.dispose();comboNumberMotion.stop()
-        onTutorialBoardFocusSettled=nil;tutorialBoardOpacity.dispose();onTutorialWildAnimationProgress=nil;onTutorialSpecialDropStarted=nil;onTutorialSpecialDropContact=nil;onTutorialSpecialDropLanded=nil;onJourneyDieLanded=nil;onHUDCoinArrival=nil;unreadJourneyDice={[]};backpackAlertRefreshPending=false;hud.childNode(withName:"//native-game-help")?.removeAction(forKey:"backpack-icon-swap");backpackAlert?.removeFromParent();backpackAlert=nil
+        onTutorialBoardFocusSettled=nil;tutorialBoardOpacity.dispose();onTutorialWildAnimationProgress=nil;onTutorialSpecialDropStarted=nil;onTutorialBackpackArrived=nil;onTutorialBackpackPaint=nil;onTutorialSpecialDropContact=nil;onTutorialSpecialDropLanded=nil;onJourneyDieLanded=nil;onHUDCoinArrival=nil;unreadJourneyDice={[]};backpackAlertRefreshPending=false;hud.childNode(withName:"//native-game-help")?.removeAction(forKey:"backpack-icon-swap");backpackAlert?.removeFromParent();backpackAlert=nil
         renderPipelineProbe?.cancel(scene:self,reason:"disposed")
         retireSourceWildSkinAssets()
         retireSourceSpawnVisualSafety()

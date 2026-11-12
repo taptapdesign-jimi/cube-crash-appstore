@@ -1,6 +1,198 @@
 import XCTest
 @testable import StackToSixGameplay
 final class NativeTutorialTests: XCTestCase {
+    func testCollectionLessonPausePreservesExpiryAndSpeedScoringTimestamps() {
+        var tutorial=NativeTutorialState();tutorial.active=false;tutorial.guideCompleted=true;tutorial.encouragementAcknowledged=true
+        tutorial.collectionLessonAcknowledged=false;tutorial.comboLessonAcknowledged=false;tutorial.comboHUDRevealed=false
+        let tiles=(0..<6).map{i in NativeTile(id:"paused-collection-\(i)",cell:.init(column:i%5,row:i/5),value:i%2+1)}
+        let engine=NativeGameplayEngine(state:NativeBoardState(tiles:tiles,tutorial:tutorial))
+        for (pair,time) in [(0,0.0),(1,0.25)] {
+            XCTAssertTrue(engine.beginDrag(tileID:tiles[pair*2].id))
+            XCTAssertTrue(engine.drop(target:tiles[pair*2+1].cell,now:time).accepted)
+        }
+        let combo=engine.state.combo,fast=engine.state.efficiencyFastComboContinuations
+        XCTAssertGreaterThan(combo,0)
+        engine.setTutorialComboPaused(true,now:0.5)
+        XCTAssertTrue(engine.tutorialComboPaused)
+        engine.setTutorialComboPaused(true,now:10)
+        engine.expireCombo(now:100)
+        XCTAssertEqual(engine.state.combo,combo)
+        XCTAssertTrue(engine.acknowledgeTutorialCollectionLesson().accepted)
+        engine.setTutorialComboPaused(false,now:100.5)
+        engine.setTutorialComboPaused(false,now:100.7)
+        XCTAssertFalse(engine.tutorialComboPaused)
+        engine.expireCombo(now:100.6)
+        XCTAssertEqual(engine.state.combo,combo,"Reading duration is removed from the expiry clock")
+        XCTAssertTrue(engine.beginDrag(tileID:tiles[4].id))
+        XCTAssertTrue(engine.drop(target:tiles[5].cell,now:100.75).accepted)
+        XCTAssertEqual(engine.state.efficiencyFastComboContinuations,fast+1,"The same reading duration is removed from speed-scoring timestamps")
+        engine.expireCombo(now:110)
+        XCTAssertEqual(engine.state.combo,0)
+    }
+    func testLegacyActiveTutorialArmsCollectionOnlyAtGenuineSpecialCompletion() {
+        for source in [false,true] {for oldAcknowledgement:Bool? in [nil,true] {
+            var board=fourthPreparationBoard()
+            board.tutorial?.step = .special;board.tutorial?.waitingForWild=false;board.tutorial?.wildTileID="wild"
+            board.tutorial?.collectionLessonAcknowledged=oldAcknowledgement
+            let engine=NativeGameplayEngine(state:board,recordedRandomChoices:Array(repeating:0,count:200))
+            engine.sourceTutorialSubsequentPresentationEnabled=source
+            if source {
+                XCTAssertTrue(engine.prepareSourceTutorialFourthStep(ownerID:"tutorial",generation:1,wildID:"wild",targetID:"target").accepted)
+                XCTAssertFalse(engine.completeSourceTutorialFourthStep(ownerID:"tutorial",generation:1).accepted)
+                XCTAssertEqual(engine.state.tutorial?.collectionLessonAcknowledged,oldAcknowledgement)
+            }
+            XCTAssertTrue(engine.beginDrag(tileID:"wild"))
+            XCTAssertTrue(engine.drop(target:.init(column:3,row:2)).accepted)
+            if source {
+                XCTAssertEqual(engine.state.tutorial?.active,true)
+                XCTAssertEqual(engine.state.tutorial?.collectionLessonAcknowledged,oldAcknowledgement,"A merge cannot bypass the genuine Source exit")
+                XCTAssertTrue(engine.completeSourceTutorialFourthStep(ownerID:"tutorial",generation:1).accepted)
+            }
+            XCTAssertEqual(engine.state.tutorial?.active,false)
+            XCTAssertEqual(engine.state.tutorial?.guideCompleted,true)
+            XCTAssertEqual(engine.state.tutorial?.collectionLessonAcknowledged,oldAcknowledgement ?? false)
+        }}
+    }
+    func testAlreadyCompletedLegacyTutorialStillSkipsCollectionLesson()throws {
+        var tutorial=NativeTutorialState();tutorial.active=false;tutorial.guideCompleted=true;tutorial.encouragementAcknowledged=true
+        tutorial.comboLessonAcknowledged=false;tutorial.comboHUDRevealed=false;tutorial.comboLessonMoveCount=6
+        let restored=try JSONDecoder().decode(NativeTutorialState.self,from:JSONEncoder().encode(tutorial))
+        XCTAssertNil(restored.collectionLessonAcknowledged)
+        let engine=NativeGameplayEngine(state:NativeBoardState(tiles:[.init(id:"a",cell:.init(column:0,row:0),value:1),.init(id:"b",cell:.init(column:1,row:0),value:2)],tutorial:restored))
+        XCTAssertFalse(engine.acknowledgeTutorialCollectionLesson().accepted)
+        XCTAssertNil(engine.state.tutorial?.collectionLessonAcknowledged)
+        XCTAssertTrue(engine.beginTutorialComboLesson().accepted)
+        XCTAssertNil(engine.state.tutorial?.collectionLessonAcknowledged)
+    }
+    func testCollectionLessonAcknowledgesOnlyPostSpecialPresentationAndIsIdempotent() {
+        var tutorial=NativeTutorialState();tutorial.active=false;tutorial.guideCompleted=true
+        tutorial.encouragementAcknowledged=true;tutorial.collectionLessonAcknowledged=false
+        tutorial.comboLessonAcknowledged=false;tutorial.comboHUDRevealed=false;tutorial.comboLessonMoveCount=6
+        var state=NativeBoardState(tiles:[.init(id:"a",cell:.init(column:0,row:0),value:1),.init(id:"b",cell:.init(column:1,row:0),value:2)],tutorial:tutorial)
+        state.wildMeter=0.63;state.moves=37;state.score=311;state.rngState=123
+        var draws=0
+        let engine=NativeGameplayEngine(state:state,sourceMathRandom:.init(draw:{draws+=1;return 0.4}))
+        XCTAssertFalse(engine.beginTutorialComboLesson().accepted,"Collection copy precedes any already-ready combo lesson")
+        XCTAssertEqual(engine.state,state)
+        let result=engine.acknowledgeTutorialCollectionLesson()
+        var expected=state;expected.tutorial?.collectionLessonAcknowledged=true
+        XCTAssertTrue(result.accepted);XCTAssertTrue(result.events.isEmpty)
+        XCTAssertEqual(result.state,expected);XCTAssertEqual(engine.state,expected);XCTAssertEqual(draws,0)
+        XCTAssertFalse(engine.acknowledgeTutorialCollectionLesson().accepted)
+        XCTAssertEqual(engine.state,expected);XCTAssertEqual(draws,0)
+        XCTAssertTrue(engine.beginTutorialComboLesson().accepted)
+        let premature:[(Bool,Bool?,Bool?)]=[(false,true,false),(true,false,false),(true,nil,false),(true,true,nil),(true,true,true)]
+        for (completed,encouraged,collected) in premature {
+            var before=state;before.tutorial?.guideCompleted=completed;before.tutorial?.encouragementAcknowledged=encouraged;before.tutorial?.collectionLessonAcknowledged=collected
+            let blocked=NativeGameplayEngine(state:before)
+            XCTAssertFalse(blocked.acknowledgeTutorialCollectionLesson().accepted)
+            XCTAssertEqual(blocked.state,before)
+        }
+    }
+    func testJourneyComboLessonIsReadyImmediatelyAfterCollectionWithoutAMove() {
+        for mode in [NativeRunMode.journey,.arcade] {
+            var tutorial=NativeTutorialState();tutorial.active=false;tutorial.guideCompleted=true
+            tutorial.encouragementAcknowledged=true;tutorial.collectionLessonAcknowledged=false
+            tutorial.comboLessonAcknowledged=false;tutorial.comboHUDRevealed=false;tutorial.comboLessonMoveCount=0
+            let state=NativeBoardState(tiles:[.init(id:"a",cell:.init(column:0,row:0),value:1),.init(id:"b",cell:.init(column:1,row:0),value:2)],mode:mode,moves:37,score:311,tutorial:tutorial)
+            let engine=NativeGameplayEngine(state:state)
+            XCTAssertFalse(engine.beginTutorialComboLesson().accepted)
+            XCTAssertTrue(engine.acknowledgeTutorialCollectionLesson().accepted)
+            XCTAssertEqual(engine.beginTutorialComboLesson().accepted,mode == .journey)
+            XCTAssertEqual(engine.state.moves,37);XCTAssertEqual(engine.state.score,311)
+            XCTAssertEqual(engine.state.rngState,state.rngState)
+            XCTAssertEqual(engine.state.tutorial?.comboLessonMoveCount,0)
+        }
+    }
+    func testCompletionLessonReceiptRestoresAndKeepsLegacyFinishedGuidesQuiet()throws {
+        let engine=NativeGameplayEngine(state:board())
+        XCTAssertTrue(engine.startTutorial().accepted)
+        XCTAssertEqual(engine.state.tutorial?.completionLessonAcknowledged,false)
+        XCTAssertFalse(engine.acknowledgeTutorialCompletionLesson().accepted)
+        var state=engine.state;state.tutorial?.active=false;state.tutorial?.guideCompleted=true
+        state.tutorial?.encouragementAcknowledged=true;state.tutorial?.collectionLessonAcknowledged=true
+        state.tutorial?.comboHUDRevealed=true;state.tutorial?.comboLessonAcknowledged=true
+        let restored=NativeGameplayEngine(state:try JSONDecoder().decode(NativeBoardState.self,from:JSONEncoder().encode(state)))
+        XCTAssertEqual(restored.state.tutorial?.completionLessonAcknowledged,false)
+        restored.setTutorialComboPaused(true,now:1);XCTAssertTrue(restored.tutorialComboPaused)
+        XCTAssertTrue(restored.acknowledgeTutorialCompletionLesson().accepted)
+        restored.setTutorialComboPaused(false,now:2)
+        XCTAssertFalse(restored.acknowledgeTutorialCompletionLesson().accepted)
+        var expected=state;expected.tutorial?.completionLessonAcknowledged=true
+        XCTAssertEqual(restored.state,expected)
+        var old=try XCTUnwrap(JSONSerialization.jsonObject(with:JSONEncoder().encode(state.tutorial)) as? [String:Any])
+        old.removeValue(forKey:"completionLessonAcknowledged")
+        let legacy=try JSONDecoder().decode(NativeTutorialState.self,from:JSONSerialization.data(withJSONObject:old))
+        XCTAssertNil(legacy.completionLessonAcknowledged)
+        XCTAssertEqual(legacy.comboLessonAcknowledged,true)
+    }
+    func testCollectionLessonDefersComboMoveCountingUntilAcknowledged() {
+        var tutorial=NativeTutorialState();tutorial.active=false;tutorial.guideCompleted=true
+        tutorial.collectionLessonAcknowledged=false;tutorial.comboLessonAcknowledged=false;tutorial.comboHUDRevealed=false
+        let tiles=(0..<16).map{i in NativeTile(id:"collection-\(i)",cell:.init(column:i%5,row:i/5),value:i%2+1)}
+        let engine=NativeGameplayEngine(state:NativeBoardState(tiles:tiles,tutorial:tutorial))
+        engine.acknowledgeTutorialEncouragement()
+        XCTAssertEqual(engine.state.tutorial?.encouragementAcknowledged,true)
+        for i in 0..<8 {
+            if i==2 {XCTAssertTrue(engine.acknowledgeTutorialCollectionLesson().accepted)}
+            XCTAssertTrue(engine.beginDrag(tileID:tiles[i*2].id))
+            XCTAssertTrue(engine.drop(target:tiles[i*2+1].cell,now:Double(i*10)).accepted)
+            XCTAssertEqual(engine.state.tutorial?.comboLessonMoveCount,max(0,i-1))
+        }
+        XCTAssertEqual(engine.state.tutorial?.comboLessonMoveCount,6)
+        XCTAssertTrue(engine.beginTutorialComboLesson().accepted)
+    }
+    func testNewTutorialArmsCollectionAndOlderCodableCheckpointSkipsIt()throws {
+        let engine=NativeGameplayEngine(state:board())
+        XCTAssertTrue(engine.startTutorial().accepted)
+        XCTAssertEqual(engine.state.tutorial?.collectionLessonAcknowledged,false)
+        let tutorial=try XCTUnwrap(engine.state.tutorial)
+        let encoded=try JSONEncoder().encode(tutorial)
+        XCTAssertEqual(try JSONDecoder().decode(NativeTutorialState.self,from:encoded).collectionLessonAcknowledged,false)
+        var old=try XCTUnwrap(JSONSerialization.jsonObject(with:encoded) as? [String:Any])
+        old.removeValue(forKey:"collectionLessonAcknowledged")
+        let restored=try JSONDecoder().decode(NativeTutorialState.self,from:JSONSerialization.data(withJSONObject:old))
+        XCTAssertNil(restored.collectionLessonAcknowledged)
+        XCTAssertNil(NativeTutorialState().collectionLessonAcknowledged)
+    }
+    func testComboLessonWaitsForSixAcceptedMovesAndSurvivesSave() throws {
+        var tutorial=NativeTutorialState();tutorial.active=false;tutorial.guideCompleted=true
+        tutorial.comboLessonAcknowledged=false;tutorial.comboHUDRevealed=false
+        let tiles=(0..<12).map {i in NativeTile(id:"die-\(i)",cell:.init(column:i%5,row:i/5),value:i%2+1)}
+        var engine=NativeGameplayEngine(state:NativeBoardState(tiles:tiles,tutorial:tutorial))
+        engine.acknowledgeTutorialEncouragement()
+        XCTAssertEqual(engine.state.tutorial?.comboLessonMoveCount,0)
+        XCTAssertFalse(engine.drop(target:nil).accepted)
+        XCTAssertEqual(engine.state.tutorial?.comboLessonMoveCount,0)
+        for i in 0..<6 {
+            XCTAssertFalse(engine.beginTutorialComboLesson().accepted)
+            XCTAssertTrue(engine.beginDrag(tileID:"die-\(i*2)"))
+            XCTAssertTrue(engine.drop(target:tiles[i*2+1].cell,now:Double(i*10)).accepted)
+            XCTAssertEqual(engine.state.tutorial?.comboLessonMoveCount,i+1)
+            if i==4 {
+                let saved=try JSONEncoder().encode(engine.state)
+                engine=NativeGameplayEngine(state:try JSONDecoder().decode(NativeBoardState.self,from:saved))
+                engine.acknowledgeTutorialEncouragement()
+                XCTAssertEqual(engine.state.tutorial?.comboLessonMoveCount,5)
+            }
+        }
+        XCTAssertEqual(engine.state.efficiencyFastComboContinuations,0)
+        XCTAssertTrue(engine.beginTutorialComboLesson().accepted)
+        XCTAssertFalse(engine.beginTutorialComboLesson().accepted)
+        let frozen=engine.state.combo
+        engine.setTutorialComboPaused(true,now:50.25)
+        engine.setTutorialComboPaused(true,now:60) // repeated refresh must not move the pause origin
+        engine.expireCombo(now:100)
+        XCTAssertEqual(engine.state.combo,frozen)
+        engine.setTutorialComboPaused(false,now:100.25)
+        engine.setTutorialComboPaused(false,now:110) // idempotent release
+        engine.expireCombo(now:100.3)
+        XCTAssertEqual(engine.state.combo,frozen,"Reading the sheet must not consume the combo window")
+        engine.expireCombo(now:110)
+        XCTAssertEqual(engine.state.combo,0,"Normal expiry resumes after dismissal")
+        engine.acknowledgeTutorialComboLesson()
+        XCTAssertEqual(engine.state.tutorial?.comboLessonAcknowledged,true)
+    }
     func testSpecialGuideAllowsEveryPlayableRegularTargetAcrossEntireBoard() {
         for row in 0..<9 {for value in 1...5 {for reverse in [false,true] {
             var tutorial=NativeTutorialState();tutorial.step = .special;tutorial.wildTileID="wild"
@@ -195,7 +387,7 @@ final class NativeTutorialTests: XCTestCase {
         XCTAssertTrue(engine.claimTutorialFinalChance().accepted)
         XCTAssertEqual(engine.state.activeTiles.map(\.value).sorted(),[1,5]); XCTAssertEqual(engine.state.tutorial?.finalChanceSpawnCount,1)
         XCTAssertEqual(NativeTutorialRules.lowValue(excluding:1,roll:0),2); XCTAssertEqual(NativeTutorialRules.lowValue(roll:0.99),3)
-        XCTAssertEqual(tutorial.meterMultiplier,0.05); XCTAssertTrue(tutorial.shouldLockHUD)
+        XCTAssertEqual(tutorial.meterMultiplier,0.5); XCTAssertTrue(tutorial.shouldLockHUD)
     }
     func testOrdinaryBoardCompletionNeverMarksTutorialDone() {
         let a = NativeTile(id:"a",cell:NativeCell(column:0,row:0),value:3), b = NativeTile(id:"b",cell:NativeCell(column:1,row:0),value:3)

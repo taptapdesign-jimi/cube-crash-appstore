@@ -11,7 +11,8 @@ final class NativeWildMeterDropPresentation: SKNode {
     let runtime: NativeWildMeterDropRuntime
     var onTilePose: ((NativeWildMeterDropPlan.TilePose) -> Void)?
     var onEvent: ((NativeWildMeterDropRuntime.Event) -> Void)?
-    private let carrier: SKSpriteNode
+    var onCarrierPaint:((SKSpriteNode?)->Void)?
+    let carrier: SKSpriteNode
     private var borrowedTextures: [String:SKTexture]
     private let stagePoint: (NativeWildMeterDropPlan.Point) -> CGPoint
     private var disposed=false,lastSource: String?
@@ -31,7 +32,7 @@ final class NativeWildMeterDropPresentation: SKNode {
         carrier.alpha=0;lastSource=paths[0]
         runtime.onEvent={ [weak self] event in
             guard let self,!self.disposed else {return}
-            if event == .carrierReleased {self.carrier.removeFromParent()}
+            if event == .carrierReleased {self.onCarrierPaint?(nil);self.carrier.removeFromParent()}
             if event == .mediumHaptic {
                 // Literal travel onComplete paints target/.76 BEFORE haptic and
                 // authored onImpact. Runtime events precede the outer frame return.
@@ -59,7 +60,7 @@ final class NativeWildMeterDropPresentation: SKNode {
         guard !disposed else {return}
         runtime.assetsPrepared(runtime.capture,animationSeconds:animationSeconds)
     }
-    func advance(animationSeconds:Double,wallMilliseconds:Double,renderEpoch:UInt64) {
+    func advance(animationSeconds:Double,wallMilliseconds:Double,renderEpoch:UInt64,carrierEmphasis:JimiV9Motion.Pose?=nil) {
         guard !disposed,let frame=runtime.advance(runtime.capture,animationSeconds:animationSeconds,
             wallMilliseconds:wallMilliseconds,renderEpoch:renderEpoch) else {return}
         if !frame.carrier.released {
@@ -77,7 +78,13 @@ final class NativeWildMeterDropPresentation: SKNode {
             carrier.position=stagePoint(pose.point)
             carrier.xScale=CGFloat(pose.scaleX);carrier.yScale=CGFloat(pose.scaleY)
             carrier.zRotation = -CGFloat(pose.rotation);carrier.alpha=CGFloat(pose.opacity)
+            if let emphasis=carrierEmphasis {
+                let height=runtime.plan.carrierScale*(runtime.plan.arcade ? 403.0:438.0)
+                carrier.position=stagePoint(.init(x:pose.point.x,y:pose.point.y+emphasis.y*height))
+                carrier.xScale *= CGFloat(emphasis.scaleX);carrier.yScale *= CGFloat(emphasis.scaleY)
+            }
         }
+        if !frame.carrier.released{onCarrierPaint?(carrier)}
         onTilePose?(frame.tile)
     }
     func advanceWall(wallMilliseconds:Double) {
@@ -96,6 +103,7 @@ final class NativeWildMeterDropPresentation: SKNode {
     }
     func dispose() {
         guard !disposed else {return}
+        onCarrierPaint?(nil);onCarrierPaint=nil
         runtime.dispose();disposed=true;carrier.removeFromParent();removeFromParent()
         borrowedTextures.removeAll();onTilePose=nil;onEvent=nil;runtime.onEvent=nil
     }

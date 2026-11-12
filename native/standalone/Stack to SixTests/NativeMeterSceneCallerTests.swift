@@ -21,8 +21,8 @@ nonisolated final class NativeMeterSceneCallerTests:XCTestCase {
         var caller:NativeMeterSceneCaller!,nodes:[String:NativeDiceNode]=[:],wall=0.0,epoch:UInt64=0
         var current=true,results:[NativeGameplayEvent.Kind]=[],activity=0,releases=0,audio=0,stops=0,masks=0,unmasks=0
         var onResult:((NativeGameplayEvent)->Void)?
-        var startedDropIDs:[String]=[],selectedAudioCalls=0
-        init(root:URL,sourceConstructor:Bool=false,initialMeter:Double=1.25,magnetSource:Bool=false,reward:NativeWildRewardChoice = .init(.star,variant:"cubero"),mode:NativeRunMode = .journey){
+        var startedDropIDs:[String]=[],selectedAudioCalls=0,carrierArrivals=0
+        init(root:URL,sourceConstructor:Bool=false,initialMeter:Double=1.25,magnetSource:Bool=false,reward:NativeWildRewardChoice = .init(.star,variant:"cubero"),mode:NativeRunMode = .journey,holdCarrierAtArrival:Bool=false){
             engine=NativeGameplayEngine(state:.init(tiles:[.init(id:"a",cell:.init(column:0,row:0),value:magnetSource ? 6:2,archetype:magnetSource ? .magnet:nil),.init(id:"b",cell:.init(column:1,row:0),value:3)],mode:mode,wildMeter:initialMeter),recordedRandomChoices:Array(repeating:0,count:100),rewardPicker:{_,_ in reward})
             engine.stagedMeterOpen=true;engine.stagedMeterDrops=true
             textures=NativeBoardTextures(root:root);resources=NativeWildMeterDropResources(root:root)
@@ -44,7 +44,8 @@ nonisolated final class NativeMeterSceneCallerTests:XCTestCase {
                     XCTAssertTrue(self.caller.sourceTutorialWildDropping(node))
                     if self.startedDropIDs.isEmpty {XCTAssertFalse(self.results.contains(.meterDropLanded))}
                     self.startedDropIDs.append(node.tileID)
-                },sourceSkin:sourceConstructor ? {[weak self] node in self?.skinPrefixes.append(node.kind+":"+(node.variant ?? "core"));return true}:nil),random:{0.5},wallNow:{ProcessInfo.processInfo.systemUptime*1000},sourcePromiseBookkeeping:sourceConstructor)
+                },holdCarrierAtArrival:{_ in holdCarrierAtArrival},onCarrierArrived:{[weak self] _ in self?.carrierArrivals+=1},
+                sourceSkin:sourceConstructor ? {[weak self] node in self?.skinPrefixes.append(node.kind+":"+(node.variant ?? "core"));return true}:nil),random:{0.5},wallNow:{ProcessInfo.processInfo.systemUptime*1000},sourcePromiseBookkeeping:sourceConstructor)
             scene.receipt={[weak self] in
                 guard let self else{return};self.epoch &+= 1
                 self.caller.painted(epoch:self.epoch,onscreen:self.view.window != nil && !self.view.isHidden && !self.view.isPaused,contains:{[weak self] node in
@@ -334,6 +335,38 @@ nonisolated final class NativeMeterSceneCallerTests:XCTestCase {
         XCTAssertEqual(f.activity,1);XCTAssertEqual(f.releases,0)
         f.service.setSourceGlobalPaused(false);f.advance(to:3000)
         XCTAssertTrue(f.results.contains(.meterDropCompleted));XCTAssertFalse(node.sourceIdleDeferred)
+        XCTAssertFalse(f.caller.sourceTutorialWildDropping(node))
+    }
+    @MainActor func testTutorialCarrierPausesClosedOnArrivalAndContinuesSameDropAfterCTA()async throws {
+        let ready=expectation(description:"carrier assets")
+        let f=Fixture(root:root(),holdCarrierAtArrival:true);defer{f.dispose()}
+        f.onResult={if $0.kind == .meterDropPrepared{ready.fulfill()}}
+        f.start();await fulfillment(of:[ready],timeout:10)
+        let drop=try XCTUnwrap(f.engine.meterDropReservations.values.first)
+        let node=try XCTUnwrap(f.nodes[drop.tileID])
+        f.advance(to:400)
+        XCTAssertEqual(f.carrierArrivals,1)
+        XCTAssertTrue(f.caller.sourceTutorialWildDropping(node))
+        let position=node.position
+        f.advance(to:1500)
+        XCTAssertEqual(f.carrierArrivals,1,"held arrival never reenters")
+        XCTAssertEqual(node.position,position)
+        XCTAssertFalse(f.results.contains(.meterDropLanded))
+        let carrier=try XCTUnwrap(f.caller.heldTutorialCarrier)
+        let closedTexture=carrier.texture,closedScale=carrier.xScale,closedAspect=carrier.xScale/carrier.yScale,closedPosition=carrier.position
+        XCTAssertTrue(f.caller.resumeHeldTutorialCarrier())
+        XCTAssertFalse(f.caller.resumeHeldTutorialCarrier(),"CTA resumes the captured carrier once")
+        f.advance(to:1600)
+        XCTAssertTrue(carrier.texture === closedTexture,"Opening frames stay frozen during scale-up")
+        XCTAssertGreaterThan(carrier.xScale,closedScale)
+        f.advance(to:1740)
+        XCTAssertTrue(carrier.texture === closedTexture,"Scale settle still uses the closed frame")
+        XCTAssertEqual(carrier.position,closedPosition)
+        XCTAssertEqual(carrier.xScale/carrier.yScale,closedAspect,accuracy:0.0001,"Emphasis preserves the carrier aspect ratio")
+        f.advance(to:2200)
+        XCTAssertFalse(carrier.texture === closedTexture,"Sprite advances only after the480ms bounce")
+        f.advance(to:4000)
+        XCTAssertTrue(f.results.contains(.meterDropCompleted))
         XCTAssertFalse(f.caller.sourceTutorialWildDropping(node))
     }
     @MainActor func testActualOldHiddenNodeRetirementPreservesSameIDReplacementAndKillsOnlyCapturedRoots()async throws {

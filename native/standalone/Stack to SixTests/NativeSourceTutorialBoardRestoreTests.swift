@@ -4,6 +4,19 @@ import StackToSixGameplay
 @testable import Stack_to_Six
 
 @MainActor final class NativeSourceTutorialBoardRestoreTests:XCTestCase {
+    func testNormalDieSizePreservesAnimationPoseAcrossLayout()throws {
+        let f=try Fixture();defer{f.dispose()}
+        let node=try XCTUnwrap(f.targets.first{!$0.sourceLocked})
+        node.paintSourceOuterScale(.init(x:0.85,y:1.05))
+        for _ in 0..<4 {
+            node.synchronizeSourceGeometry(0.72)
+            XCTAssertEqual(node.sourceLocalScale.x,0.85,accuracy:0.00001)
+            XCTAssertEqual(node.sourceLocalScale.y,1.05,accuracy:0.00001)
+            XCTAssertEqual(node.xScale,0.72*0.85,accuracy:0.00001)
+        }
+        XCTAssertEqual(node.xScale,0.72*0.85,accuracy:0.00001)
+        XCTAssertEqual(node.yScale,0.72*1.05,accuracy:0.00001)
+    }
     @MainActor private final class Fixture {
         var wall=0.0,current=true,draws=0,keys:[Double]=[]
         let fifo=NativeSourceMicrotaskFIFO(),timeouts=NativeSourceAppTimeoutOwner()

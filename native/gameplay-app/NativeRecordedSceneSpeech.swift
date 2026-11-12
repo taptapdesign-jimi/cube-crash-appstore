@@ -5,6 +5,20 @@ import Foundation
 /// Static selected-source paths only. NativeGameplayAudioOwner owns admission,
 /// non-repeat choice,one finite speech transport,Settings and all cleanup.
 enum NativeRecordedSceneSpeech {
+    // Dedicated deterministic tutorial lines reuse the single selected speech transport.
+    static let tutorialSpeechGain=0.72*pow(10,2.0/20)
+    static let tutorialSources:[String:[String]] = [
+        "tutorial-objective": ["assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-objective.wav"],
+        "tutorial-stack": ["assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-stack.wav"],
+        "tutorial-merge": ["assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-merge.wav"],
+        "tutorial-special-bar": ["assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-special-bar.wav"],
+        "tutorial-delivery": ["assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-delivery.wav"],
+        "tutorial-special": ["assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-special.wav"],
+        "tutorial-collection": ["assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-collection.wav"],
+        "tutorial-combo": ["assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-combo.wav"],
+        "tutorial-completion": ["assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-completion.wav"],
+    ]
+    static let tutorialPairedCharacterSheets:Set<String> = ["tutorial-objective","tutorial-special-bar","tutorial-delivery","tutorial-completion"]
     static func scene(forDie id:String)->String {id == "bee" ? "dice-detail":"dice-detail-"+id}
     static let sources:[String:[String]] = [
         "intro-lik-gitara": [

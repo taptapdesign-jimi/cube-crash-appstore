@@ -1,0 +1,222 @@
+{
+  "master": "assets/sound/SPEECH/tutorial voices.mp3",
+  "masterSHA256": "3badd8feae3498da9bccbf50ec1bc680d2f32a8fd717b5ae0289ef695265f409",
+  "sampleRate": 48000,
+  "channels": 1,
+  "format": "PCM16",
+  "edgeFadeMilliseconds": 3,
+  "normalization": "none",
+  "clips": [
+    {
+      "id": "001-objective",
+      "text": "Let's clear the board.",
+      "source": "assets/sound/SPEECH/tutorial-voices-v1/001-objective.wav",
+      "start": 0.09,
+      "end": 1.44,
+      "duration": 1.35,
+      "peakDBFS": -4.027017433288674,
+      "rmsDBFS": -19.77455089832532,
+      "dc": -0.00036357126118224345,
+      "sha256": "0e5d5d3f327a2a10a57765008440e0474599e8fe0180dbca4771c06cd33ae957"
+    },
+    {
+      "id": "002-stack",
+      "text": "Drag to stack.",
+      "source": "assets/sound/SPEECH/tutorial-voices-v1/002-stack.wav",
+      "start": 1.84,
+      "end": 3.08,
+      "duration": 1.24,
+      "peakDBFS": -3.07784147038391,
+      "rmsDBFS": -19.279390941264726,
+      "dc": -0.0005524009786626344,
+      "sha256": "b94e7e6302a38dd626c97502f51bf95bd4ac5900f0e10f1c8f28b158f9fa31c0"
+    },
+    {
+      "id": "003-merge",
+      "text": "Make six to merge.",
+      "source": "assets/sound/SPEECH/tutorial-voices-v1/003-merge.wav",
+      "start": 3.53,
+      "end": 5.16,
+      "duration": 1.63,
+      "peakDBFS": -3.043153667772724,
+      "rmsDBFS": -20.855001223418085,
+      "dc": -0.0004659367972843974,
+      "sha256": "e37628770b7e4a7783116500b4b0cf0bb192d72d0864657aef49454683186170"
+    },
+    {
+      "id": "004-special-bar",
+      "text": "A little surprise awaits.",
+      "source": "assets/sound/SPEECH/tutorial-voices-v1/004-special-bar.wav",
+      "start": 5.5,
+      "end": 7.13,
+      "duration": 1.63,
+      "peakDBFS": -2.9417731817513793,
+      "rmsDBFS": -17.93405812012309,
+      "dc": -0.0006459390215103368,
+      "sha256": "3d937643352ba3e7ad7f351893dd8598a912d1fbb88125115a545427121aaefb"
+    },
+    {
+      "id": "005-delivery",
+      "text": "A helper is on its way.",
+      "source": "assets/sound/SPEECH/tutorial-voices-v1/005-delivery.wav",
+      "start": 7.44,
+      "end": 9.0,
+      "duration": 1.56,
+      "peakDBFS": -2.6531740115614073,
+      "rmsDBFS": -18.23385814322517,
+      "dc": -0.0006720090523744241,
+      "sha256": "e591c489ba8894b72f0441df03975ecf9f7e3068b0a7e83e4587f446ce44002f"
+    },
+    {
+      "id": "006-special",
+      "text": "Let's try this Special.",
+      "source": "assets/sound/SPEECH/tutorial-voices-v1/006-special.wav",
+      "start": 9.41,
+      "end": 10.85,
+      "duration": 1.44,
+      "peakDBFS": -3.2433719082885477,
+      "rmsDBFS": -20.65094156710646,
+      "dc": -0.0006046061162595396,
+      "sha256": "90979cf17141602b351dd3659e2ca4fa0985f1a68eb1580f93938961ec8560ec"
+    },
+    {
+      "id": "007-play-faster",
+      "text": "Play faster.",
+      "source": "assets/sound/SPEECH/tutorial-voices-v1/007-play-faster.wav",
+      "start": 11.16,
+      "end": 12.2,
+      "duration": 1.04,
+      "peakDBFS": -2.9775513755319665,
+      "rmsDBFS": -20.034804913951078,
+      "dc": -0.0008511628860082382,
+      "sha256": "cc0d79527166a4a87873915fdbd0aca1b01d074ae9ef21b396e7ed09e30d75f3"
+    },
+    {
+      "id": "008-score-higher",
+      "text": "Score higher.",
+      "source": "assets/sound/SPEECH/tutorial-voices-v1/008-score-higher.wav",
+      "start": 12.5,
+      "end": 13.61,
+      "duration": 1.11,
+      "peakDBFS": -2.38431412347836,
+      "rmsDBFS": -17.901934016279675,
+      "dc": -0.0007320575885944538,
+      "sha256": "61d4afed93e69259b617b10d237ebdf9601b703d602a0da818db938d4314caa4"
+    },
+    {
+      "id": "009-clear-board",
+      "text": "Clear the board.",
+      "source": "assets/sound/SPEECH/tutorial-voices-v1/009-clear-board.wav",
+      "start": 13.93,
+      "end": 15.01,
+      "duration": 1.08,
+      "peakDBFS": -5.038644377355025,
+      "rmsDBFS": -19.89034215878415,
+      "dc": -0.00026342074076334633,
+      "sha256": "2bb6fe02b1b0999ad5caf4dc7cc3a3146dec2ed7241feca9765720485120b763"
+    },
+    {
+      "id": "010-have-fun",
+      "text": "Have fun!",
+      "source": "assets/sound/SPEECH/tutorial-voices-v1/010-have-fun.wav",
+      "start": 15.31,
+      "end": 16.14,
+      "duration": 0.83,
+      "peakDBFS": -2.0910931398164005,
+      "rmsDBFS": -18.816280338523026,
+      "dc": -0.0008528077458760825,
+      "sha256": "926d49ba2d7e113cc56d1d38916ecd911d533cb01a17328ccde80c73185c791d"
+    },
+    {
+      "id": "011-combo",
+      "text": "Play faster. Score higher.",
+      "source": "assets/sound/SPEECH/tutorial-voices-v1/011-combo.wav",
+      "start": 11.16,
+      "end": 13.61,
+      "duration": 2.45,
+      "peakDBFS": -2.38431412347836,
+      "rmsDBFS": -19.372098911942256,
+      "dc": -0.0006878874902011586,
+      "sha256": "0f47e9ea071250ba2fa72174b6405f14862f32ea4370fd85a9d03622a96cabe9"
+    },
+    {
+      "id": "012-completion",
+      "text": "Clear the board. Have fun!",
+      "source": "assets/sound/SPEECH/tutorial-voices-v1/012-completion.wav",
+      "start": 13.93,
+      "end": 16.14,
+      "duration": 2.21,
+      "peakDBFS": -2.0910931398164005,
+      "rmsDBFS": -20.024285909455195,
+      "dc": -0.00044344359753178617,
+      "sha256": "de2852bf1826b8c27c9ae434d6c0b00f35bc48c368752730019341806283b651"
+    }
+  ],
+  "activeSources": {
+    "tutorial-objective": [
+      "assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-objective.wav"
+    ],
+    "tutorial-stack": [
+      "assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-stack.wav"
+    ],
+    "tutorial-merge": [
+      "assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-merge.wav"
+    ],
+    "tutorial-special-bar": [
+      "assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-special-bar.wav"
+    ],
+    "tutorial-delivery": [
+      "assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-delivery.wav"
+    ],
+    "tutorial-special": [
+      "assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-special.wav"
+    ],
+    "tutorial-collection": [
+      "assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-collection.wav"
+    ],
+    "tutorial-combo": [
+      "assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-combo.wav"
+    ],
+    "tutorial-completion": [
+      "assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-completion.wav"
+    ]
+  },
+  "collectionNote": "Master has no separate collection line; reuse approved Let\u2019s get to know these little helpers! recording.",
+  "specialBarOverride": {
+    "master": "assets/sound/SPEECH/special bar voice.mp3",
+    "masterSHA256": "994005181319b153a709cbe130f0a8855d6573843577bb178d2c6265692c8fd8",
+    "text": "Each stack and merge fills the bar.",
+    "duration": 2.50775,
+    "normalization": "none; original MP3 played directly"
+  },
+  "baseSources": {
+    "tutorial-objective": [
+      "assets/sound/SPEECH/tutorial-voices-v1/001-objective.wav"
+    ],
+    "tutorial-stack": [
+      "assets/sound/SPEECH/tutorial-voices-v1/002-stack.wav"
+    ],
+    "tutorial-merge": [
+      "assets/sound/SPEECH/tutorial-voices-v1/003-merge.wav"
+    ],
+    "tutorial-special-bar": [
+      "assets/sound/SPEECH/special bar voice.mp3"
+    ],
+    "tutorial-delivery": [
+      "assets/sound/SPEECH/tutorial-voices-v1/005-delivery.wav"
+    ],
+    "tutorial-special": [
+      "assets/sound/SPEECH/tutorial-voices-v1/006-special.wav"
+    ],
+    "tutorial-collection": [
+      "assets/sound/SPEECH/collection-little-helpers.wav"
+    ],
+    "tutorial-combo": [
+      "assets/sound/SPEECH/tutorial-voices-v1/011-combo.wav"
+    ],
+    "tutorial-completion": [
+      "assets/sound/SPEECH/tutorial-voices-v1/012-completion.wav"
+    ]
+  },
+  "playbackGainOverride": "tutorial-voices-plus3db-v1/manifest.json"
+}

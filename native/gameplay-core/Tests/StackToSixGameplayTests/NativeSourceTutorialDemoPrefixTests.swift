@@ -19,9 +19,11 @@ nonisolated final class NativeSourceTutorialDemoPrefixTests:XCTestCase {
             let engine=NativeGameplayEngine(state:before,sourceMathRandom:.init(draw:{draws+=1;return 0.4}))
             engine.sourceTutorialDemoActivationEnabled=true
             let receipt=try XCTUnwrap(engine.beginSourceTutorialDemoActivation())
+            XCTAssertEqual(engine.state.tutorial?.collectionLessonAcknowledged,false,"Only new Source tutorial construction arms the collection lesson")
             XCTAssertEqual(engine.state.tiles,before.tiles);XCTAssertFalse(engine.beginDrag(tileID:receipt.threeID));XCTAssertEqual(draws,0)
             let result=engine.commitSourceTutorialDemoPreparation(receiptID:receipt.id,generation:receipt.generation)
             XCTAssertTrue(result.accepted);XCTAssertNil(engine.pendingSourceTutorialDemoActivation)
+            XCTAssertEqual(result.state.tutorial?.collectionLessonAcknowledged,false)
             for item in c["after"] as! [[String:Any]] {
                 let tile=try XCTUnwrap(engine.state.tiles.first{$0.id==item["id"] as! String})
                 XCTAssertEqual(tile.value,item["value"] as! Int);XCTAssertEqual(tile.locked,item["locked"] as! Bool)

@@ -4,7 +4,7 @@ import SpriteKit
 /// Capture a source-equivalent local origin at THAT actual same-node target.
 /// No model-selected target, nominal board sampler or hidden artwork clone.
 @MainActor enum NativeMeterSceneGeometry {
-    static func plan(tile:NativeDiceNode,stage:SKNode,viewport:CGSize,arcade:Bool,random:()->Double)->NativeWildMeterDropPlan? {
+    static func plan(tile:NativeDiceNode,stage:SKNode,viewport:CGSize,arcade:Bool,tutorialCarrier:NativeWildMeterDropPlan.TutorialCarrier?=nil,random:()->Double)->NativeWildMeterDropPlan? {
         guard tile.parent != nil,tile.xScale>0,tile.yScale>0,viewport.width>0,viewport.height>0 else{return nil}
         var point=tile.position,ancestor=tile.parent
         // v9 reads getGlobalScale(parent), excluding the die's own bounce/idle.
@@ -24,6 +24,6 @@ import SpriteKit
         return .init(arcade:arcade,viewport:.init(x:Double(viewport.width),y:Double(viewport.height)),tileSize:128,target:.init(x:0,y:0),
             parentWorld:.init(a:Double(x.dx),b:-Double(x.dy),c:-Double(y.dx),d:Double(y.dy),tx:Double(point.x),ty:Double(viewport.height-point.y)),
             originalRotation:-Double(tile.zRotation),originalZIndex:Double(tile.zPosition),
-            usesUniformDropScale:NativeWildMeterDropPlan.sourceUsesUniformDropScale(variant:tile.variant),random:random)
+            usesUniformDropScale:NativeWildMeterDropPlan.sourceUsesUniformDropScale(variant:tile.variant),tutorialCarrier:tutorialCarrier,random:random)
     }
 }

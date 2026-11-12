@@ -58,7 +58,7 @@ final class NativeSplashGlyphField: UIView {
         for index in letters.indices {
             let bucket = buckets[(index+offset)%buckets.count]
             let base = bucket[min(bucket.count-1,max(0,Int(random()*Double(bucket.count))))]
-            let minimum:Double = max(index == 0 || (text == "COCO-LOCO" && index == 5) ? 75:28,readableFinaleCaption && letters[index] != " " ? (tabletBlossom ? 96:72):0)
+            let minimum:Double = max(index == 0 || (text == "COCO LOCO" && index == 5) ? 75:28,readableFinaleCaption && letters[index] != " " ? (tabletBlossom ? 96:72):0)
             sizes.append(CGFloat((max(minimum,base+random()*10-5)*10).rounded()/10))
         }
         }

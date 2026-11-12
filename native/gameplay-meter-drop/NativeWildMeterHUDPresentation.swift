@@ -14,6 +14,10 @@ import UIKit
         private var birthOffsets:[UInt64:CGPoint]=[:]
         let sourceToNative:(CGPoint)->CGPoint
         var nodes:[UInt64:SKShapeNode]=[:]
+        private struct SmokeCompanion {let node:SKShapeNode,offset:CGPoint}
+        private var companions:[UInt64:[SmokeCompanion]]=[:]
+        private let initiallyPad:Bool
+        private var isPad:Bool{initiallyPad || hudStage?.scene.map{NativeTabletLayout.applies($0.size)} == true}
         private var birthPositions:[UInt64:CGPoint]=[:]
         private var shakeCompensation=CGPoint.zero
         func setCanvasShakeOffset(_ offset:CGPoint){
@@ -21,22 +25,42 @@ import UIKit
             let delta=CGPoint(x:next.x-shakeCompensation.x,y:next.y-shakeCompensation.y)
             shakeCompensation=next
             for node in nodes.values {node.position=CGPoint(x:node.position.x+delta.x,y:node.position.y+delta.y)}
+            for group in companions.values {for companion in group {let node=companion.node;node.position=CGPoint(x:node.position.x+delta.x,y:node.position.y+delta.y)}}
         }
         private func position(_ source:CGPoint)->CGPoint {
             let p=sourceToNative(source)
             return CGPoint(x:p.x+shakeCompensation.x,y:p.y+shakeCompensation.y)
         }
-        init(stage:SKNode,sourceToNative:@escaping(CGPoint)->CGPoint){hudStage=stage;self.sourceToNative=sourceToNative}
+        init(stage:SKNode,isPad:Bool,sourceToNative:@escaping(CGPoint)->CGPoint){hudStage=stage;initiallyPad=isPad;self.sourceToNative=sourceToNative}
+        func owns(_ node:SKNode)->Bool{nodes.values.contains{$0 === node} || companions.values.contains{$0.contains{$0.node === node}}}
         func create(id:UInt64,x:Double,y:Double,radius:Double){
             guard let hudStage else{return}
-            let bubble=SKShapeNode(circleOfRadius:CGFloat(radius))
+            let tablet=isPad
+            let bubble=SKShapeNode(circleOfRadius:CGFloat(radius)*(tablet ? 1.3:1))
             bubble.isHidden=visualsHidden
             bubble.name="wild-meter-smoke";bubble.fillColor=SKColor(red:248/255,green:107/255,blue:60/255,alpha:0.5)
             bubble.strokeColor = .clear;bubble.lineWidth=0;bubble.alpha=0;bubble.zPosition=12000
             let source=CGPoint(x:x,y:y),offset=curveBirthOffset?(source) ?? .zero,p=position(source)
             if let color=birthColor?(source){bubble.fillColor=color}
+            if tablet {bubble.fillColor=bubble.fillColor.withAlphaComponent(min(1,bubble.fillColor.cgColor.alpha*1.2))}
             birthOffsets[id]=offset;bubble.position=CGPoint(x:p.x+offset.x,y:p.y+offset.y);nodes[id]=bubble
             birthPositions[id]=CGPoint(x:x,y:y);hudStage.addChild(bubble)
+            // Add 40% to the existing rendered count (phone 1, tablet 2).
+            // Fractional counts are spread across five births without RNG.
+            // Every companion borrows the original pose and lifetime.
+            let extra=(id % 5)<(tablet ? 4:2) ? 1:0
+            let companionCount=(tablet ? 1:0)+extra
+            for index in 0..<companionCount {
+                let companion=SKShapeNode(circleOfRadius:CGFloat(radius)*(tablet ? 1.1:0.85))
+                companion.name=bubble.name;companion.fillColor=bubble.fillColor
+                companion.strokeColor = .clear;companion.lineWidth=0;companion.alpha=0
+                companion.zPosition=bubble.zPosition;companion.isHidden=bubble.isHidden
+                let direction:CGFloat=(id+UInt64(index)).isMultiple(of:2) ? 1:-1
+                let spread=CGPoint(x:direction*CGFloat(radius)*1.8,y:CGFloat(radius)*(index==0 ? 0.4:0.9))
+                companion.position=CGPoint(x:bubble.position.x+spread.x,y:bubble.position.y+spread.y)
+                companions[id,default:[]].append(SmokeCompanion(node:companion,offset:spread))
+                hudStage.addChild(companion)
+            }
         }
         func paint(id:UInt64,_ pose:NativeWildMeterSmokePlan.Pose){
             guard let bubble=nodes[id],let birth=birthPositions[id] else{return}
@@ -46,8 +70,16 @@ import UIKit
             // its stationary spawn row, including any zero-time initialization.
             let moving=abs(pose.x-birth.x)>0.000001 || abs(pose.y-birth.y)>0.000001
             bubble.alpha=moving ? CGFloat(pose.alpha):0
+            for (index,companion) in (companions[id] ?? []).enumerated() {
+                let nativeBirth=sourceToNative(birth),nativePose=sourceToNative(.init(x:pose.x,y:pose.y))
+                let travel=CGPoint(x:nativePose.x-nativeBirth.x,y:nativePose.y-nativeBirth.y)
+                let direction:CGFloat=(id+UInt64(index)).isMultiple(of:2) ? 1:-1
+                companion.node.position=CGPoint(x:bubble.position.x+companion.offset.x+direction*abs(travel.y)*0.16,
+                    y:bubble.position.y+companion.offset.y+travel.y*0.12)
+                companion.node.alpha=bubble.alpha*0.92
+            }
         }
-        func destroy(id:UInt64){birthOffsets.removeValue(forKey:id);birthPositions.removeValue(forKey:id);nodes.removeValue(forKey:id)?.removeFromParent()}
+        func destroy(id:UInt64){birthOffsets.removeValue(forKey:id);birthPositions.removeValue(forKey:id);nodes.removeValue(forKey:id)?.removeFromParent();for companion in companions.removeValue(forKey:id) ?? [] {companion.node.removeFromParent()}}
     }
     private let stage:SKNode,sourceToNative:(CGPoint)->CGPoint,nativeToSource:(CGPoint)->CGPoint
     private let current:()->Bool
@@ -65,6 +97,8 @@ import UIKit
     private var canonicalMaximum=0.0
     private var closed=false,preloadPrimed=false,preloadSurfaceDetached=false
     private var preloadEntryRestart=false,preloadBubbleStep=0
+    private var tutorialPreloadReveal=1.0
+    private var tutorialPreloadRevealCancel:(()->Void)?
     static let entryBubbleInterval=0.08
     private var tutorialPulseActive=false,tutorialPulseEpoch:UInt64=0
     private var tutorialPulseCancel:(()->Void)?
@@ -126,7 +160,7 @@ import UIKit
         stage=hudStage;self.sourceToNative=sourceToNative;self.nativeToSource=nativeToSource;self.current=current
         driver=NativeWildMeterSourceDriver(service:service)
         wall=NativeWildMeterSmokeWallDriver(timeouts:timeouts,generation:generation)
-        smokeResources=SmokeResources(stage:hudStage,sourceToNative:sourceToNative)
+        smokeResources=SmokeResources(stage:hudStage,isPad:isPad,sourceToNative:sourceToNative)
         container.name="wildLoader";container.zPosition=1000;container.position=sourceToNative(sourceOrigin)
         background.zPosition=0;background.strokeColor = .clear;background.lineWidth=0
         background.fillColor=SKColor(red:234/255,green:223/255,blue:214/255,alpha:1)
@@ -222,7 +256,7 @@ import UIKit
     func setCanvasShakeOffset(_ offset:CGPoint){guard !closed else{return};smokeResources.setCanvasShakeOffset(offset)}
     var activeSmokeCount:Int{smoke.activeBubbleCount}
     /// Sibling particles retain their own flight/fade opacity during HUD refresh.
-    func ownsSmoke(_ node:SKNode)->Bool{smokeResources.nodes.values.contains{$0 === node}}
+    func ownsSmoke(_ node:SKNode)->Bool{smokeResources.owns(node)}
     func ownsPreloadSurface(_ node:SKNode)->Bool{preloadBar?.container === node}
     var fillPose:NativeWildMeterConsumptionPlan.Pose{.init(left:owner.left,width:owner.width)}
     var consumeActive:Bool{owner.consumeActive}
@@ -276,11 +310,34 @@ import UIKit
             smoke.emitEntryBubbles()
         }
     }
-    func synchronizePreloadSurfaceVisibility(){guard !closed,let preloadBar else{return};preloadBar.container.position=preloadDesignMeterPosition;preloadBar.container.xScale=container.xScale;preloadBar.container.yScale=container.yScale;preloadBar.container.alpha=container.alpha;preloadBar.container.isHidden=preloadPrimed || stage.isHidden}
+    func primeTutorialPreloadHidden(){
+        guard !closed else{return}
+        tutorialPreloadRevealCancel?();tutorialPreloadRevealCancel=nil
+        tutorialPreloadReveal=0;synchronizePreloadSurfaceVisibility()
+    }
+    func revealTutorialPreload(){
+        guard !closed,current(),tutorialPreloadReveal<1,tutorialPreloadRevealCancel==nil else{return}
+        let start=tutorialPreloadReveal,duration=UIAccessibility.isReduceMotionEnabled ? 0.15:0.38
+        tutorialPreloadRevealCancel=driver.start(duration:duration,paint:{[weak self] elapsed in
+            guard let self,!self.closed else{return}
+            let t=min(1,max(0,elapsed/duration))
+            self.tutorialPreloadReveal=start+(1-start)*JimiV9Motion.Ease.backOut(1.7).value(t)
+            self.synchronizePreloadSurfaceVisibility()
+        },completed:{[weak self] in
+            guard let self else{return};self.tutorialPreloadRevealCancel=nil
+            self.tutorialPreloadReveal=1;self.synchronizePreloadSurfaceVisibility()
+        },interrupted:{[weak self] in
+            guard let self else{return};self.tutorialPreloadRevealCancel=nil
+            self.tutorialPreloadReveal=1;self.synchronizePreloadSurfaceVisibility()
+        })
+        if tutorialPreloadRevealCancel==nil {tutorialPreloadReveal=1;synchronizePreloadSurfaceVisibility()}
+    }
+    func synchronizePreloadSurfaceVisibility(){guard !closed,let preloadBar else{return};let p=CGFloat(max(0,tutorialPreloadReveal));preloadBar.container.position=CGPoint(x:preloadDesignMeterPosition.x,y:preloadDesignMeterPosition.y-14*(1-p));preloadBar.container.xScale=container.xScale*(0.96+0.04*p);preloadBar.container.yScale=container.yScale*(0.96+0.04*p);preloadBar.container.alpha=container.alpha*min(1,p);preloadBar.container.isHidden=preloadPrimed || stage.isHidden}
     func cancelBoardExit(){guard !closed else{return};preloadPrimed=false;preloadBar?.cancelBoardExit()}
     func stopSmoke(){smoke.stopSmoke()}
     func dispose(){
         guard !closed else{return};stopTutorialPulse();closed=true;smokeResources.curveBirthOffset=nil;smokeResources.birthColor=nil
+        tutorialPreloadRevealCancel?();tutorialPreloadRevealCancel=nil
         preloadBar?.dispose();preloadBar=nil;owner.dispose();smoke.dispose();container.removeFromParent()
     }
     isolated deinit {stopTutorialPulse();preloadBar?.dispose();owner?.dispose();smoke?.dispose();container.removeFromParent()}

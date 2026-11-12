@@ -23,6 +23,8 @@ final class NativeBackpackDetail:UIViewController {
     var entersImmediately=false
     var onSpeechRequested:(()->Void)?
     var onPresentationStarted:(()->Void)?
+    var onEntered:(()->Void)?
+    var onLayout:(()->Void)?
     var onClose:(()->Void)?
     var onExitSelection:((CGPoint)->Void)?
     private(set) var exitSelectionPress:UILongPressGestureRecognizer?
@@ -107,6 +109,7 @@ final class NativeBackpackDetail:UIViewController {
         }
         speechButton.frame=hero.frame
         JimiNativeModalV10.layoutClose(close,frame:CGRect(x:width-42,y:-10,width:52,height:52),modalTilt:restTiltDegrees)
+        onLayout?()
     }
     /// Read once from a bounded preview of the original PNG. Transparent
     /// margins must not make a nominal 180pt hero visibly smaller.
@@ -134,7 +137,7 @@ final class NativeBackpackDetail:UIViewController {
         JimiNativeModalV10.enter(card:card,flip:flip,key:"backpack.detail.enter",beginTime:paperEpoch)
         CATransaction.commit();UIView.animate(withDuration:0.5){self.backdrop.alpha=1;if self.usesForestWorldIllustration {self.worldIllustration.alpha=1}}
     }
-    private func completeEnter(){guard !disposed,!closing else{return};card.isUserInteractionEnabled=true;JimiNativeModalV10.startIdle(on:idle,key:"backpack.detail.idle")}
+    private func completeEnter(){guard !disposed,!closing else{return};card.isUserInteractionEnabled=true;JimiNativeModalV10.startIdle(on:idle,key:"backpack.detail.idle");onEntered?()}
     private func animateHero(){
         preview?.setActive(foreground && presentationStarted && !closing && !disposed)
     }
@@ -196,7 +199,7 @@ final class NativeBackpackDetail:UIViewController {
         }
     }
     @objc private func speechTapped(){guard entered,presentationStarted,foreground,card.isUserInteractionEnabled,!closing,!disposed else{return};onSpeechRequested?()}
-    func dispose(){guard !disposed else{return};speechButton.retire();modalDrag?.dispose();modalDrag=nil;disposed=true;exitSelectionPress.map{view.removeGestureRecognizer($0)};exitSelectionPress=nil;onExitSelection=nil;motion.cancel();[card,flip,tilt,idle,hero,worldIllustration,close].forEach{$0.layer.removeAllAnimations()};hero.image=nil;worldIllustration.image=nil;worldIllustration.removeFromSuperview();preview?.dispose();preview?.removeFromSuperview();preview=nil;assets.retireImagePreparation();onClose=nil;onCloseRequested=nil;onPresentationStarted=nil;onSpeechRequested=nil}
+    func dispose(){guard !disposed else{return};speechButton.retire();modalDrag?.dispose();modalDrag=nil;disposed=true;exitSelectionPress.map{view.removeGestureRecognizer($0)};exitSelectionPress=nil;onExitSelection=nil;motion.cancel();[card,flip,tilt,idle,hero,worldIllustration,close].forEach{$0.layer.removeAllAnimations()};hero.image=nil;worldIllustration.image=nil;worldIllustration.removeFromSuperview();preview?.dispose();preview?.removeFromSuperview();preview=nil;assets.retireImagePreparation();onClose=nil;onCloseRequested=nil;onPresentationStarted=nil;onSpeechRequested=nil;onEntered=nil;onLayout=nil}
 }
 private enum NativeBackpackCellPalette {static let ink=UIColor(red:173/255,green:134/255,blue:117/255,alpha:1)}
 

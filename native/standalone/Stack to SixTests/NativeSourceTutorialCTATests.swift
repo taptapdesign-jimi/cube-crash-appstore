@@ -82,8 +82,33 @@ import UIKit
   XCTAssertTrue(overlay.showSpecialBar(entered:{}))
   for t in stride(from:3816.0,through:4800,by:16){f.deliver(t)}
   XCTAssertFalse(sheet.isHidden,"Special Bar must restore paper hidden by Merge Got it")
-  XCTAssertFalse(button.isHidden);XCTAssertTrue(button.isEnabled);XCTAssertEqual(button.title(for:.normal),"Continue")
+  XCTAssertFalse(button.isHidden);XCTAssertTrue(button.isEnabled);XCTAssertEqual(button.title(for:.normal),"Got it")
 
+ }
+
+ func testDeliveryFacePreparationCancelsInBackgroundResumesAndRetires()async throws {
+  let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),host=UIViewController()
+  window.rootViewController=host;window.makeKeyAndVisible()
+  defer{window.isHidden=true;window.rootViewController=nil}
+  let overlay=NativeTutorialOverlay(resourceRoot:NativeTestResources.root)
+  host.view.addSubview(overlay);overlay.frame=host.view.bounds;overlay.layoutIfNeeded()
+  defer{overlay.dispose()}
+  XCTAssertTrue(overlay.showSpecialBar(entered:{}))
+  overlay.setSuspended(true)
+  try await Task.sleep(for:.milliseconds(100))
+  XCTAssertFalse(overlay.deliveryCTAPrepared,"Background cancels the pending face before publication")
+  overlay.setSuspended(false)
+  let deadline=Date().addingTimeInterval(5)
+  while !overlay.deliveryCTAPrepared && Date()<deadline {try await Task.sleep(for:.milliseconds(20))}
+  XCTAssertTrue(overlay.deliveryCTAPrepared)
+  func findFace(_ view:UIView)->UIView? {
+   if view.accessibilityIdentifier=="native.tutorial.source-cta" {return view}
+   return view.subviews.lazy.compactMap{findFace($0)}.first
+  }
+  let face=try XCTUnwrap(findFace(overlay))
+  XCTAssertTrue(face.isHidden,"Preparation does not reveal the upcoming delivery CTA")
+  overlay.dispose();overlay.dispose()
+  XCTAssertFalse(overlay.deliveryCTAPrepared);XCTAssertNil(face.superview)
  }
 
 }
