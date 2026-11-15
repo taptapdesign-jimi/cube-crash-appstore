@@ -3015,9 +3015,11 @@ final class NativeBoardScene: SKScene {
         if let binding,sourceAppTimeouts.sourceMicrotaskTasks === binding.tasks {sourceAppTimeouts.sourceMicrotaskTasks=nil}
         binding?.dispose() // unhook ALL owned slots before dropping captures
     }
-    private func sourceMeterEnqueue(_ binding:NativeSourceSceneMicrotaskInstallation?,_ action:@escaping @MainActor ()->Void) {
+    private(set) var sourceMeterMicrotaskDiagnostic="not-rejected"
+    private func sourceMeterEnqueue(_ binding:NativeSourceSceneMicrotaskInstallation?,producer:String,_ action:@escaping @MainActor ()->Void) {
         guard let binding else{DispatchQueue.main.async{action()};return} // unchanged default fixture/Raw path
         guard sourceMicrotaskInstallation === binding,binding.isCurrent,binding.enqueue(action) else {
+            sourceMeterMicrotaskDiagnostic="producer=\(producer);same=\(sourceMicrotaskInstallation === binding);current=\(binding.isCurrent);accepting=\(binding.tasks.fifo.isAcceptingJobs);checkpoint=\(binding.tasks.fifo.isInsideCheckpoint);generation=\(engine.state.generation)"
             if sourceAnimationBindingAdmissionOpen {onPresentationFailure?("source_meter_microtask_producer_not_bound")}
             return // never synthesize an async fallback for Source-owned work
         }
@@ -5782,8 +5784,8 @@ final class NativeBoardScene: SKScene {
                     guard let self,admitted() else{return}
                     // Captured optional binding: configuration may not switch
                     // from old Raw delivery into a newly installed Source owner.
-                    if let captured=microtasks {self.sourceMeterEnqueue(captured,action)}
-                    else if !sourceMicrotasksRequired,self.sourceMicrotaskInstallation==nil {self.sourceMeterEnqueue(nil,action)}
+                    if let captured=microtasks {self.sourceMeterEnqueue(captured,producer:"meter-open",action)}
+                    else if !sourceMicrotasksRequired,self.sourceMicrotaskInstallation==nil {self.sourceMeterEnqueue(nil,producer:"raw-meter-open",action)}
                 },
                 sourceActivity:{[weak self] id,generation in guard admitted() else{return nil};return self?.beginSourceMotion(.wildSpawnDrop,id:id,generation:generation)},
                 carrierAudio:carrierAudio,dividerMask:dividerMask,selectedAudio:selectedAudio,
@@ -5843,6 +5845,13 @@ final class NativeBoardScene: SKScene {
                 sourceSkin:microtasks == nil ? nil:{[weak self] node in
                     guard let self,admitted(),self.nodesByID[node.tileID] === node else{return false}
                     return self.repairSourceWildSkin(tileID:node.tileID,scope:scope,startSourceIdle:{false},allowPendingMeter:true)
+                },assetCompletionTask:microtasks == nil ? nil:{[weak self,weak microtasks] action in
+                    guard let self,let microtasks,admitted(),
+                          self.sourceMicrotaskInstallation === microtasks,
+                          scope.sourceMicrotaskTasks === microtasks.tasks else{return false}
+                    return microtasks.tasks.assetCompletionTask {
+                        guard admitted() else{return};action()
+                    }
                 }),
             random:{[scope] in scope.smokeSession.nextVisualRandom()},wallNow:{CACurrentMediaTime()*1000},
             sourcePromiseBookkeeping:microtasks != nil)
@@ -5885,7 +5894,7 @@ final class NativeBoardScene: SKScene {
             hooks:.init(current:current,permission:permission,continuation:continuation,meterReady:meterReady,
                 enqueue:{[weak self,microtasks] action in
                     guard let self,current() else{return}
-                    if let captured=microtasks {self.sourceMeterEnqueue(captured,action)}
+                    if let captured=microtasks {self.sourceMeterEnqueue(captured,producer:"meter-queue",action)}
                     else if !sourceMicrotasksRequired,self.sourceMicrotaskInstallation==nil {enqueue(action)}
                 },sourceQueueInProgress:queueInProgress,shimmer:shimmer,canonicalSave:canonicalSave,
                 consume:{[weak self] result,previous in guard current() else{return};self?.consume(result,previous:previous)},

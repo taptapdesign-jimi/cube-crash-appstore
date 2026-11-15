@@ -25,7 +25,8 @@ final class NativeCreatorStoryModal:UIViewController {
     var onCloseRequested:(()->Void)?
     var onClosed:(()->Void)?
     let card=UIView(),flip=JimiNativeModalTransformView(),tilt=UIView(),idle=UIView()
-    let paper=NativeModalPaperView(),heading=UILabel(),copy=UITextView()
+    let paper=NativeModalPaperView(),heading=UILabel(),copy=UILabel()
+    let copyViewport=UIScrollView()
     let fact=UIView(),factLabel=UILabel(),factDivider=UIView()
     let inlineStar=CALayer()
     static let inlineStarKey="creator.star.frames"
@@ -82,16 +83,21 @@ final class NativeCreatorStoryModal:UIViewController {
         heading.attributedText=NativeModalTypography.attributedCollectionTitle("The story",baseColor:NativeTextPalette.modalTitle)
         heading.accessibilityTraits = .header
         heading.accessibilityIdentifier="native.settings.story.title";idle.addSubview(heading)
-        copy.backgroundColor = .clear;copy.isEditable=false;copy.isSelectable=false
-        copy.textContainerInset = .zero;copy.textContainer.lineFragmentPadding=0
-        copy.showsVerticalScrollIndicator=false;copy.accessibilityIdentifier="native.settings.story.copy"
+        // UILabel paints one foreground text overlay without TextKit line-fragment
+        // clipping of Baloo descenders at the authored 23.4pt line spacing.
+        copy.backgroundColor = .clear;copy.numberOfLines=0
+        copy.accessibilityIdentifier="native.settings.story.copy"
+        copyViewport.showsVerticalScrollIndicator=false
+        copyViewport.contentInsetAdjustmentBehavior = .never
+        copyViewport.accessibilityIdentifier="native.settings.story.copy.viewport"
+        copyViewport.addSubview(copy)
         factLabel.accessibilityLabel=Self.paragraphs.last
         if let atlas=assets.image(NativeDiceSheet.star.path)?.cgImage {
             inlineStar.contents=atlas;inlineStar.contentsGravity = .resize
             inlineStar.contentsRect=Self.inlineStarFrame(0)
             inlineStar.minificationFilter = .trilinear;inlineStar.magnificationFilter = .linear
         }
-        idle.addSubview(copy)
+        idle.addSubview(copyViewport)
         fact.accessibilityIdentifier="native.settings.story.fact"
         factLabel.accessibilityIdentifier="native.settings.story.fact.copy";factLabel.numberOfLines=0
         factPaper.cornerRadius=12;factPaper.edgeDetailScale=0.4;factPaper.alpha=1
@@ -133,7 +139,10 @@ final class NativeCreatorStoryModal:UIViewController {
         factLabel.attributedText=factText
         heading.font=assets.font(size:NativeTabletLayout.modalTitleSize(view.bounds.size,phone:32),weight:"ExtraBold")
         let titleHeight=ceil(heading.font.lineHeight)
-        let wanted=copy.sizeThatFits(CGSize(width:textWidth,height:.greatestFiniteMagnitude)).height
+        // The final line's Baloo ink descends below its fixed line box.
+        // Reserve real glyph descent in both foreground label and scroll extent.
+        let descenderRoom=ceil(abs(assets.font(size:bodySize,weight:"Medium").descender))
+        let wanted=ceil(copy.sizeThatFits(CGSize(width:textWidth,height:.greatestFiniteMagnitude)).height)+descenderRoom
         let available=max(0,bounds.height-2*max(safe.top,safe.bottom)-48)
         let factWidth=max(0,width-64),starSide:CGFloat=64
         let factTextX:CGFloat=96,factTextWidth=max(0,factWidth-factTextX-12)
@@ -155,8 +164,10 @@ final class NativeCreatorStoryModal:UIViewController {
         idle.bounds=card.bounds;idle.center=CGPoint(x:width/2,y:height*0.52)
         JimiNativeModalV10.paperLayout(paper,bounds:CGRect(x:0,y:paperTop,width:width,height:height-paperTop))
         heading.frame=CGRect(x:inset,y:titleTop,width:max(0,width-inset*2),height:titleHeight)
-        copy.frame=CGRect(x:copyInset,y:copyTop,width:textWidth,height:max(0,factTop-24-copyTop))
-        copy.isScrollEnabled=wanted>copy.bounds.height+0.5
+        copyViewport.frame=CGRect(x:copyInset,y:copyTop,width:textWidth,height:max(0,factTop-4-copyTop))
+        copy.frame=CGRect(x:0,y:0,width:textWidth,height:wanted)
+        copyViewport.contentSize=copy.bounds.size
+        copyViewport.isScrollEnabled=wanted>copyViewport.bounds.height+0.5
         artworkEntry.bounds=CGRect(x:0,y:0,width:artworkWidth,height:artworkHeight)
         // The source torso cutoff is at224/257; transparent lower padding
         // caused the seam above paper. Move only art8pt down. Both edges

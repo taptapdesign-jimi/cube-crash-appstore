@@ -214,7 +214,8 @@ final class NativeSourceAnimationClockService {
         let id:UInt64,duration:Double
         var elapsed=0.0,lastFrame:Double?,suspended=false
         var cleanup:((Bool)->Void)?
-        init(id:UInt64,duration:Double,participant:any NativeSourceAnimationParticipant,cleanup:@escaping(Bool)->Void){self.id=id;self.duration=duration;self.participant=participant;self.cleanup=cleanup}
+        let callbackTask:((()->Void)->Bool)?
+        init(id:UInt64,duration:Double,participant:any NativeSourceAnimationParticipant,callbackTask:((()->Void)->Bool)?,cleanup:@escaping(Bool)->Void){self.id=id;self.duration=duration;self.participant=participant;self.callbackTask=callbackTask;self.cleanup=cleanup}
     }
     /// PRIVATE default-off task checkpoint; app installs its shared adapter.
     /// Each literal RAF callback drains before the next callback, not each root.
@@ -317,8 +318,8 @@ final class NativeSourceAnimationClockService {
         if sourceFrameTransportEnabled {source.onWillChangeSuspension={ [weak self] value in if !value {self?.wakeSourceTickerForAPIMutation()} }}
     }
     func register(participant:any NativeSourceAnimationParticipant,duration:Double,domain:Domain,
-                  delay:Double=0,wallMilliseconds:Double?=nil,initiallySuspended:Bool=false,cleanup:@escaping(Bool)->Void)->Lease? {
-        registerImpl(participant:participant,duration:duration,domain:domain,delay:delay,wallMilliseconds:wallMilliseconds,initiallySuspended:initiallySuspended,cleanup:cleanup)
+                  delay:Double=0,wallMilliseconds:Double?=nil,initiallySuspended:Bool=false,callbackTask:((()->Void)->Bool)?=nil,cleanup:@escaping(Bool)->Void)->Lease? {
+        registerImpl(participant:participant,duration:duration,domain:domain,delay:delay,wallMilliseconds:wallMilliseconds,initiallySuspended:initiallySuspended,callbackTask:callbackTask,cleanup:cleanup)
     }
     /// Finite Native fresh-face presentation on the existing Source transport.
     /// Source delay is honored; visible elapsed starts at its first real paint.
@@ -348,7 +349,7 @@ final class NativeSourceAnimationClockService {
             initiallySuspended:initiallySuspended,bottleIdleRepeat:true,cleanup:cleanup)
     }
     private func registerImpl(participant:any NativeSourceAnimationParticipant,duration:Double,domain:Domain,
-                  delay:Double=0,wallMilliseconds:Double?=nil,initiallySuspended:Bool=false,tutorialGuidedHint:Bool=false,bottleIdleRepeat:Bool=false,tutorialFreePlayMoves:Int?=nil,freshFace:Bool=false,freshFrameSerial:(()->UInt64?)?=nil,cleanup:@escaping(Bool)->Void)->Lease? {
+                  delay:Double=0,wallMilliseconds:Double?=nil,initiallySuspended:Bool=false,tutorialGuidedHint:Bool=false,bottleIdleRepeat:Bool=false,tutorialFreePlayMoves:Int?=nil,freshFace:Bool=false,freshFrameSerial:(()->UInt64?)?=nil,callbackTask:((()->Void)->Bool)?=nil,cleanup:@escaping(Bool)->Void)->Lease? {
         guard !disposed,duration>=0,delay>=0,delay.isFinite else{return nil}
         sequence += 1
         switch domain {
@@ -356,7 +357,7 @@ final class NativeSourceAnimationClockService {
             guard delay==0 else{return nil}
             // Raw infinity already exists for finite captured phase-count owners.
             // Preserve their existing explicit completion, no invented timeout.
-            let entry=RawEntry(id:sequence,duration:duration,participant:participant,cleanup:cleanup)
+            let entry=RawEntry(id:sequence,duration:duration,participant:participant,callbackTask:callbackTask,cleanup:cleanup)
             entry.suspended=initiallySuspended;raw[sequence]=entry
             refreshDemand();return Lease(service:self,id:sequence,source:nil)
         case .sourceGSAP(let family):
@@ -448,15 +449,22 @@ final class NativeSourceAnimationClockService {
             guard !entry.suspended else{entry.lastFrame=nil;continue}
             entry.elapsed += entry.lastFrame.map{max(0,(rawTimestamp-$0)/1000)} ?? 0
             entry.lastFrame=rawTimestamp
-            let diagnosticStart=diagnosticEnabled ? diagnosticMillisecondsNow():nil
-            owner.advanceSourceAnimation(seconds:min(entry.duration,entry.elapsed))
-            if let diagnosticStart {
-                let milliseconds=max(0,diagnosticMillisecondsNow()-diagnosticStart)
-                deliveryCosts?.raw+=milliseconds
-                diagnosticScheduling.worstRawMilliseconds=max(diagnosticScheduling.worstRawMilliseconds,milliseconds)
-                recordSlowestParticipant(milliseconds:milliseconds,phase:"nativeRaw",owner:{String(reflecting:type(of:owner))})
+            let deliver:()->Void = {
+                let diagnosticStart=self.diagnosticEnabled ? self.diagnosticMillisecondsNow():nil
+                owner.advanceSourceAnimation(seconds:min(entry.duration,entry.elapsed))
+                if let diagnosticStart {
+                    let milliseconds=max(0,self.diagnosticMillisecondsNow()-diagnosticStart)
+                    self.deliveryCosts?.raw+=milliseconds
+                    self.diagnosticScheduling.worstRawMilliseconds=max(self.diagnosticScheduling.worstRawMilliseconds,milliseconds)
+                    self.recordSlowestParticipant(milliseconds:milliseconds,phase:"nativeRaw",owner:{String(reflecting:type(of:owner))})
+                }
+                if self.raw[entry.id] === entry && entry.elapsed>=entry.duration {self.retireRaw(id:entry.id,success:true)}
             }
-            if raw[entry.id] === entry && entry.elapsed>=entry.duration {retireRaw(id:entry.id,success:true)}
+            // One real native presentation frame includes its paint and natural
+            // cleanup. Nested gameplay callbacks cannot drain before paint ends.
+            if let task=entry.callbackTask {
+                if !task(deliver),raw[entry.id] === entry {retireRaw(id:entry.id,success:false)}
+            } else {deliver()}
         }
         refreshDemand()
     }

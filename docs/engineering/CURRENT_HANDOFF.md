@@ -1,3 +1,142 @@
+## 2026-11-15 · Installed Replay and Story fixes — Git publication
+
+User requests saving all current changes to Git. Scope:all tracked Native
+runtime/test/docs changes plus NativeAuthoredPresentationProducerTests.swift.
+Includes shared meter asset/native-presentation producer boundaries,callback
+ownership/diagnostics,whole-frame FIFO ordering,Story foreground copy/descender
+repair and regression coverage. Local unintegrated art candidates and unrelated
+business PDF remain outside publication,unchanged from previous scope.
+Reuse verified current-tree fullQA530suites4011tests,KING330,Native57/0,
+Story6/0,fast/iOS,normal Simulator and signed Release delivery receipts.
+4071production input hashes still match installed Release;no runtime edits since
+validation/install. Git-only publication makes no further device changes.
+Existing immutable finished-product-v1.1 tag remains unchanged;these fixes are
+subsequent main commits. Physical recurrence acceptance remains open.
+Remote receipt will follow after exact commit verification.
+
+## 2026-11-15 · Replay producer repair installed on iPhone
+
+User explicitly resumes/authorizes installation now. Completed install-over
+23:02 Europe/Zagreb on connected iPhone13blue0F62B71E-0B04-53C3-906E-
+EC28F5D2390B,exact com.taptapdesign.stacktosix.native. Normal signed Release
+BUILD SUCCEEDED,strict/deep codesign and compiled Native assets/dependencies
+audit PASS,no Web.bundle/PlugIns.4071tracked Native/asset input hashes stable
+before build through delivery. Latest local Replay producer fixes included;
+immutable online finished-product-v1.1 is unchanged and predates these fixes.
+
+Install confirmed to B6784EDE-C815-4BC9-8E93-83597FBECBFB. Normal launchPID27573,
+arguments[],no console/performance capture;fresh process list confirms exact
+new installed executable path. Both canonical state-v1.json and
+state-v1.previous.json byte-identical immediate preinstall -> postinstall ->
+postlaunch. Application Support backups initial before-app-support plus fresh
+preinstall-now,after-install,after-launch and receipts retained under
+/tmp/native-replay-fixed-phone-20261115/. No uninstall/reset/manual save mutation,
+physical audio setting change,PWA/legacy operation or Git publication.
+
+Also completed paused Story source validation for this same saved tree:
+6NativeCreatorStoryTests/0PASS;latest actual390pt render inspected,whole j/y
+in final journey line visible. Same label overlay/descender room/final viewport
+candidate included;no additional runtime edit. Earlier Native57/0 plus
+fast/full530suites4011tests,KING330 and fresh iOS audit remain recorded.
+Physical Replay recurrence/touch/mix/optical acceptance NEEDS PHYSICAL TEST.
+
+Restored normal retained Simulator preview after Story tests using unchanged
+current-tree normal Debug artifact;install-over/normal launch66067,Home visible,
+both canonical slots unchanged,actual SBRingerMuted=true. No test runner left.
+Evidence:build.log,qa-ios.log,release-audit.log,codesign.log,built-receipt.json,
+source-hashes.json,install.json,launch.json,processes.json,save-check.json,
+story-tests.log,simulator-{install,launch}.log in same delivery directory.
+
+## 2026-11-15 · Recurring Replay on board30 — meter producer repair
+
+User reports Replay modal on physical iPhone, screenshot score9338/combo39,
+Area55 robots footer and merge smoke. Explicitly requests agents/code audit.
+Three agents separately audited guards, routing/lifecycle and regression gaps;
+independent final source/lifecycle review PASS subject to tests. Prior Story
+fix and phone install remain paused;this task does not install/restart phone.
+
+Read-only iPhone app-data copies preserved in
+/tmp/native-replay-9338-20261115/{diagnostics,app-support}/. Actual new Replay
+reason:source_meter_microtask_producer_not_bound,board30/generation2/revision35,
+moves15,2026-11-15T20:51:24.179+01:00;magnetComparison=matched. Distinct later
+20:53:55.172 generation3/revision73 regular_merge6_handoff is only a refused
+drop diagnostic,NOT itself evidence of another modal. No change to that guard.
+Exact originating producer is not recorded in old incident;do not claim which
+of the following two reachable missing boundaries caused this phone event.
+
+Confirmed missing producer paths repaired:
+1.Actual selected texture upload callback returns in plain MainActor Task;when
+warmup settles after carrier travel,Promise continuation attempted FIFO enqueue
+outside any admitted task. Native meter warmup now borrows exact captured
+assetCompletionTask;Scene/scope/installation identity reject retired callbacks.
+2.Authored UIKit finale uses original nativeRaw transport. Ready/impact/natural
+completion can release Special guard and queue meter outside Source RAF task.
+Each selected presentation's actual frame now wraps whole paint/progress AND
+natural cleanup in one captured nativePresentationCallbackTask on SAME app FIFO.
+Explicit start/finish/disposal use same captured task,nested callbacks do not
+drain mid-paint. Scope/generation/Scene/exact owner identity reject obsolete
+callbacks;stale cleanup releases only own receipts,no successor preparation.
+Fish completion also captured. Original timing,clock/domain,assets,game rules,
+queue refusal,settings and save schema unchanged;no async fallback/new clock.
+
+Failure diagnostics now include producer/binding/FIFO state and score/combo.
+Runtime/background ownership records updated. Actual-loader before-fix test
+FAIL reproduced missing producer and rejected late Promise reaction;fixed same
+scenario passes. Final Native57/0 PASS:actual upload before/after travel,
+retired generation,whole-raw paint order,meter queue,weak release,recovery,
+actual mounted Metal/touch/meter and Source scheduling/FIFO regressions.
+One old integration fixture updated from SKView-only/unmounted assumption to
+actual mounted NativeGameplayRenderHost. New release check drains real UIKit
+autorelease transaction before weak-nil assertion;immediate cleanup stays tested.
+Fast/full530suites4011tests,KING330,iOS PASS. Final fast/iOS rechecked.
+Evidence:before-fix-test.log,final-native-57.log,qa-full.log,final-qa-fast.log,
+final-qa-ios.log in same directory. Physical recurrence NEEDS PHYSICAL TEST.
+Normal Stack to Six Debug BUILD SUCCEEDED;exact com.taptapdesign.stacktosix.native,
+no test PlugIns/Web.bundle. Install-over retained Simulator1018BE2D-491B-465F-
+8F75-3E5BEB38C22A;normal launch62754 and visible Native startup confirmed.
+Both canonical slots byte-identical across all tests/install/launch;actual iOS
+SBRingerMuted=true for non-audio review. Receipts preview-build.log,install.log,
+launch.log,save-check.json in same evidence directory. Preview includes complete
+saved tree,including paused Story candidate;this task does not claim Story glyph
+visual acceptance or completed Story/phone-install task.
+No phone install/launch/settings/save mutation or Git publication. Historical
+finished-product-v1.1 remains immutable and predates these local fixes.
+
+## 2026-11-15 · PAUSED by user — phone install / Story descenders
+
+User explicitly pauses until child finishes Star Stable. Do not resume any
+build/test/install until user returns. No physical installation happened.
+iPhone13blue connected0F62;its existing installed app/saves/settings preserved.
+Read-only preinstall Application Support backup exists at
+/tmp/native-finished-v1-1-phone-20261115/before-app-support/. Initial signed
+benchmark Release BUILD SUCCEEDED in /tmp/native-phone-20261113-derived,then
+user identified clipped j/y in Story and explicitly requested text overlay above
+paper. Agreed to include that fix before final installation;immutable online
+finished-product-v1.1 remains unchanged. That initial Release is now STALE for
+the subsequent local Story change;do not install it as the fixed version.
+
+Local uncommitted Story overlay change:body UILabel in existing-sized UIScrollView
+foreground above paper,same18pt/23.4pt style. Added real font descender room to
+label and content extent. Last viewport change expands into existing blank gap,
+ending4pt above fact. Need finish verification:earlier label-only variants still
+clipped final line (renders inspected);latest4pt-gap variant NOT VERIFIED yet.
+Regression test now checks mounted overlay parentage,phone390no initial body
+scroll and clear final ink row,plus existing compact/tablet/reopen/lifecycle.
+Earlier variant failed390no-scroll assertion;do not claim final visual PASS.
+Final test xcodebuild95436 interrupted with SIGINT at explicit pause.
+Evidence:/tmp/native-story-descenders-20261115/native-tests.log and
+/tmp/creator-island-renders/story-{320,390,820}.png (may be earlier variants).
+Fast/full530suites4011tests and iOS passed during this edit,while final Native
+render still needs validation. No phone install/launch after overlay changes.
+
+Resume:inspect current diff,test latest Story variant,open actual output PNGs
+and confirm whole j/y visible,finish any needed local fix. Then normal retained
+Simulator Debug preview with saved data preserved,build signed current Release,
+audit identity/signature/assets/fresh production hashes,refresh phone backup,
+install-over,normal launch and compare both canonical save slots. Original
+request remains installing to iPhone13blue,now with Story correction. Do not
+move benchmark tag or publish further runtime changes without user request.
+
 ## 2026-11-15 · Finished product v1.1 checkpoint
 
 User explicitly requests complete current project saved online as benchmark

@@ -34,6 +34,7 @@ import StackToSixGameplay
         var onDropContact:((NativeDiceNode)->Void)?=nil
         var onDropLanded:((NativeDiceNode)->Void)?=nil
         var sourceSkin:((NativeDiceNode)->Bool)?=nil
+        var assetCompletionTask:((()->Void)->Bool)?=nil
     }
     @MainActor private final class Drop {
         let captured:Core.Captured,runtime:NativeWildMeterDropRuntime.Capture
@@ -104,7 +105,7 @@ import StackToSixGameplay
     },hide:{$0.node.alpha=0},activateIdle:{$0.node.resumeIdleAfterLanding()},enqueue:{[weak self] action in self?.hooks.enqueue(action)},generationCurrent:{[weak self] capture in
         guard let self else{return false};return self.valid() && self.engine.state.generation==capture.generation
     }))
-    private lazy var warmup=NativeMeterSelectedNativeWarmup.make(textures:textures)
+    private lazy var warmup=NativeMeterSelectedNativeWarmup.make(textures:textures,assetCompletionTask:hooks.assetCompletionTask)
     private lazy var core:Core={
         let c=Core(engine:engine,hidden:hidden,warmup:warmup,current:{[weak self] in self?.valid()==true},texturesCurrent:{[weak self] in self?.hooks.texturesCurrent()==true},prepareAudio:{[weak self] tile,capture in self?.hooks.selectedAudio(tile,capture)})
         c.onReserved={[weak self] captured in self?.start(captured)}

@@ -16,6 +16,9 @@ import Foundation
     }
     @discardableResult func renderedFrameHandoff(_ action:()->Void)->Bool{fifo.performTask(.sourceRendererFrameHandoff,action)}
     @discardableResult func assetCompletionTask(_ action:()->Void)->Bool {fifo.performTask(.sourceAssetCompletionTask,action)}
+    /// One actual authored UIKit presentation callback, including its synchronous
+    /// Core mutation and cleanup. Drain its Promise reactions after it returns.
+    @discardableResult func presentationCallbackTask(_ action:()->Void)->Bool {fifo.performTask(.nativePresentationCallbackTask,action)}
     func timeoutCallback(_ action:@escaping()->Void)->()->Void {
         return{[fifo] in _=fifo.performTask(.appTimeoutTask,action)}
     }

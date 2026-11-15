@@ -13,6 +13,11 @@ class NativeFinitePresentation: UIView,NativeSourceAnimationParticipant {
     private var delivery=NativeSourceAnimationClockService.shared
     private var domain=NativeSourceAnimationClockService.Domain.nativeRaw
     private var deliveryLease:NativeSourceAnimationClockService.Lease?
+    private var presentationCallbackTask:((()->Void)->Bool)?
+    func configurePresentationCallbackTask(_ task:@escaping(()->Void)->Bool) {
+        precondition(!started && !disposed)
+        presentationCallbackTask=task
+    }
     var hasActiveClock:Bool{deliveryLease?.active == true}
     /// Source mapping requires selected original-root proof. Defaults retain
     /// unmapped nativeRaw elapsed/pause behavior on the replacement transport.
@@ -34,11 +39,17 @@ class NativeFinitePresentation: UIView,NativeSourceAnimationParticipant {
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     func start() {
+        guard !started,!disposed else{return}
+        if let task=presentationCallbackTask {
+            if !task({self.startPresentation()}) {finish(false)}
+        } else {startPresentation()}
+    }
+    private func startPresentation() {
         guard !started,!disposed else { return }
         started = true; layoutIfNeeded(); paint(seconds: 0)
         guard !disposed else { return }
         let capturedReceipt=completionReceipt,capturedObservations=observations
-        deliveryLease=delivery.register(participant:self,duration:duration,domain:domain) { [weak self] success in
+        deliveryLease=delivery.register(participant:self,duration:duration,domain:domain,callbackTask:presentationCallbackTask) { [weak self] success in
             guard let self else {
                 capturedObservations.forEach(NotificationCenter.default.removeObserver)
                 capturedReceipt.finish(false);return
@@ -65,6 +76,12 @@ class NativeFinitePresentation: UIView,NativeSourceAnimationParticipant {
         deliveryLease?.setSuspended(paused)
     }
     private func finish(_ success: Bool) {
+        guard !disposed else{return}
+        if let task=presentationCallbackTask {
+            if !task({self.finishPresentation(success)}) {finishPresentation(false)}
+        } else {finishPresentation(success)}
+    }
+    private func finishPresentation(_ success:Bool) {
         guard !disposed else{return}
         if let lease=deliveryLease{deliveryLease=nil;lease.cancel(success:success);return}
         resetTransientEffects()

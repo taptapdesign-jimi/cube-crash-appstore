@@ -1,4 +1,5 @@
 import XCTest
+import SpriteKit
 @testable import Stack_to_Six
 nonisolated final class NativeMeterSelectedWarmupTests:XCTestCase {
  private typealias Warmup=NativeMeterSelectedFinaleWarmup<Int>
@@ -67,4 +68,83 @@ nonisolated final class NativeMeterSelectedWarmupTests:XCTestCase {
   XCTAssertEqual(callbacks.count,4)
   XCTAssertEqual(outcomes,[.settled(unavailable:["5.png","6.png","7.png","8.png"])])
  }
+
+ @MainActor private final class SelectedUpload {
+  var finish:(@Sendable ()->Void)?
+ }
+ /// Use the real selected native asset loader: even its cached texture upload
+ /// returns on a plain MainActor Task, outside the Source RAF/input checkpoint.
+ @MainActor func testActualSelectedUploadPreservesBeforeAndAfterTravelPromiseBoundaries()async throws {
+  for afterTravel in [false,true] {
+   let fifo=NativeSourceMicrotaskFIFO(),tasks=NativeSourceMicrotaskAdapters(fifo:fifo)
+   var current=true,travelCompleted=false,warmupCompleted=false,continuations=0,producerCalls=0
+   let reactions=try XCTUnwrap(fifo.makeMeterScope(boundProducers:NativeSourceMicrotaskFIFO.meterBoundaries,isCurrent:{current}))
+   let upload=SelectedUpload(),uploadReady=expectation(description:"selected original texture upload captured")
+   let settled=expectation(description:"actual native selected warmup settled")
+   let textures=NativeBoardTextures(root:NativeTestResources.root,selectedFinalePreload:{_,done in upload.finish=done;uploadReady.fulfill()})
+   let owner=NativeMeterSelectedNativeWarmup.make(textures:textures,assetCompletionTask:{action in
+    guard current else{return false};producerCalls+=1
+    return tasks.assetCompletionTask(action)
+   })
+   defer{current=false;owner.dispose();textures.dispose();reactions.dispose();fifo.dispose()}
+   let plan=NativeMeterSelectedWarmupPlan(selection:"actual-selected",preOpen:[],committed:[.init(["./assets/tile.png"])])
+   let capture=NativeMeterSelectedFinaleWarmup<SKTexture>.Capture(token:1,generation:1,selection:plan.selection)
+   XCTAssertTrue(tasks.inputTask {
+    XCTAssertTrue(owner.beginBeforeOpen(plan:plan,capture:capture,isCurrent:{current}))
+    XCTAssertTrue(owner.committed(capture:capture,tileID:"real-hidden-owner"))
+    owner.whenSelectedSettled(capture:capture){outcome in
+     XCTAssertEqual(outcome,.settled(unavailable:[]))
+     XCTAssertTrue(fifo.isAcceptingJobs,"The real upload callback must be an admitted asset producer")
+     warmupCompleted=true
+     if travelCompleted {XCTAssertTrue(reactions.enqueue{continuations+=1})}
+     settled.fulfill()
+    }
+   })
+   await fulfillment(of:[uploadReady],timeout:8)
+   func travel() {
+    tasks.frameCallback {
+     travelCompleted=true
+     if warmupCompleted {XCTAssertTrue(reactions.enqueue{continuations+=1})}
+    }()
+   }
+   if afterTravel {travel();XCTAssertEqual(continuations,0)}
+   XCTAssertFalse(fifo.isAcceptingJobs)
+   try XCTUnwrap(upload.finish)() // deliberately outside every Source producer
+   await fulfillment(of:[settled],timeout:8)
+   if !afterTravel {XCTAssertEqual(continuations,0);travel()}
+   XCTAssertEqual(producerCalls,1)
+   XCTAssertEqual(continuations,1)
+   XCTAssertEqual(fifo.pendingCount,0)
+   XCTAssertFalse(fifo.isAcceptingJobs)
+  }
+ }
+ @MainActor func testActualSelectedUploadCannotPublishAfterCapturedGenerationRetires()async throws {
+  let fifo=NativeSourceMicrotaskFIFO(),tasks=NativeSourceMicrotaskAdapters(fifo:fifo)
+  let upload=SelectedUpload(),uploadReady=expectation(description:"late native upload retained")
+  let rejected=expectation(description:"real late upload refused by retired capture")
+  var current=true,producerCalls=0,outcomes:[NativeMeterSelectedFinaleWarmup<SKTexture>.Outcome]=[]
+  let textures=NativeBoardTextures(root:NativeTestResources.root,selectedFinalePreload:{_,done in upload.finish=done;uploadReady.fulfill()})
+  let owner=NativeMeterSelectedNativeWarmup.make(textures:textures,assetCompletionTask:{action in
+   guard current else{rejected.fulfill();return false};producerCalls+=1
+   return tasks.assetCompletionTask(action)
+  })
+  defer{owner.dispose();textures.dispose();fifo.dispose()}
+  let plan=NativeMeterSelectedWarmupPlan(selection:"retiring-selected",preOpen:[],committed:[.init(["./assets/tile.png"])])
+  let capture=NativeMeterSelectedFinaleWarmup<SKTexture>.Capture(token:1,generation:1,selection:plan.selection)
+  XCTAssertTrue(tasks.inputTask {
+   XCTAssertTrue(owner.beginBeforeOpen(plan:plan,capture:capture,isCurrent:{current}))
+   XCTAssertTrue(owner.committed(capture:capture,tileID:"old-generation"))
+   owner.whenSelectedSettled(capture:capture){outcomes.append($0)}
+  })
+  await fulfillment(of:[uploadReady],timeout:8)
+  current=false;owner.dispose()
+  XCTAssertEqual(outcomes,[.retired])
+  try XCTUnwrap(upload.finish)()
+  // Wait for the real loader callback, not a guessed number of MainActor turns.
+  await fulfillment(of:[rejected],timeout:8)
+  XCTAssertEqual(producerCalls,0)
+  XCTAssertEqual(outcomes,[.retired])
+  XCTAssertEqual(fifo.pendingCount,0)
+ }
+
 }

@@ -3,6 +3,7 @@
   "features": [
     {
       "id": "native-creator-story",
+      "bodyOverlayPolicy": "User2026-11-15: Story body is a foreground UILabel overlay above paper within the existing bounded body scroll viewport, avoiding UITextView/TextKit line-fragment clipping of Baloo j/y descenders. Preserve shared18pt/23.4pt paragraph rhythm, text, color, paper geometry and single modal transform/lifecycle. No new timer, source, asset or gameplay/save mutation.",
       "surfaces": [
         "native/gameplay-app/NativeCreatorStoryModal.swift",
         "native/jimi-2026/JimiNativeSettingsView.swift",
@@ -854,6 +855,7 @@
     },
     {
       "id": "native-source-application-runtime",
+      "meterNativeProducerPolicy": "2026-11-15 Replay incident: selected meter texture loader completion borrows the captured app assetCompletionTask; authored UIKit finale gameplay/completion callbacks borrow a captured nativePresentationCallbackTask on the same FIFO. Preserve outer callback then FIFO checkpoint ordering, original resource/animation transport and delays. Scene/scope/generation replacement invalidates stale callbacks before entering task. Arbitrary out-of-task meter enqueue remains rejected; failure-only diagnostic records producer/binding/FIFO state. No fallback async, new clock, asset, gameplay rule or save schema change.",
       "arcadeContinuationChromePolicy": "NativeGameplayViewController final Arcade exit retains upper HUD and lower Round indicator while NativeBoardScene retires dice residue. FreshGameplayEntry.arcadeContinuation uses settled chrome with existing first-frame covered replacement; actual Round01-to02 continuation test covers cue, pending receipt, dice entry and continued play. Journey/fail/tutorial/Homepage policy unchanged.",
       "surfaces": [
         "native/gameplay-app/NativeSourceApplicationRuntime.swift",

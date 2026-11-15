@@ -19,7 +19,7 @@ import Foundation
     func removeDiagnostics(owner:UUID){
         guard diagnosticOwner==owner else{return};diagnosticOwner=nil;diagnosticMillisecondsNow=nil;onDiagnosticCheckpoint=nil
     }
-    enum Boundary: String, CaseIterable, Sendable {case inputTask, appTimeoutTask, sourceAnimationFrameCallback, sourceRendererFrameHandoff, sourceAssetCompletionTask, nativeLayoutTask, nativeRenderActionTask}
+    enum Boundary: String, CaseIterable, Sendable {case inputTask, appTimeoutTask, sourceAnimationFrameCallback, sourceRendererFrameHandoff, sourceAssetCompletionTask, nativeLayoutTask, nativeRenderActionTask, nativePresentationCallbackTask}
     @MainActor final class Scope {
         fileprivate weak var owner:NativeSourceMicrotaskFIFO?
         fileprivate let id:UUID

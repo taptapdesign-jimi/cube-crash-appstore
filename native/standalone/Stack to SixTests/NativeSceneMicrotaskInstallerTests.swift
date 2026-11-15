@@ -6,7 +6,7 @@ import SpriteKit
 
 nonisolated final class NativeSceneMicrotaskInstallerTests:XCTestCase {
     @MainActor private final class Touch:UITouch {
-        weak var host:SKView?
+        weak var host:UIView?
         var point=CGPoint.zero
         override var view:UIView?{host}
         override func location(in view:UIView?)->CGPoint {
@@ -208,14 +208,16 @@ nonisolated final class NativeSceneMicrotaskInstallerTests:XCTestCase {
         let controller=NativeGameplayViewController(engine:engine,resourceRoot:root)
         controller.sourceContext=context;controller.sourceSmallStackPresentationEnabled=true
         controller.loadViewIfNeeded();controller.view.frame = .init(x:0,y:0,width:390,height:844)
-        let scene=try XCTUnwrap(controller.boardScene),scope=try XCTUnwrap(controller.sourceScope)
-        let view=try XCTUnwrap(controller.view.subviews.compactMap{$0 as? SKView}.first)
         let window=UIWindow(frame:controller.view.frame);window.rootViewController=controller
+        window.makeKeyAndVisible();controller.view.layoutIfNeeded()
+        let scene=try XCTUnwrap(controller.boardScene),scope=try XCTUnwrap(controller.sourceScope)
+        let renderHost=try XCTUnwrap(scene.gameplayRenderHost),view=renderHost.renderView
+        let surface=try XCTUnwrap(view as? NativeGameplaySurfaceControl)
         let completed=expectation(description:"actual same-node rendered receipt completes Source bookkeeping reaction")
         var completions=0,landingProbe=0,landingSounds=0
         let probes=try XCTUnwrap(fifo.makeMeterScope(boundProducers:Set(NativeSourceMicrotaskFIFO.Boundary.allCases),isCurrent:{scope.current}))
         defer{probes.dispose()}
-        scene.onRenderingDemand={demand in if demand{view.isPaused=false}}
+        scene.onRenderingDemand={demand in if demand{surface.surfacePaused=false}}
         scene.onPresentationFailure={XCTFail($0)}
         scene.onGameplayEvent={event in
             if event.kind == .meterDropLanded {
@@ -250,10 +252,10 @@ nonisolated final class NativeSceneMicrotaskInstallerTests:XCTestCase {
         await fulfillment(of:[entered],timeout:5)
         XCTAssertEqual(engine.state.wildSpawnCount,0)
         let geometry=try XCTUnwrap(scene.boardGeometry),touch=Touch();touch.host=view
-        touch.point=view.convert(geometry.center(row:0,column:0),from:scene)
+        touch.point=renderHost.scenePointToView(geometry.center(row:0,column:0),scene:scene)
         scene.touchesBegan([touch],with:nil)
         XCTAssertTrue(engine.isDragging)
-        touch.point=view.convert(geometry.center(row:0,column:1),from:scene)
+        touch.point=renderHost.scenePointToView(geometry.center(row:0,column:1),scene:scene)
         scene.touchesMoved([touch],with:nil)
         scene.touchesEnded([touch],with:nil)
         XCTAssertNotNil(engine.pendingOrdinaryStack)
