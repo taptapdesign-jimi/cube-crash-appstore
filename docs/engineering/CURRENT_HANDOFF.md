@@ -11,7 +11,12 @@ Reuse immediately preceding runtime QA:fast/full530suites4011tests,KING330,
 iOS,111Native audio tests,normal Debug Simulator build/install/launch88329,
 both canonical saves identical. Only checkpoint docs added afterward.
 No physical phone operation or new acceptance claim. Historical tags preserved.
-Remote publication receipt follows after exact main/tag verification.
+Publication PASS:payload commit2a86684dc34962f7a9e6815a4db4382cd927fa39
+and annotated tagfinished-product-v1.1 pushed atomically to origin. Live
+ls-remote verified main and peeled tag both match that exact payload;tag object
+bda9eddec57ee56efe326386b264c822bd55546b. Staged diff hygiene PASS;no tracked
+changes remained after payload publication. This receipt is a subsequent
+handoff-only commit;the immutable benchmark continues to point to the payload.
 
 ## 2026-11-15 · Board-removal audio delayed100ms
 
