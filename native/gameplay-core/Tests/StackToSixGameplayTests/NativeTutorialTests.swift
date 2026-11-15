@@ -89,7 +89,7 @@ final class NativeTutorialTests: XCTestCase {
             XCTAssertEqual(blocked.state,before)
         }
     }
-    func testJourneyComboLessonIsReadyImmediatelyAfterCollectionWithoutAMove() {
+    func testBothModesShowComboImmediatelyAfterCollectionWithoutAMove() {
         for mode in [NativeRunMode.journey,.arcade] {
             var tutorial=NativeTutorialState();tutorial.active=false;tutorial.guideCompleted=true
             tutorial.encouragementAcknowledged=true;tutorial.collectionLessonAcknowledged=false
@@ -98,12 +98,31 @@ final class NativeTutorialTests: XCTestCase {
             let engine=NativeGameplayEngine(state:state)
             XCTAssertFalse(engine.beginTutorialComboLesson().accepted)
             XCTAssertTrue(engine.acknowledgeTutorialCollectionLesson().accepted)
-            XCTAssertEqual(engine.beginTutorialComboLesson().accepted,mode == .journey)
+            XCTAssertTrue(engine.beginTutorialComboLesson().accepted,"Collection return must continue tutorial in both modes")
             XCTAssertEqual(engine.state.moves,37);XCTAssertEqual(engine.state.score,311)
             XCTAssertEqual(engine.state.rngState,state.rngState)
             XCTAssertEqual(engine.state.tutorial?.comboLessonMoveCount,0)
         }
     }
+    func testLegacyPendingComboWithoutHUDReceiptResumesOnceInBothModes()throws {
+        for mode in [NativeRunMode.journey,.arcade] {for acknowledged in [false,true] {
+            var tutorial=NativeTutorialState();tutorial.active=false;tutorial.guideCompleted=true
+            tutorial.encouragementAcknowledged=true;tutorial.collectionLessonAcknowledged=true
+            tutorial.comboLessonAcknowledged=acknowledged;tutorial.comboHUDRevealed=nil;tutorial.comboLessonMoveCount=0
+            let state=NativeBoardState(tiles:[.init(id:"legacy",cell:.init(column:0,row:0),value:2)],mode:mode,moves:42,score:310,tutorial:tutorial)
+            let engine=NativeGameplayEngine(state:try JSONDecoder().decode(NativeBoardState.self,from:JSONEncoder().encode(state)))
+            XCTAssertNil(engine.state.tutorial?.comboHUDRevealed)
+            XCTAssertEqual(engine.beginTutorialComboLesson().accepted,!acknowledged)
+            XCTAssertFalse(engine.beginTutorialComboLesson().accepted,"Re-entry cannot duplicate the same pending sheet")
+            XCTAssertEqual(engine.state.moves,state.moves);XCTAssertEqual(engine.state.score,state.score)
+            XCTAssertEqual(engine.state.rngState,state.rngState)
+        }}
+        var skipped=NativeTutorialState();skipped.active=false;skipped.guideCompleted=true
+        skipped.encouragementAcknowledged=true;skipped.collectionLessonAcknowledged=true
+        let old=NativeGameplayEngine(state:.init(tiles:[],tutorial:skipped))
+        XCTAssertFalse(old.beginTutorialComboLesson().accepted,"Missing lesson acknowledgement keeps completed legacy guides quiet")
+    }
+
     func testCompletionLessonReceiptRestoresAndKeepsLegacyFinishedGuidesQuiet()throws {
         let engine=NativeGameplayEngine(state:board())
         XCTAssertTrue(engine.startTutorial().accepted)

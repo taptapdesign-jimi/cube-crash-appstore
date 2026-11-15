@@ -25,7 +25,7 @@ final class NativeFinalHUDCoinTests:XCTestCase {
             if let plan=engine.pendingDirectWild {XCTAssertTrue(plan.isFinal,tag);result=engine.commitDirectWildGameplay(transactionID:plan.id)}
             XCTAssertTrue(result.accepted,tag)
             let count=try XCTUnwrap(result.events.first{$0.kind == .hudStarsPrepared},tag).tileIDs.count
-            XCTAssertEqual(count,(first.gameplayArchetype == .tnt || variant == "beach-ball") ? 3:archetype == .star ? (variant == "bee" ? 1:3):archetype == .juice ? 2:1,tag)
+            XCTAssertEqual(count,(first.gameplayArchetype == .tnt || variant == "beach-ball") ? 3:archetype == .star ? (["bee","kite","bloob"].contains(variant ?? "") ? 1:3):archetype == .juice ? 2:1,tag)
             XCTAssertTrue(engine.state.tiles.isEmpty,tag);XCTAssertTrue(engine.pendingMeterRewards.isEmpty,tag)
             XCTAssertFalse(result.events.contains{$0.kind == .spawned},tag)
             XCTAssertTrue(engine.pendingHUDStars.allSatisfy(\.isFinalMerge),tag)

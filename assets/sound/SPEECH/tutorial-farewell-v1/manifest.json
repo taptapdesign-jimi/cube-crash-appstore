@@ -1,0 +1,14 @@
+{
+  "source": "assets/sound/SPEECH/have fun.mp3",
+  "sourceSHA256": "b7bc61ec7a6c0d6649bff1fb82acd3ce22946b820423b41df6602dfe14847b3d",
+  "text": "That\u2019s it, you\u2019re ready! Have fun!",
+  "output": "assets/sound/SPEECH/tutorial-farewell-v1/tutorial-farewell.wav",
+  "outputSHA256": "d99ed7d12e08d522a0e84eb1c626efcda58b7edbbb4a3eb53b3eb8a4fa45f900",
+  "duration": 3.0040625,
+  "sampleRate": 48000,
+  "channels": 1,
+  "pcmGainDB": 1,
+  "cueGainDB": 2,
+  "peakDBFS": -1.9682051974199752,
+  "processing": "Full recording; no trim, normalization, pitch or rate change. Shared tutorial +3dB policy."
+}

@@ -258,3 +258,53 @@ checks reject obsolete work before decoding and again before playback. An
 already admitted decode/graph creation is bounded to this one small source and
 may drain before retirement. Slot tokens reject old completions after reuse.
 No fallback AVAudioPlayer is started for a failed buffered contact.
+
+## Native tutorial narration tails (2026-11-13)
+
+Tutorial speech belongs to NativeGameplayAudioOwner after actual sheet-entry
+admission. A CTA,sheet hide/cover,overlay disposal or normal route/generation
+change cannot truncate the started human line. The existing selected-file
+navigationSpeech transport plays one human at a time;unique pending tutorial
+scene IDs are bounded by the fixed registry and decoded only when selected.
+Actual file completion(and the existing paired bark completion)admits the next
+lesson. Optional replacement character contacts yield during narration;CTA/SFX
+and UI remain responsive. Sounds OFF,background,system interruption,media reset
+and audio-owner disposal clear current/pending speech without foreground replay.
+No new session,player type,cache,timer or UI-retaining completion is introduced.
+
+## Native tutorial speech entrance priority (2026-11-13)
+
+The existing overlay admits tutorial narration at actual sheet entry start, through
+the existing Source sheet owner callback or UIKit layer entry, instead of waiting
+for the0.78s bounce to settle. Actual landing still owns CTA/pointer readiness.
+The early collection preview still waits for genuine Special settlement. A queued
+lesson skips optional Nala bark, and a newly admitted lesson retires an already
+playing bark through its existing voice ID. Started human narration finishes
+naturally before another sentence; no overlapping human voices, new timer,
+transport, asset edit, gain/rate change or eager preparation. Background/Sounds
+OFF/interruption/disposal keep their existing hard-stop policy.
+
+## Native spoken family level balance (2026-11-13)
+
+NativeRecordedSceneSpeech owns the runtime calibration constants recorded in
+`native-speech-level-balance-v1.json`. Tutorial is1.6dB below its former gain;
+Backpack/Box opening speech,die-detail speech and Clean Board title speech
+match the resulting family mean(-21.1785RMS dBFS). Per-family calibration is
+applied by the existing NativeGameplayAudioOwner immediately before its existing
+transport. Detail source boosts are bounded at unity;the measured family scale
+accounts for that bound. Original PCM,dynamics,generated catalogs,voice selection,
+rate,timing,queue,Settings and lifecycle remain unchanged. This aligns measured
+family averages,not every recording or the simultaneous music/Nala/SFX mix.
+
+
+### Arcade mode CTA entry follow-up (2026-11-14)
+
+User explicitly restores the Journey Stage entry boing for Arcade mode Play/Continue. NativeArcadeWorldModal borrows the existing paired-modal-cta-enter event and cleanCTA0 boinb.wav at gain0.18. The shared button compositor marker follows the readiness-admitted visual onset near the end of paper entry;the existing modal subtree owns pause and pending-marker retirement. No new sound source,voice family,transport or scheduler. Other single-action modal-cta-enter events remain silent.
+
+### Retired Native leash intro selection (2026-11-14)
+
+The removed `lik-pas-SVG` startup/DEV selection no longer has a speech pool
+or intro-specific audio conditions in the Native runtime. Original files stay
+preserved and packaged. The nine active registry entries and explicit football
+diagnostic fixture remain unchanged. Shared Nala admission and cleanup tests
+use the retained `pas-novine` scene. No transport, gain or lifecycle change.

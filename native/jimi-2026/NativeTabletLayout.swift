@@ -23,16 +23,24 @@ enum NativeTabletLayout {
         animation.center=CGPoint(x:viewport.width/2,y:viewport.height/2)
         animation.transform=CGAffineTransform(scaleX:scale,y:scale)
     }
+    // Current iPad Barrel is the shared smoke baseline on the390pt canvas.
+    // Full-screen projection remains separate; captions and debris never use it.
+    static let barrelSmokePresentationScale:CGFloat=1.694*1.15*1.30*1.20*0.85
+    static func barrelSmokeScale(_ size:CGSize)->CGFloat {
+        barrelSmokePresentationScale*(applies(size) ? 1:0.70)
+    }
     static func smokeSpriteBoost(_ size:CGSize)->CGFloat {
-        // Match Barrel's complete smoke-only scale on the same canonical raster
-        // and390pt projection. Dice, captions and trajectories keep their owners.
-        let barrel:CGFloat=applies(size) ? 1.694*1.15*1.30:1.20*1.30*1.10*1.20
-        return barrel*0.80*0.70*1.20/(1.4*1.2*1.2)
+        // Live Barrel shake retains an unprojected smoke carrier. Core TNT's
+        // parent still projects dice/glyphs; cancel that projection only here.
+        let baseline=barrelSmokePresentationScale*0.80*0.70*1.20/(1.4*1.2*1.2)
+        // Phone TNT uses the same smoke scale as the phone Barrel owner.
+        return applies(size) ? baseline/animationScale(size):baseline*0.70
     }
     static func smokeVerticalOffset(_ size:CGSize)->CGFloat {applies(size) ? animationViewport(size).height*0.1:0}
     static func tntSmokeVerticalOffset(_ size:CGSize)->CGFloat {
-        // SpriteKit Y points up. Convert the20pt screen-space lift once.
-        -smokeVerticalOffset(size)+(applies(size) ? 20/animationScale(size):0)
+        // Remove the former10% screen-height drop; retain the20pt lift.
+        // SpriteKit Y points up; phone smoke moves down3% of viewport height.
+        applies(size) ? 20/animationScale(size):-size.height*0.03
     }
     // Match the current iPad navigation icon factor with one whole-modal
     // projection. All inner dimensions remain the authored390pt phone recipe.

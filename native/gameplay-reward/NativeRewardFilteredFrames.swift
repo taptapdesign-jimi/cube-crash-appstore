@@ -10,6 +10,48 @@ nonisolated final class NativeRewardPreparationLease:@unchecked Sendable {
 /// serial queue prepares its carrier; disposed screens reject late completion.
 nonisolated enum NativeRewardFilteredFrames {
     private static let queue=DispatchQueue(label:"stacktosix.native-reward.filters",qos:.userInitiated)
+    /// Compile the exact counter filter/radius family before its visible clock.
+    /// The context transfers only after the worker's final synchronous render;
+    /// it is never used by this worker and the visible result concurrently.
+    static func prepareCounterBlur(lease:NativeRewardPreparationLease,completion:@escaping (CIContext?)->Void) {
+        queue.async {
+            guard !lease.cancelled else{return}
+            autoreleasepool {
+                let start=ProcessInfo.processInfo.systemUptime
+                let context=CIContext(options:[.cacheIntermediates:false])
+                // Use a finite bitmap input, exactly like the score glyphs.
+                // A procedural constant color can select a different fused
+                // kernel and leave the first bitmap blur cold.
+                guard let bitmap=CGContext(data:nil,width:64,height:64,bitsPerComponent:8,bytesPerRow:64*4,space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue) else {
+                    context.clearCaches();Task { @MainActor in guard !lease.cancelled else{return};completion(nil) };return
+                }
+                bitmap.setFillColor(CGColor(red:1,green:1,blue:1,alpha:1));bitmap.fill(CGRect(x:12,y:12,width:40,height:40))
+                guard let image=bitmap.makeImage() else {
+                    context.clearCaches();Task { @MainActor in guard !lease.cancelled else{return};completion(nil) };return
+                }
+                let input=CIImage(cgImage:image)
+                for step in 1...20 {
+                    guard !lease.cancelled else{context.clearCaches();return}
+                    let output=input.applyingFilter("CIMotionBlur",parameters:[kCIInputRadiusKey:Double(step)*0.5,kCIInputAngleKey:Double.pi/2])
+                    guard context.createCGImage(output,from:input.extent) != nil else {
+                        context.clearCaches()
+                        Task { @MainActor in guard !lease.cancelled else{return};completion(nil) }
+                        return
+                    }
+                }
+                guard !lease.cancelled else{context.clearCaches();return}
+                #if DEBUG
+                NSLog("[NativeResultCounterBlur] prepared durationMs=%.1f",(ProcessInfo.processInfo.systemUptime-start)*1000)
+                #endif
+                Task { @MainActor in
+                    guard !lease.cancelled else{retireCounterBlur(context);return}
+                    completion(context)
+                }
+            }
+        }
+    }
+    /// Potential driver cache retirement never blocks the outgoing result/CTA.
+    static func retireCounterBlur(_ context:CIContext) {queue.async {context.clearCaches()}}
     /// One star-sized frame set shared by the three selected result stars.
     static func prepareResultStar(_ image:CGImage,lease:NativeRewardPreparationLease,completion:@escaping ([CGImage],CGImage?)->Void) {
         queue.async {

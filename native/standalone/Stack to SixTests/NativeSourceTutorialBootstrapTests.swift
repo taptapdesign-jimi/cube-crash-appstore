@@ -24,6 +24,7 @@ import StackToSixNativeState
             let owner=NativeTutorialOwner(gameplay:game,root:NativeTestResources.root)
             defer{owner.dispose();game.dispose();window.isHidden=true;previous?.makeKeyAndVisible()}
             var contacts=0;owner.onFeedback={contacts+=1}
+            if phase=="collection" {game.onHelp={}}
             owner.refresh(game.engine.state)
             func all(_ view:UIView)->[UIView]{[view]+view.subviews.flatMap(all)}
             let end=Date().addingTimeInterval(4)
@@ -45,7 +46,7 @@ import StackToSixNativeState
         tutorial.comboHUDRevealed=false;tutorial.collectionLessonAcknowledged=false
         let state=NativeBoardState(tiles:[.init(id:"half-wild",cell:.init(column:0,row:0),value:6,archetype:.star,variant:"bee"),.init(id:"half-target",cell:.init(column:1,row:0),value:2)],tutorial:tutorial)
         let game=NativeGameplayViewController(engine:NativeGameplayEngine(state:state),resourceRoot:NativeTestResources.root)
-        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=game;window.makeKeyAndVisible()
+        let window=UIWindow(frame:UIDevice.current.userInterfaceIdiom == .pad ? UIScreen.main.bounds:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=game;window.makeKeyAndVisible()
         game.loadViewIfNeeded();game.view.layoutIfNeeded()
         var owner:NativeTutorialOwner?=NativeTutorialOwner(gameplay:game,root:NativeTestResources.root)
         weak var retired=owner
@@ -53,10 +54,20 @@ import StackToSixNativeState
         var opens=0;game.onHelp={opens+=1}
         owner?.refresh(game.engine.state)
         let scene=try XCTUnwrap(game.boardScene)
+        let close=try XCTUnwrap(scene.childNode(withName:"//native-game-close"))
+        XCTAssertTrue(close.isHidden,"Close stays invisible until the existing HUD reveal")
         func all(_ view:UIView)->[UIView]{[view]+view.subviews.flatMap(all)}
         scene.onTutorialWildAnimationProgress?(0.49)
+        scene.synchronize();scene.didFinishUpdate()
+        XCTAssertTrue(close.isHidden,"Repeated state/paint updates cannot expose Close early")
         XCTAssertFalse(all(game.view).compactMap{$0 as? UILabel}.contains{$0.text=="Your backpack"})
         scene.onTutorialWildAnimationProgress?(0.50)
+        scene.didFinishUpdate()
+        XCTAssertFalse(close.isHidden,"Close appears with the score/combo/backpack preview")
+        XCTAssertLessThanOrEqual(close.alpha,0.200001,"Existing locked opacity remains intact")
+        var exits=0;scene.onExitRequest={exits+=1}
+        _=scene.handleHUDContact(at:close.convert(.zero,to:scene))
+        XCTAssertEqual(exits,0,"Revealing Close does not unlock tutorial exit")
         let overlay=try XCTUnwrap(game.view.subviews.compactMap{$0 as? NativeTutorialOverlay}.first)
         XCTAssertTrue(all(overlay).compactMap{$0 as? UILabel}.contains{$0.text=="Your backpack"})
         let cta=try XCTUnwrap(all(overlay).compactMap{$0 as? UIButton}.first{$0.accessibilityIdentifier=="native.tutorial.got-it"})
@@ -232,8 +243,8 @@ import StackToSixNativeState
     func testContextualAreaRoboCompletesActualSpecialGuide()async throws {try await run(monitored:true,retireDuringExit:false,third:true,dismiss:"button",fourth:true,fourthComplete:true,complete:true,journeyBoard:21)}
     func testBoardOpacityWaitsForEntryCompletionAndScopeRetirementPreventsLateSheet()async throws {try await run(monitored:true,retireDuringExit:false,retireAtOpacity:true)}
     func testTutorialBackpackPromptHoldsRealCarrierUntilOpenCTA()async throws {try await run(monitored:true,retireDuringExit:false,third:true,fourth:true,complete:true,journeyBoard:1,backpackArrival:true)}
-    func testTutorialCarrierImageDoesNotOfferOpenAction()async throws {try await run(monitored:true,retireDuringExit:false,third:true,fourth:true,complete:true,journeyBoard:1,backpackArrival:true,verifyCarrierNotInteractive:true)}
-    private func run(monitored:Bool,retireDuringExit:Bool,third:Bool=false,dismiss:String?=nil,failure:Bool=false,meter:Bool=false,fourth:Bool=false,fourthComplete:Bool=false,complete:Bool=false,reverseFourth:Bool=false,specialInteraction:Bool=false,stressTurns:Int=1,stressFrames:Int=100,journeyBoard:Int?=nil,retireAtOpacity:Bool=false,backpackArrival:Bool=false,verifyCarrierNotInteractive:Bool=false)async throws {
+    func testTutorialCoveredCarrierRequiresOpenCTA()async throws {try await run(monitored:true,retireDuringExit:false,third:true,fourth:true,complete:true,journeyBoard:1,backpackArrival:true,verifyCarrierInteractive:true)}
+    private func run(monitored:Bool,retireDuringExit:Bool,third:Bool=false,dismiss:String?=nil,failure:Bool=false,meter:Bool=false,fourth:Bool=false,fourthComplete:Bool=false,complete:Bool=false,reverseFourth:Bool=false,specialInteraction:Bool=false,stressTurns:Int=1,stressFrames:Int=100,journeyBoard:Int?=nil,retireAtOpacity:Bool=false,backpackArrival:Bool=false,verifyCarrierInteractive:Bool=false)async throws {
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("source-initial-bootstrap-\(UUID().uuidString)")
         defer{try? FileManager.default.removeItem(at:directory)}
         let store=NativeSaveStore(directory:directory)
@@ -598,20 +609,28 @@ import StackToSixNativeState
                 for _ in 0..<110{wall+=16;service.deliver(wallMilliseconds:wall)}
                 let specialButton=try XCTUnwrap(overlay.subviews.flatMap{ $0.subviews.flatMap{[$0]+$0.subviews} }.compactMap{$0 as? UIButton}.first{$0.accessibilityIdentifier=="native.tutorial.got-it"})
                 let specialFocusDeadline=Date().addingTimeInterval(12)
-                while (!overlay.specialBarVisible || scene.tutorialSpecialBarFocusValue<1 || abs(overlay.sourceSheetTranslation)>1e-6 || !specialButton.isEnabled) && Date()<specialFocusDeadline {
+                while !(backpackArrival && game.engine.state.tutorial?.specialBarAcknowledged==true) && (!overlay.specialBarVisible || scene.tutorialSpecialBarFocusValue<1 || abs(overlay.sourceSheetTranslation)>1e-6 || !specialButton.isEnabled) && Date()<specialFocusDeadline {
                     wall+=16;service.deliver(wallMilliseconds:wall);try await Task.sleep(for:.milliseconds(40))
                 }
-                XCTAssertEqual(scene.tutorialSpecialBarFocusValue,1,accuracy:1e-6)
-                XCTAssertEqual(overlay.sourceSheetTranslation,0,accuracy:1e-6)
+                if backpackArrival && game.engine.state.tutorial?.specialBarAcknowledged==true {
+                    // The real preceding drag may acknowledge this guide through
+                    // its supported interaction path. Delivery must use that
+                    // receipt rather than require the retired reading sheet again.
+                    XCTAssertFalse(overlay.specialBarVisible)
+                    XCTAssertEqual(scene.tutorialSpecialBarFocusValue,0,accuracy:1e-6)
+                }else{
+                    XCTAssertEqual(scene.tutorialSpecialBarFocusValue,1,accuracy:1e-6)
+                    XCTAssertEqual(overlay.sourceSheetTranslation,0,accuracy:1e-6)
+                    XCTAssertTrue(overlay.specialBarVisible, "tutorial=\(String(describing:game.engine.state.tutorial)) failure=\(String(describing:game.sourcePresentationFailure))")
+                }
                 XCTAssertEqual(game.engine.state.tutorial?.specialBarSuccessfulActions,2)
-                XCTAssertTrue(overlay.specialBarVisible, "tutorial=\(String(describing:game.engine.state.tutorial)) failure=\(String(describing:game.sourcePresentationFailure))")
                 XCTAssertLessThan(game.engine.state.wildMeter,1,"Special Bar precedes a fully charged meter")
                 // The second-merge test ends at the admitted Special Bar.
                 // Later delivery/drag fixtures own the remaining interactions.
                 if dismiss == nil && !fourth && !backpackArrival {return}
                 let button=specialButton
                     if backpackArrival {
-                        button.sendActions(for:.touchUpInside)
+                        if overlay.specialBarVisible {button.sendActions(for:.touchUpInside)}
                         let exitDeadline=Date().addingTimeInterval(5)
                         while (overlay.specialBarVisible || scene.tutorialSpecialBarFocusValue>0.001) && Date()<exitDeadline {
                             wall+=16;service.deliver(wallMilliseconds:wall)
@@ -678,7 +697,7 @@ import StackToSixNativeState
                             try await Task.sleep(for:.milliseconds(10))
                         }
                         XCTAssertTrue(overlay.backpackPromptVisible)
-                        XCTAssertTrue(overlay.backpackInkVisible,"actual sprite frame must be painted above the sheet paper")
+                        XCTAssertTrue(overlay.backpackInkBehindSheet,"actual sprite frame must remain behind the sheet paper")
                         let carrier=try XCTUnwrap(scene.heldTutorialBackpackCarrier)
                         let host=try XCTUnwrap(scene.gameplayRenderHost)
                         let anchor=overlay.convert(host.scenePointToView(carrier.convert(.zero,to:scene),scene:scene),from:host.renderView)
@@ -701,22 +720,31 @@ import StackToSixNativeState
                         XCTAssertEqual(carrier.position,pausedPosition)
                         let closedScale=carrier.xScale
                         let closedYScale=carrier.yScale,closedTexture=carrier.texture
-                        if verifyCarrierNotInteractive {
-                            XCTAssertFalse(overlay.subviews.contains{$0.accessibilityIdentifier=="native.tutorial.open-backpack"})
-                            let frame=overlay.tutorialCarrierFrame(arcade:false)
-                            XCTAssertFalse(overlay.hitTest(CGPoint(x:frame.midX,y:frame.midY),with:nil) is UIControl)
+                        if verifyCarrierInteractive {
+                            let carrierButton=try XCTUnwrap(overlay.subviews.first{$0.accessibilityIdentifier=="native.tutorial.open-backpack"} as? UIButton)
+                            XCTAssertTrue(carrierButton.isHidden)
+                            XCTAssertFalse(carrierButton.isEnabled)
                         }
                         button.sendActions(for:.touchDown);button.sendActions(for:.touchUpInside)
                         var maximumRise:CGFloat=0,minimumStretch:CGFloat=1,maximumStretch:CGFloat=1
                         var returnedBeforeOpening=false
-                        var bouncedDuringSheetExit=false
+                        var sampledEarlySheetExit=false,peakCaptured=false
                         let resumeDeadline=Date().addingTimeInterval(8)
                         while game.engine.state.wildSpawnCount==pausedCount && Date()<resumeDeadline {
                             wall+=16;service.deliver(wallMilliseconds:wall)
-                            if overlay.sourceSheetTranslation>0 && overlay.backpackPromptVisible && carrier.xScale>closedScale*1.01 {bouncedDuringSheetExit=true}
+                            if overlay.sourceSheetTranslation>0 && overlay.sourceSheetTranslation<overlay.sourceSheetHeight*0.5 {
+                                sampledEarlySheetExit=true
+                                XCTAssertEqual(carrier.xScale,closedScale,accuracy:0.001,"Carrier remains held before halfway")
+                                XCTAssertEqual(carrier.yScale,closedYScale,accuracy:0.001)
+                            }
                             if carrier.texture === closedTexture {
                                 let point=overlay.convert(host.scenePointToView(carrier.convert(.zero,to:scene),scene:scene),from:host.renderView)
-                                if overlay.sourceSheetTranslation>0 && overlay.backpackPromptVisible {maximumRise=max(maximumRise,anchor.y-point.y)}
+                                maximumRise=max(maximumRise,anchor.y-point.y)
+                                if !peakCaptured,maximumRise>expected.height*0.75 {
+                                    peakCaptured=true
+                                    let image=UIGraphicsImageRenderer(bounds:game.view.bounds).image{_ in game.view.drawHierarchy(in:game.view.bounds,afterScreenUpdates:true)}
+                                    try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/tutorial-backpack-taller-jump.png"))
+                                }
                                 minimumStretch=min(minimumStretch,carrier.yScale/closedYScale)
                                 maximumStretch=max(maximumStretch,carrier.yScale/closedYScale)
                                 if maximumRise>expected.height*0.30,abs(point.y-anchor.y)<1,abs(carrier.xScale/closedScale-1)<0.03,abs(carrier.yScale/closedYScale-1)<0.03 {returnedBeforeOpening=true}
@@ -725,8 +753,8 @@ import StackToSixNativeState
                             try await Task.sleep(for:.milliseconds(10))
                         }
                         print("[TUTORIAL_BACKPACK_HOP] rise=\(maximumRise) height=\(expected.height) squash=\(minimumStretch) stretch=\(maximumStretch) returned=\(returnedBeforeOpening)")
-                        XCTAssertTrue(bouncedDuringSheetExit,"Carrier scale-up must overlap the sheet descent")
-                        XCTAssertGreaterThan(maximumRise,expected.height*0.30,"Backpack jumps upward while the sheet descends")
+                        XCTAssertTrue(sampledEarlySheetExit,"Exercise the held first half of actual sheet descent")
+                        XCTAssertGreaterThan(maximumRise,expected.height*0.30,"Backpack completes the taller jump after half the sheet descent")
                         XCTAssertLessThan(minimumStretch,0.85);XCTAssertGreaterThan(maximumStretch,1.20)
                         XCTAssertTrue(returnedBeforeOpening,"Backpack returns to its original anchor and size before its original opening frames")
                         XCTAssertGreaterThan(game.engine.state.wildSpawnCount,pausedCount,"Open backpack resumes the same earned Special drop")

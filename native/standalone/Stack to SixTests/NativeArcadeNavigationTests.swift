@@ -199,7 +199,7 @@ final class NativeArcadeNavigationTests: XCTestCase {
         let anchor=carrier.position
         for _ in 0..<45{wall+=16;service.deliver(wallMilliseconds:wall)}
         XCTAssertEqual(carrier.position,anchor)
-        XCTAssertFalse(overlay.subviews.contains{$0.accessibilityIdentifier=="native.tutorial.open-backpack"})
+        XCTAssertTrue(overlay.subviews.contains{$0.accessibilityIdentifier=="native.tutorial.open-backpack" && !$0.isHidden})
         func descendants(_ view:UIView)->[UIView]{[view]+view.subviews.flatMap(descendants)}
         let tap=try XCTUnwrap(descendants(overlay).first{$0.accessibilityIdentifier=="native.tutorial.got-it"} as? UIButton)
         XCTAssertEqual(tap.title(for:.normal),"Got it")
@@ -258,10 +258,15 @@ final class NativeArcadeNavigationTests: XCTestCase {
         let target=try XCTUnwrap(game.engine.state.activeTiles.first{game.engine.canBeginDrag(tileID:$0.id)})
         XCTAssertTrue(game.engine.canBeginDrag(tileID:target.id))
     }
-    func testJourneyCueInheritsOriginalCardMotionAndRetires() throws {
+    func testJourneyCueInheritsOriginalCardMotionAndRetires() async throws {
         let card=UIView(frame:CGRect(x:60,y:300,width:150,height:200))
         card.transform=CGAffineTransform(rotationAngle:-0.09)
         let host=UIView(frame:CGRect(x:0,y:0,width:820,height:1180));host.addSubview(card)
+        let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+        let window=UIWindow(frame:host.bounds),controller=UIViewController();controller.view=host
+        window.rootViewController=controller;window.makeKeyAndVisible()
+        defer{window.isHidden=true;window.rootViewController=nil;previous?.makeKeyAndVisible()}
+
         let overlay=NativeTutorialOverlay(resourceRoot:NativeTestResources.root);overlay.frame=host.bounds;host.addSubview(overlay)
         overlay.showWorldIntro(card:card,target:{card.convert(card.bounds,to:host)})
         let paper=try XCTUnwrap(card.subviews.first{$0.accessibilityIdentifier=="native.tutorial.card-cue-paper"})
@@ -269,6 +274,28 @@ final class NativeArcadeNavigationTests: XCTestCase {
         XCTAssertEqual(title.frame.maxY,-8)
         XCTAssertEqual(title.frame.midX,card.bounds.midX)
         XCTAssertTrue(title.superview === card);XCTAssertTrue(paper.superview === card)
+        let hand=try XCTUnwrap(host.subviews.first{$0.accessibilityIdentifier=="native.tutorial.world-hand-carrier"})
+        let pointer=try XCTUnwrap(hand.subviews.first)
+        XCTAssertNil(pointer.layer.animation(forKey:"tutorial.world-tap"),"Only the actual card supplies idle motion")
+        let motion=JimiNativeInterimEffect(card:card,scale:1)
+        defer{motion.setMotionFollower(nil);motion.stop();overlay.dispose()}
+        motion.start();motion.setMotionFollower(hand.layer)
+        let source=try XCTUnwrap(card.layer.animation(forKey:"world.interim") as? CAKeyframeAnimation)
+        let follower=try XCTUnwrap(hand.layer.animation(forKey:"world.interim.follower") as? CAKeyframeAnimation)
+        XCTAssertEqual(hand.layer.convertTime(follower.beginTime,to:nil)-card.layer.convertTime(source.beginTime,to:nil),0.15,accuracy:0.000001)
+        XCTAssertEqual(follower.duration,source.duration)
+        XCTAssertEqual(follower.values as? [NSValue],source.values as? [NSValue])
+        XCTAssertEqual(hand.layer.anchorPoint,card.layer.anchorPoint)
+        XCTAssertEqual(hand.layer.position,card.layer.position)
+        try await waitFor{card.layer.animation(forKey:"world.interim")?.beginTime != source.beginTime}
+        let next=try XCTUnwrap(card.layer.animation(forKey:"world.interim") as? CAKeyframeAnimation)
+        let nextFollower=try XCTUnwrap(hand.layer.animation(forKey:"world.interim.follower") as? CAKeyframeAnimation)
+        XCTAssertEqual(hand.layer.convertTime(nextFollower.beginTime,to:nil)-card.layer.convertTime(next.beginTime,to:nil),0.15,accuracy:0.000001)
+        XCTAssertEqual(nextFollower.values as? [NSValue],next.values as? [NSValue],"Every randomized cycle must share the exact selected card track")
+
+        overlay.setSuspended(true);XCTAssertEqual(hand.layer.speed,0)
+        overlay.setSuspended(false);XCTAssertEqual(hand.layer.speed,1)
+
         let surface=try XCTUnwrap(paper.subviews.compactMap{$0 as? NativeSettingsPaperSurface}.first)
         XCTAssertEqual(surface.cornerRadius,12);XCTAssertEqual(surface.edgeDetailScale,0.4)
         XCTAssertEqual(paper.layer.borderWidth,0);XCTAssertNotNil(paper.layer.shadowPath)
@@ -282,8 +309,10 @@ final class NativeArcadeNavigationTests: XCTestCase {
         }
         try preview.pngData()?.write(to:URL(fileURLWithPath:"/tmp/journey-cue-paper-preview.png"))
         XCTAssertTrue(title.transform.isIdentity,"Original parent owns all tilt/bounce, without a second motion clock")
+        motion.stop();XCTAssertNil(hand.layer.animation(forKey:"world.interim.follower"))
+        motion.setMotionFollower(nil)
         overlay.dispose()
-        XCTAssertNil(title.superview);XCTAssertNil(paper.superview)
+        XCTAssertNil(title.superview);XCTAssertNil(paper.superview);XCTAssertNil(hand.superview);XCTAssertNil(pointer.superview)
     }
     func testComboLessonShowsHandAtLiveComboHUD()async throws {
         var state=NativeBoardFactory.make(mode:.journey,board:1)
@@ -337,12 +366,17 @@ final class NativeArcadeNavigationTests: XCTestCase {
             XCTAssertNil(saved.firstPlayRun)
             if board==0 {
                 XCTAssertTrue(saved.progression.completedJourneyBoards.isEmpty);XCTAssertNil(saved.pendingArcadeRound)
-                XCTAssertNotNil(app.children.first{$0 is NativeTutorialCompleteController})
+                let result=try XCTUnwrap(game.presentedViewController as? NativeResultController)
+                XCTAssertTrue(result.clean)
+                XCTAssertNil(app.children.first{$0 is NativeTutorialCompleteController})
                 XCTAssertEqual(saved.progression.arcadeStats,NativeArcadeStats())
-                let completed=try XCTUnwrap(app.children.first{$0 is NativeTutorialCompleteController} as? NativeTutorialCompleteController)
-                completed.sampleEnter(seconds:1);completed.requestContinue()
-                try await waitFor{completed.parent==nil && game.engine.state.tutorial==nil}
-                XCTAssertEqual(game.engine.state.board,1);XCTAssertEqual(game.engine.state.score,0)
+                for frame in 0...660 {result.tick(Double(frame)/60)}
+                func all(_ view:UIView)->[UIView]{[view]+view.subviews.flatMap(all)}
+                let button=try XCTUnwrap(all(result.view).compactMap{$0 as? UIButton}.first{$0.accessibilityIdentifier=="native.result.play-again"})
+                XCTAssertEqual(button.title(for:.normal),"Continue");button.sendActions(for:.touchUpInside)
+                try await waitFor{app.route == .arcadeHub && app.tutorialFarewell != nil}
+                XCTAssertNil(game.parent)
+                XCTAssertNil(try XCTUnwrap(store.load()).arcadeRun)
                 XCTAssertTrue(try XCTUnwrap(store.load()).progression.firstPlayTutorialComplete)
             } else {
                 XCTAssertEqual(saved.progression.completedJourneyBoards,[board])

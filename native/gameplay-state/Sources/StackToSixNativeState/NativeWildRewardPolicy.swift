@@ -7,6 +7,9 @@ public enum NativeWildRewardPolicy {
     // First special drop of a NEW Endurance run only; no save/schema mutation.
     static let enduranceBaloonFirstDropTrialEnabled = true
     public static func choose(state:NativeBoardState,roll:Double,plainStarUnlocked:Bool,mushroomUnlocked:Bool=false,unlockedJourneyDice:Set<String>=[],allowEnduranceTrial:Bool=true,nextRoll:()->Double) -> NativeWildRewardChoice? {
+        if state.mode == .arcade,state.tutorial?.done == false {
+            return NativeTutorialRules.arcadeReward(roll:roll)
+        }
         if state.mode == .journey {
             // Before this marker existed, Unit6's very first committed drop
             // was always Mushroom. Preserve that evidence in legacy saves.
@@ -16,16 +19,13 @@ public enum NativeWildRewardPolicy {
         }
         if allowEnduranceTrial,enduranceBaloonFirstDropTrialEnabled,state.effectiveArcadeVariant == .endurance,
            state.board == 1,state.wildSpawnCount == 0 {return .init(.juice,variant:"baloon")}
-        // Keep the existing Arcade identities, but make the former introductory
-        // variants eligible randomly instead of assigning them to numbered drops.
-        var pool:[NativeWildRewardChoice]=[.init(.juice),.init(.juice,variant:"baloon"),.init(.magnet),.init(.tnt)]
-        if plainStarUnlocked {pool.insert(.init(.star),at:0)}
-        if state.effectiveArcadeVariant != .pureDice {
-            pool += [.init(.magnet,variant:"bottle"),.init(.star,variant:"cubero"),.init(.tnt,variant:"barell")]
-        }
+        // Actual Journey discoveries, shared with Box, own Arcade admission.
+        // Legacy unlock flags remain in this API for saved/caller compatibility.
+        var pool=NativeArcadeBoxContent.rewards(unlockedJourneyDice:unlockedJourneyDice)
         let draw=bound(roll)
-        if mushroomUnlocked,state.effectiveArcadeVariant != .pureDice {
-            if draw < mushroomProbability {return .init(.juice,variant:"mushroom")}
+        if let mushroom=pool.first(where:{$0.variant=="mushroom"}) {
+            if draw < mushroomProbability {return mushroom}
+            pool.removeAll{$0.variant=="mushroom"}
             let remaining=(draw-mushroomProbability)/(1-mushroomProbability)
             return pool[min(pool.count-1,Int(remaining*Double(pool.count)))]
         }

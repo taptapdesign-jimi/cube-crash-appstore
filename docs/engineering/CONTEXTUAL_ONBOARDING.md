@@ -1,8 +1,79 @@
+Tutorial delivery landing latest clarification(user2026-11-13): BOTH iPhone
+and iPad end the Box/Backpack jump at visible-ink center70percent viewport
+height,20percent below screen midpoint,and open there. Supersedes phone-retains-
+old-anchor policy;initial covered placement,slower spring jump and drop target stay.
+
+Tutorial spring jump latest(user2026-11-13): slower370ms ascent,25percent
+higher crest,stronger upward stretch,gentler260ms return and smaller contact
+squash. Total1.26s supersedes1.02s. Shared Box/Backpack and device return anchors
+remain;tablet opening-anchor transfer follows the same slower takeoff clock.
+
+Tutorial carrier landing softness(user2026-11-13): shared Box/Backpack jump
+settles over1.02s instead of0.88s. Descent eases to zero speed at contact,smaller
+landing squash,longer recovery and55percent second-bounce squash at slower pace.
+Takeoff height,half-sheet timing and device-specific opening positions stay.
+
+iPad tutorial delivery (user2026-11-13): match current iPhone external covered
+Backpack/Box,Open backpack/Open box CTA and half-sheet-descent jump. iPad only
+returns the visible closed carrier center to70percent screen height before
+opening,20percent below midpoint. Initial covered anchor and phone geometry stay.
+
+Arcade tutorial clear policy (user2026-11-13): before Clean Board, reuse the
+existing Journey CLEARED animation and original random thumb/paw. Admit at
+settled tutorial terminal, wait for existing board exit, then show Clean Board
+without another numbered-round cue. Ordinary Arcade remains unchanged.
+
+Native tutorial round-label policy (user2026-11-13): no Arcade round indicator
+or numbered entry announcement until firstPlayTutorialComplete is globally
+true, including saved tutorial
+checkpoints, locally completed guide flags and foreground/relaunch. Local HUD
+lesson unlocks do not admit numbered rounds. Existing tutorial checkpoint and
+normal game progression remain unchanged.
+
+Latest user2026-11-13: tutorial narration finishes naturally after any Got it,
+Continue,High five or collection action. One existing finite speech owner queues
+subsequent admitted lessons until actual file completion;sheet exit/route changes
+do not truncate human speech. Sounds OFF/background/system interruption/disposal
+still cancel without replay. Arcade Open box now opens the actual collection
+through the same path as Journey Open backpack;acknowledge only after actual
+collection dismissal. No standalone hide-only Arcade CTA branch remains.
+
+User2026-11-12 latest edge refinement:lower final high-five characters4layout pt
+from prior+10position,leaving+14authored pt. The complete35pt anchor(21+14) scales with
+tablet illustration size so the cut meets the paper top on both devices. CTA High five! and all other styling retained.
+
+User2026-11-12 latest farewell refinement:CTA High five! only acknowledges/closes.
+Raise characters14layout pt from prior+24position,leaving+10after existing
+phone/tablet anchor scale. Two-line copy,modal backdrop and all lifecycle unchanged.
+
+User2026-11-12 farewell visual refinement:subtitle is exactly2lines,
+Discover new dice and cards. / Beat your best and have fun!,at existing font size.
+Final step10 alone uses existing shared modal backdrop behind paper/characters.
+High-five art shifts24layout pt down after existing phone/tablet scale. Other
+lessons and final motion/audio/receipt/input lifecycle remain unchanged.
+
+User2026-11-12 closing lesson: after the last in-board lesson is acknowledged,
+first return to Journey selection (Continue or deliberate Exit) shows one
+final tutorial paper with original hi five.png,You’re ready!,Discover new dice,
+collect legendary cards,and chase your next high score.The fun starts now!,Got it.
+Supplied SPEECH/have fun.mp3 says That’s it,you’re ready! Have fun! Existing
+selected speech owner admits once at actual paper landing. Selection admission
+holds all route input/motion behind the independently animated sheet;foreground
+does not release that hold. Got it acknowledges and only closes/resumes.
+Optional tutorialFarewellPending receipt is absent before enqueue,true while
+pending,false after acknowledgement;old completed profiles do not acquire it.
+Last-lesson saves and canonical completion enqueue only if absent,so later board
+completion cannot replay an acknowledged farewell. Exiting an unfinished board
+retains its existing tutorial checkpoint/global completion semantics. Latest
+Arcade policy:practice Clean Board Continue/Exit both return to Arcade hub and
+show this same farewell;early Exit before practice success does not admit it. Existing
+finite paper motion,tablet art projection,Settings and lifecycle cleanup apply.
+
 User2026-11-12 latest motion:Your backpack paper begins at50percent of captured Special animation;visual preview only until genuine canonical settlement enables collection action. Tutorial Backpack shimmer is700ms continuous sweep with quick fade,using existing shared clock;ordinary/Special shimmer defaults retained.
 
 User2026-11-12 final lesson:Your combo / Stack and merge quickly / to boost your combo and score. / Next;then Clear the board! / Stack and merge anywhere. / Clear every die and have fun! / Keep going. Final clear board.png uses existing top-edge character slot. Canonical optional completionLessonAcknowledged restores pending final;input/combo remain paused until Keep going exits.
 
-User2026-11-12 latest:Journey shows Play fast. Score big. immediately after Backpack tutorial visit returns,before another gameplay move. Current collection acknowledgement makes combo ready;legacy nil collection receipt and Arcade retain six-move policy.
+User2026-11-13 latest:both Journey and Arcade show Your combo immediately after the real tutorial Backpack/Box visit returns,before another gameplay move. Collection acknowledgement makes Combo ready in both modes;only legacy nil collection receipts retain the six-move fallback. A pending Combo lesson with absent comboHUDRevealed may recover;acknowledged or legacy-skipped lessons do not replay. Existing exact-generation UIKit dismissal and collectionVisitPending guards remain.
 
 User2026-11-12 latest Journey delivery copy:Your backpack drops / a random Special die. Two lines,CTA Got it. Arcade Box copy retained.
 
@@ -68,10 +139,15 @@ Real Journey/Arcade run slots, progression, settings and rewards remain preserve
   the actual global board1/11/21, with Bee/Juice/Robo from the authored World pool.
   Successful clearing uses the existing CLEARED/result/card owner and atomically
   records this Unit and global tutorial completion. Other Worlds remain unchanged.
-- Arcade practice retains the selected variant. Its eligible random Special is
-  selected once and saved. Practice has no number announcement, real run stats,
-  pending next-round receipt or Journey completion. Success persists the global
-  receipt and presents Tutorial completed/thumb/Continue. Continue starts real01.
+- Arcade practice uses Endurance gameplay for every selected variant, including
+  incomplete checkpoint resume and restart. The selected real variant is preserved
+  for normal games after the global tutorial completes. Its eligible random
+  Special is selected once and saved. Practice has no number announcement, real
+  run stats, pending next-round receipt or Journey completion. Genuine completion
+  presents the full Clean Board result; Continue and Exit both return to Arcade
+  selection, then show the existing final high-five sheet. Early practice Exit
+  preserves the unfinished guide and does not show that farewell. User2026-11-12
+  supersedes the former Tutorial completed cover and real01 continuation.
 - At 70% of the actual Special animation, after canonical gameplay settlement,
   Great merge / Keep stacking and merging to clear the board / Continue uses the existing bottom sheet and its
   finite enter/exit. A generation-scoped input lock owns the pause. A persisted
@@ -167,3 +243,7 @@ close or disposal. No extra saved lesson state,audio,haptic or scheduler.
 ### Collection guidance once per first-time profile (2026-11-12)
 
 The first fully admitted tutorial Backpack or Box visit owns the die, detail-close and collection-close hands. NativeBootstrap persists `progression.tutorialCollectionGuidanceSeen` on entry admission, so subsequent visits and relaunches do not repeat them. Canceled preparation does not consume the receipt. Both modes point at the same lower-right card position (90% across and down). A fresh profile resets the receipt.
+
+### Tutorial Box parity, 2026-11-13
+
+iPhone Arcade delivery uses “Your box drops / a random Special die.” on two lines. The original illustration torso cutoff (row625of741 at3x) meets the paper top; Journey and iPad layout/copy remain unchanged. Tutorial Box reuses the approved Backpack880ms two-jump squash/stretch recipe on its existing Source clock, normalized to equal visible carrier ink height. Normal Arcade crate drops retain their existing motion.

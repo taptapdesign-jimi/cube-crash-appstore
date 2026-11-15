@@ -25,19 +25,19 @@ import StackToSixNativeState
         try await wait("Home admitted"){(!app.home.isEntering && app.home.isUserInteractionEnabled)}
         app.navigate(.hub)
         try await wait("Journey Hub entering"){app.route == .hub}
-        XCTAssertFalse(app.hub.scrollView.isUserInteractionEnabled)
+        XCTAssertTrue(app.transitioning,"Backpack stays gated while World islands accept early taps")
         app.hub.backpackButton.sendActions(for:.touchUpInside)
         XCTAssertEqual(app.route,.hub)
-        try await wait("Journey Hub admitted"){app.hub.scrollView.isUserInteractionEnabled}
+        try await wait("Journey Hub admitted"){!app.transitioning && app.hub.scrollView.isUserInteractionEnabled}
         app.hub.backpackButton.sendActions(for:.touchUpInside)
-        try await wait("Hub Backpack opens"){app.route == .backpack && app.backpackView?.isUserInteractionEnabled==true}
+        try await wait("Hub Backpack opens"){app.route == .backpack && !app.transitioning && app.backpackView?.isClosePaintedVisible==true && app.backpackView?.isUserInteractionEnabled==true}
         app.backpackView?.close.sendActions(for:.touchUpInside)
-        try await wait("Back to Hub"){app.route == .hub && app.hub.scrollView.isUserInteractionEnabled}
+        try await wait("Back to Hub"){app.route == .hub && !app.transitioning && app.hub.scrollView.isUserInteractionEnabled}
         for id in 1...3 {
             app.navigate(.world(id))
             try await wait("World entering"){app.route == .world(id) && app.world != nil}
             let world=try XCTUnwrap(app.world)
-            XCTAssertFalse(world.isReadyForInput)
+            XCTAssertTrue(app.transitioning,"Backpack waits for route entry even when cards admit early input")
             world.backpackButton.sendActions(for:.touchUpInside)
             app.navigate(.backpack,interrupt:true)
             XCTAssertEqual(app.route,.world(id),"Even interrupt cannot bypass Backpack source admission")
@@ -49,11 +49,11 @@ import StackToSixNativeState
             NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
             try await wait("World foreground"){world.isReadyForInput}
             world.backpackButton.sendActions(for:.touchUpInside)
-            try await wait("World Backpack opens"){app.route == .backpack && app.backpackView?.isUserInteractionEnabled==true}
+            try await wait("World Backpack opens"){app.route == .backpack && !app.transitioning && app.backpackView?.isClosePaintedVisible==true && app.backpackView?.isUserInteractionEnabled==true}
             app.backpackView?.close.sendActions(for:.touchUpInside)
             try await wait("Backpack returns to same World"){app.route == .world(id) && app.world?.isReadyForInput==true}
             app.navigate(.hub)
-            try await wait("Hub after World"){app.route == .hub && app.hub.scrollView.isUserInteractionEnabled}
+            try await wait("Hub after World"){app.route == .hub && !app.transitioning && app.hub.scrollView.isUserInteractionEnabled}
         }
     }
     func testEarlyCrateTapCannotPoisonArcadeNavigation()async throws {
@@ -80,13 +80,13 @@ import StackToSixNativeState
             return root.subviews.lazy.compactMap{button($0,id)}.first
         }
         let close=try XCTUnwrap(button(app.arcadeHub,"native.arcade-world-modal.close"))
-        try await Task.sleep(for:.milliseconds(800))
+        try await wait("World modal ready"){app.arcadeHub.subviews.first{$0.accessibilityIdentifier=="native.arcade-world-modal"}?.accessibilityValue=="ready"}
         close.sendActions(for:.touchUpInside)
         try await wait("World modal closed"){
             !app.arcadeHub.subviews.contains{$0.accessibilityIdentifier=="native.arcade-world-modal"}
         }
         app.arcadeHub.hub.backpackButton.sendActions(for:.touchUpInside)
-        try await wait("Crate still opens after admission"){app.route == .backpack && app.backpackView?.isUserInteractionEnabled==true}
+        try await wait("Crate still opens after admission"){app.route == .backpack && !app.transitioning && app.backpackView?.isClosePaintedVisible==true && app.backpackView?.isUserInteractionEnabled==true}
         app.backpackView?.close.sendActions(for:.touchUpInside)
         try await wait("Crate returned to Arcade"){app.route == .arcadeHub && !app.transitioning && app.arcadeHub.hub.scrollView.isUserInteractionEnabled}
         app.arcadeHub.hub.backButton.sendActions(for:.touchUpInside)
@@ -101,15 +101,21 @@ import StackToSixNativeState
         let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=app;window.makeKeyAndVisible()
         defer{app.dispose();window.isHidden=true}
         try await wait("Home"){(!app.home.isEntering && app.home.isUserInteractionEnabled)};app.navigate(.hub)
-        try await wait("Hub"){app.route == .hub && app.hub.scrollView.isUserInteractionEnabled}
+        try await wait("Hub"){app.route == .hub && !app.transitioning && app.hub.scrollView.isUserInteractionEnabled}
         app.navigate(.backpack)
-        try await wait("Backpack"){app.route == .backpack && app.backpackView?.isUserInteractionEnabled == true}
-        XCTAssertEqual(app.backpackView?.seenUnreadDice,["bee"])
+        try await wait("Backpack"){app.route == .backpack && !app.transitioning && app.backpackView?.isClosePaintedVisible==true && app.backpackView?.isUserInteractionEnabled == true}
+        let firstSeen=try XCTUnwrap(app.backpackView).seenUnreadDice
+        XCTAssertTrue(firstSeen.contains("bee"))
+        XCTAssertTrue(firstSeen.isSubset(of:["bee","fish"]))
         app.backpackView?.close.sendActions(for:.touchUpInside)
         try await wait("Return"){app.route == .hub}
-        XCTAssertEqual(progress.unreadJourneyDice,["fish"])
-        try await wait("Hub admitted"){app.hub.scrollView.isUserInteractionEnabled};app.navigate(.backpack)
-        try await wait("Second visit"){app.route == .backpack && app.backpackView?.isUserInteractionEnabled == true}
+        XCTAssertEqual(progress.unreadJourneyDice,Set(["bee","fish"]).subtracting(firstSeen))
+        // A tablet may already show Fishy on the first viewport. Re-arm its
+        // real discovery receipt so the next visit still checks close-only reads.
+        progress.resetDeveloperJourneyDieAnnouncement(board:12)
+        XCTAssertTrue(progress.announceJourneyDie("fish",board:12))
+        try await wait("Hub admitted"){!app.transitioning && app.hub.scrollView.isUserInteractionEnabled};app.navigate(.backpack)
+        try await wait("Second visit"){app.route == .backpack && !app.transitioning && app.backpackView?.isClosePaintedVisible==true && app.backpackView?.isUserInteractionEnabled == true}
         let screen=try XCTUnwrap(app.backpackView)
         let section=try XCTUnwrap(screen.sections.firstIndex{$0.dice.contains{$0.id=="fish"}})
         let item=try XCTUnwrap(screen.sections[section].dice.firstIndex{$0.id=="fish"})
@@ -134,19 +140,19 @@ import StackToSixNativeState
         XCTAssertNotNil(app.arcadeHub.hub.backpackButton.imageView?.layer.animation(forKey:NativeHubBackpackFeedback.switchKey))
         XCTAssertFalse(app.arcadeHub.hub.backpackButton.image(for:.normal) === closedCrate)
         app.arcadeHub.hub.backpackButton.sendActions(for:.touchUpInside)
-        try await wait("Crate admitted"){app.route == .backpack && app.backpackView?.isUserInteractionEnabled==true}
+        try await wait("Crate admitted"){app.route == .backpack && !app.transitioning && app.backpackView?.isClosePaintedVisible==true && app.backpackView?.isUserInteractionEnabled==true}
         let crate=try XCTUnwrap(app.backpackView)
         XCTAssertTrue(crate.arcadeCrate);XCTAssertEqual(crate.accessibilityIdentifier,"native.arcade.crate")
         XCTAssertTrue(labels(crate).contains("Box"))
         XCTAssertEqual(crate.numberOfSections(in:crate.grid),1)
-        XCTAssertEqual(crate.collectionView(crate.grid,numberOfItemsInSection:0),3)
+        XCTAssertEqual(crate.collectionView(crate.grid,numberOfItemsInSection:0),4)
         crate.grid.layoutIfNeeded()
         let first=try XCTUnwrap(crate.grid.layoutAttributesForItem(at:.init(item:0,section:0)))
         let second=try XCTUnwrap(crate.grid.layoutAttributesForItem(at:.init(item:1,section:0)))
         let third=try XCTUnwrap(crate.grid.layoutAttributesForItem(at:.init(item:2,section:0)))
         XCTAssertEqual(first.frame.minY,second.frame.minY,accuracy:0.5)
         XCTAssertGreaterThan(second.frame.minX,first.frame.minX)
-        XCTAssertGreaterThan(third.frame.minY,first.frame.minY)
+        XCTAssertEqual(third.frame.minY,first.frame.minY,accuracy:0.001)
 
         NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
         XCTAssertFalse(crate.isUserInteractionEnabled)
@@ -170,20 +176,20 @@ import StackToSixNativeState
         try await wait("Crate returned to Arcade"){app.route == .arcadeHub && !app.transitioning && app.arcadeHub.hub.scrollView.isUserInteractionEnabled}
         XCTAssertTrue(app.arcadeHub.hub.backpackButton.image(for:.normal) === closedCrate)
         app.navigate(.hub)
-        try await wait("Journey Hub admitted"){app.route == .hub && app.hub.scrollView.isUserInteractionEnabled}
+        try await wait("Journey Hub admitted"){app.route == .hub && !app.transitioning && app.hub.scrollView.isUserInteractionEnabled}
         let journeyClosed=app.hub.backpackButton.image(for:.normal)
         app.hub.backpackButton.sendActions(for:.touchUpInside)
         XCTAssertNotNil(app.hub.backpackButton.imageView?.layer.animation(forKey:NativeHubBackpackFeedback.switchKey))
         XCTAssertFalse(app.hub.backpackButton.image(for:.normal) === journeyClosed)
 
-        try await wait("Journey Backpack admitted"){app.route == .backpack && app.backpackView?.isUserInteractionEnabled==true}
+        try await wait("Journey Backpack admitted"){app.route == .backpack && !app.transitioning && app.backpackView?.isClosePaintedVisible==true && app.backpackView?.isUserInteractionEnabled==true}
         let journey=try XCTUnwrap(app.backpackView)
         XCTAssertFalse(journey === crate);XCTAssertFalse(journey.arcadeCrate)
         XCTAssertTrue(labels(journey).contains("Backpack"));XCTAssertFalse(journey.sections.isEmpty)
         XCTAssertNil(crate.onClose);XCTAssertNil(crate.onDie)
         XCTAssertFalse(app.hub.backpackButton.image(for:.normal) === journeyClosed,"Retained Journey icon stays open throughout Backpack")
         journey.close.sendActions(for:.touchUpInside)
-        try await wait("Journey Backpack returned to Journey Hub"){app.route == .hub && app.hub.scrollView.isUserInteractionEnabled}
+        try await wait("Journey Backpack returned to Journey Hub"){app.route == .hub && !app.transitioning && app.hub.scrollView.isUserInteractionEnabled}
         XCTAssertTrue(app.hub.backpackButton.image(for:.normal) === journeyClosed)
         try await wait("Delayed Journey backpack close settled"){app.hub.backpackButton.imageView?.layer.animation(forKey:NativeHubBackpackFeedback.switchKey) == nil}
 

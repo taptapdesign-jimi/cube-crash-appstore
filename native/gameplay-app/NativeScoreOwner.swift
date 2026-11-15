@@ -31,7 +31,13 @@ final class NativeScoreOwner {
             state.mode == .journey && section.dice.contains {($0.board-1)/10 == (state.board-1)/10}
         }
         guard let app=gameplay.parent as? NativeAppController else{return}
-        let controller=NativeGameplayBackpackController(root:root,sections:sections,includesArcade:state.mode == .arcade,motion:NativeRouteMotion(home:app.home,hub:app.hub),tutorialGuidance:state.tutorial != nil && !progression().firstPlayTutorialComplete && !progression().tutorialCollectionGuidanceSeen)
+        // An interrupted collection lesson must keep its full walkthrough even
+        // when an earlier admission already persisted the one-time seen marker.
+        let collectionLessonPending=state.tutorial?.collectionLessonAcknowledged == false
+        let tutorialGuidance=state.tutorial != nil && !progression().firstPlayTutorialComplete &&
+            (collectionLessonPending || !progression().tutorialCollectionGuidanceSeen)
+        let tutorialDieID=state.mode == .arcade ? state.tutorial.map { $0.reward.variant ?? ($0.reward.archetype == .tnt ? "tnt":$0.reward.archetype.rawValue) }:nil
+        let controller=NativeGameplayBackpackController(root:root,sections:sections,includesArcade:state.mode == .arcade,arcadeDice:NativeBackpackCatalog.box(progression()),motion:NativeRouteMotion(home:app.home,hub:app.hub),tutorialGuidance:tutorialGuidance,tutorialDieID:tutorialDieID)
         backpack=controller;lease += 1;let token=lease;gameplay.boardScene?.setBackpackPresented(true);gameplay.setSuspended(true);onFeedback?("exit-modal");onFeedback?("collection-icon-speech")
         // A collection visit acknowledges only the notifications it displayed, and
         // only after dismissal returns to this exact board. Discovery never opens UI.
@@ -81,6 +87,7 @@ final class NativeScoreOwner {
 final class NativeGameplayBackpackController:UIViewController {
     private(set) var seenUnreadDice=Set<String>()
     private let assets:JimiV9Artwork,sections:[NativeBackpackCatalog.Section],includesArcade:Bool
+    private let arcadeDice:[NativeBackpackCatalog.Die]
     private let motion:NativeRouteMotion
     let card=UIView(),heading=UILabel(),subtitle=UILabel()
     private let restTilt=JimiNativeModalTransformView()
@@ -99,14 +106,16 @@ final class NativeGameplayBackpackController:UIViewController {
     private var foreground=true,closing=false,entered=false,admitted=false,disposed=false
     var onTutorialGuidanceAdmitted:(()->Void)?
     private let tutorialGuidance:Bool
+    private let tutorialDieID:String?
     private var tutorialDetailVisited=false
     private(set) var tutorialHand:NativeCollectionTutorialHand?
     var onReadDie:((String)->Bool)?
     var onHUDCloseRequested:(()->Void)?
     var onCloseRequested:(()->Void)?,onClosed:(()->Void)?,onFeedback:((String)->Void)?
-    init(root:URL,sections:[NativeBackpackCatalog.Section],includesArcade:Bool,motion:NativeRouteMotion,tutorialGuidance:Bool=false) {
-        assets=JimiV9Artwork(resourceRoot:root);self.sections=sections;self.includesArcade=includesArcade;self.motion=motion
+    init(root:URL,sections:[NativeBackpackCatalog.Section],includesArcade:Bool,arcadeDice:[NativeBackpackCatalog.Die]=NativeBackpackCatalog.arcade,motion:NativeRouteMotion,tutorialGuidance:Bool=false,tutorialDieID:String?=nil) {
+        assets=JimiV9Artwork(resourceRoot:root);self.sections=sections;self.includesArcade=includesArcade;self.arcadeDice=arcadeDice;self.motion=motion
         self.tutorialGuidance=tutorialGuidance
+        self.tutorialDieID=tutorialDieID
         super.init(nibName:nil,bundle:nil);modalPresentationStyle = .overFullScreen
     }
     required init?(coder:NSCoder){fatalError("Use scoped initializer")}
@@ -125,13 +134,13 @@ final class NativeGameplayBackpackController:UIViewController {
         heading.text=includesArcade ? "Box":"Backpack";heading.textAlignment = .center
         heading.font=assets.font(size:28,weight:"ExtraBold");heading.textColor=NativeTextPalette.modalTitle
         idle.addSubview(heading)
-        subtitle.text=includesArcade ? "Arcade crate items\nBoom, swoop, hop — ready to play!":"Meet your little helpers.\nThey’ll drop in as you play."
+        subtitle.text=includesArcade ? "Unlock dice in Journey.\nGrow your Arcade collection!":"Meet your little helpers.\nThey’ll drop in as you play."
         subtitle.numberOfLines=0;subtitle.textAlignment = .center
         subtitle.font=assets.font(size:18,weight:"Medium");subtitle.textColor=NativeTextPalette.subtitle
         subtitle.attributedText=NativeModalTypography.attributedSubtitle(subtitle.text ?? "",font:subtitle.font)
         idle.addSubview(subtitle)
         let screen=NativeBackpackView(frame:.zero,assets:assets,title:includesArcade ? "Box":"Backpack",arcadeCrate:includesArcade);self.screen=screen
-        screen.useModalLayout();screen.apply(sections,includesArcade:includesArcade);idle.addSubview(screen)
+        screen.useModalLayout();screen.apply(sections,includesArcade:includesArcade,arcadeDice:arcadeDice);idle.addSubview(screen)
         screen.onDie={[weak self] die in self?.open(die)}
         screen.installEntrySelectionCapture(on:view)
         closeButton.setBackgroundImage(paper.closeMaterial,for:.normal);closeButton.layer.cornerRadius=16;closeButton.clipsToBounds=true
@@ -142,6 +151,7 @@ final class NativeGameplayBackpackController:UIViewController {
             guard let self else{return false}
             return self.foreground && self.admitted && !self.closing && !self.disposed && !self.switchingDetail && self.detail==nil
         },onDismiss:{[weak self] in self?.close()})
+        if includesArcade {modalDrag?.pan.require(toFail:screen.grid.panGestureRecognizer)}
         let tap=UILongPressGestureRecognizer(target:self,action:#selector(returnSelectionPressed(_:)))
         tap.minimumPressDuration=0;tap.isEnabled=false;view.addGestureRecognizer(tap);returnSelectionPress=tap
         view.isUserInteractionEnabled=false
@@ -154,16 +164,17 @@ final class NativeGameplayBackpackController:UIViewController {
         let modalBounds=NativeTabletLayout.modalBounds(in:view,card:card,referenceWidth:referenceWidth)
         let modalSafeInsets=NativeTabletLayout.modalSafeInsets(in:view)
         let width=tabletJourney ? projectedPaperWidth:min(390,max(0,modalBounds.width-48))
-        screen?.useModalLayout(columns:tabletJourney ? 3:2)
         NativeTabletLayout.labelFont(heading,size:NativeTabletLayout.modalTitleSize(view.bounds.size,phone:28))
         let titleHeight=NativeTabletLayout.applies(view.bounds.size) ? max(38.4,ceil(heading.font.lineHeight)):38.4
         heading.frame=CGRect(x:24,y:47.2-titleHeight/2,width:max(0,width-48),height:titleHeight)
-        let subtitleHeight=ceil(subtitle.sizeThatFits(CGSize(width:max(0,width-48),height:CGFloat.greatestFiniteMagnitude)).height)
-        subtitle.frame=CGRect(x:24,y:78.4,width:max(0,width-48),height:subtitleHeight)
-        let count=includesArcade ? NativeBackpackCatalog.arcade.count:sections.first?.dice.count ?? 0
-        let columns:CGFloat=tabletJourney ? 3:2,side=floor((width-48-(columns-1)*16)/columns)
+        let subtitleInset:CGFloat=includesArcade ? 12:24
+        let subtitleWidth=max(0,width-subtitleInset*2)
+        let subtitleHeight=ceil(subtitle.sizeThatFits(CGSize(width:subtitleWidth,height:CGFloat.greatestFiniteMagnitude)).height)
+        subtitle.frame=CGRect(x:subtitleInset,y:78.4,width:subtitleWidth,height:subtitleHeight)
+        let count=includesArcade ? arcadeDice.count:sections.first?.dice.count ?? 0
+        let columns:CGFloat=includesArcade || tabletJourney ? 3:2,side=floor((width-48-(columns-1)*16)/columns)
         let rows=ceil(CGFloat(count)/columns),gridHeight=rows*side+max(0,rows-1)*16
-        let height=min(subtitle.frame.maxY+24+gridHeight+32,max(0,modalBounds.height-modalSafeInsets.top-modalSafeInsets.bottom-48))
+        let height=min(subtitle.frame.maxY+24+gridHeight+32+(includesArcade ? 32:0),max(0,modalBounds.height-modalSafeInsets.top-modalSafeInsets.bottom-48))
         // Preserve the authored55% animation pivot while centering the visible paper.
         card.bounds=CGRect(x:0,y:0,width:width,height:height);card.center=CGPoint(x:modalBounds.midX,y:modalBounds.midY+height*(card.layer.anchorPoint.y-0.5))
         restTilt.bounds=card.bounds;restTilt.center=CGPoint(x:width/2,y:height/2)
@@ -172,6 +183,7 @@ final class NativeGameplayBackpackController:UIViewController {
         // Crop the authored folded paper tail just as selected Backpack details do.
         JimiNativeModalV10.paperLayout(paper,bounds:idle.bounds,bottomExtension:96)
         screen?.frame=CGRect(x:0,y:subtitle.frame.maxY+24,width:width,height:max(0,height-subtitle.frame.maxY-24-32))
+        screen?.useModalLayout(columns:Int(columns),scrolling:includesArcade && gridHeight>max(0,height-subtitle.frame.maxY-24-32)-32+0.01)
         JimiNativeModalV10.layoutClose(closeButton,frame:CGRect(x:width-42,y:-10,width:52,height:52),modalTilt:restTiltDegrees)
         if tutorialGuidance,admitted,detail==nil,!switchingDetail {
             screen?.layoutIfNeeded();screen?.grid.layoutIfNeeded();updateTutorialHand()
@@ -212,7 +224,14 @@ final class NativeGameplayBackpackController:UIViewController {
         }else{
             guard admitted,!switchingDetail else{return}
             if tutorialDetailVisited {target=closeButton;phase="collection-close";mirrored=true}
-            else {guard let first=screen?.firstUnlockedVisibleDieView else{tutorialHand?.retire();return};target=first;phase="first-die";mirrored=false}
+            else {
+                let die:UIView?
+                if let tutorialDieID {die=screen?.unlockedVisibleDieView(id:tutorialDieID)}
+                else {die=screen?.firstUnlockedVisibleDieView}
+                guard let die else{tutorialHand?.retire();return}
+                target=die;phase="first-die"
+                mirrored=die.convert(CGPoint(x:die.bounds.midX,y:die.bounds.midY),to:idle).x>idle.bounds.midX
+            }
             host=idle
         }
         if tutorialHand==nil {tutorialHand=NativeCollectionTutorialHand(image:assets.image("assets/hand-pointer.png"))}
@@ -388,6 +407,7 @@ final class NativeGameplayBackpackController:UIViewController {
 final class NativeCollectionTutorialHand {
     let view=UIView()
     private static let closeAngle:CGFloat = .pi/18
+    private static let phoneCloseAngle:CGFloat = .pi/8
     private let image=UIImageView()
     private weak var target:UIView?,host:UIView?,viewport:UIView?
     private var mirrored=false,firstDieCorner=false
@@ -398,7 +418,7 @@ final class NativeCollectionTutorialHand {
         view.addSubview(self.image)
     }
     func point(at target:UIView,in host:UIView,mirrored:Bool,phase:String,viewport:UIView?=nil,firstDieCorner:Bool=false){
-        let changed=self.target !== target || self.host !== host || self.phase != phase
+        let changed=self.target !== target || self.host !== host || self.phase != phase || self.mirrored != mirrored
         if changed,self.phase != nil,let previousHost=self.host {NativeTutorialHandMotion.exit(image,in:previousHost)}
         self.target=target;self.host=host;self.viewport=viewport;self.mirrored=mirrored;self.phase=phase;self.firstDieCorner=firstDieCorner
         if view.superview !== host {host.addSubview(view)}else{host.bringSubviewToFront(view)}
@@ -406,12 +426,13 @@ final class NativeCollectionTutorialHand {
         if changed {NativeTutorialHandMotion.enter(image)}
         guard changed,!UIAccessibility.isReduceMotionEnabled else{return}
         let pointsClose=phase=="detail-close" || phase=="collection-close"
+        let mirrorClose=pointsClose && NativeTabletLayout.applies((self.viewport ?? host).bounds.size)
         let tap=CAKeyframeAnimation(keyPath:"transform")
         tap.duration=1.4;tap.repeatCount=2;tap.keyTimes=[0,0.32,0.46,0.65,1]
         tap.values=zip([0.0,1.0,1.0,0.0,0.0],[1.0,1.0,0.9,1.0,1.0]).map{direction,scale in
             let translation=CATransform3DMakeTranslation((!pointsClose && mirrored ? 1:-1)*direction*5,-direction*5,0)
-            let rotated=CATransform3DRotate(translation,pointsClose ? Self.closeAngle:0,0,0,1)
-            return NSValue(caTransform3D:CATransform3DScale(rotated,scale,scale,1))
+            let rotated=CATransform3DRotate(translation,pointsClose ? (mirrorClose ? -Self.closeAngle:Self.phoneCloseAngle):0,0,0,1)
+            return NSValue(caTransform3D:CATransform3DScale(rotated,mirrorClose ? -scale:scale,scale,1))
         }
         view.layer.add(tap,forKey:"tutorial.collection-hand.tap")
     }
@@ -420,26 +441,31 @@ final class NativeCollectionTutorialHand {
         let viewport=self.viewport ?? host
         let origin=host.convert(CGPoint.zero,to:viewport),unit=host.convert(CGPoint(x:1,y:0),to:viewport)
         let projectionScale=max(0.01,hypot(unit.x-origin.x,unit.y-origin.y))
-        let width=NativeTutorialOverlay.handWidth(in:viewport.bounds.width)/projectionScale
+        let pointsClose=phase=="detail-close" || phase=="collection-close"
+        let phoneClose=pointsClose && !NativeTabletLayout.applies(viewport.bounds.size)
+        let width=NativeTutorialOverlay.handWidth(in:viewport.bounds.width)/projectionScale*(phoneClose ? 0.7:1)
         let height=width*(image.image?.size.height ?? 180)/max(1,image.image?.size.width ?? 180)
         CATransaction.begin();CATransaction.setDisableActions(true)
         view.bounds=CGRect(x:0,y:0,width:width,height:height)
-        let pointsClose=phase=="detail-close" || phase=="collection-close"
         // The original176px hand has its index fingertip centred at(20,35).
-        // Close hints extend down/right toward the screen edge from the X fingertip.
+        // Phone reference: smaller upright hand below/right of the X fingertip.
+        // Tablet retains its mirrored close guide.
         let corner=phase=="first-die" && firstDieCorner
-        view.layer.anchorPoint=pointsClose || corner ? CGPoint(x:20/176.0,y:35/176.0):CGPoint(x:mirrored ? 0.84:0.16,y:0.12)
+        view.layer.anchorPoint=pointsClose || corner ? CGPoint(x:corner && mirrored ? 1-20/176.0:20/176.0,y:35/176.0):CGPoint(x:mirrored ? 0.84:0.16,y:0.12)
         if pointsClose,let glyph=(target as? UIButton)?.imageView,!glyph.bounds.isEmpty {
             view.layer.position=glyph.convert(CGPoint(x:glyph.bounds.midX,y:glyph.bounds.midY),to:host)
         }else{
-            let tip=corner ? CGPoint(x:target.bounds.maxX-target.bounds.width*0.1,y:target.bounds.maxY-target.bounds.height*0.1):CGPoint(x:target.bounds.midX,y:target.bounds.midY)
+            let tip=corner ? CGPoint(x:target.bounds.width*(mirrored ? 0.1:0.9),y:target.bounds.maxY-target.bounds.height*0.1):CGPoint(x:target.bounds.midX,y:target.bounds.midY)
             view.layer.position=target.convert(tip,to:host)
         }
         if pointsClose {
             let point=host.convert(view.layer.position,to:viewport)
-            view.layer.position=host.convert(CGPoint(x:point.x+4,y:point.y+8),from:viewport)
+            // Keep the tablet close glyph visible in both collection and detail.
+            let tablet=NativeTabletLayout.applies(viewport.bounds.size)
+            view.layer.position=host.convert(CGPoint(x:point.x+(tablet ? -12:4),y:point.y+(tablet ? 20:8)),from:viewport)
         }
-        view.transform=pointsClose ? CGAffineTransform(rotationAngle:Self.closeAngle):.identity
+        let mirrorClose=pointsClose && !phoneClose
+        view.transform=pointsClose ? CGAffineTransform(rotationAngle:mirrorClose ? -Self.closeAngle:Self.phoneCloseAngle).scaledBy(x:mirrorClose ? -1:1,y:1):.identity
         image.bounds=view.bounds;image.center=CGPoint(x:width/2,y:height/2)
         image.transform=CGAffineTransform(scaleX:!pointsClose && mirrored ? -1:1,y:1)
         CATransaction.commit()

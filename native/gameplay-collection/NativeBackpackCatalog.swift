@@ -44,6 +44,10 @@ struct NativeBackpackCatalog {
         Die(id:"bottle",title:"BOTTLE",copy:"Washes and replaces 1–4 dice.\nAdds 1 regular die and\n9 closed dice to the board.",board:14),
         Die(id:"coconut",title:"COCONUT",copy:"Changes all regular dice values.\nAdds 1 regular die and\n9 closed dice to the board.",board:16),
         Die(id:"kite",title:"KITE",copy:"Adds 2 regular dice and\n4 closed dice to the board.",board:18)]
+    static func box(_ progression:NativeProgressionState)->[Die] {
+        let catalog=Dictionary(uniqueKeysWithValues:(arcade+forest+beach+area).map{($0.id,$0)})
+        return NativeArcadeBoxContent.orderedIDs(progression).compactMap{catalog[$0]}
+    }
     static func sections(_ progression:NativeProgressionState,prioritizingWorld:Int?=nil)->[Section] {
         let canonical=[(1,"Forest",forest),(3,"Area 55",area),(2,"Beach",beach)]
         // Move the origin World to the front, keeping every other World in its

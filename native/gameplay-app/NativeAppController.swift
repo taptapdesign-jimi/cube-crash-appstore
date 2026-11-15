@@ -23,6 +23,8 @@ struct NativeAppServices {
     var flush: () throws -> Void
     var ambient: (Int, CGRect, [Int]) -> [[String:Any]]? = {_,_,_ in nil}
     var bees: ([Int]) -> [[String:Any]]? = {_ in nil}
+    var tutorialFarewellPending: () -> Bool = {false}
+    var acknowledgeTutorialFarewell: () throws -> Void = {}
     var requiresTutorial: () -> Bool = {false}
     var tutorialDestination: (Int?) -> Int? = {$0}
     var prepareReturnWorld: (JimiNativeWorldView,@escaping ()->Void)->Void = {world,completion in world.prepare(completion:completion)}
@@ -42,8 +44,11 @@ final class NativeAppController: UIViewController {
     private(set) var hub: JimiV9HubView!
     private(set) var arcadeHub: NativeArcadeHubView!
     private(set) var settingsView: JimiNativeSettingsView!
+    private(set) var creatorStoryModal: NativeCreatorStoryModal?
     private(set) var world: JimiNativeWorldView?
     private var journeyIntro:NativeTutorialOverlay?
+    private(set) var tutorialFarewell:NativeTutorialOverlay?
+    private var tutorialFarewellClosing=false
     private var gameplay: UIViewController?
     @MainActor private final class GameplayLaunchPreparation {
         let board:Int?,generation:Int
@@ -95,8 +100,6 @@ final class NativeAppController: UIViewController {
     private var pendingGameplayReturnWorldID:Int?
     private var observers: [NSObjectProtocol] = []
     private var returnRoute = Route.home
-    private var beforeHomeReveal:(()->Void)?
-    private var beforeArcadeReveal:(()->Void)?
     private var disposed=false
     private var returnPreparationEpoch=0
     @MainActor private final class ReturnPreparation {
@@ -245,9 +248,15 @@ final class NativeAppController: UIViewController {
             self.onFeedback?("cta")
             let privacy = JimiNativePrivacyController(assets:self.artwork);privacy.modalPresentationStyle = .overFullScreen
             privacy.onCloseRequested={[weak self] in self?.onFeedback?("modal-close")}
+            self.settingsView.setCreatorShimmerActive(false)
+            privacy.onClosed={ [weak self] in
+                guard let self,!self.disposed,!self.suspended,!self.transitioning,self.route == .settings,self.presentedViewController == nil else{return}
+                self.settingsView.setCreatorShimmerActive(true)
+            }
             self.onFeedback?("modal-open")
             self.present(privacy,animated:false)
         }
+        settingsView.onCreatorStory = { [weak self] in self?.showCreatorStory() }
         fault.numberOfLines = 0;fault.textAlignment = .center;fault.font = artwork.font(size:17,weight:"Medium")
         fault.textColor = .systemRed;fault.accessibilityIdentifier = "native.migration.error";fault.isHidden = true
         view.addSubview(fault)
@@ -289,7 +298,7 @@ final class NativeAppController: UIViewController {
         }
     }
     func navigate(_ next:Route,interrupt:Bool = false) {
-        guard studioIntro == nil,route != next,(!transitioning || interrupt),
+        guard tutorialFarewell == nil,studioIntro == nil,route != next,(!transitioning || interrupt),
               !(transitioning && navigationDestination == next),route != .gameplay else{return}
         if next == .backpack {
             // The visible source must have completed its real entry admission.
@@ -322,6 +331,7 @@ final class NativeAppController: UIViewController {
         backpackView?.header.continuousBackground=softNavigationBackground
         retireDeveloperPresentation()
         retireStatHistory()
+        retireCreatorStory()
         cancelWorldEntryPreparation()
         cancelGameplayLaunchPreparation()
         let interruptedHomeEntry = route == .home && home.isEntering
@@ -455,6 +465,7 @@ final class NativeAppController: UIViewController {
             self.home.isUserInteractionEnabled = self.route == .home
             self.hub.setContentInteractionEnabled(self.route == .hub)
             self.settingsView.isUserInteractionEnabled = self.route == .settings
+            self.settingsView.setCreatorShimmerActive(self.route == .settings && !self.suspended && self.presentedViewController == nil)
             let collectionActive=self.route == .backpack && !self.suspended && self.backpackDetail==nil
             self.backpackView?.setEntrySelectionEnabled(false)
             self.backpackView?.isUserInteractionEnabled = collectionActive
@@ -463,6 +474,7 @@ final class NativeAppController: UIViewController {
             if self.route == .home {self.home.startHeroIdle()}
             if self.route == .hub {self.hub.startIdle()}
             if self.route == .arcadeHub {self.arcadeHub.finishEntering();self.arcadeHub.resume()}
+            self.presentTutorialFarewellIfNeeded()
         }
         switch next {
         case .backpack:
@@ -486,7 +498,7 @@ final class NativeAppController: UIViewController {
             backpackView?.grid.isUserInteractionEnabled=true
             backpackView?.setEntrySelectionEnabled(true)
             let originWorld:Int? = {if case .world(let id)=backpackReturnRoute{return id};return nil}()
-            backpackView?.apply(crate ? []:NativeBackpackCatalog.sections(services.journeyProgression(),prioritizingWorld:originWorld))
+            backpackView?.apply(crate ? []:NativeBackpackCatalog.sections(services.journeyProgression(),prioritizingWorld:originWorld),arcadeDice:NativeBackpackCatalog.box(services.journeyProgression()))
             if let header=backpackView?.header {installNavigationHandoff(on:header)}
             motion.animate(backpackView?.tracks(enter:true) ?? [],completion:admitted)
         case .home:
@@ -496,7 +508,6 @@ final class NativeAppController: UIViewController {
             home.startAmbientForEntry()
             onFeedback?("home-haptic-enter")
             motion.animate(motion.homeTracks(enter:true),completion:admitted)
-            let prepared=beforeHomeReveal;beforeHomeReveal=nil;prepared?()
         case .hub:
             let progression=services.journeyProgression()
             hub.setBackpackUnread(!progression.unreadJourneyDice.isEmpty)
@@ -522,7 +533,6 @@ final class NativeAppController: UIViewController {
             }
             installNavigationHandoff(on:arcadeHub.hub.header)
             motion.animate(arcadeHub.tracks(enter:true),completion:admitted)
-            let prepared=beforeArcadeReveal;beforeArcadeReveal=nil;prepared?()
         case .settings:
             settingsView.isHidden = false;applySettings();settingsView.layoutIfNeeded()
             installNavigationHandoff(on:settingsView.header)
@@ -597,6 +607,7 @@ final class NativeAppController: UIViewController {
             guard !self.suspended else{self.deferredReveal=self.route;return}
             incoming.finishPresentationAdmission();self.transitioning=false
             self.presentJourneyIntroIfNeeded(in:incoming)
+            self.presentTutorialFarewellIfNeeded()
         }
         finishNavigationBackgroundHandoff()
     }
@@ -607,10 +618,11 @@ final class NativeAppController: UIViewController {
               world.beginFirstInterimSpotlight() else{return}
         let overlay=NativeTutorialOverlay(resourceRoot:resourceRoot)
         overlay.frame=world.bounds;overlay.autoresizingMask=[.flexibleWidth,.flexibleHeight]
-        overlay.onWorldIntroRetire = {[weak world] animated in world?.endFirstInterimSpotlight(animated:animated)}
+        overlay.onWorldIntroRetire = {[weak world] animated in world?.setFirstInterimMotionFollower(nil);world?.endFirstInterimSpotlight(animated:animated)}
         overlay.layer.zPosition=10_002
         world.addSubview(overlay);journeyIntro=overlay
         overlay.showWorldIntro(card:card,target:{[weak world] in world?.firstInterimCardFrame()?.1})
+        world.setFirstInterimMotionFollower(overlay.worldMotionFollower)
     }
     private func retireJourneyIntro(animated:Bool) {
         guard let overlay=journeyIntro else{return};journeyIntro=nil
@@ -736,6 +748,7 @@ final class NativeAppController: UIViewController {
             incoming.enter(terminal:true){[weak self,weak incoming] in
                 guard let self,let incoming,!self.disposed,self.generation==owner,self.world===incoming else{return}
                 incoming.finishPresentationAdmission();self.transitioning=false
+                self.presentTutorialFarewellIfNeeded()
             }
         }else{
             if case .world(let id)=returnRoute {pendingGameplayReturnWorldID=id}
@@ -848,15 +861,6 @@ final class NativeAppController: UIViewController {
         incoming.onAmbientPlansRequest = {[weak self] viewport,ids,completion in completion(self?.services.ambient(id,viewport,ids))}
         incoming.onBeePlansRequest = {[weak self] ids,completion in completion(self?.services.bees(ids))}
     }
-    func returnTutorialToArcade(onPrepared:@escaping ()->Void) {
-        guard !disposed,route == .gameplay else{return}
-        returnRoute = .arcadeHub;beforeArcadeReveal=onPrepared
-        returnFromGameplay()
-    }
-    func returnTutorialToHome(onPrepared:@escaping ()->Void) {
-        home.selectSlide(0,animated:false);returnRoute = .home;beforeHomeReveal=onPrepared
-        returnFromGameplay()
-    }
     private func openStatHistory(board:Int,combo:Bool){
         guard !disposed,!suspended,!transitioning,statHistoryModal==nil,presentedViewController==nil,
               let world else{return}
@@ -927,9 +931,60 @@ final class NativeAppController: UIViewController {
         }
         present(detail,animated:false)
     }
+    /// Selection admission owns one final tutorial sheet, never a gameplay timer.
+    private func presentTutorialFarewellIfNeeded() {
+        let eligible:Bool = {switch route {case .home,.hub,.arcadeHub,.world:return true;default:return false}}()
+        guard !disposed,!suspended,!transitioning,eligible,tutorialFarewell==nil,
+              services.tutorialFarewellPending() else{return}
+        // Reuse the existing route suspension before mounting the independently
+        // animated sheet. Foreground events cannot release this held backdrop.
+        suspend()
+        let overlay=NativeTutorialOverlay(resourceRoot:resourceRoot)
+        tutorialFarewell=overlay;tutorialFarewellClosing=false
+        overlay.frame=view.bounds;overlay.autoresizingMask=[.flexibleWidth,.flexibleHeight]
+        overlay.onSpeechEvent={ [weak self] in self?.onFeedback?($0) }
+        overlay.onGotIt={ [weak self,weak overlay] in
+            guard let self,let overlay,!self.disposed,self.tutorialFarewell === overlay,
+                  !self.tutorialFarewellClosing else{return}
+            do {try self.services.acknowledgeTutorialFarewell()}
+            catch {self.showFault(error);return}
+            self.tutorialFarewellClosing=true;self.fault.isHidden=true
+            self.onFeedback?("cta")
+            overlay.setContinueEnabled(false)
+            overlay.hide { [weak self,weak overlay] in
+                guard let self,let overlay,!self.disposed,self.tutorialFarewell === overlay else{return}
+                self.tutorialFarewell=nil;self.tutorialFarewellClosing=false;overlay.dispose()
+                self.resume()
+            }
+        }
+        view.addSubview(overlay)
+        overlay.show(step:10,from:nil,to:nil,initial:true,entered:{[weak overlay] in overlay?.setContinueEnabled(true)})
+        overlay.setContinueEnabled(false)
+    }
     private func retireBackpackDetail(){pendingBackpackDie=nil;backpackDetail?.dispose();backpackDetail?.dismiss(animated:false);backpackDetail=nil}
     private func showFault(_ error:Error) {fault.text = error.localizedDescription;fault.isHidden = false;view.bringSubviewToFront(fault)}
+    private func showCreatorStory() {
+        guard !disposed,!suspended,!transitioning,route == .settings,
+              !settingsView.developerPanelVisible,creatorStoryModal == nil,presentedViewController == nil else{return}
+        let modal=NativeCreatorStoryModal(assets:artwork)
+        creatorStoryModal=modal;settingsView.setIdleActive(false)
+        modal.onCloseRequested={ [weak self] in self?.onFeedback?("modal-close") }
+        modal.onClosed={ [weak self,weak modal] in
+            guard let self,let modal,self.creatorStoryModal === modal else{return}
+            self.creatorStoryModal=nil
+            if !self.disposed,!self.suspended,self.route == .settings,!self.transitioning {self.settingsView.setIdleActive(true)}
+        }
+        onFeedback?("cta");onFeedback?("modal-open")
+        present(modal,animated:false)
+    }
+    private func retireCreatorStory() {
+        let modal=creatorStoryModal;creatorStoryModal=nil
+        modal?.dispose();modal?.dismiss(animated:false)
+    }
     private func suspend() {
+        settingsView.setCreatorShimmerActive(false)
+        creatorStoryModal?.setSuspended(true)
+        tutorialFarewell?.setSuspended(true)
         hub.backpackButton.imageView?.layer.removeAnimation(forKey:NativeHubBackpackFeedback.switchKey)
         world?.backpackButton.imageView?.layer.removeAnimation(forKey:NativeHubBackpackFeedback.switchKey)
         navigationExitContinuation?.pause()
@@ -954,6 +1009,8 @@ final class NativeAppController: UIViewController {
         do {try services.flush()} catch {showFault(error)}
     }
     private func resume() {
+        creatorStoryModal?.setSuspended(false)
+        if let tutorialFarewell {tutorialFarewell.setSuspended(false);return}
         if let layer=pausedWorldNavigationHeader?.layer,layer.speed == 0 {
             let paused=layer.timeOffset;layer.speed=1;layer.timeOffset=0;layer.beginTime=0
             layer.beginTime=layer.convertTime(CACurrentMediaTime(),from:nil)-paused
@@ -969,11 +1026,13 @@ final class NativeAppController: UIViewController {
         if let next = deferredReveal {deferredReveal = nil;reveal(next);return}
         if transitioning,case .world = route {world?.setActive(true)}
         guard !transitioning else{return}
+        settingsView.setCreatorShimmerActive(route == .settings && presentedViewController == nil)
         if route == .home {home.startHeroIdle()}
         if route == .hub {hub.startIdle()}
         if route == .arcadeHub {arcadeHub.resume()}
         backpack?.setActive(route == .hub,generation:generation)
         if case .world = route {world?.setActive(true)}
+        presentTutorialFarewellIfNeeded()
     }
     private func retireDeveloperPresentation() {
         if let preview = presentedViewController as? NativeDeveloperPreviewHost { preview.finish() }
@@ -985,6 +1044,7 @@ final class NativeAppController: UIViewController {
         finishNavigationBackgroundHandoff()
         navigationExitContinuation?.dispose();navigationExitContinuation=nil
         guard !disposed else{return}
+        tutorialFarewell?.dispose();tutorialFarewell=nil;tutorialFarewellClosing=false
         retireJourneyIntro(animated:false)
         hub?.backpackButton.imageView?.layer.removeAnimation(forKey:NativeHubBackpackFeedback.switchKey)
         world?.backpackButton.imageView?.layer.removeAnimation(forKey:NativeHubBackpackFeedback.switchKey)
@@ -997,6 +1057,7 @@ final class NativeAppController: UIViewController {
         arcadeHub?.hide();arcadeHub?.onClose=nil;arcadeHub?.onPlay=nil;arcadeHub?.onPlayExit=nil;arcadeHub?.onCrate=nil;arcadeHub?.canContinue=nil
         motion?.cancel();home?.stopHeroIdle(preservePaintedPose:false);hub?.stopIdle()
         retireStatHistory();retireBackpackDetail();backpackView?.onClose=nil;backpackView?.onDie=nil;backpackView?.removeFromSuperview();backpackView=nil
+        retireCreatorStory();settingsView?.onCreatorStory=nil;settingsView?.setCreatorShimmerActive(false)
         backpack?.dispose();backpack=nil;hub?.onBackpack=nil
         world?.cleanup();world?.removeFromSuperview();world = nil
         retireCoveredGameplay()
@@ -1004,7 +1065,6 @@ final class NativeAppController: UIViewController {
         gameplay?.willMove(toParent:nil);gameplay?.view.removeFromSuperview();gameplay?.removeFromParent();gameplay = nil
         for observer in observers {NotificationCenter.default.removeObserver(observer)};observers.removeAll()
         onFeedback = nil;onRoute = nil;onShipVisibility=nil
-        beforeHomeReveal=nil;beforeArcadeReveal=nil
     }
     deinit {for observer in observers {NotificationCenter.default.removeObserver(observer)}}
 }

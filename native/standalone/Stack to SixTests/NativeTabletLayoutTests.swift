@@ -7,8 +7,40 @@ import StackToSixGameplay
 
 @MainActor
 final class NativeTabletLayoutTests:XCTestCase {
-    func testArcadeDeliveryMatchesBackpackSpacingAndHasLoweredArtwork()throws {
+    func testFarewellUsesOriginalHighFiveAtSharedPaperAnchorAndFitsBothDevices()async throws {
         for size in [CGSize(width:390,height:844),CGSize(width:834,height:1194)] {
+            let overlay=NativeTutorialOverlay(resourceRoot:NativeTestResources.root)
+            let host=UIViewController(),window=UIWindow(frame:CGRect(origin:.zero,size:size))
+            window.rootViewController=host;window.makeKeyAndVisible()
+            defer{overlay.dispose();window.isHidden=true;window.rootViewController=nil}
+            overlay.frame=CGRect(origin:.zero,size:size);host.view.addSubview(overlay)
+            overlay.show(step:10,from:nil,to:nil,initial:true);overlay.layoutIfNeeded();overlay.restorePointer()
+            let art=try XCTUnwrap(all(overlay).compactMap{$0 as? UIImageView}.first{$0.accessibilityIdentifier=="assets/tutorial/hi five.png"})
+            XCTAssertNotNil(art.image);XCTAssertFalse(art.isHidden)
+            XCTAssertEqual(art.layer.position.y,35*(NativeTabletLayout.applies(size) ? 1.4:1),accuracy:0.001)
+            XCTAssertEqual(overlay.backgroundColor,JimiNativeModalV10.backdropColor)
+            XCTAssertFalse(overlay.sourcePointerVisible)
+            XCTAssertTrue(overlay.hitTest(CGPoint(x:10,y:100),with:nil) === overlay)
+            let labels=all(overlay).compactMap{$0 as? UILabel}.filter{$0.text?.isEmpty==false}
+            XCTAssertTrue(labels.contains{$0.text=="You’re ready!"})
+            for label in labels where label.text?.hasPrefix("Discover new dice")==true {
+                XCTAssertEqual(label.text,"Discover new dice and cards.\nBeat your best and have fun!")
+                let lineAdvance=NativeModalTypography.subtitleParagraph(fontSize:label.font.pointSize).minimumLineHeight
+                XCTAssertLessThanOrEqual(label.sizeThatFits(CGSize(width:label.bounds.width,height:.greatestFiniteMagnitude)).height,lineAdvance*2+1)
+                XCTAssertGreaterThanOrEqual(label.bounds.height,ceil(label.sizeThatFits(CGSize(width:label.bounds.width,height:.greatestFiniteMagnitude)).height)-1)
+            }
+            XCTAssertEqual(all(overlay).compactMap{$0 as? UIButton}.first{$0.accessibilityIdentifier=="native.tutorial.got-it"}?.title(for:.normal),"High five!")
+            let button=try XCTUnwrap(all(overlay).compactMap{$0 as? JimiV9PlainButton}.first{$0.accessibilityIdentifier=="native.tutorial.got-it"})
+            let deadline=Date().addingTimeInterval(5)
+            while !button.isSculptedFacePrepared,Date()<deadline {try await Task.sleep(for:.milliseconds(20))}
+            XCTAssertTrue(button.isSculptedFacePrepared)
+            let image=UIGraphicsImageRenderer(size:size).image{overlay.layer.render(in:$0.cgContext)}
+            try image.pngData()?.write(to:URL(fileURLWithPath:NativeTabletLayout.applies(size) ? "/tmp/tutorial-farewell-ipad.png":"/tmp/tutorial-farewell-phone.png"))
+        }
+    }
+
+    func testArcadeDeliveryMatchesBackpackSpacingAndHasLoweredArtwork()throws {
+        for size in [CGSize(width:375,height:812),CGSize(width:390,height:844),CGSize(width:428,height:926),CGSize(width:834,height:1194)] {
             for arcade in [false,true] {
                 let overlay=NativeTutorialOverlay(resourceRoot:NativeTestResources.root,arcade:arcade)
                 defer{overlay.dispose()}
@@ -18,21 +50,33 @@ final class NativeTabletLayoutTests:XCTestCase {
                 let art=try XCTUnwrap(all(overlay).compactMap{$0 as? UIImageView}.first{$0.accessibilityIdentifier==path})
                 XCTAssertNotNil(art.image)
                 let tablet=NativeTabletLayout.applies(size)
-                XCTAssertEqual(art.frame.maxY,21*(tablet ? 1.4:1)+(arcade ? 24:0),accuracy:0.001)
+                if arcade {
+                    XCTAssertEqual(art.frame.minY+art.bounds.height*625/741,0,accuracy:0.001,"Original straight torso cut must meet paper top")
+                }else{XCTAssertEqual(art.frame.maxY,21*(tablet ? 1.4:1)+(arcade ? 24:0),accuracy:0.001)}
                 let carrier=overlay.tutorialCarrierFrame(arcade:arcade)
                 let inkTop=carrier.minY+carrier.width*(arcade ? 112/290.0:106/379.0)
                 let inkHeight=carrier.width*(arcade ? 258/290.0:253/379.0)
                 let title=try XCTUnwrap(all(overlay).compactMap{$0 as? UILabel}.first{$0.text=="Special delivery!"})
                 let sheet=try XCTUnwrap(title.superview)
-                XCTAssertEqual(inkTop-sheet.frame.minY,arcade ? 28:24,accuracy:0.001)
+                XCTAssertEqual(inkTop-sheet.frame.minY,arcade ? 68:64,accuracy:0.001)
                 XCTAssertEqual(inkHeight,min(216,size.width*0.5)*253/379,accuracy:0.001)
-                XCTAssertEqual(sheet.convert(title.frame.origin,to:overlay).y-inkTop-inkHeight,24,accuracy:0.001)
+                XCTAssertEqual(title.frame.minY,44,accuracy:0.001)
+                XCTAssertLessThan(overlay.sourceSheetHeight,360,"Delivery no longer reserves a carrier slot")
+                XCTAssertGreaterThanOrEqual(inkTop,sheet.frame.minY)
+                XCTAssertLessThanOrEqual(inkTop+inkHeight,sheet.frame.maxY)
                 for label in all(overlay).compactMap({$0 as? UILabel}) where label.text?.contains("random Special die")==true {
                     XCTAssertGreaterThanOrEqual(label.bounds.height,ceil(label.sizeThatFits(CGSize(width:label.bounds.width,height:.greatestFiniteMagnitude)).height)-1)
+                    if arcade {
+                        XCTAssertEqual(label.numberOfLines,2)
+                        XCTAssertEqual(label.text,"Your box drops\na random Special die.")
+                        for line in (label.text ?? "").split(separator:"\n") {
+                            XCTAssertLessThanOrEqual((String(line) as NSString).size(withAttributes:[.font:label.font!]).width,label.bounds.width)
+                        }
+                    }
                 }
                 let cta=try XCTUnwrap(all(overlay).compactMap{$0 as? UIButton}.first{$0.accessibilityIdentifier=="native.tutorial.got-it"})
-                XCTAssertEqual(cta.title(for:.normal),"Got it")
-                XCTAssertTrue(all(overlay).compactMap{$0 as? UILabel}.contains{$0.text==(arcade ? "When the Special bar fills,\nyour box drops\na random Special die.":"Your backpack drops\na random Special die.")})
+                XCTAssertEqual(cta.title(for:.normal),arcade ? "Open box":"Open backpack")
+                XCTAssertTrue(all(overlay).compactMap{$0 as? UILabel}.contains{$0.text==(arcade ? "Your box drops\na random Special die.":"Your backpack drops\na random Special die.")})
                 if arcade {
                     let rendered=UIGraphicsImageRenderer(size:size).image{overlay.layer.render(in:$0.cgContext)}
                     try rendered.pngData()?.write(to:URL(fileURLWithPath:tablet ? "/tmp/tutorial-box-art-ipad.png":"/tmp/tutorial-box-art-phone.png"))
@@ -49,7 +93,7 @@ final class NativeTabletLayoutTests:XCTestCase {
             let art=try XCTUnwrap(all(overlay).compactMap{$0 as? UIImageView}.first{$0.accessibilityIdentifier=="assets/tutorial/clear board.png"})
             XCTAssertNotNil(art.image);XCTAssertFalse(art.isHidden)
             XCTAssertEqual(art.layer.anchorPoint,CGPoint(x:0.5,y:1))
-            XCTAssertEqual(art.layer.position.y,21*(NativeTabletLayout.applies(size) ? 1.4:1),accuracy:0.001)
+            XCTAssertEqual(art.layer.position.y,21*(NativeTabletLayout.applies(size) ? 1.4:1)-(NativeTabletLayout.applies(size) ? 16:0),accuracy:0.001)
             XCTAssertEqual(art.layer.zPosition,0)
             XCTAssertTrue(overlay.hitTest(CGPoint(x:10,y:100),with:nil) === overlay)
             XCTAssertFalse(overlay.sourcePointerVisible)
@@ -101,22 +145,30 @@ final class NativeTabletLayoutTests:XCTestCase {
                 let zero=hand.view.convert(CGPoint.zero,to:viewport)
                 let right=hand.view.convert(CGPoint(x:hand.view.bounds.width,y:0),to:viewport)
                 let bottom=hand.view.convert(CGPoint(x:0,y:hand.view.bounds.height),to:viewport)
-                XCTAssertEqual(hypot(right.x-zero.x,right.y-zero.y),first.width,accuracy:0.001)
-                XCTAssertEqual(hypot(bottom.x-zero.x,bottom.y-zero.y),first.height,accuracy:0.001)
+                let tablet=NativeTabletLayout.applies(size),pointsClose=phase != "first-die"
+                let factor:CGFloat=pointsClose && !tablet ? 0.7:1
+                XCTAssertEqual(hypot(right.x-zero.x,right.y-zero.y),first.width*factor,accuracy:0.001)
+                XCTAssertEqual(hypot(bottom.x-zero.x,bottom.y-zero.y),first.height*factor,accuracy:0.001)
                 if phase != "first-die" {
                     let targetPoint=target.convert(CGPoint(x:target.bounds.midX,y:target.bounds.midY),to:viewport)
                     let finger=host.convert(hand.view.layer.position,to:viewport)
-                    XCTAssertEqual(finger.x,targetPoint.x+4,accuracy:0.001)
-                    XCTAssertEqual(finger.y,targetPoint.y+8,accuracy:0.001)
+                    XCTAssertEqual(finger.x,targetPoint.x+(tablet ? -12:4),accuracy:0.001)
+                    XCTAssertEqual(finger.y,targetPoint.y+(tablet ? 20:8),accuracy:0.001)
                     XCTAssertEqual(hand.view.layer.anchorPoint,CGPoint(x:20/176.0,y:35/176.0))
-                    XCTAssertEqual(atan2(hand.view.transform.b,hand.view.transform.a),.pi/18,accuracy:0.001)
+                    XCTAssertEqual(atan2(hand.view.transform.b,hand.view.transform.a),tablet ? .pi - .pi/18:.pi/8,accuracy:0.001)
                     XCTAssertGreaterThan(hand.view.frame.maxY,target.frame.maxY)
-                    XCTAssertGreaterThan(hand.view.frame.maxX,target.frame.maxX)
+                    if tablet {XCTAssertLessThan(hand.view.frame.minX,target.frame.minX)}
+                    else {XCTAssertGreaterThan(hand.view.frame.maxX,target.frame.maxX)}
+                    let tap=try XCTUnwrap(hand.view.layer.animation(forKey:"tutorial.collection-hand.tap") as? CAKeyframeAnimation)
+                    for value in try XCTUnwrap(tap.values) {
+                        let x=try XCTUnwrap(value as? NSValue).caTransform3DValue.m11
+                        if tablet {XCTAssertLessThan(x,0)}else{XCTAssertGreaterThan(x,0)}
+                    }
                 }
             }
         }
     }
-    func testTutorialCollectionSpeechWaitsForLandingAndRealReadinessThenComboAndFinalSpeakOnce()async throws {
+    func testTutorialCollectionSpeechWaitsForReadinessThenComboAndFinalSpeakOnEntranceOnce()async throws {
         let overlay=NativeTutorialOverlay(resourceRoot:NativeTestResources.root)
         let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
         let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844)),host=UIViewController()
@@ -137,8 +189,10 @@ final class NativeTabletLayoutTests:XCTestCase {
         for (step,key) in [(7,"combo"),(9,"completion")] {
             let landed=expectation(description:key+" landed")
             overlay.show(step:step,from:nil,to:nil,initial:true,entered:{landed.fulfill()})
-            XCTAssertEqual(events.last,"tutorial-speech-stop")
+            XCTAssertEqual(events.last,"tutorial-speech:tutorial-"+key,"Speech starts with entry, before landing")
+            let count=events.count
             await fulfillment(of:[landed],timeout:3)
+            XCTAssertEqual(events.count,count,"Landing cannot replay speech")
             XCTAssertEqual(events.last,"tutorial-speech:tutorial-"+key)
         }
         overlay.dispose();XCTAssertEqual(events.last,"tutorial-speech-stop")

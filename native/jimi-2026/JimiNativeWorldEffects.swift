@@ -180,6 +180,8 @@ final class JimiNativeWorldReminder: UIView {
 final class JimiNativeInterimEffect {
     private weak var card:UIView?
     private let scale:CGFloat
+    private weak var motionFollower:CALayer?
+    private var followerDelay:CFTimeInterval=0.15
     private let baselineBounds: CGRect
     private let baselinePosition: CGPoint
     private let baselineAnchor: CGPoint
@@ -263,6 +265,28 @@ final class JimiNativeInterimEffect {
     }
     init(card:UIView,scale:CGFloat) {self.card = card;self.scale = scale;baselineBounds = card.bounds;baselinePosition = card.layer.position;baselineAnchor = card.layer.anchorPoint;baselineTransform = card.layer.transform
     }
+    func setMotionFollower(_ follower:CALayer?,delay:CFTimeInterval=0.15) {
+        motionFollower?.removeAnimation(forKey:"world.interim.follower")
+        motionFollower=follower;followerDelay=max(0,delay)
+        publishMotionFollower()
+    }
+    private func publishMotionFollower() {
+        guard let card,let follower=motionFollower else{return}
+        guard follower.superlayer === card.layer.superlayer,follower.superlayer != nil else {
+            follower.removeAnimation(forKey:"world.interim.follower");motionFollower=nil;return
+        }
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        follower.bounds=card.layer.bounds;follower.anchorPoint=card.layer.anchorPoint
+        follower.position=card.layer.position;follower.transform=card.layer.transform
+        CATransaction.commit()
+        guard let source=card.layer.animation(forKey:"world.interim") as? CAKeyframeAnimation,
+              let delayed=source.copy() as? CAKeyframeAnimation else{return}
+        delayed.delegate=nil
+        let epoch=card.layer.convertTime(source.beginTime,to:nil)
+        delayed.beginTime=follower.convertTime(epoch+followerDelay,from:nil)
+        delayed.fillMode = .backwards
+        follower.add(delayed,forKey:"world.interim.follower")
+    }
     func start() {guard !running,!UIAccessibility.isReduceMotionEnabled else {return};running = true;prepareBurn();cycle()}
     private func cycle() {
         guard running,let card,let parent = card.superview else {return}
@@ -316,11 +340,15 @@ final class JimiNativeInterimEffect {
             glow?.removeFromSuperlayer();burnClip?.removeFromSuperlayer()
             guard let self,self.running,self.generation == token else {return};self.cycle()
         }
+        motion.beginTime=card.layer.convertTime(CACurrentMediaTime(),from:nil)
         card.layer.add(motion,forKey:"world.interim")
         JimiNativeWorldEffects.smoke(at:card.frame,in:parent,delay:0.14,scale:scale)
         CATransaction.commit()
+        // Keep the delayed follower outside the card cycle completion transaction.
+        publishMotionFollower()
     }
     func stop() {
+        motionFollower?.removeAnimation(forKey:"world.interim.follower")
         generation += 1;running = false;preparationLease?.cancel();preparationLease = nil;preparingBurn = false;burnImages.removeAll();glowImage = nil
         guard let card else {return}
         card.layer.removeAnimation(forKey:"world.interim")
@@ -330,5 +358,6 @@ final class JimiNativeInterimEffect {
         CATransaction.begin();CATransaction.setDisableActions(true)
         card.bounds = baselineBounds;card.layer.transform = baselineTransform;card.layer.anchorPoint = baselineAnchor;card.layer.position = baselinePosition
         CATransaction.commit()
+        publishMotionFollower()
     }
 }

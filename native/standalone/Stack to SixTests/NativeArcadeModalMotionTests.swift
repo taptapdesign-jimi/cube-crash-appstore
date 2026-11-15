@@ -4,6 +4,63 @@ import UIKit
 
 @MainActor
 final class NativeArcadeModalMotionTests: XCTestCase {
+    func testArcadeCTAReusesStageEntryCueAndIndependentArtCloudBounce() async throws {
+        guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Full entry choreography")}
+        let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+        for mode in 0..<3 {for continuing in [false,true] {
+            let size=continuing ? CGSize(width:820,height:1180):CGSize(width:390,height:844)
+            let host=UIViewController(),window=UIWindow(frame:CGRect(origin:.zero,size:size))
+            window.rootViewController=host;window.makeKeyAndVisible();host.loadViewIfNeeded()
+            let modal=NativeArcadeWorldModal(frame:window.bounds,assets:assets,index:mode,continuing:continuing)
+            host.view.addSubview(modal);modal.layoutIfNeeded()
+            defer{modal.dispose();window.isHidden=true}
+            let button=try XCTUnwrap(descendant(modal,id:"native.arcade-world-modal.play") as? JimiV9PlainButton)
+            try await wait{button.isSculptedFacePrepared}
+            XCTAssertEqual(button.title(for:.normal),continuing ? "Continue":"Play")
+            var cues=0
+            modal.onFeedback={if $0=="paired-modal-cta-enter" {cues+=1}}
+            modal.reveal()
+            let card=try XCTUnwrap(modal.modalDrag?.pan.view)
+            let paper=try XCTUnwrap(card.layer.animation(forKey:"arcade.modal.enter"))
+            let cta=try XCTUnwrap(button.layer.animation(forKey:"arcade.modal.cta.enter") as? CAAnimationGroup)
+            let epoch=card.layer.convertTime(paper.beginTime,to:nil)
+            XCTAssertEqual(cta.beginTime,button.layer.convertTime(epoch,from:nil)+NativeArcadeWorldModal.ctaEntryDelay,accuracy:0.001)
+            XCTAssertLessThan(NativeArcadeWorldModal.ctaEntryDelay,paper.duration)
+            XCTAssertEqual(cta.duration,0.34,accuracy:0.001)
+            let motion=try XCTUnwrap(cta.animations?.first as? CAKeyframeAnimation)
+            let values=try XCTUnwrap(motion.values as? [NSValue])
+            let first=try XCTUnwrap(values.first).caTransform3DValue,last=try XCTUnwrap(values.last).caTransform3DValue
+            XCTAssertEqual(first.m11,0,accuracy:0.000001)
+            XCTAssertEqual(first.m42,18,accuracy:0.000001)
+            XCTAssertEqual(last.m11,1,accuracy:0.000001)
+            let stage=try XCTUnwrap(descendant(modal,id:"native.arcade-world-modal.clouds"))
+            let cloudTracks=try stage.subviews.map{try XCTUnwrap($0.layer.animation(forKey:"arcade.modal.cloud.enter"))}
+            XCTAssertEqual(cloudTracks.count,6);XCTAssertEqual(Set(cloudTracks.map{$0.duration}).count,6)
+            let spring=NativeArcadeWorldModal.artCloudEntry(begin:0)
+            XCTAssertEqual(spring.duration,0.78,accuracy:0.001)
+            XCTAssertEqual(spring.pose(at:0.36).scaleX,1.045,accuracy:0.001)
+            XCTAssertEqual(spring.pose(at:0.58).scaleX,0.985,accuracy:0.001)
+            XCTAssertEqual(spring.pose(at:0.78).scaleX,1,accuracy:0.001)
+            XCTAssertLessThan(abs(spring.pose(at:0.779).scaleX-1),0.0001,"Spring lands gently at its final place")
+            XCTAssertNotNil(descendant(modal,id:"native.arcade-world-modal.art")?.layer.animation(forKey:"arcade.modal.art.enter"))
+            if mode==0,!continuing {
+                modal.setForeground(false)
+                try await Task.sleep(for:.milliseconds(700));XCTAssertEqual(cues,0)
+                modal.setForeground(true)
+            }
+            try await wait{modal.accessibilityValue=="ready"}
+            XCTAssertEqual(cues,1)
+            modal.setForeground(false);modal.setForeground(true);modal.reveal()
+            try await Task.sleep(for:.milliseconds(100));XCTAssertEqual(cues,1,"Foreground never repeats entry sound")
+        }}
+        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible();defer{window.isHidden=true}
+        let retired=NativeArcadeWorldModal(frame:window.bounds,assets:assets,index:0)
+        host.view.addSubview(retired);var lateCues=0;retired.onFeedback={_ in lateCues+=1}
+        retired.reveal();retired.dispose()
+        try await Task.sleep(for:.milliseconds(700));XCTAssertEqual(lateCues,0)
+    }
+
     func testAllArcadePaperTracksMatchMountedCuberoDetail() throws {
         guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Full motion parity")}
         let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
@@ -216,9 +273,9 @@ final class NativeArcadeModalMotionTests: XCTestCase {
             var cues:[String]=[];modal.onFeedback={cues.append($0)};host.view.addSubview(modal)
             modal.perform(NSSelectorFromString("speechTapped"));XCTAssertTrue(cues.isEmpty)
             modal.reveal();try await wait{modal.accessibilityValue == "ready"}
-            modal.perform(NSSelectorFromString("speechTapped"));XCTAssertEqual(cues,["scene-speech:"+scene])
-            modal.setForeground(false);modal.perform(NSSelectorFromString("speechTapped"));XCTAssertEqual(cues.count,1)
-            modal.dispose();modal.perform(NSSelectorFromString("speechTapped"));XCTAssertEqual(cues.count,1)
+            modal.perform(NSSelectorFromString("speechTapped"));XCTAssertEqual(cues,["paired-modal-cta-enter","scene-speech:"+scene])
+            modal.setForeground(false);modal.perform(NSSelectorFromString("speechTapped"));XCTAssertEqual(cues.count,2)
+            modal.dispose();modal.perform(NSSelectorFromString("speechTapped"));XCTAssertEqual(cues.count,2)
         }
     }
     func testCloseStopsOwnSceneSpeechAndEmitsModalCloseOnce() async throws {
@@ -231,9 +288,9 @@ final class NativeArcadeModalMotionTests: XCTestCase {
         try await wait{modal.accessibilityValue == "ready"}
         let close=try XCTUnwrap(descendant(modal,id:"native.arcade-world-modal.close") as? UIButton)
         close.sendActions(for:.touchUpInside);close.sendActions(for:.touchUpInside)
-        XCTAssertEqual(cues,["scene-speech-stop:arena-modal-endurance","modal-close"])
+        XCTAssertEqual(cues,["paired-modal-cta-enter","scene-speech-stop:arena-modal-endurance","modal-close"])
         modal.dispose();close.sendActions(for:.touchUpInside)
-        XCTAssertEqual(cues,["scene-speech-stop:arena-modal-endurance","modal-close"])
+        XCTAssertEqual(cues,["paired-modal-cta-enter","scene-speech-stop:arena-modal-endurance","modal-close"])
     }
     func testPlayAndPaperExitTogetherWithoutRelayoutJumpAndDisposalCancels() async throws {
         let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
@@ -258,7 +315,7 @@ final class NativeArcadeModalMotionTests: XCTestCase {
             button.sendActions(for:.touchDown)
             XCTAssertNotNil(button.layer.animation(forKey:"arcade.cta.press"))
             button.sendActions(for:.touchUpInside)
-            XCTAssertEqual(exitStarts,1);XCTAssertEqual(completed,0);XCTAssertEqual(cues,["scene-speech-stop:arena-modal-endurance","cta","modal-exit"])
+            XCTAssertEqual(exitStarts,1);XCTAssertEqual(completed,0);XCTAssertEqual(cues,["paired-modal-cta-enter","scene-speech-stop:arena-modal-endurance","cta","modal-exit"])
             XCTAssertNotNil(button.layer.animation(forKey:"arcade.cta.exit"))
             XCTAssertNotNil(card.layer.animation(forKey:"arcade.modal.exit"))
             XCTAssertNil(button.layer.animation(forKey:"arcade.cta.release"))
@@ -276,7 +333,7 @@ final class NativeArcadeModalMotionTests: XCTestCase {
             let close=try XCTUnwrap(descendant(modal,id:"native.arcade-world-modal.close") as? UIButton)
             close.sendActions(for:.touchUpInside)
             try await Task.sleep(for:.milliseconds(150))
-            XCTAssertEqual(completed,0);XCTAssertEqual(cues,["scene-speech-stop:arena-modal-endurance","cta","modal-exit"])
+            XCTAssertEqual(completed,0);XCTAssertEqual(cues,["paired-modal-cta-enter","scene-speech-stop:arena-modal-endurance","cta","modal-exit"])
             if background {
                 modal.setForeground(false)
                 try await Task.sleep(for:.milliseconds(350))

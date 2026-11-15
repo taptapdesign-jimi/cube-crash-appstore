@@ -264,6 +264,65 @@ final class NativeArcadePresentationTests: XCTestCase {
     private var root: URL { Bundle.main.bundleURL.appendingPathComponent("NativeAssets.bundle") }
     private enum ReceiptFailure: Error { case rejected }
 
+    func testEntryCloudsUseFiniteRoundClockAndRetireWithOwner() throws {
+        for size in [CGSize(width:390,height:844),CGSize(width:820,height:1180)] {
+            let window=UIWindow(frame:CGRect(origin:.zero,size:size))
+            let controller=UIViewController();window.rootViewController=controller;window.makeKeyAndVisible()
+            let owner=NativeArcadeRoundPresentation(resourceRoot:root,clearedRound:1,nextRound:2,
+                continuationOnly:true,entryTitle:"One Lucky Drop",random:{0.5})
+            owner.frame=window.bounds;controller.view.addSubview(owner);owner.layoutIfNeeded();owner.start()
+            func descendants(_ view:UIView)->[UIView] {view.subviews.flatMap{[$0]+descendants($0)}}
+            let clouds=descendants(owner).filter{$0.accessibilityIdentifier?.hasPrefix("native.arcade.round-cloud.")==true}
+            XCTAssertEqual(clouds.count,16)
+            XCTAssertTrue(clouds.allSatisfy{($0 as? UIImageView)?.image != nil})
+            let modeTitle=try XCTUnwrap(descendants(owner).first{$0.accessibilityIdentifier=="native.arcade.entry-mode"})
+            XCTAssertEqual(modeTitle.accessibilityLabel,"One Lucky Drop")
+            let letters=modeTitle.subviews.compactMap{$0 as? UILabel}
+            XCTAssertEqual(letters.count,14)
+            XCTAssertTrue(letters.allSatisfy{$0.textColor==UIColor(red:231.0/255,green:116.0/255,blue:73.0/255,alpha:1)})
+            owner.advanceFrame(timestamp:100);owner.advanceFrame(timestamp:100.05)
+            XCTAssertGreaterThan(letters[0].alpha,0)
+            XCTAssertEqual(letters[1].alpha,0,"Title letters inherit PRESENTS120ms stagger")
+            let titlePose=NativeStudioIntroView.presentsEntryPose(at:0.05,index:0)
+            XCTAssertEqual(letters[0].layer.transform.m11,titlePose.transform.m11,accuracy:0.000001)
+            XCTAssertGreaterThan(clouds[0].transform.tx,0,"Rightward wind starts during bounce-in")
+            XCTAssertLessThan(clouds[1].transform.tx,0,"Leftward wind starts during bounce-in")
+            let firstX=clouds[0].transform.tx
+            owner.advanceFrame(timestamp:101)
+            XCTAssertGreaterThan(clouds[0].transform.tx,firstX)
+            XCTAssertTrue(clouds.allSatisfy{$0.superview?.clipsToBounds==false})
+            XCTAssertTrue(clouds.allSatisfy{$0.alpha>0})
+            XCTAssertLessThan(clouds.map{$0.center.y}.min()!,size.height*0.15)
+            XCTAssertGreaterThan(clouds.map{$0.center.y}.max()!,size.height*0.85)
+            let pose=clouds[0].transform
+            owner.setSuspended(true);owner.advanceFrame(timestamp:110)
+            XCTAssertEqual(clouds[0].transform,pose)
+            owner.setSuspended(false);owner.advanceFrame(timestamp:111);owner.advanceFrame(timestamp:111.2)
+            XCTAssertNotEqual(clouds[0].transform,pose)
+            if size.width==390 {
+                let renderer=UIGraphicsImageRenderer(bounds:owner.bounds)
+                try renderer.image{owner.layer.render(in:$0.cgContext)}.pngData()?.write(to:URL(fileURLWithPath:"/tmp/arcade-cloud-entry.png"))
+            }
+            let beforeExitX=clouds[0].transform.tx
+            owner.advanceFrame(timestamp:110+owner.roundExitStart+0.05)
+            XCTAssertGreaterThan(clouds[0].transform.tx,beforeExitX,"Wind keeps its direction through exit onset")
+            XCTAssertGreaterThan(clouds[0].transform.a,1,"First cloud starts its bounce-out with NN")
+            XCTAssertEqual(clouds[15].transform.a,1,accuracy:0.001,"Last cloud waits only the fast14ms cascade")
+            owner.advanceFrame(timestamp:110+owner.roundExitStart+0.35)
+            XCTAssertNotEqual(clouds[15].transform.a,1,"Last cloud also joins the exit cascade")
+            owner.advanceFrame(timestamp:110+owner.duration+0.1)
+            XCTAssertNil(owner.superview);XCTAssertTrue(clouds.allSatisfy{$0.alpha==0})
+            owner.dispose();window.isHidden=true
+        }
+        let transition=NativeArcadeRoundPresentation(resourceRoot:root,clearedRound:1,nextRound:2,continuationOnly:true)
+        transition.frame=CGRect(x:0,y:0,width:390,height:844);transition.layoutIfNeeded()
+        XCTAssertEqual(transition.subviews.first?.subviews.count,5)
+        XCTAssertEqual(transition.subviews.first?.clipsToBounds,false)
+        XCTAssertEqual(transition.subviews.first?.frame.minY,118)
+        XCTAssertLessThan(transition.subviews.first!.frame.maxY,844)
+        transition.dispose()
+    }
+
     func testContinuationReceiptPrecedesFirstRoundFrameAndCommitsExactlyOnce() async {
         let window = UIWindow(frame: CGRect(x: 0,y: 0,width: 390,height: 844))
         let controller = UIViewController(); window.rootViewController = controller; window.makeKeyAndVisible()

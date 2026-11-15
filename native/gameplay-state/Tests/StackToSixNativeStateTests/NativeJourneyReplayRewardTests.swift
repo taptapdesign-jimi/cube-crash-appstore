@@ -103,7 +103,7 @@ final class NativeJourneyReplayRewardTests:XCTestCase {
         let legacy=try JSONDecoder().decode(NativeBoardState.self,from:JSONEncoder().encode(state))
         XCTAssertNotEqual(id(choose(legacy,0.1,[])),"barell","Old runs already guaranteed first drop; no replay of that guarantee")
     }
-    func testCanceledThirdDropKeepsGuaranteeAndArcadeNeverUsesJourneyDiscoveries() throws {
+    func testCanceledThirdDropKeepsGuaranteeAndArcadeAddsJourneyDiscoveries() throws {
         var state=NativeBoardState(tiles:[.init(id:"a",cell:.init(column:0,row:0),value:1)],mode:.journey,board:24,wildMeter:1.25,wildSpawnCount:2)
         state.earnedJourneyDice=["kanta"]
         let engine=NativeGameplayEngine(state:state,recordedRandomChoices:[0,0,0],rewardPicker:{state,_ in self.choose(state,0,[])})
@@ -117,9 +117,11 @@ final class NativeJourneyReplayRewardTests:XCTestCase {
         let resumed=try JSONDecoder().decode(NativeBoardState.self,from:JSONEncoder().encode(engine.state))
         XCTAssertEqual(resumed.wildSpawnCount,2);XCTAssertEqual(resumed.earnedJourneyDice,["kanta"])
         XCTAssertEqual(id(choose(resumed,0,[])),"laser-gun")
-        for variant in NativeArcadeVariant.allCases {for i in 0..<100 {
+        for variant in NativeArcadeVariant.allCases {
             let arcade=NativeBoardState(tiles:[],mode:.arcade,board:2,arcadeVariant:variant)
-            XCTAssertEqual(choose(arcade,Double(i)/100,[]),choose(arcade,Double(i)/100,["bee","laser-gun","flower"]))
-        }}
+            let unlocked:Set<String>=["bee","laser-gun","flower"]
+            let found=Set((0..<100).compactMap{id(choose(arcade,Double($0)/100,unlocked))})
+            XCTAssertTrue(unlocked.isSubset(of:found))
+        }
     }
 }

@@ -107,6 +107,9 @@ final class NativeWildMergeSixRootTests:XCTestCase {
     func testBaloonJourneyBlockerDestination()async throws {
         try await exercise(archetype:.juice,variant:"baloon",reverse:true,disposeDuringMain:false,moves:49,finalOnly:false,arcadeRun:false)
     }
+    func testJourneyFinalMergeAdmitsPreparedCounterAndKeepsItsVisibleFramesResponsive()async throws {
+        try await exercise(archetype:.juice,variant:"baloon",reverse:false,disposeDuringMain:false,moves:49,finalOnly:true,arcadeRun:false,verifyCounterBlurHandoff:true)
+    }
     func testBaloonJourneyFinalSource()async throws {
         try await exercise(archetype:.juice,variant:"baloon",reverse:false,disposeDuringMain:false,moves:49,finalOnly:true,arcadeRun:false)
     }
@@ -330,7 +333,7 @@ final class NativeWildMergeSixRootTests:XCTestCase {
     func testTutorialAssistFinalStarMergeShowsCompletionAndContinue()async throws {
         try await exercise(archetype:.star,variant:nil,reverse:true,disposeDuringMain:false,finalOnly:true,starCount:0,tutorialAssist:true)
     }
-    func testArcadeTutorialResultContinueReplacesSourceGenerationAndAdmitsNextMove()async throws {
+    func testArcadeTutorialResultContinueRetiresSourceAndReturnsToHubWithFarewell()async throws {
         try await exercise(archetype:.star,variant:nil,reverse:true,disposeDuringMain:false,finalOnly:true,starCount:0,tutorialAssist:true,arcadeTutorial:true)
     }
     func testArcadeStarArchetypesUseJourneyDropsAndAdmitNextActualDrag()async throws {
@@ -496,13 +499,13 @@ final class NativeWildMergeSixRootTests:XCTestCase {
         try await exercise(archetype:.magnet,variant:"bottle",reverse:true,disposeDuringMain:false,moves:49,finalOnly:true,verifyBoardCleared:true)
         try await exercise(archetype:.tnt,variant:"coconut",reverse:false,disposeDuringMain:false,moves:49,finalOnly:true,verifyBoardCleared:true)
     }
-    private func exercise(archetype:NativeWildArchetype,variant:String?,reverse:Bool,disposeDuringMain:Bool=true,pulledKanta:Bool=false,moves:Int=49,finalOnly:Bool=false,starCount:Int=3,capturedBoard:NativeBoardState?=nil,freshStar:Bool=false,verifyStarTail:Bool=false,interveningOrdinary:Bool=false,interveningSix:Bool=false,heldOrdinaryMilliseconds:Int=160,rapidOrdinaryContacts:Int=0,tutorialAssist:Bool=false,arcadeTutorial:Bool=false,laserInterveningStack:Bool=false,laserInterveningSix:Bool=false,arcadeRun:Bool=false,initialMeter:Double?=nil,verifyBaloonRetirement:Bool=false,verifyBoardScale:Bool=false,verifyQueuedBonus:Bool=false,verifyLaserContinuity:Bool=false,verifySparseLaserContinuity:Bool=false,verifyLaserContactBodyContinuity:Bool=false,verifyFilmLaserFootprints:Bool=false,disableFilmRegularMipmaps:Bool=false,warmFilmMoves:Bool=false,pendingFilmSafetySweep:Bool=false,warmFilmLaserRepeats:Bool=false,verifySurvivorEntry:Bool=false,verifyBoardCleared:Bool=false)async throws {
+    private func exercise(archetype:NativeWildArchetype,variant:String?,reverse:Bool,disposeDuringMain:Bool=true,pulledKanta:Bool=false,moves:Int=49,finalOnly:Bool=false,starCount:Int=3,capturedBoard:NativeBoardState?=nil,freshStar:Bool=false,verifyStarTail:Bool=false,interveningOrdinary:Bool=false,interveningSix:Bool=false,heldOrdinaryMilliseconds:Int=160,rapidOrdinaryContacts:Int=0,tutorialAssist:Bool=false,arcadeTutorial:Bool=false,laserInterveningStack:Bool=false,laserInterveningSix:Bool=false,arcadeRun:Bool=false,initialMeter:Double?=nil,verifyBaloonRetirement:Bool=false,verifyBoardScale:Bool=false,verifyQueuedBonus:Bool=false,verifyLaserContinuity:Bool=false,verifySparseLaserContinuity:Bool=false,verifyLaserContactBodyContinuity:Bool=false,verifyFilmLaserFootprints:Bool=false,disableFilmRegularMipmaps:Bool=false,warmFilmMoves:Bool=false,pendingFilmSafetySweep:Bool=false,warmFilmLaserRepeats:Bool=false,verifySurvivorEntry:Bool=false,verifyBoardCleared:Bool=false,verifyCounterBlurHandoff:Bool=false)async throws {
         let label=(variant ?? archetype.rawValue)+(reverse ? ":destination":":source")
         print("[WildMergeSixRoot] start \(label)")
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("wild-six-particles-"+UUID().uuidString)
         let store=NativeSaveStore(directory:directory)
         var envelope=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
-        envelope.progression.firstPlayTutorialComplete=true;envelope.progression.completedJourneyBoards=Set(1..<(variant=="bloob" ? 27:26))
+        envelope.progression.firstPlayTutorialComplete = !tutorialAssist;envelope.progression.completedJourneyBoards=Set(1..<(variant=="bloob" ? 27:26))
         var board=NativeBoardFactory.make(mode:.journey,board:variant=="bloob" ? 27:26,generation:9,seed:7)
         for i in board.tiles.indices {board.tiles[i].value=0;board.tiles[i].locked=true;board.tiles[i].alpha=0.25}
         for (i,value) in (finalOnly ? [(0,6),(1,2)]:[(0,6),(1,2),(2,1),(3,1),(40,1)]) {
@@ -532,9 +535,11 @@ final class NativeWildMergeSixRootTests:XCTestCase {
         if pulledKanta {board.tiles[2].value=6;board.tiles[2].archetype = .star;board.tiles[2].variant="kanta"}
         if let capturedBoard {board=capturedBoard;envelope.progression.completedJourneyBoards=Set(1..<board.board)}
         if arcadeTutorial || arcadeRun {board.mode = .arcade;board.board=1}
+        if tutorialAssist {board.board=1;board.stage=1}
         let boardNumber=board.board
         envelope.progression.beginAttempt(mode:board.mode,board:boardNumber)
-        if arcadeTutorial || arcadeRun {envelope.arcadeRun=board;envelope.arcadeRunSavedAt=Date().timeIntervalSince1970}
+        if tutorialAssist {envelope.firstPlayRun=board}
+        else if arcadeTutorial || arcadeRun {envelope.arcadeRun=board;envelope.arcadeRunSavedAt=Date().timeIntervalSince1970}
         else {envelope.journeyRuns[boardNumber]=board}
         try store.save(envelope)
         weak var drawingScene:NativeBoardScene?
@@ -1149,42 +1154,32 @@ final class NativeWildMergeSixRootTests:XCTestCase {
             XCTAssertEqual(app.route,.gameplay,"Final Wild must retain gameplay for Clean Board: "+label)
             XCTAssertTrue(game() === gameplay,label)
             if tutorialAssist {
-                try await wait(label+":tutorial-completion") {failure != nil || app.children.contains{$0 is NativeTutorialCompleteController}}
-                XCTAssertNil(failure,label)
-                let sheet=try XCTUnwrap(app.children.compactMap{$0 as? NativeTutorialCompleteController}.first)
-                try await wait(label+":tutorial-ready"){sheet.phase == .ready}
-                sheet.requestContinue()
-                if arcadeTutorial {
-                    try await wait(label+":fresh-arcade"){failure != nil || (game() !== gameplay && game()?.boardScene?.isBoardEntryComplete==true)}
-                    XCTAssertNil(failure)
-                    let incoming=try XCTUnwrap(game())
-                    XCTAssertFalse(incoming === gameplay)
-                    XCTAssertFalse(scope.current)
-                    XCTAssertTrue(incoming.sourceScope?.current==true)
-                    XCTAssertNil(incoming.sourcePresentationFailure)
-                    XCTAssertNil(incoming.engine.state.tutorial)
-                    let nextScene=try XCTUnwrap(incoming.boardScene)
-                    var moved=false
-                    try await wait(label+":next-arcade-move") {
-                        for a in incoming.engine.state.activeTiles where !moved {
-                            for b in incoming.engine.state.activeTiles where !moved && a.id != b.id && NativeGameplayResolver.canDrop(a,onto:b) {
-                                guard let source=nextScene.sourceNativeTileNode(a.id),let target=nextScene.sourceNativeTileNode(b.id),let parent=source.parent else{continue}
-                                let from=parent.convert(source.position,to:nextScene),to=parent.convert(target.position,to:nextScene)
-                                guard nextScene.beginDrag(at:from) else{continue}
-                                nextScene.moveDrag(to:to)
-                                moved=nextScene.finishDrag(at:to,now:CACurrentMediaTime())?.accepted==true
-                            }
-                        }
-                        return moved || incoming.sourcePresentationFailure != nil
-                    }
-                    XCTAssertTrue(moved)
-                    try await wait(label+":next-arcade-settlement"){incoming.sourcePresentationFailure != nil || !incoming.engine.hasUnsavableSourceGameplayState}
-                    XCTAssertNil(incoming.sourcePresentationFailure)
-                    return
+                try await wait(label+":tutorial-result") {
+                    failure != nil || gameplay.visibleJourneyRewardController != nil || gameplay.presentedViewController is NativeResultController
                 }
-                try await wait(label+":tutorial-continue"){app.route == .home}
                 XCTAssertNil(failure,label)
-                XCTAssertTrue(try XCTUnwrap(store.load()).progression.firstPlayTutorialComplete)
+                try await wait(label+":tutorial-clean-board"){
+                    gameplay.visibleJourneyRewardController?.activate()
+                    return gameplay.presentedViewController is NativeResultController
+                }
+                let result=try XCTUnwrap(gameplay.presentedViewController as? NativeResultController)
+                XCTAssertTrue(result.clean)
+                for frame in 0...660 {result.tick(Double(frame)/60)}
+                func all(_ view:UIView)->[UIView]{[view]+view.subviews.flatMap(all)}
+                let button=try XCTUnwrap(all(result.view).compactMap{$0 as? UIButton}.first{$0.accessibilityIdentifier=="native.result.play-again"})
+                XCTAssertEqual(button.title(for:.normal),"Continue")
+                button.sendActions(for:.touchUpInside)
+                let destination:NativeAppController.Route = arcadeTutorial ? .arcadeHub:.world((boardNumber-1)/10+1)
+                try await wait(label+":tutorial-return"){app.route == destination && !app.transitioning && app.tutorialFarewell != nil}
+                XCTAssertFalse(scope.current);XCTAssertNil(game())
+                let farewell=try XCTUnwrap(app.tutorialFarewell)
+                farewell.onGotIt?();farewell.onGotIt?()
+                try await wait(label+":tutorial-farewell"){app.tutorialFarewell==nil}
+                let saved=try XCTUnwrap(store.load())
+                XCTAssertTrue(saved.progression.firstPlayTutorialComplete)
+                XCTAssertFalse(saved.progression.tutorialFarewellPending)
+                XCTAssertNil(saved.pendingArcadeRound)
+                XCTAssertNil(failure,label)
                 return
             }
             try await wait(label+":clean-presentation") {
@@ -1196,6 +1191,19 @@ final class NativeWildMergeSixRootTests:XCTestCase {
             }
             XCTAssertNil(failure,label)
             if let reward=gameplay.visibleJourneyRewardController {reward.activate()}
+            if verifyCounterBlurHandoff {
+                try await wait(label+":actual-counter-result") {
+                    gameplay.visibleJourneyRewardController?.activate()
+                    return gameplay.presentedViewController is NativeResultController
+                }
+                let result=try XCTUnwrap(gameplay.presentedViewController as? NativeResultController)
+                XCTAssertTrue(result.isCounterBlurPrepared,"Real final merge/reward handoff cannot mount a cold counter filter")
+                result.counterBlurDiagnosticsEnabled=true
+                try await wait(label+":actual-visible-counter") {result.elapsed>2.5}
+                print("[NativeResultCounterBlurActualRoot] renders=\(result.counterBlurRenderCount) blurWorstMs=\(result.counterBlurRenderWorstMilliseconds)")
+                XCTAssertGreaterThan(result.counterBlurRenderCount,15)
+                XCTAssertLessThan(result.counterBlurRenderWorstMilliseconds,80)
+            }
             XCTAssertEqual(try store.load()?.progression.completedJourneyBoards.contains(boardNumber),true,label)
             XCTAssertEqual(app.route,.gameplay,label)
             if variant=="bottle",let retained=scene.sourceNativeTileNode(wildID) {

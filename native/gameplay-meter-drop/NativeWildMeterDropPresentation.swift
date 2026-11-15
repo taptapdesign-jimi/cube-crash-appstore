@@ -16,6 +16,7 @@ final class NativeWildMeterDropPresentation: SKNode {
     private var borrowedTextures: [String:SKTexture]
     private let stagePoint: (NativeWildMeterDropPlan.Point) -> CGPoint
     private var disposed=false,lastSource: String?
+    private var tutorialOpeningAnchorProgress:Double=0
 
     init(plan:NativeWildMeterDropPlan,capture:NativeWildMeterDropRuntime.Capture,
          preparedTextures:[String:SKTexture],stagePoint:@escaping (NativeWildMeterDropPlan.Point)->CGPoint) throws {
@@ -60,11 +61,15 @@ final class NativeWildMeterDropPresentation: SKNode {
         guard !disposed else {return}
         runtime.assetsPrepared(runtime.capture,animationSeconds:animationSeconds)
     }
-    func advance(animationSeconds:Double,wallMilliseconds:Double,renderEpoch:UInt64,carrierEmphasis:JimiV9Motion.Pose?=nil) {
+    func advance(animationSeconds:Double,wallMilliseconds:Double,renderEpoch:UInt64,carrierEmphasis:JimiV9Motion.Pose?=nil,carrierAnchorProgress:Double?=nil) {
         guard !disposed,let frame=runtime.advance(runtime.capture,animationSeconds:animationSeconds,
             wallMilliseconds:wallMilliseconds,renderEpoch:renderEpoch) else {return}
         if !frame.carrier.released {
-            let pose=frame.carrier.pose
+            if let carrierAnchorProgress {tutorialOpeningAnchorProgress=min(1,max(0,carrierAnchorProgress))}
+            var pose=frame.carrier.pose
+            let offset=runtime.plan.tutorialCarrierArrivalOffset
+            pose.point.x += offset.x*(1-tutorialOpeningAnchorProgress)
+            pose.point.y += offset.y*(1-tutorialOpeningAnchorProgress)
             // SpriteKit's size setter and outer scale are coupled. Assigning
             // original PNG dimensions while the previous pose is scaled makes
             // that scaled size the new baseline, cancelling the Source scale.
@@ -79,7 +84,9 @@ final class NativeWildMeterDropPresentation: SKNode {
             carrier.xScale=CGFloat(pose.scaleX);carrier.yScale=CGFloat(pose.scaleY)
             carrier.zRotation = -CGFloat(pose.rotation);carrier.alpha=CGFloat(pose.opacity)
             if let emphasis=carrierEmphasis {
-                let height=runtime.plan.carrierScale*(runtime.plan.arcade ? 403.0:438.0)
+                // Match the approved Backpack jump per visible closed-carrier
+                // ink height; Box and Backpack PNGs have different padding.
+                let height=runtime.plan.carrierScale*(runtime.plan.arcade ? 258.0*438/253:438.0)
                 carrier.position=stagePoint(.init(x:pose.point.x,y:pose.point.y+emphasis.y*height))
                 carrier.xScale *= CGFloat(emphasis.scaleX);carrier.yScale *= CGFloat(emphasis.scaleY)
             }

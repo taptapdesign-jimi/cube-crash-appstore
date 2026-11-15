@@ -21,6 +21,7 @@ final class NativeResultOwner {
     private let continueJourney:(()->Void)?
     private let rewardScore:Int?
     private let previousRewardStars:Int
+    private let tutorialArcadeCompletion:Bool
     var onForestAmbience:((Bool,Bool)->Void)?
     var onMoment:((String,Int,Double?)->Void)?
     var onHaptic:((String)->Void)?
@@ -41,7 +42,8 @@ final class NativeResultOwner {
          commit: @escaping (Int) throws -> Void, restart: @escaping () -> Void,
          continueArcade: @escaping () -> Void, exit: @escaping () -> Void,
          interimJourney:Bool=false,rewardScore:Int?=nil,continueJourney:(()->Void)?=nil,
-         sourceNoMovesReceipt:NativeSourceNoMovesCompletedReceipt?=nil,previousRewardStars:Int=0) {
+         sourceNoMovesReceipt:NativeSourceNoMovesCompletedReceipt?=nil,previousRewardStars:Int=0,tutorialArcadeCompletion:Bool=false) {
+        self.tutorialArcadeCompletion=tutorialArcadeCompletion
         self.previousRewardStars=previousRewardStars
         self.gameplay=gameplay;self.root=root;self.resolution=resolution;self.sourceNoMovesReceipt=sourceNoMovesReceipt
         self.commit=commit;self.restart=restart;self.continueArcade=continueArcade;self.exit=exit
@@ -62,10 +64,10 @@ final class NativeResultOwner {
         // still commits a loss, so it cannot queue an uncleared next round.
         let arcadeReached=resolution.kind == .fail && state.mode == .arcade && state.board>=2
         let clean=resolution.kind == .complete || arcadeReached
-        // Arcade bonuses belong to the final reached-run summary. Real round
-        // clears retain their existing automatic cue and carry the raw score.
+        // Arcade bonuses belong to the final reached-run summary and practice
+        // Clean Board. Real clears keep their automatic cue and raw score.
         // The captured fail resolution still prevents next-round progression.
-        let awardsCleanBonus=clean && (state.mode != .arcade || arcadeReached)
+        let awardsCleanBonus=clean && (state.mode != .arcade || arcadeReached || tutorialArcadeCompletion)
         let efficiency=awardsCleanBonus ? NativeRewardMath.cleanEfficiencyBonus(state:state) : 0
         let combo=awardsCleanBonus ? state.earnedComboBonus : 0
         let score=Self.finalScore(state:state,clean:awardsCleanBonus)
@@ -112,16 +114,17 @@ final class NativeResultOwner {
         } else {showResult()}
     }
     private func presentResult(gameplay:NativeGameplayViewController,state:NativeBoardState,clean:Bool,combo:Int,efficiency:Int,score:Int,arcadeReached:Bool) {
-        let sheet=gameplay.takePreparedJourneyResult(generation:state.generation) ?? NativeResultController(root:root,state:state,clean:clean,combo:combo,efficiency:efficiency,finalScore:score,interimJourney:interimJourney,arcadeReached:arcadeReached,arcadeCelebrationPresented:gameplay.hasPresentedBoardCleared)
+        let sheet=gameplay.takePreparedJourneyResult(generation:state.generation) ?? NativeResultController(root:root,state:state,clean:clean,combo:combo,efficiency:efficiency,finalScore:score,interimJourney:interimJourney,arcadeReached:arcadeReached,arcadeCelebrationPresented:gameplay.hasPresentedBoardCleared,tutorialArcadeCompletion:tutorialArcadeCompletion)
         sheet.onForestAmbience=onForestAmbience
         sheet.onMoment=onMoment
         sheet.onHaptic=onHaptic
         sheet.onCommit = { [weak self] in try self?.commit(score) }
         sheet.onAction = { [weak self,weak sheet] action in
             guard let self,let sheet,self.modal === sheet else {return}
-            // Only the completed first-play Journey result returns to its
-            // retained World. Later ordinary Continue keeps advancing Units.
+            // Practice result actions return to selection. Ordinary Arcade
+            // clears and Journey Continue keep their existing destinations.
             var destination=action
+            if clean,self.tutorialArcadeCompletion {destination = .exit}
             if case .nextJourney=action,clean,state.mode == .journey,state.tutorial?.requiresResultCompletion==true {destination = .exit}
             let preparation:((@escaping (Bool)->Void)->Void)?
             if case .exit=destination,state.mode == .journey {preparation=self.prepareExit}else {preparation=nil}
@@ -134,9 +137,15 @@ final class NativeResultOwner {
             }
         }
         sheet.followsConfirmedNoMoves = sourceNoMovesReceipt != nil
-        modal=sheet;sheet.admitPreparedHandoff();gameplay.setSuspended(true);onMoment?("modal-open",0,nil);gameplay.present(sheet,animated:false)
-        if let receipt=sourceNoMovesReceipt {
-            gameplay.boardScene?.traceNoMovesHandoff("result-mount",token:receipt.planToken,owner:sheet,mounted:sheet.view.window != nil)
+        sheet.prepareForHandoff(viewport:gameplay.view.bounds.size)
+        modal=sheet;gameplay.setSuspended(true)
+        sheet.whenCounterBlurPrepared { [weak self,weak sheet,weak gameplay] in
+            guard let self,let sheet,let gameplay,!self.disposed,self.modal === sheet,
+                  gameplay.engine.state.generation==state.generation else{return}
+            sheet.admitPreparedHandoff();self.onMoment?("modal-open",0,nil);gameplay.present(sheet,animated:false)
+            if let receipt=self.sourceNoMovesReceipt {
+                gameplay.boardScene?.traceNoMovesHandoff("result-mount",token:receipt.planToken,owner:sheet,mounted:sheet.view.window != nil)
+            }
         }
     }
     private func finishSourceFinalCleanup() {
@@ -164,11 +173,20 @@ final class NativeResultController:UIViewController {
     private let headline:String
     private let paperSurface:NativeAppPaperSurface
     private let arcadeCelebrationPresented:Bool
+    private let tutorialArcadeCompletion:Bool
     private var arcadePresentation:NativeArcadeRoundPresentation?
     private let content=UIView(),cardContent=UIView(),headlineContent=UIView(),statusContent=UIView(),bonusContent=UIView()
     private let scoreMotion=UIView(),scoreShake=UIView()
     private let scoreBlur=UIImageView()
     private var scoreBlurContext:CIContext?
+    private var scoreBlurPreparation:NativeRewardPreparationLease?
+    private var scoreBlurPreparationFinished=false
+    private var scoreBlurWaiters:[()->Void]=[]
+    private var counterBlurApplicationActive=UIApplication.shared.applicationState == .active
+    var isCounterBlurPrepared:Bool {scoreBlurPreparationFinished}
+    var counterBlurDiagnosticsEnabled=false
+    private(set) var counterBlurRenderWorstMilliseconds=0.0
+    private(set) var counterBlurRenderCount=0
     private var scoreBlurInput:CIImage?
     private var scoreBlurText:String?
     private var scoreBlurSize=CGSize.zero
@@ -226,10 +244,12 @@ final class NativeResultController:UIViewController {
         if state.mode == .arcade {return .arcade}
         return state.board>20 ? .area55:state.board>10 ? .beach:.forest
     }
-    private var arcadeCue:Bool {clean && state.mode == .arcade && !arcadeReached}
+    private var tutorialArcade:Bool {clean && state.mode == .arcade && tutorialArcadeCompletion}
+    private var arcadeCue:Bool {clean && state.mode == .arcade && !arcadeReached && !tutorialArcade}
     private var scoreOnlyArcadeSummary:Bool {arcadeReached && combo==0 && efficiency==0}
-    init(root:URL,state:NativeBoardState,clean:Bool,combo:Int,efficiency:Int,finalScore:Int,interimJourney:Bool=false,arcadeReached:Bool=false,arcadeCelebrationPresented:Bool=false,headlineRandom:Double=Double.random(in:0..<1)) {
+    init(root:URL,state:NativeBoardState,clean:Bool,combo:Int,efficiency:Int,finalScore:Int,interimJourney:Bool=false,arcadeReached:Bool=false,arcadeCelebrationPresented:Bool=false,tutorialArcadeCompletion:Bool=false,headlineRandom:Double=Double.random(in:0..<1)) {
         self.arcadeCelebrationPresented=arcadeCelebrationPresented
+        self.tutorialArcadeCompletion=tutorialArcadeCompletion
         assets=JimiV9Artwork(resourceRoot:root);self.state=state;self.clean=clean;self.arcadeReached=arcadeReached
         paperSurface=NativeAppPaperSurface(artwork:assets)
         resourceRoot=root
@@ -241,6 +261,7 @@ final class NativeResultController:UIViewController {
     required init?(coder:NSCoder) {fatalError("Use native result initializer")}
     override func viewDidLoad() {
         super.viewDidLoad()
+        prepareCounterBlur()
         view.backgroundColor = arcadeCue ? .clear : UIColor(red:243/255,green:238/255,blue:232/255,alpha:1)
         if !arcadeCue {
             paperSurface.frame=view.bounds;paperSurface.autoresizingMask=[.flexibleWidth,.flexibleHeight];paperSurface.isUserInteractionEnabled=false
@@ -261,7 +282,7 @@ final class NativeResultController:UIViewController {
             front.accessibilityIdentifier="native.result.star.filled.\(index)"
             empty.append(back);filled.append(front)
             if clean,index<earnedStars,front.image?.cgImage != nil {
-                starEffects.append(NativeResultStarEffect(star:front,readyAt:0.6+Double(max(0,earnedStars-1))*0.5+0.6))
+                starEffects.append(NativeResultStarEffect(star:front,readyAt:NativeResultPresentationPlan.filledStarStart(index:max(0,earnedStars-1))+0.6))
             }
             holder.transform=CGAffineTransform(rotationAngle:index == 0 ? -.pi*8/180 : index == 2 ? .pi*8/180 : 0)
         }
@@ -287,7 +308,7 @@ final class NativeResultController:UIViewController {
         paragraph.minimumLineHeight=clean ? 40:56;paragraph.maximumLineHeight=paragraph.minimumLineHeight
         heading.attributedText=NSAttributedString(string:headline,attributes:[.font:heading.font!,.foregroundColor:heading.textColor!,.paragraphStyle:paragraph])
         heading.numberOfLines=0;heading.lineBreakMode = .byWordWrapping
-        if finalScore > state.bestScore {
+        if !tutorialArcade,finalScore > state.bestScore {
             let label=NSMutableAttributedString(string:"NEW ",attributes:[.font:assets.font(size:18,weight:"ExtraBold"),.foregroundColor:orange,.kern:0.4])
             label.append(NSAttributedString(string:"High score",attributes:[.font:scoreLabel.font!,.foregroundColor:brown,.kern:0.4]))
             scoreLabel.attributedText=label
@@ -296,17 +317,17 @@ final class NativeResultController:UIViewController {
         scoreBlur.accessibilityIdentifier="native.result.score-motion-blur"
         score.accessibilityIdentifier="native.result.score"
         status.accessibilityIdentifier="native.result.status"
-        status.text="\(state.mode == .arcade ? "Round \(NativeScoreDisplay.padded(state.stage))" : String(format:"%@ %02d",state.board>20 ? "Area":state.board>10 ? "Beach":"Forest",(state.board-1)%10+1)) \(arcadeReached ? "reached" : clean ? "cleared" : "not cleared")"
+        status.text=tutorialArcadeCompletion ? "Tutorial \(clean ? "cleared":"not cleared")" : "\(state.mode == .arcade ? "Round \(NativeScoreDisplay.padded(state.stage))" : String(format:"%@ %02d",state.board>20 ? "Area":state.board>10 ? "Beach":"Forest",(state.board-1)%10+1)) \(arcadeReached ? "reached" : clean ? "cleared" : "not cleared")"
         for (index,button) in buttons.enumerated() {
-            button.setTitle(index == 0 ? (completesWorld ? "Back to World" : continuesJourney ? "Continue" : "Play again") : (completesWorld ? "Play again" : "Exit"),for:.normal)
+            button.setTitle(index == 0 ? (completesWorld ? "Back to World" : continuesJourney || tutorialArcade ? "Continue" : "Play again") : (completesWorld ? "Play again" : "Exit"),for:.normal)
             button.applyModalCTA(artwork:assets,primary:index == 0)
             button.setPairedModalCTA(independentIdleIndex:index)
             button.tag=index;button.accessibilityIdentifier=index == 0 ? "native.result.play-again" : "native.result.exit"
             button.addTarget(self,action:#selector(activate(_:)),for:.touchUpInside);content.addSubview(button);button.enableCartoonBounce()
         }
         thumb.image=assets.image("assets/thumbs-up@2x.png");thumb.contentMode = .scaleAspectFit;content.addSubview(thumb)
-        observations=[NotificationCenter.default.addObserver(forName:UIApplication.willResignActiveNotification,object:nil,queue:.main) { [weak self] _ in MainActor.assumeIsolated{self?.setSuspended(true)} },
-            NotificationCenter.default.addObserver(forName:UIApplication.didBecomeActiveNotification,object:nil,queue:.main) { [weak self] _ in MainActor.assumeIsolated{self?.setSuspended(false)} }]
+        observations=[NotificationCenter.default.addObserver(forName:UIApplication.willResignActiveNotification,object:nil,queue:.main) { [weak self] _ in MainActor.assumeIsolated{self?.counterBlurApplicationActive=false;self?.setSuspended(true)} },
+            NotificationCenter.default.addObserver(forName:UIApplication.didBecomeActiveNotification,object:nil,queue:.main) { [weak self] _ in MainActor.assumeIsolated{self?.counterBlurApplicationActive=true;self?.setSuspended(false);self?.deliverCounterBlurWaiters()} }]
         if arcadeCue {
             content.isHidden=true
             let presentation=NativeArcadeRoundPresentation(resourceRoot:resourceRoot,clearedRound:state.stage,nextRound:state.stage+1,continuationOnly:arcadeCelebrationPresented)
@@ -351,7 +372,7 @@ final class NativeResultController:UIViewController {
         // The shared clean entry spring has an invisible anticipation segment.
         // CLEARED already supplied that anticipation: hand straight into the
         // first readable hero/title frame instead of mounting blank paper.
-        if clean,state.mode == .journey,(arcadeCelebrationPresented || interimJourney) {elapsed=NativeResultPresentationPlan.cleanAfterClearedStart}
+        if clean,((state.mode == .journey && (arcadeCelebrationPresented || interimJourney)) || (tutorialArcade && arcadeCelebrationPresented)) {elapsed=NativeResultPresentationPlan.cleanAfterClearedStart}
         // NO MOVES already supplied the lead-in. Start at the readable fail
         // pose only after its confirmed board-exit receipt reaches this sheet.
         if !clean,followsConfirmedNoMoves {elapsed=NativeResultPresentationPlan.failAfterNoMovesStart}
@@ -451,6 +472,28 @@ final class NativeResultController:UIViewController {
         loadViewIfNeeded();view.frame=CGRect(origin:.zero,size:viewport);view.setNeedsLayout();view.layoutIfNeeded()
         setSuspended(true)
     }
+    func whenCounterBlurPrepared(_ completion:@escaping ()->Void) {
+        guard !disposed else{return}
+        loadViewIfNeeded()
+        scoreBlurWaiters.append(completion);deliverCounterBlurWaiters()
+    }
+    private func deliverCounterBlurWaiters() {
+        guard !disposed,scoreBlurPreparationFinished,counterBlurApplicationActive else{return}
+        let waiters=scoreBlurWaiters;scoreBlurWaiters.removeAll()
+        for waiter in waiters {guard !disposed else{return};waiter()}
+    }
+    private func prepareCounterBlur() {
+        guard clean,!arcadeCue,!UIAccessibility.isReduceMotionEnabled else{scoreBlurPreparationFinished=true;return}
+        let lease=NativeRewardPreparationLease();scoreBlurPreparation=lease
+        NativeRewardFilteredFrames.prepareCounterBlur(lease:lease) { [weak self] context in
+            guard let self,!self.disposed,!lease.cancelled,self.scoreBlurPreparation === lease else {
+                if let context {NativeRewardFilteredFrames.retireCounterBlur(context)}
+                return
+            }
+            self.scoreBlurPreparation=nil;self.scoreBlurContext=context;self.scoreBlurPreparationFinished=true
+            self.deliverCounterBlurWaiters()
+        }
+    }
     func admitPreparedHandoff(){guard !disposed else{return};presentationAdmitted=true;setSuspended(false);if isViewLoaded{paint()}}
     func tick(_ timestamp:CFTimeInterval) {
         guard !disposed,!suspended,!arcadeCue else {lastTime=nil;return}
@@ -475,6 +518,9 @@ final class NativeResultController:UIViewController {
     private var lastCounterValue:Int?
     private var lastCounterHapticAt = -Double.infinity
     private func paint() {
+        // Ordinary Arcade owns its Round NN presentation separately. Prepared
+        // admission must not replay the hidden Clean Board's audio or commit.
+        guard !arcadeCue else{return}
         if let closingAt {
             var age=max(0,elapsed-closingAt)
             if !clean,destinationPreparation != nil,!destinationReady,age>0.74 {
@@ -492,11 +538,8 @@ final class NativeResultController:UIViewController {
                 if clean {
                     let pose=NativeResultExitPlan.cleanStar(seconds:age,index:index,earned:earned,capturedScale:capturedStarScales.indices.contains(index) ? capturedStarScales[index]:1)
                     apply(pose,to:filled[index])
-                    // Unearned grey stars are visible result components too.
-                    // Preserve their entry opacity while sharing the authored exit.
-                    let emptyPose=NativeResultExitPlan.cleanEmptyStar(seconds:age,index:index,earned:earned)
-                    apply(emptyPose,to:empty[index])
-                } else {apply(NativeResultExitPlan.failedEmptyStar(seconds:age,index:index),to:empty[index])}
+                }
+                apply(NativeResultExitPlan.emptyStar(seconds:age,index:index,earned:earned,entrySeconds:closingAt,reducedMotion:UIAccessibility.isReduceMotionEnabled),to:empty[index])
             }
             if !clean,destinationPreparation != nil,destinationReady {view.alpha=CGFloat(plan.paperOpacity)}
             if age>=plan.completionSeconds {
@@ -529,16 +572,14 @@ final class NativeResultController:UIViewController {
             if !scoreOnlyArcadeSummary {moment("clean-bonus",at:NativeResultPresentationPlan.cleanComboStart,duration:NativeResultPresentationPlan.cleanCounterDuration(from:state.score,to:state.score+combo));moment("clean-bonus",at:NativeResultPresentationPlan.cleanEfficiencyStart,duration:NativeResultPresentationPlan.cleanCounterDuration(from:state.score+combo,to:finalScore))}
         }
         for index in 0..<3 {
+            apply(NativeResultPresentationPlan.emptyStarPose(seconds:elapsed,index:index,earned:earnedStars,reducedMotion:UIAccessibility.isReduceMotionEnabled),to:empty[index])
             if clean {
                 filled[index].isHidden=index>=earnedStars
-                empty[index].alpha=NativeResultPresentationPlan.emptyStarOpacity(seconds:elapsed,index:index,earned:earnedStars)
                 let scale=NativeResultPresentationPlan.filledStarScale(seconds:elapsed,index:index)
                 filled[index].transform=CGAffineTransform(scaleX:scale,y:scale)
-                if index<earnedStars {moment("clean-star",at:0.6+Double(index)*0.5,index:index)}
+                if index<earnedStars {moment("clean-star",at:NativeResultPresentationPlan.filledStarStart(index:index),index:index)}
             } else {
                 filled[index].isHidden=true
-                let scale=NativeResultPresentationPlan.failedStarScale(seconds:elapsed,index:index)
-                empty[index].transform=CGAffineTransform(scaleX:scale,y:scale)
             }
         }
         paintStarEffects()
@@ -580,7 +621,7 @@ final class NativeResultController:UIViewController {
         clickedPrimary=sender.tag==0
         onMoment?(sender.tag == 0 ? "cta":"back",sender.tag,nil);onHaptic?("selection")
         for button in buttons {button.isUserInteractionEnabled=false}
-        let action:Action = completesWorld ? (sender.tag == 0 ? .exit : .restart) : (sender.tag == 0 ? (continuesJourney ? .nextJourney : .restart) : .exit)
+        let action:Action = tutorialArcade ? .exit : completesWorld ? (sender.tag == 0 ? .exit : .restart) : (sender.tag == 0 ? (continuesJourney ? .nextJourney : .restart) : .exit)
         onAction?(action);onAction=nil
     }
     func close(prepareDestination:((@escaping (Bool)->Void)->Void)?=nil,paperFadeDuration:Double=0.14,completion:@escaping ()->Void) {
@@ -661,6 +702,7 @@ final class NativeResultController:UIViewController {
             scoreBlurRadius = -1
             return
         }
+        guard let context=scoreBlurContext else {score.alpha=1;scoreBlur.isHidden=true;return}
         if scoreBlurText != score.text || scoreBlurSize != score.bounds.size || scoreBlurInput==nil {
             let format=UIGraphicsImageRendererFormat();format.scale=scoreBlurScale;format.opaque=false
             let size=score.bounds.size,padding=scoreBlurPadding
@@ -672,9 +714,10 @@ final class NativeResultController:UIViewController {
         }
         guard let input=scoreBlurInput else {score.alpha=1;scoreBlur.isHidden=true;return}
         if scoreBlurRadius != radius {
-            if scoreBlurContext==nil {scoreBlurContext=CIContext(options:[.cacheIntermediates:false])}
+            let started=counterBlurDiagnosticsEnabled ? CACurrentMediaTime():nil
+            defer {if let started {counterBlurRenderCount+=1;counterBlurRenderWorstMilliseconds=max(counterBlurRenderWorstMilliseconds,(CACurrentMediaTime()-started)*1000)}}
             let output=input.applyingFilter("CIMotionBlur",parameters:[kCIInputRadiusKey:radius*Double(scoreBlurScale),kCIInputAngleKey:Double.pi/2])
-            guard let raster=scoreBlurContext?.createCGImage(output,from:input.extent) else {
+            guard let raster=context.createCGImage(output,from:input.extent) else {
                 score.alpha=1;scoreBlur.isHidden=true;return
             }
             scoreBlur.image=UIImage(cgImage:raster,scale:scoreBlurScale,orientation:.up)
@@ -709,7 +752,8 @@ final class NativeResultController:UIViewController {
     }
     func dispose() {
         guard !disposed else {return};disposed=true;retireScoreBurn();retireStarEffects();retireScoreAccent();buttons.forEach{$0.setModalCTAIdleSuspended(true)};onForestAmbience?(false,false);onForestAmbience=nil;link?.invalidate();link=nil;clockTarget=nil
-        scoreBlurContext?.clearCaches();scoreBlurContext=nil
+        scoreBlurPreparation?.cancel();scoreBlurPreparation=nil;scoreBlurWaiters.removeAll()
+        if let context=scoreBlurContext {scoreBlurContext=nil;NativeRewardFilteredFrames.retireCounterBlur(context)}
         arcadePresentation?.dispose();arcadePresentation=nil;confetti?.dispose();confetti=nil;area55Flybys?.dispose();area55Flybys=nil;forestBees?.dispose();forestBees=nil
         for observer in observations {NotificationCenter.default.removeObserver(observer)};observations.removeAll()
         destinationLease &+= 1;destinationPreparation=nil;destinationPending=false

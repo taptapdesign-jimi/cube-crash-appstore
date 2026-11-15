@@ -330,15 +330,10 @@ nonisolated private enum NativeStudioAnimatedDecoder {
 @MainActor
 final class NativeStudioIntroView:UIView,CAAnimationDelegate {
     struct Character {
-        let key:String,scale:CGFloat,x:CGFloat,y:CGFloat,topPivot:Bool
-        init(_ key:String,_ scale:CGFloat,_ x:CGFloat=0,_ y:CGFloat=0,_ top:Bool=false){self.key=key;self.scale=scale;self.x=x;self.y=y;topPivot=top}
-        // Keep the established selection/audio identity; only this character's
-        // presentation uses the lossless Studio export. Originals stay intact.
-        var motionAssetPath:String {
-            key == "lik-pas-SVG" ? "assets/logo addons/native/lik-lajna-v1.webp":"assets/logo addons/optimized/\(key)-mobile.webp"
-        }
+        let key:String,scale:CGFloat,x:CGFloat,y:CGFloat
+        init(_ key:String,_ scale:CGFloat,_ x:CGFloat=0,_ y:CGFloat=0){self.key=key;self.scale=scale;self.x=x;self.y=y}
+        var motionAssetPath:String {"assets/logo addons/optimized/\(key)-mobile.webp"}
         var stillAssetPath:String {
-            if key == "lik-pas-SVG" {return "assets/logo addons/native/lik-lajna-v1.png"}
             let png=key == "lik-slikanje" ? "lik slikanje":key == "pas-novine" ? "pas novine":key
             return "assets/logo addons/\(png).png"
         }
@@ -346,7 +341,7 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
     static let characters:[Character]=[
         .init("lik-kauc",1.1475,0,40),.init("lik-gitara",1.1,0,16),.init("lik-slikanje",1.08,20,10),
         .init("lik-cvijet",1.08,0,8),.init("lik-board",1.04,0,16),.init("lik-game",1.08),
-        .init("lik-laptop",1.7424,0,8),.init("lik-pas-SVG",1.2768,0,0,true),.init("lik-speceraj",1.37214,0,20),
+        .init("lik-laptop",1.7424,0,8),.init("lik-speceraj",1.37214,0,20),
         .init("pas-novine",1.43,0,16)]
     static let duration=4.33,logoExtraHold=0.10
     // The plaque travels above the screen before becoming visible; let it
@@ -388,8 +383,12 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
     static func presentsPose(at seconds:Double,index:Int)->NativeArcadeRoundPresentation.Pose {
         let exit=seconds-(characterExitTime-0.10)-Double(index)*0.05
         if exit>=0 {return NativeArcadeRoundPresentation.exit(exit,index:index,rotation:0)}
+        return presentsEntryPose(at:seconds-presentsEntryStart,index:index)
+    }
+    /// Shared pure letter entry; callers keep their own finite presentation clock.
+    static func presentsEntryPose(at seconds:Double,index:Int)->NativeArcadeRoundPresentation.Pose {
         let letterDuration=presentsEntryDuration-7*presentsLetterStagger
-        let local=(seconds-presentsEntryStart-Double(index)*presentsLetterStagger)*0.44/letterDuration
+        let local=(seconds-Double(index)*presentsLetterStagger)*0.44/letterDuration
         return NativeArcadeRoundPresentation.entry(local,overshoot:1.32,dip:0.90)
     }
     private let sheenMask=CALayer(),sheenRows=[CALayer(),CALayer()],sheenBands=[CAGradientLayer(),CAGradientLayer()]
@@ -452,13 +451,12 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
         label.accessibilityLabel="PRESENTS";label.isAccessibilityElement=true
         presentsGlyphs="PRESENTS".map {character in
             let glyph=UILabel();glyph.text=String(character);glyph.font=artwork.font(size:18)
-            glyph.textColor=UIColor(red:184.0/255,green:121.0/255,blue:96.0/255,alpha:0.8)
+            glyph.textColor=NativeTextPalette.brown.withAlphaComponent(0.8)
             glyph.textAlignment = .center;glyph.layer.isDoubleSided=false;glyph.layer.opacity=0
             let carrier=UIView();carrier.isUserInteractionEnabled=false
             label.addSubview(carrier);carrier.addSubview(glyph);presentsGlyphCarriers.append(carrier);return glyph
         }
         fallback.image=artwork.image(self.character.stillAssetPath);fallback.contentMode = .scaleAspectFit
-        if self.character.topPivot {characterView.layer.anchorPoint=CGPoint(x:0.5,y:0)}
         for name in [UIApplication.willResignActiveNotification,UIApplication.didEnterBackgroundNotification,UIApplication.didBecomeActiveNotification] {
             notificationOwners.tokens.append(NotificationCenter.default.addObserver(forName:name,object:nil,queue:.main){[weak self] note in
                 MainActor.assumeIsolated{
@@ -536,7 +534,6 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
         // logo composition, authored pivot, entry/exit scale or frame clock.
         let selectedCharacterScale:CGFloat
         switch character.key {
-        case "lik-pas-SVG": selectedCharacterScale=tablet ? 1.176:1.10
         case "lik-gitara": selectedCharacterScale=tablet ? 1.15:1.05
         case "lik-kauc": selectedCharacterScale=tablet ? 1.15:1
         case "lik-slikanje": selectedCharacterScale=tablet ? 1.10:1.05
@@ -549,7 +546,6 @@ final class NativeStudioIntroView:UIView,CAAnimationDelegate {
         let characterVerticalFraction:CGFloat
         switch character.key {
         case "lik-speceraj": characterVerticalFraction=tablet ? 0.05:0.02
-        case "lik-pas-SVG": characterVerticalFraction=tablet ? -0.06:-0.04
         case "lik-board": characterVerticalFraction=tablet ? 0.07:0
         case "lik-laptop": characterVerticalFraction=tablet ? 0.02:0
         case "pas-novine": characterVerticalFraction=tablet ? 0.04:0

@@ -200,6 +200,9 @@ final class NativeArcadeWorldModal: UIView {
     private var foreground = true, entered = false
     private var closing = false, disposed = false
     private var didBounceCTA=false
+    private var ctaRevealTime:CFTimeInterval?
+    private var ctaRevealStarted=false,ctaEntryCompleted=false
+    static var ctaEntryDelay:TimeInterval {max(0,JimiNativeModalV10.paperEnterDuration*0.98-0.100)}
     private var ready = false {
         didSet { play.isEnabled = ready && foreground && !closing; accessibilityValue = ready ? "ready" : "entering" }
     }
@@ -245,6 +248,8 @@ final class NativeArcadeWorldModal: UIView {
         art.image = assets.image(["assets/arcade/endourance2.png","assets/arcade/pure dice2.png","assets/arcade/slow burn2.png"][index],densityAware:true)
         art.contentMode = .scaleAspectFit;art.layer.zPosition=1
         play.setTitle(continuing ? "Continue":"Play",for:.normal); play.applyModalCTA(artwork:assets)
+        play.alpha=0
+        play.onSculptedFacePrepared = {[weak self] in self?.revealCTAIfReady()}
         play.addTarget(self,action:#selector(pressPlay),for:[.touchDown,.touchDragEnter])
         play.addTarget(self,action:#selector(releasePlay),for:[.touchUpOutside,.touchDragExit,.touchCancel])
         play.addTarget(self,action:#selector(playGame),for:.touchUpInside)
@@ -390,17 +395,27 @@ final class NativeArcadeWorldModal: UIView {
     var isWaitingForEntry:Bool {!entryRequested || (entryBeginTime.map{CACurrentMediaTime() < $0} ?? false)}
     func prepareReveal() {alpha=0;isUserInteractionEnabled=false;accessibilityValue="entering"}
     func reveal(beginTime:CFTimeInterval? = nil) {
+        guard !entryRequested,!closing,!disposed else{return}
         entryRequested=true;alpha=1;isUserInteractionEnabled=foreground
         accessibilityValue="entering"
         layoutIfNeeded();card.alpha=0;backdrop.alpha=0
-        if UIAccessibility.isReduceMotionEnabled {card.alpha=1;completeEnter();backdrop.alpha=1;return}
-        // Hold the prepared pose until the shared contact clock reaches entry.
+        let reduced=UIAccessibility.isReduceMotionEnabled
         let start=beginTime ?? CACurrentMediaTime()
         entryBeginTime=start
+        ctaRevealTime=play.layer.convertTime(start,from:nil)+(reduced ? 0:Self.ctaEntryDelay)
+        if reduced {card.alpha=1;backdrop.alpha=1;completeEnter();revealCTAIfReady();return}
+        // Hold the prepared pose until the shared contact clock reaches entry.
         JimiNativeModalV10.enterClose(close,beginTime:start)
         CATransaction.begin();CATransaction.setDisableActions(true)
         CATransaction.setCompletionBlock { [weak self] in guard let self,!self.disposed,!self.closing else { return }; self.completeEnter() }
         JimiNativeModalV10.enter(card:card,flip:flip,key:"arcade.modal.enter",beginTime:start)
+        for (index,cloud) in clouds.enumerated() {
+            installEntryTrack(cloud,Self.artCloudEntry(begin:0.10+Double(index)*0.025),
+                key:"arcade.modal.cloud.enter",epoch:cloud.layer.convertTime(start,from:nil))
+        }
+        installEntryTrack(art,Self.artCloudEntry(begin:0.20),
+            key:"arcade.modal.art.enter",epoch:art.layer.convertTime(start,from:nil))
+        revealCTAIfReady()
         let visibility=CABasicAnimation(keyPath:"opacity")
         visibility.fromValue=0;visibility.toValue=1;visibility.duration=0.001
         visibility.beginTime=card.layer.convertTime(start,from:nil);visibility.fillMode = .backwards
@@ -415,14 +430,51 @@ final class NativeArcadeWorldModal: UIView {
         guard !disposed,!closing else{return}
         entered=true;entryBeginTime=nil
         guard foreground else{return}
-        ready=true
+        ready=ctaEntryCompleted
         JimiNativeModalV10.startIdle(on:idle,key:"arcade.modal.idle")
         JimiNativeModalV10.startIdle(on:art,key:"arcade.modal.art.idle")
-        if !didBounceCTA {
+        if ctaEntryCompleted,!didBounceCTA {
             didBounceCTA=true
             JimiNativeModalV10.startSettledBounce(on:play,extraDuration:0,delay:0.2)
         }
         refreshCloudIdle(reducedMotion:UIAccessibility.isReduceMotionEnabled)
+    }
+    /// Small secondary spring and a long zero-velocity landing; CTA keeps Stage timing.
+    static func artCloudEntry(begin:Double)->JimiV9Motion.Track {
+        let soft=JimiV9Motion.Ease.cubicBezier(0.42,0,0.58,1)
+        return .init(tweens:[
+            .init(begin:begin,duration:0.36,from:.scale(0),to:.scale(1.045),ease:.backOut(1.25)),
+            .init(begin:begin+0.36,duration:0.22,from:.scale(1.045),to:.scale(0.985),ease:soft),
+            .init(begin:begin+0.58,duration:0.20,from:.scale(0.985),to:.scale(1),ease:soft)])
+    }
+    private func installEntryTrack(_ target:UIView,_ track:JimiV9Motion.Track,key:String,epoch:CFTimeInterval) {
+        let sample=JimiV9Motion.sampledTrack(track),alpha=target.alpha
+        let motion=CAKeyframeAnimation(keyPath:"transform"),fade=CAKeyframeAnimation(keyPath:"opacity")
+        motion.values=sample.poses.map{NSValue(caTransform3D:CATransform3DScale(CATransform3DMakeTranslation($0.x,$0.y,0),$0.scaleX,$0.scaleY,1))}
+        fade.values=sample.poses.map{NSNumber(value:Double(alpha)*$0.opacity)}
+        for animation in [motion,fade] {animation.duration=sample.duration;animation.calculationMode = .linear}
+        let group=CAAnimationGroup();group.animations=[motion,fade];group.duration=sample.duration
+        group.beginTime=epoch;group.fillMode = .backwards
+        target.layer.add(group,forKey:key)
+    }
+    private func revealCTAIfReady() {
+        guard entryRequested,foreground,!disposed,!closing,!ctaRevealStarted,
+              play.isSculptedFacePrepared,let requested=ctaRevealTime else{return}
+        ctaRevealStarted=true
+        let now=play.layer.convertTime(CACurrentMediaTime(),from:nil),epoch=max(now,requested)
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        CATransaction.setCompletionBlock{[weak self] in
+            guard let self,!self.disposed,!self.closing else{return}
+            self.ctaEntryCompleted=true
+            if self.entered {self.completeEnter()}
+        }
+        play.alpha=1
+        installEntryTrack(play,JimiV9Motion.modalCTAEnter(reducedMotion:UIAccessibility.isReduceMotionEnabled),key:"arcade.modal.cta.enter",epoch:epoch)
+        CATransaction.commit()
+        play.scheduleModalCTAEntryCue(after:max(0,epoch-now)){[weak self] in
+            guard let self,self.foreground,!self.disposed,!self.closing else{return}
+            self.onFeedback?("paired-modal-cta-enter")
+        }
     }
     /// Same visible modal owner handles preference changes and foreground reentry.
     func refreshCloudIdle(reducedMotion:Bool) {
@@ -440,16 +492,20 @@ final class NativeArcadeWorldModal: UIView {
         guard !disposed else{return}
         if !active,!closing {modalDrag?.cancel()}
         foreground=active;isUserInteractionEnabled=active && !closing
+        play.setSculptedFacePreparationSuspended(!active)
         play.isEnabled=ready && active && !closing
         if active {
             if layer.speed==0 {let paused=layer.timeOffset;layer.speed=1;layer.timeOffset=0;layer.beginTime=0;layer.beginTime=layer.convertTime(CACurrentMediaTime(),from:nil)-paused}
+            revealCTAIfReady()
             if entered {completeEnter()}
         }else if layer.speed != 0 {
             layer.timeOffset=layer.convertTime(CACurrentMediaTime(),from:nil);layer.speed=0
         }
     }
     func dispose() {
-        guard !disposed else { return };art.gestureRecognizers?.forEach{art.removeGestureRecognizer($0)}; modalDrag?.dispose();modalDrag=nil;disposed = true;onFinish = nil;onFeedback=nil;onPlayExitStart=nil
+        guard !disposed else { return }
+        play.cancelModalCTAEntryCue();play.onSculptedFacePrepared=nil;play.retireSculptedFacePreparation();ctaRevealTime=nil
+        art.gestureRecognizers?.forEach{art.removeGestureRecognizer($0)}; modalDrag?.dispose();modalDrag=nil;disposed = true;onFinish = nil;onFeedback=nil;onPlayExitStart=nil
         for target in [self,card,flip,tilt,idle,art,backdrop,close,play]+clouds { target.layer.removeAllAnimations() }
         clouds.forEach{$0.image=nil}
         removeFromSuperview()
@@ -465,6 +521,7 @@ final class NativeArcadeWorldModal: UIView {
         let idlePose=idle.layer.presentation()?.transform ?? idle.layer.transform
         let artPose=art.layer.presentation()?.transform ?? art.layer.transform
         modalDrag?.cancel(preservePose:true);closing=true
+        self.play.cancelModalCTAEntryCue();self.play.onSculptedFacePrepared=nil;ctaRevealTime=nil
         isUserInteractionEnabled=false;self.play.isEnabled=false
         self.play.layer.removeAnimation(forKey:JimiNativeModalV10.settledBounceKey)
         onFeedback?("scene-speech-stop:"+["arena-modal-endurance","arena-modal-grill","arena-modal-slow"][modeIndex])

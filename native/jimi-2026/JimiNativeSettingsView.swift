@@ -64,6 +64,7 @@ final class JimiNativeSettingsView: UIView, UIGestureRecognizerDelegate, UIScrol
     var onDeveloperClose: (() -> Void)?
     var onPreference: ((String, Bool, Int) -> Void)?
     var onPrivacy: (() -> Void)?
+    var onCreatorStory: (() -> Void)?
     var onDeveloper: ((Int) -> Void)?
     var onDeveloperAction: ((NativeDeveloperAction, Int) -> Void)?
     private(set) var developerButtons: [JimiV9PlainButton] = []
@@ -91,14 +92,35 @@ final class JimiNativeSettingsView: UIView, UIGestureRecognizerDelegate, UIScrol
     private let idlePhases=(0..<3).map{_ in Double.random(in:0.35...0.65)}
     private let idleDurations=(0..<3).map{_ in Double.random(in:3.4...4.6)}
     private let title = JimiV9ArchedNavigationTitle()
-    private let footerCopy = UILabel()
+    let creator = JimiV9PlainButton(type: .custom)
+    private let creatorHeart = UIImageView()
+    private let creatorBrand = UILabel()
+    private let creatorMade = UILabel()
+    let creatorShimmerHost=CALayer(),creatorShimmerMask=CALayer()
+    private let creatorHeartMask=CALayer()
+    static let creatorHeartIdleKey="settings.creator.heart.idle"
+    private final class HeartReceipt:NSObject,CAAnimationDelegate {
+        weak var owner:JimiNativeSettingsView?
+        init(_ owner:JimiNativeSettingsView){self.owner=owner}
+        func animationDidStop(_ animation:CAAnimation,finished:Bool){
+            guard let owner,owner.heartReceipt === self else{return}
+            self.owner=nil;owner.heartReceipt=nil
+            if finished {owner.updateCreatorHeartIdle()}
+        }
+    }
+    private var heartReceipt:HeartReceipt?
+    private var heartRestAngle:Double=0
+    private(set) var creatorShimmer:NativeCTAShimmer?
+    private var creatorShimmerAdmitted=false
+    private var creatorShimmerSize=CGSize.zero,creatorShimmerScale:CGFloat=0
+    private let version = UILabel(), legalDot = UILabel()
     private let privacy = JimiV9PlainButton(type: .custom)
     private(set) var presentationEpoch = -1
     private(set) var snapshot: [String: Any] = [:]
     private let keys = ["gameSoundsEnabled", "musicEnabled", "hapticsEnabled"]
     private let labels = ["Sounds", "Music", "Vibration"]
     private static let iconOpacityKey="native.settings.icon-opacity"
-    private let ink = UIColor(red: 153/255, green: 103/255, blue: 84/255, alpha: 1)
+    private let ink = NativeTextPalette.brown
     private let accent = UIColor(red: 232/255, green: 116/255, blue: 74/255, alpha: 1)
 
     init(frame: CGRect, assets: JimiV9Artwork) {
@@ -182,12 +204,28 @@ final class JimiNativeSettingsView: UIView, UIGestureRecognizerDelegate, UIScrol
                 scroll.addSubview(divider); dividers.append(divider)
             }
         }
-        footerCopy.numberOfLines = 0; footerCopy.textAlignment = .center
-        footerCopy.font = assets.font(size: 16); footerCopy.textColor = ink.withAlphaComponent(0.65)
-        footerCopy.text = "Made with ❤️ in Croatia\nby Tap Tap Design\n\nVersion: 1.0"
-        footer.addSubview(footerCopy)
-        privacy.setTitle("Privacy Policy", for: .normal); privacy.titleLabel?.font = assets.font(size: 14)
-        privacy.setTitleColor(ink, for: .normal); privacy.accessibilityIdentifier = "native.settings.privacy"
+        creator.accessibilityIdentifier = "native.settings.creator"
+        creator.accessibilityLabel = "Tap Tap Design. Made with love in Croatia."
+        creator.accessibilityHint = "Opens the story of Jimi and Nala"
+        creator.addTarget(self,action:#selector(openCreatorStory),for:.touchUpInside)
+        footer.addSubview(creator);creator.enableArtworkTapFeedback(wholeControl:true)
+        creatorHeart.contentMode = .scaleAspectFit
+        creatorHeart.accessibilityIdentifier = "native.settings.creator.heart"
+        creator.addSubview(creatorHeart)
+        for label in [creatorBrand,creatorMade] {
+            label.textAlignment = .center;label.isAccessibilityElement = false
+            creator.addSubview(label)
+        }
+        creatorBrand.text = "Tap Tap Design";creatorBrand.textColor = NativeTextPalette.modalTitle
+        creatorBrand.accessibilityIdentifier = "native.settings.creator.brand"
+        creatorMade.text = "Made with love in Croatia";creatorMade.textColor = NativeTextPalette.subtitle
+        creatorMade.accessibilityIdentifier = "native.settings.creator.made"
+        version.text = "Version 1.0";version.textColor = NativeTextPalette.accentOrange
+        version.accessibilityIdentifier = "native.settings.version"
+        legalDot.text = "·";legalDot.textColor = ink.withAlphaComponent(0.65);legalDot.isAccessibilityElement=false
+        for label in [version,legalDot] {label.textAlignment = .center;footer.addSubview(label)}
+        privacy.setTitle("Privacy Policy", for: .normal); privacy.titleLabel?.font = assets.font(size: 14,weight:"Medium")
+        privacy.setTitleColor(NativeTextPalette.accentOrange, for: .normal); privacy.accessibilityIdentifier = "native.settings.privacy"
         privacy.addTarget(self, action: #selector(openPrivacy), for: .touchUpInside); footer.addSubview(privacy);privacy.enableCartoonBounce()
     }
     required init?(coder: NSCoder) { fatalError("Use init(frame:assets:)") }
@@ -198,6 +236,8 @@ final class JimiNativeSettingsView: UIView, UIGestureRecognizerDelegate, UIScrol
               let haptics = value[keys[2]] as? Bool else { return false }
         let animateChanges = presentationEpoch == epoch && window != nil && !isHidden && !developerPanelVisible
         presentationEpoch = epoch; snapshot = value
+        // The shared image cache is warmed only on an actual Settings visit.
+        if creatorHeart.image == nil {creatorHeart.image = NativeCreatorStoryArtwork.heart(assets:assets)}
         var changedStatuses: [UILabel] = []
         for (i, enabled) in [sounds, music, haptics].enumerated() {
             switches[i].setOn(enabled, animated: false)
@@ -207,10 +247,10 @@ final class JimiNativeSettingsView: UIView, UIGestureRecognizerDelegate, UIScrol
                 if animateChanges && statuses[i].text != nil { changedStatuses.append(statuses[i]) }
                 else { statuses[i].layer.removeAnimation(forKey: NativeHubBackpackFeedback.animationKey) }
                 statuses[i].text = text
-                statuses[i].textColor = enabled ? accent : UIColor(red:199/255,green:161/255,blue:135/255,alpha:1)
+                statuses[i].textColor = enabled ? accent : NativeTextPalette.brown
             }
         }
-        developerSummary.attributedText = NSAttributedString(string: "DEV\nJourney & Intro tools",attributes: [.font: assets.font(size: 18),.foregroundColor: NativeTextPalette.subtitle])
+        developerSummary.attributedText = NSAttributedString(string: "DEV\nJourney & Intro tools",attributes: [.font: assets.font(size: 18,weight:"Medium"),.foregroundColor: NativeTextPalette.subtitle])
         let summary = NSMutableAttributedString(attributedString: developerSummary.attributedText!)
         summary.addAttributes([.font: assets.font(size: 28,weight: "ExtraBold"),.foregroundColor: accent],range: NSRange(location: 0,length: 3))
         developerSummary.attributedText = summary
@@ -228,7 +268,7 @@ final class JimiNativeSettingsView: UIView, UIGestureRecognizerDelegate, UIScrol
     func setDeveloperPanelVisible(_ visible: Bool) {
         if visible { cancelStatusBounces() }
         developerPanelVisible = visible
-        updateCardIdle()
+        updateCardIdle();updateCreatorShimmer()
         scroll.clipsToBounds = visible
         title.text = visible ? "Developer" : "Settings"
         developer.isHidden = visible || snapshot["developerToolsAvailable"] as? Bool != true
@@ -264,14 +304,28 @@ final class JimiNativeSettingsView: UIView, UIGestureRecognizerDelegate, UIScrol
         // The original24pt chevron paints from x3 inside its10pt inset.
         // Tablet rows share the Backpack grid's32pt inner content inset.
         let bodyInset:CGFloat=tablet ? 32*contentScale:back.frame.minX+back.imageEdgeInsets.left+3
-        let footerHeight: CGFloat = min(165, max(110,bounds.height*0.2))*contentScale
-        NativeTabletLayout.labelFont(footerCopy,size:16*contentScale)
+        let footerHeight: CGFloat = min(165, max(150,bounds.height*0.2))*contentScale
         NativeTabletLayout.buttonFont(privacy,size:14*contentScale)
-        place(footer, in: CGRect(x:(bounds.width-contentWidth)/2+bodyInset,y:bounds.height-safeAreaInsets.bottom-footerHeight,width:max(0,contentWidth-bodyInset*2), height: footerHeight))
-        footerCopy.frame = CGRect(x: 0, y: 0, width: footer.bounds.width, height: footerHeight-40*contentScale)
-        privacy.setCartoonBounceFrame(CGRect(x: 0, y: footerHeight-44*contentScale, width: footer.bounds.width, height: 44*contentScale))
+        let footerY=bounds.height-safeAreaInsets.bottom-footerHeight
+        place(footer, in: CGRect(x:(bounds.width-contentWidth)/2+bodyInset,y:footerY,width:max(0,contentWidth-bodyInset*2), height: footerHeight))
+        creator.frame = CGRect(x:0,y:0,width:footer.bounds.width,height:footerHeight-50*contentScale)
+        place(creatorHeart,in:CGRect(x:(creator.bounds.width-44*contentScale)/2,y:3*contentScale,width:44*contentScale,height:40*contentScale))
+        creatorBrand.font = assets.font(size:18*contentScale,weight:"Bold")
+        creatorMade.font = assets.font(size:16*contentScale,weight:"Medium")
+        creatorBrand.frame = CGRect(x:0,y:48*contentScale,width:creator.bounds.width,height:26*contentScale)
+        creatorMade.frame = CGRect(x:0,y:74*contentScale,width:creator.bounds.width,height:24*contentScale)
+        version.font = assets.font(size:14*contentScale,weight:"Medium")
+        legalDot.font = assets.font(size:14*contentScale,weight:"Medium")
+        let legalY=footerHeight-44*contentScale,gap=12*contentScale
+        let versionWidth=ceil(version.intrinsicContentSize.width)
+        let dotWidth=ceil(legalDot.intrinsicContentSize.width)
+        let privacyWidth=ceil(privacy.sizeThatFits(CGSize(width:footer.bounds.width,height:44*contentScale)).width)
+        let legalX=(footer.bounds.width-versionWidth-dotWidth-privacyWidth-gap*2)/2
+        version.frame = CGRect(x:legalX,y:legalY,width:versionWidth,height:44*contentScale)
+        legalDot.frame = CGRect(x:version.frame.maxX+gap,y:legalY,width:dotWidth,height:44*contentScale)
+        privacy.setCartoonBounceFrame(CGRect(x:legalDot.frame.maxX+gap,y:legalY,width:privacyWidth,height:44*contentScale))
         header.updateBackgroundForScroll(scroll)
-        scroll.frame = CGRect(x:(bounds.width-contentWidth)/2,y:header.center.y+header.bounds.height/2,width:contentWidth, height: max(0,(footer.center.y-footer.bounds.height/2)-(header.center.y+header.bounds.height/2)))
+        scroll.frame = CGRect(x:(bounds.width-contentWidth)/2,y:row.headerHeight(),width:contentWidth,height:max(0,footerY-row.headerHeight()))
         developerSummary.frame = CGRect(x: 24,y: 20,width: max(0,contentWidth-48),height: 64)
         let columns = contentWidth <= 374 ? 1 : 3
         let buttonWidth = max(0,(contentWidth-48-CGFloat(columns-1)*10)/CGFloat(columns))
@@ -338,6 +392,7 @@ final class JimiNativeSettingsView: UIView, UIGestureRecognizerDelegate, UIScrol
             if i<dividers.count {place(dividers[i],in:CGRect(x:inset,y:nextPaintedY-8,width:rowWidth,height:2*contentScale))}
         }
         scroll.contentSize=CGSize(width:scroll.bounds.width,height:developerPanelVisible ? firstPlay.cartoonBounceFrame.maxY+32:nextPaintedY)
+        updateCreatorShimmer()
     }
     private func styleDeveloperButton(_ button: UIButton, fill: UInt32, depth: UInt32) {
         func color(_ value: UInt32) -> UIColor {
@@ -352,7 +407,8 @@ final class JimiNativeSettingsView: UIView, UIGestureRecognizerDelegate, UIScrol
     // independent from that model so each row retains its own collapse pivot.
     private func place(_ target: UIView, in rect: CGRect) {
         target.bounds = CGRect(origin: .zero, size: rect.size)
-        target.center = CGPoint(x: rect.midX, y: rect.midY)
+        target.layer.position = CGPoint(x:rect.minX+rect.width*target.layer.anchorPoint.x,
+                                        y:rect.minY+rect.height*target.layer.anchorPoint.y)
     }
     private func updateIconOpacity(at index:Int,enabled:Bool,animated:Bool) {
         let icon=icons[index],target:CGFloat=enabled ? 1:0.5
@@ -392,7 +448,106 @@ final class JimiNativeSettingsView: UIView, UIGestureRecognizerDelegate, UIScrol
         motion.timingFunctions=Array(repeating:CAMediaTimingFunction(name:.easeInEaseOut),count:NativeHUDTapMotion.poses.count-1)
         layer.add(motion,forKey:NativeHubBackpackFeedback.animationKey)
     }
-    func setIdleActive(_ active:Bool){idleAdmitted=active;updateCardIdle()}
+    func setCreatorShimmerActive(_ active:Bool){creatorShimmerAdmitted=active;updateCreatorShimmer()}
+    private func stopCreatorHeartIdle() {
+        if heartReceipt != nil,let painted=creatorHeart.layer.presentation()?.transform {
+            heartRestAngle=Double(atan2(painted.m12,painted.m11))*180 / .pi
+            CATransaction.begin();CATransaction.setDisableActions(true)
+            creatorHeart.layer.transform=painted;creatorHeartMask.transform=painted
+            CATransaction.commit()
+        }
+        heartReceipt?.owner=nil;heartReceipt=nil
+        creatorHeart.layer.removeAnimation(forKey:Self.creatorHeartIdleKey)
+        creatorHeartMask.removeAnimation(forKey:Self.creatorHeartIdleKey)
+    }
+    private func updateCreatorHeartIdle() {
+        guard creatorShimmerAdmitted,idleForeground,window != nil,!isHidden,!developerPanelVisible,
+              !UIAccessibility.isReduceMotionEnabled,creatorHeart.image != nil else {stopCreatorHeartIdle();return}
+        guard heartReceipt == nil else{return}
+        // The original PNG already leans right about12degrees. Offset that baked
+        // pose to visit an equally left-leaning heart and an upright heart.
+        let angles=[0.0,-12.0,-24.0].shuffled()
+        var values:[NSValue]=[],times:[NSNumber]=[],elapsed=0.0,previous=heartRestAngle
+        func append(_ angle:Double,_ pose:NativeHUDTapMotion.Pose,_ strength:Double,_ growth:Double=0) {
+            let t=CATransform3DMakeTranslation(0,CGFloat(pose.offset*strength),0)
+            let r=CATransform3DRotate(t,CGFloat(angle * .pi/180),0,0,1)
+            values.append(NSValue(caTransform3D:CATransform3DScale(r,CGFloat(1+growth)*(1+CGFloat((pose.x-1)*strength)),CGFloat(1+growth)*(1+CGFloat((pose.y-1)*strength)),1)))
+            times.append(NSNumber(value:elapsed))
+        }
+        let rest=NativeHUDTapMotion.Pose(x:1,y:1,offset:0)
+        append(previous,rest,0)
+        for angle in angles {
+            let duration=Double.random(in:0.72...0.85),strength=Double.random(in:0.45...0.75)
+            elapsed += 1-duration;append(previous,rest,0)
+            let start=elapsed
+            for (index,pose) in NativeHUDTapMotion.poses.enumerated().dropFirst() {
+                let phase=NativeHUDTapMotion.phases[index]
+                elapsed=start+duration*phase
+                append(previous+(angle-previous)*phase,pose,strength,0.20*[0.0,0,1,0.35,0.12,0][index])
+            }
+            previous=angle
+        }
+        let motion=CAKeyframeAnimation(keyPath:"transform")
+        motion.values=values;motion.keyTimes=times.map{NSNumber(value:$0.doubleValue/elapsed)}
+        motion.duration=elapsed
+        motion.timingFunctions=Array(repeating:CAMediaTimingFunction(name:.easeInEaseOut),count:values.count-1)
+        motion.beginTime=creatorHeart.layer.convertTime(CACurrentMediaTime(),from:nil)
+        let receipt=HeartReceipt(self);heartReceipt=receipt;motion.delegate=receipt
+        heartRestAngle=previous
+        CATransaction.begin();CATransaction.setDisableActions(true)
+        let final=CATransform3DMakeRotation(CGFloat(previous * .pi/180),0,0,1)
+        creatorHeart.layer.transform=final;creatorHeartMask.transform=final
+        CATransaction.commit()
+        let maskMotion=motion.copy() as! CAKeyframeAnimation
+        maskMotion.delegate=nil
+        maskMotion.beginTime=creatorHeartMask.convertTime(creatorHeart.layer.convertTime(motion.beginTime,to:nil),from:nil)
+        creatorHeart.layer.add(motion,forKey:Self.creatorHeartIdleKey)
+        creatorHeartMask.add(maskMotion,forKey:Self.creatorHeartIdleKey)
+    }
+    private func updateCreatorShimmer() {
+        guard creatorShimmerAdmitted,idleForeground,window != nil,!isHidden,!developerPanelVisible,
+              !UIAccessibility.isReduceMotionEnabled,creator.bounds.width>0,creator.bounds.height>0,
+              creatorHeart.image != nil else {
+            stopCreatorHeartIdle()
+            creatorShimmer?.dispose();creatorShimmer=nil
+            creatorHeartMask.removeFromSuperlayer();creatorHeartMask.contents=nil
+            creatorShimmerHost.removeFromSuperlayer();creatorShimmerHost.mask=nil
+            creatorShimmerMask.contents=nil;creatorShimmerSize = .zero
+            return
+        }
+        let scale=max(1,window?.screen.scale ?? traitCollection.displayScale)
+        if creatorShimmerSize != creator.bounds.size || creatorShimmerScale != scale {
+            creatorShimmer?.dispose();creatorShimmer=nil
+            // Only these three original leaves supply alpha. Never capture the
+            // parent (which includes the sheen) or any background/Privacy text.
+            let format=UIGraphicsImageRendererFormat();format.scale=scale;format.opaque=false
+            let mask=UIGraphicsImageRenderer(size:creator.bounds.size,format:format).image {context in
+                for leaf in [creatorBrand,creatorMade] {
+                    context.cgContext.saveGState()
+                    context.cgContext.translateBy(x:leaf.frame.minX,y:leaf.frame.minY)
+                    leaf.layer.render(in:context.cgContext)
+                    context.cgContext.restoreGState()
+                }
+            }
+            CATransaction.begin();CATransaction.setDisableActions(true)
+            creatorShimmerHost.frame=creator.bounds;creatorShimmerHost.zPosition=1
+            creatorShimmerMask.frame=creator.bounds;creatorShimmerMask.contents=mask.cgImage
+            creatorShimmerMask.contentsScale=scale;creatorShimmerHost.mask=creatorShimmerMask
+            CATransaction.commit()
+            CATransaction.begin();CATransaction.setDisableActions(true)
+            creatorHeartMask.bounds=creatorHeart.bounds;creatorHeartMask.position=creatorHeart.layer.position
+            creatorHeartMask.contents=creatorHeart.image?.cgImage;creatorHeartMask.contentsGravity = .resizeAspect
+            creatorShimmerMask.addSublayer(creatorHeartMask)
+            CATransaction.commit()
+            creatorShimmerSize=creator.bounds.size;creatorShimmerScale=scale
+        }
+        updateCreatorHeartIdle()
+        if creatorShimmer == nil {
+            creator.layer.addSublayer(creatorShimmerHost)
+            creatorShimmer=NativeCTAShimmer(button:creator,faceLayer:creatorShimmerHost,bandWidthMultiplier:1.4,cycleDuration:14)
+        }
+    }
+    func setIdleActive(_ active:Bool){idleAdmitted=active;setCreatorShimmerActive(active);updateCardIdle()}
     func setIdleForeground(_ foreground:Bool) {
         guard idleForeground != foreground else{return}
         idleForeground=foreground
@@ -405,6 +560,7 @@ final class JimiNativeSettingsView: UIView, UIGestureRecognizerDelegate, UIScrol
             row.layer.add(motion,forKey:JimiV9PlainButton.modalIdleKey)
         }
         if foreground {updateCardIdle()}
+        updateCreatorShimmer()
     }
     private func updateCardIdle() {
         let visible=idleAdmitted && window != nil && !isHidden && !developerPanelVisible && !UIAccessibility.isReduceMotionEnabled
@@ -419,10 +575,10 @@ final class JimiNativeSettingsView: UIView, UIGestureRecognizerDelegate, UIScrol
     override func didMoveToWindow() {
         super.didMoveToWindow()
         if window == nil { cancelStatusBounces();idleAdmitted=false }
-        updateCardIdle()
+        updateCardIdle();updateCreatorShimmer()
     }
     override var isHidden: Bool {
-        didSet { if isHidden { cancelStatusBounces();idleAdmitted=false };updateCardIdle() }
+        didSet { if isHidden { cancelStatusBounces();idleAdmitted=false;creatorShimmerAdmitted=false };updateCardIdle();updateCreatorShimmer() }
     }
     func tracks(enter: Bool) -> [(UIView, JimiV9Motion.Track)] {
         setIdleActive(false)
@@ -482,6 +638,10 @@ final class JimiNativeSettingsView: UIView, UIGestureRecognizerDelegate, UIScrol
         if developerPanelVisible { onDeveloperClose?();setDeveloperPanelVisible(false) } else { onBack?() }
     }
     @objc private func openPrivacy() { onPrivacy?() }
+    @objc private func openCreatorStory() {
+        guard !developerPanelVisible else{return}
+        onCreatorStory?()
+    }
     @objc private func openDeveloper() { NativeHubBackpackFeedback.play(on:developer.imageView ?? developer);onDeveloper?(presentationEpoch) }
     @objc private func activateDeveloperAction(_ sender: JimiV9PlainButton) {
         guard developerPanelVisible, snapshot["developerToolsAvailable"] as? Bool == true,
@@ -498,6 +658,7 @@ final class JimiNativeSettingsView: UIView, UIGestureRecognizerDelegate, UIScrol
 @MainActor
 final class JimiNativePrivacyController: UIViewController {
     var onCloseRequested:(()->Void)?
+    var onClosed:(()->Void)?
     private let restTilt=JimiNativeModalTransformView()
     private let restTiltDegrees=JimiNativeModalV10.restTiltDegrees()
     private let assets: JimiV9Artwork
@@ -523,15 +684,15 @@ final class JimiNativePrivacyController: UIViewController {
         idle.layer.shadowOpacity = 0.8;idle.layer.shadowOffset = CGSize(width:0,height:13);idle.layer.shadowRadius = 16.8
         copy.backgroundColor = .clear; copy.isEditable = false;copy.isSelectable = true
         copy.textContainerInset = .zero;copy.textContainer.lineFragmentPadding = 0
-        let ink = UIColor(red:173/255,green:134/255,blue:117/255,alpha:1)
+        let ink = NativeTextPalette.brown
         let orange = UIColor(red:232/255,green:116/255,blue:74/255,alpha:1)
         let content = NSMutableAttributedString()
         let titleStyle = NSMutableParagraphStyle();titleStyle.alignment = .center;titleStyle.paragraphSpacing = 20
         content.append(NSAttributedString(string:"Privacy Policy\n",attributes:[.font:assets.font(size:32,weight:"ExtraBold"),.foregroundColor:NativeTextPalette.modalTitle,.paragraphStyle:titleStyle]))
         let paragraphs = ["Stack to Six does not collect, transmit, sell, or share personal data.","Game progress and settings are stored only on your device.","The game does not use accounts, advertising, analytics, or in-app purchases.","Deleting the app removes its locally stored data.","Privacy questions can be directed to Tap Tap Design through the App Store support page.","Read Privacy Policy","Last updated: August 27, 2026"]
         for (i,text) in paragraphs.enumerated() {
-            let style = NSMutableParagraphStyle();style.minimumLineHeight = 22.5;style.maximumLineHeight = 22.5;style.paragraphSpacing = 8
-            var attrs: [NSAttributedString.Key:Any] = [.font:assets.font(size:i==6 ? 16 : 17,weight:"Medium"),.foregroundColor:i==6 ? ink.withAlphaComponent(0.72) : ink,.paragraphStyle:style]
+            let style = NativeModalTypography.subtitleParagraph(fontSize:i==6 ? 16:18,alignment:.left).mutableCopy() as! NSMutableParagraphStyle;style.paragraphSpacing = 8
+            var attrs: [NSAttributedString.Key:Any] = [.font:assets.font(size:i==6 ? 16 : 18,weight:"Medium"),.foregroundColor:i==6 ? ink.withAlphaComponent(0.72) : ink,.paragraphStyle:style]
             if i==5 { attrs[.link] = URL(string:"https://taptapdesign.com/stacktosix-privacy-policy/")! }
             content.append(NSAttributedString(string:text+(i==6 ? "" : "\n"),attributes:attrs))
         }
@@ -593,9 +754,9 @@ final class JimiNativePrivacyController: UIViewController {
     }
     @objc private func closeSheet() {
         guard !closing else{return};close.playArtworkTapFeedback();modalDrag?.cancel(preservePose:true);closing = true;view.isUserInteractionEnabled = false;onCloseRequested?()
-        guard !UIAccessibility.isReduceMotionEnabled else{dismiss(animated:false);return}
+        guard !UIAccessibility.isReduceMotionEnabled else{finishClose();return}
         let releaseY = card.layer.presentation()?.transform.m42 ?? card.layer.transform.m42
-        CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in self?.dismiss(animated:false)}
+        CATransaction.begin();CATransaction.setCompletionBlock{[weak self] in self?.finishClose()}
         JimiNativeModalV10.exit(card,flip:false,releaseY:releaseY,releaseTilt:atan2(card.layer.transform.m12,card.layer.transform.m11)*180 / .pi,key:"privacy-exit")
         JimiNativeModalV10.exit(flip,flip:true,key:"privacy-exit")
         let fade = CAKeyframeAnimation(keyPath:"opacity");fade.values = [1,1,0];fade.keyTimes = [0,0.18,1];fade.duration = 0.65
@@ -603,9 +764,12 @@ final class JimiNativePrivacyController: UIViewController {
         card.layer.opacity = 0;card.layer.add(fade,forKey:"privacy-exit-opacity");CATransaction.commit()
         UIView.animate(withDuration:0.5){self.backdrop.alpha = 0}
     }
+    private func finishClose() {
+        let callback=onClosed;onClosed=nil;dismiss(animated:false,completion:callback)
+    }
     override func viewDidDisappear(_ animated:Bool) {
         super.viewDidDisappear(animated)
-        modalDrag?.dispose();modalDrag = nil;onCloseRequested=nil
+        modalDrag?.dispose();modalDrag = nil;onCloseRequested=nil;onClosed=nil
         for target in [card,flip,idle,close] {target.layer.removeAllAnimations()}
     }
 }

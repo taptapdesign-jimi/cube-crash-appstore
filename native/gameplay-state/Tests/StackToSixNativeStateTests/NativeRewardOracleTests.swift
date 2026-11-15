@@ -19,9 +19,7 @@ final class NativeRewardOracleTests:XCTestCase {
                     XCTAssertEqual(actual?.archetype,expected.archetype);XCTAssertEqual(actual?.variant,expected.variant)
                 }}}
             }
-            var expected=Set([NativeWildArchetype.juice.rawValue,NativeWildArchetype.magnet.rawValue,NativeWildArchetype.tnt.rawValue,"baloon"])
-            if unlocked {expected.insert(NativeWildArchetype.star.rawValue)}
-            if variant != .pureDice {expected.formUnion(["bottle","cubero","barell"])}
+            let expected=Set(NativeArcadeBoxContent.baseIDs.compactMap{NativeJourneyContent.reward(named:$0)}.map{$0.variant ?? $0.archetype.rawValue})
             XCTAssertEqual(identities,expected)
         }}
     }

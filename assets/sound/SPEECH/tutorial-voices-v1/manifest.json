@@ -32,18 +32,6 @@
       "sha256": "b94e7e6302a38dd626c97502f51bf95bd4ac5900f0e10f1c8f28b158f9fa31c0"
     },
     {
-      "id": "003-merge",
-      "text": "Make six to merge.",
-      "source": "assets/sound/SPEECH/tutorial-voices-v1/003-merge.wav",
-      "start": 3.53,
-      "end": 5.16,
-      "duration": 1.63,
-      "peakDBFS": -3.043153667772724,
-      "rmsDBFS": -20.855001223418085,
-      "dc": -0.0004659367972843974,
-      "sha256": "e37628770b7e4a7783116500b4b0cf0bb192d72d0864657aef49454683186170"
-    },
-    {
       "id": "004-special-bar",
       "text": "A little surprise awaits.",
       "source": "assets/sound/SPEECH/tutorial-voices-v1/004-special-bar.wav",
@@ -182,13 +170,6 @@
     ]
   },
   "collectionNote": "Master has no separate collection line; reuse approved Let\u2019s get to know these little helpers! recording.",
-  "specialBarOverride": {
-    "master": "assets/sound/SPEECH/special bar voice.mp3",
-    "masterSHA256": "994005181319b153a709cbe130f0a8855d6573843577bb178d2c6265692c8fd8",
-    "text": "Each stack and merge fills the bar.",
-    "duration": 2.50775,
-    "normalization": "none; original MP3 played directly"
-  },
   "baseSources": {
     "tutorial-objective": [
       "assets/sound/SPEECH/tutorial-voices-v1/001-objective.wav"
@@ -197,7 +178,7 @@
       "assets/sound/SPEECH/tutorial-voices-v1/002-stack.wav"
     ],
     "tutorial-merge": [
-      "assets/sound/SPEECH/tutorial-voices-v1/003-merge.wav"
+      "assets/sound/SPEECH/merge to make six voice.mp3"
     ],
     "tutorial-special-bar": [
       "assets/sound/SPEECH/special bar voice.mp3"
@@ -218,5 +199,19 @@
       "assets/sound/SPEECH/tutorial-voices-v1/012-completion.wav"
     ]
   },
-  "playbackGainOverride": "tutorial-voices-plus3db-v1/manifest.json"
+  "playbackGainOverride": "tutorial-voices-plus3db-v1/manifest.json",
+  "specialBarOverride": {
+    "master": "assets/sound/SPEECH/special bar voice.mp3",
+    "masterSHA256": "994005181319b153a709cbe130f0a8855d6573843577bb178d2c6265692c8fd8",
+    "text": "Each stack and merge fills the bar.",
+    "duration": 2.50775,
+    "normalization": "none; original MP3 played directly"
+  },
+  "mergeOverride": {
+    "master": "assets/sound/SPEECH/merge to make six voice.mp3",
+    "masterSHA256": "97cb7b5240e4de7e4ba4c92efc85eb0849043b1bc31e193479c1baa2ab0c62e1",
+    "text": "Merge the dice to make six.",
+    "normalization": "none; playback derivative uses the shared tutorial +3dB policy",
+    "retiredCutDeleted": true
+  }
 }

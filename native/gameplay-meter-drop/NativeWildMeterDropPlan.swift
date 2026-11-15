@@ -29,37 +29,38 @@ nonisolated struct NativeWildMeterDropPlan: Sendable {
     static let carrierDepth=2_100_000, tileDepth=2_100_001
     static let carrierAnchor=Point(x:0.5,y:0.72)
     static let frameTailMilliseconds=100.0
-    static let tutorialOpenBounceDuration=0.88
-    static func tutorialOpenBounceDurationFor(arcade:Bool)->Double {arcade ? 0.48:tutorialOpenBounceDuration}
+    static let tutorialTakeoffStart=0.07,tutorialTakeoffDuration=0.20
+    static let tutorialFirstLandingEnd=0.75
+    static let tutorialOpenBounceDuration=1.26
+    static func tutorialOpenBounceDurationFor(arcade:Bool)->Double {tutorialOpenBounceDuration}
     static func tutorialOpenBounce(at seconds:Double,arcade:Bool=false)->JimiV9Motion.Pose {
-        if arcade {
-            return JimiV9Motion.Track(tweens:[
-                .init(begin:0,duration:0.20,from:.scale(1),to:.scale(1.20),ease:.powerOut(2)),
-                .init(begin:0.20,duration:0.28,from:.scale(1.20),to:.scale(1),ease:.powerOut(2))]).pose(at:seconds)
-        }
+        // Tutorial Box and Backpack share this exact recipe. Ordinary crate
+        // opening still uses its original carrier plan without this emphasis.
         // Y is a fraction of the closed carrier's height, in source Y-down.
-        // The jump peaks during sheet descent and settles before opening resumes.
-        let compressed=JimiV9Motion.Pose(scaleX:1.18,scaleY:0.80,y:0.025)
-        let airborne=JimiV9Motion.Pose(scaleX:0.84,scaleY:1.30,y:-0.34*1.3)
-        let crest=JimiV9Motion.Pose(scaleX:1.14,scaleY:1.12,y:-0.40*1.3)
-        let landing=JimiV9Motion.Pose(scaleX:1.28,scaleY:0.76,y:0.015)
-        if seconds>=0.44 {
-            let t=max(0,seconds-0.44)
+        // The jump starts at half sheet descent and settles before opening resumes.
+        let compressed=JimiV9Motion.Pose(scaleX:1.20,scaleY:0.78,y:0.025)
+        let airborne=JimiV9Motion.Pose(scaleX:0.76,scaleY:1.42,y:-0.34*1.3*1.6*1.25)
+        let crest=JimiV9Motion.Pose(scaleX:1.08,scaleY:1.18,y:-0.40*1.3*1.6*1.25)
+        // Ease into contact and release its smaller squash over a longer settle.
+        let landing=JimiV9Motion.Pose(scaleX:1.12,scaleY:0.90,y:0.005)
+        if seconds>=tutorialOpenBounceDuration {return .scale(1)}
+        if seconds>=tutorialFirstLandingEnd {
+            let t=max(0,(seconds-tutorialFirstLandingEnd)/1.16)
             let y:Double
             if t<0.015 {y=0}
             else if t<0.145 {y = -0.18*JimiV9Motion.Ease.powerOut(2).value((t-0.015)/0.13)}
-            else if t<0.28 {y = -0.18*(1-JimiV9Motion.Ease.powerIn(2).value((t-0.145)/0.135))}
+            else if t<0.28 {y = -0.18*(1-JimiV9Motion.Ease.cubicBezier(0.37,0,0.63,1).value((t-0.145)/0.135))}
             else {y=0}
             let contact=NativeBeachBallPlanning.floorBounceScale(at:t<0.28 ? t:t-0.28)
-            let strength=t<0.28 ? 1.0:0.5
+            let strength=t<0.28 ? 0.40:0.20
             return .init(scaleX:1+(contact.0-1)*strength,scaleY:1+(contact.1-1)*strength,y:y)
         }
         return JimiV9Motion.Track(tweens:[
-            .init(begin:0,duration:0.05,from:.scale(1),to:compressed,ease:.powerIn(2)),
-            .init(begin:0.05,duration:0.12,from:compressed,to:airborne,ease:.powerOut(2)),
-            .init(begin:0.17,duration:0.06,from:airborne,to:crest,ease:.powerOut(2)),
-            .init(begin:0.23,duration:0.14,from:crest,to:landing,ease:.powerIn(2)),
-            .init(begin:0.37,duration:0.07,from:landing,to:.scale(1),ease:.powerOut(2))]).pose(at:seconds)
+            .init(begin:0,duration:tutorialTakeoffStart,from:.scale(1),to:compressed,ease:.powerIn(2)),
+            .init(begin:tutorialTakeoffStart,duration:tutorialTakeoffDuration,from:compressed,to:airborne,ease:.powerOut(2)),
+            .init(begin:0.27,duration:0.10,from:airborne,to:crest,ease:.powerOut(2)),
+            .init(begin:0.37,duration:0.26,from:crest,to:landing,ease:.cubicBezier(0.37,0,0.63,1)),
+            .init(begin:0.63,duration:0.12,from:landing,to:.scale(1),ease:.cubicBezier(0.37,0,0.63,1))]).pose(at:seconds)
     }
     static let backpackSources=(1...20).map { "./assets/animations/backpack/backpack-\($0).png" }
     static let crateSources=(1...10).map { "./assets/animations/crate/box-\($0).png" }
@@ -71,7 +72,8 @@ nonisolated struct NativeWildMeterDropPlan: Sendable {
         guard let variant else{return false}
         return ["fish","kanta","laser-gun","spaceship","barell","cubero"].contains(variant)
     }
-    struct TutorialCarrier:Sendable {let point:Point;let width:Double}
+    struct TutorialCarrier:Sendable {let point:Point;let width:Double;var openingPoint:Point?=nil}
+    let tutorialCarrierArrivalOffset:Point
     let tutorialCarrierArrival:Bool
     let arcade: Bool, usesUniformDropScale: Bool
     let viewport: Point, tileSize: Double, target: Point, stageTarget: Point
@@ -83,6 +85,8 @@ nonisolated struct NativeWildMeterDropPlan: Sendable {
          parentWorld: Affine, stageWorld: Affine = Affine(), originalRotation: Double,
          originalZIndex: Double, usesUniformDropScale: Bool, tutorialCarrier:TutorialCarrier?=nil, random: () -> Double) {
         self.tutorialCarrierArrival=tutorialCarrier != nil
+        let openingPoint=tutorialCarrier?.openingPoint ?? tutorialCarrier?.point
+        tutorialCarrierArrivalOffset = .init(x:(tutorialCarrier?.point.x ?? 0)-(openingPoint?.x ?? 0),y:(tutorialCarrier?.point.y ?? 0)-(openingPoint?.y ?? 0))
         self.arcade=arcade;self.viewport=viewport;self.tileSize=tileSize;self.target=target
         self.originalRotation=originalRotation;self.originalZIndex=originalZIndex
         self.usesUniformDropScale=usesUniformDropScale
@@ -94,11 +98,11 @@ nonisolated struct NativeWildMeterDropPlan: Sendable {
         let defaultCarrierScale=tileSize*s*2.15*1.15/(arcade ? 290:379)*(arcade ? 0.95:1)
         let selectedCarrierScale=tutorialCarrier.map{$0.width/(arcade ? 290:379)} ?? defaultCarrierScale
         let origin:Point
-        if let tutorialCarrier {
+        if tutorialCarrier != nil,let openingPoint {
             let factor=selectedCarrierScale/defaultCarrierScale
-            origin=Point(x:tutorialCarrier.point.x+(wild.x-34*s-bp.x)*factor,
-                         y:tutorialCarrier.point.y+(wild.y-96*s-(arcade ? 48*s:0)-bp.y)*factor)
-            bp=tutorialCarrier.point
+            origin=Point(x:openingPoint.x+(wild.x-34*s-bp.x)*factor,
+                         y:openingPoint.y+(wild.y-96*s-(arcade ? 48*s:0)-bp.y)*factor)
+            bp=openingPoint
         } else {origin=Point(x:wild.x-34*s,y:wild.y-96*s-(arcade ? 48*s:0))}
         backpackPoint=bp
         start=origin;launch=Point(x:origin.x,y:origin.y-14*s)

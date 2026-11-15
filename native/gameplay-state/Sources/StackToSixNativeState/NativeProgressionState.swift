@@ -13,7 +13,9 @@ public struct NativeJourneyStatPoint: Codable, Equatable, Sendable {
     public let value:Int
     /// Nil only for a retained best imported from a save without result dates.
     public let date:TimeInterval?
-    public init(value:Int,date:TimeInterval?){self.value=value;self.date=date}
+    /// Completed Arcade rounds for this exact result; nil in legacy/Journey records.
+    public let roundsWon:Int?
+    public init(value:Int,date:TimeInterval?,roundsWon:Int?=nil){self.value=value;self.date=date;self.roundsWon=roundsWon}
     public static func recording(_ point:Self,in history:[Self]?,legacyBest:Int)->[Self] {
         var result=history ?? (legacyBest>0 ? [.init(value:legacyBest,date:nil)]:[])
         result.append(point)
@@ -64,16 +66,28 @@ public struct NativeProgressionState: Codable, Equatable, Sendable {
     public var highestUnlockedJourneyBoard = 1
     public var lastOpenedJourneyBoard: Int?
     public var firstPlayTutorialComplete = false
+    /// Nil: never enqueued (including old saves); true: pending; false: acknowledged.
+    private var tutorialFarewellReceipt:Bool?
+    public var tutorialFarewellPending:Bool {
+        get {tutorialFarewellReceipt == true}
+        set {tutorialFarewellReceipt=newValue}
+    }
+    public mutating func enqueueTutorialFarewell() {
+        if tutorialFarewellReceipt == nil {tutorialFarewellReceipt=true}
+    }
+    public mutating func resetTutorialFarewell() {tutorialFarewellReceipt=nil}
     public var journeyIntroSeen = false
     /// First admitted tutorial collection visit owns the entire one-shot walkthrough.
     public var tutorialCollectionGuidanceSeen = false
     public var unlockedSpecialDice: Set<String> = []
     public private(set) var announcedJourneyDice: Set<String> = []
+    public private(set) var journeyDiceUnlockOrder:[String] = []
     public private(set) var unreadJourneyDice: Set<String> = []
     /// A landed eligible Journey die is the only producer; detail opening or a completed collection visit to its visible card consumes unread state.
     @discardableResult public mutating func announceJourneyDie(_ id:String,board:Int)->Bool {
         guard NativeJourneyContent.worldRewardPool(board:board).contains(id),
               announcedJourneyDice.insert(id).inserted else{return false}
+        journeyDiceUnlockOrder.append(id)
         unreadJourneyDice.insert(id);return true
     }
     public mutating func readJourneyDie(_ id:String){unreadJourneyDice.remove(id)}
@@ -81,11 +95,14 @@ public struct NativeProgressionState: Codable, Equatable, Sendable {
     public mutating func resetDeveloperJourneyDieAnnouncement(board:Int) {
         guard let id=NativeJourneyContent.introductionID(board:board) else{return}
         announcedJourneyDice.remove(id)
+        journeyDiceUnlockOrder.removeAll{$0==id}
         unreadJourneyDice.remove(id)
     }
     public private(set) var wildStarUnlocked = false
     public init() {}
-    private enum CodingKeys:String,CodingKey {case completedJourneyBoards,viewedJourneyBoards,boardStats,arcadeStats,arcadeVariantStats,highestUnlockedJourneyBoard,lastOpenedJourneyBoard,firstPlayTutorialComplete,journeyIntroSeen,tutorialCollectionGuidanceSeen,unlockedSpecialDice,wildStarUnlocked,announcedJourneyDice,unreadJourneyDice}
+    private enum CodingKeys:String,CodingKey {case journeyDiceUnlockOrder,completedJourneyBoards,viewedJourneyBoards,boardStats,arcadeStats,arcadeVariantStats,highestUnlockedJourneyBoard,lastOpenedJourneyBoard,firstPlayTutorialComplete,journeyIntroSeen,tutorialCollectionGuidanceSeen,unlockedSpecialDice,wildStarUnlocked,announcedJourneyDice,unreadJourneyDice
+        case tutorialFarewellReceipt = "tutorialFarewellPending"
+    }
     public init(from decoder:Decoder) throws {
         let fields=try decoder.container(keyedBy:CodingKeys.self)
         completedJourneyBoards=try fields.decode(Set<Int>.self,forKey:.completedJourneyBoards)
@@ -96,6 +113,7 @@ public struct NativeProgressionState: Codable, Equatable, Sendable {
         highestUnlockedJourneyBoard=try fields.decode(Int.self,forKey:.highestUnlockedJourneyBoard)
         lastOpenedJourneyBoard=try fields.decodeIfPresent(Int.self,forKey:.lastOpenedJourneyBoard)
         firstPlayTutorialComplete=try fields.decode(Bool.self,forKey:.firstPlayTutorialComplete)
+        tutorialFarewellReceipt=try fields.decodeIfPresent(Bool.self,forKey:.tutorialFarewellReceipt)
         tutorialCollectionGuidanceSeen=try fields.decodeIfPresent(Bool.self,forKey:.tutorialCollectionGuidanceSeen) ?? firstPlayTutorialComplete
         journeyIntroSeen=try fields.decodeIfPresent(Bool.self,forKey:.journeyIntroSeen) ?? (!viewedJourneyBoards.isEmpty || !completedJourneyBoards.isEmpty || lastOpenedJourneyBoard != nil)
         unlockedSpecialDice=try fields.decodeIfPresent(Set<String>.self,forKey:.unlockedSpecialDice) ?? []
@@ -107,6 +125,25 @@ public struct NativeProgressionState: Codable, Equatable, Sendable {
             // Retain any explicit unread receipt, but do not invent discoveries
             // from opened/completed Units or legacy special-die unlock thresholds.
             announcedJourneyDice=unreadJourneyDice
+        }
+        if let order=try fields.decodeIfPresent([String].self,forKey:.journeyDiceUnlockOrder) {
+            journeyDiceUnlockOrder=order
+        } else {
+            // Legacy sets have no exact discovery chronology. Prefer the earliest
+            // available introduction-board stat date, then stable introduction order.
+            let introductions=(1...30).compactMap{board in NativeJourneyContent.introductionID(board:board).map{(board,$0)}}
+            let ranks=Dictionary(uniqueKeysWithValues:introductions.enumerated().map{($0.element.1,$0.offset)})
+            func date(_ id:String)->Double {
+                guard let board=introductions.first(where:{$0.1==id})?.0,let stats=boardStats[board] else{return .greatestFiniteMagnitude}
+                let dates=(stats.scoreHistory ?? []).compactMap(\.date)+(stats.comboHistory ?? []).compactMap(\.date)+(stats.lastPlayed>0 ? [stats.lastPlayed]:[])
+                return dates.min() ?? .greatestFiniteMagnitude
+            }
+            journeyDiceUnlockOrder=announcedJourneyDice.sorted{a,b in
+                let first=date(a),second=date(b)
+                if first != second {return first<second}
+                let ar=ranks[a] ?? Int.max,br=ranks[b] ?? Int.max
+                return ar != br ? ar<br:a<b
+            }
         }
         // Freeze old earned stars before the new score thresholds can reinterpret
         // a collection. Never infer an award for an unfinished/failed board.
@@ -172,7 +209,7 @@ public struct NativeProgressionState: Codable, Equatable, Sendable {
         if mode == .arcade {
             wildStarUnlocked = hasUnlockedWildStar
             var stats = arcadeStats(for: arcadeVariant)
-            stats.scoreHistory=NativeJourneyStatPoint.recording(.init(value:score,date:now),in:stats.scoreHistory,legacyBest:stats.highScore)
+            stats.scoreHistory=NativeJourneyStatPoint.recording(.init(value:score,date:now,roundsWon:max(0,board-(clean ? 0:1))),in:stats.scoreHistory,legacyBest:stats.highScore)
             stats.comboHistory=NativeJourneyStatPoint.recording(.init(value:longestCombo,date:now),in:stats.comboHistory,legacyBest:stats.longestCombo)
             stats.highScore = max(stats.highScore, score)
             stats.longestCombo = max(stats.longestCombo, longestCombo)

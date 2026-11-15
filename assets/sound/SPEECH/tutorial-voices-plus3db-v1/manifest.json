@@ -59,12 +59,12 @@
     },
     {
       "scene": "tutorial-merge",
-      "original": "assets/sound/SPEECH/tutorial-voices-v1/003-merge.wav",
-      "originalSHA256": "e37628770b7e4a7783116500b4b0cf0bb192d72d0864657aef49454683186170",
+      "original": "assets/sound/SPEECH/merge to make six voice.mp3",
+      "originalSHA256": "97cb7b5240e4de7e4ba4c92efc85eb0849043b1bc31e193479c1baa2ab0c62e1",
       "source": "assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-merge.wav",
-      "sha256": "3a53dd07454f1212b655008646afd349154ec09aa677a98010a5e9afeb85fcd5",
-      "duration": 1.63,
-      "peakDBFS": -2.043003417569322,
+      "sha256": "12304283284a1b7126d8f484b52f08ddd60fa085bac3f41cba34c54961eecc99",
+      "duration": 2.429375,
+      "peakDBFS": -1.3141868236086403,
       "pcmGainDB": 1,
       "cueGain": 0.9064262964918004,
       "totalPlaybackGainDB": 3

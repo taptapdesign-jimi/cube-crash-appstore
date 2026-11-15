@@ -9,24 +9,25 @@ final class NativeTutorialOverlay:UIView {
     static func handWidth(in viewportWidth:CGFloat)->CGFloat {min(viewportWidth*0.34,190)*0.7}
     var onSpeechEvent:((String)->Void)?
     private var spokenSheetKeys:Set<String>=[]
-    private var sheetLanded=false
+    private var sheetSpeechReady=false
     private var speechActive=false
+    // Release the sheet receipt only; AudioOwner lets admitted narration finish.
     private func stopSheetSpeech(){
         guard speechActive else{return};speechActive=false;onSpeechEvent?("tutorial-speech-stop")
     }
     private func admitSheetSpeech(){
-        guard !disposed,!suspended,!isHidden,!sheet.isHidden,!worldIntroVisible,sheetLanded else{return}
+        guard !disposed,!suspended,!isHidden,!sheet.isHidden,!worldIntroVisible,sheetSpeechReady else{return}
         let key:String?
         if objectiveVisible {key="objective"}
         else if specialBarVisible {key="special-bar"}
         else if backpackVisible {key="delivery"}
-        else {key=[1:"stack",2:"merge",4:"special",7:"combo",8:"collection",9:"completion"][step]}
+        else {key=[1:"stack",2:"merge",4:"special",7:"combo",8:"collection",9:"completion",10:"farewell"][step]}
         guard let key,step != 8 || collectionInteractionReady,
               spokenSheetKeys.insert(key).inserted else{return}
         stopSheetSpeech();speechActive=true;onSpeechEvent?("tutorial-speech:tutorial-"+key)
     }
-    private func sheetSpeechEntered(){sheetLanded=true;admitSheetSpeech()}
-    private func sheetSpeechExiting(){sheetLanded=false;stopSheetSpeech()}
+    private func sheetSpeechEntered(){sheetSpeechReady=true;admitSheetSpeech()}
+    private func sheetSpeechExiting(){sheetSpeechReady=false;stopSheetSpeech()}
     var onPresentationChanged:(()->Void)?
     override var isHidden:Bool {didSet{if isHidden{sheetSpeechExiting();retireBackpackIdleEffect();backpackIdleService=nil};if oldValue != isHidden{onPresentationChanged?()}}}
     override func didMoveToSuperview(){super.didMoveToSuperview();onPresentationChanged?()}
@@ -48,18 +49,25 @@ final class NativeTutorialOverlay:UIView {
     var backpackIdleEffectActive:Bool{backpackIdleEffect != nil}
     var backpackIdleShimmerOpacity:Float{backpackIdleEffect?.shimmerOpacity ?? 0}
     var backpackInkVisible:Bool{backpackInk.superlayer != nil && backpackInk.contents != nil}
+    var backpackInkBehindSheet:Bool{
+        guard let layers=layer.sublayers,let carrier=layers.firstIndex(of:backpackInk),let paper=layers.firstIndex(of:sheet.layer) else{return false}
+        return backpackInk.zPosition==sheet.layer.zPosition && carrier<paper
+    }
     private let sheet=UIView(),sheetSurface=UIView(),paper=UIImageView(),lessonArt=UIImageView(),pointer=UIView(),pointerImage=UIImageView()
     private let heading=UILabel(),subtitle=UILabel(),button=JimiV9PlainButton(type:.custom)
     private let worldTapHint=UILabel(),worldTapPaper=UIView()
+    private static let worldHandAdjustment=CGPoint(x:0,y:-12)
     private lazy var worldTapSurface=NativeSettingsPaperSurface(image:assets.image("assets/modals/paper.png",densityAware:true))
     private var step=1
     private var objectiveVisible=false
     private let collectionTap=UIButton(type:.custom)
+    private let carrierTap=UIButton(type:.custom)
     private var backpackReady=false
     private var backpackVisible=false
     private var backpackArcade=false
+    private var arcadeDelivery:Bool {backpackVisible && backpackArcade}
     private var worldIntroVisible=false
-    private var worldCueIdleStart:CFTimeInterval=0
+    private let worldHandCarrier=UIView()
     private var worldTarget:(()->CGRect?)?
     private weak var worldCard:UIView?
     private var specialSheetDismissed=false
@@ -100,8 +108,9 @@ final class NativeTutorialOverlay:UIView {
     var sourceSheetHeight:CGFloat{sheet.bounds.height}
     var sourceSheetSurfaceFrame:CGRect{sheetSurface.convert(sheetSurface.bounds,to:self)}
     var sourcePointerVisible:Bool{!pointer.isHidden}
-    var sourcePointerFrame:CGRect{pointer.frame}
+    var sourcePointerFrame:CGRect{pointer.convert(pointer.bounds,to:self)}
     var sourcePointerSize:CGSize{pointer.bounds.size}
+    var worldMotionFollower:CALayer{worldHandCarrier.layer}
     var objectiveSheetVisible:Bool{objectiveVisible && !sheet.isHidden}
     var backpackPromptVisible:Bool{backpackVisible && !sheet.isHidden && !isHidden}
     var sourcePointerAlpha:CGFloat{pointerImage.alpha}
@@ -117,6 +126,10 @@ final class NativeTutorialOverlay:UIView {
         collectionTap.accessibilityLabel=arcade ? "Open box":"Open backpack"
         collectionTap.addTarget(self,action:#selector(collectionBackpackTapped),for:.touchUpInside)
         collectionTap.isHidden=true;addSubview(collectionTap)
+        carrierTap.accessibilityIdentifier="native.tutorial.open-backpack"
+        carrierTap.accessibilityLabel=arcade ? "Open box":"Open backpack"
+        carrierTap.addTarget(self,action:#selector(gotIt),for:.touchUpInside)
+        carrierTap.isHidden=true;addSubview(carrierTap)
         pointerImage.image=assets.image("assets/hand-pointer.png");pointerImage.contentMode = .scaleAspectFit
         pointerImage.layer.shadowColor=UIColor(red:161/255,green:96/255,blue:69/255,alpha:1).cgColor
         pointerImage.layer.shadowOpacity=0.22;pointerImage.layer.shadowOffset=CGSize(width:0,height:14);pointerImage.layer.shadowRadius=18
@@ -165,6 +178,7 @@ final class NativeTutorialOverlay:UIView {
     required init?(coder:NSCoder) {fatalError("Use native tutorial initializer")}
     override func hitTest(_ point:CGPoint,with event:UIEvent?)->UIView? {
         guard !disposed,!suspended,!isHidden,alpha>0.01 else{return nil}
+        if backpackVisible,backpackReady,!carrierTap.isHidden,button.isEnabled,carrierTap.frame.contains(point){return carrierTap}
         if worldIntroVisible {
             if worldTarget?()?.contains(point)==true || point.y<safeAreaInsets.top+120{return nil}
             return self
@@ -173,7 +187,7 @@ final class NativeTutorialOverlay:UIView {
             if !collectionTap.isHidden,collectionTap.frame.contains(point){return collectionTap}
             if !sheet.frame.contains(point){return self}
         }
-        if step==9,!sheet.frame.contains(point){return self}
+        if (step==9 || step==10),!sheet.frame.contains(point){return self}
         guard sheet.frame.contains(point) else{return nil}
         return sheet.hitTest(convert(point,to:sheet),with:event)
     }
@@ -185,10 +199,9 @@ final class NativeTutorialOverlay:UIView {
         let subtitleWidth=min(280,max(0,bounds.width-56))
         let subtitleTextHeight=ceil(subtitle.sizeThatFits(CGSize(width:subtitleWidth,height:.greatestFiniteMagnitude)).height)
         let subtitleHeight=max(56,subtitleTextHeight)
-        // Reserve visible closed-carrier ink, not transparent sprite padding.
-        let carrierSize=tutorialCarrierSize(arcade:backpackArcade)
-        let carrierSlot=backpackVisible ? carrierSize.width*(backpackArcade ? (370-112)/290.0:(359-106)/379.0)+(backpackArcade ? 24:20):0
-        let top:CGFloat=28+carrierSlot,headingHeight:CGFloat=small ? 38.4:48
+        // Delivery keeps its real carrier behind the paper, so only copy and CTA
+        // contribute to the sheet height. Leave room for the overlapping hands.
+        let top:CGFloat=backpackVisible ? 44:28,headingHeight:CGFloat=small ? 38.4:48
         let measuredHeight=top+headingHeight+10+subtitleHeight+(worldIntroVisible ? 0:16+JimiV9PlainButton.primaryCTAHeight)+max(12,safeAreaInsets.bottom)
         if referenceSheetSize?.width != bounds.width {referenceSheetSize=(bounds.width,measuredHeight)}
         if step==1 && !specialBarVisible && !objectiveVisible {referenceSheetSize=(bounds.width,max(referenceSheetSize?.height ?? 0,measuredHeight))}
@@ -199,8 +212,8 @@ final class NativeTutorialOverlay:UIView {
         let compactReduction=compactGuidedLesson ? min(lineAdvance,max(0,subtitleHeight-subtitleTextHeight)):0
         // The collection lesson and tablet text-only Special/combo lessons
         // measure their own content instead of inheriting the Backpack art slot.
-        let measuredTextLesson=(step==8 || step==9 || (NativeTabletLayout.applies(bounds.size) && (step==4 || step==7))) && !objectiveVisible && !backpackVisible && !specialBarVisible && !worldIntroVisible
-        let height=(measuredTextLesson ? measuredHeight:max(referenceSheetSize?.height ?? measuredHeight,measuredHeight))-compactReduction
+        let measuredTextLesson=(step==8 || step==9 || step==10 || (NativeTabletLayout.applies(bounds.size) && (step==4 || step==7))) && !objectiveVisible && !backpackVisible && !specialBarVisible && !worldIntroVisible
+        let height=(measuredTextLesson || backpackVisible ? measuredHeight:max(referenceSheetSize?.height ?? measuredHeight,measuredHeight))-compactReduction
         sheet.bounds=CGRect(x:0,y:0,width:bounds.width,height:height)
         sheet.center=CGPoint(x:bounds.midX,y:bounds.maxY-height/2)
         // Keep the painted bottom below the viewport during the authored
@@ -213,7 +226,10 @@ final class NativeTutorialOverlay:UIView {
         let artHeight=artWidth*artRatio
         // The illustration belongs to the moving sheet; its hands rest on the paper edge.
         let arcadeArtOffset:CGFloat=backpackVisible && backpackArcade ? 24:0
-        let artBottom=(objectiveVisible ? 37:backpackVisible || step==9 ? 21:29)*characterArtScale+arcadeArtOffset
+        // Original @3x Box art has its straight torso cutoff at row625 of741.
+        // Align that ink edge with paper y0; the box/hands may overlap the paper.
+        let artBottom=arcadeDelivery ? artHeight*(116.0/741):
+            (objectiveVisible ? 37:backpackVisible || step==9 || step==10 ? 21:29)*characterArtScale+arcadeArtOffset+(step==10 ? 14*characterArtScale:0)-(step==9 && NativeTabletLayout.applies(bounds.size) ? 16:0)
         // Neutral geometry remains stable while the entry transform is active.
         lessonArt.bounds=CGRect(x:0,y:0,width:artWidth,height:artHeight)
         lessonArt.layer.anchorPoint=CGPoint(x:0.5,y:1)
@@ -226,13 +242,6 @@ final class NativeTutorialOverlay:UIView {
         let width=JimiV9PlainButton.modalCTAWidth(sourceCTA == nil ? [button]:[sourceCTAVisual],maxWidth:bounds.width-56)
         button.setCartoonBounceFrame(CGRect(x:(bounds.width-width)/2,y:subtitleTop+subtitleHeight-compactReduction+16,width:width,height:JimiV9PlainButton.primaryCTAHeight))
         if sourceCTA != nil || !deliveryCTAConfigured {sourceCTAVisual.bounds=button.bounds;sourceCTAVisual.center=CGPoint(x:button.bounds.midX,y:button.bounds.midY)}
-        if worldIntroVisible,let card=worldCard {
-            let hintWidth:CGFloat=150
-            let hintFrame=CGRect(x:card.bounds.midX-hintWidth/2,y:-48,width:hintWidth,height:40)
-            worldTapPaper.frame=hintFrame;worldTapHint.frame=hintFrame
-            worldTapSurface.frame=worldTapPaper.bounds;worldTapSurface.setNeedsLayout();worldTapSurface.layoutIfNeeded()
-            worldTapPaper.layer.shadowPath=worldTapSurface.outline
-        }
 
         collectionTap.isHidden=step != 8
         if step==8 {collectionTap.frame=collectionTargetFrame?() ?? .zero}
@@ -241,10 +250,19 @@ final class NativeTutorialOverlay:UIView {
         pointer.bounds=CGRect(x:0,y:0,width:pointerWidth,height:pointerWidth*ratio);pointerImage.transform = .identity;pointerImage.frame=pointer.bounds
         if let progress=sourceSheetProgress{sheet.transform=CGAffineTransform(translationX:0,y:sheet.bounds.height*progress)}
         setCopy();updatePointer(force:false)
+        if worldIntroVisible,let card=worldCard {
+            let hintWidth:CGFloat=150
+            let hintFrame=CGRect(x:card.bounds.midX-hintWidth/2,y:-48,width:hintWidth,height:40)
+            worldTapPaper.frame=hintFrame;worldTapHint.frame=hintFrame
+            worldTapSurface.frame=worldTapPaper.bounds;worldTapSurface.setNeedsLayout();worldTapSurface.layoutIfNeeded()
+            worldTapPaper.layer.shadowPath=worldTapSurface.outline
+        }
+
     }
     private func setCopy() {
+        if step==10 {backgroundColor=JimiNativeModalV10.backdropColor}
         lessonArt.layer.zPosition=0
-        let artPath=step==9 ? "assets/tutorial/clear board.png" : objectiveVisible ? "assets/tutorial/clean board.png" : specialBarVisible ? "assets/tutorial/special dice.png" : backpackVisible ? (backpackArcade ? "assets/tutorial/zajedno likovi box.png":"assets/tutorial/ekipa backpack.png") : nil
+        let artPath=step==10 ? "assets/tutorial/hi five.png" : step==9 ? "assets/tutorial/clear board.png" : objectiveVisible ? "assets/tutorial/clean board.png" : specialBarVisible ? "assets/tutorial/special dice.png" : backpackVisible ? (backpackArcade ? "assets/tutorial/zajedno likovi box.png":"assets/tutorial/ekipa backpack.png") : nil
         if let artPath {
             if lessonArt.accessibilityIdentifier != artPath {
                 lessonArt.image=assets.image(artPath,densityAware:true)
@@ -253,30 +271,31 @@ final class NativeTutorialOverlay:UIView {
             }
             lessonArt.isHidden=false
         } else {lessonArt.isHidden=true}
-        let deliveryCopy=backpackArcade ? "When the Special bar fills,\nyour box drops\na random Special die.":"Your backpack drops\na random Special die."
+        let deliveryCopy=arcadeDelivery ? "Your box drops\na random Special die.":backpackArcade ? "When the Special bar fills,\nyour box drops\na random Special die.":"Your backpack drops\na random Special die."
         let copies=[("Let’s stack!","Drag 3 onto 2 to make 5."),("Merge and clear!","Drag 5 onto 1."),
             ("Special delivery!",deliveryCopy),("Let’s try your Special!","Merge it with any regular die.\nEither one can go on top.")]
         let collectionCopy=backpackArcade ? ("Your box","Tap the box to meet\nyour little helpers."):("Your backpack","Tap the backpack to meet\nyour little helpers.")
-        let copy=step==9 ? ("Clear the board!","Stack and merge anywhere.\nClear every die and have fun!") : worldIntroVisible ? ("Start here","Clear this stage to unlock the next card.") : objectiveVisible ? ("Clear the board","Merge anywhere to make 6.\nClear every die to win.") : specialBarVisible ? ("Special bar","Merge to fill the bar.\nA Special die is waiting!") : step == 8 ? collectionCopy : step == 7 ? ("Your combo","Stack and merge quickly\nto boost your combo and score.") : copies[max(0,min(3,step-1))]
+        let copy=step==10 ? ("You’re ready!","Discover new dice and cards.\nBeat your best and have fun!") : step==9 ? ("Clear the board!","Stack and merge anywhere.\nClear every die and have fun!") : worldIntroVisible ? ("Start here","Clear this stage to unlock the next card.") : objectiveVisible ? ("Clear the board","Merge anywhere to make 6.\nClear every die to win.") : specialBarVisible ? ("Special bar","Merge to fill the bar.\nA Special die is waiting!") : step == 8 ? collectionCopy : step == 7 ? ("Your combo","Stack and merge quickly\nto boost your combo and score.") : copies[max(0,min(3,step-1))]
         let font=assets.font(size:bounds.width > 0 && bounds.width <= 428 ? 26 : 30,weight:"ExtraBold")
         let title=NSMutableAttributedString(string:copy.0,attributes:[.font:font,.foregroundColor:NativeTextPalette.modalTitle])
         let firstWord=copy.0.prefix(while:{$0 != " "})
         let accentRange=copy.0.hasPrefix("Make 6") ? (copy.0 as NSString).range(of:"6"):NSRange(location:0,length:(String(firstWord) as NSString).length)
         title.addAttribute(.foregroundColor,value:UIColor(red:231/255,green:116/255,blue:73/255,alpha:1),range:accentRange)
-        heading.attributedText=title;subtitle.font=assets.font(size:18,weight:"Medium");subtitle.attributedText=NativeModalTypography.attributedSubtitle(copy.1,font:subtitle.font);subtitle.lineBreakMode = .byWordWrapping;subtitle.numberOfLines=0
+        heading.attributedText=title;subtitle.font=assets.font(size:18,weight:"Medium");subtitle.attributedText=NativeModalTypography.attributedSubtitle(copy.1,font:subtitle.font);subtitle.lineBreakMode = .byWordWrapping;subtitle.numberOfLines=arcadeDelivery ? 2:0
         button.isHidden = worldIntroVisible || (!specialBarVisible && step==3 && sourceCTA?.state == .hidden)
-        let ctaTitle=step==9 ? "Keep going":step==7 ? "Next":step==8 && !backpackArcade ? "Open backpack":"Got it"
+        let ctaTitle=step==10 ? "High five!":step==9 ? "Keep going":step==7 ? "Got it":(step==8 || backpackVisible) ? (backpackArcade ? "Open box":"Open backpack"):"Got it"
         if backpackVisible,deliveryCTAConfigured,sourceCTAVisual.title(for:.normal) != ctaTitle {sourceCTAVisual.setTitle(ctaTitle,for:.normal)}
         if button.title(for:.normal) != ctaTitle {button.setTitle(ctaTitle,for:.normal);setNeedsLayout()}
         if sourceCTA != nil{button.isEnabled=sourceCTA?.enabled==true && (!backpackVisible || backpackReady)}
         else if backpackVisible{button.isEnabled=backpackReady}
         if step==8{button.isEnabled=collectionInteractionReady}
+        updateCarrierTapAdmission()
     }
     @discardableResult func showSourceIntro(from:CGPoint?,to:CGPoint?,service:NativeSourceAnimationClockService,
-        timeouts:NativeSourceAppTimeoutOwner,boardGeneration:UInt64,immediateSheet:Bool=false,deferInitialPointer:Bool=false,objectiveFirst:Bool=false,current:@escaping()->Bool)->Bool {
+        timeouts:NativeSourceAppTimeoutOwner,boardGeneration:UInt64,immediateSheet:Bool=false,deferInitialPointer:Bool=false,objectiveFirst:Bool=false,initialStep:Int=1,entering:@escaping()->Void={},current:@escaping()->Bool)->Bool {
         guard !disposed,sourceIntro==nil else{return false}
         generation += 1;let captured=generation
-        step=1;objectiveVisible=objectiveFirst;isHidden=false;pointerStart=from;pointerEnd=to;pointerKey=nil
+        step=initialStep;objectiveVisible=objectiveFirst;isHidden=false;pointerStart=from;pointerEnd=to;pointerKey=nil
         pointer.isHidden=true;pointer.layer.removeAllAnimations();pointerImage.layer.removeAllAnimations();sheet.layer.removeAllAnimations()
         sourceSheetProgress=1;setNeedsLayout();layoutIfNeeded()
         let owner=NativeSourceTutorialIntroOwner(service:service,timeouts:timeouts,generation:boardGeneration,
@@ -284,7 +303,7 @@ final class NativeTutorialOverlay:UIView {
             current:{[weak self] in guard let self,!self.disposed,self.generation==captured else{return false};let valid=current();return valid && !self.disposed && self.generation==captured},
             sheet:{[weak self] progress in guard let self else{return};self.sourceSheetProgress=progress;self.sheet.transform=CGAffineTransform(translationX:0,y:self.sheet.bounds.height*progress)},
             pointer:{[weak self] pose in guard let self else{return};self.pointerImage.alpha=pose.alpha;self.pointerImage.transform=CGAffineTransform(rotationAngle:pose.rotation*Double.pi/180).scaledBy(x:pose.scale,y:pose.scale)},
-            reveal:{[weak self] in self?.showPointer(allowSuspended:true)},focus:{[weak self] in self?.updatePointer(force:false)},conceal:{[weak self] in self?.pointer.isHidden=true},dim:{[weak self] alpha in self?.backgroundColor=UIColor(red:1,green:247/255,blue:239/255,alpha:CGFloat(alpha)*0.08)},sheetEntered:{[weak self] in self?.sheetSpeechEntered()},sheetExiting:{[weak self] in self?.sheetSpeechExiting()})
+            reveal:{[weak self] in self?.showPointer(allowSuspended:true)},focus:{[weak self] in self?.updatePointer(force:false)},conceal:{[weak self] in self?.pointer.isHidden=true},dim:{[weak self] alpha in self?.backgroundColor=UIColor(red:1,green:247/255,blue:239/255,alpha:CGFloat(alpha)*0.08)},sheetEntering:{[weak self] in self?.sheetSpeechEntered();entering()},sheetEntered:{[weak self] in self?.sheetSpeechEntered()},sheetExiting:{[weak self] in self?.sheetSpeechExiting()})
         guard let owner else{sourceSheetProgress=nil;return false}
         sourceIntro=owner
         guard owner.start() else{sourceIntro=nil;owner.dispose();return false}
@@ -318,8 +337,8 @@ final class NativeTutorialOverlay:UIView {
     private func tutorialCarrierFrameForCurrentLayout(arcade:Bool)->CGRect {
         let size=tutorialCarrierSize(arcade:arcade)
         // Closed ink: Backpack y106...359/379 wide; Box y112...370/290 wide.
-        // Journey Backpack reserves24pt above its visible ink and24pt before the title.
-        let top:CGFloat=(arcade ? 28:24)-size.width*(arcade ? 112/290.0:106/379.0)
+        // Keep the closed ink below the paper edge at the existing opening anchor.
+        let top:CGFloat=(arcade ? 68:64)-size.width*(arcade ? 112/290.0:106/379.0)
         return CGRect(x:bounds.midX-size.width/2,y:bounds.maxY-sheet.bounds.height+top,width:size.width,height:size.height)
     }
     private func tutorialCarrierSize(arcade:Bool)->CGSize {
@@ -328,7 +347,7 @@ final class NativeTutorialOverlay:UIView {
         let width=arcade ? backpackWidth*(359-106)/379*290/(370-112):backpackWidth
         return CGSize(width:width,height:width*(arcade ? 403.0/290:438.0/379))
     }
-    /// Paint the actual carrier's current original sprite frame above UIKit paper.
+    /// Paint the actual carrier's current original sprite frame behind UIKit paper.
     /// Driven only by its existing Source clock; one current image, no renderer/timer.
     func paintBackpack(_ node:SKSpriteNode?,scene:NativeBoardScene) {
         guard backpackVisible,!disposed,let node,let texture=node.texture,
@@ -338,38 +357,54 @@ final class NativeTutorialOverlay:UIView {
         }
         let anchor=point(.zero),x=point(CGPoint(x:1,y:0)),y=point(CGPoint(x:0,y:-1))
         CATransaction.begin();CATransaction.setDisableActions(true)
-        if backpackInk.superlayer==nil{layer.addSublayer(backpackInk);backpackInk.zPosition=10}
+        if backpackInk.superlayer==nil{layer.insertSublayer(backpackInk,below:sheet.layer);backpackInk.zPosition=0}
         let id=ObjectIdentifier(texture)
         if backpackTextureID != id{backpackInk.contents=image;backpackInkImage=image;backpackTextureID=id}
         backpackInk.bounds=CGRect(origin:.zero,size:texture.size())
         backpackInk.anchorPoint=CGPoint(x:0.5,y:0.72);backpackInk.position=anchor
         backpackInk.setAffineTransform(CGAffineTransform(a:x.x-anchor.x,b:x.y-anchor.y,c:y.x-anchor.x,d:y.y-anchor.y,tx:0,ty:0))
         backpackInk.opacity=Float(node.alpha)
+        // Retain the real ink geometry for diagnostics; covered artwork stays
+        // excluded from input admission.
+        let originalHeight:CGFloat=backpackArcade ? 403:438
+        let top:CGFloat=backpackArcade ? 112:106,bottom:CGFloat=backpackArcade ? 370:359
+        let ink=CGRect(x:0,y:backpackInk.bounds.height*top/originalHeight,width:backpackInk.bounds.width,height:backpackInk.bounds.height*(bottom-top)/originalHeight)
+        carrierTap.frame=backpackInk.convert(ink,to:layer)
+        updateCarrierTapAdmission()
         CATransaction.commit()
         if backpackReady {startBackpackIdleEffect()}
     }
-    private func clearBackpackInk(){retireBackpackIdleEffect();backpackInk.removeFromSuperlayer();backpackInk.contents=nil;backpackInkImage=nil;backpackTextureID=nil}
+    private func updateCarrierTapAdmission(){
+        // The covered carrier is never an alternate hit target. The named CTA
+        // owns admission while the sheet is present.
+        carrierTap.isHidden=true;carrierTap.isEnabled=false
+    }
+    private func clearBackpackInk(){carrierTap.isHidden=true;carrierTap.frame = .zero;retireBackpackIdleEffect();backpackInk.removeFromSuperlayer();backpackInk.contents=nil;backpackInkImage=nil;backpackTextureID=nil}
     func presentBackpackPrompt(arcade:Bool) {
         guard !disposed else{return}
         backpackArcade=arcade;backpackVisible=true;backpackReady=false;setCopy()
     }
     func showWorldIntro(card:UIView,target:@escaping()->CGRect?) {
-        guard !disposed,let frame=target(),!frame.isEmpty else{return}
+        guard !disposed,let parent=card.superview,let frame=target(),!frame.isEmpty else{return}
         worldIntroVisible=true;worldTarget=target;worldCard=card
         // Inherit the actual card tilt, squash and bounce, including its tap exit.
         card.addSubview(worldTapPaper);card.addSubview(worldTapHint)
+        worldHandCarrier.isUserInteractionEnabled=false
+        worldHandCarrier.accessibilityIdentifier="native.tutorial.world-hand-carrier"
+        worldHandCarrier.layer.zPosition=12
+        parent.addSubview(worldHandCarrier);worldHandCarrier.addSubview(pointer)
         worldTapPaper.accessibilityIdentifier="native.tutorial.card-cue-paper"
         worldTapHint.accessibilityIdentifier="native.tutorial.card-cue-title"
         worldTapPaper.layer.zPosition=10;worldTapHint.layer.zPosition=11
         worldTapHint.isHidden=false;worldTapPaper.isHidden=false
         worldTapHint.alpha=0;worldTapPaper.alpha=0
         backgroundColor = .clear
-        bringSubviewToFront(pointer)
+        worldHandCarrier.bringSubviewToFront(pointer)
         let point=CGPoint(x:frame.midX,y:frame.midY)
         generation += 1;step=6;pointerStart=point;pointerEnd=point
         isHidden=false;sheet.isHidden=true;button.isHidden=true
         // Local slower cue entry: retain the Home scale-in language without
-        // its front-loaded ease. Idle waits on the same finite layer epoch.
+        // its front-loaded ease. The real card owns subsequent idle motion.
         let track=UIAccessibility.isReduceMotionEnabled
             ? JimiV9Motion.Track(tweens:[.init(begin:0,duration:0.15,from:.scale(1,opacity:0),to:.scale(1),ease:.powerOut(1))])
             : JimiV9Motion.Track(tweens:[
@@ -377,10 +412,8 @@ final class NativeTutorialOverlay:UIView {
                 .init(begin:0.78,duration:0.27,from:.scale(1.025),to:.scale(1),ease:.cubicBezier(0.42,0,0.58,1))])
         setNeedsLayout();layoutIfNeeded()
         // Start after synchronous layout so cold artwork/layout cannot consume
-        // the visible entrance. Replace only the idle created during layout.
-        pointer.layer.removeAnimation(forKey:"tutorial.world-tap")
+        // the visible entrance.
         let epoch=CACurrentMediaTime()
-        worldCueIdleStart=epoch+track.duration
         showPointer()
         for view in [pointerImage,worldTapPaper,worldTapHint] {
             view.alpha=1
@@ -403,7 +436,7 @@ final class NativeTutorialOverlay:UIView {
         startBackpackIdleEffect()
     }
     private func startBackpackIdleEffect() {
-        guard backpackIdleEffect==nil,!backpackArcade,backpackReady,backpackVisible,!disposed,!isHidden,
+        guard sheet.isHidden,backpackIdleEffect==nil,!backpackArcade,backpackReady,backpackVisible,!disposed,!isHidden,
               !UIAccessibility.isReduceMotionEnabled,let service=backpackIdleService,
               let image=backpackInkImage else{return}
         let effect=NativeTutorialCarrierIdleEffect(image:image,bounds:backpackInk.bounds,service:service,current:{[weak self] in
@@ -518,10 +551,10 @@ final class NativeTutorialOverlay:UIView {
         sourceFreeHint?.dispose();sourceFreeHint=nil
         _=sourceIntro?.popOutPointer(completed:{})
     }
-    @discardableResult func exitSourceThirdSheetForWild(completed:@escaping()->Void)->Bool {
+    @discardableResult func exitSourceThirdSheetForWild(halfway:(()->Void)?=nil,completed:@escaping()->Void)->Bool {
         guard !disposed,let intro=sourceIntro else{return false}
         _=intro.setDimVisible(false)
-        return intro.exitSheet(completed:completed)
+        return intro.exitSheet(halfway:halfway,completed:completed)
     }
     var sourceDimAlpha:CGFloat{backgroundColor?.cgColor.alpha ?? 0}
     func scheduleSourceSecondStepPointer(){
@@ -529,10 +562,10 @@ final class NativeTutorialOverlay:UIView {
     }
     private func retireSourceIntro(){sheetSpeechExiting();stopSourceFourthPointer();retireSourceCTA();sourceFreeHint?.dispose();sourceFreeHint=nil;let old=sourceIntro;sourceIntro=nil;sourceSheetProgress=nil;old?.dispose();pointerImage.transform = .identity}
     func show(step:Int,from:CGPoint?,to:CGPoint?,initial:Bool=false,moves:[(CGPoint,CGPoint)]=[],objectiveFirst:Bool=false,entering:@escaping()->Void={},entered:@escaping()->Void={}) {
-        guard !disposed,(1...9).contains(step) else{return}
+        guard !disposed,(1...10).contains(step) else{return}
         retireSourceIntro()
         collectionPointerReady=false
-        if step==8 || step==9 {pointer.isHidden=true}
+        if step==8 || step==9 || step==10 {pointer.isHidden=true}
         generation += 1;let owner=generation;objectiveVisible=objectiveFirst;isHidden=false;sheet.isHidden=false;guidedSheetDismissed=false;button.isEnabled=true;pointerStart=from;pointerEnd=to;freePlayMoves=moves
         pointerKey=nil;pointer.layer.removeAllAnimations();sheet.layer.removeAllAnimations()
         if initial {
@@ -556,7 +589,7 @@ final class NativeTutorialOverlay:UIView {
         if !deliveryCTAConfigured {
             sourceCTAVisual.isUserInteractionEnabled=false
             sourceCTAVisual.accessibilityIdentifier="native.tutorial.source-cta"
-            sourceCTAVisual.setTitle("Got it",for:.normal)
+            sourceCTAVisual.setTitle(backpackArcade ? "Open box":"Open backpack",for:.normal)
             sourceCTAVisual.applyModalCTA(artwork:assets,preparesSculptedFaceOffMain:true)
             sourceCTAVisual.setSculptedFacePreparationSuspended(suspended)
             sourceCTAVisual.isHidden=true
@@ -637,7 +670,7 @@ final class NativeTutorialOverlay:UIView {
     func setCollectionInteractionReady(_ ready:Bool){collectionInteractionReady=ready;collectionTap.isEnabled=ready;if step==8 {button.isEnabled=ready;if ready{admitSheetSpeech()}}}
     func updateTargets(from:CGPoint?,to:CGPoint?) {pointerStart=from;pointerEnd=to;updatePointer(force:false)}
     private func showPointer(allowSuspended:Bool=false) {
-        guard step != 9 else{pointer.isHidden=true;return}
+        guard step != 9 && step != 10 else{pointer.isHidden=true;return}
         guard step != 8 || collectionPointerReady else{pointer.isHidden=true;return}
         guard !objectiveVisible else{pointer.isHidden=true;return}
         if step==7 || step==8 {pointerStart=comboTarget?();pointerEnd=pointerStart}
@@ -680,18 +713,16 @@ final class NativeTutorialOverlay:UIView {
             }
             return
         }
-        if worldIntroVisible,let frame=worldTarget?() {
-            pointer.layer.position=CGPoint(x:frame.midX+pointer.bounds.width*0.38+32,y:frame.midY+pointer.bounds.height*0.18+2)
-            pointerImage.alpha=1;pointer.transform = .identity
-            if !UIAccessibility.isReduceMotionEnabled,pointer.layer.animation(forKey:"tutorial.world-tap")==nil {
-                let tap=CAKeyframeAnimation(keyPath:"transform")
-                tap.duration=1.45;tap.repeatCount = .infinity
-                tap.beginTime=pointer.layer.convertTime(max(CACurrentMediaTime(),worldCueIdleStart),from:nil)
-                tap.fillMode = .backwards
-                tap.keyTimes=[0,0.32,0.48,0.66,1]
-                tap.values=[CATransform3DIdentity,CATransform3DMakeTranslation(0,7,0),CATransform3DMakeScale(0.88,0.88,1),CATransform3DMakeTranslation(0,7,0),CATransform3DIdentity].map{NSValue(caTransform3D:$0)}
-                pointer.layer.add(tap,forKey:"tutorial.world-tap")
-            }
+        if worldIntroVisible,let card=worldCard,let frame=worldTarget?() {
+            // Match the card's resting geometry; its owner supplies the delayed track.
+            worldHandCarrier.bounds=card.bounds;worldHandCarrier.layer.anchorPoint=card.layer.anchorPoint
+            worldHandCarrier.layer.position=card.layer.position;worldHandCarrier.layer.transform=card.layer.transform
+            let origin=card.convert(CGPoint.zero,from:self)
+            let x=card.convert(CGPoint(x:1,y:0),from:self),y=card.convert(CGPoint(x:0,y:1),from:self)
+            let anchor=CGPoint(x:frame.midX+pointer.bounds.width*0.38+32+Self.worldHandAdjustment.x,y:frame.midY+pointer.bounds.height*0.18+2+Self.worldHandAdjustment.y)
+            pointer.layer.position=card.convert(anchor,from:self)
+            pointer.transform=CGAffineTransform(a:x.x-origin.x,b:x.y-origin.y,c:y.x-origin.x,d:y.y-origin.y,tx:0,ty:0)
+            pointerImage.alpha=1
             return
         }
         if (step==1 || step==2),let from=pointerStart,let to=pointerEnd {
@@ -765,7 +796,7 @@ final class NativeTutorialOverlay:UIView {
         pointer.layer.add(group,forKey:"tutorial.hint")
     }
     private func translateSheet(from:CGFloat,to:CGFloat,begin:Double,duration:Double,ease:JimiV9Motion.Ease,completion:@escaping ()->Void) {
-        if to>0{sheetSpeechExiting()}else{sheetLanded=false}
+        if to>0{sheetSpeechExiting()}else{sheetSpeechReady=false}
         let animation=CAKeyframeAnimation(keyPath:"transform.translation.y")
         animation.duration=begin+duration;animation.values=(0...120).map { index in
             let time=Double(index)*animation.duration/120
@@ -785,6 +816,7 @@ final class NativeTutorialOverlay:UIView {
         CATransaction.begin();CATransaction.setDisableActions(true)
         sheet.transform=CGAffineTransform(translationX:0,y:to);sheet.layer.add(animation,forKey:"tutorial.sheet")
         CATransaction.commit()
+        if to==0,from>0,begin==0{sheetSpeechEntered()}
     }
     func hide(completion:@escaping ()->Void) {
         guard !disposed else{return};retireSourceIntro();generation += 1;let owner=generation;hidePointer()
@@ -845,14 +877,15 @@ final class NativeTutorialOverlay:UIView {
     @objc private func sourceCTAOutside(){guard sourceCTACaptured else{return};sourceCTACaptured=false;sourceCTA?.pointerCancel()}
     @objc private func gotIt() {
         guard !disposed,!suspended else{return}
+        if step==10,!button.isEnabled{return}
         if backpackVisible && !backpackReady{return}
-        if backpackVisible {retireBackpackIdleEffect();backpackIdleService=nil}
+        if backpackVisible {guard button.isEnabled else{return};carrierTap.isHidden=true;retireBackpackIdleEffect();backpackIdleService=nil}
         if specialBarVisible{guard button.isEnabled else{return};onSpecialBarContinue?();return}
         if objectiveVisible {guard button.isEnabled else{return};onObjectiveGotIt?();return}
         if step==1 || step==2 {guard button.isEnabled else{return};onGotIt?();return}
         if step==4 {guard button.isEnabled,!specialSheetDismissed else{return};onGotIt?();return}
         if step==8 && !collectionInteractionReady{return}
-        if step==5 || step==7 || step==8 || step==9 {onGotIt?();return}
+        if step==5 || step==7 || step==8 || step==9 || step==10 {onGotIt?();return}
         guard step==3 else{return}
         if let owner=sourceCTA{if sourceCTACaptured{sourceCTACaptured=false;owner.pointerUp(inside:true)}else{owner.keyboardActivate()};setCopy()}
         else{onGotIt?()}
@@ -864,10 +897,12 @@ final class NativeTutorialOverlay:UIView {
         button.setSculptedFacePreparationSuspended(value)
         backpackIdleEffect?.setSuspended(value)
         if deliveryCTAConfigured {sourceCTAVisual.setSculptedFacePreparationSuspended(value);if !value {sourceCTAVisual.prepareSculptedFaceForEntrance()}}
-        if value,layer.speed != 0 {layer.timeOffset=layer.convertTime(CACurrentMediaTime(),from:nil);layer.speed=0}
-        else if !value,layer.speed==0 {let offset=layer.timeOffset;layer.speed=1;layer.timeOffset=0;layer.beginTime=0;layer.beginTime=layer.convertTime(CACurrentMediaTime(),from:nil)-offset}
+        for clock in worldIntroVisible ? [layer,worldHandCarrier.layer]:[layer] {
+            if value,clock.speed != 0 {clock.timeOffset=clock.convertTime(CACurrentMediaTime(),from:nil);clock.speed=0}
+            else if !value,clock.speed==0 {let offset=clock.timeOffset;clock.speed=1;clock.timeOffset=0;clock.beginTime=0;clock.beginTime=clock.convertTime(CACurrentMediaTime(),from:nil)-offset}
+        }
     }
-    func dispose() {stopSheetSpeech();onSpeechEvent=nil;sheetCompletion?.retire();sheetCompletion=nil;button.retireSculptedFacePreparation();NativeTutorialHandMotion.removeExits(in:self);retireSourceIntro();retireBackpackPrompt();onWorldIntroRetire?(false);onWorldIntroRetire=nil;disposed=true;generation += 1;sheet.layer.removeAllAnimations();pointer.layer.removeAllAnimations();pointerImage.layer.removeAllAnimations();worldTapHint.layer.removeAllAnimations();worldTapPaper.layer.removeAllAnimations();worldTarget=nil;worldCard=nil;worldTapPaper.removeFromSuperview();worldTapHint.removeFromSuperview();onGotIt=nil;comboTarget=nil;collectionTargetFrame=nil;onCollectionBackpackOpen=nil;onObjectiveGotIt=nil;onSpecialBarContinue=nil;specialBarVisible=false;removeFromSuperview();onPresentationChanged=nil}
+    func dispose() {stopSheetSpeech();onSpeechEvent=nil;sheetCompletion?.retire();sheetCompletion=nil;button.retireSculptedFacePreparation();NativeTutorialHandMotion.removeExits(in:self);retireSourceIntro();retireBackpackPrompt();onWorldIntroRetire?(false);onWorldIntroRetire=nil;disposed=true;generation += 1;sheet.layer.removeAllAnimations();pointer.layer.removeAllAnimations();pointerImage.layer.removeAllAnimations();worldTapHint.layer.removeAllAnimations();worldTapPaper.layer.removeAllAnimations();worldTarget=nil;worldCard=nil;worldHandCarrier.layer.removeAllAnimations();worldHandCarrier.removeFromSuperview();if worldIntroVisible{pointer.removeFromSuperview()};worldTapPaper.removeFromSuperview();worldTapHint.removeFromSuperview();onGotIt=nil;comboTarget=nil;collectionTargetFrame=nil;onCollectionBackpackOpen=nil;onObjectiveGotIt=nil;onSpecialBarContinue=nil;specialBarVisible=false;removeFromSuperview();onPresentationChanged=nil}
 }
 
 /// Authored hand entrances and exits share existing finite Core Animation owners.

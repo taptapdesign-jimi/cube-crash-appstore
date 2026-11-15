@@ -189,6 +189,7 @@ final class NativeBoardTextures {
     private var phaseScheduler=NativeArtworkPhaseScheduler()
     private let io = DispatchQueue(label: "com.taptapdesign.stacktosix.native-board-art", qos: .userInitiated)
     private var preparationLifetime=NativeArtworkPreparationLifetime()
+    private var initialPipelinePreparation:NativeGameplayPipelinePreparation.Request?
     typealias PreparationQueue=@MainActor (@escaping @Sendable ()->Void)->Void
     typealias SelectedRasterDecoder=@Sendable (URL,[String])->NativeSelectedFinaleRaster?
     private let preparationQueue:PreparationQueue?
@@ -256,7 +257,19 @@ final class NativeBoardTextures {
                     settled=true;completion(false);return
                 }
                 ready = ready && texture != nil;remaining-=1
-                if remaining==0 {settled=true;completion(ready)}
+                if remaining==0 {
+                    settled=true
+                    guard ready else{completion(false);return}
+                    self.initialPipelinePreparation?.cancel()
+                    var request:NativeGameplayPipelinePreparation.Request?
+                    request=NativeGameplayPipelinePreparation.prepare(textures:paths.compactMap{self.textures[$0]}) {[weak self] prepared in
+                        guard let self,self.initialPipelinePreparation === request else{completion(false);return}
+                        self.initialPipelinePreparation=nil
+                        guard !self.disposed,self.generation==captured,current() else{completion(false);return}
+                        completion(prepared)
+                    }
+                    self.initialPipelinePreparation=request
+                }
             }
         }
     }
@@ -695,7 +708,7 @@ final class NativeBoardTextures {
     }
 
     func purgeUnused(retaining paths: Set<String>) {
-        guard waiting.isEmpty,finaleWarmupWaiting.isEmpty else { return }
+        guard waiting.isEmpty,finaleWarmupWaiting.isEmpty,initialPipelinePreparation==nil else { return }
         textures = textures.filter { paths.contains($0.key) }
         magnetBoltRasterImages=magnetBoltRasterImages.filter{paths.contains($0.key)}
         logicalSizes = logicalSizes.filter { paths.contains($0.key) }
@@ -706,6 +719,7 @@ final class NativeBoardTextures {
     func invalidatePendingPreparation() {
         guard !disposed else { return }
         preparationLifetime.cancel();preparationLifetime=NativeArtworkPreparationLifetime()
+        initialPipelinePreparation?.cancel();initialPipelinePreparation=nil
         generation += 1; waiting.removeAll()
         cancelSelectedFinaleWaiters()
     }
@@ -713,6 +727,7 @@ final class NativeBoardTextures {
     func dispose() {
         guard !disposed else { return }
         disposed = true;preparationLifetime.cancel()
+        initialPipelinePreparation?.cancel();initialPipelinePreparation=nil
         sourceWildShimmerGradients.dispose()
         magnetBoltRasterImages.removeAll()
         pip=nil

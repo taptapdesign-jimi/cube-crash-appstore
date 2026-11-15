@@ -140,7 +140,7 @@ final class NativeWildMeterDropSceneOwner {
             if self.carrierOpeningBounce,let start=self.carrierResumeStart {
                 let age=max(0,clockElapsed-start)
                 if age<bounceDuration {
-                    self.presentation?.advance(animationSeconds:0.28,wallMilliseconds:self.wallNow(),renderEpoch:self.renderEpoch(),carrierEmphasis:NativeWildMeterDropPlan.tutorialOpenBounce(at:age,arcade:self.arcade))
+                    self.presentation?.advance(animationSeconds:0.28,wallMilliseconds:self.wallNow(),renderEpoch:self.renderEpoch(),carrierEmphasis:NativeWildMeterDropPlan.tutorialOpenBounce(at:age,arcade:self.arcade),carrierAnchorProgress:JimiV9Motion.Ease.powerOut(2).value(min(1,max(0,(age-NativeWildMeterDropPlan.tutorialTakeoffStart)/NativeWildMeterDropPlan.tutorialTakeoffDuration))))
                     return
                 }
                 self.carrierOpeningBounce=false
@@ -152,7 +152,7 @@ final class NativeWildMeterDropSceneOwner {
             // before genuine travel completion. Publish its exact final boundary.
             let sourceTime=clockElapsed>=phaseDuration-1e-9 ? base+duration:
                 resumed ? max(0.28,base+elapsed-bounceDuration):base+elapsed
-            self.presentation?.advance(animationSeconds:sourceTime,wallMilliseconds:self.wallNow(),renderEpoch:self.renderEpoch())
+            self.presentation?.advance(animationSeconds:sourceTime,wallMilliseconds:self.wallNow(),renderEpoch:self.renderEpoch(),carrierAnchorProgress:resumed ? 1:nil)
         },{ [weak self] success in
             guard let self,!self.disposed,self.valid() else{return}
             if !success {self.interruptAcceptedAnimation()}

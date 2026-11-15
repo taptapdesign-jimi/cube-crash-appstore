@@ -6,6 +6,212 @@ import StackToSixNativeState
 
 @MainActor
 final class NativeResultOwnerTests:XCTestCase {
+    func testPreparedJourneyCounterKeepsExactBlurWithoutColdMainThreadStall()async throws {
+        let result=NativeResultController(root:NativeTestResources.root,state:.init(tiles:[],mode:.journey,board:2,score:15144),clean:true,combo:81096,efficiency:6143,finalScore:102383,interimJourney:true,arcadeCelebrationPresented:true)
+        result.prepareForHandoff(viewport:CGSize(width:820,height:1180))
+        let elapsed=result.elapsed
+        let ready=expectation(description:"counter filter family prepared while result clock is hidden")
+        result.whenCounterBlurPrepared {ready.fulfill()}
+        await fulfillment(of:[ready],timeout:20)
+        XCTAssertEqual(result.elapsed,elapsed,"Readiness must not consume result motion")
+        let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:820,height:1180));window.rootViewController=result;window.makeKeyAndVisible()
+        defer{result.dispose();window.isHidden=true;window.rootViewController=nil;previous?.makeKeyAndVisible()}
+        result.view.layoutIfNeeded();result.counterBlurDiagnosticsEnabled=true;result.admitPreparedHandoff();result.tick(0)
+        func find(_ view:UIView,_ id:String)->UIView? {view.accessibilityIdentifier==id ? view:view.subviews.lazy.compactMap{find($0,id)}.first}
+        let blur=try XCTUnwrap(find(result.view,"native.result.score-motion-blur") as? UIImageView)
+        let score=try XCTUnwrap(find(result.view,"native.result.score") as? UILabel)
+        var sawBlur=false,worstTick=0.0
+        for frame in 1...390 {
+            let start=CACurrentMediaTime();result.tick(Double(frame)/60);worstTick=max(worstTick,(CACurrentMediaTime()-start)*1000)
+            if !blur.isHidden {sawBlur=true;XCTAssertNotNil(blur.image);XCTAssertEqual(score.alpha,0)}
+        }
+        print("[NativeResultCounterBlurTest] renders=\(result.counterBlurRenderCount) blurWorstMs=\(result.counterBlurRenderWorstMilliseconds) tickWorstMs=\(worstTick)")
+        XCTAssertTrue(sawBlur,"Preserve the original visible counter effect")
+        XCTAssertGreaterThan(result.counterBlurRenderCount,30)
+        XCTAssertLessThan(result.counterBlurRenderWorstMilliseconds,80,"The captured result startup froze for347ms")
+        XCTAssertLessThan(worstTick,100)
+        XCTAssertEqual(score.text,NativeScoreDisplay.text(102383))
+        result.setSuspended(true);let frozen=result.elapsed;result.tick(100)
+        XCTAssertEqual(result.elapsed,frozen)
+        result.dispose();result.dispose();result.tick(101)
+        XCTAssertEqual(result.elapsed,frozen)
+    }
+    func testCounterBlurReadinessCannotMountWhileBackgroundedAndResumesOnce()async throws {
+        let result=controller()
+        defer{result.dispose()}
+        result.prepareForHandoff(viewport:CGSize(width:390,height:844))
+        let elapsed=result.elapsed
+        NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
+        var callbacks=0;result.whenCounterBlurPrepared{callbacks+=1}
+        let end=Date().addingTimeInterval(20)
+        while !result.isCounterBlurPrepared,Date()<end {try await Task.sleep(for:.milliseconds(10))}
+        XCTAssertTrue(result.isCounterBlurPrepared);XCTAssertEqual(callbacks,0)
+        result.tick(100);XCTAssertEqual(result.elapsed,elapsed)
+        NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
+        XCTAssertEqual(callbacks,1);XCTAssertEqual(result.elapsed,elapsed)
+        NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
+        XCTAssertEqual(callbacks,1)
+    }
+    func testDisposePreparedCounterDropsReadinessCallbacksAndReleasesController()async throws {
+        var result:NativeResultController?=NativeResultController(root:NativeTestResources.root,state:.init(tiles:[],mode:.journey,board:2,score:15144),clean:true,combo:80000,efficiency:6000,finalScore:101144)
+        result?.prepareForHandoff(viewport:CGSize(width:390,height:844))
+        var callbacks=0
+        result?.whenCounterBlurPrepared {callbacks+=1}
+        weak var released=result
+        result?.dispose();result=nil
+        for _ in 0..<30 where released != nil {try await Task.sleep(for:.milliseconds(10))}
+        XCTAssertNil(released)
+        XCTAssertEqual(callbacks,0,"A retired prepared result cannot be presented by a late filter receipt")
+    }
+
+    func testGreyStarsEnterThenGoldOverlapsLastGreyAndKeepsOneClock()throws {
+        let result=NativeResultController(root:NativeTestResources.root,state:.init(tiles:[],mode:.journey,board:1),clean:true,combo:0,efficiency:0,finalScore:100000,arcadeCelebrationPresented:true)
+        let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+        let window=UIWindow(frame:UIDevice.current.userInterfaceIdiom == .pad ? UIScreen.main.bounds:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=result;window.makeKeyAndVisible();result.view.layoutIfNeeded()
+        defer{result.dispose();window.isHidden=true;window.rootViewController=nil;previous?.makeKeyAndVisible()}
+        func find(_ view:UIView,_ id:String)->UIView? {view.accessibilityIdentifier==id ? view:view.subviews.lazy.compactMap{find($0,id)}.first}
+        let grey=try (0..<3).map{try XCTUnwrap(find(result.view,"native.result.star.empty.\($0)"))}
+        let gold=try (0..<3).map{try XCTUnwrap(find(result.view,"native.result.star.filled.\($0)"))}
+        var contacts:[Int]=[];result.onMoment={kind,index,_ in if kind=="clean-star" {contacts.append(index)}}
+        var timestamp=0.0;result.tick(timestamp)
+        func advance(_ target:Double){
+            while result.elapsed<target-0.000001 {timestamp+=min(1.0/60,target-result.elapsed);result.tick(timestamp)}
+        }
+        let out=URL(fileURLWithPath:"/tmp/result-stars-sequence/\(UIDevice.current.userInterfaceIdiom == .pad ? "ipad":"iphone")",isDirectory:true)
+        try FileManager.default.createDirectory(at:out,withIntermediateDirectories:true)
+        func snapshot(_ name:String)throws {
+            let image=UIGraphicsImageRenderer(bounds:window.bounds).image{window.layer.render(in:$0.cgContext)}
+            try image.pngData()?.write(to:out.appendingPathComponent(name+".png"))
+        }
+        XCTAssertTrue(grey.allSatisfy{$0.alpha==0});XCTAssertTrue(gold.allSatisfy{$0.transform.a==0})
+        for (index,time) in [0.65,0.87,1.09].enumerated() {
+            advance(time)
+            for slot in 0..<3 {XCTAssertEqual(grey[slot].alpha>0,slot<=index);XCTAssertEqual(gold[slot].transform.a,0)}
+            XCTAssertTrue(contacts.isEmpty);try snapshot("grey-\(index+1)")
+        }
+        advance(1.30)
+        XCTAssertTrue(grey.allSatisfy{$0.alpha==1})
+        XCTAssertTrue(gold.allSatisfy{$0.transform.a==0});XCTAssertTrue(contacts.isEmpty)
+        let greyPoses=grey.map(\.transform)
+        result.view.setNeedsLayout();result.view.layoutIfNeeded()
+        XCTAssertEqual(grey.map(\.transform),greyPoses)
+        advance(1.36)
+        XCTAssertEqual(contacts,[0])
+        XCTAssertGreaterThan(gold[0].transform.a,0)
+        XCTAssertNotEqual(grey[2].transform,.identity,"Gold starts while the final grey is still completing its bounce")
+        advance(1.46)
+        XCTAssertEqual(grey[2].transform,.identity)
+        try snapshot("gold-overlaps-last-grey")
+        for (index,time) in [1.58,1.88,2.18].enumerated() {
+            advance(time)
+            XCTAssertEqual(contacts,Array(0...index))
+            for slot in 0..<3 {XCTAssertEqual(gold[slot].transform.a>0,slot<=index);XCTAssertEqual(grey[slot].alpha>0,slot>index)}
+            try snapshot("gold-\(index+1)")
+        }
+        let elapsed=result.elapsed,poses=gold.map(\.transform)
+        result.setSuspended(true);result.tick(100)
+        XCTAssertEqual(result.elapsed,elapsed);XCTAssertEqual(gold.map(\.transform),poses)
+        result.setSuspended(false);result.tick(101)
+        XCTAssertEqual(result.elapsed,elapsed);XCTAssertEqual(contacts,[0,1,2])
+        result.dispose();result.dispose();result.tick(200)
+        XCTAssertEqual(contacts,[0,1,2],"Retirement cannot replay pending star contacts")
+    }
+    func testGreyStarBounceAndGoldHundredFiftyMillisecondOverlap() {
+        for (index,start) in [1.31,1.61,1.91].enumerated() {
+            XCTAssertEqual(NativeResultPresentationPlan.filledStarStart(index:index),start,accuracy:0.000001)
+        }
+        for earned in 1...3 {
+            for index in 0..<3 {
+                for frame in 0...78 {
+                    let seconds=Double(frame)/60
+                    let pose=NativeResultPresentationPlan.emptyStarPose(seconds:seconds,index:index,earned:earned)
+                    XCTAssertGreaterThanOrEqual(pose.scale,0);XCTAssertLessThan(pose.scale,1.12)
+                    XCTAssertGreaterThanOrEqual(pose.y,-1.2);XCTAssertLessThanOrEqual(pose.y,10)
+                    XCTAssertEqual(NativeResultPresentationPlan.filledStarScale(seconds:seconds,index:index),0)
+                    let reduced=NativeResultPresentationPlan.emptyStarPose(seconds:seconds,index:index,earned:earned,reducedMotion:true)
+                    XCTAssertEqual(reduced.scale,1);XCTAssertEqual(reduced.y,0)
+                }
+                let settled=NativeResultPresentationPlan.emptyStarPose(seconds:1.46,index:index,earned:0)
+                XCTAssertEqual(settled.opacity,1);XCTAssertEqual(settled.scale,1);XCTAssertEqual(settled.y,0)
+                XCTAssertEqual(NativeResultPresentationPlan.emptyStarPose(seconds:4,index:index,earned:earned).opacity,index<earned ? 0:1)
+            }
+        }
+        XCTAssertEqual(NativeResultPresentationPlan.greyStarEntrance(age:0).scale,0)
+        XCTAssertGreaterThan(NativeResultPresentationPlan.greyStarEntrance(age:0.30).scale,1.08,"Use a visible bounce, not the previous subtle fade/scale")
+    }
+    func testCleanAndFailUseIdenticalGreyBounceAndAcceleratedReverseExit()throws {
+        var entries:[[[CGFloat]]]=[],exits:[[[CGFloat]]]=[]
+        for clean in [true,false] {
+            let result=NativeResultController(root:NativeTestResources.root,state:.init(tiles:[],mode:.journey,board:1),clean:clean,combo:0,efficiency:0,finalScore:1000,arcadeCelebrationPresented:true)
+            result.followsConfirmedNoMoves = !clean
+            let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+            let window=UIWindow(frame:UIDevice.current.userInterfaceIdiom == .pad ? UIScreen.main.bounds:CGRect(x:0,y:0,width:390,height:844))
+            window.rootViewController=result;window.makeKeyAndVisible();result.view.layoutIfNeeded()
+            defer{result.dispose();window.rootViewController=nil;window.isHidden=true;previous?.makeKeyAndVisible()}
+            func find(_ view:UIView,_ id:String)->UIView? {view.accessibilityIdentifier==id ? view:view.subviews.lazy.compactMap{find($0,id)}.first}
+            let grey=try (0..<3).map{try XCTUnwrap(find(result.view,"native.result.star.empty.\($0)"))}
+            let row=try XCTUnwrap(grey.first?.superview?.superview)
+            var timestamp=0.0;result.tick(timestamp)
+            func advance(_ target:Double){while result.elapsed<target-0.000001 {timestamp+=min(1.0/60,target-result.elapsed);result.tick(timestamp)}}
+            func poses(_ slots:Range<Int>)->[CGFloat] {slots.flatMap{let star=grey[$0];return [star.alpha,star.transform.a,star.transform.ty]}}
+            let out=URL(fileURLWithPath:"/tmp/shared-result-grey-stars/\(UIDevice.current.userInterfaceIdiom == .pad ? "ipad":"iphone")/\(clean ? "clean":"fail")",isDirectory:true)
+            try FileManager.default.createDirectory(at:out,withIntermediateDirectories:true)
+            func snapshot(_ name:String)throws {try UIGraphicsImageRenderer(bounds:window.bounds).image{window.layer.render(in:$0.cgContext)}.pngData()?.write(to:out.appendingPathComponent(name+".png"))}
+            var enter:[[CGFloat]]=[]
+            for (index,time) in [0.65,0.87,1.09,1.30].enumerated() {
+                advance(time);XCTAssertEqual(row.transform,.identity,"A second group animation must not compound the individual bounce")
+                enter.append(poses(0..<3));try snapshot("enter-\(index)")
+            }
+            entries.append(enter)
+            advance(6);result.close(completion:{})
+            var exit:[[CGFloat]]=[]
+            for (index,age) in [0.05,0.13,0.23,0.35,0.48].enumerated() {
+                advance(6+age);XCTAssertEqual(row.transform,.identity)
+                exit.append(poses(1..<3));try snapshot("exit-\(index)")
+                if index==0 {XCTAssertEqual(grey[1].transform,.identity);XCTAssertGreaterThan(grey[2].transform.a,1)}
+            }
+            XCTAssertTrue(grey.allSatisfy{$0.alpha==0})
+            exits.append(exit)
+        }
+        XCTAssertEqual(entries[0],entries[1],"All three grey entries are the same on Clean and Fail")
+        XCTAssertEqual(exits[0],exits[1],"Visible grey exits are the same on Clean and Fail")
+        for index in 0..<3 {for step in 0...20 {
+            let fraction=Double(step)/20
+            let expected=NativeResultPresentationPlan.greyStarEntrance(age:0.5*(1-fraction))
+            let actual=NativeResultExitPlan.emptyStar(seconds:Double(2-index)*0.11+0.25*fraction,index:index,earned:0)
+            XCTAssertEqual(actual.scale,expected.scale,accuracy:1e-9);XCTAssertEqual(actual.opacity,expected.opacity,accuracy:1e-9);XCTAssertEqual(actual.y,expected.y,accuracy:1e-9)
+        }}
+    }
+    func testFailGreyExitKeepsInterruptedEntrancePoseAndPauses()throws {
+        let result=NativeResultController(root:NativeTestResources.root,state:.init(tiles:[],mode:.journey,board:1),clean:false,combo:0,efficiency:0,finalScore:0)
+        result.followsConfirmedNoMoves=true
+        let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+        let window=UIWindow(frame:UIDevice.current.userInterfaceIdiom == .pad ? UIScreen.main.bounds:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=result;window.makeKeyAndVisible();result.view.layoutIfNeeded()
+        defer{result.dispose();window.rootViewController=nil;window.isHidden=true;previous?.makeKeyAndVisible()}
+        func find(_ v:UIView,_ id:String)->UIView? {v.accessibilityIdentifier==id ? v:v.subviews.lazy.compactMap{find($0,id)}.first}
+        let grey=try (0..<3).map{try XCTUnwrap(find(result.view,"native.result.star.empty.\($0)"))}
+        var timestamp=0.0;result.tick(timestamp)
+        while result.elapsed<1.05 {timestamp+=1.0/60;result.tick(timestamp)}
+        let transforms=grey.map(\.transform),alphas=grey.map(\.alpha)
+        func assertCapturedPose(){
+            for index in 0..<3 {
+                XCTAssertEqual(grey[index].transform.a,transforms[index].a,accuracy:1e-9)
+                XCTAssertEqual(grey[index].transform.d,transforms[index].d,accuracy:1e-9)
+                XCTAssertEqual(grey[index].transform.ty,transforms[index].ty,accuracy:1e-9)
+                XCTAssertEqual(grey[index].alpha,alphas[index],accuracy:1e-9)
+            }
+        }
+        result.close(completion:{});result.tick(timestamp)
+        assertCapturedPose()
+        let closing=result.elapsed;result.setSuspended(true);result.tick(100)
+        XCTAssertEqual(result.elapsed,closing);assertCapturedPose()
+        result.setSuspended(false);timestamp=101;result.tick(timestamp)
+        while result.elapsed<closing+0.48 {timestamp+=1.0/60;result.tick(timestamp)}
+        XCTAssertTrue(grey.allSatisfy{$0.alpha==0})
+    }
     func testStarBurnRandomizesEveryGapWithoutDrawingOnEveryFrame() {
         // Any slot can start first: no index-based lead or evenly spaced order.
         for first in 0..<3 {
@@ -139,7 +345,7 @@ final class NativeResultOwnerTests:XCTestCase {
             window.rootViewController=result;window.makeKeyAndVisible()
             defer{result.dispose();window.isHidden=true;window.rootViewController=nil}
             result.tick(0)
-            for frame in 1...150 {result.tick(Double(frame)/60)}
+            for frame in 1...210 {result.tick(Double(frame)/60)}
             for index in 0..<3 {
                 let star=try XCTUnwrap(find(result.view,"native.result.star.filled.\(index)"))
                 XCTAssertEqual(star.isHidden,index>=expectedStars)
@@ -193,6 +399,7 @@ final class NativeResultOwnerTests:XCTestCase {
         XCTAssertEqual(voices,0);failed.dispose()
     }
     func testJourneyFirstClearContinuesButPreviouslyClearedPrimaryReplaysSameStage()throws {
+        try FileManager.default.createDirectory(atPath:"/tmp/journey-replay-cta",withIntermediateDirectories:true)
         for board in [1,11,21,29] {
             for firstClear in [false,true] {
                 let state=NativeBoardState(tiles:[],mode:.journey,board:board,score:100)
@@ -267,6 +474,8 @@ final class NativeResultOwnerTests:XCTestCase {
         let owner=NativeResultOwner(gameplay:game,root:NativeTestResources.root,resolution:NativeResolution(.complete,reason:"replay-clean"),commit:{_ in commits+=1},restart:{restarts+=1},continueArcade:{},exit:{exits+=1},interimJourney:false,continueJourney:{next+=1})
         defer{owner.dispose();game.dispose();window.isHidden=true;window.rootViewController=nil}
         owner.present()
+        let readyDeadline=Date().addingTimeInterval(20)
+        while !(game.presentedViewController is NativeResultController),Date()<readyDeadline {try await Task.sleep(for:.milliseconds(10))}
         let modal=try XCTUnwrap(game.presentedViewController as? NativeResultController)
         modal.tick(0);for frame in 1...720 {modal.tick(Double(frame)/60)}
         let primary=try XCTUnwrap(resultButtons(modal.view).first{$0.accessibilityIdentifier=="native.result.play-again"})
@@ -335,8 +544,11 @@ final class NativeResultOwnerTests:XCTestCase {
             let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=game;window.makeKeyAndVisible()
             var exits=0,next=0,preparations=0
             let owner=NativeResultOwner(gameplay:game,root:NativeTestResources.root,resolution:NativeResolution(.complete,reason:"clean"),commit:{_ in},restart:{},continueArcade:{},exit:{exits+=1},continueJourney:{next+=1})
+            defer{owner.dispose();game.dispose();window.isHidden=true;window.rootViewController=nil}
             owner.prepareExit={done in preparations+=1;done(true)}
             owner.present()
+            let readyDeadline=Date().addingTimeInterval(20)
+            while !(game.presentedViewController is NativeResultController),Date()<readyDeadline {try await Task.sleep(for:.milliseconds(10))}
             let modal=try XCTUnwrap(game.presentedViewController as? NativeResultController)
             modal.tick(0);for frame in 1...600 {modal.tick(Double(frame)/60)}
             // Exercise nextJourney routing independently of the reward-first presentation.
@@ -355,22 +567,55 @@ final class NativeResultOwnerTests:XCTestCase {
         }
     }
 
+    func testPreparedOrdinaryArcadeRoundDoesNotReplayHiddenCleanBoardAudio() throws {
+        let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+        for variant in NativeArcadeVariant.allCases {
+            let state=NativeBoardState(tiles:[],mode:.arcade,board:2,stage:2,score:123,arcadeVariant:variant)
+            let result=NativeResultController(root:NativeTestResources.root,state:state,clean:true,combo:0,efficiency:0,finalScore:123,arcadeCelebrationPresented:true)
+            var moments:[String]=[],commits=0,nextRounds=0
+            result.onMoment={kind,_,_ in moments.append(kind)}
+            result.onCommit={commits+=1}
+            result.onAction={if case .nextRound=$0 {nextRounds+=1}}
+            result.prepareForHandoff(viewport:CGSize(width:390,height:844))
+            let continuation=try XCTUnwrap(result.view.subviews.first{$0 is NativeArcadeRoundPresentation} as? NativeArcadeRoundPresentation)
+            XCTAssertEqual(commits,1,"The existing continuation receipt commits before its first Round frame")
+            let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+            window.rootViewController=result;window.makeKeyAndVisible()
+            defer{result.dispose();window.rootViewController=nil;window.isHidden=true;previous?.makeKeyAndVisible()}
+            result.admitPreparedHandoff()
+            XCTAssertEqual(commits,1,"Visible handoff cannot commit the hidden Clean Board a second time")
+            XCTAssertFalse(moments.contains("clean-applause"),"CLEARED already owns applause; Round NN must not replay the hidden result sheet")
+            XCTAssertFalse(moments.contains("clean-sax"),"CLEARED already owns the victory melody")
+            continuation.advanceFrame(timestamp:100)
+            for frame in 1...360 {continuation.advanceFrame(timestamp:100+Double(frame)/60)}
+            XCTAssertEqual(nextRounds,1,"The existing Round NN animation still completes normally")
+            XCTAssertEqual(commits,1)
+            XCTAssertEqual(moments.filter{$0=="arcade-digit"}.count,2,"Both padded next-round digits retain their authored cues")
+            XCTAssertFalse(moments.contains("arcade-victory"),"Round NN cannot restart the already-presented CLEARED celebration")
+            XCTAssertFalse(moments.contains{$0.hasPrefix("clean-")},"An ordinary continuation never plays hidden Clean Board moments")
+        }
+    }
+
     func testPreparedResultStaysQuietUntilVisibleHandoffAndRetires() {
-        let state=NativeBoardState(tiles:[],mode:.journey,board:12)
-        var commits=0,cues=0
-        var result:NativeResultController?=NativeResultController(root:NativeTestResources.root,state:state,clean:true,combo:0,efficiency:500,finalScore:1000,arcadeCelebrationPresented:true)
-        weak var retired=result
-        result?.onCommit={commits+=1};result?.onMoment={_,_,_ in cues+=1}
-        result?.prepareForHandoff(viewport:CGSize(width:390,height:844))
-        let start=result?.elapsed
-        result?.tick(100);result?.tick(110)
-        NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
-        result?.tick(120)
-        XCTAssertEqual(result?.elapsed,start);XCTAssertEqual(commits,0);XCTAssertEqual(cues,0)
-        result?.admitPreparedHandoff()
-        XCTAssertEqual(commits,1);XCTAssertGreaterThan(cues,0)
-        XCTAssertEqual(result?.elapsed,NativeResultPresentationPlan.cleanAfterClearedStart)
-        result?.dispose();result?.dispose();result=nil;XCTAssertNil(retired)
+        weak var retired:NativeResultController?
+        autoreleasepool {
+            let state=NativeBoardState(tiles:[],mode:.journey,board:12)
+            var commits=0,cues=0
+            var result:NativeResultController?=NativeResultController(root:NativeTestResources.root,state:state,clean:true,combo:0,efficiency:500,finalScore:1000,arcadeCelebrationPresented:true)
+            retired=result
+            result?.onCommit={commits+=1};result?.onMoment={_,_,_ in cues+=1}
+            result?.prepareForHandoff(viewport:CGSize(width:390,height:844))
+            let start=result?.elapsed
+            result?.tick(100);result?.tick(110)
+            NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
+            result?.tick(120)
+            XCTAssertEqual(result?.elapsed,start);XCTAssertEqual(commits,0);XCTAssertEqual(cues,0)
+            result?.admitPreparedHandoff()
+            XCTAssertEqual(commits,1);XCTAssertGreaterThan(cues,0)
+            XCTAssertEqual(result?.elapsed,NativeResultPresentationPlan.cleanAfterClearedStart)
+            result?.dispose();result?.dispose();result=nil
+        }
+        XCTAssertNil(retired,"Disposed result releases after UIKit autoreleases drain")
     }
 
     func testClearedKeepsItsVisibleExitUntilSuccessorIsReadyThenCompletesOnce() {
@@ -405,12 +650,12 @@ final class NativeResultOwnerTests:XCTestCase {
             result.close(completion:{})
             result.tick(8+1.0/60)
             for index in 0..<3 {XCTAssertEqual(grey[index].alpha,before[index],accuracy:0.001,"Exit must not instantly hide a grey star")}
-            for frame in 482...496 {result.tick(Double(frame)/60)}
+            for frame in 482...488 {result.tick(Double(frame)/60)}
             for index in earned..<3 {
                 XCTAssertGreaterThan(grey[index].alpha,0)
                 XCTAssertNotEqual(grey[index].transform,.identity)
             }
-            for frame in 497...535 {result.tick(Double(frame)/60)}
+            for frame in 489...535 {result.tick(Double(frame)/60)}
             for index in earned..<3 {XCTAssertEqual(grey[index].alpha,0)}
         }
     }
@@ -479,6 +724,7 @@ final class NativeResultOwnerTests:XCTestCase {
         XCTAssertEqual(cues,1);XCTAssertEqual(burn.opacity,1);XCTAssertNotNil(burn.contents)
         XCTAssertTrue((burn.animationKeys() ?? []).isEmpty,"Finite burn shares the existing result clock")
         let shot=UIGraphicsImageRenderer(bounds:window.bounds).image{_ in window.drawHierarchy(in:window.bounds,afterScreenUpdates:true)}
+        try FileManager.default.createDirectory(atPath:"/tmp/native-final-score-burn-20261108",withIntermediateDirectories:true)
         try shot.pngData()?.write(to:URL(fileURLWithPath:"/tmp/native-final-score-burn-20261108/preview.png"))
         let before=result.elapsed;result.setSuspended(true);result.tick(200)
         XCTAssertEqual(result.elapsed,before);XCTAssertEqual(burn.opacity,0)
@@ -1290,7 +1536,7 @@ final class NativeResultOwnerTests:XCTestCase {
         XCTAssertEqual(secondary.bounds.size,CGSize(width:primary.bounds.width,height:ctaHeight))
         for glyph in secondary.subviews where glyph.accessibilityIdentifier=="native.cta.title-outline" || glyph.accessibilityIdentifier=="native.cta.title-inner-outline" {XCTAssertTrue(glyph.isHidden)}
         let ink=secondary.attributedTitle(for:.normal)?.attribute(.foregroundColor,at:0,effectiveRange:nil) as? UIColor
-        XCTAssertEqual(ink,UIColor(red:189/255,green:160/255,blue:142/255,alpha:1))
+        XCTAssertEqual(ink,NativeTextPalette.brown)
         XCTAssertNil(secondary.titleLabel?.shadowColor);XCTAssertEqual(secondary.titleLabel?.layer.shadowOpacity,0)
         for painted in secondary.subviews where painted.accessibilityIdentifier?.hasPrefix("native.cta.") == true {
             XCTAssertEqual(painted.contentScaleFactor,window.screen.scale*2)

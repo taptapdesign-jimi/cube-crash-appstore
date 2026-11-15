@@ -197,8 +197,9 @@ private final class JimiWorldStatTileView: UIView {
         value.textColor = UIColor(red:236/255,green:112/255,blue:69/255,alpha:1)
         value.accessibilityIdentifier = "native.world.card.stat.\(index).value"
         caption.text = index == 0 ? "High score" : "Best combo"
-        caption.font = assets.font(size:18,weight:"Regular")
+        caption.font = assets.font(size:18,weight:"Medium")
         caption.textColor = NativeTextPalette.subtitle
+        caption.attributedText=NativeModalTypography.attributedSubtitle(caption.text ?? "",font:caption.font)
         caption.accessibilityIdentifier = "native.world.card.stat.\(index).caption"
         for label in [value,caption] {
             label.textAlignment = .center;label.numberOfLines = 1
@@ -930,7 +931,7 @@ final class JimiNativeWorldCardView: UIView, UIGestureRecognizerDelegate {
         ctaRevealStarted=true
         let now=cta.layer.convertTime(CACurrentMediaTime(),from:nil),epoch=max(now,requested)
         let reduced=UIAccessibility.isReduceMotionEnabled
-        installInfoTrack(cta,.init(tweens:[.init(begin:0,duration:reduced ? 0.001:0.34,from:.scale(reduced ? 1:0,y:reduced ? 0:18,opacity:0),to:.scale(1),ease:reduced ? .linear:.backOut(1.8))]),key:"card.cta.presentation",epoch:epoch)
+        installInfoTrack(cta,JimiV9Motion.modalCTAEnter(reducedMotion:reduced),key:"card.cta.presentation",epoch:epoch)
         cta.scheduleModalCTAEntryCue(after:max(0,epoch-now)) { [weak self] in
             guard let self,self.active,!self.disposed,!self.closing,!self.historyVisible else{return}
             self.onFeedback?("paired-modal-cta-enter")

@@ -241,7 +241,8 @@ import ImageIO
         XCTAssertTrue(sawOvershoot);XCTAssertTrue(sawCollapse)
     }
     func testAllMountedProductionSelectionsUsePreparedPixelsOriginalTimingAndBoundedMemory()async throws {
-        XCTAssertEqual(NativeStudioIntroView.characters.count,10)
+        XCTAssertEqual(NativeStudioIntroView.characters.count,9)
+        XCTAssertFalse(NativeStudioIntroView.characters.contains{$0.key=="lik-pas-SVG"})
         let(controller,window,prior)=mount()
         defer{window.isHidden=true;prior?.makeKeyAndVisible()}
         for size in [CGSize(width:390,height:844),CGSize(width:820,height:1180)] {
@@ -283,96 +284,6 @@ import ImageIO
                 view.dispose();assertReleased(view)
             }
         }
-    }
-    func testRenderedLeashExitKeepsRestingCenter()throws {
-        let(controller,window,prior)=mount()
-        defer{window.isHidden=true;prior?.makeKeyAndVisible()}
-        let character=try XCTUnwrap(NativeStudioIntroView.characters.first{$0.key == "lik-pas-SVG"})
-        let view=NativeStudioIntroView(root:NativeTestResources.root,character:character)
-        view.frame=controller.view.bounds;controller.view.addSubview(view);view.layoutIfNeeded()
-        defer{view.dispose()}
-        let done=expectation(description:"Rendered center through leash exit")
-        view.start{}
-        DispatchQueue.main.asyncAfter(deadline:.now()+1.5) {
-            do {
-                XCTAssertTrue(view.timelineStarted)
-                let carrier=try XCTUnwrap(view.animatedCharacterLayer.superlayer)
-                let group=try XCTUnwrap(carrier.animation(forKey:"native-studio-intro")?.copy() as? CAAnimationGroup)
-                let center=CGPoint(x:carrier.position.x,y:carrier.position.y+carrier.bounds.height*character.scale/2)
-                // Scrub the attached CA track with an explicit nonzero epoch.
-                carrier.speed=0;carrier.beginTime=0;group.beginTime=0.000001
-                carrier.add(group,forKey:"native-studio-intro")
-                self.captureLeashExit(view,carrier:carrier,center:center,index:0,done:done)
-            } catch {XCTFail("\(error)");done.fulfill()}
-        }
-        wait(for:[done],timeout:20)
-    }
-    private func captureLeashExit(_ view:NativeStudioIntroView,carrier:CALayer,center:CGPoint,index:Int,done:XCTestExpectation) {
-        let names=["rest","inflate","collapse"],offsets=[0.0,0.25,0.54]
-        carrier.timeOffset=NativeStudioIntroView.characterExitTime+offsets[index]+0.000001
-        CATransaction.flush()
-        DispatchQueue.main.asyncAfter(deadline:.now()+0.1) {
-            do {
-                let rendered=try XCTUnwrap(carrier.presentation()),t=rendered.transform
-                let painted=CGPoint(x:rendered.position.x+(0.5-rendered.anchorPoint.x)*rendered.bounds.width*t.m11+t.m41,
-                                    y:rendered.position.y+(0.5-rendered.anchorPoint.y)*rendered.bounds.height*t.m22+t.m42)
-                XCTAssertEqual(painted.x,center.x,accuracy:0.1,names[index])
-                XCTAssertEqual(painted.y,center.y,accuracy:0.1,names[index])
-                let image=UIGraphicsImageRenderer(bounds:view.bounds).image{_ in
-                    XCTAssertTrue(view.drawHierarchy(in:view.bounds,afterScreenUpdates:true))
-                }
-                let url=URL(fileURLWithPath:"/tmp/native-intro-center-20261108/leash-"+names[index]+".png")
-                try XCTUnwrap(image.pngData()).write(to:url)
-                if index<2 {self.captureLeashExit(view,carrier:carrier,center:center,index:index+1,done:done)}else{done.fulfill()}
-            } catch {XCTFail("\(error)");done.fulfill()}
-        }
-    }
-    private func exerciseStudioLeashReplacement(_ mounted:(NativeStudioIntroView)->Void)async throws {
-        let character=try XCTUnwrap(NativeStudioIntroView.characters.first{$0.key == "lik-pas-SVG"})
-        XCTAssertEqual(character.motionAssetPath,"assets/logo addons/native/lik-lajna-v1.webp")
-        let(controller,window,prior)=mount()
-        defer{window.isHidden=true;prior?.makeKeyAndVisible()}
-        let view=NativeStudioIntroView(root:NativeTestResources.root,character:character)
-        mounted(view)
-        defer{view.dispose()}
-        var cues:[String]=[],handoffs=0
-        do {
-            view.frame=controller.view.bounds;controller.view.addSubview(view);view.layoutIfNeeded()
-            XCTAssertEqual(view.displayedFallbackImage?.size,CGSize(width:369,height:510))
-            view.onCharacterCue={cues.append($0)};view.start{handoffs+=1}
-            try await wait{view.timelineStarted}
-            XCTAssertEqual(view.preparedFrameCount,62)
-            XCTAssertEqual(view.preparedFramePixelSize,CGSize(width:369,height:510))
-            XCTAssertEqual(view.preparedDecodedBytes,369*510*4*62)
-            XCTAssertEqual(view.preparedFrameDurations.reduce(0,+),2.667,accuracy:0.000001)
-            XCTAssertEqual(cues,["lik-pas-SVG"])
-            try await wait(timeout:2){self.presentationPixels(view) != nil}
-            let first=try XCTUnwrap(presentationPixels(view))
-            try await wait(timeout:2){self.presentationPixels(view).map{$0 != first} ?? false}
-            NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
-            try await Task.sleep(for:.milliseconds(70))
-            let paused=try XCTUnwrap(presentationPixels(view))
-            try await Task.sleep(for:.milliseconds(160))
-            XCTAssertEqual(presentationPixels(view),paused)
-            let image=UIGraphicsImageRenderer(bounds:view.bounds).image{_ in
-                XCTAssertTrue(view.drawHierarchy(in:view.bounds,afterScreenUpdates:true))
-            }
-            let captureURL=URL(fileURLWithPath:"/tmp/native-leash-v1/mounted.png")
-            try FileManager.default.createDirectory(at:captureURL.deletingLastPathComponent(),withIntermediateDirectories:true)
-            try XCTUnwrap(image.pngData()).write(to:captureURL)
-            NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
-            try await wait(timeout:2){self.presentationPixels(view).map{$0 != paused} ?? false}
-            try await wait(timeout:7){handoffs==1}
-            XCTAssertEqual(cues,["lik-pas-SVG"]);assertReleased(view)
-            view.dispose();view.dispose();assertReleased(view)
-        }
-    }
-    func testStudioLeashReplacementKeepsNativeResolutionTimingPauseAndReleasesAtHandoff()async throws {
-        weak var released:NativeStudioIntroView?
-        // Return from the async playback scope before measuring object lifetime;
-        // the compiler can retain a do-block local across suspension points.
-        try await exerciseStudioLeashReplacement{released=$0}
-        try await wait(timeout:2){released == nil}
     }
     func testDisposalBeforePreparedLoopPublicationRejectsPixelsCueAndHomeHandoff()async throws {
         var publications:[()->Void]=[],cues=0

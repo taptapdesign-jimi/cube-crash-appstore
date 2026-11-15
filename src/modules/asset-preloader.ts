@@ -86,10 +86,10 @@ const ALL_ASSETS: string[] = [
   './assets/crash-cubes-homepage@2x.png',
   './assets/crash-cubes-homepage@3x.png',
   // Note: homepage1 and homepage2 removed - not used in slider
-  './assets/logo-cube-crash.png',
-  './assets/logo-cube-crash@2x.png',
-  './assets/logo-cube-crash@3x.png',
-  // './assets/logo.png' - removed: file not in repo (use logo-cube-crash)
+  './assets/logo-stacktosix.png',
+  './assets/logo-stacktosix@2x.png',
+  './assets/logo-stacktosix@3x.png',
+  // './assets/logo.png' - removed: file not in repo (use logo-stacktosix)
   
   // Logo addons
   './assets/logo addons/gore ljevo shards.png',
@@ -271,9 +271,9 @@ const CRITICAL_ASSETS: string[] = [
   './assets/crash-cubes-homepage.png',
   './assets/crash-cubes-homepage@2x.png',
   './assets/crash-cubes-homepage@3x.png',
-  './assets/logo-cube-crash.png',
-  './assets/logo-cube-crash@2x.png',
-  './assets/logo-cube-crash@3x.png',
+  './assets/logo-stacktosix.png',
+  './assets/logo-stacktosix@2x.png',
+  './assets/logo-stacktosix@3x.png',
   './assets/logo addons/gore ljevo shards.png',
   './assets/logo addons/shards gore desno.png',
   './assets/logo addons/dole ljevi shards.png',

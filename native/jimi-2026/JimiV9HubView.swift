@@ -626,13 +626,18 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
         }
     }
 
-    private func installIdle(_ id: Int) {
-        guard let floating = floats[id], let tilt = tilts[id], let banner = banners[id] else { return }
+    struct WorldIslandIdleTrack {
+        let values:[NSValue]
+        let times:[NSNumber]
+        let duration:Double
+    }
+    /// One authored World Unit recipe, also used by the creator's floating island.
+    static func worldIslandIdleTracks(_ id:Int=1)->(floating:WorldIslandIdleTrack,tilt:WorldIslandIdleTrack) {
         var peak = CATransform3DMakeTranslation(0,-8,0)
         peak = CATransform3DScale(peak,1.018,1.018,1)
         peak = CATransform3DRotate(peak,0.7 * .pi/180,0,0,1)
-        addLoop(floating.layer, keyPath: "transform", values: transforms([CATransform3DIdentity,peak,CATransform3DIdentity]),
-                times: [0,0.5,1], duration: id == 1 ? 4.4 : id == 2 ? 4.85 : 5.2)
+        let floating = WorldIslandIdleTrack(values:[CATransform3DIdentity,peak,CATransform3DIdentity].map{NSValue(caTransform3D:$0)},
+                times:[0,0.5,1],duration:id == 1 ? 4.4 : id == 2 ? 4.85 : 5.2)
         // CSS 3D face-local authored keyframes; outer Unit transform untouched.
         let tiltPoints: [(CGFloat,CGFloat,CGFloat,CGFloat,CGFloat)] = [
             (0,0,-0.35,0,1),(-2.1,7.2,0.9,10,1.012),(1.55,-6.4,-0.8,7,1.008),
@@ -645,8 +650,15 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
             t = CATransform3DTranslate(t,0,0,depth)
             return NSValue(caTransform3D: CATransform3DScale(t,scale,scale,1))
         }
-        addLoop(tilt.layer, keyPath: "transform", values: tiltValues,
-                times: [0,0.28,0.58,0.78,1], duration: 4.55 + Double(id-1)*0.72)
+        let tilt = WorldIslandIdleTrack(values:tiltValues,times:[0,0.28,0.58,0.78,1],duration:4.55 + Double(id-1)*0.72)
+        return (floating,tilt)
+    }
+
+    private func installIdle(_ id: Int) {
+        guard let floating = floats[id], let tilt = tilts[id], let banner = banners[id] else { return }
+        let tracks=Self.worldIslandIdleTracks(id)
+        addLoop(floating.layer,keyPath:"transform",values:tracks.floating.values,times:tracks.floating.times,duration:tracks.floating.duration)
+        addLoop(tilt.layer,keyPath:"transform",values:tracks.tilt.values,times:tracks.tilt.times,duration:tracks.tilt.duration)
         // Same authored per-cloud motion/duration; start at neutral (v9's
         // journey-v700-idle-seamless-start), not random negative float phases.
         let motions: [(CGFloat,CGFloat,Double,CGFloat)] = [
@@ -688,12 +700,19 @@ final class JimiV9HubView: UIView, UIScrollViewDelegate {
 
     private func transforms(_ values: [CATransform3D]) -> [NSValue] { values.map { NSValue(caTransform3D: $0) } }
     private func bannerAngle(_ id: Int) -> CGFloat { id == 1 ? -15 : id == 2 ? 0 : 2 }
-    private func addLoop(_ layer: CALayer, keyPath: String, values: [Any], times: [NSNumber], duration: Double,
-                         timing: CAMediaTimingFunction = CAMediaTimingFunction(name: .easeInEaseOut)) {
+    static func worldIslandIdleAnimation(_ track:WorldIslandIdleTrack)->CAKeyframeAnimation {
+        idleLoop(keyPath:"transform",values:track.values,times:track.times,duration:track.duration,timing:CAMediaTimingFunction(name:.easeInEaseOut))
+    }
+    private static func idleLoop(keyPath:String,values:[Any],times:[NSNumber],duration:Double,timing:CAMediaTimingFunction)->CAKeyframeAnimation {
         let animation = CAKeyframeAnimation(keyPath: keyPath)
         animation.values = values; animation.keyTimes = times; animation.duration = duration
         animation.timingFunctions = Array(repeating: timing, count: values.count-1)
         animation.repeatCount = .infinity
+        return animation
+    }
+    private func addLoop(_ layer: CALayer, keyPath: String, values: [Any], times: [NSNumber], duration: Double,
+                         timing: CAMediaTimingFunction = CAMediaTimingFunction(name: .easeInEaseOut)) {
+        let animation = Self.idleLoop(keyPath:keyPath,values:values,times:times,duration:duration,timing:timing)
         let key = idleKey + "." + keyPath
         let identity = ObjectIdentifier(layer)
         let now = layer.convertTime(CACurrentMediaTime(), from: nil)

@@ -1,53 +1,43 @@
 import XCTest
 import UIKit
+import CoreText
 import StackToSixGameplay
 import StackToSixNativeState
 @testable import Stack_to_Six
 
 @MainActor
 final class NativeScoreModalTests:XCTestCase {
-    func testAdaptivePaperPreservesCornerPixelsAndMaterialAcrossShortTallResize() throws {
+    func testBenchmarkPaperReusesOriginalPixelsAndUniformCoverAcrossResize() throws {
+        // User2026-11-07 restored the original benchmark material. A fitted
+        // per-size raster and invariant cropped corner pixels are retired.
         let assets=JimiV9Artwork(resourceRoot:NativeTestResources.root)
-        let output=URL(fileURLWithPath:"/tmp/shared-paper-20261106/renders")
-        try FileManager.default.createDirectory(at:output,withIntermediateDirectories:true)
-        for variant in 0..<3 {
-            weak var retired:NativeModalPaperView?
-            try autoreleasepool {
-                let paper=NativeModalPaperView(variant:variant);retired=paper;paper.prepare(assets:assets)
-                let close=try XCTUnwrap(paper.closeMaterial)
-                var firstCorner:Data?
-                for height in [CGFloat(280),420,620,280] {
-                    JimiNativeModalV10.paperLayout(paper,bounds:CGRect(x:0,y:0,width:310,height:height),bottomExtension:96)
-                    paper.layoutIfNeeded()
-                    XCTAssertEqual(paper.image?.size,paper.bounds.size);XCTAssertTrue(paper.closeMaterial === close)
-                    XCTAssertEqual(paper.textureScale,310/390,accuracy:0.000001)
-                    XCTAssertNil(paper.layer.mask);XCTAssertEqual(paper.layer.contentsRect,CGRect(x:0,y:0,width:1,height:1))
-                    let format=UIGraphicsImageRendererFormat();format.scale=1;format.opaque=false
-                    let rendered=UIGraphicsImageRenderer(bounds:paper.bounds,format:format).image{paper.layer.render(in:$0.cgContext)}
-                    let corner=try XCTUnwrap(rendered.cgImage?.cropping(to:CGRect(x:0,y:0,width:48,height:48)))
-                    var pixels=[UInt8](repeating:0,count:48*48*4)
-                    try pixels.withUnsafeMutableBytes { buffer in
-                        let context=try XCTUnwrap(CGContext(data:buffer.baseAddress,width:48,height:48,bitsPerComponent:8,bytesPerRow:48*4,space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue))
-                        context.draw(corner,in:CGRect(x:0,y:0,width:48,height:48))
-                    }
-                    let bytes=Data(pixels)
-                    if let firstCorner {
-                        // Ignore subpixel antialias quantization at nearly
-                        // transparent fibres; compare decoded premultiplied pixels.
-                        let differences=zip(bytes,firstCorner).map{abs(Int($0)-Int($1))}
-                        XCTAssertLessThan(Double(differences.reduce(0,+))/Double(differences.count),0.5,"A growing modal cannot stretch paper corners")
-                        XCTAssertLessThanOrEqual(differences.max() ?? 0,12)
-                    } else {firstCorner=bytes}
-                    try rendered.pngData()?.write(to:output.appendingPathComponent("material-\(variant)-\(Int(height)).png"))
-                    let fitted=paper.image,count=paper.fitCount
-                    paper.prepare(assets:assets);paper.fit(in:paper.frame)
-                    XCTAssertTrue(paper.image === fitted);XCTAssertEqual(paper.fitCount,count)
-                }
+        let original=try XCTUnwrap(assets.image("assets/modals/paper.png"))
+        weak var retired:NativeModalPaperView?
+        try autoreleasepool {
+            let paper=NativeModalPaperView();retired=paper;paper.prepare(assets:assets)
+            let close=try XCTUnwrap(paper.closeMaterial)
+            var firstPaint:Data?
+            for height in [CGFloat(280),420,620,280] {
+                JimiNativeModalV10.paperLayout(paper,bounds:CGRect(x:0,y:0,width:310,height:height),bottomExtension:96)
+                paper.layoutIfNeeded()
+                XCTAssertTrue(paper.image === original);XCTAssertTrue(paper.closeMaterial === close)
+                let uv=paper.layer.contentsRect
+                XCTAssertEqual(original.size.width*uv.width*paper.textureScale,paper.bounds.width,accuracy:0.000001)
+                XCTAssertEqual(original.size.height*uv.height*paper.textureScale,paper.bounds.height,accuracy:0.000001)
+                XCTAssertGreaterThanOrEqual(uv.minX,0);XCTAssertLessThanOrEqual(uv.maxX,1)
+                XCTAssertGreaterThanOrEqual(uv.minY,0);XCTAssertLessThanOrEqual(uv.maxY,1)
+                XCTAssertNil(paper.layer.mask)
+                let format=UIGraphicsImageRendererFormat();format.scale=1;format.opaque=false
+                let paint=UIGraphicsImageRenderer(bounds:paper.bounds,format:format).pngData{paper.layer.render(in:$0.cgContext)}
+                if height==280 {if let firstPaint {XCTAssertEqual(paint,firstPaint)}else{firstPaint=paint}}
+                let count=paper.fitCount
+                paper.prepare(assets:assets);paper.fit(in:paper.frame)
+                XCTAssertTrue(paper.image === original);XCTAssertEqual(paper.fitCount,count)
             }
-            XCTAssertNil(retired)
         }
+        XCTAssertNil(retired)
     }
-    func testOneTwoThreeHistoryRowsUseSameTextureDensityWithoutChangingCardSpacing() throws {
+    func testOneTwoThreeHistoryRowsReuseBenchmarkImageAndJoinedCloseWithoutChangingSpacing() throws {
         func all(_ view:UIView)->[UIView] {[view]+view.subviews.flatMap(all)}
         let output=URL(fileURLWithPath:"/tmp/shared-paper-20261106/renders")
         try FileManager.default.createDirectory(at:output,withIntermediateDirectories:true)
@@ -62,12 +52,22 @@ final class NativeScoreModalTests:XCTestCase {
                 modal.loadViewIfNeeded();modal.view.frame=CGRect(origin:.zero,size:size);modal.view.setNeedsLayout();modal.view.layoutIfNeeded()
                 let paper=try XCTUnwrap(all(modal.view).compactMap{$0 as? NativeModalPaperView}.first)
                 let image=try XCTUnwrap(paper.image)
-                XCTAssertEqual(image.size,paper.bounds.size)
-                XCTAssertEqual(paper.textureScale,paper.bounds.width/390,accuracy:0.000001)
+                let original=try XCTUnwrap(JimiV9Artwork(resourceRoot:NativeTestResources.root).image("assets/modals/paper.png"))
+                XCTAssertEqual(image.size,original.size)
+                XCTAssertEqual(image.pngData(),original.pngData())
+                let uv=paper.layer.contentsRect
+                XCTAssertEqual(image.size.width*uv.width*paper.textureScale,paper.bounds.width,accuracy:0.000001)
+                XCTAssertEqual(image.size.height*uv.height*paper.textureScale,paper.bounds.height,accuracy:0.000001)
                 XCTAssertGreaterThan(paper.bounds.height,previous);previous=paper.bounds.height
                 XCTAssertEqual(all(modal.view).filter{$0.accessibilityIdentifier?.hasPrefix("native.score-history.row.")==true}.count,count)
                 let close=try XCTUnwrap(all(modal.view).first{$0.accessibilityIdentifier=="native.score-modal.close"} as? UIButton)
-                XCTAssertTrue(close.backgroundImage(for:.normal) === paper.closeMaterial)
+                XCTAssertNil(close.backgroundImage(for:.normal),"The joined tab borrows the same original texture plane")
+                let mask=try XCTUnwrap(paper.layer.mask as? CAShapeLayer)
+                let bodyCenter=CGPoint(x:paper.bodyFrame.midX-paper.frame.minX,y:paper.bodyFrame.midY-paper.frame.minY)
+                let closeCenter=CGPoint(x:close.center.x-paper.frame.minX,y:close.center.y-paper.frame.minY)
+                XCTAssertTrue(mask.path?.contains(bodyCenter)==true)
+                XCTAssertTrue(mask.sublayers?.compactMap{$0 as? CAShapeLayer}.contains{$0.path?.contains(closeCenter)==true}==true)
+                XCTAssertFalse(paper.clipsToBounds)
                 let painted=try XCTUnwrap(paper.superview)
                 try UIGraphicsImageRenderer(bounds:painted.bounds).pngData{painted.layer.render(in:$0.cgContext)}.write(to:output.appendingPathComponent("history-\(combo)-\(count)-\(Int(size.width)).png"))
             }
@@ -99,8 +99,8 @@ final class NativeScoreModalTests:XCTestCase {
         let now=try XCTUnwrap(calendar.date(from:DateComponents(year:2026,month:11,day:3,hour:12)))
         func text(_ elapsed:TimeInterval)->String {NativeScoreHistoryDate.text(now.addingTimeInterval(-elapsed).timeIntervalSince1970,now:now,calendar:calendar)}
         XCTAssertEqual(text(0),"Just now");XCTAssertEqual(text(59),"Just now")
-        XCTAssertEqual(text(60),"1 minute ago");XCTAssertEqual(text(300),"5 minutes ago")
-        XCTAssertEqual(text(3599),"59 minutes ago");XCTAssertEqual(text(3600),"Today")
+        XCTAssertEqual(text(60),"1min ago");XCTAssertEqual(text(300),"5min ago")
+        XCTAssertEqual(text(2700),"45min ago");XCTAssertEqual(text(3599),"59min ago");XCTAssertEqual(text(3600),"Today")
         XCTAssertEqual(text(86400),"Yesterday");XCTAssertEqual(text(172800),"01.11.2026")
         XCTAssertEqual(NativeScoreHistoryDate.text(nil,now:now,calendar:calendar),"--/--")
         let midnight=try XCTUnwrap(calendar.date(from:DateComponents(year:2026,month:11,day:3)))
@@ -116,7 +116,7 @@ final class NativeScoreModalTests:XCTestCase {
         XCTAssertEqual(legacy.title,"High score");XCTAssertEqual(legacy.history,[.init(value:400,date:nil)])
         stats.comboHistory=[.init(value:2,date:10),.init(value:8,date:12),.init(value:8,date:11),.init(value:4,date:1)]
         let top=NativeScoreModalModel(boardStats:stats,combo:true)
-        XCTAssertEqual(top.title,"Best combo");XCTAssertEqual(top.history?.map(\.value),[8,8,4]);XCTAssertEqual(top.history?.first?.date,12)
+        XCTAssertEqual(top.title,"Best combo");XCTAssertEqual(top.history.map(\.value),[8,8,4]);XCTAssertEqual(top.history.first?.date,12)
     }
     func testScoreAndComboTitlesRetainVisible32ptWithoutHeightShrink() throws {
         for size in [CGSize(width:320,height:568),CGSize(width:390,height:844),CGSize(width:820,height:1180)] {
@@ -192,17 +192,86 @@ final class NativeScoreModalTests:XCTestCase {
         XCTAssertEqual(requested,1);XCTAssertEqual(closed,0)
         modal.dispose();modal.requestClose();XCTAssertEqual(requested,1)
     }
+    func testArcadeRoundsCardReadsVariantAndSharesCurrentTypographyAcrossViewports() async throws {
+        func all(_ view:UIView)->[UIView] {[view]+view.subviews.flatMap(all)}
+        let output=URL(fileURLWithPath:"/tmp/arcade-rounds-card/renders")
+        try FileManager.default.createDirectory(at:output,withIntermediateDirectories:true)
+        var progression=NativeProgressionState()
+        let now=Date().timeIntervalSince1970
+        for (index,variant) in NativeArcadeVariant.allCases.enumerated() {
+            progression.finishAttempt(mode:.arcade,board:index+3,score:21399,longestCombo:8,cubesCracked:0,clean:true,arcadeVariant:variant,now:now-1260)
+            progression.finishAttempt(mode:.arcade,board:1,score:16516,longestCombo:4,cubesCracked:0,clean:false,arcadeVariant:variant,now:now-2640)
+        }
+        let original=progression
+        for size in [CGSize(width:320,height:568),CGSize(width:390,height:844),CGSize(width:820,height:1180)] {
+            for (index,variant) in NativeArcadeVariant.allCases.enumerated() {
+                weak var retiredCard:UIView?
+                try autoreleasepool {
+                    var state=NativeBoardFactory.make(mode:.arcade,board:2,arcadeVariant:variant);state.score=21399
+                    let modal=NativeScoreModal(model:.init(state:state,progression:progression,combo:false),root:NativeTestResources.root,deferredEntry:true)
+                    let window=UIWindow(frame:CGRect(origin:.zero,size:size));window.rootViewController=modal;window.makeKeyAndVisible()
+                    defer{modal.dispose();modal.dispose();window.isHidden=true;window.rootViewController=nil}
+                    modal.view.frame=window.bounds;modal.view.setNeedsLayout();modal.view.layoutIfNeeded()
+                    let views=all(modal.view)
+                    XCTAssertNil(views.first{$0.accessibilityIdentifier=="native.score-modal.arcade-rounds"})
+                    let rows=views.filter{$0.accessibilityIdentifier?.hasPrefix("native.score-history.row.")==true}
+                    XCTAssertEqual(rows.count,3);retiredCard=rows.last
+                    for (rowIndex,row) in rows.enumerated() {
+                        let labels=row.subviews.compactMap{$0 as? UILabel}
+                        let value=try XCTUnwrap(labels.first)
+                        let date=try XCTUnwrap(labels.first{$0.text=="Current" || $0.text?.contains("ago")==true})
+                        let rounds=try XCTUnwrap(labels.first{$0.accessibilityIdentifier=="native.score-history.rounds.\(rowIndex)"})
+                        let expected=rowIndex==0 ? "01":(rowIndex==1 ? NativeScoreDisplay.padded(index+3):"00")
+                        XCTAssertEqual(rounds.attributedText?.string,"\(expected) rounds won")
+                        XCTAssertEqual(rounds.attributedText?.attribute(.foregroundColor,at:0,effectiveRange:nil) as? UIColor,value.textColor)
+                        XCTAssertEqual(date.frame.midY,row.bounds.midY,accuracy:0.001)
+                        let scoreInk=CTLineGetBoundsWithOptions(CTLineCreateWithAttributedString(NSAttributedString(string:value.text!,attributes:[.font:value.font!])),.useGlyphPathBounds)
+                        let roundsInk=CTLineGetBoundsWithOptions(CTLineCreateWithAttributedString(rounds.attributedText!),.useGlyphPathBounds)
+                        let roundsFont=try XCTUnwrap(rounds.attributedText?.attribute(.font,at:0,effectiveRange:nil) as? UIFont)
+                        let scoreBottom=value.frame.minY+(value.bounds.height-value.font.lineHeight)/2+value.font.ascender-scoreInk.minY
+                        let roundsTop=rounds.frame.minY+(rounds.bounds.height-roundsFont.lineHeight)/2+roundsFont.ascender-roundsInk.maxY
+                        XCTAssertEqual(roundsTop-scoreBottom,8,accuracy:0.001)
+                        XCTAssertGreaterThanOrEqual(rounds.bounds.width,ceil(rounds.intrinsicContentSize.width))
+                        let divider=try XCTUnwrap(row.subviews.first{$0.accessibilityIdentifier=="native.score-history.divider.\(rowIndex)"})
+                        XCTAssertGreaterThan(divider.frame.maxY,rounds.frame.midY)
+                        XCTAssertGreaterThanOrEqual(rounds.frame.minY,0)
+                        XCTAssertLessThanOrEqual(rounds.frame.maxY,row.bounds.height)
+                    }
+                    let host=try XCTUnwrap(rows.last?.superview)
+                    modal.setSuspended(true);XCTAssertEqual(modal.view.layer.speed,0)
+                    modal.setSuspended(false);XCTAssertEqual(modal.view.layer.speed,1)
+                    try UIGraphicsImageRenderer(bounds:host.bounds).pngData{host.layer.render(in:$0.cgContext)}.write(to:output.appendingPathComponent("modal-\(Int(size.width))-\(index).png"))
+                }
+                // UIKit retires a mounted root on the next main-runloop turn.
+                let deadline=Date().addingTimeInterval(0.5)
+                while retiredCard != nil,Date()<deadline {try await Task.sleep(for:.milliseconds(20))}
+                XCTAssertNil(retiredCard,"Dismissal must release the static card and its borrowed art")
+            }
+        }
+        XCTAssertEqual(progression,original,"Browsing a score card cannot change canonical progression")
+        for mode in [NativeRunMode.journey,.arcade] {
+            let state=NativeBoardFactory.make(mode:mode,board:1)
+            for combo in [false,true] {
+                let modal=NativeScoreModal(model:.init(state:state,progression:NativeProgressionState(),combo:combo),root:NativeTestResources.root)
+                modal.loadViewIfNeeded();modal.view.frame=CGRect(x:0,y:0,width:390,height:844);modal.view.layoutIfNeeded()
+                let footer=all(modal.view).first{$0.accessibilityIdentifier=="native.score-modal.arcade-rounds"}
+                XCTAssertNil(footer)
+                XCTAssertEqual(all(modal.view).filter{$0.accessibilityIdentifier?.hasPrefix("native.score-history.rounds.")==true}.count,mode == .arcade && !combo ? 1:0)
+                modal.dispose()
+            }
+        }
+    }
     func testCommittedStatisticsStayScopedToModeAndBoard() {
         var progression=NativeProgressionState(),board=NativeBoardStats()
         board.highScore=1234;board.longestCombo=7;progression.boardStats[11]=board
         progression.arcadeStats.highScore=9999;progression.arcadeStats.longestCombo=12;progression.arcadeStats.highestStageOpened=4
         let journey=NativeBoardFactory.make(mode:.journey,board:11)
-        XCTAssertEqual(NativeScoreModalModel(state:journey,progression:progression,combo:true).stats.first?.value,7.formatted())
-        XCTAssertEqual(NativeScoreModalModel(state:journey,progression:progression,combo:false).stats.count,1)
+        XCTAssertEqual(NativeScoreModalModel(state:journey,progression:progression,combo:true).history.first?.value,7)
+        XCTAssertEqual(NativeScoreModalModel(state:journey,progression:progression,combo:false).history.count,1)
         let arcade=NativeScoreModalModel(state:NativeBoardFactory.make(mode:.arcade,board:1),progression:progression,combo:false)
-        XCTAssertEqual(arcade.stats.map(\.label),["High score","Rounds cleared"])
-        XCTAssertEqual(arcade.stats.last?.value,"04")
-        XCTAssertEqual(arcade.stats.first?.value,9999.formatted())
+        XCTAssertEqual(arcade.title,"High Score")
+        XCTAssertEqual(arcade.currentRounds,0)
+        XCTAssertEqual(arcade.history.first?.value,9999)
     }
     func testArcadeModalReadsItsExactVariantRecord() {
         var progression = NativeProgressionState()
@@ -213,11 +282,12 @@ final class NativeScoreModalTests:XCTestCase {
             let state = NativeBoardFactory.make(mode: .arcade, board: 1, arcadeVariant: variant)
             let score = NativeScoreModalModel(state: state, progression: progression, combo: false)
             XCTAssertEqual(score.subtitle, variant.title)
-            XCTAssertEqual(score.stats.first?.value, ((index + 1) * 1234).formatted())
-            XCTAssertEqual(score.stats.last?.value, String(format: "%02d", index + 3))
+            XCTAssertEqual(score.history.first?.value, (index + 1) * 1234)
+            XCTAssertEqual(score.history.first?.roundsWon,index+2)
+            XCTAssertEqual(score.currentRounds,0)
             let combo = NativeScoreModalModel(state: state, progression: progression, combo: true)
             XCTAssertEqual(combo.subtitle, variant.title)
-            XCTAssertEqual(combo.stats.first?.value, (index + 3).formatted())
+            XCTAssertEqual(combo.history.first?.value, index + 3)
         }
     }
     func testTutorialHudCannotPresentOrMutateTheLiveRun() throws {

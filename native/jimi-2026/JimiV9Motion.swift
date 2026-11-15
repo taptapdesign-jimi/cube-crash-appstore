@@ -238,6 +238,12 @@ enum JimiV9Motion {
     /// NAV exit: collapse upward to the top-center pivot, not the World's
     /// downward/shallow exit. Incoming recipes are intentionally unchanged.
     /// Canonical Journey island contact-free route recipes, also used by navigation content.
+    /// Stage info and Arcade mode CTAs share the same local reveal recipe.
+    static func modalCTAEnter(reducedMotion:Bool=false)->Track {
+        .init(tweens:[.init(begin:0,duration:reducedMotion ? 0.001:0.34,
+            from:.scale(reducedMotion ? 1:0,y:reducedMotion ? 0:18,opacity:0),
+            to:.scale(1),ease:reducedMotion ? .linear:.backOut(1.8))])
+    }
     static func worldHubElementEnter(begin:Double=0,reducedMotion:Bool=false)->Track {
         .init(tweens:[.init(begin:begin,duration:reducedMotion ? 0.2:0.56,
             from:.scale(reducedMotion ? 0.96:0.65,y:reducedMotion ? 8:30,opacity:0),to:.scale(1),

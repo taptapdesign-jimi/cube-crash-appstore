@@ -1,6 +1,8 @@
 import XCTest
 import UIKit
 import SpriteKit
+import Metal
+import StackToSixGameplay
 @testable import Stack_to_Six
 
 @MainActor
@@ -117,6 +119,175 @@ final class NativeJuicePresentationTests: XCTestCase {
         owner.paint(seconds:0.5);owner.dispose();owner.paint(seconds:2);owner.dispose()
         XCTAssertEqual(releases,0);XCTAssertEqual(finishes,1);XCTAssertFalse(owner.hasActiveClock)
         textures.dispose()
+    }
+    func testJuiceDisposalFromEveryExternalCallbackStopsTheCurrentPaintAndClock() {
+        for boundary in ["initial-cue","initial-glyph","glyph","cup","introBubble","gameplay-ready"] {
+            let textures = NativeBoardTextures(root:NativeTestResources.root)
+            let scene = SKScene(size:CGSize(width:390,height:844))
+            let owner = NativeJuiceFinale(textures:textures,viewport:scene.size,random:{0.5})
+            scene.addChild(owner)
+            var finishes = 0,retiredGlyphs = 0,releases = 0
+            owner.onGlyphClock = {seconds,finished in
+                if finished {retiredGlyphs += 1;return}
+                if boundary == "initial-glyph" || boundary == "glyph" && seconds >= 1.86 {owner.dispose()}
+            }
+            owner.onCue = {cue,_ in
+                if boundary == "initial-cue" && cue == "bubble" || boundary == cue {owner.dispose()}
+            }
+            owner.onGameplayReady = {releases += 1;if boundary == "gameplay-ready" {owner.dispose()}}
+            owner.play {finishes += 1}
+            owner.paint(seconds:0.1)
+            owner.paint(seconds:0.8)
+            owner.paint(seconds:1.86)
+            owner.paint(seconds:6)
+            owner.dispose()
+            XCTAssertEqual(finishes,1,boundary)
+            XCTAssertEqual(retiredGlyphs,1,boundary)
+            XCTAssertEqual(releases,boundary == "gameplay-ready" ? 1:0,boundary)
+            XCTAssertNil(owner.parent,boundary)
+            XCTAssertTrue(owner.children.isEmpty,boundary)
+            XCTAssertEqual(owner.activeBubbleCount,0,boundary)
+            XCTAssertFalse(owner.hasActiveClock,boundary)
+            textures.dispose()
+        }
+    }
+    func testJuiceMissingClockRetiresOnceWithoutConsumingPausedLifetime() {
+        let textures = NativeBoardTextures(root:NativeTestResources.root)
+        defer {textures.dispose()}
+        let scene = SKScene(size:CGSize(width:390,height:844))
+        let owner = NativeJuiceFinale(textures:textures,viewport:scene.size,random:{0.5})
+        scene.addChild(owner)
+        var finishes = 0,releases = 0
+        owner.onGameplayReady = {releases += 1}
+        owner.play {finishes += 1}
+        scene.isPaused = true
+        owner.removeAction(forKey:"juice-field")
+        owner.reconcileClock(delta:60)
+        XCTAssertTrue(owner.parent === scene)
+        XCTAssertEqual(finishes,0)
+        scene.isPaused = false
+        owner.reconcileClock(delta:1.0/60)
+        owner.reconcileClock(delta:60)
+        XCTAssertNil(owner.parent)
+        XCTAssertEqual(owner.activeBubbleCount,0)
+        XCTAssertTrue(owner.children.isEmpty)
+        XCTAssertEqual(finishes,1)
+        XCTAssertEqual(releases,0)
+    }
+    func testJuiceStalledClockBudgetExcludesPausedAndStoppedAncestorTime() {
+        let textures = NativeBoardTextures(root:NativeTestResources.root)
+        defer {textures.dispose()}
+        let scene = SKScene(size:CGSize(width:390,height:844))
+        let owner = NativeJuiceFinale(textures:textures,viewport:scene.size,random:{0.5})
+        scene.addChild(owner)
+        var finishes = 0
+        owner.play {finishes += 1}
+        owner.reconcileClock(delta:60)
+        XCTAssertEqual(finishes,0,"The first delta can precede the effect's actual birth")
+        scene.isPaused = true;owner.reconcileClock(delta:60);scene.isPaused = false
+        scene.speed = 0;owner.reconcileClock(delta:60);scene.speed = 1
+        owner.isPaused = true;owner.reconcileClock(delta:60);owner.isPaused = false
+        owner.reconcileClock(delta:.infinity);owner.reconcileClock(delta:-1)
+        owner.reconcileClock(delta:owner.maximumDuration)
+        XCTAssertEqual(finishes,0)
+        XCTAssertTrue(owner.hasActiveClock)
+        owner.reconcileClock(delta:0.51)
+        XCTAssertEqual(finishes,1)
+        XCTAssertNil(owner.parent)
+        XCTAssertEqual(owner.activeBubbleCount,0)
+        XCTAssertFalse(owner.hasActiveClock)
+    }
+    func testJuiceActualRendererClockDrainsAfterPauseAndResume() throws {
+        let device = try XCTUnwrap(MTLCreateSystemDefaultDevice())
+        let queue = try XCTUnwrap(device.makeCommandQueue())
+        let renderer = SKRenderer(device:device)
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat:.bgra8Unorm,width:64,height:64,mipmapped:false)
+        descriptor.usage = [.renderTarget];descriptor.storageMode = .private
+        let target = try XCTUnwrap(device.makeTexture(descriptor:descriptor))
+        func renderFrame(at time:TimeInterval) throws {
+            renderer.update(atTime:time)
+            let pass = MTLRenderPassDescriptor()
+            pass.colorAttachments[0].texture = target
+            pass.colorAttachments[0].loadAction = .clear
+            pass.colorAttachments[0].storeAction = .dontCare
+            let command = try XCTUnwrap(queue.makeCommandBuffer())
+            renderer.render(withViewport:CGRect(x:0,y:0,width:64,height:64),commandBuffer:command,renderPassDescriptor:pass)
+            command.commit();command.waitUntilCompleted()
+            XCTAssertEqual(command.status,.completed)
+        }
+        let scene = SKScene(size:CGSize(width:390,height:844))
+        let textures = NativeBoardTextures(root:NativeTestResources.root)
+        let owner = NativeJuiceFinale(textures:textures,viewport:scene.size,random:{0.5})
+        scene.addChild(owner);renderer.scene = scene
+        defer {owner.dispose();renderer.scene = nil;textures.dispose()}
+        var finishes = 0,releases = 0
+        owner.onGameplayReady = {releases += 1}
+        owner.play {finishes += 1}
+        // Use SpriteKit's full update/encode cycle; update alone does not
+        // evaluate these actions without an actual render pass.
+        for frame in 0...60 {try renderFrame(at:1+Double(frame)/60)}
+        scene.isPaused = true
+        for frame in 61...180 {try renderFrame(at:1+Double(frame)/60)}
+        XCTAssertEqual(finishes,0)
+        XCTAssertTrue(owner.parent === scene)
+        scene.isPaused = false
+        for frame in 181...540 {try renderFrame(at:1+Double(frame)/60)}
+        XCTAssertEqual(finishes,1)
+        XCTAssertEqual(releases,1)
+        XCTAssertNil(owner.parent)
+        XCTAssertTrue(owner.children.isEmpty)
+        XCTAssertEqual(owner.activeBubbleCount,0)
+        XCTAssertFalse(owner.hasActiveClock)
+    }
+    func testJuiceSafetyBudgetUsesAncestorAndActionSpeed() throws {
+        let textures = NativeBoardTextures(root:NativeTestResources.root)
+        defer {textures.dispose()}
+        let scene = SKScene(size:CGSize(width:390,height:844))
+        let owner = NativeJuiceFinale(textures:textures,viewport:scene.size,random:{0.5})
+        scene.addChild(owner)
+        var finishes = 0
+        owner.play {finishes += 1}
+        owner.reconcileClock(delta:0)
+        let clock = try XCTUnwrap(owner.action(forKey:"juice-field"))
+        scene.speed = 0.5;clock.speed = 0.5
+        owner.reconcileClock(delta:20)
+        XCTAssertEqual(finishes,0,"Twenty wall seconds represent five authored seconds at quarter speed")
+        clock.speed = 0;owner.reconcileClock(delta:60)
+        XCTAssertEqual(finishes,0)
+        clock.speed = 0.5
+        owner.reconcileClock(delta:4)
+        XCTAssertEqual(finishes,1)
+        XCTAssertNil(owner.parent)
+    }
+    func testSceneFrameRetiresInterruptedJuiceOnTheActualEffectsPlane() throws {
+        let host = try XCTUnwrap(NativeOwnedMetalGameplayView(frame:CGRect(x:0,y:0,width:390,height:844)))
+        let window = UIWindow(frame:host.bounds),controller = UIViewController()
+        controller.view = host;window.rootViewController = controller;window.makeKeyAndVisible()
+        let engine = NativeGameplayEngine(state:.init(columns:5,rows:9,tiles:[
+            .init(id:"source",cell:.init(column:0,row:0),value:1),
+            .init(id:"target",cell:.init(column:1,row:0),value:2)]))
+        let scene = NativeBoardScene(engine:engine,resourceRoot:NativeTestResources.root,size:host.bounds.size)
+        let textures = NativeBoardTextures(root:NativeTestResources.root)
+        defer {
+            host.retirePresentation();scene.dispose();textures.dispose()
+            window.isHidden = true;window.rootViewController = nil
+        }
+        scene.layout(size:scene.size,insets:.init(top:47,left:0,bottom:34,right:0))
+        XCTAssertTrue(host.presentScene(scene))
+        XCTAssertTrue(host.updateSceneForRendererFrame(atTime:1))
+        let canvas = try XCTUnwrap(scene.childNode(withName:"native-gameplay-canvas"))
+        // Existing production effect plane; no test-only Scene owner is added.
+        let effects = try XCTUnwrap(canvas.children.first(where:{$0.zPosition == 15000}))
+        let owner = NativeJuiceFinale(textures:textures,viewport:scene.size,random:{0.5})
+        effects.addChild(owner)
+        var finishes = 0
+        owner.play {finishes += 1}
+        owner.removeAction(forKey:"juice-field")
+        XCTAssertTrue(host.updateSceneForRendererFrame(atTime:1+1.0/60))
+        XCTAssertNil(owner.parent)
+        XCTAssertTrue(owner.children.isEmpty)
+        XCTAssertEqual(owner.activeBubbleCount,0)
+        XCTAssertEqual(finishes,1)
     }
     func testFiniteUIKitOwnerDisposedFromInitialReadinessCannotCreateDetachedClock() {
         let owner = DisposeOnInitialPaint(viewport:CGSize(width:390,height:844),duration:1)

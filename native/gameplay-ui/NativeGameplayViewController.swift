@@ -171,6 +171,7 @@ final class NativeGameplayViewController: UIViewController {
     private var hasPresentedScene = false
     var waitsForFirstFrameOnReplacement=false
     var keepsGameplayChromeVisibleOnEntry=false
+    var firstPlayTutorialComplete:()->Bool = {true}
     var replaysRestartChrome=false
     var restartPreparationForeground:Bool{!disposed && !backgrounded}
     var onRestartPreparationResume:(()->Void)?
@@ -343,6 +344,7 @@ final class NativeGameplayViewController: UIViewController {
         super.viewDidLoad()
         let scene = NativeBoardScene(engine: engine, resourceRoot: resourceRoot, size: view.bounds.size,sourceInitialConstruction:sourceInitialConstruction)
         scene.keepsHUDVisibleOnEntry=keepsGameplayChromeVisibleOnEntry
+        scene.firstPlayTutorialComplete=firstPlayTutorialComplete
         scene.replaysRestartChrome=replaysRestartChrome
         scene.sourceWildShimmerEnabled=sourceWildShimmerPresentationEnabled
         if (sourceInitialConstruction != nil || sourceSpecialIdlePresentationEnabled),!sourceSmallStackPresentationEnabled,let sourceContext {
@@ -778,7 +780,7 @@ final class NativeGameplayViewController: UIViewController {
         scene.onFinalMergeProgress = {[weak self] _,_,generation in self?.presentBoardCleared(generation:generation)}
         scene.onTerminal = { [weak self] result in
             guard let self,!self.disposed else{return}
-            guard result.kind == .complete,(self.engine.state.mode == .journey || self.engine.state.tutorial?.requiresResultCompletion != true) else {
+            guard result.kind == .complete else {
                 self.onTerminal?(result);return
             }
             guard !self.exitingBoard else{return}
@@ -1252,12 +1254,12 @@ final class NativeGameplayViewController: UIViewController {
         // merge artwork and its HUD receipts, never at ordinary-six contact.
         guard engine.state.tutorial?.requiresResultCompletion != true || tutorialSettled else{return}
         guard !disposed,!backgrounded,engine.state.generation==generation,
-              boardClearedGeneration != generation,(engine.state.mode == .journey || engine.state.tutorial?.requiresResultCompletion != true) else{return}
+              boardClearedGeneration != generation else{return}
         retireBoardCleared();boardClearedGeneration=generation
         let owner=NativeArcadeRoundPresentation(resourceRoot:resourceRoot,clearedRound:engine.state.stage,
             nextRound:engine.state.stage+1,boardClearedOnly:true)
         boardClearedPresentation=owner;boardClearedSuccessorReady=false
-        if engine.state.mode == .journey {owner.permitsBoardClearedExit = {[weak self] in
+        if engine.state.mode == .journey || engine.state.tutorial?.requiresResultCompletion == true {owner.permitsBoardClearedExit = {[weak self] in
             guard let self else{return false}
             return self.boardClearedSuccessorReady && (self.preparedJourneyReward?.initialPresentationReady ?? true)
         }}
@@ -1292,7 +1294,7 @@ final class NativeGameplayViewController: UIViewController {
             guard ball.assetsReady else { ball.dispose(); return false }
             ball.onGameplayReady = onGameplayReady; owner = ball
         } else {
-            let tnt = NativeTntVariantPresentation(resourceRoot:resourceRoot,variant:variant == "coconut" ? .coconut:variant == "flower" ? .flower:variant == "bloob-ball" ? .bloobGas:.barell,viewport:finaleViewport,preparedArtwork:selectedFinaleArtwork(),coconutBoardBodySize:boardScene.map{$0.coconutFinaleBodySize/NativeTabletLayout.animationScale(view.bounds.size)},smokePresentationScale:NativeTabletLayout.applies(view.bounds.size) ? 1.694*(variant == "barell" ? 1.15*1.30:1):(variant == "barell" ? 1.20*1.30*1.10*1.20:1),smokeVerticalOffset:NativeTabletLayout.smokeVerticalOffset(view.bounds.size),bushPresentationScale:NativeTabletLayout.applies(view.bounds.size) && variant == "flower" ? 1.15:1,blossomCaptionFillsWidth:UIDevice.current.userInterfaceIdiom == .pad,flowerArtworkScale:NativeTabletLayout.applies(view.bounds.size) && variant == "flower" ? 1/NativeTabletLayout.animationScale(view.bounds.size):1)
+            let tnt = NativeTntVariantPresentation(resourceRoot:resourceRoot,variant:variant == "coconut" ? .coconut:variant == "flower" ? .flower:variant == "bloob-ball" ? .bloobGas:.barell,viewport:finaleViewport,preparedArtwork:selectedFinaleArtwork(),coconutBoardBodySize:boardScene.map{$0.coconutFinaleBodySize/NativeTabletLayout.animationScale(view.bounds.size)},smokePresentationScale:variant == "barell" ? NativeTabletLayout.barrelSmokeScale(view.bounds.size):(NativeTabletLayout.applies(view.bounds.size) ? 1.694:1),smokeVerticalOffset:NativeTabletLayout.smokeVerticalOffset(view.bounds.size),bushPresentationScale:NativeTabletLayout.applies(view.bounds.size) && variant == "flower" ? 1.15:1,blossomCaptionFillsWidth:UIDevice.current.userInterfaceIdiom == .pad,flowerArtworkScale:NativeTabletLayout.applies(view.bounds.size) && variant == "flower" ? 1/NativeTabletLayout.animationScale(view.bounds.size):1)
             guard tnt.assetsReady else { tnt.dispose(); return false }
             if variant == "coconut" {tnt.bindScreenShake(to:view)}
             if variant == "bloob-ball" {tnt.bindBoardReaction(boardScene?.makeBloobBoardReaction())}
@@ -1636,8 +1638,10 @@ final class NativeGameplayViewController: UIViewController {
         applySuspension()
         journeyBottomDecor?.setSuspended(backgrounded)
         // Journey retires HUD/footer after residual ghosts, before its opaque reward screen.
-        // Arcade automatic round continuation retains its already settled chrome.
-        let keepsChromeVisible=finalMerge && engine.state.mode == .arcade
+        // Arcade practice opens Clean Board like Journey; only automatic real
+        // rounds retain their settled chrome for the next numbered entry.
+        let tutorialCompletion = !firstPlayTutorialComplete() && engine.state.tutorial?.requiresResultCompletion == true
+        let keepsChromeVisible=finalMerge && engine.state.mode == .arcade && !tutorialCompletion
         var remaining=keepsChromeVisible || journeyBottomDecor == nil ? 1:2,finished=false
         let generation=engine.state.generation
         let settled:(Bool)->Void = { [weak self] success in

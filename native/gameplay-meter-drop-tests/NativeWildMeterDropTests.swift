@@ -5,17 +5,24 @@ nonisolated final class NativeWildMeterDropTests: XCTestCase {
     func testTutorialBackpackJumpsAndSquashesThenReturnsBeforeOpening() {
         let duration=NativeWildMeterDropPlan.tutorialOpenBounceDuration
         let samples=stride(from:0.0,through:duration,by:0.002).map{NativeWildMeterDropPlan.tutorialOpenBounce(at:$0)}
-        XCTAssertEqual(samples.map(\.y).min() ?? 0,-0.52,accuracy:0.0001,"Existing0.40height jump grows30percent")
+        XCTAssertEqual(samples.map(\.y).min() ?? 0,-1.04,accuracy:0.0001,"Tutorial crest rises25percent above0.832")
         XCTAssertLessThan(samples.map(\.scaleY).min() ?? 1,0.85,"Landing needs a visible squash")
-        XCTAssertGreaterThan(samples.map(\.scaleY).max() ?? 1,1.20,"Takeoff stretches upward")
-        let firstLanding=NativeWildMeterDropPlan.tutorialOpenBounce(at:0.44)
+        XCTAssertGreaterThan(samples.map(\.scaleY).max() ?? 1,1.38,"Takeoff stretches upward")
+        XCTAssertGreaterThan(NativeWildMeterDropPlan.tutorialOpenBounce(at:0.17).y,-0.85,"Takeoff remains in flight at the former ascent-end boundary")
+        let contact=NativeWildMeterDropPlan.tutorialOpenBounce(at:0.63)
+        XCTAssertEqual(contact.scaleX,1.12,accuracy:1e-9);XCTAssertEqual(contact.scaleY,0.90,accuracy:1e-9)
+        // Arrival speed falls toward zero instead of accelerating into contact.
+        let approach=abs(NativeWildMeterDropPlan.tutorialOpenBounce(at:0.56).y-NativeWildMeterDropPlan.tutorialOpenBounce(at:0.55).y)
+        let finalContact=abs(NativeWildMeterDropPlan.tutorialOpenBounce(at:0.63).y-NativeWildMeterDropPlan.tutorialOpenBounce(at:0.62).y)
+        XCTAssertLessThan(finalContact,approach*0.25)
+        let firstLanding=NativeWildMeterDropPlan.tutorialOpenBounce(at:0.75)
         XCTAssertEqual(firstLanding.scaleX,1,accuracy:1e-9);XCTAssertEqual(firstLanding.scaleY,1,accuracy:1e-9);XCTAssertEqual(firstLanding.y,0,accuracy:1e-9)
-        XCTAssertLessThan(NativeWildMeterDropPlan.tutorialOpenBounce(at:0.585).y,-0.17,"A second distinct round flight follows the original-scale return")
+        XCTAssertLessThan(NativeWildMeterDropPlan.tutorialOpenBounce(at:0.75+0.145*1.16).y,-0.17,"A second distinct round flight follows the original-scale return")
         for t in stride(from:0.0,through:0.16,by:0.005) {
-            let ball=NativeBeachBallPlanning.floorBounceScale(at:t),backpack=NativeWildMeterDropPlan.tutorialOpenBounce(at:0.44+t)
-            XCTAssertEqual(backpack.scaleX,ball.0,accuracy:1e-9);XCTAssertEqual(backpack.scaleY,ball.1,accuracy:1e-9)
+            let ball=NativeBeachBallPlanning.floorBounceScale(at:t),backpack=NativeWildMeterDropPlan.tutorialOpenBounce(at:0.75+t*1.16)
+            XCTAssertEqual(backpack.scaleX,1+(ball.0-1)*0.40,accuracy:1e-9);XCTAssertEqual(backpack.scaleY,1+(ball.1-1)*0.40,accuracy:1e-9)
         }
-        XCTAssertEqual(NativeWildMeterDropPlan.tutorialOpenBounceDurationFor(arcade:true),0.48)
+        XCTAssertEqual(NativeWildMeterDropPlan.tutorialOpenBounceDurationFor(arcade:true),duration)
         for t in [0,duration,duration+1] {
             let pose=NativeWildMeterDropPlan.tutorialOpenBounce(at:t)
             XCTAssertEqual(pose.x,0,accuracy:1e-9);XCTAssertEqual(pose.y,0,accuracy:1e-9)
@@ -23,8 +30,10 @@ nonisolated final class NativeWildMeterDropTests: XCTestCase {
         }
         for t in stride(from:0.0,through:duration,by:0.01) {
             let crate=NativeWildMeterDropPlan.tutorialOpenBounce(at:t,arcade:true)
-            XCTAssertEqual(crate.y,0);XCTAssertEqual(crate.scaleX,crate.scaleY)
-            XCTAssertLessThanOrEqual(crate.scaleX,1.20+1e-9)
+            let backpack=NativeWildMeterDropPlan.tutorialOpenBounce(at:t,arcade:false)
+            XCTAssertEqual(crate.y,backpack.y,accuracy:1e-12)
+            XCTAssertEqual(crate.scaleX,backpack.scaleX,accuracy:1e-12)
+            XCTAssertEqual(crate.scaleY,backpack.scaleY,accuracy:1e-12)
         }
     }
     func testTutorialCarrierArrivesAndOpensAtSameCenteredLocation() {
@@ -40,6 +49,17 @@ nonisolated final class NativeWildMeterDropTests: XCTestCase {
         XCTAssertEqual(plan.sampleCarrier(0.28).pose.scaleY,plan.carrierScale,accuracy:0.000001)
         XCTAssertGreaterThan(plan.sampleCarrier(0.6).frame,0)
         XCTAssertEqual(plan.sample(seconds:1.405,impactStart:1.405,restored:false,wallHandoffPending:false).tile.pose.point,plan.stageTarget)
+    }
+    func testTutorialOpeningAnchorMovesLaunchWithoutChangingFinalTileDestination() {
+        for arcade in [false,true] {
+            let arrival=NativeWildMeterDropPlan.Point(x:410,y:1060),opening=NativeWildMeterDropPlan.Point(x:410,y:850)
+            let plan=NativeWildMeterDropPlan(arcade:arcade,viewport:.init(x:820,y:1180),tileSize:128,target:.init(x:120,y:200),parentWorld:.init(a:0.4,d:0.4),originalRotation:0,originalZIndex:0,usesUniformDropScale:false,tutorialCarrier:.init(point:arrival,width:216,openingPoint:opening),random:{0.5})
+            XCTAssertEqual(plan.backpackPoint,opening)
+            XCTAssertEqual(plan.tutorialCarrierArrivalOffset,.init(x:0,y:210))
+            XCTAssertEqual(plan.sampleCarrier(0.28).pose.point,opening)
+            XCTAssertEqual(plan.sampleCarrier(0.9).pose.point,opening)
+            XCTAssertEqual(plan.sample(seconds:1.405,impactStart:1.405,restored:false,wallHandoffPending:false).tile.pose.point,plan.stageTarget)
+        }
     }
     private struct Oracle:Decodable {var records:[Scenario]}
     private struct Scenario:Decodable {

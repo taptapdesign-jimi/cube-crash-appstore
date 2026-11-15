@@ -226,7 +226,7 @@ class JimiV9PlainButton: UIButton {
         titleLabel?.layer.shadowOpacity=0;titleLabel?.layer.shadowRadius=0
         if !primary {
             // Ordinary flat live title, without bevel, shadow or glyph overlays.
-            let ink=UIColor(red:189/255,green:160/255,blue:142/255,alpha:1) // #BDA08E
+            let ink=NativeTextPalette.brown
             setTitleColor(ink,for:.normal)
             setAttributedTitle(NSAttributedString(string:title,attributes:[.font:font,.foregroundColor:ink]),for:.normal)
         }
@@ -350,12 +350,16 @@ final class NativeCTAShimmer:NSObject {
     }
 
     private weak var button:JimiV9PlainButton?
+    private let bandWidthMultiplier:CGFloat
+    private let cycleDuration:CFTimeInterval
     let highlight=CAGradientLayer(),band=CAGradientLayer()
     private var observations:[NSKeyValueObservation]=[]
     private var disposed=false,foreground=true
     private(set) var running=false
-    init(button:JimiV9PlainButton,faceLayer:CALayer) {
+    init(button:JimiV9PlainButton,faceLayer:CALayer,bandWidthMultiplier:CGFloat=1,cycleDuration:CFTimeInterval=10) {
         self.button=button
+        self.bandWidthMultiplier=bandWidthMultiplier
+        self.cycleDuration=cycleDuration
         super.init()
         highlight.name="native.cta.shimmer";highlight.opacity=0;highlight.masksToBounds=true;highlight.zPosition=1
         highlight.colors=Array(repeating:UIColor(red:1,green:225/255,blue:189/255,alpha:0.55).cgColor,count:2)
@@ -410,7 +414,7 @@ final class NativeCTAShimmer:NSObject {
         if changed {stop()}
         CATransaction.begin();CATransaction.setDisableActions(true)
         highlight.frame=button.bounds;highlight.cornerRadius=0
-        let w=button.bounds.width*1.62,h=button.bounds.height
+        let w=button.bounds.width*1.62*bandWidthMultiplier,h=button.bounds.height
         // Overscan the tilted stripe so its shoulders/core span the complete
         // button height. Only the outer rounded body clips it; no vertical fade.
         band.bounds=CGRect(x:0,y:0,width:w,height:3*h+w)
@@ -426,11 +430,11 @@ final class NativeCTAShimmer:NSObject {
         let opacity=CAKeyframeAnimation(keyPath:"opacity")
         opacity.values=Self.opacityValues
         opacity.keyTimes=Self.opacityTimes.map{NSNumber(value:$0)}
-        opacity.duration=10;opacity.delegate=animationDelegate
+        opacity.duration=cycleDuration;opacity.delegate=animationDelegate
         opacity.timingFunctions=Array(repeating:CAMediaTimingFunction(controlPoints:0.42,0,0.58,1),count:11)
         let sweep=CAKeyframeAnimation(keyPath:"position.x")
         sweep.values=Self.sweepValues.map{$0*button.bounds.width}
-        sweep.keyTimes=Self.sweepTimes.map{NSNumber(value:$0)};sweep.duration=10
+        sweep.keyTimes=Self.sweepTimes.map{NSNumber(value:$0)};sweep.duration=cycleDuration
         sweep.timingFunctions=Array(repeating:CAMediaTimingFunction(controlPoints:0.42,0,0.58,1),count:6)
         highlight.add(opacity,forKey:Self.animationKey);band.add(sweep,forKey:Self.animationKey)
     }
@@ -1378,7 +1382,9 @@ final class JimiV9HomeView: UIView, UIGestureRecognizerDelegate {
         // Percentage Journey relative-top with an auto-height container is 0.
         let logoTop = tablet ? min(tabletHeroTop-logoLayoutHeight-20,max(topInset+innerInset,(height-160-(logoLayoutHeight+32+heroSide+40+88))/2)):topInset + innerInset + height * 0.02 - 30
         logoView.bounds = CGRect(x: 0, y: 0, width: 208*logoScale, height: logoHeight)
-        logoView.center = CGPoint(x: width/2, y: logoTop + logoLayoutHeight/2 + (tablet ? 8:0))
+        // Phone: raise the whole logo/shard carrier by8pt at844pt reference
+        // height, expressed as a viewport fraction (approximately0.948%).
+        logoView.center = CGPoint(x: width/2, y: logoTop + logoLayoutHeight/2 + (tablet ? 8:-height*(8.0/844.0)))
         // Route motion writes a collapsed model transform before playback.
         // UIView.frame is undefined under that transform (including scale 0);
         // layout must not resize the logo out from under its authored track.

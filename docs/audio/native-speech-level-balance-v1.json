@@ -1,0 +1,45 @@
+{
+  "targetRMSdBFS": -21.178535387996146,
+  "tutorialGain": 0.7539325545966477,
+  "collectionGain": 0.8617619316600378,
+  "detailScale": 1.1780944281383627,
+  "detailDefaultGain": 0.8482279882596211,
+  "titleGain": 0.5703813259814785,
+  "method": "Whole-file PCM RMS after Native player gain;equal energy mean across each family recording,not LUFS or physical SPL",
+  "counts": {
+    "tutorial": 10,
+    "collection": 7,
+    "detail": 83,
+    "cleanTitle": 110
+  },
+  "baselineMeanRMSdBFS": {
+    "tutorial": -19.578535387996144,
+    "collection": -22.739631563650867,
+    "detail": -22.59431643305671,
+    "cleanTitle": -17.155191428927303
+  },
+  "detailBoostCeiling": 1,
+  "policy": "Family means match;individual recording dynamics and existing PCM preserved. Two boosted detail lines cap at unity;calibration accounts for this. Music,Nala,other SFX and all other speech families unchanged.",
+  "verifiedFamilyMeans": {
+    "Tutorial": {
+      "count": 10,
+      "meanRMSdBFS": -21.178535387996146,
+      "highestSamplePeakDBFS": -3.5443919154380326
+    },
+    "Backpack opening": {
+      "count": 7,
+      "meanRMSdBFS": -21.178535387996146,
+      "highestSamplePeakDBFS": -2.7441347914131455
+    },
+    "Dice detail": {
+      "count": 83,
+      "meanRMSdBFS": -21.178535387996146,
+      "highestSamplePeakDBFS": -2.3939863153060887
+    },
+    "Clean Board titles": {
+      "count": 110,
+      "meanRMSdBFS": -21.178535387996146,
+      "highestSamplePeakDBFS": -5.176846372488034
+    }
+  }
+}

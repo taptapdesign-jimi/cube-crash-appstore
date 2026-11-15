@@ -7,6 +7,76 @@ import StackToSixNativeState
 
 @MainActor
 final class NativeBootstrapTests:XCTestCase {
+    func testArcadeContinueRecognizesEarnedPendingRoundWithoutSavingUntouchedLayout() async throws {
+        for variant in NativeArcadeVariant.allCases {
+            for (round,score,played,continuing) in [(1,0,false,false),(4,987,false,true),(4,987,true,true)] {
+                let directory=FileManager.default.temporaryDirectory.appendingPathComponent("arcade-continue-\(UUID().uuidString)")
+                defer{try? FileManager.default.removeItem(at:directory)}
+                let store=NativeSaveStore(directory:directory)
+                var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
+                seed.progression.firstPlayTutorialComplete=true;seed.activeArcadeVariant=variant
+                var state=NativeBoardFactory.make(mode:.arcade,board:round,arcadeVariant:variant)
+                state.score=score;if played {state.moves -= 1}
+                seed.recordPlayableRun(state,now:Date().timeIntervalSince1970)
+                try store.save(seed)
+                let bootstrap=try NativeBootstrap(root:NativeTestResources.root,store:store,showStudioIntro:false)
+                let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+                window.rootViewController=host;window.makeKeyAndVisible();bootstrap.start(in:host)
+                defer{bootstrap.dispose();window.isHidden=true;window.rootViewController=nil}
+                let app=try XCTUnwrap(host.children.first as? NativeAppController)
+                XCTAssertEqual(app.arcadeHub.canContinue?(variant.rawValue),continuing)
+                for other in NativeArcadeVariant.allCases where other != variant {
+                    XCTAssertEqual(app.arcadeHub.canContinue?(other.rawValue),false,"Another mode's save cannot change its CTA")
+                }
+                app.navigate(.arcadeHub,interrupt:true)
+                try await waitUntil{!app.transitioning && app.arcadeHub.isUserInteractionEnabled}
+                let index=try XCTUnwrap([NativeArcadeVariant.endurance,.pureDice,.slowBurn].firstIndex(of:variant))
+                app.arcadeHub.hub.onWorld?(app.arcadeHub.hub.worldIDs[index])
+                try await waitUntil{self.button(in:app.arcadeHub,id:"native.arcade-world-modal.play")?.isEnabled==true}
+                let cta=try XCTUnwrap(button(in:app.arcadeHub,id:"native.arcade-world-modal.play"))
+                XCTAssertEqual(cta.title(for:.normal),continuing ? "Continue":"Play")
+                let saved=try XCTUnwrap(store.load())
+                XCTAssertEqual(saved.pendingArcadeRound?.round,played ? nil:round)
+                XCTAssertEqual(saved.arcadeRun?.board,played ? round:nil)
+            }
+        }
+    }
+    func testExitAfterLastTutorialLessonShowsFarewellWithoutCompletingUnfinishedBoard()async throws {
+        // Restore the durable receipt written by an acknowledged Journey lesson
+        // followed by Exit. Keep the unfinished canonical board byte-for-byte.
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent("tutorial-farewell-exit-\(UUID().uuidString)")
+        let store=NativeSaveStore(directory:directory)
+        var tutorial=NativeTutorialState();tutorial.active=false;tutorial.guideCompleted=true;tutorial.completionAssist=true;tutorial.step = .freePlay
+        tutorial.objectiveAcknowledged=true;tutorial.encouragementAcknowledged=true
+        tutorial.collectionLessonAcknowledged=true;tutorial.comboLessonAcknowledged=true;tutorial.completionLessonAcknowledged=true
+        let state=NativeBoardState(tiles:[.init(id:"left",cell:.init(column:0,row:0),value:1),.init(id:"right",cell:.init(column:1,row:0),value:2)],mode:.journey,tutorial:tutorial)
+        var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
+        seed.firstPlayRun=state;seed.progression.enqueueTutorialFarewell();try store.save(seed)
+        defer{try? FileManager.default.removeItem(at:directory)}
+        for launch in 0...1 {
+            let bootstrap=try NativeBootstrap(root:NativeTestResources.root,store:store,showStudioIntro:false)
+            let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+            window.rootViewController=host;window.makeKeyAndVisible();bootstrap.start(in:host)
+            defer{bootstrap.dispose();window.isHidden=true;window.rootViewController=nil}
+            let app=try XCTUnwrap(host.children.first as? NativeAppController)
+            if launch==0 {
+                try await waitUntil{app.tutorialFarewell != nil}
+                let overlay=try XCTUnwrap(app.tutorialFarewell)
+                let cta=try XCTUnwrap(button(in:overlay,id:"native.tutorial.got-it"))
+                try await waitUntil{cta.isEnabled}
+                cta.sendActions(for:.touchUpInside);cta.sendActions(for:.touchUpInside)
+                try await waitUntil{app.tutorialFarewell==nil}
+            }else{
+                try await waitUntil{!app.transitioning && app.home.isUserInteractionEnabled}
+                XCTAssertNil(app.tutorialFarewell,"Acknowledged farewell cannot replay on relaunch")
+            }
+            let saved=try XCTUnwrap(store.load())
+            XCTAssertFalse(saved.progression.firstPlayTutorialComplete)
+            XCTAssertFalse(saved.progression.tutorialFarewellPending)
+            XCTAssertEqual(saved.firstPlayRun,state,"Final acknowledgement must preserve the unfinished board")
+            XCTAssertEqual(app.route,.home)
+        }
+    }
     func testIncompleteTutorialModeSwitchReplacesCheckpointAndRelaunchResumesNewMode()async throws {
         for oldMode in [NativeRunMode.arcade,.journey] {
             let directory=FileManager.default.temporaryDirectory.appendingPathComponent("tutorial-mode-switch-\(UUID().uuidString)")
@@ -213,8 +283,16 @@ final class NativeBootstrapTests:XCTestCase {
         game.animateBoardExit(finalMerge:true) {finished=$0}
         try await waitUntil {finished != nil}
         XCTAssertEqual(finished,true)
-        XCTAssertEqual(scene.boardChromeReceipt.alpha,0,accuracy:0.001,"Final clear must finish the real HUD exit before reward admission")
-        XCTAssertGreaterThan(abs(scene.boardChromeReceipt.offset),0)
+        let hud=try XCTUnwrap(scene.childNode(withName:"//native-game-hud"))
+        let groups=hud.children.filter{$0.name?.hasPrefix("preload-navigation-hud-")==true}
+        if groups.isEmpty {
+            XCTAssertEqual(scene.boardChromeReceipt.alpha,0,accuracy:0.001,"Final clear must finish the real HUD exit before reward admission")
+            XCTAssertGreaterThan(abs(scene.boardChromeReceipt.offset),0)
+        }else{
+            // The current shared chrome animates four groups inside a fixed HUD carrier.
+            XCTAssertEqual(groups.count,4)
+            for group in groups {XCTAssertEqual(group.alpha,0,accuracy:0.001,"Every visible HUD group exits before rewards")}
+        }
         if let decor=game.journeyBottomDecor {XCTAssertEqual(decor.phase,.hidden);XCTAssertFalse(decor.hasActiveClock)}
     }
     func testCanonicalRewardChildMountsAfterCommitAndDisposesWithOwner() async throws {
@@ -361,13 +439,23 @@ final class NativeBootstrapTests:XCTestCase {
         let from=geometry.center(row:0,column:0),to=geometry.center(row:0,column:1)
         try await waitUntil {scene.beginDrag(at:from)}
         XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:to,now:100)).accepted)
-        try await waitUntil {app.children.contains{$0 is NativeTutorialCompleteController}}
-        let cover=try XCTUnwrap(app.children.first{$0 is NativeTutorialCompleteController} as? NativeTutorialCompleteController)
+        try await waitUntil {game.presentedViewController is NativeResultController}
+        let result=try XCTUnwrap(game.presentedViewController as? NativeResultController)
+        XCTAssertTrue(result.clean)
+        XCTAssertNil(app.children.first{$0 is NativeTutorialCompleteController})
+        for frame in 0...660 {result.tick(Double(frame)/60)}
         XCTAssertTrue(try XCTUnwrap(store.load()).progression.firstPlayTutorialComplete)
-        XCTAssertNil(game.presentedViewController,"Tutorial must not open Clean Board/New Reward")
-        try await waitUntil {cover.phase == .ready};cover.requestContinue();cover.requestContinue()
-        try await waitUntil {(try? store.load()?.progression.firstPlayTutorialComplete) == true}
-        try await waitUntil {app.route == .arcadeHub && !app.transitioning && !app.children.contains{$0 is NativeTutorialCompleteController}}
+        func all(_ view:UIView)->[UIView]{[view]+view.subviews.flatMap(all)}
+        let button=try XCTUnwrap(all(result.view).compactMap{$0 as? UIButton}.first{$0.accessibilityIdentifier=="native.result.play-again"})
+        XCTAssertEqual(button.title(for:.normal),"Continue")
+        button.sendActions(for:.touchUpInside);button.sendActions(for:.touchUpInside)
+        try await waitUntil {app.route == .arcadeHub && !app.transitioning && app.tutorialFarewell != nil}
+        XCTAssertTrue(try XCTUnwrap(store.load()).progression.tutorialFarewellPending)
+        let farewell=try XCTUnwrap(app.tutorialFarewell)
+        farewell.onGotIt?();farewell.onGotIt?()
+        try await waitUntil {app.tutorialFarewell==nil}
+        XCTAssertFalse(try XCTUnwrap(store.load()).progression.tutorialFarewellPending)
+        XCTAssertEqual(app.route,.arcadeHub)
         XCTAssertNil(game.parent);XCTAssertFalse(app.children.contains{$0 is NativeGameplayViewController})
         XCTAssertFalse(app.arcadeHub.isHidden);XCTAssertTrue(app.arcadeHub.hub.scrollView.isUserInteractionEnabled)
         let saved=try XCTUnwrap(store.load())
@@ -376,49 +464,74 @@ final class NativeBootstrapTests:XCTestCase {
         XCTAssertNil(saved.pendingArcadeRound);XCTAssertNil(saved.arcadeRun?.tutorial)
         XCTAssertFalse(containsWeb(app.view))
     }
-    func testJourneyTutorialCompletionReturnsToNativeHomeWithoutRewardOrProgression() async throws {
+    func testJourneyTutorialCompletionCommitsRewardAndReturnsToWorldWithFarewell() async throws {
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("native-bootstrap-tutorial-end-\(UUID().uuidString)")
         defer {try? FileManager.default.removeItem(at:directory)}
         let store=NativeSaveStore(directory:directory)
         var tutorial=NativeTutorialState();tutorial.active=false;tutorial.guideCompleted=true;tutorial.completionAssist=true;tutorial.step = .special
+        tutorial.objectiveAcknowledged=true;tutorial.specialBarSuccessfulActions=2;tutorial.specialBarAcknowledged=true
+        tutorial.encouragementAcknowledged=true;tutorial.collectionLessonAcknowledged=true
+        tutorial.comboHUDRevealed=true;tutorial.comboLessonAcknowledged=true;tutorial.completionLessonAcknowledged=true
         let tiles=[NativeTile(id:"tutorial-left",cell:.init(column:0,row:0),value:3),NativeTile(id:"tutorial-right",cell:.init(column:1,row:0),value:3)]
-        let state=NativeBoardState(tiles:tiles,mode:.journey,score:123,tutorial:tutorial)
+        let state=NativeBoardState(tiles:tiles,mode:.journey,moves:49,score:123,tutorial:tutorial)
         var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false),journeyRuns:[1:state])
+        seed.firstPlayRun=state
         seed.journeyRunSavedAt[1]=Date().timeIntervalSince1970;seed.progression.arcadeStats.highScore=777;seed.progression.arcadeStats.longestCombo=8
         try store.save(seed)
-        let bootstrap=try NativeBootstrap(root:NativeTestResources.root,store:store,showStudioIntro:false)
-        let host=UIViewController(),window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        // Exercise the shipping complete Source graph and its actual
+        // restored entry, input, result and persistence owners.
+        let host=NativeStandaloneViewController(resourceRoot:NativeTestResources.root,store:store,
+            sourceVisualRandom:{0.1},completeNativeGameplayEnabled:true)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
         let previousWindow=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
-        window.rootViewController=host;window.makeKeyAndVisible();bootstrap.start(in:host)
-        defer {bootstrap.dispose();window.isHidden=true;previousWindow?.makeKeyAndVisible()}
+        window.rootViewController=host;window.makeKeyAndVisible();host.loadViewIfNeeded()
+        defer {host.dispose();window.isHidden=true;previousWindow?.makeKeyAndVisible()}
         let app=try XCTUnwrap(host.children.first as? NativeAppController)
-        app.home.onActivate?(0);try await waitUntil {app.route == .gameplay}
+        try await waitUntil(timeout:12) {!app.home.isHidden}
+        app.navigate(.world(1),interrupt:true)
+        try await waitUntil(timeout:12) {
+            if app.route == .gameplay {return true}
+            app.world?.onRequest?("continue",1)
+            return false
+        }
         let game=try XCTUnwrap(app.children.first as? NativeGameplayViewController)
         try await waitUntil(timeout:12) {game.boardScene?.boardGeometry != nil}
         let scene=try XCTUnwrap(game.boardScene)
-        try await waitUntil {scene.isBoardEntryComplete}
-        // Terminal presentation fixture: install its two-die finale after
-        // genuine forced first entry, not through a forbidden saved launch.
-        var finale=state;finale.generation=game.engine.state.generation+1
-        game.engine.restart(state:finale);scene.synchronize()
-        let geometry=try XCTUnwrap(scene.boardGeometry)
-        let from=geometry.center(row:0,column:0),to=geometry.center(row:0,column:1)
-        try await waitUntil {scene.beginDrag(at:from)}
-        XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:to,now:100)).accepted)
-        try await waitUntil {app.children.contains{$0 is NativeTutorialCompleteController}}
-        let cover=try XCTUnwrap(app.children.first{$0 is NativeTutorialCompleteController} as? NativeTutorialCompleteController)
-        XCTAssertFalse(try XCTUnwrap(store.load()).progression.firstPlayTutorialComplete)
-        XCTAssertNil(game.presentedViewController,"Tutorial must not open Clean Board/New Reward")
-        try await waitUntil {cover.phase == .ready};cover.requestContinue();cover.requestContinue()
-        try await waitUntil {(try? store.load()?.progression.firstPlayTutorialComplete) == true}
-        try await waitUntil {app.route == .home && !app.children.contains{$0 is NativeTutorialCompleteController}}
-        XCTAssertEqual(app.home.selectedSlide,0)
-        XCTAssertFalse(app.home.isHidden);XCTAssertTrue(app.hub.isHidden)
+        try await waitUntil(timeout:20) {scene.isBoardEntryComplete && game.beforeSourceGameplayAdmission==nil}
+        let scope=try XCTUnwrap(game.sourceScope),tasks=try XCTUnwrap(scope.sourceMicrotaskTasks)
+        let source=try XCTUnwrap(scene.sourceNativeTileNode("tutorial-left")),target=try XCTUnwrap(scene.sourceNativeTileNode("tutorial-right"))
+        let from=scene.convert(source.position,from:try XCTUnwrap(source.parent)),to=scene.convert(target.position,from:try XCTUnwrap(target.parent))
+        var began=false
+        tasks.inputTask {began=scene.beginDrag(at:from);scene.moveDrag(to:to,now:CACurrentMediaTime())}
+        XCTAssertTrue(began)
+        try await Task.sleep(for:.milliseconds(160))
+        var move:NativeMoveResult?
+        tasks.inputTask {move=scene.finishDrag(at:to,now:CACurrentMediaTime())}
+        XCTAssertTrue(try XCTUnwrap(move).accepted)
+        try await waitUntil(timeout:12) {game.visibleJourneyRewardController != nil || game.presentedViewController is NativeResultController}
+        try await waitUntil(timeout:12) {
+            game.visibleJourneyRewardController?.activate()
+            return game.presentedViewController is NativeResultController
+        }
+        let result=try XCTUnwrap(game.presentedViewController as? NativeResultController)
+        XCTAssertTrue(result.clean)
+        for frame in 0...660 {result.tick(Double(frame)/60)}
+        func all(_ view:UIView)->[UIView]{[view]+view.subviews.flatMap(all)}
+        let button=try XCTUnwrap(all(result.view).compactMap{$0 as? UIButton}.first{$0.accessibilityIdentifier=="native.result.play-again"})
+        XCTAssertEqual(button.title(for:.normal),"Continue")
+        button.sendActions(for:.touchUpInside);button.sendActions(for:.touchUpInside)
+        try await waitUntil {app.route == .world(1) && !app.transitioning && app.tutorialFarewell != nil}
+        let farewell=try XCTUnwrap(app.tutorialFarewell)
+        farewell.onGotIt?();farewell.onGotIt?()
+        try await waitUntil {app.tutorialFarewell==nil}
         XCTAssertFalse(app.children.contains{$0 is NativeGameplayViewController})
         let saved=try XCTUnwrap(store.load())
-        XCTAssertNil(saved.journeyRuns[1]);XCTAssertNil(saved.progression.boardStats[1])
-        XCTAssertTrue(saved.progression.completedJourneyBoards.isEmpty)
-        XCTAssertEqual(saved.progression.arcadeStats.highScore,0)
+        XCTAssertTrue(saved.progression.firstPlayTutorialComplete)
+        XCTAssertFalse(saved.progression.tutorialFarewellPending)
+        XCTAssertNil(saved.journeyRuns[1]);XCTAssertNotNil(saved.progression.boardStats[1])
+        XCTAssertTrue(saved.progression.completedJourneyBoards.contains(1))
+        XCTAssertEqual(saved.progression.arcadeStats.highScore,777)
+        XCTAssertEqual(saved.progression.arcadeStats.longestCombo,8)
         XCTAssertFalse(containsWeb(app.view))
     }
     func testFreshArcadeRoundCueFinishesBeforeNativeBoardEntryWithoutChangingSave() async throws {
@@ -566,8 +679,9 @@ final class NativeBootstrapTests:XCTestCase {
         let game=try XCTUnwrap(app.children.first as? NativeGameplayViewController)
         XCTAssertEqual(game.engine.state.board,3);XCTAssertEqual(game.engine.state.score,345)
         XCTAssertEqual(game.engine.state.wildMeter,0.25)
-        let saved=try XCTUnwrap(store.load());XCTAssertNil(saved.pendingArcadeRound)
-        XCTAssertEqual(saved.arcadeRun?.board,3);XCTAssertEqual(saved.arcadeRun?.score,345)
+        // Entry alone preserves earned progress as metadata, not a played layout.
+        let saved=try XCTUnwrap(store.load());XCTAssertNil(saved.arcadeRun)
+        XCTAssertEqual(saved.pendingArcadeRound?.round,3);XCTAssertEqual(saved.pendingArcadeRound?.score,345)
         XCTAssertEqual(saved.progression.arcadeStats.highestStageOpened,3)
     }
     func testLifecyclePauseRetainsLastSafeSaveAndResumesCapturedWildTransaction() async throws {

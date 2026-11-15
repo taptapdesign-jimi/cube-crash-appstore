@@ -83,7 +83,7 @@ async function loadMobileLaunchRouteAssets(): Promise<void> {
     withCurrentDpr('./assets/crash-cubes-homepage.png'),
     withCurrentDpr('./assets/journey.png'),
     withCurrentDpr('./assets/settings-slider.png'),
-    withCurrentDpr('./assets/logo-cube-crash.png'),
+    withCurrentDpr('./assets/logo-stacktosix.png'),
     './assets/logo addons/gore ljevo shards.png',
     './assets/logo addons/shards gore desno.png',
     './assets/logo addons/dole ljevi shards.png',
@@ -119,9 +119,9 @@ const ALL_STARTUP_IMAGES: string[] = [
   './assets/settings-slider@3x.png',
   
   // Homepage logo and addons
-  './assets/logo-cube-crash.png',
-  './assets/logo-cube-crash@2x.png',
-  './assets/logo-cube-crash@3x.png',
+  './assets/logo-stacktosix.png',
+  './assets/logo-stacktosix@2x.png',
+  './assets/logo-stacktosix@3x.png',
   './assets/logo addons/gore ljevo shards.png',
   './assets/logo addons/shards gore desno.png',
   './assets/logo addons/dole ljevi shards.png',

@@ -36,17 +36,17 @@ enum NativeTutorialSheetMotion {
     private var frame:NativeSourceAnimationClockService.SourceFrameLease?
     private var started=false,disposed=false,pointerEpoch:UInt64=0,sheetEpoch:UInt64=0
     private var paintedPointer=PointerPose(alpha:0,scale:0,rotation:-8),paintedSheet=1.0
-    private let sheetEntered:()->Void,sheetExiting:()->Void
+    private let sheetEntering:()->Void,sheetEntered:()->Void,sheetExiting:()->Void
     private let conceal:()->Void,dim:(Double)->Void
     private var dimPaint:Paint?,dimLease:NativeSourceAnimationClockService.Lease?,dimEpoch:UInt64=0,paintedDim=1.0
     private(set) var sheetStarted=false,pointerStarted=false
     var pendingTimerCount:Int{timers.count}
     init?(service:NativeSourceAnimationClockService,timeouts:NativeSourceAppTimeoutOwner,generation:UInt64,
           immediateSheet:Bool=false,nativeSheetMotion:Bool=false,deferInitialPointer:Bool=false,current:@escaping()->Bool,sheet:@escaping(Double)->Void,pointer:@escaping(PointerPose)->Void,
-          reveal:@escaping()->Void,focus:@escaping()->Void,conceal:@escaping()->Void={},dim:@escaping(Double)->Void={_ in},sheetEntered:@escaping()->Void={},sheetExiting:@escaping()->Void={}) {
+          reveal:@escaping()->Void,focus:@escaping()->Void,conceal:@escaping()->Void={},dim:@escaping(Double)->Void={_ in},sheetEntering:@escaping()->Void={},sheetEntered:@escaping()->Void={},sheetExiting:@escaping()->Void={}) {
         guard generation>0,service.sourceMicrotaskRAFBoundaryInstalled,
               let tasks=service.sourceMicrotaskTasks,timeouts.sourceMicrotaskTasks === tasks,current() else{return nil}
-        self.sheetEntered=sheetEntered;self.sheetExiting=sheetExiting
+        self.sheetEntering=sheetEntering;self.sheetEntered=sheetEntered;self.sheetExiting=sheetExiting
         self.immediateSheet=immediateSheet;self.nativeSheetMotion=nativeSheetMotion
         self.deferInitialPointer=deferInitialPointer
         self.service=service;self.timeouts=timeouts;self.generation=generation
@@ -83,7 +83,7 @@ enum NativeTutorialSheetMotion {
         let paint=Paint{[weak self] seconds in guard let self else{return};guard self.admitted() else{self.dispose();return};guard self.sheetEpoch==epoch else{return};self.paintSheet(self.entranceProgress(seconds))}
         sheetPaint=paint
         sheetLease=service.register(participant:paint,duration:entranceDuration,domain:.sourceGSAP(.defaultLazyTween),cleanup:{[weak self] success in guard let self,self.sheetEpoch==epoch else{return};self.sheetLease=nil;self.sheetPaint=nil;if success,self.admitted(){self.sheetEntered()}})
-        if sheetLease==nil{dispose()}
+        if sheetLease==nil{dispose()}else{sheetEntering()}
     }
     private func startPointer(scheduleFocus:Bool) {
         guard admitted() else{return};cancelPointer();pointerStarted=true
@@ -148,19 +148,29 @@ enum NativeTutorialSheetMotion {
         })
         return pointerLease != nil
     }
-    @discardableResult func exitSheet(completed:@escaping()->Void)->Bool {exitSheet(duration:0.28,completed:completed)}
+    @discardableResult func exitSheet(halfway:(()->Void)?=nil,completed:@escaping()->Void)->Bool {exitSheet(duration:0.28,halfway:halfway,completed:completed)}
     @discardableResult func exitThirdSheetForWild(completed:@escaping()->Void)->Bool {exitSheet(duration:0.34,completed:completed)}
-    private func exitSheet(duration:Double,completed:@escaping()->Void)->Bool {
+    private func exitSheet(duration:Double,halfway:(()->Void)?=nil,completed:@escaping()->Void)->Bool {
         guard admitted() else{return false};sheetExiting();cancelSheet();let epoch=sheetEpoch,from=paintedSheet
+        var halfwayDelivered=false
         let paint=Paint{[weak self] seconds in
             guard let self else{return};guard self.admitted() else{self.dispose();return};guard self.sheetEpoch==epoch else{return}
             let t=pow(max(0,min(1,seconds/duration)),3);self.paintSheet(from+(1-from)*t)
+            // Travel progress, rather than half of elapsed time: powerIn(3)
+            // reaches the middle of the descent at about222ms of280ms.
+            if t>=0.5,!halfwayDelivered,self.admitted(),self.sheetEpoch==epoch {
+                halfwayDelivered=true;halfway?()
+            }
         }
         sheetPaint=paint
-        sheetLease=service.register(participant:paint,duration:duration,domain:.sourceGSAP(.defaultLazyTween),cleanup:{[weak self] success in
+        let cleanup:(Bool)->Void = {[weak self] success in
             guard let self,self.sheetEpoch==epoch else{return};self.sheetLease=nil;self.sheetPaint=nil
             guard success,self.admitted() else{return};completed()
-        })
+        }
+        // Delivery travel starts on its first real paint, so a delayed Source
+        // delivery cannot consume the descent and its midpoint in one frame.
+        if halfway != nil {sheetLease=service.registerFreshFace(participant:paint,duration:duration,cleanup:cleanup)}
+        else {sheetLease=service.register(participant:paint,duration:duration,domain:.sourceGSAP(.defaultLazyTween),cleanup:cleanup)}
         return sheetLease != nil
     }
     @discardableResult func enterSheet(completed:@escaping()->Void)->Bool {
@@ -174,6 +184,7 @@ enum NativeTutorialSheetMotion {
             guard let self,self.sheetEpoch==epoch else{return};self.sheetLease=nil;self.sheetPaint=nil
             guard success,self.admitted() else{return};self.sheetEntered();guard self.admitted(),self.sheetEpoch==epoch else{return};completed()
         })
+        if sheetLease != nil{sheetEntering()}
         return sheetLease != nil
     }
     /// Adjacent lessons retain their paper; only the copy/CTA crossfade.
@@ -182,7 +193,7 @@ enum NativeTutorialSheetMotion {
         var replaced=false
         let participant=Paint{[weak self] seconds in
             guard let self,self.admitted(),self.sheetEpoch==epoch else{return}
-            if seconds>=0.14 && !replaced {replaced=true;prepare()}
+            if seconds>=0.14 && !replaced {replaced=true;prepare();self.sheetEntering()}
             guard self.admitted(),self.sheetEpoch==epoch else{return}
             if seconds<0.14 {let t=min(1,seconds/0.14);paint(1-t*t*(3-2*t),-6*t)}
             else {let t=min(1,(seconds-0.14)/0.24),e=t*t*(3-2*t);paint(e,6*(1-e))}

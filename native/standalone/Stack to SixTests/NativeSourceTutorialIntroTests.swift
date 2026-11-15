@@ -16,14 +16,15 @@ import UIKit
         func deliver(_ value:Double){wall=value;service.deliver(wallMilliseconds:value)}
         func dispose(){owner.dispose();timeouts.cancelAll();service.dispose();fifo.dispose()}
     }
-    func testTutorialSpeechWaitsForActualSheetLandingAndStopsAtExitWithoutLayoutReplay()throws {
+    func testTutorialSpeechStartsWithActualSheetEntranceAndStopsAtExitWithoutLayoutReplay()throws {
         let f=try Fixture(immediate:true,nativeMotion:true);defer{f.dispose()}
         let overlay=NativeTutorialOverlay(resourceRoot:NativeTestResources.root);defer{overlay.dispose()}
         overlay.frame=CGRect(x:0,y:0,width:390,height:844)
         var events:[String]=[];overlay.onSpeechEvent={events.append($0)}
         XCTAssertTrue(overlay.showSourceIntro(from:nil,to:nil,service:f.service,timeouts:f.timeouts,boardGeneration:1,immediateSheet:true,deferInitialPointer:true,objectiveFirst:true,current:{f.current}))
+        XCTAssertEqual(events,["tutorial-speech:tutorial-objective"],"Actual entrance admits speech immediately")
         for time in stride(from:16.0,through:768,by:16){f.deliver(time)}
-        XCTAssertTrue(events.isEmpty,"Native sheet crosses zero while bouncing; speech waits for settlement")
+        XCTAssertEqual(events,["tutorial-speech:tutorial-objective"],"Bounce cannot replay speech")
         for time in stride(from:784.0,through:1008,by:16){f.deliver(time)}
         XCTAssertEqual(events,["tutorial-speech:tutorial-objective"])
         overlay.setNeedsLayout();overlay.layoutIfNeeded()
@@ -345,6 +346,43 @@ import UIKit
             }
             try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/native-tutorial-special-bar-shared-\(Int(width)).png"))
         }
+    }
+
+    func testSheetHalfTravelMilestoneFiresOnceAndCancelsWithOwner()throws {
+        for cancel in [false,true] {
+            let f=try Fixture(immediate:true,nativeMotion:true);defer{f.dispose()}
+            XCTAssertTrue(f.owner.start())
+            func tick(_ frames:Int){for _ in 0..<frames{f.deliver(f.wall+16)}}
+            tick(60)
+            var milestones=0,finished=false
+            XCTAssertTrue(f.owner.exitSheet(halfway:{
+                milestones+=1
+                XCTAssertGreaterThanOrEqual(f.sheet.last ?? 0,0.5)
+                XCTAssertLessThan(f.sheet.last ?? 1,0.8)
+            },completed:{finished=true}))
+            tick(8);XCTAssertEqual(milestones,0)
+            if cancel {f.owner.dispose();tick(30);XCTAssertEqual(milestones,0);XCTAssertFalse(finished)}
+            else {
+                _=f.service.setSourceGlobalPaused(true);tick(30);XCTAssertEqual(milestones,0)
+                _=f.service.setSourceGlobalPaused(false);tick(5);XCTAssertEqual(milestones,0)
+                tick(10);XCTAssertEqual(milestones,1);XCTAssertTrue(finished)
+                tick(10);XCTAssertEqual(milestones,1)
+            }
+        }
+        try testDeliveryExitDelayedFirstPaintCannotSkipMidpoint()
+    }
+
+    func testDeliveryExitDelayedFirstPaintCannotSkipMidpoint()throws {
+        let f=try Fixture(immediate:true,nativeMotion:true);defer{f.dispose()}
+        XCTAssertTrue(f.owner.start())
+        for _ in 0..<60{f.deliver(f.wall+16)}
+        var milestones=0,finished=false
+        XCTAssertTrue(f.owner.exitSheet(halfway:{milestones+=1},completed:{finished=true}))
+        f.deliver(f.wall+1000)
+        XCTAssertEqual(milestones,0);XCTAssertFalse(finished)
+        XCTAssertEqual(f.sheet.last ?? 1,0,accuracy:1e-9,"First admitted paint starts the actual descent")
+        for _ in 0..<24{f.deliver(f.wall+16)}
+        XCTAssertEqual(milestones,1);XCTAssertTrue(finished)
     }
 
     func testEveryTeachingSheetUsesOneContinuousEnterAndExitWithoutHiddenPause()throws {

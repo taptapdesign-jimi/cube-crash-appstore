@@ -21,7 +21,7 @@ export const JIMI_HOME_SLIDES = Object.freeze([
   { id: 'arcade', label: 'Arcade', tagline: 'Merge dice, clear stages', asset: './assets/crash-cubes-homepage.png', action: 'open-arcade' },
   { id: 'settings', label: 'Settings', tagline: 'Tune the game your way', asset: './assets/settings-slider.png', action: 'open-settings' },
 ] as const);
-export const JIMI_LOGO_ASSET = './assets/logo-cube-crash.png';
+export const JIMI_LOGO_ASSET = './assets/logo-stacktosix.png';
 export const JIMI_HOME_SHARDS = Object.freeze([
   { slot: 'top-left', src: './assets/logo addons/gore ljevo shards.png' },
   { slot: 'top-right', src: './assets/logo addons/shards gore desno.png' },

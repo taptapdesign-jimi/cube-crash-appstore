@@ -3,15 +3,15 @@ import StackToSixGameplay
 @testable import StackToSixNativeState
 
 final class NativeMushroomRarityTests:XCTestCase {
-    func testArcadeFivePercentRequiresUnlockAndPreservesRestrictedPool() {
+    func testArcadeFivePercentRequiresJourneyDiscoveryInAllModes() {
         for variant in NativeArcadeVariant.allCases {for unlocked in [false,true] {for star in [false,true] {
             let state=NativeBoardState(tiles:[],mode:.arcade,board:2,arcadeVariant:variant)
             var mushrooms=0
             for i in 0..<10000 {
-                let choice=NativeWildRewardPolicy.choose(state:state,roll:(Double(i)+0.5)/10000,plainStarUnlocked:star,mushroomUnlocked:unlocked,nextRoll:{XCTFail("One reward draw only");return 0})
+                let choice=NativeWildRewardPolicy.choose(state:state,roll:(Double(i)+0.5)/10000,plainStarUnlocked:star,mushroomUnlocked:unlocked,unlockedJourneyDice:unlocked ? ["mushroom"]:[],nextRoll:{XCTFail("One reward draw only");return 0})
                 if choice?.variant=="mushroom" {mushrooms+=1}
             }
-            XCTAssertEqual(mushrooms,unlocked && variant != .pureDice ? 500:0)
+            XCTAssertEqual(mushrooms,unlocked ? 500:0)
         }}}
     }
     func testJourneyFivePercentOnlyInEligiblePoolsAndIntroductionIsPreserved() {

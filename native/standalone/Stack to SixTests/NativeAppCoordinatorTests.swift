@@ -6,6 +6,120 @@ import StackToSixGameplay
 
 @MainActor
 final class NativeAppCoordinatorTests:XCTestCase {
+    func testTutorialFarewellOnEveryDestinationHoldsBackgroundAndClosesWithoutNavigation()async throws {
+        for destination:NativeAppController.Route in [.home,.hub,.arcadeHub,.world(1)] {
+            let layouts=try NativeWorldLayouts()
+            var progression=NativeProgressionState();progression.firstPlayTutorialComplete=true;progression.journeyIntroSeen=true
+            var pending=destination == .home,acks=0
+            var services=NativeAppServices(settings:{[:]},setPreference:{_,_ in},worldSnapshot:{world,size,generation in
+                try layouts.snapshot(world:world,width:size.width,height:size.height,generation:generation,progression:progression)
+            },markViewed:{_ in},makeGameplay:{_,_ in XCTFail("Got it must not start gameplay");return UIViewController()},flush:{})
+            services.journeyProgression={progression};services.tutorialFarewellPending={pending}
+            services.acknowledgeTutorialFarewell={pending=false;acks+=1}
+            let root=NativeAppController(resourceRoot:resources(),services:services)
+            let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=root;window.makeKeyAndVisible()
+            defer{root.dispose();window.isHidden=true;window.rootViewController=nil}
+            var cues:[String]=[];root.onFeedback={cues.append($0)}
+            if destination != .home {
+                try await waitFor{!root.transitioning && root.home.isUserInteractionEnabled}
+                pending=true;root.navigate(destination)
+            }
+            try await waitFor{root.tutorialFarewell != nil}
+            var overlay=root.tutorialFarewell
+            weak var released=overlay
+            let button=try XCTUnwrap(allFarewellViews(try XCTUnwrap(overlay)).compactMap{$0 as? UIButton}.first{$0.accessibilityIdentifier=="native.tutorial.got-it"})
+            try await waitFor{button.isEnabled}
+            XCTAssertEqual(root.route,destination)
+            XCTAssertEqual(cues.filter{$0=="tutorial-speech:tutorial-farewell"}.count,1)
+            XCTAssertTrue(try XCTUnwrap(overlay).hitTest(CGPoint(x:4,y:100),with:nil) === overlay)
+            let image=UIGraphicsImageRenderer(bounds:root.view.bounds).image{root.view.layer.render(in:$0.cgContext)}
+            if destination == .world(1) {try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/tutorial-farewell-journey.png"))}
+            if destination == .arcadeHub {try image.pngData()?.write(to:URL(fileURLWithPath:"/tmp/tutorial-farewell-arcade.png"))}
+            NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
+            XCTAssertEqual(overlay?.layer.speed,0)
+            NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
+            XCTAssertEqual(overlay?.layer.speed,1)
+            root.navigate(.settings)
+            XCTAssertEqual(root.route,destination,"Foreground must keep the destination locked")
+            XCTAssertEqual(cues.filter{$0=="tutorial-speech:tutorial-farewell"}.count,1,"No replay after background")
+            if case .world = destination {XCTAssertEqual(root.world?.header.layer.speed,0)}
+            button.sendActions(for:.touchUpInside);button.sendActions(for:.touchUpInside)
+            XCTAssertEqual(acks,1);XCTAssertFalse(pending)
+            try await waitFor{root.tutorialFarewell==nil}
+            XCTAssertEqual(root.route,destination)
+            overlay=nil
+            try await waitFor{released==nil}
+            if case .world = destination {XCTAssertEqual(root.world?.header.layer.speed,1)}
+            root.navigate(.settings)
+            try await waitFor{root.route == .settings && !root.transitioning}
+            XCTAssertNil(root.tutorialFarewell)
+        }
+    }
+    func testTutorialFarewellFailedSaveRetriesAndDisposeKeepsUnacknowledgedPending()async throws {
+        var pending=true,fail=true,acks=0
+        var services=NativeAppServices(settings:{[:]},setPreference:{_,_ in},worldSnapshot:{_,_,_ in throw FixtureError.unavailable},markViewed:{_ in},makeGameplay:{_,_ in UIViewController()},flush:{})
+        services.tutorialFarewellPending={pending}
+        services.acknowledgeTutorialFarewell={if fail{throw FixtureError.unavailable};pending=false;acks+=1}
+        let root=NativeAppController(resourceRoot:resources(),services:services)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=root;window.makeKeyAndVisible()
+        defer{root.dispose();window.isHidden=true;window.rootViewController=nil}
+        try await waitFor{root.tutorialFarewell != nil}
+        let overlay=try XCTUnwrap(root.tutorialFarewell)
+        let button=try XCTUnwrap(allFarewellViews(overlay).compactMap{$0 as? UIButton}.first{$0.accessibilityIdentifier=="native.tutorial.got-it"})
+        try await waitFor{button.isEnabled}
+        button.sendActions(for:.touchUpInside)
+        XCTAssertTrue(pending);XCTAssertTrue(root.tutorialFarewell === overlay);XCTAssertEqual(acks,0)
+        fail=false;button.sendActions(for:.touchUpInside)
+        try await waitFor{root.tutorialFarewell==nil}
+        XCTAssertFalse(pending);XCTAssertEqual(acks,1)
+        // A new pending presentation retired before entry cannot consume its receipt.
+        pending=true
+        root.navigate(.arcadeHub)
+        try await waitFor{root.tutorialFarewell != nil}
+        weak var released=root.tutorialFarewell
+        root.dispose()
+        XCTAssertTrue(pending);XCTAssertEqual(acks,1)
+        try await waitFor{released==nil}
+    }
+    func testTutorialFarewellFollowsActualJourneyExitWithPreparedAndOrdinaryReturn()async throws {
+        for prepared in [false,true] {
+            let layouts=try NativeWorldLayouts()
+            var progression=NativeProgressionState();progression.firstPlayTutorialComplete=true;progression.journeyIntroSeen=true
+            var pending=false
+            var exit:(()->Void)?
+            var services=NativeAppServices(settings:{[:]},setPreference:{_,_ in},worldSnapshot:{world,size,generation in
+                try layouts.snapshot(world:world,width:size.width,height:size.height,generation:generation,progression:progression)
+            },markViewed:{_ in},makeGameplay:{_,done in exit=done;return UIViewController()},flush:{})
+            services.journeyProgression={progression};services.tutorialFarewellPending={pending}
+            services.acknowledgeTutorialFarewell={pending=false}
+            let root=NativeAppController(resourceRoot:resources(),services:services)
+            let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=root;window.makeKeyAndVisible()
+            defer{root.dispose();window.isHidden=true;window.rootViewController=nil}
+            try await waitFor{!root.transitioning && root.home.isUserInteractionEnabled}
+            root.navigate(.world(1))
+            try await waitFor{!root.transitioning && root.world?.isReadyForInput==true}
+            root.world?.onRequest?("continue",1)
+            try await waitFor{root.route == .gameplay}
+            XCTAssertNil(root.tutorialFarewell)
+            if prepared {
+                var ready=false
+                root.prepareGameplayReturn{ready=$0}
+                try await waitFor{ready}
+                XCTAssertTrue(root.hideGameplayForPreparedReturn())
+            }
+            pending=true;try XCTUnwrap(exit)()
+            try await waitFor{root.tutorialFarewell != nil}
+            XCTAssertEqual(root.route,.world(1));XCTAssertTrue(pending)
+            let overlay=try XCTUnwrap(root.tutorialFarewell)
+            let button=try XCTUnwrap(allFarewellViews(overlay).compactMap{$0 as? UIButton}.first{$0.accessibilityIdentifier=="native.tutorial.got-it"})
+            try await waitFor{button.isEnabled}
+            button.sendActions(for:.touchUpInside)
+            try await waitFor{root.tutorialFarewell==nil}
+            XCTAssertFalse(pending);XCTAssertEqual(root.route,.world(1))
+        }
+    }
+    private func allFarewellViews(_ view:UIView)->[UIView] {[view]+view.subviews.flatMap{allFarewellViews($0)}}
+
     func testInterruptedTutorialRestoresWorldCueUntilCanonicalCompletion()async throws {
         let layouts=try NativeWorldLayouts()
         var progression=NativeProgressionState()
@@ -19,7 +133,7 @@ final class NativeAppCoordinatorTests:XCTestCase {
         services.journeyProgression={progression}
         services.requiresTutorial={!progression.firstPlayTutorialComplete}
         let root=NativeAppController(resourceRoot:resources(),services:services)
-        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
+        let window=UIWindow(frame:UIDevice.current.userInterfaceIdiom == .pad ? UIScreen.main.bounds:CGRect(x:0,y:0,width:390,height:844))
         window.windowLevel=UIWindow.Level(rawValue:UIWindow.Level.alert.rawValue+1)
         window.rootViewController=root;window.makeKeyAndVisible()
         defer{root.dispose();window.isHidden=true;window.rootViewController=nil}
@@ -36,8 +150,20 @@ final class NativeAppCoordinatorTests:XCTestCase {
             let cue=try XCTUnwrap(find(world,"native.tutorial.card-cue-title") as? UILabel)
             XCTAssertEqual(shade.frame,world.bounds)
             XCTAssertFalse(cue.isHidden)
+            let card=try XCTUnwrap(cue.superview)
+            XCTAssertEqual(cue.frame.maxY,-8)
+            let output=URL(fileURLWithPath:"/tmp/journey-cue-below-\(UIDevice.current.userInterfaceIdiom == .pad ? "ipad":"iphone").png")
+            try UIGraphicsImageRenderer(bounds:world.bounds).image{world.layer.render(in:$0.cgContext)}.pngData()?.write(to:output)
             let intro=try XCTUnwrap(world.subviews.first{$0 is NativeTutorialOverlay} as? NativeTutorialOverlay)
             XCTAssertTrue(intro.sourcePointerVisible,"The existing hand returns with the card cue and page shade")
+            if !UIAccessibility.isReduceMotionEnabled {
+                let hand=try XCTUnwrap(find(world,"native.tutorial.world-hand-carrier"))
+                try await waitFor{card.layer.animation(forKey:"world.interim") != nil && hand.layer.animation(forKey:"world.interim.follower") != nil}
+                let source=try XCTUnwrap(card.layer.animation(forKey:"world.interim") as? CAKeyframeAnimation)
+                let follower=try XCTUnwrap(hand.layer.animation(forKey:"world.interim.follower") as? CAKeyframeAnimation)
+                XCTAssertEqual(hand.layer.convertTime(follower.beginTime,to:nil)-card.layer.convertTime(source.beginTime,to:nil),0.15,accuracy:0.000001)
+                XCTAssertEqual(follower.values as? [NSValue],source.values as? [NSValue])
+            }
             XCTAssertTrue(try XCTUnwrap(find(world,"native.world.card.1")).superview === world)
             XCTAssertTrue(progression.journeyIntroSeen,"Viewing the intro does not suppress an incomplete tutorial")
             XCTAssertFalse(progression.firstPlayTutorialComplete)
@@ -779,14 +905,14 @@ final class NativeAppCoordinatorTests:XCTestCase {
             XCTAssertEqual(decoration.duration,expectedDuration,accuracy:0.000001,label)
             let background=try XCTUnwrap(decoration.animations?.compactMap{$0 as? CAKeyframeAnimation}.first{$0.keyPath == "transform"},label)
             XCTAssertEqual(background.duration,0.56/speed,accuracy:0.000001,label)
-            XCTAssertEqual(background.beginTime,0,accuracy:0.000001,label)
+            XCTAssertEqual(background.beginTime,entering ? 0:0.5*0.13/speed,accuracy:0.000001,label)
             let poses=try XCTUnwrap(background.values as? [NSValue],label).map{$0.caTransform3DValue}
             XCTAssertEqual(try XCTUnwrap(poses.last).m11,header.continuousBackground || entering ? 1.025:1,accuracy:0.000001,label)
             if header.continuousBackground {
                 XCTAssertEqual(try XCTUnwrap(poses.first).m11,1.025,accuracy:0.000001,label)
                 XCTAssertEqual(try XCTUnwrap(poses.map{$0.m11}.max()),entering ? 1.148:1.025,accuracy:0.000001,label)
                 if entering {XCTAssertTrue(poses.allSatisfy{$0.m42 == 0},label)}
-                else {XCTAssertEqual(try XCTUnwrap(poses.last).m42,-14.4,accuracy:0.001,label)}
+                else {XCTAssertEqual(try XCTUnwrap(poses.last).m42,10.08,accuracy:0.001,label)}
             }
             let title=try XCTUnwrap(header.subviews.compactMap{$0 as? JimiV9ArchedNavigationTitle}.first,label)
             let targets:[UIView]=[title as UIView]+header.subviews.compactMap{$0 as? UIButton}.map{$0 as UIView}
@@ -1054,7 +1180,7 @@ final class NativeAppCoordinatorTests:XCTestCase {
         }
     }
 
-    func testVisibleBackpackCloseInterruptsEntryWithoutAdmittingCollection() async throws {
+    func testVisibleBackpackCloseInterruptsEntryAndRejectsStaleCollectionSelection() async throws {
         guard !UIAccessibility.isReduceMotionEnabled else{throw XCTSkip("Full entry window required")}
         for origin:NativeAppController.Route in [.hub,.world(1),.arcadeHub] {
             let (controller,window)=try worldEntryFixture{world,done in world.prepare(completion:done)}
@@ -1072,7 +1198,8 @@ final class NativeAppCoordinatorTests:XCTestCase {
             XCTAssertTrue(controller.transitioning,"Close is admitted before collection entry completes")
             XCTAssertTrue(backpack.isUserInteractionEnabled)
             XCTAssertTrue(backpack.header.isUserInteractionEnabled)
-            XCTAssertFalse(backpack.grid.isUserInteractionEnabled,"Early Close cannot admit collection card taps")
+            XCTAssertTrue(backpack.grid.isUserInteractionEnabled,"Approved visible dice remain selectable during entry")
+            XCTAssertTrue(backpack.entrySelectionEnabled)
             let painted=try XCTUnwrap(backpack.close.layer.presentation())
             let windowLayer=try XCTUnwrap(window.layer.presentation())
             let centre=CGPoint(x:painted.bounds.midX,y:painted.bounds.midY)
@@ -1083,7 +1210,9 @@ final class NativeAppCoordinatorTests:XCTestCase {
             backpack.close.sendActions(for:.touchUpInside)
             XCTAssertTrue(controller.transitioning)
             XCTAssertFalse(backpack.isUserInteractionEnabled,"Accepted Close owns the exit immediately")
-            XCTAssertFalse(backpack.grid.isUserInteractionEnabled)
+            let staleDie=try XCTUnwrap(NativeBackpackCatalog.arcade.first)
+            backpack.onDie?(staleDie)
+            XCTAssertNil(controller.presentedViewController,"Outgoing collection cannot admit a late selection")
             backpack.close.sendActions(for:.touchUpInside)
             XCTAssertEqual(cues.filter{$0 == "back"}.count,1,"Duplicate Close cannot restart the exit")
             try await waitFor{controller.route == origin && !controller.transitioning}
@@ -1092,7 +1221,8 @@ final class NativeAppCoordinatorTests:XCTestCase {
             XCTAssertFalse(controller.transitioning)
             XCTAssertTrue(backpack.isHidden)
             XCTAssertFalse(backpack.isUserInteractionEnabled)
-            XCTAssertFalse(backpack.grid.isUserInteractionEnabled,"Cancelled entry completion cannot unlock hidden collection")
+            backpack.onDie?(staleDie)
+            XCTAssertNil(controller.presentedViewController,"Cancelled entry and stale selection cannot reopen hidden collection")
             XCTAssertFalse(controller.view.layer.sublayers?.contains{$0.name == "native.navigation.background-handoff"} ?? true)
         }
     }
@@ -1117,10 +1247,11 @@ final class NativeAppCoordinatorTests:XCTestCase {
         let exitMotion=try XCTUnwrap(exit.animations?.compactMap{$0 as? CAKeyframeAnimation}.first{$0.keyPath=="transform"})
         XCTAssertEqual(exitFade.duration,JimiV9ArchedNavigationTitle.elementDuration,accuracy:0.000001)
         XCTAssertEqual(exitMotion.duration,exitFade.duration,accuracy:0.000001)
-        XCTAssertEqual(exitFade.beginTime,0);XCTAssertEqual(exitMotion.beginTime,0)
+        let backgroundExitDelay=0.5*0.13/(1.3*1.2)
+        XCTAssertEqual(exitFade.beginTime,backgroundExitDelay,accuracy:0.000001);XCTAssertEqual(exitMotion.beginTime,backgroundExitDelay,accuracy:0.000001)
         let positions=try XCTUnwrap(exitMotion.values as? [NSValue]).map{$0.caTransform3DValue.m42}
-        XCTAssertGreaterThan(try XCTUnwrap(positions.max()),0,"Reverse spring anticipates before leaving upward")
-        XCTAssertEqual(try XCTUnwrap(positions.last),-14.4,accuracy:0.001)
+        XCTAssertLessThan(try XCTUnwrap(positions.min()),0,"Reverse spring anticipates upward before leaving downward")
+        XCTAssertEqual(try XCTUnwrap(positions.last),10.08,accuracy:0.001)
         let alphas=try XCTUnwrap(exitFade.values as? [NSNumber]).map{$0.doubleValue}
         XCTAssertEqual(try XCTUnwrap(alphas.first),1,accuracy:0.001)
         XCTAssertEqual(try XCTUnwrap(alphas.last),0,accuracy:0.001)
@@ -1166,7 +1297,7 @@ final class NativeAppCoordinatorTests:XCTestCase {
             let decoration=try XCTUnwrap((header.layer as? JimiV9NavigationRouteLayer)?.decorationLayer)
             let exit=try XCTUnwrap(decoration.animation(forKey:"native-route") as? CAAnimationGroup)
             let fade=try XCTUnwrap(exit.animations?.compactMap{$0 as? CAKeyframeAnimation}.first{$0.keyPath=="opacity"})
-            XCTAssertEqual(fade.beginTime,0)
+            XCTAssertEqual(fade.beginTime,0.5*0.13/(1.3*1.2),accuracy:0.000001)
             XCTAssertEqual(fade.duration,JimiV9ArchedNavigationTitle.elementDuration,accuracy:0.000001)
             XCTAssertEqual((fade.values as? [NSNumber])?.last?.doubleValue,0)
             try await waitFor{controller.route == .world(1) && pending != nil}
@@ -1339,6 +1470,8 @@ final class NativeAppCoordinatorTests:XCTestCase {
         }
     }
     func testRepeatedBeachCardsAndNestedHistoryReleaseBeforePromptBackpackAndHubRoutes() async throws {
+        let output=FileManager.default.temporaryDirectory.appendingPathComponent("native-code-health-route-renders",isDirectory:true)
+        try FileManager.default.createDirectory(at:output,withIntermediateDirectories:true)
         let layouts=try NativeWorldLayouts()
         var progression=NativeProgressionState();progression.firstPlayTutorialComplete=true;progression.completedJourneyBoards=Set(1...20)
         var services=NativeAppServices(settings:{[:]},setPreference:{_,_ in},worldSnapshot:{world,size,generation in
@@ -1350,7 +1483,6 @@ final class NativeAppCoordinatorTests:XCTestCase {
         window.rootViewController=controller;window.makeKeyAndVisible()
         defer{controller.dispose();window.isHidden=true;window.rootViewController=nil}
         func find(_ view:UIView,_ id:String)->UIView? {if view.accessibilityIdentifier==id{return view};return view.subviews.lazy.compactMap{find($0,id)}.first}
-        func isReady(_ view:UIView)->Bool {view.layer.animation(forKey:"score.idle") != nil || view.subviews.contains{isReady($0)}}
         controller.navigate(.world(2),interrupt:true)
         try await waitFor{controller.world?.isReadyForInput==true && !controller.transitioning}
         let world=try XCTUnwrap(controller.world)
@@ -1365,12 +1497,12 @@ final class NativeAppCoordinatorTests:XCTestCase {
             try await waitFor{card?.acceptsCardPan==true}
             if index==0 {
                 let data=UIGraphicsImageRenderer(size:window.bounds.size).pngData{_ in controller.view.drawHierarchy(in:controller.view.bounds,afterScreenUpdates:true)}
-                try data.write(to:URL(fileURLWithPath:"/tmp/native-phone-regressions-20261108/stage-phone.png"))
+                try data.write(to:output.appendingPathComponent("stage-phone.png"))
             }
             world.onRequest?(index%2==0 ? "scoreHistory":"comboHistory",board)
             var history=try XCTUnwrap(controller.presentedViewController as? NativeScoreModal) as NativeScoreModal?
             weak var retiredHistory=history
-            try await waitFor{history.map{isReady($0.view)}==true}
+            try await waitFor{history?.view.isUserInteractionEnabled==true}
             history?.requestClose();history=nil
             try await waitFor{controller.presentedViewController==nil}
             try await waitFor{retiredHistory==nil}
@@ -1395,7 +1527,7 @@ final class NativeAppCoordinatorTests:XCTestCase {
         XCTAssertLessThan(backpackElapsed,3,"Repeated history/modal visits cannot become a10second route gate")
         print("NATIVE_ROUTE_STRESS cycles=12 backpackSeconds=\(backpackElapsed) decodedBytes=\(world.decodedArtworkBytes)")
         let screenshot=UIGraphicsImageRenderer(size:window.bounds.size).pngData{_ in controller.view.drawHierarchy(in:controller.view.bounds,afterScreenUpdates:true)}
-        try screenshot.write(to:URL(fileURLWithPath:"/tmp/native-phone-regressions-20261108/backpack-phone.png"))
+        try screenshot.write(to:output.appendingPathComponent("backpack-phone.png"))
         controller.navigate(.world(2),interrupt:true)
         try await waitFor{controller.world?.isReadyForInput==true && !controller.transitioning}
         let hubStart=CACurrentMediaTime();controller.world?.onRequest?("back",nil)

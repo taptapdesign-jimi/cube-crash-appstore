@@ -862,7 +862,7 @@ final class JimiNativeWorldTests: XCTestCase {
             card.enter(from:CGRect(x:30,y:400,width:90,height:133));card.layoutIfNeeded()
             try await awaitCardOpening(card)
             let title=try XCTUnwrap(descendant(card,"native.world.card.stage-title") as? UILabel)
-            XCTAssertEqual(title.textColor,UIColor(red:190/255,green:124/255,blue:89/255,alpha:1))
+            XCTAssertEqual(title.textColor,NativeTextPalette.brown)
             XCTAssertEqual(card.infoPanelAssetPath,JimiNativeWorldCardView.infoPanelBackgroundPaths[(board-1)%3])
             let panel=try XCTUnwrap(descendant(card,"native.world.card.info-panel") as? UIImageView)
             let infoBack=try XCTUnwrap(panel.superview)
@@ -1810,20 +1810,16 @@ final class JimiNativeWorldTests: XCTestCase {
         first.delegate?.animationDidStop?(first,finished:true)
         XCTAssertNotNil(impact.layer.animation(forKey:"modal.coach.impact"))
         XCTAssertEqual(copy.subviews.compactMap{($0 as? UILabel)?.text}.joined(),"DRAG TO FLIP")
-        for glyph in copy.subviews {
-            let track=try XCTUnwrap(glyph.layer.animation(forKey:"modal.coach.copy") as? CAAnimationGroup)
-            XCTAssertEqual(track.duration,4.1,accuracy:0.000001);XCTAssertEqual(track.repeatCount,0)
-            let label=try XCTUnwrap(glyph as? UILabel)
-            XCTAssertEqual(label.font.pointSize,32);XCTAssertEqual(label.layer.shadowOpacity,0)
-            XCTAssertEqual(label.subviews.count,4)
-            for halo in label.subviews {XCTAssertEqual(halo.layer.shadowOffset,.zero);XCTAssertLessThanOrEqual(halo.layer.shadowOpacity,0.49)}
-            let reference=CALayer()
-            NativeCoachCopyMotion.installCollect(on:reference,index:copy.subviews.firstIndex(of:glyph)!,key:"reference",beginTime:CACurrentMediaTime())
-            let expected=try XCTUnwrap(reference.animation(forKey:"reference") as? CAAnimationGroup)
-            let actualOpacity=try XCTUnwrap(track.animations?.last as? CAKeyframeAnimation)
-            let expectedOpacity=try XCTUnwrap(expected.animations?.last as? CAKeyframeAnimation)
-            XCTAssertEqual(actualOpacity.values as? [NSNumber],expectedOpacity.values as? [NSNumber])
-        }
+        let paper=try XCTUnwrap(copy.subviews.first{$0.accessibilityIdentifier=="native.world.card.coach-paper"} as? NativeSettingsPaperSurface)
+        XCTAssertEqual(paper.cornerRadius,12);XCTAssertEqual(paper.edgeDetailScale,0.4);XCTAssertEqual(paper.alpha,0.8,accuracy:0.001)
+        XCTAssertEqual(copy.bounds.size,CGSize(width:184,height:48));XCTAssertEqual(paper.bounds,copy.bounds)
+        XCTAssertEqual(copy.layer.shadowOpacity,0.18,accuracy:0.001);XCTAssertNotNil(copy.layer.shadowPath)
+        let caption=try XCTUnwrap(copy.subviews.compactMap{$0 as? UILabel}.first)
+        XCTAssertEqual(caption.font.pointSize,17);XCTAssertTrue(caption.subviews.isEmpty)
+        XCTAssertNil(caption.layer.animationKeys());XCTAssertNil(paper.layer.animationKeys())
+        let track=try XCTUnwrap(copy.layer.animation(forKey:"modal.coach.copy") as? CAAnimationGroup)
+        XCTAssertEqual(track.duration,4.1,accuracy:0.000001);XCTAssertEqual(track.repeatCount,0)
+        XCTAssertEqual((copy.layer.animation(forKey:"modal.coach.idle") as? CABasicAnimation)?.keyPath,"borderWidth","Idle receipt must not force the paper opacity")
         let impactTrack=try XCTUnwrap(impact.layer.animation(forKey:"modal.coach.impact") as? CAKeyframeAnimation)
         let poses=try XCTUnwrap(impactTrack.values as? [NSValue]).map(\.caTransform3DValue)
         XCTAssertEqual(poses[1].m41,-34);XCTAssertEqual(poses[2].m41,38)
@@ -1834,6 +1830,7 @@ final class JimiNativeWorldTests: XCTestCase {
         let second=try pending();XCTAssertEqual(second.duration,10)
         owner!.cancel();owner!.present(frontFacing:true)
         XCTAssertNil(impact.layer.animation(forKey:"modal.coach.impact"),"Interaction ends the current hint")
+        XCTAssertNil(copy.layer.animation(forKey:"modal.coach.copy"));XCTAssertEqual(copy.layer.opacity,0)
         second.delegate?.animationDidStop?(second,finished:true)
         XCTAssertNil(impact.layer.animation(forKey:"modal.coach.impact"),"Canceled receipt cannot admit a hint")
         owner!.resetInactivity()
@@ -1899,9 +1896,9 @@ final class JimiNativeWorldTests: XCTestCase {
         try await settle(0.55)
         let panel=try XCTUnwrap(descendant(card,"native.world.card.info-panel"))
         XCTAssertGreaterThan(panel.bounds.width,300,"Actual mounted card must have a full visible layout before coaching")
-        try FileManager.default.createDirectory(atPath:"/tmp/native-flip-collect-style-20261108",withIntermediateDirectories:true)
+        try FileManager.default.createDirectory(atPath:"/tmp/native-flip-paper-coach-20261113",withIntermediateDirectories:true)
         let screenshot=UIGraphicsImageRenderer(bounds:window.bounds).image{_ in window.drawHierarchy(in:window.bounds,afterScreenUpdates:true)}
-        try screenshot.pngData()?.write(to:URL(fileURLWithPath:"/tmp/native-flip-collect-style-20261108/preview.png"))
+        try screenshot.pngData()?.write(to:URL(fileURLWithPath:"/tmp/native-flip-paper-coach-20261113/preview.png"))
         card.tapToFlip();XCTAssertNil(copy.layer.animation(forKey:"modal.coach.idle"))
         try await settle(0.65)
         XCTAssertEqual(copy.layer.animation(forKey:"modal.coach.idle")?.duration,10)
@@ -2317,6 +2314,56 @@ final class JimiNativeWorldTests: XCTestCase {
         }
         let attachment=XCTAttachment(image:preview);attachment.name="native-navigation-home-divider-trial";attachment.lifetime = .keepAlways;add(attachment)
         try preview.pngData()?.write(to:URL(fileURLWithPath:"/tmp/native-navigation-home-divider-trial.png"))
+    }
+
+    func testTutorialSpotlightLeasesCompleteBeachAndArea55UnitsAndRestoresDepth() async throws {
+        for worldID in [1,2,3] {
+            let raw=try NativeWorldLayouts().snapshot(world:worldID,width:390,height:844,generation:1,progression:NativeProgressionState())
+            let world=try XCTUnwrap(JimiNativeWorldView(snapshot:raw,assets:art))
+            let scene=try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.first)
+            let previous=scene.windows.first{$0.isKeyWindow},window=UIWindow(windowScene:scene),host=UIViewController()
+            window.frame=CGRect(x:0,y:0,width:390,height:844)
+            window.rootViewController=host;window.makeKeyAndVisible()
+            host.view.addSubview(world);world.frame=window.bounds;world.layoutIfNeeded()
+            defer {world.cleanup();window.isHidden=true;window.rootViewController=nil;previous?.makeKeyAndVisible()}
+            await withCheckedContinuation { continuation in world.prepare {continuation.resume()} }
+            await withCheckedContinuation { continuation in world.enter {continuation.resume()} }
+            let board=(worldID-1)*10+1
+            let card=try XCTUnwrap(descendant(world,"native.world.card.\(board)"))
+            let terrain=try XCTUnwrap(descendant(world,"native.world.part.\(board).island"))
+            let star=try XCTUnwrap(descendant(world,"native.world.part.\(board).star"))
+            let views=[card,try XCTUnwrap(terrain.superview),try XCTUnwrap(star.superview)]
+            let parents=try views.map {try XCTUnwrap($0.superview)}
+            let indexes=zip(views,parents).map { $1.subviews.firstIndex(of:$0)! }
+            let depths=views.map { $0.layer.zPosition }
+            let frames=views.map { $0.convert($0.bounds,to:world) }
+            let cloud=try XCTUnwrap(descendant(world,"native.world.part.\(board).cloud"))
+            let cloudPlane=try XCTUnwrap(cloud.superview),cloudParent=cloud.superview?.superview
+            XCTAssertTrue(world.beginFirstInterimSpotlight())
+            XCTAssertTrue(cloudPlane.superview === cloudParent,"Clouds stay on the original rear plane behind the shade")
+            XCTAssertFalse(cloudPlane.superview === world)
+            let shade=try XCTUnwrap(descendant(world,"native.world.tutorial.page-shade"))
+            for (index,view) in views.enumerated() {
+                XCTAssertTrue(view.superview === world)
+                XCTAssertGreaterThan(view.layer.zPosition,shade.layer.zPosition)
+                XCTAssertLessThan(view.layer.zPosition,10_002,"Tutorial hand and prompt remain above the whole Unit")
+                XCTAssertEqual(view.convert(view.bounds,to:world),frames[index])
+            }
+            try await settle(0.4)
+            let screenshot=UIGraphicsImageRenderer(bounds:window.bounds).image {_ in window.drawHierarchy(in:window.bounds,afterScreenUpdates:true)}
+            try screenshot.pngData()?.write(to:URL(fileURLWithPath:"/tmp/world-spotlight-\(worldID).png"))
+            window.frame=CGRect(x:0,y:0,width:820,height:1180)
+            world.frame=window.bounds;world.setNeedsLayout();world.layoutIfNeeded()
+            let resized=views.map {$0.convert($0.bounds,to:world)}
+            world.endFirstInterimSpotlight(animated:false)
+            for (index,view) in views.enumerated() {
+                XCTAssertTrue(view.superview === parents[index])
+                XCTAssertEqual(view.layer.zPosition,depths[index])
+                XCTAssertEqual(view.convert(view.bounds,to:world),resized[index])
+                XCTAssertEqual(parents[index].subviews.firstIndex(of:view),indexes[index])
+            }
+            XCTAssertNil(shade.superview)
+        }
     }
 
     func testArea55HeaderHasNoFloatingDividerArtwork() throws {

@@ -489,6 +489,12 @@ import StackToSixNativeState
     func testActualArcadeCleanRoundContinuationAdoptsPreparedFoundationAndConsumesPendingRound()async throws {
         try await exerciseContinuation(board:nil)
     }
+    func testActualBeachOneResultContinueShowsBeachTwoTransitionBeforeBoardReveal()async throws {
+        try await exerciseContinuation(board:11,verifyTransitionPaint:true)
+    }
+    func testActualBeachOneContinueWithSparsePhoneProgressionShowsBeachTwoMotion()async throws {
+        try await exerciseContinuation(board:11,verifyTransitionPaint:true,sparseJourneyProfile:true)
+    }
     func testActualJourneyCleanRewardAndContinueAdoptPreparedFoundationAndResetScore()async throws {
         try await exerciseContinuation(board:21)
     }
@@ -501,7 +507,7 @@ import StackToSixNativeState
     func testActualPreviouslyClearedJourneySixAlsoAdvancesToFreshSeven()async throws {
         try await exerciseContinuation(board:6,replayJourney:true)
     }
-    func testActualArcadeRoundOneToTwoKeepsUpperAndLowerHUDVisibleThroughoutCueAndEntry()async throws {
+    func testActualArcadeRoundOneToTwoKeepsUpperHUDAndReplaysLowerFooterAfterCue()async throws {
         try await exerciseContinuation(board:nil,arcadeRound:1,verifyChrome:true)
     }
     func testJourneyPlayRequiresFirstCommittedMoveForContinue()async throws {
@@ -572,15 +578,29 @@ import StackToSixNativeState
         let restored=try XCTUnwrap(store.load()?.resumedRun(mode:board==nil ? .arcade:.journey,board:number))
         XCTAssertEqual(restored.moves,49);XCTAssertEqual(restored.tiles,game.engine.state.tiles)
     }
-    private func exerciseContinuation(board:Int?,arcadeRound:Int=3,verifyChrome:Bool=false,staleJourneySave:Bool=false,replayJourney:Bool=false)async throws {
+    private func exerciseContinuation(board:Int?,arcadeRound:Int=3,verifyChrome:Bool=false,staleJourneySave:Bool=false,replayJourney:Bool=false,verifyTransitionPaint:Bool=false,sparseJourneyProfile:Bool=false)async throws {
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("native-fresh-continue-"+UUID().uuidString)
         let store=NativeSaveStore(directory:directory),number=board ?? arcadeRound
         var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
         seed.progression.firstPlayTutorialComplete=true;seed.progression.completedJourneyBoards=Set(1..<(board ?? 21))
+        if sparseJourneyProfile {
+            // Read-only phone backup had these World interims, discoveries and
+            // latest location; retain the current test's own played final pair.
+            seed.progression.completedJourneyBoards=[1,21,22,23]
+            seed.progression.highestUnlockedJourneyBoard=23
+            seed.progression.lastOpenedJourneyBoard=23
+            seed.progression.viewedJourneyBoards=[23]
+            for (id,board) in [("bee",1),("robo-cube",21),("kanta",22),("spaceship",23)] {
+                _=seed.progression.announceJourneyDie(id,board:board)
+                var stats=NativeBoardStats();stats.timesPlayed=board==22 ? 2:1
+                seed.progression.boardStats[board]=stats
+            }
+        }
         if replayJourney {seed.progression.completedJourneyBoards.insert(number)}
+        let sourceCell=NativeCell(column:board==11 ? 1:0,row:board==11 ? 3:0),destinationCell=NativeCell(column:board==11 ? 2:1,row:board==11 ? 3:0)
         let saved=NativeBoardState(tiles:[
-            .init(id:"continue-a",cell:.init(column:0,row:0),value:3),
-            .init(id:"continue-b",cell:.init(column:1,row:0),value:3)],
+            .init(id:"continue-a",cell:sourceCell,value:3),
+            .init(id:"continue-b",cell:destinationCell,value:3)],
             mode:board==nil ? .arcade:.journey,board:number,stage:number,generation:9,moves:37,score:123)
         if let board {seed.journeyRuns[board]=saved;seed.journeyRunSavedAt[board]=Date().timeIntervalSince1970}
         else {seed.arcadeRun=saved;seed.arcadeRunSavedAt=Date().timeIntervalSince1970}
@@ -589,6 +609,8 @@ import StackToSixNativeState
             stale.score=9876;stale.moves=12;stale.combo=45;stale.longestCombo=45
             seed.journeyRuns[number+1]=stale;seed.journeyRunSavedAt[number+1]=Date().timeIntervalSince1970
         }
+        seed.progression.beginAttempt(mode:saved.mode,board:number)
+        XCTAssertNotNil(seed.resumedRun(mode:saved.mode,board:number),"The final-pair fixture must be a real played attempt, not a stale successor save")
         try store.save(seed)
         let host=NativeStandaloneViewController(resourceRoot:NativeTestResources.root,store:store,sourceVisualRandom:{0.1},completeNativeGameplayEnabled:true)
         let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
@@ -600,9 +622,24 @@ import StackToSixNativeState
             app.navigate(.world((board-1)/10+1),interrupt:true)
             try await wait{if app.children.contains(where:{$0 is NativeGameplayViewController}){return true};app.world?.onRequest?("continue",board);return false}
         }else{app.navigate(.gameplay,interrupt:true)}
-        try await wait{app.children.compactMap{$0 as? NativeGameplayViewController}.first?.boardScene?.isBoardEntryComplete==true}
+        try await wait{app.children.contains{$0 is NativeGameplayViewController}}
         let old=try XCTUnwrap(app.children.compactMap{$0 as? NativeGameplayViewController}.first),scene=try XCTUnwrap(old.boardScene)
-        try await wait{!old.engine.hasUnsavableSourceGameplayState && old.beforeSourceGameplayAdmission==nil}
+        var initialFrameReady=false
+        old.whenFirstBoardFrameReady{initialFrameReady=true}
+        timeoutDiagnostic={
+            "initialFrame=\(initialFrameReady) entry=\(String(describing:scene.completedSourceBoardEntry?.outcome)) entryEnabled=\(old.sourceBoardEntryEnabled) ids=\(old.engine.state.tiles.map(\.id)) expected=\(saved.tiles.map(\.id)); \(old.sourceEntryDiagnostic())"
+        }
+        defer{timeoutDiagnostic=nil}
+        // A restored Journey deliberately has no fresh Source wave receipt.
+        // Admit the real mounted frame/input instead; the successor below must
+        // still retain its fresh entry until its themed transition finishes.
+        try await wait{initialFrameReady && scene.isBoardEntryComplete &&
+            !old.engine.hasUnsavableSourceGameplayState && old.beforeSourceGameplayAdmission==nil &&
+            old.engine.canBeginDrag(tileID:"continue-a")}
+        XCTAssertEqual(Set(old.engine.state.tiles.map(\.id)),Set(saved.tiles.map(\.id)),"Resume must retain the actual final pair")
+        guard Set(old.engine.state.tiles.map(\.id))==Set(saved.tiles.map(\.id)) else{return}
+        var visibleTransitionFrames=0,sawTransitionMotion=false
+        var transitionPoses:[ObjectIdentifier:CGAffineTransform]=[:]
         var sawUpperHUDHidden=false,sawLowerHUDHidden=false,sawDividerHidden=false
         if verifyChrome {
             try await wait{scene.boardChromeReceipt.alpha==1 && scene.boardChromeReceipt.offset==0 && !scene.boardChromeReceipt.entering && scene.roundChromeReceipt.alpha==1 && !scene.roundChromeReceipt.animating}
@@ -630,13 +667,16 @@ import StackToSixNativeState
         }
         defer{observeTransitionPaint=nil}
         let oldGeneration=old.engine.state.generation
-        let sourceID=try XCTUnwrap(old.engine.state.tiles.first{$0.cell == .init(column:0,row:0)}?.id)
-        let destinationID=try XCTUnwrap(old.engine.state.tiles.first{$0.cell == .init(column:1,row:0)}?.id)
+        let sourceID=try XCTUnwrap(old.engine.state.tiles.first{$0.cell == sourceCell}?.id)
+        let destinationID=try XCTUnwrap(old.engine.state.tiles.first{$0.cell == destinationCell}?.id)
         let a=try XCTUnwrap(scene.sourceNativeTileNode(sourceID)),b=try XCTUnwrap(scene.sourceNativeTileNode(destinationID))
         let from=scene.convert(a.position,from:try XCTUnwrap(a.parent)),to=scene.convert(b.position,from:try XCTUnwrap(b.parent))
-        XCTAssertTrue(scene.beginDrag(at:from));scene.moveDrag(to:to,now:CACurrentMediaTime())
+        XCTAssertTrue(scene.beginDrag(at:from))
+        scene.moveDrag(to:to,now:CACurrentMediaTime())
         try await Task.sleep(for:.milliseconds(160))
-        XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:to,now:CACurrentMediaTime())).accepted)
+        let finalMove=try XCTUnwrap(scene.finishDrag(at:to,now:CACurrentMediaTime()))
+        XCTAssertTrue(finalMove.accepted,finalMove.events.compactMap(\.reason).joined(separator:",")+"; "+finalMove.resolution.reason+"; "+old.sourceEntryDiagnostic())
+        guard finalMove.accepted else{return}
         if board != nil,!replayJourney {
             try await wait{old.visibleJourneyRewardController != nil}
             let reward=try XCTUnwrap(old.visibleJourneyRewardController)
@@ -670,6 +710,33 @@ import StackToSixNativeState
         if board != nil {
             try await wait{fresh.children.contains{$0 is NativeThemedBoardTransitionController}}
             XCTAssertNil(fresh.boardScene?.completedSourceBoardEntry,"Continue must show the transition before revealing the next board")
+            if verifyTransitionPaint {
+                let transition=try XCTUnwrap(fresh.children.compactMap{$0 as? NativeThemedBoardTransitionController}.first)
+                XCTAssertEqual(transition.theme,.beach);XCTAssertEqual(transition.board,12)
+                observeTransitionPaint={ [weak transition,weak fresh] in
+                    guard let transition,let fresh,let root=transition.viewIfLoaded,root.window === window,
+                          !root.isHidden,root.alpha>0.1,transition.parent === fresh else{return}
+                    visibleTransitionFrames+=1
+                    if sparseJourneyProfile,[10,30].contains(visibleTransitionFrames) {
+                        let screenshot=UIGraphicsImageRenderer(bounds:window.bounds).image{_ in
+                            window.drawHierarchy(in:window.bounds,afterScreenUpdates:false)
+                        }
+                        do {
+                            try screenshot.pngData()?.write(to:URL(fileURLWithPath:"/tmp/beach-continue-window-\(visibleTransitionFrames).png"))
+                        }catch {XCTFail("Unable to save actual Beach continuation window: \(error)")}
+                    }
+                    XCTAssertTrue(fresh.view.subviews.last === root,"The live transition must paint above the incoming board")
+                    func views(_ view:UIView)->[UIView]{[view]+view.subviews.flatMap(views)}
+                    for image in views(root).compactMap({$0 as? UIImageView}) where image.image != nil {
+                        var opacity:CGFloat=1,cursor:UIView?=image
+                        while let view=cursor {opacity *= view.isHidden ? 0:view.alpha;if view === root{break};cursor=view.superview}
+                        guard opacity>0.05,root.bounds.intersects(image.convert(image.bounds,to:root)) else{continue}
+                        let id=ObjectIdentifier(image)
+                        if let previous=transitionPoses[id],previous != image.transform {sawTransitionMotion=true}
+                        transitionPoses[id]=image.transform
+                    }
+                }
+            }
         }
         XCTAssertTrue(try XCTUnwrap(fresh.sourceInitialConstruction).borrowedPreparedFoundation)
         XCTAssertEqual(fresh.engine.state.generation,oldGeneration+1)
@@ -688,11 +755,15 @@ import StackToSixNativeState
             XCTAssertTrue(fresh.waitsForFirstFrameOnReplacement)
         }
         try await wait{(board != nil || fresh.sourceInitialBoardSaveAccepted) && fresh.boardScene?.isBoardEntryComplete==true && fresh.beforeSourceGameplayAdmission==nil && !fresh.engine.hasUnsavableSourceGameplayState}
+        if verifyTransitionPaint {
+            XCTAssertGreaterThan(visibleTransitionFrames,5,"Beach02 must show multiple genuinely visible transition frames")
+            XCTAssertTrue(sawTransitionMotion,"Visible transition artwork must animate before the board is released")
+        }
         if verifyChrome {
             observeTransitionPaint?()
             XCTAssertFalse(sawUpperHUDHidden,"Arcade Round01→02 must keep upper HUD settled through clean cue and next-board entry")
             XCTAssertFalse(sawDividerHidden,"Arcade continuation must retain the full divider/ribbon instead of replaying its exit/entry")
-            XCTAssertFalse(sawLowerHUDHidden,"Arcade Round01→02 must keep lower Round pill visible through clean cue and next-board entry")
+            XCTAssertTrue(sawLowerHUDHidden,"Arcade Round01→02 must retire the old footer before the cue and reveal the successor footer afterwards")
         }
         if board != nil {
             // Journey persists through its canonical lifecycle receipt; unlike

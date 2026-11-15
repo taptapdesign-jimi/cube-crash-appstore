@@ -162,11 +162,12 @@ public enum NativeJourneyContent {
         let name = pool[min(pool.count-1,Int(bounded*Double(pool.count)))]
         return reward(named:name)
     }
-    private static func reward(named name:String) -> NativeWildReward? {
+    public static func reward(named name:String) -> NativeWildReward? {
         switch name {
         case "wild-star": return NativeWildReward(.star)
         case "wild-juice": return NativeWildReward(.juice)
         case "tnt": return NativeWildReward(.tnt)
+        case "wild-magnet": return NativeWildReward(.magnet)
         default:
             guard let definition = NativeSpecialDiceRegistry.variants[name] else { return nil }
             return NativeWildReward(definition.archetype, variant:name)

@@ -1,12 +1,17 @@
 import Foundation
 
 /// Preserved Studio recordings plus user2026-11-05 Settings/Arcade replacements.
-/// 182 scene entries (176 distinct recordings) across46 scenes; retired source assets remain preserved.
+/// Active scene selections only; retired source assets remain preserved.
 /// Static selected-source paths only. NativeGameplayAudioOwner owns admission,
 /// non-repeat choice,one finite speech transport,Settings and all cleanup.
 enum NativeRecordedSceneSpeech {
     // Dedicated deterministic tutorial lines reuse the single selected speech transport.
-    static let tutorialSpeechGain=0.72*pow(10,2.0/20)
+    // Native family RMS calibration: tutorial reduced1.6dB, others match its mean.
+    // See docs/audio/native-speech-level-balance-v1.json; original PCM is preserved.
+    static let tutorialSpeechGain=0.72*pow(10,0.4/20)
+    static let collectionSpeechGain=0.8617619316600378
+    static let detailSpeechScale=1.1780944281383627
+    static let cleanBoardTitleSpeechGain=0.5703813259814785
     static let tutorialSources:[String:[String]] = [
         "tutorial-objective": ["assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-objective.wav"],
         "tutorial-stack": ["assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-stack.wav"],
@@ -16,6 +21,7 @@ enum NativeRecordedSceneSpeech {
         "tutorial-special": ["assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-special.wav"],
         "tutorial-collection": ["assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-collection.wav"],
         "tutorial-combo": ["assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-combo.wav"],
+        "tutorial-farewell": ["assets/sound/SPEECH/tutorial-farewell-v1/tutorial-farewell.wav"],
         "tutorial-completion": ["assets/sound/SPEECH/tutorial-voices-plus3db-v1/tutorial-completion.wav"],
     ]
     static let tutorialPairedCharacterSheets:Set<String> = ["tutorial-objective","tutorial-special-bar","tutorial-delivery","tutorial-completion"]
@@ -49,13 +55,6 @@ enum NativeRecordedSceneSpeech {
             "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0015-intro-lik-laptop-01.wav",
             "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0016-intro-lik-laptop-02.wav",
             "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0017-intro-lik-laptop-03.wav",
-        ],
-        "intro-lik-pas-SVG": [
-            "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0018-intro-lik-pas-SVG-01.wav",
-            "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0019-intro-lik-pas-SVG-02.wav",
-            "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0020-intro-lik-pas-SVG-03.wav",
-            "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0021-intro-lik-pas-SVG-04.wav",
-            "assets/sound/SPEECH/Jimbo voice compilation/lik-lajna-voice-v1/001-leash-laugh.wav",
         ],
         "intro-lik-speceraj": [
             "assets/sound/SPEECH/Jimbo voice compilation/seperated jjimbo voices/0022-intro-lik-speceraj-01.wav",

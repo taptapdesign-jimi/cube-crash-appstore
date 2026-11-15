@@ -2016,7 +2016,10 @@ public final class NativeGameplayEngine {
     /// Arm before the first guided action. The actual stack and merge-six
     /// commits introduce Special Bar before Clear the Stage.
     public func configureTutorialReward(_ reward:NativeWildRewardChoice) {
-        guard state.tutorial != nil,state.tutorial?.rewardArchetype == nil else{return}
+        guard let tutorial=state.tutorial else{return}
+        let repairsArcadeReward=state.mode == .arcade && !tutorial.done && !NativeTutorialRules.arcadeRewards.contains(tutorial.reward)
+        guard tutorial.rewardArchetype == nil || repairsArcadeReward else{return}
+        guard state.mode != .arcade || NativeTutorialRules.arcadeRewards.contains(reward) else{return}
         state.tutorial?.rewardArchetype=reward.archetype;state.tutorial?.rewardVariant=reward.variant
     }
     public func acknowledgeTutorialObjective() -> NativeMoveResult {
@@ -2176,7 +2179,7 @@ public final class NativeGameplayEngine {
               state.tutorial?.encouragementAcknowledged == true,
               state.tutorial?.collectionLessonAcknowledged != false,
               state.tutorial?.comboLessonAcknowledged == false,
-              state.tutorial?.comboHUDRevealed == false,
+              state.tutorial?.comboHUDRevealed != true,
               state.tutorial?.comboLessonReady(in:state.mode) == true else{return rejected("tutorial_combo_not_ready")}
         state.tutorial?.comboHUDRevealed=true
         return NativeMoveResult(accepted:true,state:state,events:[],resolution:resolve())

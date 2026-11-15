@@ -16,7 +16,9 @@ public struct NativeTutorialState: Equatable, Codable, Sendable {
     public var comboHUDRevealed: Bool?
     public var comboLessonFastBaseline: Int?
     public var comboLessonMoveCount: Int?
-    public func comboLessonReady(in mode:NativeRunMode)->Bool { (mode == .journey && collectionLessonAcknowledged == true) || (comboLessonMoveCount ?? 0)>=6 }
+    // Both tutorial destinations continue directly after their collection visit.
+    // Older checkpoints without that receipt retain the six-action fallback.
+    public func comboLessonReady(in _:NativeRunMode)->Bool { collectionLessonAcknowledged == true || (comboLessonMoveCount ?? 0)>=6 }
     public var needsEncouragement: Bool { guideCompleted && !done && encouragementAcknowledged != true }
     public var rewardArchetype: NativeWildArchetype?
     public var rewardVariant: String?
@@ -43,6 +45,15 @@ public struct NativeTutorialState: Equatable, Codable, Sendable {
     public var meterMultiplier: Double { completionAssist ? NativeWildMeterRules.tutorialCompletionChargeMultiplier : 1 }
 }
 public enum NativeTutorialRules {
+    /// The four identities pictured in the Arcade tutorial Box.
+    public static let arcadeRewards: [NativeWildRewardChoice] = [
+        .init(.star,variant:"cubero"),.init(.juice,variant:"baloon"),.init(.tnt),.init(.magnet)
+    ]
+    public static func arcadeReward(roll:Double)->NativeWildRewardChoice {
+        let bounded=roll.isFinite ? max(0,min(1-Double.ulpOfOne,roll)):0
+        return arcadeRewards[min(arcadeRewards.count-1,Int(bounded*Double(arcadeRewards.count)))]
+    }
+
     public static func guidedCells(columns: Int, rows: Int) -> (three: NativeCell, two: NativeCell, one: NativeCell) {
         let centerRow = max(0,min(rows-3,rows/2-1))
         let left = max(0,min(columns-3,columns/2-1))

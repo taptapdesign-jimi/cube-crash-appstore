@@ -5,7 +5,7 @@ import StackToSixNativeState
 /// Native Settings DEV commands are admitted by the app
 /// route owner; the panel itself has no save or gameplay authority.
 enum NativeDeveloperAction: String, CaseIterable {
-    case show, hide, legendary, reset, newCard = "new-card", clean = "clean-board", arcadeClean = "arcade-clean-board", beachClean = "beach-clean-board", area55Clean = "area55-clean-board", endGame = "end-game", lastMerge = "last-merge", intro
+    case show, hide, legendary, reset, newCard = "new-card", clean = "clean-board", arcadeClean = "arcade-clean-board", beachClean = "beach-clean-board", area55Clean = "area55-clean-board", fail = "fail-screen", endGame = "end-game", lastMerge = "last-merge", intro
     var title: String {
         switch self {
         case .show: return "Show Card"
@@ -17,6 +17,7 @@ enum NativeDeveloperAction: String, CaseIterable {
         case .arcadeClean: return "Clean Arcade"
         case .beachClean: return "Clean Beach"
         case .area55Clean: return "Clean Area 55"
+        case .fail: return "Fail Screen"
         case .endGame: return "End Game"
         case .lastMerge: return "LAST MERGE"
         case .intro: return "Intro"
@@ -54,7 +55,7 @@ final class NativeDeveloperPicker: UIViewController {
         card.backgroundColor = NativeAppPaperSurface.base; card.layer.cornerRadius = 24
         view.addSubview(card); card.addSubview(scroll); card.addSubview(heading)
         heading.font = artwork.font(size: 24, weight: "ExtraBold"); heading.textAlignment = .center
-        heading.textColor = UIColor(red: 173/255, green: 135/255, blue: 117/255, alpha: 1)
+        heading.textColor = NativeTextPalette.brown
         for (index, choice) in choices.enumerated() {
             let button = JimiV9PlainButton(type: .custom)
             button.tag = index; button.setTitle(choice.title, for: .normal)

@@ -269,6 +269,68 @@ final class NativeHUDTransitionTests:XCTestCase {
         for i in [0,2] {XCTAssertEqual(groups[i].alpha,0,accuracy:0.000001)}
     }
 
+    func testArcadeContinuationReplaysFooterWhileUpperHUDStaysSettled() async throws {
+        for size in [CGSize(width:390,height:844),CGSize(width:820,height:1180)] {
+            let engine=NativeGameplayEngine(state:NativeBoardState(tiles:[NativeTile(id:"footer",cell:.init(column:0,row:0),value:1)],mode:.arcade,board:2,stage:2))
+            let scene=NativeBoardScene(engine:engine,resourceRoot:NativeTestResources.root,size:size)
+            scene.keepsHUDVisibleOnEntry=true
+            let window=UIWindow(frame:CGRect(origin:.zero,size:size)),controller=UIViewController(),renderer=SKView(frame:window.bounds)
+            controller.view=renderer;window.rootViewController=controller;renderer.isPaused=true
+            defer{renderer.presentScene(nil);scene.dispose();window.isHidden=true}
+            scene.layout(size:size,insets:.init(top:47,left:0,bottom:34,right:0),animateEntry:true)
+            window.makeKeyAndVisible();renderer.presentScene(scene)
+            XCTAssertEqual(scene.boardChromeReceipt.alpha,1)
+            XCTAssertEqual(scene.boardChromeReceipt.offset,0)
+            XCTAssertEqual(scene.roundChromeReceipt.alpha,0)
+            XCTAssertFalse(scene.roundChromeReceipt.animating,"Footer waits quietly for actual dice completion")
+            XCTAssertFalse(scene.isBoardEntryComplete)
+            let settled=expectation(description:"Footer enters only after the dice finish")
+            var sawEntry=false,finished=false
+            scene.run(.customAction(withDuration:4){[weak scene] _,_ in
+                guard let scene,!finished else{return}
+                let footer=scene.roundChromeReceipt
+                if footer.animating {
+                    XCTAssertTrue(scene.isBoardEntryComplete,"No footer animation during dice pop-in")
+                    sawEntry=true
+                }
+                if !scene.isBoardEntryComplete {XCTAssertEqual(footer.alpha,0)}
+                if sawEntry,!footer.animating,footer.alpha>0.999 {
+                    finished=true;scene.removeAction(forKey:"footer-entry-observer");settled.fulfill()
+                }
+            },withKey:"footer-entry-observer")
+            renderer.isPaused=false
+            await fulfillment(of:[settled],timeout:6)
+            XCTAssertEqual(scene.roundChromeReceipt.alpha,1,accuracy:0.001)
+            XCTAssertEqual(scene.roundChromeReceipt.offset,0,accuracy:0.001)
+            let exited=expectation(description:"Kept-HUD exit joins actual footer retirement")
+            scene.animateExit(keepsHUDVisible:true){success in
+                XCTAssertTrue(success)
+                XCTAssertEqual(scene.roundChromeReceipt.alpha,0,accuracy:0.001)
+                XCTAssertEqual(scene.boardChromeReceipt.alpha,1)
+                XCTAssertEqual(scene.boardChromeReceipt.offset,0)
+                exited.fulfill()
+            }
+            XCTAssertTrue(scene.roundChromeReceipt.animating)
+            await fulfillment(of:[exited],timeout:4)
+        }
+    }
+
+    func testRejectedSourceEntryCannotRevealPendingArcadeFooterOnResynchronize() {
+        let size=CGSize(width:390,height:844)
+        let engine=NativeGameplayEngine(state:NativeBoardState(tiles:[NativeTile(id:"footer",cell:.init(column:0,row:0),value:1)],mode:.arcade,board:2,stage:2))
+        let scene=NativeBoardScene(engine:engine,resourceRoot:NativeTestResources.root,size:size)
+        scene.keepsHUDVisibleOnEntry=true;scene.sourceBoardEntryEnabled=true
+        let host=UIViewController(),window=UIWindow(frame:CGRect(origin:.zero,size:size)),renderer=SKView(frame:window.bounds)
+        host.view=renderer;window.rootViewController=host;renderer.isPaused=true
+        defer{renderer.presentScene(nil);scene.dispose();window.isHidden=true}
+        scene.layout(size:size,insets:.zero,animateEntry:true)
+        window.makeKeyAndVisible();renderer.presentScene(scene)
+        scene.synchronize(animateEntry:false)
+        XCTAssertNil(scene.completedSourceBoardEntry)
+        XCTAssertEqual(scene.roundChromeReceipt.alpha,0)
+        XCTAssertFalse(scene.roundChromeReceipt.animating)
+    }
+
     private func makeScene(size:CGSize=CGSize(width:390,height:844),count:Int=1)->NativeBoardScene {
         let tiles=(0..<count).map{NativeTile(id:count==1 ? "hud-fixture":"hud-fixture-\($0)",cell:NativeCell(column:$0%5,row:$0/5),value:1)}
         return NativeBoardScene(engine:NativeGameplayEngine(state:NativeBoardState(tiles:tiles)),resourceRoot:NativeTestResources.root,size:size)

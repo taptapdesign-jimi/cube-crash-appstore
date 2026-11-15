@@ -31,7 +31,7 @@ Ove putanje se u konzoli javljaju kao **Failed to load** / **could not be decode
 
 ## Napomene
 
-- **logo.png** – u preloaderu se učitava uz `logo-cube-crash.png`; ako koristiš samo logo-cube-crash, možeš izbaciti `logo.png` iz liste.
+- **Logo (usklađeno 2026-11-14)** – web prikaz i preload koriste postojeće `logo-stacktosix.png`, `logo-stacktosix@2x.png` i `logo-stacktosix@3x.png`. Stare reference na `logo-cube-crash*.png` zamijenjene su; `logo.png` nije u aktivnoj preload listi. Originalne datoteke nisu mijenjane.
 - **wild-juice@2x.png, wild-juice@3x.png** – igra koristi `wild-juice` (wild-juice tile); ako imaš samo `wild-juice.png`, @2x/@3x mogu biti legacy ili krivi fileovi. Provjeri postoje li u `assets/`.
 - **gold-coin.png, mystery-box.png** – referencirani u `constants.ts` i preload-assets; ako su legacy, makni reference i iz preloada.
 - **ripple.png** – u `asset-preloader.ts` u ALL_ASSETS; ako se nigdje ne koristi, možeš izbaciti.

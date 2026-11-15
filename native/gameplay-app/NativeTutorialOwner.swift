@@ -64,8 +64,7 @@ final class NativeTutorialOwner {
         overlay.onGotIt = { [weak self] in
             guard let self else{return}
             if self.collectionSheetVisible {
-                if self.gameplay?.engine.state.mode == .journey {self.openCollectionBackpack()}
-                else {self.dismissCollectionSheet(openBackpack:false,feedback:true)}
+                self.openCollectionBackpack()
                 return
             }
             if self.completionSheetVisible {self.dismissCompletionSheet();return}
@@ -166,7 +165,6 @@ final class NativeTutorialOwner {
         guard !disposed,collectionSheetVisible,!collectionSheetExiting,!collectionVisitPending,
               let game=gameplay,game.engine.state.generation==generation,game.presentedViewController==nil,
               game.engine.state.tutorial?.active != true,game.engine.state.tutorial?.encouragementAcknowledged == true else{return}
-        guard game.engine.state.mode == .journey else{dismissCollectionSheet(openBackpack:true,feedback:true);return}
         guard game.onHelp != nil else{return}
         collectionVisitPending=true;collectionSheetExiting=true;onFeedback?()
         overlay.hide{[weak self,weak game] in
@@ -583,12 +581,16 @@ final class NativeTutorialOwner {
                 scope.current,gameplay.sourceScope === scope,gameplay.boardScene === scene,gameplay.engine.state.generation==self.generation,
                 gameplay.engine.state.tutorial?.active==true,scene.sourceTutorialThirdPresentationActive else{return}
             self.sourceGuidedDragNode=nil;self.sourceGuidedDragStep=nil;self.sourceThirdDismissPhase = .exitingSheet
-            // The existing carrier root owns the full jump/rebound before opening.
-            // Its original opening frames remain held until emphasis finishes.
-            guard scene.resumeTutorialBackpackCarrier() else {
-                scene.failSourceTutorialFourthPresentation("source_tutorial_backpack_resume_rejected",generation:self.generation);return
-            }
-            _=self.overlay.exitSourceThirdSheetForWild(completed:{[weak self,weak gameplay,weak scene,weak scope] in
+            // The actual sheet's half-travel milestone resumes the same held
+            // carrier clock. Its opening still waits for the full jump/rebound.
+            _=self.overlay.exitSourceThirdSheetForWild(halfway:{[weak self,weak gameplay,weak scene,weak scope] in
+                guard let self,let gameplay,let scene,let scope,!self.disposed,scope.current,
+                    gameplay.sourceScope === scope,gameplay.boardScene === scene,
+                    gameplay.engine.state.generation==self.generation,self.sourceThirdDismissPhase == .exitingSheet else{return}
+                guard scene.resumeTutorialBackpackCarrier() else {
+                    scene.failSourceTutorialFourthPresentation("source_tutorial_backpack_resume_rejected",generation:self.generation);return
+                }
+            },completed:{[weak self,weak gameplay,weak scene,weak scope] in
                 guard let self,let gameplay,let scene,let scope,!self.disposed,scope.current,gameplay.sourceScope === scope,gameplay.boardScene === scene,
                     gameplay.engine.state.generation==self.generation,self.sourceThirdDismissPhase == .exitingSheet else{return}
                 self.overlay.retireBackpackPrompt()
@@ -612,7 +614,8 @@ final class NativeTutorialOwner {
                   self.sourceThirdDismissPhase == .waitingForCarrierArrival else{return}
             self.sourceThirdDismissPhase = .backpackPrompt;self.overlay.setBackpackReady(service:gameplay.sourceScope?.service)
         }
-        overlay.show(step:3,from:nil,to:nil,initial:true,entering:{[weak self,weak gameplay,weak scene,weak scope] in
+        _=overlay.showSourceIntro(from:nil,to:nil,service:scope.service,timeouts:scene.sourceTutorialIntroTimeouts,
+            boardGeneration:generation,immediateSheet:true,deferInitialPointer:true,initialStep:3,entering:{[weak self,weak gameplay,weak scene,weak scope] in
             guard let self,let gameplay,let scene,let scope,!self.disposed,scope.current,
                   gameplay.engine.state.generation==self.generation,self.sourceThirdDismissPhase == .waitingForCarrierArrival else{return}
             self.backpackDelayOwner=scene.sourceTutorialIntroTimeouts
@@ -626,6 +629,10 @@ final class NativeTutorialOwner {
                 self.onChanged?(result.state)
                 scene.requestSourceMeterQueueAfterSaveMounted()
             })
+        },current:{[weak self,weak gameplay,weak scene,weak scope] in
+            guard let self,let gameplay,let scene,let scope else{return false}
+            return !self.disposed && scope.current && gameplay.sourceScope === scope && gameplay.boardScene === scene &&
+                gameplay.engine.state.generation==self.generation
         })
     }
 
@@ -760,12 +767,15 @@ final class NativeTutorialOwner {
            let gameplay,gameplay.engine.state.generation==generation {
             if overlay.sourceCTAState==nil{onFeedback?()}
             sourceThirdDismissPhase = .exitingSheet
-            _=gameplay.boardScene?.resumeTutorialBackpackCarrier()
-            overlay.hide{[weak self,weak gameplay] in
+            _=overlay.exitSourceThirdSheetForWild(halfway:{[weak self,weak gameplay] in
+                guard let self,let gameplay,!self.disposed,gameplay.engine.state.generation==self.generation,
+                    self.sourceThirdDismissPhase == .exitingSheet else{return}
+                _=gameplay.boardScene?.resumeTutorialBackpackCarrier()
+            },completed:{[weak self,weak gameplay] in
                 guard let self,let gameplay,!self.disposed,gameplay.engine.state.generation==self.generation else{return}
-                self.overlay.retireBackpackPrompt();self.sourceThirdDismissPhase = .waitingForWild
+                self.overlay.retireBackpackPrompt();self.overlay.isHidden=true;self.sourceThirdDismissPhase = .waitingForWild
                 gameplay.boardScene?.onTutorialBackpackArrived=nil
-            }
+            })
             return
         }
         guard !disposed,let gameplay,gameplay.engine.state.generation==generation,

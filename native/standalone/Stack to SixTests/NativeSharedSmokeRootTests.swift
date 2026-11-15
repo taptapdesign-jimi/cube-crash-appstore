@@ -8,14 +8,18 @@ final class NativeSharedSmokeRootTests:XCTestCase {
     func testTntPaintedSmokeMatchesBarrelOnPhoneAndTabletInBothConstructionPaths() throws {
         let textures=NativeBoardTextures(root:NativeTestResources.root);defer{textures.dispose()}
         let source=try XCTUnwrap(NativeTntFinale.captureSourceConstruction(textures:textures,current:{true},random:{0.5},prepareGlyphs:{true}))
-        for size in [CGSize(width:390,height:844),CGSize(width:820,height:1180)] {
+        for size in [CGSize(width:320,height:568),CGSize(width:390,height:844),CGSize(width:430,height:932),CGSize(width:820,height:1180)] {
             let viewport=NativeTabletLayout.animationViewport(size)
-            let barrelScale:CGFloat=NativeTabletLayout.applies(size) ? 1.694*1.15*1.30:1.20*1.30*1.10*1.20
+            let barrelScale=NativeTabletLayout.barrelSmokeScale(size)
             for construction in [nil,source] {
                 let barrel=NativeTntVariantPresentation(resourceRoot:NativeTestResources.root,variant:.barell,viewport:viewport,smokePresentationScale:barrelScale,random:{0.5})
                 let tnt=NativeTntFinale(textures:textures,fontName:"Helvetica",viewport:viewport,showsTitle:false,smokePresentationScale:NativeTabletLayout.smokeSpriteBoost(size),usesCanonicalSmokeSize:true,sourceConstruction:construction,sourceRandom:{0.5},random:{0.5})
                 let service=NativeSourceAnimationClockService(wallOriginMilliseconds:0,sourceWallMillisecondsNow:{0},sourceFrameTransportEnabled:true)
                 defer{barrel.dispose();tnt.dispose();service.dispose()}
+                // Reproduce the actual shipping transform chain: TNT's parent
+                // projects the390pt canvas; Barrel shake paints unit scale.
+                let root=SKScene(size:size)
+                root.addChild(tnt);tnt.setScale(NativeTabletLayout.animationScale(size))
                 XCTAssertTrue(tnt.playSource(service:service,current:{true},frameSix:{},completion:{}))
                 for time in [0.15,0.50,0.80,1.20,1.60] {
                     barrel.paint(seconds:time);tnt.advanceSourceAnimation(seconds:time)
@@ -23,11 +27,56 @@ final class NativeSharedSmokeRootTests:XCTestCase {
                     let sprites=tnt.children.compactMap{$0 as? SKSpriteNode}
                     XCTAssertEqual(images.count,12);XCTAssertEqual(sprites.count,12)
                     for (image,sprite) in zip(images,sprites) where image.alpha>0.01 {
-                        XCTAssertEqual(sprite.size.width,image.bounds.width*hypot(image.transform.a,image.transform.b),accuracy:0.01)
-                        XCTAssertEqual(sprite.size.height,image.bounds.height*hypot(image.transform.c,image.transform.d),accuracy:0.01)
+                        let origin=tnt.convert(CGPoint.zero,to:root)
+                        let widthEnd=tnt.convert(CGPoint(x:sprite.size.width,y:0),to:root)
+                        let heightEnd=tnt.convert(CGPoint(x:0,y:sprite.size.height),to:root)
+                        XCTAssertEqual(hypot(widthEnd.x-origin.x,widthEnd.y-origin.y),image.bounds.width*hypot(image.transform.a,image.transform.b),accuracy:0.01)
+                        XCTAssertEqual(hypot(heightEnd.x-origin.x,heightEnd.y-origin.y),image.bounds.height*hypot(image.transform.c,image.transform.d),accuracy:0.01)
                         XCTAssertEqual(sprite.alpha,image.alpha,accuracy:0.001)
                     }
                 }
+            }
+        }
+    }
+    func testSourceBaseCacheCannotChangeCanonicalTntSmokeArtwork() throws {
+        let textures=NativeBoardTextures(root:NativeTestResources.root);defer{textures.dispose()}
+        // Reproduce the live Source preload, which the old isolated test missed.
+        for index in 1...12 {XCTAssertNotNil(textures.texture("assets/shop/explosion pack/animation/tnt\(index).png",densityAware:false))}
+        let source=try XCTUnwrap(NativeTntFinale.captureSourceConstruction(textures:textures,current:{true},random:{0.5},prepareGlyphs:{true}))
+        let artwork=JimiV9Artwork(resourceRoot:NativeTestResources.root)
+        for frame in source.frames {
+            let path="assets/shop/explosion pack/animation/tnt\(frame.index+1)@2x.png"
+            XCTAssertEqual(frame.handle.assetPath,path)
+            let image=try XCTUnwrap(artwork.image(path.replacingOccurrences(of:"@2x.png",with:".png"),densityAware:true))
+            let expected=try XCTUnwrap(image.cgImage)
+            XCTAssertEqual(textures.sourceRasterPixelSize(for:frame.handle.texture),CGSize(width:expected.width,height:expected.height))
+            // Texture pixels themselves must match, not only the outer rectangle.
+            let actual=try XCTUnwrap(frame.handle.texture.cgImage())
+            XCTAssertEqual(actual.dataProvider?.data as Data?,NativeSelectedFinaleRaster.materialize(expected)?.dataProvider?.data as Data?)
+        }
+        XCTAssertEqual(NativeTabletLayout.barrelSmokeScale(CGSize(width:820,height:1180)),NativeTabletLayout.barrelSmokePresentationScale)
+        XCTAssertEqual(NativeTabletLayout.barrelSmokeScale(CGSize(width:390,height:844)),NativeTabletLayout.barrelSmokePresentationScale*0.70,accuracy:0.00001)
+    }
+    func testSharedBaselinePreservesCurrentBarrelCaptionOnBothDevices() throws {
+        func compareCaption(_ before:UIView,_ after:UIView) {
+            XCTAssertEqual(before.bounds,after.bounds)
+            XCTAssertEqual(before.center,after.center)
+            XCTAssertEqual(before.transform,after.transform)
+            XCTAssertEqual(before.subviews.count,after.subviews.count)
+            if let a=before as? UILabel,let b=after as? UILabel {
+                XCTAssertEqual(a.font,b.font)
+            }
+            for (a,b) in zip(before.subviews,after.subviews) {compareCaption(a,b)}
+        }
+        for size in [CGSize(width:390,height:844),CGSize(width:820,height:1180)] {
+            let oldScale:CGFloat=NativeTabletLayout.applies(size) ? 1.694*1.15*1.30*1.20*0.85:1.20*1.30*1.10*1.20*0.85
+            let viewport=NativeTabletLayout.animationViewport(size)
+            let before=NativeTntVariantPresentation(resourceRoot:NativeTestResources.root,variant:.barell,viewport:viewport,smokePresentationScale:oldScale,random:{0.5})
+            let after=NativeTntVariantPresentation(resourceRoot:NativeTestResources.root,variant:.barell,viewport:viewport,smokePresentationScale:NativeTabletLayout.barrelSmokeScale(size),random:{0.5})
+            defer{before.dispose();after.dispose()}
+            for time in [0.15,0.50,0.80,1.20,1.60] {
+                before.paint(seconds:time);after.paint(seconds:time)
+                compareCaption(try XCTUnwrap(before.subviews.last),try XCTUnwrap(after.subviews.last))
             }
         }
     }
@@ -106,11 +155,11 @@ final class NativeSharedSmokeRootTests:XCTestCase {
         baseline.advanceSourceAnimation(seconds:0.5);larger.advanceSourceAnimation(seconds:0.5)
         let old=baseline.children.compactMap{$0 as? SKSpriteNode},new=larger.children.compactMap{$0 as? SKSpriteNode}
         XCTAssertEqual(old.count,12);XCTAssertEqual(new.count,12)
-        let matchingBarrelFactor=(1.694*1.15*1.30*0.80*0.70*1.20)/NativeTntFinale.smokeScale
-        for (a,b) in zip(old,new) where a.xScale>0 {XCTAssertEqual(Double(b.xScale/a.xScale),matchingBarrelFactor,accuracy:0.0001);XCTAssertEqual(b.alpha,a.alpha)}
+        let matchingBarrelFactor=(1.694*1.15*1.30*1.20*0.85*0.80*0.70*1.20)/NativeTntFinale.smokeScale
+        for (a,b) in zip(old,new) where a.xScale>0 {XCTAssertEqual(Double(b.xScale/a.xScale),matchingBarrelFactor/Double(NativeTabletLayout.animationScale(size)),accuracy:0.0001);XCTAssertEqual(b.alpha,a.alpha)}
         let oldDice=baseline.children.filter{!($0 is SKSpriteNode)},newDice=larger.children.filter{!($0 is SKSpriteNode)}
-        for (a,b) in zip(oldDice,newDice) {XCTAssertEqual(a.position,b.position);XCTAssertEqual(a.xScale,b.xScale)}
-        XCTAssertEqual(NativeTabletLayout.smokeSpriteBoost(CGSize(width:390,height:844)),(1.20*1.30*1.10*1.20*0.80*0.70*1.20)/NativeTntFinale.smokeScale,accuracy:0.00001)
+        for (a,b) in zip(oldDice,newDice) {XCTAssertEqual(a.position,b.position);XCTAssertEqual(a.xScale,b.xScale);XCTAssertEqual(a.yScale,b.yScale);XCTAssertEqual(a.calculateAccumulatedFrame().size,b.calculateAccumulatedFrame().size)}
+        XCTAssertEqual(NativeTabletLayout.smokeSpriteBoost(CGSize(width:390,height:844)),matchingBarrelFactor*0.70,accuracy:0.00001)
     }
     func testTabletBlossomProjectionEnlargesCaptionWithoutEnlargingFlowerArtwork() throws {
         let size=CGSize(width:820,height:1180),logical=NativeTabletLayout.animationViewport(size)

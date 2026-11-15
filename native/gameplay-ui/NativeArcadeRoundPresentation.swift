@@ -19,6 +19,15 @@ final class NativeArcadeRoundPresentation: UIView {
     private let clearedRound: Int
     private let nextRound: Int
     private let continuationOnly: Bool
+    private let entryTitle: String?
+    private let modeTitle = UIView()
+    private var modeTitleGlyphs:[UILabel]=[]
+    private let rearClouds = UIView(), frontClouds = UIView()
+    private struct RoundCloud {
+        let image: UIImageView
+        let x: CGFloat, y: CGFloat, width: CGFloat, opacity: CGFloat, direction: CGFloat, phase: Double, windDuration: Double
+    }
+    private var clouds: [RoundCloud] = []
     private let boardClearedOnly: Bool
     let boardClearedTextComposition:NativeNoMovesPlan.Composition?
     private let titleStage=UIView()
@@ -58,12 +67,18 @@ final class NativeArcadeRoundPresentation: UIView {
         continuationOnly ? 0 : clearExitStart+max(0.30,Double(max(0,titleGlyphs.count+subtitleGlyphs.count-1))*0.012+0.30)
     }
     private var roundEnterEnd: TimeInterval { max(Double(max(0,roundGlyphs.count-1))*0.02+0.44,Double(max(0,digits.count-1))*0.3+0.75) }
-    private var roundExitStart: TimeInterval { roundStart+roundEnterEnd+0.3 }
-    var duration: TimeInterval { if boardClearedOnly { return thumbExitStart+0.30 }; return roundExitStart+max(Double(max(0,roundGlyphs.count-1))*0.012+0.30,Double(max(0,digits.count-1))*0.4+0.45) }
+    private var modeTitleEnterEnd:TimeInterval {
+        guard !modeTitleGlyphs.isEmpty else{return 0}
+        return Double(modeTitleGlyphs.count-1)*NativeStudioIntroView.presentsLetterStagger +
+            NativeStudioIntroView.presentsEntryDuration-7*NativeStudioIntroView.presentsLetterStagger
+    }
+    var roundExitStart: TimeInterval { roundStart+max(roundEnterEnd,modeTitleEnterEnd)+0.3 }
+    var duration: TimeInterval { if boardClearedOnly { return thumbExitStart+0.30 }; return roundExitStart+max(Double(max(0,roundGlyphs.count-1))*0.012+0.30,Double(max(0,digits.count-1))*0.4+0.45,Double(max(0,modeTitleGlyphs.count-1))*0.05+0.3) }
 
-    init(resourceRoot: URL,clearedRound: Int,nextRound: Int,continuationOnly: Bool = false,boardClearedOnly: Bool = false,
+    init(resourceRoot: URL,clearedRound: Int,nextRound: Int,continuationOnly: Bool = false,boardClearedOnly: Bool = false,entryTitle: String? = nil,
          random: () -> Double = { Double.random(in: 0..<1) }) {
         artwork = JimiV9Artwork(resourceRoot: resourceRoot)
+        self.entryTitle = entryTitle
         self.clearedRound = max(1,clearedRound); self.nextRound = max(1,nextRound); self.continuationOnly = continuationOnly; self.boardClearedOnly = boardClearedOnly
         headline = boardClearedOnly ? "CLEARED" : Self.headlines[min(Self.headlines.count-1,max(0,Int(random()*Double(Self.headlines.count))))]
         boardClearedTextComposition=boardClearedOnly ? NativeNoMovesPlan.make(text:Array("CLEARED"),random:random):nil
@@ -72,7 +87,34 @@ final class NativeArcadeRoundPresentation: UIView {
         super.init(frame: .zero)
         isUserInteractionEnabled = false; clipsToBounds = true; backgroundColor = .clear
         accessibilityIdentifier = boardClearedOnly ? "native-board-cleared-presentation" : "native-arcade-round-presentation"
-        addSubview(stage); stage.addSubview(clearCard); stage.addSubview(nextCard)
+        addSubview(rearClouds); addSubview(stage); stage.addSubview(clearCard); stage.addSubview(nextCard); addSubview(frontClouds)
+        rearClouds.isUserInteractionEnabled=false; frontClouds.isUserInteractionEnabled=false
+        rearClouds.clipsToBounds=false; frontClouds.clipsToBounds=false
+        if let entryTitle {
+            modeTitle.accessibilityLabel=entryTitle;modeTitle.isAccessibilityElement=true
+            modeTitle.accessibilityIdentifier="native.arcade.entry-mode"
+            nextCard.addSubview(modeTitle)
+            modeTitleGlyphs=glyphs(entryTitle,color:UIColor(red:231.0/255,green:116.0/255,blue:73.0/255,alpha:1),parent:modeTitle)
+            for (index,glyph) in modeTitleGlyphs.enumerated() {glyph.accessibilityIdentifier="native.arcade.entry-mode.glyph.\(index)"}
+        }
+        if !boardClearedOnly {
+            let paths=["oblak-forest1","oblak-forest2","oblak+srednji","oblak mali ljevo","oblak mali desno","oblak veliki ljevo dole"]
+            let count=entryTitle == nil ? 5:16
+            for index in 0..<count {
+                let foreground=entryTitle != nil && index>=13
+                let path=paths[min(paths.count-1,max(0,Int(random()*Double(paths.count))))]
+                let image=UIImageView(image:artwork.image("assets/board transition/\(path).png",densityAware:true))
+                image.contentMode = .scaleAspectFit; image.alpha=0
+                image.accessibilityIdentifier="native.arcade.round-cloud.\(index)"
+                (foreground ? frontClouds:rearClouds).addSubview(image)
+                // Stratified random bands guarantee clouds above and below the title.
+                let y=foreground ? 0.39+CGFloat(random())*0.23:(CGFloat(index)+CGFloat(random()))/CGFloat(entryTitle == nil ? count:13)
+                clouds.append(RoundCloud(image:image,x:0.06+CGFloat(random())*0.88,y:y,
+                    width:(index%3 == 0 ? 0.66:0.30)+CGFloat(random())*0.22,
+                    opacity:foreground ? 0.18:0.64+CGFloat(random())*0.18,
+                    direction:index%2 == 0 ? 1:-1,phase:random()*Double.pi*2,windDuration:9*(1+(random()*2-1)*0.18)))
+            }
+        }
         if boardClearedOnly {titleStage.accessibilityIdentifier="native.board-cleared.text";clearCard.addSubview(titleStage)}
         titleGlyphs = glyphs(headline,color: UIColor(red: 239.0/255,green: 116.0/255,blue: 77.0/255,alpha: 1),parent: boardClearedOnly ? titleStage:clearCard)
         if let composition=boardClearedTextComposition {
@@ -191,6 +233,20 @@ final class NativeArcadeRoundPresentation: UIView {
         for label in digits { label.center.y += labelHeight+8-20 }
         nextCard.bounds = CGRect(x: 0,y: 0,width: cardWidth,height: labelHeight+8+digitSize)
         nextCard.center = CGPoint(x: stage.bounds.midX,y: stage.bounds.midY)
+        let modeFont=artwork.font(size:min(38,max(26,bounds.width*0.075)),weight:"ExtraBold")
+        let modeWidth=((entryTitle ?? "") as NSString).size(withAttributes:[.font:modeFont]).width
+        let fittedModeFont=modeFont.withSize(modeFont.pointSize*min(1,(cardWidth-12)/max(1,modeWidth)))
+        _=layoutGlyphs(modeTitleGlyphs,font:fittedModeFont,width:cardWidth,lineHeight:48,spacing:0,gap:0,wrap:false)
+        modeTitle.bounds=CGRect(x:0,y:0,width:cardWidth,height:48)
+        modeTitle.center=CGPoint(x:cardWidth/2,y:-56)
+        let cloudFrame=entryTitle == nil ? stage.frame:bounds
+        rearClouds.frame=cloudFrame; frontClouds.frame=cloudFrame
+        for cloud in clouds {
+            let width=min(640,cloudFrame.width*cloud.width)
+            let ratio=(cloud.image.image?.size.height ?? 1)/max(1,cloud.image.image?.size.width ?? 1)
+            cloud.image.bounds=CGRect(x:0,y:0,width:width,height:width*ratio)
+            cloud.image.center=CGPoint(x:cloudFrame.width*cloud.x,y:cloudFrame.height*cloud.y)
+        }
         if started { paint(elapsed) }
     }
 
@@ -315,6 +371,12 @@ final class NativeArcadeRoundPresentation: UIView {
         guard !disposed else { return }
         CATransaction.begin(); CATransaction.setDisableActions(true)
         defer { CATransaction.commit() }
+        paintClouds(time)
+        for (index,glyph) in modeTitleGlyphs.enumerated() {
+            let pose=time < roundExitStart ? NativeStudioIntroView.presentsEntryPose(at:time-roundStart,index:index)
+                : Self.exit(time-roundExitStart-Double(index)*0.05,index:index,rotation:0)
+            pose.apply(glyph)
+        }
         if (boardClearedOnly || time < roundStart) && !continuationOnly {
             nextCard.isHidden = true; clearCard.isHidden = false
             if time >= (boardClearedOnly ? thumbEnterStart:0.06) && !sentThumbWhoosh { sentThumbWhoosh = true; onCue?(.thumbWhoosh) }
@@ -356,6 +418,34 @@ final class NativeArcadeRoundPresentation: UIView {
             }
             if time >= roundExitStart && !sentDigitExit { sentDigitExit = true; onCue?(.digitExitStarted) }
             shake(stage,time: latestDigitStart.map { time-$0 } ?? -1,thumbArrival: false)
+        }
+    }
+
+    /// Original Home bounce recipes sampled by the existing finite round clock.
+    /// Drift has no separate timer and inherits suspension/replacement/disposal.
+    private func paintClouds(_ time:TimeInterval) {
+        let enter=JimiV9Motion.homeEnter(.hero)
+        let exit=JimiV9Motion.homeExit(.hero,reducedMotion:UIAccessibility.isReduceMotionEnabled)
+        let exitStart=roundExitStart
+        for (index,cloud) in clouds.enumerated() {
+            let delay=Double(index)*JimiV9Motion.cloudCascadeStagger
+            let local=time-roundStart-delay
+            guard local>=0,time<duration else {cloud.image.alpha=0;continue}
+            let exiting=time>=exitStart+delay
+            let pose=exiting ? exit.pose(at:time-exitStart-delay):enter.pose(at:local)
+            let reduced=UIAccessibility.isReduceMotionEnabled
+            // Journey transition wind: fixed side, distance through that edge
+            // plus one viewport/cloud width, over its captured9s +/-18percent.
+            // Arcade starts travel immediately with entry, without the Journey delay.
+            let width=cloud.image.superview?.bounds.width ?? bounds.width
+            let distanceToSide=width*(cloud.direction<0 ? cloud.x:1-cloud.x)
+            let distance=(distanceToSide+width+cloud.image.bounds.width)*cloud.direction
+            let x=reduced ? 0:CGFloat(local/cloud.windDuration)*distance
+            let y=reduced ? 0:sin((time-roundStart)*0.38+cloud.phase)*6
+            cloud.image.transform=CGAffineTransform(translationX:x,y:y)
+                .scaledBy(x:reduced ? (exiting ? max(0,1-(time-exitStart-delay)/0.16):1):pose.scaleX,
+                          y:reduced ? (exiting ? max(0,1-(time-exitStart-delay)/0.16):1):pose.scaleY)
+            cloud.image.alpha=cloud.opacity
         }
     }
 

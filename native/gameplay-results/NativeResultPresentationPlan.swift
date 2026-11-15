@@ -50,6 +50,23 @@ enum NativeResultPresentationPlan {
             bounceX:bounce.x,bounceY:bounce.y,bounceOffset:bounce.offset,blur:blur)
     }
     static let cleanAfterClearedStart=0.47
+    static let greyStarStart=cleanAfterClearedStart+0.05
+    static let greyStarStagger=0.22
+    static let greyStarDuration=0.50
+    static let greyStarsSettled=greyStarStart+2*greyStarStagger+greyStarDuration
+    static func filledStarStart(index:Int)->Double {greyStarsSettled-0.15+Double(index)*0.30}
+    static func greyStarEntrance(age:Double,reducedMotion:Bool=false)->Pose {
+        let p=bounded(age/greyStarDuration),t=p-1
+        let bounce=p==0 ? 0:p==1 ? 1:1+2.8*t*t*t+1.8*t*t
+        return Pose(opacity:bounded(age/0.12),scale:reducedMotion ? 1:bounce,y:reducedMotion ? 0:10*(1-bounce))
+    }
+    static func emptyStarPose(seconds:Double,index:Int,earned:Int,reducedMotion:Bool=false)->Pose {
+        let age=seconds-(greyStarStart+Double(index)*greyStarStagger)
+        var pose=greyStarEntrance(age:age,reducedMotion:reducedMotion)
+        let replaced=index<earned ? bezier(bounded((seconds-filledStarStart(index:index))/0.2),0.25,0.1,0.25,1):0
+        pose.opacity *= 1-replaced
+        return pose
+    }
     static let failAfterNoMovesStart=0.47
     struct Pose: Equatable {
         var opacity:Double=1,scale:Double=1,y:Double=0,scaleBeforeTranslation=false
@@ -95,7 +112,7 @@ enum NativeResultPresentationPlan {
     static func sample(seconds:Double,clean:Bool,baseScore:Int,combo:Int,efficiency:Int,arcadeReached:Bool=false)->Sample {
         let t=max(0,seconds)
         if !clean {
-            return Sample(hero:enter(t,at:0.12,duration:0.55,y:-25,clean:false,startScale:0.7),title:enter(t,at:0.24,duration:0.55,y:-20,clean:false,startScale:0.75),
+            return Sample(hero:Pose(),title:enter(t,at:0.24,duration:0.55,y:-20,clean:false,startScale:0.75),
                 scoreLabel:Pose(opacity:0),score:Pose(opacity:0),combo:Pose(opacity:0),efficiency:Pose(opacity:0),
                 status:enter(t,at:0.42,duration:0.55,y:-10,clean:false,startScale:0.82),primary:cta(t,at:0.64),secondary:cta(t,at:0.82),
                 displayedScore:baseScore,displayedCombo:0,displayedEfficiency:0)
@@ -105,7 +122,7 @@ enum NativeResultPresentationPlan {
         if !arcadeReached,t>=cleanEfficiencyStart {shown=counter(from:baseScore+combo,to:baseScore+combo+efficiency,age:t-cleanEfficiencyStart,duration:cleanCounterDuration(from:baseScore+combo,to:baseScore+combo+efficiency))}
         var main=enter(t,at:0.42,duration:0.65,y:-10,clean:true)
         if !arcadeReached {main.scale *= pulse(t,at:cleanComboStart,enabled:combo>0)*pulse(t,at:cleanEfficiencyStart,enabled:efficiency>0)}
-        return Sample(hero:enter(t,at:0.1,duration:0.65,y:-25,clean:true),title:enter(t,at:0.22,duration:0.65,y:-20,clean:true),
+        return Sample(hero:Pose(),title:enter(t,at:0.22,duration:0.65,y:-20,clean:true),
             scoreLabel:enter(t,at:0.32,duration:0.65,y:-15,clean:true),score:main,
             combo:arcadeReached ? Pose(opacity:0):bonus(t,at:cleanCountingTime(1.35),hide:cleanCountingTime(3.65)),efficiency:arcadeReached ? Pose(opacity:0):bonus(t,at:cleanEfficiencyReveal,hide:cleanCountingTime(6.1)),
             status:Pose(opacity:bezier(bounded((t-(arcadeReached ? 1.45:cleanCountingTime(6.42)))/0.4),0.25,0.1,0.25,1)),
@@ -114,24 +131,11 @@ enum NativeResultPresentationPlan {
             displayedEfficiency:efficiency-counter(from:0,to:efficiency,age:t-cleanEfficiencyStart,duration:cleanCounterDuration(from:baseScore+combo,to:baseScore+combo+efficiency)))
     }
     static func filledStarScale(seconds:Double,index:Int)->Double {
-        let age=seconds-(0.6+Double(index)*0.5)
+        let age=seconds-filledStarStart(index:index)
         if age<0{return 0}
         if age<1.2 {let p=age/1.2,s=0.4/(2*Double.pi)*asin(1/1.5);return 0.88*(1+1.5*pow(2,-10*p)*sin((p-s)*2*Double.pi/0.4))}
         let p=(age-1.2).truncatingRemainder(dividingBy:2.5)/2.5
         return p<0.5 ? 0.88+0.37*bezier(p*2,0.42,0,0.58,1):1.25-0.37*bezier((p-0.5)*2,0.42,0,0.58,1)
-    }
-    static func emptyStarOpacity(seconds:Double,index:Int,earned:Int)->Double {
-        guard index<earned else{return 1};return 1-bezier(bounded((seconds-(0.6+Double(index)*0.5))/0.2),0.25,0.1,0.25,1)
-    }
-    static func failedStarScale(seconds:Double,index:Int)->Double {
-        let age=seconds-(0.36+Double(index)*0.095)
-        if age<0{return 1}
-        func out(_ p:Double,_ y:Double)->Double{bezier(bounded(p),0.34,y,0.64,1)}
-        let at115=1+0.12*out(0.115/0.15,1.56)
-        let at245=at115+(0.98-at115)*out(0.13/0.19,1.35)
-        if age<0.115{return 1+0.12*out(age/0.15,1.56)}
-        if age<0.245{return at115+(0.98-at115)*out((age-0.115)/0.19,1.35)}
-        return at245+(1-at245)*out((age-0.245)/0.19,1.35)
     }
     static func bezier(_ p:Double,_ x1:Double,_ y1:Double,_ x2:Double,_ y2:Double)->Double {
         let p=bounded(p);if p==0||p==1{return p}

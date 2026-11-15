@@ -18,10 +18,14 @@ enum NativeResultExitPlan {
         if age<0.5 {return Pose(scale:1.22*(1-backIn((age-0.1)/0.4,strength:1.7)))}
         return Pose(opacity:0,scale:0)
     }
-    static func cleanEmptyStar(seconds:Double,index:Int,earned:Int)->Pose {
+    static let greyStarExitSpeed=2.0
+    static func emptyStar(seconds:Double,index:Int,earned:Int,entrySeconds:Double=Double.greatestFiniteMagnitude,reducedMotion:Bool=false)->Pose {
         guard index>=earned else{return Pose(opacity:0,scale:0)}
-        // Exit the complete three-star row right to left on the existing clock.
-        return cleanStar(seconds:seconds,index:index,earned:3,capturedScale:1)
+        let delay=Double(2-index)*NativeResultPresentationPlan.greyStarStagger/greyStarExitSpeed
+        let capturedAge=min(NativeResultPresentationPlan.greyStarDuration,max(0,entrySeconds-(NativeResultPresentationPlan.greyStarStart+Double(index)*NativeResultPresentationPlan.greyStarStagger)))
+        let age=capturedAge-max(0,seconds-delay)*greyStarExitSpeed
+        // Exact reverse of the same grey bounce, in reverse order, at twice speed.
+        return NativeResultPresentationPlan.greyStarEntrance(age:age,reducedMotion:reducedMotion)
     }
     static func clean(seconds:Double,earned:Int,path:CleanPath,clickedPrimary:Bool)->Sample {
         let t=max(0,seconds),starEnd=earned==0 ? 0:0.5+Double(max(0,earned-1))*0.07
@@ -43,7 +47,7 @@ enum NativeResultExitPlan {
     }
     static func failed(seconds:Double,clickedPrimary:Bool)->Sample {
         let t=max(0,seconds),after=t-0.38
-        let hero=popOut(age:after,duration:0.28,y:-8)
+        let hero=Pose()
         let content=[popOut(age:after-0.06,duration:0.28,y:-18),popOut(age:after-0.12,duration:0.28,y:-10)]
         // Collapse interrupts the .24 settle before its endpoint. Retain the
         // actual .20/.24 rendered scale, as GSAP's killed tween does.
@@ -54,7 +58,6 @@ enum NativeResultExitPlan {
             primary:cta(seconds:t,delay:clickedPrimary ? 0:0.07),secondary:cta(seconds:t,delay:clickedPrimary ? 0.07:0),
             content:content,paperOpacity:1-paper,completionSeconds:1)
     }
-    static func failedEmptyStar(seconds:Double,index:Int)->Pose {popOut(age:seconds-0.38-Double(index)*0.035,duration:0.24,y:-4)}
     private static func popOut(age:Double,duration:Double,y:Double)->Pose {
         let p=backIn(bound(age/duration),strength:1.7)
         return Pose(opacity:bound(1-p),scale:1-p,y:y*p)

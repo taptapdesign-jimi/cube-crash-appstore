@@ -60,13 +60,28 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
     func collectionView(_ collectionView:UICollectionView,didEndDisplaying cell:UICollectionViewCell,forItemAt indexPath:IndexPath){(cell as? NativeBackpackCell)?.setAlert(unread:false,active:false)}
     private var embedded=false
     private var modalColumns=2
+    private var modalScrolling=false
+    private(set) var arcadeDice=NativeBackpackCatalog.arcade
     // Corner alerts extend beyond the first row during their authored bounce.
-    func useModalLayout(columns:Int=2){
-        let columns=max(2,min(3,columns)),changed = !embedded || modalColumns != columns
-        embedded=true;modalColumns=columns;header.isHidden=true;grid.isScrollEnabled=false;grid.bounces=false;grid.clipsToBounds=false
+    func useModalLayout(columns:Int=2,scrolling:Bool=false){
+        let columns=max(2,min(3,columns)),changed = !embedded || modalColumns != columns || modalScrolling != scrolling
+        embedded=true;modalColumns=columns;modalScrolling=scrolling;header.isHidden=true;grid.isScrollEnabled=scrolling;grid.bounces=scrolling;grid.clipsToBounds=scrolling
         if changed {grid.collectionViewLayout.invalidateLayout();grid.reloadData();setNeedsLayout()}
     }
     private(set) var sections:[NativeBackpackCatalog.Section]=[]
+    func unlockedVisibleDieView(id:String)->UIView? {
+        for path in grid.indexPathsForVisibleItems {
+            if includesArcade,path.section==0 {
+                if arcadeDice[path.item].id==id {return grid.cellForItem(at:path)}
+                continue
+            }
+            let section=path.section-(includesArcade ? 1:0)
+            guard sections.indices.contains(section),sections[section].dice.indices.contains(path.item),
+                  sections[section].dice[path.item].id==id,sections[section].unlocked.contains(id) else{continue}
+            return grid.cellForItem(at:path)
+        }
+        return nil
+    }
     var firstUnlockedVisibleDieView:UIView? {
         for path in grid.indexPathsForVisibleItems.sorted(by:{$0.section == $1.section ? $0.item<$1.item:$0.section<$1.section}) {
             if includesArcade,path.section==0 {return grid.cellForItem(at:path)}
@@ -128,7 +143,7 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
         close.addTarget(self,action:#selector(closeTapped),for:.touchUpInside)
     }
     required init?(coder:NSCoder){fatalError("Use assets initializer")}
-    func apply(_ sections:[NativeBackpackCatalog.Section],includesArcade:Bool=false) {self.includesArcade=arcadeCrate || includesArcade;self.sections=arcadeCrate ? []:sections;seenUnreadDice.removeAll();grid.setContentOffset(CGPoint(x:0,y:-grid.contentInset.top),animated:false);grid.reloadData();setNeedsLayout();layoutIfNeeded()}
+    func apply(_ sections:[NativeBackpackCatalog.Section],includesArcade:Bool=false,arcadeDice:[NativeBackpackCatalog.Die]?=nil) {self.arcadeDice=arcadeDice ?? NativeBackpackCatalog.arcade;self.includesArcade=arcadeCrate || includesArcade;self.sections=arcadeCrate ? []:sections;seenUnreadDice.removeAll();grid.setContentOffset(CGPoint(x:0,y:-grid.contentInset.top),animated:false);grid.reloadData();setNeedsLayout();layoutIfNeeded()}
     override func layoutSubviews() {
         super.layoutSubviews()
         let row=JimiV9NavigationHeader.RowLayout(bounds:bounds,safeAreaTop:safeAreaInsets.top),height=embedded ? 16:row.headerHeight()
@@ -164,8 +179,8 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
             if layout.minimumInteritemSpacing != gap || layout.minimumLineSpacing != lineGap {
                 layout.minimumInteritemSpacing=gap;layout.minimumLineSpacing=lineGap;layout.invalidateLayout()
             }
-            let columns:CGFloat = !embedded && !arcadeCrate ? 3:2
-            let side=floor((grid.bounds.width-64-(columns-1)*(columns==3 ? 16:20))/columns)
+            let columns:CGFloat = embedded ? CGFloat(modalColumns):3
+            let side=max(1,floor((grid.bounds.width-64-(columns-1)*(columns==3 ? 16:20))/columns))
             if layout.itemSize.width != side {layout.itemSize=CGSize(width:side,height:side);layout.headerReferenceSize=CGSize(width:grid.bounds.width,height:100);layout.invalidateLayout()}
         }
     }
@@ -180,17 +195,18 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
     }
     // The board modal shows one World: keep every row inside its available height.
     private var modalItemSide:CGFloat {
-        let rows=max(1,sections.reduce(0){$0+($1.dice.count+modalColumns-1)/modalColumns}+(includesArcade ? (NativeBackpackCatalog.arcade.count+modalColumns-1)/modalColumns:0))
+        if modalScrolling {return max(1,floor((bounds.width-48-CGFloat(modalColumns-1)*16)/CGFloat(modalColumns)))}
+        let rows=max(1,sections.reduce(0){$0+($1.dice.count+modalColumns-1)/modalColumns}+(includesArcade ? (arcadeDice.count+modalColumns-1)/modalColumns:0))
         let available=max(0,bounds.height-32-CGFloat(rows-1)*16)
-        return max(0,min(floor((bounds.width-48-CGFloat(modalColumns-1)*16)/CGFloat(modalColumns)),floor(available/CGFloat(rows))))
+        return max(1,min(floor((bounds.width-48-CGFloat(modalColumns-1)*16)/CGFloat(modalColumns)),floor(available/CGFloat(rows))))
     }
     func numberOfSections(in collectionView:UICollectionView)->Int {sections.count+(includesArcade ? 1:0)}
-    func collectionView(_ collectionView:UICollectionView,numberOfItemsInSection section:Int)->Int {includesArcade && section==0 ? NativeBackpackCatalog.arcade.count:sections[section-(includesArcade ? 1:0)].dice.count}
+    func collectionView(_ collectionView:UICollectionView,numberOfItemsInSection section:Int)->Int {includesArcade && section==0 ? arcadeDice.count:sections[section-(includesArcade ? 1:0)].dice.count}
     func collectionView(_ collectionView:UICollectionView,cellForItemAt indexPath:IndexPath)->UICollectionViewCell {
         let cell=collectionView.dequeueReusableCell(withReuseIdentifier:"die",for:indexPath) as! NativeBackpackCell
-        let die=includesArcade && indexPath.section==0 ? NativeBackpackCatalog.arcade[indexPath.item]:sections[indexPath.section-(includesArcade ? 1:0)].dice[indexPath.item]
+        let die=includesArcade && indexPath.section==0 ? arcadeDice[indexPath.item]:sections[indexPath.section-(includesArcade ? 1:0)].dice[indexPath.item]
         let unlocked=includesArcade && indexPath.section==0 || sections[indexPath.section-(includesArcade ? 1:0)].unlocked.contains(die.id)
-        let threeColumns = embedded ? modalColumns==3 : !arcadeCrate || NativeTabletLayout.applies(bounds.size)
+        let threeColumns = embedded ? modalColumns==3:true
         let alertOnRight=threeColumns ? indexPath.item%3 != 0:indexPath.item%2==1
         let viewport=window?.bounds.size ?? UIScreen.main.bounds.size
         let projectionScale=embedded ? NativeTabletLayout.modalScale(viewport):1
@@ -200,7 +216,7 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
     }
     func collectionView(_ collectionView:UICollectionView,viewForSupplementaryElementOfKind kind:String,at indexPath:IndexPath)->UICollectionReusableView {
         let header=collectionView.dequeueReusableSupplementaryView(ofKind:kind,withReuseIdentifier:"section",for:indexPath) as! NativeBackpackSectionHeader
-        if arcadeCrate {header.apply(title:"Arcade",detail:nil,count:"\(NativeScoreDisplay.text(NativeBackpackCatalog.arcade.count)) / \(NativeScoreDisplay.text(NativeBackpackCatalog.arcade.count))",assets:assets)}
+        if arcadeCrate {header.apply(title:"Arcade",detail:nil,count:"\(NativeScoreDisplay.text(arcadeDice.count)) / \(NativeScoreDisplay.text(arcadeDice.count))",assets:assets)}
         else if includesArcade && indexPath.section==0 {header.apply(title:"Arcade",detail:"Always ready to play! Unlock more dice in Journey for even more fun.",count:nil,assets:assets)}
         else {let section=sections[indexPath.section-(includesArcade ? 1:0)];header.apply(title:section.title,detail:nil,count:"\(NativeScoreDisplay.text(section.count)) / \(NativeScoreDisplay.text(section.dice.count))",assets:assets)}
         return header
@@ -208,7 +224,7 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
     func collectionView(_ collectionView:UICollectionView,layout collectionViewLayout:UICollectionViewLayout,sizeForItemAt indexPath:IndexPath)->CGSize {
         if embedded {return CGSize(width:modalItemSide,height:modalItemSide)}
         if let metrics=tabletGridMetrics {return CGSize(width:metrics.side,height:metrics.side)}
-        let phoneColumns=arcadeCrate ? 2:3
+        let phoneColumns=3
         let columns=CGFloat(NativeTabletLayout.collectionColumns(bounds.size,crate:arcadeCrate,phoneColumns:phoneColumns))
         let side=floor((grid.bounds.width-(embedded ? 48:64)-(columns-1)*(embedded ? 16:columns==3 ? 16:20))/columns)
         return CGSize(width:side,height:side)
@@ -216,7 +232,7 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
     func collectionView(_ collectionView:UICollectionView,layout collectionViewLayout:UICollectionViewLayout,referenceSizeForHeaderInSection section:Int)->CGSize {CGSize(width:grid.bounds.width,height:embedded ? 0:includesArcade && section==0 && !arcadeCrate ? 156:100)}
     func collectionView(_ collectionView:UICollectionView,didSelectItemAt indexPath:IndexPath) {
         guard isUserInteractionEnabled,!entrySelectionEnabled else{return}
-        let die=includesArcade && indexPath.section==0 ? NativeBackpackCatalog.arcade[indexPath.item]:sections[indexPath.section-(includesArcade ? 1:0)].dice[indexPath.item]
+        let die=includesArcade && indexPath.section==0 ? arcadeDice[indexPath.item]:sections[indexPath.section-(includesArcade ? 1:0)].dice[indexPath.item]
         guard (includesArcade && indexPath.section==0) || sections[indexPath.section-(includesArcade ? 1:0)].unlocked.contains(die.id) else{return}
         (collectionView.cellForItem(at:indexPath) as? NativeBackpackCell)?.playSelectionFeedback()
         onDie?(die)
@@ -241,7 +257,7 @@ final class NativeBackpackView:UIView,UICollectionViewDataSource,UICollectionVie
             }
             guard visible,painted.bounds.contains(painted.convert(point,from:windowLayer)),let index=grid.indexPath(for:cell) else{continue}
             let die:NativeBackpackCatalog.Die
-            if includesArcade,index.section==0 {die=NativeBackpackCatalog.arcade[index.item]}
+            if includesArcade,index.section==0 {die=arcadeDice[index.item]}
             else {
                 let section=sections[index.section-(includesArcade ? 1:0)]
                 let selected=section.dice[index.item]

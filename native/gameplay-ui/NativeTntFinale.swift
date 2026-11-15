@@ -31,6 +31,18 @@ final class NativeTntFinale: SKNode, NativeSourceAnimationParticipant {
         let frames:[FrameRecipe]
         let dice:[DiePlan]
     }
+    /// Match Barrel's density-aware UIKit artwork even when Source has already
+    /// cached the distinct base PNG. Base and Retina smoke are not identical art.
+    private static func smokeAsset(textures:NativeBoardTextures,index:Int,canonical:Bool)->(String,SKTexture,CGSize)? {
+        let base="assets/shop/explosion pack/animation/tnt\(index+1)"
+        let candidates=canonical ? [base+"@2x.png",base+".png"]:[base+".png"]
+        for path in candidates {
+            guard let texture=textures.texture(path,densityAware:!canonical),
+                  let size=textures.logicalSize(path) else{continue}
+            return (path,texture,size)
+        }
+        return nil
+    }
     /// Actual resources precede entropy; UIKit glyphs then authored dice plans
     /// then per-frame initial draws. Later bounce/exit draws stay with callbacks.
     static func captureSourceConstruction(textures:NativeBoardTextures,current:()->Bool,
@@ -39,8 +51,7 @@ final class NativeTntFinale: SKNode, NativeSourceAnimationParticipant {
         var retained:[(Int,NativeBoardTextures.SourceTextureHandle,CGSize)]=[]
         for index in 0..<12 {
             guard current() else{return nil}
-            let path="assets/shop/explosion pack/animation/tnt\(index+1).png"
-            guard textures.texture(path) != nil,current(),let logical=textures.logicalSize(path),
+            guard let (path,_,logical)=smokeAsset(textures:textures,index:index,canonical:true),current(),
                   let handle=textures.captureSourceCachedTextureHandle(path:path),
                   textures.isSourceTextureHandleCurrent(handle),current() else{return nil}
             retained.append((index,handle,logical))
@@ -130,8 +141,7 @@ final class NativeTntFinale: SKNode, NativeSourceAnimationParticipant {
                 frames.append(.init(sprite:sprite,index:recipe.index,size:CGFloat(recipe.scale)*smokePresentationScale,bounceSize:nil,bounceY:nil))
             }
         } else {for index in 0..<12 {
-            let path = "assets/shop/explosion pack/animation/tnt\(index+1).png"
-            guard let texture = textures.texture(path), let size = textures.logicalSize(path) else { continue }
+            guard let (_,texture,size)=Self.smokeAsset(textures:textures,index:index,canonical:usesCanonicalSmokeSize) else{continue}
             let sprite = SKSpriteNode(texture: texture)
             sprite.size = smokeSize(size,texture); sprite.position = CGPoint(x:center.x,y:center.y+self.smokeVerticalOffset); sprite.zPosition = CGFloat(index)
             sprite.zRotation = -(random()-0.5)*20 * .pi/180

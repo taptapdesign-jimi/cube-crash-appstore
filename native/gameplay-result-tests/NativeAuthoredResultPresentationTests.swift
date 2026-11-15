@@ -62,12 +62,15 @@ final class NativeAuthoredResultPresentationTests:XCTestCase {
         XCTAssertEqual(NativeResultPresentationPlan.counterDuration(from:0,to:1200),1.5)
         XCTAssertEqual(NativeResultPresentationPlan.counter(from:0,to:1000,age:0.75),875)
         let initial=NativeResultPresentationPlan.sample(seconds:0,clean:true,baseScore:1000,combo:225,efficiency:500)
-        XCTAssertEqual(initial.hero.scale,0);XCTAssertEqual(initial.displayedScore,0);XCTAssertEqual(initial.primary.y,18)
+        // Both star rows stay neutral; each grey star owns its individual bounce.
+        XCTAssertEqual(initial.hero.scale,1)
+        XCTAssertEqual(NativeResultPresentationPlan.emptyStarPose(seconds:0,index:0,earned:3).opacity,0)
+        XCTAssertEqual(initial.displayedScore,0);XCTAssertEqual(initial.primary.y,18)
         let complete=NativeResultPresentationPlan.sample(seconds:8,clean:true,baseScore:1000,combo:225,efficiency:500)
         XCTAssertEqual(complete.displayedScore,1725);XCTAssertEqual(complete.combo.opacity,0);XCTAssertEqual(complete.efficiency.opacity,0)
         XCTAssertEqual(complete.status.opacity,1);XCTAssertEqual(complete.displayedCombo,0);XCTAssertEqual(complete.primary.scale,1)
         let failed=NativeResultPresentationPlan.sample(seconds:0,clean:false,baseScore:10,combo:0,efficiency:0)
-        XCTAssertEqual(failed.hero.scale,0.7);XCTAssertEqual(failed.title.scale,0.75);XCTAssertEqual(failed.status.scale,0.82)
+        XCTAssertEqual(failed.hero.scale,1);XCTAssertEqual(failed.title.scale,0.75);XCTAssertEqual(failed.status.scale,0.82)
         XCTAssertEqual(Set(NativeResultHeadlines.clean).count,110);XCTAssertEqual(NativeResultHeadlines.fail.count,94)
     }
     func testAuthoredExitKeepsStarsUncompoundedAndClickedCtaFirst() {
@@ -82,7 +85,8 @@ final class NativeAuthoredResultPresentationTests:XCTestCase {
         let done=NativeResultExitPlan.clean(seconds:1,earned:3,path:.journeyReturn,clickedPrimary:false)
         XCTAssertEqual(done.paperOpacity,0);XCTAssertEqual(done.card.opacity,0)
         let fail=NativeResultExitPlan.failed(seconds:1,clickedPrimary:true)
-        XCTAssertEqual(fail.paperOpacity,0);XCTAssertEqual(fail.card.opacity,0);XCTAssertEqual(fail.hero.scale,0)
+        XCTAssertEqual(fail.paperOpacity,0);XCTAssertEqual(fail.card.opacity,0);XCTAssertEqual(fail.hero.scale,1)
+        XCTAssertEqual(NativeResultExitPlan.emptyStar(seconds:1,index:0,earned:0).opacity,0)
         XCTAssertEqual(fail.completionSeconds,1)
     }
     private final class Resources:NativeResultConfettiResources {

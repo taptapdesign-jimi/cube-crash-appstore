@@ -4,6 +4,44 @@ import StackToSixGameplay
 @testable import StackToSixNativeState
 
 final class NativeStateTests: XCTestCase {
+    func testArcadeScoreRoundsArePerResultAndLegacyCompatible() throws {
+        let old=try JSONDecoder().decode(NativeJourneyStatPoint.self,from:Data("{\"value\":123,\"date\":42}".utf8))
+        XCTAssertNil(old.roundsWon)
+        for variant in NativeArcadeVariant.allCases {
+            var state=NativeProgressionState()
+            state.finishAttempt(mode:.arcade,board:7,score:900,longestCombo:2,cubesCracked:0,clean:true,arcadeVariant:variant,now:10)
+            state.finishAttempt(mode:.arcade,board:4,score:800,longestCombo:2,cubesCracked:0,clean:false,arcadeVariant:variant,now:20)
+            let stats=state.arcadeStats(for:variant)
+            XCTAssertEqual(stats.scoreHistory?.map(\.roundsWon),[7,3])
+            let restored=try JSONDecoder().decode(NativeProgressionState.self,from:JSONEncoder().encode(state))
+            XCTAssertEqual(restored.arcadeStats(for:variant).scoreHistory,stats.scoreHistory)
+            XCTAssertEqual(restored.arcadeStats(for:variant).highScore,900)
+        }
+    }
+
+    func testTutorialFarewellPendingRoundTripsWithoutReopeningLegacyCompletedTutorials()throws {
+        var progression=NativeProgressionState()
+        progression.firstPlayTutorialComplete=true
+        progression.tutorialFarewellPending=true
+        let encoded=try JSONEncoder().encode(progression)
+        XCTAssertTrue(try JSONDecoder().decode(NativeProgressionState.self,from:encoded).tutorialFarewellPending)
+        var legacy=try XCTUnwrap(JSONSerialization.jsonObject(with:encoded) as? [String:Any])
+        legacy.removeValue(forKey:"tutorialFarewellPending")
+        let decoded=try JSONDecoder().decode(NativeProgressionState.self,from:JSONSerialization.data(withJSONObject:legacy))
+        XCTAssertTrue(decoded.firstPlayTutorialComplete)
+        XCTAssertFalse(decoded.tutorialFarewellPending)
+        var neverEnqueued=decoded
+        neverEnqueued.enqueueTutorialFarewell()
+        XCTAssertTrue(neverEnqueued.tutorialFarewellPending)
+        neverEnqueued.resetTutorialFarewell()
+        XCTAssertFalse(neverEnqueued.tutorialFarewellPending)
+        neverEnqueued.enqueueTutorialFarewell()
+        XCTAssertTrue(neverEnqueued.tutorialFarewellPending)
+        progression.tutorialFarewellPending=false
+        progression.enqueueTutorialFarewell()
+        XCTAssertFalse(try JSONDecoder().decode(NativeProgressionState.self,from:JSONEncoder().encode(progression)).tutorialFarewellPending)
+    }
+
     func testJourneyResultHistoryRetainsTopTenDatesAndRestoresLegacyBest()throws {
         var p=NativeProgressionState(),legacy=NativeBoardStats();legacy.highScore=900;legacy.longestCombo=20
         p.boardStats[1]=legacy

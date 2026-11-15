@@ -1,3 +1,4308 @@
+## 2026-11-15 · Current installed Native update prepared for Git publication
+
+User requests saving this update online. Publication includes all currently
+saved tracked application/source/test/documentation changes and new runtime
+assets,Native sources/tests,audio manifests and preparation scripts required
+by the complete installed app. Includes phone TNT down3% and Home logo/shards
+up8/844,plus pending tutorial,progressive Arcade Box,story,text,audio and
+celebration fixes. Local untracked game design/output concepts and unrelated
+output/pdf documents remain outside this publication.
+
+Validation reused from this task:fast/full530suites4011tests,KING330,iOS,
+signed Release compiled asset/dependency audit,physical install and launch,
+both canonical saves preserved. No implementation change after those checks.
+Git staged diff hygiene checked before commit;origin/main verified before push.
+Physical visual/audio/thermal acceptance remains NEEDS PHYSICAL TEST.
+
+## 2026-11-15 · Current Native Release installed on iPhone 13 blue
+
+Explicit user install request after phone TNT down3% and Home logo/shards
+up8/844 viewport height. Normal complete-tree signed Release BUILD SUCCEEDED
+using /tmp/native-phone-20261113-derived. 892Native input hashes stable through
+build. qa:ios,strict/deep codesign and compiled Native assets/dependency audit
+PASS;correct com.taptapdesign.stacktosix.native. Reuses immediately preceding
+fast/full530suites4011tests/KING330 checks;no new implementation changes.
+
+Install-over to physical0F62B71E succeeded;normal no-argument launchPID23966
+verified in device process list,installationB894EAED-E1F3-4000-A67F-F3EB00184A0B.
+Both canonical save slots byte-identical preinstall→postinstall→postlaunch.
+Evidence:/tmp/phone-offsets-physical/,including backups and receipt.json;
+logs:/tmp/phone-offsets-physical-{build,ios,audit,install,launch}.log.
+No uninstall/reset,physical audio-setting change,PWA/legacy action.
+Delivery PASS;physical visual/gameplay/audio/thermal acceptance remains
+NEEDS PHYSICAL TEST. No user playtest claimed.
+
+## 2026-11-15 · Phone TNT sprite and Home logo positions
+
+Phone-only layout request: core TNT smoke sprites move down an additional3%
+of viewport height through existing tntSmokeVerticalOffset; iPad lift stays.
+Home whole logo/shard carrier moves up height*(8/844), approximately0.948%
+of viewport height (8pt at390x844). Existing hero/CTA geometry and motion stay.
+No asset,gameplay,audio,save or lifecycle changes.
+
+Fast QA,iOS audit,diff-check and complete-tree normal Debug build PASS.
+Full QA PASS:530suites/4011tests;KING330. Ignored dist rebuilt with
+SKIP_NATIVE_BUNDLE_SYNC=true;no PWA bundle sync.
+Build:/tmp/phone-art-offsets-build.log;QA:/tmp/phone-art-offsets-{fast,full,ios}.log.
+Verified built com.taptapdesign.stacktosix.native;install-over and normal launch
+PID84907 on retained1018Simulator succeeded. CUA observed Home logo/shards,
+actual iOS SBRingerMuted=true and toolbarMuteOn. Both canonical save slots
+byte-identical before install and after launch despite data-container rotation.
+Backup:/tmp/phone-art-offsets-delivery/canonical-before. No uninstall/reset,
+physical installation,PWA or legacy operation. Visual feel NEEDS PHYSICAL TEST.
+
+## 2026-11-15 · Arcade Round NN duplicate celebration fixed and delivered to Simulator
+
+User explicitly requested audio agents. Two independent source audits found
+prepared ordinary Arcade admission called NativeResultController.paint despite
+the separate Round NN owner. Hidden Clean Board emitted clean-applause and
+clean-sax(same authored files as initial arcade-victory),other result moments
+and another commit. This explains why prior startArcadeCelebration breakpoint
+missed the audible replay;the user's two-start report was correct.
+
+paint now rejects arcadeCue,matching existing tick/viewDidLoad/close separation.
+No audio assets/gains/timing/transport/save schema changes. Journey,Arcade
+tutorial Clean Board and reached-run summary retain their existing audio.
+New mounted regression tests prepared admission through completed Round NN for
+all3Arcade variants,no hidden Clean Board cues,one commit,both digit cues and
+one automatic continuation. FAIL-before:15assertions proving duplicate sax,
+applause and commit;/tmp/arcade-celebration-fix-before.log. Independent review
+found no high/medium issue. Fast,iOS,KING330 PASS. Audio owner policy updated;
+retained Simulator canonical saves backed
+up to /tmp/arcade-celebration-fix-backup/canonical. Physical app remains prior
+Release;no phone install authorized by this task.
+
+Post-fix ordinary regression,actual Source tutorial Clean Board/farewell,
+ordinary clear callback,celebration tail continuity and hard stops PASS. Existing
+Journey quiet/admission test initially failed only immediate weak release,
+also in isolation;explicit autoreleasepool now drains UIKit before the SAME
+weak nil assertion. No wait/assertion removal/production lifetime workaround.
+Agent reviewed fixture PASS;final two-test run2/0 PASS. Earlier4affected tests
+PASS. Logs:/tmp/arcade-celebration-fix-{before,native,journey-isolated,native-final}.
+Fast,full530suites/4011tests,KING330,audio-runtime,iOS,diff-check PASS;logs share
+/tmp/arcade-celebration-fix- prefix. Full QA regenerated ignored dist with
+SKIP_NATIVE_BUNDLE_SYNC=true;no PWA bundle sync.
+
+Normal complete-tree Debug BUILD SUCCEEDED using /tmp/story-fact-normal-derived.
+Verified .native,no Web.bundle/PlugIns;install-over retained1018Simulator and
+normal launchPID82321. Built/installed launcher and debug dylib hashes match;
+both canonical save slots byte-identical immediately before/install/launch.
+Receipt and exact preinstall copies:/tmp/arcade-celebration-fix-delivery.
+Final CUA observed normal app intro,then live Round02;actualSilentMode0 and
+toolbarMuteOff,no game preference change by this agent. No uninstall/reset,
+manual save edit,physical/PWA/legacy operation. Earlier canonical backup differs
+from preinstall snapshot;do not claim whole-session byte identity while user
+continues playing. Deterministic fix PASS;final audible user/physical acceptance
+NEEDS PHYSICAL TEST.
+
+## 2026-11-15 · Complete current Native Release delivered to iPhone 13 blue
+
+User explicitly requests installing all current work on physical phone.
+Verified paired/wired iPhone13blue0F62B71E-0B04-53C3-906E-EC28F5D2390B.
+Current source equals validated Simulator Swift inputs;no implementation changes.
+Signed normal Release BUILD SUCCEEDED using /tmp/native-phone-20261113-derived;
+892Native build-input hashes stable before build through final launch. qa:ios,
+strict/deep codesign and compiled Native original-assets/dependency audit PASS.
+Correct .native identity,no Web.bundle/PlugIns. Reuses immediately preceding
+full530suites/4011tests,KING330 and Native Juice14/render-host14 passing checks.
+
+Backed up both physical canonical saves before build and immediately preinstall.
+Install-over succeeded to19FBE178-5B11-40C2-BA88-6EAC8EC1F1D5;normal no-argument
+launchPID23889 verified in actual current process list/executable path. Both
+state-v1.json and state-v1.previous.json byte-identical preinstall→postinstall→
+postlaunch. Phone progress NOT reset;prior fresh-start request applied only to
+Simulator. No uninstall,PWA/legacy/reset or physical audio-settings change.
+Evidence:/tmp/native-phone-20261115-{build,audit,signature,ios,install,launch}.log,
+JSON receipts,inputs/process list and before/preinstall/postinstall/postlaunch
+save directories;final /tmp/native-phone-20261115-receipt.json.
+Delivery PASS;physical gameplay/touch/audio/thermal and exact rapid-tutorial
+incident acceptance remain NEEDS PHYSICAL TEST. No user playtest claimed.
+
+## 2026-11-15 · Arcade celebration duplicate live capture, diagnosis open
+
+User clarification after capture: sax/applause start with thumbs-up CLEARED,
+then audibly restart with Round completed/new-round presentation. Do not reject
+this report from the single observed semantic start in the second trace.
+Historical Git audit:before a851bb26(v16,2026-10-25),ResultOwner started
+arcade-victory at the opening clear/thumb celebration,BEFORE Round NN.
+a851bb26 moved that bed to live-board onRoundWon and made the successor
+continuationOnly to suppress another start. Production ready v1(052050d2,
+2026-11-08) preserves that policy. Intended historical timing:once at
+thumb/CLEARED,continue through Round NN,never restart at Round NN.
+
+User reports celebration starts twice on Cleared round and plays retained Native
+iPhone Simulator while captured. KRENI approximately00:43:55 CET;GOTOVO
+approximately00:44:32 CET. Exact subsequent marker: "evo 2 puta se pokrenuo
+celebration zvuk". Capture directory:/tmp/stack-celebration-capture-20261115,
+simulator.mov and runtime.log;PID68780,actual SilentMode0. Video has no audio;
+CoreAudio trace lacks semantic cue/source names,so duplicate is user-observed,
+not independently counted. Observed Endurance02 -> Endurance03.
+
+Read-only source audit finds Bootstrap onRoundWon arcade-victory and ResultOwner
+celebrationStarted arcade-victory;the latter is normally suppressed by
+continuationOnly=hasPresentedBoardCleared. Two sites alone do not prove cause.
+Post-capture LLDB attempt exited process(status0) on continue;cause unproven.
+Restored normal app launchPID72448,SilentMode0. No source/audio asset change,
+build/install/reset/manual save edit,physical/PWA/legacy action. Await another
+focused semantic trace before choosing a fix. QA:NEEDS PHYSICAL TEST;
+duplicate-start diagnosis unresolved,not PASS. Session notes beside capture.
+
+User authorized second pass. Targeted LLDB source breakpoint at actual
+startArcadeCelebration entry auto-continued and captured exactly ONE call:
+00:48:10.063811 CET,generation4,receipt292,from Bootstrap onRoundWon via
+presentBoardCleared thumbWhoosh. No second ResultOwner celebration start was
+recorded. Second GOTOVO approximately00:48:24 CET;second-pass.mov and
+semantic-trace.log preserved beside first capture. One package contains the
+authored victory sax plus applause;this is not proof of two package starts.
+User's original audible symptom remains unresolved;no speculative fix applied.
+Debugger ended after capture;PID72448 remains normally running. Final CUA
+observed Endurance04,score18104;toolbarMuteOn and actualSilentMode1 were
+already present after user play(no mute action by this agent). No further
+launch/install/build or game preference/save edits.
+
+## 2026-11-15 · User-requested iPhone Simulator fresh start
+
+Explicit reset applies only retained1018 iPhone Simulator Native profile.
+Terminated .native,backed up both canonical save slots to /tmp/native-iphone-fresh-start-20261115-003924,
+removed only those two active saves,normal launchPID68780. Fresh primary verified:
+firstPlayTutorialComplete=false,no firstPlayRun/Journey/Arcade runs or completed
+boards;previous slot absent(no old recovery). Installed current bubble-protection
+build retained;no build/uninstall/device erase or physical/PWA/legacy change.
+CUA observed normal fresh Home,Journey CTA and actual Silent Mode On banner.
+Receipt/backup in directory above. User can start tutorial with Journey.
+
+## 2026-11-15 · Tutorial Juice frozen bubble protection across all Native worlds
+
+User reports pink bubble stranded bottom-left after fast tutorial gameplay;
+explicitly requests agents. CUA observed bubble static while other gameplay
+animation continued on retained iPhone Simulator. Captured canonical saves and
+last30min console under /tmp/tutorial-bubble-incident*; save proves Journey11,
+Juice reward,guideCompleted/acknowledged lessons,active=false,moves35,score802.
+Bubble disappeared after debugger detach/resume before live SK tree could be
+resolved;Swift debugger import failed with PCM cache-path mismatch. Exact
+original interruption/race remains UNPROVEN;no physical KRENI/GOTOVO session.
+
+NativeJuiceFinale now revalidates disposal after every external callback and
+clears callback ownership before terminal delivery. Existing NativeBoardScene
+update reconciles finite Juice tails:missing action retires immediately;stalled
+field retires after5.9effective active seconds. No new timer/playhead;first delta
+cannot consume pre-birth time,paused ancestors/zero-speed excluded,ancestor and
+action rates respected. Cleanup releases existing source/visual receipts once.
+Shared owner applies across all Journey worlds and Arcade,tutorial or ordinary
+play;other effect families,gameplay/assets/authored normal duration unchanged.
+Two agents provided diagnosis/implementation and independent final review PASS.
+
+qa:fast,qa:full(530suites/4011tests),KING330,qa:ios,diff-check PASS. Logs:
+/tmp/tutorial-bubble-{fast,full,king,ios}.log. Initial normal scheme test attempt
+rejected(no test action);QA scheme initial28tests had6assertions failing only
+new renderer fixture(update lacked render pass). Corrected fixture to actual
+Metal update/encode/completion;final Juice14/0 PASS,including production Scene
+hook,callback retirement,speeds,birth timing and automatic pause/resume. Other
+14render-host tests passed initial runner. Test logs:/tmp/tutorial-bubble-
+native-tests-{qa,final}.log. No production change to hide fixture failure.
+
+Normal complete-tree Debug BUILD SUCCEEDED:/tmp/tutorial-bubble-preview-build.log.
+Verified .native,no Web.bundle/PlugIns,stable Swift inputs and installed launcher/
+debug dylib hashes. Install-over retained1018Simulator,normal launchPID68043;
+receipt:/tmp/tutorial-bubble-incident/delivery.json. Both saves byte-identical
+through install/immediate launch. Later normal autosave changed primary savedAt
+only and rotated previous to captured primary;canonical gameplay unchanged,
+original two slots backed up. CUA observed normal Home with pending You’re ready!
+farewell and actual Silent Mode On banner;left High five! for user. No reset,
+uninstall,physical phone,PWA/legacy operation. Full QA regenerated ignored dist
+with SKIP_NATIVE_BUNDLE_SYNC=true. Actual rapid tutorial replay and physical
+acceptance remain open:NEEDS PHYSICAL TEST;do not claim exact incident reproduced.
+
+## 2026-11-15 · iPhone TNT smoke down5percent from preceding position
+
+User asks5percent downward after accepting Barrel-matched phone scale.
+Removed the phone-only+0.05*screenHeight lift from tntSmokeVerticalOffset:
+phone returns0,so smoke shifts down42.2pt on390x844. Retained internal24pt
+offset,phone Barrel-matched size,iPad size/position,glyphs,debris,timing,
+variants,archetype,assets and saves. Only helper/comment changed;no new owner.
+
+qa:fast,qa:ios,diff-check PASS;normal complete-tree Debug BUILD SUCCEEDED.
+Correct .native bundle,no Web.bundle/PlugIns;install-over retained iPhone
+Simulator and normal launchPID60947. Built/installed executable/debug dylib
+match,both canonical saves unchanged:/tmp/iphone-tnt-down5-delivery/receipt.json.
+CUA observed normal iPhone Home;actual SilentMode=1. No TNT replay/position
+approval claimed. No iPad operation,physical/PWA/legacy/reset/uninstall or
+audio-settings change. Logs:/tmp/iphone-tnt-down5-{fast,full,ios,build}.log.
+Full QA PASS:530suites/4011tests,KING330 and all selected gates. Ignored
+dist regenerated with SKIP_NATIVE_BUNDLE_SYNC=true,no PWA sync.
+Visual/physical position acceptance stays open.
+
+## 2026-11-15 · iPhone TNT now matches actual phone Barrel smoke scale
+
+User replaces prior phone-to-iPad width mapping with explicit same-scale-as-
+Barrel requirement. NativeTabletLayout.smokeSpriteBoost now uses baseline0.70
+on phone,matching existing phone Barrel. Removed phoneWidth/820 mapping;
+390pt TNT grows1.471795relative to immediately preceding candidate. iPad
+projection compensation and accepted size remain identical. Phone5percent
+upward offset remains;Barrel itself,other variants,glyphs,debris,clocks,assets,
+archetype/gameplay and saves unchanged.
+
+Existing mounted-root regression now compares actual Barrel same-device
+screen dimensions on320/390/430phones and820tablet,Source/Raw,all12frames,
+five times;both selected Native tests PASS2/0. qa:fast,qa:full(530suites/
+4011tests;KING330),qa:ios,diff-check PASS. Logs:/tmp/iphone-tnt-barrel-
+{fast,full,ios,tests,build}.log. Complete-tree normal Debug BUILD SUCCEEDED;
+correct .native bundle,no Web.bundle/PlugIns;installed over retained iPhone
+Simulator,normal launchPID57522. Built/installed runtime match,both canonical
+saves preserved through install/launch and BOTH subsequent isolated DEV
+replays:/tmp/iphone-tnt-barrel-delivery/receipt.json;backups same directory.
+Actual SilentMode=1. No iPad operation,physical/PWA/legacy/reset/uninstall.
+Ignored dist built with SKIP_NATIVE_BUNDLE_SYNC=true,no preserved PWA sync.
+
+Replayed actual normal Settings→DEV→End Game→Tnt and separately barell,
+same5→Special drag. CUA inspected both broad smoke presentations at entry;
+recordings:/tmp/iphone-tnt-barrel-delivery/{tnt,barrel}.mov. RNG/phase differ,
+so no pixel-identical live silhouettes claimed;controlled test proves shared
+scale/distribution. Normal app left running after Barrel DEV finale/result.
+Final user aesthetic/physical-device acceptance remains open.
+
+## 2026-11-15 · iPhone TNT fits approved iPad footprint and moves up5percent
+
+User clarifies iPhone requires size matching accepted iPad plus5percent lift.
+Captured actual retained iPhone DEV End Game→Tnt before edit:smoke fills phone
+viewport. NativeTabletLayout now maps only phone TNT smoke to the same width
+relative to the accepted820pt iPad:baseline*phoneWidth/820,replacing old0.70.
+On390pt phone this is0.679443of prior smoke dimensions(~32percent smaller).
+Phone smoke vertical offset now adds0.05*screenHeight(42.2pt at844pt) upward;
+existing24pt internal drop remains. iPad size/last10percent lift preserved,
+including non-phone fallback sizes;Barrel/other variants,glyphs,debris,clocks,
+resources,archetype/gameplay and asset bytes unchanged.
+
+Existing mounted-root comparison now checks screen-space footprint relative
+to tablet on320/390/430phone widths plus820tablet,Source and Raw constructors,
+five animation times/all12layers. Focused Native2/0PASS;qa:fast,qa:full
+(530suites/4011tests,KING330),qa:ios,diff-check PASS. Logs:/tmp/iphone-tnt-fit/
+{fast,full,ios,tests,build}.log. Normal complete-tree Debug BUILD SUCCEEDED;
+correct .native bundle,no Web.bundle/PlugIns;install-over retained iPhone
+Simulator,normal launchPID54184. Installed executable/debug dylib match and
+both canonical saves unchanged;receipt/backups:/tmp/iphone-tnt-fit/delivery/.
+Actual final SBRingerMuted=1. No iPad operation/reinstall,physical/PWA/legacy,
+reset/uninstall or game audio-settings change. Ignored dist built without sync.
+
+Replayed same actual DEV End Game→Tnt on normal installed app via5→TNT drag;
+CUA observed visibly smaller,raised cloud composition. Recorded before.mov/
+after.mov under/tmp/iphone-tnt-fit/. Different RNG/phase prevents pixel-exact
+video percentage claim;deterministic matched-RNG footprint checks provide size
+ratio evidence. Normal app remains running after isolated DEV finale/result.
+Final aesthetic user approval/physical-device acceptance stays open.
+
+## 2026-11-15 · iPad TNT smoke up10percent screen height
+
+User requests only TNT higher by10percent on iPad after size correction.
+NativeTabletLayout.tntSmokeVerticalOffset removes its former10percent-height
+drop and retains the20pt lift;SpriteKit positiveY and existing projection
+therefore move every original TNT smoke frame up0.10*screenHeight. All three
+core finale call sites already use this helper. On820x1180 shift is118pt;
+768x1024=102.4pt,1024x1366=136.6pt;phone delta0. Size,glyphs,debris,timing,
+Barrel/other variants,archetypes/assets/saves unchanged. No new runtime owner.
+
+qa:fast,qa:ios,diff-check PASS;normal complete-tree Debug BUILD SUCCEEDED.
+Installed over retained iPhone/iPad Simulator apps,normal launchPID48768/48834;
+correct .native app,no Web.bundle/PlugIns,installed executable/debug dylib match,
+canonical primary/previous saves unchanged:/tmp/ipad-tnt-up10-delivery/receipt.json.
+CUA observed normal iPad Home;no TNT replay/visual approval claimed. iPad
+SilentMode remains0 despite attempted ControlCenter gesture;phone already1.
+No game audio settings,physical phone,PWA/legacy or reset/uninstall operation.
+Logs:/tmp/ipad-tnt-up10-{fast,full,ios,build}.log. Full QA PASS:
+530suites/4011tests,KING330 and all selected deterministic gates. Ignored
+dist regenerated with SKIP_NATIVE_BUNDLE_SYNC=true;no PWA sync.
+Visual/physical position acceptance remains open.
+
+## 2026-11-15 · Live iPad TNT projection mismatch corrected and re-recorded
+
+After user's14Nov23:51KRENI/GOTOVO capture,actual single-delivery diagnostics
+proved Barrel owner transform identity during Source shake,versus core TNT
+parent820/390=2.102564. Both use390x334 logical smoke artwork. Preserve the
+accepted unprojected Barrel;divide only core TNT smokeSpriteBoost by the
+existing animationScale. On phone this divisor is1. Core TNT title/debris/
+positions/timings/archetype and all other variant owners remain unchanged.
+Temporary DEBUG diagnostic code fully removed. Existing smoke regression
+now mounts TNT beneath the real iPad projection and compares converted screen
+lengths against Barrel unit-scale smoke,for Source and Raw construction paths.
+The old isolated local-size comparison missed this live transform difference.
+
+PASS26Native tests(22shared smoke+4Source construction),0failures;qa:fast,
+qa:full(530suites/4011tests,KING330),qa:ios,diff-check. Initial test attempts
+corrected normal scheme lacking test action and CGPoint.zero ambiguity;final
+QA scheme passed:/tmp/ipad-tnt-projection-tests.log. All final logs use
+/tmp/ipad-tnt-projection-{fast,full,ios,tests,build}.log. Normal complete-tree
+Debug BUILD SUCCEEDED. Correct .native app,no Web.bundle/PlugIns;installed
+over both retained iPhone/iPad apps;normal launchPID43975/44064;installed
+executable/debug dylib match,primary/previous saves unchanged. Receipts and
+backups:/tmp/ipad-tnt-projection-delivery/. No reset/uninstall or physical/
+PWA/legacy operation. Ignored dist built with SKIP_NATIVE_BUNDLE_SYNC=true.
+
+Replayed actual iPad Settings→DEV→End Game→Tnt,dragged5ontoTNT and recorded
+/tmp/ipad-tnt-huge-capture/fixed.mov. Quarter-second frames and contact sheets
+fixed-contact.jpg and diagnostic-contact.jpg inspected against prior replay.
+Corrected smoke is visibly smaller and no longer fills full viewport height;
+it still has broad authored entry/idle clouds. Different RNG/times mean no
+pixel-exact video percentage/parity claim. Deterministic same-RNG screen-size
+comparison PASS;user final size approval/physical acceptance remains open.
+Normal app left running after isolated DEV result. Actual iPad Silent Mode
+was0;no Sounds/Music or macOS output preference changes. No audible acceptance.
+
+## 2026-11-14 · Actual iPad TNT remains oversized after reinstall
+
+User explicitly requests screen capture;KRENI23:51:05CET,GOTOVO23:51:39CET.
+Same existing NativePID37219 throughout capture,no restart/install until GOTOVO.
+Buffered console read before stopping both streams. Evidence:
+/tmp/ipad-tnt-huge-capture/{ipad.mov,console.log,contact.jpg,markers.txt}.
+Inspected contact sheet:Barrel around4s is compact,TNT27–28s fills viewport.
+Runtime visual parity FAIL;reinstall was not a fix. Additional DEBUG-only
+single-delivery TNT_SIZE_TRACE records live sprite/ancestor scales;normal
+build installed on iPad with canonical saves preserved,PID39302 then40726.
+First actual DEV End Game drag yielded source=true,scene820x1180,parent
+projection2.102564;trace/diagnostic video in same evidence directory.
+Confirmed actual Barrel at23:56:58CET uses390x334 image/bounds and owner
+transform identity after source screen-shake capture. Core TNT at23:54:57
+retains parent scale820/390=2.102564. Both smoke resources are390x334;this
+is a transform-chain mismatch,not stale install or texture-density diagnosis.
+NativeGameplayViewController.captureSourceScreenOverlayShake intentionally
+omits Barrel from preservesProjection. Preserve approved Barrel. Fix divides
+only core TNT smokeSpriteBoost by animationScale(size);phone factor1 remains.
+Dice/glyph/root placement/timing and variants retain existing transforms.
+Temporary DEBUG trace code removed after diagnosis. Extended existing root
+regression to mount TNT under actual tablet projection and compare converted
+screen lengths to Barrel's unit-scale carrier. Native/full QA now running.
+No physical/PWA/legacy operation. This investigation is still active.
+
+## 2026-11-14 · User-requested iPad restart and latest build reinstall
+
+User still reports huge TNT and asks to restart/reinstall iPad. Built latest
+complete working tree with normal Debug scheme after qa:ios PASS. Log:
+/tmp/ipad-tnt-reinstall-build.log;BUILD SUCCEEDED. Restarted only iPad(A16)
+43A75086-0C64-464C-B71C-FDD01AF59C32 via shutdown/boot,installed over existing
+.native app and launched normallyPID37219. Verified built/installed executable
+and debug dylib hashes match;canonical primary/previous saves byte-identical.
+Receipt/backups:/tmp/ipad-tnt-reinstall-delivery/. CUA observed normal Native
+Home after launch. No reset/uninstall/source/artwork/scale changes and no
+phone/PWA/legacy operations. iPad actual SBRingerMuted=0 after restart/launch;
+non-audio silent-mode workflow remains unmet. Reinstall/launch PASS;TNT live
+visual size not replayed or accepted by this delivery. User review remains open.
+
+## 2026-11-14 · TNT/Barrel correction delivered to both normal previews
+
+World spotlight focused/visible tests and normal complete-tree build finished.
+Reinstalled that latest normal Debug artifact on both retained Simulators:
+/tmp/tnt-barrel-fix-final-delivery/{DEVICE_UUID}/receipt.json. Both saves
+preserved through install/launch and installed runtime hashes match. This
+latest complete-tree app includes smoke correction plus other saved work.
+CUA observed normal Native Home on iPhone,Silent Mode toolbar ON;actual iOS
+SBRingerMuted checked separately. Actual DEV visual review attempted twice,
+but first was interrupted by concurrent spotlight QA replacing the app,and
+second by active Simulator changes before the finale. Therefore NO new live
+smoke appearance/size acceptance is claimed. The user should review the
+updated DEV TNT/Barrel on both;accepted iPad Barrel itself remains unchanged.
+All selected deterministic gates PASS;runtime visual/physical acceptance
+remains NEEDS PHYSICAL TEST. No further reset/source/asset changes after
+correction;no physical/PWA/legacy operation.
+
+## 2026-11-14 · Journey intro spotlights complete Beach/Area 55 Unit, excluding clouds
+
+User requests the Forest intro visibility for Beach/Area55, then explicitly
+clarifies clouds remain BEHIND the backdrop. JimiNativeWorldView now leases
+the real selected Unit terrain/stars planes together with its card above the
+single existing page shade. Rear cloud plane remains in content in all worlds;
+Forest presentation unchanged. Original peer z-order is compressed between
+shade10000 and tutorial overlay10002, preserving the hand/caption above it.
+Layout converts leased peer centers across phone/tablet relayout; retirement
+restores original content indices/z/coordinates. Existing motion/resources/
+assets/gameplay/save owners retained;no new clock or artwork.
+
+PASS qa:fast,qa:ios,qa:full(530suites/4011tests;KING330),diff-check.
+Final mounted Native tests PASS2/0(5.710s): actual prepared/entered worlds1/2/3,
+terrain/stars/card above shade and below coach,cloud parent retained,tablet
+relayout and exact restoration. Source+tests: JimiNativeWorldView.swift and
+JimiNativeWorldTests.swift. Logs:/tmp/world-spotlight-{fast,ios,full}.log,
+/tmp/world-spotlight-visible-tests.log. Inspected actual entered fixture PNGs
+/tmp/world-spotlight-{2,3}.png:clear active terrain/card with rear clouds shaded.
+These fixtures omit the real tutorial hand/background host;not a live intro
+walkthrough or physical acceptance.
+
+Normal complete-tree Debug scheme BUILD SUCCEEDED:
+/tmp/world-spotlight-final-build.log. Verified .native identity/no Web.bundle,
+installed over retained QA iPhone13 and launched normally PID34890. Built and
+installed runtime SHA256 match;canonical primary/previous saves byte-identical
+through install/launch after re-resolving the changed Simulator container path.
+Receipt/backups:/tmp/world-spotlight-delivery/. Actual post-launch iOS
+SBRingerMuted=true and toolbar Mute on;CUA observed normal Home (no test runner).
+No physical/PWA/legacy operations; iPad Simulator not refreshed by this task.
+Visual feel remains NEEDS PHYSICAL TEST/user review.
+
+## 2026-11-14 · TNT/Barrel correction implemented; shared preview coordination
+
+Scale task changes NativeTntFinale to select the same explicit original2x
+smoke artwork as Barrel even when exact base PNGs were cached by Source.
+Those base/2x frames differ in visible ink,so cold isolated geometry tests
+missed the actual cache path. Source and Raw constructors now share selection;
+source draws/lifecycle owners unchanged. NativeTabletLayout.barrelSmokeScale
+keeps the accepted iPad baseline and applies0.70 on phone to both effects.
+Phone reduction30percent explicitly announced after user's both-too-big
+review;all glyphs/debris/positions/clocks/assets remain unchanged.
+
+PASS qa:fast,qa:ios,full QA(530suites/4011tests,KING330),diff-check;
+PASS22Native smoke tests incl forced base-cache -> canonical2x pixel equality,
+phone/tablet frame geometry and unchanged captions. Logs:
+/tmp/tnt-barrel-fix-{fast,ios,full,tests,build}.log. Normal Debug BUILD SUCCEEDED.
+Both Simulators received same correct .native normal build,with save hashes
+preserved and installed runtime hashes matching. Receipts/backups:
+/tmp/tnt-barrel-fix-delivery/{1018BE2D-491B-465F-8F75-3E5BEB38C22A,43A75086-0C64-464C-B71C-FDD01AF59C32}/receipt.json.
+Initial launches phone32096/iPad32236. No physical/PWA/legacy operations.
+
+IMPORTANT concurrent world-spotlight task started QA on retained phone during
+actual DEV review and replaced/terminated our normal phone preview. Its
+PID33789 and queued final normal build use /tmp/world-spotlight-derived and
+/tmp/story-fact-normal-derived. Do not run parallel Xcode builds. Smoke task
+is waiting for that work to finish before final phone refresh/review. Existing
+partial /tmp/tnt-barrel-fix-iphone-dev.mov was interrupted before smoke began,
+so it is NOT visual proof. Need final same-normal-build previews;do not claim
+live size acceptance from isolated test results. Accepted iPad Barrel remains
+unchanged. Final visual review still pending.
+
+## 2026-11-14 · TNT/Barrel live comparison complete: visual parity FAIL
+
+User explicitly ends iPhone capture with "gotovo iphone". Buffered console
+read,then both iPhone recording/console sessions stopped normally. Evidence:
+/tmp/tnt-barrel-live-20261114/{ipad,iphone}-tnt-barrel.mov;exact incident times
+in markers.txt. Videos extracted with AVFoundation to {ipad,iphone}-frames,
+contact sheets {ipad,iphone}-contact.png inspected directly. iPad TNT smoke
+around26s fills almost full viewport height;accepted Barrel around53s is much
+more compact. iPhone TNT17-18s and Barrel40s both occupy an excessive part of
+the viewport,matching all user markers. These samples are not identical
+animation phases or identical RNG;no exact percentage difference claimed.
+
+User verdicts: iPad TNT HUGE; iPad Barrel SUPER/accepted size reference;
+iPhone TNT HUGE; iPhone Barrel TOO BIG. Requested parity therefore FAIL,
+despite prior deterministic21test pass. Existing tests compare isolated
+sprite geometry,not a genuine DEV final-merge presentation captured on each
+device;do not treat their pass as runtime visual acceptance. DEV fixtures
+reuse actual gameplay assembly via makeDeveloperGameplayPreview,not separate
+TNT renderers. Precise excess-scale cause remains unproven;investigate actual
+selected texture/density and mounted transform chain before choosing factors.
+Preserve approved iPad Barrel and current glyph sizes in any next correction.
+No scale/source/asset change made during/after this capture. Both movies and
+reset-save backups retained. No physical/PWA/legacy operations.
+
+## 2026-11-14 · TNT/Barrel capture iPad complete, iPhone active
+
+User markers: iPad TNT "tnt je ogroman na ipadu idem sada barell";
+iPad Barrel "barell je super";"gitivi ipad" accepted as GOTOVO IPAD.
+iPad video finalized:/tmp/tnt-barrel-live-20261114/ipad-tnt-barrel.mov.
+Console buffered before stopping;video/console sessions ended normally.
+User-approved iPad Barrel remains the visual size reference;TNT visibly too
+large per user. No diagnosis or additional scale edit yet;compare actual
+capture after iPhone GOTOVO,including DEV runtime call paths.
+
+iPhone first launch had legacy-import refusal caused by Native QA WebKit
+remnants in its own app sandbox after save reset. Moved only those remnants
+to /tmp/tnt-barrel-live-20261114/iphone-test-webkit-before-reset and launched
+same .native build PID26078. CUA verified fresh Home/Journey screen. Original
+saves still backed up separately;no uninstall or physical/PWA/legacy operation.
+iPhone video/console now active in same evidence directory;markers.txt holds
+exact timestamps. Await explicit GOTOVO IPHONE;do not interrupt/rebuild/fix
+mid-capture. Scale unchanged,letters unchanged. iPad capture review and final
+comparison remain pending. User-facing KRENI follows recording readiness.
+
+## 2026-11-14 · User-led iPad then iPhone TNT/Barrel size capture, active
+
+User reports TNT now looks excessively large and requests fresh first-play
+profiles on both Simulators,then manual DEV End game TNT/Barrel comparison,
+iPad first and iPhone second. No scale fix authorized/applied during capture.
+Both exact Native apps terminated,existing StackToSixNative save directories
+moved to /tmp/tnt-barrel-live-20261114/{iphone,ipad}-save-before-reset,then same
+normal Debug artifact installed over both and launched(.native PID24774/24875).
+Installed runtime hashes match on both;first-play save directories empty at
+verification. No uninstall/reset of devices,physical/PWA/legacy operation.
+Reset receipt:/tmp/tnt-barrel-live-20261114/reset-receipt.json.
+CUA observed fresh iPad Home(Journey CTA). iPad video/console capture starts
+in /tmp/tnt-barrel-live-20261114/. Keep capture uninterrupted until user's
+GOTOVO;record incident/device markers and then compare normalized visible
+sizes. iPhone actual SBRingerMuted1; iPad0 and no mute toolbar/accessible
+control-center gesture succeeded,so silent visual-review state remains open.
+Both original save directories recoverable in backups. Session in progress.
+
+## 2026-11-14 · Shared Barrel/TNT smoke baseline from current iPad Barrel
+
+User selects the current iPad Barrel smoke size as the baseline for both
+Barrel and core TNT on iPhone/iPad, Journey/Arcade, retaining current caption
+sizes. NativeTabletLayout.barrelSmokePresentationScale captures the existing
+iPad recipe1.694*1.15*1.30*1.20*0.85. The production Barrel constructor now uses
+it on both devices; TNT smokeSpriteBoost converts that same recipe to its
+canonical raster scale. Removed the iPad Arcade-only TNT0.80 multiplier from
+all three constructors. Existing390pt device projection, glyphs, debris,
+positions, animation clocks, gameplay, audio and original asset bytes retain
+their owners. Current iPad Barrel smoke itself is unchanged.
+
+PASS qa:fast,qa:ios,full QA(530suites/4011tests,KING330),diff-check.
+PASS21focused NativeSharedSmokeRootTests/0fail,including rendered sprite
+width/height parity at five times on phone/tablet in both TNT construction
+paths,and unchanged Barrel caption geometry/font plus TNT non-smoke geometry.
+Logs:/tmp/shared-barrel-baseline-{fast,ios,full,tests,build}.log.
+Normal complete-tree Debug scheme BUILD SUCCEEDED. Installed over retained
+Jimi2026QA iPhone13 and launched .native normally PID22034;built/installed
+runtime hashes match,no Web.bundle/test runner in preview. Both canonical
+save files unchanged through install/launch;receipt and backups:
+/tmp/shared-barrel-baseline-delivery/receipt.json. Post-launch actual iOS
+SBRingerMuted=1. iPad Simulator app was not refreshed by this task;it was
+actively used during final UI inspection. No physical/PWA/legacy install.
+Visual feel/clipping acceptance remains NEEDS PHYSICAL TEST.
+
+## 2026-11-14 · Journey Clean Board counter cold-filter preparation fix
+
+User authorizes repair of captured Journey result startup freeze. Result counter
+now prepares its per-view CIContext and all20quarter-point CIMotionBlur radii
+(scale2,finite bitmap input) on existing NativeRewardFilteredFrames serial queue,
+under NativeRewardPreparationLease. The SAME context and original filter/text/
+radius/clock render visible counters;no blur approximation or animation removal.
+NativeResultOwner prepares/pauses even a fallback sheet and waits for readiness
+before visible admission. Generation/identity/disposal guards reject late work.
+Background readiness is retained without mounting/cues/clock advancement and
+resumes exactly once through an already-claimed owner on foreground. Disposal
+cancels preparation/drops callbacks and clears/releases detached context on the
+filter queue,avoiding main-thread cache retirement at Continue. Existing worker
+may drain one framework call after cancellation;no new ticker or history cache.
+Feature ownership/background contract updated. No original assets,audio,
+gameplay rules or save schema changed.
+
+Cold focused test PASS:preparation766.6ms OFF MAIN;208visible blur renders,
+worst15.10ms/tick15.65ms. Final mounted counter test stays below~19ms. Final
+Native result cohort PASS61/0 plus real final-Wild root1/0,57.586s total:
+/tmp/clean-counter-final-native.log. Explicit stronger actual-root regression
+PASS1/0,28.195s:real merge→CLEARED→reward→actual mounted ready result→live
+counter,29visible renders,blurWorst17.032ms:/tmp/clean-counter-actual-root-final.log.
+Also covers readiness/background/resume once,weak release,late disposal,
+commit/actions,star/score burn and pause. Two owner fixtures now wait actual
+readiness;two screenshot fixtures create output dirs. Initial broad run had
+8assertion/error failures across5methods;raw log preserved at
+/tmp/clean-counter-result-suite.log. Corrected related fixtures subsequently
+pass. Separate unchanged Home bottom-nav idle test STILL FAILS in isolated
+phone run and iPad broad run:/tmp/clean-counter-home-phone-check.log. It is
+excluded explicitly from final result cohort;do not claim all Native tests pass.
+
+PASS repo fullQA530suites/4011tests,KING330 and all gates:
+/tmp/clean-counter-full.log. Final fast/ios/feature-runtime/diff-check PASS:
+/tmp/clean-counter-{fast-delivery,ios-delivery,feature-final}.log. Scoped
+postimplementation review confirms one finite context lease,no callback cycle,
+no hidden counter clock/cold main-thread context init and no stale publication.
+Normal complete-current-tree Debug BUILD SUCCEEDED:
+/tmp/clean-counter-normal-build.log. Swift inputs unchanged through delivery.
+Exact.native,noWeb.bundle/noTestPlugIns,installed executable/dylib byte-match;
+normal install-over/launch iPadPID12149 and retained iPhonePID12205. Both
+canonical save slots byte-identical through each install/initial launch:
+/tmp/clean-counter-delivery/receipt.json. No manual save restoration/reset.
+iPhone actual SpringBoard SBRingerMuted=1;iPad existing0 unchanged.
+
+Final normal iPad app remains running;current UI advanced to New Reward under
+user interaction:/tmp/clean-counter-final-preview.png. CUA final screenshot
+attempt timed out;simctl screenshot independently verified normal app/runtime,
+not a test runner. Do not interfere with user's current reward/gameplay.
+Actual user optical acceptance and physical Release/iPad performance remain
+NEEDS PHYSICAL TEST. Targeted result performance/regressions PASS;separate
+Home idle test remains open. No physical/PWA/legacy install or source asset edit.
+
+## 2026-11-14 · Journey Clean Board freeze live capture
+
+User requests capture of Journey final-merge→Clean Board freeze. KRENI~22:49:20
+CET,GOTOVO~22:52:43CET,same iPad(A16)43A75086-0C64-464C-B71C-FDD01AF59C32,
+NativePID99034 uninterrupted. Buffered log read before stopping streams.
+Video/log:/tmp/ipad-journey-clean-freeze-20261114.{mov,log};contact sheets:
+/tmp/ipad-clean-contact.jpg,/tmp/ipad-clean-detail.jpg. User first completed
+Arcade03,then Forest02 including final Bee,Journey CLEARED,New Reward/Legendary,
+Clean Board(score102383) and Continue to Forest03,then Exit to World.
+
+Sorted video presentation samples show346.7ms gap at177.2717–177.6183s near
+Legendary→result startup;also588.3ms at187.445–188.0333s around Continue exit.
+No prior one-second dice-pop-in stall. Zero Metal compiler/missing-cache events;
+three existing NativeEntryPipelines receipts22.1/16.6/18.2ms for gameplay entries.
+CoreImage cold filter discovery is logged on main thread near result startup.
+Code inspection:NativeResultController.paintScoreBlur synchronously creates
+CIContext,applies CIMotionBlur and createCGImage from its existing display-clock
+paint;input glyph raster is regenerated as score text changes. This is a concrete
+main-thread render-work candidate,not a proven sampled blocking stack. Need
+narrow timing/stack capture before claiming causality or implementing repair.
+Result has prepareForHandoff already;preserve same counter/blur/star timing and
+existing result clock rather than adding a competing timer or deleting motion.
+
+Capture/inspection only:no source/build/install/reset or manual save edits.
+User play naturally progresses save. App left running. Observed Journey result
+transition performance FAIL;root-cause attribution and fix remain open.
+
+## 2026-11-14 · Cold Arcade pop-in pipeline preparation fix
+
+User authorizes fixing the captured iPad cold-entry stall. Existing initial
+NativeBoardTextures admission now waits for one finite offscreen GPU frame
+through NativeGameplayPipelinePreparation. A serial user-initiated worker owns
+an isolated64x64 SKRenderer/scratch graph of selected already-uploaded original
+textures plus board/HUD built-in sprite,path,glyph primitives. No real gameplay
+Scene/Source clock/view or authored timing is advanced. GPU completion admits
+the existing entry;queued cancellation skips work,executing driver compile/frame
+may drain once,and identity/generation/current guards reject stale publication.
+Invalidation/dispose cancel the request;purge cannot trim lent textures while
+pending;completion clears its exact owner before caller-current validation.
+No asset,audio,save schema,gameplay rule or authored animation changes.
+Background work contract documents ownership and bounds.
+
+PASS fullQA530suites/4011tests,KING330 and all other gates:
+/tmp/arcade-pipelines-full.log;qa:ios-final PASS. Native cold real-root test
+PASS1/0(13.260s):58actual completed frames,encodeWorst11.134ms,updateWorst2.467ms,
+acquireWorst2.571ms,no render failures. Earlier test run failed its fixture:
+entry-complete was true before renderer mounted;strengthened wait to require
+actual mounted renderer/completed frames. Preserve initial failure log rather
+than claiming it proved performance. Mounted log:
+/tmp/arcade-pipelines-cold-test-mounted.log. Lifecycle/renderer PASS16/0:
+/tmp/arcade-pipelines-lifecycle-tests.log,including zero-submit queued cancel,
+one GPU frame and weak request release. Scoped final code-health/diff review
+PASS. Final fastQA PASS:/tmp/arcade-pipelines-fast-final.log;final diff-check PASS.
+
+Normal complete-current-tree Debug BUILD SUCCEEDED:
+/tmp/arcade-pipelines-normal-build.log. Swift input hashes unchanged through
+delivery/review. Exact.native,noWeb.bundle/testPlugIns,installed executable/
+debug dylib byte-match verified. Install-over+normal launch iPadPID99034 and
+retained iPhonePID98920. Both canonical saves byte-identical through each
+install/initial launch;receipt:/tmp/arcade-pipelines-delivery/receipt.json.
+iPhone actual SpringBoard SBRingerMuted=1;iPad existing0 unchanged.
+
+Normal iPad cold-process launch→Home→Arcade→Endurance Continue(Round03)
+recorded:/tmp/arcade-pipelines-fixed-cold.{mov,log},contact sheet:
+/tmp/arcade-fixed-contact.jpg. Required pipeline receipt19.8ms completed before
+cue/board entry. No Metal compiler or missing-cache messages in final capture.
+No prior0.86–1.345s mid-wave stall:largest presentation gap across45–47.3s
+announcement→entry window131.7ms;continuing wave max~50ms. These are video
+sample gaps,not certifiedFPS. Also recorded540ms pre-cue preparation gap,
+not the previously captured mid-pop-in freeze. Mounted actual-render timings
+above are separate evidence. CUA confirms settled normal Endurance03 board;
+no gameplay moves performed. Natural Continue save updated savedAt,lastPlayed
+and existing wildStar unlock receipt;board/progress content otherwise retained,
+no manual restoration/reset. iPhone saves remain byte-identical after review.
+
+Targeted Simulator freeze fix PASS;perfect cadence,physical Release/iPad heat/
+long-run/memory and first-ever-install acceptance remain NEEDS PHYSICAL TEST.
+No physical/PWA/legacy install. Final iPad app left running normally for user
+review;standing iPhone preview refreshed. No test runner left as preview.
+
+## 2026-11-14 · iPad-only TNT and Barrel smoke size
+
+User requests Arcade Explosion-pack TNT smoke20percent smaller on every
+activation,then narrows scope to iPad only. All three core TNT finale call
+sites now multiply only smokePresentationScale by0.80 for iPad Arcade;
+variant fallback additionally requires nil variant. Journey/iPhone/shared
+TNT archetype and authored variants remain unchanged. Follow-up Barrel
+smoke sprite animation20percent larger only on iPad: existing Barrel-only
+presentation multiplier gains1.20. No timing,particles,debris,caption,gameplay,
+audio,asset bytes or save changes.
+
+qa:fast and qa:ios PASS;normal complete-tree Debug BUILD SUCCEEDED after
+both final edits:/tmp/arcade-tnt-barrel-ipad-build.log. Installed over retained
+iPhone and existing iPad(A16) Simulator app;correct .native bundle,no Web.bundle,
+normal launchPID94786/94945,both canonical saves unchanged through install/launch.
+Receipt:/tmp/arcade-tnt-barrel-ipad-delivery.json. iPhone actual Silent Mode=1;
+iPad remains0;CUA Simulator screenshot unavailable and menu inspection could
+not verify a silent-mode toggle,so iPad non-audio review state is not satisfied.
+No physical phone/PWA/legacy operations. Visual size acceptance remains open
+(NEEDS PHYSICAL TEST);no runtime animation size inspection claimed.
+Full QA PASS:530suites/4011tests,KING330 and all selected deterministic
+gates. Log:/tmp/arcade-tnt-smoke-full.log. Ignored dist regenerated with
+SKIP_NATIVE_BUNDLE_SYNC=true;no preserved PWA sync.
+
+## 2026-11-14 · iPad hard-exit capture reproduces entry stall with cache present
+
+User explicitly authorizes hard exit/reopen and recording from startup.
+Terminated oldPID85304;normal Native relaunchPID91509 on same iPad(A16),
+43A75086-0C64-464C-B71C-FDD01AF59C32. Saves byte-identical through relaunch:
+/tmp/ipad-arcade-cold-20261114-receipt.json. KRENI~22:33:38CET;
+GOTOVO~22:34:18CET. Buffered log read before stopping both streams.
+Video/log:/tmp/ipad-arcade-cold-20261114.{mov,log};contact sheet:
+/tmp/ipad-cold-contact.jpg. User entered Endurance Continue,Round02 cloud cue.
+Partially revealed board stalls again:sorted presentation-time gap0.8583s
+at25.6733–26.5317s;preceding146.7ms gap. Log has13Metal shader compile events,
+11around gameplay construction/entry22:34:00.920–02.004;zero missing-cache
+errors. Restored cache directory alone therefore DOES NOT resolve cold-process
+entry stall. Warm success is insufficient. Cold first-gameplay render/pipeline
+compilation is leading hypothesis;no exact stack profiler recorded,so shader
+causality/blocking owner not definitively proven. Need targeted first-render
+profiling/preparation investigation before code changes;preserve authored pop-in.
+Cold-entry performance FAIL;not App Store readiness acceptance. No rebuild,
+install,source/assets/save edits or physical/iPhone/PWA/legacy operation.
+App left running after user play;no further restart performed.
+
+## 2026-11-14 · iPad warm Arcade recheck: original freeze absent
+
+KRENI~22:31:37CET;GOTOVO~22:32:22CET,same iPad NativePID85304,no restart.
+Video/log:/tmp/ipad-arcade-recheck-20261114.{mov,log};contact sheet:
+/tmp/ipad-recheck-contact.jpg. User exercised Endurance Continue,Slow Burn
+Play,and Slow Burn New Game before returning to Endurance modal. Inspected
+sampled video and sorted video presentation timestamps (B-frame decode order
+must not be treated as presentation order). Original freeze has1.345s gap at
+19.425–20.770s. New Endurance entry17–18.5s max65ms;Slow Burn29.8–31.5s
+max51.7ms;New Game35.5–37.5s max68.3ms. No comparable one-second stall in
+these entry windows. Zero Metal shader compile events and zero missing-cache
+errors in second capture;24UIKit Decompressor warnings remain unlocalized,
+not proof of corrupt source artwork. Warm-entry recheck PASS for original
+stall only;no perfect FPS claim. Cache restoration and already-warm shader
+state cannot be isolated by this run. Cold-process entry/fresh-install and
+physical Release acceptance remain open. No source/build/install/save edits,
+no restarts or iPhone/PWA/legacy actions during capture. App left running.
+
+## 2026-11-14 · Current initial rounds label
+
+Current Arcade High Score row now displays `0 rounds won` when no rounds
+have been won, instead of `00 rounds won`. Other values/history unchanged.
+User requested source-only change without QA; no tests, build or Simulator
+refresh performed for this edit.
+
+## 2026-11-14 · iPad Endurance entry freeze captured; cache directory repaired
+
+User requests live observation without restart. KRENI2026-11-14~22:28:20CET,
+GOTOVO~22:28:50CET. Same iPad(A16)43A75086-0C64-464C-B71C-FDD01AF59C32,
+NativePID85304 remained alive. Buffered process debug log read before stopping;
+video:/tmp/ipad-arcade-freeze-20261114.mov,log:same basename.log,
+contact sheet:/tmp/ipad-freeze-contact.jpg. Video confirms Round01 cloud cue
+then partially entering lower-right dice stall around19.4–20.8s,followed by
+continued grid/HUD entry. Video sample timing has approx1.3s presentation gap;
+no app crash or restart. Log22:28:39.107–40.412 has repeated Metal shader
+compilation and cache lookup failures (30 during capture),matching this stall.
+Main-thread Metal messages occur between compile bursts. No call-stack profiler
+was attached,so exact blocking stack and causality remain unproven.
+
+Previous fresh-profile reset moved Library but recreated only its root;missing
+Library/Caches was an agent workflow omission. Recreated that empty directory
+in-place after GOTOVO,without restarting app or changing saves (hashes equal).
+No source/assets/build/install,physical/iPhone/PWA/legacy changes. Shader cold
+compilation is leading hypothesis;repeat entry required to verify effect of
+restored cache and distinguish cold compile from persistent entry-owner issue.
+Observed performance FAIL;repair effect not yet verified. Current game left
+running. No speculative animation/timing changes.
+
+## 2026-11-14 · User-requested first-install reset on iPad only
+
+Stopped Native app on iPad(A16)43A75086-0C64-464C-B71C-FDD01AF59C32;
+moved its Documents/Library/tmp into recoverable backup,then normal launch
+PID85304 of unchanged installed .native app. Fresh primary save verified:
+tutorial incomplete,Journey board1 only,no completed boards/stats/unlocks,
+no Journey/Arcade/tutorial runs,all three preferences ON;old previous save
+absent so recovery cannot revive prior progress. Reset PASS.
+Backup:/Users/user/Library/Application Support/StackToSixSimulatorBackups/ipad-first-install-20261114-222203.
+Receipt:/tmp/ipad-fresh-reset-receipt.json. No rebuild/reinstall/source edits,
+Simulator erase or iPhone/PWA/legacy operations. iPhone currently being used;
+left it untouched. No full tutorial walkthrough performed.
+
+## 2026-11-14 · Complete current Native tree installed on iPad Simulator
+
+User requested all current work on iPad Simulator. qa:ios PASS and normal
+complete-tree Debug BUILD SUCCEEDED,using native/standalone project,Stack to Six
+scheme and /tmp/story-fact-normal-derived. Installed over existing app on booted
+iPad (A16),iOS26.5,43A75086-0C64-464C-B71C-FDD01AF59C32;normal launchPID84131.
+Verified exact com.taptapdesign.stacktosix.native,no Web.bundle/testPlugIns,
+installed executable/debug dylib byte-match,and both canonical saves unchanged
+through install and settled launch. Receipt:/tmp/ipad-current-delivery.json;
+logs:/tmp/ipad-current-{ios,build}.log. CUA visually confirmed normal Home on
+iPad. No source/asset edits,save reset,physical/PWA/legacy install. Existing
+retained iPhone preview untouched. iPad SBRingerMuted=0;no audio preference
+changes. Installation/launch PASS;full iPad interaction/physical acceptance
+not claimed. Full source QA was already green in preceding logo-cleanup task.
+
+## 2026-11-14 · Story Star up4pt
+
+User requests only the Fun fact Star4px higher. Inline Star frame y is now
+centered y minus4pt. Text optical centering,divider,paper,Star size and existing
+animation/lifecycle remain unchanged. No asset edits. qa:fast,qa:ios and
+diff-check PASS;normal Debug BUILD SUCCEEDED. Retained Simulator install-over/
+normal launchPID81872,correct native bundle/no Web.bundle/PlugIns,installed
+runtime byte-match and both saves unchanged:/tmp/story-star-up-delivery/receipt.json.
+Actual SBRingerMuted=1 after launch. Opened normal Settings→Story and visually
+verified the raised Star via CUA. No phone/PWA/legacy install. Logs use
+/tmp/story-star-up-{ios,fast,full,build}.log. Full QA PASS (all selected deterministic gates).
+
+## 2026-11-14 · Current logo references cleaned; full QA green
+
+User confirms logo was changed and authorizes stale web reference cleanup.
+All active web logo file paths now use existing logo-stacktosix.png/@2x/@3x:
+Jimi catalog,bootstrap,three preload lists and Retina CSS. Bootstrap alt now
+Stack to Six;existing IDs/CSS classes preserved. Scene expectation and active
+failing-assets guide updated. No original PNG or Native source change.
+
+Targeted scene-builders PASS7/0;fast/full QA PASS,all gates. Full tests now
+530suites/4011tests PASS;KING330 PASS. The formerly reported web logo asset
+failure is CLOSED. Independent source review PASS. Logs:
+`/tmp/logo-reference-cleanup-{fast,full}.log`. Diff-check PASS.
+Ignored dist regenerated with SKIP_NATIVE_BUNDLE_SYNC=true. No Web.bundle
+sync,Native build/install,phone/Simulator operation or save mutation in this
+logo-only task. Prior Native physical memory/thermal acceptance stays open.
+
+## 2026-11-14 · Story fact visible-letter vertical centering
+
+User screenshot shows unequal top/bottom whitespace despite centered UILabel
+frame. Fact row now offsets only the text baseline downward by0.2*body font
+size(3.6pt at18pt): Baloo line-box whitespace is asymmetric. Left alignment,
+copy,Star,divider,card geometry and existing runtime owners remain unchanged.
+Existing320/390/820 layout regression now rasterizes the text alone and checks
+actual visible ink midpoint against the fact container,not UILabel frame center.
+Initial5.4pt optical shift overshot1.57–2.07pt;final3.6pt chosen from actual
+ink measurement. Final mounted layout/ink regression PASS1/0(1.528s),all
+three sizes. Reviewed390PNG and actual normal Story via Simulator CUA:
+text now visually centers in the fact paper. Logs:/tmp/story-optical-tests-final.log,
+/tmp/creator-island-renders/story-390.png. qa:fast,qa:full,qa:ios,diff-check PASS;
+full repository tests now PASS as recorded in /tmp/story-optical-full.log.
+Normal full-tree Debug BUILD SUCCEEDED:/tmp/story-optical-build.log.
+Retained Simulator install-over/normal launchPID79856,.native ID,no Web.bundle/
+PlugIns,installed runtime byte-match and both canonical saves unchanged:
+/tmp/story-optical-delivery/receipt.json. Final actual SBRingerMuted=1.
+No phone/PWA/legacy install. Physical optical acceptance remains open.
+
+## 2026-11-14 · Three-agent code-health review and verified cleanup
+
+User requests agents to review today's code,dead paths and memory/lifecycle.
+Three independent read-only reviewers plus primary checks found no new concrete
+retain cycle/unbounded collection in reviewed owners. Removed retired intro
+pivot/speech/foley branches,unused tutorial return callbacks and unreachable
+Score summary renderer/model;active history UI/gameplay/assets preserved.
+Migrated stale tutorial tests to current Source result/selection/farewell flow,
+fixed old paper/navigation/input expectations against explicit Nov6–8 decisions,
+and repaired self-contained12-cycle memory regression fixtures. Full details:
+`reviews/NATIVE_CODE_HEALTH_2026-11-14.md`.
+
+Pure gameplay PASS572/0;state PASS124/0. Hosted61-case coverage completed through
+broad run plus focused corrections:Score13/0,actual Wild tutorial endings2/0,
+corrected navigation/Close/memory5/0 and shipping-root Journey completion1/0.
+Audio107/0,intro14/0,Story6/0 passed earlier in this review.12 actual Beach
+card/history cycles release weak owners and pass decoded-cohort bounds;final
+artwork74,348,836bytes(not RSS),Backpack1.980s/Hub1.794s. No physical leak/heat claim.
+Final fast/ios/diff-check PASS. FullQA FAIL only known preserved-web
+scene-builders.test.ts:75;529suites/4010tests pass,all other gates PASS.
+Logs:`/tmp/native-clean-review-{core-final,full-final,fast-delivery,ios-delivery,
+corrections-tests,journey-source-tests,build}.log`.
+
+Normal complete-tree Debug BUILD SUCCEEDED in`/tmp/story-fact-normal-derived`;
+Swift inputs unchanged during build,.native ID,no Web.bundle/testPlugIns,
+install-over/normal launchPID74040 and final executable/dylib equality verified.
+Both canonical saves byte-identical before install versus resolved post-launch
+container;initial receipt read retired container after install relocation and
+was corrected without restoring saves. Receipt:`/tmp/native-clean-review-delivery/receipt.json`.
+Final actual iOS SBRingerMuted=true;CUA saw normal Story then user-selected Home.
+No physical/PWA/legacy install,reset,restore or original asset mutation by review.
+Scoped Native review PASS;full repository gate retains known FAIL;physical
+sustained memory/thermal,touch and motion acceptance NEEDS PHYSICAL TEST.
+
+## 2026-11-14 · Story fact left aligned, vertical middle and wider separator gaps
+
+User clarifies: fact copy LEFT aligned, vertically centered only;add4pt between
+Star/divider and divider/text. Supersedes prior centered-paragraph entry.
+Final local Star x8 (64pt),divider x83 (1pt),text x96/right inset12: gaps11/12pt
+(previous7/8pt),original text width and two-line wrapping preserved. Fact card
+side margins,Star size,copy,typography,assets and shared motion unchanged.
+
+Focused mounted test PASS1/0 across320/390/820;390render visually verified left
+alignment/two lines/middle. First narrower attempt failed the two-line assertion;
+corrected by expanding row contents4pt each way while keeping text width.
+Final qa:fast and diff-check PASS;qa:ios PASS. FullQA retains only existing
+protected web scene-builders.test.ts:75 asset failure(529suites/4010tests pass).
+Logs:/tmp/story-left-{fast-final,ios,full,tests-final,build}.log.
+Normal Debug BUILD SUCCEEDED;native ID,noWeb.bundle/noTestPlugIns verified.
+Final install-over/normal launchPID73641,installed executable/dylib equality and
+both canonical save slots unchanged;receipt:/tmp/story-left-delivery/receipt.json.
+Actual Silent Mode On banner verified after final launch. Concurrent Native tests
+replaced first preview;refreshed again after tests. Final Settings navigation was
+interrupted by another user/session interaction and showed bare paper during
+transition;live Story not claimed. Mounted Story render is visual evidence.
+No physical/PWA/legacy install. Physical optical acceptance open.
+
+## 2026-11-14 · Story fact centered text and High Score divider
+
+User requested centered fact copy and the High Score vertical separator between
+Star and text. Fact paragraph now centers both lines in its existing text area;
+label remains vertically centered. Divider uses the same1pt width,20pt top/bottom
+insets and subtitle35percent opacity as score-history rows. Existing card geometry,
+copy,assets and motion retained.
+
+Focused mounted layout test PASS1/0 at320/390/820 and visual390 render reviewed;
+normal live Story also visually verified and left open. qa:fast,qa:ios,diff-check
+PASS. FullQA FAIL only existing protected web scene-builders.test.ts:75 asset
+assertion (529suites/4010tests pass);other gates pass. Logs:
+/tmp/story-center-{fast,ios,full,tests,build}.log.
+Normal Debug BUILD SUCCEEDED,verified native ID,noWeb.bundle/noTestPlugIns,
+install-over/normal launchPID62492 and installed executable/dylib equality.
+Both canonical save slots unchanged across install/launch;
+receipt:/tmp/story-center-delivery/receipt.json. Actual iOS Silent Mode On banner
+verified after final launch. No physical/PWA/legacy install. Physical optical
+acceptance remains open.
+
+## 2026-11-14 · Barrel smoke sprites only minus15percent
+
+User explicitly requested only Barrel animation sprites15percent smaller.
+NativeGameplayViewController's existing Barrel-only smokePresentationScale now
+multiplies by0.85 on phone/tablet. No other runtime edit for this request:
+positions,timings,wood,dice,glyphs,audio and all other variants unchanged.
+Original assets untouched. Existing phone smoke test PASS1/0(6.103s);
+initial tablet test interrupted by overlapping QA;isolated repeat PASS1/0
+(37.398s). qa:fast,qa:ios,diff-check PASS. FullQA FAIL only known protected
+web scene-builders.test.ts:75 assertion;all other gates PASS.
+Logs:/tmp/barrel-85-{fast,ios,full,tests,tablet-repeat}.log.
+Concurrent normal Debug BUILD SUCCEEDED(/tmp/story-center-build.log) in
+/tmp/story-fact-normal-derived after Barrel edit. Final install/launch not
+claimed here:another live QA process PID62220 currently owns retained
+Simulator and UI is being operated concurrently. Do not interrupt/reset it.
+Standing final preview remains pending serialization;no physical/PWA/legacy
+install performed by this Barrel task.
+
+## 2026-11-14 · Story complete inline fact occupies two total lines
+
+Previous request complete:single attributed label now reads “Fun fact: It all
+started with the Star.” with inline bold orange prefix. Separate heading
+retired;whole text vertically centered beside Star.32pt side inset retained.
+Mounted layout PASS1/0(1.562s),including two-line bound at390/820;
+390render visually reviewed. qa:fast/ios PASS;fullQA known web failure only.
+Normal Debug build and install-over/launchPID56128 PASS;both canonical saves
+unchanged across install/launch and installed executable/dylib equal build.
+Receipt:/tmp/story-inline-delivery/receipt.json. Subsequent Barrel preview
+will supersede this binary. No physical/PWA/legacy install.
+
+## 2026-11-14 · Story Fun fact shorter copy and side inset
+
+User requested shorter two-line fact copy and8pt more inset on both sides.
+Display/accessibility sentence is now “It all started with the Star.”;
+fact paper side margins32pt (was24pt). Existing18pt typography,Star,
+separator,40pt lower inset and shared modal motion retained.
+Focused mounted layout test PASS1/0 at320/390/820;390render and normal live
+Simulator Story visually checked:sentence occupies two lines. qa:fast,
+qa:ios and diff-check PASS. FullQA retains known protected web
+scene-builders.test.ts:75 asset assertion (529suites/4010tests pass).
+Logs:/tmp/story-two-lines-{fast,ios,full,tests,build}.log.
+Normal Debug BUILD SUCCEEDED;verified native ID,noWeb.bundle/noTestPlugIns,
+install-over/normal launchPID51660 and installed executable/dylib equality.
+Both canonical save slots unchanged across install/launch;
+receipt:/tmp/story-two-lines-delivery/receipt.json. Live Story remains open
+for review;actual iOS Silent Mode On banner verified after final launch.
+No physical/PWA/legacy install. Physical optical acceptance remains open.
+
+## 2026-11-14 · Settings heart every-second bounce and20percent growth
+
+Latest user tuning supersedes the earlier slow idle:each jump/hold slot is
+exactly1second (0.72–0.85s randomized jump,remaining0.15–0.28s pause).
+Existing cartoon squash/stretch gains a uniform1.20scale envelope at crest,
+returning to1at rest. Existing randomized strengths/right-upright-left poses,
+matching moving shimmer mask,weak finite completion and retirement unchanged.
+No layout,original asset,audio,gameplay or save change.
+
+Focused mounted Native test PASS1/0(0.359s),320/390/820:exact3s three-jump
+cycle,peak area-equivalent scale1.20±0.01,mask alignment and lifecycle retirement.
+qa:fast,qa:ios,diff-check PASS. FullQA FAIL only known protected web scene-builders.test.ts:75 asset assertion;
+529suites/4010tests pass and every other gate passes(/tmp/heart-fast2-full.log).
+Normal Debug BUILD SUCCEEDED /tmp/heart-fast2-build.log;verified .native ID,
+no Web.bundle/testPlugIns,install-over/normal launchPID48127,installed executable/
+dylib byte-match and both canonical save slots unchanged. Final normal Settings
+screen observed with differing heart poses;actual Silent Mode On banner verified.
+Receipt:/tmp/heart-fast2-delivery/receipt.json. Preview remains Settings.
+No physical/PWA/legacy install. Motion feel NEEDS PHYSICAL TEST.
+
+## 2026-11-14 · Story artwork down8pt and shared paper-edge alignment
+
+User close-up reference: move ONLY aboutus image8logicalpx down. ArtworkEntry
+now has local minY8 rather than0; paper/title/body/fact geometry are not moved
+by this correction. Source torso cutoff at224/257 now meets the upper paper edge
+without the prior transparent gap. Artwork and paper remain siblings in the
+same idle/tilt planes, with identity local image transforms: identical modal
+angle and motion, no independent rotation/clock. Source PNGs unchanged.
+
+Added assertions for exact8pt local offset,shared transform ownership,parallel
+projected source-cutoff/paper edges and no phone seam. Focused layout test PASS1/0
+on320/390/820; integrated latest NativeCreatorStoryTests PASS6/0 after concurrent
+Fun fact edits(/tmp/story-fact-row-tests.log). Mounted390 render visually reviewed.
+qa:fast,qa:ios,diff-check PASS. FullQA retains only known protected web
+scene-builders.test.ts:75 failure;other selected gates pass. Logs:
+/tmp/story-seam-{fast,ios,full,tests,build,final-build}.log.
+
+Concurrent saved Settings/Story updates required refreshed complete-tree preview.
+Final normal Debug BUILD SUCCEEDED(/tmp/story-fact-build.log,
+/tmp/story-fact-normal-derived); native bundle ID,noWeb.bundle/noTestPlugIns,
+current complete Swift inputs and installed executable/dylib equality verified.
+Install-over/normal launchPID45200;receipt:/tmp/story-seam-delivery/receipt.json.
+Canonical slots differ from earlier snapshot during concurrent live usage;no
+reset,restore or migration done. User actively used retained Simulator and opened
+High Score during final CUA check,so their current screen was retained instead
+of forced Story navigation. Toolbar Mute On;fresh iOS banner check deferred to
+avoid interrupting user. Story optical seam checked through mounted render;
+physical optical/touch acceptance remains NEEDS PHYSICAL TEST. No physical/PWA/
+legacy install.
+
+## 2026-11-14 · Settings heart gentle randomized idle
+
+Settings creator heart now reuses NativeHUDTapMotion cartoon contact poses at
+45–75percent strength with1.05–1.35s jumps and randomized1.5–2.8s pauses.
+Every finite cycle shuffles baked-right, upright and equally-left poses
+(rotation offsets0/-12/-24degrees). One weak CA completion receipt resamples
+only on admitted visible foreground Settings;cover/exit/hidden/detach/Reduced
+Motion cancel both heart and matching moving alpha-mask tracks. Text stays
+still. Original asset,footer layout,shimmer14s/1.4width,input,audio and saves
+unchanged. Layout uses neutral bounds/position under animated transforms.
+Feature runtime owner updated;no timer or display link.
+
+Focused mounted Native test PASS1/0(0.387s),all320/390/820sizes: composed mask,
+matching heart track,bounded cycle,background/Developer/hidden/detach retirement.
+qa:fast,qa:feature-runtime,qa:ios,diff-check PASS. FullQA FAIL only pre-existing
+protected web scene-builders.test.ts:75 asset-existence assertion;all other
+gates pass. Logs:/tmp/heart-idle-{fast,feature,ios,full,tests,build}.log.
+Normal Debug build succeeded and initial install-over/launch PID41881 verified
+native bundle ID,no test PlugIns/Web.bundle,and installed binary byte equality.
+Final normal complete-tree build also succeeded at
+/tmp/heart-idle-final2-build.log;install-over/normal launch PID44901 preserved
+both canonical save slots byte-for-byte against final-before snapshots in
+/tmp/heart-idle-delivery. Earlier slots had changed during concurrent Story
+QA/live use;no restoration performed. Concurrent Story normal preview then
+superseded that binary:installed executable/debug dylib now byte-match
+/tmp/story-fact-normal-derived (normal build PASS /tmp/story-fact-build.log),
+which includes current Settings heart source. Normal launch PID45200 observed;
+final UI is active gameplay controlled concurrently,so did not navigate away
+or claim isolated live Settings motion acceptance. Silent Mode On banner was
+observed on the initial normal preview;final toolbar Mute is On,subsequent
+concurrent launch prevented re-observing a fresh iOS banner. Mounted test is
+the heart motion/mask evidence. No physical/PWA/legacy install or save restoration. Physical motion feel
+remains NEEDS PHYSICAL TEST.
+
+## 2026-11-14 · Arcade High Score cards hug rounds text
+
+User requested a simple spacing fix without QA. Arcade High Score history
+cards reduced from96u to76u; text placement block reduced68→48pt to retain
+the existing top inset while removing the excess space below “NN rounds won”.
+Other history layouts and score/rounds gap unchanged. Source-only change;
+QA, build and Simulator refresh skipped for this explicitly minimal request.
+
+## 2026-11-14 · Story Fun fact row spacing and copy
+
+Latest user correction keeps Star LEFT and copy RIGHT. Fact paper has no
+independent rotation and sits24pt from both main paper side edges;40pt lower
+inset retained. Sentence/accessibility now “Star was the first special dice
+designed.” A small horizontal separator sits between the star and text column.
+Original Star atlas, main modal tilt/motion and lifecycle owners retained.
+Existing compact-height scrolling layout retained. No new animation/resource/
+audio/save owner.
+Native Story suite PASS6/0(14.178s), including320/390/820 rendered layouts,
+row geometry, margins, accessibility, pause/close/reopen and release. Evidence:
+/tmp/story-fact-row-tests.log and /tmp/creator-island-renders/story-{320,390,820}.png.
+qa:fast,qa:ios and diff-check PASS. Full QA FAIL only known protected
+scene-builders.test.ts:75;529suites/4010tests passed,all other gates passed.
+Logs:/tmp/story-fact-{fast,ios-final,full}.log. Normal full-tree Debug BUILD
+SUCCEEDED:/tmp/story-fact-build.log,derived /tmp/story-fact-normal-derived.
+Verified .native identity,no PlugIns/Web.bundle,install-over and normal launch
+PID45200;both canonical save files byte-identical before/install/launch and
+installed executable/dylib match build:/tmp/story-fact-delivery/receipt.json.
+Actual SpringBoard SBRingerMuted=1 after launch. Final CUA navigation was
+interrupted by concurrent Simulator interactions (High Score then gameplay);
+do not claim actual normal Story visual or physical acceptance from that CUA
+attempt. Mounted render visually inspected. No phone/PWA/legacy installation.
+Physical acceptance remains NEEDS PHYSICAL TEST.
+
+## 2026-11-14 · The story aboutus header and internal Fun fact paper
+
+User reference implemented in NativeCreatorStoryModal: selected original
+assets/tutorial/aboutus.png is centered ABOVE the upper paper edge with18pt
+hand/paw overlap. Prior island/other Story illustration removed from presentation;
+all original assets retained. Existing Story copy/title and shared modal motion
+remain. Fun fact now sits INSIDE the lower main paper:64pt original board Star
+atlas at left, orange Fun fact heading with brown left-aligned sentence at right.
+Existing compositor frame cycle/root pause/close/Reduced Motion/disposal owner
+retained; no extra clock or loader. Short screens uniformly shrink header art
+and retain a useful scrolling body viewport. Removed unused island transform
+wrappers/TextKit inline attachment; Settings heart/sheens unaffected.
+
+Feature owner updated. NativeCreatorStoryTests PASS6/0(14.634s): actual route,
+background,close/reopen,weak release,Reduced Motion,and320/390/820 layouts.
+Rendered all3 sizes and observed actual normal Story modal in retained1018BE2D.
+Feature-runtime,qa:fast,qa:ios,diff-check PASS. FullQA FAIL only existing
+protected scene-builders.test.ts:75;529suites/4010tests pass,other gates pass.
+Logs:/tmp/story-aboutus-{feature,fast,ios,full,retry-tests}.log. Initial run
+caught shadow-coordinate mismatch; corrected full-card shadow plane preserves
+shared Close animation coordinates. Intermediate retry collided with another
+session build database; final6/0 run is authoritative.
+
+Normal complete-tree Debug builds succeeded at /tmp/settings-back-final-build.log
+and latest /tmp/settings-shimmer40-build.log. Latest installed normal executable/
+dylib byte-match /tmp/creator-story-normal-derived; complete Native source input
+snapshot matches current tree. Original aboutus densities byte-exact in bundle.
+Install-over and normal launch observed; actual final Story UI and Silent Mode On
+banner verified. Concurrent preview installs superseded earlier receipt while
+reviewing; canonical saves changed since this task's earlier snapshot during
+concurrent live activity. No reset/migration/restoration performed by this task;
+original snapshot retained,not overwritten back onto current progress. Evidence:
+/tmp/story-aboutus-delivery/receipt.json. No physical/PWA/legacy installation.
+Optical/touch/motion acceptance remains NEEDS PHYSICAL TEST.
+
+## 2026-11-14 · Deferred round footer; Stage-style Arcade CTA sound; softer art/cloud springs
+
+Completed three user follow-ups. Automatic Arcade successor lower paper now
+stays hidden and action-free through NN and the complete dice pop-in. One
+Scene pending receipt is consumed from actual current Source normal/forced
+completion publication (matching generation),or raw entry admission. Mounted,
+foreground,entry-complete/nonexit guards prevent premature layout/abort reveal;
+resume/ReduceMotion use existing admission. Then existing800ms elastic arrival
+from below runs once. Upper HUD/divider/meter remain settled. Existing300ms
+old-footer exit,0.63paper alpha and tutorial round gating preserved.
+
+All three Arcade mode Play/Continue reuse the unchanged Stage CTA recipe through
+JimiV9Motion.modalCTAEnter:scale0/y18/fade to identity,340ms backOut1.8,requested
+at paper650ms*0.98-100ms=537ms. Existing sculpted-face readiness can defer both
+visual and sound together. Same button compositor marker emits paired-modal-
+cta-enter once:original cleanCTA0 boinb.wav,gain0.18. Existing navigation audio
+owner handles Sounds/background/generation/stop;other single-modal events stay
+silent. No new transport,voice,raw timer or haptic. Pending face/cue work retires
+on close/dispose;repeated reveal/foreground never replays. Stage CTA behavior
+remains numerically unchanged. Parent admission waits for paper/CTA readiness.
+
+Latest softness request affects only independent clouds and island/art entry:
+clouds start100ms+25ms per slot,art200ms;780ms finite spring with small
+1.045→0.985→1 settling and200ms zero-velocity final landing. CTA onset/sound
+unchanged. Existing whole-modal compositor subtree owns pause,entry→idle,
+drag/exit and disposal;art/cloud idle begins after all local entry tracks finish.
+Original geometry,PNGs,cloud layer/opacity and accepted settled CTA bounce kept.
+Feature/audio ownership and audio architecture records updated.
+
+Final focused Native PASS14/0,33.934s:all6mode×Play/Continue presentations,
+phone/tablet,shared CTA curve/onset,one cue,pause/reopen/early-disposal,
+soft-spring endpoints and gentle tail,cloud release,Stage reference/audio
+regression,and2footer tests (after real dice completion and rejected Source
+cannot reveal on resync). Logs:/tmp/arcade-modal-entry-soft-tests.log.
+Earlier broad run retains2unrelated failures:Close PNG capture directory missing
+and existing paper contentsRect exceeding obsolete<=1 expectation. Neither
+assertion weakened;final focused run explicitly skips those2cases. Initial new
+CTA sample assertions used exact floating equality;corrected to1e-6tolerance.
+Broad evidence:/tmp/arcade-modal-entry-tests-broad.log.
+
+Audio-runtime,feature-runtime,final qa:fast/qa:ios,Gameplay KING24/330 and
+diff-check PASS. FullQA /tmp/arcade-modal-entry-soft-full.log FAIL only known
+protected web scene-builders.test.ts:75 (529suites/4010tests pass),other gates
+PASS. Logs use arcade-modal-entry-{audio,feature,gameplay,soft-fast,soft-ios,build}.
+Normal Debug BUILD SUCCEEDED. Waited for concurrent Native tasks;no foreign
+process killed. Final normal build includes all current saved Swift inputs.
+Native asset audit found3new shared aboutus PNG originals absent from bundle;
+copied only those exact density files without altering/deleting other resources.
+Original SFX and shared art bytes verified in built app. Web dist rebuilt by QA
+with native sync skipped;no PWA/legacy/physical phone operation.
+
+Final normal retained phone1018BE2D install-over PID29944;native bundle ID,no
+Web.bundle/test PlugIns,installed executable/debug dylib byte equality and
+complete stable Native Swift input hashes verified. Both canonical save slots
+remain byte-identical before/after install/launch/review. Actual iOS Silent Mode
+Off banner verified for explicit audio task. During attempted Arcade navigation,
+concurrent UI activity opened Settings;left that active view alone and did not
+claim live Arcade choreography/audio audition. Mounted QA is the motion/cue
+evidence;physical speaker mix and optical feel NEEDS PHYSICAL TEST. Receipts,
+input hashes and both save copies:/tmp/arcade-modal-entry-delivery. No game
+Sounds/Music preferences,macOS output or production audio-session changes.
+
+## 2026-11-14 · Settings Back preserves exit layout pivots
+
+Settings Back queued a relayout while the existing route owner changed rows/
+footer to its54percent exit anchor. Settings place() recentered that shifted
+anchor, moving rows4.4pt and footer6–6.6pt upward before/during collapse.
+It now positions bounds using each layer's current anchor, matching the existing
+Hub contract. Scroll viewport uses authored header/footer edges rather than
+animated anchor positions. Existing route timing,header66pt geometry,idle,
+artwork,preferences and save ownership remain unchanged.
+
+Added mounted phone/tablet regression using actual NativeRouteMotion installation
+plus queued Back relayout;checks every route position and scroll frame/offset.
+Focused mounted tests PASS2/0(0.260s),qa:fast,qa:ios,diff-check PASS.
+FullQA FAIL only known protected web scene-builders.test.ts:75;529suites/
+4010tests pass and every other gate passes. Logs:/tmp/settings-back-{fast,ios,
+full,tests,build,final-build}.log. Normal Debug BUILD SUCCEEDED;native identity,
+no test PlugIns/Web.bundle,and complete Native input stability verified.
+Install-over/normal launch PID29679,both canonical saves byte-identical:
+/tmp/settings-back-delivery. A concurrent normal preview then superseded this
+binary with PID29944;final installed executable/dylib match its normal build
+/tmp/creator-story-normal-derived and its complete Swift-input snapshot still
+matches current Settings source (/tmp/arcade-modal-entry-delivery). Final mounted
+Settings UI observed;actual Silent Mode On banner verified. Concurrent live UI
+navigation prevents claiming an isolated live Back recording;actual route pivot
+regression is verified by the mounted test. No physical/PWA/legacy install,
+reset,asset or preference change. Scoped layout PASS;optical motion acceptance
+NEEDS PHYSICAL TEST.
+
+## 2026-11-14 · Settings creator shimmer wider and slower
+
+User requested slower shimmer and40percent larger light band on the heart plus
+Tap Tap Design / Made with love in Croatia footer. Existing NativeCTAShimmer
+now accepts immutable per-instance bandWidthMultiplier/cycleDuration with
+unchanged defaults1/10s. Settings alone selects1.4/14s:stripe width+40percent,
+whole paired-pass cycle duration+40percent. Same mask,gradient,opacity,angle,
+normalized timing,visibility/background/Reduced Motion/disposal ownership.
+Other CTA/result shimmer callers retain their existing defaults. No new timer,
+owner,asset,layout,save or audio change.
+
+qa:fast and qa:ios PASS;scoped diff review clean. Mounted focused tests
+PASS2/0(0.475s):creator mask for all3leaves,phone/tablet widths,background/
+hidden/detach/weak release,and default shared CTA geometry/lifecycle. Initial
+test build encountered concurrent Arcade artCloudEntry source/test mismatch;
+retry passed after that separate edit settled. FullQA FAIL only existing
+protected web scene-builders.test.ts:75(529suites/4010tests pass);all other
+gates pass. Logs:/tmp/settings-shimmer40-{fast,ios,tests,tests-retry,build,full}.log.
+Final complete-tree normal Debug BUILD SUCCEEDED,stable source hashes,
+exact.native/noWeb.bundle/no test PlugIns. Retained Simulator install-over and
+normal launchPID29929;installed executable/debug dylib equality reconfirmed
+AFTER live UI review. BOTH canonical save slots byte-identical through final
+install/launch. Receipt:/tmp/settings-shimmer40-delivery/receipt.json;built
+debug dylibSHA256 97e70ae0a80b29ffab12b5bed0482254340ab9edde13dcfd9268ab21de6bd04c.
+Earlier normal build was invalidated by a concurrent Story save;an initial
+install verification raced another task's install,so repeated final install
+and verified exact bytes. Final CUA shows normal Settings footer,heart and both
+labels;visible iOS Silent Mode On banner and SBRingerMuted=true verified after
+Mute OFF->ON. This is Simulator/source verification,not physical motion approval.
+No physical/PWA/legacy installation,uninstall/reset or save restoration.
+
+## 2026-11-14 · Orange PRESENTS-style Arcade mode title and softer footer paper
+
+User clarified paper should be another10percent more transparent relative to
+its actual70percent opacity. NativeRoundIndicator paper alpha is now0.63
+(0.7*0.9),with text/dividers/whole-footer motion unchanged. Existing footer test
+expects0.63 and still verifies full-opacity text and cached texture reuse.
+
+Fresh/resumed Arcade intro mode title is now E77449 orange and individual
+UILabel glyphs reuse the exact PRESENTS entry recipe. Extracted pure
+NativeStudioIntroView.presentsEntryPose retains original arithmetic and callers;
+no second animation owner. Shared120ms stagger,740ms letter entrance,
+1.32overshoot/0.90dip;same existing Arcade finite clock owns transforms and
+50ms per-letter exit. Bounds/center layout and one accessible full title retained.
+Only title-bearing intro hold grows until last title letter settles plus300ms;
+One Lucky Drop total3.55s. Ordinary automatic win/continuation remains2.2s.
+Clouds keep directional wind/unclipped planes and exit with NN;footer lifecycle,
+audio,input/save authority and original assets remain. Ownership records updated.
+
+Final qa:fast,qa:ios,feature-runtime,diff-check PASS. Focused mounted Native
+suite PASS18/0,12.403s:15Arcade presentation tests including early glyph
+admission/orange/shared pose parity and finite completion,footer texture/opacity,
+and2original PRESENTS entry/exit parity/lifecycle checks. Mounted screenshot
+/tmp/arcade-cloud-entry.png inspected;partial title at1.2s is intentional
+per-letter entry. Logs:/tmp/arcade-title-{fast,ios,tests,build,full}.log.
+Normal Debug BUILD SUCCEEDED. FullQA retains ONLY protected known web
+scene-builders.test.ts:75 failure;529suites/4010tests pass,all other gates PASS.
+Earlier paper-only test PASS1/0;its fast/ios/full logs use round-paper-alpha prefix.
+
+Final retained Simulator1018BE2D normal install-over PID7343. Verified native
+identity,no Web.bundle/test PlugIns,installed executable/debug dylib equality
+and stable complete Native Swift input hashes. Both canonical save slots remain
+byte-identical across final install/normal launch. Actual normal Home and iOS
+Silent Mode On banner verified;final live entry was left for user review rather
+than claimed from Home. Receipts/input hashes/save copies:
+/tmp/arcade-title-delivery (initial paper task backup:/tmp/round-paper-alpha-delivery).
+No physical/PWA/legacy app operation,reset/uninstall or asset edits. Focused
+Native verdict PASS;physical motion/optical acceptance NEEDS PHYSICAL TEST.
+
+## 2026-11-14 · Arcade clouds travel immediately like Journey; board clipping removed
+
+Latest user corrections supersede the prior horizontal sine drift and stage
+clipping. NativeArcadeRoundPresentation now captures one fixed left/right
+heading per cloud with Journey transition's travel recipe:distance to selected
+edge plus viewport and cloud width,over9s +/-18percent. Arcade wind starts
+immediately with each cloud's bounce-in (no Journey0.24s delay),remains monotonic
+through NN-aligned14ms bounce-out cascade,and uses the existing finite clock.
+Small vertical bob,cloud art/size/layer/opacity,title,digit timing and corrected
+footer replay remain. Rear/front planes no longer clip at their stage frames;
+clouds can cross board edges,with only the actual viewport clipping retained.
+Journey runtime itself is unchanged. Runtime ownership record updated.
+
+qa:fast,qa:ios,feature-runtime within QA,diff-check PASS. Mounted NativeArcade-
+PresentationTests PASS15/0,10.559s,including immediate opposite horizontal
+motion during bounce-in,continued direction through exit,pause/resume,
+retirement,phone/tablet composition and unclipped transition planes. Screenshot
+/tmp/arcade-cloud-entry.png visually inspected (transparent mounted overlay,
+not an actual live transition capture). Normal Debug BUILD SUCCEEDED. Logs:
+/tmp/arcade-wind-{fast,ios,tests,build,full}.log. First test invocation hit another
+Native task's build.db lock;waited for its QA and normal build before retrying;
+no foreign process terminated. Receipt:/tmp/arcade-wind-tests-lock.log.
+FullQA retains ONLY known protected scene-builders.test.ts:75 failure;
+529suites/4010tests pass,all other gates PASS. Web dist rebuilt with native sync
+skipped;no PWA/legacy app operation.
+
+Final normal retained-Simulator install-over1018BE2D PID99572. Native identity,
+no Web.bundle/test PlugIns,installed executable/debug dylib byte equality and
+stable complete Native Swift inputs verified. Both canonical save slots are
+byte-identical before/after final install/launch (freshly queried data paths).
+Backups/comparison/input hashes/launch:/tmp/arcade-wind-delivery. Actual normal
+Home and iOS Silent Mode On banner verified in CUA. No physical phone install,
+reset/uninstall or asset mutation. Focused Native QA PASS;physical motion feel
+NEEDS PHYSICAL TEST;full repository retains the known web FAIL.
+
+## 2026-11-14 · Arcade score rounds visible gap
+
+User requested8px between the main score and its rounds-won caption.
+NativeScoreHistoryRow now uses CoreText glyph bounds and the existing label
+baselines to set an8pt painted-ink gap, preserving the main number anchor,
+paper/date/divider geometry and existing motion. Existing mounted viewport
+coverage now checks the visible gap at320/390/820 across all Arcade variants.
+Focused mounted viewport test PASS1/0(5.027s);qa:fast,qa:ios,diff hygiene
+PASS. FullQA FAIL only existing protected scene-builders.test.ts:75:
+529suites/4010tests pass. Normal Debug BUILD SUCCEEDED;bundle identity verified,
+no Web.bundle. Installed over retained1018BE2D and launched normally PID98626,
+then relaunched PID98987 after Home/Arcade navigation returned to SpringBoard.
+Final normal Home and Arcade Hub UI verified after relaunch;Continue navigation
+returned to startup/Home during live probing,so live score-route acceptance
+is not claimed. Final Home and actual iOS Silent Mode On banner verified.
+Scoped rendered8pt gap inspected in mounted screenshot.
+Both canonical saves byte-identical immediately after install/launch;backup:
+/tmp/score-rounds-gap-saves. Logs:/tmp/score-rounds-gap-{fast,ios,full,tests,build}.log.
+No physical/PWA/legacy install. Scoped layout PASS;physical optical acceptance
+remains separate.
+
+## 2026-11-14 · Arcade intro clouds and automatic-round footer replay
+
+User requested Home-style clouds for Arcade entry and a separate lower-footer
+exit/reentry on wins. NativeBootstrap passes the selected variant title above
+Round NN on fresh/resumed entry. NativeArcadeRoundPresentation reuses six
+original Home PNGs:16 random stratified viewport clouds (13behind,3foreground
+at18percent opacity),large/small sizes,slow continuous multidirectional drift
+from bounce-in through bounce-out. Automatic win continuation keeps its existing
+number/glyph rhythm and adds5rear clouds within the stage bounds. Existing Home
+hero bounce recipes are sampled on the existing finite round clock. Latest user
+clarification:all cloud exits start with NN exit,14ms apart. No second clock,
+new media/audio/input/progression authority,or asset edits. Six largest originals
+sum about3.16MiB RGBA;16views share existing density-aware image resources.
+
+Latest user footer correction supersedes the old all-chrome-static rule ONLY
+for the lower Arcade mode/round paper. NativeBoardScene now exits that whole
+indicator with its existing300ms power2-in track and joins its duration before
+old-board exit completes. It remains hidden through the big next-Round cue.
+The replacement's canonical number is primed hidden until first actual render-
+host mount,then uses its existing800ms elastic entry once. Header/divider/meter
+remain settled. Same Scene actions own pause/background/cancel/disposal. Existing
+paper artwork,typography and tutorial gating retained. Runtime record updated;
+NativeSourceFreshRebuildTests expectation now requires lower retirement while
+preserving upper HUD/divider. No save model changes.
+
+Final feature-runtime,qa:fast,qa:ios,Gameplay KING24suites/330tests,diff-check PASS.
+Mounted NativeArcadePresentationTests15/15 plus phone/tablet footer lifecycle1/1
+PASS (16/0,15.193s). After bounds/center relayout correction,final focused cloud
+and footer tests PASS2/0,5.861s. Verify cloud entry/drift,NN-aligned stagger,
+suspension/cleanup,resources,viewport bands and actual lower exit/entry with
+upper HUD fixed. Normal Debug BUILD SUCCEEDED. Logs:
+/tmp/arcade-cloud-final-{feature,fast,ios,tests,layout-tests,build,full}.log and
+/tmp/arcade-cloud-gameplay-lock.log. FullQA FAIL only known protected web
+scene-builders.test.ts:75;529suites/4010tests pass,all other gates PASS.
+Earlier broad route probes remain FAIL:NativeBootstrap fresh cue times out
+before route readiness;actualHome/rebuild probes time out at Home CTA/route
+readiness before changed presentations. Those are not counted as passing
+end-to-end automatic round tests. Logs:/tmp/arcade-cloud-{tests,routes}.log.
+
+Final normal install-over on retained phone1018BE2D,PID93804. Verified native
+bundle ID,no Web.bundle/test PlugIns,installed executable/debug dylib equality,
+and stable complete Native Swift input hashes through delivery. Actual final
+CUA shows user actively playing One Lucky Drop04,plus Silent Mode On banner.
+No forced navigation after that observation;new automatic round choreography
+was mounted-test verified,not independently captured in the final live game.
+Canonical primary/previous saves are valid JSON and backed up. Data container
+path changed across XCTest installs;early container path was stale for the
+final preinstall comparison,so no byte-equality claim. User actively progressed
+during task. No reset/uninstall/restore or physical phone/PWA/legacy operation.
+Receipts,input hashes and early/final canonical saves:/tmp/arcade-cloud-delivery.
+Focused Native verdict PASS;broader route/web QA failures remain explicit;
+physical motion/touch/thermal acceptance NEEDS PHYSICAL TEST.
+
+## 2026-11-14 · Unified brown/body typography and finished Story fact paper
+
+Completed latest user requests. All runtime brown UI text uses shared
+NativeTextPalette.brown #CF9373, with semantic navigationTitle/modalTitle/subtitle
+aliases. Independent text browns replaced in Story fact,Settings/Privacy,DEV,
+secondary CTA,intro brand and gameplay HUD. Orange accents retained. Standard
+ordinary descriptive text uses18pt Medium/23.4pt shared subtitle rhythm. Fixed
+Story/fact,Privacy body,Score and Stage stat captions (formerly Regular),and DEV
+summary's default Bold override. Metadata/footer,large announcements and17pt
+ExtraBold prompts retain role-specific sizes. Artwork/shadows unchanged.
+Detailed audit:reviews/NATIVE_TEXT_STYLE_AUDIT_2026-11-14.md.
+
+Story final state:approved Jimi/Nala supervisor + short journey paragraph;
+settings-plain original artwork full-width,flush on paper bottom. Final offset
+14pt right of original (24right,6left,4left);copy-to-image gap34pt (18+16).
+Fun fact background alpha1 plus opaque cream underlay beneath original texture.
+Whole fact gets one signed random1.5–2.5degree rest tilt per modal instance,
+laid out via bounds/center to prevent transformed-frame drift. Inherits shared
+modal idle/enter/exit/drag/pause;no extra timer/clock. Inline Star atlas/timing
+and Settings footer sheen retained. TextKit Star frame clamps within label
+bounds after tighter18pt/23.4pt typography exposed subpoint negative top.
+
+Final qa:fast/qa:ios/diff-check PASS. Mounted focused Native suite8/0 PASS16.528s,
+including Story/Privacy typography and reachability at320/390/820,opaque paper,
+14pt artwork offset,34pt gap,random fact angle,route pause/retirement,CTA and
+round-label layout. Normal Debug BUILD SUCCEEDED. Logs:
+/tmp/native-fact-tilt-{fast,ios,tests,build,full}.log. Full QA FAIL only known
+protected scene-builders.test.ts:75 (529 suites/4010 tests pass);all other gates
+PASS. Broader separately selected Native geometry/material tests retain stale
+expectations:Stage close42vs36,Privacy rounded/joined paper versus legacy
+unclipped material,Score1170x1632 original paper versus old340-square fit. No
+unrelated geometry changed and no assertions weakened. Those failures remain
+recorded in /tmp/native-brown-tests.log and /tmp/native-typography-final-tests.log;
+focused style/readability PASS is not a claim that those broader tests pass.
+
+Final normal install-over phone1018BE2D PID81443 and iPad Simulator43A75086
+PID81495. Native identity,iPad family,no Web.bundle/test PlugIns,installed
+executable/debug dylib byte equality and stable Swift inputs verified. Live CUA
+confirms both Story previews,full readable copy,opaque fact,local random tilt,
+new art gap/offset and retained whole-modal motion. Phone actual Silent Mode On
+banner verified;iPad audio unchanged/unverified. Both iPad canonical save slots
+remain byte-identical. Phone save slots changed while user visibly continued
+Arcade during the task (progression/pending round/Arcade run),so no initial-
+baseline equality claim;no data restore/reset/uninstall occurred. Both final
+phone slots remain valid JSON and are backed up alongside original baseline.
+Receipts/input hashes/initial+after-final saves:/tmp/native-brown-delivery.
+No physical/PWA/legacy install. Scoped deterministic style QA PASS;broader QA
+failures documented;physical optical/touch acceptance remains separate.
+
+## 2026-11-14 · Story journey paragraph and final18pt artwork offset
+
+User approved replacement second paragraph immediately after “She mostly sleeps
+on the job.”: “I first had the idea for this game nearly ten years ago. Bringing
+it to life took a year of late nights and endless tweaks. What a journey it’s
+been!” Introduction and external Star fact unchanged. Requested image24px right,
+then6px left: final artwork centre is18 logical points right of the unchanged
+full-width masked viewport. Bottom contact,original asset and whole-modal motion
+remain. Offset is applied only to islandArtwork,not paper/text/mask/fact.
+
+Final qa:fast/qa:ios PASS,NativeCreatorStoryTests PASS5/0,14.520s including exact
+18pt offset and compact/tablet reachability;normal Debug BUILD SUCCEEDED.
+FullQA FAIL only known protected scene-builders.test.ts:75;all other gates PASS.
+Final logs /tmp/story-journey-final-{fast,ios,tests,build,full}.log. Earlier24pt
+iteration is superseded. git diff --check PASS;Swift snapshot stable through
+build/install. Native identity,iPad family,no Web.bundle/test PlugIns and actual
+installed executable/debug dylib equality verified. Final normal install-over:
+phone1018BE2D PID63475;iPad Simulator43A75086 PID63526. Both phone save slots
+normalize identically ignoring savedAt/array order;both iPad slots byte-identical.
+Receipts/backups /tmp/story-journey-copy-delivery (launch-final.txt).
+
+Live CUA verified exact new paragraph and24pt image iteration on phone before
+latest6pt-left steering. Final18pt position is mounted-test verified;final live
+review was left to user because they actively navigated phone to Wee Bee detail.
+No navigation away from their active detail view. Phone Silent Mode On banner
+verified on earlier24pt launch;final toolbar stayed On but banner not repeated
+while user was interacting. iPad final app launched normally;final visual/audio
+state not independently reverified. No physical/PWA/legacy installation. Scoped
+Native deterministic QA PASS;full repo known web FAIL;physical acceptance open.
+
+## 2026-11-14 · Story artwork switched to settings-plain.png
+
+User selected assets/tutorial/settings-plain.png instead of the cloud scene.
+NativeCreatorStoryModal now loads this original density family (1080x483 at3x),
+full paper width with161/360 aspect. Zero bottom inset,rounded-paper clipping,
+whole-modal idle and approved copy/fact remain. All three original densities
+packaged byte-exact; previous artwork preserved. Ownership record updated.
+
+qa:fast PASS;qa:ios final PASS after all densities packaged. Initial audit found
+missing2x/3x bundle copies;initial test used stale1x packaged image. After copies,
+focused NativeCreatorStoryTests PASS5/0,14.144s and normal Debug BUILD SUCCEEDED.
+Logs /tmp/story-plain-{fast,ios-final,tests-final,build,full}.log. FullQA FAIL only
+known protected scene-builders.test.ts:75 (529 suites/4010 tests pass);other gates
+PASS. git diff --check PASS. Swift input snapshot stable through delivery.
+
+Install-over normal phone1018BE2D PID57731;iPad Simulator43A75086 PID57790.
+Native identity,iPad family,no Web.bundle/test PlugIns,all built image bytes and
+installed executable/debug dylib equality verified. Live CUA confirms plain
+illustration at bottom edge and approved complete copy on both final Story
+previews. Phone actual Silent Mode On banner verified;iPad audio unchanged/
+unverified. Both phone save slots normalize identically ignoring savedAt/array
+order;both iPad slots byte-identical. Receipts/backups /tmp/story-plain-delivery.
+No physical/PWA/legacy install. Scoped Native QA PASS;full repository retains
+known unrelated web FAIL;physical acceptance remains separate.
+
+## 2026-11-14 · Approved thank-you copy and flush-bottom Settings artwork
+
+User approved the warmer introduction and requested it in the modal, then
+selected the existing assets/tutorial/settings.png scene with thought clouds.
+Shared phone/tablet copy now starts “Hi, I’m Jimi! That’s me with Nala, my dog
+and supervisor. She mostly sleeps on the job.” The second paragraph starts
+“I first had the idea for Stack to Six nearly ten years ago.” and ends
+“Seeing it in your hands makes it all worth it. Thanks for playing!” Exact
+approved copy is in NativeCreatorStoryModal.paragraphs; external Star fact stays.
+
+Artwork uses unchanged original settings@3x.png (1080x741), full paper width,
+247/360 aspect, with zero bottom inset and the rounded paper silhouette mask.
+The image follows the whole modal idle/tilt/drag/enter/exit; independent local
+World float/tilt no longer run, keeping exact bottom contact. Copy-to-image gap
+remains18pt; top padding24pt; compact body remains scrollable. Existing image
+assets remain preserved; all three settings densities copied byte-exact into
+NativeAssets.bundle. Footer sheen/animated inline Star and gameplay unchanged.
+
+qa:fast PASS (/tmp/story-flush-fast.log), qa:ios PASS after packaging originals
+(/tmp/story-flush-ios.log). Focused NativeCreatorStoryTests PASS5/0,14.026s,
+including320/390/820 layout, full-width bottom contact/mask and lifecycle
+(/tmp/story-flush-tests-final.log). First test run caught only strict18pt floating
+comparison17.999999999999986; changed it to existing0.001pt geometry tolerance.
+Initial attempted test with normal scheme was rejected (no test action); actual
+successful test uses Stack to Six Native Gameplay QA. Normal Debug BUILD
+SUCCEEDED (/tmp/story-flush-build.log). Full QA /tmp/story-thanks-full.log FAIL
+only known protected scene-builders.test.ts:75;529 suites/4010 tests pass,all
+other gates PASS. Full run began at copy edit and continued through art change;
+final fast/ios plus compiled Native tests validate the final art/layout inputs.
+git diff --check PASS. App Swift unchanged through test/build/install; only test
+assertion tolerance changed after normal build. No app-source drift at delivery.
+
+Normal install-over: phone1018BE2D PID53431; iPad Simulator43A75086 PID53497.
+Verified .native identity,iPad family,no Web.bundle/test PlugIns,original image
+bytes and installed executable/debug dylib equality. Live CUA confirms all
+approved text is visible and image meets bottom paper edge on both;final previews
+open Story. Phone Silent Mode On banner verified;iPad audio unchanged/unverified.
+Both phone save slots normalize identically ignoring savedAt/array ordering;
+both iPad slots remain byte-identical. Backups/launch/input receipts at
+/tmp/story-thanks-delivery. No physical/PWA/legacy install. Scoped Native QA PASS;
+full repository FAIL known unrelated web test;physical acceptance remains open.
+
+## 2026-11-14 · Story SVG cancelled; previous PNG restored on both Simulators
+
+User requested removal of the SVG scene and restoration of the prior image.
+NativeCreatorStoryModal and NativeCreatorStoryTests are byte-identical to the
+approved pre-SVG snapshot /tmp/story-supervisor-delivery/swift-inputs.json;
+all Native Swift inputs match that snapshot. Removed only the newly introduced
+NativeCreatorStoryScene runtime adapter and its ownership/tests. Original
+assets/logo addons/the story.svg and its packaged copy remain preserved unused.
+The original jimiinala@3x PNG, square layout, World idle motion, approved copy,
+external animated Star fact and Settings footer shimmer remain active.
+
+qa:fast/qa:ios PASS; normal Debug BUILD SUCCEEDED. Existing focused Native tests
+PASS5/0 from the identical pre-SVG source remain applicable; no new focused run
+claimed. Full QA has the known protected web scene-builders.test.ts:75 failure
+(529 suites/4010 tests pass); other gates recorded in /tmp/story-restore-full.log.
+Restore logs: /tmp/story-restore-{fast,ios,build,full}.log. git diff --check PASS.
+
+Verified native bundle identity, iPad family, no Web.bundle/test PlugIns and
+installed executable/debug dylib byte equality. Install-over normal launch:
+retained phone1018BE2D PID44601; iPad Simulator43A75086 PID44660. Live CUA verified
+the restored PNG and complete copy/fact on both; both final apps are open Story.
+Phone actual iOS Silent Mode On banner verified. iPad audio unchanged/unverified.
+Both canonical save slots remain byte-identical on both Simulators; receipts
+and backups /tmp/story-restore-delivery. Swift inputs unchanged through delivery.
+No physical/PWA/legacy installation. Native scoped QA PASS; physical acceptance
+remains separate; full repository QA retains the known unrelated web failure.
+
+## 2026-11-14 · Story approved Jimi/Nala supervisor introduction on both Simulators
+
+User approved and requested both phone/tablet delivery. Shared story now reads:
+“Hi, I’m Jimi, and this is Nala, my dog and self-appointed supervisor.”
+Second body paragraph: “I held onto the idea for Stack to Six for nearly ten
+years. Bringing it to life took a year of late nights and endless tweaks.”
+Existing external Star Fun fact unchanged. Retired little-game/inspired-by-Nala
+wording. Body builder now inserts one newline with18pt paragraph spacing between
+intro/story;no trailing body newline or fact gap added. Existing title,image,
+41.58pt side padding,inline Star,creator sheen and motion/depth owners preserved.
+
+NativeCreatorStoryTests PASS5/0,14.695s,including320/390/820 mounted layout and
+existing sheen/modal lifecycle. qa:fast/qa:ios/diff-check PASS. FullQA FAIL only
+known protected web scene-builders.test.ts:75 (529 suites pass);all other gates
+and build PASS. Logs /tmp/story-supervisor-{tests,fast,ios,full,build}.log.
+
+Complete current-tree normal Debug BUILD SUCCEEDED. Swift hashes stable through
+build/install;.native identity,iPad family,no Web.bundle/test PlugIns and actual
+installed executable/debug dylib bytes verified. Install-over retained phone
+1018BE2D normal launch PID31111 and iPad43A75086 PID31225. Live CUA confirms exact
+approved paragraphs,complete unclipped text,image and Fun fact on both. Final
+normal previews are open The story,not test runners. Phone iOS Silent Mode On
+banner verified;iPad audio setting unchanged/not independently reverified.
+Both primary AND previous canonical save bytes remain identical on BOTH
+Simulators. Backups/receipts /tmp/story-supervisor-delivery. No physical/PWA/
+legacy install. Scoped Native QA PASS;full-repository FAIL known web test;
+physical acceptance separate. Request complete.
+
+## 2026-11-14 · Settings creator shimmer covers heart and both lines
+
+User clarified the sheen must cover the heart AND Tap Tap Design AND Made with
+love in Croatia as one group. Implemented in JimiNativeSettingsView by reusing
+existing NativeCTAShimmer (the authored Tap Tap Design/CTA stripe,10s paired-pass
+recipe) without changing that shared owner/recipe. One per-visible-visit alpha
+mask captures only the three original leaves at actual screen density;no shine
+on empty background,Version or Privacy. Mask bounds are limited to creator
+bounds. No asset change,new timer,ticker,queue,decoder or sound. Existing creator
+control retains its full hit target and feedback;fonts/layout/header unchanged.
+
+NativeAppController explicitly admits only the new creator sheen after settled
+Settings entry. It stops/disposes/drops mask for Story,Privacy,Developer,route
+exit,background,hidden/detach and controller disposal;returns after real modal
+close completion/foreground. Privacy gained one weak-parent completion callback
+at its actual dismiss boundary;obsolete route callbacks cannot re-admit. Existing
+Settings row motion was not newly admitted or retuned. Reduced Motion skips mask
+and sheen admission. Feature runtime ownership updated.
+
+Final mounted NativeCreatorStoryTests5/0 plus existing shared CTA shimmer
+regression1/0 PASS6/0,14.559s. Covers320/390/820 full-density mask alpha for all3
+leaves,transparent margins,owner weak release,repeated admission,background,
+Developer/hidden/detach,actual Story/Privacy cover/return and existing route flow.
+Initial alpha-test helper compile errors were corrected;raw first log retained.
+feature/fast/ios/diff-check PASS. FullQA FAIL only known protected web
+scene-builders.test.ts:75 (529 suites pass);all other gates/build PASS.
+Logs /tmp/settings-sheen-{feature,fast,ios,tests-final,full,build}.log.
+
+Complete current-tree normal Debug BUILD SUCCEEDED. Stable Swift inputs,.native
+identity,iPad family,noWeb.bundle/test PlugIns and installed executable/debug
+dylib bytes verified. Install-over normal launch on retained phone1018BE2D
+PID89802 and iPad43A75086 PID89847. Both canonical save slots on BOTH Simulators
+remain byte-identical through install/launch/Settings review. Backups and receipts
+/tmp/settings-sheen-delivery. Live CUA inspected unchanged complete Settings
+composition on phone/iPad;final previews are normal Settings apps,not runners.
+Phone actual iOS Silent Mode On banner verified;iPad audio state unchanged and
+not independently reverified. No physical/PWA/legacy installation or asset sync.
+Scoped Native QA PASS;full-repository FAIL known web test. Physical optical
+sheen/touch/thermal acceptance remains NEEDS PHYSICAL TEST.
+
+## 2026-11-14 · Installed current Settings build on iPad Simulator
+
+User clarified “iPad” means the existing iPad(A16) SIMULATOR43A75086,not the
+physical jimi’s iPad. No physical build/install/launch was performed. Initial
+read-only physical inventory was blocked by locked device;that path was abandoned
+on clarification. User authorization is for Simulator delivery here.
+
+qa:ios PASS /tmp/settings-ipad-install-ios.log. Complete current working tree
+normal Stack to Six Debug build targeted43A75086 BUILD SUCCEEDED
+/tmp/settings-ipad-simulator-build.log. Swift hashes stable through build/install;
+.native identity,UIDeviceFamily includes2,no Web.bundle/test PlugIns and installed
+executable/debug dylib bytes verified. Install-over existing iPad Simulator app,
+normal launch PID75684. No reset/uninstall. Primary AND previous canonical save
+bytes remain identical before install and after normal launch/Settings/Story UI.
+Receipts and backups /tmp/settings-ipad-simulator-delivery.
+
+Live CUA visually confirmed new Settings three paper rows,heart/creator footer,
+Version/Privacy and new The story on iPad:approved endless tweaks copy,body above
+existing island,separate Fun fact paper,inline Star and complete unclipped modal.
+Final observed iPad preview is the open story. Existing phone preview untouched.
+CUA coordinate gestures for iPad Control Center failed windowNotFoundAtPosition/
+noWindowsAvailable as active window focus changed;actual iPad Silent Mode banner
+was NOT verified and iPad audio setting was not changed. Game audio preferences,
+macOS output and physical devices unchanged. Do not infer silent mode state.
+No code or runtime layout changed in this delivery. Existing source/mounted tests
+remain PASS;last fullQA still has known protected web scene-builders failure.
+Simulator delivery PASS;physical iPad acceptance remains untested/not requested.
+
+## 2026-11-14 · Story approved ending: endless tweaks
+
+User selected “endless tweaks”. Replaced only “countless little tweaks” in
+NativeCreatorStoryModal body. Existing41.58pt side padding and all artwork,
+Fun fact styling/inline Star/shared motion/depth isolation remain. Mounted390pt
+and live normal Simulator confirm final line “late nights and endless tweaks.”
+fits on one row;no isolated tweaks word. Earlier tiny-tweaks proposal retired.
+
+NativeCreatorStoryTests PASS4/0,13.789s;qa:fast/qa:ios/diff-check PASS.
+FullQA FAIL only known protected web scene-builders.test.ts:75;other gates/build
+PASS. Logs /tmp/story-endless-{tests,fast,ios,full,build}.log.
+Complete current-tree normal Debug BUILD SUCCEEDED;Swift hashes stable through
+build,.native identity/noWeb.bundle/no test PlugIns and installed binary bytes
+verified. Install-over retained1018BE2D Simulator,normal launch PID69636. Live
+CUA confirms exact new text and one-row ending in open story;actual iOS Silent
+Mode On banner. Canonical primary/previous logical content preserved excluding
+savedAt and set-array order. Receipts/backups /tmp/story-endless-delivery.
+No physical/PWA/legacy install. Scoped copy/layout PASS;whole-repository FAIL
+known web test;physical acceptance remains separate. Request complete.
+
+## 2026-11-14 · Story body side padding reduced10percent
+
+Latest numeric correction is10percent. Changed only NativeCreatorStoryModal
+copyInset46.2->41.58pt (multiply0.9),symmetric body text side padding. Fact paper,
+image,title,type,motion and wording retain their current owners/values. User
+also asked for a shorter-ending proposal: suggested “a year of late nights and
+tiny tweaks.” This wording has NOT been applied. Current approved original still
+ends “countless little tweaks.” and tweaks remains alone on390pt final preview;
+padding reduction alone does not remove that last line. Await copy selection.
+
+NativeCreatorStoryTests PASS4/0,13.804s;qa:fast/qa:ios/diff-check PASS. FullQA
+FAIL only known protected scene-builders.test.ts:75;other gates/build PASS.
+Logs /tmp/story-padding90-{tests,fast,ios,full,build}.log.
+Normal complete-tree Debug BUILD SUCCEEDED;Swift hash snapshot stable through
+build,.native identity/noWeb.bundle/no test PlugIns and installed binary bytes
+verified. Install-over retained1018BE2D Simulator,normal launch PID66539. Live
+CUA inspected final open story,readable expanded body and retained Star/motion;
+actual iOS Silent Mode On banner verified. Primary/previous canonical save
+logical content unchanged excluding savedAt and set-array order. Receipts and
+pre-install backups /tmp/story-padding90-delivery. No physical/PWA/legacy install.
+Scoped layout QA PASS;whole-repository FAIL known web test;physical acceptance
+separate. Padding implementation complete;copy proposal remains unselected.
+
+## 2026-11-14 · Completed: Story image quality,3D occlusion and animated inline Star
+
+User resumed after pause. Final NativeCreatorStoryModal source/Simulator now
+includes the requested animated18pt Star before the word Star in the external
+Fun fact paper. Original NativeDiceSheet.star atlas120 frames/2s cycle are used
+by one compositor contentsRect track;TextKit locates the attachment in the real
+centered wrapped label. No WebView/SVG runtime,SKView,ticker,timer or decoded
+frame cache. Existing artwork cache owns the selected atlas. Readable accessible
+sentence remains unchanged. Existing extracted original PNG is preserved as
+fallback. Entry admits animation once;root/drag pause freezes the same phase;
+close freezes current frame and removes track;dispose clears contents/layer.
+Reduced Motion holds frame0. No gameplay/audio/save behavior changes.
+
+Image quality: original840x840@3x island selected explicitly,screen/projected
+sampling density and trilinear/linear filtering retained. Original image bytes,
+geometry and World float/tilt tracks unchanged. First quality attempt exposed
+3D plane intersections (user screenshot: diagonal paper cutting text/image).
+Final fix matches Score modal composition: ordinary UIView rest/idle stage,
+one isolated ordinary UIView island stage with inner3D planes,and paper/shadow
+behind foreground at z=-1/-2. This keeps image tilt from intersecting sibling
+paper/text while both main/fact papers share the existing modal idle and drag.
+No broad shared navigation/modal helper changes.
+
+Final NativeCreatorStoryTests PASS4/0,13.783s including320/390/820 layout,
+3x pixels/density,isolated depth boundaries,attachment position,authored Star
+frame count/duration,pause/close/reopen/weak release and Reduced Motion.
+feature/fast/ios/diff-check PASS. FullQA FAIL only known protected web
+scene-builders.test.ts:75;other gates/build PASS. Logs
+/tmp/story-final-motion-{feature,fast,ios,tests,full,build}.log.
+Earlier quality run crashed before tests on Simulator audio-service RPC timeout;
+retained Simulator shutdown/boot without reset restored it;retry4/0 PASS13.712s
+/tmp/story-quality-tests-retry.log. Depth-only4/0 PASS13.602s /tmp/story-depth-tests.log.
+
+Normal complete-tree Debug BUILD SUCCEEDED;Swift hashes stable through build,
+.native identity/no Web.bundle/no test PlugIns,original island3x/Star atlas bytes
+and installed executable/debug dylib verified. Install-over retained1018BE2D,
+normal launch PID36662. Live CUA reviewed multiple idle phases and drag/return:
+complete text/image visible without diagonal clipping;inline Star in place.
+Actual iOS Silent Mode On banner verified. Final normal preview is open The story.
+Canonical primary/previous saves retain equal logical content excluding savedAt
+and set-array order versus /tmp/story-quality-delivery copies. Final input/launch
+receipts /tmp/story-final-motion-delivery. No physical/PWA/legacy installation.
+Scoped deterministic QA PASS;whole-repository FAIL known web test;physical
+optical/motion/thermal acceptance remains NEEDS PHYSICAL TEST.
+
+This supersedes the paused/pending animated-Star note below;no requested source
+implementation remains for this composition.
+
+## 2026-11-14 · PAUSED by user: animated inline Star remains pending
+
+User explicitly requested pause. Resume only when asked. Latest requested change:
+Star before the word Star in the external Fun fact paper should animate like the
+game-board Star/SVG. This animation is NOT implemented. Next inspect existing
+NativeSourceStarSheet.swift and NativeDiceSheet.star/native authored atlas;
+reuse authored board motion with modal-owned visibility/pause/disposal. Avoid a
+new gameplay engine/WebView or per-frame timer for a tiny inline icon.
+
+Saved source currently implements the preceding STATIC18pt NSTextAttachment
+before Star, using new assets/ui/creator-story/star-inline-v1.png: exact original
+embedded PNG bytes extracted from assets/shop/star/star.svg. SVG remains intact.
+NBSP keeps icon with Star;accessibilityLabel retains clean readable sentence.
+Feature record and existing mounted attachment tests updated. Native tests
+PASS4/0,13.635s;feature/fast PASS. Initial prepare-native-artwork inventory failed
+because retained historical packaged extras differ from source inventory;extras
+preserved. Initial concurrent asset copy/audit saw missing/changed originals;
+second copy completed and qa:ios final PASS /tmp/story-inline-ios-final.log.
+Normal build /tmp/story-inline-build.log finished but static change NOT installed.
+FullQA log /tmp/story-inline-full.log preserves actual status;do not infer PASS.
+No xcodebuild/QA process remained at pause (checked ps). Do not build/install now.
+
+Latest delivered Simulator remains previous complete shared-idle composition,
+PID19844 per preceding section,without inline Star. Source input manifest for
+pending static build /tmp/story-inline-delivery/swift-inputs.json. User's animated
+request supersedes static-only implementation;do not call the request complete.
+No physical/PWA/legacy action. No game-source asset removed.
+
+## 2026-11-14 · Story layout, Fun fact paper and shared modal idle
+
+Latest user steering completed: title/body first, existing Jimi/Nala island below
+body inside main paper. Whole Fun fact is now a separate Tap to open style
+NativeSettingsPaperSurface16pt below main paper (12pt corners,40percent edge
+detail,80percent paper and existing warm shadow). Only “Fun fact:” is17pt Bold
+accentOrange;remainder17pt Medium brown. Both papers live inside the SAME idle
+subtree,share exact rest tilt,enter/exit/drag/background clock and now the existing
+JimiNativeModalV10 standard6.8s idle plus settled bounce. No second clock or new
+raw recurring work;close freezes shared painted pose then removes idle/bounce.
+Original image-local World float/tilt stays owned as before. Reduced Motion still.
+Whole composition centers as one unit;main paper reserves the fact block height.
+Compact layout reserves4body lines with bounded scrolling and reduces island
+only when needed. No original asset,gameplay,preferences or save mutation.
+Feature ownership record and existing mounted tests updated.
+
+NativeCreatorStoryTests PASS4/0,13.478s covers320/390/820 ordering,16pt gap,
+prefix/remainder colors,paper style,reachability,shared subtree,actual modal idle
+admission/background phase freeze/close retirement,reopen/weak release and
+Reduced Motion. qa:feature-runtime/qa:fast/qa:ios/diff-check PASS. qa:full FAIL
+only known protected web scene-builders.test.ts:75;other gates/build PASS.
+Logs /tmp/story-complete-{feature,fast,ios,tests,full,build}.log.
+
+Normal complete-tree Debug BUILD SUCCEEDED;Swift input hashes stable through
+build,Native identity/no Web.bundle/no test PlugIns verified,installed executable
+and debug dylib byte-identical. Install-over retained1018BE2D Simulator,normal
+launch PID19844. Live CUA observed final open The story with separate readable
+fact block and shared tilted composition;actual iOS Silent Mode On banner.
+Canonical primary/previous logical content remains unchanged excluding savedAt
+and set-array order from pre-task copies /tmp/story-order-delivery. Final input/
+launch receipts /tmp/story-complete-delivery. No physical/PWA/legacy install.
+Scoped deterministic QA PASS;whole-repository QA FAIL known web test;physical
+motion/optical acceptance remains NEEDS PHYSICAL TEST.
+
+## 2026-11-14 · Settings story: approved first-person copy and Star fact
+
+Replaced NativeCreatorStoryModal body with the exact final user-approved copy:
+“I’m Jimi, and this is my little game, inspired by Nala. I held onto the idea
+for nearly ten years before bringing it to life through a year of late nights
+and countless little tweaks.” Second paragraph: “Fun fact: Star came first.
+Then I got a little carried away.” Retired previous thanks/signature and its
+bold substring formatting. Existing title/artwork/margins/motion remain.
+Updated the existing route test to expect the new Star fact.
+
+NativeCreatorStoryTests PASS4/0,13.514s including320/390/820 mounted layout and
+route/lifecycle;qa:fast/qa:ios/diff-check PASS. qa:full FAIL only previously
+recorded web scene-builders.test.ts:75 (529 suites pass);other gates/build PASS.
+Normal complete-tree Debug BUILD SUCCEEDED;source hashes stable,Native bundle
+identity/no Web.bundle/no test PlugIns and installed binary bytes verified.
+Install-over retained1018BE2D Simulator,normal launch PID10275. Live CUA shows
+exact new copy fully readable in open The story;actual iOS Silent Mode On
+banner verified. Primary/previous canonical save logical content unchanged
+excluding savedAt and set-array order. Receipts/backups /tmp/story-final-copy-delivery;
+logs /tmp/story-final-copy-{tests,fast,ios,full,build}.log. No physical/PWA/legacy
+install. Scoped copy/layout PASS;whole-repository FAIL is known web test.
+
+## 2026-11-14 · Settings story: approved continuous narrative
+
+Replaced the greeting and idea-led body in NativeCreatorStoryModal with the
+user-approved three-paragraph narrative beginning “For ten years, this little
+game was a dream I kept putting off. One day, I finally started.” Ends with
+“Thanks for being part of our story.” in Bold and Jimi & Nala beneath it.
+Existing centered copy owner, margins, title, artwork and motion retained.
+Updated the existing route-test wording expectation only.
+
+NativeCreatorStoryTests PASS4/0,13.519s; mounted320/390/820 layout/reachability
+and existing route/lifecycle checks pass. qa:fast/qa:ios/diff-check PASS.
+qa:full FAIL only the previously recorded protected web scene-builders.test.ts:75;
+normal Debug BUILD SUCCEEDED. Logs /tmp/story-narrative-{tests,fast,ios,full,build}.log.
+
+Complete current-tree normal Debug app installed over retained1018BE2D Native
+Simulator and launched PID2023. Verified source Swift hashes unchanged through
+build, .native bundle identity, no Web.bundle/test PlugIns and byte-identical
+installed executable/debug dylib. Live CUA observed the full approved text,
+thanks and signature visible without clipping in open The story. Actual iOS
+Silent Mode On banner verified. Canonical primary/previous saves retain equal
+logical content excluding savedAt and set-array serialization order; backups
+and launch/input receipts /tmp/story-narrative-delivery. No physical/PWA/legacy
+install. Scoped copy/layout PASS; whole-repository QA remains FAIL for known
+web test. Physical visual acceptance remains separate.
+
+## 2026-11-14 · Settings story: contained image, balanced paper
+
+Latest steering supersedes top-overhang/plaque compositions below. Image is now
+fully INSIDE the paper with24pt top padding;copy ends with matching24pt bottom
+padding. Removed Thanks for playing / Jimi & Nala footer and its plaque. Removed
+trailing empty text line/last-paragraph spacing so bottom padding follows actual
+copy. The story title uses NativeTextPalette.accentOrange. Latest approved short
+copy remains. Paper/image/copy share one centred card/idle subtree and standard
+enter/exit/drag;separate island enter/exit tracks retired. Existing image-local
+World float/tilt,foreground pause,Reduced Motion and disposal retained. Original
+assets unchanged. Existing feature-runtime record updated.
+
+Final NativeCreatorStoryTests PASS4/0,13.825s,including320/390/820 containment,
+centred union,nonoverlap,symmetric margins,scroll reachability and lifecycle.
+qa:feature-runtime/qa:fast/qa:ios/diff-check PASS. qa:full FAIL only protected
+known scene-builders.test.ts:75;529suites/4010tests pass,KING330 and other gates/
+build PASS. Logs /tmp/story-inside-{feature,fast,ios,tests,full,build}.log and
+/tmp/story-inside-final-{tests,fast}.log. Mounted390pt final render inspected.
+
+Final normal complete-tree Debug build PASS;all Swift input hashes stable,
+.native identity/noWeb.bundle/no testPlugIns verified. Install-over retained
+1018BE2D Simulator and normal launch PID99774;installed executable/debug dylib
+match build. Live CUA observed latest contained image,orange heading,complete
+copy,no signature and balanced paper,centred on screen. User opened final story
+during review;left it open. Toolbar Mute ON;actual iOS Silent Mode On banner
+verified during this task before final refresh,without boot/restart. Canonical
+primary/previous changed only savedAt and set-array serialization order across
+this task;no reset/gameplay mutation. Backups/launch/hash receipts remain in
+/tmp/story-top-delivery. No physical/PWA/legacy install. Scoped layout PASS;
+full-repository FAIL for known web test;physical optical/motion acceptance
+remains NEEDS PHYSICAL TEST.
+
+## 2026-11-14 · Settings story: approved shorter copy
+
+Updated only NativeCreatorStoryModal body to the latest approved three paragraphs:
+Hi, I’m Jimi. / The idea for this game sat on a shelf for ten years. It took me
+one year, countless late nights, and “one last tweak” to bring it to life. /
+Inspired by Nala, made to bring you a little joy.
+Removed obsolete display-only nonbreaking replacements for retired phrases;
+updated existing route-test wording expectation. Title, artwork, typography,
+geometry, motion, Thanks for playing / Jimi & Nala and Settings remain intact.
+
+NativeCreatorStoryTests PASS4/0,13.608s,including mounted320/390/820 copy/layout
+and existing lifecycle coverage. qa:fast and qa:ios PASS. qa:full FAIL only known
+protected scene-builders.test.ts:75;529suites/4010tests pass,KING330 and all other
+gates/build PASS. Logs /tmp/story-copy-{tests,fast,ios,full,build}.log.
+
+Normal complete-tree Debug build PASS; Swift hashes stable through build,
+.native identity/noWeb.bundle/no test PlugIns verified. Installed over retained
+1018BE2D Simulator,normal launch PID92945;installed executable/debug dylib match.
+Live CUA confirmed exact new copy visible without clipping in open The story.
+Toolbar Mute ON;actual iOS Silent Mode banner was not captured in final review.
+Canonical primary save differs only savedAt and set-array serialization order;
+previous rotated from older primary during test-host/normal lifecycle. No save
+reset. Backups/hash receipt in /tmp/story-copy-delivery. No physical/PWA/legacy
+installation. Scoped copy/layout PASS;full repository FAIL for known web test;
+physical optical acceptance remains separate.
+
+## 2026-11-14 · COMPLETED: The story creator composition
+
+User resumed and requested completion after the pause. Final source and normal
+Simulator preview are complete. Resume verification found all454 app Swift
+input hashes unchanged from the final build, and the installed debug binary
+identical to that build. Live CUA recheck confirmed the complete The story
+composition remains visible. No redundant rebuild or retest was needed.
+
+Latest requested state: title The story; approved short designer-from-Croatia
+copy retained; body side padding46.2pt. Top portrait removed from this modal
+only. Existing assets/tutorial/jimiinala.png is a separate floating island
+below/in front of the paper, with its original2x/3x files copied byte-exact into
+NativeAssets.bundle; Settings retains the existing portrait/heart. Island uses
+the exact World1 Hub4.4s float and4.55s 3D tilt via shared extracted
+JimiV9HubView tracks/factory, with original Hub clock/admission unchanged.
+Thanks for playing / Jimi & Nala now sits on the Tap to collect paper style
+(12pt corner,40percent edge detail,80percent paper,warm shadow), moving with
+that same island. Idle starts after entry, root pause preserves phase, and
+close/dispose removes both tracks; Reduced Motion stays still.
+
+Final numeric steering: island raised20percent of its own height; plaque
+lowered24pt relative to its previous20pt bottom inset (neutral bottom now4pt
+below artwork). Plaque captures a signed1.75..2.75degree random tilt once per
+presentation, stable on relayout. User clarified paper down30percent means
+increase its existing TOP GAP30percent, not move by30percent of paper height.
+Paper bottom blank padding36->46.8pt. Latest whole-composition shift is40
+physical points DOWN for paper/text and island/plaque together, converting once
+through tablet projection; internal gaps/motion stay intact.
+
+Final NativeCreatorStoryTests4/0 and JimiHubLayoutContinuityTests2/0 PASS
+(total6/0,13.649s), including320/390/820 layouts, shared motion lifetime,
+background phase freeze, close/reopen/weak release, Reduced Motion and stable
+plaque tilt. qa:feature-runtime/qa:ios/qa:fast PASS. Full QA remains FAIL only
+known protected scene-builders.test.ts:75; other gates/build pass. Final logs:
+/tmp/creator-story-final-{tests,feature,ios,fast}.log,
+/tmp/creator-unit40-full.log, /tmp/creator-island-final-build.log.
+
+Normal Debug install-over/launch completed PID76709.454 app Swift input hashes
+stable through final build/install; verified .native identity,iPhone+iPad family,
+no Web.bundle/test PlugIns,installed executable/debug dylib and all3 island
+originals. Canonical primary/previous save hashes unchanged across install and
+launch. Receipts/backups/manifests: /tmp/creator-island-delivery/final-*.
+Live CUA review observed the final The story layout, all foreground elements
+shifted together, readable copy and angled plaque. Actual iOS Silent Mode On
+banner verified. Final normal Simulator shows the open story, not a test runner.
+No physical/iPad/PWA/legacy install; source QA built dist with sync disabled.
+Physical optical/motion acceptance remains NEEDS PHYSICAL TEST.
+
+No required implementation remains for this request. Earlier pending
+padding/position delivery notes below are superseded by this final delivery.
+Some earlier receipts intentionally failed freshness due concurrent ScoreModal
+edits; do not reuse them as final. Whole-repository QA still has the known web
+failure, and physical optical/motion acceptance remains separate.
+
+## 2026-11-14 · Per-score Arcade rounds work; latest request is PNG grid concepts
+
+User steered the in-progress per-score implementation to preview-only PNGs:
+four concepts, each showing four results in a2x2 modal grid, with rounds text
+closer to score. All four PNGs rendered inline from imagegen, previews only at
+/Users/user/.codex/generated_images/01a1d702-4fa1-7863-8b12-2bdefdd620d5.
+No2x2 runtime layout was implemented or approved. Do not infer selected concept.
+
+Saved working source from the preceding authorized implementation: removed
+separate NativeArcadeRoundsRow/footer; Arcade High Score rows now have orange
+padded rounds number plus brown rounds won below score, center-height date and
+long vertical divider. Current gains paper holder; preferred96pt bounded row,
+20pt outer inset; Journey/Combo keep existing geometry. Current uses board-1.
+NativeJourneyStatPoint has backward-compatible optional roundsWon, recorded
+once by canonical Arcade finishAttempt as board for clean or board-1 for fail;
+legacy records display em dash, never guessed. No original assets changed.
+Existing stat-track/paper/entry/exit/pause/dispose owners reused; no new scheduler.
+Runtime policy and score/state tests updated.
+
+State package PASS124/0 including optional legacy decode, per-result/per-variant
+counts and roundtrip. qa:fast PASS,qa:ios PASS;qa:full FAIL only known protected
+scene-builders.test.ts:75 (529suites/4010tests pass,1fails);KING330 passes.
+Logs /tmp/score-rounds-{state-all,fast,ios,full}.log. Broader NativeScoreModalTests
+initially FAIL:2 unchanged shared-paper tests assert superseded fitted-raster
+invariants (78failures);remaining failures were new metadata width/floating-point
+tolerance and old removed-footer model expectations. Narrow-only inset/gaps,
+0.001pt tolerance and model expectations corrected in saved source, but final
+Native rerun/build/install remain PENDING because the latest user requested PNG
+concepts during this work. /tmp/score-rounds-tests.log retains full first run.
+An unrelated Creator/Hub test was occupying the shared Simulator lane; do not
+run concurrently. No final normal delivery claimed by this task. Current app
+may contain this source through another task's complete-tree refresh; verify
+rather than infer. Source/input snapshot and pretest canonical save copies in
+/tmp/score-rounds-delivery. No physical/PWA/legacy action in this work.
+
+## 2026-11-14 · Restored and enlarged Arcade Rounds icon
+
+NativeArcadeRoundsRow restores the original clean-board.png before the padded
+number and Rounds won. Latest user steering enlarges it to40pt,28pt on narrow
+cards. Narrow-only spacing reserves the full30pt Bold number and16pt Medium
+caption; compact paper height, single vertical divider and whole-row finite
+motion stay unchanged. Static borrowed image uses existing selected cache and
+row ownership; no new timer/media/save behavior or asset replacement.
+Runtime compact-footer policy and existing mounted regression updated.
+
+Final mounted NativeScoreModalTests PASS1/0,4.415s:all3variants at320/390/820,
+icon/number/caption ordering,nonoverlap,full number width,caption typography,
+row height,pause and weak release. Initial narrow geometry failed width checks;
+corrected only narrow insets/gaps before final larger-icon PASS. Inspected320pt
+render and actual normal iPhone High Score with07. qa:fast PASS,qa:ios PASS,
+diff-check PASS. Full QA FAIL only known protected scene-builders.test.ts:75
+(529suites/4010tests pass,1fails);KING330 and other gates/build PASS. Logs
+/tmp/rounds-icon-{final-fast,final-ios,full,tests-large,build}.log.
+
+Normal Debug build PASS;3557 Native/art input hashes stable before build,
+native bundle/noWeb.bundle/testPlugIns verified. Install-over/normal launch
+retained iPhone PID61681;installed executable/debug dylib match. Actual iOS
+Silent Mode ON. No reset;backups/receipt in /tmp/rounds-icon-delivery. UI review
+resumed Endurance without board moves;normal lastPlayed/savedAt changed and
+set-array serialization reordered,with completed/discovered sets unchanged.
+Final normal preview is open Arcade High Score. No physical/iPad/PWA/legacy
+installation. Scoped layout PASS;full-repository FAIL for known web test;
+physical optical acceptance NEEDS PHYSICAL TEST.
+
+## 2026-11-14 · Creator story: another 10 percent side padding
+
+NativeCreatorStoryModal copyInset is now 46.2pt, exactly 10 percent above 42pt.
+Only that value changed; wording, fonts, vertical spacing, image/title width
+and existing motion/scroll/shadow ownership stay intact.
+NativeCreatorStoryTests PASS 3/0 (12.404s), qa:fast PASS, qa:ios PASS,
+diff-check PASS. qa:full FAIL only known scene-builders.test.ts:75;
+529 suites/4010 tests pass and KING330/other gates/build PASS.
+Logs /tmp/creator-padding10-{tests,fast,ios,full,build}.log.
+Normal build initially PASS but freshness check caught concurrent ScoreModal
+source/test edits, so no install was attempted from that stale input receipt.
+Final complete app refresh is queued behind the active rounds-icon Simulator
+test; /tmp/creator-padding10-final-build.log and
+/tmp/creator-padding10-delivery/final-launch.txt will hold delivery evidence.
+
+## 2026-11-14 · Creator story padding and typography
+
+NativeCreatorStoryModal body now has 42pt side margins (was 30), 23.8pt line
+height (was 22.1), 18pt paragraph spacing (was 12), 18pt title-to-copy gap
+(was 12), 14pt portrait-to-title gap (was 10), and 36pt bottom padding (was 30).
+Signature uses 25pt line height and 3pt paragraph spacing. Portrait/title width
+and approved wording remain unchanged. Display-only nonbreaking spaces keep
+its chance / time for together, avoiding one-word paragraph endings. Existing
+bounded compact-screen scrolling, paper/shadow/Close/drag/lifecycle ownership
+remain intact; no new animation/resource/background work.
+
+Final NativeCreatorStoryTests PASS 3/0 (12.183s), including mounted 320/390/820
+margin symmetry, title fit, title/body separation and complete text reachability
+alongside existing lifecycle/shadow coverage. Initial spacing review visibly
+confirmed narrower body and increased gaps on the retained iPhone; final
+typography refinement keeps short closing phrases together. qa:fast PASS,
+qa:ios PASS, diff-check PASS. Final qa:full FAIL only known protected
+scene-builders.test.ts:75 (529 suites/4010 tests pass, one suite/test fails);
+KING330 and other gates/build PASS. Logs /tmp/creator-spacing-{fast,ios,full,
+tests,build}.log and /tmp/creator-spacing-final-{tests,full,build}.log.
+
+Final normal Debug build PASS; 888 Swift input hashes stable, .native identity,
+no Web.bundle/test PlugIns, installed executable/debug dylib match verified.
+Installed over retained iPhone Simulator and normal launch PID 53861. Both
+canonical save hashes unchanged across final install/launch. Earlier test-host
+flush updated primary timestamp and rotated previous to the then-current
+primary; backups retained in /tmp/creator-spacing-delivery. Actual iOS Silent
+Mode On banner verified after final launch. Normal app remains running; user
+navigated to Arcade High Score during final review, and that gameplay surface
+was left intact. No physical/iPad/PWA/legacy installation. Scoped deterministic
+layout PASS; full-repository FAIL for the known web test; physical optical
+acceptance remains NEEDS PHYSICAL TEST.
+
+## 2026-11-14 · Short creator story: How it started
+
+Replaced only NativeCreatorStoryModal heading/body with the user's approved
+short version: How it started; Jimi as a designer from Croatia, decade-long
+idea, decision to make it, year-and-a-half creation with Nala, and Some ideas
+are worth making time for. Existing Thanks for playing / Jimi & Nala signature,
+paper-shadow fix, artwork, layout and motion remain intact.
+
+qa:fast PASS, qa:ios PASS, normal Stack to Six Debug build PASS, diff-check PASS.
+qa:full FAIL only known protected scene-builders.test.ts:75: 529 suites/4010
+tests pass, one suite/test fails; KING330 and all other gates/build PASS.
+Scoped UI verdict PASS; full-repository verdict FAIL for that existing web test.
+Live retained iPhone Simulator review PASS: exact new title/body/signature
+visible and fitting without clipping. No new implementation-mirroring tests for
+this text-only change. Normal install-over/launch PID 48214; native bundle ID,
+no Web.bundle/test PlugIns, 888 stable Swift inputs and installed executable/
+debug dylib match verified. Both canonical save hashes unchanged across install,
+launch and final UI review. Actual iOS Silent Mode On banner verified. Final
+normal preview is the open story. Logs /tmp/creator-story-short-{fast,ios,full,
+build}.log; backup/hashes/launch receipt /tmp/creator-story-short-delivery.
+No physical, iPad, PWA or legacy installation. Physical optical acceptance
+remains separate.
+
+## 2026-11-14 · Approved creator copy and paper-shadow entry fix
+
+NativeCreatorStoryModal now uses the user's exact approved five-paragraph
+decade-of-ideas story; existing title and Jimi & Nala signature stay intact.
+Fixed this modal's premature shadow during entrance: initialize the full body
+and Close silhouette at layout with implicit actions disabled, match the paper's
+front-face visibility, and resolve layout before admitting the shared entrance.
+The existing 650ms paper/Close clock, transforms, artwork and lifecycle remain
+unchanged. No new timer, animation owner, resource or gameplay/save behavior.
+
+NativeCreatorStoryTests PASS 2/0 (12.151s), including shadow bounds, complete
+body silhouette, front-face visibility, absence of implicit shadowPath animation
+and existing open/close/suspend/release coverage. qa:fast PASS, qa:ios PASS,
+diff-check PASS. qa:full FAIL only the already-known protected
+scene-builders.test.ts:75 (529 suites/4010 tests pass, one suite/test fails);
+Gameplay KING 330 and remaining gates/build PASS. Logs
+/tmp/creator-copy-{fast,ios,full,tests,build}.log.
+
+Normal Stack to Six Debug build PASS; 888 Swift input hashes stable through
+preinstall. Verified .native bundle/no Web.bundle/test PlugIns, installed over
+retained iPhone Simulator and launched normally PID 43067. Installed executable
+and debug dylib match build. Both canonical saves byte-identical across install
+and launch. Test-host shutdown earlier rewrote only savedAt and set ordering;
+recursive comparison confirmed no progression/preferences/gameplay change.
+Backups, hashes, entry video and inspected 65ms frame sequence are in
+/tmp/creator-copy-delivery. Actual iOS Silent Mode On banner verified.
+Live Simulator review PASS: full approved text fits, shadow follows the paper
+from its first visible entry frames, Close returns and reopening succeeds.
+Final normal preview is the open story. No physical/PWA/legacy installation.
+Scoped Simulator verdict PASS; full-repository verdict FAIL for known web test;
+physical motion/optical acceptance remains NEEDS PHYSICAL TEST.
+
+## 2026-11-14 · Settings creator footer and personal story
+
+Implemented the requested lower Native Settings footer only. Existing three
+paper settings cards and shared navigation geometry remain unchanged. The coral
+heart, Tap Tap Design and Made with love in Croatia form one accessible tappable
+target; it opens NativeCreatorStoryModal with approved Jimi/adult Nala art,
+centered personal story and shared paper/Close/drag/entry/exit. Bottom line is
+Version 1.0 · Privacy Policy; both labels use the same accentOrange, 14pt Medium
+font (including tablet scaling). Privacy retains its independent existing action.
+New source artwork is an unchanged copy of the approved portrait in
+assets/ui/creator-story/jimi-nala.png; the original coral heart is cropped from
+that shared cached image. No original asset removed or replaced. Modal has no
+settled timer/idle/media work; owner handles suspend, close, route retirement and
+root disposal. Runtime owner native-creator-story registered. Final lifecycle
+and source review found no additional owner or cleanup issue.
+
+Validation: NativeCreatorStoryTests PASS 2/0 (12.229s), covering 320/390/820
+layout, real target hit tests, equal Privacy/version styling, separate actions,
+double opening/closing, suspend/resume, reopen, route retirement and release.
+First test attempt exposed fixture-only coordinate and UITextView rasterization
+issues; corrected fixture without weakening production motion. qa:feature-runtime
+PASS 43 groups, qa:fast PASS, qa:ios PASS, diff-check PASS. qa:full FAIL only the
+known protected web scene-builders.test.ts:75 (529 suites/4010 tests pass,
+1 suite/test fails); other gates including Gameplay KING and build pass.
+Artwork preparation inventory still reports 61 historical packaged extras;
+those protected originals remain preserved, with source/bundle audit PASS.
+Logs /tmp/creator-story-{feature,fast,ios-final,full,tests-final,artwork}.log.
+
+Normal Stack to Six Debug build PASS /tmp/creator-story-normal-build.log.
+3554 Native/art inputs unchanged through preinstall; verified native bundle ID,
+iPhone/iPad family, no Web.bundle/test PlugIns. Installed over retained Simulator
+1018BE2D-491B-465F-8F75-3E5BEB38C22A and launched normally PID 30251. Installed
+executable/debug dylib/new artwork match build. Canonical state-v1.json and
+state-v1.previous.json hashes unchanged across install, launch and UI review.
+Actual SpringBoard Silent Mode ON. Backups/manifests/receipt in
+/tmp/creator-story-delivery. Actual Simulator review PASS: matching orange Medium
+legal labels, creator target opens full fitting story, Close returns, independent
+Privacy opens/closes. Final preview is normal Settings, not test runner. No
+physical/iPad/PWA/legacy installation; physical optical acceptance remains
+NEEDS PHYSICAL TEST. Full repository verdict remains FAIL for known web test.
+
+## 2026-11-14 · Rounds won caption
+
+NativeScoreModal footer label/accessibility now Rounds won per user request.
+Text-only change;existing counter,compact geometry,no horizontal separator,
+font/animation/resource/save owners retained. Updated existing expected strings
+and runtime policy. Final caller/layout review found no new work or ownership.
+Mounted Native PASS1/0,5.084s /tmp/rounds-won-tests.log:all3 variants at320/390/820,
+full16pt caption fits,equal height,read-only stats,pause/release. Inspected320pt
+render;9captures /tmp/rounds-won-delivery/renders. Scoped UI PASS;physical optical
+acceptance not performed. qa:fast PASS,qa:ios PASS,diff-check PASS;qa:full FAIL
+only known protected scene-builders.test.ts:75 (529suites/4010tests pass,1fails),
+KING330 and other gates/build PASS. Logs /tmp/rounds-won-{fast,ios,full}.log.
+Full repository verdict FAIL for that pre-existing web test.
+Normal Debug build PASS /tmp/rounds-won-build.log;906Native/art inputs stable
+through build/preinstall,.native identity/signature/iPad/noWeb.bundle/testPlugIns
+verified. Install-over/normal launch retained iPhone PID23622;primary/previous
+save bytes unchanged through install/immediate launch;executable/dylib and9PNG
+checks match. Backups/input manifest/receipts /tmp/rounds-won-delivery. Actual
+Silent Mode ON. No reset or physical/iPad/PWA/legacy install. Concurrent saved
+Creator Story source/tests present in this complete build snapshot;its product
+acceptance remains with that separate work.
+
+## 2026-11-14 · Horizontal Rounds divider removed
+
+Latest user correction removes ONLY the horizontal separator above Rounds.
+NativeScoreModal removes its view/property/layout and paired animation/disposal
+branches; original statTracks loop restored. Compact equal-height footer,
+16pt gap,vertical number/Rounds divider and orange Exit emphasis retained.
+Existing regression asserts no horizontal-separator view. Runtime owner latest
+override updated. Final source/lifecycle review found no orphaned separator work.
+
+Scoped mounted Native PASS1/0,4.403s /tmp/rounds-no-line-tests.log:all3 variants
+at320/390/820,equal heights,no horizontal line,caption fit,read-only stats,pause/
+release. Final390render visibly inspected;9renders /tmp/rounds-no-line-delivery/
+renders. qa:fast PASS,including repeat after concurrent Creator Story saved
+changes /tmp/rounds-no-line-fast-current.log. qa:ios current PASS
+/tmp/rounds-no-line-ios-current.log;diff-check PASS. qa:full FAIL only existing
+protected scene-builders.test.ts:75 (529suites/4010tests pass,1fails),KING330 and
+other gates/build PASS /tmp/rounds-no-line-full.log. Scoped UI verdict PASS;
+full repository FAIL. Physical optical acceptance not performed.
+
+Normal refresh DELIVERED after temporary concurrent-work blockage. First build
+PASS but manifest caught a SettingsView edit;next build failed missing
+NativeCreatorStoryArtwork. Preserved concurrent Settings work. Its new definition
+and AppController wiring subsequently appeared;rebuilt complete saved snapshot.
+New original creator-story PNG needed Native packaging. Explicit native-only
+prepare script copied originals unchanged,then its strict inventory check FAILed
+on61existing packaged extras. Preserved all extras;no deletions. Current qa:ios
+PASS/no missing originals. Final normal build PASS
+/tmp/rounds-no-line-build-delivery.log;905Native/art input manifest stable through
+build and preinstall verification,.native/iPad/signature/noWeb.bundle/testPlugIns
+verified. Install-over/normal launch retained iPhone PID20445. Primary/previous
+save bytes unchanged through install/immediate launch;installed executable/dylib,
+9protected PNGs and concurrent creator-story image match source/build. Receipts,
+backups,input manifest /tmp/rounds-no-line-delivery. Actual Silent Mode ON.
+No reset,physical/iPad/PWA/legacy install.
+
+Concurrent Creator Story work is still being edited independently: a post-launch
+check detected another NativeAppController.swift save after delivery. This does
+not change NativeScoreModal's delivered divider removal;the Creator Story owner
+must refresh its later snapshot for its own final review. Do not claim this
+receipt includes AppController edits saved after that build/input manifest.
+
+## 2026-11-14 · Compact Rounds footer, separator and orange saved progress
+
+Two user requests delivered together. NativeScoreModal Arcade Rounds paper now
+uses exactly the same bounded rowHeight as the history strips above, including
+320pt constrained layouts and tablet projection. Available-height calculation
+counts it as one additional equal-height row. Existing16pt footer gap contains
+one full-width1pt warm horizontal separator. Footer remains icon-free with its
+single vertical divider. Existing crumpled paper/tilt/shadow and40pt bottom margin
+stay. Separator shares the footer's exact existing finite animation samples and
+index/delay, inherits modal pause, and is explicitly retired in dispose. No new
+clock/cache/media/audio/save/input owner. Existing mounted regression now asserts
+equal heights and separator position between history and footer.
+
+Exit Round/Stage plus digits now uses NativeTextPalette.accentOrange in the
+existing bounded semantic range, retaining Bold and surrounding subtitle style.
+Unchanged-style guard checks font AND color; existing relayout reapplication
+preserves orange after tablet font scaling. No copy,geometry,CTA or save change.
+Runtime ownership records append latest overrides for both surfaces. Final
+caller/lifecycle/style review found no new retained work or shared regressions.
+
+Native mounted PASS3/0 /tmp/rounds-compact-orange-tests.log: Rounds all3 variants
+at320/390/820pt,read-only stats,equal row height,separator bounds,caption fit,
+pause/release; real Stage1 Exit entry/paint/close retirement; Round01 Exit input,
+layout,pause and close. Durations2.202+1.800+4.267s. Inspected final390pt Rounds
+and Round01 Exit renders: footer same thickness, horizontal line above, only
+Round01 orange/Bold. Nine footer renders plus Exit screenshot under
+/tmp/rounds-compact-orange-delivery/renders. Scoped Native PASS; physical optical
+acceptance remains user review.
+
+qa:feature-runtime PASS42;qa:fast PASS;qa:ios PASS;diff-check PASS. qa:full FAIL
+solely known protected scene-builders.test.ts:75 (529suites/4010tests pass,1fails);
+KING330 and every other gate/build PASS. Logs /tmp/rounds-compact-orange-{feature,
+fast,ios,full}.log. Full repository verdict FAIL; no new failing Native check.
+Ignored dist regenerated by QA without Native/PWA bundle sync.
+
+Normal Debug build PASS /tmp/rounds-compact-orange-build.log;904Native/art inputs
+stable,.native identity,iPad family,signature,noWeb.bundle/testPlugIns verified.
+Install-over and normal launch retained iPhone Simulator PID11007;primary AND
+previous save hashes unchanged through install/immediate launch. Installed
+executable/dylib and9protected PNGs match. Backups/input manifest/receipts under
+/tmp/rounds-compact-orange-delivery. Actual SpringBoard Silent Mode ON. No reset,
+physical/iPad/PWA/legacy install. Shared UIKit/tablet layout covered above.
+
+## 2026-11-14 · Arcade Rounds footer without icon
+
+User asks to remove the footer icon and show only number/Rounds like the rows
+above. NativeArcadeRoundsRow no longer creates/decodes the icon; one divider
+replaces two. Number is left-aligned and caption right-aligned using the same
+inset/column formulas as the upper score-history rows. Existing crumpled paper,
+height, shadow, tilt, typography, finite stat tracks, accessibility and progress
+projection remain. No source asset removed or modified; no new resource/clock,
+gameplay/save/audio/input/navigation owner. Final affected caller/layout/cleanup
+review found no new retained work or shared row changes.
+
+Existing mounted Native regression updated to require zero icon views and one
+divider; PASS1/0,4.722s /tmp/rounds-no-icon-tests.log. Covers all3 Arcade variants
+at320/390/820pt, current typography, caption fit, variant progress, pause/resume,
+read-only statistics and card release. Inspected final320/390 renders: number
+and Rounds only, no clipping; all9 captures /tmp/rounds-no-icon-delivery/renders.
+Scoped Native verdict PASS; physical optical acceptance remains user review.
+qa:fast PASS,qa:ios PASS,diff-check PASS. qa:full FAIL only known protected
+scene-builders.test.ts:75 (529suites/4010tests pass,1fails);KING330 and all other
+full gates/build PASS. Logs /tmp/rounds-no-icon-{fast,ios,full}.log. Full repository
+verdict FAIL. QA regenerated ignored dist without any Native/PWA bundle sync.
+
+Normal Debug build PASS /tmp/rounds-no-icon-build.log;904 current Native/art
+inputs stable; .native identity,iPad family,strict deep signature,no Web.bundle/
+testPlugIns verified. Install-over and normal launch retained iPhone Simulator
+PID7470;primary AND previous save bytes unchanged through install/immediate
+launch;installed executable/debugdylib and9protected PNGs match. Backups/input
+manifest/hashes/receipts /tmp/rounds-no-icon-delivery. Final actual SpringBoard
+Silent Mode ON. No reset,physical/iPad/PWA/legacy install. Shared UIKit change
+applies to iPad;tablet geometry was mounted in regression above.
+
+## 2026-11-14 · Exit subtitle Round/Stage emphasis
+
+User requests bold only Round NN or Stage NN in Exit progress-saved copy.
+JimiNativeEndRunModal computes one bounded semantic UTF16 range from immutable
+subtitle at init and applies same-size Baloo2Bold there;rest retains Medium,
+existing color/paragraph/copy. Reapplies after existing tablet font scaling so
+relayout cannot erase weight;unchanged layouts skip attributed copies. Tutorial
+and unrelated text unchanged. No new observer/clock/resource/save/audio owner;
+entry/exit/pause/input/CTA/checkpoint and geometry stay. Existing feature record
+updated. Final caller/style/lifecycle review found no new retained work.
+
+Existing Native focused PASS3/0,4.023s /tmp/exit-bold-tests.log:malformed/canonical
+model,real mounted entry/layout/input/cleanup,and Stage1 paint/close ownership.
+No new test for this reversible font-only change. Mounted render
+/tmp/cta-compact-mounted.png visibly confirms ONLY Round01 bold and second line
+still fits52pt. qa:fast PASS,qa:ios PASS,diff-check PASS. qa:full FAIL only known
+protected scene-builders.test.ts:75;529suites/4010tests pass,1fails;KING330 and all
+other gates/build PASS. Logs /tmp/exit-bold-{fast,ios,full}.log. Scoped Native PASS;
+full repository FAIL. Physical optical acceptance remains user review.
+
+Normal Debug BUILD SUCCEEDED /tmp/exit-bold-build.log;904Native/art inputs stable,
+.native identity/signature/noWeb.bundle/no testPlugIns verified. Install-over and
+normal launch retained iPhone Simulator PID91932;both save-slot hashes unchanged
+across install/immediate launch. Installed executable/dylib and9art PNGs match.
+Backups/receipts /tmp/exit-bold-delivery. Initial normal Home/Arcade route observed;
+user took over Simulator while agent was opening Endurance. Subsequent CUA reads
+timed out twice;did not keep issuing input. Native simctl screenshot then confirms
+normal user-controlled Endurance Round05,score39038,not an open Exit modal.
+Evidence /tmp/exit-bold-delivery/final-simulator.png. Final Exit appearance is
+verified by mounted test render,not a live canonical-modal screenshot. Actual
+SpringBoard SBRingerMuted=1 after final review. No physical/PWA/legacy install/reset.
+
+## 2026-11-14 · More crumpled Arcade footer paper
+
+User asks for more crumpled/fun paper. NativeRoundIndicator now bakes seven fixed
+soft light/shade folds into the existing size-cached paper raster,clipped to the
+original Settings paper outline. Feathered ends use an isolated transparency
+layer so source paper is never erased;stronger folds stay near edges,caption
+centre quieter. No new image asset,cache history,work clock,worker or per-frame
+raster. Original paper bytes,70percent paper alpha,tutorial17ExtraBold,brown/orange
+text,dividers,geometry,input,finite motion and saves stay. Existing feature-owner
+record updated. First sharp polygon-fold render was rejected visually before
+install;final soft390/820renders inspected /tmp/round-paper/renders.
+
+Final focused Native PASS5/0,0.387s /tmp/arcade-folds-soft-tests.log;existing reuse,
+opacity/font/color,phone/tablet,bottom-gap,divider leases and hidden/motion cases.
+qa:fast PASS;final qa:fast PASS;qa:ios PASS;diff-check PASS. qa:full FAIL only known
+protected scene-builders.test.ts:75,529suites/4010tests pass,1fails;KING330,other
+gates/build PASS. Logs /tmp/arcade-folds-{fast,final-fast,ios,full}.log. Scoped
+Native PASS;full repo FAIL. User optical/physical acceptance remains open.
+
+Normal Debug BUILD SUCCEEDED /tmp/arcade-folds-build.log.904Native/art inputs
+stable,.native identity/signature/noWeb.bundle/no testPlugIns verified. Installed
+over retained iPhone Simulator,normal launch PID87120;both save-slot hashes
+unchanged through install/immediate launch. Installed executable/dylib and9art
+PNGs match. Receipts/backups /tmp/arcade-folds-delivery. Normal Continue to retained
+Endurance Round04;final paper folds visibly verified and board left open. Agent
+made no board moves. Screenshot
+/tmp/arcade-folds-delivery/iphone-crumpled-paper.png. Actual SpringBoard
+SBRingerMuted=1 after final launch/review. No physical/PWA/legacy install/reset.
+
+## 2026-11-14 · Arcade footer adopts approved tutorial typography,70percent paper
+
+User approves tutorial-style footer concept and explicitly requests same paper
+container as Settings;numeric follow-up supersedes50percent with70percent.
+NativeRoundIndicator keeps existing original NativeSettingsPaperSurface and
+assets/modals/paper.png density family. Paper-only alpha now0.7. One centered
+attributed caption uses tutorial Baloo2ExtraBold17:mode name/dash modalTitle brown,
+round digits tutorial orange E77449. Shared by all3 Arcade modes,tablet1.4 retained.
+Existing container-height/rest-centre,divider algorithm/mask leases,finite
+entry/value/exit and tutorial/save owners stay. Caption is cached for exact text
+and scale so routine synchronization does not allocate attributed text again.
+Paper still keeps one current-size raster;no new resource/work/audio/save owner.
+Feature ownership record updated. Source/consumer/cleanup review found no new
+retained work or gameplay changes. Source layout still uses same canonical round.
+
+Focused Native PASS5/0,0.489s /tmp/arcade-coach-final-tests.log:all variants' round
+copy,actual tutorial font/phone-tablet sizes,prefix/digit colors,paper0.7,texture
+reuse,hidden Journey,divider leases,bottom gap and existing motion cleanup.
+Renders /tmp/round-paper/renders inspected. Initial FAIL3 preserved
+/tmp/arcade-coach-tests.log:SKNode stores0.7 as0.699999988;changed assertion to
+1e-6float tolerance only. No runtime opacity weakened.
+qa:fast PASS,qa:ios PASS,diff-check PASS. qa:full FAIL only protected existing
+scene-builders.test.ts:75;529suites/4010tests pass,1fails;KING330,other gates and
+production build PASS. Logs /tmp/arcade-coach-{fast,ios,full}.log. Scoped Native
+PASS;full repo FAIL. Physical optical/touch acceptance NEEDS PHYSICAL TEST.
+
+Normal Debug BUILD SUCCEEDED /tmp/arcade-coach-build.log.904Native/art inputs
+stable;verified .native identity/signature/noWeb.bundle/no testPlugIns. Installed
+over retained iPhone Simulator,normal launch PID81281. Primary AND previous save
+hashes unchanged through install/immediate launch;installed binary/dylib and9art
+PNGs match,including all3original paper densities. Backups/receipts
+/tmp/arcade-coach-delivery. Normal Continue to existing Endurance Round04 without
+board moves;new paper/brown Endurance/orange04/dividers visually verified. Left
+normal board open for review. Screenshot
+/tmp/arcade-coach-delivery/iphone-arcade-coach.png. Actual SpringBoard
+SBRingerMuted=1 after final launch/review. No physical/PWA/legacy install/reset.
+
+## 2026-11-14 · Arcade round footer paper at50percent
+
+User asks to replace the outlined Endurance -04 footer capsule with paper,
+keep side dividers and use existing brown text;ONLY paper opacity50percent.
+NativeRoundIndicator now has one passive SKSpriteNode atalpha0.5 behind label,
+with no stroked capsule. Label uses modalTitle brown,existing18SemiBold text and
+variant/round formatting. Original width/height/rest centre,phone/tablet1.4,
+divider paths/mask leases,parent alpha,tutorial visibility,entry/value/exit
+motion and save/gameplay owners remain. NativeBoardScene injects its existing
+JimiV9Artwork into the existing indicator. Only visible Arcade synchronizations
+prepare one current-size raster via original NativeSettingsPaperSurface at12pt
+scaled corners/0.4edge detail;unchanged size reuses same texture. Relayout replaces
+one texture;no cache history,worker,clock,audio,haptic or save writer. Original
+paper bytes preserved. Scene lifetime releases bounded surface/texture/artwork;
+no retained cycle/new recurring work found in final caller/resource review.
+Existing feature-runtime ownership record updated.
+
+Native focused tests PASS5/0,0.243s /tmp/round-paper-final-tests.log:
+3ArcadeFooter tests plus tablet bottom-gap and existing animation/hidden-mode
+retirement. New real SpriteKit render covers phone→tablet→phone,texture identity
+reuse,independent paper/label opacity,brown color,hidden Journey preparation and
+divider lease cleanup. Renders /tmp/round-paper/renders inspected390/820.
+Initial test fixture FAIL3 /tmp/round-paper-tests.log preserved;SpriteKit color
+round-trip requires RGBA tolerance rather than UIColor object equality. Corrected
+only that assertion,not runtime color or behavior.
+qa:fast PASS,qa:ios PASS,diff-check PASS. qa:full FAIL only known protected web
+scene-builders.test.ts:75,529suites/4010tests pass,1fails;KING330,other gates and
+production build PASS. Logs /tmp/round-paper-{fast,ios,full}.log. Scoped Native
+PASS;full repository FAIL. Physical optical/touch acceptance NEEDS PHYSICAL TEST.
+
+Normal Debug BUILD SUCCEEDED /tmp/round-paper-build.log.904Native/art inputs
+stable;verified .native identity,signature,noWeb.bundle/no testPlugIns. Installed
+over retained iPhone Simulator,normal launch PID74683. BOTH save slots unchanged
+through install/immediate launch;installed executable/dylib and9selected art
+PNGs (including3original paper densities) match source/build. Backups/receipts
+/tmp/round-paper-delivery. Normal Continue then visible Endurance Round04 inspected
+without board moves;left board open with new footer and preserved side dividers.
+Screenshot /tmp/round-paper-delivery/iphone-round-paper.png. Actual SpringBoard
+SBRingerMuted=1 after final launch/review. No physical/PWA/legacy install/reset.
+
+## 2026-11-14 · High Score uniform right captions and Rounds copy
+
+User correction: every right-side label must have identical font/size;shorten
+minute strings to45min ago. Follow-up: bottom card says Rounds only,one line.
+NativeScoreModal now uses exact16pt Baloo2Medium/modalTitle ink for Current,
+all date labels and Rounds. Autoshrink OFF on all these labels. Date column uses
+measured intrinsic width instead of fixed30percent shrinking;under220pt strip
+width,12pt side/date insets retain readable score. Bottom caption reserves actual
+Rounds width and one natural line height. Existing icon/value/paper/dividers,
+progression,motion/lifecycle owners and artwork unchanged. Minute helper now
+1min ago,45min ago etc;calendar-day Today/Yesterday/full-date logic retained.
+No new work/resource/audio/save owner;existing feature record updated.
+
+Selected score suite PASS11/0 in12.844s /tmp/score-type-tests.log. Final layout
+and date coverage PASS2/0 /tmp/score-type-final-tests.log. Final Rounds-only source
+PASS3/0 in4.907s /tmp/score-type-rounds-final-tests.log;mounted320/390/820 all
+variants compare UIFont/16pt/no autoshrink and actual full-string width with
+Current plus fresh variant/canonical state/release checks. Same two pre-existing
+material tests remain excluded,as documented in preceding delivery. An interim
+fixture crossed midnight and expected literal21/44min labels;preserved failure
+/tmp/score-type-final-layout.log. Fixed test to inspect actual right-hand label
+owners rather than wall-clock-dependent strings;no date semantics weakened.
+Final320/390 raster inspected /tmp/arcade-rounds-card/renders.
+
+qa:ios PASS,qa:fast PASS,final qa:fast PASS,diff-check PASS.
+qa:full FAIL only protected scene-builders.test.ts:75,529suites/4010tests pass,
+1fails;KING330/other gates and production build PASS. Logs
+/tmp/score-type-{ios,fast,final-fast,full}.log. Scoped Native PASS;full repo FAIL.
+Physical optical/touch acceptance NEEDS PHYSICAL TEST.
+
+Normal Debug BUILD SUCCEEDED /tmp/score-type-build.log;901Native/art inputs
+stable. Verified .native identity/signature/noWeb.bundle/no testPlugIns;
+install-over/normal launch retained iPhone Simulator PID69460. Both primary AND
+previous save hashes unchanged across install/immediate launch;installed binary,
+dylib and6selected art PNGs match. Backups/receipts /tmp/score-type-delivery.
+Then used normal Continue on retained Endurance Round04 without board moves and
+opened High Score. Final normal UI/AX visibly verified21.399 Current,twoYesterday
+rows after local midnight,and04 Rounds. Left modal visible for review. Screenshot
+/tmp/score-type-delivery/iphone-highscore.png. SpringBoard SBRingerMuted=1 after
+final launch/review. No physical/PWA/legacy install/reset.
+
+## 2026-11-13 · Arcade High Score rounds paper card delivered
+
+User clarified destination is Arcade High Score, not Settings. Implemented chosen
+bottom paper card in NativeScoreModal: existing clean-board.png density family,
+15percent smaller than64pt reference, orange padded rounds count, two vertical
+separators, no horizontal divider. Rounds opened is EXACT same UIFont16Medium and
+modalTitle ink as Current. Reuses NativeSettingsPaperSurface original static
+paper/mask/shadow and stable existing strip tilt. Selected Arcade variant's
+canonical highestStageOpened (minimum1) is read only; former misleading Rounds
+cleared label corrected. Existing current/saved score rows remain.82pt card plus
+16pt gap is reserved before bounded small-screen row sizing,40pt bottom padding.
+Journey,Combo,Settings,gameplay,save schema and original artwork untouched.
+
+Ownership: existing NativeScoreOwner admits/suspends generation; new passive row
+joins existing statTracks finite entry/exit and shared parent background/drag/
+Reduced Motion/disposal. No new scheduler,observer,decoder,global cache,audio or
+haptic source. Existing feature-runtime record updated. Final caller/resource/
+retirement review found no new retained work or save writer.
+
+Final mounted phone NativeScoreModalTests PASS11/0,11.969s:
+/tmp/arcade-card-tests-final.log. New case covers all3variants at320/390/820,
+fresh01,actual Current font/color identity,canonical progression unchanged,
+background/resume,double dispose and weak card release after UIKit runloop.
+Renders /tmp/arcade-rounds-card/renders inspected390/320. First test-fixture FAIL10
+preserved /tmp/arcade-card-tests.log: corrected mounted UIKit asynchronous release
+wait and unrotated bottom-padding measurement;no shipping ownership weakened.
+Two previously failing unrelated paper renderer tests intentionally excluded:
+testAdaptivePaperPreservesCornerPixelsAndMaterialAcrossShortTallResize and
+testOneTwoThreeHistoryRowsUseSameTextureDensityWithoutChangingCardSpacing.
+Their78 prior assertions concern superseded adaptive-paper bitmap/X identity;
+this task does not repair or claim those tests passed.
+
+qa:fast PASS(includes feature-runtime),qa:ios PASS,diff-check PASS.
+qa:full FAIL only protected web scene-builders.test.ts:75;529suites/4010tests pass,
+1fails;other gates including KING330 and production build PASS. Logs
+/tmp/arcade-card-{fast,ios,full}.log. Scoped Native PASS; repository-wide FAIL.
+Physical touch/optical acceptance NEEDS PHYSICAL TEST.
+
+Normal Stack to Six Debug BUILD SUCCEEDED /tmp/arcade-card-build.log.
+901Native/art inputs stable;verified .native bundle ID,signature,noWeb.bundle,
+no testPlugIns. Installed over retained iPhone Simulator and launched normal app
+PID64582. Primary AND previous save hashes unchanged across install/immediate
+launch;installed executable/dylib and all3clean-board+3tutorial clear board PNGs
+match. Receipts/backups /tmp/arcade-card-delivery. Final normal UI visually and
+AX verified Endurance21.399 Current,history21.399/16.516,and04 Rounds opened;
+left that modal visible. Screenshot /tmp/arcade-card-delivery/iphone-highscore.png.
+Actual SpringBoard SBRingerMuted=1 after final launch/review. No physical/PWA/
+legacy install or save reset. Earlier concept-only entry below is superseded.
+
+## 2026-11-13 · Arcade High Score PNG concepts, selection pending
+
+User steered task to PNG concepts only, latest exact scope: improve ONLY bottom
+section using one paper card, broom left, orange value/caption right. Three final
+candidates in game design/output/2026-11-13-arcade-highscore-concepts/
+lower-card-concept-{1,2,3}.png. Original upper modal used as image-edit reference;
+generated mockups are approximate, not runtime acceptance. No selected concept.
+Initial footer source experiment reverted locally when task became concept-only;
+NativeScoreModal.swift/tests have no net task diff. Candidate source retained in
+/tmp/arcade-highscore-rounds/NativeScoreModal-candidate.swift. No asset replacement.
+Initial candidate test case passed all variants and320/390/820 layouts; broader
+NativeScoreModalTests FAIL78 existing material/typography assertions, not cleared.
+qa:fast and qa:ios PASS on candidate; full gate has known protected web scene test
+failure. QA test host was built/launched on retained phone Simulator; normal Debug
+preview was NOT refreshed after reverting experiment. No physical/PWA install.
+This task ends with design PNGs; next implementation must build current source
+and refresh normal retained Simulator preview, preserving saves.
+
+## 2026-11-13 · Box modal subtitle in two lines
+
+NativeScoreOwner Box subtitle now exactly:
+Unlock dice in Journey.
+Grow your Arcade collection!
+Explicit newline retained. Box-only horizontal subtitle inset12pt (Journey24pt
+unchanged) lets the second sentence fit at320pt without shrinking18pt font.
+Initial render revealed a third wrapped line at320; corrected and visually
+verified final390/320 captures. Existing modal viewport regression PASS on phone
+11.611s /tmp/box-subtitle-phone-final.log and iPad10.289s
+/tmp/box-subtitle-ipad-final.log. Evidence /tmp/box-subtitle-delivery/*box*.png.
+No new test, worker, asset, animation, gameplay or save-policy change.
+
+qa:fast PASS; qa:ios PASS; diff-check PASS. qa:full FAIL only known protected
+web scene-builders.test.ts:75 (529 suites/4010 tests pass,1 fails); all other
+full gates and production build pass. Logs /tmp/box-subtitle-{fast,ios,full}.log.
+Scoped Native visual verdict PASS; full repository verdict FAIL for known web
+case. Physical-device visual acceptance not performed.
+Normal Debug build PASS /tmp/box-subtitle-build.log;898 inputs stable, .native
+identity/iPad support/signature/no Web.bundle/testPlugIns verified. Installed over
+both Sims and launched normal app: iPhone PID48410/iPad PID48459. Primary AND
+previous save bytes unchanged through install/immediate launch; installed
+executables and3current Clear board PNGs match. Backups/hashes/receipts under
+/tmp/box-subtitle-delivery. No reset, physical install or PWA/legacy operations.
+Silent Mode read after final launch: iPhone ON/iPad OFF, retained user-controlled
+iPad state from earlier interrupted UI adjustment; game audio prefs untouched.
+
+## 2026-11-13 · Arcade saved-round modal says Continue
+
+User reports Exit on Endurance Round04 followed by reopening its info card
+incorrectly shows Play. Confirmed actual canonical iPhone save: pending Round4,
+score21399, tutorial complete, no played layout. NativeBootstrap.canContinueArcade
+unconditionally rejected every pending-round receipt. It now returns Continue
+for earned pending progress (round>1 or score>0); pristine Round1/zero remains
+Play. Existing played-run freshness checks, selected-variant isolation, tutorial
+gate, board constructor, save schema and resume execution are unchanged. Applies
+to the existing shared predicate for all3 Arcade modes and both device types.
+No new work/resource/animation/audio owner. Final caller/lifecycle review found
+no new retained work or shared save mutations.
+
+Mounted regression coverage: all3 variants x fresh Round1 / pending Round4 /
+played Round4 assert actual wired predicate, modal CTA and isolated save slots.
+Phone PASS33.553s /tmp/arcade-continue-phone-tests.log. Existing actual pending
+entry regression initially had3 stale assertions expecting an untouched layout;
+updated only those to the established first-move metadata rule. Final phone
+resume case PASS /tmp/arcade-continue-phone-resume-final.log; both cases iPad
+PASS /tmp/arcade-continue-ipad-tests.log (31.895s +1.588s). Real constructor still
+enters the carried round/score; browsing the modal does not create a played run.
+
+qa:fast PASS, gameplay-lock PASS330, qa:ios PASS, diff-check PASS. qa:full FAIL
+only for existing protected web scene-builders.test.ts:75;529 suites/4010 tests
+pass,1 fails; all other full gates/build pass. Logs /tmp/arcade-continue-{fast,
+king,ios,full}.log. Scoped Native verdict PASS; repository-wide verdict remains
+FAIL for that web test. Physical-device touch/feel NEEDS PHYSICAL TEST.
+
+Normal Debug build PASS /tmp/arcade-continue-build.log,898 Native/art inputs
+stable. Verified .native bundle identity, iPad family, strict deep signature,
+no Web.bundle or test PlugIns. Install-over and normal launch BOTH Simulators:
+iPhone PID45021/iPad PID45084. Primary/previous save bytes unchanged through
+install and immediate launch; executables and3current Clear board assets match.
+Backups/hashes/receipts /tmp/arcade-continue-delivery. No reset or physical/PWA/
+legacy install. Final normal iPhone UI visibly shows enabled Continue for its
+actual saved Round04; left this modal ready for user review. Screenshot
+/tmp/arcade-continue-delivery/iphone-continue.png. No tap on Continue during the
+canonical profile review. iPhone Silent Mode ON; iPad remains OFF as previously
+user-controlled during live Simulator use; game audio preferences untouched.
+
+## 2026-11-13 · Progressive Arcade Box and three-column parity
+
+User decision: actual Journey Special discoveries append to Box in discovery
+order and become eligible in ALL THREE Arcade modes. Box uses three dice per
+row on iPhone/iPad, both Hub and gameplay paper. Base four remain
+Cubero/Balloon/TNT/OG Magnet. No subtitle choice was applied.
+
+NativeProgressionState now persists journeyDiceUnlockOrder alongside the
+existing actual-discovery set; duplicate discoveries/read receipts do not reorder
+it. Legacy saves without order migrate only known discoveries using available
+introduction-board stat dates, then stable introduction order; exact old chronology
+was never stored. Save validation rejects duplicate/mismatched order. DEV hide
+removes that one receipt/order entry and rediscovery appends it again.
+NativeArcadeBoxContent shares membership between catalog and reward policy;
+Journey pools are unchanged. All three Arcade variants admit only base four plus
+actual Journey discoveries; preserved tutorial four, first Endurance Balloon,
+Mushroom 5 percent when discovered, and One Lucky Drop single-drop lifecycle.
+Existing on-board/saved dice are not rewritten. Policy override is documented in
+GAMEPLAY_KING_CONTRACT and PROJECT_CONTEXT; existing runtime owner records updated.
+
+Both Box entry points receive current progression snapshots. Expanded gameplay
+Box scrolls within bounded paper at normal three-column cell size; its grid pan
+wins over paper drag. Selection/detail return preserves offset. Existing cell
+reuse, animation/resource retirement and lifecycle owners are retained; no new
+recurring worker/cache/audio owner or artwork changes. Final review traced both
+call sites, admission, detail return, persistence and shared reward consumers.
+No unresolved medium/high finding in this scope.
+
+Validation: Native state package PASS 123/0, including durable order, old-save
+migration, invalid-state rejection, incremental membership in all modes and
+132 real immediate/staged engine drops across all22 identities. Mounted iPhone
+and iPad selected coverage PASS: all10 crate tests, all4 navigation cases and
+2 existing collection tutorial/entry cases. Phone logs
+/tmp/progressive-box-phone-final.log (crate10 pass),
+/tmp/progressive-box-phone-navigation-final.log (6 pass),
+/tmp/progressive-box-phone-read-final.log (final unread fixture pass).
+iPad /tmp/progressive-box-ipad.log has15 pass and the former phone-only unread
+viewport assertion; final corrected viewport-aware fixture PASS in
+/tmp/progressive-box-ipad-read-final.log. Earlier stale navigation/geometry
+expectations were updated to accepted painted-entry/transition predicates;
+production navigation timing was not changed for those tests. Rendered top/bottom
+captures: /tmp/progressive-box-{iphone,ipad}-{top,bottom}.png. Expanded22 Box
+scrolls to last die and opens/closes its detail on both devices.
+
+Gates: gameplay-lock PASS330, feature-runtime PASS42, final qa:fast PASS,
+qa:ios PASS, git diff --check PASS. qa:full FAIL solely for the already known
+protected web scene-builders.test.ts:75 failure (529 suites/4010 tests pass,
+1 fails); other full gates/build pass. Logs /tmp/progressive-box-{king,feature,
+fast-final,ios-delivery,full}.log; state /tmp/progressive-box-state-all-final.log.
+Native scoped checks PASS; complete repository QA verdict remains FAIL for that
+existing web test. Physical touch/thermal/animation acceptance NEEDS PHYSICAL TEST.
+
+Normal Debug Stack to Six build PASS /tmp/progressive-box-build.log; built
+.native bundle verified, iPad family supported, strict deep signature valid,
+no Web.bundle/PlugIns. 898 current Native/art inputs stable through build.
+Installed over BOTH existing Simulator apps and launched normal app (no test
+runner final): iPhone PID41107, iPad PID41156. Primary AND previous save bytes
+unchanged through install and immediate launch. Installed executable/debug dylib
+and all3 current Clear board PNGs match build/source. Backups, input manifest,
+save hashes and per-device receipts /tmp/progressive-box-delivery. No reset,
+physical install, PWA/legacy shell or original asset edits in this task.
+
+Normal iPhone UI review visibly confirmed three columns and22/22 from its current
+canonical profile; backed-up preinstall save already contains18 discoveries and
+the stored order. iPad preinstall profile has zero discoveries (base4). Do not
+assume old six-item phone profile is still current or overwrite latest play.
+Final iOS Silent Mode read: iPhone ON, iPad OFF. Attempt to select iPad for the
+standing non-audio mute adjustment was rejected because user changed Simulator;
+stopped UI input rather than interfere. Game audio preferences were not changed.
+
+## 2026-11-13 · Read-only investigation of reported Bottle in Arcade Round1
+
+User asks why Bottle appeared after fresh reset. No reset/build/install or game
+input performed during investigation. CUA first observed Balloon detail,then
+normal Endurance02 with8704score while user continued play;did not capture the
+reported Bottle's actual spawn frame. Canonical primary/previous snapshots saved
+under `/tmp/arcade-round1-bottle-inspect` before any action. Current profile:
+tutorial complete,Journey1/21 completed,Arcade8704/reached2;latest pending round2
+lastSpecialMergeWorld=beach. Historical preinstall backups of cue-below,hand-offset
+and hand-sync deliveries prove reset profile remained empty/tutorial incomplete
+through22:16save. Journey21 completion recorded22:33:06,Journey1 at22:43:00,
+Arcade score22:45:15 Europe/Zagreb. Progress was subsequently written;not evidence
+of reset retaining old slots. No attribution of those writes to a specific tap
+or DEV action is claimed from save metadata alone.
+
+Cause of eligibility confirmed in NativeWildRewardPolicy:unfinished Arcade guide
+uses only Cubero,Balloon,OGMagnet,OGTNT. Once global firstPlayTutorialComplete is
+true (also after Journey guide),Arcade is ordinary. Endurance/SlowBurn normal pool
+includes Bottle/Cubero/Barrel independent of Journey unlocks from Round1;only
+plainStar/Mushroom have their separate unlock guards. Existing first-drop Endurance
+trial still selects Balloon;subsequent drops in same round can be Bottle. This is
+explicit existing GAMEPLAY_KING_CONTRACT Arcade-random-first-drop user decision
+2026-10-19,not introduced by recent hand/caption changes. No reward-policy change
+made for the user's diagnostic question. Actual first Bottle draw cannot be
+recovered from the already-cleared round save;eligibility/code path is proven.
+
+Focused macOS State tests PASS4tutorial/reward-policy tests0fail
+`/tmp/arcade-round1-bottle-inspect/tests.log`;PASS1uniform-pool/history/round/save
+oracle0fail4.034s `/tmp/arcade-round1-bottle-inspect/oracle.log`,including Round1
+noninitial drops and plainStar locked. Diagnostic verdict PASS for existing
+eligibility policy;new desired unlock-gated Arcade behavior would be a gameplay
+rule change. No physical/PWA/legacy operation,profile mutation or preview restart.
+
+## 2026-11-13 · Journey hand follows150ms later; Tap the card restored above
+
+Latest requests:hand uses same card animation with150ms delay;while implementing,
+user overrides caption placement back ABOVE card. Caption paper/title now end8pt
+above card in original centered150x40local slot. Hand netX0/Y-12 remains.
+Hand carrier becomes card sibling under same unit,matching card rest bounds,
+anchor,position/transform;inverse hand mapping preserves approved screen size and
+rest orientation. Unit drift remains shared. JimiNativeInterimEffect weakly borrows
+one follower layer and clones each exact randomized card keyframe track at its
+converted system epoch+150ms. No re-sampling RNG,new timer or independent loop.
+Follower publication is AFTER card transaction commit,so its delayed tail cannot
+extend card's cycle. Replacement/stop retire old track;detached/foreign layers
+fail closed. NativeAppController binds/unbinds active first-play cue;world
+park/cleanup clears follower. Overlay owns follower pause/resume and disposal.
+Feature policy updated;no artwork/audio/save/scoring change.
+
+Initial actual-root test found missing follower while isolated owner passed.
+Temporary diagnostics `/tmp/journey-hand-delay-diagnostic.log` proved bind id1
+owner=false,then owner existed later:deferred artwork creates effect after cue.
+World now retains only a weak pending layer and binds when its owner appears;
+retirement clears it even before readiness. Diagnostic prints removed.
+Mounted repeat-cycle test uses real UIWindow (offscreen preliminary test completed
+immediately and was not timing proof). Final phone2/0PASS
+`/tmp/journey-hand-delay-phone-mounted.log` (root9.876s,owner2.572s);
+iPad2/0PASS `/tmp/journey-hand-delay-ipad.log` (root10.638s,owner2.550s).
+Verify cold binding,interrupt/return,exact keyframe arrays/duration and system-time
+150ms gap on first AND next randomized cycle,rest geometry,pause/resume,stop and
+complete view retirement. Inspected above-caption renders copied to
+`/tmp/journey-hand-delay-delivery/{iphone,ipad}-preview.png`.
+Final fast/ios/diff hygiene PASS. Full finalQA FAIL only known protected web
+scene-builders.test.ts:75;529suites/4010tests pass,1failure,KING330 and all other
+gates/no-syncbuild pass `/tmp/journey-hand-delay-full-final.log`.
+Post-implementation ownership review PASS:bounded single borrowed weak layer,
+no retained card cycle,source-only selection/timing,new work remains owned and
+no orphaned old hand loop. Physical optical/motion/touch acceptance NEEDS PHYSICAL TEST.
+
+Normal complete-current-tree Debug BUILD SUCCEEDED
+`/tmp/journey-hand-delay-build.log`;896Native/art input hashes stable through build.
+Exact.native,strict codesign,no Web.bundle/testPlugIns. Install-over/normal launch
+phonePID21368/iPadPID21423;both installed binaries/current3Clear board images
+match. Primary/previous saves unchanged stopped-preinstall→install→launch;
+backups/receipts `/tmp/journey-hand-delay-delivery/{iphone,ipad}`. Subsequent user
+play may legitimately advance these saves. CUA observed normal phone World then
+CLEARED while user actively reviewing. Actual phone Silent Mode OFF/toolbarMuteOff;
+CUA mute actions were twice rejected because user changed the app;read-only retry
+also timed out once. Left active user's interaction/audio control intact,no game
+preference workaround or successful mute claim. No reset/uninstall,physical
+install,PWA/legacy operation,old-save restoration or artwork change.
+
+## 2026-11-13 · Journey hand shares actual card motion and moves8pt left
+
+User requests synchronized card/hand movement and8px left from prior hand pose.
+Native UIKit offsetX8→0 (8pt left),Y-12 retained. Initial intro hand now lives in
+a noninteractive carrier under the real card,like its cue paper/title. A static
+inverse resting coordinate mapping preserves approved hand size/base orientation
+on phone/tablet while real card wave/tilt/squash/contact exit are inherited.
+The unrelated1.45s repeating hand transform and its idle-start field are removed;
+no copied card timeline or new timer. Existing finite cue enter remains.
+Caption geometry retains original baseline;other tutorial hand paths unchanged.
+sourcePointerFrame still reports overlay-space bounds after reparenting. Existing
+overlay suspension also pauses/resumes borrowed carrier clock;dispose removes
+carrier/pointer and all tracks. Existing visual exit copy remains bounded under
+overlay lifetime. Feature record updated. Scoped lifecycle/callsite review PASS:
+no stale idle helpers,new decode/cache/audio/save owner or retained card cycle.
+
+Phone2/0PASS `/tmp/journey-hand-sync-phone-final.log`;iPad2/0PASS
+`/tmp/journey-hand-sync-ipad.log`. Extended existing regression verifies hand
+carrier is real card child,actual card translation moves hand1:1,no old repeating
+track,caption baseline unchanged,suspension/resume and complete retirement.
+Actual Journey interrupt/return/input/cue completion test also passes. Initial
+compile rejected ambiguous convert(.zero);explicit CGPoint.zero fixed it before
+final passing tests/build. Inspected renders copied to
+`/tmp/journey-hand-sync-delivery/{iphone,ipad}-preview.png`.
+Fast/ios/diff hygiene PASS. FullQA FAIL only known protected web
+scene-builders.test.ts:75;529suites/4010tests pass,1failure,KING330 and all other
+gates/no-syncbuild pass `/tmp/journey-hand-sync-full.log`. Native deterministic
+PASS;physical motion/touch feel remains NEEDS PHYSICAL TEST.
+
+Complete-current-tree normal Debug BUILD SUCCEEDED
+`/tmp/journey-hand-sync-build.log`;896Native/art input hashes stable through build.
+Exact .native,strict codesign,no Web.bundle/testPlugIns. Install-over/normal launch
+phonePID14501/iPadPID14583;both installed binaries/current3Clear board images
+match. Primary/previous saves byte-identical stopped-preinstall→install→launch;
+backups/receipts `/tmp/journey-hand-sync-delivery/{iphone,ipad}`. Actual phone
+Silent Mode ON. No reset/uninstall,physical install,PWA/legacy operation,
+old-save restoration,artwork or audio-preference changes.
+
+## 2026-11-13 · Journey intro hand slightly up/right
+
+User screenshot asks hand a little higher/right. Existing world-intro pointer
+position adds8ptX/-12ptY on both device branches. Its original idle/entry/exit,
+size,artwork and target/card input remain. Caption clearance subtracts this
+hand-only offset before conversion,retaining the approved exact label baseline.
+No other tutorial hand is changed,no second clock or work/resource/save owner.
+Existing feature policy aligned;scoped callsite/lifecycle review PASS.
+
+Existing mounted regressions phone2/0PASS `/tmp/journey-hand-offset-phone.log`,
+iPad2/0PASS `/tmp/journey-hand-offset-ipad.log`: actual Journey cue,interrupted
+return until canonical completion,card-parent motion,readable caption and
+retirement. No new tests for this bounded visual adjustment. Inspected both
+renders,copied to `/tmp/journey-hand-offset-delivery/{iphone,ipad}-preview.png`.
+Fast/ios/diff hygiene PASS. FullQA FAIL only known protected web
+scene-builders.test.ts:75;other gates/no-syncbuild pass
+`/tmp/journey-hand-offset-full.log`. Native scoped PASS;physical optical/touch
+acceptance NEEDS PHYSICAL TEST.
+
+Normal complete-current-tree Debug BUILD SUCCEEDED
+`/tmp/journey-hand-offset-build.log`;896Native/art input hashes unchanged through
+build. Exact .native,strict codesign,no Web.bundle/testPlugIns. Install-over and
+normal launch phonePID10415/iPadPID10464;installed binaries/current3Clear board
+images match. Primary/previous save bytes unchanged stopped-preinstall→install→
+launch;backups/receipts `/tmp/journey-hand-offset-delivery/{iphone,ipad}`.
+Actual postlaunch phone Silent Mode ON. No reset/uninstall,physical install,
+PWA/legacy operation,old-save restoration or artwork/audio preference change.
+
+## 2026-11-13 · Journey first-play Tap the card cue below card
+
+User asks initial Journey card cue below the card. NativeTutorialOverlay keeps
+paper/title parented to the real card,centered,and moves below card bounds.
+First8pt-below-card render exposed hand occlusion on iPad. Final synchronous
+layout runs after existing pointer layout and reserves the hand's full bounds
+plus its existing7pt idle travel,then8pt gap. No hand target/motion change or
+second clock;original cue tilt,bounce,paper,entry/exit,hit admission and disposal
+remain. Feature policy updated. Scoped owner/callsite/lifecycle review PASS.
+
+Final phone2/0PASS `/tmp/journey-cue-below-phone-final.log`;iPad2/0PASS
+`/tmp/journey-cue-below-ipad-final.log`: real interrupted Journey/return until
+canonical completion,below-card placement,no hand/text overlap,inherited
+card transforms and cleanup. Tests use actual device viewport. Inspected final
+renders `/tmp/journey-cue-below-{iphone,ipad}.png`;both show full readable cue
+below card/hand. Final fast/ios/diff hygiene PASS. FullQA ran for initial cue
+placement and fails only known protected web scene-builders.test.ts:75;all other
+gates/no-syncbuild pass `/tmp/journey-cue-below-full.log`. Final hand-clearance
+refinement covered by final mounted tests and fast/ios. Native deterministic
+PASS;physical optical/touch acceptance NEEDS PHYSICAL TEST.
+
+Normal final complete-current-tree Debug BUILD SUCCEEDED
+`/tmp/journey-cue-below-build-final.log`;896Native/art inputs stable through build.
+Exact.native,strict codesign,no Web.bundle/testPlugIns. Install-over/normal launch
+phonePID8282/iPadPID8332;both installed binaries and3current Clear board images
+match. Latest primary/previous save bytes unchanged stopped-preinstall→install→
+launch;backups/receipts `/tmp/journey-cue-below-delivery/{iphone,ipad}`. Actual
+phone Silent Mode ON after launch. No reset/uninstall,physical installation,
+PWA/legacy operation,old-save restoration or artwork/audio preference changes.
+
+## 2026-11-13 · Fresh tutorial reset on both Simulators after gold timing approval
+
+User explicitly requests first-play tutorial,zero scores and closed cards on
+phone+iPad. Existing typed fresh-profile helper validates,writes and reads back
+fresh primary and previous saves,after terminating each Native app and backing
+up latest slots. Backup/receipts:
+/tmp/native-both-fresh-reset-repeat-20261113-211238/{iphone,ipad}.
+Normal launches phonePID74861/iPadPID74886. Independent postlaunch JSON checks
+PASS all4slots:tutorial/intro incomplete,no runs/completed/viewed boards or
+unlocked/announced/read dice,boardStats empty,Arcade scores/combo/cubes0,
+only default Stage1 available. Initial validation incorrectly expected Arcade
+highestStageOpened0;corrected to canonical fresh default1,then all checks PASS.
+Phone actual Silent Mode ON. Latest installed150ms-overlap build retained;
+no build/install/uninstall,device erase,physical/PWA/legacy operation or tool
+input advancing gameplay. Fresh tutorial and card-state behavior ready for user.
+
+## 2026-11-13 · Additional50ms earlier gold start (150ms total overlap)
+
+Latest user asks another50ms earlier. Shared filledStarStart changes only
+-0.10→-0.15:gold1/2/3start1.31/1.61/1.91s,first at70percent of third grey's
+500ms entry,150ms before settle.300ms gold cadence and every original motion,
+exit,award,clock,contact/burn-readiness owner remain. Feature/audio records and
+existing timing/mounted tests follow final numeric values;no new owner/assets.
+Scoped callsite/cleanup review PASS.
+
+Phone3/0PASS `/tmp/gold-overlap150-phone.log`;iPad3/0PASS
+`/tmp/gold-overlap150-ipad.log`: exact starts,mounted overlap,grey enter/exit
+parity,ordered contacts,layout/pause/dispose. Fast/ios/diff hygiene PASS.
+FullQA FAIL only known protected web scene-builders.test.ts:75;remaining
+feature/audio/source/build gates pass `/tmp/gold-overlap150-full.log`.
+Native scoped PASS;optical feel NEEDS PHYSICAL TEST.
+
+Normal complete-current-tree Debug BUILD SUCCEEDED
+`/tmp/gold-overlap150-build.log`;896Native/art inputs unchanged through build.
+Exact .native,no Web.bundle/testPlugIns,strict codesign. Both installed binaries
+and3current Clear board assets match. Normal install-over/launch phonePID73670,
+iPadPID73731;primary/previous saves byte-identical stopped-preinstall→install→
+launch. Latest save backups/receipts `/tmp/gold-overlap150-delivery/{iphone,ipad}`.
+Phone actual Silent Mode ON after launch. No physical install,reset,uninstall,
+old-save restoration,PWA or legacy operation. Normal app remains final preview.
+
+## 2026-11-13 · Gold starts100ms before final grey settles
+
+Latest user timing request supersedes immediate-after-grey handoff: use explicit
+100ms earlier (80percent of the third grey's500ms entry;50percent would be250ms).
+filledStarStart now derives greyStarsSettled-0.10+index*0.30:1.36/1.66/1.96s.
+First gold overlaps the final grey bounce;all original grey/gold curves,300ms
+gold stagger,exit,award and remaining result timings stay. Grey replacement,
+star contact and burn readiness retain the shared start function/clock. No new
+work/resource/audio/save owner. Feature/audio timing records aligned.
+
+Phone3/0PASS `/tmp/gold-overlap-phone.log`,iPad3/0PASS
+`/tmp/gold-overlap-ipad.log`: actual mounted overlap (gold painted while final
+grey still moving),exact starts,ordered once-only contacts,layout,pause/dispose,
+and shared Clean/Fail grey entry/accelerated reverse exit. Grey equality samples
+stop before gold replacement;unreplaced settled pose is tested independently.
+Fast/ios/feature/audio admission/diff hygiene PASS. FullQA FAIL only known
+protected web scene-builders.test.ts:75;all other gates/no-syncbuild pass,
+`/tmp/gold-overlap-full.log`. Native scoped PASS;optical animation feel remains
+NEEDS PHYSICAL TEST. Scoped final review confirms one timing function and no
+new callback/timer/owner or asset/save change.
+
+Normal complete-current-tree Debug BUILD SUCCEEDED `/tmp/gold-overlap-build.log`.
+896Native/art inputs stable through build;exact.native,no Web.bundle/testPlugIns,
+strict codesign. Install-over/normal launch phonePID70431,iPadPID70502;both
+installed binaries/current3Clear board assets match. Both primary/previous save
+slots byte-identical preinstall→install→launch;receipts/backups
+`/tmp/gold-overlap-delivery/{iphone,ipad}`. Actual phone Silent Mode ON after
+launch;audio preferences unchanged. No physical install,reset,uninstall,
+old-save restoration,PWA or legacy operations. Normal app is final preview.
+
+## 2026-11-13 · Gold star cadence40percent shorter and immediate grey handoff
+
+User requested faster consecutive gold arrivals,then clarified first gold must
+start immediately when third grey finishes. Only filledStarStart changes:
+remove120ms post-grey hold;slot stagger500→300ms (40percent shorter gaps).
+Starts now1.46/1.76/2.06s,derived from greyStarsSettled. Existing gold bounce,
+grey motion/exit,award count and other result timing remain unchanged.
+Grey replacement,once-only star contacts and shared burn-ready admission all
+consume that same function;no additional clock,owner,source,asset or save change.
+Audio/feature timing records updated. Scoped callsite/lifecycle review PASS.
+
+Final mounted phone2/0PASS `/tmp/gold-faster-phone-final2.log`;iPad2/0PASS
+`/tmp/gold-faster-ipad.log`: exact starts,grey-before-gold,ordered contacts,
+layout stability,suspension/resume and no replay after disposal. First final
+run expected no contact at the exact shared boundary;corrected test to expect
+first contact there and use floating-point scale tolerance at zero. No runtime
+workaround or added delay. Earlier intermediate500→300ms-only run also passed.
+Fast,ios,feature42,audio-runtime,diff hygiene PASS `/tmp/gold-faster-*.log`.
+FullQA FAIL only known protected web scene-builders.test.ts:75;529suites/
+4010tests pass,1failure,KING330 and all other gates/no-syncbuild pass.
+Native scoped deterministic PASS;animation feel NEEDS PHYSICAL TEST.
+
+Normal complete-current-tree Debug BUILD SUCCEEDED `/tmp/gold-faster-build.log`.
+896Native/art input hashes stable;exact .native bundle,strict codesign,
+no Web.bundle/testPlugIns. Install-over and normal launch phonePID63772,
+iPadPID63821;installed binaries/current3Clear board assets match;primary and
+previous save bytes unchanged preinstall→install→launch. Receipts/backups
+`/tmp/gold-faster-delivery/{iphone,ipad}`. Actual postlaunch phone Silent Mode ON
+(SBRingerMuted=true);game audio prefs unchanged. No physical install,reset,
+uninstall,save restoration,PWA or legacy operation. Final preview is normal app.
+
+## 2026-11-13 · Retire Jimbo/Nala intro and add selectable DEV result previews
+
+User screenshot identifies `lik-pas-SVG` (Jimbo holding Nala's paws). Removed
+from the sole Native startup/DEV character registry (10→9), DEV title lookup,
+character-specific motion/still paths and layout branches. The nine remaining
+intros retain their assets/timing/decoder ownership. Original source and packaged
+historical media stay preserved; unrelated plaque SVG and PWA are unchanged.
+Removed obsolete character-specific lifecycle tests; all-nine mounted matrix
+and common prepare/background/dispose tests remain.
+
+DEV adds Fail Screen using the real Fail controller with three grey stars.
+Clean Stage/Arcade/Beach/Area55 reuse the existing single-select picker for1/2/3
+stars, then the existing result controller and Close DEV host. Synthetic final
+scores use current per-board ranking thresholds; canonical scoring is unchanged.
+No-op commits and weak/epoch/route callbacks preserve the real profile. Host
+release disposes result and stops its bounded audio; existing Clean audio cleanup
+now optionally includes Fail voices/title, retaining old default scope. No new
+transport, timer, resource or store owner. Existing feature/audio records updated.
+Post-implementation review: one registry, no second result flow, idempotent host
+release and finite audio cleanup, no new retained callback cycle or recurring work.
+
+PASS phone7 focused tests `/tmp/dev-results-intro-phone.log`: all9actual intros
+at phone/tablet viewport sizes, stale preparation retirement, small-phone DEV
+layout/actions, preview release and Clean/Fail audio cleanup. Real Bootstrap
+result UI test moved into cross-device `NativeDeveloperResultPreviewTests` after
+initial iPad Settings-class allowlist skipped that test (not a tablet PASS).
+Final actual phone1/0 PASS `/tmp/dev-results-intro-phone-render.log` and iPad1/0
+PASS `/tmp/dev-results-intro-ipad-render.log`: all4Clean actions, counts1/2/3,
+Fail3grey, repeatedCloseDEV, retired intro absent and profile unchanged each time.
+Additional iPad common intro/background and audio tests passed in the initial run.
+Inspected rendered DEV panel/picker/Fail/Clean in
+`/tmp/dev-result-preview-renders/{iphone,ipad}`; modal snapshots render their own
+view, as whole-window layer snapshots omit UIKit's presented overlay.
+PASS ios, fast, feature42, audio-runtime and diff hygiene; logs
+`/tmp/dev-results-intro-{ios-final,fast,feature-final,audio}.log`.
+FullQA FAIL only known protected web `scene-builders.test.ts:75`:
+529suites/4010tests pass,1failure;KING330 and other gates/no-syncbuild pass,
+`/tmp/dev-results-intro-full.log`. Native scoped implementation/Simulator PASS;
+physical touch/speaker/animation-feel acceptance NEEDS PHYSICAL TEST.
+
+Complete current-tree normal Stack to Six Debug BUILD SUCCEEDED
+`/tmp/dev-results-intro-build.log`;896Native/art input hashes stable through build.
+Exact native bundle ID, universal phone/tablet, strict codesign, no Web.bundle or
+testPlugIns. Install-over/normal launch phonePID56546 and iPadPID56616; both
+installed binaries and all3current Clear board images match built/source.
+Primary/previous save bytes unchanged stopped-preinstall→install→normal launch;
+backups/hashes/receipts `/tmp/dev-results-intro-delivery/{iphone,ipad}`.
+CUA observed final normal phone Home, not test runner. Actual postlaunch
+SpringBoard SBRingerMuted=true on phone (toolbarMuteON); iPad remains its prior
+false state with no Mute toolbar. Game audio preferences unchanged. No physical
+installation, reset/uninstall, PWA/legacy operation or old-save restoration.
+
+## 2026-11-13 · Shared Clean/Fail grey bounce and accelerated reversed exit
+
+User clarifies identical grey-star enter/exit for BOTH Clean Board and Fail,
+stronger individual bounce1–2–3,then Clean's earned1/2/3gold above them;grey exit
+must reverse and accelerate. One NativeResultPresentationPlan.greyStarEntrance
+now owns both:scale0→backOut1.8overshoot→1,+10pt→rest,500ms per slot,220msstagger.
+Starts0.52/0.74/0.96,all settled1.46;gold contact/burn schedule stays1.58+0.50index.
+Both entry and exit row carriers are neutral,retiring Fail's compounded group
+motion and its separate grey shake/pop-out functions. Shared emptyStar exit
+samples the exact same entrance backwards,third-second-first,at2x speed:
+250ms per slot,110ms reverse stagger,all grey gone470ms before either card
+collapse. Gold retains its separate existing enter/exit and canonical award count.
+Interrupted Fail close captures the actual entry age per slot through existing
+closingAt;no pose reset or new CTA/input gate. Reduced Motion uses grey fade only.
+No new clock,resource/audio source/asset/save/gameplay owner. Feature record
+updated;existing controller elapsed/pause/close/dispose and preparation owners
+remain. Review confirms one writer per grey transform,neutral parent,reverse
+completion before card motion,no obsolete helper callers and no added work owner.
+Final phone8/0 PASS /tmp/shared-grey-stars-phone-final.log;final iPad4/0 PASS
+/tmp/shared-grey-stars-ipad-final.log. Actual mounted Clean/Fail grey poses match
+at every sampled entry and visible exit;pure test verifies exact reverse at2x,
+plus0scale,stronger overshoot,all greys before gold,earned1–3counts,grey exits,
+interrupted Fail pose/background freeze,prepared Fail return and tablet geometry.
+Initial interrupted-pose equality differed by about2e-15;aligned age arithmetic
+and used1e-9 affine tolerance rather than binary transform equality. Final checks
+pass. Prior iPad run's other seven cases passed. Updated authored tests explicitly
+expect neutral row carriers;final test comment aligned after build,no runtime edit.
+Inspected actual Fail grey entry and Clean grey reverse exit screenshots:
+/tmp/shared-result-grey-stars/{iphone,ipad}/{clean,fail}. UI bounce feel remains
+user acceptance. Native source/geometry/lifecycle checks PASS.
+Fast,feature42,ios,diff hygiene PASS. FullQA FAIL only known protected web
+scene-builders.test.ts:75;529suites/4010tests,KING330 and other gates/no-sync build
+PASS /tmp/shared-grey-stars-full.log. Normal current-tree Debug BUILD SUCCEEDED
+/tmp/shared-grey-stars-build.log;896capturedNative/art inputs stable through
+delivery,exact.native,family1/2,strict deep codesign,no testPlugIns/Web.bundle.
+Both install-over/normal launches phone46540/iPad46597 PASS;all4save slots exact
+immediately through install/launch,both binary pairs and current3Clear board art
+match. Backups/receipts:/tmp/shared-grey-stars-delivery. CUA observed ordinary
+iPad Home. ActualSilentModephone1/iPad0(existing noMute limitation),no game audio
+preference workaround. No reset,physical/PWA/legacy or source-asset operation.
+Physical motion/audio acceptance remains NEEDS PHYSICAL TEST/user review.
+
+## 2026-11-13 · User-requested repeat reset after star animation update
+
+Explicit request reset both retained Native Simulators. Current typed fresh-profile
+helper validated,wrote and read back primary+previous slots on iPhone1018BE2D and
+iPad43A75086. Post-launch all4slots confirm no runs/completed boards and global
+tutorial incomplete. Prior saves/receipts:/tmp/native-both-fresh-reset-repeat-20261113-200403/{iphone,ipad}.
+Latest installed star-animation apps retained;no build/install/uninstall,device
+erase,physical/PWA/legacy operation or tool gameplay input. Both reset PASS.
+
+## 2026-11-13 · Clean Board grey-first sequential star entrance
+
+User requests three grey result stars enter one-by-one with gentle bounce,then
+replace earned slots with gold only after all three greys settle. Clean star row
+is now neutral instead of entering as a compounded group. Each original grey
+image has its own existing-clock pose:starts0.52/0.74/0.96,500ms gentle back-out
+from0.82scale/+10pt with120msfade,settled all at1.46. Gold uses its existing
+geometry/elastic/idle motion,now starting1.58 then0.50apart;grey replacement fade,
+existing clean-star sound/contact and last-earned burn readiness follow that same
+central timing. Post-CLEARED clock still starts0.47,so first grey begins50ms after
+mount. Reduced Motion removes only the new grey scale/translation. Original art,
+awarded count/rank,Fail,score/CTA timing,layout and result exits retained.
+One NativeResultController elapsed owner still drives everything;no extra clock,
+resource/cache/audio source or gameplay/save owner. Existing preparation lease,
+foreground/hidden/dispose and once-only moment receipts retained. Feature/audio
+owner records updated. Final code-health review:separate child transform owner,
+neutral row,no accumulating layout transform or delayed job,no replay on resume.
+Actual phone7/0 PASS /tmp/result-stars-phone-final.log and iPad6/0 PASS
+/tmp/result-stars-ipad.log:grey1/2/3 then all settled before any gold/sound,gold
+order and one contact per slot,subtle bounce bounds,reduced motion,relayout,
+background/resume/dispose,earned1–3 counts,zero-scale bounds,grey exits,prepared
+handoff,tablet projection and existing selected burn preparation/retirement.
+Initial phone run exposed old fixture expecting the whole row at scale0;updated
+to the requested neutral row plus invisible independent stars,then final7/0 PASS.
+Inspected actual phone grey2/all-grey/gold2 and tablet gold3 renders. Seven phase
+screenshots per device:/tmp/result-stars-sequence/{iphone,ipad}. Geometry fits;
+subjective bounce remains user acceptance.
+Fast,feature42,audio,ios,diff hygiene PASS. FullQA FAIL only known protected web
+scene-builders.test.ts:75;529suites/4010tests,KING330 and other gates/no-sync build
+PASS /tmp/result-stars-full.log. Normal complete-tree Debug BUILD SUCCEEDED
+/tmp/result-stars-build.log;896shipping inputs stable,exact.native,family1/2,
+strict deep codesign,no testPlugIns/Web.bundle. Both install-over/normal launches
+phone35793/iPad35851 PASS;all4save slots exact immediately through install/launch,
+both installed binary pairs and current3Clear board files match. Backups/receipts:
+/tmp/result-stars-delivery. CUA observed normal phone Home with user's pending
+High five,toolbarMuteON;actualSilentModephone1/iPad0(existing noMute limitation),
+no game audio-preference workaround. No reset,physical/PWA/legacy or source-asset
+operation. Scoped Native PASS;physical motion/audio acceptance NEEDS PHYSICAL TEST.
+
+## 2026-11-13 · Tutorial Close hidden until existing HUD reveal
+
+User requests only hiding the gameplay X before score/combo/backpack HUD appears,
+retaining its existing dim opacity and nonclickability. NativeBoardScene's existing
+synchronizeTutorialChromeVisibility now owns Close isHidden at the same
+encouragement/collection-preview receipt. Current tutorial checkpoints hide Close
+until that receipt;normal/legacy HUD visibility remains unchanged. Close stays
+outside the other icons' enter tracks;existing alpha writers and tutorial input
+guards are unchanged. No new clock,animation,resource/input/save owner.
+Actual mounted phone1/0 and full-size iPad1/0 PASS:
+/tmp/tutorial-close-reveal-{phone,ipad}.log. Existing half-Special preview test now
+checks hidden before0.49,stays hidden across synchronize/render,visible at0.50
+alongside existing HUD,alpha<=0.2 and no exit callback on Close contact. Existing
+collection acknowledgement/early action/cleanup checks remain. Source review:
+visibility changes only,normal tutorial-free synchronize restores Close visibility;
+no opacity,geometry,timing or gameplay permission mutation.
+Fast/ios/diff hygiene PASS. FullQA FAIL only known protected web
+scene-builders.test.ts:75;529suites/4010tests,KING330 and all other gates/no-sync
+build PASS /tmp/tutorial-close-reveal-full.log. Normal complete-tree Debug BUILD
+SUCCEEDED /tmp/tutorial-close-reveal-build.log;896Native/art inputs stable,exact
+.native,family1/2,strict deep codesign,no testPlugIns/Web.bundle. Both install-over
+and normal launches phone27208/iPad27257 PASS. All4canonical save slots byte-exact
+immediately through install/launch,both installed binary pairs and all3current
+Clear board assets match. Backups/receipts /tmp/tutorial-close-reveal-delivery.
+CUA observed ordinary phone Home,toolbarMuteON;actualSilentModephone1/iPad0
+(existing noMute limitation),no game audio preference workaround. No reset,
+physical/PWA/legacy operation or source-asset mutation. Scoped Native PASS;
+physical optical/touch acceptance remains user review.
+
+## 2026-11-13 · Explicit repeat first-play reset on both Simulators
+
+User requests resetting iPad and iPhone. Existing current typed NativeSaveStore/
+NativeSaveEnvelope helper validates,writes and reads back fresh primary+previous
+slots on phone1018BE2D and iPad43A75086. Prior saves backed up at
+/tmp/native-both-fresh-reset-repeat-20261113-193950/{iphone,ipad}. Post-launch
+all4slots confirm firstPlayRun=nil,firstPlayTutorialComplete=false,no ordinary
+runs/completed boards;settings defaultON. Existing latest apps retained;normal
+launches phone23182/iPad23198. CUA observed normal iPad Home. No build/install/
+uninstall,device erase,physical/PWA/legacy operation or tool gameplay input.
+Reset PASS;both first-play tutorials ready for user selection.
+
+## 2026-11-13 · Both-device latest tutorial delivery, Combo CTA and HUD exit
+
+User requests iPhone reset and same latest changes on iPad,then supplies new
+Clear board files,changes Combo Next to Got it,and requests Arcade tutorial HUD
+exit like Journey during CLEARED before Clean Board. iPhone reset completed once
+via current typed NativeSaveStore helper,launch90410;prior slots backed up under
+/tmp/phone-reset-ipad-parity-20261113-183312/iphone. User then continued playing;
+no later reset applied. iPad was never reset.
+NativeTutorialOverlay step7 now says Got it for both modes/devices;existing action,
+copy,motion/voice and other CTAs unchanged. Both existing actual Combo restore/
+collection expectations updated. User's latest clear board.png/@2x/@3x copied
+byte-exact into Native package,370x200/740x400/1110x600,RGBA decode PASS. Initial
+final package check caught newer source files while packaged copies were older;
+corrected current three files only,historical extras retained,no regeneration.
+NativeGameplayViewController finalMerge now preserves chrome only for ordinary
+Arcade. Globally incomplete tutorial requiring result completion reuses Journey's
+existing residual join,one-second hold after thumb entry,finite HUD exit and result
+handoff. No new timer/animation/input/save/resource owner. Ordinary Arcade,Journey
+motion/footer and previous tutorial-only victory-bed exclusion remain unchanged.
+Actual phone tutorial Continue+Exit PASS and ordinary Arcade PASS in
+/tmp/tutorial-hud-exit-phone.log. That run exposed stale Journey test assertions
+against the fixed parent HUD instead of four animated groups;updated assertions
+to current grouped renderer,without changing Journey behavior. Final phone3/0 PASS
+/tmp/tutorial-hud-exit-phone-final.log (Journey exit,ordinary Arcade keep,Combo CTA).
+Actual iPad5/0 PASS /tmp/tutorial-hud-exit-ipad.log:both Source tutorial final merges
+sample real hud-exit during CLEARED,wait all groups hidden before Clean Board,
+preserve human voice/no extra victory bed,plus Journey/ordinary exits and Got it.
+Earlier iPad5/0 /tmp/ipad-latest-changes-native.log verifies current Box Magnet/
+Balloon targeting/mirror plus tutorial/ordinary audio. Scoped Native PASS.
+Fast/ios/diff hygiene PASS. FullQA FAIL only known protected web
+scene-builders.test.ts:75;529suites/4010tests,KING330 and remaining gates/no-sync
+build PASS /tmp/combo-got-it-full.log. No source assets removed/optimized.
+Normal complete-tree Debug BUILD SUCCEEDED /tmp/tutorial-final-both-build.log;
+896shipping inputs(893Native+3artwork) stable,exact.native,family1/2,strict deep
+codesign,no testPlugIns/Web.bundle. Both install-over/normal launches phone96929,
+iPad96978 PASS;all4save slots byte-exact immediately through install/launch,both
+installed launcher/dylib pairs match built,all3artwork files match current sources
+on both. Backups/receipts: /tmp/phone-reset-ipad-parity-20261113-183312/final-delivery.
+Original iPad progression/settings unchanged through tests;only savedAt refreshed.
+CUA observed normal phone Home with user's pending High five and normal iPad Home;
+no tool gameplay input. ActualSilentModephone1/toolbarON,iPad0/noMute(existing
+limitation),no game audio-preference workaround. No physical/PWA/legacy operation.
+Physical optical/touch/audio acceptance remains user review.
+
+## 2026-11-13 · Arcade tutorial CLEARED omits extra victory bed
+
+User limits change to Arcade tutorial only:Journey-style CLEARED animation,
+round-won human voice/thumb/whoosh,then existing Clean Board. Bootstrap's actual
+onRoundWon previously emitted arcade-victory for every Arcade state. It now
+excludes only globally incomplete tutorials requiring result completion,matching
+the existing result admission. Ordinary Arcade,including legacy local tutorial
+metadata after global completion,retains its victory bed and automatic rounds.
+Clean Board's own audio,random thumb/paw,placeholder exit,timing and saves stay.
+No source/gain/transport/timer/preload/resource-owner change. Audio runtime record
+and stable context policy updated. Source review confirms existing generation/
+identity guards and canonical completion remain;no second completion/audio owner.
+Real Source final5+1 regression FAIL-before at actual CLEARED contact:
+celebration count1 instead of0,/tmp/tutorial-cleared-audio-before.log. Final
+Native6/0 PASS /tmp/tutorial-cleared-audio-native.log:actual Continue and Exit
+through CLEARED/Clean Board/farewell,one human voice with zero tutorial victory
+beds,ordinary callback with legacy metadata retains both,normal round UI,finite
+normal celebration lifetime and existing human/Nala/mute behavior. Fast,audio
+runtime,ios,diff hygiene PASS. FullQA FAIL only protected known web
+scene-builders.test.ts:75;529suites/4010tests,KING330 and other gates/no-sync
+build PASS. Logs /tmp/tutorial-cleared-audio-{fast,runtime,ios,full}.log.
+Normal complete-tree Debug BUILD SUCCEEDED /tmp/tutorial-cleared-audio-build.log;
+893inputs stable,exact.native,deep strict codesign,no testPlugIns/Web.bundle.
+Retained phone1018BE2D install-over+normal launch89446 PASS;both save slots
+byte-exact across install/launch;installed launcher/dylib match built. Backups/
+receipt /tmp/tutorial-cleared-audio-delivery/iphone. CUA observed normal intro,
+MuteOFF and visible Silent Mode Off;final actualSBRingerMuted=false. No reset,
+iPad/physical/PWA/legacy action. Scoped Native PASS;physical audible mix remains
+NEEDS PHYSICAL TEST/user acceptance.
+
+## 2026-11-13 · User-requested fresh iPhone Simulator profile
+
+Explicit request reset iPhone as first-ever play. Recompiled current typed
+NativeSaveEnvelope/NativeSaveStore helper,validated fresh defaults and wrote
+both canonical slots on retained phone1018BE2D only. Prior slots and receipt
+backed up at /tmp/iphone-fresh-reset-20261113-182306. Existing app retained;
+normal launch84362. CUA observed Home and visible Silent Mode On. Later live
+readback saw an externally selected new Arcade tutorial at step1,revision0,
+score0 and firstPlayTutorialComplete=false;previous slot was fresh with no run.
+Further live progress continued during verification;no additional reset applied.
+No build/install/uninstall,device erase,iPad/physical/PWA/legacy action or tool
+gameplay input. Initial fresh-profile write/readback PASS;user is playing.
+
+## 2026-11-13 · Box tutorial hand follows the selected board Special
+
+User requests Box guide match the actual tutorial reward instead of always
+Cubero. NativeScoreOwner snapshots the existing saved tutorial reward into the
+modal's die ID (Cubero,Balloon,TNT,Magnet);NativeBackpackView resolves only that
+unlocked visible cell. A missing requested cell hides guidance rather than
+pointing at an unrelated first item. Journey retains its existing first-discovered
+target. First-die guides mirror for right-column cells,including fingertip anchor,
+corner and tap direction;left-column pose and both Close guides stay unchanged.
+No new clock,resource,audio,input/save or gameplay reward owner.
+Native phone6/0 PASS /tmp/box-selected-hand-native.log:all4Arcade identities,
+Journey walkthrough and phone/tablet shared hand geometry. Actual iPad2/0 PASS
+/tmp/box-selected-hand-ipad.log:Magnet and Balloon through Box/detail/Close/Combo.
+Assertions cover exact selected cell,fingertip/mirror,detail identity,background
+pause,exit cancellation,release and no repeated guidance. Inspected actual phone
+and tablet Magnet/Balloon screenshots;phone copies retained under
+/tmp/box-selected-hand-phone-screens. Existing finite animation/weak ownership
+and cleanup reviewed;no new runtime resources or independent selection added.
+Fast/ios/diff hygiene PASS. FullQA FAIL only known protected web
+scene-builders.test.ts:75;529suites/4010tests,KING330,other gates/no-sync build PASS.
+Logs /tmp/box-selected-hand-{fast,ios,full}.log. Normal complete-tree Debug BUILD
+SUCCEEDED /tmp/box-selected-hand-build.log;893inputs stable,exact.native,deep
+strict codesign,no testPlugIns/Web.bundle. Retained phone install-over+normal
+launch80434 PASS;both canonical slots exact across install/launch,installed
+launcher/dylib match built. Backups/receipt /tmp/box-selected-hand-delivery/iphone.
+CUA observed normal Home,toolbarMuteON;actual SBRingerMuted=true after launch.
+No profile reset,physical/PWA/legacy action or asset edits in this fix. Supplied
+Clear board image from preceding task remains packaged. Scoped Native PASS;
+physical optical/touch acceptance remains user review.
+
+## 2026-11-13 · User supplied Clear board illustration refreshed
+
+User already supplied assets/tutorial/clear board.png/@2x/@3x at370x200,
+740x400,1110x600. Inspected supplied two/four-pip image and preserved all three
+source bytes. Native package,built and installed copies match exactly. Native-only
+prepare copied sources but reports historical packaged extras;none removed.
+Fast/ios PASS. FullQA FAIL only known protected web scene-builders.test.ts;
+other gates including KING330 and no-sync build PASS. Logs /tmp/clear-board-user-*.
+Normal current-tree Debug BUILD SUCCEEDED,exact.native,deep strict codesign,
+no testPlugIns/Web.bundle. Retained iPhone1018BE2D install-over and normal launch
+76133;receipt /tmp/clear-board-user-delivery/iphone/delivery.json. Initial
+capture-to-install bytes changed during concurrent live activity (tutorial run
+became pending);no save written/restored by this task. Current both slots exact
+immediately across final launch. CUA observed normal splash;toolbarMuteON,
+visible iOS Silent Mode On and final SBRingerMuted=true. No physical/PWA/legacy
+operation. Artwork packaging PASS;in-tutorial optical acceptance remains review.
+
+## 2026-11-13 · iPhone modal close-hand green-box reference
+
+User supplies desired upright hand below/right of Cubero detail X. Latest
+reference supersedes prior phone-left-mirror. Phone close hints now use original
+orientation,22.5degree clockwise angle and70percent prior size,matching indicated
+pose/box. Fingertip anchor and existing phone offset remain. Static and finite
+tap transforms agree. Tablet retains mirrored-10degree full-size pose/offsets;
+first-die/other guide hands unchanged. Same noninteractive enter/exit/tap/background/
+disposal ownership,no new resource/clock/asset. Native4/0 PASS /tmp/phone-close-reference-native.log:actual Journey/Arcade collection
+and detail walkthrough,phone/tablet projected pose+size+finite tap sign,enter/
+exit/tail retirement,input and existing pause/cleanup. Inspected actual
+/tmp/tutorial-box-hand-detail.png and /tmp/tutorial-backpack-hand-close.png:
+upright right-hand pose fits viewport and retains X fingertip without copy overlap.
+Fast,feature42 and ios PASS. FullQA FAIL only known protected web
+scene-builders.test.ts:75;529suites/4010tests,KING330,other gates/no-sync build PASS.
+Normal complete-treeDebug BUILD SUCCEEDED /tmp/phone-close-reference-build.log;
+893inputs stable,exact.native,deep strict codesign,no testPlugIns/Web.bundle.
+iPhone install-over/normal launch70911 PASS;installed launcher/dylib match built,
+both canonical slots byte-exact immediately after install/launch. Settled progress/
+settings equal,only savedAt allowed to refresh;receipt records actual byte result.
+Backup/receipts:/tmp/phone-close-reference-delivery/iphone. CUA observed normal
+Home,toolbarMuteON and actualSBRingerMuted1. iPad app not installed/launched/reset;
+its original mirrored full-size hand retained in shared geometry matrix.
+No profile reset,physical/PWA/legacy,original artwork mutation or branch change.
+Scoped Native PASS;physical optical/touch acceptance remains user review.
+Separate user illustration edit:dog now looks left toward man,development-only
+candidate game design/output/2026-11-13-dice-stack-2-on-4/*-v3.png with ImageGen
+prompt-v3.txt. No runtime artwork replacement.
+
+## 2026-11-13 · Paper DRAG TO FLIP coach matching Tap to collect
+
+User requests existing bottom DRAG TO FLIP in paper frame like Tap to collect.
+JimiNativeWorldCardEffects reuses original NativeSettingsPaperSurface settings:
+corner12,edge0.4,alpha0.8,warm shadow,184x48bounded paper,17ExtraBold brown/orange
+caption retaining exact uppercase copy. Existing bottom edge/safe area retained.
+One whole container borrows existing finite4.1s collect motion;old glowing glyph
+children retired. Existing10sidle compositor receipt now animates neutral border0
+rather than opacity1 so waiting cannot expose paper/override fade. Cancel/background/
+cleanup remove the cue and keep opacity0. Existing hand/flip/interaction policy,
+assets/audio/save untouched,no new scheduler. Mirror-hand Native4/0 PASS from
+previous stage /tmp/phone-close-hand-native.log:actual Journey/Arcade collection
+walkthrough,phone/tablet geometry+finite tap mirror,enter/exit/input/tail cleanup.
+Inspected /tmp/tutorial-backpack-hand-close.png:phone hand points X from left.
+Coach Native3/0 PASS /tmp/coach-paper-native.log:actual mounted card/flip/history,
+repeat on either face,neutral idle opacity,interaction cancellation,hidden/missing
+resources,late delegate rejection and weak/idempotent cleanup. Inspected actual
+/tmp/native-flip-paper-coach-20261113/preview.png:readable paper caption,no clipping.
+Fast,feature admission42groups,ios source audit PASS. FullQA FAIL only protected
+known web scene-builders.test.ts:75;529suites/4010tests,KING330,other gates and
+no-sync production build PASS /tmp/coach-paper-full.log. Post-change source review:
+old glyph array/animations fully retired here,shared utility retained;one cue
+container owns alpha/transform,neutral idle track cannot override opacity.
+Normal complete-treeDebug BUILD SUCCEEDED /tmp/coach-paper-hand-build.log;
+893Native inputs stable,exact.native,family1/2,deep strict codesign,no testPlugIns/
+Web.bundle. Install-over+normal launch iPhone50721/iPad50838 PASS,both installed
+launcher/dylib pairs match built bytes,all4slots byte-exact immediately after
+install/launch;settled progression/settings equal,only savedAt allowed to refresh.
+Receipts/backups:/tmp/coach-paper-hand-delivery/{iphone,ipad}. CUA observed ordinary
+Home on both. ActualSilentModephone1/toolbarON,iPad0/noMute known limitation;
+no game audio-preference workaround. No reset/uninstall,physical/PWA/legacy action,
+asset mutation or branch change. Scoped Native PASS;physical optical/touch/thermal
+acceptance remains separate.
+
+## 2026-11-13 · Mirror iPhone collection close guide to the left
+
+User screenshot shows phone Backpack close hand spilling toward right edge.
+NativeCollectionTutorialHand now retains the existing tablet mirrored close
+orientation on phone too,both static layout and finite tap keyframes. Applies
+to collection/detail X guidance only;first-die,size,fingertip anchor,per-device
+offsets,enter/exit/input/pause/cleanup and original PNG unchanged. No new owner,
+clock or resource. iPad hand behavior unchanged. Native4/0 PASS and actual
+mirrored phone screenshot inspected;normal complete-tree both-device delivery
+recorded in the newer paper-coach entry above.
+
+## 2026-11-13 · Retired merged tutorial branch after delivery
+
+Explicit user instruction completed after spring/anchor tests and both normal
+Simulator installations. Confirmed feature/contextual-tutorial-v2 is ancestor
+of active main with0unmerged commits,then safely git branch-d removed local
+6c07a4fc reference. Live origin query confirms no matching remote branch;no
+tracking reference exists. Main/merged commits and today's dirty working tree
+remain intact,no commit/push performed. Receipt:
+/tmp/spring-carrier-branch-retirement.json. Continue Native work on main.
+
+## 2026-11-13 · Slower higher spring tutorial jump
+
+User asks Backpack/Box to rise slower/higher with stretched spring feel and
+return more gently. Shared tutorial plan ascent230to370ms,crest0.832to1.04closed
+heights(+25percent),airborneX/Y0.84/1.30to0.76/1.42. Descent180to260ms,contact
+1.16/.86to1.12/.90,settle100to120ms. Secondary fall uses zero-end-velocity cubic
+and40percent squash strength. Total1.02to1.26s. Existing finite clock owns the
+whole change;anchor transfer reads same takeoff start/duration constants.
+Latest user steering explicitly holds BOTH Box/Backpack at70percent screen height
+on phone and tablet after the jump;shared placement now supplies openingPoint
+for both devices,retaining initial covered anchor and half-sheet admission. No new timer,
+resource,asset,audio,save/input owner.
+Native PASS:core9+initial phone2 /tmp/spring-carrier-phone.log;actual tablet2
+/tmp/spring-carrier-tablet.log;final common-anchor phone2 PASS
+/tmp/spring-carrier-phone-70.log includes independent visible-ink70percent center,
+real descent/landing,rebound,half-sheet hold,spawn-once and retained global guide.
+Inspected /tmp/phone-box-landing.png;tablet same opening geometry retained.
+Finalfast,feature,ios,KING330 PASS. FullQA FAIL only known protected web
+scene-builders.test.ts:75;529suites/4010tests and other gates/no-sync build PASS.
+Code-health review:one Source clock,new takeoff constants shared by anchor and
+pose,original ordinary plan/target/pool/save/input/resource ownership retained.
+Normal complete-treeDebug BUILD SUCCEEDED /tmp/spring-carrier-build.log;893Native
+inputs stable,exact.native,family1/2,strict deep codesign,no testPlugIns/Web.bundle.
+Install-over/normal launch iPhone42947/iPad43001 PASS;both launcher/dylib pairs
+match built bytes;all4canonical slots byte-exact immediately after install/launch.
+Settled gameplay/progression/settings verified equal;only savedAt may refresh.
+Receipts/backups:/tmp/spring-carrier-delivery/{iphone,ipad}. CUA observed ordinary
+Home on both. ActualSilentModephone1/toolbarON,iPad0/noMute known limitation;
+no game preference workaround. No reset/uninstall,physical/PWA/legacy or original
+asset mutation. Scoped Native PASS;optical spring/physical feel remains user review.
+Git audit:active main;feature/contextual-tutorial-v2 tip6c07a4fc is ancestor with
+main2commits ahead/0feature-only commits,fast-forward merged2026-11-12 21:41.
+Today's working-tree changes remain uncommitted;no main push requested.
+
+## 2026-11-13 · Fresh reset after softer carrier delivery
+
+User explicitly requests iPhone+iPad reset again. Existing current Native apps
+retained on QA iPhone1018BE2D and iPadA1643A75086. Existing typed production
+NativeSaveStore/NativeSaveEnvelope helper validates/writes fresh primary+previous
+slots on both. Post-launch four-slot readback confirms no active normal/tutorial
+runs and firstPlayTutorialComplete=false. Preferences defaultON,tutorial ready.
+Normal launches iPhone38105/iPad38129. Backup/receipts:
+/tmp/native-both-fresh-reset-repeat-20261113-165922/{iphone,ipad}.
+Actual Silent Mode phone1/iPad0(noMute existing limitation),no preference workaround.
+No build/install/uninstall,Simulator erase,physical/PWA/legacy or source-code change.
+
+## 2026-11-13 · Softer tutorial Backpack/Box landing
+
+User requests gentler/slightly longer arrival at the bottom. Shared tutorial
+jump keeps takeoff/crest/return anchors and half-sheet admission. Descent140to180ms
+uses existing zero-end-velocity cubicBezier(0.37,0,0.63,1),contact squash1.28/.76
+to1.16/.86,settle70to100ms. Existing second bounce slowed16percent with55percent
+squash strength. Total0.88to1.02s;finite Source duration automatically retains
+opening/audio-after-settle ordering. No new clock/resources/save/input owner,
+ordinary drops and unrelated motion unchanged.
+Native13/0 PASS:phone11(core9+actualBox/Backpack2),actualiPad2 with70percent
+visible-ink center,first landing,second rebound,half-sheet hold and spawn-once.
+Probe verifies contact decelerates rather than accelerates while crest retained.
+Logs:/tmp/soft-carrier-{phone,tablet}.log. Fast,feature admission,iOS audit PASS;
+fullQA FAIL only known protected web scene-builders.test.ts:75,529suites/4010tests
+andKING330/all other gates/no-sync production build PASS.
+Normal complete-treeDebug BUILD SUCCEEDED /tmp/soft-carrier-build.log;893inputs
+stable,exact.native,family1/2,deep strict codesign,no testPlugIns/Web.bundle.
+Install-over+normal launch iPhone33524/iPad33574 PASS;both launcher/dylib pairs
+match built bytes,all4save slots exact immediately after install/launch.
+Settled gameplay/progression/preferences remain equal,with only savedAt allowed
+to refresh via existing lifecycle;actual per-device byte results in receipts:
+/tmp/soft-carrier-delivery/{iphone,ipad}/delivery.json plus both original slots.
+CUA observed normal iPad Home and preserved pending phone high-five,no gameplay
+input. Phone actualSilentMode1/toolbarON;iPad actual0/noMute known limitation,
+no game audio preference workaround. No reset/uninstall,physical/PWA/legacy action
+or asset mutation. Source/Simulator regression PASS;optical softness/physical
+feel remains user review/NEEDS PHYSICAL TEST.
+
+## 2026-11-13 · iPad tutorial delivery parity and raised opening anchor
+
+User supplies phone/tablet references and requests current iPhone external
+Backpack/Box design on iPad,with closed carrier returning20percent below screen
+midpoint rather than bottom. iPad previously retained older binary after reset.
+Tablet Arcade copy/character torso-cut now uses phone delivery branch;shared
+covered carrier/no artwork slot and Open backpack/Open box remain current.
+Tablet-only optional openingPoint places visible closed-ink center at70percent
+viewport height. Initial arrival remains covered at the original sheet anchor;
+existing takeoff clock transfers the retained sprite to its opening anchor,
+then uses unchanged landing/rebound/open. Canonical die launch origin follows
+that anchor;target/impact/handoff and phone/ordinary geometry stay unchanged.
+One presentation-owned finite anchor progress;existing pause,Source clock,
+generation and disposal ownership,no new timer/audio/assets/save field.
+Scoped Native PASS:phone actual Box+Backpack2/0;pure meter9/0 and tablet/phone
+layout matrix1/0;actual iPad Backpack1/0 and final Box1/0 with independent visible
+ink center70percent assertion,covered carrier,half-descent hold,real first landing,
+second rebound and spawn-once/unchanged target. Screenshots inspected:
+/tmp/ipad-{backpack,box}-landing.png. Initial layout fixture still expected the
+retired tablet triple-line copy;updated to requested parity. Initial snapshot
+captured ascent and blocked sampling of short rebound;final fixture waits real
+descent/rebound and captures return within existing4percent carrier-height landing
+tolerance,retaining independent center assertion. Earlier FAIL logs preserved.
+Logs:/tmp/ipad-delivery-{phone-tests,tablet-tests,tablet-final,box-final}.log.
+Finalfast,feature admission,iOS audit PASS. FullQA FAIL only known protected web
+scene-builders.test.ts:75;529suites/4010tests,KING330,other gates and no-sync build
+PASS /tmp/ipad-delivery-full.log. Code-health review:no new resource/clock owner,
+phone/nil-opening plan path retains old geometry;only tutorial admission supplies
+optional openingPoint,ordinary later meter drops remain on original layout.
+Normal complete-tree Debug BUILD SUCCEEDED /tmp/ipad-delivery-build.log;893Native
+inputs stable,exact.native,iPhone+iPad family,deep strict codesign,no testPlugIns/
+Web.bundle. Install-over/normal launch iPhone28240/iPad28291 PASS;both installed
+launcher/dylib pairs match built bytes,all4canonical slots byte-exact immediately
+after install/launch. Settled iPad remains byte-exact;phone differs only savedAt
+in both slots,with all progression/gameplay/settings/provenance fields equal.
+Receipts/backups:/tmp/ipad-delivery-final/{iphone,ipad}.
+CUA observed preserved pending high-five on phone and ordinary iPad Home.
+iPhone actualSilentMode1/toolbarON;iPad actual0/noMute known limitation retained,
+no game audio-preference workaround. No reset/uninstall,physical/PWA/legacy action
+or original-asset mutation. Physical touch/optical motion remains NEEDS PHYSICAL TEST.
+
+## 2026-11-13 · Repeated user-requested iPhone and iPad fresh reset
+
+User requests reset on both Native review Simulators,then repeats request.
+First reset backup /tmp/native-both-fresh-reset-20261113-162531. Both devices
+were subsequently observed Shutdown;booted the same retained iPhone1018BE2D
+and iPadA1643A75086,then repeated reset through existing typed production
+NativeSaveStore/NativeSaveEnvelope helper. Primary+previous slots freshly
+validated/read back,all runs/progress reset,firstPlayTutorialComplete=false,
+preferences defaultsON. Final backup/receipts:
+/tmp/native-both-fresh-reset-repeat-20261113-162726/{iphone,ipad}.
+Normal launches iPhone20363/iPad20451. Both canonical slots on both devices
+verified first-play ready after launch;CUA observed ordinary Home on each.
+iPhone actualSilentMode1/toolbarMuteON;iPad actual0 with no Mute toolbar,
+existing known review limitation retained. No game audio preference workaround,
+build/install/uninstall,device erase,physical/PWA/legacy action. Existing iPad
+binary retained;reset is not proof of latest-tree iPad installation.
+
+## 2026-11-13 · Tutorial round gate and Arcade CLEARED handoff
+
+User requires no numbered Arcade round before global tutorial completion,
+including same-mode saved checkpoint/foreground return. NativeBootstrap supplies
+its canonical global receipt through a weak closure to gameplay/Scene;both
+round-indicator paint writers use it. Actual root cause: normalOrdinarySource
+restore could route a tutorial checkpoint through mountArcadeEntry;that shared
+entry owner now releases without a numbered cue until global completion.
+Exit copy says Tutorial before global
+completion;practice result says Tutorial cleared rather than Round01.
+Arcade tutorial settled completion now reuses the exact existing Journey
+CLEARED/thumb-or-paw finite owner,waits for canonical board exit,then hands
+into Clean Board at its existing readable start. Ordinary Arcade admission,
+Journey motion,save/progression/result-action ownership and original assets stay.
+Existing feature/audio ownership records updated,no new timer/source/player.
+Initial mounted round/variant2/0,expanded6/0 and painted interruption2/0 PASS.
+Final Native6/0 PASS /tmp/tutorial-round-clear-final-native.log includes actual
+Source restore with no numbered-entry overlay,settled CLEARED before result,
+background pause/resume,both result routes,early Exit and normal Arcade rules.
+Inspected actual CLEARED/thumb /tmp/tutorial-arcade-cleared-pureDice.png.
+Normal complete-tree Debug BUILD SUCCEEDED /tmp/tutorial-round-clear-build.log;
+893Native inputs stable,exact.native,strict deep codesign,no testPlugIns/Web.bundle.
+Retained iPhone13 install-over and normal launch7299 PASS;installed launcher/dylib
+match built bytes,both canonical save slots unchanged through settled Home.
+Simulator install moved the data-container path;initial stale-path save assertion
+was resolved by reading the current simctl container:both slot hashes exact,no
+restore/reset/write. Receipt/backups:/tmp/tutorial-round-final-delivery.
+CUA observed ordinary Home and visible iOS Silent Mode On;actualSBRingerMuted1.
+No physical/iPad/PWA/legacy install,uninstall/reset or original-asset mutation.
+Scoped Native regression PASS;physical motion/audio acceptance NEEDS PHYSICAL TEST.
+Fast,feature/audio admission and iOS source audit PASS. FullQA FAIL solely known
+preserved web scene-builders.test.ts:75;529suites/4010tests and KING330 pass,
+no-sync production build and all other gates PASS. Logs:/tmp/tutorial-round-*
+and /tmp/tutorial-round-clear-*. Physical acceptance remains separate.
+
+## 2026-11-13 · Combo tutorial continues after actual Backpack/Box return
+
+User reports missing Combo continuation after collection close in both modes and
+explicitly requests an agent. Read-only independent agent confirms actual Arcade
+policy defect;normal Journey dismissal ownership has no confirmed source defect.
+Captured current player profile before any test/reset:
+/tmp/combo-return-observed-20261113-144413:Arcade,collection=true,Combo pending,
+HUD=false,moveCount0,moves42. Existing readiness incorrectly waited6extra moves
+only in Arcade. Before-fix both-mode regression fails1/1 /tmp/combo-return-before.log.
+NativeTutorialState now admits acknowledged collection immediately in either mode;
+legacy missing collection receipts keep their6-action fallback. Engine also admits
+an explicitly pending Combo with missing legacy HUD receipt;acknowledged/skipped
+lessons stay quiet and settingHUD=true still makes admission once-only.
+Only2production admission conditions change. Existing exact-generation UIKit
+completion,collectionVisitPending,pause/input/save/resource owners stay unchanged.
+Core tutorial37/0 PASS /tmp/combo-return-core-final.log;independent agent source/
+compatibility review PASS,no findings. Fast/iOS audit and KING330 PASS. FullQA
+FAIL only known preserved web scene-builders.test.ts:75;529suites/4010tests PASS,
+all other gates and no-sync production build PASS /tmp/combo-return-full.log.
+Mounted Native10/0 PASS /tmp/combo-return-native.log:both modes,real direct outer
+close/detail-then-outer,duplicate close,cancellation,acknowledged checkpoint and
+nil-HUD legacy restoration. Visible Your combo/Next screenshots inspected:
+/tmp/combo-return-restored-{arcade,journey}.png. Agent verified logs and issued
+scoped PASS;physical acceptance separate. No additional fresh-Journey defect was
+confirmed;its close path passes the same regression matrix.
+Normal complete-tree Debug BUILD SUCCEEDED /tmp/combo-return-build.log;886Native
+inputs unchanged,exact.native bundle,strict deep codesign,no PlugIns/Web.bundle.
+Retained iPhone13 Simulator install-over/normal launch75259 PASS;installed launcher
+and dylib equal built bytes. Both canonical save hashes unchanged after install,
+launch and settled Home. Backup/receipt:/tmp/combo-return-delivery. Latest player
+checkpoint already acknowledges Combo and final lesson;preserved without replay.
+CUA observed ordinary Home and visible iOS Silent Mode On;actualSBRingerMuted1.
+No reset/uninstall,physical/iPad/PWA bundle/legacy action. Scoped regression PASS;
+full QA remains FAIL solely protected web case;physical flow acceptance pending.
+
+## 2026-11-13 · Repeated user-requested iPhone Simulator fresh reset
+
+Reset retained Native iPhone13 Simulator only via typed NativeSaveEnvelope/
+NativeSaveStore helper. Both slots validated fresh;first-play required,no runs,
+preferences defaultON. Backup/receipt:/tmp/iphone-fresh-reset-20261113-124333.
+Existing current app retained;normal launch16246. CUA observed normal studio intro;
+actualSpringBoardSBRingerMuted1,toolbarMuteON. No build/install/uninstall,device
+erase,iPad,physical phone,PWA or legacy action.
+
+## 2026-11-13 · Lower tutorial carrier, taller jump at half sheet descent
+
+User requests Box/Backpack start lower, jump higher and begin only at50percent
+of the delivery modal descent. Tutorial carrier anchor moves40pt down on both
+modes/devices;shared first jump rises60percent,0.52to0.832normalized height.
+Original0.88s squash/stretch,rebound,landing and opening sequence stay.
+NativeSourceTutorialIntroOwner exposes a once-only50percent eased-travel callback
+on its existing280ms exit clock (powerIn3,about222ms). NativeTutorialOwner resumes
+the same held carrier only from that callback,with weak scope/scene/generation/
+phase guards. Delivery alone uses existing first-paint-relative Source root so
+an overdue first Source tick cannot instantly consume the exit/midpoint;ordinary
+sheet exits retain their default root. Cancellation/foreground pause follow the
+same shared transport,no timer.
+Restored delivery now uses that same Source sheet owner for entrance/exit instead
+of its old separate CA exit;it also waits for the exact half-travel milestone.
+Arrival80percent entrance policy stays separate. Same assets,drop/save/input/
+audio owners and ordinary meter drops retained;ownership record updated.
+Validation:finalfast and finalios PASS;fullQA FAIL solely known preserved web
+scene-builders.test.ts:75,529suites/4010tests PASS plus KING330/all other gates.
+Final Native7/0 PASS /tmp/carrier-half-native-painted.log:actual restored Box and
+Backpack,covered hit/double CTA,fresh manually-stepped full tutorial,half-travel
+once/pause/disposal and delayed-first-paint regression,shared motion and phone/
+tablet layout. Actual rise187.50pt on225.36pt carrier,original landing/rebound
+verified. Inspected /tmp/tutorial-backpack-taller-jump.png,no visible clipping.
+Initial failures exposed restored CA path and instant first Source paint consuming
+whole descent;retained original logs /tmp/carrier-half-native{,-final}.log and
+/tmp/carrier-half-trace.log;final tests use first-paint-relative delivery root.
+Temporary detailed test trace removed after passing;no production diagnostics.
+Normal complete-tree Debug BUILD SUCCEEDED /tmp/carrier-half-build.log;886captured
+Native inputs unchanged,exact.native identity,strict deep codesign,no PlugIns or
+Web.bundle. Retained iPhone13 Simulator install-over PASS,normal launch15884;CUA
+observed normal studio intro,toolbarMuteON,actual SpringBoardSBRingerMuted1.
+Both canonical save hashes unchanged immediately and after settled launch;
+backups/receipt /tmp/carrier-half-delivery/{before,delivery}.json plus both slots.
+No reset/uninstall,physical/iPad/PWA bundle/legacy operation. Scoped deterministic
+motion checks PASS;global QA FAIL only the known web case;optical motion acceptance
+NEEDS PHYSICAL TEST.
+
+## 2026-11-13 · User-requested iPhone Simulator fresh reset
+
+Reset only retained Native iPhone13 Simulator1018BE2D-491B-465F-8F75-3E5BEB38C22A
+using existing typed NativeSaveEnvelope/NativeSaveStore reset helper. Both canonical
+slots validated/read back fresh:firstPlayTutorialComplete=false,no Journey intro,
+no completed boards/runs,default preferencesON. Backups and receipt:
+/tmp/iphone-fresh-reset-20261113-122852. Existing app retained;normal launch6373.
+CUA observed normal studio intro;toolbarMuteON,SpringBoardSBRingerMuted1.
+No build/install,uninstall,Simulator erase,iPad,physical phone,PWA or legacy action.
+
+## 2026-11-13 · Compact delivery sheet with covered Box/Backpack
+
+User requests actual delivery carrier behind the paper, no middle item slot,
+Open box/Open backpack CTA and retained bounce/open. NativeTutorialOverlay now
+paints existing original carrier below the sheet, measures delivery copy/CTA
+without the carrier or inherited lesson height, and starts title44pt below paper
+top. Original character art/paper anchoring retained. CTA face prewarms the real
+mode-specific title. Covered carrier cannot receive hits or admit decorative idle.
+Existing readiness, concurrent280ms sheet descent,880ms two-jump emphasis,
+original opening, one Special drop, Source clock, generation/pause/disposal and
+save owners unchanged; no new resource/audio/animation owner or asset edits.
+Ownership policy updated. Inspected actual mounted Journey and Arcade captures:
+/tmp/backpack-idle-tap-root.png and /tmp/tutorial-box-aligned-phone.png.
+
+Validation: fast, final ios, feature/audio/special admission, KING330 and diff
+PASS. Actual restored Journey/Arcade, double activation/covered-hit and phone/
+tablet layout Native4/0 PASS /tmp/covered-delivery-native.log. Fresh full Source
+delivery Native1/0 PASS /tmp/covered-delivery-fresh-canonical.log,including real
+bounce/open/drop. Fixture now honors prior canonical Special-bar drag-ack receipt
+instead of re-requiring its already retired sheet; no runtime change for that
+checkpoint. Initial3 assertion failures and Xcode DB-lock attempt retained in
+/tmp/covered-delivery-fresh{,-final}.log. Full QA FAIL only known protected web
+scene-builders.test.ts:75 asset case;529suites/4010tests and all other gates/no-sync
+build PASS /tmp/covered-delivery-full.log.
+
+Normal complete-tree Debug Stack to Six BUILD SUCCEEDED
+/tmp/covered-delivery-build.log;exact .native identity,no PlugIns/Web.bundle.
+Install-over on retained Jimi2026QA iPhone13,normal launch95608 and installed
+launcher+dylib equality verified. Both canonical save hashes unchanged before,
+after install,after launch and after settled Home;backups/receipt
+/tmp/covered-delivery-saves. CUA observed normal Home;toolbarMuteON and actual
+SpringBoard SBRingerMuted=true. No reset/uninstall,physical/PWA/legacy operation.
+Visual/motion acceptance remains NEEDS PHYSICAL TEST.
+
+## 2026-11-13 · Arcade tutorial deals restricted to the four Box dice
+
+User observed Juice/Bottle during Arcade practice and restricts tutorial Specials
+to Cubero(star/cubero),Balloon(juice/baloon),original TNT and original Magnet.
+NativeTutorialRules owns the explicit uniform four-item pool;NativeWildRewardPolicy
+admits it before normal Arcade trial/unlock/mode pools for every unfinished guide,
+including completion assist. NativeBootstrap preserves valid selected rewards and
+reselects invalid old checkpoint rewards;configureTutorialReward admits that repair
+without replacing valid selections. Existing visible dice,ordinary Arcade,Journey,
+assets,charge,drop/input/lifecycle owners and save schema retained.
+Validation:fast QA,iOS audit,KING330 PASS. State package119/0 PASS;final focused
+four tests PASS,including actual immediate/hidden-open first/later meter spawns,
+all three variants,guide/assist phases,legacy selection repair and ordinary controls.
+Core571tests have15 failures across5 existing catalog/coin tests;isolated copy with
+both changed core files restored from HEAD reproduces the same15/assertion test
+counts,including stale variant counts. Evidence /tmp/arcade-tutorial-rewards-*.log.
+FullQA FAIL only known protected web scene-builders.test.ts:75 case;529suites/
+4010tests PASS,all other gates/no-sync production build PASS. No unrelated fix.
+Normal complete-tree Debug BUILD SUCCEEDED(/tmp/arcade-tutorial-rewards-build.log).
+An initial build inherited a stale test PlugIns directory from the previous QA
+scheme;retained that generated app separately and rebuilt the normal product from
+an absent app output. Final bundle .native,no PlugIns;886 captured source inputs
+unchanged. Retained iPhone13 Simulator install-over PASS,normal launch93754;CUA
+observed normal authored studio intro,toolbarMuteON and SpringBoardSBRingerMuted1.
+Both canonical saves unchanged immediately and after settled launch. Receipt and
+backups:/tmp/arcade-tutorial-rewards-delivery/{before,delivery}.json and backup/.
+No reset/uninstall,physical phone,iPad,PWA bundle or legacy operation. Scoped
+reward regression PASS;global QA verdict FAIL for the existing failures above;
+physical tutorial interaction acceptance remains NEEDS PHYSICAL TEST.
+
+## 2026-11-13 · Latest complete Native Release installed on iPhone13 blue
+
+User explicitly requests physical phone installation. Live paired iPhone13blue
+CoreDevice0F62B71E-0B04-53C3-906E-EC28F5D2390B verified wired/connected.
+Normal signed Release BUILD SUCCEEDED /tmp/native-phone-20261113-build.log;
+artifact /tmp/native-phone-20261113-derived/Build/Products/Release-iphoneos/Stack to Six.app.
+All885 captured Native Swift/project/plist/config inputs unchanged through build.
+qa:ios,strict deep codesign and compiled target/original-assets/dependency audit
+PASS;logs /tmp/native-phone-20261113-{ios,audit}.log. Exact .native identity,
+no PlugIns/Web.bundle. Installed over existing app,installationC7D7654D-C213-48FC-B5F2-88C705EC8C2C,
+normal no-argument launch confirmed by CoreDevice. Evidence install/launch JSON
+and logs /tmp/native-phone-20261113-{install,launch}.*.
+Both canonical save slots byte-identical before installation,after installation
+and after normal launch;exact receipts /tmp/native-phone-20261113-save-comparison.json;
+backups /tmp/native-phone-20261113-{before,preinstall}. No reset/uninstall or
+physical audio-setting change;no iPad/PWA/legacy operation. Prior source fullQA
+has known protected web scene-builders.test.ts:75 failure;Native focused tests
+and compiled audits remain separate from physical touch/audio/motion acceptance.
+
+## 2026-11-13 · User-requested reset of iPad and iPhone again
+
+Both retained Simulator profiles reset to first-ever play using existing typed
+NativeSaveEnvelope/NativeSaveStore helper;both slots validated fresh with default
+preferencesON,no tutorial completion or runs. Backups and receipt:
+/tmp/fresh-tutorial-both-20261113-004708/{ipad,iphone},receipt.json.
+Normal launches iPad37574,iPhone37605. CUA observed fresh iPad Home/Journey;
+no game CTA/drag contact. Existing installed apps retained,no build/install,
+uninstall/device erase,physical/PWA/legacy action. Actual SpringBoard mute readback:
+iPhone1,iPad0 (existing state retained);game preferences freshly defaultON.
+
+## 2026-11-13 · Tutorial Box matches Backpack jump; phone delivery alignment
+
+User asks for identical tutorial Box/Backpack bounce, iPhone Arcade two-line
+Backpack-equivalent copy retaining box, and original character cut aligned to
+paper top. NativeTutorialOverlay phoneArcadeDelivery uses “Your box drops / a
+random Special die.” and original3x art cutoff625/741 at paper y0;Journey/tablet
+copy/art branches retained. Existing Source meter-drop owner now samples the
+same approved880ms two-jump recipe for both tutorial carriers. Box travel is
+normalized by its closed visible ink height to match Backpack;ordinary drops
+have no emphasis and remain unchanged. No new scheduler/resource/asset/audio
+owner. Added sampled motion parity and phone/tablet layout checks plus actual
+mounted Arcade delivery coverage alongside the existing Journey control.
+Validation:qa:fast/qa:ios/diff PASS. Native10/0 control/layout/plan checks
+PASS;new actual mounted Arcade test1/0 PASS after fixture awaited real held
+carrier (initial fixture sampled configured ink before arrival). Original failed
+log retained;final /tmp/box-parity-arcade-final.log. Mounted screenshot inspected:
+/tmp/tutorial-box-aligned-phone.png. FullQA FAIL solely known protected web
+scene-builders.test.ts:75 asset case;529suites/4010tests PASS,KING330 PASS,
+all other gates/no-sync production build PASS. /tmp/box-parity-full.log.
+Normal complete-tree Debug BUILD SUCCEEDED /tmp/box-parity-build.log;retained
+phone install-over/normal launch36517,verified .native identity,no PlugIns or
+Web.bundle,launcher+dylib match. Both canonical save hashes unchanged after
+launch;install relocated data-container URL so first retired-path sample was
+corrected without restoring/writing saves. /tmp/box-parity-delivery/delivery.json.
+SpringBoard Silent Mode1 and visible toolbarMuteON. Final CUA observed normal
+Home on Jimi2026QA iPhone13,not test host. Existing iPad live tutorial left alone;
+no physical/PWA/legacy operation. Final aesthetic/motion NEEDS PHYSICAL TEST.
+
+## 2026-11-13 · Speech families balanced to tutorial minus1.6dB
+
+User approves four measured spoken families aligned to lowered tutorial reference.
+Runtime-only existing-owner calibration;original PCM/assets/generated catalogs
+unchanged. Target equal-energy family mean -21.178535RMS dBFS,using prior audit
+whole-file RMS/silence included. Tutorial gain0.75393255(-1.6dB);collection opening
+0.86176193(+1.5611dB);detail base gain times1.17809443(~+1.4236dB),two existing
+boosted lines cappedunity;Clean Board title0.57038133(-4.02334dB). Detail factor
+solved with that actual transport ceiling. Individual variations remain intact.
+Policy/measurement `docs/audio/native-speech-level-balance-v1.json`;owner metadata
+and architecture updated. No music/Nala/other SFX/Fail/timing/save/transport change.
+Verified recalculation:all4family means -21.178535dBFS;highest individual sample
+peaks tutorial-3.54,collection-2.74,detail-2.39,title-5.18dBFS. Evidence
+`/tmp/speech-level-balance-after/levels.json`. This measures isolated recordings,
+not the simultaneous final mix or physicalSPL. Native final PASS106/0
+`/tmp/speech-balance-native-final.log`,including all scene/title mappings,collection
+choices,gains and lifecycle. Initial batch2failures were the historical+2dB-only
+expectations for two detail lines,updated for new calibration/unity cap;raw
+`/tmp/speech-balance-native.log` retained. Fast/ios/audio/diff PASS
+`/tmp/speech-balance-{fast,ios,audio-final}.log`. Full QA FAIL only known scene-builders.test.ts:75 protected web asset case;
+529suites/4010tests PASS,KING330 and other gates/no-sync build PASS
+`/tmp/speech-balance-full.log`. Normal Debug BUILD SUCCEEDED
+`/tmp/speech-balance-build.log`,verified .native bundle ID/no test PlugIns.
+Installed over retained phone/iPad from complete current tree;both save slots
+byte-identical across each install. Backups/receipts
+`/tmp/speech-balance-delivery-{1018BE2D,43A75086}`. Normal launch phone31543,
+iPad31774. CUA observed normal phone Home and verified actual Silent Mode Off
+banner after toolbarMuteON/OFF; iPad persisted SBRingerMuted=false. No game
+preferences/macOS volume change. No profile reset,physical install,PWA or legacy
+operation. Auditory mix/timing acceptance NEEDS PHYSICAL TEST.
+
+## 2026-11-13 · Read-only tutorial/collection/Clean Board speech level audit
+
+Measured212 unique runtime-selected PCM sources;all bytes match installed iPad
+NativeAssets.bundle. Whole-file RMS after current player gain(sample peaks also
+recorded),equal-energy mean with each listed clip equally weighted;not LUFS,
+physicalSPL or actual concurrent output mix. Tutorial10:-19.58dBFS;
+Backpack opening7:-22.74;die detail83:-22.59;Clean Board titles110:-17.16.
+Grand!:-17.85RMS/-1.15samplepeak,1.73dB above tutorial mean,4.89above Backpack.
+Title family mean2.42dB above tutorial/5.58above Backpack. Tutorial usual player
+gain0.906426(-0.85dB),collection/detail0.72(-2.85dB);two Bloob Pod detail lines
+retain existing+2dB exception. Title gain0.906426 uses existing+4dB PCM derivatives.
+Opening impact and modalWhoosh measured separately;Nala/music/simultaneous
+layer summation excluded. Evidence `/tmp/tutorial-backpack-level-audit/`
+report.md,levels.csv,levels.json,bundle-check.json and reproducible script
+`/tmp/audit-tutorial-backpack-levels.py`. No asset/gain/runtime/save/device-state
+change,no build/install/relaunch or physical acoustic claim.
+
+## 2026-11-13 · Repeated user-requested fresh reset on both Simulators
+
+User requests both devices reset to first-ever play again. Backed up primary and
+previous canonical slots under `/tmp/fresh-tutorial-both-20261113-002744/{ipad,iphone}`.
+Existing current typed NativeSaveEnvelope/NativeSaveStore helper validates fresh
+profile,first-play-required/preferencesON,no normal runs/progression,then writes
+both slots identically and reads back. Post-launch JSON invariants PASS both.
+Normal launch iPad25494/iPhone25505;current installed binaries retained. No build,
+install/uninstall/device erase,physical device,PWA or legacy action. No tool game
+CTA/drag contact;fresh contextual tutorials ready for user selection.
+
+## 2026-11-13 · iPad Clear the board illustration raised16pt
+
+User screenshot identifies step9 Clear the board!/Keep going artwork. Existing
+lessonArt anchor now subtracts16pt only for step9 on NativeTabletLayout viewport;
+phone anchor21pt and final High five sheet anchor remain unchanged. Original
+clear board.png,size,copy,CTA,motion/audio/save owners unchanged. Existing
+phone/tablet completion-art assertion updated. Native targeted PASS2/0
+`/tmp/clear-board-art-up16-native.log`,also asserts final High five unchanged.
+Fast/ios/diff PASS `/tmp/clear-board-art-up16-{fast,ios}.log`.
+Full QA FAIL only known scene-builders.test.ts:75 protected web asset case;
+529suites/4010tests PASS,other gates including no-sync build/bundle audit PASS
+`/tmp/clear-board-art-up16-full.log`. Normal Debug BUILD SUCCEEDED
+`/tmp/clear-board-art-up16-build.log`,verified .native bundle/no test PlugIns.
+Install-over and normal launch phone24509/iPad24591,canonical save slots
+byte-identical across each install. Backups/receipts
+`/tmp/clear-board-art-up16-delivery-{1018BE2D,43A75086}`. CUA observed normal
+Home on both and left iPad frontmost. No gameplay/CTA contact,profile reset,
+physical device/PWA/legacy operation. Phone toolbarMuteON and persisted
+SBRingerMuted=true. iPad has no toolbarMute;CC gestures produced no state
+change,so no iPad Silent Mode change claimed;game preferences untouched.
+Geometry verified;unmounted static test raster has entry/render artifacts and
+is not optical acceptance. Physical visual review remains open.
+
+## 2026-11-13 · Immediate tutorial voice onset and iPad mirrored close hint
+
+User reports sheet appears then narration feels2s late. Audio files inspected:
+most human onset42–121ms,collection287ms. Existing shipping path waited for
+0.78s entrance settlement and optional prior Nala. Existing overlay now admits
+speech at actual entry start;Source sheet owner exposes same admitted entry
+callback without changing landing/CTA/pointer/motion. Collection preview still
+requires actual Special readiness. Pending narration skips optional bark;arriving
+narration retires already-playing bark. Human lines retain natural completion/FIFO.
+No assets/rates/gains/transports/clocks/preload/gameplay/save changes.
+Audio ownership and architecture updated. Initial audio+collection PASS107/0
+`/tmp/tutorial-instant-native.log`. Broader Source-intro batch found3 unrelated
+stale layout/copy cases(20assertions):old Clear the stage text,old fixed2line
+count and shared heights;audio-on-entry case PASS. Preserve evidence
+`/tmp/tutorial-instant-source-final.log`,no runtime layout weakened to fit tests.
+Full QA FAIL only known preserved web scene-builders asset case529/4010PASS;
+`/tmp/tutorial-instant-full.log`,other gates/build no-sync PASS.
+
+User follow-up:tablet close-hand mirrored about its existing fingertip anchor,
+body extends left from X,negative horizontal scale and reflected10degree rotation
+in both model and finite tap animation. Detail-close and collection-close share
+this branch;phone/first-die unchanged. Existing phone/tablet projection test
+updated to verify left-facing geometry. Final current-tree focused PASS109/0
+`/tmp/tutorial-instant-mirror-final.log`:106Audio,Source entrance speech,and
+collection readiness/no-replay plus mirrored phone/tablet hand geometry.
+Actual iPad full Box/detail/both-close walkthrough PASS19.890s
+`/tmp/tutorial-instant-mirror-ipad.log`;visually inspected current
+`/tmp/tutorial-box-hand-close.png`:body left of X,full glyph visible.
+Fast,audio,ios,diff PASS `/tmp/tutorial-instant-mirror-{fast,audio,ios}.log`.
+Normal Debug BUILD SUCCEEDED `/tmp/tutorial-instant-mirror-build.log`,verified
+.native ID/no test PlugIns. Installed over both retained Simulator apps;both
+canonical save slots byte-identical across each install. Backup/receipts
+`/tmp/tutorial-instant-delivery-{1018BE2D,43A75086}`. Normal launches
+phone22484/iPad22552. CUA normal Home
+phone observed and actual Silent Mode Off banner after toolbarMuteOFF.
+iPad persisted SBRingerMuted=false. Phone visible iOS Silent Mode Off banner
+confirmed;immediate persisted plist still readtrue,so banner is direct live
+evidence and persisted flag remains inconsistent. Game preferences unchanged.
+No gameplay/CTA taps during final preview,no reset/physical/PWA/legacy action.
+Physical acoustic/timing/optical acceptance NEEDS PHYSICAL TEST.
+
+## 2026-11-13 · Both Simulator profiles reset for fresh tutorials
+
+Explicit user request resets iPad43A75086 and iPhone1018BE2D as first-ever play.
+Backed up both canonical save slots per device under
+`/tmp/fresh-tutorial-both-20261113-001617/{ipad,iphone}`;receipt in root.
+Recompiled current typed NativeSaveEnvelope/NativeSaveStore helper,validated
+fresh defaults,wrote both slots identically,and verified typed readback.
+Cleared normal runs/progression/stats/tutorial receipts;default preferences ON.
+Normal launches iPadPID17365/iPhonePID17376. CUA saw initial Clear the board
+objective on iPad after user entered play;no tool gameplay/CTA contact.
+No build/install/uninstall/device erase,physical device,PWA or legacy action.
+
+Before reset,live iPad screenshot `/tmp/ipad-combo-stuck.png` showed ordinary
+board score603,combo7;canonical firstPlayRun already had collection/combo/
+completion lessons acknowledged=true. User's supplied earlier image score371
+had no Combo sheet. Cause not established;no speculative runtime fix applied.
+Both old slots retained in backup for investigation. Fresh reset is complete;
+reported skipped-Combo incident remains unverified,not claimed fixed.
+
+## 2026-11-13 · iPad collection close-hand clearance
+
+Tablet-only close hint moves16pt left/12pt down in viewport coordinates in the
+existing NativeCollectionTutorialHand owner: glyph-relative offset(-12,+20),
+phone remains(+4,+8). Applies to detail-close(Juice) and collection-close(Backpack/
+Box);first-die hints,artwork,tap motion,hit areas and lifecycle remain unchanged.
+Existing projected phone/tablet layout regression updated for both close phases.
+Fast and Native identity gates PASS `/tmp/ipad-close-hand-{fast,ios}.log`.
+Focused Native tests PASS2/0 `/tmp/ipad-close-hand-native.log` (both close phases,
+phone/tablet projection and finite hand retirement). Full QA FAIL only known
+`scene-builders.test.ts:75` preserved web asset-existence case;
+`/tmp/ipad-close-hand-full.log`. Normal Debug BUILD SUCCEEDED
+`/tmp/ipad-close-hand-build.log`,verified .native ID,no test PlugIns.
+Installed over retained iPhone1018BE2D and iPad43A75086;both canonical save slots
+byte-identical across each install (container paths re-resolved after install).
+Backups/receipts `/tmp/ipad-close-hand-delivery-{1018BE2D,43A75086}`.
+Normal launch PIDs15728(phone),15903(iPad);CUA observed Native Home on iPad.
+iPhone actual SBRingerMuted=true. iPad SBRingerMuted=false;this device has no
+Simulator toolbar Mute control and CUA lost screenshot availability during sound
+control inspection,so no iPad Silent Mode change claimed. No game preference,
+physical device,PWA or legacy operation. Physical optical review remains open.
+
+## 2026-11-13 · Tutorial natural voice tails and Arcade Open box
+
+User requires started tutorial speech to finish despite Got it/Continue/High five
+or other CTA,and reports Arcade collection CTA only hides paper. Live retained
+phone inspection saw that already-dismissed sheet;HUD Box contact opened the
+actual Box normally. Closed same modal back to same board,no reset/gameplay move.
+Source confirms Arcade onGotIt used acknowledge/hide only,while Journey had the
+real collection visit. Both now use openCollectionBackpack;Arcade label Open box,
+Journey Open backpack. Reading sheet exits before modal;input/combo/receipt stay
+held until actual collection dismissal. Rejected open restores sheet;cancel stays
+unacknowledged. Existing collection/detail hand and resource owners reused.
+
+Audio keeps one existing selected-file navigationSpeech transport. tutorial-speech-
+stop is now visual release only. Fixed-registry-bounded unique FIFO admits next
+lesson only after actual previous file completion/paired bark;route/generation
+changes keep the human tail. Optional replacement character speech yields during
+narration. Sounds OFF/background/interruption/media reset/audio-owner disposal
+clear current/pending without replay;UUID guards reject old callbacks. No new
+clock/player type/cache/session,asset/gain/rate/save schema change.
+
+Fast,audio,feature,ios gates PASS `/tmp/tutorial-voice-box-{fast,audio,feature,ios}.log`.
+Full `/tmp/tutorial-voice-box-full.log` FAIL only known preserved-web
+scene-builders.test.ts:75 asset case(529suites/4010tests PASS,1failure);KING330,
+all other gates and no-sync production build/bundle audit PASS. Initial Native
+`-native.log`:104Audio PASS,real Arcade CTA/failed-open/canceled visit/Journey
+CTA and one-contact fixture PASS;one existing hand visibility assertion sampled
+between finite hint cycles. Fixture now awaits the visible hand,without changing
+runtime timing. Final `/tmp/tutorial-voice-box-phone-final.log` PASS106/0:
+105Audio including actual High five button/overlay disposal without truncation,
+FIFO/bounds/unavailable/hard-stop/stale callbacks,and actual Arcade hand/detail/
+close walkthrough. iPad actual Open box+walkthrough PASS18.997s
+`/tmp/tutorial-voice-box-ipad-final.log`. Inspected actual iPad Box/first-hand PNG
+`/tmp/tutorial-box-hand-first.png`. Final audio/feature/ios/diff gates PASS.
+Normal Debug BUILD SUCCEEDED `/tmp/tutorial-voice-box-preview.log` from current
+complete working tree. Normal current Debug installed over both retained apps,phonePID16516/iPadPID16583.
+Exact built/installed runtime hashes and both canonical save bytes PASS before/
+after-install/immediate launch `/tmp/tutorial-voice-box-delivery-final.log`;
+backup `/tmp/tutorial-voice-box-saves-20261113-001440`. A prior preview was overwritten by another
+session;hash check caught it and this final install corrected it. CUA observed
+normal iPad intro/Home and then live Journey gameplay;phone Home with actual
+Silent Mode Off banner,and later a live first-play sheet. No tool gameplay/CTA
+contacts after delivery. Live review snapshot:{'phone': {'ourRuntimeStillInstalled': True, 'silentMode': '0', 'liveReviewChangedSlots': ['state-v1.json', 'state-v1.previous.json']}, 'ipad': {'ourRuntimeStillInstalled': True, 'silentMode': '0', 'liveReviewChangedSlots': ['state-v1.json', 'state-v1.previous.json']}}.
+User/parallel review is actively using Simulator;no restore/reset/reinstall was
+performed over that activity. Current read-only review snapshots retained in
+backup review/. No game Sounds/Music preferences or macOS output/volume change.
+No physical phone/PWA/legacy install. Physical timing/mix/touch acceptance remains
+NEEDS PHYSICAL TEST.
+Normal user saves must remain intact;temporary Source fixtures own test profiles.
+
+## iPad Simulator opened for user review
+
+Explicit user request:booted existing iPad(A16),iOS26.5,
+43A75086-0C64-464C-B71C-FDD01AF59C32,and normally launched existing
+com.taptapdesign.stacktosix.native,PID6851. CUA brought iPad window forward
+and confirmed visible Native Home/Journey. No build/install/reset/uninstall,
+profile edits or gameplay taps. Existing iPad saves retained;iPhone left running.
+This is launch evidence,not proof of a fresh current-tree iPad delivery.
+
+## 2026-11-12 · Full first-time Simulator profile reset
+
+User explicitly requests opening Simulator and a first-ever-play appearance.
+Booted retained Jimi2026QA iPhone13 /1018BE2D,verified installed .native normal
+app(no XCTest),backed up both canonical slots to `/tmp/stacktosix-first-play-reset-20261112-235916`.
+Current production NativeSaveStore/NativeSaveEnvelope helper built against current
+local Swift packages writes and validates a complete fresh profile;both primary
+and previous slots are fresh,preventing old progression recovery. All Journey/
+Arcade runs,stats,unlocks and tutorial/intro/farewell receipts reset to defaults.
+Sounds/Music/Haptics use fresh-profileON defaults. Typed readback and both-slot
+post-launch inspection PASS. Normal launchPID6200;CUA observed Home,Journey
+selected,no farewell. No tool gameplay/CTA contact,tutorial remains unstarted.
+Actual SBRingerMuted=1 after boot and final launch;toolbar MuteON. Evidence:
+`/tmp/first-play-reset-receipt.log`. No app reinstall/device erase/physical phone/
+iPad/PWA/legacy changes. Existing app binary retained;only Simulator profile reset.
+
+## 2026-11-12 · User-requested tutorial-only reset
+
+Explicit reset on retained Native Simulator1018BE2D only. Terminated normal app,
+backed up both canonical slots to `/tmp/tutorial-only-reset-20261112-234440`,then staged and executed
+current typed NativeSaveStore validation/reset helper. firstPlayRun=nil,
+firstPlayTutorialComplete=false,tutorialCollectionGuidanceSeen=false,
+journeyIntroSeen=false,and resetTutorialFarewell() clears optional final receipt.
+Exact JSON comparison permits only those tutorial fields;current profile already
+had no run/completion/farewell receipt,so only collection guidance and Journey
+intro flags changed. All normal runs,progression/cards/stats and preferences
+preserved. Both slots identical and typed readback PASS. No build/reset of device,
+uninstall,physical phone,iPad,PWA or legacy action.
+Normal launch `com.taptapdesign.stacktosix.native: 23447`;CUA observed Home with no farewell overlay,
+ready for a fresh contextual guide from Journey or Arcade. Toolbar Mute ON;
+actual Silent Mode checked separately. No tool gameplay/CTA contact.
+
+## 2026-11-12 · High five CTA and flush farewell illustration edge
+
+User selects High five! CTA and initially raises characters14px from the prior
++24offset;latest follow-up lowers them4px or aligns the horizontal illustration
+cut with the paper top. Final phone anchor is21+14=35authored pt. The complete
+anchor follows existing1.4tablet art scale(49pt),removing the tablet gap too.
+Only step10 changes;two-line copy,shared backdrop,art size,voice,motion,input/
+receipt/cleanup and earlier tutorial anchors remain unchanged. CTA still only
+acknowledges/closes. Existing accessibility identifier preserved. Ownership and
+context records updated. Original PNG/audio bytes untouched.
+
+PASS2mounted phone/tablet layout cases `/tmp/farewell-edge-final-native.log`,
+including unchanged prior clear-board anchor. Reviewed updated
+`/tmp/tutorial-farewell-{phone,ipad}.png`;straight cuts meet paper top. Fast/ios
+PASS (`/tmp/farewell-edge-final-{fast,ios}.log`),diff hygiene PASS. Full
+`/tmp/farewell-edge-full.log` retains only known preserved-web
+scene-builders.test.ts:75 asset case(529suites/4010tests PASS,1failure);KING330
+and all remaining gates PASS. No full-QA PASS claim.
+Normal Debug BUILD SUCCEEDED `/tmp/farewell-edge-final-preview.log`;verified
+.native identity,no PlugIns/Web.bundle,executable newer than changed Swift.
+Installed over retained1018BE2D and normal launchedPID22423. Both canonical save
+slots byte-identical before/after install and immediate launch:
+`/tmp/farewell-edge-final-delivery/receipt.json`. CUA observed normal Home with
+new High five! sheet and flush edge. No tool CTA contact;later visible save check
+shows only savedAt plus primary progression acknowledgement changed during live
+user review;no reset/restore performed. Exact snapshots in final-visible/.
+Actual SBRingerMuted=true and toolbar Mute ON(non-audio review). No game/macOS
+audio preference,physical phone,PWA,legacy,uninstall or reset changes. Physical
+optical/touch acceptance remains NEEDS PHYSICAL TEST.
+
+## 2026-11-12 · Farewell two-line copy, modal backdrop and lower artwork
+
+User requests final sheet only:Discover new dice and cards. / Beat your best and
+have fun!,existing font unchanged,shared modal backdrop behind paper/characters,
+and high-five illustration24layout pt lower. NativeTutorialOverlay step10 alone
+adds24after original phone/tablet anchor scale and uses existing
+JimiNativeModalV10.backdropColor. No original asset,audio,motion,input or receipt
+change. NativeTabletLayoutTests verifies exact2lines and24pt offset on both
+sizes;existing clear-board lesson anchor remains unchanged. Ownership/context
+records updated. CTA remains Got it pending user's current copy discussion.
+
+PASS3mounted Native cases `/tmp/farewell-focus-native.log`:phone/tablet layout,
+previous clear-board layout,and actual farewell routing/background/double-input
+lifecycle across all destinations. Reviewed phone/World and tablet PNGs in
+`/tmp/tutorial-farewell-{journey,arcade,phone,ipad}.png`. Fast and ios PASS.
+Full `/tmp/farewell-focus-full.log` FAIL only known preserved-web
+scene-builders.test.ts:75 asset case:529suites/4010tests PASS,1failure;KING330
+and remaining gates PASS. No full-QA PASS claim.
+Normal Debug BUILD SUCCEEDED `/tmp/farewell-focus-preview.log`,verified .native
+bundle,no PlugIns/Web.bundle and executable newer than changed Swift. Installed
+over retained1018BE2D and normal-launched PID14911. Both canonical save slots
+byte-identical before/after install and immediate launch;
+`/tmp/farewell-focus-delivery/receipt.json`. Normal pending farewell subsequently
+admitted on Home;CUA screenshot visibly confirms new2lines,backdrop and lower
+characters. Natural admission flush changes only savedAt in both slots by final
+visible check;all progression/checkpoint/preferences preserved. No CTA tapped.
+Toolbar Mute ON and actual SBRingerMuted=true(non-audio review);game/macOS audio
+preferences unchanged. No physical phone,reset,uninstall,PWA or legacy work.
+Physical optical/touch acceptance remains NEEDS PHYSICAL TEST.
+
+## 2026-11-12 · Arcade celebration tails fixed; Beach Continue not reproduced
+
+User reports Beach01 Continue missing whole themed02 scene and Arcade round
+celebration/applause cut. Three agents investigated/implemented/reviewed.
+Audio cause confirmed:arcadeVictory sax+applause used main route transport,
+which stop/beginGeneration retired during next-round replacement. Added one
+bounded two-file selected transport with UUID receipts;last actual ended/error
+completion disposes package. Only explicit automatic Arcade continuation preserves
+it across stop/generation;normal restart/leave/OFF/background/interruption/reset/
+dispose/replacement cancel. finishGameplayExit uses narrow cancel API,retaining
+independent human/Nala speech tails. Assets,gains,rates,onsets unchanged,no timer.
+Runtime ownership record updated. No unresolved reviewer code findings.
+
+PASS105 Native `/tmp/beach-arcade-final-native.log`:102audio lifecycle cases,
+actual sparse-phone Beach01 merge->Fishreward->Collect->Result Continue->Beach02
+visible motion33.174s,Beach explicit Restart skip18.844s,Area55Continue34.431s.
+Separate normal-progression Beach realflow PASS32.794s
+`/tmp/beach-continue-visible-motion.log`. Entire UIWindow captures inspected:
+`/tmp/beach-continue-window-10.png` and30.png show real sandcastle,waves,orange02,
+with no covering modal. Carrier topmost/on-screen and moving before fresh board
+release asserted. Journey routing was NOT changed by this task;do NOT claim a
+Beach runtime fix. User confirms entire02scene missing but cannot remember result
+vsWorld-card Continue. Active-card static audit found interim Continue matches
+fixture;info-card flight also retires before gameplay mount. Concrete phone path
+still NEEDS PHYSICAL TEST/reproduction if seen again.
+
+Early Beach probes were invalid fixtures,not proof of reported bug:stale successor
+save had no beginAttempt and was intentionally replaced(g1 tiles),then restored
+Journey was wrongly required to emit fresh .normal Source-entry receipt. Corrected
+fixture records real attempt/asserts retained pair,waits actual first-frame/input,
+while next fresh board still requires themed-before-entry proof.
+
+Audio-runtime/ios/fast/KING330 PASS. FullQA retains known preserved-web
+scene-builders.test.ts:75 asset-existence failure (529suites/4010tests PASS,1fail).
+Independent review NEEDS PHYSICAL TEST for actual speaker mix/device Beach path.
+Unrelated concurrent merge-voice/backpack/tutorial-farewell edits preserved and
+excluded from this issue diagnosis. Serialized Xcode around other conversations;
+one center probe canceled due concurrent build,not counted as product failure.
+Normal Debug BUILD SUCCEEDED `/tmp/beach-arcade-preview-build.log`;actual
+.native ID/no XCTest confirmed. Runtime input hashes stable through build/install;
+only unrelated NativeBootstrapTests.swift changed after compilation,not app inputs.
+Install-over normal launch:`com.taptapdesign.stacktosix.native: 9710`. Both canonical save slots
+byte-identical to `/tmp/beach-arcade-preview-saves-20261112-232308`. CUA observed normal Home and visible
+Silent Mode Off banner. Other active conversations subsequently changed the shared
+Simulator state; final CUA recheck again observed Silent Mode Off, while another
+conversation was running board-cleared QA. Audio mode and foreground screen are
+shared checkpoints, not exclusive ownership. No physical phone install/reset/
+uninstall/PWA/legacy work performed by this task. Independent review has no
+unresolved code findings;device-only Beach reproduction and speaker acceptance
+remain NEEDS PHYSICAL TEST. User confirmed whole02scene missing,then could not
+remember result-vsWorld-card Continue;no further speculative Journey fix applied.
+
+## 2026-11-12 · Arcade tutorial Endurance, Clean Board and high-five
+
+All3Arcade selections now construct/resume/restart incomplete firstPlayRun with
+Endurance rules only. Selected real variant,run/stat/reward/pending-round slots
+remain intact. Genuine practice completion uses existing full Clean Board;
+Continue and Exit both return to Arcade selection,then its existing high-five
+farewell. Early Arcade Exit keeps the unfinished guide without farewell.
+After global completion ordinary mode rules/automatic round continuation return.
+Journey behavior unchanged. Bootstrap passes explicit pre-commit tutorial result
+admission(defaultfalse);stale metadata alone cannot enable it. Practice result
+saysYour score,never NEW High score. Atomic global completion/farewell receipt;
+no new schema,clock,resource,audio transport or original-asset mutation.
+Old Tutorial completed cover no longer instantiated;historical source retained.
+
+PASS8/0 Native98.251s `/tmp/arcade-tutorial-endurance-native-verified.log`:actual
+Source5-on1 ->Clean Board ->Continue/Exit ->Arcade ->high-five;duplicate/background
+contacts;post-farewell actual LuckyDrop/SlowBurn real run4 resumes score777;
+9fresh/legacy/normal entry scenarios across3variants;ordinary clear still
+uses automatic round cue with stale tutorial metadata;early Arcade Exit and
+Journey/World1/11/21 regression. Reviewed actual clean PNGs
+`/tmp/arcade-tutorial-clean-{pureDice,slowBurn}.png`.
+Fast,feature,ios,KING330,diff hygiene PASS. Full
+`/tmp/arcade-tutorial-endurance-full.log` FAIL only known preserved-web
+scene-builders.test.ts:75 asset case(529suites/4010tests PASS);all other gates
+and production build(no sync)/bundle audit PASS. Initial Native fixture failures
+and DB-lock retry retained in `-native.log` / `-native-final.log`;corrected
+readiness/snapshot/lifetime fixtures,not shipping semantics,to obtain finalPASS.
+
+Normal Debug BUILD SUCCEEDED `/tmp/arcade-tutorial-endurance-preview.log`.
+Exact Native ID,no XCTest/Web.bundle,runtime newer than saved production Swift.
+First preview install was concurrently replaced by another session's older
+contextual-derived app;hash check caught it. Reinstalled current app over retained
+1018BE2D,normal launchPID9995 and exact built/installed runtime hash PASS
+`/tmp/arcade-tutorial-endurance-delivery-final.log`. Both canonical save slots
+byte-identical across both installs,launch and final visible Home;backup
+`/tmp/arcade-tutorial-endurance-saves-20261112-232342` (initial232307 also retained).
+CUA observed normal Home and actual Silent Mode On banner;SBRingerMuted=1.
+No reset/uninstall/phone/PWA/legacy installation. Physical touch/motion/audio
+acceptance remains NEEDS PHYSICAL TEST.
+
+## 2026-11-12 · Final tutorial high-five sheet delivered to retained Simulator
+
+User supplies SPEECH/have fun.mp3 and approves That’s it,you’re ready! Have fun!
+Existing NativeTutorialOverlay step10 uses original density-aware hi five.png
+at the shared21pt paper anchor(1.4tablet art scale),You’re ready!,discovery/cards/
+high-score copy,and Got it. No hand,new clock,observer or audio transport.
+NativeAppController admits after actual selection entry,holds existing route
+input/motion independently of sheet animation,and keeps hold through foreground.
+Actual sheet landing admits one speech and enables CTA. Got it persists receipt,
+uses existing finite exit,then resumes same destination;no gameplay/navigation.
+Save failure stays retryable;duplicate input and late callbacks are guarded.
+
+NativeBootstrap/NativeProgressionState own optional tutorialFarewellPending:
+nil never enqueued,true pending,false acknowledged. Journey last-lesson save or
+new tutorial completion enqueue once;acknowledged receipt cannot re-enqueue.
+Legacy completed saves acquire no sheet. Interrupted pending receipt restores
+without changing unfinished board/global completion. Latest parallel Arcade
+policy retained:practice Clean Board Continue/Exit return to hub then farewell;
+early practice Exit does not show it. Existing tutorial reset clears receipt.
+Original MP3 preserved;full3.0040625s48kmono16 playback derivative reuses tutorial
++3dB policy(PCM+1,cue+2),peak-1.9682dBFS;versioned manifest/generator retained.
+
+PASS6mounted coordinator/audio/layout cases in
+`/tmp/tutorial-farewell-native-verified.log`(that batch also retains two obsolete
+Bootstrap fixture failures,subsequently corrected). PASS8 current shared cases
+`/tmp/arcade-tutorial-endurance-native-verified.log`:actual Source Arcade result
+Continue/Exit -> farewell,early Arcade Exit suppression,and actual Bootstrap
+pending Journey receipt/CTA/save/relaunch while preserving unfinished checkpoint.
+Initial tablet test overasserted hidden labels/font linebox;corrected to visible
+subtitle and actual prepared CTA. Phone/Journey/Arcade and tablet PNGs reviewed:
+`/tmp/tutorial-farewell-{journey,arcade,phone,ipad}.png`. State115 tests PASS
+`-state-final.log`;fast/audio/feature/ios gates PASS. Full QA FAIL only known
+preserved-web scene-builders.test.ts:75 asset case,529suites/4010tests PASS;
+KING330 and other full gates PASS. No full-QA PASS claim. Native asset copy
+inventory still reports historical extras;all five farewell source/bundle hashes
+separately exact,extras preserved.
+
+Normal Debug BUILD SUCCEEDED `/tmp/beach-arcade-preview-build.log`,followed by
+latest complete shared normal build `/tmp/arcade-tutorial-endurance-preview.log`.
+This task installed-over/normal-launched PID9710;parallel final preview then
+installed the newer normal build. Verified final installed executable/debug dylib
+match that latest build,no PlugIns/Web.bundle,all five farewell assets byte-exact,
+no newer production Swift. Final normal launch PID10422;
+`/tmp/tutorial-farewell-delivery/final-launch.txt`. Both production save slots
+byte-identical before-install,after-install,after-launch and final launch;
+`/tmp/tutorial-farewell-delivery/receipt.json` and phase snapshots. CUA observed
+normal authored intro;toolbar Mute OFF,visible iOS Silent Mode Off banner and
+actual SBRingerMuted=false. Game preferences/macOS audio unchanged. No reset,
+uninstall,physical-phone,PWA or legacy operation. Speaker mix,optical/touch/FPS/
+thermal acceptance remains NEEDS PHYSICAL TEST.
+
+## 2026-11-12 · Tutorial shimmer Backpack tap and resumed collection hands
+
+User clarifies the alternate tap target is the large shimmer Backpack under the
+characters/Nala,not the HUD icon. NativeTutorialOverlay now routes its visible
+closed-carrier ink to the existing CTA activation. Hit geometry follows the
+already-painted carrier transform;readiness updates independently of paint
+because the held carrier stops repainting. Same canonical contact,one-shot
+activation,existing jump/rebound/open/drop and exit ownership;no new clock or
+assets. Clears with carrier retirement. Existing Box uses the same shared path.
+NativeScoreOwner admits the collection hand while the canonical collection
+lesson is pending even if a previous interrupted visit persisted guidanceSeen.
+Actual entry still owns first-die -> detail X -> collection X;ordinary completed
+visits retain one-time behavior. No save schema/reset or phone installation.
+
+PASS three actual collection walkthroughs(Journey restored seen marker via CTA
+and icon,Arcade) in `/tmp/backpack-hit-native.log`;that initial run exposed a
+carrier readiness bug,subsequently fixed. CTA motion control PASS in
+`/tmp/backpack-hit-native-verified.log`;its real-clock tap motion sampling missed
+a peak,so exact alternate-input geometry/timing now uses the existing manually
+stepped Source flow. Final PASS2 `/tmp/backpack-hit-native-final.log`:actual
+carrier tap incl repeated contact produces one Special,plus complete actual
+Source guide with tap,exact jump/return/open measurements. Reviewed generated
+`/tmp/tutorial-backpack-hand-detail.png`:Wee Bee X hand visibly present.
+PASS fast `/tmp/backpack-hit-fast-verified.log`,ios `-ios-final.log`.
+Full `/tmp/backpack-hit-full.log` FAIL only known preserved-web
+scene-builders.test.ts:75 asset-existence case;529suites/4010tests PASS,
+KING330 and all other gates PASS. No full-QA PASS claim.
+
+Normal Debug BUILD SUCCEEDED `/tmp/backpack-hit-preview-final.log`;verified
+compiled .native bundle,install-over retained1018BE2D,normal launch PID92680.
+CUA observed normal Home. Toolbar Mute ON and actual SBRingerMuted=1.
+Both production save slots byte-identical to `/tmp/backpack-hit-save-backup`
+after install/launch. No uninstall/reset/physical/PWA/legacy operations.
+Other active session subsequently compiling its serialized Beach/Arcade tests;
+coordinate any later final preview with that session,do not launch over its
+running test host. This entry records the actually observed normal preview.
+Physical touch/optical acceptance remains NEEDS PHYSICAL TEST.
+
+## 2026-11-12 · Tutorial merge voice replacement
+
+User supplies `assets/sound/SPEECH/merge to make six voice.mp3`; local cached ASR
+confirms “Merge the dice to make six.” Replaces only tutorial-merge through the
+existing playback path/owner, +1dB PCM plus unchanged +2dB cue = measured
++3.000004dB. Full2.429375s retained,48kmono16,peak-1.314dBFS,no clipping/trim.
+New MP3 SHA25697cb7b5240e4de7e4ba4c92efc85eb0849043b1bc31e193479c1baa2ab0c62e1;
+playback WAV12304283284a1b7126d8f484b52f08ddd60fa085bac3f41cba34c54961eecc99.
+All8other tutorial playback files byte-identical. No runtime/gain/timing/Settings/
+transport/save change. User explicitly authorizes deletion:retired003-merge.wav
+removed from source/Native package and old standalone/boosted copies removed from
+cached Release app (that old cache is no longer a signed delivery artifact).
+Combined tutorial master retained for other lessons;generator permanently skips
+retired merge cut and uses the new source. Registry/manifests updated.
+
+PASS2existing Native tutorial audio behavior tests `/tmp/tutorial-merge-native.log`;
+fast/audio/ios gates PASS (`/tmp/tutorial-merge-{fast,audio,ios}.log`). Full QA `/tmp/tutorial-merge-full.log` FAIL only the known preserved-web
+scene-builders.test.ts:75 asset case (529suites/4010tests PASS,1failure);all
+other full gates including KING330,production build(no sync),bundle audit PASS.
+Native artwork preparation copied all current source bytes but inventory check
+FAIL because of historical packaged extras;all current source hashes separately
+verified,extras preserved per asset order. Initial preview build hit a concurrent
+build DB lock (log `/tmp/tutorial-merge-preview-build.log`);waited for other Xcode
+process,then fresh normal Debug `/tmp/tutorial-merge-preview-retry.log` running.
+Final normal Debug BUILD SUCCEEDED `/tmp/tutorial-merge-preview-last.log` after
+concurrent sessions released Xcode/Simulator. Built/installed exact Native ID,
+no PlugIns/Web.bundle,executable newer than current saved production Swift,
+new clip byte-exact and retired cut absent. Install-over/normal launch PID93972
+`/tmp/tutorial-merge-delivery.log`;both normal save slots byte-identical before,
+after-install,after-launch and after visible launch. Backup:
+`/tmp/tutorial-merge-saves-20261112-230213`. Initial save discovery rejected
+multiple temporary QA profiles before any install;corrected to exact canonical
+Library/Application Support/StackToSixNative slots,never altered those profiles.
+CUA observed normal authored intro and visible Silent Mode Off banner;actual
+SBRingerMuted=0 verified. Physical speaker mix NEEDS PHYSICAL TEST.
+No physical phone/PWA/legacy installation authorized or performed in this task.
+
 ## 2026-11-12 · Native main installed on iPhone13blue
 
 Explicit phone-install request fulfilled after CTA/speech update and local main

@@ -493,6 +493,7 @@ final class JimiNativeEndRunButton:JimiV9PlainButton {
 final class JimiNativeEndRunModal: UIViewController {
     let requestID: Int
     let model: JimiNativeEndRunModel
+    private let progressEmphasisRange:NSRange?
     let card = UIView(), flip = JimiNativeModalTransformView(), idle = JimiNativeModalTransformView(), paper = NativeModalPaperView()
     private let restTilt=JimiNativeModalTransformView()
     let restTiltDegrees:CGFloat
@@ -536,6 +537,8 @@ final class JimiNativeEndRunModal: UIViewController {
         let sample=restTiltRandom()
         restTiltDegrees=JimiNativeModalV10.restTiltDegrees(sample:sample)
         requestID = id; self.model = model; self.assets = assets;self.dismissalAllowed=dismissalAllowed;self.synchronizesBoardCTAEntry=synchronizesBoardCTAEntry
+        let progressRange=(model.subtitle as NSString).range(of:#"\b(?:Round|Stage)\s+[0-9]+\b"#,options:.regularExpression)
+        progressEmphasisRange=progressRange.location == NSNotFound ? nil:progressRange
         super.init(nibName:nil,bundle:nil); modalPresentationStyle = .overFullScreen
         traceHUDLatency("exit-modal-init-body-end")
     }
@@ -563,6 +566,7 @@ final class JimiNativeEndRunModal: UIViewController {
         heading.text = model.title;heading.font = assets.font(size:32,weight:"ExtraBold");heading.textColor = NativeTextPalette.modalTitle;heading.textAlignment = .center
         subtitle.text = model.subtitle;subtitle.font = assets.font(size:18,weight:"Medium");subtitle.textColor = NativeTextPalette.subtitle;subtitle.textAlignment = .center;subtitle.numberOfLines = 0
         subtitle.attributedText=NativeModalTypography.attributedSubtitle(model.subtitle,font:subtitle.font)
+        emphasizeSavedProgress()
         idle.addSubview(heading);idle.addSubview(subtitle)
         traceHUDLatency("exit-cta-style-begin")
         for (i,button) in buttons.enumerated() {
@@ -594,6 +598,15 @@ final class JimiNativeEndRunModal: UIViewController {
         modalDrag = JimiNativeModalDrag(target:card,idle:idle,viewport:view,canDrag:{[weak self] in guard let self else{return false};return self.dismissalAllowed && self.ready && !self.closing && !self.disposed},onDismiss:{[weak self] in self?.requestClose()})
         view.isUserInteractionEnabled = false
     }
+    private func emphasizeSavedProgress() {
+        guard let range=progressEmphasisRange,let source=subtitle.attributedText else{return}
+        let font=assets.font(size:subtitle.font.pointSize,weight:"Bold")
+        let color=NativeTextPalette.accentOrange
+        guard (source.attribute(.font,at:range.location,effectiveRange:nil) as? UIFont) != font ||
+              (source.attribute(.foregroundColor,at:range.location,effectiveRange:nil) as? UIColor) != color else{return}
+        let copy=NSMutableAttributedString(attributedString:source)
+        copy.addAttributes([.font:font,.foregroundColor:color],range:range);subtitle.attributedText=copy
+    }
     override func viewDidLayoutSubviews() {
         #if DEBUG
         let traceLayout=ProcessInfo.processInfo.arguments.contains("-native-hud-latency-trace") && hudLatencyLayoutCount<3
@@ -605,6 +618,7 @@ final class JimiNativeEndRunModal: UIViewController {
         let u=NativeTabletLayout.textScale(modalBounds.size)
         NativeTabletLayout.labelFont(heading,size:synchronizesBoardCTAEntry ? 32*u:NativeTabletLayout.modalTitleSize(view.bounds.size,phone:32*u))
         NativeTabletLayout.labelFont(subtitle,size:18*u)
+        emphasizeSavedProgress()
         buttons.forEach{NativeTabletLayout.buttonFont($0,size:28*u)}
         let width=NativeTabletLayout.paperWidth(modalBounds.size,padding:synchronizesBoardCTAEntry ? 80:48)
         let height:CGFloat=(172+2*JimiV9PlainButton.pairedModalCTAHeight+JimiV9PlainButton.pairedModalCTAGap+28)*u

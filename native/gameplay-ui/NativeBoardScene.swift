@@ -150,6 +150,7 @@ final class NativeBoardScene: SKScene {
             // Cold Source preparation and safe-area layout may have settled an
             // unmounted HUD. Its first visible reveal starts only on this host.
             primeVisibleHUDEntry()
+            revealRetainedRoundFooterAfterEntry()
         }
         guard !disposed,mountedLifecycleHost === host,host.renderedScene === self else{return}
         retainSourceRendererDragTransport()
@@ -1234,6 +1235,7 @@ final class NativeBoardScene: SKScene {
                     installation.enqueue({[weak self] in
                         guard let self,current(),self.sourceBoardEntryOwner==nil,self.sourceBoardEntryEpoch==epoch else{return}
                         self.completedSourceBoardEntry=completion;self.inputAdmitted=true
+                        self.revealRetainedRoundFooterAfterEntry()
                         // Immutable v9 warms the app-lived Wild smoke pool in
                         // ten tracked APP wall batches after sweetPopIn. These
                         // jobs neither advance gameplay nor draw visual RNG.
@@ -1484,6 +1486,9 @@ final class NativeBoardScene: SKScene {
         let anchor=stagePoint(CGPoint(x:frame.midX,y:frame.minY+frame.height*0.72))
         let left=stagePoint(CGPoint(x:frame.minX,y:frame.midY)),right=stagePoint(CGPoint(x:frame.maxX,y:frame.midY))
         tutorialCarrierLayout = .init(point:.init(x:anchor.x,y:size.height-anchor.y),width:hypot(right.x-left.x,right.y-left.y))
+        let inkMidY:CGFloat=engine.state.mode == .arcade ? 241/403.0:232.5/438.0
+        let landing=stagePoint(CGPoint(x:frame.midX,y:view.bounds.height*0.70+frame.height*(0.72-inkMidY)))
+        tutorialCarrierLayout?.openingPoint = .init(x:landing.x,y:size.height-landing.y)
     }
     var heldTutorialBackpackCarrier:SKSpriteNode? {sourceMeterCaller?.heldTutorialCarrier}
     @discardableResult func resumeTutorialBackpackCarrier()->Bool {sourceMeterCaller?.resumeHeldTutorialCarrier() == true}
@@ -2091,6 +2096,7 @@ final class NativeBoardScene: SKScene {
         requestRendering(true)
     }
     private func synchronizeTutorialChromeVisibility() {
+        closeButton?.isHidden = engine.state.tutorial?.comboHUDRevealed != nil && !tutorialChromeRevealed
         guard engine.state.tutorial?.comboHUDRevealed != nil else{return}
         let revealed=tutorialChromeRevealed
         for node in tutorialChromeNodes {
@@ -6015,7 +6021,10 @@ final class NativeBoardScene: SKScene {
     private var hudEntryReveal=NativeHUDEntryReveal()
     private var hudEntryReceipt:NativeHUDEntryReveal.Receipt?
     var roundChromeReceipt:(offset:CGFloat,alpha:CGFloat,hidden:Bool,animating:Bool) {roundIndicator.presentationReceipt}
-    var keepsHUDVisibleOnEntry=false
+    var firstPlayTutorialComplete:()->Bool = {true}
+    private var showsArcadeRound:Bool {engine.state.mode == .arcade && firstPlayTutorialComplete() && engine.state.tutorial?.shouldLockHUD != true}
+    private var retainedRoundFooterPending=false
+    var keepsHUDVisibleOnEntry=false {didSet {retainedRoundFooterPending=keepsHUDVisibleOnEntry}}
     var replaysRestartChrome=false
     private var preloadExitIsRestart=false
     private var preloadExitKeepsHUD=false
@@ -6078,7 +6087,7 @@ final class NativeBoardScene: SKScene {
         closeStageFont=fonts.font(size:16)
         fontName = fonts.font(size: 24).fontName
         finaleFontName = fonts.font(size: 24,weight: "ExtraBold").fontName
-        roundIndicator = NativeRoundIndicator(font: fonts.font(size: 18,weight: "SemiBold"))
+        roundIndicator = NativeRoundIndicator(font: fonts.font(size: 18,weight: "SemiBold"),artwork:fonts)
         super.init(size: size)
         scaleMode = .resizeFill; backgroundColor = .clear
         canvasRoot.name="native-gameplay-canvas";addChild(canvasRoot)
@@ -6206,7 +6215,7 @@ final class NativeBoardScene: SKScene {
     }
 
     private func setupHUD() {
-        let brown = UIColor(red: 0.42, green: 0.35, blue: 0.29, alpha: 1)
+        let brown = NativeTextPalette.brown
         for label in [noMoves] {
             label.fontName = fontName; label.fontColor = brown
             label.verticalAlignmentMode = .center; hud.addChild(label)
@@ -7067,7 +7076,7 @@ final class NativeBoardScene: SKScene {
         // Source startup owns its initial fade; after guide completion the
         // completion-assist HUD lock still owns dimming, including cleanup refreshes.
         let tutorialHUDAlpha:CGFloat=state.tutorial?.shouldLockHUD==true && !tutorialChromeRevealed && (!sourceTutorialHUDEnabled || state.tutorial?.active != true) ? 0.2:1
-        roundIndicator.synchronize(round:state.stage,arcade:state.mode == .arcade && state.tutorial?.shouldLockHUD != true,viewport:size,alpha:(!tutorialSpecialBarFocus.isEmpty || sourceTutorialHUD?.owns(roundIndicator)==true) ? roundIndicator.alpha:tutorialHUDAlpha,variant:state.effectiveArcadeVariant)
+        roundIndicator.synchronize(round:state.stage,arcade:showsArcadeRound,viewport:size,alpha:(!tutorialSpecialBarFocus.isEmpty || sourceTutorialHUD?.owns(roundIndicator)==true) ? roundIndicator.alpha:tutorialHUDAlpha,variant:state.effectiveArcadeVariant)
         layoutHUD()
         applyBoardShake(boardShake)
         // Smoke is mounted as HUD siblings, but its animation owns opacity.
@@ -7077,7 +7086,7 @@ final class NativeBoardScene: SKScene {
         synchronizeTutorialChromeVisibility()
         if (animateEntry || holdsRestartEntryForVisibleHandoff) && !UIAccessibility.isReduceMotionEnabled {
             animateBoardEntry(tiles: live,geometry: geometry)
-        } else if !entryInProgress { inputAdmitted = state.terminal == nil && pendingTerminal == nil;roundIndicator.enter(animated:false) }
+        } else if !entryInProgress { inputAdmitted = state.terminal == nil && pendingTerminal == nil;if keepsHUDVisibleOnEntry {revealRetainedRoundFooterAfterEntry()}else{roundIndicator.enter(animated:false)} }
         if preparedEntryGeneration == state.generation {inputAdmitted=false;navigationLocked=true}
         publishFishIdleFrames(force:true)
         applyTutorialSpecialBarFocus()
@@ -7287,7 +7296,7 @@ final class NativeBoardScene: SKScene {
         run(.sequence([.wait(forDuration:0.03),.run { [weak self] in
             guard let self,!self.disposed,self.entryInProgress,self.hudEntryReceipt==receipt,self.engine.state.generation==receipt.generation else{return}
             self.finishSourceEntry()
-            self.entryInProgress=false;self.inputAdmitted=true;self.resumeSourceEntryDeferredIdle();self.announceRestoredJourneyDice();self.evaluate()
+            self.entryInProgress=false;self.inputAdmitted=true;self.revealRetainedRoundFooterAfterEntry();self.resumeSourceEntryDeferredIdle();self.announceRestoredJourneyDice();self.evaluate()
         }]),withKey:"entry-admission")
     }
 
@@ -7398,12 +7407,27 @@ final class NativeBoardScene: SKScene {
         hud.removeAction(forKey:"hud-enter-delay");hud.removeAction(forKey:"hud-enter");preparePreloadHUDGroups()
         if !preloadHUDGroups.isEmpty {
             hud.position = .zero;hud.alpha=1
-            if keepsHUDVisibleOnEntry {restorePreloadHUD();isHUDRevealPending=false;roundIndicator.enter(animated:false)}else{paintPreloadHUD(0,entering:true);roundIndicator.primeEntry()}
+            if keepsHUDVisibleOnEntry {restorePreloadHUD();isHUDRevealPending=false;primeRetainedRoundFooter()}else{paintPreloadHUD(0,entering:true);roundIndicator.primeEntry()}
             return
         }
         if keepsHUDVisibleOnEntry {
-            isHUDRevealPending=false;hud.position = .zero;hud.alpha=1;roundIndicator.enter(animated:false)
+            isHUDRevealPending=false;hud.position = .zero;hud.alpha=1;primeRetainedRoundFooter()
         } else {hud.position.y=140;hud.alpha=0;roundIndicator.primeEntry()}
+    }
+    /// Automatic Arcade continuation retains upper chrome, but its footer is a
+    /// new round. Keep it covered through the complete successor dice pop-in.
+    private func primeRetainedRoundFooter() {
+        if retainedRoundFooterPending {roundIndicator.primeEntry()}
+    }
+    private func revealRetainedRoundFooterAfterEntry() {
+        guard retainedRoundFooterPending,hasMountedInitialHUD,!disposed,
+              !suspended,!exitInProgress,isBoardEntryComplete else{return}
+        if sourceBoardEntryEnabled,!UIAccessibility.isReduceMotionEnabled {
+            guard let entry=completedSourceBoardEntry,entry.generation==engine.state.generation,
+                  entry.outcome == .normal || entry.outcome == .forced else{return}
+        }
+        retainedRoundFooterPending=false
+        roundIndicator.enter(animated:!UIAccessibility.isReduceMotionEnabled)
     }
     static let ordinaryHUDEntryDelay:TimeInterval=0.100
     /// This finite wait belongs to the existing HUD action subtree. Suspension,
@@ -7420,7 +7444,7 @@ final class NativeBoardScene: SKScene {
         guard !disposed,!exitInProgress,hudEntryReceipt==receipt,engine.state.generation==receipt.generation else{return}
         isHUDRevealPending=false
         if keepsHUDVisibleOnEntry {
-            hud.position = .zero;hud.alpha=1;roundIndicator.enter(animated:false)
+            hud.position = .zero;hud.alpha=1;primeRetainedRoundFooter()
             sourceTutorialMeterHUD?.cancelBoardExit();preloadChromeSettled=true
             return
         }
@@ -7462,7 +7486,7 @@ final class NativeBoardScene: SKScene {
         if let receipt=hudEntryReceipt {hudEntryReveal.cancel(receipt)}
         hudEntryReceipt=nil;isHUDRevealPending=false
         removeAction(forKey:"hud-midpoint");hud.removeAction(forKey:"hud-enter-delay");hud.removeAction(forKey:"hud-enter")
-        if restoreHUD {preloadChromeSettled=true;restorePreloadHUD();hud.position = .zero;hud.alpha=1;roundIndicator.cancelExit();sourceTutorialMeterHUD?.cancelBoardExit()}
+        if restoreHUD {preloadChromeSettled=true;restorePreloadHUD();hud.position = .zero;hud.alpha=1;roundIndicator.cancelExit();primeRetainedRoundFooter();sourceTutorialMeterHUD?.cancelBoardExit()}
         guard entryInProgress else { return }
         entryInProgress = false; entryOwners = 0; removeAction(forKey: "entry-admission")
         removeAction(forKey:"hud-midpoint");hudDropPaints=nil;hud.removeAction(forKey:"hud-enter");hud.position = .zero;hud.alpha=1
@@ -11075,6 +11099,17 @@ final class NativeBoardScene: SKScene {
             } else if hudEntryReveal.renderedCallback(receipt) {startHUDDrop(receipt)}
         }
         let elapsedDelta=lastFrame.map {max(0,currentTime-$0)} ?? 0
+        // A finite Juice tail may overlap later tutorial moves. Its existing
+        // Scene delivery also retires interrupted clocks, without a timer or
+        // a second animation playhead. Suspension resets lastFrame above.
+        if !effects.isPaused,effects.speed>0 {
+            let generation=engine.state.generation
+            for owner in effects.children.compactMap({$0 as? NativeJuiceFinale}) {
+                owner.reconcileClock(delta:elapsedDelta)
+                guard !disposed,!sourceDisposalInProgress,!suspended,
+                      engine.state.generation==generation else{return}
+            }
+        }
         dragTrail.advance(delta:elapsedDelta,timeMilliseconds:rawMilliseconds)
         advanceHUDNumbers(delta:elapsedDelta>0.5 ? 0.033:elapsedDelta)
         let delta=min(0.05,elapsedDelta)
@@ -11145,7 +11180,7 @@ final class NativeBoardScene: SKScene {
         if exitInProgress {
             for node in nodesByID.values {node.synchronizeSourcePlainStarHostPose()}
         }
-        roundIndicator.isHidden=engine.state.mode != .arcade || engine.state.tutorial?.shouldLockHUD == true
+        roundIndicator.isHidden = !showsArcadeRound
         if engine.state.tutorial?.shouldLockHUD==true {
             for child in hud.children where child !== noMoves {
                 if tutorialChromeRevealed {
@@ -11427,7 +11462,7 @@ final class NativeBoardScene: SKScene {
             // its rendered host. Retain the settled cosmetic surface in this
             // Scene until actual replacement, without playing any exit track.
             outgoingPreloadMeterDuration=0;outgoingPreloadMeter?.cancelBoardExit()
-            restorePreloadHUD();hud.position = .zero;hud.alpha=1;roundIndicator.enter(animated:false)
+            restorePreloadHUD();hud.position = .zero;hud.alpha=1;if retainedRoundFooterPending {primeRetainedRoundFooter()}else{roundIndicator.enter(animated:false)}
         }
         settleHUDNumbers();comboHUDMotion.stop();comboNumberMotion.stop()
         engine.setInputLock("native-board-exit",active: true)
@@ -11446,8 +11481,8 @@ final class NativeBoardScene: SKScene {
             let begin:()->Void = {[weak self] in
                 guard let self,!self.disposed,self.exitInProgress,self.engine.state.generation==generation else{return}
                 afterResidualExit?()
+                self.roundIndicator.exit()
                 if let hudCapture {
-                    self.roundIndicator.exit()
                     self.animateHUDExit(generation:generation,capture:hudCapture)
                 } else {self.animatePreloadMeterOnlyExit(generation:generation)}
             }
@@ -11478,7 +11513,7 @@ final class NativeBoardScene: SKScene {
     }
 
     private func animatePreloadMeterOnlyExit(generation:UInt64){
-        let duration=outgoingPreloadMeterDuration
+        let duration=max(outgoingPreloadMeterDuration,NativeRoundIndicator.exitDuration)
         guard duration>0 else{finishExitOwner(generation:generation);return}
         hud.run(.sequence([.customAction(withDuration:duration){[weak self] _,elapsed in
             guard let self,!self.disposed,self.exitInProgress,self.engine.state.generation==generation else{return}
@@ -11524,7 +11559,7 @@ final class NativeBoardScene: SKScene {
         if !completed {
             restorePreloadHUD()
             hud.removeAction(forKey:"preload-meter-exit")
-            roundIndicator.cancelExit()
+            roundIndicator.cancelExit();primeRetainedRoundFooter()
             for node in nodesByID.values { node.removeAllActions(); node.visual.setScale(1) }
             if clearedResidualGeneration != engine.state.generation {for ghost in ghosts.children {ghost.removeAllActions();ghost.setScale(1)}}
             hud.removeAllActions(); hud.position = .zero; hud.alpha = 1

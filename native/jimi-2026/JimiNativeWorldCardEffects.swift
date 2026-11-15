@@ -19,7 +19,8 @@ final class JimiNativeWorldCardEffects {
     private let foil = CALayer(), gold = CAGradientLayer(), rainbow = CAGradientLayer()
     private let hand = UIImageView(), copy = UIView()
     private var idleShine:NativeCardIdleShine?
-    private var letters: [UILabel] = []
+    private lazy var copyPaper=NativeSettingsPaperSurface(image:assets.image("assets/modals/paper.png",densityAware:true))
+    private let copyCaption=UILabel()
     private let assets: JimiV9Artwork
     private let rarity: String
     private var active = true, ended = false
@@ -63,7 +64,16 @@ final class JimiNativeWorldCardEffects {
         }
         hand.contentMode = .scaleAspectFit; hand.isUserInteractionEnabled = false; hand.layer.opacity = 0
         hand.layer.shadowColor = color(132,82,63,1);hand.layer.shadowOpacity = 0.24;hand.layer.shadowOffset = CGSize(width:0,height:12);hand.layer.shadowRadius = 16
-        copy.accessibilityIdentifier="native.world.card.coach-copy";copy.isUserInteractionEnabled = false; overlay.addSubview(hand);overlay.addSubview(copy)
+        copy.accessibilityIdentifier="native.world.card.coach-copy";copy.isUserInteractionEnabled=false
+        copy.isAccessibilityElement=true;copy.accessibilityLabel="DRAG TO FLIP";copy.layer.opacity=0
+        copyPaper.cornerRadius=12;copyPaper.edgeDetailScale=0.4;copyPaper.alpha=0.8
+        copyPaper.accessibilityIdentifier="native.world.card.coach-paper"
+        copy.layer.shadowColor=UIColor(red:0.68,green:0.40,blue:0.20,alpha:1).cgColor
+        copy.layer.shadowOpacity=0.18;copy.layer.shadowRadius=6;copy.layer.shadowOffset=CGSize(width:0,height:4)
+        let caption=NSMutableAttributedString(string:"DRAG TO FLIP",attributes:[.font:assets.font(size:17,weight:"ExtraBold"),.foregroundColor:NativeTextPalette.modalTitle])
+        caption.addAttribute(.foregroundColor,value:UIColor(red:231/255,green:116/255,blue:73/255,alpha:1),range:NSRange(location:0,length:4))
+        copyCaption.attributedText=caption;copyCaption.textAlignment = .center;copyCaption.isAccessibilityElement=false
+        copy.addSubview(copyPaper);copy.addSubview(copyCaption);overlay.addSubview(hand);overlay.addSubview(copy)
     }
     private func color(_ r:CGFloat,_ g:CGFloat,_ b:CGFloat,_ a:CGFloat) -> CGColor { UIColor(red:r/255,green:g/255,blue:b/255,alpha:a).cgColor }
     func layout() {
@@ -78,8 +88,10 @@ final class JimiNativeWorldCardEffects {
         idleShine?.layout()
         let width = min(overlay.bounds.width*0.36,168), aspect = (hand.image?.size.height ?? 1)/max(1,hand.image?.size.width ?? 1)
         hand.bounds = CGRect(x:0,y:0,width:width,height:width*aspect);hand.center = CGPoint(x:overlay.bounds.midX,y:overlay.bounds.height*0.56)
-        copy.frame = CGRect(x:0,y:overlay.bounds.height-overlay.safeAreaInsets.bottom-72,width:overlay.bounds.width,height:38)
-        NativeCoachCopyMotion.layoutCollectGlyphs(letters,in:copy.bounds,font:assets.font(size:32,weight:"ExtraBold"))
+        copy.bounds=CGRect(x:0,y:0,width:min(184,max(0,overlay.bounds.width-32)),height:48)
+        copy.center=CGPoint(x:overlay.bounds.midX,y:overlay.bounds.height-overlay.safeAreaInsets.bottom-58)
+        copyPaper.frame=copy.bounds;copyCaption.frame=copy.bounds
+        copyPaper.setNeedsLayout();copyPaper.layoutIfNeeded();copy.layer.shadowPath=copyPaper.outline
         CATransaction.commit()
     }
     private func animate(_ layer:CALayer,key:String,values:[Any],times:[Double],duration:Double,delay:Double = 0,path:String) {
@@ -106,7 +118,7 @@ final class JimiNativeWorldCardEffects {
               hand.image != nil,surfaceVisible else{return}
         let receipt=IdleReceipt(self);idleReceipt=receipt
         // A finite neutral compositor track owns the wait; no timer/display link.
-        let wait=CABasicAnimation(keyPath:"opacity");wait.fromValue=1;wait.toValue=1
+        let wait=CABasicAnimation(keyPath:"borderWidth");wait.fromValue=0;wait.toValue=0
         wait.duration=coachSession.idleInterval;wait.delegate=receipt
         copy.layer.add(wait,forKey:"modal.coach.idle")
     }
@@ -175,15 +187,7 @@ final class JimiNativeWorldCardEffects {
         let transforms = handStops.map { stop -> NSValue in var pose = CATransform3DMakeTranslation(stop.1,stop.2*hand.bounds.height,80);pose = CATransform3DRotate(pose,stop.3 * .pi/180,0,0,1);return NSValue(caTransform3D:CATransform3DScale(pose,stop.4,stop.4,1)) }
         animate(hand.layer,key:"modal.coach.hand",values:transforms,times:handStops.map{$0.0},duration:2.1,delay:delay,path:"transform")
         animate(hand.layer,key:"modal.coach.hand.alpha",values:handStops.map{$0.5},times:handStops.map{$0.0},duration:2.1,delay:delay,path:"opacity")
-        letters.forEach{$0.removeFromSuperview()};letters.removeAll()
-        let text = "DRAG TO FLIP"
-        let copyEpoch=CACurrentMediaTime()+delay
-        for (index,character) in text.enumerated() {
-            let label=NativeCoachCopyMotion.collectGlyph(character,font:assets.font(size:32,weight:"ExtraBold"))
-            copy.addSubview(label);letters.append(label)
-            NativeCoachCopyMotion.installCollect(on:label.layer,index:index,key:"modal.coach.copy",beginTime:copyEpoch)
-        }
-        NativeCoachCopyMotion.layoutCollectGlyphs(letters,in:copy.bounds,font:assets.font(size:32,weight:"ExtraBold"))
+        NativeCoachCopyMotion.installCollect(on:copy.layer,index:0,key:"modal.coach.copy",beginTime:CACurrentMediaTime()+delay)
     }
     func cancel(handoff:Bool = true) {
         permitted = false
@@ -205,7 +209,7 @@ final class JimiNativeWorldCardEffects {
             }
         }
         for layer in [foil,gold,rainbow,hand.layer] {layer.removeAllAnimations()}
-        letters.forEach{$0.layer.removeAllAnimations()}
+        copy.layer.removeAnimation(forKey:"modal.coach.copy");copy.layer.opacity=0
         CATransaction.begin();CATransaction.setDisableActions(true);foil.opacity = 0;gold.colors = originalGold;rainbow.colors = originalRainbow;gold.transform = CATransform3DIdentity;rainbow.transform = CATransform3DIdentity;CATransaction.commit()
     }
     func setActive(_ value:Bool) {

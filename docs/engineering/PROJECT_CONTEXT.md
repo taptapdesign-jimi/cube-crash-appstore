@@ -1,3 +1,64 @@
+Ordinary Native descriptive copy (user2026-11-14):18pt Baloo2 Medium,#CF9373,23.4pt line height through NativeModalTypography.subtitleParagraph;retain existing tablet projection. Titles,prompts,metadata and large announcements keep their role-specific font sizes/weights.
+
+Native UI text color (user2026-11-14): all brown UI text uses shared NativeTextPalette.brown #CF9373, including titles/navigation, subtitles, short paper prompts, Stage/Endurance labels and Story fact. Orange accents and intentional opacity/disabled/white text treatments remain; artwork and shadow colors are separate.
+
+iPhone modal close-hand latest reference(user2026-11-13): original orientation
+with clockwise22.5degree tilt and70percent guide size,body below/right of X.
+Existing fingertip/offset remains. Supersedes prior phone-left-mirror instruction.
+iPad keeps mirrored10degree full-size pose;other tutorial hands unchanged.
+
+Journey DRAG TO FLIP coach(user2026-11-13): use the same12pt-corner paper,
+40percent edge detail,80percent paper and warm shadow as Tap to collect,with
+17pt readable brown/orange caption. One whole finite coach container retains
+existing idle/interaction/pause/cleanup ownership;hand/flip behavior unchanged.
+
+Tutorial close-hand mirror(user2026-11-13): on iPhone the collection/detail X
+guide extends left from its existing fingertip anchor,matching tablet mirror.
+Keep size,offsets,finite tap,other guidance and iPad geometry unchanged.
+
+Tutorial branch retired(user2026-11-13): feature/contextual-tutorial-v2 fully
+merged into main on2026-11-12,local reference safely deleted after verified
+2026-11-13 Simulator delivery. Live origin has no matching branch. All further
+Native/tutorial development remains on main;do not recreate it by default.
+
+Tutorial delivery landing latest clarification(user2026-11-13): BOTH iPhone
+and iPad end the Box/Backpack jump at visible-ink center70percent viewport
+height,20percent below screen midpoint,and open there. Supersedes phone-retains-
+old-anchor policy;initial covered placement,slower spring jump and drop target stay.
+
+Tutorial spring jump latest(user2026-11-13): slower370ms ascent,25percent
+higher crest,stronger upward stretch,gentler260ms return and smaller contact
+squash. Total1.26s supersedes1.02s. Shared Box/Backpack and device return anchors
+remain;tablet opening-anchor transfer follows the same slower takeoff clock.
+
+Tutorial carrier landing softness(user2026-11-13): shared Box/Backpack jump
+settles over1.02s instead of0.88s. Descent eases to zero speed at contact,smaller
+landing squash,longer recovery and55percent second-bounce squash at slower pace.
+Takeoff height,half-sheet timing and device-specific opening positions stay.
+
+iPad tutorial delivery (user2026-11-13): match current iPhone external covered
+Backpack/Box,Open backpack/Open box CTA and half-sheet-descent jump. iPad only
+returns the visible closed carrier center to70percent screen height before
+opening,20percent below midpoint. Initial covered anchor and phone geometry stay.
+
+Arcade tutorial clear policy (user2026-11-13): before Clean Board, reuse the
+existing Journey CLEARED animation and original random thumb/paw. Admit at
+settled tutorial terminal, wait for existing board exit, then show Clean Board
+without another numbered-round cue. Only this Arcade tutorial uses Journey's
+CLEARED voice/whoosh without the additional Arcade victory music/applause bed;
+Clean Board keeps its existing Journey-style result audio. Ordinary Arcade
+remains unchanged,including its victory bed and automatic next-round behavior.
+Arcade tutorial also reuses Journey's residual-then-HUD exit during CLEARED,
+including the existing one-second hold after thumb entry;Clean Board waits for
+that finite exit. Only ordinary Arcade rounds preserve settled HUD chrome.
+
+Native tutorial round-label policy (user2026-11-13): no Arcade round indicator
+or numbered entry announcement until firstPlayTutorialComplete is globally
+true, including saved tutorial
+checkpoints, locally completed guide flags and foreground/relaunch. Local HUD
+lesson unlocks do not admit numbered rounds. Existing tutorial checkpoint and
+normal game progression remain unchanged.
+
 # Stack to Six Project Context
 
 Current illustration/render authority (user2026-10-28): `game design/APPROVED_RENDER_MASTER.md` and its exact `game design/style-masters/journey-approved-20261028.png` reference replace older character/render descriptions. The same approved Journey image now defines Jimbo/Nala appearance and clean rounded warm-soft retro finish in the separate Studio. Earlier five Jimbo and standalone Nala masters are historical, not default generation authorities. Nala’s anatomical left ear may sometimes fold; upright ears are valid. This is design guidance only; no runtime artwork replacement or acceptance of new generated candidates is implied.
@@ -6,7 +67,37 @@ This file is the stable, authoritative onboarding map for new Codex chats. Verif
 
 Fresh Native profiles default every player preference to ON: Game sounds, Music and Vibration (user decision 2026-10-27). Explicit saved user choices remain authoritative; missing imported preferences use the same ON defaults.
 
+Native tutorial collection-return policy (user2026-11-13): Journey and Arcade
+continue to Your combo immediately after the actual Backpack/Box tutorial visit
+closes. No extra gameplay moves. Already-acknowledged collection checkpoints
+resume pending Combo on launch;missing legacy HUD-reveal receipts can recover
+only while the Combo lesson is explicitly pending. Legacy skipped/completed
+lessons remain quiet;legacy missing collection receipt keeps its six-move fallback.
+
+Native Arcade tutorial Box policy (user2026-11-13): every Special deal throughout
+practice uses only Cubero (`star/cubero`), Balloon (`juice/baloon`), original TNT
+or original Magnet, uniformly. This includes the selected guided reward and later
+completion-assist meter drops, in every selected Arcade variant. Older invalid
+selected tutorial rewards are reselected on resume; valid selections stay fixed.
+Ordinary Arcade and Journey pools, already spawned dice and asset bytes stay intact.
+
 ## Native-first main decision (2026-10-07)
+
+Native intro retirement (user2026-11-13): `lik-pas-SVG` (Jimbo & Nala leash
+scene) is removed from the shared startup/DEV character registry and its native
+character-specific playback mappings. Nine other Native intros remain. Original
+media stays preserved; the historical PWA intro inventory below is a separate product.
+
+Progressive Native Arcade Box (user2026-11-13): four base dice (Cubero, Balloon,
+TNT, Magnet), then actual Journey discoveries appended in durable first-discovery
+order. All three Arcade modes share that eligible pool; One Lucky Drop keeps its
+one-drop limit. Box uses three columns on phone/tablet and scrolls when its modal
+overflows. See GAMEPLAY_KING_CONTRACT progressive Box rule for migration/rarity.
+
+Native DEV result previews (user2026-11-13): Fail Screen opens the existing Fail
+presentation directly. Clean Stage, Clean Arcade, Clean Beach and Clean Area55
+offer a1/2/3-star picker before preview. These views use no-op result commits,
+preserve the real profile,and retire their result view/audio through Close DEV.
 
 User-selected Native production/continuation baseline (2026-11-08): immutable
 `production-ready-v1`, named **Production ready v1**. See
@@ -54,7 +145,7 @@ User decision2026-11-02: iPad visual/layout/motion adaptations are tablet-only. 
 
 - Ordinary active Native storyboard launches use Swift root in Debug/Release. Historical `NATIVE_GAMEPLAY_PHONE_PREVIEW` and archived GameViewController arguments are not current active-root prerequisites. Normal storyboard launches now select the complete Swift Source-fidelity graph by default. DEBUG hosted unit-test roots stay quiet so explicit fixtures can own the shared transport. Current behavioral acceptance is tracked in CURRENT_HANDOFF; the word Source denotes a Swift port of the preserved rules, not JavaScript execution.
 - Native work follows NATIVE_100_PERCENT_PLAN and current handoff; asset/motion and physical acceptance remain explicit. Native QA requires no external PWA bundle sync. Historical PWA workflows below apply only to explicitly requested PWA work.
-- Contextual first-play policy (user2026-10-26): Journey Home opens World selection; selected Unit01 Play uses its authored Special and normal result/card progression. Arcade practice retains selected mode, skips number announcements and ends with Tutorial completed/thumb/Continue before real01. One global completion marker and optional canonical firstPlayRun checkpoint retain destination/reward. Post-Special Great merge/Continue uses the existing finite bottom sheet. See CONTEXTUAL_ONBOARDING.md. This supersedes the former detached forced-fresh v9 tutorial policy; legacy import force-next precedence remains. Same-mode incomplete tutorials resume after exit/relaunch; starting the other mode discards that unfinished guide and starts fresh there until global completion (user2026-11-11).
+- Contextual first-play policy (user2026-10-26): Journey Home opens World selection; selected Unit01 Play uses its authored Special and normal result/card progression. Arcade practice uses Endurance rules for every selected mode only until global tutorial completion;selected real mode/run/stats stay preserved. Practice skips number announcements and ends with full Clean Board;Continue/Exit both return to Arcade selection then the final high-five sheet. Early practice Exit preserves the guide without farewell (user2026-11-12). One global completion marker and optional canonical firstPlayRun checkpoint retain destination/reward. Post-Special Great merge/Continue uses the existing finite bottom sheet. See CONTEXTUAL_ONBOARDING.md. This supersedes the former detached forced-fresh v9 tutorial policy; legacy import force-next precedence remains. Same-mode incomplete tutorials resume after exit/relaunch; starting the other mode discards that unfinished guide and starts fresh there until global completion (user2026-11-11).
 - Standalone Native cold/icon launch selects the existing NativeOwnedMetalGameplayView without requiring `--cc-owned-metal-renderer`. Non-Native test hosts and unavailable Metal retain the legacy fallback. Scene/Core/input/audio/save owners and pixel-density budget remain shared; physical sustained drag acceptance is tracked separately in CURRENT_HANDOFF.
 - Physical target: **iPhone 13 blue**; verify connected identity before any install. Do not uninstall or reset saves. Do not change to LAN/Vite mode or another device without user authorization.
 - Historical hardware destination `00008110-001E39961AFA801E`, CoreDevice `0F62B71E-0B04-53C3-906E-EC28F5D2390B`; these are mutable, verify live.

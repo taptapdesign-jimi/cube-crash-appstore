@@ -6,12 +6,15 @@ import StackToSixNativeState
 @testable import Stack_to_Six
 
 @MainActor final class NativeCompleteGameplayRootTests:XCTestCase {
-    func testRestoredBackpackCTAShowsIdleEffectsThenHigherJumpAndBallRebound()async throws {try await restoredDelivery(openByTap:false)}
-    func testDeliveryCarrierIsNotAnOpenControlAndGotItContinuesAutomaticDrop()async throws {try await restoredDelivery(openByTap:true)}
-    private func restoredDelivery(openByTap:Bool)async throws {
+    func testRestoredBackpackCTARevealsCoveredCarrierWithSameJumpAndBallRebound()async throws {try await restoredDelivery(openByTap:false)}
+    func testCoveredDeliveryCarrierRejectsTapAndDoubleCTAOpensOnce()async throws {try await restoredDelivery(openByTap:true)}
+    func testArcadeTutorialBoxUsesBackpackJumpAndAlignedPhoneSheet()async throws {try await restoredDelivery(openByTap:false,arcade:true)}
+    func testTabletBackpackDeliveryReturnsTwentyPercentBelowCenter()async throws {try await restoredDelivery(openByTap:false,tablet:true)}
+    func testTabletBoxDeliveryReturnsTwentyPercentBelowCenter()async throws {try await restoredDelivery(openByTap:false,arcade:true,tablet:true)}
+    private func restoredDelivery(openByTap:Bool,arcade:Bool=false,tablet:Bool=false)async throws {
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("backpack-delivery-"+UUID().uuidString)
         let store=NativeSaveStore(directory:directory)
-        var board=NativeBoardFactory.make(mode:.journey,board:1,generation:9,seed:7)
+        var board=NativeBoardFactory.make(mode:arcade ? .arcade:.journey,board:1,generation:9,seed:7)
         var tutorial=NativeTutorialState();tutorial.step = .freePlay;tutorial.objectiveAcknowledged=true
         tutorial.specialBarSuccessfulActions=6;tutorial.specialBarAcknowledged=true;tutorial.waitingForWild=false
         tutorial.rewardArchetype = .star;tutorial.rewardVariant="bee"
@@ -20,50 +23,85 @@ import StackToSixNativeState
         envelope.firstPlayRun=board;try store.save(envelope)
         let host=NativeStandaloneViewController(resourceRoot:NativeTestResources.root,store:store,sourceVisualRandom:{0.1},completeNativeGameplayEnabled:true)
         let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
-        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=host;window.makeKeyAndVisible()
+        let window=UIWindow(frame:tablet ? CGRect(x:0,y:0,width:834,height:1194):CGRect(x:0,y:0,width:390,height:844));window.rootViewController=host;window.makeKeyAndVisible()
         defer{host.dispose();window.isHidden=true;previous?.makeKeyAndVisible();try? FileManager.default.removeItem(at:directory)}
         host.loadViewIfNeeded();let app=try XCTUnwrap(host.children.first as? NativeAppController)
         try await wait("delivery-home"){!app.home.isHidden && app.home.isUserInteractionEnabled}
-        app.navigate(.world(1),interrupt:true)
-        try await wait("delivery-world"){app.world?.isReadyForInput==true && !app.transitioning}
-        app.world?.onRequest?("continue",1)
+        if arcade {app.navigate(.gameplay,interrupt:true)}else{
+            app.navigate(.world(1),interrupt:true)
+            try await wait("delivery-world"){app.world?.isReadyForInput==true && !app.transitioning}
+            app.world?.onRequest?("continue",1)
+        }
         try await wait("delivery-game"){self.game(app)?.boardScene?.isBoardEntryComplete==true}
         let game=try XCTUnwrap(game(app)),scene=try XCTUnwrap(game.boardScene)
-        try await wait("delivery-idle"){game.view.subviews.compactMap{$0 as? NativeTutorialOverlay}.contains{$0.backpackIdleEffectActive}}
+        try await wait("delivery-held-carrier"){scene.heldTutorialBackpackCarrier != nil && game.view.subviews.compactMap{$0 as? NativeTutorialOverlay}.contains{$0.backpackInkVisible}}
         let overlay=try XCTUnwrap(game.view.subviews.compactMap{$0 as? NativeTutorialOverlay}.first)
-        try await wait("delivery-shimmer"){overlay.backpackIdleShimmerOpacity>0.1}
+        XCTAssertFalse(overlay.backpackIdleEffectActive,"Covered artwork must not start decorative work")
         try await wait("delivery-sheet-settled"){abs(overlay.sourceSheetTranslation)<0.001}
         XCTAssertTrue(overlay.backpackInkVisible)
+        XCTAssertTrue(overlay.backpackInkBehindSheet)
         let snapshot=UIGraphicsImageRenderer(bounds:game.view.bounds).image{_ in game.view.drawHierarchy(in:game.view.bounds,afterScreenUpdates:true)}
-        try snapshot.pngData()?.write(to:URL(fileURLWithPath:openByTap ? "/tmp/backpack-idle-tap-root.png":"/tmp/backpack-idle-cta-root.png"))
+        try snapshot.pngData()?.write(to:URL(fileURLWithPath:arcade ? "/tmp/tutorial-box-aligned-phone.png":openByTap ? "/tmp/backpack-idle-tap-root.png":"/tmp/backpack-idle-cta-root.png"))
         let carrier=try XCTUnwrap(scene.heldTutorialBackpackCarrier)
         let render=try XCTUnwrap(scene.gameplayRenderHost)
         func point()->CGPoint {render.scenePointToView(carrier.convert(.zero,to:scene),scene:scene)}
-        let anchor=point(),height=carrier.size.height*carrier.yScale,texture=carrier.texture
+        let anchor=point(),texture=carrier.texture
+        let top=render.scenePointToView(carrier.convert(CGPoint(x:0,y:carrier.size.height*(1-carrier.anchorPoint.y)),to:scene),scene:scene)
+        let bottom=render.scenePointToView(carrier.convert(CGPoint(x:0,y:-carrier.size.height*carrier.anchorPoint.y),to:scene),scene:scene)
+        let height=abs(bottom.y-top.y)
+        XCTAssertEqual(NativeTabletLayout.applies(game.view.bounds.size),tablet)
+        let inkMidY:CGFloat=arcade ? 241/403.0:232.5/438.0
+        let returnY=game.view.bounds.height*0.70+height*(0.72-inkMidY)
+        XCTAssertNotNil(scene.tutorialCarrierLayout?.openingPoint)
         func all(_ view:UIView)->[UIView]{[view]+view.subviews.flatMap(all)}
-        XCTAssertFalse(all(overlay).contains{$0.accessibilityIdentifier=="native.tutorial.open-backpack"})
-        if openByTap {
-            let hit=overlay.hitTest(overlay.convert(point(),from:render.renderView),with:nil)
-            XCTAssertFalse(hit is UIControl,"Carrier art does not offer a manual opening action")
-            try await Task.sleep(for:.milliseconds(120))
-            XCTAssertTrue(scene.heldTutorialBackpackCarrier === carrier)
-            XCTAssertTrue(overlay.backpackIdleEffectActive)
-        }
         let button=try XCTUnwrap(all(overlay).compactMap{$0 as? UIButton}.first{$0.accessibilityIdentifier=="native.tutorial.got-it"})
-        XCTAssertEqual(button.title(for:.normal),"Got it")
-        button.sendActions(for:.touchUpInside)
+        XCTAssertEqual(button.title(for:.normal),arcade ? "Open box":"Open backpack")
+        if openByTap {
+            let control=try XCTUnwrap(all(overlay).compactMap{$0 as? UIButton}.first{$0.accessibilityIdentifier=="native.tutorial.open-backpack"})
+            XCTAssertTrue(control.isHidden)
+            XCTAssertFalse(control.isEnabled)
+            let hit=overlay.hitTest(CGPoint(x:control.frame.midX,y:control.frame.midY),with:nil)
+            XCTAssertFalse(hit === control,"Covered artwork cannot intercept the sheet")
+            button.sendActions(for:.touchUpInside)
+            button.sendActions(for:.touchUpInside)
+        }else{button.sendActions(for:.touchUpInside)}
         XCTAssertFalse(overlay.backpackIdleEffectActive)
-        var maximum:CGFloat=0,landed=false,rebounded=false
+        let closedX=carrier.xScale,closedY=carrier.yScale
+        var maximum:CGFloat=0,landed=false,rebounded=false,sawFirstHalf=false,descending=false,capturedLanding=false
         let deadline=Date().addingTimeInterval(4)
         while carrier.texture === texture && Date()<deadline {
             let rise=anchor.y-point().y;maximum=max(maximum,rise)
-            if maximum>height*0.45 && rise<height*0.04 {landed=true}
-            if landed && rise>height*0.12 {rebounded=true}
+            if overlay.sourceSheetTranslation>0,overlay.sourceSheetTranslation<overlay.sourceSheetHeight*0.5 {
+                sawFirstHalf=true
+                XCTAssertEqual(rise,0,accuracy:1,"Carrier stays held until half the actual sheet travel")
+                XCTAssertEqual(carrier.xScale,closedX,accuracy:0.001)
+                XCTAssertEqual(carrier.yScale,closedY,accuracy:0.001)
+            }
+            if maximum>height*0.70 && maximum-rise>height*0.02 {descending=true}
+            if descending && abs(point().y-returnY)<height*0.04 {landed=true}
+            if landed && point().y<returnY-height*0.12 {rebounded=true}
+            if !openByTap && rebounded && !capturedLanding && abs(point().y-returnY)<height*0.04 {
+                let ink=carrier.convert(CGPoint(x:0,y:(0.72-inkMidY)*carrier.size.height),to:scene)
+                let visibleCenter=render.scenePointToView(ink,scene:scene)
+                XCTAssertEqual(visibleCenter.y,game.view.bounds.height*0.70,accuracy:height*0.04)
+                let image=UIGraphicsImageRenderer(bounds:game.view.bounds).image{_ in game.view.drawHierarchy(in:game.view.bounds,afterScreenUpdates:true)}
+                try image.pngData()?.write(to:URL(fileURLWithPath:tablet ? (arcade ? "/tmp/ipad-box-landing.png":"/tmp/ipad-backpack-landing.png"):(arcade ? "/tmp/phone-box-landing.png":"/tmp/phone-backpack-landing.png")))
+                capturedLanding=true
+            }
             try await Task.sleep(for:.milliseconds(8))
         }
-        XCTAssertGreaterThan(maximum,height*0.47);XCTAssertTrue(landed);XCTAssertTrue(rebounded)
+        // Exact carrier motion is covered by the manually stepped Source test;
+        // this real-clock alternate-input case verifies one opening and drop.
+        if !openByTap {
+            XCTAssertTrue(sawFirstHalf,"Mounted delivery must sample the first half of sheet descent")
+            XCTAssertGreaterThan(maximum,height*0.70)
+            XCTAssertTrue(landed,"Main jump returns to the device opening anchor")
+            XCTAssertTrue(rebounded,"Second flight follows the main landing")
+            XCTAssertTrue(capturedLanding,"Capture settled visible ink at70percent height")
+        }
         XCTAssertFalse(carrier.texture === texture,"Original opening follows the completed closed-carrier rebound")
         try await wait("delivery-special"){game.engine.state.wildSpawnCount>0}
+        XCTAssertEqual(game.engine.state.wildSpawnCount,1)
         XCTAssertFalse(overlay.backpackIdleEffectActive)
         XCTAssertFalse(try XCTUnwrap(store.load()).progression.firstPlayTutorialComplete)
     }
@@ -71,22 +109,40 @@ import StackToSixNativeState
     func testCollectionLessonCanceledVisitDoesNotAcknowledge()async throws {try await collectionLesson(openBackpack:true,cancelVisit:true)}
     func testCollectionLessonBackpackReturnsToSameBoardWithoutRepeating()async throws {try await collectionLesson(openBackpack:true)}
     func testArcadeCollectionLessonUsesBoxAfterCheckpointRestore()async throws {try await collectionLesson(openBackpack:false,arcade:true)}
+    func testArcadeCollectionCanceledVisitKeepsUnacknowledgedLesson()async throws {try await collectionLesson(openBackpack:false,arcade:true,cancelVisit:true)}
     func testArcadeCollectionWalkthroughPointsToDieThenBothCloseButtons()async throws {try await collectionLesson(openBackpack:true,arcade:true)}
+    func testArcadeCollectionWalkthroughPointsToSelectedMagnet()async throws {try await collectionLesson(openBackpack:true,arcade:true,tutorialReward:.init(.magnet))}
+    func testArcadeCollectionWalkthroughPointsToSelectedBalloon()async throws {try await collectionLesson(openBackpack:true,arcade:true,tutorialReward:.init(.juice,variant:"baloon"))}
+    func testArcadeCollectionWalkthroughPointsToSelectedTNT()async throws {try await collectionLesson(openBackpack:true,arcade:true,tutorialReward:.init(.tnt))}
     func testCompletionLessonCheckpointRestoresAndCancelsWithoutAcknowledgement()async throws {try await collectionLesson(openBackpack:false,completionCheckpoint:true)}
-    private func collectionLesson(openBackpack:Bool,arcade:Bool=false,cancelVisit:Bool=false,completionCheckpoint:Bool=false)async throws {
+    func testRestoredCollectionCTARepeatsHandsUntilLessonCompletes()async throws {try await collectionLesson(openBackpack:false,guidanceSeen:true)}
+    func testRestoredCollectionIconRepeatsHandsUntilLessonCompletes()async throws {try await collectionLesson(openBackpack:true,guidanceSeen:true)}
+    func testJourneyCollectionDirectCloseContinuesToComboWithoutAnotherMove()async throws {try await collectionLesson(openBackpack:false,directClose:true)}
+    func testArcadeCollectionDirectCloseContinuesToComboWithoutAnotherMove()async throws {try await collectionLesson(openBackpack:false,arcade:true,directClose:true)}
+    func testJourneyAcknowledgedCollectionRestoreContinuesToCombo()async throws {try await collectionLesson(openBackpack:false,comboCheckpoint:true)}
+    func testArcadeAcknowledgedCollectionRestoreContinuesToCombo()async throws {try await collectionLesson(openBackpack:false,arcade:true,comboCheckpoint:true)}
+    func testJourneyLegacyPendingComboRestoreContinuesWithoutHUDReceipt()async throws {try await collectionLesson(openBackpack:false,comboCheckpoint:true,legacyComboHUD:true)}
+    func testArcadeLegacyPendingComboRestoreContinuesWithoutHUDReceipt()async throws {try await collectionLesson(openBackpack:false,arcade:true,comboCheckpoint:true,legacyComboHUD:true)}
+    private func collectionLesson(openBackpack:Bool,arcade:Bool=false,cancelVisit:Bool=false,completionCheckpoint:Bool=false,guidanceSeen:Bool=false,directClose:Bool=false,comboCheckpoint:Bool=false,legacyComboHUD:Bool=false,tutorialReward:NativeWildRewardChoice?=nil)async throws {
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("collection-lesson-"+UUID().uuidString)
         let store=NativeSaveStore(directory:directory)
         var board=NativeBoardFactory.make(mode:arcade ? .arcade:.journey,board:1,generation:9,seed:7)
         board.moves=37;board.score=311
         var tutorial=NativeTutorialState();tutorial.active=false;tutorial.guideCompleted=true;tutorial.completionAssist=true
+        if arcade {
+            let reward=tutorialReward ?? .init(.star,variant:"cubero")
+            tutorial.rewardArchetype=reward.archetype;tutorial.rewardVariant=reward.variant
+        }
         tutorial.objectiveAcknowledged=true;tutorial.encouragementAcknowledged=true;tutorial.collectionLessonAcknowledged=false
         tutorial.comboLessonAcknowledged=false;tutorial.comboHUDRevealed=false
+        if comboCheckpoint {tutorial.collectionLessonAcknowledged=true;tutorial.comboLessonMoveCount=0;if legacyComboHUD{tutorial.comboHUDRevealed=nil}}
         if completionCheckpoint {
             tutorial.collectionLessonAcknowledged=true;tutorial.comboLessonAcknowledged=true
             tutorial.comboHUDRevealed=true;tutorial.completionLessonAcknowledged=false
         }
         board.tutorial=tutorial
         var envelope=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
+        envelope.progression.tutorialCollectionGuidanceSeen=guidanceSeen
         envelope.firstPlayRun=board;_ = envelope.progression.announceJourneyDie("bee",board:1);try store.save(envelope)
         let host=NativeStandaloneViewController(resourceRoot:NativeTestResources.root,store:store,sourceVisualRandom:{0.1},completeNativeGameplayEnabled:true)
         let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
@@ -117,10 +173,24 @@ import StackToSixNativeState
             XCTAssertEqual(try store.load()?.firstPlayRun?.tutorial?.completionLessonAcknowledged,false)
             return
         }
+        if comboCheckpoint {
+            XCTAssertTrue(all(overlay).compactMap{$0 as? UILabel}.contains{$0.text=="Your combo"})
+            XCTAssertEqual(cta.title(for:.normal),"Got it")
+            XCTAssertTrue(game.engine.tutorialComboPaused)
+            XCTAssertEqual(game.engine.state.tutorial?.comboHUDRevealed,true)
+            XCTAssertEqual(game.engine.state.tutorial?.comboLessonAcknowledged,false)
+            XCTAssertEqual(game.engine.state.moves,37)
+            let image=UIGraphicsImageRenderer(bounds:game.view.bounds).image{_ in game.view.drawHierarchy(in:game.view.bounds,afterScreenUpdates:true)}
+            try image.pngData()?.write(to:URL(fileURLWithPath:arcade ? "/tmp/combo-return-restored-arcade.png":"/tmp/combo-return-restored-journey.png"))
+            host.dispose()
+            XCTAssertEqual(try store.load()?.firstPlayRun?.tutorial?.comboLessonAcknowledged,false)
+            return
+        }
         XCTAssertTrue(all(overlay).compactMap{$0 as? UILabel}.contains{$0.text==(arcade ? "Your box":"Your backpack")})
         XCTAssertTrue(all(overlay).compactMap{$0 as? UILabel}.contains{$0.text?.replacingOccurrences(of:"\n",with:" ")=="Tap the \(arcade ? "box":"backpack") to meet your little helpers."})
-        XCTAssertEqual(cta.title(for:.normal),arcade ? "Got it":"Open backpack")
-        XCTAssertTrue(overlay.sourcePointerVisible);XCTAssertTrue(game.engine.tutorialComboPaused)
+        XCTAssertEqual(cta.title(for:.normal),arcade ? "Open box":"Open backpack")
+        try await wait("collection-hand-visible"){overlay.sourcePointerVisible}
+        XCTAssertTrue(game.engine.tutorialComboPaused)
         XCTAssertFalse(game.engine.canBeginDrag(tileID:try XCTUnwrap(game.engine.state.activeTiles.first).id))
         let backpack=try XCTUnwrap(all(overlay).compactMap{$0 as? UIButton}.first{$0.accessibilityIdentifier=="native.tutorial.collection-backpack"})
         XCTAssertEqual(backpack.accessibilityLabel,arcade ? "Open box":"Open backpack")
@@ -129,23 +199,26 @@ import StackToSixNativeState
         XCTAssertTrue(overlay.hitTest(CGPoint(x:10,y:400),with:nil) === overlay)
         let shot=UIGraphicsImageRenderer(bounds:game.view.bounds).image{_ in game.view.drawHierarchy(in:game.view.bounds,afterScreenUpdates:true)}
         try shot.pngData()?.write(to:URL(fileURLWithPath:arcade ? "/tmp/tutorial-arcade-box-sheet.png":"/tmp/tutorial-dice-collection-sheet.png"))
-        if !arcade {
+        do {
             let help=game.onHelp;game.onHelp=nil
             cta.sendActions(for:.touchUpInside)
             XCTAssertNil(game.presentedViewController);XCTAssertFalse(overlay.isHidden)
             XCTAssertEqual(game.engine.state.tutorial?.collectionLessonAcknowledged,false)
             game.onHelp=help
         }
-        if openBackpack {backpack.sendActions(for:.touchUpInside)}else{cta.sendActions(for:.touchUpInside)}
-        if !arcade {
+        let selectedControl=openBackpack ? backpack:cta
+        let tapPoint=selectedControl.convert(CGPoint(x:selectedControl.bounds.midX,y:selectedControl.bounds.midY),to:overlay)
+        let hit=try XCTUnwrap(overlay.hitTest(tapPoint,with:nil) as? UIControl)
+        XCTAssertTrue(hit === selectedControl,"Both the visible Backpack and CTA route real hits to the collection action")
+        hit.sendActions(for:.touchUpInside)
+        do {
             XCTAssertNil(game.presentedViewController,"Wait for the reading sheet exit before presenting Backpack")
             XCTAssertFalse(overlay.isHidden)
         }
-        if arcade {try await wait("collection-acknowledged"){game.engine.state.tutorial?.collectionLessonAcknowledged==true && overlay.isHidden}}
-        if openBackpack || !arcade {
+        do {
             try await wait("collection-modal"){game.presentedViewController is NativeGameplayBackpackController}
             let modal=try XCTUnwrap(game.presentedViewController as? NativeGameplayBackpackController)
-            if !arcade {
+            do {
                 XCTAssertTrue(overlay.isHidden,"The reading sheet exits before the actual modal opens")
                 XCTAssertEqual(game.engine.state.tutorial?.collectionLessonAcknowledged,false)
                 XCTAssertEqual(try store.load()?.firstPlayRun?.tutorial?.collectionLessonAcknowledged,false)
@@ -165,46 +238,59 @@ import StackToSixNativeState
                 return
             }
             weak var retiredHand=modal.tutorialHand
-            XCTAssertFalse(try XCTUnwrap(modal.tutorialHand).view.isUserInteractionEnabled)
-            try await Task.sleep(for:.milliseconds(530))
-            let firstScreenshot=UIGraphicsImageRenderer(bounds:modal.view.bounds).image{_ in modal.view.drawHierarchy(in:modal.view.bounds,afterScreenUpdates:true)}
-            try firstScreenshot.pngData()?.write(to:URL(fileURLWithPath:arcade ? "/tmp/tutorial-box-hand-first.png":"/tmp/tutorial-backpack-hand-first.png"))
-            modal.setForeground(false)
-            XCTAssertTrue(try XCTUnwrap(modal.tutorialHand).view.isHidden)
-            let paused=try XCTUnwrap(modal.tutorialHand).view.layer.convertTime(CACurrentMediaTime(),from:nil)
-            try await Task.sleep(for:.milliseconds(80))
-            XCTAssertEqual(try XCTUnwrap(modal.tutorialHand).view.layer.convertTime(CACurrentMediaTime(),from:nil),paused,accuracy:0.005)
-            modal.setForeground(true)
-            XCTAssertFalse(try XCTUnwrap(modal.tutorialHand).view.isHidden)
-            let screen=try XCTUnwrap(modal.screen),first=try XCTUnwrap(screen.firstUnlockedVisibleDieView as? UICollectionViewCell)
-            let path=try XCTUnwrap(screen.grid.indexPath(for:first))
-            screen.collectionView(screen.grid,didSelectItemAt:path)
-            XCTAssertNil(modal.tutorialHand?.view.superview,"Retire collection hand during exchange")
-            try await wait("collection-hand-detail"){modal.tutorialHand?.phase=="detail-close"}
-            let detailReleased=try closeTutorialDetail(modal,arcade:arcade)
-            try await wait("collection-hand-close"){modal.detail==nil && modal.tutorialHand?.phase=="collection-close"}
-            try await wait("collection-detail-released"){detailReleased()}
-            let closeScreenshot=UIGraphicsImageRenderer(bounds:modal.view.bounds).image{_ in modal.view.drawHierarchy(in:modal.view.bounds,afterScreenUpdates:true)}
-            try closeScreenshot.pngData()?.write(to:URL(fileURLWithPath:arcade ? "/tmp/tutorial-box-hand-close.png":"/tmp/tutorial-backpack-hand-close.png"))
-            let qualityImage=UIGraphicsImageRenderer(bounds:modal.view.bounds).image{_ in modal.view.drawHierarchy(in:modal.view.bounds,afterScreenUpdates:true)}
-            try qualityImage.pngData()?.write(to:URL(fileURLWithPath:"/tmp/backpack-phone-quality.png"))
+            if !directClose {
+                XCTAssertFalse(try XCTUnwrap(modal.tutorialHand).view.isUserInteractionEnabled)
+                try await Task.sleep(for:.milliseconds(530))
+                let firstScreenshot=UIGraphicsImageRenderer(bounds:modal.view.bounds).image{_ in modal.view.drawHierarchy(in:modal.view.bounds,afterScreenUpdates:true)}
+                let selectedID=arcade ? (tutorialReward?.variant ?? (tutorialReward?.archetype == .magnet ? "wild-magnet":tutorialReward?.archetype == .tnt ? "tnt":"cubero")):"bee"
+                try firstScreenshot.pngData()?.write(to:URL(fileURLWithPath:arcade ? "/tmp/tutorial-box-hand-\(selectedID).png":"/tmp/tutorial-backpack-hand-first.png"))
+                let selectedScreen=try XCTUnwrap(modal.screen),selectedCell=try XCTUnwrap(selectedScreen.unlockedVisibleDieView(id:selectedID))
+                let hand=try XCTUnwrap(modal.tutorialHand).view
+                let rightColumn=selectedID=="wild-magnet" || selectedID=="baloon"
+                let tip=selectedCell.convert(CGPoint(x:selectedCell.bounds.width*(rightColumn ? 0.1:0.9),y:selectedCell.bounds.height*0.9),to:hand.superview)
+                XCTAssertEqual(hand.layer.position.x,tip.x,accuracy:0.001)
+                XCTAssertEqual(hand.layer.position.y,tip.y,accuracy:0.001)
+                XCTAssertEqual(hand.layer.anchorPoint.x,rightColumn ? 1-20/176.0:20/176.0,accuracy:0.001)
+                XCTAssertEqual((hand.subviews.first as? UIImageView)?.transform.a,rightColumn ? -1:1)
+                modal.setForeground(false)
+                XCTAssertTrue(try XCTUnwrap(modal.tutorialHand).view.isHidden)
+                let paused=try XCTUnwrap(modal.tutorialHand).view.layer.convertTime(CACurrentMediaTime(),from:nil)
+                try await Task.sleep(for:.milliseconds(80))
+                XCTAssertEqual(try XCTUnwrap(modal.tutorialHand).view.layer.convertTime(CACurrentMediaTime(),from:nil),paused,accuracy:0.005)
+                modal.setForeground(true)
+                XCTAssertFalse(try XCTUnwrap(modal.tutorialHand).view.isHidden)
+                let screen=try XCTUnwrap(modal.screen),first=try XCTUnwrap(screen.unlockedVisibleDieView(id:selectedID) as? UICollectionViewCell)
+                let path=try XCTUnwrap(screen.grid.indexPath(for:first))
+                screen.collectionView(screen.grid,didSelectItemAt:path)
+                XCTAssertNil(modal.tutorialHand?.view.superview,"Retire collection hand during exchange")
+                try await wait("collection-hand-detail"){modal.tutorialHand?.phase=="detail-close"}
+                XCTAssertEqual(modal.detail?.die.id,selectedID)
+                let detailReleased=try closeTutorialDetail(modal,arcade:arcade)
+                try await wait("collection-hand-close"){modal.detail==nil && modal.tutorialHand?.phase=="collection-close"}
+                try await wait("collection-detail-released"){detailReleased()}
+                let closeScreenshot=UIGraphicsImageRenderer(bounds:modal.view.bounds).image{_ in modal.view.drawHierarchy(in:modal.view.bounds,afterScreenUpdates:true)}
+                try closeScreenshot.pngData()?.write(to:URL(fileURLWithPath:arcade ? "/tmp/tutorial-box-hand-close.png":"/tmp/tutorial-backpack-hand-close.png"))
+                let qualityImage=UIGraphicsImageRenderer(bounds:modal.view.bounds).image{_ in modal.view.drawHierarchy(in:modal.view.bounds,afterScreenUpdates:true)}
+                try qualityImage.pngData()?.write(to:URL(fileURLWithPath:"/tmp/backpack-phone-quality.png"))
+            }
             let close=try XCTUnwrap(all(modal.view).compactMap{$0 as? UIButton}.first{$0.accessibilityIdentifier=="native.gameplay.backpack.close"})
-            if !arcade {
+            do {
                 XCTAssertTrue(overlay.isHidden)
                 XCTAssertEqual(game.engine.state.tutorial?.collectionLessonAcknowledged,false)
             }
             close.sendActions(for:.touchUpInside)
+            close.sendActions(for:.touchUpInside)
             try await wait("collection-modal-closed"){game.presentedViewController==nil && game.tutorialVisualPresentationAllowed}
             XCTAssertNil(retiredHand,"Closing the modal releases its only tutorial hand")
-        }else{XCTAssertNil(game.presentedViewController)}
-        if !arcade {
+        }
+        do {
             try await wait("combo-immediately-after-collection"){game.engine.state.tutorial?.collectionLessonAcknowledged==true && game.engine.state.tutorial?.comboHUDRevealed==true && !overlay.isHidden}
             XCTAssertTrue(game.engine.tutorialComboPaused)
             XCTAssertFalse(game.engine.canBeginDrag(tileID:try XCTUnwrap(game.engine.state.activeTiles.first).id))
             XCTAssertTrue(all(overlay).compactMap{$0 as? UILabel}.contains{$0.text=="Your combo"})
             XCTAssertEqual(game.engine.state.moves,37)
             try await wait("immediate-combo-sheet-settled"){sheet.layer.animation(forKey:"tutorial.sheet")==nil}
-            XCTAssertEqual(cta.title(for:.normal),"Next")
+            XCTAssertEqual(cta.title(for:.normal),"Got it")
             cta.sendActions(for:.touchUpInside)
             try await wait("completion-sheet-after-combo"){game.engine.state.tutorial?.comboLessonAcknowledged==true && !overlay.isHidden && cta.title(for:.normal)=="Keep going"}
             XCTAssertTrue(all(overlay).compactMap{$0 as? UILabel}.contains{$0.text=="Clear the board!"})
@@ -229,7 +315,7 @@ import StackToSixNativeState
         XCTAssertFalse(game.engine.tutorialComboPaused)
         XCTAssertTrue(game.engine.canBeginDrag(tileID:try XCTUnwrap(game.engine.state.activeTiles.first).id))
         game.refreshFromEngine();XCTAssertTrue(overlay.isHidden)
-        XCTAssertEqual(game.engine.state.tutorial?.comboLessonAcknowledged,!arcade)
+        XCTAssertEqual(game.engine.state.tutorial?.comboLessonAcknowledged,true)
         XCTAssertEqual(try store.load()?.firstPlayRun?.tutorial?.collectionLessonAcknowledged,true)
         XCTAssertEqual(scene.engine.state.generation,game.engine.state.generation)
         if openBackpack {

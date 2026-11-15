@@ -19,7 +19,7 @@ test('Home has three original art/CTA slides and semantic selector buttons, only
     expect(panel.querySelector('img')!.getAttribute('src')).toBe(slide.asset);
     expect(panel.querySelector('.jimi-primary-button')!.getAttribute('data-jimi-action')).toBe(slide.action);
   }
-  expect(root.querySelector('.jimi-logo-image')!.getAttribute('src')).toBe('./assets/logo-cube-crash.png');
+  expect(root.querySelector('.jimi-logo-image')!.getAttribute('src')).toBe('./assets/logo-stacktosix.png');
 });
 
 test('Hub keeps canonical Forest/Area55/Beach order, authored flags and all thirteen clouds without inventing progress',()=>{

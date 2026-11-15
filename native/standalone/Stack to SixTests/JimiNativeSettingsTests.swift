@@ -109,7 +109,7 @@ final class JimiNativeSettingsTests: XCTestCase {
         for button in settings.developerButtons { button.sendActions(for: .touchUpInside) }
         XCTAssertTrue(actions.isEmpty)
         settings.setDeveloperPanelVisible(true); settings.layoutSubviews()
-        XCTAssertEqual(settings.developerButtons.compactMap { $0.title(for: .normal) },["Show Card","Hide Card","Legendary Card","Reset Stage","New Card","Clean Stage","Clean Arcade","Clean Beach","Clean Area 55","End Game","LAST MERGE","Intro"])
+        XCTAssertEqual(settings.developerButtons.compactMap { $0.title(for: .normal) },["Show Card","Hide Card","Legendary Card","Reset Stage","New Card","Clean Stage","Clean Arcade","Clean Beach","Clean Area 55","Fail Screen","End Game","LAST MERGE","Intro"])
         for button in settings.developerButtons {
             XCTAssertFalse(button.isHidden); XCTAssertGreaterThanOrEqual(button.cartoonBounceFrame.minX,24)
             XCTAssertLessThanOrEqual(button.cartoonBounceFrame.maxX,296); XCTAssertGreaterThanOrEqual(button.bounds.height,44)
@@ -429,6 +429,33 @@ final class JimiNativeSettingsTests: XCTestCase {
         }
     }
 
+    func testSettingsBackRelayoutPreservesActualRouteAnchorsAndScrollViewport() throws {
+        for size in [CGSize(width:390,height:844),CGSize(width:820,height:1180)] {
+            let assets=JimiV9Artwork(resourceRoot:root)
+            let settings=JimiNativeSettingsView(frame:CGRect(origin:.zero,size:size),assets:assets)
+            let window=UIWindow(frame:settings.bounds),host=UIViewController()
+            window.rootViewController=host;host.view.addSubview(settings);window.isHidden=false
+            defer {window.isHidden=true;settings.removeFromSuperview()}
+            XCTAssertTrue(settings.apply(preferences));settings.layoutIfNeeded()
+            let viewport=settings.scroll.frame,offset=settings.scroll.contentOffset
+            let motion=NativeRouteMotion(home:JimiV9HomeView(frame:settings.bounds,assets:assets),hub:JimiV9HubView(frame:settings.bounds,assets:assets))
+            // Navigation queues this layout before installing the actual54% exit pivot.
+            settings.setDeveloperPanelVisible(false)
+            let tracks=settings.tracks(enter:false)
+            motion.animate(tracks,completion:{})
+            let positions=tracks.map{$0.0.layer.position}
+            XCTAssertEqual(settings.footer.layer.anchorPoint.y,0.54,accuracy:0.0001)
+            settings.layoutIfNeeded()
+            for (index,item) in tracks.enumerated() {
+                XCTAssertEqual(item.0.layer.position.x,positions[index].x,accuracy:0.001)
+                XCTAssertEqual(item.0.layer.position.y,positions[index].y,accuracy:0.001,"Back must not recenter a route-shifted pivot")
+            }
+            XCTAssertEqual(settings.scroll.frame,viewport)
+            XCTAssertEqual(settings.scroll.contentOffset,offset)
+            motion.cancel()
+        }
+    }
+
     func testPrivacyUsesCenteredV10PaperAndLifecycleOwnedClose() async throws {
         let privacy = JimiNativePrivacyController(assets:JimiV9Artwork(resourceRoot:root))
         privacy.loadViewIfNeeded();privacy.view.frame = CGRect(x:0,y:0,width:390,height:844)
@@ -570,4 +597,75 @@ final class JimiNativeSettingsTests: XCTestCase {
         XCTAssertNil(home.heroImages[2].layer.animationKeys())
     }
 
+}
+
+@MainActor
+final class NativeDeveloperResultPreviewTests: XCTestCase {
+    private let root=NativeTestResources.root
+    override func setUpWithError() throws {
+        #if !targetEnvironment(simulator)
+        throw XCTSkip("Simulator only; never drive physical devices")
+        #endif
+        guard ["1018BE2D-491B-465F-8F75-3E5BEB38C22A","43A75086-0C64-464C-B71C-FDD01AF59C32"].contains(ProcessInfo.processInfo.environment["SIMULATOR_UDID"] ?? "") else {throw XCTSkip("Retained Native QA Simulators only")}
+    }
+    func testActualDeveloperResultPreviewsChooseStarsAndPreserveProfile()async throws {
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent("dev-result-previews-"+UUID().uuidString)
+        let store=NativeSaveStore(directory:directory)
+        var profile=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
+        profile.progression.firstPlayTutorialComplete=true;profile.progression.lastOpenedJourneyBoard=3
+        try store.save(profile)
+        let bootstrap=try NativeBootstrap(root:root,store:store,showStudioIntro:false)
+        let host=UIViewController(),previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+        let window=UIWindow(frame:UIDevice.current.userInterfaceIdiom == .pad ? UIScreen.main.bounds:CGRect(x:0,y:0,width:390,height:844))
+        window.rootViewController=host;window.makeKeyAndVisible();bootstrap.start(in:host)
+        defer{bootstrap.dispose();window.rootViewController=nil;window.isHidden=true;previous?.makeKeyAndVisible();try? FileManager.default.removeItem(at:directory)}
+        let app=try XCTUnwrap(host.children.first as? NativeAppController)
+        func wait(_ condition:()->Bool)async throws {
+            let end=Date().addingTimeInterval(15)
+            while !condition(){guard Date()<end else{XCTFail("DEV preview handoff");throw CancellationError()};try await Task.sleep(for:.milliseconds(10))}
+        }
+        func find(_ v:UIView,_ id:String)->UIView? {v.accessibilityIdentifier==id ? v:v.subviews.lazy.compactMap{find($0,id)}.first}
+        let snapshots=URL(fileURLWithPath:"/tmp/dev-result-preview-renders/\(UIDevice.current.userInterfaceIdiom == .pad ? "ipad":"iphone")",isDirectory:true)
+        try FileManager.default.createDirectory(at:snapshots,withIntermediateDirectories:true)
+        func snapshot(_ name:String,_ target:UIView?=nil)throws {let surface=target ?? window;surface.layoutIfNeeded();try UIGraphicsImageRenderer(bounds:surface.bounds).image{surface.layer.render(in:$0.cgContext)}.pngData()?.write(to:snapshots.appendingPathComponent(name+".png"))}
+        try await wait{!app.home.isHidden}
+        app.navigate(.settings,interrupt:true)
+        try await wait{app.route == .settings && app.settingsView.isUserInteractionEnabled}
+        app.settingsView.developer.sendActions(for:.touchUpInside)
+        try snapshot("dev-panel")
+        let before=try store.load()
+        let cases:[(NativeDeveloperAction,Int)]=[(.fail,0),(.clean,1),(.clean,2),(.clean,3),(.beachClean,2),(.area55Clean,3),(.arcadeClean,1)]
+        for (action,stars) in cases {
+            let button=try XCTUnwrap(find(app.settingsView,"native.settings.developer.\(action.rawValue)") as? UIButton)
+            button.sendActions(for:.touchUpInside)
+            if action != .fail {
+                try await wait{app.presentedViewController is NativeDeveloperPicker}
+                let picker=try XCTUnwrap(app.presentedViewController as? NativeDeveloperPicker)
+                if action == .clean,stars==1 {try snapshot("stars-picker",picker.view)}
+                for count in 1...3 {XCTAssertNotNil(find(picker.view,"native.developer.choice.\(count)"))}
+                try XCTUnwrap(find(picker.view,"native.developer.choice.\(stars)") as? UIButton).sendActions(for:.touchUpInside)
+                try XCTUnwrap(find(picker.view,"native.developer.confirm") as? UIButton).sendActions(for:.touchUpInside)
+            }
+            try await wait{app.presentedViewController is NativeDeveloperPreviewHost}
+            let preview=try XCTUnwrap(app.presentedViewController as? NativeDeveloperPreviewHost)
+            let result=try XCTUnwrap(preview.children.first as? NativeResultController)
+            result.tick(0);for frame in 1...210 {result.tick(Double(frame)/60)}
+            XCTAssertEqual(result.clean,action != .fail)
+            let gold=try (0..<3).map{try XCTUnwrap(find(result.view,"native.result.star.filled.\($0)"))}
+            XCTAssertEqual(gold.filter{!$0.isHidden && $0.transform.a>0}.count,stars)
+            if action == .fail || (action == .clean && stars==3) {try snapshot(action == .fail ? "fail":"clean-three-stars",result.view)}
+            if action == .fail {for index in 0..<3 {XCTAssertEqual(try XCTUnwrap(find(result.view,"native.result.star.empty.\(index)")).alpha,1)}}
+            try XCTUnwrap(find(preview.view,"native.developer.close-preview") as? UIButton).sendActions(for:.touchUpInside)
+            try await wait{app.presentedViewController==nil}
+            XCTAssertEqual(try store.load(),before,"DEV result previews cannot alter the real profile")
+        }
+        try XCTUnwrap(find(app.settingsView,"native.settings.developer.intro") as? UIButton).sendActions(for:.touchUpInside)
+        try await wait{app.presentedViewController is NativeDeveloperPicker}
+        let picker=try XCTUnwrap(app.presentedViewController as? NativeDeveloperPicker)
+        XCTAssertNil(find(picker.view,"native.developer.choice.lik-pas-SVG"))
+        XCTAssertEqual(NativeStudioIntroView.characters.count,9)
+        try XCTUnwrap(find(picker.view,"native.developer.cancel") as? UIButton).sendActions(for:.touchUpInside)
+        try await wait{app.presentedViewController==nil}
+        XCTAssertEqual(try store.load(),before)
+    }
 }

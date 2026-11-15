@@ -27,10 +27,39 @@ final class NativeJuiceFinale: SKNode {
     private var tickCount = 1,started = false,disposed = false,introPlayed = false,released = false
     private var completion: (() -> Void)?
     private var lastSeconds: TimeInterval = 0
+    private var activeClockBudget: TimeInterval = 0
+    private var clockReconciled = false
     private var openingMaximumScale:CGFloat = 0
     var spawnedBubbleCount: Int { scheduler.spawned }
     var activeBubbleCount: Int { active.count }
     var hasActiveClock: Bool { action(forKey: "juice-field") != nil }
+    /// Observe the existing Scene frame delta without driving the authored
+    /// animation. Interrupted or stalled finite fields cannot strand artwork.
+    func reconcileClock(delta:TimeInterval) {
+        guard started,!disposed else { return }
+        var ancestor:SKNode? = self
+        var rate:Double = 1
+        while let node = ancestor {
+            guard !node.isPaused,node.speed > 0 else { return }
+            rate *= Double(node.speed)
+            ancestor = node.parent
+        }
+        guard let clock = action(forKey:"juice-field") else {
+            NSLog("[CC_NATIVE_JUICE_RECOVERY] reason=missing-clock age=%.3f lastSeconds=%.3f",activeClockBudget,lastSeconds)
+            dispose(); return
+        }
+        rate *= Double(clock.speed)
+        guard rate.isFinite,rate > 0 else { return }
+        // This frame's delta may start before a finale born during Scene.update.
+        // Establish its budget only after checking for a missing action.
+        if !clockReconciled {clockReconciled = true;return}
+        guard delta.isFinite,delta > 0 else { return }
+        activeClockBudget += delta*rate
+        if activeClockBudget >= maximumDuration+0.5 {
+            NSLog("[CC_NATIVE_JUICE_RECOVERY] reason=exceeded-active-lifetime age=%.3f lastSeconds=%.3f",activeClockBudget,lastSeconds)
+            dispose()
+        }
+    }
     init(textures: NativeBoardTextures,viewport: CGSize,random: @escaping () -> Double = { Double.random(in: 0..<1) }) {
         self.viewport = viewport; self.random = random
         let loaded = NativeJuiceBubbleMotion.sources.compactMap { textures.texture($0) }
@@ -60,13 +89,17 @@ final class NativeJuiceFinale: SKNode {
         guard !started,!disposed,assetReady else { completion(); return }
         started = true; self.completion = completion
         onCue?("bubble",0)
+        guard !disposed else { return }
         for _ in 0..<9 { admit(seconds: 0) }
         paint(seconds: 0)
+        // Tutorial/transaction callbacks may retire this owner synchronously.
+        // A retired field must never install a detached SpriteKit clock.
+        guard !disposed else { return }
         run(.sequence([.customAction(withDuration: maximumDuration) { [weak self] _,time in self?.paint(seconds: Double(time)) },
             .run { [weak self] in self?.dispose() }]),withKey: "juice-field")
     }
     private func admit(seconds: TimeInterval) {
-        guard let index = freePool.indices.first(where: { active[$0] == nil }) else { return }
+        guard started,!disposed,let index = freePool.indices.first(where: { active[$0] == nil }) else { return }
         let plan = NativeJuiceBubbleMotion.make(viewport: viewport,preservesBirthScale: seconds >= 1.125,random: random),sprite = freePool[index]
         // A reused carrier still has the preceding wave's scale. Normalize
         // before setting its logical dimensions so later births cannot grow.
@@ -82,6 +115,7 @@ final class NativeJuiceFinale: SKNode {
     func paint(seconds: TimeInterval) {
         guard started,!disposed else { return }; lastSeconds = seconds; tickCount += 1
         onGlyphClock?(seconds,false)
+        guard !disposed else { return }
         for index in Array(active.keys) {
             guard let (plan,birth) = active[index] else { continue }
             if seconds >= birth+plan.duration { active.removeValue(forKey: index); freePool[index].isHidden = true; continue }
@@ -95,14 +129,23 @@ final class NativeJuiceFinale: SKNode {
         }
         for (index,prop) in props.enumerated() where !completedProps.contains(index) {
             let (sprite,plan) = prop
-            if seconds >= plan.delay && !launchedProps.contains(index) { launchedProps.insert(index); onCue?(plan.prop.rawValue,0) }
+            if seconds >= plan.delay && !launchedProps.contains(index) {
+                launchedProps.insert(index); onCue?(plan.prop.rawValue,0)
+                guard !disposed else { return }
+            }
             if seconds >= plan.delay+plan.duration { completedProps.insert(index); sprite.removeFromParent(); continue }
             let pose = plan.sample(progress: CGFloat((seconds-plan.delay)/plan.duration))
             sprite.position = CGPoint(x: pose.point.x,y: viewport.height-pose.point.y); sprite.zRotation = -pose.rotation
         }
         // The source intro is tied to the same alternating spawn ticker.
-        if tickCount%2 == 0 && seconds >= 0.8 && !introPlayed { introPlayed = true; onCue?("introBubble",0) }
-        if !released && seconds >= 1.86 { released = true; let ready = onGameplayReady; onGameplayReady = nil; ready?() }
+        if tickCount%2 == 0 && seconds >= 0.8 && !introPlayed {
+            introPlayed = true; onCue?("introBubble",0)
+            guard !disposed else { return }
+        }
+        if !released && seconds >= 1.86 {
+            released = true; let ready = onGameplayReady; onGameplayReady = nil; ready?()
+            guard !disposed else { return }
+        }
         let births = scheduler.tick(seconds: seconds,activeCount: active.count)
         for _ in 0..<births { admit(seconds: seconds) }
         if tickCount%5 == 0 && seconds > 0.0005 {
@@ -117,7 +160,8 @@ final class NativeJuiceFinale: SKNode {
     func dispose() {
         guard !disposed else { return }; disposed = true
         removeAllActions(); removeFromParent(); removeAllChildren(); active.removeAll()
-        onGlyphClock?(lastSeconds,true); onGlyphClock = nil; onCue = nil; onGameplayReady = nil
-        let completed = completion; completion = nil; completed?()
+        let glyph = onGlyphClock,completed = completion
+        onGlyphClock = nil; onCue = nil; onGameplayReady = nil; completion = nil
+        glyph?(lastSeconds,true); completed?()
     }
 }

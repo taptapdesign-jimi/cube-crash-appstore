@@ -177,8 +177,8 @@ function renderHome(root: HTMLElement): void {
   // Main logo
   const logo = document.createElement('img');
   logo.id = 'home-logo';
-  logo.src = './assets/logo-cube-crash.png';
-  logo.alt = 'CubeCrash';
+  logo.src = './assets/logo-stacktosix.png';
+  logo.alt = 'Stack to Six';
   logo.loading = 'eager';
   logo.setAttribute('fetchpriority', 'high');
   logoWrapper.appendChild(logo);

@@ -15,7 +15,7 @@ img[src*=".png"] {
   
   /* Specific image optimizations */
   .logo-cube-crash {
-    background-image: url('../assets/logo-cube-crash@2x.png');
+    background-image: url('../assets/logo-stacktosix@2x.png');
   }
   
   .main-screen {
@@ -54,7 +54,7 @@ img[src*=".png"] {
 @media (-webkit-min-device-pixel-ratio: 3), (min-resolution: 288dpi) {
   /* @3x images for high-resolution displays (iPhone 6 Plus, X, 11, 12, 13, 14, 15) */
   .logo-cube-crash {
-    background-image: url('../assets/logo-cube-crash@3x.png');
+    background-image: url('../assets/logo-stacktosix@3x.png');
   }
   
   .main-screen {
@@ -128,8 +128,8 @@ img[src*=".png"] {
 .preload-critical::before {
   content: '';
   background-image: 
-    url('../assets/logo-cube-crash@2x.png'),
-    url('../assets/logo-cube-crash@3x.png'),
+    url('../assets/logo-stacktosix@2x.png'),
+    url('../assets/logo-stacktosix@3x.png'),
     url('../assets/main-screen@2x.png'),
     url('../assets/main-screen@3x.png');
 }
