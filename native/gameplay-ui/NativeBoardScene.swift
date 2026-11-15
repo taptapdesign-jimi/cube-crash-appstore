@@ -567,7 +567,7 @@ final class NativeBoardScene: SKScene {
             let reads=sourcePhysicalReadDiagnostics,links=service.displayLinkCreationCount
             NSLog("[CC_NATIVE_HITCH_WORK] board=%d generation=%llu linkCreationsTotal=%d linkCreationsInterval=%d dragTransportReceipts=%d boardCaptures=%d boardRevalidations=%d tileObservationReads=%d observerCreations=%d",engine.state.board,engine.state.generation,links,max(0,links-diagnosticLastLinkCreations),service.directManipulationTransportCount,reads.boardCaptures,reads.boardRevalidations,reads.tileObservationReads,reads.observerCreations)
             diagnosticLastLinkCreations=links;resetSourcePhysicalReadDiagnostics()
-            NSLog("[CC_NATIVE_FRAME_COST] board=%d generation=%llu deliveryMs=%.2f rootsMs=%.2f rootCleanupMs=%.2f rafMs=%.2f tickerMs=%.2f rawMs=%.2f fifoValidationMs=%.2f fifoReactionsMs=%.2f fifoCompactMs=%.2f otherMs=%.2f rootVisits=%d fifoJobs=%d reactionOwner=%@ reactionWorstMs=%.2f",engine.state.board,engine.state.generation,source.worstDeliveryMilliseconds,source.worstFrameRootTotalMilliseconds,source.worstFrameRootCleanupMilliseconds,source.worstFrameRAFTotalMilliseconds,source.worstFrameTickerTotalMilliseconds,source.worstFrameRawTotalMilliseconds,source.worstFrameFIFOValidationMilliseconds,source.worstFrameFIFOReactionMilliseconds,source.worstFrameFIFOCompactMilliseconds,source.worstFrameOtherMilliseconds,source.worstFrameRootCount,source.worstFrameFIFOJobCount,source.slowestReactionOwner,source.slowestReactionMilliseconds)
+            NSLog("[CC_NATIVE_FRAME_COST] board=%d generation=%llu deliveryMs=%.2f rootsMs=%.2f rootCleanupMs=%.2f rafMs=%.2f tickerMs=%.2f rawMs=%.2f fifoValidationMs=%.2f fifoReactionsMs=%.2f fifoCompactMs=%.2f otherMs=%.2f rootVisits=%d fifoJobs=%d reactionOwner=%@ reactionWorstMs=%.2f cleanupOwner=%@ cleanupFamily=%@ cleanupWorstMs=%.2f",engine.state.board,engine.state.generation,source.worstDeliveryMilliseconds,source.worstFrameRootTotalMilliseconds,source.worstFrameRootCleanupMilliseconds,source.worstFrameRAFTotalMilliseconds,source.worstFrameTickerTotalMilliseconds,source.worstFrameRawTotalMilliseconds,source.worstFrameFIFOValidationMilliseconds,source.worstFrameFIFOReactionMilliseconds,source.worstFrameFIFOCompactMilliseconds,source.worstFrameOtherMilliseconds,source.worstFrameRootCount,source.worstFrameFIFOJobCount,source.slowestReactionOwner,source.slowestReactionMilliseconds,source.slowestCleanupOwner,source.slowestCleanupFamily,source.slowestCleanupMilliseconds)
             NSLog("[CC_NATIVE_FRAME_OWNER] board=%d generation=%llu slowestOwner=%@ phase=%@ ownerWorstMs=%.2f rootWorstMs=%.2f rafWorstMs=%.2f tickerWorstMs=%.2f rawWorstMs=%.2f microtaskWorstMs=%.2f layerCommitWorstMs=%.2f rootHighWater=%d rawHighWater=%d rafHighWater=%d tickerHighWater=%d renderDemandHighWater=%d",engine.state.board,engine.state.generation,source.slowestParticipantOwner,source.slowestParticipantPhase,source.slowestParticipantMilliseconds,source.worstRootMilliseconds,source.worstRAFMilliseconds,source.worstTickerListenerMilliseconds,source.worstRawMilliseconds,source.worstMicrotaskMilliseconds,source.worstLayerCommitMilliseconds,source.rootHighWater,source.rawHighWater,source.rafHighWater,source.tickerListenerHighWater,source.renderDemandHighWater)
             NSLog("[CC_NATIVE_SCHEDULING] board=%d generation=%llu sourceDeliveries=%d sourceWorstGapMs=%.2f sourceDeliveryWorstMs=%.2f sourceDeadlineLateWorstMs=%.2f dragRendersWithoutPaint=%d dragRendersOnePaint=%d dragRendersMultiplePaints=%d dragPaintAgeWorstMs=%.2f queuedTouchAgeWorstMs=%.2f",engine.state.board,engine.state.generation,source.deliveries,source.worstGapMilliseconds,source.worstDeliveryMilliseconds,source.worstDeadlineLateMilliseconds,drag.rendersWithoutPaint,drag.rendersOnePaint,drag.rendersMultiplePaints,drag.worstPaintAgeMilliseconds,drag.worstQueuedTouchAgeMilliseconds)
         }
@@ -4666,15 +4666,33 @@ final class NativeBoardScene: SKScene {
         guard sourceAnimationBindingAdmissionOpen,engine.state==state else{return nil}
         return result
     }
-    private func sourceMagnetPhysicalMatchesCore(generation:UInt64)->Bool {
-        guard let observed=sourceMagnetPhysicalSnapshot(generation:generation) else{return false}
-        let models=engine.state.tiles
-        return observed.count==models.count && zip(observed,models).allSatisfy{p,m in
-            // Alpha storage is SpriteKit Float32, so compare the source semantic
-            // boundaries used by classification; never replace physical alpha.
-            p.id==m.id && p.value==m.value && p.depth==m.stackDepth && p.locked==m.locked && p.visible==m.visible &&
-            (p.alpha>0.01)==(m.alpha>0.01) && (p.alpha>0.35)==(m.alpha>0.35)
+    private(set) var sourceMagnetPhysicalCoreDiagnostic="not-captured"
+    func sourceMagnetPhysicalMatchesCore(generation:UInt64)->Bool {
+        guard let observed=sourceMagnetPhysicalSnapshot(generation:generation) else{sourceMagnetPhysicalCoreDiagnostic="snapshot-unavailable";return false}
+        let state=engine.state,models=state.tiles
+        let matches=observed.count==models.count && zip(observed,models).allSatisfy{p,m in
+            // Compare with the SAME authored projection used by synchronize.
+            // Fresh locked-zero Core holders retain alpha1 while their actual
+            // ghost paint is capped at0.25. Raw model alpha is not that paint.
+            // Float32 storage still uses the original semantic thresholds.
+            let expectedAlpha=Double(presentationAlpha(m,state:state))
+            return p.id==m.id && p.value==m.value && p.depth==m.stackDepth && p.locked==m.locked && p.visible==m.visible &&
+            (p.alpha>0.01)==(expectedAlpha>0.01) && (p.alpha>0.35)==(expectedAlpha>0.35)
         }
+        if matches {
+            sourceMagnetPhysicalCoreDiagnostic="matched"
+            if frameDiagnosticsEnabled {NSLog("[CC_NATIVE_MAGNET_COMPARE] board=%d generation=%llu result=matched tiles=%d",state.board,generation,models.count)}
+        }
+        else {
+            sourceMagnetPhysicalCoreDiagnostic=zip(observed,models).compactMap{p,m -> String? in
+                let expectedAlpha=Double(presentationAlpha(m,state:state))
+                guard p.id != m.id || p.value != m.value || p.depth != m.stackDepth || p.locked != m.locked || p.visible != m.visible ||
+                    (p.alpha>0.01) != (expectedAlpha>0.01) || (p.alpha>0.35) != (expectedAlpha>0.35) else{return nil}
+                return "\(m.id):core=\(m.value)/\(m.stackDepth)/\(m.locked)/\(m.visible)/\(m.alpha);expectedAlpha=\(expectedAlpha);physical=\(p.id)/\(p.value)/\(p.depth)/\(p.locked)/\(p.visible)/\(p.alpha)"
+            }.prefix(6).joined(separator:"|")
+            NSLog("[CC_NATIVE_MAGNET_COMPARE] board=%d generation=%llu %@",engine.state.board,generation,sourceMagnetPhysicalCoreDiagnostic)
+        }
+        return matches
     }
 
     private var sourceMagnetBindings:NativeSourceMagnetSceneBindings?

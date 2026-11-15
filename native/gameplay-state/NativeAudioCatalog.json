@@ -1544,7 +1544,7 @@
         "voice": "board-popin-setting-up",
         "gain": 0.3,
         "rate": 1,
-        "delay": 0,
+        "delay": 0.1,
         "stopAfter": 0.6,
         "fadeOut": 0.05
       },
@@ -1553,7 +1553,7 @@
         "voice": "board-popin-plump",
         "gain": 0.42,
         "rate": 1,
-        "delay": 0,
+        "delay": 0.1,
         "stopAfter": 0.6,
         "fadeOut": 0.05
       },
@@ -1562,7 +1562,7 @@
         "voice": "board-popin-setting-up2",
         "gain": 0.42,
         "rate": 1,
-        "delay": 0,
+        "delay": 0.1,
         "stopAfter": 0.6,
         "fadeOut": 0.05
       }

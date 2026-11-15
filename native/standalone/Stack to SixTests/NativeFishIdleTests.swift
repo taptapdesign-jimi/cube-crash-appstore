@@ -132,23 +132,44 @@ final class NativeFishIdleTests:XCTestCase {
         window.rootViewController=controller;window.makeKeyAndVisible();controller.loadViewIfNeeded()
         defer {controller.dispose();window.isHidden=true;previous?.makeKeyAndVisible();try? FileManager.default.removeItem(at:directory)}
         let app=try XCTUnwrap(controller.children.first as? NativeAppController)
-        try await waitForFishBoundary { !app.home.isHidden }
+        try await waitForFishBoundary(variant+" blast Home") { !app.home.isHidden }
         app.navigate(.gameplay,interrupt:true)
-        try await waitForFishBoundary {app.children.compactMap{$0 as? NativeGameplayViewController}.first?.boardScene?.isBoardEntryComplete==true}
+        try await waitForFishBoundary(variant+" blast board entry") {app.children.compactMap{$0 as? NativeGameplayViewController}.first?.boardScene?.isBoardEntryComplete==true}
         let game=try XCTUnwrap(app.children.compactMap{$0 as? NativeGameplayViewController}.first)
         let scene=try XCTUnwrap(game.boardScene)
         let media=try XCTUnwrap(game.view.subviews.compactMap{$0 as? NativeFishIdleOwner}.first)
-        try await waitForFishBoundary {media.presentation(tileID:"fish")?.mediaReady==true && media.presentation(tileID:"fish")?.isHidden==false && !game.engine.hasUnsavableSourceGameplayState && game.beforeSourceGameplayAdmission==nil}
+        try await waitForFishBoundary(variant+" blast Fish media ready") {media.presentation(tileID:"fish")?.mediaReady==true && media.presentation(tileID:"fish")?.isHidden==false && !game.engine.hasUnsavableSourceGameplayState && game.beforeSourceGameplayAdmission==nil}
         let owner=try XCTUnwrap(media.presentation(tileID:"fish")),holder=try XCTUnwrap(scene.sourceNativeTileNode("fish"))
         let rest=holder.position
         let originalPaint=scene.onFishIdleFrames
         var outwardSamples=0,returnSamples=0,maxDisplacement=CGFloat.zero
+        var lastBlastDisplacement=CGFloat.zero,sourceBlastSamples=0
+        func diagnostic()->String {
+            "variant=\(variant) outward=\(outwardSamples) returning=\(returnSamples) maxDisplacement=\(maxDisplacement) sourceSamples=\(sourceBlastSamples) " +
+            "shortActive=\(scene.sourceShortWildBoardBlastActiveCount) pendingSpecial=\(String(describing:game.engine.pendingSpecial)) pendingDirect=\(String(describing:game.engine.pendingDirectWild)) " +
+            "unsavable=\(game.engine.hasUnsavableSourceGameplayState) flags=\(game.engine.flags) failure=\(String(describing:game.sourcePresentationFailure)) " +
+            "navigationLocked=\(scene.navigationLocked) entry=\(scene.isBoardEntryComplete) sceneAdmission=\(scene.sourceAnimationBindingAdmissionOpen) holderPosition=\(holder.position) holderOwners=\(holder.sourceOuterOwners)"
+        }
         scene.onFishIdleFrames={ [weak scene,weak media,weak owner,weak holder] frames,generation,force in
             originalPaint?(frames,generation,force)
-            guard let scene,let media,let owner,let holder,
-                  holder.action(forKey:"tnt-blast") != nil || holder.action(forKey:"tnt-return") != nil else{return}
-            if holder.action(forKey:"tnt-blast") != nil {outwardSamples+=1}
-            if holder.action(forKey:"tnt-return") != nil {returnSamples+=1}
+            guard let scene,let media,let owner,let holder else{return}
+            let tntOutward=holder.action(forKey:"tnt-blast") != nil
+            let tntReturn=holder.action(forKey:"tnt-return") != nil
+            let sourceBlast=scene.sourceShortWildBoardBlastActiveCount>0
+            guard tntOutward || tntReturn || sourceBlast else{return}
+            let displacement=hypot(holder.position.x-rest.x,holder.position.y-rest.y)
+            if tntOutward {outwardSamples+=1}
+            if tntReturn {returnSamples+=1}
+            // Beach Ball is a Juice archetype: its actual APP timeline owns
+            // the short blast, while Flower retains TNT's keyed action owner.
+            // Count painted outward/return travel instead of requiring an
+            // unrelated SpriteKit action to exist on Source-driven holders.
+            if sourceBlast,!tntOutward,!tntReturn {
+                sourceBlastSamples+=1
+                if displacement>lastBlastDisplacement+0.001 {outwardSamples+=1}
+                if displacement<lastBlastDisplacement-0.001 {returnSamples+=1}
+            }
+            lastBlastDisplacement=displacement
             guard let frame=frames["fish"] else {XCTFail("Moving survivor lost its Fishy frame");return}
             XCTAssertTrue(frame.visible,"A board blast moves surviving artwork; it must not suppress it")
             XCTAssertTrue(media.presentation(tileID:"fish") === owner,"The same prepared SVG must survive the blast")
@@ -166,7 +187,11 @@ final class NativeFishIdleTests:XCTestCase {
         XCTAssertTrue(scene.beginDrag(at:from));scene.moveDrag(to:to,now:CACurrentMediaTime())
         try await Task.sleep(for:.milliseconds(160))
         XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:to,now:CACurrentMediaTime())).accepted)
-        try await waitForFishBoundary {game.sourcePresentationFailure != nil || (outwardSamples>0 && game.engine.pendingSpecial==nil && !game.engine.hasUnsavableSourceGameplayState)}
+        try await waitForFishBoundary(variant+" blast outward/return owner completion",diagnostic:diagnostic) {
+            game.sourcePresentationFailure != nil ||
+            (outwardSamples>0 && game.engine.pendingSpecial==nil && game.engine.pendingDirectWild==nil &&
+             scene.sourceShortWildBoardBlastActiveCount==0 && !game.engine.hasUnsavableSourceGameplayState)
+        }
         scene.onFishIdleFrames=originalPaint
         XCTAssertNil(game.sourcePresentationFailure)
         XCTAssertGreaterThan(outwardSamples,2,"Exercise actual authored outward motion")
@@ -179,10 +204,148 @@ final class NativeFishIdleTests:XCTestCase {
         controller.dispose()
         XCTAssertEqual(media.activeMediaCount,0,"Route retirement releases surviving SVG and its prepared lease")
     }
+    func testBeach15RestoredFishOutgoingAfterOrdinaryAndJuiceMergesSavesAndExits() async throws {
+        try await exerciseBeach15SparseFish(reverse:false,bottlePull:false)
+    }
+    func testBeach15RestoredFishIncomingAfterOrdinaryAndJuiceMergesSavesAndExits() async throws {
+        try await exerciseBeach15SparseFish(reverse:true,bottlePull:false)
+    }
+    func testBeach15BottlePullRetiresRestoredFishAndStillSavesAndExits() async throws {
+        try await exerciseBeach15SparseFish(reverse:false,bottlePull:true)
+    }
+    private func exerciseBeach15SparseFish(reverse:Bool,bottlePull:Bool) async throws {
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent("beach15-fish-sparse-"+UUID().uuidString)
+        let store=NativeSaveStore(directory:directory)
+        // The last durable physical run contained a restored Fish and a Bottle.
+        // Add the separately reported Juice and three ordinary dice; no fault is
+        // inferred from that older durable snapshot or fabricated runtime flags.
+        let tiles:[NativeTile]=[
+            .init(id:"g3-5",cell:.init(column:0,row:1),value:6,archetype:.star,variant:"fish"),
+            .init(id:"juice",cell:.init(column:4,row:7),value:6,archetype:.juice),
+            .init(id:"bottle",cell:.init(column:0,row:2),value:6,archetype:.magnet,variant:"bottle"),
+            .init(id:"a",cell:.init(column:3,row:1),value:1),
+            .init(id:"b",cell:.init(column:4,row:1),value:2),
+            .init(id:"c",cell:.init(column:1,row:2),value:4)]
+        var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
+        seed.progression.firstPlayTutorialComplete=true
+        seed.progression.completedJourneyBoards=Set(1..<15)
+        seed.progression.beginAttempt(mode:.journey,board:15)
+        seed.journeyRuns[15] = .init(tiles:tiles,mode:.journey,board:15,stage:15,generation:3,moves:25,score:3478)
+        seed.journeyRunSavedAt[15]=Date().timeIntervalSince1970
+        let expectedIDs=Set(tiles.map(\.id))
+        let resumable=try XCTUnwrap(seed.resumedRun(mode:.journey,board:15),"A sparse saved attempt must pass actual resume policy before mounting")
+        XCTAssertEqual(Set(resumable.tiles.map(\.id)),expectedIDs)
+        try store.save(seed)
+        let controller=NativeStandaloneViewController(resourceRoot:root,store:store,sourceVisualRandom:{0.1},completeNativeGameplayEnabled:true)
+        let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+        let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=controller;window.makeKeyAndVisible()
+        defer {controller.dispose();window.isHidden=true;previous?.makeKeyAndVisible();try? FileManager.default.removeItem(at:directory)}
+        controller.loadViewIfNeeded()
+        let app=try XCTUnwrap(controller.children.first as? NativeAppController)
+        try await waitForFishBoundary("Beach15 Home") {!app.home.isHidden}
+        app.navigate(.world(2),interrupt:true)
+        try await waitForFishBoundary("Beach15 World ready") {app.world?.isReadyForInput==true}
+        app.world?.onRequest?("continue",15)
+        try await waitForFishBoundary("Beach15 gameplay child") {app.children.contains(where:{$0 is NativeGameplayViewController})}
+        let game=try XCTUnwrap(app.children.compactMap{$0 as? NativeGameplayViewController}.first)
+        let scene=try XCTUnwrap(game.boardScene)
+        guard Set(game.engine.state.tiles.map(\.id))==expectedIDs else {
+            XCTFail("Beach15 mounted a different roster: "+game.engine.state.tiles.map(\.id).joined(separator:","))
+            throw CancellationError()
+        }
+        XCTAssertEqual(game.engine.state.board,15)
+        let media=try XCTUnwrap(game.view.subviews.compactMap{$0 as? NativeFishIdleOwner}.first)
+        try await waitForFishBoundary("Beach15 restored Fish entry and media") {
+            scene.isBoardEntryComplete && game.beforeSourceGameplayAdmission==nil &&
+            !game.engine.hasUnsavableSourceGameplayState && media.presentation(tileID:"g3-5")?.isHidden==false
+        }
+        let fishNode=try XCTUnwrap(scene.sourceNativeTileNode("g3-5"))
+        func point(_ id:String)throws->CGPoint {
+            let node=try XCTUnwrap(scene.sourceNativeTileNode(id))
+            return scene.convert(node.position,from:try XCTUnwrap(node.parent))
+        }
+        func settled() async throws {
+            if let direct=game.engine.pendingDirectWild,game.engine.directWildGameplayCommitted {
+                print("[Beach15FishPickup] awaiting-authored-FX owner=\(direct.id) family=\(direct.archetype) savable=\(!game.engine.hasUnsavableSourceGameplayState) fishCanDrag=\(game.engine.canBeginDrag(tileID:"g3-5")) nodeMode=\(fishNode.sourceEventMode)")
+            }
+            try await waitForFishBoundary("Beach15 Source transaction and authored FX owner settled") {
+                game.sourcePresentationFailureGeneration != nil ||
+                (!game.engine.hasUnsavableSourceGameplayState && game.engine.pendingDirectWild==nil && game.engine.pendingHUDStars.isEmpty &&
+                 scene.sourceMagnetActualPullOwnerCount==0 && scene.sourceMagnetSurvivorPendingInputIDs.isEmpty &&
+                 !scene.navigationLocked && !game.engine.isDragging)
+            }
+            XCTAssertNil(game.sourcePresentationFailureGeneration,"Sparse Beach15 must settle its genuine Source owners")
+        }
+        func pickupFish(_ stage:String) async throws {
+            func diagnostic()->String {
+                let model=game.engine.state.tiles.first{$0.id=="g3-5"}
+                let drop=scene.sourceWildDropTileMarkers(fishNode)
+                return "stage=\(stage) coreCanDrag=\(game.engine.canBeginDrag(tileID:"g3-5")) flags=\(game.engine.flags) " +
+                    "direct=\(String(describing:game.engine.pendingDirectWild)) committed=\(game.engine.directWildGameplayCommitted) " +
+                    "model=\(String(describing:model)) nodeMode=\(fishNode.sourceEventMode) nodeGeneration=\(fishNode.sourceGeneration) " +
+                    "grid=\(String(describing:fishNode.sourceGridCell)) position=\(fishNode.position) scale=\(fishNode.xScale),\(fishNode.yScale) " +
+                    "owners=\(fishNode.sourceOuterOwners) drop=\(String(describing:drop)) shortBlast=\(scene.sourceShortWildBoardBlastActiveCount) " +
+                    "navigationLocked=\(scene.navigationLocked) sceneAdmission=\(scene.sourceAnimationBindingAdmissionOpen)"
+            }
+            // The exact Direct owner has already retired in settled(); assert
+            // Core admission separately from actual painted-node hit dispatch.
+            XCTAssertTrue(game.engine.canBeginDrag(tileID:"g3-5"),diagnostic())
+            let origin=try point("g3-5")
+            let picked=scene.beginDrag(at:origin)
+            if !picked {print("[Beach15FishPickup] scene-rejected point=\(origin) "+diagnostic())}
+            XCTAssertTrue(picked,"Restored Fish must remain pickable at "+stage)
+            XCTAssertTrue(game.engine.isDragging)
+            XCTAssertEqual(scene.finishDrag(at:origin,now:CACurrentMediaTime())?.accepted,false)
+            try await settled()
+            try await waitForFishBoundary("Beach15 rejected Fish pickup snapback") {!fishNode.sourceOuterOwners.snapBack && !fishNode.sourceOuterOwners.pickupScale}
+            XCTAssertEqual(fishNode.sourceEventMode,"static")
+        }
+        func drag(_ source:String,_ destination:String) async throws {
+            let from=try point(source),to=try point(destination)
+            XCTAssertTrue(scene.beginDrag(at:from),"Actual Source pickup failed: "+source)
+            scene.moveDrag(to:to,now:CACurrentMediaTime())
+            try await Task.sleep(for:.milliseconds(160))
+            XCTAssertTrue(try XCTUnwrap(scene.finishDrag(at:to,now:CACurrentMediaTime())).accepted,
+                          "Actual Source contact failed: "+source+" -> "+destination)
+            try await settled()
+        }
+        try await pickupFish("initial restored board")
+        try await drag("a","b")
+        try await pickupFish("after ordinary stack")
+        if bottlePull {
+            // Fish is the nearest actual pull target; it must be consumed, not
+            // left as an inert retained skin after Bottle's helper continuation.
+            try await drag("bottle","c")
+            XCTAssertFalse(game.engine.state.tiles.contains{$0.id=="g3-5"})
+            try await waitForFishBoundary("Beach15 consumed Fish media retired") {media.presentation(tileID:"g3-5")==nil}
+        } else {
+            try await drag("juice","c")
+            try await pickupFish("after Juice merge")
+            XCTAssertTrue(scene.sourceNativeTileNode("g3-5") === fishNode)
+            let ordinary=try XCTUnwrap(game.engine.state.activeTiles.first{!$0.isWild && !$0.locked && (1...5).contains($0.value)})
+            try await drag(reverse ? ordinary.id:"g3-5",reverse ? "g3-5":ordinary.id)
+            try await waitForFishBoundary("Beach15 consumed Fish media retired") {media.presentation(tileID:"g3-5")==nil}
+        }
+        try await settled()
+        NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
+        let persisted=try XCTUnwrap(store.load()?.journeyRuns[15])
+        XCTAssertEqual(persisted,game.engine.state,"The real save boundary must accept the settled sparse board")
+        NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
+        game.onExit?()
+        try await waitForFishBoundary("Beach15 Exit modal") {game.presentedViewController is JimiNativeEndRunModal}
+        let exit=try XCTUnwrap(game.presentedViewController as? JimiNativeEndRunModal)
+        try await waitForFishBoundary("Beach15 Exit modal input") {exit.view.isUserInteractionEnabled}
+        exit.buttons[1].sendActions(for:.touchUpInside)
+        try await waitForFishBoundary("Beach15 Exit to World") {!app.children.contains(where:{$0 is NativeGameplayViewController}) && app.world != nil}
+        XCTAssertEqual(try store.load()?.journeyRuns[15],persisted,"Exit must preserve the exact accepted saved board")
+    }
     private func waitForFishBoundary(_ predicate:()->Bool) async throws {
+        try await waitForFishBoundary("Mounted Fishy transaction boundary",predicate)
+    }
+    private func waitForFishBoundary(_ label:String,diagnostic:(()->String)?=nil,_ predicate:()->Bool) async throws {
         let deadline=CACurrentMediaTime()+35
         while !predicate() {
-            guard CACurrentMediaTime()<deadline else {XCTFail("Mounted Fishy transaction boundary timed out");throw CancellationError()}
+            guard CACurrentMediaTime()<deadline else {XCTFail(label+" timed out"+(diagnostic.map{" "+$0()} ?? ""));throw CancellationError()}
             try await Task.sleep(for:.milliseconds(20))
         }
     }

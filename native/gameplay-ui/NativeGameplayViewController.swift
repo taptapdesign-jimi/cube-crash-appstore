@@ -75,6 +75,8 @@ final class NativeGameplayViewController: UIViewController {
     }
     private(set) var sourcePresentationFailure:SourcePresentationFailure?
     private(set) var sourcePresentationFailureGeneration:UInt64?
+    private weak var presentationFailureBridgeScene:NativeBoardScene?
+    private var presentationFailureBridgeGeneration:UInt64?
     var journeyDecorCatalog:NativeJourneyBottomDecorCatalog?
     var journeyDecorResources:((URL)->NativeJourneyBottomDecorResourcePreparing)?
     private(set) var journeyBottomDecor:NativeJourneyBottomDecorOwner?
@@ -213,6 +215,7 @@ final class NativeGameplayViewController: UIViewController {
     private var bottleFinale: NativeBottleFinalePresentation?
     private var bottleGeneration: UInt64?
     private var boardClearedPresentation:NativeArcadeRoundPresentation?
+    private let clearedShadowPreparation=NativeClearedShadowPreparation()
     var boardClearedUsesPuppyThumb:Bool {boardClearedPresentation?.isPuppyThumb == true}
     var hasPresentedBoardCleared:Bool {boardClearedGeneration==engine.state.generation}
     private var boardClearedGeneration:UInt64?
@@ -904,7 +907,7 @@ final class NativeGameplayViewController: UIViewController {
                 details:["impact":scene.sourceSpecialImpactParticleRejection ?? "none",
                     "spawnSafety":scene.sourceSpawnSafetyDiagnostic,"tnt":scene.sourceTntMainDiagnostic(),
                     "tntResume":scene.sourceTntSpawnResumeRejection ?? "none",
-                    "physical":scene.sourcePhysicalBoardCaptureDiagnostic,
+                    "physical":scene.sourcePhysicalBoardCaptureDiagnostic,"magnetComparison":scene.sourceMagnetPhysicalCoreDiagnostic,
                     "minimum":scene.sourceMinimumCaptureDiagnostic]))
             self.finaleArtworkOwner?.dispose();self.finaleArtworkOwner=nil
             self.sourcePresentationFailureGeneration=generation
@@ -915,6 +918,7 @@ final class NativeGameplayViewController: UIViewController {
             NSLog("[NativeSourcePresentation] captured generation %llu retired: %@",generation,reason)
             self.onSourcePresentationFailure?()
         }
+        bindPresentationFailureBridge(scene)
         prepareSelectedFinaleArtwork(engine.state)
         prepareSourceNoMovesSceneBinding()
         prepareNativeNoMovesPresentation()
@@ -930,6 +934,7 @@ final class NativeGameplayViewController: UIViewController {
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
+        if !disposed,!backgrounded,!explicitlySuspended,view.window != nil {clearedShadowPreparation.prepare(viewport:view.bounds.size)}
         paperSurface.frame=view.bounds
         if let tasks=sourceScope?.sourceMicrotaskTasks {
             _=tasks.layoutTask{layoutGameplayPresentation()}
@@ -1257,7 +1262,8 @@ final class NativeGameplayViewController: UIViewController {
               boardClearedGeneration != generation else{return}
         retireBoardCleared();boardClearedGeneration=generation
         let owner=NativeArcadeRoundPresentation(resourceRoot:resourceRoot,clearedRound:engine.state.stage,
-            nextRound:engine.state.stage+1,boardClearedOnly:true)
+            nextRound:engine.state.stage+1,boardClearedOnly:true,
+            preparedShadow:clearedShadowPreparation.image(viewport:view.bounds.size))
         boardClearedPresentation=owner;boardClearedSuccessorReady=false
         if engine.state.mode == .journey || engine.state.tutorial?.requiresResultCompletion == true {owner.permitsBoardClearedExit = {[weak self] in
             guard let self else{return false}
@@ -1379,6 +1385,8 @@ final class NativeGameplayViewController: UIViewController {
     private func applySuspension() {
         guard !disposed else { return }
         let value = backgrounded || (explicitlySuspended && !exitingBoard)
+        if value {clearedShadowPreparation.cancelPending()}
+        else if isViewLoaded,view.window != nil {clearedShadowPreparation.prepare(viewport:view.bounds.size)}
         finaleArtworkOwner?.setSuspended(value)
         if !value {prepareSelectedFinaleArtwork(engine.state)}
         if value {endgameHint?.forceClear()}
@@ -1413,7 +1421,19 @@ final class NativeGameplayViewController: UIViewController {
         }
     }
 
+    private func bindPresentationFailureBridge(_ scene:NativeBoardScene) {
+        guard !disposed,boardScene === scene else{return}
+        let generation=engine.state.generation
+        guard presentationFailureBridgeScene !== scene || presentationFailureBridgeGeneration != generation else{return}
+        presentationFailureBridgeScene=scene;presentationFailureBridgeGeneration=generation
+        // Legacy endpoints share the rejected-phase owner. A fresh engine run
+        // rebinds the property; a retained callback still belongs to its old run.
+        scene.onPresentationFailure = {[weak scene] reason in
+            scene?.onSourcePresentationFailure?(reason,generation)
+        }
+    }
     func refreshFromEngine() {
+        if let scene=boardScene {bindPresentationFailureBridge(scene)}
         prepareSelectedFinaleArtwork(engine.state)
         if sourceNoMovesInstalledGeneration != engine.state.generation {
             retireSourceNoMovesUIKit()
@@ -1731,7 +1751,7 @@ final class NativeGameplayViewController: UIViewController {
         beforeSourceGameplayAdmission=nil
         guard !disposed else { return }
         incomingOriginalCoverCompletion=nil;incomingOriginalCoverGeneration=nil
-        disposed = true;retireBoardCleared();onJourneyDieLanded=nil;unreadJourneyDice={[]};nativeNoMovesUIKit?.dispose();nativeNoMovesUIKit=nil;endgameHint?.dispose();endgameHint=nil;endgameHintSourceScope=nil;firstBoardFrameWaiters.removeAll();beforeInitialBoardEntry = nil
+        disposed = true;clearedShadowPreparation.dispose();retireBoardCleared();onJourneyDieLanded=nil;unreadJourneyDice={[]};nativeNoMovesUIKit?.dispose();nativeNoMovesUIKit=nil;endgameHint?.dispose();endgameHint=nil;endgameHintSourceScope=nil;firstBoardFrameWaiters.removeAll();beforeInitialBoardEntry = nil
         sourceDirectHUDPrepared=nil
         finaleArtworkOwner?.dispose();finaleArtworkOwner=nil
         retireSourceNoMovesUIKit();sourceNoMovesBindings=nil

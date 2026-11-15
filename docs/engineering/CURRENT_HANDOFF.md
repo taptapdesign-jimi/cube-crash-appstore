@@ -1,3 +1,481 @@
+## 2026-11-15 · Finished product v1.1 checkpoint
+
+User explicitly requests complete current project saved online as benchmark
+finished product v1.1. Publish main plus immutable annotated tag
+finished-product-v1.1;supersedes production-ready-v1 for Native continuation.
+See FINISHED_PRODUCT_V1_1.md and updated baseline/project context. Scope:all
+tracked application/source/test/docs changes plus new Native presentation
+failure recovery tests. Existing local unintegrated game design/output concepts
+and unrelated output/pdf business document remain outside publication,as before.
+Reuse immediately preceding runtime QA:fast/full530suites4011tests,KING330,
+iOS,111Native audio tests,normal Debug Simulator build/install/launch88329,
+both canonical saves identical. Only checkpoint docs added afterward.
+No physical phone operation or new acceptance claim. Historical tags preserved.
+Remote publication receipt follows after exact main/tag verification.
+
+## 2026-11-15 · Board-removal audio delayed100ms
+
+User requests100ms later onset for dice-removal sounds at exits/endgame.
+Native boardExit now delays its same three layers100ms (setting up boards.wav,
+plump.wav,setting up2.wav) through existing cancellable transport. Shared Exit,
+exit-menu Restart/New Game,completed-board residual clear and confirmed No Moves
+exit inherit it. BoardEnter remains immediate with existing fourth cubes.wav;
+gains,rate,duration,fade,visual timing and original asset bytes remain unchanged.
+Native catalog exporter and generated Swift/JSON agree;preserved web unchanged.
+Existing runtime ownership record/inventory updated. Settings/background/
+interruption/generation/full-stop retain cancellation of pending starts.
+
+PASS:111Native audio tests(107general+4Source entry),qa:fast,qa:full
+(530suites4011tests;KING330),qa:ios. Focused test verifies exit100ms/entry0ms.
+Normal Stack to Six Debug BUILD SUCCEEDED using complete saved working tree,
+verified com.taptapdesign.stacktosix.native,no test PlugIns,install-over retained
+1018BE2D-491B-465F-8F75-3E5BEB38C22A and normal launchPID88329. Visible Native
+startup confirmed. Both canonical save slots byte-identical before tests through
+final preview launch. Actual iOS SBRingerMuted=false,toolbar Mute off for audio
+review. No physical phone installation. Subjective timing NEEDS PHYSICAL TEST.
+Evidence:/tmp/native-board-exit-audio-20261115/{qa-fast.log,qa-full.log,
+qa-ios.log,native-tests.log,preview-build.log,install.log,launch.log,save-check.json}.
+
+## 2026-11-15 · Residual 164ms callback gap reviewed
+
+User requested review of the retest's isolated worst callback gap. Read-only
+console/source review: board28/generation12, report20:12:15.258, active60Hz
+callback gap164.2ms. This is callback spacing, not a measured164ms function.
+The same one-second window records maximum Source delivery44.31ms, including
+27.80ms root cleanup (slowest drag tween completion27.72ms). Window maxima
+cannot establish that all observations belong to the same frame; nested costs
+must not be added. Flower/TNT and merge effects overlap, but causation is open.
+No held-node mismatches; move callback maximum0.18ms and OS sample gaps17.07ms.
+Next window recovers to60callbacks with24.8ms worst active gap. Nearby sampled
+Metal counters show no failure/unavailable drawable or new renderer high-water
+that explains164ms. Finish/drop admission and UIKit finale construction are
+not individually timed by these metrics; renderer timings do not cover all
+main-thread/system scheduling work. Exact attribution NEEDS PHYSICAL TEST
+with targeted timing or a profiler; no speculative runtime change made.
+Existing physical Replay fix PASS remains valid; no new build/install/capture.
+Evidence: /tmp/native-guard-retest-20261115/console.log lines4699-4705 and
+hitch-164-review.txt. Source reviewed: NativeSourceDragTweenAdapter,
+NativeSourceAnimationRuntime, NativeBoardScene finishDrag, controller
+presentTntVariant, NativeTntVariantPresentation and NativeOwnedMetalGameplayView.
+
+## 2026-11-15 · Spaceship / Replay Board physical retest PASS
+
+Fixed Replay Board physical retest complete;user explicitly confirms:
+"je sve je super bilo ovaj puta" (2026-11-15T20:13:47.849611+01:00).
+Fresh Area55 gameplay captured on installed fixed.native appPID26886,then Hub.
+5actual post-Magnet comparisons matched:board24/generation1 plus board25/
+generations5,6,7,8. Zero new NativeSourcePresentation failures;rolling rejection
+history unchanged (last remains original19:13:29 incident). No user PROBLEM
+markers in this retest. No held-node positional mismatches. All169 thermal
+samples nominal,no memory warnings;peak471.03MB,final193.91MB on Hub.
+Sampled Metal failedFrames/drawableUnavailable remain zero. Raw4831lines saved.
+Worst active callback gap164.2ms20:12:15 board28 during TNT/Flower and merge
+window;nearest maximum Source delivery44.31ms does not fully explain it.
+Largest attributed cleanup37.77ms is SourceDragTweenAdapter completion. These
+performance observations remain separate analytics,not a proven freeze or
+physical hitch after user explicitly reports smooth play. No broad leak/FPS claim.
+
+Read complete console buffer,then stopped only host relay75524 with SIGKILL;
+phone app preserved. No restart/reset/build/install/code/audio-setting change
+this retest beyond one pre-KRENI diagnostic relaunch,with byte-identical saves.
+Full console.log,markers.jsonl,reports.jsonl,final-telemetry.jsonl and before/after
+Application Support backups retained in this directory. No further capture active.
+Verdict PASS for bounded physical Spaceship/Magnet/unsolicited Replay Board fix,
+combining user acceptance and successful actual guard checks. Whole-game/release
+certification and explanation of rare callback gaps are not claimed.
+
+## 2026-11-15 · Fixed Replay guard physical retest ACTIVE
+
+User returned,requests console connection and approx30s reports. Exact installed
+.native installationCC30E18A verified. Application Support backed up to
+/tmp/native-guard-retest-20261115/before-app-support/. Relaunched once BEFORE
+KRENI to attach full stdout with --cc-performance-diagnostics;both canonical
+slots byte-identical after launch. Native boot/full thermal stream verified.
+AppPID26886,host console session43742 ACTIVE,console.log,markers.jsonl,
+reports.jsonl in same directory. KRENI 2026-11-15T19:59:18.497733+01:00. Thermal file
+native-thermal-A4276D0A-B485-4F2C-ADBB-FF85BCA6DBEF.jsonl.
+Protocol:fresh Area55 board25,Spaceship then wait2–3s after animation,ordinary
+stack/merge,then overlap if stable. Capture actual CC_NATIVE_MAGNET_COMPARE
+result=matched and any new source failure. No patch/build/install/restart until
+explicit GOTOVO. Incident markers chronological. Phone sound settings unchanged.
+No installation this turn;physical acceptance remains OPEN until user and trace agree.
+
+## 2026-11-15 · Replay guard fix installed on iPhone / test deferred
+
+User explicitly selected "Kasnije, sada samo instaliraj". Completed at 2026-11-15T19:40:33.691534+01:00.
+Normal signed Release BUILD SUCCEEDED;signing resumed after system-key wait.
+Compiled Native audit and strict/deep codesign PASS;892Native input hashes stable.
+Exact com.taptapdesign.stacktosix.native,no Web.bundle/PlugIns.
+Install-over iPhone13blue0F62 succeeded toCC30E18A-ADB3-468E-AC0A-82AB634EA963.
+Normal launchPID26863,arguments[]:NO console capture/performance launch flags.
+Both canonical slots byte-identical immediate preinstall -> postinstall ->
+postlaunch. Full receipts /tmp/native-guard-fixed-live-20261115/;fresh backup
+preinstall-now/ plus earlier before-app-support/. No uninstall/reset/manual
+profile mutation/legacy/PWA operation or physical audio preference change.
+
+Fix:Magnet consistency uses existing authored presentationAlpha for actual paint,
+so fresh alpha1 locked-zero models correctly match their real0.25 ghost opacity.
+All prior identity,value,depth,locked,visibility and semantic thresholds remain.
+Real fresh mounted FAIL-before,negative mismatch tests and final Native29/0 PASS;
+fullQA530suites4011tests,KING330,fast/iOS PASS. Earlier Simulator normal Debug
+install-over/launch62977 PASS,both canonical slots identical,actual Silent Mode1.
+User screenshot/live rejection and exact failing/final logs retained under
+/tmp/native-verify-live-20261115/;incident-analysis.txt summarizes proof/limits.
+Physical incident remains recorded FAIL;new fixed version is NEEDS PHYSICAL TEST.
+A fresh board + full Spaceship/Magnet helper finish is required later;restore
+normalizes alpha and can hide original defect. Do NOT restart capture/reports
+until user returns and requests it. Performance frame gaps/drag cleanup remain
+separate open investigation;no physical fluidity or whole-game acceptance claim.
+
+## 2026-11-15 · Replay guard fix ready / iPhone signing awaits user
+
+User explicitly chooses "Kasnije, sada samo instaliraj". Do NOT start another
+physical console capture/playtest or periodic reports after this installation.
+Fresh-board physical acceptance remains a separate later session.
+
+Fix passes Native29/0,fullQA4011,KING330,fast/iOS;normal retained Simulator
+build/install/launch62977 and canonical byte checks PASS;actual Silent Mode1.
+Phone Release compilation completed,currently waiting in codesign process64622
+(parent xcodebuild62903/session37676). Sample confirms SecKeyCreateSignature ->
+SecurityServer generateSignature IPC wait. SecurityAgent64675 owns secure input;
+Mac console unlocked. CUA cannot access SecurityAgent (explicit safety block).
+User asked to complete system codesign/keychain prompt directly;never request
+password in chat or weaken signing/keychain policy. No phone fix install yet.
+
+Pending artifact /tmp/native-phone-20261113-derived/Build/Products/Release-iphoneos/Stack to Six.app;
+logs /tmp/native-guard-fixed-live-20261115/build.log,codesign-wait.sample.txt.
+After signature finishes:verify compiled audit,deep/strict signature,source hashes
+and exact.native identity;refresh preinstall canonical backup,install over same
+iPhone13blue,verify saves,launch normally WITHOUT performance capture args,
+record receipt. No uninstall/reset/profile mutation/PWA or legacy operation.
+User still has original failing app until installation.
+
+## 2026-11-15 · Confirmed fresh-holder Magnet guard false positive / fix testing
+
+Real fresh Journey25 mounted test FAIL-before reproduced source_magnet physical
+comparison defect:locked-zero Core alpha1 vs authored Node alpha0.25.
+Existing presentationAlpha already intentionally caps fresh locked holders at0.25.
+sourceMagnetPhysicalMatchesCore compared raw Core alpha across0.35 and falsely
+rejected this valid projection. Live incident25 canonical slot also retains
+alpha1 on its original locked-zero holders;exact failure reason aligns.
+Checkpoint restoration normalizes alpha to0.25 (and depth1),which explained why
+restored isolated Spaceship checks passed. Source test fresh-opacity-before.log
+preserves2expected assertion failures and per-holder exact differences.
+
+Fix compares semantic alpha boundaries to existing presentationAlpha(tile,state)
+while retaining identity/value/depth/locked/visibility/all-roster checks and
+physical alpha. No state/asset/motion/endgame-rule mutation or guard disable.
+Failure-only bounded per-tile diff now persisted as magnetComparison for future
+incidents. Test also rejects genuine invisible numbered tile,wrong stack depth
+and incorrect holder paint. Added actual checkpoint full-helper and genuine
+four-layer live-stack checks;both passed before projection fix,confirming scope.
+
+Final Native regression groups PASS29/0:NativeSpaceshipPostMergeInputTests7,
+NativeSourceMagnetPhysicalBindingTests12,NativeSourceMagnetCoroutineTests8 and
+NativePresentationFailureRecoveryTests2. qa:full530suites/4011tests,KING330,
+iOS,qa:fast,diff hygiene PASS. Additional opt-in event-only matched result log
+added for actual post-Magnet-check evidence (no new clock/work while disabled).
+Normal Debug BUILD SUCCEEDED,source hashes stable,verified.native/noWeb.bundle/noPlugIns.
+Install-over retained Jimi1018 and normal launch62977 PASS;both canonical save slots
+byte-identical;actual SBRingerMuted=1. Preview Home inspected;receipts
+fix-simulator-delivery/. Phone signed Release build RUNNING. User already authorized physical update
+and repeat;pre-update canonical backup /tmp/native-guard-fixed-live-20261115/.
+A FRESH board is required for physical acceptance:restored checkpoints normalize
+holder alpha and can mask this original guard defect.
+Logs /tmp/native-verify-live-20261115/{fixed-native-tests,fix-qa-*}.log.
+Phone process26648 remains untouched after saved capture;new fix not installed.
+Physical incident verdict FAIL until a repeat agrees with user behavior.
+
+## 2026-11-15 · Physical Spaceship / unsolicited Replay Board incident FAIL
+
+User PROBLEM "uu problem replay board problem ovog trena",then"OVO JE UZAS",
+"ovo me razocaralo",then explicit GOTOVO;markers retained under
+/tmp/native-verify-live-20261115/. User clarified Replay Board appeared by itself
+while Spaceship animation remained active;attached screenshot confirms modal
+over live Spaceship and board. Do not treat as a failed Replay CTA interaction.
+Actual new source rejection at19:13:29.379 Europe/Zagreb:board25,generation4,
+revision12,moves38,reason source_magnet_physical_core_divergence. Console
+NativeSourcePresentation seals same generation19:13:29.393. Thermal remains
+nominal;subsequent renderer counters stop while recovery modal owns suspension.
+Incident Application Support and thermal files copied before stopping only host
+relay50798 with SIGKILL;phone app26648 preserved,not restarted/reset.
+Last durable canonical run25:revision9,moves41,Spaceship at0,4 and stacked
+g4-36value5/depth4. Both canonical slots plus rolling rejection history retained.
+LLDB device attach did not yield a launched debug process;no runtime mismatch
+snapshot acquired;do not claim debugger diagnosis.
+
+Priority is genuine Magnet physical/Core mismatch,not speculative frame tuning.
+Added failure-only bounded physical/Core difference diagnostics and actual
+board25 restore/Spaceship full-helper test in NativeSourceFreshRebuildTests.
+Initial reproduction attempts failed in test setup/coverage,not a confirmed product reproduction:
+reproduce-tests.log and reproduce-ids-tests.log opened fresh board because the
+seed lacked actual beginAttempt metadata;fixed test seed. reproduce-attempt-tests.log
+loaded actual checkpoint but checked pull flag before real helper verification,
+then next contact superseded that helper. Final trace identifies physical survivor
+g4-0: sourceMagnet survivor commit19:13:28.112,guard failure19:13:29.393.
+Retargeted exact checkpoint test to g4-0 and wait for actual diagnostic check;
+reproduce-actual-target.log RUNNING. No guard bypass,timing/input change or
+physical installation of investigation edits. Physical verdict FAIL.
+
+## 2026-11-15 · Updated physical Release installed / capture ACTIVE
+
+Authorized new signed normal Release BUILD SUCCEEDED;qa:ios,compiled Native
+audit,strict/deep codesign PASS.892Native input hashes stable. Exact.native,
+no Web.bundle/PlugIns;install-over iPhone13blue0F62 succeeded to84A39815-64C9-4346-93BE-97333B117E07.
+Both canonical slots byte-identical before installation through launch;backup
+and receipts /tmp/native-verify-live-20261115/. No uninstall/reset/manual save
+mutation/PWA or legacy operation. Phone audio settings untouched.
+New appPID26648 normal console launch --cc-performance-diagnostics confirmed
+Native boot and full telemetry;host session35074 ACTIVE,console.log and
+markers.jsonl. KRENI 2026-11-15T19:10:05.752862+01:00. Thermal file
+native-thermal-72195886-6DE6-4153-83C5-62230FE3C3E3.jsonl.
+Report approx30s;record every incident marker,do not stop/restart/patch/build/
+install until explicit GOTOVO. Repeat targets:CLEARED resource preparation,
+merge frame gaps and new cleanup-owner attribution. Physical acceptance OPEN.
+
+## 2026-11-15 · Physical install + repeat capture AUTHORIZED
+
+User "ok moze" accepts proposed installation of new Native version on phone
+and repeat detailed capture with approx30second reports. Connected iPhone13blue
+0F62 verified;Application Support backup /tmp/native-verify-live-20261115/
+before-app-support/ includes both canonical slots. No profile reset authorized.
+qa:ios PASS;892Native source hashes captured. Normal signed Release build
+from complete working tree RUNNING in /tmp/native-phone-20261113-derived;
+log /tmp/native-verify-live-20261115/build.log. Verify compiled audit/signature/
+bundle identity and source stability before install-over;then canonical slots
+beforelaunch comparison,launch --console --cc-performance-diagnostics and verify
+full stream before KRENI. Existing dedicated Simulator preview remains intact.
+
+## 2026-11-15 · Detailed physical GOTOVO / bounded performance repair
+
+User GOTOVO captured in /tmp/native-detailed-live-20261115/markers.jsonl.
+Full stdout/stderr console.log,70 persisted final-telemetry samples and before/after
+Application Support snapshots preserved; host relay36779 stopped only after
+reading buffer,using SIGKILL. No signal to app26437,no physical install/reset/save edit.
+Temperature nominal throughout;peak351.72MB,final184.34MB on Home. No drag-position
+mismatches or sampled renderer failures. Detailed rankings/limits:analysis.txt.
+
+Captured frame gaps200.9/195.5ms on board3;not fully explained by measured
+Source work. Cubero raw80.88ms,TNT root78.54ms,Kanta raw75.79ms include
+callbacks and do not prove local pose sampling is responsible. Source cleanup
+costs up to43.62ms;original trace lacks cleanup-owner attribution.
+Confirmed source work:finalMergeProgress can create CLEARED and synchronously
+render its software-CI shadow during the finale callback. Controller now prepares
+one exact-sized bitmap on existing NativeRewardFilteredFrames queue,borrows it
+for CLEARED,retains original synchronous fallback if unready. Exact pixel/size/
+motion preserved;queued work cancels at suspension/resize/disposal,late callbacks
+rejected,one running filter may drain. No asset,gameplay,save,audio or haptic change.
+Scheduling diagnostics now name slowest cleanup owner/family;opt-in only,zero
+new timer. Physical causal attribution/performance improvement remains OPEN.
+
+Initial Native tests31/0 PASS including worker/reference exact PNG comparison,
+first-layout bitmap identity on phone/tablet,duplicate prep,cancel/resize/dispose
+and late callback rejection. Final Native rerun with cleanup labels31/0 PASS.
+qa:fast,KING330,feature admission,iOS audit,diff hygiene PASS. qa:full PASS
+(530suites/4011tests);dist rebuilt by fullQA with SKIP_NATIVE_BUNDLE_SYNC=true,
+no preserved PWA sync.
+Complete-tree normal Debug BUILD SUCCEEDED preview-build.log;892Native input
+hashes unchanged. Verified exact.native,no Web.bundle/PlugIns,install-over retained
+Jimi1018 succeeded,normal launchPID44240. Installed executable matches artifact;
+both canonical save slots byte-identical preinstall through launch. Actual
+SBRingerMuted=1 after launch. Screenshot/receipts:simulator-delivery/. No phone
+installation or new physical performance acceptance. Remaining largest gaps
+and cleanup costs require a targeted physical repeat with new cleanup attribution.
+QA: deterministic PASS; physical fluidity NEEDS PHYSICAL TEST.
+
+## 2026-11-15 · Detailed physical playtest ACTIVE
+
+User requests fresh detailed console/performance capture and approx30s reports,
+then evidence-based fixes after GOTOVO. KRENI 2026-11-15T18:43:37.813615+01:00.
+Backed up Library/Application Support to /tmp/native-detailed-live-20261115/
+before-app-support/, including both canonical save slots and rejection baseline.
+Relaunched exact installed .native app via --terminate-existing --console
+--cc-performance-diagnostics to restore detailed stdout (no build/install/reset).
+Native boot + live telemetry confirmed; host session97563. Raw console.log,
+markers.jsonl and bounded reports.jsonl retained in same directory. New telemetry
+native-thermal-D7F11005-FA3D-4CA6-93AA-540DFEDEDFAD.jsonl. Await GOTOVO; no
+restart, patch/build/install while playing. Existing source dirty work preserved.
+
+## 2026-11-15 · Physical playtest GOTOVO / capture saved
+
+Physical console/telemetry playtest completed at user GOTOVO: 2026-11-15T18:33:32.999857+01:00.
+Evidence: console.log, resume-console.log, final-telemetry.jsonl,
+final-source-rejections.json and markers.jsonl in this directory.
+318 persisted samples span18:06:14–18:33:16 Europe/Zagreb, including samples
+persisted during host capture pause; do not describe this as uninterrupted stdout.
+Resumed window has113samples from18:23:47 (marker boundary) through18:33:16.
+Same app process26217 preserved. Read buffered relay before stopping hostPID27573
+with SIGKILL; no app signal/restart/install/reset or save mutation.
+All thermal samples nominal; all sampled failedFrames/drawableUnavailable zero.
+Peak footprint391.91MB whole process,382.08MB resumed; final205.64MB in Settings,
+no mounted gameplay drawable. Oscillation/recovery is not proof of no memory leak.
+No new source rejection:all8records predate session,last2026-11-08.
+Initial stdout has no fatal/crash/assertion match, but frame gaps164.4ms at18:08:22
+(preload-bar),81.2ms at18:08:32(regular-merge6/spawn),80.9ms at18:10:51
+(drag/merge6). Later persisted Metal updateWorstMs73.05 first observed18:26:19;
+it is a scene cumulative maximum, not repeated73ms samples or exact event time.
+Confirmed intermittent frame pacing/update spikes; precise owner/cause unproven.
+Resume console had transport lines only; no detailed drag/frame-event stdout.
+No user PROBLEM markers or explicit fluidity acceptance. No code/asset changes,
+no automated build/regression gates needed for capture-only task. Next targeted
+physical capture with working detailed stdout and event marker required to isolate
+spike cause. QA verdict NEEDS PHYSICAL TEST for sustained fluidity acceptance.
+
+## 2026-11-15 · Physical playtest RESUMED
+
+User resumes at 2026-11-15T18:23:42.702929+01:00. Same .native processPID26217 verified
+on connected iPhone13blue; no restart/install/reset. Console relay session9903
+active, resume-console.log currently transport lines only (existing process
+stdout not reattached). Live persisted telemetry independently copied from
+Library/Caches/NativeOnlyDiagnostics/native-thermal-82B196CC-EB64-40F9-BCE3-63ED0E0F5841.jsonl
+to /tmp/native-console-live-20261115-1807/resume-telemetry.jsonl; sequence203,
+current gameplay/nominal confirmed. User informed of console limitation.
+Continue approx30second telemetry reports, preserve process, await GOTOVO.
+
+## 2026-11-15 · Physical console playtest PAUSED
+
+User explicitly paused at 2026-11-15T18:11:53.277423+01:00. Full capture and markers preserved
+at /tmp/native-console-live-20261115-1807/. Stopped only host console relay
+PID19709 with SIGKILL so no catchable signal is forwarded to appPID26217.
+No GOTOVO received; no completed diagnosis/acceptance. No restart, install,
+reset, code or save edits. Stop periodic reports; reconnect on user return,
+preserving current board where possible. In-app opt-in diagnostics remain
+with process and pause normally on background.
+
+## 2026-11-15 · Physical console playtest setup (now PAUSED)
+
+User requests a new console-only physical playtest. Connected iPhone13blue
+0F62B71E-0B04-53C3-906E-EC28F5D2390B; exact installed .native app verified.
+No existing Stack to Six process found; normal launch with opt-in
+--cc-performance-diagnostics succeeded; NATIVE_SWIFT_BOOT confirms webRuntime=absent.
+Full stdout/stderr capture /tmp/native-console-live-20261115-1807/console.log,
+markers.jsonl; host exec session65510 ACTIVE. KRENI 2026-11-15T18:06:21.910643+01:00.
+Thermal/resource samples confirmed. Wait for explicit GOTOVO; log all user
+incident markers, preserve live process and saves, no patch/build/install during play.
+No code, app install, profile reset, PWA/legacy or audio settings change.
+Physical acceptance and diagnosis remain OPEN.
+
+## 2026-11-15 · Story surname spelling: Ivankovic
+
+User requests Ivankovic without ć in the game. Changed only the surname in
+NativeCreatorStoryModal.paragraphs[0]; retained the existing introduction and layout.
+qa:fast, qa:full, qa:ios and diff hygiene PASS; logs /tmp/story-surname-{fast,full,ios-independent}.log.
+Normal complete-tree Debug BUILD SUCCEEDED /tmp/story-surname-build.log.
+Verified .native bundle identity, no Web.bundle, and compiled Ivankovic string.
+Install-over retained Jimi1018 and normal launch PID13340 succeeded; actual
+SBRingerMuted=1 after launch. Both canonical saves remain byte-identical to
+/tmp/story-surname-delivery/before/. No physical phone operation; the separate
+physical playtest remains paused.
+
+## 2026-11-15 · Story introduction: Igor “Jimi” Ivanković
+
+User-approved first paragraph now introduces Igor “Jimi” Ivanković as a designer
+and game creator from Croatia, with trusty companion Nala, dog and supervisor.
+Only NativeCreatorStoryModal.paragraphs[0] changed; the “I first had the idea”
+paragraph, Star fact, artwork and motion remain unchanged.
+
+qa:fast, qa:full, qa:ios, diff hygiene PASS; full log /tmp/story-intro-full.log.
+NativeCreatorStoryTests PASS6/0 including
+compact phone/tablet layout and reachability. Initial normal scheme test attempt
+was rejected because that scheme has no TestAction; reran successfully using
+existing Native Gameplay QA scheme. Logs /tmp/story-intro-{fast,ios,native-tests}.log.
+Normal complete-tree Debug BUILD SUCCEEDED /tmp/story-intro-preview-build.log.
+Verified exact .native identity, no Web.bundle/PlugIns; install-over retained
+Jimi1018 and normal launchPID7261. Built/installed executable and debug dylib
+match; both canonical saves byte-identical preinstall through immediate launch.
+Backup/receipt /tmp/story-intro-delivery/canonical/. Actual SBRingerMuted=1
+(Silent Mode ON) after launch. CUA observed the complete new introduction and
+unchanged remaining copy, fully readable in the normal open Story modal.
+No physical phone operation, reset/uninstall, preserved PWA sync or publication.
+The separately paused physical console playtest remains paused.
+
+## 2026-11-15 · Physical first-play test PAUSED by user
+
+Explicit pause at 2026-11-15T16:14:54.718160+01:00: "pauziraj bufdem kad se vratim".
+Console-only evidence retained at /tmp/native-fresh-live-20261115/console.log
+and markers.jsonl. Stopped only host devicectl console relay with uncatchable
+host signal to avoid its documented forwarding of catchable signals to app.
+No application restart/reset/install or diagnosis at pause. No GOTOVO received;
+no completed acceptance claimed. In-app opt-in diagnostics remain with current
+process and pause normally with app background. Resume only when user returns;
+reconnect capture to existing process without losing live board where possible.
+
+## 2026-11-15 · Fresh physical iPhone console capture setup (now PAUSED)
+
+User explicitly requests installing latest fix first,then testing from first
+play. User authorizes fresh profile and declines progress backup. Release
+BUILD SUCCEEDED /tmp/fresh-live-build.log;current893Native input hashes stable,
+qa:ios,compiled Native audit and final strict/deep codesign PASS. Correct.native,
+no Web.bundle/PlugIns. Install-over iPhone13blue0F62 succeeded to installation
+1329257D-6EEC-4EF9-AAB8-3A743FA07AF3. Both canonical slots replaced with empty
+validated-profile-shaped Native v1 envelopes;roundtrip exact and postlaunch
+firstPlayTutorialComplete=false,no runs/completed boards verified. No uninstall,
+legacy/PWA operation,physical audio settings change or app-code edits this turn.
+
+Console launched new installed appPID25866 with --cc-performance-diagnostics;
+actual.Native boot and repeated thermal/resource telemetry visible. User corrects
+scope to CONSOLE ONLY. QuickTime preview closed;no video recording started.
+KRENI marker prepared at 2026-11-15T15:33:06.893124+01:00;capture session8450 remains ACTIVE.
+Evidence:/tmp/native-fresh-live-20261115/console.log,markers.jsonl,install.json,
+profile-reset receipts,verified-fresh/ and after-launch/. Continue logging every
+user problem marker;do not stop,build,install,reset or diagnose before explicit
+GOTOVO. If frozen,preserve running board. Await user playtest and GOTOVO.
+
+## 2026-11-15 · Beach05 Fish input/Exit investigation and failure recovery
+
+User reports one frozen Fish on Beach05 while3ordinary dice and Juice worked;
+Exit confirmation also returned to the same board per user report. Connection recovered;copied
+canonical saves and historical diagnostics to /tmp/fish-stuck-20261115/.
+Debugger could not attach while phone locked. User then said affected game no
+longer exists and authorized independent investigation instead of live capture.
+No KRENI/GOTOVO reproduction or physical cause confirmed. Board15 durable save
+predates report (revision26,two Fish,Bottle,three ordinary),not frozen runtime.
+No physical reset,manual save mutation or installation by this investigation.
+
+Three agents traced per-tile input,save/Exit and merge ownership. Confirmed
+production gap:scene.onPresentationFailure had no production callback. A rejected
+merge setup could therefore silently retain disabled input and unsavable state.
+NativeGameplayViewController now forwards that callback weakly through existing
+Source failure capture/seal/recovery. Bridge rebinds on scene/generation change
+before refresh work;old callbacks cannot seal a replacement run. No forced
+Fish unlock,save bypass,gameplay/audio/asset/timing change. Existing Replay/Exit
+recovery preserves last coherent durable envelope. This fixes a proven silent
+failure path;it does NOT establish the original Fish incident's precise cause.
+
+FAIL-before:mounted generic failure test unwraps nil callback;native-before.log.
+After fix:actual recovery Exit,canonical slot identity,duplicate/stale callbacks
+and same-controller generation replacement PASS. Three complete Source Beach15
+sparse tests PASS:Fish pickup after ordinary/Juice work,both contact directions,
+Bottle pull,actual save and Exit. Native-resumed.log passed14of15 cases;the only
+failed case was old BeachBall observer waiting TNT actions although registry
+uses Juice Source short-blast. Observer now measures real Source displacement,
+retains all visibility/identity/rest assertions. Final BeachBall+Flower rerun
+PASS2/0 in27.314s (native-blasts-final.log);all15distinct Native cases now
+have passing execution evidence across these bounded runs.
+Earlier fixture corrections declare real Journey attempt and await actual
+pendingDirectWild owner retirement (including authored Juice1860ms Wild gate).
+No production timing/input relaxation. One test host attempt during user pause
+failed before test admission with Simulator audio RPC deadlock;retained1018
+Simulator rebooted with data preserved,actual SBRingerMuted=true verified.
+
+Fast/full530suites4011tests,KING330,iOS,diff-check PASS. Independent final source
+review PASS,no high/medium finding. Evidence and all raw failed/final logs:
+/tmp/fish-stuck-20261115/.
+
+Normal complete-tree Debug BUILD SUCCEEDED (preview-build.log),893Native input
+hashes stable. Verified .native,no Web.bundle/PlugIns. Install-over retained1018
+Simulator and normal launchPID13367;installed executable/debug dylib hashes
+match built app. Both canonical saves byte-identical preinstall→postlaunch;
+backup:preview-preinstall/,receipt:preview-receipt.json. CUA observed normal
+Home and toolbarMuteOn;actual SBRingerMuted=true verified after launch.
+Across the entire QA session the primary preserved gameplay/settings/progression
+semantically (only savedAt and set-order serialization changed). Normal
+lifecycle saves rotated previous slot to the existing primary settings;do not
+claim whole-session byte identity for either slot. Before-tests copies retained.
+No uninstall/reset,physical install,PWA/legacy operation or Git publication.
+Original physical Fish reproduction/visual/audio/thermal acceptance remains
+NEEDS PHYSICAL TEST. Physical phone still has previous installed Release.
+
 ## 2026-11-15 · Current installed Native update published to GitHub
 
 User requests saving this update online. Publication includes all currently

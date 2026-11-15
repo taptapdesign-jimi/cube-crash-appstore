@@ -40,6 +40,9 @@ function flush(){let n=0;while(timers.size&&n++<100){const [id,next]=[...timers]
 function capture(key,action){cues=[];clock=0;timers.clear();action();flush();catalog[key]=cues;}
 
 for(const [key,[name,fn,...args]]of Object.entries(specs)){cues=[];clock=0;timers.clear();try {const owner=load(`src/modules/${name}.ts`);math.random=()=>/^star[0-3]$/.test(key)?Number(key.slice(-1))*0.25+0.01:/^kantaExit/.test(key)?Number(key.slice(-1))/3+0.01:0.37;if(fn.startsWith('@')){const [factory,method]=fn.slice(1).split('.');owner[factory]()[method](...args);}else{if(typeof owner[fn]!=='function')throw Error(`No ${fn}`);owner[fn](...args);}let n=0;while(timers.size&&n++<100){const [id,next]=[...timers].sort((a,b)=>a[1].at-b[1].at)[0];if(next.at>15000)break;timers.delete(id);clock=next.at;next.fn(clock);}cues.forEach((c,i)=>{if(c.voice.startsWith('media-'))c.voice=key+'-media-'+i;});catalog[key]=cues;if(!cues.length)failures.push(`${key}: no playback`);}catch(e){failures.push(`${key}: ${e.message}`);}}
+// Native board removal starts its existing three layers 100ms after visual exit.
+// Keep preserved web timing and Native board entry unchanged.
+for(const cue of catalog.boardExit)cue.delay+=0.1;
 // Execute every Fisher-Yates swap combination, preserving the real owner's per-slot mix.
 const tntOwner=load('src/modules/core-tnt-merge6-sound.ts');
 for(let a=0;a<5;a++)for(let b=0;b<4;b++)for(let c=0;c<3;c++)for(let d=0;d<2;d++) {

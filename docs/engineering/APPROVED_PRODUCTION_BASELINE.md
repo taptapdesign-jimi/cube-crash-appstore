@@ -1,8 +1,18 @@
 # Approved Production Baseline
 
-Updated: 2026-11-08
+Updated: 2026-11-15
 
-## Current Native checkpoint — Production ready v1
+## Current Native checkpoint — Finished product v1.1
+
+User explicitly requests preserving the complete current Native project online
+as **finished product v1.1** on 2026-11-15. Immutable annotated tag:
+`finished-product-v1.1`. See [FINISHED_PRODUCT_V1_1.md](FINISHED_PRODUCT_V1_1.md).
+This supersedes `production-ready-v1` for Native continuation/recovery.
+All historical Native and PWA tags remain preserved. The milestone name records
+the user-selected checkpoint; existing physical and App Store release limits
+remain documented and are not certified by Git publication.
+
+## Historical Native checkpoint — Production ready v1
 
 User explicitly selects the complete current project as the new **Production
 ready v1** benchmark on 2026-11-08 and requests online Git preservation.
@@ -65,7 +75,7 @@ remote publication must be reported separately and is not implied here.
 
 ## Interpretation rule
 
-When the user says **approved version**, **approved baseline**, **perfect version**, **the version that was super**, **production benchmark**, **benchmark fluidnost**, **stable release**, or otherwise refers to the last version they personally accepted, for the preserved PWA treat `production-benchmark-v9` as the exact source reference. Native uses `production-ready-v1` above.
+When the user says **approved version**, **approved baseline**, **perfect version**, **the version that was super**, **production benchmark**, **benchmark fluidnost**, **stable release**, or otherwise refers to the last version they personally accepted, for the preserved PWA treat `production-benchmark-v9` as the exact source reference. Native uses `finished-product-v1.1` above.
 
 Do not infer approval from a successful build, QA pass, device installation, merge, release, or positive comment about one isolated change. Only an explicit user statement that a newer complete state is approved may supersede this file.
 

@@ -1756,6 +1756,11 @@ final class NativeGameplayAudioTests:XCTestCase {
         XCTAssertEqual(transport.cues.count,3)
         XCTAssertEqual(transport.cues.map(\.source),NativeAuthoredAudioCatalog.groups["boardExit"]!.map(\.source))
         XCTAssertTrue(transport.cues.allSatisfy{$0.stopAfter==0.78 && $0.fadeOut==0.05})
+        XCTAssertTrue(transport.cues.allSatisfy{$0.delay==0.1})
+        transport.cues=[]
+        owner.routeFeedback("board-enter",receipt:5,generation:1,duration:0.78)
+        XCTAssertEqual(transport.cues.count,4)
+        XCTAssertTrue(transport.cues.allSatisfy{$0.delay==0})
     }
     private func tile(_ archetype:NativeWildArchetype?=nil,variant:String?=nil)->NativeTile {
         NativeTile(id:"source",cell:.init(column:0,row:0),value:archetype == nil ? 3 : 6,archetype:archetype,variant:variant)

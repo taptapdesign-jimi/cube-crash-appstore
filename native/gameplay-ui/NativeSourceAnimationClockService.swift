@@ -19,6 +19,7 @@ final class NativeSourceAnimationClockService {
         var worstFrameFIFOReactionMilliseconds=0.0,worstFrameFIFOCompactMilliseconds=0.0,worstFrameOtherMilliseconds=0.0
         var worstFrameRootCount=0,worstFrameFIFOJobCount=0
         var slowestReactionMilliseconds=0.0,slowestReactionOwner="none"
+        var slowestCleanupMilliseconds=0.0,slowestCleanupOwner="none",slowestCleanupFamily="none"
         var rootHighWater=0,rawHighWater=0,rafHighWater=0,tickerListenerHighWater=0,renderDemandHighWater=0
     }
     private struct DeliveryCosts {
@@ -39,7 +40,15 @@ final class NativeSourceAnimationClockService {
             self.diagnosticScheduling.worstRootMilliseconds=max(self.diagnosticScheduling.worstRootMilliseconds,milliseconds)
             self.recordSlowestParticipant(milliseconds:milliseconds,phase:"root:"+family.rawValue,owner:{String(reflecting:type(of:participant))})
         }
-        source.onCleanupDuration={ [weak self] duration in self?.deliveryCosts?.cleanup+=duration }
+        source.onCleanupDuration={ [weak self] owner,family,duration in
+            guard let self,self.diagnosticEnabled,!self.disposed else{return}
+            self.deliveryCosts?.cleanup+=duration
+            if duration>self.diagnosticScheduling.slowestCleanupMilliseconds {
+                self.diagnosticScheduling.slowestCleanupMilliseconds=duration
+                self.diagnosticScheduling.slowestCleanupOwner=String(owner.map{$0.isWhitespace ? "_":$0}.prefix(120))
+                self.diagnosticScheduling.slowestCleanupFamily=family.rawValue
+            }
+        }
         installFIFODiagnostics()
     }
     private func installFIFODiagnostics(){

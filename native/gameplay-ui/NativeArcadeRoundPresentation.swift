@@ -38,7 +38,7 @@ final class NativeArcadeRoundPresentation: UIView {
     let boardClearedThumbRotation:CGFloat
     let isPuppyThumb: Bool
     var thumbAssetPath: String { isPuppyThumb ? "assets/puppy thumbs up@2x.png" : "assets/thumbs-up@2x.png" }
-    private let shadow = NativeArcadeThumbShadow()
+    private let shadow:NativeArcadeThumbShadow
     private var titleGlyphs: [UILabel] = [], subtitleGlyphs: [UILabel] = [], roundGlyphs: [UILabel] = [], digits: [UILabel] = []
     private var exitAngles: [CGFloat] = [], digitAngles: [CGFloat] = []
     private var titleFactors: [CGFloat] = []
@@ -76,8 +76,10 @@ final class NativeArcadeRoundPresentation: UIView {
     var duration: TimeInterval { if boardClearedOnly { return thumbExitStart+0.30 }; return roundExitStart+max(Double(max(0,roundGlyphs.count-1))*0.012+0.30,Double(max(0,digits.count-1))*0.4+0.45,Double(max(0,modeTitleGlyphs.count-1))*0.05+0.3) }
 
     init(resourceRoot: URL,clearedRound: Int,nextRound: Int,continuationOnly: Bool = false,boardClearedOnly: Bool = false,entryTitle: String? = nil,
+         preparedShadow:NativeArcadeThumbShadow.Prepared? = nil,
          random: () -> Double = { Double.random(in: 0..<1) }) {
         artwork = JimiV9Artwork(resourceRoot: resourceRoot)
+        shadow=NativeArcadeThumbShadow(prepared:preparedShadow)
         self.entryTitle = entryTitle
         self.clearedRound = max(1,clearedRound); self.nextRound = max(1,nextRound); self.continuationOnly = continuationOnly; self.boardClearedOnly = boardClearedOnly
         headline = boardClearedOnly ? "CLEARED" : Self.headlines[min(Self.headlines.count-1,max(0,Int(random()*Double(Self.headlines.count))))]
@@ -144,6 +146,13 @@ final class NativeArcadeRoundPresentation: UIView {
         ]
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    static func clearedShadowSize(viewport:CGSize)->CGSize {
+        let reference=NativeTabletLayout.applies(viewport) ? CGSize(width:390,height:844):viewport
+        let compact=reference.height<=720
+        let thumbSize=compact ? min(reference.width*0.46,230):min(reference.width*0.58,300)
+        return CGSize(width:thumbSize*0.74,height:thumbSize*0.10)
+    }
 
     private func glyphs(_ text: String,color: UIColor,parent: UIView) -> [UILabel] {
         text.map { character in
@@ -529,19 +538,50 @@ private final class NativeArcadeDisplayTarget: NSObject {
     @objc func tick(_ link: CADisplayLink) { owner?.tick(link) }
 }
 
+/// One controller/viewport owns one tiny bitmap; no clock or global cache.
+@MainActor final class NativeClearedShadowPreparation {
+    typealias Prepare=(CGSize,NativeRewardPreparationLease,@escaping (UIImage?)->Void)->Void
+    private let prepare:Prepare
+    private var lease:NativeRewardPreparationLease?,requestedSize:CGSize?
+    private var prepared:NativeArcadeThumbShadow.Prepared?,disposed=false
+    var pending:Bool {lease != nil}
+    init(prepare:@escaping Prepare={NativeRewardFilteredFrames.prepareArcadeThumbShadow(size:$0,lease:$1,completion:$2)}) {self.prepare=prepare}
+    func prepare(viewport:CGSize) {
+        guard !disposed,viewport.width>0,viewport.height>0 else{return}
+        let size=NativeArcadeRoundPresentation.clearedShadowSize(viewport:viewport)
+        guard requestedSize != size else{return}
+        cancelPending();prepared=nil;requestedSize=size
+        let captured=NativeRewardPreparationLease();lease=captured
+        prepare(size,captured){[weak self] image in
+            guard let self,!self.disposed,self.lease === captured,!captured.cancelled,self.requestedSize==size else{return}
+            self.lease=nil
+            if let image {self.prepared = .init(size:size,image:image)}
+        }
+    }
+    func image(viewport:CGSize)->NativeArcadeThumbShadow.Prepared? {
+        guard !disposed,let prepared,prepared.size==NativeArcadeRoundPresentation.clearedShadowSize(viewport:viewport) else{return nil}
+        return prepared
+    }
+    func cancelPending() {if let lease {lease.cancel();self.lease=nil;requestedSize=nil}}
+    func dispose() {guard !disposed else{return};disposed=true;cancelPending();prepared=nil;requestedSize=nil}
+    isolated deinit {lease?.cancel()}
+}
+
 final class NativeArcadeThumbShadow: UIView {
+    struct Prepared {let size:CGSize;let image:UIImage}
     private let imageView = UIImageView()
     private var preparedSize = CGSize.zero
     private let alphaGain:CGFloat
     private static let padding: CGFloat = 30
 
-    init(frame: CGRect = .zero,alphaGain:CGFloat=1) {
+    init(frame: CGRect = .zero,alphaGain:CGFloat=1,prepared:Prepared?=nil) {
         self.alphaGain=alphaGain
         super.init(frame: frame)
         isOpaque = false
         backgroundColor = .clear
         isUserInteractionEnabled = false
         addSubview(imageView)
+        if let prepared,alphaGain==1 {preparedSize=prepared.size;imageView.image=prepared.image}
     }
     required init?(coder: NSCoder) { fatalError("Use native shadow initializer") }
 
@@ -555,7 +595,7 @@ final class NativeArcadeThumbShadow: UIView {
 
     /// PWA radial-gradient plus blur(10px). Prepare once per layout size;
     /// the existing finite clock animates only the cached image's parent.
-    private static func makeShadow(size: CGSize,alphaGain:CGFloat) -> UIImage? {
+    nonisolated static func makeShadow(size: CGSize,alphaGain:CGFloat) -> UIImage? {
         let canvas = CGSize(width: size.width+padding*2,height: size.height+padding*2)
         let format = UIGraphicsImageRendererFormat(); format.scale = 1; format.opaque = false
         let image = UIGraphicsImageRenderer(size: canvas,format: format).image { renderer in

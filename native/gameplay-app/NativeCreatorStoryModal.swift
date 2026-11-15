@@ -18,7 +18,7 @@ enum NativeCreatorStoryArtwork {
 @MainActor
 final class NativeCreatorStoryModal:UIViewController {
     static let paragraphs = [
-        "Hi, I’m Jimi! That’s me with Nala, my dog and supervisor. She mostly sleeps on the job.",
+        "Hi, I’m Igor “Jimi” Ivankovic, a designer and game creator from Croatia. That’s me with my trusty companion Nala, my dog and supervisor. She mostly sleeps on the job.",
         "I first had the idea for this game nearly ten years ago. Bringing it to life took a year of late nights and endless tweaks. What a journey it’s been!",
         "Fun fact: It all started with the Star."
     ]

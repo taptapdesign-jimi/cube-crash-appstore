@@ -10,6 +10,15 @@ nonisolated final class NativeRewardPreparationLease:@unchecked Sendable {
 /// serial queue prepares its carrier; disposed screens reject late completion.
 nonisolated enum NativeRewardFilteredFrames {
     private static let queue=DispatchQueue(label:"stacktosix.native-reward.filters",qos:.userInitiated)
+    /// Same exact radial gradient and software blur, outside visible frame work.
+    static func prepareArcadeThumbShadow(size:CGSize,lease:NativeRewardPreparationLease,completion:@escaping (UIImage?)->Void) {
+        queue.async {
+            guard !lease.cancelled else{return}
+            let image=autoreleasepool {NativeArcadeThumbShadow.makeShadow(size:size,alphaGain:1)}
+            guard !lease.cancelled else{return}
+            Task { @MainActor in guard !lease.cancelled else{return};completion(image) }
+        }
+    }
     /// Compile the exact counter filter/radius family before its visible clock.
     /// The context transfers only after the worker's final synchronous render;
     /// it is never used by this worker and the visible result concurrently.

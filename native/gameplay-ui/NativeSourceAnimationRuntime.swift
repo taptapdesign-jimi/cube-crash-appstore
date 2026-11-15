@@ -40,7 +40,7 @@ final class NativeSourceAnimationRuntime {
     // time, create labels or retain samples for profiling.
     var diagnosticMillisecondsNow:(()->Double)?
     var onParticipantDuration:((any NativeSourceAnimationParticipant,RootFamily,Double)->Void)?
-    var onCleanupDuration:((Double)->Void)?
+    var onCleanupDuration:((String,RootFamily,Double)->Void)?
     var activeCount:Int{entries.count}
     var hasSourceTickerDemand:Bool{entries.values.contains{$0.active && !$0.suspended && $0.participant != nil}}
     var hasRunnableParticipants:Bool{!globallyPaused && hasSourceTickerDemand}
@@ -167,9 +167,10 @@ final class NativeSourceAnimationRuntime {
         let cleanup=entry.cleanup;entry.cleanup=nil
         // Captured cleanup executes even after participant deallocation or
         // generation replacement. It never looks up a latest same-label owner.
+        let diagnosticOwner=diagnosticMillisecondsNow == nil ? nil:entry.participant.map{String(reflecting:type(of:$0))} ?? "retired-participant"
         let start=diagnosticMillisecondsNow?()
         cleanup?(success);onDemandChanged?()
-        if let start,let clock=diagnosticMillisecondsNow {onCleanupDuration?(max(0,clock()-start))}
+        if let start,let clock=diagnosticMillisecondsNow,let diagnosticOwner {onCleanupDuration?(diagnosticOwner,entry.family,max(0,clock()-start))}
     }
     private func setSuspended(id:UInt64,value:Bool){
         guard let entry=entries[id],entry.suspended != value else{return}

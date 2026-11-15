@@ -271,9 +271,9 @@ enum NativeAuthoredAudioCatalog {
             NativeAudioCue(source:"assets/sound/board etting up/cubes.wav",voice:"board-popin-cubes",gain:0.24,rate:1,delay:0,stopAfter:0.6,fadeOut:0.05),
         ],
         "boardExit": [
-            NativeAudioCue(source:"assets/sound/board etting up/setting up boards.wav",voice:"board-popin-setting-up",gain:0.3,rate:1,delay:0,stopAfter:0.6,fadeOut:0.05),
-            NativeAudioCue(source:"assets/sound/board etting up/plump.wav",voice:"board-popin-plump",gain:0.42,rate:1,delay:0,stopAfter:0.6,fadeOut:0.05),
-            NativeAudioCue(source:"assets/sound/board etting up/setting up2.wav",voice:"board-popin-setting-up2",gain:0.42,rate:1,delay:0,stopAfter:0.6,fadeOut:0.05),
+            NativeAudioCue(source:"assets/sound/board etting up/setting up boards.wav",voice:"board-popin-setting-up",gain:0.3,rate:1,delay:0.1,stopAfter:0.6,fadeOut:0.05),
+            NativeAudioCue(source:"assets/sound/board etting up/plump.wav",voice:"board-popin-plump",gain:0.42,rate:1,delay:0.1,stopAfter:0.6,fadeOut:0.05),
+            NativeAudioCue(source:"assets/sound/board etting up/setting up2.wav",voice:"board-popin-setting-up2",gain:0.42,rate:1,delay:0.1,stopAfter:0.6,fadeOut:0.05),
         ],
         "area55Start": [
             NativeAudioCue(source:"assets/sound/Board transitions/Area 55/space.wav",voice:"board-transition-area55-space-1",gain:0.6,rate:1,delay:0,stopAfter:nil,fadeOut:0),

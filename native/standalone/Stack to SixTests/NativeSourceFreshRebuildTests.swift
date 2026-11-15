@@ -1118,6 +1118,60 @@ import StackToSixNativeState
     func testBookkeptLaserAcceptsOrdinaryBeforeWallUnlockWithoutGhostOrFrozenStack()async throws {
         try await exercise(reversed:false,overlappingCarrier:true,consumeBookkeptCarrier:true)
     }
+    func testFreshJourney25MagnetAgreementUsesAuthoredLockedHolderOpacity() async throws {
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent("native-magnet-fresh-opacity-"+UUID().uuidString)
+        let store=NativeSaveStore(directory:directory)
+        var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
+        seed.progression.firstPlayTutorialComplete=true;seed.progression.completedJourneyBoards=Set(1...24)
+        try store.save(seed)
+        let host=NativeStandaloneViewController(resourceRoot:NativeTestResources.root,store:store,sourceVisualRandom:{0.1},completeNativeGameplayEnabled:true)
+        let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+        let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=host;window.makeKeyAndVisible()
+        defer{host.dispose();window.isHidden=true;previous?.makeKeyAndVisible();try? FileManager.default.removeItem(at:directory)}
+        host.loadViewIfNeeded();let app=try XCTUnwrap(host.children.first as? NativeAppController)
+        try await wait("fresh Home"){!app.home.isHidden}
+        app.navigate(.world(3),interrupt:true)
+        try await wait("fresh Journey25"){
+            if app.children.contains(where:{$0 is NativeGameplayViewController}){return true}
+            app.world?.onRequest?("play",25);return false
+        }
+        let game=try XCTUnwrap(app.children.compactMap{$0 as? NativeGameplayViewController}.first)
+        try await wait("fresh actual entry",game:game){game.beforeSourceGameplayAdmission==nil && game.boardScene?.isBoardEntryComplete==true && !game.engine.hasUnsavableSourceGameplayState}
+        let scene=try XCTUnwrap(game.boardScene),generation=game.engine.state.generation
+        let zero=try XCTUnwrap(game.engine.state.tiles.first{$0.locked && $0.value==0})
+        let zeroNode=try XCTUnwrap(scene.sourceNativeTileNode(zero.id))
+        XCTAssertEqual(zero.alpha,1,"Actual fresh Core holder retains its source data")
+        XCTAssertEqual(zeroNode.alpha,0.25,accuracy:0.000001,"Authored visible ghost opacity")
+        XCTAssertTrue(scene.sourceMagnetPhysicalMatchesCore(generation:generation),scene.sourceMagnetPhysicalCoreDiagnostic)
+        let ordinary=try XCTUnwrap(game.engine.state.tiles.first{!$0.locked && $0.value>0})
+        let node=try XCTUnwrap(scene.sourceNativeTileNode(ordinary.id)),originalAlpha=node.alpha,originalDepth=node.sourceStackDepth
+        node.alpha=0
+        XCTAssertFalse(scene.sourceMagnetPhysicalMatchesCore(generation:generation),"A genuinely invisible numbered tile must still fail")
+        node.alpha=originalAlpha;node.sourceStackDepth=originalDepth+1
+        XCTAssertFalse(scene.sourceMagnetPhysicalMatchesCore(generation:generation),"Actual stack divergence must still fail")
+        node.sourceStackDepth=originalDepth
+        XCTAssertTrue(scene.sourceMagnetPhysicalMatchesCore(generation:generation),scene.sourceMagnetPhysicalCoreDiagnostic)
+        zeroNode.alpha=1
+        XCTAssertFalse(scene.sourceMagnetPhysicalMatchesCore(generation:generation),"Unexpected holder opacity must still fail")
+        zeroNode.alpha=0.25
+    }
+    func testActualJourney25SpaceshipCompletesPhysicalVerificationBeforeNextMove() async throws {
+        try await exercise(reversed:false,incident:november15Board(),target:"g4-0",waitForHelper:true)
+    }
+    func testActualJourney25SpaceshipPreservesLiveFourLayerStackThroughVerification() async throws {
+        var board=november15Board()
+        board.tiles[board.tiles.firstIndex{$0.id=="g4-36"}!].value=2
+        board.tiles[board.tiles.firstIndex{$0.id=="g4-36"}!].stackDepth=1
+        for id in ["g4-24","g4-29","g4-33"] {
+            let index=board.tiles.firstIndex{$0.id==id}!
+            board.tiles[index].value=1;board.tiles[index].locked=false
+        }
+        try await exercise(reversed:false,incident:board,target:"g4-0",waitForHelper:true,buildLiveStack:true)
+    }
+    private func november15Board()->NativeBoardState {
+        let data=Data(#"{"combo":9,"earnedJourneyDice":["spaceship"],"earnedComboBonus":2557,"moves":41,"bestScore":236,"wildDropTypeStreak":1,"starsCount":0,"longestCombo":9,"luckyDropUsed":false,"cubesCracked":3,"tiles":[{"merge6CleanupOwned":false,"locked":false,"cell":{"column":0,"row":0},"id":"g4-0","sourceResidualWildPresence":false,"starOrbitCount":3,"transientSpawn":false,"nonFinalMerge6":false,"magnetOwned":false,"alpha":1,"value":3,"stackDepth":1,"resolutionOwned":false,"visible":true,"pendingRemoval":false,"sourceWildStateCleared":false},{"merge6CleanupOwned":false,"locked":false,"cell":{"column":2,"row":0},"id":"g4-2","sourceResidualWildPresence":false,"starOrbitCount":3,"transientSpawn":false,"nonFinalMerge6":false,"magnetOwned":false,"alpha":1,"value":1,"stackDepth":1,"resolutionOwned":false,"visible":true,"pendingRemoval":false,"sourceWildStateCleared":false},{"merge6CleanupOwned":false,"locked":false,"cell":{"column":3,"row":0},"id":"g4-3","sourceResidualWildPresence":false,"starOrbitCount":3,"transientSpawn":false,"nonFinalMerge6":false,"magnetOwned":false,"alpha":1,"value":2,"stackDepth":1,"resolutionOwned":false,"visible":true,"pendingRemoval":false,"sourceWildStateCleared":false},{"merge6CleanupOwned":false,"locked":true,"cell":{"column":4,"row":0},"id":"g4-4","sourceResidualWildPresence":false,"starOrbitCount":3,"transientSpawn":false,"nonFinalMerge6":false,"magnetOwned":false,"alpha":1,"value":0,"stackDepth":1,"resolutionOwned":false,"visible":true,"pendingRemoval":false,"sourceWildStateCleared":false},{"merge6CleanupOwned":false,"locked":false,"cell":{"column":0,"row":1},"id":"g4-5","sourceResidualWildPresence":false,"starOrbitCount":3,"transientSpawn":false,"nonFinalMerge6":false,"magnetOwned":false,"alpha":1,"value":4,"stackDepth":1,"resolutionOwned":false,"visible":true,"pendingRemoval":false,"sourceWildStateCleared":false},{"merge6CleanupOwned":false,"locked":false,"cell":{"column":1,"row":1},"id":"g4-6","sourceResidualWildPresence":false,"starOrbitCount":3,"transientSpawn":false,"nonFinalMerge6":false,"magnetOwned":false,"alpha":1,"value":5,"stackDepth":1,"resolutionOwned":false,"visible":true,"pendingRemoval":false,"sourceWildStateCleared":false},{"merge6CleanupOwned":false,"locked":true,"cell":{"column":2,"row":1},"id":"g4-7","sourceResidualWildPresence":false,"starOrbitCount":3,"transientSpawn":false,"nonFinalMerge6":false,"magnetOwned":false,"alpha":1,"value":0,"stackDepth":1,"resolutionOwned":false,"visible":true,"pendingRemoval":false,"sourceWildStateCleared":false},{"merge6CleanupOwned":false,"locked":false,"cell":{"column":4,"row":1},"id":"g4-9","sourceResidualWildPresence":false,"starOrbitCount":3,"transientSpawn":false,"nonFinalMerge6":false,"magnetOwned":false,"alpha":1,"value":2,"stackDepth":1,"resolutionOwned":false,"visible":true,"pendingRemoval":false,"sourceWildStateCleared":false},{"merge6CleanupOwned":false,"locked":true,"cell":{"column":0,"row":2},"id":"g4-10","sourceResidualWildPresence":false,"starOrbitCount":3,"transientSpawn":false,"nonFinalMerge6":false,"magnetOwned":false,"alpha":1,"value":0,"stackDepth":1,"resolutionOwned":false,"visible":true,"pendingRemoval":false,"sourceWildStateCleared":false},{"merge6CleanupOwned":false,"locked":true,"cell":{"column":1,"row":2},"id":"g4-11","sourceResidualWildPresence":false,"starOrbitCount":3,"transientSpawn":false,"nonFinalMerge6":false,"magnetOwned":false,"alpha":1,"value":0,"stackDepth":1,"resolutionOwned":false,"visible":true,"pendingRemoval":false,"sourceWildStateCleared":false},{"merge6CleanupOwned":false,"locked":true,"cell":{"column":2,"row":2},"id":"g4-12","sourceResidualWildPresence":false,"starOrbitCount":3,"transientSpawn":false,"nonFinalMerge6":false,"magnetOwned":false,"alpha":1,"value":0,"stackDepth":1,"resolutionOwned":false,"visible":true,"pendingRemoval":false,"sourceWildStateCleared":false},{"merge6CleanupOwned":false,"locked":true,"cell":{"column":3,"row":2},"id":"g4-13","sourceResidualWildPresence":false,"starOrbitCount":3,"transientSpawn":false,"nonFinalMerge6":false,"magnetOwned":false,"alpha":1,"value":0,"stackDepth":1,"resolutionOwned":false,"visible":true,"pendingRemoval":false,"sourceWildStateCleared":false},{"merge6CleanupOwned":false,"locked":true,"cell":{"column":0,"row":3},"id":"g4-15","sourceResidualWildPresence":false,"starOrbitCount":3,"transientSpawn":false,"nonFinalMerge6":false,"magnetOwned":false,"alpha":1,"value":0,"stackDepth":1,"resolutionOwned":false,"visible":true,"pendingRemoval":false,"sourceWildStateCleared":false},{"merge6CleanupOwned":false,"locked":true,"cell":{"column":1,"row":3},"id":"g4-16","sourceResidualWildPresence":false,"starOrbitCount":3,"transientSpawn":false,"nonFinalMerge6":false,"magnetOwned":false,"alpha":1,"value":0,"stackDepth":1,"resolutionOwned":false,"visible":true,"pendingRemoval":false,"sourceWildStateCleared":false},{"merge6CleanupOwned":false,"locked":true,"cell":{"column":4,"row":3},"id":"g4-19","sourceResidualWildPresence":false,"starOrbitCount":3,"transientSpawn":false,"nonFinalMerge6":false,"magnetOwned":false,"alpha":1,"value":0,"stackDepth":1,"resolutionOwned":false,"visible":true,"pendingRemoval":false,"sourceWildStateCleared":false},{"merge6CleanupOwned":false,"locked":true,"cell":{"column":1,"row":4},"id":"g4-21","sourceResidualWildPresence":false,"starOrbitCount":3,"transientSpawn":false,"nonFinalMerge6":false,"magnetOwned":false,"alpha":1,"value":0,"stackDepth":1,"resolutionOwned":false,"visible":true,"pendingRemoval":false,"sourceWildStateCleared":false},{"merge6CleanupOwned":false,"locked":true,"cell":{"column":4,"row":4},"id":"g4-24","sourceResidualWildPresence":false,"starOrbitCount":3,"transientSpawn":false,"nonFinalMerge6":false,"magnetOwned":false,"alpha":1,"value":0,"stackDepth":1,"resolutionOwned":false,"visible":true,"pendingRemoval":false,"sourceWildStateCleared":false},{"merge6CleanupOwned":false,"locked":true,"cell":{"column":0,"row":5},"id":"g4-25","sourceResidualWildPresence":false,"starOrbitCount":3,"transientSpawn":false,"nonFinalMerge6":false,"magnetOwned":false,"alpha":1,"value":0,"stackDepth":1,"resolutionOwned":false,"visible":true,"pendingRemoval":false,"sourceWildStateCleared":false},{"merge6CleanupOwned":false,"locked":false,"cell":{"column":2,"row":5},"id":"g4-27","sourceResidualWildPresence":false,"starOrbitCount":3,"transientSpawn":false,"nonFinalMerge6":false,"magnetOwned":false,"alpha":1,"value":3,"stackDepth":1,"resolutionOwned":false,"visible":true,"pendingRemoval":false,"sourceWildStateCleared":false},{"merge6CleanupOwned":false,"locked":true,"cell":{"column":3,"row":5},"id":"g4-28","sourceResidualWildPresence":false,"starOrbitCount":3,"transientSpawn":false,"nonFinalMerge6":false,"magnetOwned":false,"alpha":1,"value":0,"stackDepth":1,"resolutionOwned":false,"visible":true,"pendingRemoval":false,"sourceWildStateCleared":false},{"merge6CleanupOwned":false,"locked":true,"cell":{"column":4,"row":5},"id":"g4-29","sourceResidualWildPresence":false,"starOrbitCount":3,"transientSpawn":false,"nonFinalMerge6":false,"magnetOwned":false,"alpha":1,"value":0,"stackDepth":1,"resolutionOwned":false,"visible":true,"pendingRemoval":false,"sourceWildStateCleared":false},{"merge6CleanupOwned":false,"locked":true,"cell":{"column":0,"row":6},"id":"g4-30","sourceResidualWildPresence":false,"starOrbitCount":3,"transientSpawn":false,"nonFinalMerge6":false,"magnetOwned":false,"alpha":1,"value":0,"stackDepth":1,"resolutionOwned":false,"visible":true,"pendingRemoval":false,"sourceWildStateCleared":false},{"merge6CleanupOwned":false,"locked":true,"cell":{"column":1,"row":6},"id":"g4-31","sourceResidualWildPresence":false,"starOrbitCount":3,"transientSpawn":false,"nonFinalMerge6":false,"magnetOwned":false,"alpha":1,"value":0,"stackDepth":1,"resolutionOwned":false,"visible":true,"pendingRemoval":false,"sourceWildStateCleared":false},{"merge6CleanupOwned":false,"locked":true,"cell":{"column":2,"row":6},"id":"g4-32","sourceResidualWildPresence":false,"starOrbitCount":3,"transientSpawn":false,"nonFinalMerge6":false,"magnetOwned":false,"alpha":1,"value":0,"stackDepth":1,"resolutionOwned":false,"visible":true,"pendingRemoval":false,"sourceWildStateCleared":false},{"merge6CleanupOwned":false,"locked":true,"cell":{"column":3,"row":6},"id":"g4-33","sourceResidualWildPresence":false,"starOrbitCount":3,"transientSpawn":false,"nonFinalMerge6":false,"magnetOwned":false,"alpha":1,"value":0,"stackDepth":1,"resolutionOwned":false,"visible":true,"pendingRemoval":false,"sourceWildStateCleared":false},{"merge6CleanupOwned":false,"locked":true,"cell":{"column":0,"row":7},"id":"g4-35","sourceResidualWildPresence":false,"starOrbitCount":3,"transientSpawn":false,"nonFinalMerge6":false,"magnetOwned":false,"alpha":1,"value":0,"stackDepth":1,"resolutionOwned":false,"visible":true,"pendingRemoval":false,"sourceWildStateCleared":false},{"merge6CleanupOwned":false,"locked":true,"cell":{"column":2,"row":7},"id":"g4-37","sourceResidualWildPresence":false,"starOrbitCount":3,"transientSpawn":false,"nonFinalMerge6":false,"magnetOwned":false,"alpha":1,"value":0,"stackDepth":1,"resolutionOwned":false,"visible":true,"pendingRemoval":false,"sourceWildStateCleared":false},{"merge6CleanupOwned":false,"locked":true,"cell":{"column":3,"row":7},"id":"g4-38","sourceResidualWildPresence":false,"starOrbitCount":3,"transientSpawn":false,"nonFinalMerge6":false,"magnetOwned":false,"alpha":1,"value":0,"stackDepth":1,"resolutionOwned":false,"visible":true,"pendingRemoval":false,"sourceWildStateCleared":false},{"merge6CleanupOwned":false,"locked":true,"cell":{"column":4,"row":7},"id":"g4-39","sourceResidualWildPresence":false,"starOrbitCount":3,"transientSpawn":false,"nonFinalMerge6":false,"magnetOwned":false,"alpha":1,"value":0,"stackDepth":1,"resolutionOwned":false,"visible":true,"pendingRemoval":false,"sourceWildStateCleared":false},{"merge6CleanupOwned":false,"locked":false,"cell":{"column":0,"row":8},"id":"g4-40","sourceResidualWildPresence":false,"starOrbitCount":3,"transientSpawn":false,"nonFinalMerge6":false,"magnetOwned":false,"alpha":1,"value":3,"stackDepth":1,"resolutionOwned":false,"visible":true,"pendingRemoval":false,"sourceWildStateCleared":false},{"merge6CleanupOwned":false,"locked":true,"cell":{"column":1,"row":8},"id":"g4-41","sourceResidualWildPresence":false,"starOrbitCount":3,"transientSpawn":false,"nonFinalMerge6":false,"magnetOwned":false,"alpha":1,"value":0,"stackDepth":1,"resolutionOwned":false,"visible":true,"pendingRemoval":false,"sourceWildStateCleared":false},{"merge6CleanupOwned":false,"locked":true,"cell":{"column":2,"row":8},"id":"g4-42","sourceResidualWildPresence":false,"starOrbitCount":3,"transientSpawn":false,"nonFinalMerge6":false,"magnetOwned":false,"alpha":1,"value":0,"stackDepth":1,"resolutionOwned":false,"visible":true,"pendingRemoval":false,"sourceWildStateCleared":false},{"archetype":"wild-magnet","locked":false,"merge6CleanupOwned":false,"cell":{"column":0,"row":4},"id":"native:4:7:0:4:die:1","starOrbitCount":3,"sourceResidualWildPresence":false,"transientSpawn":false,"nonFinalMerge6":false,"magnetOwned":false,"alpha":1,"variant":"spaceship","value":6,"stackDepth":1,"resolutionOwned":false,"visible":true,"pendingRemoval":false,"sourceWildStateCleared":false},{"merge6CleanupOwned":false,"locked":false,"cell":{"column":1,"row":7},"id":"g4-36","sourceResidualWildPresence":false,"starOrbitCount":3,"transientSpawn":false,"nonFinalMerge6":false,"magnetOwned":false,"alpha":1,"value":5,"stackDepth":4,"resolutionOwned":false,"visible":true,"pendingRemoval":false,"sourceWildStateCleared":false}],"efficiencyComboContinuations":8,"maxMoves":50,"columns":5,"score":236,"rows":9,"rngState":1,"generation":4,"efficiencyFastComboContinuations":7,"revision":9,"stage":25,"mode":"journey","board":25,"maxStackDepth":4,"lastWildDropType":"wild-magnet","wildMeter":0.26000000000000006,"wildSpawnCount":1}"#.utf8)
+        return try! JSONDecoder().decode(NativeBoardState.self,from:data)
+    }
     private func incidentBoard()->NativeBoardState {
         let rows:[(String,Int,Int,Int)]=[
             ("g1-0",0,0,4),("g1-5",0,1,1),("g1-7",2,1,2),("g1-10",0,2,0),
@@ -1154,7 +1208,7 @@ import StackToSixNativeState
         }
     }
     private func move(_ source:String,onto destination:String,game:NativeGameplayViewController)async throws {
-        let scene=try XCTUnwrap(game.boardScene),a=try XCTUnwrap(scene.sourceNativeTileNode(source)),b=try XCTUnwrap(scene.sourceNativeTileNode(destination))
+        let scene=try XCTUnwrap(game.boardScene),a=try XCTUnwrap(scene.sourceNativeTileNode(source),"source \(source);\(diagnostic(game))"),b=try XCTUnwrap(scene.sourceNativeTileNode(destination),"destination \(destination);\(diagnostic(game))")
         let from=scene.convert(a.position,from:try XCTUnwrap(a.parent)),to=scene.convert(b.position,from:try XCTUnwrap(b.parent))
         guard scene.beginDrag(at:from) else{XCTFail("pickup rejected: \(diagnostic(game))");throw NSError(domain:"SpaceshipPickupRejected",code:1)}
         scene.moveDrag(to:to,now:CACurrentMediaTime())
@@ -1163,12 +1217,12 @@ import StackToSixNativeState
         XCTAssertTrue(result.accepted,"\(result.resolution.reason): \(diagnostic(game))")
         guard result.accepted else{throw NSError(domain:"SpaceshipDropRejected",code:1)}
     }
-    private func exercise(reversed:Bool,overlappingCarrier:Bool=false,consumeBookkeptCarrier:Bool=false)async throws {
+    private func exercise(reversed:Bool,overlappingCarrier:Bool=false,consumeBookkeptCarrier:Bool=false,incident:NativeBoardState?=nil,target:String?=nil,waitForHelper:Bool=false,buildLiveStack:Bool=false)async throws {
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("native-spaceship-incident-"+UUID().uuidString)
         let store=NativeSaveStore(directory:directory)
         var seed=NativeSaveEnvelope(settings:.init(gameSoundsEnabled:false,musicEnabled:false,hapticsEnabled:false))
         seed.progression.firstPlayTutorialComplete=true;seed.progression.completedJourneyBoards=Set(1...23)
-        var saved=incidentBoard();if overlappingCarrier {saved.wildMeter=0.95};seed.journeyRuns[24]=saved;seed.journeyRunSavedAt[24]=Date().timeIntervalSince1970;try store.save(seed)
+        var saved=incident ?? incidentBoard();if overlappingCarrier {saved.wildMeter=0.95};let board=saved.board;seed.progression.completedJourneyBoards=Set(1..<board);seed.progression.beginAttempt(mode:.journey,board:board);seed.journeyRuns[board]=saved;seed.journeyRunSavedAt[board]=Date().timeIntervalSince1970;try store.save(seed)
         let host=NativeStandaloneViewController(resourceRoot:NativeTestResources.root,store:store,sourceVisualRandom:{overlappingCarrier ? 0.99:0.1},completeNativeGameplayEnabled:true)
         let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
         let window=UIWindow(frame:.init(x:0,y:0,width:390,height:844));window.rootViewController=host;window.makeKeyAndVisible()
@@ -1178,12 +1232,24 @@ import StackToSixNativeState
         app.navigate(.world(3),interrupt:true)
         try await wait("Journey Continue"){
             if app.children.contains(where:{$0 is NativeGameplayViewController}){return true}
-            app.world?.onRequest?("continue",24);return false
+            app.world?.onRequest?("continue",board);return false
         }
         let game=try XCTUnwrap(app.children.compactMap{$0 as? NativeGameplayViewController}.first)
         try await wait("real entry",game:game){game.beforeSourceGameplayAdmission==nil && game.boardScene?.isBoardEntryComplete==true && !game.engine.hasUnsavableSourceGameplayState}
         let scene=try XCTUnwrap(game.boardScene)
-        var survivorID=reversed ? "g1-15":"g1-36"
+        if incident != nil {print("[NOV15_INITIAL] board=\(game.engine.state.board);\(diagnostic(game))")}
+        if buildLiveStack {
+            for donor in ["g4-24","g4-29","g4-33"] {
+                try await move(donor,onto:"g4-36",game:game)
+                try await wait("genuine four-layer stack",game:game){
+                    scene.sourceNativeTileNode("g4-36")?.sourcePendingStackFrameCount==0 && !game.engine.hasUnsavableSourceGameplayState
+                }
+            }
+            XCTAssertEqual(game.engine.state.tiles.first{$0.id=="g4-36"}?.stackDepth,4)
+            XCTAssertEqual(scene.sourceNativeTileNode("g4-36")?.sourceStackDepth,4)
+        }
+        let magnetID=try XCTUnwrap(saved.tiles.first{$0.gameplayArchetype == .magnet}?.id)
+        var survivorID=target ?? (reversed ? magnetID:"g1-36")
         var carrierID:String?,overlapAccepted=false,magnetCommitted=false
         let receiptObserver=scene.onGameplayReceipt
         scene.onGameplayReceipt={event,source,destination,generation in
@@ -1220,10 +1286,18 @@ import StackToSixNativeState
             try await wait("real landed Laser overlap",game:game){carrierID != nil}
             XCTAssertTrue(overlapAccepted,diagnostic(game))
         } else {
-            try await move(reversed ? "g1-36":"g1-15",onto:survivorID,game:game)
+            try await move(reversed ? "g1-36":magnetID,onto:survivorID,game:game)
         }
         try await wait("Magnet board commit",game:game){magnetCommitted || game.sourcePresentationFailure != nil}
         XCTAssertNil(game.sourcePresentationFailure,diagnostic(game))
+        if waitForHelper {
+            try await wait("actual post-Magnet physical verification",game:game){
+                game.sourcePresentationFailure != nil || scene.sourceMagnetPhysicalCoreDiagnostic != "not-captured"
+            }
+            XCTAssertNil(game.sourcePresentationFailure,"\(scene.sourceMagnetPhysicalCoreDiagnostic);\(diagnostic(game))")
+            XCTAssertEqual(scene.sourceMagnetPhysicalCoreDiagnostic,"matched",diagnostic(game))
+            guard game.sourcePresentationFailure==nil else{return}
+        }
         // Use the actual survivor while decorative/helper tails may still run.
         if let carrierID {
             try await wait("real Laser finally",game:game){!game.engine.meterDropReservations.values.contains{$0.tileID==carrierID}}
@@ -1250,6 +1324,6 @@ import StackToSixNativeState
         XCTAssertNotNil(scene.captureSourcePhysicalBoard(),"\(scene.sourcePhysicalBoardCaptureDiagnostic);\(diagnostic(game))")
         XCTAssertTrue(scene.sourceMagnetSurvivorPendingInputIDs.isEmpty,diagnostic(game))
         XCTAssertEqual(game.engine.state.tiles.first{$0.id==survivorID}?.value,expected)
-        try await wait("durable post-Spaceship stack",game:game){(try? store.load()?.journeyRuns[24]?.tiles.first{$0.id==survivorID}?.value)==expected}
+        try await wait("durable post-Spaceship stack",game:game){(try? store.load()?.journeyRuns[board]?.tiles.first{$0.id==survivorID}?.value)==expected}
     }
 }

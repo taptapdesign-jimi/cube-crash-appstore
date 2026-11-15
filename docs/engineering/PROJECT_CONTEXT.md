@@ -99,12 +99,12 @@ presentation directly. Clean Stage, Clean Arcade, Clean Beach and Clean Area55
 offer a1/2/3-star picker before preview. These views use no-op result commits,
 preserve the real profile,and retire their result view/audio through Close DEV.
 
-User-selected Native production/continuation baseline (2026-11-08): immutable
-`production-ready-v1`, named **Production ready v1**. See
-[PRODUCTION_READY_V1.md](PRODUCTION_READY_V1.md).
-This supersedes `native-app-production-state-skoro-pa-gotovo` for Native
-continuation. All historical Native tags remain protected. The user-selected
-milestone preserves the current complete project; existing physical acceptance,
+User-selected Native production/continuation baseline (2026-11-15): immutable
+`finished-product-v1.1`, named **Finished product v1.1**. See
+[FINISHED_PRODUCT_V1_1.md](FINISHED_PRODUCT_V1_1.md).
+This supersedes `production-ready-v1` for Native continuation/recovery.
+All historical Native tags remain protected. The user-selected milestone
+preserves the complete current project; existing physical acceptance,
 release and parity limits remain explicit. PWA recovery tags remain unchanged.
 
 The user designates `main` as the **Stack to Six Native** development project,

@@ -4,6 +4,50 @@ import UIKit
 
 @MainActor
 final class NativeArcadePresentationTests: XCTestCase {
+    func testClearedShadowPreparationDeduplicatesAndRejectsCancelledResizeAndDisposal() throws {
+        var requests:[(CGSize,NativeRewardPreparationLease,(UIImage?)->Void)]=[]
+        var preparation:NativeClearedShadowPreparation?=NativeClearedShadowPreparation(prepare:{requests.append(($0,$1,$2))})
+        weak var released=preparation
+        let phone=CGSize(width:390,height:844),small=CGSize(width:320,height:568)
+        let image=UIGraphicsImageRenderer(size:CGSize(width:2,height:2)).image{_ in}
+        preparation!.prepare(viewport:phone);preparation!.prepare(viewport:phone)
+        XCTAssertEqual(requests.count,1)
+        preparation!.cancelPending();XCTAssertTrue(requests[0].1.cancelled)
+        preparation!.prepare(viewport:phone);XCTAssertEqual(requests.count,2)
+        requests[0].2(image);XCTAssertNil(preparation!.image(viewport:phone))
+        requests[1].2(image);XCTAssertTrue(preparation!.image(viewport:phone)?.image === image)
+        preparation!.prepare(viewport:small);XCTAssertEqual(requests.count,3)
+        XCTAssertNil(preparation!.image(viewport:phone))
+        preparation!.prepare(viewport:phone);XCTAssertTrue(requests[2].1.cancelled)
+        requests[2].2(image);XCTAssertNil(preparation!.image(viewport:small))
+        preparation!.dispose();preparation!.dispose();XCTAssertTrue(requests[3].1.cancelled)
+        requests[3].2(image);XCTAssertNil(preparation!.image(viewport:phone))
+        preparation=nil;XCTAssertNil(released)
+    }
+
+    func testPreparedClearedShadowKeepsExactPixelsAndSkipsVisibleRasterization() async throws {
+        let viewport=CGSize(width:390,height:844),preparation=NativeClearedShadowPreparation()
+        defer{preparation.dispose()}
+        preparation.prepare(viewport:viewport)
+        for _ in 0..<500 where preparation.pending {try await Task.sleep(for:.milliseconds(10))}
+        let prepared=try XCTUnwrap(preparation.image(viewport:viewport))
+        let reference=try XCTUnwrap(NativeArcadeThumbShadow.makeShadow(size:prepared.size,alphaGain:1))
+        XCTAssertEqual(prepared.image.pngData(),reference.pngData())
+        for size in [viewport,CGSize(width:820,height:1180)] {
+            let owner=NativeArcadeRoundPresentation(resourceRoot:root,clearedRound:1,nextRound:2,boardClearedOnly:true,preparedShadow:prepared,random:{0.4})
+            defer{owner.dispose()}
+            owner.frame=CGRect(origin:.zero,size:size);owner.layoutIfNeeded()
+            func all(_ view:UIView)->[UIView]{[view]+view.subviews.flatMap{all($0)}}
+            let shadow=try XCTUnwrap(all(owner).first{$0 is NativeArcadeThumbShadow})
+            shadow.layoutIfNeeded()
+            XCTAssertEqual(shadow.bounds.size,prepared.size)
+            XCTAssertTrue((shadow.subviews.first as? UIImageView)?.image === prepared.image,
+                "First visible layout must borrow the prepared pixels, without another filter render")
+            shadow.setNeedsLayout();shadow.layoutIfNeeded()
+            XCTAssertTrue((shadow.subviews.first as? UIImageView)?.image === prepared.image)
+        }
+    }
+
     func testBoardClearedReusesBothThumbsWithoutRoundCommitAndReleases() async throws {
         for sample in [0.0,0.99] {
             let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844))
