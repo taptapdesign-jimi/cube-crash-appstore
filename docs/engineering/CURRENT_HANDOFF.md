@@ -6,7 +6,25 @@ repository taptapdesign-jimi/cube-crash-appstore. Complete tracked runtime/tests
 project docs plus checkpoint doc;local unintegrated art/PDF outputs preserved
 outside established publication scope. Historical tags unchanged. Recent full/
 fast/feature/iOS/targeted Native evidence in section below remains current;
-this publication adds metadata only. Git and physical delivery receipts pending.
+this publication adds metadata only. Atomic push main+annotated tag verified:
+benchmark commit151f7632bd6880138b25ae9f8f87e5f8e0725f9e,tag object
+862e7e0967bda66e2661c0acdacde4995dd866c1. Physical delivery completed from that exact Native source (1071tracked Native
+input hashes stable throughout). Normal signed Release BUILD SUCCEEDED;strict/
+deep codesign and compiled Native asset/dependency audit PASS,exact.native ID,
+no test PlugIns/Web.bundle. Signing briefly waited in SecKeyCreateSignature/
+SecurityAgent;protected signing subsequently completed without agent operating
+the authorization dialog. Evidence:/tmp/native-benchmark-v1-2-20261116/.
+Install-over confirmed new Native container65247F8D-5BE4-493A-97CA-57939167DBDF;
+normal foreground launchPID28163,args[],running executable independently matched
+to new installed app. Both canonical state-v1.json/state-v1.previous.json are
+byte/JSON-identical preinstall→postinstall→postlaunch. Both local snapshots kept.
+Phone sound/settings untouched. Delivery PASS;actual motion/timing/audio/touch
+acceptance remains user-led testing. Simulator normal preview unchanged.
+receipt.json records source commit/tag,device,installed container,PID and exact
+save preservation;build.log,qa-ios.log,signature.log,release-audit.log,
+install.json,launch.json,processes-after.json and save-check JSONs retain proof.
+A subsequent handoff-only commit records this receipt;immutable benchmark tag
+stays151f7632. Historical Native/PWA checkpoints and local art/PDFs unchanged.
 Phone target iPhone13blue0F62B71E-0B04-53C3-906E-EC28F5D2390B confirmed connected.
 
 ## 2026-11-16 · Full thumb removal before reward / title-to-subtitle90percent
