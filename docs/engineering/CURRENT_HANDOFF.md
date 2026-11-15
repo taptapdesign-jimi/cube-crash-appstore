@@ -12,7 +12,11 @@ Story6/0,fast/iOS,normal Simulator and signed Release delivery receipts.
 validation/install. Git-only publication makes no further device changes.
 Existing immutable finished-product-v1.1 tag remains unchanged;these fixes are
 subsequent main commits. Physical recurrence acceptance remains open.
-Remote receipt will follow after exact commit verification.
+Publication PASS:application commit2f52c5e345f204a96372bb4b5a08d63c8b8ce758
+pushed to origin/main;live ls-remote verified exact full hash. Benchmark peeled
+finished-product-v1.1 remains2a86684dc34962f7a9e6815a4db4382cd927fa39.
+Staged diff hygiene PASS;tracked tree clean after payload commit. This following
+handoff-only receipt commit does not alter runtime or benchmark contents.
 
 ## 2026-11-15 · Replay producer repair installed on iPhone
 
