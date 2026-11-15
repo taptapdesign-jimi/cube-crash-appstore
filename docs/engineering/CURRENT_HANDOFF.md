@@ -1,3 +1,312 @@
+## 2026-11-16 · Finished product v1.2 publication / phone delivery
+
+User approves current state and requests benchmark then iPhone installation.
+New immutable annotated tag finished-product-v1.2,existing origin main public
+repository taptapdesign-jimi/cube-crash-appstore. Complete tracked runtime/tests/
+project docs plus checkpoint doc;local unintegrated art/PDF outputs preserved
+outside established publication scope. Historical tags unchanged. Recent full/
+fast/feature/iOS/targeted Native evidence in section below remains current;
+this publication adds metadata only. Git and physical delivery receipts pending.
+Phone target iPhone13blue0F62B71E-0B04-53C3-906E-EC28F5D2390B confirmed connected.
+
+## 2026-11-16 · Full thumb removal before reward / title-to-subtitle90percent
+
+Latest user correction supersedes earlier90percent thumb/120ms caption timings.
+NewReward now starts only from existing NativeArcadeRoundPresentation.onFinished,
+after removeFromSuperview() of the entire thumb overlay. Retired early callback
+and its special tail-suspension flag/callsites;ordinary foreground/background
+suspension again applies uniformly. Existing successor resource readiness gate,
+generation checks and once-only terminal continuation retained;no extra pause.
+
+Every reward subtitle now starts90percent through its complete heading entry,
+including all48ms letter stagger slots and final navigation bounce. Shared helper
+counts actual NewReward/Legendary!/Common glyphs;ReducedMotion uses singlefade.
+Normal NewReward offset~711.877ms;Common subtitle follows rarity title~539.077ms,
+Legendary~711.877ms. Existing card/SVG entry ratios and poses unchanged;computed
+reveal completion already includes later subtitle endpoint. Clean Board visible
+component-exit fix retained. No new timer/asset/audio/save or input owner.
+Native regression updated to prove overlay removal before successor callback,
+whole-title90percent subtitle ratio for normal/reduced/both rarities and lifetime.
+Validation:fast/full QA530suites4011tests,KING330,iOS identity/assets and
+feature-runtime gates PASS. Native36case cohort:34passed first run;two old
+fixed3s early-reveal waits were now shorter than full opening+later subtitle
+endpoint. Test-only waits now use hold+revealCompletionDelay;final focused2/0
+PASS,with source unchanged. Whole-heading90percent normal/reduced/rarity ratio,
+fullthumb overlay removal,once-only callback and actual Clean Board Exit passed.
+Independent review:no high/medium findings;NEEDS PHYSICAL TEST for motion feel.
+Evidence:/tmp/native-reward-sequence-20261116/{qa-full.log,qa-fast.log,qa-ios.log,
+qa-feature.log,native-tests.log,final-focused-tests.log}.
+Normal Stack to Six Debug BUILD SUCCEEDED,exact.native ID,no test PlugIns or
+Web.bundle;serialized install-over retained Simulator1018BE2D-491B-465F-8F75-
+3E5BEB38C22A and normal launchPID16302. Actual SpringBoard Silent ON=1;
+normal Home visibly verified through CUA. Both canonical saves byte-identical
+preinstall→postlaunch→afterHome,fixture tmp saves excluded. Same evidence folder
+has preview-build.log,install.log,launch.log,save-check.json/save-after-home.log.
+No test runner remains. Physical phone untouched;no Git publication.
+
+## 2026-11-16 · Reward choreography refinement / Clean Board visible exit
+
+Current user-directed task checklist:
+- [x] Identify motion owners and physical Clean Board exit regression.
+- [x] New Reward admission at90percent of existing300ms thumb exit (270ms).
+- [x] Navigation-style upward/opacity bounce for reward heading glyphs/subtitle.
+- [x] SVG contact anticipation then authored exit; incoming card at90percent
+  of visible SVG exit,heading at50percent card entry,subtitle120ms later.
+- [x] Restore visible authored component exits through actual Clean Board Exit.
+- [x] Focused Native lifecycle/motion regression checks and required QA gates.
+- [x] Independent final review.
+- [x] Retained normal Simulator preview.
+
+Owner map:NativeArcadeRoundPresentation owns the finite thumb clock; existing
+GameplayVC terminal continuation admits prepared reward once under generation/
+identity guards. NativeJourneyRewardController owns existing epoch-aware finite
+scheduler and CA subtree;navigationCaption supplies shared pure poses. Initial
+SVG/card resources keep existing selected preparation lease; no asset changes.
+Interim-only wrapper owns contact anticipation;authored SVG owns collapse;
+unlocked sibling owns its existing600ms spring. No competing shared parent
+collapse. NativeResultOwner owns staged result admission/close and canonical
+commit;NativeResultController owns component exit clock and destination-ready
+handoff. Background/replacement/disposal retain exact owners and reject late work.
+Input stays blocked through actual required entry endpoints;Reduced Motion
+uses scheduled navigation fades without letter wave/travel/anticipation.
+
+Visible SVG evidence:global card scale zero atnormalized.7892857,last smoke
+opacity zero at.8125,then transparent through1.0. Normal authored hold→end
+playback at1.3x remains intact;successor follows90percent of hold→.8125visible
+exit,not transparent tail. Normal card371.1ms,title671.1ms,
+subtitle791.1ms after accepted reveal;full heading wave participates in input
+completion. New user decisions supersede Nov15 early thumb-exit handoff and
+Arcade scale-only typography. Physical phone still has previous Nov15 Release;
+no new installation authorized/performed in this implementation task.
+
+Validation:full QA530suites4011tests,KING330,fast,iOS source/asset gates PASS.
+Native cohort43cases:40passed first run;10assertions in3newcases were test
+expectations only (floating-point alpha2.22e-16,exact deadline rounding,and
+hardcoded star scale instead of captured pre-close idle scale). Test-only
+corrections retain full source-pose comparisons;final targeted3/0PASS. Combined
+affected coverage34reward+9result cases includes normal/Reduced Motion,
+background/stale SVG jobs,90percent thumb handoff,actual staged World return,
+fast/delayed readiness,individual CTA/score/star exit poses and disposal.
+No production behavior changed to satisfy those fixture corrections.
+
+Clean Board root cause and fix:prepareGameplayReturn calls actual
+hideGameplayForPreparedReturn(),setting gameplay.view.alpha=0 two frames into
+component exit. A staged result used to inherit that hidden ancestor. Before
+prepared Journey Exit,the exact result is promoted to gameplay's existing
+parent using converted identical frame/proper containment;existing component
+exit plan,clock,destination readiness and paper fade stay unchanged. Normal
+UIKit-presented result path stays intact. Actual mounted390x844 visible result
+with hidden gameplay PNG and settled NewReward render visually inspected.
+Independent agent found no high/medium findings;verdict NEEDS PHYSICAL TEST for
+optical motion/latency,touch,audio/FPS. Previous unrelated Home idle finding
+remains outside this focused run;no all-Native-suite claim.
+Evidence:/tmp/native-reward-refine-20261116/{qa-full.log,qa-fast.log,qa-ios.log,
+native-tests.log,final-focused-tests.log,reward-clean-exit-visible.png,
+reward-entry-new.png,reward-entry-unlocked.png}.
+Normal Stack to Six Debug BUILD SUCCEEDED from complete current tree;exact
+.native ID,no test PlugIns/Web.bundle. Serialized install-over retained
+Simulator1018BE2D-491B-465F-8F75-3E5BEB38C22A and normal launchPID9511.
+Actual SpringBoard SBRingerMuted=1(Silent ON),normal Home visibly verified
+through CUA. Both canonical save slots byte-identical preinstall→postlaunch→
+after Home;fixture tmp saves excluded. Evidence:same directory preview-build.log,
+install.log,launch.log,save-check.json,save-after-home.log. No test runner remains.
+No physical phone action or Git publication in this task.
+
+## 2026-11-15 · Current reward/Story Release installed on iPhone
+
+User explicitly requests physical installation for testing. Complete current
+Native tree built with normal Stack to Six Release scheme,including reward
+letter entry/thumb overlap,Collect→Clean Board staging/deadline and latest
+Story fit. BUILD SUCCEEDED;qa:ios,strict/deep signature verification and compiled
+release:native-audit PASS. Exact com.taptapdesign.stacktosix.native identity,
+original packaged assets,no test PlugIns/Web.bundle or web runtime dependency.
+1071tracked Native input hashes stable before build through installation/launch.
+No source edits,version bump,Git publication,PWA/legacy operation or save reset.
+
+Connected target iPhone13blue0F62B71E-0B04-53C3-906E-EC28F5D2390B only.
+Old Native process terminated normally before final preinstall snapshot.
+Install-over confirmed new installationB7A04EC6-E7D7-43F5-94EF-3042ED935D97;
+normal foreground launchPID27964,arguments[],running executable independently
+matched to that new installed container. Both canonical state-v1.json and
+state-v1.previous.json byte/JSON-identical preinstall→postinstall→postlaunch.
+Existing phone sound/settings preferences untouched. Delivery PASS;physical
+animation feel,Collect latency,touch/audio/FPS acceptance awaits user test.
+Previously recorded separate Home idle Native test failure remains open.
+
+Evidence:/tmp/native-reward-phone-20261115/{receipt.json,build.log,qa-ios.log,
+signature.log,release-audit.log,inputs-before.json,source-stable.log,
+install.json,launch.json,processes-after.json,postinstall-save-check.json,
+postlaunch-save-check.json};local before/preinstall/postinstall/postlaunch
+snapshots retained. Signed app:/tmp/native-phone-20261113-derived/Build/Products/
+Release-iphoneos/Stack to Six.app. Shared Simulator remains latest normal
+Debug preview;physical install did not change its state.
+
+## 2026-11-15 · Story subtitle proximity and no inner scrolling
+
+User references Exit subtitle spacing and asks all Story content to fit without
+scrolling. NativeCreatorStoryModal reduces title/copy frame gap18→4pt; reserves
+full measured body including descenders plus existing Fun fact. Artwork takes
+remaining height first; compact overflow fits the complete static composition
+uniformly through a layout-only contentFit view under the existing modal owner.
+18pt logical Baloo typography,copy,assets,star,motion and save owners retained.
+Inner scrolling disabled and offset reset. Existing mounted Story test now
+requires full label containment,no scroll,4pt gap and whole-modal screen bounds.
+Other dirty reward/result work preserved. Fast/full/iOS PASS (530 suites4011
+tests;KING330). Native Story6/0PASS;320/390/820 renders visually inspected.
+Normal Stack to Six Debug BUILD SUCCEEDED,exact.native ID,install-over retained
+Simulator and normal launch93610. Story opened through Home→Settings→creator
+for final review;all paragraphs/Fact visible,actual iOS Silent Mode On banner
+verified. Installed over existing data without reset/uninstall. Final canonical
+slot hashes match the independent immediately preceding reward-preview snapshot
+(/tmp/native-reward-entry-20261115/save-check.json). Early Story snapshot taken
+during concurrent Native tests differs;byte-identical preservation across that
+entire combined test window is not established.
+Deterministic/layout PASS;physical optical acceptance NEEDS PHYSICAL TEST.
+No physical phone action. Initial Story test build canceled to serialize with
+an independent in-progress Native test;final run above passed.
+Evidence directory:/tmp/native-story-fit-20261115/.
+
+## 2026-11-15 · Reward entry / overlapped Clean Board preparation
+
+User requests New Reward at the START of outgoing CLEARED thumb exit, title
+then subtitle then selected SVG, bouncy per-letter Endurance-style headings
+for New Reward/Legendary/Common, and Clean Board ready during Collect exit.
+NativeArcadeRoundPresentation now publishes one thumb-exit-start callback.
+Journey with prepared reward consumes its existing terminal continuation there;
+ordinary Arcade, tutorial result-only and no-reward routes retain their existing
+finish handoff. The outgoing300ms thumb remains foreground-owned above reward;
+explicit gameplay suspension does not freeze that finite tail,background does.
+
+Native reward title glyphs sample the exact shared Arcade Endurance
+NativeStudioIntroView.presentsEntryPose at2.5x cadence:48ms letter stagger,
+296ms per-letter bounce. Subtitle follows80ms with the existing600ms card-entry
+spring;selected SVG begins160ms after initial title. Unlocked rarity title
+starts300ms after reveal,subtitle380ms,card540ms. Existing authored SVG,
+card spring,flip/collapse,assets,audio sources and Reduced Motion ownership stay.
+No second display clock or timer system. Glyph relayout preserves baseline,
+parent accessibility and active CA tracks;pause inherits reward root time;
+reveal/collect/dispose retire child tracks and pending SVG admission.
+
+Collect start takes the already prepared result and mounts it as a frozen child
+behind the exact active reward. Input/accessibility and playback remain closed.
+Reward's actual exit completion and counter-blur readiness jointly admit Clean
+Board once,without a subsequent UIKit present transaction. Child close/disposal
+remove containment and view symmetrically;ordinary non-reward result presentation
+keeps its existing modal path. Canonical commit/save ownership unchanged.
+
+Validation:reward32/0PASS;result cohort63cases pass with the existing unrelated
+Home bottom-navigation idle case failing4assertions (already recorded before
+this task). Broad98case run also had one stale asynchronous first-phase fixture;
+fixed to accept actual observed entering/opening. Final focused2/0PASS proves
+canonical child admission and actual Collect staging,background/foreground hold,
+no hidden elapsed advance,child close/removal and once-only completion. Earlier
+PaperHandoff1/0PASS. Full QA530suites4011tests,KING330,fast,feature-runtime and
+final iOS identity/original-assets gates PASS. Do not claim all Native tests pass:
+Home idle failure remains a separate pre-existing finding,untouched here.
+Evidence:/tmp/native-reward-entry-20261115/{qa-full.log,final-qa-fast.log,
+qa-feature.log,final-qa-ios.log,final-native-tests.log,final-focused-tests.log}.
+Actual mounted390x844 New Reward/Common PNGs visually inspected:headings/copy
+unclipped and original composition retained. Exact Arcade glyph poses and finite
+stagger/background/disposal verified by mounted owner test. Physical animation
+feel and tap-to-result latency remain NEEDS PHYSICAL TEST.
+Normal Stack to Six Debug BUILD SUCCEEDED from complete current tree,including
+concurrent saved Story changes;exact.native identity,no test PlugIns/Web.bundle.
+Builds/tests serialized. Install-over retained Simulator1018BE2D-491B-465F-8F75-
+3E5BEB38C22A and normal launch93610;actual SpringBoard SBRingerMuted=1(Silent ON).
+Both canonical Library/Application Support/StackToSixNative save slots are
+byte-identical before/after this install+launch;save-check.json excludes fixture
+saves under tmp. Evidence:preview-build.log,install.log,launch.log,save-check.json
+in the same task directory. Final normal Home visibly verified through CUA after authored intro;no test runner remains.
+No physical phone installation/launch,save reset,asset edit or Git publication
+performed for these UI changes. Physical motion acceptance remains open.
+
+## 2026-11-15 · Collect → Clean Board redundant hold shortened
+
+User asks to inspect/reduce wait after reward card before Clean Board. Native
+collect completion now follows maximum actual card/text exit and final root-shake
+end,then unchanged80ms fade. Normal deadline1.5688s→1.2096s,359.2ms earlier.
+Original card contact bounce,forward/return flip,collapse,text80ms stagger and
+final420ms root shake all retain exact timings/poses. Reduced Motion remains
+240ms. Existing scheduler/epoch,foreground pause,dispose,once-only callback,
+audio and canonical reward/result ownership preserved;no new timer/asset.
+NativeResultOwner already pre-prepares result and still requires real counter
+blur readiness;this change does not bypass resource admission or promise a
+fixed physical tap-to-result latency. No physical phone operation this task.
+
+Validation:actual CA tracks test proves fade begins at final transform end,
+normal1.2096s/Reduced240ms callback bounds and once-only completion. Initial
+31Reward tests had30passing cases and one stale combined reveal/collect2.2s
+expectation (two assertions). That lifetime test now waits its owned collect
+job after asserting exiting phase. Final focused3/0PASS covers deadline,
+opening/background/late preparation and pause/resume/no duplicate moments.
+Fast/full530suites4011tests,KING330,iOS PASS;git diff hygiene PASS.
+Evidence:/tmp/native-card-collect-gap-20261115/{native-tests.log,
+final-focused-tests.log,qa-fast.log,qa-full.log,qa-ios.log}.
+
+Normal Stack to Six Debug BUILD SUCCEEDED,exact.native identity,no test
+PlugIns/Web.bundle;install-over retained Simulator1018BE2D-491B-465F-8F75-
+3E5BEB38C22A,normal launch79606,Home visible. Both canonical saves byte-identical
+before/after;actual Silent Mode ON. Same directory has preview-build.log,
+install.log,launch.log,save-check.json. Physical optical timing NEEDS PHYSICAL
+TEST. iPhone still has prior installed Replay/Story Release;no install/launch,
+settings/save edit or publication on phone. Local timing fix not yet published;
+finished-product-v1.1 remains unchanged.
+
+## 2026-11-15 · Replay producer physical retest PASS / Collect gap identified
+
+KRENI2026-11-15T23:07:18.409584+01:00 through explicit GOTOVO23:19:24.476238,
+12m06s. User explicitly confirms Replay modal: "Nije se pojavio".
+3946console lines preserved;boards2,3,4,30 exercised,including actual Special
+finales and meter drops. Zero NativeSourcePresentation failures;before/after
+source-rejections.json byte-identical. Both actual Magnet comparisons on board4
+generations3/4 matched. Bounded physical Replay repair PASS from user+trace;
+no whole-game,all-producer interleaving or performance certification claim.
+
+143in-window thermal samples all nominal;memory peak452.03MiB,final227.55MiB
+on World3. No held-node positional mismatches or observed memory-warning log.
+Worst active callback spacing136ms23:16:45.605 board30,not a measured136ms
+function. Source delivery interval maximum87.32ms;separate window maxima are
+not additive or a proven explanation for that callback gap. Frame pacing remains
+separate open measurement;do not describe every frame as smooth from this test.
+
+One explicit user PROBLEM marker23:10:55.127423:
+"zasto se dugo ceka izmedu kada uzmem karticu i clean boarda kao da je preduga stanka?"
+Read-only source inspection finds concrete collect dead time:homeExit hero0.516s,
+contact bounce0.4s,flip0.1548s,card collapse0.4644s. Card is gone at1.0192s;
+collected callback waits until1.5688s (old longer text exit duration plus stagger
+and fade),leaving0.5496s empty interval before result handoff. NativeResultOwner
+starts Clean Board from that callback and may additionally await real counter
+blur readiness. Existing console lacks exact Collect/result admission receipts;
+source calculation explains a reachable gap,not a measured full physical delay.
+No runtime timing changed;user was informed of this finding. Remains follow-up.
+
+Full buffer read before stopping only host console relay68206 with SIGKILL;
+phone app27584 remains running at exact installed B6784EDE path. No post-KRENI
+restart,patch,build,install,reset,physical audio change or manual save mutation.
+Native diagnostic flag/its bounded file sampler remain in that phone process;
+there is no host console capture now. Progress naturally changed through play:
+Journey boards2,3,30 newly complete;highest30. Do not restore pre-test saves.
+Evidence:/tmp/native-replay-retest-20261115-2305/{console.log,markers.jsonl,
+reports.jsonl,final-summary.json,card-delay-analysis.json,final-telemetry.jsonl,
+before-app-support,after-app-support,before-diagnostics,after-diagnostics}.
+
+## 2026-11-15 · Replay producer fix physical retest ACTIVE
+
+User requests connection and another phone test. Exact installed.native app
+B6784EDE verified from recent delivery;read-only saves/diagnostics snapshots
+/tmp/native-replay-retest-20261115-2305/. One pre-KRENI diagnostic launch attempt
+returned CoreDevice10004/no process;second launch succeeded,Native boot and
+real thermal stdout verified. AppPID27584,console exec session9796 ACTIVE,
+host console PID68206. Actual --cc-performance-diagnostics flag enabled;
+no build/install/reset/settings change. Both canonical slots byte-identical
+before/after diagnostic relaunch. KRENI 2026-11-15T23:07:18.409584+01:00.
+Thermal file native-thermal-3EBE493C-6A3B-4082-96D5-787CF559B19E.jsonl.
+Capture console.log plus markers.jsonl through explicit GOTOVO. Record every
+PROBLEM message chronologically;do not restart/build/install/patch or stop
+stream while playing. At GOTOVO read full buffered console before stopping only
+host relay (avoid Ctrl-C forwarding into phone). Then correlate actual new
+rejections vs frozen before-diagnostics history. Physical acceptance OPEN.
+
 ## 2026-11-15 · Installed Replay and Story fixes — Git publication
 
 User requests saving all current changes to Git. Scope:all tracked Native
@@ -25497,3 +25806,20 @@ User replaced entire assets/arcade image set and requested refresh only. Copied 
 Explicit user visual refinement: shorten Magnet detail shadow and Balloon width to Bottle reference. `NativeBackpackDicePreview.shadowSize` now places wild-magnet/baloon in Bottle/TNT width factor0.8*0.85*0.7=0.476 instead of1. Same slot width yields identical nominal shadow width as Bottle. Height, alpha, position, motion response, paper shadow, artwork and other dice untouched. No new resource/animation/save owner. No tests per UI-iteration preference. qa:ios `/tmp/magnet-balloon-shadow-ios.log` PASS; build/delivery follows.
 
 Normal complete-tree Debug BUILD SUCCEEDED `/tmp/magnet-balloon-shadow-build.log`; retained dedicated Simulator install-over/normal launchPID9141, exact .native/no Web.bundle/no testPlugIns, installed debug dylibSHA25695b83ea841a97b2f9dfbcc82e3e6072d93d300ded4ffa4eb45d84b4f2a15a15e matches built. Both newest canonical saves byte-identical preinstall->install->launch; `/tmp/magnet-balloon-shadow-delivery/receipt.json`, SpringBoard SBRingerMuted=true. No phone/PWA/legacy install/reset/uninstall/save restoration or manual visual acceptance claimed. User review pending.
+
+
+## 2026-11-16 · App Store nine-screen concept capture
+
+Design-only continuation in game design/output/2026-11-15-app-store-nine-real/.
+User requires real unwarped screens,actual Spaceship pull,and Peekaboo Legendary
+ending instead of Outstanding. Fresh retained Native Simulator captures include
+Journey,Forest/Beach/Area55 arenas,Backpack and Arcade. All screen/art transforms
+use raw pixel dimensions and uniform scale;backgrounds use uniform cover crop.
+Spaceship action is genuine board23 gameplay,video146.75s;no reconstructed pull.
+Original Area55 Legendary06-gold@2x is Peekaboo. Paper/text/characters retain
+editorial tilts. No runtime code/assets,phone,PWA,build/install/reset modified
+by this design task. An independent Simulator container replacement occurred
+during capture;current canonical slots re-resolved and valid. Actual capture
+play naturally advanced board23 score45→405;no save restoration or direct edit.
+Before/after evidence /tmp/sts-nine-capture-backup/. UI exited normally to Area55.
+These are marketing concepts,not runtime/physical QA or publication approval.

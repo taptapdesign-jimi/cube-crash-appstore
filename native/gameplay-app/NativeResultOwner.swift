@@ -16,6 +16,7 @@ final class NativeResultOwner {
     private let exit: () -> Void
     private var modal: NativeResultController?
     private var reward:NativeJourneyRewardController?
+    private var stagedResultReady=false,stagedResultRequested=false
     private var started=false,disposed=false,lease=0
     private let interimJourney:Bool
     private let continueJourney:(()->Void)?
@@ -95,13 +96,21 @@ final class NativeResultOwner {
                     self.onError?(NSError(domain:"NativeJourneyReward",code:1,userInfo:[NSLocalizedDescriptionKey:message]))
                 }
             }
+            card.onCollectStarted = { [weak self,weak card,weak gameplay] in
+                guard let self,let card,let gameplay,!self.disposed,self.lease==token,self.reward === card,card.parent === gameplay,
+                      gameplay.engine.state.generation==state.generation else{return}
+                self.presentResult(gameplay:gameplay,state:state,clean:clean,combo:combo,efficiency:efficiency,score:score,arcadeReached:arcadeReached,behindReward:card)
+            }
             card.onFinish = { [weak self,weak card,weak gameplay] action in
                 guard let self,let card,let gameplay,!self.disposed,self.lease==token,self.reward === card,
                       gameplay.engine.state.generation==state.generation else{return}
                 self.reward=nil
                 Self.removeReward(card) {
                     guard !self.disposed,self.lease==token,gameplay.engine.state.generation==state.generation else{return}
-                    if action == .collect {showResult()}
+                    if action == .collect {
+                        if let sheet=self.modal {self.stagedResultRequested=true;self.admitStagedResult(sheet,generation:state.generation)}
+                        else {showResult()}
+                    }
                 }
             }
             card.loadViewIfNeeded()
@@ -113,7 +122,8 @@ final class NativeResultOwner {
             }
         } else {showResult()}
     }
-    private func presentResult(gameplay:NativeGameplayViewController,state:NativeBoardState,clean:Bool,combo:Int,efficiency:Int,score:Int,arcadeReached:Bool) {
+    private func presentResult(gameplay:NativeGameplayViewController,state:NativeBoardState,clean:Bool,combo:Int,efficiency:Int,score:Int,arcadeReached:Bool,behindReward:NativeJourneyRewardController?=nil) {
+        guard modal==nil else{return}
         let sheet=gameplay.takePreparedJourneyResult(generation:state.generation) ?? NativeResultController(root:root,state:state,clean:clean,combo:combo,efficiency:efficiency,finalScore:score,interimJourney:interimJourney,arcadeReached:arcadeReached,arcadeCelebrationPresented:gameplay.hasPresentedBoardCleared,tutorialArcadeCompletion:tutorialArcadeCompletion)
         sheet.onForestAmbience=onForestAmbience
         sheet.onMoment=onMoment
@@ -128,6 +138,9 @@ final class NativeResultOwner {
             if case .nextJourney=action,clean,state.mode == .journey,state.tutorial?.requiresResultCompletion==true {destination = .exit}
             let preparation:((@escaping (Bool)->Void)->Void)?
             if case .exit=destination,state.mode == .journey {preparation=self.prepareExit}else {preparation=nil}
+            if preparation != nil,let gameplay=self.gameplay {
+                Self.preserveResultDuringGameplayReturn(sheet,gameplay:gameplay)
+            }
             sheet.close(prepareDestination:preparation) {
                 guard self.modal === sheet else {return}
                 self.finishSourceFinalCleanup()
@@ -139,20 +152,52 @@ final class NativeResultOwner {
         sheet.followsConfirmedNoMoves = sourceNoMovesReceipt != nil
         sheet.prepareForHandoff(viewport:gameplay.view.bounds.size)
         modal=sheet;gameplay.setSuspended(true)
+        if let card=behindReward,card.parent === gameplay {
+            gameplay.addChild(sheet);sheet.view.frame=gameplay.view.bounds
+            sheet.view.autoresizingMask=[.flexibleWidth,.flexibleHeight]
+            sheet.view.isUserInteractionEnabled=false;sheet.view.accessibilityElementsHidden=true
+            gameplay.view.insertSubview(sheet.view,belowSubview:card.view);sheet.didMove(toParent:gameplay)
+        }
+        let staged=behindReward != nil
         sheet.whenCounterBlurPrepared { [weak self,weak sheet,weak gameplay] in
             guard let self,let sheet,let gameplay,!self.disposed,self.modal === sheet,
                   gameplay.engine.state.generation==state.generation else{return}
+            if staged {
+                self.stagedResultReady=true;self.admitStagedResult(sheet,generation:state.generation);return
+            }
             sheet.admitPreparedHandoff();self.onMoment?("modal-open",0,nil);gameplay.present(sheet,animated:false)
             if let receipt=self.sourceNoMovesReceipt {
                 gameplay.boardScene?.traceNoMovesHandoff("result-mount",token:receipt.planToken,owner:sheet,mounted:sheet.view.window != nil)
             }
         }
     }
+    private func admitStagedResult(_ sheet:NativeResultController,generation:UInt64) {
+        guard !disposed,modal === sheet,stagedResultRequested,stagedResultReady,reward==nil,
+              gameplay?.engine.state.generation==generation else{return}
+        stagedResultRequested=false
+        sheet.view.isUserInteractionEnabled=true;sheet.view.accessibilityElementsHidden=false
+        sheet.admitPreparedHandoff();onMoment?("modal-open",0,nil)
+    }
+    /// Prepared World return hides the gameplay root before the result's own
+    /// exits finish. A staged child must leave that fading ancestor first,
+    /// just as the ordinary UIKit-presented result already lives outside it.
+    private static func preserveResultDuringGameplayReturn(_ sheet:NativeResultController,gameplay:NativeGameplayViewController) {
+        guard sheet.parent === gameplay,let host=gameplay.parent else{return}
+        let frame=host.view.convert(sheet.view.bounds,from:sheet.view)
+        sheet.willMove(toParent:nil);sheet.view.removeFromSuperview();sheet.removeFromParent()
+        host.addChild(sheet);sheet.view.frame=frame
+        sheet.view.autoresizingMask=[.flexibleWidth,.flexibleHeight]
+        host.view.addSubview(sheet.view);sheet.didMove(toParent:host)
+    }
+    private static func removeResult(_ sheet:NativeResultController) {
+        if sheet.parent != nil {sheet.willMove(toParent:nil);sheet.view.removeFromSuperview();sheet.removeFromParent()}
+        else {sheet.dismiss(animated:false)}
+    }
     private func finishSourceFinalCleanup() {
         let callback=onSourceFinalCleanup;onSourceFinalCleanup=nil
         if let receipt=sourceNoMovesReceipt {callback?(receipt)}
     }
-    func dispose() {disposed=true;lease += 1;finishSourceFinalCleanup();let card=reward;reward=nil;card?.dispose(notify:false);if let card {Self.removeReward(card,completion:{})};modal?.dispose();modal?.dismiss(animated:false);modal=nil;onMoment=nil;onForestAmbience=nil;onHaptic=nil;onError=nil;prepareExit=nil}
+    func dispose() {disposed=true;lease += 1;finishSourceFinalCleanup();let card=reward;reward=nil;card?.dispose(notify:false);if let card {Self.removeReward(card,completion:{})};if let sheet=modal {sheet.dispose();Self.removeResult(sheet)};modal=nil;onMoment=nil;onForestAmbience=nil;onHaptic=nil;onError=nil;prepareExit=nil}
 }
 
 /// Authored stars/text/score/result CTA layout; its native clock pauses with the app.
@@ -739,7 +784,11 @@ final class NativeResultController:UIViewController {
             self.destinationPending=false;self.destinationReady=ready
         }
     }
-    private func finishClose() {let completion=closed;closed=nil;dispose();dismiss(animated:false,completion:completion)}
+    private func finishClose() {
+        let completion=closed;closed=nil;dispose()
+        if parent != nil {willMove(toParent:nil);view.removeFromSuperview();removeFromParent();completion?()}
+        else {dismiss(animated:false,completion:completion)}
+    }
     func setSuspended(_ value:Bool) {
         guard value || presentationAdmitted else{return}
         if clean,state.mode == .journey,(1...10).contains(state.board),closingAt == nil,!disposed {onForestAmbience?(true,value)}

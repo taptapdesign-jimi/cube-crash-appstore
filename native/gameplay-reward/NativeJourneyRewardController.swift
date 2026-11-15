@@ -20,6 +20,33 @@ private final class RewardScheduler:NativeMusicScheduler {
     }
 }
 
+/// Glyph geometry stays on the label's baseline; the reward owner supplies
+/// finite CA tracks using the shared upward navigation caption bounce.
+@MainActor
+private final class NativeRewardHeadingLabel:UILabel {
+    private(set) var glyphs:[UILabel]=[]
+    override func drawText(in rect:CGRect) {}
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let letters=Array(text ?? "").map(String.init)
+        if glyphs.map({$0.text ?? ""}) != letters {
+            glyphs.forEach{$0.removeFromSuperview()}
+            glyphs=letters.map { letter in let glyph=UILabel();glyph.text=letter;glyph.isAccessibilityElement=false;addSubview(glyph);return glyph }
+        }
+        let attributes:[NSAttributedString.Key:Any]=[.font:font as Any]
+        let width=((text ?? "") as NSString).size(withAttributes:attributes).width
+        var prefix=""
+        for glyph in glyphs {
+            glyph.font=font;glyph.textColor=textColor;glyph.textAlignment = .center
+            let start=(prefix as NSString).size(withAttributes:attributes).width
+            prefix += glyph.text ?? ""
+            let end=(prefix as NSString).size(withAttributes:attributes).width
+            glyph.bounds=CGRect(x:0,y:0,width:max(1,end-start+8),height:bounds.height)
+            glyph.center=CGPoint(x:(bounds.width-width)/2+(start+end)/2,y:bounds.midY)
+        }
+    }
+}
+
 /// Native presentation of an already committed Journey reward. No save/unlock
 /// mutation. One finite contact owner hands each face to visible idle/drag work.
 @MainActor
@@ -30,6 +57,7 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
     private var rewardActionsAdmitted=true
     private let resourceRoot:URL
     private let magic=NativeMagicCardReveal(),unlockedEffects=NativeMagicCardReveal()
+    private var initialCardAdmitted=false
     private var magicOpened=false,magicOpening=false,magicPrepared=false,cardPrepared=false
     private var unlockedEffectsPreparing=false,unlockedEffectsPrepared=false,unlockedEffectsPreparationComplete=false,unlockedBounceFinished=false
     var prepareMagicCard:(URL,NativeRewardPreparationLease,@escaping(NativeMagicCardSource.Node?)->Void)->Void=NativeMagicCardSource.load
@@ -51,11 +79,29 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
     private let hero=UIView(),interim=JimiNativeModalTransformView(),unlocked=JimiNativeModalTransformView(),pose=JimiNativeModalTransformView(),front=UIImageView(),hand=UIImageView()
     private let interimRotor=JimiNativeModalTransformView(),unlockedRotor=JimiNativeModalTransformView()
     static let collectBackAssetPath="assets/colelctibles/cardflip@22.png"
-    static let unlockedSubtitleEntryDelay=0.300
-    static let unlockedHeadingEntryDelay=0.420
-    static let unlockedArtworkEntryDelay=0.540
+    static let titleLetterStagger=0.048
+    static let svgExitTimeScale=1.3
+    static let svgExitAnticipation=JimiV9Motion.worldHubElementExit().tweens[0].duration
+    static let unlockedArtworkEntryDelay=svgExitAnticipation+(NativeMagicCardSource.visibleExitEnd-NativeMagicCardSource.hold)*svgExitTimeScale*0.9
+    static let unlockedHeadingEntryDelay=unlockedArtworkEntryDelay+NativeRewardMotion.cardEnterDuration*0.5
+    private var artworkEntryDelay:Double {reducedMotion ? 0.16*0.9:Self.unlockedArtworkEntryDelay}
+    private var headingEntryDelay:Double {artworkEntryDelay+(reducedMotion ? 0.16:NativeRewardMotion.cardEnterDuration)*0.5}
+    static func headingEntryDuration(glyphCount:Int,reducedMotion:Bool)->Double {
+        let captionDuration=JimiV9Motion.navigationCaption(entering:true,reducedMotion:reducedMotion).duration
+        return captionDuration+(reducedMotion ? 0:Double(max(0,glyphCount-1))*titleLetterStagger)
+    }
+    var initialSubtitleEntryDelay:Double {Self.headingEntryDuration(glyphCount:"New Reward".count,reducedMotion:reducedMotion)*0.9}
+    var subtitleEntryDelay:Double {headingEntryDelay+Self.headingEntryDuration(glyphCount:(rarity=="legendary" ? "Legendary!":"Common").count,reducedMotion:reducedMotion)*0.9}
+    var revealCompletionDelay:Double {
+        let captionDuration=JimiV9Motion.navigationCaption(entering:true,reducedMotion:reducedMotion).duration
+        let glyphTail=reducedMotion ? 0:Double(max(0,(rarity=="legendary" ? "Legendary!":"Common").count-1))*Self.titleLetterStagger
+        return max(artworkEntryDelay+(reducedMotion ? 0.16:NativeRewardMotion.cardEnterDuration),
+            headingEntryDelay+glyphTail+captionDuration,subtitleEntryDelay+captionDuration,
+            reducedMotion ? 0.16:Self.svgExitAnticipation+(NativeMagicCardSource.end-NativeMagicCardSource.hold)*Self.svgExitTimeScale)+0.08
+    }
     private let collectBack=UIImageView()
-    private let headingLabel=UILabel(),subtitle=UILabel(),coach=UILabel()
+    private let headingLabel=NativeRewardHeadingLabel()
+    private let subtitle=UILabel(),coach=UILabel()
     private lazy var coachPaper=NativeSettingsPaperSurface(image:assets.image("assets/modals/paper.png",densityAware:true))
     private let coachCaption=UILabel()
     private let foil=NativeRewardFoil()
@@ -79,6 +125,7 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
     private var disposed=false,resolved=false,revealRunning=false,revealed=false,queuedCollect=false,waitingReveal=false,started=false,foreground=true,assetsReady=false,waitingCrumble=false
     private var dragStart=0.0,dragAngle=0.0,dragAxis:String?
     private(set) var phase="mounted"
+    var onCollectStarted:(()->Void)?
     var onFinish:((Action)->Void)?
     var onSoundMoment:((String,Int,UInt64)->Void)?
     var onHaptic:((String)->Void)?
@@ -203,16 +250,15 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         guard !started,!disposed,!revealRunning,!revealed,!resolved else{return};started=true;phase="entering"
         onSoundMoment?("modal-open",0,generation)
         onSoundMoment?("new-card-happy",0,generation);onHaptic?("medium")
-        animate(headingLabel.layer,"transform",from:NSValue(caTransform3D:spatial(scale:0,y:-28)),to:NSValue(caTransform3D:CATransform3DIdentity),duration:0.24,ease:.backOut(1.65))
-        animate(headingLabel.layer,"opacity",from:0,to:1,duration:0.24)
-        animate(subtitle.layer,"transform",from:NSValue(caTransform3D:spatial(scale:0,y:-22)),to:NSValue(caTransform3D:CATransform3DIdentity),duration:0.24,delay:0.032,ease:.backOut(1.65));animate(subtitle.layer,"opacity",from:0,to:1,duration:0.24,delay:0.032)
-        // The selected SVG starts immediately; its parent spring starts on the
-        // same admission clock without a lead-in or artwork/filter gate.
-        CATransaction.begin();CATransaction.setDisableActions(true)
-        pose.layer.transform=CATransform3DIdentity;hero.layer.opacity=1;CATransaction.commit()
+        enterHeading(delay:0)
+        enterSubtitle(delay:initialSubtitleEntryDelay)
+        later("initial-card",after:0.16) { [weak self] in
+            guard let self else{return};self.initialCardAdmitted=true
+            self.pose.layer.transform=CATransform3DIdentity;self.hero.layer.opacity=1
+            if self.magicPrepared {self.crumble()}else{self.waitingCrumble=true}
+        }
         later("intro-haptic",after:0.12){ [weak self] in self?.onHaptic?("light")}
         later("intro-haptic2",after:0.24){ [weak self] in self?.onHaptic?("medium")}
-        if magicPrepared {crumble()}else{waitingCrumble=true}
     }
     @objc private func tapped(){activate()}
     func activate() {
@@ -233,7 +279,7 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         }
     }
     private func crumble() {
-        guard foreground,started,magicPrepared,!disposed,!revealRunning,!revealed,!magicOpening,!magicOpened else{return}
+        guard foreground,started,initialCardAdmitted,magicPrepared,!disposed,!revealRunning,!revealed,!magicOpening,!magicOpened else{return}
         magicOpening=true;phase="opening"
         onSoundMoment?("new-card-interim-speech",0,generation)
         // SVG retains its authored opening/dust/angular tracks; the parent owns
@@ -275,6 +321,7 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         guard assetsReady else {waitingReveal=true;phase="awaiting-artwork";return}
         let idlePose=pose.layer.presentation()?.transform ?? pose.layer.transform
         let idleRotor=interimRotor.layer.presentation()?.transform ?? interimRotor.layer.transform
+        let interimPose=interim.layer.presentation()?.transform ?? interim.layer.transform
         waitingReveal=false;epoch &+= 1;cancelTasks();removeAnimations();waitingCrumble=false
         phase="revealing";revealRunning=true;hero.layer.opacity=1;pose.layer.transform=CATransform3DIdentity
         interimRotor.layer.transform=CATransform3DIdentity
@@ -284,11 +331,25 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         }
         onHaptic?("medium");onSoundMoment?("new-card-reveal",0,generation)
         magic.layer.opacity=1
-        let closedExit=reducedMotion ? 0.16:(NativeMagicCardSource.end-NativeMagicCardSource.hold)*1.3
-        let unlockedDelay=Self.unlockedArtworkEntryDelay
+        let anticipation=reducedMotion ? 0:Self.svgExitAnticipation
+        let svgDuration=reducedMotion ? 0.16:(NativeMagicCardSource.end-NativeMagicCardSource.hold)*Self.svgExitTimeScale
+        let closedExit=anticipation+svgDuration
+        let unlockedDelay=artworkEntryDelay
         later("unlocked-enter-sound",after:unlockedDelay){[weak self] in guard let self else{return};self.onSoundMoment?("new-card-unlocked-enter",0,self.generation);self.onSoundMoment?("new-card-unlock-speech",self.rarity=="legendary" ? 1:0,self.generation)}
         magic.stopCardShimmer()
-        magic.play(from:NativeMagicCardSource.hold,to:NativeMagicCardSource.end,reduced:reducedMotion,durationScale:1.3)
+        // The interim wrapper owns only contact anticipation. The SVG retains
+        // its authored collapse; incoming artwork has an independent sibling.
+        magic.settle(at:NativeMagicCardSource.hold)
+        if !reducedMotion {
+            let contact=JimiV9Motion.worldHubElementExit().tweens[0]
+            let peak=CATransform3DScale(interimPose,contact.to.scaleX,contact.to.scaleY,1)
+            animate(interim.layer,"transform",from:NSValue(caTransform3D:interimPose),to:NSValue(caTransform3D:peak),duration:anticipation,ease:contact.ease)
+            animate(interim.layer,"transform",from:NSValue(caTransform3D:peak),to:NSValue(caTransform3D:interimPose),duration:svgDuration,delay:anticipation)
+        }
+        later("svg-exit",after:anticipation) { [weak self] in
+            guard let self else{return}
+            self.magic.play(from:NativeMagicCardSource.hold,to:NativeMagicCardSource.end,reduced:self.reducedMotion,durationScale:Self.svgExitTimeScale)
+        }
         headingLabel.layer.opacity=0;subtitle.layer.opacity=0
         animate(unlocked.layer,"opacity",from:0,to:1,duration:0.001,delay:unlockedDelay)
         let unlockedTextColor=NativeTextPalette.accentOrange
@@ -300,9 +361,8 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         subtitle.attributedText=copy
         let enter=reducedMotion ? 0.16:NativeRewardMotion.cardEnterDuration
         animateCardEntrance(unlocked.layer,from:NativeRewardMotion.pose(scale:0,y:22,z:tilt.entryZ,x:tilt.entryX,ry:tilt.entryY,depth:-180),to:NativeRewardMotion.pose(scale:1.17,y:40,z:tilt.restZ,x:tilt.restX,ry:tilt.restY),delay:unlockedDelay)
-        animate(headingLabel.layer,"opacity",from:0,to:1,duration:0.192,delay:Self.unlockedHeadingEntryDelay);animate(subtitle.layer,"opacity",from:0,to:1,duration:0.192,delay:Self.unlockedSubtitleEntryDelay)
-        animate(headingLabel.layer,"transform",from:NSValue(caTransform3D:spatial(scale:0.72,y:-16)),to:NSValue(caTransform3D:CATransform3DIdentity),duration:0.192,delay:Self.unlockedHeadingEntryDelay,ease:.backOut(1.65))
-        animate(subtitle.layer,"transform",from:NSValue(caTransform3D:spatial(scale:0.78,y:-12)),to:NSValue(caTransform3D:CATransform3DIdentity),duration:0.192,delay:Self.unlockedSubtitleEntryDelay,ease:.backOut(1.65))
+        enterHeading(delay:headingEntryDelay)
+        enterSubtitle(delay:subtitleEntryDelay)
         later("reveal-haptic",after:0.176){ [weak self] in self?.onHaptic?("light") }
         if rarity=="legendary" {
             later("unlocked-effects",after:unlockedDelay+enter) { [weak self] in
@@ -310,7 +370,7 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
             }
         }
         later("impact",after:max(closedExit,unlockedDelay+enter)){ [weak self] in guard let self else{return};self.shine();self.shake(strength:22,duration:0.42);self.onHaptic?("medium") }
-        later("revealed",after:max(closedExit,unlockedDelay+enter)+0.192) { [weak self] in
+        later("revealed",after:revealCompletionDelay) { [weak self] in
             guard let self else{return};self.magic.layer.opacity=0;self.magic.dispose();self.phase="unlocked";self.revealRunning=false;self.revealed=true;self.hero.accessibilityLabel="Collect \(NativeRewardPresentation.name(board:self.board))"
             self.onHaptic?("light");if self.queuedCollect {self.collect()}else{self.scheduleCoach(after:1);self.scheduleUnlockedIdle(after:3)}
         }
@@ -345,6 +405,7 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         let bounceDuration=reducedMotion ? 0:NativeHUDTapMotion.duration
         let stagger=reducedMotion ? 0:0.08
         let motionStart=CACurrentMediaTime()
+        var exitEnd:TimeInterval=0
         if !reducedMotion {
             let count=80
             let values=(0...count).map { sample -> NSValue in
@@ -367,6 +428,7 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
             }
             let exitDelay=index==0 ? bounceDuration+flipDuration:Double(index-1)*stagger
             keyframes(target,"transform",values:values,times:(0...count).map{Double($0)/Double(count)},duration:targetDuration,delay:exitDelay,final:values.last,startTime:motionStart)
+            exitEnd=max(exitEnd,exitDelay+targetDuration)
         }
         if !reducedMotion {
             // The original World automatic-return backface turns with the same
@@ -384,10 +446,18 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
                 return NSValue(caTransform3D:CATransform3DRotate(rotorPose,direction*angle,0,1,0))
             }
             keyframes(unlockedRotor.layer,"transform",values:turns,times:(0...totalSamples).map{Double($0)/Double(totalSamples)},duration:flipDuration*2,delay:bounceDuration,final:turns.last,startTime:motionStart)
-            shake(strength:22,duration:0.42,delay:bounceDuration+flipDuration*2,startTime:motionStart,base:rootPose)
+            let shakeDelay=bounceDuration+flipDuration*2,shakeDuration=0.42
+            shake(strength:22,duration:shakeDuration,delay:shakeDelay,startTime:motionStart,base:rootPose)
+            exitEnd=max(exitEnd,shakeDelay+shakeDuration)
         }
-        let finish=bounceDuration+flipDuration+duration+stagger*2
+        // Hand off after the actual authored exits, including the final shake.
+        // The former sum added already-overlapping text time as a blank hold.
+        let finish=reducedMotion ? duration:exitEnd
         animate(view.layer,"opacity",from:1,to:0,duration:0.08,delay:finish,startTime:motionStart)
+        // Publish the outgoing CA tracks before mounting/layout of its successor.
+        later("collect-prepare",after:0,allowResolved:true) { [weak self] in
+            guard let self else{return};let callback=self.onCollectStarted;self.onCollectStarted=nil;callback?()
+        }
         later("collected",after:finish+0.08,allowResolved:true) { [weak self] in self?.settle(.collect) }
     }
 
@@ -516,6 +586,31 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
     private func spatial(scale:Double=1,scaleX:Double?=nil,scaleY:Double?=nil,y:Double=0,z:Double=0,x:Double=0,ry:Double=0,depth:Double=0)->CATransform3D {
         NativeRewardMotion.pose(scale:scale,scaleX:scaleX,scaleY:scaleY,y:y,z:z,x:x,ry:ry,depth:depth).transform
     }
+    private func enterHeading(delay:Double) {
+        headingLabel.layer.transform=CATransform3DIdentity
+        headingLabel.setNeedsLayout();headingLabel.layoutIfNeeded()
+        if reducedMotion {
+            headingLabel.glyphs.forEach{$0.layer.opacity=1;$0.layer.transform=CATransform3DIdentity}
+            enterCaption(headingLabel.layer,delay:delay);return
+        }
+        headingLabel.layer.opacity=1
+        let start=CACurrentMediaTime()
+        for (index,glyph) in headingLabel.glyphs.enumerated() {
+            enterCaption(glyph.layer,delay:delay+Double(index)*Self.titleLetterStagger,startTime:start)
+        }
+    }
+    private func enterSubtitle(delay:Double) {enterCaption(subtitle.layer,delay:delay)}
+    private func enterCaption(_ layer:CALayer,delay:Double,startTime:Double?=nil) {
+        let sample=JimiV9Motion.sampledTrack(JimiV9Motion.navigationCaption(entering:true,reducedMotion:reducedMotion))
+        let times=(0..<sample.poses.count).map{Double($0)/Double(sample.poses.count-1)}
+        let values=sample.poses.map {pose -> NSValue in
+            let transform=CATransform3DScale(CATransform3DMakeTranslation(pose.x,pose.y,0),pose.scaleX,pose.scaleY,1)
+            return NSValue(caTransform3D:transform)
+        }
+        let start=startTime ?? CACurrentMediaTime()
+        keyframes(layer,"transform",values:values,times:times,duration:sample.duration,delay:delay,final:NSValue(caTransform3D:CATransform3DIdentity),startTime:start)
+        keyframes(layer,"opacity",values:sample.poses.map{$0.opacity},times:times,duration:sample.duration,delay:delay,final:1,startTime:start)
+    }
     private func animateCardEntrance(_ layer:CALayer,from:NativeRewardMotion.Pose,to:NativeRewardMotion.Pose,delay:Double=0,fromRest:Bool=false) {
         let curve:(Double)->Double=reducedMotion ? JimiV9Motion.Ease.powerOut(2).value:(fromRest ? NativeRewardMotion.cardRestBounceProgress:NativeRewardMotion.cardEnterProgress)
         let samples=NativeRewardMotion.samples(from:from,to:to,ease:curve)
@@ -571,7 +666,7 @@ final class NativeJourneyRewardController:UIViewController,UIGestureRecognizerDe
         }
     }
     private func cancelTasks(){for task in tasks.values {task.cancel()};tasks.removeAll()}
-    private func removeAnimations(){foil.stop();magic.stop();unlockedEffects.stop();for layer in ownedLayers {layer.removeAllAnimations()}}
+    private func removeAnimations(){headingLabel.glyphs.forEach{$0.layer.removeAllAnimations()};foil.stop();magic.stop();unlockedEffects.stop();for layer in ownedLayers {layer.removeAllAnimations()}}
     private func settle(_ action:Action){guard !disposed else{return};let callback=onFinish;onFinish=nil;dispose(notify:false);callback?(action)}
-    func dispose(notify:Bool=true){guard !disposed else{return};disposed=true;magicPreparationWaiters.removeAll();phase="disposed";epoch &+= 1;cancelTasks();removeAnimations();resources.release(resourceOwner);preparationLease.cancel();preparedImages.removeAll();maskImage=nil;glow.contents=nil;magic.dispose();unlockedEffects.dispose();front.image=nil;collectBack.image=nil;hand.image=nil;holo.mask=nil;for observer in observations {NotificationCenter.default.removeObserver(observer)};observations.removeAll();onSoundMoment=nil;onHaptic=nil;onAssetFailure=nil;let callback=onFinish;onFinish=nil;if notify {callback?(.cancelled)}}
+    func dispose(notify:Bool=true){guard !disposed else{return};disposed=true;magicPreparationWaiters.removeAll();phase="disposed";epoch &+= 1;cancelTasks();removeAnimations();resources.release(resourceOwner);preparationLease.cancel();preparedImages.removeAll();maskImage=nil;glow.contents=nil;magic.dispose();unlockedEffects.dispose();front.image=nil;collectBack.image=nil;hand.image=nil;holo.mask=nil;for observer in observations {NotificationCenter.default.removeObserver(observer)};observations.removeAll();onSoundMoment=nil;onHaptic=nil;onAssetFailure=nil;onCollectStarted=nil;let callback=onFinish;onFinish=nil;if notify {callback?(.cancelled)}}
 }

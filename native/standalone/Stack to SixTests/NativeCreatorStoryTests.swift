@@ -91,7 +91,7 @@ final class NativeCreatorStoryTests:XCTestCase {
             XCTAssertTrue(needed<=privacy.copy.bounds.height+0.5 || privacy.copy.isScrollEnabled)
         }
     }
-    func testStoryKeepsReadableSideMarginsAndAllCopyReachable()throws {
+    func testStoryFitsAllCopyWithoutScrollingAndKeepsSubtitleNearTitle()throws {
         for size in [CGSize(width:320,height:568),CGSize(width:390,height:844),CGSize(width:820,height:1180)] {
             let modal=NativeCreatorStoryModal(assets:JimiV9Artwork(resourceRoot:NativeTestResources.root),reducedMotion:true)
             let window=UIWindow(frame:CGRect(origin:.zero,size:size))
@@ -101,10 +101,12 @@ final class NativeCreatorStoryTests:XCTestCase {
             XCTAssertGreaterThanOrEqual(modal.copyViewport.bounds.height,70)
             XCTAssertGreaterThanOrEqual(modal.copyViewport.frame.minX,40)
             XCTAssertEqual(modal.copyViewport.frame.minX,modal.idle.bounds.width-modal.copyViewport.frame.maxX,accuracy:0.001)
-            XCTAssertGreaterThan(modal.copyViewport.frame.minY-modal.heading.frame.maxY,16)
+            XCTAssertEqual(modal.copyViewport.frame.minY-modal.heading.frame.maxY,4,accuracy:0.001)
             XCTAssertLessThanOrEqual(modal.heading.sizeThatFits(CGSize(width:1000,height:1000)).width,modal.heading.bounds.width+1)
             let needed=modal.copy.sizeThatFits(CGSize(width:modal.copy.bounds.width,height:.greatestFiniteMagnitude)).height
-            XCTAssertTrue(needed<=modal.copyViewport.bounds.height+0.5 || modal.copyViewport.isScrollEnabled,"All story text and signature must remain reachable on compact screens")
+            XCTAssertFalse(modal.copyViewport.isScrollEnabled)
+            XCTAssertLessThanOrEqual(modal.copy.bounds.height,modal.copyViewport.bounds.height+0.5)
+            XCTAssertLessThanOrEqual(needed,modal.copyViewport.bounds.height+0.5,"All copy fits at once, including compact phones")
             XCTAssertEqual(modal.storyArtwork.image?.cgImage?.width,1155)
             XCTAssertEqual(modal.storyArtwork.image?.scale,3)
             XCTAssertEqual(modal.artworkEntry.bounds.height/modal.artworkEntry.bounds.width,257.0/385,accuracy:0.001)
@@ -177,6 +179,8 @@ final class NativeCreatorStoryTests:XCTestCase {
             let union=modal.card.convert(modal.card.bounds,to:window).union(modal.artworkEntry.convert(modal.artworkEntry.bounds,to:window))
             XCTAssertEqual(union.midX,window.bounds.midX,accuracy:8)
             XCTAssertEqual(union.midY,window.bounds.midY,accuracy:8)
+            XCTAssertGreaterThanOrEqual(union.minY,0,"Complete modal stays on screen")
+            XCTAssertLessThanOrEqual(union.maxY,window.bounds.height,"Fact card stays on screen")
             let artworkFrame=modal.artworkEntry.frame
             modal.view.setNeedsLayout();modal.view.layoutIfNeeded()
             XCTAssertEqual(modal.artworkEntry.frame,artworkFrame)
@@ -266,7 +270,7 @@ final class NativeCreatorStoryTests:XCTestCase {
         XCTAssertNotNil(modal.idle.layer.animation(forKey:NativeCreatorStoryModal.idleKey))
         XCTAssertTrue(modal.fact.superview === modal.idle,"Both papers inherit the same modal idle")
         let shadow=try XCTUnwrap(modal.idle.layer.sublayers?.first{$0.name=="native.end-run.paper-shadow"})
-        XCTAssertEqual(shadow.frame,modal.card.bounds)
+        XCTAssertEqual(shadow.frame,modal.idle.bounds)
         XCTAssertFalse(shadow.isDoubleSided,"Shadow and paper must share front-face visibility during the flip")
         XCTAssertTrue(try XCTUnwrap(shadow.shadowPath).contains(CGPoint(x:modal.idle.bounds.midX,y:modal.idle.bounds.midY)))
         XCTAssertNil(shadow.animation(forKey:"shadowPath"),"Layout must not implicitly animate the paper silhouette")

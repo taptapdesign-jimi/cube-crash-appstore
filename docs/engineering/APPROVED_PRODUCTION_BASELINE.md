@@ -1,8 +1,17 @@
 # Approved Production Baseline
 
-Updated: 2026-11-15
+Updated: 2026-11-16
 
-## Current Native checkpoint — Finished product v1.1
+## Current Native checkpoint — Finished product v1.2
+
+User approves the current reward/Story/result application state and requests a
+new Git benchmark on 2026-11-16. Immutable annotated tag: `finished-product-v1.2`.
+See [FINISHED_PRODUCT_V1_2.md](FINISHED_PRODUCT_V1_2.md). This supersedes v1.1 for
+Native continuation/recovery; all historical tags and separate PWA references
+remain immutable. Physical delivery/acceptance and release certification stay
+separate from Git preservation.
+
+## Historical Native checkpoint — Finished product v1.1
 
 User explicitly requests preserving the complete current Native project online
 as **finished product v1.1** on 2026-11-15. Immutable annotated tag:

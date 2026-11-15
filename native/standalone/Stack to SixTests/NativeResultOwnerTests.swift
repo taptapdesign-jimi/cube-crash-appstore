@@ -6,6 +6,136 @@ import StackToSixNativeState
 
 @MainActor
 final class NativeResultOwnerTests:XCTestCase {
+    func testCollectStagesFrozenResultBehindRewardThenAdmitsAndRetiresChild() async throws {
+        let state=NativeBoardState(tiles:[],mode:.journey,board:1,score:1000)
+        let game=NativeGameplayViewController(engine:NativeGameplayEngine(state:state),resourceRoot:NativeTestResources.root)
+        let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=game;window.makeKeyAndVisible()
+        let owner=NativeResultOwner(gameplay:game,root:NativeTestResources.root,resolution:NativeResolution(.complete,reason:"clean"),commit:{_ in},restart:{},continueArcade:{},exit:{},interimJourney:true)
+        defer {owner.dispose();game.dispose();window.isHidden=true;window.rootViewController=nil}
+        func wait(_ predicate:()->Bool) async throws {
+            let deadline=Date().addingTimeInterval(15)
+            while !predicate() {if Date()>deadline {XCTFail("Reward handoff timed out");throw CancellationError()};try await Task.sleep(for:.milliseconds(10))}
+        }
+        func capture(_ view:UIView,_ name:String) throws {
+            let image=UIGraphicsImageRenderer(bounds:view.bounds).image{view.layer.render(in:$0.cgContext)}
+            try image.pngData()?.write(to:FileManager.default.temporaryDirectory.appendingPathComponent(name+".png"))
+        }
+        owner.present()
+        try await wait {game.visibleJourneyRewardController?.phase == "interim"}
+        let card=try XCTUnwrap(game.visibleJourneyRewardController)
+        try capture(card.view,"reward-entry-new")
+        card.activate()
+        try await wait {card.phase == "unlocked"}
+        try capture(card.view,"reward-entry-unlocked")
+        card.activate()
+        try await wait {game.children.contains{$0 is NativeResultController}}
+        let sheet=try XCTUnwrap(game.children.first{$0 is NativeResultController} as? NativeResultController)
+        XCTAssertEqual(card.phase,"exiting");XCTAssertTrue(sheet.parent === game)
+        XCTAssertFalse(sheet.view.isUserInteractionEnabled);XCTAssertTrue(sheet.view.accessibilityElementsHidden)
+        let before=sheet.elapsed;sheet.tick(100);sheet.tick(101);XCTAssertEqual(sheet.elapsed,before)
+        NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
+        sheet.tick(102);XCTAssertEqual(sheet.elapsed,before);XCTAssertEqual(card.phase,"exiting")
+        NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
+        sheet.tick(103);XCTAssertEqual(sheet.elapsed,before,"Foreground cannot admit the hidden result before card completion")
+        XCTAssertLessThan(try XCTUnwrap(game.view.subviews.firstIndex(of:sheet.view)),try XCTUnwrap(game.view.subviews.firstIndex(of:card.view)))
+        try await wait {card.phase == "disposed" && sheet.view.isUserInteractionEnabled}
+        XCTAssertNil(card.parent);XCTAssertFalse(sheet.view.accessibilityElementsHidden)
+        var closed=0;sheet.close {closed+=1}
+        for frame in 0...240 {sheet.tick(200+Double(frame)/60)}
+        XCTAssertEqual(closed,1);XCTAssertNil(sheet.parent);XCTAssertNil(sheet.view.superview)
+    }
+    func testStagedResultExitKeepsAuthoredItemsVisibleWhileRealWorldReturnHidesGameplay() async throws {
+        for interrupted in [false,true] {
+            let layouts=try NativeWorldLayouts()
+            var progression=NativeProgressionState();progression.firstPlayTutorialComplete=true;progression.journeyIntroSeen=true
+            let game=NativeGameplayViewController(engine:NativeGameplayEngine(state:.init(tiles:[],mode:.journey,board:1,score:1000)),resourceRoot:NativeTestResources.root)
+            var routeExit:(()->Void)?,preparations:[()->Void]=[],exits=0
+            var services=NativeAppServices(settings:{[:]},setPreference:{_,_ in},worldSnapshot:{world,size,generation in
+                try layouts.snapshot(world:world,width:size.width,height:size.height,generation:generation,progression:progression)
+            },markViewed:{_ in},makeGameplay:{_,completion in routeExit=completion;return game},flush:{})
+            services.journeyProgression={progression}
+            services.prepareReturnWorld={_,completion in preparations.append(completion)}
+            let root=NativeAppController(resourceRoot:NativeTestResources.root,services:services)
+            let previous=UIApplication.shared.connectedScenes.compactMap{$0 as? UIWindowScene}.flatMap(\.windows).first(where:\.isKeyWindow)
+            let window=UIWindow(frame:CGRect(x:0,y:0,width:390,height:844));window.rootViewController=root;window.makeKeyAndVisible()
+            let owner=NativeResultOwner(gameplay:game,root:NativeTestResources.root,resolution:NativeResolution(.complete,reason:"clean"),commit:{_ in},restart:{},continueArcade:{},exit:{exits+=1;routeExit?()},interimJourney:true)
+            defer {owner.dispose();root.dispose();game.dispose();window.isHidden=true;window.rootViewController=nil;previous?.makeKeyAndVisible()}
+            func wait(_ predicate:()->Bool) async throws {
+                let deadline=Date().addingTimeInterval(20)
+                while !predicate() {if Date()>deadline {XCTFail("Actual staged result return timed out");throw CancellationError()};try await Task.sleep(for:.milliseconds(10))}
+            }
+            func find(_ view:UIView,_ id:String)->UIView? {view.accessibilityIdentifier==id ? view:view.subviews.lazy.compactMap{find($0,id)}.first}
+            root.navigate(.world(1),interrupt:true)
+            try await wait {root.world?.isReadyForInput == true && !root.transitioning}
+            root.world?.onRequest?("continue",1)
+            try await wait {root.route == .gameplay}
+            owner.prepareExit = { [weak root] completion in
+                guard let root else{completion(false);return}
+                root.prepareGameplayReturn { [weak root] ready in completion(ready && root?.hideGameplayForPreparedReturn()==true) }
+            }
+            owner.present()
+            try await wait {game.visibleJourneyRewardController?.phase == "interim"}
+            let card=try XCTUnwrap(game.visibleJourneyRewardController);card.activate()
+            try await wait {card.phase == "unlocked"};card.activate()
+            try await wait {card.phase == "disposed" && game.children.contains{($0 as? NativeResultController)?.view.isUserInteractionEnabled == true}}
+            let sheet=try XCTUnwrap(game.children.first{$0 is NativeResultController} as? NativeResultController)
+            let base=CACurrentMediaTime()+1
+            for frame in 0...600 {sheet.tick(base+Double(frame)/60)}
+            let exitButton=try XCTUnwrap(button(in:sheet.view,id:"native.result.exit"))
+            XCTAssertTrue(exitButton.isUserInteractionEnabled)
+            let exitElapsed=sheet.elapsed
+            exitButton.sendActions(for:.touchUpInside)
+            XCTAssertTrue(sheet.parent === root,"Result must leave the ancestor that actual prepared return fades")
+            XCTAssertTrue(sheet.view.superview === root.view);XCTAssertEqual(sheet.view.frame,game.view.frame)
+            sheet.tick(base+10+1.0/60);sheet.tick(base+10+2.0/60)
+            XCTAssertEqual(preparations.count,1);XCTAssertEqual(exits,0)
+            if interrupted {
+                let frozen=sheet.elapsed
+                NotificationCenter.default.post(name:UIApplication.willResignActiveNotification,object:nil)
+                sheet.tick(base+100);preparations[0]()
+                XCTAssertEqual(sheet.elapsed,frozen);XCTAssertEqual(game.view.alpha,1);XCTAssertEqual(exits,0)
+                NotificationCenter.default.post(name:UIApplication.didBecomeActiveNotification,object:nil)
+                sheet.tick(base+101);sheet.tick(base+101+1.0/60)
+                XCTAssertEqual(preparations.count,2)
+                preparations[0]();XCTAssertEqual(game.view.alpha,1,"Retired World readiness cannot hide the current run")
+            } else {preparations[0]()}
+            XCTAssertEqual(game.view.alpha,interrupted ? 1:0,"Fast readiness must exercise the actual gameplay-alpha hide while item exits remain visible")
+            XCTAssertEqual(sheet.view.alpha,1);XCTAssertEqual(root.view.alpha,1);XCTAssertTrue(sheet.view.window === window)
+            XCTAssertEqual(root.route,.gameplay);XCTAssertEqual(exits,0)
+            let age=sheet.elapsed-exitElapsed
+            let earned=NativeJourneyContent.earnedStars(score:sheet.finalScore,board:1)
+            let plan=NativeResultExitPlan.clean(seconds:age,earned:earned,path:.journeyReturn,clickedPrimary:false)
+            XCTAssertEqual(exitButton.alpha,plan.secondary.opacity,accuracy:0.000001)
+            XCTAssertEqual(exitButton.transform.a,plan.secondary.transform.a,accuracy:0.000001)
+            let score=try XCTUnwrap(find(sheet.view,"native.result.score-motion"))
+            XCTAssertEqual(score.alpha,plan.content[2].opacity,accuracy:0.000001)
+            XCTAssertEqual(score.transform.a,plan.content[2].transform.a,accuracy:0.000001)
+            XCTAssertGreaterThan(score.alpha,0,"Individual fields remain painted while gameplay has already disappeared")
+            if !interrupted {
+                let image=UIGraphicsImageRenderer(bounds:sheet.view.bounds).image{sheet.view.layer.render(in:$0.cgContext)}
+                try image.pngData()?.write(to:FileManager.default.temporaryDirectory.appendingPathComponent("reward-clean-exit-visible.png"))
+            }
+            if earned>0 {
+                let star=try XCTUnwrap(find(sheet.view,"native.result.star.filled.\(earned-1)"))
+                let capturedScale=NativeResultPresentationPlan.filledStarScale(seconds:exitElapsed,index:earned-1)
+                let pose=NativeResultExitPlan.cleanStar(seconds:age,index:earned-1,earned:earned,capturedScale:capturedScale)
+                XCTAssertEqual(star.alpha,pose.opacity,accuracy:0.000001)
+                XCTAssertEqual(star.transform.a,pose.transform.a,accuracy:0.000001)
+            }
+            var clock=interrupted ? base+101+1.0/60:base+10+2.0/60
+            if interrupted {
+                for frame in 1...90 {sheet.tick(clock+Double(frame)/60)}
+                clock+=1.5
+                XCTAssertEqual(exits,0);XCTAssertEqual(root.route,.gameplay)
+                XCTAssertTrue(sheet.parent === root);XCTAssertEqual(sheet.view.alpha,1,"Opaque result paper must wait for delayed World readiness after component exits")
+                preparations[1]();XCTAssertEqual(game.view.alpha,0)
+            }
+            for frame in 1...120 {sheet.tick(clock+Double(frame)/60)}
+            XCTAssertEqual(exits,1);XCTAssertEqual(root.route,.world(1));XCTAssertNil(sheet.parent);XCTAssertNil(sheet.view.superview)
+            preparations.forEach{$0()};sheet.tick(base+200)
+            XCTAssertEqual(exits,1,"Late readiness and retired display ticks cannot replay exit")
+        }
+    }
     func testPreparedJourneyCounterKeepsExactBlurWithoutColdMainThreadStall()async throws {
         let result=NativeResultController(root:NativeTestResources.root,state:.init(tiles:[],mode:.journey,board:2,score:15144),clean:true,combo:81096,efficiency:6143,finalScore:102383,interimJourney:true,arcadeCelebrationPresented:true)
         result.prepareForHandoff(viewport:CGSize(width:820,height:1180))
@@ -623,11 +753,15 @@ final class NativeResultOwnerTests:XCTestCase {
         window.rootViewController=host;window.makeKeyAndVisible();defer{window.isHidden=true}
         let cleared=NativeArcadeRoundPresentation(resourceRoot:NativeTestResources.root,clearedRound:1,nextRound:2,boardClearedOnly:true)
         cleared.frame=window.bounds;host.view.addSubview(cleared)
-        var ready=false,finished=0;cleared.permitsBoardClearedExit={ready};cleared.onFinished={if $0{finished+=1}}
+        var ready=false,finished=0;cleared.permitsBoardClearedExit={ready};cleared.onFinished={[weak cleared] in if $0{XCTAssertNil(cleared?.superview,"Successor admission follows removal of the entire thumb overlay");finished+=1}}
         cleared.start();cleared.advanceFrame(timestamp:100);cleared.advanceFrame(timestamp:110)
         XCTAssertEqual(finished,0);XCTAssertNotNil(cleared.superview)
         XCTAssertLessThan(cleared.elapsed,cleared.duration-0.29)
-        ready=true;cleared.advanceFrame(timestamp:110.31)
+        ready=true;cleared.advanceFrame(timestamp:110.26)
+        XCTAssertNotNil(cleared.superview);XCTAssertEqual(finished,0)
+        cleared.advanceFrame(timestamp:110.271)
+        XCTAssertNotNil(cleared.superview);XCTAssertEqual(finished,0)
+        cleared.advanceFrame(timestamp:110.301)
         XCTAssertEqual(finished,1);XCTAssertNil(cleared.superview)
         cleared.advanceFrame(timestamp:120);XCTAssertEqual(finished,1)
     }

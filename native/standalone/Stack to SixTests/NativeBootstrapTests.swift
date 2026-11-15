@@ -308,7 +308,7 @@ final class NativeBootstrapTests:XCTestCase {
         owner.present();owner.present()
         try await waitUntil {game.visibleJourneyRewardController != nil}
         let card=try XCTUnwrap(game.visibleJourneyRewardController)
-        XCTAssertEqual(card.phase,"opening","The first admitted reward frame starts the prepared SVG immediately")
+        XCTAssertTrue(["entering","opening"].contains(card.phase),"Mounted reward admits title then SVG; an asynchronous observation may see either finite entry phase")
         XCTAssertEqual(commits,1);XCTAssertTrue(card.parent === game);XCTAssertTrue(card.view.window === window)
         XCTAssertEqual(card.view.frame,game.view.bounds);XCTAssertNil(game.presentedViewController)
         XCTAssertTrue(card.view.isOpaque);XCTAssertEqual(card.view.backgroundColor?.cgColor.alpha,1)

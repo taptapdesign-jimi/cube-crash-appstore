@@ -24,7 +24,7 @@ final class NativeCreatorStoryModal:UIViewController {
     ]
     var onCloseRequested:(()->Void)?
     var onClosed:(()->Void)?
-    let card=UIView(),flip=JimiNativeModalTransformView(),tilt=UIView(),idle=UIView()
+    let card=UIView(),contentFit=UIView(),flip=JimiNativeModalTransformView(),tilt=UIView(),idle=UIView()
     let paper=NativeModalPaperView(),heading=UILabel(),copy=UILabel()
     let copyViewport=UIScrollView()
     let fact=UIView(),factLabel=UILabel(),factDivider=UIView()
@@ -65,7 +65,7 @@ final class NativeCreatorStoryModal:UIViewController {
         storyArtwork.image=assets.image(NativeCreatorStoryArtwork.storyPath,densityAware:true,minimumDensity:3)
         storyArtwork.contentMode = .scaleAspectFit;storyArtwork.isAccessibilityElement=false
         card.accessibilityIdentifier="native.settings.story.paper";card.alpha=0
-        card.addSubview(tilt);tilt.addSubview(flip);flip.addSubview(idle);idle.addSubview(paper);idle.addSubview(artworkEntry)
+        card.addSubview(contentFit);contentFit.addSubview(tilt);tilt.addSubview(flip);flip.addSubview(idle);idle.addSubview(paper);idle.addSubview(artworkEntry)
         card.layer.anchorPoint=CGPoint(x:0.5,y:0.55)
         flip.layer.anchorPoint=CGPoint(x:0.5,y:0.46)
         idle.layer.anchorPoint=CGPoint(x:0.5,y:0.52)
@@ -87,6 +87,7 @@ final class NativeCreatorStoryModal:UIViewController {
         // clipping of Baloo descenders at the authored 23.4pt line spacing.
         copy.backgroundColor = .clear;copy.numberOfLines=0
         copy.accessibilityIdentifier="native.settings.story.copy"
+        copyViewport.isScrollEnabled=false
         copyViewport.showsVerticalScrollIndicator=false
         copyViewport.contentInsetAdjustmentBehavior = .never
         copyViewport.accessibilityIdentifier="native.settings.story.copy.viewport"
@@ -140,7 +141,7 @@ final class NativeCreatorStoryModal:UIViewController {
         heading.font=assets.font(size:NativeTabletLayout.modalTitleSize(view.bounds.size,phone:32),weight:"ExtraBold")
         let titleHeight=ceil(heading.font.lineHeight)
         // The final line's Baloo ink descends below its fixed line box.
-        // Reserve real glyph descent in both foreground label and scroll extent.
+        // Reserve real glyph descent below the complete foreground label.
         let descenderRoom=ceil(abs(assets.font(size:bodySize,weight:"Medium").descender))
         let wanted=ceil(copy.sizeThatFits(CGSize(width:textWidth,height:.greatestFiniteMagnitude)).height)+descenderRoom
         let available=max(0,bounds.height-2*max(safe.top,safe.bottom)-48)
@@ -149,25 +150,31 @@ final class NativeCreatorStoryModal:UIViewController {
         let factCopyHeight=ceil(factLabel.sizeThatFits(CGSize(width:factTextWidth,height:.greatestFiniteMagnitude)).height)
         let factHeight=max(starSide,factCopyHeight)+28
         let factBottomInset:CGFloat=40
-        // Keep a useful scroll viewport on short phones, scaling art uniformly.
-        let artworkHeight=min(width*0.86*257/385,max(72,available-(32+titleHeight+18+94+24+factHeight+factBottomInset)+18))
+        // Fit the complete copy first. Shrink artwork before fitting the whole
+        // composition on compact screens; the text never becomes a scroll region.
+        let titleCopyGap:CGFloat=4
+        let artworkHeight=min(width*0.86*257/385,max(72,available-(32+titleHeight+titleCopyGap+wanted+24+factHeight+factBottomInset)+18))
         let artworkWidth=artworkHeight*385/257
         let paperTop=artworkHeight-18
         let titleTop=paperTop+32
-        let copyTop=titleTop+titleHeight+18
-        let height=min(available,copyTop+wanted+24+factHeight+factBottomInset)
+        let copyTop=titleTop+titleHeight+titleCopyGap
+        let height=copyTop+wanted+24+factHeight+factBottomInset
+        let fit=min(1,available/max(1,height))
         let factTop=height-factBottomInset-factHeight
-        card.bounds=CGRect(x:0,y:0,width:width,height:height)
-        card.center=CGPoint(x:bounds.midX,y:bounds.midY+height*0.05)
-        tilt.bounds=card.bounds;tilt.center=CGPoint(x:width/2,y:height/2)
-        flip.bounds=card.bounds;flip.center=CGPoint(x:width/2,y:height*0.46)
-        idle.bounds=card.bounds;idle.center=CGPoint(x:width/2,y:height*0.52)
+        card.bounds=CGRect(x:0,y:0,width:width*fit,height:height*fit)
+        card.center=CGPoint(x:bounds.midX,y:bounds.midY+height*fit*0.05)
+        contentFit.bounds=CGRect(x:0,y:0,width:width,height:height)
+        contentFit.center=CGPoint(x:card.bounds.midX,y:card.bounds.midY)
+        contentFit.transform=CGAffineTransform(scaleX:fit,y:fit)
+        tilt.bounds=contentFit.bounds;tilt.center=CGPoint(x:width/2,y:height/2)
+        flip.bounds=contentFit.bounds;flip.center=CGPoint(x:width/2,y:height*0.46)
+        idle.bounds=contentFit.bounds;idle.center=CGPoint(x:width/2,y:height*0.52)
         JimiNativeModalV10.paperLayout(paper,bounds:CGRect(x:0,y:paperTop,width:width,height:height-paperTop))
         heading.frame=CGRect(x:inset,y:titleTop,width:max(0,width-inset*2),height:titleHeight)
         copyViewport.frame=CGRect(x:copyInset,y:copyTop,width:textWidth,height:max(0,factTop-4-copyTop))
         copy.frame=CGRect(x:0,y:0,width:textWidth,height:wanted)
         copyViewport.contentSize=copy.bounds.size
-        copyViewport.isScrollEnabled=wanted>copyViewport.bounds.height+0.5
+        copyViewport.contentOffset = .zero
         artworkEntry.bounds=CGRect(x:0,y:0,width:artworkWidth,height:artworkHeight)
         // The source torso cutoff is at224/257; transparent lower padding
         // caused the seam above paper. Move only art8pt down. Both edges
@@ -195,7 +202,7 @@ final class NativeCreatorStoryModal:UIViewController {
         // Resolve the complete paper silhouette before the shared Close track
         // animates its shadow path. Never interpolate from an empty shadow plane.
         CATransaction.begin();CATransaction.setDisableActions(true)
-        paperShadow.frame=card.bounds
+        paperShadow.frame=idle.bounds
         paperShadow.contentsScale=view.window?.screen.scale ?? view.traitCollection.displayScale
         let silhouette=CGMutablePath()
         silhouette.addPath(UIBezierPath(roundedRect:paper.bodyFrame,cornerRadius:paper.layer.cornerRadius).cgPath)

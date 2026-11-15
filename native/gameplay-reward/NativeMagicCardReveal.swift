@@ -11,6 +11,9 @@ nonisolated enum NativeMagicCardSource {
     static let fullyOpenAt=0.3107143*duration
     static let hold=0.725*duration
     static let end=duration
+    // Last authored exit smoke opacity reaches zero here. Remaining SVG time
+    // is transparent hold; successor admission follows visible motion instead.
+    static let visibleExitEnd=0.8125*duration
     static let brightnessLift=0.145
     final class Node:@unchecked Sendable {
         let tag:String,attributes:[String:String]
