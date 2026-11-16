@@ -599,6 +599,11 @@ final class NativeBoardScene: SKScene {
     private var sourceWildPrimaryFaceActionIDs:Set<String>=[]
     private var sourceWildHardPrimaryFaceActionIDs:Set<String>=[]
     private var sourceWildPublishedBounceActionIDs:Set<String>=[]
+    private struct SourceWildManualFaceAction {
+        weak var node:NativeDiceNode?
+        let generation:UInt64
+    }
+    private var sourceWildManualFaceActions:[String:SourceWildManualFaceAction]=[:]
     private var sourceWildBonusPops:[String:NativeSourceLockedBonusPopOwner]=[:]
     var sourceWildBonusPopCount:Int{sourceWildBonusPops.count}
     func sourceOwnsNewFaceEntry(_ id:String)->Bool {
@@ -3634,15 +3639,17 @@ final class NativeBoardScene: SKScene {
                     self.engine.state.generation==generation && self.nodesByID[tile.id] === node &&
                     node.parent === self.canvasRoot && node.sourceGeneration==generation && node.sourceContactNodeAlive
             }
-            node.prepareSourceFreshFaceEntry()
-            let pendingEntry=node.sourcePendingFreshFaceEntryID
+            if action.publishesBounce {node.prepareSourceFreshFaceEntry()}
+            let pendingEntry=action.publishesBounce ? node.sourcePendingFreshFaceEntryID:nil
             var facePrepared=false
             defer {if !facePrepared,let pendingEntry {node.retireSourcePendingFreshFaceEntry(expected:pendingEntry)}}
             guard node.openSourceAppSpawnHolder(tile.value,service:scope.service,random:{scope.mathRandom.next()},
                 current:current,frameCurrent:current,beforeSetValue:{current() && self.engine.state==captured},
                 onCancelled:{[weak self] in if current(){self?.onSourcePresentationFailure?("source_wild_hard_face_cancelled",generation)}}),
                 current(),engine.state==captured else{return false}
-            sourceWildHardPrimaryFaceActionIDs.insert(action.id);facePrepared=true;return true
+            if action.publishesBounce {sourceWildHardPrimaryFaceActionIDs.insert(action.id)}
+            else {sourceWildManualFaceActions[action.id] = .init(node:node,generation:generation)}
+            facePrepared=true;return true
         }
         guard sourceAnimationBindingAdmissionOpen,scope.current,sourceDirectScope === scope,
               sourceSixScope === scope,action.kind == .primary,action.cell==tile.cell,
@@ -3690,19 +3697,20 @@ final class NativeBoardScene: SKScene {
             guard current(),engine.state==captured,sourceWildConstructorEpoch==epoch,let frame else{frame?.cancel();return false}
             sourceWildConstructorBatch=frame
         }
-        node.prepareSourceFreshFaceEntry()
-        let pendingEntry=node.sourcePendingFreshFaceEntryID
+        if action.publishesBounce {node.prepareSourceFreshFaceEntry()}
+        let pendingEntry=action.publishesBounce ? node.sourcePendingFreshFaceEntryID:nil
         var facePrepared=false
         defer {if !facePrepared,let pendingEntry {node.retireSourcePendingFreshFaceEntry(expected:pendingEntry)}}
         guard current(),node.openSourceAppSpawnHolder(tile.value,service:scope.service,random:{scope.mathRandom.next()},
             current:current,frameCurrent:current,beforeSetValue:{current() && self.engine.state==captured},
             onCancelled:{[weak self] in if current(){self?.onSourcePresentationFailure?("source_wild_primary_face_cancelled",generation)}}),
             current(),engine.state==captured else{return false}
-        sourceWildPrimaryFaceActionIDs.insert(action.id)
+        if action.publishesBounce {sourceWildPrimaryFaceActionIDs.insert(action.id)}
+        else {sourceWildManualFaceActions[action.id] = .init(node:node,generation:generation)}
         facePrepared=true
         return current() && engine.state==captured
     }
-    private func commitSourceWildLockedFace(_ action:NativeWildSpawnAction,tile:NativeTile,
+    func commitSourceWildLockedFace(_ action:NativeWildSpawnAction,tile:NativeTile,
         scope:NativeGameplaySourceContext.Scope)->Bool {
         let generation=action.generation,id=tile.id,captured=engine.state
         guard let node=nodesByID[id] else{return false}
@@ -3713,8 +3721,8 @@ final class NativeBoardScene: SKScene {
                 self.engine.state.generation==generation && self.nodesByID[id] === node && node.parent === self.canvasRoot &&
                 node.sourceContactNodeAlive && node.sourceGeneration==generation
         }
-        node.prepareSourceFreshFaceEntry()
-        let pendingEntry=node.sourcePendingFreshFaceEntryID
+        if action.publishesBounce {node.prepareSourceFreshFaceEntry()}
+        let pendingEntry=action.publishesBounce ? node.sourcePendingFreshFaceEntryID:nil
         var facePrepared=false
         defer {if !facePrepared,let pendingEntry {node.retireSourcePendingFreshFaceEntry(expected:pendingEntry)}}
         guard current(),action.kind == .locked,action.tileID==id,
@@ -3725,10 +3733,21 @@ final class NativeBoardScene: SKScene {
               current(),engine.state==captured else {
             onSourcePresentationFailure?("source_wild_locked_face_not_admitted",generation);return false
         }
-        // Selected Native entry pose is painted before direction Math.
+        // Only a caller that publishes a bounce owns a hidden fresh-entry pose.
+        // Emergency fallback opens its ordinary face directly, without direction Math.
         guard current(),engine.state==captured else{return false}
-        sourceWildLockedFaceActionIDs.insert(action.id)
+        if action.publishesBounce {sourceWildLockedFaceActionIDs.insert(action.id)}
+        else {sourceWildManualFaceActions[action.id] = .init(node:node,generation:generation)}
         facePrepared=true
+        return true
+    }
+    /// The synchronous APP manual fallback has no bounce presentation. Match
+    /// its exact face receipt before generic Native spawned FX can create one.
+    func consumeSourceWildManualFace(actionID:String?,node:NativeDiceNode)->Bool {
+        guard let actionID,let manual=sourceWildManualFaceActions[actionID],
+              manual.node === node,manual.generation==engine.state.generation,
+              node.sourceGeneration==manual.generation,nodesByID[node.tileID] === node else{return false}
+        sourceWildManualFaceActions.removeValue(forKey:actionID)
         return true
     }
     private func startSourceLateFinalVisual(_ receipt:NativeSourceLateFinalMergeReceipt)->Bool {
@@ -4320,6 +4339,7 @@ final class NativeBoardScene: SKScene {
         shared?.dispose();surfaces?.dispose()
         let releases=Array(sourceSixIdleReleases.values);sourceSixIdleReleases.removeAll();for release in releases{release()}
         sourceDirectWildDestinationPreparationEpoch &+= 1;sourceDirectWildDestinationTexture=nil
+        sourceWildManualFaceActions.removeAll()
         engine.sourceWildLockedFaceCommit=nil
         engine.sourceWildPrimaryFaceCommit=nil
         engine.sourceWildLockedBonusConstruct=nil
@@ -8631,6 +8651,7 @@ final class NativeBoardScene: SKScene {
                 if sourceMagnetSurvivorOwnsSpawn(event) || sourceMagnetFallbackCallers.values.contains(where:{$0.ownsSpawnEvent(event)}) || sourceMagnetNormalCallers.values.contains(where:{$0.ownsSpawnEvent(event)}) {continue}
                 for id in event.tileIDs {
                     guard let node=nodesByID[id] else {continue}
+                    if consumeSourceWildManualFace(actionID:event.reason,node:node) {continue}
                     if engine.pendingWildLockedBonusPresentations.contains(where:{$0.tileID==id && $0.generation==engine.state.generation}) && event.value==0 {continue}
                     if let presentation=engine.pendingWildSpawnPresentations.first(where:{$0.tileID==id && $0.generation==engine.state.generation}) {
                         startWildSpawnVisual(presentation,node:node,actionID:event.reason ?? presentation.tileID)
@@ -9871,6 +9892,7 @@ final class NativeBoardScene: SKScene {
         sourceWildPrimaryFaceActionIDs.removeAll()
         sourceWildHardPrimaryFaceActionIDs.removeAll()
         sourceWildPublishedBounceActionIDs.removeAll()
+        sourceWildManualFaceActions.removeAll()
         sourceWildCoroutineResumes.removeAll()
         sourceWildCoroutineFinallys.removeAll()
         sourceWildSpawnClaims.removeAll()

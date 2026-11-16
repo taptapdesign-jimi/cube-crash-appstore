@@ -3672,7 +3672,7 @@ extension NativeGameplayEngine {
     }
     private func wildAction(phase:NativeWildSpawnPhaseOwner.Command,kind:NativeWildSpawnAction.Kind,cell:NativeCell?,tileID:String?=nil,delay:Int)->NativeWildSpawnAction {
         wildActionSequence+=1
-        return NativeWildSpawnAction(id:"\(phase.id):action:\(wildActionSequence)",transactionID:directWildSpawnPhase!.id,generation:phase.generation,phaseID:phase.id,kind:kind,cell:cell,tileID:tileID,delayMilliseconds:delay,sourceLevelFlow:kind == .locked && [.baseLocked,.extraLocked,.remainderFallback,.emergencyLocked].contains(phase.kind))
+        return NativeWildSpawnAction(id:"\(phase.id):action:\(wildActionSequence)",transactionID:directWildSpawnPhase!.id,generation:phase.generation,phaseID:phase.id,kind:kind,cell:cell,tileID:tileID,delayMilliseconds:delay,sourceLevelFlow:kind == .locked && [.baseLocked,.extraLocked,.remainderFallback,.emergencyLocked].contains(phase.kind),publishesBounce:phase.kind != .emergencyFallback)
     }
     /// Owns the live selection boundary; the renderer never derives an opening from a stale snapshot.
     private func pumpWildSpawnPhases(events:inout [NativeGameplayEvent]) {
@@ -4012,7 +4012,7 @@ extension NativeGameplayEngine {
         }
         // The original successful spawnBounce draws its direction after authoritative face
         // assignment, before subsequent bonus/continuation selection. Renderer must reuse it.
-        for event in events where command.kind != .emergencyFallback && event.kind == .spawned && (event.value ?? 0)>0 {
+        for event in events where action.publishesBounce && event.kind == .spawned && (event.value ?? 0)>0 {
             for tileID in event.tileIDs {
                 let presentation=NativeWildSpawnPresentation(tileID:tileID,transactionID:plan.id,generation:generation,direction:nextRandom()<0.5 ? 1:-1,sourceLevelFlowReinforcement:[.baseLocked,.extraLocked,.remainderFallback,.emergencyLocked].contains(command.kind))
                 guard state.generation==generation,currentWildSpawnContext?.id==transactionID,directWildSpawnPhase === phase else{return rejected("stale_wild_bounce_direction")}

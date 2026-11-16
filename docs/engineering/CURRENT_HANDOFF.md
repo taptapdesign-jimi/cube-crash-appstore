@@ -1,3 +1,69 @@
+## 2026-11-16 · Hidden-entry fix Git publication / iPhone delivery
+
+User requests saving reviewed fix with descriptive Git history, then physical
+iPhone install. Publishing scoped Native runtime/tests/handoff only; unrelated
+unintegrated art/PDF outputs remain local. Existing v1.2 benchmark immutable.
+Current full/fast/KING/Core/mounted evidence is recorded immediately below;
+fresh qa:ios PASS and exact iPhone13blue connected. Signed Release build and
+save-preserving install-over pending; no delivery claimed yet.
+
+## 2026-11-16 · Ball final-merge retrospective investigation
+
+User reports Ball on stacked value5,claimed last merge6 spawned new dice instead
+of victory. Capture opened without restarting/reinstalling/patching phone;
+Native PID28163 independently verified unchanged. Both current save slots copied
+before any reproduction to /tmp/native-ball-final-live-20261116/before.
+KRENI time in markers.jsonl. User explicitly states cannot reproduce and asks
+retrospective inspection instead;this overrides reproduction/GOTOVO step.
+No reproduced-incident capture or physical-fix acceptance is claimed.
+Host devicectl console session98880 was read(headers only),then host relayPID24829
+stopped withSIGKILL only. Phone NativePID28163 independently confirmed stillrunning.
+Important:existing process stdout cannot be retroactively redirected,relay
+currently contains connection headers only. Also opened macOS Console,selected
+actual iPhone13blue,started live stream with process:Stack filter. No claim of
+full runtime stdout or prior-incident trace;available OS log capture only.
+Console paused with11,436later process:Stack OS messages(largely CoreAudio),
+not original incident trace;buffer retained in Console. No phone restart.
+Original phone snapshots at00:42:51/56 are bothpost-event board15gen3rev37,
+20tiles,16newrev37nodes(primary+6activebonus+9closed). Older regular1 id
+native:3:14:3:0:die:11 c3r0 remainsvisible/alpha1inmodel;user confirms it was
+NOTvisible on screen. Bothslots misspremerge history/consumedpair. Later read
+snapshotrev50/lostrun and older persisted thermal/rejection files cannot restore
+that history. Local forensic-summary.json records exactcounts/evidence limits.
+Three agents audit phoneevidence/Core/Scene. Added actualSourceprefix Ball-on5
+matrix:96mode/legacy/depth/direction/physical configs PASS,hiddenvsvisibleold1
+cases PASS. No rule change warranted to forcevictory.
+Proven separate invisible-entry bug found:emergencyFallback opens a lockedface
+through same freshface scale0 preparation,but deliberately publishes no bounce;
+its pending presentation token can survive indefinitely as an active blocker.
+Implemented explicit ephemeral action.publishesBounce captured by Core and
+consumed by Scene: emergencyFallback keeps its visible face, never prepares
+a scale0 pose for absent bounce. Ordinary entries retain existing ownership.
+Exact action/generation/weak original-node receipt prevents generic spawned FX
+from inventing a manual-opening bounce; once-consumed and teardown-cleared.
+Failed callbacks only retire the pending UUID created by that callback, never
+another pending owner. No RNG/rules/save-schema/asset changes.
+Core575/0 and focused emergency fallback rerun1/0 PASS; KING330,fast/full QA
+(530suites/4011tests) and iOS source identity/assets PASS. Mounted Native25/0 PASS: actual Scene emergency callback/manual receipt,
+normal pending/pickup/retirement/rejected reassignment, actual mounted primary
+bounce→arrival completion with active ordinary faces visible/fullscale, and
+existing freshface/repair/render/cancellation cohort. First compile found a
+test fixture using inaccessible setter, corrected to supported binding.
+Evidence: /tmp/native-ball-final-live-20261116/{core-all,qa-full,qa-fast,
+gameplay-lock,qa-ios,mounted-rerun}.log; mounted-rerun.xcresult.
+Normal Debug scheme BUILD SUCCEEDED at /tmp/story-fact-normal-derived;
+built app exact Native ID,no test PlugIns/Web.bundle. Install-over retained
+QA iPhone13 Simulator1018BE2D and normal launchPID37528 completed. Home
+visually observed,actual iOS Silent Mode On banner verified after launch.
+Both canonical saves SHA256 identical before→after install/launch. Evidence:
+preview-build.log,saves-before.json,save-check.json in incident artifact folder.
+Deterministic/source verdict PASS;original phone incident NEEDS PHYSICAL TEST.
+Phone stays on previously installed v1.2; this new fix is only on Simulator.
+Independent source review PASS,no high/medium findings. Exactcause ofoldid11
+not proven; ordinary primary successful face→bounce publication/cancellation
+audit found no demonstrated orphan. No physical-fix acceptance claimed.
+Phone app/save/settings remain untouched; no new physical installation.
+
 ## 2026-11-16 · Finished product v1.2 publication / phone delivery
 
 User approves current state and requests benchmark then iPhone installation.

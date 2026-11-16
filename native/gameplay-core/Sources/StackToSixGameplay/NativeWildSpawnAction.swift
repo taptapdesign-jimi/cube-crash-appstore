@@ -14,6 +14,16 @@ public struct NativeWildSpawnAction: Equatable, Sendable {
     /// Captured literal level-flow promise owner, before its wall callback.
     /// Force/manual locked branches never manufacture this marker.
     public let sourceLevelFlow:Bool
+    /// The manual emergency opening assigns its face without a spawnBounce.
+    /// Renderers must not hide that face while waiting for an absent publication.
+    public let publishesBounce:Bool
+    public init(id:String,transactionID:String,generation:UInt64,phaseID:String,kind:Kind,
+                cell:NativeCell?,tileID:String?,delayMilliseconds:Int,sourceLevelFlow:Bool,
+                publishesBounce:Bool=true) {
+        self.id=id;self.transactionID=transactionID;self.generation=generation;self.phaseID=phaseID
+        self.kind=kind;self.cell=cell;self.tileID=tileID;self.delayMilliseconds=delayMilliseconds
+        self.sourceLevelFlow=sourceLevelFlow;self.publishesBounce=publishesBounce
+    }
     public var awaitsBounce:Bool {kind == .primary}
 }
 public struct NativeWildSpawnArrival: Equatable, Sendable {

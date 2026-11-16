@@ -75,6 +75,35 @@ import StackToSixGameplay
   XCTAssertTrue(f.scene.sourceNativeTileNode("regular") === original || original.parent==nil)
   XCTAssertTrue(f.failures.isEmpty,f.failures.joined(separator:", "))
  }
+ func testActualNonFinalPrimaryFinishesPaintedAfterMountedBounceAndArrival()async throws {
+  let f=try Fixture(final:false,magnetNoPull:true);defer{f.dispose()};try await f.readyHUD(self)
+  let window=UIWindow(frame:f.view.bounds),host=UIViewController()
+  host.view=f.view;window.rootViewController=host;window.makeKeyAndVisible()
+  defer{window.isHidden=true;window.rootViewController=nil}
+  XCTAssertTrue(try f.contact().accepted)
+  let plan=try XCTUnwrap(f.scene.engine.pendingDirectWild)
+  f.deliver(104);f.deliver(105);f.deliver(109)
+  let primary=try XCTUnwrap(f.scene.engine.pendingWildSpawnArrivals.first)
+  // Keep the real mounted SpriteKit bounce and Source FIFO alive together.
+  // No manual arrival, face callback or animation completion is substituted.
+  for step in 1...180 {
+   f.deliver(109+Double(step)*20)
+   try await Task.sleep(nanoseconds:10_000_000)
+  }
+  XCTAssertFalse(f.scene.engine.pendingWildSpawnArrivals.contains{$0.id==primary.id})
+  XCTAssertTrue(f.scene.engine.hasReachedWildSourceResolutionBoundary(transactionID:plan.id,generation:plan.generation))
+  XCTAssertTrue(f.scene.engine.pendingWildSpawnActions.isEmpty)
+  for tile in f.scene.engine.state.tiles where tile.isActive && !tile.isWild && tile.value>0 {
+   let node=try XCTUnwrap(f.scene.sourceNativeTileNode(tile.id))
+   XCTAssertFalse(node.isHidden,tile.id);XCTAssertFalse(node.visual.isHidden,tile.id)
+   XCTAssertEqual(node.sourceAlpha,1,accuracy:0.001,tile.id)
+   XCTAssertEqual(node.sourceLocalScale.x,1,accuracy:0.001,tile.id)
+   XCTAssertEqual(node.sourceLocalScale.y,1,accuracy:0.001,tile.id)
+   XCTAssertNil(node.sourcePendingFreshFaceEntryID,tile.id)
+  }
+  XCTAssertNotNil(f.scene.sourceNativeTileNode(primary.tileID))
+  XCTAssertTrue(f.failures.isEmpty,f.failures.joined(separator:", "))
+ }
  func testActualDirectPairPrefixAndMainCommitUseSameObjectAndGenuineHUDJob()async throws {
   let f=try Fixture();defer{f.dispose()};try await f.readyHUD(self)
   let src=try XCTUnwrap(f.scene.sourceNativeTileNode("wild")),dst=try XCTUnwrap(f.scene.sourceNativeTileNode("regular")),before=f.scene.engine.state
@@ -154,6 +183,84 @@ import StackToSixGameplay
    XCTAssertTrue(f.failures.isEmpty,f.failures.joined(separator:", "))
    f.deliver(7500);XCTAssertEqual(terminals,1)
   }
+ }
+
+ // Exercise the Scene's actual locked-face callback on a mounted holder. The
+ // synchronous APP bridge does not pass through the legacy scheduled-action
+ // wrapper that happened to retire a pending entry after .spawned.
+ func testEmergencyFallbackLockedFaceIsPaintedWithoutAnUnpublishedBounce()async throws {
+  let f=try Fixture(final:false,magnetNoPull:true);defer{f.dispose()};try await f.readyHUD(self)
+  let node=try XCTUnwrap(f.scene.sourceNativeTileNode("locked"))
+  let holder=try XCTUnwrap(f.scene.engine.state.tiles.first{$0.id=="locked"})
+  var opened=holder;opened.value=1;opened.locked=false;opened.alpha=1
+  let action=NativeWildSpawnAction(id:"emergency-manual-open",transactionID:"wild-owner",generation:f.scene.engine.state.generation,
+   phaseID:"emergency-fallback",kind:.locked,cell:holder.cell,tileID:holder.id,delayMilliseconds:0,sourceLevelFlow:false,publishesBounce:false)
+  XCTAssertTrue(f.scene.commitSourceWildLockedFace(action,tile:opened,scope:f.scope))
+  XCTAssertNil(node.sourcePendingFreshFaceEntryID)
+  let replacement=NativeDiceNode(id:holder.id,value:1,kind:"regular",variant:nil,depth:1,locked:false,textures:NativeBoardTextures(root:NativeTestResources.root))
+  defer{replacement.dispose()}
+  replacement.installSourceOuterDriver(f.scope.timeline,generation:node.sourceGeneration,geometryScale:1)
+  XCTAssertFalse(f.scene.consumeSourceWildManualFace(actionID:action.id,node:replacement),"A different object with the same tile ID cannot consume the original object's receipt")
+  XCTAssertFalse(f.scene.consumeSourceWildManualFace(actionID:"other-action",node:node))
+  XCTAssertTrue(f.scene.consumeSourceWildManualFace(actionID:action.id,node:node),"The actual .spawned branch must skip generic bounce FX for this exact manual assignment")
+  XCTAssertFalse(f.scene.consumeSourceWildManualFace(actionID:action.id,node:node),"Receipt is consumed once")
+  XCTAssertFalse(f.scene.sourceOwnsNewFaceEntry(holder.id),"A manual opening must not claim a bounce that will never be published")
+  XCTAssertEqual(node.sourceLocalScale.x,1,accuracy:0.001);XCTAssertEqual(node.sourceLocalScale.y,1,accuracy:0.001)
+  f.deliver(32)
+  XCTAssertEqual(node.sourceValue,1);XCTAssertEqual(node.sourcePipNodes.count,1)
+  XCTAssertFalse(node.isHidden);XCTAssertFalse(node.visual.isHidden)
+  XCTAssertEqual(node.sourceAlpha,1,accuracy:0.001)
+  XCTAssertEqual(node.sourceLocalScale.x,1,accuracy:0.001)
+  XCTAssertTrue(f.failures.isEmpty,f.failures.joined(separator:", "))
+ }
+ func testNormalLockedFaceKeepsFreshEntryUntilItsActualOwnerOrPickup()async throws {
+  let f=try Fixture(final:false,magnetNoPull:true);defer{f.dispose()};try await f.readyHUD(self)
+  let node=try XCTUnwrap(f.scene.sourceNativeTileNode("locked"))
+  let holder=try XCTUnwrap(f.scene.engine.state.tiles.first{$0.id=="locked"})
+  var opened=holder;opened.value=1;opened.locked=false;opened.alpha=1
+  let action=NativeWildSpawnAction(id:"normal-locked-open",transactionID:"wild-owner",generation:f.scene.engine.state.generation,
+   phaseID:"locked-batch",kind:.locked,cell:holder.cell,tileID:holder.id,delayMilliseconds:0,sourceLevelFlow:false)
+  XCTAssertTrue(f.scene.commitSourceWildLockedFace(action,tile:opened,scope:f.scope))
+  XCTAssertNotNil(node.sourcePendingFreshFaceEntryID);XCTAssertTrue(f.scene.sourceOwnsNewFaceEntry(holder.id))
+  XCTAssertEqual(node.sourceLocalScale.x,0,accuracy:0.001)
+  f.deliver(32)
+  XCTAssertEqual(node.sourcePipNodes.count,1);XCTAssertNotNil(node.sourcePendingFreshFaceEntryID)
+  XCTAssertEqual(node.sourceLocalScale.x,0,accuracy:0.001,"The separate face RAF must not reveal a genuine pending bounce")
+  _=node.beginSourcePickup()
+  XCTAssertNil(node.sourcePendingFreshFaceEntryID);XCTAssertFalse(node.sourceAppSpawnOwnsOuterScale)
+  XCTAssertEqual(node.sourceLocalScale.x,1,accuracy:0.001)
+ }
+ func testScopeRetirementSettlesARealPendingLockedFaceAndRejectsLateFaceFrame()async throws {
+  let f=try Fixture(final:false,magnetNoPull:true);defer{f.dispose()};try await f.readyHUD(self)
+  let node=try XCTUnwrap(f.scene.sourceNativeTileNode("locked"))
+  let holder=try XCTUnwrap(f.scene.engine.state.tiles.first{$0.id=="locked"})
+  var opened=holder;opened.value=1;opened.locked=false
+  let action=NativeWildSpawnAction(id:"retired-locked-open",transactionID:"wild-owner",generation:f.scene.engine.state.generation,
+   phaseID:"locked-batch",kind:.locked,cell:holder.cell,tileID:holder.id,delayMilliseconds:0,sourceLevelFlow:false)
+  XCTAssertTrue(f.scene.commitSourceWildLockedFace(action,tile:opened,scope:f.scope))
+  XCTAssertNotNil(node.sourcePendingFreshFaceEntryID)
+  f.scene.retireSourceAnimationBindings()
+  XCTAssertNil(node.sourcePendingFreshFaceEntryID);XCTAssertFalse(node.sourceAppSpawnOwnsOuterScale)
+  XCTAssertEqual(node.sourceLocalScale.x,1,accuracy:0.001)
+  f.deliver(600)
+  XCTAssertNil(node.sourcePendingFreshFaceEntryID);XCTAssertEqual(node.sourceLocalScale.x,1,accuracy:0.001)
+ }
+
+ func testRejectedManualFaceCannotRetireAnotherPendingEntry()async throws {
+  let f=try Fixture(final:false,magnetNoPull:true);defer{f.dispose()};try await f.readyHUD(self)
+  let node=try XCTUnwrap(f.scene.sourceNativeTileNode("locked"))
+  let holder=try XCTUnwrap(f.scene.engine.state.tiles.first{$0.id=="locked"})
+  var opened=holder;opened.value=1;opened.locked=false
+  let action=NativeWildSpawnAction(id:"pending-normal",transactionID:"wild-owner",generation:f.scene.engine.state.generation,
+   phaseID:"locked-batch",kind:.locked,cell:holder.cell,tileID:holder.id,delayMilliseconds:0,sourceLevelFlow:false)
+  XCTAssertTrue(f.scene.commitSourceWildLockedFace(action,tile:opened,scope:f.scope))
+  let pending=try XCTUnwrap(node.sourcePendingFreshFaceEntryID)
+  let rejected=NativeWildSpawnAction(id:"rejected-manual",transactionID:"wild-owner",generation:f.scene.engine.state.generation,
+   phaseID:"emergency-fallback",kind:.locked,cell:holder.cell,tileID:holder.id,delayMilliseconds:0,sourceLevelFlow:false,publishesBounce:false)
+  XCTAssertFalse(f.scene.commitSourceWildLockedFace(rejected,tile:opened,scope:f.scope),"Already opened holder refuses a second assignment")
+  XCTAssertEqual(node.sourcePendingFreshFaceEntryID,pending)
+  XCTAssertEqual(node.sourceLocalScale.x,0,accuracy:0.001)
+  XCTAssertFalse(f.scene.consumeSourceWildManualFace(actionID:rejected.id,node:node))
  }
 
 }
