@@ -3,9 +3,26 @@
 User requests saving reviewed fix with descriptive Git history, then physical
 iPhone install. Publishing scoped Native runtime/tests/handoff only; unrelated
 unintegrated art/PDF outputs remain local. Existing v1.2 benchmark immutable.
-Current full/fast/KING/Core/mounted evidence is recorded immediately below;
-fresh qa:ios PASS and exact iPhone13blue connected. Signed Release build and
-save-preserving install-over pending; no delivery claimed yet.
+Code/tests/handoff committed3cc6d63819978e15abfaf1cfd77ea5cc16c78aa4 and
+pushed to origin/main,remote hash independently verified. Commit describes
+manual emergency face visibility,exact presentation ownership and regressions;
+no new benchmark tag requested. Current full/fast/KING/Core/mounted evidence
+is recorded immediately below; fresh qa:ios PASS.
+Signed normal Release BUILD SUCCEEDED at /tmp/native-phone-20261113-derived.
+Exact Native bundle,no test PlugIns/Web.bundle; deep/strict codesign and
+compiled asset/dependency audit PASS. All1073 tracked Native input hashes
+identical through build/install/launch.
+Install-over on exact iPhone13blue0F62B71E-0B04-53C3-906E-EC28F5D2390B
+completed. Installed containerA45BC76E-0EDF-46F1-9991-6F80E57A457A; normal
+foreground launchPID28371,args[],running executable independently matched.
+Both canonical state-v1.json/state-v1.previous.json byte/JSON-identical
+preinstall→postinstall→postlaunch. Backups retained; no preference/reset/asset
+changes. Delivery PASS; original-incident physical gameplay acceptance remains
+NEEDS PHYSICAL TEST.
+Evidence /tmp/native-ball-fix-delivery-20261116/: receipt.json,build.log,
+signature.log,release-audit.log,install.json,launch.json,processes-after.json,
+postinstall-save-check.json,postlaunch-save-check.json and all save snapshots.
+A following documentation-only commit records delivery; runtime remains3cc6d638.
 
 ## 2026-11-16 · Ball final-merge retrospective investigation
 
